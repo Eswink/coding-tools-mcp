@@ -175,3 +175,10 @@ export function frpConfigPreview(server: string, serverPort: number, subdomain: 
   }
   return lines.join("\n");
 }
+
+/** Decode an advertised endpoint without treating paths or credentials as an origin. */
+export function originFromEndpoint(endpoint: string, suffix: "/mcp" | "/openapi.json"): string {
+  if (!endpoint.endsWith(suffix)) return "";
+  try { return normalizePublicOrigin(endpoint.slice(0, -suffix.length)); }
+  catch { return ""; }
+}
