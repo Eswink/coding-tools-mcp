@@ -8,6 +8,11 @@ use crate::workspace::WorkspaceProfile;
 /// Unified on-disk payload stored in `data/profiles.json`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AppData {
+    /// Version 0 is the unversioned legacy file. Future versions fail closed.
+    #[serde(default)]
+    pub schema_version: u32,
+    #[serde(default, flatten)]
+    pub extensions: HashMap<String, serde_json::Value>,
     #[serde(default)]
     pub frp_profiles: Vec<FrpProfile>,
     #[serde(default)]
