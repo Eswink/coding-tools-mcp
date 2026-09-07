@@ -13,6 +13,7 @@
     frp_profile_id: string;
     frp_server_port: number;
     cloudflare_mode: string;
+    cloudflare_http2: boolean;
     use_proxy: boolean;
   }
 
@@ -38,6 +39,7 @@
     frp_profile_id: "",
     frp_server_port: 7000,
     cloudflare_mode: "quick",
+    cloudflare_http2: true,
     use_proxy: true,
   });
   let saving = $state(false);
@@ -71,6 +73,7 @@
       draft.frp_profile_id !== config.frp_profile_id ||
       draft.frp_server_port !== config.frp_server_port ||
       draft.cloudflare_mode !== config.cloudflare_mode ||
+      draft.cloudflare_http2 !== config.cloudflare_http2 ||
       draft.use_proxy !== config.use_proxy ||
       tokenPending,
   );
@@ -85,6 +88,7 @@
     draft = {
       ...config,
       frp_profile_id: config.frp_profile_id ?? "",
+      cloudflare_http2: config.cloudflare_http2 ?? true,
       use_proxy: config.use_proxy ?? true,
     };
   });
@@ -302,6 +306,20 @@
         secretKey={secretKey}
       />
     {/if}
+
+    <label class="flex items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5">
+      <input
+        type="checkbox"
+        class="mt-0.5 h-4 w-4"
+        bind:checked={draft.cloudflare_http2}
+      />
+      <span class="grid gap-0.5">
+        <span class="text-xs font-medium text-[var(--color-text-secondary)]">使用 HTTP/2 协议</span>
+        <span class="text-[11px] text-[var(--color-text-muted)]">
+          启用后 cloudflared 使用 HTTP/2 而非默认 QUIC，可缓解国内网络 1033 / 502 错误；关闭则使用默认 QUIC。
+        </span>
+      </span>
+    </label>
   {/if}
 
   <label class="grid gap-1">

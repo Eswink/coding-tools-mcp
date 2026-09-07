@@ -11,6 +11,7 @@ export interface TunnelConfig {
   frp_profile_id?: string;
   frp_server_port?: number;
   cloudflare_mode: string;
+  cloudflare_http2?: boolean;
   use_proxy?: boolean;
 }
 
@@ -39,6 +40,7 @@ export interface ActionsConfig {
   frp_server_port?: number;
   cloudflare_mode: string;
   cloudflare_token?: string;
+  cloudflare_http2?: boolean;
   use_proxy?: boolean;
   local_port: number;
   permission_mode: string;
@@ -77,6 +79,7 @@ export function actionsConfig(profile: WorkspaceProfile): ActionsConfig {
     frp_server: "",
     frp_subdomain: "",
     cloudflare_mode: "quick",
+    cloudflare_http2: true,
     local_port: DEFAULT_ACTIONS_PORT,
     permission_mode: "trusted",
     auth_type: "api_key",

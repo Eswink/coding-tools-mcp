@@ -1,7 +1,7 @@
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::LazyLock;
 
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
@@ -12,13 +12,18 @@ use crate::platform::platform;
 use crate::settings::AppSettings;
 use crate::workspace::WorkspaceProfile;
 
+use super::frp;
 use super::{TunnelServiceKind, TunnelSupervisor};
 
 static TUNNEL_SUPERVISOR: LazyLock<Mutex<TunnelSupervisor>> =
     LazyLock::new(|| Mutex::new(TunnelSupervisor::new()));
 static FRP_HEALTH_LOOP_STARTED: AtomicBool = AtomicBool::new(false);
+/// True only after a sustained offline window; avoids thrashing on probe flaps.
+static HOST_NETWORK_MARKED_OFFLINE: AtomicBool = AtomicBool::new(false);
+static HOST_NETWORK_OFFLINE_STREAK: AtomicU32 = AtomicU32::new(0);
 
-const FRP_HEALTH_INTERVAL: Duration = Duration::from_secs(20);
+const FRP_HEALTH_INTERVAL: Duration = Duration::from_secs(15);
+const HOST_OFFLINE_STREAK_TO_MARK: u32 = 2;
 
 pub fn supervisor() -> &'static Mutex<TunnelSupervisor> {
     &TUNNEL_SUPERVISOR
@@ -33,10 +38,31 @@ pub fn ensure_frp_health_loop() {
         loop {
             sleep(FRP_HEALTH_INTERVAL).await;
             let settings = AppSettings::load_or_default();
+            let online = frp::probe_host_network_available().await;
+            let recovered = update_host_network_state(online);
             let mut guard = supervisor().lock().await;
+            if recovered {
+                let _ = guard
+                    .restart_frpc_after_network_recovery(&settings)
+                    .await;
+            }
             let _ = guard.heal_unhealthy_frpc(&settings).await;
         }
     });
+}
+
+fn update_host_network_state(online: bool) -> bool {
+    if online {
+        HOST_NETWORK_OFFLINE_STREAK.store(0, Ordering::SeqCst);
+        // Recovery only fires after we previously marked a sustained outage.
+        HOST_NETWORK_MARKED_OFFLINE.swap(false, Ordering::SeqCst)
+    } else {
+        let streak = HOST_NETWORK_OFFLINE_STREAK.fetch_add(1, Ordering::SeqCst) + 1;
+        if streak >= HOST_OFFLINE_STREAK_TO_MARK {
+            HOST_NETWORK_MARKED_OFFLINE.store(true, Ordering::SeqCst);
+        }
+        false
+    }
 }
 
 fn tunnel_type_for(profile: &WorkspaceProfile, kind: TunnelServiceKind) -> &str {
@@ -102,4 +128,42 @@ pub async fn cleanup_orphan_for_runtime(
         return Ok(());
     }
     guard.cleanup_orphan(profile, kind, false).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        update_host_network_state, HOST_NETWORK_MARKED_OFFLINE, HOST_NETWORK_OFFLINE_STREAK,
+        HOST_OFFLINE_STREAK_TO_MARK,
+    };
+    use std::sync::atomic::Ordering;
+
+    fn reset_network_state() {
+        HOST_NETWORK_MARKED_OFFLINE.store(false, Ordering::SeqCst);
+        HOST_NETWORK_OFFLINE_STREAK.store(0, Ordering::SeqCst);
+    }
+
+    #[test]
+    fn network_recovery_requires_sustained_offline() {
+        reset_network_state();
+        assert!(!update_host_network_state(false));
+        assert!(!HOST_NETWORK_MARKED_OFFLINE.load(Ordering::SeqCst));
+        for _ in 1..HOST_OFFLINE_STREAK_TO_MARK {
+            assert!(!update_host_network_state(false));
+        }
+        assert!(HOST_NETWORK_MARKED_OFFLINE.load(Ordering::SeqCst));
+        assert!(update_host_network_state(true));
+        assert!(!HOST_NETWORK_MARKED_OFFLINE.load(Ordering::SeqCst));
+        // Online flaps without a sustained outage must not restart.
+        assert!(!update_host_network_state(true));
+    }
+
+    #[test]
+    fn single_offline_probe_does_not_mark_outage() {
+        reset_network_state();
+        assert!(!update_host_network_state(false));
+        assert!(!HOST_NETWORK_MARKED_OFFLINE.load(Ordering::SeqCst));
+        // Brief flap back online must not count as recovery.
+        assert!(!update_host_network_state(true));
+    }
 }

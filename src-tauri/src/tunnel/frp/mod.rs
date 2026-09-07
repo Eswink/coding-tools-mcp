@@ -10,8 +10,9 @@ use super::TunnelServiceKind;
 
 pub(crate) use client::{
     acquire_frpc_operation_lock, clear_managed_frpc_pid, frpc_log_name, frpc_reconnect_loop_detected,
-    managed_frpc_config_matches, probe_local_mcp_ok, probe_public_mcp_endpoint,
-    read_frpc_log_tail, stop_recorded_frpc_instance, PublicMcpProbe,
+    managed_frpc_config_matches, probe_host_network_available, probe_local_actions_ok,
+    probe_local_mcp_ok, probe_public_mcp_endpoint, read_frpc_log_tail,
+    stop_recorded_frpc_instance, PublicMcpProbe,
 };
 pub(crate) use client::{cached_frpc_path, download_frpc_to_cache};
 pub use client::{resolve_frpc, spawn_frpc};
@@ -175,6 +176,7 @@ pub fn build_frpc_toml(config: &FrpServerConfig) -> String {
         lines.push(format!("auth.token = \"{}\"", token.trim()));
         lines.push(String::new());
     }
+    append_frpc_transport_settings(&mut lines);
     lines.push(build_proxy_snippet(&config.proxy));
     lines.join("\n")
 }
@@ -199,6 +201,7 @@ pub(crate) fn build_frpc_toml_for_routes(configs: &[FrpServerConfig]) -> String 
         lines.push(format!("auth.token = \"{}\"", token.trim()));
         lines.push(String::new());
     }
+    append_frpc_transport_settings(&mut lines);
 
     let mut used_names = HashSet::new();
     for config in configs {
@@ -244,6 +247,14 @@ fn frp_proxy_config(profile: &WorkspaceProfile, kind: TunnelServiceKind) -> FrpP
             subdomain: profile.actions.frp_subdomain.clone(),
         },
     }
+}
+
+fn append_frpc_transport_settings(lines: &mut Vec<String>) {
+    // Keep retrying through overnight router outages instead of exiting once.
+    lines.push("loginFailExit = false".to_string());
+    lines.push("transport.heartbeatInterval = 30".to_string());
+    lines.push("transport.heartbeatTimeout = 90".to_string());
+    lines.push(String::new());
 }
 
 fn build_proxy_snippet(proxy: &FrpProxyConfig) -> String {
@@ -325,6 +336,9 @@ mod tests {
         let toml = build_frpc_toml(&config);
         assert!(toml.contains("serverAddr = \"frp.example.com\""));
         assert!(toml.contains("auth.token = \"secret\""));
+        assert!(toml.contains("loginFailExit = false"));
+        assert!(toml.contains("transport.heartbeatInterval = 30"));
+        assert!(toml.contains("transport.heartbeatTimeout = 90"));
     }
 
     #[test]

@@ -58,7 +58,13 @@ struct FrpcProcess {
 #[derive(Default)]
 struct FrpcHealthState {
     unhealthy_streak: u32,
+    public_probe_failures: u32,
     last_restart_at: Option<Instant>,
+}
+
+enum FrpcHealthVerdict {
+    Healthy,
+    Unhealthy { reason: String },
 }
 
 pub struct TunnelSupervisor {
@@ -74,8 +80,9 @@ impl Default for TunnelSupervisor {
     }
 }
 
-const FRPC_HEALTH_STREAK_TO_RESTART: u32 = 2;
-const FRPC_HEALTH_RESTART_COOLDOWN: Duration = Duration::from_secs(90);
+const FRPC_HEALTH_STREAK_TO_RESTART: u32 = 1;
+const FRPC_HEALTH_RESTART_COOLDOWN: Duration = Duration::from_secs(60);
+const PUBLIC_PROBE_FAILURE_THRESHOLD: u32 = 3;
 
 #[allow(dead_code)]
 impl TunnelSupervisor {
@@ -90,10 +97,15 @@ impl TunnelSupervisor {
 
     /// Probe active FRP workspaces; restart frpc when process is alive but proxy is dead.
     pub async fn heal_unhealthy_frpc(&mut self, settings: &AppSettings) -> usize {
-        let workspace_ids: Vec<String> = self.frpc.keys().cloned().collect();
+        let mut workspace_ids: HashSet<String> = self.frpc.keys().cloned().collect();
+        workspace_ids.extend(self.frp_routes.keys().map(|(workspace_id, _)| workspace_id.clone()));
         let mut restarted = 0usize;
+        let host_online = frp::probe_host_network_available().await;
         for workspace_id in workspace_ids {
-            let Some(reason) = self.diagnose_frpc_unhealthy(&workspace_id, settings).await else {
+            let verdict = self
+                .evaluate_frpc_health(&workspace_id, settings, host_online)
+                .await;
+            let FrpcHealthVerdict::Unhealthy { reason } = verdict else {
                 if let Some(state) = self.frpc_health.get_mut(&workspace_id) {
                     state.unhealthy_streak = 0;
                 }
@@ -119,6 +131,7 @@ impl TunnelSupervisor {
                 Ok(()) => {
                     if let Some(state) = self.frpc_health.get_mut(&workspace_id) {
                         state.unhealthy_streak = 0;
+                        state.public_probe_failures = 0;
                         state.last_restart_at = Some(Instant::now());
                     }
                     restarted += 1;
@@ -135,19 +148,78 @@ impl TunnelSupervisor {
         restarted
     }
 
-    async fn diagnose_frpc_unhealthy(
-        &self,
+    /// After sustained offline→online, revive missing or unhealthy FRP clients.
+    /// Healthy running clients are left alone to avoid proxy-already-exists thrash.
+    pub async fn restart_frpc_after_network_recovery(&mut self, settings: &AppSettings) -> usize {
+        let mut workspace_ids: HashSet<String> = self
+            .frp_routes
+            .keys()
+            .map(|(workspace_id, _)| workspace_id.clone())
+            .collect();
+        workspace_ids.extend(self.frpc.keys().cloned());
+        let mut restarted = 0usize;
+        for workspace_id in workspace_ids {
+            let verdict = self
+                .evaluate_frpc_health(&workspace_id, settings, true)
+                .await;
+            let reason = match verdict {
+                FrpcHealthVerdict::Unhealthy { reason } => reason,
+                FrpcHealthVerdict::Healthy => continue,
+            };
+            append_profile_log(
+                &workspace_id,
+                "frpc-mcp.log",
+                &format!("[health] host network restored, restarting frpc: {reason}"),
+            );
+            match self.restart_workspace_frpc(&workspace_id, settings).await {
+                Ok(()) => {
+                    if let Some(state) = self.frpc_health.get_mut(&workspace_id) {
+                        state.unhealthy_streak = 0;
+                        state.public_probe_failures = 0;
+                        state.last_restart_at = Some(Instant::now());
+                    }
+                    restarted += 1;
+                }
+                Err(error) => {
+                    append_profile_log(
+                        &workspace_id,
+                        "frpc-mcp.log",
+                        &format!("[health] network-recovery restart failed: {error}"),
+                    );
+                }
+            }
+        }
+        restarted
+    }
+
+    async fn evaluate_frpc_health(
+        &mut self,
         workspace_id: &str,
         settings: &AppSettings,
-    ) -> Option<String> {
+        host_online: bool,
+    ) -> FrpcHealthVerdict {
         let process_alive = self.frpc.get(workspace_id).is_some_and(|process| {
             process
                 .pid
                 .map(|pid| platform().is_process_alive(pid))
                 .unwrap_or(true)
         });
+        let has_routes = self
+            .frp_routes
+            .keys()
+            .any(|(route_workspace_id, _)| route_workspace_id == workspace_id);
+
         if !process_alive {
-            return Some("frpc process exited".into());
+            if !has_routes {
+                return FrpcHealthVerdict::Healthy;
+            }
+            if !host_online {
+                // Keep waiting; do not thrash spawn while DNS/router is down.
+                return FrpcHealthVerdict::Healthy;
+            }
+            return FrpcHealthVerdict::Unhealthy {
+                reason: "frpc process missing while tunnel routes are still active".into(),
+            };
         }
 
         let routes: Vec<&FrpRoute> = self
@@ -157,10 +229,12 @@ impl TunnelSupervisor {
             .map(|(_, route)| route)
             .collect();
         if routes.is_empty() {
-            return None;
+            if let Some(state) = self.frpc_health.get_mut(workspace_id) {
+                state.public_probe_failures = 0;
+            }
+            return FrpcHealthVerdict::Healthy;
         }
 
-        // Prefer MCP log; fall back to Actions log if MCP route absent.
         let log_kind = if routes.iter().any(|r| r.kind == TunnelServiceKind::Mcp) {
             TunnelServiceKind::Mcp
         } else {
@@ -169,41 +243,87 @@ impl TunnelSupervisor {
         let log_path = log_dir_for_profile(workspace_id).join(frp::frpc_log_name(log_kind));
         let log_tail = frp::read_frpc_log_tail(&log_path);
         if frp::frpc_reconnect_loop_detected(&log_tail) {
-            return Some("frpc reconnect loop detected in log".into());
+            if !host_online {
+                // loginFailExit=false lets frpc keep retrying; killing it now
+                // is what previously orphaned workspaces overnight.
+                return FrpcHealthVerdict::Healthy;
+            }
+            return FrpcHealthVerdict::Unhealthy {
+                reason: "frpc reconnect loop detected in log".into(),
+            };
         }
 
+        let mut checked_public_route = false;
+        let mut public_probe_failed = false;
+
         for route in routes {
-            let public_url = match route.kind {
-                TunnelServiceKind::Mcp => route.profile.public_endpoint(),
+            let (public_url, local_ok) = match route.kind {
+                TunnelServiceKind::Mcp => (
+                    route.profile.public_endpoint(),
+                    frp::probe_local_mcp_ok(route.profile.runtime.local_port).await,
+                ),
                 TunnelServiceKind::Actions => {
                     let base = route.profile.actions_effective_public_url_with(settings);
-                    if base.is_empty() {
+                    let public_url = if base.is_empty() {
                         String::new()
                     } else {
                         format!("{}/openapi.json", base.trim_end_matches('/'))
-                    }
+                    };
+                    (
+                        public_url,
+                        frp::probe_local_actions_ok(route.profile.actions.local_port).await,
+                    )
                 }
             };
-            if public_url.is_empty() {
+            if public_url.is_empty() || !local_ok {
                 continue;
             }
-            // Only treat FRP's own 404 page as proof the proxy is dead. Network
-            // blips (Unreachable) alone must not force a restart.
-            if matches!(route.kind, TunnelServiceKind::Mcp) {
-                let local_ok =
-                    frp::probe_local_mcp_ok(route.profile.runtime.local_port).await;
-                if !local_ok {
-                    continue;
+
+            checked_public_route = true;
+            match frp::probe_public_mcp_endpoint(&public_url).await {
+                frp::PublicMcpProbe::Healthy => {}
+                frp::PublicMcpProbe::FrpNotRouted => {
+                    if !host_online {
+                        public_probe_failed = true;
+                        continue;
+                    }
+                    return FrpcHealthVerdict::Unhealthy {
+                        reason: format!(
+                            "public endpoint returns FRP not-found page ({public_url})"
+                        ),
+                    };
+                }
+                frp::PublicMcpProbe::Unreachable | frp::PublicMcpProbe::Unexpected => {
+                    public_probe_failed = true;
                 }
             }
-            if frp::probe_public_mcp_endpoint(&public_url).await == frp::PublicMcpProbe::FrpNotRouted
-            {
-                return Some(format!(
-                    "public endpoint returns FRP not-found page ({public_url})"
-                ));
-            }
         }
-        None
+
+        let state = self.frpc_health.entry(workspace_id.to_string()).or_default();
+        if !checked_public_route {
+            state.public_probe_failures = 0;
+            return FrpcHealthVerdict::Healthy;
+        }
+
+        if public_probe_failed {
+            if !host_online {
+                state.public_probe_failures = 0;
+                return FrpcHealthVerdict::Healthy;
+            }
+            state.public_probe_failures = state.public_probe_failures.saturating_add(1);
+            if state.public_probe_failures >= PUBLIC_PROBE_FAILURE_THRESHOLD {
+                return FrpcHealthVerdict::Unhealthy {
+                    reason: format!(
+                        "public endpoint failed {} consecutive health probes",
+                        state.public_probe_failures
+                    ),
+                };
+            }
+            return FrpcHealthVerdict::Healthy;
+        }
+
+        state.public_probe_failures = 0;
+        FrpcHealthVerdict::Healthy
     }
 
     pub fn frp_snippet(
@@ -348,6 +468,7 @@ impl TunnelSupervisor {
             }
         };
         let use_proxy = tunnel_use_proxy(profile, kind);
+        let use_http2 = tunnel_cloudflare_http2(profile, kind);
         let log_path = log_dir_for_profile(&profile.id).join(log_name);
         let handle = cloudflare::spawn_cloudflare_tunnel(
             port,
@@ -357,6 +478,7 @@ impl TunnelSupervisor {
             &token,
             &named_url,
             use_proxy,
+            use_http2,
         )
         .await
         .inspect_err(|_| {
@@ -655,12 +777,15 @@ impl TunnelSupervisor {
             .iter()
             .map(|(profile, kind)| (profile, *kind))
             .collect();
-        let deadline = Instant::now() + Duration::from_secs(35);
+        let deadline = Instant::now() + Duration::from_secs(45);
         let handle = loop {
             match frp::spawn_frpc(workspace_id, &route_refs, settings).await {
                 Ok(handle) => break handle,
-                Err(error) if proxy_already_exists(&error) && Instant::now() < deadline => {
-                    sleep(Duration::from_secs(1)).await;
+                Err(error)
+                    if (proxy_already_exists(&error) || transient_frpc_spawn_error(&error))
+                        && Instant::now() < deadline =>
+                {
+                    sleep(Duration::from_secs(2)).await;
                 }
                 Err(error) => return Err(error),
             }
@@ -712,6 +837,17 @@ impl TunnelSupervisor {
         });
 
         if process_alive && frp::managed_frpc_config_matches(workspace_id, &expected)? {
+            if let FrpcHealthVerdict::Unhealthy { reason } = self
+                .evaluate_frpc_health(workspace_id, settings, true)
+                .await
+            {
+                append_profile_log(
+                    workspace_id,
+                    "frpc-mcp.log",
+                    &format!("[health] restarting stale frpc before reuse: {reason}"),
+                );
+                return self.restart_workspace_frpc(workspace_id, settings).await;
+            }
             let pid = self.frpc.get(workspace_id).and_then(|process| process.pid);
             self.sync_frp_sessions_for_workspace(settings, workspace_id, pid);
             return Ok(());
@@ -815,6 +951,18 @@ fn proxy_already_exists(error: &AppError) -> bool {
     message.contains("proxy") && message.contains("already exists")
 }
 
+fn transient_frpc_spawn_error(error: &AppError) -> bool {
+    let message = error.to_string().to_ascii_lowercase();
+    message.contains("no such host")
+        || message.contains("i/o timeout")
+        || message.contains("i/o deadline")
+        || message.contains("temporarily unavailable")
+        || message.contains("connection refused")
+        || message.contains("network is unreachable")
+        || message.contains("try to connect to server")
+        || message.contains("connect to server error")
+}
+
 fn tunnel_type_for(profile: &WorkspaceProfile, kind: TunnelServiceKind) -> &str {
     match kind {
         TunnelServiceKind::Mcp => profile.tunnel.tunnel_type.as_str(),
@@ -826,6 +974,13 @@ fn tunnel_use_proxy(profile: &WorkspaceProfile, kind: TunnelServiceKind) -> bool
     match kind {
         TunnelServiceKind::Mcp => profile.tunnel.use_proxy,
         TunnelServiceKind::Actions => profile.actions.use_proxy,
+    }
+}
+
+fn tunnel_cloudflare_http2(profile: &WorkspaceProfile, kind: TunnelServiceKind) -> bool {
+    match kind {
+        TunnelServiceKind::Mcp => profile.tunnel.cloudflare_http2,
+        TunnelServiceKind::Actions => profile.actions.cloudflare_http2,
     }
 }
 

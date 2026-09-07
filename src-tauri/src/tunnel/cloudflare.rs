@@ -232,6 +232,7 @@ pub async fn spawn_cloudflare_tunnel(
     cloudflare_token: &str,
     named_public_url: &str,
     use_proxy: bool,
+    use_http2: bool,
 ) -> AppResult<CloudflareTunnelHandle> {
     let cloudflared = resolve_cloudflared()?;
     let quick = cloudflare_mode != "named";
@@ -270,6 +271,8 @@ pub async fn spawn_cloudflare_tunnel(
     if use_proxy {
         apply_proxy_env(&mut cmd, &settings.proxy);
     }
+
+    push_cloudflare_protocol_args(&mut cmd, use_http2);
 
     if quick {
         cmd.args([
@@ -460,9 +463,38 @@ pub async fn stop_child(mut child: Child, pid: Option<u32>) -> AppResult<()> {
     Ok(())
 }
 
+fn push_cloudflare_protocol_args(cmd: &mut Command, use_http2: bool) {
+    if use_http2 {
+        cmd.args(["--protocol", "http2", "--post-quantum=false"]);
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::extract_trycloudflare_url;
+    use super::{extract_trycloudflare_url, push_cloudflare_protocol_args};
+    use tokio::process::Command;
+
+    fn command_args(use_http2: bool) -> Vec<String> {
+        let mut cmd = Command::new("cloudflared");
+        push_cloudflare_protocol_args(&mut cmd, use_http2);
+        cmd.as_std()
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect()
+    }
+
+    #[test]
+    fn adds_http2_protocol_args_when_enabled() {
+        assert_eq!(
+            command_args(true),
+            vec!["--protocol", "http2", "--post-quantum=false"]
+        );
+    }
+
+    #[test]
+    fn omits_protocol_args_when_disabled() {
+        assert!(command_args(false).is_empty());
+    }
 
     #[test]
     fn extracts_trycloudflare_url_from_log_line() {

@@ -570,7 +570,14 @@ pub(crate) async fn probe_public_mcp_endpoint(url: &str) -> PublicMcpProbe {
 }
 
 pub(crate) async fn probe_local_mcp_ok(port: u16) -> bool {
-    let url = format!("http://127.0.0.1:{port}/mcp");
+    probe_local_http_ok(&format!("http://127.0.0.1:{port}/mcp")).await
+}
+
+pub(crate) async fn probe_local_actions_ok(port: u16) -> bool {
+    probe_local_http_ok(&format!("http://127.0.0.1:{port}/health")).await
+}
+
+async fn probe_local_http_ok(url: &str) -> bool {
     let client = match reqwest::Client::builder()
         .timeout(Duration::from_secs(2))
         .build()
@@ -578,10 +585,25 @@ pub(crate) async fn probe_local_mcp_ok(port: u16) -> bool {
         Ok(client) => client,
         Err(_) => return false,
     };
-    match client.get(&url).send().await {
+    match client.get(url).send().await {
         Ok(response) => response.status().is_success(),
         Err(_) => false,
     }
+}
+
+/// Best-effort check that the host has outbound TCP connectivity.
+pub(crate) async fn probe_host_network_available() -> bool {
+    use tokio::net::TcpStream;
+
+    for endpoint in ["1.1.1.1:443", "223.5.5.5:443"] {
+        if tokio::time::timeout(Duration::from_secs(3), TcpStream::connect(endpoint))
+            .await
+            .is_ok_and(|result| result.is_ok())
+        {
+            return true;
+        }
+    }
+    false
 }
 
 async fn wait_for_frpc_ready(
@@ -610,6 +632,14 @@ async fn wait_for_frpc_ready(
     }
     if child.try_wait().ok().flatten().is_none() {
         let detail = read_log_since(log_path, log_offset);
+        // With loginFailExit=false the process stays alive through DNS/outages.
+        // Keep supervising it instead of killing the only recovery path.
+        if detail.to_ascii_lowercase().contains("login to the server failed")
+            || detail.to_ascii_lowercase().contains("connect to server error")
+            || detail.to_ascii_lowercase().contains("try to connect to server")
+        {
+            return Ok(true);
+        }
         let detail = if detail.trim().is_empty() {
             "尚未收到 frpc 登录或代理建立日志".to_string()
         } else {
@@ -639,9 +669,10 @@ fn detect_frpc_log_error(log_path: &Path, log_offset: u64) -> Option<AppError> {
         return None;
     }
     let lowered = strip_ansi(&content).to_ascii_lowercase();
+    // Permanent config/auth failures only. Network login failures must not abort
+    // spawn when loginFailExit=false — frpc keeps retrying in the background.
     if lowered.contains("authorization failed")
         || lowered.contains("token in login doesn't match")
-        || lowered.contains("login to the server failed")
         || lowered.contains("start error: proxy")
         || lowered.contains("proxy already exists")
     {

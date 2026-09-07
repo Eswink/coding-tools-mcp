@@ -87,6 +87,7 @@ fn restore_tunnel_config(
                 current.actions.frp_server_port = restored.actions.frp_server_port;
                 current.actions.cloudflare_mode = restored.actions.cloudflare_mode.clone();
                 current.actions.cloudflare_token = restored.actions.cloudflare_token.clone();
+                current.actions.cloudflare_http2 = restored.actions.cloudflare_http2;
                 current.actions.use_proxy = restored.actions.use_proxy;
             }
         }
@@ -105,6 +106,7 @@ fn mcp_tunnel_matches(
         && left.tunnel.frp_profile_id == right.tunnel.frp_profile_id
         && left.tunnel.frp_server_port == right.tunnel.frp_server_port
         && left.tunnel.cloudflare_mode == right.tunnel.cloudflare_mode
+        && left.tunnel.cloudflare_http2 == right.tunnel.cloudflare_http2
         && left.tunnel.use_proxy == right.tunnel.use_proxy
 }
 
@@ -120,6 +122,7 @@ fn actions_tunnel_matches(
         && left.actions.frp_server_port == right.actions.frp_server_port
         && left.actions.cloudflare_mode == right.actions.cloudflare_mode
         && left.actions.cloudflare_token == right.actions.cloudflare_token
+        && left.actions.cloudflare_http2 == right.actions.cloudflare_http2
         && left.actions.use_proxy == right.actions.use_proxy
 }
 
@@ -158,12 +161,13 @@ pub async fn restart_tunnel(
         let was_running = guard.status(&profile, kind, &settings).state == "running";
         let tunnel_type = tunnel_type_for(&profile, kind);
         if was_running && tunnel_type == "frp" {
-            // FRP 必须走 supervisor 的原子替换流程。它会暂存当前工作区旧 route，
-            // 新 subdomain 启动成功后才释放旧线路；失败时恢复旧 route。
-            guard
-                .start(&profile, kind, &settings)
-                .await
-                .map_err(|error| (error, guard.route_profile(&id, kind)))
+            match guard.stop(&profile, kind, &settings).await {
+                Ok(()) => guard
+                    .start(&profile, kind, &settings)
+                    .await
+                    .map_err(|error| (error, guard.route_profile(&id, kind))),
+                Err(error) => Err((error, guard.route_profile(&id, kind))),
+            }
         } else if was_running {
             match guard.stop(&profile, kind, &settings).await {
                 Ok(()) => guard
