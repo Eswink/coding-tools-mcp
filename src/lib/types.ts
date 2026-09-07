@@ -138,8 +138,15 @@ export function frpPublicUrl(
 export function actionsPublicBaseUrl(
   profile: WorkspaceProfile,
   frpProfiles: FrpProfileSummary[] = [],
+  activeOrigin?: string,
 ): string {
+  if (activeOrigin !== undefined) {
+    try { return activeOrigin ? normalizePublicOrigin(activeOrigin) : ""; }
+    catch { return ""; }
+  }
   const actions = actionsConfig(profile);
+  // Temporary URLs are owned by the active listener, never by persisted config.
+  if (actions.tunnel_type === "cloudflare" && actions.cloudflare_mode === "quick") return "";
   const publicUrl = frpPublicUrl(
     actions.tunnel_type,
     actions.frp_subdomain,
@@ -156,31 +163,35 @@ export function actionsPublicBaseUrl(
 export function actionsOpenApiUrl(
   profile: WorkspaceProfile,
   frpProfiles: FrpProfileSummary[] = [],
+  activeOrigin?: string,
 ): string {
-  const base = actionsPublicBaseUrl(profile, frpProfiles);
+  const base = actionsPublicBaseUrl(profile, frpProfiles, activeOrigin);
   return base ? `${base.replace(/\/$/, "")}/openapi.json` : "";
 }
 
 export function actionsPrivacyUrl(
   profile: WorkspaceProfile,
   frpProfiles: FrpProfileSummary[] = [],
+  activeOrigin?: string,
 ): string {
-  const base = actionsPublicBaseUrl(profile, frpProfiles);
+  const base = actionsPublicBaseUrl(profile, frpProfiles, activeOrigin);
   return base ? `${base.replace(/\/$/, "")}/privacy` : "";
 }
 
 export function actionsOAuthAuthorizeUrl(
   profile: WorkspaceProfile,
   frpProfiles: FrpProfileSummary[] = [],
+  activeOrigin?: string,
 ): string {
-  const base = actionsPublicBaseUrl(profile, frpProfiles);
+  const base = actionsPublicBaseUrl(profile, frpProfiles, activeOrigin);
   return base ? `${base.replace(/\/$/, "")}/oauth/authorize` : "";
 }
 
 export function actionsOAuthTokenUrl(
   profile: WorkspaceProfile,
   frpProfiles: FrpProfileSummary[] = [],
+  activeOrigin?: string,
 ): string {
-  const base = actionsPublicBaseUrl(profile, frpProfiles);
+  const base = actionsPublicBaseUrl(profile, frpProfiles, activeOrigin);
   return base ? `${base.replace(/\/$/, "")}/oauth/token` : "";
 }
