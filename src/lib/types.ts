@@ -1,3 +1,5 @@
+import { frpOrigin, normalizePublicOrigin, type FrpRouteOptions } from "./固定入口";
+
 export type RuntimeState = "stopped" | "starting" | "running" | "stopping" | "error";
 
 export const DEFAULT_SERVICE_PORT = 28766;
@@ -10,6 +12,7 @@ export interface TunnelConfig {
   frp_subdomain: string;
   frp_profile_id?: string;
   frp_server_port?: number;
+  frp?: FrpRouteOptions;
   cloudflare_mode: string;
   cloudflare_http2?: boolean;
   use_proxy?: boolean;
@@ -38,6 +41,7 @@ export interface ActionsConfig {
   frp_subdomain: string;
   frp_profile_id?: string;
   frp_server_port?: number;
+  frp?: FrpRouteOptions;
   cloudflare_mode: string;
   cloudflare_token?: string;
   cloudflare_http2?: boolean;
@@ -119,14 +123,16 @@ export function frpPublicUrl(
   frpProfileId: string | undefined,
   profiles: FrpProfileSummary[],
   publicUrl = "",
+  options?: Partial<FrpRouteOptions>,
 ): string {
-  if (tunnelType !== "frp" || !frpSubdomain) {
-    return publicUrl.replace(/\/$/, "");
+  try {
+    if (tunnelType !== "frp") return publicUrl ? normalizePublicOrigin(publicUrl) : "";
+    const server = profiles.find((profile) => profile.id === frpProfileId)?.server ?? frpServer;
+    return frpOrigin(server, frpSubdomain, options);
+  } catch {
+    // Invalid drafts must not advertise a fabricated public endpoint.
+    return "";
   }
-  const server =
-    profiles.find((profile) => profile.id === frpProfileId)?.server ?? frpServer;
-  if (!server) return publicUrl.replace(/\/$/, "");
-  return `https://${frpSubdomain}.${server}`;
 }
 
 export function actionsPublicBaseUrl(
@@ -141,6 +147,7 @@ export function actionsPublicBaseUrl(
     actions.frp_profile_id,
     frpProfiles,
     actions.public_url,
+    actions.frp,
   );
   if (publicUrl) return publicUrl;
   return actionsLocalEndpoint(actions.local_port);
