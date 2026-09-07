@@ -61,7 +61,7 @@ fn decode_data(raw: &str, path: &Path) -> AppResult<AppData> {
     migrate_data(decode_json(raw, path)?)
 }
 
-fn migrate_data(mut data: AppData) -> AppResult<AppData> {
+pub(super) fn migrate_data(mut data: AppData) -> AppResult<AppData> {
     if data.schema_version > CURRENT_SCHEMA_VERSION {
         return Err(AppError::Message(format!(
             "配置版本 {} 高于当前支持版本 {}，已拒绝读写，请使用更新的应用。",
