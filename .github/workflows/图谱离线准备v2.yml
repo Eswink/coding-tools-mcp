@@ -1,0 +1,35 @@
+name: 图谱离线准备v2
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+    paths: ['.github/workflows/图谱离线准备v2.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 安装精确版本图谱（不安装可选向量模型）
+        run: |
+          mkdir -p "$RUNNER_TEMP/轻量图谱" "$RUNNER_TEMP/证据"
+          npm install --prefix "$RUNNER_TEMP/轻量图谱" --omit=optional --no-audit --no-fund gitnexus@1.6.9
+          cli="$RUNNER_TEMP/轻量图谱/node_modules/gitnexus/dist/cli/index.js"
+          node "$cli" --version > "$RUNNER_TEMP/证据/版本.txt"
+          node "$cli" analyze --workers 1 > "$RUNNER_TEMP/证据/索引.txt" 2>&1
+          du -sh "$RUNNER_TEMP/轻量图谱/node_modules"/* | sort -h > "$RUNNER_TEMP/证据/体积.txt"
+          tar -czf "$RUNNER_TEMP/证据/图谱运行时v2.tar.gz" -C "$RUNNER_TEMP/轻量图谱" node_modules
+          test "$(stat -c%s "$RUNNER_TEMP/证据/图谱运行时v2.tar.gz")" -lt 500000000
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 轻量图谱v2
+          path: ${{ runner.temp }}/证据/
+          retention-days: 3
