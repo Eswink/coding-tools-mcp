@@ -112,3 +112,24 @@ if (process.env.ENTRY_TEST_TOML) {
   ];
   fs.writeFileSync(process.env.ENTRY_TEST_TOML, JSON.stringify(samples));
 }
+
+for (const suffix of ['/mcp', '/openapi.json']) {
+  test(`活动端点只提取验证后的origin：${suffix}`, () => {
+    assert.equal(entry.originFromEndpoint(`https://MCP.example.com:443${suffix}`, suffix), 'https://mcp.example.com');
+    for (const invalid of [`https://user:secret@example.com${suffix}`, `http://example.com${suffix}`, `https://example.com/extra${suffix}`, `https://example.com${suffix}?x=1`]) {
+      assert.equal(entry.originFromEndpoint(invalid, suffix), '');
+    }
+  });
+}
+test('Quick持久旧地址不会进入Actions复制配置', () => {
+  const profile = { actions: {...types.actionsConfig({}), tunnel_type:'cloudflare', cloudflare_mode:'quick', public_url:'https://old.trycloudflare.com'} };
+  assert.equal(types.actionsOpenApiUrl(profile), '');
+  assert.equal(types.actionsOpenApiUrl(profile, [], ''), '');
+  assert.equal(types.actionsOpenApiUrl(profile, [], 'https://new.trycloudflare.com'), 'https://new.trycloudflare.com/openapi.json');
+  assert.equal(types.actionsOAuthTokenUrl(profile, [], 'https://new.trycloudflare.com'), 'https://new.trycloudflare.com/oauth/token');
+  assert.equal(profile.actions.public_url, 'https://old.trycloudflare.com');
+});
+test('运行时无效地址不回退为磁盘旧地址', () => {
+  const profile = {actions:{...types.actionsConfig({}), public_url:'https://fixed.example.com'}};
+  assert.equal(types.actionsOpenApiUrl(profile, [], 'https://bad.example.com/mcp'), '');
+});
