@@ -1,0 +1,49 @@
+name: 固定入口预检v1
+
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+    paths: ['.github/workflows/固定入口预检v1.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 保存不含运行凭据的源码快照
+        run: |
+          mkdir -p /tmp/固定入口预检
+          git archive --format=zip HEAD -o /tmp/固定入口预检/仓库源码v1.zip
+          git rev-parse HEAD > /tmp/固定入口预检/基线版本.txt
+      - name: 安装项目锁定的编排器
+        continue-on-error: true
+        run: timeout 180 npx --yes mcp-probe-kit@4.0.1 install-agent --project-root .
+      - name: 获取功能计划与代码分析
+        continue-on-error: true
+        run: |
+          test -x .mcp-probe-kit/bin/probe
+          printf '{"project_root":"%s","description":"实施已确认的固定公网入口改造：分离FRP服务器IP与自定义域名，保留传统子域名兼容；增加HTTP/HTTPS及压缩/tcpMux图形配置，统一MCP/Actions/OAuth公网地址；复用Cloudflare Named Tunnel，修复Quick模式旧地址、就绪判断和失败进程清理；补迁移、配置、回归测试。不自动配置用户DNS，不改真实服务器，不合并main。","spec_layout":"auto"}\n' "$PWD" | timeout 180 .mcp-probe-kit/bin/probe exec start_feature --stdin | tee /tmp/固定入口预检/功能计划.json
+          printf '{"project_root":"%s","mode":"auto","save_to_docs":false}\n' "$PWD" | timeout 180 .mcp-probe-kit/bin/probe exec code_insight --stdin | tee /tmp/固定入口预检/代码分析.json
+      - name: 安装并检查托管GitNexus
+        continue-on-error: true
+        run: |
+          timeout 180 .mcp-probe-kit/bin/probe doctor gitnexus --install | tee /tmp/固定入口预检/图谱安装.txt
+          .mcp-probe-kit/bin/probe --help | tee /tmp/固定入口预检/编排器帮助.txt
+          find .mcp-probe-kit -maxdepth 4 -type f -name '*gitnexus*' -print
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 固定入口预检v1
+          path: /tmp/固定入口预检/
+          retention-days: 7
