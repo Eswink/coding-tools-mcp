@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::settings::AppSettings;
+use super::endpoint::{normalize_public_origin, FrpRouteOptions};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceProfile {
@@ -28,6 +29,8 @@ pub struct TunnelConfig {
     pub frp_profile_id: String,
     #[serde(default = "default_frp_server_port")]
     pub frp_server_port: u16,
+    #[serde(default)]
+    pub frp: FrpRouteOptions,
     #[serde(default = "default_cloudflare_mode")]
     pub cloudflare_mode: String,
     /// When true, start cloudflared with `--protocol http2` instead of default QUIC.
@@ -81,6 +84,8 @@ pub struct ActionsConfig {
     pub frp_profile_id: String,
     #[serde(default = "default_frp_server_port")]
     pub frp_server_port: u16,
+    #[serde(default)]
+    pub frp: FrpRouteOptions,
     #[serde(default = "default_cloudflare_mode")]
     pub cloudflare_mode: String,
     #[serde(default)]
@@ -200,6 +205,7 @@ impl Default for TunnelConfig {
             frp_subdomain: String::new(),
             frp_profile_id: String::new(),
             frp_server_port: default_frp_server_port(),
+            frp: FrpRouteOptions::default(),
             cloudflare_mode: default_cloudflare_mode(),
             cloudflare_http2: default_cloudflare_http2(),
             use_proxy: default_use_proxy(),
@@ -240,6 +246,7 @@ impl Default for ActionsConfig {
             frp_subdomain: String::new(),
             frp_profile_id: String::new(),
             frp_server_port: default_frp_server_port(),
+            frp: FrpRouteOptions::default(),
             cloudflare_mode: default_cloudflare_mode(),
             cloudflare_token: String::new(),
             cloudflare_http2: default_cloudflare_http2(),
@@ -295,6 +302,7 @@ impl WorkspaceProfile {
             &self.tunnel.frp_subdomain,
             &self.tunnel.public_url,
             &self.tunnel.frp_profile_id,
+            &self.tunnel.frp,
             settings,
         )
     }
@@ -322,6 +330,7 @@ impl WorkspaceProfile {
             &self.actions.frp_subdomain,
             &self.actions.public_url,
             &self.actions.frp_profile_id,
+            &self.actions.frp,
             settings,
         )
     }
@@ -375,6 +384,7 @@ fn computed_public_url(
     frp_subdomain: &str,
     public_url: &str,
     frp_profile_id: &str,
+    frp: &FrpRouteOptions,
     settings: &AppSettings,
 ) -> String {
     if tunnel_type == "frp" {
@@ -382,9 +392,7 @@ fn computed_public_url(
             .find_frp_profile(frp_profile_id)
             .map(|profile| profile.server.as_str())
             .unwrap_or(frp_server);
-        if !server.is_empty() && !frp_subdomain.is_empty() {
-            return format!("https://{frp_subdomain}.{server}");
-        }
+        return frp.public_origin(server, frp_subdomain).unwrap_or_default();
     }
-    public_url.trim_end_matches('/').to_string()
+    normalize_public_origin(public_url).unwrap_or_default()
 }
