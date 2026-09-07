@@ -1,0 +1,65 @@
+name: 固定入口源码验证v1
+
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fixed-entry-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - name: 编译真实入口逻辑并执行独立回归
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/固定入口测试"
+          mkdir -p "$out"
+          printf '{"type":"commonjs"}\n' > "$out/package.json"
+          ./node_modules/.bin/tsc src/lib/固定入口.ts src/lib/types.ts --strict --target ES2020 --module commonjs --outDir "$out"
+          ENTRY_TEST_BUILD="$out" node --test tests/固定入口v1.test.cjs
+
+  rust:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: 安装 Linux 桌面依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Rust 类型检查
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml
+      - name: Rust 回归测试
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
