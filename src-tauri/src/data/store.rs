@@ -303,10 +303,18 @@ fn merge_snapshot_value(
     Err(())
 }
 
-fn lock_data_file() -> AppResult<std::sync::MutexGuard<'static, ()>> {
-    DATA_FILE_LOCK
-        .lock()
-        .map_err(|_| AppError::Message("data file lock poisoned".into()))
+struct DataFileLock {
+    // Release the OS lock before allowing another thread through this process.
+    _file: super::config_lock::ConfigFileLock,
+    _thread: std::sync::MutexGuard<'static, ()>,
+}
+
+fn lock_data_file() -> AppResult<DataFileLock> {
+    let thread = DATA_FILE_LOCK.lock()
+        .map_err(|_| AppError::Message("data file lock poisoned".into()))?;
+    let path = data_file_path()?.with_file_name("profiles.lock");
+    let file = super::config_lock::ConfigFileLock::acquire(&path, std::time::Duration::from_secs(3))?;
+    Ok(DataFileLock { _file: file, _thread: thread })
 }
 
 fn random_secret() -> String {
