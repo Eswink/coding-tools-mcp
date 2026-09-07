@@ -57,13 +57,22 @@ jobs:
             const tools = await client.listTools();
             fs.writeFileSync(path.join(out,'图谱工具.json'), JSON.stringify(tools,null,2));
             const call = async (name,args,label) => {
-              try { const result=await client.callTool({name,arguments:args}); fs.writeFileSync(path.join(out,label+'.json'),JSON.stringify(result,null,2)); }
-              catch(error) { fs.writeFileSync(path.join(out,label+'.json'),JSON.stringify({error:String(error)})); }
+              try { const result=await client.callTool({name,arguments:args}); fs.writeFileSync(path.join(out,label+'.json'),JSON.stringify(result,null,2)); return result; }
+              catch(error) { fs.writeFileSync(path.join(out,label+'.json'),JSON.stringify({error:String(error)})); return {}; }
             };
             await call('list_repos',{},'仓库图谱');
             await call('query',{query:'MCP Actions OAuth public URL tunnel runtime persistence',repo:'coding-tools-mcp'},'调用流');
-            const targets=['computed_public_url','normalize_public_origin','spawn_listener','external_base_url','resolve_oauth_base','openapi_json','start_mcp_service','start_actions_service','persist_tunnel_url','persist_public_url','load_or_migrate','write_data','service_changed','restart_tunnel','test_tunnel','spawn_cloudflare_tunnel','build_cloudflare_command','build_proxy_snippet','validate_frp_route_compatibility','restart_workspace_frpc','start','stop_internal','saveMcpTunnel','saveActionsTunnel','update_workspace','save_frp_profile','stop_mcp_service','stop_actions_service','read_file','update_file','save','normalizePublicOrigin','frpOrigin','validate_named_origin'];
-            for(const target of targets) await call('impact',{target,direction:'upstream',repo:'coding-tools-mcp'},'影响-'+target);
+            const targets=['computed_public_url','normalize_public_origin','spawn_listener','external_base_url','resolve_oauth_base','openapi_json','start_mcp_service','start_actions_service','persist_tunnel_url','persist_public_url','load_or_migrate','write_data','service_changed','restart_tunnel','test_tunnel','spawn_cloudflare_tunnel','build_cloudflare_command','build_proxy_snippet','validate_frp_route_compatibility','restart_workspace_frpc','start','stop_internal','saveMcpTunnel','saveActionsTunnel','update_workspace','save_frp_profile','stop_mcp_service','stop_actions_service','read_file','update_file','save','normalizePublicOrigin','frpOrigin','normalize_named_origin'];
+            for(const target of targets) {
+              const result = await call('impact',{target,direction:'upstream',repo:'coding-tools-mcp'},'影响-'+target);
+              const text=result.content?.find(c=>c.type==='text')?.text ?? '';
+              const json=text.split('\n\n---')[0];
+              try {
+                const body=JSON.parse(json);
+                if(body.status==='ambiguous') for(const [index,c] of body.candidates.entries())
+                  await call('impact',{target,target_uid:c.uid,direction:'upstream',repo:'coding-tools-mcp'},'影响-'+target+'-'+index);
+              } catch {}
+            }
             await call('detect_changes',{scope:'all',repo:'coding-tools-mcp'},'诊断变更检测');
           } finally { await client.close(); }
           JS
@@ -72,6 +81,8 @@ jobs:
         run: |
           tar -czf "$RUNNER_TEMP/迭代证据/前端依赖v2.tar.gz" node_modules
           tar -czf "$RUNNER_TEMP/迭代证据/编排器运行时v2.tar.gz" -C "$RUNNER_TEMP/编排器v2" node_modules
+          graph_root="$(python3 -c 'import json,os;print(json.load(open(os.environ["RUNNER_TEMP"]+"/迭代证据/图谱安装.json"))["managed"]["installRoot"])')"
+          tar -czf "$RUNNER_TEMP/迭代证据/图谱运行时v2.tar.gz" -C "$graph_root" node_modules runtime.json
           git rev-parse HEAD > "$RUNNER_TEMP/迭代证据/源版本.txt"
           du -h "$RUNNER_TEMP/迭代证据/"*.gz
       - uses: actions/upload-artifact@v4
