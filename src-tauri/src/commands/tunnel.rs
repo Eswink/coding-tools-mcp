@@ -173,9 +173,13 @@ pub async fn restart_tunnel(
         } else {
             Ok(guard.status(&profile, kind, &settings))
         };
-        if let Ok(status) = &result {
-            persist_public_url(origin.as_ref(), status)?;
-        }
+        // A failed replacement may either restore the previous route or leave
+        // no connector. Publish the actual visible state, not the failed candidate.
+        let visible = match &result {
+            Ok(status) => status.clone(),
+            Err(_) => guard.status(&profile, kind, &settings),
+        };
+        persist_public_url(origin.as_ref(), &visible)?;
         result
 
     };
@@ -300,9 +304,13 @@ pub async fn test_tunnel(
                 Err(error) => Err((error, None)),
             }
         };
-        if let Ok(status) = &result {
-            persist_public_url(origin.as_ref(), status)?;
-        }
+        // A failed replacement may either restore the previous route or leave
+        // no connector. Publish the actual visible state, not the failed candidate.
+        let visible = match &result {
+            Ok(status) => status.clone(),
+            Err(_) => guard.status(&profile, kind, &settings),
+        };
+        persist_public_url(origin.as_ref(), &visible)?;
         result
 
     };
@@ -342,6 +350,7 @@ pub async fn test_tunnel(
     {
         let mut guard = supervisor().lock().await;
         guard.stop(&profile, kind, &settings).await?;
+        if let Some(origin) = origin.as_ref() { origin.clear(); }
     }
 
     let success = !public_url.is_empty();
@@ -357,4 +366,39 @@ pub async fn test_tunnel(
         kept_running: false,
         message,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn visible(state: &str, public_url: &str) -> TunnelStatus {
+        TunnelStatus { state: state.into(), public_url: public_url.into(), tunnel_pid: None }
+    }
+
+    #[test]
+    fn failed_replacement_with_no_connector_clears_the_previous_origin() {
+        let origin = PublicOrigin::managed("https://old.trycloudflare.com").unwrap();
+        persist_public_url(Some(&origin), &visible("stopped", "https://old.trycloudflare.com")).unwrap();
+        assert!(origin.snapshot().is_empty());
+    }
+
+    #[test]
+    fn successful_rollback_keeps_the_restored_route_identity() {
+        let origin = PublicOrigin::managed("https://old.example.com").unwrap();
+        persist_public_url(Some(&origin), &visible("running", "https://old.example.com")).unwrap();
+        assert_eq!(origin.snapshot(), "https://old.example.com");
+    }
+
+    #[test]
+    fn invalid_running_origin_does_not_overwrite_current_identity() {
+        let origin = PublicOrigin::managed("https://fixed.example.com").unwrap();
+        assert!(persist_public_url(Some(&origin), &visible("running", "https://wrong.example.com/mcp")).is_err());
+        assert_eq!(origin.snapshot(), "https://fixed.example.com");
+    }
+
+    #[test]
+    fn connection_probe_without_a_listener_does_not_create_an_identity() {
+        assert!(persist_public_url(None, &visible("running", "https://probe.example.com")).is_ok());
+    }
 }
