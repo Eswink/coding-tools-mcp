@@ -81,6 +81,7 @@ fn restore_tunnel_config(
             TunnelServiceKind::Actions => {
                 current.actions.public_url = restored.actions.public_url.clone();
                 current.actions.tunnel_type = restored.actions.tunnel_type.clone();
+                current.actions.frp = restored.actions.frp.clone();
                 current.actions.frp_server = restored.actions.frp_server.clone();
                 current.actions.frp_subdomain = restored.actions.frp_subdomain.clone();
                 current.actions.frp_profile_id = restored.actions.frp_profile_id.clone();
@@ -101,6 +102,7 @@ fn mcp_tunnel_matches(
 ) -> bool {
     left.tunnel.tunnel_type == right.tunnel.tunnel_type
         && left.tunnel.public_url == right.tunnel.public_url
+        && left.tunnel.frp == right.tunnel.frp
         && left.tunnel.frp_server == right.tunnel.frp_server
         && left.tunnel.frp_subdomain == right.tunnel.frp_subdomain
         && left.tunnel.frp_profile_id == right.tunnel.frp_profile_id
@@ -116,6 +118,7 @@ fn actions_tunnel_matches(
 ) -> bool {
     left.actions.public_url == right.actions.public_url
         && left.actions.tunnel_type == right.actions.tunnel_type
+        && left.actions.frp == right.actions.frp
         && left.actions.frp_server == right.actions.frp_server
         && left.actions.frp_subdomain == right.actions.frp_subdomain
         && left.actions.frp_profile_id == right.actions.frp_profile_id
@@ -160,14 +163,11 @@ pub async fn restart_tunnel(
         let mut guard = supervisor().lock().await;
         let was_running = guard.status(&profile, kind, &settings).state == "running";
         let tunnel_type = tunnel_type_for(&profile, kind);
-        if was_running && tunnel_type == "frp" {
-            match guard.stop(&profile, kind, &settings).await {
-                Ok(()) => guard
-                    .start(&profile, kind, &settings)
-                    .await
-                    .map_err(|error| (error, guard.route_profile(&id, kind))),
-                Err(error) => Err((error, guard.route_profile(&id, kind))),
-            }
+        if was_running && tunnel_type == "frp" && guard.route_profile(&id, kind).is_some() {
+            // Start validates the candidate before replacing the existing FRP
+            // routes. Stopping first destroys the state needed for rollback.
+            guard.start(&profile, kind, &settings).await
+                .map_err(|error| (error, guard.route_profile(&id, kind)))
         } else if was_running {
             match guard.stop(&profile, kind, &settings).await {
                 Ok(()) => guard
@@ -277,7 +277,8 @@ pub async fn test_tunnel(
 
     let result = {
         let mut guard = supervisor().lock().await;
-        if was_tunnel_running && tunnel_type_for(&profile, kind) == "frp" {
+        if was_tunnel_running && tunnel_type_for(&profile, kind) == "frp"
+            && guard.route_profile(&id, kind).is_some() {
             guard
                 .start(&profile, kind, &settings)
                 .await
@@ -324,9 +325,9 @@ pub async fn test_tunnel(
             public_url,
             kept_running: true,
             message: if runtime_running {
-                "隧道测试成功，已保持连接（服务运行中）。".into()
+                "隧道连接已确认并保持运行；DNS、源站与 OAuth 请继续执行健康检查。".into()
             } else {
-                "隧道测试成功，已恢复连接。".into()
+                "隧道连接已恢复；尚未验证公网源站与 OAuth。".into()
             },
         });
     }
@@ -340,7 +341,7 @@ pub async fn test_tunnel(
     let message = if public_url.is_empty() {
         "隧道进程已退出，未获取到公网地址。".into()
     } else {
-        "隧道配置验证通过。本地服务未运行，测试连接已自动断开。".into()
+        "隧道连接已确认。本地服务未运行，测试连接已自动断开；未验证公网源站与 OAuth。".into()
     };
 
     Ok(TunnelTestResult {
