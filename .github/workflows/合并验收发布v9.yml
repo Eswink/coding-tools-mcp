@@ -1,0 +1,312 @@
+name: 合并验收发布v9
+
+# Only an explicitly created release branch starts the release operation.
+# Feature pushes and PRs cannot publish, and macOS is intentionally excluded.
+on:
+  push:
+    branches: ['release/合并验收v9']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: merged-acceptance-release-v9
+  cancel-in-progress: false
+
+env:
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  CARGO_TERM_COLOR: never
+
+jobs:
+  prepare:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/release/合并验收v9'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      source_sha: ${{ steps.source.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 锁定已提交且版本已递增的源码（不改版本、不移动分支）
+        id: source
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin 'refs/heads/main' | cut -f1)" = "$GITHUB_SHA"
+          python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA"
+          python - <<'PYVERSION'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from 发布版本校验v4 import project_versions
+          assert project_versions(Path.cwd())[0] == '0.2.4'
+          PYVERSION
+          python scripts/合并发布回归v9.py
+          python scripts/版本递增回归v7.py
+          python scripts/安装载荷回归v7.py
+          python scripts/发布资产回归v8.py
+          printf 'source_sha=%s\n' "$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+  validate:
+    needs: prepare
+    name: 发布源码验证 (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: 记录来源并验证版本脚本
+        run: |
+          mkdir -p "$RUNNER_TEMP/发布检查v8"
+          python scripts/发布版本校验v4.py --expect-sha "$SOURCE_SHA" --output "$RUNNER_TEMP/发布检查v8/源码版本.json"
+          python scripts/版本递增回归v7.py
+          python scripts/安装载荷回归v7.py
+          python scripts/发布版本回归v4.py
+          python scripts/发布资产回归v8.py
+      - name: Linux系统依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev dbus-x11 gnome-keyring
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: 全目标类型检查、完整回归和生产库零警告
+        run: |
+          set -euo pipefail
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/发布检查v8/类型检查.txt"
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/发布检查v8/完整回归.txt"
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee "$RUNNER_TEMP/发布检查v8/严格编译.txt"
+      - name: 原生ACL重复压力回归
+        if: runner.os == 'Windows'
+        run: |
+          set -euo pipefail
+          for iteration in $(seq 1 10); do
+            cargo test --locked --manifest-path src-tauri/Cargo.toml config_security:: 2>&1
+          done | tee "$RUNNER_TEMP/发布检查v8/权限重复回归.txt"
+      - name: Windows原生凭据跨进程
+        if: runner.os == 'Windows'
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-keyring-tests data::secure_file::native_tests -- --nocapture --test-threads=1 2>&1 | tee "$RUNNER_TEMP/发布检查v8/原生凭据.txt"
+      - name: Linux原生凭据跨进程
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/凭据运行时v7" XDG_DATA_HOME="$RUNNER_TEMP/凭据数据v7"
+          mkdir -p "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME"
+          chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME"
+          dbus-run-session -- bash -euo pipefail -c '
+            printf "%s" "isolated-ci-fixture-v7" | gnome-keyring-daemon --unlock --components=secrets
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-keyring-tests data::secure_file::native_tests -- --nocapture --test-threads=1
+          ' 2>&1 | tee "$RUNNER_TEMP/发布检查v8/原生凭据.txt"
+      - name: 官方FRPC离线配置验证（不连接公网）
+        if: runner.os == 'Windows'
+        run: python scripts/验证客户端准备v7.py
+      - name: 实际FRPC读取私有配置
+        if: runner.os == 'Windows'
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --features frp-binary-tests generated_config_is_accepted_by_real_frpc_0612 -- --nocapture 2>&1 | tee "$RUNNER_TEMP/发布检查v8/真实FRPC配置验证.txt"
+      - name: 依赖审计零已知漏洞门禁
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          npm audit --json > "$RUNNER_TEMP/发布检查v8/依赖风险诊断.json"
+          python - <<'PYAUDIT'
+          import json, os
+          from pathlib import Path
+          report = json.loads((Path(os.environ['RUNNER_TEMP'])/'发布检查v8/依赖风险诊断.json').read_text())
+          assert report['metadata']['vulnerabilities']['total'] == 0
+          PYAUDIT
+      - name: 前端检查与实际生产函数回归
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          npm run build
+          node --test tests/运行时入口连接v6.test.mjs tests/依赖安全回归v8.test.mjs
+          out="$RUNNER_TEMP/入口函数v7"
+          mkdir -p "$out"
+          printf '{"type":"commonjs"}\n' > "$out/package.json"
+          ./node_modules/.bin/tsc src/lib/固定入口.ts src/lib/types.ts --strict --target ES2020 --module commonjs --outDir "$out"
+          ENTRY_TEST_BUILD="$out" node --test tests/固定入口v1.test.cjs
+      - name: 持久异步任务日志与真实Svelte面板回归
+        if: runner.os == 'Linux'
+        env:
+          TASK_PANEL_TEST_DIR: ${{ runner.temp }}/发布检查v8/任务面板v3
+        run: |
+          set -euo pipefail
+          npx --no-install tsc src/lib/任务日志v2.ts --target ES2022 --module commonjs --strict --outDir "$RUNNER_TEMP/任务日志v2"
+          TASK_LOG_MODULE="$RUNNER_TEMP/任务日志v2/任务日志v2.js" node --test tests/任务日志回归v2.test.mjs
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps chromium
+          node scripts/任务面板浏览器构建v3.mjs
+          python tests/任务面板浏览器回归v3.py
+      - name: 确认测试未改写已跟踪源码
+        run: git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 发布检查v8-${{ matrix.os }}
+          path: ${{ runner.temp }}/发布检查v8/
+          retention-days: 14
+          if-no-files-found: error
+
+  windows:
+    needs: [prepare, validate]
+    name: Windows安装包构建及启动验收
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: 从已提交版本构建NSIS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/发布版本校验v4.py --expect-sha "$SOURCE_SHA"
+          npm ci
+          npm run check
+          mkdir -p "$RUNNER_TEMP/安装包构建v8"
+          npm run tauri -- build --ci --bundles nsis -- --locked 2>&1 | tee "$RUNNER_TEMP/安装包构建v8/构建日志.txt"
+      - name: PE内部版本、真实安装及窗口启动
+        shell: pwsh
+        run: ./scripts/安装包冒烟v7.ps1 -OutputDirectory "$env:RUNNER_TEMP/发布产物v8"
+      - name: 生成绑定源码的安装包来源及摘要
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/发布版本校验v4.py --expect-sha "$SOURCE_SHA" --artifacts "$RUNNER_TEMP/发布产物v8" --output "$RUNNER_TEMP/发布产物v8/发布来源v7.json"
+          cp docs/发布说明v0.2.4.md "$RUNNER_TEMP/发布产物v8/本地验收说明v7.md"
+          printf '\n构建来源：%s；工作流：https://github.com/Eswink/coding-tools-mcp/actions/runs/%s\n' "$SOURCE_SHA" "$GITHUB_RUN_ID" >> "$RUNNER_TEMP/发布产物v8/本地验收说明v7.md"
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: Windows本地验收安装包v8
+          path: ${{ runner.temp }}/发布产物v8/
+          retention-days: 30
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 安装包诊断v8-非发布产物
+          path: |
+            ${{ runner.temp }}/发布产物v8/
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/coding-tools-mcp-desktop.exe
+          retention-days: 7
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 安装包构建日志v8
+          path: ${{ runner.temp }}/安装包构建v8/
+          retention-days: 14
+          if-no-files-found: warn
+
+  publish:
+    needs: [prepare, validate, windows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: Windows本地验收安装包v8
+          path: 产物
+      - name: 核对附件、顺序上传并发布；仅同SHA同摘要可续传
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin 'refs/heads/main' | cut -f1)" = "$SOURCE_SHA"
+          python scripts/发布资产v8.py --root 产物 --source "$SOURCE_SHA" --version 0.2.4 --publish
+      - name: 从公开Release独立下载并逐文件校验摘要
+        run: |
+          python - <<'PYDOWNLOAD'
+          import hashlib, json, time, urllib.request
+          from pathlib import Path
+          root = Path('产物')
+          report = json.loads((root/'发布完成记录v8.json').read_text())
+          results = []
+          for item in report['assets']:
+              url = 'https://github.com/Eswink/coding-tools-mcp/releases/download/' + report['tag'] + '/' + item['name']
+              for attempt in range(3):
+                  try:
+                      with urllib.request.urlopen(url, timeout=120) as response:
+                          raw = response.read(item['size'] + 1)
+                      assert len(raw) == item['size'] and 'sha256:' + hashlib.sha256(raw).hexdigest() == item['digest']
+                      break
+                  except Exception:
+                      if attempt == 2:
+                          raise
+                      time.sleep(5)
+              results.append({'name': item['name'], 'bytes': len(raw), 'digest': item['digest'], 'verified': True})
+          (root/'发布下载核验v8.json').write_text(json.dumps({'passed': True, 'source_sha': report['source_sha'], 'assets': results}, indent=2))
+          print('公开Release附件独立下载核验:', len(results), '通过')
+          PYDOWNLOAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 发布完成证据v8
+          path: |
+            产物/发布完成记录v8.json
+            产物/发布下载核验v8.json
+            产物/安装包校验和v8.txt
+            产物/发布验证证据v8.zip
+          retention-days: 30
+          if-no-files-found: warn

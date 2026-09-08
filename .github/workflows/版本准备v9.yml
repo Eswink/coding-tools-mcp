@@ -1,0 +1,51 @@
+name: 版本准备v9
+on:
+  push:
+    branches: ['release/准备v0.2.4']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: version-prepare-v024
+  cancel-in-progress: false
+jobs:
+  version:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/release/准备v0.2.4'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 仅递增五文件六处版本，不改依赖或产品逻辑
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 848ac970a78c672d1ce5cbeb2587e63bb191f1d1 HEAD
+          python scripts/版本递增回归v7.py
+          python scripts/版本递增v7.py --from-version 0.2.3 --version 0.2.4 --apply
+          python scripts/合并发布回归v9.py
+          python - <<'PYSCOPE'
+          import subprocess
+          allowed = {'package.json', 'package-lock.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json'}
+          changed = set(filter(None, subprocess.check_output(['git','diff','--name-only','-z']).decode().split('\0')))
+          assert changed <= allowed, changed
+          PYSCOPE
+          git diff --check
+          git add -- package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'chore: 统一六处项目版本为0.2.4，不变更依赖'
+            git push origin HEAD:refs/heads/release/准备v0.2.4
+          fi
+          python scripts/发布版本校验v4.py --expect-sha "$(git rev-parse HEAD)" --output "$RUNNER_TEMP/版本准备v9.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 版本准备v9
+          path: ${{ runner.temp }}/版本准备v9.json
+          if-no-files-found: error
