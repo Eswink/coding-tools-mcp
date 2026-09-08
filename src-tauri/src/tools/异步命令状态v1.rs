@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Value};
+use serde::{Deserialize, Serialize};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use uuid::Uuid;
 
@@ -13,7 +13,8 @@ pub(super) const RETAIN_BYTES: usize = 1_048_576;
 pub(super) const PAGE_BYTES: u64 = 16_384;
 const RESULT_TTL: Duration = Duration::from_secs(3600);
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub(super) enum Status {
     Queued,
     Running,
@@ -22,11 +23,12 @@ pub(super) enum Status {
     Failed,
     TimedOut,
     Cancelled,
+    Interrupted,
 }
 
 impl Status {
     pub fn terminal(self) -> bool {
-        matches!(self, Self::Succeeded | Self::Failed | Self::TimedOut | Self::Cancelled)
+        matches!(self, Self::Succeeded | Self::Failed | Self::TimedOut | Self::Cancelled | Self::Interrupted)
     }
 
     pub fn label(self) -> &'static str {
@@ -34,6 +36,7 @@ impl Status {
             Self::Queued => "queued", Self::Running => "running",
             Self::Cancelling => "cancelling", Self::Succeeded => "succeeded",
             Self::Failed => "failed", Self::TimedOut => "timed_out", Self::Cancelled => "cancelled",
+            Self::Interrupted => "interrupted",
         }
     }
 }
@@ -50,10 +53,9 @@ pub(super) struct JobData {
 }
 
 impl JobData {
-    fn holds_capacity(&self) -> bool {
+    pub(super) fn holds_capacity(&self) -> bool {
         !self.status.terminal()
-            || (self.result.as_ref().and_then(|r| r.get("process_may_be_running")) == Some(&Value::Bool(true))
-                && self.session.as_ref().is_none_or(|session| !session.has_exited()))
+            || self.result.as_ref().and_then(|r| r.get("process_may_be_running")) == Some(&Value::Bool(true))
     }
 }
 
@@ -64,14 +66,18 @@ pub(super) struct Job {
     pub timeout_ms: u64,
     pub created_at: u64,
     pub started: Instant,
+    pub persistent: bool,
+    pub restored_elapsed: Option<u64>,
+    pub persistence_failed: std::sync::atomic::AtomicBool,
     pub data: Mutex<JobData>,
 }
 
 impl Job {
-    fn new(request_id: String, fingerprint: String, timeout_ms: u64) -> Self {
+    pub(super) fn new(request_id: String, fingerprint: String, timeout_ms: u64, persistent: bool) -> Self {
         Self {
             id: Uuid::new_v4().to_string(), request_id, fingerprint, timeout_ms,
-            created_at: unix_ms(), started: Instant::now(),
+            created_at: unix_ms(), started: Instant::now(), persistent, restored_elapsed: None,
+            persistence_failed: std::sync::atomic::AtomicBool::new(false),
             data: Mutex::new(JobData {
                 status: Status::Queued, cancel_requested: false, session: None, result: None,
                 native_stdout: (Vec::new(), 0), native_stderr: (Vec::new(), 0),
@@ -86,13 +92,15 @@ impl Job {
             "job_id": self.id, "request_id": self.request_id, "status": d.status.label(),
             "accepted": true, "terminal": d.status.terminal(), "cancel_requested": d.cancel_requested,
             "created_at": self.created_at, "completed_at": d.completed_at, "timestamp_unit": "unix_ms",
-            "elapsed_ms": d.finished.unwrap_or_else(Instant::now).duration_since(self.started).as_millis(),
+            "elapsed_ms": self.restored_elapsed.unwrap_or_else(|| d.finished.unwrap_or_else(Instant::now).duration_since(self.started).as_millis() as u64),
             "execution_timeout_ms": self.timeout_ms, "result_ttl_ms": RESULT_TTL.as_millis(),
             "poll_after_ms": if d.status.terminal() { 0 } else { 1000 },
             "command_ok": if d.status.terminal() { Some(d.status == Status::Succeeded) } else { None },
             "result": d.result,
-            "recovery_scope": "service_instance", "restart_recoverable": false,
-            "cancellation_scope": "direct_child",
+            "recovery_scope": if self.persistent { "workspace_service" } else { "service_instance" },
+            "restart_recoverable": self.persistent, "execution_survives_app_restart": false,
+            "persistence_failed": self.persistence_failed.load(std::sync::atomic::Ordering::Acquire),
+            "cancellation_scope": "process_tree",
             "next_action": if d.status.terminal() { "read remaining output; do not resubmit automatically" }
                            else { "get_exec_task with this job_id; a running task is not an error" },
         })
@@ -156,78 +164,10 @@ pub(super) fn page(bytes: &[u8], total: usize, cursor: u64, limit: u64) -> Resul
     }))
 }
 
-/// Service-instance scoped: no plaintext command/output is newly persisted to disk.
-pub struct ExecTaskStore {
-    jobs: Mutex<HashMap<String, Arc<Job>>>,
-    max_active: usize,
-    max_retained: usize,
-    ttl: Duration,
-}
-
-impl Default for ExecTaskStore {
-    fn default() -> Self {
-        Self { jobs: Mutex::new(HashMap::new()), max_active: 4, max_retained: 32, ttl: RESULT_TTL }
-    }
-}
-
-impl ExecTaskStore {
-    fn prune(&self, jobs: &mut HashMap<String, Arc<Job>>) {
-        jobs.retain(|_, job| {
-            let d = job.data.lock().expect("job state");
-            d.holds_capacity() || !d.finished.is_some_and(|ended| ended.elapsed() >= self.ttl)
-        });
-    }
-
-    pub(super) fn reserve(&self, request_id: &str, fingerprint: &str, timeout_ms: u64)
-        -> Result<(Arc<Job>, bool), WorkspaceError>
-    {
-        let mut jobs = self.jobs.lock().expect("job store");
-        self.prune(&mut jobs);
-        if let Some(job) = jobs.values().find(|job| job.request_id == request_id) {
-            if job.fingerprint != fingerprint {
-                return Err(error("IDEMPOTENCY_CONFLICT", "request_id already belongs to different command parameters", false));
-            }
-            return Ok((job.clone(), false));
-        }
-        let active = jobs.values().filter(|job| job.data.lock().expect("job state").holds_capacity()).count();
-        if active >= self.max_active || jobs.len() >= self.max_retained {
-            return Err(error("EXEC_TASK_CAPACITY", "Task capacity reached; query existing tasks or retry the same request_id later", true));
-        }
-        let job = Arc::new(Job::new(request_id.into(), fingerprint.into(), timeout_ms));
-        jobs.insert(job.id.clone(), job.clone());
-        Ok((job, true))
-    }
-
-    pub(super) fn get(&self, id: &str) -> Result<Arc<Job>, WorkspaceError> {
-        let mut jobs = self.jobs.lock().expect("job store");
-        self.prune(&mut jobs);
-        jobs.get(id).cloned().ok_or_else(|| error("EXEC_TASK_NOT_FOUND",
-            "Task not found in this service instance (unknown, expired, or service restarted); do not automatically re-execute", false))
-    }
-
-    pub(super) fn list(&self, request_id: Option<&str>) -> Vec<Value> {
-        let mut jobs = self.jobs.lock().expect("job store");
-        self.prune(&mut jobs);
-        let mut selected = jobs.values().filter(|j| request_id.is_none_or(|r| j.request_id == r)).cloned().collect::<Vec<_>>();
-        selected.sort_by(|a, b| b.created_at.cmp(&a.created_at).then(a.id.cmp(&b.id)));
-        selected.iter().map(|job| {
-            let mut summary = job.summary();
-            // Listing never returns command arguments, output, or errors containing paths.
-            summary.as_object_mut().expect("summary object").remove("result");
-            summary
-        }).collect()
-    }
-
-    #[cfg(test)]
-    pub(super) fn with_limits(active: usize, retained: usize, ttl: Duration) -> Self {
-        Self { jobs: Mutex::new(HashMap::new()), max_active: active, max_retained: retained, ttl }
-    }
-}
-
 pub(super) fn error(code: &'static str, message: &str, retryable: bool) -> WorkspaceError {
     WorkspaceError::Tool { code, message: message.into(), category: "runtime", retryable }
 }
 
-fn unix_ms() -> u64 {
+pub(super) fn unix_ms() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
 }

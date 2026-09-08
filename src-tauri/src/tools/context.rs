@@ -16,6 +16,8 @@ pub struct ToolContext {
     pub harness: Harness,
     default_cwd: Mutex<PathBuf>,
     pub sessions: Arc<SessionStore>,
+    pub(crate) managed_task: bool,
+    pub(crate) local_task_control: bool,
     pub exec_tasks: Arc<crate::tools::exec_tasks::ExecTaskStore>,
 }
 
@@ -73,6 +75,8 @@ impl ToolContext {
             harness: Harness::new(root.clone(), harness_root).expect("无法初始化 Harness"),
             default_cwd: Mutex::new(root),
             sessions: Arc::new(SessionStore::new()),
+            managed_task: false,
+            local_task_control: false,
             exec_tasks: Arc::new(crate::tools::exec_tasks::ExecTaskStore::default()),
         }
     }
@@ -99,7 +103,18 @@ impl ToolContext {
             tool_profile: self.tool_profile.clone(), permission_mode: self.permission_mode.clone(),
             harness: self.harness.clone(), default_cwd: Mutex::new(self.default_cwd_path()),
             sessions: self.sessions.clone(), exec_tasks: self.exec_tasks.clone(),
+            managed_task: self.managed_task,
+            local_task_control: self.local_task_control,
         }
+    }
+
+    /// Lazy encrypted storage. Merely starting the listener never creates secrets.
+    pub(crate) fn enable_durable_tasks(&mut self, profile_id: &str, channel: &str) {
+        use sha2::{Digest, Sha256};
+        let identity = serde_json::to_vec(&(self.harness.workspace_id(), profile_id, channel)).expect("task namespace");
+        let namespace = format!("{:x}", Sha256::digest(identity));
+        let root = self.harness.store_root().join("exec-tasks-v2").join(namespace);
+        self.exec_tasks = crate::tools::exec_tasks::ExecTaskStore::shared(root);
     }
 
     pub fn workspace_path(&self) -> String {

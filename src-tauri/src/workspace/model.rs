@@ -61,6 +61,8 @@ pub struct RuntimeConfig {
     pub permission_mode: String,
     #[serde(default)]
     pub runtime_command: String,
+    #[serde(default = "default_max_task_timeout_ms")]
+    pub max_task_timeout_ms: u64,
     /// Workspace execution policy shared by MCP clients.
     #[serde(default = "default_allowed_commands")]
     pub allowed_commands: String,
@@ -100,6 +102,8 @@ pub struct ActionsConfig {
     pub permission_mode: String,
     #[serde(default)]
     pub runtime_command: String,
+    #[serde(default = "default_max_task_timeout_ms")]
+    pub max_task_timeout_ms: u64,
     #[serde(default = "default_actions_auth_type")]
     pub auth_type: String,
     #[serde(default = "default_actions_oauth_client_id")]
@@ -192,6 +196,8 @@ fn default_workspace_script_extensions() -> String {
     ".exe,.bat,.cmd,.ps1".to_string()
 }
 
+fn default_max_task_timeout_ms() -> u64 { 86_400_000 }
+
 fn default_max_patch_bytes() -> u32 {
     200_000
 }
@@ -230,6 +236,7 @@ impl Default for RuntimeConfig {
             tool_profile: default_tool_profile(),
             permission_mode: default_permission_mode(),
             runtime_command: String::new(),
+            max_task_timeout_ms: default_max_task_timeout_ms(),
             allowed_commands: default_allowed_commands(),
             workspace_local_entries: default_workspace_local_entries(),
             workspace_script_extensions: default_workspace_script_extensions(),
@@ -254,6 +261,7 @@ impl Default for ActionsConfig {
             local_port: default_actions_port(),
             permission_mode: default_permission_mode(),
             runtime_command: String::new(),
+            max_task_timeout_ms: default_max_task_timeout_ms(),
             auth_type: default_actions_auth_type(),
             oauth_client_id: default_actions_oauth_client_id(),
             oauth_scopes: String::new(),

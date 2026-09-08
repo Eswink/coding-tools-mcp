@@ -8,10 +8,10 @@ pub fn input_schema(name: &str) -> Option<Value> {
             "properties": {
                 "cmd": {"type": "string", "minLength": 1, "maxLength": 4000},
                 "request_id": {"type": "string", "minLength": 1, "maxLength": 128,
-                    "description": "Create one key per logical command; reuse EXACTLY the same key and command after a lost response. Deduplication lasts one hour after completion within this service instance."},
+                    "description": "Create one key per logical command; reuse EXACTLY the same key and command after a lost response. Deduplication lasts one hour after completion within this workspace/service. Interrupted tasks must not be replayed."},
                 "workdir": {"type": "string", "default": "."},
-                "timeout_ms": {"type": "integer", "minimum": 1, "maximum": 600000, "default": 600000,
-                    "description": "Process execution budget, NOT HTTP response wait. Does not remove the existing 10-minute policy limit."},
+                "timeout_ms": {"type": "integer", "minimum": 1, "maximum": 86400000, "default": 600000,
+                    "description": "Process execution budget, NOT HTTP response wait. Subject to workspace task policy, at most 24 hours; ordinary exec_command remains limited to 10 minutes."},
                 "confirm": {"type": "boolean", "default": false},
                 "filesystem_scope": {"type": "string", "enum": ["workspace"], "default": "workspace"},
                 "reason": {"type": "string", "default": ""}
@@ -34,7 +34,8 @@ pub fn input_schema(name: &str) -> Option<Value> {
         }),
         "cancel_exec_task" => json!({
             "type": "object", "additionalProperties": false, "required": ["job_id"],
-            "properties": {"job_id": {"type": "string", "minLength": 1}}
+            "properties": {"job_id": {"type": "string", "minLength": 1,
+                "description": "Request cancellation of a known task. A local operator must verify unconfirmed old processes in the desktop panel; remote callers cannot acknowledge termination."}}
         }),
         _ => return None,
     })

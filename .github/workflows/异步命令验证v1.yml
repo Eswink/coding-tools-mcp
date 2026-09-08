@@ -9,6 +9,25 @@ concurrency:
   group: async-command-v1-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - name: 执行任务日志生产函数回归
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --no-install tsc src/lib/任务日志v2.ts --target ES2022 --module commonjs --strict --outDir "$RUNNER_TEMP/任务日志v2"
+          TASK_LOG_MODULE="$RUNNER_TEMP/任务日志v2/任务日志v2.js" node --test tests/任务日志回归v2.test.mjs
   regression:
     strategy:
       fail-fast: false

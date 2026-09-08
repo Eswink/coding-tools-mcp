@@ -70,6 +70,9 @@ pub struct ExecSession {
     termination_reason: Mutex<Option<String>>,
     reader_tasks: AsyncMutex<Vec<tauri::async_runtime::JoinHandle<()>>>,
     reader_failed: AtomicBool,
+    process_tree: Mutex<Option<crate::tools::process_tree::ProcessTree>>,
+    managed: bool,
+    tree_cleanup_failed: AtomicBool,
 }
 
 impl ExecSession {
@@ -97,6 +100,22 @@ impl ExecSession {
             termination_reason: Mutex::new(None),
             reader_tasks: AsyncMutex::new(Vec::new()),
             reader_failed: AtomicBool::new(false),
+            process_tree: Mutex::new(None),
+            managed: false,
+            tree_cleanup_failed: AtomicBool::new(false),
+        }
+    }
+
+    pub(crate) fn new_managed(child: Child, tree: crate::tools::process_tree::ProcessTree) -> Self {
+        let mut session = Self::new_with_mode(child, false);
+        session.managed = true;
+        *session.process_tree.lock().expect("process tree") = Some(tree);
+        session
+    }
+
+    fn terminate_tree(&self) {
+        if let Some(mut tree) = self.process_tree.lock().expect("process tree").take() {
+            if tree.terminate().is_err() { self.tree_cleanup_failed.store(true, Ordering::Release); }
         }
     }
 
@@ -128,7 +147,7 @@ impl ExecSession {
     pub async fn wait_for_readers(&self) {
         let mut tasks = self.reader_tasks.lock().await;
         while let Some(mut task) = tasks.pop() {
-            match tokio::time::timeout(std::time::Duration::from_millis(500), &mut task).await {
+            match tokio::time::timeout(std::time::Duration::from_millis(if self.managed { 5000 } else { 500 }), &mut task).await {
                 Ok(Ok(())) => {},
                 Ok(Err(_)) => { self.reader_failed.store(true, Ordering::Release); },
                 Err(_) => {
@@ -177,6 +196,7 @@ impl ExecSession {
     }
 
     pub async fn kill_and_wait(&self) {
+        self.terminate_tree();
         let status = {
             let mut child = self.child.lock().await;
             let _ = child.start_kill();
@@ -195,6 +215,7 @@ impl ExecSession {
     }
 
     fn record_exit_status(&self, status: std::process::ExitStatus) {
+        self.terminate_tree();
         *self.exit_code.lock().expect("exit_code lock") = status.code();
         self.exited.store(true, Ordering::Release);
         *self.stdin_open.lock().expect("stdin_open lock") = false;
@@ -274,6 +295,7 @@ impl ExecSession {
             },
             "exit_code": exit_code,
             "transport_ok": true,
+            "process_may_be_running": self.tree_cleanup_failed.load(Ordering::Acquire),
             "command_ok": command_ok,
             "stdout": stdout.content,
             "stderr": stderr.content,

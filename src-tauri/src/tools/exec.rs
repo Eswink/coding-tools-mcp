@@ -249,7 +249,10 @@ async fn run_command(
         .env("PYTHONIOENCODING", "utf-8")
         .env("PYTHONLEGACYWINDOWSSTDIO", "0");
 
-    let child = command.spawn().map_err(|e| WorkspaceError::ToolDetails {
+    let spawned = if ctx.managed_task {
+        crate::tools::process_tree::spawn(&mut command).await.map(|(child, tree)| (child, Some(tree)))
+    } else { command.spawn().map(|child| (child, None)) };
+    let (child, tree) = spawned.map_err(|e| WorkspaceError::ToolDetails {
         code: "COMMAND_SPAWN_FAILED",
         message: format!("Failed to start command: {e}"),
         category: "runtime",
@@ -261,7 +264,10 @@ async fn run_command(
         }),
     })?;
 
-    let session = ctx.sessions.insert(ExecSession::new_with_mode(child, tty));
+    let session = ctx.sessions.insert(match tree {
+        Some(tree) => ExecSession::new_managed(child, tree),
+        None => ExecSession::new_with_mode(child, tty),
+    });
     session.spawn_readers().await;
     let deadline = start + limit;
 
@@ -339,14 +345,18 @@ fn spawn_timeout_monitor(
     deadline: Instant,
 ) {
     tauri::async_runtime::spawn(async move {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        tokio::time::sleep(remaining).await;
-        session.refresh_status().await;
-        if !session.has_exited() {
-            session.mark_termination_reason("timeout");
-            session.kill_and_wait().await;
+        // Release the monitor's session Arc promptly instead of retaining every
+        // short-lived job until its possibly 24-hour execution deadline.
+        loop {
             session.refresh_status().await;
-            session.wait_for_readers().await;
+            if session.has_exited() { break; }
+            if Instant::now() >= deadline {
+                session.mark_termination_reason("timeout");
+                session.kill_and_wait().await;
+                session.wait_for_readers().await;
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
         }
         // Keep the session briefly so clients can still read_output / probe status.
         schedule_session_eviction(sessions, session.session_id.clone());

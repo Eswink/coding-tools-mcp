@@ -59,6 +59,8 @@ pub struct PolicySettings {
     pub workspace_local_entries: bool,
     pub workspace_script_extensions: HashSet<String>,
     pub max_patch_bytes: usize,
+    pub max_task_timeout_ms: u64,
+    pub max_exec_timeout_ms: u64,
     pub permission_mode: String,
 }
 
@@ -69,6 +71,8 @@ impl Default for PolicySettings {
             workspace_local_entries: true,
             workspace_script_extensions: default_workspace_script_extension_set(),
             max_patch_bytes: 200_000,
+            max_task_timeout_ms: 86_400_000,
+            max_exec_timeout_ms: 600_000,
             permission_mode: "trusted".into(),
         }
     }
@@ -83,6 +87,8 @@ impl PolicySettings {
                 &runtime.workspace_script_extensions,
             ),
             max_patch_bytes: 200_000,
+            max_task_timeout_ms: runtime.max_task_timeout_ms.clamp(1, 86_400_000),
+            max_exec_timeout_ms: 600_000,
             permission_mode: runtime.permission_mode.clone(),
         }
     }
@@ -93,6 +99,8 @@ impl PolicySettings {
             workspace_local_entries: true,
             workspace_script_extensions: default_workspace_script_extension_set(),
             max_patch_bytes: actions.max_patch_bytes as usize,
+            max_task_timeout_ms: actions.max_task_timeout_ms.clamp(1, 86_400_000),
+            max_exec_timeout_ms: 600_000,
             permission_mode: actions.permission_mode.clone(),
         }
     }
@@ -181,7 +189,12 @@ pub fn validate_tool_arguments_for_workspace(
     workspace: Option<&Workspace>,
 ) -> Result<(), PolicyError> {
     match tool_name {
-        "exec_command" | "start_exec_task" => validate_command_for_workspace(arguments, policy, workspace),
+        "exec_command" => validate_command_for_workspace(arguments, policy, workspace),
+        "start_exec_task" => {
+            let mut task_policy = policy.clone();
+            task_policy.max_exec_timeout_ms = policy.max_task_timeout_ms.min(86_400_000);
+            validate_command_for_workspace(arguments, &task_policy, workspace)
+        },
         "apply_patch" | "patch_check" => validate_patch(arguments, policy),
         _ => Ok(()),
     }
@@ -306,8 +319,8 @@ pub fn validate_command_for_workspace(
     }
 
     if let Some(timeout_ms) = arguments.get("timeout_ms").and_then(Value::as_u64) {
-        if timeout_ms > 600_000 {
-            return Err(PolicyError("Command timeout exceeds 10 minutes".into()));
+        if timeout_ms > policy.max_exec_timeout_ms {
+            return Err(PolicyError(format!("Command timeout exceeds execution policy ({} ms)", policy.max_exec_timeout_ms)));
         }
     }
 

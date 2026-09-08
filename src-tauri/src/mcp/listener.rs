@@ -52,13 +52,14 @@ pub fn spawn_listener_with_origin(
     let workspace_display = workspace_path.display().to_string();
     let workspace = Workspace::new(workspace_path).map_err(|e| e.message())?;
     let policy = PolicySettings::from_runtime(&runtime);
-    let mcp = new_state(
+    let mut mcp = new_state(
         workspace,
         auth.clone(),
         policy,
         runtime.tool_profile.clone(),
         runtime.permission_mode.clone(),
     );
+    Arc::get_mut(&mut mcp).expect("new listener context").enable_durable_tasks(&workspace_id, "mcp");
     let bearer_token = if auth.bearer_enabled() {
         let key = "bearer_token";
         if auth.use_shared_secrets {

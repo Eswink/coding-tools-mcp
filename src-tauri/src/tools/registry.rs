@@ -1,10 +1,10 @@
 use serde_json::{json, Value};
 
 pub const P0_TOOLS: &[(&str, &str, &str, bool, bool, bool)] = &[
-    ("start_exec_task", "Start asynchronous command", "Start a noninteractive bounded command without waiting for completion. Supply request_id BEFORE submission and reuse it on transport timeout to avoid duplicate execution. Returns job_id; poll get_exec_task. No recovery across service restart. Prefer this for builds and other long commands.", false, true, true),
+    ("start_exec_task", "Start asynchronous command", "Start a noninteractive bounded command without waiting for completion. Supply request_id BEFORE submission and reuse it on transport timeout to avoid duplicate execution. Returns job_id; poll get_exec_task. Encrypted records survive restarts; interrupted execution is never automatically replayed. Prefer this for builds and other long commands.", false, true, true),
     ("get_exec_task", "Get asynchronous command", "Nonblocking status and per-stream cursor logs for a job_id. queued/running/cancelling are NOT failures. Use next_cursor independently for stdout/stderr. Completion does not automatically resume ChatGPT; explicitly poll when needed.", true, false, false),
-    ("list_exec_tasks", "List asynchronous commands", "Find jobs in this service instance, optionally by request_id after a lost submit response. Bounded summaries only; no command arguments or logs. Jobs are not Harness coding plans.", true, false, false),
-    ("cancel_exec_task", "Cancel asynchronous command", "Request cancellation without waiting. Poll get_exec_task for the final state. Terminates the directly owned child only; detached descendants are not covered. Does not undo command side effects.", false, true, false),
+    ("list_exec_tasks", "List asynchronous commands", "Find jobs in this workspace/service namespace, optionally by request_id after a lost submit response. Bounded summaries only; no command arguments or logs. Jobs are not Harness coding plans.", true, false, false),
+    ("cancel_exec_task", "Cancel asynchronous command", "Request cancellation without waiting. Poll get_exec_task for the final state. Terminates the managed process group/Windows Job Object. Deliberately escaped descendants are not a sandbox guarantee. Does not undo command side effects.", false, true, false),
     (
         "harness_status",
         "Harness status",

@@ -14,7 +14,11 @@ mod state;
 #[path = "异步命令协议v1.rs"]
 mod protocol;
 use state::{Job, Status, PAGE_BYTES};
-pub use state::ExecTaskStore;
+#[path = "任务仓库v2.rs"]
+mod store;
+#[path = "任务记录v2.rs"]
+mod record;
+pub use store::ExecTaskStore;
 pub use protocol::input_schema;
 
 fn object<'a>(args: &'a Value, allowed: &[&str]) -> Result<&'a serde_json::Map<String, Value>, WorkspaceError> {
@@ -46,7 +50,7 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
         return Err(WorkspaceError::invalid_argument("request_id must be 1..128 UTF-8 bytes without control characters"));
     }
     let cmd = text(args, "cmd")?;
-    let timeout_ms = number(args, "timeout_ms", 600_000, 1, 600_000)?;
+    let timeout_ms = number(args, "timeout_ms", 600_000.min(ctx.policy.max_task_timeout_ms), 1, ctx.policy.max_task_timeout_ms.min(86_400_000))?;
     if args.get("confirm").is_some_and(|v| !v.is_boolean()) {
         return Err(WorkspaceError::invalid_argument("confirm must be boolean"));
     }
@@ -62,7 +66,9 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
     })).expect("serializable command")));
     let (job, created) = ctx.exec_tasks.reserve(request_id, &fingerprint, timeout_ms)?;
     if created {
-        let background = ctx.background_snapshot();
+        let mut background = ctx.background_snapshot();
+        background.managed_task = true;
+        background.policy.max_exec_timeout_ms = background.policy.max_task_timeout_ms.min(86_400_000);
         let mut command = args.clone();
         command.as_object_mut().expect("validated object").remove("request_id");
         command["workdir"] = json!(cwd.display);
@@ -78,11 +84,17 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
                 // A failed worker must never leave the public task permanently "running".
                 let session = worker_job.data.lock().ok().and_then(|d| d.session.clone());
                 if let Some(session) = session {
-                    tauri::async_runtime::block_on(session.kill_and_wait());
+                    let _ = tauri::async_runtime::block_on(async {
+                        tokio::time::timeout(Duration::from_secs(5), session.kill_and_wait()).await
+                    });
                 }
-                worker_job.finish(Status::Failed, json!({"command_ok": false,
-                    "error": {"code": "EXEC_TASK_WORKER_FAILED", "message": "Execution worker failed; inspect workspace before retrying"}}));
+                // Do not release capacity or the retry key after an unclassified
+                // panic: the command might have started before session publication.
+                worker_job.finish(Status::Interrupted, json!({"command_ok": false,
+                    "process_may_be_running": true, "output_complete": false,
+                    "error": {"code": "EXEC_TASK_WORKER_FAILED", "message": "Execution worker failed; inspect local processes before acknowledging termination"}}));
             }
+            let _ = background.exec_tasks.checkpoint(&worker_job);
         });
     }
     let mut summary = job.summary();
@@ -99,6 +111,10 @@ fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {
             return;
         }
         data.status = Status::Running;
+    }
+    if ctx.exec_tasks.checkpoint(job).is_err() {
+        job.finish(Status::Failed, json!({"command_ok":false, "termination_reason":"storage_failed_before_spawn"}));
+        return;
     }
     // Keep ALL policy/baseline/operation logging in the one shared execution dispatcher.
     let result = crate::tools::call_tool(ctx, "exec_command", args);
@@ -117,7 +133,14 @@ fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {
         session.stdin.lock().await.take();
         session.mark_stdin_closed();
     });
+    let mut checkpoint_at = std::time::Instant::now();
     loop {
+        if checkpoint_at.elapsed() >= Duration::from_secs(2) {
+            if ctx.exec_tasks.checkpoint(job).is_err() {
+                job.data.lock().expect("job state").cancel_requested = true;
+            }
+            checkpoint_at = std::time::Instant::now();
+        }
         tauri::async_runtime::block_on(session.refresh_status());
         if session.has_exited() { break; }
         if job.data.lock().expect("job state").cancel_requested {
@@ -139,6 +162,7 @@ fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {
     tauri::async_runtime::block_on(session.wait_for_readers());
     let mut final_result = session.snapshot(0);
     final_result["output_complete"] = json!(session.readers_completed());
+    if final_result["process_may_be_running"] == true { final_result["command_ok"] = json!(false); }
     let status = match final_result["termination_reason"].as_str() {
         Some("timeout") => Status::TimedOut,
         Some("killed") => Status::Cancelled,
@@ -166,20 +190,41 @@ pub fn get(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
 pub fn list(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
     object(args, &["request_id"])?;
     let filter = if args.get("request_id").is_some() { Some(text(args, "request_id")?) } else { None };
-    Ok(tool_ok(json!({"jobs": ctx.exec_tasks.list(filter), "recovery_scope": "service_instance",
-        "restart_recoverable": false, "max_active": 4, "max_retained": 32})))
+    Ok(tool_ok(json!({"jobs": ctx.exec_tasks.list(filter)?, "recovery_scope": if ctx.exec_tasks.persistent() { "workspace_service" } else { "service_instance" },
+        "restart_recoverable": ctx.exec_tasks.persistent(), "execution_survives_app_restart": false, "max_active": 4, "max_retained": 32})))
 }
 
 pub fn cancel(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
-    object(args, &["job_id"])?;
+    object(args, &["job_id", "confirm_terminated"])?;
+    if args.get("confirm_terminated").is_some_and(|v| !v.is_boolean()) {
+        return Err(WorkspaceError::invalid_argument("confirm_terminated must be boolean"));
+    }
+    if args.get("confirm_terminated") == Some(&Value::Bool(true)) && !ctx.local_task_control {
+        return Err(WorkspaceError::invalid_argument(
+            "Unknown process termination must be confirmed in the local desktop task panel, not by a remote tool"));
+    }
     let job = ctx.exec_tasks.get(text(args, "job_id")?)?;
     {
         let mut data = job.data.lock().expect("job state");
+        if args.get("confirm_terminated") == Some(&Value::Bool(true)) {
+            if !data.status.terminal() {
+                return Err(WorkspaceError::invalid_argument("A running task must be cancelled, not manually acknowledged"));
+            }
+            if data.result.as_ref().is_some_and(|result| result["process_may_be_running"] == true) {
+                if let Some(result) = data.result.as_mut() {
+                    result["process_may_be_running"] = json!(false);
+                    result["termination_confirmed_by_user"] = json!(true);
+                }
+                data.finished = Some(std::time::Instant::now());
+                data.completed_at = Some(state::unix_ms());
+            }
+        }
         if !data.status.terminal() {
             data.cancel_requested = true;
             data.status = Status::Cancelling;
         }
     }
+    ctx.exec_tasks.checkpoint(&job)?;
     Ok(tool_ok(job.summary()))
 }
 
@@ -190,3 +235,11 @@ mod tests;
 #[cfg(test)]
 #[path = "异步命令传输v1.rs"]
 mod transport_tests;
+
+#[cfg(test)]
+#[path = "持久任务回归v2.rs"]
+mod durable_tests;
+
+#[cfg(test)]
+#[path = "任务恢复传输v2.rs"]
+mod recovery_transport_tests;

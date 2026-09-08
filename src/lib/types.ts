@@ -29,6 +29,7 @@ export interface RuntimeConfig {
   tool_profile: string;
   permission_mode: string;
   runtime_command?: string;
+  max_task_timeout_ms?: number;
   allowed_commands?: string;
   workspace_local_entries?: boolean;
   workspace_script_extensions?: string;
@@ -49,6 +50,7 @@ export interface ActionsConfig {
   local_port: number;
   permission_mode: string;
   runtime_command?: string;
+  max_task_timeout_ms?: number;
   auth_type: string;
   oauth_client_id?: string;
   oauth_scopes?: string;

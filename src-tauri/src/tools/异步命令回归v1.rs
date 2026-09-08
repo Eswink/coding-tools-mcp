@@ -177,7 +177,7 @@ fn invalid_arguments_and_policy_do_not_register_a_task() {
     for args in [
         json!({"cmd": "echo ok"}), json!({"cmd": "echo ok", "request_id": ""}),
         json!({"cmd": "echo ok", "request_id": "r", "timeout_ms": -1}),
-        json!({"cmd": "echo ok", "request_id": "r", "timeout_ms": 600001}),
+        json!({"cmd": "echo ok", "request_id": "r", "timeout_ms": 86400001}),
         json!({"cmd": "echo ok", "request_id": "r", "confirm": "yes"}),
         json!({"cmd": "echo ok", "request_id": "r", "env": {"SECRET": "x"}}),
         json!({"cmd": "echo ok", "request_id": "r", "workdir": ".."}),
@@ -187,7 +187,7 @@ fn invalid_arguments_and_policy_do_not_register_a_task() {
         let r = crate::tools::call_tool(&ctx, "start_exec_task", &args);
         assert_eq!(r["ok"], false, "{args}: {r}");
     }
-    assert!(ctx.exec_tasks.list(None).is_empty());
+    assert!(ctx.exec_tasks.list(None).unwrap().is_empty());
 }
 
 #[test]
