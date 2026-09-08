@@ -25,13 +25,24 @@ jobs:
           mkdir -p "$out"
           git rev-parse HEAD > "$out/来源版本.txt"
           cp package-lock.json "$out/原锁文件.json"
+          cp package.json "$out/原项目清单.json"
+          trap 'cp package.json "$out/package.json"; cp package-lock.json "$out/package-lock.json"; git diff -- package.json package-lock.json > "$out/锁文件差异.patch"' EXIT
+          python - <<'PYOVERRIDE'
+          import json
+          from pathlib import Path
+          p = Path('package.json')
+          data = json.loads(p.read_text())
+          assert 'overrides' not in data
+          data['overrides'] = {'cookie': '0.7.2'}
+          p.write_text(json.dumps(data, indent=2) + '\n')
+          PYOVERRIDE
           npm audit fix --package-lock-only --ignore-scripts
-          git diff --exit-code -- package.json
           cp package-lock.json "$out/package-lock.json"
           npm audit --json > "$out/修复后审计.json"
           npm ci --ignore-scripts
           npm run check
           npm run build
+          node --input-type=module -e "import {serialize,parse} from 'cookie'; import assert from 'node:assert/strict'; assert.equal(parse(serialize('safe','value')).safe,'value'); assert.throws(()=>serialize('a;b','c'), TypeError); assert.throws(()=>serialize('a','b',{domain:'a;b'}), TypeError); assert.throws(()=>serialize('a','b',{path:'/;b'}), TypeError);"
           node --test tests/运行时入口连接v6.test.mjs
           git diff -- package-lock.json > "$out/锁文件差异.patch"
           sha256sum "$out/package-lock.json" > "$out/锁文件摘要.txt"
