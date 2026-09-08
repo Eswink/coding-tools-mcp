@@ -4,72 +4,140 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "可选：上传 DMG 到已存在的 Release，例如 v0.1.8"
+        description: '可选：从此现有标签构建；为空则从手动选择的源码版本构建'
         required: false
         type: string
+      publish:
+        description: '明确批准上传到已存在的 Release；未勾选只保存构建产物'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+concurrency:
+  group: macos-manual-v4-${{ inputs.release_tag || github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build-universal-macos:
-    runs-on: macos-14
+  prepare:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      source_sha: ${{ steps.source.outputs.source_sha }}
+      release_tag: ${{ steps.source.outputs.release_tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 确定本次手动请求的源码
+        id: source
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          PUBLISH: ${{ inputs.publish }}
+        run: |
+          if [[ "$PUBLISH" == 'true' && -z "$RELEASE_TAG" ]]; then
+            echo '上传 Release 必须提供现有源码标签' >&2
+            exit 1
+          fi
+          if [[ -n "$RELEASE_TAG" ]]; then
+            python scripts/发布版本校验v4.py --resolve-only --tag "$RELEASE_TAG" --github-output
+          else
+            printf 'source_sha=%s\nrelease_tag=\n' "$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          fi
 
+  build-universal-macos:
+    needs: prepare
+    runs-on: macos-14
+    timeout-minutes: 60
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 校验实际源码和六处版本
+        run: |
+          args=(--expect-sha "$SOURCE_SHA")
+          if [[ -n "$RELEASE_TAG" ]]; then args+=(--tag "$RELEASE_TAG"); fi
+          python scripts/发布版本校验v4.py "${args[@]}"
+          python scripts/发布版本回归v4.py
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: '22'
           cache: npm
-
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: '1.98.1'
           targets: aarch64-apple-darwin,x86_64-apple-darwin
-
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-
       - name: 安装前端依赖
         run: npm ci
-
       - name: 检查前端
         run: npm run check
-
-      - name: 运行 Rust 测试
-        working-directory: src-tauri
-        run: cargo test
-
+      - name: Rust 全目标检查、全量回归与严格编译
+        run: |
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml
+          cargo test --locked --manifest-path src-tauri/Cargo.toml
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings
       - name: 构建通用 macOS 应用与 DMG
         run: npm run tauri -- build --target universal-apple-darwin --bundles app,dmg
-
-      - name: 上传 Actions 构建产物
+      - name: 校验应用内部版本与 DMG 来源
+        run: |
+          python - <<'PYCODE'
+          import json, plistlib
+          from pathlib import Path
+          version = json.loads(Path('package.json').read_text())['version']
+          apps = list(Path('src-tauri/target/universal-apple-darwin/release/bundle/macos').glob('*.app'))
+          if not apps: raise SystemExit('未找到 .app')
+          for app in apps:
+              with (app / 'Contents/Info.plist').open('rb') as stream:
+                  actual = plistlib.load(stream)['CFBundleShortVersionString']
+              if actual != version: raise SystemExit('应用内部版本不一致')
+          PYCODE
+          mkdir -p "$RUNNER_TEMP/发布产物v4"
+          cp src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg "$RUNNER_TEMP/发布产物v4/"
+          args=(--expect-sha "$SOURCE_SHA" --artifacts "$RUNNER_TEMP/发布产物v4" --suffix .dmg --output "$RUNNER_TEMP/发布产物v4/发布来源macOSv4.json")
+          if [[ -n "$RELEASE_TAG" ]]; then args+=(--tag "$RELEASE_TAG"); fi
+          python scripts/发布版本校验v4.py "${args[@]}"
+      - name: 上传 DMG 及来源记录
         uses: actions/upload-artifact@v4
         with:
-          name: coding-tools-mcp-${{ github.ref_name }}-macos-universal
-          path: |
-            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-            src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
+          name: macos-dmg-v4
+          path: ${{ runner.temp }}/发布产物v4/
           if-no-files-found: error
 
   upload-release:
-    if: ${{ inputs.release_tag != '' }}
-    needs: build-universal-macos
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && inputs.release_tag != '' }}
+    needs: [prepare, build-universal-macos]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - name: 下载 macOS 构建产物
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: coding-tools-mcp-${{ github.ref_name }}-macos-universal
+          name: macos-dmg-v4
           path: dist/macos
-
-      - name: 上传 DMG 到指定 Release
+      - name: 上传到明确指定的现有 Release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        run: >-
-          gh release upload "$RELEASE_TAG" dist/macos/dmg/*.dmg
-          --repo "$GITHUB_REPOSITORY"
-          --clobber
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+        run: |
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
+          gh release upload "$RELEASE_TAG" dist/macos/*.dmg dist/macos/发布来源macOSv4.json --repo "$GITHUB_REPOSITORY" --clobber

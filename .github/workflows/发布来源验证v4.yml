@@ -1,0 +1,68 @@
+name: 发布来源验证v4
+
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+    paths:
+      - 'scripts/发布版本*.py'
+      - 'package*.json'
+      - 'src-tauri/Cargo.*'
+      - 'src-tauri/tauri.conf.json'
+      - '.github/workflows/*release.yml'
+      - '.github/workflows/发布来源验证v4.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/发布版本*.py'
+      - 'package*.json'
+      - 'src-tauri/Cargo.*'
+      - 'src-tauri/tauri.conf.json'
+      - '.github/workflows/*release.yml'
+      - '.github/workflows/发布来源验证v4.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provenance-v4-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  provenance:
+    name: 发布来源 (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 校验干净源码及真实六处版本
+        run: |
+          mkdir -p "$RUNNER_TEMP/来源证据v4"
+          python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA" --output "$RUNNER_TEMP/来源证据v4/项目版本v4.json"
+      - name: 真实临时 Git 正反例回归（不构建、不发布）
+        run: |
+          set -o pipefail
+          python scripts/发布版本回归v4.py 2>&1 | tee "$RUNNER_TEMP/来源证据v4/来源回归v4.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 发布来源证据v4-${{ matrix.os }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/来源证据v4/
+          if-no-files-found: error
+          retention-days: 7
