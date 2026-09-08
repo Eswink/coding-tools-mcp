@@ -1007,6 +1007,18 @@ fn public_url_for_profile(
     kind: TunnelServiceKind,
     settings: &AppSettings,
 ) -> String {
+    let quick = match kind {
+        TunnelServiceKind::Mcp => {
+            profile.tunnel.tunnel_type == "cloudflare" && profile.tunnel.cloudflare_mode == "quick"
+        }
+        TunnelServiceKind::Actions => {
+            profile.actions.tunnel_type == "cloudflare" && profile.actions.cloudflare_mode == "quick"
+        }
+    };
+    if quick {
+        // Quick origins belong to a live session, never to the persisted fallback.
+        return String::new();
+    }
     match kind {
         TunnelServiceKind::Mcp => profile.effective_public_url_with(settings),
         TunnelServiceKind::Actions => profile.actions_effective_public_url_with(settings),
@@ -1057,13 +1069,6 @@ fn validate_tunnel_requirements(
     }
 
     Ok(())
-}
-
-fn resolve_frp_server(profile_id: &str, inline_server: &str, settings: &AppSettings) -> String {
-    if let Some(profile) = settings.find_frp_profile(profile_id) {
-        return profile.server.clone();
-    }
-    inline_server.to_string()
 }
 
 fn cloudflare_config(
@@ -1373,6 +1378,57 @@ mod tests {
         second.tunnel.frp.custom_domain = "ONE.EXAMPLE.COM.".into();
         let cfg = frp::frp_server_config(&second, TunnelServiceKind::Mcp, &settings, Some(String::new()));
         assert!(supervisor.validate_frp_route_compatibility(&second.id, &cfg, &settings).is_err());
+    }
+
+    #[test]
+    fn stopped_quick_tunnels_do_not_publish_persisted_origins() {
+        let mut profile = frp_profile("quick", "quick");
+        profile.tunnel.tunnel_type = "cloudflare".into();
+        profile.tunnel.cloudflare_mode = "quick".into();
+        profile.tunnel.public_url = "https://stale.trycloudflare.com".into();
+        profile.actions.tunnel_type = "cloudflare".into();
+        profile.actions.cloudflare_mode = "quick".into();
+        profile.actions.public_url = "https://stale-actions.trycloudflare.com".into();
+        let supervisor = TunnelSupervisor::new();
+        let settings = AppSettings::default();
+        for kind in [TunnelServiceKind::Mcp, TunnelServiceKind::Actions] {
+            let status = supervisor.status(&profile, kind, &settings);
+            assert_eq!(status.state, "stopped");
+            assert!(status.public_url.is_empty());
+            assert!(supervisor.public_url(&profile, kind, &settings).is_empty());
+        }
+    }
+
+    #[test]
+    fn stopped_named_tunnels_keep_the_configured_fixed_identity() {
+        let mut profile = frp_profile("named", "named");
+        profile.tunnel.tunnel_type = "cloudflare".into();
+        profile.tunnel.cloudflare_mode = "named".into();
+        profile.tunnel.public_url = "https://mcp.example.com".into();
+        profile.actions.tunnel_type = "cloudflare".into();
+        profile.actions.cloudflare_mode = "named".into();
+        profile.actions.public_url = "https://actions.example.com".into();
+        let supervisor = TunnelSupervisor::new();
+        let settings = AppSettings::default();
+        assert_eq!(supervisor.public_url(&profile, TunnelServiceKind::Mcp, &settings), "https://mcp.example.com");
+        assert_eq!(supervisor.public_url(&profile, TunnelServiceKind::Actions, &settings), "https://actions.example.com");
+    }
+
+    #[test]
+    fn a_live_quick_session_uses_its_discovered_origin() {
+        let mut profile = frp_profile("live-quick", "live-quick");
+        profile.tunnel.tunnel_type = "cloudflare".into();
+        profile.tunnel.cloudflare_mode = "quick".into();
+        profile.tunnel.public_url = "https://stale.trycloudflare.com".into();
+        let mut supervisor = TunnelSupervisor::new();
+        supervisor.sessions.insert((profile.id.clone(), TunnelServiceKind::Mcp), TunnelSession {
+            public_url: "https://current.trycloudflare.com".into(),
+            pid: Some(std::process::id()),
+            child: None,
+        });
+        let status = supervisor.status(&profile, TunnelServiceKind::Mcp, &AppSettings::default());
+        assert_eq!(status.state, "running");
+        assert_eq!(status.public_url, "https://current.trycloudflare.com");
     }
 
 }
