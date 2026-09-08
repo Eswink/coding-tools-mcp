@@ -36,7 +36,9 @@ fn invalid() -> AppError {
 pub(super) fn parse_envelope(raw: &str) -> AppResult<Option<Envelope>> {
     if raw.len() as u64 > MAX_DOCUMENT { return Err(invalid()); }
     let value: serde_json::Value = serde_json::from_str(raw).map_err(|_| invalid())?;
-    if value.get("format").is_none() && value.get("storage_version").is_none() {
+    let is_envelope = value.get("format").and_then(serde_json::Value::as_str) == Some(FORMAT)
+        || ["ciphertext", "nonce", "key_id"].iter().all(|key| value.get(*key).is_some());
+    if !is_envelope {
         return Ok(None);
     }
     let envelope: Envelope = serde_json::from_str(raw).map_err(|_| invalid())?;

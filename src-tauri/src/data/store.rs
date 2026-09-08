@@ -168,14 +168,8 @@ impl DataStore {
     }
 
     pub fn init_workspace_secrets(&mut self, profile_id: &str) -> AppResult<()> {
-        // oauth_client_secret is optional for MCP OAuth (ChatGPT PKCE); not auto-generated.
-        self.set_workspace_secret(profile_id, "oauth_password", &random_secret())?;
-        self.set_workspace_secret(profile_id, "oauth_token_secret", &random_secret())?;
-        self.set_workspace_secret(profile_id, "bearer_token", &random_secret())?;
-        self.set_workspace_secret(profile_id, "actions_api_key", &random_secret())?;
-        self.set_workspace_secret(profile_id, "actions_oauth_client_secret", &random_secret())?;
-        self.set_workspace_secret(profile_id, "actions_oauth_password", &random_secret())?;
-        self.set_workspace_secret(profile_id, "actions_oauth_token_secret", &random_secret())?;
+        // One snapshot commit; retries preserve every already initialized secret.
+        if seed_workspace_secrets(&mut self.data, profile_id) { self.save()?; }
         Ok(())
     }
 
@@ -319,6 +313,20 @@ fn lock_data_file() -> AppResult<DataFileLock> {
     Ok(DataFileLock { _file: file, _thread: thread })
 }
 
+fn seed_workspace_secrets(data: &mut AppData, profile_id: &str) -> bool {
+    let secrets = data.workspace_secrets.entry(profile_id.into()).or_default();
+    let mut changed = false;
+    // MCP oauth_client_secret is optional (PKCE), so do not synthesize it.
+    for key in ["oauth_password", "oauth_token_secret", "bearer_token", "actions_api_key",
+        "actions_oauth_client_secret", "actions_oauth_password", "actions_oauth_token_secret"] {
+        if let std::collections::hash_map::Entry::Vacant(entry) = secrets.entry(key.into()) {
+            entry.insert(random_secret());
+            changed = true;
+        }
+    }
+    changed
+}
+
 fn random_secret() -> String {
     format!("{}{}", uuid::Uuid::new_v4(), uuid::Uuid::new_v4()).replace('-', "")
 }
@@ -420,4 +428,33 @@ mod tests {
         assert!(value.starts_with("chatgpt-client-"));
         assert_eq!(value.len(), "chatgpt-client-".len() + 12);
     }
+    #[test]
+    fn workspace_initialization_is_idempotent_and_preserves_existing_tokens() {
+        let mut data = AppData::default();
+        data.workspace_secrets.entry("workspace".into()).or_default()
+            .insert("bearer_token".into(), "existing-canary-v6".into());
+        assert!(seed_workspace_secrets(&mut data, "workspace"));
+        assert_eq!(data.workspace_secrets["workspace"].len(), 7);
+        assert_eq!(data.workspace_secrets["workspace"]["bearer_token"], "existing-canary-v6");
+        let before = data.workspace_secrets.clone();
+        assert!(!seed_workspace_secrets(&mut data, "workspace"));
+        assert_eq!(before, data.workspace_secrets);
+        assert!(!data.workspace_secrets["workspace"].contains_key("oauth_client_secret"));
+    }
+
+    #[test]
+    fn initializing_all_workspace_keys_rolls_back_as_one_snapshot_on_failure() {
+        let baseline = AppData::default();
+        let mut store = DataStore { data: baseline.clone(), baseline: baseline.clone() };
+        seed_workspace_secrets(&mut store.data, "workspace");
+        let writes = std::cell::Cell::new(0);
+        assert!(store.commit_snapshot(baseline, |candidate| {
+            writes.set(writes.get() + 1);
+            assert_eq!(candidate.workspace_secrets["workspace"].len(), 7);
+            Err(AppError::Message("simulated disk failure".into()))
+        }).is_err());
+        assert_eq!(writes.get(), 1);
+        assert!(store.data.workspace_secrets.is_empty());
+    }
+
 }

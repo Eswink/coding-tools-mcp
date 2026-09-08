@@ -116,3 +116,23 @@ fn legacy_json_is_identified_without_requesting_a_key() {
     assert!(parse_envelope(r#"{"profiles":[]}"#).unwrap().is_none());
     assert!(parse_envelope("not json").is_err());
 }
+
+#[test]
+fn ordinary_legacy_extension_names_are_not_mistaken_for_an_envelope() {
+    let raw = r#"{"profiles":[],"format":"editor-export","storage_version":9}"#;
+    assert!(parse_envelope(raw).unwrap().is_none());
+}
+
+#[test]
+fn changed_or_missing_format_does_not_bypass_envelope_validation() {
+    let keys = MemoryKeys::default();
+    let sealed = seal(CANARY, ID, true, &keys).unwrap();
+    for format in [Some("unknown"), None] {
+        let mut value: serde_json::Value = serde_json::from_str(&sealed).unwrap();
+        match format {
+            Some(format) => { value["format"] = format.into(); }
+            None => { value.as_object_mut().unwrap().remove("format"); }
+        }
+        assert!(parse_envelope(&value.to_string()).is_err());
+    }
+}
