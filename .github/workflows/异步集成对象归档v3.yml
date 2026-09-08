@@ -1,0 +1,76 @@
+name: 异步集成对象归档v3
+on:
+  push:
+    branches: ['build/异步集成v3']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 核验已审查的有限差异并上传Git对象（不移动任何引用）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PYCODE'
+          import hashlib, json, os, subprocess, urllib.request
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])/'集成对象证据v3'
+          root.mkdir()
+          def git(*args, data=None):
+              return subprocess.check_output(['git', *args], input=data).decode().strip()
+          parts = [Path(f'docs/候选/集成差异第{i}段v3.patch').read_bytes() for i in range(1,10)]
+          # One known transcription whitespace in a diff header, never source text.
+          marker = '\n diff --git a/docs/specs/异步命令v1/任务v1.md'.encode()
+          assert parts[0].count(marker) == 1
+          parts[0] = parts[0].replace(marker, marker[0:1]+marker[2:], 1)
+          patch = b''.join(parts)
+          assert hashlib.sha256(patch).hexdigest() == '12bd8f63719f592df8ab70e50ebdc2b11ef9fdec6c4c60dec3c2639f5559d763'
+          target = '36af7c6219ab921e05abef92a56958111b6bc050'
+          base = 'd5019e283aba24024faf03384c504aa4b99c7564'
+          patchfile = root/'集成差异v3.patch'
+          patchfile.write_bytes(patch)
+          subprocess.run(['git','checkout','--detach','8b7b0a7f7347bd661fd2dbc921b94d9c1168769c'],check=True)
+          assert git('rev-parse','HEAD^{tree}') == base
+          subprocess.run(['git','apply','--index','--check',str(patchfile)],check=True)
+          subprocess.run(['git','apply','--index',str(patchfile)],check=True)
+          subprocess.run(['git','diff','--cached','--check'],check=True)
+          assert git('write-tree') == target
+          names = subprocess.check_output(['git','diff','--cached','--name-only','-z']).decode().strip('\0').split('\0')
+          assert len(names) == 35 and len(set(names)) == 35
+          entries = []
+          for name in names:
+              assert not name.startswith('/') and '..' not in Path(name).parts
+              data = Path(name).read_bytes()
+              sha = hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
+              entries.append({'path':name,'mode':'100644','type':'blob','sha':sha})
+              # Workflow changes are written separately through the connector.
+              if name.startswith('.github/'):
+                  continue
+              req = urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/git/blobs',
+                  data=json.dumps({'content':data.decode('utf-8'),'encoding':'utf-8'}).encode(),method='POST',
+                  headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json',
+                  'Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'})
+              with urllib.request.urlopen(req, timeout=60) as response:
+                  uploaded = json.load(response)
+              assert uploaded['sha'] == sha
+              print('Verified blob:', name, sha)
+          (root/'对象清单v3.json').write_text(json.dumps({'base_tree':base,'target_tree':target,'entries':entries,
+              'refs_modified':False,'workflow_blob_uploaded':False},ensure_ascii=False,indent=2),encoding='utf-8')
+          subprocess.run(['git','archive','--format=zip',target,'-o',str(root/'候选源码v3.zip')],check=True)
+          PYCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 异步集成对象v3
+          path: ${{ runner.temp }}/集成对象证据v3/
+          retention-days: 7
+          if-no-files-found: error

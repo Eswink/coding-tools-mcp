@@ -1,0 +1,185 @@
+diff --git a/src-tauri/src/mcp/server.rs b/src-tauri/src/mcp/server.rs
+index f82ad72..ec9e38e 100644
+--- a/src-tauri/src/mcp/server.rs
++++ b/src-tauri/src/mcp/server.rs
+@@ -51,7 +51,7 @@ fn initialize_result() -> Value {
+             "title": "Coding Tools MCP",
+             "version": env!("CARGO_PKG_VERSION")
+         },
+-        "instructions": "Use these tools only for local coding operations inside the configured workspace. At the start of every new ChatGPT conversation, before answering the user's first request, call history_session_bootstrap exactly once and pass the user's verbatim first request as initial_user_input. Treat bootstrap as required conversation initialization: it creates or resumes a lossless Markdown archive and returns bounded current state, not all history. Use history_session_search followed by history_session_read only when exact earlier context is needed. history_session_read returns a bounded UTF-8-safe page; follow next_cursor with the returned content hash until the relevant archive is complete. Repeated successful bootstrap calls in the same conversation resume the same session and must not create duplicates. Preserve session_key and current_path returned by bootstrap, then pass them unchanged as session_key and expected_path to every history_session_checkpoint call. After completing each user-requested task in the conversation, call history_session_checkpoint before the final response and pass that user's verbatim request as raw_user_input. Only state that progress was saved after checkpoint returns ok=true with the same session_key and path. The server cannot access ChatGPT transcript text that was not provided as a tool argument; persistence is not automatic background persistence. For potentially long noninteractive commands, prefer start_exec_task with a unique request_id and then get_exec_task/list_exec_tasks/cancel_exec_task. Reuse the same request_id and parameters after transport timeouts; do not resubmit with a new key. queued/running/cancelling are not command failures, and only terminal status with command_ok=true is success. Follow separate stdout/stderr next_cursor values and poll_after_ms guidance; do not run an unbounded polling loop. Tasks survive HTTP disconnects only while this service instance remains alive; never automatically rerun after service restart."
++        "instructions": "Use these tools only for local coding operations inside the configured workspace. At the start of every new ChatGPT conversation, before answering the user's first request, call history_session_bootstrap exactly once and pass the user's verbatim first request as initial_user_input. Treat bootstrap as required conversation initialization: it creates or resumes a lossless Markdown archive and returns bounded current state, not all history. Use history_session_search followed by history_session_read only when exact earlier context is needed. history_session_read returns a bounded UTF-8-safe page; follow next_cursor with the returned content hash until the relevant archive is complete. Repeated successful bootstrap calls in the same conversation resume the same session and must not create duplicates. Preserve session_key and current_path returned by bootstrap, then pass them unchanged as session_key and expected_path to every history_session_checkpoint call. After completing each user-requested task in the conversation, call history_session_checkpoint before the final response and pass that user's verbatim request as raw_user_input. Only state that progress was saved after checkpoint returns ok=true with the same session_key and path. The server cannot access ChatGPT transcript text that was not provided as a tool argument; persistence is not automatic background persistence. For potentially long noninteractive commands, prefer start_exec_task with a unique request_id and then get_exec_task/list_exec_tasks/cancel_exec_task. Reuse the same request_id and parameters after transport timeouts; do not resubmit with a new key. queued/running/cancelling are not command failures, and only terminal status with command_ok=true is success. Follow separate stdout/stderr next_cursor values and poll_after_ms guidance; do not run an unbounded polling loop. Tasks survive HTTP disconnects and listener restarts while the app executor is alive. Encrypted records survive app restarts, but unfinished tasks become interrupted, not automatically resumed. Never automatically rerun or confirm unknown termination. Use list_exec_tasks to recover by request_id. Execution budget can be configured up to 24 hours; ordinary exec_command remains bounded to 10 minutes."
+     })
+ }
+ 
+diff --git a/src-tauri/src/tools/context.rs b/src-tauri/src/tools/context.rs
+index 7810e20..3b9c609 100644
+--- a/src-tauri/src/tools/context.rs
++++ b/src-tauri/src/tools/context.rs
+@@ -16,6 +16,8 @@ pub struct ToolContext {
+     pub harness: Harness,
+     default_cwd: Mutex<PathBuf>,
+     pub sessions: Arc<SessionStore>,
++    pub(crate) managed_task: bool,
++    pub(crate) local_task_control: bool,
+     pub exec_tasks: Arc<crate::tools::exec_tasks::ExecTaskStore>,
+ }
+ 
+@@ -73,6 +75,8 @@ impl ToolContext {
+             harness: Harness::new(root.clone(), harness_root).expect("无法初始化 Harness"),
+             default_cwd: Mutex::new(root),
+             sessions: Arc::new(SessionStore::new()),
++            managed_task: false,
++            local_task_control: false,
+             exec_tasks: Arc::new(crate::tools::exec_tasks::ExecTaskStore::default()),
+         }
+     }
+@@ -99,9 +103,20 @@ impl ToolContext {
+             tool_profile: self.tool_profile.clone(), permission_mode: self.permission_mode.clone(),
+             harness: self.harness.clone(), default_cwd: Mutex::new(self.default_cwd_path()),
+             sessions: self.sessions.clone(), exec_tasks: self.exec_tasks.clone(),
++            managed_task: self.managed_task,
++            local_task_control: self.local_task_control,
+         }
+     }
+ 
++    /// Lazy encrypted storage. Merely starting the listener never creates secrets.
++    pub(crate) fn enable_durable_tasks(&mut self, profile_id: &str, channel: &str) {
++        use sha2::{Digest, Sha256};
++        let identity = serde_json::to_vec(&(self.harness.workspace_id(), profile_id, channel)).expect("task namespace");
++        let namespace = format!("{:x}", Sha256::digest(identity));
++        let root = self.harness.store_root().join("exec-tasks-v2").join(namespace);
++        self.exec_tasks = crate::tools::exec_tasks::ExecTaskStore::shared(root);
++    }
++
+     pub fn workspace_path(&self) -> String {
+         self.workspace.root_display()
+     }
+diff --git a/src-tauri/src/tools/exec.rs b/src-tauri/src/tools/exec.rs
+index 98e33a6..4b83814 100644
+--- a/src-tauri/src/tools/exec.rs
++++ b/src-tauri/src/tools/exec.rs
+@@ -249,7 +249,10 @@ async fn run_command(
+         .env("PYTHONIOENCODING", "utf-8")
+         .env("PYTHONLEGACYWINDOWSSTDIO", "0");
+ 
+-    let child = command.spawn().map_err(|e| WorkspaceError::ToolDetails {
++    let spawned = if ctx.managed_task {
++        crate::tools::process_tree::spawn(&mut command).await.map(|(child, tree)| (child, Some(tree)))
++    } else { command.spawn().map(|child| (child, None)) };
++    let (child, tree) = spawned.map_err(|e| WorkspaceError::ToolDetails {
+         code: "COMMAND_SPAWN_FAILED",
+         message: format!("Failed to start command: {e}"),
+         category: "runtime",
+@@ -261,7 +264,10 @@ async fn run_command(
+         }),
+     })?;
+ 
+-    let session = ctx.sessions.insert(ExecSession::new_with_mode(child, tty));
++    let session = ctx.sessions.insert(match tree {
++        Some(tree) => ExecSession::new_managed(child, tree),
++        None => ExecSession::new_with_mode(child, tty),
++    });
+     session.spawn_readers().await;
+     let deadline = start + limit;
+ 
+@@ -339,14 +345,18 @@ fn spawn_timeout_monitor(
+     deadline: Instant,
+ ) {
+     tauri::async_runtime::spawn(async move {
+-        let remaining = deadline.saturating_duration_since(Instant::now());
+-        tokio::time::sleep(remaining).await;
+-        session.refresh_status().await;
+-        if !session.has_exited() {
+-            session.mark_termination_reason("timeout");
+-            session.kill_and_wait().await;
++        // Release the monitor's session Arc promptly instead of retaining every
++        // short-lived job until its possibly 24-hour execution deadline.
++        loop {
+             session.refresh_status().await;
+-            session.wait_for_readers().await;
++            if session.has_exited() { break; }
++            if Instant::now() >= deadline {
++                session.mark_termination_reason("timeout");
++                session.kill_and_wait().await;
++                session.wait_for_readers().await;
++                break;
++            }
++            tokio::time::sleep(Duration::from_millis(100)).await;
+         }
+         // Keep the session briefly so clients can still read_output / probe status.
+         schedule_session_eviction(sessions, session.session_id.clone());
+diff --git a/src-tauri/src/tools/mod.rs b/src-tauri/src/tools/mod.rs
+index 9b20048..e2fc1a0 100644
+--- a/src-tauri/src/tools/mod.rs
++++ b/src-tauri/src/tools/mod.rs
+@@ -1,3 +1,5 @@
++#[path = "进程树v2.rs"]
++pub(crate) mod process_tree;
+ pub mod context;
+ pub mod dispatch;
+ pub mod exec;
+diff --git a/src-tauri/src/tools/policy.rs b/src-tauri/src/tools/policy.rs
+index 26b29f9..6eddcfe 100644
+--- a/src-tauri/src/tools/policy.rs
++++ b/src-tauri/src/tools/policy.rs
+@@ -59,6 +59,8 @@ pub struct PolicySettings {
+     pub workspace_local_entries: bool,
+     pub workspace_script_extensions: HashSet<String>,
+     pub max_patch_bytes: usize,
++    pub max_task_timeout_ms: u64,
++    pub max_exec_timeout_ms: u64,
+     pub permission_mode: String,
+ }
+ 
+@@ -69,6 +71,8 @@ impl Default for PolicySettings {
+             workspace_local_entries: true,
+             workspace_script_extensions: default_workspace_script_extension_set(),
+             max_patch_bytes: 200_000,
++            max_task_timeout_ms: 86_400_000,
++            max_exec_timeout_ms: 600_000,
+             permission_mode: "trusted".into(),
+         }
+     }
+@@ -83,6 +87,8 @@ impl PolicySettings {
+                 &runtime.workspace_script_extensions,
+             ),
+             max_patch_bytes: 200_000,
++            max_task_timeout_ms: runtime.max_task_timeout_ms.clamp(1, 86_400_000),
++            max_exec_timeout_ms: 600_000,
+             permission_mode: runtime.permission_mode.clone(),
+         }
+     }
+@@ -93,6 +99,8 @@ impl PolicySettings {
+             workspace_local_entries: true,
+             workspace_script_extensions: default_workspace_script_extension_set(),
+             max_patch_bytes: actions.max_patch_bytes as usize,
++            max_task_timeout_ms: actions.max_task_timeout_ms.clamp(1, 86_400_000),
++            max_exec_timeout_ms: 600_000,
+             permission_mode: actions.permission_mode.clone(),
+         }
+     }
+@@ -181,7 +189,12 @@ pub fn validate_tool_arguments_for_workspace(
+     workspace: Option<&Workspace>,
+ ) -> Result<(), PolicyError> {
+     match tool_name {
+-        "exec_command" | "start_exec_task" => validate_command_for_workspace(arguments, policy, workspace),
++        "exec_command" => validate_command_for_workspace(arguments, policy, workspace),
++        "start_exec_task" => {
++            let mut task_policy = policy.clone();
++            task_policy.max_exec_timeout_ms = policy.max_task_timeout_ms.min(86_400_000);
++            validate_command_for_workspace(arguments, &task_policy, workspace)
++        },
+         "apply_patch" | "patch_check" => validate_patch(arguments, policy),
+         _ => Ok(()),
+     }
+@@ -306,8 +319,8 @@ pub fn validate_command_for_workspace(
+     }
+ 
+     if let Some(timeout_ms) = arguments.get("timeout_ms").and_then(Value::as_u64) {
+-        if timeout_ms > 600_000 {
+-            return Err(PolicyError("Command timeout exceeds 10 minutes".into()));
++        if timeout_ms > policy.max_exec_timeout_ms {
++            return Err(PolicyError(format!("Command timeout exceeds execution policy ({} ms)", policy.max_exec_timeout_ms)));
+         }
+     }
+ 

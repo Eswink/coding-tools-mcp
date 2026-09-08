@@ -1,0 +1,224 @@
+diff --git a/src-tauri/src/data/任务快照v2.rs b/src-tauri/src/data/任务快照v2.rs
+new file mode 100644
+index 0000000..0c12b80
+--- /dev/null
++++ b/src-tauri/src/data/任务快照v2.rs
+@@ -0,0 +1,147 @@
++//! Small encrypted task documents. The lifetime sidecar lock prevents two app
++//! processes from independently accepting the same request key.
++use std::path::{Path, PathBuf};
++use std::collections::HashMap;
++use sha2::{Digest, Sha256};
++use std::sync::{Mutex, atomic::{AtomicBool, Ordering}};
++use std::time::Duration;
++use serde_json::Value;
++use crate::error::{AppError, AppResult};
++use super::{config_lock::ConfigFileLock, encrypted_config, key_store, secure_file::Vault};
++
++pub(crate) struct TaskArchive {
++    root: PathBuf,
++    _owner: ConfigFileLock,
++    io: Mutex<HashMap<String, [u8; 32]>>,
++    key_id: String,
++    key_initialized: AtomicBool,
++}
++
++impl TaskArchive {
++    pub(crate) fn open(root: &Path) -> AppResult<Self> {
++        if std::fs::symlink_metadata(root).is_ok_and(|m| m.file_type().is_symlink()) {
++            return Err(invalid());
++        }
++        std::fs::create_dir_all(root)?;
++        let lock = root.join("owner.lock");
++        if std::fs::symlink_metadata(&lock).is_ok_and(|m| m.file_type().is_symlink()) {
++            return Err(invalid());
++        }
++        let owner = ConfigFileLock::acquire(&lock, Duration::ZERO)?;
++        let has_records = std::fs::read_dir(root)?.try_fold(false, |found, entry| {
++            Ok::<_, std::io::Error>(found || entry?.path().extension().and_then(|s| s.to_str()) == Some("json"))
++        })?;
++        let key_id = encrypted_config::key_id_for_path(&root.join("archive-key-v2"))?;
++        Ok(Self { root: root.to_path_buf(), _owner: owner, io: Mutex::new(HashMap::new()),
++            key_id, key_initialized: AtomicBool::new(has_records) })
++    }
++
++    fn path(&self, id: &str) -> AppResult<PathBuf> {
++        let uuid = uuid::Uuid::parse_str(id).map_err(|_| invalid())?;
++        if uuid.to_string() != id { return Err(invalid()); }
++        Ok(self.root.join(format!("{id}.json")))
++    }
++
++    pub(crate) fn load(&self) -> AppResult<Vec<Value>> {
++        let _io = self.io.lock().map_err(|_| invalid())?;
++        let mut records = Vec::new();
++        for entry in std::fs::read_dir(&self.root)? {
++            let path = entry?.path();
++            if path.extension().and_then(|s| s.to_str()) != Some("json") { continue; }
++            if records.len() >= 32 { return Err(invalid()); }
++            let id = path.file_stem().and_then(|s| s.to_str()).ok_or_else(invalid)?;
++            if self.path(id)? != path { return Err(invalid()); }
++            let plain = Vault::new(key_store::default_keys()).read_scoped(&path, &self.key_id)?;
++            let value: Value = serde_json::from_str(&plain).map_err(|_| invalid())?;
++            if value.get("id").and_then(Value::as_str) != Some(id) { return Err(invalid()); }
++            records.push(value);
++        }
++        Ok(records)
++    }
++
++    /// Generate the current snapshot AFTER acquiring the write lock: an older
++    /// checkpoint cannot overwrite a more recent terminal/cancel transition.
++    pub(crate) fn save(&self, id: &str, snapshot: impl FnOnce() -> Value) -> AppResult<()> {
++        let mut saved = self.io.lock().map_err(|_| invalid())?;
++        let value = snapshot();
++        let raw = zeroize::Zeroizing::new(serde_json::to_string(&value).map_err(|_| invalid())?);
++        // A quiet long-running process must not rewrite MiB-sized encrypted logs
++        // every two seconds merely because elapsed time advanced. Output/state
++        // changes and every terminal transition still force a fresh snapshot.
++        let mut identity = value;
++        if identity.get("completed_at").is_some_and(Value::is_null) {
++            if let Some(object) = identity.as_object_mut() { object.remove("elapsed_ms"); }
++        }
++        let identity_bytes = zeroize::Zeroizing::new(serde_json::to_vec(&identity).map_err(|_| invalid())?);
++        let digest: [u8; 32] = Sha256::digest(&*identity_bytes).into();
++        let path = self.path(id)?;
++        if saved.get(id) == Some(&digest) && path.is_file() { return Ok(()); }
++        Vault::new(key_store::default_keys()).write_scoped(&path, &raw, &self.key_id,
++            !self.key_initialized.load(Ordering::Acquire))?;
++        self.key_initialized.store(true, Ordering::Release);
++        saved.insert(id.to_owned(), digest);
++        Ok(())
++    }
++
++    pub(crate) fn remove(&self, id: &str) -> AppResult<()> {
++        let mut saved = self.io.lock().map_err(|_| invalid())?;
++        // Authenticate before deletion too. Never erase an unreadable record.
++        let path = self.path(id)?;
++        let _verified = Vault::new(key_store::default_keys()).read_scoped(&path, &self.key_id)?;
++        std::fs::remove_file(path)?;
++        saved.remove(id);
++        Ok(())
++    }
++}
++
++fn invalid() -> AppError {
++    AppError::Message("任务记录损坏、版本不兼容或路径无效；原记录已保留，禁止自动重试命令。".into())
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    #[test]
++    fn one_namespace_reuses_one_key_and_rejects_cross_namespace_documents() {
++        let a = tempfile::tempdir().unwrap(); let b = tempfile::tempdir().unwrap();
++        let left = TaskArchive::open(a.path()).unwrap();
++        let right = TaskArchive::open(b.path()).unwrap();
++        let one = uuid::Uuid::new_v4().to_string(); let two = uuid::Uuid::new_v4().to_string();
++        left.save(&one, || serde_json::json!({"id":one})).unwrap();
++        left.save(&two, || serde_json::json!({"id":two})).unwrap();
++        for id in [&one, &two] {
++            let raw = std::fs::read_to_string(left.path(id).unwrap()).unwrap();
++            let envelope = encrypted_config::parse_envelope(&raw).unwrap().unwrap();
++            assert_eq!(envelope.key_id, left.key_id);
++        }
++        std::fs::copy(left.path(&one).unwrap(), right.path(&one).unwrap()).unwrap();
++        assert!(right.load().is_err());
++        assert!(right.path(&one).unwrap().exists());
++    }
++}
++
++#[cfg(test)]
++mod checkpoint_tests {
++    use super::*;
++    #[test]
++    fn quiet_progress_does_not_rewrite_ciphertext_but_output_and_terminal_do() {
++        let root = tempfile::tempdir().unwrap();
++        let archive = TaskArchive::open(root.path()).unwrap();
++        let id = uuid::Uuid::new_v4().to_string();
++        let mut value = serde_json::json!({"id":id,"completed_at":null,"elapsed_ms":1,"stdout":""});
++        archive.save(&id, || value.clone()).unwrap();
++        let file = archive.path(&id).unwrap();
++        let first = std::fs::read(&file).unwrap();
++        value["elapsed_ms"] = serde_json::json!(9999);
++        archive.save(&id, || value.clone()).unwrap();
++        assert_eq!(std::fs::read(&file).unwrap(), first);
++        value["stdout"] = serde_json::json!("output");
++        archive.save(&id, || value.clone()).unwrap();
++        let output = std::fs::read(&file).unwrap();
++        assert_ne!(output, first);
++        value["completed_at"] = serde_json::json!(10000);
++        archive.save(&id, || value.clone()).unwrap();
++        assert_ne!(std::fs::read(&file).unwrap(), output);
++        assert_eq!(archive.load().unwrap()[0], value);
++    }
++}
+diff --git a/src-tauri/src/data/配置文件v6.rs b/src-tauri/src/data/配置文件v6.rs
+index aeaa20f..67e1c43 100644
+--- a/src-tauri/src/data/配置文件v6.rs
++++ b/src-tauri/src/data/配置文件v6.rs
+@@ -51,6 +51,25 @@ impl<'a> Vault<'a> {
+         atomic_replace(path, encrypted.as_bytes())
+     }
+ 
++    /// A task namespace reuses ONE key, rather than leaking a credential entry
++    /// for every completed job. Scope binding also rejects copied ciphertext.
++    pub(super) fn read_scoped(&self, path: &Path, key_id: &str) -> AppResult<Zeroizing<String>> {
++        let raw = read_bounded(path)?;
++        let envelope = codec::parse_envelope(&raw)?.ok_or_else(|| AppError::Message("任务记录必须加密；原文件已保留。".into()))?;
++        if envelope.key_id != key_id { return Err(AppError::Message("任务记录不属于当前命名空间。".into())); }
++        codec::open(&envelope, self.keys)
++    }
++
++    pub(super) fn write_scoped(&self, path: &Path, plaintext: &str, key_id: &str, allow_create: bool) -> AppResult<()> {
++        match read_bounded(path) {
++            Ok(_) => { let _verified = self.read_scoped(path, key_id)?; },
++            Err(AppError::Io(err)) if err.kind() == std::io::ErrorKind::NotFound => {},
++            Err(err) => return Err(err),
++        }
++        let encrypted = codec::seal(plaintext, key_id, allow_create, self.keys)?;
++        atomic_replace(path, encrypted.as_bytes())
++    }
++
+     pub(super) fn protect_legacy(&self, path: &Path) -> AppResult<()> {
+         let (raw, encrypted) = self.read(path)?;
+         if !encrypted { self.write(path, &raw)?; }
+diff --git a/src-tauri/src/lib.rs b/src-tauri/src/lib.rs
+index 43c6d74..e9a2be6 100644
+--- a/src-tauri/src/lib.rs
++++ b/src-tauri/src/lib.rs
+@@ -24,7 +24,7 @@ use commands::{
+     get_actions_runtime_status, get_app_settings, get_download_config, get_frp_snippet,
+     get_last_workspace_id, get_proxy, get_runtime_status, get_shared_secret, get_webview_memory_sample,
+     get_workspace_secret, hide_to_tray, install_software, list_frp_profiles, list_software,
+-    list_workspaces, open_url, open_workspace_directory, quit_app, read_workspace_logs,
++    list_workspaces, open_url, open_workspace_directory, quit_app, read_workspace_logs, control_exec_tasks,
+     recreate_ui_webview, regenerate_shared_secret, regenerate_workspace_secret,
+     restart_actions_runtime, restart_runtime, restart_tunnel, run_health_checks, save_frp_profile,
+     set_download_config, set_last_workspace, set_proxy, set_shared_secret, set_workspace_secret,
+@@ -195,6 +195,7 @@ pub fn run() {
+             set_shared_secret,
+             regenerate_shared_secret,
+             read_workspace_logs,
++            control_exec_tasks,
+             list_frp_profiles,
+             save_frp_profile,
+             delete_frp_profile,
+diff --git a/src-tauri/src/mcp/listener.rs b/src-tauri/src/mcp/listener.rs
+index 288b519..1fa341a 100644
+--- a/src-tauri/src/mcp/listener.rs
++++ b/src-tauri/src/mcp/listener.rs
+@@ -52,13 +52,14 @@ pub fn spawn_listener_with_origin(
+     let workspace_display = workspace_path.display().to_string();
+     let workspace = Workspace::new(workspace_path).map_err(|e| e.message())?;
+     let policy = PolicySettings::from_runtime(&runtime);
+-    let mcp = new_state(
++    let mut mcp = new_state(
+         workspace,
+         auth.clone(),
+         policy,
+         runtime.tool_profile.clone(),
+         runtime.permission_mode.clone(),
+     );
++    Arc::get_mut(&mut mcp).expect("new listener context").enable_durable_tasks(&workspace_id, "mcp");
+     let bearer_token = if auth.bearer_enabled() {
+         let key = "bearer_token";
+         if auth.use_shared_secrets {

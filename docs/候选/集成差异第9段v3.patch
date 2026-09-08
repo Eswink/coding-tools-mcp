@@ -1,0 +1,96 @@
+diff --git a/src/routes/workspace/[id]/+page.svelte b/src/routes/workspace/[id]/+page.svelte
+index 387e8af..21cf0a3 100644
+--- a/src/routes/workspace/[id]/+page.svelte
++++ b/src/routes/workspace/[id]/+page.svelte
+@@ -7,6 +7,7 @@
+     type ActionsPolicyDraft,
+   } from "$lib/components/ActionsPolicyForm.svelte";
+   import AuthConfigForm from "$lib/components/AuthConfigForm.svelte";
++  import TaskPanel from "$lib/components/异步任务面板v2.svelte";
+   import HealthPanel from "$lib/components/HealthPanel.svelte";
+   import LogViewer from "$lib/components/LogViewer.svelte";
+   import RuntimePolicyForm, {
+@@ -58,7 +59,7 @@
+   } from "$lib/types";
+ 
+   type ServiceTab = "mcp" | "actions";
+-  type SubTab = "config" | "logs" | "health";
++  type SubTab = "config" | "logs" | "health" | "tasks";
+ 
+   let profile = $state<WorkspaceProfile | null>(null);
+   let mcpStatus = $state<RuntimeState>("stopped");
+@@ -81,6 +82,7 @@
+   const subTabs = [
+     { value: "config", label: "配置" },
+     { value: "logs", label: "日志" },
++    { value: "tasks", label: "异步任务" },
+     { value: "health", label: "健康" },
+   ];
+ 
+@@ -413,6 +415,20 @@
+     }
+   }
+ 
++  async function saveTaskBudget(service: ServiceTab, maxTimeoutMs: number) {
++    if (!profile) return;
++    const targetId = workspaceId;
++    const next: WorkspaceProfile = service === "mcp"
++      ? { ...profile, runtime: { ...profile.runtime, max_task_timeout_ms: maxTimeoutMs } }
++      : { ...profile, actions: { ...actionsConfig(profile), max_task_timeout_ms: maxTimeoutMs } };
++    await updateWorkspace(next);
++    if (workspaceId !== targetId) return;
++    profile = next;
++    await load();
++    if (workspaceId !== targetId) return;
++    await promptServiceRestart((service === "mcp" ? mcpStatus : actionsStatus) === "running", service.toUpperCase() + " 服务");
++  }
++
+   async function saveMcpPolicy(draft: RuntimePolicyDraft) {
+     if (!profile) return;
+     const next: WorkspaceProfile = {
+@@ -669,6 +685,8 @@
+               />
+             </div>
+           </div>
++        {:else if mcpSubTab === "tasks"}
++          <TaskPanel workspaceId={workspaceId!} channel="mcp" maxTimeoutMs={profile.runtime.max_task_timeout_ms ?? 86400000} onBudgetSave={(ms) => saveTaskBudget("mcp", ms)} />
+         {:else if mcpSubTab === "logs"}
+           <div class="mt-4">
+             <LogViewer workspaceId={workspaceId!} service="mcp" />
+@@ -753,6 +771,8 @@
+               />
+             </div>
+           </div>
++        {:else if actionsSubTab === "tasks"}
++          <TaskPanel workspaceId={workspaceId!} channel="actions" maxTimeoutMs={actions.max_task_timeout_ms ?? 86400000} onBudgetSave={(ms) => saveTaskBudget("actions", ms)} />
+         {:else if actionsSubTab === "logs"}
+           <div class="mt-4">
+             <LogViewer workspaceId={workspaceId!} service="actions" />
+diff --git a/tests/任务日志回归v2.test.mjs b/tests/任务日志回归v2.test.mjs
+new file mode 100644
+index 0000000..381727f
+--- /dev/null
++++ b/tests/任务日志回归v2.test.mjs
+@@ -0,0 +1,22 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { createRequire } from 'node:module';
++import path from 'node:path';
++const require = createRequire(import.meta.url);
++const { TaskLogCursor } = require(path.resolve(process.env.TASK_LOG_MODULE ?? '/tmp/任务日志编译v2/任务日志v2.js'));
++function page(bytes, requested=0, offset=requested, more=false) {
++  return {data_base64: Buffer.from(bytes).toString('base64'), requested_cursor:requested, cursor:offset,
++    next_cursor: offset+bytes.length, dropped_bytes:offset-requested, has_more:more};
++}
++test('中文跨字节页保真', () => {
++  const log = new TaskLogCursor(); const b=Buffer.from('中文输出');
++  for(let i=0;i<b.length;i+=2) log.append(page(b.subarray(i,i+2),i,i,i+2<b.length),true);
++  assert.equal(log.text,'中文输出'); assert.equal(log.cursor,b.length);
++});
++test('重复或迟到页不复制输出',()=>{ const log=new TaskLogCursor(); const p=page(Buffer.from('ok')); log.append(p,true); assert.equal(log.append(p,true),false); assert.equal(log.text,'ok'); });
++test('stdout stderr游标独立',()=>{const a=new TaskLogCursor(), b=new TaskLogCursor();a.append(page(Buffer.from('out')),false);b.append(page(Buffer.from('e')),true);assert.equal(a.cursor,3);assert.equal(b.cursor,1);});
++test('环形丢弃明确提示且游标继续',()=>{const log=new TaskLogCursor();log.append(page(Buffer.from('tail'),0,16),true);assert.match(log.text,/丢弃 16 字节/);assert.equal(log.cursor,20);});
++test('非法范围拒绝且不改变游标',()=>{const log=new TaskLogCursor();assert.throws(()=>log.append({...page(Buffer.from('x')),next_cursor:0},true));assert.equal(log.cursor,0);});
++test('UI显示有界且仍保留绝对游标',()=>{const log=new TaskLogCursor(4);log.append(page(Buffer.from('0123456789')),true);assert.equal(log.text,'6789');assert.equal(log.cursor,10);assert.equal(log.displayTruncated,true);});
++test('空终态页不重复UTF8或改变状态',()=>{const log=new TaskLogCursor();log.append(page(Buffer.from('好')),true);log.append(page(Buffer.alloc(0),3),true);assert.equal(log.text,'好');assert.equal(log.cursor,3);});
++test('新的任务使用新解码器和零游标',()=>{const old=new TaskLogCursor();old.append(page(Buffer.from('旧任务')),true);const next=new TaskLogCursor();assert.equal(next.cursor,0);assert.equal(next.text,'');});
