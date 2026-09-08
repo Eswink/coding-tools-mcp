@@ -29,6 +29,8 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
+      - name: Svelte运行时入口连接回归
+        run: node --test tests/运行时入口连接v6.test.mjs
       - name: 编译真实入口逻辑并执行独立回归
         shell: bash
         run: |

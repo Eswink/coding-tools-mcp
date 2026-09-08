@@ -72,3 +72,4 @@ version = "1"
 [features]
 # Explicit opt-in integration tests require the real OS credential service.
 native-keyring-tests = []
+frp-binary-tests = []
