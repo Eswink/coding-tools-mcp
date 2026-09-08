@@ -19,6 +19,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - run: npm ci
       - run: npm run check
       - run: npm run build
@@ -28,6 +31,22 @@ jobs:
           set -euo pipefail
           npx --no-install tsc src/lib/任务日志v2.ts --target ES2022 --module commonjs --strict --outDir "$RUNNER_TEMP/任务日志v2"
           TASK_LOG_MODULE="$RUNNER_TEMP/任务日志v2/任务日志v2.js" node --test tests/任务日志回归v2.test.mjs
+      - name: 实际Svelte任务面板浏览器交互回归
+        env:
+          TASK_PANEL_TEST_DIR: ${{ runner.temp }}/任务面板v3
+        run: |
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps chromium
+          node scripts/任务面板浏览器构建v3.mjs
+          python tests/任务面板浏览器回归v3.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 任务面板交互证据v3
+          path: |
+            ${{ runner.temp }}/任务面板v3/面板交互结果v3.json
+            ${{ runner.temp }}/任务面板v3/面板交互截图v3.png
+          retention-days: 7
   regression:
     strategy:
       fail-fast: false
