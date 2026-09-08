@@ -44,6 +44,7 @@ pub struct WebviewMemorySample {
     pub supported: bool,
 }
 
+#[cfg(windows)]
 fn bytes_to_mb(bytes: u64) -> f64 {
     (bytes as f64) / (1024.0 * 1024.0)
 }
@@ -207,4 +208,26 @@ pub async fn recreate_ui_webview(app: AppHandle) -> AppResult<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(windows)]
+    #[test]
+    fn bytes_to_mb_preserves_binary_megabyte_conversion() {
+        assert_eq!(super::bytes_to_mb(0), 0.0);
+        assert_eq!(super::bytes_to_mb(1024 * 1024), 1.0);
+        assert_eq!(super::bytes_to_mb(1536 * 1024), 1.5);
+        assert!(super::bytes_to_mb(u64::MAX).is_finite());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn unsupported_platform_returns_an_explicit_empty_memory_sample() {
+        let sample = super::get_webview_memory_sample().expect("unsupported sampling is not an error");
+        assert!(!sample.supported);
+        assert_eq!(sample.main_mb, 0.0);
+        assert_eq!(sample.webview_mb, 0.0);
+        assert_eq!(sample.webview_process_count, 0);
+    }
 }
