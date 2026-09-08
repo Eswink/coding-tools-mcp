@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Value};
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -46,7 +46,7 @@ pub(super) struct JobData {
     pub native_stdout: (Vec<u8>, usize),
     pub native_stderr: (Vec<u8>, usize),
     pub finished: Option<Instant>,
-    pub completed_at: Option<String>,
+    pub completed_at: Option<u64>,
 }
 
 pub(super) struct Job {
@@ -54,7 +54,7 @@ pub(super) struct Job {
     pub request_id: String,
     pub fingerprint: String,
     pub timeout_ms: u64,
-    pub created_at: String,
+    pub created_at: u64,
     pub started: Instant,
     pub data: Mutex<JobData>,
 }
@@ -63,7 +63,7 @@ impl Job {
     fn new(request_id: String, fingerprint: String, timeout_ms: u64) -> Self {
         Self {
             id: Uuid::new_v4().to_string(), request_id, fingerprint, timeout_ms,
-            created_at: chrono::Utc::now().to_rfc3339(), started: Instant::now(),
+            created_at: unix_ms(), started: Instant::now(),
             data: Mutex::new(JobData {
                 status: Status::Queued, cancel_requested: false, session: None, result: None,
                 native_stdout: (Vec::new(), 0), native_stderr: (Vec::new(), 0),
@@ -77,7 +77,7 @@ impl Job {
         json!({
             "job_id": self.id, "request_id": self.request_id, "status": d.status.label(),
             "accepted": true, "terminal": d.status.terminal(), "cancel_requested": d.cancel_requested,
-            "created_at": self.created_at, "completed_at": d.completed_at,
+            "created_at": self.created_at, "completed_at": d.completed_at, "timestamp_unit": "unix_ms",
             "elapsed_ms": d.finished.unwrap_or_else(Instant::now).duration_since(self.started).as_millis(),
             "execution_timeout_ms": self.timeout_ms, "result_ttl_ms": RESULT_TTL.as_millis(),
             "poll_after_ms": if d.status.terminal() { 0 } else { 1000 },
@@ -106,7 +106,7 @@ impl Job {
         d.result = Some(result);
         d.status = status;
         d.finished = Some(Instant::now());
-        d.completed_at = Some(chrono::Utc::now().to_rfc3339());
+        d.completed_at = Some(unix_ms());
     }
 
     pub fn output(&self, stream: &str, cursor: u64, limit: u64) -> Result<Value, WorkspaceError> {
@@ -218,4 +218,8 @@ impl ExecTaskStore {
 
 pub(super) fn error(code: &'static str, message: &str, retryable: bool) -> WorkspaceError {
     WorkspaceError::Tool { code, message: message.into(), category: "runtime", retryable }
+}
+
+fn unix_ms() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
 }

@@ -122,7 +122,16 @@ fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {
         if session.has_exited() { break; }
         if job.data.lock().expect("job state").cancel_requested {
             session.mark_termination_reason("killed");
-            tauri::async_runtime::block_on(session.kill_and_wait());
+            let waited = tauri::async_runtime::block_on(async {
+                tokio::time::timeout(Duration::from_secs(5), session.kill_and_wait()).await.is_ok()
+            });
+            if !waited || !session.has_exited() {
+                job.finish(Status::Failed, json!({"command_ok": false,
+                    "process_may_be_running": true,
+                    "error": {"code": "EXEC_TASK_TERMINATION_UNCONFIRMED",
+                              "message": "Child termination was not confirmed; inspect workspace and do not retry automatically"}}));
+                return;
+            }
             break;
         }
         std::thread::sleep(Duration::from_millis(50));

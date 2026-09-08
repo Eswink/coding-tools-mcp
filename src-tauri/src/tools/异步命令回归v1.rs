@@ -255,3 +255,38 @@ fn completed_job_exposes_a_stable_bounded_output_snapshot() {
     assert_eq!(r["stdout"], repeated["stdout"]);
     assert_eq!(r["elapsed_ms"], repeated["elapsed_ms"]);
 }
+
+#[test]
+fn cancelling_a_started_process_stops_it_without_automatic_resubmission() {
+    let (root, _harness, ctx) = fixture();
+    let a = submit(&ctx, "cancel-running", "from pathlib import Path; import time; Path('started.txt').touch(); time.sleep(10); Path('finished.txt').touch()", 15000);
+    let id = a["job_id"].as_str().unwrap();
+    let deadline = Instant::now() + Duration::from_secs(8);
+    while !root.path().join("started.txt").exists() {
+        assert!(Instant::now() < deadline, "child did not start: {a}");
+        std::thread::sleep(Duration::from_millis(25));
+    }
+    let before = Instant::now();
+    let c = crate::tools::call_tool(&ctx, "cancel_exec_task", &json!({"job_id":id}));
+    assert!(before.elapsed() < Duration::from_secs(1));
+    assert_eq!(c["cancel_requested"], true);
+    let r = await_terminal(&ctx, id);
+    assert_eq!(r["status"], "cancelled", "{r}");
+    assert!(!root.path().join("finished.txt").exists());
+    let job = ctx.exec_tasks.get(id).unwrap();
+    let session = job.data.lock().unwrap().session.clone().unwrap();
+    assert!(session.has_exited());
+}
+
+#[test]
+fn timestamps_are_unix_milliseconds_and_do_not_drive_retention() {
+    let store = ExecTaskStore::with_limits(1, 2, Duration::from_secs(3600));
+    let (job, _) = store.reserve("timestamp", "fp", 1000).unwrap();
+    let before = job.summary();
+    assert!(before["created_at"].as_u64().unwrap() > 1_500_000_000_000);
+    assert_eq!(before["timestamp_unit"], "unix_ms");
+    assert!(before["completed_at"].is_null());
+    job.finish(Status::Succeeded, json!({"command_ok": true}));
+    assert!(job.summary()["completed_at"].as_u64().is_some());
+    assert!(store.get(&job.id).is_ok());
+}
