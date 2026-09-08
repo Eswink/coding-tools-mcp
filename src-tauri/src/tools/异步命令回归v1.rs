@@ -8,6 +8,10 @@ const PYTHON: &str = "python";
 #[cfg(not(windows))]
 const PYTHON: &str = "python3";
 
+// Functional assertions include process startup under parallel Windows CI load.
+// The dedicated 200ms deadline test stays unchanged and tests the execution limit.
+const FUNCTIONAL_BUDGET_MS: u64 = 30_000;
+
 fn fixture() -> (TempDir, TempDir, ToolContext) {
     let root = tempfile::tempdir().unwrap();
     let harness = tempfile::tempdir().unwrap();
@@ -22,7 +26,7 @@ fn submit(ctx: &ToolContext, key: &str, python: &str, timeout: u64) -> Value {
 }
 
 fn await_terminal(ctx: &ToolContext, id: &str) -> Value {
-    let deadline = Instant::now() + Duration::from_secs(12);
+    let deadline = Instant::now() + Duration::from_secs(60);
     loop {
         let result = crate::tools::call_tool(ctx, "get_exec_task", &json!({"job_id": id, "limit": 16384}));
         assert_eq!(result["ok"], true, "{result}");
@@ -36,7 +40,7 @@ fn await_terminal(ctx: &ToolContext, id: &str) -> Value {
 fn submit_returns_before_long_command_and_keeps_result_after_context_clone() {
     let (_root, _harness, ctx) = fixture();
     let start = Instant::now();
-    let accepted = submit(&ctx, "nonblocking", "import time; time.sleep(2); print('completed')", 5000);
+    let accepted = submit(&ctx, "nonblocking", "import time; time.sleep(2); print('completed')", FUNCTIONAL_BUDGET_MS);
     assert_eq!(accepted["ok"], true, "{accepted}");
     assert!(start.elapsed() < Duration::from_millis(1500));
     assert_ne!(accepted["command_ok"], true);
@@ -58,7 +62,7 @@ fn concurrent_duplicate_submissions_execute_exactly_one_command_within_retention
         let ctx = ctx.clone(); let barrier = barrier.clone();
         std::thread::spawn(move || {
             barrier.wait();
-            submit(&ctx, "same-logical-request", "from pathlib import Path; p=Path('count.txt'); p.write_text(p.read_text()+'x' if p.exists() else 'x')", 5000)
+            submit(&ctx, "same-logical-request", "from pathlib import Path; p=Path('count.txt'); p.write_text(p.read_text()+'x' if p.exists() else 'x')", FUNCTIONAL_BUDGET_MS)
         })
     }).collect::<Vec<_>>();
     let results = handles.into_iter().map(|h| h.join().unwrap()).collect::<Vec<_>>();
@@ -67,14 +71,14 @@ fn concurrent_duplicate_submissions_execute_exactly_one_command_within_retention
     assert_eq!(results.iter().filter(|r| r["deduplicated"] == false).count(), 1);
     assert_eq!(await_terminal(&ctx, id)["status"], "succeeded");
     assert_eq!(std::fs::read_to_string(root.path().join("count.txt")).unwrap(), "x");
-    let conflict = submit(&ctx, "same-logical-request", "print('different')", 5000);
+    let conflict = submit(&ctx, "same-logical-request", "print('different')", FUNCTIONAL_BUDGET_MS);
     assert_eq!(conflict["error"]["code"], "IDEMPOTENCY_CONFLICT");
 }
 
 #[test]
 fn different_timeout_with_same_key_is_a_conflict() {
     let (_root, _harness, ctx) = fixture();
-    let a = submit(&ctx, "budget", "print('one')", 5000);
+    let a = submit(&ctx, "budget", "print('one')", FUNCTIONAL_BUDGET_MS);
     let b = submit(&ctx, "budget", "print('one')", 4000);
     assert_eq!(b["error"]["code"], "IDEMPOTENCY_CONFLICT");
     await_terminal(&ctx, a["job_id"].as_str().unwrap());
@@ -83,7 +87,7 @@ fn different_timeout_with_same_key_is_a_conflict() {
 #[test]
 fn nonzero_exit_is_failed_not_transport_failure() {
     let (_root, _harness, ctx) = fixture();
-    let a = submit(&ctx, "failure", "import sys; print('failure', file=sys.stderr); sys.exit(7)", 5000);
+    let a = submit(&ctx, "failure", "import sys; print('failure', file=sys.stderr); sys.exit(7)", FUNCTIONAL_BUDGET_MS);
     let r = await_terminal(&ctx, a["job_id"].as_str().unwrap());
     assert_eq!(r["ok"], true);
     assert_eq!(r["status"], "failed", "{r}");
@@ -131,7 +135,7 @@ fn cancelling_completed_job_does_not_rewrite_success() {
 #[test]
 fn noninteractive_stdin_is_closed() {
     let (_root, _harness, ctx) = fixture();
-    let a = submit(&ctx, "eof", "import sys; print('EOF:'+str(len(sys.stdin.read())))", 5000);
+    let a = submit(&ctx, "eof", "import sys; print('EOF:'+str(len(sys.stdin.read())))", FUNCTIONAL_BUDGET_MS);
     let r = await_terminal(&ctx, a["job_id"].as_str().unwrap());
     assert_eq!(r["status"], "succeeded", "{r}");
     assert!(r["stdout"]["text"].as_str().unwrap().contains("EOF:0"));
@@ -145,7 +149,7 @@ fn default_cwd_is_captured_at_submission() {
     let configured = crate::tools::call_tool(&ctx, "set_default_cwd", &json!({"path":"nested"}));
     assert_eq!(configured["ok"], true, "{configured}");
     assert_eq!(configured["default_cwd"], "nested");
-    let a = submit(&ctx, "cwd", "from pathlib import Path; Path('correct.txt').write_text('ok')", 5000);
+    let a = submit(&ctx, "cwd", "from pathlib import Path; Path('correct.txt').write_text('ok')", FUNCTIONAL_BUDGET_MS);
     assert_eq!(a["ok"], true, "{a}");
     let reset = crate::tools::call_tool(&ctx, "set_default_cwd", &json!({"path":"."}));
     assert_eq!(reset["ok"], true, "{reset}");
@@ -251,9 +255,10 @@ fn unicode_and_binary_pages_can_be_reconstructed_exactly() {
 #[test]
 fn completed_job_exposes_a_stable_bounded_output_snapshot() {
     let (_root, _harness, ctx) = fixture();
-    let a = submit(&ctx, "unicode", "import sys; sys.stdout.buffer.write(bytes([228,184,173,230,150,135])); sys.stdout.flush()", 5000);
+    let a = submit(&ctx, "unicode", "import sys; sys.stdout.buffer.write(bytes([228,184,173,230,150,135])); sys.stdout.flush()", FUNCTIONAL_BUDGET_MS);
     let id = a["job_id"].as_str().unwrap();
     let r = await_terminal(&ctx, id);
+    assert_eq!(r["status"], "succeeded", "{r}");
     assert_eq!(r["result"]["output_complete"], true, "{r}");
     assert_eq!(r["stdout"]["text"], "中文");
     let repeated = crate::tools::call_tool(&ctx, "get_exec_task", &json!({"job_id": id, "limit": 16384}));
@@ -264,11 +269,13 @@ fn completed_job_exposes_a_stable_bounded_output_snapshot() {
 #[test]
 fn cancelling_a_started_process_stops_it_without_automatic_resubmission() {
     let (root, _harness, ctx) = fixture();
-    let a = submit(&ctx, "cancel-running", "from pathlib import Path; import time; Path('started.txt').touch(); time.sleep(10); Path('finished.txt').touch()", 15000);
+    let a = submit(&ctx, "cancel-running", "from pathlib import Path; import time; Path('started.txt').touch(); time.sleep(60); Path('finished.txt').touch()", 90_000);
     let id = a["job_id"].as_str().unwrap();
-    let deadline = Instant::now() + Duration::from_secs(8);
+    let deadline = Instant::now() + Duration::from_secs(30);
     while !root.path().join("started.txt").exists() {
-        assert!(Instant::now() < deadline, "child did not start: {a}");
+        let current = crate::tools::call_tool(&ctx, "get_exec_task", &json!({"job_id":id}));
+        assert!(current["terminal"] != true, "child ended before readiness: {current}");
+        assert!(Instant::now() < deadline, "child did not start: {current}");
         std::thread::sleep(Duration::from_millis(25));
     }
     let before = Instant::now();
