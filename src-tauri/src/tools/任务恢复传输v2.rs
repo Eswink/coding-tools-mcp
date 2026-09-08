@@ -21,6 +21,10 @@ async fn listener_restart_keeps_the_running_job_and_its_idempotency_key() {
     let id = accepted["result"]["structuredContent"]["job_id"].as_str().unwrap().to_owned();
     stop.send(()).unwrap(); handle.await.unwrap();
     let (stop, handle) = start_listener();
+    // A restarted HTTP listener invalidates the old keep-alive connection. Use a
+    // new client exactly as a reconnecting MCP client would, without resubmitting
+    // with a fresh idempotency key or changing the operation assertions.
+    let client = reqwest::Client::builder().timeout(Duration::from_secs(10)).no_proxy().build().unwrap();
     let retry: Value = client.post(&url).json(&request("start_exec_task", args)).send().await.unwrap().json().await.unwrap();
     assert_eq!(retry["result"]["structuredContent"]["job_id"], id);
     assert_eq!(retry["result"]["structuredContent"]["deduplicated"], true);
