@@ -13,12 +13,17 @@ $setup = Start-Process -FilePath $installers[0].FullName -ArgumentList @('/S', "
 if (!$setup.WaitForExit(180000)) { Stop-Process -Id $setup.Id -Force; throw '静默安装超时' }
 $setup.Refresh()
 if ($setup.ExitCode -ne 0) { throw "静默安装失败: $($setup.ExitCode)" }
-$hash = (Get-FileHash -LiteralPath $binary.FullName -Algorithm SHA256).Hash
-$installed = @(Get-ChildItem -LiteralPath $installRoot -Recurse -File -Filter '*.exe' | Where-Object { (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash -eq $hash })
-if ($installed.Count -ne 1) { throw '已安装程序摘要与构建程序不一致' }
+$payloadReport = Join-Path $OutputDirectory '安装载荷核验v7.json'
+& python scripts/安装载荷校验v7.py --built $binary.FullName --installed-dir $installRoot --output $payloadReport
+if ($LASTEXITCODE -ne 0) { throw 'NSIS安装载荷精确字节验证失败，详见安装载荷核验v7.json' }
+$payload = Get-Content -LiteralPath $payloadReport -Raw | ConvertFrom-Json
+$installed = Get-Item -LiteralPath $payload.installed_path
+$hash = $payload.installed_sha256
+$installedInfo = $installed.VersionInfo
+if ($installedInfo.FileMajorPart -ne $parts[0] -or $installedInfo.FileMinorPart -ne $parts[1] -or $installedInfo.FileBuildPart -ne $parts[2]) { throw '已安装PE版本与源码版本不符' }
 $app = $null
 try {
-    $app = Start-Process -FilePath $installed[0].FullName -PassThru
+    $app = Start-Process -FilePath $installed.FullName -PassThru
     $window = $false
     for ($i = 0; $i -lt 30; $i++) {
         Start-Sleep -Seconds 1
@@ -33,11 +38,13 @@ try {
     $report = [ordered]@{
         source_sha = $env:SOURCE_SHA; version = $version; platform = 'windows-x64';
         installed_binary_sha256 = $hash.ToLowerInvariant();
-        product_version = $installed[0].VersionInfo.ProductVersion;
-        file_version = $installed[0].VersionInfo.FileVersion;
+        unbundled_binary_sha256 = $payload.unbundled_sha256;
+        exact_nsis_payload_verified = $payload.passed;
+        product_version = $installed.VersionInfo.ProductVersion;
+        file_version = $installed.VersionInfo.FileVersion;
         silent_install = $true; native_window_created = $true;
         sustained_process = $true; public_network_tested = $false;
-        signed = ((Get-AuthenticodeSignature -LiteralPath $binary.FullName).Status -eq 'Valid')
+        signed = ((Get-AuthenticodeSignature -LiteralPath $installed.FullName).Status -eq 'Valid')
     }
     $report | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $OutputDirectory '安装冒烟结果v7.json') -Encoding utf8
 } finally {

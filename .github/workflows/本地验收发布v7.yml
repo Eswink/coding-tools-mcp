@@ -42,6 +42,7 @@ jobs:
           set -euo pipefail
           test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | cut -f1)" = "$GITHUB_SHA"
           python scripts/版本递增回归v7.py
+          python scripts/安装载荷回归v7.py
           python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA"
           python scripts/版本递增v7.py --from-version 0.2.1 --version 0.2.2 --apply
           python - <<'PY'
@@ -95,6 +96,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/发布检查v7"
           python scripts/发布版本校验v4.py --expect-sha "$SOURCE_SHA" --output "$RUNNER_TEMP/发布检查v7/源码版本.json"
           python scripts/版本递增回归v7.py
+          python scripts/安装载荷回归v7.py
           python scripts/发布版本回归v4.py
       - name: Linux系统依赖
         if: runner.os == 'Linux'
@@ -144,6 +146,19 @@ jobs:
         run: |
           set -euo pipefail
           cargo test --locked --manifest-path src-tauri/Cargo.toml --features frp-binary-tests generated_config_is_accepted_by_real_frpc_0612 -- --nocapture 2>&1 | tee "$RUNNER_TEMP/发布检查v7/真实FRPC配置验证.txt"
+      - name: 保存依赖风险诊断（结果单独审查，不代表零漏洞）
+        if: runner.os == 'Linux'
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          result = subprocess.run(['npm', 'audit', '--json'], capture_output=True, text=True, timeout=90)
+          report = json.loads(result.stdout)
+          if result.returncode not in (0, 1) or 'metadata' not in report:
+              raise SystemExit('依赖审计服务没有返回有效报告')
+          (Path(os.environ['RUNNER_TEMP'])/'发布检查v7'/'依赖风险诊断.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+          print(json.dumps(report.get('metadata', {})))
+          PY
       - name: 前端检查与实际生产函数回归
         if: runner.os == 'Linux'
         run: |
@@ -220,6 +235,16 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
+          name: 安装包诊断v7-非发布产物
+          path: |
+            ${{ runner.temp }}/发布产物v7/
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/coding-tools-mcp-desktop.exe
+          retention-days: 7
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
           name: 安装包构建日志v7
           path: ${{ runner.temp }}/安装包构建v7/
           retention-days: 14
@@ -253,6 +278,10 @@ jobs:
           root = Path('产物')
           source = json.loads((root/'发布来源v7.json').read_text(encoding='utf-8'))
           smoke = json.loads((root/'安装冒烟结果v7.json').read_text(encoding='utf-8-sig'))
+          payload = json.loads((root/'安装载荷核验v7.json').read_text(encoding='utf-8'))
+          assert payload['source_sha'] == os.environ['SOURCE_SHA']
+          assert payload['passed'] and smoke['exact_nsis_payload_verified']
+          assert payload['installed_sha256'] == smoke['installed_binary_sha256'] == payload['expected_installed_sha256']
           assert source['source_sha'] == smoke['source_sha'] == os.environ['SOURCE_SHA']
           assert source['version'] == smoke['version'] == '0.2.2'
           assert smoke['silent_install'] and smoke['native_window_created'] and smoke['sustained_process']
