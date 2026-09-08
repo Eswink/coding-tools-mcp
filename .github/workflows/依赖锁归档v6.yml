@@ -20,12 +20,22 @@ jobs:
           OUTPUT_DIR: ${{ runner.temp }}/锁文件对象v6
         shell: python
         run: |
-          import base64, hashlib, io, json, os, urllib.request, zipfile
+          import base64, hashlib, io, json, os, urllib.request, urllib.parse, zipfile
           from pathlib import Path
+          class SafeRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  target = urllib.parse.urlparse(newurl)
+                  if target.scheme != 'https' or not (target.hostname or '').endswith(('.blob.core.windows.net', '.githubusercontent.com')):
+                      raise RuntimeError('unexpected artifact redirect')
+                  redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+                  redirected.remove_header('Authorization')
+                  redirected.remove_header('Cookie')
+                  return redirected
+          opener = urllib.request.build_opener(SafeRedirect())
           api = 'https://api.github.com/repos/Eswink/coding-tools-mcp'
           headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'}
           req = urllib.request.Request(api + '/actions/artifacts/10042796906/zip', headers=headers)
-          with urllib.request.urlopen(req, timeout=60) as r:
+          with opener.open(req, timeout=60) as r:
               raw = r.read(1_000_000)
           assert hashlib.sha256(raw).hexdigest() == '2d0eb7b4015f3df4ad978cc23a109529126180fb17d2dd2bde149f12166460e2'
           with zipfile.ZipFile(io.BytesIO(raw)) as z:
@@ -34,7 +44,7 @@ jobs:
           assert hashlib.sha1(('blob %d\0' % len(data)).encode() + data).hexdigest() == expected
           payload = json.dumps({'content': base64.b64encode(data).decode(), 'encoding': 'base64'}).encode()
           req = urllib.request.Request(api + '/git/blobs', data=payload, headers=headers, method='POST')
-          with urllib.request.urlopen(req, timeout=60) as r:
+          with opener.open(req, timeout=60) as r:
               result = json.load(r)
           assert result['sha'] == expected
           out = Path(os.environ['OUTPUT_DIR'])
