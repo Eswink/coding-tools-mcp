@@ -1,0 +1,78 @@
+name: 异步命令验证v1
+on:
+  push:
+    branches: ['feat/MCP异步任务v1']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: async-command-v1-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  regression:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Linux桌面依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: 记录不可变源码
+        run: |
+          mkdir -p "$RUNNER_TEMP/异步命令证据v1"
+          git rev-parse HEAD > "$RUNNER_TEMP/异步命令证据v1/源码版本.txt"
+          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/异步命令证据v1/源码树.txt"
+          rustc --version > "$RUNNER_TEMP/异步命令证据v1/工具链.txt"
+      - name: 全目标类型检查
+        run: |
+          set -o pipefail
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/异步命令证据v1/类型检查.txt"
+      - name: 实际异步命令与HTTP传输回归
+        run: |
+          set -o pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::exec_tasks -- --nocapture 2>&1 | tee "$RUNNER_TEMP/异步命令证据v1/异步回归.txt"
+      - name: 完整Rust回归
+        run: |
+          set -o pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/异步命令证据v1/完整回归.txt"
+      - name: 生产库零警告
+        run: |
+          set -o pipefail
+          cargo rustc --locked --manifest-path src-tauri/Cargo.toml --lib -- -D warnings 2>&1 | tee "$RUNNER_TEMP/异步命令证据v1/零警告.txt"
+      - name: 保存源码和证据摘要
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/异步命令证据v1"
+          git archive --format=zip HEAD -o "$RUNNER_TEMP/异步命令证据v1/源码v1.zip"
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])/'异步命令证据v1'
+          data = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in root.iterdir() if p.is_file()}
+          (root/'摘要v1.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 异步命令证据v1-${{ matrix.os }}
+          path: ${{ runner.temp }}/异步命令证据v1/
+          retention-days: 7
+          if-no-files-found: error

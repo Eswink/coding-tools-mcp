@@ -1,6 +1,10 @@
 use serde_json::{json, Value};
 
 pub const P0_TOOLS: &[(&str, &str, &str, bool, bool, bool)] = &[
+    ("start_exec_task", "Start asynchronous command", "Start a noninteractive bounded command without waiting for completion. Supply request_id BEFORE submission and reuse it on transport timeout to avoid duplicate execution. Returns job_id; poll get_exec_task. No recovery across service restart. Prefer this for builds and other long commands.", false, true, true),
+    ("get_exec_task", "Get asynchronous command", "Nonblocking status and per-stream cursor logs for a job_id. queued/running/cancelling are NOT failures. Use next_cursor independently for stdout/stderr. Completion does not automatically resume ChatGPT; explicitly poll when needed.", true, false, false),
+    ("list_exec_tasks", "List asynchronous commands", "Find jobs in this service instance, optionally by request_id after a lost submit response. Bounded summaries only; no command arguments or logs. Jobs are not Harness coding plans.", true, false, false),
+    ("cancel_exec_task", "Cancel asynchronous command", "Request cancellation without waiting. Poll get_exec_task for the final state. Terminates the directly owned child only; detached descendants are not covered. Does not undo command side effects.", false, true, false),
     (
         "harness_status",
         "Harness status",
@@ -317,6 +321,7 @@ pub const P0_TOOLS: &[(&str, &str, &str, bool, bool, bool)] = &[
 
 /// old Python 版本默认提供的核心工具集。默认 MCP 只暴露这一组，保持 Agent 的工具面稳定。
 pub const CORE_TOOLS: &[&str] = &[
+    "start_exec_task", "get_exec_task", "list_exec_tasks", "cancel_exec_task",
     "server_info",
     "history_session_bootstrap",
     "history_session_checkpoint",
@@ -346,6 +351,7 @@ pub const CORE_TOOLS: &[&str] = &[
 ];
 
 pub const CORE_READ_ONLY_TOOLS: &[&str] = &[
+    "get_exec_task", "list_exec_tasks",
     "server_info",
     "check_exec_environment",
     "get_default_cwd",
@@ -366,6 +372,7 @@ pub const CORE_READ_ONLY_TOOLS: &[&str] = &[
 ];
 
 pub const ALLOWED_TOOLS: &[&str] = &[
+    "start_exec_task", "get_exec_task", "list_exec_tasks", "cancel_exec_task",
     "harness_status",
     "operation_log",
     "server_info",
@@ -409,6 +416,7 @@ pub const ALLOWED_TOOLS: &[&str] = &[
 ];
 
 pub const MUTATING_TOOLS: &[&str] = &[
+    "start_exec_task", "cancel_exec_task",
     "history_session_bootstrap",
     "history_session_checkpoint",
     "history_session_validate",
@@ -425,6 +433,7 @@ pub const MUTATING_TOOLS: &[&str] = &[
 ];
 
 pub const READ_ONLY_TOOLS: &[&str] = &[
+    "get_exec_task", "list_exec_tasks",
     "harness_status",
     "operation_log",
     "server_info",
@@ -517,6 +526,7 @@ pub fn list_tools_for_profile(tool_profile: &str) -> Vec<Value> {
 }
 
 pub fn input_schema(name: &str) -> Value {
+    if let Some(schema) = crate::tools::exec_tasks::input_schema(name) { return schema; }
     match name {
         "history_session_bootstrap" => json!({
             "type": "object",
@@ -931,7 +941,7 @@ mod tests {
             .collect();
         let unique: HashSet<_> = names.iter().copied().collect();
 
-        assert_eq!(tools.len(), 26);
+        assert_eq!(tools.len(), 30); // 26 existing tools plus four asynchronous execution tools.
         assert_eq!(unique.len(), tools.len());
         assert!(names.contains(&"history_session_bootstrap"));
         assert!(names.contains(&"history_session_checkpoint"));

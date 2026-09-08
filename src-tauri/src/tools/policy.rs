@@ -181,7 +181,7 @@ pub fn validate_tool_arguments_for_workspace(
     workspace: Option<&Workspace>,
 ) -> Result<(), PolicyError> {
     match tool_name {
-        "exec_command" => validate_command_for_workspace(arguments, policy, workspace),
+        "exec_command" | "start_exec_task" => validate_command_for_workspace(arguments, policy, workspace),
         "apply_patch" | "patch_check" => validate_patch(arguments, policy),
         _ => Ok(()),
     }

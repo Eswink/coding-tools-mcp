@@ -69,6 +69,7 @@ pub struct ExecSession {
     exited: AtomicBool,
     termination_reason: Mutex<Option<String>>,
     reader_tasks: AsyncMutex<Vec<tauri::async_runtime::JoinHandle<()>>>,
+    reader_failed: AtomicBool,
 }
 
 impl ExecSession {
@@ -95,6 +96,7 @@ impl ExecSession {
             exited: AtomicBool::new(false),
             termination_reason: Mutex::new(None),
             reader_tasks: AsyncMutex::new(Vec::new()),
+            reader_failed: AtomicBool::new(false),
         }
     }
 
@@ -125,9 +127,23 @@ impl ExecSession {
 
     pub async fn wait_for_readers(&self) {
         let mut tasks = self.reader_tasks.lock().await;
-        while let Some(task) = tasks.pop() {
-            let _ = tokio::time::timeout(std::time::Duration::from_millis(500), task).await;
+        while let Some(mut task) = tasks.pop() {
+            match tokio::time::timeout(std::time::Duration::from_millis(500), &mut task).await {
+                Ok(Ok(())) => {},
+                Ok(Err(_)) => { self.reader_failed.store(true, Ordering::Release); },
+                Err(_) => {
+                    // A descendant may retain an inherited pipe after the direct child exits.
+                    // Do not detach a reader that can keep the whole session alive indefinitely.
+                    self.reader_failed.store(true, Ordering::Release);
+                    task.abort();
+                    let _ = task.await;
+                }
+            }
         }
+    }
+
+    pub fn readers_completed(&self) -> bool {
+        !self.reader_failed.load(Ordering::Acquire)
     }
 
     async fn read_stream<T>(&self, mut stream: T, is_stdout: bool)
@@ -152,7 +168,10 @@ impl ExecSession {
                         trim_buffer(&mut data, SESSION_BUFFER_BYTES);
                     }
                 }
-                Err(_) => break,
+                Err(_) => {
+                    self.reader_failed.store(true, Ordering::Release);
+                    break;
+                }
             }
         }
     }
@@ -205,14 +224,14 @@ impl ExecSession {
     pub fn retained_stream_bytes(&self, stream: &str) -> (Vec<u8>, usize) {
         match stream {
             "stderr" => {
-                let data = self.stderr.lock().expect("stderr lock").clone();
+                let data = self.stderr.lock().expect("stderr lock");
                 let total = *self.stderr_total.lock().expect("stderr_total lock");
-                (data, total)
+                (data.clone(), total)
             }
             _ => {
-                let data = self.stdout.lock().expect("stdout lock").clone();
+                let data = self.stdout.lock().expect("stdout lock");
                 let total = *self.stdout_total.lock().expect("stdout_total lock");
-                (data, total)
+                (data.clone(), total)
             }
         }
     }

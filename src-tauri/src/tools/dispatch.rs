@@ -127,6 +127,10 @@ pub fn call_tool(ctx: &ToolContext, name: &str, args: &Value) -> Value {
         "search_text" | "grep_text" | "grep" => file::search_text(ws, &effective_args),
         "patch_check" => patch::patch_check(ctx, &effective_args),
         "apply_patch" => patch::apply_patch(ctx, &effective_args),
+        "start_exec_task" => crate::tools::exec_tasks::start(ctx, &effective_args),
+        "get_exec_task" => crate::tools::exec_tasks::get(ctx, &effective_args),
+        "list_exec_tasks" => crate::tools::exec_tasks::list(ctx, &effective_args),
+        "cancel_exec_task" => crate::tools::exec_tasks::cancel(ctx, &effective_args),
         "exec_command" => exec::exec_command(ctx, &effective_args),
         "read_output" => session::read_output(&ctx.sessions, &effective_args),
         "write_stdin" => session::write_stdin(&ctx.sessions, &effective_args),
@@ -242,7 +246,7 @@ fn apply_default_cwd(ctx: &ToolContext, name: &str, args: &Value) -> Value {
 
     let mut effective = args.clone();
     match name {
-        "exec_command" if effective.get("workdir").is_none() && effective.get("cwd").is_none() => {
+        "exec_command" | "start_exec_task" if effective.get("workdir").is_none() && effective.get("cwd").is_none() => {
             effective["workdir"] = Value::String(base.clone());
         }
         "list_dir" | "list_files" | "git_status" | "git_log" => {
