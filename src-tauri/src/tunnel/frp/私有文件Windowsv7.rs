@@ -128,7 +128,7 @@ fn verify(file: &File, sid: PSID) -> AppResult<()> {
     // data is live. Verify protection, ACE count/type/rights and exact user SID.
     unsafe {
         checked("GetKernelObjectSecurity", GetKernelObjectSecurity(handle, DACL_SECURITY_INFORMATION.0, Some(sd), bytes, &mut bytes))?;
-        checked("GetSecurityDescriptorControl", GetSecurityDescriptorControl(sd, &mut control, &mut revision))?;
+        checked("GetSecurityDescriptorControl", GetSecurityDescriptorControl(sd, &mut control.0, &mut revision))?;
         checked("GetSecurityDescriptorDacl", GetSecurityDescriptorDacl(sd, &mut present, &mut acl, &mut defaulted))?;
         if !present.as_bool() || acl.is_null() || (control.0 & SE_DACL_PROTECTED.0) == 0 || (*acl).AceCount != 1 {
             return Err(invalid_acl());
