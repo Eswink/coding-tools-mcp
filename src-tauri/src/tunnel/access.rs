@@ -7,6 +7,7 @@ use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
 use crate::data::DataStore;
+use crate::auth::PublicOrigin;
 use crate::error::AppResult;
 use crate::platform::platform;
 use crate::settings::AppSettings;
@@ -75,6 +76,7 @@ fn tunnel_type_for(profile: &WorkspaceProfile, kind: TunnelServiceKind) -> &str 
 pub async fn maybe_start_for_runtime(
     profile: &WorkspaceProfile,
     kind: TunnelServiceKind,
+    origin: Option<&PublicOrigin>,
 ) -> AppResult<Option<String>> {
     let tunnel_type = tunnel_type_for(profile, kind);
     if tunnel_type.is_empty() || tunnel_type == "none" {
@@ -83,6 +85,9 @@ pub async fn maybe_start_for_runtime(
     let settings = AppSettings::load_or_default();
     let mut guard = supervisor().lock().await;
     let status = guard.start(profile, kind, &settings).await?;
+    // Publish while still holding the route lock, so another reconfiguration
+    // cannot finish and then be overwritten by this operation's late result.
+    if let Some(origin) = origin { origin.publish(&status.public_url)?; }
     Ok(Some(status.public_url))
 }
 

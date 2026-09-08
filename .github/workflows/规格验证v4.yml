@@ -1,0 +1,47 @@
+name: 规格验证v4
+
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+    paths: ['docs/specs/固定公网入口v1/**', 'scripts/规格*.mjs', '.github/workflows/规格验证v4.yml']
+  pull_request:
+    branches: [main]
+    paths: ['docs/specs/固定公网入口v1/**', 'scripts/规格*.mjs', '.github/workflows/规格验证v4.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec-v4-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 安装锁定版本规格工具
+        run: npm install --prefix "$RUNNER_TEMP/规格工具v4" --no-audit --no-fund mcp-probe-kit@4.0.1
+      - name: 原版规格校验与正反例回归
+        env:
+          MCP_PROBE_LOCAL_ENTRY: ${{ runner.temp }}/规格工具v4/node_modules/mcp-probe-kit/build/index.js
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/规格证据v4"
+          git rev-parse HEAD > "$RUNNER_TEMP/规格证据v4/源码版本.txt"
+          node scripts/规格校验v4.mjs | tee "$RUNNER_TEMP/规格证据v4/规格结果v4.json"
+          node --test scripts/规格校验回归v4.test.mjs 2>&1 | tee "$RUNNER_TEMP/规格证据v4/规格回归v4.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 规格证据v4-${{ github.run_id }}
+          path: ${{ runner.temp }}/规格证据v4/
+          retention-days: 7
+          if-no-files-found: error

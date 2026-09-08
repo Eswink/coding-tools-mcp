@@ -1,0 +1,140 @@
+name: 固定入口预检v1
+
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stable-entry-preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    name: 编排与图谱预检（非功能验收）
+    if: github.event_name != 'pull_request' || github.head_ref == 'feat/固定公网入口v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 保存当前提交的源码快照
+        run: |
+          mkdir -p /tmp/固定入口预检
+          git archive --format=zip HEAD -o /tmp/固定入口预检/仓库源码v1.zip
+          git rev-parse HEAD > /tmp/固定入口预检/基线版本.txt
+      - name: 安装项目锁定的编排器
+        id: probe
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          timeout 180 npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . 2>&1 | tee /tmp/固定入口预检/编排器安装.txt
+      - name: 获取功能计划
+        id: plan
+        if: steps.probe.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          test -x .mcp-probe-kit/bin/probe
+          printf '{"project_root":"%s","description":"实施已确认的固定公网入口改造，规格见docs/specs/固定公网入口v1/实施规格v1.md：分离FRP服务器IP与自定义域名，保留传统子域名兼容；增加HTTP/HTTPS及压缩/tcpMux图形配置，统一MCP/Actions/OAuth公网地址；复用Cloudflare Named Tunnel，修复Quick旧地址、就绪判断和失败进程清理；补迁移、配置、回归测试。不自动配置DNS，不改真实服务器，不合并main。本步骤仅获取计划，不代表实施或验收。","spec_layout":"auto"}\n' "$PWD" | timeout 180 .mcp-probe-kit/bin/probe exec start_feature --stdin | tee /tmp/固定入口预检/功能计划.json
+      - name: 安装并检查托管GitNexus
+        id: graph
+        if: steps.probe.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          timeout 180 .mcp-probe-kit/bin/probe doctor gitnexus --install 2>&1 | tee /tmp/固定入口预检/图谱安装.txt
+          .mcp-probe-kit/bin/probe --help > /tmp/固定入口预检/编排器帮助.txt
+      - name: 获取代码分析
+        id: insight
+        if: steps.probe.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          printf '{"project_root":"%s","mode":"auto","save_to_docs":false}\n' "$PWD" | timeout 180 .mcp-probe-kit/bin/probe exec code_insight --stdin | tee /tmp/固定入口预检/代码分析.json
+      - name: 明确预检状态（禁止失败转绿）
+        if: always()
+        env:
+          PROBE_OUTCOME: ${{ steps.probe.outcome }}
+          PLAN_OUTCOME: ${{ steps.plan.outcome }}
+          GRAPH_OUTCOME: ${{ steps.graph.outcome }}
+          INSIGHT_OUTCOME: ${{ steps.insight.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          root = Path('/tmp/固定入口预检')
+          root.mkdir(parents=True, exist_ok=True)
+          results = {name: os.environ.get(name, 'missing') for name in (
+              'PROBE_OUTCOME', 'PLAN_OUTCOME', 'GRAPH_OUTCOME', 'INSIGHT_OUTCOME')}
+          errors = []
+          for name in ('功能计划.json', '代码分析.json'):
+              try:
+                  payload = json.loads((root / name).read_text(encoding='utf-8'))
+                  if not isinstance(payload, dict) or payload.get('isError'):
+                      errors.append(f'{name}: tool error or invalid response')
+              except (OSError, ValueError) as exc:
+                  errors.append(f'{name}: {type(exc).__name__}')
+          failed = any(value != 'success' for value in results.values()) or bool(errors)
+          report = {'steps': results, 'errors': errors, 'preflight_passed': not failed,
+                    'implementation_verified': False,
+                    'note': '仅预检；图谱结果和委派计划仍需人工读取，不能替代符号impact、detect_changes或端到端验收。'}
+          (root / '预检状态.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+          print(json.dumps(report, ensure_ascii=False, indent=2))
+          raise SystemExit(1 if failed else 0)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 固定入口预检v1
+          path: /tmp/固定入口预检/
+          retention-days: 7
+          if-no-files-found: error
+
+  frontend:
+    name: 前端基线检查
+    if: github.event_name != 'pull_request' || github.head_ref == 'feat/固定公网入口v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+
+  rust:
+    name: Rust基线检查
+    if: github.event_name != 'pull_request' || github.head_ref == 'feat/固定公网入口v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: 安装Tauri Linux系统依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: cargo check --locked --manifest-path src-tauri/Cargo.toml
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml

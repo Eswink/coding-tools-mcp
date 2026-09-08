@@ -182,12 +182,11 @@ fn validate_candidate_subdomains(
     existing: &[ServiceClaim<'_>],
     candidate: &[ServiceClaim<'_>],
 ) -> AppResult<()> {
-    let mut candidate_subdomains = HashMap::<String, ServiceClaim<'_>>::new();
+    let mut candidate_subdomains = HashMap::<(String, u16, String, String), ServiceClaim<'_>>::new();
     for claim in candidate.iter().copied().filter(|claim| claim.uses_frp) {
-        let subdomain = claim.subdomain.trim();
-        if subdomain.is_empty() {
+        let Some(normalized) = route_key(claim) else {
             continue;
-        }
+        };
         if let Some(owner) = existing
             .iter()
             .copied()
@@ -195,7 +194,6 @@ fn validate_candidate_subdomains(
         {
             return Err(subdomain_conflict_error(claim, owner));
         }
-        let normalized = subdomain.to_ascii_lowercase();
         if let Some(owner) = candidate_subdomains.insert(normalized, claim) {
             return Err(subdomain_conflict_error(claim, owner));
         }
@@ -214,7 +212,7 @@ fn validate_changed_candidate_subdomains(
         .copied()
         .filter(|claim| service_changed(current, next, claim.service) && claim.uses_frp)
     {
-        if claim.subdomain.trim().is_empty() {
+        if route_key(claim).is_none() {
             continue;
         }
         if let Some(owner) = existing
@@ -250,7 +248,7 @@ fn service_changed(
     let current = claim_for(current, service);
     let next = claim_for(next, service);
     current.local_port != next.local_port
-        || current.subdomain != next.subdomain
+        || route_key(current) != route_key(next)
         || current.uses_frp != next.uses_frp
 }
 
@@ -277,9 +275,36 @@ fn same_non_empty_subdomain(left: ServiceClaim<'_>, right: ServiceClaim<'_>) -> 
     if !left.uses_frp || !right.uses_frp {
         return false;
     }
-    let left = left.subdomain.trim();
-    let right = right.subdomain.trim();
-    !left.is_empty() && !right.is_empty() && left.eq_ignore_ascii_case(right)
+    match (route_key(left), route_key(right)) {
+        (Some(left), Some(right)) => left == right,
+        _ => false,
+    }
+}
+
+fn route_key(claim: ServiceClaim<'_>) -> Option<(String, u16, String, String)> {
+    if !claim.uses_frp { return None; }
+    let profile = claim.profile;
+    let (profile_id, inline_server, inline_port, options) = match claim.service {
+        WorkspaceService::Mcp => (&profile.tunnel.frp_profile_id, &profile.tunnel.frp_server,
+            profile.tunnel.frp_server_port, &profile.tunnel.frp),
+        WorkspaceService::Actions => (&profile.actions.frp_profile_id, &profile.actions.frp_server,
+            profile.actions.frp_server_port, &profile.actions.frp),
+    };
+    let settings = crate::settings::AppSettings::load_or_default();
+    let (server, port) = settings.find_frp_profile(profile_id)
+        .map(|value| (value.server.as_str(), value.server_port))
+        .unwrap_or((inline_server.as_str(), inline_port));
+    let hostname = options.hostname(server, claim.subdomain).ok().or_else(|| {
+        // Preserve conflict diagnostics while an old, incomplete draft has no
+        // server yet. This sentinel must never be exposed as a public URL.
+        if options.domain_mode == "subdomain" && server.trim().is_empty()
+            && options.subdomain_host.trim().is_empty() && !claim.subdomain.trim().is_empty() {
+            Some(format!("<draft>:{}", claim.subdomain.trim().to_ascii_lowercase()))
+        } else { None }
+    })?;
+    let server = super::endpoint::normalize_server_host(server)
+        .unwrap_or_else(|_| server.trim().to_ascii_lowercase());
+    Some((server, port, options.proxy_type.clone(), hostname))
 }
 
 fn port_conflict_error(target: ServiceClaim<'_>, owner: ServiceClaim<'_>) -> AppError {
@@ -294,8 +319,8 @@ fn port_conflict_error(target: ServiceClaim<'_>, owner: ServiceClaim<'_>) -> App
 
 fn subdomain_conflict_error(target: ServiceClaim<'_>, owner: ServiceClaim<'_>) -> AppError {
     AppError::Message(format!(
-        "FRP 子域名“{}”已被工作区“{}”的 {} 服务使用，当前工作区 {} 不能启动。",
-        target.subdomain.trim(),
+        "FRP 域名“{}”已被工作区“{}”的 {} 服务使用，当前工作区 {} 不能启动。",
+        route_key(target).map(|key| key.3).unwrap_or_default(),
         owner.profile.name,
         owner.service.label(),
         target.service.label()
@@ -487,4 +512,41 @@ mod tests {
 
         assert!(validate_workspace_resources(&[first], &second).is_ok());
     }
+    #[test]
+    fn custom_domains_are_reserved_even_without_a_prefix() {
+        let mut owner = profile("owner", 28766, 8787);
+        owner.tunnel.frp_server = "203.0.113.10".into();
+        owner.tunnel.frp_subdomain.clear();
+        owner.tunnel.frp.domain_mode = "custom".into();
+        owner.tunnel.frp.custom_domain = "mcp.example.com".into();
+        let mut candidate = profile("candidate", 28767, 8788);
+        candidate.tunnel = owner.tunnel.clone();
+        candidate.tunnel.frp.custom_domain = "MCP.EXAMPLE.COM.".into();
+        let err = validate_workspace_resources(&[owner], &candidate).unwrap_err();
+        assert!(err.to_string().contains("mcp.example.com"));
+    }
+
+    #[test]
+    fn same_prefix_on_different_servers_is_not_a_conflict() {
+        let mut first = profile("first", 28766, 8787);
+        first.tunnel.frp_server = "one.example.com".into();
+        let mut second = profile("second", 28767, 8788);
+        second.tunnel.frp_server = "two.example.com".into();
+        second.tunnel.frp_subdomain = first.tunnel.frp_subdomain.clone();
+        assert!(validate_workspace_resources(&[first], &second).is_ok());
+    }
+
+    #[test]
+    fn custom_and_legacy_routes_share_a_hostname_namespace() {
+        let mut first = profile("first", 28766, 8787);
+        first.tunnel.frp_server = "203.0.113.10".into();
+        first.tunnel.frp_subdomain = "mcp".into();
+        first.tunnel.frp.subdomain_host = "example.com".into();
+        let mut second = profile("second", 28767, 8788);
+        second.tunnel.frp_server = first.tunnel.frp_server.clone();
+        second.tunnel.frp.domain_mode = "custom".into();
+        second.tunnel.frp.custom_domain = "mcp.example.com".into();
+        assert!(validate_workspace_resources(&[first], &second).is_err());
+    }
+
 }

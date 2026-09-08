@@ -223,234 +223,171 @@ pub(crate) fn apply_proxy_env(cmd: &mut Command, proxy: &ProxyConfig) {
     }
 }
 
-/// Spawn `cloudflared tunnel --url http://127.0.0.1:{port}` (quick) or named `tunnel run --token`.
+/// Spawn a temporary or named tunnel. Connection readiness does not imply
+/// successful DNS, origin HTTP, or OAuth health checks.
+#[allow(clippy::too_many_arguments)]
 pub async fn spawn_cloudflare_tunnel(
-    port: u16,
-    cwd: &Path,
-    log_path: &Path,
-    cloudflare_mode: &str,
-    cloudflare_token: &str,
-    named_public_url: &str,
-    use_proxy: bool,
-    use_http2: bool,
+    port: u16, cwd: &Path, log_path: &Path, cloudflare_mode: &str,
+    cloudflare_token: &str, named_public_url: &str, use_proxy: bool, use_http2: bool,
 ) -> AppResult<CloudflareTunnelHandle> {
-    let cloudflared = resolve_cloudflared()?;
-    let quick = cloudflare_mode != "named";
-
-    if !quick {
+    let quick = match cloudflare_mode {
+        "quick" => true,
+        "named" => false,
+        _ => return Err(AppError::Message("未知 Cloudflare 模式。".into())),
+    };
+    let named_url = if quick {
+        String::new()
+    } else {
         if cloudflare_token.trim().is_empty() {
-            return Err(AppError::Message(
-                "Cloudflare 命名隧道模式需要填写 Tunnel Token。".into(),
-            ));
+            return Err(AppError::Message("命名隧道需要 Cloudflare Tunnel Token。".into()));
         }
-        if named_public_url.trim().is_empty() {
-            return Err(AppError::Message(
-                "Cloudflare 命名隧道模式需要填写固定公网地址。".into(),
-            ));
-        }
-    }
-
+        crate::workspace::endpoint::normalize_named_origin(named_public_url)
+            .map_err(AppError::Message)?
+    };
+    if port == 0 { return Err(AppError::Message("本地服务端口不能为 0。".into())); }
+    let cloudflared = resolve_cloudflared()?;
+    // Fail before spawning if the log target cannot be opened.
+    if let Some(parent) = log_path.parent() { std::fs::create_dir_all(parent)?; }
+    let log = tokio::fs::OpenOptions::new().create(true).append(true).open(log_path).await?;
     let mut cmd = Command::new(&cloudflared);
-    cmd.current_dir(cwd);
+    cmd.current_dir(cwd).kill_on_drop(true);
+    cmd.stdin(std::process::Stdio::null());
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
-
     #[cfg(windows)]
-    {
-        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
-    }
-
+    cmd.creation_flags(0x00000200 | 0x08000000);
     #[cfg(unix)]
-    {
-        cmd.process_group(0);
-    }
-
+    cmd.process_group(0);
     let settings = crate::settings::AppSettings::load_or_default();
-    if use_proxy {
-        apply_proxy_env(&mut cmd, &settings.proxy);
-    }
+    if use_proxy { apply_proxy_env(&mut cmd, &settings.proxy); }
+    configure_cloudflare_command(&mut cmd, port, quick, cloudflare_token, use_http2);
 
-    push_cloudflare_protocol_args(&mut cmd, use_http2);
-
-    if quick {
-        cmd.args([
-            "tunnel",
-            "--url",
-            &format!("http://127.0.0.1:{port}"),
-        ]);
-    } else {
-        cmd.args([
-            "tunnel",
-            "run",
-            "--token",
-            cloudflare_token.trim(),
-        ]);
-    }
-
-    let mut child = cmd
-        .spawn()
+    let mut child = cmd.spawn()
         .map_err(|err| AppError::Message(format!("启动 cloudflared 失败: {err}")))?;
     let pid = child.id();
-
-    if let Some(parent) = log_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
-    let (ready_tx, ready_rx) = oneshot::channel();
-    let log_path = log_path.to_path_buf();
-    let named_url = named_public_url.trim_end_matches('/').to_string();
-    let log_path_for_error = log_path.clone();
-
-    if let Some(stdout) = child.stdout.take() {
-        let stderr = child.stderr.take();
-        tokio::spawn(async move {
-            stream_cloudflare_output(stdout, stderr, &log_path, quick, named_url, ready_tx).await;
-        });
-    } else {
-        let _ = ready_tx.send(QuickTunnelReady {
-            public_url: if quick {
-                None
-            } else {
-                Some(named_public_url.trim_end_matches('/').to_string())
-            },
-            named_ready: !quick,
-        });
-    }
-
-    let ready = time::timeout(READY_TIMEOUT, ready_rx)
-        .await
-        .map_err(|_| {
-            AppError::Message(format!(
-                "cloudflared 已启动，但在 {} 秒内没有返回 trycloudflare.com 公网地址。\n\
-                 请检查：1) MCP 服务是否已在本机端口 {port} 运行；2) 设置 → 通用 → 网络代理 是否配置为手动代理（如 http://127.0.0.1:7890）；\
-                 3) 查看日志 {log_hint}",
-                READY_TIMEOUT.as_secs(),
-                log_hint = log_path_for_error.display()
-            ))
-        })?
-        .map_err(|_| AppError::Message("cloudflared 输出流意外结束。".into()))?;
-
-    let public_url = if quick {
-        ready.public_url.ok_or_else(|| {
-            AppError::Message(format!(
-                "cloudflared 已启动，但没有解析到 trycloudflare.com 地址。请查看日志：{}",
-                log_path_for_error.display()
-            ))
-        })?
-    } else {
-        named_public_url.trim_end_matches('/').to_string()
+    let Some(stdout) = child.stdout.take() else {
+        stop_child(child, pid).await?;
+        return Err(AppError::Message("无法读取 cloudflared 输出，已停止子进程。".into()));
     };
-
-    Ok(CloudflareTunnelHandle {
-        child,
-        public_url,
-        pid,
-    })
+    let stderr = child.stderr.take();
+    let (ready_tx, ready_rx) = oneshot::channel();
+    let token = cloudflare_token.trim().to_string();
+    let reader = tokio::spawn(stream_cloudflare_output(
+        stdout, stderr, log, quick, named_url, token, ready_tx,
+    ));
+    let ready = match time::timeout(READY_TIMEOUT, ready_rx).await {
+        Ok(Ok(result)) => result,
+        Ok(Err(_)) => Err("cloudflared 日志任务意外结束，未确认连接。".into()),
+        Err(_) => Err(format!(
+            "{} 在 {} 秒内未确认隧道连接{}；请检查 Token / 网络并查看日志：{}",
+            if quick { "Quick Tunnel" } else { "Named Tunnel" },
+            READY_TIMEOUT.as_secs(), if quick { "与临时地址" } else { "" }, log_path.display(),
+        )),
+    };
+    let public_url = match ready {
+        Ok(url) => url,
+        Err(message) => {
+            let _ = stop_child(child, pid).await;
+            reader.abort();
+            let _ = reader.await;
+            return Err(AppError::Message(message));
+        }
+    };
+    match child.try_wait() {
+        Ok(None) => Ok(CloudflareTunnelHandle { child, public_url, pid }),
+        _ => {
+            let _ = stop_child(child, pid).await;
+            reader.abort();
+            let _ = reader.await;
+            Err(AppError::Message("cloudflared 在确认连接后已退出，请检查日志。".into()))
+        }
+    }
 }
 
-struct QuickTunnelReady {
+fn configure_cloudflare_command(cmd: &mut Command, port: u16, quick: bool, token: &str, http2: bool) {
+    cmd.arg("tunnel");
+    push_cloudflare_protocol_args(cmd, http2);
+    cmd.env_remove("TUNNEL_TOKEN_FILE");
+    if quick {
+        cmd.env_remove("TUNNEL_TOKEN");
+        cmd.args(["--url", &format!("http://127.0.0.1:{port}")]);
+    } else {
+        // Supported by the pinned cloudflared version. The same OS user may
+        // still inspect process environments; this is not encrypted storage.
+        cmd.env("TUNNEL_TOKEN", token.trim());
+        cmd.arg("run");
+    }
+}
+
+#[derive(Default)]
+struct TunnelReadiness {
     public_url: Option<String>,
-    #[allow(dead_code)]
-    named_ready: bool,
+    connected: bool,
+}
+
+impl TunnelReadiness {
+    fn observe(&mut self, line: &str, quick: bool, named_url: &str) -> Option<String> {
+        if line.to_ascii_lowercase().contains("registered tunnel connection") {
+            self.connected = true;
+        }
+        if quick && self.public_url.is_none() {
+            self.public_url = extract_trycloudflare_url(line);
+        }
+        if !self.connected { return None; }
+        if quick { self.public_url.clone() } else { Some(named_url.to_string()) }
+    }
+}
+
+fn redact_cloudflare_line(line: &str, token: &str) -> String {
+    if token.is_empty() { line.to_string() } else { line.replace(token, "<REDACTED>") }
 }
 
 async fn stream_cloudflare_output<R, E>(
-    stdout: R,
-    stderr: Option<E>,
-    log_path: &Path,
-    quick: bool,
-    named_url: String,
-    ready_tx: oneshot::Sender<QuickTunnelReady>,
+    stdout: R, stderr: Option<E>, mut log: tokio::fs::File,
+    quick: bool, named_url: String, token: String,
+    ready_tx: oneshot::Sender<Result<String, String>>,
 ) where
     R: tokio::io::AsyncRead + Unpin + Send + 'static,
     E: tokio::io::AsyncRead + Unpin + Send + 'static,
 {
     let mut ready_tx = Some(ready_tx);
-    let mut public_url: Option<String> = None;
-
-    let mut log = match tokio::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(log_path)
-        .await
-    {
-        Ok(file) => file,
-        Err(_) => {
+    let mut readiness = TunnelReadiness::default();
+    let mut out = BufReader::new(stdout).lines();
+    let mut err = stderr.map(|stream| BufReader::new(stream).lines());
+    let mut out_open = true;
+    // One task owns both readers: no detached nested tasks or unbounded queue.
+    while out_open || err.is_some() {
+        let (is_stdout, result) = tokio::select! {
+            result = out.next_line(), if out_open => (true, result),
+            result = async { err.as_mut().expect("guarded stderr").next_line().await }, if err.is_some() => (false, result),
+        };
+        let line = match result {
+            Ok(Some(line)) => line,
+            Ok(None) => {
+                if is_stdout { out_open = false; } else { err = None; }
+                continue;
+            }
+            Err(_) => {
+                if let Some(tx) = ready_tx.take() {
+                    let _ = tx.send(Err("读取 cloudflared 输出失败，未确认连接。".into()));
+                }
+                return;
+            }
+        };
+        let redacted = redact_cloudflare_line(&line, &token);
+        if log.write_all(format!("{redacted}\n").as_bytes()).await.is_err() || log.flush().await.is_err() {
             if let Some(tx) = ready_tx.take() {
-                let _ = tx.send(QuickTunnelReady {
-                    public_url: if quick { None } else { Some(named_url) },
-                    named_ready: !quick,
-                });
+                let _ = tx.send(Err("写入 cloudflared 日志失败，未确认连接。".into()));
             }
             return;
         }
-    };
-
-    let send_ready = |tx: &mut Option<oneshot::Sender<QuickTunnelReady>>,
-                      url: Option<String>,
-                      named_ready: bool| {
-        if let Some(sender) = tx.take() {
-            let _ = sender.send(QuickTunnelReady {
-                public_url: url,
-                named_ready,
-            });
+        if let Some(url) = readiness.observe(&line, quick, &named_url) {
+            if let Some(tx) = ready_tx.take() { let _ = tx.send(Ok(url)); }
         }
-    };
-
-    let handle_line = |line: &str,
-                           public_url: &mut Option<String>,
-                           ready_tx: &mut Option<oneshot::Sender<QuickTunnelReady>>| {
-        if quick {
-            if public_url.is_none() {
-                if let Some(url) = extract_trycloudflare_url(line) {
-                    *public_url = Some(url.clone());
-                    send_ready(ready_tx, Some(url), false);
-                }
-            }
-        } else {
-            let lowered = line.to_ascii_lowercase();
-            if lowered.contains("registered tunnel connection")
-                || lowered.contains("starting metrics server")
-            {
-                send_ready(ready_tx, Some(named_url.clone()), true);
-            }
-        }
-    };
-
-    // cloudflared logs primarily to stderr; read stdout and stderr concurrently.
-    let (line_tx, mut line_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
-    let stderr_line_tx = line_tx.clone();
-
-    tokio::spawn(async move {
-        let mut stdout = BufReader::new(stdout).lines();
-        while let Ok(Some(line)) = stdout.next_line().await {
-            if line_tx.send(line).is_err() {
-                break;
-            }
-        }
-    });
-
-    if let Some(stderr) = stderr {
-        tokio::spawn(async move {
-            let mut stderr = BufReader::new(stderr).lines();
-            while let Ok(Some(line)) = stderr.next_line().await {
-                if stderr_line_tx.send(line).is_err() {
-                    break;
-                }
-            }
-        });
     }
-
-    while let Some(line) = line_rx.recv().await {
-        let _ = log.write_all(line.as_bytes()).await;
-        let _ = log.write_all(b"\n").await;
-        let _ = log.flush().await;
-        handle_line(&line, &mut public_url, &mut ready_tx);
+    if let Some(tx) = ready_tx.take() {
+        let _ = tx.send(Err("cloudflared 输出已结束，但没有有效连接证据。".into()));
     }
-
-    send_ready(&mut ready_tx, public_url, !quick);
 }
 
 pub async fn stop_child(mut child: Child, pid: Option<u32>) -> AppResult<()> {
@@ -471,7 +408,7 @@ fn push_cloudflare_protocol_args(cmd: &mut Command, use_http2: bool) {
 
 #[cfg(test)]
 mod tests {
-    use super::{extract_trycloudflare_url, push_cloudflare_protocol_args};
+    use super::*;
     use tokio::process::Command;
 
     fn command_args(use_http2: bool) -> Vec<String> {
@@ -510,4 +447,73 @@ mod tests {
         let line = "https://bad_host.trycloudflare.com";
         assert!(extract_trycloudflare_url(line).is_none());
     }
+    #[test]
+    fn metrics_does_not_imply_named_readiness() {
+        let mut ready = TunnelReadiness::default();
+        assert!(ready.observe("INF Starting metrics server", false, "https://mcp.example.com").is_none());
+        assert_eq!(ready.observe("INF Registered tunnel connection connIndex=0", false, "https://mcp.example.com").as_deref(), Some("https://mcp.example.com"));
+    }
+
+    #[test]
+    fn quick_needs_both_url_and_connection_in_either_order() {
+        for connection_first in [false, true] {
+            let mut ready = TunnelReadiness::default();
+            let url = "https://example-test.trycloudflare.com";
+            let connection = "INF Registered tunnel connection connIndex=0";
+            let (first, second) = if connection_first { (connection, url) } else { (url, connection) };
+            assert!(ready.observe(first, true, "").is_none());
+            assert_eq!(ready.observe(second, true, "").as_deref(), Some(url));
+        }
+    }
+
+    #[test]
+    fn named_token_is_not_in_command_arguments() {
+        let mut cmd = Command::new("cloudflared");
+        configure_cloudflare_command(&mut cmd, 28766, false, "test-canary-not-a-real-token", true);
+        let args: Vec<_> = cmd.as_std().get_args().map(|v| v.to_string_lossy().into_owned()).collect();
+        assert_eq!(args, ["tunnel", "--protocol", "http2", "--post-quantum=false", "run"]);
+        let token = cmd.as_std().get_envs().find(|(key, _)| *key == "TUNNEL_TOKEN").unwrap();
+        assert_eq!(token.1.unwrap(), "test-canary-not-a-real-token");
+        assert_eq!(redact_cloudflare_line("token=test-canary-not-a-real-token", "test-canary-not-a-real-token"), "token=<REDACTED>");
+    }
+
+    #[test]
+    fn quick_does_not_inherit_named_credentials() {
+        let mut cmd = Command::new("cloudflared");
+        configure_cloudflare_command(&mut cmd, 28766, true, "unused", false);
+        for key in ["TUNNEL_TOKEN", "TUNNEL_TOKEN_FILE"] {
+            assert!(cmd.as_std().get_envs().any(|(name, value)| name == key && value.is_none()));
+        }
+    }
+
+    #[tokio::test]
+    async fn named_metrics_then_eof_is_an_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let log = tokio::fs::File::create(dir.path().join("cloudflared.log")).await.unwrap();
+        let (mut writer, reader) = tokio::io::duplex(1024);
+        writer.write_all(b"INF Starting metrics server\n").await.unwrap();
+        drop(writer);
+        let (tx, rx) = oneshot::channel();
+        stream_cloudflare_output(reader, None::<tokio::io::Empty>, log, false,
+            "https://mcp.example.com".into(), "".into(), tx).await;
+        assert!(rx.await.unwrap().is_err());
+    }
+
+    #[tokio::test]
+    async fn stderr_connection_is_read_when_stdout_is_idle() {
+        let dir = tempfile::tempdir().unwrap();
+        let log = tokio::fs::File::create(dir.path().join("cloudflared.log")).await.unwrap();
+        let (_idle_writer, stdout) = tokio::io::duplex(1024);
+        let (mut writer, stderr) = tokio::io::duplex(1024);
+        writer.write_all(b"INF Registered tunnel connection connIndex=0\n").await.unwrap();
+        drop(writer);
+        let (tx, rx) = oneshot::channel();
+        let task = tokio::spawn(stream_cloudflare_output(stdout, Some(stderr), log, false,
+            "https://mcp.example.com".into(), "".into(), tx));
+        let result = time::timeout(Duration::from_secs(1), rx).await.unwrap().unwrap();
+        assert_eq!(result.unwrap(), "https://mcp.example.com");
+        task.abort();
+        let _ = task.await;
+    }
+
 }

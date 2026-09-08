@@ -1,0 +1,59 @@
+name: 依赖锁归档v6
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+    paths: ['.github/workflows/依赖锁归档v6.yml']
+permissions:
+  contents: read
+jobs:
+  archive-reviewed-lock:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/feat/固定公网入口v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: 将已核验锁文件存为Git对象（不创建提交，不移动任何分支）
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTPUT_DIR: ${{ runner.temp }}/锁文件对象v6
+        shell: python
+        run: |
+          import base64, hashlib, io, json, os, urllib.request, urllib.parse, zipfile
+          from pathlib import Path
+          class SafeRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  target = urllib.parse.urlparse(newurl)
+                  if target.scheme != 'https' or not (target.hostname or '').endswith(('.blob.core.windows.net', '.githubusercontent.com')):
+                      raise RuntimeError('unexpected artifact redirect')
+                  redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+                  redirected.remove_header('Authorization')
+                  redirected.remove_header('Cookie')
+                  return redirected
+          opener = urllib.request.build_opener(SafeRedirect())
+          api = 'https://api.github.com/repos/Eswink/coding-tools-mcp'
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'}
+          req = urllib.request.Request(api + '/actions/artifacts/10042796906/zip', headers=headers)
+          with opener.open(req, timeout=60) as r:
+              raw = r.read(1_000_000)
+          assert hashlib.sha256(raw).hexdigest() == '2d0eb7b4015f3df4ad978cc23a109529126180fb17d2dd2bde149f12166460e2'
+          with zipfile.ZipFile(io.BytesIO(raw)) as z:
+              data = z.read('Cargo.lock')
+          expected = '44bf4a32ee34a0ce1015b17ee019f9b2c014d7a7'
+          assert hashlib.sha1(('blob %d\0' % len(data)).encode() + data).hexdigest() == expected
+          payload = json.dumps({'content': base64.b64encode(data).decode(), 'encoding': 'base64'}).encode()
+          req = urllib.request.Request(api + '/git/blobs', data=payload, headers=headers, method='POST')
+          with opener.open(req, timeout=60) as r:
+              result = json.load(r)
+          assert result['sha'] == expected
+          out = Path(os.environ['OUTPUT_DIR'])
+          out.mkdir(parents=True)
+          (out / '锁文件对象v6.json').write_text(json.dumps({'sha': result['sha'], 'bytes': len(data), 'source_artifact': 10042796906, 'ref_updated': False}, indent=2), encoding='utf-8')
+          print('Verified Cargo.lock Git blob:', result['sha'])
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 锁文件对象v6
+          path: ${{ runner.temp }}/锁文件对象v6/
+          retention-days: 7
+          if-no-files-found: error

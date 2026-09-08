@@ -394,6 +394,11 @@ impl TunnelSupervisor {
     ) -> AppResult<TunnelStatus> {
         let key = (profile.id.clone(), kind);
         let tunnel_type = tunnel_type_for(profile, kind);
+        if self.session_is_running(&key)
+            && (tunnel_type == "frp") != self.frp_routes.contains_key(&key)
+        {
+            return Err(AppError::Message("切换隧道提供方前请先停止原隧道，或使用重启操作。".into()));
+        }
         if self.session_is_running(&key) && tunnel_type != "frp" {
             return Ok(self.status(profile, kind, settings));
         }
@@ -414,6 +419,16 @@ impl TunnelSupervisor {
             if let Err(error) =
                 self.validate_frp_route_compatibility(&profile.id, &config, settings)
             {
+                self.restore_route_state(&key, previous_route.take(), previous_session.take());
+                return Err(error);
+            }
+
+            let mut configs: Vec<_> = self.frp_routes.iter()
+                .filter(|((id, _), _)| id == &profile.id)
+                .map(|(_, route)| frp::frp_server_config(&route.profile, route.kind, settings, None))
+                .collect();
+            configs.push(config);
+            if let Err(error) = frp::verify_frpc_configs(&configs).await {
                 self.restore_route_state(&key, previous_route.take(), previous_session.take());
                 return Err(error);
             }
@@ -664,11 +679,13 @@ impl TunnelSupervisor {
                 }
 
                 match self.frp_routes.get_mut(&key) {
-                    Some(route) => {
-                        route.profile = profile.clone();
+                    Some(_) => {
                         changed_workspaces.insert(profile.id.clone());
                     }
                     None => {
+                        if self.sessions.get(&key).is_some_and(|session| session.child.is_some()) {
+                            continue;
+                        }
                         self.frp_routes.insert(
                             key,
                             FrpRoute {
@@ -697,15 +714,11 @@ impl TunnelSupervisor {
     ) -> AppResult<()> {
         if let Some(conflict) = self.frp_routes.values().find(|route| {
             let existing = frp::frp_server_config(&route.profile, route.kind, settings, None);
-            existing
-                .proxy
-                .subdomain
-                .trim()
-                .eq_ignore_ascii_case(config.proxy.subdomain.trim())
+            frp::same_route(&existing, config)
         }) {
             return Err(AppError::Message(format!(
-                "FRP 子域名“{}”已被工作区“{}”的 {} 服务使用，不能重复。",
-                config.proxy.subdomain.trim(),
+                "FRP 域名“{}”已被工作区“{}”的 {} 服务使用，不能重复。",
+                frp::route_hostname(config),
                 conflict.profile.name,
                 tunnel_service_label(conflict.kind)
             )));
@@ -721,12 +734,10 @@ impl TunnelSupervisor {
         };
         let existing_config =
             frp::frp_server_config(&existing.profile, existing.kind, settings, None);
-        let same_connection = existing_config.server_addr.trim() == config.server_addr.trim()
-            && existing_config.server_port == config.server_port
-            && existing_config.token == config.token;
+        let same_connection = frp::same_connection(&existing_config, config);
         if !same_connection {
             return Err(AppError::Message(
-                "同一工作区的 MCP 与 Actions 必须使用同一 FRP 服务器、端口和 Token。".into(),
+                "同一工作区的 MCP 与 Actions 必须使用同一 FRP 服务器、端口、Token、TCP 多路复用和连接 TLS 设置。".into(),
             ));
         }
         Ok(())
@@ -996,6 +1007,18 @@ fn public_url_for_profile(
     kind: TunnelServiceKind,
     settings: &AppSettings,
 ) -> String {
+    let quick = match kind {
+        TunnelServiceKind::Mcp => {
+            profile.tunnel.tunnel_type == "cloudflare" && profile.tunnel.cloudflare_mode == "quick"
+        }
+        TunnelServiceKind::Actions => {
+            profile.actions.tunnel_type == "cloudflare" && profile.actions.cloudflare_mode == "quick"
+        }
+    };
+    if quick {
+        // Quick origins belong to a live session, never to the persisted fallback.
+        return String::new();
+    }
     match kind {
         TunnelServiceKind::Mcp => profile.effective_public_url_with(settings),
         TunnelServiceKind::Actions => profile.actions_effective_public_url_with(settings),
@@ -1009,33 +1032,7 @@ fn validate_tunnel_requirements(
 ) -> AppResult<()> {
     let tunnel_type = tunnel_type_for(profile, kind);
     if tunnel_type == "frp" {
-        let (profile_id, server, subdomain, port) = match kind {
-            TunnelServiceKind::Mcp => (
-                profile.tunnel.frp_profile_id.as_str(),
-                profile.tunnel.frp_server.as_str(),
-                profile.tunnel.frp_subdomain.as_str(),
-                profile.tunnel.frp_server_port,
-            ),
-            TunnelServiceKind::Actions => (
-                profile.actions.frp_profile_id.as_str(),
-                profile.actions.frp_server.as_str(),
-                profile.actions.frp_subdomain.as_str(),
-                profile.actions.frp_server_port,
-            ),
-        };
-        let server = resolve_frp_server(profile_id, server, settings);
-        if server.trim().is_empty() {
-            return Err(AppError::Message(
-                "FRP 模式需要选择全局配置或填写服务器域名。".into(),
-            ));
-        }
-        if subdomain.trim().is_empty() {
-            return Err(AppError::Message("FRP 模式需要填写子域名。".into()));
-        }
-        if port == 0 && settings.find_frp_profile(profile_id).is_none() {
-            return Err(AppError::Message("FRP 服务器端口无效。".into()));
-        }
-        return Ok(());
+        return frp::validate_frp_config(profile, kind, settings);
     }
     if tunnel_type != "cloudflare" {
         return Err(AppError::Message("当前仅支持 FRP 和 Cloudflare。".into()));
@@ -1066,21 +1063,12 @@ fn validate_tunnel_requirements(
                 "Cloudflare 命名隧道模式需要填写 Tunnel Token。".into(),
             ));
         }
-        if named_url.trim().is_empty() {
-            return Err(AppError::Message(
-                "Cloudflare 命名隧道模式需要填写固定公网地址。".into(),
-            ));
-        }
+        crate::workspace::endpoint::normalize_named_origin(&named_url).map_err(AppError::Message)?;
+    } else if mode != "quick" {
+        return Err(AppError::Message("未知 Cloudflare 隧道模式。".into()));
     }
 
     Ok(())
-}
-
-fn resolve_frp_server(profile_id: &str, inline_server: &str, settings: &AppSettings) -> String {
-    if let Some(profile) = settings.find_frp_profile(profile_id) {
-        return profile.server.clone();
-    }
-    inline_server.to_string()
 }
 
 fn cloudflare_config(
@@ -1359,4 +1347,88 @@ mod tests {
             Some(99)
         );
     }
+    #[test]
+    fn rehydration_does_not_replace_applied_route_with_unverified_draft() {
+        let settings = AppSettings::default();
+        let applied = frp_profile("demo", "applied");
+        let mut draft = applied.clone();
+        draft.tunnel.frp_subdomain = "not-applied".into();
+        let key = (applied.id.clone(), TunnelServiceKind::Mcp);
+        let mut supervisor = TunnelSupervisor::new();
+        supervisor.frp_routes.insert(key.clone(), FrpRoute { profile: applied, kind: key.1 });
+        supervisor.restore_active_frp_routes(&[draft], &HashSet::from([key.clone()]), &settings);
+        assert_eq!(supervisor.frp_routes.get(&key).unwrap().profile.tunnel.frp_subdomain, "applied");
+    }
+
+    #[test]
+    fn active_routes_compare_complete_custom_hostnames() {
+        let settings = AppSettings::default();
+        let mut first = frp_profile("first", "");
+        first.tunnel.frp_server = "203.0.113.10".into();
+        first.tunnel.frp.domain_mode = "custom".into();
+        first.tunnel.frp.custom_domain = "one.example.com".into();
+        let mut second = frp_profile("second", "");
+        second.tunnel = first.tunnel.clone();
+        second.tunnel.frp.custom_domain = "two.example.com".into();
+        let mut supervisor = TunnelSupervisor::new();
+        supervisor.frp_routes.insert((first.id.clone(), TunnelServiceKind::Mcp),
+            FrpRoute { profile: first, kind: TunnelServiceKind::Mcp });
+        let cfg = frp::frp_server_config(&second, TunnelServiceKind::Mcp, &settings, Some(String::new()));
+        assert!(supervisor.validate_frp_route_compatibility(&second.id, &cfg, &settings).is_ok());
+        second.tunnel.frp.custom_domain = "ONE.EXAMPLE.COM.".into();
+        let cfg = frp::frp_server_config(&second, TunnelServiceKind::Mcp, &settings, Some(String::new()));
+        assert!(supervisor.validate_frp_route_compatibility(&second.id, &cfg, &settings).is_err());
+    }
+
+    #[test]
+    fn stopped_quick_tunnels_do_not_publish_persisted_origins() {
+        let mut profile = frp_profile("quick", "quick");
+        profile.tunnel.tunnel_type = "cloudflare".into();
+        profile.tunnel.cloudflare_mode = "quick".into();
+        profile.tunnel.public_url = "https://stale.trycloudflare.com".into();
+        profile.actions.tunnel_type = "cloudflare".into();
+        profile.actions.cloudflare_mode = "quick".into();
+        profile.actions.public_url = "https://stale-actions.trycloudflare.com".into();
+        let supervisor = TunnelSupervisor::new();
+        let settings = AppSettings::default();
+        for kind in [TunnelServiceKind::Mcp, TunnelServiceKind::Actions] {
+            let status = supervisor.status(&profile, kind, &settings);
+            assert_eq!(status.state, "stopped");
+            assert!(status.public_url.is_empty());
+            assert!(supervisor.public_url(&profile, kind, &settings).is_empty());
+        }
+    }
+
+    #[test]
+    fn stopped_named_tunnels_keep_the_configured_fixed_identity() {
+        let mut profile = frp_profile("named", "named");
+        profile.tunnel.tunnel_type = "cloudflare".into();
+        profile.tunnel.cloudflare_mode = "named".into();
+        profile.tunnel.public_url = "https://mcp.example.com".into();
+        profile.actions.tunnel_type = "cloudflare".into();
+        profile.actions.cloudflare_mode = "named".into();
+        profile.actions.public_url = "https://actions.example.com".into();
+        let supervisor = TunnelSupervisor::new();
+        let settings = AppSettings::default();
+        assert_eq!(supervisor.public_url(&profile, TunnelServiceKind::Mcp, &settings), "https://mcp.example.com");
+        assert_eq!(supervisor.public_url(&profile, TunnelServiceKind::Actions, &settings), "https://actions.example.com");
+    }
+
+    #[test]
+    fn a_live_quick_session_uses_its_discovered_origin() {
+        let mut profile = frp_profile("live-quick", "live-quick");
+        profile.tunnel.tunnel_type = "cloudflare".into();
+        profile.tunnel.cloudflare_mode = "quick".into();
+        profile.tunnel.public_url = "https://stale.trycloudflare.com".into();
+        let mut supervisor = TunnelSupervisor::new();
+        supervisor.sessions.insert((profile.id.clone(), TunnelServiceKind::Mcp), TunnelSession {
+            public_url: "https://current.trycloudflare.com".into(),
+            pid: Some(std::process::id()),
+            child: None,
+        });
+        let status = supervisor.status(&profile, TunnelServiceKind::Mcp, &AppSettings::default());
+        assert_eq!(status.state, "running");
+        assert_eq!(status.public_url, "https://current.trycloudflare.com");
+    }
+
 }

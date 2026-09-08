@@ -1,3 +1,5 @@
+import { frpOrigin, normalizePublicOrigin, type FrpRouteOptions } from "./固定入口";
+
 export type RuntimeState = "stopped" | "starting" | "running" | "stopping" | "error";
 
 export const DEFAULT_SERVICE_PORT = 28766;
@@ -10,6 +12,7 @@ export interface TunnelConfig {
   frp_subdomain: string;
   frp_profile_id?: string;
   frp_server_port?: number;
+  frp?: FrpRouteOptions;
   cloudflare_mode: string;
   cloudflare_http2?: boolean;
   use_proxy?: boolean;
@@ -38,6 +41,7 @@ export interface ActionsConfig {
   frp_subdomain: string;
   frp_profile_id?: string;
   frp_server_port?: number;
+  frp?: FrpRouteOptions;
   cloudflare_mode: string;
   cloudflare_token?: string;
   cloudflare_http2?: boolean;
@@ -119,21 +123,30 @@ export function frpPublicUrl(
   frpProfileId: string | undefined,
   profiles: FrpProfileSummary[],
   publicUrl = "",
+  options?: Partial<FrpRouteOptions>,
 ): string {
-  if (tunnelType !== "frp" || !frpSubdomain) {
-    return publicUrl.replace(/\/$/, "");
+  try {
+    if (tunnelType !== "frp") return publicUrl ? normalizePublicOrigin(publicUrl) : "";
+    const server = profiles.find((profile) => profile.id === frpProfileId)?.server ?? frpServer;
+    return frpOrigin(server, frpSubdomain, options);
+  } catch {
+    // Invalid drafts must not advertise a fabricated public endpoint.
+    return "";
   }
-  const server =
-    profiles.find((profile) => profile.id === frpProfileId)?.server ?? frpServer;
-  if (!server) return publicUrl.replace(/\/$/, "");
-  return `https://${frpSubdomain}.${server}`;
 }
 
 export function actionsPublicBaseUrl(
   profile: WorkspaceProfile,
   frpProfiles: FrpProfileSummary[] = [],
+  activeOrigin?: string,
 ): string {
+  if (activeOrigin !== undefined) {
+    try { return activeOrigin ? normalizePublicOrigin(activeOrigin) : ""; }
+    catch { return ""; }
+  }
   const actions = actionsConfig(profile);
+  // Temporary URLs are owned by the active listener, never by persisted config.
+  if (actions.tunnel_type === "cloudflare" && actions.cloudflare_mode === "quick") return "";
   const publicUrl = frpPublicUrl(
     actions.tunnel_type,
     actions.frp_subdomain,
@@ -141,6 +154,7 @@ export function actionsPublicBaseUrl(
     actions.frp_profile_id,
     frpProfiles,
     actions.public_url,
+    actions.frp,
   );
   if (publicUrl) return publicUrl;
   return actionsLocalEndpoint(actions.local_port);
@@ -149,31 +163,35 @@ export function actionsPublicBaseUrl(
 export function actionsOpenApiUrl(
   profile: WorkspaceProfile,
   frpProfiles: FrpProfileSummary[] = [],
+  activeOrigin?: string,
 ): string {
-  const base = actionsPublicBaseUrl(profile, frpProfiles);
+  const base = actionsPublicBaseUrl(profile, frpProfiles, activeOrigin);
   return base ? `${base.replace(/\/$/, "")}/openapi.json` : "";
 }
 
 export function actionsPrivacyUrl(
   profile: WorkspaceProfile,
   frpProfiles: FrpProfileSummary[] = [],
+  activeOrigin?: string,
 ): string {
-  const base = actionsPublicBaseUrl(profile, frpProfiles);
+  const base = actionsPublicBaseUrl(profile, frpProfiles, activeOrigin);
   return base ? `${base.replace(/\/$/, "")}/privacy` : "";
 }
 
 export function actionsOAuthAuthorizeUrl(
   profile: WorkspaceProfile,
   frpProfiles: FrpProfileSummary[] = [],
+  activeOrigin?: string,
 ): string {
-  const base = actionsPublicBaseUrl(profile, frpProfiles);
+  const base = actionsPublicBaseUrl(profile, frpProfiles, activeOrigin);
   return base ? `${base.replace(/\/$/, "")}/oauth/authorize` : "";
 }
 
 export function actionsOAuthTokenUrl(
   profile: WorkspaceProfile,
   frpProfiles: FrpProfileSummary[] = [],
+  activeOrigin?: string,
 ): string {
-  const base = actionsPublicBaseUrl(profile, frpProfiles);
+  const base = actionsPublicBaseUrl(profile, frpProfiles, activeOrigin);
   return base ? `${base.replace(/\/$/, "")}/oauth/token` : "";
 }

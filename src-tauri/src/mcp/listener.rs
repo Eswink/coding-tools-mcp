@@ -11,9 +11,9 @@ use tokio::sync::oneshot;
 use tower_http::cors::CorsLayer;
 
 use crate::auth::{
-    authorization_server_metadata, authorize_get, authorize_post, external_base_url,
+    authorization_server_metadata, authorize_get, authorize_post,
     protected_resource_metadata, token_exchange, verify_bearer_header, verify_oauth_bearer_header,
-    AuthorizeForm, AuthorizeParams, OAuthRuntime, TokenForm,
+    AuthorizeForm, AuthorizeParams, OAuthRuntime, PublicOrigin, TokenForm,
 };
 use crate::mcp::server::{handle_request, new_state, SharedState};
 use crate::secret::SecretStore;
@@ -31,19 +31,19 @@ struct ListenerState {
     workspace_id: String,
     workspace_path: String,
     bind_port: u16,
-    configured_public_url: String,
+    configured_public_url: PublicOrigin,
     bearer_token: Option<String>,
     oauth: Option<Arc<OAuthRuntime>>,
     oauth_client_secret: Option<String>,
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn spawn_listener(
+pub fn spawn_listener_with_origin(
     port: u16,
     workspace_path: PathBuf,
     workspace_id: String,
     auth: AuthConfig,
-    public_base_url: String,
+    public_base_url: PublicOrigin,
     oauth_client_secret: Option<String>,
     oauth_password: Option<String>,
     oauth_token_secret: Option<String>,
@@ -69,15 +69,11 @@ pub fn spawn_listener(
     } else {
         None
     };
-    let configured_public_url = public_base_url.trim().to_string();
+    let configured_public_url = public_base_url;
     let oauth = if auth.oauth_enabled() {
         let password = oauth_password.unwrap_or_default();
         let token_secret = oauth_token_secret.unwrap_or_default();
-        let oauth_base = external_base_url(
-            &HeaderMap::new(),
-            port,
-            &configured_public_url,
-        );
+        let oauth_base = configured_public_url.resolve(&HeaderMap::new(), port);
         Some(Arc::new(OAuthRuntime::new(
             oauth_base,
             auth.oauth_client_id.clone(),
@@ -178,7 +174,7 @@ fn mcp_discovery_payload() -> Value {
 }
 
 fn resolve_oauth_base(state: &ListenerState, headers: &HeaderMap) -> String {
-    external_base_url(headers, state.bind_port, &state.configured_public_url)
+    state.configured_public_url.resolve(headers, state.bind_port)
 }
 
 async fn mcp_post(

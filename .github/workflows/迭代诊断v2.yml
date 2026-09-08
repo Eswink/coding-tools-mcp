@@ -1,0 +1,93 @@
+name: 迭代诊断v2
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+    paths: ['.github/workflows/迭代诊断v2.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: iteration-diagnostics-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 准备已锁定的离线工具
+        run: |
+          mkdir -p "$RUNNER_TEMP/迭代证据"
+          npm ci
+          npm install --prefix "$RUNNER_TEMP/编排器v2" --no-audit --no-fund mcp-probe-kit@4.0.1
+          echo "PROBE=$RUNNER_TEMP/编排器v2/node_modules/.bin/mcp-probe-kit" >> "$GITHUB_ENV"
+      - name: 恢复计划并取得真实工具契约
+        run: |
+          "$PROBE" install-agent --project-root . > "$RUNNER_TEMP/迭代证据/安装.json"
+          "$PROBE" exec resume_plan --json "{\"project_root\":\"$PWD\"}" > "$RUNNER_TEMP/迭代证据/恢复.json" || true
+          for tool in start_ralph plan_heartbeat resume_plan code_review check_spec converge code_insight; do
+            "$PROBE" schema "$tool" > "$RUNNER_TEMP/迭代证据/契约-$tool.json"
+          done
+          "$PROBE" doctor gitnexus --install > "$RUNNER_TEMP/迭代证据/图谱安装.json"
+      - name: 修改前符号影响分析
+        env:
+          GITNEXUS_WORKER_POOL_SIZE: '1'
+        run: |
+          export GRAPH_CLI="$(python3 -c 'import json,os;print(json.load(open(os.environ["RUNNER_TEMP"]+"/迭代证据/图谱安装.json"))["managed"]["cliPath"])')"
+          timeout 300 node "$GRAPH_CLI" analyze --workers 1 > "$RUNNER_TEMP/迭代证据/索引.txt" 2>&1
+          timeout 300 node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { createRequire } from 'node:module';
+          import { pathToFileURL } from 'node:url';
+          const cli = process.env.GRAPH_CLI;
+          const require = createRequire(cli);
+          const { Client } = await import(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/index.js')).href);
+          const { StdioClientTransport } = await import(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/stdio.js')).href);
+          const out = path.join(process.env.RUNNER_TEMP, '迭代证据');
+          const client = new Client({name:'bounded-review',version:'2.0.0'});
+          await client.connect(new StdioClientTransport({command:process.execPath,args:[cli,'mcp'],stderr:'inherit'}));
+          try {
+            const tools = await client.listTools();
+            fs.writeFileSync(path.join(out,'图谱工具.json'), JSON.stringify(tools,null,2));
+            const call = async (name,args,label) => {
+              try { const result=await client.callTool({name,arguments:args}); fs.writeFileSync(path.join(out,label+'.json'),JSON.stringify(result,null,2)); return result; }
+              catch(error) { fs.writeFileSync(path.join(out,label+'.json'),JSON.stringify({error:String(error)})); return {}; }
+            };
+            await call('list_repos',{},'仓库图谱');
+            await call('query',{query:'MCP Actions OAuth public URL tunnel runtime persistence',repo:'coding-tools-mcp'},'调用流');
+            const targets=['computed_public_url','normalize_public_origin','spawn_listener','external_base_url','resolve_oauth_base','openapi_json','start_mcp_service','start_actions_service','persist_tunnel_url','persist_public_url','load_or_migrate','write_data','service_changed','restart_tunnel','test_tunnel','spawn_cloudflare_tunnel','build_cloudflare_command','build_proxy_snippet','validate_frp_route_compatibility','restart_workspace_frpc','start','stop_internal','saveMcpTunnel','saveActionsTunnel','update_workspace','save_frp_profile','stop_mcp_service','stop_actions_service','read_file','update_file','save','normalizePublicOrigin','frpOrigin','normalize_named_origin'];
+            for(const target of targets) {
+              const result = await call('impact',{target,direction:'upstream',repo:'coding-tools-mcp'},'影响-'+target);
+              const text=result.content?.find(c=>c.type==='text')?.text ?? '';
+              const json=text.split('\n\n---')[0];
+              try {
+                const body=JSON.parse(json);
+                if(body.status==='ambiguous') for(const [index,c] of body.candidates.entries())
+                  await call('impact',{target,target_uid:c.uid,direction:'upstream',repo:'coding-tools-mcp'},'影响-'+target+'-'+index);
+              } catch {}
+            }
+            await call('detect_changes',{scope:'all',repo:'coding-tools-mcp'},'诊断变更检测');
+          } finally { await client.close(); }
+          JS
+      - name: 打包仅含公开依赖的离线验证环境
+        if: always()
+        run: |
+          tar -czf "$RUNNER_TEMP/迭代证据/前端依赖v2.tar.gz" node_modules
+          tar -czf "$RUNNER_TEMP/迭代证据/编排器运行时v2.tar.gz" -C "$RUNNER_TEMP/编排器v2" node_modules
+          graph_root="$(python3 -c 'import json,os;print(json.load(open(os.environ["RUNNER_TEMP"]+"/迭代证据/图谱安装.json"))["managed"]["installRoot"])')"
+          tar -czf "$RUNNER_TEMP/迭代证据/图谱运行时v2.tar.gz" -C "$graph_root" node_modules runtime.json
+          git rev-parse HEAD > "$RUNNER_TEMP/迭代证据/源版本.txt"
+          du -h "$RUNNER_TEMP/迭代证据/"*.gz
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 迭代诊断v2
+          path: ${{ runner.temp }}/迭代证据/
+          retention-days: 7

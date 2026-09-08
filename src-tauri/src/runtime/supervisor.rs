@@ -5,6 +5,7 @@ use std::time::Duration;
 use tauri::async_runtime::JoinHandle;
 
 use crate::actions;
+use crate::auth::PublicOrigin;
 use crate::error::AppResult;
 use crate::mcp;
 use crate::platform::platform;
@@ -33,6 +34,7 @@ enum RuntimePhase {
 }
 
 struct RuntimeEntry {
+    public_origin: PublicOrigin,
     phase: RuntimePhase,
     shutdown: Option<mcp::ShutdownSender>,
     handle: Option<JoinHandle<()>>,
@@ -112,6 +114,14 @@ impl RuntimeSupervisor {
             .collect()
     }
 
+    /// Capture before awaiting tunnel I/O. A late response only changes its own
+    /// listener generation, never a replacement listener created in the meantime.
+    pub fn public_origin_handle(&self, id: &str, kind: ServiceKind) -> Option<PublicOrigin> {
+        self.entries.get(&(id.to_string(), kind))
+            .filter(|entry| matches!(entry.phase, RuntimePhase::Running | RuntimePhase::Starting))
+            .map(|entry| entry.public_origin.clone())
+    }
+
     pub fn begin_stop(&mut self, workspace_id: &str, kind: ServiceKind) -> Option<JoinHandle<()>> {
         let key = (workspace_id.to_string(), kind);
         let entry = self.entries.get_mut(&key)?;
@@ -137,7 +147,17 @@ impl RuntimeSupervisor {
             .map(|entry| entry.phase.clone())
             .unwrap_or(RuntimePhase::Stopped);
 
-        let (local_endpoint, public_endpoint) = endpoints(profile, kind);
+        let (local_endpoint, mut public_endpoint) = endpoints(profile, kind);
+        if let Some(entry) = self.entries.get(&key) {
+            let base = entry.public_origin.snapshot();
+            public_endpoint = if base.is_empty() { String::new() } else {
+                format!("{}{}", base, match kind {
+                    ServiceKind::Mcp => "/mcp", ServiceKind::Actions => "/openapi.json",
+                })
+            };
+        } else if is_quick_tunnel(profile, kind) {
+            public_endpoint.clear();
+        }
         let port = port_for(profile, kind);
         let service_label = service_label(kind);
 
@@ -214,9 +234,11 @@ impl RuntimeSupervisor {
             )));
         }
 
+        let public_origin = initial_public_origin(profile, kind)?;
         self.entries.insert(
             key.clone(),
             RuntimeEntry {
+                public_origin: public_origin.clone(),
                 phase: RuntimePhase::Starting,
                 shutdown: None,
                 handle: None,
@@ -269,12 +291,12 @@ impl RuntimeSupervisor {
                 } else {
                     None
                 };
-                mcp::spawn_listener(
+                mcp::spawn_listener_with_origin(
                     port,
                     PathBuf::from(&profile.path),
                     profile.id.clone(),
                     auth,
-                    profile.effective_public_url(),
+                    public_origin.clone(),
                     oauth_client_secret,
                     oauth_password,
                     oauth_token_secret,
@@ -322,13 +344,12 @@ impl RuntimeSupervisor {
                 } else {
                     None
                 };
-                let public_base_url = profile.actions_public_base_url();
                 let policy = PolicySettings::from_actions_config(&profile.actions);
-                actions::spawn_listener(
+                actions::spawn_listener_with_origin(
                     &profile.id,
                     port,
                     PathBuf::from(&profile.path),
-                    public_base_url,
+                    public_origin.clone(),
                     auth_type,
                     api_key,
                     profile.actions.oauth_client_id.clone(),
@@ -350,6 +371,7 @@ impl RuntimeSupervisor {
                 self.entries.insert(
                     key,
                     RuntimeEntry {
+                        public_origin: public_origin.clone(),
                         phase: RuntimePhase::Running,
                         shutdown: Some(shutdown),
                         handle: Some(handle),
@@ -372,6 +394,7 @@ impl RuntimeSupervisor {
                 self.entries.insert(
                     key,
                     RuntimeEntry {
+                        public_origin: public_origin.clone(),
                         phase: RuntimePhase::Error,
                         shutdown: None,
                         handle: None,
@@ -569,12 +592,30 @@ fn actions_oauth_secret(profile_id: &str, key: &str) -> AppResult<String> {
     }
 }
 
+fn is_quick_tunnel(profile: &WorkspaceProfile, kind: ServiceKind) -> bool {
+    match kind {
+        ServiceKind::Mcp => profile.tunnel.tunnel_type == "cloudflare" && profile.tunnel.cloudflare_mode == "quick",
+        ServiceKind::Actions => profile.actions.tunnel_type == "cloudflare" && profile.actions.cloudflare_mode == "quick",
+    }
+}
+
+fn initial_public_origin(profile: &WorkspaceProfile, kind: ServiceKind) -> AppResult<PublicOrigin> {
+    let value = if is_quick_tunnel(profile, kind) { String::new() } else {
+        match kind {
+            ServiceKind::Mcp => profile.effective_public_url(),
+            ServiceKind::Actions => profile.actions_effective_public_url(),
+        }
+    };
+    PublicOrigin::managed(&value)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn entry(phase: RuntimePhase, started_at: Option<std::time::Instant>) -> RuntimeEntry {
         RuntimeEntry {
+            public_origin: PublicOrigin::managed("").unwrap(),
             phase,
             shutdown: None,
             handle: None,
@@ -617,4 +658,27 @@ mod tests {
         assert!(!should_mark_runtime_error(&mut runtime, true));
         assert!(!should_mark_runtime_error(&mut runtime, false));
     }
+    #[test]
+    fn quick_start_does_not_reuse_the_previous_persisted_url() {
+        let mut profile = WorkspaceProfile::new("/tmp/quick".into(), None);
+        profile.tunnel.tunnel_type = "cloudflare".into();
+        profile.tunnel.cloudflare_mode = "quick".into();
+        profile.tunnel.public_url = "https://old.trycloudflare.com".into();
+        profile.actions.tunnel_type = "cloudflare".into();
+        profile.actions.cloudflare_mode = "quick".into();
+        profile.actions.public_url = "https://old-actions.trycloudflare.com".into();
+        assert_eq!(initial_public_origin(&profile, ServiceKind::Mcp).unwrap().snapshot(), "");
+        assert_eq!(initial_public_origin(&profile, ServiceKind::Actions).unwrap().snapshot(), "");
+    }
+
+    #[test]
+    fn runtime_status_uses_the_active_origin_instead_of_stale_profile_data() {
+        let profile = WorkspaceProfile::new("/tmp/current".into(), None);
+        let mut runtime = RuntimeSupervisor::default();
+        let active = entry(RuntimePhase::Running, None);
+        active.public_origin.publish("https://current.trycloudflare.com").unwrap();
+        runtime.entries.insert((profile.id.clone(), ServiceKind::Mcp), active);
+        assert_eq!(runtime.mcp_status(&profile).public_endpoint, "https://current.trycloudflare.com/mcp");
+    }
+
 }

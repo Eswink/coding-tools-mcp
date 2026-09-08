@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { defaultFrpOptions, originFromEndpoint } from "$lib/固定入口";
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
   import ActionsAuthForm from "$lib/components/ActionsAuthForm.svelte";
@@ -85,10 +86,15 @@
 
   const workspaceId = $derived($page.params.id);
   const actions = $derived(profile ? actionsConfig(profile) : null);
+  const actionsActiveOrigin = $derived(
+    actionsStatus === "running" || actionsStatus === "starting"
+      ? originFromEndpoint(actionsPublic, "/openapi.json") : undefined,
+  );
 
   const mcpTunnelForm = $derived<TunnelFormConfig>({
     type: profile?.tunnel.type ?? "none",
     public_url: profile?.tunnel.public_url ?? "",
+    frp: defaultFrpOptions(profile?.tunnel.frp),
     frp_server: profile?.tunnel.frp_server ?? "",
     frp_subdomain: profile?.tunnel.frp_subdomain ?? "",
     frp_profile_id: profile?.tunnel.frp_profile_id ?? "",
@@ -101,6 +107,7 @@
   const actionsTunnelForm = $derived<TunnelFormConfig>({
     type: actions?.tunnel_type ?? "none",
     public_url: actions?.public_url ?? "",
+    frp: defaultFrpOptions(actions?.frp),
     frp_server: actions?.frp_server ?? "",
     frp_subdomain: actions?.frp_subdomain ?? "",
     frp_profile_id: actions?.frp_profile_id ?? "",
@@ -305,6 +312,7 @@
       config.frp_profile_id,
       frpProfiles,
       config.public_url,
+      config.frp,
     );
     if (base) {
       return `${base.replace(/\/$/, "")}${suffix}`;
@@ -342,6 +350,7 @@
         ...profile.tunnel,
         type: config.type,
         public_url: config.public_url,
+        frp: { ...config.frp },
         frp_server: config.frp_server,
         frp_subdomain: config.frp_subdomain,
         frp_profile_id: config.frp_profile_id,
@@ -378,6 +387,7 @@
         ...current,
         tunnel_type: config.type,
         public_url: config.public_url,
+        frp: { ...config.frp },
         frp_server: config.frp_server,
         frp_subdomain: config.frp_subdomain,
         frp_profile_id: config.frp_profile_id,
@@ -632,6 +642,9 @@
               <TunnelConfigForm
                 workspaceId={workspaceId!}
                 service="mcp"
+                localPort={profile.runtime.local_port}
+                activePublicOrigin={originFromEndpoint(mcpPublic, "/mcp")}
+                onTested={() => load()}
                 config={mcpTunnelForm}
                 onSave={saveMcpTunnel}
               />
@@ -677,7 +690,7 @@
             busy={actionsBusy}
             tunnelType={actions.tunnel_type}
             localEndpoint={actionsLocal || actionsLocalEndpoint(actions.local_port)}
-            publicEndpoint={actionsPublic || actionsOpenApiUrl(profile, frpProfiles)}
+            publicEndpoint={actionsPublic || actionsOpenApiUrl(profile, frpProfiles, actionsActiveOrigin)}
             publicLabel="OpenAPI"
             onToggle={toggleActions}
             onPortChange={saveActionsPort}
@@ -685,6 +698,7 @@
           <GptQuickCopy
             workspaceId={workspaceId!}
             service="actions"
+            publicActionsOrigin={actionsActiveOrigin}
             {profile}
             {frpProfiles}
           />
@@ -707,6 +721,9 @@
               <TunnelConfigForm
                 workspaceId={workspaceId!}
                 service="actions"
+                localPort={actions.local_port}
+                activePublicOrigin={actionsActiveOrigin ?? ""}
+                onTested={() => load()}
                 config={actionsTunnelForm}
                 onSave={saveActionsTunnel}
               />
@@ -718,10 +735,10 @@
                 authType={actions.auth_type}
                 oauthClientId={actions.oauth_client_id ?? ""}
                 oauthScopes={actions.oauth_scopes ?? ""}
-                openapiUrl={actionsOpenApiUrl(profile, frpProfiles)}
-                privacyUrl={actionsPrivacyUrl(profile, frpProfiles)}
-                oauthAuthorizeUrl={actionsOAuthAuthorizeUrl(profile, frpProfiles)}
-                oauthTokenUrl={actionsOAuthTokenUrl(profile, frpProfiles)}
+                openapiUrl={actionsOpenApiUrl(profile, frpProfiles, actionsActiveOrigin)}
+                privacyUrl={actionsPrivacyUrl(profile, frpProfiles, actionsActiveOrigin)}
+                oauthAuthorizeUrl={actionsOAuthAuthorizeUrl(profile, frpProfiles, actionsActiveOrigin)}
+                oauthTokenUrl={actionsOAuthTokenUrl(profile, frpProfiles, actionsActiveOrigin)}
                 useSharedSecrets={actions.use_shared_secrets ?? false}
                 onSave={saveActionsAuth}
               />

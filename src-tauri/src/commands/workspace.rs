@@ -34,12 +34,14 @@ pub fn create_workspace(
 }
 
 #[tauri::command]
-pub fn update_workspace(state: State<'_, AppState>, profile: WorkspaceProfile) -> AppResult<()> {
+pub fn update_workspace(state: State<'_, AppState>, mut profile: WorkspaceProfile) -> AppResult<()> {
     state.with_workspaces(|store| {
         let current = store
             .get(&profile.id)
             .cloned()
             .ok_or_else(|| AppError::Message(format!("workspace not found: {}", profile.id)))?;
+        crate::workspace::endpoint::normalize_profile_tunnels(&current, &mut profile, &store.settings())
+            .map_err(AppError::Message)?;
         validate_workspace_resources_update(store.list(), &current, &profile)?;
         store.update(profile)
     })

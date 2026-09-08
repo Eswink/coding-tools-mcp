@@ -1,0 +1,71 @@
+name: 安全存储验证v6
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+    paths: ['src-tauri/**', '.github/workflows/安全存储验证v6.yml']
+  pull_request:
+    branches: [main]
+    paths: ['src-tauri/**', '.github/workflows/安全存储验证v6.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: native-vault-v6-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    name: 原生凭据跨进程 (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Linux系统库与隔离凭据服务
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev dbus-x11 gnome-keyring
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Linux真实Secret Service跨进程加解密
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/原生凭据证据v6" "$RUNNER_TEMP/隔离凭据运行时v6" "$RUNNER_TEMP/隔离凭据数据v6"
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/隔离凭据运行时v6"
+          export XDG_DATA_HOME="$RUNNER_TEMP/隔离凭据数据v6"
+          chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME"
+          dbus-run-session -- bash -euo pipefail -c '
+            printf "%s" "isolated-ci-fixture-v6" | gnome-keyring-daemon --unlock --components=secrets
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-keyring-tests native_keychain_cross_process_file_roundtrip -- --nocapture --test-threads=1
+          ' 2>&1 | tee "$RUNNER_TEMP/原生凭据证据v6/跨进程验证.txt"
+      - name: Windows真实Credential Manager跨进程加解密
+        if: runner.os == 'Windows'
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/原生凭据证据v6"
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-keyring-tests native_keychain_cross_process_file_roundtrip -- --nocapture --test-threads=1 2>&1 | tee "$RUNNER_TEMP/原生凭据证据v6/跨进程验证.txt"
+      - name: 记录来源
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/原生凭据证据v6"
+          git rev-parse HEAD > "$RUNNER_TEMP/原生凭据证据v6/源码版本.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 原生凭据证据v6-${{ matrix.os }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/原生凭据证据v6/
+          retention-days: 7
+          if-no-files-found: error

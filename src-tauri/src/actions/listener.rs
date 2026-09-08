@@ -15,8 +15,8 @@ use tokio::sync::{oneshot, Mutex, RwLock};
 use tower_http::cors::CorsLayer;
 
 use crate::auth::{
-    authorization_server_metadata, authorize_get, authorize_post, external_base_url,
-    token_exchange, AuthorizeForm, AuthorizeParams, OAuthRuntime, TokenForm,
+    authorization_server_metadata, authorize_get, authorize_post,
+    token_exchange, AuthorizeForm, AuthorizeParams, OAuthRuntime, PublicOrigin, TokenForm,
 };
 use crate::tools::{self, is_allowed_tool, policy::PolicySettings, wrap_tool_result, ToolContext};
 use crate::tunnel::append_profile_log;
@@ -33,18 +33,18 @@ struct AppState {
     auth: Arc<AuthConfig>,
     workspace_path: String,
     bind_port: u16,
-    configured_public_url: String,
+    configured_public_url: PublicOrigin,
     oauth: Option<Arc<OAuthRuntime>>,
     oauth_client_secret: Option<String>,
     write_lock: Arc<Mutex<()>>,
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn spawn_listener(
+pub fn spawn_listener_with_origin(
     workspace_id: &str,
     actions_port: u16,
     workspace_path: PathBuf,
-    public_base_url: String,
+    public_base_url: PublicOrigin,
     auth_type: String,
     api_key: Option<String>,
     oauth_client_id: String,
@@ -65,13 +65,9 @@ pub fn spawn_listener(
         }
     }
 
-    let configured_public_url = public_base_url.trim().to_string();
+    let configured_public_url = public_base_url;
     let oauth = if auth_type == "oauth" {
-        let oauth_base = external_base_url(
-            &HeaderMap::new(),
-            actions_port,
-            &configured_public_url,
-        );
+        let oauth_base = configured_public_url.resolve(&HeaderMap::new(), actions_port);
         Some(Arc::new(OAuthRuntime::new(
             oauth_base,
             oauth_client_id,
@@ -126,7 +122,7 @@ async fn serve(
     actions_port: u16,
     profile_id: &str,
     workspace_path: PathBuf,
-    configured_public_url: String,
+    configured_public_url: PublicOrigin,
     auth_type: String,
     api_key: Option<String>,
     oauth: Option<Arc<OAuthRuntime>>,
@@ -154,11 +150,7 @@ async fn serve(
                 .unwrap_or(false)
         })
         .collect();
-    let public_base_url = if configured_public_url.is_empty() {
-        format!("http://127.0.0.1:{actions_port}")
-    } else {
-        configured_public_url.clone()
-    };
+    let public_base_url = configured_public_url.resolve(&HeaderMap::new(), actions_port);
     let openapi_doc = openapi::build_openapi(&tools, &public_base_url, &auth_type);
 
     let auth = Arc::new(AuthConfig::new(
@@ -245,8 +237,12 @@ async fn health(State(state): State<AppState>) -> Json<Value> {
     }))
 }
 
-async fn openapi_json(State(state): State<AppState>) -> Json<Value> {
-    Json(state.openapi.read().await.clone())
+async fn openapi_json(State(state): State<AppState>, headers: HeaderMap) -> Json<Value> {
+    let mut document = state.openapi.read().await.clone();
+    // The tool schema is stable, but its public origin changes with a Quick tunnel.
+    // Read one identity snapshot for this response without restarting either service.
+    document["servers"] = json!([{ "url": resolve_oauth_base(&state, &headers) }]);
+    Json(document)
 }
 
 async fn privacy() -> Html<&'static str> {
@@ -269,7 +265,7 @@ async fn privacy() -> Html<&'static str> {
 }
 
 fn resolve_oauth_base(state: &AppState, headers: &HeaderMap) -> String {
-    external_base_url(headers, state.bind_port, &state.configured_public_url)
+    state.configured_public_url.resolve(headers, state.bind_port)
 }
 
 async fn oauth_authorization_server_metadata(

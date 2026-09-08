@@ -1,0 +1,66 @@
+name: 发布迭代诊断v6
+
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+    paths: ['.github/workflows/发布迭代诊断v6.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-tools-v6-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tools:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 安装锁定的前端与项目编排器
+        run: |
+          npm ci
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root .
+          mkdir -p "$RUNNER_TEMP/发布诊断v6"
+          git rev-parse HEAD > "$RUNNER_TEMP/发布诊断v6/源码版本.txt"
+      - name: 恢复计划并生成实际图谱
+        run: |
+          printf '{"project_root":"%s"}\n' "$PWD" | .mcp-probe-kit/bin/probe exec resume_plan --stdin > "$RUNNER_TEMP/发布诊断v6/计划恢复.json"
+          .mcp-probe-kit/bin/probe doctor gitnexus --install > "$RUNNER_TEMP/发布诊断v6/图谱安装.txt"
+          printf '{"project_root":"%s","mode":"auto","save_to_docs":false}\n' "$PWD" | .mcp-probe-kit/bin/probe exec code_insight --stdin > "$RUNNER_TEMP/发布诊断v6/代码分析.json"
+      - name: 保存可离线复用的公开依赖（不收集凭据或用户配置）
+        run: |
+          python - <<'PY'
+          import os, tarfile
+          from pathlib import Path
+          target = Path(os.environ['RUNNER_TEMP']) / '发布诊断v6'
+          candidates = [(Path('node_modules'), '前端依赖/node_modules')]
+          candidates += [(p, '编排器/' + p.parent.name + '/node_modules') for p in (Path.home()/'.npm/_npx').glob('*/node_modules') if (p/'mcp-probe-kit/package.json').is_file()]
+          for root in [Path('.mcp-probe-kit'), Path.home()/'.cache/mcp-probe-kit']:
+              if root.exists():
+                  for p in root.rglob('node_modules'):
+                      if (p/'gitnexus/package.json').is_file():
+                          candidates.append((p, '图谱依赖/node_modules'))
+                          break
+          with tarfile.open(target/'公开依赖v6.tar.gz', 'w:gz') as archive:
+              used = set()
+              for path, name in candidates:
+                  if name not in used:
+                      archive.add(path, arcname=name)
+                      used.add(name)
+          print('已归档依赖根:', sorted(used))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 发布迭代诊断v6
+          path: ${{ runner.temp }}/发布诊断v6/
+          retention-days: 3
+          if-no-files-found: error

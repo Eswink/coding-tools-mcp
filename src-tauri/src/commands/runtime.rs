@@ -39,31 +39,6 @@ fn validate_start_resources(
     state.with_workspaces(|store| validate_service_start(store.list(), id, service))
 }
 
-fn persist_tunnel_url(
-    state: &AppState,
-    id: &str,
-    kind: TunnelServiceKind,
-    url: &str,
-) -> AppResult<()> {
-    if url.is_empty() {
-        return Ok(());
-    }
-
-    state.with_workspaces(|store| {
-        let Some(mut profile) = store.get(id).cloned() else {
-            return Ok(());
-        };
-
-        match kind {
-            TunnelServiceKind::Mcp => profile.tunnel.public_url = url.to_string(),
-            TunnelServiceKind::Actions => profile.actions.public_url = url.to_string(),
-        }
-
-        store.update(profile)?;
-        Ok(())
-    })
-}
-
 async fn sync_tunnel_routes_from_runtime(state: &AppState) -> AppResult<()> {
     let active_keys = state.with_runtime(|runtime| Ok(runtime.active_tunnel_service_keys()))?;
     sync_managed_runtime_routes(active_keys).await
@@ -115,13 +90,11 @@ async fn start_mcp_service(state: &AppState, id: &str) -> AppResult<RuntimeStatu
     let profile = profile_by_id(state, id)?;
     ensure_port_available(profile.runtime.local_port, "本地 MCP").await?;
     state.with_runtime(|runtime| runtime.start_mcp(&profile))?;
+    let origin = state.with_runtime(|runtime| Ok(runtime.public_origin_handle(id, ServiceKind::Mcp)))?;
     sync_tunnel_routes_from_runtime(state).await?;
 
-    match maybe_start_for_runtime(&profile, TunnelServiceKind::Mcp).await {
-        Ok(Some(url)) => {
-            persist_tunnel_url(state, id, TunnelServiceKind::Mcp, &url)?;
-        }
-        Ok(None) => {}
+    match maybe_start_for_runtime(&profile, TunnelServiceKind::Mcp, origin.as_ref()).await {
+        Ok(_) => {}
         Err(error) => {
             eprintln!("mcp tunnel auto-start failed for {id}: {error}");
         }
@@ -154,13 +127,11 @@ async fn start_actions_service(state: &AppState, id: &str) -> AppResult<RuntimeS
     let profile = profile_by_id(state, id)?;
     ensure_port_available(profile.actions.local_port, "本地 Actions").await?;
     state.with_runtime(|runtime| runtime.start_actions(&profile))?;
+    let origin = state.with_runtime(|runtime| Ok(runtime.public_origin_handle(id, ServiceKind::Actions)))?;
     sync_tunnel_routes_from_runtime(state).await?;
 
-    match maybe_start_for_runtime(&profile, TunnelServiceKind::Actions).await {
-        Ok(Some(url)) => {
-            persist_tunnel_url(state, id, TunnelServiceKind::Actions, &url)?;
-        }
-        Ok(None) => {}
+    match maybe_start_for_runtime(&profile, TunnelServiceKind::Actions, origin.as_ref()).await {
+        Ok(_) => {}
         Err(error) => {
             eprintln!("actions tunnel auto-start failed for {id}: {error}");
         }

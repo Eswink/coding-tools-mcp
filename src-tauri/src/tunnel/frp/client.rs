@@ -18,6 +18,9 @@ use super::{
     build_frpc_toml_for_routes, frp_server_config, FrpServerConfig, VERSION as FRP_VERSION,
 };
 
+#[path = "运行配置保护v6.rs"]
+mod config_security;
+
 const READY_TIMEOUT: Duration = Duration::from_secs(8);
 const FRPC_RESTART_GRACE: Duration = Duration::from_millis(600);
 const FRPC_OPERATION_LOCK_TIMEOUT: Duration = Duration::from_secs(15);
@@ -304,7 +307,10 @@ pub async fn spawn_frpc(
         .cloned()
         .ok_or_else(|| AppError::Message("没有可写入的 frpc 日志路径。".into()))?;
     let config_text = build_frpc_toml_for_routes(&configs);
-    std::fs::write(&config_path, &config_text)?;
+    config_security::write_private_config(&config_path, &config_text)?;
+    let mut redactions: Vec<String> = configs.iter().filter_map(|c| c.token.clone()).collect();
+    redactions.push(settings.proxy.url.clone());
+    let redactions = std::sync::Arc::new(redactions);
     let log_offset = log_file_len(&log_path);
 
     let mut cmd = Command::new(&frpc);
@@ -347,14 +353,15 @@ pub async fn spawn_frpc(
     }
     if let Some(stdout) = child.stdout.take() {
         let log_paths = log_paths.clone();
+        let redactions = redactions.clone();
         tokio::spawn(async move {
-            stream_frpc_logs(stdout, log_paths).await;
+            stream_frpc_logs(stdout, log_paths, redactions).await;
         });
     }
     if let Some(stderr) = child.stderr.take() {
         let log_paths = log_paths.clone();
         tokio::spawn(async move {
-            stream_frpc_logs(stderr, log_paths).await;
+            stream_frpc_logs(stderr, log_paths, redactions).await;
         });
     }
 
@@ -390,15 +397,13 @@ pub async fn stop_frpc(child: Child, pid: Option<u32>) -> AppResult<()> {
 }
 
 fn validate_frp_config(config: &FrpServerConfig) -> AppResult<()> {
-    if config.server_addr.trim().is_empty() {
-        return Err(AppError::Message("FRP 模式需要填写服务器域名。".into()));
-    }
-    if config.proxy.subdomain.trim().is_empty() {
-        return Err(AppError::Message("FRP 模式需要填写子域名。".into()));
-    }
+    crate::workspace::endpoint::normalize_server_host(&config.server_addr).map_err(AppError::Message)?;
     if config.server_port == 0 {
-        return Err(AppError::Message("FRP 服务器端口无效。".into()));
+        return Err(AppError::Message("FRP 控制端口必须为 1–65535。".into()));
     }
+    config.proxy.options.public_origin(&config.server_addr, &config.proxy.subdomain)
+        .map_err(AppError::Message)?;
+    config.proxy.options.validate_target(config.proxy.local_port).map_err(AppError::Message)?;
     Ok(())
 }
 
@@ -741,7 +746,7 @@ fn strip_ansi(text: &str) -> String {
     out
 }
 
-async fn stream_frpc_logs<R>(stderr: R, log_paths: Vec<PathBuf>)
+async fn stream_frpc_logs<R>(stderr: R, log_paths: Vec<PathBuf>, redactions: std::sync::Arc<Vec<String>>)
 where
     R: tokio::io::AsyncRead + Unpin + Send + 'static,
 {
@@ -765,6 +770,7 @@ where
 
     let mut reader = BufReader::new(stderr).lines();
     while let Ok(Some(line)) = reader.next_line().await {
+        let line = config_security::redact(&line, &redactions);
         use tokio::io::AsyncWriteExt;
         for file in &mut files {
             let _ = file.write_all(line.as_bytes()).await;
@@ -1029,3 +1035,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "启动配置回归v6.rs"]
+mod launch_config_tests;

@@ -1,0 +1,74 @@
+name: 候选对象归档v6
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+    paths: ['.github/workflows/候选对象归档v6.yml']
+permissions:
+  contents: read
+jobs:
+  archive:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/feat/固定公网入口v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: 归档固定基线上的已审查三文件候选（不提交、不移动分支）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import base64, hashlib, json, os, subprocess, urllib.request
+          from pathlib import Path
+          root = Path.cwd()
+          patch = root / 'docs/specs/固定公网入口v1/执行边界候选v6.patch'
+          assert hashlib.sha256(patch.read_bytes()).hexdigest() == 'b309a61e26e74fa9912420f83fca13cb1069f7f346cc90fb3bba83e9221ba48a'
+          source = '3d6f2b2cb94ffdd2752ac552b790989adf04ee49'
+          work = Path(os.environ['RUNNER_TEMP']) / '固定候选v6'
+          subprocess.run(['git', 'worktree', 'add', '--detach', str(work), source], check=True)
+          subprocess.run(['git', 'apply', '--check', str(patch)], cwd=work, check=True)
+          subprocess.run(['git', 'apply', str(patch)], cwd=work, check=True)
+          lock = work / 'src-tauri/Cargo.lock'
+          old = 'name = "coding-tools-mcp-desktop"\nversion = "0.2.1"'
+          text = lock.read_text(encoding='utf-8')
+          assert text.count(old) == 1
+          lock.write_text(text.replace(old, old.replace('0.2.1', '0.3.0'), 1), encoding='utf-8')
+          lock = work / 'package-lock.json'
+          text = lock.read_text(encoding='utf-8')
+          original = json.loads(text)
+          updated = text.replace('"version": "0.2.1"', '"version": "0.3.0"', 2)
+          result = json.loads(updated)
+          assert result['version'] == result['packages']['']['version'] == '0.3.0'
+          result['version'] = original['version']
+          result['packages']['']['version'] = original['packages']['']['version']
+          assert result == original
+          lock.write_text(updated, encoding='utf-8')
+          expected = {'src-tauri/src/tunnel/frp/client.rs': 'b8a5082506060208a3f6f316bab957fd99c22dad',
+                      'src-tauri/Cargo.lock': 'b5f3fea1973043cee219a163d3abec7f30012206',
+                      'package-lock.json': '71c8910e0070df1d858a26ff8a0f1cae8d92d529'}
+          changed = subprocess.check_output(['git', 'diff', '--name-only', '-z'], cwd=work).decode().split('\0')
+          assert set(filter(None, changed)) == set(expected)
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'}
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs): raise RuntimeError('redirect refused')
+          opener = urllib.request.build_opener(NoRedirect())
+          for name, expected_sha in expected.items():
+              data = (work / name).read_bytes()
+              assert hashlib.sha1(('blob %d\0' % len(data)).encode() + data).hexdigest() == expected_sha
+              request = urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/git/blobs',
+                  data=json.dumps({'content': base64.b64encode(data).decode(), 'encoding': 'base64'}).encode(), headers=headers, method='POST')
+              with opener.open(request, timeout=30) as response: saved = json.load(response)
+              assert saved['sha'] == expected_sha
+          output = Path(os.environ['RUNNER_TEMP']) / '候选对象证据v6'
+          output.mkdir()
+          (output / '对象摘要v6.json').write_text(json.dumps({'base': source, 'blobs': expected, 'ref_updated': False}, ensure_ascii=False, indent=2), encoding='utf-8')
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 候选对象证据v6
+          path: ${{ runner.temp }}/候选对象证据v6/
+          retention-days: 7
+          if-no-files-found: error

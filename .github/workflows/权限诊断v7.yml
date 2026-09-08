@@ -1,0 +1,47 @@
+name: 权限诊断v7
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+    paths: ['.github/workflows/权限诊断v7.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 7e42afc284c26f3418ab64bb9c9a9aff5e93819a
+          persist-credentials: false
+      - name: 用空文件重现旧ACL脚本（不写入任何凭据）
+        shell: python
+        env:
+          PYTHONUTF8: '1'
+        run: |
+          import json, os, pathlib, re, subprocess, tempfile
+          source = pathlib.Path('src-tauri/src/tunnel/frp/运行配置保护v6.rs').read_text(encoding='utf-8')
+          script = re.search(r'let script = r#"(.*?)"#;', source, re.S).group(1)
+          executable = pathlib.Path(os.environ['SystemRoot']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
+          results = []
+          with tempfile.TemporaryDirectory(prefix='acl-diagnostic-') as root:
+              for index in range(12):
+                  path = pathlib.Path(root) / ('中文 [配置] ' + str(index) + '.tmp')
+                  handle = path.open('xb')
+                  if index % 2 == 0:
+                      handle.close()
+                  env = dict(os.environ, CODING_TOOLS_FRP_ACL_PATH=str(path))
+                  result = subprocess.run([str(executable), '-NoProfile', '-NonInteractive', '-Command', script], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30, creationflags=0x08000000)
+                  handle.close()
+                  results.append({'index': index, 'handle_open': bool(index % 2), 'exit_code': result.returncode, 'stderr': result.stderr.decode(errors='replace'), 'stdout': result.stdout.decode(errors='replace'), 'bytes': path.stat().st_size})
+          output = pathlib.Path(os.environ['RUNNER_TEMP']) / '权限诊断v7.json'
+          output.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding='utf-8')
+          print(output.read_text(encoding='utf-8'))
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 权限诊断v7
+          path: ${{ runner.temp }}/权限诊断v7.json
+          if-no-files-found: error
+          retention-days: 7

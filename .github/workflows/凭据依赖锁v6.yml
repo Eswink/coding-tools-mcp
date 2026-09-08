@@ -1,0 +1,54 @@
+name: 凭据依赖锁v6
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+    paths: ['.github/workflows/凭据依赖锁v6.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: 只在临时副本解析候选依赖，不改远端或生产源码
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/凭据依赖锁v6"
+          mkdir -p "$out"
+          cp -R src-tauri "$RUNNER_TEMP/凭据依赖候选v6"
+          manifest="$RUNNER_TEMP/凭据依赖候选v6/Cargo.toml"
+          python - "$manifest" <<'PY'
+          import sys
+          from pathlib import Path
+          p = Path(sys.argv[1])
+          s = p.read_text(encoding='utf-8')
+          if '[dependencies.keyring]' not in s:
+              s += '\n[dependencies.keyring]\nversion = "=3.6.3"\nfeatures = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"]\n'
+          if '[dependencies.ring]' not in s:
+              s += '\n[dependencies.ring]\nversion = "=0.17.14"\n'
+          if '[dependencies.zeroize]' not in s:
+              s += '\n[dependencies.zeroize]\nversion = "1"\n'
+          p.write_text(s, encoding='utf-8')
+          PY
+          cargo metadata --manifest-path "$manifest" --format-version 1 > "$out/依赖元数据v6.json"
+          cp "$manifest" "$out/Cargo.toml"
+          cp "$RUNNER_TEMP/凭据依赖候选v6/Cargo.lock" "$out/Cargo.lock"
+          git rev-parse HEAD > "$out/源版本.txt"
+          git diff --exit-code
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 凭据依赖锁v6
+          path: ${{ runner.temp }}/凭据依赖锁v6/
+          if-no-files-found: error
+          retention-days: 7

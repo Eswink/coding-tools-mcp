@@ -15,10 +15,11 @@
     service: "mcp" | "actions";
     profile: WorkspaceProfile;
     publicMcpEndpoint?: string;
+    publicActionsOrigin?: string;
     frpProfiles?: { id: string; name: string; server: string; serverPort: number }[];
   }
 
-  let { workspaceId, service, profile, publicMcpEndpoint = "", frpProfiles = [] }: Props = $props();
+  let { workspaceId, service, profile, publicMcpEndpoint = "", publicActionsOrigin, frpProfiles = [] }: Props = $props();
 
   let loading = $state(true);
   let secrets = $state<Record<string, string>>({});
@@ -142,12 +143,12 @@
     {:else}
       <CopyFieldRow
         label="OpenAPI Schema URL"
-        value={actionsOpenApiUrl(profile, frpProfiles)}
+        value={actionsOpenApiUrl(profile, frpProfiles, publicActionsOrigin)}
         hint="Actions → Import from URL"
       />
       <CopyFieldRow
         label="隐私政策 URL"
-        value={actionsPrivacyUrl(profile, frpProfiles)}
+        value={actionsPrivacyUrl(profile, frpProfiles, publicActionsOrigin)}
         hint="GPT Actions 隐私政策字段"
       />
       {#if actions.auth_type === "api_key"}
@@ -166,9 +167,9 @@
         />
         <CopyFieldRow
           label="Authorization URL"
-          value={actionsOAuthAuthorizeUrl(profile, frpProfiles)}
+          value={actionsOAuthAuthorizeUrl(profile, frpProfiles, publicActionsOrigin)}
         />
-        <CopyFieldRow label="Token URL" value={actionsOAuthTokenUrl(profile, frpProfiles)} />
+        <CopyFieldRow label="Token URL" value={actionsOAuthTokenUrl(profile, frpProfiles, publicActionsOrigin)} />
         <CopyFieldRow label="Scope" value={actions.oauth_scopes ?? ""} hint="空格分隔" />
       {:else}
         <p class="text-xs text-[var(--color-text-muted)]">当前未启用认证，公网暴露请改用 API Key 或 OAuth。</p>
