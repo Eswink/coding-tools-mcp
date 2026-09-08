@@ -1,0 +1,64 @@
+name: 异步对象归档v1
+on:
+  push:
+    branches: ['build/异步对象v1']
+    paths: ['.github/workflows/异步对象归档v1.yml', 'docs/候选/异步接线*.patch']
+permissions:
+  contents: write
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 精确重建已审查候选，只上传对象，不改分支或标签
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import base64, hashlib, json, os, subprocess, urllib.request
+          from pathlib import Path
+          def git(*args):
+              return subprocess.check_output(['git', *args]).decode().strip()
+          patch = Path('docs/候选/异步接线文档v1.patch').read_bytes() + Path('docs/候选/异步接线代码v1.patch').read_bytes()
+          assert hashlib.sha256(patch).hexdigest() == '49f7473d50a79a90495130b7a658e3fe936842712a2d09ada3ef923defa238f2'
+          patchfile = Path(os.environ['RUNNER_TEMP'])/'接线v1.patch'
+          patchfile.write_bytes(patch)
+          subprocess.run(['git','checkout','--detach','a955198dbb48dafc77594506aef18d281cf369d4'],check=True)
+          assert git('rev-parse','HEAD^{tree}') == '001cdf805e7d79cff6f7f0124ef4721a92de39c8'
+          subprocess.run(['git','apply','--index','--check',str(patchfile)],check=True)
+          subprocess.run(['git','apply','--index',str(patchfile)],check=True)
+          subprocess.run(['git','diff','--cached','--check'],check=True)
+          expected = '23fca6db7e2b7790446f3901cc2b5d421e81e327'
+          assert git('write-tree') == expected
+          names = subprocess.check_output(['git','diff','--cached','--name-only','-z']).decode().strip('\0').split('\0')
+          assert len(names) == 10
+          def post(suffix, payload):
+              req = urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/git/'+suffix,
+                  data=json.dumps(payload).encode(),method='POST',headers={
+                  'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json',
+                  'Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'})
+              with urllib.request.urlopen(req, timeout=60) as response: return json.load(response)
+          entries = []
+          for name in names:
+              data = Path(name).read_bytes()
+              local_sha = hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
+              blob = post('blobs',{'content':base64.b64encode(data).decode(),'encoding':'base64'})
+              assert blob['sha'] == local_sha
+              entries.append({'path':name,'mode':'100644','type':'blob','sha':local_sha})
+          tree = post('trees',{'base_tree':'001cdf805e7d79cff6f7f0124ef4721a92de39c8','tree':entries})
+          assert tree['sha'] == expected
+          out = Path(os.environ['RUNNER_TEMP'])/'对象证据v1'
+          out.mkdir()
+          (out/'对象核验v1.json').write_text(json.dumps({'tree_sha':tree['sha'],'files':entries,'refs_modified':False},ensure_ascii=False,indent=2),encoding='utf-8')
+          print('Verified candidate tree:', tree['sha'], '; no refs were modified')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 异步对象核验v1
+          path: ${{ runner.temp }}/对象证据v1/
+          retention-days: 7
+          if-no-files-found: error

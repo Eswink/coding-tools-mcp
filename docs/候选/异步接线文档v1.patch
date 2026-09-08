@@ -1,0 +1,272 @@
+diff --git a/.github/workflows/异步命令验证v1.yml b/.github/workflows/异步命令验证v1.yml
+new file mode 100644
+index 0000000..175e52c
+--- /dev/null
++++ b/.github/workflows/异步命令验证v1.yml
+@@ -0,0 +1,78 @@
++name: 异步命令验证v1
++on:
++  push:
++    branches: ['feat/MCP异步任务v1']
++  workflow_dispatch:
++permissions:
++  contents: read
++concurrency:
++  group: async-command-v1-${{ github.ref }}
++  cancel-in-progress: true
++jobs:
++  regression:
++    strategy:
++      fail-fast: false
++      matrix:
++        os: [ubuntu-latest, windows-latest]
++    runs-on: ${{ matrix.os }}
++    timeout-minutes: 35
++    defaults:
++      run:
++        shell: bash
++    steps:
++      - uses: actions/checkout@v4
++        with:
++          persist-credentials: false
++      - uses: actions/setup-python@v5
++        with:
++          python-version: '3.12'
++      - name: Linux桌面依赖
++        if: runner.os == 'Linux'
++        run: |
++          sudo apt-get update
++          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
++      - uses: dtolnay/rust-toolchain@stable
++      - uses: Swatinem/rust-cache@v2
++        with:
++          workspaces: src-tauri
++      - name: 记录不可变源码
++        run: |
++          mkdir -p "$RUNNER_TEMP/异步命令证据v1"
++          git rev-parse HEAD > "$RUNNER_TEMP/异步命令证据v1/源码版本.txt"
++          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/异步命令证据v1/源码树.txt"
++          rustc --version > "$RUNNER_TEMP/异步命令证据v1/工具链.txt"
++      - name: 全目标类型检查
++        run: |
++          set -o pipefail
++          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/异步命令证据v1/类型检查.txt"
++      - name: 实际异步命令与HTTP传输回归
++        run: |
++          set -o pipefail
++          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::exec_tasks -- --nocapture 2>&1 | tee "$RUNNER_TEMP/异步命令证据v1/异步回归.txt"
++      - name: 完整Rust回归
++        run: |
++          set -o pipefail
++          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/异步命令证据v1/完整回归.txt"
++      - name: 生产库零警告
++        run: |
++          set -o pipefail
++          cargo rustc --locked --manifest-path src-tauri/Cargo.toml --lib -- -D warnings 2>&1 | tee "$RUNNER_TEMP/异步命令证据v1/零警告.txt"
++      - name: 保存源码和证据摘要
++        if: always()
++        run: |
++          mkdir -p "$RUNNER_TEMP/异步命令证据v1"
++          git archive --format=zip HEAD -o "$RUNNER_TEMP/异步命令证据v1/源码v1.zip"
++          python - <<'PY'
++          import hashlib, json, os
++          from pathlib import Path
++          root = Path(os.environ['RUNNER_TEMP'])/'异步命令证据v1'
++          data = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in root.iterdir() if p.is_file()}
++          (root/'摘要v1.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
++          PY
++      - uses: actions/upload-artifact@v4
++        if: always()
++        with:
++          name: 异步命令证据v1-${{ matrix.os }}
++          path: ${{ runner.temp }}/异步命令证据v1/
++          retention-days: 7
++          if-no-files-found: error
+diff --git a/docs/specs/异步命令v1/任务v1.md b/docs/specs/异步命令v1/任务v1.md
+new file mode 100644
+index 0000000..3354845
+--- /dev/null
++++ b/docs/specs/异步命令v1/任务v1.md
+@@ -0,0 +1,54 @@
++# 任务清单：MCP异步命令v1
++
++## 概述
++实现FR-1至FR-8，先提供服务实例内可靠的异步命令入口，不重写命令引擎或发布旧版本安装包。
++
++## 交付物清单（Scope-lock）
++预计新建9文件（5源码/测试、3规格、1CI），修改8文件（含既有工具目录契约测试）；新函数约25个，必要测试按验收补齐。中文规格是正式来源；工具check_spec仅在临时目录建立字节一致的requirements/design/tasks镜像。
++
++## 任务列表
++- [ ] 1.1 创建并校验异步执行规格，锁定恢复与取消边界
++  - **证据块**: tools/exec.rs:53 `unwrap_or(30_000)`；exec.rs:326 `spawn_timeout_monitor`；mcp/server.rs:46 `protocolVersion: 2025-06-18`。
++  - **涉及文件**: 本目录需求v1.md、设计v1.md、任务v1.md，各200行内。
++  - _需求: FR-1 FR-6 FR-8_ ｜ _设计: 技术方案、设计决策_
++- [ ] 2.1 实现原子提交与后台worker，严格保留命令策略
++  - **证据块**: tools/dispatch.rs:54 `pub fn call_tool` 是唯一共享入口；context.rs:74 `sessions: Arc::new(SessionStore::new())`。
++  - **涉及文件**: 异步命令v1.rs <=450；context/mod/dispatch/policy仅接线；既有大函数不扩展执行逻辑。
++  - _需求: FR-1 FR-2 FR-3 FR-5 FR-8_ ｜ _设计: 技术方案、API设计_
++- [ ] 2.2 实现有界状态、绝对游标、重复读取及取消确认
++  - **证据块**: session.rs:14 `SESSION_BUFFER_BYTES=1_048_576`；session.rs `retained_stream_bytes`原本分次取得buffer和total，不是同一快照。
++  - **涉及文件**: 异步命令状态v1.rs <=400；session.rs修复同序持锁快照及读取器超时清理。
++  - _需求: FR-3 FR-4 FR-5 FR-6 FR-7_ ｜ _设计: 数据模型、设计决策_
++- [ ] 2.3 新增工具schema与模型操作说明，不改变协议协商
++  - **证据块**: registry.rs:519 `input_schema`；core与read_only工具列表分别管理暴露。
++  - **涉及文件**: 异步命令协议v1.rs <=130；registry.rs新schema分发至独立模块；mcp/server.rs仅追加说明。
++  - _需求: FR-1 FR-6 FR-8_ ｜ _设计: API设计_
++- [ ] 3.1 运行真实命令和传输回归，对照FR逐条验收
++  - **证据块**: tests/call_tool_contract.rs:313 已有retained_session_timeout回归；新测试必须补提交响应丢失恢复，不替换旧测试。
++  - **涉及文件**: 异步命令回归v1.rs <=450；异步命令传输v1.rs <=350；异步命令验证v1.yml <=130。
++  - _需求: FR-1 FR-2 FR-3 FR-4 FR-5 FR-6 FR-7 FR-8_ ｜ _设计: 测试策略_
++
++## 文件变更清单
++| 文件组 | 操作 | 行数预算 |
++|---|---|---|
++| tools/异步命令v1.rs、异步命令状态v1.rs、异步命令协议v1.rs | 新建 | 每个130至450 |
++| tools/异步命令回归v1.rs、tools/异步命令传输v1.rs | 新建 | 每个350至450 |
++| tools/{context,dispatch,mod,policy,registry,session}.rs、mcp/server.rs | 修改 | 新增逻辑委托独立模块 |
++| 三份中文规格与异步命令验证v1.yml | 新建 | 每个200以内 |
++
++## 检查点
++阶段1：原版check_spec通过。阶段2：实现范围与影响图一致。阶段3：跨平台检查/真实回归完成，任何失败先修复不降级。
++
++## 需求覆盖矩阵
++| 需求ID | 设计章节 | 任务编号 | 状态 |
++|---|---|---|---|
++| FR-1 | API设计 | 1.1,2.1,2.3,3.1 | 未开始 |
++| FR-2 | 数据模型 | 2.1,3.1 | 未开始 |
++| FR-3 | 数据模型 | 2.1,2.2,3.1 | 未开始 |
++| FR-4 | API设计 | 2.2,3.1 | 未开始 |
++| FR-5 | 设计决策 | 2.1,2.2,3.1 | 未开始 |
++| FR-6 | 设计决策 | 1.1,2.2,2.3,3.1 | 未开始 |
++| FR-7 | 数据模型 | 2.2,3.1 | 未开始 |
++| FR-8 | 技术方案 | 1.1,2.1,2.3,3.1 | 未开始 |
++
++范围复核：保留26个既有核心工具，增加4个；既有registry和call_tool_contract数量断言同步为30，新增四个名称逐项检查，不删除旧断言覆盖。
+diff --git a/docs/specs/异步命令v1/设计v1.md b/docs/specs/异步命令v1/设计v1.md
+new file mode 100644
+index 0000000..c79b631
+--- /dev/null
++++ b/docs/specs/异步命令v1/设计v1.md
+@@ -0,0 +1,47 @@
++# 设计文档：MCP异步命令v1
++
++## 概述
++对应需求：FR-1 FR-2 FR-3 FR-4 FR-5 FR-6 FR-7 FR-8；NFR-1 NFR-2 NFR-3。
++
++## 技术方案
++### 技术选型
++沿用Rust/Tokio及普通MCP tools/call。原生Tasks已有不同协议代际，当前不更改initialize协议或假定ChatGPT支持；后续只增加适配器，不重写执行内核。
++### 架构设计
++submit -> 校验 -> 原子登记request_id/fingerprint/job_id -> 返回queued
++后台worker -> call_tool(exec_command, yield_time_ms=0) -> ExecSession -> 监测终态
++get/list -> 内存任务表 -> 有界状态/日志；cancel -> 置位 -> worker请求直接子进程终止
++
++## 数据模型
++每个ToolContext持有Arc<ExecTaskStore>。worker持有共享sessions和tasks的上下文快照（提交时默认目录已解析）。job_id为服务端UUID；request_id由调用者提供，1至128 UTF-8字节；fingerprint为cmd、规范化workdir和timeout_ms的SHA256。不得以HTTP JSON-RPC id去重，因为它只用于请求响应关联。
++记录包含queued/running/cancelling/succeeded/failed/timed_out/cancelled、创建/完成时间、执行预算、退出码、终止原因、取消请求位及有界stdout/stderr。终态保留3600秒；最多4个活动任务和32条保留记录，容量满拒绝且不偷偷清除未过期幂等键。
++
++## API 设计
++| 工具 | 输入 | 输出 | 需求 |
++|---|---|---|---|
++| start_exec_task | cmd,request_id,workdir,timeout_ms,confirm,filesystem_scope,reason | job_id,status,accepted,poll_after_ms | FR-1 FR-2 FR-8 |
++| get_exec_task | job_id,stdout_cursor,stderr_cursor,limit | 状态、退出信息、两个独立日志页 | FR-3 FR-4 FR-6 |
++| list_exec_tasks | 可选request_id | 最多32条摘要，无命令与日志 | FR-6 FR-7 |
++| cancel_exec_task | job_id | cancel_requested,status | FR-5 |
++HTTP断线不撤销已登记任务；提交失败/未收到响应应重用同request_id，禁止盲目重交新id。get对同一游标无消费副作用。next_cursor始终是绝对字节偏移；截断/滞后用dropped_bytes显式报告；文本编码声明utf-8-lossy，data_base64保留当前页精确字节，客户端可拼接解码以避免中文被分页边界损坏。
++
++## 文件结构
++新建tools/异步命令v1.rs（worker与入口，450行预算）、异步命令状态v1.rs（状态/配额/分页，400）、异步命令协议v1.rs（schema，130）、异步命令回归v1.rs（单元回归，450）、src-tauri/src/tools/异步命令传输v1.rs（传输回归，350）。
++修改tools/{context,dispatch,mod,policy,registry,session}.rs及mcp/server.rs。既有registry超过500行，本次新schema移入独立文件；不在大文件继续展开新工具实现。新增本规格三文件及专用验证工作流。
++
++## 设计决策
++### 决策1：渐进恢复（FR-6）
++当前只承诺服务实例存活期间的HTTP断线恢复，不承诺listener或应用重启可接管原进程。返回recovery_scope=service_instance和restart_recoverable=false。下一阶段使用应用级任务监督器、加密元数据、启动代际/进程身份与interrupted终态；不得仅持久化PID后自动kill或重跑。
++### 决策2：取消边界（FR-5）
++首轮继承现有直接子进程终止能力，返回cancellation_scope=direct_child；不支持自行daemonize或脱离进程的作业。完整Windows Job Object/Unix进程组管理列入下一阶段。
++### 决策3：时限与内存（FR-3 FR-7）
++不修改旧exec_command的30秒默认与10分钟上限；新异步提交默认10分钟。任务执行时限与结果保留TTL分别计算。额度保护不等于持久任务队列，不排无限队列。
++
++## 测试策略
++逐条验收FR-1至FR-8：真实跨平台短/长命令、重复/并发request_id、冲突、首个响应丢弃后查询、退出非零、超时、取消、默认目录、路径越界、read-only暴露、无原生task能力广告、日志环回与游标、容量与TTL。不以静态schema测试代替真实进程测试。Linux/Windows全目标check、全量cargo test和-D warnings必须最终执行。
++
++## 风险评估
++call_tool影响MCP与Actions，图谱评估MEDIUM；直接调用者含两个传输入口。上下文/参数/schema改动LOW。FTS离线不可用但符号影响分析可用；不将空搜索结果当无影响。
++系统进程重启、长期无人轮询、脱离父进程任务不在当前恢复保证内。模型不会因后台完成自动获得新的会话执行权，必须显式查询；poll_after_ms仅建议，不承诺无限自动轮询。
++
++## 复核修正
++读取器排空超时不再丢弃JoinHandle后默默继续；中止并await，结果output_complete=false。完整保留范围内的字节可从data_base64还原，text仅方便显示。该修正影响既有exec timeout monitor，图谱LOW，必须运行旧回归。
+diff --git a/docs/specs/异步命令v1/需求v1.md b/docs/specs/异步命令v1/需求v1.md
+new file mode 100644
+index 0000000..b6b0bb1
+--- /dev/null
++++ b/docs/specs/异步命令v1/需求v1.md
+@@ -0,0 +1,69 @@
++# 需求文档：MCP异步命令v1
++
++## 功能概述
++将长命令的请求等待与进程生命周期分离，兼容当前MCP 2025-06-18普通工具调用。基线main cd4249f2，发布版本0.2.3。
++
++## 术语定义
++job是进程执行任务；Harness start_task是开发计划，不是后台进程。timeout_ms为进程预算，不是HTTP等待预算。
++
++## 范围边界
++In Scope：四个普通工具start_exec_task/get_exec_task/list_exec_tasks/cancel_exec_task，内存任务管理，现有命令引擎复用。
++Out of Scope：跨应用或服务重启持久恢复、交互式stdin/TTY、自动重跑、完整进程树和脱离父进程任务治理、原生MCP Tasks协商、新Release和自动合并。任务实例不跨MCP/Actions listener共享。
++
++## 需求列表
++### FR-1: 快速提交
++**优先级:** Must
++**用户故事:** 作为通过MCP操作本地项目的工程师，我需要快速提交，以免请求超时导致重复操作或结果误判。
++#### 验收标准（EARS）
++1. WHEN 提交有效命令 THEN 系统 SHALL 快速返回job_id和受理状态（快任务可能已经结束）；接口不得等待进程结束。
++
++### FR-2: 幂等重试
++**优先级:** Must
++**用户故事:** 作为通过MCP操作本地项目的工程师，我需要幂等重试，以免请求超时导致重复操作或结果误判。
++#### 验收标准（EARS）
++1. WHEN 同一服务实例中request_id和有效命令参数相同 THEN 系统 SHALL 返回同一个job_id；IF 同一request_id参数不同 THEN 系统 SHALL 拒绝重放。
++
++### FR-3: 状态与退出码
++**优先级:** Must
++**用户故事:** 作为通过MCP操作本地项目的工程师，我需要状态与退出码，以免请求超时导致重复操作或结果误判。
++#### 验收标准（EARS）
++1. WHEN 后台进程完成 THEN 系统 SHALL 区分succeeded、failed、timed_out和cancelled；WHILE 未完成 THE 系统 SHALL 返回command_ok=null而非成功。
++
++### FR-4: 增量日志
++**优先级:** Must
++**用户故事:** 作为通过MCP操作本地项目的工程师，我需要增量日志，以免请求超时导致重复操作或结果误判。
++#### 验收标准（EARS）
++1. WHEN 按字节游标查询 THEN 系统 SHALL 返回独立stdout/stderr、绝对next_cursor、retained_from和dropped_bytes；IF 游标超出已产生字节 THEN 系统 SHALL 拒绝。
++
++### FR-5: 快速取消
++**优先级:** Must
++**用户故事:** 作为通过MCP操作本地项目的工程师，我需要快速取消，以免请求超时导致重复操作或结果误判。
++#### 验收标准（EARS）
++1. WHEN 取消运行任务 THEN 系统 SHALL 先确认cancel_requested并由worker终止直接子进程；IF 已结束 THEN 系统 SHALL 不改写最终结果。
++
++### FR-6: 断线和可找回性
++**优先级:** Must
++**用户故事:** 作为通过MCP操作本地项目的工程师，我需要断线和可找回性，以免请求超时导致重复操作或结果误判。
++#### 验收标准（EARS）
++1. WHILE 当前服务实例存活 THE 系统 SHALL 独立于提交HTTP连接继续执行；WHEN 响应丢失 THEN 系统 SHALL 支持用request_id列举或幂等重试找回。
++
++### FR-7: 有界资源
++**优先级:** Must
++**用户故事:** 作为通过MCP操作本地项目的工程师，我需要有界资源，以免请求超时导致重复操作或结果误判。
++#### 验收标准（EARS）
++1. IF 活动任务达到4或保留任务达到32 THEN 系统 SHALL 拒绝新任务但仍允许查询和取消；WHEN 终态保留满1小时 THEN 系统 SHALL 可清理记录。
++
++### FR-8: 共享安全与协议兼容
++**优先级:** Must
++**用户故事:** 作为通过MCP操作本地项目的工程师，我需要共享安全与协议兼容，以免请求超时导致重复操作或结果误判。
++#### 验收标准（EARS）
++1. WHEN MCP或Actions调用 THEN 系统 SHALL 经过唯一call_tool和既有exec_command策略；WHEN 只读profile列出工具 THEN 系统 SHALL 不暴露提交和取消；系统 SHALL 不广告未实现的原生Tasks协议。
++
++## 非功能需求
++NFR-1：查询不等待进程；单次日志每流默认4096、最大16384字节；每流最多保留1MiB。
++NFR-2：新增分页还提供data_base64以精确重组UTF-8边界或二进制。终态结果含output_complete，读取器失败或排空超时明确为false。
++NFR-4：不新增日志落盘，不回传环境变量；沿用路径、命令白名单和confirm校验，不能伪称操作系统沙箱。
++NFR-3：保留旧工具契约；进程时限1至600000毫秒，异步默认600000，不放宽既有10分钟安全上限。
++
++## 依赖关系
++依赖现有tokio/tauri async runtime、ExecSession、Harness和ToolContext；不新增第三方包。

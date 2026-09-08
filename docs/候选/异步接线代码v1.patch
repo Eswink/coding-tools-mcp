@@ -1,0 +1,206 @@
+diff --git a/src-tauri/src/mcp/server.rs b/src-tauri/src/mcp/server.rs
+index 1b342ac..f82ad72 100644
+--- a/src-tauri/src/mcp/server.rs
++++ b/src-tauri/src/mcp/server.rs
+@@ -51,7 +51,7 @@ fn initialize_result() -> Value {
+             "title": "Coding Tools MCP",
+             "version": env!("CARGO_PKG_VERSION")
+         },
+-        "instructions": "Use these tools only for local coding operations inside the configured workspace. At the start of every new ChatGPT conversation, before answering the user's first request, call history_session_bootstrap exactly once and pass the user's verbatim first request as initial_user_input. Treat bootstrap as required conversation initialization: it creates or resumes a lossless Markdown archive and returns bounded current state, not all history. Use history_session_search followed by history_session_read only when exact earlier context is needed. history_session_read returns a bounded UTF-8-safe page; follow next_cursor with the returned content hash until the relevant archive is complete. Repeated successful bootstrap calls in the same conversation resume the same session and must not create duplicates. Preserve session_key and current_path returned by bootstrap, then pass them unchanged as session_key and expected_path to every history_session_checkpoint call. After completing each user-requested task in the conversation, call history_session_checkpoint before the final response and pass that user's verbatim request as raw_user_input. Only state that progress was saved after checkpoint returns ok=true with the same session_key and path. The server cannot access ChatGPT transcript text that was not provided as a tool argument; persistence is not automatic background persistence."
++        "instructions": "Use these tools only for local coding operations inside the configured workspace. At the start of every new ChatGPT conversation, before answering the user's first request, call history_session_bootstrap exactly once and pass the user's verbatim first request as initial_user_input. Treat bootstrap as required conversation initialization: it creates or resumes a lossless Markdown archive and returns bounded current state, not all history. Use history_session_search followed by history_session_read only when exact earlier context is needed. history_session_read returns a bounded UTF-8-safe page; follow next_cursor with the returned content hash until the relevant archive is complete. Repeated successful bootstrap calls in the same conversation resume the same session and must not create duplicates. Preserve session_key and current_path returned by bootstrap, then pass them unchanged as session_key and expected_path to every history_session_checkpoint call. After completing each user-requested task in the conversation, call history_session_checkpoint before the final response and pass that user's verbatim request as raw_user_input. Only state that progress was saved after checkpoint returns ok=true with the same session_key and path. The server cannot access ChatGPT transcript text that was not provided as a tool argument; persistence is not automatic background persistence. For potentially long noninteractive commands, prefer start_exec_task with a unique request_id and then get_exec_task/list_exec_tasks/cancel_exec_task. Reuse the same request_id and parameters after transport timeouts; do not resubmit with a new key. queued/running/cancelling are not command failures, and only terminal status with command_ok=true is success. Follow separate stdout/stderr next_cursor values and poll_after_ms guidance; do not run an unbounded polling loop. Tasks survive HTTP disconnects only while this service instance remains alive; never automatically rerun after service restart."
+     })
+ }
+ 
+diff --git a/src-tauri/src/tools/policy.rs b/src-tauri/src/tools/policy.rs
+index 641328a..26b29f9 100644
+--- a/src-tauri/src/tools/policy.rs
++++ b/src-tauri/src/tools/policy.rs
+@@ -439,7 +439,7 @@ fn command_contains_external_path(command: &str) -> bool {
+     let normalized = command.replace('\\', "/");
+     normalized.contains("../")
+         || normalized.contains("..\\")
+-        || regex::Regex::new(r#"(?i)(^|["'\s])/[^\"]"#)
++        || regex::Regex::new(r#"(?i)(^|["'\s])/[^"]"#)
+             .expect("valid regex")
+             .is_match(&normalized)
+         || regex::Regex::new(r"(?i)\b[A-Z]:/")
+diff --git a/src-tauri/src/tools/registry.rs b/src-tauri/src/tools/registry.rs
+index 0aa5d7e..4eb3804 100644
+--- a/src-tauri/src/tools/registry.rs
++++ b/src-tauri/src/tools/registry.rs
+@@ -1,6 +1,10 @@
+ use serde_json::{json, Value};
+ 
+ pub const P0_TOOLS: &[(&str, &str, &str, bool, bool, bool)] = &[
++    ("start_exec_task", "Start asynchronous command", "Start a noninteractive bounded command without waiting for completion. Supply request_id BEFORE submission and reuse it on transport timeout to avoid duplicate execution. Returns job_id; poll get_exec_task. No recovery across service restart. Prefer this for builds and other long commands.", false, true, true),
++    ("get_exec_task", "Get asynchronous command", "Nonblocking status and per-stream cursor logs for a job_id. queued/running/cancelling are NOT failures. Use next_cursor independently for stdout/stderr. Completion does not automatically resume ChatGPT; explicitly poll when needed.", true, false, false),
++    ("list_exec_tasks", "List asynchronous commands", "Find jobs in this service instance, optionally by request_id after a lost submit response. Bounded summaries only; no command arguments or logs. Jobs are not Harness coding plans.", true, false, false),
++    ("cancel_exec_task", "Cancel asynchronous command", "Request cancellation without waiting. Poll get_exec_task for the final state. Terminates the directly owned child only; detached descendants are not covered. Does not undo command side effects.", false, true, false),
+     (
+         "harness_status",
+         "Harness status",
+@@ -317,6 +321,7 @@ pub const P0_TOOLS: &[(&str, &str, &str, bool, bool, bool)] = &[
+ 
+ /// old Python 版本默认提供的核心工具集。默认 MCP 只暴露这一组，保持 Agent 的工具面稳定。
+ pub const CORE_TOOLS: &[&str] = &[
++    "start_exec_task", "get_exec_task", "list_exec_tasks", "cancel_exec_task",
+     "server_info",
+     "history_session_bootstrap",
+     "history_session_checkpoint",
+@@ -346,6 +351,7 @@ pub const CORE_TOOLS: &[&str] = &[
+ ];
+ 
+ pub const CORE_READ_ONLY_TOOLS: &[&str] = &[
++    "get_exec_task", "list_exec_tasks",
+     "server_info",
+     "check_exec_environment",
+     "get_default_cwd",
+@@ -366,6 +372,7 @@ pub const CORE_READ_ONLY_TOOLS: &[&str] = &[
+ ];
+ 
+ pub const ALLOWED_TOOLS: &[&str] = &[
++    "start_exec_task", "get_exec_task", "list_exec_tasks", "cancel_exec_task",
+     "harness_status",
+     "operation_log",
+     "server_info",
+@@ -409,6 +416,7 @@ pub const ALLOWED_TOOLS: &[&str] = &[
+ ];
+ 
+ pub const MUTATING_TOOLS: &[&str] = &[
++    "start_exec_task", "cancel_exec_task",
+     "history_session_bootstrap",
+     "history_session_checkpoint",
+     "history_session_validate",
+@@ -425,6 +433,7 @@ pub const MUTATING_TOOLS: &[&str] = &[
+ ];
+ 
+ pub const READ_ONLY_TOOLS: &[&str] = &[
++    "get_exec_task", "list_exec_tasks",
+     "harness_status",
+     "operation_log",
+     "server_info",
+@@ -517,6 +526,7 @@ pub fn list_tools_for_profile(tool_profile: &str) -> Vec<Value> {
+ }
+ 
+ pub fn input_schema(name: &str) -> Value {
++    if let Some(schema) = crate::tools::exec_tasks::input_schema(name) { return schema; }
+     match name {
+         "history_session_bootstrap" => json!({
+             "type": "object",
+@@ -931,7 +941,7 @@ mod tests {
+             .collect();
+         let unique: HashSet<_> = names.iter().copied().collect();
+ 
+-        assert_eq!(tools.len(), 26);
++        assert_eq!(tools.len(), 30); // 26 existing tools plus four asynchronous execution tools.
+         assert_eq!(unique.len(), tools.len());
+         assert!(names.contains(&"history_session_bootstrap"));
+         assert!(names.contains(&"history_session_checkpoint"));
+diff --git a/src-tauri/src/tools/session.rs b/src-tauri/src/tools/session.rs
+index ddebc05..2e37696 100644
+--- a/src-tauri/src/tools/session.rs
++++ b/src-tauri/src/tools/session.rs
+@@ -69,6 +69,7 @@ pub struct ExecSession {
+     exited: AtomicBool,
+     termination_reason: Mutex<Option<String>>,
+     reader_tasks: AsyncMutex<Vec<tauri::async_runtime::JoinHandle<()>>>,
++    reader_failed: AtomicBool,
+ }
+ 
+ impl ExecSession {
+@@ -95,6 +96,7 @@ impl ExecSession {
+             exited: AtomicBool::new(false),
+             termination_reason: Mutex::new(None),
+             reader_tasks: AsyncMutex::new(Vec::new()),
++            reader_failed: AtomicBool::new(false),
+         }
+     }
+ 
+@@ -125,11 +127,25 @@ impl ExecSession {
+ 
+     pub async fn wait_for_readers(&self) {
+         let mut tasks = self.reader_tasks.lock().await;
+-        while let Some(task) = tasks.pop() {
+-            let _ = tokio::time::timeout(std::time::Duration::from_millis(500), task).await;
++        while let Some(mut task) = tasks.pop() {
++            match tokio::time::timeout(std::time::Duration::from_millis(500), &mut task).await {
++                Ok(Ok(())) => {},
++                Ok(Err(_)) => { self.reader_failed.store(true, Ordering::Release); },
++                Err(_) => {
++                    // A descendant may retain an inherited pipe after the direct child exits.
++                    // Do not detach a reader that can keep the whole session alive indefinitely.
++                    self.reader_failed.store(true, Ordering::Release);
++                    task.abort();
++                    let _ = task.await;
++                }
++            }
+         }
+     }
+ 
++    pub fn readers_completed(&self) -> bool {
++        !self.reader_failed.load(Ordering::Acquire)
++    }
++
+     async fn read_stream<T>(&self, mut stream: T, is_stdout: bool)
+     where
+         T: tokio::io::AsyncRead + Unpin,
+@@ -152,7 +168,10 @@ impl ExecSession {
+                         trim_buffer(&mut data, SESSION_BUFFER_BYTES);
+                     }
+                 }
+-                Err(_) => break,
++                Err(_) => {
++                    self.reader_failed.store(true, Ordering::Release);
++                    break;
++                }
+             }
+         }
+     }
+@@ -205,14 +224,14 @@ impl ExecSession {
+     pub fn retained_stream_bytes(&self, stream: &str) -> (Vec<u8>, usize) {
+         match stream {
+             "stderr" => {
+-                let data = self.stderr.lock().expect("stderr lock").clone();
++                let data = self.stderr.lock().expect("stderr lock");
+                 let total = *self.stderr_total.lock().expect("stderr_total lock");
+-                (data, total)
++                (data.clone(), total)
+             }
+             _ => {
+-                let data = self.stdout.lock().expect("stdout lock").clone();
++                let data = self.stdout.lock().expect("stdout lock");
+                 let total = *self.stdout_total.lock().expect("stdout_total lock");
+-                (data, total)
++                (data.clone(), total)
+             }
+         }
+     }
+diff --git a/src-tauri/src/tools/异步命令v1.rs b/src-tauri/src/tools/异步命令v1.rs
+index 451e96a..2c55d45 100644
+--- a/src-tauri/src/tools/异步命令v1.rs
++++ b/src-tauri/src/tools/异步命令v1.rs
+@@ -65,7 +65,7 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
+         let background = ctx.background_snapshot();
+         let mut command = args.clone();
+         command.as_object_mut().expect("validated object").remove("request_id");
+-        command["workdir"] = json!(cwd.path);
++        command["workdir"] = json!(cwd.display);
+         command["timeout_ms"] = json!(timeout_ms);
+         command["yield_time_ms"] = json!(0);
+         command["max_output_bytes"] = json!(1024);
+diff --git a/src-tauri/tests/call_tool_contract.rs b/src-tauri/tests/call_tool_contract.rs
+index 8b7599f..16e09a1 100644
+--- a/src-tauri/tests/call_tool_contract.rs
++++ b/src-tauri/tests/call_tool_contract.rs
+@@ -208,7 +208,10 @@ fn core_profile_keeps_the_default_capabilities_and_adds_history_tools() {
+         .copied()
+         .collect::<std::collections::HashSet<_>>();
+     assert_eq!(names, expected);
+-    assert_eq!(names.len(), 26);
++    assert_eq!(names.len(), 30);
++    for name in ["start_exec_task", "get_exec_task", "list_exec_tasks", "cancel_exec_task"] {
++        assert!(names.contains(name));
++    }
+     assert!(names.contains("grep_text"));
+     assert!(names.contains("history_session_bootstrap"));
+     assert!(names.contains("history_session_checkpoint"));
