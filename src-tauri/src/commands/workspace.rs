@@ -43,7 +43,12 @@ pub fn update_workspace(state: State<'_, AppState>, mut profile: WorkspaceProfil
         crate::workspace::endpoint::normalize_profile_tunnels(&current, &mut profile, &store.settings())
             .map_err(AppError::Message)?;
         validate_workspace_resources_update(store.list(), &current, &profile)?;
-        store.update(profile)
+        let guards = if current.path != profile.path {
+            super::exec_tasks::pause_workspace_tasks(&current)?
+        } else { Vec::new() };
+        store.update(profile)?;
+        for guard in guards { guard.commit(); }
+        Ok(())
     })
 }
 
@@ -61,6 +66,7 @@ pub fn delete_workspace(state: State<'_, AppState>, id: String) -> AppResult<()>
             .cloned()
             .ok_or_else(|| AppError::Message(format!("workspace not found: {id}")))
     })?;
+    let guards = super::exec_tasks::pause_workspace_tasks(&profile)?;
     tauri::async_runtime::block_on(drop_tunnel_workspace(&id))?;
     state.with_runtime(|runtime| {
         runtime.drop_workspace(&profile);
@@ -71,5 +77,7 @@ pub fn delete_workspace(state: State<'_, AppState>, id: String) -> AppResult<()>
             teardown_workspace(store, &id)?;
         }
         Ok(())
-    })
+    })?;
+    for guard in guards { guard.commit(); }
+    Ok(())
 }

@@ -7,6 +7,7 @@
     type ActionsPolicyDraft,
   } from "$lib/components/ActionsPolicyForm.svelte";
   import AuthConfigForm from "$lib/components/AuthConfigForm.svelte";
+  import TaskPanel from "$lib/components/异步任务面板v2.svelte";
   import HealthPanel from "$lib/components/HealthPanel.svelte";
   import LogViewer from "$lib/components/LogViewer.svelte";
   import RuntimePolicyForm, {
@@ -58,7 +59,7 @@
   } from "$lib/types";
 
   type ServiceTab = "mcp" | "actions";
-  type SubTab = "config" | "logs" | "health";
+  type SubTab = "config" | "logs" | "health" | "tasks";
 
   let profile = $state<WorkspaceProfile | null>(null);
   let mcpStatus = $state<RuntimeState>("stopped");
@@ -81,6 +82,7 @@
   const subTabs = [
     { value: "config", label: "配置" },
     { value: "logs", label: "日志" },
+    { value: "tasks", label: "异步任务" },
     { value: "health", label: "健康" },
   ];
 
@@ -413,6 +415,20 @@
     }
   }
 
+  async function saveTaskBudget(service: ServiceTab, maxTimeoutMs: number) {
+    if (!profile) return;
+    const targetId = workspaceId;
+    const next: WorkspaceProfile = service === "mcp"
+      ? { ...profile, runtime: { ...profile.runtime, max_task_timeout_ms: maxTimeoutMs } }
+      : { ...profile, actions: { ...actionsConfig(profile), max_task_timeout_ms: maxTimeoutMs } };
+    await updateWorkspace(next);
+    if (workspaceId !== targetId) return;
+    profile = next;
+    await load();
+    if (workspaceId !== targetId) return;
+    await promptServiceRestart((service === "mcp" ? mcpStatus : actionsStatus) === "running", service.toUpperCase() + " 服务");
+  }
+
   async function saveMcpPolicy(draft: RuntimePolicyDraft) {
     if (!profile) return;
     const next: WorkspaceProfile = {
@@ -669,6 +685,8 @@
               />
             </div>
           </div>
+        {:else if mcpSubTab === "tasks"}
+          <TaskPanel workspaceId={workspaceId!} channel="mcp" maxTimeoutMs={profile.runtime.max_task_timeout_ms ?? 86400000} onBudgetSave={(ms) => saveTaskBudget("mcp", ms)} />
         {:else if mcpSubTab === "logs"}
           <div class="mt-4">
             <LogViewer workspaceId={workspaceId!} service="mcp" />
@@ -753,6 +771,8 @@
               />
             </div>
           </div>
+        {:else if actionsSubTab === "tasks"}
+          <TaskPanel workspaceId={workspaceId!} channel="actions" maxTimeoutMs={actions.max_task_timeout_ms ?? 86400000} onBudgetSave={(ms) => saveTaskBudget("actions", ms)} />
         {:else if actionsSubTab === "logs"}
           <div class="mt-4">
             <LogViewer workspaceId={workspaceId!} service="actions" />

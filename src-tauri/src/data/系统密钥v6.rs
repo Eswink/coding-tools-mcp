@@ -34,12 +34,12 @@ impl KeyStore for NativeKeyStore {
     }
 }
 
-#[cfg(not(test))]
+#[cfg(any(not(test), feature = "native-keyring-tests"))]
 pub(super) fn default_keys() -> &'static dyn KeyStore {
     &NativeKeyStore
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "native-keyring-tests")))]
 pub(super) fn default_keys() -> &'static dyn KeyStore {
     static KEYS: std::sync::OnceLock<MemoryKeys> = std::sync::OnceLock::new();
     KEYS.get_or_init(MemoryKeys::default)

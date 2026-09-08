@@ -51,6 +51,25 @@ impl<'a> Vault<'a> {
         atomic_replace(path, encrypted.as_bytes())
     }
 
+    /// A task namespace reuses ONE key, rather than leaking a credential entry
+    /// for every completed job. Scope binding also rejects copied ciphertext.
+    pub(super) fn read_scoped(&self, path: &Path, key_id: &str) -> AppResult<Zeroizing<String>> {
+        let raw = read_bounded(path)?;
+        let envelope = codec::parse_envelope(&raw)?.ok_or_else(|| AppError::Message("任务记录必须加密；原文件已保留。".into()))?;
+        if envelope.key_id != key_id { return Err(AppError::Message("任务记录不属于当前命名空间。".into())); }
+        codec::open(&envelope, self.keys)
+    }
+
+    pub(super) fn write_scoped(&self, path: &Path, plaintext: &str, key_id: &str, allow_create: bool) -> AppResult<()> {
+        match read_bounded(path) {
+            Ok(_) => { let _verified = self.read_scoped(path, key_id)?; },
+            Err(AppError::Io(err)) if err.kind() == std::io::ErrorKind::NotFound => {},
+            Err(err) => return Err(err),
+        }
+        let encrypted = codec::seal(plaintext, key_id, allow_create, self.keys)?;
+        atomic_replace(path, encrypted.as_bytes())
+    }
+
     pub(super) fn protect_legacy(&self, path: &Path) -> AppResult<()> {
         let (raw, encrypted) = self.read(path)?;
         if !encrypted { self.write(path, &raw)?; }

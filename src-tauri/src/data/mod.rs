@@ -1,3 +1,6 @@
+#[path = "任务快照v2.rs"]
+mod task_archive;
+pub(crate) use task_archive::TaskArchive;
 #[path = "系统密钥v6.rs"]
 mod key_store;
 #[path = "配置加密v6.rs"]

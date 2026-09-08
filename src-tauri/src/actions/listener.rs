@@ -131,7 +131,7 @@ async fn serve(
     shutdown: oneshot::Receiver<()>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let workspace = tools::Workspace::new(workspace_path.clone()).map_err(|e| e.message())?;
-    let ctx = Arc::new(ToolContext::from_workspace(
+    let mut ctx = ToolContext::from_workspace(
         workspace,
         crate::workspace::AuthConfig {
             auth_type: auth_type.clone(),
@@ -140,7 +140,9 @@ async fn serve(
         policy.clone(),
         "full".into(),
         policy.permission_mode.clone(),
-    ));
+    );
+    ctx.enable_durable_tasks(profile_id, "actions");
+    let ctx = Arc::new(ctx);
     let tools: Vec<Value> = tools::list_tools()
         .into_iter()
         .filter(|tool| {

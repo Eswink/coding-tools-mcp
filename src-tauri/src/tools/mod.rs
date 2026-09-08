@@ -1,6 +1,10 @@
+#[path = "进程树v2.rs"]
+pub(crate) mod process_tree;
 pub mod context;
 pub mod dispatch;
 pub mod exec;
+#[path = "异步命令v1.rs"]
+pub mod exec_tasks;
 pub mod file;
 pub mod git;
 pub mod history;

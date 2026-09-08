@@ -1,3 +1,6 @@
+#[path = "异步任务v2.rs"]
+mod exec_tasks;
+pub use exec_tasks::control_exec_tasks;
 mod app_info;
 mod frp_profiles;
 mod health;

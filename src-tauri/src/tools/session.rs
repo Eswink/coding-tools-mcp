@@ -69,6 +69,10 @@ pub struct ExecSession {
     exited: AtomicBool,
     termination_reason: Mutex<Option<String>>,
     reader_tasks: AsyncMutex<Vec<tauri::async_runtime::JoinHandle<()>>>,
+    reader_failed: AtomicBool,
+    process_tree: Mutex<Option<crate::tools::process_tree::ProcessTree>>,
+    managed: bool,
+    tree_cleanup_failed: AtomicBool,
 }
 
 impl ExecSession {
@@ -95,6 +99,23 @@ impl ExecSession {
             exited: AtomicBool::new(false),
             termination_reason: Mutex::new(None),
             reader_tasks: AsyncMutex::new(Vec::new()),
+            reader_failed: AtomicBool::new(false),
+            process_tree: Mutex::new(None),
+            managed: false,
+            tree_cleanup_failed: AtomicBool::new(false),
+        }
+    }
+
+    pub(crate) fn new_managed(child: Child, tree: crate::tools::process_tree::ProcessTree) -> Self {
+        let mut session = Self::new_with_mode(child, false);
+        session.managed = true;
+        *session.process_tree.lock().expect("process tree") = Some(tree);
+        session
+    }
+
+    fn terminate_tree(&self) {
+        if let Some(mut tree) = self.process_tree.lock().expect("process tree").take() {
+            if tree.terminate().is_err() { self.tree_cleanup_failed.store(true, Ordering::Release); }
         }
     }
 
@@ -125,9 +146,23 @@ impl ExecSession {
 
     pub async fn wait_for_readers(&self) {
         let mut tasks = self.reader_tasks.lock().await;
-        while let Some(task) = tasks.pop() {
-            let _ = tokio::time::timeout(std::time::Duration::from_millis(500), task).await;
+        while let Some(mut task) = tasks.pop() {
+            match tokio::time::timeout(std::time::Duration::from_millis(if self.managed { 5000 } else { 500 }), &mut task).await {
+                Ok(Ok(())) => {},
+                Ok(Err(_)) => { self.reader_failed.store(true, Ordering::Release); },
+                Err(_) => {
+                    // A descendant may retain an inherited pipe after the direct child exits.
+                    // Do not detach a reader that can keep the whole session alive indefinitely.
+                    self.reader_failed.store(true, Ordering::Release);
+                    task.abort();
+                    let _ = task.await;
+                }
+            }
         }
+    }
+
+    pub fn readers_completed(&self) -> bool {
+        !self.reader_failed.load(Ordering::Acquire)
     }
 
     async fn read_stream<T>(&self, mut stream: T, is_stdout: bool)
@@ -152,12 +187,16 @@ impl ExecSession {
                         trim_buffer(&mut data, SESSION_BUFFER_BYTES);
                     }
                 }
-                Err(_) => break,
+                Err(_) => {
+                    self.reader_failed.store(true, Ordering::Release);
+                    break;
+                }
             }
         }
     }
 
     pub async fn kill_and_wait(&self) {
+        self.terminate_tree();
         let status = {
             let mut child = self.child.lock().await;
             let _ = child.start_kill();
@@ -176,6 +215,7 @@ impl ExecSession {
     }
 
     fn record_exit_status(&self, status: std::process::ExitStatus) {
+        self.terminate_tree();
         *self.exit_code.lock().expect("exit_code lock") = status.code();
         self.exited.store(true, Ordering::Release);
         *self.stdin_open.lock().expect("stdin_open lock") = false;
@@ -205,14 +245,14 @@ impl ExecSession {
     pub fn retained_stream_bytes(&self, stream: &str) -> (Vec<u8>, usize) {
         match stream {
             "stderr" => {
-                let data = self.stderr.lock().expect("stderr lock").clone();
+                let data = self.stderr.lock().expect("stderr lock");
                 let total = *self.stderr_total.lock().expect("stderr_total lock");
-                (data, total)
+                (data.clone(), total)
             }
             _ => {
-                let data = self.stdout.lock().expect("stdout lock").clone();
+                let data = self.stdout.lock().expect("stdout lock");
                 let total = *self.stdout_total.lock().expect("stdout_total lock");
-                (data, total)
+                (data.clone(), total)
             }
         }
     }
@@ -255,6 +295,7 @@ impl ExecSession {
             },
             "exit_code": exit_code,
             "transport_ok": true,
+            "process_may_be_running": self.tree_cleanup_failed.load(Ordering::Acquire),
             "command_ok": command_ok,
             "stdout": stdout.content,
             "stderr": stderr.content,
