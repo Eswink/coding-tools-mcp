@@ -16,6 +16,7 @@ pub struct ToolContext {
     pub harness: Harness,
     default_cwd: Mutex<PathBuf>,
     pub sessions: Arc<SessionStore>,
+    pub exec_tasks: Arc<crate::tools::exec_tasks::ExecTaskStore>,
 }
 
 pub type SharedToolContext = Arc<ToolContext>;
@@ -72,6 +73,7 @@ impl ToolContext {
             harness: Harness::new(root.clone(), harness_root).expect("无法初始化 Harness"),
             default_cwd: Mutex::new(root),
             sessions: Arc::new(SessionStore::new()),
+            exec_tasks: Arc::new(crate::tools::exec_tasks::ExecTaskStore::default()),
         }
     }
 
@@ -88,6 +90,16 @@ impl ToolContext {
             "trusted".into(),
             harness_root,
         ))
+    }
+
+    /// Snapshot policy/cwd at acceptance; share the existing service-owned task/session stores.
+    pub(crate) fn background_snapshot(&self) -> Self {
+        Self {
+            workspace: self.workspace.clone(), auth: self.auth.clone(), policy: self.policy.clone(),
+            tool_profile: self.tool_profile.clone(), permission_mode: self.permission_mode.clone(),
+            harness: self.harness.clone(), default_cwd: Mutex::new(self.default_cwd_path()),
+            sessions: self.sessions.clone(), exec_tasks: self.exec_tasks.clone(),
+        }
     }
 
     pub fn workspace_path(&self) -> String {

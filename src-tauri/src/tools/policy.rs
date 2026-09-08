@@ -181,7 +181,7 @@ pub fn validate_tool_arguments_for_workspace(
     workspace: Option<&Workspace>,
 ) -> Result<(), PolicyError> {
     match tool_name {
-        "exec_command" => validate_command_for_workspace(arguments, policy, workspace),
+        "exec_command" | "start_exec_task" => validate_command_for_workspace(arguments, policy, workspace),
         "apply_patch" | "patch_check" => validate_patch(arguments, policy),
         _ => Ok(()),
     }
@@ -439,7 +439,7 @@ fn command_contains_external_path(command: &str) -> bool {
     let normalized = command.replace('\\', "/");
     normalized.contains("../")
         || normalized.contains("..\\")
-        || regex::Regex::new(r#"(?i)(^|["'\s])/[^"]"#)
+        || regex::Regex::new(r#"(?i)(^|["'\s])/[^\"]"#)
             .expect("valid regex")
             .is_match(&normalized)
         || regex::Regex::new(r"(?i)\b[A-Z]:/")
