@@ -37,3 +37,20 @@ pub async fn control_exec_tasks(state: State<'_, AppState>, id: String, channel:
         Ok(crate::tools::call_tool(&ctx, tool, &args))
     }).await.map_err(|_| AppError::Message("任务管理线程异常；请重新查询，不要重跑命令。".into()))?
 }
+
+
+/// Fence both service namespaces before a destructive workspace metadata change.
+/// Keeping these Arcs alive also prevents a racing listener from creating a new
+/// independent admission state. External removal of a project directory does not
+/// hide an already-live executor from this check.
+pub(super) fn pause_workspace_tasks(profile: &WorkspaceProfile) -> AppResult<Vec<crate::tools::exec_tasks::TaskAdmissionGuard>> {
+    use crate::tools::exec_tasks::ExecTaskStore;
+    let mut stores = ExecTaskStore::live_for_profile(&profile.id);
+    if std::path::Path::new(&profile.path).is_dir() {
+        for channel in ["mcp", "actions"] {
+            let store = context(profile, channel)?.exec_tasks;
+            if !stores.iter().any(|existing| std::sync::Arc::ptr_eq(existing, &store)) { stores.push(store); }
+        }
+    }
+    stores.iter().map(|store| store.pause_admission().map_err(|e| AppError::Message(e.message()))).collect()
+}

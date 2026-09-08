@@ -9,17 +9,38 @@ use super::{record, state::{error, Job}};
 
 type Registry = Mutex<HashMap<PathBuf, Weak<ExecTaskStore>>>;
 static STORES: OnceLock<Registry> = OnceLock::new();
+static RETIRED_ROOTS: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
+
+/// Pause admission under the same lock as reserve. Failed workspace updates
+/// reopen admission; a committed removal retires stale listener handles.
+pub(crate) struct TaskAdmissionGuard { store: Arc<ExecTaskStore>, committed: bool }
+impl TaskAdmissionGuard {
+    pub(crate) fn commit(mut self) {
+        if let Some(root) = &self.store.root {
+            RETIRED_ROOTS.get_or_init(|| Mutex::new(HashSet::new())).lock()
+                .expect("retired task namespaces").insert(root.clone());
+        }
+        self.committed = true;
+    }
+}
+impl Drop for TaskAdmissionGuard {
+    fn drop(&mut self) {
+        if !self.committed { self.store.inner.lock().expect("job store").accepting = true; }
+    }
+}
 
 struct Inner {
     jobs: HashMap<String, Arc<Job>>,
     archive: Option<Arc<TaskArchive>>,
     initialized: bool,
+    accepting: bool,
 }
 
 /// Same-process service restarts share a supervisor. A new process restores only
 /// records; it never replays a command or acts on a stale PID.
 pub struct ExecTaskStore {
     inner: Mutex<Inner>, root: Option<PathBuf>,
+    profile_id: Mutex<Option<String>>,
     max_active: usize, max_retained: usize, ttl: Duration,
 }
 
@@ -29,22 +50,45 @@ impl Default for ExecTaskStore {
 
 impl ExecTaskStore {
     fn memory(active: usize, retained: usize, ttl: Duration) -> Self {
-        Self { inner: Mutex::new(Inner {jobs: HashMap::new(), archive: None, initialized: true}),
-            root: None, max_active: active, max_retained: retained, ttl }
+        Self { inner: Mutex::new(Inner {jobs: HashMap::new(), archive: None, initialized: true, accepting: true}),
+            root: None, profile_id: Mutex::new(None), max_active: active, max_retained: retained, ttl }
     }
 
     pub(crate) fn shared(root: PathBuf) -> Arc<Self> {
         let mut stores = STORES.get_or_init(|| Mutex::new(HashMap::new())).lock().expect("task registry");
         stores.retain(|_, store| store.strong_count() > 0);
         if let Some(store) = stores.get(&root).and_then(Weak::upgrade) { return store; }
-        let store = Arc::new(Self { root: Some(root.clone()),
-            inner: Mutex::new(Inner { jobs: HashMap::new(), archive: None, initialized: false }),
+        let accepting = !RETIRED_ROOTS.get_or_init(|| Mutex::new(HashSet::new()))
+            .lock().expect("retired task namespaces").contains(&root);
+        let store = Arc::new(Self { root: Some(root.clone()), profile_id: Mutex::new(None),
+            inner: Mutex::new(Inner { jobs: HashMap::new(), archive: None, initialized: false, accepting }),
             max_active: 4, max_retained: 32, ttl: Duration::from_secs(3600) });
         stores.insert(root, Arc::downgrade(&store));
         store
     }
 
     pub(crate) fn persistent(&self) -> bool { self.root.is_some() }
+
+    pub(crate) fn bind_profile(&self, profile_id: &str) {
+        *self.profile_id.lock().expect("task owner") = Some(profile_id.to_owned());
+    }
+
+    pub(crate) fn live_for_profile(profile_id: &str) -> Vec<Arc<Self>> {
+        STORES.get_or_init(|| Mutex::new(HashMap::new())).lock().expect("task registry")
+            .values().filter_map(Weak::upgrade)
+            .filter(|store| store.profile_id.lock().expect("task owner").as_deref() == Some(profile_id)).collect()
+    }
+
+    pub(crate) fn pause_admission(self: &Arc<Self>) -> Result<TaskAdmissionGuard, WorkspaceError> {
+        let mut inner = self.inner.lock().expect("job store");
+        self.initialize(&mut inner)?;
+        if !inner.accepting || inner.jobs.values().any(|job| job.data.lock().expect("job state").holds_capacity()) {
+            return Err(error("EXEC_TASK_WORKSPACE_BUSY", "Cannot remove or relocate a workspace with active or unconfirmed tasks. Cancel/inspect tasks first.", false));
+        }
+        inner.accepting = false;
+        Ok(TaskAdmissionGuard { store: self.clone(), committed: false })
+    }
+
 
     fn initialize(&self, inner: &mut Inner) -> Result<(), WorkspaceError> {
         if inner.initialized { return Ok(()); }
@@ -87,6 +131,9 @@ impl ExecTaskStore {
                 return Err(error("IDEMPOTENCY_CONFLICT", "request_id already belongs to different command parameters", false));
             }
             return Ok((job.clone(), false));
+        }
+        if !inner.accepting {
+            return Err(error("EXEC_TASK_WORKSPACE_RETIRED", "Workspace is being changed or was removed; query existing results, do not execute through the old listener.", false));
         }
         let active = inner.jobs.values().filter(|job| job.data.lock().expect("job state").holds_capacity()).count();
         if active >= self.max_active || inner.jobs.len() >= self.max_retained {

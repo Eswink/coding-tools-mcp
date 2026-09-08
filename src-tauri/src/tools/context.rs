@@ -115,6 +115,7 @@ impl ToolContext {
         let namespace = format!("{:x}", Sha256::digest(identity));
         let root = self.harness.store_root().join("exec-tasks-v2").join(namespace);
         self.exec_tasks = crate::tools::exec_tasks::ExecTaskStore::shared(root);
+        self.exec_tasks.bind_profile(profile_id);
     }
 
     pub fn workspace_path(&self) -> String {

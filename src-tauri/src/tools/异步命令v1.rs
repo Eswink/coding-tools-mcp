@@ -19,6 +19,7 @@ mod store;
 #[path = "任务记录v2.rs"]
 mod record;
 pub use store::ExecTaskStore;
+pub(crate) use store::TaskAdmissionGuard;
 pub use protocol::input_schema;
 
 fn object<'a>(args: &'a Value, allowed: &[&str]) -> Result<&'a serde_json::Map<String, Value>, WorkspaceError> {

@@ -234,3 +234,53 @@ fn wall_clock_adjustment_does_not_invalidate_completed_records() {
     let restored = super::record::restore(value).unwrap();
     assert_eq!(restored.summary()["status"], "succeeded");
 }
+
+#[test]
+fn workspace_admission_fence_rolls_back_or_retires_without_losing_results() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("tasks");
+    let store = ExecTaskStore::shared(root.clone());
+    let (job, _) = store.reserve("done", "fp", 1000).unwrap();
+    assert!(store.pause_admission().is_err(), "active tasks prevent removal");
+    job.finish(Status::Succeeded, json!({"command_ok":true,"exit_code":0}));
+    store.checkpoint(&job).unwrap();
+    let guard = store.pause_admission().unwrap();
+    assert!(store.reserve("late", "fp", 1000).is_err());
+    assert!(store.get(&job.id).is_ok(), "queries still work during fencing");
+    drop(guard);
+    let guard = store.pause_admission().unwrap();
+    guard.commit();
+    assert!(store.reserve("late", "fp", 1000).is_err());
+    let id = job.id.clone(); drop(job); drop(store);
+    let stale = ExecTaskStore::shared(root);
+    assert!(stale.get(&id).is_ok(), "retired namespace results remain available");
+    assert!(stale.reserve("late", "fp", 1000).is_err(), "recreating old context cannot bypass retirement");
+}
+
+#[test]
+fn workspace_fence_and_parallel_admission_have_exactly_one_winner() {
+    for _ in 0..16 {
+        let store = Arc::new(ExecTaskStore::default());
+        let barrier = Arc::new(std::sync::Barrier::new(2));
+        let other = store.clone(); let start = barrier.clone();
+        let submit = std::thread::spawn(move || { start.wait(); other.reserve("race", "fp", 1000).is_ok() });
+        barrier.wait();
+        let guard = store.pause_admission();
+        let submitted = submit.join().unwrap();
+        assert_ne!(guard.is_ok(), submitted, "removal and command admission cannot both win");
+    }
+}
+
+#[test]
+fn live_profile_lookup_does_not_require_the_project_directory_to_exist() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = ExecTaskStore::shared(dir.path().join("journal"));
+    let id = uuid::Uuid::new_v4().to_string();
+    store.bind_profile(&id);
+    let (job, _) = store.reserve("unconfirmed", "fp", 1000).unwrap();
+    job.finish(Status::Interrupted, json!({"command_ok":false,"process_may_be_running":true}));
+    let found = ExecTaskStore::live_for_profile(&id);
+    assert_eq!(found.len(), 1);
+    assert!(found[0].pause_admission().is_err(), "unknown processes still own capacity");
+    assert!(ExecTaskStore::live_for_profile("different-profile").is_empty());
+}
