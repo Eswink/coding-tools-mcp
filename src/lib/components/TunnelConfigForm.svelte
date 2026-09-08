@@ -32,11 +32,13 @@
     workspaceId: string;
     service: "mcp" | "actions";
     localPort?: number;
+    activePublicOrigin?: string;
+    onTested?: () => void | Promise<void>;
     config: TunnelFormConfig;
     onSave: (config: TunnelFormConfig, options?: SaveTunnelOptions) => void | Promise<void>;
   }
 
-  let { workspaceId, service, localPort = 28766, config, onSave }: Props = $props();
+  let { workspaceId, service, localPort = 28766, activePublicOrigin = "", onTested, config, onSave }: Props = $props();
   let draft = $state<TunnelFormConfig>({
     type: "none", public_url: "", frp_server: "", frp_subdomain: "",
     frp_profile_id: "", frp_server_port: 7000, frp: defaultFrpOptions(),
@@ -126,7 +128,7 @@
       payload.public_url = normalizeNamedOrigin(draft.public_url);
     } else if (isQuick) {
       // A cached temporary address is informational, not a domain binding.
-      payload.public_url = isQuickTunnelOrigin(draft.public_url) ? normalizePublicOrigin(draft.public_url) : "";
+      payload.public_url = "";
     } else if (draft.type === "none") {
       payload.public_url = draft.public_url.trim() ? normalizePublicOrigin(draft.public_url) : "";
     } else {
@@ -160,7 +162,7 @@
       validatedDraft();
       if (dirty) await saveDraft({ skipTunnelRestart: true, skipServicePrompt: true });
       const result = await invokeTunnelTest(workspaceId, service);
-      if (result.publicUrl && isQuick) draft.public_url = result.publicUrl;
+      await onTested?.();
       showToast(`${result.message}${result.publicUrl ? `\n${result.publicUrl}` : ""}`, {
         title: result.success ? "隧道测试完成" : "测试未完成",
         kind: result.success ? "success" : "warning", duration: 8000,
@@ -319,8 +321,8 @@
         <p class="text-xs text-[var(--color-text-muted)]">从临时域名迁移后可能需要一次重新配置 / 授权。正常重启不再换域名；凭据过期或撤销仍需重新授权。</p>
       {:else if isQuick}
         <p class="text-xs text-[var(--color-text-muted)]">临时测试模式不适合长期绑定 ChatGPT。缓存地址或启用 HTTP/2 不会固定域名。</p>
-        <label class="grid gap-1"><span class="text-xs">最近发现的临时地址（不表示当前在线）</span>
-          <input class="tx-input font-mono" readonly value={draft.public_url} placeholder="启动后自动生成" />
+        <label class="grid gap-1"><span class="text-xs">当前运行时发现的临时地址（公网可用性仍需健康检查）</span>
+          <input class="tx-input font-mono" readonly value={activePublicOrigin} placeholder="启动后自动生成" />
         </label>
       {/if}
       <label class="flex items-center gap-2 text-xs"><input type="checkbox" bind:checked={draft.cloudflare_http2} />优先使用 HTTP/2（关闭后由 cloudflared 自动选择传输协议）</label>
