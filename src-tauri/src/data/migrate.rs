@@ -1,42 +1,60 @@
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::error::{AppError, AppResult};
+#[cfg(not(test))]
 use crate::platform::platform;
 use crate::settings::AppSettings;
 
 use super::model::{AppData, LegacyProfilesOnlyFile};
+use super::{key_store::default_keys, secure_file::Vault};
+use zeroize::Zeroizing;
 
 const CURRENT_SCHEMA_VERSION: u32 = 1;
 
 const LEGACY_PROFILES_FILE: &str = "profiles.json";
 const LEGACY_SETTINGS_FILE: &str = "app_settings.json";
 
+#[cfg(not(test))]
+fn app_root() -> AppResult<PathBuf> { platform().app_config_dir() }
+
+#[cfg(test)]
+fn app_root() -> AppResult<PathBuf> {
+    // Unit-test keys must never encrypt a real user's configuration.
+    static ROOT: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();
+    Ok(ROOT.get_or_init(|| tempfile::tempdir().expect("isolated unit data root")).path().to_path_buf())
+}
+
 pub fn data_file_path() -> AppResult<PathBuf> {
-    Ok(platform().app_config_dir()?.join("data").join("profiles.json"))
+    Ok(app_root()?.join("data").join("profiles.json"))
+}
+
+fn read_current(path: &Path) -> AppResult<AppData> {
+    let vault = Vault::new(default_keys());
+    let (raw, encrypted) = vault.read(path)?;
+    let data = decode_data(&raw, path)?;
+    // Validation precedes migration: damaged/future snapshots are never rewritten.
+    if !encrypted { write_data(path, &data)?; }
+    Ok(data)
 }
 
 pub fn load_or_migrate() -> AppResult<AppData> {
     let path = data_file_path()?;
-    if path.exists() {
-        let raw = fs::read_to_string(&path)?;
-        return decode_data(&raw, &path);
-    }
+    if path.try_exists()? { return read_current(&path); }
 
-    let app_root = platform().app_config_dir()?;
+    let app_root = app_root()?;
     let mut data = AppData::default();
 
     let legacy_profiles = app_root.join(LEGACY_PROFILES_FILE);
     if legacy_profiles.exists() {
-        let raw = fs::read_to_string(&legacy_profiles)?;
+        let (raw, _) = Vault::new(default_keys()).read(&legacy_profiles)?;
         let file: LegacyProfilesOnlyFile = decode_json(&raw, &legacy_profiles)?;
         data.profiles = file.profiles;
     }
 
     let legacy_settings = app_root.join(LEGACY_SETTINGS_FILE);
     if legacy_settings.exists() {
-        let raw = fs::read_to_string(&legacy_settings)?;
+        let (raw, _) = Vault::new(default_keys()).read(&legacy_settings)?;
         let settings: AppSettings = decode_json(&raw, &legacy_settings)?;
         merge_settings(&mut data, settings);
     }
@@ -85,56 +103,25 @@ pub fn save(data: &AppData) -> AppResult<()> {
     write_data(&path, data)
 }
 
-/// Commit point is the same-directory rename. Never delete the destination first.
+/// Encrypt the validated snapshot before creating any file or temporary file.
 fn write_data(path: &Path, data: &AppData) -> AppResult<()> {
-    let parent = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
-    fs::create_dir_all(parent)?;
     let normalized = migrate_data(data.clone())?;
-    let text = serde_json::to_string_pretty(&normalized)?;
-    let temporary = parent.join(format!(".profiles-{}.tmp", uuid::Uuid::new_v4()));
-    let mut options = fs::OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    let mut file = options.open(&temporary)?;
-    // The guard only owns the newly created path, never a pre-existing destination.
-    let _cleanup = TemporaryFile(temporary.clone());
-    file.write_all(text.as_bytes())?;
-    file.write_all(b"\n")?;
-    file.sync_all()?;
-    drop(file);
-    fs::rename(&temporary, path)?;
-    #[cfg(unix)]
-    if let Err(error) = fs::File::open(parent).and_then(|dir| dir.sync_all()) {
-        // Rename already committed. Returning Err now could trigger a false rollback.
-        eprintln!("配置已原子替换，但目录持久化同步失败：{error}");
-    }
-    Ok(())
-}
-
-struct TemporaryFile(PathBuf);
-
-impl Drop for TemporaryFile {
-    fn drop(&mut self) {
-        let _ = fs::remove_file(&self.0);
-    }
+    let text = Zeroizing::new(serde_json::to_string_pretty(&normalized)?);
+    Vault::new(default_keys()).write(path, &text)
 }
 
 pub fn maybe_backup_legacy_files(path: &Path) -> AppResult<()> {
-    if !path.exists() {
-        return Ok(());
-    }
-    let app_root = platform().app_config_dir()?;
+    if !path.try_exists()? { return Ok(()); }
+    // Only app-managed legacy paths, not external user backups or other apps.
+    let root = app_root()?;
+    let vault = Vault::new(default_keys());
     for name in [LEGACY_PROFILES_FILE, LEGACY_SETTINGS_FILE] {
-        let legacy = app_root.join(name);
-        if legacy.exists() {
-            let backup = app_root.join(format!("{name}.bak"));
-            if !backup.exists() {
-                let _ = fs::rename(&legacy, &backup);
-            }
+        let legacy = root.join(name);
+        let backup = root.join(format!("{name}.bak"));
+        if backup.try_exists()? { vault.protect_legacy(&backup)?; }
+        if legacy.try_exists()? {
+            vault.protect_legacy(&legacy)?;
+            if !backup.try_exists()? { fs::rename(&legacy, &backup)?; }
         }
     }
     Ok(())
@@ -180,11 +167,11 @@ mod tests {
     fn atomic_replace_writes_complete_json_and_leaves_no_temp_file() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("profiles.json");
-        fs::write(&path, "old file").unwrap();
+        fs::write(&path, "{\"last_workspace_id\":\"old\"}").unwrap();
         let mut data = AppData::default();
         data.last_workspace_id = "new-workspace".into();
         write_data(&path, &data).unwrap();
-        let restored = decode_data(&fs::read_to_string(&path).unwrap(), &path).unwrap();
+        let restored = read_current(&path).unwrap();
         assert_eq!(restored.last_workspace_id, "new-workspace");
         assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
     }
@@ -245,6 +232,32 @@ mod tests {
         assert!(migrated.profiles[0].tunnel.public_url.is_empty());
         assert_eq!(migrated.profiles[0].actions.public_url, "https://actions.example.com");
         assert_eq!(migrated.shared_secrets["oauth_token_secret"], "unchanged-signing-key");
+    }
+
+    #[test]
+    fn plaintext_migration_preserves_secrets_extensions_and_is_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("profiles.json");
+        let raw = r#"{"shared_secrets":{"oauth_token_secret":"migration-canary-v6"},"extension":{"retained":true}}"#;
+        fs::write(&path, raw).unwrap();
+        let first = read_current(&path).unwrap();
+        assert_eq!(first.shared_secrets["oauth_token_secret"], "migration-canary-v6");
+        assert_eq!(serde_json::to_value(&first).unwrap()["extension"]["retained"], true);
+        let encrypted = fs::read_to_string(&path).unwrap();
+        assert!(!encrypted.contains("migration-canary-v6"));
+        assert_eq!(read_current(&path).unwrap().shared_secrets, first.shared_secrets);
+        assert_eq!(fs::read_to_string(&path).unwrap(), encrypted);
+    }
+
+    #[test]
+    fn invalid_or_future_plaintext_is_not_rewritten_on_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("profiles.json");
+        for raw in ["{", "[]", "null", r#"{"schema_version":99}"#] {
+            fs::write(&path, raw).unwrap();
+            assert!(read_current(&path).is_err());
+            assert_eq!(fs::read_to_string(&path).unwrap(), raw);
+        }
     }
 
 }
