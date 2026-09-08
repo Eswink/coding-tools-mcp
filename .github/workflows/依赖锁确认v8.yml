@@ -1,0 +1,77 @@
+name: 依赖锁确认v8
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+    paths: ['.github/workflows/依赖锁确认v8.yml']
+permissions:
+  contents: read
+jobs:
+  archive-reviewed:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/feat/固定公网入口v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 65d07b48716e7ecdbad80270b09a0f9103405bd3
+          persist-credentials: false
+      - name: 校验固定候选并生成五个已知Git对象（不创建提交）
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTPUT_DIR: ${{ runner.temp }}/版本依赖对象v8
+        shell: python
+        run: |
+          import base64, hashlib, io, json, os, subprocess, urllib.request, urllib.parse, zipfile
+          from pathlib import Path
+          class SafeRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  target = urllib.parse.urlparse(newurl)
+                  if target.scheme != 'https' or not (target.hostname or '').endswith(('.blob.core.windows.net', '.githubusercontent.com')):
+                      raise RuntimeError('unexpected artifact redirect')
+                  redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+                  redirected.remove_header('Authorization')
+                  redirected.remove_header('Cookie')
+                  return redirected
+          opener = urllib.request.build_opener(SafeRedirect())
+          api = 'https://api.github.com/repos/Eswink/coding-tools-mcp'
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'}
+          req = urllib.request.Request(api + '/actions/artifacts/10049416236/zip', headers=headers)
+          with opener.open(req, timeout=60) as response:
+              raw = response.read(1_000_000)
+          assert hashlib.sha256(raw).hexdigest() == '74a063ab132f4167d5577beaa142df8acf1a97a75beea778fc77930a06747f9a'
+          with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+              assert json.loads(archive.read('修复后审计.json'))['metadata']['vulnerabilities']['total'] == 0
+              for name in ('package.json', 'package-lock.json'):
+                  Path(name).write_bytes(archive.read(name))
+          subprocess.run(['python', 'scripts/版本递增v7.py', '--from-version', '0.2.2', '--version', '0.2.3', '--apply'], check=True)
+          expected = {
+              'package.json': '5aec1c43938735df9e148d03a38cd00a8bbd3130',
+              'package-lock.json': '73b086161048861842e8cff4c24c69d9405844f2',
+              'src-tauri/Cargo.toml': '33c4be3edd84d17ff8a451fc37a4238c95db55af',
+              'src-tauri/Cargo.lock': '4e2a4d89bb5a1ddf86c5741963daea8b3d8f7407',
+              'src-tauri/tauri.conf.json': '31342a2091ca69dedc541caff4616b41f46a0fad'
+          }
+          data = {name: Path(name).read_bytes() for name in expected}
+          for name, content in data.items():
+              assert hashlib.sha1(('blob %d\0' % len(content)).encode() + content).hexdigest() == expected[name]
+          result = {}
+          for name, content in data.items():
+              body = json.dumps({'content': base64.b64encode(content).decode(), 'encoding': 'base64'}).encode()
+              req = urllib.request.Request(api + '/git/blobs', data=body, headers=headers, method='POST')
+              with opener.open(req, timeout=60) as response:
+                  saved = json.load(response)
+              assert saved['sha'] == expected[name]
+              result[name] = saved['sha']
+          output = Path(os.environ['OUTPUT_DIR'])
+          output.mkdir(parents=True)
+          (output/'对象确认v8.json').write_text(json.dumps({'objects': result, 'ref_updated': False}, indent=2), encoding='utf-8')
+          print(json.dumps(result))
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 版本依赖对象v8
+          path: ${{ runner.temp }}/版本依赖对象v8/
+          retention-days: 14
+          if-no-files-found: error
