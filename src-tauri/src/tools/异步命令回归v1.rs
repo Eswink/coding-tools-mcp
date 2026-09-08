@@ -141,9 +141,14 @@ fn noninteractive_stdin_is_closed() {
 fn default_cwd_is_captured_at_submission() {
     let (root, _harness, ctx) = fixture();
     std::fs::create_dir(root.path().join("nested")).unwrap();
-    ctx.set_default_cwd(root.path().join("nested"));
+    // Exercise the public setter: it canonicalizes Windows verbatim path prefixes.
+    let configured = crate::tools::call_tool(&ctx, "set_default_cwd", &json!({"path":"nested"}));
+    assert_eq!(configured["ok"], true, "{configured}");
+    assert_eq!(configured["default_cwd"], "nested");
     let a = submit(&ctx, "cwd", "from pathlib import Path; Path('correct.txt').write_text('ok')", 5000);
-    ctx.set_default_cwd(root.path().to_path_buf());
+    assert_eq!(a["ok"], true, "{a}");
+    let reset = crate::tools::call_tool(&ctx, "set_default_cwd", &json!({"path":"."}));
+    assert_eq!(reset["ok"], true, "{reset}");
     assert_eq!(await_terminal(&ctx, a["job_id"].as_str().unwrap())["status"], "succeeded");
     assert!(root.path().join("nested/correct.txt").exists());
     assert!(!root.path().join("correct.txt").exists());
