@@ -38,22 +38,6 @@ struct ListenerState {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn spawn_listener(
-    port: u16,
-    workspace_path: PathBuf,
-    workspace_id: String,
-    auth: AuthConfig,
-    public_base_url: String,
-    oauth_client_secret: Option<String>,
-    oauth_password: Option<String>,
-    oauth_token_secret: Option<String>,
-    runtime: RuntimeConfig,
-) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>), String> {
-    spawn_listener_with_origin(port, workspace_path, workspace_id, auth,
-        public_base_url.into(), oauth_client_secret, oauth_password, oauth_token_secret, runtime)
-}
-
-#[allow(clippy::too_many_arguments)]
 pub fn spawn_listener_with_origin(
     port: u16,
     workspace_path: PathBuf,

@@ -40,25 +40,6 @@ struct AppState {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn spawn_listener(
-    workspace_id: &str,
-    actions_port: u16,
-    workspace_path: PathBuf,
-    public_base_url: String,
-    auth_type: String,
-    api_key: Option<String>,
-    oauth_client_id: String,
-    oauth_client_secret: Option<String>,
-    oauth_password: Option<String>,
-    oauth_token_secret: Option<String>,
-    policy: PolicySettings,
-) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>), String> {
-    spawn_listener_with_origin(workspace_id, actions_port, workspace_path,
-        public_base_url.into(), auth_type, api_key, oauth_client_id, oauth_client_secret,
-        oauth_password, oauth_token_secret, policy)
-}
-
-#[allow(clippy::too_many_arguments)]
 pub fn spawn_listener_with_origin(
     workspace_id: &str,
     actions_port: u16,
