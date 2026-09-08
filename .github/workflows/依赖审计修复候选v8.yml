@@ -1,0 +1,44 @@
+name: 依赖审计修复候选v8
+on:
+  push:
+    branches: ['feat/固定公网入口v1']
+    paths: ['.github/workflows/依赖审计修复候选v8.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 生成兼容版本的锁文件候选并执行审计（不提交源码）
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/依赖候选v8"
+          mkdir -p "$out"
+          git rev-parse HEAD > "$out/来源版本.txt"
+          cp package-lock.json "$out/原锁文件.json"
+          npm audit fix --package-lock-only --ignore-scripts
+          git diff --exit-code -- package.json
+          cp package-lock.json "$out/package-lock.json"
+          npm audit --json > "$out/修复后审计.json"
+          npm ci --ignore-scripts
+          npm run check
+          npm run build
+          node --test tests/运行时入口连接v6.test.mjs
+          git diff -- package-lock.json > "$out/锁文件差异.patch"
+          sha256sum "$out/package-lock.json" > "$out/锁文件摘要.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 依赖审计修复候选v8
+          path: ${{ runner.temp }}/依赖候选v8/
+          retention-days: 14
+          if-no-files-found: error
