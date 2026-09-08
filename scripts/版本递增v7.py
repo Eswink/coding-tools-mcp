@@ -34,7 +34,7 @@ def plan(root: Path, previous: str, version: str) -> dict[str, bytes]:
             text = json.dumps(data, ensure_ascii=False, indent=2) + '\n'
         else:
             prefix = (r'(^\[\[package\]\]\s*\nname = "' + re.escape(PACKAGE) + r'"\s*\nversion = ")'
-                      if name.endswith('.lock') else r'(^\[package\]\n(?:(?!^\[).)*?^version = ")')
+                      if name.endswith('.lock') else r'(^\[package\]\r?\n(?:(?!^\[).)*?^version = ")')
             pattern = prefix + re.escape(previous) + r'(")'
             text, count = re.subn(pattern, lambda m: m[1] + version + m[2], text, flags=re.M | re.S)
             if count != 1:

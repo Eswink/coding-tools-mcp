@@ -64,6 +64,20 @@ class VersionTests(unittest.TestCase):
         with self.assertRaises(ValueError): plan(self.root, '0.2.1', '0.2.2')
         self.assertEqual(before, self.original())
 
+    def test_crlf_toml_preserves_line_endings_and_dependency_versions(self):
+        for name in ('src-tauri/Cargo.toml', 'src-tauri/Cargo.lock'):
+            file = self.root / name
+            file.write_bytes(file.read_bytes().replace(b'\r\n', b'\n').replace(b'\n', b'\r\n'))
+        before = self.original()
+        updates = plan(self.root, '0.2.1', '0.2.2')
+        self.assertEqual(before, self.original())
+        for name in ('src-tauri/Cargo.toml', 'src-tauri/Cargo.lock'):
+            self.assertEqual(updates[name], before[name].replace(b'version = "0.2.1"', b'version = "0.2.2"', 1))
+            self.assertNotIn(b'\n', updates[name].replace(b'\r\n', b''))
+        for name, raw in updates.items():
+            (self.root / name).write_bytes(raw)
+        self.assertEqual(project_versions(self.root)[0], '0.2.2')
+
 
 if __name__ == '__main__':
     unittest.main()
