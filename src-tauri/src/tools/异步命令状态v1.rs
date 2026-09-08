@@ -49,6 +49,14 @@ pub(super) struct JobData {
     pub completed_at: Option<u64>,
 }
 
+impl JobData {
+    fn holds_capacity(&self) -> bool {
+        !self.status.terminal()
+            || (self.result.as_ref().and_then(|r| r.get("process_may_be_running")) == Some(&Value::Bool(true))
+                && self.session.as_ref().is_none_or(|session| !session.has_exited()))
+    }
+}
+
 pub(super) struct Job {
     pub id: String,
     pub request_id: String,
@@ -166,7 +174,7 @@ impl ExecTaskStore {
     fn prune(&self, jobs: &mut HashMap<String, Arc<Job>>) {
         jobs.retain(|_, job| {
             let d = job.data.lock().expect("job state");
-            !d.finished.is_some_and(|ended| ended.elapsed() >= self.ttl)
+            d.holds_capacity() || !d.finished.is_some_and(|ended| ended.elapsed() >= self.ttl)
         });
     }
 
@@ -181,7 +189,7 @@ impl ExecTaskStore {
             }
             return Ok((job.clone(), false));
         }
-        let active = jobs.values().filter(|job| !job.data.lock().expect("job state").status.terminal()).count();
+        let active = jobs.values().filter(|job| job.data.lock().expect("job state").holds_capacity()).count();
         if active >= self.max_active || jobs.len() >= self.max_retained {
             return Err(error("EXEC_TASK_CAPACITY", "Task capacity reached; query existing tasks or retry the same request_id later", true));
         }

@@ -96,7 +96,7 @@ async fn actions_reuses_the_async_dispatcher_and_marks_submission_consequential(
     let port = port();
     let (stop, handle) = crate::actions::spawn_listener_with_origin(
         &uuid::Uuid::new_v4().to_string(), port, root.path().to_path_buf(),
-        PublicOrigin::managed("").unwrap(), "noauth".into(), None, String::new(), None, None, None,
+        PublicOrigin::managed("").unwrap(), "none".into(), None, String::new(), None, None, None,
         PolicySettings::default(),
     ).unwrap();
     let url = format!("http://127.0.0.1:{port}");
@@ -104,9 +104,13 @@ async fn actions_reuses_the_async_dispatcher_and_marks_submission_consequential(
     let schema: Value = client.get(format!("{url}/openapi.json")).send().await.unwrap().json().await.unwrap();
     assert_eq!(schema["paths"]["/actions/start_exec_task"]["post"]["x-openai-isConsequential"], true);
     assert_eq!(schema["paths"]["/actions/get_exec_task"]["post"]["x-openai-isConsequential"], false);
-    let accepted: Value = client.post(format!("{url}/actions/start_exec_task"))
+    let response = client.post(format!("{url}/actions/start_exec_task"))
         .json(&json!({"cmd":"echo actions-async", "request_id":"actions-job"}))
-        .send().await.unwrap().json().await.unwrap();
+        .send().await.unwrap();
+    let status = response.status();
+    let body = response.text().await.unwrap();
+    assert!(status.is_success(), "Actions submit failed: {status} {body}");
+    let accepted: Value = serde_json::from_str(&body).expect("successful JSON response");
     let id = accepted["structured_content"]["job_id"].as_str().unwrap();
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {

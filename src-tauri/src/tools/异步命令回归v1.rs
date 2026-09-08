@@ -209,7 +209,7 @@ fn expired_terminal_tasks_are_cleaned_but_live_ones_remain() {
     let store = ExecTaskStore::with_limits(2, 2, Duration::ZERO);
     let (one, _) = store.reserve("one", "fp", 500).unwrap();
     let (two, _) = store.reserve("two", "fp", 500).unwrap();
-    one.finish(Status::Succeeded, json!({}));
+    one.finish(Status::Succeeded, json!({"command_ok":true}));
     assert!(store.get(&one.id).is_err());
     assert!(store.get(&two.id).is_ok());
     let (again, _) = store.reserve("one", "fp", 500).unwrap();
@@ -289,4 +289,14 @@ fn timestamps_are_unix_milliseconds_and_do_not_drive_retention() {
     job.finish(Status::Succeeded, json!({"command_ok": true}));
     assert!(job.summary()["completed_at"].as_u64().is_some());
     assert!(store.get(&job.id).is_ok());
+}
+
+#[test]
+fn unconfirmed_termination_retains_capacity_and_deduplication_record() {
+    let store = ExecTaskStore::with_limits(1, 2, Duration::ZERO);
+    let (job, _) = store.reserve("unconfirmed", "fp", 1000).unwrap();
+    job.finish(Status::Failed, json!({"command_ok": false, "process_may_be_running": true}));
+    assert!(store.get(&job.id).is_ok(), "uncertain execution must not expire into an unsafe retry");
+    assert!(store.reserve("another", "fp", 1000).is_err());
+    assert!(!store.reserve("unconfirmed", "fp", 1000).unwrap().1);
 }
