@@ -1,13 +1,15 @@
-name: Ubuntu桌面构建v1
+name: 双平台Ubuntu验收v8
 on:
-  push:
-    branches: ['feat/Ubuntu桌面v1', 'release/Ubuntu桌面v1']
-  workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 concurrency:
-  group: ubuntu-desktop-v1-${{ github.ref }}
+  group: dual-ubuntu-v8-${{ github.ref }}
   cancel-in-progress: false
+env:
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  CARGO_TERM_COLOR: never
 jobs:
   validate:
     name: Ubuntu交付全量基线 (${{ matrix.os }})
@@ -34,8 +36,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/Ubuntu基线v1"
-          python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA"
-          for test in scripts/*回归v*.py; do python "$test"; done
+          python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA" 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/版本检查v8.log"
+          for test in scripts/*回归v*.py; do python "$test"; done 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/脚本回归v8.log"
       - name: Linux系统依赖
         if: runner.os == 'Linux'
         run: |
@@ -53,6 +55,9 @@ jobs:
           cargo check --locked --manifest-path src-tauri/Cargo.toml --all-targets 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/全目标检查v1.log"
           cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/完整Rust回归v1.log"
           cargo rustc --locked --manifest-path src-tauri/Cargo.toml --lib -- -D warnings 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/生产零警告v1.log"
+      - name: Windows兼容冷启动及会话20轮回归
+        if: runner.os == 'Windows'
+        run: python scripts/Windows兼容重复v8.py --output "$RUNNER_TEMP/Ubuntu基线v1"
       - name: 同端口listener重启连续20轮回归
         run: |
           set -euo pipefail
@@ -256,40 +261,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: ${{ runner.temp }}/Ubuntu全部证据v1
+          pattern: Ubuntu*
       - run: python scripts/Ubuntu发布v1.py --packages "$RUNNER_TEMP/Ubuntu全部证据v1/Ubuntu安装包v1" --evidence "$RUNNER_TEMP/Ubuntu全部证据v1" --output "$RUNNER_TEMP/Ubuntu候选发布v1" --source "$GITHUB_SHA"
       - uses: actions/upload-artifact@v4
         with:
           name: Ubuntu候选发布v1
           path: ${{ runner.temp }}/Ubuntu候选发布v1/
           retention-days: 14
-          if-no-files-found: error
-  publish:
-    name: 发布Ubuntu并匿名下载复核
-    if: github.ref == 'refs/heads/release/Ubuntu桌面v1' && github.repository == 'Eswink/coding-tools-mcp'
-    needs: [validate, build, native, acceptance]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 12
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - uses: actions/download-artifact@v4
-        with:
-          path: ${{ runner.temp }}/Ubuntu全部证据v1
-          pattern: Ubuntu*
-      - name: 显式已合并源码发布
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python scripts/Ubuntu发布v1.py --packages "$RUNNER_TEMP/Ubuntu全部证据v1/Ubuntu安装包v1" --evidence "$RUNNER_TEMP/Ubuntu全部证据v1" --output "$RUNNER_TEMP/Ubuntu正式发布v1" --source "$GITHUB_SHA" --publish
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: Ubuntu公开发布回执v1
-          path: ${{ runner.temp }}/Ubuntu正式发布v1/公开下载回执v1.json
-          retention-days: 30
           if-no-files-found: error

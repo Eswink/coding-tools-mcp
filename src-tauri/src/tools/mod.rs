@@ -23,3 +23,7 @@ pub use registry::{
     exposed_tool_names, is_allowed_tool, list_tools, list_tools_for_profile, MUTATING_TOOLS,
 };
 pub use workspace::{wrap_mcp_tool_result, wrap_tool_result, Workspace};
+
+#[cfg(all(test, windows))]
+#[path = "Windows执行回归v8.rs"]
+mod windows_regression_v8;
