@@ -756,29 +756,44 @@ mod tests {
             ToolContext::for_test(workspace.path().to_path_buf(), harness.path().to_path_buf())
                 .expect("context");
 
-        for command in [
-            "any-name.cmd",
-            "any-name.ps1",
-            "cmd /c echo tooling-cmd-ok",
-            "powershell -NoProfile -Command \"Write-Output tooling-powershell-ok\"",
-            "python -c \"print('中文输出正常 ✅')\"",
-        ] {
-            let output = call_tool(
-                &ctx,
-                "exec_command",
-                &json!({ "cmd": command, "timeout_ms": 10_000, "yield_time_ms": 10_000 }),
-            );
-            assert_eq!(output["ok"], true, "{command}: {output}");
-            assert_eq!(output["command_ok"], true, "{command}: {output}");
+        // This verifies runner/output correctness, not a 10-second cold-start SLO.
+        // Use the normal 30-second execution budget and wait explicitly; the
+        // separate 200ms deadline regression still verifies timeout enforcement.
+        const FUNCTIONAL_BUDGET_MS: u64 = 30_000;
+        for round in 1..=5 {
+            for (command, expected) in [
+                ("any-name.cmd", "tooling-cmd-ok"),
+                ("any-name.ps1", "tooling-powershell-ok"),
+                ("cmd /c echo tooling-cmd-ok", "tooling-cmd-ok"),
+                ("powershell -NoProfile -Command \"Write-Output tooling-powershell-ok\"", "tooling-powershell-ok"),
+                ("python -c \"print('中文输出正常 ✅')\"", "中文输出正常 ✅"),
+            ] {
+                let output = call_tool(
+                    &ctx,
+                    "exec_command",
+                    &json!({ "cmd": command, "timeout_ms": FUNCTIONAL_BUDGET_MS,
+                             "yield_time_ms": FUNCTIONAL_BUDGET_MS }),
+                );
+                assert_eq!(output["ok"], true, "round {round}: {command}: {output}");
+                assert_eq!(output["command_ok"], true, "round {round}: {command}: {output}");
+                assert_eq!(output["child_process"], true, "{command}: {output}");
+                assert_eq!(output["exit_code"], 0, "{command}: {output}");
+                assert_eq!(output["termination_reason"], "exited", "{command}: {output}");
+                assert!(output["stdout"].as_str().unwrap_or_default().contains(expected),
+                        "round {round}: expected {expected}: {output}");
+                eprintln!("runner round {round}/5: {command}; elapsed_ms={}", output["elapsed_ms"]);
+            }
         }
 
         for _ in 0..10 {
             let output = call_tool(
                 &ctx,
                 "exec_command",
-                &json!({ "cmd": "python -m workflow_probe", "timeout_ms": 10_000 }),
+                &json!({ "cmd": "python -m workflow_probe", "timeout_ms": FUNCTIONAL_BUDGET_MS,
+                         "yield_time_ms": FUNCTIONAL_BUDGET_MS }),
             );
             assert_eq!(output["command_ok"], true, "{output}");
+            assert_eq!(output["exit_code"], 0, "{output}");
             assert!(output["stdout"]
                 .as_str()
                 .unwrap_or_default()
