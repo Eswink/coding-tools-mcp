@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+from http.client import RemoteDisconnected
 import json
 import os
 from pathlib import Path
@@ -110,10 +111,25 @@ class NativeSession:
         self.call(f"element/{element_id}/click", {})
 
     def screenshot(self, path: Path) -> None:
-        raw = base64.b64decode(self.call("screenshot"), validate=True)
-        if not raw.startswith(b"\x89PNG\r\n\x1a\n") or len(raw) < 5000:
-            raise AssertionError("native screenshot is missing or invalid")
-        path.write_bytes(raw)
+        # GET screenshot is read-only. tauri-driver may reset an upstream
+        # connection while the same native session remains healthy. Recover
+        # this read only; never replay clicks, IPC, or command submissions.
+        for attempt in range(1, 4):
+            try:
+                encoded = self.call("screenshot")
+            except (RemoteDisconnected, ConnectionResetError) as exc:
+                if attempt == 3:
+                    raise
+                print(f"read-only screenshot transport recovery {attempt}/3: "
+                      f"{type(exc).__name__}", file=sys.stderr)
+                time.sleep(0.25 * attempt)
+                continue
+            # HTTP errors, timeouts and invalid image data remain failures.
+            raw = base64.b64decode(encoded, validate=True)
+            if not raw.startswith(b"\x89PNG\r\n\x1a\n") or len(raw) < 5000:
+                raise AssertionError("native screenshot is missing or invalid")
+            path.write_bytes(raw)
+            return
 
     def close(self) -> None:
         try:
