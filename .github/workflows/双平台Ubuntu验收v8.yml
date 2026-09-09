@@ -1,0 +1,271 @@
+name: 双平台Ubuntu验收v8
+on:
+  workflow_call:
+permissions:
+  contents: read
+concurrency:
+  group: dual-ubuntu-v8-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  CARGO_TERM_COLOR: never
+jobs:
+  validate:
+    name: Ubuntu交付全量基线 (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 初始化版本和发布脚本门禁
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/Ubuntu基线v1"
+          python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA" 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/版本检查v8.log"
+          for test in scripts/*回归v*.py; do python "$test"; done 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/脚本回归v8.log"
+      - name: Linux系统依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev dbus-x11 gnome-keyring
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: 完整Rust回归和生产库零警告
+        run: |
+          set -euo pipefail
+          cargo check --locked --manifest-path src-tauri/Cargo.toml --all-targets 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/全目标检查v1.log"
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/完整Rust回归v1.log"
+          cargo rustc --locked --manifest-path src-tauri/Cargo.toml --lib -- -D warnings 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/生产零警告v1.log"
+      - name: Windows兼容冷启动及会话20轮回归
+        if: runner.os == 'Windows'
+        run: python scripts/Windows兼容重复v8.py --output "$RUNNER_TEMP/Ubuntu基线v1"
+      - name: 同端口listener重启连续20轮回归
+        run: |
+          set -euo pipefail
+          for round in $(seq 1 20); do
+            echo "listener restart round $round/20"
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::exec_tasks::recovery_transport_tests::listener_restart_keeps_the_running_job_and_its_idempotency_key -- --exact --nocapture
+          done 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/重启重复回归v2.log"
+      - name: Linux原生密钥和跨进程恢复
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/Ubuntu密钥运行时v1"
+          export XDG_DATA_HOME="$RUNNER_TEMP/Ubuntu密钥数据v1"
+          mkdir -p "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME"
+          chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME"
+          dbus-run-session -- bash -euo pipefail -c '
+            printf "%s" "isolated-ubuntu-ci-v1" | gnome-keyring-daemon --unlock --components=secrets
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-keyring-tests data::secure_file::native_tests -- --nocapture --test-threads=1
+          ' 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/原生密钥v1.log"
+      - name: Windows原生密钥回归
+        if: runner.os == 'Windows'
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-keyring-tests data::secure_file::native_tests -- --nocapture --test-threads=1 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/原生密钥v1.log"
+      - name: 前端和日志回归
+        if: runner.os == 'Linux'
+        env:
+          TASK_PANEL_TEST_DIR: ${{ runner.temp }}/Ubuntu基线v1/浏览器面板v1
+        run: |
+          set -euo pipefail
+          npm ci
+          npm audit --json > "$RUNNER_TEMP/Ubuntu基线v1/npm审计v1.json"
+          python -c "import json,os;assert json.load(open(os.environ['RUNNER_TEMP']+'/Ubuntu基线v1/npm审计v1.json'))['metadata']['vulnerabilities']['total']==0"
+          npm run check
+          npm run build
+          node --test tests/运行时入口连接v6.test.mjs
+          mkdir -p "$RUNNER_TEMP/Ubuntu前端v1" "$TASK_PANEL_TEST_DIR"
+          printf '{"type":"commonjs"}\n' > "$RUNNER_TEMP/Ubuntu前端v1/package.json"
+          npx --no-install tsc src/lib/固定入口.ts src/lib/types.ts src/lib/任务日志v2.ts --strict --target ES2022 --module commonjs --outDir "$RUNNER_TEMP/Ubuntu前端v1"
+          ENTRY_TEST_BUILD="$RUNNER_TEMP/Ubuntu前端v1" node --test tests/固定入口v1.test.cjs
+          TASK_LOG_MODULE="$RUNNER_TEMP/Ubuntu前端v1/任务日志v2.js" node --test tests/任务日志回归v2.test.mjs
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps chromium
+          node scripts/任务面板浏览器构建v3.mjs
+          python tests/任务面板浏览器回归v3.py
+      - name: 记录成功门禁
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          python - <<'PY'
+          import json,os,pathlib
+          pathlib.Path(os.environ['RUNNER_TEMP'],'Ubuntu基线v1','基线结果v1.json').write_text(json.dumps({'passed':True,'source_sha':os.environ['GITHUB_SHA'],'version':'0.2.6'}))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Ubuntu基线v1-${{ matrix.os }}
+          path: ${{ runner.temp }}/Ubuntu基线v1/
+          retention-days: 14
+          if-no-files-found: error
+  build:
+    name: Ubuntu22.04构建DEB与AppImage
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 安装构建依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev patchelf libfuse2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: ubuntu22-desktop-v1
+      - name: 从已提交版本构建图形桌面包
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/Ubuntu构建证据v1"
+          python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA"
+          npm ci
+          npm run check
+          npm run tauri -- build --config src-tauri/Ubuntu桌面v1.json --bundles deb,appimage -- --locked 2>&1 | tee "$RUNNER_TEMP/Ubuntu构建证据v1/打包v1.log"
+          python scripts/AppImage入口配置v3.py --verify src-tauri/target/release/bundle/appimage/*.AppImage --output "$RUNNER_TEMP/Ubuntu构建证据v1/入口校验v3.json"
+          python scripts/Ubuntu安装验收v1.py prepare --directory . --output "$RUNNER_TEMP/Ubuntu安装包v1"
+      - name: 精确版本原生WebDriver
+        run: |
+          cargo install tauri-driver --version 2.0.6 --locked --root "$RUNNER_TEMP/Ubuntu驱动v1"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ubuntu安装包v1
+          path: ${{ runner.temp }}/Ubuntu安装包v1/
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ubuntu驱动v1
+          path: ${{ runner.temp }}/Ubuntu驱动v1/bin/tauri-driver
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Ubuntu构建证据v1
+          path: ${{ runner.temp }}/Ubuntu构建证据v1/
+          retention-days: 14
+  native:
+    name: 已安装桌面双格式验收 (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: Ubuntu安装包v1
+          path: ${{ runner.temp }}/Ubuntu安装包v1
+      - uses: actions/download-artifact@v4
+        with:
+          name: Ubuntu驱动v1
+          path: ${{ runner.temp }}/Ubuntu驱动v1
+      - name: 真正安装DEB并验证载荷
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-driver xvfb xauth fonts-noto-cjk desktop-file-utils gnome-keyring dbus-x11 xdg-desktop-portal xdg-desktop-portal-gtk libayatana-appindicator3-1 libxdo3
+          chmod +x "$RUNNER_TEMP/Ubuntu驱动v1/tauri-driver" "$RUNNER_TEMP/Ubuntu安装包v1/"*.AppImage
+          sudo apt-get install -y "$RUNNER_TEMP/Ubuntu安装包v1/"*.deb
+          mkdir -p "$RUNNER_TEMP/Ubuntu原生证据v1"
+          python scripts/Ubuntu安装验收v1.py installed --directory "$RUNNER_TEMP/Ubuntu安装包v1" --output "$RUNNER_TEMP/Ubuntu原生证据v1/安装载荷结果v1.json"
+      - name: 实际DEB和AppImage窗口与业务端到端
+        env:
+          GDK_BACKEND: x11
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          set -euo pipefail
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          script="$GITHUB_WORKSPACE/scripts/Ubuntu原生验收v1.py"
+          status=0
+          for kind in deb appimage; do
+            export HOME="$RUNNER_TEMP/Ubuntu桌面隔离v1-$kind"
+            export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+            mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+            chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+            touch "$HOME/.ubuntu-ci-fixture-v1"
+            app=/usr/bin/coding-tools-mcp-desktop
+            if [ "$kind" = appimage ]; then app="$RUNNER_TEMP/Ubuntu安装包v1/科研工具MCP_v0.2.6_Ubuntu_amd64.AppImage"; fi
+            output="$RUNNER_TEMP/Ubuntu原生证据v1/$kind"
+            mkdir -p "$output"
+            if ! xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash "$GITHUB_WORKSPACE/scripts/Ubuntu图形会话v2.sh" "$script" "$app" "$RUNNER_TEMP/Ubuntu驱动v1/tauri-driver" "$kind" "$output" 2>&1 | tee "$output/图形会话v2.log"; then
+              status=1
+            fi
+          done
+          exit "$status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Ubuntu原生验收v1-${{ matrix.os }}
+          path: ${{ runner.temp }}/Ubuntu原生证据v1/
+          retention-days: 14
+          if-no-files-found: error
+  acceptance:
+    name: 汇总同一源码全部交付证据
+    needs: [validate, build, native]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/Ubuntu全部证据v1
+          pattern: Ubuntu*
+      - run: python scripts/Ubuntu发布v1.py --packages "$RUNNER_TEMP/Ubuntu全部证据v1/Ubuntu安装包v1" --evidence "$RUNNER_TEMP/Ubuntu全部证据v1" --output "$RUNNER_TEMP/Ubuntu候选发布v1" --source "$GITHUB_SHA"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ubuntu候选发布v1
+          path: ${{ runner.temp }}/Ubuntu候选发布v1/
+          retention-days: 14
+          if-no-files-found: error
