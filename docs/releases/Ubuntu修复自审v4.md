@@ -1,0 +1,17 @@
+# Ubuntu修复自审v4：跨平台配置读取编码
+
+## v3真实门禁复审：90分，打回
+
+源码d4bdbe24fd49ca3d16abaee252dfe63cb21d6721，运行34359406073，Windows作业102492224980。新增AppImage专用配置包含中文beforeBundleCommand路径，既有test_linux_overlay_preserves_shared_product_identity使用Path.read_text默认编码，在Windows CP1252解码0x8f时报UnicodeDecodeError。新增15项入口测试中5项通用门禁通过、10项Linux专属跳过；随后既有21项套件的一项编码错误阻断后续Windows Rust步骤。不能用Linux或旧SHA结果冒充这次Windows通过。
+
+v3提交前96分仅批准CI，实际门禁存在失败，35/25/20/10=90分打回。AppImage新入口及其他仍运行的作业结果不在该失败结论中预先判为通过或失败；保留完整运行记录，不删除失败、不反复重跑碰绿。
+
+## 最小修复和先红后绿
+
+只将既有配置测试的read_text显式设置encoding="utf-8"，不转义/删除真实配置的中文路径，不设置全局PYTHONUTF8掩盖遗漏，不削弱Windows门禁，不改AppImage入口、生产Rust、依赖或GUI断言。
+
+新增Ubuntu编码回归v4.py：将Path.read_text未指定编码的情况模拟为CP1252，实际执行原来的配置身份测试。修复前复现同一UnicodeDecodeError；修复后通过，且断言调用明确使用UTF-8、中文beforeBundleCommand仍保持。这个测试同时在Windows和Linux执行，不按Windows跳过。
+
+本地共111项Python回归通过，新增1项、既有110项；本机Linux环境111项均执行，Windows上原有10项Linux入口专属测试仍按原条件跳过，不算通过。修改前GitNexus影响LOW，0调用和0产品流程。自审38/28/20/10=96，仅批准下一候选提交进入完整CI；必须等待最终SHA的全部基线、四份原生8组验收及发布门禁通过。
+
+自审为执行者审核，不是独立第三方审批。运行后评分、合并和Release公开下载回执继续在PR #4记录。本文件是提交前检查点，不能据此声称Ubuntu发布已完成。

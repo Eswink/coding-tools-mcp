@@ -176,7 +176,7 @@ class UbuntuReleaseTests(unittest.TestCase):
         self.assertNotIn("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", workflow)
 
     def test_linux_overlay_preserves_shared_product_identity(self):
-        config = json.loads((ROOT / "src-tauri/Ubuntu桌面v1.json").read_text())
+        config = json.loads((ROOT / "src-tauri/Ubuntu桌面v1.json").read_text(encoding="utf-8"))
         self.assertNotIn("productName", config)
         self.assertNotIn("identifier", config)
         self.assertEqual(config["bundle"]["targets"], ["deb", "appimage"])
