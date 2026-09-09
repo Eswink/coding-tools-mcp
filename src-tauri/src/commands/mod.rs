@@ -1,6 +1,9 @@
 #[path = "异步任务v2.rs"]
 mod exec_tasks;
 pub use exec_tasks::control_exec_tasks;
+#[path = "聊天授权v1.rs"]
+mod chat_authorization;
+pub use chat_authorization::chat_authorization_control;
 mod app_info;
 mod frp_profiles;
 mod health;

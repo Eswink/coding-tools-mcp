@@ -196,6 +196,7 @@ pub fn run() {
             regenerate_shared_secret,
             read_workspace_logs,
             control_exec_tasks,
+            chat_authorization_control,
             list_frp_profiles,
             save_frp_profile,
             delete_frp_profile,

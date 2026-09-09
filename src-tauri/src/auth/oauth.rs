@@ -133,6 +133,7 @@ pub fn authorization_server_metadata(base_url: &str, client_secret: Option<&str>
     let base = base_url.trim_end_matches('/');
     let methods = token_endpoint_auth_methods(client_secret);
     json!({
+        "scopes_supported": ["mcp"],
         "issuer": base,
         "authorization_endpoint": format!("{base}/oauth/authorize"),
         "token_endpoint": format!("{base}/oauth/token"),
@@ -146,6 +147,7 @@ pub fn authorization_server_metadata(base_url: &str, client_secret: Option<&str>
 pub fn protected_resource_metadata(base_url: &str) -> Value {
     let base = base_url.trim_end_matches('/');
     json!({
+        "scopes_supported": ["mcp"],
         "resource": base,
         "authorization_servers": [base],
         "bearer_methods_supported": ["header"],

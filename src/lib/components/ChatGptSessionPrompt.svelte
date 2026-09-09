@@ -3,7 +3,8 @@
   import { onDestroy } from "svelte";
   import { showToast } from "$lib/stores/toast";
 
-  const sessionPrompt = `请初始化或恢复当前项目会话，先调用 history_session_bootstrap，并把我的首次请求逐字传入 initial_user_input。
+  const sessionPrompt = `请先确认当前聊天的 OAuth 连接和 auth_status。若尚未授权，请调用 request_chat_authorization 申请 workspace.read、files.read、files.write、exec.run、task.read、task.manage、history.read、history.write、harness.write，并显示会话指纹，让我在本机桌面核对审批。不得要求我将密码或令牌发送到聊天。未获准前不得调用任何业务工具，不要连续轮询。
+获准后，请初始化或恢复当前项目会话，先调用 history_session_bootstrap，并把我的首次请求逐字传入 initial_user_input。
 如果没有历史记录，则创建首个 history-session；如果已有历史记录，先阅读返回的有界 state。
 需要早期精确细节时，先调用 history_session_search，再用 history_session_read 分页读取相关原始 Markdown，并根据 next_cursor 继续直到完成；不要要求 bootstrap 返回全部历史。
 本会话每轮任务完成后调用 history_session_checkpoint，并原样传入 bootstrap 返回的 session_key 和 current_path，以及我本轮请求的逐字 raw_user_input。
@@ -66,7 +67,7 @@
           ChatGPT 新会话启动提示词
         </h3>
         <p class="mt-0.5 text-xs leading-5 text-[var(--color-text-muted)]">
-          首次使用会初始化历史；后续新会话会自动恢复已有进度。
+          每个新聊天须本机批准；获准后仅恢复该聊天的归档，跨聊天迁移须由本机操作者另行处理。
         </p>
       </div>
     </div>

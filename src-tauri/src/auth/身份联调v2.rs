@@ -61,7 +61,8 @@ fn client() -> reqwest::Client {
 fn token(origin: &str) -> String {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
     encode(&Header::default(), &json!({
-        "iss": origin, "aud": origin, "iat": now, "exp": now + 600, "scope": "mcp"
+        "iss": origin, "aud": origin, "iat": now, "nbf": now, "exp": now + 600, "scope": "mcp",
+        "sub":"desktop-owner", "client_id":"test-client", "jti":"identity-fixture"
     }), &EncodingKey::from_secret(KEY.as_bytes())).unwrap()
 }
 
@@ -108,7 +109,7 @@ async fn actions_openapi_metadata_and_bearer_share_the_live_origin() {
     assert_eq!(document["servers"][0]["url"], origin.snapshot());
     assert_eq!(metadata(&listener.base).await["issuer"], origin.snapshot());
     assert_eq!(authorized_status(&listener.base, true, &old).await, 401);
-    assert_eq!(authorized_status(&listener.base, true, &token(&origin.snapshot())).await, 200);
+    assert_eq!(authorized_status(&listener.base, true, &token(&origin.snapshot())).await, 422); // OAuth valid, conversation unavailable: fail closed.
     listener.stop().await;
 }
 

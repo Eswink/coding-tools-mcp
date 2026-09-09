@@ -1,5 +1,7 @@
 #[path = "进程树v2.rs"]
 pub(crate) mod process_tree;
+#[path = "聊天运行域v1.rs"]
+pub(crate) mod chat_domain;
 pub mod context;
 pub mod dispatch;
 pub mod exec;
