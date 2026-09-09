@@ -13,6 +13,10 @@ fi
 # GUI/WebKit helpers need the bundled libraries. Keep the user's suffix;
 # Python configuration, executable search PATH and arguments stay intact.
 export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# Use the bundled GIO ABI, including its real GnuTLS module. EXTRA alone
+# would still load newer host modules against the bundled older GLib.
+export GIO_MODULE_DIR="$APPDIR/usr/lib/x86_64-linux-gnu/gio/modules"
+export GIO_EXTRA_MODULES="$GIO_MODULE_DIR"
 # Release WebKit ignores WEBKIT_EXEC_PATH and linuxdeploy rewrites its helper
 # paths relative to usr. Retain the original AppRun GUI cwd contract; tool
 # execution still selects the workspace cwd explicitly in the Rust engine.

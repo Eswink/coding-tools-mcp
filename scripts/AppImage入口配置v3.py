@@ -77,6 +77,17 @@ def verify_helpers(appdir: Path) -> dict:
     return result
 
 
+def verify_gio_module(appdir: Path) -> dict:
+    path = appdir / "usr/lib/x86_64-linux-gnu/gio/modules/libgiognutls.so"
+    if not path.is_file() or not path.resolve().is_relative_to(appdir.resolve()):
+        raise RuntimeError("bundled GIO TLS module is missing or escaped")
+    with path.open("rb") as stream:
+        header = stream.read(20)
+    if len(header) < 20 or header[:6] != b"\x7fELF\x02\x01" or header[18:20] != b"\x3e\x00":
+        raise RuntimeError("bundled GIO TLS module is not Linux amd64")
+    return {"sha256": digest(path), "size": path.stat().st_size}
+
+
 def verify(root: Path, image: Path, output: Path) -> dict:
     source = root / LAUNCHER
     with tempfile.TemporaryDirectory(prefix="apprun-proof-v3-") as scratch:
@@ -98,6 +109,7 @@ def verify(root: Path, image: Path, output: Path) -> dict:
                   "cli_version": CLI_VERSION, "launcher_sha256": digest(inner),
                   "appimage_sha256": digest(image), "gtk_hook_retained": True,
                   "webkit_helpers": verify_helpers(appdir), "gui_cwd": "APPDIR/usr",
+                  "gio_tls_module": verify_gio_module(appdir),
                   "scope": "final package entry bytes; native host Python is a separate GUI gate"}
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
