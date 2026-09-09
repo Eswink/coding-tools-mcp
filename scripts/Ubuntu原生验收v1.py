@@ -13,6 +13,7 @@ from pathlib import Path
 import platform
 import signal
 import socket
+import sys
 import subprocess
 import time
 import urllib.error
@@ -179,9 +180,10 @@ def run(args) -> None:
                 "platform": platform.platform(), "executable": str(args.executable.resolve()),
                 "real_native_webview": True, "mock_transport": False, "sandbox_disabled": False,
                 "appimage_mode": "extract-and-run" if args.kind == "appimage" else None,
-                "tests": []}
+                "host_python_environment_preserved": False, "tests": []}
     session = None
     profile = None
+    original_python_env = {}
     def passed(name):
         evidence["tests"].append({"name": name, "passed": True})
     try:
@@ -192,6 +194,18 @@ def run(args) -> None:
         home = Path.home().resolve()
         if not (home / ".ubuntu-ci-fixture-v1").is_file():
             raise RuntimeError("refusing to modify a non-fixture user profile")
+        # A valid custom host Python setup must survive the packaged launcher.
+        # This is an isolated test profile, never a user's existing environment.
+        modules = home / "主机Python模块v3"
+        modules.mkdir()
+        (modules / "主机环境v3.py").write_text(
+            "import os,sys\ndef check():\n"
+            + f"    assert os.environ.get('PYTHONHOME') == {sys.base_prefix!r}\n"
+            + f"    assert os.environ.get('PYTHONPATH') == {str(modules)!r}\n"
+            + f"    assert sys.base_prefix == {sys.base_prefix!r}\n",
+            encoding="utf-8")
+        original_python_env = {key: os.environ.get(key) for key in ("PYTHONHOME", "PYTHONPATH")}
+        os.environ.update(PYTHONHOME=sys.base_prefix, PYTHONPATH=str(modules))
         session = NativeSession(args.executable.resolve(), args.driver.resolve(), output, 1)
         assert session.invoke("plugin:app|version") == VERSION
         wait_for(session.body, lambda text: "添加你的第一个工作区" in text and VERSION in text)
@@ -215,7 +229,7 @@ def run(args) -> None:
         for channel, start in [("mcp", "start_runtime"), ("actions", "start_actions_runtime")]:
             session.invoke(start, {"id": profile["id"]})
             expected = f"Ubuntu {channel} 中文验收v1"
-            params = {"cmd": f"python3 -c \"print('{expected}')\"", "request_id": f"Ubuntu-{channel}-v1", "timeout_ms": 30000}
+            params = {"cmd": f"python3 -c \"import 主机环境v3; 主机环境v3.check(); print('{expected}')\"", "request_id": f"Ubuntu-{channel}-v1", "timeout_ms": 30000}
             accepted = tool(profile, channel, "start_exec_task", params)
             job = accepted["job_id"]
             repeated = tool(profile, channel, "start_exec_task", params)
@@ -227,6 +241,7 @@ def run(args) -> None:
             jobs[channel] = job
             passed(f"真实{channel} HTTP异步执行、幂等和中文输出")
         assert jobs["mcp"] != jobs["actions"]
+        evidence["host_python_environment_preserved"] = True
         session.click_text("异步任务")
         wait_for(session.body, lambda text: "Ubuntu mcp 中文验收v1" in text and "退出码：0" in text)
         session.screenshot(output / "异步任务面板v1.png")
@@ -280,6 +295,11 @@ def run(args) -> None:
     finally:
         if session:
             session.close()
+        for key, value in original_python_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
         (output / "原生验收结果v1.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(json.dumps({"passed": evidence["passed"], "tests": len(evidence["tests"]), "format": args.kind}, ensure_ascii=False))
     if not evidence["passed"]:

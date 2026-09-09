@@ -29,6 +29,8 @@ def validate_reports(evidence: Path, source: str) -> list[dict]:
             require(result.get("version") == VERSION and result.get("format") == kind, "native format/version mismatch")
             require(result.get("real_native_webview") is True and result.get("mock_transport") is False,
                     "native transport must not be mocked")
+            require(result.get("host_python_environment_preserved") is True,
+                    "host Python environment was not validated")
             require(result.get("sandbox_disabled") is False and len(result["tests"]) == 8,
                     "incomplete native acceptance or sandbox bypass")
             require(all(item.get("passed") is True for item in result["tests"]), "native subtest failed")
@@ -66,7 +68,7 @@ def compose(packages: Path, evidence: Path, output: Path, source: str, root: Pat
     archive = output / f"Ubuntu-evidence_v{VERSION}.zip"
     # Enumerate known evidence names, not arbitrary JSON/log files from every artifact.
     # acceptance and publish download different artifact sets; that must not alter bytes.
-    allowed = ["Ubuntu构建证据v1/打包v1.log"]
+    allowed = ["Ubuntu构建证据v1/打包v1.log", "Ubuntu构建证据v1/入口校验v3.json"]
     for system in ("ubuntu-24.04", "windows-latest"):
         for name in ("基线结果v1.json", "全目标检查v1.log", "完整Rust回归v1.log",
                      "生产零警告v1.log", "原生密钥v1.log", "npm审计v1.json", "重启重复回归v2.log"):

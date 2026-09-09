@@ -32,7 +32,7 @@ class UbuntuReleaseTests(unittest.TestCase):
                 path = self.report(system, kind)
                 path.parent.mkdir(parents=True)
                 path.write_text(json.dumps({"passed": True, "source_sha": SOURCE, "version": VERSION,
-                    "format": kind, "real_native_webview": True, "mock_transport": False, "sandbox_disabled": False,
+                    "format": kind, "real_native_webview": True, "mock_transport": False, "sandbox_disabled": False, "host_python_environment_preserved": True,
                     "tests": [{"name": f"case-{i}", "passed": True} for i in range(8)]}))
             (path.parent.parent / "安装载荷结果v1.json").write_text(json.dumps({"passed": True, "source_sha": SOURCE, "version": VERSION}))
         for system in ("ubuntu-24.04", "windows-latest"):

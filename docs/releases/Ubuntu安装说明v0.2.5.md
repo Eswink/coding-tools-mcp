@@ -47,6 +47,8 @@ chmod +x MCP_0.2.5_amd64.AppImage
 ./MCP_0.2.5_amd64.AppImage
 ```
 
+AppImage 专用启动入口不覆写用户的 `PYTHONHOME`、`PYTHONPATH` 或 `PATH`，保留正常宿主 Python/虚拟环境的选择；GUI 仍会使用包内 GTK 和动态库，并保留原动态库路径后缀。有效自定义 Python 环境随原生 MCP/Actions 验收，不能外推到所有第三方动态链接工具或完整 Conda 组合。
+
 AppImage 也需要图形桌面、D-Bus 和已解锁的 Secret Service；不是完全不依赖系统服务的便携版。缺少这些服务时，先在 Ubuntu Desktop 安装 `gnome-keyring dbus-user-session libayatana-appindicator3-1` 并正常登录桌面。DEB 会由 apt 处理声明依赖，故优先推荐 DEB。
 
 若系统提示缺少 FUSE，可使用运行时提供的解压运行方式，而不是关闭 WebKit 沙箱或以 root 运行：
@@ -83,3 +85,7 @@ GNOME 托盘可见性取决于桌面启用的 AppIndicator 支持。本轮验证
 - Tauri AppImage：<https://v2.tauri.app/distribute/appimage/>
 - Tauri 原生 WebDriver：<https://v2.tauri.app/develop/tests/webdriver/manual-setup/>
 - tauri-driver 固定版本 2.0.6：<https://v2.tauri.app/release/tauri-driver/>
+
+## 源码构建入口
+
+本仓库 Ubuntu 构建使用 `npm run tauri -- build --config src-tauri/Ubuntu桌面v1.json --bundles deb,appimage -- --locked`。专用配置自动执行 `beforeBundleCommand`，从当前 Git 源码重建项目本地 `target/.tauri/AppRun-x86_64`；构建需要 Python 3 和 Rust，安装成品打开界面则不需要。CLI 版本发生变化时入口集成会拒绝构建，需重新核对上游打包行为，不应删除版本或入口校验来强行发布。

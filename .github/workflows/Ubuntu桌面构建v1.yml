@@ -151,6 +151,7 @@ jobs:
           npm ci
           npm run check
           npm run tauri -- build --config src-tauri/Ubuntu桌面v1.json --bundles deb,appimage -- --locked 2>&1 | tee "$RUNNER_TEMP/Ubuntu构建证据v1/打包v1.log"
+          python scripts/AppImage入口配置v3.py --verify src-tauri/target/release/bundle/appimage/*.AppImage --output "$RUNNER_TEMP/Ubuntu构建证据v1/入口校验v3.json"
           python scripts/Ubuntu安装验收v1.py prepare --directory . --output "$RUNNER_TEMP/Ubuntu安装包v1"
       - name: 精确版本原生WebDriver
         run: |
