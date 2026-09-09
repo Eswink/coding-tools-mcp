@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: d853813ff066906d770825ad251ab9b5b31bed77
+          ref: cc8f730b98ecc661b75e990cf2e360ee9bdfe42d
           persist-credentials: false
       - name: 仅归档已提交公开源码和Git模式
         shell: bash
