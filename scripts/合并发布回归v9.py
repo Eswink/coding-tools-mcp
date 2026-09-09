@@ -12,9 +12,16 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = (ROOT / '.github/workflows/合并验收发布v9.yml').read_text(encoding='utf-8')
 PREP = (ROOT / '.github/workflows/版本准备v9.yml').read_text(encoding='utf-8')
 
+def next_fixture_version():
+    current, _ = project_versions(ROOT)
+    major, minor, patch = map(int, current.split('.'))
+    return current, f'{major}.{minor}.{patch + 1}'
+
+
 class MergedReleaseTests(unittest.TestCase):
     def test_six_versions_and_idempotent_plan(self):
-        updates = plan(ROOT, '0.2.3', '0.2.4')
+        current, candidate = next_fixture_version()
+        updates = plan(ROOT, current, candidate)
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory)
             for name in FILES:
@@ -22,12 +29,13 @@ class MergedReleaseTests(unittest.TestCase):
                 output.parent.mkdir(parents=True, exist_ok=True)
                 output.write_bytes(updates.get(name, (ROOT/name).read_bytes()))
             version, fields = project_versions(target)
-            self.assertEqual(version, '0.2.4')
+            self.assertEqual(version, candidate)
             self.assertEqual(len(fields), 6)
-            self.assertEqual(plan(target, '0.2.3', '0.2.4'), {})
+            self.assertEqual(plan(target, current, candidate), {})
 
     def test_dependency_graph_unchanged(self):
-        updates = plan(ROOT, '0.2.3', '0.2.4')
+        current, candidate = next_fixture_version()
+        updates = plan(ROOT, current, candidate)
         for name in ('package-lock.json', 'src-tauri/Cargo.lock'):
             parse = tomllib.loads if name.endswith('.lock') else json.loads
             before = parse((ROOT/name).read_text(encoding='utf-8'))
