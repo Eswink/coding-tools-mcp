@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "targets": [
+      "deb",
+      "appimage"
+    ],
+    "category": "DeveloperTool",
+    "shortDescription": "MCP and Actions tools with a graphical workspace and task manager",
+    "longDescription": "Desktop workspace manager for local MCP and Actions services, encrypted configuration, and persistent asynchronous command records. Requires a graphical desktop and an unlocked Secret Service keyring.",
+    "linux": {
+      "deb": {
+        "depends": [
+          "libayatana-appindicator3-1",
+          "libsecret-1-0",
+          "gnome-keyring",
+          "dbus-user-session",
+          "xdg-utils"
+        ],
+        "section": "devel"
+      }
+    },
+    "useLocalToolsDir": true
+  },
+  "build": {
+    "beforeBundleCommand": "python3 scripts/AppImage入口配置v3.py"
+  }
+}

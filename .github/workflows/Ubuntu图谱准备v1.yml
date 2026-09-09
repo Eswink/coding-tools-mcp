@@ -1,0 +1,35 @@
+name: Ubuntu图谱准备v1
+on:
+  push:
+    branches: ['feat/Ubuntu桌面v1']
+    paths: ['.github/workflows/Ubuntu图谱准备v1.yml']
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 精确版本图谱离线依赖
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/Ubuntu图谱v1" "$RUNNER_TEMP/Ubuntu图谱证据v1"
+          npm install --prefix "$RUNNER_TEMP/Ubuntu图谱v1" --no-audit --no-fund gitnexus@1.6.9
+          node "$RUNNER_TEMP/Ubuntu图谱v1/node_modules/gitnexus/dist/cli/index.js" --version > "$RUNNER_TEMP/Ubuntu图谱证据v1/版本v1.txt"
+          tar --exclude='node_modules/onnxruntime-node' --exclude='node_modules/@huggingface' -czf "$RUNNER_TEMP/Ubuntu图谱证据v1/图谱运行时v1.tar.gz" -C "$RUNNER_TEMP/Ubuntu图谱v1" node_modules
+          test "$(stat -c%s "$RUNNER_TEMP/Ubuntu图谱证据v1/图谱运行时v1.tar.gz")" -lt 500000000
+          sha256sum "$RUNNER_TEMP/Ubuntu图谱证据v1/图谱运行时v1.tar.gz" > "$RUNNER_TEMP/Ubuntu图谱证据v1/图谱摘要v1.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Ubuntu图谱运行时v1
+          path: ${{ runner.temp }}/Ubuntu图谱证据v1/
+          retention-days: 7
+          if-no-files-found: error
