@@ -756,33 +756,18 @@ mod tests {
             ToolContext::for_test(workspace.path().to_path_buf(), harness.path().to_path_buf())
                 .expect("context");
 
-        for command in [
-            "any-name.cmd",
-            "any-name.ps1",
-            "cmd /c echo tooling-cmd-ok",
-            "powershell -NoProfile -Command \"Write-Output tooling-powershell-ok\"",
-            "python -c \"print('中文输出正常 ✅')\"",
+        for (command, expected) in [
+            ("any-name.cmd", "tooling-cmd-ok"),
+            ("any-name.ps1", "tooling-powershell-ok"),
+            ("cmd /c echo tooling-cmd-ok", "tooling-cmd-ok"),
+            ("powershell -NoProfile -Command \"Write-Output tooling-powershell-ok\"", "tooling-powershell-ok"),
+            ("python -c \"print('中文输出正常 ✅')\"", "中文输出正常 ✅"),
         ] {
-            let output = call_tool(
-                &ctx,
-                "exec_command",
-                &json!({ "cmd": command, "timeout_ms": 10_000, "yield_time_ms": 10_000 }),
-            );
-            assert_eq!(output["ok"], true, "{command}: {output}");
-            assert_eq!(output["command_ok"], true, "{command}: {output}");
+            super::windows_regression_v8::assert_command(&ctx, command, expected);
         }
 
         for _ in 0..10 {
-            let output = call_tool(
-                &ctx,
-                "exec_command",
-                &json!({ "cmd": "python -m workflow_probe", "timeout_ms": 10_000 }),
-            );
-            assert_eq!(output["command_ok"], true, "{output}");
-            assert!(output["stdout"]
-                .as_str()
-                .unwrap_or_default()
-                .contains("workflow-ok"));
+            super::windows_regression_v8::assert_command(&ctx, "python -m workflow_probe", "workflow-ok");
         }
     }
 
@@ -943,3 +928,7 @@ fn platform_command_path(path: &Path) -> std::path::PathBuf {
 fn windows_command_path(path: &str) -> String {
     path.strip_prefix("\\\\?\\").unwrap_or(path).to_string()
 }
+
+#[cfg(all(test, windows))]
+#[path = "Windows执行回归v8.rs"]
+mod windows_regression_v8;

@@ -104,7 +104,7 @@ jobs:
           git diff --exit-code
           python - <<'PY'
           import json,os,pathlib
-          pathlib.Path(os.environ['RUNNER_TEMP'],'Ubuntu基线v1','基线结果v1.json').write_text(json.dumps({'passed':True,'source_sha':os.environ['GITHUB_SHA'],'version':'0.2.5'}))
+          pathlib.Path(os.environ['RUNNER_TEMP'],'Ubuntu基线v1','基线结果v1.json').write_text(json.dumps({'passed':True,'source_sha':os.environ['GITHUB_SHA'],'version':'0.2.6'}))
           PY
       - uses: actions/upload-artifact@v4
         if: always()
@@ -226,7 +226,7 @@ jobs:
             chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
             touch "$HOME/.ubuntu-ci-fixture-v1"
             app=/usr/bin/coding-tools-mcp-desktop
-            if [ "$kind" = appimage ]; then app="$RUNNER_TEMP/Ubuntu安装包v1/科研工具MCP_v0.2.5_Ubuntu_amd64.AppImage"; fi
+            if [ "$kind" = appimage ]; then app="$RUNNER_TEMP/Ubuntu安装包v1/科研工具MCP_v0.2.6_Ubuntu_amd64.AppImage"; fi
             output="$RUNNER_TEMP/Ubuntu原生证据v1/$kind"
             mkdir -p "$output"
             if ! xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash "$GITHUB_WORKSPACE/scripts/Ubuntu图形会话v2.sh" "$script" "$app" "$RUNNER_TEMP/Ubuntu驱动v1/tauri-driver" "$kind" "$output" 2>&1 | tee "$output/图形会话v2.log"; then

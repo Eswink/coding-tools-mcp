@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 from 发布版本校验v4 import project_versions
 
-VERSION = "0.2.5"
+VERSION = "0.2.6"
 BINARY = "coding-tools-mcp-desktop"
 MANIFEST = "Ubuntu构建来源v1.json"
 
