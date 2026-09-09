@@ -9,8 +9,8 @@ import subprocess
 import time
 
 COMPAT = "tools::exec::tests::windows_workspace_scripts_and_python_unicode_execute_successfully"
-NEGATIVE = "tools::exec::windows_regression_v8::windows_explicit_timeout_remains_enforced"
-RETAINED = "tools::exec::windows_regression_v8::windows_compatibility_follows_retained_session_once"
+NEGATIVE = "tools::windows_regression_v8::windows_explicit_timeout_remains_enforced"
+RETAINED = "tools::windows_regression_v8::windows_compatibility_follows_retained_session_once"
 
 
 def validate_result(code: int, text: str) -> None:

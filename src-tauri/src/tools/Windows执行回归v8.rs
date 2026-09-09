@@ -1,6 +1,8 @@
 //! Windows functional compatibility is not a ten-second startup benchmark.
 //! Test-only: production defaults, limits and timeout handling remain unchanged.
-use super::*;
+use super::context::ToolContext;
+use serde_json::json;
+use std::time::{Duration, Instant};
 use crate::tools::dispatch::call_tool;
 
 const COMPAT_TIMEOUT_MS: u64 = 60_000;
@@ -84,4 +86,14 @@ fn windows_compatibility_follows_retained_session_once() {
         "python -c \"from pathlib import Path; p=Path('once.txt'); p.open('a').write('once'); print('retained-ok')\"",
         "retained-ok", 0);
     assert_eq!(std::fs::read_to_string(workspace.path().join("once.txt")).unwrap(), "once");
+}
+
+#[test]
+fn windows_powershell_compatibility_preserves_exact_output() {
+    let workspace = tempfile::tempdir().expect("workspace");
+    let harness = tempfile::tempdir().expect("harness");
+    let ctx = ToolContext::for_test(workspace.path().to_path_buf(), harness.path().to_path_buf())
+        .expect("context");
+    assert_command(&ctx, "powershell -NoProfile -Command \"Write-Output tooling-powershell-ok\"",
+                   "tooling-powershell-ok");
 }
