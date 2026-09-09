@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+from http.client import RemoteDisconnected
 import json
 import os
 from pathlib import Path
@@ -63,7 +64,12 @@ class NativeSession:
         number, native = port(), port()
         while native == number:
             native = port()
-        self.base = f"http://127.0.0.1:{number}"
+        # Keep tauri-driver 2.0.6 as the native-process launcher, but send W3C
+        # requests directly to its loopback WebKitWebDriver. This removes the
+        # additional pooled HTTP proxy that reset responses, without replaying
+        # clicks or other side effects. Capabilities match the pinned adapter.
+        self.base = f"http://127.0.0.1:{native}"
+        print("native WebDriver transport: direct loopback; tauri-driver role: launcher", file=sys.stderr)
         self.executable, self.driver = executable, driver
         try:
             self.process = subprocess.Popen([str(driver), "--port", str(number), "--native-port", str(native),
@@ -71,7 +77,7 @@ class NativeSession:
                                             start_new_session=True)
             wait_for(lambda: request(self.base + "/status", timeout=3), timeout=15)
             result = request(self.base + "/session", {"capabilities": {"alwaysMatch": {
-                "browserName": "wry", "tauri:options": {"application": str(executable)}}}}, timeout=90)
+                "browserName": "wry", "webkitgtk:browserOptions": {"binary": str(executable), "args": []}}}}, timeout=90)
             self.session = result["value"]["sessionId"]
             self.call("timeouts", {"script": 30000, "pageLoad": 60000, "implicit": 0})
             wait_for(lambda: self.execute("return !!window.__TAURI_INTERNALS__?.invoke"))
@@ -110,10 +116,25 @@ class NativeSession:
         self.call(f"element/{element_id}/click", {})
 
     def screenshot(self, path: Path) -> None:
-        raw = base64.b64decode(self.call("screenshot"), validate=True)
-        if not raw.startswith(b"\x89PNG\r\n\x1a\n") or len(raw) < 5000:
-            raise AssertionError("native screenshot is missing or invalid")
-        path.write_bytes(raw)
+        # GET screenshot is read-only. tauri-driver may reset an upstream
+        # connection while the same native session remains healthy. Recover
+        # this read only; never replay clicks, IPC, or command submissions.
+        for attempt in range(1, 4):
+            try:
+                encoded = self.call("screenshot")
+            except (RemoteDisconnected, ConnectionResetError) as exc:
+                if attempt == 3:
+                    raise
+                print(f"read-only screenshot transport recovery {attempt}/3: "
+                      f"{type(exc).__name__}", file=sys.stderr)
+                time.sleep(0.25 * attempt)
+                continue
+            # HTTP errors, timeouts and invalid image data remain failures.
+            raw = base64.b64decode(encoded, validate=True)
+            if not raw.startswith(b"\x89PNG\r\n\x1a\n") or len(raw) < 5000:
+                raise AssertionError("native screenshot is missing or invalid")
+            path.write_bytes(raw)
+            return
 
     def close(self) -> None:
         try:
