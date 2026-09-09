@@ -44,6 +44,15 @@ def validate_reports(evidence: Path, source: str) -> list[dict]:
     return reports
 
 
+def write_evidence_entry(archive: zipfile.ZipFile, path: Path, name: str) -> None:
+    require(path.stat().st_size < 25_000_000, "unexpectedly large evidence file")
+    info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+    info.create_system = 3
+    info.external_attr = 0o100644 << 16
+    info.compress_type = zipfile.ZIP_DEFLATED
+    archive.writestr(info, path.read_bytes(), compresslevel=9)
+
+
 def compose(packages: Path, evidence: Path, output: Path, source: str, root: Path) -> list[Path]:
     require(re.fullmatch(r"[0-9a-f]{40}", source) is not None, "a full source SHA is required")
     manifest = verify_manifest(packages, source)
@@ -55,14 +64,32 @@ def compose(packages: Path, evidence: Path, output: Path, source: str, root: Pat
         shutil.copyfile(packages / manifest["packages"][kind]["name"], path)
         assets.append(path)
     archive = output / f"Ubuntu-evidence_v{VERSION}.zip"
-    # Only explicit CI reports/screenshots/logs, never HOME, credentials, or workspace data.
+    # Enumerate known evidence names, not arbitrary JSON/log files from every artifact.
+    # acceptance and publish download different artifact sets; that must not alter bytes.
+    allowed = ["Ubuntu构建证据v1/打包v1.log"]
+    for system in ("ubuntu-24.04", "windows-latest"):
+        for name in ("基线结果v1.json", "全目标检查v1.log", "完整Rust回归v1.log",
+                     "生产零警告v1.log", "原生密钥v1.log", "npm审计v1.json", "重启重复回归v2.log"):
+            allowed.append(f"Ubuntu基线v1-{system}/{name}")
+    for name in ("面板交互结果v3.json", "面板交互截图v3.png"):
+        allowed.append(f"Ubuntu基线v1-ubuntu-24.04/浏览器面板v1/{name}")
+    for system in ("ubuntu-22.04", "ubuntu-24.04"):
+        prefix = f"Ubuntu原生验收v1-{system}"
+        allowed.append(f"{prefix}/安装载荷结果v1.json")
+        for kind in ("deb", "appimage"):
+            for name in ("原生验收结果v1.json", "首次启动v1.png", "异步任务面板v1.png",
+                         "重启恢复v1.png", "原生驱动v1-1.log", "原生驱动v1-2.log",
+                         "Portal接口v2.txt", "图形会话v2.log"):
+                allowed.append(f"{prefix}/{kind}/{name}")
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as target:
-        for path in sorted(evidence.rglob("*")):
-            if path.is_file() and not path.is_symlink() and path.suffix in {".json", ".png", ".log", ".txt"}:
-                require(path.stat().st_size < 25_000_000, "unexpectedly large evidence file")
-                target.write(path, "验收证据/" + path.relative_to(evidence).as_posix())
-        target.write(packages / MANIFEST, MANIFEST)
-        target.write(root / f"docs/releases/Ubuntu安装说明v{VERSION}.md", f"Ubuntu安装说明v{VERSION}.md")
+        for name in sorted(allowed):
+            path = evidence / name
+            if path.is_file():
+                require(not path.is_symlink() and path.resolve().is_relative_to(evidence.resolve()),
+                        "evidence must not escape its artifact directory")
+                write_evidence_entry(target, path, "验收证据/" + name)
+        write_evidence_entry(target, packages / MANIFEST, MANIFEST)
+        write_evidence_entry(target, root / f"docs/releases/Ubuntu安装说明v{VERSION}.md", f"Ubuntu安装说明v{VERSION}.md")
     assets.append(archive)
     checksums = output / f"SHA256SUMS_v{VERSION}.txt"
     checksums.write_text("".join(f"{digest(path)}  {path.name}\n" for path in assets), encoding="utf-8")

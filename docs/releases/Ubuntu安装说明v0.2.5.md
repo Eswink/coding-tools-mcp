@@ -32,7 +32,7 @@ coding-tools-mcp-desktop
 卸载包而保留用户配置：
 
 ```bash
-sudo apt remove coding-tools-mcp-desktop
+sudo apt remove coding-tools-mcp
 ```
 
 如安装时系统显示的包名不同，以 `dpkg-deb -f MCP_0.2.5_amd64.deb Package` 输出为准。不要手动删除密钥环来“清空配置”。

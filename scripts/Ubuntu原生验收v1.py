@@ -16,6 +16,7 @@ import socket
 import subprocess
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 VERSION = "0.2.5"
@@ -138,6 +139,24 @@ class NativeSession:
             self.log.close()
 
 
+def open_workspace(session: NativeSession, workspace_id: str) -> None:
+    """Select the actual sidebar button and require the corresponding native URL."""
+    session.click_text("Ubuntu桌面验收v1")
+    expected = f"/workspace/{workspace_id}"
+    wait_for(lambda: session.call("url"),
+             lambda url: urllib.parse.urlsplit(url).path.rstrip("/") == expected)
+    wait_for(session.body, lambda text: "Ubuntu桌面验收v1" in text and "异步任务" in text)
+
+
+def select_task(session: NativeSession, request_id: str) -> None:
+    # The accessible button text also contains status and elapsed seconds.
+    # Match the request-id span within the task list, then use a native click.
+    element = wait_for(lambda: session.call("element", {"using": "xpath", "value":
+        f"//*[@aria-label='任务列表']//button[span[normalize-space(.)='{request_id}']]"}))
+    element_id = element["element-6066-11e4-a52e-4f735466cecf"]
+    session.call(f"element/{element_id}/click", {})
+
+
 def tool(profile: dict, channel: str, name: str, args: dict) -> dict:
     if channel == "mcp":
         url = f"http://127.0.0.1:{profile['runtime']['local_port']}/mcp"
@@ -190,8 +209,8 @@ def run(args) -> None:
         session.invoke("update_workspace", {"profile": profile})
         assert len(session.invoke("list_workspaces")) == 1
         session.call("refresh", {})
-        wait_for(session.body, lambda text: "Ubuntu桌面验收v1" in text and "异步任务" in text)
-        passed("真实IPC创建工作区与刷新后路由恢复")
+        open_workspace(session, profile["id"])
+        passed("真实IPC创建工作区、原生侧栏点击与详情路由")
         jobs = {}
         for channel, start in [("mcp", "start_runtime"), ("actions", "start_actions_runtime")]:
             session.invoke(start, {"id": profile["id"]})
@@ -240,7 +259,13 @@ def run(args) -> None:
             record = session.invoke("control_exec_tasks", {"id": profile["id"], "channel": channel,
                                                            "action": "get", "args": {"job_id": job}})
             assert record["status"] == "succeeded" and record["job_id"] == job, record
-        wait_for(session.body, lambda text: "Ubuntu桌面验收v1" in text)
+            expected = f"Ubuntu {channel} 中文验收v1"
+            assert expected in base64.b64decode(record["stdout"]["data_base64"]).decode("utf-8"), record
+        open_workspace(session, profile["id"])
+        session.click_text("异步任务")
+        wait_for(session.body, lambda text: "Ubuntu-cancel-v1" in text)
+        select_task(session, "Ubuntu-mcp-v1")
+        wait_for(session.body, lambda text: "Ubuntu mcp 中文验收v1" in text and "退出码：0" in text)
         session.screenshot(output / "重启恢复v1.png")
         passed("原生应用重启后通过系统密钥恢复工作区与双通道任务记录")
         evidence["passed"] = len(evidence["tests"]) == 8

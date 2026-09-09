@@ -53,6 +53,13 @@ jobs:
           cargo check --locked --manifest-path src-tauri/Cargo.toml --all-targets 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/全目标检查v1.log"
           cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/完整Rust回归v1.log"
           cargo rustc --locked --manifest-path src-tauri/Cargo.toml --lib -- -D warnings 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/生产零警告v1.log"
+      - name: 同端口listener重启连续20轮回归
+        run: |
+          set -euo pipefail
+          for round in $(seq 1 20); do
+            echo "listener restart round $round/20"
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::exec_tasks::recovery_transport_tests::listener_restart_keeps_the_running_job_and_its_idempotency_key -- --exact --nocapture
+          done 2>&1 | tee "$RUNNER_TEMP/Ubuntu基线v1/重启重复回归v2.log"
       - name: Linux原生密钥和跨进程恢复
         if: runner.os == 'Linux'
         run: |
@@ -197,7 +204,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-driver xvfb xauth fonts-noto-cjk desktop-file-utils gnome-keyring dbus-x11 libayatana-appindicator3-1 libxdo3
+          sudo apt-get install -y webkit2gtk-driver xvfb xauth fonts-noto-cjk desktop-file-utils gnome-keyring dbus-x11 xdg-desktop-portal xdg-desktop-portal-gtk libayatana-appindicator3-1 libxdo3
           chmod +x "$RUNNER_TEMP/Ubuntu驱动v1/tauri-driver" "$RUNNER_TEMP/Ubuntu安装包v1/"*.AppImage
           sudo apt-get install -y "$RUNNER_TEMP/Ubuntu安装包v1/"*.deb
           mkdir -p "$RUNNER_TEMP/Ubuntu原生证据v1"
@@ -210,6 +217,7 @@ jobs:
           set -euo pipefail
           export APPIMAGE_EXTRACT_AND_RUN=1
           script="$GITHUB_WORKSPACE/scripts/Ubuntu原生验收v1.py"
+          status=0
           for kind in deb appimage; do
             export HOME="$RUNNER_TEMP/Ubuntu桌面隔离v1-$kind"
             export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
@@ -218,11 +226,13 @@ jobs:
             touch "$HOME/.ubuntu-ci-fixture-v1"
             app=/usr/bin/coding-tools-mcp-desktop
             if [ "$kind" = appimage ]; then app="$RUNNER_TEMP/Ubuntu安装包v1/科研工具MCP_v0.2.5_Ubuntu_amd64.AppImage"; fi
-            dbus-run-session -- xvfb-run -a -s '-screen 0 1280x900x24' bash -euo pipefail -c '
-              printf "%s" "isolated-ubuntu-native-v1" | gnome-keyring-daemon --unlock --components=secrets
-              python "$1" --executable "$2" --driver "$3" --kind "$4" --source "$GITHUB_SHA" --output "$5"
-            ' -- "$script" "$app" "$RUNNER_TEMP/Ubuntu驱动v1/tauri-driver" "$kind" "$RUNNER_TEMP/Ubuntu原生证据v1/$kind"
+            output="$RUNNER_TEMP/Ubuntu原生证据v1/$kind"
+            mkdir -p "$output"
+            if ! xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash "$GITHUB_WORKSPACE/scripts/Ubuntu图形会话v2.sh" "$script" "$app" "$RUNNER_TEMP/Ubuntu驱动v1/tauri-driver" "$kind" "$output" 2>&1 | tee "$output/图形会话v2.log"; then
+              status=1
+            fi
           done
+          exit "$status"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
