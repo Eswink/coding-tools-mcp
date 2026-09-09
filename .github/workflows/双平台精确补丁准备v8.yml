@@ -1,0 +1,107 @@
+name: 双平台精确补丁准备v8
+on:
+  push:
+    branches: ['chore/双平台准备v8']
+    paths: ['.github/workflows/双平台精确补丁准备v8.yml']
+permissions:
+  contents: read
+jobs:
+  prepare:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/chore/双平台准备v8'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dc5f3271876b97e9c9146cfc3b76019b0a1b4115
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 已审查补丁与六处版本精确合成
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 44347c16c6c28595e99ce2f5a9c322b04d32ceae
+          python scripts/版本递增v7.py --from-version 0.2.5 --version 0.2.6 --apply
+          python - <<'PYVERS'
+          from pathlib import Path
+          for name,count in [('scripts/Ubuntu安装验收v1.py',1),('scripts/Ubuntu原生验收v1.py',1),('.github/workflows/Ubuntu桌面构建v1.yml',2)]:
+              path=Path(name); text=path.read_text(encoding='utf-8')
+              assert text.count('0.2.5') == count, (name,text.count('0.2.5'))
+              path.write_text(text.replace('0.2.5','0.2.6'),encoding='utf-8')
+          PYVERS
+          git apply <<'PATCH'
+          diff --git a/src-tauri/src/tools/exec.rs b/src-tauri/src/tools/exec.rs
+          index 4b83814..5e0bdf0 100644
+          --- a/src-tauri/src/tools/exec.rs
+          +++ b/src-tauri/src/tools/exec.rs
+          @@ -756,33 +756,18 @@ mod tests {
+                       ToolContext::for_test(workspace.path().to_path_buf(), harness.path().to_path_buf())
+                           .expect("context");
+           
+          -        for command in [
+          -            "any-name.cmd",
+          -            "any-name.ps1",
+          -            "cmd /c echo tooling-cmd-ok",
+          -            "powershell -NoProfile -Command \"Write-Output tooling-powershell-ok\"",
+          -            "python -c \"print('中文输出正常 ✅')\"",
+          +        for (command, expected) in [
+          +            ("any-name.cmd", "tooling-cmd-ok"),
+          +            ("any-name.ps1", "tooling-powershell-ok"),
+          +            ("cmd /c echo tooling-cmd-ok", "tooling-cmd-ok"),
+          +            ("powershell -NoProfile -Command \"Write-Output tooling-powershell-ok\"", "tooling-powershell-ok"),
+          +            ("python -c \"print('中文输出正常 ✅')\"", "中文输出正常 ✅"),
+                   ] {
+          -            let output = call_tool(
+          -                &ctx,
+          -                "exec_command",
+          -                &json!({ "cmd": command, "timeout_ms": 10_000, "yield_time_ms": 10_000 }),
+          -            );
+          -            assert_eq!(output["ok"], true, "{command}: {output}");
+          -            assert_eq!(output["command_ok"], true, "{command}: {output}");
+          +            super::windows_regression_v8::assert_command(&ctx, command, expected);
+                   }
+           
+                   for _ in 0..10 {
+          -            let output = call_tool(
+          -                &ctx,
+          -                "exec_command",
+          -                &json!({ "cmd": "python -m workflow_probe", "timeout_ms": 10_000 }),
+          -            );
+          -            assert_eq!(output["command_ok"], true, "{output}");
+          -            assert!(output["stdout"]
+          -                .as_str()
+          -                .unwrap_or_default()
+          -                .contains("workflow-ok"));
+          +            super::windows_regression_v8::assert_command(&ctx, "python -m workflow_probe", "workflow-ok");
+                   }
+               }
+           
+          @@ -943,3 +928,7 @@ fn platform_command_path(path: &Path) -> std::path::PathBuf {
+           fn windows_command_path(path: &str) -> String {
+               path.strip_prefix("\\\\?\\").unwrap_or(path).to_string()
+           }
+          +
+          +#[cfg(all(test, windows))]
+          +#[path = "Windows执行回归v8.rs"]
+          +mod windows_regression_v8;
+          PATCH
+          git diff --check
+          git add -u
+          test "$(git write-tree)" = 328e1e101b0f2e5e38d04841f847d029736f9556
+          for file in scripts/*回归v*.py; do python "$file"; done
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'fix: 修复Windows兼容测试并统一双平台发布版本0.2.6'
+          test "$(git rev-parse HEAD^{tree})" = 328e1e101b0f2e5e38d04841f847d029736f9556
+          git push origin HEAD:refs/heads/fix/双平台发布v8
+          git rev-parse HEAD HEAD^{tree} > "$RUNNER_TEMP/双平台补丁来源v8.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 双平台补丁来源v8
+          path: ${{ runner.temp }}/双平台补丁来源v8.txt
+          retention-days: 30
+          if-no-files-found: error
