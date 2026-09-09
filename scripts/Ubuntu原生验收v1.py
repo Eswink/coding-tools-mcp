@@ -64,7 +64,12 @@ class NativeSession:
         number, native = port(), port()
         while native == number:
             native = port()
-        self.base = f"http://127.0.0.1:{number}"
+        # Keep tauri-driver 2.0.6 as the native-process launcher, but send W3C
+        # requests directly to its loopback WebKitWebDriver. This removes the
+        # additional pooled HTTP proxy that reset responses, without replaying
+        # clicks or other side effects. Capabilities match the pinned adapter.
+        self.base = f"http://127.0.0.1:{native}"
+        print("native WebDriver transport: direct loopback; tauri-driver role: launcher", file=sys.stderr)
         self.executable, self.driver = executable, driver
         try:
             self.process = subprocess.Popen([str(driver), "--port", str(number), "--native-port", str(native),
@@ -72,7 +77,7 @@ class NativeSession:
                                             start_new_session=True)
             wait_for(lambda: request(self.base + "/status", timeout=3), timeout=15)
             result = request(self.base + "/session", {"capabilities": {"alwaysMatch": {
-                "browserName": "wry", "tauri:options": {"application": str(executable)}}}}, timeout=90)
+                "browserName": "wry", "webkitgtk:browserOptions": {"binary": str(executable), "args": []}}}}, timeout=90)
             self.session = result["value"]["sessionId"]
             self.call("timeouts", {"script": 30000, "pageLoad": 60000, "implicit": 0})
             wait_for(lambda: self.execute("return !!window.__TAURI_INTERNALS__?.invoke"))
