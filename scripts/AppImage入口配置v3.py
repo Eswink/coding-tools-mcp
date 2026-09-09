@@ -59,6 +59,24 @@ def install(root: Path) -> Path:
     return destination
 
 
+def verify_helpers(appdir: Path) -> dict:
+    """Require the exact bundled GTK helper layout consumed by release WebKit."""
+    result = {}
+    prefix = Path("usr/lib/x86_64-linux-gnu/webkit2gtk-4.1")
+    for name in ("WebKitNetworkProcess", "WebKitWebProcess", "injected-bundle/libwebkit2gtkinjectedbundle.so"):
+        path = appdir / prefix / name
+        if not path.is_file() or not path.resolve().is_relative_to(appdir.resolve()):
+            raise RuntimeError(f"bundled WebKit helper missing or escaped: {name}")
+        with path.open("rb") as stream:
+            header = stream.read(20)
+        if len(header) < 20 or header[:6] != b"\x7fELF\x02\x01" or header[18:20] != b"\x3e\x00":
+            raise RuntimeError(f"bundled WebKit helper is not Linux amd64: {name}")
+        if not name.endswith(".so") and not os.access(path, os.X_OK):
+            raise RuntimeError(f"bundled WebKit helper is not executable: {name}")
+        result[(prefix / name).as_posix()] = {"sha256": digest(path), "size": path.stat().st_size}
+    return result
+
+
 def verify(root: Path, image: Path, output: Path) -> dict:
     source = root / LAUNCHER
     with tempfile.TemporaryDirectory(prefix="apprun-proof-v3-") as scratch:
@@ -79,6 +97,7 @@ def verify(root: Path, image: Path, output: Path) -> dict:
         result = {"passed": True, "source_sha": os.environ["GITHUB_SHA"],
                   "cli_version": CLI_VERSION, "launcher_sha256": digest(inner),
                   "appimage_sha256": digest(image), "gtk_hook_retained": True,
+                  "webkit_helpers": verify_helpers(appdir), "gui_cwd": "APPDIR/usr",
                   "scope": "final package entry bytes; native host Python is a separate GUI gate"}
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

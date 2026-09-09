@@ -107,7 +107,7 @@ class EntryProcessTests(unittest.TestCase):
         result = self.execute("import os,sys,json;print(json.dumps([os.environ['PATH'],sys.argv[1:],os.getcwd(),os.environ['LD_LIBRARY_PATH']]))", args)
         self.assertEqual(result.returncode, 0, result.stderr)
         value = json.loads(result.stdout)
-        self.assertEqual(value[:3], [self.env["PATH"], args, str(self.root)])
+        self.assertEqual(value[:3], [self.env["PATH"], args, str(self.appdir / "usr")])
         self.assertEqual(value[3], f"{self.appdir}/usr/lib:{self.appdir}/usr/lib/x86_64-linux-gnu:/host/custom/lib")
 
     def test_virtual_environment_path_is_preserved(self):

@@ -47,7 +47,7 @@ chmod +x MCP_0.2.5_amd64.AppImage
 ./MCP_0.2.5_amd64.AppImage
 ```
 
-AppImage 专用启动入口不覆写用户的 `PYTHONHOME`、`PYTHONPATH` 或 `PATH`，保留正常宿主 Python/虚拟环境的选择；GUI 仍会使用包内 GTK 和动态库，并保留原动态库路径后缀。有效自定义 Python 环境随原生 MCP/Actions 验收，不能外推到所有第三方动态链接工具或完整 Conda 组合。
+AppImage 专用启动入口不覆写用户的 `PYTHONHOME`、`PYTHONPATH` 或 `PATH`，保留正常宿主 Python/虚拟环境的选择；GUI 仍会使用包内 GTK 和动态库，并保留原动态库路径后缀。有效自定义 Python 环境随原生 MCP/Actions 验收，不能外推到所有第三方动态链接工具或完整 Conda 组合。 图形进程保持上游 AppRun 的包内 `usr` 工作目录，以解析发行版 WebKit 的相对子进程路径；工具命令由执行引擎明确设置为工作区目录，原生回归验证这一点。GUI 启动工作目录不承诺保留调用者目录。
 
 AppImage 也需要图形桌面、D-Bus 和已解锁的 Secret Service；不是完全不依赖系统服务的便携版。缺少这些服务时，先在 Ubuntu Desktop 安装 `gnome-keyring dbus-user-session libayatana-appindicator3-1` 并正常登录桌面。DEB 会由 apt 处理声明依赖，故优先推荐 DEB。
 

@@ -202,7 +202,8 @@ def run(args) -> None:
             "import os,sys\ndef check():\n"
             + f"    assert os.environ.get('PYTHONHOME') == {sys.base_prefix!r}\n"
             + f"    assert os.environ.get('PYTHONPATH') == {str(modules)!r}\n"
-            + f"    assert sys.base_prefix == {sys.base_prefix!r}\n",
+            + f"    assert sys.base_prefix == {sys.base_prefix!r}\n"
+            + f"    assert os.getcwd() == {str(home / '工作区验收v1')!r}\n",
             encoding="utf-8")
         original_python_env = {key: os.environ.get(key) for key in ("PYTHONHOME", "PYTHONPATH")}
         os.environ.update(PYTHONHOME=sys.base_prefix, PYTHONPATH=str(modules))
