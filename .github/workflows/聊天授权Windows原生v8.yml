@@ -1,0 +1,70 @@
+name: 聊天授权Windows原生v8
+on:
+  workflow_call:
+    inputs:
+      source:
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  windows-native:
+    name: 真实Windows窗口审批及双会话隔离
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: auth-windows-native-v8
+      - name: 从精确源码构建原生测试程序
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          mkdir -p evidence
+          python scripts/跨平台原生回归v8.py
+          python scripts/聊天授权原生回归v6.py
+          npm ci
+          npm run tauri -- build --debug --no-bundle -- --locked 2>&1 | tee evidence/Windows原生编译v8.log
+          git diff --exit-code
+      - name: 选择与系统WebView2精确匹配的原生驱动
+        shell: pwsh
+        run: ./scripts/Windows原生驱动准备v8.ps1 -OutputDirectory "$env:RUNNER_TEMP/Windows授权驱动v8"
+      - name: 全新用户配置中的真实窗口交互
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $configRoot = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'coding-tools-mcp-desktop'
+          if (Test-Path -LiteralPath $configRoot) { throw '拒绝覆盖已有应用配置，原生验收要求全新托管机器' }
+          $fixture = Join-Path $env:RUNNER_TEMP 'Windows授权夹具v8'
+          New-Item -ItemType Directory -Path $fixture | Out-Null
+          New-Item -ItemType File -Path (Join-Path $fixture '.chat-native-fixture-v8') | Out-Null
+          Copy-Item -LiteralPath "$env:RUNNER_TEMP/Windows授权驱动v8/驱动来源v8.json" -Destination 'evidence/'
+          & python scripts/聊天授权原生验收v6.py --executable src-tauri/target/debug/coding-tools-mcp-desktop.exe --driver "$env:RUNNER_TEMP/Windows授权驱动v8/msedgedriver.exe" --kind native --source $env:GITHUB_SHA --output evidence --fixture-root $fixture 2>&1 | Tee-Object -FilePath evidence/Windows原生会话v8.log
+          if ($LASTEXITCODE -ne 0) { throw 'Windows原生授权验收未通过' }
+          $result = Get-Content -LiteralPath 'evidence/聊天授权原生结果v6.json' -Raw | ConvertFrom-Json
+          if (!$result.passed -or $result.tests.Count -ne 8 -or $result.source_sha -ne $env:GITHUB_SHA) { throw '原生验收证据不完整' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 聊天授权Windows原生v8
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14

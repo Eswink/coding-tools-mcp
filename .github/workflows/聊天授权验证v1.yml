@@ -210,3 +210,8 @@ jobs:
           path: evidence/
           if-no-files-found: error
           retention-days: 14
+  windows-native:
+    needs: source
+    uses: ./.github/workflows/聊天授权Windows原生v8.yml
+    with:
+      source: ${{ needs.source.outputs.sha }}

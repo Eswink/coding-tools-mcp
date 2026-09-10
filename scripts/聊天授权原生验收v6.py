@@ -1,4 +1,4 @@
-"""Real Ubuntu WebKit GUI + local OAuth HTTP; host conversation IDs are synthetic.
+"""Real WebKit/WebView2 GUI + local OAuth HTTP; host conversation IDs are synthetic.
 
 Approvals, denial, revocation and exclusivity use native WebDriver clicks. Only
 fixture setup and trusted local task cleanup use IPC. No public tunnel, mock IPC,
@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import platform
 import secrets
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -21,6 +22,9 @@ import urllib.request
 spec = importlib.util.spec_from_file_location("native_gui_v1", Path(__file__).with_name("Ubuntu原生验收v1.py"))
 gui = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gui)
+adapter_spec = importlib.util.spec_from_file_location("native_adapter_v8", Path(__file__).with_name("跨平台原生驱动v8.py"))
+adapter = importlib.util.module_from_spec(adapter_spec)
+adapter_spec.loader.exec_module(adapter)
 SCOPES = ["workspace.read", "files.read", "files.write", "exec.run", "task.read",
           "task.manage", "history.read", "history.write", "harness.write"]
 NAME = "聊天授权原生验收v6"
@@ -133,7 +137,8 @@ def run(args) -> None:
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     evidence = {"passed": False, "source_sha": args.source, "platform": platform.platform(),
-        "binary_sha256": hashlib.sha256(args.executable.read_bytes()).hexdigest(), "build_kind": "debug-static-assets",
+        "binary_sha256": hashlib.sha256(args.executable.read_bytes()).hexdigest(), "build_kind": "debug-static-assets" if args.kind == "native" else "release-installed",
+        "package_kind": args.kind,
         "real_native_webview": True, "real_oauth_http": True, "real_local_ipc": True,
         "synthetic_conversation_metadata": True, "real_chatgpt_verified": False,
         "sandbox_disabled": False, "tests": []}
@@ -143,15 +148,13 @@ def run(args) -> None:
         evidence["tests"].append({"name": name, "passed": True})
         print("PASS " + name, flush=True)
     try:
-        if os.geteuid() == 0 or not os.environ.get("DISPLAY") or not os.environ.get("DBUS_SESSION_BUS_ADDRESS"):
-            raise RuntimeError("isolated ordinary-user GUI required")
-        if os.environ.get("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS"):
-            raise RuntimeError("sandbox bypass prohibited")
-        if not (Path.home() / ".ubuntu-ci-fixture-v1").is_file():
-            raise RuntimeError("refusing non-fixture user profile")
-        session = gui.NativeSession(args.executable.resolve(), args.driver.resolve(), output, 1)
+        home = adapter.fixture_root(args)
+        session = adapter.session(args.executable.resolve(), args.driver.resolve(), output, 1)
         evidence["version"] = session.invoke("plugin:app|version")
-        root = Path.home() / "聊天授权工作区v6"
+        expected_version = json.loads((Path(__file__).resolve().parents[1] / "package.json").read_text(encoding="utf-8"))["version"]
+        assert evidence["version"] == expected_version, "native binary version differs from source"
+        assert session.invoke("list_workspaces") == [], "refusing a nonempty application profile"
+        root = home / "聊天授权工作区v6"
         root.mkdir()
         (root / "只读样本v6.txt").write_text("chat-file-canary-v6", encoding="utf-8")
         profile = session.invoke("create_workspace", {"path": str(root), "name": NAME})
@@ -189,7 +192,8 @@ def run(args) -> None:
         session.screenshot(output / "批准会话Av6.png")
         passed("原生点击批准A、A读文件且B仍拒绝")
         request_grant(session, base, token, b, SCOPES)
-        job_a = rpc(base, token, a, "start_exec_task", {"cmd": "python3 -c \"import time; print('chat-A-only-v6', flush=True); time.sleep(60)\"",
+        python = "python" if sys.platform == "win32" else "python3"
+        job_a = rpc(base, token, a, "start_exec_task", {"cmd": python + " -c \"import time; print('chat-A-only-v6', flush=True); time.sleep(60)\"",
                                                        "request_id": "shared-native-id-v6", "timeout_ms": 120000})
         assert job_a["ok"] is True
         job_id = job_a["job_id"]
@@ -197,7 +201,7 @@ def run(args) -> None:
         for name in ["get_exec_task", "cancel_exec_task"]:
             rejected = rpc(base, token, b, name, {"job_id": job_id})
             assert rejected["ok"] is False and "chat-A-only-v6" not in json.dumps(rejected)
-        job_b = rpc(base, token, b, "start_exec_task", {"cmd": "python3 -c \"print('chat-B-only-v6')\"", "request_id": "shared-native-id-v6"})
+        job_b = rpc(base, token, b, "start_exec_task", {"cmd": python + " -c \"print('chat-B-only-v6')\"", "request_id": "shared-native-id-v6"})
         assert job_b["ok"] is True and job_b["job_id"] != job_id
         finished = gui.wait_for(lambda: rpc(base, token, b, "get_exec_task", {"job_id": job_b["job_id"]}), lambda value: value.get("terminal") is True)
         assert finished["status"] == "succeeded"
@@ -211,7 +215,7 @@ def run(args) -> None:
             gui.wait_for(lambda chat=chat: rpc(base, token, chat, "auth_status", {}), lambda value: value["authorization"]["status"] == "revoked")
             denied(rpc(base, token, chat, "server_info", {}), str(root))
         request_grant(session, base, token, b, ["workspace.read", "files.read"])
-        denied(rpc(base, token, b, "exec_command", {"cmd": "python3 -c \"print('must-not-execute')\""}), str(root))
+        denied(rpc(base, token, b, "exec_command", {"cmd": python + " -c \"print('must-not-execute')\""}), str(root))
         denied(rpc(base, token, b, "request_permissions", {"mode": "dangerous", "confirm": True}), str(root))
         passed("真实撤销全部、只读授权与禁止自提权")
         click(session, "//section[@aria-labelledby='chat-authorization-heading']//label[contains(@class,'exclusive')]//input")
@@ -226,7 +230,7 @@ def run(args) -> None:
         passed("原生独占切换、单一获准聊天与拒绝请求")
         session.invoke("stop_runtime", {"id": profile["id"]})
         session.close()
-        session = gui.NativeSession(args.executable.resolve(), args.driver.resolve(), output, 2)
+        session = adapter.session(args.executable.resolve(), args.driver.resolve(), output, 2)
         assert len(session.invoke("list_workspaces")) == 1
         session.invoke("start_runtime", {"id": profile["id"]})
         assert rpc(base, token, b, "auth_status", {})["authorization"]["status"] == "unauthorized"
@@ -250,7 +254,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--executable", type=Path, required=True)
     parser.add_argument("--driver", type=Path, required=True)
-    parser.add_argument("--kind", choices=["native"], required=True)
+    parser.add_argument("--kind", choices=["native", "deb", "appimage", "nsis"], required=True)
     parser.add_argument("--source", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--fixture-root", type=Path)
     run(parser.parse_args())
