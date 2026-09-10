@@ -254,8 +254,10 @@ def run(args) -> None:
         try:
             limits = medium.Limits(); limits.basic.flags = 0x2000
             api.check(api.SetInformationJobObject(job, 9, c.byref(limits), c.sizeof(limits)))
+            # This API implicitly creates a NEW_CONSOLE; DETACHED_PROCESS conflicts.
+            # Keep SUSPENDED ownership and profile-created Unicode environment.
             api.check(api.CreateProcessWithTokenW(token, 1, sys.executable, command,
-                0x4 | 0x400 | 0x8, None, str(root), c.byref(startup), c.byref(info_process)))
+                0x4 | 0x400, None, str(root), c.byref(startup), c.byref(info_process)))
             # Own before resume; any failure terminates this still-suspended process.
             api.check(api.AssignProcessToJobObject(job, info_process.process))
             process = medium.OwnedProcess(api, info_process, job, {'standard_account': True})
