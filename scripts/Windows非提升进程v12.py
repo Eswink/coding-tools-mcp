@@ -1,4 +1,4 @@
-"""CI-only, same-user LUA/medium process in an owned kill-on-close job.
+"""CI-only native process in an owned kill-on-close job.
 
 Never enables SANDBOX_INERT, changes accounts/policies, or patches application bytes.
 """
@@ -78,6 +78,8 @@ class Api:
         bind(self.adv, 'GetSidSubAuthority', c.POINTER(w.DWORD), [ptr, w.DWORD])
         bind(self.adv, 'CreateProcessAsUserW', w.BOOL, [w.HANDLE, w.LPCWSTR, w.LPWSTR, ptr, ptr,
             w.BOOL, w.DWORD, ptr, w.LPCWSTR, c.POINTER(Startup), c.POINTER(ProcessInfo)])
+        bind(self.kernel, 'CreateProcessW', w.BOOL, [w.LPCWSTR, w.LPWSTR, ptr, ptr,
+            w.BOOL, w.DWORD, ptr, w.LPCWSTR, c.POINTER(Startup), c.POINTER(ProcessInfo)])
 
     def check(self, ok):
         if not ok: raise c.WinError(c.get_last_error())
@@ -129,6 +131,19 @@ class OwnedProcess:
                 self.api.CloseHandle(self.handle); self.handle = None
 
 
+def token_has_restrictions(api: Api, token) -> bool:
+    value, needed = w.DWORD(), w.DWORD()
+    api.check(api.GetTokenInformation(token, 21, c.byref(value), c.sizeof(value), c.byref(needed)))
+    return bool(value.value)
+
+
+def use_normal_user_process(state: dict, restricted: bool) -> bool:
+    # A genuine standard user needs no hand-filtered token. Elevated smoke probes
+    # retain the old bounded fixture path; the actual E2E wrapper uses this path.
+    return (state.get('elevated') is False and type(state.get('integrity_rid')) is int
+        and state['integrity_rid'] == 8192 and restricted is False)
+
+
 def launch(executable: Path, env: dict[str, str], arguments: list[str] | None = None) -> OwnedProcess:
     if os.environ.get('GITHUB_ACTIONS') != 'true' or os.environ.get('RUNNER_ENVIRONMENT') != 'github-hosted' or os.environ.get('GITHUB_REPOSITORY') != 'Eswink/coding-tools-mcp':
         raise RuntimeError('only disposable hosted CI may launch this fixture')
@@ -143,25 +158,33 @@ def launch(executable: Path, env: dict[str, str], arguments: list[str] | None = 
     try:
         api.check(api.OpenProcessToken(api.GetCurrentProcess(), 0x0001 | 0x0002 | 0x0008 | 0x0080, c.byref(original)))
         parent_state = api.token_state(original)
-        # DISABLE_MAX_PRIVILEGE | LUA_TOKEN. SANDBOX_INERT is deliberately absent.
-        api.check(api.CreateRestrictedToken(original, 0x1 | 0x4, 0, None, 0, None, 0, None, c.byref(restricted)))
-        api.check(api.ConvertStringSidToSidW('S-1-16-8192', c.byref(sid)))
-        label = Label(sid, 0x20)
-        api.check(api.SetTokenInformation(restricted, 25, c.byref(label), c.sizeof(label) + api.GetLengthSid(sid)))
-        required = api.token_state(restricted); require_standard(required)
+        normal_user = use_normal_user_process(parent_state, token_has_restrictions(api, original))
+        if not normal_user:
+            # Only the legacy diagnostic smoke retains a hand-filtered token.
+            api.check(api.CreateRestrictedToken(original, 0x1 | 0x4, 0, None, 0, None, 0, None, c.byref(restricted)))
+            api.check(api.ConvertStringSidToSidW('S-1-16-8192', c.byref(sid)))
+            label = Label(sid, 0x20)
+            api.check(api.SetTokenInformation(restricted, 25, c.byref(label), c.sizeof(label) + api.GetLengthSid(sid)))
+            required = api.token_state(restricted); require_standard(required)
         job = api.check(api.CreateJobObjectW(None, None))
         limits = Limits(); limits.basic.flags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
         api.check(api.SetInformationJobObject(job, 9, c.byref(limits), c.sizeof(limits)))
         startup = Startup(); startup.cb = c.sizeof(startup)
         startup.desktop = "winsta0\\default"  # Explicit interactive desktop for CreateProcessAsUser.
         # Suspended until owned-job assignment and actual child-token validation.
-        api.check(api.CreateProcessAsUserW(restricted, str(executable), line, None, None, False,
-            NATIVE_CREATION_FLAGS, block, str(executable.parent), c.byref(startup), c.byref(info)))
+        if normal_user:
+            api.check(api.CreateProcessW(str(executable), line, None, None, False,
+                NATIVE_CREATION_FLAGS, block, str(executable.parent), c.byref(startup), c.byref(info)))
+        else:
+            api.check(api.CreateProcessAsUserW(restricted, str(executable), line, None, None, False,
+                NATIVE_CREATION_FLAGS, block, str(executable.parent), c.byref(startup), c.byref(info)))
         api.check(api.AssignProcessToJobObject(job, info.process))
         api.check(api.OpenProcessToken(info.process, 0x0008, c.byref(child_token)))
         actual = api.token_state(child_token); require_standard(actual)
+        if normal_user and token_has_restrictions(api, child_token):
+            raise RuntimeError('ordinary child unexpectedly received a restricted token')
         if api.ResumeThread(info.thread) == 0xffffffff: raise c.WinError(c.get_last_error())
-        process = OwnedProcess(api, info, job, {'parent': parent_state, 'child': actual, 'owned_job': True})
+        process = OwnedProcess(api, info, job, {'parent': parent_state, 'child': actual, 'owned_job': True, 'normal_user_process': normal_user})
         transferred = True
         return process
     finally:

@@ -40,8 +40,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           mkdir -p evidence
           python scripts/Windows非提升回归v12.py --require-native
-          python scripts/跨平台原生回归v8.py
-          python scripts/聊天授权原生回归v6.py
+          python scripts/授权辅助回归v23.py
           npm ci
           npm run tauri -- build --debug --no-bundle -- --locked 2>&1 | tee evidence/Windows原生编译v8.log
           git diff --exit-code
@@ -58,8 +57,13 @@ jobs:
           New-Item -ItemType Directory -Path $fixture | Out-Null
           New-Item -ItemType File -Path (Join-Path $fixture '.chat-native-fixture-v8') | Out-Null
           Copy-Item -LiteralPath "$env:RUNNER_TEMP/Windows授权驱动v8/驱动来源v8.json" -Destination 'evidence/'
-          & python scripts/聊天授权原生验收v6.py --executable src-tauri/target/debug/coding-tools-mcp-desktop.exe --driver "$env:RUNNER_TEMP/Windows授权驱动v8/msedgedriver.exe" --kind native --source $env:GITHUB_SHA --output evidence --fixture-root $fixture 2>&1 | Tee-Object -FilePath evidence/Windows原生会话v8.log
+          & python scripts/Windows启动对照v17.py --output evidence/Windows同场景启动v17.json 2>&1 | Tee-Object -FilePath evidence/Windows同场景启动v17.log
+          if ($LASTEXITCODE -ne 0) { throw '实际PowerShell场景降权窗口冒烟失败；不进入业务验收' }
+          & python scripts/Windows标准用户验收v22.py --executable src-tauri/target/debug/coding-tools-mcp-desktop.exe --driver "$env:RUNNER_TEMP/Windows授权驱动v8/msedgedriver.exe" --kind native --source $env:GITHUB_SHA --output evidence --fixture-root $fixture 2>&1 | Tee-Object -FilePath evidence/Windows原生会话v8.log
           if ($LASTEXITCODE -ne 0) { throw 'Windows原生授权验收未通过' }
+          $version = (Get-Content -LiteralPath 'package.json' -Raw -Encoding utf8 | ConvertFrom-Json).version
+          & python scripts/聊天授权证据门禁v18.py --input evidence/聊天授权原生结果v6.json --binary src-tauri/target/debug/coding-tools-mcp-desktop.exe --source $env:GITHUB_SHA --run-id $env:GITHUB_RUN_ID --version $version --kind native
+          if ($LASTEXITCODE -ne 0) { throw 'Windows原生八阶段或来源门禁失败' }
           $result = Get-Content -LiteralPath 'evidence/聊天授权原生结果v6.json' -Raw | ConvertFrom-Json
           if (!$result.passed -or $result.tests.Count -ne 8 -or $result.source_sha -ne $env:GITHUB_SHA) { throw '原生验收证据不完整' }
       - uses: actions/upload-artifact@v4

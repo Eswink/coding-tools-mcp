@@ -122,6 +122,8 @@ jobs:
           chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
           touch "$HOME/.ubuntu-ci-fixture-v1"
           xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash scripts/Ubuntu图形会话v2.sh "$GITHUB_WORKSPACE/scripts/聊天授权原生验收v6.py" "$app" "$RUNNER_TEMP/聊天授权Linux驱动v10/tauri-driver" "$PACKAGE_KIND" "$GITHUB_WORKSPACE/evidence" 2>&1 | tee evidence/已安装原生会话v10.log
+          version=$(python -c "import json; print(json.load(open('package.json',encoding='utf-8'))['version'])")
+          python scripts/聊天授权证据门禁v18.py --input evidence/聊天授权原生结果v6.json --binary "$app" --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --version "$version" --kind "$PACKAGE_KIND"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

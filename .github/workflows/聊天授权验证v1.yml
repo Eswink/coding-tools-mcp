@@ -40,6 +40,11 @@ jobs:
           name: 聊天授权精确源码v4
           path: evidence/
           if-no-files-found: error
+      - name: 原生验收证据与启动器辅助回归
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          python scripts/授权辅助回归v23.py
   frontend:
     needs: source
     strategy:
@@ -203,6 +208,8 @@ jobs:
           chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
           touch "$HOME/.ubuntu-ci-fixture-v1"
           xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash scripts/Ubuntu图形会话v2.sh "$GITHUB_WORKSPACE/scripts/聊天授权原生验收v6.py" "$app" "$driver" native "$GITHUB_WORKSPACE/evidence" 2>&1 | tee evidence/原生会话v6.log
+          version=$(python -c "import json; print(json.load(open('package.json',encoding='utf-8'))['version'])")
+          python scripts/聊天授权证据门禁v18.py --input evidence/聊天授权原生结果v6.json --binary "$app" --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --version "$version" --kind native
       - uses: actions/upload-artifact@v4
         if: always()
         with:

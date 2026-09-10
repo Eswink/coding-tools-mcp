@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -10,6 +11,7 @@ import shutil
 import tempfile
 import sys
 import time
+import urllib.error
 
 spec = importlib.util.spec_from_file_location("ubuntu_native_driver_v8", Path(__file__).with_name("Ubuntu原生验收v1.py"))
 gui = importlib.util.module_from_spec(spec)
@@ -135,6 +137,14 @@ def fixture_root(args) -> Path:
     return root
 
 
+class NativeHostExited(RuntimeError):
+    """The owned Python wrapper exited; this does not establish a product crash."""
+    def __init__(self, exit_code: int):
+        self.exit_code = exit_code
+        super().__init__(f"owned Python host exited before WebView2 became ready: "
+                         f"code={exit_code}, hex=0x{exit_code & 0xffffffff:08x}")
+
+
 class WindowsNativeSession(gui.NativeSession):
     def __init__(self, executable: Path, driver: Path, output: Path, attempt: int):
         self.session = ""
@@ -157,7 +167,7 @@ class WindowsNativeSession(gui.NativeSession):
                 "--result", str((output / f"Windows应用退出v13-{attempt}.json").resolve())])
             (output / f"Windows权限级别v12-{attempt}.json").write_text(
                 json.dumps(self.app_process.security, indent=2), encoding="utf-8")
-            gui.wait_for(lambda: self.debug_status(), timeout=60)
+            self.wait_for_debug(timeout=60)
             startup = native_process_snapshot(self.app_process.pid)
             verify_debug_listener(startup, debug_port)
             (output / f"Windows启动诊断v10-{attempt}.json").write_text(
@@ -188,11 +198,26 @@ class WindowsNativeSession(gui.NativeSession):
                 print(f"native cleanup also failed: {type(cleanup_error).__name__}", file=sys.stderr)
             raise
 
-    def debug_status(self):
+    def wait_for_debug(self, timeout=60):
+        """Retry only read-only connection readiness, never a known process exit."""
+        if type(timeout) not in (int, float) or not math.isfinite(timeout) or not 0 < timeout <= 300:
+            raise ValueError("native startup budget must be finite and within 300 seconds")
+        deadline = time.monotonic() + timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("owned native host did not expose its loopback WebView2 endpoint")
+            try:
+                return self.debug_status(timeout=min(3, remaining))
+            except (ConnectionError, TimeoutError, urllib.error.URLError):
+                # Process-exit and protocol errors remain fatal. No app/tool replay.
+                time.sleep(min(0.25, max(0, deadline - time.monotonic())))
+
+    def debug_status(self, timeout=3):
         exit_code = self.app_process.poll()
         if exit_code is not None:
-            raise RuntimeError(f"native application exited before WebView2 became ready: code={exit_code}, hex=0x{exit_code & 0xffffffff:08x}")
-        value = gui.request(self.debug_base + "/json/version", timeout=3)
+            raise NativeHostExited(exit_code)
+        value = gui.request(self.debug_base + "/json/version", timeout=timeout)
         if not isinstance(value, dict) or not value.get("webSocketDebuggerUrl"):
             raise RuntimeError("native WebView2 debugging endpoint is not ready")
         return value

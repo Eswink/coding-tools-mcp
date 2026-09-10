@@ -133,24 +133,49 @@ def denied(value: dict, private_path: str) -> None:
     assert private_path not in text and "chat-A-only-v6" not in text
 
 
+def finish_evidence(output: Path, evidence: dict, session, primary_failed: bool) -> None:
+    """Cleanup failure must neither erase earlier evidence nor produce PASS."""
+    cleanup_error = None
+    if session:
+        try:
+            session.close()
+            evidence["cleanup_completed"] = True
+        except BaseException as error:
+            cleanup_error = error
+            evidence["passed"] = False
+            evidence["cleanup_failed"] = True
+            evidence["cleanup_failure_type"] = type(error).__name__
+    # Preserve the first failure and always persist bounded, secret-free metadata.
+    (output / "聊天授权原生结果v6.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({"passed": evidence["passed"], "tests": len(evidence["tests"])}))
+    if cleanup_error is not None and not primary_failed:
+        raise cleanup_error
+
+
 def run(args) -> None:
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
-    evidence = {"passed": False, "source_sha": args.source, "platform": platform.platform(),
-        "binary_sha256": hashlib.sha256(args.executable.read_bytes()).hexdigest(), "build_kind": "debug-static-assets" if args.kind == "native" else "release-installed",
+    evidence = {"passed": False, "source_sha": args.source, "run_id": os.environ.get("GITHUB_RUN_ID"),
+        "platform": platform.platform(),
+        "binary_sha256": None, "build_kind": "debug-static-assets" if args.kind == "native" else "release-installed",
         "package_kind": args.kind,
-        "real_native_webview": True, "real_oauth_http": True, "real_local_ipc": True,
+        "real_native_webview": False, "real_oauth_http": False, "real_local_ipc": False,
+        "cleanup_failed": False, "cleanup_completed": False,
         "synthetic_conversation_metadata": True, "real_chatgpt_verified": False,
         "sandbox_disabled": False, "tests": []}
     session = None
     profile = None
+    primary_failed = False
     def passed(name):
         evidence["tests"].append({"name": name, "passed": True})
         print("PASS " + name, flush=True)
     try:
+        evidence["binary_sha256"] = hashlib.sha256(args.executable.read_bytes()).hexdigest()
         home = adapter.fixture_root(args)
         session = adapter.session(args.executable.resolve(), args.driver.resolve(), output, 1)
+        evidence["real_native_webview"] = True
         evidence["version"] = session.invoke("plugin:app|version")
+        evidence["real_local_ipc"] = True
         expected_version = json.loads((Path(__file__).resolve().parents[1] / "package.json").read_text(encoding="utf-8"))["version"]
         assert evidence["version"] == expected_version, "native binary version differs from source"
         assert session.invoke("list_workspaces") == [], "refusing a nonempty application profile"
@@ -178,6 +203,7 @@ def run(args) -> None:
         assert status == 401 and "resource_metadata" in headers["WWW-Authenticate"]
         token = oauth_token(base, profile["auth"]["oauth_client_id"], password,
                             profile["auth"]["oauth_redirect_uri"], str(root))
+        evidence["real_oauth_http"] = True
         passed("真实OAuth发现、PKCE授权码交换与401挑战")
         a, b, c = ["synthetic-native-" + secrets.token_hex(16) for _ in range(3)]
         for chat, arguments in [(a, {}), (b, {"authorized": True, "_meta": {"openai/session": a}}), (None, {})]:
@@ -240,14 +266,15 @@ def run(args) -> None:
         assert len(evidence["tests"]) == 8
         evidence["passed"] = True
     except BaseException as error:
+        primary_failed = True
         evidence["failure_type"] = type(error).__name__
+        if isinstance(error, adapter.NativeHostExited):
+            evidence["host_exit_code"] = error.exit_code
+            evidence["failure_stage"] = "owned-python-host"
         # Do not persist exception payloads that may contain credentials or tool data.
         raise
     finally:
-        if session:
-            session.close()
-        (output / "聊天授权原生结果v6.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        print(json.dumps({"passed": evidence["passed"], "tests": len(evidence["tests"])}))
+        finish_evidence(output, evidence, session, primary_failed)
 
 
 if __name__ == "__main__":

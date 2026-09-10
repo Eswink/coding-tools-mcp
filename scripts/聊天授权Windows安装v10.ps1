@@ -29,11 +29,15 @@ if ($info.FileMajorPart -ne $parts[0] -or $info.FileMinorPart -ne $parts[1] -or 
 $fixture = Join-Path $env:RUNNER_TEMP ('聊天授权配置v10-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $fixture | Out-Null
 New-Item -ItemType File -Path (Join-Path $fixture '.chat-native-fixture-v8') | Out-Null
-& python scripts/聊天授权原生验收v6.py --executable $installed.FullName --driver $Driver --kind nsis --source $source --output $OutputDirectory --fixture-root $fixture 2>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'Windows已安装原生v10.log')
+& python scripts/Windows启动对照v17.py --output (Join-Path $OutputDirectory 'Windows同场景启动v17.json') 2>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'Windows同场景启动v17.log')
+if ($LASTEXITCODE -ne 0) { throw '已安装流程的PowerShell降权窗口冒烟失败；不进入业务验收' }
+& python scripts/Windows标准用户验收v22.py --executable $installed.FullName --driver $Driver --kind nsis --source $source --output $OutputDirectory --fixture-root $fixture 2>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'Windows已安装原生v10.log')
 if ($LASTEXITCODE -ne 0) { throw 'NSIS安装后完整授权验收失败' }
 $proof = Get-Content -LiteralPath (Join-Path $OutputDirectory '聊天授权原生结果v6.json') -Raw -Encoding utf8 | ConvertFrom-Json
 $binaryHash = (Get-FileHash -LiteralPath $installed.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
 if (!$proof.passed -or $proof.tests.Count -ne 8 -or $proof.source_sha -ne $source -or $proof.version -ne $version -or $proof.binary_sha256 -ne $binaryHash -or $proof.package_kind -ne 'nsis' -or $proof.build_kind -ne 'release-installed') { throw 'NSIS原生证据身份不一致' }
+& python scripts/聊天授权证据门禁v18.py --input (Join-Path $OutputDirectory '聊天授权原生结果v6.json') --binary $installed.FullName --source $source --run-id $env:GITHUB_RUN_ID --version $version --kind nsis
+if ($LASTEXITCODE -ne 0) { throw 'NSIS原生八阶段或来源门禁失败' }
 $target = Join-Path $OutputDirectory "科研工具MCP_聊天授权候选_v$version`_Windows_x64安装包.exe"
 Copy-Item -LiteralPath $setups[0].FullName -Destination $target
 $package = Get-Item -LiteralPath $target
