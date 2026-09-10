@@ -1,0 +1,193 @@
+name: 聊天授权安装包v10
+on:
+  push:
+    branches: ['feat/chat-authorization-v1']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux-build:
+    name: 构建实际DEB与AppImage安装包
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 安装图形桌面构建依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev patchelf libfuse2
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: auth-linux-release-v10
+      - name: 六处版本校验及真实打包
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python scripts/聊天授权安装回归v10.py
+          python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA"
+          npm ci
+          npm run check
+          npm run tauri -- build --config src-tauri/Ubuntu桌面v1.json --bundles deb,appimage -- --locked 2>&1 | tee evidence/授权安装包构建v10.log
+          python scripts/AppImage入口配置v3.py --verify src-tauri/target/release/bundle/appimage/*.AppImage --output evidence/AppImage入口结果v10.json
+          python scripts/聊天授权安装核验v10.py prepare --directory . --output "$RUNNER_TEMP/聊天授权Ubuntu包v10" --source "$GITHUB_SHA"
+          cargo install tauri-driver --version 2.0.6 --locked --root "$RUNNER_TEMP/聊天授权Linux驱动v10"
+          git diff --exit-code
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 聊天授权Ubuntu包v10
+          path: ${{ runner.temp }}/聊天授权Ubuntu包v10/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 聊天授权Linux驱动v10
+          path: ${{ runner.temp }}/聊天授权Linux驱动v10/bin/tauri-driver
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 聊天授权打包Linux证据v10
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
+  linux-native:
+    name: 已安装授权验收 (${{ matrix.os }}, ${{ matrix.kind }})
+    needs: linux-build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+        kind: [deb, appimage]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 18
+    env:
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      GDK_BACKEND: x11
+      LIBGL_ALWAYS_SOFTWARE: '1'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+      PACKAGE_KIND: ${{ matrix.kind }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: 聊天授权Ubuntu包v10
+          path: ${{ runner.temp }}/聊天授权Ubuntu包v10
+      - uses: actions/download-artifact@v4
+        with:
+          name: 聊天授权Linux驱动v10
+          path: ${{ runner.temp }}/聊天授权Linux驱动v10
+      - name: 安装真实载荷及桌面运行库
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-driver xvfb xauth fonts-noto-cjk desktop-file-utils gnome-keyring dbus-x11 xdg-desktop-portal xdg-desktop-portal-gtk libayatana-appindicator3-1 libxdo3
+          chmod +x "$RUNNER_TEMP/聊天授权Linux驱动v10/tauri-driver" "$RUNNER_TEMP/聊天授权Ubuntu包v10/"*.AppImage
+          if [ "$PACKAGE_KIND" = deb ]; then sudo apt-get install -y "$RUNNER_TEMP/聊天授权Ubuntu包v10/"*.deb; fi
+          mkdir -p evidence
+          python scripts/聊天授权安装核验v10.py installed --directory "$RUNNER_TEMP/聊天授权Ubuntu包v10" --source "$GITHUB_SHA" --kind "$PACKAGE_KIND" --output evidence/聊天授权安装来源v10.json
+      - name: 安装后的原生审批及八组业务隔离
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=$(python -c "import json; print(json.load(open('evidence/聊天授权安装来源v10.json',encoding='utf-8'))['executable'])")
+          export HOME="$RUNNER_TEMP/聊天授权已安装夹具v10"
+          export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+          mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          touch "$HOME/.ubuntu-ci-fixture-v1"
+          xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash scripts/Ubuntu图形会话v2.sh "$GITHUB_WORKSPACE/scripts/聊天授权原生验收v6.py" "$app" "$RUNNER_TEMP/聊天授权Linux驱动v10/tauri-driver" "$PACKAGE_KIND" "$GITHUB_WORKSPACE/evidence" 2>&1 | tee evidence/已安装原生会话v10.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 聊天授权已安装-${{ matrix.os }}-${{ matrix.kind }}-v10
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
+  windows:
+    name: NSIS真实安装及原生审批验收
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: auth-windows-release-v10
+      - name: 从已提交版本构建NSIS
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA"
+          npm ci
+          npm run check
+          npm run tauri -- build --ci --bundles nsis -- --locked 2>&1 | tee evidence/NSIS构建v10.log
+          git diff --exit-code
+      - name: 准备精确匹配的原生WebView2驱动
+        shell: pwsh
+        run: ./scripts/Windows原生驱动准备v8.ps1 -OutputDirectory "$env:RUNNER_TEMP/聊天授权Windows驱动v10"
+      - name: 安装及从安装路径进行真实审批测试
+        shell: pwsh
+        run: |
+          ./scripts/聊天授权Windows安装v10.ps1 -OutputDirectory "$env:RUNNER_TEMP/聊天授权Windows包v10" -Driver "$env:RUNNER_TEMP/聊天授权Windows驱动v10/msedgedriver.exe"
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS安装授权验收失败' }
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: 聊天授权Windows包v10
+          path: ${{ runner.temp }}/聊天授权Windows包v10/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 聊天授权打包Windows证据v10
+          path: |
+            evidence/
+            ${{ runner.temp }}/聊天授权Windows包v10/*.json
+            ${{ runner.temp }}/聊天授权Windows包v10/*.png
+            ${{ runner.temp }}/聊天授权Windows包v10/*.log
+            ${{ runner.temp }}/聊天授权Windows驱动v10/驱动来源v8.json
+          if-no-files-found: error
+          retention-days: 14
