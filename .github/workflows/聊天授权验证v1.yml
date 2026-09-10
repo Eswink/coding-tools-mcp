@@ -111,3 +111,102 @@ jobs:
           name: 聊天授权Rust-${{ matrix.os }}-v4
           path: evidence/
           if-no-files-found: error
+  native-build:
+    name: 编译真实授权桌面测试程序
+    needs: source
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 安装桌面构建依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: auth-native-v6
+      - name: 编译嵌入真实前端的桌面程序与原生驱动
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence native-v6/app native-v6/driver
+          python scripts/聊天授权原生回归v6.py
+          npm ci
+          npm run tauri -- build --debug --no-bundle -- --locked 2>&1 | tee evidence/原生编译v6.txt
+          cargo install tauri-driver --version 2.0.6 --locked --root "$RUNNER_TEMP/授权驱动v6"
+          cp src-tauri/target/debug/coding-tools-mcp-desktop native-v6/app/
+          cp "$RUNNER_TEMP/授权驱动v6/bin/tauri-driver" native-v6/driver/
+          git rev-parse HEAD > native-v6/源码版本v6.txt
+          sha256sum native-v6/app/* native-v6/driver/* > evidence/测试程序摘要v6.txt
+          git diff --exit-code
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 聊天授权原生程序v6
+          path: native-v6/
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 聊天授权原生编译v6
+          path: evidence/
+          if-no-files-found: error
+  native:
+    name: 真实Ubuntu审批与双会话隔离 (${{ matrix.os }})
+    needs: [source, native-build]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      GDK_BACKEND: x11
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: 聊天授权原生程序v6
+          path: ${{ runner.temp }}/聊天授权程序v6
+      - name: 安装原生驱动和图形会话依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-driver xvfb xauth fonts-noto-cjk gnome-keyring dbus-x11 xdg-desktop-portal xdg-desktop-portal-gtk libayatana-appindicator3-1 libxdo3
+      - name: 真实窗口审批、隔离、撤销、独占及重启
+        shell: bash
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/聊天授权程序v6/app/coding-tools-mcp-desktop"
+          driver="$RUNNER_TEMP/聊天授权程序v6/driver/tauri-driver"
+          test "$(cat "$RUNNER_TEMP/聊天授权程序v6/源码版本v6.txt")" = "$GITHUB_SHA"
+          chmod +x "$app" "$driver"
+          export HOME="$RUNNER_TEMP/聊天授权用户v6"
+          export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+          mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR" evidence
+          chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          touch "$HOME/.ubuntu-ci-fixture-v1"
+          xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash scripts/Ubuntu图形会话v2.sh "$GITHUB_WORKSPACE/scripts/聊天授权原生验收v6.py" "$app" "$driver" native "$GITHUB_WORKSPACE/evidence" 2>&1 | tee evidence/原生会话v6.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 聊天授权原生-${{ matrix.os }}-v6
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
