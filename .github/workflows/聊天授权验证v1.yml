@@ -13,8 +13,6 @@ jobs:
     if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/feat/chat-authorization-v1'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions:
-      contents: write
     outputs:
       sha: ${{ steps.source.outputs.sha }}
     steps:
@@ -22,72 +20,33 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-      - name: 校验有界补丁并落为真实源码提交
+          persist-credentials: false
+      - name: 校验精确源码（只读，不改写分支）
         id: source
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import base64, hashlib, json, lzma, os, pathlib, subprocess
-          def git(*args, **kw):
-              return subprocess.check_output(['git', *args], **kw).decode().strip()
-          root = pathlib.Path('docs/specs/聊天授权v1')
-          manifest = root / '候选清单v1.json'
-          if manifest.exists():
-              m = json.loads(manifest.read_text())
-              assert git('rev-parse', 'HEAD^') == m['base'], 'candidate parent changed'
-              assert 1 <= m['chunks'] <= 20 and 1 <= len(m['before']) <= 100
-              chunks = [root / f'候选分片{i:02d}v1.txt' for i in range(1, m['chunks'] + 1)]
-              encoded = ''.join(p.read_text().strip() for p in chunks)
-              assert len(encoded) <= 256000
-              decoder = lzma.LZMADecompressor(memlimit=128 * 1024 * 1024)
-              patch = decoder.decompress(base64.b64decode(encoded, validate=True), max_length=2 * 1024 * 1024 + 1)
-              assert decoder.eof and not decoder.unused_data and len(patch) <= 2 * 1024 * 1024
-              assert hashlib.sha256(patch).hexdigest() == m['sha256'], 'patch digest mismatch'
-              paths = list(m['before'])
-              for name, sha in m['before'].items():
-                  p = pathlib.PurePosixPath(name)
-                  assert not p.is_absolute() and '..' not in p.parts and '\\' not in name
-                  assert name.startswith(('src-tauri/src/', 'src/', 'tests/', 'docs/specs/聊天授权v1/'))
-                  if sha is None:
-                      assert not pathlib.Path(name).exists(), name
-                  else:
-                      assert git('rev-parse', f'HEAD:{name}') == sha, name
-              summary = subprocess.check_output(['git', 'apply', '--numstat', '-z'], input=patch)
-              changed = [item.split(b'\t', 2)[2].decode() for item in summary.split(b'\0') if item]
-              assert len(changed) == len(paths) and set(changed) == set(paths)
-              for line in patch.decode().splitlines():
-                  if line.startswith(('new file mode ', 'new mode ')):
-                      assert line.endswith('100644'), 'unexpected file mode'
-              subprocess.run(['git', 'apply', '--check'], input=patch, check=True)
-              subprocess.run(['git', 'apply'], input=patch, check=True)
-              subprocess.run(['git', 'add', '--', *paths], check=True)
-              subprocess.run(['git', 'rm', '--', str(manifest), *map(str, chunks)], check=True)
-              subprocess.run(['git', 'config', 'user.name', 'github-actions[bot]'], check=True)
-              subprocess.run(['git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'], check=True)
-              subprocess.run(['git', 'commit', '-m', 'feat(auth): 落地逐聊天审批与工具任务隔离候选v1'], check=True)
-              subprocess.run(['git', 'push', 'origin', 'HEAD:refs/heads/feat/chat-authorization-v1'], check=True)
-              print('verified_patch_sha256=' + m['sha256'])
-          sha = git('rev-parse', 'HEAD')
-          print('validated_source_sha=' + sha)
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write('sha=' + sha + '\n')
-          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
-              f.write('实际验收源码：`' + sha + '`。本工作流不发布安装包、不修改 main。\n')
-          PY
-      - name: 保存精确源码与变更
-        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          test ! -e docs/specs/聊天授权v1/候选清单v1.json
+          echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
           mkdir -p evidence
-          git rev-parse HEAD > evidence/源码版本v1.txt
-          git diff 22dbbecd3fbebef58b8b6bdca05e2f7080e0b128 HEAD --binary > evidence/聊天授权源码v1.patch
-          git archive --format=zip -o evidence/聊天授权源码v1.zip HEAD
+          git rev-parse HEAD > evidence/源码版本v4.txt
+          git rev-parse HEAD^{tree} > evidence/源码树v4.txt
+          git diff 22dbbecd3fbebef58b8b6bdca05e2f7080e0b128 HEAD --binary > evidence/聊天授权源码v4.patch
+          git archive --format=zip -o evidence/聊天授权源码v4.zip HEAD
       - uses: actions/upload-artifact@v4
         with:
-          name: 聊天授权精确源码v1
+          name: 聊天授权精确源码v4
           path: evidence/
+          if-no-files-found: error
   frontend:
     needs: source
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -101,9 +60,19 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
-      - name: 授权面板与原有前端回归
+      - name: 授权面板与全部前端回归（真实源码临时编译）
         shell: bash
-        run: node --test tests/*.test.mjs
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/源码版本v4.txt
+          node scripts/前端完整回归v4.mjs 2>&1 | tee evidence/前端回归v4.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 聊天授权前端-${{ matrix.os }}-v4
+          path: evidence/
+          if-no-files-found: error
   rust:
     needs: source
     strategy:
@@ -133,12 +102,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p evidence
-          git rev-parse HEAD | tee evidence/source.txt
-          rustc -Vv | tee evidence/rustc.txt
-          cargo check --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/check.txt
-          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/test.txt
+          git rev-parse HEAD | tee evidence/源码版本v4.txt
+          rustc -Vv | tee evidence/编译器v4.txt
+          cargo check --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/编译检查v4.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/完整回归v4.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: 聊天授权Rust-${{ matrix.os }}-v1
+          name: 聊天授权Rust-${{ matrix.os }}-v4
           path: evidence/
+          if-no-files-found: error
