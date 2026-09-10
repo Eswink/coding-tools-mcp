@@ -120,7 +120,11 @@ class WindowsNativeSession(gui.NativeSession):
         self.debug_base = f"http://127.0.0.1:{debug_port}"
         try:
             self.browser_profile = Path(tempfile.mkdtemp(prefix="chat-webview-v10-", dir=os.environ["RUNNER_TEMP"]))
-            self.app_process = medium.launch(executable, webview_environment(debug_port, self.browser_profile))
+            self.app_process = medium.launch(Path(sys.executable), webview_environment(debug_port, self.browser_profile), [
+                str(Path(__file__).with_name("Windows原生宿主v13.py").resolve()),
+                "--executable", str(executable),
+                "--log", str((output / f"Windows应用输出v13-{attempt}.log").resolve()),
+                "--result", str((output / f"Windows应用退出v13-{attempt}.json").resolve())])
             (output / f"Windows权限级别v12-{attempt}.json").write_text(
                 json.dumps(self.app_process.security, indent=2), encoding="utf-8")
             gui.wait_for(lambda: self.debug_status(), timeout=60)
@@ -150,8 +154,9 @@ class WindowsNativeSession(gui.NativeSession):
             raise
 
     def debug_status(self):
-        if self.app_process.poll() is not None:
-            raise RuntimeError("native application exited before WebView2 became ready")
+        exit_code = self.app_process.poll()
+        if exit_code is not None:
+            raise RuntimeError(f"native application exited before WebView2 became ready: code={exit_code}, hex=0x{exit_code & 0xffffffff:08x}")
         value = gui.request(self.debug_base + "/json/version", timeout=3)
         if not isinstance(value, dict) or not value.get("webSocketDebuggerUrl"):
             raise RuntimeError("native WebView2 debugging endpoint is not ready")
