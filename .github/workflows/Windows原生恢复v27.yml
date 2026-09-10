@@ -12,6 +12,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: 保存当前修复的精确源码
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          mkdir -p "$RUNNER_TEMP/native-source"
+          git archive --format=zip --output="$RUNNER_TEMP/native-source/源码v30.zip" HEAD
+          git rev-parse HEAD > "$RUNNER_TEMP/native-source/提交v30.txt"
+          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/native-source/内容树v30.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 原生恢复源码v30
+          path: ${{ runner.temp }}/native-source/
+          if-no-files-found: error
+          retention-days: 14
       - run: |
           python scripts/标准宿主回归v27.py
           python scripts/引导异常回归v28.py
