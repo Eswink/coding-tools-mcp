@@ -10,7 +10,7 @@ class BootstrapContracts(unittest.TestCase):
         code = (ROOT/'Windows标准用户验收v22.py').read_text(encoding='utf-8')
         self.assertIn("Path(sys.executable).with_name('pythonw.exe')", code)
         self.assertIn("interpreter.is_symlink()", code)
-        self.assertIn("api.CreateProcessWithTokenW(token, 1, str(interpreter), command,", code)
+        self.assertIn("api.CreateProcessWithLogonW(name, '.', password, 1, str(interpreter), command,", code)
         self.assertIn("if count != 1:", code)
 
     def test_bootstrap_records_before_native_import(self):

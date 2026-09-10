@@ -67,9 +67,9 @@ class DesktopAclContracts(unittest.TestCase):
 
     def test_binding_and_cleanup_are_in_the_real_wrapper(self):
         text=Path(__file__).with_name('Windows标准用户验收v22.py').read_text(encoding='utf-8')
-        self.assertIn("startup.desktop = r'winsta0\\default'",text)
-        self.assertIn('desktop_access.apply()',text)
-        self.assertLess(text.index('process.terminate_tree()'),text.index('desktop_access.close()'))
-        self.assertLess(text.index('desktop_access.close()'),text.index('api.NetUserDel(None, name)'))
+        self.assertIn("startup.desktop = None",text)
+        self.assertNotIn('desktop_access.apply()',text)
+        self.assertIn('logon_module.verify_child(',text)
+        self.assertLess(text.index('process.terminate_tree()'),text.index('api.NetUserDel(None, name)'))
 
 if __name__=='__main__': unittest.main()

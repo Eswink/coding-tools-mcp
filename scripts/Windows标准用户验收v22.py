@@ -80,7 +80,7 @@ class AccountApi(medium.Api):
         bind(self.adv, 'ConvertSidToStringSidW', w.BOOL, [ptr, c.POINTER(ptr)])
         bind(self.adv, 'LookupAccountSidW', w.BOOL, [w.LPCWSTR, ptr, w.LPWSTR, c.POINTER(w.DWORD), w.LPWSTR, c.POINTER(w.DWORD), c.POINTER(w.DWORD)])
         bind(self.adv, 'LogonUserW', w.BOOL, [w.LPCWSTR, w.LPCWSTR, w.LPCWSTR, w.DWORD, w.DWORD, c.POINTER(w.HANDLE)])
-        bind(self.adv, 'CreateProcessWithTokenW', w.BOOL, [w.HANDLE, w.DWORD, w.LPCWSTR, w.LPWSTR, w.DWORD, ptr, w.LPCWSTR, c.POINTER(medium.Startup), c.POINTER(medium.ProcessInfo)])
+        bind(self.adv, 'CreateProcessWithLogonW', w.BOOL, [w.LPCWSTR, w.LPCWSTR, w.LPCWSTR, w.DWORD, w.LPCWSTR, w.LPWSTR, w.DWORD, ptr, w.LPCWSTR, c.POINTER(medium.Startup), c.POINTER(medium.ProcessInfo)])
         bind(self.userenv, 'GetUserProfileDirectoryW', w.BOOL, [w.HANDLE, w.LPWSTR, c.POINTER(w.DWORD)])
         bind(self.userenv, 'DeleteProfileW', w.BOOL, [w.LPCWSTR, w.LPCWSTR, w.LPCWSTR])
 
@@ -220,7 +220,7 @@ def run(args) -> None:
     root = Path(tempfile.mkdtemp(prefix='chat-standard-v22-', dir=temporary))
     (root / '.standard-account-fixture-v22').touch()
     (root / 'state').mkdir()
-    token = w.HANDLE(); process = None; desktop_access = None
+    token = w.HANDLE(); process = None
     name = 'ctmcpv22_' + secrets.token_hex(5)
     password = secrets.token_urlsafe(32) + 'Aa1!'
     marker = 'coding-tools-native-v22:' + secrets.token_hex(16)
@@ -242,11 +242,8 @@ def run(args) -> None:
             raise RuntimeError('Windows did not issue an ordinary standard-user logon token')
         evidence['genuine_standard_account'] = True
         evidence['account_sid_sha256'] = hashlib.sha256(sid.encode()).hexdigest()
-        desktop_spec = importlib.util.spec_from_file_location('desktop_access_v29', Path(__file__).with_name('临时桌面授权v29.py'))
-        desktop_module = importlib.util.module_from_spec(desktop_spec); desktop_spec.loader.exec_module(desktop_module)
-        desktop_access = desktop_module.DesktopAccess(api, token)
-        evidence['desktop_access'] = desktop_access.proof
-        desktop_access.apply()
+        logon_spec = importlib.util.spec_from_file_location('ordinary_logon_v31', Path(__file__).with_name('普通登录核验v31.py'))
+        logon_module = importlib.util.module_from_spec(logon_spec); logon_spec.loader.exec_module(logon_module)
         grant(root, sid, '(OI)(CI)(RX)')
         grant(root / 'state', sid, '(OI)(CI)(M)')
         grant(executable, sid, '(RX)'); grant(driver, sid, '(RX)')
@@ -262,8 +259,9 @@ def run(args) -> None:
         command = c.create_unicode_buffer(subprocess.list2cmdline([str(interpreter),
             str(root / 'source' / 'scripts' / '标准宿主引导v27.py'), str(manifest)]))
         startup = medium.Startup(); startup.cb = c.sizeof(startup)
-        # Explicit interactive desktop, with narrowly scoped logon-SID access.
-        startup.desktop = r'winsta0\default'
+        # Request the ordinary caller desktop; actual GUI initialization remains a hard gate.
+        # No manual desktop ACL changes or assumptions that API success proves GUI access.
+        startup.desktop = None
         info_process = medium.ProcessInfo()
         job = api.check(api.CreateJobObjectW(None, None))
         try:
@@ -271,15 +269,15 @@ def run(args) -> None:
             api.check(api.SetInformationJobObject(job, 9, c.byref(limits), c.sizeof(limits)))
             # This API implicitly creates a NEW_CONSOLE; DETACHED_PROCESS conflicts.
             # Keep SUSPENDED ownership and profile-created Unicode environment.
-            api.check(api.CreateProcessWithTokenW(token, 1, str(interpreter), command,
+            api.check(api.CreateProcessWithLogonW(name, '.', password, 1, str(interpreter), command,
                 0x4 | 0x400, None, str(root), c.byref(startup), c.byref(info_process)))
             # Own before resume; any failure terminates this still-suspended process.
             api.check(api.AssignProcessToJobObject(job, info_process.process))
             process = medium.OwnedProcess(api, info_process, job, {'standard_account': True})
             job = None
-            length = w.DWORD(32768); path = c.create_unicode_buffer(length.value)
-            api.check(api.GetUserProfileDirectoryW(token, path, c.byref(length)))
-            profile = Path(path.value)
+            proof, profile_path = logon_module.verify_child(api, medium, info_process.process, sid)
+            evidence['actual_logon'] = proof
+            profile = Path(profile_path)
             if profile.name.casefold() != name.casefold(): raise RuntimeError('unexpected new account profile path')
             count = api.ResumeThread(info_process.thread)
             evidence['resume_previous_count'] = int(count)
@@ -305,9 +303,6 @@ def run(args) -> None:
         if process:
             try: process.terminate_tree(); evidence['owned_processes_closed'] = True
             except BaseException as error: failures.append(type(error).__name__)
-        if desktop_access:
-            try: desktop_access.close()
-            except BaseException as error: failures.append('DesktopAccess:' + type(error).__name__)
         if token: api.CloseHandle(token)
         try:
             evidence_dir = root / 'state' / 'evidence'
