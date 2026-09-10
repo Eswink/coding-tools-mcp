@@ -15,6 +15,9 @@ use super::bearer::constant_time_eq_str;
 mod request_boundary;
 use request_boundary::{valid_challenge, valid_resource};
 
+#[path = "OAuth客户端认证v7.rs"]
+mod client_auth;
+
 pub const OAUTH_CODE_TTL_SECONDS: u64 = 300;
 pub const OAUTH_TOKEN_TTL_SECONDS: i64 = 8 * 60 * 60;
 #[allow(dead_code)]
@@ -146,6 +149,7 @@ pub struct TokenForm {
     pub code: String,
     pub redirect_uri: String,
     pub code_verifier: String,
+    #[serde(default)]
     pub client_id: String,
     #[serde(default)]
     pub client_secret: String,
@@ -277,21 +281,15 @@ pub fn token_exchange(
         return token_error("unsupported_grant_type", "Only authorization_code is supported");
     }
 
-    if let Some((id, secret)) = basic_auth_credentials(headers) {
-        if form.client_id.is_empty() {
-            form.client_id = id;
-        }
-        if form.client_secret.is_empty() {
-            form.client_secret = secret;
-        }
+    if client_auth::resolve(headers, &mut form).is_err() {
+        return client_auth::invalid_client();
     }
-
     if !oauth.client_id_allowed(&form.client_id) {
-        return token_error("invalid_client", "Unknown client_id");
+        return client_auth::invalid_client();
     }
     if let Some(expected) = oauth.client_secret.as_deref() {
         if !constant_time_eq_str(&form.client_secret, expected) {
-            return token_error("invalid_client", "Invalid client_secret");
+            return client_auth::invalid_client();
         }
     }
     if form.code.is_empty() {
@@ -355,20 +353,10 @@ fn valid_code_verifier(verifier: &str) -> bool {
             .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '.' | '_' | '~'))
 }
 
-fn basic_auth_credentials(headers: &HeaderMap) -> Option<(String, String)> {
-    let header = headers.get(AUTHORIZATION)?.to_str().ok()?;
-    let encoded = header.strip_prefix("Basic ")?;
-    let decoded = base64::engine::general_purpose::STANDARD
-        .decode(encoded)
-        .ok()?;
-    let text = String::from_utf8(decoded).ok()?;
-    let (id, secret) = text.split_once(':')?;
-    Some((id.to_string(), secret.to_string()))
-}
-
 fn token_error(error: &str, description: &str) -> Response {
     (
         StatusCode::BAD_REQUEST,
+        [(axum::http::header::CACHE_CONTROL, "no-store")],
         axum::Json(json!({
             "error": error,
             "error_description": description
@@ -531,3 +519,7 @@ mod tests {
 #[cfg(test)]
 #[path = "OAuth请求边界回归v5.rs"]
 mod request_boundary_tests;
+
+#[cfg(test)]
+#[path = "OAuth客户端认证回归v7.rs"]
+mod client_auth_tests;
