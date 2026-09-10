@@ -1,5 +1,6 @@
 """Adapter contract tests, not claims of native GUI execution."""
 import importlib.util
+import json
 import os
 from pathlib import Path
 import tempfile
@@ -28,7 +29,7 @@ class AdapterTests(unittest.TestCase):
             self.assertEqual(child["PATH"], "canary-path")
             self.assertEqual(child["WEBVIEW2_USER_DATA_FOLDER"], str(Path(tempfile.gettempdir()).resolve()))
             self.assertEqual(child["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"],
-                             "--remote-debugging-port=19222")
+                             f'--remote-debugging-port=19222 --enable-logging --v=1 --log-file="{Path(tempfile.gettempdir()).resolve() / "浏览器启动v20.log"}"')
             with self.assertRaises(ValueError): adapter.webview_environment(19222, Path("relative"))
 
     def test_close_stops_both_owned_processes_even_when_app_cleanup_fails(self):
@@ -74,5 +75,45 @@ class AdapterTests(unittest.TestCase):
         with patch.object(adapter.sys, "platform", "linux"), patch.object(adapter.gui, "NativeSession", return_value="native-linux") as lin:
             self.assertEqual(adapter.session("app", "driver", "out", 1), "native-linux")
             lin.assert_called_once_with("app", "driver", "out", 1)
+
+    def test_arguments_preserve_loopback_port_and_sandbox(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = adapter.webview_environment(43210, Path(directory).resolve())
+            args = env["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"]
+            self.assertIn("--remote-debugging-port=43210", args)
+            self.assertIn("--enable-logging --v=1", args)
+            self.assertNotIn("--no-sandbox", args)
+            self.assertNotIn("--disable-web-security", args)
+            self.assertNotIn("--remote-allow-origins", args)
+
+    def test_missing_log_is_not_reported_as_captured(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "result.json"
+            adapter.collect_startup_log(None, output)
+            self.assertFalse(json.loads(output.read_text(encoding="utf-8"))["file_found"])
+
+    def test_startup_records_are_bounded_filtered_and_redacted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "浏览器启动v20.log").write_text(
+                "INFO benign\nERROR sandbox: Access denied (5)\n"
+                "ERROR token=canary-token password=canary-password https://example.test/?secret=canary\n"
+                + "WARNING repeated\n" * 100, encoding="utf-8")
+            output = root / "result.json"
+            adapter.collect_startup_log(root, output)
+            record = json.loads(output.read_text(encoding="utf-8"))
+            text = json.dumps(record)
+            self.assertTrue(record["file_found"])
+            self.assertTrue(record["truncated"])
+            self.assertEqual(record["phase"], "before_oauth")
+            self.assertEqual(len(record["messages"]), 40)
+            self.assertIn("Access denied (5)", text)
+            self.assertNotIn("benign", text)
+            self.assertNotIn("canary", text)
+
+    def test_browser_path_cannot_inject_flags(self):
+        with self.assertRaises(ValueError):
+            adapter.webview_environment(12345, Path('/fixture/" --no-sandbox'))
+
 
 if __name__ == "__main__": unittest.main()

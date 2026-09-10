@@ -2,6 +2,7 @@
 from __future__ import annotations
 import importlib.util
 import json
+import re
 import os
 from pathlib import Path
 import subprocess
@@ -30,13 +31,42 @@ def webview_environment(debug_port: int, user_data: Path) -> dict:
     windows_capabilities(debug_port)  # Validate before constructing arguments.
     if not user_data.is_absolute():
         raise ValueError("browser fixture path must be absolute")
+    if any(char in str(user_data) for char in ('"', "\r", "\n", "\0")):
+        raise ValueError("invalid browser fixture path")
     env = os.environ.copy()
     # Per-child only; do not change the registry, global environment or sandbox.
     env["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (
-        f"--remote-debugging-port={debug_port}")
+        f'--remote-debugging-port={debug_port} --enable-logging --v=1 '
+        f'--log-file="{user_data / "浏览器启动v20.log"}"')
     env["WEBVIEW2_USER_DATA_FOLDER"] = str(user_data)
     return env
 
+
+
+def collect_startup_log(profile: Path | None, output: Path) -> None:
+    """Capture bounded startup errors ONLY before a WebDriver session exists.
+
+    Raw browser logs stay in the disposable profile and are deleted with it.
+    No network log, registry dump, account credentials or OAuth traffic is saved.
+    """
+    path = profile / "浏览器启动v20.log" if profile else None
+    record = {"phase": "before_oauth", "file_found": False, "truncated": False, "messages": []}
+    if path is not None and path.is_file():
+        with path.open("rb") as stream:
+            raw = stream.read(128 * 1024 + 1)
+        record["file_found"] = True
+        record["truncated"] = len(raw) > 128 * 1024
+        for line in raw[:128 * 1024].decode("utf-8", errors="replace").splitlines():
+            if not re.search(r"(?:ERROR|FATAL|WARNING|sandbox|[Pp]ermission|[Aa]ccess.denied)", line):
+                continue
+            line = re.sub(r"(?i)(?:https?|wss?)://[^\s]+", "<url>", line)
+            line = re.sub(r"(?i)(?:[a-z]:\\)[^\r\n]*", "<local-path>", line)
+            line = re.sub(r"(?i)(token|password|authorization|secret|cookie)\s*[:=]\s*[^\s,;]+", r"\1=<redacted>", line)
+            record["messages"].append(line[:1200])
+            if len(record["messages"]) == 40:
+                record["truncated"] = True
+                break
+    output.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
 
 def native_process_snapshot(root_pid: int) -> dict:
     if type(root_pid) is not int or root_pid <= 0:
@@ -140,6 +170,11 @@ class WindowsNativeSession(gui.NativeSession):
             self.call("timeouts", {"script": 30000, "pageLoad": 60000, "implicit": 0})
             gui.wait_for(lambda: self.execute("return !!window.__TAURI_INTERNALS__?.invoke"))
         except BaseException:
+            if not self.session:
+                try:
+                    collect_startup_log(self.browser_profile, output / f"Windows浏览器启动v20-{attempt}.json")
+                except (OSError, ValueError):
+                    pass  # Diagnostics never replaces the original failure.
             if self.app_process and self.app_process.poll() is None:
                 try:
                     snapshot = native_process_snapshot(self.app_process.pid)
