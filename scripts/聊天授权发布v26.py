@@ -218,7 +218,7 @@ def main() -> None:
     root = Path(__file__).resolve().parents[1]
     version = verify_source(root, expected_sha=args.source)['version']
     tree = subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD^{tree}'], text=True).strip()
-    guide = root / 'docs/releases/聊天授权安装与本地核验v0.3.0.md'
+    guide = root / 'docs/releases' / f'聊天授权安装与本地核验v{version}.md'
     assets, summary = compose(args.evidence.resolve(), args.output.resolve(), source=args.source,
                               tree=tree, version=version, run_id=args.run_id, ref=ref, guide=guide)
     if not args.publish:

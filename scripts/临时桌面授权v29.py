@@ -82,6 +82,18 @@ class Mapping(c.Structure):
     _fields_ = [('read', w.DWORD), ('write', w.DWORD), ('execute', w.DWORD), ('all', w.DWORD)]
 
 
+def object_mapping(rights: int) -> Mapping:
+    # Win32 object-specific generic mappings are NOT the requested access mask.
+    # These describe existing ACE interpretation; they do not grant permissions.
+    if type(rights) is not int:
+        raise ValueError('unknown GUI object mapping')
+    if rights == WINDOW_RIGHTS:
+        return Mapping(0x20303, 0x2001c, 0x20060, 0xf037f)
+    if rights == DESKTOP_RIGHTS:
+        return Mapping(0x20041, 0x200be, 0x20100, 0xf01ff)
+    raise ValueError('unknown GUI object mapping')
+
+
 class DesktopAccess:
     def __init__(self, api, token):
         if (sys.platform != 'win32' or os.environ.get('GITHUB_ACTIONS') != 'true'
@@ -126,7 +138,7 @@ class DesktopAccess:
             self.api.check(self.DuplicateToken(self.token, 2, c.byref(impersonation)))
             privileges = c.create_string_buffer(4096)
             length, granted, status = w.DWORD(4096), w.DWORD(), w.BOOL()
-            mapping = Mapping(rights, rights, rights, rights)
+            mapping = object_mapping(rights)
             self.api.check(self.AccessCheck(sd, impersonation, rights, c.byref(mapping),
                 privileges, c.byref(length), c.byref(granted), c.byref(status)))
             return raw, bool(status.value)
