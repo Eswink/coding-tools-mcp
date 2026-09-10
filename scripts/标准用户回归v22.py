@@ -34,7 +34,7 @@ class StandardUserContracts(unittest.TestCase):
 
     def test_scoped_paths_reject_parent_and_sibling(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             self.assertEqual(m.inside(root/'child',root),root/'child')
             for invalid in (root, root.parent, root.parent/'sibling'):
                 with self.assertRaises(ValueError): m.inside(invalid,root)

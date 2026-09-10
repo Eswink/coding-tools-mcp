@@ -39,8 +39,9 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           mkdir -p evidence
-          python scripts/Windows非提升回归v12.py --require-native
-          python scripts/授权辅助回归v23.py
+          git rev-parse HEAD > evidence/源码版本v24.txt
+          python scripts/Windows非提升回归v12.py --require-native 2>&1 | tee evidence/Windows令牌预检v24.log
+          python scripts/授权辅助回归v23.py 2>&1 | tee evidence/授权辅助回归v24.log
           npm ci
           npm run tauri -- build --debug --no-bundle -- --locked 2>&1 | tee evidence/Windows原生编译v8.log
           git diff --exit-code
