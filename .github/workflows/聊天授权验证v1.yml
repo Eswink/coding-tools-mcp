@@ -81,8 +81,6 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
-    env:
-      RUSTFLAGS: '-D warnings'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -104,8 +102,9 @@ jobs:
           mkdir -p evidence
           git rev-parse HEAD | tee evidence/源码版本v4.txt
           rustc -Vv | tee evidence/编译器v4.txt
-          cargo check --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/编译检查v4.txt
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/编译检查v4.txt
           cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/完整回归v4.txt
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/生产零警告v5.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:

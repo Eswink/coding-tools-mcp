@@ -26,11 +26,12 @@ pub(crate) fn verify(token: &str, secret: &str, origin: &str) -> Option<Verified
     let c = decode::<Claims>(token, &DecodingKey::from_secret(secret.as_bytes()), &v).ok()?.claims;
     if c.sub != "desktop-owner" || c.client_id.is_empty() || c.client_id.len() > 256
         || c.iat > unix_now() || c.exp <= unix_now() || c.exp <= c.iat
-        || c.exp - c.iat > 8 * 3600 || !c.scope.split_whitespace().any(|s| s == "mcp") { return None; }
+        || c.exp - c.iat > 8 * 3600 || !c.scope.split_whitespace().eq(["mcp"])
+        || c.jti.is_empty() { return None; }
     Some(VerifiedPrincipal { issuer: c.iss, subject: c.sub, client_id: c.client_id, expires_at: c.exp })
 }
 pub(crate) fn issue(origin: &str, secret: &str, client_id: &str, ttl: i64) -> Result<String, ()> {
-    if secret.is_empty() || client_id.is_empty() || ttl <= 0 || ttl > 8 * 3600 { return Err(()); }
+    if secret.is_empty() || client_id.is_empty() || client_id.len() > 256 || ttl <= 0 || ttl > 8 * 3600 { return Err(()); }
     let now = unix_now();
     let claims = Claims { iss: origin.into(), aud: origin.into(), sub: "desktop-owner".into(),
         client_id: client_id.into(), iat: now, nbf: now, exp: now + ttl as u64, scope: "mcp".into(),
@@ -54,4 +55,23 @@ mod tests {
             assert!(verify(&bad,"test-secret","https://host").is_none(),"{field}");
         }
     }
+    #[test]
+    fn rejects_unknown_extra_scopes_and_empty_token_identity() {
+        let token = issue("https://host", "test-secret", "client", 3600).unwrap();
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.validate_aud = false;
+        let claims = decode::<serde_json::Value>(&token, &DecodingKey::from_secret(b"test-secret"), &validation).unwrap().claims;
+        for scope in ["", "mcp admin", "mcp files.write", "admin mcp", "mcp mcp"] {
+            let mut bad = claims.clone();
+            bad["scope"] = scope.into();
+            let token = encode(&Header::default(), &bad, &EncodingKey::from_secret(b"test-secret")).unwrap();
+            assert!(verify(&token, "test-secret", "https://host").is_none(), "{scope}");
+        }
+        let mut bad = claims;
+        bad["jti"] = "".into();
+        let token = encode(&Header::default(), &bad, &EncodingKey::from_secret(b"test-secret")).unwrap();
+        assert!(verify(&token, "test-secret", "https://host").is_none());
+        assert!(issue("https://host", "test-secret", &"c".repeat(257), 3600).is_err());
+    }
+
 }

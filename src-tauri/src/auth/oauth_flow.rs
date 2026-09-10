@@ -11,6 +11,10 @@ use sha2::{Digest, Sha256};
 
 use super::bearer::constant_time_eq_str;
 
+#[path = "OAuth请求边界v5.rs"]
+mod request_boundary;
+use request_boundary::{valid_challenge, valid_resource};
+
 pub const OAUTH_CODE_TTL_SECONDS: u64 = 300;
 pub const OAUTH_TOKEN_TTL_SECONDS: i64 = 8 * 60 * 60;
 #[allow(dead_code)]
@@ -36,6 +40,7 @@ struct PendingCode {
     state: String,
     expires_at: u64,
     server_url: String,
+    resource: String,
 }
 
 impl OAuthRuntime {
@@ -70,7 +75,7 @@ impl OAuthRuntime {
         if attempts.1 >= 10 { return false; } attempts.1 += 1; true
     }
     pub fn client_id_allowed(&self, client_id: &str) -> bool {
-        if client_id.is_empty() {
+        if client_id.is_empty() || client_id.len() > 256 {
             return false;
         }
         if self.client_id.is_empty() {
@@ -151,9 +156,10 @@ pub struct TokenForm {
 pub fn authorize_get(
     oauth: &OAuthRuntime,
     params: AuthorizeParams,
-    workspace_path: Option<&str>,
+    _workspace_path: Option<&str>,
 ) -> Response {
-    if !oauth.redirect_allowed(&params.redirect_uri) || (!params.scope.is_empty() && params.scope != "mcp") {
+    if !oauth.redirect_allowed(&params.redirect_uri) || !valid_resource(&params.resource)
+        || (!params.scope.is_empty() && params.scope != "mcp") {
         return html_error("Invalid redirect_uri or scope", StatusCode::BAD_REQUEST);
     }
     if params.response_type != "code" {
@@ -162,7 +168,7 @@ pub fn authorize_get(
     if !oauth.client_id_allowed(&params.client_id) {
         return html_error("Unknown client_id", StatusCode::BAD_REQUEST);
     }
-    if params.code_challenge_method != "S256" || params.code_challenge.is_empty() {
+    if params.code_challenge_method != "S256" || !valid_challenge(&params.code_challenge) {
         return html_error(
             "code_challenge_method must be S256 and code_challenge is required",
             StatusCode::BAD_REQUEST,
@@ -176,14 +182,14 @@ pub fn authorize_get(
         &params.state,
         &params.resource,
         "",
-        workspace_path,
+        None,
     ))
     .into_response()
 }
 
 pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &str) -> Response {
     if !oauth.redirect_allowed(&form.redirect_uri) || (!form.scope.is_empty() && form.scope != "mcp")
-        || (!form.resource.is_empty() && form.resource.trim_end_matches('/') != server_url.trim_end_matches('/')) {
+        || !valid_resource(&form.resource) || form.resource != server_url.trim_end_matches('/') {
         return html_error("Invalid redirect_uri, resource or scope", StatusCode::BAD_REQUEST);
     }
     if !oauth.allow_login_attempt() { return html_error("Too many login attempts", StatusCode::TOO_MANY_REQUESTS); }
@@ -200,7 +206,7 @@ pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &st
         ))
         .into_response();
     }
-    if form.code_challenge_method != "S256" || form.code_challenge.is_empty() {
+    if form.code_challenge_method != "S256" || !valid_challenge(&form.code_challenge) {
         return Html(login_page(
             &form.client_id,
             &form.redirect_uri,
@@ -246,6 +252,7 @@ pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &st
                 state: form.state.clone(),
                 expires_at: now + OAUTH_CODE_TTL_SECONDS,
                 server_url: server_url.clone(),
+                resource: form.resource.clone(),
             },
         );
     }
@@ -315,7 +322,8 @@ pub fn token_exchange(
     }
 
     let issuer = code_data.server_url.trim_end_matches('/').to_string();
-    if issuer != server_url.trim_end_matches('/') || (!form.resource.is_empty() && form.resource.trim_end_matches('/') != issuer) {
+    if issuer != server_url.trim_end_matches('/') || form.resource != code_data.resource
+        || code_data.resource != issuer {
         return token_error("invalid_target", "Resource identity changed or mismatched");
     }
     match super::principal::issue(&issuer, &oauth.token_secret, &code_data.client_id, OAUTH_TOKEN_TTL_SECONDS) {
@@ -482,6 +490,7 @@ mod tests {
                 code_challenge: challenge,
                 code_challenge_method: "S256".into(),
                 state: "state".into(),
+                resource: "https://lb.example.com".into(),
                 password: "test-password".into(),
                 ..Default::default()
             },
@@ -503,6 +512,7 @@ mod tests {
                 code_verifier: verifier.into(),
                 client_id: "chatgpt-client-test".into(),
                 client_secret: String::new(),
+                resource: "https://lb.example.com".into(),
                 ..Default::default()
             },
             "https://lb.example.com",
@@ -517,3 +527,7 @@ mod tests {
         assert!(verify_pkce(verifier, &challenge));
     }
 }
+
+#[cfg(test)]
+#[path = "OAuth请求边界回归v5.rs"]
+mod request_boundary_tests;
