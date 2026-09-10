@@ -10,6 +10,9 @@ spec = importlib.util.spec_from_file_location('medium_process', Path(__file__).w
 m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 
 class ProcessContractTests(unittest.TestCase):
+    def test_native_creation_is_detached_without_bypassing_security(self):
+        self.assertEqual(m.NATIVE_CREATION_FLAGS, 0x4 | 0x200 | 0x400 | 0x8)
+        self.assertEqual(m.NATIVE_CREATION_FLAGS & (0x10 | 0x08000000 | 0x01000000 | 0x02000000), 0)
     def test_environment_unicode_sorted_and_double_terminated(self):
         self.assertEqual(m.environment_block({'z':'2','A':'中文'}), 'A=中文\0z=2\0\0')
     def test_rejects_environment_injection(self):

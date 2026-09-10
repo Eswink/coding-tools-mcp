@@ -11,6 +11,10 @@ import subprocess
 import sys
 
 
+# Do not attach/allocate a hidden console owned by an elevated shell.
+# GUI desktop, token validation and owned-job cleanup are unchanged.
+NATIVE_CREATION_FLAGS = 0x4 | 0x200 | 0x400 | 0x8  # SUSPENDED | GROUP | UNICODE | DETACHED
+
 def environment_block(env: dict[str, str]) -> str:
     for key, value in env.items():
         if not isinstance(key, str) or not key or '=' in key or '\0' in key or not isinstance(value, str) or '\0' in value:
@@ -152,7 +156,7 @@ def launch(executable: Path, env: dict[str, str], arguments: list[str] | None = 
         startup.desktop = "winsta0\\default"  # Explicit interactive desktop for CreateProcessAsUser.
         # Suspended until owned-job assignment and actual child-token validation.
         api.check(api.CreateProcessAsUserW(restricted, str(executable), line, None, None, False,
-            0x4 | 0x200 | 0x400 | 0x08000000, block, str(executable.parent), c.byref(startup), c.byref(info)))
+            NATIVE_CREATION_FLAGS, block, str(executable.parent), c.byref(startup), c.byref(info)))
         api.check(api.AssignProcessToJobObject(job, info.process))
         api.check(api.OpenProcessToken(info.process, 0x0008, c.byref(child_token)))
         actual = api.token_state(child_token); require_standard(actual)
