@@ -220,7 +220,7 @@ def run(args) -> None:
     root = Path(tempfile.mkdtemp(prefix='chat-standard-v22-', dir=temporary))
     (root / '.standard-account-fixture-v22').touch()
     (root / 'state').mkdir()
-    token = w.HANDLE(); process = None
+    token = w.HANDLE(); process = None; desktop_access = None
     name = 'ctmcpv22_' + secrets.token_hex(5)
     password = secrets.token_urlsafe(32) + 'Aa1!'
     marker = 'coding-tools-native-v22:' + secrets.token_hex(16)
@@ -242,6 +242,11 @@ def run(args) -> None:
             raise RuntimeError('Windows did not issue an ordinary standard-user logon token')
         evidence['genuine_standard_account'] = True
         evidence['account_sid_sha256'] = hashlib.sha256(sid.encode()).hexdigest()
+        desktop_spec = importlib.util.spec_from_file_location('desktop_access_v29', Path(__file__).with_name('临时桌面授权v29.py'))
+        desktop_module = importlib.util.module_from_spec(desktop_spec); desktop_spec.loader.exec_module(desktop_module)
+        desktop_access = desktop_module.DesktopAccess(api, token)
+        evidence['desktop_access'] = desktop_access.proof
+        desktop_access.apply()
         grant(root, sid, '(OI)(CI)(RX)')
         grant(root / 'state', sid, '(OI)(CI)(M)')
         grant(executable, sid, '(RX)'); grant(driver, sid, '(RX)')
@@ -257,8 +262,8 @@ def run(args) -> None:
         command = c.create_unicode_buffer(subprocess.list2cmdline([str(interpreter),
             str(root / 'source' / 'scripts' / '标准宿主引导v27.py'), str(manifest)]))
         startup = medium.Startup(); startup.cb = c.sizeof(startup)
-        # NULL desktop: the OS inherits the caller desktop and grants this user
-        # access (CreateProcessWithTokenW contract); no manual DACL broadening.
+        # Explicit interactive desktop, with narrowly scoped logon-SID access.
+        startup.desktop = r'winsta0\default'
         info_process = medium.ProcessInfo()
         job = api.check(api.CreateJobObjectW(None, None))
         try:
@@ -300,6 +305,9 @@ def run(args) -> None:
         if process:
             try: process.terminate_tree(); evidence['owned_processes_closed'] = True
             except BaseException as error: failures.append(type(error).__name__)
+        if desktop_access:
+            try: desktop_access.close()
+            except BaseException as error: failures.append('DesktopAccess:' + type(error).__name__)
         if token: api.CloseHandle(token)
         try:
             evidence_dir = root / 'state' / 'evidence'
