@@ -1,4 +1,4 @@
-name: Windows原生恢复v27
+name: 双平台严格原生恢复v33
 on:
   push:
     branches: ['fix/windows-native-v27']
@@ -7,6 +7,7 @@ permissions:
   contents: read
 jobs:
   contracts:
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,12 +28,23 @@ jobs:
           path: ${{ runner.temp }}/native-source/
           if-no-files-found: error
           retention-days: 14
-      - run: |
-          python scripts/标准宿主回归v27.py
-          python scripts/引导异常回归v28.py
-          python scripts/桌面授权回归v29.py
-  windows-native:
+      - name: 严格矩阵与辅助回归
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONUTF8: '1'
+        run: |
+          set -euo pipefail
+          python scripts/严格矩阵回归v33.py
+          python scripts/授权辅助回归v23.py
+          python scripts/聊天授权发布回归v26.py
+          python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA"
+  validate:
     needs: contracts
-    uses: ./.github/workflows/聊天授权Windows原生v8.yml
+    uses: ./.github/workflows/聊天授权验证v1.yml
     with:
-      source: ${{ github.sha }}
+      windows_local: false
+  packages:
+    needs: contracts
+    uses: ./.github/workflows/聊天授权安装包v10.yml
+    with:
+      windows_local: false

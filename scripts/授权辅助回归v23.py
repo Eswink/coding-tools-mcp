@@ -9,7 +9,7 @@ TESTS = (
     "Windows非提升回归v12.py", "Windows宿主回归v13.py", "跨平台原生回归v8.py",
     "聊天授权原生回归v6.py", "聊天授权证据回归v16.py", "Windows启动回归v17.py",
     "聊天授权门禁回归v18.py", "标准用户回归v22.py", "标准账户路径回归v23.py", "Windows令牌参数回归v25.py",
-    "标准宿主回归v27.py", "引导异常回归v28.py", "桌面授权回归v29.py", "普通登录回归v31.py", "发布准备回归v32.py",
+    "标准宿主回归v27.py", "引导异常回归v28.py", "桌面授权回归v29.py", "普通登录回归v31.py", "发布准备回归v32.py", "严格矩阵回归v33.py",
 )
 if __name__ == "__main__":
     root = Path(__file__).resolve().parent
