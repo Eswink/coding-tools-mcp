@@ -13,6 +13,9 @@ import time
 spec = importlib.util.spec_from_file_location("ubuntu_native_driver_v8", Path(__file__).with_name("Ubuntu原生验收v1.py"))
 gui = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gui)
+medium_spec = importlib.util.spec_from_file_location("medium_native_v12", Path(__file__).with_name("Windows非提升进程v12.py"))
+medium = importlib.util.module_from_spec(medium_spec)
+medium_spec.loader.exec_module(medium)
 
 
 def windows_capabilities(debug_port: int) -> dict:
@@ -117,9 +120,9 @@ class WindowsNativeSession(gui.NativeSession):
         self.debug_base = f"http://127.0.0.1:{debug_port}"
         try:
             self.browser_profile = Path(tempfile.mkdtemp(prefix="chat-webview-v10-", dir=os.environ["RUNNER_TEMP"]))
-            self.app_process = subprocess.Popen([str(executable)],
-                env=webview_environment(debug_port, self.browser_profile), stdout=self.log, stderr=subprocess.STDOUT,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
+            self.app_process = medium.launch(executable, webview_environment(debug_port, self.browser_profile))
+            (output / f"Windows权限级别v12-{attempt}.json").write_text(
+                json.dumps(self.app_process.security, indent=2), encoding="utf-8")
             gui.wait_for(lambda: self.debug_status(), timeout=60)
             startup = native_process_snapshot(self.app_process.pid)
             verify_debug_listener(startup, debug_port)
@@ -140,7 +143,10 @@ class WindowsNativeSession(gui.NativeSession):
                         json.dumps(snapshot, indent=2), encoding="utf-8")
                 except (OSError, ValueError, subprocess.SubprocessError):
                     pass  # Diagnostics never replaces the original test failure.
-            self.close()
+            try:
+                self.close()
+            except (OSError, RuntimeError, subprocess.SubprocessError) as cleanup_error:
+                print(f"native cleanup also failed: {type(cleanup_error).__name__}", file=sys.stderr)
             raise
 
     def debug_status(self):
@@ -152,6 +158,9 @@ class WindowsNativeSession(gui.NativeSession):
         return value
 
     def stop_owned_process(self, process):
+        if isinstance(process, medium.OwnedProcess):
+            process.terminate_tree()
+            return
         if process and process.poll() is None:
             # Popen handles created by this adapter only; never a name-wide kill.
             subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
@@ -182,7 +191,14 @@ class WindowsNativeSession(gui.NativeSession):
                 finally:
                     self.log.close()
                     if self.browser_profile is not None:
-                        shutil.rmtree(self.browser_profile)
+                        deadline = time.monotonic() + 10
+                        while True:
+                            try:
+                                shutil.rmtree(self.browser_profile)
+                                break
+                            except PermissionError:
+                                if time.monotonic() >= deadline: raise
+                                time.sleep(0.25)
                         self.browser_profile = None
 
 

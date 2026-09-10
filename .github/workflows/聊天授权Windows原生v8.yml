@@ -39,6 +39,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           mkdir -p evidence
+          python scripts/Windows非提升回归v12.py --require-native
           python scripts/跨平台原生回归v8.py
           python scripts/聊天授权原生回归v6.py
           npm ci
