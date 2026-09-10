@@ -17,7 +17,8 @@ def run(executable: Path, log: Path, result: Path) -> int:
     with log.open("wb") as stream:
         child = subprocess.Popen([str(executable)], cwd=executable.parent,
                                  stdout=stream, stderr=subprocess.STDOUT,
-                                 stdin=subprocess.DEVNULL, close_fds=True)
+                                 stdin=subprocess.DEVNULL, close_fds=True,
+                                 creationflags=0x8)  # DETACHED_PROCESS; preserve verified token/job.
         returncode = child.wait()
     proof = {"pid": child.pid, "exit_code": returncode,
              "exit_code_hex": f"0x{returncode & 0xffffffff:08x}", "stdio_redirected": True}

@@ -20,6 +20,7 @@ class HostTests(unittest.TestCase):
                 self.assertEqual(m.run(app,root/"out.log",root/"out.json"),0xc0000142)
                 self.assertEqual(launch.call_args.args,([str(app.resolve())],))
                 self.assertTrue(launch.call_args.kwargs["close_fds"])
+                self.assertEqual(launch.call_args.kwargs["creationflags"], 0x8)
                 self.assertEqual(launch.call_args.kwargs["stderr"],m.subprocess.STDOUT)
                 self.assertEqual(m.json.loads((root/"out.json").read_text())["exit_code_hex"],"0xc0000142")
 
