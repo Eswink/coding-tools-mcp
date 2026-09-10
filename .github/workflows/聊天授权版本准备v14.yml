@@ -1,0 +1,60 @@
+name: 聊天授权版本准备v14
+on:
+  push:
+    branches: ['feat/chat-authorization-v1']
+    paths: ['.github/workflows/聊天授权版本准备v14.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: chat-authorization-version-v030
+  cancel-in-progress: false
+jobs:
+  version:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/feat/chat-authorization-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 仅准备五文件六处项目版本，不改变依赖
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONUTF8: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          git merge-base --is-ancestor 6951a0c4001e3b7e6f24f3d4396d3eebc7557505 HEAD
+          python scripts/版本递增回归v7.py
+          python scripts/版本递增v7.py --from-version 0.2.6 --version 0.3.0 --apply
+          python - <<'PY'
+          import subprocess
+          allowed = {'package.json','package-lock.json','src-tauri/Cargo.toml','src-tauri/Cargo.lock','src-tauri/tauri.conf.json'}
+          changed = set(filter(None, subprocess.check_output(['git','diff','--name-only','-z']).decode('utf-8').split('\0')))
+          assert changed <= allowed, changed
+          PY
+          git diff --check
+          git add -- package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'chore: 聊天授权候选统一为0.3.0，五文件六处版本且依赖不变'
+            git push origin HEAD:refs/heads/feat/chat-authorization-v1
+          fi
+          mkdir -p "$RUNNER_TEMP/聊天授权版本v14"
+          python scripts/发布版本校验v4.py --expect-sha "$(git rev-parse HEAD)" --output "$RUNNER_TEMP/聊天授权版本v14/版本准备回执v14.json"
+          git rev-parse HEAD > "$RUNNER_TEMP/聊天授权版本v14/源码版本v14.txt"
+          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/聊天授权版本v14/源码树v14.txt"
+          git archive --format=zip -o "$RUNNER_TEMP/聊天授权版本v14/版本准备源码v14.zip" HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 聊天授权版本准备v14
+          path: ${{ runner.temp }}/聊天授权版本v14/
+          if-no-files-found: error
