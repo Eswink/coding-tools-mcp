@@ -12,7 +12,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - run: python scripts/标准宿主回归v27.py
+      - run: |
+          python scripts/标准宿主回归v27.py
+          python scripts/引导异常回归v28.py
   windows-native:
     needs: contracts
     uses: ./.github/workflows/聊天授权Windows原生v8.yml

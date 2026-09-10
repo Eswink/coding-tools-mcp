@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import runpy
 import sys
+import traceback
 
 
 def main() -> None:
@@ -20,6 +21,7 @@ def main() -> None:
         raise RuntimeError('missing owned fixture marker')
     state = root / 'state'
     with (state / '标准宿主引导v27.log').open('w', encoding='utf-8', buffering=1) as stream:
+        originals = sys.stdout, sys.stderr, sys.argv
         sys.stdout = sys.stderr = stream
         print('bootstrap_entered pid=' + str(os.getpid()), flush=True)
         # Stack frames only, not locals; the timer is cancelled before OAuth.
@@ -31,9 +33,15 @@ def main() -> None:
             runpy.run_path(str(target), run_name='__main__')
         except BaseException as error:
             print('bootstrap_exit_type=' + type(error).__name__, flush=True)
+            if not isinstance(error, SystemExit):
+                # Bootstrap only: native acceptance catches its own exceptions.
+                # Format stack frames, not locals or the controller's credentials.
+                traceback.print_exception(type(error), error, error.__traceback__, limit=20, file=stream)
             raise
         finally:
             faulthandler.cancel_dump_traceback_later()
+            faulthandler.disable()
+            sys.stdout, sys.stderr, sys.argv = originals
 
 
 if __name__ == '__main__':
