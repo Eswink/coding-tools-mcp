@@ -30,11 +30,11 @@ if __name__ == '__main__':
     if not unittest.TextTestRunner().run(suite).wasSuccessful(): raise SystemExit(1)
     if real:
         if sys.platform != 'win32': raise RuntimeError('real Windows required, not a skip')
-        process = m.launch(Path(sys.executable), dict(os.environ), ['-c', 'raise SystemExit(0)'])
+        process = m.launch(Path(sys.executable), dict(os.environ), [str(Path(__file__).with_name('Windows桌面冒烟v15.py').resolve())])
         try:
             assert process.wait(15) == 0
             m.require_standard(process.security['child'])
-            print(json.dumps({'passed': True, 'real_windows_token': process.security}))
+            print(json.dumps({'passed': True, 'real_windows_token': process.security, 'real_interactive_window_created': True}))
         finally:
             process.terminate_tree()
     else:

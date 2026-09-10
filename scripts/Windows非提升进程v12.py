@@ -149,6 +149,7 @@ def launch(executable: Path, env: dict[str, str], arguments: list[str] | None = 
         limits = Limits(); limits.basic.flags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
         api.check(api.SetInformationJobObject(job, 9, c.byref(limits), c.sizeof(limits)))
         startup = Startup(); startup.cb = c.sizeof(startup)
+        startup.desktop = "winsta0\\default"  # Explicit interactive desktop for CreateProcessAsUser.
         # Suspended until owned-job assignment and actual child-token validation.
         api.check(api.CreateProcessAsUserW(restricted, str(executable), line, None, None, False,
             0x4 | 0x200 | 0x400 | 0x08000000, block, str(executable.parent), c.byref(startup), c.byref(info)))
