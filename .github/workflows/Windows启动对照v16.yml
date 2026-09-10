@@ -1,0 +1,44 @@
+name: Windows启动对照v16
+on:
+  push:
+    branches: ['feat/chat-authorization-v1']
+    paths:
+      - 'scripts/Windows启动对照v16.py'
+      - 'scripts/Windows非提升进程v12.py'
+      - 'scripts/Windows原生宿主v13.py'
+      - '.github/workflows/Windows启动对照v16.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  launcher-control:
+    name: 同机Bash与PowerShell降权启动对照（非产品验收）
+    runs-on: windows-latest
+    timeout-minutes: 8
+    env:
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Bash上下文四组真实进程
+        shell: bash
+        run: python scripts/Windows启动对照v16.py --label bash --output evidence
+      - name: PowerShell上下文四组真实进程
+        if: always()
+        shell: pwsh
+        run: |
+          & python scripts/Windows启动对照v16.py --label pwsh --output evidence 2>&1 | Tee-Object -FilePath 'evidence/PowerShell对照v16.log'
+          if ($LASTEXITCODE -ne 0) { throw '原生启动对照存在失败，禁止视为产品通过' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Windows启动对照v16
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14

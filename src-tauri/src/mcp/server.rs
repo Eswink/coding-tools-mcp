@@ -23,7 +23,9 @@ pub fn handle_request(state: &SharedState, body: &Value) -> Value {
         "initialize" => Ok(initialize_result()),
         "ping" => Ok(serde_json::json!({})),
         "tools/list" => {
-            let tools = list_tools_for_profile(&state.tool_profile);
+            let mut tools = list_tools_for_profile(&state.tool_profile);
+            for tool in &mut tools { tool["securitySchemes"] = serde_json::json!([{ "type": "oauth2", "scopes": ["mcp"] }]); }
+            tools.extend(crate::tools::chat_domain::auth_tools());
             Ok(serde_json::json!({ "tools": tools }))
         }
         "tools/call" => handle_tools_call(state, &params),
@@ -51,7 +53,7 @@ fn initialize_result() -> Value {
             "title": "Coding Tools MCP",
             "version": env!("CARGO_PKG_VERSION")
         },
-        "instructions": "Use these tools only for local coding operations inside the configured workspace. At the start of every new ChatGPT conversation, before answering the user's first request, call history_session_bootstrap exactly once and pass the user's verbatim first request as initial_user_input. Treat bootstrap as required conversation initialization: it creates or resumes a lossless Markdown archive and returns bounded current state, not all history. Use history_session_search followed by history_session_read only when exact earlier context is needed. history_session_read returns a bounded UTF-8-safe page; follow next_cursor with the returned content hash until the relevant archive is complete. Repeated successful bootstrap calls in the same conversation resume the same session and must not create duplicates. Preserve session_key and current_path returned by bootstrap, then pass them unchanged as session_key and expected_path to every history_session_checkpoint call. After completing each user-requested task in the conversation, call history_session_checkpoint before the final response and pass that user's verbatim request as raw_user_input. Only state that progress was saved after checkpoint returns ok=true with the same session_key and path. The server cannot access ChatGPT transcript text that was not provided as a tool argument; persistence is not automatic background persistence. For potentially long noninteractive commands, prefer start_exec_task with a unique request_id and then get_exec_task/list_exec_tasks/cancel_exec_task. Reuse the same request_id and parameters after transport timeouts; do not resubmit with a new key. queued/running/cancelling are not command failures, and only terminal status with command_ok=true is success. Follow separate stdout/stderr next_cursor values and poll_after_ms guidance; do not run an unbounded polling loop. Tasks survive HTTP disconnects and listener restarts while the app executor is alive. Encrypted records survive app restarts, but unfinished tasks become interrupted, not automatically resumed. Never automatically rerun or confirm unknown termination. Use list_exec_tasks to recover by request_id. Execution budget can be configured up to 24 hours; ordinary exec_command remains bounded to 10 minutes."
+        "instructions": "Use these tools only for local coding operations inside the configured workspace. Never use business tools before OAuth and local desktop approval for the current conversation. Only when the user explicitly requests workspace access, use auth_status and request_chat_authorization; do not repeatedly poll pending approvals. After approval and with history.write scope, call history_session_bootstrap exactly once and pass the user's verbatim first request as initial_user_input. Treat bootstrap as required conversation initialization: it creates or resumes a lossless Markdown archive and returns bounded current state, not all history. Use history_session_search followed by history_session_read only when exact earlier context is needed. history_session_read returns a bounded UTF-8-safe page; follow next_cursor with the returned content hash until the relevant archive is complete. Repeated successful bootstrap calls in the same conversation resume the same session and must not create duplicates. Preserve session_key and current_path returned by bootstrap, then pass them unchanged as session_key and expected_path to every history_session_checkpoint call. After completing each user-requested task in the conversation, call history_session_checkpoint before the final response and pass that user's verbatim request as raw_user_input. Only state that progress was saved after checkpoint returns ok=true with the same session_key and path. The server cannot access ChatGPT transcript text that was not provided as a tool argument; persistence is not automatic background persistence. For potentially long noninteractive commands, prefer start_exec_task with a unique request_id and then get_exec_task/list_exec_tasks/cancel_exec_task. Reuse the same request_id and parameters after transport timeouts; do not resubmit with a new key. queued/running/cancelling are not command failures, and only terminal status with command_ok=true is success. Follow separate stdout/stderr next_cursor values and poll_after_ms guidance; do not run an unbounded polling loop. Tasks survive HTTP disconnects and listener restarts while the app executor is alive. Encrypted records survive app restarts, but unfinished tasks become interrupted, not automatically resumed. Never automatically rerun or confirm unknown termination. Use list_exec_tasks to recover by request_id. Execution budget can be configured up to 24 hours; ordinary exec_command remains bounded to 10 minutes."
     })
 }
 
@@ -64,7 +66,7 @@ fn handle_tools_call(state: &SharedState, params: &Value) -> Result<Value, Value
 
     let canonical_name = crate::tools::registry::canonical_tool_name(name);
     let known = crate::tools::registry::exposed_tool_names(&state.tool_profile);
-    if !known.iter().any(|n| n == &canonical_name) {
+    if !["auth_status", "request_chat_authorization"].contains(&canonical_name) && !known.iter().any(|n| n == &canonical_name) {
         return Err(serde_json::json!({
             "code": -32602,
             "message": format!("Unknown tool: {name}"),
@@ -130,8 +132,8 @@ mod tests {
         let initialized = initialize_result();
         let instructions = initialized["instructions"].as_str().expect("instructions");
         assert!(instructions.contains("history_session_bootstrap"));
-        assert!(instructions.contains("At the start of every new ChatGPT conversation"));
-        assert!(instructions.contains("before answering the user's first request"));
+        assert!(instructions.contains("local desktop approval for the current conversation"));
+        assert!(instructions.contains("Never use business tools before OAuth"));
         assert!(instructions.contains("required conversation initialization"));
         assert!(instructions.contains("initial_user_input"));
         assert!(instructions.contains("must not create duplicates"));

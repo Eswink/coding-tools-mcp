@@ -20,7 +20,7 @@ mod workspace;
 
 use app_state::AppState;
 use commands::{
-    check_app_update, create_workspace, delete_frp_profile, delete_workspace,
+    chat_authorization_control, check_app_update, create_workspace, delete_frp_profile, delete_workspace,
     get_actions_runtime_status, get_app_settings, get_download_config, get_frp_snippet,
     get_last_workspace_id, get_proxy, get_runtime_status, get_shared_secret, get_webview_memory_sample,
     get_workspace_secret, hide_to_tray, install_software, list_frp_profiles, list_software,
@@ -196,6 +196,7 @@ pub fn run() {
             regenerate_shared_secret,
             read_workspace_logs,
             control_exec_tasks,
+            chat_authorization_control,
             list_frp_profiles,
             save_frp_profile,
             delete_frp_profile,

@@ -5,15 +5,21 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use axum::http::{header::AUTHORIZATION, HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
 use super::bearer::constant_time_eq_str;
 
+#[path = "OAuth请求边界v5.rs"]
+mod request_boundary;
+use request_boundary::{valid_challenge, valid_resource};
+
+#[path = "OAuth客户端认证v7.rs"]
+mod client_auth;
+
 pub const OAUTH_CODE_TTL_SECONDS: u64 = 300;
-pub const OAUTH_TOKEN_TTL_SECONDS: i64 = 60 * 60 * 24 * 30;
+pub const OAUTH_TOKEN_TTL_SECONDS: i64 = 8 * 60 * 60;
 #[allow(dead_code)]
 pub const OAUTH_MAX_BODY_BYTES: usize = 8_192;
 
@@ -23,6 +29,8 @@ pub struct OAuthRuntime {
     pub client_secret: Option<String>,
     pub password: String,
     pub token_secret: String,
+    redirect_uri: String,
+    attempts: Arc<Mutex<(u64, u32)>>,
     pending: Arc<Mutex<HashMap<String, PendingCode>>>,
 }
 
@@ -35,15 +43,7 @@ struct PendingCode {
     state: String,
     expires_at: u64,
     server_url: String,
-}
-
-#[derive(Serialize, Deserialize)]
-struct TokenClaims {
-    iss: String,
-    aud: String,
-    iat: i64,
-    exp: i64,
-    scope: String,
+    resource: String,
 }
 
 impl OAuthRuntime {
@@ -59,12 +59,26 @@ impl OAuthRuntime {
             client_secret,
             password,
             token_secret,
+            redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect".into(),
+            attempts: Arc::new(Mutex::new((0, 0))),
             pending: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
+    pub fn with_redirect_uri(mut self, uri: String) -> Self { self.redirect_uri = uri; self }
+    fn redirect_allowed(&self, uri: &str) -> bool {
+        if uri != self.redirect_uri || uri.len() > 2048 { return false; }
+        reqwest::Url::parse(uri).ok().is_some_and(|u| u.scheme() == "https"
+            && u.host_str().is_some() && u.username().is_empty() && u.password().is_none() && u.fragment().is_none())
+    }
+    fn allow_login_attempt(&self) -> bool {
+        let mut attempts = self.attempts.lock().expect("oauth login attempts");
+        let bucket = unix_now() / 60;
+        if attempts.0 != bucket { *attempts = (bucket, 0); }
+        if attempts.1 >= 10 { return false; } attempts.1 += 1; true
+    }
     pub fn client_id_allowed(&self, client_id: &str) -> bool {
-        if client_id.is_empty() {
+        if client_id.is_empty() || client_id.len() > 256 {
             return false;
         }
         if self.client_id.is_empty() {
@@ -74,17 +88,13 @@ impl OAuthRuntime {
     }
 
     pub fn verify_access_token(&self, token: &str, server_url: &str) -> bool {
-        let server_url = server_url.trim_end_matches('/');
-        let mut validation = Validation::new(Algorithm::HS256);
-        validation.set_audience(&[server_url]);
-        validation.set_issuer(&[server_url]);
-        decode::<TokenClaims>(
-            token,
-            &DecodingKey::from_secret(self.token_secret.as_bytes()),
-            &validation,
-        )
-        .is_ok()
+        self.principal(token, server_url).is_some()
     }
+    pub(crate) fn principal(&self, token: &str, server_url: &str) -> Option<super::principal::VerifiedPrincipal> {
+        let principal = super::principal::verify(token, &self.token_secret, server_url)?;
+        self.client_id_allowed(&principal.client_id).then_some(principal)
+    }
+
 }
 
 pub fn verify_oauth_bearer_header(
@@ -92,23 +102,18 @@ pub fn verify_oauth_bearer_header(
     oauth: &OAuthRuntime,
     server_url: &str,
 ) -> Option<Response> {
-    let Some(header_value) = headers.get(AUTHORIZATION) else {
-        return Some((StatusCode::UNAUTHORIZED, "Missing Authorization header").into_response());
-    };
-    let Ok(header_str) = header_value.to_str() else {
-        return Some((StatusCode::UNAUTHORIZED, "Invalid Authorization header").into_response());
-    };
-    let Some(token) = header_str.strip_prefix("Bearer ").map(str::trim) else {
-        return Some((StatusCode::UNAUTHORIZED, "Invalid bearer token").into_response());
-    };
-    if oauth.verify_access_token(token, server_url) {
-        None
-    } else {
-        Some((StatusCode::UNAUTHORIZED, "Invalid bearer token").into_response())
-    }
+    let token = headers.get(AUTHORIZATION).and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer ")).map(str::trim).unwrap_or("");
+    if oauth.verify_access_token(token, server_url) { return None; }
+    let challenge = format!("Bearer resource_metadata=\"{}/.well-known/oauth-protected-resource\", scope=\"mcp\"", server_url.trim_end_matches('/'));
+    let mut response = (StatusCode::UNAUTHORIZED, "OAuth authentication required").into_response();
+    if let Ok(value) = challenge.parse() { response.headers_mut().insert(axum::http::header::WWW_AUTHENTICATE, value); }
+    response.headers_mut().insert(axum::http::header::CACHE_CONTROL, axum::http::HeaderValue::from_static("no-store"));
+    Some(response)
+
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct AuthorizeParams {
     pub response_type: String,
     pub client_id: String,
@@ -117,9 +122,13 @@ pub struct AuthorizeParams {
     pub code_challenge_method: String,
     #[serde(default)]
     pub state: String,
+    #[serde(default)]
+    pub resource: String,
+    #[serde(default)]
+    pub scope: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct AuthorizeForm {
     pub client_id: String,
     pub redirect_uri: String,
@@ -127,6 +136,10 @@ pub struct AuthorizeForm {
     pub code_challenge_method: String,
     #[serde(default)]
     pub state: String,
+    #[serde(default)]
+    pub resource: String,
+    #[serde(default)]
+    pub scope: String,
     pub password: String,
 }
 
@@ -136,23 +149,30 @@ pub struct TokenForm {
     pub code: String,
     pub redirect_uri: String,
     pub code_verifier: String,
+    #[serde(default)]
     pub client_id: String,
     #[serde(default)]
     pub client_secret: String,
+    #[serde(default)]
+    pub resource: String,
 }
 
 pub fn authorize_get(
     oauth: &OAuthRuntime,
     params: AuthorizeParams,
-    workspace_path: Option<&str>,
+    _workspace_path: Option<&str>,
 ) -> Response {
+    if !oauth.redirect_allowed(&params.redirect_uri) || !valid_resource(&params.resource)
+        || (!params.scope.is_empty() && params.scope != "mcp") {
+        return html_error("Invalid redirect_uri or scope", StatusCode::BAD_REQUEST);
+    }
     if params.response_type != "code" {
         return html_error("response_type must be 'code'", StatusCode::BAD_REQUEST);
     }
     if !oauth.client_id_allowed(&params.client_id) {
         return html_error("Unknown client_id", StatusCode::BAD_REQUEST);
     }
-    if params.code_challenge_method != "S256" || params.code_challenge.is_empty() {
+    if params.code_challenge_method != "S256" || !valid_challenge(&params.code_challenge) {
         return html_error(
             "code_challenge_method must be S256 and code_challenge is required",
             StatusCode::BAD_REQUEST,
@@ -164,13 +184,19 @@ pub fn authorize_get(
         &params.code_challenge,
         &params.code_challenge_method,
         &params.state,
+        &params.resource,
         "",
-        workspace_path,
+        None,
     ))
     .into_response()
 }
 
 pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &str) -> Response {
+    if !oauth.redirect_allowed(&form.redirect_uri) || (!form.scope.is_empty() && form.scope != "mcp")
+        || !valid_resource(&form.resource) || form.resource != server_url.trim_end_matches('/') {
+        return html_error("Invalid redirect_uri, resource or scope", StatusCode::BAD_REQUEST);
+    }
+    if !oauth.allow_login_attempt() { return html_error("Too many login attempts", StatusCode::TOO_MANY_REQUESTS); }
     if !oauth.client_id_allowed(&form.client_id) {
         return Html(login_page(
             &form.client_id,
@@ -178,24 +204,26 @@ pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &st
             &form.code_challenge,
             &form.code_challenge_method,
             &form.state,
+            &form.resource,
             "Invalid client",
             None,
         ))
         .into_response();
     }
-    if form.code_challenge_method != "S256" || form.code_challenge.is_empty() {
+    if form.code_challenge_method != "S256" || !valid_challenge(&form.code_challenge) {
         return Html(login_page(
             &form.client_id,
             &form.redirect_uri,
             &form.code_challenge,
             &form.code_challenge_method,
             &form.state,
+            &form.resource,
             "Invalid PKCE parameters",
             None,
         ))
         .into_response();
     }
-    if !constant_time_eq_str(&form.password, &oauth.password) {
+    if oauth.password.is_empty() || oauth.token_secret.is_empty() || !constant_time_eq_str(&form.password, &oauth.password) {
         return (
             StatusCode::UNAUTHORIZED,
             Html(login_page(
@@ -204,6 +232,7 @@ pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &st
                 &form.code_challenge,
                 &form.code_challenge_method,
                 &form.state,
+                &form.resource,
                 "Invalid password",
                 None,
             )),
@@ -216,7 +245,8 @@ pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &st
     let now = unix_now();
     {
         let mut pending = oauth.pending.lock().expect("oauth pending lock");
-        pending.retain(|_, v| v.expires_at >= now);
+        pending.retain(|_, v| v.expires_at > now);
+        if pending.len() >= 128 { return html_error("Too many pending authorizations", StatusCode::TOO_MANY_REQUESTS); }
         pending.insert(
             code.clone(),
             PendingCode {
@@ -226,6 +256,7 @@ pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &st
                 state: form.state.clone(),
                 expires_at: now + OAUTH_CODE_TTL_SECONDS,
                 server_url: server_url.clone(),
+                resource: form.resource.clone(),
             },
         );
     }
@@ -250,21 +281,15 @@ pub fn token_exchange(
         return token_error("unsupported_grant_type", "Only authorization_code is supported");
     }
 
-    if let Some((id, secret)) = basic_auth_credentials(headers) {
-        if form.client_id.is_empty() {
-            form.client_id = id;
-        }
-        if form.client_secret.is_empty() {
-            form.client_secret = secret;
-        }
+    if client_auth::resolve(headers, &mut form).is_err() {
+        return client_auth::invalid_client();
     }
-
     if !oauth.client_id_allowed(&form.client_id) {
-        return token_error("invalid_client", "Unknown client_id");
+        return client_auth::invalid_client();
     }
     if let Some(expected) = oauth.client_secret.as_deref() {
         if !constant_time_eq_str(&form.client_secret, expected) {
-            return token_error("invalid_client", "Invalid client_secret");
+            return client_auth::invalid_client();
         }
     }
     if form.code.is_empty() {
@@ -281,7 +306,7 @@ pub fn token_exchange(
     let Some(code_data) = code_data else {
         return token_error("invalid_grant", "Unknown or already-used authorization code");
     };
-    if unix_now() > code_data.expires_at {
+    if unix_now() >= code_data.expires_at {
         return token_error("invalid_grant", "Authorization code expired");
     }
     if !constant_time_eq_str(&code_data.client_id, &form.client_id) {
@@ -294,40 +319,25 @@ pub fn token_exchange(
         return token_error("invalid_grant", "PKCE verification failed");
     }
 
-    let issuer = if code_data.server_url.trim().is_empty() {
-        server_url.trim_end_matches('/').to_string()
-    } else {
-        code_data.server_url.trim_end_matches('/').to_string()
-    };
-    match create_access_token(&issuer, &oauth.token_secret, OAUTH_TOKEN_TTL_SECONDS) {
+    let issuer = code_data.server_url.trim_end_matches('/').to_string();
+    if issuer != server_url.trim_end_matches('/') || form.resource != code_data.resource
+        || code_data.resource != issuer {
+        return token_error("invalid_target", "Resource identity changed or mismatched");
+    }
+    match super::principal::issue(&issuer, &oauth.token_secret, &code_data.client_id, OAUTH_TOKEN_TTL_SECONDS) {
         Ok(access_token) => (
             StatusCode::OK,
+            [(axum::http::header::CACHE_CONTROL, "no-store")],
             axum::Json(json!({
                 "access_token": access_token,
                 "token_type": "Bearer",
-                "expires_in": OAUTH_TOKEN_TTL_SECONDS
+                "expires_in": OAUTH_TOKEN_TTL_SECONDS,
+                "scope": "mcp"
             })),
         )
             .into_response(),
         Err(_) => token_error("server_error", "Failed to issue access token"),
     }
-}
-
-fn create_access_token(server_url: &str, token_secret: &str, ttl: i64) -> Result<String, ()> {
-    let now = unix_now() as i64;
-    let claims = TokenClaims {
-        iss: server_url.to_string(),
-        aud: server_url.to_string(),
-        iat: now,
-        exp: now + ttl,
-        scope: "mcp".into(),
-    };
-    encode(
-        &Header::new(Algorithm::HS256),
-        &claims,
-        &EncodingKey::from_secret(token_secret.as_bytes()),
-    )
-    .map_err(|_| ())
 }
 
 fn verify_pkce(code_verifier: &str, code_challenge: &str) -> bool {
@@ -343,20 +353,10 @@ fn valid_code_verifier(verifier: &str) -> bool {
             .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '.' | '_' | '~'))
 }
 
-fn basic_auth_credentials(headers: &HeaderMap) -> Option<(String, String)> {
-    let header = headers.get(AUTHORIZATION)?.to_str().ok()?;
-    let encoded = header.strip_prefix("Basic ")?;
-    let decoded = base64::engine::general_purpose::STANDARD
-        .decode(encoded)
-        .ok()?;
-    let text = String::from_utf8(decoded).ok()?;
-    let (id, secret) = text.split_once(':')?;
-    Some((id.to_string(), secret.to_string()))
-}
-
 fn token_error(error: &str, description: &str) -> Response {
     (
         StatusCode::BAD_REQUEST,
+        [(axum::http::header::CACHE_CONTROL, "no-store")],
         axum::Json(json!({
             "error": error,
             "error_description": description
@@ -369,12 +369,14 @@ fn html_error(message: &str, status: StatusCode) -> Response {
     (status, Html(format!("<h2>Error</h2><p>{message}</p>"))).into_response()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn login_page(
     client_id: &str,
     redirect_uri: &str,
     code_challenge: &str,
     code_challenge_method: &str,
     state: &str,
+    resource: &str,
     error: &str,
     workspace_path: Option<&str>,
 ) -> String {
@@ -405,6 +407,8 @@ fn login_page(
         <input type='hidden' name='code_challenge' value='{}'>\
         <input type='hidden' name='code_challenge_method' value='{}'>\
         <input type='hidden' name='state' value='{}'>\
+        <input type='hidden' name='scope' value='mcp'>\
+        <input type='hidden' name='resource' value='{}'>\
         <label>Password<input type='password' name='password' autocomplete='current-password' required></label>\
         <button type='submit'>Authorize</button>\
         </form></body></html>",
@@ -415,6 +419,7 @@ fn login_page(
         html_escape(code_challenge),
         html_escape(code_challenge_method),
         html_escape(state),
+        html_escape(resource),
     )
 }
 
@@ -461,6 +466,7 @@ mod tests {
             "test-password".into(),
             "token-signing-secret".into(),
         );
+        let oauth = oauth.with_redirect_uri("https://chatgpt.com/connector/oauth/test".into());
         let verifier = "dBjftJeZ4CVP-mB92Kpru-AEJvkQlLgi3ThpmQ45N_Xyo";
         let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
         let redirect_uri = "https://chatgpt.com/connector/oauth/test";
@@ -472,7 +478,9 @@ mod tests {
                 code_challenge: challenge,
                 code_challenge_method: "S256".into(),
                 state: "state".into(),
+                resource: "https://lb.example.com".into(),
                 password: "test-password".into(),
+                ..Default::default()
             },
             "https://lb.example.com",
         );
@@ -492,6 +500,8 @@ mod tests {
                 code_verifier: verifier.into(),
                 client_id: "chatgpt-client-test".into(),
                 client_secret: String::new(),
+                resource: "https://lb.example.com".into(),
+                ..Default::default()
             },
             "https://lb.example.com",
         );
@@ -505,3 +515,11 @@ mod tests {
         assert!(verify_pkce(verifier, &challenge));
     }
 }
+
+#[cfg(test)]
+#[path = "OAuth请求边界回归v5.rs"]
+mod request_boundary_tests;
+
+#[cfg(test)]
+#[path = "OAuth客户端认证回归v7.rs"]
+mod client_auth_tests;

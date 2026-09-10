@@ -31,7 +31,6 @@ struct AppState {
     ctx: Arc<ToolContext>,
     openapi: Arc<RwLock<Value>>,
     auth: Arc<AuthConfig>,
-    workspace_path: String,
     bind_port: u16,
     configured_public_url: PublicOrigin,
     oauth: Option<Arc<OAuthRuntime>>,
@@ -142,6 +141,7 @@ async fn serve(
         policy.permission_mode.clone(),
     );
     ctx.enable_durable_tasks(profile_id, "actions");
+    ctx.remote_request = Some(crate::auth::chat::RemoteRequest::unresolved(profile_id));
     let ctx = Arc::new(ctx);
     let tools: Vec<Value> = tools::list_tools()
         .into_iter()
@@ -164,7 +164,6 @@ async fn serve(
     ));
 
     let state = AppState {
-        workspace_path: ctx.workspace_path(),
         ctx,
         openapi: Arc::new(RwLock::new(openapi_doc)),
         auth: auth.clone(),
@@ -233,7 +232,7 @@ async fn health(State(state): State<AppState>) -> Json<Value> {
     Json(json!({
         "ok": true,
         "service": "coding-tools-actions",
-        "workspace": state.workspace_path,
+        "conversation_authorization": "unsupported_use_mcp",
         "auth_type": state.auth.auth_type,
         "tools_loaded": tools_loaded
     }))
@@ -291,7 +290,7 @@ async fn oauth_authorize_get(
     let Some(oauth) = state.oauth.as_ref() else {
         return oauth_not_configured();
     };
-    authorize_get(oauth, params, Some(state.workspace_path.as_str()))
+    authorize_get(oauth, params, None)
 }
 
 async fn oauth_authorize_post(

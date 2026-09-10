@@ -33,8 +33,20 @@ pub async fn control_exec_tasks(state: State<'_, AppState>, id: String, channel:
     let profile = state.with_workspaces(|store| store.get(&id).cloned()
         .ok_or_else(|| AppError::Message("工作区不存在。".into())))?;
     tauri::async_runtime::spawn_blocking(move || {
-        let ctx = context(&profile, &channel)?;
-        Ok(crate::tools::call_tool(&ctx, tool, &args))
+        let mut ctx = context(&profile, &channel)?;
+        let mut stores = crate::tools::exec_tasks::ExecTaskStore::live_for_profile(&profile.id);
+        if !stores.iter().any(|s| std::sync::Arc::ptr_eq(s, &ctx.exec_tasks)) { stores.push(ctx.exec_tasks.clone()); }
+        let mut jobs = Vec::new();
+        let mut last = serde_json::json!({"ok":false,"error":{"code":"TASK_NOT_FOUND"}});
+        for store in stores {
+            ctx.exec_tasks = store;
+            let result = crate::tools::call_tool(&ctx, tool, &args);
+            if tool == "list_exec_tasks" {
+                if let Some(items) = result["jobs"].as_array() { jobs.extend(items.iter().cloned()); }
+            } else if result["ok"] == true { return Ok(result); }
+            last = result;
+        }
+        if tool == "list_exec_tasks" { Ok(serde_json::json!({"ok":true,"jobs":jobs})) } else { Ok(last) }
     }).await.map_err(|_| AppError::Message("任务管理线程异常；请重新查询，不要重跑命令。".into()))?
 }
 

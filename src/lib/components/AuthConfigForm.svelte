@@ -51,6 +51,7 @@
         ? draft.oauth_client_id !== loadedSharedOauthClientId
         : draft.oauth_client_id !== auth.oauth_client_id) ||
       draft.use_shared_secrets !== !!auth.use_shared_secrets ||
+      (draft.oauth_redirect_uri ?? "") !== (auth.oauth_redirect_uri ?? "https://chatgpt.com/connector_platform_oauth_redirect") ||
       secretsDirty,
   );
 
@@ -58,7 +59,7 @@
   const showBearer = $derived(draft.type === "bearer");
 
   $effect(() => {
-    draft = { type: auth.type, oauth_client_id: auth.oauth_client_id, use_shared_secrets: !!auth.use_shared_secrets };
+    draft = { type: auth.type, oauth_client_id: auth.oauth_client_id, use_shared_secrets: !!auth.use_shared_secrets, oauth_redirect_uri: auth.oauth_redirect_uri ?? "https://chatgpt.com/connector_platform_oauth_redirect" };
   });
 
   $effect(() => {
@@ -183,6 +184,10 @@
   </label>
 
   {#if showOAuth}
+    <label class="grid gap-1">
+      <span class="text-xs text-[var(--color-text-muted)]">OAuth 精确回调地址（复制 ChatGPT 配置页显示的完整地址）</span>
+      <input type="url" class="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 font-mono text-sm" bind:value={draft.oauth_redirect_uri} required />
+    </label>
     <label class="grid gap-1">
       <span class="text-xs text-[var(--color-text-muted)]">OAuth 客户端 ID</span>
       <input

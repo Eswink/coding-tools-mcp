@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 use serde_json::{json, Value};
-use crate::auth::PublicOrigin;
+use crate::auth::{PublicOrigin, chat_fixture as fixture};
 use crate::tools::policy::PolicySettings;
 use crate::workspace::{AuthConfig, RuntimeConfig};
 
@@ -14,21 +14,23 @@ fn port() -> u16 {
 }
 
 fn client() -> reqwest::Client {
-    reqwest::Client::builder().timeout(Duration::from_secs(5)).no_proxy().build().unwrap()
+    fixture::client()
 }
 
 fn request(tool: &str, args: Value) -> Value {
-    json!({"jsonrpc":"2.0", "id":1, "method":"tools/call", "params":{"name":tool, "arguments":args}})
+    fixture::request(tool,args,"lost-response-chat")
 }
 
 #[tokio::test]
 async fn mcp_lost_submit_body_is_recovered_from_a_new_http_connection() {
     let root = tempfile::tempdir().unwrap();
     let port = port();
+    let profile = uuid::Uuid::new_v4().to_string();
+    fixture::approve(&profile,root.path(),"lost-response-chat");
     let (stop, handle) = crate::mcp::spawn_listener_with_origin(
-        port, root.path().to_path_buf(), uuid::Uuid::new_v4().to_string(),
-        AuthConfig { auth_type:"noauth".into(), ..Default::default() },
-        PublicOrigin::managed("").unwrap(), None, None, None, RuntimeConfig::default(),
+        port, root.path().to_path_buf(), profile,
+        AuthConfig { auth_type:"oauth".into(), oauth_client_id:"test-client".into(), ..Default::default() },
+        PublicOrigin::managed(fixture::ORIGIN).unwrap(), None, Some("test-password".into()), Some(fixture::KEY.into()), RuntimeConfig::default(),
     ).unwrap();
     let url = format!("http://127.0.0.1:{port}/mcp");
     let args = json!({"request_id":"lost-http-response", "timeout_ms":5000,
@@ -91,7 +93,7 @@ async fn read_only_mcp_does_not_expose_submission_or_native_tasks_capability() {
 }
 
 #[tokio::test]
-async fn actions_reuses_the_async_dispatcher_and_marks_submission_consequential() {
+async fn actions_cannot_bypass_conversation_approval_and_marks_submission_consequential() {
     let root = tempfile::tempdir().unwrap();
     let port = port();
     let (stop, handle) = crate::actions::spawn_listener_with_origin(
@@ -109,18 +111,9 @@ async fn actions_reuses_the_async_dispatcher_and_marks_submission_consequential(
         .send().await.unwrap();
     let status = response.status();
     let body = response.text().await.unwrap();
-    assert!(status.is_success(), "Actions submit failed: {status} {body}");
-    let accepted: Value = serde_json::from_str(&body).expect("successful JSON response");
-    let id = accepted["structured_content"]["job_id"].as_str().unwrap();
-    let deadline = Instant::now() + Duration::from_secs(10);
-    loop {
-        let r: Value = client.post(format!("{url}/actions/get_exec_task")).json(&json!({"job_id":id}))
-            .send().await.unwrap().json().await.unwrap();
-        if r["structured_content"]["terminal"] == true {
-            assert_eq!(r["structured_content"]["status"], "succeeded", "{r}"); break;
-        }
-        assert!(Instant::now() < deadline, "{r}");
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
+    assert_eq!(status, reqwest::StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    let denied: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(denied["structured_content"]["error"]["code"],"CHAT_AUTHORIZATION_REQUIRED");
+    assert_eq!(std::fs::read_dir(root.path()).unwrap().count(),0);
     stop.send(()).unwrap(); handle.await.unwrap();
 }

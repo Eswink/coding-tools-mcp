@@ -47,6 +47,8 @@ pub struct AuthConfig {
     pub auth_type: String,
     #[serde(default = "default_oauth_client_id")]
     pub oauth_client_id: String,
+    #[serde(default = "default_oauth_redirect_uri")]
+    pub oauth_redirect_uri: String,
     #[serde(default)]
     pub use_shared_secrets: bool,
 }
@@ -219,11 +221,16 @@ impl Default for TunnelConfig {
     }
 }
 
+fn default_oauth_redirect_uri() -> String {
+    "https://chatgpt.com/connector_platform_oauth_redirect".into()
+}
+
 impl Default for AuthConfig {
     fn default() -> Self {
         Self {
             auth_type: default_auth_type(),
             oauth_client_id: default_oauth_client_id(),
+            oauth_redirect_uri: default_oauth_redirect_uri(),
             use_shared_secrets: false,
         }
     }

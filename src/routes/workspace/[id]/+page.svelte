@@ -7,6 +7,7 @@
     type ActionsPolicyDraft,
   } from "$lib/components/ActionsPolicyForm.svelte";
   import AuthConfigForm from "$lib/components/AuthConfigForm.svelte";
+  import ChatAuthorizationPanel from "$lib/components/聊天授权面板v1.svelte";
   import TaskPanel from "$lib/components/异步任务面板v2.svelte";
   import HealthPanel from "$lib/components/HealthPanel.svelte";
   import LogViewer from "$lib/components/LogViewer.svelte";
@@ -588,6 +589,7 @@
 
       <div class="mt-4">
         <ChatGptSessionPrompt />
+        {#key profile.id}<ChatAuthorizationPanel workspaceId={profile.id} />{/key}
       </div>
 
       <div class="mt-4 flex flex-wrap items-center gap-2">

@@ -81,7 +81,7 @@ pub fn spawn_listener_with_origin(
             oauth_client_secret.clone(),
             password,
             token_secret,
-        )))
+        ).with_redirect_uri(auth.oauth_redirect_uri.clone())))
     } else {
         None
     };
@@ -207,7 +207,18 @@ async fn mcp_post(
         ),
     );
 
-    let mcp = state.mcp.clone();
+    let mut request_ctx = state.mcp.background_snapshot();
+    let mut remote = crate::auth::chat::RemoteRequest::unresolved(&state.workspace_id);
+    if let Some(oauth) = state.oauth.as_ref() {
+        let token = headers.get(axum::http::header::AUTHORIZATION).and_then(|h| h.to_str().ok())
+            .and_then(|h| h.strip_prefix("Bearer ")).map(str::trim).unwrap_or("");
+        if let Some(principal) = oauth.principal(token, &resolve_oauth_base(&state, &headers)) {
+            remote = crate::auth::chat::RemoteRequest::verified(&state.workspace_id,
+                &state.workspace_path, principal, &body["params"]["_meta"], &oauth.token_secret);
+        }
+    }
+    request_ctx.remote_request = Some(remote);
+    let mcp = Arc::new(request_ctx);
     let profile_id = state.workspace_id.clone();
     let result = tokio::task::spawn_blocking(move || handle_request(&mcp, &body)).await;
     match result {
@@ -326,7 +337,7 @@ async fn oauth_authorize_get(
     authorize_get(
         oauth,
         params,
-        Some(state.workspace_path.as_str()),
+        None,
     )
 }
 

@@ -1,0 +1,234 @@
+name: 聊天授权验证v1
+on:
+  push:
+    branches: ['feat/chat-authorization-v1']
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      windows_local:
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: chat-authorization-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  source:
+    if: github.repository == 'Eswink/coding-tools-mcp' && (github.ref == 'refs/heads/feat/chat-authorization-v1' || github.ref == 'refs/heads/release/聊天授权v26' || github.ref == 'refs/heads/release/聊天授权本地验收v26')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 校验精确源码（只读，不改写分支）
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          test ! -e docs/specs/聊天授权v1/候选清单v1.json
+          echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/源码版本v4.txt
+          git rev-parse HEAD^{tree} > evidence/源码树v4.txt
+          git diff 22dbbecd3fbebef58b8b6bdca05e2f7080e0b128 HEAD --binary > evidence/聊天授权源码v4.patch
+          git archive --format=zip -o evidence/聊天授权源码v4.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 聊天授权精确源码v4
+          path: evidence/
+          if-no-files-found: error
+      - name: 原生验收证据与启动器辅助回归
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          WINDOWS_LOCAL: ${{ inputs.windows_local || false }}
+        run: |
+          set -euo pipefail
+          test "$WINDOWS_LOCAL" != true || test "$GITHUB_REF" = 'refs/heads/release/聊天授权本地验收v26'
+          python scripts/授权辅助回归v23.py
+          python scripts/聊天授权发布回归v26.py
+  frontend:
+    needs: source
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - name: 授权面板与全部前端回归（真实源码临时编译）
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/源码版本v4.txt
+          node scripts/前端完整回归v4.mjs 2>&1 | tee evidence/前端回归v4.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 聊天授权前端-${{ matrix.os }}-v4
+          path: evidence/
+          if-no-files-found: error
+  rust:
+    needs: source
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          persist-credentials: false
+      - name: 安装 Linux 桌面依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Rust完整基线与真实HTTP隔离回归
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD | tee evidence/源码版本v4.txt
+          rustc -Vv | tee evidence/编译器v4.txt
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/编译检查v4.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/完整回归v4.txt
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/生产零警告v5.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 聊天授权Rust-${{ matrix.os }}-v4
+          path: evidence/
+          if-no-files-found: error
+  native-build:
+    name: 编译真实授权桌面测试程序
+    needs: source
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 安装桌面构建依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: auth-native-v6
+      - name: 编译嵌入真实前端的桌面程序与原生驱动
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence native-v6/app native-v6/driver
+          python scripts/聊天授权原生回归v6.py
+          npm ci
+          npm run tauri -- build --debug --no-bundle -- --locked 2>&1 | tee evidence/原生编译v6.txt
+          cargo install tauri-driver --version 2.0.6 --locked --root "$RUNNER_TEMP/授权驱动v6"
+          cp src-tauri/target/debug/coding-tools-mcp-desktop native-v6/app/
+          cp "$RUNNER_TEMP/授权驱动v6/bin/tauri-driver" native-v6/driver/
+          git rev-parse HEAD > native-v6/源码版本v6.txt
+          sha256sum native-v6/app/* native-v6/driver/* > evidence/测试程序摘要v6.txt
+          git diff --exit-code
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 聊天授权原生程序v6
+          path: native-v6/
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 聊天授权原生编译v6
+          path: evidence/
+          if-no-files-found: error
+  native:
+    name: 真实Ubuntu审批与双会话隔离 (${{ matrix.os }})
+    needs: [source, native-build]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      GDK_BACKEND: x11
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: 聊天授权原生程序v6
+          path: ${{ runner.temp }}/聊天授权程序v6
+      - name: 安装原生驱动和图形会话依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-driver xvfb xauth fonts-noto-cjk gnome-keyring dbus-x11 xdg-desktop-portal xdg-desktop-portal-gtk libayatana-appindicator3-1 libxdo3
+      - name: 真实窗口审批、隔离、撤销、独占及重启
+        shell: bash
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/聊天授权程序v6/app/coding-tools-mcp-desktop"
+          driver="$RUNNER_TEMP/聊天授权程序v6/driver/tauri-driver"
+          test "$(cat "$RUNNER_TEMP/聊天授权程序v6/源码版本v6.txt")" = "$GITHUB_SHA"
+          chmod +x "$app" "$driver"
+          export HOME="$RUNNER_TEMP/聊天授权用户v6"
+          export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+          mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR" evidence
+          chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          touch "$HOME/.ubuntu-ci-fixture-v1"
+          xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash scripts/Ubuntu图形会话v2.sh "$GITHUB_WORKSPACE/scripts/聊天授权原生验收v6.py" "$app" "$driver" native "$GITHUB_WORKSPACE/evidence" 2>&1 | tee evidence/原生会话v6.log
+          version=$(python -c "import json; print(json.load(open('package.json',encoding='utf-8'))['version'])")
+          python scripts/聊天授权证据门禁v18.py --input evidence/聊天授权原生结果v6.json --binary "$app" --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --version "$version" --kind native
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 聊天授权原生-${{ matrix.os }}-v6
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
+  windows-native:
+    if: ${{ !inputs.windows_local }}
+    needs: source
+    uses: ./.github/workflows/聊天授权Windows原生v8.yml
+    with:
+      source: ${{ needs.source.outputs.sha }}
