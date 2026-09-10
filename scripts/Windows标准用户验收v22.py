@@ -9,6 +9,7 @@ import argparse
 import ctypes as c
 from ctypes import wintypes as w
 import hashlib
+import faulthandler
 import importlib.util
 import json
 import os
@@ -152,9 +153,11 @@ def verify_sources(root: Path, hashes: dict) -> None:
 def child(manifest: Path) -> int:
     # No account creation or elevation is performed in this branch.
     if sys.platform != 'win32': raise RuntimeError('Windows required')
+    print('child_manifest_read', flush=True)
     data = json.loads(manifest.read_text(encoding='utf-8'))
     root = manifest.parent.resolve()
     if not (root / '.standard-account-fixture-v22').is_file(): raise RuntimeError('missing fixture marker')
+    print('child_native_api_load', flush=True)
     api = AccountApi(); token = w.HANDLE()
     try:
         api.check(api.OpenProcessToken(api.GetCurrentProcess(), 0x0008, c.byref(token)))
@@ -163,6 +166,7 @@ def child(manifest: Path) -> int:
             raise RuntimeError('the test host must be a genuine unrestricted standard user')
     finally:
         if token: api.CloseHandle(token)
+    print('child_token_verified', flush=True)
     if os.environ.get('USERNAME', '').casefold() != data['account'].casefold():
         raise RuntimeError('unexpected profile identity')
     for key in CONTEXT: os.environ[key] = data['context'][key]
@@ -181,6 +185,8 @@ def child(manifest: Path) -> int:
         raise RuntimeError('native executable bytes changed')
     argv = ['聊天授权原生验收v6.py', '--executable', args['executable'], '--driver', args['driver'],
         '--kind', args['kind'], '--source', args['source'], '--output', str(output), '--fixture-root', str(work)]
+    print('child_ready_for_native_acceptance', flush=True)
+    faulthandler.cancel_dump_traceback_later()
     with (state_root / '标准用户执行v22.log').open('w', encoding='utf-8', buffering=1) as stream:
         originals = sys.stdout, sys.stderr, sys.argv
         sys.stdout, sys.stderr, sys.argv = stream, stream, argv
@@ -244,8 +250,12 @@ def run(args) -> None:
             'arguments': {'executable':str(executable), 'driver':str(driver), 'kind':args.kind, 'source':args.source}}
         manifest = root / '启动上下文v22.json'
         manifest.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
-        command = c.create_unicode_buffer(subprocess.list2cmdline([sys.executable,
-            str(root / 'source' / 'scripts' / Path(__file__).name), '--child-manifest', str(manifest)]))
+        interpreter = Path(sys.executable).with_name('pythonw.exe')
+        if not interpreter.is_file() or interpreter.is_symlink():
+            raise RuntimeError('same-installation windowless Python is required')
+        evidence['bootstrap_interpreter'] = interpreter.name
+        command = c.create_unicode_buffer(subprocess.list2cmdline([str(interpreter),
+            str(root / 'source' / 'scripts' / '标准宿主引导v27.py'), str(manifest)]))
         startup = medium.Startup(); startup.cb = c.sizeof(startup)
         # NULL desktop: the OS inherits the caller desktop and grants this user
         # access (CreateProcessWithTokenW contract); no manual DACL broadening.
@@ -256,7 +266,7 @@ def run(args) -> None:
             api.check(api.SetInformationJobObject(job, 9, c.byref(limits), c.sizeof(limits)))
             # This API implicitly creates a NEW_CONSOLE; DETACHED_PROCESS conflicts.
             # Keep SUSPENDED ownership and profile-created Unicode environment.
-            api.check(api.CreateProcessWithTokenW(token, 1, sys.executable, command,
+            api.check(api.CreateProcessWithTokenW(token, 1, str(interpreter), command,
                 0x4 | 0x400, None, str(root), c.byref(startup), c.byref(info_process)))
             # Own before resume; any failure terminates this still-suspended process.
             api.check(api.AssignProcessToJobObject(job, info_process.process))
@@ -266,7 +276,11 @@ def run(args) -> None:
             api.check(api.GetUserProfileDirectoryW(token, path, c.byref(length)))
             profile = Path(path.value)
             if profile.name.casefold() != name.casefold(): raise RuntimeError('unexpected new account profile path')
-            if api.ResumeThread(info_process.thread) == 0xffffffff: raise c.WinError(c.get_last_error())
+            count = api.ResumeThread(info_process.thread)
+            evidence['resume_previous_count'] = int(count)
+            evidence['host_pid'] = int(info_process.pid)
+            if count == 0xffffffff: raise c.WinError(c.get_last_error())
+            if count != 1: raise RuntimeError('unexpected native host suspension count')
         finally:
             if info_process.thread: api.CloseHandle(info_process.thread)
             if job:
@@ -292,6 +306,8 @@ def run(args) -> None:
             candidates = list(evidence_dir.iterdir()) if evidence_dir.is_dir() else []
             log = root / 'state' / '标准用户执行v22.log'
             if log.is_file(): candidates.append(log)
+            bootstrap_log = root / 'state' / '标准宿主引导v27.log'
+            if bootstrap_log.is_file(): candidates.append(bootstrap_log)
             for file in candidates:
                 if not file.is_file() or file.is_symlink() or file.stat().st_size > 8 * 1024 * 1024:
                     raise RuntimeError('unexpected evidence entry')

@@ -1,0 +1,20 @@
+name: Windows原生恢复v27
+on:
+  push:
+    branches: ['fix/windows-native-v27']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python scripts/标准宿主回归v27.py
+  windows-native:
+    needs: contracts
+    uses: ./.github/workflows/聊天授权Windows原生v8.yml
+    with:
+      source: ${{ github.sha }}
