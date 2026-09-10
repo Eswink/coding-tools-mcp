@@ -23,17 +23,20 @@ class AdapterTests(unittest.TestCase):
     def test_debugging_is_child_local_and_never_disables_sandbox(self):
         original = {"PATH":"canary-path", "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS":"old-flags"}
         with patch.dict(os.environ, original, clear=True):
-            child = adapter.webview_environment(19222)
+            child = adapter.webview_environment(19222, Path(tempfile.gettempdir()).resolve())
             self.assertEqual(dict(os.environ), original)
             self.assertEqual(child["PATH"], "canary-path")
+            self.assertEqual(child["WEBVIEW2_USER_DATA_FOLDER"], str(Path(tempfile.gettempdir()).resolve()))
             self.assertEqual(child["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"],
-                             "--remote-debugging-port=19222 --remote-debugging-address=127.0.0.1")
+                             "--remote-debugging-port=19222")
+            with self.assertRaises(ValueError): adapter.webview_environment(19222, Path("relative"))
 
     def test_close_stops_both_owned_processes_even_when_app_cleanup_fails(self):
         from unittest.mock import Mock
         session = adapter.WindowsNativeSession.__new__(adapter.WindowsNativeSession)
         session.log = Mock(closed=False)
         session.session = ""
+        session.browser_profile = None
         session.app_process, session.process = Mock(), Mock()
         session.stop_owned_process = Mock(side_effect=[RuntimeError("fixture cleanup failure"), None])
         with self.assertRaises(RuntimeError): session.close()
@@ -54,6 +57,15 @@ class AdapterTests(unittest.TestCase):
                 self.assertEqual(adapter.fixture_root(SimpleNamespace(fixture_root=root)), root.resolve())
                 with self.assertRaises(RuntimeError): adapter.fixture_root(SimpleNamespace(fixture_root=Path(tmp)))
                 with self.assertRaises(RuntimeError): adapter.fixture_root(SimpleNamespace(fixture_root=Path(tmp).parent))
+
+    def test_debug_listener_requires_owned_loopback_endpoint(self):
+        snapshot = {"processes": [{"id": 12}], "listeners": [{"process": 12, "port": 19222, "address": "127.0.0.1"}]}
+        adapter.verify_debug_listener(snapshot, 19222)
+        for changes in [{"address": "0.0.0.0"}, {"address": "::"}, {"process": 99}, {"port": 19223}]:
+            wrong = {**snapshot, "listeners": [{**snapshot["listeners"][0], **changes}]}
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                adapter.verify_debug_listener(wrong, 19222)
+        with self.assertRaises(ValueError): adapter.verify_debug_listener({}, 19222)
 
     def test_backend_selection_is_platform_bound(self):
         with patch.object(adapter.sys, "platform", "win32"), patch.object(adapter, "WindowsNativeSession", return_value="native-windows") as win:
