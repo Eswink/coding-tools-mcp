@@ -1,0 +1,70 @@
+name: 聊天授权双平台发布v26
+on:
+  push:
+    branches: ['release/聊天授权v26', 'release/聊天授权本地验收v26']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: chat-authorization-release-v26
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'Eswink/coding-tools-mcp' && (github.ref == 'refs/heads/release/聊天授权v26' || github.ref == 'refs/heads/release/聊天授权本地验收v26')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 锁定主分支源码和发布契约
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA"
+          python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA"
+          python scripts/聊天授权发布回归v26.py
+          python scripts/授权辅助回归v23.py
+          python scripts/发布资产回归v8.py
+  validate:
+    needs: prepare
+    uses: ./.github/workflows/聊天授权验证v1.yml
+    with:
+      windows_local: ${{ github.ref == 'refs/heads/release/聊天授权本地验收v26' }}
+  packages:
+    needs: prepare
+    uses: ./.github/workflows/聊天授权安装包v10.yml
+    with:
+      windows_local: ${{ github.ref == 'refs/heads/release/聊天授权本地验收v26' }}
+  publish:
+    name: 复核同源工件、公开预发布并匿名下载校验
+    needs: [prepare, validate, packages]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          path: collected
+      - name: 汇总全部硬门禁并发布（延期项不可伪记通过）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python scripts/聊天授权发布v26.py --evidence collected --output delivery --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --publish
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 聊天授权最终交付v26
+          path: delivery/
+          if-no-files-found: error
+          retention-days: 30

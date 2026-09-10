@@ -3,6 +3,11 @@ on:
   push:
     branches: ['feat/chat-authorization-v1']
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      windows_local:
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -10,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   source:
-    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/feat/chat-authorization-v1'
+    if: github.repository == 'Eswink/coding-tools-mcp' && (github.ref == 'refs/heads/feat/chat-authorization-v1' || github.ref == 'refs/heads/release/聊天授权v26' || github.ref == 'refs/heads/release/聊天授权本地验收v26')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -43,8 +48,12 @@ jobs:
       - name: 原生验收证据与启动器辅助回归
         env:
           PYTHONDONTWRITEBYTECODE: '1'
+          WINDOWS_LOCAL: ${{ inputs.windows_local || false }}
         run: |
+          set -euo pipefail
+          test "$WINDOWS_LOCAL" != true || test "$GITHUB_REF" = 'refs/heads/release/聊天授权本地验收v26'
           python scripts/授权辅助回归v23.py
+          python scripts/聊天授权发布回归v26.py
   frontend:
     needs: source
     strategy:
@@ -218,6 +227,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
   windows-native:
+    if: ${{ !inputs.windows_local }}
     needs: source
     uses: ./.github/workflows/聊天授权Windows原生v8.yml
     with:
