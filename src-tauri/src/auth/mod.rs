@@ -29,3 +29,6 @@ mod chat_http_tests;
 #[cfg(test)]
 #[path = "身份联调v2.rs"]
 mod identity_tests;
+
+#[cfg(test)]
+mod oauth_discovery_tests;
