@@ -5,6 +5,7 @@ export interface HealthItem {
   ok: boolean;
   detail: string;
   hint: string;
+  skipped?: boolean;
 }
 
 export async function runHealthChecks(workspaceId: string): Promise<HealthItem[]> {

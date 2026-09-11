@@ -67,3 +67,49 @@ jobs:
           name: oauth-discovery-${{ matrix.os }}
           path: evidence/
           if-no-files-found: error
+  frontend:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - name: All frontend regressions from fresh TypeScript output
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source.txt
+          node scripts/前端完整回归v4.mjs 2>&1 | tee evidence/frontend.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: oauth-frontend-${{ matrix.os }}
+          path: evidence/
+          if-no-files-found: error
+      - name: Export bounded offline reviewer compilers
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reviewer-tools
+          tar czf reviewer-tools/compilers.tar.gz node_modules/typescript node_modules/svelte
+          sha256sum reviewer-tools/compilers.tar.gz > reviewer-tools/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: oauth-reviewer-compilers
+          path: reviewer-tools/
+          if-no-files-found: error
+          retention-days: 7

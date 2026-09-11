@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { latestRequest } from "$lib/runtime/latest-request";
   import { runHealthChecks, type HealthItem } from "$lib/api/health";
 
   interface Props {
@@ -12,17 +13,33 @@
   let busy = $state(false);
   let error = $state("");
 
+  const requests = latestRequest();
+  $effect(() => {
+    workspaceId;
+    requests.invalidate();
+    items = [];
+    error = "";
+    busy = false;
+    return () => requests.invalidate();
+  });
+
   async function runCheck() {
     if (busy || !workspaceId) return;
+    const id = workspaceId;
+    const ticket = requests.begin();
     busy = true;
     error = "";
+    items = [];
     try {
-      items = onRunCheck ? await onRunCheck(workspaceId) : await runHealthChecks(workspaceId);
-    } catch (err) {
-      error = String(err);
-      items = [];
+      const result = onRunCheck ? await onRunCheck(id) : await runHealthChecks(id);
+      if (requests.current(ticket) && id === workspaceId) items = result;
+    } catch {
+      if (requests.current(ticket) && id === workspaceId) {
+        error = "健康检查未完成。请核对服务状态后重试；未将本次检查计为通过。";
+        items = [];
+      }
     } finally {
-      busy = false;
+      if (requests.current(ticket) && id === workspaceId) busy = false;
     }
   }
 </script>
@@ -38,7 +55,7 @@
     <button
       type="button"
       class="tx-btn-ghost shrink-0 disabled:opacity-50"
-      disabled={busy}
+      disabled={busy || !workspaceId}
       onclick={runCheck}
     >
       {busy ? "检查中…" : "运行健康检查"}
@@ -66,10 +83,11 @@
           </div>
           <span
             class="shrink-0 rounded-sm px-2 py-0.5 text-xs font-medium"
-            class:health-ok={item.ok}
-            class:health-fail={!item.ok}
+            class:health-ok={item.ok && !item.skipped}
+            class:health-fail={!item.ok && !item.skipped}
+            class:health-skipped={!!item.skipped}
           >
-            {item.ok ? "通过" : "失败"}
+            {item.skipped ? "未执行" : item.ok ? "通过" : "失败"}
           </span>
         </li>
       {/each}
@@ -80,6 +98,11 @@
 </section>
 
 <style>
+  .health-skipped {
+    background: var(--color-surface-hover);
+    color: var(--color-text-muted);
+  }
+
   .health-ok {
     background: color-mix(in oklch, var(--color-success) 15%, transparent);
     color: var(--color-success);
