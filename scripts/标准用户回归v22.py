@@ -59,7 +59,7 @@ class StandardUserContracts(unittest.TestCase):
         self.assertNotIn('--no-sandbox',text)
         self.assertNotIn('SANDBOX_INERT',text)
         self.assertNotIn('Set-ItemProperty',text)
-        self.assertIn('CreateProcessWithTokenW(token, 1',text)
+        self.assertIn("CreateProcessWithLogonW(name, '.', password, 1",text)
         self.assertIn('api.NetUserDel(None, name)',text)
         self.assertIn('credentials_scan_completed',text)
         self.assertIn("password.encode('utf-16-le')",text)

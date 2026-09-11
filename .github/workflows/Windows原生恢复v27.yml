@@ -1,0 +1,50 @@
+name: 双平台严格原生恢复v33
+on:
+  push:
+    branches: ['fix/windows-native-v27']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: 保存当前修复的精确源码
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          mkdir -p "$RUNNER_TEMP/native-source"
+          git archive --format=zip --output="$RUNNER_TEMP/native-source/源码v30.zip" HEAD
+          git rev-parse HEAD > "$RUNNER_TEMP/native-source/提交v30.txt"
+          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/native-source/内容树v30.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 原生恢复源码v30
+          path: ${{ runner.temp }}/native-source/
+          if-no-files-found: error
+          retention-days: 14
+      - name: 严格矩阵与辅助回归
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONUTF8: '1'
+        run: |
+          set -euo pipefail
+          python scripts/严格矩阵回归v33.py
+          python scripts/授权辅助回归v23.py
+          python scripts/聊天授权发布回归v26.py
+          python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA"
+  validate:
+    needs: contracts
+    uses: ./.github/workflows/聊天授权验证v1.yml
+    with:
+      windows_local: false
+  packages:
+    needs: contracts
+    uses: ./.github/workflows/聊天授权安装包v10.yml
+    with:
+      windows_local: false

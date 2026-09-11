@@ -32,6 +32,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          cache-on-failure: true
           shared-key: auth-windows-native-v8
       - name: 从精确源码构建原生测试程序
         shell: bash
