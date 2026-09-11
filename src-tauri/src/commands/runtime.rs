@@ -20,7 +20,7 @@ use crate::workspace::RuntimeStatusDto;
 
 /// Serialize MCP/Actions restarts so secret-save and form-save cannot tear down
 /// the same listener concurrently (that race could abort the process on Windows).
-static RESTART_GATE: LazyLock<AsyncMutex<()>> = LazyLock::new(|| AsyncMutex::new(()));
+pub(crate) static RESTART_GATE: LazyLock<AsyncMutex<()>> = LazyLock::new(|| AsyncMutex::new(()));
 
 fn profile_by_id(state: &AppState, id: &str) -> AppResult<crate::workspace::WorkspaceProfile> {
     state.with_workspaces(|store| {
@@ -71,7 +71,7 @@ async fn ensure_port_available(port: u16, service_label: &str) -> AppResult<()> 
     Ok(())
 }
 
-async fn stop_mcp_service(state: &AppState, id: &str) -> AppResult<RuntimeStatusDto> {
+pub(crate) async fn stop_mcp_service(state: &AppState, id: &str) -> AppResult<RuntimeStatusDto> {
     let profile = profile_by_id(state, id)?;
     let port = profile.runtime.local_port;
     let handle = state.with_runtime(|runtime| Ok(runtime.begin_stop(id, ServiceKind::Mcp)))?;
@@ -85,11 +85,12 @@ async fn stop_mcp_service(state: &AppState, id: &str) -> AppResult<RuntimeStatus
     state.with_runtime(|runtime| Ok(runtime.mcp_status(&profile)))
 }
 
-async fn start_mcp_service(state: &AppState, id: &str) -> AppResult<RuntimeStatusDto> {
+pub(crate) async fn start_mcp_service(state: &AppState, id: &str) -> AppResult<RuntimeStatusDto> {
     validate_start_resources(state, id, WorkspaceService::Mcp)?;
     let profile = profile_by_id(state, id)?;
     ensure_port_available(profile.runtime.local_port, "本地 MCP").await?;
-    state.with_runtime(|runtime| runtime.start_mcp(&profile))?;
+    let started = state.with_runtime(|runtime| runtime.start_mcp(&profile))?;
+    if started.state != "running" { return Err(AppError::Message(started.local_message)); }
     let origin = state.with_runtime(|runtime| Ok(runtime.public_origin_handle(id, ServiceKind::Mcp)))?;
     sync_tunnel_routes_from_runtime(state).await?;
 
@@ -108,7 +109,7 @@ async fn start_mcp_service(state: &AppState, id: &str) -> AppResult<RuntimeStatu
     })
 }
 
-async fn stop_actions_service(state: &AppState, id: &str) -> AppResult<RuntimeStatusDto> {
+pub(crate) async fn stop_actions_service(state: &AppState, id: &str) -> AppResult<RuntimeStatusDto> {
     let profile = profile_by_id(state, id)?;
     let port = profile.actions.local_port;
     let handle = state.with_runtime(|runtime| Ok(runtime.begin_stop(id, ServiceKind::Actions)))?;
@@ -122,11 +123,12 @@ async fn stop_actions_service(state: &AppState, id: &str) -> AppResult<RuntimeSt
     state.with_runtime(|runtime| Ok(runtime.actions_status(&profile)))
 }
 
-async fn start_actions_service(state: &AppState, id: &str) -> AppResult<RuntimeStatusDto> {
+pub(crate) async fn start_actions_service(state: &AppState, id: &str) -> AppResult<RuntimeStatusDto> {
     validate_start_resources(state, id, WorkspaceService::Actions)?;
     let profile = profile_by_id(state, id)?;
     ensure_port_available(profile.actions.local_port, "本地 Actions").await?;
-    state.with_runtime(|runtime| runtime.start_actions(&profile))?;
+    let started = state.with_runtime(|runtime| runtime.start_actions(&profile))?;
+    if started.state != "running" { return Err(AppError::Message(started.local_message)); }
     let origin = state.with_runtime(|runtime| Ok(runtime.public_origin_handle(id, ServiceKind::Actions)))?;
     sync_tunnel_routes_from_runtime(state).await?;
 
@@ -177,11 +179,13 @@ pub(crate) async fn restart_actions_by_id(
 
 #[tauri::command]
 pub async fn start_runtime(state: State<'_, AppState>, id: String) -> AppResult<RuntimeStatusDto> {
+    let _gate = RESTART_GATE.lock().await;
     start_mcp_service(&state, &id).await
 }
 
 #[tauri::command]
 pub async fn stop_runtime(state: State<'_, AppState>, id: String) -> AppResult<RuntimeStatusDto> {
+    let _gate = RESTART_GATE.lock().await;
     stop_mcp_service(&state, &id).await
 }
 
@@ -199,6 +203,7 @@ pub async fn start_actions_runtime(
     state: State<'_, AppState>,
     id: String,
 ) -> AppResult<RuntimeStatusDto> {
+    let _gate = RESTART_GATE.lock().await;
     start_actions_service(&state, &id).await
 }
 
@@ -207,6 +212,7 @@ pub async fn stop_actions_runtime(
     state: State<'_, AppState>,
     id: String,
 ) -> AppResult<RuntimeStatusDto> {
+    let _gate = RESTART_GATE.lock().await;
     stop_actions_service(&state, &id).await
 }
 

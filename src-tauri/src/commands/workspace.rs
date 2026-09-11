@@ -7,7 +7,7 @@ use crate::error::{AppError, AppResult};
 use crate::platform::open_path_in_file_manager;
 use crate::tunnel::drop_workspace as drop_tunnel_workspace;
 use crate::workspace::resources::{
-    assign_free_workspace_ports, validate_workspace_resources_update,
+    assign_free_workspace_ports,
 };
 use crate::workspace::WorkspaceProfile;
 
@@ -34,22 +34,8 @@ pub fn create_workspace(
 }
 
 #[tauri::command]
-pub fn update_workspace(state: State<'_, AppState>, mut profile: WorkspaceProfile) -> AppResult<()> {
-    state.with_workspaces(|store| {
-        let current = store
-            .get(&profile.id)
-            .cloned()
-            .ok_or_else(|| AppError::Message(format!("workspace not found: {}", profile.id)))?;
-        crate::workspace::endpoint::normalize_profile_tunnels(&current, &mut profile, &store.settings())
-            .map_err(AppError::Message)?;
-        validate_workspace_resources_update(store.list(), &current, &profile)?;
-        let guards = if current.path != profile.path {
-            super::exec_tasks::pause_workspace_tasks(&current)?
-        } else { Vec::new() };
-        store.update(profile)?;
-        for guard in guards { guard.commit(); }
-        Ok(())
-    })
+pub async fn update_workspace(state: State<'_, AppState>, profile: WorkspaceProfile) -> AppResult<()> {
+    super::configuration::update(&state, profile).await
 }
 
 #[tauri::command]
@@ -59,7 +45,8 @@ pub fn open_workspace_directory(path: String) -> AppResult<()> {
 }
 
 #[tauri::command]
-pub fn delete_workspace(state: State<'_, AppState>, id: String) -> AppResult<()> {
+pub async fn delete_workspace(state: State<'_, AppState>, id: String) -> AppResult<()> {
+    let _gate = super::runtime::RESTART_GATE.lock().await;
     let profile = state.with_workspaces(|store| {
         store
             .get(&id)
@@ -67,11 +54,10 @@ pub fn delete_workspace(state: State<'_, AppState>, id: String) -> AppResult<()>
             .ok_or_else(|| AppError::Message(format!("workspace not found: {id}")))
     })?;
     let guards = super::exec_tasks::pause_workspace_tasks(&profile)?;
-    tauri::async_runtime::block_on(drop_tunnel_workspace(&id))?;
-    state.with_runtime(|runtime| {
-        runtime.drop_workspace(&profile);
-        Ok(())
-    })?;
+    crate::auth::chat::service().revoke(&id, None);
+    super::runtime::stop_mcp_service(&state, &id).await?;
+    super::runtime::stop_actions_service(&state, &id).await?;
+    drop_tunnel_workspace(&id).await?;
     state.with_workspaces(|store| {
         if store.remove(&id)?.is_some() {
             teardown_workspace(store, &id)?;

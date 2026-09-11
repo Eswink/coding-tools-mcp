@@ -5,6 +5,7 @@ pub use exec_tasks::control_exec_tasks;
 mod chat_authorization;
 pub use chat_authorization::chat_authorization_control;
 mod app_info;
+mod configuration;
 mod frp_profiles;
 mod health;
 mod logs;
