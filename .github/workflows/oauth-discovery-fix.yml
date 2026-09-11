@@ -57,6 +57,9 @@ jobs:
           git rev-parse HEAD > evidence/source.txt
           cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/check.txt
           cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/tests.txt
+          for repetition in 1 2 3; do
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --lib commands::configuration::tests -- --test-threads=8 2>&1 | tee "evidence/lifecycle-${repetition}.txt"
+          done
           cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/production-warnings.txt
       - uses: actions/upload-artifact@v4
         if: always()

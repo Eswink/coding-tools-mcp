@@ -2,6 +2,9 @@ use super::*;
 use serde_json::{json, Value};
 use crate::auth::{chat, principal};
 
+#[path = "configuration_test_process.rs"]
+mod test_process;
+
 struct Fixture { state: AppState, profile: WorkspaceProfile, _root: tempfile::TempDir, client: reqwest::Client }
 impl Fixture {
     fn new() -> Self {
@@ -18,6 +21,8 @@ impl Fixture {
         profile.actions.local_port = actions_port.local_addr().unwrap().port();
         state.with_data(|store| {
             store.init_workspace_secrets(&profile.id)?;
+            // MCP client_secret is optional; this fixture explicitly tests a confidential client.
+            store.set_workspace_secret(&profile.id, "oauth_client_secret", "initial-fixture-client-secret")?;
             store.add(profile.clone())
         }).unwrap();
         Self { state, profile, _root: root, client: reqwest::Client::builder().no_proxy()
@@ -59,6 +64,7 @@ fn config_diff_selects_only_affected_services() {
 
 #[tokio::test]
 async fn stopped_profile_save_and_secret_change_never_start_a_service() {
+    if test_process::run_isolated("stopped_profile_save_and_secret_change_never_start_a_service") { return; }
     let mut f = Fixture::new(); f.profile.auth.auth_type = "oauth".into();
     update(&f.state, f.profile.clone()).await.unwrap();
     write_secret(&f.state, Some(&f.profile.id), "oauth_client_secret", Some("fixture-stopped-secret")).await.unwrap();
@@ -68,6 +74,7 @@ async fn stopped_profile_save_and_secret_change_never_start_a_service() {
 
 #[tokio::test]
 async fn running_auth_save_loads_secret_and_rotation_revokes_existing_grants() {
+    if test_process::run_isolated("running_auth_save_loads_secret_and_rotation_revokes_existing_grants") { return; }
     let mut f = Fixture::new();
     runtime::start_mcp_service(&f.state, &f.profile.id).await.unwrap();
     let response = f.client.get(format!("{}/.well-known/oauth-protected-resource", f.base())).send().await.unwrap();
@@ -96,6 +103,7 @@ async fn running_auth_save_loads_secret_and_rotation_revokes_existing_grants() {
 
 #[tokio::test]
 async fn persistence_failure_stops_old_listener_and_returns_failure() {
+    if test_process::run_isolated("persistence_failure_stops_old_listener_and_returns_failure") { return; }
     let f = Fixture::new();
     let _gate = RESTART_GATE.lock().await;
     runtime::start_mcp_service(&f.state, &f.profile.id).await.unwrap();
@@ -107,6 +115,7 @@ async fn persistence_failure_stops_old_listener_and_returns_failure() {
 
 #[tokio::test]
 async fn failed_restart_does_not_report_a_successful_config_application() {
+    if test_process::run_isolated("failed_restart_does_not_report_a_successful_config_application") { return; }
     let mut f = Fixture::new();
     runtime::start_mcp_service(&f.state, &f.profile.id).await.unwrap();
     f.profile.path = f._root.path().join("missing-directory").display().to_string();
@@ -117,6 +126,7 @@ async fn failed_restart_does_not_report_a_successful_config_application() {
 
 #[tokio::test]
 async fn concurrent_secret_writes_complete_before_returning_with_one_consistent_listener() {
+    if test_process::run_isolated("concurrent_secret_writes_complete_before_returning_with_one_consistent_listener") { return; }
     let mut f = Fixture::new(); f.profile.auth.auth_type = "oauth".into();
     update(&f.state, f.profile.clone()).await.unwrap();
     runtime::start_mcp_service(&f.state, &f.profile.id).await.unwrap();
@@ -133,6 +143,7 @@ async fn concurrent_secret_writes_complete_before_returning_with_one_consistent_
 
 #[tokio::test]
 async fn shared_credential_update_reloads_only_running_shared_consumers() {
+    if test_process::run_isolated("shared_credential_update_reloads_only_running_shared_consumers") { return; }
     let mut f = Fixture::new(); f.profile.auth.auth_type = "oauth".into();
     f.profile.auth.use_shared_secrets = true;
     update(&f.state, f.profile.clone()).await.unwrap();
