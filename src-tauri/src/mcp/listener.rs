@@ -81,7 +81,7 @@ pub fn spawn_listener_with_origin(
             oauth_client_secret.clone(),
             password,
             token_secret,
-        ).with_redirect_uri(auth.oauth_redirect_uri.clone())))
+        ).with_redirect_uri(auth.oauth_redirect_uri.clone()).with_mcp_resource()))
     } else {
         None
     };
@@ -133,6 +133,8 @@ async fn serve(
             "/.well-known/oauth-protected-resource",
             get(oauth_protected_resource_metadata),
         )
+        // RFC 9728 path-specific discovery; root remains a compatibility alias.
+        .route("/.well-known/oauth-protected-resource/mcp", get(oauth_protected_resource_metadata))
         .route("/oauth/authorize", get(oauth_authorize_get).post(oauth_authorize_post))
         .route("/oauth/token", post(oauth_token_post))
         .with_state(state)
@@ -310,11 +312,10 @@ async fn oauth_authorization_server_metadata(
         return oauth_not_configured();
     }
     let base = resolve_oauth_base(&state, &headers);
-    Json(authorization_server_metadata(
+    ([(CACHE_CONTROL, "no-store")], Json(authorization_server_metadata(
         &base,
         state.oauth_client_secret.as_deref(),
-    ))
-    .into_response()
+    ))).into_response()
 }
 
 async fn oauth_protected_resource_metadata(
@@ -324,7 +325,9 @@ async fn oauth_protected_resource_metadata(
     if !state.auth.oauth_enabled() {
         return oauth_not_configured();
     }
-    Json(protected_resource_metadata(&resolve_oauth_base(&state, &headers))).into_response()
+    let issuer = resolve_oauth_base(&state, &headers);
+    let resource = format!("{}/mcp", issuer.trim_end_matches('/'));
+    ([(CACHE_CONTROL, "no-store")], Json(protected_resource_metadata(&resource, &issuer))).into_response()
 }
 
 async fn oauth_authorize_get(
@@ -375,6 +378,7 @@ async fn oauth_token_post(
 fn oauth_not_configured() -> Response {
     (
         StatusCode::NOT_FOUND,
+        [(CACHE_CONTROL, "no-store")],
         Json(json!({ "error": "OAuth not configured" })),
     )
         .into_response()

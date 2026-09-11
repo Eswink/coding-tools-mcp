@@ -28,3 +28,13 @@ Iteration 1: characterization only, 90/100 (CI pending; not a fix acceptance). G
 - https://developers.openai.com/plugins/build/auth
 - https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization
 - https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization
+
+## Iteration 2 - explicit resource identity (2026-09-11)
+
+Recovered the existing red tests at 687c7c84; both operating systems actually failed the three HTTP assertions in run 34560789194. This is the first implementation, not a reclassification of those failures as passing.
+
+MCP now selects the /mcp resource independently of the issuer. Root and path-specific resource metadata are aliases, and the 401 challenge selects the path-specific document. Authorization codes preserve the exact resource and JWT validation checks issuer and audience separately. Actions retains its existing origin resource. Old origin-audience MCP tokens require a fresh link. Discovery success and OAuth-disabled responses are uncacheable. The stored-secret/lifecycle and diagnostic repairs are deliberately deferred to the next iteration; no package is released by this iteration.
+
+Added real HTTP authorization-page/PKCE/code-exchange/initialize coverage, valid OAuth without a chat grant denial, metadata alias checks, wrong client secret, wrong resource, wrong PKCE, code replay and old-audience rejection. Existing fixture token audiences were migrated without deleting their isolation assertions. CI now runs the complete Rust baseline, all-target checks and production-library -D warnings. No dependency or version change.
+
+Pre-CI self-review: 92/100, candidate only. Manual review covered service-specific audience handling, no redirects during the test exchange, no fixture credentials in product configuration, and no permissive audience fallback. GitNexus listener impact is CRITICAL (20 symbols, 6 flows); graph and exact staged diff are reviewed. Full-text graph search is unavailable offline; exact symbol traversal is available. This score cannot override pending or failed runtime tests.

@@ -144,12 +144,12 @@ pub fn authorization_server_metadata(base_url: &str, client_secret: Option<&str>
     })
 }
 
-pub fn protected_resource_metadata(base_url: &str) -> Value {
-    let base = base_url.trim_end_matches('/');
+pub fn protected_resource_metadata(resource: &str, issuer: &str) -> Value {
+    let issuer = issuer.trim_end_matches('/');
     json!({
         "scopes_supported": ["mcp"],
-        "resource": base,
-        "authorization_servers": [base],
+        "resource": resource,
+        "authorization_servers": [issuer],
         "bearer_methods_supported": ["header"],
     })
 }
@@ -184,8 +184,9 @@ mod tests {
 
     #[test]
     fn protected_resource_metadata_lists_authorization_servers() {
-        let meta = protected_resource_metadata("https://example.com");
+        let meta = protected_resource_metadata("https://example.com/mcp", "https://example.com");
         assert_eq!(meta["authorization_servers"], json!(["https://example.com"]));
+        assert_eq!(meta["resource"], "https://example.com/mcp");
     }
 
     #[test]
