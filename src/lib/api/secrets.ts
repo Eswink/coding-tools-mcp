@@ -1,4 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
+import { writable } from "svelte/store";
+
+// Invalidation metadata only. Never put credentials in a shared reactive store.
+export const credentialState = writable({ revision: 0, pending: 0 });
+async function mutateCredential<T>(operation: () => Promise<T>): Promise<T> {
+  credentialState.update((state) => ({ revision: state.revision + 1, pending: state.pending + 1 }));
+  try {
+    return await operation();
+  } finally {
+    // Persistence can succeed before a listener restart fails: invalidate on failure too.
+    credentialState.update((state) => ({ revision: state.revision + 1, pending: state.pending - 1 }));
+  }
+}
 
 export type WorkspaceSecretKey =
   | "oauth_client_secret"
@@ -26,14 +39,14 @@ export async function setWorkspaceSecret(
   key: WorkspaceSecretKey,
   value: string,
 ): Promise<void> {
-  return invoke("set_workspace_secret", { id, key, value });
+  return mutateCredential(() => invoke<void>("set_workspace_secret", { id, key, value }));
 }
 
 export async function regenerateWorkspaceSecret(
   id: string,
   key: WorkspaceSecretKey,
 ): Promise<string> {
-  return invoke<string>("regenerate_workspace_secret", { id, key });
+  return mutateCredential(() => invoke<string>("regenerate_workspace_secret", { id, key }));
 }
 
 /** @deprecated use WorkspaceSecretKey */
@@ -66,11 +79,11 @@ export async function getSharedSecret(key: SharedSecretKey): Promise<string | nu
 }
 
 export async function setSharedSecret(key: SharedSecretKey, value: string): Promise<void> {
-  return invoke("set_shared_secret", { key, value });
+  return mutateCredential(() => invoke<void>("set_shared_secret", { key, value }));
 }
 
 export async function regenerateSharedSecret(key: SharedSecretKey): Promise<string> {
-  return invoke<string>("regenerate_shared_secret", { key });
+  return mutateCredential(() => invoke<string>("regenerate_shared_secret", { key }));
 }
 
 export async function secretIsSet(id: string, key: WorkspaceSecretKey): Promise<boolean> {

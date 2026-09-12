@@ -93,6 +93,7 @@ impl RuntimeSupervisor {
         self.refresh(profile, ServiceKind::Actions);
     }
 
+    #[cfg(test)] // Production deletion uses the awaited lifecycle transaction.
     pub fn drop_workspace(&mut self, profile: &WorkspaceProfile) {
         self.sync_stop_and_wait(profile, ServiceKind::Mcp);
         self.sync_stop_and_wait(profile, ServiceKind::Actions);
@@ -278,9 +279,12 @@ impl RuntimeSupervisor {
                         auth.oauth_client_id = client_id;
                     }
                 }
-                // MCP OAuth matches legacy Python: client_secret is optional.
-                // ChatGPT connectors use PKCE only and do not send client_secret.
-                let oauth_client_secret = None;
+                // Advertise and enforce the same configured client authentication.
+                // An explicitly empty secret selects a public PKCE client.
+                let oauth_client_secret = if auth.oauth_enabled() {
+                    resolve_secret(&profile.id, "oauth_client_secret", use_shared)?
+                        .filter(|secret| !secret.is_empty())
+                } else { None };
                 let oauth_password = if profile.auth.oauth_enabled() {
                     resolve_secret(&profile.id, "oauth_password", use_shared)?
                 } else {

@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { configurationState } from "$lib/runtime/configuration";
   import CopyFieldRow from "$lib/components/CopyFieldRow.svelte";
-  import { getSecret, getSharedSecret } from "$lib/api/secrets";
-  import type { AuthConfig, WorkspaceProfile } from "$lib/types";
+  import { getSecret, getSharedSecret, credentialState } from "$lib/api/secrets";
+  import { latestRequest } from "$lib/runtime/latest-request";
+  import type { WorkspaceProfile } from "$lib/types";
   import {
     actionsOAuthAuthorizeUrl,
     actionsOAuthTokenUrl,
@@ -23,85 +25,58 @@
 
   let loading = $state(true);
   let secrets = $state<Record<string, string>>({});
-  let secretsLoadSeq = 0;
-
+  let loadError = $state("");
+  const requests = latestRequest();
   const actions = $derived(actionsConfig(profile));
   const auth = $derived(profile.auth);
 
   async function loadSecrets() {
-    const seq = ++secretsLoadSeq;
+    const id = workspaceId;
+    const kind = service;
+    const type = kind === "mcp" ? auth.type : actions.auth_type;
+    const useShared = kind === "mcp" ? !!auth.use_shared_secrets : !!actions.use_shared_secrets;
+    const clientId = auth.oauth_client_id;
+    const ticket = requests.begin();
+    secrets = {};
+    loadError = "";
     loading = true;
+    if ($credentialState.pending > 0 || $configurationState.pending > 0) return;
+    const read = async (key: Parameters<typeof getSecret>[1]) =>
+      (useShared ? await getSharedSecret(key as Parameters<typeof getSharedSecret>[0])
+        : await getSecret(id, key)) ?? "";
     try {
-      if (service === "mcp") {
-        const useShared = auth.use_shared_secrets ?? false;
-        const fetchSecret = async (key: string, sharedKey: string) => {
-          const value = useShared
-            ? await getSharedSecret(sharedKey as Parameters<typeof getSharedSecret>[0])
-            : await getSecret(workspaceId, key as Parameters<typeof getSecret>[1]);
-          return value ?? "";
-        };
-        let next: Record<string, string>;
-        if (auth.type === "oauth") {
-          const clientId = useShared
-            ? ((await getSharedSecret("oauth_client_id")) ?? "")
-            : auth.oauth_client_id;
-          next = {
-            oauth_client_id: clientId,
-            oauth_client_secret: await fetchSecret("oauth_client_secret", "oauth_client_secret"),
-            oauth_password: await fetchSecret("oauth_password", "oauth_password"),
-          };
-        } else if (auth.type === "bearer") {
-          next = {
-            bearer_token: await fetchSecret("bearer_token", "bearer_token"),
-          };
-        } else {
-          next = {};
-        }
-        if (seq !== secretsLoadSeq) return;
-        secrets = next;
-      } else {
-        const useShared = actions.use_shared_secrets ?? false;
-        const fetchSecret = async (key: string, sharedKey: string) => {
-          const value = useShared
-            ? await getSharedSecret(sharedKey as Parameters<typeof getSharedSecret>[0])
-            : await getSecret(workspaceId, key as Parameters<typeof getSecret>[1]);
-          return value ?? "";
-        };
-        let next: Record<string, string>;
-        if (actions.auth_type === "api_key") {
-          next = { actions_api_key: await fetchSecret("actions_api_key", "actions_api_key") };
-        } else if (actions.auth_type === "oauth") {
-          next = {
-            actions_oauth_client_secret: await fetchSecret(
-              "actions_oauth_client_secret",
-              "actions_oauth_client_secret",
-            ),
-          };
-        } else {
-          next = {};
-        }
-        if (seq !== secretsLoadSeq) return;
-        secrets = next;
+      let next: Record<string, string> = {};
+      if (kind === "mcp" && type === "oauth") {
+        const [actualId, secret, password] = await Promise.all([
+          useShared ? getSharedSecret("oauth_client_id") : Promise.resolve(clientId),
+          read("oauth_client_secret"), read("oauth_password"),
+        ]);
+        next = { oauth_client_id: actualId ?? "", oauth_client_secret: secret, oauth_password: password };
+      } else if (kind === "mcp" && type === "bearer") {
+        next = { bearer_token: await read("bearer_token") };
+      } else if (kind === "actions" && type === "api_key") {
+        next = { actions_api_key: await read("actions_api_key") };
+      } else if (kind === "actions" && type === "oauth") {
+        next = { actions_oauth_client_secret: await read("actions_oauth_client_secret") };
+      }
+      if (requests.current(ticket) && id === workspaceId && kind === service) secrets = next;
+    } catch {
+      if (requests.current(ticket) && id === workspaceId && kind === service) {
+        secrets = {};
+        loadError = "凭据读取失败；旧值已清空。请重试，不要使用之前复制的密钥。";
       }
     } finally {
-      if (seq === secretsLoadSeq) loading = false;
+      if (requests.current(ticket) && id === workspaceId && kind === service) loading = false;
     }
   }
 
   $effect(() => {
-    workspaceId;
-    service;
-    auth.type;
-    auth.oauth_client_id;
-    auth.use_shared_secrets;
-    actions.auth_type;
-    actions.oauth_client_id;
-    actions.oauth_scopes;
-    actions.use_shared_secrets;
+    workspaceId; service; auth.type; auth.oauth_client_id; auth.use_shared_secrets;
+    actions.auth_type; actions.use_shared_secrets;
+    $credentialState;
+    $configurationState;
     void loadSecrets();
-    return () => {
-      secretsLoadSeq += 1;
-    };
+    return () => requests.invalidate();
   });
 </script>
 
@@ -115,6 +90,10 @@
     </p>
   </div>
 
+  {#if loadError}
+    <p class="mb-3 text-sm text-[var(--color-error)]">{loadError}</p>
+    <button type="button" class="tx-btn-ghost mb-3" onclick={() => void loadSecrets()}>重新读取凭据</button>
+  {/if}
   <div class="grid gap-3">
     {#if service === "mcp"}
       <CopyFieldRow
@@ -123,20 +102,20 @@
         hint="GPT 连接器里填这个 URL"
       />
       {#if auth.type === "oauth"}
-        <CopyFieldRow label="OAuth Client ID" value={secrets.oauth_client_id ?? auth.oauth_client_id} {loading} />
+        <CopyFieldRow label="OAuth Client ID" value={secrets.oauth_client_id ?? ""} {loading} />
         <CopyFieldRow
-          label="OAuth Client Secret"
+          label="OAuth Client Secret" secret
           value={secrets.oauth_client_secret ?? ""}
           {loading}
         />
         <CopyFieldRow
-          label="授权口令"
+          label="授权口令" secret
           value={secrets.oauth_password ?? ""}
-          hint="ChatGPT 首次授权时输入"
+          hint="仅在本工具的 OAuth 授权网页输入，不要发送到聊天"
           {loading}
         />
       {:else if auth.type === "bearer"}
-        <CopyFieldRow label="Bearer Token" value={secrets.bearer_token ?? ""} {loading} />
+        <CopyFieldRow label="Bearer Token" secret value={secrets.bearer_token ?? ""} {loading} />
       {:else}
         <p class="text-xs text-[var(--color-text-muted)]">当前未启用认证，仅本机调试可用。</p>
       {/if}
@@ -153,7 +132,7 @@
       />
       {#if actions.auth_type === "api_key"}
         <CopyFieldRow
-          label="API Key（Bearer）"
+          label="API Key（Bearer）" secret
           value={secrets.actions_api_key ?? ""}
           hint="Actions 认证选 API Key → Bearer"
           {loading}
@@ -161,7 +140,7 @@
       {:else if actions.auth_type === "oauth"}
         <CopyFieldRow label="OAuth Client ID" value={actions.oauth_client_id ?? ""} />
         <CopyFieldRow
-          label="OAuth Client Secret"
+          label="OAuth Client Secret" secret
           value={secrets.actions_oauth_client_secret ?? ""}
           {loading}
         />

@@ -61,3 +61,17 @@ impl KeyStore for MemoryKeys {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod provider_contract_tests {
+    use super::*;
+
+    #[test]
+    fn native_adapter_is_available_without_calling_the_users_keyring() {
+        let _provider: &dyn KeyStore = &NativeKeyStore;
+        assert_eq!(SERVICE, "coding-tools-mcp.config.v1");
+        let message = unavailable().to_string();
+        assert!(message.contains("未回退到明文保存"));
+        assert!(!message.contains("BadEncoding"));
+    }
+}

@@ -1,25 +1,23 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { message } from "@tauri-apps/plugin-dialog";
   import SecretInput from "$lib/components/SecretInput.svelte";
+  import { latestRequest } from "$lib/runtime/latest-request";
+  import { applyAndRefresh } from "$lib/runtime/configuration";
   import {
     getWorkspaceSecret,
     regenerateWorkspaceSecret,
     getSharedSecret,
-    setSharedSecret,
     regenerateSharedSecret,
     type WorkspaceSecretKey,
     type SharedSecretKey,
   } from "$lib/api/secrets";
   import type { AuthConfig } from "$lib/types";
 
-  export interface SaveAuthOptions {
-    skipRuntimeRestart?: boolean;
-  }
-
   interface Props {
     workspaceId: string;
     auth: AuthConfig;
-    onSaveProfile: (auth: AuthConfig, options?: SaveAuthOptions) => void | Promise<void>;
+    onSaveProfile: (auth: AuthConfig) => void | Promise<void>;
   }
 
   const AUTH_OPTIONS = [
@@ -33,26 +31,27 @@
   let draft = $state<AuthConfig>({ type: "oauth", oauth_client_id: "", use_shared_secrets: false });
   let saving = $state(false);
   let secrets = $state<Partial<Record<WorkspaceSecretKey, string>>>({});
-  let loadedSecrets = $state<Partial<Record<WorkspaceSecretKey, string>>>({});
   let loadedSharedOauthClientId = $state("");
   let regenerating = $state<WorkspaceSecretKey | null>(null);
-  let secretsLoadSeq = 0;
+  let loadingSecrets = $state(true);
+  let secretsError = $state("");
   let suppressSecretsReload = $state(false);
-
-  const secretsDirty = $derived(
-    (Object.keys(secrets) as WorkspaceSecretKey[]).some(
-      (k) => secrets[k] !== loadedSecrets[k],
-    ),
-  );
+  let disposed = false;
+  const secretRequests = latestRequest();
+  const operationRequests = latestRequest();
+  let operationContextKey = "";
+  onDestroy(() => {
+    disposed = true;
+    secretRequests.invalidate();
+    operationRequests.invalidate();
+    secrets = {};
+  });
 
   const dirty = $derived(
     draft.type !== auth.type ||
-      (draft.use_shared_secrets
-        ? draft.oauth_client_id !== loadedSharedOauthClientId
-        : draft.oauth_client_id !== auth.oauth_client_id) ||
+      (!draft.use_shared_secrets && draft.oauth_client_id !== auth.oauth_client_id) ||
       draft.use_shared_secrets !== !!auth.use_shared_secrets ||
-      (draft.oauth_redirect_uri ?? "") !== (auth.oauth_redirect_uri ?? "https://chatgpt.com/connector_platform_oauth_redirect") ||
-      secretsDirty,
+      (draft.oauth_redirect_uri ?? "") !== (auth.oauth_redirect_uri ?? "https://chatgpt.com/connector_platform_oauth_redirect"),
   );
 
   const showOAuth = $derived(draft.type === "oauth");
@@ -68,85 +67,116 @@
     const authType = draft.type;
     const useShared = draft.use_shared_secrets ?? false;
     void loadSecrets(id, authType, useShared);
+    return () => secretRequests.invalidate();
   });
 
+  $effect(() => {
+    const next = `${workspaceId}\u0000${draft.type}\u0000${!!draft.use_shared_secrets}`;
+    if (operationContextKey && operationContextKey !== next) {
+      operationRequests.invalidate();
+      saving = false;
+      regenerating = null;
+      suppressSecretsReload = false;
+    }
+    operationContextKey = next;
+  });
+
+  function currentContext(id: string, authType: string, useShared: boolean) {
+    return !disposed && id === workspaceId && authType === draft.type && useShared === !!draft.use_shared_secrets;
+  }
+
   async function loadSecrets(id: string, authType: string, useShared: boolean) {
-    const seq = ++secretsLoadSeq;
-    const sharedClientId =
-      authType === "oauth" && useShared ? await getSharedSecret("oauth_client_id") : null;
-    const keys: WorkspaceSecretKey[] = [];
-    if (authType === "oauth") {
-      keys.push("oauth_client_secret", "oauth_password");
-    } else if (authType === "bearer") {
-      keys.push("bearer_token");
-    }
-    if (keys.length === 0) {
-      if (seq !== secretsLoadSeq) return;
-      secrets = {};
-      loadedSecrets = {};
-      return;
-    }
-    const loaded = await Promise.all(
-      keys.map(async (key) => {
+    const ticket = secretRequests.begin();
+    secrets = {};
+    loadedSharedOauthClientId = "";
+    secretsError = "";
+    loadingSecrets = true;
+    try {
+      const sharedClientId =
+        authType === "oauth" && useShared ? await getSharedSecret("oauth_client_id") : null;
+      const keys: WorkspaceSecretKey[] = [];
+      if (authType === "oauth") keys.push("oauth_client_secret", "oauth_password");
+      else if (authType === "bearer") keys.push("bearer_token");
+      const loaded = await Promise.all(keys.map(async (key) => {
         const value = useShared
           ? await getSharedSecret(key as SharedSecretKey)
           : await getWorkspaceSecret(id, key);
         return [key, value ?? ""] as const;
-      }),
-    );
-    if (seq !== secretsLoadSeq) return;
-    if (authType === "oauth" && useShared) {
-      draft = { ...draft, oauth_client_id: sharedClientId ?? "" };
-      loadedSharedOauthClientId = sharedClientId ?? "";
-    } else {
-      loadedSharedOauthClientId = "";
+      }));
+      if (!secretRequests.current(ticket) || !currentContext(id, authType, useShared)) return;
+      // Credential reads must not overwrite an unsaved private client ID draft.
+      loadedSharedOauthClientId = authType === "oauth" && useShared ? sharedClientId ?? "" : "";
+      secrets = Object.fromEntries(loaded);
+    } catch {
+      if (secretRequests.current(ticket) && currentContext(id, authType, useShared)) {
+        secrets = {};
+        loadedSharedOauthClientId = "";
+        secretsError = "凭据读取失败；旧值已清空。请重试后再保存或重新生成。";
+      }
+    } finally {
+      if (secretRequests.current(ticket) && currentContext(id, authType, useShared)) loadingSecrets = false;
     }
-    secrets = Object.fromEntries(loaded);
-    loadedSecrets = Object.fromEntries(loaded);
   }
 
   async function save() {
-    if (saving || !dirty) return;
+    if (saving || !dirty || loadingSecrets || secretsError || regenerating) return;
+    const ticket = operationRequests.begin();
+    const id = workspaceId;
+    const authType = draft.type;
+    const useShared = !!draft.use_shared_secrets;
     saving = true;
     suppressSecretsReload = true;
     try {
-      let sharedSecretChanged = false;
-      const clientId =
-        draft.type === "oauth" && draft.use_shared_secrets
-          ? draft.oauth_client_id.trim()
-          : "";
-      if (draft.type === "oauth" && draft.use_shared_secrets) {
-        if (!clientId) throw new Error("OAuth Client ID 不能为空");
-        sharedSecretChanged = clientId !== loadedSharedOauthClientId;
+      if (authType === "oauth" && useShared && !loadedSharedOauthClientId) {
+        throw new Error("全局 OAuth Client ID 尚未配置或读取失败，请先在“设置 → 共享密钥”中配置。" );
       }
-      // Persist profile first so secret-triggered restart sees updated flags.
-      await onSaveProfile({ ...draft }, { skipRuntimeRestart: sharedSecretChanged });
-      if (sharedSecretChanged) {
-        await setSharedSecret("oauth_client_id", clientId);
-        loadedSharedOauthClientId = clientId;
-      }
-      // Auth save only persists profile fields; secrets are already stored by regenerate.
-      loadedSecrets = { ...secrets };
+      const next = {
+        ...draft,
+        // Shared client identity belongs to the shared secret store, not this workspace profile.
+        oauth_client_id: useShared ? auth.oauth_client_id : draft.oauth_client_id.trim(),
+      };
+      await applyAndRefresh(async () => { await onSaveProfile(next); }, async () => {
+        if (operationRequests.current(ticket) && currentContext(id, authType, useShared)) {
+          await loadSecrets(id, next.type, !!next.use_shared_secrets);
+        }
+      });
     } catch (error) {
-      await message(String(error), { title: "保存失败", kind: "error" });
+      if (operationRequests.current(ticket) && currentContext(id, authType, useShared)) {
+        await message(String(error), { title: "保存失败", kind: "error" });
+      }
     } finally {
-      suppressSecretsReload = false;
-      saving = false;
+      if (operationRequests.current(ticket)) {
+        suppressSecretsReload = false;
+        saving = false;
+      }
     }
   }
 
   async function regenerate(key: WorkspaceSecretKey) {
-    if (regenerating) return;
+    if (regenerating || saving || loadingSecrets || secretsError) return;
+    const ticket = operationRequests.begin();
+    const id = workspaceId;
+    const authType = draft.type;
+    const useShared = !!draft.use_shared_secrets;
+    secretRequests.invalidate();
     regenerating = key;
+    secrets = {};
     try {
-      const value = draft.use_shared_secrets
-        ? await regenerateSharedSecret(key as SharedSecretKey)
-        : await regenerateWorkspaceSecret(workspaceId, key);
-      secrets = { ...secrets, [key]: value };
+      // The write can persist before runtime restart fails. Read back on either outcome.
+      await applyAndRefresh(async () => {
+        if (useShared) await regenerateSharedSecret(key as SharedSecretKey);
+        else await regenerateWorkspaceSecret(id, key);
+      }, async () => {
+        if (operationRequests.current(ticket) && currentContext(id, authType, useShared)) {
+          await loadSecrets(id, authType, useShared);
+        }
+      });
     } catch (error) {
-      await message(String(error), { title: "重新生成失败", kind: "error" });
+      if (operationRequests.current(ticket) && currentContext(id, authType, useShared)) {
+        await message(String(error), { title: "重新生成失败", kind: "error" });
+      }
     } finally {
-      regenerating = null;
+      if (operationRequests.current(ticket)) regenerating = null;
     }
   }
 </script>
@@ -161,6 +191,13 @@
   <p class="text-xs text-[var(--color-text-muted)]">
     复制 Client ID / 密钥等请用上方「GPT 配置」卡片；此处可修改认证类型与重新生成密钥。
   </p>
+
+  {#if secretsError}
+    <div class="grid gap-2 rounded-md border border-red-300/50 p-3 text-xs text-red-600">
+      <span>{secretsError}</span>
+      <button type="button" class="tx-btn-ghost justify-self-start" onclick={() => void loadSecrets(workspaceId, draft.type, !!draft.use_shared_secrets)}>重新读取凭据</button>
+    </div>
+  {/if}
 
   <label class="grid gap-1">
     <span class="text-xs text-[var(--color-text-muted)]">认证类型</span>
@@ -190,12 +227,21 @@
     </label>
     <label class="grid gap-1">
       <span class="text-xs text-[var(--color-text-muted)]">OAuth 客户端 ID</span>
-      <input
-        type="text"
-        class="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 font-mono text-sm"
-        bind:value={draft.oauth_client_id}
-        readonly={draft.use_shared_secrets}
-      />
+      {#if draft.use_shared_secrets}
+        <input
+          type="text"
+          class="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 font-mono text-sm"
+          value={loadedSharedOauthClientId}
+          readonly
+          disabled={loadingSecrets || !!secretsError}
+        />
+      {:else}
+        <input
+          type="text"
+          class="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 font-mono text-sm"
+          bind:value={draft.oauth_client_id}
+        />
+      {/if}
     </label>
 
     <div class="grid gap-1">
@@ -204,6 +250,7 @@
         value={secrets.oauth_client_secret ?? ""}
         placeholder="加载中…"
         readonly
+        disabled={loadingSecrets || !!secretsError || saving || !!regenerating}
         onRegenerate={() => void regenerate("oauth_client_secret")}
         regenerating={regenerating === "oauth_client_secret"}
       />
@@ -215,6 +262,7 @@
         value={secrets.oauth_password ?? ""}
         placeholder="ChatGPT 首次授权时输入这个口令"
         readonly
+        disabled={loadingSecrets || !!secretsError || saving || !!regenerating}
         onRegenerate={() => void regenerate("oauth_password")}
         regenerating={regenerating === "oauth_password"}
       />
@@ -228,6 +276,7 @@
         value={secrets.bearer_token ?? ""}
         placeholder="加载中…"
         readonly
+        disabled={loadingSecrets || !!secretsError || saving || !!regenerating}
         onRegenerate={() => void regenerate("bearer_token")}
         regenerating={regenerating === "bearer_token"}
       />
@@ -238,7 +287,7 @@
     <button
       type="submit"
       class="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-      disabled={saving || !dirty}
+      disabled={saving || !dirty || loadingSecrets || !!secretsError || !!regenerating}
     >
       {saving ? "保存中…" : "保存配置"}
     </button>

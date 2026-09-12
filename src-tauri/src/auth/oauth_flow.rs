@@ -30,6 +30,8 @@ pub struct OAuthRuntime {
     pub password: String,
     pub token_secret: String,
     redirect_uri: String,
+    // Issuer and audience are separate; Actions keeps its origin resource.
+    resource_path: &'static str,
     attempts: Arc<Mutex<(u64, u32)>>,
     pending: Arc<Mutex<HashMap<String, PendingCode>>>,
 }
@@ -60,12 +62,20 @@ impl OAuthRuntime {
             password,
             token_secret,
             redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect".into(),
+            resource_path: "",
             attempts: Arc::new(Mutex::new((0, 0))),
             pending: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
     pub fn with_redirect_uri(mut self, uri: String) -> Self { self.redirect_uri = uri; self }
+    pub fn with_mcp_resource(mut self) -> Self { self.resource_path = "/mcp"; self }
+    pub fn resource_url(&self, issuer: &str) -> String {
+        format!("{}{}", issuer.trim_end_matches('/'), self.resource_path)
+    }
+    fn resource_metadata_url(&self, issuer: &str) -> String {
+        format!("{}/.well-known/oauth-protected-resource{}", issuer.trim_end_matches('/'), self.resource_path)
+    }
     fn redirect_allowed(&self, uri: &str) -> bool {
         if uri != self.redirect_uri || uri.len() > 2048 { return false; }
         reqwest::Url::parse(uri).ok().is_some_and(|u| u.scheme() == "https"
@@ -91,7 +101,7 @@ impl OAuthRuntime {
         self.principal(token, server_url).is_some()
     }
     pub(crate) fn principal(&self, token: &str, server_url: &str) -> Option<super::principal::VerifiedPrincipal> {
-        let principal = super::principal::verify(token, &self.token_secret, server_url)?;
+        let principal = super::principal::verify(token, &self.token_secret, server_url, &self.resource_url(server_url))?;
         self.client_id_allowed(&principal.client_id).then_some(principal)
     }
 
@@ -105,7 +115,7 @@ pub fn verify_oauth_bearer_header(
     let token = headers.get(AUTHORIZATION).and_then(|h| h.to_str().ok())
         .and_then(|h| h.strip_prefix("Bearer ")).map(str::trim).unwrap_or("");
     if oauth.verify_access_token(token, server_url) { return None; }
-    let challenge = format!("Bearer resource_metadata=\"{}/.well-known/oauth-protected-resource\", scope=\"mcp\"", server_url.trim_end_matches('/'));
+    let challenge = format!("Bearer resource_metadata=\"{}\", scope=\"mcp\"", oauth.resource_metadata_url(server_url));
     let mut response = (StatusCode::UNAUTHORIZED, "OAuth authentication required").into_response();
     if let Ok(value) = challenge.parse() { response.headers_mut().insert(axum::http::header::WWW_AUTHENTICATE, value); }
     response.headers_mut().insert(axum::http::header::CACHE_CONTROL, axum::http::HeaderValue::from_static("no-store"));
@@ -193,7 +203,7 @@ pub fn authorize_get(
 
 pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &str) -> Response {
     if !oauth.redirect_allowed(&form.redirect_uri) || (!form.scope.is_empty() && form.scope != "mcp")
-        || !valid_resource(&form.resource) || form.resource != server_url.trim_end_matches('/') {
+        || !valid_resource(&form.resource) || form.resource != oauth.resource_url(server_url) {
         return html_error("Invalid redirect_uri, resource or scope", StatusCode::BAD_REQUEST);
     }
     if !oauth.allow_login_attempt() { return html_error("Too many login attempts", StatusCode::TOO_MANY_REQUESTS); }
@@ -321,10 +331,10 @@ pub fn token_exchange(
 
     let issuer = code_data.server_url.trim_end_matches('/').to_string();
     if issuer != server_url.trim_end_matches('/') || form.resource != code_data.resource
-        || code_data.resource != issuer {
+        || code_data.resource != oauth.resource_url(&issuer) {
         return token_error("invalid_target", "Resource identity changed or mismatched");
     }
-    match super::principal::issue(&issuer, &oauth.token_secret, &code_data.client_id, OAUTH_TOKEN_TTL_SECONDS) {
+    match super::principal::issue(&issuer, &code_data.resource, &oauth.token_secret, &code_data.client_id, OAUTH_TOKEN_TTL_SECONDS) {
         Ok(access_token) => (
             StatusCode::OK,
             [(axum::http::header::CACHE_CONTROL, "no-store")],

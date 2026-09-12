@@ -1,5 +1,7 @@
 <script lang="ts">
   import { defaultFrpOptions, originFromEndpoint } from "$lib/固定入口";
+  import { onDestroy } from "svelte";
+  import { applyAndRefresh, forCurrentWorkspace } from "$lib/runtime/configuration";
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
   import ActionsAuthForm from "$lib/components/ActionsAuthForm.svelte";
@@ -31,18 +33,15 @@
     listWorkspaces,
     startActionsRuntime,
     startRuntime,
-    restartRuntime,
-    restartActionsRuntime,
     stopActionsRuntime,
     stopRuntime,
     updateWorkspace,
+    type TunnelSecretUpdate,
   } from "$lib/api/workspaces";
   import { listFrpProfiles, setLastWorkspace, type FrpProfileDto } from "$lib/api/settings";
   import { confirm } from "@tauri-apps/plugin-dialog";
-  import { restartTunnel, stopTunnel } from "$lib/api/tunnel";
   import { runServiceToggle, notifyStartFailure } from "$lib/runtime/service";
   import { showToast } from "$lib/stores/toast";
-  import { promptServiceRestart } from "$lib/runtime/restart-hint";
   import { actionsRuntimeStates, mcpRuntimeStates, workspaces } from "$lib/stores/app";
   import {
     actionsConfig,
@@ -79,6 +78,26 @@
   let mcpSubTab = $state<SubTab>("config");
   let actionsSubTab = $state<SubTab>("config");
   let loadGeneration = 0;
+  let disposed = false;
+  let configurationBusy = $state(false);
+  onDestroy(() => { disposed = true; loadGeneration += 1; });
+  const currentWorkspaceId = () => disposed ? undefined : workspaceId;
+
+  function bindWorkspace<A extends unknown[]>(id: string, action: (...args: A) => Promise<void>) {
+    return forCurrentWorkspace(id, currentWorkspaceId, action);
+  }
+
+  async function persistProfile(next: WorkspaceProfile, tunnelSecret?: TunnelSecretUpdate) {
+    if (disposed || next.id !== workspaceId) throw new Error("工作区已切换，请重试。");
+    if (configurationBusy || mcpBusy || actionsBusy) throw new Error("其他配置操作尚未完成，请稍后重试。");
+    configurationBusy = true;
+    loadGeneration += 1;
+    try {
+      await applyAndRefresh(() => updateWorkspace(next, tunnelSecret), async () => {
+        if (!disposed && next.id === workspaceId) await load(next.id);
+      });
+    } finally { configurationBusy = false; }
+  }
 
   const subTabs = [
     { value: "config", label: "配置" },
@@ -139,7 +158,7 @@
     runtime: { state: RuntimeState; localEndpoint: string; publicEndpoint: string; localMessage?: string },
     id = workspaceId,
   ) {
-    if (!id || id !== workspaceId) return;
+    if (disposed || !id || id !== workspaceId) return;
     mcpStatus = runtime.state;
     mcpStatusMessage = runtime.localMessage ?? "";
     mcpLocal = runtime.localEndpoint;
@@ -155,7 +174,7 @@
   },
     id = workspaceId,
   ) {
-    if (!id || id !== workspaceId) return;
+    if (disposed || !id || id !== workspaceId) return;
     actionsStatus = runtime.state;
     actionsStatusMessage = runtime.localMessage ?? "";
     actionsLocal = runtime.localEndpoint;
@@ -164,20 +183,21 @@
   }
 
   async function load(id = workspaceId) {
-    if (!id) return;
+    if (disposed || !id || id !== workspaceId) return;
     const generation = ++loadGeneration;
     const items = await listWorkspaces();
-    if (generation !== loadGeneration || id !== workspaceId) return;
+    if (disposed || generation !== loadGeneration || id !== workspaceId) return;
     workspaces.set(items);
-    frpProfiles = await listFrpProfiles();
-    if (generation !== loadGeneration || id !== workspaceId) return;
+    const loadedFrpProfiles = await listFrpProfiles();
+    if (disposed || generation !== loadGeneration || id !== workspaceId) return;
+    frpProfiles = loadedFrpProfiles;
     const nextProfile = items.find((item) => item.id === id) ?? null;
-    if (generation !== loadGeneration || id !== workspaceId) return;
+    if (disposed || generation !== loadGeneration || id !== workspaceId) return;
     profile = nextProfile;
     if (nextProfile) {
       await setLastWorkspace(nextProfile.id);
     }
-    if (generation !== loadGeneration || id !== workspaceId) return;
+    if (disposed || generation !== loadGeneration || id !== workspaceId) return;
     if (!nextProfile) {
       await goto("/");
       return;
@@ -187,15 +207,16 @@
       getRuntimeStatus(id),
       getActionsRuntimeStatus(id),
     ]);
-    if (generation !== loadGeneration || id !== workspaceId) return;
+    if (disposed || generation !== loadGeneration || id !== workspaceId) return;
     applyMcpRuntime(mcpRuntime, id);
     applyActionsRuntime(actionsRuntime, id);
   }
 
   async function refreshProfile(id = workspaceId): Promise<WorkspaceProfile | null> {
-    if (!id) return null;
+    if (disposed || !id || id !== workspaceId) return null;
+    const generation = ++loadGeneration;
     const items = await listWorkspaces();
-    if (id !== workspaceId) return null;
+    if (disposed || id !== workspaceId || generation !== loadGeneration) return null;
     workspaces.set(items);
     const nextProfile = items.find((item) => item.id === id) ?? null;
     profile = nextProfile;
@@ -229,7 +250,7 @@
 
   async function toggleMcp() {
     const id = workspaceId;
-    if (!id || mcpBusy) return;
+    if (disposed || !id || mcpBusy || configurationBusy) return;
     const wasRunning = mcpStatus === "running";
     mcpBusy = true;
     try {
@@ -239,7 +260,7 @@
         () => stopRuntime(id),
         "MCP",
       );
-      if (runtime && id === workspaceId) {
+      if (!disposed && runtime && id === workspaceId) {
         applyMcpRuntime(runtime, id);
         if (!wasRunning) {
           if (runtime.state === "running") {
@@ -256,7 +277,7 @@
 
   async function toggleActions() {
     const id = workspaceId;
-    if (!id || actionsBusy) return;
+    if (disposed || !id || actionsBusy || configurationBusy) return;
     const wasRunning = actionsStatus === "running";
     actionsBusy = true;
     try {
@@ -266,7 +287,7 @@
         () => stopActionsRuntime(id),
         "Actions",
       );
-      if (runtime && id === workspaceId) {
+      if (!disposed && runtime && id === workspaceId) {
         applyActionsRuntime(runtime, id);
         if (!wasRunning) {
           if (runtime.state === "running") {
@@ -283,64 +304,16 @@
 
   async function saveMcpPort(port: number) {
     if (!profile || profile.runtime.local_port === port) return;
-    const next: WorkspaceProfile = {
-      ...profile,
-      runtime: { ...profile.runtime, local_port: port },
-    };
-    await updateWorkspace(next);
-    profile = next;
-    mcpLocal = mcpLocalEndpoint(port);
-    await load();
+    const next = { ...profile, runtime: { ...profile.runtime, local_port: port } };
+    await persistProfile(next);
   }
 
   async function saveActionsPort(port: number) {
     if (!profile) return;
     const current = actionsConfig(profile);
     if (current.local_port === port) return;
-    const next: WorkspaceProfile = {
-      ...profile,
-      actions: { ...current, local_port: port },
-    };
-    await updateWorkspace(next);
-    profile = next;
-    actionsLocal = actionsLocalEndpoint(port);
-    await load();
-  }
-
-  function publicEndpointFromTunnel(config: TunnelFormConfig, suffix: string): string {
-    const base = frpPublicUrl(
-      config.type,
-      config.frp_subdomain,
-      config.frp_server,
-      config.frp_profile_id,
-      frpProfiles,
-      config.public_url,
-      config.frp,
-    );
-    if (base) {
-      return `${base.replace(/\/$/, "")}${suffix}`;
-    }
-    return "";
-  }
-
-  async function restartTunnelIfConfigured(
-    targetWorkspaceId: string,
-    config: TunnelFormConfig,
-    service: "mcp" | "actions",
-  ) {
-    if (config.type === "none") {
-      await stopTunnel(targetWorkspaceId, service);
-      return;
-    }
-    const status = await restartTunnel(targetWorkspaceId, service);
-    if (workspaceId !== targetWorkspaceId) return;
-    if (status.publicUrl) {
-      if (service === "mcp") {
-        mcpPublic = `${status.publicUrl.replace(/\/$/, "")}/mcp`;
-      } else {
-        actionsPublic = `${status.publicUrl.replace(/\/$/, "")}/openapi.json`;
-      }
-    }
+    const next = { ...profile, actions: { ...current, local_port: port } };
+    await persistProfile(next);
   }
 
   async function saveMcpTunnel(config: TunnelFormConfig, options?: SaveTunnelOptions) {
@@ -363,20 +336,7 @@
         use_proxy: config.use_proxy,
       },
     };
-    await updateWorkspace(next);
-    if (!options?.skipTunnelRestart) {
-      await restartTunnelIfConfigured(targetWorkspaceId, config, "mcp");
-    }
-    if (workspaceId !== targetWorkspaceId) return;
-    profile = next;
-    mcpPublic = publicEndpointFromTunnel(config, "/mcp");
-    if (!options?.skipTunnelRestart && !options?.skipServicePrompt) {
-      await load();
-      if (workspaceId !== targetWorkspaceId) return;
-    }
-    if (!options?.skipServicePrompt) {
-      await promptServiceRestart(mcpStatus === "running", "MCP 服务");
-    }
+    await persistProfile(next, options?.tunnelSecret);
   }
 
   async function saveActionsTunnel(config: TunnelFormConfig, options?: SaveTunnelOptions) {
@@ -400,34 +360,15 @@
         use_proxy: config.use_proxy,
       },
     };
-    await updateWorkspace(next);
-    if (!options?.skipTunnelRestart) {
-      await restartTunnelIfConfigured(targetWorkspaceId, config, "actions");
-    }
-    if (workspaceId !== targetWorkspaceId) return;
-    profile = next;
-    actionsPublic = publicEndpointFromTunnel(config, "/openapi.json");
-    if (!options?.skipTunnelRestart && !options?.skipServicePrompt) {
-      await load();
-      if (workspaceId !== targetWorkspaceId) return;
-    }
-    if (!options?.skipServicePrompt) {
-      await promptServiceRestart(actionsStatus === "running", "Actions 服务");
-    }
+    await persistProfile(next, options?.tunnelSecret);
   }
 
   async function saveTaskBudget(service: ServiceTab, maxTimeoutMs: number) {
     if (!profile) return;
-    const targetId = workspaceId;
     const next: WorkspaceProfile = service === "mcp"
       ? { ...profile, runtime: { ...profile.runtime, max_task_timeout_ms: maxTimeoutMs } }
       : { ...profile, actions: { ...actionsConfig(profile), max_task_timeout_ms: maxTimeoutMs } };
-    await updateWorkspace(next);
-    if (workspaceId !== targetId) return;
-    profile = next;
-    await load();
-    if (workspaceId !== targetId) return;
-    await promptServiceRestart((service === "mcp" ? mcpStatus : actionsStatus) === "running", service.toUpperCase() + " 服务");
+    await persistProfile(next);
   }
 
   async function saveMcpPolicy(draft: RuntimePolicyDraft) {
@@ -443,10 +384,7 @@
         workspace_script_extensions: draft.workspaceScriptExtensions,
       },
     };
-    await updateWorkspace(next);
-    profile = next;
-    await load();
-    await promptServiceRestart(mcpStatus === "running", "MCP 服务");
+    await persistProfile(next);
   }
 
   async function saveActionsPolicy(draft: ActionsPolicyDraft) {
@@ -461,99 +399,70 @@
         permission_mode: draft.permissionMode,
       },
     };
-    await updateWorkspace(next);
-    profile = next;
-    await load();
-    await promptServiceRestart(actionsStatus === "running", "Actions 服务");
+    await persistProfile(next);
   }
 
-  async function saveMcpAuth(auth: AuthConfig, options?: { skipRuntimeRestart?: boolean }) {
-    if (!profile || !workspaceId) return;
-    const next: WorkspaceProfile = { ...profile, auth };
-    await updateWorkspace(next);
-    profile = next;
-    if (!options?.skipRuntimeRestart && mcpStatus === "running") {
-      try {
-        await restartRuntime(workspaceId);
-      } catch (error) {
-        showToast(String(error), { title: "服务重启失败", kind: "error", duration: 8000 });
-      }
-    }
+  async function saveMcpAuth(auth: AuthConfig) {
+    if (!profile) return;
+    const next: WorkspaceProfile = { ...profile, auth: { ...auth } };
+    await persistProfile(next);
   }
 
   async function saveActionsAuth(draft: ActionsAuthDraft) {
-    if (!profile || !workspaceId) return;
+    if (!profile) return;
     const current = actionsConfig(profile);
-    const next: WorkspaceProfile = {
-      ...profile,
-      actions: {
-        ...current,
-        auth_type: draft.authType,
-        oauth_client_id: draft.oauthClientId || current.oauth_client_id,
-        oauth_scopes: draft.oauthScopes,
-        use_shared_secrets: draft.useSharedSecrets,
-      },
-    };
-    await updateWorkspace(next);
-    profile = next;
-    if (actionsStatus === "running") {
-      try {
-        await restartActionsRuntime(workspaceId);
-      } catch (error) {
-        showToast(String(error), { title: "服务重启失败", kind: "error", duration: 8000 });
-      }
-    }
+    const next: WorkspaceProfile = { ...profile, actions: {
+      ...current, auth_type: draft.authType,
+      oauth_client_id: draft.oauthClientId || current.oauth_client_id,
+      oauth_scopes: draft.oauthScopes, use_shared_secrets: draft.useSharedSecrets,
+    } };
+    await persistProfile(next);
   }
 
   async function saveWorkspaceName(name: string) {
     if (!profile || profile.name === name) return;
-    const next: WorkspaceProfile = { ...profile, name };
-    await updateWorkspace(next);
-    profile = next;
-    workspaces.update((items) =>
-      items.map((item) => (item.id === next.id ? { ...item, name: next.name } : item)),
-    );
+    const next = { ...profile, name };
+    await persistProfile(next);
   }
 
   async function saveWorkspacePath(path: string) {
     if (!profile || profile.path === path) return;
-    const next: WorkspaceProfile = { ...profile, path };
-    await updateWorkspace(next);
-    profile = next;
-    showToast("工作区目录已更新", { kind: "success" });
-    await promptServiceRestart(mcpStatus === "running", "MCP 服务");
-    await promptServiceRestart(actionsStatus === "running", "Actions 服务");
+    const next = { ...profile, path };
+    await persistProfile(next);
+    if (!disposed && next.id === workspaceId) showToast("工作区目录已更新", { kind: "success" });
   }
 
   async function removeWorkspace() {
-    if (!profile || !workspaceId) return;
-    const confirmed = await confirm(`确定删除工作区「${profile.name}」？此操作不可撤销。`, {
-      title: "删除工作区",
-      kind: "warning",
-      okLabel: "删除",
-      cancelLabel: "取消",
-    });
-    if (!confirmed) return;
-    await deleteWorkspace(workspaceId);
-    workspaces.update((items) => items.filter((item) => item.id !== workspaceId));
-    mcpRuntimeStates.update((states) => {
-      const next = { ...states };
-      delete next[workspaceId];
-      return next;
-    });
-    actionsRuntimeStates.update((states) => {
-      const next = { ...states };
-      delete next[workspaceId];
-      return next;
-    });
-    goto("/");
+    if (!profile || !workspaceId || configurationBusy || mcpBusy || actionsBusy) return;
+    const id = workspaceId;
+    const name = profile.name;
+    configurationBusy = true;
+    try {
+      const confirmed = await confirm(`确定删除工作区「${name}」？此操作不可撤销。`, {
+        title: "删除工作区", kind: "warning", okLabel: "删除", cancelLabel: "取消",
+      });
+      if (!confirmed || disposed || id !== workspaceId) return;
+      await deleteWorkspace(id);
+      workspaces.update((items) => items.filter((item) => item.id !== id));
+      for (const store of [mcpRuntimeStates, actionsRuntimeStates]) {
+        store.update((states) => { const next = { ...states }; delete next[id]; return next; });
+      }
+      if (!disposed && id === workspaceId) await goto("/");
+    } catch (error) {
+      if (!disposed && id === workspaceId) {
+        showToast(String(error), { title: "删除工作区失败", kind: "error" });
+        await load(id).catch(() => {});
+      }
+    } finally { configurationBusy = false; }
   }
 
   $effect(() => {
     const id = workspaceId;
     if (!id) return;
     profile = null;
-    void load(id);
+    void load(id).catch(() => {
+      if (!disposed && id === workspaceId) showToast("工作区状态读取失败，请刷新后重试。", { kind: "error" });
+    });
 
     return () => {
       loadGeneration += 1;
@@ -562,6 +471,7 @@
 </script>
 
 {#if profile && actions}
+  {#key profile.id}
   <section class="page-scroll">
     <header class="page-header">
       <div class="flex items-start justify-between gap-4">
@@ -572,6 +482,7 @@
         <button
           type="button"
           class="tx-btn-ghost text-[var(--danger)]"
+          disabled={configurationBusy || mcpBusy || actionsBusy}
           onclick={() => void removeWorkspace()}
         >
           删除工作区
@@ -580,10 +491,11 @@
 
       <div class="mt-4">
         <WorkspaceMetaForm
+          workspaceId={profile.id}
           name={profile.name}
           path={profile.path}
-          onSave={saveWorkspaceName}
-          onUpdatePath={saveWorkspacePath}
+          onSave={bindWorkspace(profile.id, saveWorkspaceName)}
+          onUpdatePath={bindWorkspace(profile.id, saveWorkspacePath)}
         />
       </div>
 
@@ -626,13 +538,13 @@
             statusMessage={mcpStatusMessage}
             port={profile.runtime.local_port}
             portEditable={true}
-            busy={mcpBusy}
+            busy={mcpBusy || configurationBusy}
             tunnelType={profile.tunnel.type}
             localEndpoint={mcpLocal || mcpLocalEndpoint(profile.runtime.local_port)}
             publicEndpoint={mcpPublic}
             publicLabel="公网 MCP"
             onToggle={toggleMcp}
-            onPortChange={saveMcpPort}
+            onPortChange={bindWorkspace(profile.id, saveMcpPort)}
           />
           <GptQuickCopy
             workspaceId={workspaceId!}
@@ -664,7 +576,7 @@
                 activePublicOrigin={originFromEndpoint(mcpPublic, "/mcp")}
                 onTested={() => load()}
                 config={mcpTunnelForm}
-                onSave={saveMcpTunnel}
+                onSave={bindWorkspace(profile.id, saveMcpTunnel)}
               />
             </div>
             <div>
@@ -672,7 +584,7 @@
               <AuthConfigForm
                 workspaceId={workspaceId!}
                 auth={profile.auth}
-                onSaveProfile={saveMcpAuth}
+                onSaveProfile={bindWorkspace(profile.id, saveMcpAuth)}
               />
             </div>
             <div>
@@ -683,7 +595,7 @@
                 allowedCommands={profile.runtime.allowed_commands ?? ""}
                 workspaceLocalEntries={profile.runtime.workspace_local_entries ?? true}
                 workspaceScriptExtensions={profile.runtime.workspace_script_extensions ?? ".exe,.bat,.cmd,.ps1"}
-                onSave={saveMcpPolicy}
+                onSave={bindWorkspace(profile.id, saveMcpPolicy)}
               />
             </div>
           </div>
@@ -707,13 +619,13 @@
             statusMessage={actionsStatusMessage}
             port={actions.local_port}
             portEditable={true}
-            busy={actionsBusy}
+            busy={actionsBusy || configurationBusy}
             tunnelType={actions.tunnel_type}
             localEndpoint={actionsLocal || actionsLocalEndpoint(actions.local_port)}
             publicEndpoint={actionsPublic || actionsOpenApiUrl(profile, frpProfiles, actionsActiveOrigin)}
             publicLabel="OpenAPI"
             onToggle={toggleActions}
-            onPortChange={saveActionsPort}
+            onPortChange={bindWorkspace(profile.id, saveActionsPort)}
           />
           <GptQuickCopy
             workspaceId={workspaceId!}
@@ -745,7 +657,7 @@
                 activePublicOrigin={actionsActiveOrigin ?? ""}
                 onTested={() => load()}
                 config={actionsTunnelForm}
-                onSave={saveActionsTunnel}
+                onSave={bindWorkspace(profile.id, saveActionsTunnel)}
               />
             </div>
             <div>
@@ -760,7 +672,7 @@
                 oauthAuthorizeUrl={actionsOAuthAuthorizeUrl(profile, frpProfiles, actionsActiveOrigin)}
                 oauthTokenUrl={actionsOAuthTokenUrl(profile, frpProfiles, actionsActiveOrigin)}
                 useSharedSecrets={actions.use_shared_secrets ?? false}
-                onSave={saveActionsAuth}
+                onSave={bindWorkspace(profile.id, saveActionsAuth)}
               />
             </div>
             <div>
@@ -769,7 +681,7 @@
                 allowedCommands={actions.allowed_commands ?? ""}
                 maxPatchBytes={actions.max_patch_bytes ?? 200_000}
                 permissionMode={actions.permission_mode}
-                onSave={saveActionsPolicy}
+                onSave={bindWorkspace(profile.id, saveActionsPolicy)}
               />
             </div>
           </div>
@@ -791,4 +703,5 @@
       MCP 默认端口 28766，Actions 默认 8787，可同时运行。
     </footer>
   </section>
+  {/key}
 {/if}

@@ -1,0 +1,179 @@
+name: OAuth discovery regression
+on:
+  push:
+    branches: ['fix/oauth-discovery-runtime']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Export exact tracked source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source.txt
+          git rev-parse 'HEAD^{tree}' > evidence/tree.txt
+          git archive --format=zip HEAD -o evidence/source.zip
+          sha256sum evidence/source.zip > evidence/source.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oauth-repair-source
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+  regression:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+      - name: Failure-first Windows namespace regression and repeated runner checks
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          cp src-tauri/src/tools/exec.rs "$RUNNER_TEMP/path-candidate-exec.rs"
+          restore_path_candidate() {
+            cp "$RUNNER_TEMP/path-candidate-exec.rs" src-tauri/src/tools/exec.rs
+          }
+          trap restore_path_candidate EXIT
+          git fetch --no-tags --depth=1 origin 832b8c49584e2e31ddbd3e4da7f1a41deeaf6621
+          python - <<'PYPATH'
+          from pathlib import Path
+          import subprocess
+          original = subprocess.check_output(['git', 'show', '832b8c49584e2e31ddbd3e4da7f1a41deeaf6621:src-tauri/src/tools/exec.rs'])
+          declaration = b'\n#[cfg(all(test, windows))]\n#[path = "exec_windows_path_tests.rs"]\nmod windows_path_tests;\n'
+          Path('src-tauri/src/tools/exec.rs').write_bytes(original + declaration)
+          PYPATH
+          set +e
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::exec::windows_path_tests -- --nocapture > evidence/windows-path-baseline.txt 2>&1
+          result=$?
+          set -e
+          cat evidence/windows-path-baseline.txt
+          test "$result" = 101
+          grep -F 'test result: FAILED.' evidence/windows-path-baseline.txt
+          grep -F 'extended_unc_path_preserves_network_root ... FAILED' evidence/windows-path-baseline.txt
+          restore_path_candidate
+          trap - EXIT
+          git diff --exit-code
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::exec::windows_path_tests -- --nocapture 2>&1 | tee evidence/windows-path-candidate.txt
+          for repetition in 1 2 3 4 5; do
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::exec::tests::windows_workspace_scripts_and_python_unicode_execute_successfully -- --exact --nocapture 2>&1 | tee "evidence/windows-runner-${repetition}.txt"
+          done
+      - name: Failure-first initial stdin regression against the recorded parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          cp src-tauri/src/tools/exec.rs "$RUNNER_TEMP/candidate-exec.rs"
+          cp src-tauri/src/tools/session.rs "$RUNNER_TEMP/candidate-session.rs"
+          restore_candidate() {
+            cp "$RUNNER_TEMP/candidate-exec.rs" src-tauri/src/tools/exec.rs
+            cp "$RUNNER_TEMP/candidate-session.rs" src-tauri/src/tools/session.rs
+          }
+          trap restore_candidate EXIT
+          git fetch --no-tags --depth=1 origin a405848662b1fec1fa71fa104b895bb7f4a8540c
+          git show a405848662b1fec1fa71fa104b895bb7f4a8540c:src-tauri/src/tools/exec.rs > src-tauri/src/tools/exec.rs
+          git show a405848662b1fec1fa71fa104b895bb7f4a8540c:src-tauri/src/tools/session.rs > src-tauri/src/tools/session.rs
+          set +e
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --test exec_input_contract initial_input_zero_yield_delivers_bytes -- --exact --nocapture > evidence/input-baseline.txt 2>&1
+          result=$?
+          set -e
+          cat evidence/input-baseline.txt
+          test "$result" = 101
+          grep -F 'test result: FAILED. 0 passed; 1 failed;' evidence/input-baseline.txt
+          grep -F 'initial_input_zero_yield_delivers_bytes ... FAILED' evidence/input-baseline.txt
+          restore_candidate
+          trap - EXIT
+          git diff --exit-code
+          for repetition in 1 2 3; do
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --test exec_input_contract -- --nocapture 2>&1 | tee "evidence/input-candidate-${repetition}.txt"
+          done
+      - name: Real HTTP discovery regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source.txt
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/check.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/tests.txt
+          for repetition in 1 2 3; do
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --lib commands::configuration::tests -- --test-threads=8 2>&1 | tee "evidence/lifecycle-${repetition}.txt"
+          done
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/production-warnings.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: oauth-discovery-${{ matrix.os }}
+          path: evidence/
+          if-no-files-found: error
+  frontend:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - name: All frontend regressions from fresh TypeScript output
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source.txt
+          node scripts/前端完整回归v4.mjs 2>&1 | tee evidence/frontend.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: oauth-frontend-${{ matrix.os }}
+          path: evidence/
+          if-no-files-found: error
+      - name: Export bounded offline reviewer compilers
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reviewer-tools
+          node scripts/reviewer-package-closure.mjs reviewer-tools/packages.txt
+          tar czf reviewer-tools/compilers.tar.gz -T reviewer-tools/packages.txt
+          sha256sum reviewer-tools/compilers.tar.gz > reviewer-tools/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: oauth-reviewer-compilers
+          path: reviewer-tools/
+          if-no-files-found: error
+          retention-days: 7

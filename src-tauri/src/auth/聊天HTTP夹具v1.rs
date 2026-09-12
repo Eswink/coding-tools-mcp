@@ -2,9 +2,9 @@
 use serde_json::{json, Value};
 pub(crate) const KEY: &str = "test-only-chat-auth-signing-key-no-production-credential";
 pub(crate) const ORIGIN: &str = "https://chat-test.example";
-pub(crate) fn token() -> String { super::principal::issue(ORIGIN,KEY,"test-client",3600).unwrap() }
+pub(crate) fn token() -> String { super::principal::issue(ORIGIN,&format!("{ORIGIN}/mcp"),KEY,"test-client",3600).unwrap() }
 pub(crate) fn approve(profile: &str, workspace: &std::path::Path, session: &str) {
-    let p = super::principal::verify(&token(),KEY,ORIGIN).unwrap();
+    let p = super::principal::verify(&token(),KEY,ORIGIN,&format!("{ORIGIN}/mcp")).unwrap();
     let req = super::chat::RemoteRequest::verified(profile,&workspace.display().to_string(),p,&json!({"openai/session":session}),KEY);
     let v = req.service.request(&req,&json!({"scopes":super::chat::SCOPES}));
     if v["authorization"]["status"] == "active" { return; }

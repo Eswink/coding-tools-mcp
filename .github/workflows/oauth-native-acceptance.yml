@@ -1,0 +1,68 @@
+name: OAuth repair strict native acceptance
+on:
+  push:
+    branches: ['fix/oauth-discovery-runtime']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: oauth-strict-native-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  contracts:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/fix/oauth-discovery-runtime'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify versioned source and strict native contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          git merge-base --is-ancestor 83da7383756a6198b51f9600168268a9883f27be HEAD
+          mkdir -p evidence
+          python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA" --output evidence/receipt.json
+          python - <<'PYVERSION'
+          import json
+          from pathlib import Path
+          receipt = json.loads(Path("evidence/receipt.json").read_text(encoding="utf-8"))
+          assert receipt["passed"] is True
+          assert receipt["version"] == "0.3.2"
+          PYVERSION
+          python scripts/oauth_native_contracts.py
+          python scripts/授权辅助回归v23.py
+          python scripts/聊天授权发布回归v26.py
+          python scripts/release_readiness_tests.py
+          python scripts/release_preflight.py
+          git rev-parse HEAD > evidence/source.txt
+          git rev-parse 'HEAD^{tree}' > evidence/tree.txt
+          git archive --format=zip HEAD -o evidence/source.zip
+          sha256sum evidence/source.zip > evidence/source.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oauth-native-source
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
+  validate:
+    needs: contracts
+    uses: ./.github/workflows/聊天授权验证v1.yml
+    with:
+      windows_local: false
+  packages:
+    needs: contracts
+    uses: ./.github/workflows/聊天授权安装包v10.yml
+    with:
+      windows_local: false

@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { listFrpProfiles, type FrpProfileDto } from "$lib/api/settings";
   import { testTunnel as invokeTunnelTest } from "$lib/api/tunnel";
+  import type { TunnelSecretUpdate } from "$lib/api/workspaces";
   import SecretTokenField from "$lib/components/SecretTokenField.svelte";
   import { showToast } from "$lib/stores/toast";
   import {
@@ -24,8 +25,7 @@
   }
 
   export interface SaveTunnelOptions {
-    skipTunnelRestart?: boolean;
-    skipServicePrompt?: boolean;
+    tunnelSecret?: TunnelSecretUpdate;
   }
 
   interface Props {
@@ -49,6 +49,8 @@
   let tokenField = $state<SecretTokenField | null>(null);
   let tokenPending = $state(false);
   let frpProfiles = $state<FrpProfileDto[]>([]);
+  let disposed = false;
+  onDestroy(() => { disposed = true; });
 
   const showFrp = $derived(draft.type === "frp");
   const showCloudflare = $derived(draft.type === "cloudflare");
@@ -96,7 +98,7 @@
   });
 
   onMount(async () => {
-    try { frpProfiles = await listFrpProfiles(); }
+    try { const profiles = await listFrpProfiles(); if (!disposed) frpProfiles = profiles; }
     catch (error) { showToast(String(error), { title: "FRP 配置读取失败", kind: "error" }); }
   });
 
@@ -137,40 +139,54 @@
     return payload;
   }
 
-  async function saveDraft(options?: SaveTunnelOptions) {
+  function operationContext() {
+    const targetWorkspaceId = workspaceId, targetService = service;
+    return { targetWorkspaceId, targetService, save: onSave, tested: onTested, field: tokenField,
+      current: () => !disposed && workspaceId === targetWorkspaceId && service === targetService };
+  }
+
+  async function saveDraft(context: ReturnType<typeof operationContext>) {
+    if (!context.current()) throw new Error("工作区已切换，请重试。");
     const payload = validatedDraft();
-    // Do not save a credential for a form which has already failed validation.
-    if (tokenField && showToken) await tokenField.saveIfDirty();
-    await onSave(payload, options);
+    const tunnelSecret = showToken ? context.field?.pendingUpdate() : undefined;
+    try {
+      await context.save(payload, { tunnelSecret });
+    } finally {
+      // Persistence may succeed before restart fails. Discard possibly stale drafts on either outcome.
+      if (context.current()) await context.field?.refreshSaved();
+    }
   }
 
   async function save() {
-    if (saving || testing || !dirty) return;
-    saving = true;
+    if (saving || testing || !dirty || disposed) return;
+    const context = operationContext(); saving = true;
     try {
-      await saveDraft();
-      showToast("隧道配置已保存；公网可用性请通过健康检查确认。", { title: "保存成功", kind: "success" });
+      await saveDraft(context);
+      if (context.current()) showToast("隧道配置已保存；公网可用性请通过健康检查确认。", { title: "保存成功", kind: "success" });
     } catch (error) {
-      showToast(String(error), { title: "保存失败", kind: "error", duration: 8000 });
-    } finally { saving = false; }
+      if (context.current()) showToast(String(error), { title: "保存失败", kind: "error", duration: 8000 });
+    } finally { if (!disposed) saving = false; }
   }
 
   async function testTunnelConnection() {
-    if (!canTest || testing || saving) return;
-    testing = true;
+    if (!canTest || testing || saving || disposed) return;
+    const context = operationContext(); testing = true;
     try {
       validatedDraft();
-      if (dirty) await saveDraft({ skipTunnelRestart: true, skipServicePrompt: true });
-      const result = await invokeTunnelTest(workspaceId, service);
-      await onTested?.();
-      showToast(`${result.message}${result.publicUrl ? `\n${result.publicUrl}` : ""}`, {
+      if (dirty) await saveDraft(context);
+      if (!context.current()) return;
+      const result = await invokeTunnelTest(context.targetWorkspaceId, context.targetService);
+      if (!context.current()) return;
+      await context.tested?.();
+      if (context.current()) showToast(`${result.message}${result.publicUrl ? `\n${result.publicUrl}` : ""}`, {
         title: result.success ? "隧道测试完成" : "测试未完成",
         kind: result.success ? "success" : "warning", duration: 8000,
       });
     } catch (error) {
-      showToast(String(error), { title: "测试失败", kind: "error", duration: 8000 });
-    } finally { testing = false; }
+      if (context.current()) showToast(String(error), { title: "测试失败", kind: "error", duration: 8000 });
+    } finally { if (!disposed) testing = false; }
   }
+
 </script>
 
 <form class="grid gap-3" onsubmit={(event) => { event.preventDefault(); void save(); }}>

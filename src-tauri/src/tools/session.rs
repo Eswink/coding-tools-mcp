@@ -70,6 +70,7 @@ pub struct ExecSession {
     termination_reason: Mutex<Option<String>>,
     reader_tasks: AsyncMutex<Vec<tauri::async_runtime::JoinHandle<()>>>,
     reader_failed: AtomicBool,
+    initial_stdin_task: AsyncMutex<Option<tauri::async_runtime::JoinHandle<()>>>,
     process_tree: Mutex<Option<crate::tools::process_tree::ProcessTree>>,
     managed: bool,
     tree_cleanup_failed: AtomicBool,
@@ -100,6 +101,7 @@ impl ExecSession {
             termination_reason: Mutex::new(None),
             reader_tasks: AsyncMutex::new(Vec::new()),
             reader_failed: AtomicBool::new(false),
+            initial_stdin_task: AsyncMutex::new(None),
             process_tree: Mutex::new(None),
             managed: false,
             tree_cleanup_failed: AtomicBool::new(false),
@@ -144,7 +146,60 @@ impl ExecSession {
         }
     }
 
+    /// Deliver a supplied non-interactive input without delaying a zero-yield response.
+    /// The task owns its input and shares the process deadline; a full pipe cannot
+    /// prevent timeout/kill or leave a partially written command reported successful.
+    pub(crate) async fn spawn_initial_stdin(self: &Arc<Self>, text: String, deadline: Instant) {
+        // Reserve the entire supplied batch before publishing the session. A
+        // later write_stdin call must not overtake or append to its EOF boundary.
+        let input = self.stdin.lock().await.take();
+        self.mark_stdin_closed();
+        let session = Arc::clone(self);
+        let task = tauri::async_runtime::spawn(async move {
+            let outcome = tokio::time::timeout_at(deadline.into(), async move {
+                use tokio::io::AsyncWriteExt;
+                let mut input = input.ok_or_else(|| {
+                    std::io::Error::new(std::io::ErrorKind::BrokenPipe, "stdin is closed")
+                })?;
+                input.write_all(text.as_bytes()).await?;
+                input.shutdown().await?;
+                Ok::<(), std::io::Error>(())
+            }).await;
+            if !matches!(outcome, Ok(Ok(()))) {
+                let reason = if outcome.is_err() { "timeout" } else { "stdin_error" };
+                session.mark_initial_stdin_failure(reason);
+                session.kill_and_wait().await;
+            }
+        });
+        *self.initial_stdin_task.lock().await = Some(task);
+    }
+
+    fn mark_initial_stdin_failure(&self, failure: &str) {
+        let mut reason = self.termination_reason.lock().expect("termination lock");
+        // A child may exit before the writer observes BrokenPipe. Override only
+        // a natural exit; an explicit user kill or timeout keeps its own reason.
+        if matches!(reason.as_deref(), None | Some("exited")) {
+            *reason = Some(failure.to_owned());
+        }
+    }
+
+    async fn wait_for_initial_stdin(&self) {
+        let mut pending = self.initial_stdin_task.lock().await;
+        let Some(mut task) = pending.take() else { return; };
+        match tokio::time::timeout(std::time::Duration::from_millis(500), &mut task).await {
+            Ok(Ok(())) => {},
+            other => {
+                self.mark_initial_stdin_failure("stdin_error");
+                if other.is_err() {
+                    task.abort();
+                    let _ = task.await;
+                }
+            }
+        }
+    }
+
     pub async fn wait_for_readers(&self) {
+        self.wait_for_initial_stdin().await;
         let mut tasks = self.reader_tasks.lock().await;
         while let Some(mut task) = tasks.pop() {
             match tokio::time::timeout(std::time::Duration::from_millis(if self.managed { 5000 } else { 500 }), &mut task).await {

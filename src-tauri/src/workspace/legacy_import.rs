@@ -107,6 +107,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn public_import_entry_preserves_nonempty_state_without_accessing_legacy_files() {
+        let mut data = AppData::default();
+        data.profiles.push(WorkspaceProfile::new("fixture-only".into(), None));
+        let before = serde_json::to_value(&data).unwrap();
+        assert_eq!(import_legacy_profiles_if_empty(&mut data).unwrap(), 0);
+        assert_eq!(serde_json::to_value(&data).unwrap(), before);
+    }
+
+    #[test]
     fn legacy_home_points_under_user_home() {
         let home = legacy_app_home();
         assert!(home.is_some());

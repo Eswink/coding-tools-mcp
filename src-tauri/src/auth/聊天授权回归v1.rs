@@ -1,8 +1,8 @@
 use super::*;
 use crate::tools::{ToolContext, call_tool};
 fn request(svc: &Arc<ChatAuthorizer>, profile: &str, session: &str) -> RemoteRequest {
-    let token = super::super::principal::issue("https://mcp.example", "fixture-key", "client", 3600).unwrap();
-    let principal = super::super::principal::verify(&token, "fixture-key", "https://mcp.example").unwrap();
+    let token = super::super::principal::issue("https://mcp.example", "https://mcp.example", "fixture-key", "client", 3600).unwrap();
+    let principal = super::super::principal::verify(&token, "fixture-key", "https://mcp.example", "https://mcp.example").unwrap();
     let mut req = RemoteRequest::verified(profile,"workspace",principal,&json!({"openai/session":session}),"fixture-key");
     req.service = svc.clone(); req
 }

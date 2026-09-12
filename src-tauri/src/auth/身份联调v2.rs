@@ -58,10 +58,11 @@ fn client() -> reqwest::Client {
     reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(5)).build().unwrap()
 }
 
-fn token(origin: &str) -> String {
+fn token(origin: &str, mcp: bool) -> String {
+    let resource = if mcp { format!("{origin}/mcp") } else { origin.to_string() };
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
     encode(&Header::default(), &json!({
-        "iss": origin, "aud": origin, "iat": now, "nbf": now, "exp": now + 600, "scope": "mcp",
+        "iss": origin, "aud": resource, "iat": now, "nbf": now, "exp": now + 600, "scope": "mcp",
         "sub":"desktop-owner", "client_id":"test-client", "jti":"identity-fixture"
     }), &EncodingKey::from_secret(KEY.as_bytes())).unwrap()
 }
@@ -87,14 +88,14 @@ async fn mcp_live_metadata_and_token_validation_switch_together() {
     let origin = PublicOrigin::managed("https://old.trycloudflare.com").unwrap();
     let listener = Listener::start(false, origin.clone());
     assert_eq!(metadata(&listener.base).await["issuer"], origin.snapshot());
-    let old = token(&origin.snapshot());
+    let old = token(&origin.snapshot(), true);
     assert_eq!(authorized_status(&listener.base, false, &old).await, 200);
     origin.publish("https://new.trycloudflare.com").unwrap();
     let metadata = metadata(&listener.base).await;
     assert_eq!(metadata["issuer"], "https://new.trycloudflare.com");
     assert_eq!(metadata["token_endpoint"], "https://new.trycloudflare.com/oauth/token");
     assert_eq!(authorized_status(&listener.base, false, &old).await, 401);
-    assert_eq!(authorized_status(&listener.base, false, &token(&origin.snapshot())).await, 200);
+    assert_eq!(authorized_status(&listener.base, false, &token(&origin.snapshot(), true)).await, 200);
     listener.stop().await;
 }
 
@@ -102,21 +103,21 @@ async fn mcp_live_metadata_and_token_validation_switch_together() {
 async fn actions_openapi_metadata_and_bearer_share_the_live_origin() {
     let origin = PublicOrigin::managed("https://old.trycloudflare.com").unwrap();
     let listener = Listener::start(true, origin.clone());
-    let old = token(&origin.snapshot());
+    let old = token(&origin.snapshot(), false);
     origin.publish("https://new-actions.trycloudflare.com").unwrap();
     let document: Value = client().get(format!("{}/openapi.json", listener.base))
         .send().await.unwrap().json().await.unwrap();
     assert_eq!(document["servers"][0]["url"], origin.snapshot());
     assert_eq!(metadata(&listener.base).await["issuer"], origin.snapshot());
     assert_eq!(authorized_status(&listener.base, true, &old).await, 401);
-    assert_eq!(authorized_status(&listener.base, true, &token(&origin.snapshot())).await, 422); // OAuth valid, conversation unavailable: fail closed.
+    assert_eq!(authorized_status(&listener.base, true, &token(&origin.snapshot(), false)).await, 422); // OAuth valid, conversation unavailable: fail closed.
     listener.stop().await;
 }
 
 #[tokio::test]
 async fn fixed_origin_and_key_keep_an_unexpired_token_valid_after_restart() {
     let fixed = "https://mcp.example.com";
-    let bearer = token(fixed);
+    let bearer = token(fixed, true);
     let first = Listener::start(false, PublicOrigin::managed(fixed).unwrap());
     assert_eq!(authorized_status(&first.base, false, &bearer).await, 200);
     first.stop().await;

@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   source:
-    if: github.repository == 'Eswink/coding-tools-mcp' && (github.ref == 'refs/heads/feat/chat-authorization-v1' || github.ref == 'refs/heads/fix/windows-native-v27' || github.ref == 'refs/heads/release/聊天授权v26' || github.ref == 'refs/heads/release/聊天授权本地验收v26')
+    if: github.repository == 'Eswink/coding-tools-mcp' && (github.ref == 'refs/heads/feat/chat-authorization-v1' || github.ref == 'refs/heads/fix/windows-native-v27' || github.ref == 'refs/heads/fix/oauth-discovery-runtime' || github.ref == 'refs/heads/release/聊天授权v26' || github.ref == 'refs/heads/release/聊天授权本地验收v26')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:

@@ -25,7 +25,9 @@
     size = "md",
   }: Props = $props();
 
-  let visible = $state(true);
+  let visible = $state(false);
+  // A new value or disabled field must never inherit an earlier reveal action.
+  $effect(() => { value; disabled; visible = false; });
 
   const isLoadingPlaceholder = $derived(value === "加载中…");
   const canReveal = $derived(!disabled && !isLoadingPlaceholder && value.length > 0);
@@ -69,7 +71,7 @@
       </button>
     {/if}
   </div>
-  {#if showCopy && value && !isLoadingPlaceholder}
+  {#if showCopy && !disabled && value && !isLoadingPlaceholder}
     <CopyButton {value} />
   {/if}
   {#if onRegenerate}
