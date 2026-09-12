@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { configurationState } from "$lib/runtime/configuration";
   import CopyFieldRow from "$lib/components/CopyFieldRow.svelte";
   import { getSecret, getSharedSecret, credentialState } from "$lib/api/secrets";
   import { latestRequest } from "$lib/runtime/latest-request";
@@ -39,7 +40,7 @@
     secrets = {};
     loadError = "";
     loading = true;
-    if ($credentialState.pending > 0) return;
+    if ($credentialState.pending > 0 || $configurationState.pending > 0) return;
     const read = async (key: Parameters<typeof getSecret>[1]) =>
       (useShared ? await getSharedSecret(key as Parameters<typeof getSharedSecret>[0])
         : await getSecret(id, key)) ?? "";
@@ -73,6 +74,7 @@
     workspaceId; service; auth.type; auth.oauth_client_id; auth.use_shared_secrets;
     actions.auth_type; actions.use_shared_secrets;
     $credentialState;
+    $configurationState;
     void loadSecrets();
     return () => requests.invalidate();
   });

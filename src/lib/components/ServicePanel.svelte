@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { validServicePort } from "$lib/runtime/configuration";
+  import { showToast } from "$lib/stores/toast";
   import CopyButton from "$lib/components/CopyButton.svelte";
   import StatusOrb from "$lib/components/StatusOrb.svelte";
   import type { RuntimeState } from "$lib/types";
@@ -36,6 +38,7 @@
   }: Props = $props();
 
   let draftPort = $state(0);
+  let savingPort = $state(false);
 
   $effect(() => {
     draftPort = port;
@@ -43,20 +46,28 @@
 
   const running = $derived(status === "running");
   const showError = $derived(status === "error" && Boolean(statusMessage));
-  const canEditPort = $derived(portEditable && !running && status !== "starting");
+  const canEditPort = $derived(portEditable && !busy && !savingPort && !running && status !== "starting" && status !== "stopping");
   const tunnelEnabled = $derived(tunnelType === "cloudflare" || tunnelType === "frp");
   const tunnelLabel = $derived(
     tunnelType === "cloudflare" ? "Cloudflare" : tunnelType === "frp" ? "FRP" : "",
   );
 
   async function commitPort() {
-    if (!onPortChange || draftPort === port) return;
-    if (draftPort < 1024 || draftPort > 65535) {
+    if (!canEditPort || !onPortChange || draftPort === port) return;
+    if (!validServicePort(draftPort)) {
       draftPort = port;
+      showToast("端口必须是 1024 至 65535 的整数。", { kind: "error" });
       return;
     }
-    await onPortChange(draftPort);
+    const nextPort = draftPort;
+    savingPort = true;
+    try { await onPortChange(nextPort); }
+    catch (error) {
+      draftPort = port;
+      showToast(String(error), { title: "端口应用失败", kind: "error" });
+    } finally { savingPort = false; }
   }
+
 </script>
 
 <article class="tx-card p-5">
@@ -77,7 +88,7 @@
       type="button"
       class="tx-btn-primary shrink-0"
       class:tx-btn-danger={running}
-      disabled={busy || status === "starting" || status === "stopping"}
+      disabled={busy || savingPort || status === "starting" || status === "stopping"}
       onclick={onToggle}
     >
       {#if busy}

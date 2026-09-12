@@ -1,17 +1,23 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
+  import { selectedDirectory } from "$lib/runtime/configuration";
   import { FolderInput, FolderOpen } from "@lucide/svelte";
   import { open } from "@tauri-apps/plugin-dialog";
   import { openWorkspaceDirectory } from "$lib/api/workspaces";
   import { showToast } from "$lib/stores/toast";
 
   interface Props {
+    workspaceId: string;
     name: string;
     path: string;
     onSave: (name: string) => void | Promise<void>;
     onUpdatePath: (path: string) => void | Promise<void>;
   }
 
-  let { name, path, onSave, onUpdatePath }: Props = $props();
+  let { workspaceId, name, path, onSave, onUpdatePath }: Props = $props();
+
+  let disposed = false;
+  onDestroy(() => { disposed = true; });
 
   let draftName = $state("");
   let saving = $state(false);
@@ -29,6 +35,8 @@
     saving = true;
     try {
       await onSave(draftName.trim());
+    } catch (error) {
+      if (!disposed) showToast(String(error), { title: "名称保存失败", kind: "error" });
     } finally {
       saving = false;
     }
@@ -49,23 +57,22 @@
     }
   }
 
-  function normalizePath(value: string): string {
-    return value.trim().replace(/[\\/]+$/, "");
-  }
-
   async function updateDirectory() {
     if (updatingPath) return;
     updatingPath = true;
+    const id = workspaceId;
+    const previousPath = path;
+    const apply = onUpdatePath;
     try {
       const selected = await open({
         directory: true,
         multiple: false,
-        defaultPath: path.trim() || undefined,
+        defaultPath: previousPath.trim() || undefined,
       });
-      if (!selected || Array.isArray(selected)) return;
-      const nextPath = normalizePath(selected);
-      if (!nextPath || nextPath === normalizePath(path)) return;
-      await onUpdatePath(nextPath);
+      if (!selected || Array.isArray(selected) || disposed || id !== workspaceId) return;
+      const nextPath = selectedDirectory(selected);
+      if (!nextPath || nextPath === selectedDirectory(previousPath)) return;
+      await apply(nextPath);
     } catch (error) {
       showToast(String(error), {
         kind: "error",

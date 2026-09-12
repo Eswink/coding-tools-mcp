@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { credentialState } from "$lib/api/secrets";
+  import { configurationState } from "$lib/runtime/configuration";
   import { latestRequest } from "$lib/runtime/latest-request";
   import { runHealthChecks, type HealthItem } from "$lib/api/health";
 
@@ -16,6 +18,8 @@
   const requests = latestRequest();
   $effect(() => {
     workspaceId;
+    $credentialState;
+    $configurationState;
     requests.invalidate();
     items = [];
     error = "";
@@ -24,7 +28,7 @@
   });
 
   async function runCheck() {
-    if (busy || !workspaceId) return;
+    if (busy || !workspaceId || $credentialState.pending || $configurationState.pending) return;
     const id = workspaceId;
     const ticket = requests.begin();
     busy = true;
@@ -55,7 +59,7 @@
     <button
       type="button"
       class="tx-btn-ghost shrink-0 disabled:opacity-50"
-      disabled={busy || !workspaceId}
+      disabled={busy || !workspaceId || $credentialState.pending > 0 || $configurationState.pending > 0}
       onclick={runCheck}
     >
       {busy ? "检查中…" : "运行健康检查"}
