@@ -271,31 +271,14 @@ async fn run_command(
     session.spawn_readers().await;
     let deadline = start + limit;
 
+    if !tty && !stdin_text.is_empty() {
+        session.spawn_initial_stdin(stdin_text.to_owned(), deadline).await;
+    }
+
     if yield_time.is_zero() {
         let snapshot = session.snapshot(max_output);
         spawn_timeout_monitor(ctx.sessions.clone(), session.clone(), deadline);
         return Ok(merge_exec_result(snapshot, start, cmd, cwd, true));
-    }
-
-    if !tty && !stdin_text.is_empty() {
-        let mut stdin_guard = session.stdin.lock().await;
-        if let Some(stdin) = stdin_guard.as_mut() {
-            use tokio::io::AsyncWriteExt;
-            if !stdin_text.is_empty() {
-                stdin
-                    .write_all(stdin_text.as_bytes())
-                    .await
-                    .map_err(|_| WorkspaceError::Tool {
-                        code: "SESSION_CLOSED",
-                        message: "Failed to write stdin.".into(),
-                        category: "runtime",
-                        retryable: false,
-                    })?;
-            }
-            let _ = stdin.shutdown().await;
-        }
-        *stdin_guard = None;
-        session.mark_stdin_closed();
     }
 
     loop {
@@ -303,6 +286,10 @@ async fn run_command(
         if session.has_exited() {
             session.wait_for_readers().await;
             let snapshot = session.snapshot(max_output);
+            if matches!(snapshot["termination_reason"].as_str(), Some("timeout" | "stdin_error")) {
+                schedule_session_eviction(ctx.sessions.clone(), session.session_id.clone());
+                return Err(command_io_failure(snapshot));
+            }
             ctx.sessions.remove(&session.session_id);
             return Ok(merge_exec_result(snapshot, start, cmd, cwd, false));
         }
@@ -314,18 +301,7 @@ async fn run_command(
             let snapshot = session.snapshot(max_output);
             // Snapshot is embedded; schedule eviction so abandoned timeouts do not linger.
             schedule_session_eviction(ctx.sessions.clone(), session.session_id.clone());
-            return Err(WorkspaceError::ToolDetails {
-                code: "TIMEOUT",
-                message: "Command timed out.".into(),
-                category: "runtime",
-                retryable: true,
-                details: json!({
-                    "termination_reason": "timeout",
-                    "recoverable": true,
-                    "suggestion": "读取 output_refs，调整 timeout_ms 后重试",
-                    "session": snapshot
-                }),
-            });
+            return Err(command_io_failure(snapshot));
         }
         if Instant::now() - start >= yield_time || tty {
             let snapshot = session.snapshot(max_output);
@@ -333,6 +309,23 @@ async fn run_command(
             return Ok(merge_exec_result(snapshot, start, cmd, cwd, true));
         }
         tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+fn command_io_failure(snapshot: Value) -> WorkspaceError {
+    let timed_out = snapshot["termination_reason"] == "timeout";
+    WorkspaceError::ToolDetails {
+        code: if timed_out { "TIMEOUT" } else { "STDIN_WRITE_FAILED" },
+        message: if timed_out { "Command timed out." } else { "Initial stdin delivery failed." }.into(),
+        category: "runtime",
+        retryable: timed_out,
+        details: json!({
+            "termination_reason": snapshot["termination_reason"],
+            "recoverable": timed_out,
+            "suggestion": if timed_out { "读取 output_refs，调整 timeout_ms 后重试" }
+                else { "检查子进程是否读取标准输入；不要自动重试可能已产生副作用的命令" },
+            "session": snapshot
+        }),
     }
 }
 
@@ -353,11 +346,11 @@ fn spawn_timeout_monitor(
             if Instant::now() >= deadline {
                 session.mark_termination_reason("timeout");
                 session.kill_and_wait().await;
-                session.wait_for_readers().await;
                 break;
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
+        session.wait_for_readers().await;
         // Keep the session briefly so clients can still read_output / probe status.
         schedule_session_eviction(sessions, session.session_id.clone());
     });
@@ -444,7 +437,7 @@ fn execution_failure_result(error: &WorkspaceError, command: &str, cwd: &Path) -
     };
     if !matches!(
         code,
-        "COMMAND_REJECTED" | "COMMAND_SPAWN_FAILED" | "TIMEOUT"
+        "COMMAND_REJECTED" | "COMMAND_SPAWN_FAILED" | "TIMEOUT" | "STDIN_WRITE_FAILED"
     ) {
         return None;
     }
@@ -479,7 +472,7 @@ fn execution_failure_result(error: &WorkspaceError, command: &str, cwd: &Path) -
         object.insert("error".into(), error_value);
         if code == "TIMEOUT" {
             object.insert("termination_reason".into(), json!("timeout"));
-        } else {
+        } else if code != "STDIN_WRITE_FAILED" {
             object.insert("status".into(), json!("spawn_failed"));
             object.insert("termination_reason".into(), json!("spawn_failed"));
         }
