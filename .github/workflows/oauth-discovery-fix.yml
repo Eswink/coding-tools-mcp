@@ -49,6 +49,40 @@ jobs:
         with:
           workspaces: src-tauri
           cache-on-failure: true
+      - name: Failure-first Windows namespace regression and repeated runner checks
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          cp src-tauri/src/tools/exec.rs "$RUNNER_TEMP/path-candidate-exec.rs"
+          restore_path_candidate() {
+            cp "$RUNNER_TEMP/path-candidate-exec.rs" src-tauri/src/tools/exec.rs
+          }
+          trap restore_path_candidate EXIT
+          git fetch --no-tags --depth=1 origin 832b8c49584e2e31ddbd3e4da7f1a41deeaf6621
+          python - <<'PYPATH'
+          from pathlib import Path
+          import subprocess
+          original = subprocess.check_output(['git', 'show', '832b8c49584e2e31ddbd3e4da7f1a41deeaf6621:src-tauri/src/tools/exec.rs'])
+          declaration = b'\n#[cfg(all(test, windows))]\n#[path = "exec_windows_path_tests.rs"]\nmod windows_path_tests;\n'
+          Path('src-tauri/src/tools/exec.rs').write_bytes(original + declaration)
+          PYPATH
+          set +e
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::exec::windows_path_tests -- --nocapture > evidence/windows-path-baseline.txt 2>&1
+          result=$?
+          set -e
+          cat evidence/windows-path-baseline.txt
+          test "$result" = 101
+          grep -F 'test result: FAILED.' evidence/windows-path-baseline.txt
+          grep -F 'extended_unc_path_preserves_network_root ... FAILED' evidence/windows-path-baseline.txt
+          restore_path_candidate
+          trap - EXIT
+          git diff --exit-code
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::exec::windows_path_tests -- --nocapture 2>&1 | tee evidence/windows-path-candidate.txt
+          for repetition in 1 2 3 4 5; do
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::exec::tests::windows_workspace_scripts_and_python_unicode_execute_successfully -- --exact --nocapture 2>&1 | tee "evidence/windows-runner-${repetition}.txt"
+          done
       - name: Failure-first initial stdin regression against the recorded parent
         shell: bash
         run: |

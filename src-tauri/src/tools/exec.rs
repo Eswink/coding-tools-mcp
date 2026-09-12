@@ -949,5 +949,24 @@ fn platform_command_path(path: &Path) -> std::path::PathBuf {
 
 #[cfg(windows)]
 fn windows_command_path(path: &str) -> String {
-    path.strip_prefix("\\\\?\\").unwrap_or(path).to_string()
+    let Some(tail) = path.strip_prefix(r"\\?\") else {
+        return path.to_string();
+    };
+    // Verbatim UNC paths must retain their network root, not become relative
+    // paths named UNC. Preserve non-filesystem device namespaces unchanged.
+    if tail
+        .get(..4)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("UNC\\"))
+    {
+        return format!(r"\\{}", &tail[4..]);
+    }
+    let bytes = tail.as_bytes();
+    if bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1..3] == *b":\\" {
+        return tail.to_string();
+    }
+    path.to_string()
 }
+
+#[cfg(all(test, windows))]
+#[path = "exec_windows_path_tests.rs"]
+mod windows_path_tests;
