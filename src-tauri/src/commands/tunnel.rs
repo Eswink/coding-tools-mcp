@@ -146,6 +146,7 @@ pub async fn restart_tunnel(
     id: String,
     service: String,
 ) -> AppResult<TunnelStatus> {
+    let _gate = super::runtime::RESTART_GATE.lock().await;
     let profile = profile_by_id(&state, &id)?;
     let kind = TunnelServiceKind::parse(&service)?;
     let origin = runtime_origin(&state, &id, kind)?;
@@ -209,6 +210,7 @@ pub async fn start_tunnel(
     id: String,
     service: String,
 ) -> AppResult<TunnelStatus> {
+    let _gate = super::runtime::RESTART_GATE.lock().await;
     let profile = profile_by_id(&state, &id)?;
     let kind = TunnelServiceKind::parse(&service)?;
     let origin = runtime_origin(&state, &id, kind)?;
@@ -232,6 +234,7 @@ pub async fn stop_tunnel(
     id: String,
     service: String,
 ) -> AppResult<TunnelStatus> {
+    let _gate = super::runtime::RESTART_GATE.lock().await;
     let profile = profile_by_id(&state, &id)?;
     let kind = TunnelServiceKind::parse(&service)?;
     let origin = runtime_origin(&state, &id, kind)?;
@@ -269,6 +272,7 @@ pub async fn test_tunnel(
     id: String,
     service: String,
 ) -> AppResult<TunnelTestResult> {
+    let _gate = super::runtime::RESTART_GATE.lock().await;
     let profile = profile_by_id(&state, &id)?;
     let kind = TunnelServiceKind::parse(&service)?;
     let origin = runtime_origin(&state, &id, kind)?;

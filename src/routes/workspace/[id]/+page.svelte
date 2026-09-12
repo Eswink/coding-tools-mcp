@@ -36,10 +36,10 @@
     stopActionsRuntime,
     stopRuntime,
     updateWorkspace,
+    type TunnelSecretUpdate,
   } from "$lib/api/workspaces";
   import { listFrpProfiles, setLastWorkspace, type FrpProfileDto } from "$lib/api/settings";
   import { confirm } from "@tauri-apps/plugin-dialog";
-  import { restartTunnel, stopTunnel } from "$lib/api/tunnel";
   import { runServiceToggle, notifyStartFailure } from "$lib/runtime/service";
   import { showToast } from "$lib/stores/toast";
   import { actionsRuntimeStates, mcpRuntimeStates, workspaces } from "$lib/stores/app";
@@ -87,13 +87,13 @@
     return forCurrentWorkspace(id, currentWorkspaceId, action);
   }
 
-  async function persistProfile(next: WorkspaceProfile) {
+  async function persistProfile(next: WorkspaceProfile, tunnelSecret?: TunnelSecretUpdate) {
     if (disposed || next.id !== workspaceId) throw new Error("工作区已切换，请重试。");
     if (configurationBusy || mcpBusy || actionsBusy) throw new Error("其他配置操作尚未完成，请稍后重试。");
     configurationBusy = true;
     loadGeneration += 1;
     try {
-      await applyAndRefresh(() => updateWorkspace(next), async () => {
+      await applyAndRefresh(() => updateWorkspace(next, tunnelSecret), async () => {
         if (!disposed && next.id === workspaceId) await load(next.id);
       });
     } finally { configurationBusy = false; }
@@ -316,42 +316,6 @@
     await persistProfile(next);
   }
 
-  function publicEndpointFromTunnel(config: TunnelFormConfig, suffix: string): string {
-    const base = frpPublicUrl(
-      config.type,
-      config.frp_subdomain,
-      config.frp_server,
-      config.frp_profile_id,
-      frpProfiles,
-      config.public_url,
-      config.frp,
-    );
-    if (base) {
-      return `${base.replace(/\/$/, "")}${suffix}`;
-    }
-    return "";
-  }
-
-  async function restartTunnelIfConfigured(
-    targetWorkspaceId: string,
-    config: TunnelFormConfig,
-    service: "mcp" | "actions",
-  ) {
-    if (config.type === "none") {
-      await stopTunnel(targetWorkspaceId, service);
-      return;
-    }
-    const status = await restartTunnel(targetWorkspaceId, service);
-    if (workspaceId !== targetWorkspaceId) return;
-    if (status.publicUrl) {
-      if (service === "mcp") {
-        mcpPublic = `${status.publicUrl.replace(/\/$/, "")}/mcp`;
-      } else {
-        actionsPublic = `${status.publicUrl.replace(/\/$/, "")}/openapi.json`;
-      }
-    }
-  }
-
   async function saveMcpTunnel(config: TunnelFormConfig, options?: SaveTunnelOptions) {
     if (!profile) return;
     const targetWorkspaceId = workspaceId;
@@ -372,17 +336,7 @@
         use_proxy: config.use_proxy,
       },
     };
-    await updateWorkspace(next);
-    if (!options?.skipTunnelRestart) {
-      await restartTunnelIfConfigured(targetWorkspaceId, config, "mcp");
-    }
-    if (workspaceId !== targetWorkspaceId) return;
-    profile = next;
-    mcpPublic = publicEndpointFromTunnel(config, "/mcp");
-    if (!options?.skipTunnelRestart && !options?.skipServicePrompt) {
-      await load();
-      if (workspaceId !== targetWorkspaceId) return;
-    }
+    await persistProfile(next, options?.tunnelSecret);
   }
 
   async function saveActionsTunnel(config: TunnelFormConfig, options?: SaveTunnelOptions) {
@@ -406,17 +360,7 @@
         use_proxy: config.use_proxy,
       },
     };
-    await updateWorkspace(next);
-    if (!options?.skipTunnelRestart) {
-      await restartTunnelIfConfigured(targetWorkspaceId, config, "actions");
-    }
-    if (workspaceId !== targetWorkspaceId) return;
-    profile = next;
-    actionsPublic = publicEndpointFromTunnel(config, "/openapi.json");
-    if (!options?.skipTunnelRestart && !options?.skipServicePrompt) {
-      await load();
-      if (workspaceId !== targetWorkspaceId) return;
-    }
+    await persistProfile(next, options?.tunnelSecret);
   }
 
   async function saveTaskBudget(service: ServiceTab, maxTimeoutMs: number) {

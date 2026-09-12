@@ -13,8 +13,13 @@ export async function createWorkspace(
   return trackConfigurationChange(() => invoke<WorkspaceProfile>("create_workspace", { path, name }));
 }
 
-export async function updateWorkspace(profile: WorkspaceProfile): Promise<void> {
-  return trackConfigurationChange(() => invoke<void>("update_workspace", { profile }));
+export interface TunnelSecretUpdate {
+  key: "cloudflare_token" | "frp_token" | "actions_cloudflare_token" | "actions_frp_token";
+  value: string;
+}
+
+export async function updateWorkspace(profile: WorkspaceProfile, tunnelSecret?: TunnelSecretUpdate): Promise<void> {
+  return trackConfigurationChange(() => invoke<void>("update_workspace", { profile, tunnelSecret }));
 }
 
 export async function openWorkspaceDirectory(path: string): Promise<void> {

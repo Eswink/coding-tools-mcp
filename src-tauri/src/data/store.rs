@@ -142,6 +142,18 @@ impl DataStore {
     }
 
     pub fn update(&mut self, profile: WorkspaceProfile) -> AppResult<()> {
+        self.update_with_workspace_secret(profile, None)
+    }
+
+    /// One encrypted snapshot: a route and its credential must not commit separately.
+    pub(crate) fn update_with_workspace_secret(
+        &mut self, profile: WorkspaceProfile, secret: Option<(&str, &str)>,
+    ) -> AppResult<()> {
+        self.stage_profile_update(profile, secret)?;
+        self.save()
+    }
+
+    fn stage_profile_update(&mut self, profile: WorkspaceProfile, secret: Option<(&str, &str)>) -> AppResult<()> {
         let Some(index) = self
             .data
             .profiles
@@ -153,8 +165,12 @@ impl DataStore {
                 profile.id
             )));
         };
+        if let Some((key, value)) = secret {
+            self.data.workspace_secrets.entry(profile.id.clone()).or_default()
+                .insert(key.to_string(), value.to_string());
+        }
         self.data.profiles[index] = profile;
-        self.save()
+        Ok(())
     }
 
     pub fn remove(&mut self, id: &str) -> AppResult<Option<WorkspaceProfile>> {
@@ -458,3 +474,7 @@ mod tests {
     }
 
 }
+
+#[cfg(test)]
+#[path = "tunnel_snapshot_tests.rs"]
+mod tunnel_snapshot_tests;

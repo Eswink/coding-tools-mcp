@@ -86,6 +86,12 @@ pub(crate) async fn stop_mcp_service(state: &AppState, id: &str) -> AppResult<Ru
 }
 
 pub(crate) async fn start_mcp_service(state: &AppState, id: &str) -> AppResult<RuntimeStatusDto> {
+    start_mcp_service_checked(state, id, false).await
+}
+
+pub(crate) async fn start_mcp_service_checked(
+    state: &AppState, id: &str, strict_tunnel: bool,
+) -> AppResult<RuntimeStatusDto> {
     validate_start_resources(state, id, WorkspaceService::Mcp)?;
     let profile = profile_by_id(state, id)?;
     ensure_port_available(profile.runtime.local_port, "本地 MCP").await?;
@@ -94,11 +100,14 @@ pub(crate) async fn start_mcp_service(state: &AppState, id: &str) -> AppResult<R
     let origin = state.with_runtime(|runtime| Ok(runtime.public_origin_handle(id, ServiceKind::Mcp)))?;
     sync_tunnel_routes_from_runtime(state).await?;
 
-    match maybe_start_for_runtime(&profile, TunnelServiceKind::Mcp, origin.as_ref()).await {
-        Ok(_) => {}
-        Err(error) => {
-            eprintln!("mcp tunnel auto-start failed for {id}: {error}");
-        }
+    let tunnel_result = maybe_start_for_runtime(&profile, TunnelServiceKind::Mcp, origin.as_ref()).await;
+    if let Err(error) = &tunnel_result {
+        eprintln!("mcp tunnel auto-start failed for {id}: {error}");
+    }
+    if strict_tunnel {
+        // Local authentication is already the new configuration; never restore old credentials.
+        // Return the tunnel failure instead of reporting the entire apply operation successful.
+        tunnel_result?;
     }
 
     let profile = profile_by_id(state, id)?;
@@ -124,6 +133,12 @@ pub(crate) async fn stop_actions_service(state: &AppState, id: &str) -> AppResul
 }
 
 pub(crate) async fn start_actions_service(state: &AppState, id: &str) -> AppResult<RuntimeStatusDto> {
+    start_actions_service_checked(state, id, false).await
+}
+
+pub(crate) async fn start_actions_service_checked(
+    state: &AppState, id: &str, strict_tunnel: bool,
+) -> AppResult<RuntimeStatusDto> {
     validate_start_resources(state, id, WorkspaceService::Actions)?;
     let profile = profile_by_id(state, id)?;
     ensure_port_available(profile.actions.local_port, "本地 Actions").await?;
@@ -132,11 +147,14 @@ pub(crate) async fn start_actions_service(state: &AppState, id: &str) -> AppResu
     let origin = state.with_runtime(|runtime| Ok(runtime.public_origin_handle(id, ServiceKind::Actions)))?;
     sync_tunnel_routes_from_runtime(state).await?;
 
-    match maybe_start_for_runtime(&profile, TunnelServiceKind::Actions, origin.as_ref()).await {
-        Ok(_) => {}
-        Err(error) => {
-            eprintln!("actions tunnel auto-start failed for {id}: {error}");
-        }
+    let tunnel_result = maybe_start_for_runtime(&profile, TunnelServiceKind::Actions, origin.as_ref()).await;
+    if let Err(error) = &tunnel_result {
+        eprintln!("actions tunnel auto-start failed for {id}: {error}");
+    }
+    if strict_tunnel {
+        // Local authentication is already the new configuration; never restore old credentials.
+        // Return the tunnel failure instead of reporting the entire apply operation successful.
+        tunnel_result?;
     }
 
     let profile = profile_by_id(state, id)?;
