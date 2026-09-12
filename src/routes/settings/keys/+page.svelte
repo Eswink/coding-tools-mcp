@@ -73,6 +73,7 @@
     if (regenerating || saving || loading || loadErrors[key]) return;
     const ticket = mutationRequests.begin();
     regenerating = key;
+    secrets = { ...secrets, [key]: "" };
     try {
       const value = await regenerateSharedSecret(key);
       if (!disposed && mutationRequests.current(ticket)) {
@@ -82,9 +83,26 @@
         const nextErrors = { ...loadErrors }; delete nextErrors[key]; loadErrors = nextErrors;
       }
     } catch (e) {
+      // The backend may have persisted the new value before service application failed.
+      await reloadKey(key, ticket);
       if (!disposed && mutationRequests.current(ticket)) await message(String(e), { title: "重新生成失败", kind: "error" });
     } finally {
       if (!disposed && mutationRequests.current(ticket)) regenerating = null;
+    }
+  }
+
+  async function reloadKey(key: SharedSecretKey, ticket: number) {
+    if (disposed || !mutationRequests.current(ticket)) return;
+    secrets = { ...secrets, [key]: "" };
+    originals = { ...originals, [key]: "" };
+    try {
+      const value = (await getSharedSecret(key)) ?? "";
+      if (disposed || !mutationRequests.current(ticket)) return;
+      secrets = { ...secrets, [key]: value };
+      originals = { ...originals, [key]: value };
+      const nextErrors = { ...loadErrors }; delete nextErrors[key]; loadErrors = nextErrors;
+    } catch {
+      if (!disposed && mutationRequests.current(ticket)) loadErrors = { ...loadErrors, [key]: true };
     }
   }
 
@@ -92,13 +110,20 @@
     if (saving || loading || regenerating || hasLoadErrors || !dirty) return;
     const ticket = mutationRequests.begin();
     saving = true;
+    const changes = ALL_KEYS
+      .filter(({ key }) => !loadErrors[key] && secrets[key] !== undefined && secrets[key] !== originals[key])
+      .map(({ key }) => ({ key, value: secrets[key] }));
     try {
-      for (const { key } of ALL_KEYS) {
+      for (const { key, value } of changes) {
         if (!mutationRequests.current(ticket) || disposed) throw new Error("页面状态已变化，请重新保存。");
-        if (!loadErrors[key] && secrets[key] !== undefined && secrets[key] !== originals[key]) {
-          await setSharedSecret(key, secrets[key]);
-          if (mutationRequests.current(ticket) && !disposed) originals = { ...originals, [key]: secrets[key] };
+        try {
+          await setSharedSecret(key, value);
+        } catch (error) {
+          // Reconcile only this key. Other unsaved drafts must survive a partial failure.
+          await reloadKey(key, ticket);
+          throw error;
         }
+        if (mutationRequests.current(ticket) && !disposed) originals = { ...originals, [key]: value };
       }
     } catch (e) {
       if (!disposed && mutationRequests.current(ticket)) await message(String(e), { title: "保存失败", kind: "error" });
@@ -140,7 +165,7 @@
                 <span class="text-xs text-[var(--color-text-muted)]">{label}</span>
                 <SecretInput
                   bind:value={secrets[key]}
-                  disabled={loading || !!loadErrors[key] || saving}
+                  disabled={loading || !!loadErrors[key] || saving || !!regenerating}
                   onRegenerate={() => regenerate(key)}
                   regenerating={regenerating === key}
                 />
@@ -163,7 +188,7 @@
                 <span class="text-xs text-[var(--color-text-muted)]">{label}</span>
                 <SecretInput
                   bind:value={secrets[key]}
-                  disabled={loading || !!loadErrors[key] || saving}
+                  disabled={loading || !!loadErrors[key] || saving || !!regenerating}
                   onRegenerate={() => regenerate(key)}
                   regenerating={regenerating === key}
                 />

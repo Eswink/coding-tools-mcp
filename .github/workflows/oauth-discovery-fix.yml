@@ -104,7 +104,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p reviewer-tools
-          tar czf reviewer-tools/compilers.tar.gz node_modules/typescript node_modules/svelte
+          node scripts/reviewer-package-closure.mjs reviewer-tools/packages.txt
+          tar czf reviewer-tools/compilers.tar.gz -T reviewer-tools/packages.txt
           sha256sum reviewer-tools/compilers.tar.gz > reviewer-tools/SHA256SUMS
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Linux'

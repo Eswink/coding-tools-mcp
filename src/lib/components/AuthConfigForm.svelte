@@ -3,6 +3,7 @@
   import { message } from "@tauri-apps/plugin-dialog";
   import SecretInput from "$lib/components/SecretInput.svelte";
   import { latestRequest } from "$lib/runtime/latest-request";
+  import { applyAndRefresh } from "$lib/runtime/configuration";
   import {
     getWorkspaceSecret,
     regenerateWorkspaceSecret,
@@ -103,11 +104,8 @@
         return [key, value ?? ""] as const;
       }));
       if (!secretRequests.current(ticket) || !currentContext(id, authType, useShared)) return;
-      if (authType === "oauth") {
-        const clientId = useShared ? sharedClientId ?? "" : auth.oauth_client_id;
-        draft = { ...draft, oauth_client_id: clientId };
-        loadedSharedOauthClientId = useShared ? clientId : "";
-      }
+      // Credential reads must not overwrite an unsaved private client ID draft.
+      loadedSharedOauthClientId = authType === "oauth" && useShared ? sharedClientId ?? "" : "";
       secrets = Object.fromEntries(loaded);
     } catch {
       if (secretRequests.current(ticket) && currentContext(id, authType, useShared)) {
@@ -137,10 +135,11 @@
         // Shared client identity belongs to the shared secret store, not this workspace profile.
         oauth_client_id: useShared ? auth.oauth_client_id : draft.oauth_client_id.trim(),
       };
-      await onSaveProfile(next);
-      if (operationRequests.current(ticket) && currentContext(id, authType, useShared)) {
-        await loadSecrets(id, next.type, !!next.use_shared_secrets);
-      }
+      await applyAndRefresh(async () => { await onSaveProfile(next); }, async () => {
+        if (operationRequests.current(ticket) && currentContext(id, authType, useShared)) {
+          await loadSecrets(id, next.type, !!next.use_shared_secrets);
+        }
+      });
     } catch (error) {
       if (operationRequests.current(ticket) && currentContext(id, authType, useShared)) {
         await message(String(error), { title: "保存失败", kind: "error" });
@@ -161,12 +160,17 @@
     const useShared = !!draft.use_shared_secrets;
     secretRequests.invalidate();
     regenerating = key;
+    secrets = {};
     try {
-      if (useShared) await regenerateSharedSecret(key as SharedSecretKey);
-      else await regenerateWorkspaceSecret(id, key);
-      if (operationRequests.current(ticket) && currentContext(id, authType, useShared)) {
-        await loadSecrets(id, authType, useShared);
-      }
+      // The write can persist before runtime restart fails. Read back on either outcome.
+      await applyAndRefresh(async () => {
+        if (useShared) await regenerateSharedSecret(key as SharedSecretKey);
+        else await regenerateWorkspaceSecret(id, key);
+      }, async () => {
+        if (operationRequests.current(ticket) && currentContext(id, authType, useShared)) {
+          await loadSecrets(id, authType, useShared);
+        }
+      });
     } catch (error) {
       if (operationRequests.current(ticket) && currentContext(id, authType, useShared)) {
         await message(String(error), { title: "重新生成失败", kind: "error" });
@@ -223,12 +227,21 @@
     </label>
     <label class="grid gap-1">
       <span class="text-xs text-[var(--color-text-muted)]">OAuth 客户端 ID</span>
-      <input
-        type="text"
-        class="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 font-mono text-sm"
-        bind:value={draft.oauth_client_id}
-        readonly={draft.use_shared_secrets}
-      />
+      {#if draft.use_shared_secrets}
+        <input
+          type="text"
+          class="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 font-mono text-sm"
+          value={loadedSharedOauthClientId}
+          readonly
+          disabled={loadingSecrets || !!secretsError}
+        />
+      {:else}
+        <input
+          type="text"
+          class="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 font-mono text-sm"
+          bind:value={draft.oauth_client_id}
+        />
+      {/if}
     </label>
 
     <div class="grid gap-1">
@@ -237,7 +250,7 @@
         value={secrets.oauth_client_secret ?? ""}
         placeholder="加载中…"
         readonly
-        disabled={loadingSecrets || !!secretsError || saving}
+        disabled={loadingSecrets || !!secretsError || saving || !!regenerating}
         onRegenerate={() => void regenerate("oauth_client_secret")}
         regenerating={regenerating === "oauth_client_secret"}
       />
@@ -249,7 +262,7 @@
         value={secrets.oauth_password ?? ""}
         placeholder="ChatGPT 首次授权时输入这个口令"
         readonly
-        disabled={loadingSecrets || !!secretsError || saving}
+        disabled={loadingSecrets || !!secretsError || saving || !!regenerating}
         onRegenerate={() => void regenerate("oauth_password")}
         regenerating={regenerating === "oauth_password"}
       />
@@ -263,7 +276,7 @@
         value={secrets.bearer_token ?? ""}
         placeholder="加载中…"
         readonly
-        disabled={loadingSecrets || !!secretsError || saving}
+        disabled={loadingSecrets || !!secretsError || saving || !!regenerating}
         onRegenerate={() => void regenerate("bearer_token")}
         regenerating={regenerating === "bearer_token"}
       />

@@ -4,6 +4,7 @@
   import CopyButton from "$lib/components/CopyButton.svelte";
   import SecretInput from "$lib/components/SecretInput.svelte";
   import { latestRequest } from "$lib/runtime/latest-request";
+  import { applyAndRefresh } from "$lib/runtime/configuration";
   import { getSecret, regenerateSecret, getSharedSecret, regenerateSharedSecret } from "$lib/api/secrets";
   import type { ActionsAuthDraft } from "$lib/types";
 
@@ -160,11 +161,13 @@
     saving = true;
     suppressSecretsReload = true;
     try {
-      await onSave({
+      const next = {
         authType: draftAuthType, oauthClientId: draftOauthClientId.trim(),
         oauthScopes: draftOauthScopes.trim(), useSharedSecrets: draftUseShared,
+      };
+      await applyAndRefresh(async () => { await onSave(next); }, async () => {
+        if (operationRequests.current(ticket) && currentContext(id, useShared)) await loadSecrets(id, useShared);
       });
-      if (operationRequests.current(ticket) && currentContext(id, useShared)) await loadSecrets(id, useShared);
     } catch (error) {
       if (operationRequests.current(ticket) && currentContext(id, useShared)) {
         await message(String(error), { title: "保存失败", kind: "error" });
@@ -190,10 +193,15 @@
     else if (kind === "secret") regeneratingOAuthSecret = true;
     else if (kind === "password") regeneratingOAuthPassword = true;
     else regeneratingOAuthTokenSecret = true;
+    clearSecrets();
     try {
-      if (useShared) await regenerateSharedSecret(sharedKey);
-      else await regenerateSecret(id, workspaceKey);
-      if (operationRequests.current(ticket) && currentContext(id, useShared)) await loadSecrets(id, useShared);
+      // Never retain the old credential when persistence succeeds but restart fails.
+      await applyAndRefresh(async () => {
+        if (useShared) await regenerateSharedSecret(sharedKey);
+        else await regenerateSecret(id, workspaceKey);
+      }, async () => {
+        if (operationRequests.current(ticket) && currentContext(id, useShared)) await loadSecrets(id, useShared);
+      });
     } catch (error) {
       if (operationRequests.current(ticket) && currentContext(id, useShared)) {
         await message(String(error), { title: "重新生成失败", kind: "error" });
@@ -259,7 +267,7 @@
       <SecretInput
         value={loadingKey ? "加载中…" : apiKey}
         readonly
-        disabled={loadingKey || !!secretsError || saving}
+        disabled={credentialsBusy || !!secretsError || saving}
         showCopy={!!apiKey}
         onRegenerate={() => void regenerate()}
         regenerating={regenerating}
@@ -287,7 +295,7 @@
       <SecretInput
         value={loadingOAuthSecret ? "加载中…" : oauthClientSecret}
         readonly
-        disabled={loadingOAuthSecret || !!secretsError || saving}
+        disabled={credentialsBusy || !!secretsError || saving}
         showCopy={!!oauthClientSecret}
         onRegenerate={() => void regenerateOAuthSecret()}
         regenerating={regeneratingOAuthSecret}
@@ -298,7 +306,7 @@
       <SecretInput
         value={loadingOAuthPassword ? "加载中…" : oauthPassword}
         readonly
-        disabled={loadingOAuthPassword || !!secretsError || saving}
+        disabled={credentialsBusy || !!secretsError || saving}
         showCopy={!!oauthPassword}
         onRegenerate={() => void regenerateOAuthPassword()}
         regenerating={regeneratingOAuthPassword}
@@ -309,7 +317,7 @@
       <SecretInput
         value={loadingOAuthTokenSecret ? "加载中…" : oauthTokenSecret}
         readonly
-        disabled={loadingOAuthTokenSecret || !!secretsError || saving}
+        disabled={credentialsBusy || !!secretsError || saving}
         showCopy={!!oauthTokenSecret}
         onRegenerate={() => void regenerateOAuthTokenSecret()}
         regenerating={regeneratingOAuthTokenSecret}
