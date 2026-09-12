@@ -1,0 +1,99 @@
+# research-system.eswlnk.com OAuth routing exception
+#
+# Intended for the server block that already proxies / to http://127.0.0.1:8080.
+# Add these exact locations inside that same server block. They intentionally
+# override the BaoTa-generated `location /.well-known { allow all; }` prefix
+# without removing ACME/static handling for other /.well-known paths.
+#
+# Keep the existing generic `location /.well-known { allow all; }` block and
+# certificate include unless your server administrator intentionally changes
+# the ACME layout. Run `nginx -t` before reload.
+
+location = /.well-known/oauth-authorization-server {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Real-Port $remote_port;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header REMOTE-HOST $remote_addr;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}
+
+location = /.well-known/oauth-protected-resource {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Real-Port $remote_port;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header REMOTE-HOST $remote_addr;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}
+
+location = /.well-known/oauth-protected-resource/mcp {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Real-Port $remote_port;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header REMOTE-HOST $remote_addr;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}
+
+# These two paths already fall through to `location ^~ /` in the supplied
+# configuration. Explicit locations are kept here so later panel-generated
+# regex/prefix rules cannot silently separate OAuth control-plane requests from
+# the MCP upstream.
+location = /oauth/authorize {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Real-Port $remote_port;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header REMOTE-HOST $remote_addr;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}
+
+location = /oauth/token {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Real-Port $remote_port;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header REMOTE-HOST $remote_addr;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}
