@@ -1,6 +1,6 @@
 # 公网 MCP OAuth 路由修复与验收
 
-## 已观测到的故障，不等于已读取服务器配置
+## 已确认根因
 
 2026-09-12 的独立 GitHub Actions 运行 `34691913140` 在不携带凭据、
 不跟随重定向且校验 TLS 的条件下得到：
@@ -14,9 +14,29 @@
 | GET /.well-known/oauth-protected-resource | 同上 |
 
 原始脱敏结果见 `../specs/public-oauth-routing/evidence/public-baseline.json`。
-这表明发现链在元数据请求处断开，不能解释成 MCP 未启用 OAuth。
-Server 响应头只是线索，不是可信来源认证；尚未读取实际 Nginx 配置，
-不能认定是某个面板或某一条 location 导致。
+这表明发现链在元数据请求处断开，不是 MCP 未启用 OAuth。
+
+随后用户提供了 `research-system.eswlnk.com` 实际 BaoTa Nginx vhost。该
+server 已用 `location ^~ /` 把一般请求反代到 `http://127.0.0.1:8080`，但
+同时存在：
+
+```nginx
+location /.well-known {
+    allow all;
+}
+```
+
+这是本次 404 的确定根因。Nginx 先选择最长普通前缀；对于
+`/.well-known/oauth-*`，`location /.well-known` 比 `location ^~ /` 更长，
+因此 OAuth metadata 请求不会进入 8080 反代，而是按站点
+`root /www/wwwroot/research-system.eswlnk.com` 作为静态路径处理。文件不存在
+时就得到 Nginx HTML 404。`/mcp` 与 `/oauth/*` 不匹配这个更长前缀，所以
+仍能进入 8080，这与公网观测完全一致。
+
+仓库新增 `scripts/nginx-panel-prefix-regression.sh`，使用真实 Nginx
+failure-first 复现这一精确配置形态：修复前 `/mcp` 经代理返回 200，三个
+OAuth discovery 路径返回静态 404；加入精确 OAuth locations 后三个发现
+路径恢复代理且 ACME 路径继续正常。
 
 ## 正确的路由契约
 
@@ -30,46 +50,69 @@ FRP 的 HTTP 虚拟主机转发与 Cloudflare Named 的远程 ingress 都要覆�
 Named Tunnel 的远程路由不受本地安装包自动管理。更新桌面程序不等于
 已修改公网 Nginx 或 Named Tunnel 配置。
 
-## Nginx 最小修复模板
+## research-system.eswlnk.com 的最小修复
 
-模板：`nginx-mcp-oauth.conf.template`。它只为五个 OAuth 路径增加精确
-`location =`，不改变已有 `/mcp` 转发、ACME 证书验证和隐藏文件保护。
+针对用户提供的实际 vhost，使用
+`nginx-research-system-oauth.conf.example`。它固定复用已经工作的
+`http://127.0.0.1:8080` 上游，并增加五个精确 `location =`：
 
-先在实际处理该域名 HTTPS 的 Nginx 上确认 `server_name`、include 文件、
-`/.well-known/` 静态目录/正则、错误页、rewrite 与实际 `/mcp` 上游。
-不要直接把未经脱敏的 `nginx -T` 输出上传，它可能包含内部地址或秘密。
+- `/.well-known/oauth-authorization-server`
+- `/.well-known/oauth-protected-resource`
+- `/.well-known/oauth-protected-resource/mcp`
+- `/oauth/authorize`
+- `/oauth/token`
 
-把 `__MCP_UPSTREAM__` 替换为已有 `/mcp` 转发使用的 HTTP 上游 origin，
+前三个是解除当前故障的必要路径；后两个当前已由 `location ^~ /` 转发，
+但显式锁定可防止以后面板或 include 增加更具体规则时再次拆分 OAuth
+控制面流量。
+
+该 BaoTa vhost 已包含：
+
+```nginx
+include /www/server/panel/vhost/nginx/extension/research-system.eswlnk.com/*.conf;
+```
+
+因此优先将示例保存为：
+
+```text
+/www/server/panel/vhost/nginx/extension/research-system.eswlnk.com/oauth-routing.conf
+```
+
+这样无需替换面板管理的主 vhost。精确 location 在 Nginx 匹配中优先于
+普通前缀和正则，所以即使原来的 `location /.well-known { allow all; }`
+继续存在，OAuth discovery 也会走 8080；其他 `/.well-known/*`，包括 ACME
+验证路径，仍保持原来的站点处理方式。
+
+若已有相同精确 location，修改已有块而不是重复添加；`nginx -t` 会在
+重复 location 时拒绝加载。不要删除证书申请 include，也不要把整个
+`/.well-known` 改成无条件反代，否则可能破坏 ACME/其他验证文件。
+
+## 通用 Nginx 模板
+
+对于其他部署，可使用 `nginx-mcp-oauth.conf.template`。把
+`__MCP_UPSTREAM__` 替换为已有 `/mcp` 转发使用的 HTTP 上游 origin，
 不附加 `/` 或 `/mcp` 等 URI；把 `__MCP_HOST__` 替换为该转发所需的
-Host 表达式或值（通常是 `$host`，FRP 虚拟主机可能需要固定域名）。
-**不要假定网关的 `127.0.0.1:28766` 就是桌面服务。** 两者不在同一主机
-时应复用已经验证的 FRP/隧道/内部代理目标，而不是猜端口。
+Host 表达式或值。
 
-该模板仅演示现有 HTTP 上游跳转；已有 HTTPS 上游还必须复制并核对
-SNI、信任链与 `proxy_ssl_verify` 等配置，不能降级为不验证 TLS。
-已有 server 级 rewrite、认证网关或 WAF 限制仍需按权限边界单独检查；
-模板不自动移除任何访问控制。发现文档应公开读取，但不能因此关闭
-MCP 的 OAuth、授权表单校验或本地聊天审批。
+模板只演示 HTTP 上游。已有 HTTPS 上游还必须复制并核对 SNI、信任链与
+`proxy_ssl_verify` 等配置，不能降级为不验证 TLS。已有 server 级 rewrite、
+认证网关或 WAF 限制仍需按权限边界单独检查；模板不自动移除任何访问
+控制。发现文档应公开读取，但不能因此关闭 MCP OAuth、授权表单校验或
+本地聊天审批。
 
-在站点原有 HTTPS `server` 内纳入替换后的内容。若已有相同精确
-location，请修改已有块，不要添加重复块；多个 MCP 共用同一 origin
-时先分配独立 origin，不能覆盖另一个服务的发现文档。
-
-Nginx 精确 location 优先于正则和普通前缀，因此能避免通用
-`/.well-known/` 静态块或隐藏路径规则吞掉 OAuth 发现。仅添加
-`location /` 并不保证覆盖这些规则。`proxy_pass` 无 URI 时保留原始
-请求路径；添加 URI 可能改变转发位置，务必独立核对。
+`proxy_pass` 无 URI 时保留原始请求路径；添加 URI 可能改写转发位置，
+务必独立核对。
 
 ## 应用、回滚与停止条件
 
 先备份实际将编辑的配置，保留当前已工作的 `/mcp` 上游参数。
 执行 `nginx -t`；失败时不要 reload。语法通过后再使用服务器既有管理
-方式 reload，并从服务器外执行本文的公网验收。模板不会自动执行
-reload，也不会修改 DNS、隧道 token 或其他站点。
+方式 reload，并从服务器外执行本文的公网验收。
 
-若出现 5xx、其他站点异常、ACME 验证路径异常或认证边界变化，恢复
-备份、再次 `nginx -t` 并 reload。配置语法正确不代表请求一定到了
-目标 server：仍需核对域名、SNI、实际生效的 include 与运行实例。
+若出现 5xx、其他站点异常、ACME 验证路径异常或认证边界变化，移除新
+extension 文件或恢复备份，再次 `nginx -t` 并 reload。配置语法正确不
+代表请求一定到了目标 server：仍需核对域名、SNI、实际生效 include 与
+运行实例。
 
 ## 公网验收（本机通过不能替代）
 
