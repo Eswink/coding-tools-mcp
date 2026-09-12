@@ -4,6 +4,8 @@ export interface HealthItem {
   label: string;
   ok: boolean;
   detail: string;
+  code?: string;
+  request?: string;
   hint: string;
   skipped?: boolean;
 }

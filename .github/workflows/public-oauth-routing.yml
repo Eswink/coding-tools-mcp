@@ -28,3 +28,100 @@ jobs:
           path: evidence/
           if-no-files-found: error
           retention-days: 14
+  regression:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Linux desktop and real reverse proxy dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev nginx
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Failure-first metadata error classification on the released implementation
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source.txt
+          cp src-tauri/src/health/probe.rs "$RUNNER_TEMP/candidate-probe.rs"
+          restore_candidate() { cp "$RUNNER_TEMP/candidate-probe.rs" src-tauri/src/health/probe.rs; }
+          trap restore_candidate EXIT
+          git fetch --no-tags --depth=1 origin a0551c447712104e2c2cb253d3d8a5a966518580
+          git show a0551c447712104e2c2cb253d3d8a5a966518580:src-tauri/src/health/probe.rs > src-tauri/src/health/probe.rs
+          set +e
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib health::public_route_tests::nginx_discovery_404_is_classified_as_a_route_failure -- --exact --nocapture > evidence/classification-baseline.txt 2>&1
+          result=$?
+          set -e
+          cat evidence/classification-baseline.txt
+          test "$result" = 101
+          grep -F 'test result: FAILED. 0 passed; 1 failed;' evidence/classification-baseline.txt
+          grep -F 'nginx_discovery_404_is_classified_as_a_route_failure ... FAILED' evidence/classification-baseline.txt
+          restore_candidate
+          trap - EXIT
+          git diff --exit-code
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib health::public_route_tests -- --nocapture 2>&1 | tee evidence/classification-candidate.txt
+      - name: Real Nginx missing discovery, repaired routes and PKCE isolation
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --features nginx-routing-tests --lib health::nginx_tests -- --nocapture 2>&1 | tee evidence/nginx.txt
+      - name: Complete Rust baseline and warning-free production library
+        run: |
+          set -euo pipefail
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/check.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/tests.txt
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/warnings.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-routing-${{ matrix.os }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
+  frontend:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - name: Complete frontend regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source.txt
+          node scripts/前端完整回归v4.mjs 2>&1 | tee evidence/frontend.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-routing-frontend-${{ matrix.os }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14

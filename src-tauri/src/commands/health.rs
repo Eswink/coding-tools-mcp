@@ -42,6 +42,8 @@ pub async fn run_health_checks(state: State<'_, AppState>, id: String) -> AppRes
             item.ok = false;
             item.skipped = false;
             item.detail = "configuration_changed_during_check".into();
+            item.code = "configuration_changed_during_check".into();
+            item.request.clear();
             item.hint = "检查期间配置、服务或隧道身份发生变化；请重新检查。".into();
         }
     }

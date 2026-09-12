@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OAuthRoutingHelp from "$lib/components/OAuthRoutingHelp.svelte";
+  import { needsOAuthRoutingHelp } from "$lib/runtime/oauth-routing";
   import { credentialState } from "$lib/api/secrets";
   import { configurationState } from "$lib/runtime/configuration";
   import { latestRequest } from "$lib/runtime/latest-request";
@@ -81,6 +83,9 @@
           <div class="min-w-0">
             <p class="text-sm font-medium">{item.label}</p>
             <p class="mt-0.5 text-xs text-[var(--color-text-muted)]">{item.detail}</p>
+            {#if item.request}
+              <code class="mt-1 block break-all text-xs text-[var(--color-text-muted)]">{item.request}</code>
+            {/if}
             {#if !item.ok && item.hint}
               <p class="mt-1 text-xs text-[var(--color-accent)]">{item.hint}</p>
             {/if}
@@ -96,6 +101,9 @@
         </li>
       {/each}
     </ul>
+    {#if needsOAuthRoutingHelp(items)}
+      <OAuthRoutingHelp />
+    {/if}
   {:else if !busy && !error}
     <p class="mt-4 text-sm text-[var(--color-text-muted)]">尚未运行检查。</p>
   {/if}
