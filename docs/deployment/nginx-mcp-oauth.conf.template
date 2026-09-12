@@ -1,0 +1,60 @@
+# Include inside the EXISTING HTTPS server block after a deployment review.
+# Replace __MCP_UPSTREAM__ with the same HTTP upstream used by working /mcp.
+# It must contain scheme + host[:port], with NO URI, query, userinfo or fragment.
+# Copy any required Host override from /mcp into __MCP_HOST__ (often $host).
+# This template intentionally cannot be loaded until BOTH placeholders are set.
+# Do not replace the server block, /mcp, ACME location, or dotfile protection.
+# For a TLS upstream, also copy and review its SNI/certificate verification config;
+# this HTTP-hop template alone is NOT sufficient for upstream TLS.
+# Existing inherited access controls/rewrites require separate review, not disabling.
+# Public discovery needs no credentials; authorize/token still enforce app OAuth.
+
+location = /.well-known/oauth-authorization-server {
+    proxy_pass __MCP_UPSTREAM__;
+    proxy_http_version 1.1;
+    proxy_set_header Host __MCP_HOST__;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}
+
+location = /.well-known/oauth-protected-resource {
+    proxy_pass __MCP_UPSTREAM__;
+    proxy_http_version 1.1;
+    proxy_set_header Host __MCP_HOST__;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}
+
+location = /.well-known/oauth-protected-resource/mcp {
+    proxy_pass __MCP_UPSTREAM__;
+    proxy_http_version 1.1;
+    proxy_set_header Host __MCP_HOST__;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}
+
+location = /oauth/authorize {
+    proxy_pass __MCP_UPSTREAM__;
+    proxy_http_version 1.1;
+    proxy_set_header Host __MCP_HOST__;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}
+
+location = /oauth/token {
+    proxy_pass __MCP_UPSTREAM__;
+    proxy_http_version 1.1;
+    proxy_set_header Host __MCP_HOST__;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}

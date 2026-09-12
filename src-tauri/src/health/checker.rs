@@ -9,6 +9,9 @@ pub struct HealthItem {
     pub label: String,
     pub ok: bool,
     pub detail: String,
+    pub code: String,
+    /// Only a validated configured origin plus a fixed path, never a remote URL.
+    pub request: String,
     pub hint: String,
     /// A disabled/unconfigured service is not an OAuth failure or a PASS.
     pub skipped: bool,
@@ -27,6 +30,8 @@ fn health_item(label: &str, result: Probe, public: bool) -> HealthItem {
     let hint = if result.ok { "" } else {
         match result.code {
             "oauth_not_configured" => "响应表示监听器未启用 OAuth。核对认证配置保存结果及运行中的服务，不要仅凭 /mcp 可达判断认证生效。",
+            "nginx_discovery_route_not_found" => "发现路径返回 404 非 JSON，响应头标识为 Nginx（仅为线索）。检查该站点 /.well-known/ 静态目录、ACME 和隐藏路径规则；将这三个 OAuth 发现路径精确转发到与 /mcp 相同的上游，保留 URI。不要删除 ACME 或隐藏文件保护。",
+            "discovery_route_not_found" => "OAuth 发现路径返回 404 非 JSON。检查 /.well-known/ 是否完整转发到与 /mcp 相同的运行实例；仅转发 /mcp 不足以完成 OAuth 发现。",
             "frp_route_not_found" => "返回 FRP 路由错误页。核对域名、隧道目标端口及整站路由。",
             "metadata_or_identity_mismatch" => "必需字段、版本或 issuer/resource 与当前监听器身份不一致；检查旧服务、缓存和转发目标。",
             "invalid_401_challenge" => "未认证 POST /mcp 必须返回 401 和精确的 resource_metadata；检查认证是否应用及代理是否保留响应头。",
@@ -38,11 +43,11 @@ fn health_item(label: &str, result: Probe, public: bool) -> HealthItem {
             _ => "确认本地服务已启动、端口正确；检查配置保存或重启时显示的错误。",
         }
     };
-    HealthItem { label: label.into(), ok: result.ok, detail: result.detail(), hint: hint.into(), skipped: false }
+    HealthItem { label: label.into(), ok: result.ok, detail: result.detail(), code: result.code.into(), request: String::new(), hint: hint.into(), skipped: false }
 }
 
 fn skipped(label: &str, reason: &str) -> HealthItem {
-    HealthItem { label: label.into(), ok: false, detail: reason.into(), hint: String::new(), skipped: true }
+    HealthItem { label: label.into(), ok: false, detail: reason.into(), code: "not_run".into(), request: String::new(), hint: String::new(), skipped: true }
 }
 
 async fn oauth_checks(client: &reqwest::Client, transport: &str, issuer: &str,
@@ -68,7 +73,12 @@ async fn oauth_checks(client: &reqwest::Client, transport: &str, issuer: &str,
     // At most four fixed requests per route. No dynamic URL traversal.
     for (name, path, contract) in specs {
         let result = probe::check(client, transport, path, contract, issuer, &resource).await;
-        items.push(health_item(&format!("{prefix} {name}"), result, public));
+        let mut item = health_item(&format!("{prefix} {name}"), result, public);
+        if probe::valid_origin(transport) && probe::valid_origin(issuer) {
+            let method = if contract == Contract::Challenge { "POST" } else { "GET" };
+            item.request = format!("{method} {}{path}", transport.trim_end_matches('/'));
+        }
+        items.push(item);
     }
     items
 }
@@ -100,10 +110,19 @@ async fn service_checks(client: &reqwest::Client, profile: &WorkspaceProfile,
         oauth_checks(client, origin, issuer, mcp, true, enabled, running && !origin.is_empty())
     );
     let local_pass = local_oauth.iter().all(|item| item.ok && !item.skipped);
+    let public_challenge_pass = mcp && public_oauth.iter().any(|item| {
+        item.label.ends_with("401 挑战") && item.ok && !item.skipped
+    });
     if local_pass {
         for item in &mut public_oauth {
             if !item.ok && !item.skipped {
-                item.hint = format!("本地 OAuth 发现链通过，公网未通过：优先核对隧道/代理的路由与响应头。{}", item.hint);
+                let finding = if public_challenge_pass && matches!(item.code.as_str(),
+                    "nginx_discovery_route_not_found" | "discovery_route_not_found") {
+                    "本地 OAuth 发现链通过；公网 /mcp 的 401 挑战也通过，但所指发现文档缺失。请优先修复入口转发，不要关闭 OAuth 或重新生成密钥。"
+                } else {
+                    "本地 OAuth 发现链通过，公网未通过：优先核对隧道/代理的路由与响应头。"
+                };
+                item.hint = format!("{finding}{}", item.hint);
             }
         }
     }

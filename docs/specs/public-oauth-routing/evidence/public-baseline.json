@@ -1,0 +1,76 @@
+{
+  "origin": "https://research-system.eswlnk.com",
+  "observed_at": "2026-09-12T11:46:31.260368+00:00",
+  "credentials_sent": false,
+  "redirects_followed": false,
+  "public_oauth_ready": false,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/",
+      "verified": false,
+      "status": 404,
+      "media_type": "text/plain",
+      "server_family": "nginx",
+      "bytes_observed": 0,
+      "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "non_json_response"
+    },
+    {
+      "method": "GET",
+      "path": "/mcp",
+      "verified": true,
+      "status": 200,
+      "media_type": "application/json",
+      "server_family": "nginx",
+      "bytes_observed": 76,
+      "body_sha256": "3045c532dcb7124c854d89793247912048727ae8588a9b0d2047aa818879b516",
+      "classification": "json_object"
+    },
+    {
+      "method": "GET",
+      "path": "/.well-known/oauth-authorization-server",
+      "verified": false,
+      "status": 404,
+      "media_type": "text/html",
+      "server_family": "nginx",
+      "bytes_observed": 146,
+      "body_sha256": "55f7d9e99b8e2d4e0e193b2f0275501e6d9c1ebd29cadbea6a0da48a8587e3e0",
+      "classification": "non_json_response"
+    },
+    {
+      "method": "GET",
+      "path": "/.well-known/oauth-protected-resource/mcp",
+      "verified": false,
+      "status": 404,
+      "media_type": "text/html",
+      "server_family": "nginx",
+      "bytes_observed": 146,
+      "body_sha256": "55f7d9e99b8e2d4e0e193b2f0275501e6d9c1ebd29cadbea6a0da48a8587e3e0",
+      "classification": "non_json_response"
+    },
+    {
+      "method": "GET",
+      "path": "/.well-known/oauth-protected-resource",
+      "verified": false,
+      "status": 404,
+      "media_type": "text/html",
+      "server_family": "nginx",
+      "bytes_observed": 146,
+      "body_sha256": "55f7d9e99b8e2d4e0e193b2f0275501e6d9c1ebd29cadbea6a0da48a8587e3e0",
+      "classification": "non_json_response"
+    },
+    {
+      "method": "POST",
+      "path": "/mcp",
+      "verified": true,
+      "status": 401,
+      "media_type": "text/plain",
+      "server_family": "nginx",
+      "bytes_observed": 29,
+      "body_sha256": "1d9bbd5dc03db84494dd4c3abb9a5799bc7a6e70e9cacfc3e7e623e318e162c0",
+      "classification": "non_json_response",
+      "challenge_present": true
+    }
+  ]
+}

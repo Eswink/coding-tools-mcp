@@ -174,6 +174,16 @@ pub(super) async fn check(
     }
     let content_type = response.headers().get(header::CONTENT_TYPE)
         .and_then(|h| h.to_str().ok()).unwrap_or("").to_string();
+    // The Server header is a diagnostic hint, never a trusted backend identity.
+    let nginx_hint = response.headers().get(header::SERVER)
+        .and_then(|h| h.to_str().ok()).is_some_and(|v| {
+            let product = v.split_whitespace().next().unwrap_or("");
+            product.eq_ignore_ascii_case("nginx")
+                || product.get(..6).is_some_and(|v| v.eq_ignore_ascii_case("nginx/"))
+        });
+    let discovery_path = matches!(path, "/.well-known/oauth-authorization-server"
+        | "/.well-known/oauth-protected-resource" | "/.well-known/oauth-protected-resource/mcp")
+        && matches!(contract, Contract::AuthorizationServer | Contract::ProtectedResource);
     let limit = if contract == Contract::OpenApi { MAX_SCHEMA_BYTES } else { MAX_METADATA_BYTES };
     let bytes = match bounded_body(&mut response, limit).await {
         Ok(body) => body,
@@ -181,13 +191,15 @@ pub(super) async fn check(
     };
     // Only known classifications leave this function, never remote error strings.
     let json = serde_json::from_slice::<Value>(&bytes).ok();
-    if status == 404 && json.as_ref().is_some_and(|v| v["error"] == "OAuth not configured") {
+    if status == 404 && is_json(&content_type) && json.as_ref().is_some_and(|v| v["error"] == "OAuth not configured") {
         return Probe::fail("oauth_not_configured", Some(status));
     }
     if !is_json(&content_type) {
         let text = String::from_utf8_lossy(&bytes).to_ascii_lowercase();
         let code = if text.contains("frp") && (text.contains("powered by") || text.contains("not found")) {
             "frp_route_not_found"
+        } else if status == 404 && discovery_path {
+            if nginx_hint { "nginx_discovery_route_not_found" } else { "discovery_route_not_found" }
         } else { "non_json_response" };
         return Probe::fail(code, Some(status));
     }

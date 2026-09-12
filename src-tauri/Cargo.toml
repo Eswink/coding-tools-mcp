@@ -74,3 +74,6 @@ version = "1"
 # Explicit opt-in integration tests require the real OS credential service.
 native-keyring-tests = []
 frp-binary-tests = []
+
+# Real reverse-proxy regression, explicitly enabled in Linux CI.
+nginx-routing-tests = []

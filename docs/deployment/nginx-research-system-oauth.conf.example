@@ -1,0 +1,106 @@
+# research-system.eswlnk.com OAuth routing exception
+#
+# The supplied BaoTa vhost already includes:
+#   /www/server/panel/vhost/nginx/extension/research-system.eswlnk.com/*.conf
+# inside the HTTPS server block. Prefer saving this file as:
+#   /www/server/panel/vhost/nginx/extension/research-system.eswlnk.com/oauth-routing.conf
+# instead of replacing the panel-managed vhost.
+#
+# The same vhost already proxies / to http://127.0.0.1:8080. These exact
+# locations intentionally override the BaoTa-generated
+# `location /.well-known { allow all; }` prefix without removing ACME/static
+# handling for every other /.well-known path.
+#
+# Keep the existing generic `location /.well-known { allow all; }` block and
+# certificate include unless your server administrator intentionally changes
+# the ACME layout. Run `nginx -t` before reload. If nginx reports a duplicate
+# exact location, edit the existing duplicate instead of loading both blocks.
+
+location = /.well-known/oauth-authorization-server {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Real-Port $remote_port;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header REMOTE-HOST $remote_addr;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}
+
+location = /.well-known/oauth-protected-resource {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Real-Port $remote_port;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header REMOTE-HOST $remote_addr;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}
+
+location = /.well-known/oauth-protected-resource/mcp {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Real-Port $remote_port;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header REMOTE-HOST $remote_addr;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}
+
+# These two paths already fall through to `location ^~ /` in the supplied
+# configuration. Explicit locations are kept here so later panel-generated
+# regex/prefix rules cannot silently separate OAuth control-plane requests from
+# the MCP upstream.
+location = /oauth/authorize {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Real-Port $remote_port;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header REMOTE-HOST $remote_addr;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}
+
+location = /oauth/token {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Real-Port $remote_port;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header REMOTE-HOST $remote_addr;
+    proxy_set_header Connection "";
+    proxy_cache off;
+    proxy_intercept_errors off;
+    proxy_redirect off;
+}
