@@ -1,0 +1,63 @@
+name: OAuth repair version preparation
+on:
+  push:
+    branches: ['fix/oauth-discovery-runtime']
+    paths: ['.github/workflows/oauth-version-prepare.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: oauth-repair-version-v032
+  cancel-in-progress: false
+jobs:
+  version:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/fix/oauth-discovery-runtime'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare only the six application version fields
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONUTF8: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          git merge-base --is-ancestor aadfbb05842214880dee25d7234538178c731fc7 HEAD
+          python scripts/版本递增回归v7.py
+          python scripts/版本递增v7.py --from-version 0.3.1 --version 0.3.2 --apply
+          python - <<'PYGUARD'
+          import subprocess
+          allowed = {'package.json','package-lock.json','src-tauri/Cargo.toml','src-tauri/Cargo.lock','src-tauri/tauri.conf.json'}
+          changed = set(filter(None, subprocess.check_output(['git','diff','--name-only','-z']).decode('utf-8').split('\0')))
+          assert changed <= allowed, changed
+          PYGUARD
+          test "$(git ls-remote origin refs/heads/fix/oauth-discovery-runtime | cut -f1)" = "$GITHUB_SHA"
+          git diff --check
+          git add -- package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'chore: prepare OAuth repair candidate version 0.3.2'
+            git push origin HEAD:refs/heads/fix/oauth-discovery-runtime
+          fi
+          mkdir -p version-evidence
+          python scripts/发布版本校验v4.py --expect-sha "$(git rev-parse HEAD)" --output version-evidence/receipt.json
+          git rev-parse HEAD > version-evidence/source.txt
+          git rev-parse 'HEAD^{tree}' > version-evidence/tree.txt
+          git archive --format=zip HEAD -o version-evidence/source.zip
+          sha256sum version-evidence/source.zip > version-evidence/source.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oauth-version-source
+          path: version-evidence/
+          if-no-files-found: error
+          retention-days: 14
