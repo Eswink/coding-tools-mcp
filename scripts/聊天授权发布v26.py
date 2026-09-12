@@ -15,7 +15,7 @@ import zipfile
 import 发布资产v8 as transport
 import 聊天授权证据门禁v18 as native
 from 聊天授权安装核验v10 import verify_record
-from 发布版本校验v4 import verify_source
+from 发布版本校验v4 import VERSION, verify_source
 
 REPO = 'Eswink/coding-tools-mcp'
 STRICT_REF = 'refs/heads/release/聊天授权v26'
@@ -41,6 +41,37 @@ def text(path: Path, limit: int = 4 * 1024 * 1024) -> str:
     return raw.decode('utf-8-sig')
 
 
+def release_guide(root: Path, version: str) -> Path:
+    require(isinstance(version, str) and VERSION.fullmatch(version) is not None, 'invalid guide version')
+    guide = root / 'docs/releases' / f'verification-v{version}.md'
+    if not guide.exists() and not guide.is_symlink():
+        guide = root / 'docs/releases' / f'聊天授权安装与本地核验v{version}.md'
+    require(text(guide).strip(), 'empty release guide')
+    return guide
+
+
+def frontend_summary(log: str) -> int:
+    # The complete Node TAP report is required; a stray "# fail 0" proves nothing.
+    normalized = '\n'.join(log.splitlines())
+    totals = {}
+    for field in ('tests', 'suites', 'pass', 'fail', 'cancelled', 'skipped', 'todo'):
+        values = re.findall(r'^# ' + field + r' ([0-9]+)$', normalized, re.M)
+        require(len(values) == 1, 'missing or duplicate frontend summary: ' + field)
+        totals[field] = int(values[0])
+    require(totals['tests'] > 0 and totals['pass'] == totals['tests'], 'incomplete frontend test count')
+    require(all(totals[k] == 0 for k in ('fail', 'cancelled', 'skipped', 'todo')), 'frontend failure/cancel/skip/todo')
+    require(re.search(r'^\s*not ok\b', normalized, re.M) is None, 'frontend failing result line')
+    require(re.search(r'^\s*ok [0-9]+\b.*#\s*(?:SKIP|TODO)\b', normalized, re.M | re.I) is None, 'frontend test directive')
+    plans = re.findall(r'^1\.\.([0-9]+)$', normalized, re.M)
+    roots = [int(n) for n in re.findall(r'^ok ([0-9]+)\b', normalized, re.M)]
+    require(len(plans) == 1 and len(roots) > 0 and len(roots) == int(plans[0])
+            and all(n == i for i, n in enumerate(roots, 1)), 'frontend TAP plan mismatch')
+    successes = re.findall(r'^\s*ok [0-9]+\b', normalized, re.M)
+    require(len(successes) == totals['tests'] + totals['suites'], 'frontend result lines are truncated or inconsistent')
+    require(re.search(r'^# duration_ms [0-9]+(?:\.[0-9]+)?$', normalized, re.M) is not None, 'frontend report did not finish')
+    return totals['tests']
+
+
 def baseline(root: Path, source: str) -> dict:
     result = {}
     for os_name in ('windows-latest', 'ubuntu-latest'):
@@ -57,8 +88,9 @@ def baseline(root: Path, source: str) -> dict:
             compile_log = text(rust / name)
             require('Finished' in compile_log and not re.search(r'error(?:\[E\d+\])?:', compile_log), 'compile evidence failure')
         front_log = text(front / '前端回归v4.txt')
-        require(re.search(r'# fail 0\b', front_log) is not None and not re.search(r'^not ok\b', front_log, re.M), 'frontend tests failed')
-        result[os_name] = {'rust_passed': total, 'rust_failed': 0, 'rust_ignored': 0, 'frontend_passed': True}
+        front_count = frontend_summary(front_log)
+        result[os_name] = {'rust_passed': total, 'rust_failed': 0, 'rust_ignored': 0,
+                           'frontend_passed': True, 'frontend_test_count': front_count}
     return result
 
 
@@ -218,7 +250,7 @@ def main() -> None:
     root = Path(__file__).resolve().parents[1]
     version = verify_source(root, expected_sha=args.source)['version']
     tree = subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD^{tree}'], text=True).strip()
-    guide = root / 'docs/releases' / f'聊天授权安装与本地核验v{version}.md'
+    guide = release_guide(root, version)
     assets, summary = compose(args.evidence.resolve(), args.output.resolve(), source=args.source,
                               tree=tree, version=version, run_id=args.run_id, ref=ref, guide=guide)
     if not args.publish:

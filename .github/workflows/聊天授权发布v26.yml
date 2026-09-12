@@ -26,6 +26,8 @@ jobs:
           test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA"
           python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA"
           python scripts/聊天授权发布回归v26.py
+          python scripts/release_readiness_tests.py
+          python scripts/release_preflight.py
           python scripts/授权辅助回归v23.py
           python scripts/发布资产回归v8.py
   validate:

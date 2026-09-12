@@ -44,6 +44,8 @@ jobs:
           python scripts/oauth_native_contracts.py
           python scripts/授权辅助回归v23.py
           python scripts/聊天授权发布回归v26.py
+          python scripts/release_readiness_tests.py
+          python scripts/release_preflight.py
           git rev-parse HEAD > evidence/source.txt
           git rev-parse 'HEAD^{tree}' > evidence/tree.txt
           git archive --format=zip HEAD -o evidence/source.zip

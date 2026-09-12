@@ -25,7 +25,9 @@ def fixture(root, local=False):
         (folder / '完整回归v4.txt').write_text('test result: ok. 350 passed; 0 failed; 0 ignored; 0 measured;\n', encoding='utf-8')
         for name in ('编译检查v4.txt', '生产零警告v5.txt'):
             (folder / name).write_text('Finished `dev` profile', encoding='utf-8')
-        (root / f'聊天授权前端-{system}-v4/前端回归v4.txt').write_text('# tests 30\n# fail 0\n', encoding='utf-8')
+        frontend = ('TAP version 13\n' + ''.join(f'ok {i} - fixture {i}\n' for i in range(1, 31)) +
+                    '1..30\n# tests 30\n# suites 0\n# pass 30\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 1.0\n')
+        (root / f'聊天授权前端-{system}-v4/前端回归v4.txt').write_text(frontend, encoding='utf-8')
     def package(folder, name):
         folder.mkdir(parents=True, exist_ok=True)
         file = folder / name; file.write_bytes(('FAKE UNIT FIXTURE ' + name).encode())

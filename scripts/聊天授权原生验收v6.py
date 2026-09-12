@@ -59,17 +59,31 @@ def exchange(url: str, data: dict | None = None, *, token: str | None = None, fo
         return response.code, response.headers, payload
 
 
-def oauth_token(base: str, client_id: str, password: str, callback: str, private_path: str) -> str:
-    status, _, raw = exchange(base + "/.well-known/oauth-protected-resource")
-    assert status == 200
-    resource = json.loads(raw)["resource"]
-    assert resource == base
+def oauth_token(base: str, client_id: str, password: str, callback: str, private_path: str,
+                *, client_secret: str) -> str:
+    resource = base + "/mcp"
+    metadata = None
+    for suffix in ("/.well-known/oauth-protected-resource/mcp", "/.well-known/oauth-protected-resource"):
+        status, headers, raw = exchange(base + suffix)
+        assert status == 200 and headers["Cache-Control"] == "no-store"
+        value = json.loads(raw)
+        assert value["resource"] == resource and value["authorization_servers"] == [base]
+        assert metadata is None or value == metadata
+        metadata = value
+    status, headers, raw = exchange(base + "/.well-known/oauth-authorization-server")
+    assert status == 200 and headers["Cache-Control"] == "no-store"
+    server = json.loads(raw)
+    assert server["issuer"] == base
+    assert server["authorization_endpoint"] == base + "/oauth/authorize"
+    assert server["token_endpoint"] == base + "/oauth/token"
+    assert server["code_challenge_methods_supported"] == ["S256"]
+    assert set(server["token_endpoint_auth_methods_supported"]) == {"client_secret_post", "client_secret_basic"}
     verifier = secrets.token_urlsafe(48)
     challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
     common = {"client_id": client_id, "redirect_uri": callback, "code_challenge": challenge,
               "code_challenge_method": "S256", "resource": resource, "scope": "mcp", "state": "native-fixture-v6"}
     status, _, raw = exchange(base + "/oauth/authorize?" + urllib.parse.urlencode({**common, "response_type": "code"}))
-    assert status == 200 and private_path.encode() not in raw and password.encode() not in raw
+    assert status == 200 and all(value.encode() not in raw for value in (private_path, password, client_secret))
     status, headers, _ = exchange(base + "/oauth/authorize", {**common, "password": password}, form=True)
     assert status == 303
     target = urllib.parse.urlsplit(headers["Location"])
@@ -77,9 +91,16 @@ def oauth_token(base: str, client_id: str, password: str, callback: str, private
     assert (target.scheme, target.netloc, target.path) == (expected.scheme, expected.netloc, expected.path)
     params = urllib.parse.parse_qs(target.query)
     assert params["state"] == [common["state"]]
-    status, headers, raw = exchange(base + "/oauth/token", {"grant_type": "authorization_code",
-        "code": params["code"][0], "code_verifier": verifier, "client_id": client_id,
-        "redirect_uri": callback, "resource": resource}, form=True)
+    form = {"grant_type": "authorization_code", "code": params["code"][0], "code_verifier": verifier,
+            "client_id": client_id, "redirect_uri": callback, "resource": resource}
+    # Confidential-client failures must be rejected before consuming the valid code.
+    for invalid in (form, {**form, "client_secret": "invalid-native-fixture"}):
+        status, headers, raw = exchange(base + "/oauth/token", invalid, form=True)
+        assert status == 401 and headers["Cache-Control"] == "no-store"
+        assert headers["WWW-Authenticate"] == 'Basic realm="oauth"'
+        assert json.loads(raw)["error"] == "invalid_client"
+        assert all(value.encode() not in raw for value in (private_path, password, client_secret))
+    status, headers, raw = exchange(base + "/oauth/token", {**form, "client_secret": client_secret}, form=True)
     assert status == 200 and headers["Cache-Control"] == "no-store"
     token = json.loads(raw)["access_token"]
     assert isinstance(token, str) and token
@@ -191,7 +212,9 @@ def run(args) -> None:
         assert profile["actions"]["local_port"] != profile["runtime"]["local_port"]
         session.invoke("update_workspace", {"profile": profile})
         password = secrets.token_urlsafe(32)
-        for key, value in [("oauth_password", password), ("oauth_token_secret", secrets.token_urlsafe(48))]:
+        client_secret = secrets.token_urlsafe(32)
+        for key, value in [("oauth_password", password), ("oauth_client_secret", client_secret),
+                           ("oauth_token_secret", secrets.token_urlsafe(48))]:
             session.invoke("set_workspace_secret", {"id": profile["id"], "key": key, "value": value})
         session.call("refresh", {})
         visit(session, profile)
@@ -200,9 +223,10 @@ def run(args) -> None:
         session.invoke("start_runtime", {"id": profile["id"]})
         base = "http://127.0.0.1:" + str(profile["runtime"]["local_port"])
         status, headers, _ = exchange(base + "/mcp", {"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
-        assert status == 401 and "resource_metadata" in headers["WWW-Authenticate"]
+        assert status == 401 and headers["Cache-Control"] == "no-store"
+        assert headers["WWW-Authenticate"] == f'Bearer resource_metadata="{base}/.well-known/oauth-protected-resource/mcp", scope="mcp"'
         token = oauth_token(base, profile["auth"]["oauth_client_id"], password,
-                            profile["auth"]["oauth_redirect_uri"], str(root))
+                            profile["auth"]["oauth_redirect_uri"], str(root), client_secret=client_secret)
         evidence["real_oauth_http"] = True
         passed("真实OAuth发现、PKCE授权码交换与401挑战")
         a, b, c = ["synthetic-native-" + secrets.token_hex(16) for _ in range(3)]
