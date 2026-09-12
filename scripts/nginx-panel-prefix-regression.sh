@@ -24,35 +24,68 @@ cleanup() {
 }
 trap cleanup EXIT
 
-backend_root="$root/backend"
 site_root="$root/site"
-mkdir -p "$backend_root/.well-known/oauth-protected-resource" \
-  "$site_root/.well-known/acme-challenge"
-printf '%s\n' '{"backend":"mcp"}' >"$backend_root/mcp"
-printf '%s\n' '{"issuer":"https://fixture.example"}' \
-  >"$backend_root/.well-known/oauth-authorization-server"
-printf '%s\n' '{"resource":"https://fixture.example/mcp"}' \
-  >"$backend_root/.well-known/oauth-protected-resource/index.html"
-printf '%s\n' '{"resource":"https://fixture.example/mcp"}' \
-  >"$backend_root/.well-known/oauth-protected-resource/mcp"
+mkdir -p "$site_root/.well-known/acme-challenge"
 printf '%s\n' 'acme-preserved' >"$site_root/.well-known/acme-challenge/fixture"
 
+# Use an exact-path fixture rather than SimpleHTTPRequestHandler. The OAuth
+# protected-resource base URI and its /mcp child are both valid application
+# routes but cannot both be represented as a regular filesystem path without
+# introducing an artificial directory redirect.
 cat >"$root/backend.py" <<'PY'
-import functools
 import http.server
+import json
 import pathlib
 import sys
 
-root = pathlib.Path(sys.argv[1])
-port_file = pathlib.Path(sys.argv[2])
-handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(root))
-server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+port_file = pathlib.Path(sys.argv[1])
+responses = {
+    "/mcp": {"backend": "mcp"},
+    "/.well-known/oauth-authorization-server": {
+        "issuer": "https://fixture.example",
+    },
+    "/.well-known/oauth-protected-resource": {
+        "resource": "https://fixture.example/mcp",
+    },
+    "/.well-known/oauth-protected-resource/mcp": {
+        "resource": "https://fixture.example/mcp",
+    },
+    "/oauth/authorize": {"backend": "authorize"},
+}
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        body = responses.get(self.path)
+        if body is None:
+            self.send_error(404)
+            return
+        encoded = json.dumps(body, separators=(",", ":")).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.end_headers()
+        self.wfile.write(encoded)
+
+    def do_POST(self):
+        if self.path == "/oauth/token":
+            encoded = b'{"backend":"token"}'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(encoded)))
+            self.end_headers()
+            self.wfile.write(encoded)
+            return
+        self.send_error(404)
+
+    def log_message(self, fmt, *args):
+        return
+
+server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
 port_file.write_text(str(server.server_port), encoding="utf-8")
 server.serve_forever()
 PY
 
-python3 "$root/backend.py" "$backend_root" "$root/backend.port" \
-  >"$root/backend.log" 2>&1 &
+python3 "$root/backend.py" "$root/backend.port" >"$root/backend.log" 2>&1 &
 backend_pid=$!
 for _ in $(seq 1 50); do
   [[ -s "$root/backend.port" ]] && break
@@ -160,23 +193,36 @@ status_of() {
     --write-out '%{http_code}' "$1"
 }
 
+assert_status() {
+  local expected="$1"
+  local url="$2"
+  local actual
+  actual="$(status_of "$url")"
+  if [[ "$actual" != "$expected" ]]; then
+    printf 'unexpected status: expected=%s actual=%s url=%s\n' \
+      "$expected" "$actual" "$url" >&2
+    cat "$root/nginx-error.log" >&2 || true
+    exit 5
+  fi
+}
+
 listen_port="$(free_port)"
 write_config "$listen_port" no
 start_nginx
-[[ "$(status_of "http://127.0.0.1:${listen_port}/mcp")" == '200' ]]
-[[ "$(status_of "http://127.0.0.1:${listen_port}/.well-known/oauth-authorization-server")" == '404' ]]
-[[ "$(status_of "http://127.0.0.1:${listen_port}/.well-known/oauth-protected-resource")" == '404' ]]
-[[ "$(status_of "http://127.0.0.1:${listen_port}/.well-known/oauth-protected-resource/mcp")" == '404' ]]
-[[ "$(status_of "http://127.0.0.1:${listen_port}/.well-known/acme-challenge/fixture")" == '200' ]]
+assert_status 200 "http://127.0.0.1:${listen_port}/mcp"
+assert_status 404 "http://127.0.0.1:${listen_port}/.well-known/oauth-authorization-server"
+assert_status 404 "http://127.0.0.1:${listen_port}/.well-known/oauth-protected-resource"
+assert_status 404 "http://127.0.0.1:${listen_port}/.well-known/oauth-protected-resource/mcp"
+assert_status 200 "http://127.0.0.1:${listen_port}/.well-known/acme-challenge/fixture"
 printf 'failure-first: plain /.well-known prefix reproduces OAuth discovery 404 while /mcp stays proxied\n'
 stop_nginx
 
 listen_port="$(free_port)"
 write_config "$listen_port" yes
 start_nginx
-[[ "$(status_of "http://127.0.0.1:${listen_port}/mcp")" == '200' ]]
-[[ "$(status_of "http://127.0.0.1:${listen_port}/.well-known/oauth-authorization-server")" == '200' ]]
-[[ "$(status_of "http://127.0.0.1:${listen_port}/.well-known/oauth-protected-resource")" == '200' ]]
-[[ "$(status_of "http://127.0.0.1:${listen_port}/.well-known/oauth-protected-resource/mcp")" == '200' ]]
-[[ "$(status_of "http://127.0.0.1:${listen_port}/.well-known/acme-challenge/fixture")" == '200' ]]
+assert_status 200 "http://127.0.0.1:${listen_port}/mcp"
+assert_status 200 "http://127.0.0.1:${listen_port}/.well-known/oauth-authorization-server"
+assert_status 200 "http://127.0.0.1:${listen_port}/.well-known/oauth-protected-resource"
+assert_status 200 "http://127.0.0.1:${listen_port}/.well-known/oauth-protected-resource/mcp"
+assert_status 200 "http://127.0.0.1:${listen_port}/.well-known/acme-challenge/fixture"
 printf 'candidate: exact OAuth locations override the panel prefix and preserve ACME behavior\n'
