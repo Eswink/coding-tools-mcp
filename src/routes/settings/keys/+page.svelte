@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { message } from "@tauri-apps/plugin-dialog";
   import SecretInput from "$lib/components/SecretInput.svelte";
+  import { latestRequest } from "$lib/runtime/latest-request";
   import {
     getSharedSecret,
     setSharedSecret,
@@ -28,65 +29,81 @@
 
   let secrets = $state<Record<string, string>>({});
   let originals = $state<Record<string, string>>({});
+  let loadErrors = $state<Record<string, boolean>>({});
   let loading = $state(true);
   let saving = $state(false);
   let regenerating = $state<string | null>(null);
+  let disposed = false;
+  const loadRequests = latestRequest();
+  const mutationRequests = latestRequest();
+  onDestroy(() => {
+    disposed = true;
+    loadRequests.invalidate();
+    mutationRequests.invalidate();
+    secrets = {}; originals = {};
+  });
 
-  const dirty = $derived(ALL_KEYS.some(({ key }) => secrets[key] !== undefined && secrets[key] !== originals[key]));
+  const dirty = $derived(ALL_KEYS.some(({ key }) => !loadErrors[key] && secrets[key] !== undefined && secrets[key] !== originals[key]));
+  const hasLoadErrors = $derived(Object.values(loadErrors).some(Boolean));
 
   async function loadAll() {
-    loading = true;
+    if (saving || regenerating) return;
+    const ticket = loadRequests.begin();
+    secrets = {}; originals = {}; loadErrors = {}; loading = true;
     try {
-      const results = await Promise.all(
-        ALL_KEYS.map(async ({ key }) => {
-          let value = "";
-          try {
-            value = (await getSharedSecret(key)) ?? "";
-          } catch {
-            // Individual key load failure — show empty for this key
-            // rather than failing the entire page.
-          }
-          return [key, value] as const;
-        }),
-      );
-      for (const [key, value] of results) {
-        secrets[key] = value;
-        originals[key] = value;
+      const results = await Promise.all(ALL_KEYS.map(async ({ key }) => {
+        try { return { key, ok: true as const, value: (await getSharedSecret(key)) ?? "" }; }
+        catch { return { key, ok: false as const, value: "" }; }
+      }));
+      if (disposed || !loadRequests.current(ticket)) return;
+      const nextSecrets: Record<string, string> = {};
+      const nextOriginals: Record<string, string> = {};
+      const nextErrors: Record<string, boolean> = {};
+      for (const result of results) {
+        if (result.ok) nextSecrets[result.key] = nextOriginals[result.key] = result.value;
+        else nextErrors[result.key] = true;
       }
+      secrets = nextSecrets; originals = nextOriginals; loadErrors = nextErrors;
     } finally {
-      loading = false;
+      if (!disposed && loadRequests.current(ticket)) loading = false;
     }
   }
 
   async function regenerate(key: SharedSecretKey) {
-    if (regenerating) return;
+    if (regenerating || saving || loading || loadErrors[key]) return;
+    const ticket = mutationRequests.begin();
     regenerating = key;
     try {
       const value = await regenerateSharedSecret(key);
-      secrets[key] = value;
-      // Keep originals stale so the "保存更改" button lights up,
-      // giving the user visible confirmation before we navigate away.
-      // saveAll will write the same value (idempotent) and update originals.
+      if (!disposed && mutationRequests.current(ticket)) {
+        // Regeneration is already persisted and applied by the backend.
+        secrets = { ...secrets, [key]: value };
+        originals = { ...originals, [key]: value };
+        const nextErrors = { ...loadErrors }; delete nextErrors[key]; loadErrors = nextErrors;
+      }
     } catch (e) {
-      await message(String(e), { title: "重新生成失败", kind: "error" });
+      if (!disposed && mutationRequests.current(ticket)) await message(String(e), { title: "重新生成失败", kind: "error" });
     } finally {
-      regenerating = null;
+      if (!disposed && mutationRequests.current(ticket)) regenerating = null;
     }
   }
 
   async function saveAll() {
+    if (saving || loading || regenerating || hasLoadErrors || !dirty) return;
+    const ticket = mutationRequests.begin();
     saving = true;
     try {
       for (const { key } of ALL_KEYS) {
-        if (secrets[key] !== undefined && secrets[key] !== originals[key]) {
+        if (!mutationRequests.current(ticket) || disposed) throw new Error("页面状态已变化，请重新保存。");
+        if (!loadErrors[key] && secrets[key] !== undefined && secrets[key] !== originals[key]) {
           await setSharedSecret(key, secrets[key]);
-          originals[key] = secrets[key];
+          if (mutationRequests.current(ticket) && !disposed) originals = { ...originals, [key]: secrets[key] };
         }
       }
     } catch (e) {
-      await message(String(e), { title: "保存失败", kind: "error" });
+      if (!disposed && mutationRequests.current(ticket)) await message(String(e), { title: "保存失败", kind: "error" });
     } finally {
-      saving = false;
+      if (!disposed && mutationRequests.current(ticket)) saving = false;
     }
   }
 
@@ -104,6 +121,12 @@
   </header>
 
   <div class="page-body flex flex-col gap-6">
+    {#if hasLoadErrors}
+      <div class="grid gap-2 rounded-md border border-red-300/50 p-3 text-sm text-red-600">
+        <span>部分共享密钥读取失败。失败项已锁定且不会显示为空值，也不会被保存覆盖。</span>
+        <button type="button" class="tx-btn-ghost justify-self-start" onclick={() => void loadAll()}>重新读取全部密钥</button>
+      </div>
+    {/if}
     <div class="flex flex-col gap-6">
       <!-- MCP keys -->
       <div class="tx-card p-4">
@@ -117,10 +140,11 @@
                 <span class="text-xs text-[var(--color-text-muted)]">{label}</span>
                 <SecretInput
                   bind:value={secrets[key]}
-                  disabled={loading}
+                  disabled={loading || !!loadErrors[key] || saving}
                   onRegenerate={() => regenerate(key)}
                   regenerating={regenerating === key}
                 />
+                {#if loadErrors[key]}<span class="text-xs text-red-600">读取失败，禁止编辑/复制。</span>{/if}
               </div>
             {/each}
           </div>
@@ -139,10 +163,11 @@
                 <span class="text-xs text-[var(--color-text-muted)]">{label}</span>
                 <SecretInput
                   bind:value={secrets[key]}
-                  disabled={loading}
+                  disabled={loading || !!loadErrors[key] || saving}
                   onRegenerate={() => regenerate(key)}
                   regenerating={regenerating === key}
                 />
+                {#if loadErrors[key]}<span class="text-xs text-red-600">读取失败，禁止编辑/复制。</span>{/if}
               </div>
             {/each}
           </div>
@@ -154,7 +179,7 @@
       <button
         type="button"
         class="rounded-md bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-        disabled={!dirty || saving}
+        disabled={!dirty || saving || loading || !!regenerating || hasLoadErrors}
         onclick={() => saveAll()}
       >
         {saving ? "保存中…" : "保存更改"}
