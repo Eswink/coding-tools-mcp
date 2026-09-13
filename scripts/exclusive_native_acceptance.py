@@ -45,6 +45,37 @@ def modal_open(session):
     return session.execute("return !!document.querySelector('dialog[aria-labelledby=global-approval-title][open]')")
 
 
+def open_candidate_dialog(session, fingerprint):
+    """Open only this candidate; never replay a click or a permission decision.
+
+    A foreground invalidation can open the native modal between the initial
+    observation and the inbox click. WebKit then correctly reports that the
+    obscured inbox is not interactable. Accept only that narrow driver result
+    when a readback proves the expected modal is already open.
+    """
+    def target_open():
+        return session.execute("""
+            const dialog = document.querySelector('dialog[aria-labelledby=global-approval-title][open]');
+            return !!dialog && dialog.querySelector('code')?.textContent === arguments[0];
+        """, fingerprint) is True
+
+    if not target_open():
+        try:
+            legacy.click(session, "//button[contains(@class,'approval-inbox')]")
+        except RuntimeError as error:
+            prefix = 'HTTP 400: '
+            code = None
+            if str(error).startswith(prefix):
+                try:
+                    value = json.loads(str(error)[len(prefix):])
+                    code = value.get('value', {}).get('error')
+                except (ValueError, AttributeError):
+                    pass
+            if code not in ('element not interactable', 'element click intercepted') or not target_open():
+                raise
+    gui.wait_for(target_open)
+
+
 def candidate(session, base, token, chat, scopes):
     first = rpc(base, token, chat, 'request_chat_authorization', {'scopes': scopes})
     assert first.get('ok') is True and first['authorization']['status'] == 'pending'
@@ -52,10 +83,7 @@ def candidate(session, base, token, chat, scopes):
     again = rpc(base, token, chat, 'request_chat_authorization', {'scopes': scopes})
     assert again['authorization'] == grant, 'retry must not change pending scope or deadline'
     gui.wait_for(lambda: inbox(session), lambda value: len(value['pending']) == 1)
-    # A native window not focused by its desktop may use the explicit inbox button.
-    if not modal_open(session):
-        legacy.click(session, "//button[contains(@class,'approval-inbox')]")
-    gui.wait_for(lambda: modal_open(session))
+    open_candidate_dialog(session, grant['fingerprint'])
     assert grant['fingerprint'] in session.body()
     assert session.execute("return document.querySelector('.approval-dialog .verify input').checked") is False
     assert session.execute("return document.querySelector('.approval-dialog footer .tx-btn-primary').disabled") is True
@@ -224,8 +252,7 @@ def run(args):
         time.sleep(1)
         assert len(inbox(session)['pending']) == 1
         session.invoke('show_main_window')
-        if not modal_open(session): legacy.click(session, "//button[contains(@class,'approval-inbox')]")
-        gui.wait_for(lambda: modal_open(session))
+        open_candidate_dialog(session, pending['authorization']['fingerprint'])
         assert session.execute("return document.querySelector('.approval-dialog .verify input').checked") is False
         session.screenshot(output / 'native-background-inbox.png')
         # Exercise the real backend deadline; never change its clock or policy.

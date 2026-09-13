@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from exclusive_native_gate import SCENARIO, TEST_NAMES, load, verify
 from native_scenario import script_name
+from exclusive_native_dialog_tests import NativeDialogRace
 
 SOURCE, RUN, VERSION, DIGEST = 'a' * 40, '123', '0.4.0', 'b' * 64
 
