@@ -21,3 +21,9 @@ Manual impact is limited to exclusive_native_acceptance.candidate and the backgr
 5. Preserve v0.3.2, its tag/assets, PR#11 and live Nginx. No macOS. Verify the published package bytes by anonymous download and record final SHA256/source SHA/run IDs.
 
 Status: round19 candidate awaiting changed-source/native CI. No new publication in this continuation yet.
+
+## Round 20A — Await the actual revoke result
+
+Run34757864939 at85587e87 passes the previously failing foreground modal stage and stages1–8 on Ubuntu, including100 foreign requests, refresh continuity and live-child draining. It then fails when immediately requesting candidate C after a native revoke click. WebDriver click return does not await the asynchronous Svelte IPC mutation. The captured UI subsequently shows B already revoked, consistent with this timing boundary. Windows is not used to waive the faster WebKit path.
+
+The native helper now waits for an authoritative read-only snapshot with no pending/active records after its ONE revoke click. It does not invoke revoke via IPC, retry a mutation, change server timing, or infer that draining tasks ended. The existing separate task-cancellation/free-state assertion remains. Two deterministic contracts cover delayed completion and draining semantics; local19/19 pass. Candidate failures now expose only their machine code in assertions, never tokens. Changed-source installed tests are required again.

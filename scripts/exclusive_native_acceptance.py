@@ -78,7 +78,7 @@ def open_candidate_dialog(session, fingerprint):
 
 def candidate(session, base, token, chat, scopes):
     first = rpc(base, token, chat, 'request_chat_authorization', {'scopes': scopes})
-    assert first.get('ok') is True and first['authorization']['status'] == 'pending'
+    assert first.get('ok') is True and first['authorization']['status'] == 'pending', first.get('error', {}).get('code', 'unexpected candidate status')
     grant = first['authorization']
     again = rpc(base, token, chat, 'request_chat_authorization', {'scopes': scopes})
     assert again['authorization'] == grant, 'retry must not change pending scope or deadline'
@@ -108,6 +108,10 @@ def decide(session, base, token, chat, *, approve=True, drop_scope=None):
 def revoke(session, profile):
     visit(session, profile)
     legacy.click(session, PANEL + "//button[normalize-space(.)='撤销全部']")
+    # Native click completion is not completion of the Svelte async IPC handler.
+    # Read status only; never repeat the revoke click or request a successor early.
+    gui.wait_for(lambda: status(session, profile), lambda value:
+        not any(row.get('status') in ('pending', 'active') for row in value['records']))
 
 
 def scan_export(output, sensitive):

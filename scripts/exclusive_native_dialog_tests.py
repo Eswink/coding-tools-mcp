@@ -50,6 +50,29 @@ class NativeDialogRace(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.invoke([None, 'yes'], driver_error('element not interactable'))
 
+    def test_revocation_waits_for_authoritative_completion(self):
+        session = Mock(); profile = {'id': 'synthetic-profile'}
+        seen = []
+        def observe(fetch, predicate):
+            first = fetch(); seen.append(predicate(first))
+            second = fetch(); seen.append(predicate(second))
+            self.assertEqual(seen, [False, True])
+        with patch.object(native, 'visit'), patch.object(native.legacy, 'click') as click, \
+             patch.object(native, 'status', side_effect=[{'records':[{'status':'active'}]}, {'records':[{'status':'revoked'}]}]), \
+             patch.object(native.gui, 'wait_for', side_effect=observe):
+            native.revoke(session, profile)
+        self.assertEqual(click.call_count, 1)
+        session.invoke.assert_not_called()
+
+    def test_revocation_does_not_claim_that_draining_work_has_ended(self):
+        session = Mock(); profile = {'id': 'synthetic-profile'}
+        snapshot = {'records':[{'status':'revoked'}], 'lease_state':'draining'}
+        with patch.object(native, 'visit'), patch.object(native.legacy, 'click'), \
+             patch.object(native, 'status', return_value=snapshot), \
+             patch.object(native.gui, 'wait_for', side_effect=lambda fetch, predicate: self.assertTrue(predicate(fetch()))):
+            native.revoke(session, profile)
+        session.invoke.assert_not_called()
+
     def test_source_routes_both_entrypoints_through_readback(self):
         from pathlib import Path
         source = Path(native.__file__).read_text()
