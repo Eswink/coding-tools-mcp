@@ -54,6 +54,8 @@ pub(super) async fn spawn(command: &mut Command) -> io::Result<(Child, ProcessTr
     let attached = (|| {
         let raw = child.raw_handle().ok_or_else(|| io::Error::other("Missing child handle"))?;
         let id = child.id().ok_or_else(|| io::Error::other("Missing child id"))?;
+        #[cfg(test)]
+        eprintln!("managed-child-start pid={id} cwd={:?}", command.as_std().get_current_dir());
         unsafe { AssignProcessToJobObject(handle(job.0.as_ref().expect("new job")), HANDLE(raw)) }.map_err(winerr)?;
         resume_primary_thread(id)
     })();

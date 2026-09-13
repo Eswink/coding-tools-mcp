@@ -23,19 +23,15 @@ jobs:
         with:
           workspaces: src-tauri
           cache-on-failure: true
-      - name: Fixed three-sample diagnostic, never retry-until-green
+      - name: Parallel full-suite diagnostic with uncaptured child lifecycle
         shell: bash
         run: |
           set -uo pipefail
           mkdir -p evidence
           git rev-parse HEAD > evidence/source.txt
           python --version 2>&1 | tee evidence/python.txt
-          failed=0
-          for sample in 1 2 3; do
-            cargo test --locked --lib --manifest-path src-tauri/Cargo.toml auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor -- --exact --nocapture 2>&1 | tee "evidence/drain-$sample.txt"
-            if [ "${PIPESTATUS[0]}" -ne 0 ]; then failed=1; fi
-          done
-          exit "$failed"
+          set -euo pipefail
+          cargo test --locked --lib --manifest-path src-tauri/Cargo.toml -- --nocapture 2>&1 | tee evidence/parallel-drain.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
