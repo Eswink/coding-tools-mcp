@@ -39,3 +39,51 @@ jobs:
           path: evidence/
           if-no-files-found: error
           retention-days: 30
+  native-failure-first:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: candidate
+      - uses: actions/checkout@v4
+        with:
+          ref: 1c0395da4225a68a588fd60e081c506580157f71
+          persist-credentials: false
+          path: baseline
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: baseline/src-tauri
+      - name: Old code must reject the specific real-child contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          import pathlib, shutil, subprocess
+          root = pathlib.Path('baseline')
+          evidence = pathlib.Path('evidence'); evidence.mkdir()
+          native = 'src-tauri/src/tools/process_tree_windows_tests.rs'
+          shutil.copyfile(pathlib.Path('candidate') / native, root / native)
+          platform = root / 'src-tauri/src/tools/进程树Windowsv2.rs'
+          with platform.open('a', encoding='utf-8') as f:
+              f.write('\n#[cfg(test)]\n#[path = "process_tree_windows_tests.rs"]\nmod startup_tests;\n')
+          sha = subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip()
+          assert sha == '1c0395da4225a68a588fd60e081c506580157f71'
+          (evidence / 'baseline-sha.txt').write_text(sha, encoding='utf-8')
+          result = subprocess.run(['cargo', 'test', '--locked', '--lib', '--manifest-path', str(root / 'src-tauri/Cargo.toml'),
+              'tools::process_tree::platform::startup_tests::already_running_child_is_not_a_confirmed_resume', '--', '--exact', '--nocapture'],
+              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace', timeout=1200)
+          (evidence / 'native-failure-first.txt').write_text(result.stdout, encoding='utf-8')
+          print(result.stdout)
+          assert result.returncode == 101, 'Old code must fail, not accidentally pass'
+          assert 'already-running thread must not satisfy suspended startup' in result.stdout, 'Not the expected native assertion'
+          assert '0 passed; 1 failed; 0 ignored' in result.stdout, 'Do not accept compilation/dependency/cleanup failure'
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-resume-failure-first
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30

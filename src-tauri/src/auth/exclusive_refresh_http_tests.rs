@@ -111,23 +111,49 @@ async fn http_revoked_owner_drains_actual_background_process_before_successor() 
     std::fs::write(s.root.path().join("hold.py"),"import pathlib, time\npathlib.Path('started').write_text('ready')\nwhile not pathlib.Path('release').exists():\n time.sleep(.05)\nprint('drained', flush=True)\n").unwrap();
     let python=if cfg!(windows){"python"}else{"python3"};
     let job=s.rpc(access,"A","start_exec_task",json!({"cmd":format!("{python} hold.py"),"request_id":"drain-http-job","timeout_ms":10000})).await;
-    assert_eq!(job["ok"],true,"{job}");let deadline=Instant::now()+Duration::from_secs(8);
+    assert_eq!(job["ok"],true,"{job}");
+    let started_at=Instant::now();let start_deadline=started_at+Duration::from_secs(8);
+    // A trusted, read-only test observer verifies actual task termination after A
+    // is revoked. Remote A/B remain denied; this grants neither conversation rights.
+    let observer_root=tempfile::tempdir().unwrap();
+    let mut observer=crate::tools::ToolContext::for_test(s.root.path().into(),observer_root.path().into()).unwrap();
+    let query=json!({"job_id":job["job_id"],"limit":4096});
+    let mut found=false;
+    for store in crate::tools::exec_tasks::ExecTaskStore::live_for_profile(&s.profile) {
+        observer.exec_tasks=store;
+        if crate::tools::exec_tasks::get(&observer,&query).is_ok(){found=true;break;}
+    }
+    assert!(found,"submitted task must be registered before admission returns");
+    let read_task=||crate::tools::exec_tasks::get(&observer,&query).expect("authoritative local task");
     while !s.root.path().join("started").exists() {
-        if Instant::now() >= deadline {
-            // Preserve the original failure, but distinguish no start from a hidden worker failure.
-            let state = s.rpc(access,"A","get_exec_task",json!({"job_id":job["job_id"],"limit":4096})).await;
-            eprintln!("drain-startup original-deadline task={state}");
-            tokio::time::sleep(Duration::from_secs(3)).await;
-            let final_state = s.rpc(access,"A","get_exec_task",json!({"job_id":job["job_id"],"limit":4096})).await;
-            panic!("worker must really start; original 8s gate failed; marker_after_observation={}; task={final_state}",s.root.path().join("started").exists());
-        }
+        let state=read_task();
+        assert_ne!(state["terminal"],true,"worker terminated before readiness: {state}");
+        assert!(Instant::now()<start_deadline,"worker must really start within original 8s gate: {state}");
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
-    eprintln!("drain-startup ready after {}ms",Duration::from_secs(8).saturating_sub(deadline.saturating_duration_since(Instant::now())).as_millis());
+    assert_eq!(std::fs::read_to_string(s.root.path().join("started")).unwrap(),"ready");
+    eprintln!("drain-startup ready after {}ms",started_at.elapsed().as_millis());
     let service=super::chat::service();service.revoke(&s.profile,None);
     assert_eq!(service.snapshot(&s.profile)["lease_state"],"draining");
     assert_eq!(s.rpc(access,"B","request_chat_authorization",json!({})).await["error"]["code"],"CHAT_WORK_DRAINING");
     std::fs::write(s.root.path().join("release"),"").unwrap();
-    while service.snapshot(&s.profile)["lease_state"]!="free"{assert!(Instant::now()<deadline,"draining must settle after actual child exit");tokio::time::sleep(Duration::from_millis(25)).await;}
+    // Startup and drainage are separate phases. Retain the actual 10s process
+    // timeout, and never mistake its forced termination for a graceful release.
+    let drain_deadline=Instant::now()+Duration::from_secs(8);
+    let finished=loop {
+        let state=read_task();
+        if state["terminal"]==true{break state;}
+        assert!(Instant::now()<drain_deadline,"draining must settle after actual child exit: {state}");
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    };
+    assert_eq!(finished["status"],"succeeded","{finished}");
+    assert_eq!(finished["result"]["exit_code"],0,"{finished}");
+    assert_eq!(finished["result"]["output_complete"],true,"{finished}");
+    assert_eq!(finished["result"]["process_may_be_running"],false,"{finished}");
+    assert!(finished["stdout"]["text"].as_str().unwrap().contains("drained"),"{finished}");
+    while service.snapshot(&s.profile)["lease_state"]!="free" {
+        assert!(Instant::now()<drain_deadline,"successful task must release the drain fence");
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
     assert_eq!(s.rpc(access,"B","request_chat_authorization",json!({})).await["authorization"]["status"],"pending");
 }
