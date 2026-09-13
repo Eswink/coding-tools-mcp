@@ -1,0 +1,45 @@
+name: Exclusive drain-startup repair
+on:
+  push:
+    branches: ['fix/exclusive-drain-startup']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: exclusive-drain-repair-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validation:
+    uses: ./.github/workflows/exclusive-conversation.yml
+  diagnostic:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+      - name: Fixed three-sample diagnostic, never retry-until-green
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source.txt
+          python --version 2>&1 | tee evidence/python.txt
+          failed=0
+          for sample in 1 2 3; do
+            cargo test --locked --lib --manifest-path src-tauri/Cargo.toml auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor -- --exact --nocapture 2>&1 | tee "evidence/drain-$sample.txt"
+            if [ "${PIPESTATUS[0]}" -ne 0 ]; then failed=1; fi
+          done
+          exit "$failed"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exclusive-drain-diagnostic
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30

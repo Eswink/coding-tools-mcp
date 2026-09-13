@@ -73,7 +73,10 @@ fn resume_primary_thread(process_id: u32) -> io::Result<()> {
         if entry.th32OwnerProcessID == process_id {
             let raw = unsafe { OpenThread(THREAD_SUSPEND_RESUME, false, entry.th32ThreadID) }.map_err(winerr)?;
             let thread = unsafe { OwnedHandle::from_raw_handle(raw.0) };
-            if unsafe { ResumeThread(handle(&thread)) } == u32::MAX { return Err(io::Error::last_os_error()); }
+            let previous_suspend_count = unsafe { ResumeThread(handle(&thread)) };
+            #[cfg(test)]
+            eprintln!("managed-child-resume pid={process_id} tid={} previous_suspend_count={previous_suspend_count}",entry.th32ThreadID);
+            if previous_suspend_count == u32::MAX { return Err(io::Error::last_os_error()); }
             return Ok(());
         }
         if unsafe { Thread32Next(handle(&snapshot), &mut entry) }.is_err() { break; }

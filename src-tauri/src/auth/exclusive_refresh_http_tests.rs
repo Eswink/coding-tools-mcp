@@ -112,7 +112,18 @@ async fn http_revoked_owner_drains_actual_background_process_before_successor() 
     let python=if cfg!(windows){"python"}else{"python3"};
     let job=s.rpc(access,"A","start_exec_task",json!({"cmd":format!("{python} hold.py"),"request_id":"drain-http-job","timeout_ms":10000})).await;
     assert_eq!(job["ok"],true,"{job}");let deadline=Instant::now()+Duration::from_secs(8);
-    while !s.root.path().join("started").exists(){assert!(Instant::now()<deadline,"worker must really start");tokio::time::sleep(Duration::from_millis(25)).await;}
+    while !s.root.path().join("started").exists() {
+        if Instant::now() >= deadline {
+            // Preserve the original failure, but distinguish no start from a hidden worker failure.
+            let state = s.rpc(access,"A","get_exec_task",json!({"job_id":job["job_id"],"limit":4096})).await;
+            eprintln!("drain-startup original-deadline task={state}");
+            tokio::time::sleep(Duration::from_secs(3)).await;
+            let final_state = s.rpc(access,"A","get_exec_task",json!({"job_id":job["job_id"],"limit":4096})).await;
+            panic!("worker must really start; original 8s gate failed; marker_after_observation={}; task={final_state}",s.root.path().join("started").exists());
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    eprintln!("drain-startup ready after {}ms",Duration::from_secs(8).saturating_sub(deadline.saturating_duration_since(Instant::now())).as_millis());
     let service=super::chat::service();service.revoke(&s.profile,None);
     assert_eq!(service.snapshot(&s.profile)["lease_state"],"draining");
     assert_eq!(s.rpc(access,"B","request_chat_authorization",json!({})).await["error"]["code"],"CHAT_WORK_DRAINING");
