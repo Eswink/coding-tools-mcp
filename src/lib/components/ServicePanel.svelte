@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { Network, Power } from "@lucide/svelte";
+  import StatusBadge from "$lib/components/primitives/StatusBadge.svelte";
   import { validServicePort } from "$lib/runtime/configuration";
   import { showToast } from "$lib/stores/toast";
   import CopyButton from "$lib/components/CopyButton.svelte";
-  import StatusOrb from "$lib/components/StatusOrb.svelte";
+
   import type { RuntimeState } from "$lib/types";
 
   interface Props {
@@ -73,10 +75,7 @@
 <article class="tx-card p-5">
   <div class="flex items-start justify-between gap-3">
     <div class="min-w-0">
-      <div class="flex items-center gap-2">
-        <StatusOrb state={status} />
-        <h3 class="text-[15px] font-semibold tracking-tight">{title}</h3>
-      </div>
+      <div class="service-heading"><span class="service-icon" aria-hidden="true"><Network size={26} /></span><h3>{title} 服务配置</h3><StatusBadge state={status} /></div>
       <p class="mt-1 text-sm text-[var(--color-text-muted)]">{subtitle}</p>
       {#if tunnelEnabled}
         <p class="mt-1 text-xs text-[var(--color-text-muted)]">
@@ -91,6 +90,7 @@
       disabled={busy || savingPort || status === "starting" || status === "stopping"}
       onclick={onToggle}
     >
+      <Power size={18} aria-hidden="true" />
       {#if busy}
         处理中…
       {:else if running}
@@ -107,7 +107,7 @@
     </div>
   {/if}
 
-  <div class="mt-5 grid gap-3">
+  <div class="endpoint-grid">
     <div class="tx-info-block">
       <div class="tx-info-row">
         <span class="tx-info-label">端口</span>
@@ -117,6 +117,7 @@
             min="1024"
             max="65535"
             class="tx-input tx-input-inline"
+            aria-label={`${title} 服务端口`}
             bind:value={draftPort}
             onchange={commitPort}
           />
@@ -131,7 +132,7 @@
         <span class="tx-info-label">本地地址</span>
         <CopyButton value={localEndpoint} />
       </div>
-      <p class="tx-mono mt-1.5 truncate text-sm">{localEndpoint}</p>
+      <p class="tx-mono mt-1.5 break-all text-sm" title={localEndpoint}>{localEndpoint}</p>
     </div>
 
     {#if publicEndpoint || publicLabel}
@@ -142,10 +143,20 @@
             <CopyButton value={publicEndpoint} />
           {/if}
         </div>
-        <p class="tx-mono mt-1.5 truncate text-sm text-[var(--color-text-secondary)]">
+        <p class="tx-mono mt-1.5 break-all text-sm text-[var(--color-text-secondary)]">
           {publicEndpoint || "未配置隧道"}
         </p>
       </div>
     {/if}
   </div>
 </article>
+
+<style>
+  .service-heading { display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
+  .service-icon { display:grid; place-items:center; width:46px; height:46px; border-radius:12px; background:var(--primary-soft); color:var(--primary); }
+  h3 { font-size:18px; font-weight:650; }
+  .endpoint-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:20px; }
+  .tx-info-block { border:1px solid var(--card-border); min-width:0; padding:13px 16px; }
+  .tx-info-block:last-child { grid-column:1/-1; }
+  @media(max-width:1100px) { .endpoint-grid { grid-template-columns:minmax(0,1fr); } }
+</style>

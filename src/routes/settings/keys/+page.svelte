@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { Shield, Zap, AlertTriangle } from "@lucide/svelte";
+  import PageHeader from "$lib/components/layout/PageHeader.svelte";
+  import SurfaceCard from "$lib/components/primitives/SurfaceCard.svelte";
+  import { KeyRound } from "@lucide/svelte";
   import { onMount, onDestroy } from "svelte";
   import { message } from "@tauri-apps/plugin-dialog";
   import SecretInput from "$lib/components/SecretInput.svelte";
@@ -136,14 +140,7 @@
 </script>
 
 <section class="page-scroll">
-  <header class="page-header">
-    <p class="page-kicker">全局设置</p>
-    <h2 class="page-title">共享密钥</h2>
-    <p class="mt-2 max-w-2xl text-sm text-[var(--color-text-muted)]">
-      在此统一管理所有共享密钥。各工作区可以选择使用共享密钥或自己的密钥，这样 GPT 只需配置一次
-      Bearer/API Key，即可访问所有工作区。重新生成或修改密钥后，正在运行的对应服务将自动重启以生效。
-    </p>
-  </header>
+  <div class="page-header"><PageHeader title="共享密钥" description="全局凭据管理。工作区可独立选择共享或私有密钥；OAuth 连接不替代本机聊天审批。">{#snippet icon()}<KeyRound size={30} />{/snippet}</PageHeader></div>
 
   <div class="page-body flex flex-col gap-6">
     {#if hasLoadErrors}
@@ -154,16 +151,17 @@
     {/if}
     <div class="flex flex-col gap-6">
       <!-- MCP keys -->
-      <div class="tx-card p-4">
-        <h3 class="text-sm font-semibold">MCP 认证密钥</h3>
+      <SurfaceCard title="MCP 认证密钥" description="客户端身份、授权口令、签名密钥各自独立，不应互换。">
+        {#snippet icon()}<Shield size={24} />{/snippet}
         {#if loading}
           <p class="mt-4 text-sm text-[var(--color-text-muted)]">加载中…</p>
         {:else}
           <div class="mt-4 grid gap-4">
             {#each MCP_KEYS as { key, label }}
-              <div class="grid gap-1">
+              <div class="credential-row">
                 <span class="text-xs text-[var(--color-text-muted)]">{label}</span>
                 <SecretInput
+                  label={label}
                   bind:value={secrets[key]}
                   disabled={loading || !!loadErrors[key] || saving || !!regenerating}
                   onRegenerate={() => regenerate(key)}
@@ -174,19 +172,20 @@
             {/each}
           </div>
         {/if}
-      </div>
+      </SurfaceCard>
 
       <!-- Actions keys -->
-      <div class="tx-card p-4">
-        <h3 class="text-sm font-semibold">Actions 认证密钥</h3>
+      <SurfaceCard title="Actions 认证密钥" description="仅用于 Actions 网关，不代表 MCP 聊天授权。">
+        {#snippet icon()}<Zap size={24} />{/snippet}
         {#if loading}
           <p class="mt-4 text-sm text-[var(--color-text-muted)]">加载中…</p>
         {:else}
           <div class="mt-4 grid gap-4">
             {#each ACTIONS_KEYS as { key, label }}
-              <div class="grid gap-1">
+              <div class="credential-row">
                 <span class="text-xs text-[var(--color-text-muted)]">{label}</span>
                 <SecretInput
+                  label={label}
                   bind:value={secrets[key]}
                   disabled={loading || !!loadErrors[key] || saving || !!regenerating}
                   onRegenerate={() => regenerate(key)}
@@ -197,13 +196,14 @@
             {/each}
           </div>
         {/if}
-      </div>
+      </SurfaceCard>
     </div>
 
+    <div class="key-notice"><AlertTriangle size={20} aria-hidden="true" /><p>修改共享凭据会影响使用它们的工作区，并可能重启对应服务。不要把密钥、授权口令发送到聊天或截图中。</p></div>
     <div class="flex justify-end">
       <button
         type="button"
-        class="rounded-md bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+        class="tx-btn-primary"
         disabled={!dirty || saving || loading || !!regenerating || hasLoadErrors}
         onclick={() => saveAll()}
       >
@@ -212,3 +212,11 @@
     </div>
   </div>
 </section>
+
+<style>
+  .credential-row { display:grid; grid-template-columns:minmax(180px,.7fr) minmax(0,1.3fr); align-items:center; gap:12px; padding:12px; border:1px solid var(--card-border); border-radius:10px; }
+  .credential-row>span:first-child { font-size:13px; color:var(--text-main); font-weight:600; }
+  .key-notice { display:flex; gap:12px; align-items:flex-start; background:var(--warning-soft); color:var(--warning); border-radius:12px; padding:16px; font-size:13px; }
+  .key-notice :global(svg) { flex-shrink:0; }
+  @media(max-width:1100px) { .credential-row { grid-template-columns:minmax(0,1fr); } }
+</style>

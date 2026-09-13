@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { Download, Boxes } from "@lucide/svelte";
+  import PageHeader from "$lib/components/layout/PageHeader.svelte";
+  import SurfaceCard from "$lib/components/primitives/SurfaceCard.svelte";
+  import { Package } from "@lucide/svelte";
   import { onMount } from "svelte";
   import { message } from "@tauri-apps/plugin-dialog";
   import type { DownloadConfig, SoftwareStatus } from "$lib/api/software";
@@ -71,67 +75,30 @@
 </script>
 
 <section class="page-scroll">
-  <header class="page-header">
-    <p class="page-kicker">全局设置</p>
-    <h2 class="page-title">软件管理</h2>
-    <p class="mt-2 max-w-2xl text-sm text-[var(--color-text-muted)]">
-      在此安装或卸载 frpc 和 cloudflared 隧道客户端。安装的软件会放入应用缓存目录，可统一管理。
-    </p>
-  </header>
+  <div class="page-header"><PageHeader title="软件管理" description="管理真实检测到的隧道客户端和下载设置；内嵌 MCP/Actions 随桌面应用一起更新。">{#snippet icon()}<Package size={30} />{/snippet}</PageHeader></div>
 
   <div class="page-body flex flex-col gap-6">
-    <!-- Binary status -->
-    <div class="tx-card p-4">
-      <h3 class="text-sm font-semibold">状态</h3>
-      {#if loading}
-        <p class="mt-4 text-sm text-[var(--color-text-muted)]">加载中…</p>
-      {:else if software.length === 0}
-        <p class="mt-4 text-sm text-[var(--color-text-muted)]">暂无信息。</p>
+    <SurfaceCard title="本地依赖与隧道组件" description="仅显示后端实际返回的软件。已安装不等于当前运行中。">
+      {#snippet icon()}<Boxes size={24} />{/snippet}
+      {#if loading}<p role="status">加载中…</p>
+      {:else if software.length === 0}<p class="text-sm text-[var(--text-secondary)]">暂无信息。</p>
       {:else}
-        <ul class="mt-4 space-y-2">
-          {#each software as s (s.kind)}
-            <li class="tx-panel flex items-center justify-between gap-3 px-3 py-2">
-              <div class="min-w-0">
-                <p class="text-sm font-medium">{s.name}</p>
-                <p class="font-mono text-xs text-[var(--color-text-muted)]">
-                  {s.installed ? s.path : "未安装"}
-                  · {s.managed ? "可管理" : "系统安装"}
-                </p>
-              </div>
-              <div class="flex shrink-0 gap-2">
-                {#if s.installed}
-                  {#if s.managed}
-                    <button
-                      type="button"
-                      class="text-xs text-red-400 hover:underline disabled:opacity-50"
-                      disabled={uninstalling === s.kind}
-                      onclick={() => uninstall(s.kind)}
-                    >
-                      {uninstalling === s.kind ? "卸载中…" : "卸载"}
-                    </button>
-                  {:else}
-                    <span class="text-xs text-[var(--color-text-muted)]">系统安装</span>
-                  {/if}
-                {:else}
-                  <button
-                    type="button"
-                    class="text-xs text-[var(--color-accent)] hover:underline disabled:opacity-50"
-                    disabled={installing === s.kind}
-                    onclick={() => install(s.kind)}
-                  >
-                    {installing === s.kind ? "安装中…" : "安装"}
-                  </button>
-                {/if}
-              </div>
-            </li>
-          {/each}
-        </ul>
+        <div class="software-table" role="region" aria-label="软件安装状态">
+          <table><thead><tr><th scope="col">软件名称</th><th scope="col">安装路径</th><th scope="col">状态</th><th scope="col">来源</th><th scope="col">操作</th></tr></thead>
+          <tbody>{#each software as s (s.kind)}<tr>
+            <th scope="row">{s.name}</th><td class="path-cell">{s.installed ? s.path : "—"}</td>
+            <td><span class:installed={s.installed} class="install-state">{s.installed ? "已安装" : "未安装"}</span></td>
+            <td>{s.managed ? "应用管理" : s.installed ? "系统安装" : "—"}</td>
+            <td>{#if s.installed}{#if s.managed}<button type="button" class="tx-btn-ghost tx-btn-destructive" disabled={!!uninstalling || !!installing} onclick={() => uninstall(s.kind)}>{uninstalling === s.kind ? "卸载中…" : "卸载"}</button>{:else}<span class="text-xs text-[var(--text-secondary)]">由系统管理</span>{/if}
+            {:else}<button type="button" class="tx-btn-primary" disabled={!!installing || !!uninstalling} onclick={() => install(s.kind)}>{installing === s.kind ? "安装中…" : "安装"}</button>{/if}</td>
+          </tr>{/each}</tbody></table>
+        </div>
       {/if}
-    </div>
+    </SurfaceCard>
 
     <!-- Download config -->
-    <div class="tx-card p-4">
-      <h3 class="text-sm font-semibold">下载设置</h3>
+    <SurfaceCard title="下载设置" description="用于下载隧道客户端，不更改工作区服务的代理配置。">
+      {#snippet icon()}<Download size={24} />{/snippet}
       <form
         class="mt-4 grid gap-3"
         onsubmit={(e) => { e.preventDefault(); void saveConfig(); }}
@@ -150,7 +117,7 @@
         <label class="grid gap-1">
           <span class="text-xs text-[var(--color-text-muted)]">代理模式</span>
           <select
-            class="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-sm"
+            class="tx-select"
             bind:value={downloadConfig.proxyMode}
             onchange={() => (configChanged = true)}
           >
@@ -174,13 +141,24 @@
         <div class="flex justify-end pt-1">
           <button
             type="submit"
-            class="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            class="tx-btn-primary"
             disabled={!configChanged}
           >
             保存设置
           </button>
         </div>
       </form>
-    </div>
+    </SurfaceCard>
   </div>
 </section>
+
+<style>
+  .software-table { max-width:100%; overflow-x:auto; border:1px solid var(--card-border); border-radius:10px; }
+  table { width:100%; text-align:left; font-size:13px; border-collapse:collapse; }
+  th,td { padding:15px 14px; border-bottom:1px solid var(--card-border); }
+  thead { background:var(--field-bg); font-size:12px; }
+  tbody tr:last-child th,tbody tr:last-child td { border-bottom:0; }
+  .path-cell { font-family:Consolas,monospace; overflow-wrap:anywhere; min-width:160px; max-width:380px; color:var(--text-secondary); }
+  .install-state { display:inline-flex; padding:4px 10px; background:var(--field-bg); border-radius:999px; white-space:nowrap; }
+  .installed { color:var(--success); background:var(--success-soft); }
+</style>

@@ -1,4 +1,9 @@
 <script lang="ts">
+  import AppearanceSettings from "$lib/components/settings/AppearanceSettings.svelte";
+  import { Network, MemoryStick, Package } from "@lucide/svelte";
+  import PageHeader from "$lib/components/layout/PageHeader.svelte";
+  import SurfaceCard from "$lib/components/primitives/SurfaceCard.svelte";
+  import { Settings } from "@lucide/svelte";
   import { onMount } from "svelte";
   import { ask, message } from "@tauri-apps/plugin-dialog";
   import { ExternalLink, RefreshCw } from "@lucide/svelte";
@@ -109,24 +114,19 @@
 </script>
 
 <section class="page-scroll">
-  <header class="page-header">
-    <p class="page-kicker">全局设置</p>
-    <h2 class="page-title">通用</h2>
-    <p class="mt-2 max-w-2xl text-sm text-[var(--color-text-muted)]">
-      配置全局网络代理，并查看应用版本与官方仓库入口。
-    </p>
-  </header>
+  <div class="page-header"><PageHeader title="通用设置" description="配置应用外观、网络代理和界面维护，查看当前版本。">{#snippet icon()}<Settings size={30} />{/snippet}</PageHeader></div>
 
-  <div class="page-body flex flex-col gap-6">
-    <div class="tx-card p-4">
-      <h3 class="text-sm font-semibold">关于</h3>
+  <div class="page-body settings-grid">
+    <AppearanceSettings />
+    <SurfaceCard title="版本与更新" description="从官方仓库查看发行说明和安装包。">
+      {#snippet icon()}<Package size={24} />{/snippet}
       <p class="mt-1 text-xs text-[var(--color-text-muted)]">
         当前版本 v{APP_VERSION}。仓库与新版本安装包都在 GitHub Releases。
       </p>
       <div class="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-sm"
+          class="tx-btn-ghost"
           onclick={() => void openLink(REPO_URL, "无法打开仓库")}
         >
           <ExternalLink size={14} strokeWidth={2} />
@@ -134,7 +134,7 @@
         </button>
         <button
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-sm"
+          class="tx-btn-ghost"
           onclick={() => void openLink(RELEASES_LATEST_URL, "无法打开 Releases")}
         >
           <ExternalLink size={14} strokeWidth={2} />
@@ -142,7 +142,7 @@
         </button>
         <button
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+          class="tx-btn-primary"
           disabled={checkingUpdate}
           onclick={() => void handleCheckUpdate()}
         >
@@ -150,10 +150,10 @@
           {checkingUpdate ? "检查中…" : "检查更新"}
         </button>
       </div>
-    </div>
+    </SurfaceCard>
 
-    <div class="tx-card p-4">
-      <h3 class="text-sm font-semibold">界面内存</h3>
+    <SurfaceCard title="界面内存" description="仅维护界面进程，不停止后台服务。">
+      {#snippet icon()}<MemoryStick size={24} />{/snippet}
       <p class="mt-1 text-xs text-[var(--color-text-muted)]">
         长时间运行后 WebView 可能占用较高内存。释放会重建界面进程，不会停止 MCP 或隧道。
       </p>
@@ -163,14 +163,14 @@
       <div class="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-sm"
+          class="tx-btn-ghost"
           onclick={() => void refreshMemoryHint()}
         >
           刷新占用
         </button>
         <button
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+          class="tx-btn-primary"
           disabled={releasingUi}
           onclick={() => void handleReleaseUiMemory()}
         >
@@ -178,10 +178,10 @@
           {releasingUi ? "刷新中…" : "释放界面内存"}
         </button>
       </div>
-    </div>
+    </SurfaceCard>
 
-    <div class="tx-card p-4">
-      <h3 class="text-sm font-semibold">网络代理</h3>
+    <SurfaceCard title="代理与网络" description="配置应用访问外部服务所使用的代理。">
+      {#snippet icon()}<Network size={24} />{/snippet}
       <form
         class="mt-4 grid gap-3"
         onsubmit={(e) => { e.preventDefault(); void save(); }}
@@ -189,7 +189,7 @@
         <label class="grid gap-1">
           <span class="text-xs text-[var(--color-text-muted)]">代理模式</span>
           <select
-            class="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-sm"
+            class="tx-select"
             bind:value={proxy.mode}
             onchange={handleChange}
           >
@@ -218,13 +218,13 @@
         <div class="flex justify-end pt-1">
           <button
             type="submit"
-            class="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            class="tx-btn-primary"
             disabled={!changed || saving}
           >
             {saving ? "保存中…" : "保存设置"}
           </button>
         </div>
       </form>
-    </div>
+    </SurfaceCard>
   </div>
 </section>

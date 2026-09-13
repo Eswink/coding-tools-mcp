@@ -1,41 +1,13 @@
 <script lang="ts">
   import { Moon, Sun } from "@lucide/svelte";
   import { onMount } from "svelte";
-
-  let dark = $state(true);
-
-  onMount(() => {
-    const stored = localStorage.getItem("theme");
-    if (stored === "light" || stored === "dark") {
-      dark = stored === "dark";
-    } else {
-      dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    }
-    apply();
-  });
-
-  function apply() {
-    const theme = dark ? "dark" : "light";
-    document.documentElement.setAttribute("data-theme", theme);
-    document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("theme", theme);
-  }
-
-  function toggle() {
-    dark = !dark;
-    apply();
-  }
+  import { initializeTheme, effectiveTheme, toggleTheme } from "$lib/stores/theme";
+  onMount(initializeTheme);
 </script>
-
-<button
-  type="button"
-  class="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/10 bg-white/5 text-[#c5d0ea] transition-colors hover:bg-white/10"
-  onclick={toggle}
-  aria-label="切换主题"
->
-  {#if dark}
-    <Sun size={16} />
-  {:else}
-    <Moon size={16} />
-  {/if}
+<button type="button" class="theme-toggle" onclick={toggleTheme} aria-label="切换主题" title={$effectiveTheme === "dark" ? "切换为浅色" : "切换为深色"}>
+  {#if $effectiveTheme === "dark"}<Sun size={19} aria-hidden="true" />{:else}<Moon size={19} aria-hidden="true" />{/if}
 </button>
+<style>
+  .theme-toggle { display:grid; place-items:center; width:42px; height:42px; flex-shrink:0; border-radius:12px; border:1px solid #44587c; background:#213958; color:#d6e5ff; cursor:pointer; }
+  .theme-toggle:hover { background:#304a70; }
+</style>

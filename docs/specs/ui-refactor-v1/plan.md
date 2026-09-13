@@ -1,9 +1,9 @@
 # Coding Tools MCP UI Refactor v1 — Execution Plan
 
-Status: **PROPOSED / AWAITING USER APPROVAL**  
-Planning baseline: **v0.4.0 / main `5b1265f6905e2953e32000797a62cfd2f16baa48`**  
-Target platforms: **Windows x64 + Ubuntu 22.04/24.04 amd64**  
-Implementation is intentionally **not started** by this plan.
+Status: **APPROVED / IMPLEMENTING — acceptance pending**
+Planning baseline: **v0.4.0 / main `5b1265f6905e2953e32000797a62cfd2f16baa48`**
+Target platforms: **Windows x64 + Ubuntu 22.04/24.04 amd64**
+User approved implementation after this plan was saved. Progress and remaining gates are tracked in [iterations.md](iterations.md); visual approval remains required before merge/release.
 
 ## 1. Goal
 

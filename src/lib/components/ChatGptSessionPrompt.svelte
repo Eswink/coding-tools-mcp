@@ -51,16 +51,16 @@
 </script>
 
 <section
-  class="rounded-[12px] border border-[var(--color-border)] bg-[var(--card-bg)] px-3 py-2.5 sm:px-4"
+  class="tx-card p-5"
   aria-labelledby="chatgpt-session-prompt-title"
 >
   <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
     <div class="flex min-w-0 items-center gap-3">
       <span
-        class="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--primary-soft)] text-[var(--primary)]"
+        class="flex size-11 shrink-0 items-center justify-center rounded-[10px] bg-[var(--primary-soft)] text-[var(--primary)]"
         aria-hidden="true"
       >
-        <History size={16} />
+        <History size={22} />
       </span>
       <div class="min-w-0">
         <h3 id="chatgpt-session-prompt-title" class="text-sm font-semibold text-[var(--color-text)]">

@@ -1,31 +1,19 @@
 <script lang="ts">
+  import { Box, Trash2 } from "@lucide/svelte";
+  import PageHeader from "$lib/components/layout/PageHeader.svelte";
+  import StatusBadge from "$lib/components/primitives/StatusBadge.svelte";
+  import ServiceSwitcher from "$lib/components/workspace/ServiceSwitcher.svelte";
+  import WorkspaceServiceView from "$lib/components/workspace/WorkspaceServiceView.svelte";
   import { defaultFrpOptions, originFromEndpoint } from "$lib/固定入口";
   import { onDestroy } from "svelte";
   import { applyAndRefresh, forCurrentWorkspace } from "$lib/runtime/configuration";
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
-  import ActionsAuthForm from "$lib/components/ActionsAuthForm.svelte";
-  import ActionsPolicyForm, {
-    type ActionsPolicyDraft,
-  } from "$lib/components/ActionsPolicyForm.svelte";
-  import AuthConfigForm from "$lib/components/AuthConfigForm.svelte";
-  import RemoteSessionSettings from "$lib/components/RemoteSessionSettings.svelte";
+  import { type ActionsPolicyDraft } from "$lib/components/ActionsPolicyForm.svelte";
   import ChatAuthorizationPanel from "$lib/components/聊天授权面板v1.svelte";
-  import TaskPanel from "$lib/components/异步任务面板v2.svelte";
-  import HealthPanel from "$lib/components/HealthPanel.svelte";
-  import LogViewer from "$lib/components/LogViewer.svelte";
-  import RuntimePolicyForm, {
-    type RuntimePolicyDraft,
-  } from "$lib/components/RuntimePolicyForm.svelte";
+  import { type RuntimePolicyDraft } from "$lib/components/RuntimePolicyForm.svelte";
   import ChatGptSessionPrompt from "$lib/components/ChatGptSessionPrompt.svelte";
-  import ServicePanel from "$lib/components/ServicePanel.svelte";
-  import GptQuickCopy from "$lib/components/GptQuickCopy.svelte";
-  import StatusOrb from "$lib/components/StatusOrb.svelte";
-  import Tabs from "$lib/components/Tabs.svelte";
-  import TunnelConfigForm, {
-    type TunnelFormConfig,
-    type SaveTunnelOptions,
-  } from "$lib/components/TunnelConfigForm.svelte";
+  import { type TunnelFormConfig, type SaveTunnelOptions } from "$lib/components/TunnelConfigForm.svelte";
   import WorkspaceMetaForm from "$lib/components/WorkspaceMetaForm.svelte";
   import {
     deleteWorkspace,
@@ -47,11 +35,7 @@
   import {
     actionsConfig,
     actionsLocalEndpoint,
-    actionsOAuthAuthorizeUrl,
-    actionsOAuthTokenUrl,
     actionsOpenApiUrl,
-    actionsPrivacyUrl,
-    frpPublicUrl,
     mcpLocalEndpoint,
     type AuthConfig,
     type ActionsAuthDraft,
@@ -74,6 +58,19 @@
   let actionsLocal = $state("");
   let actionsPublic = $state("");
   let frpProfiles = $state<FrpProfileDto[]>([]);
+
+  let serviceView = $state<WorkspaceServiceView>();
+  let switchingService = $state(false);
+  async function changeService(next: ServiceTab) {
+    if (next === activeService || switchingService || configurationBusy || mcpBusy || actionsBusy) return;
+    const id = workspaceId;
+    const view = serviceView;
+    switchingService = true;
+    try {
+      if (view && !await view.requestLeave()) return;
+      if (!disposed && id === workspaceId && view === serviceView && !configurationBusy && !mcpBusy && !actionsBusy) activeService = next;
+    } finally { switchingService = false; }
+  }
 
   let activeService = $state<ServiceTab>("mcp");
   let mcpSubTab = $state<SubTab>("config");
@@ -100,12 +97,6 @@
     } finally { configurationBusy = false; }
   }
 
-  const subTabs = [
-    { value: "config", label: "配置" },
-    { value: "logs", label: "日志" },
-    { value: "tasks", label: "异步任务" },
-    { value: "health", label: "健康" },
-  ];
 
   const workspaceId = $derived($page.params.id);
   const actions = $derived(profile ? actionsConfig(profile) : null);
@@ -140,20 +131,6 @@
     use_proxy: actions?.use_proxy ?? true,
   });
 
-  function stateLabel(state: RuntimeState): string {
-    switch (state) {
-      case "running":
-        return "运行中";
-      case "starting":
-        return "启动中";
-      case "stopping":
-        return "停止中";
-      case "error":
-        return "错误";
-      default:
-        return "已停止";
-    }
-  }
 
   function applyMcpRuntime(
     runtime: { state: RuntimeState; localEndpoint: string; publicEndpoint: string; localMessage?: string },
@@ -473,237 +450,44 @@
 
 {#if profile && actions}
   {#key profile.id}
-  <section class="page-scroll">
-    <header class="page-header">
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <p class="page-kicker">工作区</p>
-          <h2 class="page-title">{profile.name}</h2>
-        </div>
-        <button
-          type="button"
-          class="tx-btn-ghost text-[var(--danger)]"
-          disabled={configurationBusy || mcpBusy || actionsBusy}
-          onclick={() => void removeWorkspace()}
-        >
-          删除工作区
-        </button>
-      </div>
-
-      <div class="mt-4">
-        <WorkspaceMetaForm
-          workspaceId={profile.id}
-          name={profile.name}
-          path={profile.path}
-          onSave={bindWorkspace(profile.id, saveWorkspaceName)}
-          onUpdatePath={bindWorkspace(profile.id, saveWorkspacePath)}
-        />
-      </div>
-
-      <div class="mt-4">
-        <ChatGptSessionPrompt />
-        {#key profile.id}<ChatAuthorizationPanel workspaceId={profile.id} />{/key}
-      </div>
-
-      <div class="mt-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          class="tx-status-pill"
-          class:active={activeService === "mcp"}
-          onclick={() => (activeService = "mcp")}
-        >
-          <StatusOrb state={mcpStatus} />
-          <span class="font-medium">MCP</span>
-          <span class="text-[var(--color-text-muted)]">{stateLabel(mcpStatus)}</span>
-        </button>
-        <button
-          type="button"
-          class="tx-status-pill"
-          class:active={activeService === "actions"}
-          onclick={() => (activeService = "actions")}
-        >
-          <StatusOrb state={actionsStatus} />
-          <span class="font-medium">Actions</span>
-          <span class="text-[var(--color-text-muted)]">{stateLabel(actionsStatus)}</span>
-        </button>
-      </div>
-    </header>
-
-    <div class="page-body">
-      {#if activeService === "mcp"}
-        <div class="mt-4 flex flex-col gap-3">
-          <ServicePanel
-            title="MCP"
-            subtitle="Streamable HTTP · 工具运行时"
-            status={mcpStatus}
-            statusMessage={mcpStatusMessage}
-            port={profile.runtime.local_port}
-            portEditable={true}
-            busy={mcpBusy || configurationBusy}
-            tunnelType={profile.tunnel.type}
-            localEndpoint={mcpLocal || mcpLocalEndpoint(profile.runtime.local_port)}
-            publicEndpoint={mcpPublic}
-            publicLabel="公网 MCP"
-            onToggle={toggleMcp}
-            onPortChange={bindWorkspace(profile.id, saveMcpPort)}
-          />
-          <GptQuickCopy
-            workspaceId={workspaceId!}
-            service="mcp"
-            {profile}
-            publicMcpEndpoint={mcpPublic}
-            {frpProfiles}
-          />
-        </div>
-
-        <div class="mt-5">
-          <Tabs
-            items={subTabs}
-            value={mcpSubTab}
-            onchange={(v) => {
-              mcpSubTab = v as SubTab;
-            }}
-          />
-        </div>
-
-        {#if mcpSubTab === "config"}
-          <div class="tx-card mt-4 grid gap-6 p-5">
-            <div>
-              <p class="tx-section-label">隧道</p>
-              <TunnelConfigForm
-                workspaceId={workspaceId!}
-                service="mcp"
-                localPort={profile.runtime.local_port}
-                activePublicOrigin={originFromEndpoint(mcpPublic, "/mcp")}
-                onTested={() => load()}
-                config={mcpTunnelForm}
-                onSave={bindWorkspace(profile.id, saveMcpTunnel)}
-              />
-            </div>
-            <div>
-              <p class="tx-section-label">认证</p>
-              <AuthConfigForm
-                workspaceId={workspaceId!}
-                auth={profile.auth}
-                onSaveProfile={bindWorkspace(profile.id, saveMcpAuth)}
-              />
-            <RemoteSessionSettings workspaceId={profile.id} auth={profile.auth} onSaveProfile={bindWorkspace(profile.id, saveMcpAuth)} />
-            </div>
-            <div>
-              <p class="tx-section-label">策略</p>
-              <RuntimePolicyForm
-                toolProfile={profile.runtime.tool_profile}
-                permissionMode={profile.runtime.permission_mode}
-                allowedCommands={profile.runtime.allowed_commands ?? ""}
-                workspaceLocalEntries={profile.runtime.workspace_local_entries ?? true}
-                workspaceScriptExtensions={profile.runtime.workspace_script_extensions ?? ".exe,.bat,.cmd,.ps1"}
-                onSave={bindWorkspace(profile.id, saveMcpPolicy)}
-              />
-            </div>
-          </div>
-        {:else if mcpSubTab === "tasks"}
-          <TaskPanel workspaceId={workspaceId!} channel="mcp" maxTimeoutMs={profile.runtime.max_task_timeout_ms ?? 86400000} onBudgetSave={(ms) => saveTaskBudget("mcp", ms)} />
-        {:else if mcpSubTab === "logs"}
-          <div class="mt-4">
-            <LogViewer workspaceId={workspaceId!} service="mcp" />
-          </div>
-        {:else}
-          <div class="mt-4">
-            <HealthPanel workspaceId={workspaceId!} />
-          </div>
-        {/if}
-      {:else}
-        <div class="mt-4 flex flex-col gap-3">
-          <ServicePanel
-            title="Actions"
-            subtitle="OpenAPI 网关 · ChatGPT Actions"
-            status={actionsStatus}
-            statusMessage={actionsStatusMessage}
-            port={actions.local_port}
-            portEditable={true}
-            busy={actionsBusy || configurationBusy}
-            tunnelType={actions.tunnel_type}
-            localEndpoint={actionsLocal || actionsLocalEndpoint(actions.local_port)}
-            publicEndpoint={actionsPublic || actionsOpenApiUrl(profile, frpProfiles, actionsActiveOrigin)}
-            publicLabel="OpenAPI"
-            onToggle={toggleActions}
-            onPortChange={bindWorkspace(profile.id, saveActionsPort)}
-          />
-          <GptQuickCopy
-            workspaceId={workspaceId!}
-            service="actions"
-            publicActionsOrigin={actionsActiveOrigin}
-            {profile}
-            {frpProfiles}
-          />
-        </div>
-
-        <div class="mt-5">
-          <Tabs
-            items={subTabs}
-            value={actionsSubTab}
-            onchange={(v) => {
-              actionsSubTab = v as SubTab;
-            }}
-          />
-        </div>
-
-        {#if actionsSubTab === "config"}
-          <div class="tx-card mt-4 grid gap-6 p-5">
-            <div>
-              <p class="tx-section-label">隧道</p>
-              <TunnelConfigForm
-                workspaceId={workspaceId!}
-                service="actions"
-                localPort={actions.local_port}
-                activePublicOrigin={actionsActiveOrigin ?? ""}
-                onTested={() => load()}
-                config={actionsTunnelForm}
-                onSave={bindWorkspace(profile.id, saveActionsTunnel)}
-              />
-            </div>
-            <div>
-              <p class="tx-section-label">认证</p>
-              <ActionsAuthForm
-                workspaceId={workspaceId!}
-                authType={actions.auth_type}
-                oauthClientId={actions.oauth_client_id ?? ""}
-                oauthScopes={actions.oauth_scopes ?? ""}
-                openapiUrl={actionsOpenApiUrl(profile, frpProfiles, actionsActiveOrigin)}
-                privacyUrl={actionsPrivacyUrl(profile, frpProfiles, actionsActiveOrigin)}
-                oauthAuthorizeUrl={actionsOAuthAuthorizeUrl(profile, frpProfiles, actionsActiveOrigin)}
-                oauthTokenUrl={actionsOAuthTokenUrl(profile, frpProfiles, actionsActiveOrigin)}
-                useSharedSecrets={actions.use_shared_secrets ?? false}
-                onSave={bindWorkspace(profile.id, saveActionsAuth)}
-              />
-            </div>
-            <div>
-              <p class="tx-section-label">策略</p>
-              <ActionsPolicyForm
-                allowedCommands={actions.allowed_commands ?? ""}
-                maxPatchBytes={actions.max_patch_bytes ?? 200_000}
-                permissionMode={actions.permission_mode}
-                onSave={bindWorkspace(profile.id, saveActionsPolicy)}
-              />
-            </div>
-          </div>
-        {:else if actionsSubTab === "tasks"}
-          <TaskPanel workspaceId={workspaceId!} channel="actions" maxTimeoutMs={actions.max_task_timeout_ms ?? 86400000} onBudgetSave={(ms) => saveTaskBudget("actions", ms)} />
-        {:else if actionsSubTab === "logs"}
-          <div class="mt-4">
-            <LogViewer workspaceId={workspaceId!} service="actions" />
-          </div>
-        {:else}
-          <div class="mt-4">
-            <HealthPanel workspaceId={workspaceId!} />
-          </div>
-        {/if}
-      {/if}
+  <section class="page-scroll" aria-label="工作区详情">
+    <div class="page-header">
+      <PageHeader title={profile.name} section="工作区" description="管理工作区的服务配置、授权和运行状态">
+        {#snippet icon()}<Box size={32} />{/snippet}
+        {#snippet status()}<StatusBadge state={mcpStatus} />{/snippet}
+        {#snippet actions()}<button type="button" class="tx-btn-ghost tx-btn-destructive" disabled={configurationBusy || mcpBusy || actionsBusy} onclick={() => void removeWorkspace()}><Trash2 size={17} aria-hidden="true" />删除工作区</button>{/snippet}
+      </PageHeader>
+      <WorkspaceMetaForm workspaceId={profile.id} name={profile.name} path={profile.path}
+        onSave={bindWorkspace(profile.id, saveWorkspaceName)} onUpdatePath={bindWorkspace(profile.id, saveWorkspacePath)} />
+      <div class="mt-5"><ChatGptSessionPrompt /></div>
+      <ChatAuthorizationPanel workspaceId={profile.id} />
+      <ServiceSwitcher value={activeService} mcpState={mcpStatus} actionsState={actionsStatus}
+        disabled={switchingService || configurationBusy || mcpBusy || actionsBusy} onchange={(next) => void changeService(next)} />
     </div>
-
+    <div class="page-body">
+      {#key activeService}
+      {@const currentService = activeService}
+      <WorkspaceServiceView bind:this={serviceView} {profile} service={activeService}
+        status={activeService === "mcp" ? mcpStatus : actionsStatus} statusMessage={activeService === "mcp" ? mcpStatusMessage : actionsStatusMessage}
+        busy={configurationBusy || mcpBusy || actionsBusy}
+        localEndpoint={activeService === "mcp" ? mcpLocal || mcpLocalEndpoint(profile.runtime.local_port) : actionsLocal || actionsLocalEndpoint(actions.local_port)}
+        publicEndpoint={activeService === "mcp" ? mcpPublic : actionsPublic || actionsOpenApiUrl(profile, frpProfiles, actionsActiveOrigin)}
+        activeOrigin={actionsActiveOrigin} {frpProfiles} tunnelConfig={activeService === "mcp" ? mcpTunnelForm : actionsTunnelForm}
+        subTab={activeService === "mcp" ? mcpSubTab : actionsSubTab}
+        onTabChange={(next) => { if (currentService === "mcp") mcpSubTab = next; else actionsSubTab = next; }}
+        onToggle={activeService === "mcp" ? toggleMcp : toggleActions}
+        onPortChange={bindWorkspace(profile.id, activeService === "mcp" ? saveMcpPort : saveActionsPort)}
+        onReload={() => load()} onSaveTunnel={bindWorkspace(profile.id, activeService === "mcp" ? saveMcpTunnel : saveActionsTunnel)}
+        onSaveMcpAuth={bindWorkspace(profile.id, saveMcpAuth)} onSaveActionsAuth={bindWorkspace(profile.id, saveActionsAuth)}
+        onSaveMcpPolicy={bindWorkspace(profile.id, saveMcpPolicy)} onSaveActionsPolicy={bindWorkspace(profile.id, saveActionsPolicy)}
+        onBudgetSave={bindWorkspace(profile.id, (ms: number) => saveTaskBudget(currentService, ms))} />
+      {/key}
+    </div>
     <footer class="border-t border-[var(--color-border)] px-8 py-4 text-xs text-[var(--color-text-muted)]">
-      MCP 默认端口 28766，Actions 默认 8787，可同时运行。
+      MCP 默认端口 28766，Actions 默认 8787，可同时运行。服务运行不等于当前聊天已获授权。
     </footer>
   </section>
   {/key}
+{:else}
+  <div class="page-body" role="status">正在读取工作区…</div>
 {/if}
