@@ -1,7 +1,7 @@
 name: Exclusive conversation validation
 on:
   push:
-    branches: ['feat/exclusive-conversation-refresh']
+    branches: ['feat/exclusive-conversation-refresh', 'fix/exclusive-drain-readiness']
   workflow_dispatch:
   workflow_call:
 permissions:
@@ -87,6 +87,14 @@ jobs:
           cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/rust-tests.txt
           cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/production-warnings.txt
           git diff --exit-code
+      - name: Fixed-count real-child drain stability
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Five declared trials; any failure stops immediately. No rerun-until-green.
+          for trial in 1 2 3 4 5; do
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --lib auth::exclusive_refresh_http_tests -- --nocapture 2>&1 | tee "evidence/drain-stability-${trial}.txt"
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -6,6 +6,9 @@ use sha2::{Digest, Sha256};
 use super::{chat_fixture as fixture, PublicOrigin};
 use crate::workspace::{AuthConfig, RuntimeConfig};
 
+#[path = "exclusive_drain_test_support.rs"]
+mod drain_support;
+
 const PASSWORD: &str = "synthetic-owner-password";
 const SECRET: &str = "synthetic-client-secret";
 const REDIRECT: &str = "https://chatgpt.com/connector_platform_oauth_redirect";
@@ -104,19 +107,71 @@ async fn http_offline_consent_is_required_and_plain_scope_gets_access_only() {
         .body(format!("grant_type=refresh_token&refresh_token={}","a".repeat(9000))).send().await.unwrap();
     assert_eq!(too_large.status(),413);
 }
+async fn exercise_real_child_drain(startup_delay_seconds: u64) {
+    use drain_support::{drain_observation, startup_observation, ObservedJob, DRAIN_BUDGET, STARTUP_BUDGET};
+    let s = Server::new();
+    let first = s.login("mcp").await;
+    let access = first["access_token"].as_str().unwrap();
+    s.approve(access, "A").await;
+    // The delay is a fixture input, not a production timeout or a retry.
+    // Publish readiness atomically; an empty/partial file is not a started worker.
+    std::fs::write(s.root.path().join("hold.py"), format!(
+        "import pathlib, time\ntime.sleep({startup_delay_seconds})\nready = pathlib.Path('started.tmp')\nready.write_text('ready')\nready.replace('started')\nwhile not pathlib.Path('release').exists():\n time.sleep(.05)\nprint('drained', flush=True)\n"
+    )).unwrap();
+    let python = if cfg!(windows) { "python" } else { "python3" };
+    let startup = Instant::now();
+    let job = s.rpc(access, "A", "start_exec_task", json!({
+        "cmd": format!("{python} hold.py"), "request_id": "drain-http-job", "timeout_ms": 120_000
+    })).await;
+    assert_eq!(job["ok"], true, "{job}");
+    // A trusted local observer is retained before revoke. It never grants scopes,
+    // submits work, or relies on the revoked remote owner to read task results.
+    let observed = ObservedJob::attach(&s, &job);
+    loop {
+        let task = observed.snapshot();
+        let ready = std::fs::read_to_string(s.root.path().join("started")).ok().as_deref() == Some("ready");
+        match startup_observation(&task, ready, startup.elapsed(), STARTUP_BUDGET) {
+            Ok(true) => break,
+            Ok(false) => tokio::time::sleep(Duration::from_millis(100)).await,
+            Err(reason) => panic!("{reason}; elapsed={:?}; task={task}", startup.elapsed()),
+        }
+    }
+    assert!(startup.elapsed() >= Duration::from_secs(startup_delay_seconds));
+    eprintln!("drain_probe stage=ready delay_seconds={startup_delay_seconds} elapsed_ms={}", startup.elapsed().as_millis());
+    let service = super::chat::service();
+    service.revoke(&s.profile, None);
+    assert_eq!(service.snapshot(&s.profile)["lease_state"], "draining");
+    assert_eq!(s.rpc(access, "B", "request_chat_authorization", json!({})).await["error"]["code"], "CHAT_WORK_DRAINING");
+    assert_eq!(observed.snapshot()["terminal"], false, "worker must stay alive until explicitly released");
+    std::fs::write(s.root.path().join("release"), "").unwrap();
+    // Never reuse the startup deadline: draining begins at the release handshake.
+    let draining = Instant::now();
+    loop {
+        let lease = service.snapshot(&s.profile);
+        // Read the task AFTER the lease snapshot, so a concurrently completed
+        // child cannot produce a stale running sample paired with a newer free lease.
+        let task = observed.snapshot();
+        match drain_observation(&task, lease["lease_state"].as_str().unwrap(), draining.elapsed(), DRAIN_BUDGET) {
+            Ok(true) => {
+                assert!(task["stdout"]["text"].as_str().unwrap().contains("drained"), "{task}");
+                break;
+            }
+            Ok(false) => tokio::time::sleep(Duration::from_millis(100)).await,
+            Err(reason) => panic!("{reason}; elapsed={:?}; lease={lease}; task={task}", draining.elapsed()),
+        }
+    }
+    eprintln!("drain_probe stage=drained delay_seconds={startup_delay_seconds} elapsed_ms={}", draining.elapsed().as_millis());
+    assert_eq!(s.rpc(access, "B", "request_chat_authorization", json!({})).await["authorization"]["status"], "pending");
+}
+
 #[tokio::test]
 async fn http_revoked_owner_drains_actual_background_process_before_successor() {
-    let s=Server::new();let first=s.login("mcp").await;let access=first["access_token"].as_str().unwrap();
-    s.approve(access,"A").await;
-    std::fs::write(s.root.path().join("hold.py"),"import pathlib, time\npathlib.Path('started').write_text('ready')\nwhile not pathlib.Path('release').exists():\n time.sleep(.05)\nprint('drained', flush=True)\n").unwrap();
-    let python=if cfg!(windows){"python"}else{"python3"};
-    let job=s.rpc(access,"A","start_exec_task",json!({"cmd":format!("{python} hold.py"),"request_id":"drain-http-job","timeout_ms":10000})).await;
-    assert_eq!(job["ok"],true,"{job}");let deadline=Instant::now()+Duration::from_secs(8);
-    while !s.root.path().join("started").exists(){assert!(Instant::now()<deadline,"worker must really start");tokio::time::sleep(Duration::from_millis(25)).await;}
-    let service=super::chat::service();service.revoke(&s.profile,None);
-    assert_eq!(service.snapshot(&s.profile)["lease_state"],"draining");
-    assert_eq!(s.rpc(access,"B","request_chat_authorization",json!({})).await["error"]["code"],"CHAT_WORK_DRAINING");
-    std::fs::write(s.root.path().join("release"),"").unwrap();
-    while service.snapshot(&s.profile)["lease_state"]!="free"{assert!(Instant::now()<deadline,"draining must settle after actual child exit");tokio::time::sleep(Duration::from_millis(25)).await;}
-    assert_eq!(s.rpc(access,"B","request_chat_authorization",json!({})).await["authorization"]["status"],"pending");
+    exercise_real_child_drain(0).await;
+}
+
+#[tokio::test]
+async fn http_delayed_worker_drains_with_independent_startup_budget() {
+    // Deterministically exceeds the old eight-second readiness budget. Still
+    // requires a real live child and successful natural exit; nothing is mocked.
+    exercise_real_child_drain(9).await;
 }
