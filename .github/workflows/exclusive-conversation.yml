@@ -3,12 +3,29 @@ on:
   push:
     branches: ['feat/exclusive-conversation-refresh']
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 concurrency:
   group: exclusive-conversation-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  release-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Strict publication and version contracts
+        run: |
+          python scripts/exclusive_release_tests.py
+          python scripts/exclusive_native_contract_tests.py
+          python scripts/发布资产回归v8.py
+          python scripts/release_preflight.py
   source:
     runs-on: ubuntu-latest
     timeout-minutes: 5
