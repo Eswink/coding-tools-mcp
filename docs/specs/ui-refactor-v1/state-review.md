@@ -18,3 +18,12 @@ Three AST regressions against the production page: old template2 failed/1 passed
 All163 local frontend tests pass, strict type/Svelte0errors/0warnings and production build pass. Compared the complete script block before/after: unchanged. The minimal change is template-only. New CI is required.
 
 Visual consistency review also found the old task panel uses the legacy tx-btn selector, which had no shared primitive style, and destructive hover could still inherit neutral ghost text. Map that existing selector into the existing secondary-button rule and preserve danger color on hover; no task event handler or operation changes. Actual state tests now check rendered budget-button geometry and unchanged destructive hover color.
+
+## Round 14c — bound extreme workspace titles
+
+The preserved960x640 long-workspace screenshot from e5e6af6 showed a five-line title consuming most of the first viewport. Limit the visual heading to two lines, give the breadcrumb an ellipsis, and preserve the complete name in DOM/accessibility text, tooltip and editable name field. No name is changed or truncated in the data model. The state gate checks both rendered line height and the full title attribute. Normal names and all route/IPC contracts are unchanged; review impact is the shared PageHeader presentation only.
+
+
+Round14c also corrects a test-only selector mismatch exposed by run34776016396 at7fb6e7b. Its40 normal screenshots,8 interactions and first5 state scenarios passed, including the previously failing partial-secret rendering case. The sixth case timed out looking for “保存预算”, but the actual production button is labelled “保存上限” and uses the legacy tx-btn class. Verified against both the built DOM and tracked Svelte source before correcting the exact accessible-name selector; do not rename the product or broaden the selector to evade the check. Keep the40px geometry, list-only IPC, task failure and no-auto-start assertions. Artifact10323756510 SHA25653a09803c77dbd3a4eb8d59303d2e55d437da4739cf3ede7199c89b995410ec7 was verified.
+
+Final14c local check initially reported one vendor-only line-clamp warning; added the standard property alongside the WebKit fallback.163 frontend assertions still pass. Recheck exact staged files before publishing; no zero-warning claim for that intermediate run.

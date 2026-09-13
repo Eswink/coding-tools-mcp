@@ -57,6 +57,9 @@ def check_states(browser: Browser, origin: str, fixture: Path, evidence: Path) -
         profile.path='D:/projects/'+'nested-research-directory-'.repeat(24);
     ''') as page:
         assert len(page.locator('main h2').first.inner_text()) > 90
+        heading = page.locator('main h2').first
+        expect(heading).to_have_attribute('title', heading.inner_text())
+        assert heading.evaluate('(el)=>el.getBoundingClientRect().height <= 2*parseFloat(getComputedStyle(el).lineHeight)+2'), 'Long name pushed controls out of the summary'
         danger = page.get_by_role('button', name='删除工作区', exact=True)
         expect(danger).to_be_visible()
         before = danger.evaluate('(el)=>getComputedStyle(el).color')
@@ -91,7 +94,7 @@ def check_states(browser: Browser, origin: str, fixture: Path, evidence: Path) -
     ''') as page:
         page.get_by_role('tab', name='异步任务', exact=True).click()
         expect(page.get_by_text('暂无任务。通过 MCP／Actions 的 start_exec_task 提交；此面板不会自动启动命令。', exact=True)).to_be_visible()
-        budget = page.get_by_role('button', name='保存预算', exact=True)
+        budget = page.get_by_role('button', name='保存上限', exact=True)
         assert budget.evaluate('(el)=>getComputedStyle(el).borderTopStyle') == 'solid'
         assert budget.evaluate('(el)=>el.getBoundingClientRect().height') >= 40
         page.evaluate('window.__UI_FIXTURE__.state.healthFailure=true')
