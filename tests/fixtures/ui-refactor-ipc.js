@@ -37,6 +37,10 @@
   // are checked against actual application types and exercised by contract tests.
   /** @param {string} command @param {Record<string,any>} args @returns {Promise<unknown>} */
   async function invoke(command,args={}) {
+    // Match the JSON IPC boundary for these plain configuration payloads.
+    // structuredClone rejects Svelte's nested reactive proxies, unlike native
+    // Tauri JSON serialization, and wrongly accepts circular arguments.
+    args = JSON.parse(JSON.stringify(args));
     state.calls.push({command,args:clone(args)});
     if(command==='plugin:event|listen'){const id=++serial;listeners.set(id,{event:String(args.event),handler:Number(args.handler),id});return id;}
     if(command==='plugin:event|unlisten'){listeners.delete(args.eventId);return;}

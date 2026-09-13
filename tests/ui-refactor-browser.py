@@ -134,7 +134,18 @@ try:
             client.fill('synthetic-saved-client')
             form=client.locator('xpath=ancestor::form')
             form.get_by_role('button',name='保存配置',exact=True).click()
-            page.wait_for_function("window.__UI_FIXTURE__.state.workspaces[0].auth.oauth_client_id==='synthetic-saved-client'")
+            try:
+                page.wait_for_function("window.__UI_FIXTURE__.state.workspaces[0].auth.oauth_client_id==='synthetic-saved-client'")
+            except Exception:
+                # Capture while the browser context still exists. Only synthetic
+                # transport command names and form validity, never secret values.
+                report['save_diagnostic']=page.evaluate("""() => ({
+                  commands:window.__UI_FIXTURE__.state.calls.map(c=>({name:c.command,title:c.args.title||null})),
+                  unknown:window.__UI_FIXTURE__.state.unknown,
+                  invalid:[...document.querySelectorAll('main input:invalid')].map(e=>({type:e.type,missing:e.validity.valueMissing,mismatch:e.validity.typeMismatch}))
+                })""")
+                page.screenshot(path=str(EVIDENCE/'save-failure.png'),animations='disabled')
+                raise
             expect(form.get_by_role('button',name='保存配置',exact=True)).to_be_disabled()
             page.get_by_role('button',name='Actions 服务',exact=False).click()
             expect(page.get_by_role('button',name='Actions 服务',exact=False)).to_have_attribute('aria-pressed','true')

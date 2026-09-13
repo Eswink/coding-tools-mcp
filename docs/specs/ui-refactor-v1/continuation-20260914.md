@@ -27,3 +27,11 @@ New workflow only builds review candidates with contents:read; it contains no pu
 ## Next
 
 Commit exact source to existing feature branch and run source/browser and new installed workflows. Read each failure and repair the smallest proven defect without lowering gates. Recompute artifacts and present same-source final gallery plus review installers. Preserve the explicit user visual signoff gate before merge or release. Continue recording follow-up failures/results here; never copy old-source PASS counts onto a new revision.
+
+## Follow-up C — real saved-form browser failure and fixture wire contract
+
+Source run34780311595 at22f6ed4 created40 screens with no measured horizontal container overflow and completed six prior interactions, but FAILED waiting for the saved Client ID. Preserve candidate artifact10324966839 SHA256cc3dc68aa618cff075b849259ca6f90ed0421e0cd5d1d60fc1e87d52ce808161. This is not a fully passing source candidate.
+
+The synthetic invoke implementation structured-cloned raw arguments. Svelte nested reactive proxies cannot be structured-cloned; native Tauri's plain-object IPC uses JSON serialization (confirmed in tauri-v2.11.4/crates/tauri/scripts/process-ipc-message-fn.js). Thus the fixture threw before recording/persisting the actual form's update_workspace request. Two added contract tests fail against that fixture: nested-proxy save rejects, and cyclic arguments are wrongly accepted. Snapshot plain configuration arguments through JSON at the synthetic transport boundary; do not alter the product's AuthConfigForm save or native IPC logic. Both new tests plus the five original fixture contracts now pass. Complete local frontend180 passed, zero failed/skipped; type check0 errors/warnings. An accidental npm test invocation had no matching script; the repository's official node scripts/前端完整回归v4.mjs command produced the180 count.
+
+Installed-workflow triggers now include UI browser/fixture contract changes so a final evidence revision can rebuild/verify the exact same source, not silently reuse previous-revision packages. No dependency, security check or user visual gate is relaxed. Pinned offline impact for the fixture again returned ENOTCACHED; manual scope is synthetic transport/test only. Browser and installed reruns must use a new documented candidate rather than retrying the failed SHA.

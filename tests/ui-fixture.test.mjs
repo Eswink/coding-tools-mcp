@@ -34,3 +34,25 @@ test('dialog custom positive and cancellation labels preserve Tauri contract',as
   assert.equal(await invoke('plugin:dialog|message',args),'继续编辑');state.confirmation=true;
   assert.equal(await invoke('plugin:dialog|message',args),'切换');
 });
+
+test('workspace JSON IPC accepts nested reactive proxies and snapshots arguments',async()=>{
+  const {invoke,state}=fixture();
+  const original=state.workspaces[0];
+  const policy=new Proxy({...original.auth.session_policy},{});
+  const auth=new Proxy({...original.auth,oauth_client_id:'synthetic-saved-client',session_policy:policy},{});
+  const profile={...original,auth,tunnel:new Proxy({...original.tunnel},{})};
+  await invoke('update_workspace',{profile,tunnelSecret:undefined});
+  assert.equal(state.workspaces[0].auth.oauth_client_id,'synthetic-saved-client');
+  auth.oauth_client_id='later-local-edit';policy.chat_lease_ttl_seconds=3600;
+  const readback=(await invoke('list_workspaces'))[0];
+  assert.equal(readback.auth.oauth_client_id,'synthetic-saved-client');
+  assert.equal(readback.auth.session_policy.chat_lease_ttl_seconds,86400);
+  assert.equal(state.calls[0].args.profile.auth.oauth_client_id,'synthetic-saved-client');
+  assert.equal(Object.hasOwn(state.calls[0].args,'tunnelSecret'),false);
+});
+test('invalid cyclic JSON IPC fails without recording or persisting a partial command',async()=>{
+  const {invoke,state}=fixture();const args={profile:{}};args.profile.loop=args;
+  await assert.rejects(invoke('update_workspace',args),/circular|cyclic/i);
+  assert.equal(state.calls.length,0);
+  assert.equal(state.workspaces[0].auth.oauth_client_id,'synthetic-client');
+});
