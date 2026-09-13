@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from exclusive_native_gate import SCENARIO, TEST_NAMES, load, verify
 from native_scenario import script_name
+from native_approval_presentation import open_pending_dialog
 
 SOURCE, RUN, VERSION, DIGEST = 'a' * 40, '123', '0.4.0', 'b' * 64
 
@@ -90,6 +91,36 @@ class NativeContracts(unittest.TestCase):
                      "verify_sources(root / 'source', data['source_hashes'])", 'use_normal_user_process',
                      'owned_account(name, sid, marker, actual)', "if password.encode() in raw"):
             self.assertIn(text, source)
+
+
+class PresentationRace(unittest.TestCase):
+    def test_automatic_dialog_never_clicks_inbox(self):
+        self.assertEqual(open_pending_dialog(lambda: True, lambda: self.fail('unexpected click')), 'automatic')
+
+    def test_closed_dialog_performs_exactly_one_native_inbox_click(self):
+        clicks = []
+        self.assertEqual(open_pending_dialog(lambda: False, lambda: clicks.append(1)), 'native-inbox-click')
+        self.assertEqual(clicks, [1])
+
+    def test_auto_modal_during_click_is_proven_without_mutation_retry(self):
+        for error in ('element not interactable', 'element click intercepted'):
+            visible, clicks = [False], []
+            def click():
+                clicks.append(1); visible[0] = True
+                raise RuntimeError(error)
+            self.assertEqual(open_pending_dialog(lambda: visible[0], click), 'automatic-during-inbox-click')
+            self.assertEqual(clicks, [1])
+
+    def test_interception_without_modal_remains_a_failure(self):
+        def click(): raise RuntimeError('element not interactable')
+        with self.assertRaises(RuntimeError): open_pending_dialog(lambda: False, click)
+
+    def test_other_driver_failures_never_masquerade_as_success(self):
+        visible = [False]
+        def click():
+            visible[0] = True
+            raise RuntimeError('invalid session id')
+        with self.assertRaises(RuntimeError): open_pending_dialog(lambda: visible[0], click)
 
 
 if __name__ == '__main__': unittest.main(verbosity=2)

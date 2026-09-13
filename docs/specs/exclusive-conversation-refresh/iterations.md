@@ -70,3 +70,21 @@ OS toast display and real ChatGPT account provenance remain distinct observation
 
 
 Round18 local review before upload: new native-contract unit suite9/9 passed; existing Windows/native/release helper suite105/105 passed. New entrypoints compile with Python. Workflow parses into one Ubuntu22.04 package build, four installed Ubuntu system/format combinations, and one strict standard-user Windows install job; there is no Windows-defer branch. Candidate4cede80 now has all five validation jobs successful in run34751029564, including the six added Rust regressions and expanded browser suite. Exact counts will be recorded from downloaded artifacts. These results do not validate the new0.4.0 packaging scenario yet.
+
+## 19 — New release gates, before publication
+
+Added a new version-scoped release workflow rather than passing the old two-owner/eight-stage acceptance as exclusive behavior. Publication requires one exact main SHA/tree/run/version across source export, full Rust/frontend logs, twelve browser scenarios with production component digests, the original failure-first assertion, Windows native approval and all four Ubuntu installed combinations. No Windows deferral branch exists in the new flow. Before mutation the publisher rechecks main; old tags/assets are never overwritten; public downloads are verified anonymously.
+
+Local `python scripts/exclusive_release_tests.py`: 18 synthetic contract tests passed. This validates rejection/aggregation logic, not installed application behavior. It rejects altered bytes, cross-run manifests, stale browser components, ignored/filtered/truncated Rust results, missing native combinations and legacy/simulated approval. An initial readiness parser expected a nonexistent aggregate field; corrected it to require the actual two explicit callback records before any hosted publication execution.
+
+0.4.0 source 65ce45bda6a23a91bbcd2dd7d3594661c4ada9b0 is building in native run34752009576. Its core run34751982616 and installed jobs must finish before candidate acceptance is asserted. PR#11 remains separate; its operator-applied Nginx routing condition is being re-observed with unchanged no-credential/TLS/redirect policy.
+
+Release scope remains a prerelease with real installed native WebView/IPC/local HTTP evidence. Synthetic metadata cannot certify a real ChatGPT account or OS toast visibility; keep those limits in the release guide, summary, evidence and publication notes.
+
+## 20a — Installed fixture race and explicit external blocker
+
+Native run34752009576 built NSIS/DEB/AppImage at65ce45b. Windows installed twelve-stage acceptance completed successfully. All four Linux combinations stopped after four passing stages: the background-inbox WebDriver click raced with the automatic global modal and was rejected as `element not interactable`. The downloaded Ubuntu24.04-DEB screenshot shows the correct native modal with unchecked fingerprint confirmation and90s countdown, not a missing product dialog. ZIP SHA256398e72bd04fc2b702e58c490bd32f27f55bebc0c932bb75be4997491a8e99b7a.
+
+Fix only the test presentation adapter: do not retry clicks; an intercepted inbox click can be considered superseded only after a read proves that the modal opened. All other driver errors, missing dialogs and every approval/denial mutation remain failures. Five deterministic adapter tests now join the nine strict native-contract tests (14 passed locally). Actual candidate native execution is still required. Manual impact is confined to test candidate/background presentation and the Windows fixture copy; no production authorization method changed. Offline GitNexus impact failed and was retained as a downgrade.
+
+The independent operator-applied routing revalidation on PR#11 (run34752338231, job103710859148) failed at2026-09-13T10:37:35Z: ALL six requests includingGET/POST /mcp returned the same489-byte NginxHTML404 and no401 challenge. Artifact10316361891 ZIP SHA25603f51a7762f9d53cdb3b0d88e0d860dc59002ae8f3ea933de80cbe19bff1e23b was downloaded and checked. This differs from the original discovery-only404. Do not mergePR#11, claim production routing repaired or claim the new desktop deployed. No remote configuration was modified. Desktop prerelease gates remain independent and must pass in full.

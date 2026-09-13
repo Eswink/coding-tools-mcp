@@ -16,6 +16,7 @@ import secrets
 import sys
 import time
 import urllib.parse
+from native_approval_presentation import open_pending_dialog
 from exclusive_native_gate import SCENARIO, TEST_NAMES
 from exclusive_native_http import legacy, exchange, rpc, code_pair, rotate, replay, unavailable
 
@@ -53,8 +54,8 @@ def candidate(session, base, token, chat, scopes):
     assert again['authorization'] == grant, 'retry must not change pending scope or deadline'
     gui.wait_for(lambda: inbox(session), lambda value: len(value['pending']) == 1)
     # A native window not focused by its desktop may use the explicit inbox button.
-    if not modal_open(session):
-        legacy.click(session, "//button[contains(@class,'approval-inbox')]")
+    open_pending_dialog(lambda: modal_open(session),
+        lambda: legacy.click(session, "//button[contains(@class,'approval-inbox')]"))
     gui.wait_for(lambda: modal_open(session))
     assert grant['fingerprint'] in session.body()
     assert session.execute("return document.querySelector('.approval-dialog .verify input').checked") is False
@@ -224,7 +225,8 @@ def run(args):
         time.sleep(1)
         assert len(inbox(session)['pending']) == 1
         session.invoke('show_main_window')
-        if not modal_open(session): legacy.click(session, "//button[contains(@class,'approval-inbox')]")
+        open_pending_dialog(lambda: modal_open(session),
+            lambda: legacy.click(session, "//button[contains(@class,'approval-inbox')]"))
         gui.wait_for(lambda: modal_open(session))
         assert session.execute("return document.querySelector('.approval-dialog .verify input').checked") is False
         session.screenshot(output / 'native-background-inbox.png')

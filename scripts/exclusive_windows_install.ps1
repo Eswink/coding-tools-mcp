@@ -37,7 +37,7 @@ $proof = Get-Content -LiteralPath (Join-Path $OutputDirectory 'exclusive-native.
 $binaryHash = (Get-FileHash -LiteralPath $installed.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
 if (!$proof.passed -or $proof.tests.Count -ne 12 -or $proof.source_sha -ne $source -or $proof.version -ne $version -or $proof.binary_sha256 -ne $binaryHash -or $proof.package_kind -ne 'nsis' -or $proof.build_kind -ne 'release-installed') { throw 'NSIS原生证据身份不一致' }
 & python scripts/exclusive_native_gate.py --input (Join-Path $OutputDirectory 'exclusive-native.json') --binary $installed.FullName --source $source --run-id $env:GITHUB_RUN_ID --version $version --kind nsis
-if ($LASTEXITCODE -ne 0) { throw 'NSIS原生八阶段或来源门禁失败' }
+if ($LASTEXITCODE -ne 0) { throw 'NSIS原生十二阶段或来源门禁失败' }
 $target = Join-Path $OutputDirectory "MCP_$version`_x64-setup.exe"
 Copy-Item -LiteralPath $setups[0].FullName -Destination $target
 $package = Get-Item -LiteralPath $target
