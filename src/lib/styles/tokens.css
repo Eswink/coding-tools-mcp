@@ -29,9 +29,11 @@
   --accent-gradient: linear-gradient(135deg, #4f86ff 0%, #1551d8 100%);
   --accent-gradient-hover: linear-gradient(135deg, #3a76f0 0%, #1247c0 100%);
 
-  --success: #07815a;
+  --success: #08774f;
   --warning: #9a6300;
   --danger: #cc2445;
+  --danger-bg: #cc2445;
+  --danger-hover: #a91e39;
 
   --border: #dce5f5;
   --border-light: rgba(0, 0, 0, 0.05);
@@ -87,6 +89,8 @@
   --success: #34d399;
   --warning: #fbbf24;
   --danger: #f87171;
+  --danger-bg: #a91e39;
+  --danger-hover: #8d1730;
 
   --border: #2a3444;
   --border-light: rgba(255, 255, 255, 0.05);

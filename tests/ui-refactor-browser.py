@@ -106,7 +106,8 @@ try:
             expect(page.get_by_role('tab',name='日志',exact=True)).to_be_focused()
             expect(config).to_have_attribute('aria-selected','true')
             page.keyboard.press('Enter');expect(page.get_by_role('tabpanel')).to_have_attribute('aria-labelledby','workspace-operations-logs')
-            done('manual keyboard tab activation never changes panel on arrow movement')
+            expect(page.get_by_text('Synthetic log — no real process was started.',exact=True)).to_be_visible()
+            done('manual keyboard tab activation and actual log component render the typed result')
             page.get_by_role('tab',name='健康',exact=True).click()
             expect(page.get_by_text('尚未运行检查。',exact=True)).to_be_visible()
             page.evaluate('window.__UI_FIXTURE__.state.healthFailure=true')
@@ -114,7 +115,6 @@ try:
             expect(page.get_by_text('健康检查未完成。请核对服务状态后重试；未将本次检查计为通过。')).to_be_visible()
             done('health starts unchecked and failed requests never render a passing state')
             fresh()
-            # Change an actual editable port, without invoking its save/blur action.
             # Draft ownership is exercised on a configuration field, not a port that
             # the existing ServicePanel intentionally saves on blur.
             client=page.get_by_role('textbox',name='OAuth 客户端 ID',exact=True)

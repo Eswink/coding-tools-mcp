@@ -61,9 +61,9 @@
   background: var(--action-hover);
 }
 
-.tx-btn-danger { background: var(--danger); color: #fff; }
-.tx-btn-danger:hover:not(:disabled) { background: #a91e39; }
-.tx-btn-destructive { color: var(--danger); border-color: var(--danger); }
+.tx-btn-danger { background: var(--danger-bg); color: var(--primary-foreground); }
+.tx-btn-danger:hover:not(:disabled) { background: var(--danger-hover); }
+.tx-btn-ghost.tx-btn-destructive, .tx-btn-secondary.tx-btn-destructive { color: var(--danger); border-color: var(--danger); }
 
 .tx-btn-ghost,
 .tx-btn-secondary {
