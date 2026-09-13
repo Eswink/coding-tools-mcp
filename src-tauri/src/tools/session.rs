@@ -46,11 +46,25 @@ impl SessionStore {
             })
     }
 
+    pub(crate) fn has_unfinished_work(&self) -> bool {
+        let Ok(sessions) = self.sessions.lock() else { return true; };
+        sessions.values().any(|s| {
+            if let Ok(mut child) = s.child.try_lock() {
+                if let Ok(Some(status)) = child.try_wait() { s.record_exit_status(status); }
+            }
+            !s.has_exited() || s.tree_cleanup_failed.load(Ordering::Acquire)
+        })
+    }
+
+    pub(crate) fn cancel_local(&self) {
+        let ids:Vec<_>=self.sessions.lock().expect("sessions lock").keys().cloned().collect();
+        for id in ids {let _=kill_session(self,&json!({"session_id":id,"signal":"KILL","wait_ms":1000}));}
+    }
     pub fn remove(&self, session_id: &str) {
-        self.sessions
-            .lock()
-            .expect("sessions lock")
-            .remove(session_id);
+        let mut sessions=self.sessions.lock().expect("sessions lock");
+        // Managed jobs retain uncertainty in their durable task record. Unmanaged
+        // interactive/time-out sessions must not disappear while their child lives.
+        if sessions.get(session_id).is_some_and(|s|s.managed||s.has_exited()) {sessions.remove(session_id);}
     }
 }
 

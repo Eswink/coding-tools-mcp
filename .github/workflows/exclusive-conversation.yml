@@ -1,0 +1,163 @@
+name: Exclusive conversation validation
+on:
+  push:
+    branches: ['feat/exclusive-conversation-refresh']
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+concurrency:
+  group: exclusive-conversation-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Strict publication and version contracts
+        run: |
+          python scripts/exclusive_release_tests.py
+          python scripts/exclusive_native_contract_tests.py
+          python scripts/发布资产回归v8.py
+          python scripts/release_preflight.py
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Export exact source
+        run: |
+          mkdir evidence
+          git rev-parse HEAD > evidence/source.txt
+          git rev-parse HEAD^{tree} > evidence/tree.txt
+          git archive --format=zip HEAD -o evidence/source.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exclusive-source
+          path: evidence/
+          if-no-files-found: error
+  regression:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Frontend checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source.txt
+          npm run check 2>&1 | tee evidence/frontend-check.txt
+          npm run build 2>&1 | tee evidence/frontend-build.txt
+          node scripts/前端完整回归v4.mjs 2>&1 | tee evidence/frontend-tests.txt
+      - name: Rust checks and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/rust-check.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/rust-tests.txt
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/production-warnings.txt
+          git diff --exit-code
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exclusive-regression-${{ matrix.os }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install playwright==1.58.0
+      - run: python -m playwright install --with-deps chromium
+      - name: Side-effect-free Playwright readiness regression
+        env:
+          CHROMIUM_PATH: playwright-managed
+        run: |
+          set -euo pipefail
+          mkdir -p "${{ runner.temp }}/exclusive-evidence"
+          python tests/playwright-readiness-regression.py | tee "${{ runner.temp }}/exclusive-evidence/readiness-results.json"
+      - name: Production component browser regression
+        env:
+          EXCLUSIVE_UI_DIR: ${{ runner.temp }}/exclusive-ui
+          EXCLUSIVE_EVIDENCE_DIR: ${{ runner.temp }}/exclusive-evidence
+          CHROMIUM_PATH: playwright-managed
+        run: python tests/exclusive-ui-browser.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exclusive-browser
+          path: |
+            ${{ runner.temp }}/exclusive-evidence/
+            ${{ runner.temp }}/exclusive-ui/source-manifest.json
+          if-no-files-found: error
+  failure-first:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: candidate
+      - uses: actions/checkout@v4
+        with:
+          ref: a0551c447712104e2c2cb253d3d8a5a966518580
+          persist-credentials: false
+          path: baseline
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: baseline/src-tauri
+      - name: Expect the specific old-code assertion failure
+        run: python candidate/scripts/exclusive-baseline-regression.py --root baseline --evidence evidence
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exclusive-failure-first
+          path: evidence/
+          if-no-files-found: error

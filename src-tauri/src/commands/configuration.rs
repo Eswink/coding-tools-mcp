@@ -71,6 +71,7 @@ pub(crate) async fn update_with_tunnel_secret(
     state: &AppState, mut next: WorkspaceProfile, secret: Option<TunnelSecretUpdate>,
 ) -> AppResult<()> {
     let _gate = RESTART_GATE.lock().await;
+    next.auth.session_policy.validate().map_err(AppError::Message)?;
     let secret_kind = secret.as_ref().map(|value| tunnel_secret::validate(&next, value)).transpose()?;
     if secret.as_ref().is_some_and(|value| value.key == "actions_cloudflare_token") {
         // Remove the legacy inline override only as part of the same committed snapshot.

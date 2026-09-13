@@ -1,4 +1,6 @@
 use super::*;
+const IDLE:u64=1800;
+const ABSOLUTE:u64=8*3600;
 use crate::tools::{ToolContext, call_tool};
 fn request(svc: &Arc<ChatAuthorizer>, profile: &str, session: &str) -> RemoteRequest {
     let token = super::super::principal::issue("https://mcp.example", "https://mcp.example", "fixture-key", "client", 3600).unwrap();
@@ -53,7 +55,9 @@ fn request_is_idempotent_and_approval_can_only_reduce_scopes() {
 #[test]
 fn pending_idle_absolute_expiry_and_restart_all_fail_closed() {
     for age in [PENDING, IDLE, ABSOLUTE] {
-        let svc = Arc::new(ChatAuthorizer::default()); let req = request(&svc,"p","A");
+        let svc = Arc::new(ChatAuthorizer::default());
+        svc.configure("p", &SessionPolicy {chat_lease_ttl_seconds:ABSOLUTE,chat_idle_timeout_seconds:IDLE,..Default::default()}).unwrap();
+        let req = request(&svc,"p","A");
         let v = svc.request(&req,&json!({"scopes":["files.read"]})); let id = v["authorization"]["id"].as_str().unwrap();
         if age != PENDING { svc.decide("p",id,true,&["files.read".into()]).unwrap(); }
         {
@@ -71,14 +75,16 @@ fn pending_idle_absolute_expiry_and_restart_all_fail_closed() {
 fn exclusive_approval_is_atomic_and_does_not_revoke_other_workspaces() {
     let svc = Arc::new(ChatAuthorizer::default()); svc.set_exclusive("p",true);
     let a = request(&svc,"p","A"); let b = request(&svc,"p","B"); let other = request(&svc,"other","A");
-    allow(&a,&["files.read"]); allow(&other,&["files.read"]); allow(&b,&["files.read"]);
-    assert!(svc.permit(&a,&["files.read"]).is_err()); assert!(svc.permit(&b,&["files.read"]).is_ok());
+    allow(&a,&["files.read"]); allow(&other,&["files.read"]);
+    assert_eq!(svc.request(&b,&json!({}))["error"]["code"],"EXCLUSIVE_CHAT_LOCKED");
+    assert!(svc.permit(&a,&["files.read"]).is_ok()); assert!(svc.permit(&b,&["files.read"]).is_err());
     assert!(svc.permit(&other,&["files.read"]).is_ok());
-    svc.revoke("p",None); assert!(svc.permit(&b,&["files.read"]).is_err()); assert!(svc.permit(&other,&["files.read"]).is_ok());
+    svc.revoke("p",None); allow(&b,&["files.read"]);
+    assert!(svc.permit(&b,&["files.read"]).is_ok()); assert!(svc.permit(&other,&["files.read"]).is_ok());
 }
 #[test]
 fn metadata_limits_capacity_and_no_raw_identifiers_in_status() {
-    let svc = Arc::new(ChatAuthorizer::default());
+    let svc = Arc::new(ChatAuthorizer::default()); svc.set_exclusive("p",false);
     for i in 0..MAX_RECORDS { assert_eq!(svc.request(&request(&svc,"p",&format!("session-{i}")),&json!({}))["ok"],true); }
     assert_eq!(svc.request(&request(&svc,"p","overflow"),&json!({}))["ok"],false);
     for session in ["".to_string(),"x".repeat(257),"bad\nvalue".into()] { assert!(request(&svc,"p",&session).identity().is_err()); }
@@ -90,6 +96,7 @@ fn runtime_cwd_sessions_jobs_harness_and_history_are_separate() {
     let root = tempfile::tempdir().unwrap(); let h = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join("a")).unwrap();
     let base = ToolContext::for_test(root.path().into(),h.path().into()).unwrap(); let svc = Arc::new(ChatAuthorizer::default());
+    svc.set_exclusive("p",false);
     let a = request(&svc,"p","raw-conversation-A"); let b = request(&svc,"p","raw-conversation-B");
     allow(&a,SCOPES); allow(&b,SCOPES);
     let mut ca = base.background_snapshot(); ca.remote_request = Some(a.clone());
@@ -121,9 +128,11 @@ fn concurrent_exclusive_grants_have_exactly_one_winner() {
     for n in 0..8 {
         let svc = svc.clone(); let barrier = barrier.clone();
         threads.push(std::thread::spawn(move || {
-            let req = request(&svc,"p",&format!("C{n}"));
+            let req = request(&svc,"p",&format!("C{n}")); barrier.wait();
             let result = svc.request(&req,&json!({"scopes":["files.read"]}));
-            barrier.wait(); svc.decide("p",result["authorization"]["id"].as_str().unwrap(),true,&["files.read".into()]).unwrap();
+            if result["ok"] == true {
+                svc.decide("p",result["authorization"]["id"].as_str().unwrap(),true,&["files.read".into()]).unwrap();
+            } else { assert_eq!(result["error"]["code"],"EXCLUSIVE_CHAT_LOCKED"); }
         }));
     }
     for thread in threads { thread.join().unwrap(); }

@@ -1,0 +1,67 @@
+name: Exclusive conversation dual-platform release
+on:
+  push:
+    branches: ['release/exclusive-v0.4.0']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: exclusive-release-v0.4.0
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/release/exclusive-v0.4.0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Anchor reviewed main and validate publisher contracts
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA"
+          python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA"
+          python scripts/exclusive_release_tests.py
+          python scripts/exclusive_native_contract_tests.py
+          python scripts/发布资产回归v8.py
+          python scripts/release_preflight.py
+  validate:
+    needs: prepare
+    uses: ./.github/workflows/exclusive-conversation.yml
+  packages:
+    needs: prepare
+    uses: ./.github/workflows/exclusive-packages.yml
+  publish:
+    name: Verify exact-source installed matrix and publish pre-release
+    needs: [prepare, validate, packages]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          path: collected
+      - name: Enforce every gate and verify public bytes without authentication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python scripts/exclusive_release.py --evidence collected --output delivery --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --publish
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exclusive-final-delivery
+          path: delivery/
+          if-no-files-found: error
+          retention-days: 30

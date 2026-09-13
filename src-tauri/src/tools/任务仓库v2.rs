@@ -67,6 +67,12 @@ impl ExecTaskStore {
         store
     }
 
+    pub(crate) fn has_unfinished_work(&self) -> bool {
+        let Ok(mut inner) = self.inner.lock() else { return true; };
+        if self.initialize(&mut inner).is_err() { return true; }
+        inner.jobs.values().any(|job| job.data.lock().map(|d| d.holds_capacity()).unwrap_or(true))
+    }
+
     pub(crate) fn persistent(&self) -> bool { self.root.is_some() }
 
     pub(crate) fn bind_profile(&self, profile_id: &str) {

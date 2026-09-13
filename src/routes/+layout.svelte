@@ -5,6 +5,7 @@
   import { page } from "$app/stores";
   import { open } from "@tauri-apps/plugin-dialog";
   import AppShell from "$lib/components/AppShell.svelte";
+  import ChatAuthorizationHost from "$lib/components/ChatAuthorizationHost.svelte";
   import ToastHost from "$lib/components/ToastHost.svelte";
   import WorkspaceNavItem from "$lib/components/WorkspaceNavItem.svelte";
   import {
@@ -160,6 +161,7 @@
 </AppShell>
 
 <ToastHost />
+<ChatAuthorizationHost />
 <CloseConfirmDialog
   open={closeConfirmOpen}
   onCancel={() => {

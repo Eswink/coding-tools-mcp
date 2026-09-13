@@ -1,3 +1,9 @@
+mod execution_fence;
+pub(crate) mod oauth_refresh;
+mod oauth_scope;
+pub(crate) mod session_policy;
+mod exclusive_lease;
+pub(crate) mod chat_events;
 #[path = "公网身份v2.rs"]
 mod public_origin;
 pub use public_origin::PublicOrigin;
@@ -32,3 +38,6 @@ mod identity_tests;
 
 #[cfg(test)]
 mod oauth_discovery_tests;
+
+#[cfg(test)]
+mod exclusive_refresh_http_tests;

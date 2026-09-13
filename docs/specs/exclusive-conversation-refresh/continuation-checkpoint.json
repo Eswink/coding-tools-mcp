@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "state": "local_candidate_awaiting_write_channel_and_ci",
+  "created_at_utc": "2026-09-13T09:47:57.741491+00:00",
+  "raw_user_input": "继续任务执行",
+  "goal": "Exclusive conversation lease, local approval UX, rotating refresh sessions and configurable finite lifetimes",
+  "approved_plan": "docs/specs/exclusive-conversation-refresh/plan.md",
+  "plan_first_saved_commit": "c2462cf6ee2aee6f3bd3f134dba534bf54f123dd",
+  "branch": "feat/exclusive-conversation-refresh",
+  "patch_base_commit": "ecf5ca9449a82122f26f2bef3f50ce6d0afd5488",
+  "patch_base_tree": "729b851322fb77d9b587588a6c85872038f67104",
+  "remote_write_performed": false,
+  "installer_published": false,
+  "upstream_ci": {
+    "run_id": 34749675645,
+    "commit": "ecf5ca9449a82122f26f2bef3f50ce6d0afd5488",
+    "overall": "success",
+    "rust_windows_passed": 422,
+    "rust_ubuntu_passed": 411,
+    "frontend_per_platform_passed": 131,
+    "browser_passed": 10,
+    "covers_this_local_increment": false
+  },
+  "local_checks": {
+    "frontend_passed": 139,
+    "frontend_failures": 0,
+    "frontend_skipped": 0,
+    "decision_function_tests_included_in_frontend_total": 8,
+    "baseline_decision_function_failures": 2,
+    "baseline_decision_function_passed": 6,
+    "playwright_resolver_contract_cases_passed": 2,
+    "svelte_components_compiled": 2,
+    "svelte_warnings": 0,
+    "full_app_typecheck_executed": false,
+    "new_rust_tests_written": 6,
+    "new_rust_tests_executed": false,
+    "expanded_browser_scenarios": 12,
+    "expanded_browser_executed": false
+  },
+  "open_gates": [
+    "Push/review incremental patch through an authorized writable GitHub tool channel",
+    "Locked Windows/Ubuntu Rust check, full test and production warning gates on changed source",
+    "Full frontend typecheck/build and expanded production-component browser regression",
+    "Installed Windows/Ubuntu modal, tray and notification acceptance",
+    "Actual ChatGPT two-conversation exclusion, OAuth rotation/reconnect and long-task handoff"
+  ],
+  "tool_limits": [
+    "Current GitHub actions are read/search/download only",
+    "Cargo is not available in the container",
+    "Production fixture localhost navigation returns ERR_BLOCKED_BY_ADMINISTRATOR",
+    "Probe/GitNexus CLI attempts unavailable; manual impact review recorded"
+  ],
+  "resume_notes": [
+    "Do not repeat implementation from scratch",
+    "Preserve remote ecf5ca9 predicate fix",
+    "Do not overwrite newer branch commits",
+    "Do not change PR #11 or live Nginx",
+    "Do not reuse old CI PASS for new local Rust changes",
+    "No production release or replacement of v0.3.2 assets"
+  ]
+}

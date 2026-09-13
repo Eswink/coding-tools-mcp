@@ -43,6 +43,8 @@ pub struct TunnelConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthConfig {
+    #[serde(default)]
+    pub session_policy: crate::auth::session_policy::SessionPolicy,
     #[serde(rename = "type", default = "default_auth_type")]
     pub auth_type: String,
     #[serde(default = "default_oauth_client_id")]
@@ -229,6 +231,7 @@ impl Default for AuthConfig {
     fn default() -> Self {
         Self {
             auth_type: default_auth_type(),
+            session_policy: Default::default(),
             oauth_client_id: default_oauth_client_id(),
             oauth_redirect_uri: default_oauth_redirect_uri(),
             use_shared_secrets: false,

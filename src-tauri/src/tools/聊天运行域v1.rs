@@ -27,6 +27,7 @@ impl ChatDomains {
         let r = domains.get(key).unwrap();
         let mut copy = ctx.background_snapshot();
         copy.default_cwd = r.cwd.clone(); copy.sessions = r.sessions.clone();
+        req.service.register_work(&req.profile, r.sessions.clone(), r.tasks.clone());
         copy.exec_tasks = r.tasks.clone(); copy.harness = r.harness.clone(); copy.chat_scoped = true;
         Ok(copy)
     }
@@ -50,15 +51,23 @@ fn required(name: &str, args: &Value) -> Option<&'static [&'static str]> {
         _ => return None,
     })
 }
-fn denied(code: &str) -> Value { super::workspace::tool_err_code("CHAT_AUTHORIZATION_REQUIRED", code, "permission") }
+fn denied(code: &str) -> Value {
+    if matches!(code, "EXCLUSIVE_CHAT_LOCKED" | "CHAT_WORK_DRAINING" | "CHAT_RECOVERY_REQUIRED") {
+        return json!({"ok":false,"error":{"code":code,"category":"permission","retryable":false,
+            "message":"Workspace unavailable to this conversation. Do not retry or request authorization."},"requires_local_action":false});
+    }
+    super::workspace::tool_err_code("CHAT_AUTHORIZATION_REQUIRED", code, "permission")
+}
 /// This hook precedes policy, cwd, Harness and every dispatch branch, including async workers.
 pub(crate) fn intercept(ctx: &ToolContext, name: &str, args: &Value) -> Option<Value> {
     let req = ctx.remote_request.as_ref()?;
     if name == "auth_status" { return Some(req.service.status(req)); }
     if name == "request_chat_authorization" { return Some(req.service.request(req,args)); }
     let scopes = match required(name,args) { Some(s) => s, None => return Some(denied("REMOTE_TOOL_NOT_PERMITTED")) };
-    if let Err(e) = req.service.permit(req,scopes) { return Some(denied(e)); }
-    if ctx.chat_scoped { return None; }
+    if ctx.chat_scoped {
+        return req.service.permit(req,scopes).err().map(denied);
+    }
+    let _admission = match req.service.admit(req,scopes) { Ok(g) => g, Err(e) => return Some(denied(e)) };
     let domain = match ctx.chat_domains.scoped(ctx,req) { Ok(v) => v, Err(_) => return Some(denied("CHAT_RUNTIME_UNAVAILABLE")) };
     let mut scoped_args = args.clone();
     if name.starts_with("history_session_") {
@@ -75,7 +84,7 @@ pub(crate) fn intercept(ctx: &ToolContext, name: &str, args: &Value) -> Option<V
 }
 pub(crate) fn auth_tools() -> Vec<Value> {
     [("auth_status", "Return only this authenticated conversation's authorization status; no workspace data."),
-     ("request_chat_authorization", "Only on explicit user request, ask the LOCAL DESKTOP owner to approve this conversation. Never request passwords in chat; retries do not extend pending requests.")]
+     ("request_chat_authorization", "Only on explicit user request, ask the LOCAL DESKTOP owner to approve this conversation. Never request passwords in chat; retries do not extend pending requests. Another owner returns EXCLUSIVE_CHAT_LOCKED without a pending request: do not retry or ask for approval.")]
         .into_iter().map(|(name,description)| json!({
             "name":name,"description":description,
             "inputSchema":{"type":"object","properties":if name == "auth_status" { json!({}) } else {

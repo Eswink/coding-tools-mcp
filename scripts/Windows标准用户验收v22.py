@@ -27,6 +27,8 @@ import traceback
 spec = importlib.util.spec_from_file_location('native_token_v22', Path(__file__).with_name('Windows非提升进程v12.py'))
 medium = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(medium)
+from native_scenario import script_name
+
 CONTEXT = ('GITHUB_ACTIONS', 'RUNNER_ENVIRONMENT', 'GITHUB_REPOSITORY', 'GITHUB_SHA', 'GITHUB_RUN_ID')
 NAME = re.compile(r'ctmcpv22_[0-9a-f]{10}')
 SID = re.compile(r'S-1-5-21-(?:[0-9]+-){3}[0-9]+')
@@ -183,7 +185,7 @@ def child(manifest: Path) -> int:
     args = data['arguments']
     if hashlib.sha256(Path(args['executable']).read_bytes()).hexdigest() != data['binary_sha256']:
         raise RuntimeError('native executable bytes changed')
-    argv = ['聊天授权原生验收v6.py', '--executable', args['executable'], '--driver', args['driver'],
+    argv = [script_name(args.get('scenario', 'legacy')), '--executable', args['executable'], '--driver', args['driver'],
         '--kind', args['kind'], '--source', args['source'], '--output', str(output), '--fixture-root', str(work)]
     print('child_ready_for_native_acceptance', flush=True)
     faulthandler.cancel_dump_traceback_later()
@@ -249,7 +251,7 @@ def run(args) -> None:
         grant(executable, sid, '(RX)'); grant(driver, sid, '(RX)')
         data = {'account': name, 'source_hashes': hashes, 'context': {k:os.environ[k] for k in CONTEXT},
             'path': os.environ['PATH'], 'binary_sha256': hashlib.sha256(executable.read_bytes()).hexdigest(),
-            'arguments': {'executable':str(executable), 'driver':str(driver), 'kind':args.kind, 'source':args.source}}
+            'arguments': {'executable':str(executable), 'driver':str(driver), 'kind':args.kind, 'source':args.source, 'scenario':args.scenario}}
         manifest = root / '启动上下文v22.json'
         manifest.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
         interpreter = Path(sys.executable).with_name('pythonw.exe')
@@ -368,6 +370,7 @@ def main() -> None:
     parser.add_argument('--source', required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--fixture-root', type=Path)  # retained CLI compatibility; private fixture is created here
+    parser.add_argument('--scenario', choices=('legacy', 'exclusive'), default='legacy')
     run(parser.parse_args())
 
 

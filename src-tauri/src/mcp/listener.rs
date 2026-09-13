@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use axum::extract::{Form, Query, State};
+use axum::extract::{DefaultBodyLimit, Form, Query, State};
 use axum::http::{header::CACHE_CONTROL, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -49,6 +49,8 @@ pub fn spawn_listener_with_origin(
     oauth_token_secret: Option<String>,
     runtime: RuntimeConfig,
 ) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>), String> {
+    auth.session_policy.validate()?;
+    crate::auth::chat::service().configure(&workspace_id, &auth.session_policy)?;
     let workspace_display = workspace_path.display().to_string();
     let workspace = Workspace::new(workspace_path).map_err(|e| e.message())?;
     let policy = PolicySettings::from_runtime(&runtime);
@@ -60,6 +62,8 @@ pub fn spawn_listener_with_origin(
         runtime.permission_mode.clone(),
     );
     Arc::get_mut(&mut mcp).expect("new listener context").enable_durable_tasks(&workspace_id, "mcp");
+    crate::auth::chat::service().attach_storage(&workspace_id,
+        &crate::auth::oauth_refresh::storage_root(&workspace_id)?.join("execution"),mcp.harness.store_root())?;
     let bearer_token = if auth.bearer_enabled() {
         let key = "bearer_token";
         if auth.use_shared_secrets {
@@ -81,7 +85,8 @@ pub fn spawn_listener_with_origin(
             oauth_client_secret.clone(),
             password,
             token_secret,
-        ).with_redirect_uri(auth.oauth_redirect_uri.clone()).with_mcp_resource()))
+        ).with_redirect_uri(auth.oauth_redirect_uri.clone()).with_mcp_resource()
+            .with_refresh_store(auth.session_policy.clone(),crate::auth::oauth_refresh::storage_root(&workspace_id)?.join("refresh"))?))
     } else {
         None
     };
@@ -135,8 +140,8 @@ async fn serve(
         )
         // RFC 9728 path-specific discovery; root remains a compatibility alias.
         .route("/.well-known/oauth-protected-resource/mcp", get(oauth_protected_resource_metadata))
-        .route("/oauth/authorize", get(oauth_authorize_get).post(oauth_authorize_post))
-        .route("/oauth/token", post(oauth_token_post))
+        .route("/oauth/authorize", get(oauth_authorize_get).post(oauth_authorize_post).layer(DefaultBodyLimit::max(8192)))
+        .route("/oauth/token", post(oauth_token_post).layer(DefaultBodyLimit::max(8192)))
         .with_state(state)
         .layer(CorsLayer::permissive());
 
@@ -312,10 +317,12 @@ async fn oauth_authorization_server_metadata(
         return oauth_not_configured();
     }
     let base = resolve_oauth_base(&state, &headers);
-    ([(CACHE_CONTROL, "no-store")], Json(authorization_server_metadata(
-        &base,
-        state.oauth_client_secret.as_deref(),
-    ))).into_response()
+    let mut metadata=authorization_server_metadata(&base,state.oauth_client_secret.as_deref());
+    if state.oauth.as_ref().is_some_and(|o|o.refresh_enabled()) {
+        metadata["grant_types_supported"]=json!(["authorization_code","refresh_token"]);
+        metadata["scopes_supported"]=json!(["mcp","offline_access"]);
+    }
+    ([(CACHE_CONTROL,"no-store")],Json(metadata)).into_response()
 }
 
 async fn oauth_protected_resource_metadata(
@@ -367,12 +374,10 @@ async fn oauth_token_post(
         )
             .into_response();
     };
-    token_exchange(
-        oauth,
-        &headers,
-        form,
-        &resolve_oauth_base(&state, &headers),
-    )
+    let oauth=oauth.clone(); let base=resolve_oauth_base(&state,&headers);
+    tokio::task::spawn_blocking(move||token_exchange(&oauth,&headers,form,&base)).await.unwrap_or_else(|_| {
+        (StatusCode::SERVICE_UNAVAILABLE,[(CACHE_CONTROL,"no-store")],Json(json!({"error":"server_error"}))).into_response()
+    })
 }
 
 fn oauth_not_configured() -> Response {
