@@ -17,7 +17,7 @@ jobs:
           path: control
       - uses: actions/checkout@v4
         with:
-          ref: 22f6ed4e5b6db69ab2ac02387252eb73926cd163
+          ref: d13385ec53665e16bd75403b89c32aadebb0fe2b
           persist-credentials: false
           path: candidate
       - name: Validate reviewed patch and upload unreferenced blobs only
@@ -27,17 +27,17 @@ jobs:
         run: |
           python - <<'PY'
           import base64, hashlib, json, lzma, os, pathlib, subprocess, urllib.request
-          head='22f6ed4e5b6db69ab2ac02387252eb73926cd163'
-          base_tree='f4c4f36f5b51ccbf3e098e26e716a582d0f6633c'
-          target='337fb9633ac5bd70401216a2ab9ae01392222bb2'
+          head='d13385ec53665e16bd75403b89c32aadebb0fe2b'
+          base_tree='337fb9633ac5bd70401216a2ab9ae01392222bb2'
+          target='d89c4e81ad95489e012fc8f5f7a5e8f4161ac074'
           def git(*args): return subprocess.check_output(['git',*args])
           assert git('rev-parse','HEAD').decode().strip()==head
           assert git('rev-parse','HEAD^{tree}').decode().strip()==base_tree
           packed=pathlib.Path('../control/docs/ui-transfer-next.xzpart').read_bytes()
-          assert len(packed)==3164 and hashlib.sha256(packed).hexdigest()=='12bb877230c7312cbfca990167d3954b7487c4d918fdeddeb82ffea2dfe6a4d8'
-          decoder=lzma.LZMADecompressor(); patch=decoder.decompress(packed,max_length=7680)
-          assert decoder.eof and not decoder.unused_data and len(patch)==7679
-          assert hashlib.sha256(patch).hexdigest()=='8382001dc32cb09290778841eead085bad6ef6f1bb932371667378191c91f304'
+          assert len(packed)==4440 and hashlib.sha256(packed).hexdigest()=='dc944a0af1c911a3b56849f8f9f47c8bfcd7b4f8e07a0b58af462623e9b257f1'
+          decoder=lzma.LZMADecompressor(); patch=decoder.decompress(packed,max_length=13096)
+          assert decoder.eof and not decoder.unused_data and len(patch)==13095
+          assert hashlib.sha256(patch).hexdigest()=='1ff154f74af7a3b70558ba962c9a6681b3eb0c70a8dce95fc0c7d3c96a6da740'
           subprocess.run(['git','apply','--check'],input=patch,check=True)
           subprocess.run(['git','apply','--index'],input=patch,check=True)
           assert git('write-tree').decode().strip()==target
