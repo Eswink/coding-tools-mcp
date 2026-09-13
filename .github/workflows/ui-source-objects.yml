@@ -1,0 +1,73 @@
+name: UI candidate source objects
+on:
+  push:
+    branches: ['build/ui-refactor-source-v1']
+permissions:
+  contents: read
+jobs:
+  objects:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: control
+      - uses: actions/checkout@v4
+        with:
+          ref: 29b11a69767b89d5f10ff9d563e16328ee4a177c
+          persist-credentials: false
+          path: candidate
+      - name: Verify exact patch and create unreferenced source objects only
+        working-directory: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import base64, hashlib, json, lzma, os, pathlib, subprocess, urllib.request
+          head='29b11a69767b89d5f10ff9d563e16328ee4a177c'
+          base_tree='bd44d99d5cb70b0d17ac45bdc7d66be68e66f02b'
+          target='f4c4f36f5b51ccbf3e098e26e716a582d0f6633c'
+          def git(*args): return subprocess.check_output(['git',*args])
+          assert git('rev-parse','HEAD').decode().strip()==head
+          assert git('rev-parse','HEAD^{tree}').decode().strip()==base_tree
+          packed=b''.join(pathlib.Path(f'../control/docs/ui-transfer-{i}.xzpart').read_bytes() for i in range(4))
+          assert len(packed)==18344 and hashlib.sha256(packed).hexdigest()=='60432bdca1b1bea432640e07d8e5c016247c98530922dd032ac51d143453daf2'
+          decoder=lzma.LZMADecompressor(); patch=decoder.decompress(packed,max_length=63387)
+          assert decoder.eof and not decoder.unused_data and len(patch)==63386
+          assert hashlib.sha256(patch).hexdigest()=='13c8d4bdb03f00d3ba2349552ff337f07655fef4b45b6ef9e2861a3e69c2ef0f'
+          subprocess.run(['git','apply','--check'],input=patch,check=True)
+          subprocess.run(['git','apply','--index'],input=patch,check=True)
+          assert git('write-tree').decode().strip()==target
+          api='https://api.github.com/repos/Eswink/coding-tools-mcp'
+          def request(path,data=None):
+              headers={'Accept':'application/vnd.github+json','Authorization':'Bearer '+os.environ['GH_TOKEN'],'X-GitHub-Api-Version':'2022-11-28'}
+              raw=None if data is None else json.dumps(data).encode()
+              with urllib.request.urlopen(urllib.request.Request(api+path,data=raw,headers=headers),timeout=30) as response:
+                  return json.load(response)
+          assert request('/git/ref/heads/feat/ui-refactor-v1')['object']['sha']==head
+          paths=[p.decode() for p in git('diff','--cached','--name-only','-z').split(b'\0') if p]
+          assert len(paths)==31
+          entries=[]
+          for path in paths:
+              mode,sha,stage=git('ls-files','--stage','--',path).decode().split('\t',1)[0].split()
+              assert mode=='100644' and stage=='0'
+              raw=git('cat-file','blob',sha)
+              blob=request('/git/blobs',{'content':base64.b64encode(raw).decode(),'encoding':'base64'})
+              assert blob['sha']==sha
+              entries.append({'path':path,'mode':mode,'type':'blob','sha':sha})
+          tree=request('/git/trees',{'base_tree':base_tree,'tree':entries})
+          assert tree['sha']==target
+          evidence=pathlib.Path('../object-evidence');evidence.mkdir()
+          (evidence/'source-objects.json').write_text(json.dumps({'base':head,'base_tree':base_tree,'tree':target,'files':entries,'refs_changed':False,'publication':False},indent=2))
+          print('Verified source tree:',target,'files:',len(entries),'No refs/commits/releases modified.')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-candidate-source-objects
+          path: object-evidence/
+          if-no-files-found: error
+          retention-days: 14
