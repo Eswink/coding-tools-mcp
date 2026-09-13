@@ -45,3 +45,7 @@ Screenshot review also found destructive outline buttons lost red styling to the
 A direct node --test glob was not the repository full-suite command: it missed the generated task-log module and failed. Preserve that invocation as a harness-preparation failure; the official complete driver compiles its prerequisites and passes158 tests. No product-test assertion was disabled.
 
 Round13 semantic-color review: actual token checks found light success text4.38:1 on its soft surface and dark destructive white text2.77:1 on the text-red fill. Dark danger now has a separate dark action fill/hover, light success text is slightly darker, and all16 selected enabled-text/action pairs pass4.5:1. Two deterministic token tests retain these constraints; this is not a claim of whole-page WCAG certification. Both failures and the intermediate light-success failure remain in local evidence.
+
+## Continuation — native review and saved-draft navigation
+
+See [continuation-20260914.md](continuation-20260914.md) for the recovered exact-source gate, form-owned dirty/busy fix, strict additional native UI scenario, candidate-only0.5.0 version and pending tests. User visual approval remains required; no merge or publication is implied by continuing the iteration.

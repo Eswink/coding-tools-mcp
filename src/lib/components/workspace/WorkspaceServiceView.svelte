@@ -36,21 +36,35 @@
   const actions = $derived(actionsConfig(profile));
   const mcp = $derived(service === "mcp");
   const tabs = [{ value: "config", label: "配置" }, { value: "logs", label: "日志" }, { value: "tasks", label: "异步任务" }, { value: "health", label: "健康" }];
-  let edited = $state(false);
+  type Editor = { navigationState: () => { dirty: boolean; busy: boolean } };
+  let portEditor = $state<Editor>();
+  let tunnelEditor = $state<Editor>();
+  let authEditor = $state<Editor>();
+  let leaseEditor = $state<Editor>();
+  let policyEditor = $state<Editor>();
+  let taskEditor = $state<Editor>();
+  let editRevision = 0;
+  function navigationState() {
+    const editors = [portEditor, ...(subTab === "config" ? [tunnelEditor, authEditor, leaseEditor, policyEditor] :
+      subTab === "tasks" ? [taskEditor] : [])];
+    const states = editors.map(editor => editor?.navigationState());
+    return { dirty: states.some(state => state?.dirty), busy: states.some(state => state?.busy) };
+  }
   let confirming = $state(false);
   let disposed = false;
   onDestroy(() => { disposed = true; });
 
-  // Conservative guard: even internally saved fields may have emitted an edit.
-  // Never discard a draft merely because a mutation was attempted.
+  // Read authoritative form state at navigation time. A successful save is not
+  // equivalent to clearing every other form's draft or cancelling an operation.
   export async function requestLeave(): Promise<boolean> {
-    if (confirming || busy || disposed) return false;
-    if (!edited) return true;
+    if (confirming || busy || disposed || navigationState().busy) return false;
+    if (!navigationState().dirty) return true;
+    const revision = editRevision;
     confirming = true;
     try {
-      const accepted = await confirm("此服务面板有编辑操作。切换会清除未保存的表单；已保存的配置不受影响。继续切换？",
+      const accepted = await confirm("此服务面板有未保存的修改。切换将丢弃这些修改，已保存的配置不受影响。继续切换？",
         { title: "确认切换面板", kind: "warning", okLabel: "切换", cancelLabel: "继续编辑" });
-      return accepted && !disposed && !busy;
+      return accepted && !disposed && !busy && !navigationState().busy && revision === editRevision;
     } catch (error) {
       if (!disposed) showToast(String(error), { title: "无法确认切换", kind: "error" });
       return false;
@@ -59,12 +73,11 @@
   async function changeTab(next: string) {
     if (next === subTab || !tabs.some(tab => tab.value === next)) return;
     if (!await requestLeave()) return;
-    edited = false;
     onTabChange(next as SubTab);
   }
 </script>
-<div class="service-view" oninput={() => { edited = true; }} onchange={() => { edited = true; }}>
-  <ServicePanel title={mcp ? "MCP" : "Actions"} subtitle={mcp ? "Streamable HTTP · 工具运行时" : "OpenAPI 网关 · ChatGPT Actions"}
+<div class="service-view" oninput={() => { editRevision++; }} onchange={() => { editRevision++; }}>
+  <ServicePanel bind:this={portEditor} title={mcp ? "MCP" : "Actions"} subtitle={mcp ? "Streamable HTTP · 工具运行时" : "OpenAPI 网关 · ChatGPT Actions"}
     {status} {statusMessage} port={mcp ? profile.runtime.local_port : actions.local_port} portEditable={true} busy={busy || confirming}
     tunnelType={mcp ? profile.tunnel.type : actions.tunnel_type} {localEndpoint} {publicEndpoint}
     publicLabel={mcp ? "公网 MCP" : "OpenAPI"} {onToggle} {onPortChange} />
@@ -75,17 +88,17 @@
     <div class="configuration-stack">
       <section class="tx-card p-5" aria-label="隧道配置">
         <h3 class="tx-section-label">隧道</h3>
-        <TunnelConfigForm workspaceId={profile.id} {service} localPort={mcp ? profile.runtime.local_port : actions.local_port}
+        <TunnelConfigForm bind:this={tunnelEditor} workspaceId={profile.id} {service} localPort={mcp ? profile.runtime.local_port : actions.local_port}
           activePublicOrigin={mcp ? originFromEndpoint(publicEndpoint, "/mcp") : activeOrigin ?? ""}
           onTested={onReload} config={tunnelConfig} onSave={onSaveTunnel} />
       </section>
       <section class="tx-card p-5" aria-label="认证配置">
         <h3 class="tx-section-label">认证</h3>
         {#if mcp}
-          <AuthConfigForm workspaceId={profile.id} auth={profile.auth} onSaveProfile={onSaveMcpAuth} />
-          <RemoteSessionSettings workspaceId={profile.id} auth={profile.auth} onSaveProfile={onSaveMcpAuth} />
+          <AuthConfigForm bind:this={authEditor} workspaceId={profile.id} auth={profile.auth} onSaveProfile={onSaveMcpAuth} />
+          <RemoteSessionSettings bind:this={leaseEditor} workspaceId={profile.id} auth={profile.auth} onSaveProfile={onSaveMcpAuth} />
         {:else}
-          <ActionsAuthForm workspaceId={profile.id} authType={actions.auth_type} oauthClientId={actions.oauth_client_id ?? ""}
+          <ActionsAuthForm bind:this={authEditor} workspaceId={profile.id} authType={actions.auth_type} oauthClientId={actions.oauth_client_id ?? ""}
             oauthScopes={actions.oauth_scopes ?? ""} openapiUrl={actionsOpenApiUrl(profile, frpProfiles, activeOrigin)}
             privacyUrl={actionsPrivacyUrl(profile, frpProfiles, activeOrigin)} oauthAuthorizeUrl={actionsOAuthAuthorizeUrl(profile, frpProfiles, activeOrigin)}
             oauthTokenUrl={actionsOAuthTokenUrl(profile, frpProfiles, activeOrigin)} useSharedSecrets={actions.use_shared_secrets ?? false} onSave={onSaveActionsAuth} />
@@ -94,17 +107,17 @@
       <section class="tx-card p-5" aria-label="执行策略">
         <h3 class="tx-section-label">策略</h3>
         {#if mcp}
-          <RuntimePolicyForm toolProfile={profile.runtime.tool_profile} permissionMode={profile.runtime.permission_mode}
+          <RuntimePolicyForm bind:this={policyEditor} toolProfile={profile.runtime.tool_profile} permissionMode={profile.runtime.permission_mode}
             allowedCommands={profile.runtime.allowed_commands ?? ""} workspaceLocalEntries={profile.runtime.workspace_local_entries ?? true}
             workspaceScriptExtensions={profile.runtime.workspace_script_extensions ?? ".exe,.bat,.cmd,.ps1"} onSave={onSaveMcpPolicy} />
         {:else}
-          <ActionsPolicyForm allowedCommands={actions.allowed_commands ?? ""} maxPatchBytes={actions.max_patch_bytes ?? 200_000}
+          <ActionsPolicyForm bind:this={policyEditor} allowedCommands={actions.allowed_commands ?? ""} maxPatchBytes={actions.max_patch_bytes ?? 200_000}
             permissionMode={actions.permission_mode} onSave={onSaveActionsPolicy} />
         {/if}
       </section>
     </div>
   {:else if subTab === "tasks"}
-    <TaskPanel workspaceId={profile.id} channel={service} maxTimeoutMs={(mcp ? profile.runtime.max_task_timeout_ms : actions.max_task_timeout_ms) ?? 86400000} {onBudgetSave} />
+    <TaskPanel bind:this={taskEditor} workspaceId={profile.id} channel={service} maxTimeoutMs={(mcp ? profile.runtime.max_task_timeout_ms : actions.max_task_timeout_ms) ?? 86400000} {onBudgetSave} />
   {:else if subTab === "logs"}
     <LogViewer workspaceId={profile.id} {service} />
   {:else}

@@ -130,7 +130,7 @@ def scan_export(output, sensitive):
     return found
 
 
-def run(args):
+def run(args, *, ui_review=None):
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=True)
     evidence = {'scenario': SCENARIO, 'passed': False, 'source_sha': args.source,
         'run_id': os.environ.get('GITHUB_RUN_ID'), 'platform': platform.platform(),
@@ -184,6 +184,8 @@ def run(args):
         assert session.invoke('list_workspaces')[0]['auth']['session_policy'] == p
         session.screenshot(output / 'native-session-settings.png')
         passed(1)
+        if ui_review is not None:
+            evidence['ui_refactor'] = ui_review(session, profile, output)
         session.invoke('start_runtime', {'id': profile['id']})
         base = 'http://127.0.0.1:' + str(profile['runtime']['local_port'])
         code, headers, _ = exchange(base + '/mcp', {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list'})

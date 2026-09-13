@@ -70,6 +70,12 @@
     } finally { savingPort = false; }
   }
 
+  // Presentation-only navigation contract: never return draft or credential values.
+  export function navigationState(): { dirty: boolean; busy: boolean } {
+    // Parent busy includes the leave dialog itself; only the owned port write
+    // belongs here. WorkspaceServiceView separately fences parent mutations.
+    return { dirty: draftPort !== port, busy: savingPort };
+  }
 </script>
 
 <article class="tx-card p-5">

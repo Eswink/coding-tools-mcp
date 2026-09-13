@@ -76,6 +76,10 @@
     catch (error) { failure = String(error); }
     finally { saving = false; }
   }
+  // Presentation-only navigation contract: never return draft or credential values.
+  export function navigationState(): { dirty: boolean; busy: boolean } {
+    return { dirty: minutes !== Math.ceil(maxTimeoutMs / 60000), busy: saving || busy };
+  }
 </script>
 
 <section class="tx-card mt-4 space-y-4 p-5" aria-label="异步命令任务">

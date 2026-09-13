@@ -41,6 +41,10 @@
     return value ? { key: secretKey, value } : undefined;
   }
   export async function refreshSaved() { if (!disposed) await load(workspaceId, secretKey); }
+  // Presentation-only navigation contract: never return draft or credential values.
+  export function navigationState(): { dirty: boolean; busy: boolean } {
+    return { dirty: draft.trim().length > 0, busy: loading };
+  }
 </script>
 
 <label class="grid gap-1">

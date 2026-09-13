@@ -220,6 +220,10 @@
   const regenerateOAuthSecret = () => regenerateCredential("secret", "actions_oauth_client_secret", "actions_oauth_client_secret");
   const regenerateOAuthPassword = () => regenerateCredential("password", "actions_oauth_password", "actions_oauth_password");
   const regenerateOAuthTokenSecret = () => regenerateCredential("token", "actions_oauth_token_secret", "actions_oauth_token_secret");
+  // Presentation-only navigation contract: never return draft or credential values.
+  export function navigationState(): { dirty: boolean; busy: boolean } {
+    return { dirty, busy: saving || credentialsBusy };
+  }
 </script>
 
 <form

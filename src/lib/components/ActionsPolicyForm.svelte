@@ -52,6 +52,10 @@
       saving = false;
     }
   }
+  // Presentation-only navigation contract: never return draft or credential values.
+  export function navigationState(): { dirty: boolean; busy: boolean } {
+    return { dirty, busy: saving };
+  }
 </script>
 
 <form
