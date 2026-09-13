@@ -1,3 +1,4 @@
+import type { SessionPolicy } from "./remote-session-policy";
 import { frpOrigin, normalizePublicOrigin, type FrpRouteOptions } from "./固定入口";
 
 export type RuntimeState = "stopped" | "starting" | "running" | "stopping" | "error";
@@ -19,6 +20,7 @@ export interface TunnelConfig {
 }
 
 export interface AuthConfig {
+  session_policy?: SessionPolicy;
   type: string;
   oauth_client_id: string;
   oauth_redirect_uri?: string;

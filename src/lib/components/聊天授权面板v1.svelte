@@ -1,13 +1,16 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
+  import { confirm } from "@tauri-apps/plugin-dialog";
   type Grant = { id: string; fingerprint: string; status: string; scopes: string[]; expires_at: number; idle_expires_at: number };
-  type Snapshot = { records: Grant[]; exclusive: boolean; oauth_ready: boolean; available_scopes: string[] };
+  type Snapshot = { records: Grant[]; exclusive: boolean; oauth_ready: boolean; available_scopes: string[]; lease_state: string; policy: { chat_lease_ttl_seconds: number; chat_idle_timeout_seconds: number }; recovery: {required: boolean; generation: string} };
   let { workspaceId }: { workspaceId: string } = $props();
   let snapshot = $state<Snapshot | null>(null);
   let error = $state("");
   let busy = $state(false);
   let selections = $state<Record<string, string[]>>({});
+  let verified = $state<Record<string, boolean>>({});
+  let now = $state(Date.now() / 1000);
   let generation = 0;
   let mutation = 0;
   const label: Record<string, string> = { pending: "待审批", active: "已授权", denied: "已拒绝", revoked: "已撤销", expired: "已过期" };
@@ -20,7 +23,7 @@
   }
   $effect(() => {
     const id = workspaceId; const current = ++generation;
-    snapshot = null; error = ""; selections = {}; busy = false;
+    snapshot = null; error = ""; selections = {}; verified = {}; busy = false;
     let disposed = false; let refreshing = false;
     const refresh = async () => {
       if (disposed || refreshing || busy) return;
@@ -29,13 +32,21 @@
       catch (e) { if (!disposed && generation === current) error = String(e); }
       finally { refreshing = false; }
     };
-    untrack(() => void refresh()); const timer = setInterval(() => void refresh(), 2500);
+    untrack(() => void refresh()); const timer = setInterval(() => { now = Date.now() / 1000; void refresh(); }, 2500);
     return () => { disposed = true; clearInterval(timer); };
   });
   async function act(action: string, extra: Record<string, unknown> = {}) {
     if (busy) return;
     const id = workspaceId, current = generation; ++mutation; busy = true; error = "";
-    try { const value = await call(id, action, extra); if (generation === current) snapshot = value; }
+    try {
+      if (action === "cancel_sessions" || action === "acknowledge_recovery") {
+        const message = action === "cancel_sessions" ? "终止此工作区所有已知交互进程？异步任务请另在任务面板取消。已写入文件不会回滚。"
+          : "仅在已核对操作系统进程、确认旧进程及其子进程全部终止，并已处理异步任务中的未知状态后继续。此操作只解除恢复锁，不会替你终止进程。";
+        if (!await confirm(message, { title: "本机工作区安全确认", kind: "warning", okLabel: "已核实并继续", cancelLabel: "取消" })) return;
+        if (generation !== current || id !== workspaceId) return;
+      }
+      const value = await call(id, action, extra); if (generation === current) snapshot = value;
+    }
     catch (e) { if (generation === current) error = String(e); }
     finally { if (generation === current) busy = false; }
   }
@@ -55,9 +66,17 @@
   {#if error}<p role="alert">{error}</p>{/if}
   {#if snapshot}
     {#if !snapshot.oauth_ready}<p role="alert">当前未启用 OAuth。所有网络业务调用将被拒绝，请先配置 OAuth；旧 Actions 不支持聊天授权。</p>{/if}
-    <label class="exclusive"><input type="checkbox" checked={snapshot.exclusive} disabled={busy}
-      onchange={(e) => void act("exclusive", { exclusive: e.currentTarget.checked })} />独占聊天模式（开启会撤销现有授权）</label>
-    <p>待审批 90 秒；空闲 30 分钟失效；最长 8 小时。应用重启后重新审批。撤销不回滚已执行操作，运行中任务请在异步任务面板取消。</p>
+    <p class="exclusive">独占聊天模式：{snapshot.exclusive ? "开启" : "关闭"}。请在“远程会话安全”中修改并保存。</p>
+    <p>待审批 90 秒；新授权最长 {snapshot.policy.chat_lease_ttl_seconds / 3600} 小时；空闲释放：{snapshot.policy.chat_idle_timeout_seconds === 0 ? "关闭" : `${snapshot.policy.chat_idle_timeout_seconds / 60} 分钟`}。应用重启后重新审批，令牌刷新不会续期聊天授权。</p>
+    {#if snapshot.lease_state === "draining"}
+      <p role="status">排空中：旧会话仍有未结束操作或持久化尚未确认，暂不接受其他聊天申请。撤销不回滚已执行操作。</p>
+      <button type="button" class="tx-btn-secondary" disabled={busy} onclick={() => void act("cancel_sessions")}>终止本工作区交互进程</button>
+      <p>异步任务请在“异步任务”面板取消；未知终止状态必须先从本机核实。</p>
+    {/if}
+    {#if snapshot.recovery.required}
+      <p role="alert">恢复锁定：检测到上次执行未留下安全结束记录。先核对旧进程和异步任务，不能直接让新聊天接管。</p>
+      <button type="button" class="tx-btn-secondary" disabled={busy} onclick={() => void act("acknowledge_recovery", { requestId: snapshot?.recovery.generation })}>已在本机核实旧任务全部终止</button>
+    {/if}
     {#if snapshot.records.length === 0}<p>暂无请求。仅在需要远程操作的聊天中明确申请授权。</p>{/if}
     <div class="records">
       {#each snapshot.records as grant (grant.id)}
@@ -68,9 +87,11 @@
               {#each grant.scopes as scope}<label><input type="checkbox" checked={(selections[grant.id] ?? grant.scopes).includes(scope)}
                 onchange={(e) => toggle(grant, scope, e.currentTarget.checked)} />{scopeLabel[scope] ?? scope}</label>{/each}
             </fieldset>
+            <label class="exclusive"><input type="checkbox" checked={verified[grant.id] ?? false} disabled={busy} onchange={(e) => verified = {...verified, [grant.id]: e.currentTarget.checked}} />我已核对该聊天返回的指纹</label>
+            <p>剩余 {Math.max(0, Math.ceil(grant.expires_at - now))} 秒</p>
             <div class="controls">
               <button type="button" class="tx-btn-secondary" disabled={busy} onclick={() => void act("deny", { requestId: grant.id })}>拒绝</button>
-              <button type="button" class="tx-btn-primary" disabled={busy || !snapshot.oauth_ready || (selections[grant.id] ?? grant.scopes).length === 0}
+              <button type="button" class="tx-btn-primary" disabled={busy || !snapshot.oauth_ready || !verified[grant.id] || now >= grant.expires_at || (selections[grant.id] ?? grant.scopes).length === 0}
                 onclick={() => void act("approve", { requestId: grant.id, scopes: selections[grant.id] ?? grant.scopes })}>核对指纹并批准</button>
             </div>
           {:else if grant.status === "active"}

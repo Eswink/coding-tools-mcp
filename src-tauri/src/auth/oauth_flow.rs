@@ -10,6 +10,10 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 
 use super::bearer::constant_time_eq_str;
+use super::{oauth_refresh::{RefreshContext, RefreshStore}, session_policy::SessionPolicy};
+#[path = "oauth_token.rs"]
+mod token;
+pub use token::token_exchange;
 
 #[path = "OAuth请求边界v5.rs"]
 mod request_boundary;
@@ -32,6 +36,8 @@ pub struct OAuthRuntime {
     redirect_uri: String,
     // Issuer and audience are separate; Actions keeps its origin resource.
     resource_path: &'static str,
+    refresh: Option<Arc<RefreshStore>>,
+    session_policy: SessionPolicy,
     attempts: Arc<Mutex<(u64, u32)>>,
     pending: Arc<Mutex<HashMap<String, PendingCode>>>,
 }
@@ -39,6 +45,7 @@ pub struct OAuthRuntime {
 #[derive(Clone)]
 #[allow(dead_code)]
 struct PendingCode {
+    scope: String,
     code_challenge: String,
     client_id: String,
     redirect_uri: String,
@@ -63,6 +70,8 @@ impl OAuthRuntime {
             token_secret,
             redirect_uri: "https://chatgpt.com/connector_platform_oauth_redirect".into(),
             resource_path: "",
+            refresh: None,
+            session_policy: SessionPolicy::default(),
             attempts: Arc::new(Mutex::new((0, 0))),
             pending: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -70,6 +79,17 @@ impl OAuthRuntime {
 
     pub fn with_redirect_uri(mut self, uri: String) -> Self { self.redirect_uri = uri; self }
     pub fn with_mcp_resource(mut self) -> Self { self.resource_path = "/mcp"; self }
+    pub(crate) fn with_refresh_store(mut self, policy: SessionPolicy, root: std::path::PathBuf) -> Result<Self,String> {
+        policy.validate()?;
+        self.session_policy=policy;
+        self.refresh=Some(RefreshStore::shared(root));
+        Ok(self)
+    }
+    pub(crate) fn refresh_enabled(&self) -> bool { self.refresh.is_some() }
+    fn refresh_context(&self, client: &str, issuer: &str) -> RefreshContext {
+        RefreshContext::new(client,issuer,&self.resource_url(issuer),&self.token_secret,
+            &self.password,self.client_secret.as_deref(),&self.session_policy)
+    }
     pub fn resource_url(&self, issuer: &str) -> String {
         format!("{}{}", issuer.trim_end_matches('/'), self.resource_path)
     }
@@ -102,7 +122,12 @@ impl OAuthRuntime {
     }
     pub(crate) fn principal(&self, token: &str, server_url: &str) -> Option<super::principal::VerifiedPrincipal> {
         let principal = super::principal::verify(token, &self.token_secret, server_url, &self.resource_url(server_url))?;
-        self.client_id_allowed(&principal.client_id).then_some(principal)
+        if !self.client_id_allowed(&principal.client_id) { return None; }
+        if let Some(family) = principal.family_id.as_deref() {
+            let store=self.refresh.as_ref()?;
+            if !store.valid_family(&self.refresh_context(&principal.client_id,server_url),family) { return None; }
+        }
+        Some(principal)
     }
 
 }
@@ -156,9 +181,16 @@ pub struct AuthorizeForm {
 #[derive(Debug, Deserialize, Default)]
 pub struct TokenForm {
     pub grant_type: String,
+    #[serde(default)]
     pub code: String,
+    #[serde(default)]
     pub redirect_uri: String,
+    #[serde(default)]
     pub code_verifier: String,
+    #[serde(default)]
+    pub refresh_token: String,
+    #[serde(default)]
+    pub scope: String,
     #[serde(default)]
     pub client_id: String,
     #[serde(default)]
@@ -172,8 +204,9 @@ pub fn authorize_get(
     params: AuthorizeParams,
     _workspace_path: Option<&str>,
 ) -> Response {
+    let scope=super::oauth_scope::normalize(&params.scope,oauth.refresh_enabled());
     if !oauth.redirect_allowed(&params.redirect_uri) || !valid_resource(&params.resource)
-        || (!params.scope.is_empty() && params.scope != "mcp") {
+        || scope.is_err() {
         return html_error("Invalid redirect_uri or scope", StatusCode::BAD_REQUEST);
     }
     if params.response_type != "code" {
@@ -195,6 +228,7 @@ pub fn authorize_get(
         &params.code_challenge_method,
         &params.state,
         &params.resource,
+        scope.as_deref().unwrap_or("mcp"),
         "",
         None,
     ))
@@ -202,7 +236,8 @@ pub fn authorize_get(
 }
 
 pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &str) -> Response {
-    if !oauth.redirect_allowed(&form.redirect_uri) || (!form.scope.is_empty() && form.scope != "mcp")
+    let scope=super::oauth_scope::normalize(&form.scope,oauth.refresh_enabled());
+    if !oauth.redirect_allowed(&form.redirect_uri) || scope.is_err()
         || !valid_resource(&form.resource) || form.resource != oauth.resource_url(server_url) {
         return html_error("Invalid redirect_uri, resource or scope", StatusCode::BAD_REQUEST);
     }
@@ -215,6 +250,7 @@ pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &st
             &form.code_challenge_method,
             &form.state,
             &form.resource,
+            scope.as_deref().unwrap_or("mcp"),
             "Invalid client",
             None,
         ))
@@ -228,6 +264,7 @@ pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &st
             &form.code_challenge_method,
             &form.state,
             &form.resource,
+            scope.as_deref().unwrap_or("mcp"),
             "Invalid PKCE parameters",
             None,
         ))
@@ -243,6 +280,7 @@ pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &st
                 &form.code_challenge_method,
                 &form.state,
                 &form.resource,
+                scope.as_deref().unwrap_or("mcp"),
                 "Invalid password",
                 None,
             )),
@@ -260,6 +298,7 @@ pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &st
         pending.insert(
             code.clone(),
             PendingCode {
+                scope: scope.unwrap(),
                 code_challenge: form.code_challenge.clone(),
                 client_id: form.client_id.clone(),
                 redirect_uri: form.redirect_uri.clone(),
@@ -281,74 +320,6 @@ pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &st
     Redirect::to(&format!("{}{}{}", form.redirect_uri, sep, qs)).into_response()
 }
 
-pub fn token_exchange(
-    oauth: &OAuthRuntime,
-    headers: &HeaderMap,
-    mut form: TokenForm,
-    server_url: &str,
-) -> Response {
-    if form.grant_type != "authorization_code" {
-        return token_error("unsupported_grant_type", "Only authorization_code is supported");
-    }
-
-    if client_auth::resolve(headers, &mut form).is_err() {
-        return client_auth::invalid_client();
-    }
-    if !oauth.client_id_allowed(&form.client_id) {
-        return client_auth::invalid_client();
-    }
-    if let Some(expected) = oauth.client_secret.as_deref() {
-        if !constant_time_eq_str(&form.client_secret, expected) {
-            return client_auth::invalid_client();
-        }
-    }
-    if form.code.is_empty() {
-        return token_error("invalid_grant", "code is required");
-    }
-    if !valid_code_verifier(&form.code_verifier) {
-        return token_error("invalid_grant", "Invalid code_verifier");
-    }
-
-    let code_data = {
-        let mut pending = oauth.pending.lock().expect("oauth pending lock");
-        pending.remove(&form.code)
-    };
-    let Some(code_data) = code_data else {
-        return token_error("invalid_grant", "Unknown or already-used authorization code");
-    };
-    if unix_now() >= code_data.expires_at {
-        return token_error("invalid_grant", "Authorization code expired");
-    }
-    if !constant_time_eq_str(&code_data.client_id, &form.client_id) {
-        return token_error("invalid_grant", "client_id mismatch");
-    }
-    if !constant_time_eq_str(&code_data.redirect_uri, &form.redirect_uri) {
-        return token_error("invalid_grant", "redirect_uri mismatch");
-    }
-    if !verify_pkce(&form.code_verifier, &code_data.code_challenge) {
-        return token_error("invalid_grant", "PKCE verification failed");
-    }
-
-    let issuer = code_data.server_url.trim_end_matches('/').to_string();
-    if issuer != server_url.trim_end_matches('/') || form.resource != code_data.resource
-        || code_data.resource != oauth.resource_url(&issuer) {
-        return token_error("invalid_target", "Resource identity changed or mismatched");
-    }
-    match super::principal::issue(&issuer, &code_data.resource, &oauth.token_secret, &code_data.client_id, OAUTH_TOKEN_TTL_SECONDS) {
-        Ok(access_token) => (
-            StatusCode::OK,
-            [(axum::http::header::CACHE_CONTROL, "no-store")],
-            axum::Json(json!({
-                "access_token": access_token,
-                "token_type": "Bearer",
-                "expires_in": OAUTH_TOKEN_TTL_SECONDS,
-                "scope": "mcp"
-            })),
-        )
-            .into_response(),
-        Err(_) => token_error("server_error", "Failed to issue access token"),
-    }
-}
 
 fn verify_pkce(code_verifier: &str, code_challenge: &str) -> bool {
     let digest = Sha256::digest(code_verifier.as_bytes());
@@ -387,9 +358,13 @@ fn login_page(
     code_challenge_method: &str,
     state: &str,
     resource: &str,
+    scope: &str,
     error: &str,
     workspace_path: Option<&str>,
 ) -> String {
+    let offline_notice = if scope.split_whitespace().any(|s|s=="offline_access") {
+        "<p>Offline access requested: this client may refresh its connection until the configured refresh-session deadline. Local conversation approval is still required and is never renewed by token refresh.</p>"
+    } else { "" };
     let error_block = if error.is_empty() {
         String::new()
     } else {
@@ -410,14 +385,14 @@ fn login_page(
         {workspace_block}\
         <p>Client: <strong>{}</strong></p>\
         <p>Redirect URI: <code>{}</code></p>\
-        {error_block}\
+        {error_block}{offline_notice}\
         <form method='POST' action='/oauth/authorize'>\
         <input type='hidden' name='client_id' value='{}'>\
         <input type='hidden' name='redirect_uri' value='{}'>\
         <input type='hidden' name='code_challenge' value='{}'>\
         <input type='hidden' name='code_challenge_method' value='{}'>\
         <input type='hidden' name='state' value='{}'>\
-        <input type='hidden' name='scope' value='mcp'>\
+        <input type='hidden' name='scope' value='{}'>\
         <input type='hidden' name='resource' value='{}'>\
         <label>Password<input type='password' name='password' autocomplete='current-password' required></label>\
         <button type='submit'>Authorize</button>\
@@ -429,6 +404,7 @@ fn login_page(
         html_escape(code_challenge),
         html_escape(code_challenge_method),
         html_escape(state),
+        html_escape(scope),
         html_escape(resource),
     )
 }

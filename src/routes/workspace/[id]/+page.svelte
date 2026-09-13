@@ -9,6 +9,7 @@
     type ActionsPolicyDraft,
   } from "$lib/components/ActionsPolicyForm.svelte";
   import AuthConfigForm from "$lib/components/AuthConfigForm.svelte";
+  import RemoteSessionSettings from "$lib/components/RemoteSessionSettings.svelte";
   import ChatAuthorizationPanel from "$lib/components/聊天授权面板v1.svelte";
   import TaskPanel from "$lib/components/异步任务面板v2.svelte";
   import HealthPanel from "$lib/components/HealthPanel.svelte";
@@ -586,6 +587,7 @@
                 auth={profile.auth}
                 onSaveProfile={bindWorkspace(profile.id, saveMcpAuth)}
               />
+            <RemoteSessionSettings workspaceId={profile.id} auth={profile.auth} onSaveProfile={bindWorkspace(profile.id, saveMcpAuth)} />
             </div>
             <div>
               <p class="tx-section-label">策略</p>

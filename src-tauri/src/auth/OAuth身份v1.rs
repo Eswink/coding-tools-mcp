@@ -8,6 +8,7 @@ pub(crate) struct VerifiedPrincipal {
     pub subject: String,
     pub client_id: String,
     pub expires_at: u64,
+    pub family_id: Option<String>,
 }
 impl VerifiedPrincipal {
     pub fn is_current(&self) -> bool { unix_now() < self.expires_at }
@@ -16,6 +17,8 @@ impl VerifiedPrincipal {
 struct Claims {
     iss: String, aud: String, sub: String, client_id: String,
     iat: u64, nbf: u64, exp: u64, scope: String, jti: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    sid: Option<String>,
 }
 pub(crate) fn verify(token: &str, secret: &str, issuer: &str, resource: &str) -> Option<VerifiedPrincipal> {
     if secret.is_empty() || token.len() > 8192 { return None; }
@@ -28,14 +31,17 @@ pub(crate) fn verify(token: &str, secret: &str, issuer: &str, resource: &str) ->
         || c.iat > unix_now() || c.exp <= unix_now() || c.exp <= c.iat
         || c.exp - c.iat > 8 * 3600 || !c.scope.split_whitespace().eq(["mcp"])
         || c.jti.is_empty() { return None; }
-    Some(VerifiedPrincipal { issuer: c.iss, subject: c.sub, client_id: c.client_id, expires_at: c.exp })
+    Some(VerifiedPrincipal { issuer: c.iss, subject: c.sub, client_id: c.client_id, expires_at: c.exp, family_id:c.sid })
 }
 pub(crate) fn issue(issuer: &str, resource: &str, secret: &str, client_id: &str, ttl: i64) -> Result<String, ()> {
+    issue_with_family(issuer,resource,secret,client_id,ttl,None)
+}
+pub(crate) fn issue_with_family(issuer: &str, resource: &str, secret: &str, client_id: &str, ttl: i64, family_id: Option<&str>) -> Result<String, ()> {
     if secret.is_empty() || client_id.is_empty() || client_id.len() > 256 || ttl <= 0 || ttl > 8 * 3600 { return Err(()); }
     let now = unix_now();
     let claims = Claims { iss: issuer.into(), aud: resource.into(), sub: "desktop-owner".into(),
         client_id: client_id.into(), iat: now, nbf: now, exp: now + ttl as u64, scope: "mcp".into(),
-        jti: uuid::Uuid::new_v4().to_string() };
+        jti: uuid::Uuid::new_v4().to_string(), sid: family_id.map(str::to_string) };
     encode(&Header::new(Algorithm::HS256), &claims, &EncodingKey::from_secret(secret.as_bytes())).map_err(|_| ())
 }
 #[cfg(test)]

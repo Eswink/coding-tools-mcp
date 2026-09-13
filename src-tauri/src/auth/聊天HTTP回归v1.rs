@@ -6,7 +6,7 @@ async fn http_conversations_require_separate_grants_and_cannot_observe_each_othe
     let root = tempfile::tempdir().unwrap(); let profile = uuid::Uuid::new_v4().to_string();
     let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap(); let port = reserve.local_addr().unwrap().port(); drop(reserve);
     let (stop,task) = crate::mcp::spawn_listener_with_origin(port,root.path().into(),profile.clone(),
-        AuthConfig { oauth_client_id:"test-client".into(), ..Default::default() },PublicOrigin::managed(fixture::ORIGIN).unwrap(),
+        AuthConfig { oauth_client_id:"test-client".into(), session_policy:super::session_policy::SessionPolicy {exclusive:false,..Default::default()}, ..Default::default() },PublicOrigin::managed(fixture::ORIGIN).unwrap(),
         None,Some("password".into()),Some(fixture::KEY.into()),RuntimeConfig::default()).unwrap();
     let client = fixture::client(); let url = format!("http://127.0.0.1:{port}/mcp");
     async fn invoke(client:&reqwest::Client,url:&str,name:&str,args:Value,session:&str)->Value {

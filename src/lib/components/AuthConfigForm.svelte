@@ -58,7 +58,7 @@
   const showBearer = $derived(draft.type === "bearer");
 
   $effect(() => {
-    draft = { type: auth.type, oauth_client_id: auth.oauth_client_id, use_shared_secrets: !!auth.use_shared_secrets, oauth_redirect_uri: auth.oauth_redirect_uri ?? "https://chatgpt.com/connector_platform_oauth_redirect" };
+    draft = { session_policy: auth.session_policy, type: auth.type, oauth_client_id: auth.oauth_client_id, use_shared_secrets: !!auth.use_shared_secrets, oauth_redirect_uri: auth.oauth_redirect_uri ?? "https://chatgpt.com/connector_platform_oauth_redirect" };
   });
 
   $effect(() => {

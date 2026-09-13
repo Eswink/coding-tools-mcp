@@ -86,7 +86,7 @@ async fn running_auth_save_loads_secret_and_rotation_revokes_existing_grants() {
     assert_eq!(f.token_request("wrong-fixture-secret").await["error"], "invalid_client");
     assert_eq!(f.token_request(&original).await["error"], "invalid_grant");
     let identity = principal::VerifiedPrincipal { issuer: "https://oauth-reload.example".into(), subject: "desktop-owner".into(),
-        client_id: f.profile.auth.oauth_client_id.clone(), expires_at: chat::unix_now() + 60 };
+        client_id: f.profile.auth.oauth_client_id.clone(), expires_at: chat::unix_now() + 60 , family_id: None };
     let req = chat::RemoteRequest::verified(&f.profile.id, &f.profile.path, identity, &json!({"openai/session":"fixture-chat"}), "binding-fixture");
     let authorizer = chat::service(); let pending = authorizer.request(&req, &json!({"scopes":["files.read"]}));
     authorizer.decide(&f.profile.id, pending["authorization"]["id"].as_str().unwrap(), true, &["files.read".into()]).unwrap();

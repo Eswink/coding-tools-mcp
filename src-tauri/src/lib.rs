@@ -20,7 +20,7 @@ mod workspace;
 
 use app_state::AppState;
 use commands::{
-    chat_authorization_control, check_app_update, create_workspace, delete_frp_profile, delete_workspace,
+    chat_authorization_control, chat_authorization_inbox, refresh_session_control, check_app_update, create_workspace, delete_frp_profile, delete_workspace,
     get_actions_runtime_status, get_app_settings, get_download_config, get_frp_snippet,
     get_last_workspace_id, get_proxy, get_runtime_status, get_shared_secret, get_webview_memory_sample,
     get_workspace_secret, hide_to_tray, install_software, list_frp_profiles, list_software,
@@ -115,7 +115,8 @@ fn acquire_single_instance() -> bool {
 fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
     let show_i = MenuItem::with_id(app, "show", "显示窗口", true, None::<&str>)?;
     let quit_i = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+    let approvals_i = MenuItem::with_id(app, "chat-approvals", "待审批聊天", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show_i, &approvals_i, &quit_i])?;
 
     let mut builder = TrayIconBuilder::with_id("main-tray")
         .menu(&menu)
@@ -124,6 +125,7 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
             "show" => {
                 let _ = commands::window_chrome::show_main_window(app.clone());
             }
+            "chat-approvals" => commands::chat_notifications::open_inbox(app),
             "quit" => {
                 commands::window_chrome::arm_allow_exit();
                 app.exit(0);
@@ -156,12 +158,14 @@ pub fn run() {
     }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             app.manage(AppState::new().expect("failed to load app state"));
             // Recover FRP clients that stay alive while the public proxy dies
             // (common after install/restart network blips).
             tunnel::ensure_frp_health_loop();
             setup_tray(app)?;
+            commands::chat_notifications::start(app.handle().clone());
             #[cfg(target_os = "windows")]
             {
                 let _ = SHOW_APP_HANDLE.set(app.handle().clone());
@@ -197,6 +201,8 @@ pub fn run() {
             read_workspace_logs,
             control_exec_tasks,
             chat_authorization_control,
+            chat_authorization_inbox,
+            refresh_session_control,
             list_frp_profiles,
             save_frp_profile,
             delete_frp_profile,

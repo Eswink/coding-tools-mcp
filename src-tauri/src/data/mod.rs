@@ -1,3 +1,5 @@
+mod auth_document;
+pub(crate) use auth_document::AuthDocument;
 #[path = "任务快照v2.rs"]
 mod task_archive;
 pub(crate) use task_archive::TaskArchive;
