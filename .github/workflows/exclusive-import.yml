@@ -1,0 +1,55 @@
+name: Import reviewed exclusive continuation
+on:
+  push:
+    branches: ['build/exclusive-import-v1']
+permissions:
+  contents: read
+jobs:
+  import:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/build/exclusive-import-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Verify reviewed patch and import exact source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = ecf5ca9449a82122f26f2bef3f50ce6d0afd5488
+          mkdir -p "$RUNNER_TEMP/import-evidence"
+          python3 - <<'PY'
+          import base64, hashlib, lzma, os, pathlib
+          root = pathlib.Path('docs/specs/exclusive-conversation-refresh')
+          text = ''.join((root / f'import-{n}.b64').read_text().strip() for n in range(3))
+          assert len(text) == 20976
+          packed = base64.b64decode(text, validate=True)
+          assert len(packed) == 15732
+          assert hashlib.sha256(packed).hexdigest() == 'eecda0f5cb7cd715ecd414d49e1fa669192df1a5b1df2cbaddc43e19e6b55d4c'
+          decoder = lzma.LZMADecompressor(memlimit=134217728)
+          raw = decoder.decompress(packed, max_length=51466)
+          assert decoder.eof and not decoder.unused_data and len(raw) == 51465
+          assert hashlib.sha256(raw).hexdigest() == 'cccce9369aec9055c3d18806185add14edf632933a28f72f79147576043acd4c'
+          (pathlib.Path(os.environ['RUNNER_TEMP']) / 'import-evidence/continuation.patch').write_bytes(raw)
+          PY
+          git switch --detach ecf5ca9449a82122f26f2bef3f50ce6d0afd5488
+          git apply --check --index "$RUNNER_TEMP/import-evidence/continuation.patch"
+          git apply --index "$RUNNER_TEMP/import-evidence/continuation.patch"
+          git diff --cached --check
+          test "$(git write-tree)" = 450f23accbb55dc5318a70df5b7b0c8c83906543
+          git diff --cached --stat > "$RUNNER_TEMP/import-evidence/diff-stat.txt"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: serialize approval deadlines and resynchronize the global inbox'
+          git push origin HEAD:refs/heads/build/exclusive-ready-v1
+          git rev-parse HEAD > "$RUNNER_TEMP/import-evidence/source.txt"
+          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/import-evidence/tree.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exclusive-continuation-import
+          path: ${{ runner.temp }}/import-evidence/
+          if-no-files-found: error
