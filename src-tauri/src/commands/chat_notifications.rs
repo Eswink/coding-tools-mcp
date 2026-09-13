@@ -7,17 +7,16 @@ use crate::{app_state::AppState,error::{AppError,AppResult}};
 fn inbox(state:&AppState)->AppResult<Value> {
     // Drop the configuration lock before touching the authorizer or executor registry.
     let profiles=state.with_workspaces(|s|Ok(s.list().iter().map(|p|(p.id.clone(),p.name.clone(),p.auth.oauth_enabled())).collect::<Vec<_>>()))?;
-    let service=crate::auth::chat::service();let mut pending=Vec::new();let mut revision=0;
-    for (id,name,oauth) in profiles {
-        let snapshot=service.snapshot(&id);revision=revision.max(snapshot["revision"].as_u64().unwrap_or(0));
-        if !oauth {continue;}
-        for grant in snapshot["records"].as_array().into_iter().flatten().filter(|g|g["status"]=="pending") {
-            if pending.len()>=256{return Err(AppError::Message("待审批列表达到容量上限，请逐个工作区处理".into()));}
-            pending.push(json!({"workspaceId":id,"workspaceName":name,"grant":grant,"exclusive":snapshot["exclusive"]}));
-        }
-    }
-    pending.sort_by_key(|p|(p["grant"]["created_at"].as_u64().unwrap_or(0),p["grant"]["id"].as_str().unwrap_or("").to_owned()));
-    Ok(json!({"revision":revision,"now":crate::auth::chat::unix_now(),"pending":pending}))
+    let allowed = profiles.iter().filter(|(_, _, oauth)| *oauth)
+        .map(|(id, _, _)| id.clone()).collect();
+    let snapshot = crate::auth::chat::service().pending_inbox(&allowed).map_err(AppError::Message)?;
+    let names: std::collections::HashMap<_, _> = profiles.into_iter()
+        .map(|(id, name, _)| (id, name)).collect();
+    let pending: Vec<_> = snapshot.entries.into_iter().map(|entry| {
+        json!({"workspaceId":entry.profile,"workspaceName":names.get(&entry.profile),
+            "grant":entry.grant,"exclusive":entry.exclusive})
+    }).collect();
+    Ok(json!({"revision":snapshot.revision,"now":crate::auth::chat::unix_now(),"pending":pending}))
 }
 #[tauri::command]
 pub async fn chat_authorization_inbox(app:AppHandle)->AppResult<Value> {

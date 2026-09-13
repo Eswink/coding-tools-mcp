@@ -256,9 +256,25 @@ impl ChatAuthorizer {
     pub fn decide(&self, profile: &str, id: &str, approve: bool, scopes: &[String]) -> Result<(), String> {
         self.reconcile(profile);
         let mut state = self.state.lock().map_err(|_| "授权状态不可用")?;
+        self.decide_locked(&mut state, profile, id, approve, scopes, Instant::now())
+    }
+    /// The decision mutex is the authorization linearization point. Reconciliation
+    /// may have waited on executor/storage locks; its earlier TTL check is stale.
+    fn decide_locked(&self, state: &mut State, profile: &str, id: &str, approve: bool,
+        scopes: &[String], now: Instant) -> Result<(), String> {
         let key = state.records.iter().find(|(_,r)| r.profile == profile && r.view.id == id)
             .map(|(k,_)| k.clone()).ok_or("请求不存在或已过期")?;
-        Self::owner_check(&state, profile, &key).map_err(str::to_string)?;
+        Self::owner_check(state, profile, &key).map_err(str::to_string)?;
+        let r = state.records.get_mut(&key).unwrap();
+        let old_status = r.view.status.clone();
+        r.refresh(now);
+        if old_status != r.view.status {
+            if let Some(owner) = state.owners.get_mut(profile)
+                .filter(|o| o.binding == key && o.request_id == id) {
+                owner.phase = Phase::Draining;
+            }
+            self.event(state, profile, "changed", Some(id.into()));
+        }
         let r = state.records.get(&key).unwrap();
         if r.view.status != "pending" { return Err("只能审批待授权请求".into()); }
         let selected: BTreeSet<String> = scopes.iter().cloned().collect();
@@ -266,12 +282,12 @@ impl ChatAuthorizer {
         let r = state.records.get_mut(&key).unwrap();
         r.view.status = if approve { "active" } else { "denied" }.into();
         if approve {
-            let now = Instant::now(); r.view.scopes = selected; r.since = now; r.touched = now;
+            r.view.scopes = selected; r.since = now; r.touched = now;
             r.view.expires_at = unix_now() + r.lease_seconds;
             r.view.idle_expires_at = if r.idle_seconds == 0 { r.view.expires_at } else { r.view.expires_at.min(unix_now() + r.idle_seconds) };
         }
         if let Some(owner) = state.owners.get_mut(profile) { owner.phase = if approve { Phase::Active } else { Phase::Draining }; }
-        self.event(&mut state, profile, "changed", Some(id.into()));
+        self.event(state, profile, "changed", Some(id.into()));
         Ok(())
     }
     fn drain_transition(state:&mut State,profile:&str) {
@@ -342,3 +358,13 @@ mod tests;
 #[cfg(test)]
 #[path = "exclusive_lease_tests.rs"]
 mod exclusive_tests;
+
+#[cfg(test)]
+#[path = "chat_decision_tests.rs"]
+mod decision_tests;
+
+#[path = "chat_inbox.rs"]
+mod inbox;
+#[cfg(test)]
+#[path = "chat_inbox_tests.rs"]
+mod inbox_tests;

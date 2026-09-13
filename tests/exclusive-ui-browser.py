@@ -13,13 +13,26 @@ server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(Qui
 threading.Thread(target=server.serve_forever, daemon=True).start()
 results = []
 failure = None
+errors = []
+page = None
 try:
     with sync_playwright() as p:
         executable = os.environ.get('CHROMIUM_PATH', '/usr/bin/chromium')
         browser = p.chromium.launch(executable_path=executable if pathlib.Path(executable).exists() else None, headless=True)
         page = browser.new_page(viewport={'width': 1160, 'height': 930})
-        errors = []
         page.on('pageerror', lambda e: errors.append(str(e)))
+        original_wait = page.wait_for_function
+        def checked_wait(*args, **kwargs):
+            try:
+                return original_wait(*args, **kwargs)
+            except Exception:
+                try:
+                    page.screenshot(path=str(EVIDENCE/'failure.png'), full_page=True)
+                    (EVIDENCE/'failure-dom.html').write_text(page.content(), encoding='utf-8')
+                except Exception as capture_error:
+                    (EVIDENCE/'capture-error.txt').write_text(str(capture_error), encoding='utf-8')
+                raise
+        page.wait_for_function = checked_wait
         def fresh():
             page.goto(f'http://127.0.0.1:{server.server_port}/index.html')
             page.wait_for_function('window.app && window.handlers.size === 3')
@@ -90,6 +103,8 @@ try:
         # never return the resolver itself (that would silently resolve the dialog).
         fresh();page.evaluate('()=>{window.mockConfirm=()=>new Promise(r=>window.releaseConfirm=r);}')
         page.get_by_role('button',name='保存远程会话策略',exact=True).click();page.wait_for_function('typeof window.releaseConfirm === "function"')
+        assert page.evaluate('window.saved.length')==0, 'readiness must not resolve confirmation'
+        assert page.get_by_role('button', name='保存远程会话策略', exact=True).is_disabled()
         page.evaluate("()=>window.setWorkspace('two')");page.wait_for_timeout(50)
         page.evaluate('()=>window.releaseConfirm(true)');page.wait_for_timeout(100)
         assert page.evaluate('window.saved.length')==0
@@ -111,6 +126,22 @@ try:
         assert last['id']=='one' and last['requestId']=='replacement' and last['action']=='deny',last
         done('authoritative replacement dismisses obsolete candidate and never approves an old request')
 
+        fresh(); page.evaluate('(rows)=>window.publish(rows)', [candidate('queue-A','one'),candidate('queue-B','two')])
+        page.wait_for_selector('dialog[open]')
+        page.locator('dialog .verify input').check()
+        page.get_by_role('button',name='批准并独占',exact=True).click()
+        page.wait_for_function("window.modalOpens === 2", timeout=1500)
+        assert not page.locator('dialog .verify input').is_checked(), 'next candidate must require fresh fingerprint confirmation'
+        assert page.get_by_role('button',name='批准并独占',exact=True).is_disabled()
+        done('completed decision advances the inbox immediately without carrying fingerprint consent')
+
+        fresh();publish(candidate('last-workspace'))
+        page.evaluate('()=>window.publish([])')
+        page.wait_for_function("!document.querySelector('dialog').open")
+        assert page.locator('.approval-inbox').count()==0
+        assert not page.evaluate("window.calls.some(c=>c.name==='chat_authorization_control')")
+        done('an authoritative empty inbox dismisses the deleted workspace without a decision')
+
         fresh();publish(candidate('ipc-error'))
         page.evaluate("()=>{const original=window.mockInvoke;window.mockInvoke=(name,args)=>{if(name==='chat_authorization_control')throw Error('synthetic IPC rejection');return original(name,args);};}")
         page.locator('dialog .verify input').check();page.get_by_role('button',name='批准并独占',exact=True).click()
@@ -130,5 +161,5 @@ except Exception as exc:
     raise
 finally:
     server.shutdown()
-    (EVIDENCE/'browser-results.json').write_text(json.dumps({'tests':results,'passed':len(results),'transport':'synthetic IPC; real production Svelte components','native_notifications_verified':False,'failure':failure,'status':'failed' if failure else 'passed'},ensure_ascii=False,indent=2))
+    (EVIDENCE/'browser-results.json').write_text(json.dumps({'tests':results,'passed':len(results),'transport':'synthetic IPC; real production Svelte components','native_notifications_verified':False,'failure':failure,'page_errors':errors,'status':'failed' if failure else 'passed'},ensure_ascii=False,indent=2))
 print(json.dumps({'passed':len(results),'evidence':str(EVIDENCE)},ensure_ascii=False))

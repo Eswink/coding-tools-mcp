@@ -95,6 +95,13 @@ jobs:
           python-version: '3.13'
       - run: python -m pip install playwright==1.58.0
       - run: python -m playwright install --with-deps chromium
+      - name: Side-effect-free Playwright readiness regression
+        env:
+          CHROMIUM_PATH: playwright-managed
+        run: |
+          set -euo pipefail
+          mkdir -p "${{ runner.temp }}/exclusive-evidence"
+          python tests/playwright-readiness-regression.py | tee "${{ runner.temp }}/exclusive-evidence/readiness-results.json"
       - name: Production component browser regression
         env:
           EXCLUSIVE_UI_DIR: ${{ runner.temp }}/exclusive-ui

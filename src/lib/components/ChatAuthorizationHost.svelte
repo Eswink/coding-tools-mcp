@@ -49,12 +49,21 @@
     const target = selected; if (!target || busy) return;
     if (approve && !canApprove(target.grant, selectedScopes, verified, now)) return;
     const scopes = [...selectedScopes]; busy = true; error = "";
+    let completed = false;
     try {
       await invoke("chat_authorization_control", { id: target.workspaceId, action: approve ? "approve" : "deny",
         requestId: target.grant.id, scopes: approve ? scopes : null, exclusive: null });
-      if (!disposed) { dismiss(); await refresh(); }
+      completed = true;
+      if (!disposed) dismiss();
     } catch (e) { if (!disposed) error = String(e); }
-    finally { if (!disposed) busy = false; }
+    finally {
+      if (!disposed) {
+        busy = false;
+        // Select the next candidate only after the decision has completed.
+        // Refreshing while busy suppressed it until the five-second fallback.
+        if (completed) await refresh();
+      }
+    }
   }
   async function locate(row: PendingChat) { await goto(`/workspace/${encodeURIComponent(row.workspaceId)}`); }
   onMount(() => {

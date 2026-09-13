@@ -7,3 +7,13 @@ pub(crate) struct ChatEvent {
     pub kind: &'static str,
     pub request_id: Option<String>,
 }
+
+pub(crate) struct PendingEntry {
+    pub profile: String,
+    pub exclusive: bool,
+    pub grant: super::chat::GrantView,
+}
+pub(crate) struct PendingSnapshot {
+    pub revision: u64,
+    pub entries: Vec<PendingEntry>,
+}
