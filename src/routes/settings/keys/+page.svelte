@@ -144,7 +144,7 @@
 
   <div class="page-body flex flex-col gap-6">
     {#if hasLoadErrors}
-      <div class="grid gap-2 rounded-md border border-red-300/50 p-3 text-sm text-red-600">
+      <div class="grid gap-2 rounded-md border border-[var(--danger)] p-3 text-sm text-[var(--danger)]">
         <span>部分共享密钥读取失败。失败项已锁定且不会显示为空值，也不会被保存覆盖。</span>
         <button type="button" class="tx-btn-ghost justify-self-start" onclick={() => void loadAll()}>重新读取全部密钥</button>
       </div>
@@ -173,7 +173,7 @@
                     regenerating={regenerating === key}
                   />
                 {/if}
-                {#if loadErrors[key]}<span class="text-xs text-red-600">读取失败，禁止编辑/复制。</span>{/if}
+                {#if loadErrors[key]}<span class="text-xs text-[var(--danger)]">读取失败，禁止编辑/复制。</span>{/if}
               </div>
             {/each}
           </div>
@@ -203,7 +203,7 @@
                     regenerating={regenerating === key}
                   />
                 {/if}
-                {#if loadErrors[key]}<span class="text-xs text-red-600">读取失败，禁止编辑/复制。</span>{/if}
+                {#if loadErrors[key]}<span class="text-xs text-[var(--danger)]">读取失败，禁止编辑/复制。</span>{/if}
               </div>
             {/each}
           </div>

@@ -9,7 +9,7 @@ function luminance(hex){const channels=hex.slice(1).match(/../g).map(v=>parseInt
 function ratio(a,b){const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);}
 for(const dark of [false,true])test(`${dark?'dark':'light'} enabled semantic text and actions meet 4.5:1`,()=>{
   const t=tokens(dark);
-  for(const [fg,bg] of [['--text-main','--card-bg'],['--text-secondary','--card-bg'],['--text-muted','--card-bg'],['--primary','--card-bg'],['--success','--success-soft'],['--warning','--warning-soft'],['--primary-foreground','--action-bg'],['--primary-foreground','--danger-bg']]){
+  for(const [fg,bg] of [['--text-main','--card-bg'],['--text-secondary','--card-bg'],['--text-muted','--card-bg'],['--primary','--card-bg'],['--success','--success-soft'],['--warning','--warning-soft'],['--danger','--card-bg'],['--danger','--page-bg'],['--primary-foreground','--action-bg'],['--primary-foreground','--danger-bg']]){
     // Before the fix destructive buttons directly used the light red text token.
     const background=bg==='--danger-bg' && !t[bg]?'--danger':bg;
     const actual=ratio(color(t,fg),color(t,background));assert.ok(actual>=4.5,`${fg} on ${background}: ${actual.toFixed(2)}:1`);

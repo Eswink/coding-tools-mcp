@@ -80,6 +80,7 @@ def check_states(browser: Browser, origin: str, fixture: Path, evidence: Path) -
         expect(page.get_by_role('button', name='保存更改', exact=True)).to_be_disabled()
         expect(page.get_by_text('读取失败，禁止编辑/复制。', exact=True)).to_be_visible()
         assert 'SYNTHETIC_SECRET' not in page.inner_text('body')
+        page.get_by_label('MCP Token Secret', exact=True).scroll_into_view_if_needed()
 
     with case('task-empty-and-error', '/workspace/fixture-workspace', '''
         const original=window.__TAURI_INTERNALS__.invoke;
@@ -99,18 +100,25 @@ def check_states(browser: Browser, origin: str, fixture: Path, evidence: Path) -
         assert budget.evaluate('(el)=>el.getBoundingClientRect().height') >= 40
         page.evaluate('window.__UI_FIXTURE__.state.healthFailure=true')
         expect(page.get_by_role('alert')).to_have_text('Error: Synthetic task read unavailable')
+        page.get_by_role('alert').scroll_into_view_if_needed()
         assert not page.evaluate("window.__UI_FIXTURE__.state.calls.some(c=>c.command==='control_exec_tasks'&&c.args.action!=='list')")
         assert not page.evaluate("window.__UI_FIXTURE__.state.calls.some(c=>c.command.startsWith('start_'))")
 
     with case('approval-minimum-dark', '/settings/general', theme='dark') as page:
+        origin_button = page.get_by_role('group', name='外观主题').get_by_role('button', name='深色', exact=True)
+        origin_button.focus()
         page.evaluate('window.__UI_FIXTURE__.pending()')
         dialog = page.get_by_role('dialog', name='ChatGPT 请求访问工作区')
         expect(dialog).to_be_visible()
         expect(dialog.get_by_role('button', name='批准并独占', exact=True)).to_be_disabled()
-        for _ in range(12):
-            page.keyboard.press('Tab')
-            assert page.evaluate("document.querySelector('dialog').contains(document.activeElement)"), 'Focus escaped local approval'
+        for key in ['Tab'] * 12 + ['Shift+Tab'] * 12:
+            page.keyboard.press(key)
+            assert page.evaluate("document.querySelector('dialog').contains(document.activeElement)"), f'Focus escaped local approval via {key}'
         page.get_by_role('dialog').evaluate('(el)=>el.scrollTop=0')
+        page.screenshot(path=str(evidence / 'state-approval-minimum-dark-open.png'), animations='disabled')
+        page.keyboard.press('Escape')
+        expect(dialog).not_to_be_visible()
+        expect(origin_button).to_be_focused()
         assert not page.evaluate("window.__UI_FIXTURE__.state.calls.some(c=>c.command==='chat_authorization_control'&&c.args.action==='approve')")
 
     with case('system-theme-live', '/settings/general', theme='light') as page:

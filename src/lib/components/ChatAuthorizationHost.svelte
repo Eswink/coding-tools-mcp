@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
+  import { containDialogFocus } from "$lib/ui/dialog-focus";
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { goto } from "$app/navigation";
@@ -94,7 +95,7 @@
   <button type="button" class="approval-inbox tx-btn-primary" onclick={() => void refresh(true)}>待审批聊天 · {rows.length}</button>
 {/if}
 {#if error && !selected}<div class="approval-error" role="alert">{error}<button type="button" onclick={() => void refresh(true)}>重试</button></div>{/if}
-<dialog bind:this={dialog} class="approval-dialog" aria-labelledby="global-approval-title" oncancel={(e) => { e.preventDefault(); dismiss(); }}>
+<dialog bind:this={dialog} class="approval-dialog" onkeydown={containDialogFocus} aria-labelledby="global-approval-title" oncancel={(e) => { e.preventDefault(); dismiss(); }}>
   {#if selected}
     <header><div><p>本机安全确认</p><h2 id="global-approval-title">ChatGPT 请求访问工作区</h2></div><button data-close type="button" aria-label="暂不处理" disabled={busy} onclick={dismiss}>关闭</button></header>
     <p class="workspace-name">{selected.workspaceName}</p>
