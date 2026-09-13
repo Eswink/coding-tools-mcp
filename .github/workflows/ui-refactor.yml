@@ -1,0 +1,41 @@
+name: UI refactor validation
+on:
+  push:
+    branches: ['feat/ui-refactor-v1']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ui-refactor-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  existing-regressions:
+    uses: ./.github/workflows/exclusive-conversation.yml
+  frontend-toolchain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Export locked frontend tools for offline source checks
+        run: |
+          set -euo pipefail
+          mkdir -p toolchain
+          git rev-parse HEAD > toolchain/source.txt
+          sha256sum package-lock.json > toolchain/lock.sha256
+          npm ls --all --json > toolchain/packages.json
+          tar -czf toolchain/node-modules.tar.gz node_modules
+          sha256sum toolchain/node-modules.tar.gz > toolchain/archive.sha256
+          git diff --exit-code
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-refactor-toolchain
+          path: toolchain/
+          if-no-files-found: error
+          retention-days: 7
