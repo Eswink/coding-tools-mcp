@@ -107,7 +107,16 @@ def decide(session, base, token, chat, *, approve=True, drop_scope=None):
 
 def revoke(session, profile):
     visit(session, profile)
-    legacy.click(session, PANEL + "//button[normalize-space(.)='撤销全部']")
+    # Route headings render before the initial authorization snapshot. The
+    # button exists then, but is disabled: native click delivery is not proof
+    # its handler ran. Observe readiness only, and send exactly one real click.
+    def enabled_button():
+        element = session.call('element', {'using': 'xpath', 'value':
+            PANEL + "//button[normalize-space(.)='撤销全部']"})
+        element_id = element[legacy.ELEMENT]
+        return element_id if session.call(f'element/{element_id}/enabled') is True else None
+    element_id = gui.wait_for(enabled_button)
+    session.call(f'element/{element_id}/click', {})  # Never retry a mutation.
     # Native click completion is not completion of the Svelte async IPC handler.
     # Read status only; never repeat the revoke click or request a successor early.
     gui.wait_for(lambda: status(session, profile), lambda value:
