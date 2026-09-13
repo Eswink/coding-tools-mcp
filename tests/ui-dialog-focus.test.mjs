@@ -3,7 +3,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import ts from 'typescript';
-const source=readFileSync(new URL('../src/lib/ui/dialog-focus.ts',import.meta.url),'utf8');
+const hostSource=readFileSync(new URL('../src/lib/components/ChatAuthorizationHost.svelte',import.meta.url),'utf8');
+const script=hostSource.match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
+const ast=ts.createSourceFile('host.ts',script,ts.ScriptTarget.Latest,true,ts.ScriptKind.TS);
+const declaration=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='containDialogFocus');
+assert.ok(declaration, 'test must execute the production dialog helper');
+const source='export '+declaration.getText(ast);
 const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
 const {containDialogFocus}=await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 function fixture(){
