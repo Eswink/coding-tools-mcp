@@ -11,6 +11,7 @@ from pathlib import Path
 import threading
 import traceback
 from playwright.sync_api import sync_playwright, expect
+from ui_refactor_states import check_states
 
 ROOT = Path(os.environ.get('UI_TARGET_ROOT', Path(__file__).resolve().parents[1])).resolve()
 EVIDENCE = Path(os.environ.get('UI_EVIDENCE_DIR', ROOT / 'ui-evidence')).resolve()
@@ -149,6 +150,7 @@ try:
             done('unchanged global approval host works across routes and requires fingerprint/scope subset')
             assert not page.evaluate('window.__UI_FIXTURE__.state.unknown')
             context.close()
+            report["state_scenarios"] = check_states(browser, origin, FIXTURE, EVIDENCE)
         assert not report['browser_errors'],report['browser_errors']
         report['ok']=True
         browser.close()
