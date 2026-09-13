@@ -1,0 +1,57 @@
+name: Import reviewed exclusive release gates
+on:
+  push:
+    branches: ['build/exclusive-transfer-v3']
+permissions:
+  contents: read
+jobs:
+  import:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/build/exclusive-transfer-v3'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Verify and import reviewed non-workflow source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = 65ce45bda6a23a91bbcd2dd7d3594661c4ada9b0
+          mkdir -p "$RUNNER_TEMP/publish-import"
+          python3 - <<'PY'
+          import base64, hashlib, lzma, os, pathlib
+          root = pathlib.Path('docs/specs/exclusive-conversation-refresh')
+          text = ''.join((root / f'transfer-{n}.b64').read_text().strip() for n in range(3))
+          assert len(text) == 18716
+          packed = base64.b64decode(text, validate=True)
+          assert len(packed) == 14036
+          assert hashlib.sha256(packed).hexdigest() == '4b43a62d1a725c00b917b4a626a0238696ff4525ee7885e5daba7c66a47e27c8'
+          decoder = lzma.LZMADecompressor(memlimit=134217728)
+          raw = decoder.decompress(packed, max_length=43334)
+          assert decoder.eof and not decoder.unused_data and len(raw) == 43333
+          assert hashlib.sha256(raw).hexdigest() == '7899479093d6e78da658c5397fbeb393d4dc182e1c52ccf86daa116f93bd286f'
+          (pathlib.Path(os.environ['RUNNER_TEMP']) / 'publish-import/source.patch').write_bytes(raw)
+          PY
+          git switch --detach 65ce45bda6a23a91bbcd2dd7d3594661c4ada9b0
+          git apply --check --index "$RUNNER_TEMP/publish-import/source.patch"
+          git apply --index "$RUNNER_TEMP/publish-import/source.patch"
+          git diff --cached --check
+          test -z "$(git diff --cached --name-only -- .github/workflows)"
+          test "$(git write-tree)" = fc68df0e7f4d6befb48b2b1a3af12a493adb7ac6
+          test "$(git ls-remote origin refs/heads/build/exclusive-publish-source-v3 | cut -f1)" = 65ce45bda6a23a91bbcd2dd7d3594661c4ada9b0
+          git diff --cached --stat > "$RUNNER_TEMP/publish-import/diff-stat.txt"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'test: synchronize native inbox presentation and enforce exclusive release gates'
+          git rev-parse HEAD > "$RUNNER_TEMP/publish-import/source.txt"
+          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/publish-import/tree.txt"
+          git push origin HEAD:refs/heads/build/exclusive-publish-source-v3
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exclusive-publish-import
+          path: ${{ runner.temp }}/publish-import/
+          if-no-files-found: error
