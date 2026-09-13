@@ -86,15 +86,17 @@ try:
         page.screenshot(path=str(EVIDENCE/'session-settings.png'),full_page=True)
         done('settings reject invalid bounds and convert user-selected units to backend seconds')
 
+        # Playwright invokes function-valued expressions. Observe the resolver's type,
+        # never return the resolver itself (that would silently resolve the dialog).
         fresh();page.evaluate('()=>{window.mockConfirm=()=>new Promise(r=>window.releaseConfirm=r);}')
-        page.get_by_role('button',name='保存远程会话策略',exact=True).click();page.wait_for_function('window.releaseConfirm')
+        page.get_by_role('button',name='保存远程会话策略',exact=True).click();page.wait_for_function('typeof window.releaseConfirm === "function"')
         page.evaluate("()=>window.setWorkspace('two')");page.wait_for_timeout(50)
         page.evaluate('()=>window.releaseConfirm(true)');page.wait_for_timeout(100)
         assert page.evaluate('window.saved.length')==0
         done('switching workspace during confirmation cannot save stale policy')
 
         fresh(); page.evaluate("()=>{window.mockSave=(id,value)=>{window.saved.push({id,value});return new Promise(r=>window.releaseSave=r);};}")
-        page.get_by_role('button',name='保存远程会话策略',exact=True).click();page.wait_for_function('window.releaseSave')
+        page.get_by_role('button',name='保存远程会话策略',exact=True).click();page.wait_for_function('typeof window.releaseSave === "function"')
         page.evaluate("()=>window.setWorkspace('two')");page.wait_for_timeout(50)
         page.evaluate("()=>window.setWorkspace('one')");page.wait_for_timeout(50)
         page.evaluate('()=>window.releaseSave()');page.wait_for_timeout(100)
