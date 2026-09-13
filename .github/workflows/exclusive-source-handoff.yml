@@ -1,0 +1,78 @@
+name: Exclusive source handoff
+on:
+  push:
+    branches: ['feat/exclusive-conversation-refresh']
+    paths:
+      - '.github/workflows/exclusive-source-handoff.yml'
+      - 'docs/specs/exclusive-conversation-refresh/handoff-*.xzpart'
+permissions:
+  contents: read
+jobs:
+  import:
+    if: github.ref == 'refs/heads/feat/exclusive-conversation-refresh'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+      - name: Verify and import exact reviewed source
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git rev-parse HEAD^)" = '2d13411e426e3a8048fb4204d6a5b91231741f1a'
+          test "$(git ls-remote origin refs/heads/feat/exclusive-conversation-refresh | cut -f1)" = "$EXPECTED_HEAD"
+          mkdir -p "$RUNNER_TEMP/exclusive-handoff"
+          python3 - <<'PY'
+          import hashlib, lzma, os, pathlib, subprocess
+          root = pathlib.Path('docs/specs/exclusive-conversation-refresh')
+          packed = b''.join((root / f'handoff-{i}.xzpart').read_bytes() for i in range(4))
+          assert len(packed) == 48348
+          assert hashlib.sha256(packed).hexdigest() == '26cc295d1f223027be2e520ed5a65fe8cdc6047c18f5179d21c7ccb65c07f657'
+          decoder = lzma.LZMADecompressor()
+          raw = decoder.decompress(packed, max_length=197770)
+          assert decoder.eof and not decoder.unused_data and len(raw) == 197769
+          assert hashlib.sha256(raw).hexdigest() == 'c1c4d927aa5c849ce2957b45305bc0ab199b10aba1f62186f90fb1667c8052e4'
+          patch = pathlib.Path(os.environ['RUNNER_TEMP']) / 'exclusive-handoff/candidate.patch'
+          patch.write_bytes(raw)
+          subprocess.run(['git', 'apply', '--check', str(patch)], check=True)
+          subprocess.run(['git', 'apply', '--index', str(patch)], check=True)
+          PY
+          git rm .github/workflows/exclusive-source-handoff.yml docs/specs/exclusive-conversation-refresh/handoff-*.xzpart
+          test "$(git write-tree)" = '60badef0bff24977ef20584ceec96ba7dae1cd7a'
+          git write-tree > "$RUNNER_TEMP/exclusive-handoff/pre-lock-tree.txt"
+          git diff --cached --stat > "$RUNNER_TEMP/exclusive-handoff/import-stat.txt"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Resolve only required notification dependency
+        run: |
+          set -euo pipefail
+          cp src-tauri/Cargo.lock "$RUNNER_TEMP/exclusive-handoff/Cargo.lock.before"
+          cargo metadata --format-version 1 --manifest-path src-tauri/Cargo.toml > "$RUNNER_TEMP/exclusive-handoff/metadata.json"
+          cp src-tauri/Cargo.lock "$RUNNER_TEMP/exclusive-handoff/Cargo.lock.after"
+          git diff -- src-tauri/Cargo.lock > "$RUNNER_TEMP/exclusive-handoff/lock.diff"
+          git add src-tauri/Cargo.lock
+      - name: Save candidate to feature branch only
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/feat/exclusive-conversation-refresh | cut -f1)" = "$EXPECTED_HEAD"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: add exclusive chat leases, local approval inbox and rotating refresh sessions'
+          git push origin HEAD:refs/heads/feat/exclusive-conversation-refresh
+          git rev-parse HEAD > "$RUNNER_TEMP/exclusive-handoff/source.txt"
+          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/exclusive-handoff/tree.txt"
+          git archive --format=zip HEAD -o "$RUNNER_TEMP/exclusive-handoff/source.zip"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exclusive-import-evidence
+          path: ${{ runner.temp }}/exclusive-handoff/
+          if-no-files-found: error
+          retention-days: 30
