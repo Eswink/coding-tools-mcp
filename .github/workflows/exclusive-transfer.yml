@@ -1,0 +1,57 @@
+name: Import exclusive native acceptance source
+on:
+  push:
+    branches: ['build/exclusive-transfer-v2']
+permissions:
+  contents: read
+jobs:
+  import:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/build/exclusive-transfer-v2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Verify and import non-workflow source only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = 4cede8049d7042a53e4421aa5bca0c361faa5a39
+          mkdir -p "$RUNNER_TEMP/native-import"
+          python3 - <<'PY'
+          import base64, hashlib, lzma, os, pathlib
+          root = pathlib.Path('docs/specs/exclusive-conversation-refresh')
+          text = ''.join((root / f'transfer-{n}.b64').read_text().strip() for n in range(3))
+          assert len(text) == 21640
+          packed = base64.b64decode(text, validate=True)
+          assert len(packed) == 16228
+          assert hashlib.sha256(packed).hexdigest() == '49c86f7bc9ba33f1034286711f5129726b107bece953d3d5f068a9b28bccb207'
+          decoder = lzma.LZMADecompressor(memlimit=134217728)
+          raw = decoder.decompress(packed, max_length=57726)
+          assert decoder.eof and not decoder.unused_data and len(raw) == 57725
+          assert hashlib.sha256(raw).hexdigest() == 'aee5b553af870c1eae1e3df1fe1d46f9ab112ce6c1e566875e597a6d8c801792'
+          (pathlib.Path(os.environ['RUNNER_TEMP']) / 'native-import/native.patch').write_bytes(raw)
+          PY
+          git switch --detach 4cede8049d7042a53e4421aa5bca0c361faa5a39
+          git apply --check --index "$RUNNER_TEMP/native-import/native.patch"
+          git apply --index "$RUNNER_TEMP/native-import/native.patch"
+          git diff --cached --check
+          test -z "$(git diff --cached --name-only -- .github/workflows)"
+          test "$(git write-tree)" = 5a2fe51db39e2104ae6673bfcaca5032e8336d5a
+          test "$(git ls-remote origin refs/heads/build/exclusive-native-source-v2 | cut -f1)" = 4cede8049d7042a53e4421aa5bca0c361faa5a39
+          git diff --cached --stat > "$RUNNER_TEMP/native-import/diff-stat.txt"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'test: add installed exclusive refresh acceptance and prepare version 0.4.0'
+          git rev-parse HEAD > "$RUNNER_TEMP/native-import/source.txt"
+          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/native-import/tree.txt"
+          git push origin HEAD:refs/heads/build/exclusive-native-source-v2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exclusive-native-import
+          path: ${{ runner.temp }}/native-import/
+          if-no-files-found: error
