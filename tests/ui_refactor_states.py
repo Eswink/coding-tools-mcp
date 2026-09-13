@@ -2,6 +2,7 @@
 from __future__ import annotations
 from contextlib import contextmanager
 from pathlib import Path
+import json
 from playwright.sync_api import Browser, expect
 
 
@@ -17,6 +18,7 @@ def check_states(browser: Browser, origin: str, fixture: Path, evidence: Path) -
         page = context.new_page()
         errors = []
         page.on('pageerror', lambda error: errors.append(str(error)))
+        page.on('console', lambda message: errors.append(message.text) if message.type == 'error' else None)
         try:
             page.goto(origin + route, wait_until='networkidle')
             expect(page.locator('main h2').first).to_be_visible()
@@ -27,11 +29,13 @@ def check_states(browser: Browser, origin: str, fixture: Path, evidence: Path) -
             assert not errors, f'{name}: {errors}'
             page.screenshot(path=str(evidence / f'state-{name}.png'), animations='disabled')
             results.append({'name': name, 'ok': True, 'file': f'state-{name}.png', 'native_verified': False})
-        except Exception:
+        except Exception as error:
+            results.append({'name': name, 'ok': False, 'error': str(error), 'browser_errors': errors})
             page.screenshot(path=str(evidence / f'state-{name}-failure.png'), animations='disabled')
             (evidence / f'state-{name}-failure.html').write_text(page.content(), encoding='utf-8')
             raise
         finally:
+            (evidence / 'state-results.json').write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding='utf-8')
             context.close()
 
     with case('empty-workspace', '/', 'window.__UI_FIXTURE__.state.workspaces=[];') as page:
@@ -53,7 +57,11 @@ def check_states(browser: Browser, origin: str, fixture: Path, evidence: Path) -
         profile.path='D:/projects/'+'nested-research-directory-'.repeat(24);
     ''') as page:
         assert len(page.locator('main h2').first.inner_text()) > 90
-        expect(page.get_by_role('button', name='删除工作区', exact=True)).to_be_visible()
+        danger = page.get_by_role('button', name='删除工作区', exact=True)
+        expect(danger).to_be_visible()
+        before = danger.evaluate('(el)=>getComputedStyle(el).color')
+        danger.hover()
+        assert danger.evaluate('(el)=>getComputedStyle(el).color') == before, 'Hover must preserve destructive emphasis'
 
     with case('partial-secret-failure', '/settings/keys', '''
         const original=window.__TAURI_INTERNALS__.invoke;
@@ -83,6 +91,9 @@ def check_states(browser: Browser, origin: str, fixture: Path, evidence: Path) -
     ''') as page:
         page.get_by_role('tab', name='异步任务', exact=True).click()
         expect(page.get_by_text('暂无任务。通过 MCP／Actions 的 start_exec_task 提交；此面板不会自动启动命令。', exact=True)).to_be_visible()
+        budget = page.get_by_role('button', name='保存预算', exact=True)
+        assert budget.evaluate('(el)=>getComputedStyle(el).borderTopStyle') == 'solid'
+        assert budget.evaluate('(el)=>el.getBoundingClientRect().height') >= 40
         page.evaluate('window.__UI_FIXTURE__.state.healthFailure=true')
         expect(page.get_by_role('alert')).to_have_text('Error: Synthetic task read unavailable')
         assert not page.evaluate("window.__UI_FIXTURE__.state.calls.some(c=>c.command==='control_exec_tasks'&&c.args.action!=='list')")

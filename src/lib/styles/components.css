@@ -65,6 +65,7 @@
 .tx-btn-danger:hover:not(:disabled) { background: var(--danger-hover); }
 .tx-btn-ghost.tx-btn-destructive, .tx-btn-secondary.tx-btn-destructive { color: var(--danger); border-color: var(--danger); }
 
+.tx-btn,
 .tx-btn-ghost,
 .tx-btn-secondary {
   display: inline-flex;
@@ -82,6 +83,7 @@
   transition: background var(--duration-fast) ease;
 }
 
+.tx-btn:hover:not(:disabled),
 .tx-btn-ghost:hover:not(:disabled),
 .tx-btn-secondary:hover:not(:disabled) {
   background: var(--surface-hover);
@@ -297,3 +299,7 @@
 .tx-label { color: var(--text-main); font-size: 13px; }
 .tx-card { min-width: 0; }
 .tx-input, .tx-select, .tx-secret-input-field { min-height: 42px; }
+
+/* Legacy task actions share the same primitive, including safe danger emphasis. */
+.tx-btn-ghost.tx-btn-destructive:hover:not(:disabled),
+.tx-btn-secondary.tx-btn-destructive:hover:not(:disabled) { color: var(--danger); }

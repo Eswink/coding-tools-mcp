@@ -160,13 +160,19 @@
             {#each MCP_KEYS as { key, label }}
               <div class="credential-row">
                 <span class="text-xs text-[var(--color-text-muted)]">{label}</span>
-                <SecretInput
-                  label={label}
-                  bind:value={secrets[key]}
-                  disabled={loading || !!loadErrors[key] || saving || !!regenerating}
-                  onRegenerate={() => regenerate(key)}
-                  regenerating={regenerating === key}
-                />
+                {#if loadErrors[key]}
+                  <!-- A failed read has no value. Do not bind undefined into a
+                       $bindable fallback or treat failure as an editable empty key. -->
+                  <SecretInput label={label} value="" disabled showCopy={false} placeholder="读取失败，禁止编辑/复制。" />
+                {:else}
+                  <SecretInput
+                    label={label}
+                    bind:value={secrets[key]}
+                    disabled={loading || saving || !!regenerating}
+                    onRegenerate={() => regenerate(key)}
+                    regenerating={regenerating === key}
+                  />
+                {/if}
                 {#if loadErrors[key]}<span class="text-xs text-red-600">读取失败，禁止编辑/复制。</span>{/if}
               </div>
             {/each}
@@ -184,13 +190,19 @@
             {#each ACTIONS_KEYS as { key, label }}
               <div class="credential-row">
                 <span class="text-xs text-[var(--color-text-muted)]">{label}</span>
-                <SecretInput
-                  label={label}
-                  bind:value={secrets[key]}
-                  disabled={loading || !!loadErrors[key] || saving || !!regenerating}
-                  onRegenerate={() => regenerate(key)}
-                  regenerating={regenerating === key}
-                />
+                {#if loadErrors[key]}
+                  <!-- A failed read has no value. Do not bind undefined into a
+                       $bindable fallback or treat failure as an editable empty key. -->
+                  <SecretInput label={label} value="" disabled showCopy={false} placeholder="读取失败，禁止编辑/复制。" />
+                {:else}
+                  <SecretInput
+                    label={label}
+                    bind:value={secrets[key]}
+                    disabled={loading || saving || !!regenerating}
+                    onRegenerate={() => regenerate(key)}
+                    regenerating={regenerating === key}
+                  />
+                {/if}
                 {#if loadErrors[key]}<span class="text-xs text-red-600">读取失败，禁止编辑/复制。</span>{/if}
               </div>
             {/each}
