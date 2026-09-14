@@ -16,6 +16,7 @@ pub struct StartupStatus {
     pub recoverable: bool,
     pub message: String,
     pub platform: String,
+    pub safe_mode: bool,
 }
 
 pub struct AppState {
@@ -71,6 +72,7 @@ impl AppState {
             recoverable: !ready,
             message,
             platform: crate::platform::platform().os_name().into(),
+            safe_mode: crate::bootstrap::safe_mode(),
         }
     }
 
