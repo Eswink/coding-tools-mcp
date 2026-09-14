@@ -1,293 +1,184 @@
+<p align="center"><img src="src-tauri/icons/128x128.png" width="80" alt="Coding Tools MCP"></p>
+<h1 align="center">Coding Tools MCP · Eswink</h1>
+<p align="center">Local workspaces, exclusive conversation approval, long-running tasks and recoverable development records for ChatGPT.</p>
 <p align="center">
-  <img src="src-tauri/icons/128x128.png" width="96" alt="Coding Tools MCP icon">
+  <a href="https://github.com/Eswink/coding-tools-mcp/releases/latest"><img src="https://img.shields.io/github/v/release/Eswink/coding-tools-mcp?label=Release" alt="This repository's full release"></a>
+  <img src="https://img.shields.io/badge/Windows-x64-0078D4" alt="Windows x64">
+  <img src="https://img.shields.io/badge/Ubuntu-22.04%20%7C%2024.04-E95420" alt="Ubuntu amd64">
 </p>
+<p align="center"><a href="README.md">中文</a> · <a href="README.en.md">English</a> · <a href="https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.5.0">Download v0.5.0</a> · <a href="docs/releases/stable-v0.5.0.md">Release and verification scope</a></p>
 
-<h1 align="center">Coding Tools MCP</h1>
+This is the **Eswink/coding-tools-mcp** desktop distribution, built with Rust, Tauri 2 and Svelte 5 / SvelteKit. It exposes selected local projects through MCP so an approved AI conversation can read files, apply patches, run commands, inspect tasks/logs and save development checkpoints.
 
-<p align="center">
-  Turn a local project into a persistent AI development workspace that carries context across conversations.
-</p>
+This fork focuses on **personal, sustained development through ChatGPT**. OAuth authenticates the connection; each conversation still needs fingerprint verification and approval on the local desktop. By default, only one conversation owns a workspace. Other conversations cannot take over or create additional approval notifications.
 
-<p align="center">
-  <a href="https://github.com/mybolide/coding-tools-mcp/releases/latest"><img src="https://img.shields.io/github/v/release/mybolide/coding-tools-mcp?label=Release" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/Windows-x64-0078D4?logo=windows" alt="Windows x64">
-  <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple" alt="macOS Apple Silicon">
-  <a href="https://www.apache.org/licenses/LICENSE-2.0"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Apache-2.0"></a>
-</p>
+## Download and install
 
-<p align="center">
-  <a href="README.md">中文</a> · <a href="README.en.md">English</a> · <a href="https://github.com/mybolide/coding-tools-mcp/releases/latest">Download latest</a>
-</p>
+Current delivered version: **v0.5.0**. The live [Eswink Releases page](https://github.com/Eswink/coding-tools-mcp/releases/latest) determines full-release/Latest status. Promotion keeps the previously verified package bytes unchanged.
 
-Coding Tools MCP is a Rust + Tauri 2 desktop application. Select a project directory and start the service; an AI agent can then read files, edit code, run commands and tests, inspect Git, and preserve development progress inside the project through MCP. It behaves like an AI opening an IDE workspace that remembers where the last conversation stopped.
-
-![Coding Tools MCP workspace overview](docs/images/workspace-overview.png)
-
-*One desktop app manages workspaces, MCP services, connection details, and the session-recovery prompt.*
-
-## Understand the workflow in 30 seconds
-
-```text
-Install the desktop app
-  → add a project directory
-  → start MCP and a public tunnel
-  → copy the Public MCP URL
-  → enable ChatGPT developer mode
-  → create an MCP plugin and paste the URL
-  → authorize it and start developing in a new conversation
-```
-
-For a first connection, remember only this: **the desktop app turns the project into an MCP workspace, and ChatGPT connects to it through the public `/mcp` URL.**
-
-- [See the complete desktop setup](#get-started-in-five-minutes)
-- [Go directly to the ChatGPT plugin setup](#mcp-connector)
-
-## Get started in five minutes
-
-### 1. Install the desktop client
-
-Open [Releases](https://github.com/mybolide/coding-tools-mcp/releases/latest) and download the package for your platform:
-
-| Platform | Package |
-| --- | --- |
-| Windows 10/11 x64 | `Coding.Tools.MCP_*_x64-setup.exe` |
-| macOS Apple Silicon | `Coding Tools MCP_*_aarch64.dmg` |
-
-The macOS build is currently unsigned. If macOS blocks the first launch, allow it from System Settings → Privacy & Security.
-
-### 2. Add a project workspace
-
-1. Click **Add workspace** in the sidebar.
-2. Select the project root directory.
-3. Configure the workspace name, MCP port, and authentication mode.
-4. Save it. The workspace remains available in the sidebar across conversations and restarts.
-
-### 3. Configure a public tunnel
-
-When the AI client is not running on the same machine, expose MCP through HTTPS:
-
-- Install or detect `frpc` / `cloudflared` from **Software management**.
-- Save the server, port, and token under **FRP settings**, or select Cloudflare in the workspace.
-- Give each workspace a distinct subdomain. The app manages the FRP process and aggregates multiple proxy routes.
-
-![FRP configuration](docs/images/frp-configuration.png)
-
-*FRP server profiles are stored centrally; each workspace only selects a profile and supplies its own subdomain.*
-
-If you do not have an FRPS server yet, follow this [FRPS server installation guide (Chinese, WeChat)](https://mp.weixin.qq.com/s/kmpQhHsvmHlaLfj4rw3A0Q). After deployment, enter the server address, port, and token under **FRP settings** in the desktop client.
-
-### 4. Start MCP
-
-Open the workspace and click **Start** in the MCP panel. The desktop client shows:
-
-- a local MCP URL such as `http://127.0.0.1:28766/mcp`;
-- the public HTTPS MCP URL;
-- authentication details for ChatGPT;
-- live logs and health-check results.
-
-![Local, public, and ChatGPT MCP connection details](docs/images/workspace-connection.png)
-
-The desktop app can verify the local and public endpoints, OAuth metadata, and the MCP protected-resource document:
-
-![MCP health-check results](docs/images/health-check.png)
-
-*Each connectivity and authentication check reports its result separately.*
-
-When a connection fails, inspect recent MCP requests without leaving the desktop app:
-
-![MCP runtime logs](docs/images/runtime-logs.png)
-
-*The log quickly confirms whether tool discovery, history bootstrap, and checkpoint calls reached the server.*
-
-### 5. Connect an AI client
-
-Use the public MCP URL shown by the app. With OAuth enabled, the client follows the server metadata into the authorization flow; authorization codes, Client IDs, and secrets can be generated and managed from the desktop client. This release uses preconfigured OAuth clients, so select static/manual OAuth credentials when creating a ChatGPT plugin; CIMD is not required.
-
-For a first connection, ask the agent to initialize history before inspecting the workspace:
-
-```text
-history_session_bootstrap
-server_info
-get_default_cwd
-git_status
-check_exec_environment
-```
-
-This gives the agent explicit project and capability state instead of guessing from the current chat window.
-
-## Two ways to connect ChatGPT
-
-| Mode | Best for | Use this endpoint |
+| Platform | Package | Scope |
 | --- | --- | --- |
-| MCP Connector | Direct access to files, commands, and Git | the workspace's public `/mcp` URL |
-| GPT Actions | Importing OpenAPI tools into a custom GPT | the Actions panel's `/openapi.json` URL |
+| Windows x64 | [MCP_0.5.0_x64-setup.exe](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/MCP_0.5.0_x64-setup.exe) | NSIS installer; not commercially signed |
+| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.5.0_amd64.deb](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/MCP_0.5.0_amd64.deb) | Preferred package for a logged-in, non-root desktop user |
+| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.5.0_amd64.AppImage](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/MCP_0.5.0_amd64.AppImage) | Automated acceptance covers extract-and-run, not every FUSE/Wayland environment |
 
-### MCP Connector
+Verify against [SHA256SUMS_v0.5.0.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/SHA256SUMS_v0.5.0.txt). This release does not provide this fork's acceptance-tested macOS, ARM or headless Linux Server packages.
 
-Before configuring ChatGPT, make sure that:
+For Ubuntu, run this in the directory containing the downloaded DEB:
 
-1. The workspace MCP service and public tunnel are both running.
-2. The public MCP endpoint passes the desktop health check. If OAuth is enabled, also verify the protected-resource document and authorization metadata.
-3. You have copied the **Public MCP URL** from the desktop **GPT configuration** card. For OAuth, also have the OAuth Client ID, OAuth Client Secret, and authorization password ready.
-
-> ChatGPT must use the public HTTPS `/mcp` URL. A local address such as `http://127.0.0.1:28766/mcp` is not reachable from ChatGPT. Menu names may vary slightly by ChatGPT version and language.
-
-#### 1. Enable ChatGPT developer mode
-
-Open ChatGPT settings, go to **Account security and sign-in**, and enable **Developer mode**. This allows unverified MCP connectors to be added.
-
-![Enable developer mode in ChatGPT](docs/images/gpt-config-1.png)
-
-*Developer mode grants powerful access. Only connect MCP servers that you operate or explicitly trust.*
-
-#### 2. Create the MCP plugin
-
-Open **Plugins** from the ChatGPT sidebar, click the `+` button, select the MCP beta option, and enter:
-
-| ChatGPT field | Value |
-| --- | --- |
-| Name | A recognizable name such as `Coding Tools MCP` |
-| Description | A short description of the connected project or purpose |
-| Connection | The public MCP URL from the desktop **GPT configuration** card; it should end in `/mcp` |
-| Authentication | The same mode configured in the desktop app; the screenshot uses OAuth |
-
-![Create an MCP plugin and enter its connection details](docs/images/gpt-config-2-detail.png)
-
-For OAuth, open the advanced OAuth settings, select static/manual OAuth credentials, and enter the Client ID and Client Secret shown by the desktop app. CIMD is not required. When ChatGPT opens the authorization page, enter the authorization password from the desktop **GPT configuration** card.
-
-> Client Secrets, authorization passwords, and Bearer tokens are sensitive. Never paste them into chats, issues, or public screenshots. If the desktop app uses Bearer or no authentication, select the matching option currently offered by ChatGPT.
-
-#### 3. Verify the connection
-
-Start a new conversation with the plugin enabled and ask:
-
-```text
-Use Coding Tools MCP to call server_info, get_default_cwd, and git_status.
-Tell me which workspace is connected, its default directory, and its Git status.
+```bash
+sudo apt install ./MCP_0.5.0_amd64.deb
 ```
 
-If ChatGPT returns information from the current project, the desktop app, public tunnel, authentication, ChatGPT, and MCP tool chain are connected end to end. Before real development, call `history_session_bootstrap` to initialize or restore project history.
+Installing a system package needs elevated privileges; **running the desktop application does not**. Do not launch the GUI with sudo. Linux secret recovery needs the user's D-Bus session and an available, unlocked Secret Service. AppImage can use `--appimage-extract-and-run` as described in the original verification guide. Do not disable the sandbox to work around startup failures.
 
-If ChatGPT still shows an old tool list, disconnect and reconnect the plugin or verify again in a new conversation.
+**Update-source limitation: the v0.5.0 binary's built-in update checker still points to upstream. To update this fork, use the Eswink Release links above, not a release suggested by that upstream checker.** Updating README or Release metadata cannot change compiled URLs. [Source](src-tauri/src/update/mod.rs)
 
-#### Troubleshooting
+## What's new in v0.5.0
 
-| Symptom | Check first |
+Five pages share a navy sidebar, semantic status colors, grouped cards and light/dark/system themes without changing route URLs:
+
+| Page | Implemented capabilities |
 | --- | --- |
-| ChatGPT cannot connect | Confirm that the URL is the public HTTPS `/mcp` endpoint rather than `127.0.0.1`, and that the public MCP health check passes |
-| OAuth authorization fails | Confirm that the Client ID, Client Secret, and authorization password come from the same workspace, and check the OAuth metadata results |
-| New tools are missing | Disconnect and reconnect the plugin, then start a new conversation |
-| A tool call fails | Open **Logs** and **Health checks** in the desktop app and confirm that the request reached the MCP service |
+| Workspace | Identity, startup prompt, local chat approval, MCP / Actions selection, configuration, tasks, logs and health checks |
+| General | Appearance, application information, existing proxy and UI-maintenance settings |
+| Shared keys | Mask, reveal, copy, regenerate and save the actual credential types; unreadable fields remain disabled |
+| FRP | Manage FRP server profiles; live per-workspace tunnels remain on their workspace page |
+| Software | Manage supported software and actual installation paths, without invented version/latency/health data |
 
-### GPT Actions
+The refactor also fixes stale unsaved-change prompts after saving/reverting, late asynchronous navigation results, partial-secret-load bindings and approval-dialog keyboard focus boundaries. Unsupported language/autostart/sound/component-inventory concepts from the design references are not rendered as fake working controls.
 
-1. Start the workspace Actions service.
-2. Copy the OpenAPI URL from the Actions panel.
-3. Import the URL in the GPT editor's Actions page.
-4. Select None, API Key, or OAuth to match the desktop configuration.
+[UI-evidence_v0.5.0.zip](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/UI-evidence_v0.5.0.zip) contains actual built-page and installed-app screenshots. They use isolated acceptance workspaces and synthetic data, not your real service status.
 
-MCP and Actions can run together for the same workspace, with separate ports and subdomains when needed.
+## Connect one conversation
 
-## Why use it
+### 1. Configure the workspace and public endpoint
 
-- **Built for real development**: files, commands, Git, tests, and retained processes live in one Workspace.
-- **Cross-conversation continuity**: a new conversation can recover the complete history summary and the latest detailed handoff.
-- **Auditable progress**: structured checkpoints preserve decisions, changed files, test results, remaining issues, and next steps inside the project.
-- **Multiple workspaces**: one desktop client stores multiple projects and manages their MCP, Actions, and public endpoints.
-- **Direct ChatGPT connectivity**: Streamable HTTP, OAuth, Bearer tokens, OpenAPI, FRP, and Cloudflare are built in.
-- **A focused default tool surface**: stable core tools are available by default; advanced Harness capabilities are opt-in.
+Start the desktop app, add a project directory and configure its MCP port and **OAuth**. Save and start the service. A typical local URL is `http://127.0.0.1:28766/mcp`; use the actual port shown by your app.
 
-## Let the project remember every conversation
+The usual deployment exposes a public HTTPS `/mcp` endpoint through FRP, Cloudflare or an existing reverse proxy. Software management handles supported tunnel clients, while FRP server parameters are managed separately. A localhost URL is not a public endpoint reachable directly by ChatGPT's cloud service.
 
-Chat transcripts are useful for rereading a discussion, but they are a poor long-term development handoff. Coding Tools MCP stores progress in `docs/history-session/` under the current project, so context follows the repository instead of staying trapped in one chat window.
-
-![ChatGPT new-conversation startup prompt](docs/images/history-session-prompt.png)
-
-*Paste the full prompt into a new conversation to initialize or restore history, then save a checkpoint after each completed task.*
-
-Five tools work together:
-
-| Tool | Purpose |
-| --- | --- |
-| `history_session_bootstrap` | Initialize or restore a project session; preserve verbatim `initial_user_input` and return a stable `session_key`, `current_path`, and bounded current state instead of all history |
-| `history_session_checkpoint` | Append structured progress and verbatim `raw_user_input` to the stable target returned by bootstrap; reject mismatched targets instead of writing to another history file |
-| `history_session_validate` | Validate numbering, history files, and session mappings; rebuild derived indexes when needed without deleting existing history |
-| `history_session_search` | Search lossless Markdown archives by deterministic keywords and return a bounded page of locations and snippets |
-| `history_session_read` | Read one original Markdown archive losslessly in UTF-8-safe pages by number or a search result path; pages default to `32 KiB`, are capped at `64 KiB`, and continue with `next_cursor` |
-
-History uses readable Markdown that can be backed up or committed with the project. `memory/state.json` is a bounded current-state projection, while `memory/manifest.json` stores only archive locations, hashes, and keywords; Markdown remains the lossless source of truth. ChatGPT must pass verbatim first-turn and per-turn text as `initial_user_input` and `raw_user_input`, because the server cannot inspect remote chat text that was not provided as a tool argument. Checkpoints are idempotent, changed content for the same `turn_id` is retained as a revision with supersession evidence, and progress should only be reported as saved after the tool returns `ok=true` with the same session target.
-
-> History persistence is performed when the AI calls the MCP tools; the desktop app does not record chat content in the background. If the client does not invoke a tool, the server cannot infer that a new conversation or task has happened.
-
-## What an agent can do
-
-The default `core` profile provides a stable, composable development tool set:
-
-| Category | Main tools |
-| --- | --- |
-| File reading | `read_file`, `list_dir`, `list_files`, `search_text`, `grep_text`, `view_image` |
-| File modification | `apply_patch` |
-| Command execution | `exec_command`, `write_stdin`, `read_output`, `kill_session` |
-| Git | `git_status`, `git_diff`, `git_log`, `git_show`, `git_blame` |
-| Environment | `server_info`, `check_exec_environment`, `get_default_cwd`, `set_default_cwd` |
-| History sessions | `history_session_bootstrap`, `history_session_checkpoint`, `history_session_validate`, `history_session_search`, `history_session_read` |
-
-A typical development loop is:
+Your proxy must forward the following paths to the **same workspace upstream**, not a static-directory or certificate-validation handler:
 
 ```text
-Open Workspace
-  → understand project and Git state
-  → search and read code
-  → apply a transactional patch
-  → run commands and tests
-  → inspect the diff and commit
+/.well-known/oauth-authorization-server
+/.well-known/oauth-protected-resource
+/.well-known/oauth-protected-resource/mcp
+/oauth/authorize
+/oauth/token
 ```
 
-The advanced profile retains project-state and operation-history Harness capabilities, but normal edits and command execution do not require a Task.
+Run the desktop health checks first. Discovery documents should be JSON; unauthenticated business requests must remain protected. Do not disable OAuth or remove ACME certificate-validation rules merely to suppress a discovery failure.
 
-## Permission and recovery model
+### 2. Add the MCP connection in ChatGPT
 
-The project uses a Workspace-first permission model:
+Use the developer-mode/custom-MCP entry available to your account. Eligibility, permissions and menus follow [OpenAI's current guidance](https://help.openai.com/en/articles/12584461), not old screenshots. For an example public origin of `https://mcp.example.com`, this server's contract is:
 
-- Normal files inside the Workspace can be read, created, modified, deleted, and executed.
-- Outside the Workspace, `read_file`, `list_dir`, `list_files`, `search_text`, and `view_image` provide read-only access.
-- Writes, deletes, and command execution outside the Workspace are blocked.
-- `.git` and `.github` cannot be damaged through ordinary file tools, Patch, or interpreter commands.
-- Patch performs preflight validation and operation-local recovery; long-term recovery uses Git instead of full Workspace snapshots.
+| Field | Value |
+| --- | --- |
+| Server URL | `https://mcp.example.com/mcp` |
+| Authentication | OAuth with preconfigured Client ID / Client Secret |
+| Client credentials | Must match the corresponding desktop workspace |
+| Token endpoint authentication | `client_secret_post` when a secret is configured; `client_secret_basic` is also supported |
+| Authorization endpoint | `https://mcp.example.com/oauth/authorize`, normally discovered automatically |
+| Token endpoint | `https://mcp.example.com/oauth/token` |
+| Issuer / authorization-server base | `https://mcp.example.com` |
+| Resource | `https://mcp.example.com/mcp` |
+| Scopes | `mcp`; request **`mcp offline_access`** for refresh tokens |
+| Registration URL | Leave blank; dynamic client registration is not implemented |
+| OIDC | Off; do not request `openid profile email` |
 
-> Windows child-process execution currently uses a `policy_only` boundary. The honest runtime value is `sandbox_enforced: false`; static command policy is not a complete OS filesystem sandbox.
+Default scopes can remain blank with the required values in the base-scopes field; the effective authorization request is authoritative. **Register the exact Callback / Redirect URL shown by ChatGPT in the workspace's OAuth configuration.** Do not guess it or match only its domain. Enter any first-authorization passphrase in the browser flow as directed by the desktop app, never into the chat.
+
+### 3. Approve on the local desktop
+
+An OAuth connection does not authorize computer access. In the selected chat, check `auth_status`, then call `request_chat_authorization` for the minimum required scopes and display its fingerprint.
+
+Open the desktop approval entry or the workspace's ChatGPT authorization panel. **Compare fingerprints, review/reduce scopes, then approve.** A global approval entry and modal are available; OS notification banners depend on platform settings. Pending requests expire after 90 seconds. MCP does not expose a remote self-approval action.
+
+Only after approval should the chat call business tools such as `server_info`, `get_default_cwd` and `git_status`.
+
+```text
+OAuth connection → Conversation request → Local fingerprint approval → Tool access → Checkpoint
+```
+
+## Exclusive ownership and long sessions
+
+Default exclusivity is **per workspace/profile**, not one owner for the entire application. The first valid request reserves the workspace; local approval makes it the Owner. Other chats receive `EXCLUSIVE_CHAT_LOCKED`, create no new Pending record and cannot evict that Owner.
+
+When ownership is revoked or expires while old tasks are unfinished, the workspace enters **draining**. Ownership is not transferred until old work is resolved. The plugin may remain visible in another ChatGPT conversation: the server can deny calls, not hide the Host's menu.
+
+The workspace's remote-session security panel exposes:
+
+| Setting | Default | Range |
+| --- | --- | --- |
+| Exclusive conversation | On | Per workspace |
+| Pending approval | 90 seconds | Fixed |
+| Access Token lifetime | 60 minutes | 5–480 minutes |
+| Refresh Session lifetime | 30 days | 1–90 days |
+| Conversation lease | 24 hours | 1–720 hours |
+| Idle auto-release | Off (0) | 0 or 30–1440 minutes, no longer than the lease |
+
+Refresh-token rotation and reuse detection are mandatory. **The client decides when to refresh. Refreshing does not extend the conversation lease, transfer ownership or replace local approval.** Saving a policy requires local confirmation, revokes current chat grants and restarts the listener through the existing configuration flow. Previously issued refresh sessions retain their original deadlines. A full application restart requires a new local approval. Command timeouts/task budgets are separate from conversation lifetimes.
+
+Sources: [session policy](src-tauri/src/auth/session_policy.rs), [chat authorizer](src-tauri/src/auth/聊天授权v1.rs), [remote-session settings](src/lib/components/RemoteSessionSettings.svelte).
+
+## Conversation history without cross-chat leakage
+
+After approval, copy the workspace's ChatGPT startup prompt. `history_session_bootstrap` stores the verbatim `initial_user_input` and returns a stable `session_key`, `current_path` and bounded state. Use `history_session_search` and paginated `history_session_read` with `next_cursor` for earlier details. At each completed task, call `history_session_checkpoint` with the unchanged target and verbatim `raw_user_input`. Only a successful, matching response establishes that progress was saved.
+
+Archives live under the project's `docs/history-session/`. **A conversation can restore its own records; a different chat does not automatically inherit another chat's archive or grant merely by connecting to the same directory.** Cross-chat handover must be explicitly arranged by the local operator. The server cannot read chat content that was never passed as tool arguments. [Startup prompt](src/lib/components/ChatGptSessionPrompt.svelte)
+
+## Capabilities and boundaries
+
+The embedded runtime provides file reading/search/patching, command execution, Git, task management, logs and health checks. Track asynchronous commands using returned task IDs rather than assuming that a long chat lease makes a process immortal.
+
+Actions remains a separate OpenAPI gateway: start its service and use its actual `/openapi.json` and authentication settings. **Actions authentication, MCP OAuth scopes and local conversation scopes are not interchangeable.** An arbitrary REST client does not automatically provide the ChatGPT metadata used by conversation isolation.
+
+This software operates real directories and processes with the current system account's access. Conversation binding/approval is a logical authorization boundary, **not a separate container/filesystem for each chat or cryptographic proof of Host identity**. Shared directories remain shared. Grant minimum privileges; never put Client Secrets, passphrases, access/refresh tokens or unredacted configuration into screenshots, logs, README, issues or chats.
+
+## Upgrade, recovery and verification limits
+
+Exit the old app and back up configuration plus the corresponding system account's key-recovery material before upgrading. Do not delete project/history files to install the UI, run competing app versions against one configuration, or force unfinished draining work to become free. An encrypted configuration file alone is not a cross-user recovery guarantee. Retain v0.4.0 and a compatible backup for rollback.
+
+v0.5.0 automated acceptance covers Windows NSIS and Ubuntu 22.04/24.04 × DEB/AppImage: 20 native UI screenshots and 12 authorization/refresh/draining stages per combination. Windows has 432 passing Rust tests and Ubuntu 417, with 180 frontend tests per platform. Built-page browser coverage adds 40 matrix screenshots, 10 interactions and 8 states; its synthetic IPC does not substitute for native evidence.
+
+**Full Release is the repository's selected distribution channel, not proof that every environment is verified.** Real-account long-duration ChatGPT refresh, OS banner visibility and every hardware/FUSE/Wayland combination remain outside complete automated coverage. Windows packages are unsigned. The original build run retains a post-publication tag-lookup 404 failure; a subsequent read-only run verified public bytes. See [release and acceptance details](docs/releases/stable-v0.5.0.md). Bundled Pre-release wording records the original build stage and is not silently rewritten during promotion.
 
 ## Local development
 
-Requirements: Node.js 20+, Rust stable, and the [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform.
+Read [AGENTS.md](AGENTS.md) first. Use Node.js 22, npm, Rust stable and the platform-specific [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ```bash
-npm install
+git clone https://github.com/Eswink/coding-tools-mcp.git
+cd coding-tools-mcp
+npm ci
 npm run desktop
 ```
 
-Useful verification commands:
+Windows also provides `dev-desktop.cmd`. `npm run dev` starts Vite only, not the complete Tauri application. Use the repository's frontend driver to prepare required generated test modules:
 
 ```bash
 npm run check
 npm run build
-cd src-tauri && cargo test
-cd src-tauri && cargo clippy --all-targets -- -D warnings
+node scripts/前端完整回归v4.mjs
+cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml
+cargo test --locked --manifest-path src-tauri/Cargo.toml
+cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings
+python scripts/release_preflight.py
 ```
 
-On Windows, you can also run `dev-desktop.cmd`. Do not use `npm run dev` alone to validate the desktop application; it starts Vite without the Tauri shell.
-
-## Project layout
-
-| Path | Purpose |
+| Directory | Responsibility |
 | --- | --- |
-| `src-tauri/src/tools/` | Shared file, Patch, Exec, and Git tool kernel |
-| `src-tauri/src/mcp/` | MCP Streamable HTTP server |
-| `src-tauri/src/actions/` | ChatGPT Actions OpenAPI gateway |
-| `src-tauri/src/tunnel/` | FRP / Cloudflare tunnel and process management |
-| `src/` | SvelteKit desktop UI |
-| `old/` | Python reference implementation and compatibility baseline |
+| `src/routes/`, `src/lib/components/`, `src/lib/styles/` | Pages, components and styles |
+| `src/lib/api/` | Tauri IPC wrappers |
+| `src-tauri/src/auth/` | OAuth, ownership leases, local approval and refresh sessions |
+| `src-tauri/src/tools/` | File, patch, command, Git, task and history tools |
+| `src-tauri/src/mcp/`, `src-tauri/src/actions/` | MCP and OpenAPI listeners |
+| `src-tauri/src/tunnel/` | FRP / Cloudflare lifecycle |
+| `tests/`, `src-tauri/tests/`, `scripts/` | Frontend, Rust, native and release validation |
+| `docs/specs/ui-refactor-v1/` | UI plans, iterations and delivery records |
 
-## License
+## Attribution and licensing
 
-[Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)
+This repository derives from [mybolide/coding-tools-mcp](https://github.com/mybolide/coding-tools-mcp). Credit remains with the original authors and contributors. Upstream and this fork have distinct versions, packages and release channels. Package metadata declares Apache-2.0; dependencies retain their respective licenses and existing attribution is preserved.
