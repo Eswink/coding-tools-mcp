@@ -2,6 +2,7 @@ name: UI refactor validation
 on:
   push:
     branches: ['feat/ui-refactor-v1']
+  workflow_call:
   workflow_dispatch:
 permissions:
   contents: read
@@ -82,6 +83,9 @@ jobs:
           UI_MODE: ${{ matrix.mode }}
           CHROMIUM_PATH: playwright-managed
         run: python candidate/tests/ui-refactor-browser.py
+      - name: Bind candidate visual evidence to exact source and run
+        if: matrix.mode == 'candidate'
+        run: python candidate/scripts/ui_release_evidence.py record --root candidate --folder "${{ runner.temp }}/ui-candidate"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

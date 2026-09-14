@@ -5,6 +5,7 @@ from pathlib import Path
 import time
 import urllib.parse
 from exclusive_native_http import legacy
+from exclusive_native_acceptance import capture_rendered
 
 PAGES = ('workspace', 'general', 'keys', 'frp', 'software')
 SIZES = ((1280, 800), (960, 640))
@@ -54,7 +55,7 @@ def review(session, profile, output: Path):
                 if name == 'keys':
                     assert session.execute("return [...document.querySelectorAll('main input')].every(e=>e.type==='password')") is True
                 file = output / f'ui-native-{name}-{width}x{height}-{theme}.png'
-                session.screenshot(file)
+                capture_rendered(session, file)
                 rows.append({'page': name, 'requested_window': [width, height], 'theme': theme,
                     'viewport': [geometry['width'], geometry['height']], 'overflow': geometry['overflow'],
                     'file': file.name, 'sha256': hashlib.sha256(file.read_bytes()).hexdigest(), 'passed': True})
