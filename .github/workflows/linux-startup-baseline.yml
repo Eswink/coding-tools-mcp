@@ -5,7 +5,10 @@ on:
     paths:
       - '.github/workflows/linux-startup-baseline.yml'
       - 'scripts/linux_startup_baseline.py'
-      - 'docs/specs/linux-startup-platform/plan.md'
+      - 'docs/specs/linux-startup-platform/**'
+      - 'src-tauri/src/**'
+      - 'src/**'
+      - 'scripts/linux_startup_candidate.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,7 +29,7 @@ jobs:
           git rev-parse HEAD > evidence/source.txt
           git rev-parse HEAD^{tree} > evidence/tree.txt
           git archive --format=zip HEAD > evidence/source.zip
-          python3 -m py_compile scripts/linux_startup_baseline.py
+          python3 -m py_compile scripts/linux_startup_baseline.py scripts/linux_startup_candidate.py
       - uses: actions/upload-artifact@v4
         with:
           name: linux-startup-source
@@ -99,6 +102,63 @@ jobs:
         if: always()
         with:
           name: linux-startup-baseline-${{ matrix.os }}-${{ matrix.kind }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+  candidate-startup:
+    name: Candidate startup (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install build and isolated runtime dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev gnome-keyring dbus-user-session xvfb xauth x11-utils libglib2.0-bin
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: linux-startup-platform-v1
+      - name: Frontend and Rust regression before GUI launch
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          npm run build
+          cargo test --manifest-path src-tauri/Cargo.toml --locked
+          cargo build --manifest-path src-tauri/Cargo.toml --locked --release
+      - name: Locked recovery and healthy startup controls
+        run: |
+          set -euo pipefail
+          app="$GITHUB_WORKSPACE/src-tauri/target/release/coding-tools-mcp-desktop"
+          test -x "$app"
+          mkdir -p evidence
+          result=0
+          for scenario in missing-bus unlocked-keyring; do
+            export HOME="$RUNNER_TEMP/candidate-$scenario"
+            export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_STATE_HOME="$HOME/state" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+            mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+            chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+            touch "$HOME/.linux-startup-disposable"
+            xvfb-run -a -s '-screen 0 1280x800x24' dbus-run-session -- python3 scripts/linux_startup_candidate.py --app "$app" --case "$scenario" --output "evidence/$scenario" || result=1
+          done
+          exit "$result"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-startup-candidate-${{ matrix.os }}
           path: evidence/
           if-no-files-found: error
           retention-days: 30
