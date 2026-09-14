@@ -130,15 +130,19 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          shared-key: linux-startup-platform-v1
+          shared-key: linux-startup-platform-registry-v2
+          cache-targets: false
       - name: Frontend and Rust regression before GUI launch
         run: |
           set -euo pipefail
-          npm ci
-          npm run check
-          npm run build
-          cargo test --manifest-path src-tauri/Cargo.toml --locked
-          cargo build --manifest-path src-tauri/Cargo.toml --locked --release
+          mkdir -p evidence
+          {
+            npm ci
+            npm run check
+            npm run build
+            cargo test --manifest-path src-tauri/Cargo.toml --locked
+            cargo build --manifest-path src-tauri/Cargo.toml --locked --release
+          } 2>&1 | tee evidence/build.log
       - name: Locked recovery and healthy startup controls
         run: |
           set -euo pipefail
