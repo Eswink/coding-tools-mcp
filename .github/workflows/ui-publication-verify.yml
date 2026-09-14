@@ -1,0 +1,53 @@
+name: UI v0.5.0 public byte verification
+on:
+  push:
+    branches: ['verify/ui-v0.5.0']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: ui-v0.5.0-read-only-verification
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/verify/ui-v0.5.0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: verifier
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: 63261e0c9ae4b0c6befdbe5ae8caff7f5d32c076
+          path: product
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify immutable-source and read-only contracts
+        run: python verifier/scripts/verify_ui_publication_tests.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: ui-final-delivery
+          path: original-delivery
+          run-id: 34810770540
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: exclusive-source
+          path: original-source
+          run-id: 34810770540
+          github-token: ${{ github.token }}
+      - name: Recompute original gates and anonymously verify all public bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python verifier/scripts/verify_ui_publication.py --checkout product --delivery original-delivery --source-export original-source --output verified
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-publication-verification-v0.5.0
+          path: verified/publication-recovery-receipt.json
+          if-no-files-found: error
+          retention-days: 30
