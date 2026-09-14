@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Box } from "@lucide/svelte";
   import ServiceStatusPair from "$lib/components/ServiceStatusPair.svelte";
   import type { RuntimeState, WorkspaceProfile } from "$lib/types";
 
@@ -14,7 +15,8 @@
 </script>
 
 <div class="tx-nav-item" class:active>
-  <button type="button" class="tx-nav-button" onclick={onClick}>
+  <button type="button" class="tx-nav-button" aria-current={active ? "page" : undefined} title={workspace.name} onclick={onClick}>
+    <Box size={20} aria-hidden="true" />
     <ServiceStatusPair mcp={mcpState} actions={actionsState} />
     <span class="min-w-0 flex-1 truncate text-sm font-medium">{workspace.name}</span>
   </button>

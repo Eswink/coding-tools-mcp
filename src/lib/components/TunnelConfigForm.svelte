@@ -187,6 +187,11 @@
     } finally { if (!disposed) testing = false; }
   }
 
+  // Presentation-only navigation contract: never return draft or credential values.
+  export function navigationState(): { dirty: boolean; busy: boolean } {
+    const token = showToken ? tokenField?.navigationState() : undefined;
+    return { dirty: dirty || !!token?.dirty, busy: saving || testing || !!token?.busy };
+  }
 </script>
 
 <form class="grid gap-3" onsubmit={(event) => { event.preventDefault(); void save(); }}>

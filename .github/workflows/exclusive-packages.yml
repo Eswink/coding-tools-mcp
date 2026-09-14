@@ -3,6 +3,11 @@ on:
   push:
     branches: ['build/exclusive-native-v1']
   workflow_call:
+    inputs:
+      scenario:
+        type: string
+        default: exclusive
+        required: false
 permissions:
   contents: read
 concurrency:
@@ -89,6 +94,7 @@ jobs:
       LIBGL_ALWAYS_SOFTWARE: '1'
       APPIMAGE_EXTRACT_AND_RUN: '1'
       PACKAGE_KIND: ${{ matrix.kind }}
+      NATIVE_SCENARIO: ${{ inputs.scenario || 'exclusive' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -125,9 +131,17 @@ jobs:
           mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
           chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
           touch "$HOME/.ubuntu-ci-fixture-v1"
-          xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash scripts/Ubuntu图形会话v2.sh "$GITHUB_WORKSPACE/scripts/exclusive_native_acceptance.py" "$app" "$RUNNER_TEMP/exclusive-linux-driver/tauri-driver" "$PACKAGE_KIND" "$GITHUB_WORKSPACE/evidence" 2>&1 | tee evidence/已安装原生会话v10.log
+          case "$NATIVE_SCENARIO" in
+            exclusive) scenario_script=exclusive_native_acceptance.py ;;
+            ui-refactor) scenario_script=ui_refactor_native_acceptance.py ;;
+            *) echo 'Unknown native scenario'; exit 1 ;;
+          esac
+          xvfb-run -a -s '-screen 0 1920x1080x24' dbus-run-session -- bash scripts/Ubuntu图形会话v2.sh "$GITHUB_WORKSPACE/scripts/$scenario_script" "$app" "$RUNNER_TEMP/exclusive-linux-driver/tauri-driver" "$PACKAGE_KIND" "$GITHUB_WORKSPACE/evidence" 2>&1 | tee evidence/已安装原生会话v10.log
           version=$(python -c "import json; print(json.load(open('package.json',encoding='utf-8'))['version'])")
           python scripts/exclusive_native_gate.py --input evidence/exclusive-native.json --binary "$app" --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --version "$version" --kind "$PACKAGE_KIND"
+          if [ "$NATIVE_SCENARIO" = ui-refactor ]; then
+            python scripts/ui_refactor_native_gate.py --input evidence/exclusive-native.json --binary "$app" --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --version "$version" --kind "$PACKAGE_KIND"
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -143,6 +157,7 @@ jobs:
       PYTHONUTF8: '1'
       PYTHONDONTWRITEBYTECODE: '1'
       CARGO_TERM_COLOR: never
+      NATIVE_SCENARIO: ${{ inputs.scenario || 'exclusive' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -177,7 +192,7 @@ jobs:
       - name: 安装及从安装路径进行真实审批测试
         shell: pwsh
         run: |
-          ./scripts/exclusive_windows_install.ps1 -OutputDirectory "$env:RUNNER_TEMP/exclusive-windows-package" -Driver "$env:RUNNER_TEMP/exclusive-windows-driver/msedgedriver.exe"
+          ./scripts/exclusive_windows_install.ps1 -OutputDirectory "$env:RUNNER_TEMP/exclusive-windows-package" -Driver "$env:RUNNER_TEMP/exclusive-windows-driver/msedgedriver.exe" -Scenario $env:NATIVE_SCENARIO
           if ($LASTEXITCODE -ne 0) { throw 'NSIS安装授权验收失败' }
       - uses: actions/upload-artifact@v4
         if: success()

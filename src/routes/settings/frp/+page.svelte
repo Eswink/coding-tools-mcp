@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { Server, List, Info } from "@lucide/svelte";
+  import PageHeader from "$lib/components/layout/PageHeader.svelte";
+  import SurfaceCard from "$lib/components/primitives/SurfaceCard.svelte";
+  import { Network } from "@lucide/svelte";
   import { onMount } from "svelte";
   import { message } from "@tauri-apps/plugin-dialog";
   import {
@@ -84,18 +88,11 @@
 </script>
 
 <section class="page-scroll">
-  <header class="page-header">
-    <p class="page-kicker">全局设置</p>
-    <h2 class="page-title">FRP 配置</h2>
-    <p class="mt-2 max-w-2xl text-sm text-[var(--color-text-muted)]">
-      在此配置 FRP 服务器、端口与 Token。各工作区只需选择配置并填写自己的子域名；修改子域名后保存会自动更新
-      frpc 配置并重启隧道。
-    </p>
-  </header>
+  <div class="page-header"><PageHeader title="FRP 配置" description="管理共享 FRP 服务器配置；工作区内选择配置并设置具体域名和本地映射。">{#snippet icon()}<Network size={30} />{/snippet}</PageHeader></div>
 
-  <div class="page-body flex flex-col gap-6">
-    <div class="tx-card p-4">
-      <h3 class="text-sm font-semibold">{editingId ? "编辑配置" : "新建配置"}</h3>
+  <div class="page-body frp-grid">
+    <SurfaceCard title={editingId ? "编辑服务器配置" : "新建服务器配置"} description="端口与认证令牌须和远端 FRPS 一致。">
+      {#snippet icon()}<Server size={24} />{/snippet}
       <form
         class="mt-4 grid gap-3"
         onsubmit={(event) => {
@@ -144,7 +141,7 @@
         <div class="flex gap-2 pt-1">
           <button
             type="submit"
-            class="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            class="tx-btn-primary"
             disabled={saving}
           >
             {saving ? "保存中…" : editingId ? "更新" : "添加"}
@@ -160,10 +157,11 @@
           {/if}
         </div>
       </form>
-    </div>
+    </SurfaceCard>
 
-    <div class="tx-card p-4">
-      <h3 class="text-sm font-semibold">已保存的配置</h3>
+    <aside class="profile-sidebar">
+    <SurfaceCard title="已保存的配置" description="这里只表示配置存在，不代表隧道已经连接。">
+      {#snippet icon()}<List size={24} />{/snippet}
       {#if loading}
         <p class="mt-4 text-sm text-[var(--color-text-muted)]">加载中…</p>
       {:else if profiles.length === 0}
@@ -184,14 +182,14 @@
               <div class="flex shrink-0 gap-2">
                 <button
                   type="button"
-                  class="text-xs text-[var(--color-accent)] hover:underline"
+                  class="tx-btn-ghost"
                   onclick={() => editProfile(profile)}
                 >
                   编辑
                 </button>
                 <button
                   type="button"
-                  class="text-xs text-red-400 hover:underline"
+                  class="tx-btn-ghost tx-btn-destructive"
                   onclick={() => removeProfile(profile)}
                 >
                   删除
@@ -201,6 +199,18 @@
           {/each}
         </ul>
       {/if}
-    </div>
+    </SurfaceCard>
+    <SurfaceCard title="在工作区中连接" description="全局配置与实际运行状态分开管理。">
+      {#snippet icon()}<Info size={24} />{/snippet}
+      <p class="text-sm text-[var(--text-secondary)]">从左侧选择工作区，在服务的“隧道”配置中关联 FRP。公网 URL、测试连接和配置预览以该工作区的实际状态为准。</p>
+    </SurfaceCard>
+    </aside>
   </div>
 </section>
+
+<style>
+  .frp-grid { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:20px; align-items:start; }
+  .profile-sidebar { display:grid; gap:18px; min-width:0; }
+  li.tx-panel { flex-wrap:wrap; }
+  @media(max-width:1200px) { .frp-grid { grid-template-columns:minmax(0,1fr); } }
+</style>

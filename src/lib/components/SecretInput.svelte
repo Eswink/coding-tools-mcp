@@ -3,6 +3,7 @@
 
   interface Props {
     value?: string;
+    label?: string;
     placeholder?: string;
     readonly?: boolean;
     disabled?: boolean;
@@ -15,6 +16,7 @@
 
   let {
     value = $bindable(""),
+    label = "密钥",
     placeholder = "",
     readonly = false,
     disabled = false,
@@ -41,6 +43,7 @@
     {#if readonly}
       <input
         type={inputType}
+        aria-label={label}
         class="tx-secret-input-field {fontClass} {textClass}"
         {value}
         {placeholder}
@@ -51,6 +54,7 @@
     {:else}
       <input
         type={inputType}
+        aria-label={label}
         class="tx-secret-input-field {fontClass} {textClass}"
         bind:value
         {placeholder}

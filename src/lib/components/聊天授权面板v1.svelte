@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { LockKeyhole } from "@lucide/svelte";
   import { untrack } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { confirm } from "@tauri-apps/plugin-dialog";
@@ -59,8 +60,8 @@
 
 <section class="chat-authorization" aria-labelledby="chat-authorization-heading">
   <div class="heading">
-    <div><h3 id="chat-authorization-heading">ChatGPT 聊天授权</h3>
-      <p>OAuth 连接不等于当前聊天获准。核对聊天返回的指纹后，在本机批准；不要将密码或令牌发送到聊天。</p></div>
+    <div class="authorization-title"><span class="authorization-icon" aria-hidden="true"><LockKeyhole size={26} /></span><div><h3 id="chat-authorization-heading">ChatGPT 聊天授权</h3>
+      <p>OAuth 连接不等于当前聊天获准。核对聊天返回的指纹后，在本机批准；不要将密码或令牌发送到聊天。</p></div></div>
     <button type="button" class="tx-btn-secondary" disabled={busy || !snapshot} onclick={() => void act("revoke_all")}>撤销全部</button>
   </div>
   {#if error}<p role="alert">{error}</p>{/if}
@@ -105,8 +106,10 @@
   {:else}<p aria-live="polite">正在读取本机授权状态…</p>{/if}
 </section>
 <style>
-  .chat-authorization { margin-top: 1rem; padding: 1rem; border: 1px solid var(--color-border); border-radius: 12px; background: var(--card-bg); }
-  h3 { font-size: 0.95rem; font-weight: 600; } p { font-size: 0.78rem; color: var(--color-text-muted); line-height: 1.6; margin: 0.45rem 0; }
+  .authorization-title { display:flex; align-items:center; gap:16px; flex:1; min-width:0; }
+  .authorization-icon { display:grid; place-items:center; width:48px; height:48px; border-radius:12px; flex-shrink:0; color:var(--success); background:var(--success-soft); }
+  .chat-authorization { margin-top: 1rem; padding: 20px; border: 1px solid var(--color-border); border-radius: var(--card-radius); box-shadow: var(--card-shadow); background: var(--card-bg); }
+  h3 { font-size: 17px; font-weight: 600; } p { font-size: 0.78rem; color: var(--color-text-muted); line-height: 1.6; margin: 0.45rem 0; }
   .heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
   .exclusive, fieldset label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; padding: 0.45rem 0; }
   fieldset { border: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0 0.8rem; margin: 0.6rem 0; }

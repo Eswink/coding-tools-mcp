@@ -1,0 +1,95 @@
+name: UI refactor validation
+on:
+  push:
+    branches: ['feat/ui-refactor-v1']
+  workflow_call:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ui-refactor-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  existing-regressions:
+    uses: ./.github/workflows/exclusive-conversation.yml
+  frontend-toolchain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Export locked frontend tools for offline source checks
+        run: |
+          set -euo pipefail
+          mkdir -p toolchain
+          git rev-parse HEAD > toolchain/source.txt
+          sha256sum package-lock.json > toolchain/lock.sha256
+          npm ls --all --json > toolchain/packages.json
+          tar -czf toolchain/node-modules.tar.gz node_modules
+          sha256sum toolchain/node-modules.tar.gz > toolchain/archive.sha256
+          git diff --exit-code
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-refactor-toolchain
+          path: toolchain/
+          if-no-files-found: error
+          retention-days: 7
+  route-visuals:
+    name: Actual route visuals (${{ matrix.mode }})
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [baseline, candidate]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: candidate
+      - uses: actions/checkout@v4
+        if: matrix.mode == 'baseline'
+        with:
+          ref: 5b1265f6905e2953e32000797a62cfd2f16baa48
+          persist-credentials: false
+          path: baseline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: candidate/package-lock.json
+      - name: Build the actual source for the selected mode
+        working-directory: ${{ matrix.mode }}
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build
+          git diff --exit-code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install playwright==1.58.0
+      - run: python -m playwright install --with-deps chromium
+      - name: Screenshot and exercise real routes with synthetic IPC
+        env:
+          UI_TARGET_ROOT: ${{ github.workspace }}/${{ matrix.mode }}
+          UI_EVIDENCE_DIR: ${{ runner.temp }}/ui-${{ matrix.mode }}
+          UI_MODE: ${{ matrix.mode }}
+          CHROMIUM_PATH: playwright-managed
+        run: python candidate/tests/ui-refactor-browser.py
+      - name: Bind candidate visual evidence to exact source and run
+        if: matrix.mode == 'candidate'
+        run: python candidate/scripts/ui_release_evidence.py record --root candidate --folder "${{ runner.temp }}/ui-candidate"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-refactor-pages-${{ matrix.mode }}
+          path: ${{ runner.temp }}/ui-${{ matrix.mode }}/
+          if-no-files-found: error
+          retention-days: 30

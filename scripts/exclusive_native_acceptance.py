@@ -107,11 +107,49 @@ def decide(session, base, token, chat, *, approve=True, drop_scope=None):
 
 def revoke(session, profile):
     visit(session, profile)
-    legacy.click(session, PANEL + "//button[normalize-space(.)='撤销全部']")
+    # Route headings render before the initial authorization snapshot. The
+    # button exists then, but is disabled: native click delivery is not proof
+    # its handler ran. Observe readiness only, and send exactly one real click.
+    def enabled_button():
+        element = session.call('element', {'using': 'xpath', 'value':
+            PANEL + "//button[normalize-space(.)='撤销全部']"})
+        element_id = element[legacy.ELEMENT]
+        return element_id if session.call(f'element/{element_id}/enabled') is True else None
+    element_id = gui.wait_for(enabled_button)
+    session.call(f'element/{element_id}/click', {})  # Never retry a mutation.
     # Native click completion is not completion of the Svelte async IPC handler.
     # Read status only; never repeat the revoke click or request a successor early.
     gui.wait_for(lambda: status(session, profile), lambda value:
         not any(row.get('status') in ('pending', 'active') for row in value['records']))
+
+
+def capture_rendered(session, path):
+    """Wait for a real visual frame before ONE validated native screenshot.
+
+    The async script observes layout/fonts only. It neither clicks nor invokes
+    IPC, changes grants, invents image bytes or retries a rejected screenshot.
+    """
+    state = session.call('execute/async', {'script': """
+        const done = arguments[arguments.length - 1];
+        let finished = false;
+        const complete = (ready) => {
+            if (finished) return; finished = true; clearTimeout(timer);
+            done({ready, visibility:document.visibilityState,
+                  width:innerWidth, height:innerHeight});
+        };
+        const timer = setTimeout(() => complete(false), 5000);
+        Promise.resolve(document.fonts?.ready).then(() => {
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                complete(document.visibilityState === 'visible' &&
+                    innerWidth > 0 && innerHeight > 0 && !!document.querySelector('main'));
+            }));
+        }).catch(() => complete(false));
+    """, 'args': []})
+    safe = {key: state.get(key) for key in ('ready', 'visibility', 'width', 'height')} if isinstance(state, dict) else {}
+    path.with_suffix('.capture.json').write_text(json.dumps(safe) + '\n', encoding='utf-8')
+    assert (safe.get('ready') is True and safe.get('visibility') == 'visible'
+        and all(type(safe.get(k)) is int and safe[k] > 0 for k in ('width', 'height'))), 'native render barrier did not complete'
+    session.screenshot(path)
 
 
 def scan_export(output, sensitive):
@@ -130,7 +168,7 @@ def scan_export(output, sensitive):
     return found
 
 
-def run(args):
+def run(args, *, ui_review=None):
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=True)
     evidence = {'scenario': SCENARIO, 'passed': False, 'source_sha': args.source,
         'run_id': os.environ.get('GITHUB_RUN_ID'), 'platform': platform.platform(),
@@ -182,8 +220,10 @@ def run(args):
         assert fields == [15, 2, 2, 0]
         assert session.execute("return document.querySelector('.remote-session-settings input[type=checkbox]').checked") is True
         assert session.invoke('list_workspaces')[0]['auth']['session_policy'] == p
-        session.screenshot(output / 'native-session-settings.png')
+        capture_rendered(session, output / 'native-session-settings.png')
         passed(1)
+        if ui_review is not None:
+            evidence['ui_refactor'] = ui_review(session, profile, output)
         session.invoke('start_runtime', {'id': profile['id']})
         base = 'http://127.0.0.1:' + str(profile['runtime']['local_port'])
         code, headers, _ = exchange(base + '/mcp', {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list'})
@@ -201,7 +241,7 @@ def run(args):
         grant = candidate(session, base, token, a, legacy.SCOPES)
         assert 'Exclusive native acceptance' in session.body()
         # A fresh global dialog is visible away from the workspace route.
-        session.screenshot(output / 'native-approval-modal.png')
+        capture_rendered(session, output / 'native-approval-modal.png')
         decision_start = int(time.time())
         active = decide(session, base, token, a, drop_scope='files.write')
         assert 'files.write' not in active['scopes']
@@ -258,7 +298,7 @@ def run(args):
         session.invoke('show_main_window')
         open_candidate_dialog(session, pending['authorization']['fingerprint'])
         assert session.execute("return document.querySelector('.approval-dialog .verify input').checked") is False
-        session.screenshot(output / 'native-background-inbox.png')
+        capture_rendered(session, output / 'native-background-inbox.png')
         # Exercise the real backend deadline; never change its clock or policy.
         time.sleep(max(0, 90.2 - (time.monotonic() - start)))
         expired = gui.wait_for(lambda: rpc(base, token, a, 'auth_status', {}),
@@ -277,7 +317,7 @@ def run(args):
         assert rpc(base, third['access_token'], a, 'auth_status', {})['authorization']['status'] == 'unauthorized'
         unavailable(rpc(base, third['access_token'], a, 'server_info', {}), str(root))
         assert inbox(session)['pending'] == []
-        session.screenshot(output / 'native-restart-without-grant.png')
+        capture_rendered(session, output / 'native-restart-without-grant.png')
         passed(10)
         replay(base, profile, secret, first)
         replay(base, profile, secret, third)

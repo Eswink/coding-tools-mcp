@@ -1,0 +1,305 @@
+/* ─── Cards & panels ─── */
+.tx-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+
+}
+
+.tx-panel {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.tx-panel-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--duration-fast) ease;
+}
+
+.tx-panel-toggle:hover {
+  background: var(--surface-hover);
+}
+
+.tx-panel-body {
+  border-top: 1px solid var(--border);
+  padding: 14px;
+}
+
+/* ─── Buttons ─── */
+.tx-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  min-height: 42px;
+  border: none;
+  border-radius: 10px;
+  background: var(--action-bg);
+  color: var(--primary-foreground);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--duration-fast) ease;
+}
+
+.tx-btn-primary:hover:not(:disabled) {
+  background: var(--action-hover);
+}
+
+.tx-btn-danger { background: var(--danger-bg); color: var(--primary-foreground); }
+.tx-btn-danger:hover:not(:disabled) { background: var(--danger-hover); }
+.tx-btn-ghost.tx-btn-destructive, .tx-btn-secondary.tx-btn-destructive { color: var(--danger); border-color: var(--danger); }
+
+.tx-btn,
+.tx-btn-ghost,
+.tx-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--duration-fast) ease;
+}
+
+.tx-btn:hover:not(:disabled),
+.tx-btn-ghost:hover:not(:disabled),
+.tx-btn-secondary:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-main);
+}
+
+.tx-btn-sidebar {
+  width: 100%;
+  margin-top: 14px;
+}
+
+/* ─── Tabs ─── */
+.tx-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tx-tab {
+  position: relative;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--duration-fast) ease;
+}
+
+.tx-tab:hover {
+  color: var(--text-main);
+}
+
+.tx-tab.active {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.tx-tab.active::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--action-bg);
+}
+
+/* ─── Status pill (read-only service switcher) ─── */
+.tx-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card-bg);
+  color: var(--text-main);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) ease, background var(--duration-fast) ease;
+}
+
+.tx-status-pill:hover {
+  background: var(--surface-hover);
+}
+
+.tx-status-pill.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+/* ─── Section label (within config card) ─── */
+.tx-section-label {
+  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ─── Form fields ─── */
+.tx-field {
+  display: grid;
+  gap: 6px;
+}
+
+.tx-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.tx-input,
+.tx-select,
+.tx-textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--field-bg);
+  color: var(--text-main);
+  transition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+}
+
+[data-theme="dark"] .tx-input,
+[data-theme="dark"] .tx-select,
+[data-theme="dark"] .tx-textarea,
+.dark .tx-input,
+.dark .tx-select,
+.dark .tx-textarea {
+  background: rgba(15, 23, 36, 0.55);
+}
+
+.tx-input:focus,
+.tx-select:focus,
+.tx-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 134, 255, 0.15);
+}
+
+.tx-mono {
+  font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+}
+
+/* ─── Info blocks (service panel rows) ─── */
+.tx-info-block {
+  border-radius: 10px;
+  background: var(--surface-hover);
+  padding: 10px 12px;
+}
+
+.tx-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tx-info-label {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.tx-input-inline {
+  width: 5.5rem;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  text-align: right;
+}
+
+.tx-secret-input {
+  position: relative;
+}
+
+.tx-secret-input-field {
+  width: 100%;
+  padding: 9px 3.25rem 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--field-bg);
+  color: var(--text-main);
+  transition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+}
+
+[data-theme="dark"] .tx-secret-input-field,
+.dark .tx-secret-input-field {
+  background: rgba(15, 23, 36, 0.55);
+}
+
+.tx-secret-input-field:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 134, 255, 0.15);
+}
+
+.tx-secret-input-field:read-only {
+  cursor: default;
+}
+
+.tx-secret-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 2px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--duration-fast) ease, background var(--duration-fast) ease;
+}
+
+.tx-secret-toggle:hover {
+  color: var(--text-main);
+  background: var(--surface-hover);
+}
+
+
+.tx-btn-ghost, .tx-btn-secondary { min-height: 42px; gap: 8px; }
+.tx-label { color: var(--text-main); font-size: 13px; }
+.tx-card { min-width: 0; }
+.tx-input, .tx-select, .tx-secret-input-field { min-height: 42px; }
+
+/* Legacy task actions share the same primitive, including safe danger emphasis. */
+.tx-btn-ghost.tx-btn-destructive:hover:not(:disabled),
+.tx-btn-secondary.tx-btn-destructive:hover:not(:disabled) { color: var(--danger); }

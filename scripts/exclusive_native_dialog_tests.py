@@ -51,27 +51,30 @@ class NativeDialogRace(unittest.TestCase):
             self.invoke([None, 'yes'], driver_error('element not interactable'))
 
     def test_revocation_waits_for_authoritative_completion(self):
-        session = Mock(); profile = {'id': 'synthetic-profile'}
-        seen = []
-        def observe(fetch, predicate):
-            first = fetch(); seen.append(predicate(first))
-            second = fetch(); seen.append(predicate(second))
-            self.assertEqual(seen, [False, True])
-        with patch.object(native, 'visit'), patch.object(native.legacy, 'click') as click, \
-             patch.object(native, 'status', side_effect=[{'records':[{'status':'active'}]}, {'records':[{'status':'revoked'}]}]), \
-             patch.object(native.gui, 'wait_for', side_effect=observe):
+        from exclusive_native_revoke_tests import Driver, bounded_observe
+        session = Driver((True,), settle=1); profile = {'id': 'synthetic-profile'}
+        snapshots = []
+        def read_status(*args):
+            value = session.status(); snapshots.append(value); return value
+        with patch.object(native, 'visit'), \
+             patch.object(native, 'status', side_effect=read_status), \
+             patch.object(native.gui, 'wait_for', side_effect=bounded_observe):
             native.revoke(session, profile)
-        self.assertEqual(click.call_count, 1)
-        session.invoke.assert_not_called()
+        self.assertEqual(session.clicked, 1)
+        self.assertEqual([v['records'][0]['status'] for v in snapshots], ['active', 'revoked'])
 
     def test_revocation_does_not_claim_that_draining_work_has_ended(self):
-        session = Mock(); profile = {'id': 'synthetic-profile'}
-        snapshot = {'records':[{'status':'revoked'}], 'lease_state':'draining'}
-        with patch.object(native, 'visit'), patch.object(native.legacy, 'click'), \
-             patch.object(native, 'status', return_value=snapshot), \
-             patch.object(native.gui, 'wait_for', side_effect=lambda fetch, predicate: self.assertTrue(predicate(fetch()))):
+        from exclusive_native_revoke_tests import Driver, bounded_observe
+        session = Driver((True,)); profile = {'id': 'synthetic-profile'}
+        snapshots = []
+        def read_status(*args):
+            value = session.status(); snapshots.append(value); return value
+        with patch.object(native, 'visit'), \
+             patch.object(native, 'status', side_effect=read_status), \
+             patch.object(native.gui, 'wait_for', side_effect=bounded_observe):
             native.revoke(session, profile)
-        session.invoke.assert_not_called()
+        self.assertEqual(session.clicked, 1)
+        self.assertEqual(snapshots[-1]['lease_state'], 'draining')
 
     def test_source_routes_both_entrypoints_through_readback(self):
         from pathlib import Path

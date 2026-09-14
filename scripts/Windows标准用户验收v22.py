@@ -370,7 +370,7 @@ def main() -> None:
     parser.add_argument('--source', required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--fixture-root', type=Path)  # retained CLI compatibility; private fixture is created here
-    parser.add_argument('--scenario', choices=('legacy', 'exclusive'), default='legacy')
+    parser.add_argument('--scenario', choices=('legacy', 'exclusive', 'ui-refactor'), default='legacy')
     run(parser.parse_args())
 
 

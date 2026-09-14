@@ -179,6 +179,10 @@
       if (operationRequests.current(ticket)) regenerating = null;
     }
   }
+  // Presentation-only navigation contract: never return draft or credential values.
+  export function navigationState(): { dirty: boolean; busy: boolean } {
+    return { dirty, busy: saving || loadingSecrets || regenerating !== null };
+  }
 </script>
 
 <form

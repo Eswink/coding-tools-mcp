@@ -132,7 +132,9 @@ class NativeSession:
             # HTTP errors, timeouts and invalid image data remain failures.
             raw = base64.b64decode(encoded, validate=True)
             if not raw.startswith(b"\x89PNG\r\n\x1a\n") or len(raw) < 5000:
-                raise AssertionError("native screenshot is missing or invalid")
+                raise AssertionError("native screenshot is missing or invalid: " + json.dumps({
+                    "bytes": len(raw), "png_signature": raw.startswith(b"\x89PNG\r\n\x1a\n"),
+                    "sha256": hashlib.sha256(raw).hexdigest()}))
             path.write_bytes(raw)
             return
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Settings, KeyRound, Network, Package } from "@lucide/svelte";
   import "../app.css";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
@@ -115,30 +116,34 @@
     <button
       type="button"
       class="tx-settings-link {$page.url.pathname === '/settings/general' ? 'active' : ''}"
+      aria-current={$page.url.pathname === '/settings/general' ? 'page' : undefined}
       onclick={openGeneralSettings}
     >
-      通用
+      <Settings size={20} aria-hidden="true" />通用
     </button>
     <button
       type="button"
       class="tx-settings-link {$page.url.pathname === '/settings/keys' ? 'active' : ''}"
+      aria-current={$page.url.pathname === '/settings/keys' ? 'page' : undefined}
       onclick={openKeysSettings}
     >
-      共享密钥
+      <KeyRound size={20} aria-hidden="true" />共享密钥
     </button>
     <button
       type="button"
       class="tx-settings-link {$page.url.pathname === '/settings/frp' ? 'active' : ''}"
+      aria-current={$page.url.pathname === '/settings/frp' ? 'page' : undefined}
       onclick={openFrpSettings}
     >
-      FRP 配置
+      <Network size={20} aria-hidden="true" />FRP 配置
     </button>
     <button
       type="button"
       class="tx-settings-link {$page.url.pathname === '/settings/software' ? 'active' : ''}"
+      aria-current={$page.url.pathname === '/settings/software' ? 'page' : undefined}
       onclick={openSoftwareSettings}
     >
-      软件管理
+      <Package size={20} aria-hidden="true" />软件管理
     </button>
   {/snippet}
   {#snippet sidebar()}

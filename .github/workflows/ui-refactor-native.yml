@@ -1,0 +1,47 @@
+name: UI refactor installed candidate
+on:
+  push:
+    branches: ['feat/ui-refactor-v1']
+    paths:
+      - '.github/workflows/ui-refactor-native.yml'
+      - '.github/workflows/exclusive-packages.yml'
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'scripts/ui_refactor_native*'
+      - 'scripts/exclusive_native_acceptance.py'
+      - 'scripts/Ubuntu原生验收v1.py'
+      - 'scripts/native_capture_tests.py'
+      - 'scripts/ui_release*'
+      - 'scripts/exclusive_windows_install.ps1'
+      - 'scripts/native_scenario.py'
+      - 'scripts/Windows标准用户验收v22.py'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tests/ui*'
+      - 'tests/fixtures/ui-refactor-ipc.js'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ui-installed-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/ui_release_tests.py
+      - run: python scripts/native_capture_tests.py
+      - run: python scripts/Ubuntu截图回归v10.py
+      - run: python scripts/ui_refactor_native_tests.py
+      - run: python scripts/exclusive_native_contract_tests.py
+  installed:
+    needs: contracts
+    uses: ./.github/workflows/exclusive-packages.yml
+    with:
+      scenario: ui-refactor

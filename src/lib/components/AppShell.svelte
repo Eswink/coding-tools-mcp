@@ -4,7 +4,7 @@
   import { REPO_URL } from "$lib/app-links";
   import { openUrl } from "$lib/api/app-info";
   import { message } from "@tauri-apps/plugin-dialog";
-  import { Github } from "@lucide/svelte";
+  import { Github, Plus } from "@lucide/svelte";
   import type { Snippet } from "svelte";
 
   interface Props {
@@ -25,8 +25,9 @@
   }
 </script>
 
+<a href="#main-content" class="skip-link">跳转到主内容</a>
 <div class="app-layout">
-  <aside class="tx-sidebar">
+  <aside class="tx-sidebar" aria-label="工作区与应用设置">
     <div class="tx-sidebar-header">
       <div class="flex items-start justify-between gap-2">
         <div>
@@ -37,7 +38,7 @@
       </div>
       {#if onAddWorkspace}
         <button type="button" class="tx-btn-primary tx-btn-sidebar" onclick={onAddWorkspace}>
-          添加工作区
+          <Plus size={20} aria-hidden="true" />添加工作区
         </button>
       {/if}
     </div>
@@ -74,7 +75,7 @@
     {/if}
   </aside>
 
-  <main class="tx-main">
+  <main id="main-content" class="tx-main" tabindex="-1">
     {@render children()}
   </main>
 </div>

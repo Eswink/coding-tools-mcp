@@ -49,6 +49,13 @@
     } catch (e) { if (!disposed && id === workspaceId && current === generation && op === operation) error = String(e); }
     finally { if (!disposed && id === workspaceId && op === operation) busy = false; }
   }
+  // Presentation-only navigation contract: never return draft or credential values.
+  export function navigationState(): { dirty: boolean; busy: boolean } {
+    const saved = sessionPolicy(auth.session_policy);
+    return { dirty: exclusive !== saved.exclusive || accessMinutes !== saved.access_token_ttl_seconds / 60 ||
+      refreshDays !== saved.refresh_session_ttl_seconds / 86400 || leaseHours !== saved.chat_lease_ttl_seconds / 3600 ||
+      idleMinutes !== saved.chat_idle_timeout_seconds / 60, busy };
+  }
 </script>
 <section class="remote-session-settings" aria-labelledby="remote-session-heading">
   <h3 id="remote-session-heading">远程会话安全</h3>

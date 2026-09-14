@@ -85,28 +85,28 @@
 </script>
 
 <form
-  class="flex flex-col gap-3 sm:flex-row sm:items-end"
+  class="tx-card workspace-meta"
   onsubmit={(event) => {
     event.preventDefault();
     void save();
   }}
 >
-  <label class="tx-field min-w-0 flex-1">
+  <label class="tx-field meta-name">
     <span class="tx-label">工作区名称</span>
     <input type="text" class="tx-input" bind:value={draftName} />
   </label>
-  <div class="tx-field min-w-0 flex-1">
+  <div class="tx-field meta-path">
     <span class="tx-label">路径</span>
-    <div class="flex min-w-0 items-center gap-2">
+    <div class="path-controls">
       <p
-        class="tx-mono min-w-0 flex-1 truncate rounded-[10px] border border-transparent px-2.5 py-2 text-[var(--color-text-secondary)]"
+        class="tx-mono min-w-0 flex-1 truncate rounded-[10px] border border-[var(--border)] bg-[var(--field-bg)] px-2.5 py-2 text-[var(--color-text-secondary)]"
         title={path}
       >
         {path}
       </p>
       <button
         type="button"
-        class="tx-btn-ghost shrink-0 px-2.5 py-1.5 text-xs"
+        class="tx-btn-ghost"
         disabled={opening || !path.trim()}
         onclick={() => void openDirectory()}
       >
@@ -115,7 +115,7 @@
       </button>
       <button
         type="button"
-        class="tx-btn-ghost shrink-0 px-2.5 py-1.5 text-xs"
+        class="tx-btn-ghost"
         disabled={updatingPath}
         onclick={() => void updateDirectory()}
       >
@@ -128,3 +128,11 @@
     {saving ? "保存中…" : "保存名称"}
   </button>
 </form>
+
+<style>
+  .workspace-meta { display:grid; grid-template-columns:minmax(160px,.8fr) minmax(0,1.8fr) auto; gap:18px; padding:18px; align-items:end; }
+  .meta-name,.meta-path { min-width:0; }
+  .path-controls { display:flex; align-items:center; gap:10px; min-width:0; }
+  .path-controls p { min-height:42px; display:flex; align-items:center; }
+  @media(max-width:1200px) { .workspace-meta { grid-template-columns:minmax(0,1fr) auto; } .meta-name { grid-column:1; } .meta-path { grid-column:1/-1; grid-row:2; } }
+</style>

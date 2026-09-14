@@ -1,5 +1,6 @@
 param([Parameter(Mandatory=$true)][string]$OutputDirectory,
-      [Parameter(Mandatory=$true)][string]$Driver)
+      [Parameter(Mandatory=$true)][string]$Driver,
+      [ValidateSet("exclusive", "ui-refactor")][string]$Scenario = "exclusive")
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:GITHUB_REPOSITORY -ne 'Eswink/coding-tools-mcp') { throw '仅允许一次性托管Runner安装验收' }
 $version = (Get-Content -LiteralPath 'package.json' -Raw -Encoding utf8 | ConvertFrom-Json).version
@@ -31,13 +32,17 @@ New-Item -ItemType Directory -Path $fixture | Out-Null
 New-Item -ItemType File -Path (Join-Path $fixture '.chat-native-fixture-v8') | Out-Null
 & python scripts/Windows启动对照v17.py --output (Join-Path $OutputDirectory 'Windows同场景启动v17.json') 2>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'Windows同场景启动v17.log')
 if ($LASTEXITCODE -ne 0) { throw '已安装流程的PowerShell降权窗口冒烟失败；不进入业务验收' }
-& python scripts/Windows标准用户验收v22.py --scenario exclusive --executable $installed.FullName --driver $Driver --kind nsis --source $source --output $OutputDirectory --fixture-root $fixture 2>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'Windows已安装原生v10.log')
+& python scripts/Windows标准用户验收v22.py --scenario $Scenario --executable $installed.FullName --driver $Driver --kind nsis --source $source --output $OutputDirectory --fixture-root $fixture 2>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'Windows已安装原生v10.log')
 if ($LASTEXITCODE -ne 0) { throw 'NSIS安装后完整授权验收失败' }
 $proof = Get-Content -LiteralPath (Join-Path $OutputDirectory 'exclusive-native.json') -Raw -Encoding utf8 | ConvertFrom-Json
 $binaryHash = (Get-FileHash -LiteralPath $installed.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
 if (!$proof.passed -or $proof.tests.Count -ne 12 -or $proof.source_sha -ne $source -or $proof.version -ne $version -or $proof.binary_sha256 -ne $binaryHash -or $proof.package_kind -ne 'nsis' -or $proof.build_kind -ne 'release-installed') { throw 'NSIS原生证据身份不一致' }
 & python scripts/exclusive_native_gate.py --input (Join-Path $OutputDirectory 'exclusive-native.json') --binary $installed.FullName --source $source --run-id $env:GITHUB_RUN_ID --version $version --kind nsis
 if ($LASTEXITCODE -ne 0) { throw 'NSIS原生八阶段或来源门禁失败' }
+if ($Scenario -eq 'ui-refactor') {
+    & python scripts/ui_refactor_native_gate.py --input (Join-Path $OutputDirectory 'exclusive-native.json') --binary $installed.FullName --source $source --run-id $env:GITHUB_RUN_ID --version $version --kind nsis
+    if ($LASTEXITCODE -ne 0) { throw '新UI原生页面证据不完整' }
+}
 $target = Join-Path $OutputDirectory "MCP_$version`_x64-setup.exe"
 Copy-Item -LiteralPath $setups[0].FullName -Destination $target
 $package = Get-Item -LiteralPath $target
