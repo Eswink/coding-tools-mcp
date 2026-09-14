@@ -31,3 +31,6 @@ pub use workspace::{wrap_mcp_tool_result, wrap_tool_result, Workspace};
 #[cfg(all(test, windows))]
 #[path = "Windows执行回归v8.rs"]
 mod windows_regression_v8;
+
+#[cfg(all(test, target_os = "linux"))]
+mod linux_platform_tests;
