@@ -26,8 +26,8 @@ fn linux_discovery_reports_posix_execution_contract() {
     let info = call_tool(&ctx, "server_info", &json!({}));
     assert_eq!(info["ok"], true, "{info}");
     assert_eq!(info["host"]["os"], "linux", "{info}");
-    assert_eq!(info["host"]["path_style"], "posix", "{info}");
-    assert_eq!(info["host"]["command_execution"], "direct-argv", "{info}");
+    assert_eq!(info["host"]["pathStyle"], "posix", "{info}");
+    assert_eq!(info["host"]["commandExecution"], "direct-argv", "{info}");
 
     let env = call_tool(&ctx, "check_exec_environment", &json!({}));
     assert_eq!(env["ok"], true, "{env}");
