@@ -9,7 +9,9 @@ static ALLOW_EXIT: AtomicBool = AtomicBool::new(false);
 
 /// Intercept user close (show confirm / keep running) unless quitting or UI recreate.
 pub fn should_intercept_close() -> bool {
-    !ALLOW_EXIT.load(Ordering::SeqCst) && !crate::commands::ui_memory::should_prevent_exit()
+    !crate::bootstrap::safe_mode()
+        && !ALLOW_EXIT.load(Ordering::SeqCst)
+        && !crate::commands::ui_memory::should_prevent_exit()
 }
 
 fn main_window(app: &AppHandle) -> AppResult<WebviewWindow> {
