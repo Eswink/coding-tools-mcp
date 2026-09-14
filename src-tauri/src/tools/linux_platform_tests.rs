@@ -1,6 +1,7 @@
 #![cfg(target_os = "linux")]
 
 use std::os::unix::fs::PermissionsExt;
+use std::time::{Duration, Instant};
 
 use serde_json::json;
 use tempfile::tempdir;
@@ -96,5 +97,50 @@ fn linux_rejects_windows_shell_semantics_before_spawn() {
                 || message.contains("PLATFORM_COMMAND_MISMATCH"),
             "{cmd}: {output}"
         );
+    }
+}
+
+#[test]
+fn linux_background_task_cancel_confirms_process_group_drain() {
+    let (_workspace, _harness, ctx) = context();
+    let started = call_tool(
+        &ctx,
+        "start_exec_task",
+        &json!({
+            "cmd": r#"sh -c "sleep 30""#,
+            "request_id": "linux-process-group-cancel",
+            "timeout_ms": 30_000
+        }),
+    );
+    assert_eq!(started["ok"], true, "{started}");
+    let job_id = started["job_id"].as_str().expect("job id").to_string();
+
+    let running_deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let state = call_tool(&ctx, "get_exec_task", &json!({"job_id": job_id}));
+        assert_eq!(state["ok"], true, "{state}");
+        if matches!(state["status"].as_str(), Some("running" | "cancelling")) {
+            break;
+        }
+        assert!(!state["terminal"].as_bool().unwrap_or(false), "task exited too early: {state}");
+        assert!(Instant::now() < running_deadline, "task never started: {state}");
+        std::thread::sleep(Duration::from_millis(25));
+    }
+
+    let cancelling = call_tool(&ctx, "cancel_exec_task", &json!({"job_id": job_id}));
+    assert_eq!(cancelling["ok"], true, "{cancelling}");
+
+    let terminal_deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let state = call_tool(&ctx, "get_exec_task", &json!({"job_id": job_id}));
+        assert_eq!(state["ok"], true, "{state}");
+        if state["terminal"].as_bool() == Some(true) {
+            assert_eq!(state["status"], "cancelled", "{state}");
+            assert_ne!(state["result"]["process_may_be_running"], true, "{state}");
+            assert_eq!(state["result"]["output_complete"], true, "{state}");
+            break;
+        }
+        assert!(Instant::now() < terminal_deadline, "task did not drain: {state}");
+        std::thread::sleep(Duration::from_millis(25));
     }
 }
