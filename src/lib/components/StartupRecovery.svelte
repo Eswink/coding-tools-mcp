@@ -28,7 +28,7 @@
         </p>
         <div class="mt-5 flex flex-wrap items-center gap-3">
           <button type="button" class="tx-btn-primary" disabled={busy} onclick={onRetry}>
-            <RefreshCw size={16} class:animate-spin={busy} aria-hidden="true" />
+            <RefreshCw size={16} class={busy ? "animate-spin" : ""} aria-hidden="true" />
             {busy ? "正在重试" : "修复环境后重试"}
           </button>
           <span class="text-xs text-[var(--color-text-muted)]">如果仍失败，可从启动日志确认最后完成阶段。</span>
