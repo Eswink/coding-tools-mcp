@@ -16,7 +16,7 @@ const BASIC_READ_ONLY_COMMANDS: &[&str] = &[
     "pwd", "ls", "dir", "cat", "head", "tail", "grep", "find", "which", "echo",
 ];
 
-const DEFAULT_ALLOWED_COMMANDS: &[&str] = &[
+const COMMON_ALLOWED_COMMANDS: &[&str] = &[
     "pytest",
     "python",
     "python3",
@@ -48,10 +48,14 @@ const DEFAULT_ALLOWED_COMMANDS: &[&str] = &[
     "gcc",
     "g++",
     "git",
-    "cmd",
-    "powershell",
-    "pwsh",
 ];
+
+#[cfg(windows)]
+const PLATFORM_ALLOWED_COMMANDS: &[&str] = &["cmd", "powershell", "pwsh"];
+#[cfg(unix)]
+const PLATFORM_ALLOWED_COMMANDS: &[&str] = &["sh", "bash"];
+#[cfg(not(any(windows, unix)))]
+const PLATFORM_ALLOWED_COMMANDS: &[&str] = &[];
 
 #[derive(Debug, Clone)]
 pub struct PolicySettings {
@@ -83,7 +87,7 @@ impl PolicySettings {
         Self {
             allowed_commands: merge_default_allowed_commands(&runtime.allowed_commands),
             workspace_local_entries: runtime.workspace_local_entries,
-            workspace_script_extensions: parse_workspace_script_extensions(
+            workspace_script_extensions: merge_workspace_script_extensions(
                 &runtime.workspace_script_extensions,
             ),
             max_patch_bytes: 200_000,
@@ -154,8 +158,9 @@ pub fn parse_workspace_script_extensions(configured: &str) -> HashSet<String> {
 }
 
 fn default_allowed_command_set() -> HashSet<String> {
-    DEFAULT_ALLOWED_COMMANDS
+    COMMON_ALLOWED_COMMANDS
         .iter()
+        .chain(PLATFORM_ALLOWED_COMMANDS.iter())
         .map(|s| s.to_string())
         .chain(BASIC_READ_ONLY_COMMANDS.iter().map(|s| s.to_string()))
         .collect()
@@ -163,15 +168,31 @@ fn default_allowed_command_set() -> HashSet<String> {
 
 fn merge_default_allowed_commands(configured: &str) -> HashSet<String> {
     let mut commands = default_allowed_command_set();
-    commands.extend(parse_allowed_commands(configured));
+    let mut configured = parse_allowed_commands(configured);
+    #[cfg(target_os = "linux")]
+    configured.retain(|value| !matches!(value.to_ascii_lowercase().as_str(),
+        "cmd" | "cmd.exe" | "powershell" | "powershell.exe" | "pwsh"));
+    commands.extend(configured);
     commands
 }
 
+fn merge_workspace_script_extensions(configured: &str) -> HashSet<String> {
+    let mut extensions = parse_workspace_script_extensions(configured);
+    #[cfg(target_os = "linux")]
+    extensions.retain(|value| !matches!(value.as_str(), ".exe" | ".bat" | ".cmd" | ".ps1"));
+    extensions.extend(default_workspace_script_extension_set());
+    extensions
+}
+
 fn default_workspace_script_extension_set() -> HashSet<String> {
-    [".exe", ".bat", ".cmd", ".ps1"]
-        .into_iter()
-        .map(str::to_string)
-        .collect()
+    #[cfg(windows)]
+    let extensions = [".exe", ".bat", ".cmd", ".ps1"].as_slice();
+    #[cfg(unix)]
+    let extensions = [".sh"].as_slice();
+    #[cfg(not(any(windows, unix)))]
+    let extensions: &[&str] = &[];
+
+    extensions.iter().map(|value| (*value).to_string()).collect()
 }
 
 pub fn validate_tool_arguments(
@@ -291,6 +312,9 @@ pub fn validate_command_for_workspace(
     if parts.is_empty() {
         return Err(PolicyError("Empty command".into()));
     }
+    if let Some(message) = platform_command_mismatch(&parts[0]) {
+        return Err(PolicyError(format!("PLATFORM_COMMAND_MISMATCH: {message}")));
+    }
 
     let executable = parts[0].trim_start_matches("./");
     let base_name = executable.rsplit(['/', '\\']).next().unwrap_or(executable);
@@ -325,6 +349,29 @@ pub fn validate_command_for_workspace(
     }
 
     Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn platform_command_mismatch(executable: &str) -> Option<String> {
+    let lower = executable.to_ascii_lowercase();
+    let windows_shell = matches!(lower.as_str(), "cmd" | "cmd.exe" | "powershell" | "powershell.exe");
+    let bytes = executable.as_bytes();
+    let drive_path = bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && matches!(bytes[2], b'\\' | b'/');
+    let unc_path = executable.starts_with("\\\\");
+    (windows_shell || drive_path || unc_path).then(|| {
+        format!(
+            "Windows command/path semantics are not valid on the Linux MCP host; {}",
+            crate::platform::context().command_guidance
+        )
+    })
+}
+
+#[cfg(not(target_os = "linux"))]
+fn platform_command_mismatch(_executable: &str) -> Option<String> {
+    None
 }
 
 fn workspace_local_entry_exists(
@@ -544,6 +591,51 @@ mod tests {
             Some(&workspace),
         )
         .is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unix_defaults_use_posix_shells_and_scripts() {
+        let policy = PolicySettings::default();
+        assert!(policy.allowed_commands.contains("sh"));
+        assert!(policy.allowed_commands.contains("bash"));
+        assert!(!policy.allowed_commands.contains("cmd"));
+        assert!(!policy.allowed_commands.contains("powershell"));
+        assert!(policy.workspace_script_extensions.contains(".sh"));
+        assert!(!policy.workspace_script_extensions.contains(".cmd"));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_runtime_filters_legacy_windows_defaults() {
+        let runtime = crate::workspace::RuntimeConfig {
+            allowed_commands: "python,git,cmd,powershell,pwsh".into(),
+            workspace_script_extensions: ".exe,.bat,.cmd,.ps1".into(),
+            ..crate::workspace::RuntimeConfig::default()
+        };
+        let policy = PolicySettings::from_runtime(&runtime);
+        assert!(policy.allowed_commands.contains("python"));
+        assert!(policy.allowed_commands.contains("sh"));
+        assert!(policy.allowed_commands.contains("bash"));
+        for command in ["cmd", "powershell", "pwsh"] {
+            assert!(!policy.allowed_commands.contains(command), "{command}");
+        }
+        assert!(policy.workspace_script_extensions.contains(".sh"));
+        for extension in [".exe", ".bat", ".cmd", ".ps1"] {
+            assert!(!policy.workspace_script_extensions.contains(extension), "{extension}");
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_defaults_preserve_windows_shells_and_scripts() {
+        let policy = PolicySettings::default();
+        assert!(policy.allowed_commands.contains("cmd"));
+        assert!(policy.allowed_commands.contains("powershell"));
+        assert!(policy.allowed_commands.contains("pwsh"));
+        assert!(policy.workspace_script_extensions.contains(".cmd"));
+        assert!(policy.workspace_script_extensions.contains(".ps1"));
+        assert!(!policy.allowed_commands.contains("sh"));
     }
 
     #[test]
