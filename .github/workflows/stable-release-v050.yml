@@ -1,0 +1,108 @@
+name: v0.5.0 stable promotion and README verification
+on:
+  push:
+    branches: ['docs/stable-v0.5.0', 'release/stable-v0.5.0']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: stable-v0.5.0-metadata
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.repository == 'Eswink/coding-tools-mcp' && (github.ref == 'refs/heads/docs/stable-v0.5.0' || github.ref == 'refs/heads/release/stable-v0.5.0')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          path: maintenance
+      - uses: actions/checkout@v4
+        with:
+          ref: 63261e0c9ae4b0c6befdbe5ae8caff7f5d32c076
+          persist-credentials: false
+          path: product
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Documentation and metadata negative contracts
+        working-directory: maintenance
+        run: |
+          set -euo pipefail
+          python scripts/stable_release_v050_tests.py
+          python scripts/ui_release_tests.py
+          python scripts/exclusive_release_tests.py
+          python scripts/exclusive_native_contract_tests.py
+          python scripts/发布资产回归v8.py
+          python scripts/release_preflight.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: ui-final-delivery
+          path: original-delivery
+          run-id: 34810770540
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: exclusive-source
+          path: original-source
+          run-id: 34810770540
+          github-token: ${{ github.token }}
+      - name: Recompute original unchanged source and installed gates; anonymous downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python maintenance/scripts/stable_release_v050.py --checkout product --delivery original-delivery --source-export original-source --output checked
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stable-v0.5.0-preflight
+          path: checked/stable-promotion-receipt.json
+          if-no-files-found: error
+          retention-days: 90
+  promote:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/release/stable-v0.5.0'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          path: maintenance
+      - uses: actions/checkout@v4
+        with:
+          ref: 63261e0c9ae4b0c6befdbe5ae8caff7f5d32c076
+          persist-credentials: false
+          path: product
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: ui-final-delivery
+          path: original-delivery
+          run-id: 34810770540
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: exclusive-source
+          path: original-source
+          run-id: 34810770540
+          github-token: ${{ github.token }}
+      - name: Verify again, promote only metadata, verify Latest and unchanged public bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python maintenance/scripts/stable_release_v050.py --checkout product --delivery original-delivery --source-export original-source --output promoted --promote
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stable-v0.5.0-promotion-receipt
+          path: promoted/stable-promotion-receipt.json
+          if-no-files-found: error
+          retention-days: 90

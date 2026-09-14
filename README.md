@@ -1,304 +1,192 @@
 <p align="center">
-  <img src="src-tauri/icons/128x128.png" width="96" alt="Coding Tools MCP 图标">
+  <img src="src-tauri/icons/128x128.png" width="80" alt="Coding Tools MCP">
 </p>
 
-<h1 align="center">Coding Tools MCP</h1>
+<h1 align="center">Coding Tools MCP · Eswink</h1>
+
+<p align="center">为 ChatGPT 网页开发会话提供本地工作区、独占授权、长期任务和可恢复的开发记录。</p>
 
 <p align="center">
-  把本地项目变成 AI 可直接开发、能够跨会话延续上下文的持久工作区。
+  <a href="https://github.com/Eswink/coding-tools-mcp/releases/latest"><img src="https://img.shields.io/github/v/release/Eswink/coding-tools-mcp?label=Release" alt="本仓库正式版本"></a>
+  <img src="https://img.shields.io/badge/Windows-x64-0078D4" alt="Windows x64">
+  <img src="https://img.shields.io/badge/Ubuntu-22.04%20%7C%2024.04-E95420" alt="Ubuntu amd64">
 </p>
 
-<p align="center">
-  <a href="https://github.com/mybolide/coding-tools-mcp/releases/latest"><img src="https://img.shields.io/github/v/release/mybolide/coding-tools-mcp?label=Release" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/Windows-x64-0078D4?logo=windows" alt="Windows x64">
-  <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-000000?logo=apple" alt="macOS Apple Silicon">
-  <a href="https://www.apache.org/licenses/LICENSE-2.0"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Apache-2.0"></a>
-</p>
+<p align="center"><a href="README.md">中文</a> · <a href="README.en.md">English</a> · <a href="https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.5.0">v0.5.0 下载</a> · <a href="docs/releases/stable-v0.5.0.md">发行说明与验收边界</a></p>
 
-<p align="center">
-  <a href="README.md">中文</a> · <a href="README.en.md">English</a> · <a href="https://github.com/mybolide/coding-tools-mcp/releases/latest">下载最新版</a>
-</p>
+这是 **Eswink/coding-tools-mcp** 维护的桌面客户端，基于 Rust、Tauri 2、Svelte 5 / SvelteKit。它将你选定的本地项目接入 MCP：获得权限的 AI 会话可以读取文件、应用补丁、执行命令、查看任务与日志，并保存开发检查点。
 
-Coding Tools MCP 是一个 Rust + Tauri 2 桌面应用。选择项目目录并启动服务后，AI Agent 就能通过 MCP 读取文件、修改代码、运行命令和测试、查看 Git 状态，并把关键进度保存为项目内的历史会话。它更接近“AI 打开一个会记住开发进度的 IDE 工作区”；普通开发工具不要求先创建 Task，历史会话则负责在新对话中恢复上下文。
+本分支重点面向**个人使用 ChatGPT 持续开发**：OAuth 只证明连接身份；具体聊天还必须在本机核对指纹并批准。默认一个工作区只允许一个聊天拥有操作权限，其他聊天不能抢占，也不会产生新的待审批通知。
 
-![Coding Tools MCP 工作区总览](docs/images/workspace-overview.png)
+## 下载与安装
 
-*一个桌面端同时管理工作区、MCP 服务、连接信息与会话恢复提示词。*
+当前交付版本：**v0.5.0**。正式 Release 状态及 Latest 以[本仓库 Releases](https://github.com/Eswink/coding-tools-mcp/releases/latest)为准；本版本从已验收的原包晋级，不重新生成安装包。
 
-## 30 秒看懂怎么用
-
-```text
-下载安装桌面端
-  → 添加项目目录
-  → 启动 MCP 和公网隧道
-  → 复制“公网 MCP 地址”
-  → ChatGPT 开启开发人员模式
-  → 新建 MCP 插件并粘贴地址
-  → 完成授权，在新对话中开始开发
-```
-
-第一次使用只需要记住两件事：**桌面端负责把项目变成 MCP 工作区，ChatGPT 负责通过公网 `/mcp` 地址连接它。**
-
-- [查看完整安装和桌面端启动步骤](#五分钟开始使用)
-- [直接查看 ChatGPT 插件配置](#mcp-connector)
-
-## 五分钟开始使用
-
-### 1. 安装桌面客户端
-
-打开 [Releases](https://github.com/mybolide/coding-tools-mcp/releases/latest) 并下载对应安装包：
-
-| 系统 | 安装包 |
-| --- | --- |
-| Windows 10/11 x64 | `Coding.Tools.MCP_*_x64-setup.exe` |
-| macOS Apple Silicon | `Coding Tools MCP_*_aarch64.dmg` |
-
-macOS 安装包目前未签名。如果系统阻止首次打开，请在“系统设置 → 隐私与安全性”中确认打开。
-
-### 2. 添加项目工作区
-
-1. 点击左侧的“添加工作区”。
-2. 选择项目根目录。
-3. 设置工作区名称、MCP 端口和认证方式。
-4. 保存后，工作区会长期保留在左侧列表中。
-
-### 3. 配置公网隧道
-
-如果 AI 客户端不在本机，需要把本地 MCP 暴露为 HTTPS 地址：
-
-- 在“软件管理”中安装或识别 `frpc` / `cloudflared`。
-- 在“FRP 配置”中保存服务器、端口和 Token，或在工作区选择 Cloudflare。
-- 每个工作区填写独立子域名。应用会统一管理 FRP 进程和多条代理线路。
-
-![FRP 配置页面](docs/images/frp-configuration.png)
-
-*FRP 服务器配置集中保存，各工作区只需选择配置并填写自己的子域名。*
-
-如果还没有可用的 FRPS 服务端，可以参考：[FRPS 服务端安装教程（微信公众号）](https://mp.weixin.qq.com/s/kmpQhHsvmHlaLfj4rw3A0Q)。安装完成后，把服务端地址、端口和 Token 填入客户端的“FRP 配置”即可。
-
-### 4. 启动 MCP
-
-进入工作区并点击 MCP 的“启动”。客户端会显示：
-
-- 本地 MCP 地址，例如 `http://127.0.0.1:28766/mcp`；
-- 公网 HTTPS MCP 地址；
-- ChatGPT 连接所需的认证信息；
-- 实时日志和健康检查结果。
-
-![MCP 本地、公网与 ChatGPT 连接信息](docs/images/workspace-connection.png)
-
-启动后可以直接检查本地与公网端点、OAuth 元数据和 MCP 受保护资源：
-
-![MCP 健康检查结果](docs/images/health-check.png)
-
-*健康检查会逐项显示连接和认证元数据是否可用。*
-
-遇到连接问题时，无需离开桌面端即可查看最近的 MCP 请求日志：
-
-![MCP 运行日志](docs/images/runtime-logs.png)
-
-*日志可快速确认工具列表、历史初始化和检查点调用是否真正到达服务端。*
-
-### 5. 连接 AI 客户端
-
-支持 MCP 的客户端使用界面中的公网 MCP URL。使用 OAuth 时，客户端会通过服务端元数据进入授权流程；授权口令、Client ID 和 Secret 均可在桌面端集中生成和管理。当前版本使用预配置 OAuth 客户端，创建 ChatGPT 插件时应选择静态/手动 OAuth 凭据，不需要选择 CIMD。
-
-首次连接建议先调用历史初始化，再检查工作区：
-
-```text
-history_session_bootstrap
-server_info
-get_default_cwd
-git_status
-check_exec_environment
-```
-
-这样 Agent 不需要依赖聊天上下文猜测当前项目、工作目录和执行能力。
-
-## ChatGPT 的两种接入方式
-
-| 方式 | 适合场景 | 在客户端中使用什么 |
+| 平台 | 安装包 | 说明 |
 | --- | --- | --- |
-| MCP Connector | ChatGPT 直接使用文件、命令和 Git 工具 | 工作区的公网 `/mcp` 地址 |
-| GPT Actions | 在自定义 GPT 中导入 OpenAPI 工具 | Actions 面板中的 `/openapi.json` 地址 |
+| Windows x64 | [MCP_0.5.0_x64-setup.exe](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/MCP_0.5.0_x64-setup.exe) | NSIS 安装程序；未商业签名，可能显示未知发布者 |
+| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.5.0_amd64.deb](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/MCP_0.5.0_amd64.deb) | 优先推荐；使用已登录的普通桌面用户 |
+| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.5.0_amd64.AppImage](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/MCP_0.5.0_amd64.AppImage) | 自动验收覆盖 extract-and-run，不等于所有 FUSE/Wayland 环境均已验证 |
 
-### MCP Connector
+校验文件：[SHA256SUMS_v0.5.0.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/SHA256SUMS_v0.5.0.txt)。本次发行不提供经过本分支验收的 macOS、ARM 或无桌面 Linux Server 安装包。
 
-配置前请先确认：
-
-1. 工作区的 MCP 服务和公网隧道均处于运行状态。
-2. “健康检查”中的公网 MCP 检查通过；如果使用 OAuth，再确认 OAuth 受保护资源和授权元数据检查通过。
-3. 从桌面端“GPT 配置”卡片复制“公网 MCP 地址”；如果使用 OAuth，同时准备 OAuth Client ID、OAuth Client Secret 和授权口令。
-
-> ChatGPT 必须使用公网 HTTPS `/mcp` 地址，不能使用 `http://127.0.0.1:28766/mcp` 之类的本地地址。ChatGPT 的菜单名称可能随版本和语言设置略有变化。
-
-#### 1. 开启 ChatGPT 开发人员模式
-
-打开 ChatGPT 设置，进入“账户安全与登录”，开启“开发人员模式”。该开关允许添加未经验证的 MCP 连接器。
-
-![在 ChatGPT 中开启开发人员模式](docs/images/gpt-config-1.png)
-
-*开发人员模式具有较高权限，只应连接你自己部署或明确可信的 MCP 服务。*
-
-#### 2. 创建 MCP 插件
-
-在 ChatGPT 左侧进入“插件”，点击右上角的 `+` 新建插件，然后选择 MCP（测试版）并填写：
-
-| ChatGPT 字段 | 填写内容 |
-| --- | --- |
-| 名称 | 自定义一个容易识别的名称，例如 `Coding Tools MCP` |
-| 描述 | 简要说明它连接的项目或用途 |
-| 连接 | 粘贴桌面端“GPT 配置”中的公网 MCP 地址，URL 应以 `/mcp` 结尾 |
-| 身份验证 | 与桌面端保持一致；截图以 OAuth 为例 |
-
-![在 ChatGPT 中新建 MCP 插件并填写连接信息](docs/images/gpt-config-2-detail.png)
-
-使用 OAuth 时，展开“高级 OAuth 设置”，选择静态/手动 OAuth 凭据并填写桌面端提供的 Client ID 和 Client Secret，不需要选择 CIMD。保存或连接后，ChatGPT 会打开授权页面；输入桌面端“GPT 配置”卡片中的授权口令完成首次授权。
-
-> Client Secret、授权口令和 Bearer Token 都属于敏感信息，不要粘贴到对话、Issue 或公开截图中。若桌面端使用 Bearer 或不启用认证，请在 ChatGPT 中选择当前界面提供的对应认证方式。
-
-#### 3. 验证连接
-
-创建一个启用了该插件的新对话，并发送：
-
-```text
-请使用 Coding Tools MCP 调用 server_info、get_default_cwd 和 git_status，
-告诉我当前连接的工作区、默认目录和 Git 状态。
-```
-
-如果能够返回当前项目的信息，说明“桌面端 → 公网隧道 → OAuth → ChatGPT → MCP 工具”链路已经打通。首次正式开发时，再调用 `history_session_bootstrap` 初始化或恢复项目历史。
-
-如果 ChatGPT 仍显示旧的工具列表，请断开并重新连接插件，或创建一个新对话后再次验证。
-
-#### 常见问题
-
-| 现象 | 优先检查 |
-| --- | --- |
-| ChatGPT 无法连接 | 是否使用公网 HTTPS `/mcp` 地址，而不是 `127.0.0.1`；桌面端公网 MCP 健康检查是否通过 |
-| OAuth 授权失败 | Client ID、Client Secret 和授权口令是否来自同一个工作区；OAuth 元数据检查是否通过 |
-| 看不到新增工具 | 断开并重新连接插件，然后创建一个新对话 |
-| 工具调用失败 | 打开桌面端“日志”和“健康检查”，确认请求是否到达 MCP 服务 |
-
-### GPT Actions
-
-1. 启动工作区的 Actions 服务。
-2. 复制 Actions 面板中的 OpenAPI URL。
-3. 在 GPT 编辑器的 Actions 页面导入该 URL。
-4. 根据桌面端配置选择 None、API Key 或 OAuth。
-
-MCP 和 Actions 可以为同一个工作区同时运行，也可以分别使用不同端口和子域名。
-
-## 为什么需要它
-
-- **面向真实开发**：文件、命令、Git、测试和长时间运行的进程都在同一个 Workspace 中。
-- **跨会话持续开发**：新对话先获得有界的当前状态，需要精确旧上下文时按关键词定位并读取原始档案，无需反复向 AI 解释项目背景和当前进度。
-- **进度可追溯**：每轮任务完成后可保存结构化检查点，决策、修改、测试结果和下一步都留在项目目录中。
-- **多工作区管理**：一个桌面客户端可以保存多个项目，并管理各自的 MCP、Actions 和公网地址。
-- **连接 ChatGPT 更直接**：内置 Streamable HTTP、OAuth、Bearer Token、OpenAPI、FRP 和 Cloudflare 隧道。
-- **默认工具面保持简单**：稳定的核心工具默认可用，高级 Harness 能力按需开启。
-
-## 让项目记住每次对话
-
-普通聊天记录适合回看交流内容，但不适合作为长期开发交接。Coding Tools MCP 将会话进度写入当前项目的 `docs/history-session/`，让上下文跟随项目，而不是困在某一个聊天窗口里。
-
-![ChatGPT 新会话启动提示词](docs/images/history-session-prompt.png)
-
-*复制完整提示词到新会话，即可初始化或恢复历史；每轮任务完成后再保存检查点。*
-
-它提供五个互相配合的历史工具：
-
-| 工具 | 作用 |
-| --- | --- |
-| `history_session_bootstrap` | 新对话开始时初始化或恢复项目会话；保存逐字的 `initial_user_input`，返回稳定的 `session_key`、`current_path` 和有界当前状态，不返回全量历史 |
-| `history_session_checkpoint` | 每轮任务完成后按 bootstrap 返回的稳定目标追加结构化进度，并保存逐字的 `raw_user_input`；目标不一致时拒绝写入，避免串到其他历史文件 |
-| `history_session_validate` | 检查历史编号、文件和会话映射；必要时重建派生索引，不删除已有历史 |
-| `history_session_search` | 按确定性关键词搜索长期 Markdown 档案，返回有界的命中位置和短片段 |
-| `history_session_read` | 按编号或搜索结果位置，无损、UTF-8 安全地分页读取一份原始 Markdown 档案；默认每页 `32 KiB`，最多 `64 KiB`，根据 `next_cursor` 继续读取 |
-
-典型效果：
-
-```text
-对话 1：分析项目 → 修改代码 → 运行测试 → 保存检查点
-                                      ↓
-对话 2：读取有界当前状态 → 搜索并精读需要的旧档案 → 从上次进度继续 → 保存新检查点
-```
-
-历史档案使用可读的 Markdown 格式，可以随项目备份或纳入 Git，也方便开发者直接审阅和修订。`memory/state.json` 是有界当前状态投影，`memory/manifest.json` 只保存位置、哈希与关键词，不复制正文；Markdown 才是长期、无损的事实来源。首次输入和每轮输入必须由 ChatGPT 作为 `initial_user_input`、`raw_user_input` 工具参数传入，服务端无法读取未传入的远程聊天文本。检查点采用幂等追加，同一 `turn_id` 内容变化时保留 revision 与 supersedes 证据，并要求返回 `ok=true` 且会话目标一致后才确认保存成功。
-
-> 历史持久化由 AI 调用 MCP 工具完成，并非桌面端在后台录制聊天内容。若客户端未触发工具调用，服务端无法凭空感知新的对话或任务进度。
-
-## Agent 可以做什么
-
-默认 `core` profile 提供一组稳定、可组合的开发工具：
-
-| 类别 | 主要工具 |
-| --- | --- |
-| 文件读取 | `read_file`、`list_dir`、`list_files`、`search_text`、`grep_text`、`view_image` |
-| 文件修改 | `apply_patch` |
-| 命令执行 | `exec_command`、`write_stdin`、`read_output`、`kill_session` |
-| Git | `git_status`、`git_diff`、`git_log`、`git_show`、`git_blame` |
-| 环境 | `server_info`、`check_exec_environment`、`get_default_cwd`、`set_default_cwd` |
-| 历史会话 | `history_session_bootstrap`、`history_session_checkpoint`、`history_session_validate`、`history_session_search`、`history_session_read` |
-
-典型开发过程：
-
-```text
-打开 Workspace
-  → 理解项目和 Git 状态
-  → 搜索并读取代码
-  → 事务化应用 Patch
-  → 运行命令和测试
-  → 检查 diff 并提交
-```
-
-高级 profile 还保留项目状态、操作记录等 Harness 能力，但普通文件修改和命令执行不要求先创建 Task。
-
-## 权限与恢复模型
-
-项目采用 Workspace-first 权限模型：
-
-- Workspace 内普通文件可以读取、创建、修改、删除和执行。
-- Workspace 外允许完整只读：`read_file`、`list_dir`、`list_files`、`search_text`、`view_image`。
-- Workspace 外写入、删除和执行会被阻止。
-- `.git` 和 `.github` 不能被普通文件工具、Patch 或解释器命令破坏。
-- Patch 在单次操作内进行预检和失败恢复；长期恢复统一使用 Git，不创建全量 Workspace Snapshot。
-
-> Windows 子进程目前仍是 `policy_only` 执行边界，返回中的 `sandbox_enforced: false` 是真实状态。静态命令策略不能等同于完整的操作系统文件系统沙箱。
-
-## 本地开发
-
-环境要求：Node.js 20+、Rust stable，以及当前系统的 [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/)。
+Ubuntu 下载 DEB 后，在文件所在目录执行：
 
 ```bash
-npm install
+sudo apt install ./MCP_0.5.0_amd64.deb
+```
+
+安装系统包需要管理员权限，但**不要使用 sudo 启动桌面应用**。Linux 密钥恢复需要当前桌面会话的 D-Bus 与可用、已解锁的 Secret Service。AppImage 可参考原包说明使用 `--appimage-extract-and-run`；不要通过关闭沙箱解决启动问题。
+
+**更新来源提醒：v0.5.0 二进制内置的“检查更新”仍沿用上游仓库地址。升级本分支请使用上面的 Eswink Release 链接，不要将上游提示的版本当成本分支更新。** 修改 README 或 Release 类型不会改变已编译的更新地址。[源码位置](src-tauri/src/update/mod.rs)
+
+## v0.5.0 带来了什么
+
+五个页面统一为深蓝侧栏、分区卡片和清晰的状态层级，支持浅色、深色、跟随系统主题，并保留原有路由：
+
+| 页面 | 实际用途 |
+| --- | --- |
+| 工作区 | 工作区信息、ChatGPT 启动提示词、聊天审批、MCP / Actions 切换、配置、任务、日志和健康检查 |
+| 通用设置 | 主题、应用信息、已有代理与界面维护设置 |
+| 共享密钥 | 按真实凭据类型进行遮蔽、查看、复制、重新生成与保存；部分读取失败时对应字段禁止操作 |
+| FRP 配置 | 管理 FRP 服务器配置；具体工作区隧道仍在工作区内管理 |
+| 软件管理 | 管理实际支持的软件及安装路径，不虚构运行版本、延迟或健康状态 |
+
+同时修复了保存/还原表单后仍出现离开提示、异步确认晚到时错误切换、密钥部分读取失败的绑定问题，以及审批框键盘焦点边界。设计参考中的语言、自启动、提示音、额外软件矩阵等未实现功能没有变成假开关。
+
+实际页面与安装后截图保存在 [UI-evidence_v0.5.0.zip](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/UI-evidence_v0.5.0.zip)。截图使用隔离验收工作区和合成数据，不代表你的实际服务状态。
+
+## 从零接入一个聊天
+
+### 1. 准备工作区和公网入口
+
+安装并启动桌面端，点击“添加工作区”选择项目目录。在工作区中配置 MCP 端口与 **OAuth**，保存后启动服务。本地地址通常形如 `http://127.0.0.1:28766/mcp`，以界面实际端口为准。
+
+本仓库的常用接入方式是公网 HTTPS `/mcp`。可使用 FRP、Cloudflare 隧道，或已有反向代理。软件管理负责识别/安装支持的隧道客户端；FRP 服务器参数在 FRP 配置页管理。不要把 `127.0.0.1` 当成 ChatGPT 云端能直接访问的公网入口。
+
+使用 Nginx 等代理时，除 `/mcp` 外，以下路径必须到达**同一工作区上游**，不能被静态目录或证书验证规则截走：
+
+```text
+/.well-known/oauth-authorization-server
+/.well-known/oauth-protected-resource
+/.well-known/oauth-protected-resource/mcp
+/oauth/authorize
+/oauth/token
+```
+
+先执行桌面健康检查。发现文档应返回 JSON；未经认证的 MCP 业务请求仍应要求认证。不要为了消除 OAuth 错误而关闭认证，也不要删除 ACME 证书验证配置。
+
+### 2. 在 ChatGPT 创建 MCP 连接
+
+使用你账户当前提供的开发者模式/自定义 MCP 应用入口；资格、权限和菜单以 [OpenAI 当前说明](https://help.openai.com/en/articles/12584461)为准。以下是**本仓库服务端**的配置契约，不依赖旧版菜单截图。
+
+假定公网 origin 为 `https://mcp.example.com`：
+
+| 配置项 | 值 |
+| --- | --- |
+| 服务器 URL | `https://mcp.example.com/mcp` |
+| 身份验证 | OAuth；使用预配置的 Client ID / Client Secret |
+| Client ID / Client Secret | 必须与对应工作区桌面端配置完全一致 |
+| 令牌端点认证方式 | 有 Client Secret 时可选 `client_secret_post`，也支持 `client_secret_basic` |
+| 授权端点 | `https://mcp.example.com/oauth/authorize`，通常由发现文档填入 |
+| Token 端点 | `https://mcp.example.com/oauth/token` |
+| Issuer / 授权服务器基础 | `https://mcp.example.com` |
+| Resource / 资源 | `https://mcp.example.com/mcp` |
+| 作用域 | `mcp`；需要刷新令牌时请求 **`mcp offline_access`** |
+| 注册 URL | 留空；本实现不提供动态客户端注册接口 |
+| OIDC | 关闭；不要添加 `openid profile email` |
+
+默认作用域可留空，将所需作用域放在基础范围中，最终请求以服务端发现和实际客户端为准。**Callback / Redirect URL 必须将 ChatGPT 页面显示的精确地址登记到工作区 OAuth 配置，不能猜测或只匹配域名。** 首次网页授权的口令按桌面端提示输入，不要发送给聊天模型。
+
+### 3. 在本机批准这个聊天
+
+连接成功不等于可以操作电脑。在使用插件的聊天里先检查 `auth_status`；需要授权时调用 `request_chat_authorization`，申请本次任务必需的 scopes，并显示返回的会话指纹。
+
+切回桌面端，打开审批入口/对应工作区的“ChatGPT 聊天授权”，**核对指纹、检查权限，再批准**。审批窗口和全局待审批入口可用；系统通知是否出现还取决于操作系统设置。待审批请求 90 秒过期。模型不能通过 MCP 给自己批准权限。
+
+获准后，再调用 `server_info`、`get_default_cwd`、`git_status` 等业务工具。完整流程为：
+
+```text
+OAuth 连接 → 当前聊天申请 → 本机核对指纹并批准 → 工具访问 → 保存检查点
+```
+
+## 独占会话与长期开发
+
+默认独占按**工作区/profile**生效，不是全应用只能打开一个工作区。第一个合法申请获得临时保留；本机批准后成为 Owner。同一工作区的其他聊天收到 `EXCLUSIVE_CHAT_LOCKED`，不创建新的 Pending，也不能自动踢掉 Owner。
+
+释放或租约到期后，如果旧聊天仍有未结束任务，工作区先进入 **draining（排空）**。确认旧任务结束前不转交独占权。其他聊天仍可能在 ChatGPT 菜单中看到插件；服务端能拒绝调用，但不能替 Host 隐藏菜单。
+
+工作区“远程会话安全”可以调整：
+
+| 设置 | 默认值 | 允许范围 |
+| --- | --- | --- |
+| 独占聊天 | 开启 | 按工作区配置 |
+| 待审批时限 | 90 秒 | 固定 |
+| Access Token 有效期 | 60 分钟 | 5～480 分钟 |
+| Refresh Session 有效期 | 30 天 | 1～90 天 |
+| 聊天授权租约 | 24 小时 | 1～720 小时 |
+| 空闲自动释放 | 关闭（0） | 0 或 30～1440 分钟，且不超过租约 |
+
+刷新令牌强制轮换并检测旧令牌重放。**客户端决定何时刷新；刷新不会续期聊天租约、转移 Owner 或替代本机批准。** 修改策略需要本机确认，会撤销当前聊天授权并按配置流程重启监听；既有刷新会话不被自动延长。应用完整重启后也需重新批准聊天。单个命令的超时/任务预算与聊天租约是不同限制。
+
+源码依据：[会话策略](src-tauri/src/auth/session_policy.rs)、[独占授权](src-tauri/src/auth/聊天授权v1.rs)、[远程会话设置](src/lib/components/RemoteSessionSettings.svelte)。
+
+## 历史会话：恢复进度，不跨聊天串档
+
+授权后，复制工作区里的“ChatGPT 新会话启动提示词”。`history_session_bootstrap` 保存逐字 `initial_user_input` 并返回 `session_key`、`current_path` 和有界状态；需要细节时，用 `history_session_search` 定位，再用 `history_session_read` 按 `next_cursor` 分页读取。每轮完成后调用 `history_session_checkpoint`，原样传回稳定目标及逐字 `raw_user_input`；只有返回成功且目标一致才算保存。
+
+归档位于项目的 `docs/history-session/`。当前平台聊天身份参与隔离：**同一聊天可以恢复自身记录，新聊天不会因为指向同一目录就自动继承另一个聊天的归档或授权。** 跨聊天交接应由本机操作者明确安排。服务端也不能读取未通过工具参数提交的聊天内容。[提示词实现](src/lib/components/ChatGptSessionPrompt.svelte)
+
+## 功能与安全边界
+
+文件读取/搜索/补丁、命令执行、Git、任务管理、日志、健康检查复用内嵌工具运行时。异步任务应通过返回的任务 ID 查询输出和状态，不能因为聊天租约长就假定进程永远运行。
+
+Actions 仍是单独的 OpenAPI 网关：启动 Actions 服务、使用其实际 `/openapi.json` 与认证配置。**不要将 Actions、MCP OAuth scope 和本机聊天 scopes 当成同一授权体系**；依赖 ChatGPT 会话 metadata 的隔离不能被任意 REST 客户端自动复用。
+
+本系统操作真实目录、进程及当前系统账户可访问的资源。会话绑定与审批是逻辑授权边界，**不是每个聊天独立的容器、文件系统或可信 Host 身份证明**；同一目录的修改仍真实共享。只授予必要权限，不在日志、截图、README、Issue 或对话中放入 Client Secret、授权口令、访问/刷新令牌或未脱敏配置。
+
+## 升级、恢复与已知限制
+
+升级前退出旧程序并备份配置及对应系统账户的密钥恢复材料。不要删除项目/归档来升级 UI，不要同时启动两个版本写入同一配置，也不要强行解除尚未完成的任务排空。加密配置文件本身不保证能跨系统用户恢复；回退使用保留的 v0.4.0 与兼容备份。
+
+v0.5.0 的自动验收覆盖 Windows NSIS 和 Ubuntu 两系统 × 两种包：每组 20 张原生 UI 截图、12 个授权/刷新/排空阶段；Windows 432、Ubuntu 417 项 Rust 测试及各 180 项前端测试通过。实际构建的浏览器测试另含 40 张页面矩阵截图、10 项交互和 8 种状态；其模拟 IPC 不算原生验收。
+
+**正式 Release 是本仓库的发行渠道选择，不意味着消除了所有验证边界。** 真实 ChatGPT 账号长期自动刷新、OS 通知横幅、所有硬件/FUSE/Wayland 场景仍未全部实测；Windows 包未商业签名。原构建工作流在公开附件后的标签查询发生 404，整体失败记录保留；后续只读核验已确认公开文件正确。详见[本版发行与验收说明](docs/releases/stable-v0.5.0.md)。原包中的 Pre-release 字样是晋级前构建记录，不通过替换附件“改写历史”。
+
+## 本地开发与验证
+
+先阅读 [AGENTS.md](AGENTS.md)。使用 Node.js 22、npm、Rust stable 和对应系统的 [Tauri 2 构建前提](https://v2.tauri.app/start/prerequisites/)。
+
+```bash
+git clone https://github.com/Eswink/coding-tools-mcp.git
+cd coding-tools-mcp
+npm ci
 npm run desktop
 ```
 
-常用验证命令：
+Windows 也可使用 `dev-desktop.cmd`。`npm run dev` 只启动 Vite，并非完整 Tauri 桌面应用。仓库完整前端驱动会准备必要的测试编译产物，不应以没有前置编译的裸测试命令替代：
 
 ```bash
 npm run check
 npm run build
-cd src-tauri && cargo test
-cd src-tauri && cargo clippy --all-targets -- -D warnings
+node scripts/前端完整回归v4.mjs
+cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml
+cargo test --locked --manifest-path src-tauri/Cargo.toml
+cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings
+python scripts/release_preflight.py
 ```
 
-Windows 也可以双击 `dev-desktop.cmd`。不要只用 `npm run dev` 验证桌面应用，它只启动 Vite，不会启动 Tauri 外壳。
-
-## 项目结构
-
-| 路径 | 作用 |
+| 路径 | 内容 |
 | --- | --- |
-| `src-tauri/src/tools/` | 文件、Patch、Exec、Git 等共享工具内核 |
-| `src-tauri/src/mcp/` | MCP Streamable HTTP 服务 |
-| `src-tauri/src/actions/` | ChatGPT Actions OpenAPI 网关 |
-| `src-tauri/src/tunnel/` | FRP / Cloudflare 隧道和进程管理 |
-| `src/` | SvelteKit 桌面界面 |
-| `old/` | Python 参考实现和兼容性基线 |
+| `src/routes/`、`src/lib/components/`、`src/lib/styles/` | 页面、组件和界面样式 |
+| `src/lib/api/` | Tauri IPC 包装 |
+| `src-tauri/src/auth/` | OAuth、独占租约、本机授权与刷新会话 |
+| `src-tauri/src/tools/` | 文件、补丁、命令、Git、任务与历史工具 |
+| `src-tauri/src/mcp/`、`src-tauri/src/actions/` | MCP 与 OpenAPI 入口 |
+| `src-tauri/src/tunnel/` | FRP / Cloudflare 隧道 |
+| `tests/`、`src-tauri/tests/`、`scripts/` | 前端、Rust、原生验收与发行校验 |
+| `docs/specs/ui-refactor-v1/` | 本次 UI 计划、迭代与发行记录 |
 
-## 致谢
-感谢 [Linux.do](https://linux.do/) 社区对项目推广与反馈的支持。
+## 来源与许可
 
-## License
-
-[Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)
+本仓库基于 [mybolide/coding-tools-mcp](https://github.com/mybolide/coding-tools-mcp) 演进，保留原作者与贡献者的归属。两者的版本、安装包与发布渠道不可混用。本项目包元数据声明 Apache-2.0；依赖按各自许可分发，原有归属与许可声明不因本次文档整理而改变。
