@@ -40,18 +40,22 @@ def main():
     if args.case == 'missing-bus':
         env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=' + str(Path(env['XDG_RUNTIME_DIR'], 'absent-bus'))
     else:
-        # Fixture key only, never a real account's keyring or a production secret.
-        subprocess.run(['gnome-keyring-daemon', '--unlock', '--components=secrets'],
-                       input=b'linux-startup-test-only', env=env, check=True, timeout=20,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(['gdbus', 'call', '--session', '--dest', 'org.freedesktop.DBus', '--object-path',
-                        '/org/freedesktop/DBus', '--method', 'org.freedesktop.DBus.GetNameOwner',
-                        'org.freedesktop.secrets'], env=env, check=True, timeout=15,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # --unlock alone can return before Secret Service has registered a name.
+        # Complete daemon startup, then activate/probe the actual service rather
+        # than asking GetNameOwner once (which never activates it).
+        with (output / 'fixture-keyring.txt').open('wb') as log:
+            subprocess.run(['gnome-keyring-daemon', '--unlock', '--components=secrets'],
+                           input=b'linux-startup-test-only', env=env, check=True, timeout=20,
+                           stdout=log, stderr=log)
+            subprocess.run(['gnome-keyring-daemon', '--start', '--components=secrets'],
+                           env=env, check=True, timeout=20, stdout=log, stderr=log)
+            subprocess.run(['gdbus', 'call', '--session', '--dest', 'org.freedesktop.secrets',
+                            '--object-path', '/org/freedesktop/secrets', '--method',
+                            'org.freedesktop.DBus.Peer.Ping'], env=env, check=True, timeout=20,
+                           stdout=log, stderr=log)
     if args.kind == 'appimage':
         env['APPIMAGE_EXTRACT_AND_RUN'] = '1'
     start = time.monotonic()
-    # stderr is bounded on collection, and generated only under this synthetic home.
     with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
         process = subprocess.Popen([str(app)], cwd=env['HOME'], env=env, start_new_session=True,
                                    stdout=stdout, stderr=stderr)
@@ -72,7 +76,6 @@ def main():
             try: process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 os.killpg(process.pid, signal.SIGKILL); process.wait(timeout=5)
-            # Kill remaining processes only in the group we created, never by name.
             try: os.killpg(process.pid, signal.SIGKILL)
             except ProcessLookupError: pass
         stderr.seek(0); error = stderr.read(65536).decode('utf-8', errors='replace')
