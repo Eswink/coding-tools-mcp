@@ -31,7 +31,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--app', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--case', choices=['missing-bus', 'unlocked-keyring'], required=True)
+    parser.add_argument('--case', choices=['missing-bus', 'unlocked-keyring', 'safe-mode', 'diagnose-startup'], required=True)
     parser.add_argument('--seconds', type=int, default=30)
     args = parser.parse_args()
     assert os.getuid() != 0, 'GUI test must run as the ordinary runner user'
@@ -51,9 +51,15 @@ def main() -> None:
     else:
         start_keyring(env, output)
 
+    app_command = [str(app)]
+    if args.case == 'safe-mode':
+        app_command.append('--safe-mode')
+    elif args.case == 'diagnose-startup':
+        app_command.append('--diagnose-startup')
+
     start = time.monotonic()
     with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
-        process = subprocess.Popen([str(app)], cwd=env['HOME'], env=env, start_new_session=True,
+        process = subprocess.Popen(app_command, cwd=env['HOME'], env=env, start_new_session=True,
                                    stdout=stdout, stderr=stderr)
         observations: list[bool] = []
         natural_returncode = None
@@ -85,14 +91,34 @@ def main() -> None:
     bootstrap_text = bootstrap.read_text(encoding='utf-8') if bootstrap.is_file() else ''
     (output / 'bootstrap.log').write_text(bootstrap_text, encoding='utf-8')
     phases = [line.removeprefix('phase=') for line in bootstrap_text.splitlines() if line.startswith('phase=')]
+    startup_diagnostics = None
+    for line in out.splitlines():
+        if line.startswith('startup-diagnostics='):
+            startup_diagnostics = json.loads(line.removeprefix('startup-diagnostics='))
+            break
+
     common = was_alive and bool(observations and observations[-1]) and 'panic' not in phases \
         and 'setup-complete' in phases and 'failed to load app state' not in error
     if args.case == 'missing-bus':
         expected = common and not config.exists() and 'app-state-locked' in phases \
             and 'background-deferred' in phases and 'background-ready' not in phases
-    else:
+    elif args.case == 'unlocked-keyring':
         expected = common and config.exists() and 'app-state-ready' in phases \
             and 'background-ready' in phases
+    else:
+        safe_mode_expected = common and config.exists() and 'app-state-ready' in phases \
+            and 'tray-skipped-safe-mode' in phases and 'background-skipped-safe-mode' in phases \
+            and 'tray-ready' not in phases and 'background-ready' not in phases
+        if args.case == 'safe-mode':
+            expected = safe_mode_expected and startup_diagnostics is None
+        else:
+            expected = safe_mode_expected and isinstance(startup_diagnostics, dict) \
+                and startup_diagnostics.get('safeMode') is True \
+                and startup_diagnostics.get('diagnoseStartup') is True \
+                and startup_diagnostics.get('trayAvailable') is False \
+                and startup_diagnostics.get('notificationPluginEnabled') is False \
+                and startup_diagnostics.get('sessionBusConfigured') is True \
+                and startup_diagnostics.get('displayBackend') == 'x11'
     result = {
         'case': args.case,
         'source': os.environ.get('GITHUB_SHA'),
@@ -107,6 +133,7 @@ def main() -> None:
         'config_created': config.exists(),
         'bootstrap_phases': phases,
         'app_state_panic': 'failed to load app state' in error,
+        'startup_diagnostics': startup_diagnostics,
         'expected_candidate_behavior_observed': expected,
     }
     (output / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')

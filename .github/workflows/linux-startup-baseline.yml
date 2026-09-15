@@ -143,20 +143,22 @@ jobs:
             cargo test --manifest-path src-tauri/Cargo.toml --locked
             cargo build --manifest-path src-tauri/Cargo.toml --locked --release
           } 2>&1 | tee evidence/build.log
-      - name: Locked recovery and healthy startup controls
+      - name: Locked recovery, safe mode, diagnostics and healthy startup controls
         run: |
           set -euo pipefail
           app="$GITHUB_WORKSPACE/src-tauri/target/release/coding-tools-mcp-desktop"
           test -x "$app"
           mkdir -p evidence
           result=0
-          for scenario in missing-bus unlocked-keyring; do
+          for scenario in missing-bus unlocked-keyring safe-mode diagnose-startup; do
             export HOME="$RUNNER_TEMP/candidate-$scenario"
             export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_STATE_HOME="$HOME/state" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
             mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
             chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
             touch "$HOME/.linux-startup-disposable"
-            xvfb-run -a -s '-screen 0 1280x800x24' dbus-run-session -- python3 scripts/linux_startup_candidate.py --app "$app" --case "$scenario" --output "evidence/$scenario" || result=1
+            seconds=30
+            if [ "$scenario" = safe-mode ] || [ "$scenario" = diagnose-startup ]; then seconds=12; fi
+            xvfb-run -a -s '-screen 0 1280x800x24' dbus-run-session -- python3 scripts/linux_startup_candidate.py --app "$app" --case "$scenario" --seconds "$seconds" --output "evidence/$scenario" || result=1
           done
           exit "$result"
       - uses: actions/upload-artifact@v4

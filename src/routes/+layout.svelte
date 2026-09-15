@@ -202,7 +202,15 @@
 </AppShell>
 
 <ToastHost />
-{#if startupStatus?.ready}<ChatAuthorizationHost />{/if}
+{#if startupStatus?.ready && !startupStatus.safeMode}<ChatAuthorizationHost />{/if}
+{#if startupStatus?.ready && startupStatus.safeMode}
+  <div
+    class="pointer-events-none fixed right-5 top-4 z-50 rounded-full border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-1.5 text-xs font-medium text-[var(--warning)] shadow-sm"
+    role="status"
+  >
+    安全模式 · 托盘、通知和后台服务未启动
+  </div>
+{/if}
 <CloseConfirmDialog
   open={closeConfirmOpen}
   onCancel={() => {

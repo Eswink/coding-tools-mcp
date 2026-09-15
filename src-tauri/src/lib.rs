@@ -21,7 +21,7 @@ mod workspace;
 
 use app_state::AppState;
 use commands::{
-    chat_authorization_control, chat_authorization_inbox, refresh_session_control, check_app_update, get_startup_status, retry_startup, create_workspace, delete_frp_profile, delete_workspace,
+    chat_authorization_control, chat_authorization_inbox, refresh_session_control, check_app_update, get_environment_diagnostics, get_startup_status, retry_startup, create_workspace, delete_frp_profile, delete_workspace,
     get_actions_runtime_status, get_app_settings, get_download_config, get_frp_snippet,
     get_last_workspace_id, get_proxy, get_runtime_status, get_shared_secret, get_webview_memory_sample,
     get_workspace_secret, hide_to_tray, install_software, list_frp_profiles, list_software,
@@ -156,7 +156,7 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
 static READY_SERVICES_STARTED: AtomicBool = AtomicBool::new(false);
 
 pub(crate) fn start_ready_services(app: &tauri::AppHandle) {
-    if READY_SERVICES_STARTED.swap(true, Ordering::SeqCst) {
+    if bootstrap::safe_mode() || READY_SERVICES_STARTED.swap(true, Ordering::SeqCst) {
         return;
     }
     tunnel::ensure_frp_health_loop();
@@ -170,24 +170,31 @@ pub fn run() {
     if !acquire_single_instance() {
         return;
     }
-    tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_notification::init())
-        .setup(|app| {
+    let startup_mode = bootstrap::startup_mode();
+    let mut builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
+    if !startup_mode.safe_mode {
+        builder = builder.plugin(tauri_plugin_notification::init());
+    }
+    builder
+        .setup(move |app| {
             bootstrap::record("tauri-setup");
             let state = AppState::new().expect("failed to create app state wrapper");
             let ready = state.is_ready();
             app.manage(state);
             bootstrap::record(if ready { "app-state-ready" } else { "app-state-locked" });
 
-            if setup_tray(app).is_ok() {
+            if startup_mode.safe_mode {
+                bootstrap::record("tray-skipped-safe-mode");
+            } else if setup_tray(app).is_ok() {
                 bootstrap::record("tray-ready");
             } else {
                 // Tray availability is optional on Linux desktops. A missing
                 // AppIndicator/StatusNotifier implementation must not kill the GUI.
                 bootstrap::record("tray-degraded");
             }
-            if ready {
+            if startup_mode.safe_mode {
+                bootstrap::record("background-skipped-safe-mode");
+            } else if ready {
                 start_ready_services(app.handle());
                 bootstrap::record("background-ready");
             } else {
@@ -196,6 +203,14 @@ pub fn run() {
             #[cfg(target_os = "windows")]
             {
                 let _ = SHOW_APP_HANDLE.set(app.handle().clone());
+            }
+            if startup_mode.diagnose_startup {
+                if let Ok(json) = serde_json::to_string(&commands::environment_diagnostics(app.handle())) {
+                    use std::io::Write;
+                    let mut stdout = std::io::stdout().lock();
+                    let _ = writeln!(stdout, "startup-diagnostics={json}");
+                    let _ = stdout.flush();
+                }
             }
             bootstrap::record("setup-complete");
             Ok(())
@@ -208,6 +223,7 @@ pub fn run() {
             open_url,
             check_app_update,
             get_startup_status,
+            get_environment_diagnostics,
             retry_startup,
             delete_workspace,
             start_runtime,

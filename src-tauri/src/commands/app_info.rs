@@ -38,8 +38,7 @@ pub fn get_startup_status(state: State<'_, AppState>) -> StartupStatus {
     state.startup_status()
 }
 
-#[tauri::command]
-pub fn get_environment_diagnostics(app: AppHandle) -> EnvironmentDiagnostics {
+pub(crate) fn environment_diagnostics(app: &AppHandle) -> EnvironmentDiagnostics {
     let state = app.state::<AppState>();
     let ready = state.startup_status().ready;
     let platform = crate::platform::context().clone();
@@ -77,13 +76,22 @@ pub fn get_environment_diagnostics(app: AppHandle) -> EnvironmentDiagnostics {
 }
 
 #[tauri::command]
+pub fn get_environment_diagnostics(app: AppHandle) -> EnvironmentDiagnostics {
+    environment_diagnostics(&app)
+}
+
+#[tauri::command]
 pub fn retry_startup(app: AppHandle) -> AppResult<StartupStatus> {
     let state = app.state::<AppState>();
     let became_ready = state.retry_data()?;
     let status = state.startup_status();
     if became_ready {
-        crate::start_ready_services(&app);
-        crate::bootstrap::record("recovery-ready");
+        if crate::bootstrap::safe_mode() {
+            crate::bootstrap::record("recovery-ready-safe-mode");
+        } else {
+            crate::start_ready_services(&app);
+            crate::bootstrap::record("recovery-ready");
+        }
     }
     Ok(status)
 }

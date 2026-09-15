@@ -22,6 +22,34 @@ export interface StartupStatus {
   recoverable: boolean;
   message: string;
   platform: string;
+  safeMode: boolean;
+}
+
+export interface PlatformContext {
+  os: string;
+  family: string;
+  arch: string;
+  distribution: string | null;
+  pathStyle: string;
+  pathSeparator: string;
+  caseSensitivePaths: boolean;
+  executableSuffix: string;
+  defaultShell: string;
+  shellModes: string[];
+  commandExecution: string;
+  commandGuidance: string;
+}
+
+export interface EnvironmentDiagnostics {
+  platform: PlatformContext;
+  safeMode: boolean;
+  diagnoseStartup: boolean;
+  displayBackend: string;
+  sessionBusConfigured: boolean;
+  credentialStoreState: string;
+  trayAvailable: boolean;
+  notificationPluginEnabled: boolean;
+  executables: Record<string, boolean>;
 }
 
 export async function getStartupStatus(): Promise<StartupStatus> {
@@ -30,4 +58,8 @@ export async function getStartupStatus(): Promise<StartupStatus> {
 
 export async function retryStartup(): Promise<StartupStatus> {
   return invoke<StartupStatus>("retry_startup");
+}
+
+export async function getEnvironmentDiagnostics(): Promise<EnvironmentDiagnostics> {
+  return invoke<EnvironmentDiagnostics>("get_environment_diagnostics");
 }
