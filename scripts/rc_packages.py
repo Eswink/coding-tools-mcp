@@ -5,7 +5,10 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import shutil
+import subprocess
+import tempfile
 
 from exclusive_packages import (
     BINARY,
@@ -20,6 +23,40 @@ from exclusive_packages import (
     verify_record,
 )
 from rc_version_gate import verify_source
+
+RC_VERSION = re.compile(r"((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))-rc\.((?:0|[1-9]\d*))")
+
+
+def debian_version(app_version: str) -> str:
+    """Map app SemVer RC syntax to Debian's pre-release ordering syntax."""
+    match = RC_VERSION.fullmatch(app_version)
+    require(match is not None, "candidate app version must be major.minor.patch-rc.N")
+    return f"{match.group(1)}~rc{match.group(2)}"
+
+
+def repack_deb(source: Path, target: Path, app_version: str) -> str:
+    """Rebuild only DEB metadata so future stable x.y.z sorts above x.y.z~rcN."""
+    require(source.is_file() and not source.is_symlink(), "candidate DEB source must be a regular file")
+    package_version = debian_version(app_version)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="coding-tools-rc-deb-") as raw:
+        root = Path(raw)
+        subprocess.run(["dpkg-deb", "--raw-extract", str(source), str(root)],
+                       check=True, timeout=120, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        control = root / "DEBIAN/control"
+        require(control.is_file() and not control.is_symlink() and control.stat().st_size < 1024 * 1024,
+                "candidate DEB control file missing or invalid")
+        text = control.read_text(encoding="utf-8")
+        matches = list(re.finditer(r"(?m)^Version:\s*(\S+)\s*$", text))
+        require(len(matches) == 1 and matches[0].group(1) == app_version,
+                "Tauri candidate DEB version does not match app version before RC rewrite")
+        start, end = matches[0].span()
+        control.write_text(text[:start] + f"Version: {package_version}" + text[end:], encoding="utf-8")
+        subprocess.run(["dpkg-deb", "--build", "--root-owner-group", str(root), str(target)],
+                       check=True, timeout=120, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    require(command("dpkg-deb", "-f", str(target), "Version") == package_version,
+            "rebuilt candidate DEB version mismatch")
+    return package_version
 
 
 def identity(source: str, root: Path) -> dict:
@@ -43,10 +80,17 @@ def prepare(root: Path, output: Path, source: str) -> dict:
         choices = list((root / "src-tauri/target/release/bundle" / kind).glob("*" + suffix))
         require(len(choices) == 1, "exactly one candidate package per format required")
         target = output / f"MCP_{data['version']}_amd64{suffix}"
-        shutil.copyfile(choices[0], target)
-        if kind == "appimage":
+        if kind == "deb":
+            package_version = repack_deb(choices[0], target, data["version"])
+        else:
+            shutil.copyfile(choices[0], target)
             target.chmod(0o755)
-        packages[kind] = {"artifact": record(target), **inspect_linux(target, kind, data["version"])}
+            package_version = data["version"]
+        packages[kind] = {
+            "artifact": record(target),
+            "package_version": package_version,
+            **inspect_linux(target, kind, package_version),
+        }
     data.update(passed=True, packages=packages, build_kind="release-candidate")
     (output / MANIFEST).write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return data
@@ -63,9 +107,12 @@ def load_manifest(directory: Path, root: Path, source: str) -> dict:
     require(data.get("passed") is True and data.get("build_kind") == "release-candidate",
             "not a verified release-candidate build")
     require(set(data.get("packages", {})) == {"deb", "appimage"}, "both Linux candidate formats required")
-    for entry in data["packages"].values():
+    for kind, entry in data["packages"].items():
         verify_record(directory, entry["artifact"])
         require(bool(SHA.fullmatch(entry.get("payload_sha256", ""))), "missing candidate payload digest")
+        expected_package_version = debian_version(data["version"]) if kind == "deb" else data["version"]
+        require(entry.get("package_version") == expected_package_version,
+                "candidate package-manager version mismatch")
     return data
 
 
@@ -74,13 +121,14 @@ def installed(directory: Path, root: Path, source: str, kind: str, output: Path)
     data = load_manifest(directory, root, source)
     entry = data["packages"][kind]
     package = verify_record(directory, entry["artifact"])
-    actual = inspect_linux(package, kind, data["version"])
+    package_version = entry["package_version"]
+    actual = inspect_linux(package, kind, package_version)
     require(actual == {key: entry[key] for key in ("payload_sha256", "architecture", "package_id")},
             "candidate packaged payload changed")
     if kind == "deb":
         binary = Path("/usr/bin") / BINARY
-        require(command("dpkg-query", "-W", "-f=${Version}", entry["package_id"]) == data["version"],
-                "installed candidate DEB version mismatch")
+        require(command("dpkg-query", "-W", "-f=${Version}", entry["package_id"]) == package_version,
+                "installed candidate DEB package-manager version mismatch")
         require(digest(binary) == entry["payload_sha256"], "installed candidate executable differs from DEB")
         elf(binary)
         files = [Path(value) for value in command("dpkg-query", "-L", entry["package_id"]).splitlines()]
@@ -99,6 +147,7 @@ def installed(directory: Path, root: Path, source: str, kind: str, output: Path)
         passed=True,
         kind=kind,
         package=entry["artifact"],
+        package_version=package_version,
         payload_sha256=entry["payload_sha256"],
         native_executable_sha256=digest(binary),
         executable=str(binary.resolve()),

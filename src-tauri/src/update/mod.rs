@@ -40,16 +40,21 @@ pub fn normalize_tag(tag: &str) -> String {
     without_v.trim().to_string()
 }
 
-/// Compare two semver-like strings (major.minor.patch[+pre]).
-/// Returns None when either side cannot be parsed as numeric major.minor.patch.
+/// Compare stable releases and numbered release candidates using SemVer-style
+/// precedence for the supported version surface. Build metadata never affects
+/// ordering. For the same core version: rc.1 < rc.2 < stable.
 pub fn compare_versions(left: &str, right: &str) -> Option<Ordering> {
-    let left_parts = parse_version_tuple(&normalize_tag(left))?;
-    let right_parts = parse_version_tuple(&normalize_tag(right))?;
+    let left_parts = parse_version_key(&normalize_tag(left))?;
+    let right_parts = parse_version_key(&normalize_tag(right))?;
     Some(left_parts.cmp(&right_parts))
 }
 
-fn parse_version_tuple(version: &str) -> Option<(u64, u64, u64)> {
-    let core = version.split(['-', '+']).next().unwrap_or(version).trim();
+fn parse_version_key(version: &str) -> Option<(u64, u64, u64, u8, u64)> {
+    let without_build = version.split_once('+').map_or(version, |(value, _)| value);
+    let (core, prerelease) = match without_build.split_once('-') {
+        Some((core, prerelease)) => (core, Some(prerelease)),
+        None => (without_build, None),
+    };
     if core.is_empty() {
         return None;
     }
@@ -58,9 +63,16 @@ fn parse_version_tuple(version: &str) -> Option<(u64, u64, u64)> {
     let minor = parts.next().unwrap_or("0").parse::<u64>().ok()?;
     let patch = parts.next().unwrap_or("0").parse::<u64>().ok()?;
     if parts.next().is_some() {
-        // Extra numeric segments are ignored for comparison stability.
+        return None;
     }
-    Some((major, minor, patch))
+    let (stability, rc_number) = match prerelease {
+        None => (1, 0),
+        Some(value) => {
+            let number = value.strip_prefix("rc.")?.parse::<u64>().ok()?;
+            (0, number)
+        }
+    };
+    Some((major, minor, patch, stability, rc_number))
 }
 
 pub fn parse_latest_release(body: &str, current_version: &str) -> AppResult<UpdateCheckResult> {
@@ -171,17 +183,16 @@ mod tests {
     }
 
     #[test]
-    fn compare_versions_orders_semver() {
-        assert_eq!(
-            compare_versions("0.1.23", "0.1.22"),
-            Some(Ordering::Greater)
-        );
+    fn compare_versions_orders_stable_and_numbered_rc() {
+        assert_eq!(compare_versions("0.1.23", "0.1.22"), Some(Ordering::Greater));
         assert_eq!(compare_versions("v0.1.23", "0.1.23"), Some(Ordering::Equal));
-        assert_eq!(
-            compare_versions("0.1.20", "v0.1.23"),
-            Some(Ordering::Less)
-        );
+        assert_eq!(compare_versions("0.1.20", "v0.1.23"), Some(Ordering::Less));
         assert_eq!(compare_versions("1.0.0", "0.9.9"), Some(Ordering::Greater));
+        assert_eq!(compare_versions("0.6.0", "0.6.0-rc.1"), Some(Ordering::Greater));
+        assert_eq!(compare_versions("0.6.0-rc.2", "0.6.0-rc.1"), Some(Ordering::Greater));
+        assert_eq!(compare_versions("0.6.0-rc.1", "0.6.0"), Some(Ordering::Less));
+        assert_eq!(compare_versions("0.6.0+build.7", "0.6.0"), Some(Ordering::Equal));
+        assert!(compare_versions("0.6.0-beta.1", "0.6.0").is_none());
         assert!(compare_versions("latest", "0.1.0").is_none());
     }
 
@@ -196,6 +207,27 @@ mod tests {
         assert_eq!(result.latest_version, "0.1.99");
         assert_eq!(result.latest_tag, "v0.1.99");
         assert!(result.release_url.contains("v0.1.99"));
+    }
+
+    #[test]
+    fn parse_latest_promotes_release_candidate_to_stable() {
+        let body = r#"{
+            "tag_name": "v0.6.0",
+            "html_url": "https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.6.0"
+        }"#;
+        let result = parse_latest_release(body, "0.6.0-rc.1").expect("parse");
+        assert!(result.update_available);
+        assert_eq!(result.latest_version, "0.6.0");
+    }
+
+    #[test]
+    fn parse_latest_never_downgrades_newer_candidate() {
+        let body = r#"{
+            "tag_name": "v0.5.0",
+            "html_url": "https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.5.0"
+        }"#;
+        let result = parse_latest_release(body, "0.6.0-rc.1").expect("parse");
+        assert!(!result.update_available);
     }
 
     #[test]

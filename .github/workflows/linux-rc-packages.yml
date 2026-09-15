@@ -47,6 +47,7 @@ jobs:
           set -euo pipefail
           mkdir -p evidence
           python scripts/rc_version_gate_tests.py
+          python scripts/rc_packages_tests.py
           python scripts/exclusive_native_contract_tests.py
           python scripts/rc_version_gate.py --expect-version "$RC_VERSION" --expect-sha "$GITHUB_SHA" --output evidence/rc-source.json
           npm ci
