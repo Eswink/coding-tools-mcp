@@ -15,3 +15,69 @@ export async function openUrl(url: string): Promise<void> {
 export async function checkAppUpdate(): Promise<UpdateCheckResult> {
   return invoke<UpdateCheckResult>("check_app_update");
 }
+
+export interface StartupStatus {
+  state: "ready" | "locked" | string;
+  ready: boolean;
+  recoverable: boolean;
+  reasonCode: string | null;
+  message: string;
+  platform: string;
+  safeMode: boolean;
+}
+
+export interface PlatformContext {
+  os: string;
+  family: string;
+  arch: string;
+  distribution: string | null;
+  pathStyle: string;
+  pathSeparator: string;
+  caseSensitivePaths: boolean;
+  executableSuffix: string;
+  defaultShell: string;
+  shellModes: string[];
+  commandExecution: string;
+  commandGuidance: string;
+}
+
+export interface EnvironmentDiagnostics {
+  appVersion: string;
+  packageKind: string;
+  platform: PlatformContext;
+  safeMode: boolean;
+  diagnoseStartup: boolean;
+  displayBackend: string;
+  desktopSession: string;
+  sessionBusConfigured: boolean;
+  sessionBusOriginalConfigured: boolean;
+  sessionBusRoute: string;
+  sessionBusSplitDetected: boolean;
+  sessionBusReachable: boolean;
+  runtimeUserBusReachable: boolean;
+  runtimeUserBusSecretServiceAvailable: boolean;
+  secretServiceDefaultCollectionState: string;
+  credentialStoreState: string;
+  startupFailureReason: string | null;
+  configurationState: string;
+  configurationExists: boolean;
+  configurationEncrypted: boolean | null;
+  configurationOwnedByCurrentUser: boolean | null;
+  configurationOwnerOnlyPermissions: boolean | null;
+  configurationDirectoryWritable: boolean | null;
+  trayAvailable: boolean;
+  notificationPluginEnabled: boolean;
+  executables: Record<string, boolean>;
+}
+
+export async function getStartupStatus(): Promise<StartupStatus> {
+  return invoke<StartupStatus>("get_startup_status");
+}
+
+export async function retryStartup(): Promise<StartupStatus> {
+  return invoke<StartupStatus>("retry_startup");
+}
+
+export async function getEnvironmentDiagnostics(): Promise<EnvironmentDiagnostics> {
+  return invoke<EnvironmentDiagnostics>("get_environment_diagnostics");
+}

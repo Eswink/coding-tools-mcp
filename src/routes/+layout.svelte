@@ -6,6 +6,7 @@
   import { page } from "$app/stores";
   import { open } from "@tauri-apps/plugin-dialog";
   import AppShell from "$lib/components/AppShell.svelte";
+  import StartupRecovery from "$lib/components/StartupRecovery.svelte";
   import ChatAuthorizationHost from "$lib/components/ChatAuthorizationHost.svelte";
   import ToastHost from "$lib/components/ToastHost.svelte";
   import WorkspaceNavItem from "$lib/components/WorkspaceNavItem.svelte";
@@ -22,9 +23,17 @@
   import { startCloseGuard } from "$lib/close-guard";
   import CloseConfirmDialog from "$lib/components/CloseConfirmDialog.svelte";
   import type { RuntimeState } from "$lib/types";
+  import {
+    getEnvironmentDiagnostics,
+    getStartupStatus,
+    retryStartup,
+    type StartupStatus,
+  } from "$lib/api/app-info";
 
   let { children } = $props();
   let closeConfirmOpen = $state(false);
+  let startupStatus = $state<StartupStatus | null>(null);
+  let retryingStartup = $state(false);
 
   async function refreshWorkspaces() {
     const items = await listWorkspaces();
@@ -49,6 +58,40 @@
     );
     mcpRuntimeStates.set(mcpStates);
     actionsRuntimeStates.set(actionsStates);
+  }
+
+  async function retryLockedStartup() {
+    if (retryingStartup) return;
+    retryingStartup = true;
+    try {
+      startupStatus = await retryStartup();
+      if (startupStatus.ready) {
+        await refreshWorkspaces();
+        showToast("配置存储已恢复，可以继续使用。", { title: "恢复成功", kind: "success" });
+      }
+    } catch (error) {
+      showToast(String(error), { title: "恢复仍未完成", kind: "error", duration: 8000 });
+      try {
+        startupStatus = await getStartupStatus();
+      } catch {
+        // Keep the previous locked status so recovery UI remains visible.
+      }
+    } finally {
+      retryingStartup = false;
+    }
+  }
+
+  async function copyStartupDiagnostics() {
+    try {
+      const report = await getEnvironmentDiagnostics();
+      await navigator.clipboard.writeText(JSON.stringify(report, null, 2));
+      showToast("启动诊断已复制，可用于定位 Ubuntu 凭据服务状态。", {
+        title: "诊断已复制",
+        kind: "success",
+      });
+    } catch (error) {
+      showToast(String(error), { title: "复制启动诊断失败", kind: "error", duration: 8000 });
+    }
   }
 
   async function addWorkspace() {
@@ -93,6 +136,13 @@
       closeConfirmOpen = true;
     });
     void (async () => {
+      try {
+        startupStatus = await getStartupStatus();
+      } catch (error) {
+        showToast(String(error), { title: "启动状态读取失败", kind: "error", duration: 8000 });
+        return;
+      }
+      if (!startupStatus.ready) return;
       await refreshWorkspaces();
       const path = $page.url.pathname;
       if (path === "/") {
@@ -161,12 +211,29 @@
   {/snippet}
 
   {#snippet children()}
-    {@render children()}
+    {#if startupStatus && !startupStatus.ready}
+      <StartupRecovery
+        status={startupStatus}
+        busy={retryingStartup}
+        onRetry={() => void retryLockedStartup()}
+        onCopyDiagnostics={() => void copyStartupDiagnostics()}
+      />
+    {:else}
+      {@render children()}
+    {/if}
   {/snippet}
 </AppShell>
 
 <ToastHost />
-<ChatAuthorizationHost />
+{#if startupStatus?.ready && !startupStatus.safeMode}<ChatAuthorizationHost />{/if}
+{#if startupStatus?.ready && startupStatus.safeMode}
+  <div
+    class="pointer-events-none fixed right-5 top-4 z-50 rounded-full border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-1.5 text-xs font-medium text-[var(--warning)] shadow-sm"
+    role="status"
+  >
+    安全模式 · 托盘、通知和后台服务未启动
+  </div>
+{/if}
 <CloseConfirmDialog
   open={closeConfirmOpen}
   onCancel={() => {

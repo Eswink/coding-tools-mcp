@@ -15,6 +15,7 @@ _tauri-scaffold
 
 # Rust
 src-tauri/target
+src-tauri/appimage-runtime/
 
 # MCP Probe 临时图谱快照
 .mcp-probe-kit/graph-snapshots/

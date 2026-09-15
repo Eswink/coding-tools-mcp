@@ -299,7 +299,6 @@ async fn run_command(
             session.refresh_status().await;
             session.wait_for_readers().await;
             let snapshot = session.snapshot(max_output);
-            // Snapshot is embedded; schedule eviction so abandoned timeouts do not linger.
             schedule_session_eviction(ctx.sessions.clone(), session.session_id.clone());
             return Err(command_io_failure(snapshot));
         }
@@ -329,7 +328,6 @@ fn command_io_failure(snapshot: Value) -> WorkspaceError {
     }
 }
 
-/// How long a timed-out / background session stays readable before map eviction.
 const SESSION_EVICT_AFTER_TIMEOUT: Duration = Duration::from_secs(30);
 
 fn spawn_timeout_monitor(
@@ -338,8 +336,6 @@ fn spawn_timeout_monitor(
     deadline: Instant,
 ) {
     tauri::async_runtime::spawn(async move {
-        // Release the monitor's session Arc promptly instead of retaining every
-        // short-lived job until its possibly 24-hour execution deadline.
         loop {
             session.refresh_status().await;
             if session.has_exited() { break; }
@@ -351,7 +347,6 @@ fn spawn_timeout_monitor(
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
         session.wait_for_readers().await;
-        // Keep the session briefly so clients can still read_output / probe status.
         schedule_session_eviction(sessions, session.session_id.clone());
     });
 }
@@ -666,11 +661,24 @@ mod tests {
     #[test]
     fn resolves_an_arbitrarily_named_workspace_local_entry() {
         let workspace = tempdir().expect("workspace");
-        let entry = workspace.path().join("scripts").join("anything.cmd");
+        #[cfg(windows)]
+        let relative = "scripts/anything.cmd";
+        #[cfg(not(windows))]
+        let relative = "scripts/anything.sh";
+        let entry = workspace.path().join(relative);
         std::fs::create_dir_all(entry.parent().expect("parent")).expect("scripts");
-        std::fs::write(&entry, "echo test").expect("entry");
+        #[cfg(windows)]
+        std::fs::write(&entry, "@echo test\r\n").expect("entry");
+        #[cfg(not(windows))]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::write(&entry, "#!/bin/sh\nprintf 'test\n'\n").expect("entry");
+            let mut permissions = std::fs::metadata(&entry).expect("metadata").permissions();
+            permissions.set_mode(0o755);
+            std::fs::set_permissions(&entry, permissions).expect("permissions");
+        }
         let resolved = resolve_program(
-            "scripts/anything.cmd",
+            relative,
             workspace.path(),
             workspace.path(),
             &crate::tools::policy::PolicySettings::default(),
@@ -715,9 +723,6 @@ mod tests {
         assert!(runner.contains("powershell") || runner.contains("pwsh"));
         assert!(script.as_std().get_args().any(|arg| arg == "-File"));
 
-        // Ensure console-subsystem programs (python.exe) also go through the
-        // hidden-window flag path; Command does not expose creation_flags for
-        // direct assertion, so this only verifies construction still succeeds.
         let python = command_for_program("C:/Python312/python.exe", &["-c".into(), "print(1)".into()]);
         assert_eq!(
             python.as_std().get_program().to_string_lossy(),
@@ -749,9 +754,6 @@ mod tests {
             ToolContext::for_test(workspace.path().to_path_buf(), harness.path().to_path_buf())
                 .expect("context");
 
-        // This verifies runner/output correctness, not a 10-second cold-start SLO.
-        // Use the normal 30-second execution budget and wait explicitly; the
-        // separate 200ms deadline regression still verifies timeout enforcement.
         const FUNCTIONAL_BUDGET_MS: u64 = 30_000;
         for round in 1..=5 {
             for (command, expected) in [
@@ -868,8 +870,6 @@ mod tests {
 
 #[cfg(windows)]
 fn windows_hidden_creation_flags() -> u32 {
-    // Match frpc/cloudflared: hide console-subsystem children (python/cmd/powershell)
-    // so remote exec_command does not flash a console or steal focus.
     const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
     const CREATE_NO_WINDOW: u32 = 0x08000000;
     CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
@@ -952,8 +952,6 @@ fn windows_command_path(path: &str) -> String {
     let Some(tail) = path.strip_prefix(r"\\?\") else {
         return path.to_string();
     };
-    // Verbatim UNC paths must retain their network root, not become relative
-    // paths named UNC. Preserve non-filesystem device namespaces unchanged.
     if tail
         .get(..4)
         .is_some_and(|prefix| prefix.eq_ignore_ascii_case("UNC\\"))

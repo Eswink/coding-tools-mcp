@@ -7,7 +7,7 @@
     ],
     "category": "DeveloperTool",
     "shortDescription": "MCP and Actions tools with a graphical workspace and task manager",
-    "longDescription": "Desktop workspace manager for local MCP and Actions services, encrypted configuration, and persistent asynchronous command records. Requires a graphical desktop and an unlocked Secret Service keyring.",
+    "longDescription": "Desktop workspace manager for local MCP and Actions services, encrypted configuration, and persistent asynchronous command records. Requires a graphical desktop. If Secret Service is unavailable, the GUI opens in locked recovery mode without plaintext fallback.",
     "linux": {
       "deb": {
         "depends": [
@@ -18,6 +18,15 @@
           "xdg-utils"
         ],
         "section": "devel"
+      },
+      "appimage": {
+        "files": {
+          "/usr/lib/x86_64-linux-gnu/libEGL.so.1": "appimage-runtime/libEGL.so.1",
+          "/usr/lib/x86_64-linux-gnu/libGLESv2.so.2": "appimage-runtime/libGLESv2.so.2",
+          "/usr/lib/x86_64-linux-gnu/libGL.so.1": "appimage-runtime/libGL.so.1",
+          "/usr/lib/x86_64-linux-gnu/libGLX.so.0": "appimage-runtime/libGLX.so.0",
+          "/usr/lib/x86_64-linux-gnu/libGLdispatch.so.0": "appimage-runtime/libGLdispatch.so.0"
+        }
       }
     },
     "useLocalToolsDir": true

@@ -1,0 +1,86 @@
+name: Windows RC package acceptance
+on:
+  push:
+    branches: ['fix/linux-startup-platform']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-rc-packages-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  CARGO_TERM_COLOR: never
+  RC_VERSION: '0.6.0-rc.4'
+jobs:
+  windows:
+    name: Build and install exact Windows RC
+    runs-on: windows-latest
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: windows-rc-packages-v1
+      - name: Exact-source full regression and NSIS build
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path evidence | Out-Null
+          python scripts/rc_version_gate_tests.py
+          if ($LASTEXITCODE -ne 0) { throw 'RC version gate tests failed' }
+          python scripts/rc_windows_install_contract_tests.py
+          if ($LASTEXITCODE -ne 0) { throw 'RC Windows isolation contract tests failed' }
+          python scripts/exclusive_native_contract_tests.py
+          if ($LASTEXITCODE -ne 0) { throw 'Native evidence contract tests failed' }
+          python scripts/rc_version_gate.py --expect-version $env:RC_VERSION --expect-sha $env:GITHUB_SHA --output evidence/rc-source.json
+          if ($LASTEXITCODE -ne 0) { throw 'RC source identity gate failed' }
+          npm ci
+          if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
+          npm run check
+          if ($LASTEXITCODE -ne 0) { throw 'frontend check failed' }
+          cargo test --manifest-path src-tauri/Cargo.toml --locked 2>&1 | Tee-Object -FilePath evidence/windows-rust-tests.log
+          if ($LASTEXITCODE -ne 0) { throw 'Windows Rust regression failed' }
+          npm run tauri -- build --ci --bundles nsis -- --locked 2>&1 | Tee-Object -FilePath evidence/windows-rc-build.log
+          if ($LASTEXITCODE -ne 0) { throw 'Windows NSIS RC build failed' }
+          git diff --exit-code
+          if ($LASTEXITCODE -ne 0) { throw 'tracked source changed during Windows build' }
+      - name: Prepare exact native WebView2 driver
+        shell: pwsh
+        run: ./scripts/Windows原生驱动准备v8.ps1 -OutputDirectory "$env:RUNNER_TEMP/windows-rc-driver"
+      - name: Standard-user installed OAuth, exclusive ownership, refresh and drain acceptance
+        shell: pwsh
+        run: |
+          ./scripts/rc_windows_install.ps1 -OutputDirectory "$env:RUNNER_TEMP/windows-rc-package" -Driver "$env:RUNNER_TEMP/windows-rc-driver/msedgedriver.exe"
+          if ($LASTEXITCODE -ne 0) { throw 'Windows RC installed acceptance failed' }
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: windows-rc-package
+          path: ${{ runner.temp }}/windows-rc-package/
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-rc-evidence
+          path: |
+            evidence/
+            ${{ runner.temp }}/windows-rc-package/*.json
+            ${{ runner.temp }}/windows-rc-package/*.png
+            ${{ runner.temp }}/windows-rc-package/*.log
+            ${{ runner.temp }}/windows-rc-driver/驱动来源v8.json
+          if-no-files-found: error
+          retention-days: 30

@@ -27,8 +27,7 @@ pub fn resolve_cloudflared() -> AppResult<PathBuf> {
         .or_else(|| cached_cloudflared_path().filter(|path| path.is_file()))
         .ok_or_else(|| {
             AppError::Message(
-                "未找到 cloudflared。请到「软件管理」安装，或自行安装 Cloudflare Tunnel CLI。\n\
-                 Windows 可执行：winget install Cloudflare.cloudflared"
+                "未找到 cloudflared。请到「软件管理」自动安装，或使用当前系统的软件包管理器安装 Cloudflare Tunnel CLI。"
                     .into(),
             )
         })

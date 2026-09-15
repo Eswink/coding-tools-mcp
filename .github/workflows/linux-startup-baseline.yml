@@ -1,0 +1,184 @@
+name: Linux released startup failure-first
+on:
+  push:
+    branches: ['fix/linux-startup-platform']
+    paths:
+      - '.github/workflows/linux-startup-baseline.yml'
+      - 'scripts/linux_startup_baseline.py'
+      - 'docs/specs/linux-startup-platform/**'
+      - 'src-tauri/src/**'
+      - 'src/**'
+      - 'scripts/linux_startup_candidate.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: linux-startup-baseline-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Export exact source and baseline identity
+        run: |
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source.txt
+          git rev-parse HEAD^{tree} > evidence/tree.txt
+          git archive --format=zip HEAD > evidence/source.zip
+          python3 -m py_compile scripts/linux_startup_baseline.py scripts/linux_startup_candidate.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-startup-source
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+  baseline:
+    name: Original package (${{ matrix.os }}, ${{ matrix.kind }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+        kind: [deb, appimage]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      KIND: ${{ matrix.kind }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install only runtime and observation dependencies, not build SDKs
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-0 libgtk-3-0 libayatana-appindicator3-1 libsecret-1-0 gnome-keyring dbus-user-session xdg-utils libxdo3 xvfb xauth x11-utils libglib2.0-bin
+          mkdir -p evidence packages
+          cat /etc/os-release > evidence/os-release.txt
+          dpkg-query -W > evidence/packages.txt
+          id > evidence/identity.txt
+      - name: Download immutable original package without credentials
+        run: |
+          set -euo pipefail
+          if [ "$KIND" = deb ]; then
+            file=MCP_0.5.0_amd64.deb
+            hash=c06757aa380aa0e2a0cdddb5b6a2a97004aeafbc348d4aa660d9d7b3d2c8a20b
+          else
+            file=MCP_0.5.0_amd64.AppImage
+            hash=86b95dcd3f3bf8da6b334d937d033e7870858326e969b577a9ebfc4606d24fec
+          fi
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 "https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/$file" -o "packages/$file"
+          printf '%s  %s\n' "$hash" "packages/$file" | sha256sum --check
+          echo "PACKAGE_FILE=$GITHUB_WORKSPACE/packages/$file" >> "$GITHUB_ENV"
+          echo "PACKAGE_HASH=$hash" >> "$GITHUB_ENV"
+          if [ "$KIND" = deb ]; then
+            dpkg-deb -I "packages/$file" > evidence/deb-control.txt
+            sudo apt-get install -y "$GITHUB_WORKSPACE/packages/$file"
+            echo 'GUI_APP=/usr/bin/coding-tools-mcp-desktop' >> "$GITHUB_ENV"
+            ldd /usr/bin/coding-tools-mcp-desktop > evidence/linked-libraries.txt
+            if grep -q 'not found' evidence/linked-libraries.txt; then exit 1; fi
+          else
+            chmod +x "packages/$file"
+            echo "GUI_APP=$GITHUB_WORKSPACE/packages/$file" >> "$GITHUB_ENV"
+          fi
+      - name: Capture missing-bus failure then unlocked-keyring control
+        run: |
+          set -euo pipefail
+          test "$(id -u)" -ne 0
+          result=0
+          for scenario in missing-bus unlocked-keyring; do
+            export HOME="$RUNNER_TEMP/startup-$KIND-$scenario"
+            export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_STATE_HOME="$HOME/state" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+            mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+            chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+            touch "$HOME/.linux-startup-disposable"
+            xvfb-run -a -s '-screen 0 1280x800x24' dbus-run-session -- python3 scripts/linux_startup_baseline.py --app "$GUI_APP" --package "$PACKAGE_FILE" --expected-sha256 "$PACKAGE_HASH" --kind "$KIND" --case "$scenario" --output "evidence/$scenario" || result=1
+          done
+          exit "$result"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-startup-baseline-${{ matrix.os }}-${{ matrix.kind }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+  candidate-startup:
+    name: Candidate startup (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install build and isolated runtime dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev gnome-keyring dbus-user-session xvfb xauth x11-utils libglib2.0-bin
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: linux-startup-platform-registry-v2
+          cache-targets: false
+      - name: Frontend and Rust regression before GUI launch
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          {
+            npm ci
+            npm run check
+            npm run build
+            cargo test --manifest-path src-tauri/Cargo.toml --locked
+            cargo build --manifest-path src-tauri/Cargo.toml --locked --release
+          } 2>&1 | tee evidence/build.log
+      - name: Locked recovery, safe mode, diagnostics and healthy startup controls
+        run: |
+          set -euo pipefail
+          app="$GITHUB_WORKSPACE/src-tauri/target/release/coding-tools-mcp-desktop"
+          test -x "$app"
+          mkdir -p evidence
+          result=0
+          for scenario in missing-bus unlocked-keyring split-session-bus safe-mode; do
+            export HOME="$RUNNER_TEMP/candidate-$scenario"
+            export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_STATE_HOME="$HOME/state" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+            mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+            chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+            touch "$HOME/.linux-startup-disposable"
+            seconds=30
+            if [ "$scenario" = safe-mode ]; then seconds=12; fi
+            xvfb-run -a -s '-screen 0 1280x800x24' dbus-run-session -- python3 scripts/linux_startup_candidate.py --app "$app" --case "$scenario" --seconds "$seconds" --output "evidence/$scenario" || result=1
+          done
+          scenario=diagnose-startup
+          export HOME="$RUNNER_TEMP/candidate-$scenario"
+          export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_STATE_HOME="$HOME/state" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+          mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          touch "$HOME/.linux-startup-disposable"
+          dbus-run-session -- env -u DISPLAY -u WAYLAND_DISPLAY python3 scripts/linux_startup_candidate.py --app "$app" --case "$scenario" --seconds 8 --output "evidence/$scenario" || result=1
+          scenario=diagnose-no-bus
+          export HOME="$RUNNER_TEMP/candidate-$scenario"
+          export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_STATE_HOME="$HOME/state" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+          mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          touch "$HOME/.linux-startup-disposable"
+          dbus-run-session -- env -u DISPLAY -u WAYLAND_DISPLAY python3 scripts/linux_startup_candidate.py --app "$app" --case "$scenario" --seconds 8 --output "evidence/$scenario" || result=1
+          exit "$result"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-startup-candidate-${{ matrix.os }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30

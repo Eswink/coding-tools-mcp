@@ -1,0 +1,115 @@
+name: Round 17C missing-default collection applicator
+
+on:
+  push:
+    branches: ['fix/linux-startup-platform']
+    paths:
+      - '.round17d/READY'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: round17d-apply-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Install Linux build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev patchelf libfuse2 libegl1 libgles2 libgl1
+      - name: Apply and validate bounded RC4 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cat .round17d/BASE)" = "b1ddb5b0f5b517972886c4a2960f4abfff0157c1"
+          git merge-base --is-ancestor "$(cat .round17d/BASE)" HEAD
+          grep -qx 'candidate=0.6.0-rc.4' .round17d/READY
+          sed -i 's/runtime_user_bus_secret_service_available: bool;/runtime_user_bus_secret_service_available: bool,/g' .round17d/apply.py
+          python3 -m py_compile .round17d/apply.py
+          npm version 0.6.0-rc.4 --no-git-tag-version --allow-same-version
+          python3 .round17d/apply.py
+
+          # Do not rustfmt the crate root here: rustfmt follows child modules from
+          # lib.rs and would rewrite unrelated Rust sources. The lib.rs mutation
+          # is already a canonical two-line module declaration insertion.
+          rustfmt --edition 2021 \
+            src-tauri/src/error.rs \
+            src-tauri/src/commands/app_info.rs \
+            src-tauri/src/linux_secret_service.rs
+
+          git restore \
+            .github/workflows/linux-rc-packages.yml \
+            .github/workflows/windows-rc-packages.yml \
+            .round17d/apply.py
+          rm -rf .round17d/__pycache__
+
+          cargo check --manifest-path src-tauri/Cargo.toml
+          cargo check --manifest-path src-tauri/Cargo.toml --locked
+          npm ci
+          npm run check
+          git diff --check
+
+          python3 - <<'PY'
+          import subprocess
+          expected = {
+              'package.json',
+              'package-lock.json',
+              'src-tauri/Cargo.toml',
+              'src-tauri/Cargo.lock',
+              'src-tauri/tauri.conf.json',
+              'src-tauri/src/lib.rs',
+              'src-tauri/src/error.rs',
+              'src-tauri/src/commands/app_info.rs',
+              'src-tauri/src/linux_secret_service.rs',
+              'src/lib/api/app-info.ts',
+              'src/lib/components/StartupRecovery.svelte',
+          }
+          tracked = set(subprocess.check_output(
+              ['git', 'diff', '--name-only'], text=True
+          ).splitlines())
+          untracked = set(subprocess.check_output(
+              ['git', 'ls-files', '--others', '--exclude-standard'], text=True
+          ).splitlines())
+          changed = tracked | untracked
+          if changed != expected:
+              raise SystemExit(f'unexpected product diff: {sorted(changed ^ expected)}; changed={sorted(changed)}')
+          PY
+      - name: Commit bounded RC4 product source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            package.json \
+            package-lock.json \
+            src-tauri/Cargo.toml \
+            src-tauri/Cargo.lock \
+            src-tauri/tauri.conf.json \
+            src-tauri/src/lib.rs \
+            src-tauri/src/error.rs \
+            src-tauri/src/commands/app_info.rs \
+            src-tauri/src/linux_secret_service.rs \
+            src/lib/api/app-info.ts \
+            src/lib/components/StartupRecovery.svelte
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(linux): initialize missing default credential collection"
+          candidate="$(git rev-parse HEAD)"
+          python3 scripts/rc_version_gate.py --expect-version 0.6.0-rc.4 --expect-sha "$candidate"
+          git push origin HEAD:fix/linux-startup-platform

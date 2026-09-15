@@ -9,7 +9,9 @@ static ALLOW_EXIT: AtomicBool = AtomicBool::new(false);
 
 /// Intercept user close (show confirm / keep running) unless quitting or UI recreate.
 pub fn should_intercept_close() -> bool {
-    !ALLOW_EXIT.load(Ordering::SeqCst) && !crate::commands::ui_memory::should_prevent_exit()
+    !crate::bootstrap::safe_mode()
+        && !ALLOW_EXIT.load(Ordering::SeqCst)
+        && !crate::commands::ui_memory::should_prevent_exit()
 }
 
 fn main_window(app: &AppHandle) -> AppResult<WebviewWindow> {
@@ -25,6 +27,11 @@ fn main_window(app: &AppHandle) -> AppResult<WebviewWindow> {
 
 #[tauri::command]
 pub fn hide_to_tray(app: AppHandle) -> AppResult<()> {
+    if app.tray_by_id("main-tray").is_none() {
+        return Err(AppError::Message(
+            "系统托盘当前不可用；为避免窗口隐藏后无法恢复，本次未隐藏窗口。".into(),
+        ));
+    }
     let window = main_window(&app)?;
     window
         .hide()

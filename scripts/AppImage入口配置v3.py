@@ -1,4 +1,4 @@
-"""Install the tracked launcher in Tauri's project-local tools and verify the final package.
+"""Install the reviewed AppImage launcher/runtime files and verify the final package.
 
 This integration is pinned to the reviewed Tauri CLI. A changed bundler must be
 reviewed again, not silently fall back to the generic environment-mutating AppRun.
@@ -10,16 +10,72 @@ import json
 import os
 from pathlib import Path
 import platform
+import shutil
 import subprocess
 import tempfile
 
 CLI_VERSION = "2.11.4"
 LAUNCHER = "scripts/AppImage启动入口v3.sh"
+GRAPHICS_RUNTIME = (
+    "libEGL.so.1",
+    "libGLESv2.so.2",
+    "libGL.so.1",
+    "libGLX.so.0",
+    "libGLdispatch.so.0",
+)
+RUNTIME_STAGE = Path("src-tauri/appimage-runtime")
+RUNTIME_DEST = Path("usr/lib/x86_64-linux-gnu")
 
 
 def digest(path: Path) -> str:
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def require_amd64_elf(path: Path, label: str) -> None:
+    with path.open("rb") as stream:
+        header = stream.read(20)
+    if len(header) < 20 or header[:6] != b"\x7fELF\x02\x01" or header[18:20] != b"\x3e\x00":
+        raise RuntimeError(f"{label} is not a Linux amd64 ELF")
+
+
+def resolve_runtime_library(name: str) -> Path:
+    output = subprocess.check_output(["ldconfig", "-p"], text=True, timeout=30)
+    for line in output.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith(name + " ") or "=>" not in stripped:
+            continue
+        if "x86-64" not in stripped and "x86_64" not in stripped:
+            continue
+        path = Path(stripped.rsplit("=>", 1)[1].strip())
+        try:
+            resolved = path.resolve(strict=True)
+        except OSError:
+            continue
+        if not resolved.is_file() or resolved.is_symlink():
+            continue
+        require_amd64_elf(resolved, name)
+        return resolved
+    raise RuntimeError(f"required AppImage graphics runtime library not found: {name}")
+
+
+def stage_graphics_runtime(root: Path) -> dict[str, dict[str, object]]:
+    stage = root / RUNTIME_STAGE
+    if stage.is_symlink():
+        raise RuntimeError("AppImage runtime staging directory must not be a symlink")
+    stage.mkdir(parents=True, exist_ok=True)
+    result: dict[str, dict[str, object]] = {}
+    for name in GRAPHICS_RUNTIME:
+        source = resolve_runtime_library(name)
+        destination = stage / name
+        if destination.is_symlink():
+            raise RuntimeError(f"AppImage runtime staging entry must not be a symlink: {name}")
+        destination.unlink(missing_ok=True)
+        shutil.copyfile(source, destination)
+        os.chmod(destination, 0o644)
+        require_amd64_elf(destination, name)
+        result[name] = {"source": str(source), "sha256": digest(destination), "size": destination.stat().st_size}
+    return result
 
 
 def install(root: Path) -> Path:
@@ -31,6 +87,9 @@ def install(root: Path) -> Path:
     lock = json.loads((root / "package-lock.json").read_text(encoding="utf-8"))
     if lock["packages"]["node_modules/@tauri-apps/cli"]["version"] != CLI_VERSION:
         raise RuntimeError("Tauri CLI changed; review the AppRun integration before bundling")
+
+    stage_graphics_runtime(root)
+
     metadata = json.loads(subprocess.check_output([
         "cargo", "metadata", "--offline", "--no-deps", "--format-version", "1",
         "--manifest-path", str(root / "src-tauri/Cargo.toml")], cwd=root / "src-tauri", text=True, timeout=60))
@@ -67,10 +126,7 @@ def verify_helpers(appdir: Path) -> dict:
         path = appdir / prefix / name
         if not path.is_file() or not path.resolve().is_relative_to(appdir.resolve()):
             raise RuntimeError(f"bundled WebKit helper missing or escaped: {name}")
-        with path.open("rb") as stream:
-            header = stream.read(20)
-        if len(header) < 20 or header[:6] != b"\x7fELF\x02\x01" or header[18:20] != b"\x3e\x00":
-            raise RuntimeError(f"bundled WebKit helper is not Linux amd64: {name}")
+        require_amd64_elf(path, name)
         if not name.endswith(".so") and not os.access(path, os.X_OK):
             raise RuntimeError(f"bundled WebKit helper is not executable: {name}")
         result[(prefix / name).as_posix()] = {"sha256": digest(path), "size": path.stat().st_size}
@@ -81,11 +137,20 @@ def verify_gio_module(appdir: Path) -> dict:
     path = appdir / "usr/lib/x86_64-linux-gnu/gio/modules/libgiognutls.so"
     if not path.is_file() or not path.resolve().is_relative_to(appdir.resolve()):
         raise RuntimeError("bundled GIO TLS module is missing or escaped")
-    with path.open("rb") as stream:
-        header = stream.read(20)
-    if len(header) < 20 or header[:6] != b"\x7fELF\x02\x01" or header[18:20] != b"\x3e\x00":
-        raise RuntimeError("bundled GIO TLS module is not Linux amd64")
+    require_amd64_elf(path, "bundled GIO TLS module")
     return {"sha256": digest(path), "size": path.stat().st_size}
+
+
+def verify_graphics_runtime(appdir: Path) -> dict[str, dict[str, object]]:
+    result: dict[str, dict[str, object]] = {}
+    root = appdir.resolve()
+    for name in GRAPHICS_RUNTIME:
+        path = appdir / RUNTIME_DEST / name
+        if not path.is_file() or path.is_symlink() or not path.resolve().is_relative_to(root):
+            raise RuntimeError(f"bundled AppImage graphics runtime missing or escaped: {name}")
+        require_amd64_elf(path, name)
+        result[name] = {"sha256": digest(path), "size": path.stat().st_size}
+    return result
 
 
 def verify(root: Path, image: Path, output: Path) -> dict:
@@ -110,7 +175,8 @@ def verify(root: Path, image: Path, output: Path) -> dict:
                   "appimage_sha256": digest(image), "gtk_hook_retained": True,
                   "webkit_helpers": verify_helpers(appdir), "gui_cwd": "APPDIR/usr",
                   "gio_tls_module": verify_gio_module(appdir),
-                  "scope": "final package entry bytes; native host Python is a separate GUI gate"}
+                  "graphics_runtime": verify_graphics_runtime(appdir),
+                  "scope": "final package entry/runtime bytes; native host Python is a separate GUI gate"}
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return result
