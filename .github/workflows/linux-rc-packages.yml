@@ -2,6 +2,13 @@ name: Linux RC package acceptance
 on:
   push:
     branches: ['fix/linux-startup-platform']
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'scripts/**'
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -10,7 +17,7 @@ concurrency:
 env:
   PYTHONUTF8: '1'
   PYTHONDONTWRITEBYTECODE: '1'
-  RC_VERSION: '0.6.0-rc.2'
+  RC_VERSION: '0.6.0-rc.3'
 jobs:
   build:
     name: Build exact DEB and AppImage RC
@@ -136,7 +143,7 @@ jobs:
           mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
           chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
           touch "$HOME/.linux-startup-disposable"
-          for scenario in missing-bus unlocked-keyring safe-mode; do
+          for scenario in missing-bus unlocked-keyring split-session-bus safe-mode; do
             export XDG_STATE_HOME="$HOME/state-$scenario"
             mkdir -p "$XDG_STATE_HOME"
             chmod 700 "$XDG_STATE_HOME"
