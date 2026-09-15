@@ -1,16 +1,3 @@
-+/// Select the secure-storage bus before Tauri creates plugins or background
-+/// threads. This never starts/stops a daemon and never changes key material.
-+///
-+/// On supported Ubuntu, `$XDG_RUNTIME_DIR/bus` is the canonical per-user bus.
-+/// We leave a healthy inherited bus untouched. If the inherited bus does not
-+/// own Secret Service, we redirect this process to the canonical user bus only
-+/// after proving that Secret Service is owned or activatable there. The original
-+/// and selected addresses are never logged or serialized.
-+pub(crate) fn prepare_secure_storage_bus() -> SessionBusState {
-+    *STATE.get_or_init(|| {
-+        let original_configured = std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_some();
-+        let inherited = std::env::var("DBUS_SESSION_BUS_ADDRESS")
-+            .ok()
 +            .filter(|value| !value.is_empty());
 +        let runtime = runtime_user_bus_address();
 +        let inherited_probe = inherited
