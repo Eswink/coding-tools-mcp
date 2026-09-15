@@ -1,6 +1,6 @@
 # Iteration 17C — Split session-bus recovery
 
-Status: IMPLEMENTING / `0.6.0-rc.3`. Stable remains blocked.
+Status: **AUTOMATED PASS / REAL OPERATOR GATE** for `0.6.0-rc.3`. Stable remains blocked.
 
 ## Real Ubuntu root cause
 
@@ -9,61 +9,61 @@ The affected Ubuntu 24.04 Wayland session has two different user-session D-Bus d
 - the shell/application environment has `DBUS_SESSION_BUS_ADDRESS` set, but it is not the `$XDG_RUNTIME_DIR/bus` user bus;
 - the systemd user manager and the active `gnome-keyring-daemon` share a different bus;
 - the inherited shell bus reports `org.freedesktop.secrets` as activatable but never obtains an owner; explicit activation and `ReadAlias` both time out;
-- restarting `gnome-keyring-daemon` does not change the outcome because the daemon restarts on the systemd user-manager bus, not the inherited shell bus;
+- restarting `gnome-keyring-daemon` changes the daemon PID but not the failing bus route;
 - attempting `dbus-update-activation-environment --systemd` from the inherited shell bus cannot reach the real systemd user manager.
 
-This confirms a **split session D-Bus environment**. It supersedes the earlier provisional hypothesis that GNOME Keyring itself was stale or simply needed a daemon restart. The operator evidence proves the shell/application bus differs from the systemd/GNOME-Keyring bus; it does not, by itself, prove that the latter address is exactly `$XDG_RUNTIME_DIR/bus`. RC3 therefore verifies the runtime-user socket and Secret Service availability before selecting it.
+This confirms a **split session D-Bus environment** and supersedes the earlier provisional stale-daemon hypothesis. The operator evidence proves the shell/application bus differs from the systemd/GNOME-Keyring bus; it does not by itself prove that the latter address is exactly `$XDG_RUNTIME_DIR/bus`. RC3 therefore verifies the runtime-user socket and Secret Service availability before selecting it.
 
-The RC2 configuration did not yet exist and its directory was writable, so this evidence does not indicate ciphertext damage, key loss, or a filesystem-permission failure.
+The failed RC2 configuration did not yet exist and its directory was writable, so the evidence does not indicate ciphertext damage, key loss, or a filesystem-permission failure.
 
 ## Minimal production change
 
-On Linux, before Tauri creates plugins or background threads:
+Candidate source: `c63cce341bc9505b7e134e8f87b85f4d52ee98d1`  
+Source tree: `714ed30336f00a4afe1ce44d251458ebab791e30`
 
-1. probe the inherited `DBUS_SESSION_BUS_ADDRESS` without logging or serializing it;
-2. derive `$XDG_RUNTIME_DIR/bus` only when the runtime directory and socket are real filesystem objects owned by the effective user;
-3. probe that explicit runtime bus without activating or restarting any daemon;
-4. keep the inherited bus if it already owns `org.freedesktop.secrets`;
-5. otherwise select the runtime user bus only if that bus is reachable and Secret Service is already owned or listed as activatable there;
-6. if those checks fail, leave the existing route unchanged and preserve fail-closed recovery behavior.
+On Linux, before Tauri creates plugins or background threads, RC3:
 
-The selector changes only this process environment and runs synchronously before Tauri startup. It does **not** start, stop or restart `gnome-keyring-daemon`, does not invoke `sudo`, does not create a replacement key, and does not alter encrypted configuration semantics.
+1. probes the inherited `DBUS_SESSION_BUS_ADDRESS` without logging or serializing it;
+2. derives `$XDG_RUNTIME_DIR/bus` only when the runtime directory and socket are real filesystem objects owned by the effective user;
+3. probes that explicit runtime bus without activating or restarting any daemon;
+4. keeps the inherited bus if it already owns `org.freedesktop.secrets`;
+5. otherwise selects the runtime user bus only when that bus is reachable and Secret Service is already owned or listed as activatable there;
+6. otherwise preserves the inherited route and existing fail-closed recovery behavior.
 
-## Diagnostics
+The selector changes only this process environment. It does **not** start, stop or restart `gnome-keyring-daemon`, does not invoke `sudo`, does not create a replacement key, and does not alter encrypted configuration semantics.
 
-Bounded diagnostics add only categorical/boolean facts:
+Bounded diagnostics add only categorical/boolean session-bus facts. No D-Bus address, path, keyring backend payload, credential bytes, or configuration contents are exported.
 
-- whether a bus was originally configured;
-- selected route (`inherited`, `runtime_user_bus`, or `unavailable`);
-- whether a split route was detected;
-- whether the selected bus is reachable;
-- whether the runtime user bus is reachable;
-- whether Secret Service is owned/activatable on the runtime user bus.
+## Failure-first regression
 
-No D-Bus address, path, keyring error payload, credential bytes, or configuration contents are exported.
+The Linux startup fixture contains an explicit `split-session-bus` case. It creates two isolated D-Bus sessions, attaches GNOME Keyring/Secret Service only to `$XDG_RUNTIME_DIR/bus`, launches the candidate with the other bus inherited, and requires the candidate to remain alive, create encrypted configuration, reach `app-state-ready`, and start ready-only background services.
 
-## Regression change
+The exact-source source-built gate passed on Ubuntu 22.04 and 24.04, including the split-session fixture, missing-bus fail-closed case, healthy keyring, Safe Mode and diagnostics. Run: `34960266758`.
 
-The Linux source-built startup gate gains an explicit `split-session-bus` fixture. The fixture creates two isolated D-Bus sessions, attaches GNOME Keyring/Secret Service only to the canonical `$XDG_RUNTIME_DIR/bus`, launches the candidate with the other bus inherited, and requires the candidate to reach `app-state-ready`, create encrypted configuration, and start ready-only background services.
+The exact installed-package gate passed on Ubuntu 22.04 and 24.04 for both DEB and AppImage. All four installed matrices passed the raw startup scenarios (including split-session-bus) and the native OAuth/exclusive-owner/refresh/drain acceptance. Run: `34960268326`.
 
-Existing missing-bus, healthy-keyring, Safe Mode, DEB/AppImage installed-package, and Windows acceptance gates remain mandatory.
+Windows source/regression/NSIS behavior remained unchanged. Windows run `34960269930` had a first-attempt test-infrastructure timeout while PowerShell was collecting a pre-acceptance `Win32_Process`/TCP snapshot; zero native acceptance stages had run. Re-running the failed job against the same exact source SHA passed the full standard-user native acceptance, including real WebView2, OAuth HTTP, local IPC, ownership, refresh rotation, cancellation/drain, restart and secret-export scans. No product change was made for that rerun.
+
+Therefore the RC3 automated gates are **passed**.
+
+## Candidate bytes
+
+Exact Linux package artifact was produced by run `34960268326` from source `c63cce341bc9505b7e134e8f87b85f4d52ee98d1`:
+
+- DEB `MCP_0.6.0-rc.3_amd64.deb`: `2da8f433d7ea0807f8be8f15f0e3bc0d7e42b17b8289e7687d40cb9b9f5d840a`
+- AppImage `MCP_0.6.0-rc.3_amd64.AppImage`: `5bec385f6f2c16a0bf464f4510b165f6ea267304d7512104f42aada89b6cf4a8`
+- GitHub Actions Linux package artifact ZIP digest: `sha256:ef91df63d5f0e1ad2b77fea3503c4db5e6ae0e0980267a3dc786e76c031764e9`
+
+RC2 is not overwritten. Any further product-byte change must advance to `0.6.0-rc.4` or later.
 
 ## Impact review and degraded project tooling
 
-The repository-required native MCP Probe/GitNexus path is unavailable in this execution environment. Previous installation/resume attempts could not obtain the native tooling, so no GitNexus result is claimed. The manual impact review covers the direct callers and boundaries instead:
+The repository-required native MCP Probe/GitNexus path is unavailable in this execution environment. Previous installation/resume attempts could not obtain the native tooling, so no GitNexus result is claimed. Manual impact review covered process entry, keyring error classification, bounded diagnostics, Linux startup fixtures/workflows, installed DEB/AppImage acceptance, Windows regression and candidate identity.
 
-- process entry (`src-tauri/src/lib.rs`);
-- keyring error classification (`src-tauri/src/error.rs`);
-- bounded diagnostics (`src-tauri/src/commands/app_info.rs` and TypeScript API type);
-- Linux startup fixture/workflow;
-- Linux/Windows candidate identity.
+`gencommit` was likewise unavailable through the degraded tool path; the bounded product commit was created through the repository connector rather than fabricating tool output.
 
-Risk is **medium** because selecting `DBUS_SESSION_BUS_ADDRESS` is process-wide. The mitigation is intentionally narrow: Linux only, before Tauri threads/plugins, current-user-owned runtime socket only, inherited Secret Service ownership wins, and canonical routing occurs only after the runtime bus proves Secret Service availability. Windows behavior is untouched.
+## Remaining gate
 
-`gencommit` is also unavailable through the degraded tool path; the resulting commit is created through the repository connector with the same bounded change set rather than fabricating tool output.
+Release remains blocked. The affected Ubuntu 24.04 Wayland machine must now test **both exact RC3 package bytes** in the same affected user/session environment.
 
-## Candidate identity
-
-RC2 product bytes have already been handed to the affected operator and failed. Any product-byte change is therefore a new candidate: `0.6.0-rc.3`. RC2 is not overwritten.
-
-Release remains blocked until exact-source RC3 automated gates pass and the affected Ubuntu machine accepts the exact RC3 package bytes through launch, secure-storage ready state, close/reopen, normal workspace/authorization flow, and encrypted-storage persistence.
+A pass requires secure storage to reach `ready`, encrypted configuration to persist across close/reopen, normal workspace and ChatGPT authorization/tool flow to work, no plaintext replacement configuration to appear, and both package digests to match the candidate evidence.
