@@ -26,7 +26,7 @@
   },
   "operator_root_cause_confirmed": true,
   "operator_failure_class_confirmed": true,
-  "operator_ubuntu_acceptance": "failed_split_session_bus",
+  "operator_ubuntu_acceptance": "pending_rc3_real_machine",
   "operator_observed_failure": {
     "version": "0.6.0-rc.2",
     "package_kind": "deb",
@@ -70,7 +70,7 @@
     "daemon_restart_preserved_manager_bus": true,
     "classification": "split_session_bus"
   },
-  "operator_root_cause": "The affected Ubuntu desktop process inherited a different session D-Bus from the systemd user manager and GNOME Keyring. keyring sync-secret-service followed that inherited bus, where org.freedesktop.secrets could not acquire an owner. The systemd user manager and GNOME Keyring remained together on the other user-session bus; RC3 will select $XDG_RUNTIME_DIR/bus only after probing that bus and proving Secret Service is available there.",
+  "operator_root_cause": "The affected Ubuntu desktop process inherited a different session D-Bus from the systemd user manager and GNOME Keyring. keyring sync-secret-service followed that inherited bus, where org.freedesktop.secrets could not acquire an owner. The systemd user manager and GNOME Keyring remained together on the other user-session bus; RC3 selects $XDG_RUNTIME_DIR/bus only after probing that bus and proving Secret Service is available there.",
   "round_17_authorized": true,
   "round_17_plan": "docs/specs/linux-startup-platform/iteration-17-plan.md",
   "round_17a_first_exact_source": "6da10fdbc0e5e497acc4af1548238d67adcfa4ea",
@@ -83,7 +83,22 @@
   "round_17a_windows_rc_run": 34950904434,
   "round_17a_automated_gates": "passed",
   "round_17c_fix": "Select the canonical user-owned XDG runtime bus before Tauri only when the inherited bus does not already own Secret Service and the runtime bus proves Secret Service is owned or activatable; never start/restart a daemon or alter key material.",
-  "next_candidate_version": "0.6.0-rc.3",
+  "round_17c_candidate_version": "0.6.0-rc.3",
+  "round_17c_candidate_source": "c63cce341bc9505b7e134e8f87b85f4d52ee98d1",
+  "round_17c_candidate_tree": "714ed30336f00a4afe1ce44d251458ebab791e30",
+  "round_17c_startup_run": 34960266758,
+  "round_17c_linux_rc_run": 34960268326,
+  "round_17c_windows_rc_run": 34960269930,
+  "round_17c_windows_rc_attempts": 2,
+  "round_17c_windows_first_attempt": "test_infrastructure_timeout_in_powershell_native_process_snapshot_before_acceptance_stages",
+  "round_17c_windows_second_attempt": "passed_full_standard_user_native_acceptance",
+  "round_17c_automated_gates": "passed",
+  "round_17c_package_sha256": {
+    "deb": "2da8f433d7ea0807f8be8f15f0e3bc0d7e42b17b8289e7687d40cb9b9f5d840a",
+    "appimage": "5bec385f6f2c16a0bf464f4510b165f6ea267304d7512104f42aada89b6cf4a8"
+  },
+  "round_17c_linux_package_artifact_digest": "sha256:ef91df63d5f0e1ad2b77fea3503c4db5e6ae0e0980267a3dc786e76c031764e9",
+  "next_candidate_version_if_product_changes": "0.6.0-rc.4",
   "release_allowed": false,
-  "next_gate": "Build and test exact-source 0.6.0-rc.3 with the split-session-bus fixture, Linux installed DEB/AppImage matrices and unchanged Windows acceptance; then require the affected Ubuntu operator to pass the exact rc3 bytes before Stable."
+  "next_gate": "Affected Ubuntu 24.04 Wayland operator must test the exact 0.6.0-rc.3 DEB and AppImage bytes in the same split-session environment. Pass requires ready secure storage, encrypted configuration persistence across close/reopen, normal workspace and authorization/tool flow, and matching package digests. Stable remains blocked until both packages pass."
 }
