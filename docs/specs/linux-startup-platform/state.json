@@ -36,7 +36,12 @@
   },
   "round_17_authorized": true,
   "round_17_plan": "docs/specs/linux-startup-platform/iteration-17-plan.md",
+  "round_17a_first_exact_source": "6da10fdbc0e5e497acc4af1548238d67adcfa4ea",
+  "round_17a_linux_run": 34950307647,
+  "round_17a_windows_run": 34950307544,
+  "round_17a_first_gate": "compile_blocked_invalid_keyring_error_variant",
+  "round_17a_package_bytes_built": false,
   "next_candidate_version": "0.6.0-rc.2",
   "release_allowed": false,
-  "next_gate": "Round 17A classify the real Ubuntu secure-storage failure without leaking backend errors or secrets, then fix the smallest proven Linux credential/session integration cause"
+  "next_gate": "rerun corrected exact-source Ubuntu startup, Linux installed DEB/AppImage and Windows RC gates; keep release blocked until real Ubuntu secure-storage root cause and operator acceptance are confirmed"
 }

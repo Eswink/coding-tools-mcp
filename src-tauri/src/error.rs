@@ -52,7 +52,7 @@ pub(crate) fn classify_keyring_error(error: &keyring::Error) -> StartupFailureRe
     match error {
         keyring::Error::NoStorageAccess(_) => StartupFailureReason::SecretServiceLockedOrDenied,
         keyring::Error::NoEntry => StartupFailureReason::KeyEntryMissing,
-        keyring::Error::PlatformFailure(_) | keyring::Error::NoDefaultStore => {
+        keyring::Error::PlatformFailure(_) => {
             #[cfg(target_os = "linux")]
             {
                 if std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_none() {

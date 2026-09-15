@@ -1,12 +1,11 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::PathBuf;
 
 use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
 
 use crate::app_state::{AppState, StartupStatus};
-use crate::error::{classify_keyring_error, AppResult, StartupFailureReason};
+use crate::error::{classify_keyring_error, AppResult};
 use crate::platform::{open_url as platform_open_url, PlatformContext};
 use crate::update::{check_app_update as check_update, UpdateCheckResult};
 
@@ -57,7 +56,7 @@ pub fn get_startup_status(state: State<'_, AppState>) -> StartupStatus {
 fn credential_store_state() -> String {
     #[cfg(target_os = "linux")]
     if std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_none() {
-        return StartupFailureReason::SessionBusMissing.code().into();
+        return crate::error::StartupFailureReason::SessionBusMissing.code().into();
     }
 
     match keyring::Entry::new(DIAGNOSTIC_KEYRING_SERVICE, DIAGNOSTIC_KEYRING_ACCOUNT)
@@ -78,10 +77,9 @@ fn package_kind() -> String {
         if std::env::var_os("APPIMAGE").is_some() {
             return "appimage".into();
         }
-        if std::env::current_exe()
-            .ok()
-            .is_some_and(|path| path == PathBuf::from("/usr/bin/coding-tools-mcp-desktop"))
-        {
+        if std::env::current_exe().ok().is_some_and(|path| {
+            path == std::path::PathBuf::from("/usr/bin/coding-tools-mcp-desktop")
+        }) {
             return "deb".into();
         }
     }
