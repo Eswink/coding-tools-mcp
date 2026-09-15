@@ -1,0 +1,83 @@
+name: Prepare Linux RC version
+on:
+  push:
+    branches: ['fix/linux-startup-platform']
+    paths: ['.github/workflows/prepare-linux-rc-version.yml']
+permissions:
+  contents: write
+concurrency:
+  group: prepare-linux-rc-version-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/linux-startup-platform
+          fetch-depth: 1
+      - name: Synchronize candidate version fields
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          version = '0.6.0-rc.1'
+          package = json.loads(Path('package.json').read_text(encoding='utf-8'))
+          if package.get('version') != version:
+              raise SystemExit('package.json must already identify the approved RC')
+          lock_path = Path('package-lock.json')
+          lock = json.loads(lock_path.read_text(encoding='utf-8'))
+          lock['version'] = version
+          lock['packages']['']['version'] = version
+          lock_path.write_text(json.dumps(lock, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          cargo_path = Path('src-tauri/Cargo.toml')
+          cargo = cargo_path.read_text(encoding='utf-8')
+          old = 'name = "coding-tools-mcp-desktop"\nversion = "0.5.0"'
+          new = f'name = "coding-tools-mcp-desktop"\nversion = "{version}"'
+          if cargo.count(old) != 1:
+              raise SystemExit('unexpected Cargo.toml project version shape')
+          cargo_path.write_text(cargo.replace(old, new, 1), encoding='utf-8')
+          cargo_lock_path = Path('src-tauri/Cargo.lock')
+          cargo_lock = cargo_lock_path.read_text(encoding='utf-8')
+          if cargo_lock.count(old) != 1:
+              raise SystemExit('unexpected Cargo.lock project version shape')
+          cargo_lock_path.write_text(cargo_lock.replace(old, new, 1), encoding='utf-8')
+          tauri_path = Path('src-tauri/tauri.conf.json')
+          tauri = json.loads(tauri_path.read_text(encoding='utf-8'))
+          tauri['version'] = version
+          tauri_path.write_text(json.dumps(tauri, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          ubuntu_path = Path('src-tauri/Ubuntu桌面v1.json')
+          ubuntu = json.loads(ubuntu_path.read_text(encoding='utf-8'))
+          ubuntu['bundle']['longDescription'] = ('Desktop workspace manager for local MCP and Actions services, encrypted configuration, '
+              'and persistent asynchronous command records. Requires a graphical desktop. If Secret Service is unavailable, '
+              'the GUI opens in locked recovery mode without plaintext fallback.')
+          ubuntu_path.write_text(json.dumps(ubuntu, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+          git rm .github/workflows/prepare-linux-rc-version.yml
+          expected=$(printf '%s\n' package-lock.json src-tauri/Cargo.lock src-tauri/Cargo.toml src-tauri/Ubuntu桌面v1.json src-tauri/tauri.conf.json .github/workflows/prepare-linux-rc-version.yml | sort)
+          actual=$(git diff --name-only | sort)
+          test "$actual" = "$expected"
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0, 'scripts')
+          from rc_version_gate import project_versions
+          from pathlib import Path
+          version, fields = project_versions(Path('.').resolve())
+          assert version == '0.6.0-rc.1' and len(fields) == 6
+          print(fields)
+          PY
+      - name: Commit exact synchronized candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Eswlnk'
+          git config user.email '1525566427@qq.com'
+          git add package-lock.json src-tauri/Cargo.lock src-tauri/Cargo.toml src-tauri/tauri.conf.json src-tauri/Ubuntu桌面v1.json .github/workflows/prepare-linux-rc-version.yml
+          git commit -m 'chore(rc): synchronize 0.6.0-rc.1 version fields'
+          sha=$(git rev-parse HEAD)
+          python scripts/rc_version_gate.py --expect-version 0.6.0-rc.1 --expect-sha "$sha"
+          git push origin HEAD:fix/linux-startup-platform
