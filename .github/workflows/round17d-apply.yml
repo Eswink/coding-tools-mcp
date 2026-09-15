@@ -46,16 +46,14 @@ jobs:
             src-tauri/src/commands/app_info.rs \
             src-tauri/src/linux_secret_service.rs
 
-          # The GitHub Actions token cannot update workflow files. Restore the
-          # two RC_VERSION edits and the temporary transform before the product
-          # commit; the connector will update/clean those after this bounded
-          # product commit lands.
           git restore \
             .github/workflows/linux-rc-packages.yml \
             .github/workflows/windows-rc-packages.yml \
             .round17d/apply.py
 
-          cargo metadata --manifest-path src-tauri/Cargo.toml --locked --no-deps >/dev/null
+          # Resolve the direct dbus-secret-service feature set into Cargo.lock
+          # once, then all subsequent compilation remains --locked.
+          cargo metadata --manifest-path src-tauri/Cargo.toml --no-deps >/dev/null
           cargo check --manifest-path src-tauri/Cargo.toml --locked
           npm ci
           npm run check
