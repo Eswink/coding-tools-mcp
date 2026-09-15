@@ -40,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev patchelf libfuse2
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev patchelf libfuse2 libegl1 libgles2 libgl1
       - name: Source, contract and full regression gates
         shell: bash
         run: |
@@ -113,14 +113,12 @@ jobs:
         with:
           name: linux-rc-driver
           path: ${{ runner.temp }}/linux-rc-driver
-      - name: Install host desktop runtime prerequisites, not WebDriver
+      - name: Install only pre-driver runtime and observation dependencies
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          # AppImage intentionally relies on the host GLVND/EGL dispatch stack;
-          # do not bundle GPU-driver-facing GL/EGL libraries into the image.
-          sudo apt-get install -y xvfb xauth x11-utils fonts-noto-cjk desktop-file-utils gnome-keyring dbus-x11 xdg-desktop-portal xdg-desktop-portal-gtk libayatana-appindicator3-1 libsecret-1-0 libxdo3 libfuse2 libegl1 libgles2 libgl1
+          sudo apt-get install -y xvfb xauth x11-utils fonts-noto-cjk desktop-file-utils gnome-keyring dbus-x11 xdg-desktop-portal xdg-desktop-portal-gtk libayatana-appindicator3-1 libsecret-1-0 libxdo3 libfuse2
           chmod +x "$RUNNER_TEMP/linux-rc-driver/tauri-driver" "$RUNNER_TEMP/linux-rc-packages/"*.AppImage
           if [ "$PACKAGE_KIND" = deb ]; then
             sudo apt-get install -y "$RUNNER_TEMP/linux-rc-packages/"*.deb
