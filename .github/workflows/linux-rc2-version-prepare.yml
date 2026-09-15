@@ -1,0 +1,107 @@
+name: Linux secure-storage RC2 version preparation
+on:
+  push:
+    branches: ['fix/linux-startup-platform']
+    paths: ['.github/workflows/linux-rc2-version-prepare.yml']
+permissions:
+  contents: read
+concurrency:
+  group: linux-secure-storage-rc2-version
+  cancel-in-progress: false
+jobs:
+  version:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/fix/linux-startup-platform'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      OLD_VERSION: '0.6.0-rc.1'
+      NEW_VERSION: '0.6.0-rc.2'
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare exact RC2 identity only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import re
+
+          old = os.environ['OLD_VERSION']
+          new = os.environ['NEW_VERSION']
+
+          def replace_exact(path: str, old_text: str, new_text: str, count: int) -> None:
+              file = Path(path)
+              raw = file.read_text(encoding='utf-8')
+              actual = raw.count(old_text)
+              if actual == 0 and raw.count(new_text) == count:
+                  return
+              if actual != count:
+                  raise SystemExit(f'{path}: expected {count} old-version matches, found {actual}')
+              file.write_text(raw.replace(old_text, new_text), encoding='utf-8')
+
+          replace_exact('package.json', f'"version": "{old}"', f'"version": "{new}"', 1)
+          replace_exact('package-lock.json', f'"version": "{old}"', f'"version": "{new}"', 2)
+          replace_exact('src-tauri/tauri.conf.json', f'"version": "{old}"', f'"version": "{new}"', 1)
+          replace_exact('.github/workflows/linux-rc-packages.yml', f"RC_VERSION: '{old}'", f"RC_VERSION: '{new}'", 1)
+          replace_exact('.github/workflows/windows-rc-packages.yml', f"RC_VERSION: '{old}'", f"RC_VERSION: '{new}'", 1)
+
+          for path, prefix in [
+              ('src-tauri/Cargo.toml', r'(^\\[package\\]\\r?\\n(?:(?!^\\[).)*?^version = \")'),
+              ('src-tauri/Cargo.lock', r'(^\\[\\[package\\]\\]\\s*\\nname = "coding-tools-mcp-desktop"\\s*\\nversion = \")'),
+          ]:
+              file = Path(path)
+              raw = file.read_text(encoding='utf-8')
+              pattern = prefix + re.escape(old) + r'(")'
+              updated, count = re.subn(pattern, lambda match: match[1] + new + match[2], raw, flags=re.M | re.S)
+              if count == 0 and new in raw:
+                  continue
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one project version match, found {count}')
+              file.write_text(updated, encoding='utf-8')
+          PY
+          python - <<'PYGUARD'
+          import subprocess
+          allowed = {
+              'package.json', 'package-lock.json',
+              'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json',
+              '.github/workflows/linux-rc-packages.yml', '.github/workflows/windows-rc-packages.yml',
+          }
+          changed = set(filter(None, subprocess.check_output(['git','diff','--name-only','-z']).decode().split('\0')))
+          if not changed <= allowed:
+              raise SystemExit(f'unexpected version-preparation files: {sorted(changed - allowed)}')
+          PYGUARD
+          python scripts/rc_version_gate_tests.py
+          python scripts/rc_packages_tests.py
+          git diff --check
+          git add -- package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json .github/workflows/linux-rc-packages.yml .github/workflows/windows-rc-packages.yml
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'chore(linux): prepare secure-storage candidate 0.6.0-rc.2'
+            test "$(git ls-remote origin refs/heads/fix/linux-startup-platform | cut -f1)" = "$GITHUB_SHA"
+            git push origin HEAD:refs/heads/fix/linux-startup-platform
+          fi
+          mkdir -p version-evidence
+          head=$(git rev-parse HEAD)
+          python scripts/rc_version_gate.py --expect-version "$NEW_VERSION" --expect-sha "$head" --output version-evidence/rc-source.json
+          git rev-parse HEAD > version-evidence/source.txt
+          git rev-parse 'HEAD^{tree}' > version-evidence/tree.txt
+          git archive --format=zip HEAD -o version-evidence/source.zip
+          sha256sum version-evidence/source.zip > version-evidence/source.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-secure-storage-rc2-version-source
+          path: version-evidence/
+          if-no-files-found: error
+          retention-days: 30
