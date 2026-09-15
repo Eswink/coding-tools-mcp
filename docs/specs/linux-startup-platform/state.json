@@ -26,7 +26,7 @@
   },
   "operator_root_cause_confirmed": true,
   "operator_failure_class_confirmed": true,
-  "operator_ubuntu_acceptance": "pending_rc3_real_machine",
+  "operator_ubuntu_acceptance": "failed_rc3_secret_service_no_storage_access",
   "operator_observed_failure": {
     "version": "0.6.0-rc.2",
     "package_kind": "deb",
@@ -71,6 +71,24 @@
     "classification": "split_session_bus"
   },
   "operator_root_cause": "The affected Ubuntu desktop process inherited a different session D-Bus from the systemd user manager and GNOME Keyring. keyring sync-secret-service followed that inherited bus, where org.freedesktop.secrets could not acquire an owner. The systemd user manager and GNOME Keyring remained together on the other user-session bus; RC3 selects $XDG_RUNTIME_DIR/bus only after probing that bus and proving Secret Service is available there.",
+  "operator_rc3_observed_failure": {
+    "version": "0.6.0-rc.3",
+    "package_kind": "deb",
+    "distribution": "ubuntu 24.04",
+    "display_backend": "wayland",
+    "desktop_session": "wayland",
+    "session_bus_original_configured": true,
+    "session_bus_route": "runtime_user_bus",
+    "session_bus_split_detected": true,
+    "session_bus_reachable": true,
+    "runtime_user_bus_reachable": true,
+    "runtime_user_bus_secret_service_available": true,
+    "credential_store_state": "secret_service_locked_or_denied",
+    "startup_failure_reason": "secret_service_locked_or_denied",
+    "configuration_exists": false,
+    "configuration_directory_writable": true,
+    "classification": "bus_route_fixed_next_failure_at_secret_service_storage_access"
+  },
   "round_17_authorized": true,
   "round_17_plan": "docs/specs/linux-startup-platform/iteration-17-plan.md",
   "round_17a_first_exact_source": "6da10fdbc0e5e497acc4af1548238d67adcfa4ea",
@@ -100,5 +118,5 @@
   "round_17c_linux_package_artifact_digest": "sha256:ef91df63d5f0e1ad2b77fea3503c4db5e6ae0e0980267a3dc786e76c031764e9",
   "next_candidate_version_if_product_changes": "0.6.0-rc.4",
   "release_allowed": false,
-  "next_gate": "Affected Ubuntu 24.04 Wayland operator must test the exact 0.6.0-rc.3 DEB and AppImage bytes in the same split-session environment. Pass requires ready secure storage, encrypted configuration persistence across close/reopen, normal workspace and authorization/tool flow, and matching package digests. Stable remains blocked until both packages pass."
+  "next_gate": "On the affected Ubuntu session, classify the RC3 NoStorageAccess result without changing key material: distinguish a locked default collection, missing default alias/collection, or dismissed/unavailable Secret Service prompt on the verified runtime user bus. Do not make an RC4 product change until this classification is evidenced."
 }
