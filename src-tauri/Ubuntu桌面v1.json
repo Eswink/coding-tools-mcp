@@ -7,7 +7,7 @@
     ],
     "category": "DeveloperTool",
     "shortDescription": "MCP and Actions tools with a graphical workspace and task manager",
-    "longDescription": "Desktop workspace manager for local MCP and Actions services, encrypted configuration, and persistent asynchronous command records. Requires a graphical desktop and an unlocked Secret Service keyring.",
+    "longDescription": "Desktop workspace manager for local MCP and Actions services, encrypted configuration, and persistent asynchronous command records. Requires a graphical desktop. If Secret Service is unavailable, the GUI opens in locked recovery mode without plaintext fallback.",
     "linux": {
       "deb": {
         "depends": [
