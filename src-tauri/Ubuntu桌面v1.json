@@ -18,6 +18,15 @@
           "xdg-utils"
         ],
         "section": "devel"
+      },
+      "appimage": {
+        "files": {
+          "/usr/lib/x86_64-linux-gnu/libEGL.so.1": "appimage-runtime/libEGL.so.1",
+          "/usr/lib/x86_64-linux-gnu/libGLESv2.so.2": "appimage-runtime/libGLESv2.so.2",
+          "/usr/lib/x86_64-linux-gnu/libGL.so.1": "appimage-runtime/libGL.so.1",
+          "/usr/lib/x86_64-linux-gnu/libGLX.so.0": "appimage-runtime/libGLX.so.0",
+          "/usr/lib/x86_64-linux-gnu/libGLdispatch.so.0": "appimage-runtime/libGLdispatch.so.0"
+        }
       }
     },
     "useLocalToolsDir": true
