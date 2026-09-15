@@ -50,6 +50,12 @@ export interface EnvironmentDiagnostics {
   displayBackend: string;
   desktopSession: string;
   sessionBusConfigured: boolean;
+  sessionBusOriginalConfigured: boolean;
+  sessionBusRoute: string;
+  sessionBusSplitDetected: boolean;
+  sessionBusReachable: boolean;
+  runtimeUserBusReachable: boolean;
+  runtimeUserBusSecretServiceAvailable: boolean;
   credentialStoreState: string;
   startupFailureReason: string | null;
   configurationState: string;

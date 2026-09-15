@@ -611,10 +611,11 @@ dependencies = [
 
 [[package]]
 name = "coding-tools-mcp-desktop"
-version = "0.6.0-rc.2"
+version = "0.6.0-rc.3"
 dependencies = [
  "axum",
  "base64 0.22.1",
+ "dbus",
  "dirs",
  "flate2",
  "fs2",

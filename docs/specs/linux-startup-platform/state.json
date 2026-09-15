@@ -24,9 +24,9 @@
     "appimage": "3678d6489b89b168c8e1e731036b2444e52e1e29d2714afc18771951adbdedcb",
     "nsis": "5f0e04661a187c215556d6a8aecd8deaf9392741f85eb633e0fa30655e7de442"
   },
-  "operator_root_cause_confirmed": false,
+  "operator_root_cause_confirmed": true,
   "operator_failure_class_confirmed": true,
-  "operator_ubuntu_acceptance": "failed_secret_service_activation",
+  "operator_ubuntu_acceptance": "failed_split_session_bus",
   "operator_observed_failure": {
     "version": "0.6.0-rc.2",
     "package_kind": "deb",
@@ -43,7 +43,6 @@
     "normal_operation_available": false
   },
   "operator_secret_service_probe": {
-    "uid": 1000,
     "xdg_runtime_dir_set": true,
     "xdg_runtime_dir_owner_ok": true,
     "dbus_user_session_installed": true,
@@ -54,12 +53,24 @@
     "gnome_keyring_daemon_present": true,
     "gnome_keyring_user_service_active": true,
     "gnome_keyring_user_socket_active": true,
-    "org_freedesktop_secrets_before": "activatable_unowned",
-    "start_service_by_name_exit": 124,
-    "org_freedesktop_secrets_after": "activatable_unowned",
-    "read_default_alias_exit": 124,
-    "classification": "secret_service_activation_timeout"
+    "org_freedesktop_secrets_on_inherited_bus": "activatable_unowned",
+    "start_service_by_name_on_inherited_bus_exit": 124,
+    "read_default_alias_on_inherited_bus_exit": 124,
+    "daemon_restart_changed_result": false
   },
+  "operator_session_bus_probe": {
+    "shell_bus_set": true,
+    "systemd_user_manager_bus_set": true,
+    "gnome_keyring_daemon_bus_set": true,
+    "shell_matches_systemd_user_manager": false,
+    "shell_matches_gnome_keyring_daemon": false,
+    "systemd_user_manager_matches_gnome_keyring_daemon": true,
+    "shell_uses_xdg_runtime_user_bus": false,
+    "systemd_activation_environment_update_from_shell_bus_succeeded": false,
+    "daemon_restart_preserved_manager_bus": true,
+    "classification": "split_session_bus"
+  },
+  "operator_root_cause": "The affected Ubuntu desktop process inherited a different session D-Bus from the systemd user manager and GNOME Keyring. keyring sync-secret-service followed that inherited bus, where org.freedesktop.secrets could not acquire an owner. The systemd user manager and GNOME Keyring remained together on the other user-session bus; RC3 will select $XDG_RUNTIME_DIR/bus only after probing that bus and proving Secret Service is available there.",
   "round_17_authorized": true,
   "round_17_plan": "docs/specs/linux-startup-platform/iteration-17-plan.md",
   "round_17a_first_exact_source": "6da10fdbc0e5e497acc4af1548238d67adcfa4ea",
@@ -71,7 +82,8 @@
   "round_17a_linux_rc_run": 34950904472,
   "round_17a_windows_rc_run": 34950904434,
   "round_17a_automated_gates": "passed",
+  "round_17c_fix": "Select the canonical user-owned XDG runtime bus before Tauri only when the inherited bus does not already own Secret Service and the runtime bus proves Secret Service is owned or activatable; never start/restart a daemon or alter key material.",
   "next_candidate_version": "0.6.0-rc.3",
   "release_allowed": false,
-  "next_gate": "Round 17C: inspect the affected user's actual gnome-keyring service/process/journal and test the canonical user-session secrets component start. Only after that causal test may production recovery semantics change."
+  "next_gate": "Build and test exact-source 0.6.0-rc.3 with the split-session-bus fixture, Linux installed DEB/AppImage matrices and unchanged Windows acceptance; then require the affected Ubuntu operator to pass the exact rc3 bytes before Stable."
 }

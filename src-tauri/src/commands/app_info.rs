@@ -24,6 +24,12 @@ pub struct EnvironmentDiagnostics {
     pub display_backend: String,
     pub desktop_session: String,
     pub session_bus_configured: bool,
+    pub session_bus_original_configured: bool,
+    pub session_bus_route: String,
+    pub session_bus_split_detected: bool,
+    pub session_bus_reachable: bool,
+    pub runtime_user_bus_reachable: bool,
+    pub runtime_user_bus_secret_service_available: bool,
     pub credential_store_state: String,
     pub startup_failure_reason: Option<String>,
     pub configuration_state: String,
@@ -203,6 +209,8 @@ pub(crate) fn environment_diagnostics_snapshot(
     }
     let display = display_backend();
     let configuration = configuration_facts();
+    #[cfg(target_os = "linux")]
+    let session_bus = crate::linux_session_bus::state();
 
     EnvironmentDiagnostics {
         app_version: env!("CARGO_PKG_VERSION").into(),
@@ -213,6 +221,30 @@ pub(crate) fn environment_diagnostics_snapshot(
         display_backend: display.into(),
         desktop_session: desktop_session(display),
         session_bus_configured: std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_some(),
+        #[cfg(target_os = "linux")]
+        session_bus_original_configured: session_bus.original_configured,
+        #[cfg(not(target_os = "linux"))]
+        session_bus_original_configured: std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_some(),
+        #[cfg(target_os = "linux")]
+        session_bus_route: session_bus.route.code().into(),
+        #[cfg(not(target_os = "linux"))]
+        session_bus_route: "platform_default".into(),
+        #[cfg(target_os = "linux")]
+        session_bus_split_detected: session_bus.split_detected,
+        #[cfg(not(target_os = "linux"))]
+        session_bus_split_detected: false,
+        #[cfg(target_os = "linux")]
+        session_bus_reachable: session_bus.selected_bus_reachable(),
+        #[cfg(not(target_os = "linux"))]
+        session_bus_reachable: true,
+        #[cfg(target_os = "linux")]
+        runtime_user_bus_reachable: session_bus.runtime_user_bus_reachable,
+        #[cfg(not(target_os = "linux"))]
+        runtime_user_bus_reachable: false,
+        #[cfg(target_os = "linux")]
+        runtime_user_bus_secret_service_available: session_bus.runtime_user_bus_secret_service_available,
+        #[cfg(not(target_os = "linux"))]
+        runtime_user_bus_secret_service_available: false,
         credential_store_state: credential_store_state(),
         startup_failure_reason: None,
         configuration_state: configuration_state.into(),

@@ -55,7 +55,7 @@ pub(crate) fn classify_keyring_error(error: &keyring::Error) -> StartupFailureRe
         keyring::Error::PlatformFailure(_) => {
             #[cfg(target_os = "linux")]
             {
-                if std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_none() {
+                if !crate::linux_session_bus::state().selected_bus_reachable() {
                     StartupFailureReason::SessionBusMissing
                 } else {
                     StartupFailureReason::SecretServiceUnavailable

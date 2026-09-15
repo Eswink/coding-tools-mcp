@@ -9,6 +9,8 @@ mod data;
 mod error;
 pub mod harness;
 mod health;
+#[cfg(target_os = "linux")]
+mod linux_session_bus;
 mod mcp;
 mod platform;
 mod runtime;
@@ -165,6 +167,8 @@ pub(crate) fn start_ready_services(app: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    linux_session_bus::prepare_secure_storage_bus();
     bootstrap::install_panic_marker();
     bootstrap::record("process-start");
     let startup_mode = bootstrap::startup_mode();

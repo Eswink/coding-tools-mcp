@@ -8,6 +8,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import select
 import signal
 import subprocess
 import tempfile
@@ -27,11 +28,68 @@ def start_keyring(env: dict[str, str], output: Path) -> None:
                        stdout=log, stderr=log)
 
 
+
+def name_has_owner(env: dict[str, str]) -> bool:
+    result = subprocess.run(
+        ['gdbus', 'call', '--session', '--dest', 'org.freedesktop.DBus',
+         '--object-path', '/org/freedesktop/DBus', '--method',
+         'org.freedesktop.DBus.NameHasOwner', 'org.freedesktop.secrets'],
+        env=env, check=True, timeout=10, capture_output=True, text=True,
+    )
+    return result.stdout.strip() == '(true,)'
+
+
+def start_runtime_user_bus(env: dict[str, str], output: Path) -> tuple[subprocess.Popen[str], str]:
+    bus_path = Path(env['XDG_RUNTIME_DIR']) / 'bus'
+    if bus_path.exists():
+        raise RuntimeError('split-session fixture requires an unused runtime-user bus socket')
+    log = (output / 'split-runtime-bus.txt').open('w', encoding='utf-8')
+    process = subprocess.Popen(
+        ['dbus-daemon', '--session', '--nofork', f'--address=unix:path={bus_path}',
+         '--print-address=1'],
+        env=env, stdout=subprocess.PIPE, stderr=log, text=True, start_new_session=True,
+    )
+    log.close()
+    assert process.stdout is not None
+    readable, _, _ = select.select([process.stdout], [], [], 5)
+    if not readable:
+        process.terminate()
+        process.wait(timeout=5)
+        raise RuntimeError('runtime-user fixture bus did not publish its address')
+    announced = process.stdout.readline().strip()
+    if not announced.startswith('unix:path='):
+        process.terminate()
+        process.wait(timeout=5)
+        raise RuntimeError('runtime-user fixture bus returned an unexpected address form')
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline and not bus_path.is_socket():
+        if process.poll() is not None:
+            raise RuntimeError('runtime-user fixture bus exited before creating its socket')
+        time.sleep(0.05)
+    if not bus_path.is_socket():
+        process.terminate()
+        process.wait(timeout=5)
+        raise RuntimeError('runtime-user fixture bus socket was not created')
+    # The product intentionally reconstructs exactly this canonical address from
+    # XDG_RUNTIME_DIR; the daemon's optional guid is not required for connection.
+    return process, f'unix:path={bus_path}'
+
+
+def stop_fixture_process(process: subprocess.Popen[str] | None) -> None:
+    if process is None or process.poll() is not None:
+        return
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--app', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--case', choices=['missing-bus', 'unlocked-keyring', 'safe-mode', 'diagnose-startup', 'diagnose-no-bus'], required=True)
+    parser.add_argument('--case', choices=['missing-bus', 'unlocked-keyring', 'split-session-bus', 'safe-mode', 'diagnose-startup', 'diagnose-no-bus'], required=True)
     parser.add_argument('--seconds', type=int, default=30)
     args = parser.parse_args()
     assert os.getuid() != 0, 'startup test must run as the ordinary runner user'
@@ -50,10 +108,30 @@ def main() -> None:
         env.pop('DISPLAY', None)
         env.pop('WAYLAND_DISPLAY', None)
     assert Path(env['HOME'], '.linux-startup-disposable').is_file(), 'disposable home required'
+    runtime_bus_process: subprocess.Popen[str] | None = None
+    split_fixture = None
     if args.case == 'missing-bus':
         env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=' + str(Path(env['XDG_RUNTIME_DIR'], 'absent-bus'))
     elif args.case == 'diagnose-no-bus':
         env.pop('DBUS_SESSION_BUS_ADDRESS', None)
+    elif args.case == 'split-session-bus':
+        inherited_address = env['DBUS_SESSION_BUS_ADDRESS']
+        runtime_bus_process, runtime_address = start_runtime_user_bus(env, output)
+        runtime_env = env.copy()
+        runtime_env['DBUS_SESSION_BUS_ADDRESS'] = runtime_address
+        start_keyring(runtime_env, output)
+        inherited_owned = name_has_owner(env)
+        runtime_owned = name_has_owner(runtime_env)
+        if inherited_address == runtime_address or inherited_owned or not runtime_owned:
+            stop_fixture_process(runtime_bus_process)
+            raise RuntimeError('split-session fixture did not establish isolated bus ownership')
+        split_fixture = {
+            'inherited_secret_service_owned': inherited_owned,
+            'runtime_user_bus_secret_service_owned': runtime_owned,
+            'addresses_differ': inherited_address != runtime_address,
+        }
+        (output / 'split-fixture.json').write_text(
+            json.dumps(split_fixture, indent=2) + '\n', encoding='utf-8')
     else:
         start_keyring(env, output)
 
@@ -91,6 +169,7 @@ def main() -> None:
         stderr.seek(0); error = stderr.read(65536).decode('utf-8', errors='replace')
         stdout.seek(0); out = stdout.read(8192).decode('utf-8', errors='replace')
 
+    stop_fixture_process(runtime_bus_process)
     (output / 'stderr.txt').write_text(error, encoding='utf-8')
     (output / 'stdout.txt').write_text(out, encoding='utf-8')
     config = Path(env['XDG_CONFIG_HOME']) / 'coding-tools-mcp-desktop/data/profiles.json'
@@ -109,7 +188,7 @@ def main() -> None:
     if args.case == 'missing-bus':
         expected = common and not config.exists() and 'app-state-locked' in phases \
             and 'background-deferred' in phases and 'background-ready' not in phases
-    elif args.case == 'unlocked-keyring':
+    elif args.case in ('unlocked-keyring', 'split-session-bus'):
         expected = common and config.exists() and 'app-state-ready' in phases \
             and 'background-ready' in phases
     elif args.case == 'safe-mode':
@@ -149,6 +228,7 @@ def main() -> None:
         'bootstrap_phases': phases,
         'app_state_panic': 'failed to load app state' in error,
         'startup_diagnostics': startup_diagnostics,
+        'split_session_fixture': split_fixture,
         'expected_candidate_behavior_observed': expected,
     }
     (output / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
