@@ -1,5 +1,5 @@
 {
-  "status": "executing",
+  "status": "blocked",
   "branch": "fix/linux-startup-platform",
   "baseline_main": "5780302c123f8aa308017f2d2767fc18e3ef7c5b",
   "published_v0_5_0_source": "63261e0c9ae4b0c6befdbe5ae8caff7f5d32c076",
@@ -17,12 +17,15 @@
   "round_15_candidate": "c6ac974b0bfd1ec62a33e0e52f48a94f9d0f919f",
   "round_15_linux_confirmation_run": 34942305647,
   "round_15_windows_run": 34942305580,
+  "round_16_candidate": "c6ac974b0bfd1ec62a33e0e52f48a94f9d0f919f",
+  "round_16_distribution": "private-ci-bytes",
   "candidate_package_sha256": {
     "deb": "0d06a283b56f55d823322f6b3ca2a45f59cf79d9a7a31cbdb543205078052d03",
     "appimage": "3678d6489b89b168c8e1e731036b2444e52e1e29d2714afc18771951adbdedcb",
     "nsis": "5f0e04661a187c215556d6a8aecd8deaf9392741f85eb633e0fa30655e7de442"
   },
   "operator_root_cause_confirmed": false,
+  "operator_ubuntu_acceptance": "pending",
   "release_allowed": false,
-  "next_gate": "Round 16 exact-source v0.6.0-rc.1 candidate distribution and real affected-Ubuntu DEB/AppImage operator acceptance"
+  "next_gate": "Operator runs exact DEB and AppImage candidate bytes on the real affected Ubuntu machine and reports both results"
 }
