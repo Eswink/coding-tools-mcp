@@ -4,9 +4,8 @@
   "baseline_main": "5780302c123f8aa308017f2d2767fc18e3ef7c5b",
   "published_v0_5_0_source": "63261e0c9ae4b0c6befdbe5ae8caff7f5d32c076",
   "failure_first_run": 34869284911,
-  "last_completed_round": 14,
+  "last_completed_round": 15,
   "candidate_rounds": [
-    15,
     16
   ],
   "confirmed_defect": "DataStore/keyring startup errors panic the process via AppState::new().expect",
@@ -15,7 +14,15 @@
   "round_13_run": 34926207880,
   "round_14_candidate": "a188f6d6fd09c7693786273f800353bb8d344b26",
   "round_14_run": 34936756310,
+  "round_15_candidate": "c6ac974b0bfd1ec62a33e0e52f48a94f9d0f919f",
+  "round_15_linux_confirmation_run": 34942305647,
+  "round_15_windows_run": 34942305580,
+  "candidate_package_sha256": {
+    "deb": "0d06a283b56f55d823322f6b3ca2a45f59cf79d9a7a31cbdb543205078052d03",
+    "appimage": "3678d6489b89b168c8e1e731036b2444e52e1e29d2714afc18771951adbdedcb",
+    "nsis": "5f0e04661a187c215556d6a8aecd8deaf9392741f85eb633e0fa30655e7de442"
+  },
   "operator_root_cause_confirmed": false,
   "release_allowed": false,
-  "next_gate": "Round 15 exact-source Windows NSIS build and genuine-standard-user native acceptance"
+  "next_gate": "Round 16 exact-source v0.6.0-rc.1 candidate distribution and real affected-Ubuntu DEB/AppImage operator acceptance"
 }
