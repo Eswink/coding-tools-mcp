@@ -40,6 +40,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path evidence | Out-Null
           python scripts/rc_version_gate_tests.py
           if ($LASTEXITCODE -ne 0) { throw 'RC version gate tests failed' }
+          python scripts/rc_windows_install_contract_tests.py
+          if ($LASTEXITCODE -ne 0) { throw 'RC Windows isolation contract tests failed' }
           python scripts/exclusive_native_contract_tests.py
           if ($LASTEXITCODE -ne 0) { throw 'Native evidence contract tests failed' }
           python scripts/rc_version_gate.py --expect-version $env:RC_VERSION --expect-sha $env:GITHUB_SHA --output evidence/rc-source.json
