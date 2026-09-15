@@ -1,0 +1,167 @@
+name: Linux RC package acceptance
+on:
+  push:
+    branches: ['fix/linux-startup-platform']
+permissions:
+  contents: read
+concurrency:
+  group: linux-rc-packages-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  RC_VERSION: '0.6.0-rc.1'
+jobs:
+  build:
+    name: Build exact DEB and AppImage RC
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+    env:
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: linux-rc-packages-v1
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev patchelf libfuse2
+      - name: Source, contract and full regression gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python scripts/rc_version_gate_tests.py
+          python scripts/exclusive_native_contract_tests.py
+          python scripts/rc_version_gate.py --expect-version "$RC_VERSION" --expect-sha "$GITHUB_SHA" --output evidence/rc-source.json
+          npm ci
+          npm run check
+          npm run build
+          cargo test --manifest-path src-tauri/Cargo.toml --locked 2>&1 | tee evidence/rust-tests.log
+      - name: Build and verify candidate package bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run tauri -- build --config src-tauri/Ubuntu桌面v1.json --bundles deb,appimage -- --locked 2>&1 | tee evidence/rc-package-build.log
+          image=$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' -print -quit)
+          test -n "$image"
+          python scripts/AppImage入口配置v3.py --verify "$image" --output evidence/appimage-entry.json
+          python scripts/rc_packages.py prepare --directory . --output "$RUNNER_TEMP/linux-rc-packages" --source "$GITHUB_SHA"
+          cargo install tauri-driver --version 2.0.6 --locked --root "$RUNNER_TEMP/linux-rc-driver"
+          git diff --exit-code
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-rc-packages
+          path: ${{ runner.temp }}/linux-rc-packages/
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-rc-driver
+          path: ${{ runner.temp }}/linux-rc-driver/bin/tauri-driver
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-rc-build-evidence
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  installed:
+    name: Installed RC (${{ matrix.os }}, ${{ matrix.kind }})
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+        kind: [deb, appimage]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    env:
+      PACKAGE_KIND: ${{ matrix.kind }}
+      GDK_BACKEND: x11
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-rc-packages
+          path: ${{ runner.temp }}/linux-rc-packages
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-rc-driver
+          path: ${{ runner.temp }}/linux-rc-driver
+      - name: Install only pre-driver runtime and observation dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y xvfb xauth x11-utils fonts-noto-cjk desktop-file-utils gnome-keyring dbus-x11 xdg-desktop-portal xdg-desktop-portal-gtk libayatana-appindicator3-1 libsecret-1-0 libxdo3 libfuse2
+          chmod +x "$RUNNER_TEMP/linux-rc-driver/tauri-driver" "$RUNNER_TEMP/linux-rc-packages/"*.AppImage
+          if [ "$PACKAGE_KIND" = deb ]; then
+            sudo apt-get install -y "$RUNNER_TEMP/linux-rc-packages/"*.deb
+          fi
+          mkdir -p evidence
+          python scripts/rc_packages.py installed --directory "$RUNNER_TEMP/linux-rc-packages" --source "$GITHUB_SHA" --kind "$PACKAGE_KIND" --output evidence/rc-package.json
+      - name: Launch exact installed bytes before WebDriver dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=$(python -c "import json; print(json.load(open('evidence/rc-package.json',encoding='utf-8'))['executable'])")
+          export HOME="$RUNNER_TEMP/rc-startup-fixture"
+          export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_STATE_HOME="$HOME/state" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+          mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          touch "$HOME/.linux-startup-disposable"
+          for scenario in missing-bus unlocked-keyring safe-mode; do
+            xvfb-run -a -s '-screen 0 1280x800x24' dbus-run-session -- python3 scripts/linux_startup_candidate.py --app "$app" --case "$scenario" --seconds 20 --output "evidence/startup-$scenario"
+          done
+          if grep -R -E 'failed to load app state|panic' evidence/startup-*/stderr.txt; then
+            echo 'fatal startup signature detected'; exit 1
+          fi
+      - name: Install WebDriver only after raw startup gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y webkit2gtk-driver
+      - name: Installed native OAuth, exclusive ownership, refresh and drain acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=$(python -c "import json; print(json.load(open('evidence/rc-package.json',encoding='utf-8'))['executable'])")
+          export HOME="$RUNNER_TEMP/rc-native-fixture"
+          export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+          mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          touch "$HOME/.ubuntu-ci-fixture-v1"
+          xvfb-run -a -s '-screen 0 1920x1080x24' dbus-run-session -- bash scripts/Ubuntu图形会话v2.sh "$GITHUB_WORKSPACE/scripts/exclusive_native_acceptance.py" "$app" "$RUNNER_TEMP/linux-rc-driver/tauri-driver" "$PACKAGE_KIND" "$GITHUB_WORKSPACE/evidence" 2>&1 | tee evidence/rc-native-session.log
+          python scripts/rc_native_gate.py --input evidence/exclusive-native.json --binary "$app" --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --version "$RC_VERSION" --kind "$PACKAGE_KIND" | tee evidence/rc-native-gate.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-rc-installed-${{ matrix.os }}-${{ matrix.kind }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
