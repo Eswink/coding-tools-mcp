@@ -46,8 +46,10 @@ jobs:
           npm version 0.6.0-rc.4 --no-git-tag-version --allow-same-version
           python3 .round17d/apply.py
 
+          # Do not rustfmt the crate root here: rustfmt follows child modules from
+          # lib.rs and would rewrite unrelated Rust sources. The lib.rs mutation
+          # is already a canonical two-line module declaration insertion.
           rustfmt --edition 2021 \
-            src-tauri/src/lib.rs \
             src-tauri/src/error.rs \
             src-tauri/src/commands/app_info.rs \
             src-tauri/src/linux_secret_service.rs
