@@ -1,12 +1,12 @@
 {
-  "status": "blocked",
+  "status": "executing",
   "branch": "fix/linux-startup-platform",
   "baseline_main": "5780302c123f8aa308017f2d2767fc18e3ef7c5b",
   "published_v0_5_0_source": "63261e0c9ae4b0c6befdbe5ae8caff7f5d32c076",
   "failure_first_run": 34869284911,
-  "last_completed_round": 15,
+  "last_completed_round": 16,
   "candidate_rounds": [
-    16
+    17
   ],
   "confirmed_defect": "DataStore/keyring startup errors panic the process via AppState::new().expect",
   "confirmed_appimage_defect": "published/early RC AppImage can fail before Rust bootstrap when host libEGL.so.1 or libGLESv2.so.2 is absent",
@@ -25,7 +25,18 @@
     "nsis": "5f0e04661a187c215556d6a8aecd8deaf9392741f85eb633e0fa30655e7de442"
   },
   "operator_root_cause_confirmed": false,
-  "operator_ubuntu_acceptance": "pending",
+  "operator_ubuntu_acceptance": "failed_secure_storage_locked",
+  "operator_observed_failure": {
+    "version": "0.6.0-rc.1",
+    "startup": "window_opens",
+    "runtime_state": "locked_recovery",
+    "message": "配置存储暂不可用",
+    "loader_failure_reproduced": false,
+    "normal_operation_available": false
+  },
+  "round_17_authorized": true,
+  "round_17_plan": "docs/specs/linux-startup-platform/iteration-17-plan.md",
+  "next_candidate_version": "0.6.0-rc.2",
   "release_allowed": false,
-  "next_gate": "Operator runs exact DEB and AppImage candidate bytes on the real affected Ubuntu machine and reports both results"
+  "next_gate": "Round 17A classify the real Ubuntu secure-storage failure without leaking backend errors or secrets, then fix the smallest proven Linux credential/session integration cause"
 }
