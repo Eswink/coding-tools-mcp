@@ -1,16 +1,3 @@
-+    parser.add_argument('--case', choices=['missing-bus', 'unlocked-keyring', 'split-session-bus', 'safe-mode', 'diagnose-startup', 'diagnose-no-bus'], required=True)
-     parser.add_argument('--seconds', type=int, default=30)
-     args = parser.parse_args()
-     assert os.getuid() != 0, 'startup test must run as the ordinary runner user'
-@@ -50,10 +108,30 @@ def main() -> None:
-         env.pop('DISPLAY', None)
-         env.pop('WAYLAND_DISPLAY', None)
-     assert Path(env['HOME'], '.linux-startup-disposable').is_file(), 'disposable home required'
-+    runtime_bus_process: subprocess.Popen[str] | None = None
-+    split_fixture = None
-     if args.case == 'missing-bus':
-         env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=' + str(Path(env['XDG_RUNTIME_DIR'], 'absent-bus'))
-     elif args.case == 'diagnose-no-bus':
          env.pop('DBUS_SESSION_BUS_ADDRESS', None)
 +    elif args.case == 'split-session-bus':
 +        inherited_address = env['DBUS_SESSION_BUS_ADDRESS']
@@ -156,3 +143,23 @@ index 86ed5cf..5a61ebf 100644
          configuration_state: configuration_state.into(),
 diff --git a/src-tauri/src/error.rs b/src-tauri/src/error.rs
 index 6923362..6e36fc7 100644
+--- a/src-tauri/src/error.rs
++++ b/src-tauri/src/error.rs
+@@ -55,7 +55,7 @@ pub(crate) fn classify_keyring_error(error: &keyring::Error) -> StartupFailureRe
+         keyring::Error::PlatformFailure(_) => {
+             #[cfg(target_os = "linux")]
+             {
+-                if std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_none() {
++                if !crate::linux_session_bus::state().selected_bus_reachable() {
+                     StartupFailureReason::SessionBusMissing
+                 } else {
+                     StartupFailureReason::SecretServiceUnavailable
+diff --git a/src-tauri/src/lib.rs b/src-tauri/src/lib.rs
+index 42c6c90..0057b93 100644
+--- a/src-tauri/src/lib.rs
++++ b/src-tauri/src/lib.rs
+@@ -9,6 +9,8 @@ mod data;
+ mod error;
+ pub mod harness;
+ mod health;
++#[cfg(target_os = "linux")]
