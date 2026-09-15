@@ -1,6 +1,6 @@
 # Iteration 17C — Split session-bus recovery
 
-Status: **AUTOMATED PASS / REAL OPERATOR GATE** for `0.6.0-rc.3`. Stable remains blocked.
+Status: **AUTOMATED PASS / REAL OPERATOR GATE FAILED AT NEXT SECURE-STORAGE LAYER** for `0.6.0-rc.3`. Stable remains blocked.
 
 ## Real Ubuntu root cause
 
@@ -56,6 +56,25 @@ Exact Linux package artifact was produced by run `34960268326` from source `c63c
 
 RC2 is not overwritten. Any further product-byte change must advance to `0.6.0-rc.4` or later.
 
+## RC3 affected-machine result
+
+The exact RC3 DEB was tested in the same affected Ubuntu 24.04 Wayland user/session. Its bounded diagnostics prove the RC3 bus selector did what it was designed to do:
+
+- `sessionBusRoute = runtime_user_bus`;
+- `sessionBusSplitDetected = true`;
+- selected bus and runtime bus are reachable;
+- `runtimeUserBusSecretServiceAvailable = true`.
+
+The startup failure therefore moved past the RC2 `secret_service_unavailable` condition and now fails as `secret_service_locked_or_denied`. Configuration still does not exist and the configuration directory is writable. This is evidence that the split-bus repair is effective, but the affected Secret Service still refuses or cannot complete storage access on its real bus.
+
+The current `keyring` 3.6.3 sync Secret Service backend maps three distinct underlying Secret Service conditions into `NoStorageAccess`: a locked object, a missing/no-result object, and a dismissed/failed required prompt. The application intentionally collapses `NoStorageAccess` into `secret_service_locked_or_denied` to avoid serializing backend payloads. Therefore the RC3 diagnostic alone cannot yet distinguish:
+
+1. default collection exists but is locked and cannot be unlocked;
+2. the `default` alias/collection is absent;
+3. unlocking requires a Secret Service prompt that is dismissed or unavailable in the affected desktop session.
+
+No RC4 product mutation is justified until this second-layer condition is classified on the affected machine. The next probe must be read-only and must explicitly target the verified `$XDG_RUNTIME_DIR/bus`; it must not reset a keyring, create replacement key material, or alter configuration.
+
 ## Impact review and degraded project tooling
 
 The repository-required native MCP Probe/GitNexus path is unavailable in this execution environment. Previous installation/resume attempts could not obtain the native tooling, so no GitNexus result is claimed. Manual impact review covered process entry, keyring error classification, bounded diagnostics, Linux startup fixtures/workflows, installed DEB/AppImage acceptance, Windows regression and candidate identity.
@@ -64,6 +83,4 @@ The repository-required native MCP Probe/GitNexus path is unavailable in this ex
 
 ## Remaining gate
 
-Release remains blocked. The affected Ubuntu 24.04 Wayland machine must now test **both exact RC3 package bytes** in the same affected user/session environment.
-
-A pass requires secure storage to reach `ready`, encrypted configuration to persist across close/reopen, normal workspace and ChatGPT authorization/tool flow to work, no plaintext replacement configuration to appear, and both package digests to match the candidate evidence.
+Release remains blocked. The immediate gate is no longer another package build: it is a bounded read-only classification of the real Secret Service state on the affected runtime user bus. Once the default collection / lock / prompt state is evidenced, decide whether the resolution is an operator keyring-unlock repair or a minimal product change. Any product-byte change becomes `0.6.0-rc.4` and must repeat exact-source Linux/Windows acceptance plus affected-machine validation.
