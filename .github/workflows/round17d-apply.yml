@@ -58,6 +58,7 @@ jobs:
             .github/workflows/linux-rc-packages.yml \
             .github/workflows/windows-rc-packages.yml \
             .round17d/apply.py
+          rm -rf .round17d/__pycache__
 
           cargo check --manifest-path src-tauri/Cargo.toml
           cargo check --manifest-path src-tauri/Cargo.toml --locked
@@ -80,7 +81,13 @@ jobs:
               'src/lib/api/app-info.ts',
               'src/lib/components/StartupRecovery.svelte',
           }
-          changed = set(subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines())
+          tracked = set(subprocess.check_output(
+              ['git', 'diff', '--name-only'], text=True
+          ).splitlines())
+          untracked = set(subprocess.check_output(
+              ['git', 'ls-files', '--others', '--exclude-standard'], text=True
+          ).splitlines())
+          changed = tracked | untracked
           if changed != expected:
               raise SystemExit(f'unexpected product diff: {sorted(changed ^ expected)}; changed={sorted(changed)}')
           PY
