@@ -1,4 +1,5 @@
 name: Linux secure-storage RC2 version preparation
+# One-shot version transition. Remove after the RC2 source commit is recorded.
 on:
   push:
     branches: ['fix/linux-startup-platform']
