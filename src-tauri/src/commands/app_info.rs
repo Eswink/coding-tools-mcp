@@ -38,13 +38,18 @@ pub fn get_startup_status(state: State<'_, AppState>) -> StartupStatus {
     state.startup_status()
 }
 
-pub(crate) fn environment_diagnostics(app: &AppHandle) -> EnvironmentDiagnostics {
-    let state = app.state::<AppState>();
-    let ready = state.startup_status().ready;
+pub(crate) fn environment_diagnostics_for_status(
+    status: &StartupStatus,
+    tray_available: bool,
+    notification_plugin_enabled: bool,
+) -> EnvironmentDiagnostics {
     let platform = crate::platform::context().clone();
     let mut executables = BTreeMap::new();
     for name in ["sh", "bash", "git", "python3", "xdg-open", "frpc", "cloudflared"] {
-        executables.insert(name.to_string(), crate::platform::platform().resolve_executable(name).is_some());
+        executables.insert(
+            name.to_string(),
+            crate::platform::platform().resolve_executable(name).is_some(),
+        );
     }
 
     #[cfg(target_os = "linux")]
@@ -68,11 +73,26 @@ pub(crate) fn environment_diagnostics(app: &AppHandle) -> EnvironmentDiagnostics
         diagnose_startup: crate::bootstrap::diagnose_startup(),
         display_backend: display_backend.into(),
         session_bus_configured: std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_some(),
-        credential_store_state: if ready { "ready" } else { "locked_or_unavailable" }.into(),
-        tray_available: app.tray_by_id("main-tray").is_some(),
-        notification_plugin_enabled: !crate::bootstrap::safe_mode(),
+        credential_store_state: if status.ready {
+            "ready"
+        } else {
+            "locked_or_unavailable"
+        }
+        .into(),
+        tray_available,
+        notification_plugin_enabled,
         executables,
     }
+}
+
+pub(crate) fn environment_diagnostics(app: &AppHandle) -> EnvironmentDiagnostics {
+    let state = app.state::<AppState>();
+    let status = state.startup_status();
+    environment_diagnostics_for_status(
+        &status,
+        app.tray_by_id("main-tray").is_some(),
+        !crate::bootstrap::safe_mode(),
+    )
 }
 
 #[tauri::command]

@@ -167,10 +167,24 @@ pub(crate) fn start_ready_services(app: &tauri::AppHandle) {
 pub fn run() {
     bootstrap::install_panic_marker();
     bootstrap::record("process-start");
+    let startup_mode = bootstrap::startup_mode();
+    if startup_mode.diagnose_startup {
+        let state = AppState::new().expect("failed to create startup diagnostic state wrapper");
+        let status = state.startup_status();
+        bootstrap::record(if status.ready { "app-state-ready" } else { "app-state-locked" });
+        let diagnostics = commands::environment_diagnostics_for_status(&status, false, false);
+        if let Ok(json) = serde_json::to_string(&diagnostics) {
+            use std::io::Write;
+            let mut stdout = std::io::stdout().lock();
+            let _ = writeln!(stdout, "startup-diagnostics={json}");
+            let _ = stdout.flush();
+        }
+        bootstrap::record("diagnostics-complete");
+        return;
+    }
     if !acquire_single_instance() {
         return;
     }
-    let startup_mode = bootstrap::startup_mode();
     let mut builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
     if !startup_mode.safe_mode {
         builder = builder.plugin(tauri_plugin_notification::init());
@@ -203,14 +217,6 @@ pub fn run() {
             #[cfg(target_os = "windows")]
             {
                 let _ = SHOW_APP_HANDLE.set(app.handle().clone());
-            }
-            if startup_mode.diagnose_startup {
-                if let Ok(json) = serde_json::to_string(&commands::environment_diagnostics(app.handle())) {
-                    use std::io::Write;
-                    let mut stdout = std::io::stdout().lock();
-                    let _ = writeln!(stdout, "startup-diagnostics={json}");
-                    let _ = stdout.flush();
-                }
             }
             bootstrap::record("setup-complete");
             Ok(())
