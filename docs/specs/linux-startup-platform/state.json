@@ -1,10 +1,10 @@
 {
-  "status": "executing",
+  "status": "round_17_operator_accepted",
   "branch": "fix/linux-startup-platform",
   "baseline_main": "5780302c123f8aa308017f2d2767fc18e3ef7c5b",
   "published_v0_5_0_source": "63261e0c9ae4b0c6befdbe5ae8caff7f5d32c076",
   "failure_first_run": 34869284911,
-  "last_completed_round": 16,
+  "last_completed_round": 17,
   "candidate_rounds": [
     17
   ],
@@ -26,7 +26,7 @@
   },
   "operator_root_cause_confirmed": true,
   "operator_failure_class_confirmed": true,
-  "operator_ubuntu_acceptance": "failed_rc3_secret_service_no_storage_access",
+  "operator_ubuntu_acceptance": "passed_rc4_deb_and_appimage",
   "operator_observed_failure": {
     "version": "0.6.0-rc.2",
     "package_kind": "deb",
@@ -116,7 +116,33 @@
     "appimage": "5bec385f6f2c16a0bf464f4510b165f6ea267304d7512104f42aada89b6cf4a8"
   },
   "round_17c_linux_package_artifact_digest": "sha256:ef91df63d5f0e1ad2b77fea3503c4db5e6ae0e0980267a3dc786e76c031764e9",
-  "next_candidate_version_if_product_changes": "0.6.0-rc.4",
-  "release_allowed": false,
-  "next_gate": "On the affected Ubuntu session, classify the RC3 NoStorageAccess result without changing key material: distinguish a locked default collection, missing default alias/collection, or dismissed/unavailable Secret Service prompt on the verified runtime user bus. Do not make an RC4 product change until this classification is evidenced."
+  "round_17_rc4_fix": "On Linux, distinguish a reachable Secret Service with no default collection from a locked/denied credential store. Only on the explicit recovery action, only for a fresh install with no managed configuration, request the desktop Secret Service to create the persistent default collection; never read/store the password, never replace an existing encryption key, and never create plaintext fallback.",
+  "round_17_rc4_candidate_version": "0.6.0-rc.4",
+  "round_17_rc4_candidate_source": "afcaae34e700e468b08eb97187ef9b12a0be1388",
+  "round_17_rc4_linux_rc_run": 34976767756,
+  "round_17_rc4_windows_rc_run": 34976767781,
+  "round_17_rc4_automated_gates": "passed",
+  "round_17_rc4_package_sha256": {
+    "deb": "4b9fb575897f70cef8f1271675f4dc14485db02f5339dee450d8b0e61178031f",
+    "appimage": "b7a6dcf79dd096a184a4ac5f572450d8b7f8a08c7fcf2b7a9ff43f82981041d0"
+  },
+  "round_17_rc4_linux_package_artifact_digest": "sha256:c6d18965a7872b45644d98f1a74fe8486e4309f4752693ec1d747d56f638f232",
+  "operator_rc4_acceptance": {
+    "version": "0.6.0-rc.4",
+    "source": "afcaae34e700e468b08eb97187ef9b12a0be1388",
+    "distribution": "ubuntu 24.04",
+    "environment": "same affected real operator desktop/session",
+    "deb": "passed",
+    "appimage": "passed",
+    "secure_storage_recovery": "passed",
+    "normal_operation_available": true,
+    "reported_by_operator": true
+  },
+  "round_17d_secure_fallback_needed": false,
+  "round_17g_operator_gate": "passed",
+  "accepted_candidate_version": "0.6.0-rc.4",
+  "accepted_candidate_source": "afcaae34e700e468b08eb97187ef9b12a0be1388",
+  "next_candidate_version_if_product_changes": "0.6.0-rc.5",
+  "release_allowed": true,
+  "next_gate": "Round 17 is complete. Stable promotion may proceed only from the accepted RC4 product source/bytes. Any product-byte change requires 0.6.0-rc.5 and a full automated plus real-operator re-acceptance."
 }
