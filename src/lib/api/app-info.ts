@@ -20,6 +20,7 @@ export interface StartupStatus {
   state: "ready" | "locked" | string;
   ready: boolean;
   recoverable: boolean;
+  reasonCode: string | null;
   message: string;
   platform: string;
   safeMode: boolean;
@@ -41,13 +42,22 @@ export interface PlatformContext {
 }
 
 export interface EnvironmentDiagnostics {
+  appVersion: string;
+  packageKind: string;
   platform: PlatformContext;
   safeMode: boolean;
   diagnoseStartup: boolean;
   displayBackend: string;
+  desktopSession: string;
   sessionBusConfigured: boolean;
   credentialStoreState: string;
+  startupFailureReason: string | null;
   configurationState: string;
+  configurationExists: boolean;
+  configurationEncrypted: boolean | null;
+  configurationOwnedByCurrentUser: boolean | null;
+  configurationOwnerOnlyPermissions: boolean | null;
+  configurationDirectoryWritable: boolean | null;
   trayAvailable: boolean;
   notificationPluginEnabled: boolean;
   executables: Record<string, boolean>;

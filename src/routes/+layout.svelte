@@ -23,7 +23,12 @@
   import { startCloseGuard } from "$lib/close-guard";
   import CloseConfirmDialog from "$lib/components/CloseConfirmDialog.svelte";
   import type { RuntimeState } from "$lib/types";
-  import { getStartupStatus, retryStartup, type StartupStatus } from "$lib/api/app-info";
+  import {
+    getEnvironmentDiagnostics,
+    getStartupStatus,
+    retryStartup,
+    type StartupStatus,
+  } from "$lib/api/app-info";
 
   let { children } = $props();
   let closeConfirmOpen = $state(false);
@@ -73,6 +78,19 @@
       }
     } finally {
       retryingStartup = false;
+    }
+  }
+
+  async function copyStartupDiagnostics() {
+    try {
+      const report = await getEnvironmentDiagnostics();
+      await navigator.clipboard.writeText(JSON.stringify(report, null, 2));
+      showToast("启动诊断已复制，可用于定位 Ubuntu 凭据服务状态。", {
+        title: "诊断已复制",
+        kind: "success",
+      });
+    } catch (error) {
+      showToast(String(error), { title: "复制启动诊断失败", kind: "error", duration: 8000 });
     }
   }
 
@@ -194,7 +212,12 @@
 
   {#snippet children()}
     {#if startupStatus && !startupStatus.ready}
-      <StartupRecovery status={startupStatus} busy={retryingStartup} onRetry={() => void retryLockedStartup()} />
+      <StartupRecovery
+        status={startupStatus}
+        busy={retryingStartup}
+        onRetry={() => void retryLockedStartup()}
+        onCopyDiagnostics={() => void copyStartupDiagnostics()}
+      />
     {:else}
       {@render children()}
     {/if}

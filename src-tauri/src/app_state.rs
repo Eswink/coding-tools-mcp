@@ -3,10 +3,8 @@ use std::sync::Mutex;
 use serde::Serialize;
 
 use crate::data::DataStore;
-use crate::error::{AppError, AppResult};
+use crate::error::{AppError, AppResult, StartupFailureReason};
 use crate::runtime::RuntimeSupervisor;
-
-const LOCKED_MESSAGE: &str = "配置存储暂不可用；应用已进入受限恢复模式。请解锁系统凭据库或修复原配置后重试。原配置不会被重置或降级为明文。";
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -14,6 +12,7 @@ pub struct StartupStatus {
     pub state: String,
     pub ready: bool,
     pub recoverable: bool,
+    pub reason_code: Option<String>,
     pub message: String,
     pub platform: String,
     pub safe_mode: bool,
@@ -21,7 +20,7 @@ pub struct StartupStatus {
 
 pub struct AppState {
     data: Mutex<Option<DataStore>>,
-    startup_error: Mutex<Option<String>>,
+    startup_reason: Mutex<Option<StartupFailureReason>>,
     pub runtime: Mutex<RuntimeSupervisor>,
 }
 
@@ -37,13 +36,13 @@ impl AppState {
     }
 
     fn from_store_result(result: AppResult<DataStore>) -> Self {
-        let (data, startup_error) = match result {
+        let (data, startup_reason) = match result {
             Ok(store) => (Some(store), None),
-            Err(_) => (None, Some(LOCKED_MESSAGE.to_string())),
+            Err(error) => (None, Some(error.startup_failure_reason())),
         };
         Self {
             data: Mutex::new(data),
-            startup_error: Mutex::new(startup_error),
+            startup_reason: Mutex::new(startup_reason),
             runtime: Mutex::new(RuntimeSupervisor::default()),
         }
     }
@@ -55,22 +54,23 @@ impl AppState {
             .unwrap_or(false)
     }
 
+    fn current_startup_reason(&self) -> StartupFailureReason {
+        self.startup_reason
+            .lock()
+            .ok()
+            .and_then(|guard| *guard)
+            .unwrap_or(StartupFailureReason::UnknownSecureStorageFailure)
+    }
+
     pub fn startup_status(&self) -> StartupStatus {
         let ready = self.is_ready();
-        let message = if ready {
-            String::new()
-        } else {
-            self.startup_error
-                .lock()
-                .ok()
-                .and_then(|guard| guard.clone())
-                .unwrap_or_else(|| LOCKED_MESSAGE.to_string())
-        };
+        let reason = if ready { None } else { Some(self.current_startup_reason()) };
         StartupStatus {
             state: if ready { "ready" } else { "locked" }.into(),
             ready,
             recoverable: !ready,
-            message,
+            reason_code: reason.map(|value| value.code().to_string()),
+            message: reason.map(|value| value.user_message().to_string()).unwrap_or_default(),
             platform: crate::platform::platform().os_name().into(),
             safe_mode: crate::bootstrap::safe_mode(),
         }
@@ -90,16 +90,17 @@ impl AppState {
         match Self::load_store() {
             Ok(store) => {
                 *guard = Some(store);
-                if let Ok(mut error) = self.startup_error.lock() {
-                    *error = None;
+                if let Ok(mut reason) = self.startup_reason.lock() {
+                    *reason = None;
                 }
                 Ok(true)
             }
-            Err(_) => {
-                if let Ok(mut error) = self.startup_error.lock() {
-                    *error = Some(LOCKED_MESSAGE.to_string());
+            Err(error) => {
+                let reason = error.startup_failure_reason();
+                if let Ok(mut current) = self.startup_reason.lock() {
+                    *current = Some(reason);
                 }
-                Err(AppError::Message(LOCKED_MESSAGE.into()))
+                Err(AppError::startup_storage(reason))
             }
         }
     }
@@ -111,7 +112,7 @@ impl AppState {
             .map_err(|_| AppError::Message("data store poisoned".into()))?;
         let store = guard
             .as_mut()
-            .ok_or_else(|| AppError::Message(LOCKED_MESSAGE.into()))?;
+            .ok_or_else(|| AppError::startup_storage(self.current_startup_reason()))?;
         store.refresh()?;
         f(store)
     }
@@ -158,13 +159,27 @@ mod tests {
         assert_eq!(status.state, "locked");
         assert!(!status.ready);
         assert!(status.recoverable);
+        assert_eq!(status.reason_code.as_deref(), Some("unknown_secure_storage_failure"));
         assert!(!status.message.contains("fixture-secret-must-not-leak"));
         assert!(state.with_data(|_| Ok(())).is_err());
     }
 
     #[test]
+    fn typed_storage_failure_reaches_the_status_without_backend_payloads() {
+        let state = AppState::from_store_result(Err(AppError::startup_storage(
+            StartupFailureReason::SecretServiceLockedOrDenied,
+        )));
+        let status = state.startup_status();
+        assert_eq!(status.reason_code.as_deref(), Some("secret_service_locked_or_denied"));
+        assert!(status.message.contains("系统凭据库"));
+        assert!(!status.message.contains("BadEncoding"));
+    }
+
+    #[test]
     fn healthy_store_remains_ready() {
         let state = AppState::new().expect("state wrapper");
-        assert!(state.startup_status().ready);
+        let status = state.startup_status();
+        assert!(status.ready);
+        assert!(status.reason_code.is_none());
     }
 }

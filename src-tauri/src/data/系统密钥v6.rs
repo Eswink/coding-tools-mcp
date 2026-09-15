@@ -1,6 +1,6 @@
 //! The production provider never falls back to plaintext, environment variables,
 //! or an in-memory store. Test doubles are compiled only for unit tests.
-use crate::error::{AppError, AppResult};
+use crate::error::{classify_keyring_error, AppError, AppResult};
 use zeroize::Zeroizing;
 
 pub(super) const SERVICE: &str = "coding-tools-mcp.config.v1";
@@ -12,25 +12,25 @@ pub(super) trait KeyStore: Send + Sync {
 
 pub(super) struct NativeKeyStore;
 
-fn unavailable() -> AppError {
-    // Keyring errors may embed credential bytes (BadEncoding). Never format them.
-    AppError::Message("系统凭据库不可用或未解锁；未回退到明文保存，原配置已保留。请解锁系统凭据库后重试。".into())
+fn unavailable(error: &keyring::Error) -> AppError {
+    // Never format or serialize the platform error: variants may carry credential bytes.
+    AppError::startup_storage(classify_keyring_error(error))
 }
 
 impl KeyStore for NativeKeyStore {
     fn get(&self, id: &str) -> AppResult<Option<Zeroizing<Vec<u8>>>> {
-        let entry = keyring::Entry::new(SERVICE, id).map_err(|_| unavailable())?;
+        let entry = keyring::Entry::new(SERVICE, id).map_err(|error| unavailable(&error))?;
         match entry.get_secret() {
             Ok(secret) => Ok(Some(Zeroizing::new(secret))),
             Err(keyring::Error::NoEntry) => Ok(None),
-            Err(_) => Err(unavailable()),
+            Err(error) => Err(unavailable(&error)),
         }
     }
 
     fn set(&self, id: &str, value: &[u8]) -> AppResult<()> {
         keyring::Entry::new(SERVICE, id)
             .and_then(|entry| entry.set_secret(value))
-            .map_err(|_| unavailable())
+            .map_err(|error| unavailable(&error))
     }
 }
 
@@ -65,13 +65,14 @@ impl KeyStore for MemoryKeys {
 #[cfg(test)]
 mod provider_contract_tests {
     use super::*;
+    use crate::error::StartupFailureReason;
 
     #[test]
     fn native_adapter_is_available_without_calling_the_users_keyring() {
         let _provider: &dyn KeyStore = &NativeKeyStore;
         assert_eq!(SERVICE, "coding-tools-mcp.config.v1");
-        let message = unavailable().to_string();
-        assert!(message.contains("未回退到明文保存"));
+        let message = AppError::startup_storage(StartupFailureReason::SecretServiceUnavailable).to_string();
+        assert!(message.contains("原配置已保留"));
         assert!(!message.contains("BadEncoding"));
     }
 }

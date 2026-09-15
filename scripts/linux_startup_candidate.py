@@ -119,7 +119,7 @@ def main() -> None:
             and startup_diagnostics is None
     else:
         expected_bus = args.case == 'diagnose-startup'
-        expected_store = 'available' if expected_bus else 'locked_or_unavailable'
+        expected_store = 'available' if expected_bus else 'session_bus_missing'
         expected = natural_returncode == 0 and not was_alive and not observations and not config.exists() \
             and 'panic' not in phases and 'app-state-ready' not in phases \
             and 'app-state-locked' not in phases and 'diagnostics-complete' in phases \
@@ -132,6 +132,7 @@ def main() -> None:
             and startup_diagnostics.get('sessionBusConfigured') is expected_bus \
             and startup_diagnostics.get('displayBackend') == 'headless' \
             and startup_diagnostics.get('credentialStoreState') == expected_store \
+            and startup_diagnostics.get('startupFailureReason') is None \
             and startup_diagnostics.get('configurationState') == 'not_loaded'
     result = {
         'case': args.case,
