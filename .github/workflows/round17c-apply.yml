@@ -26,13 +26,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 16
+          fetch-depth: 32
       - name: Verify staged handoff and apply reviewed patch
         shell: bash
         run: |
           set -euo pipefail
           git cat-file -e "$BASE_SHA^{commit}"
-          unexpected=$(git diff --name-only "$BASE_SHA"..HEAD | grep -Ev '^(\.round17c/.*|\.github/workflows/(round17c-apply|linux-rc-packages|windows-rc-packages)\.yml)$' || true)
+          unexpected=$(git diff --name-only "$BASE_SHA"..HEAD | grep -Ev '^(\.round17c/.*|\.github/workflows/(round17c-apply|linux-startup-baseline|linux-rc-packages|windows-rc-packages)\.yml)$' || true)
           test -z "$unexpected" || { echo "unexpected staged paths:"; printf '%s\n' "$unexpected"; exit 1; }
           test -f .round17c/READY
           cat .round17c/chunk-*.patchpart > "$RUNNER_TEMP/round17c-product.patch"
@@ -40,6 +40,7 @@ jobs:
           git apply "$RUNNER_TEMP/round17c-product.patch"
           rm -rf .round17c
           python3 -m py_compile scripts/linux_startup_candidate.py
+          rm -rf scripts/__pycache__
           python3 -m json.tool docs/specs/linux-startup-platform/state.json >/dev/null
           git diff --check
       - name: Commit exact RC3 source
