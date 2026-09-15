@@ -11,7 +11,7 @@ concurrency:
 env:
   PYTHONUTF8: '1'
   PYTHONDONTWRITEBYTECODE: '1'
-  RC_VERSION: '0.6.0-rc.3'
+  RC_VERSION: '0.6.0-rc.4'
 jobs:
   build:
     name: Build exact DEB and AppImage RC
