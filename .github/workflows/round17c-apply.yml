@@ -32,7 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           git cat-file -e "$BASE_SHA^{commit}"
-          unexpected=$(git diff --name-only "$BASE_SHA"..HEAD | grep -Ev '^(\.round17c/|\.github/workflows/(round17c-apply|linux-rc-packages|windows-rc-packages)\.yml)$' || true)
+          unexpected=$(git diff --name-only "$BASE_SHA"..HEAD | grep -Ev '^(\.round17c/.*|\.github/workflows/(round17c-apply|linux-rc-packages|windows-rc-packages)\.yml)$' || true)
           test -z "$unexpected" || { echo "unexpected staged paths:"; printf '%s\n' "$unexpected"; exit 1; }
           test -f .round17c/READY
           cat .round17c/chunk-*.patchpart > "$RUNNER_TEMP/round17c-product.patch"
