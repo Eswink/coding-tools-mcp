@@ -1,23 +1,3 @@
---- a/src-tauri/src/error.rs
-+++ b/src-tauri/src/error.rs
-@@ -55,7 +55,7 @@ pub(crate) fn classify_keyring_error(error: &keyring::Error) -> StartupFailureRe
-         keyring::Error::PlatformFailure(_) => {
-             #[cfg(target_os = "linux")]
-             {
--                if std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_none() {
-+                if !crate::linux_session_bus::state().selected_bus_reachable() {
-                     StartupFailureReason::SessionBusMissing
-                 } else {
-                     StartupFailureReason::SecretServiceUnavailable
-diff --git a/src-tauri/src/lib.rs b/src-tauri/src/lib.rs
-index 42c6c90..0057b93 100644
---- a/src-tauri/src/lib.rs
-+++ b/src-tauri/src/lib.rs
-@@ -9,6 +9,8 @@ mod data;
- mod error;
- pub mod harness;
- mod health;
-+#[cfg(target_os = "linux")]
 +mod linux_session_bus;
  mod mcp;
  mod platform;
@@ -203,3 +183,16 @@ index 0000000..8c9cf54
 +    }
 +}
 +
++/// Select the secure-storage bus before Tauri creates plugins or background
++/// threads. This never starts/stops a daemon and never changes key material.
++///
++/// On supported Ubuntu, `$XDG_RUNTIME_DIR/bus` is the canonical per-user bus.
++/// We leave a healthy inherited bus untouched. If the inherited bus does not
++/// own Secret Service, we redirect this process to the canonical user bus only
++/// after proving that Secret Service is owned or activatable there. The original
++/// and selected addresses are never logged or serialized.
++pub(crate) fn prepare_secure_storage_bus() -> SessionBusState {
++    *STATE.get_or_init(|| {
++        let original_configured = std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_some();
++        let inherited = std::env::var("DBUS_SESSION_BUS_ADDRESS")
++            .ok()
