@@ -1,16 +1,3 @@
-diff --git a/.github/workflows/linux-startup-baseline.yml b/.github/workflows/linux-startup-baseline.yml
-index 7c7af64..5f525cb 100644
---- a/.github/workflows/linux-startup-baseline.yml
-+++ b/.github/workflows/linux-startup-baseline.yml
-@@ -150,7 +150,7 @@ jobs:
-           test -x "$app"
-           mkdir -p evidence
-           result=0
--          for scenario in missing-bus unlocked-keyring safe-mode; do
-+          for scenario in missing-bus unlocked-keyring split-session-bus safe-mode; do
-             export HOME="$RUNNER_TEMP/candidate-$scenario"
-             export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_STATE_HOME="$HOME/state" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
-             mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
 diff --git a/docs/specs/linux-startup-platform/iteration-17c-execution.md b/docs/specs/linux-startup-platform/iteration-17c-execution.md
 new file mode 100644
 index 0000000..f97af30
@@ -105,3 +92,23 @@ index 020f91c..1418345 100644
 @@ -43,7 +43,6 @@
      "normal_operation_available": false
    },
+   "operator_secret_service_probe": {
+-    "uid": 1000,
+     "xdg_runtime_dir_set": true,
+     "xdg_runtime_dir_owner_ok": true,
+     "dbus_user_session_installed": true,
+@@ -54,12 +53,24 @@
+     "gnome_keyring_daemon_present": true,
+     "gnome_keyring_user_service_active": true,
+     "gnome_keyring_user_socket_active": true,
+-    "org_freedesktop_secrets_before": "activatable_unowned",
+-    "start_service_by_name_exit": 124,
+-    "org_freedesktop_secrets_after": "activatable_unowned",
+-    "read_default_alias_exit": 124,
+-    "classification": "secret_service_activation_timeout"
++    "org_freedesktop_secrets_on_inherited_bus": "activatable_unowned",
++    "start_service_by_name_on_inherited_bus_exit": 124,
++    "read_default_alias_on_inherited_bus_exit": 124,
++    "daemon_restart_changed_result": false
+   },
++  "operator_session_bus_probe": {
