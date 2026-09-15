@@ -113,12 +113,14 @@ jobs:
         with:
           name: linux-rc-driver
           path: ${{ runner.temp }}/linux-rc-driver
-      - name: Install only pre-driver runtime and observation dependencies
+      - name: Install host desktop runtime prerequisites, not WebDriver
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y xvfb xauth x11-utils fonts-noto-cjk desktop-file-utils gnome-keyring dbus-x11 xdg-desktop-portal xdg-desktop-portal-gtk libayatana-appindicator3-1 libsecret-1-0 libxdo3 libfuse2
+          # AppImage intentionally relies on the host GLVND/EGL dispatch stack;
+          # do not bundle GPU-driver-facing GL/EGL libraries into the image.
+          sudo apt-get install -y xvfb xauth x11-utils fonts-noto-cjk desktop-file-utils gnome-keyring dbus-x11 xdg-desktop-portal xdg-desktop-portal-gtk libayatana-appindicator3-1 libsecret-1-0 libxdo3 libfuse2 libegl1 libgles2 libgl1
           chmod +x "$RUNNER_TEMP/linux-rc-driver/tauri-driver" "$RUNNER_TEMP/linux-rc-packages/"*.AppImage
           if [ "$PACKAGE_KIND" = deb ]; then
             sudo apt-get install -y "$RUNNER_TEMP/linux-rc-packages/"*.deb
@@ -131,11 +133,14 @@ jobs:
           set -euo pipefail
           app=$(python -c "import json; print(json.load(open('evidence/rc-package.json',encoding='utf-8'))['executable'])")
           export HOME="$RUNNER_TEMP/rc-startup-fixture"
-          export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_STATE_HOME="$HOME/state" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
-          mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
-          chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+          mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
           touch "$HOME/.linux-startup-disposable"
           for scenario in missing-bus unlocked-keyring safe-mode; do
+            export XDG_STATE_HOME="$HOME/state-$scenario"
+            mkdir -p "$XDG_STATE_HOME"
+            chmod 700 "$XDG_STATE_HOME"
             xvfb-run -a -s '-screen 0 1280x800x24' dbus-run-session -- python3 scripts/linux_startup_candidate.py --app "$app" --case "$scenario" --seconds 20 --output "evidence/startup-$scenario"
           done
           if grep -R -E 'failed to load app state|panic' evidence/startup-*/stderr.txt; then
