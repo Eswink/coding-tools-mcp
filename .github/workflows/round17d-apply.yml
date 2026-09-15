@@ -16,7 +16,7 @@ concurrency:
 jobs:
   apply:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,32 +28,74 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - name: Apply and validate exact RC4 source
+      - name: Apply and validate bounded RC4 source
         shell: bash
         run: |
           set -euo pipefail
           test "$(cat .round17d/BASE)" = "b1ddb5b0f5b517972886c4a2960f4abfff0157c1"
           git merge-base --is-ancestor "$(cat .round17d/BASE)" HEAD
           grep -qx 'candidate=0.6.0-rc.4' .round17d/READY
-          # Staging transform typo only: Rust struct fields use commas. This
-          # changes the transform script, not product source, before execution.
           sed -i 's/runtime_user_bus_secret_service_available: bool;/runtime_user_bus_secret_service_available: bool,/g' .round17d/apply.py
           python3 -m py_compile .round17d/apply.py
           npm version 0.6.0-rc.4 --no-git-tag-version --allow-same-version
           python3 .round17d/apply.py
-          cargo fmt --manifest-path src-tauri/Cargo.toml
-          cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+
+          rustfmt --edition 2021 \
+            src-tauri/src/lib.rs \
+            src-tauri/src/error.rs \
+            src-tauri/src/commands/app_info.rs \
+            src-tauri/src/linux_secret_service.rs
+
+          # The GitHub Actions token cannot update workflow files. Restore the
+          # two RC_VERSION edits and the temporary transform before the product
+          # commit; the connector will update/clean those after this bounded
+          # product commit lands.
+          git restore \
+            .github/workflows/linux-rc-packages.yml \
+            .github/workflows/windows-rc-packages.yml \
+            .round17d/apply.py
+
           cargo metadata --manifest-path src-tauri/Cargo.toml --locked --no-deps >/dev/null
+          cargo check --manifest-path src-tauri/Cargo.toml --locked
           npm ci
           npm run check
           git diff --check
-      - name: Commit exact RC4 source
+
+          python3 - <<'PY'
+          import subprocess
+          expected = {
+              'package.json',
+              'package-lock.json',
+              'src-tauri/Cargo.toml',
+              'src-tauri/Cargo.lock',
+              'src-tauri/tauri.conf.json',
+              'src-tauri/src/lib.rs',
+              'src-tauri/src/error.rs',
+              'src-tauri/src/commands/app_info.rs',
+              'src-tauri/src/linux_secret_service.rs',
+              'src/lib/api/app-info.ts',
+              'src/lib/components/StartupRecovery.svelte',
+          }
+          changed = set(subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines())
+          if changed != expected:
+              raise SystemExit(f'unexpected product diff: {sorted(changed ^ expected)}; changed={sorted(changed)}')
+          PY
+      - name: Commit bounded RC4 product source
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .round17d
-          rm -f .github/workflows/round17d-apply.yml
-          git add -A
+          git add \
+            package.json \
+            package-lock.json \
+            src-tauri/Cargo.toml \
+            src-tauri/Cargo.lock \
+            src-tauri/tauri.conf.json \
+            src-tauri/src/lib.rs \
+            src-tauri/src/error.rs \
+            src-tauri/src/commands/app_info.rs \
+            src-tauri/src/linux_secret_service.rs \
+            src/lib/api/app-info.ts \
+            src/lib/components/StartupRecovery.svelte
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "fix(linux): initialize missing default credential collection"
