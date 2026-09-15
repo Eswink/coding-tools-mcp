@@ -1,6 +1,6 @@
 [package]
 name = "coding-tools-mcp-desktop"
-version = "0.6.0-rc.3"
+version = "0.6.0-rc.4"
 description = "Coding Tools MCP desktop client"
 authors = ["Coding Tools MCP Contributors"]
 edition = "2021"
@@ -60,6 +60,7 @@ windows = { version = "0.61", features = [
 
 [target.'cfg(target_os = "linux")'.dependencies]
 dbus = "0.9"
+dbus-secret-service = { version = "=4.0.3", features = ["crypto-rust"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

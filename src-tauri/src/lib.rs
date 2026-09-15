@@ -11,6 +11,8 @@ pub mod harness;
 mod health;
 #[cfg(target_os = "linux")]
 mod linux_session_bus;
+#[cfg(target_os = "linux")]
+mod linux_secret_service;
 mod mcp;
 mod platform;
 mod runtime;

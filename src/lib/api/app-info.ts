@@ -56,6 +56,7 @@ export interface EnvironmentDiagnostics {
   sessionBusReachable: boolean;
   runtimeUserBusReachable: boolean;
   runtimeUserBusSecretServiceAvailable: boolean;
+  secretServiceDefaultCollectionState: string;
   credentialStoreState: string;
   startupFailureReason: string | null;
   configurationState: string;

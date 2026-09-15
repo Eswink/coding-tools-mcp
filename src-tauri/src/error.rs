@@ -7,6 +7,7 @@ pub(crate) enum StartupFailureReason {
     SessionBusMissing,
     SecretServiceUnavailable,
     SecretServiceLockedOrDenied,
+    SecretServiceDefaultCollectionMissing,
     KeyEntryMissing,
     EncryptedConfigKeyMissing,
     ConfigInvalidOrUnsupported,
@@ -20,6 +21,9 @@ impl StartupFailureReason {
             Self::SessionBusMissing => "session_bus_missing",
             Self::SecretServiceUnavailable => "secret_service_unavailable",
             Self::SecretServiceLockedOrDenied => "secret_service_locked_or_denied",
+            Self::SecretServiceDefaultCollectionMissing => {
+                "secret_service_default_collection_missing"
+            }
             Self::KeyEntryMissing => "key_entry_missing",
             Self::EncryptedConfigKeyMissing => "encrypted_config_key_missing",
             Self::ConfigInvalidOrUnsupported => "config_invalid_or_unsupported",
@@ -33,6 +37,7 @@ impl StartupFailureReason {
             Self::SessionBusMissing => "未检测到可用的用户 D-Bus 会话总线；原配置已保留。请从正常桌面登录会话启动应用后重试。",
             Self::SecretServiceUnavailable => "系统 Secret Service 暂不可用；原配置已保留。请确认桌面凭据服务可用后重试。",
             Self::SecretServiceLockedOrDenied => "系统凭据库已锁定或访问未获授权；原配置已保留。请解锁登录钥匙串或允许访问后重试。",
+            Self::SecretServiceDefaultCollectionMissing => "系统 Secret Service 可用，但没有持久的默认凭据库。首次使用时可通过恢复按钮让系统安全提示创建；已有加密配置时不会创建替代凭据库或替代密钥。",
             Self::KeyEntryMissing => "系统凭据库中未找到所需密钥项；不会自动创建替代密钥，原配置已保留。",
             Self::EncryptedConfigKeyMissing => "原加密配置对应的系统密钥不存在；不会生成替代密钥或覆盖密文。请使用原系统账户及其凭据备份恢复。",
             Self::ConfigInvalidOrUnsupported => "加密配置格式无效、认证失败或版本不受支持；原文件已保留，禁止重置或明文降级。",
@@ -50,7 +55,20 @@ impl fmt::Display for StartupFailureReason {
 
 pub(crate) fn classify_keyring_error(error: &keyring::Error) -> StartupFailureReason {
     match error {
-        keyring::Error::NoStorageAccess(_) => StartupFailureReason::SecretServiceLockedOrDenied,
+        keyring::Error::NoStorageAccess(_) => {
+            #[cfg(target_os = "linux")]
+            {
+                if crate::linux_secret_service::default_collection_state()
+                    == crate::linux_secret_service::DefaultCollectionState::Missing
+                {
+                    StartupFailureReason::SecretServiceDefaultCollectionMissing
+                } else {
+                    StartupFailureReason::SecretServiceLockedOrDenied
+                }
+            }
+            #[cfg(not(target_os = "linux"))]
+            StartupFailureReason::SecretServiceLockedOrDenied
+        }
         keyring::Error::NoEntry => StartupFailureReason::KeyEntryMissing,
         keyring::Error::PlatformFailure(_) => {
             #[cfg(target_os = "linux")]
@@ -98,8 +116,7 @@ impl AppError {
 }
 
 fn classify_storage_message(message: &str) -> StartupFailureReason {
-    if message.starts_with("配置加密密钥不存在")
-        || message.starts_with("配置加密密钥丢失")
+    if message.starts_with("配置加密密钥不存在") || message.starts_with("配置加密密钥丢失")
     {
         StartupFailureReason::EncryptedConfigKeyMissing
     } else if message.starts_with("加密配置格式无效")
@@ -138,10 +155,23 @@ mod tests {
     }
 
     #[test]
+    fn missing_default_collection_has_a_stable_non_secret_reason() {
+        let reason = StartupFailureReason::SecretServiceDefaultCollectionMissing;
+        assert_eq!(reason.code(), "secret_service_default_collection_missing");
+        assert!(reason.user_message().contains("默认凭据库"));
+    }
+
+    #[test]
     fn known_configuration_failures_are_classified_without_returning_the_original_text() {
         let missing = AppError::Message("配置加密密钥不存在；fixture-secret-must-not-leak".into());
-        assert_eq!(missing.startup_failure_reason(), StartupFailureReason::EncryptedConfigKeyMissing);
+        assert_eq!(
+            missing.startup_failure_reason(),
+            StartupFailureReason::EncryptedConfigKeyMissing
+        );
         let invalid = AppError::Message("配置版本 99 高于当前支持版本 1".into());
-        assert_eq!(invalid.startup_failure_reason(), StartupFailureReason::ConfigInvalidOrUnsupported);
+        assert_eq!(
+            invalid.startup_failure_reason(),
+            StartupFailureReason::ConfigInvalidOrUnsupported
+        );
     }
 }

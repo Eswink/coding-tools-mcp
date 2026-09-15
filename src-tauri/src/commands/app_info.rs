@@ -5,7 +5,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
 
 use crate::app_state::{AppState, StartupStatus};
-use crate::error::{classify_keyring_error, AppResult};
+use crate::error::{classify_keyring_error, AppResult, StartupFailureReason};
 use crate::platform::{open_url as platform_open_url, PlatformContext};
 use crate::update::{check_app_update as check_update, UpdateCheckResult};
 
@@ -30,6 +30,7 @@ pub struct EnvironmentDiagnostics {
     pub session_bus_reachable: bool,
     pub runtime_user_bus_reachable: bool,
     pub runtime_user_bus_secret_service_available: bool,
+    pub secret_service_default_collection_state: String,
     pub credential_store_state: String,
     pub startup_failure_reason: Option<String>,
     pub configuration_state: String,
@@ -62,7 +63,9 @@ pub fn get_startup_status(state: State<'_, AppState>) -> StartupStatus {
 fn credential_store_state() -> String {
     #[cfg(target_os = "linux")]
     if std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_none() {
-        return crate::error::StartupFailureReason::SessionBusMissing.code().into();
+        return crate::error::StartupFailureReason::SessionBusMissing
+            .code()
+            .into();
     }
 
     match keyring::Entry::new(DIAGNOSTIC_KEYRING_SERVICE, DIAGNOSTIC_KEYRING_ACCOUNT)
@@ -178,7 +181,10 @@ fn configuration_facts() -> ConfigurationFacts {
         .map(|metadata| {
             use std::os::unix::fs::{MetadataExt, PermissionsExt};
             let mode = metadata.permissions().mode() & 0o777;
-            (metadata.uid() == unsafe { libc::geteuid() }, mode & 0o077 == 0)
+            (
+                metadata.uid() == unsafe { libc::geteuid() },
+                mode & 0o077 == 0,
+            )
         })
         .map(|(owned, mode)| (Some(owned), Some(mode)))
         .unwrap_or((None, None));
@@ -201,16 +207,28 @@ pub(crate) fn environment_diagnostics_snapshot(
 ) -> EnvironmentDiagnostics {
     let platform = crate::platform::context().clone();
     let mut executables = BTreeMap::new();
-    for name in ["sh", "bash", "git", "python3", "xdg-open", "frpc", "cloudflared"] {
+    for name in [
+        "sh",
+        "bash",
+        "git",
+        "python3",
+        "xdg-open",
+        "frpc",
+        "cloudflared",
+    ] {
         executables.insert(
             name.to_string(),
-            crate::platform::platform().resolve_executable(name).is_some(),
+            crate::platform::platform()
+                .resolve_executable(name)
+                .is_some(),
         );
     }
     let display = display_backend();
     let configuration = configuration_facts();
     #[cfg(target_os = "linux")]
     let session_bus = crate::linux_session_bus::state();
+    #[cfg(target_os = "linux")]
+    let default_collection = crate::linux_secret_service::default_collection_state();
 
     EnvironmentDiagnostics {
         app_version: env!("CARGO_PKG_VERSION").into(),
@@ -242,9 +260,14 @@ pub(crate) fn environment_diagnostics_snapshot(
         #[cfg(not(target_os = "linux"))]
         runtime_user_bus_reachable: false,
         #[cfg(target_os = "linux")]
-        runtime_user_bus_secret_service_available: session_bus.runtime_user_bus_secret_service_available,
+        runtime_user_bus_secret_service_available: session_bus
+            .runtime_user_bus_secret_service_available,
         #[cfg(not(target_os = "linux"))]
         runtime_user_bus_secret_service_available: false,
+        #[cfg(target_os = "linux")]
+        secret_service_default_collection_state: default_collection.code().into(),
+        #[cfg(not(target_os = "linux"))]
+        secret_service_default_collection_state: "platform_default".into(),
         credential_store_state: credential_store_state(),
         startup_failure_reason: None,
         configuration_state: configuration_state.into(),
@@ -263,7 +286,11 @@ pub(crate) fn environment_diagnostics(app: &AppHandle) -> EnvironmentDiagnostics
     let state = app.state::<AppState>();
     let status = state.startup_status();
     let mut diagnostics = environment_diagnostics_snapshot(
-        if status.ready { "ready" } else { "locked_or_unavailable" },
+        if status.ready {
+            "ready"
+        } else {
+            "locked_or_unavailable"
+        },
         app.tray_by_id("main-tray").is_some(),
         !crate::bootstrap::safe_mode(),
     );
@@ -276,9 +303,27 @@ pub fn get_environment_diagnostics(app: AppHandle) -> EnvironmentDiagnostics {
     environment_diagnostics(&app)
 }
 
+fn should_initialize_default_collection(
+    reason_code: Option<&str>,
+    configuration_exists: bool,
+) -> bool {
+    reason_code == Some(StartupFailureReason::SecretServiceDefaultCollectionMissing.code())
+        && !configuration_exists
+}
+
 #[tauri::command]
 pub fn retry_startup(app: AppHandle) -> AppResult<StartupStatus> {
     let state = app.state::<AppState>();
+    #[cfg(target_os = "linux")]
+    {
+        let before = state.startup_status();
+        let configuration = configuration_facts();
+        if should_initialize_default_collection(before.reason_code.as_deref(), configuration.exists)
+            && crate::linux_secret_service::initialize_default_collection()?
+        {
+            crate::bootstrap::record("secret-service-default-created");
+        }
+    }
     let became_ready = state.retry_data()?;
     let status = state.startup_status();
     if became_ready {
@@ -298,7 +343,15 @@ mod tests {
 
     #[test]
     fn diagnostics_binary_names_are_non_secret_capability_probes() {
-        for name in ["sh", "bash", "git", "python3", "xdg-open", "frpc", "cloudflared"] {
+        for name in [
+            "sh",
+            "bash",
+            "git",
+            "python3",
+            "xdg-open",
+            "frpc",
+            "cloudflared",
+        ] {
             assert!(!name.contains('/'));
             assert!(!name.contains('\\'));
         }
@@ -319,5 +372,21 @@ mod tests {
         assert!(["appimage", "deb", "unknown"].contains(&kind.as_str()));
         assert!(!kind.contains('/'));
         assert!(!kind.contains('\\'));
+    }
+
+    #[test]
+    fn default_collection_creation_is_only_allowed_for_fresh_missing_default_state() {
+        assert!(should_initialize_default_collection(
+            Some(StartupFailureReason::SecretServiceDefaultCollectionMissing.code()),
+            false,
+        ));
+        assert!(!should_initialize_default_collection(
+            Some(StartupFailureReason::SecretServiceDefaultCollectionMissing.code()),
+            true,
+        ));
+        assert!(!should_initialize_default_collection(
+            Some(StartupFailureReason::SecretServiceLockedOrDenied.code()),
+            false,
+        ));
     }
 }
