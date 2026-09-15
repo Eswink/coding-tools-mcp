@@ -1,0 +1,158 @@
++    parser.add_argument('--case', choices=['missing-bus', 'unlocked-keyring', 'split-session-bus', 'safe-mode', 'diagnose-startup', 'diagnose-no-bus'], required=True)
+     parser.add_argument('--seconds', type=int, default=30)
+     args = parser.parse_args()
+     assert os.getuid() != 0, 'startup test must run as the ordinary runner user'
+@@ -50,10 +108,30 @@ def main() -> None:
+         env.pop('DISPLAY', None)
+         env.pop('WAYLAND_DISPLAY', None)
+     assert Path(env['HOME'], '.linux-startup-disposable').is_file(), 'disposable home required'
++    runtime_bus_process: subprocess.Popen[str] | None = None
++    split_fixture = None
+     if args.case == 'missing-bus':
+         env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=' + str(Path(env['XDG_RUNTIME_DIR'], 'absent-bus'))
+     elif args.case == 'diagnose-no-bus':
+         env.pop('DBUS_SESSION_BUS_ADDRESS', None)
++    elif args.case == 'split-session-bus':
++        inherited_address = env['DBUS_SESSION_BUS_ADDRESS']
++        runtime_bus_process, runtime_address = start_runtime_user_bus(env, output)
++        runtime_env = env.copy()
++        runtime_env['DBUS_SESSION_BUS_ADDRESS'] = runtime_address
++        start_keyring(runtime_env, output)
++        inherited_owned = name_has_owner(env)
++        runtime_owned = name_has_owner(runtime_env)
++        if inherited_address == runtime_address or inherited_owned or not runtime_owned:
++            stop_fixture_process(runtime_bus_process)
++            raise RuntimeError('split-session fixture did not establish isolated bus ownership')
++        split_fixture = {
++            'inherited_secret_service_owned': inherited_owned,
++            'runtime_user_bus_secret_service_owned': runtime_owned,
++            'addresses_differ': inherited_address != runtime_address,
++        }
++        (output / 'split-fixture.json').write_text(
++            json.dumps(split_fixture, indent=2) + '\n', encoding='utf-8')
+     else:
+         start_keyring(env, output)
+ 
+@@ -91,6 +169,7 @@ def main() -> None:
+         stderr.seek(0); error = stderr.read(65536).decode('utf-8', errors='replace')
+         stdout.seek(0); out = stdout.read(8192).decode('utf-8', errors='replace')
+ 
++    stop_fixture_process(runtime_bus_process)
+     (output / 'stderr.txt').write_text(error, encoding='utf-8')
+     (output / 'stdout.txt').write_text(out, encoding='utf-8')
+     config = Path(env['XDG_CONFIG_HOME']) / 'coding-tools-mcp-desktop/data/profiles.json'
+@@ -109,7 +188,7 @@ def main() -> None:
+     if args.case == 'missing-bus':
+         expected = common and not config.exists() and 'app-state-locked' in phases \
+             and 'background-deferred' in phases and 'background-ready' not in phases
+-    elif args.case == 'unlocked-keyring':
++    elif args.case in ('unlocked-keyring', 'split-session-bus'):
+         expected = common and config.exists() and 'app-state-ready' in phases \
+             and 'background-ready' in phases
+     elif args.case == 'safe-mode':
+@@ -149,6 +228,7 @@ def main() -> None:
+         'bootstrap_phases': phases,
+         'app_state_panic': 'failed to load app state' in error,
+         'startup_diagnostics': startup_diagnostics,
++        'split_session_fixture': split_fixture,
+         'expected_candidate_behavior_observed': expected,
+     }
+     (output / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+diff --git a/src-tauri/Cargo.lock b/src-tauri/Cargo.lock
+index c7f05f0..b8e1851 100644
+--- a/src-tauri/Cargo.lock
++++ b/src-tauri/Cargo.lock
+@@ -611,10 +611,11 @@ dependencies = [
+ 
+ [[package]]
+ name = "coding-tools-mcp-desktop"
+-version = "0.6.0-rc.2"
++version = "0.6.0-rc.3"
+ dependencies = [
+  "axum",
+  "base64 0.22.1",
++ "dbus",
+  "dirs",
+  "flate2",
+  "fs2",
+diff --git a/src-tauri/Cargo.toml b/src-tauri/Cargo.toml
+index f80f166..92ab97d 100644
+--- a/src-tauri/Cargo.toml
++++ b/src-tauri/Cargo.toml
+@@ -1,6 +1,6 @@
+ [package]
+ name = "coding-tools-mcp-desktop"
+-version = "0.6.0-rc.2"
++version = "0.6.0-rc.3"
+ description = "Coding Tools MCP desktop client"
+ authors = ["Coding Tools MCP Contributors"]
+ edition = "2021"
+@@ -58,6 +58,9 @@ windows = { version = "0.61", features = [
+     "Win32_UI_Shell_Common",
+ ] }
+ 
++[target.'cfg(target_os = "linux")'.dependencies]
++dbus = "0.9"
++
+ [target.'cfg(unix)'.dependencies]
+ libc = "0.2"
+ 
+diff --git a/src-tauri/src/commands/app_info.rs b/src-tauri/src/commands/app_info.rs
+index 86ed5cf..5a61ebf 100644
+--- a/src-tauri/src/commands/app_info.rs
++++ b/src-tauri/src/commands/app_info.rs
+@@ -24,6 +24,12 @@ pub struct EnvironmentDiagnostics {
+     pub display_backend: String,
+     pub desktop_session: String,
+     pub session_bus_configured: bool,
++    pub session_bus_original_configured: bool,
++    pub session_bus_route: String,
++    pub session_bus_split_detected: bool,
++    pub session_bus_reachable: bool,
++    pub runtime_user_bus_reachable: bool,
++    pub runtime_user_bus_secret_service_available: bool,
+     pub credential_store_state: String,
+     pub startup_failure_reason: Option<String>,
+     pub configuration_state: String,
+@@ -203,6 +209,8 @@ pub(crate) fn environment_diagnostics_snapshot(
+     }
+     let display = display_backend();
+     let configuration = configuration_facts();
++    #[cfg(target_os = "linux")]
++    let session_bus = crate::linux_session_bus::state();
+ 
+     EnvironmentDiagnostics {
+         app_version: env!("CARGO_PKG_VERSION").into(),
+@@ -213,6 +221,30 @@ pub(crate) fn environment_diagnostics_snapshot(
+         display_backend: display.into(),
+         desktop_session: desktop_session(display),
+         session_bus_configured: std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_some(),
++        #[cfg(target_os = "linux")]
++        session_bus_original_configured: session_bus.original_configured,
++        #[cfg(not(target_os = "linux"))]
++        session_bus_original_configured: std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_some(),
++        #[cfg(target_os = "linux")]
++        session_bus_route: session_bus.route.code().into(),
++        #[cfg(not(target_os = "linux"))]
++        session_bus_route: "platform_default".into(),
++        #[cfg(target_os = "linux")]
++        session_bus_split_detected: session_bus.split_detected,
++        #[cfg(not(target_os = "linux"))]
++        session_bus_split_detected: false,
++        #[cfg(target_os = "linux")]
++        session_bus_reachable: session_bus.selected_bus_reachable(),
++        #[cfg(not(target_os = "linux"))]
++        session_bus_reachable: true,
++        #[cfg(target_os = "linux")]
++        runtime_user_bus_reachable: session_bus.runtime_user_bus_reachable,
++        #[cfg(not(target_os = "linux"))]
++        runtime_user_bus_reachable: false,
++        #[cfg(target_os = "linux")]
++        runtime_user_bus_secret_service_available: session_bus.runtime_user_bus_secret_service_available,
++        #[cfg(not(target_os = "linux"))]
++        runtime_user_bus_secret_service_available: false,
+         credential_store_state: credential_store_state(),
+         startup_failure_reason: None,
+         configuration_state: configuration_state.into(),
+diff --git a/src-tauri/src/error.rs b/src-tauri/src/error.rs
+index 6923362..6e36fc7 100644
