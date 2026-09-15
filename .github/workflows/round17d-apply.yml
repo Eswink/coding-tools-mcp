@@ -34,6 +34,10 @@ jobs:
           git merge-base --is-ancestor "$(cat .round17d/BASE)" HEAD
           grep -qx 'candidate=0.6.0-rc.4' .round17d/READY
 
+          # Staging v1 declared 103 lines for the new Linux module; the exact
+          # staged body contains 119. Correct only that patch metadata before
+          # validating/applying the already-reviewed content.
+          sed -i 's/@@ -0,0 +1,103 @@/@@ -0,0 +1,119 @@/' .round17d/patch.diff
           git apply --check .round17d/patch.diff
           git apply .round17d/patch.diff
 
