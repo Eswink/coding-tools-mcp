@@ -11,7 +11,7 @@ env:
   PYTHONUTF8: '1'
   PYTHONDONTWRITEBYTECODE: '1'
   CARGO_TERM_COLOR: never
-  RC_VERSION: '0.6.0-rc.1'
+  RC_VERSION: '0.6.0-rc.2'
 jobs:
   windows:
     name: Build and install exact Windows RC
