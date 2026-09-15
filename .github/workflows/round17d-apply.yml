@@ -35,6 +35,9 @@ jobs:
           test "$(cat .round17d/BASE)" = "b1ddb5b0f5b517972886c4a2960f4abfff0157c1"
           git merge-base --is-ancestor "$(cat .round17d/BASE)" HEAD
           grep -qx 'candidate=0.6.0-rc.4' .round17d/READY
+          # Staging transform typo only: Rust struct fields use commas. This
+          # changes the transform script, not product source, before execution.
+          sed -i 's/runtime_user_bus_secret_service_available: bool;/runtime_user_bus_secret_service_available: bool,/g' .round17d/apply.py
           python3 -m py_compile .round17d/apply.py
           npm version 0.6.0-rc.4 --no-git-tag-version --allow-same-version
           python3 .round17d/apply.py
