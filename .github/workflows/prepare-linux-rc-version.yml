@@ -59,7 +59,7 @@ jobs:
           PY
           git rm .github/workflows/prepare-linux-rc-version.yml
           expected=$(printf '%s\n' package-lock.json src-tauri/Cargo.lock src-tauri/Cargo.toml src-tauri/Ubuntu桌面v1.json src-tauri/tauri.conf.json .github/workflows/prepare-linux-rc-version.yml | sort)
-          actual=$(git diff HEAD --name-only | sort)
+          actual=$(git -c core.quotepath=false diff HEAD --name-only | sort)
           printf 'expected files:\n%s\nactual files:\n%s\n' "$expected" "$actual"
           test "$actual" = "$expected"
           python3 - <<'PY'
