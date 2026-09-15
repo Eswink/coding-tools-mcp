@@ -47,6 +47,7 @@ export interface EnvironmentDiagnostics {
   displayBackend: string;
   sessionBusConfigured: boolean;
   credentialStoreState: string;
+  configurationState: string;
   trayAvailable: boolean;
   notificationPluginEnabled: boolean;
   executables: Record<string, boolean>;

@@ -167,6 +167,13 @@ jobs:
           chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
           touch "$HOME/.linux-startup-disposable"
           dbus-run-session -- env -u DISPLAY -u WAYLAND_DISPLAY python3 scripts/linux_startup_candidate.py --app "$app" --case "$scenario" --seconds 8 --output "evidence/$scenario" || result=1
+          scenario=diagnose-no-bus
+          export HOME="$RUNNER_TEMP/candidate-$scenario"
+          export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_STATE_HOME="$HOME/state" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+          mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          touch "$HOME/.linux-startup-disposable"
+          dbus-run-session -- env -u DISPLAY -u WAYLAND_DISPLAY python3 scripts/linux_startup_candidate.py --app "$app" --case "$scenario" --seconds 8 --output "evidence/$scenario" || result=1
           exit "$result"
       - uses: actions/upload-artifact@v4
         if: always()

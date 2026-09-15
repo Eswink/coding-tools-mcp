@@ -22,6 +22,20 @@ use crate::workspace::RuntimeStatusDto;
 /// the same listener concurrently (that race could abort the process on Windows).
 pub(crate) static RESTART_GATE: LazyLock<AsyncMutex<()>> = LazyLock::new(|| AsyncMutex::new(()));
 
+pub(super) fn ensure_service_start_allowed() -> AppResult<()> {
+    ensure_service_start_allowed_for(crate::bootstrap::safe_mode())
+}
+
+fn ensure_service_start_allowed_for(safe_mode: bool) -> AppResult<()> {
+    if safe_mode {
+        Err(AppError::Message(
+            "安全模式不允许启动 MCP、Actions 或隧道；请正常重启应用后再启动服务。".into(),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 fn profile_by_id(state: &AppState, id: &str) -> AppResult<crate::workspace::WorkspaceProfile> {
     state.with_workspaces(|store| {
         store
@@ -92,6 +106,7 @@ pub(crate) async fn start_mcp_service(state: &AppState, id: &str) -> AppResult<R
 pub(crate) async fn start_mcp_service_checked(
     state: &AppState, id: &str, strict_tunnel: bool,
 ) -> AppResult<RuntimeStatusDto> {
+    ensure_service_start_allowed()?;
     validate_start_resources(state, id, WorkspaceService::Mcp)?;
     let profile = profile_by_id(state, id)?;
     ensure_port_available(profile.runtime.local_port, "本地 MCP").await?;
@@ -139,6 +154,7 @@ pub(crate) async fn start_actions_service(state: &AppState, id: &str) -> AppResu
 pub(crate) async fn start_actions_service_checked(
     state: &AppState, id: &str, strict_tunnel: bool,
 ) -> AppResult<RuntimeStatusDto> {
+    ensure_service_start_allowed()?;
     validate_start_resources(state, id, WorkspaceService::Actions)?;
     let profile = profile_by_id(state, id)?;
     ensure_port_available(profile.actions.local_port, "本地 Actions").await?;
@@ -260,4 +276,15 @@ pub async fn restart_actions_runtime(
     id: String,
 ) -> AppResult<RuntimeStatusDto> {
     restart_actions_by_id(&state, &id).await
+}
+
+#[cfg(test)]
+mod safe_mode_tests {
+    use super::*;
+
+    #[test]
+    fn safe_mode_blocks_service_start_but_normal_mode_allows_it() {
+        assert!(ensure_service_start_allowed_for(true).is_err());
+        assert!(ensure_service_start_allowed_for(false).is_ok());
+    }
 }

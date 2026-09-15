@@ -31,11 +31,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--app', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--case', choices=['missing-bus', 'unlocked-keyring', 'safe-mode', 'diagnose-startup'], required=True)
+    parser.add_argument('--case', choices=['missing-bus', 'unlocked-keyring', 'safe-mode', 'diagnose-startup', 'diagnose-no-bus'], required=True)
     parser.add_argument('--seconds', type=int, default=30)
     args = parser.parse_args()
     assert os.getuid() != 0, 'startup test must run as the ordinary runner user'
-    if args.case != 'diagnose-startup':
+    if args.case not in ('diagnose-startup', 'diagnose-no-bus'):
         assert os.environ.get('DISPLAY'), 'isolated Xvfb required'
     assert os.environ.get('DBUS_SESSION_BUS_ADDRESS'), 'isolated session bus required'
     app = args.app.resolve(strict=True)
@@ -46,19 +46,21 @@ def main() -> None:
         'XDG_RUNTIME_DIR'] if key in os.environ}
     env.update(LANG='C.UTF-8', LC_ALL='C.UTF-8', XDG_CURRENT_DESKTOP='GNOME',
                XDG_SESSION_TYPE='x11', RUST_BACKTRACE='1')
-    if args.case == 'diagnose-startup':
+    if args.case in ('diagnose-startup', 'diagnose-no-bus'):
         env.pop('DISPLAY', None)
         env.pop('WAYLAND_DISPLAY', None)
     assert Path(env['HOME'], '.linux-startup-disposable').is_file(), 'disposable home required'
     if args.case == 'missing-bus':
         env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=' + str(Path(env['XDG_RUNTIME_DIR'], 'absent-bus'))
+    elif args.case == 'diagnose-no-bus':
+        env.pop('DBUS_SESSION_BUS_ADDRESS', None)
     else:
         start_keyring(env, output)
 
     app_command = [str(app)]
     if args.case == 'safe-mode':
         app_command.append('--safe-mode')
-    elif args.case == 'diagnose-startup':
+    elif args.case in ('diagnose-startup', 'diagnose-no-bus'):
         app_command.append('--diagnose-startup')
 
     start = time.monotonic()
@@ -72,11 +74,11 @@ def main() -> None:
                 natural_returncode = process.poll()
                 if natural_returncode is not None:
                     break
-                if args.case != 'diagnose-startup':
+                if args.case not in ('diagnose-startup', 'diagnose-no-bus'):
                     tree = subprocess.run(['xwininfo', '-root', '-tree'], env=env, capture_output=True,
                                           text=True, timeout=5)
                     observations.append('Coding Tools MCP' in tree.stdout)
-                time.sleep(0.25 if args.case == 'diagnose-startup' else 1)
+                time.sleep(0.25 if args.case in ('diagnose-startup', 'diagnose-no-bus') else 1)
         finally:
             was_alive = process.poll() is None
             try: os.killpg(process.pid, signal.SIGTERM)
@@ -116,22 +118,27 @@ def main() -> None:
             and 'tray-ready' not in phases and 'background-ready' not in phases \
             and startup_diagnostics is None
     else:
-        expected = natural_returncode == 0 and not was_alive and not observations and config.exists() \
-            and 'panic' not in phases and 'app-state-ready' in phases \
-            and 'diagnostics-complete' in phases and 'tauri-setup' not in phases \
-            and 'setup-complete' not in phases and isinstance(startup_diagnostics, dict) \
+        expected_bus = args.case == 'diagnose-startup'
+        expected_store = 'available' if expected_bus else 'locked_or_unavailable'
+        expected = natural_returncode == 0 and not was_alive and not observations and not config.exists() \
+            and 'panic' not in phases and 'app-state-ready' not in phases \
+            and 'app-state-locked' not in phases and 'diagnostics-complete' in phases \
+            and 'tauri-setup' not in phases and 'setup-complete' not in phases \
+            and isinstance(startup_diagnostics, dict) \
             and startup_diagnostics.get('safeMode') is True \
             and startup_diagnostics.get('diagnoseStartup') is True \
             and startup_diagnostics.get('trayAvailable') is False \
             and startup_diagnostics.get('notificationPluginEnabled') is False \
-            and startup_diagnostics.get('sessionBusConfigured') is True \
-            and startup_diagnostics.get('displayBackend') == 'headless'
+            and startup_diagnostics.get('sessionBusConfigured') is expected_bus \
+            and startup_diagnostics.get('displayBackend') == 'headless' \
+            and startup_diagnostics.get('credentialStoreState') == expected_store \
+            and startup_diagnostics.get('configurationState') == 'not_loaded'
     result = {
         'case': args.case,
         'source': os.environ.get('GITHUB_SHA'),
         'run_id': os.environ.get('GITHUB_RUN_ID'),
         'uid': os.getuid(),
-        'display': 'headless CLI diagnostic' if args.case == 'diagnose-startup' else 'Xvfb X11; not operator desktop or Wayland',
+        'display': 'headless CLI diagnostic' if args.case in ('diagnose-startup', 'diagnose-no-bus') else 'Xvfb X11; not operator desktop or Wayland',
         'elapsed_seconds': round(time.monotonic() - start, 3),
         'natural_exit_code': natural_returncode,
         'alive_before_test_cleanup': was_alive,

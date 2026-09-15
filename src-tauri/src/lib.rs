@@ -169,10 +169,7 @@ pub fn run() {
     bootstrap::record("process-start");
     let startup_mode = bootstrap::startup_mode();
     if startup_mode.diagnose_startup {
-        let state = AppState::new().expect("failed to create startup diagnostic state wrapper");
-        let status = state.startup_status();
-        bootstrap::record(if status.ready { "app-state-ready" } else { "app-state-locked" });
-        let diagnostics = commands::environment_diagnostics_for_status(&status, false, false);
+        let diagnostics = commands::environment_diagnostics_snapshot("not_loaded", false, false);
         if let Ok(json) = serde_json::to_string(&diagnostics) {
             use std::io::Write;
             let mut stdout = std::io::stdout().lock();
