@@ -150,7 +150,7 @@ jobs:
           test -x "$app"
           mkdir -p evidence
           result=0
-          for scenario in missing-bus unlocked-keyring safe-mode; do
+          for scenario in missing-bus unlocked-keyring split-session-bus safe-mode; do
             export HOME="$RUNNER_TEMP/candidate-$scenario"
             export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_STATE_HOME="$HOME/state" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
             mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
