@@ -16,7 +16,7 @@ concurrency:
 jobs:
   apply:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,6 +28,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
+      - name: Install Linux build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev patchelf libfuse2 libegl1 libgles2 libgl1
       - name: Apply and validate bounded RC4 source
         shell: bash
         run: |
@@ -51,9 +57,6 @@ jobs:
             .github/workflows/windows-rc-packages.yml \
             .round17d/apply.py
 
-          # Resolve the newly enabled crypto-rust feature edge into Cargo.lock
-          # exactly once. The following check proves the resulting lock is then
-          # sufficient for a network-independent --locked build.
           cargo check --manifest-path src-tauri/Cargo.toml
           cargo check --manifest-path src-tauri/Cargo.toml --locked
           npm ci
