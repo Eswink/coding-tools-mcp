@@ -4,10 +4,16 @@
   "baseline_main": "5780302c123f8aa308017f2d2767fc18e3ef7c5b",
   "published_v0_5_0_source": "63261e0c9ae4b0c6befdbe5ae8caff7f5d32c076",
   "failure_first_run": 34869284911,
-  "last_completed_round": 2,
-  "candidate_rounds": [3, 4, 5],
+  "last_completed_round": 13,
+  "candidate_rounds": [
+    14,
+    15,
+    16
+  ],
   "confirmed_defect": "DataStore/keyring startup errors panic the process via AppState::new().expect",
+  "round_13_candidate": "22fdebc7cf238ed4082a0ee363a6460940ecb01b",
+  "round_13_run": 34926207880,
   "operator_root_cause_confirmed": false,
   "release_allowed": false,
-  "next_gate": "candidate Ubuntu 22.04/24.04 source-runtime CI"
+  "next_gate": "Round 14 exact-source Ubuntu DEB/AppImage candidate packaging and MCP/security regression"
 }

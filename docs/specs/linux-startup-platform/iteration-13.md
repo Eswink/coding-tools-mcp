@@ -1,48 +1,48 @@
 # Iteration 13 — Safe Mode and startup diagnostics
 
-Status: final hardening prepared; exact-source CI pending. This is not a release claim.
+Status: COMPLETE FOR AUTOMATED CODE GATE. Product release is not approved.
 
-## Intermediate evidence
+## Final candidate and evidence
 
-Commit `a7383956e71abb761a0ad5433d9c641c1c7f4940` was exercised by GitHub Actions run `34924912126`. The immutable v0.5.0 baseline matrix remained green on Ubuntu 22.04/24.04 for both DEB and AppImage, and the source candidate passed frontend build/check, the full Rust suite, release build, recoverable locked startup, healthy unlocked-keyring startup, Safe Mode GUI startup, and the first headless diagnostic path on both Ubuntu releases.
+- Exact candidate: `22fdebc7cf238ed4082a0ee363a6460940ecb01b`.
+- GitHub Actions workflow: `Linux released startup failure-first`.
+- Final run: `34926207880` (run 25), conclusion `success`.
+- Candidate Ubuntu 22.04 and Ubuntu 24.04 jobs both completed the frontend/Rust regression and startup-control steps successfully.
+- The immutable published v0.5.0 baseline remained green for Ubuntu 22.04/24.04 × DEB/AppImage. No v0.5.0 tag, asset or release-channel mutation was made.
 
-That run is intermediate evidence only. Review after it completed found two contracts that still required hardening before Round 13 could be closed:
+## Delivered recovery contracts
 
-1. the diagnostic path must not load, create, decrypt, migrate, or rewrite the production configuration merely to report environment capability;
-2. Safe Mode must reject explicit MCP, Actions and tunnel start/restart/test requests in the backend, not merely skip automatic background startup and suppress the normal UI host.
-
-## Final hardening in this candidate
-
-- `--diagnose-startup` returns before Tauri/WebView construction and before `AppState`/`DataStore` loading. It reports `configurationState=not_loaded` and never creates the application configuration as a side effect.
-- Credential-store availability is probed through a fixed, isolated diagnostic keyring namespace. Only a state label is returned; credential values, environment values and application secrets are not emitted.
-- A second headless contract removes `DBUS_SESSION_BUS_ADDRESS` entirely. Diagnostics must still exit successfully, report `displayBackend=headless`, report the session bus as unavailable, preserve the absent production configuration, and avoid Tauri setup.
-- Safe Mode still keeps the main GUI usable for local inspection, but the backend now refuses MCP, Actions and tunnel start/restart/test operations. Stop/cleanup paths remain available.
-- Tray, notification plugin, chat approval host and automatic background services remain disabled in Safe Mode.
+- `--safe-mode` keeps the local GUI available for inspection while skipping tray, notification plugin and automatic background services.
+- Safe Mode rejects backend MCP, Actions and tunnel start/restart/test requests; stop/cleanup and status paths remain available.
+- `--diagnose-startup` returns before Tauri/WebView construction and before `AppState`/`DataStore` loading.
+- Headless diagnostics report `configurationState=not_loaded`; they do not create, decrypt, migrate or rewrite the production configuration.
+- Credential-store availability is probed only through the isolated `coding-tools-mcp.startup-diagnostics.v1` namespace. No credential value, application secret or environment value is emitted.
+- The diagnostic matrix includes both an isolated healthy session bus/keyring case and a case with `DBUS_SESSION_BUS_ADDRESS` removed entirely.
+- Missing Secret Service/session bus remains a recoverable locked GUI state rather than a startup panic, and healthy keyring startup still reaches ready state.
 - Linux tunnel dependency guidance is platform-neutral rather than suggesting a Windows-only installer command.
 
-## Verification contract
+## Verification performed in run 34926207880
 
-The final Round 13 source must pass on both Ubuntu 22.04 and 24.04:
+Both Ubuntu candidate jobs passed:
 
-- frontend check and production build;
-- full locked Rust tests and release build;
-- missing Secret Service/session-bus GUI recovery with no config creation;
+- `npm ci`, Svelte check and production frontend build;
+- complete locked Rust tests and release build;
+- missing-bus GUI recovery with no replacement configuration;
 - healthy unlocked-keyring GUI startup;
-- Safe Mode GUI startup with no tray/background service activation;
-- headless diagnostics with an isolated healthy session bus/keyring and no production-config side effect;
-- headless diagnostics with no session bus at all and no production-config side effect.
+- Safe Mode GUI startup with no tray/background activation;
+- headless diagnostics with a healthy isolated bus/keyring and no production-config side effect;
+- headless diagnostics with no session bus and no production-config side effect.
 
-The immutable v0.5.0 DEB/AppImage baseline matrix remains part of the same workflow and must not be modified.
+The baseline jobs independently re-downloaded and verified the immutable v0.5.0 packages before exercising their recorded missing-bus/unlocked-keyring controls.
 
 ## Engineering-tool degradation
 
 The approved workflow requires MCP Probe/GitNexus impact analysis before symbol changes. The exact source artifact did not contain the Probe launcher; the pinned `mcp-probe-kit@4.0.1` repair attempt timed out, and GitNexus is unavailable in this execution environment. Impact review therefore used explicit caller/source inspection plus exact-source CI. This is a recorded degradation, not a claim that graph analysis succeeded.
 
-## Remaining gates
+## Outstanding gates
 
-- Round 13 is not complete until the final hardening commit passes the complete Ubuntu 22.04/24.04 matrix above.
-- Xvfb remains X11 evidence only; real Wayland/operator-desktop acceptance is still outstanding.
-- Round 14 must build and test exact-source candidate DEB/AppImage artifacts and run the security/conversation regressions.
-- Round 15 must run the Windows build/installed NSIS regression.
-- A unique `0.6.0-rc.1` candidate must not replace or mutate stable `v0.5.0`.
-- Stable release remains blocked on real operator acceptance.
+- Xvfb evidence is X11-only. It is not real Wayland/operator-desktop acceptance.
+- Round 14 must build exact-source candidate DEB/AppImage bytes under a unique `0.6.0-rc.1` version and run Ubuntu installed/MCP/security regressions.
+- Round 15 must run the Windows build and installed NSIS regression.
+- Round 16 requires the user's real Ubuntu machine to validate both candidate formats before any Stable/Latest release.
+- Stable `v0.5.0` remains immutable, and `release_allowed` remains false.
