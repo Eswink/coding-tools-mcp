@@ -1,0 +1,389 @@
+diff --git a/src-tauri/Cargo.toml b/src-tauri/Cargo.toml
+--- a/src-tauri/Cargo.toml
++++ b/src-tauri/Cargo.toml
+@@ -1,6 +1,6 @@
+ [package]
+ name = "coding-tools-mcp-desktop"
+-version = "0.6.0-rc.3"
++version = "0.6.0-rc.4"
+ description = "Coding Tools MCP desktop client"
+ authors = ["Coding Tools MCP Contributors"]
+ edition = "2021"
+@@ -48,6 +48,7 @@ windows = { version = "0.61", features = [
+ 
+ [target.'cfg(target_os = "linux")'.dependencies]
+ dbus = "0.9"
++dbus-secret-service = { version = "=4.0.3", features = ["crypto-rust"] }
+ 
+ [target.'cfg(unix)'.dependencies]
+ libc = "0.2"
+diff --git a/src-tauri/tauri.conf.json b/src-tauri/tauri.conf.json
+--- a/src-tauri/tauri.conf.json
++++ b/src-tauri/tauri.conf.json
+@@ -1,7 +1,7 @@
+ {
+   "$schema": "https://schema.tauri.app/config/2",
+   "productName": "Coding Tools MCP",
+-  "version": "0.6.0-rc.3",
++  "version": "0.6.0-rc.4",
+   "identifier": "com.codingtools.mcp.desktop",
+   "build": {
+     "beforeDevCommand": "npm run dev",
+diff --git a/.github/workflows/linux-rc-packages.yml b/.github/workflows/linux-rc-packages.yml
+--- a/.github/workflows/linux-rc-packages.yml
++++ b/.github/workflows/linux-rc-packages.yml
+@@ -15,7 +15,7 @@ concurrency:
+ env:
+   PYTHONUTF8: '1'
+   PYTHONDONTWRITEBYTECODE: '1'
+-  RC_VERSION: '0.6.0-rc.3'
++  RC_VERSION: '0.6.0-rc.4'
+ jobs:
+   build:
+     name: Build exact DEB and AppImage RC
+diff --git a/.github/workflows/windows-rc-packages.yml b/.github/workflows/windows-rc-packages.yml
+--- a/.github/workflows/windows-rc-packages.yml
++++ b/.github/workflows/windows-rc-packages.yml
+@@ -12,7 +12,7 @@ env:
+   PYTHONUTF8: '1'
+   PYTHONDONTWRITEBYTECODE: '1'
+   CARGO_TERM_COLOR: never
+-  RC_VERSION: '0.6.0-rc.3'
++  RC_VERSION: '0.6.0-rc.4'
+ jobs:
+   windows:
+     name: Build and install exact Windows RC
+diff --git a/src-tauri/src/lib.rs b/src-tauri/src/lib.rs
+--- a/src-tauri/src/lib.rs
++++ b/src-tauri/src/lib.rs
+@@ -12,6 +12,8 @@ pub mod harness;
+ mod health;
+ #[cfg(target_os = "linux")]
+ mod linux_session_bus;
++#[cfg(target_os = "linux")]
++mod linux_secret_service;
+ mod mcp;
+ mod platform;
+ mod runtime;
+diff --git a/src-tauri/src/linux_secret_service.rs b/src-tauri/src/linux_secret_service.rs
+new file mode 100644
+--- /dev/null
++++ b/src-tauri/src/linux_secret_service.rs
+@@ -0,0 +1,103 @@
++//! Linux Secret Service collection recovery.
++//!
++//! The keyring 3.6.x sync Secret Service backend falls back to a legacy search
++//! in the default collection when a default-target item is absent. If the
++//! Secret Service has no `default` alias at all, that fallback maps
++//! `NoResult` to `NoStorageAccess`, which is indistinguishable from a locked or
++//! dismissed prompt at the keyring API boundary.
++//!
++//! This module recovers only that bounded state. It never reads a password,
++//! never stores a key itself, and never creates a collection when an existing
++//! encrypted configuration is present. Collection creation is invoked only by
++//! the explicit recovery action after the caller proves this is a fresh
++//! configuration path. Any password UI is owned by the desktop Secret Service.
++
++use dbus_secret_service::{EncryptionType, Error, SecretService};
++
++use crate::error::{AppError, AppResult, StartupFailureReason};
++
++const PROMPT_TIMEOUT_SECONDS: u64 = 90;
++const DEFAULT_COLLECTION_LABEL: &str = "Login";
++
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub(crate) enum DefaultCollectionState {
++    Present,
++    Missing,
++    Unknown,
++}
++
++impl DefaultCollectionState {
++    pub(crate) const fn code(self) -> &'static str {
++        match self {
++            Self::Present => "present",
++            Self::Missing => "missing",
++            Self::Unknown => "unknown",
++        }
++    }
++}
++
++fn classify(error: &Error) -> StartupFailureReason {
++    match error {
++        Error::NoResult => StartupFailureReason::SecretServiceDefaultCollectionMissing,
++        Error::Locked | Error::Prompt => StartupFailureReason::SecretServiceLockedOrDenied,
++        Error::Unavailable | Error::Dbus(_) => StartupFailureReason::SecretServiceUnavailable,
++        _ => StartupFailureReason::UnknownSecureStorageFailure,
++    }
++}
++
++fn storage_error(error: &Error) -> AppError {
++    // Never format the backend error. D-Bus/backend payloads are not part of
++    // the stable recovery contract.
++    AppError::startup_storage(classify(error))
++}
++
++/// Read-only bounded probe. Prompt timeout 0 ensures this cannot display a
++/// dialog while merely classifying a keyring error or producing diagnostics.
++pub(crate) fn default_collection_state() -> DefaultCollectionState {
++    let Ok(service) =
++        SecretService::connect_with_max_prompt_timeout(EncryptionType::Dh, 0)
++    else {
++        return DefaultCollectionState::Unknown;
++    };
++    match service.get_default_collection() {
++        Ok(_) => DefaultCollectionState::Present,
++        Err(Error::NoResult) => DefaultCollectionState::Missing,
++        Err(_) => DefaultCollectionState::Unknown,
++    }
++}
++
++/// Create the Secret Service `default` collection through the provider's own
++/// secure prompt. The caller must enforce the fresh-install/no-config gate.
++///
++/// Returns true only if this call created the collection. A racing creator is
++/// treated as success without changing any existing alias or key material.
++pub(crate) fn initialize_default_collection() -> AppResult<bool> {
++    let service = SecretService::connect_with_max_prompt_timeout(
++        EncryptionType::Dh,
++        PROMPT_TIMEOUT_SECONDS,
++    )
++    .map_err(|error| storage_error(&error))?;
++
++    match service.get_default_collection() {
++        Ok(_) => return Ok(false),
++        Err(Error::NoResult) => {}
++        Err(error) => return Err(storage_error(&error)),
++    }
++
++    service
++        .create_collection(DEFAULT_COLLECTION_LABEL, "default")
++        .map_err(|error| storage_error(&error))?;
++
++    service
++        .get_default_collection()
++        .map_err(|error| storage_error(&error))?;
++    Ok(true)
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn stable_state_codes_are_bounded() {
++        assert_eq!(DefaultCollectionState::Present.code(), "present");
++        assert_eq!(DefaultCollectionState::Missing.code(), "missing");
++        assert_eq!(DefaultCollectionState::Unknown.code(), "unknown");
++    }
++
++    #[test]
++    fn missing_default_is_not_misclassified_as_locked() {
++        assert_eq!(
++            classify(&Error::NoResult),
++            StartupFailureReason::SecretServiceDefaultCollectionMissing
++        );
++        assert_eq!(
++            classify(&Error::Prompt),
++            StartupFailureReason::SecretServiceLockedOrDenied
++        );
++    }
++}
+diff --git a/src-tauri/src/error.rs b/src-tauri/src/error.rs
+--- a/src-tauri/src/error.rs
++++ b/src-tauri/src/error.rs
+@@ -6,6 +6,7 @@ pub(crate) enum StartupFailureReason {
+     SessionBusMissing,
+     SecretServiceUnavailable,
+     SecretServiceLockedOrDenied,
++    SecretServiceDefaultCollectionMissing,
+     KeyEntryMissing,
+     EncryptedConfigKeyMissing,
+     ConfigInvalidOrUnsupported,
+@@ -18,6 +19,7 @@ impl StartupFailureReason {
+             Self::SessionBusMissing => "session_bus_missing",
+             Self::SecretServiceUnavailable => "secret_service_unavailable",
+             Self::SecretServiceLockedOrDenied => "secret_service_locked_or_denied",
++            Self::SecretServiceDefaultCollectionMissing => "secret_service_default_collection_missing",
+             Self::KeyEntryMissing => "key_entry_missing",
+             Self::EncryptedConfigKeyMissing => "encrypted_config_key_missing",
+             Self::ConfigInvalidOrUnsupported => "config_invalid_or_unsupported",
+@@ -31,6 +33,7 @@ impl StartupFailureReason {
+             Self::SessionBusMissing => "未检测到可用的用户 D-Bus 会话总线；原配置已保留。请从正常桌面登录会话启动应用后重试。",
+             Self::SecretServiceUnavailable => "系统 Secret Service 暂不可用；原配置已保留。请确认桌面凭据服务可用后重试。",
+             Self::SecretServiceLockedOrDenied => "系统凭据库已锁定或访问未获授权；原配置已保留。请解锁登录钥匙串或允许访问后重试。",
++            Self::SecretServiceDefaultCollectionMissing => "系统 Secret Service 可用，但没有持久的默认凭据库。首次使用时可通过恢复按钮让系统安全提示创建；已有加密配置时不会创建替代凭据库或替代密钥。",
+             Self::KeyEntryMissing => "系统凭据库中未找到所需密钥项；不会自动创建替代密钥，原配置已保留。",
+             Self::EncryptedConfigKeyMissing => "原加密配置对应的系统密钥不存在；不会生成替代密钥或覆盖密文。请使用原系统账户及其凭据备份恢复。",
+             Self::ConfigInvalidOrUnsupported => "加密配置格式无效、认证失败或版本不受支持；原文件已保留，禁止重置或明文降级。",
+@@ -47,7 +50,17 @@ impl fmt::Display for StartupFailureReason {
+ 
+ pub(crate) fn classify_keyring_error(error: &keyring::Error) -> StartupFailureReason {
+     match error {
+-        keyring::Error::NoStorageAccess(_) => StartupFailureReason::SecretServiceLockedOrDenied,
++        keyring::Error::NoStorageAccess(_) => {
++            #[cfg(target_os = "linux")]
++            {
++                if crate::linux_secret_service::default_collection_state()
++                    == crate::linux_secret_service::DefaultCollectionState::Missing
++                {
++                    StartupFailureReason::SecretServiceDefaultCollectionMissing
++                } else {
++                    StartupFailureReason::SecretServiceLockedOrDenied
++                }
++            }
++            #[cfg(not(target_os = "linux"))]
++            StartupFailureReason::SecretServiceLockedOrDenied
++        }
+         keyring::Error::NoEntry => StartupFailureReason::KeyEntryMissing,
+         keyring::Error::PlatformFailure(_) => {
+             #[cfg(target_os = "linux")]
+@@ -129,6 +142,12 @@ mod tests {
+         assert!(!reason.user_message().contains("fixture-secret"));
+     }
+ 
++    #[test]
++    fn missing_default_collection_has_a_stable_non_secret_reason() {
++        let reason = StartupFailureReason::SecretServiceDefaultCollectionMissing;
++        assert_eq!(reason.code(), "secret_service_default_collection_missing");
++        assert!(reason.user_message().contains("默认凭据库"));
++    }
++
+     #[test]
+     fn known_configuration_failures_are_classified_without_returning_the_original_text() {
+         let missing = AppError::Message("配置加密密钥不存在；fixture-secret-must-not-leak".into());
+diff --git a/src-tauri/src/commands/app_info.rs b/src-tauri/src/commands/app_info.rs
+--- a/src-tauri/src/commands/app_info.rs
++++ b/src-tauri/src/commands/app_info.rs
+@@ -5,7 +5,7 @@ use serde::Serialize;
+ use tauri::{AppHandle, Manager, State};
+ 
+ use crate::app_state::{AppState, StartupStatus};
+-use crate::error::{classify_keyring_error, AppResult};
++use crate::error::{classify_keyring_error, AppResult, StartupFailureReason};
+ use crate::platform::{open_url as platform_open_url, PlatformContext};
+ use crate::update::{check_app_update as check_update, UpdateCheckResult};
+ 
+@@ -31,6 +31,7 @@ pub struct EnvironmentDiagnostics {
+     pub session_bus_reachable: bool,
+     pub runtime_user_bus_reachable: bool,
+     pub runtime_user_bus_secret_service_available: bool,
++    pub secret_service_default_collection_state: String,
+     pub credential_store_state: String,
+     pub startup_failure_reason: Option<String>,
+     pub configuration_state: String,
+@@ -176,6 +177,8 @@ pub(crate) fn environment_diagnostics_snapshot(
+     let configuration = configuration_facts();
+     #[cfg(target_os = "linux")]
+     let session_bus = crate::linux_session_bus::state();
++    #[cfg(target_os = "linux")]
++    let default_collection = crate::linux_secret_service::default_collection_state();
+ 
+     EnvironmentDiagnostics {
+         app_version: env!("CARGO_PKG_VERSION").into(),
+@@ -201,6 +204,10 @@ pub(crate) fn environment_diagnostics_snapshot(
+         runtime_user_bus_secret_service_available: session_bus.runtime_user_bus_secret_service_available,
+         #[cfg(not(target_os = "linux"))]
+         runtime_user_bus_secret_service_available: false,
++        #[cfg(target_os = "linux")]
++        secret_service_default_collection_state: default_collection.code().into(),
++        #[cfg(not(target_os = "linux"))]
++        secret_service_default_collection_state: "platform_default".into(),
+         credential_store_state: credential_store_state(),
+         startup_failure_reason: None,
+         configuration_state: configuration_state.into(),
+@@ -232,9 +239,25 @@ pub fn get_environment_diagnostics(app: AppHandle) -> EnvironmentDiagnostics {
+     environment_diagnostics(&app)
+ }
+ 
++fn should_initialize_default_collection(
++    reason_code: Option<&str>,
++    configuration_exists: bool,
++) -> bool {
++    reason_code == Some(StartupFailureReason::SecretServiceDefaultCollectionMissing.code())
++        && !configuration_exists
++}
++
+ #[tauri::command]
+ pub fn retry_startup(app: AppHandle) -> AppResult<StartupStatus> {
+     let state = app.state::<AppState>();
++    #[cfg(target_os = "linux")]
++    {
++        let before = state.startup_status();
++        let configuration = configuration_facts();
++        if should_initialize_default_collection(
++            before.reason_code.as_deref(),
++            configuration.exists,
++        ) && crate::linux_secret_service::initialize_default_collection()?
++        {
++            crate::bootstrap::record("secret-service-default-created");
++        }
++    }
+     let became_ready = state.retry_data()?;
+     let status = state.startup_status();
+     if became_ready {
+@@ -270,4 +293,18 @@ mod tests {
+         assert!(!kind.contains('/'));
+         assert!(!kind.contains('\\'));
+     }
++
++    #[test]
++    fn default_collection_creation_is_only_allowed_for_fresh_missing_default_state() {
++        assert!(should_initialize_default_collection(
++            Some(StartupFailureReason::SecretServiceDefaultCollectionMissing.code()),
++            false,
++        ));
++        assert!(!should_initialize_default_collection(
++            Some(StartupFailureReason::SecretServiceDefaultCollectionMissing.code()),
++            true,
++        ));
++        assert!(!should_initialize_default_collection(
++            Some(StartupFailureReason::SecretServiceLockedOrDenied.code()),
++            false,
++        ));
++    }
+ }
+diff --git a/src/lib/api/app-info.ts b/src/lib/api/app-info.ts
+--- a/src/lib/api/app-info.ts
++++ b/src/lib/api/app-info.ts
+@@ -51,6 +51,7 @@ export interface EnvironmentDiagnostics {
+   sessionBusReachable: boolean;
+   runtimeUserBusReachable: boolean;
+   runtimeUserBusSecretServiceAvailable: boolean;
++  secretServiceDefaultCollectionState: string;
+   credentialStoreState: string;
+   startupFailureReason: string | null;
+   configurationState: string;
+diff --git a/src/lib/components/StartupRecovery.svelte b/src/lib/components/StartupRecovery.svelte
+--- a/src/lib/components/StartupRecovery.svelte
++++ b/src/lib/components/StartupRecovery.svelte
+@@ -19,6 +19,10 @@
+         return "请确认桌面 Secret Service（例如 GNOME Keyring）可用后重试。";
+       case "secret_service_locked_or_denied":
+         return "请解锁登录钥匙串或允许凭据访问，然后点击重试安全存储。";
++      case "secret_service_default_collection_missing":
++        return "当前 Secret Service 没有持久默认凭据库。若这是首次使用，点击下方按钮后由系统凭据服务创建；系统可能弹出 GNOME Keyring 密码窗口，应用不会读取或保存该密码。若已有加密配置，应用不会创建新的凭据库或替代密钥。";
+       case "encrypted_config_key_missing":
+       case "key_entry_missing":
+         return "原密钥缺失时不会生成替代密钥。请使用原系统账户及其凭据备份恢复。";
+@@ -30,6 +34,16 @@
+         return "可复制启动诊断以确认会话总线、凭据服务和配置文件的安全状态。";
+     }
+   }
++
++  function retryLabel(reason: string | null, waiting: boolean): string {
++    if (reason === "secret_service_default_collection_missing") {
++      return waiting ? "等待系统凭据库" : "创建系统凭据库并重试";
++    }
++    return waiting ? "正在重试" : "重试安全存储";
++  }
+ </script>
+@@ -54,7 +68,7 @@
+         <div class="mt-5 flex flex-wrap items-center gap-3">
+           <button type="button" class="tx-btn-primary" disabled={busy} onclick={onRetry}>
+             <RefreshCw size={16} class={busy ? "animate-spin" : ""} aria-hidden="true" />
+-            {busy ? "正在重试" : "重试安全存储"}
++            {retryLabel(status.reasonCode, busy)}
+           </button>
+           {#if onCopyDiagnostics}
+             <button type="button" class="tx-btn-secondary" onclick={onCopyDiagnostics}>
