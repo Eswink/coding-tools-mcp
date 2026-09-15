@@ -51,9 +51,10 @@ jobs:
             .github/workflows/windows-rc-packages.yml \
             .round17d/apply.py
 
-          # Resolve the direct dbus-secret-service feature set into Cargo.lock
-          # once, then all subsequent compilation remains --locked.
-          cargo metadata --manifest-path src-tauri/Cargo.toml --no-deps >/dev/null
+          # Resolve the newly enabled crypto-rust feature edge into Cargo.lock
+          # exactly once. The following check proves the resulting lock is then
+          # sufficient for a network-independent --locked build.
+          cargo check --manifest-path src-tauri/Cargo.toml
           cargo check --manifest-path src-tauri/Cargo.toml --locked
           npm ci
           npm run check
