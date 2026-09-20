@@ -22,6 +22,8 @@ pub async fn chat_authorization_control(app: AppHandle, id: String, action: Stri
         }
         "revoke" => service.revoke(&id,Some(request_id.as_deref().ok_or_else(|| AppError::Message("缺少授权 ID".into()))?)),
         "revoke_all" => service.revoke(&id,None),
+        "arm_new_chat" => service.arm_new_chat(&id).map_err(AppError::Message)?,
+        "disarm_new_chat" => service.disarm_new_chat(&id),
         "exclusive" => {
             let _=exclusive;
             return Err(AppError::Message("请在远程会话安全设置中保存独占模式；临时开关不再覆盖持久配置".into()));
