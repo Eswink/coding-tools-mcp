@@ -51,8 +51,9 @@ Do not capture one static public hostname when the listener starts.
 | O1 | absent | any | allow |
 | O2 | `http://localhost:<any>` | any | allow |
 | O3 | `http://127.0.0.1:<any>` | any | allow |
-| O4 | current configured public hostname | published | allow |
-| O5 | stale previous Quick Tunnel hostname | replaced/cleared | 403 |
+| O4 | exact current configured public Origin | published | allow |
+| O4b | same public hostname, wrong scheme/port | published | 403 |
+| O5 | stale previous Quick Tunnel Origin | replaced/cleared | 403 |
 | O6 | attacker hostname | any | 403 |
 | O7 | malformed Origin | any | 403 |
 | O8 | literal `null` | any | 403 |
@@ -63,23 +64,19 @@ Do not capture one static public hostname when the listener starts.
 
 ## Allowlist semantics
 
-First implementation should match the reference SDK's hostname-oriented model.
-
-Allowed hostname set per request:
+The implementation uses two compatibility classes:
 
 ```text
-localhost
-127.0.0.1
-[::1]              # parser-normalized representation as applicable
-+
-hostname(current PublicOrigin snapshot), if valid/non-empty
+localhost / 127.0.0.1 / ::1
+  -> allow HTTP(S) browser Origin on any local UI port
+
+current managed PublicOrigin
+  -> require exact RFC-6454-style scheme + hostname + effective port
 ```
 
-Rationale:
+This was tightened after reviewing the official Rust SDK and another Rust MCP gateway. A public hostname alone is not enough: `http://mcp.example`, `https://mcp.example`, and `https://mcp.example:8443` are different browser origins.
 
-- browser Origin ports may differ during local development;
-- the security boundary is preventing an unrelated website hostname from reaching the loopback service;
-- the public Origin is already validated before publication.
+The public value is read from the live `PublicOrigin` handle per request so a managed Quick Tunnel rotation does not require listener restart.
 
 Do not trust:
 
@@ -251,7 +248,7 @@ Cross-platform full regression remains the next gate.
 
 SOURCE PASS requires:
 
-- O1–O12 deterministic tests;
+- O1–O12 plus O4b deterministic tests;
 - existing OAuth/refresh/chat/offline tests stay green;
 - no public-origin update requires listener restart;
 - invalid Origin gets 403 before auth/business processing;
