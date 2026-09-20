@@ -241,6 +241,34 @@ That ordering was restored.
 
 Regression coverage now compares the same malformed authorization request before and during Offline for an existing pending grant and requires byte-for-byte equivalent structured output. Pause must suppress only **new allocation**, not weaken or reorder the existing request-validation contract.
 
+## Full-suite diagnostic — test-owned mutex deadlock
+
+Final-candidate full run `35525452120` reached `Full Rust checks` on both Ubuntu and Windows and stopped making progress. The run was later cancelled when the bounded correction was pushed.
+
+Source review found a deterministic deadlock in the **new regression test**, not in the production request path:
+
+```text
+test thread
+  hold_online()
+    -> owns execution gate mutex
+  gate.snapshot()
+    -> attempts to lock the same non-reentrant mutex again
+    -> self-deadlock
+```
+
+The production ISSUE-009 path never calls `snapshot()` while holding `OnlineExecutionHold`.
+
+The test was corrected to assert the blocked pause through the synchronization channel, drop the Online hold, then inspect the gate state afterward. The product locking contract was not weakened.
+
+Correction commit:
+
+```text
+c1a89c08d812f70527eb61e5e25bd3c492ab854a
+fix(issue009): avoid reentrant execution-gate test deadlock
+```
+
+A dedicated focused workflow now runs the gate linearization regression itself before the authorization matrix so this class of test bug cannot silently stall the full suite again.
+
 ## Acceptance
 
 SOURCE PASS requires:
