@@ -975,3 +975,64 @@ A background core should be justified by one of these observed requirements:
 - host tests prove UI-only close/reopen is insufficient.
 
 Until then, keep the Level B idea as an architecture option rather than introducing a new service manager, installer responsibility, and IPC security boundary.
+
+
+## 15. MCPMate first-contact governance — installed endpoint does not imply automatic approval
+
+Reference:
+
+- `loocor/MCPMate@dc80b32f64788bf9513ccf241dd19708b25cce87`
+- `backend/src/core/proxy/server/gateway.rs`
+- `backend/src/clients/service/state.rs`
+- `board/src/pages/settings/i18n/index.ts`
+
+Observed pattern:
+
+MCPMate treats a previously unknown MCP client as a governance decision with an explicit first-contact policy:
+
+```text
+deny   -> suspended
+review -> pending
+allow  -> approved
+```
+
+The policy is enforced during MCP initialization rather than assuming that endpoint reachability implies client approval.
+
+The dashboard exposes this as a deliberate operator setting instead of hiding the state transition inside transport handling.
+
+### Decision for coding-tools-mcp
+
+**Adopt the governance principle, not MCPMate's identity model.**
+
+Our server already has a different security identity:
+
+- OAuth authenticates the remote client;
+- `openai/session` binds a conversation;
+- local chat authorization grants workspace capability.
+
+ISSUE-009 applies the same first-contact principle to a paused workspace:
+
+```text
+connector reachable
++ OAuth valid
++ unknown/unapproved conversation
++ execution intentionally paused
+
+=> do not create a new human approval task
+=> return a generic admission denial
+=> preserve existing grants and recovery/exclusive state
+```
+
+This further supports keeping `CHAT_AUTHORIZATION_UNAVAILABLE` as a local permission/admission result instead of translating it into OAuth or automatically creating a pending approval.
+
+### Possible future operator policy
+
+If shared-account deployments become common, a later issue could expose a workspace-level first-contact mode:
+
+```text
+review       current Online behavior
+deny-new     never create new remote pending approvals
+allow-review only when local UI has explicitly armed an approval window
+```
+
+Do not add this policy in ISSUE-009. The current task has a narrower deterministic trigger: suppress only new approvals while execution is intentionally Offline.
