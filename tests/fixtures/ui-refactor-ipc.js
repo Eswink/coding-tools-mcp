@@ -27,6 +27,8 @@
   let serial=0;
   let admissionArmed=false;
   let admissionExpiresAt=null;
+  let admissionArmed=false;
+  let admissionExpiresAt=null;
   /** @type {Map<number,(value:unknown)=>void>} */
   const callbacks=new Map();
   /** @type {Map<number,{event:string,handler:number,id:number}>} */
