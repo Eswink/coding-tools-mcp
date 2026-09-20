@@ -1,6 +1,6 @@
 # ISSUE-007 — Tunnel-aware Host / authority and Fetch Metadata hardening
 
-Status: DESIGN READY — BLOCKED UNTIL ISSUE-006 MERGES  
+Status: SOURCE TOPOLOGY EVIDENCE READY — BLOCKED ON LIVE TUNNEL OBSERVATION  
 Source: [open-source-reference-study.md](open-source-reference-study.md)  
 Scope: HTTP control-plane hardening after Origin validation
 
@@ -60,6 +60,79 @@ Must preserve:
 - non-browser MCP clients;
 - OAuth discovery/token behavior;
 - offline-safe pause/resume semantics.
+
+## Source topology evidence
+
+ISSUE-006 is merged, and source review has narrowed the remaining Host-forwarding uncertainty without claiming live deployment evidence.
+
+### Product FRP configuration
+
+`src-tauri/src/tunnel/frp/mod.rs` does not emit either:
+
+```text
+hostHeaderRewrite
+plugin.hostHeaderRewrite
+```
+
+for normal HTTP routes or the `https2http` plugin path.
+
+Upstream FRP `d20a232996007dfe6ab425abc0a39a3ae9a0889b` confirms:
+
+- the server HTTP reverse proxy modifies `req.Host` only when `RouteConfig.RewriteHost` is non-empty;
+- the client HTTP bridge plugins modify `req.Host` only when `hostHeaderRewrite` is non-empty.
+
+Source-level expectation:
+
+```text
+FRP HTTP/subdomain/custom-domain
+  -> local listener sees the routed public Host
+
+FRP HTTPS + https2http
+  -> local listener sees the routed public Host
+```
+
+Live confirmation is still required.
+
+### Product Cloudflare configuration
+
+`src-tauri/src/tunnel/cloudflare.rs` launches:
+
+```text
+Quick:
+  cloudflared tunnel --url http://127.0.0.1:<port>
+
+Named:
+  cloudflared tunnel run
+```
+
+The local launcher does not configure `httpHostHeader`.
+
+Upstream cloudflared `be3ac1270217f6ad257f9232052abefbf71835c2` confirms `Request.Host` is rewritten only when `OriginRequestConfig.HTTPHostHeader` is non-empty.
+
+Source-level expectation:
+
+```text
+Quick Tunnel
+  -> local listener sees current *.trycloudflare.com Host
+
+Named Tunnel
+  -> local listener sees public Host unless remote tunnel ingress config
+     explicitly sets httpHostHeader
+```
+
+The named-tunnel remote configuration is the important unresolved case: a token-only local launch cannot prove the account-side setting is absent.
+
+### Updated topology table
+
+| Mode | Source-level expected target | Live uncertainty |
+|---|---|---|
+| direct localhost | localhost / 127.0.0.1 | parser/runtime confirmation only |
+| FRP HTTP | routed public FRP host | live route confirmation |
+| FRP HTTPS + https2http | routed public host | live route confirmation |
+| Cloudflare Quick | current trycloudflare host | live route confirmation |
+| Cloudflare Named | public host unless remote `httpHostHeader` override | remote config / live observation |
+
+This is enough to design a sanitized probe, but not enough to enforce Host in production yet.
 
 ## Required topology probe before implementation
 
