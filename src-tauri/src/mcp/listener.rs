@@ -48,7 +48,7 @@ pub fn spawn_listener_with_origin(
     oauth_password: Option<String>,
     oauth_token_secret: Option<String>,
     runtime: RuntimeConfig,
-) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>), String> {
+) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>, Arc<crate::runtime::WorkspaceExecutionGate>), String> {
     auth.session_policy.validate()?;
     crate::auth::chat::service().configure(&workspace_id, &auth.session_policy)?;
     let workspace_display = workspace_path.display().to_string();
@@ -62,6 +62,7 @@ pub fn spawn_listener_with_origin(
         runtime.permission_mode.clone(),
     );
     Arc::get_mut(&mut mcp).expect("new listener context").enable_durable_tasks(&workspace_id, "mcp");
+    let execution_gate = mcp.execution_gate();
     crate::auth::chat::service().attach_storage(&workspace_id,
         &crate::auth::oauth_refresh::storage_root(&workspace_id)?.join("execution"),mcp.harness.store_root())?;
     let bearer_token = if auth.bearer_enabled() {
@@ -118,7 +119,7 @@ pub fn spawn_listener_with_origin(
             append_profile_log(&profile_id, "stderr.log", "[mcp] listener stopped");
         }
     });
-    Ok((shutdown_tx, handle))
+    Ok((shutdown_tx, handle, execution_gate))
 }
 
 async fn serve(
