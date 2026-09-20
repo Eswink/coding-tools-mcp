@@ -321,3 +321,103 @@ Not established in Round 3:
 - survival of machine sleep/power-off/network loss.
 
 Those remain Round 5 gates. Round 3 therefore closes as a source/synthetic implementation milestone, not as proof that the original ChatGPT UI symptom is eliminated.
+
+
+## 04 — Round 4 non-disclosing multi-user boundary
+
+Date: 2026-09-20  
+Branch: `hardening/offline-safe-multi-user-boundary`  
+Validated source candidate: `145feec1b4d9af6a96057754ba6a6de072c0ab41`  
+Draft PR: #22  
+Result: **PASS for source/synthetic privacy gates; no production authorization change required.**
+
+### Failure-first scope
+
+Round 4 added privacy regressions before changing production behavior.
+
+Covered boundaries include:
+
+- foreign authenticated conversation while another chat owns the workspace;
+- unapproved authenticated conversation while execution is Offline;
+- Online vs Offline error precedence;
+- repeated blocked authorization requests;
+- control-plane `initialize`, `ping`, `tools/list`;
+- async task list/get/cancel isolation across chat domains while Offline;
+- draining denial metadata;
+- recovery-required denial metadata.
+
+### Focused impact evidence
+
+Workflow run `35507344111`: PASS as tooling execution.
+
+GitNexus 1.6.12 results:
+
+- `ChatAuthorizer::status`: **UNKNOWN**, lower-bound; 3 receiver-typing call sites dropped.
+- `ChatAuthorizer::request`: LOW, lower-bound; 5 impacted symbols, 4 receiver-typing call sites dropped.
+- `ChatAuthorizer::admit`: **UNKNOWN**, lower-bound; 1 receiver-typing call site dropped and no caller resolved.
+- chat-domain `intercept`: LOW, exact.
+- MCP `handle_request`: LOW, exact.
+- MCP `initialize_result`: LOW, exact.
+- `server_info`: LOW, exact.
+
+UNKNOWN/lower-bound results remain evidence limitations. They were not interpreted as proof of safety.
+
+### Final change-impact evidence
+
+Validation run `35507366052`, graph job: PASS.
+
+```text
+Changes: 8 files, 21 symbols
+Affected processes: 0
+Risk level: low
+```
+
+The low final change-impact reflects that Round 4 contains tests/docs/workflows only; the production auth/runtime behavior inherited from Round 3 was not modified.
+
+### Final source validation
+
+Validation run `35507366052`, source job: PASS.
+
+Frontend:
+
+- `npm ci`: PASS;
+- `npm run check`: PASS;
+- `npm run build`: PASS;
+- offline-safe UI Node contract: **3/3 PASS**.
+
+Rust:
+
+- `cargo check --locked --all-targets`: PASS;
+- `cargo test --locked`: PASS;
+- primary library suite: **380 passed, 0 failed**;
+- integration suites remained green;
+- `cargo rustc --locked --lib -- -D warnings`: PASS.
+
+Focused privacy regressions observed PASS:
+
+- `foreign_owner_is_non_disclosing_online_and_offline`;
+- `unapproved_offline_chat_and_control_plane_do_not_disclose_workspace_state`;
+- `draining_denial_contains_no_owner_or_work_metadata`;
+- `recovery_denial_contains_no_generation_binding_or_workspace_metadata`;
+- `http_conversations_require_separate_grants_and_cannot_observe_each_others_jobs`;
+- `all_business_tools_are_denied_before_approval_including_dangerous_mode`.
+
+### Privacy result
+
+Source/synthetic evidence now supports:
+
+- B + Offline + owner A => `EXCLUSIVE_CHAT_LOCKED`, not `WORKSPACE_OFFLINE`;
+- C + Offline business call => `CHAT_AUTHORIZATION_REQUIRED`, not `WORKSPACE_OFFLINE`;
+- blocked foreign calls expose no owner grant id/fingerprint, profile id, workspace path or task id;
+- 100 repeated foreign authorization requests create no new pending record for the profile;
+- control-plane initialize/ping/tools-list contain no workspace path/profile id;
+- task domains remain conversation-isolated while execution is Offline;
+- draining/recovery denials do not expose generation/binding/work metadata.
+
+No production defect was reproduced by the Round 4 matrix, so no production authorization semantics were changed.
+
+### Shared-account truth boundary
+
+This round proves server-side workspace confidentiality, not ChatGPT account-level connector invisibility.
+
+The local server cannot prevent another person sharing the same ChatGPT account from seeing that an app/connector is installed in the host UI. Real host visibility and reconnect behavior remain Round 5 acceptance items.
