@@ -32,7 +32,7 @@ Parent: [plan.md](plan.md)
 - [x] Freeze offline drain-control allowlist.
 - [x] Select provisional Level A architecture.
 - [x] Prepare exact Round 3 impact-analysis target list.
-- [ ] Perform required GitNexus impact analysis before any production symbol edit — BLOCKED in current tool environment.
+- [x] Perform required GitNexus impact analysis before and during production edits; preserve HIGH/CRITICAL and Svelte-indexing limitations as evidence.
 
 ## Round 3
 
