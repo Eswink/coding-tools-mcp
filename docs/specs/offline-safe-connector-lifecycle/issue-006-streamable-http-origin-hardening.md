@@ -1,6 +1,6 @@
 # ISSUE-006 — Streamable HTTP Origin boundary hardening
 
-Status: OPEN — FAILURE-FIRST DESIGN READY  
+Status: REVIEWED — SOURCE/CROSS-PLATFORM/PACKAGED PASS; REAL-HOST COMPATIBILITY DEFERRED  
 Source: [open-source-reference-study.md](open-source-reference-study.md)  
 Scope: post-Round-5 security follow-up  
 Protocol advertised by product: `2025-06-18`
@@ -298,3 +298,69 @@ SOURCE PASS requires:
 HOST PASS is separate and requires eventual real ChatGPT validation that the host's normal requests are not rejected.
 
 Until then, this issue can be source-complete without changing the project's existing `UNCONFIRMED_ON_REAL_HOST` truth label.
+
+
+## Final ISSUE-006 gate result
+
+Validated production Origin source is the listener/security candidate introduced by `7b864fe5c42b8f852c39798a88a33d895f432888` and test contract `f90cb68bb177728aa79b3b7acc5d3e645e556cdc`.
+
+### Final cross-platform source run
+
+Run `35516677404`: **SUCCESS**.
+
+Ubuntu 24.04:
+
+- frontend checks: PASS;
+- full Rust suite: **384 passed, 0 failed**;
+- Origin matrix: 4/4 PASS;
+- integration suites: PASS;
+- strict non-test `-D warnings`: PASS.
+
+Windows 2025:
+
+- frontend checks: PASS;
+- primary parallel Rust suite: **385 passed, 0 failed, 1 intentionally filtered**;
+- Origin matrix: 4/4 PASS;
+- timing-sensitive owner-drain regression immediately rerun in isolation: **1 passed, 0 failed**;
+- isolated child readiness: **69 ms**;
+- integration suites: PASS;
+- strict non-test `-D warnings`: PASS.
+
+The separate diagnostic isolation run `35516343223` also passed the same owner-drain regression with readiness at 895 ms, confirming the earlier 8056 ms failure was Windows CI load sensitivity rather than an Origin product regression.
+
+### Final change-impact evidence
+
+Run `35516677404`, graph job: PASS.
+
+```text
+Changes: 11 files, 57 symbols
+Affected processes: 0
+Aggregate risk: low
+```
+
+This aggregate result does **not** downgrade the focused pre-edit CRITICAL findings for `serve` and `PublicOrigin::snapshot`; those remain part of the review record.
+
+### Packaged evidence
+
+Run `35516447042`: **SUCCESS** on Ubuntu and Windows.
+
+Both generated desktop packages were installed, executable presence was verified, and removal/uninstall completed successfully.
+
+### Security result
+
+The server now enforces the MCP Origin boundary without changing OAuth, chat authorization, offline execution, or tunnel lifecycle semantics:
+
+- missing Origin stays compatible for non-browser MCP clients;
+- local browser Origins remain compatible;
+- current managed public Origin is read live;
+- public Origin comparison is exact by scheme + host + effective port;
+- stale, malformed, opaque, duplicate, wrong-scheme, wrong-port and foreign Origins are rejected;
+- the guard runs before MCP and OAuth control handlers;
+- invalid preflight is rejected before permissive CORS;
+- the remote response and local security log do not echo attacker-controlled Origin values.
+
+### Truth boundary
+
+ISSUE-006 is source/security complete.
+
+Real ChatGPT interoperability remains `UNCONFIRMED_ON_REAL_HOST`. That deferred host test must also prove ordinary ChatGPT requests do not carry an Origin shape rejected by this guard before HOST_VALIDATED / DONE.
