@@ -169,6 +169,38 @@ Before production edit, run focused GitNexus impact for:
 
 Retain lower-bound/UNKNOWN findings.
 
+## Failure-first evidence
+
+Focused validation run `35519244700`: **FAIL as expected before production repair**.
+
+The first test reached the real chat-domain tool dispatch and observed the current behavior while execution was Offline:
+
+```text
+request_chat_authorization
+expected: CHAT_AUTHORIZATION_UNAVAILABLE
+observed: ok=true + a new pending authorization grant
+```
+
+The response contained a newly allocated grant id/fingerprint and the local-approval next step, proving the pause state still generated fresh authorization work.
+
+The workflow stopped on that failure before the existing-state ordering test ran. This is retained as failure evidence, not a test-environment failure.
+
+## Impact evidence
+
+GitNexus run `35519175912`: tooling PASS.
+
+Focused results:
+
+- chat-domain `intercept`: LOW, exact — 9 impacted symbols, 1 affected process;
+- chat-domain `denied`: LOW, exact — 9 impacted symbols, 2 affected processes;
+- `ChatAuthorizer::request`: LOW, **lower-bound** — 5 impacted symbols; 4 receiver-typing call sites dropped;
+- `ChatAuthorizer::status`: UNKNOWN/ambiguous; no caller result is not treated as unused;
+- `WorkspaceExecutionGate::snapshot`: UNKNOWN, **lower-bound** — 2 receiver-typing call sites dropped.
+
+Exact source review confirms `request_chat_authorization` is dispatched directly in chat-domain `intercept`, and that pending events feed the local notification/inbox path.
+
+Implementation remains bounded to the chat-domain dispatch/error mapping unless compilation or tests prove a gate API change is necessary.
+
 ## Acceptance
 
 SOURCE PASS requires:
