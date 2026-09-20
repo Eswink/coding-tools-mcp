@@ -52,11 +52,27 @@ fn required(name: &str, args: &Value) -> Option<&'static [&'static str]> {
     })
 }
 fn denied(code: &str) -> Value {
+    if matches!(code, "WORKSPACE_OFFLINE" | "WORKSPACE_EXECUTION_UNAVAILABLE") {
+        return json!({"ok":false,"error":{"code":code,"category":"availability","retryable":false,
+            "message":"Workspace execution is paused locally."},"requires_local_action":false});
+    }
     if matches!(code, "EXCLUSIVE_CHAT_LOCKED" | "CHAT_WORK_DRAINING" | "CHAT_RECOVERY_REQUIRED") {
         return json!({"ok":false,"error":{"code":code,"category":"permission","retryable":false,
             "message":"Workspace unavailable to this conversation. Do not retry or request authorization."},"requires_local_action":false});
     }
     super::workspace::tool_err_code("CHAT_AUTHORIZATION_REQUIRED", code, "permission")
+}
+
+fn requires_online_execution(name: &str) -> bool {
+    !matches!(
+        name,
+        "get_exec_task"
+            | "list_exec_tasks"
+            | "read_output"
+            | "cancel_exec_task"
+            | "kill_session"
+            | "write_stdin"
+    )
 }
 /// This hook precedes policy, cwd, Harness and every dispatch branch, including async workers.
 pub(crate) fn intercept(ctx: &ToolContext, name: &str, args: &Value) -> Option<Value> {
@@ -68,6 +84,14 @@ pub(crate) fn intercept(ctx: &ToolContext, name: &str, args: &Value) -> Option<V
         return req.service.permit(req,scopes).err().map(denied);
     }
     let _admission = match req.service.admit(req,scopes) { Ok(g) => g, Err(e) => return Some(denied(e)) };
+    let _execution = if requires_online_execution(name) {
+        match ctx.execution_gate.try_admit() {
+            Ok(permit) => Some(permit),
+            Err(code) => return Some(denied(code)),
+        }
+    } else {
+        None
+    };
     let domain = match ctx.chat_domains.scoped(ctx,req) { Ok(v) => v, Err(_) => return Some(denied("CHAT_RUNTIME_UNAVAILABLE")) };
     let mut scoped_args = args.clone();
     if name.starts_with("history_session_") {
@@ -93,4 +117,29 @@ pub(crate) fn auth_tools() -> Vec<Value> {
             "securitySchemes":[{"type":"oauth2","scopes":["mcp"]}],
             "annotations":{"readOnlyHint":name == "auth_status","destructiveHint":false,"openWorldHint":false}
         })).collect()
+}
+
+#[cfg(test)]
+mod availability_tests {
+    use super::*;
+
+    #[test]
+    fn only_existing_work_control_is_allowed_while_offline() {
+        for name in ["get_exec_task", "list_exec_tasks", "read_output", "cancel_exec_task", "kill_session", "write_stdin"] {
+            assert!(!requires_online_execution(name), "{name}");
+        }
+        for name in ["read_file", "git_status", "exec_command", "start_exec_task", "history_session_read", "server_info"] {
+            assert!(requires_online_execution(name), "{name}");
+        }
+    }
+
+    #[test]
+    fn workspace_offline_is_not_an_oauth_or_permission_error() {
+        let value = denied("WORKSPACE_OFFLINE");
+        assert_eq!(value["ok"], false);
+        assert_eq!(value["error"]["code"], "WORKSPACE_OFFLINE");
+        assert_eq!(value["error"]["category"], "availability");
+        assert_eq!(value["error"]["retryable"], false);
+        assert_eq!(value["requires_local_action"], false);
+    }
 }
