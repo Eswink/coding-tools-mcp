@@ -23,8 +23,12 @@ async fn http_conversations_require_separate_grants_and_cannot_observe_each_othe
     execution_gate.pause().unwrap();
     assert_eq!(invoke(&client,&url,"list_exec_tasks",json!({}),"B").await["jobs"],json!([]));
     assert_eq!(invoke(&client,&url,"list_exec_tasks",json!({}),"A").await["jobs"].as_array().unwrap().len(),1);
-    assert_eq!(invoke(&client,&url,"get_exec_task",json!({"job_id":id}),"B").await["ok"],false);
-    assert_eq!(invoke(&client,&url,"cancel_exec_task",json!({"job_id":id}),"B").await["ok"],false);
+    let foreign_get = invoke(&client,&url,"get_exec_task",json!({"job_id":id}),"B").await;
+    assert_eq!(foreign_get["ok"],false);
+    assert!(!foreign_get.to_string().contains(id.as_str().unwrap()));
+    let foreign_cancel = invoke(&client,&url,"cancel_exec_task",json!({"job_id":id}),"B").await;
+    assert_eq!(foreign_cancel["ok"],false);
+    assert!(!foreign_cancel.to_string().contains(id.as_str().unwrap()));
     let until = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         let v = invoke(&client,&url,"get_exec_task",json!({"job_id":id}),"A").await;
