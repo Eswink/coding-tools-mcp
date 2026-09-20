@@ -257,3 +257,106 @@ stable control plane
 The study does **not** indicate that a cloud broker is currently necessary.
 
 The clearest new actionable item is HTTP Origin hardening. The clearest future architecture signal is that, if Level B/C is later required, connection lifecycle should be explicit and reconstructible rather than inferred from workspace execution state.
+
+
+## 7. Official Rust SDK — exact public Origin and default Host defense
+
+Reference:
+
+- repository: `modelcontextprotocol/rust-sdk`
+- inspected revision family: `dbd238275534c3a8da4d91b7220655e878216988`
+- `crates/rmcp/src/transport/streamable_http_server/tower.rs`
+
+Observed pattern:
+
+- Streamable HTTP config has explicit `allowed_hosts` and `allowed_origins`.
+- Default Host policy admits loopback only.
+- Origin comparison is defined as RFC 6454 origin equality: scheme + host + effective port.
+- Missing Origin can remain compatible.
+- Public deployments must explicitly widen the host/origin boundary.
+- 2026-07-28 traffic is stateless even when legacy session mode is available.
+
+### Decision
+
+**ADOPT the stronger public-Origin equality rule.**
+
+ISSUE-006 was refined after this review:
+
+- localhost-class browser Origins remain flexible for developer UI ports;
+- the managed/public Origin must match scheme + host + effective port;
+- same hostname with another scheme/port is rejected.
+
+This is stricter than the earlier hostname-only draft and does not affect normal non-browser ChatGPT/MCP clients that omit Origin.
+
+## 8. mcp-gateway — CORS is not a DNS-rebinding control
+
+Reference:
+
+- repository: `MikkoParkkola/mcp-gateway`
+- inspected revision family: `d10e1fc53fc5ef6fc306b0775ee3abc71e206f9a`
+- `src/gateway/router/origin_guard.rs`
+- `docs/design/origin-validation-anon-admin.md`
+
+Observed pattern:
+
+1. CORS is explicitly treated as insufficient for DNS rebinding defense.
+2. Browser Origin is checked as a canonical full origin.
+3. Public URL is read live per request rather than snapshotted at listener startup.
+4. Host / HTTP2 authority is validated to stop rebound names when Origin is absent.
+5. `Sec-Fetch-Site` is checked because browsers can issue navigation/GET requests without Origin.
+6. One live public configuration snapshot is used for related checks so a config reload cannot split the security decision across two generations.
+
+### Decision
+
+**ADOPT now:**
+
+- full current public-Origin comparison;
+- live `PublicOrigin` lookup per request;
+- keep CORS and security validation conceptually separate.
+
+**DEFER to ISSUE-007:**
+
+- tunnel-aware Host / `:authority` validation;
+- `Sec-Fetch-Site` policy.
+
+The Host design must account for FRP/Cloudflare forwarding rather than blindly assuming every inbound Host is localhost.
+
+## 9. PMCP / chuk-mcp-rs — reverse-proxy caution and conformance discipline
+
+References:
+
+- `Consiliency/pmcp@1683c515ede0308fec84dc13be4d0428b3e32bdf`
+- `IBM/chuk-mcp-rs@c1b874a84c465a492812f26d142f67278a148c31`
+
+PMCP's useful distinction:
+
+- Origin validation is default-on for browser requests.
+- Host validation is deliberately topology-sensitive because reverse proxies may forward arbitrary public Host values.
+- OAuth audience/canonical resource identity is operator-configured rather than derived from the incoming Host.
+
+chuk-mcp-rs adds a separate lesson:
+
+- Host/Origin hardening is tested as part of HTTP transport behavior;
+- protocol-era compatibility is a first-class concern;
+- cross-implementation conformance tests are treated separately from application behavior.
+
+### Decision
+
+For coding-tools-mcp:
+
+- never derive OAuth issuer/resource identity from untrusted Host/forwarded-host;
+- design Host enforcement only after measuring FRP/Cloudflare forwarding behavior;
+- keep the real ChatGPT compatibility gate separate from source/security conformance;
+- consider official MCP conformance tooling in a future protocol-upgrade issue, not inside the reconnect fix.
+
+## Updated adopt / defer summary
+
+| Pattern | Source | Decision |
+|---|---|---|
+| Exact scheme+host+effective-port public Origin | official Rust SDK / mcp-gateway | Adopt in ISSUE-006 |
+| Live public URL in security decision | mcp-gateway | Adopt in ISSUE-006 |
+| CORS is not DNS-rebinding validation | mcp-gateway | Adopt as invariant |
+| Host / HTTP2 authority validation | official Rust SDK / mcp-gateway / PMCP | ISSUE-007, topology-aware |
+| `Sec-Fetch-Site` defense | mcp-gateway | ISSUE-007 |
+| Canonical OAuth audience independent of request Host | PMCP | Preserve existing invariant |
+| Dual protocol-era / conformance discipline | chuk-mcp-rs | Future protocol compatibility issue |
