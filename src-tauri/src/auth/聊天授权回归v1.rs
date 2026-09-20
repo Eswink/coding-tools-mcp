@@ -153,9 +153,21 @@ fn offline_preserves_existing_pending_active_and_exclusive_ordering() {
     let pending = call_tool(&ctx_a, "request_chat_authorization", &json!({"scopes":["files.read"]}));
     assert_eq!(pending["authorization"]["status"], "pending", "{pending}");
     let id = pending["authorization"]["id"].as_str().unwrap().to_owned();
+    let invalid_before_pause =
+        call_tool(&ctx_a, "request_chat_authorization", &json!({"unexpected":true}));
+    assert_eq!(invalid_before_pause["ok"], false, "{invalid_before_pause}");
 
     let mut events = svc.subscribe();
     ctx_a.execution_gate.pause().unwrap();
+
+    let invalid_while_offline =
+        call_tool(&ctx_a, "request_chat_authorization", &json!({"unexpected":true}));
+    assert_eq!(
+        invalid_while_offline,
+        invalid_before_pause,
+        "pause changed existing request-validation precedence"
+    );
+    assert!(events.try_recv().is_err(), "invalid retry emitted an authorization event");
 
     let pending_retry = call_tool(&ctx_a, "request_chat_authorization", &json!({"scopes":["exec.run"]}));
     assert_eq!(pending_retry["authorization"]["id"], id);
