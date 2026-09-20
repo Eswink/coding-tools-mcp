@@ -31,10 +31,15 @@ class UpstreamHandler(BaseHTTPRequestHandler):
     def do_POST(self):  # noqa: N802
         length = int(self.headers.get("Content-Length", "0"))
         body = self.rfile.read(length)
+        content_type = self.headers.get("Content-Type", "")
+        value = None
+        if content_type.startswith("application/json"):
+            value = json.loads(body or b"{}")
         self._reply({
             "path": self.path,
             "auth_present": bool(self.headers.get("Authorization")),
-            "body": json.loads(body or b"{}"),
+            "body": value,
+            "body_bytes": len(body),
         })
 
     def _reply(self, payload):
@@ -161,6 +166,67 @@ class FaultProxyContracts(unittest.TestCase):
             self.assertEqual(value["result"]["structuredContent"]["code"], "WORKSPACE_OFFLINE")
         finally:
             connection.close()
+
+    def test_oauth_token_503_leaves_mcp_reachable(self):
+        server = self.start_proxy("oauth-token-503")
+        connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        try:
+            body = "grant_type=refresh_token&refresh_token=synthetic-secret"
+            connection.request(
+                "POST",
+                "/oauth/token",
+                body=body,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            response = connection.getresponse()
+            value = json.loads(response.read())
+            self.assertEqual(response.status, 503)
+            self.assertEqual(value["error"], "server_error")
+        finally:
+            connection.close()
+        status, value = self.request(server, "GET", "/mcp")
+        self.assertEqual(status, 200)
+        self.assertEqual(value["path"], "/mcp")
+
+    def test_refresh_reject_only_rejects_refresh_grant_and_never_logs_secret(self):
+        server = self.start_proxy("oauth-refresh-reject")
+        secret = "synthetic-refresh-secret-never-log"
+        connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        try:
+            refresh_body = f"grant_type=refresh_token&refresh_token={secret}&client_id=test"
+            connection.request(
+                "POST",
+                "/oauth/token",
+                body=refresh_body,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            response = connection.getresponse()
+            value = json.loads(response.read())
+            self.assertEqual(response.status, 400)
+            self.assertEqual(value["error"], "invalid_grant")
+        finally:
+            connection.close()
+
+        connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        try:
+            code_body = "grant_type=authorization_code&code=synthetic-code&client_secret=synthetic-client-secret"
+            connection.request(
+                "POST",
+                "/oauth/token",
+                body=code_body,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            response = connection.getresponse()
+            value = json.loads(response.read())
+            self.assertEqual(response.status, 200)
+            self.assertEqual(value["path"], "/oauth/token")
+            self.assertGreater(value["body_bytes"], 0)
+        finally:
+            connection.close()
+
+        evidence = self.evidence.read_text(encoding="utf-8")
+        self.assertNotIn(secret, evidence)
+        self.assertNotIn("synthetic-client-secret", evidence)
 
     def test_reset_mcp_abruptly_closes_only_mcp_connection(self):
         server = self.start_proxy("reset-mcp")
