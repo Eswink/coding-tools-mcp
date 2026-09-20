@@ -35,6 +35,11 @@ jobs:
         run: |
           set -euo pipefail
           npx -y gitnexus@latest query "MCP runtime listener stop tunnel remote tool authorization dispatch" | tee evidence/query-runtime-dispatch.txt
+      - name: Impact MCP listener spawn
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact spawn_listener_with_origin --file src-tauri/src/mcp/listener.rs --direction upstream | tee evidence/impact-mcp-listener-spawn.txt
       - name: Impact RuntimeSupervisor start
         shell: bash
         run: |
