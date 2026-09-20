@@ -45,7 +45,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx -y gitnexus@latest impact StartupFailureReason --file src-tauri/src/error.rs --direction upstream | tee evidence/impact-startup-failure-reason.txt
+          npx -y gitnexus@latest impact StartupFailureReason --file src-tauri/src/error.rs --kind Enum --direction upstream | tee evidence/impact-startup-failure-reason.txt
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v4
