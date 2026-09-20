@@ -26,8 +26,8 @@ Real ChatGPT connector setup: DEFERRED BY USER
 | Recovery-required non-disclosure | Round 4 privacy regression | SOURCE PASS |
 | Windows full regression | Round 5 packaged workflow | IN PROGRESS |
 | Windows NSIS build/install/uninstall | Round 5 packaged workflow | IN PROGRESS |
-| Ubuntu full regression | Round 5 packaged workflow | IN PROGRESS |
-| Ubuntu DEB build/install/purge | Round 5 packaged workflow | IN PROGRESS |
+| Ubuntu full regression | run `35509843023` | SOURCE PASS |
+| Ubuntu DEB build/install/purge | run `35509843023` | PACKAGED PASS |
 | UI close/reopen with real ChatGPT connector | actual host connector | DEFERRED |
 | App process restart observed by ChatGPT | actual host connector | DEFERRED |
 | Network flap/tunnel restart observed by ChatGPT | actual host connector | DEFERRED |
@@ -70,3 +70,23 @@ No Round 5 CI artifact is a release candidate by publication semantics:
 - bounded CI retention only.
 
 The project plan branch may accept ENGINEERING_CANDIDATE_PASS while the overall issue remains open for HOST_VALIDATED.
+
+
+## Ubuntu packaged checkpoint
+
+Run `35509843023`, source candidate `b1c190f29135dda6a80cb9af03883e8c6dcdd5a8`:
+
+- frontend offline-safe UI contract: 3/3 PASS;
+- Rust primary suite: 380 passed, 0 failed;
+- integration suites: PASS;
+- strict library compile: PASS;
+- Debian bundle: `Coding Tools MCP_0.6.0-rc.4_amd64.deb`;
+- package id: `coding-tools-mcp`;
+- package version: `0.6.0-rc.4`;
+- package SHA-256: `4c6ff10665fcd73756cbdb5e4cb8ff36e9a390dcc9138a01eaddcad9aba9ad7a`;
+- installed executable: `/usr/bin/coding-tools-mcp-desktop`;
+- install verification: PASS;
+- purge/removal verification: PASS;
+- CI artifact digest: `sha256:b638409e5a890380f0c75d636493048a0a576db7f7269607b9d90e9fc8429c0a`.
+
+Windows packaged acceptance remains open.
