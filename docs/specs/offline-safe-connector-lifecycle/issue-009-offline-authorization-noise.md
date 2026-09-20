@@ -255,3 +255,49 @@ SOURCE PASS requires:
 - exact diff and impact review recorded.
 
 Real host / shared-account connector visibility remains `UNCONFIRMED_ON_REAL_HOST`.
+
+
+## Focused final-candidate verification
+
+Focused workflow run `35524230919`: **SUCCESS**.
+
+Four isolated regressions passed on the final source candidate:
+
+- `offline_unapproved_authorization_request_is_suppressed_without_pending_noise_until_resume`;
+- `offline_preserves_existing_pending_active_and_exclusive_ordering`;
+- `recovery_required_precedes_offline_authorization_suppression`;
+- `offline_new_authorization_is_a_non_oauth_tool_error_and_resumes_cleanly`.
+
+The HTTP regression verifies the suppression result remains:
+
+```text
+HTTP 200
+WWW-Authenticate absent
+error.category = permission
+error.code = CHAT_AUTHORIZATION_UNAVAILABLE
+requires_local_action = false
+```
+
+and that Resume restores the normal pending-approval path without re-running OAuth.
+
+### OAuth challenge reference check
+
+Current MCP Inspector and TypeScript SDK documentation confirms that HTTP `401` or `403 insufficient_scope` plus `WWW-Authenticate` is deliberately interpreted as OAuth re-authorization / step-up.
+
+Therefore keeping local workspace/chat admission states as MCP tool-level results instead of HTTP OAuth challenges is not merely cosmetic: using a challenge here would actively instruct capable clients to start re-authentication.
+
+### Final change-impact candidate
+
+Graph job from full run `35524220691`: PASS.
+
+```text
+Changes: 10 files, 51 symbols
+Affected processes: 4
+Risk level: medium
+```
+
+Affected flows are limited to the chat-domain intercept/error path and the guarded authorization request's busy/event/fence paths.
+
+This aggregate result does not erase the focused lower-bound/UNKNOWN findings from the pre-edit GitNexus review.
+
+Full Windows/Ubuntu source validation and packaged revalidation remain the final gates before merge.
