@@ -5,6 +5,8 @@ on:
     branches:
       - security/mcp-origin-validation
     paths:
+      - 'src-tauri/src/mcp/**'
+      - 'src-tauri/src/auth/公网身份v2.rs'
       - '.github/workflows/mcp-origin-packaged-revalidation.yml'
   workflow_dispatch:
 
