@@ -50,6 +50,19 @@ jobs:
           printf 'session_policy_rc=%s\nconfigure_rc=%s\nrequest_guarded_rc=%s\nchat_snapshot_rc=%s\nlocal_control_rc=%s\nchanged_services_rc=%s\n' \
             "$session_policy_rc" "$configure_rc" "$request_guarded_rc" "$chat_snapshot_rc" "$local_control_rc" "$changed_services_rc" | tee evidence/backend-impact-status.txt
           exit 0
+      - name: Focused TypeScript policy impact
+        shell: bash
+        run: |
+          set +e
+          npx -y gitnexus@latest impact sessionPolicy --file src/lib/remote-session-policy.ts --direction upstream > evidence/impact-ts-session-policy.txt 2>&1
+          ts_session_policy_rc=$?
+          npx -y gitnexus@latest impact validateSessionPolicy --file src/lib/remote-session-policy.ts --direction upstream > evidence/impact-ts-validate-policy.txt 2>&1
+          ts_validate_policy_rc=$?
+          npx -y gitnexus@latest impact policyFromFields --file src/lib/remote-session-policy.ts --direction upstream > evidence/impact-ts-policy-from-fields.txt 2>&1
+          ts_policy_from_fields_rc=$?
+          printf 'ts_session_policy_rc=%s\nts_validate_policy_rc=%s\nts_policy_from_fields_rc=%s\n' \
+            "$ts_session_policy_rc" "$ts_validate_policy_rc" "$ts_policy_from_fields_rc" | tee evidence/ts-impact-status.txt
+          exit 0
       - name: Probe Svelte impact and exact call sites
         shell: bash
         run: |
