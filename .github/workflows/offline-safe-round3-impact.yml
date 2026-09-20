@@ -1,0 +1,100 @@
+name: Offline-safe Round 3 GitNexus impact gate
+
+on:
+  push:
+    branches:
+      - feat/offline-safe-execution-gate
+    paths:
+      - '.github/workflows/offline-safe-round3-impact.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build fresh GitNexus index
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx -y gitnexus@latest analyze | tee evidence/analyze.txt
+          npx -y gitnexus@latest status | tee evidence/status.txt
+      - name: Query affected execution flows
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest query "MCP runtime listener stop tunnel remote tool authorization dispatch" | tee evidence/query-runtime-dispatch.txt
+      - name: Impact gate-aware MCP listener spawn
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact spawn_listener_with_origin_and_execution_gate --file src-tauri/src/mcp/listener.rs --direction upstream | tee evidence/impact-mcp-gate-listener-spawn.txt
+      - name: Impact MCP listener spawn
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact spawn_listener_with_origin --file src-tauri/src/mcp/listener.rs --direction upstream | tee evidence/impact-mcp-listener-spawn.txt
+      - name: Impact RuntimeSupervisor start
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact start --file src-tauri/src/runtime/supervisor.rs --direction upstream | tee evidence/impact-runtime-start.txt
+      - name: Impact RuntimeSupervisor status
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact status --file src-tauri/src/runtime/supervisor.rs --direction upstream | tee evidence/impact-runtime-status.txt
+      - name: Impact ToolContext background snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact background_snapshot --file src-tauri/src/tools/context.rs --direction upstream | tee evidence/impact-background-snapshot.txt
+      - name: Impact chat-domain intercept
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact intercept --file src-tauri/src/tools/聊天运行域v1.rs --direction upstream | tee evidence/impact-chat-intercept.txt
+      - name: Impact RuntimeStatusDto
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact RuntimeStatusDto --file src-tauri/src/workspace/model.rs --direction upstream | tee evidence/impact-runtime-status-dto.txt
+      - name: Record Svelte indexing boundary
+        shell: bash
+        run: |
+          cat > evidence/svelte-impact-boundary.txt <<'EOF'
+          GitNexus 1.6.12 did not index applyMcpRuntime in src/routes/workspace/[id]/+page.svelte.
+          Run 35504168445 preserves the failed exact lookup. No existing Svelte UI symbol is edited
+          in the backend increment covered by this impact gate.
+          EOF
+      - name: Probe Svelte Props impact availability
+        shell: bash
+        run: |
+          set +e
+          npx -y gitnexus@latest impact Props --file src/lib/components/ServicePanel.svelte --kind Interface --direction upstream > evidence/impact-ui-service-panel-props.txt 2>&1
+          panel_rc=$?
+          npx -y gitnexus@latest impact Props --file src/lib/components/workspace/WorkspaceServiceView.svelte --kind Interface --direction upstream > evidence/impact-ui-workspace-view-props.txt 2>&1
+          view_rc=$?
+          printf 'service_panel_props_rc=%s\nworkspace_service_view_props_rc=%s\n' "$panel_rc" "$view_rc" | tee evidence/ui-impact-probe-status.txt
+          # Discovery only: non-zero means the current GitNexus parser cannot
+          # provide a pre-edit Svelte symbol impact and must not be relabeled PASS.
+          exit 0
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-safe-round3-gitnexus-impact
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30

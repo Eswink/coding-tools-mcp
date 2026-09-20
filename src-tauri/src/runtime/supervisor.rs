@@ -1,12 +1,13 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use tauri::async_runtime::JoinHandle;
 
 use crate::actions;
 use crate::auth::PublicOrigin;
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use crate::mcp;
 use crate::platform::platform;
 use crate::runtime::port::{
@@ -17,6 +18,7 @@ use crate::secret::SecretStore;
 use crate::tools::policy::PolicySettings;
 use crate::tunnel::{append_profile_log, cleanup_orphan_for_runtime, TunnelServiceKind};
 use crate::workspace::{RuntimeStatusDto, WorkspaceProfile};
+use super::execution_gate::WorkspaceExecutionGate;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ServiceKind {
@@ -24,7 +26,7 @@ pub enum ServiceKind {
     Actions,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RuntimePhase {
     Stopped,
     Starting,
@@ -41,6 +43,8 @@ struct RuntimeEntry {
     error_message: Option<String>,
     started_at: Option<std::time::Instant>,
     missing_port_checks: u8,
+    generation: String,
+    execution_gate: Option<Arc<WorkspaceExecutionGate>>,
 }
 
 #[derive(Default)]
@@ -123,6 +127,76 @@ impl RuntimeSupervisor {
             .map(|entry| entry.public_origin.clone())
     }
 
+    pub fn pause_mcp_execution(
+        &mut self,
+        profile: &WorkspaceProfile,
+        expected_generation: &str,
+    ) -> AppResult<RuntimeStatusDto> {
+        let key = (profile.id.clone(), ServiceKind::Mcp);
+        {
+            let entry = self.entries.get_mut(&key)
+                .ok_or_else(|| AppError::Message("MCP 未运行，无法暂停远程执行。".into()))?;
+            if entry.phase != RuntimePhase::Running {
+                return Err(AppError::Message("MCP 未处于运行状态，无法暂停远程执行。".into()));
+            }
+            if entry.generation != expected_generation {
+                return Err(AppError::Message("MCP 运行时已变更，请刷新状态后重试。".into()));
+            }
+            let gate = entry.execution_gate.as_ref()
+                .ok_or_else(|| AppError::Message("MCP 执行门控不可用，请重启 MCP 服务。".into()))?;
+            let before = gate.snapshot();
+            let snapshot = gate.pause().map_err(|code| AppError::Message(code.into()))?;
+            append_profile_log(
+                &profile.id,
+                "mcp-requests.log",
+                &format!(
+                    "[availability] event=workspace_execution_availability workspace_id={} from={} to={} reason=local_pause runtime_generation={} in_flight={}",
+                    profile.id,
+                    before.availability.as_str(),
+                    snapshot.availability.as_str(),
+                    entry.generation,
+                    snapshot.in_flight
+                ),
+            );
+        }
+        Ok(self.status(profile, ServiceKind::Mcp))
+    }
+
+    pub fn resume_mcp_execution(
+        &mut self,
+        profile: &WorkspaceProfile,
+        expected_generation: &str,
+    ) -> AppResult<RuntimeStatusDto> {
+        let key = (profile.id.clone(), ServiceKind::Mcp);
+        {
+            let entry = self.entries.get_mut(&key)
+                .ok_or_else(|| AppError::Message("MCP 未运行，无法恢复远程执行。".into()))?;
+            if entry.phase != RuntimePhase::Running {
+                return Err(AppError::Message("MCP 未处于运行状态，无法恢复远程执行。".into()));
+            }
+            if entry.generation != expected_generation {
+                return Err(AppError::Message("MCP 运行时已变更，请刷新状态后重试。".into()));
+            }
+            let gate = entry.execution_gate.as_ref()
+                .ok_or_else(|| AppError::Message("MCP 执行门控不可用，请重启 MCP 服务。".into()))?;
+            let before = gate.snapshot();
+            let snapshot = gate.resume().map_err(|code| AppError::Message(code.into()))?;
+            append_profile_log(
+                &profile.id,
+                "mcp-requests.log",
+                &format!(
+                    "[availability] event=workspace_execution_availability workspace_id={} from={} to={} reason=local_resume runtime_generation={} in_flight={}",
+                    profile.id,
+                    before.availability.as_str(),
+                    snapshot.availability.as_str(),
+                    entry.generation,
+                    snapshot.in_flight
+                ),
+            );
+        }
+        Ok(self.status(profile, ServiceKind::Mcp))
+    }
+
     pub fn begin_stop(&mut self, workspace_id: &str, kind: ServiceKind) -> Option<JoinHandle<()>> {
         let key = (workspace_id.to_string(), kind);
         let entry = self.entries.get_mut(&key)?;
@@ -148,6 +222,14 @@ impl RuntimeSupervisor {
             .map(|entry| entry.phase.clone())
             .unwrap_or(RuntimePhase::Stopped);
 
+        let runtime_generation = self.entries.get(&key).map(|entry| entry.generation.clone());
+        let execution_state = if kind == ServiceKind::Mcp {
+            self.entries.get(&key)
+                .and_then(|entry| entry.execution_gate.as_ref())
+                .map(|gate| gate.snapshot().availability.as_str().to_string())
+        } else {
+            None
+        };
         let (local_endpoint, mut public_endpoint) = endpoints(profile, kind);
         if let Some(entry) = self.entries.get(&key) {
             let base = entry.public_origin.snapshot();
@@ -165,6 +247,8 @@ impl RuntimeSupervisor {
         match phase {
             RuntimePhase::Running => RuntimeStatusDto {
                 state: "running".into(),
+                execution_state: execution_state.clone(),
+                runtime_generation: runtime_generation.clone(),
                 pid: None,
                 local_message: format!("{service_label}正在监听 127.0.0.1:{port}"),
                 public_message: public_message_for(profile, kind),
@@ -173,6 +257,8 @@ impl RuntimeSupervisor {
             },
             RuntimePhase::Starting => RuntimeStatusDto {
                 state: "starting".into(),
+                execution_state: execution_state.clone(),
+                runtime_generation: runtime_generation.clone(),
                 pid: None,
                 local_message: format!("正在启动{service_label}端口 {port}"),
                 public_message: "等待服务就绪".into(),
@@ -181,6 +267,8 @@ impl RuntimeSupervisor {
             },
             RuntimePhase::Stopping => RuntimeStatusDto {
                 state: "stopping".into(),
+                execution_state: execution_state.clone(),
+                runtime_generation: runtime_generation.clone(),
                 pid: None,
                 local_message: "正在停止".into(),
                 public_message: "正在停止".into(),
@@ -195,6 +283,8 @@ impl RuntimeSupervisor {
                     .unwrap_or_else(|| "运行失败".into());
                 RuntimeStatusDto {
                     state: "error".into(),
+                    execution_state: execution_state.clone(),
+                    runtime_generation: runtime_generation.clone(),
                     pid: None,
                     local_message: message.clone(),
                     public_message: message,
@@ -204,6 +294,8 @@ impl RuntimeSupervisor {
             }
             RuntimePhase::Stopped => RuntimeStatusDto {
                 state: "stopped".into(),
+                execution_state: None,
+                runtime_generation: None,
                 pid: None,
                 local_message: "未启动".into(),
                 public_message: "未知".into(),
@@ -236,6 +328,7 @@ impl RuntimeSupervisor {
         }
 
         let public_origin = initial_public_origin(profile, kind)?;
+        let generation = uuid::Uuid::new_v4().to_string();
         self.entries.insert(
             key.clone(),
             RuntimeEntry {
@@ -246,6 +339,8 @@ impl RuntimeSupervisor {
                 error_message: None,
                 started_at: Some(std::time::Instant::now()),
                 missing_port_checks: 0,
+                generation: generation.clone(),
+                execution_gate: None,
             },
         );
 
@@ -295,7 +390,7 @@ impl RuntimeSupervisor {
                 } else {
                     None
                 };
-                mcp::spawn_listener_with_origin(
+                mcp::spawn_listener_with_origin_and_execution_gate(
                     port,
                     PathBuf::from(&profile.path),
                     profile.id.clone(),
@@ -305,7 +400,7 @@ impl RuntimeSupervisor {
                     oauth_password,
                     oauth_token_secret,
                     profile.runtime.clone(),
-                )
+                ).map(|(shutdown, handle, execution_gate)| (shutdown, handle, Some(execution_gate)))
             }
             ServiceKind::Actions => {
                 let auth_type = profile.actions.auth_type.clone();
@@ -361,12 +456,12 @@ impl RuntimeSupervisor {
                     oauth_password,
                     oauth_token_secret,
                     policy,
-                )
+                ).map(|(shutdown, handle)| (shutdown, handle, None))
             }
         };
 
         match spawn_result {
-            Ok((shutdown, handle)) => {
+            Ok((shutdown, handle, execution_gate)) => {
                 let started_at = self
                     .entries
                     .get(&key)
@@ -382,6 +477,8 @@ impl RuntimeSupervisor {
                         error_message: None,
                         started_at,
                         missing_port_checks: 0,
+                        generation: generation.clone(),
+                        execution_gate,
                     },
                 );
             }
@@ -405,6 +502,8 @@ impl RuntimeSupervisor {
                         error_message: Some(err.to_string()),
                         started_at: None,
                         missing_port_checks: 0,
+                        generation,
+                        execution_gate: None,
                     },
                 );
             }
@@ -626,6 +725,12 @@ mod tests {
             error_message: None,
             started_at,
             missing_port_checks: 0,
+            generation: uuid::Uuid::new_v4().to_string(),
+            execution_gate: if phase == RuntimePhase::Running {
+                Some(WorkspaceExecutionGate::shared())
+            } else {
+                None
+            },
         }
     }
 
@@ -662,6 +767,85 @@ mod tests {
         assert!(!should_mark_runtime_error(&mut runtime, true));
         assert!(!should_mark_runtime_error(&mut runtime, false));
     }
+    #[test]
+    fn pause_preserves_generation_origin_and_runtime_membership() {
+        let profile = WorkspaceProfile::new("/tmp/offline-safe".into(), None);
+        let mut runtime = RuntimeSupervisor::default();
+        let active = entry(
+            RuntimePhase::Running,
+            Some(std::time::Instant::now() - Duration::from_secs(1)),
+        );
+        active
+            .public_origin
+            .publish("https://stable.example.com")
+            .unwrap();
+        let generation = active.generation.clone();
+        runtime
+            .entries
+            .insert((profile.id.clone(), ServiceKind::Mcp), active);
+
+        let before_keys = runtime.active_tunnel_service_keys();
+        let before_origin = runtime
+            .public_origin_handle(&profile.id, ServiceKind::Mcp)
+            .unwrap()
+            .snapshot();
+
+        let paused = runtime
+            .pause_mcp_execution(&profile, &generation)
+            .expect("pause current runtime generation");
+        assert_eq!(paused.state, "running");
+        assert_eq!(paused.execution_state.as_deref(), Some("offline"));
+        assert_eq!(paused.runtime_generation.as_deref(), Some(generation.as_str()));
+        assert_eq!(paused.public_endpoint, "https://stable.example.com/mcp");
+        assert_eq!(runtime.active_tunnel_service_keys(), before_keys);
+        assert_eq!(
+            runtime
+                .public_origin_handle(&profile.id, ServiceKind::Mcp)
+                .unwrap()
+                .snapshot(),
+            before_origin
+        );
+
+        let resumed = runtime
+            .resume_mcp_execution(&profile, &generation)
+            .expect("resume same runtime generation");
+        assert_eq!(resumed.state, "running");
+        assert_eq!(resumed.execution_state.as_deref(), Some("online"));
+        assert_eq!(resumed.runtime_generation.as_deref(), Some(generation.as_str()));
+        assert_eq!(runtime.active_tunnel_service_keys(), before_keys);
+    }
+
+    #[test]
+    fn stale_generation_cannot_pause_a_replacement_listener() {
+        let profile = WorkspaceProfile::new("/tmp/offline-safe-generation".into(), None);
+        let mut runtime = RuntimeSupervisor::default();
+
+        let first = entry(RuntimePhase::Running, Some(std::time::Instant::now()));
+        let stale_generation = first.generation.clone();
+        runtime
+            .entries
+            .insert((profile.id.clone(), ServiceKind::Mcp), first);
+
+        let replacement = entry(RuntimePhase::Running, Some(std::time::Instant::now()));
+        let replacement_generation = replacement.generation.clone();
+        assert_ne!(stale_generation, replacement_generation);
+        runtime
+            .entries
+            .insert((profile.id.clone(), ServiceKind::Mcp), replacement);
+
+        let error = runtime
+            .pause_mcp_execution(&profile, &stale_generation)
+            .unwrap_err();
+        assert!(error.to_string().contains("运行时已变更"));
+
+        let status = runtime.mcp_status(&profile);
+        assert_eq!(status.execution_state.as_deref(), Some("online"));
+        assert_eq!(
+            status.runtime_generation.as_deref(),
+            Some(replacement_generation.as_str())
+        );
+    }
+
     #[test]
     fn quick_start_does_not_reuse_the_previous_persisted_url() {
         let mut profile = WorkspaceProfile::new("/tmp/quick".into(), None);

@@ -1,0 +1,43 @@
+name: MCP Origin hardening validation
+
+on:
+  push:
+    branches:
+      - security/mcp-origin-validation
+    paths:
+      - 'src-tauri/src/mcp/**'
+      - 'src-tauri/src/auth/公网身份v2.rs'
+      - '.github/workflows/mcp-origin-hardening-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-origin-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  origin-matrix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-targets: false
+      - name: Install Tauri Linux dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - name: Run Origin security matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml origin_security_tests -- --nocapture

@@ -4,6 +4,7 @@
   import StatusBadge from "$lib/components/primitives/StatusBadge.svelte";
   import ServiceSwitcher from "$lib/components/workspace/ServiceSwitcher.svelte";
   import WorkspaceServiceView from "$lib/components/workspace/WorkspaceServiceView.svelte";
+  import ExecutionAvailabilityPanel from "$lib/components/workspace/ExecutionAvailabilityPanel.svelte";
   import { defaultFrpOptions, originFromEndpoint } from "$lib/固定入口";
   import { onDestroy } from "svelte";
   import { applyAndRefresh, forCurrentWorkspace } from "$lib/runtime/configuration";
@@ -20,6 +21,8 @@
     getActionsRuntimeStatus,
     getRuntimeStatus,
     listWorkspaces,
+    pauseMcpExecution,
+    resumeMcpExecution,
     startActionsRuntime,
     startRuntime,
     stopActionsRuntime,
@@ -40,6 +43,7 @@
     type AuthConfig,
     type ActionsAuthDraft,
     type RuntimeState,
+    type RuntimeStatus,
     type WorkspaceProfile,
   } from "$lib/types";
 
@@ -52,6 +56,9 @@
   let mcpStatusMessage = $state("");
   let actionsStatusMessage = $state("");
   let mcpBusy = $state(false);
+  let mcpExecutionBusy = $state(false);
+  let mcpExecutionState = $state<"online" | "offline" | undefined>(undefined);
+  let mcpRuntimeGeneration = $state("");
   let actionsBusy = $state(false);
   let mcpLocal = $state("");
   let mcpPublic = $state("");
@@ -62,13 +69,13 @@
   let serviceView = $state<WorkspaceServiceView>();
   let switchingService = $state(false);
   async function changeService(next: ServiceTab) {
-    if (next === activeService || switchingService || configurationBusy || mcpBusy || actionsBusy) return;
+    if (next === activeService || switchingService || configurationBusy || mcpBusy || mcpExecutionBusy || actionsBusy) return;
     const id = workspaceId;
     const view = serviceView;
     switchingService = true;
     try {
       if (view && !await view.requestLeave()) return;
-      if (!disposed && id === workspaceId && view === serviceView && !configurationBusy && !mcpBusy && !actionsBusy) activeService = next;
+      if (!disposed && id === workspaceId && view === serviceView && !configurationBusy && !mcpBusy && !mcpExecutionBusy && !actionsBusy) activeService = next;
     } finally { switchingService = false; }
   }
 
@@ -87,7 +94,7 @@
 
   async function persistProfile(next: WorkspaceProfile, tunnelSecret?: TunnelSecretUpdate) {
     if (disposed || next.id !== workspaceId) throw new Error("工作区已切换，请重试。");
-    if (configurationBusy || mcpBusy || actionsBusy) throw new Error("其他配置操作尚未完成，请稍后重试。");
+    if (configurationBusy || mcpBusy || mcpExecutionBusy || actionsBusy) throw new Error("其他配置操作尚未完成，请稍后重试。");
     configurationBusy = true;
     loadGeneration += 1;
     try {
@@ -132,26 +139,18 @@
   });
 
 
-  function applyMcpRuntime(
-    runtime: { state: RuntimeState; localEndpoint: string; publicEndpoint: string; localMessage?: string },
-    id = workspaceId,
-  ) {
+  function applyMcpRuntime(runtime: RuntimeStatus, id = workspaceId) {
     if (disposed || !id || id !== workspaceId) return;
     mcpStatus = runtime.state;
     mcpStatusMessage = runtime.localMessage ?? "";
+    mcpExecutionState = runtime.executionState;
+    mcpRuntimeGeneration = runtime.runtimeGeneration ?? "";
     mcpLocal = runtime.localEndpoint;
     mcpPublic = runtime.publicEndpoint;
     mcpRuntimeStates.update((current) => ({ ...current, [id]: runtime.state }));
   }
 
-  function applyActionsRuntime(runtime: {
-    state: RuntimeState;
-    localEndpoint: string;
-    publicEndpoint: string;
-    localMessage?: string;
-  },
-    id = workspaceId,
-  ) {
+  function applyActionsRuntime(runtime: RuntimeStatus, id = workspaceId) {
     if (disposed || !id || id !== workspaceId) return;
     actionsStatus = runtime.state;
     actionsStatusMessage = runtime.localMessage ?? "";
@@ -226,30 +225,121 @@
     }
   }
 
-  async function toggleMcp() {
+  async function startMcpConnector() {
     const id = workspaceId;
-    if (disposed || !id || mcpBusy || configurationBusy) return;
-    const wasRunning = mcpStatus === "running";
+    if (
+      disposed
+      || !id
+      || mcpBusy
+      || mcpExecutionBusy
+      || configurationBusy
+      || mcpStatus === "running"
+      || mcpStatus === "starting"
+      || mcpStatus === "stopping"
+    ) return;
+
     mcpBusy = true;
     try {
-      const runtime = await runServiceToggle(
-        wasRunning,
-        () => startRuntime(id),
-        () => stopRuntime(id),
-        "MCP",
-      );
-      if (!disposed && runtime && id === workspaceId) {
+      const runtime = await startRuntime(id);
+      if (!disposed && id === workspaceId) {
         applyMcpRuntime(runtime, id);
-        if (!wasRunning) {
-          if (runtime.state === "running") {
-            await afterServiceStart("mcp", runtime, id);
-          } else {
-            notifyStartFailure("MCP", runtime);
-          }
+        if (runtime.state === "running") {
+          await afterServiceStart("mcp", runtime, id);
+        } else {
+          notifyStartFailure("MCP Connector", runtime);
         }
+      }
+    } catch (error) {
+      if (!disposed && id === workspaceId) {
+        showToast(String(error), {
+          title: "MCP Connector 启动失败",
+          kind: "error",
+          duration: 8000,
+        });
       }
     } finally {
       mcpBusy = false;
+    }
+  }
+
+  async function stopMcpConnector() {
+    const id = workspaceId;
+    if (
+      disposed
+      || !id
+      || mcpStatus !== "running"
+      || mcpBusy
+      || mcpExecutionBusy
+      || configurationBusy
+    ) return;
+
+    mcpBusy = true;
+    try {
+      const confirmed = await confirm(
+        "停止 Connector 会关闭 MCP/OAuth 监听器和公网隧道。\n如果只是暂时不允许远程操作，请使用“暂停远程执行”。",
+        {
+          title: "停止 MCP Connector",
+          kind: "warning",
+          okLabel: "停止 Connector",
+          cancelLabel: "取消",
+        },
+      );
+      if (!confirmed || disposed || id !== workspaceId || mcpStatus !== "running") return;
+
+      const runtime = await stopRuntime(id);
+      if (!disposed && id === workspaceId) {
+        applyMcpRuntime(runtime, id);
+      }
+    } catch (error) {
+      if (!disposed && id === workspaceId) {
+        showToast(String(error), {
+          title: "MCP Connector 停止失败",
+          kind: "error",
+          duration: 8000,
+        });
+      }
+    } finally {
+      mcpBusy = false;
+    }
+  }
+
+  async function toggleMcpExecution() {
+    const id = workspaceId;
+    const generation = mcpRuntimeGeneration;
+    if (
+      disposed
+      || !id
+      || mcpStatus !== "running"
+      || !generation
+      || mcpExecutionBusy
+      || mcpBusy
+      || configurationBusy
+    ) return;
+
+    mcpExecutionBusy = true;
+    try {
+      const paused = mcpExecutionState === "offline";
+      const runtime = paused
+        ? await resumeMcpExecution(id, generation)
+        : await pauseMcpExecution(id, generation);
+      if (!disposed && id === workspaceId) {
+        applyMcpRuntime(runtime, id);
+        showToast(
+          paused ? "远程执行已恢复，现有 Connector 与隧道未重启。" : "远程执行已暂停，Connector、OAuth 与隧道保持在线。",
+          { kind: "success" },
+        );
+      }
+    } catch (error) {
+      if (!disposed && id === workspaceId) {
+        showToast(String(error), { title: "远程执行状态切换失败", kind: "error" });
+        try {
+          applyMcpRuntime(await getRuntimeStatus(id), id);
+        } catch {
+          // Keep the original action error visible; a later page refresh will retry status.
+        }
+      }
+    } finally {
+      mcpExecutionBusy = false;
     }
   }
 
@@ -411,7 +501,7 @@
   }
 
   async function removeWorkspace() {
-    if (!profile || !workspaceId || configurationBusy || mcpBusy || actionsBusy) return;
+    if (!profile || !workspaceId || configurationBusy || mcpBusy || mcpExecutionBusy || actionsBusy) return;
     const id = workspaceId;
     const name = profile.name;
     configurationBusy = true;
@@ -455,27 +545,37 @@
       <PageHeader title={profile.name} section="工作区" description="管理工作区的服务配置、授权和运行状态">
         {#snippet icon()}<Box size={32} />{/snippet}
         {#snippet status()}<StatusBadge state={mcpStatus} />{/snippet}
-        {#snippet actions()}<button type="button" class="tx-btn-ghost tx-btn-destructive" disabled={configurationBusy || mcpBusy || actionsBusy} onclick={() => void removeWorkspace()}><Trash2 size={17} aria-hidden="true" />删除工作区</button>{/snippet}
+        {#snippet actions()}<button type="button" class="tx-btn-ghost tx-btn-destructive" disabled={configurationBusy || mcpBusy || mcpExecutionBusy || actionsBusy} onclick={() => void removeWorkspace()}><Trash2 size={17} aria-hidden="true" />删除工作区</button>{/snippet}
       </PageHeader>
       <WorkspaceMetaForm workspaceId={profile.id} name={profile.name} path={profile.path}
         onSave={bindWorkspace(profile.id, saveWorkspaceName)} onUpdatePath={bindWorkspace(profile.id, saveWorkspacePath)} />
       <div class="mt-5"><ChatGptSessionPrompt /></div>
       <ChatAuthorizationPanel workspaceId={profile.id} />
       <ServiceSwitcher value={activeService} mcpState={mcpStatus} actionsState={actionsStatus}
-        disabled={switchingService || configurationBusy || mcpBusy || actionsBusy} onchange={(next) => void changeService(next)} />
+        disabled={switchingService || configurationBusy || mcpBusy || mcpExecutionBusy || actionsBusy} onchange={(next) => void changeService(next)} />
     </div>
     <div class="page-body">
+      {#if activeService === "mcp"}
+        <ExecutionAvailabilityPanel
+          state={mcpExecutionState}
+          runtimeState={mcpStatus}
+          busy={configurationBusy || mcpBusy || mcpExecutionBusy}
+          onStart={() => void startMcpConnector()}
+          onToggle={() => void toggleMcpExecution()}
+          onStop={() => void stopMcpConnector()}
+        />
+      {/if}
       {#key activeService}
       {@const currentService = activeService}
       <WorkspaceServiceView bind:this={serviceView} {profile} service={activeService}
         status={activeService === "mcp" ? mcpStatus : actionsStatus} statusMessage={activeService === "mcp" ? mcpStatusMessage : actionsStatusMessage}
-        busy={configurationBusy || mcpBusy || actionsBusy}
+        busy={configurationBusy || mcpBusy || mcpExecutionBusy || actionsBusy}
         localEndpoint={activeService === "mcp" ? mcpLocal || mcpLocalEndpoint(profile.runtime.local_port) : actionsLocal || actionsLocalEndpoint(actions.local_port)}
         publicEndpoint={activeService === "mcp" ? mcpPublic : actionsPublic || actionsOpenApiUrl(profile, frpProfiles, actionsActiveOrigin)}
         activeOrigin={actionsActiveOrigin} {frpProfiles} tunnelConfig={activeService === "mcp" ? mcpTunnelForm : actionsTunnelForm}
         subTab={activeService === "mcp" ? mcpSubTab : actionsSubTab}
         onTabChange={(next) => { if (currentService === "mcp") mcpSubTab = next; else actionsSubTab = next; }}
-        onToggle={activeService === "mcp" ? toggleMcp : toggleActions}
+        onToggle={activeService === "mcp" ? startMcpConnector : toggleActions}
         onPortChange={bindWorkspace(profile.id, activeService === "mcp" ? saveMcpPort : saveActionsPort)}
         onReload={() => load()} onSaveTunnel={bindWorkspace(profile.id, activeService === "mcp" ? saveMcpTunnel : saveActionsTunnel)}
         onSaveMcpAuth={bindWorkspace(profile.id, saveMcpAuth)} onSaveActionsAuth={bindWorkspace(profile.id, saveActionsAuth)}

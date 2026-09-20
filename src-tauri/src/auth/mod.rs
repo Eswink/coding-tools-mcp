@@ -41,3 +41,6 @@ mod oauth_discovery_tests;
 
 #[cfg(test)]
 mod exclusive_refresh_http_tests;
+
+#[cfg(test)]
+mod offline_safe_privacy_tests;

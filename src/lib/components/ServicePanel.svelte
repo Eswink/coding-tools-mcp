@@ -15,6 +15,7 @@
     port: number;
     portEditable?: boolean;
     busy?: boolean;
+    showToggle?: boolean;
     tunnelType?: string;
     localEndpoint: string;
     publicEndpoint?: string;
@@ -31,6 +32,7 @@
     port,
     portEditable = false,
     busy = false,
+    showToggle = true,
     tunnelType = "none",
     localEndpoint,
     publicEndpoint = "",
@@ -85,26 +87,28 @@
       <p class="mt-1 text-sm text-[var(--color-text-muted)]">{subtitle}</p>
       {#if tunnelEnabled}
         <p class="mt-1 text-xs text-[var(--color-text-muted)]">
-          {tunnelLabel} 隧道随服务自动连接，停止服务时一并断开
+          {tunnelLabel} 隧道随服务生命周期自动连接与断开
         </p>
       {/if}
     </div>
-    <button
-      type="button"
-      class="tx-btn-primary shrink-0"
-      class:tx-btn-danger={running}
-      disabled={busy || savingPort || status === "starting" || status === "stopping"}
-      onclick={onToggle}
-    >
-      <Power size={18} aria-hidden="true" />
-      {#if busy}
-        处理中…
-      {:else if running}
-        停止
-      {:else}
-        启动
-      {/if}
-    </button>
+    {#if showToggle}
+      <button
+        type="button"
+        class="tx-btn-primary shrink-0"
+        class:tx-btn-danger={running}
+        disabled={busy || savingPort || status === "starting" || status === "stopping"}
+        onclick={onToggle}
+      >
+        <Power size={18} aria-hidden="true" />
+        {#if busy}
+          处理中…
+        {:else if running}
+          停止
+        {:else}
+          启动
+        {/if}
+      </button>
+    {/if}
   </div>
 
   {#if showError}

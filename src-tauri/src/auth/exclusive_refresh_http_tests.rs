@@ -13,16 +13,17 @@ const VERIFIER: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123
 struct Server {
     root: tempfile::TempDir, profile: String, base: String, client: reqwest::Client,
     stop: Option<crate::mcp::ShutdownSender>,
+    execution_gate: std::sync::Arc<crate::runtime::WorkspaceExecutionGate>,
 }
 impl Server {
     fn new() -> Self {
         let root=tempfile::tempdir().unwrap();let profile=uuid::Uuid::new_v4().to_string();
         let socket=std::net::TcpListener::bind("127.0.0.1:0").unwrap();let port=socket.local_addr().unwrap().port();drop(socket);
-        let (stop,_task)=crate::mcp::spawn_listener_with_origin(port,root.path().into(),profile.clone(),
+        let (stop,_task,execution_gate)=crate::mcp::spawn_listener_with_origin_and_execution_gate(port,root.path().into(),profile.clone(),
             AuthConfig {oauth_client_id:"test-client".into(),..Default::default()},PublicOrigin::managed(fixture::ORIGIN).unwrap(),
             Some(SECRET.into()),Some(PASSWORD.into()),Some(fixture::KEY.into()),RuntimeConfig::default()).unwrap();
         let client=reqwest::Client::builder().no_proxy().redirect(reqwest::redirect::Policy::none()).timeout(Duration::from_secs(10)).build().unwrap();
-        Self {root,profile,base:format!("http://127.0.0.1:{port}"),client,stop:Some(stop)}
+        Self {root,profile,base:format!("http://127.0.0.1:{port}"),client,stop:Some(stop),execution_gate}
     }
     async fn login(&self,scope:&str)->Value {
         let challenge=URL_SAFE_NO_PAD.encode(Sha256::digest(VERIFIER.as_bytes()));
@@ -104,6 +105,35 @@ async fn http_offline_consent_is_required_and_plain_scope_gets_access_only() {
         .body(format!("grant_type=refresh_token&refresh_token={}","a".repeat(9000))).send().await.unwrap();
     assert_eq!(too_large.status(),413);
 }
+#[tokio::test]
+async fn oauth_refresh_and_owner_survive_workspace_execution_pause() {
+    let s=Server::new();
+    let first=s.login("mcp offline_access").await;
+    let access=first["access_token"].as_str().unwrap();
+    let refresh=first["refresh_token"].as_str().unwrap();
+    let owner=s.approve(access,"A").await;
+    assert_eq!(s.rpc(access,"A","server_info",json!({})).await["ok"],true);
+
+    let paused=s.execution_gate.pause().unwrap();
+    assert_eq!(paused.availability.as_str(),"offline");
+
+    let renewed=s.rotate(refresh).await;
+    assert_eq!(renewed.status(),200);
+    let renewed:Value=renewed.json().await.unwrap();
+    let next_access=renewed["access_token"].as_str().unwrap();
+
+    let status=s.rpc(next_access,"A","auth_status",json!({})).await;
+    assert_eq!(status["authorization"]["id"],owner["id"]);
+    assert_eq!(status["authorization"]["status"],"active");
+
+    let offline=s.rpc(next_access,"A","server_info",json!({})).await;
+    assert_eq!(offline["error"]["code"],"WORKSPACE_OFFLINE");
+    assert_eq!(offline["error"]["category"],"availability");
+
+    s.execution_gate.resume().unwrap();
+    assert_eq!(s.rpc(next_access,"A","server_info",json!({})).await["ok"],true);
+}
+
 #[tokio::test]
 async fn http_revoked_owner_drains_actual_background_process_before_successor() {
     let s=Server::new();let first=s.login("mcp").await;let access=first["access_token"].as_str().unwrap();

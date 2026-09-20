@@ -1,0 +1,78 @@
+name: Offline-safe ISSUE-008 UX validation
+
+on:
+  push:
+    branches:
+      - ux/offline-safe-intent-controls
+    paths:
+      - 'src/lib/components/**'
+      - 'src/routes/workspace/**'
+      - 'tests/offline-safe-ui.test.mjs'
+      - 'tests/offline-safe-intent-ui.test.mjs'
+      - '.github/workflows/offline-safe-issue008-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offline-safe-issue008-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  graph:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: GitNexus detect changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx -y gitnexus@latest analyze > evidence/analyze.txt
+          git reset --hard "$GITHUB_SHA"
+          npx -y gitnexus@latest detect-changes --scope compare --base-ref origin/plan/offline-safe-connector-lifecycle | tee evidence/detect-changes.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: offline-safe-issue008-change-impact
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  frontend:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Svelte and production build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run check
+          npm run build
+      - name: Offline-safe UI contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/offline-safe-ui.test.mjs
+          node --test tests/offline-safe-intent-ui.test.mjs

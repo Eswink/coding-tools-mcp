@@ -1,0 +1,33 @@
+name: Offline-safe Round 5 Windows strict compile
+
+on:
+  push:
+    branches:
+      - acceptance/offline-safe-round5
+    paths:
+      - '.github/workflows/offline-safe-round5-windows-strict.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  strict:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-targets: false
+      - name: Strict non-test library compile
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings

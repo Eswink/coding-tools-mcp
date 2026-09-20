@@ -5,7 +5,9 @@ use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
 
 use crate::app_state::{AppState, StartupStatus};
-use crate::error::{classify_keyring_error, AppResult, StartupFailureReason};
+use crate::error::{classify_keyring_error, AppResult};
+#[cfg(target_os = "linux")]
+use crate::error::StartupFailureReason;
 use crate::platform::{open_url as platform_open_url, PlatformContext};
 use crate::update::{check_app_update as check_update, UpdateCheckResult};
 
@@ -303,6 +305,7 @@ pub fn get_environment_diagnostics(app: AppHandle) -> EnvironmentDiagnostics {
     environment_diagnostics(&app)
 }
 
+#[cfg(target_os = "linux")]
 fn should_initialize_default_collection(
     reason_code: Option<&str>,
     configuration_exists: bool,
@@ -374,6 +377,7 @@ mod tests {
         assert!(!kind.contains('\\'));
     }
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn default_collection_creation_is_only_allowed_for_fresh_missing_default_state() {
         assert!(should_initialize_default_collection(

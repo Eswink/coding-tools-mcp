@@ -126,6 +126,10 @@ pub struct ActionsConfig {
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeStatusDto {
     pub state: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_state: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_generation: Option<String>,
     pub pid: Option<u32>,
     pub local_message: String,
     pub public_message: String,

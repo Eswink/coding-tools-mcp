@@ -19,10 +19,17 @@ fn all_business_tools_are_denied_before_approval_including_dangerous_mode() {
     let root = tempfile::tempdir().unwrap(); let harness = tempfile::tempdir().unwrap();
     let mut ctx = ToolContext::for_test(root.path().into(),harness.path().into()).unwrap();
     ctx.policy.permission_mode = "dangerous".into(); ctx.permission_mode = "dangerous".into();
-    ctx.remote_request = Some(request(&Arc::default(),"profile","A"));
+    let profile = "privacy-unapproved-profile";
+    ctx.remote_request = Some(request(&Arc::default(),profile,"A"));
+    ctx.execution_gate.pause().unwrap();
+    let root_text = root.path().display().to_string();
     for (name,..) in crate::tools::registry::P0_TOOLS {
         let result = call_tool(&ctx,name,&json!({"confirm":true,"authorized":true,"grant_id":"pretend"}));
         assert_eq!(result["error"]["code"],"CHAT_AUTHORIZATION_REQUIRED","{name}: {result}");
+        assert_ne!(result["error"]["code"],"WORKSPACE_OFFLINE","{name}: {result}");
+        let text = result.to_string();
+        assert!(!text.contains(profile),"{name}: {result}");
+        assert!(!text.contains(&root_text),"{name}: {result}");
     }
     assert_eq!(std::fs::read_dir(root.path()).unwrap().count(),0);
 }
@@ -91,6 +98,128 @@ fn metadata_limits_capacity_and_no_raw_identifiers_in_status() {
     assert!(!svc.snapshot("p").to_string().contains("session-"));
     assert_eq!(svc.status(&request(&svc,"p","new-unapproved"))["authorization"]["status"],"unauthorized");
 }
+#[test]
+fn offline_unapproved_authorization_request_is_suppressed_without_pending_noise_until_resume() {
+    let root = tempfile::tempdir().unwrap();
+    let harness = tempfile::tempdir().unwrap();
+    let svc = Arc::new(ChatAuthorizer::default());
+    let req = request(&svc, "offline-auth-noise-profile", "C");
+    let mut ctx = ToolContext::for_test(root.path().into(), harness.path().into()).unwrap();
+    ctx.remote_request = Some(req.clone());
+
+    let status = call_tool(&ctx, "auth_status", &json!({}));
+    assert_eq!(status["authorization"]["status"], "unauthorized", "{status}");
+    assert!(svc.snapshot(&req.profile)["records"].as_array().unwrap().is_empty());
+
+    let mut events = svc.subscribe();
+    ctx.execution_gate.pause().unwrap();
+
+    let blocked = call_tool(&ctx, "request_chat_authorization", &json!({}));
+    assert_eq!(blocked["error"]["code"], "CHAT_AUTHORIZATION_UNAVAILABLE", "{blocked}");
+    assert_eq!(blocked["error"]["category"], "permission", "{blocked}");
+    assert_eq!(blocked["error"]["retryable"], false, "{blocked}");
+    assert_eq!(blocked["requires_local_action"], false, "{blocked}");
+    let blocked_text = blocked.to_string().to_ascii_lowercase();
+    assert!(!blocked_text.contains("offline"), "{blocked}");
+    assert!(!blocked_text.contains("paused"), "{blocked}");
+    assert!(svc.snapshot(&req.profile)["records"].as_array().unwrap().is_empty());
+    while let Ok(event) = events.try_recv() {
+        assert_ne!(event.profile, req.profile, "suppressed request emitted a profile event");
+    }
+
+    let business = call_tool(&ctx, "server_info", &json!({}));
+    assert_eq!(business["error"]["code"], "CHAT_AUTHORIZATION_REQUIRED", "{business}");
+    assert_ne!(business["error"]["code"], "WORKSPACE_OFFLINE");
+
+    ctx.execution_gate.resume().unwrap();
+    let pending = call_tool(&ctx, "request_chat_authorization", &json!({}));
+    assert_eq!(pending["authorization"]["status"], "pending", "{pending}");
+    assert_eq!(svc.snapshot(&req.profile)["records"].as_array().unwrap().len(), 1);
+    let event = events.try_recv().expect("resume should allow one pending event");
+    assert_eq!(event.profile, req.profile);
+    assert_eq!(event.kind, "pending");
+    assert!(events.try_recv().is_err());
+}
+
+#[test]
+fn offline_preserves_existing_pending_active_and_exclusive_ordering() {
+    let root = tempfile::tempdir().unwrap();
+    let harness = tempfile::tempdir().unwrap();
+    let svc = Arc::new(ChatAuthorizer::default());
+    let a = request(&svc, "offline-auth-existing-profile", "A");
+    let mut ctx_a = ToolContext::for_test(root.path().into(), harness.path().into()).unwrap();
+    ctx_a.remote_request = Some(a.clone());
+
+    let pending = call_tool(&ctx_a, "request_chat_authorization", &json!({"scopes":["files.read"]}));
+    assert_eq!(pending["authorization"]["status"], "pending", "{pending}");
+    let id = pending["authorization"]["id"].as_str().unwrap().to_owned();
+    let invalid_before_pause =
+        call_tool(&ctx_a, "request_chat_authorization", &json!({"unexpected":true}));
+    assert_eq!(invalid_before_pause["ok"], false, "{invalid_before_pause}");
+
+    let mut events = svc.subscribe();
+    ctx_a.execution_gate.pause().unwrap();
+
+    let invalid_while_offline =
+        call_tool(&ctx_a, "request_chat_authorization", &json!({"unexpected":true}));
+    assert_eq!(
+        invalid_while_offline,
+        invalid_before_pause,
+        "pause changed existing request-validation precedence"
+    );
+    assert!(events.try_recv().is_err(), "invalid retry emitted an authorization event");
+
+    let pending_retry = call_tool(&ctx_a, "request_chat_authorization", &json!({"scopes":["exec.run"]}));
+    assert_eq!(pending_retry["authorization"]["id"], id);
+    assert_eq!(pending_retry["authorization"]["status"], "pending");
+    assert!(events.try_recv().is_err(), "idempotent pending retry emitted a new event");
+
+    svc.decide(&a.profile, &id, true, &["files.read".into()]).unwrap();
+    while events.try_recv().is_ok() {}
+
+    let active_retry = call_tool(&ctx_a, "request_chat_authorization", &json!({}));
+    assert_eq!(active_retry["authorization"]["id"], id);
+    assert_eq!(active_retry["authorization"]["status"], "active");
+    assert!(events.try_recv().is_err(), "active retry emitted a new event");
+
+    let b = request(&svc, &a.profile, "B");
+    let mut ctx_b = ctx_a.background_snapshot();
+    ctx_b.remote_request = Some(b);
+    let foreign = call_tool(&ctx_b, "request_chat_authorization", &json!({}));
+    assert_eq!(foreign["error"]["code"], "EXCLUSIVE_CHAT_LOCKED", "{foreign}");
+    assert!(foreign.get("authorization").is_none());
+    assert_eq!(svc.snapshot(&a.profile)["records"].as_array().unwrap().len(), 1);
+    assert!(events.try_recv().is_err(), "foreign request emitted an authorization event");
+}
+
+#[test]
+fn recovery_required_precedes_offline_authorization_suppression() {
+    let root = tempfile::tempdir().unwrap();
+    let harness = tempfile::tempdir().unwrap();
+    let fence_root = tempfile::tempdir().unwrap();
+    let svc = Arc::new(ChatAuthorizer::default());
+    let req = request(&svc, "offline-auth-recovery-profile", "R");
+    let binding = req.binding.as_ref().unwrap().clone();
+
+    let initial = super::super::execution_fence::ExecutionFence::open(fence_root.path()).unwrap();
+    initial.mark(&binding).unwrap();
+    drop(initial);
+    let recovered = Arc::new(
+        super::super::execution_fence::ExecutionFence::open(fence_root.path()).unwrap()
+    );
+    assert!(!recovered.ready());
+    svc.fences.lock().unwrap().insert(req.profile.clone(), recovered);
+
+    let mut ctx = ToolContext::for_test(root.path().into(), harness.path().into()).unwrap();
+    ctx.remote_request = Some(req.clone());
+    ctx.execution_gate.pause().unwrap();
+
+    let blocked = call_tool(&ctx, "request_chat_authorization", &json!({}));
+    assert_eq!(blocked["error"]["code"], "CHAT_RECOVERY_REQUIRED", "{blocked}");
+    assert_ne!(blocked["error"]["code"], "CHAT_AUTHORIZATION_UNAVAILABLE");
+    assert!(svc.snapshot(&req.profile)["records"].as_array().unwrap().is_empty());
+}
+
 #[test]
 fn runtime_cwd_sessions_jobs_harness_and_history_are_separate() {
     let root = tempfile::tempdir().unwrap(); let h = tempfile::tempdir().unwrap();

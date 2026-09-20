@@ -1,0 +1,76 @@
+name: ISSUE-009 offline authorization impact gate
+
+on:
+  push:
+    branches:
+      - hardening/offline-auth-noise
+    paths:
+      - '.github/workflows/issue009-offline-auth-impact.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build GitNexus index
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx -y gitnexus@latest analyze | tee evidence/analyze.txt
+          git reset --hard "$GITHUB_SHA"
+          npx -y gitnexus@latest status | tee evidence/status.txt
+      - name: Query authorization availability flow
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest query "request_chat_authorization chat authorization execution gate offline pending event notification intercept" | tee evidence/query-auth-availability.txt
+      - name: Focused symbol impact
+        shell: bash
+        run: |
+          set +e
+          npx -y gitnexus@latest impact intercept --file 'src-tauri/src/tools/聊天运行域v1.rs' --direction upstream > evidence/impact-intercept.txt 2>&1
+          intercept_rc=$?
+          npx -y gitnexus@latest impact denied --file 'src-tauri/src/tools/聊天运行域v1.rs' --direction upstream > evidence/impact-denied.txt 2>&1
+          denied_rc=$?
+          npx -y gitnexus@latest impact status --file 'src-tauri/src/auth/聊天授权v1.rs' --direction upstream > evidence/impact-chat-status.txt 2>&1
+          chat_status_rc=$?
+          npx -y gitnexus@latest impact request --file 'src-tauri/src/auth/聊天授权v1.rs' --direction upstream > evidence/impact-chat-request.txt 2>&1
+          chat_request_rc=$?
+          npx -y gitnexus@latest impact snapshot --file 'src-tauri/src/runtime/execution_gate.rs' --direction upstream > evidence/impact-execution-snapshot.txt 2>&1
+          execution_snapshot_rc=$?
+          printf 'intercept_rc=%s\ndenied_rc=%s\nchat_status_rc=%s\nchat_request_rc=%s\nexecution_snapshot_rc=%s\n' \
+            "$intercept_rc" "$denied_rc" "$chat_status_rc" "$chat_request_rc" "$execution_snapshot_rc" | tee evidence/impact-status.txt
+          exit 0
+      - name: Exact source call-site review
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '--- request_chat_authorization ---'
+            git grep -n 'request_chat_authorization' -- 'src-tauri/src/**/*.rs' || true
+            echo '--- service.request ---'
+            git grep -n 'service.request' -- 'src-tauri/src/**/*.rs' || true
+            echo '--- execution_gate ---'
+            git grep -n 'execution_gate' -- 'src-tauri/src/**/*.rs' || true
+            echo '--- pending event / notifications ---'
+            git grep -n 'pending' -- 'src-tauri/src/commands/chat_notifications.rs' 'src-tauri/src/auth/聊天授权v1.rs' || true
+          } | tee evidence/source-call-sites.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: issue009-offline-auth-impact
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
