@@ -745,3 +745,43 @@ local worker/tunnel health
 The important lesson for ISSUE-009 is that an enabled/reachable front door should not automatically create new authorization work for a workspace that is intentionally unavailable.
 
 Future observability should continue to report these dimensions separately rather than collapsing them into one “connected” boolean.
+
+
+## 16. MCPJam connection requests — pending human work is explicit and cancelable, not silently rewritten
+
+Reference:
+
+- `MCPJam/inspector@c8501f47c06bde36794a8010e5573d40d0deb43c`
+- `mcp/README.md`
+
+Relevant management tools are separated explicitly:
+
+```text
+connect_project_server
+get_project_server_connection_status
+cancel_project_server_connection
+diagnose_server
+```
+
+When a human must finish authorization in a browser, the connection request is represented as a pending operation that can be observed or explicitly cancelled.
+
+### Decision for coding-tools-mcp
+
+This supports ISSUE-009's choice to suppress only **new** approval allocation while execution is paused.
+
+Do not silently revoke or erase an already-existing pending/active local chat grant merely because execution becomes Offline.
+
+The local lifecycle remains:
+
+```text
+existing pending/active authorization
+  -> preserved across Pause
+
+new authorization request while Offline
+  -> refused without allocation/event
+
+explicit local revoke/deny
+  -> changes authorization state
+```
+
+That avoids surprising authorization mutation while still preventing a paused workspace from generating fresh approval noise.
