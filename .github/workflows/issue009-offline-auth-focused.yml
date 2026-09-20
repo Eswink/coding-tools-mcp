@@ -43,6 +43,9 @@ jobs:
         run: |
           set -euo pipefail
           cargo test --locked --manifest-path src-tauri/Cargo.toml \
+            runtime::execution_gate::tests::online_hold_prevents_pause_from_committing_until_local_state_finishes \
+            -- --exact --nocapture --test-threads=1
+          cargo test --locked --manifest-path src-tauri/Cargo.toml \
             auth::chat::tests::offline_unapproved_authorization_request_is_suppressed_without_pending_noise_until_resume \
             -- --exact --nocapture --test-threads=1
           cargo test --locked --manifest-path src-tauri/Cargo.toml \
