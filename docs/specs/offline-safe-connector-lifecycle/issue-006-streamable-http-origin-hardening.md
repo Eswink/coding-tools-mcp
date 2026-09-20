@@ -1,0 +1,185 @@
+# ISSUE-006 — Streamable HTTP Origin boundary hardening
+
+Status: OPEN — FAILURE-FIRST DESIGN READY  
+Source: [open-source-reference-study.md](open-source-reference-study.md)  
+Scope: post-Round-5 security follow-up  
+Protocol advertised by product: `2025-06-18`
+
+## Problem
+
+The MCP listener binds to `127.0.0.1`, but is intentionally exposed through FRP/Cloudflare.
+
+Current router setup uses:
+
+```text
+CorsLayer::permissive()
+```
+
+and does not explicitly validate a present HTTP `Origin` header before the MCP/OAuth routes.
+
+The MCP 2025-06-18 Streamable HTTP specification requires Origin validation to mitigate DNS rebinding.
+
+The current MCP TypeScript SDK uses a compatibility-friendly policy:
+
+- missing Origin passes for non-browser MCP clients;
+- present allowed hostname passes;
+- malformed / opaque `null` / non-allowlisted Origin fails closed with HTTP 403.
+
+## Security objective
+
+Add an Origin boundary without breaking:
+
+- server-to-server clients that omit Origin;
+- localhost development;
+- configured fixed public tunnel origins;
+- dynamic managed public origins such as Quick Tunnel URLs;
+- OAuth discovery / authorize / token endpoints;
+- the offline-safe control-plane lifecycle.
+
+## Important repository-specific constraint
+
+`PublicOrigin` is a live shared handle.
+
+A managed Quick Tunnel may start with an empty identity and publish the public Origin later. Therefore the Origin allowlist must read the current `PublicOrigin::snapshot()` per request or otherwise observe publication updates.
+
+Do not capture one static public hostname when the listener starts.
+
+## Failure-first matrix
+
+| Case | Origin header | Public origin state | Expected |
+|---|---|---|---|
+| O1 | absent | any | allow |
+| O2 | `http://localhost:<any>` | any | allow |
+| O3 | `http://127.0.0.1:<any>` | any | allow |
+| O4 | current configured public hostname | published | allow |
+| O5 | stale previous Quick Tunnel hostname | replaced/cleared | 403 |
+| O6 | attacker hostname | any | 403 |
+| O7 | malformed Origin | any | 403 |
+| O8 | literal `null` | any | 403 |
+| O9 | current public hostname after live `publish()` | changed after listener start | allow without listener restart |
+| O10 | missing Origin OAuth token request | any | preserve existing OAuth behavior |
+| O11 | invalid Origin OAuth token request | any | 403 before token processing |
+| O12 | missing Origin MCP POST | any | preserve current ChatGPT/server-client compatibility |
+
+## Allowlist semantics
+
+First implementation should match the reference SDK's hostname-oriented model.
+
+Allowed hostname set per request:
+
+```text
+localhost
+127.0.0.1
+[::1]              # parser-normalized representation as applicable
++
+hostname(current PublicOrigin snapshot), if valid/non-empty
+```
+
+Rationale:
+
+- browser Origin ports may differ during local development;
+- the security boundary is preventing an unrelated website hostname from reaching the loopback service;
+- the public Origin is already validated before publication.
+
+Do not trust:
+
+- incoming `Host`;
+- `X-Forwarded-Host`;
+- `Forwarded`;
+
+as sources of the Origin allowlist.
+
+## Response contract
+
+For a rejected present Origin:
+
+```text
+HTTP 403
+Content-Type: application/json
+Cache-Control: no-store
+```
+
+Body should be generic and non-disclosing:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": null,
+  "error": {
+    "code": -32000,
+    "message": "Invalid Origin"
+  }
+}
+```
+
+Do not echo the attacker Origin, workspace id, public tunnel hostname, or local path.
+
+## Route coverage
+
+Apply the same guard before:
+
+- `/mcp` GET/POST;
+- OAuth authorization-server discovery;
+- OAuth protected-resource discovery;
+- `/oauth/authorize`;
+- `/oauth/token`.
+
+A partial MCP-only fix still leaves the local OAuth control plane browser-reachable.
+
+## CORS interaction
+
+`CorsLayer::permissive()` must not be mistaken for security validation.
+
+After Origin validation is added, review whether permissive CORS remains necessary for actual browser tooling. Do not remove or tighten CORS in the same first fix unless a failing test proves it is required; keep blast radius bounded.
+
+## Host-header validation
+
+The MCP reference SDK also protects localhost deployments with Host validation.
+
+This repository has a reverse-tunnel topology where the loopback listener may legitimately receive the public tunnel Host value.
+
+Therefore Host validation is a **separate design item**:
+
+- inventory actual FRP/Cloudflare Host behavior;
+- never derive the public identity from an untrusted Host;
+- decide whether valid Host is localhost + current public-origin host;
+- validate through tunnel-specific synthetic/integration tests before enforcing.
+
+Do not bundle Host validation into the first Origin patch.
+
+## Protocol 2026-07-28
+
+Do not upgrade protocol revision in this issue.
+
+The newer protocol removes protocol-level Streamable HTTP sessions and SSE resumability, which is directionally compatible with this project, but real ChatGPT compatibility is still unverified.
+
+Origin hardening is required independently and can be implemented while preserving `2025-06-18`.
+
+## Mandatory impact analysis
+
+Before production edit, run focused GitNexus impact for at least:
+
+- MCP listener `serve`;
+- `mcp_post`;
+- OAuth route handlers;
+- `PublicOrigin::snapshot`;
+- router construction / middleware insertion point.
+
+If GitNexus has lower-bound/UNKNOWN results, preserve them and complement with source/text review.
+
+## Acceptance
+
+SOURCE PASS requires:
+
+- O1–O12 deterministic tests;
+- existing OAuth/refresh/chat/offline tests stay green;
+- no public-origin update requires listener restart;
+- invalid Origin gets 403 before auth/business processing;
+- missing Origin remains compatible;
+- no attacker-controlled Origin is logged or reflected;
+- focused impact and final `detect-changes` recorded;
+- Windows and Ubuntu regression green.
+
+HOST PASS is separate and requires eventual real ChatGPT validation that the host's normal requests are not rejected.
+
+Until then, this issue can be source-complete without changing the project's existing `UNCONFIRMED_ON_REAL_HOST` truth label.
