@@ -55,6 +55,27 @@ async fn get(client: &reqwest::Client, url: &str, origin: Option<&str>) -> reqwe
     request.send().await.unwrap()
 }
 
+async fn assert_generic_forbidden(response: reqwest::Response, forbidden_values: &[&str]) {
+    assert_eq!(response.status(), 403);
+    assert_eq!(
+        response.headers().get("cache-control").and_then(|value| value.to_str().ok()),
+        Some("no-store")
+    );
+    let value: Value = response.json().await.unwrap();
+    assert_eq!(value["jsonrpc"], "2.0");
+    assert_eq!(value["id"], Value::Null);
+    assert_eq!(value["error"]["code"], -32000);
+    assert_eq!(value["error"]["message"], "Invalid Origin");
+    assert!(value["error"].get("data").is_none());
+    let encoded = value.to_string();
+    for forbidden in forbidden_values {
+        assert!(
+            !encoded.contains(forbidden),
+            "rejection reflected attacker-controlled value {forbidden:?}: {encoded}"
+        );
+    }
+}
+
 #[tokio::test]
 async fn missing_and_local_origin_remain_compatible() {
     let server = TestServer::new("https://mcp.example.com");
@@ -72,12 +93,17 @@ async fn unrelated_malformed_and_opaque_origins_are_forbidden() {
     let client = fixture::client();
     let url = format!("{}/mcp", server.base);
 
-    for origin in ["https://attacker.example", "not-a-url", "null"] {
-        let response = get(&client, &url, Some(origin)).await;
-        assert_eq!(response.status(), 403, "origin={origin}");
-        let text = response.text().await.unwrap();
-        assert!(!text.contains(origin), "rejection reflected attacker Origin: {text}");
-    }
+    assert_generic_forbidden(
+        get(&client, &url, Some("https://attacker.example")).await,
+        &["attacker.example"],
+    ).await;
+    assert_generic_forbidden(
+        get(&client, &url, Some("not-a-url")).await,
+        &["not-a-url"],
+    ).await;
+    // JSON-RPC itself contains `id:null`, so validate the generic error shape
+    // instead of searching the encoded body for the literal "null".
+    assert_generic_forbidden(get(&client, &url, Some("null")).await, &[]).await;
 }
 
 #[tokio::test]
@@ -89,7 +115,11 @@ async fn managed_public_origin_allowlist_tracks_live_publication() {
     assert_eq!(get(&client, &url, Some("https://old.example.com:9443")).await.status(), 200);
     server.origin.publish("https://current.example.com").unwrap();
     assert_eq!(get(&client, &url, Some("https://current.example.com")).await.status(), 200);
-    assert_eq!(get(&client, &url, Some("https://old.example.com")).await.status(), 403);
+    assert_eq!(get(&client, &url, Some("https://CURRENT.EXAMPLE.COM:8443")).await.status(), 200);
+    assert_generic_forbidden(
+        get(&client, &url, Some("https://old.example.com")).await,
+        &["old.example.com"],
+    ).await;
 }
 
 #[tokio::test]
@@ -99,7 +129,28 @@ async fn oauth_control_plane_is_guarded_but_missing_origin_remains_compatible() 
 
     let metadata = format!("{}/.well-known/oauth-authorization-server", server.base);
     assert_eq!(get(&client, &metadata, None).await.status(), 200);
-    assert_eq!(get(&client, &metadata, Some("https://attacker.example")).await.status(), 403);
+    assert_generic_forbidden(
+        get(&client, &metadata, Some("https://attacker.example")).await,
+        &["attacker.example"],
+    ).await;
+
+    let resource = format!("{}/.well-known/oauth-protected-resource/mcp", server.base);
+    assert_generic_forbidden(
+        get(&client, &resource, Some("https://attacker.example")).await,
+        &["attacker.example"],
+    ).await;
+
+    let authorize = format!("{}/oauth/authorize", server.base);
+    assert_generic_forbidden(
+        get(&client, &authorize, Some("https://attacker.example")).await,
+        &["attacker.example"],
+    ).await;
+    let authorize_post = client.post(&authorize)
+        .header("Origin", "https://attacker.example")
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body("action=approve")
+        .send().await.unwrap();
+    assert_generic_forbidden(authorize_post, &["attacker.example"]).await;
 
     let token = format!("{}/oauth/token", server.base);
     let missing = client.post(&token)
@@ -113,11 +164,35 @@ async fn oauth_control_plane_is_guarded_but_missing_origin_remains_compatible() 
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body("grant_type=refresh_token&refresh_token=synthetic")
         .send().await.unwrap();
-    assert_eq!(blocked.status(), 403);
+    assert_generic_forbidden(blocked, &["attacker.example"]).await;
 
     let mcp = format!("{}/mcp", server.base);
     let post = client.post(&mcp)
         .json(&json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}))
         .send().await.unwrap();
     assert_ne!(post.status(), 403);
+
+    let blocked_post = client.post(&mcp)
+        .header("Origin", "https://attacker.example")
+        .json(&json!({"jsonrpc":"2.0","id":2,"method":"initialize","params":{}}))
+        .send().await.unwrap();
+    assert_generic_forbidden(blocked_post, &["attacker.example"]).await;
+
+    let preflight = client.request(reqwest::Method::OPTIONS, &mcp)
+        .header("Origin", "https://attacker.example")
+        .header("Access-Control-Request-Method", "POST")
+        .send().await.unwrap();
+    assert_generic_forbidden(preflight, &["attacker.example"]).await;
+
+    let mut duplicate_origins = reqwest::header::HeaderMap::new();
+    duplicate_origins.append(
+        reqwest::header::ORIGIN,
+        reqwest::header::HeaderValue::from_static("https://mcp.example.com"),
+    );
+    duplicate_origins.append(
+        reqwest::header::ORIGIN,
+        reqwest::header::HeaderValue::from_static("https://attacker.example"),
+    );
+    let duplicated = client.get(&mcp).headers(duplicate_origins).send().await.unwrap();
+    assert_generic_forbidden(duplicated, &["attacker.example"]).await;
 }
