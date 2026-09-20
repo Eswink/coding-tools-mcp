@@ -115,7 +115,7 @@ async fn oauth_refresh_and_owner_survive_workspace_execution_pause() {
     assert_eq!(s.rpc(access,"A","server_info",json!({})).await["ok"],true);
 
     let paused=s.execution_gate.pause().unwrap();
-    assert_eq!(paused.availability,crate::runtime::execution_gate::ExecutionAvailability::Offline);
+    assert_eq!(paused.availability.as_str(),"offline");
 
     let renewed=s.rotate(refresh).await;
     assert_eq!(renewed.status(),200);
