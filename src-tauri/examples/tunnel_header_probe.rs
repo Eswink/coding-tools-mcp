@@ -90,3 +90,23 @@ async fn main() {
         .await
         .expect("serve tunnel header probe");
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::sanitize_authority;
+
+    #[test]
+    fn authority_sanitizer_keeps_only_normalized_hostname() {
+        assert_eq!(sanitize_authority("Example.COM:8443").as_deref(), Some("example.com"));
+        assert_eq!(sanitize_authority("[::1]:28768").as_deref(), Some("::1"));
+        assert_eq!(sanitize_authority("127.0.0.1:28768").as_deref(), Some("127.0.0.1"));
+    }
+
+    #[test]
+    fn authority_sanitizer_rejects_non_authority_text() {
+        assert_eq!(sanitize_authority("https://example.com/path"), None);
+        assert_eq!(sanitize_authority("bad host"), None);
+        assert_eq!(sanitize_authority(""), None);
+    }
+}
