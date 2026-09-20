@@ -111,18 +111,18 @@ This means:
 
 ## Implementation boundary
 
-Prefer keeping workspace availability policy in the chat-domain dispatch layer.
+Workspace availability policy stays in the chat-domain dispatch layer. OAuth is unchanged, and `ChatAuthorizer` does not gain knowledge of the concrete execution-gate type.
 
-Do **not** modify OAuth or make `ChatAuthorizer` globally aware of workspace execution state unless failure-first evidence proves the dispatch layer cannot preserve existing grants safely.
+Final flow:
 
-Candidate flow:
+1. chat-domain calls the generic `ChatAuthorizer::request_guarded`;
+2. the authorizer resolves identity, recovery, exclusive/draining, and existing pending/active state under its own mutex;
+3. only a **new** pending allocation invokes the caller-provided guard;
+4. chat-domain acquires a short `WorkspaceExecutionGate::hold_online()`;
+5. the hold remains alive through pending record/event commit;
+6. Offline maps to generic `CHAT_AUTHORIZATION_UNAVAILABLE`.
 
-1. call existing `ChatAuthorizer::status` to preserve recovery/exclusive semantics and observe only this conversation's grant state;
-2. if the caller already has pending/active state, use existing `request` behavior;
-3. if unauthorized and the execution gate is Offline, return generic `CHAT_AUTHORIZATION_UNAVAILABLE` without calling `request`;
-4. otherwise call existing `request`.
-
-This avoids allocating a record/event while keeping authorization ownership logic in one place.
+The original snapshot-before-request candidate was rejected after TOCTOU review; see the repair iteration below.
 
 ## Open-source alignment
 
