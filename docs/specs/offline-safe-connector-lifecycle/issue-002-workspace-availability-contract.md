@@ -53,16 +53,51 @@ Round 3 may add a transient `Pausing` state only if required by actual async-tas
 
 The first implementation should keep availability ephemeral and service-generation-bound. Starting a new listener generation explicitly starts Online unless the product UI later introduces a persisted pause policy.
 
-## Availability handle
+## Atomic execution gate
 
-Proposed internal type:
+Source review of `chat_domain::intercept` shows that a plain availability flag would leave a TOCTOU race: a request could observe Online, then a local pause could commit before actual dispatch begins.
+
+Use an explicit admission gate instead.
+
+Proposed internal model:
 
 ```text
-WorkspaceAvailabilityHandle
-  └─ shared immutable handle to mutable state
+WorkspaceExecutionGate
+  └─ Mutex<GateState>
        ├─ generation
-       └─ Online | Offline
+       ├─ availability: Online | Offline
+       └─ in_flight: usize
+
+ExecutionPermit
+  └─ RAII guard that decrements in_flight on drop
 ```
+
+Atomic operations:
+
+```text
+try_admit()
+  lock
+  if Offline -> WORKSPACE_OFFLINE
+  if Online  -> in_flight += 1; return ExecutionPermit
+  unlock
+
+pause()
+  lock
+  availability = Offline
+  snapshot in_flight
+  unlock
+  return success
+
+resume(expected_generation)
+  lock
+  reject stale generation / stopped replacement
+  availability = Online
+  unlock
+```
+
+The linearization rule is:
+
+> If `try_admit` acquired a permit before `pause` committed, that operation was already admitted and may finish. Once `pause` returns, every later `try_admit` must fail.
 
 Ownership:
 
@@ -71,17 +106,18 @@ RuntimeEntry
   ├─ listener shutdown
   ├─ listener handle
   ├─ public origin
-  └─ workspace availability handle
+  └─ Arc<WorkspaceExecutionGate>
             │
-            └── ToolContext / remote dispatch snapshots
+            └── ToolContext / background_snapshot / chat-scoped copies
 ```
 
 Requirements:
 
-1. A replacement listener receives a new handle/generation.
-2. A late pause/resume action from an old generation must not mutate a replacement listener.
-3. Reads must be cheap and nonblocking for tool dispatch.
-4. No availability lock may be held while tool execution, executor locks, filesystem I/O or tunnel I/O occurs.
+1. A replacement listener receives a new gate/generation.
+2. A stale pause/resume action cannot mutate a replacement listener.
+3. The gate lock is never held during tool execution, filesystem I/O, executor locks, auth locks or tunnel I/O.
+4. `background_snapshot` and chat-scoped copies share the same gate instance.
+5. Gate acquisition occurs only once for a top-level remote business call; recursive chat-scoped dispatch must not double-count admissions.
 
 ## Dispatch ordering
 
@@ -124,15 +160,28 @@ For already chat-scoped recursive/background dispatch, availability must still b
 
 The exception for task polling/cancel is important. A blanket offline gate over every business tool could prevent the current owner from observing or cancelling work that started before pause.
 
-Therefore Round 3 must classify business tools into:
+Therefore Round 3 uses an explicit classification:
 
 ```text
-requires_online_execution
-drain_control_allowed_offline
 auth_control
+  auth_status
+  request_chat_authorization
+
+drain_control_allowed_offline
+  get_exec_task
+  list_exec_tasks
+  read_output
+  cancel_exec_task
+  kill_session
+  write_stdin
+
+requires_online_execution
+  every other exposed business tool
 ```
 
-Do not infer this from readOnlyHint alone.
+`write_stdin` is allowed only because it targets an already-existing interactive session; it must not be able to create a new process.
+
+Do not infer this classification from `readOnlyHint` or mutating-tool annotations.
 
 ## Error taxonomy
 
@@ -259,15 +308,16 @@ Required invariant:
 
 > No new remote side-effecting or workspace-reading operation begins after pause commits, while work admitted before the commit may finish or be explicitly cancelled.
 
-To preserve safe draining, likely offline-allowed tools:
+To preserve safe draining, the offline-allowed set is frozen for the first implementation:
 
 - `get_exec_task`
 - `list_exec_tasks`
 - `read_output`
 - `cancel_exec_task`
 - `kill_session`
+- `write_stdin`
 
-This list is provisional and must be checked against actual dispatch/call graph before implementation.
+No other business tool is allowed while Offline in the first implementation. The required impact analysis may identify a safety reason to shrink this set; expanding it requires a new design review.
 
 Starting new work remains blocked:
 
@@ -403,3 +453,18 @@ ISSUE-002 reaches DESIGN_FROZEN when:
 - migration/compatibility scope is frozen;
 - Round 3 impact targets are listed;
 - no claim is made that real ChatGPT host behavior has been validated.
+
+
+## Source-review refinement — 2026-09-20
+
+`chat_domain::intercept` currently performs remote scope/owner admission before recursively dispatching through a chat-scoped `ToolContext`. This confirms the intended integration point:
+
+1. existing `ChatAuthorizer::admit` succeeds;
+2. acquire one `WorkspaceExecutionGate::try_admit` permit for tools that require Online;
+3. build/reuse chat domain;
+4. execute recursive `call_tool`;
+5. drop execution permit, then existing chat admission guard unwinds.
+
+For drain-control tools, step 2 is skipped, but existing conversation authorization remains mandatory.
+
+This keeps availability out of OAuth and avoids changing `ChatAuthorizer` merely to implement workspace pause.
