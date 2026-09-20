@@ -80,7 +80,7 @@
   <ServicePanel bind:this={portEditor} title={mcp ? "MCP" : "Actions"} subtitle={mcp ? "Streamable HTTP · 工具运行时" : "OpenAPI 网关 · ChatGPT Actions"}
     {status} {statusMessage} port={mcp ? profile.runtime.local_port : actions.local_port} portEditable={true} busy={busy || confirming}
     tunnelType={mcp ? profile.tunnel.type : actions.tunnel_type} {localEndpoint} {publicEndpoint}
-    publicLabel={mcp ? "公网 MCP" : "OpenAPI"} {onToggle} {onPortChange} />
+    publicLabel={mcp ? "公网 MCP" : "OpenAPI"} showToggle={!mcp} {onToggle} {onPortChange} />
   <GptQuickCopy workspaceId={profile.id} {service} {profile} {frpProfiles} publicMcpEndpoint={mcp ? publicEndpoint : undefined} publicActionsOrigin={activeOrigin} />
   <Tabs items={tabs} value={subTab} label="服务操作" idPrefix="workspace-operations" panelId="workspace-service-panel" disabled={busy || confirming} onchange={(next) => void changeTab(next)} />
   <div id="workspace-service-panel" role="tabpanel" aria-labelledby={`workspace-operations-${subTab}`}>
