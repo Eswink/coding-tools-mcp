@@ -144,13 +144,18 @@ impl RuntimeSupervisor {
             }
             let gate = entry.execution_gate.as_ref()
                 .ok_or_else(|| AppError::Message("MCP 执行门控不可用，请重启 MCP 服务。".into()))?;
+            let before = gate.snapshot();
             let snapshot = gate.pause().map_err(|code| AppError::Message(code.into()))?;
             append_profile_log(
                 &profile.id,
                 "mcp-requests.log",
                 &format!(
-                    "[availability] generation={} state=offline in_flight={} reason=local_pause",
-                    entry.generation, snapshot.in_flight
+                    "[availability] event=workspace_execution_availability workspace_id={} from={} to={} reason=local_pause runtime_generation={} in_flight={}",
+                    profile.id,
+                    before.availability.as_str(),
+                    snapshot.availability.as_str(),
+                    entry.generation,
+                    snapshot.in_flight
                 ),
             );
         }
@@ -174,13 +179,18 @@ impl RuntimeSupervisor {
             }
             let gate = entry.execution_gate.as_ref()
                 .ok_or_else(|| AppError::Message("MCP 执行门控不可用，请重启 MCP 服务。".into()))?;
+            let before = gate.snapshot();
             let snapshot = gate.resume().map_err(|code| AppError::Message(code.into()))?;
             append_profile_log(
                 &profile.id,
                 "mcp-requests.log",
                 &format!(
-                    "[availability] generation={} state=online in_flight={} reason=local_resume",
-                    entry.generation, snapshot.in_flight
+                    "[availability] event=workspace_execution_availability workspace_id={} from={} to={} reason=local_resume runtime_generation={} in_flight={}",
+                    profile.id,
+                    before.availability.as_str(),
+                    snapshot.availability.as_str(),
+                    entry.generation,
+                    snapshot.in_flight
                 ),
             );
         }
