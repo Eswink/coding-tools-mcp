@@ -123,3 +123,79 @@ Final validation on that revision:
 - PR run `35502107154`: SUCCESS.
 
 The harness branch is therefore ready for real-host C1-C10 observation, but ISSUE-001 remains open.
+
+
+## 02 — Real-host deferral and availability design freeze
+
+Date: 2026-09-20  
+Branch: `design/offline-safe-availability-contract`  
+Result: DESIGN PASS; production implementation BLOCKED on mandatory impact analysis.
+
+### Sequencing decision
+
+Real ChatGPT host testing is deferred because the dedicated public test connector setup is operationally expensive. This does not convert synthetic behavior into host evidence.
+
+Transferred to Round 5:
+
+- C1-C10 actual ChatGPT UI observations;
+- exact reconnect-trigger classification;
+- proof that `WORKSPACE_OFFLINE` avoids reconnect UI.
+
+Round 2 is allowed to proceed using only verified architectural coupling and the validated fault harness.
+
+### Source review
+
+Additional source review confirmed:
+
+- `RuntimeStatusDto` currently has one lifecycle `state` field and no independent execution-availability field.
+- TypeScript `RuntimeStatus` mirrors that DTO.
+- `src/lib/api/workspaces.ts` exposes hard start/stop/restart operations only.
+- `chat_domain::intercept` is the existing remote authorization boundary before chat-scoped recursive dispatch.
+- `ChatAuthorizer::admit` already linearizes conversation admission but should not be overloaded with workspace execution policy.
+- `ToolContext::background_snapshot` shares task/session resources, so a new execution gate must also be shared across snapshots.
+
+### Design correction
+
+A simple Online/Offline flag was rejected because of a pause-vs-dispatch TOCTOU:
+
+```text
+request observes Online
+pause commits
+request starts side effect
+```
+
+The frozen design uses `WorkspaceExecutionGate::try_admit` + RAII `ExecutionPermit` with one mutex-protected availability/in-flight state.
+
+This gives the required linearization:
+
+- permit acquired before pause => work was already admitted and may finish;
+- pause returns => no later remote execution permit may be issued.
+
+### Frozen first-increment contract
+
+- Existing listener `RuntimePhase` remains control-plane state.
+- New execution state is Online/Offline.
+- Authorization runs before availability so foreign chats do not learn workspace state.
+- Hard `stop_runtime` keeps current listener+tunnel shutdown semantics.
+- New pause/resume operations are additive.
+- OAuth, refresh family, chat lease and tunnel configuration do not change on pause/resume.
+- `tools/list`, initialize, ping and OAuth routes remain stable.
+- Offline drain-control set: `get_exec_task`, `list_exec_tasks`, `read_output`, `cancel_exec_task`, `kill_session`, `write_stdin`.
+- Every other remote business tool requires Online.
+
+### Impact gate
+
+Manual source preparation classifies the future production change as HIGH risk, but repository rules require GitNexus impact before modifying existing symbols.
+
+Current ChatGPT tools do not expose GitNexus/mcp-probe-kit and the local fallback remains unavailable here. No production symbol has been edited.
+
+Round 3 therefore starts only after that impact gate becomes executable or the maintainer explicitly revises the repository rule.
+
+### Truth status
+
+- lifecycle coupling: VERIFIED;
+- synthetic fault harness: VERIFIED CROSS-PLATFORM;
+- Level A design: FROZEN PROVISIONALLY;
+- exact ChatGPT reconnect trigger: UNCONFIRMED_ON_REAL_HOST;
+- product fix: NOT IMPLEMENTED;
+- release acceptance: NOT STARTED.
