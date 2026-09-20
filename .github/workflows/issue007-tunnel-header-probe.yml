@@ -41,3 +41,4 @@ jobs:
         run: |
           set -euo pipefail
           cargo check --locked --manifest-path src-tauri/Cargo.toml --example tunnel_header_probe
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --example tunnel_header_probe
