@@ -18,6 +18,7 @@ pub struct ToolContext {
     pub(crate) remote_request: Option<crate::auth::chat::RemoteRequest>,
     pub(crate) chat_scoped: bool,
     pub(crate) chat_domains: Arc<super::chat_domain::ChatDomains>,
+    pub(crate) execution_gate: Arc<crate::runtime::WorkspaceExecutionGate>,
     pub sessions: Arc<SessionStore>,
     pub(crate) managed_task: bool,
     pub(crate) local_task_control: bool,
@@ -78,6 +79,7 @@ impl ToolContext {
             harness: Harness::new(root.clone(), harness_root).expect("无法初始化 Harness"),
             default_cwd: Arc::new(Mutex::new(root)),
             remote_request: None, chat_scoped: false, chat_domains: Arc::default(),
+            execution_gate: crate::runtime::WorkspaceExecutionGate::shared(),
             sessions: Arc::new(SessionStore::new()),
             managed_task: false,
             local_task_control: false,
@@ -107,10 +109,15 @@ impl ToolContext {
             tool_profile: self.tool_profile.clone(), permission_mode: self.permission_mode.clone(),
             harness: self.harness.clone(), default_cwd: Arc::new(Mutex::new(self.default_cwd_path())),
             remote_request: self.remote_request.clone(), chat_scoped: self.chat_scoped, chat_domains: self.chat_domains.clone(),
+            execution_gate: self.execution_gate.clone(),
             sessions: self.sessions.clone(), exec_tasks: self.exec_tasks.clone(),
             managed_task: self.managed_task,
             local_task_control: self.local_task_control,
         }
+    }
+
+    pub(crate) fn execution_gate(&self) -> Arc<crate::runtime::WorkspaceExecutionGate> {
+        self.execution_gate.clone()
     }
 
     /// Lazy encrypted storage. Merely starting the listener never creates secrets.

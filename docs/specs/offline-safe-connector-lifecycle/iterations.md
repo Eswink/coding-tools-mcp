@@ -199,3 +199,125 @@ Round 3 therefore starts only after that impact gate becomes executable or the m
 - exact ChatGPT reconnect trigger: UNCONFIRMED_ON_REAL_HOST;
 - product fix: NOT IMPLEMENTED;
 - release acceptance: NOT STARTED.
+
+
+## 03 — Round 3 Level A control/execution split
+
+Date: 2026-09-20  
+Branch: `feat/offline-safe-execution-gate`  
+Validated source candidate: `e4ea1e25f53e8d897609184e85c10d43328bf557`  
+Draft PR: #21  
+Result: **PASS for Round 3 source/synthetic gates; real-host reconnect acceptance remains DEFERRED.**
+
+### Implemented boundary
+
+The candidate keeps the MCP/OAuth control listener alive while independently fencing new remote workspace execution.
+
+Source scope includes:
+
+- atomic `WorkspaceExecutionGate` with Online/Offline admission;
+- generation-bound pause/resume IPC;
+- authorization-before-availability ordering;
+- offline drain-control allowlist for existing task/session observation and control;
+- additive `executionState` / `runtimeGeneration` status fields;
+- explicit desktop “Pause remote execution” vs hard “Stop connector” UI;
+- sanitized availability transition/rejection logs;
+- hard stop and tunnel teardown semantics unchanged.
+
+### Failure-first implementation evidence
+
+The first listener implementation widened `spawn_listener_with_origin` from a 2-tuple to a 3-tuple. Existing OAuth, health and async transport fixtures failed compilation.
+
+GitNexus independently classified the listener boundary as CRITICAL. The implementation was then narrowed:
+
+- existing legacy listener wrapper remains test-only and keeps the pair-return contract;
+- production runtime uses a crate-local gate-aware listener entrypoint;
+- no failure was reclassified as PASS.
+
+### Focused impact evidence
+
+Workflow run `35506436646`: PASS.
+
+GitNexus 1.6.12 reports:
+
+- `spawn_listener_with_origin_and_execution_gate`: **CRITICAL**, exact; 33 impacted symbols, 4 direct dependants, 8 affected processes, 5 modules.
+- test-only `spawn_listener_with_origin`: **HIGH**, exact; 20 impacted symbols, 8 direct dependants, 4 affected processes, 3 modules.
+- `RuntimeSupervisor::start`: LOW, lower-bound.
+- `RuntimeSupervisor::status`: MEDIUM, lower-bound.
+- `ToolContext::background_snapshot`: **HIGH**, lower-bound.
+- `chat_domain::intercept`: LOW, exact.
+- `RuntimeStatusDto`: LOW, exact.
+
+The lower-bound results explicitly retain unresolved receiver-typing call sites. The overall candidate is therefore treated as CRITICAL-risk for review.
+
+Svelte symbol indexing is an evidence limitation, not a PASS:
+
+- run `35504168445`: exact `applyMcpRuntime` lookup not found;
+- run `35504745045`: both targeted Svelte `Props` probes returned non-zero.
+
+UI edits are instead covered by source review, `svelte-check`, production build and a focused Node contract test.
+
+### Final change-impact evidence
+
+Validation run `35506548418`, graph job: PASS.
+
+```text
+Changes: 22 files, 93 symbols
+Affected processes: 26
+Risk level: critical
+```
+
+Affected flows include Runtime start/status paths and ToolContext snapshot flows. This critical blast radius remains part of the acceptance record.
+
+### Final source validation
+
+Validation run `35506548418`, source job: PASS.
+
+Frontend:
+
+- `npm ci`: PASS;
+- `npm run check`: PASS;
+- `npm run build`: PASS;
+- `node --test tests/offline-safe-ui.test.mjs`: **3/3 PASS**.
+
+Rust:
+
+- `cargo check --locked --all-targets`: PASS;
+- `cargo test --locked`: PASS;
+- primary library suite: **376 passed, 0 failed**;
+- integration suites reported 22/22, 24/24, 6/6, 4/4, 9/9 and 16/16 PASS;
+- `cargo rustc --locked --lib -- -D warnings`: PASS.
+
+Focused regressions observed PASS:
+
+- `workspace_pause_keeps_oauth_and_chat_owner_but_blocks_new_business_dispatch`;
+- `oauth_refresh_and_owner_survive_workspace_execution_pause`;
+- `pause_preserves_generation_origin_and_runtime_membership`;
+- `stale_generation_cannot_pause_a_replacement_listener`;
+- offline drain-control classification;
+- typed non-OAuth `WORKSPACE_OFFLINE` error contract.
+
+The HTTP regression also proves authorization remains stronger than availability: an unapproved chat receives `CHAT_AUTHORIZATION_REQUIRED` while execution is Offline, not `WORKSPACE_OFFLINE`.
+
+### Security and lifecycle result
+
+Synthetic/source evidence now supports all Round 3 invariants:
+
+- OAuth refresh remains available while execution is paused;
+- active chat ownership is not transferred or recreated by pause/resume;
+- foreign chat remains blocked by existing exclusive semantics before availability is disclosed;
+- intentional Offline is a business availability result, not an HTTP OAuth challenge;
+- stale runtime generation cannot pause a replacement listener;
+- pause/resume does not change the active runtime/tunnel membership or public origin;
+- hard stop remains the existing listener+tunnel shutdown path.
+
+### Truth boundary
+
+Not established in Round 3:
+
+- real ChatGPT reconnect-card behavior;
+- installed Windows/Ubuntu lifecycle acceptance;
+- survival of desktop-process exit;
+- survival of machine sleep/power-off/network loss.
+
+Those remain Round 5 gates. Round 3 therefore closes as a source/synthetic implementation milestone, not as proof that the original ChatGPT UI symptom is eliminated.

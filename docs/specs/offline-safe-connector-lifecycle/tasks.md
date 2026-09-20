@@ -32,15 +32,15 @@ Parent: [plan.md](plan.md)
 - [x] Freeze offline drain-control allowlist.
 - [x] Select provisional Level A architecture.
 - [x] Prepare exact Round 3 impact-analysis target list.
-- [ ] Perform required GitNexus impact analysis before any production symbol edit — BLOCKED in current tool environment.
+- [x] Perform required GitNexus impact analysis before and during production edits; preserve HIGH/CRITICAL and Svelte-indexing limitations as evidence.
 
 ## Round 3
 
-- [ ] Implement the minimum selected control/execution lifecycle split.
-- [ ] Add Rust/HTTP/UI regression coverage.
-- [ ] Verify OAuth refresh does not mutate chat ownership.
-- [ ] Verify intentional offline does not emit auth challenge.
-- [ ] Verify tunnel policy matches control-plane lifetime.
+- [x] Implement the minimum selected control/execution lifecycle split.
+- [x] Add Rust/HTTP/UI regression coverage.
+- [x] Verify OAuth refresh does not mutate chat ownership.
+- [x] Verify intentional offline does not emit auth challenge.
+- [x] Verify tunnel policy matches control-plane lifetime.
 
 ## Round 4
 

@@ -1,4 +1,6 @@
 mod listener;
 mod server;
 
-pub use listener::{spawn_listener_with_origin, ShutdownSender};
+#[cfg(test)]
+pub(crate) use listener::spawn_listener_with_origin;
+pub(crate) use listener::{spawn_listener_with_origin_and_execution_gate, ShutdownSender};

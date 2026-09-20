@@ -74,6 +74,8 @@ export interface WorkspaceProfile {
 
 export interface RuntimeStatus {
   state: RuntimeState;
+  executionState?: "online" | "offline";
+  runtimeGeneration?: string;
   pid: number | null;
   localMessage: string;
   publicMessage: string;

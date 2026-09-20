@@ -233,6 +233,34 @@ pub fn get_runtime_status(state: State<'_, AppState>, id: String) -> AppResult<R
 }
 
 #[tauri::command]
+pub async fn pause_mcp_execution(
+    state: State<'_, AppState>,
+    id: String,
+    expected_generation: String,
+) -> AppResult<RuntimeStatusDto> {
+    let _gate = RESTART_GATE.lock().await;
+    let profile = profile_by_id(&state, &id)?;
+    state.with_runtime(|runtime| runtime.pause_mcp_execution(&profile, &expected_generation))
+}
+
+#[tauri::command]
+pub async fn resume_mcp_execution(
+    state: State<'_, AppState>,
+    id: String,
+    expected_generation: String,
+) -> AppResult<RuntimeStatusDto> {
+    let _gate = RESTART_GATE.lock().await;
+    let recovery = crate::auth::chat::service().snapshot(&id);
+    if recovery["recovery"]["required"].as_bool() == Some(true) {
+        return Err(AppError::Message(
+            "工作区仍需要本机恢复确认，不能恢复远程执行。".into(),
+        ));
+    }
+    let profile = profile_by_id(&state, &id)?;
+    state.with_runtime(|runtime| runtime.resume_mcp_execution(&profile, &expected_generation))
+}
+
+#[tauri::command]
 pub async fn start_actions_runtime(
     state: State<'_, AppState>,
     id: String,

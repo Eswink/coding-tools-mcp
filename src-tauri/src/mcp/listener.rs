@@ -37,6 +37,7 @@ struct ListenerState {
     oauth_client_secret: Option<String>,
 }
 
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 pub fn spawn_listener_with_origin(
     port: u16,
@@ -49,6 +50,31 @@ pub fn spawn_listener_with_origin(
     oauth_token_secret: Option<String>,
     runtime: RuntimeConfig,
 ) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>), String> {
+    spawn_listener_with_origin_and_execution_gate(
+        port,
+        workspace_path,
+        workspace_id,
+        auth,
+        public_base_url,
+        oauth_client_secret,
+        oauth_password,
+        oauth_token_secret,
+        runtime,
+    ).map(|(shutdown, handle, _execution_gate)| (shutdown, handle))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn spawn_listener_with_origin_and_execution_gate(
+    port: u16,
+    workspace_path: PathBuf,
+    workspace_id: String,
+    auth: AuthConfig,
+    public_base_url: PublicOrigin,
+    oauth_client_secret: Option<String>,
+    oauth_password: Option<String>,
+    oauth_token_secret: Option<String>,
+    runtime: RuntimeConfig,
+) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>, Arc<crate::runtime::WorkspaceExecutionGate>), String> {
     auth.session_policy.validate()?;
     crate::auth::chat::service().configure(&workspace_id, &auth.session_policy)?;
     let workspace_display = workspace_path.display().to_string();
@@ -62,6 +88,7 @@ pub fn spawn_listener_with_origin(
         runtime.permission_mode.clone(),
     );
     Arc::get_mut(&mut mcp).expect("new listener context").enable_durable_tasks(&workspace_id, "mcp");
+    let execution_gate = mcp.execution_gate();
     crate::auth::chat::service().attach_storage(&workspace_id,
         &crate::auth::oauth_refresh::storage_root(&workspace_id)?.join("execution"),mcp.harness.store_root())?;
     let bearer_token = if auth.bearer_enabled() {
@@ -118,7 +145,7 @@ pub fn spawn_listener_with_origin(
             append_profile_log(&profile_id, "stderr.log", "[mcp] listener stopped");
         }
     });
-    Ok((shutdown_tx, handle))
+    Ok((shutdown_tx, handle, execution_gate))
 }
 
 async fn serve(

@@ -42,6 +42,14 @@ export async function getRuntimeStatus(id: string): Promise<RuntimeStatus> {
   return invoke<RuntimeStatus>("get_runtime_status", { id });
 }
 
+export async function pauseMcpExecution(id: string, expectedGeneration: string): Promise<RuntimeStatus> {
+  return invoke<RuntimeStatus>("pause_mcp_execution", { id, expectedGeneration });
+}
+
+export async function resumeMcpExecution(id: string, expectedGeneration: string): Promise<RuntimeStatus> {
+  return invoke<RuntimeStatus>("resume_mcp_execution", { id, expectedGeneration });
+}
+
 export async function startActionsRuntime(id: string): Promise<RuntimeStatus> {
   return trackConfigurationChange(() => invoke<RuntimeStatus>("start_actions_runtime", { id }));
 }
