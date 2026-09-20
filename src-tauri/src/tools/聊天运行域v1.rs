@@ -87,7 +87,17 @@ pub(crate) fn intercept(ctx: &ToolContext, name: &str, args: &Value) -> Option<V
     let _execution = if requires_online_execution(name) {
         match ctx.execution_gate.try_admit() {
             Ok(permit) => Some(permit),
-            Err(code) => return Some(denied(code)),
+            Err(code) => {
+                crate::tunnel::append_profile_log(
+                    &req.profile,
+                    "mcp-requests.log",
+                    &format!(
+                        "[availability] event=remote_tool_rejected workspace_id={} class=availability code={} tool={}",
+                        req.profile, code, name
+                    ),
+                );
+                return Some(denied(code));
+            }
         }
     } else {
         None
