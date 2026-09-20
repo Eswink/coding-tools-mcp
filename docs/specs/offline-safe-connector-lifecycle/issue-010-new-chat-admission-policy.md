@@ -60,9 +60,16 @@ Rust wire format:
 Backwards compatibility:
 
 - missing field => `review`;
+- `review` is omitted from serialized storage so the default file shape remains readable by a pre-ISSUE-010 strict `SessionPolicy`;
 - unknown value => configuration validation failure;
 - existing workspace files deserialize safely without migration;
 - OAuth/token/chat TTL defaults stay unchanged.
+
+Downgrade boundary:
+
+- before downgrading to a pre-ISSUE-010 binary, return every workspace to `review` and save;
+- non-default `local_window` / `deny_new` must remain serialized while active, and an older strict binary cannot understand those values;
+- this is a bounded operator rollback rule, not a silent lossy migration.
 
 ### Why default remains review
 
@@ -454,3 +461,16 @@ SOURCE PASS requires:
 - exact diff/impact evidence recorded.
 
 Real ChatGPT visibility/reconnect behavior remains `UNCONFIRMED_ON_REAL_HOST`.
+
+
+## Downgrade compatibility refinement
+
+Review after the first implementation identified a rollback hazard: the pre-ISSUE-010 `SessionPolicy` uses `deny_unknown_fields`, so persisting a new field even at its default would make an older binary reject the workspace configuration.
+
+The final serialization rule therefore omits `new_chat_admission` when its value is `review`.
+
+Regression `review_default_is_omitted_for_bounded_downgrade_compatibility` locks this behavior:
+
+- default Review serializes without the new key;
+- LocalWindow/DenyNew remain explicit while active;
+- an operator can prepare a safe downgrade by returning all workspaces to Review before installing an older binary.
