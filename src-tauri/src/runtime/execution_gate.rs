@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExecutionAvailability {
@@ -47,6 +47,10 @@ impl Default for WorkspaceExecutionGate {
     }
 }
 
+pub(crate) struct OnlineExecutionHold<'a> {
+    _state: MutexGuard<'a, GateState>,
+}
+
 impl WorkspaceExecutionGate {
     pub fn shared() -> Arc<Self> {
         Arc::new(Self::default())
@@ -58,6 +62,20 @@ impl WorkspaceExecutionGate {
             availability: state.availability,
             in_flight: state.in_flight,
         }
+    }
+
+    /// Hold the availability linearization point while committing local
+    /// authorization state that is permitted only when execution is Online.
+    ///
+    /// Callers must preserve the global lock order: authorization state before
+    /// this gate. The hold is intentionally short and must never wrap tool
+    /// execution or blocking I/O.
+    pub(crate) fn hold_online(&self) -> Result<OnlineExecutionHold<'_>, &'static str> {
+        let state = self.state.lock().map_err(|_| "WORKSPACE_EXECUTION_UNAVAILABLE")?;
+        if state.availability == ExecutionAvailability::Offline {
+            return Err("WORKSPACE_OFFLINE");
+        }
+        Ok(OnlineExecutionHold { _state: state })
     }
 
     /// Linearization point for new remote execution.
@@ -134,6 +152,28 @@ mod tests {
         assert_eq!(gate.snapshot().in_flight, 1);
         drop(permit);
         assert_eq!(gate.snapshot().in_flight, 0);
+    }
+
+    #[test]
+    fn online_hold_prevents_pause_from_committing_until_local_state_finishes() {
+        let gate = WorkspaceExecutionGate::shared();
+        let hold = gate.hold_online().expect("online hold");
+        let clone = gate.clone();
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            started_tx.send(()).unwrap();
+            let paused = clone.pause().expect("pause");
+            done_tx.send(paused).unwrap();
+        });
+        started_rx.recv().unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        assert!(done_rx.try_recv().is_err(), "pause committed while online hold was alive");
+        assert_eq!(gate.snapshot().availability, ExecutionAvailability::Online);
+        drop(hold);
+        let paused = done_rx.recv_timeout(std::time::Duration::from_secs(1)).unwrap();
+        assert_eq!(paused.availability, ExecutionAvailability::Offline);
+        worker.join().unwrap();
     }
 
     #[test]
