@@ -1,6 +1,6 @@
 # ISSUE-008 — Intent-aware offline-safe lifecycle UX
 
-Status: IN PROGRESS — FAILURE-FIRST UX GAP CONFIRMED; IMPLEMENTATION ACTIVE  
+Status: REVIEWED — SOURCE/UX PASS; REAL-HOST OUTCOME DEFERRED  
 Parent: [plan.md](plan.md)  
 Depends on: ISSUE-003 backend contract  
 Motivation: original reconnect UX can still be triggered by the current prominent hard-stop action
@@ -258,3 +258,106 @@ SOURCE/UX PASS:
 HOST VALIDATED remains separate:
 
 Only the eventual real ChatGPT test can determine whether this operator mapping eliminates the observed reconnect prompt in the actual host.
+
+
+## Final ISSUE-008 gate result
+
+Validated UI candidate reached SOURCE/UX PASS without changing Rust/backend lifecycle semantics.
+
+### Product result
+
+MCP operator intent is now mapped as:
+
+```text
+Connector stopped
+  primary: 启动 Connector
+
+Connector running + Online
+  primary: 暂停远程执行
+  secondary: 停止 Connector
+
+Connector running + Offline
+  primary: 恢复远程执行
+  secondary: 停止 Connector
+```
+
+The generic MCP service card no longer renders a second hard-stop power button. ChatGPT Actions retains its existing start/stop behavior.
+
+Hard Stop remains the existing `stop_runtime` path and requires explicit confirmation stating that the MCP/OAuth listener and public tunnel will be closed.
+
+### Failure-first evidence
+
+Run `35517398463` before implementation:
+
+```text
+5 tests
+1 passed
+4 failed
+```
+
+The one passing test was the unaffected Actions lifecycle. The four failures were the exact intended MCP UX gap.
+
+A workflow path-glob mistake then produced run `35517585017` with no jobs. The route trigger was broadened to `src/routes/workspace/**`; this is retained as CI configuration evidence, not a product result.
+
+### Focused contract verification
+
+Run `35517680310`: SUCCESS on Ubuntu and Windows.
+
+The lifecycle intent contract verifies:
+
+- explicit start/stop connector functions exist;
+- old `toggleMcp` hard-stop primary mapping is absent;
+- Pause/Resume are the running-state primary intent;
+- Stop Connector remains explicit;
+- hard stop uses confirmation before `stopRuntime`;
+- generic ServicePanel hides the MCP stop toggle;
+- Actions still uses its existing stop path.
+
+### Full frontend validation
+
+Run `35517763406`: SUCCESS.
+
+Ubuntu 24.04:
+
+- `svelte-check`: 0 errors / 0 warnings;
+- production build: PASS;
+- existing offline-safe UI contract: 3/3 PASS;
+- new intent-aware UI contract: 5/5 PASS.
+
+Windows 2025:
+
+- `svelte-check`: 0 errors / 0 warnings;
+- production build: PASS;
+- existing offline-safe UI contract: 3/3 PASS;
+- new intent-aware UI contract: 5/5 PASS.
+
+### Impact review
+
+Pre-edit run `35517373147` preserved the GitNexus Svelte indexing limitation; exact symbol probes returned non-zero and were not interpreted as safe.
+
+Final detect-changes in run `35517763406`:
+
+```text
+Changes: 11 files, 16 indexed symbols
+Affected processes: 0
+Aggregate risk: low
+```
+
+Because Svelte symbols are still incompletely indexed, source call-site review and the cross-platform Svelte/Node contracts remain the primary UI evidence.
+
+### Open-source comparison
+
+Current MCP tooling reinforces the design:
+
+- MCPJam Inspector distinguishes server connection lifecycle from enabling a server for the current conversation.
+- Official MCP Inspector models connect/disconnect as explicit transport/session lifecycle.
+
+The project therefore keeps temporary workspace availability separate from connector infrastructure shutdown.
+
+### Truth boundary
+
+ISSUE-008 is source/UX complete.
+
+This reduces accidental hard-stop usage and makes the local intended lifecycle explicit, but it does **not** prove whether ChatGPT will show or suppress its reconnect UI.
+
+The reconnect result remains `UNCONFIRMED_ON_REAL_HOST`.
