@@ -111,3 +111,15 @@ Until that environment is active:
 - reconnect trigger remains UNCONFIRMED;
 - Round 2 stays BLOCKED;
 - no production fix is authorized.
+
+
+### Final harness CI checkpoint
+
+Workflow-only refinement commit `99bb250500f4089f55f1b39e62f2b240aa59f9ea` removed docs-only triggers so evidence edits do not launch redundant cross-platform harness jobs.
+
+Final validation on that revision:
+
+- push run `35502104161`: SUCCESS;
+- PR run `35502107154`: SUCCESS.
+
+The harness branch is therefore ready for real-host C1-C10 observation, but ISSUE-001 remains open.
