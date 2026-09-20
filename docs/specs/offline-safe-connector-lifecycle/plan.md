@@ -1,6 +1,6 @@
 # Offline-safe Connector Lifecycle — Project Plan
 
-Status: ROUND 1 SYNTHETIC HARNESS COMPLETE; REAL-HOST VALIDATION DEFERRED; ROUND 2 DESIGN ACTIVE.  
+Status: ROUND 3 SOURCE/SYNTHETIC IMPLEMENTATION COMPLETE; ROUND 4 PRIVACY HARDENING NEXT; REAL-HOST VALIDATION DEFERRED.  
 Date: 2026-09-20  
 Base: `main` @ `823cbdeba68bbdd832d93f4636f701ddb98474f1`  
 Branch: `plan/offline-safe-connector-lifecycle`
@@ -305,7 +305,7 @@ Do not use “retry until green” as a substitute for diagnosis.
 - ISSUE-004 — Non-disclosing multi-user access boundary.
 - ISSUE-005 — Offline-safe end-to-end and installed acceptance.
 
-ISSUE-001 remains evidence-incomplete for real-host behavior, but its host gate is explicitly deferred. ISSUE-002 may proceed for protocol/state design; production implementation remains provisional until required impact analysis and later real-host acceptance.
+ISSUE-001 remains evidence-incomplete for real-host behavior, with its host gate explicitly deferred. ISSUE-002 is design-frozen. ISSUE-003 has passed source/synthetic implementation gates under retained CRITICAL impact classification. ISSUE-004 privacy hardening is next; production release acceptance still requires ISSUE-005 / Round 5 real-host and installed evidence.
 
 ## Code areas expected to be affected after Round 1
 
