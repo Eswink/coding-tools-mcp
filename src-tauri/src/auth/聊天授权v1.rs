@@ -219,6 +219,10 @@ impl ChatAuthorizer {
             None => json!({"ok":true,"authorization":{"status":"unauthorized"}}),
         }
     }
+    // Compatibility helper for the crate's authorization state-machine tests.
+    // Production remote dispatch always uses request_guarded so it can apply
+    // the workspace-allocation guard without changing OAuth semantics.
+    #[cfg(test)]
     pub fn request(&self, req: &RemoteRequest, args: &Value) -> Value {
         self.request_guarded(req, args, || Ok::<(), Value>(()))
     }
