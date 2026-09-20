@@ -9,7 +9,10 @@ Parent: [plan.md](plan.md)
 - [x] Create independent planning branch `plan/offline-safe-connector-lifecycle`.
 - [x] Save five-round execution plan before implementation.
 - [x] Open file-backed ISSUE-001 for host reconnect classification.
-- [ ] Review Round 1 harness design before adding any fault-injection code.
+- [x] Review Round 1 harness design before adding fault injection.
+- [x] Add allowlisted test-only fault proxy; no production runtime symbols modified.
+- [x] Add isolated proxy contract tests.
+- [x] Validate harness on Ubuntu and Windows CI.
 
 ## Round 1 — ISSUE-001
 
@@ -23,7 +26,7 @@ Parent: [plan.md](plan.md)
 - [ ] C8 abrupt connection reset behavior.
 - [ ] C9 valid OAuth + chat unauthorized.
 - [ ] C10 valid OAuth + exclusive non-owner.
-- [ ] Sanitize and record traces.
+- [ ] Sanitize and record real-host traces.
 - [ ] Review findings and freeze reconnect trigger classification.
 - [ ] Move ISSUE-001 to DONE only after evidence review.
 
@@ -32,7 +35,7 @@ Parent: [plan.md](plan.md)
 - [ ] Create ISSUE-002 after Round 1 hard gate.
 - [ ] Freeze `WorkspaceAvailability` semantics.
 - [ ] Freeze auth/transport/business error taxonomy.
-- [ ] Perform required code impact analysis for every symbol planned for modification.
+- [ ] Perform required code impact analysis for every production symbol planned for modification.
 - [ ] Select architecture Level A, B or C based on evidence.
 
 ## Round 3

@@ -1,6 +1,6 @@
 # ISSUE-001 — Host reconnect classification and failure-first reproduction
 
-Status: OPEN  
+Status: IN PROGRESS — HARNESS VALIDATED; REAL HOST EVIDENCE REQUIRED  
 Parent plan: [plan.md](plan.md)  
 Round: 1 / 5  
 Implementation changes: NOT AUTHORIZED BY THIS ISSUE
@@ -140,3 +140,18 @@ Update:
 - `tasks.md` checkboxes;
 - this file's Status;
 - create ISSUE-002 only after this issue's hard gate.
+
+
+## Iteration checkpoint — 2026-09-20
+
+The deterministic fault harness is implemented and cross-platform contract-tested on branch `test/offline-safe-round1-harness`.
+
+Validated fault modes: `pass`, `mcp-503`, `workspace-offline`, `reset-mcp`, `oauth-token-503`, and `oauth-refresh-reject`.
+
+GitHub Actions evidence after the source-escape repair:
+
+- push run `35501992893`: SUCCESS on Ubuntu 24.04 and Windows 2025;
+- PR run `35501994608`: SUCCESS;
+- production source changes: none.
+
+This does not satisfy the host-behavior acceptance criteria. C1-C10 remain open until exercised through a real ChatGPT test connector.

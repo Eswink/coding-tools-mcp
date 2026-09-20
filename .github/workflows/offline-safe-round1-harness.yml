@@ -1,0 +1,39 @@
+name: Offline-safe connector round1 harness
+
+on:
+  push:
+    branches:
+      - test/offline-safe-round1-harness
+    paths:
+      - 'scripts/connector_fault_proxy.py'
+      - 'scripts/connector_fault_proxy_tests.py'
+      - '.github/workflows/offline-safe-round1-harness.yml'
+  pull_request:
+    paths:
+      - 'scripts/connector_fault_proxy.py'
+      - 'scripts/connector_fault_proxy_tests.py'
+      - '.github/workflows/offline-safe-round1-harness.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Contract tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile harness
+        run: python -m py_compile scripts/connector_fault_proxy.py scripts/connector_fault_proxy_tests.py
+      - name: Run harness contracts
+        run: python scripts/connector_fault_proxy_tests.py
