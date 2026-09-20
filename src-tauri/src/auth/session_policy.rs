@@ -11,6 +11,10 @@ pub enum NewChatAdmission {
 }
 
 impl NewChatAdmission {
+    fn is_review(value: &Self) -> bool {
+        *value == Self::Review
+    }
+
     pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::Review => "review",
@@ -30,6 +34,11 @@ pub struct SessionPolicy {
     /// Zero disables idle expiry. Refresh requests never count as chat activity.
     pub chat_idle_timeout_seconds: u64,
     /// Controls creation of brand-new local chat-approval requests only.
+    ///
+    /// The backward-compatible Review default is omitted on disk so an
+    /// operator can return all workspaces to Review before downgrading to a
+    /// pre-ISSUE-010 binary whose strict SessionPolicy rejects unknown fields.
+    #[serde(default, skip_serializing_if = "NewChatAdmission::is_review")]
     pub new_chat_admission: NewChatAdmission,
 }
 impl Default for SessionPolicy {
@@ -68,6 +77,21 @@ mod tests {
         assert_eq!(p.new_chat_admission, NewChatAdmission::Review);
         p.validate().unwrap();
     }
+    #[test]
+    fn review_default_is_omitted_for_bounded_downgrade_compatibility() {
+        let review = SessionPolicy::default();
+        let encoded = serde_json::to_value(&review).unwrap();
+        assert!(
+            encoded.get("new_chat_admission").is_none(),
+            "review default must not make old strict SessionPolicy reject the file: {encoded}"
+        );
+
+        let mut gated = review;
+        gated.new_chat_admission = NewChatAdmission::LocalWindow;
+        let encoded = serde_json::to_value(&gated).unwrap();
+        assert_eq!(encoded["new_chat_admission"], "local_window");
+    }
+
     #[test]
     fn new_chat_admission_is_backward_compatible_and_strict() {
         for (raw, expected) in [
