@@ -1,0 +1,80 @@
+name: MCP Origin hardening impact gate
+
+on:
+  push:
+    branches:
+      - security/mcp-origin-validation
+    paths:
+      - '.github/workflows/mcp-origin-hardening-impact.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-origin-impact-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build GitNexus index
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx -y gitnexus@latest analyze | tee evidence/analyze.txt
+          git reset --hard "$GITHUB_SHA"
+          npx -y gitnexus@latest status | tee evidence/status.txt
+      - name: Impact listener serve
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact serve --file src-tauri/src/mcp/listener.rs --kind Function --direction upstream | tee evidence/impact-listener-serve.txt
+      - name: Impact MCP POST
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact mcp_post --file src-tauri/src/mcp/listener.rs --kind Function --direction upstream | tee evidence/impact-mcp-post.txt
+      - name: Impact OAuth authorize GET
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact oauth_authorize_get --file src-tauri/src/mcp/listener.rs --kind Function --direction upstream | tee evidence/impact-oauth-authorize-get.txt
+      - name: Impact OAuth authorize POST
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact oauth_authorize_post --file src-tauri/src/mcp/listener.rs --kind Function --direction upstream | tee evidence/impact-oauth-authorize-post.txt
+      - name: Impact OAuth token POST
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact oauth_token_post --file src-tauri/src/mcp/listener.rs --kind Function --direction upstream | tee evidence/impact-oauth-token-post.txt
+      - name: Impact public origin snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact snapshot --file src-tauri/src/auth/公网身份v2.rs --kind Function --direction upstream | tee evidence/impact-public-origin-snapshot.txt
+      - name: Query HTTP control-plane flow
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest query "MCP listener OAuth authorize token PublicOrigin router request" | tee evidence/query-http-control-plane.txt
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-origin-hardening-impact
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
