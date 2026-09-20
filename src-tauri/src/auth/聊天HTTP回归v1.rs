@@ -5,7 +5,7 @@ use crate::workspace::{AuthConfig, RuntimeConfig};
 async fn http_conversations_require_separate_grants_and_cannot_observe_each_others_jobs() {
     let root = tempfile::tempdir().unwrap(); let profile = uuid::Uuid::new_v4().to_string();
     let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap(); let port = reserve.local_addr().unwrap().port(); drop(reserve);
-    let (stop,task,_execution_gate) = crate::mcp::spawn_listener_with_origin(port,root.path().into(),profile.clone(),
+    let (stop,task) = crate::mcp::spawn_listener_with_origin(port,root.path().into(),profile.clone(),
         AuthConfig { oauth_client_id:"test-client".into(), session_policy:super::session_policy::SessionPolicy {exclusive:false,..Default::default()}, ..Default::default() },PublicOrigin::managed(fixture::ORIGIN).unwrap(),
         None,Some("password".into()),Some(fixture::KEY.into()),RuntimeConfig::default()).unwrap();
     let client = fixture::client(); let url = format!("http://127.0.0.1:{port}/mcp");
@@ -54,7 +54,7 @@ async fn workspace_pause_keeps_oauth_and_chat_owner_but_blocks_new_business_disp
     let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = reserve.local_addr().unwrap().port();
     drop(reserve);
-    let (stop, task, execution_gate) = crate::mcp::spawn_listener_with_origin(
+    let (stop, task, execution_gate) = crate::mcp::spawn_listener_with_origin_and_execution_gate(
         port,
         root.path().into(),
         profile.clone(),
