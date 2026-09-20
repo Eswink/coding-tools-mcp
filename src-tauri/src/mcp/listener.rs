@@ -37,6 +37,7 @@ struct ListenerState {
     oauth_client_secret: Option<String>,
 }
 
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 pub fn spawn_listener_with_origin(
     port: u16,
