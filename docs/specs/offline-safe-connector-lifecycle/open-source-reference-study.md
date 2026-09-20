@@ -1096,3 +1096,32 @@ but even `review` produces only a local **pending** chat grant. No remote ChatGP
 - does not reveal its state remotely.
 
 This is the preferred shared-account posture because connector installation/reachability and new-human-approval admission become separate controls.
+
+
+## 13. Persisted-policy evolution needs an explicit downgrade story
+
+Reference:
+
+- `cloudflare/agents@c076e4c9ff6cfb72931085226edfd3ee7965ac48`
+- `packages/agents/src/state/index.ts`
+- `design/sessions.md`
+
+Observed pattern:
+
+- persisted capability state owns an explicit schema version;
+- migrations are scoped to the capability rather than hidden in unrelated runtime state;
+- a migration is not stamped complete until source rows have been verified;
+- old/recoverable state is either preserved for retry or transformed deliberately rather than silently discarded.
+
+### Decision for coding-tools-mcp
+
+ISSUE-010 adds one persisted admission-policy field but the pre-ISSUE-010 `SessionPolicy` is intentionally strict about unknown fields.
+
+To preserve a bounded downgrade path without adding a new data-schema migration:
+
+- the backward-compatible `review` value is omitted when serialized;
+- `local_window` / `deny_new` remain explicit while enabled;
+- before installing an older binary, the operator must return every workspace to `review` and save;
+- a regression locks that the Review default produces the old serialized shape.
+
+This is not a general schema-versioning replacement. If future authorization policy grows beyond one optional field, move it behind an explicit versioned capability/storage boundary rather than accumulating downgrade rules ad hoc.
