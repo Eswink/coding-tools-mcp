@@ -46,3 +46,60 @@ async fn noauth_listener_discovery_does_not_authorize_business_or_self_approval(
     }
     drop(client);stop.send(()).unwrap();task.await.unwrap();
 }
+
+#[tokio::test]
+async fn workspace_pause_keeps_oauth_and_chat_owner_but_blocks_new_business_dispatch() {
+    let root = tempfile::tempdir().unwrap();
+    let profile = uuid::Uuid::new_v4().to_string();
+    let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = reserve.local_addr().unwrap().port();
+    drop(reserve);
+    let (stop, task, execution_gate) = crate::mcp::spawn_listener_with_origin(
+        port,
+        root.path().into(),
+        profile.clone(),
+        AuthConfig { oauth_client_id: "test-client".into(), ..Default::default() },
+        PublicOrigin::managed(fixture::ORIGIN).unwrap(),
+        None,
+        Some("password".into()),
+        Some(fixture::KEY.into()),
+        RuntimeConfig::default(),
+    ).unwrap();
+    let client = fixture::client();
+    let url = format!("http://127.0.0.1:{port}/mcp");
+    async fn invoke(client: &reqwest::Client, url: &str, name: &str, session: &str) -> Value {
+        let response = client.post(url)
+            .json(&fixture::request(name, json!({}), session))
+            .send().await.unwrap();
+        assert_eq!(response.status(), 200);
+        assert!(response.headers().get("www-authenticate").is_none());
+        let value: Value = response.json().await.unwrap();
+        value["result"]["structuredContent"].clone()
+    }
+
+    fixture::approve(&profile, root.path(), "A");
+    let before = invoke(&client, &url, "auth_status", "A").await;
+    assert_eq!(before["authorization"]["status"], "active");
+    assert_eq!(invoke(&client, &url, "server_info", "A").await["ok"], true);
+
+    execution_gate.pause().unwrap();
+    let offline = invoke(&client, &url, "server_info", "A").await;
+    assert_eq!(offline["error"]["code"], "WORKSPACE_OFFLINE");
+    assert_eq!(offline["error"]["category"], "availability");
+    assert_eq!(offline["requires_local_action"], false);
+
+    let owner = invoke(&client, &url, "auth_status", "A").await;
+    assert_eq!(owner["authorization"]["id"], before["authorization"]["id"]);
+    assert_eq!(owner["authorization"]["status"], "active");
+
+    let foreign = invoke(&client, &url, "request_chat_authorization", "B").await;
+    assert_eq!(foreign["error"]["code"], "EXCLUSIVE_CHAT_LOCKED");
+    assert!(foreign.get("authorization").is_none());
+
+    execution_gate.resume().unwrap();
+    assert_eq!(invoke(&client, &url, "server_info", "A").await["ok"], true);
+
+    drop(client);
+    stop.send(()).unwrap();
+    task.await.unwrap();
+}
