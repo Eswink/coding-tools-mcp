@@ -859,3 +859,48 @@ The Host/authority problem is now narrower:
 Do not trust `X-Forwarded-Host` to close the remaining uncertainty.
 
 The next safe step for ISSUE-007 is therefore a sanitized runtime topology probe, not speculative Host enforcement.
+
+
+## 13. OAuth challenge semantics must stay separate from local workspace authorization
+
+References:
+
+- `modelcontextprotocol/modelcontextprotocol@24efd6e7cbd7a074e6b3b781eb370891df40afad`
+  - `docs/docs/2026-07-28/tools/inspector/authorization.mdx`
+- `modelcontextprotocol/typescript-sdk@60321700871029401a2e3bed8fdf4f02c9ec3331`
+  - `docs/serving/authorization.md`
+
+Observed protocol/client behavior:
+
+1. HTTP `401` plus `WWW-Authenticate` starts or restarts the MCP OAuth flow.
+2. HTTP `403 insufficient_scope` plus `WWW-Authenticate` starts step-up authorization.
+3. The current Inspector handles a mid-session 401/403 by re-authorizing and retrying the refused request without dropping the underlying connection.
+4. The TypeScript SDK intentionally formats 401/403 challenges so clients discover protected-resource metadata and enter OAuth/step-up.
+
+### Decision for coding-tools-mcp
+
+**Preserve the Round 3 / ISSUE-009 distinction.**
+
+Local desktop chat approval is **not** OAuth.
+
+Therefore the following server-side states must remain normal MCP tool results over HTTP 200 and must not carry `WWW-Authenticate`:
+
+- `CHAT_AUTHORIZATION_REQUIRED`;
+- `EXCLUSIVE_CHAT_LOCKED`;
+- `CHAT_WORK_DRAINING`;
+- `CHAT_RECOVERY_REQUIRED`;
+- `CHAT_AUTHORIZATION_UNAVAILABLE`;
+- `WORKSPACE_OFFLINE`.
+
+Only actual bearer-token/authentication failures should use the HTTP OAuth challenge path.
+
+ISSUE-009's HTTP regression explicitly verifies that the paused-workspace suppression response is:
+
+```text
+HTTP 200
+MCP tool result error
+WWW-Authenticate absent
+CHAT_AUTHORIZATION_UNAVAILABLE
+```
+
+This matters directly to the original reconnect problem: reusing an HTTP OAuth challenge for a local workspace/admission condition would actively tell capable MCP clients to start re-authentication, which is the opposite of the intended offline-safe behavior.
