@@ -8,13 +8,11 @@ on:
       - 'scripts/connector_fault_proxy.py'
       - 'scripts/connector_fault_proxy_tests.py'
       - '.github/workflows/offline-safe-round1-harness.yml'
-      - 'docs/specs/offline-safe-connector-lifecycle/**'
   pull_request:
     paths:
       - 'scripts/connector_fault_proxy.py'
       - 'scripts/connector_fault_proxy_tests.py'
       - '.github/workflows/offline-safe-round1-harness.yml'
-      - 'docs/specs/offline-safe-connector-lifecycle/**'
 
 permissions:
   contents: read
