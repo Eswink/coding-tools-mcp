@@ -73,6 +73,18 @@ jobs:
           Run 35504168445 preserves the failed exact lookup. No existing Svelte UI symbol is edited
           in the backend increment covered by this impact gate.
           EOF
+      - name: Probe Svelte Props impact availability
+        shell: bash
+        run: |
+          set +e
+          npx -y gitnexus@latest impact Props --file src/lib/components/ServicePanel.svelte --kind Interface --direction upstream > evidence/impact-ui-service-panel-props.txt 2>&1
+          panel_rc=$?
+          npx -y gitnexus@latest impact Props --file src/lib/components/workspace/WorkspaceServiceView.svelte --kind Interface --direction upstream > evidence/impact-ui-workspace-view-props.txt 2>&1
+          view_rc=$?
+          printf 'service_panel_props_rc=%s\nworkspace_service_view_props_rc=%s\n' "$panel_rc" "$view_rc" | tee evidence/ui-impact-probe-status.txt
+          # Discovery only: non-zero means the current GitNexus parser cannot
+          # provide a pre-edit Svelte symbol impact and must not be relabeled PASS.
+          exit 0
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v4
