@@ -794,3 +794,133 @@ Origin boundary: PASS
 intent-aware lifecycle UX: SOURCE/UX PASS
 real ChatGPT reconnect behavior: UNCONFIRMED_ON_REAL_HOST
 ```
+
+
+## 08 — Offline authorization-noise suppression
+
+Date: 2026-09-21  
+Branch: `hardening/offline-auth-noise`  
+PR: #27  
+Validated production candidate: `625f33233682c772197234e3beba66aefd35f0b5`  
+Result: **SOURCE + CROSS-PLATFORM + PACKAGED PASS; real shared-account host behavior remains DEFERRED.**
+
+### Failure-first result
+
+Run `35519244700` reproduced the gap:
+
+```text
+execution = Offline
+unapproved conversation
+request_chat_authorization
+ -> ok=true
+ -> pending grant allocated
+ -> local approval next-step returned
+```
+
+This could generate fresh tray/desktop approval noise even though the local operator intentionally paused execution.
+
+### Design corrections before acceptance
+
+A first repair used a read-only availability snapshot. It passed focused tests but was rejected on review because of:
+
+```text
+request sees Online
+pause commits
+request creates pending approval after pause returns
+```
+
+The final allocator is linearized:
+
+```text
+authorization state mutex
+ -> validate identity / recovery / owner / request / existing grant
+ -> acquire execution Online hold only for NEW allocation
+ -> insert pending grant
+ -> publish pending event
+ -> release Online hold
+ -> release authorization state
+```
+
+No reverse lock order was introduced.
+
+A later compatibility review restored the original malformed-request/scope-validation precedence before existing-grant return.
+
+### Verification-only failures retained
+
+1. New gate regression self-deadlocked by calling `snapshot()` while the same thread owned `OnlineExecutionHold`. Product code never used that reentrant path. The test was corrected without weakening the gate.
+2. Run `35527422582` passed the Ubuntu test suite, then strict non-test compile failed because the old unguarded `ChatAuthorizer::request` wrapper had no production caller. Exact call-site evidence showed it was test-only; it was compiled only under `cfg(test)` instead of suppressing the warning.
+
+### Final focused validation
+
+Run `35527951725`: SUCCESS.
+
+Gate linearization, suppression, pending/active preservation, exclusive ordering, and recovery precedence all pass.
+
+### Final source validation
+
+Run `35527951732`: SUCCESS.
+
+GitNexus:
+
+```text
+10 files
+38 symbols
+4 affected processes
+aggregate risk: medium
+```
+
+Ubuntu:
+
+- frontend checks: PASS;
+- UI contracts: 3/3 and 5/5 PASS;
+- primary Rust: 389/389 PASS;
+- integrations: PASS;
+- strict compile: PASS.
+
+Windows:
+
+- frontend checks: PASS;
+- UI contracts: 3/3 and 5/5 PASS;
+- primary parallel Rust: 390 PASS / 0 FAIL / 1 filtered;
+- isolated owner-drain: PASS, child ready in 84 ms;
+- integrations: PASS;
+- strict compile: PASS.
+
+HTTP regression confirms valid OAuth remains HTTP 200 MCP tool-level behavior with no `WWW-Authenticate`, no pending grant/event while Offline, and normal pending creation after Resume.
+
+### Final packaged validation
+
+Run `35527951727`: SUCCESS.
+
+Ubuntu:
+
+- DEB SHA-256 `96ab6a060436778876a0c952c2e97dfeddab5c9dd0bf54e0df449947c7c4fb78`;
+- install / executable / purge PASS;
+- artifact `10610033021`;
+- digest `sha256:ea8b9db67564bf9e325adb1c4458e0fcb7cc2b19eb5f8233448a292d35d3b812`.
+
+Windows:
+
+- NSIS SHA-256 `2adcea687d85632d3f268762d9a71e418ca4ee9a6b1884e90fb6d24c5c2b5768`;
+- silent install / executable / uninstall PASS;
+- artifact `10610277953`;
+- digest `sha256:5005b75a1b5af076218caa1a2cf985dfd4175e41ec45f1026d687f46248236ed`.
+
+### External-reference conclusion
+
+Cloudflare Agents, MCPJam, Coder and MCPMate all reinforce the separation between endpoint/connection lifecycle, execution availability, and human approval/governance state.
+
+ISSUE-009 applies the narrow local invariant:
+
+> a paused execution plane must not generate new human approval work merely because the connector remains reachable.
+
+### Truth state
+
+```text
+engineering candidate: PASS
+Origin boundary: PASS
+intent-aware lifecycle UX: PASS
+offline authorization-noise suppression: PASS
+real ChatGPT reconnect behavior: UNCONFIRMED_ON_REAL_HOST
+shared-account connector visibility: UNCONFIRMED_ON_REAL_HOST
+```
