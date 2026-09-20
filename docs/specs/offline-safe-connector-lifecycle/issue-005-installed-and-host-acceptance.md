@@ -204,3 +204,17 @@ The correction resolves the generated `.deb` to an absolute path before installa
 ### Truth status
 
 These failures are packaging/cross-platform strict-compile findings. They do not invalidate the Round 3/4 offline-safe protocol evidence, but they block ENGINEERING_CANDIDATE_PASS until the corrected Windows and Ubuntu packaged run is green.
+
+
+## Failure-first packaged iteration 2 — run 35509317188
+
+The first Windows correction removed the original three strict-compile errors, and the Windows test suite completed successfully through all 382 library tests plus integration suites. The final non-test `-D warnings` compile exposed one remaining platform-scoping defect:
+
+```text
+unused import: StartupFailureReason
+src/commands/app_info.rs
+```
+
+The type was imported unconditionally although its only non-test use after the prior correction is Linux-only. The import is now Linux-gated. A separate test-only `unused_mut` warning in the Round 3 supervisor regression was also removed so ordinary Windows check/test output stays clean.
+
+No runtime/auth/tunnel semantics are changed by either cleanup.
