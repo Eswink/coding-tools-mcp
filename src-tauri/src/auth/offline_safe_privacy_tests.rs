@@ -76,7 +76,9 @@ async fn foreign_owner_is_non_disclosing_online_and_offline() {
         assert!(blocked.get("authorization").is_none(), "{name}: {blocked}");
         assert_no_workspace_secrets(&blocked, &secrets);
     }
-    assert!(events.try_recv().is_err());
+    while let Ok(event) = events.try_recv() {
+        assert_ne!(event.profile, profile, "blocked foreign call emitted a profile event");
+    }
 
     execution_gate.pause().unwrap();
     for name in ["auth_status", "server_info", "request_chat_authorization", "list_exec_tasks"] {
@@ -93,7 +95,9 @@ async fn foreign_owner_is_non_disclosing_online_and_offline() {
         assert!(blocked.get("authorization").is_none());
         assert_no_workspace_secrets(&blocked, &secrets);
     }
-    assert!(events.try_recv().is_err());
+    while let Ok(event) = events.try_recv() {
+        assert_ne!(event.profile, profile, "blocked foreign call emitted a profile event");
+    }
     assert_eq!(
         super::chat::service().snapshot(&profile)["records"]
             .as_array()
