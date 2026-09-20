@@ -65,6 +65,21 @@ jobs:
         run: |
           set -euo pipefail
           npx -y gitnexus@latest impact RuntimeStatusDto --file src-tauri/src/workspace/model.rs --direction upstream | tee evidence/impact-runtime-status-dto.txt
+      - name: Impact workspace runtime apply
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact applyMcpRuntime --file 'src/routes/workspace/[id]/+page.svelte' --direction upstream | tee evidence/impact-ui-apply-mcp-runtime.txt
+      - name: Impact service panel component
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact ServicePanel --file src/lib/components/ServicePanel.svelte --direction upstream | tee evidence/impact-ui-service-panel.txt
+      - name: Impact workspace service view component
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact WorkspaceServiceView --file src/lib/components/workspace/WorkspaceServiceView.svelte --direction upstream | tee evidence/impact-ui-workspace-service-view.txt
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v4
