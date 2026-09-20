@@ -1,0 +1,48 @@
+name: ISSUE-009 offline authorization focused validation
+
+on:
+  push:
+    branches:
+      - hardening/offline-auth-noise
+    paths:
+      - 'src-tauri/src/auth/聊天授权回归v1.rs'
+      - 'src-tauri/src/tools/聊天运行域v1.rs'
+      - '.github/workflows/issue009-offline-auth-focused.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue009-offline-auth-focused-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  matrix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-targets: false
+      - name: Install Tauri Linux dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - name: Run ISSUE-009 authorization matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml \
+            auth::chat::tests::offline_unapproved_authorization_request_is_suppressed_without_pending_noise_until_resume \
+            -- --exact --nocapture --test-threads=1
+          cargo test --locked --manifest-path src-tauri/Cargo.toml \
+            auth::chat::tests::offline_preserves_existing_pending_active_and_exclusive_ordering \
+            -- --exact --nocapture --test-threads=1
