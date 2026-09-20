@@ -190,6 +190,23 @@ This is a protocol/security behavior failure, not a test-compilation or environm
 
 Repair candidate begins at `ab89f652ba5c63c766c63a8c86a82007e60059fc`.
 
+## Repair iteration 1
+
+Repair candidate `ab89f652ba5c63c766c63a8c86a82007e60059fc` changed one production surface: the listener router now applies a live Origin guard before MCP/OAuth handlers.
+
+Validation run `35513449933`:
+
+- missing/local Origin compatibility: PASS;
+- live managed public-origin replacement: PASS;
+- OAuth control-plane guard: PASS;
+- invalid-origin rejection behavior: production behavior PASS, but one test assertion failed.
+
+The remaining test failure was not a product regression. The test searched the encoded JSON body for the literal attacker input `null`; a valid JSON-RPC rejection necessarily contains `"id": null`, so the sentinel collided with protocol syntax.
+
+The assertion was corrected to validate the generic JSON error shape and check non-reflection only for attacker-controlled host/text values.
+
+This failure remains recorded rather than being rewritten as PASS.
+
 ## Focused impact evidence
 
 GitNexus workflow run `35513186585`: PASS as tooling execution.
