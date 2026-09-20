@@ -219,12 +219,29 @@ impl ChatAuthorizer {
             None => json!({"ok":true,"authorization":{"status":"unauthorized"}}),
         }
     }
+    // Compatibility helper for the crate's authorization state-machine tests.
+    // Production remote dispatch always uses request_guarded so it can apply
+    // the workspace-allocation guard without changing OAuth semantics.
+    #[cfg(test)]
     pub fn request(&self, req: &RemoteRequest, args: &Value) -> Value {
+        self.request_guarded(req, args, || Ok::<(), Value>(()))
+    }
+
+    pub(crate) fn request_guarded<G, F>(
+        &self,
+        req: &RemoteRequest,
+        args: &Value,
+        acquire_new_allocation_guard: F,
+    ) -> Value
+    where
+        F: FnOnce() -> Result<G, Value>,
+    {
         let key = match req.identity() { Ok(k) => k, Err(e) => return denied(e) };
         self.reconcile(&req.profile);
         if self.fence(&req.profile).is_some_and(|f|!f.ready()){return denied("CHAT_RECOVERY_REQUIRED");}
         let mut state = self.state.lock().expect("chat authorization lock");
-        // Reject BEFORE allocating or validating user-selected scopes. No event/fingerprint leak.
+        // Preserve the original request-validation contract before returning
+        // an existing grant or consulting execution availability.
         if let Err(e) = Self::owner_check(&state, &req.profile, key) { return denied(e); }
         let Some(obj) = args.as_object() else { return denied("INVALID_AUTHORIZATION_REQUEST"); };
         if obj.keys().any(|k| k != "scopes") { return denied("INVALID_AUTHORIZATION_REQUEST"); }
@@ -236,8 +253,20 @@ impl ChatAuthorizer {
             }
         };
         if let Some(r) = state.records.get(key).filter(|r| r.profile == req.profile) {
-            if matches!(r.view.status.as_str(), "pending" | "active") { return json!({"ok":true,"authorization":r.view}); }
+            if matches!(r.view.status.as_str(), "pending" | "active") {
+                return json!({"ok":true,"authorization":r.view});
+            }
         }
+
+        // This guard is acquired while the authorization mutex is held and is
+        // retained until the new pending record/event has committed. That makes
+        // pause-vs-authorization allocation linearizable without coupling the
+        // authorizer to a concrete workspace-availability implementation.
+        let _new_allocation_guard = match acquire_new_allocation_guard() {
+            Ok(guard) => guard,
+            Err(value) => return value,
+        };
+
         let now = Instant::now();
         for r in state.records.values_mut() { r.refresh(now); }
         state.records.retain(|_, r| matches!(r.view.status.as_str(), "active" | "pending"));

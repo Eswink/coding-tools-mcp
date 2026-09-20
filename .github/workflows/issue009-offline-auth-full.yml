@@ -1,0 +1,115 @@
+name: ISSUE-009 offline authorization full validation
+
+on:
+  push:
+    branches:
+      - hardening/offline-auth-noise
+    paths:
+      - 'src-tauri/src/tools/聊天运行域v1.rs'
+      - 'src-tauri/src/auth/聊天授权回归v1.rs'
+      - 'src-tauri/src/auth/**'
+      - 'src-tauri/src/runtime/**'
+      - 'src/**'
+      - 'tests/**'
+      - '.github/workflows/issue009-offline-auth-full.yml'
+      - 'docs/specs/offline-safe-connector-lifecycle/issue-009-offline-authorization-noise.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue009-offline-auth-full-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  graph:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: GitNexus detect changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx -y gitnexus@latest analyze > evidence/analyze.txt
+          git reset --hard "$GITHUB_SHA"
+          npx -y gitnexus@latest detect-changes --scope compare --base-ref origin/plan/offline-safe-connector-lifecycle | tee evidence/detect-changes.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: issue009-offline-auth-change-impact
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  source:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-targets: false
+      - name: Install Tauri Linux dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - name: Frontend checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          npm run build
+          node --test tests/offline-safe-ui.test.mjs
+          if [ -f tests/offline-safe-intent-ui.test.mjs ]; then
+            node --test tests/offline-safe-intent-ui.test.mjs
+          fi
+      - name: Focused ISSUE-009 matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml \
+            auth::chat::tests::offline_unapproved_authorization_request_is_suppressed_without_pending_noise_until_resume \
+            -- --exact --nocapture --test-threads=1
+          cargo test --locked --manifest-path src-tauri/Cargo.toml \
+            auth::chat::tests::offline_preserves_existing_pending_active_and_exclusive_ordering \
+            -- --exact --nocapture --test-threads=1
+      - name: Full Rust checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cargo test --locked --manifest-path src-tauri/Cargo.toml -- \
+              --skip auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor
+            cargo test --locked --manifest-path src-tauri/Cargo.toml \
+              auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor \
+              -- --exact --nocapture --test-threads=1
+          else
+            cargo test --locked --manifest-path src-tauri/Cargo.toml
+          fi
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings

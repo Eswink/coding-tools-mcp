@@ -97,3 +97,19 @@ Parent: [plan.md](plan.md)
 - [x] Keep ChatGPT Actions lifecycle unchanged.
 - [x] Run Svelte check/build and old/new UI contracts on Ubuntu and Windows.
 - [ ] Validate the actual reconnect UX on real ChatGPT host — DEFERRED.
+
+
+### ISSUE-009 — offline authorization noise
+
+- [x] Reproduce new pending approval creation while execution is Offline.
+- [x] Run focused GitNexus impact and retain lower-bound/UNKNOWN findings.
+- [x] Preserve recovery / exclusive / malformed-request precedence.
+- [x] Suppress only NEW pending authorization allocation while Offline.
+- [x] Make pause-vs-allocation behavior linearizable with a short Online hold.
+- [x] Verify zero pending record/event and no local notification trigger while suppressed.
+- [x] Verify error is a non-OAuth MCP tool error with no `WWW-Authenticate`.
+- [x] Verify Resume restores normal pending authorization creation.
+- [x] Verify OAuth refresh behavior remains unchanged.
+- [x] Run final Ubuntu + Windows full source regression.
+- [x] Run final Ubuntu DEB + Windows NSIS install/remove revalidation.
+- [ ] Verify behavior through the real shared ChatGPT host/account UI — DEFERRED.

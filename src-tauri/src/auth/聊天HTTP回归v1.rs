@@ -55,6 +55,62 @@ async fn noauth_listener_discovery_does_not_authorize_business_or_self_approval(
 }
 
 #[tokio::test]
+async fn offline_new_authorization_is_a_non_oauth_tool_error_and_resumes_cleanly() {
+    let root = tempfile::tempdir().unwrap();
+    let profile = uuid::Uuid::new_v4().to_string();
+    let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = reserve.local_addr().unwrap().port();
+    drop(reserve);
+    let (stop, task, execution_gate) = crate::mcp::spawn_listener_with_origin_and_execution_gate(
+        port,
+        root.path().into(),
+        profile.clone(),
+        AuthConfig { oauth_client_id: "test-client".into(), ..Default::default() },
+        PublicOrigin::managed(fixture::ORIGIN).unwrap(),
+        None,
+        Some("password".into()),
+        Some(fixture::KEY.into()),
+        RuntimeConfig::default(),
+    ).unwrap();
+    let client = fixture::client();
+    let url = format!("http://127.0.0.1:{port}/mcp");
+    let service = super::chat::service();
+    let mut events = service.subscribe();
+
+    execution_gate.pause().unwrap();
+    let response = client.post(&url)
+        .json(&fixture::request("request_chat_authorization", json!({}), "offline-new"))
+        .send().await.unwrap();
+    assert_eq!(response.status(), 200);
+    assert!(response.headers().get("www-authenticate").is_none());
+    let body: Value = response.json().await.unwrap();
+    let blocked = &body["result"]["structuredContent"];
+    assert_eq!(blocked["error"]["code"], "CHAT_AUTHORIZATION_UNAVAILABLE", "{body}");
+    assert_eq!(blocked["error"]["category"], "permission", "{body}");
+    assert_eq!(blocked["requires_local_action"], false, "{body}");
+    assert!(blocked.get("authorization").is_none(), "{body}");
+    assert!(service.snapshot(&profile)["records"].as_array().unwrap().is_empty());
+    while let Ok(event) = events.try_recv() {
+        assert_ne!(event.profile, profile, "suppressed request emitted a profile event");
+    }
+
+    execution_gate.resume().unwrap();
+    let response = client.post(&url)
+        .json(&fixture::request("request_chat_authorization", json!({}), "offline-new"))
+        .send().await.unwrap();
+    assert_eq!(response.status(), 200);
+    assert!(response.headers().get("www-authenticate").is_none());
+    let body: Value = response.json().await.unwrap();
+    assert_eq!(body["result"]["structuredContent"]["authorization"]["status"], "pending", "{body}");
+    assert_eq!(service.snapshot(&profile)["records"].as_array().unwrap().len(), 1);
+
+    service.revoke(&profile, None);
+    drop(client);
+    stop.send(()).unwrap();
+    task.await.unwrap();
+}
+
+#[tokio::test]
 async fn workspace_pause_keeps_oauth_and_chat_owner_but_blocks_new_business_dispatch() {
     let root = tempfile::tempdir().unwrap();
     let profile = uuid::Uuid::new_v4().to_string();
