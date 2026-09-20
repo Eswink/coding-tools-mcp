@@ -28,7 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p evidence
-          npx -y gitnexus@latest analyze --skip-embeddings --skip-agents-md --skip-skills | tee evidence/analyze.txt
+          npx -y gitnexus@latest analyze | tee evidence/analyze.txt
           npx -y gitnexus@latest status | tee evidence/status.txt
       - name: Query affected execution flows
         shell: bash
