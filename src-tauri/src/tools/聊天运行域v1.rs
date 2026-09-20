@@ -52,6 +52,11 @@ fn required(name: &str, args: &Value) -> Option<&'static [&'static str]> {
     })
 }
 fn denied(code: &str) -> Value {
+    if code == "CHAT_AUTHORIZATION_UNAVAILABLE" {
+        return json!({"ok":false,"error":{"code":code,"category":"permission","retryable":false,
+            "message":"Workspace authorization requests are not currently accepted. Do not retry."},
+            "requires_local_action":false});
+    }
     if matches!(code, "WORKSPACE_OFFLINE" | "WORKSPACE_EXECUTION_UNAVAILABLE") {
         return json!({"ok":false,"error":{"code":code,"category":"availability","retryable":false,
             "message":"Workspace execution is paused locally."},"requires_local_action":false});
@@ -74,11 +79,31 @@ fn requires_online_execution(name: &str) -> bool {
             | "write_stdin"
     )
 }
+fn request_chat_authorization(ctx: &ToolContext, req: &RemoteRequest, args: &Value) -> Value {
+    // Preserve identity/recovery/exclusive ordering and existing grants first.
+    // Only a brand-new pending allocation is suppressed while local execution
+    // is intentionally paused.
+    let status = req.service.status(req);
+    if status["ok"] != true {
+        return status;
+    }
+    if matches!(
+        status["authorization"]["status"].as_str(),
+        Some("pending" | "active")
+    ) {
+        return req.service.request(req, args);
+    }
+    if ctx.execution_gate.snapshot().availability.as_str() == "offline" {
+        return denied("CHAT_AUTHORIZATION_UNAVAILABLE");
+    }
+    req.service.request(req, args)
+}
+
 /// This hook precedes policy, cwd, Harness and every dispatch branch, including async workers.
 pub(crate) fn intercept(ctx: &ToolContext, name: &str, args: &Value) -> Option<Value> {
     let req = ctx.remote_request.as_ref()?;
     if name == "auth_status" { return Some(req.service.status(req)); }
-    if name == "request_chat_authorization" { return Some(req.service.request(req,args)); }
+    if name == "request_chat_authorization" { return Some(request_chat_authorization(ctx, req, args)); }
     let scopes = match required(name,args) { Some(s) => s, None => return Some(denied("REMOTE_TOOL_NOT_PERMITTED")) };
     if ctx.chat_scoped {
         return req.service.permit(req,scopes).err().map(denied);
