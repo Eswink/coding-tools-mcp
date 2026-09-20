@@ -129,10 +129,17 @@ jobs:
           if (-not $entry) { throw "Uninstall registration not found" }
 
           $installLocation = [string]$entry.InstallLocation
+          $displayIcon = [string]$entry.DisplayIcon
           $installedExe = $null
           if ($installLocation -and (Test-Path $installLocation)) {
             $installedExe = Get-ChildItem $installLocation -Filter "*.exe" -File -Recurse -ErrorAction SilentlyContinue |
               Where-Object { $_.Name -notmatch 'uninstall' } | Select-Object -First 1
+          }
+          if (-not $installedExe -and $displayIcon) {
+            $iconPath = $displayIcon.Trim('"').Split(',')[0]
+            if (Test-Path $iconPath) {
+              $installedExe = Get-Item $iconPath
+            }
           }
           if (-not $installedExe) { throw "Installed executable not found" }
 
