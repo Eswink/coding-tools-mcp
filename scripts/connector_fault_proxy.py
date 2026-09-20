@@ -15,7 +15,7 @@ import json
 from pathlib import Path
 import socket
 import threading
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 MAX_BODY_BYTES = 2 * 1024 * 1024
 UPSTREAM_TIMEOUT_SECONDS = 15
@@ -29,7 +29,14 @@ HOP_BY_HOP_HEADERS = {
     "transfer-encoding",
     "upgrade",
 }
-MODES = ("pass", "mcp-503", "workspace-offline", "reset-mcp")
+MODES = (
+    "pass",
+    "mcp-503",
+    "workspace-offline",
+    "reset-mcp",
+    "oauth-token-503",
+    "oauth-refresh-reject",
+)
 AUTH_TOOLS = {"auth_status", "request_chat_authorization"}
 
 
@@ -72,7 +79,8 @@ class EvidenceWriter:
         with self._lock:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with self.path.open("a", encoding="utf-8") as handle:
-                handle.write(payload + "\n")
+                handle.write(payload + "
+")
 
 
 @dataclass(frozen=True)
@@ -126,6 +134,13 @@ class ConnectorFaultHandler(BaseHTTPRequestHandler):
                 intercepted = self._workspace_offline(body)
                 if intercepted:
                     return
+        if path_only == "/oauth/token" and self.command == "POST":
+            if self.config.mode == "oauth-token-503":
+                self._oauth_token_503(body)
+                return
+            if self.config.mode == "oauth-refresh-reject" and self._is_refresh_grant(body):
+                self._oauth_refresh_reject(body)
+                return
         self._proxy(body)
 
     def _read_body(self) -> bytes | None:
@@ -153,7 +168,8 @@ class ConnectorFaultHandler(BaseHTTPRequestHandler):
         total = 0
         while True:
             line = self.rfile.readline(128)
-            if not line or len(line) >= 128 or not line.endswith(b"\r\n"):
+            if not line or len(line) >= 128 or not line.endswith(b"
+"):
                 self._send_json(400, {"error": "invalid_chunked_body"})
                 return None
             size_text = line[:-2].split(b";", 1)[0].strip()
@@ -169,14 +185,16 @@ class ConnectorFaultHandler(BaseHTTPRequestHandler):
                 # Consume trailers without retaining or logging them.
                 while True:
                     trailer = self.rfile.readline(8192)
-                    if trailer in {b"\r\n", b""}:
+                    if trailer in {b"
+", b""}:
                         break
                     if len(trailer) >= 8192:
                         self._send_json(400, {"error": "invalid_chunked_body"})
                         return None
                 break
             chunk = self.rfile.read(size)
-            if len(chunk) != size or self.rfile.read(2) != b"\r\n":
+            if len(chunk) != size or self.rfile.read(2) != b"
+":
                 self._send_json(400, {"error": "invalid_chunked_body"})
                 return None
             chunks.append(chunk)
@@ -199,6 +217,33 @@ class ConnectorFaultHandler(BaseHTTPRequestHandler):
                 "test_harness": True,
             },
         )
+
+    def _oauth_token_503(self, body: bytes) -> None:
+        self.config.evidence.write(
+            mode=self.config.mode,
+            method=self.command,
+            path="/oauth/token",
+            outcome="injected_oauth_token_503",
+            body_bytes=len(body),
+        )
+        self._send_json(503, {"error": "server_error", "test_harness": True})
+
+    def _is_refresh_grant(self, body: bytes) -> bool:
+        try:
+            fields = parse_qs(body.decode("utf-8"), keep_blank_values=True, strict_parsing=False)
+        except UnicodeDecodeError:
+            return False
+        return fields.get("grant_type") == ["refresh_token"]
+
+    def _oauth_refresh_reject(self, body: bytes) -> None:
+        self.config.evidence.write(
+            mode=self.config.mode,
+            method=self.command,
+            path="/oauth/token",
+            outcome="injected_refresh_invalid_grant",
+            body_bytes=len(body),
+        )
+        self._send_json(400, {"error": "invalid_grant", "test_harness": True})
 
     def _reset_mcp(self, body: bytes) -> None:
         self.config.evidence.write(
