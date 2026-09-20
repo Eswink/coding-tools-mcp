@@ -1,6 +1,6 @@
 # ISSUE-005 — Offline-safe end-to-end and installed acceptance
 
-Status: OPEN — CI INSTALLED ACCEPTANCE ACTIVE; REAL CHATGPT HOST CASES DEFERRED  
+Status: ENGINEERING_CANDIDATE_PASS — REAL CHATGPT HOST CASES DEFERRED  
 Parent: [plan.md](plan.md)  
 Depends on: ISSUE-003 and ISSUE-004  
 Round: 5 / 5
@@ -218,3 +218,47 @@ src/commands/app_info.rs
 The type was imported unconditionally although its only non-test use after the prior correction is Linux-only. The import is now Linux-gated. A separate test-only `unused_mut` warning in the Round 3 supervisor regression was also removed so ordinary Windows check/test output stays clean.
 
 No runtime/auth/tunnel semantics are changed by either cleanup.
+
+
+## Engineering candidate gate result
+
+Cross-platform packaged acceptance is complete.
+
+### Ubuntu
+
+Run `35509843023`:
+
+- full frontend/Rust regression PASS;
+- Debian bundle build PASS;
+- package install and executable verification PASS;
+- purge/removal verification PASS.
+
+### Windows
+
+Run `35509843023`:
+
+- full frontend/Rust regression PASS;
+- NSIS bundle build PASS;
+- silent install PASS;
+- uninstall registration and installed executable verification PASS;
+- silent uninstall and registration-removal verification PASS.
+
+Run `35510062552` independently confirms the Windows non-test library compiles cleanly with `-D warnings`.
+
+### Failure-first record
+
+Earlier Round 5 failures remain part of the evidence:
+
+- Windows strict compile exposed cross-platform warning defects;
+- Ubuntu install smoke initially passed a relative package path to apt;
+- a second Windows pass exposed a remaining Linux-only import scope warning.
+
+Each failure was classified and corrected with bounded changes before the final green packaged run.
+
+### Current project state
+
+`ENGINEERING_CANDIDATE_PASS` is reached.
+
+The issue remains open for `HOST_VALIDATED / DONE` because the user deferred the dedicated real ChatGPT connector environment.
+
+No release tag, GitHub Release, production signing secret or public installer publication was created.
