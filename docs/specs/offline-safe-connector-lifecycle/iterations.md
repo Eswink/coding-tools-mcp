@@ -540,3 +540,148 @@ No Git tag, GitHub Release, production signing secret, or public installer relea
 The dedicated real ChatGPT test connector remains deferred by user choice. The exact procedure is preserved in `round5-host-deferred-procedure.md`.
 
 Until that procedure runs, ISSUE-005 remains open and the project must not claim `HOST_VALIDATED` or `DONE`.
+
+
+## 06 — Streamable HTTP Origin hardening
+
+Date: 2026-09-20  
+Branch: `security/mcp-origin-validation`  
+Draft PR: #25  
+Result: **SOURCE + CROSS-PLATFORM + PACKAGED PASS; real-host compatibility remains DEFERRED.**
+
+### External reference review
+
+The hardening design was compared against:
+
+- MCP 2025-06-18 / 2026-07-28 specifications;
+- MCP TypeScript SDK;
+- official MCP Rust SDK;
+- `MikkoParkkola/mcp-gateway`;
+- PMCP and chuk-mcp-rs.
+
+The review changed the original hostname-only public-Origin proposal to exact scheme + host + effective-port comparison while keeping missing-Origin compatibility for server-to-server clients.
+
+### Failure-first evidence
+
+Run `35513270637` demonstrated the gap before repair:
+
+```text
+4 focused tests
+1 passed
+3 failed
+```
+
+Foreign Origin, stale managed Origin, and OAuth control-plane Origin requests were accepted with HTTP 200.
+
+Repair run `35513449933` fixed production behavior but exposed one invalid test assertion around the literal string `null`; that test defect was recorded and corrected rather than hidden.
+
+### Impact
+
+Focused pre-edit run `35513186585`:
+
+- listener `serve`: **CRITICAL**, exact;
+- `PublicOrigin::snapshot`: **CRITICAL**, lower-bound;
+- router-registered handlers: UNKNOWN due graph-registration boundary.
+
+Final detect-changes in run `35516677404`:
+
+```text
+11 files
+57 symbols
+0 affected processes
+aggregate risk: low
+```
+
+The low aggregate result does not replace the focused CRITICAL evidence.
+
+### Focused security result
+
+Run `35516439406`: PASS.
+
+```text
+origin_security_tests
+4 passed
+0 failed
+```
+
+Coverage includes:
+
+- missing/local Origin;
+- exact current public Origin;
+- live public-origin rotation;
+- stale public Origin;
+- wrong public scheme/port;
+- foreign/malformed/opaque Origin;
+- duplicate Origin headers;
+- invalid CORS preflight;
+- MCP GET/POST;
+- OAuth discovery/authorize/token control routes;
+- non-reflective 403 envelope.
+
+### Windows timing isolation
+
+Run `35513687191` produced one unrelated owner-drain startup timeout at 8056 ms under parallel Windows CI.
+
+No product timeout was weakened.
+
+Run `35516343223` executed the exact test alone:
+
+```text
+drain-startup ready after 895ms
+1 passed
+0 failed
+```
+
+The full workflow was changed to keep the test outside the Windows parallel batch.
+
+### Final full source validation
+
+Run `35516677404`: SUCCESS.
+
+Ubuntu:
+
+- 384 primary tests passed;
+- Origin matrix green;
+- integration suites green;
+- strict compile green.
+
+Windows:
+
+- 385 primary tests passed with the one drain case intentionally filtered from the parallel batch;
+- isolated drain case passed with readiness at 69 ms;
+- Origin matrix green;
+- integration suites green;
+- strict compile green.
+
+Frontend contract: 3/3 PASS on both platforms.
+
+### Final packaged validation
+
+Run `35516447042`: SUCCESS.
+
+Ubuntu:
+
+- package SHA-256 `54920e4a565fe031129249e3bab0af20debbcf453842fbe2d58215db6e704357`;
+- install/executable/purge PASS;
+- artifact digest `sha256:b511ad9caa315b221e640c92209696782b3473048ce83d2a09e7a4b49479bc43`.
+
+Windows:
+
+- installer SHA-256 `269d5aa3b911ffddd92b8f16c04a2db1d5bddd6d00807d4b7b04e9954c7af123`;
+- silent install/executable/uninstall PASS;
+- artifact digest `sha256:6c9cb3021301b62fe55b1f5e589c85a8dd3161c592894e1bfd725b71a61af895`.
+
+### Result
+
+ISSUE-006 closes at source/security acceptance.
+
+The project remains:
+
+```text
+engineering candidate: PASS
+Origin boundary: SOURCE/PACKAGED PASS
+real ChatGPT reconnect UX: UNCONFIRMED_ON_REAL_HOST
+real ChatGPT Origin compatibility: UNCONFIRMED_ON_REAL_HOST
+```
+
+Next direct product task: ISSUE-008 intent-aware lifecycle UX. ISSUE-007 Host/:authority enforcement waits for tunnel-topology evidence.
