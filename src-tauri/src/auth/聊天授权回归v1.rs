@@ -193,6 +193,34 @@ fn offline_preserves_existing_pending_active_and_exclusive_ordering() {
 }
 
 #[test]
+fn recovery_required_precedes_offline_authorization_suppression() {
+    let root = tempfile::tempdir().unwrap();
+    let harness = tempfile::tempdir().unwrap();
+    let fence_root = tempfile::tempdir().unwrap();
+    let svc = Arc::new(ChatAuthorizer::default());
+    let req = request(&svc, "offline-auth-recovery-profile", "R");
+    let binding = req.binding.as_ref().unwrap().clone();
+
+    let initial = super::super::execution_fence::ExecutionFence::open(fence_root.path()).unwrap();
+    initial.mark(&binding).unwrap();
+    drop(initial);
+    let recovered = Arc::new(
+        super::super::execution_fence::ExecutionFence::open(fence_root.path()).unwrap()
+    );
+    assert!(!recovered.ready());
+    svc.fences.lock().unwrap().insert(req.profile.clone(), recovered);
+
+    let mut ctx = ToolContext::for_test(root.path().into(), harness.path().into()).unwrap();
+    ctx.remote_request = Some(req.clone());
+    ctx.execution_gate.pause().unwrap();
+
+    let blocked = call_tool(&ctx, "request_chat_authorization", &json!({}));
+    assert_eq!(blocked["error"]["code"], "CHAT_RECOVERY_REQUIRED", "{blocked}");
+    assert_ne!(blocked["error"]["code"], "CHAT_AUTHORIZATION_UNAVAILABLE");
+    assert!(svc.snapshot(&req.profile)["records"].as_array().unwrap().is_empty());
+}
+
+#[test]
 fn runtime_cwd_sessions_jobs_harness_and_history_are_separate() {
     let root = tempfile::tempdir().unwrap(); let h = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join("a")).unwrap();
