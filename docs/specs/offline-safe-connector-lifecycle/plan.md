@@ -1,6 +1,6 @@
 # Offline-safe Connector Lifecycle — Project Plan
 
-Status: ENGINEERING_CANDIDATE_PASS; ISSUE-006 ORIGIN HARDENING ACTIVE; ISSUE-008 UX INTENT MAPPING NEXT; REAL-HOST VALIDATION DEFERRED.  
+Status: ENGINEERING_COMPLETE; SOURCE/CROSS-PLATFORM/PACKAGED GATES PASS; REAL-HOST AND LIVE-TUNNEL FOLLOW-UPS DEFERRED.
 Date: 2026-09-20  
 Base: `main` @ `823cbdeba68bbdd832d93f4636f701ddb98474f1`  
 Branch: `plan/offline-safe-connector-lifecycle`
@@ -307,8 +307,21 @@ Do not use “retry until green” as a substitute for diagnosis.
 - ISSUE-006 — Streamable HTTP Origin boundary hardening.
 - ISSUE-007 — Tunnel-aware Host / authority and Fetch Metadata hardening.
 - ISSUE-008 — Intent-aware offline-safe lifecycle UX.
+- ISSUE-009 — Suppress new chat-authorization noise while execution is paused.
 
-ISSUE-001 remains evidence-incomplete for real-host behavior, with its host gate explicitly deferred. ISSUE-002 is design-frozen. ISSUE-003 control/execution separation and ISSUE-004 privacy hardening are merged. ISSUE-005 reached ENGINEERING_CANDIDATE_PASS on Windows and Ubuntu packaged artifacts while HOST_VALIDATED remains deferred. ISSUE-006 is an active post-acceptance security hardening item. ISSUE-007 is planned for tunnel-aware Host/Fetch-Metadata defense. ISSUE-008 is required because the current prominent MCP “Stop” action can still intentionally tear down the connector even though Pause/Resume now exists.
+Current issue truth state:
+
+- ISSUE-001 — real ChatGPT reconnect classification: DEFERRED / UNCONFIRMED_ON_REAL_HOST.
+- ISSUE-002 — availability/error contract: DESIGN FROZEN.
+- ISSUE-003 — control/execution separation: SOURCE/CROSS-PLATFORM/PACKAGED PASS.
+- ISSUE-004 — non-disclosing multi-user boundary: SOURCE/CROSS-PLATFORM PASS.
+- ISSUE-005 — engineering end-to-end / installed acceptance: ENGINEERING_CANDIDATE_PASS.
+- ISSUE-006 — Streamable HTTP Origin hardening: SOURCE/CROSS-PLATFORM/PACKAGED PASS.
+- ISSUE-007 — tunnel-aware Host/:authority/Fetch-Metadata hardening: DESIGN + SANITIZED PROBE READY; LIVE TUNNEL OBSERVATION DEFERRED.
+- ISSUE-008 — intent-aware lifecycle UX: SOURCE/UX PASS.
+- ISSUE-009 — Offline new-authorization-noise suppression: SOURCE/CROSS-PLATFORM/PACKAGED PASS.
+
+The engineering scope authorized after deferring real-host testing is complete. The project must still use the exact truth label `UNCONFIRMED_ON_REAL_HOST` for the original ChatGPT reconnect-card behavior, and ISSUE-007 must remain non-enforcing until live tunnel topology is observed.
 
 ## Code areas expected to be affected after Round 1
 
@@ -409,3 +422,31 @@ explicit destructive infrastructure action
 ```
 
 This does not change the real-host truth label. It reduces accidental hard-stop usage before real ChatGPT validation is eventually performed.
+
+
+## Engineering completion boundary
+
+The implementation phase is complete for the currently approved non-real-host scope.
+
+Completed:
+
+- stable MCP/OAuth control plane remains reachable while workspace execution is paused;
+- atomic admission fence prevents new business execution after Pause commits;
+- OAuth refresh, local chat lease and exclusive owner remain independent;
+- unauthorized/foreign chats cannot learn workspace/project/task metadata;
+- a paused workspace cannot create fresh local authorization/tray noise for an unrelated unapproved chat;
+- operator UI maps normal temporary intent to Pause/Resume and reserves hard Stop Connector for explicit infrastructure shutdown;
+- MCP/OAuth HTTP Origin validation is enforced using the current live PublicOrigin;
+- Windows and Ubuntu source, strict compile, package build, install and removal evidence are green;
+- bounded rollback procedures are recorded.
+
+Deferred by explicit project decision:
+
+- real ChatGPT C1–C10 host observations;
+- proof that the real ChatGPT reconnect card disappears for Level A pause/resume;
+- shared-account connector visibility in the actual ChatGPT UI;
+- live Host/:authority forwarding observation for every supported FRP/Cloudflare tunnel mode.
+
+These deferred items are external/interoperability acceptance, not unfinished hidden implementation work.
+
+The central project can therefore be merged as an **engineering-complete candidate**, but no release note or user-facing claim may say the original reconnect UX is definitively fixed until the deferred host procedure is executed.

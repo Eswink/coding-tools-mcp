@@ -924,3 +924,38 @@ offline authorization-noise suppression: PASS
 real ChatGPT reconnect behavior: UNCONFIRMED_ON_REAL_HOST
 shared-account connector visibility: UNCONFIRMED_ON_REAL_HOST
 ```
+
+
+## 09 — Engineering completion
+
+Date: 2026-09-21  
+Branch: `finalize/offline-safe-engineering-complete`  
+Result: **ENGINEERING_COMPLETE / HOST_VALIDATION_DEFERRED**
+
+All implementation, source regression, privacy, security, UX and cross-platform packaged engineering gates approved after deferring real ChatGPT host testing are complete.
+
+Latest completed feature gates:
+
+- ISSUE-003 Level A control/execution separation: PASS;
+- ISSUE-004 non-disclosing privacy matrix: PASS;
+- ISSUE-005 Windows/Ubuntu installed engineering acceptance: ENGINEERING_CANDIDATE_PASS;
+- ISSUE-006 Streamable HTTP Origin boundary: PASS;
+- ISSUE-008 intent-aware lifecycle UX: PASS;
+- ISSUE-009 Offline new-authorization suppression: PASS.
+
+The central plan branch also contains the ISSUE-007 sanitized tunnel topology probe. Host/:authority enforcement remains deferred because live reverse-tunnel forwarding evidence is still required.
+
+### Final truth state
+
+```text
+offline-safe engineering implementation: COMPLETE
+Windows packaged acceptance: PASS
+Ubuntu packaged acceptance: PASS
+Origin boundary: PASS
+shared-chat privacy/noise boundary: PASS
+intent-aware desktop lifecycle UX: PASS
+real ChatGPT reconnect behavior: UNCONFIRMED_ON_REAL_HOST
+live tunnel Host/:authority topology: DEFERRED
+```
+
+These last two deferred external gates are documented follow-ups and are not presented as completed evidence.
