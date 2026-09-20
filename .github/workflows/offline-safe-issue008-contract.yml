@@ -9,7 +9,7 @@ on:
       - 'src/lib/components/ServicePanel.svelte'
       - 'src/lib/components/workspace/ExecutionAvailabilityPanel.svelte'
       - 'src/lib/components/workspace/WorkspaceServiceView.svelte'
-      - 'src/routes/workspace/[id]/+page.svelte'
+      - 'src/routes/workspace/**/+page.svelte'
       - '.github/workflows/offline-safe-issue008-contract.yml'
   workflow_dispatch:
 
