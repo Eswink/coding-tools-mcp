@@ -112,10 +112,18 @@ async fn managed_public_origin_allowlist_tracks_live_publication() {
     let client = fixture::client();
     let url = format!("{}/mcp", server.base);
 
-    assert_eq!(get(&client, &url, Some("https://old.example.com:9443")).await.status(), 200);
+    assert_eq!(get(&client, &url, Some("https://old.example.com")).await.status(), 200);
+    assert_generic_forbidden(
+        get(&client, &url, Some("https://old.example.com:9443")).await,
+        &["old.example.com"],
+    ).await;
+
     server.origin.publish("https://current.example.com").unwrap();
     assert_eq!(get(&client, &url, Some("https://current.example.com")).await.status(), 200);
-    assert_eq!(get(&client, &url, Some("https://CURRENT.EXAMPLE.COM:8443")).await.status(), 200);
+    assert_eq!(get(&client, &url, Some("https://CURRENT.EXAMPLE.COM")).await.status(), 200);
+    for origin in ["http://current.example.com", "https://current.example.com:8443"] {
+        assert_generic_forbidden(get(&client, &url, Some(origin)).await, &["current.example.com"]).await;
+    }
     assert_generic_forbidden(
         get(&client, &url, Some("https://old.example.com")).await,
         &["old.example.com"],
