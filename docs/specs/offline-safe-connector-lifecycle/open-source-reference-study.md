@@ -360,3 +360,47 @@ For coding-tools-mcp:
 | `Sec-Fetch-Site` defense | mcp-gateway | ISSUE-007 |
 | Canonical OAuth audience independent of request Host | PMCP | Preserve existing invariant |
 | Dual protocol-era / conformance discipline | chuk-mcp-rs | Future protocol compatibility issue |
+
+
+## 10. Microsoft MCP Gateway — what a real Level C would look like
+
+Reference:
+
+- repository: `microsoft/mcp-gateway`
+- inspected revision family: `3594c4eee36308ac131aad1c946ea14140b4353d`
+- `README.md`
+
+Observed architecture:
+
+- separate data plane for MCP request routing;
+- separate control plane for deploy/update/delete lifecycle;
+- metadata store independent of individual MCP server processes;
+- session-aware routing/affinity;
+- multiple router/server instances behind the gateway;
+- explicit deployment status/log surfaces;
+- enterprise auth/observability as gateway concerns rather than workspace-process concerns.
+
+### Decision
+
+**Do not adopt now; use as a Level C reference architecture only.**
+
+The original reconnect problem does not yet justify Kubernetes, a remote metadata plane, or session-affinity infrastructure.
+
+If real-host validation eventually proves that the connector endpoint must survive desktop-process exit or machine/network loss, Level C should not be implemented as “keep one desktop listener alive harder.” The correct shape would instead resemble:
+
+```text
+always-on connector/control endpoint
+        |
+        +-- durable auth / metadata
+        +-- workspace availability state
+        +-- route to local/remote worker only when available
+```
+
+The server endpoint and workspace worker would become different failure domains.
+
+This reinforces the current sequencing:
+
+1. Level A local control/execution separation first;
+2. real-host evidence;
+3. only then decide whether Level B local daemon or Level C remote broker is required.
+
