@@ -157,3 +157,50 @@ engineering candidate: validated
 real ChatGPT reconnect UX: UNCONFIRMED_ON_REAL_HOST
 shared-account connector visibility: UNCONFIRMED_ON_REAL_HOST
 ```
+
+
+## Failure-first packaged iteration — run 35508467273
+
+The first packaged acceptance run failed on both platforms for two different reasons. The failures are retained as evidence.
+
+### Windows
+
+Frontend, `cargo check`, and the full Rust test suite progressed successfully. The source step failed only at the final strict library compile:
+
+```text
+cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings
+```
+
+Windows-only findings:
+
+1. `tools/policy.rs::merge_default_allowed_commands` — `unused_mut` because the mutation is Linux-only.
+2. `commands/app_info.rs::should_initialize_default_collection` — dead code because the helper is Linux-only.
+3. `StartupFailureReason::{SessionBusMissing, SecretServiceUnavailable, SecretServiceDefaultCollectionMissing}` — Linux-only variants reported as never constructed in a Windows non-test library build.
+
+Focused pre-edit GitNexus run `35509056768`:
+
+- `merge_default_allowed_commands`: **CRITICAL**, exact — 25 impacted symbols / 6 affected processes / 5 modules.
+- `should_initialize_default_collection`: LOW, exact.
+- `StartupFailureReason`: UNKNOWN but exact symbol resolution; GitNexus resolves no callers, which is explicitly not treated as proof of safety.
+
+Corrections are intentionally semantic-preserving:
+
+- remove platform-conditional `mut` by using a Linux-only shadowed filtered set;
+- compile the default-collection helper/test only on Linux;
+- retain the cross-platform enum but mark the three Linux-only variants as dead-code-allowed only on non-Linux targets.
+
+### Ubuntu
+
+The full source regression passed and the actual Debian package built successfully.
+
+Install validation then failed because the workflow passed a repository-relative `.deb` path to `apt-get install`; apt interpreted it as a package name rather than a local file:
+
+```text
+E: Unable to locate package src-tauri/target/release/bundle/deb
+```
+
+The correction resolves the generated `.deb` to an absolute path before installation. No product code is involved in this Ubuntu failure.
+
+### Truth status
+
+These failures are packaging/cross-platform strict-compile findings. They do not invalidate the Round 3/4 offline-safe protocol evidence, but they block ENGINEERING_CANDIDATE_PASS until the corrected Windows and Ubuntu packaged run is green.
