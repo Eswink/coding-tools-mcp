@@ -82,3 +82,58 @@ fn access_renewal_keeps_binding_and_does_not_extend_lease() {
     assert_eq!(s.status(&renewed)["authorization"]["expires_at"],before["expires_at"]);
     assert_eq!(s.status(&renewed)["authorization"]["idle_expires_at"],before["expires_at"]);
 }
+
+#[test]
+fn draining_denial_contains_no_owner_or_work_metadata() {
+    let s = Arc::new(ChatAuthorizer::default());
+    let a = request(&s, "privacy-draining-profile", "owner-A");
+    let b = request(&s, "privacy-draining-profile", "foreign-B");
+    let id = approve(&s, &a);
+    let owner_binding = a.binding.as_ref().unwrap().clone();
+    let flight = s.admit(&a, &["files.read"]).unwrap();
+
+    s.revoke("privacy-draining-profile", Some(&id));
+    let blocked = s.request(&b, &json!({}));
+    assert_eq!(blocked["error"]["code"], "CHAT_WORK_DRAINING");
+    assert!(blocked.get("authorization").is_none());
+
+    let text = blocked.to_string();
+    for secret in [&id, &owner_binding, "privacy-draining-profile", "owner-A"] {
+        assert!(!text.contains(secret), "draining denial leaked {secret:?}: {blocked}");
+    }
+
+    drop(flight);
+}
+
+#[test]
+fn recovery_denial_contains_no_generation_binding_or_workspace_metadata() {
+    let s = Arc::new(ChatAuthorizer::default());
+    let profile = "privacy-recovery-profile";
+    let req = request(&s, profile, "foreign-recovery-chat");
+    let binding = req.binding.as_ref().unwrap().clone();
+    let root = tempfile::tempdir().unwrap();
+
+    let initial = super::super::execution_fence::ExecutionFence::open(root.path()).unwrap();
+    initial.mark(&binding).unwrap();
+    let generation = initial.snapshot()["generation"].as_str().unwrap().to_owned();
+    drop(initial);
+
+    let recovered = Arc::new(super::super::execution_fence::ExecutionFence::open(root.path()).unwrap());
+    assert!(!recovered.ready());
+    s.fences.lock().unwrap().insert(profile.into(), recovered);
+
+    for blocked in [s.status(&req), s.request(&req, &json!({}))] {
+        assert_eq!(blocked["error"]["code"], "CHAT_RECOVERY_REQUIRED");
+        assert!(blocked.get("authorization").is_none());
+        let text = blocked.to_string();
+        for secret in [
+            generation.as_str(),
+            binding.as_str(),
+            profile,
+            "foreign-recovery-chat",
+            root.path().to_string_lossy().as_ref(),
+        ] {
+            assert!(!text.contains(secret), "recovery denial leaked {secret:?}: {blocked}");
+        }
+    }
+}
