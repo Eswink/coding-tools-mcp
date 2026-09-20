@@ -236,8 +236,18 @@ impl ChatAuthorizer {
         self.reconcile(&req.profile);
         if self.fence(&req.profile).is_some_and(|f|!f.ready()){return denied("CHAT_RECOVERY_REQUIRED");}
         let mut state = self.state.lock().expect("chat authorization lock");
-        // Reject before touching caller-selected scopes or allocating state.
+        // Preserve the original request-validation contract before returning
+        // an existing grant or consulting execution availability.
         if let Err(e) = Self::owner_check(&state, &req.profile, key) { return denied(e); }
+        let Some(obj) = args.as_object() else { return denied("INVALID_AUTHORIZATION_REQUEST"); };
+        if obj.keys().any(|k| k != "scopes") { return denied("INVALID_AUTHORIZATION_REQUEST"); }
+        let requested: BTreeSet<String> = match obj.get("scopes") {
+            None => ["workspace.read", "files.read", "task.read", "history.read"].iter().map(|s| (*s).into()).collect(),
+            Some(v) => match v.as_array().filter(|v| !v.is_empty() && v.len() <= SCOPES.len()) {
+                Some(v) if v.iter().all(|s| s.as_str().is_some_and(|s| SCOPES.contains(&s))) => v.iter().map(|s| s.as_str().unwrap().into()).collect(),
+                _ => return denied("INVALID_SCOPES"),
+            }
+        };
         if let Some(r) = state.records.get(key).filter(|r| r.profile == req.profile) {
             if matches!(r.view.status.as_str(), "pending" | "active") {
                 return json!({"ok":true,"authorization":r.view});
@@ -253,15 +263,6 @@ impl ChatAuthorizer {
             Err(value) => return value,
         };
 
-        let Some(obj) = args.as_object() else { return denied("INVALID_AUTHORIZATION_REQUEST"); };
-        if obj.keys().any(|k| k != "scopes") { return denied("INVALID_AUTHORIZATION_REQUEST"); }
-        let requested: BTreeSet<String> = match obj.get("scopes") {
-            None => ["workspace.read", "files.read", "task.read", "history.read"].iter().map(|s| (*s).into()).collect(),
-            Some(v) => match v.as_array().filter(|v| !v.is_empty() && v.len() <= SCOPES.len()) {
-                Some(v) if v.iter().all(|s| s.as_str().is_some_and(|s| SCOPES.contains(&s))) => v.iter().map(|s| s.as_str().unwrap().into()).collect(),
-                _ => return denied("INVALID_SCOPES"),
-            }
-        };
         let now = Instant::now();
         for r in state.records.values_mut() { r.refresh(now); }
         state.records.retain(|_, r| matches!(r.view.status.as_str(), "active" | "pending"));
