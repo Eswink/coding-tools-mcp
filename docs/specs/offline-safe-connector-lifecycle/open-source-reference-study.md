@@ -1036,3 +1036,63 @@ allow-review only when local UI has explicitly armed an approval window
 ```
 
 Do not add this policy in ISSUE-009. The current task has a narrower deterministic trigger: suppress only new approvals while execution is intentionally Offline.
+
+
+## 13. MCPMate first-contact governance — explicit policy before approval state
+
+Reference:
+
+- repository: `loocor/MCPMate`
+- inspected revision family: `dc80b32f64788bf9513ccf241dd19708b25cce87`
+- `backend/src/clients/models.rs`
+- `backend/src/clients/service/state.rs`
+- `backend/src/system/settings.rs`
+- `backend/src/core/proxy/server/gateway.rs`
+
+Observed pattern:
+
+MCPMate models first-contact governance as a persisted setting rather than inferring it from transport state:
+
+```text
+FirstContactBehavior::Deny
+FirstContactBehavior::Review
+FirstContactBehavior::Allow
+```
+
+The behavior is translated into explicit approval state:
+
+```text
+deny   -> suspended
+review -> pending
+allow  -> approved
+```
+
+and also maps to a separately named onboarding policy.
+
+Unknown clients are therefore handled by governance rules before normal capability use. Profile enable/disable is likewise separate from the core-service lifecycle.
+
+### Decision for coding-tools-mcp
+
+**Adopt the explicit-governance shape, not automatic approval.**
+
+ISSUE-010 adds:
+
+```text
+review
+local_window
+deny_new
+```
+
+but even `review` produces only a local **pending** chat grant. No remote ChatGPT conversation is auto-approved.
+
+`local_window` is intentionally stricter than MCPMate's review mode:
+
+- local desktop action only;
+- 90-second lifetime;
+- single use;
+- in-memory only;
+- does not restart connector;
+- does not change OAuth;
+- does not reveal its state remotely.
+
+This is the preferred shared-account posture because connector installation/reachability and new-human-approval admission become separate controls.
