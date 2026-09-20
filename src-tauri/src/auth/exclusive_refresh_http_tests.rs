@@ -18,7 +18,7 @@ impl Server {
     fn new() -> Self {
         let root=tempfile::tempdir().unwrap();let profile=uuid::Uuid::new_v4().to_string();
         let socket=std::net::TcpListener::bind("127.0.0.1:0").unwrap();let port=socket.local_addr().unwrap().port();drop(socket);
-        let (stop,_task,_execution_gate)=crate::mcp::spawn_listener_with_origin(port,root.path().into(),profile.clone(),
+        let (stop,_task)=crate::mcp::spawn_listener_with_origin(port,root.path().into(),profile.clone(),
             AuthConfig {oauth_client_id:"test-client".into(),..Default::default()},PublicOrigin::managed(fixture::ORIGIN).unwrap(),
             Some(SECRET.into()),Some(PASSWORD.into()),Some(fixture::KEY.into()),RuntimeConfig::default()).unwrap();
         let client=reqwest::Client::builder().no_proxy().redirect(reqwest::redirect::Policy::none()).timeout(Duration::from_secs(10)).build().unwrap();
