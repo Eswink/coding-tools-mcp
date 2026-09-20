@@ -76,6 +76,7 @@ jobs:
           npm ci
           npm run check
           npm run build
+          node --test tests/offline-safe-ui.test.mjs
       - name: Rust checks
         shell: bash
         run: |
