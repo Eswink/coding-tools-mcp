@@ -4,9 +4,12 @@ use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum StartupFailureReason {
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     SessionBusMissing,
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     SecretServiceUnavailable,
     SecretServiceLockedOrDenied,
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     SecretServiceDefaultCollectionMissing,
     KeyEntryMissing,
     EncryptedConfigKeyMissing,
