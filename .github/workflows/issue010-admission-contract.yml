@@ -1,0 +1,31 @@
+name: ISSUE-010 admission failure-first contract
+
+on:
+  push:
+    branches:
+      - design/shared-account-admission-policy
+    paths:
+      - 'tests/issue010-admission-contract.test.mjs'
+      - '.github/workflows/issue010-admission-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run failure-first admission contract
+        run: node --test tests/issue010-admission-contract.test.mjs
