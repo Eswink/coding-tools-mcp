@@ -80,23 +80,15 @@ fn requires_online_execution(name: &str) -> bool {
     )
 }
 fn request_chat_authorization(ctx: &ToolContext, req: &RemoteRequest, args: &Value) -> Value {
-    // Preserve identity/recovery/exclusive ordering and existing grants first.
-    // Only a brand-new pending allocation is suppressed while local execution
-    // is intentionally paused.
-    let status = req.service.status(req);
-    if status["ok"] != true {
-        return status;
-    }
-    if matches!(
-        status["authorization"]["status"].as_str(),
-        Some("pending" | "active")
-    ) {
-        return req.service.request(req, args);
-    }
-    if ctx.execution_gate.snapshot().availability.as_str() == "offline" {
-        return denied("CHAT_AUTHORIZATION_UNAVAILABLE");
-    }
-    req.service.request(req, args)
+    // ChatAuthorizer preserves identity/recovery/exclusive/existing-grant
+    // precedence, then executes this closure only for a NEW pending allocation.
+    // Holding the execution gate through allocation makes Pause linearizable:
+    // once Pause returns, no later pending grant can be committed.
+    req.service.request_guarded(req, args, || {
+        ctx.execution_gate
+            .hold_online()
+            .map_err(|_| denied("CHAT_AUTHORIZATION_UNAVAILABLE"))
+    })
 }
 
 /// This hook precedes policy, cwd, Harness and every dispatch branch, including async workers.
