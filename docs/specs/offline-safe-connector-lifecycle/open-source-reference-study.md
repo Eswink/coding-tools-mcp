@@ -619,3 +619,48 @@ That is still a **source-derived expectation, not runtime proof**:
 - HTTP/2 authority representation at Axum/hyper still needs observation.
 
 ISSUE-007 should therefore use this finding to make the probe smaller, not to skip it.
+
+
+## 13. MCP OAuth challenge semantics — keep local approval suppression out of HTTP auth
+
+References:
+
+- `modelcontextprotocol/modelcontextprotocol@24efd6e7cbd7a074e6b3b781eb370891df40afad`
+  - 2025-06-18 authorization specification;
+  - protected-resource metadata / RFC 9728 alignment;
+  - Inspector authorization documentation.
+- `modelcontextprotocol/typescript-sdk@60321700871029401a2e3bed8fdf4f02c9ec3331`
+  - resource-server bearer-auth middleware;
+  - authorization documentation.
+
+Observed protocol boundary:
+
+- missing, malformed, expired or otherwise invalid bearer credentials use HTTP `401` and may carry a `WWW-Authenticate` challenge;
+- OAuth scope step-up uses HTTP `403 insufficient_scope` with `WWW-Authenticate`;
+- those HTTP challenge responses are specifically what tells an MCP client to enter/re-enter OAuth authorization.
+
+### Decision for coding-tools-mcp
+
+**Preserve the distinction already used by ISSUE-003/009.**
+
+`CHAT_AUTHORIZATION_UNAVAILABLE` is a local desktop/conversation admission condition, not an OAuth credential defect and not an OAuth scope step-up.
+
+Therefore it must remain:
+
+```text
+HTTP/MCP transport: healthy
+OAuth bearer identity: valid
+MCP tool result: isError=true
+structured error: CHAT_AUTHORIZATION_UNAVAILABLE
+WWW-Authenticate: absent
+```
+
+Do not encode the paused local-approval condition as HTTP 401/403 with an OAuth challenge. Doing so would invite exactly the wrong host behavior: re-login / reconnect for a credential that is still valid.
+
+This open-source/spec comparison strengthens the project's existing three-way separation:
+
+```text
+OAuth authentication
+conversation/local approval
+workspace execution availability
+```
