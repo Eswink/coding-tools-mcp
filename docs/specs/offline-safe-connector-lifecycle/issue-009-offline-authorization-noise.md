@@ -201,6 +201,37 @@ Exact source review confirms `request_chat_authorization` is dispatched directly
 
 Implementation remains bounded to the chat-domain dispatch/error mapping unless compilation or tests prove a gate API change is necessary.
 
+## Repair iteration and atomicity correction
+
+The first bounded repair used a read-only execution-state snapshot before calling the existing authorization allocator. Focused tests passed, but review exposed a pause-vs-allocation TOCTOU:
+
+```text
+request observes Online
+pause commits and returns
+request allocates pending approval afterward
+```
+
+That would violate the intended post-pause guarantee.
+
+The repair was therefore strengthened before full acceptance:
+
+1. `ChatAuthorizer` now exposes a generic guarded-new-allocation path while keeping the existing unguarded `request` API for all existing callers.
+2. Existing recovery/exclusive/pending/active state is resolved under the authorization mutex first.
+3. Only when a **new** grant would be allocated does the caller acquire a short-lived Online hold from the execution gate.
+4. The authorization mutex and Online hold remain alive through pending-record insertion and event publication.
+5. `pause()` cannot commit until that short allocation finishes; after `pause()` returns, no later pending grant can be created.
+
+The lock order is:
+
+```text
+chat authorization state
+ -> execution availability gate
+```
+
+No path introduced by ISSUE-009 acquires those two locks in the reverse order. The hold never wraps tool execution or blocking I/O.
+
+A runtime regression verifies that Pause cannot commit while the short Online allocation hold is alive.
+
 ## Acceptance
 
 SOURCE PASS requires:
