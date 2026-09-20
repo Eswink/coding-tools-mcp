@@ -48,6 +48,31 @@ pub fn spawn_listener_with_origin(
     oauth_password: Option<String>,
     oauth_token_secret: Option<String>,
     runtime: RuntimeConfig,
+) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>), String> {
+    spawn_listener_with_origin_and_execution_gate(
+        port,
+        workspace_path,
+        workspace_id,
+        auth,
+        public_base_url,
+        oauth_client_secret,
+        oauth_password,
+        oauth_token_secret,
+        runtime,
+    ).map(|(shutdown, handle, _execution_gate)| (shutdown, handle))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn spawn_listener_with_origin_and_execution_gate(
+    port: u16,
+    workspace_path: PathBuf,
+    workspace_id: String,
+    auth: AuthConfig,
+    public_base_url: PublicOrigin,
+    oauth_client_secret: Option<String>,
+    oauth_password: Option<String>,
+    oauth_token_secret: Option<String>,
+    runtime: RuntimeConfig,
 ) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>, Arc<crate::runtime::WorkspaceExecutionGate>), String> {
     auth.session_policy.validate()?;
     crate::auth::chat::service().configure(&workspace_id, &auth.session_policy)?;
