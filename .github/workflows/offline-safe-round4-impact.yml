@@ -1,0 +1,80 @@
+name: Offline-safe Round 4 privacy impact gate
+
+on:
+  push:
+    branches:
+      - hardening/offline-safe-multi-user-boundary
+    paths:
+      - '.github/workflows/offline-safe-round4-impact.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offline-safe-round4-impact-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build fresh GitNexus index
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx -y gitnexus@latest analyze | tee evidence/analyze.txt
+          git reset --hard "$GITHUB_SHA"
+          npx -y gitnexus@latest status | tee evidence/status.txt
+      - name: Impact ChatAuthorizer status
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact status --file src-tauri/src/auth/聊天授权v1.rs --direction upstream | tee evidence/impact-chat-status.txt
+      - name: Impact ChatAuthorizer request
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact request --file src-tauri/src/auth/聊天授权v1.rs --direction upstream | tee evidence/impact-chat-request.txt
+      - name: Impact ChatAuthorizer admit
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact admit --file src-tauri/src/auth/聊天授权v1.rs --direction upstream | tee evidence/impact-chat-admit.txt
+      - name: Impact remote chat intercept
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact intercept --file src-tauri/src/tools/聊天运行域v1.rs --direction upstream | tee evidence/impact-chat-intercept.txt
+      - name: Impact MCP request handler
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact handle_request --file src-tauri/src/mcp/server.rs --direction upstream | tee evidence/impact-mcp-handle-request.txt
+      - name: Impact MCP initialize result
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact initialize_result --file src-tauri/src/mcp/server.rs --direction upstream | tee evidence/impact-mcp-initialize.txt
+      - name: Impact server info
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest impact server_info --file src-tauri/src/tools/dispatch.rs --direction upstream | tee evidence/impact-server-info.txt
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-safe-round4-privacy-impact
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
