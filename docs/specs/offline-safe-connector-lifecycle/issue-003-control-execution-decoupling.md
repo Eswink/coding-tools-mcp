@@ -33,15 +33,21 @@ Run `35503567408`:
 - `chat_domain::intercept`: LOW, exact
 - `RuntimeStatusDto`: LOW, exact
 
-Run `35504005051` added the MCP listener public entrypoint:
+Run `35504005051` first surfaced the listener entrypoint as **CRITICAL**. The CRITICAL result was not ignored: widening the existing listener tuple immediately broke OAuth/HTTP fixtures, so the implementation was narrowed.
 
-- `spawn_listener_with_origin`: **CRITICAL**, exact
-- impacted symbols: 31
-- direct dependants: 11
-- affected processes: 7
-- affected modules: 4
+Final focused impact run `35506436646` on the narrowed design reports:
 
-The CRITICAL result was not ignored. The first implementation changed the existing listener return type and immediately produced broad compile breakage. The implementation was redesigned so the existing public pair-return `spawn_listener_with_origin` contract is preserved. A new crate-local gate-aware entrypoint is used only by the runtime supervisor and the new targeted regression.
+- `spawn_listener_with_origin_and_execution_gate`: **CRITICAL**, exact — 33 impacted symbols, 4 direct dependants, 8 affected processes, 5 modules.
+- legacy test-only `spawn_listener_with_origin`: **HIGH**, exact — 20 impacted symbols, 8 direct dependants, 4 affected processes, 3 modules.
+- `RuntimeSupervisor::start`: LOW, lower-bound.
+- `RuntimeSupervisor::status`: MEDIUM, lower-bound.
+- `ToolContext::background_snapshot`: **HIGH**, lower-bound.
+- `chat_domain::intercept`: LOW, exact.
+- `RuntimeStatusDto`: LOW, exact.
+
+The gate-aware listener therefore remains a critical change even after API narrowing. Review and validation stay mandatory; the impact classification is not downgraded because the source compiles.
+
+GitNexus 1.6.12 cannot currently index the targeted Svelte page/component symbols. Run `35504168445` failed exact lookup for `applyMcpRuntime`, and run `35504745045` records both Svelte `Props` probes with exit code 1. This tooling limitation is preserved as evidence rather than relabeled PASS; Svelte edits are covered by source review, `svelte-check`, production build, and a focused Node UI contract regression.
 
 ## Implementation increments
 
@@ -121,7 +127,17 @@ Added local Tauri IPC:
 
 Resume also refuses to clear or bypass an existing chat recovery fence.
 
-### 3.6 HTTP regression
+### 3.6 UI state separation
+
+The workspace page now renders an explicit MCP execution-availability panel:
+
+- Connector lifecycle and execution availability are shown as separate concepts.
+- `Pause remote execution` / `Resume remote execution` use the observed runtime generation.
+- Existing `Stop` remains the hard connector+tunnel stop.
+- Configuration/service switching is fenced while the availability mutation is in flight.
+- A focused Node regression locks the distinction between pause/resume and hard stop.
+
+### 3.7 HTTP regression
 
 Added synthetic HTTP regression that proves:
 
@@ -133,7 +149,13 @@ Added synthetic HTTP regression that proves:
 - foreign B still receives `EXCLUSIVE_CHAT_LOCKED` and no grant metadata;
 - resume restores A business dispatch.
 
+A second synthetic HTTP regression also pauses execution, rotates an OAuth refresh token successfully, verifies the same chat authorization id remains active, observes `WORKSPACE_OFFLINE` for business dispatch, then resumes without re-login.
+
 This is synthetic HTTP evidence, not real ChatGPT-host acceptance.
+
+### 3.8 Observability
+
+Availability transitions and offline tool rejection now emit sanitized local log records containing only non-secret workspace id, transition/rejection class, tool name, runtime generation and in-flight count. Tool arguments, raw session bindings and credentials are not logged.
 
 ## Failure-first iteration history
 
@@ -149,10 +171,10 @@ Later compile errors exposed the internal gate-aware function not being re-expor
 ## Remaining work in this issue
 
 - obtain a green full source regression for the narrowed backend candidate;
-- rerun clean GitNexus detect-changes without analyze-generated AGENTS/CLAUDE noise;
-- add focused runtime generation/tunnel-invariance regressions;
-- add a local UI surface for pause/resume after the Svelte impact-analysis limitation is documented/resolved;
-- review exact diff;
+- review the final full-source validation result;
+- review final `detect-changes` critical blast radius and exact diff;
+- record Round 3 evidence in `iterations.md`;
+- update task/status files;
 - keep PR draft until Round 3 gates converge.
 
 ## Non-claims
