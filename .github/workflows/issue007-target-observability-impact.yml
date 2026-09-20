@@ -1,0 +1,74 @@
+name: ISSUE-007 tunnel target observability impact
+
+on:
+  push:
+    branches:
+      - security/tunnel-target-observability
+    paths:
+      - '.github/workflows/issue007-target-observability-impact.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build GitNexus index
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx -y gitnexus@latest analyze | tee evidence/analyze.txt
+          git reset --hard "$GITHUB_SHA"
+          npx -y gitnexus@latest status | tee evidence/status.txt
+      - name: Focused listener and tunnel impact
+        shell: bash
+        run: |
+          set +e
+          npx -y gitnexus@latest impact serve --file src-tauri/src/mcp/listener.rs --direction upstream > evidence/impact-serve.txt 2>&1
+          serve_rc=$?
+          npx -y gitnexus@latest impact validate_origin --file src-tauri/src/mcp/listener.rs --direction upstream > evidence/impact-origin-middleware.txt 2>&1
+          origin_rc=$?
+          npx -y gitnexus@latest impact snapshot --file 'src-tauri/src/auth/公网身份v2.rs' --direction upstream > evidence/impact-public-origin-snapshot.txt 2>&1
+          public_origin_rc=$?
+          npx -y gitnexus@latest impact build_proxy_snippet --file src-tauri/src/tunnel/frp/mod.rs --direction upstream > evidence/impact-frp-config.txt 2>&1
+          frp_rc=$?
+          npx -y gitnexus@latest impact spawn_cloudflare_tunnel --file src-tauri/src/tunnel/cloudflare.rs --direction upstream > evidence/impact-cloudflare-spawn.txt 2>&1
+          cloudflare_rc=$?
+          printf 'serve_rc=%s\norigin_rc=%s\npublic_origin_rc=%s\nfrp_rc=%s\ncloudflare_rc=%s\n' \
+            "$serve_rc" "$origin_rc" "$public_origin_rc" "$frp_rc" "$cloudflare_rc" | tee evidence/impact-status.txt
+          exit 0
+      - name: Query target forwarding flow
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest query "MCP listener request Host URI authority PublicOrigin FRP cloudflare tunnel" | tee evidence/query-target-forwarding.txt
+      - name: Exact config source review
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '--- host rewrite controls ---'
+            git grep -n -E 'hostHeaderRewrite|HostHeaderRewrite|httpHostHeader|HTTPHostHeader' -- 'src-tauri/src/**' || true
+            echo '--- cloudflared launch ---'
+            git grep -n -E 'cloudflared|--url|TUNNEL_TOKEN|tunnel.*run' -- 'src-tauri/src/tunnel/cloudflare.rs' || true
+            echo '--- FRP route config ---'
+            git grep -n -E 'customDomains|subdomain|plugin\.type|plugin\.localAddr' -- 'src-tauri/src/tunnel/frp/mod.rs' || true
+          } | tee evidence/source-topology.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: issue007-target-observability-impact
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
