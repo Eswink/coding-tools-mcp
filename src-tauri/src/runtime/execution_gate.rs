@@ -169,10 +169,13 @@ mod tests {
         started_rx.recv().unwrap();
         std::thread::sleep(std::time::Duration::from_millis(20));
         assert!(done_rx.try_recv().is_err(), "pause committed while online hold was alive");
-        assert_eq!(gate.snapshot().availability, ExecutionAvailability::Online);
+        // Do not call snapshot() while this thread owns the non-reentrant gate
+        // mutex through OnlineExecutionHold; the blocked pause itself is the
+        // linearization assertion.
         drop(hold);
         let paused = done_rx.recv_timeout(std::time::Duration::from_secs(1)).unwrap();
         assert_eq!(paused.availability, ExecutionAvailability::Offline);
+        assert_eq!(gate.snapshot().availability, ExecutionAvailability::Offline);
         worker.join().unwrap();
     }
 
