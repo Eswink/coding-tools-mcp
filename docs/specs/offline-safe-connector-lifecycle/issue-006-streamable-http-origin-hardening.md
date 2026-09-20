@@ -222,6 +222,31 @@ The UNKNOWN handler results are not interpreted as unused/safe. Source review co
 
 Because `serve` and `PublicOrigin::snapshot` are CRITICAL, the implementation must remain one bounded listener middleware change and reuse the existing live `PublicOrigin` handle rather than changing its public contract.
 
+## Focused repair verification
+
+Targeted validation run `35513687278`, source `625d8b59b101a6f4c2e0bc9d3f27df6e9ecf9917`: **PASS**.
+
+```text
+origin_security_tests
+4 passed
+0 failed
+```
+
+The four HTTP-level tests collectively cover O1–O12 plus additional duplicate-Origin and invalid CORS-preflight cases:
+
+- missing Origin compatibility;
+- localhost / 127.0.0.1 compatibility;
+- current public Origin and live public-origin replacement;
+- stale public Origin rejection;
+- foreign/malformed/opaque Origin rejection;
+- generic non-reflective 403 JSON-RPC shape;
+- MCP GET/POST;
+- OAuth authorization metadata / protected-resource metadata / authorize GET+POST / token POST;
+- invalid preflight rejected before permissive CORS;
+- repeated Origin headers rejected.
+
+Cross-platform full regression remains the next gate.
+
 ## Acceptance
 
 SOURCE PASS requires:
