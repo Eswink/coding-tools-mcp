@@ -601,3 +601,21 @@ The source review narrows the likely design:
 - never accept arbitrary `Forwarded` / `X-Forwarded-Host` as proof of identity.
 
 This remains a pre-implementation finding. Real project tunnel-mode observations are still required before ISSUE-007 code changes.
+
+
+### Current project tunnel configuration implication
+
+The current coding-tools-mcp tunnel builders narrow the expected topology further:
+
+- Quick Tunnel launches `cloudflared tunnel --url http://127.0.0.1:<port>` and does not set `--http-host-header` / `TUNNEL_HTTP_HOST_HEADER`.
+- The generated FRP TOML defines HTTP/HTTPS route/domain/local-target settings but does not emit `hostHeaderRewrite`.
+
+Combined with the upstream implementations above, the default application-generated routes are expected to preserve the incoming/public Host at the local listener.
+
+That is still a **source-derived expectation, not runtime proof**:
+
+- named Cloudflare tunnels may have remotely managed ingress/origin-request settings not visible in the local command line;
+- an independently managed FRP server/client configuration can differ from this application's generated TOML;
+- HTTP/2 authority representation at Axum/hyper still needs observation.
+
+ISSUE-007 should therefore use this finding to make the probe smaller, not to skip it.
