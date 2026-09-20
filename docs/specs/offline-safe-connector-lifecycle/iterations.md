@@ -421,3 +421,122 @@ No production defect was reproduced by the Round 4 matrix, so no production auth
 This round proves server-side workspace confidentiality, not ChatGPT account-level connector invisibility.
 
 The local server cannot prevent another person sharing the same ChatGPT account from seeing that an app/connector is installed in the host UI. Real host visibility and reconnect behavior remain Round 5 acceptance items.
+
+
+## 05 — Round 5 cross-platform packaged engineering acceptance
+
+Date: 2026-09-20  
+Branch: `acceptance/offline-safe-round5`  
+Validated packaged source candidate: `b1c190f29135dda6a80cb9af03883e8c6dcdd5a8`  
+Independent Windows strict candidate: `5bd80a79e92c534c4b764bcc5d47015dd4476deb`  
+Draft PR: #23  
+Result: **ENGINEERING_CANDIDATE_PASS; real ChatGPT host acceptance remains DEFERRED.**
+
+### Failure-first packaged evidence
+
+Initial packaged run `35508467273` failed on both platforms for distinct, retained reasons.
+
+Windows reached the final strict non-test library compile and exposed pre-existing platform-scoping warnings:
+
+- conditional `mut` in `merge_default_allowed_commands`;
+- Linux-only Secret Service helper compiled unused on Windows;
+- three Linux-only `StartupFailureReason` variants compiled unused on Windows.
+
+Ubuntu completed source regression and package build, then failed install smoke because a repository-relative `.deb` path was passed to apt and interpreted as a package name.
+
+Focused GitNexus impact before the Windows source cleanup retained:
+
+- `merge_default_allowed_commands`: **CRITICAL**, exact — 25 impacted symbols / 6 processes / 5 modules;
+- Secret Service helper: LOW, exact;
+- startup failure enum: UNKNOWN with no resolved callers, explicitly not treated as proof of safety.
+
+A second Windows correction exposed one remaining Linux-only import warning. Each failure was classified and corrected with a bounded semantics-preserving change rather than retried blindly.
+
+### Final packaged run
+
+Workflow run `35509843023`: **SUCCESS** on Windows 2025 and Ubuntu 24.04.
+
+#### Ubuntu
+
+- frontend offline-safe UI contract: 3/3 PASS;
+- Rust primary suite: 380 passed, 0 failed;
+- integration suites: PASS;
+- strict non-test library compile: PASS;
+- Tauri Debian bundle: `Coding Tools MCP_0.6.0-rc.4_amd64.deb`;
+- package id: `coding-tools-mcp`;
+- package version: `0.6.0-rc.4`;
+- package SHA-256: `4c6ff10665fcd73756cbdb5e4cb8ff36e9a390dcc9138a01eaddcad9aba9ad7a`;
+- installed executable: `/usr/bin/coding-tools-mcp-desktop`;
+- apt/dpkg install verification: PASS;
+- purge/removal verification: PASS;
+- CI artifact id: `10605615493`;
+- artifact digest: `sha256:b638409e5a890380f0c75d636493048a0a576db7f7269607b9d90e9fc8429c0a`.
+
+#### Windows
+
+- frontend offline-safe UI contract: 3/3 PASS;
+- Rust primary suite: 382 passed, 0 failed;
+- integration suites: PASS;
+- Tauri NSIS bundle: `Coding Tools MCP_0.6.0-rc.4_x64-setup.exe`;
+- installer SHA-256: `576db69738bf90ecdd95b89613725bb3c2dc492e7aabb6e75919f0a055c6dd2c`;
+- silent install: PASS;
+- install location: `C:\Users\runneradmin\AppData\Local\Coding Tools MCP`;
+- installed executable: `coding-tools-mcp-desktop.exe`;
+- registered uninstaller found and silent uninstall completed: PASS;
+- uninstall-registration removal verification: PASS;
+- CI artifact id: `10605026829`;
+- artifact digest: `sha256:366622590fdac780333931fcaf16474a111b852bd328b32b82b37d3f8e470870`.
+
+Independent Windows strict run `35510062552`: SUCCESS.
+
+### Lifecycle evidence retained across both packaged suites
+
+Relevant source regressions observed green include:
+
+- owner pause/resume and OAuth refresh while execution is Offline;
+- long-running owner revocation/draining before successor;
+- listener restart retaining a running async job and idempotency key;
+- durable queued records never replaying commands after restart;
+- network recovery requiring sustained Offline rather than one failed probe;
+- FRP reconnect-loop detection and successful relogin recovery;
+- active FRP route rehydration;
+- tunnel rollback/identity invariants;
+- Linux process-group drain confirmation.
+
+These are SOURCE/PACKAGED engineering evidence, not ChatGPT-host UI evidence.
+
+### Exact Round 5 diff review
+
+Compared with the Round 4 plan base, Round 5 contains acceptance workflows/docs plus four narrow production-source portability cleanups:
+
+- `src-tauri/src/commands/app_info.rs`;
+- `src-tauri/src/error.rs`;
+- `src-tauri/src/runtime/supervisor.rs` test cleanup;
+- `src-tauri/src/tools/policy.rs`.
+
+No OAuth token policy, chat lease, execution gate, MCP availability error, tunnel pause/resume semantic, or persistent data schema is changed in Round 5.
+
+### Rollback
+
+`round5-rollback.md` records:
+
+- Round 5-only rollback;
+- complete Round 3 feature rollback boundary;
+- additive/ephemeral data compatibility;
+- no release/tag/signing withdrawal required.
+
+### Engineering gate result
+
+```text
+engineering candidate: ENGINEERING_CANDIDATE_PASS
+real ChatGPT reconnect UX: UNCONFIRMED_ON_REAL_HOST
+shared-account connector visibility: UNCONFIRMED_ON_REAL_HOST
+```
+
+No Git tag, GitHub Release, production signing secret, or public installer release was created.
+
+### Remaining host gate
+
+The dedicated real ChatGPT test connector remains deferred by user choice. The exact procedure is preserved in `round5-host-deferred-procedure.md`.
+
+Until that procedure runs, ISSUE-005 remains open and the project must not claim `HOST_VALIDATED` or `DONE`.
