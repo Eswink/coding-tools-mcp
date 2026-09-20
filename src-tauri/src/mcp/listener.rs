@@ -191,15 +191,25 @@ async fn serve(
     Ok(())
 }
 
-fn origin_hostname(value: &str) -> Option<String> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CanonicalOrigin {
+    scheme: String,
+    host: String,
+    port: u16,
+}
+
+fn canonical_origin(value: &str) -> Option<CanonicalOrigin> {
     let value = value.trim();
     if value.is_empty() {
         return None;
     }
     let uri: Uri = value.parse().ok()?;
-    if !matches!(uri.scheme_str(), Some("http" | "https")) {
-        return None;
-    }
+    let scheme = uri.scheme_str()?.to_ascii_lowercase();
+    let default_port = match scheme.as_str() {
+        "http" => 80,
+        "https" => 443,
+        _ => return None,
+    };
     let authority = uri.authority()?;
     if authority.as_str().contains('@') {
         return None;
@@ -208,7 +218,12 @@ fn origin_hostname(value: &str) -> Option<String> {
     if host.is_empty() {
         return None;
     }
-    Some(host.to_ascii_lowercase())
+    let port = uri.port_u16().unwrap_or(default_port);
+    Some(CanonicalOrigin {
+        scheme,
+        host: host.to_ascii_lowercase(),
+        port,
+    })
 }
 
 fn origin_allowed(state: &ListenerState, headers: &HeaderMap) -> bool {
@@ -226,15 +241,15 @@ fn origin_allowed(state: &ListenerState, headers: &HeaderMap) -> bool {
     if raw.trim().is_empty() {
         return true;
     }
-    let Some(host) = origin_hostname(raw) else {
+    let Some(origin) = canonical_origin(raw) else {
         return false;
     };
-    if matches!(host.as_str(), "localhost" | "127.0.0.1" | "::1") {
+    if matches!(origin.host.as_str(), "localhost" | "127.0.0.1" | "::1") {
+        // Local browser tooling frequently uses an ephemeral UI port.
         return true;
     }
     let current_public_origin = state.configured_public_url.snapshot();
-    origin_hostname(&current_public_origin)
-        .is_some_and(|allowed| allowed.eq_ignore_ascii_case(&host))
+    canonical_origin(&current_public_origin).is_some_and(|allowed| allowed == origin)
 }
 
 fn invalid_origin_response() -> Response {
