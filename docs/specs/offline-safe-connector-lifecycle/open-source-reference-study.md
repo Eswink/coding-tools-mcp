@@ -458,3 +458,74 @@ connector infrastructure intent
 The common running-state action should be Pause/Resume. Hard Stop remains available and explicit because it changes transport reachability, OAuth reachability and tunnel lifetime.
 
 This supports the backend split already implemented in Round 3 and avoids teaching operators that “temporarily stop work” means “disconnect the connector”.
+
+
+## 12. Authorization work should follow lifecycle state, not merely endpoint reachability
+
+References:
+
+- `cloudflare/agents@c076e4c9ff6cfb72931085226edfd3ee7965ac48`
+  - `packages/agents/src/mcp/client/connection.ts`
+- `MCPJam/inspector@c8501f47c06bde36794a8010e5573d40d0deb43c`
+  - `docs/inspector/playground.mdx`
+- `coder/coder@9661661ba6d1008eb1f75f5a8933c8101001e0b3`
+  - `coderd/x/chatd/chatd.go`
+
+### Cloudflare Agents
+
+The MCP client has an explicit connection state machine:
+
+```text
+AUTHENTICATING
+CONNECTING
+CONNECTED
+DISCOVERING
+READY
+FAILED
+```
+
+A 401 is treated specially: authentication work is represented by the `AUTHENTICATING` state and the transport that produced the challenge is retained so the OAuth continuation is completed against the correct resource metadata.
+
+Useful principle for this project:
+
+> human authorization is lifecycle state with explicit entry conditions; it should not be spawned merely because an endpoint is reachable.
+
+### MCPJam Inspector
+
+The Playground distinguishes a connected server from whether that server is enabled for the current conversation. The tool surface can stay connected while conversation-level participation changes.
+
+Useful principle:
+
+> installed/reachable does not imply every conversation should initiate new authorization work.
+
+### Coder
+
+Chat execution distinguishes workspace-agent availability from chat authorization. A stopped/disconnected workspace produces an execution/connectivity condition rather than mutating authorization state.
+
+Useful principle:
+
+> execution unavailability should not create new approval work as a side effect.
+
+### Decision for coding-tools-mcp
+
+**ADOPT in ISSUE-009 with a narrower local rule.**
+
+When local execution is intentionally Offline:
+
+- existing active/pending chat authorization remains observable and stable;
+- existing exclusive/recovery denials keep precedence;
+- an unapproved conversation cannot create a new pending approval;
+- the denial is generic and non-disclosing;
+- OAuth refresh and connector reachability remain unchanged.
+
+Resume re-enables normal authorization requests.
+
+This keeps three concerns separate:
+
+```text
+connector reachability
+chat authorization
+workspace execution availability
+```
+
+and prevents a paused workspace from generating fresh local approval noise solely because an unrelated conversation probes the installed connector.
