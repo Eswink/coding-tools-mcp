@@ -39,17 +39,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx -y gitnexus@latest impact status --file src-tauri/src/auth/聊天授权v1.rs --direction upstream | tee evidence/impact-chat-status.txt
+          npx -y gitnexus@latest impact status --file src-tauri/src/auth/聊天授权v1.rs --kind Function --direction upstream | tee evidence/impact-chat-status.txt
       - name: Impact ChatAuthorizer request
         shell: bash
         run: |
           set -euo pipefail
-          npx -y gitnexus@latest impact request --file src-tauri/src/auth/聊天授权v1.rs --direction upstream | tee evidence/impact-chat-request.txt
+          npx -y gitnexus@latest impact request --file src-tauri/src/auth/聊天授权v1.rs --kind Function --direction upstream | tee evidence/impact-chat-request.txt
       - name: Impact ChatAuthorizer admit
         shell: bash
         run: |
           set -euo pipefail
-          npx -y gitnexus@latest impact admit --file src-tauri/src/auth/聊天授权v1.rs --direction upstream | tee evidence/impact-chat-admit.txt
+          npx -y gitnexus@latest impact admit --file src-tauri/src/auth/聊天授权v1.rs --kind Function --direction upstream | tee evidence/impact-chat-admit.txt
       - name: Impact remote chat intercept
         shell: bash
         run: |
