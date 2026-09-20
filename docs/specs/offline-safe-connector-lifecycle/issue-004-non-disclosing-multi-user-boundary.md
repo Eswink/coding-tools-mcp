@@ -1,6 +1,6 @@
 # ISSUE-004 — Non-disclosing multi-user boundary
 
-Status: OPEN — FAILURE-FIRST PRIVACY MATRIX REQUIRED  
+Status: REVIEWED — SOURCE/SYNTHETIC PRIVACY MATRIX PASS; HOST VISIBILITY DEFERRED  
 Parent: [plan.md](plan.md)  
 Depends on: [issue-003-control-execution-decoupling.md](issue-003-control-execution-decoupling.md)  
 Round: 4 / 5  
@@ -178,3 +178,12 @@ Round 4 source/synthetic PASS requires:
 - exact diff reviewed.
 
 Real ChatGPT account/connector visibility remains a Round 5 acceptance item.
+
+
+## Round 4 gate result
+
+Validated source candidate `145feec1b4d9af6a96057754ba6a6de072c0ab41` passed run `35507366052`.
+
+The full privacy matrix did not reproduce a production disclosure defect. Existing authorization, chat-domain isolation and Round 3 availability ordering already satisfy the tested source/synthetic boundary, so Round 4 intentionally adds tests/evidence rather than speculative production changes.
+
+Round 5 remains responsible for installed-build, process/network lifecycle and real ChatGPT host/account visibility acceptance.
