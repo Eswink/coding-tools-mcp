@@ -1,4 +1,4 @@
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::auth::{chat_fixture as fixture, PublicOrigin};
 use crate::workspace::{AuthConfig, RuntimeConfig};
