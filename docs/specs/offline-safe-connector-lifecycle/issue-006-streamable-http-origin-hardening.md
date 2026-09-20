@@ -244,6 +244,44 @@ The four HTTP-level tests collectively cover O1–O12 plus additional duplicate-
 
 Cross-platform full regression remains the next gate.
 
+## Cross-platform validation iteration
+
+Full validation run `35513687191` produced one Windows-only failure unrelated to Origin behavior:
+
+```text
+http_revoked_owner_drains_actual_background_process_before_successor
+worker startup gate: 8056ms > 8000ms
+```
+
+The task was registered and remained `status=running`; only the Python child marker missed the intentional 8-second readiness gate under a heavily parallel Windows test suite.
+
+Isolation run `35516343223` ran the exact same regression with one test thread:
+
+```text
+drain-startup ready after 895ms
+1 passed
+0 failed
+```
+
+Therefore the gate was not loosened and product code was not changed. The Windows full-validation workflow now:
+
+1. runs the remaining suite normally;
+2. skips this one timing-sensitive real-process case from the parallel batch;
+3. runs it immediately afterward with `--exact --test-threads=1`.
+
+Ubuntu full validation on the same Origin source candidate passed, including the complete Origin matrix.
+
+### Packaged revalidation iteration
+
+Initial Origin packaged revalidation run `35514077955`:
+
+- Ubuntu DEB build/install/purge: PASS;
+- Windows NSIS build/install: installer ran, but the new smoke script failed to find the installed executable.
+
+This was an acceptance-workflow regression: the Round 5 known-good Windows verifier had an `InstallLocation` lookup **plus a DisplayIcon fallback**. The Origin revalidation copy initially kept only the first lookup.
+
+The known-good fallback was restored. No installer/product source changed for this failure.
+
 ## Acceptance
 
 SOURCE PASS requires:
