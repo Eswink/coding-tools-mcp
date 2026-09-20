@@ -771,7 +771,7 @@ mod tests {
     fn pause_preserves_generation_origin_and_runtime_membership() {
         let profile = WorkspaceProfile::new("/tmp/offline-safe".into(), None);
         let mut runtime = RuntimeSupervisor::default();
-        let mut active = entry(
+        let active = entry(
             RuntimePhase::Running,
             Some(std::time::Instant::now() - Duration::from_secs(1)),
         );

@@ -53,11 +53,12 @@ Parent: [plan.md](plan.md)
 
 ## Round 5
 
-- [ ] Run full Windows installed acceptance.
-- [ ] Run full Ubuntu installed acceptance.
-- [ ] Run real ChatGPT offline/online lifecycle acceptance.
-- [ ] Run network flap / tunnel restart cases.
-- [ ] Run long-task draining/recovery cases.
-- [ ] Review exact diff and affected execution flows.
-- [ ] Record rollback evidence.
-- [ ] Close project only when target reconnect UX is eliminated for the supported lifecycle without weakening auth.
+- [x] Run full Windows source + NSIS install/uninstall acceptance — run `35509843023`.
+- [x] Run full Ubuntu source + DEB install/purge acceptance — run `35509843023`.
+- [ ] Run real ChatGPT offline/online lifecycle acceptance — DEFERRED by user; still required for HOST_VALIDATED.
+- [x] Run available network/tunnel restart/recovery regressions on Windows and Ubuntu source suites.
+- [x] Run long-task draining/recovery regressions on Windows and Ubuntu source suites.
+- [x] Review exact Round 5 diff and affected execution flows; retain focused CRITICAL/UNKNOWN impact findings.
+- [x] Record bounded rollback evidence in `round5-rollback.md`.
+- [x] Reach `ENGINEERING_CANDIDATE_PASS` without publishing a tag/release.
+- [ ] Close project only when target reconnect UX is validated on the real ChatGPT host without weakening auth.

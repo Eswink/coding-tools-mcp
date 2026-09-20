@@ -168,10 +168,17 @@ fn default_allowed_command_set() -> HashSet<String> {
 
 fn merge_default_allowed_commands(configured: &str) -> HashSet<String> {
     let mut commands = default_allowed_command_set();
-    let mut configured = parse_allowed_commands(configured);
+    let configured = parse_allowed_commands(configured);
     #[cfg(target_os = "linux")]
-    configured.retain(|value| !matches!(value.to_ascii_lowercase().as_str(),
-        "cmd" | "cmd.exe" | "powershell" | "powershell.exe" | "pwsh"));
+    let configured = configured
+        .into_iter()
+        .filter(|value| {
+            !matches!(
+                value.to_ascii_lowercase().as_str(),
+                "cmd" | "cmd.exe" | "powershell" | "powershell.exe" | "pwsh"
+            )
+        })
+        .collect::<HashSet<_>>();
     commands.extend(configured);
     commands
 }
