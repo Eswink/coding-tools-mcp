@@ -303,6 +303,7 @@ pub fn get_environment_diagnostics(app: AppHandle) -> EnvironmentDiagnostics {
     environment_diagnostics(&app)
 }
 
+#[cfg(target_os = "linux")]
 fn should_initialize_default_collection(
     reason_code: Option<&str>,
     configuration_exists: bool,
@@ -374,6 +375,7 @@ mod tests {
         assert!(!kind.contains('\\'));
     }
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn default_collection_creation_is_only_allowed_for_fresh_missing_default_state() {
         assert!(should_initialize_default_collection(
