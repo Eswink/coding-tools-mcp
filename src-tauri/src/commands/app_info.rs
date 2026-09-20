@@ -5,7 +5,9 @@ use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
 
 use crate::app_state::{AppState, StartupStatus};
-use crate::error::{classify_keyring_error, AppResult, StartupFailureReason};
+use crate::error::{classify_keyring_error, AppResult};
+#[cfg(target_os = "linux")]
+use crate::error::StartupFailureReason;
 use crate::platform::{open_url as platform_open_url, PlatformContext};
 use crate::update::{check_app_update as check_update, UpdateCheckResult};
 
