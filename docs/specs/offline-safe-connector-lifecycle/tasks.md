@@ -16,27 +16,23 @@ Parent: [plan.md](plan.md)
 
 ## Round 1 — ISSUE-001
 
-- [ ] C1 healthy baseline with real ChatGPT host.
-- [ ] C2 current workspace-stop reproduction.
-- [ ] C3 HTTP 503 behavior.
-- [ ] C4 protocol-valid typed workspace-offline behavior.
-- [ ] C5 access expiry with token endpoint unavailable.
-- [ ] C6 successful refresh baseline.
-- [ ] C7 refresh rejection control.
-- [ ] C8 abrupt connection reset behavior.
-- [ ] C9 valid OAuth + chat unauthorized.
-- [ ] C10 valid OAuth + exclusive non-owner.
-- [ ] Sanitize and record real-host traces.
-- [ ] Review findings and freeze reconnect trigger classification.
-- [ ] Move ISSUE-001 to DONE only after evidence review.
+- [x] Build deterministic C1/C3/C4/C5/C7/C8 fault harness.
+- [x] Validate harness on Ubuntu and Windows.
+- [x] Record failure-first CI defect and repair.
+- [x] Explicitly defer real ChatGPT host validation to Round 5.
+- [ ] C1-C10 real-host observations — DEFERRED, not waived.
+- [ ] Final reconnect-trigger classification — DEFERRED, remains unconfirmed.
 
 ## Round 2
 
-- [ ] Create ISSUE-002 after Round 1 hard gate.
-- [ ] Freeze `WorkspaceAvailability` semantics.
-- [ ] Freeze auth/transport/business error taxonomy.
-- [ ] Perform required code impact analysis for every production symbol planned for modification.
-- [ ] Select architecture Level A, B or C based on evidence.
+- [x] Create ISSUE-002 after explicit real-host gate deferral.
+- [x] Freeze connector-control vs execution-availability semantics.
+- [x] Freeze auth/transport/business error taxonomy.
+- [x] Freeze atomic pause/admission gate semantics.
+- [x] Freeze offline drain-control allowlist.
+- [x] Select provisional Level A architecture.
+- [x] Prepare exact Round 3 impact-analysis target list.
+- [ ] Perform required GitNexus impact analysis before any production symbol edit — BLOCKED in current tool environment.
 
 ## Round 3
 
