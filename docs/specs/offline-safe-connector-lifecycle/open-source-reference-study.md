@@ -529,3 +529,75 @@ workspace execution availability
 ```
 
 and prevents a paused workspace from generating fresh local approval noise solely because an unrelated conversation probes the installed connector.
+
+
+## 13. Cloudflare Tunnel and FRP — Host forwarding is configurable, so ISSUE-007 must measure the deployed mode
+
+References:
+
+- `cloudflare/cloudflared@be3ac1270217f6ad257f9232052abefbf71835c2`
+  - `ingress/origin_proxy.go`
+  - `ingress/origin_service.go`
+- `fatedier/frp@d20a232996007dfe6ab425abc0a39a3ae9a0889b`
+  - `server/proxy/http.go`
+  - `pkg/util/vhost/http.go`
+
+### cloudflared
+
+The local HTTP origin proxy rewrites the request URL to the configured local origin, but it rewrites `Request.Host` **only when** `originRequest.httpHostHeader` is configured.
+
+When that override is configured, cloudflared:
+
+1. copies the incoming Host into `X-Forwarded-Host`;
+2. sets the origin-facing `Request.Host` to the configured `httpHostHeader`.
+
+Therefore “Cloudflare Tunnel always preserves the public Host” is not a safe invariant. It depends on the deployed `httpHostHeader` setting.
+
+For ISSUE-007 this also reinforces an existing security decision:
+
+> `X-Forwarded-Host` may be useful diagnostics, but must not become an authorization source.
+
+### FRP
+
+FRP's HTTP proxy carries `HostHeaderRewrite` into the vhost route as `RewriteHost`.
+
+In the reverse-proxy rewrite path:
+
+- when `RewriteHost` is non-empty, FRP sets `req.Host` to that configured value;
+- otherwise it leaves the incoming request Host intact while changing the internal URL host used for backend routing/connection reuse.
+
+Therefore FRP can also operate in either:
+
+```text
+public Host preserved
+or
+configured Host rewritten
+```
+
+mode.
+
+### Decision for coding-tools-mcp
+
+**Do not enforce Host/:authority from assumptions.**
+
+ISSUE-007's topology probe is mandatory because both supported tunnel families have explicit Host-rewrite controls.
+
+The probe should classify the effective listener-facing target into one of these forms:
+
+```text
+direct loopback Host
+current public Host
+operator-configured rewritten Host
+other / unsupported
+```
+
+Then enforcement can be derived from the actual supported configuration rather than from tunnel brand.
+
+The source review narrows the likely design:
+
+- direct localhost: allow loopback authority;
+- tunnel with preserved Host: allow exact current managed public host;
+- tunnel with an intentional configured rewrite: allow only that known local/operator-derived target if the application itself owns that setting;
+- never accept arbitrary `Forwarded` / `X-Forwarded-Host` as proof of identity.
+
+This remains a pre-implementation finding. Real project tunnel-mode observations are still required before ISSUE-007 code changes.
