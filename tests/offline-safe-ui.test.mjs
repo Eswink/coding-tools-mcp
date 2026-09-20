@@ -29,7 +29,7 @@ test("pause and resume IPC require the observed runtime generation", () => {
 test("availability panel explicitly distinguishes pause from connector stop", () => {
   assert.match(panel, /暂停只阻止新的远程业务调用/);
   assert.match(panel, /MCP Connector、OAuth 控制面和已运行的隧道保持在线/);
-  assert.match(panel, /“停止”仍是硬停止，会关闭 Connector 与隧道/);
+  assert.match(panel, /停止 Connector 会关闭 MCP\/OAuth 监听器和公网隧道/);
   assert.match(panel, /WORKSPACE_OFFLINE/);
   assert.match(panel, /暂停远程执行/);
   assert.match(panel, /恢复远程执行/);
