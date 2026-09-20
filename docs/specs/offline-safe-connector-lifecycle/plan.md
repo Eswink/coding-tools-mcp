@@ -1,6 +1,6 @@
 # Offline-safe Connector Lifecycle — Project Plan
 
-Status: PLANNING BASELINE SAVED; Round 1 ready, no production implementation accepted yet.  
+Status: ROUND 1 SYNTHETIC HARNESS COMPLETE; REAL-HOST VALIDATION DEFERRED; ROUND 2 DESIGN ACTIVE.  
 Date: 2026-09-20  
 Base: `main` @ `823cbdeba68bbdd832d93f4636f701ddb98474f1`  
 Branch: `plan/offline-safe-connector-lifecycle`
@@ -177,7 +177,7 @@ Required cases:
 
 Hard gate:
 
-> 不知道 host 如何解释 C3/C4/C5/C7 之前，不进入协议实现。
+> Original gate superseded on 2026-09-20: real-host C1-C10 is deferred because the setup cost is high. Round 2 design may proceed using the verified architectural coupling and synthetic harness. This does **not** convert host behavior into a proven fact, and Round 5 real-host acceptance remains mandatory before release/final PASS.
 
 ### Round 2 — Availability contract and control/execution separation design
 
@@ -195,9 +195,10 @@ Deliverables:
 
 Decision gate:
 
-- 如果 C4 在真实 ChatGPT 中不会触发 reconnect，则优先 Level A。
-- 如果 endpoint 必须跨 UI process 存活，则进入 Level B。
-- 只有机器离线仍需 connector online 才评估 Level C。
+- Provisional implementation target: **Level A**, because it is the smallest reversible change that separates connector reachability from workspace execution availability.
+- Level A remains a hypothesis until Round 5 real-host validation proves the target reconnect UX is eliminated.
+- If the product later requires the connector to survive desktop-process exit, move to Level B.
+- Only if the connector must survive machine shutdown/sleep/network loss should Level C be evaluated.
 
 ### Round 3 — Minimal control-plane implementation
 
@@ -304,7 +305,7 @@ Do not use “retry until green” as a substitute for diagnosis.
 - ISSUE-004 — Non-disclosing multi-user access boundary.
 - ISSUE-005 — Offline-safe end-to-end and installed acceptance.
 
-Only ISSUE-001 is OPEN at plan creation. Later issues remain BLOCKED until their predecessor's hard gate is satisfied.
+ISSUE-001 remains evidence-incomplete for real-host behavior, but its host gate is explicitly deferred. ISSUE-002 may proceed for protocol/state design; production implementation remains provisional until required impact analysis and later real-host acceptance.
 
 ## Code areas expected to be affected after Round 1
 
@@ -371,3 +372,16 @@ Evidence entries include:
 - next gate.
 
 Rust/unit test success alone is not sufficient for a ChatGPT-host interoperability claim.
+
+
+## Gate amendment — 2026-09-20
+
+Real ChatGPT host testing is intentionally deferred for now because the dedicated test connector/public-route setup is operationally expensive.
+
+This changes sequencing, not truth status:
+
+- synthetic harness evidence is accepted as sufficient to start Round 2 design;
+- reconnect trigger remains `UNCONFIRMED_ON_REAL_HOST`;
+- Level A is selected only as the minimal reversible design hypothesis;
+- no release may claim the reconnect bug fixed until Round 5 real-host acceptance is executed;
+- OAuth weakening, token-TTL workarounds, or host-behavior claims remain prohibited without evidence.
