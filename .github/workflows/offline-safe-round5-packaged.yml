@@ -83,7 +83,7 @@ jobs:
             printf '%s\n' "${debs[@]}" >&2
             exit 1
           fi
-          deb="${debs[0]}"
+          deb="$(realpath "${debs[0]}")"
           package="$(dpkg-deb -f "$deb" Package)"
           version="$(dpkg-deb -f "$deb" Version)"
           sha256="$(sha256sum "$deb" | awk '{print $1}')"
