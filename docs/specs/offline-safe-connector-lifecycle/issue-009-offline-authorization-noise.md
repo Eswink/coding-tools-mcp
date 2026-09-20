@@ -81,9 +81,9 @@ OAuth identity
  -> chat identity
  -> recovery fence
  -> exclusive/draining owner
- -> existing grant state
+ -> validate request shape/scopes (existing behavior)
+ -> existing pending/active grant
  -> execution availability for NEW allocation only
- -> validate requested scopes
  -> allocate pending grant/event
 ```
 
@@ -116,11 +116,12 @@ Workspace availability policy stays in the chat-domain dispatch layer. OAuth is 
 Final flow:
 
 1. chat-domain calls the generic `ChatAuthorizer::request_guarded`;
-2. the authorizer resolves identity, recovery, exclusive/draining, and existing pending/active state under its own mutex;
-3. only a **new** pending allocation invokes the caller-provided guard;
-4. chat-domain acquires a short `WorkspaceExecutionGate::hold_online()`;
-5. the hold remains alive through pending record/event commit;
-6. Offline maps to generic `CHAT_AUTHORIZATION_UNAVAILABLE`.
+2. the authorizer resolves identity, recovery, exclusive/draining and the existing request-validation contract under its own mutex;
+3. an existing pending/active grant returns without consulting execution availability;
+4. only a **new** pending allocation invokes the caller-provided guard;
+5. chat-domain acquires a short `WorkspaceExecutionGate::hold_online()`;
+6. the hold remains alive through pending record/event commit;
+7. Offline maps to generic `CHAT_AUTHORIZATION_UNAVAILABLE`.
 
 The original snapshot-before-request candidate was rejected after TOCTOU review; see the repair iteration below.
 
@@ -231,6 +232,14 @@ chat authorization state
 No path introduced by ISSUE-009 acquires those two locks in the reverse order. The hold never wraps tool execution or blocking I/O.
 
 A runtime regression verifies that Pause cannot commit while the short Online allocation hold is alive.
+
+### Request-validation compatibility
+
+Manual diff review caught a second semantic-risk before acceptance: the first guarded allocator draft returned an existing pending/active grant **before** validating the new request arguments, while the pre-ISSUE-009 behavior validated request shape/scopes first.
+
+That ordering was restored.
+
+Regression coverage now compares the same malformed authorization request before and during Offline for an existing pending grant and requires byte-for-byte equivalent structured output. Pause must suppress only **new allocation**, not weaken or reorder the existing request-validation contract.
 
 ## Acceptance
 
