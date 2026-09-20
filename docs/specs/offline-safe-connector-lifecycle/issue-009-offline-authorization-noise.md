@@ -1,6 +1,6 @@
 # ISSUE-009 — Suppress new chat-authorization noise while execution is paused
 
-Status: OPEN — FAILURE-FIRST DESIGN READY  
+Status: REVIEWED — SOURCE/CROSS-PLATFORM/PACKAGED PASS; REAL-HOST VISIBILITY DEFERRED  
 Parent: [plan.md](plan.md)  
 Depends on: ISSUE-003, ISSUE-004, ISSUE-008  
 Scope: shared-account / unrelated-chat ergonomics without weakening authorization
@@ -329,3 +329,129 @@ Affected flows are limited to the chat-domain intercept/error path and the guard
 This aggregate result does not erase the focused lower-bound/UNKNOWN findings from the pre-edit GitNexus review.
 
 Full Windows/Ubuntu source validation and packaged revalidation remain the final gates before merge.
+
+
+## Final ISSUE-009 gate result
+
+Validated production source candidate:
+
+```text
+625f33233682c772197234e3beba66aefd35f0b5
+fix(issue009): keep unguarded authorization wrapper test-only
+```
+
+### Final focused validation
+
+Run `35527951725`: **SUCCESS**.
+
+Focused regressions:
+
+- execution-gate Online hold blocks Pause until authorization allocation exits;
+- Offline unapproved authorization request creates no pending record/event;
+- existing pending/active grant remains stable while Offline;
+- foreign owner remains `EXCLUSIVE_CHAT_LOCKED`;
+- recovery-required remains stronger than Offline suppression.
+
+### Final full source validation
+
+Run `35527951732`: **SUCCESS**.
+
+Final GitNexus detect-changes:
+
+```text
+Changes: 10 files, 38 symbols
+Affected processes: 4
+Aggregate risk: medium
+```
+
+Affected flows:
+
+- `Intercept -> Tool_err_code`;
+- `Request_guarded -> Busy`;
+- `Request_guarded -> Event`;
+- `Request_guarded -> Fence`.
+
+This aggregate result does not erase the earlier focused lower-bound/UNKNOWN findings for receiver-dispatched authorization methods.
+
+Ubuntu 24.04:
+
+- Svelte check: 0 errors / 0 warnings;
+- legacy offline-safe UI contract: 3/3 PASS;
+- intent-aware lifecycle UI contract: 5/5 PASS;
+- ISSUE-009 focused matrix: PASS;
+- primary Rust library suite: **389 passed, 0 failed**;
+- integration suites: PASS;
+- strict non-test `cargo rustc --lib -- -D warnings`: PASS;
+- HTTP regression `offline_new_authorization_is_a_non_oauth_tool_error_and_resumes_cleanly`: PASS.
+
+Windows 2025:
+
+- Svelte check: 0 errors / 0 warnings;
+- legacy offline-safe UI contract: 3/3 PASS;
+- intent-aware lifecycle UI contract: 5/5 PASS;
+- ISSUE-009 focused matrix: PASS;
+- primary parallel Rust library suite: **390 passed, 0 failed, 1 intentionally filtered**;
+- timing-sensitive owner-drain regression rerun in isolation: **1 passed, 0 failed**;
+- isolated child readiness: **84 ms**;
+- integration suites: PASS;
+- strict non-test `cargo rustc --lib -- -D warnings`: PASS;
+- HTTP non-OAuth suppression regression: PASS.
+
+### Strict-compile correction retained as failure evidence
+
+Run `35527422582` completed all Ubuntu tests successfully, then strict non-test compile failed because the legacy unguarded helper:
+
+```text
+ChatAuthorizer::request
+```
+
+had no production caller after remote dispatch moved to `request_guarded`.
+
+Exact call-site evidence showed remaining callers were crate tests only.
+
+The correction did **not** suppress the warning. The helper is now `#[cfg(test)]`, while production keeps only the guarded allocator path.
+
+### Final packaged validation
+
+Run `35527951727`: **SUCCESS**.
+
+Ubuntu:
+
+- package: `coding-tools-mcp` `0.6.0-rc.4`;
+- DEB SHA-256: `96ab6a060436778876a0c952c2e97dfeddab5c9dd0bf54e0df449947c7c4fb78`;
+- installed executable: `/usr/bin/coding-tools-mcp-desktop`;
+- install / executable verification / purge: PASS;
+- artifact id: `10610033021`;
+- artifact digest: `sha256:ea8b9db67564bf9e325adb1c4458e0fcb7cc2b19eb5f8233448a292d35d3b812`.
+
+Windows:
+
+- installer: `Coding Tools MCP_0.6.0-rc.4_x64-setup.exe`;
+- NSIS SHA-256: `2adcea687d85632d3f268762d9a71e418ca4ee9a6b1884e90fb6d24c5c2b5768`;
+- installed executable: `coding-tools-mcp-desktop.exe`;
+- silent install / executable verification / silent uninstall / registration removal: PASS;
+- artifact id: `10610277953`;
+- artifact digest: `sha256:5005b75a1b5af076218caa1a2cf985dfd4175e41ec45f1026d687f46248236ed`.
+
+No tag, GitHub Release, production signing, or public installer publication was created.
+
+### Result
+
+ISSUE-009 reaches SOURCE/CROSS-PLATFORM/PACKAGED PASS.
+
+The local shared-account noise boundary is now:
+
+```text
+execution Offline
++ no existing chat grant
++ request_chat_authorization
+  -> CHAT_AUTHORIZATION_UNAVAILABLE
+  -> no pending record
+  -> no pending event
+  -> no desktop/tray approval notification
+  -> no OAuth challenge
+```
+
+Existing pending/active grants are unchanged, recovery/exclusive precedence is unchanged, and Resume restores normal new-authorization allocation.
+
+Real ChatGPT connector visibility and reconnect behavior remain `UNCONFIRMED_ON_REAL_HOST`.
