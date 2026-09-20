@@ -10,6 +10,7 @@
 (() => {
   /** @template T @param {T} value @returns {T} */
   const clone = value => structuredClone(value);
+  /** @type {import('../../src/lib/remote-session-policy').SessionPolicy} */
   const policy = {exclusive:true,access_token_ttl_seconds:3600,refresh_session_ttl_seconds:2592000,chat_lease_ttl_seconds:86400,chat_idle_timeout_seconds:0,new_chat_admission:'review'};
   /** @type {import('../../src/lib/types').WorkspaceProfile} */
   const profile = {id:'fixture-workspace',name:'research-system',path:'D:\\research-system',
@@ -26,8 +27,7 @@
     runtime:{mcp:'running',actions:'stopped'},secrets:Object.create(null)};
   let serial=0;
   let admissionArmed=false;
-  let admissionExpiresAt=null;
-  let admissionArmed=false;
+  /** @type {number|null} */
   let admissionExpiresAt=null;
   /** @type {Map<number,(value:unknown)=>void>} */
   const callbacks=new Map();
