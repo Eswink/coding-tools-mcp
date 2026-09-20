@@ -380,7 +380,7 @@ impl RuntimeSupervisor {
                 } else {
                     None
                 };
-                mcp::spawn_listener_with_origin(
+                mcp::spawn_listener_with_origin_and_execution_gate(
                     port,
                     PathBuf::from(&profile.path),
                     profile.id.clone(),
