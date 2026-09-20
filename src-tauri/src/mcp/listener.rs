@@ -1,8 +1,9 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use axum::extract::{DefaultBodyLimit, Form, Query, Request, State};
-use axum::http::{header::{CACHE_CONTROL, ORIGIN}, HeaderMap, StatusCode, Uri};
+use axum::http::{header::{CACHE_CONTROL, HOST, ORIGIN}, HeaderMap, StatusCode, Uri, Version};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -36,6 +37,7 @@ struct ListenerState {
     bearer_token: Option<String>,
     oauth: Option<Arc<OAuthRuntime>>,
     oauth_client_secret: Option<String>,
+    target_observations: Arc<Mutex<HashSet<TargetObservation>>>,
 }
 
 #[cfg(test)]
@@ -128,6 +130,7 @@ pub(crate) fn spawn_listener_with_origin_and_execution_gate(
         bearer_token,
         oauth,
         oauth_client_secret,
+        target_observations: Arc::new(Mutex::new(HashSet::new())),
     };
     // 在返回 Running 之前完成 bind，避免后台任务里的端口冲突被伪装成启动成功。
     let listener = bind_listener(port)?;
@@ -252,6 +255,156 @@ fn origin_allowed(state: &ListenerState, headers: &HeaderMap) -> bool {
     canonical_origin(&current_public_origin).is_some_and(|allowed| allowed == origin)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum TargetSource {
+    UriAuthority,
+    HostHeader,
+    Missing,
+}
+
+impl TargetSource {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::UriAuthority => "uri_authority",
+            Self::HostHeader => "host_header",
+            Self::Missing => "missing",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum TargetClass {
+    Loopback,
+    CurrentPublic,
+    Other,
+    Invalid,
+    Missing,
+}
+
+impl TargetClass {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Loopback => "loopback",
+            Self::CurrentPublic => "current_public",
+            Self::Other => "other",
+            Self::Invalid => "invalid",
+            Self::Missing => "missing",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct TargetObservation {
+    source: TargetSource,
+    class: TargetClass,
+    http_version: &'static str,
+    forwarded_host_present: bool,
+}
+
+fn http_version_label(version: Version) -> &'static str {
+    match version {
+        Version::HTTP_09 => "http09",
+        Version::HTTP_10 => "http10",
+        Version::HTTP_11 => "http11",
+        Version::HTTP_2 => "http2",
+        Version::HTTP_3 => "http3",
+        _ => "other",
+    }
+}
+
+fn normalize_authority_host(raw: &str) -> Option<String> {
+    let authority: axum::http::uri::Authority = raw.trim().parse().ok()?;
+    let host = authority.host().trim_matches(|ch| ch == '[' || ch == ']');
+    if host.is_empty() {
+        return None;
+    }
+    Some(host.to_ascii_lowercase())
+}
+
+fn classify_target_host(public_origin: &PublicOrigin, host: &str) -> TargetClass {
+    if matches!(host, "localhost" | "127.0.0.1" | "::1") {
+        return TargetClass::Loopback;
+    }
+    let current = public_origin.snapshot();
+    if canonical_origin(&current).is_some_and(|origin| origin.host.eq_ignore_ascii_case(host)) {
+        return TargetClass::CurrentPublic;
+    }
+    TargetClass::Other
+}
+
+fn classify_request_target(public_origin: &PublicOrigin, request: &Request) -> TargetObservation {
+    let forwarded_host_present = request.headers().contains_key("x-forwarded-host");
+    let http_version = http_version_label(request.version());
+
+    if let Some(authority) = request.uri().authority() {
+        let host = authority.host().trim_matches(|ch| ch == '[' || ch == ']');
+        let class = if host.is_empty() {
+            TargetClass::Invalid
+        } else {
+            classify_target_host(public_origin, &host.to_ascii_lowercase())
+        };
+        return TargetObservation {
+            source: TargetSource::UriAuthority,
+            class,
+            http_version,
+            forwarded_host_present,
+        };
+    }
+
+    let mut values = request.headers().get_all(HOST).iter();
+    let Some(value) = values.next() else {
+        return TargetObservation {
+            source: TargetSource::Missing,
+            class: TargetClass::Missing,
+            http_version,
+            forwarded_host_present,
+        };
+    };
+    if values.next().is_some() {
+        return TargetObservation {
+            source: TargetSource::HostHeader,
+            class: TargetClass::Invalid,
+            http_version,
+            forwarded_host_present,
+        };
+    }
+    let class = value
+        .to_str()
+        .ok()
+        .and_then(normalize_authority_host)
+        .map(|host| classify_target_host(public_origin, &host))
+        .unwrap_or(TargetClass::Invalid);
+    TargetObservation {
+        source: TargetSource::HostHeader,
+        class,
+        http_version,
+        forwarded_host_present,
+    }
+}
+
+fn observe_request_target(state: &ListenerState, request: &Request) {
+    let observation = classify_request_target(&state.configured_public_url, request);
+    let first = state
+        .target_observations
+        .lock()
+        .map(|mut seen| seen.insert(observation))
+        .unwrap_or(false);
+    if !first {
+        return;
+    }
+    append_profile_log(
+        &state.workspace_id,
+        "mcp-requests.log",
+        &format!(
+            "[security] event=request_target_observation source={} class={} http_version={} forwarded_host_present={}",
+            observation.source.as_str(),
+            observation.class.as_str(),
+            observation.http_version,
+            observation.forwarded_host_present
+        ),
+    );
+}
+
 fn invalid_origin_response() -> Response {
     (
         StatusCode::FORBIDDEN,
@@ -273,6 +426,7 @@ async fn validate_origin(
     request: Request,
     next: Next,
 ) -> Response {
+    observe_request_target(&state, &request);
     if !origin_allowed(&state, request.headers()) {
         append_profile_log(
             &state.workspace_id,
@@ -517,10 +671,16 @@ fn oauth_not_configured() -> Response {
 
 #[cfg(test)]
 mod tests {
-    use axum::http::header::CACHE_CONTROL;
+    use axum::body::Body;
+    use axum::http::header::{CACHE_CONTROL, HOST};
+    use axum::http::Request;
     use axum::response::IntoResponse;
 
-    use super::{bind_listener, mcp_discovery, mcp_discovery_payload};
+    use crate::auth::PublicOrigin;
+    use super::{
+        bind_listener, classify_request_target, mcp_discovery, mcp_discovery_payload,
+        TargetClass, TargetSource,
+    };
 
     #[test]
     fn bind_listener_reports_port_conflict_synchronously() {
@@ -528,6 +688,81 @@ mod tests {
         let port = occupied.local_addr().expect("读取测试端口").port();
 
         assert!(bind_listener(port).is_err());
+    }
+
+    #[test]
+    fn request_target_observation_is_sanitized_and_tracks_live_public_origin() {
+        let public = PublicOrigin::managed("https://old.example.com").unwrap();
+
+        let local = Request::builder()
+            .uri("/mcp")
+            .header(HOST, "127.0.0.1:28766")
+            .body(Body::empty())
+            .unwrap();
+        let observed = classify_request_target(&public, &local);
+        assert_eq!(observed.source, TargetSource::HostHeader);
+        assert_eq!(observed.class, TargetClass::Loopback);
+        assert!(!observed.forwarded_host_present);
+
+        let current = Request::builder()
+            .uri("/mcp")
+            .header(HOST, "old.example.com")
+            .header("x-forwarded-host", "untrusted-forwarded.example")
+            .body(Body::empty())
+            .unwrap();
+        let observed = classify_request_target(&public, &current);
+        assert_eq!(observed.source, TargetSource::HostHeader);
+        assert_eq!(observed.class, TargetClass::CurrentPublic);
+        assert!(observed.forwarded_host_present);
+
+        public.publish("https://new.example.com").unwrap();
+        assert_eq!(
+            classify_request_target(&public, &current).class,
+            TargetClass::Other
+        );
+        let new_current = Request::builder()
+            .uri("/mcp")
+            .header(HOST, "NEW.EXAMPLE.COM:443")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            classify_request_target(&public, &new_current).class,
+            TargetClass::CurrentPublic
+        );
+    }
+
+    #[test]
+    fn uri_authority_precedes_host_header_for_target_observation() {
+        let public = PublicOrigin::managed("https://mcp.example.com").unwrap();
+        let request = Request::builder()
+            .uri("https://mcp.example.com/mcp")
+            .header(HOST, "attacker.example")
+            .body(Body::empty())
+            .unwrap();
+        let observed = classify_request_target(&public, &request);
+        assert_eq!(observed.source, TargetSource::UriAuthority);
+        assert_eq!(observed.class, TargetClass::CurrentPublic);
+    }
+
+    #[test]
+    fn missing_and_invalid_targets_are_classified_without_echoing_values() {
+        let public = PublicOrigin::managed("https://mcp.example.com").unwrap();
+        let missing = Request::builder().uri("/mcp").body(Body::empty()).unwrap();
+        let observed = classify_request_target(&public, &missing);
+        assert_eq!(observed.source, TargetSource::Missing);
+        assert_eq!(observed.class, TargetClass::Missing);
+
+        let mut duplicated = Request::builder()
+            .uri("/mcp")
+            .header(HOST, "mcp.example.com")
+            .body(Body::empty())
+            .unwrap();
+        duplicated
+            .headers_mut()
+            .append(HOST, "attacker.example".parse().unwrap());
+        let observed = classify_request_target(&public, &duplicated);
+        assert_eq!(observed.source, TargetSource::HostHeader);
+        assert_eq!(observed.class, TargetClass::Invalid);
     }
 
     #[tokio::test]
