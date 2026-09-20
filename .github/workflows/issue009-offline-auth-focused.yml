@@ -6,6 +6,8 @@ on:
       - hardening/offline-auth-noise
     paths:
       - 'src-tauri/src/auth/聊天授权回归v1.rs'
+      - 'src-tauri/src/auth/聊天授权v1.rs'
+      - 'src-tauri/src/runtime/execution_gate.rs'
       - 'src-tauri/src/tools/聊天运行域v1.rs'
       - '.github/workflows/issue009-offline-auth-focused.yml'
   workflow_dispatch:
