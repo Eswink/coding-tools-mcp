@@ -26,7 +26,7 @@ pub enum ServiceKind {
     Actions,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RuntimePhase {
     Stopped,
     Starting,
