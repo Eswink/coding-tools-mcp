@@ -167,6 +167,29 @@ Before production edit, run focused GitNexus impact for at least:
 
 If GitNexus has lower-bound/UNKNOWN results, preserve them and complement with source/text review.
 
+## Failure-first evidence
+
+Pre-fix validation run `35513270637`, source `9eafdce08395ee1e987d90dc34d7fd5f92500ea0`: **FAIL as expected**.
+
+The test suite compiled successfully and then demonstrated the actual behavior gap:
+
+- missing/local Origin baseline: PASS;
+- `https://attacker.example` on `/mcp`: observed HTTP 200, expected 403;
+- attacker Origin on OAuth authorization-server metadata: observed HTTP 200, expected 403;
+- stale managed public Origin after live publication: observed HTTP 200, expected 403.
+
+Result:
+
+```text
+4 tests
+1 passed
+3 failed
+```
+
+This is a protocol/security behavior failure, not a test-compilation or environment failure.
+
+Repair candidate begins at `ab89f652ba5c63c766c63a8c86a82007e60059fc`.
+
 ## Focused impact evidence
 
 GitNexus workflow run `35513186585`: PASS as tooling execution.
