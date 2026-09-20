@@ -225,27 +225,78 @@
     }
   }
 
-  async function toggleMcp() {
+  async function startMcpConnector() {
     const id = workspaceId;
-    if (disposed || !id || mcpBusy || configurationBusy) return;
-    const wasRunning = mcpStatus === "running";
+    if (
+      disposed
+      || !id
+      || mcpBusy
+      || mcpExecutionBusy
+      || configurationBusy
+      || mcpStatus === "running"
+      || mcpStatus === "starting"
+      || mcpStatus === "stopping"
+    ) return;
+
     mcpBusy = true;
     try {
-      const runtime = await runServiceToggle(
-        wasRunning,
-        () => startRuntime(id),
-        () => stopRuntime(id),
-        "MCP",
-      );
-      if (!disposed && runtime && id === workspaceId) {
+      const runtime = await startRuntime(id);
+      if (!disposed && id === workspaceId) {
         applyMcpRuntime(runtime, id);
-        if (!wasRunning) {
-          if (runtime.state === "running") {
-            await afterServiceStart("mcp", runtime, id);
-          } else {
-            notifyStartFailure("MCP", runtime);
-          }
+        if (runtime.state === "running") {
+          await afterServiceStart("mcp", runtime, id);
+        } else {
+          notifyStartFailure("MCP Connector", runtime);
         }
+      }
+    } catch (error) {
+      if (!disposed && id === workspaceId) {
+        showToast(String(error), {
+          title: "MCP Connector 启动失败",
+          kind: "error",
+          duration: 8000,
+        });
+      }
+    } finally {
+      mcpBusy = false;
+    }
+  }
+
+  async function stopMcpConnector() {
+    const id = workspaceId;
+    if (
+      disposed
+      || !id
+      || mcpStatus !== "running"
+      || mcpBusy
+      || mcpExecutionBusy
+      || configurationBusy
+    ) return;
+
+    mcpBusy = true;
+    try {
+      const confirmed = await confirm(
+        "停止 Connector 会关闭 MCP/OAuth 监听器和公网隧道。\n如果只是暂时不允许远程操作，请使用“暂停远程执行”。",
+        {
+          title: "停止 MCP Connector",
+          kind: "warning",
+          okLabel: "停止 Connector",
+          cancelLabel: "取消",
+        },
+      );
+      if (!confirmed || disposed || id !== workspaceId || mcpStatus !== "running") return;
+
+      const runtime = await stopRuntime(id);
+      if (!disposed && id === workspaceId) {
+        applyMcpRuntime(runtime, id);
+      }
+    } catch (error) {
+      if (!disposed && id === workspaceId) {
+        showToast(String(error), {
+          title: "MCP Connector 停止失败",
+          kind: "error",
+          duration: 8000,
+        });
       }
     } finally {
       mcpBusy = false;
@@ -509,7 +560,9 @@
           state={mcpExecutionState}
           runtimeState={mcpStatus}
           busy={configurationBusy || mcpBusy || mcpExecutionBusy}
+          onStart={() => void startMcpConnector()}
           onToggle={() => void toggleMcpExecution()}
+          onStop={() => void stopMcpConnector()}
         />
       {/if}
       {#key activeService}
@@ -522,7 +575,7 @@
         activeOrigin={actionsActiveOrigin} {frpProfiles} tunnelConfig={activeService === "mcp" ? mcpTunnelForm : actionsTunnelForm}
         subTab={activeService === "mcp" ? mcpSubTab : actionsSubTab}
         onTabChange={(next) => { if (currentService === "mcp") mcpSubTab = next; else actionsSubTab = next; }}
-        onToggle={activeService === "mcp" ? toggleMcp : toggleActions}
+        onToggle={activeService === "mcp" ? startMcpConnector : toggleActions}
         onPortChange={bindWorkspace(profile.id, activeService === "mcp" ? saveMcpPort : saveActionsPort)}
         onReload={() => load()} onSaveTunnel={bindWorkspace(profile.id, activeService === "mcp" ? saveMcpTunnel : saveActionsTunnel)}
         onSaveMcpAuth={bindWorkspace(profile.id, saveMcpAuth)} onSaveActionsAuth={bindWorkspace(profile.id, saveActionsAuth)}

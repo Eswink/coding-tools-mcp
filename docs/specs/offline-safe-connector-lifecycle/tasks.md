@@ -90,5 +90,10 @@ Parent: [plan.md](plan.md)
 
 - [x] Identify current UI gap: primary running MCP action still performs hard stop.
 - [x] Freeze Pause/Resume-primary, Stop-Connector-secondary design.
-- [ ] Add failure-first UI contract.
-- [ ] Implement and validate intent-aware MCP controls after ISSUE-006 merge.
+- [x] Add failure-first cross-platform UI contract.
+- [x] Make Start / Pause / Resume the normal MCP lifecycle actions.
+- [x] Keep hard Stop Connector explicit and confirmation-gated.
+- [x] Remove duplicate MCP hard-stop control from generic ServicePanel.
+- [x] Keep ChatGPT Actions lifecycle unchanged.
+- [x] Run Svelte check/build and old/new UI contracts on Ubuntu and Windows.
+- [ ] Validate the actual reconnect UX on real ChatGPT host — DEFERRED.

@@ -1,0 +1,77 @@
+name: Offline-safe ISSUE-008 UX impact gate
+
+on:
+  push:
+    branches:
+      - ux/offline-safe-intent-controls
+    paths:
+      - '.github/workflows/offline-safe-issue008-impact.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build GitNexus index
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx -y gitnexus@latest analyze | tee evidence/analyze.txt
+          git reset --hard "$GITHUB_SHA"
+          npx -y gitnexus@latest status | tee evidence/status.txt
+      - name: Query MCP lifecycle UI flow
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest query "workspace MCP stopRuntime pauseMcpExecution resumeMcpExecution ServicePanel lifecycle UI" | tee evidence/query-lifecycle-ui.txt
+      - name: Probe Svelte symbols without relabeling parser gaps
+        shell: bash
+        run: |
+          set +e
+          npx -y gitnexus@latest impact toggleMcp --file 'src/routes/workspace/[id]/+page.svelte' --direction upstream > evidence/impact-toggle-mcp.txt 2>&1
+          toggle_mcp_rc=$?
+          npx -y gitnexus@latest impact toggleMcpExecution --file 'src/routes/workspace/[id]/+page.svelte' --direction upstream > evidence/impact-toggle-execution.txt 2>&1
+          toggle_execution_rc=$?
+          npx -y gitnexus@latest impact Props --file src/lib/components/ServicePanel.svelte --kind Interface --direction upstream > evidence/impact-service-panel-props.txt 2>&1
+          service_props_rc=$?
+          npx -y gitnexus@latest impact Props --file src/lib/components/workspace/ExecutionAvailabilityPanel.svelte --kind Interface --direction upstream > evidence/impact-execution-panel-props.txt 2>&1
+          execution_props_rc=$?
+          printf 'toggle_mcp_rc=%s\ntoggle_execution_rc=%s\nservice_props_rc=%s\nexecution_props_rc=%s\n' \
+            "$toggle_mcp_rc" "$toggle_execution_rc" "$service_props_rc" "$execution_props_rc" | tee evidence/svelte-impact-status.txt
+          exit 0
+      - name: Record exact source call sites
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '--- stopRuntime ---'
+            git grep -n 'stopRuntime' -- 'src/**/*.ts' 'src/**/*.svelte' || true
+            echo '--- pauseMcpExecution ---'
+            git grep -n 'pauseMcpExecution' -- 'src/**/*.ts' 'src/**/*.svelte' || true
+            echo '--- resumeMcpExecution ---'
+            git grep -n 'resumeMcpExecution' -- 'src/**/*.ts' 'src/**/*.svelte' || true
+            echo '--- ServicePanel ---'
+            git grep -n '<ServicePanel' -- 'src/**/*.svelte' || true
+            echo '--- ExecutionAvailabilityPanel ---'
+            git grep -n 'ExecutionAvailabilityPanel' -- 'src/**/*.svelte' || true
+          } | tee evidence/source-call-sites.txt
+      - name: Preserve impact evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-safe-issue008-impact
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30

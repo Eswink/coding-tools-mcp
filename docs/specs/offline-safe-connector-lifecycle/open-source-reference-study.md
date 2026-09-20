@@ -404,3 +404,57 @@ This reinforces the current sequencing:
 2. real-host evidence;
 3. only then decide whether Level B local daemon or Level C remote broker is required.
 
+
+
+## 11. Inspector UX — transport connection is not the same operator intent as availability
+
+References:
+
+- `MCPJam/inspector@c8501f47c06bde36794a8010e5573d40d0deb43c`
+  - `docs/inspector/playground.mdx`
+- `modelcontextprotocol/inspector@2e90a628e6296c62e4bef942afbb43d3faa4baf4`
+  - `clients/web/README.md`
+  - `clients/web/src/hooks/useConnectionLifecycle.ts`
+
+Observed UI/lifecycle patterns:
+
+### MCPJam Inspector
+
+The Playground explicitly distinguishes:
+
+- **connect / disconnect** a server;
+- **toggle a server on/off for the current conversation**.
+
+The tool surface can aggregate multiple connected servers while conversation selection is a separate choice. This is a direct product precedent for not forcing a transport disconnect merely because the user does not want that server active for the current work.
+
+### Official MCP Inspector
+
+The Inspector models transport lifecycle explicitly:
+
+```text
+disconnected
+ -> connecting
+ -> connected / error
+```
+
+Explicit disconnect is a real session-lifecycle operation and performs session-scoped cleanup. Mid-session transport failure is also a disconnect event, rather than being conflated with tool availability.
+
+### Decision for coding-tools-mcp
+
+**Adopt in ISSUE-008.**
+
+The desktop should expose two different operator intents:
+
+```text
+temporary workspace intent
+  Pause remote execution
+  Resume remote execution
+
+connector infrastructure intent
+  Start Connector
+  Stop Connector
+```
+
+The common running-state action should be Pause/Resume. Hard Stop remains available and explicit because it changes transport reachability, OAuth reachability and tunnel lifetime.
+
+This supports the backend split already implemented in Round 3 and avoids teaching operators that “temporarily stop work” means “disconnect the connector”.

@@ -685,3 +685,112 @@ real ChatGPT Origin compatibility: UNCONFIRMED_ON_REAL_HOST
 ```
 
 Next direct product task: ISSUE-008 intent-aware lifecycle UX. ISSUE-007 Host/:authority enforcement waits for tunnel-topology evidence.
+
+
+## 07 — Intent-aware lifecycle UX
+
+Date: 2026-09-20  
+Branch: `ux/offline-safe-intent-controls`  
+Draft PR: #26  
+Result: **SOURCE/UX PASS; real ChatGPT reconnect outcome remains DEFERRED.**
+
+### Problem confirmed
+
+Although Round 3 separated connector reachability from workspace execution in the backend, the workspace UI still presented the generic running MCP power button as `停止`, directly calling `stopRuntime`.
+
+Pause/Resume existed in a separate panel, so the normal visible action could still intentionally tear down listener+tunnel reachability.
+
+### Failure-first contract
+
+Run `35517398463`:
+
+```text
+5 tests
+1 passed
+4 failed
+```
+
+Failures confirmed:
+
+- no explicit Start Connector path;
+- no confirmation-gated Stop Connector path;
+- execution panel did not own connector Start/Stop actions;
+- generic ServicePanel still rendered the MCP hard-stop button.
+
+Actions start/stop behavior passed and was preserved.
+
+### Impact limitation
+
+Run `35517373147`:
+
+- GitNexus query resolved pause/resume TypeScript API symbols;
+- Svelte symbol probes for page/component functions/Props all returned non-zero;
+- exact grep review located the only UI `stopRuntime` call in the MCP toggle and the separate pause/resume calls.
+
+The parser limitation is retained rather than relabeled as low risk.
+
+### Implementation
+
+MCP UI now uses one intent-aware lifecycle panel:
+
+```text
+stopped       -> Start Connector
+running online -> Pause remote execution
+running offline -> Resume remote execution
+running        -> secondary Stop Connector
+```
+
+Hard Stop:
+
+- calls the unchanged backend `stopRuntime`;
+- requires explicit confirmation;
+- states that MCP/OAuth listener and public tunnel will close;
+- directs temporary-work intent to Pause instead.
+
+The generic ServicePanel toggle is hidden for MCP and unchanged for Actions.
+
+### Focused verification
+
+Run `35517680310`: Ubuntu + Windows contract PASS.
+
+### Full frontend validation
+
+Run `35517763406`: SUCCESS.
+
+Ubuntu:
+
+- Svelte check: 0 errors / 0 warnings;
+- production build: PASS;
+- existing offline-safe UI contract: 3/3;
+- new intent-aware UI contract: 5/5.
+
+Windows:
+
+- Svelte check: 0 errors / 0 warnings;
+- production build: PASS;
+- existing offline-safe UI contract: 3/3;
+- new intent-aware UI contract: 5/5.
+
+Final detect-changes:
+
+```text
+11 files
+16 indexed symbols
+0 affected processes
+aggregate risk: low
+```
+
+This aggregate graph result does not remove the known Svelte indexing uncertainty.
+
+### External-reference result
+
+MCPJam and the official MCP Inspector independently distinguish transport connect/disconnect from conversation/server enablement or session state. This supports making Pause/Resume the ordinary temporary-work intent and reserving disconnect/stop for explicit connector lifecycle changes.
+
+### Truth state
+
+```text
+engineering candidate: PASS
+Origin boundary: PASS
+intent-aware lifecycle UX: SOURCE/UX PASS
+real ChatGPT reconnect behavior: UNCONFIRMED_ON_REAL_HOST
+```
