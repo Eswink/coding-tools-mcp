@@ -1,6 +1,6 @@
 # ISSUE-010 — Explicit new-chat admission policy and single-use local approval window
 
-Status: OPEN — DESIGN FROZEN; FAILURE-FIRST IMPLEMENTATION GATE NEXT  
+Status: IN PROGRESS — FAILURE-FIRST GAP CONFIRMED; IMPLEMENTATION VALIDATING  
 Parent: [plan.md](plan.md)  
 Depends on: ISSUE-003, ISSUE-004, ISSUE-008, ISSUE-009  
 Scope: shared-account / first-contact governance for **new** chat approvals
@@ -365,6 +365,76 @@ Before production edits run GitNexus impact for at least:
 - workspace configuration `changed_services` / update path.
 
 Known Svelte indexing gaps must be retained and supplemented with exact call-site review.
+
+## Failure-first evidence
+
+Cross-platform source-contract run `35529001200`: **FAIL as expected** before implementation.
+
+Ubuntu and Windows both reported:
+
+```text
+4 tests
+0 passed
+4 failed
+```
+
+Missing behavior was exactly the ISSUE-010 scope:
+
+1. no persistent `new_chat_admission` modes;
+2. no local single-use arm/disarm window;
+3. no persistent setting UI;
+4. no local authorization-panel admission control.
+
+This is retained as product-gap evidence rather than a CI/environment failure.
+
+## Impact evidence
+
+GitNexus run `35528932680` and extended run `35529213366` completed successfully as tooling.
+
+Backend:
+
+- `ChatAuthorizer::request_guarded`: LOW, exact — 6 impacted symbols;
+- configuration `changed_services`: LOW, exact — 3 impacted symbols / update-workspace flow;
+- `ChatAuthorizer::configure`: UNKNOWN, lower-bound; one receiver-typing call site dropped;
+- `ChatAuthorizer::snapshot`: UNKNOWN, lower-bound; two receiver-typing call sites dropped;
+- local `chat_authorization_control`: UNKNOWN/exact because Tauri invoke registration is not represented as a caller edge;
+- `SessionPolicy`: ambiguous struct/impl target with UNKNOWN graph impact.
+
+TypeScript:
+
+- `validateSessionPolicy`: LOW, exact;
+- `sessionPolicy` and `policyFromFields`: UNKNOWN/exact with no callers resolved by the graph, so exact source search is authoritative for UI call sites.
+
+Svelte:
+
+- `RemoteSessionSettings` Props: not indexed;
+- local chat-authorization panel Props: not indexed.
+
+Exact source review confirms:
+
+- listener startup validates/configures `SessionPolicy`;
+- workspace auth/profile changes route through `changed_services -> update_workspace`;
+- the running MCP service is restarted by the existing configuration transaction when persistent auth/session policy changes;
+- the local authorization command is called by the authorization panel/host;
+- the persistent policy form is the only `policyFromFields` UI path.
+
+No UNKNOWN result is treated as proof of safety.
+
+## Open-source design refinement
+
+MCPMate's current governance model makes first-contact behavior explicit:
+
+```text
+deny   -> suspended
+review -> pending
+allow  -> approved
+```
+
+and maps the same concept into a separately named onboarding policy.
+
+ISSUE-010 deliberately adopts only the **explicit first-contact policy** principle. It does **not** adopt automatic approval: every ChatGPT conversation still requires local fingerprint review.
+
+The project-specific extension, `local_window`, is stricter than MCPMate review mode and is designed for a shared ChatGPT account: one local operator action creates one short-lived opportunity for one new pending conversation.
 
 ## Acceptance
 
