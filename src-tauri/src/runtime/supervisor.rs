@@ -758,6 +758,85 @@ mod tests {
         assert!(!should_mark_runtime_error(&mut runtime, false));
     }
     #[test]
+    fn pause_preserves_generation_origin_and_runtime_membership() {
+        let profile = WorkspaceProfile::new("/tmp/offline-safe".into(), None);
+        let mut runtime = RuntimeSupervisor::default();
+        let mut active = entry(
+            RuntimePhase::Running,
+            Some(std::time::Instant::now() - Duration::from_secs(1)),
+        );
+        active
+            .public_origin
+            .publish("https://stable.example.com")
+            .unwrap();
+        let generation = active.generation.clone();
+        runtime
+            .entries
+            .insert((profile.id.clone(), ServiceKind::Mcp), active);
+
+        let before_keys = runtime.active_tunnel_service_keys();
+        let before_origin = runtime
+            .public_origin_handle(&profile.id, ServiceKind::Mcp)
+            .unwrap()
+            .snapshot();
+
+        let paused = runtime
+            .pause_mcp_execution(&profile, &generation)
+            .expect("pause current runtime generation");
+        assert_eq!(paused.state, "running");
+        assert_eq!(paused.execution_state.as_deref(), Some("offline"));
+        assert_eq!(paused.runtime_generation.as_deref(), Some(generation.as_str()));
+        assert_eq!(paused.public_endpoint, "https://stable.example.com/mcp");
+        assert_eq!(runtime.active_tunnel_service_keys(), before_keys);
+        assert_eq!(
+            runtime
+                .public_origin_handle(&profile.id, ServiceKind::Mcp)
+                .unwrap()
+                .snapshot(),
+            before_origin
+        );
+
+        let resumed = runtime
+            .resume_mcp_execution(&profile, &generation)
+            .expect("resume same runtime generation");
+        assert_eq!(resumed.state, "running");
+        assert_eq!(resumed.execution_state.as_deref(), Some("online"));
+        assert_eq!(resumed.runtime_generation.as_deref(), Some(generation.as_str()));
+        assert_eq!(runtime.active_tunnel_service_keys(), before_keys);
+    }
+
+    #[test]
+    fn stale_generation_cannot_pause_a_replacement_listener() {
+        let profile = WorkspaceProfile::new("/tmp/offline-safe-generation".into(), None);
+        let mut runtime = RuntimeSupervisor::default();
+
+        let first = entry(RuntimePhase::Running, Some(std::time::Instant::now()));
+        let stale_generation = first.generation.clone();
+        runtime
+            .entries
+            .insert((profile.id.clone(), ServiceKind::Mcp), first);
+
+        let replacement = entry(RuntimePhase::Running, Some(std::time::Instant::now()));
+        let replacement_generation = replacement.generation.clone();
+        assert_ne!(stale_generation, replacement_generation);
+        runtime
+            .entries
+            .insert((profile.id.clone(), ServiceKind::Mcp), replacement);
+
+        let error = runtime
+            .pause_mcp_execution(&profile, &stale_generation)
+            .unwrap_err();
+        assert!(error.to_string().contains("运行时已变更"));
+
+        let status = runtime.mcp_status(&profile);
+        assert_eq!(status.execution_state.as_deref(), Some("online"));
+        assert_eq!(
+            status.runtime_generation.as_deref(),
+            Some(replacement_generation.as_str())
+        );
+    }
+
+    #[test]
     fn quick_start_does_not_reuse_the_previous_persisted_url() {
         let mut profile = WorkspaceProfile::new("/tmp/quick".into(), None);
         profile.tunnel.tunnel_type = "cloudflare".into();
