@@ -1,0 +1,31 @@
+name: MCP Origin Windows drain isolation
+
+on:
+  push:
+    branches:
+      - security/mcp-origin-validation
+    paths:
+      - '.github/workflows/mcp-origin-windows-drain.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drain-test:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-targets: false
+      - name: Run owner-drain regression in isolation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cargo test --locked --manifest-path src-tauri/Cargo.toml auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor -- --exact --nocapture --test-threads=1
