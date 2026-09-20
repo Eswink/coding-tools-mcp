@@ -113,3 +113,17 @@ Parent: [plan.md](plan.md)
 - [x] Run final Ubuntu + Windows full source regression.
 - [x] Run final Ubuntu DEB + Windows NSIS install/remove revalidation.
 - [ ] Verify behavior through the real shared ChatGPT host/account UI — DEFERRED.
+
+
+## Engineering completion
+
+- [x] Merge ISSUE-003 Level A execution/control-plane split into the project plan branch.
+- [x] Merge ISSUE-004 privacy/non-disclosure hardening.
+- [x] Reach ISSUE-005 ENGINEERING_CANDIDATE_PASS on Windows and Ubuntu installed artifacts.
+- [x] Merge ISSUE-006 Origin boundary hardening with packaged revalidation.
+- [x] Merge ISSUE-008 intent-aware Pause/Resume UX.
+- [x] Merge ISSUE-009 Offline authorization-noise suppression with packaged revalidation.
+- [x] Prepare ISSUE-007 sanitized tunnel-header probe and topology design.
+- [x] Record bounded rollback and final engineering completion boundary.
+- [ ] Execute real ChatGPT host acceptance — DEFERRED by user, not waived.
+- [ ] Execute live tunnel Host/:authority observations for ISSUE-007 — DEFERRED external topology gate.
