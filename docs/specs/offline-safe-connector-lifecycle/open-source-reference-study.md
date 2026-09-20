@@ -664,3 +664,44 @@ OAuth authentication
 conversation/local approval
 workspace execution availability
 ```
+
+
+## 14. MCPMate — enable/disable profiles without restarting the local core
+
+Reference:
+
+- `loocor/MCPMate@dc80b32f64788bf9513ccf241dd19708b25cce87`
+- `board/README.md`
+- desktop/operator/settings UI strings and audit event definitions.
+
+Observed product architecture:
+
+- a long-lived local core/service is managed separately from profile/server activation;
+- profiles choose which servers/tools are active;
+- profiles can be enabled/disabled without restarting the service;
+- management UI distinguishes local core service start/restart from profile/server enable/disable;
+- audit vocabulary separately records core-service lifecycle and profile-server enable/disable operations.
+
+### Decision for coding-tools-mcp
+
+**Confirms the Round 3 + ISSUE-008 product split.**
+
+The useful pattern is not the exact MCPMate process architecture; it is the explicit operator vocabulary:
+
+```text
+core / connector lifecycle
+    !=
+profile / workspace activation
+```
+
+For this project:
+
+```text
+Start/Stop Connector
+    !=
+Pause/Resume remote workspace execution
+```
+
+This is particularly important in a shared ChatGPT installation: temporarily disabling workspace execution should not imply that the connector identity itself must disappear or restart.
+
+It also supports ISSUE-009's rule that a paused workspace should not create new local approval work: “reachable core” and “currently accepting this profile/conversation” are separate states.
