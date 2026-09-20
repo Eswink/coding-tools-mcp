@@ -46,6 +46,11 @@ jobs:
         run: |
           set -euo pipefail
           npx -y gitnexus@latest impact StartupFailureReason --file src-tauri/src/error.rs --kind Enum --direction upstream | tee evidence/impact-startup-failure-reason.txt
+      - name: Detect final Round 5 candidate changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest detect-changes --scope compare --base-ref origin/plan/offline-safe-connector-lifecycle | tee evidence/detect-changes.txt
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v4
