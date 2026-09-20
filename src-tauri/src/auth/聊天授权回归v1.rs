@@ -294,6 +294,59 @@ fn local_window_allows_exactly_one_concurrent_new_grant_even_without_exclusive_o
 }
 
 #[test]
+fn local_window_allocation_and_pause_have_one_linearization_order() {
+    let svc = Arc::new(ChatAuthorizer::default());
+    let profile = "new-chat-window-pause-race";
+    svc.configure(profile, &admission_policy(NewChatAdmission::LocalWindow, false)).unwrap();
+    svc.arm_new_chat(profile).unwrap();
+
+    let req = request(&svc, profile, "A");
+    let gate = crate::runtime::WorkspaceExecutionGate::shared();
+    let request_gate = gate.clone();
+    let request_svc = svc.clone();
+    let request_req = req.clone();
+    let (hold_tx, hold_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+
+    let requester = std::thread::spawn(move || {
+        request_svc.request_guarded(&request_req, &json!({}), || {
+            let hold = request_gate.hold_online()
+                .map_err(|_| json!({"ok":false,"error":{"code":"CHAT_AUTHORIZATION_UNAVAILABLE"}}))?;
+            hold_tx.send(()).unwrap();
+            release_rx.recv().unwrap();
+            Ok(hold)
+        })
+    });
+
+    hold_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+
+    let pause_gate = gate.clone();
+    let (pause_done_tx, pause_done_rx) = std::sync::mpsc::channel();
+    let pauser = std::thread::spawn(move || {
+        let snapshot = pause_gate.pause().unwrap();
+        pause_done_tx.send(snapshot).unwrap();
+    });
+
+    std::thread::sleep(Duration::from_millis(20));
+    assert!(
+        pause_done_rx.try_recv().is_err(),
+        "Pause committed while a new pending allocation still held the Online linearization point"
+    );
+
+    release_tx.send(()).unwrap();
+    let result = requester.join().unwrap();
+    assert_eq!(result["authorization"]["status"], "pending", "{result}");
+
+    let paused = pause_done_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+    assert_eq!(paused.availability.as_str(), "offline");
+    pauser.join().unwrap();
+
+    let snapshot = svc.snapshot(profile);
+    assert_eq!(snapshot["records"].as_array().unwrap().len(), 1);
+    assert_eq!(snapshot["admission"]["armed"], false);
+}
+
+#[test]
 fn local_window_survives_offline_rejection_until_resume_or_expiry() {
     let root = tempfile::tempdir().unwrap();
     let harness = tempfile::tempdir().unwrap();
