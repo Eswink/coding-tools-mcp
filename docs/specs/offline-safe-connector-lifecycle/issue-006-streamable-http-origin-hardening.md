@@ -167,6 +167,21 @@ Before production edit, run focused GitNexus impact for at least:
 
 If GitNexus has lower-bound/UNKNOWN results, preserve them and complement with source/text review.
 
+## Focused impact evidence
+
+GitNexus workflow run `35513186585`: PASS as tooling execution.
+
+Before any production edit:
+
+- listener `serve`: **CRITICAL**, exact — 22 impacted symbols, 9 affected processes, 5 modules;
+- `PublicOrigin::snapshot`: **CRITICAL**, lower-bound — 27 impacted symbols, 7 affected processes, 5 modules, with 2 receiver-typing call sites dropped;
+- `mcp_post`: UNKNOWN/exact because router registration is not represented as a caller edge;
+- OAuth authorize/token handlers: UNKNOWN/exact for the same router-registration boundary.
+
+The UNKNOWN handler results are not interpreted as unused/safe. Source review confirms they are directly registered on the Axum router.
+
+Because `serve` and `PublicOrigin::snapshot` are CRITICAL, the implementation must remain one bounded listener middleware change and reuse the existing live `PublicOrigin` handle rather than changing its public contract.
+
 ## Acceptance
 
 SOURCE PASS requires:
