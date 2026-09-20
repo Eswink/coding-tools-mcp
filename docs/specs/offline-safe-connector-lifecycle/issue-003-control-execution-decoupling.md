@@ -1,6 +1,6 @@
 # ISSUE-003 — Decouple connector control plane from workspace execution lifecycle
 
-Status: IMPLEMENTATION IN PROGRESS  
+Status: REVIEWED — ROUND 3 SOURCE/SYNTHETIC GATES PASS; REAL-HOST ACCEPTANCE DEFERRED  
 Parent: [plan.md](plan.md)  
 Design: [issue-002-workspace-availability-contract.md](issue-002-workspace-availability-contract.md)  
 Round: 3 / 5  
