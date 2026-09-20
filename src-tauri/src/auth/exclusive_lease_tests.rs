@@ -112,6 +112,7 @@ fn recovery_denial_contains_no_generation_binding_or_workspace_metadata() {
     let req = request(&s, profile, "foreign-recovery-chat");
     let binding = req.binding.as_ref().unwrap().clone();
     let root = tempfile::tempdir().unwrap();
+    let root_text = root.path().to_string_lossy().to_string();
 
     let initial = super::super::execution_fence::ExecutionFence::open(root.path()).unwrap();
     initial.mark(&binding).unwrap();
@@ -131,7 +132,7 @@ fn recovery_denial_contains_no_generation_binding_or_workspace_metadata() {
             binding.as_str(),
             profile,
             "foreign-recovery-chat",
-            root.path().to_string_lossy().as_ref(),
+            root_text.as_str(),
         ] {
             assert!(!text.contains(secret), "recovery denial leaked {secret:?}: {blocked}");
         }
