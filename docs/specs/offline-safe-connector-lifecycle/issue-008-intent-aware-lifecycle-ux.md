@@ -1,6 +1,6 @@
 # ISSUE-008 — Intent-aware offline-safe lifecycle UX
 
-Status: OPEN — DESIGN READY; IMPLEMENT AFTER ISSUE-006  
+Status: IN PROGRESS — FAILURE-FIRST UX GAP CONFIRMED; IMPLEMENTATION ACTIVE  
 Parent: [plan.md](plan.md)  
 Depends on: ISSUE-003 backend contract  
 Motivation: original reconnect UX can still be triggered by the current prominent hard-stop action
@@ -196,6 +196,54 @@ Likely targets:
 - `src/lib/api/workspaces.ts`.
 
 No Rust production edit should be required unless UI review exposes a missing backend status field.
+
+## Failure-first evidence
+
+Contract workflow run `35517398463` was added before production UI edits.
+
+Ubuntu first result:
+
+```text
+5 tests
+1 passed
+4 failed
+```
+
+The failures confirm the intended product gap:
+
+- no explicit `startMcpConnector`;
+- no explicit confirmed `stopMcpConnector`;
+- MCP execution panel does not own Start/Stop connector actions;
+- generic `ServicePanel` still exposes the MCP hard-stop power button.
+
+The one passing case proves ChatGPT Actions still has its existing independent start/stop lifecycle.
+
+Windows executes the same source contract independently.
+
+## Impact evidence
+
+GitNexus run `35517373147`: workflow PASS with the Svelte parser limitation preserved.
+
+Exact Svelte symbol probes all returned non-zero:
+
+```text
+toggle_mcp_rc=1
+toggle_execution_rc=1
+service_props_rc=1
+execution_props_rc=1
+```
+
+These are not interpreted as safe or unused.
+
+GitNexus query still resolved the TypeScript pause/resume API definitions. Exact source-call-site review recorded:
+
+- `stopRuntime`: API definition + workspace page import + one MCP toggle call site;
+- `pauseMcpExecution`: API definition + workspace page import/call;
+- `resumeMcpExecution`: API definition + workspace page import/call;
+- `ServicePanel`: one workspace-service-view instantiation;
+- `ExecutionAvailabilityPanel`: one workspace-page instantiation.
+
+The implementation therefore stays Svelte/UI-only and reuses the already validated backend lifecycle APIs.
 
 ## Acceptance
 
