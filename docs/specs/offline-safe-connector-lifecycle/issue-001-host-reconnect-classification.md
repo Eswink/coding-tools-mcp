@@ -1,6 +1,6 @@
 # ISSUE-001 — Host reconnect classification and failure-first reproduction
 
-Status: IN PROGRESS — HARNESS VALIDATED; REAL HOST EVIDENCE REQUIRED  
+Status: DEFERRED ACCEPTANCE — HARNESS VALIDATED; REAL HOST EVIDENCE MOVED TO ROUND 5  
 Parent plan: [plan.md](plan.md)  
 Round: 1 / 5  
 Implementation changes: NOT AUTHORIZED BY THIS ISSUE
@@ -155,3 +155,10 @@ GitHub Actions evidence after the source-escape repair:
 - production source changes: none.
 
 This does not satisfy the host-behavior acceptance criteria. C1-C10 remain open until exercised through a real ChatGPT test connector.
+
+
+## Sequencing amendment — 2026-09-20
+
+Real-host C1-C10 execution is deferred. The deterministic harness and architectural evidence are sufficient to supply provisional Round 2 design inputs, but they do not establish the exact ChatGPT reconnect trigger.
+
+Deferred items are transferred to ISSUE-005 / Round 5 acceptance. ISSUE-001 is not marked DONE and its unverified host claims must remain labeled `UNCONFIRMED_ON_REAL_HOST`.
