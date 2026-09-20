@@ -904,3 +904,74 @@ CHAT_AUTHORIZATION_UNAVAILABLE
 ```
 
 This matters directly to the original reconnect problem: reusing an HTTP OAuth challenge for a local workspace/admission condition would actively tell capable MCP clients to start re-authentication, which is the opposite of the intended offline-safe behavior.
+
+
+## 14. MCPMate — separate desktop shell, core service, and profile activation
+
+Reference:
+
+- `loocor/MCPMate@dc80b32f64788bf9513ccf241dd19708b25cce87`
+- `board/README.md`
+- `board/src/pages/settings/i18n/index.ts`
+
+Observed architecture:
+
+1. The management UI is a frontend that talks to a separate local backend service over REST/WebSocket.
+2. The product distinguishes the **desktop shell** from the **local core service**.
+3. Local runtime mode can be:
+   - OS service; or
+   - desktop-managed lifecycle.
+4. Profiles can be enabled/disabled dynamically **without restarting the service**.
+5. The UI separately exposes:
+   - profile/server enablement state;
+   - core-service start/restart/stop state;
+   - backend health/connectivity.
+6. The desktop copy explicitly distinguishes:
+   - “the local core is running”;
+   - “Desktop is managing the local core”;
+   - “service manager reports core running but health checks fail”.
+
+### Decision for coding-tools-mcp
+
+This is strong evidence for the same separation already emerging here:
+
+```text
+Desktop shell
+  != Connector/control service
+  != Workspace/profile execution availability
+```
+
+Round 3/ISSUE-008 already implement the third distinction inside one process:
+
+- Connector running;
+- workspace execution Online/Offline;
+- explicit hard Stop Connector.
+
+If eventual real-host testing proves that closing/quitting the desktop process must not remove connector reachability, MCPMate's core-service split is a credible Level B reference:
+
+```text
+desktop UI shell
+     |
+     +-- IPC/HTTP -> local background core
+                      |
+                      +-- MCP/OAuth control listener
+                      +-- tunnel supervisor
+                      +-- workspace execution gates
+```
+
+This would be preferable to hiding more lifecycle behavior inside the WebView/Tauri window process.
+
+### Important non-decision
+
+**Do not implement Level B yet.**
+
+Current evidence still shows Level A is sufficient to build a coherent engineering candidate, and the user explicitly deferred real ChatGPT host testing.
+
+A background core should be justified by one of these observed requirements:
+
+- app process exit must preserve connector reachability;
+- OS login/startup persistence is required;
+- multiple desktop shells must attach to one local control plane;
+- host tests prove UI-only close/reopen is insufficient.
+
+Until then, keep the Level B idea as an architecture option rather than introducing a new service manager, installer responsibility, and IPC security boundary.
