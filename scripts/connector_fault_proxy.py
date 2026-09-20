@@ -79,8 +79,7 @@ class EvidenceWriter:
         with self._lock:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with self.path.open("a", encoding="utf-8") as handle:
-                handle.write(payload + "
-")
+                handle.write(payload + "\n")
 
 
 @dataclass(frozen=True)
@@ -168,8 +167,7 @@ class ConnectorFaultHandler(BaseHTTPRequestHandler):
         total = 0
         while True:
             line = self.rfile.readline(128)
-            if not line or len(line) >= 128 or not line.endswith(b"
-"):
+            if not line or len(line) >= 128 or not line.endswith(b"\r\n"):
                 self._send_json(400, {"error": "invalid_chunked_body"})
                 return None
             size_text = line[:-2].split(b";", 1)[0].strip()
@@ -185,16 +183,14 @@ class ConnectorFaultHandler(BaseHTTPRequestHandler):
                 # Consume trailers without retaining or logging them.
                 while True:
                     trailer = self.rfile.readline(8192)
-                    if trailer in {b"
-", b""}:
+                    if trailer in {b"\r\n", b""}:
                         break
                     if len(trailer) >= 8192:
                         self._send_json(400, {"error": "invalid_chunked_body"})
                         return None
                 break
             chunk = self.rfile.read(size)
-            if len(chunk) != size or self.rfile.read(2) != b"
-":
+            if len(chunk) != size or self.rfile.read(2) != b"\r\n":
                 self._send_json(400, {"error": "invalid_chunked_body"})
                 return None
             chunks.append(chunk)
