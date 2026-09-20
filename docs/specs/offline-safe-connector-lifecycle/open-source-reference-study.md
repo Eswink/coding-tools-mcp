@@ -1125,3 +1125,44 @@ To preserve a bounded downgrade path without adding a new data-schema migration:
 - a regression locks that the Review default produces the old serialized shape.
 
 This is not a general schema-versioning replacement. If future authorization policy grows beyond one optional field, move it behind an explicit versioned capability/storage boundary rather than accumulating downgrade rules ad hoc.
+
+
+## 14. Keep local chat policy denials out of OAuth challenge semantics
+
+References:
+
+- `modelcontextprotocol/modelcontextprotocol@24efd6e7cbd7a074e6b3b781eb370891df40afad`
+  - authorization / Protected Resource Metadata guidance
+  - Inspector authorization documentation
+- `modelcontextprotocol/typescript-sdk@60321700871029401a2e3bed8fdf4f02c9ec3331`
+  - resource-server authorization middleware
+  - client step-up authorization flow
+
+Observed protocol behavior:
+
+- missing/invalid resource-server bearer credentials use HTTP 401 and may carry `WWW-Authenticate`;
+- insufficient OAuth scope uses HTTP 403 `insufficient_scope` and can also carry a `WWW-Authenticate` challenge;
+- current Inspector/client implementations can treat those responses as signals to start or repeat OAuth authorization without dropping the underlying connector.
+
+### Decision for coding-tools-mcp
+
+**Preserve the existing separation.**
+
+Local conversation governance is not OAuth scope negotiation.
+
+Therefore all of these remain MCP tool/business results rather than HTTP OAuth challenges:
+
+```text
+CHAT_AUTHORIZATION_REQUIRED
+CHAT_AUTHORIZATION_UNAVAILABLE
+EXCLUSIVE_CHAT_LOCKED
+CHAT_WORK_DRAINING
+CHAT_RECOVERY_REQUIRED
+WORKSPACE_OFFLINE
+```
+
+They must not gain `WWW-Authenticate` merely because the host can use that header for reauthorization.
+
+Only actual bearer-token/resource-server failures belong on the OAuth 401/403 path.
+
+This distinction is directly relevant to the original reconnect problem: a local policy or availability denial must not accidentally tell the host that the connector's OAuth relationship needs to be repaired.
