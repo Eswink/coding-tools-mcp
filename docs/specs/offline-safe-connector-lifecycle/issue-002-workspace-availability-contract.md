@@ -1,6 +1,6 @@
 # ISSUE-002 — Workspace availability contract and error taxonomy
 
-Status: IN PROGRESS — DESIGN ONLY  
+Status: DESIGN FROZEN — PRODUCTION EDITS BLOCKED ON REQUIRED GITNEXUS IMPACT  
 Parent plan: [plan.md](plan.md)  
 Round: 2 / 5  
 Production implementation: BLOCKED until repository-required impact analysis is available
@@ -468,3 +468,22 @@ ISSUE-002 reaches DESIGN_FROZEN when:
 For drain-control tools, step 2 is skipped, but existing conversation authorization remains mandatory.
 
 This keeps availability out of OAuth and avoids changing `ChatAuthorizer` merely to implement workspace pause.
+
+
+## Design freeze — 2026-09-20
+
+Round 2 design inputs are frozen for the first implementation increment:
+
+- provisional architecture: Level A;
+- control listener lifecycle remains separate from execution admission;
+- atomic `WorkspaceExecutionGate` is the pause/admission linearization point;
+- authorization precedes availability;
+- existing hard stop keeps current semantics;
+- explicit pause/resume IPC is additive;
+- RuntimeStatus receives an additive execution-state surface;
+- OAuth/refresh/chat lease/tunnel configuration are not modified by pause/resume;
+- offline drain-control allowlist is fixed to existing-task observation/control tools.
+
+Remaining blocker is procedural and safety-critical, not a design ambiguity: repository-required GitNexus impact must run before editing existing production symbols.
+
+Real ChatGPT host acceptance remains deferred to Round 5 and therefore no reconnect-UX PASS is claimed.
