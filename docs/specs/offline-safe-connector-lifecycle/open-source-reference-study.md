@@ -705,3 +705,43 @@ Pause/Resume remote workspace execution
 This is particularly important in a shared ChatGPT installation: temporarily disabling workspace execution should not imply that the connector identity itself must disappear or restart.
 
 It also supports ISSUE-009's rule that a paused workspace should not create new local approval work: “reachable core” and “currently accepting this profile/conversation” are separate states.
+
+
+## 15. mcp-hub — dynamic server enablement, health and recovery are separate controls
+
+Reference:
+
+- `ravitemer/mcp-hub@9c7670a4c341ed3cf738a6242c0fde1cea40bccf`
+- project README / changelog.
+
+Observed design:
+
+- one hub endpoint fronts multiple MCP servers;
+- servers can be started/stopped and enabled/disabled dynamically;
+- configuration changes can reconnect affected servers without restarting the whole hub;
+- server health is tracked independently from whether it is enabled;
+- local STDIO and remote HTTP/SSE servers share the same management model.
+
+### Decision for coding-tools-mcp
+
+This reinforces a recurring pattern across MCPMate, MCPJam and gateway-style projects:
+
+```text
+front-door / hub health
+server or workspace enabled state
+underlying worker health
+```
+
+are separate dimensions.
+
+For this project the closest mapping is:
+
+```text
+MCP/OAuth connector reachability
+workspace execution Online/Offline
+local worker/tunnel health
+```
+
+The important lesson for ISSUE-009 is that an enabled/reachable front door should not automatically create new authorization work for a workspace that is intentionally unavailable.
+
+Future observability should continue to report these dimensions separately rather than collapsing them into one “connected” boolean.
