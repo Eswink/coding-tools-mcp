@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use axum::extract::{DefaultBodyLimit, Form, Query, State};
-use axum::http::{header::CACHE_CONTROL, HeaderMap, StatusCode};
+use axum::extract::{DefaultBodyLimit, Form, Query, Request, State};
+use axum::http::{header::{CACHE_CONTROL, ORIGIN}, HeaderMap, StatusCode, Uri};
+use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -155,6 +156,7 @@ async fn serve(
     shutdown: oneshot::Receiver<()>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let profile_id = state.workspace_id.clone();
+    let origin_guard_state = state.clone();
     let app = Router::new()
         .route("/mcp", get(mcp_discovery).post(mcp_post))
         .route(
@@ -170,7 +172,11 @@ async fn serve(
         .route("/oauth/authorize", get(oauth_authorize_get).post(oauth_authorize_post).layer(DefaultBodyLimit::max(8192)))
         .route("/oauth/token", post(oauth_token_post).layer(DefaultBodyLimit::max(8192)))
         .with_state(state)
-        .layer(CorsLayer::permissive());
+        .layer(CorsLayer::permissive())
+        // The listener is loopback-only but may be browser-reachable through a
+        // managed tunnel. Keep non-browser clients compatible (no Origin) while
+        // denying foreign browser Origins before MCP/OAuth handlers run.
+        .layer(middleware::from_fn_with_state(origin_guard_state, validate_origin));
 
     append_profile_log(
         &profile_id,
@@ -183,6 +189,99 @@ async fn serve(
         })
         .await?;
     Ok(())
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CanonicalOrigin {
+    scheme: String,
+    host: String,
+    port: u16,
+}
+
+fn canonical_origin(value: &str) -> Option<CanonicalOrigin> {
+    let value = value.trim();
+    if value.is_empty() {
+        return None;
+    }
+    let uri: Uri = value.parse().ok()?;
+    let scheme = uri.scheme_str()?.to_ascii_lowercase();
+    let default_port = match scheme.as_str() {
+        "http" => 80,
+        "https" => 443,
+        _ => return None,
+    };
+    let authority = uri.authority()?;
+    if authority.as_str().contains('@') {
+        return None;
+    }
+    let host = uri.host()?.trim_matches(|ch| ch == '[' || ch == ']');
+    if host.is_empty() {
+        return None;
+    }
+    let port = uri.port_u16().unwrap_or(default_port);
+    Some(CanonicalOrigin {
+        scheme,
+        host: host.to_ascii_lowercase(),
+        port,
+    })
+}
+
+fn origin_allowed(state: &ListenerState, headers: &HeaderMap) -> bool {
+    let mut values = headers.get_all(ORIGIN).iter();
+    let Some(value) = values.next() else {
+        // Non-browser MCP clients normally omit Origin.
+        return true;
+    };
+    if values.next().is_some() {
+        return false;
+    }
+    let Ok(raw) = value.to_str() else {
+        return false;
+    };
+    if raw.trim().is_empty() {
+        return true;
+    }
+    let Some(origin) = canonical_origin(raw) else {
+        return false;
+    };
+    if matches!(origin.host.as_str(), "localhost" | "127.0.0.1" | "::1") {
+        // Local browser tooling frequently uses an ephemeral UI port.
+        return true;
+    }
+    let current_public_origin = state.configured_public_url.snapshot();
+    canonical_origin(&current_public_origin).is_some_and(|allowed| allowed == origin)
+}
+
+fn invalid_origin_response() -> Response {
+    (
+        StatusCode::FORBIDDEN,
+        [(CACHE_CONTROL, "no-store")],
+        Json(json!({
+            "jsonrpc": "2.0",
+            "id": null,
+            "error": {
+                "code": -32000,
+                "message": "Invalid Origin"
+            }
+        })),
+    )
+        .into_response()
+}
+
+async fn validate_origin(
+    State(state): State<ListenerState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if !origin_allowed(&state, request.headers()) {
+        append_profile_log(
+            &state.workspace_id,
+            "mcp-requests.log",
+            "[security] rejected request with invalid Origin",
+        );
+        return invalid_origin_response();
+    }
+    next.run(request).await
 }
 
 fn bind_listener(port: u16) -> Result<tokio::net::TcpListener, String> {

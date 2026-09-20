@@ -62,3 +62,33 @@ Parent: [plan.md](plan.md)
 - [x] Record bounded rollback evidence in `round5-rollback.md`.
 - [x] Reach `ENGINEERING_CANDIDATE_PASS` without publishing a tag/release.
 - [ ] Close project only when target reconnect UX is validated on the real ChatGPT host without weakening auth.
+
+
+## Post-Round-5 hardening
+
+### ISSUE-006 — Streamable HTTP Origin boundary
+
+- [x] Compare MCP spec / TypeScript SDK / Rust SDK / Rust gateway Origin patterns.
+- [x] Run focused pre-edit GitNexus impact; retain CRITICAL/lower-bound evidence.
+- [x] Add failure-first Origin matrix and record real 200-vs-403 gap.
+- [x] Protect MCP and OAuth control routes with live Origin validation.
+- [x] Require exact current public Origin by scheme/host/effective-port.
+- [x] Keep missing-Origin compatibility for non-browser clients.
+- [x] Verify live Quick/public-origin replacement without listener restart.
+- [x] Verify generic non-reflective 403 behavior.
+- [x] Run Windows and Ubuntu full source regression.
+- [x] Rebuild/install/remove Windows NSIS and Ubuntu DEB artifacts.
+- [ ] Verify normal real ChatGPT traffic against the Origin guard — DEFERRED with the host gate.
+
+### ISSUE-007 — Host / authority / Fetch Metadata
+
+- [x] Freeze topology-aware design from open-source references.
+- [ ] Capture sanitized Host/:authority behavior for each FRP/Cloudflare tunnel mode.
+- [ ] Implement only after tunnel topology evidence.
+
+### ISSUE-008 — intent-aware lifecycle UX
+
+- [x] Identify current UI gap: primary running MCP action still performs hard stop.
+- [x] Freeze Pause/Resume-primary, Stop-Connector-secondary design.
+- [ ] Add failure-first UI contract.
+- [ ] Implement and validate intent-aware MCP controls after ISSUE-006 merge.

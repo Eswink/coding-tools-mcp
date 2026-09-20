@@ -1,6 +1,6 @@
 # Offline-safe Connector Lifecycle — Project Plan
 
-Status: ROUND 3 SOURCE/SYNTHETIC IMPLEMENTATION COMPLETE; ROUND 4 PRIVACY HARDENING NEXT; REAL-HOST VALIDATION DEFERRED.  
+Status: ENGINEERING_CANDIDATE_PASS; ISSUE-006 ORIGIN HARDENING ACTIVE; ISSUE-008 UX INTENT MAPPING NEXT; REAL-HOST VALIDATION DEFERRED.  
 Date: 2026-09-20  
 Base: `main` @ `823cbdeba68bbdd832d93f4636f701ddb98474f1`  
 Branch: `plan/offline-safe-connector-lifecycle`
@@ -304,8 +304,11 @@ Do not use “retry until green” as a substitute for diagnosis.
 - ISSUE-003 — Decouple connector control plane from workspace execution lifecycle.
 - ISSUE-004 — Non-disclosing multi-user access boundary.
 - ISSUE-005 — Offline-safe end-to-end and installed acceptance.
+- ISSUE-006 — Streamable HTTP Origin boundary hardening.
+- ISSUE-007 — Tunnel-aware Host / authority and Fetch Metadata hardening.
+- ISSUE-008 — Intent-aware offline-safe lifecycle UX.
 
-ISSUE-001 remains evidence-incomplete for real-host behavior, with its host gate explicitly deferred. ISSUE-002 is design-frozen. ISSUE-003 has passed source/synthetic implementation gates under retained CRITICAL impact classification. ISSUE-004 privacy hardening is next; production release acceptance still requires ISSUE-005 / Round 5 real-host and installed evidence.
+ISSUE-001 remains evidence-incomplete for real-host behavior, with its host gate explicitly deferred. ISSUE-002 is design-frozen. ISSUE-003 control/execution separation and ISSUE-004 privacy hardening are merged. ISSUE-005 reached ENGINEERING_CANDIDATE_PASS on Windows and Ubuntu packaged artifacts while HOST_VALIDATED remains deferred. ISSUE-006 is an active post-acceptance security hardening item. ISSUE-007 is planned for tunnel-aware Host/Fetch-Metadata defense. ISSUE-008 is required because the current prominent MCP “Stop” action can still intentionally tear down the connector even though Pause/Resume now exists.
 
 ## Code areas expected to be affected after Round 1
 
@@ -385,3 +388,24 @@ This changes sequencing, not truth status:
 - Level A is selected only as the minimal reversible design hypothesis;
 - no release may claim the reconnect bug fixed until Round 5 real-host acceptance is executed;
 - OAuth weakening, token-TTL workarounds, or host-behavior claims remain prohibited without evidence.
+
+
+## Post-Round-5 product gap — operator intent
+
+The backend Level A split is implemented, but the compatibility-first rollout deliberately kept `stop_runtime` as a true hard stop and added Pause/Resume separately.
+
+That means the architecture is available but the current primary MCP power control can still express the old coupled lifecycle.
+
+ISSUE-008 therefore treats UI intent mapping as part of the original product problem:
+
+```text
+normal temporary workspace action
+  -> Pause remote execution
+  -> connector/OAuth/tunnel remain reachable
+
+explicit destructive infrastructure action
+  -> Stop Connector
+  -> listener/tunnel become unreachable
+```
+
+This does not change the real-host truth label. It reduces accidental hard-stop usage before real ChatGPT validation is eventually performed.
