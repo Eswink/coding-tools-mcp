@@ -96,6 +96,24 @@ Examples:
 | P11 | any OAuth client | any | `initialize/tools/list/ping` | application metadata only; no workspace-specific values |
 | P12 | B | Online/Offline | repeated blocked auth requests | zero new pending grants and zero profile pending events |
 
+## Focused impact evidence
+
+GitNexus workflow run `35507344111` completed successfully after explicit function-kind disambiguation.
+
+Current impact results:
+
+- `ChatAuthorizer::status`: **UNKNOWN**, lower-bound; no callers resolved and 3 receiver-typing call sites were dropped.
+- `ChatAuthorizer::request`: LOW, lower-bound; 5 impacted symbols with 4 receiver-typing call sites dropped.
+- `ChatAuthorizer::admit`: **UNKNOWN**, lower-bound; no callers resolved and 1 receiver-typing call site was dropped.
+- chat-domain `intercept`: LOW, exact; 9 impacted symbols.
+- MCP `handle_request`: LOW, exact; 3 impacted symbols.
+- MCP `initialize_result`: LOW, exact; 6 impacted symbols.
+- `server_info`: LOW, exact; 9 impacted symbols.
+
+The UNKNOWN/lower-bound results are evidence limits, not safety evidence. If the privacy matrix exposes a production defect in those functions, text review and full regression remain mandatory in addition to GitNexus.
+
+Round 4 currently changes tests, documentation and validation workflows only; no production authorization/runtime semantics have been modified.
+
 ## Existing evidence inherited from Round 3
 
 Round 3 already proves:
