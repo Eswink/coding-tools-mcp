@@ -19,10 +19,17 @@ fn all_business_tools_are_denied_before_approval_including_dangerous_mode() {
     let root = tempfile::tempdir().unwrap(); let harness = tempfile::tempdir().unwrap();
     let mut ctx = ToolContext::for_test(root.path().into(),harness.path().into()).unwrap();
     ctx.policy.permission_mode = "dangerous".into(); ctx.permission_mode = "dangerous".into();
-    ctx.remote_request = Some(request(&Arc::default(),"profile","A"));
+    let profile = "privacy-unapproved-profile";
+    ctx.remote_request = Some(request(&Arc::default(),profile,"A"));
+    ctx.execution_gate.pause().unwrap();
+    let root_text = root.path().display().to_string();
     for (name,..) in crate::tools::registry::P0_TOOLS {
         let result = call_tool(&ctx,name,&json!({"confirm":true,"authorized":true,"grant_id":"pretend"}));
         assert_eq!(result["error"]["code"],"CHAT_AUTHORIZATION_REQUIRED","{name}: {result}");
+        assert_ne!(result["error"]["code"],"WORKSPACE_OFFLINE","{name}: {result}");
+        let text = result.to_string();
+        assert!(!text.contains(profile),"{name}: {result}");
+        assert!(!text.contains(&root_text),"{name}: {result}");
     }
     assert_eq!(std::fs::read_dir(root.path()).unwrap().count(),0);
 }

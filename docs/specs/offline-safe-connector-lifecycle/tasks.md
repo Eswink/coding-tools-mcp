@@ -44,9 +44,12 @@ Parent: [plan.md](plan.md)
 
 ## Round 4
 
-- [ ] Create and implement non-disclosing multi-user boundary.
-- [ ] Verify no project/owner/path/task metadata leak to foreign chat.
-- [ ] Document shared-account limitation separately from distinct workspace-member access.
+- [x] Create and implement non-disclosing multi-user boundary.
+- [x] Verify no project/owner/path/task metadata leak to foreign chat.
+- [x] Verify Online/Offline does not override stronger authorization/exclusive/recovery denial.
+- [x] Verify repeated foreign authorization noise creates no new pending record/event.
+- [x] Verify per-chat task isolation remains intact while execution is Offline.
+- [x] Document shared-account limitation separately from distinct workspace-member access.
 
 ## Round 5
 
