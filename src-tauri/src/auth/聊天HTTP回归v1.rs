@@ -77,6 +77,12 @@ async fn workspace_pause_keeps_oauth_and_chat_owner_but_blocks_new_business_disp
         value["result"]["structuredContent"].clone()
     }
 
+    execution_gate.pause().unwrap();
+    let unauthorized = invoke(&client, &url, "server_info", "A").await;
+    assert_eq!(unauthorized["error"]["code"], "CHAT_AUTHORIZATION_REQUIRED");
+    assert_ne!(unauthorized["error"]["code"], "WORKSPACE_OFFLINE");
+    execution_gate.resume().unwrap();
+
     fixture::approve(&profile, root.path(), "A");
     let before = invoke(&client, &url, "auth_status", "A").await;
     assert_eq!(before["authorization"]["status"], "active");
