@@ -52,6 +52,13 @@ pub(crate) fn page(prefix: &str, page: BrowserPage) -> Response {
         .ascii_serialization();
     // Some browsers apply form-action to a 303 target. Permit only the registered origin.
     let mut response = secure(Html(html).into_response(), Some(&callback));
+    // Fetch makes Origin null on non-CORS form POST under no-referrer.
+    // Send only the origin (never path/query), while keeping strict Origin/CSRF checks.
+    // Redirects and errors retain secure()'s no-referrer policy.
+    response.headers_mut().insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("strict-origin"),
+    );
     let cookie = format!(
         "{COOKIE_NAME}={}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age={}",
         page.cookie.expose(),

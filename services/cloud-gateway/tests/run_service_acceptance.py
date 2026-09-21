@@ -99,14 +99,19 @@ def main():
 
                 def login(password=None):
                     page.fill("input[name=password]", password or f.password)
-                    with page.expect_navigation() as r:
-                        page.click("button[type=submit]")
+                    with page.expect_request(lambda request: request.method == "POST"
+                                             and request.url == origin + "/coding-tools/oauth/login") as posted:
+                        with page.expect_navigation() as r:
+                            page.click("button[type=submit]")
                     require(r.value.status == 200, "browser_login")
+                    # Compare privately; export only the fixed case name, never headers/URLs.
+                    require(posted.value.header_value("origin") == origin, "browser_post_origin")
+                    require(posted.value.header_value("referer") == origin + "/", "browser_origin_only_referrer")
 
                 r = begin()
                 h = r.headers
                 require(h.get("cache-control") == "no-store" and "default-src 'none'" in h.get("content-security-policy", "")
-                        and h.get("referrer-policy") == "no-referrer", "browser_response_headers")
+                        and h.get("referrer-policy") == "strict-origin", "browser_response_headers")
                 cookies = [c for c in context.cookies(origin) if c["name"] == "__Host-ctm-browser"]
                 require(len(cookies) == 1 and cookies[0]["secure"] and cookies[0]["httpOnly"]
                         and cookies[0]["sameSite"] == "Lax" and cookies[0]["path"] == "/", "browser_cookie_flags")
@@ -126,8 +131,15 @@ def main():
                      "Cookie": "__Host-ctm-browser=" + old_cookie, "Sec-Fetch-Site": "same-origin"})
                 require(status == 400, "old_browser_replay")
                 passed("rotated_cookie_cannot_be_replayed")
-                with page.expect_navigation():
-                    page.click("button[value=allow]")
+                with page.expect_request(lambda request: request.method == "POST"
+                                         and request.url == origin + "/coding-tools/oauth/consent") as posted:
+                    with page.expect_request(lambda request: request.url.startswith(foreign + "/callback?")) as callback:
+                        with page.expect_navigation():
+                            page.click("button[value=allow]")
+                require(posted.value.header_value("origin") == origin, "browser_post_origin")
+                require(posted.value.header_value("referer") == origin + "/", "browser_origin_only_referrer")
+                require(callback.value.header_value("referer") is None, "browser_callback_no_referrer")
+                passed("chromium_form_origin_without_path_query_referrer_and_referrer_free_callback")
                 require(page.title() == "Test callback" and f.callbacks[-1].get("state") == [state]
                         and "code" in f.callbacks[-1], "registered_cross_origin_callback")
                 require(not any(c["name"] == "__Host-ctm-browser" for c in context.cookies(origin)), "cookie_cleared")

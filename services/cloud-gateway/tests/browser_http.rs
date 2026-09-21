@@ -112,7 +112,7 @@ async fn secure_cookie_headers_and_fixed_form_are_present() {
     }
     assert!(!c.contains("Domain="));
     assert_eq!(r.headers()["cache-control"], "no-store");
-    assert_eq!(r.headers()["referrer-policy"], "no-referrer");
+    assert_eq!(r.headers()["referrer-policy"], "strict-origin");
     assert_eq!(r.headers()["x-frame-options"], "DENY");
     let csp = r.headers()["content-security-policy"].to_str().unwrap();
     assert!(csp.contains("default-src 'none'"));

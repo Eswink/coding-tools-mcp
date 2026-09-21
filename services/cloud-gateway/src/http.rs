@@ -84,10 +84,12 @@ async fn boundary(
     response
         .headers_mut()
         .insert(header::PRAGMA, header::HeaderValue::from_static("no-cache"));
-    response.headers_mut().insert(
-        header::REFERRER_POLICY,
-        header::HeaderValue::from_static("no-referrer"),
-    );
+    // Trusted form pages deliberately use strict-origin. Do not turn their POST
+    // Origin into null by overwriting that policy; APIs/errors default to no-referrer.
+    response
+        .headers_mut()
+        .entry(header::REFERRER_POLICY)
+        .or_insert(header::HeaderValue::from_static("no-referrer"));
     response.headers_mut().insert(
         header::X_CONTENT_TYPE_OPTIONS,
         header::HeaderValue::from_static("nosniff"),
