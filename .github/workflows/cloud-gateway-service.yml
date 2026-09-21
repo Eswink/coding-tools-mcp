@@ -36,6 +36,7 @@ jobs:
           set -euo pipefail
           mkdir -p evidence
           git rev-parse HEAD > evidence/source-commit.txt
+          python -m unittest discover -s services/cloud-gateway/tests -p 'test_service_diagnostics.py' -v > evidence/diagnostics.txt 2>&1
           cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
           cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test service_contracts 2>&1 | tee evidence/service-contracts.txt
@@ -75,7 +76,7 @@ jobs:
           binary="$PWD/services/cloud-gateway/target/debug/coding-tools-gateway"
           python services/cloud-gateway/tests/run_service_http.py --pg-bin /usr/lib/postgresql/16/bin --binary "$binary" | tee evidence/process-http.json
           chromium="$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')"
-          python services/cloud-gateway/tests/run_service_acceptance.py --pg-bin /usr/lib/postgresql/16/bin --binary "$binary" --chromium "$chromium" | tee evidence/browser.json
+          python services/cloud-gateway/tests/run_service_browser_ci.py --pg-bin /usr/lib/postgresql/16/bin --binary "$binary" --chromium "$chromium" | tee evidence/browser.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
