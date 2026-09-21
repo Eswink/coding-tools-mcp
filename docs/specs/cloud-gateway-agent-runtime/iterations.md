@@ -51,3 +51,15 @@ Recovered local 4b6f197 from its verified Git bundle. No persisted probe state f
 Implemented browser identity/consent with an additive migration and six source modules; preserved the trusted issuance API with an internal caller-transaction helper. Found and fixed lock-wait expiry after a failure-first regression. Updated the deliberate authorize GET/POST contract without opening admin endpoints. See round3-validation.md and review.md for exact validation boundaries and retained intermediate failures.
 
 Current local result: 68 Rust tests, 13 deployment contracts, 32 protocol lab tests, 8 UI contracts, 8 fault-proxy contracts; format and Clippy all-targets PASS. Real independent database/process restarts for both refresh and authenticated browser consent PASS. These are container tests, not remote Windows/PostgreSQL, VPS, or real ChatGPT evidence. Publication uses exact tested tree identity and no force update. M2 remains active.
+
+## Round 4 — Runnable identity boundary for #42
+
+Recovered `5ad8971` and pinned plan; isolated server/CLI added without desktop changes.
+A real HTTP test exposed missing Origin validation on health routes. Initial fragment
+replacement asserted without modifying code; the corrected targeted change passed.
+91 Rust and 30 independent process HTTP/PG cases pass, as do 32 lab/8 UI/8 proxy/13
+renderer regressions and final fmt/Clippy. Chromium's first navigation was rejected by
+managed URLBlocklist; no browser PASS claimed. Remote write actions are absent from
+this session's discovered GitHub catalog. Local commit/outbox are the continuation
+source; actual remote publication and CI must be verified later. Details and retained
+failure evidence: `round4-validation.md`.

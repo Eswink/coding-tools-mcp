@@ -19,3 +19,15 @@
 ## Round 3 / ISSUE-013B (#41) — partial 2.1
 
 Owner browser login and one-time CSRF-bound consent are implemented in the standalone library. 68 Rust tests (30 new browser tests), including real PostgreSQL transactions, pass locally. Two independent process/database restart probes pass with no Agent. The browser/PKCE flow is not local workspace approval. Production entrypoint, ingress safeguards, authoritative grant projection, authenticated Agent channel, native CI and actual browser/Host gates remain open; do not check off 2.1 or 2.2. See `../../round3-validation.md`.
+
+## Round 4 / ISSUE-013C (#42) — bounded executable increment of 2.1
+
+- [ ] 2.1C Runnable identity-only service, trusted local provisioning, protected secret
+  input, pre-bind readiness, request/connection limits and real Chromium acceptance.
+  Evidence/design: `../../issue-013c-runnable-service.md`. This does not complete 2.1
+  (local grant projection remains open) or 2.2 (Agent channel not implemented).
+
+Round-4 local evidence: 91 Rust tests + 30 separate-process HTTP/PG cases PASS;
+13 renderer + 32 protocol + 8 UI-source + 8 proxy regressions PASS. Executable/CLI
+implementation is present. Browser gate BLOCKED; native CI/publication pending.
+The 2.1C checkbox intentionally stays open; see `../../round4-validation.md`.

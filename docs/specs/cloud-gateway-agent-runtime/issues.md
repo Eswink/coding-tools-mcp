@@ -46,3 +46,11 @@ Parent [#32](https://github.com/Eswink/coding-tools-mcp/issues/32). Legacy spec 
 OPEN -> DESIGN_REVIEW -> IMPLEMENTING -> ENGINEERING_VERIFIED -> HOST_VALIDATED (when relevant) -> DONE.
 
 An issue spanning laboratory and production stays open after laboratory tests. Each PR must state exact commit, scope, tests, failures, remaining gates and rollback. Failed evidence is retained; CI retry alone is not diagnosis. A controlled one-time OAuth reconnect during origin migration is distinct from unwanted reconnect caused by routine local offline.
+
+## Round 4 continuation — GitHub #42 / ISSUE-013C
+
+Local executable identity service implemented; 91 Rust tests and 30 independent
+process/HTTP/PostgreSQL cases pass. Browser engine gate is BLOCKED by the development
+container policy; native CI and publication remain pending. Existing Issue #42 is
+reused rather than creating duplicate tasks. See `round4-validation.md` and
+`issue-013c-runnable-service.md`. Do not close the issue or declare VPS/Host acceptance.

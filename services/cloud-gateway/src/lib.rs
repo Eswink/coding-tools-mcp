@@ -18,3 +18,6 @@ pub use crypto::{Secret, SecretKey};
 pub use error::{IdentityError, Result};
 pub use oauth::{AuthorizationRequest, ClientCredential, OAuthPrincipal, TokenPair};
 pub use store::{IdentityStore, Lifetimes};
+
+/// Standalone identity service and trusted local operator adapter. Not an MCP executor.
+pub mod service;
