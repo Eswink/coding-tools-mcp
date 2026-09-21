@@ -1,0 +1,84 @@
+name: Cloud gateway reviewed rounds 4 and 5 recovery
+on:
+  push:
+    branches: ['ci/cloud-gateway-source-recovery-r5']
+    paths: ['.source-recovery/**', '.github/workflows/cloud-gateway-source-recovery-r5.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reconstruct exact reviewed commits without moving feature branch
+        run: |
+          set -euo pipefail
+          cp -a .source-recovery "$RUNNER_TEMP/recovery"
+          git checkout --detach 5ad89711e67eeb907d496a32a1b54a3f82500c55
+          python "$RUNNER_TEMP/recovery/recover.py" reconstruct "$RUNNER_TEMP/recovery"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Disposable database and read-only engineering checks (not real-host tests)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16
+          export PATH="/usr/lib/postgresql/16/bin:$PATH"
+          mkdir -p evidence
+          cluster="$(mktemp -d "$RUNNER_TEMP/ctm-r5.XXXXXX")"
+          port="$(python -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')"
+          initdb -D "$cluster/data" -A trust -U gateway_test --encoding=UTF8 --no-locale >/dev/null
+          pg_ctl -D "$cluster/data" -l "$cluster/pg.log" -o "-h 127.0.0.1 -p $port -k $cluster" -w start >/dev/null
+          trap 'pg_ctl -D "$cluster/data" -m fast -w stop >/dev/null' EXIT
+          createdb -h 127.0.0.1 -p "$port" -U gateway_test coding_tools_identity_test
+          export TEST_DATABASE_URL="postgresql://gateway_test@127.0.0.1:$port/coding_tools_identity_test"
+          cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
+          cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml 2>&1 | tee evidence/rust-tests.txt
+          cargo build --locked --manifest-path services/cloud-gateway/Cargo.toml --bin coding-tools-gateway
+          python services/cloud-gateway/tests/run_service_http.py --pg-bin /usr/lib/postgresql/16/bin --binary "$PWD/services/cloud-gateway/target/debug/coding-tools-gateway" | tee evidence/service-http.json
+          node --test tests/cloud-gateway/*.test.mjs > evidence/lab.txt
+          python -m unittest discover -s tests/cloud-gateway-deployment -v > evidence/deploy.txt 2>&1
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cloud-gateway-r5-recovery-checks
+          path: evidence/
+          retention-days: 14
+  import:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reconstruct without executing candidate source
+        run: |
+          set -euo pipefail
+          cp -a .source-recovery "$RUNNER_TEMP/recovery"
+          git checkout --detach 5ad89711e67eeb907d496a32a1b54a3f82500c55
+          python "$RUNNER_TEMP/recovery/recover.py" reconstruct "$RUNNER_TEMP/recovery"
+      - name: Import hash-verified blobs only; no tree/commit/ref API writes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python "$RUNNER_TEMP/recovery/recover.py" import-blobs "$RUNNER_TEMP/recovery" --output "$RUNNER_TEMP/import-result.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cloud-gateway-r5-blob-receipt
+          path: ${{ runner.temp }}/import-result.json
+          retention-days: 14
