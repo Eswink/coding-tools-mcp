@@ -63,3 +63,13 @@ managed URLBlocklist; no browser PASS claimed. Remote write actions are absent f
 this session's discovered GitHub catalog. Local commit/outbox are the continuation
 source; actual remote publication and CI must be verified later. Details and retained
 failure evidence: `round4-validation.md`.
+
+## Round 5 — ISSUE-014A / #43 (2026-09-21)
+
+Recovered exact round4 a06a48f and resumed the existing plan. User deferred physical
+workstation/VPS/ChatGPT tests, not non-physical development. Implemented the internal
+device-owned projection, signed drain barrier and restart reconciliation. A cached
+registry-epoch defect was reproduced and fixed. 16 pure +32 PG projection cases,
+139 total Rust, 30 actual service HTTP cases and previous 32+8+8+13 regressions PASS.
+No public approval/execution route or production config change. Publication and
+native CI remain separate until verified. See round5-validation.md and Issue #43.

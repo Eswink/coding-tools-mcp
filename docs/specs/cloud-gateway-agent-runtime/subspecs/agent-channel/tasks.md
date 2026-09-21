@@ -31,3 +31,20 @@ Round-4 local evidence: 91 Rust tests + 30 separate-process HTTP/PG cases PASS;
 13 renderer + 32 protocol + 8 UI-source + 8 proxy regressions PASS. Executable/CLI
 implementation is present. Browser gate BLOCKED; native CI/publication pending.
 The 2.1C checkbox intentionally stays open; see `../../round4-validation.md`.
+
+## Round 5 / ISSUE-014A (#43) — partial 2.1; physical gates deferred
+
+The user requested continued non-physical development. Historical browser-policy
+BLOCKED and VPS/real-ChatGPT UNCONFIRMED are retained as release gates, not
+prerequisites for this isolated projection increment.
+
+- [x] 2.1D Device-owned signed snapshots, durable owner/drain/revocation floor,
+  restart challenge fences, non-disclosing projection decisions; 16 pure and
+  32 PostgreSQL contracts locally PASS. Full paired Agent/UI integration and
+  actual local execution admission remain in parent #38 / ISSUE-021.
+- [ ] 2.2A Authenticated outbound channel: device proof, connection generation,
+  heartbeat/disconnect and bounded framing before business routing.
+
+Evidence: `../../issue-014a-grant-projection.md`, `../../round5-validation.md`.
+Round4 source is preserved; publication/native CI are tracked separately. Neither
+parent 2.1 nor 2.2 is marked complete by a passing projection library test.

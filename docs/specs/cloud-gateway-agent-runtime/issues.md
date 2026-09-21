@@ -7,8 +7,8 @@ Parent [#32](https://github.com/Eswink/coding-tools-mcp/issues/32). Legacy spec 
 | ISSUE-010 | Architecture and threat model | M1 | #33 | IN_PROGRESS | none |
 | ISSUE-011 | Modern/legacy MCP contracts | M1 | #34 | IN_PROGRESS | 010 |
 | ISSUE-012 | Cloud MCP gateway: lab then production | M1/M2 | #35 | IN_PROGRESS | 010,011; production:013-021 |
-| ISSUE-013 | Cloud OAuth | M2 | #37 / child #41 | BROWSER_LOCAL_VERIFIED; PUBLICATION_PENDING | 010,011 |
-| ISSUE-014 | Cloud/local chat authorization projection | M2 | #38 | PARTIAL_LOCAL_VERIFIED | 010,013 |
+| ISSUE-013 | Cloud OAuth | M2 | #37 / children #41,#42 | BROWSER_PUBLISHED; RUNNABLE_LOCAL_VERIFIED | 010,011 |
+| ISSUE-014 | Cloud/local chat authorization projection | M2 | #38 / child #43 | PROJECTION_LOCAL_VERIFIED; INTEGRATION_PENDING | 010,013 |
 | ISSUE-015 | Offline authorization suppression | M2 | - | PLANNED | 014,018 |
 | ISSUE-016 | Device identity and enrollment | M2 | #39 | PARTIAL_LOCAL_VERIFIED | 010,013 |
 | ISSUE-017 | Authenticated outbound transport | M2 | - | PLANNED | 016 |
@@ -54,3 +54,15 @@ process/HTTP/PostgreSQL cases pass. Browser engine gate is BLOCKED by the develo
 container policy; native CI and publication remain pending. Existing Issue #42 is
 reused rather than creating duplicate tasks. See `round4-validation.md` and
 `issue-013c-runnable-service.md`. Do not close the issue or declare VPS/Host acceptance.
+
+
+## Round 5 continuation — GitHub #43 / ISSUE-014A
+
+Signed local-authority projection implemented as a separate internal module.
+16 pure +32 disposable PostgreSQL cases pass; full Rust suite 139, actual
+standalone service HTTP suite 30, prior lab/UI/proxy/deploy contracts pass locally.
+No public projection/approval endpoint or executor is added. Physical/VPS/real
+ChatGPT tests are deferred by the user, not PASS and not a prerequisite to
+continue non-physical engineering. Parent #38 remains open for Agent/UI and
+local-gate integration. Source publication and native CI require their own
+evidence; see round5-validation.md.

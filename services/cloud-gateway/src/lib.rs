@@ -1,4 +1,4 @@
-//! Durable identity primitives for the cloud Gateway. Not a public server yet.
+//! Cloud Gateway identity and local-authority components; no local executor.
 //!
 //! Code issuance and enrollment invitation creation require trusted operator
 //! authorization at the caller. Browser consent is the only HTTP code-issuance
@@ -21,3 +21,6 @@ pub use store::{IdentityStore, Lifetimes};
 
 /// Standalone identity service and trusted local operator adapter. Not an MCP executor.
 pub mod service;
+
+/// Internal-only device-owned authorization projection; not an execution permit.
+pub mod projection;
