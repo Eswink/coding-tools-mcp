@@ -15,7 +15,7 @@
 ## Current truth labels
 
 Architecture/spec: SPEC_CHECK_PASS (0 errors / 0 warnings); production security review remains open.
-Protocol laboratory: LOCAL_CONTRACTS_PASS; remote Windows/Ubuntu CI pending.
+Protocol laboratory: CROSS_PLATFORM_CONTRACTS_PASS for candidate `82c20d3`; see round1-validation.md.
 Production OAuth/enrollment/agent execution/deployment: NOT_IMPLEMENTED.
 Real ChatGPT cloud-path behavior: UNCONFIRMED_ON_REAL_HOST.
 Existing desktop/runtime/package source: UNCHANGED.
@@ -29,3 +29,7 @@ Existing desktop/runtime/package source: UNCHANGED.
 - Existing offline-safe UI contracts: **8/8 passed**. Existing Python fault proxy contracts: **8/8 passed**. These are source/harness regressions, not desktop installation or real-host tests.
 - Local Node: v22.16.0; Python: 3.13.5. Container has no Rust toolchain; Rust production tests were not rerun because production source is unchanged. Candidate CI will verify additive scope and run the lab on Windows/Ubuntu.
 - New production metadata, device identity, signed execution, native sandboxing and VPS deployment remain unimplemented. The lab's unknown-outcome fixture tests classification, not durable at-most-once execution.
+
+## Round 1 — cross-platform candidate verification
+
+Run `35564597505` passed on Windows 2025 and Ubuntu 24.04. Each platform ran 32 HTTP/CLI, 8 existing UI and 8 Python fault-proxy tests. The pinned graph/spec job also passed. Downloaded artifacts were SHA-256 verified; Ubuntu candidate bytes match all 31 local files, and Windows matches after its exact LF-to-CRLF checkout conversion. This is a protocol laboratory gate, not installed-app or real ChatGPT acceptance. Full evidence identifiers and continuation are in [round1-validation.md](round1-validation.md).

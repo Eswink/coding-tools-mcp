@@ -5,8 +5,8 @@
   - 涉及文件: design.md, threat-model.md, protocol.md
   - _需求: FR-1, FR-2, FR-3_
 
-- [ ] 1.2 Implement and test isolated loopback-only protocol lab
-  - 证据块: src-tauri/src/mcp/server.rs:22-40; protocol.md
+- [x] 1.2 Implement and test isolated loopback-only protocol lab
+  - 证据块: round1-validation.md; CI run 35564597505; candidate 82c20d3
   - 涉及文件: prototypes/cloud-gateway/*.mjs, tests/cloud-gateway/*.test.mjs
   - _需求: FR-1, FR-2, FR-3_
 
