@@ -1,7 +1,7 @@
 # ISSUE-016 — device-enrollment
 
 Parent: Epic #32. Follow-on implementation for Draft PR #36.
-Status: **PARTIAL / LOCAL_INCREMENT_NOT_PUSHED**. No new GitHub issue number assigned: this session exposes read-only connector operations.
+Status: **PARTIAL / LOCAL_INCREMENT_NOT_PUSHED**. Actual GitHub issue #39 verified; publication and CI remain separately tracked.
 
 ## Implemented increment
 

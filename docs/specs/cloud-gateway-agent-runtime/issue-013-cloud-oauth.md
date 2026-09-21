@@ -1,17 +1,17 @@
 # ISSUE-013 — cloud-oauth
 
 Parent: Epic #32. Follow-on implementation for Draft PR #36.
-Status: **PARTIAL / LOCAL_INCREMENT_NOT_PUSHED**. No new GitHub issue number assigned: this session exposes read-only connector operations.
+Status: **PARTIAL / BROWSER_LOCAL_VERIFIED / PUBLICATION_PENDING**. Actual parent issue #37; browser consent child #41.
 
 ## Implemented increment
 
-PostgreSQL PKCE/exact client/resource binding; rotating opaque tokens; replay-family revocation; persistent key/origin binding; fixed metadata/token HTTP adapter.
+PostgreSQL PKCE/exact client/resource binding; rotating opaque tokens; replay-family revocation; persistent key/origin binding; fixed metadata/token HTTP adapter; round3 explicit owner provisioning, Argon2id browser login, rotated cookies/CSRF and atomic allow/deny consent.
 
-Source: `services/cloud-gateway/`. Validation evidence: `round2-validation.md`.
+Source: `services/cloud-gateway/`. Validation evidence: `round2-validation.md` and `round3-validation.md`.
 
 ## Open acceptance gates
 
-Owner sign-in, CSRF-safe consent, public authorize route, rate limits/capacity, revocation HTTP endpoint, encrypted backup/restore anti-rollback, production integration.
+Production entrypoint/provisioning CLI, real-browser cookie/CSP acceptance, public ingress rate limits/capacity, revocation HTTP endpoint, encrypted backup/restore anti-rollback, production integration.
 
 ## Constraints
 

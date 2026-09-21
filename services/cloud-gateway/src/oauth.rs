@@ -69,6 +69,19 @@ impl IdentityStore {
         owner: Uuid,
         req: AuthorizationRequest<'_>,
     ) -> Result<Secret> {
+        let mut tx = self.pool.begin().await?;
+        let code = self.issue_consent_tx(owner, req, &mut tx, None).await?;
+        tx.commit().await?;
+        Ok(code)
+    }
+    /// Shares the caller's transaction with one-time browser consent consumption.
+    pub(crate) async fn issue_consent_tx(
+        &self,
+        owner: Uuid,
+        req: AuthorizationRequest<'_>,
+        tx: &mut Transaction<'_, Postgres>,
+        consent_deadline: Option<i64>,
+    ) -> Result<Secret> {
         if owner.is_nil()
             || req.resource != self.identity.resource()
             || req.code_challenge_method != "S256"
@@ -76,26 +89,27 @@ impl IdentityStore {
         {
             return Err(IdentityError::InvalidRequest);
         }
-        let mut tx = self.pool.begin().await?;
         let redirect: Option<String> = sqlx::query_scalar(
             "SELECT redirect_uri FROM ctm_clients WHERE client_id=$1 AND NOT disabled FOR SHARE",
         )
         .bind(req.client_id)
-        .fetch_optional(&mut *tx)
+        .fetch_optional(&mut **tx)
         .await?;
         if redirect.as_deref() != Some(req.redirect_uri) {
             return Err(IdentityError::InvalidClient);
         }
-        let current = now(&mut tx).await?;
+        let current = now(tx).await?;
+        if consent_deadline.is_some_and(|deadline| current >= deadline) {
+            return Err(IdentityError::InvalidGrant);
+        }
         let family = Uuid::new_v4();
         let code = Secret::random()?;
         sqlx::query("INSERT INTO ctm_families(id,client_id,subject,resource,expires_at) VALUES($1,$2,$3,$4,$5)")
             .bind(family).bind(req.client_id).bind(owner).bind(req.resource).bind(current+self.ttl.family_seconds)
-            .execute(&mut *tx).await?;
+            .execute(&mut **tx).await?;
         sqlx::query("INSERT INTO ctm_codes(code_hash,family_id,redirect_uri,pkce,expires_at) VALUES($1,$2,$3,$4,$5)")
             .bind(self.key.digest("code-v1",code.expose().as_bytes())).bind(family).bind(req.redirect_uri)
-            .bind(req.code_challenge).bind(current+self.ttl.code_seconds).execute(&mut *tx).await?;
-        tx.commit().await?;
+            .bind(req.code_challenge).bind(current+self.ttl.code_seconds).execute(&mut **tx).await?;
         Ok(code)
     }
     async fn check_client(

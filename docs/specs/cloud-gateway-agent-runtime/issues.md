@@ -1,16 +1,16 @@
 # Issue register
 
-Parent [#32](https://github.com/Eswink/coding-tools-mcp/issues/32). Legacy spec IDs ISSUE-010..045 are **36 tasks**; these are not GitHub issue numbers. Only #33/#34/#35 have been opened for this first batch. Other rows do not have new GitHub issue numbers. Round 2 file-backed ISSUE-013/014/016 drafts track partial local implementation; this session has read-only GitHub tools. The repository accepted real issue creation on 2026-09-21; the old "Issues disabled" statement no longer describes this execution.
+Parent [#32](https://github.com/Eswink/coding-tools-mcp/issues/32). Legacy spec IDs ISSUE-010..045 are **36 tasks**; these are not GitHub issue numbers. Real issues #33–#35 and #37–#41 have been verified. #41 is ISSUE-013B under #37, not the unrelated spec ISSUE-041. GitHub writes are available again; exact source publication and remote CI are tracked separately from local results. The repository accepted real issue creation on 2026-09-21; the old "Issues disabled" statement no longer describes this execution.
 
 | Spec ID | Scope | Milestone | GitHub | Status | Dependencies |
 |---|---|---|---|---|---|
 | ISSUE-010 | Architecture and threat model | M1 | #33 | IN_PROGRESS | none |
 | ISSUE-011 | Modern/legacy MCP contracts | M1 | #34 | IN_PROGRESS | 010 |
 | ISSUE-012 | Cloud MCP gateway: lab then production | M1/M2 | #35 | IN_PROGRESS | 010,011; production:013-021 |
-| ISSUE-013 | Cloud OAuth | M2 | file-backed | PARTIAL_LOCAL_VERIFIED | 010,011 |
-| ISSUE-014 | Cloud/local chat authorization projection | M2 | file-backed | PARTIAL_LOCAL_VERIFIED | 010,013 |
+| ISSUE-013 | Cloud OAuth | M2 | #37 / child #41 | BROWSER_LOCAL_VERIFIED; PUBLICATION_PENDING | 010,011 |
+| ISSUE-014 | Cloud/local chat authorization projection | M2 | #38 | PARTIAL_LOCAL_VERIFIED | 010,013 |
 | ISSUE-015 | Offline authorization suppression | M2 | - | PLANNED | 014,018 |
-| ISSUE-016 | Device identity and enrollment | M2 | file-backed | PARTIAL_LOCAL_VERIFIED | 010,013 |
+| ISSUE-016 | Device identity and enrollment | M2 | #39 | PARTIAL_LOCAL_VERIFIED | 010,013 |
 | ISSUE-017 | Authenticated outbound transport | M2 | - | PLANNED | 016 |
 | ISSUE-018 | Presence and generation fencing | M2 | - | PLANNED | 017 |
 | ISSUE-019 | Multiplexing and bounded request admission | M2 | - | PLANNED | 017,018 |
@@ -33,7 +33,7 @@ Parent [#32](https://github.com/Eswink/coding-tools-mcp/issues/32). Legacy spec 
 | ISSUE-036 | Tool discovery scaling evaluation | M4 | - | PLANNED | 022; real Host support |
 | ISSUE-037 | Public-origin migration | M5 | - | PLANNED | 012-021,039 |
 | ISSUE-038 | OAuth continuity migration | M5 | - | PLANNED | 013,014,037 |
-| ISSUE-039 | VPS deployment and restore package | M3/M5 | - | BLUEPRINT_ONLY / HOST_BLOCKED | 012-021,040,041,042 |
+| ISSUE-039 | VPS deployment and restore package | M3/M5 | #40 | BLUEPRINT_ONLY / HOST_BLOCKED | 012-021,040,041,042 |
 | ISSUE-040 | Secret/database protection | M2/M5 | - | PLANNED | 010,013 |
 | ISSUE-041 | Rate limits and abuse bounds | M2/M5 | - | PLANNED | 012,019 |
 | ISSUE-042 | Redacted observability | M2/M5 | - | PLANNED | 010,012 |

@@ -182,8 +182,19 @@ async fn content_type_and_body_limit_are_enforced() {
 #[tokio::test]
 async fn trusted_issuance_and_invitation_apis_are_not_http_routes() {
     let f = Fixture::new().await;
+    // The browser entry now exists as GET, but POST cannot bypass login/consent.
+    let response = identity_routes(f.store.clone())
+        .oneshot(req("/coding-tools/oauth/authorize", "subject=forged"))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+    assert!(!response.headers().contains_key(header::LOCATION));
+    let codes: i64 = sqlx::query_scalar("SELECT count(*) FROM ctm_codes")
+        .fetch_one(&f.pool)
+        .await
+        .unwrap();
+    assert_eq!(codes, 0);
     for path in [
-        "/coding-tools/oauth/authorize",
         "/coding-tools/admin/issue-code",
         "/coding-tools/agents/enroll",
     ] {

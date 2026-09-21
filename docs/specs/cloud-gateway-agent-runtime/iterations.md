@@ -43,3 +43,11 @@ Remote publication, public OAuth/Agent integration and real Host acceptance rema
 
 
 Round 2 gate follow-up: retained failing architecture metadata/cleanup checks and incremental graph CRITICAL evidence. Full graph rebuild restored symbol IDs; scoped impact and protected-object checks bounded the actual diff, while aggregate CRITICAL remained visible. Architecture metadata now models the additive library accurately; validate/drift passed. No production deployment or security certification inferred.
+
+## Round 3 — ISSUE-013B / GitHub #41, 2026-09-21
+
+Recovered local 4b6f197 from its verified Git bundle. No persisted probe state file was bundled, so resume returned not_found; reconstructed the same delegated plan identity from the exported checkpoint and resumed existing parent-child specs, not a new feature layout. Scope/spec checked before implementation.
+
+Implemented browser identity/consent with an additive migration and six source modules; preserved the trusted issuance API with an internal caller-transaction helper. Found and fixed lock-wait expiry after a failure-first regression. Updated the deliberate authorize GET/POST contract without opening admin endpoints. See round3-validation.md and review.md for exact validation boundaries and retained intermediate failures.
+
+Current local result: 68 Rust tests, 13 deployment contracts, 32 protocol lab tests, 8 UI contracts, 8 fault-proxy contracts; format and Clippy all-targets PASS. Real independent database/process restarts for both refresh and authenticated browser consent PASS. These are container tests, not remote Windows/PostgreSQL, VPS, or real ChatGPT evidence. Publication uses exact tested tree identity and no force update. M2 remains active.

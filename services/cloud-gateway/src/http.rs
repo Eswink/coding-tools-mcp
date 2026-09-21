@@ -24,9 +24,12 @@ pub fn identity_routes(store: IdentityStore) -> Router {
             get(server_metadata),
         )
         .route(&store.identity().token_path(), post(token))
+        .with_state(store.clone())
+        .merge(crate::browser::http::routes(
+            crate::browser::BrowserAuth::new(store.clone()),
+        ))
         .layer(DefaultBodyLimit::max(8192))
         .layer(middleware::from_fn_with_state(store.clone(), boundary))
-        .with_state(store)
 }
 async fn resource_metadata(State(s): State<IdentityStore>) -> Response {
     Json(s.identity().resource_metadata()).into_response()
