@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-shot import of reviewed source only; NEVER changes a branch ref."""
+"""One-shot reviewed blob import; tree/commit/ref writes require native connector."""
 import argparse,base64,hashlib,json,lzma,os,subprocess,urllib.request
 from pathlib import Path
 BASE='ba9c379f08da37f2a05bb96c377a95f432da969e'
@@ -41,16 +41,19 @@ def reconstruct(data):
  print(json.dumps({'reconstructed_commit':TARGET,'tree':TREE,'protected_paths':'PASS'}))
 
 def publish_objects(data,output):
- # Only the final job step receives a token. No checkout credential or ref write.
+ # The earlier tree POST returned 403. Do not enlarge token permissions or
+ # bypass workflow restrictions: export blobs only, then use the explicitly
+ # authorized native connector for reviewed tree/commit/ref operations.
  token=os.environ['GH_TOKEN']
  def api(method,path,body=None):
+  assert (method,path) in [('GET','git/ref/heads/feat/cloud-gateway-agent-runtime'),('POST','git/blobs')]
   request=urllib.request.Request('https://api.github.com/repos/'+REPO+'/'+path,
    data=json.dumps(body,ensure_ascii=False).encode() if body is not None else None,
    headers={'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'},method=method)
   with urllib.request.urlopen(request,timeout=40) as response:return json.load(response)
  assert git('rev-parse','HEAD')==TARGET
  assert api('GET','git/ref/heads/feat/cloud-gateway-agent-runtime')['object']['sha']==BASE,'remote changed; stop'
- mapping={BASE:BASE};results=[];seen=set()
+ results=[];seen=set()
  for c in data['commits']:
   entries=[]
   paths=git('diff','--name-only',c['parent'],c['sha']).splitlines()
@@ -63,14 +66,9 @@ def publish_objects(data,output):
     result=api('POST','git/blobs',{'content':base64.b64encode(raw).decode(),'encoding':'base64'})
     assert result['sha']==sha,'blob mismatch';seen.add(sha)
    entries.append({'path':path,'mode':mode,'type':'blob','sha':sha})
-  tree=api('POST','git/trees',{'base_tree':git('rev-parse',c['parent']+'^{tree}'),'tree':entries})
-  assert tree['sha']==c['tree'],'remote tree mismatch'
-  body={k:c[k] for k in ('message','author','committer')};body.update(tree=tree['sha'],parents=[mapping[c['parent']]])
-  result=api('POST','git/commits',body)
-  assert result['tree']['sha']==c['tree'] and [p['sha'] for p in result['parents']]==body['parents']
-  mapping[c['sha']]=result['sha'];results.append({'local':c['sha'],'remote':result['sha'],'tree':tree['sha']})
- report={'base':BASE,'local_target':TARGET,'remote_target':mapping[TARGET],'tree':TREE,'payload_sha256':DIGEST,'ref_modified':False,'commits':results}
- output.write_text(json.dumps(report,indent=2));print(json.dumps(report))
+  results.append({'local':c['sha'],'parent':c['parent'],'tree':c['tree'],'base_tree':git('rev-parse',c['parent']+'^{tree}'),'entries':entries})
+ report={'base':BASE,'local_target':TARGET,'tree':TREE,'payload_sha256':DIGEST,'blobs_verified':len(seen),'ref_modified':False,'trees_or_commits_created':False,'commits':results}
+ output.write_text(json.dumps(report,indent=2));print(json.dumps({k:v for k,v in report.items() if k!='commits'}))
 
 if __name__=='__main__':
  p=argparse.ArgumentParser();p.add_argument('mode',choices=['reconstruct','import']);p.add_argument('directory',type=Path);p.add_argument('--output',type=Path,default=Path('import-result.json'));a=p.parse_args()
