@@ -1,0 +1,47 @@
+name: Cloud gateway database tooling preflight
+on:
+  push:
+    branches: ['feat/cloud-gateway-agent-runtime']
+    paths: ['.github/workflows/cloud-gateway-database-preflight.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Export public database binaries without data or credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16 nginx
+          mkdir -p evidence payload/lib payload/bin payload/share
+          cp -a /usr/lib/postgresql/16 payload/postgresql
+          cp -a /usr/share/postgresql/16 payload/share/postgresql
+          cp /usr/sbin/nginx payload/bin/
+          for bin in /usr/lib/postgresql/16/bin/{postgres,initdb,pg_ctl,psql,pg_dump} /usr/sbin/nginx; do
+            ldd "$bin" | awk '/=> \/.* \(/ {print $3}' | while read -r lib; do cp -L "$lib" payload/lib/; done
+          done
+          curl --fail --location --retry 2 https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 --output payload/bin/docker-compose
+          curl --fail --location --retry 2 https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64.sha256 --output evidence/compose.sha256
+          expected="$(awk '{print $1}' evidence/compose.sha256)"
+          actual="$(sha256sum payload/bin/docker-compose | awk '{print $1}')"
+          test "$expected" = "$actual"
+          chmod +x payload/bin/docker-compose
+          payload/bin/docker-compose version > evidence/compose-version.txt
+          /usr/lib/postgresql/16/bin/postgres --version > evidence/postgres-version.txt
+          /usr/sbin/nginx -v 2> evidence/nginx-version.txt
+          tar -czf evidence/database-tools.tar.gz -C payload .
+          sha256sum evidence/database-tools.tar.gz > evidence/SHA256SUMS.txt
+          git rev-parse HEAD > evidence/source-commit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cloud-gateway-database-tools
+          path: evidence/
+          retention-days: 7
+          if-no-files-found: error
