@@ -1,0 +1,48 @@
+{
+  "layout": "parent-child",
+  "subspecs": [
+    {
+      "id": "gateway-foundation",
+      "title": "Cloud protocol and offline foundation",
+      "fr": [
+        "FR-1",
+        "FR-2",
+        "FR-3"
+      ]
+    },
+    {
+      "id": "agent-channel",
+      "title": "Cloud OAuth, local approval and outbound device transport",
+      "fr": [
+        "FR-4",
+        "FR-5"
+      ],
+      "dependsOn": [
+        "gateway-foundation"
+      ]
+    },
+    {
+      "id": "agent-runtime",
+      "title": "Codex-inspired Windows and Ubuntu execution runtime",
+      "fr": [
+        "FR-6",
+        "FR-7"
+      ],
+      "dependsOn": [
+        "agent-channel"
+      ]
+    },
+    {
+      "id": "deployment-acceptance",
+      "title": "Migration, deployment, packages and real ChatGPT acceptance",
+      "fr": [
+        "FR-8",
+        "FR-9"
+      ],
+      "dependsOn": [
+        "agent-channel",
+        "agent-runtime"
+      ]
+    }
+  ]
+}
