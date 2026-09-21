@@ -9,3 +9,9 @@
   - 证据块: design.md; protocol.md
   - 涉及文件: future agent transport and journal
   - _需求: FR-5_
+
+## Round 2 partial increment — not a completed 2.1/2.2
+
+- 2.1: standalone PostgreSQL identity core and metadata/token HTTP adapter; PKCE, rotation/replay, absolute expiry, unchanged identity across a real database and process restart verified locally. Ed25519 grant envelope verification only; no authoritative local/cloud grant projection or owner consent controller.
+- 2.2: expiring single-use device invitations, proof-of-possession and revocation verified locally. No authenticated WSS or durable remote request journal; no real workspace tools wired.
+- Evidence: `../../round2-validation.md`. GitHub publication and Windows CI remain pending in this read-only session. Do not mark either parent checkbox complete.

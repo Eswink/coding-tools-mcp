@@ -56,7 +56,8 @@ jobs:
           base = '758c60a6e74e624e144f9c19c5f19d04d17f7a13'
           paths = subprocess.check_output(['git', 'diff', '--name-only', base, 'HEAD'], text=True).splitlines()
           allowed = ('prototypes/cloud-gateway/', 'tests/cloud-gateway/',
-                     'docs/specs/cloud-gateway-agent-runtime/', '.github/workflows/cloud-gateway-')
+                     'docs/specs/cloud-gateway-agent-runtime/', '.github/workflows/cloud-gateway-',
+                     'services/cloud-gateway/', 'deploy/cloud-gateway/', 'tests/cloud-gateway-deployment/')
           unexpected = [p for p in paths if not p.startswith(allowed)]
           if unexpected:
               raise SystemExit('Unexpected non-lab changes: ' + repr(unexpected))
@@ -70,7 +71,7 @@ jobs:
               if p.suffix == '.mjs' and len(data.splitlines()) >= 500:
                   raise SystemExit('Source file exceeds the repository limit: ' + name)
           report = {'base': base, 'candidate': subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
-                    'classification': 'NON_PRODUCTION_PROTOCOL_LAB', 'sha256': hashes}
+                    'classification': 'LAB_REGRESSIONS_WITH_ISOLATED_IDENTITY_INCREMENT', 'sha256': hashes}
           Path('evidence/candidate.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
           PY
       - name: Syntax and HTTP contract tests

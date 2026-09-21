@@ -33,3 +33,13 @@ Existing desktop/runtime/package source: UNCHANGED.
 ## Round 1 — cross-platform candidate verification
 
 Run `35564597505` passed on Windows 2025 and Ubuntu 24.04. Each platform ran 32 HTTP/CLI, 8 existing UI and 8 Python fault-proxy tests. The pinned graph/spec job also passed. Downloaded artifacts were SHA-256 verified; Ubuntu candidate bytes match all 31 local files, and Windows matches after its exact LF-to-CRLF checkout conversion. This is a protocol laboratory gate, not installed-app or real ChatGPT acceptance. Full evidence identifiers and continuation are in [round1-validation.md](round1-validation.md).
+
+
+## Round 2 — local durable identity and deployment boundary (2026-09-21)
+
+Base ba9c379; independent local branch, no GitHub write capability. Implemented Rust identity primitives with actual PostgreSQL/HTTP tests and review-only deployment rendering for the supplied Nginx/Baota topology. See `round2-validation.md` for result counts and remaining gates. A malformed-Origin URL normalization bug was reproduced by a failing regression, fixed after LOW-impact analysis, then retested. Test-file splitting exposed an unused import under `-D warnings`; removed and retested. Neither failure is hidden.
+
+Remote publication, public OAuth/Agent integration and real Host acceptance remain open. No server or desktop configuration changed.
+
+
+Round 2 gate follow-up: retained failing architecture metadata/cleanup checks and incremental graph CRITICAL evidence. Full graph rebuild restored symbol IDs; scoped impact and protected-object checks bounded the actual diff, while aggregate CRITICAL remained visible. Architecture metadata now models the additive library accurately; validate/drift passed. No production deployment or security certification inferred.

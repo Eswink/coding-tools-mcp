@@ -2,7 +2,7 @@
 
 ## 交付物清单
 
-子规格维护任务明细。本批仅 gateway-foundation/1.1 与 1.2；其他均未实施。总体工作流保持 active，不将第一批 green 等同全工程收敛。
+子规格维护任务明细。M1 gateway-foundation/1.1、1.2 已验证；Round 2 新增 agent-channel/2.1、2.2 的身份/签名原语和 deployment-acceptance/4.1 的受限配置蓝图，均为部分实现。生产集成和真实 Host 验收未完成，总体工作流保持 active。
 
 ## 任务列表
 
@@ -15,16 +15,16 @@ M1 完成规格和实验；M2 生产身份与通道；M3 早期真实 Host PoC�
 | FR-1 | gateway-foundation | gateway-foundation/1.1, gateway-foundation/1.2, gateway-foundation/1.3 | 第一批进行中 |
 | FR-2 | gateway-foundation | gateway-foundation/1.1, gateway-foundation/1.2, gateway-foundation/1.3 | 第一批进行中 |
 | FR-3 | gateway-foundation | gateway-foundation/1.1, gateway-foundation/1.2, gateway-foundation/1.3 | 第一批进行中 |
-| FR-4 | agent-channel | agent-channel/2.1 | 未开始 |
-| FR-5 | agent-channel | agent-channel/2.2 | 未开始 |
+| FR-4 | agent-channel | agent-channel/2.1 | 身份原语已本地验证；生产授权控制器待集成 |
+| FR-5 | agent-channel | agent-channel/2.2 | 注册原语已本地验证；WSS/执行日志待集成 |
 | FR-6 | agent-runtime | agent-runtime/3.1 | 未开始 |
 | FR-7 | agent-runtime | agent-runtime/3.2 | 未开始 |
-| FR-8 | deployment-acceptance | deployment-acceptance/4.1 | 未开始 |
+| FR-8 | deployment-acceptance | deployment-acceptance/4.1 | 配置蓝图已验证；VPS/恢复/迁移未执行 |
 | FR-9 | deployment-acceptance | deployment-acceptance/4.2 | 未开始 |
 
 ## 文件变更清单
 
-只新增本目录、prototypes/cloud-gateway、tests/cloud-gateway 和独立 cloud-gateway workflow。现有 src、src-tauri、package/lock、安装器、AGENTS.md 等不得混入本批变更。
+M1 新增本目录、prototypes/cloud-gateway、tests/cloud-gateway 和独立 cloud-gateway workflow。Round 2 另增 services/cloud-gateway（独立 crate 与锁文件）、deploy/cloud-gateway、tests/cloud-gateway-deployment，及身份 CI；仅扩展旧实验 workflow 的新增目录范围检查。现有 src、src-tauri、根 package/lock、安装器、AGENTS.md 等不得混入变更。
 
 ## 子规格任务覆盖矩阵
 

@@ -43,3 +43,22 @@ These passes apply to **M1 boundaries only**. The 36-issue roadmap remains activ
   logging; no arbitrary upstream, execution or remote approval path; unsupported
   methods/versions remain protocol errors; write-capable annotations are not
   falsified to avoid host approval.
+
+
+## Round 2 manual review
+
+- Reviewed exact new SQL, OAuth client/resource/code/refresh binding, family locking and replay revocation, identity-key continuity, device proof consumption order and signed-grant scope/epoch checks.
+- Fixed the demonstrated malformed-Origin normalization issue. Raw Origin serialization is checked rather than relying on a URL parser's repair behavior.
+- Keep operator methods out of HTTP. Metadata/token router is a partial library, not a complete authorization service; deployable status is explicitly blocked.
+- Device enrollment and a verified signed claim do not replace local approval/lease/recovery/execution authorization. WSS and authoritative local-grant integration remain separate gates.
+- Template validation does not certify real TLS/WAF/site integration. Compose remains behind a disabled profile with mandatory external image/secret inputs; no binary/image is fabricated.
+- Recorded CentOS Stream 8 EOL and unknown Docker Engine version. Do not modify OS/WAF/firewall as a hidden prerequisite.
+- Real database/process restart and race tests passed; backup rollback resistance, capacity/GC/abuse limits, and public consent controller have NOT been implemented.
+- Review and graph helpers are deterministic guidance, not an independent production security assessment. Remote CI and publication are not available in this turn.
+
+
+### Round 2 pre-commit graph/architecture gate investigation
+
+The incremental graph returned missing symbol IDs and implausible cross-language callers for the new renderer/identity methods; aggregate impact was CRITICAL (256 flows). A forced full rebuild restored concrete symbol IDs. Scoped `issue_after_owner_consent`, `refresh`, and renderer `main` queries were rerun against the rebuilt graph; exact results are retained in the evidence bundle. The rebuilt aggregate still reports CRITICAL (280 new/changed symbols, 16 flows); this warning is retained, not rewritten to LOW. It includes new identity/deployment contracts and warrants review before integration. Existing src/src-tauri, root package/lock, AGENTS and CLAUDE Git objects match the base exactly; the new crate has its own workspace and no desktop dependency. No production merge/deployment is performed.
+
+The architecture helper initially rejected incomplete normalized metadata and then interpreted test-cluster teardown as legacy-code cleanup. Inputs were corrected to the actual additive-only scope (no legacy retirement). Bounded validate/drift then passed; unknown VPS/Host evidence remains explicit. These are structured planning checks, not independent security certification. Dependency advisory audit is still a production gate; pinned dependency seed does not by itself prove absence of vulnerabilities.
