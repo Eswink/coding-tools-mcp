@@ -48,3 +48,13 @@ prerequisites for this isolated projection increment.
 Evidence: `../../issue-014a-grant-projection.md`, `../../round5-validation.md`.
 Round4 source is preserved; publication/native CI are tracked separately. Neither
 parent 2.1 nor 2.2 is marked complete by a passing projection library test.
+
+## Round 6: ISSUE-017A / GitHub #46
+
+- [x] Freeze native-only WS challenge/proof, generation and lease contract.
+- [x] Implement bounded real WS control adapter, enrolled-device authentication and fenced projection transport.
+- [x] Verify 12 pure, 22 PostgreSQL and 18 actual TCP/WebSocket tests locally; full gateway regression 194 tests passes.
+- [ ] Publish exact tree and verify Windows/Ubuntu CI on it (tracked in GitHub issue receipt).
+- [ ] Ship/integrate local Agent signer and WSS ingress; a connected socket is not execution permission.
+- [ ] Durable execution request reconciliation / no-replay contract (subsequent issue).
+- [ ] Physical workstation/VPS/ChatGPT acceptance, explicitly deferred, not PASS.

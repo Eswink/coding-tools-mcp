@@ -75,3 +75,8 @@ The architecture helper initially rejected incomplete normalized metadata and th
 - One SQL transaction covers owner/flow/client revalidation, code issuance and flow consumption. Password work runs outside database locks; owned semaphore permits survive HTTP cancellation. Password rotation is explicit CAS and revokes existing owner OAuth families.
 - Source side effects are confined to the new standalone cloud library, its tests/CI and specifications. No desktop/source/installer or live network configuration changes.
 - Remaining risks: same-origin site trust, public rate limiting, MFA/owner operations, backup anti-rollback, durable grant projection and Agent fencing. No independent security audit, real browser or ChatGPT outcome claimed.
+
+
+## Round 6 — #46 local review
+
+52 new channel tests plus existing full suite (194 total) pass. Read `round6-validation.md` for the exact limits, boot/session/lease review and retained failures. Opt-in WS router is not publicly mounted, and a connected session is not an execution permit. GitNexus Rust caller coverage is incomplete; path-qualified results and manual callsites were both checked. No prior desktop symbols or authorization method bodies modified. Physical/Host tests deferred at user request; publication/CI are separate from local PASS.

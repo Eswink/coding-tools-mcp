@@ -37,6 +37,10 @@ pub struct ProjectionStore {
     boot: Uuid,
 }
 impl ProjectionStore {
+    /// Internal lifecycle fence; a channel must not adopt another controller's boot.
+    pub(crate) fn active_boot_id(&self) -> Uuid {
+        self.boot
+    }
     /// Trusted lifecycle operation: fence all old handles and require new proof.
     /// Call once per single active controller boot; use Clone for request handling.
     pub async fn activate(identity: IdentityStore) -> Result<Self> {

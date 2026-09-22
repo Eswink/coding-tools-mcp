@@ -24,3 +24,6 @@ pub mod service;
 
 /// Internal-only device-owned authorization projection; not an execution permit.
 pub mod projection;
+
+/// Opt-in native device control channel; not mounted by the identity-only service.
+pub mod channel;

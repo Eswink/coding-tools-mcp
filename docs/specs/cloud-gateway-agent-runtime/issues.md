@@ -66,3 +66,8 @@ ChatGPT tests are deferred by the user, not PASS and not a prerequisite to
 continue non-physical engineering. Parent #38 remains open for Agent/UI and
 local-gate integration. Source publication and native CI require their own
 evidence; see round5-validation.md.
+
+
+## Round 6 incremental issue — 2026-09-22
+
+GitHub #46 / ISSUE-017A implements the bounded native-agent WebSocket control-channel library on `ac816e0...`. Enrollment and grant projection are reused; no real-machine/VPS/ChatGPT tests are performed at user direction. See `issue-017a-agent-channel.md` and `round6-validation.md`. Full ISSUE-017..021 remain open for production client, TLS ingress integration, request multiplexing, execution tickets/admission and durable mutation reconciliation. This is not completion of the 36-issue roadmap.

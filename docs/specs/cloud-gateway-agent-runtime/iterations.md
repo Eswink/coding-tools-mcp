@@ -73,3 +73,12 @@ registry-epoch defect was reproduced and fixed. 16 pure +32 PG projection cases,
 139 total Rust, 30 actual service HTTP cases and previous 32+8+8+13 regressions PASS.
 No public approval/execution route or production config change. Publication and
 native CI remain separate until verified. See round5-validation.md and Issue #43.
+
+
+## 2026-09-22 — Round 6 native Agent control transport
+
+Base `ac816e0962a8211b071f63380777b7cef1124f87`; issue #46. User deferred real-machine/VPS/ChatGPT tests, not development. New bounded WS router is library-only, not mounted in the identity service. Signature binds enrolled device, selected connector, resource, boot and connection challenge. Reconnect fences old sessions; heartbeat does not renew grants.
+
+Retained failures: initial WebSocket close API compile error fixed with explicit Close frame; existing unreconciled-owner test expectation corrected to RecoveryRequired (product semantics unchanged); signed snapshot allowed validity after its channel lease, regression failed before adding lease ceiling; new ephemeral-presence FK blocked the existing isolated-authority restore regression, removed in unreleased migration 0004 with additional live-channel restore test; Clippy test-helper large-error warning fixed by boxing its test-only error. No prior security assertion was deleted.
+
+Local final result: 194 Rust tests including 52 new channel tests, 30 standalone process/HTTP cases, 32 old protocol, 8 UI-source, 8 proxy, 13 deployment-render contracts PASS. Full native/remote and publication identity remain separately evidenced; no new browser or real-Host result claimed.
