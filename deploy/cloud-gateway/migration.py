@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -49,7 +50,13 @@ def _canonical_domain(host: str) -> str:
 
 
 def canonical_origin(value: str) -> dict:
-    if not isinstance(value, str) or not value or len(value.encode("utf-8")) > MAX_ORIGIN_BYTES:
+    if (
+        not isinstance(value, str)
+        or not value
+        or not value.isascii()
+        or len(value.encode("ascii", "strict")) > MAX_ORIGIN_BYTES
+        or any(ord(char) <= 0x20 or ord(char) == 0x7F for char in value)
+    ):
         raise MigrationError("invalid public origin")
     parsed = urlsplit(value)
     if (
@@ -67,6 +74,13 @@ def canonical_origin(value: str) -> dict:
     # IP addresses are outside the reviewed production topology.
     host = _canonical_domain(parsed.hostname or "")
     try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        pass
+    else:
+        raise MigrationError("IP literals are not accepted as public origins")
+
+    try:
         port = parsed.port
     except ValueError as exc:
         raise MigrationError("invalid public origin port") from exc
@@ -80,6 +94,8 @@ def canonical_origin(value: str) -> dict:
         if raw_host != host or not raw_port.isdigit() or (len(raw_port) > 1 and raw_port.startswith("0")):
             raise MigrationError("non-canonical public origin port")
         explicit_port = int(raw_port)
+    elif raw_netloc != host:
+        raise MigrationError("public origin host must already be canonical")
 
     effective_port = 443 if port is None else port
     if not 1 <= effective_port <= 65535:
