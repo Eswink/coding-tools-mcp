@@ -11,7 +11,7 @@ concurrency:
   group: request-admission-source-r8
   cancel-in-progress: false
 jobs:
-  verify-and-publish:
+  verify-and-import:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
@@ -57,7 +57,7 @@ jobs:
           protected=('src/','src-tauri/','AGENTS.md','CLAUDE.md','package.json','package-lock.json')
           assert not any(p.startswith(protected) or p in protected for p in paths), paths
           PY
-      - name: Rust, PostgreSQL and delivery regression gates
+      - name: Rust PostgreSQL and delivery regression gates
         shell: bash
         run: |
           set -euo pipefail
@@ -65,6 +65,7 @@ jobs:
           sudo apt-get install -y postgresql-16
           export PATH="/usr/lib/postgresql/16/bin:$PATH"
           pgroot="$RUNNER_TEMP/pg-r8"
+          mkdir -p "$pgroot"
           port="$(python3 - <<'PY'
           import socket
           s=socket.socket();s.bind(('127.0.0.1',0));print(s.getsockname()[1]);s.close()
@@ -89,24 +90,49 @@ jobs:
           PY
           git rev-parse HEAD > evidence/base-commit.txt
           git write-tree > evidence/verified-tree.txt
-      - name: Commit exact tree and fast-forward feature only
+      - name: Import hash-verified source blobs only
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          BASE: '765664434a8016f05ce3a15fff87065506fbc7fc'
           EXPECTED_TREE: '2ec47d544a1d5bd3d001fcf912516e01c6b56176'
         run: |
           set -euo pipefail
-          current="$(git ls-remote https://github.com/Eswink/coding-tools-mcp.git refs/heads/feat/cloud-gateway-agent-runtime | awk '{print $1}')"
-          test "$current" = "$BASE"
           test "$(git write-tree)" = "$EXPECTED_TREE"
-          git config user.name Eswlnk
-          git config user.email 1525566427@qq.com
-          git commit -m 'feat: add durable request admission and no-replay ledger' -m 'Publish the reviewed ISSUE-019A admission state machine, PostgreSQL ledger and exact-source tests. No local tool execution or production deployment. Refs #49.'
-          test "$(git rev-parse HEAD^{tree})" = "$EXPECTED_TREE"
-          remote="https://x-access-token:$GH_TOKEN@github.com/Eswink/coding-tools-mcp.git"
-          git push "$remote" HEAD:refs/heads/feat/cloud-gateway-agent-runtime
-          git rev-parse HEAD > evidence/published-commit.txt
+          python3 - <<'PY'
+          import base64, json, os, pathlib, subprocess, urllib.request
+          repo='Eswink/coding-tools-mcp'
+          token=os.environ['GH_TOKEN']
+          paths=pathlib.Path('evidence/changed-files.txt').read_text().splitlines()
+          def git(*args):
+              return subprocess.check_output(['git',*args],text=True).strip()
+          def api(path, body):
+              req=urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/{path}',
+                  data=json.dumps(body,separators=(',',':')).encode(),
+                  headers={
+                      'Authorization':'Bearer '+token,
+                      'Accept':'application/vnd.github+json',
+                      'X-GitHub-Api-Version':'2022-11-28',
+                      'Content-Type':'application/json',
+                  },
+                  method='POST',
+              )
+              with urllib.request.urlopen(req,timeout=60) as r:
+                  return json.load(r)
+          rows=[]
+          for p in paths:
+              raw=pathlib.Path(p).read_bytes()
+              expected=git('hash-object',p)
+              got=api('git/blobs',{'content':base64.b64encode(raw).decode(),'encoding':'base64'})
+              assert got['sha']==expected,(p,expected,got.get('sha'))
+              mode=git('ls-files','-s','--',p).split()[0]
+              rows.append({'path':p,'mode':mode,'sha':expected,'bytes':len(raw)})
+          pathlib.Path('evidence/blob-receipt.json').write_text(json.dumps({
+              'expected_tree':os.environ['EXPECTED_TREE'],
+              'ref_modified':False,
+              'blobs':rows,
+          },indent=2))
+          PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
