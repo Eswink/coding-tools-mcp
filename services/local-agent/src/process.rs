@@ -651,8 +651,14 @@ async fn supervise(
     let (mut reason, mut exit_code) = loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                tree.disarm();
-                break (TerminationReason::Exited, status.code());
+                // The direct child exited, but detached/background descendants can still
+                // exist in the owned process group/job. Tear down the remaining tree
+                // before reporting a terminal session.
+                let cleanup_ok = tree.terminate().is_ok();
+                if cleanup_ok {
+                    break (TerminationReason::Exited, status.code());
+                }
+                break (TerminationReason::IoFailed, None);
             }
             Ok(None) => {}
             Err(_) => {
