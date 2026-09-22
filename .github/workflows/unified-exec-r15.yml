@@ -1,0 +1,105 @@
+name: Unified bounded execution foundation
+
+on:
+  push:
+    branches: ['ci/unified-exec-r15']
+    paths:
+      - 'services/local-agent/**'
+      - '.github/workflows/unified-exec-r15.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: unified-exec-r15
+  cancel-in-progress: true
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Verify policy-gated native ProcessManager
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          cargo generate-lockfile --manifest-path services/local-agent/Cargo.toml
+          cargo fmt --manifest-path services/local-agent/Cargo.toml
+          cargo fmt --check --manifest-path services/local-agent/Cargo.toml
+          cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml -- --test-threads=1 2>&1 | tee evidence/tests.txt
+          cargo check --locked --manifest-path services/local-agent/Cargo.toml --all-targets
+          git diff --check 660a29a265b60e0401f4061558bda2a261f91c80 HEAD
+          git diff --name-only 660a29a265b60e0401f4061558bda2a261f91c80 HEAD > evidence/changed-files.txt
+          python - <<'PY'
+          from pathlib import Path
+          paths=Path('evidence/changed-files.txt').read_text(encoding='utf-8').splitlines()
+          assert paths
+          assert all(
+              p.startswith('services/local-agent/')
+              or p=='.github/workflows/unified-exec-r15.yml'
+              for p in paths
+          ), paths
+          PY
+          git add -- services/local-agent
+          git diff --cached --check
+          git write-tree > evidence/verified-tree.txt
+          git rev-parse HEAD > evidence/source-commit.txt
+      - name: Import verified ProcessManager blobs only
+        if: matrix.os == 'ubuntu-24.04'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, json, os, pathlib, subprocess, urllib.request
+          repo='Eswink/coding-tools-mcp'
+          token=os.environ['GH_TOKEN']
+          paths=[
+              pathlib.Path('services/local-agent/Cargo.toml'),
+              pathlib.Path('services/local-agent/Cargo.lock'),
+              *sorted(pathlib.Path('services/local-agent/src').glob('*.rs')),
+          ]
+          rows=[]
+          for p in paths:
+              raw=p.read_bytes()
+              expected=subprocess.check_output(['git','hash-object',str(p)],text=True).strip()
+              req=urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/git/blobs',
+                  data=json.dumps({'content':base64.b64encode(raw).decode(),'encoding':'base64'}).encode(),
+                  headers={
+                      'Authorization':'Bearer '+token,
+                      'Accept':'application/vnd.github+json',
+                      'X-GitHub-Api-Version':'2022-11-28',
+                      'Content-Type':'application/json',
+                  },
+                  method='POST')
+              with urllib.request.urlopen(req,timeout=60) as response:
+                  got=json.load(response)
+              assert got['sha']==expected,(str(p),expected,got.get('sha'))
+              rows.append({'path':str(p).replace('\\','/'),'sha':expected,'bytes':len(raw)})
+          pathlib.Path('evidence/blob-receipt.json').write_text(
+              json.dumps(rows,indent=2),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: unified-exec-r15-${{ matrix.os }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
