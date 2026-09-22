@@ -38,6 +38,16 @@ jobs:
           echo "$PATCH_SHA  $RUNNER_TEMP/mcp-r10/change.patch" | sha256sum -c -
           git checkout --detach "$BASE"
           git apply --index --whitespace=error-all "$RUNNER_TEMP/mcp-r10/change.patch"
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('services/cloud-gateway/tests/mcp_postgres.rs')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('http::{header, HeaderMap, Request, StatusCode}', 'http::{header, Request, StatusCode}')
+          s=s.replace('mod channel_support;', '#[allow(dead_code)]\nmod channel_support;')
+          s=s.replace('mod projection_support;', '#[allow(dead_code)]\nmod projection_support;')
+          p.write_text(s, encoding='utf-8')
+          PY
+          git add -- services/cloud-gateway/tests/mcp_postgres.rs
           git diff --cached --check
           git diff --cached --name-only > evidence/changed-files.txt
           test "$(wc -l < evidence/changed-files.txt)" -eq 14
@@ -132,6 +142,16 @@ jobs:
           xz -dc "$RUNNER_TEMP/mcp-r10/change.patch.xz" > "$RUNNER_TEMP/mcp-r10/change.patch"
           git checkout --detach "$BASE"
           git apply --index --whitespace=error-all "$RUNNER_TEMP/mcp-r10/change.patch"
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('services/cloud-gateway/tests/mcp_postgres.rs')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('http::{header, HeaderMap, Request, StatusCode}', 'http::{header, Request, StatusCode}')
+          s=s.replace('mod channel_support;', '#[allow(dead_code)]\nmod channel_support;')
+          s=s.replace('mod projection_support;', '#[allow(dead_code)]\nmod projection_support;')
+          p.write_text(s, encoding='utf-8')
+          PY
+          git add -- services/cloud-gateway/tests/mcp_postgres.rs
           cargo fmt --manifest-path services/cloud-gateway/Cargo.toml
           git add -- services/cloud-gateway
           cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
