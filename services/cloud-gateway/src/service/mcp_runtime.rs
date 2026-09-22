@@ -93,6 +93,18 @@ async fn controls(
     }
     s.observability.record_ingress_accepted();
     let response = next.run(request).await;
+    match response.status() {
+        StatusCode::PAYLOAD_TOO_LARGE => s
+            .observability
+            .record_ingress_rejected(IngressRejection::Body),
+        StatusCode::REQUEST_TIMEOUT => s
+            .observability
+            .record_ingress_rejected(IngressRejection::Timeout),
+        status if status.is_server_error() => s
+            .observability
+            .record_ingress_rejected(IngressRejection::Internal),
+        _ => {}
+    }
     s.observability.record_latency(started.elapsed());
     response
 }
