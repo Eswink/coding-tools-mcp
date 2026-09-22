@@ -1,0 +1,62 @@
+name: Delivery resume r17 (read-only helper)
+on:
+  push:
+    branches: ['ci/delivery-resume-r17']
+    paths: ['.github/workflows/delivery-resume-r17.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 08a4e57d8e9d3959a8f9805d0b750c468a442cd7
+          persist-credentials: false
+          fetch-depth: 0
+          path: source
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Recover immutable committed source only
+        working-directory: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ../evidence
+          test "$(git rev-parse HEAD)" = '08a4e57d8e9d3959a8f9805d0b750c468a442cd7'
+          git bundle create ../evidence/source.bundle HEAD
+          git rev-parse HEAD HEAD^{tree} > ../evidence/source-identity.txt
+          sha256sum ../evidence/source.bundle > ../evidence/source.bundle.sha256
+      - name: Resume pinned project plan before implementation
+        working-directory: source
+        shell: bash
+        run: |
+          set -uo pipefail
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > ../evidence/probe-install.txt 2>&1
+          install_status=$?
+          echo "$install_status" > ../evidence/probe-install.status
+          if [ "$install_status" = 0 ]; then
+            printf '{"project_root":"%s"}\n' "$PWD" | ./.mcp-probe-kit/bin/probe exec resume_plan --stdin > ../evidence/resume-plan.json 2>&1
+            echo "$?" > ../evidence/resume-plan.status
+          fi
+          git status --short > ../evidence/tooling-worktree-status.txt
+      - name: Pinned graph context and upstream impact for existing runtime entrypoints
+        working-directory: source
+        shell: bash
+        run: |
+          set -uo pipefail
+          npx --yes gitnexus@1.4.8 analyze > ../evidence/graph-analyze.txt 2>&1
+          echo "$?" > ../evidence/graph-analyze.status
+          npx --yes gitnexus@1.4.8 impact run --direction upstream > ../evidence/impact-run.txt 2>&1
+          echo "$?" > ../evidence/impact-run.status
+          npx --yes gitnexus@1.4.8 detect-changes --scope all > ../evidence/detect-changes.txt 2>&1
+          echo "$?" > ../evidence/detect-changes.status
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: delivery-resume-r17-source-and-plan
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
