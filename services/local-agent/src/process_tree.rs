@@ -21,6 +21,11 @@ impl ProcessTree {
             Err(error)
         }
     }
+
+    pub(crate) fn finish(&mut self) -> io::Result<()> {
+        // The leader may already be reaped while descendants are still alive.
+        self.terminate()
+    }
 }
 
 #[cfg(unix)]
@@ -106,6 +111,13 @@ mod windows_impl {
             if let Some(owned) = self.0.take() {
                 unsafe { TerminateJobObject(handle(&owned), 1) }.map_err(winerr)?;
             }
+            Ok(())
+        }
+
+        pub(crate) fn finish(&mut self) -> io::Result<()> {
+            // KILL_ON_JOB_CLOSE tears down any remaining descendants when the
+            // direct child has already exited normally.
+            self.0.take();
             Ok(())
         }
 
