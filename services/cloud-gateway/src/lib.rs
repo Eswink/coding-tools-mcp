@@ -11,6 +11,7 @@ pub mod device;
 pub mod error;
 pub mod grant;
 pub mod http;
+pub mod mcp;
 pub mod oauth;
 pub mod store;
 

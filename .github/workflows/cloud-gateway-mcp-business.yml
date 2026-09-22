@@ -1,0 +1,95 @@
+name: Cloud gateway MCP business control plane
+on:
+  push:
+    branches: ['feat/cloud-gateway-agent-runtime']
+    paths:
+      - 'services/cloud-gateway/**'
+      - '.github/workflows/cloud-gateway-mcp-business.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/cloud-gateway/**'
+      - '.github/workflows/cloud-gateway-mcp-business.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cloud-mcp-business-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  portable:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: MCP protocol and portable service contracts
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+          cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
+          cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib 2>&1 | tee evidence/lib-tests.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test mcp_service_contracts 2>&1 | tee evidence/mcp-service.txt
+          cargo build --locked --manifest-path services/cloud-gateway/Cargo.toml --bin coding-tools-mcp-gateway
+          services/cloud-gateway/target/debug/coding-tools-mcp-gateway --help > evidence/help.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: mcp-business-portable-${{ matrix.os }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+  postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - name: Actual PostgreSQL MCP authorization and offline contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16
+          export PATH="/usr/lib/postgresql/16/bin:$PATH"
+          mkdir -p evidence "$RUNNER_TEMP/pg-mcp"
+          port="$(python3 - <<'PY'
+          import socket
+          s=socket.socket();s.bind(('127.0.0.1',0));print(s.getsockname()[1]);s.close()
+          PY
+          )"
+          initdb -D "$RUNNER_TEMP/pg-mcp/data" -A trust -U mcp_test --encoding=UTF8 --no-locale >/dev/null
+          pg_ctl -D "$RUNNER_TEMP/pg-mcp/data" -l "$RUNNER_TEMP/pg-mcp/postgres.log" -o "-h 127.0.0.1 -p $port -k $RUNNER_TEMP/pg-mcp" -w start >/dev/null
+          trap 'pg_ctl -D "$RUNNER_TEMP/pg-mcp/data" -m fast -w stop >/dev/null || true' EXIT
+          createdb -h 127.0.0.1 -p "$port" -U mcp_test coding_tools_identity_test
+          export TEST_DATABASE_URL="postgresql://mcp_test@127.0.0.1:$port/coding_tools_identity_test"
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test mcp_postgres -- --test-threads=1 2>&1 | tee evidence/mcp-postgres.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test admission_postgres -- --test-threads=1 2>&1 | tee evidence/admission-regression.txt
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: mcp-business-postgres
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error

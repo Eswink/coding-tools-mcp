@@ -95,6 +95,32 @@ impl ChannelController {
     pub fn identity(&self) -> &crate::PublicIdentity {
         self.identity.identity()
     }
+    /// Derive the opaque conversation binding from an already authenticated OAuth principal
+    /// and trusted Host session metadata. Tool arguments are never accepted here.
+    pub fn conversation_binding(
+        &self,
+        principal: &crate::OAuthPrincipal,
+        host_session: &str,
+    ) -> Result<ConversationBinding> {
+        self.projection
+            .conversation_binding(principal, host_session)
+    }
+    /// Presence only. This never grants local authority or refreshes any lease.
+    pub async fn is_online(&self) -> Result<bool> {
+        let _guard = self.serial.lock().await;
+        let row = sqlx::query("SELECT connected,lease_until,absolute_until,gateway_boot FROM ctm_agent_channel WHERE connector=$1")
+            .bind(self.identity.identity.connector())
+            .fetch_one(&self.identity.pool)
+            .await?;
+        let at: i64 =
+            sqlx::query_scalar("SELECT floor(extract(epoch FROM clock_timestamp()))::bigint")
+                .fetch_one(&self.identity.pool)
+                .await?;
+        Ok(row.get::<Uuid, _>("gateway_boot") == self.boot
+            && row.get::<bool, _>("connected")
+            && at < row.get::<i64, _>("lease_until")
+            && at < row.get::<i64, _>("absolute_until"))
+    }
     pub fn pending(&self) -> Result<PendingConnection> {
         let at = i64::try_from(
             SystemTime::now()

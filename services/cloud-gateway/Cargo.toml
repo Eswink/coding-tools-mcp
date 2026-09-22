@@ -37,3 +37,7 @@ path = "src/agent_main.rs"
 [[bin]]
 name = "coding-tools-control-gateway"
 path = "src/control_main.rs"
+
+[[bin]]
+name = "coding-tools-mcp-gateway"
+path = "src/mcp_main.rs"
