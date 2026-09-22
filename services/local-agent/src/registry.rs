@@ -23,6 +23,13 @@ impl VerifiedInvocation<'_> {
     }
 }
 
+#[cfg(test)]
+impl<'a> VerifiedInvocation<'a> {
+    pub(crate) fn fixture(admission: &'a LocalAdmission) -> Self {
+        Self { admission }
+    }
+}
+
 impl fmt::Debug for VerifiedInvocation<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("VerifiedInvocation")
