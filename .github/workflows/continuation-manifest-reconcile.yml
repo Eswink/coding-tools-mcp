@@ -89,10 +89,13 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9
           graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
           "$graph" analyze --workers 1 > evidence/graph-analyze.txt 2>&1
-          git restore -- AGENTS.md CLAUDE.md
+          # analyze refreshes tracked GitNexus documentation. It is diagnostic output only;
+          # restore the immutable checked-out source before asserting clean scope.
+          git reset --hard c22e08dc0bb2d2c80714b7efb2c3e90e1e7b808b
           "$graph" detect-changes --scope all > evidence/graph-changes.txt 2>&1
           cat evidence/graph-changes.txt
           git diff --exit-code
+          test -z "$(git status --porcelain --untracked-files=no)"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
