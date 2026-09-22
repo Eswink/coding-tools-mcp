@@ -1,0 +1,116 @@
+name: Request admission exact-source verification
+on:
+  push:
+    branches: ['ci/request-admission-source-r8']
+    paths:
+      - '.source-recovery-r8/**'
+      - '.github/workflows/request-admission-source-r8.yml'
+permissions:
+  contents: write
+concurrency:
+  group: request-admission-source-r8
+  cancel-in-progress: false
+jobs:
+  verify-and-publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Reconstruct exact reviewed request-admission source
+        shell: bash
+        env:
+          BASE: '765664434a8016f05ce3a15fff87065506fbc7fc'
+          EXPECTED_TREE: '2ec47d544a1d5bd3d001fcf912516e01c6b56176'
+          XZ_SHA: '5b048815ccf557d3c3e854cce3be77b584f63111ad08b03a9e62bdd54701b2b5'
+          PATCH_SHA: 'a325ec3b5a412e8208dbd2c4a2922d3f526a8f54553655db7fad283ed35e7e49'
+        run: |
+          set -euo pipefail
+          tmp="$RUNNER_TEMP/request-admission-r8"
+          mkdir -p "$tmp" evidence
+          cat .source-recovery-r8/part-*.txt | base64 -d > "$tmp/change.patch.xz"
+          echo "$XZ_SHA  $tmp/change.patch.xz" | sha256sum -c -
+          xz -dc "$tmp/change.patch.xz" > "$tmp/change.patch"
+          echo "$PATCH_SHA  $tmp/change.patch" | sha256sum -c -
+          git checkout --detach "$BASE"
+          git apply --index --whitespace=error-all "$tmp/change.patch"
+          test "$(git write-tree)" = "$EXPECTED_TREE"
+          git diff --cached --check
+          git diff --cached --name-only > evidence/changed-files.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          allowed=(
+            '.github/workflows/cloud-gateway-request-admission.yml',
+            'docs/specs/cloud-gateway-agent-runtime/',
+            'services/cloud-gateway/',
+            'tools/delivery/manifest.json',
+          )
+          paths=Path('evidence/changed-files.txt').read_text().splitlines()
+          assert len(paths)==10, paths
+          assert all(any(p==a or p.startswith(a) for a in allowed) for p in paths), paths
+          protected=('src/','src-tauri/','AGENTS.md','CLAUDE.md','package.json','package-lock.json')
+          assert not any(p.startswith(protected) or p in protected for p in paths), paths
+          PY
+      - name: Rust, PostgreSQL and delivery regression gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16
+          export PATH="/usr/lib/postgresql/16/bin:$PATH"
+          pgroot="$RUNNER_TEMP/pg-r8"
+          port="$(python3 - <<'PY'
+          import socket
+          s=socket.socket();s.bind(('127.0.0.1',0));print(s.getsockname()[1]);s.close()
+          PY
+          )"
+          initdb -D "$pgroot/data" -A trust -U admission_test --encoding=UTF8 --no-locale >/dev/null
+          pg_ctl -D "$pgroot/data" -l "$pgroot/postgres.log" -o "-h 127.0.0.1 -p $port -k $pgroot" -w start >/dev/null
+          trap 'pg_ctl -D "$pgroot/data" -m fast -w stop >/dev/null || true' EXIT
+          createdb -h 127.0.0.1 -p "$port" -U admission_test coding_tools_identity_test
+          export TEST_DATABASE_URL="postgresql://admission_test@127.0.0.1:$port/coding_tools_identity_test"
+          cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
+          cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml 2>&1 | tee evidence/cargo-test.txt
+          python3 -m unittest discover -s tests/delivery -v 2>&1 | tee evidence/delivery-python.txt
+          node --test tests/delivery/metadata_contract.test.mjs 2>&1 | tee evidence/delivery-node.txt
+          python3 tools/delivery/dispatch.py --manifest tools/delivery/manifest.json --repo-root . --output evidence/dispatch.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('evidence/dispatch.json'))
+          assert d['release_allowed'] is False
+          assert d['packets']==[]
+          PY
+          git rev-parse HEAD > evidence/base-commit.txt
+          git write-tree > evidence/verified-tree.txt
+      - name: Commit exact tree and fast-forward feature only
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: '765664434a8016f05ce3a15fff87065506fbc7fc'
+          EXPECTED_TREE: '2ec47d544a1d5bd3d001fcf912516e01c6b56176'
+        run: |
+          set -euo pipefail
+          current="$(git ls-remote https://github.com/Eswink/coding-tools-mcp.git refs/heads/feat/cloud-gateway-agent-runtime | awk '{print $1}')"
+          test "$current" = "$BASE"
+          test "$(git write-tree)" = "$EXPECTED_TREE"
+          git config user.name Eswlnk
+          git config user.email 1525566427@qq.com
+          git commit -m 'feat: add durable request admission and no-replay ledger' -m 'Publish the reviewed ISSUE-019A admission state machine, PostgreSQL ledger and exact-source tests. No local tool execution or production deployment. Refs #49.'
+          test "$(git rev-parse HEAD^{tree})" = "$EXPECTED_TREE"
+          remote="https://x-access-token:$GH_TOKEN@github.com/Eswink/coding-tools-mcp.git"
+          git push "$remote" HEAD:refs/heads/feat/cloud-gateway-agent-runtime
+          git rev-parse HEAD > evidence/published-commit.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: request-admission-source-r8
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
