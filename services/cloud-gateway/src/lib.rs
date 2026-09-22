@@ -13,6 +13,7 @@ pub mod grant;
 pub mod http;
 pub mod mcp;
 pub mod oauth;
+pub mod observability;
 pub mod store;
 
 pub use config::PublicIdentity;

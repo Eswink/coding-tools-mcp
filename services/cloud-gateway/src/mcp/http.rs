@@ -5,6 +5,7 @@ use crate::{
         RequestState,
     },
     channel::ChannelController,
+    observability::{AuthObservation, GatewayObservability, IngressRejection, McpObservation},
     projection::ProjectionDecision,
     IdentityError, IdentityStore, OAuthPrincipal,
 };
@@ -28,22 +29,40 @@ pub struct McpState {
     store: IdentityStore,
     control: ChannelController,
     admission: AdmissionStore,
+    observability: GatewayObservability,
 }
 impl McpState {
     pub fn new(store: IdentityStore, control: ChannelController) -> Self {
+        Self::with_observability(store, control, GatewayObservability::default())
+    }
+
+    pub fn with_observability(
+        store: IdentityStore,
+        control: ChannelController,
+        observability: GatewayObservability,
+    ) -> Self {
         Self {
             admission: AdmissionStore::new(store.clone()),
             store,
             control,
+            observability,
         }
     }
 }
 
 pub fn routes(store: IdentityStore, control: ChannelController) -> Router {
+    routes_with_observability(store, control, GatewayObservability::default())
+}
+
+pub fn routes_with_observability(
+    store: IdentityStore,
+    control: ChannelController,
+    observability: GatewayObservability,
+) -> Router {
     let path = store.identity().resource_path();
     Router::new()
         .route(&path, post(mcp_post))
-        .with_state(McpState::new(store, control))
+        .with_state(McpState::with_observability(store, control, observability))
         .layer(DefaultBodyLimit::max(MAX_BODY))
 }
 
@@ -107,6 +126,7 @@ struct BoundaryFailure {
     status: StatusCode,
     code: i64,
     message: &'static str,
+    observation: IngressRejection,
 }
 
 fn boundary_headers(state: &McpState, headers: &HeaderMap) -> Result<(), BoundaryFailure> {
@@ -133,6 +153,11 @@ fn boundary_headers(state: &McpState, headers: &HeaderMap) -> Result<(), Boundar
                 status,
                 code: -32020,
                 message: "Duplicate header",
+                observation: if matches!(h, "host" | "origin") {
+                    IngressRejection::HostOrOrigin
+                } else {
+                    IngressRejection::Headers
+                },
             });
         }
     }
@@ -142,13 +167,22 @@ fn boundary_headers(state: &McpState, headers: &HeaderMap) -> Result<(), Boundar
             !v.to_str()
                 .is_ok_and(|s| state.store.identity().allow_origin(s))
         })
-        || (headers.contains_key(header::CONTENT_LENGTH)
-            && headers.contains_key(header::TRANSFER_ENCODING))
     {
         return Err(BoundaryFailure {
             status: StatusCode::FORBIDDEN,
             code: -32600,
             message: "Request rejected",
+            observation: IngressRejection::HostOrOrigin,
+        });
+    }
+    if headers.contains_key(header::CONTENT_LENGTH)
+        && headers.contains_key(header::TRANSFER_ENCODING)
+    {
+        return Err(BoundaryFailure {
+            status: StatusCode::FORBIDDEN,
+            code: -32600,
+            message: "Request rejected",
+            observation: IngressRejection::Headers,
         });
     }
     let content = headers
@@ -167,6 +201,7 @@ fn boundary_headers(state: &McpState, headers: &HeaderMap) -> Result<(), Boundar
             status: StatusCode::UNSUPPORTED_MEDIA_TYPE,
             code: -32600,
             message: "Unsupported content type or encoding",
+            observation: IngressRejection::Media,
         });
     }
     let accept = headers
@@ -178,6 +213,7 @@ fn boundary_headers(state: &McpState, headers: &HeaderMap) -> Result<(), Boundar
             status: StatusCode::NOT_ACCEPTABLE,
             code: -32600,
             message: "Unsupported response media types",
+            observation: IngressRejection::Media,
         });
     }
     Ok(())
@@ -477,8 +513,24 @@ async fn business_call(
     }
 }
 
+fn record_business_outcome(observability: &GatewayObservability, data: &Value) {
+    let outcome = match data
+        .get("error")
+        .and_then(Value::as_object)
+        .and_then(|error| error.get("category"))
+        .and_then(Value::as_str)
+    {
+        Some("permission") => McpObservation::Permission,
+        Some("availability") => McpObservation::Availability,
+        Some(_) => McpObservation::ProtocolError,
+        None => McpObservation::Success,
+    };
+    observability.record_mcp(outcome);
+}
+
 async fn mcp_post(State(state): State<McpState>, headers: HeaderMap, body: Bytes) -> Response {
     if let Err(e) = boundary_headers(&state, &headers) {
+        state.observability.record_ingress_rejected(e.observation);
         return safe_json(
             e.status,
             json!({"jsonrpc":"2.0","error":{"code":e.code,"message":e.message}}),
@@ -486,32 +538,60 @@ async fn mcp_post(State(state): State<McpState>, headers: HeaderMap, body: Bytes
     }
     let principal = match authenticate(&state, &headers).await {
         Ok(p) => p,
-        Err(AuthFailure::Invalid) => return oauth_challenge(&state),
+        Err(AuthFailure::Invalid) => {
+            state.observability.record_auth(AuthObservation::Invalid);
+            return oauth_challenge(&state);
+        }
         Err(AuthFailure::Unavailable) => {
+            state
+                .observability
+                .record_auth(AuthObservation::Unavailable);
             return safe_json(
                 StatusCode::SERVICE_UNAVAILABLE,
                 json!({"error":"temporarily_unavailable"}),
-            )
+            );
         }
     };
     let message = match protocol::parse_message(&body) {
         Ok(v) => v,
-        Err(e) => return wire_error(e, None),
+        Err(e) => {
+            state
+                .observability
+                .record_mcp(McpObservation::ProtocolError);
+            return wire_error(e, None);
+        }
     };
     let version = match protocol::validate_version(&message, &headers) {
         Ok(v) => v,
-        Err(e) => return wire_error(e, message.id.as_ref()),
+        Err(e) => {
+            state
+                .observability
+                .record_mcp(McpObservation::ProtocolError);
+            return wire_error(e, message.id.as_ref());
+        }
     };
     match protocol::protocol_result(&message, &version) {
-        Ok(Some(value)) => safe_json(StatusCode::OK, value),
+        Ok(Some(value)) => {
+            state.observability.record_mcp(McpObservation::Success);
+            safe_json(StatusCode::OK, value)
+        }
         Ok(None) if message.method == "tools/call" => {
             let data = business_call(&state, &principal, &message).await;
+            record_business_outcome(&state.observability, &data);
             safe_json(
                 StatusCode::OK,
                 json!({"jsonrpc":"2.0","id":message.id,"result":protocol::tool_result(&version,data)}),
             )
         }
-        Ok(None) => safe_json(StatusCode::ACCEPTED, json!({})),
-        Err(e) => wire_error(e, message.id.as_ref()),
+        Ok(None) => {
+            state.observability.record_mcp(McpObservation::Success);
+            safe_json(StatusCode::ACCEPTED, json!({}))
+        }
+        Err(e) => {
+            state
+                .observability
+                .record_mcp(McpObservation::ProtocolError);
+            wire_error(e, message.id.as_ref())
+        }
     }
 }
