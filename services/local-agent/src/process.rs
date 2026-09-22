@@ -658,7 +658,7 @@ async fn supervise(
                 // The direct child exited, but detached/background descendants can still
                 // exist in the owned process group/job. Tear down the remaining tree
                 // before reporting a terminal session.
-                let cleanup_ok = tree.terminate().is_ok();
+                let cleanup_ok = tree.finish().is_ok();
                 if cleanup_ok {
                     break (TerminationReason::Exited, status.code());
                 }
