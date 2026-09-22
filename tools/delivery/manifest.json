@@ -119,14 +119,14 @@
       "priority": 10,
       "release_required": true,
       "evidence": {
-        "revision": "99ed3d061b8c72bde36fcb64b9a29aca6c703a6d",
-        "run_id": 35679713017,
+        "revision": "765664434a8016f05ce3a15fff87065506fbc7fc",
+        "run_id": 35685755549,
         "files": {
           "services/cloud-gateway/src/service/cli.rs": "a55b304a86b7667297e44e2b1a76c2c00ade35f3994ab2c53f8277285e30c8a6",
           "services/cloud-gateway/src/service/input.rs": "89b4dfe42906f250323d9cb53ec885e5da3a8750452791862caad055d4fa7cdc",
           "services/cloud-gateway/src/service/lifecycle.rs": "770f0e7380459e18d55e50646dac43fed6a7fdebe967609f3ef8c51e7658dca1",
-          "services/cloud-gateway/src/service/mod.rs": "7069d207a126d031d7de5c0eaf9522b5f995f36b78675f09140e68d02b205930",
-          "services/cloud-gateway/src/service/runtime.rs": "7527d4c28803d55b852dfae5007f0565a1c7efef46bc931c2938e518cd441bc7"
+          "services/cloud-gateway/src/service/mod.rs": "4246e746c6b8f41b0ec114c221618aa891a5943f18978f66c8fd48bc7016992a",
+          "services/cloud-gateway/src/service/runtime.rs": "a0c87a03572d9f6a23c76b1c7e4462d56770c3001343f73bf94eacfae46cac22"
         }
       }
     },
@@ -191,13 +191,13 @@
       "priority": 10,
       "release_required": true,
       "evidence": {
-        "revision": "99ed3d061b8c72bde36fcb64b9a29aca6c703a6d",
-        "run_id": 35679712980,
+        "revision": "765664434a8016f05ce3a15fff87065506fbc7fc",
+        "run_id": 35685755675,
         "files": {
-          "services/cloud-gateway/src/channel/mod.rs": "f3fae23b61994013829f39c07ff2ddeb552589e2dd31070d126c86b02dc55624",
+          "services/cloud-gateway/src/channel/mod.rs": "d7c71c96392958300418ba1f1fdd609748d08c1222b972e6f4c7a0ccd88b1b64",
           "services/cloud-gateway/src/channel/protocol.rs": "50f86b63ccc34af12fe16441c2f156b3527956fe496b6cb9960fd11aab00aab0",
-          "services/cloud-gateway/src/channel/store.rs": "a2f4587e376b998527b1fc3b15662d2d5c23a001e6a42dd378a1b5435eee16ce",
-          "services/cloud-gateway/src/channel/transport.rs": "b55b915b70c50a2aa819a26543be87f4e6bfd18c3bd494d59ffbbdbc19496738"
+          "services/cloud-gateway/src/channel/store.rs": "29e8e003d4ed7d101ef98d29bf9ec06793492bc86c208370b27f1e88c9a67cff",
+          "services/cloud-gateway/src/channel/transport.rs": "28e8389409bdd35d6cd28d3abfc2ff34864e67baf4e59fb9a189a834e6bb2997"
         }
       }
     },
