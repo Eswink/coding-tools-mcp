@@ -43,7 +43,7 @@ jobs:
           import re
           p=Path('services/cloud-gateway/tests/mcp_postgres.rs')
           s=p.read_text(encoding='utf-8')
-          s=re.sub(r'(\\bheader\\s*,\\s*)HeaderMap\\s*,\\s*', r'\\1', s)
+          s=s.replace('HeaderMap,', '')
           assert 'HeaderMap' not in s, [line for line in s.splitlines() if 'HeaderMap' in line]
           s=s.replace('mod channel_support;', '#[allow(dead_code)]\nmod channel_support;')
           s=s.replace('mod projection_support;', '#[allow(dead_code)]\nmod projection_support;')
@@ -149,6 +149,7 @@ jobs:
           p=Path('services/cloud-gateway/tests/mcp_postgres.rs')
           s=p.read_text(encoding='utf-8')
           s=s.replace('http::{header, HeaderMap, Request, StatusCode}', 'http::{header, Request, StatusCode}')
+          assert 'HeaderMap' not in s, [line for line in s.splitlines() if 'HeaderMap' in line]
           s=s.replace('mod channel_support;', '#[allow(dead_code)]\nmod channel_support;')
           s=s.replace('mod projection_support;', '#[allow(dead_code)]\nmod projection_support;')
           p.write_text(s, encoding='utf-8')
