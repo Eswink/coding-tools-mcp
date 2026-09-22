@@ -51,8 +51,13 @@ impl ToolExecutor for Fixture {
         self.parallel
     }
 
-    fn execute<'a>(&'a self, call: &'a ToolCall) -> ToolFuture<'a> {
+    fn execute<'a>(
+        &'a self,
+        call: &'a ToolCall,
+        verified: VerifiedInvocation<'a>,
+    ) -> ToolFuture<'a> {
         Box::pin(async move {
+            assert_eq!(verified.generation(), 7);
             Ok(ToolOutput::json(json!({
                 "request": call.request_id,
                 "ok": true
