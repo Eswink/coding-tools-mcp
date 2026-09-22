@@ -2,5 +2,5 @@
 mod http;
 mod protocol;
 
-pub use http::{routes, McpState};
+pub use http::{routes, routes_with_observability, McpState};
 pub use protocol::{catalog, MODERN, VERSIONS};
