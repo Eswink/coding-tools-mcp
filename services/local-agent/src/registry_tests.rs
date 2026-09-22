@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    parse_arguments, Capability, LocalAdmission, ToolCall, ToolError, ToolExposure, ToolName,
+    parse_arguments, Capability, LocalAdmission, ToolCall, ToolExposure, ToolName,
     ToolOutput, ToolSpec,
 };
 use serde::Deserialize;
@@ -8,7 +8,7 @@ use serde_json::json;
 use std::{
     future::Future,
     sync::Arc,
-    task::{Context, Poll, Wake, Waker},
+    task::{Context, Poll, Waker},
 };
 
 struct Fixture {
@@ -61,14 +61,9 @@ impl ToolExecutor for Fixture {
     }
 }
 
-struct NoopWake;
-impl Wake for NoopWake {
-    fn wake(self: Arc<Self>) {}
-}
-
 fn ready<F: Future>(future: F) -> F::Output {
-    let waker = Waker::from(Arc::new(NoopWake));
-    let mut context = Context::from_waker(&waker);
+    let waker = Waker::noop();
+    let mut context = Context::from_waker(waker);
     let mut future = Box::pin(future);
     match future.as_mut().poll(&mut context) {
         Poll::Ready(value) => value,
