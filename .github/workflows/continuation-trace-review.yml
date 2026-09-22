@@ -1,0 +1,110 @@
+name: Isolated local-trace tree review (never merge helper)
+on:
+  push:
+    branches: ['ci/local-trace-tree-review-20260923']
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 4196b702b9c13debfd73fabe54c571c99bb14cd7
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Reconstruct and verify the exact proposed tree without publishing code
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          import base64, json, os, subprocess, urllib.request
+          from pathlib import Path
+          target = '42d4ea561d8b1afe925d5a251aff2060954c39b8'
+          def api(path):
+              req = urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/' + path,
+                  headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.load(response)
+          source = api('git/trees/' + target + '?recursive=1')
+          assert source['sha'] == target and not source.get('truncated')
+          baseline = {}
+          for record in subprocess.check_output(['git','ls-tree','-rz','--full-tree','HEAD']).split(b'\0'):
+              if record:
+                  meta, name = record.decode('utf-8').split('\t', 1)
+                  mode, kind, sha = meta.split()
+                  baseline[name] = (mode, kind, sha)
+          proposed = {x['path']:(x['mode'],x['type'],x['sha']) for x in source['tree'] if x['type'] != 'tree'}
+          assert set(baseline) <= set(proposed), 'deletion is forbidden'
+          changed = [p for p,v in proposed.items() if baseline.get(p) != v]
+          assert 1 <= len(changed) <= 20
+          exact = {'services/local-agent/src/lib.rs','services/local-agent/src/trace.rs',
+              'docs/specs/cloud-gateway-agent-runtime/issue-056-local-trace.md',
+              'docs/specs/cloud-gateway-agent-runtime/issue-058-verification.md'}
+          total = 0
+          for name in changed:
+              assert name in exact or name.startswith('services/local-agent/src/trace/')
+              assert '..' not in Path(name).parts and not Path(name).is_absolute()
+              mode, kind, sha = proposed[name]
+              assert mode == '100644' and kind == 'blob'
+              blob = api('git/blobs/' + sha)
+              assert blob['encoding'] == 'base64' and blob['size'] <= 100000
+              data = base64.b64decode(blob['content'])
+              total += len(data)
+              assert total <= 2000000
+              assert subprocess.check_output(['git','hash-object','--stdin'],input=data).decode().strip() == sha
+              path = Path(name)
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_bytes(data)
+          subprocess.run(['git','add','--',*changed],check=True)
+          actual = subprocess.check_output(['git','write-tree'],text=True).strip()
+          assert actual == target, (actual,target)
+          Path('evidence/changed-paths.json').write_text(json.dumps(changed),encoding='utf-8')
+          Path('evidence/proposed-tree.txt').write_text(actual,encoding='utf-8')
+          print('Verified proposed tree:', actual)
+          print('Changed files:', len(changed))
+          PY
+      - name: Pinned graph and staged impact before code commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/graph.txt 2>&1
+          # Graph documentation generation cannot become part of the proposal.
+          git restore -- AGENTS.md CLAUDE.md
+          "$graph" impact 'Function:services/local-agent/src/registry.rs:ToolRegistry.invoke#3' --direction upstream > evidence/registry-impact.json 2>&1
+          "$graph" detect-changes --scope staged > evidence/trace-impact.json 2>&1
+          cat evidence/registry-impact.json evidence/trace-impact.json
+          test "$(git write-tree)" = 42d4ea561d8b1afe925d5a251aff2060954c39b8
+      - name: Inspect formatting and exercise candidate implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --manifest-path services/local-agent/Cargo.toml --check > evidence/fmt-before.txt 2>&1 || true
+          cat evidence/fmt-before.txt
+          cargo fmt --manifest-path services/local-agent/Cargo.toml
+          git diff -- services/local-agent > evidence/formatting.patch
+          cargo fmt --manifest-path services/local-agent/Cargo.toml --check
+          cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml 2>&1 | tee evidence/tests.txt
+          cargo check --locked --manifest-path services/local-agent/Cargo.toml
+          echo 'READ_ONLY_PROPOSAL_REVIEW_NOT_NATIVE_MATRIX_OR_RELEASE' > evidence/boundary.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: trace-proposed-tree-review
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
