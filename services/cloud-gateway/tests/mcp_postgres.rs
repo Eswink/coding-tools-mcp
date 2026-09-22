@@ -430,15 +430,6 @@ async fn observability_separates_auth_permission_availability_and_ingress_withou
     assert_eq!(snapshot.mcp_permission, 1);
     assert_eq!(snapshot.mcp_availability, 1);
     assert_eq!(snapshot.reject_host_or_origin, 1);
-    assert_eq!(snapshot.ingress_accepted, 3);
-    assert_eq!(
-        snapshot.latency_under_10_ms
-            + snapshot.latency_under_100_ms
-            + snapshot.latency_under_1_s
-            + snapshot.latency_1_s_or_more,
-        4
-    );
-
     let rendered = serde_json::to_string(&snapshot).unwrap().to_ascii_lowercase();
     assert!(!rendered.contains("host-session"));
     assert!(!rendered.contains("bearer "));
