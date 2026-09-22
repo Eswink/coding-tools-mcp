@@ -81,6 +81,18 @@ fn main() -> ExitCode {
             let _ = child.wait();
             ExitCode::SUCCESS
         }
+        Some("spawn-grandchild-exit") => {
+            let exe = env::current_exe().unwrap();
+            let child = Command::new(exe)
+                .arg("sleep")
+                .arg("60000")
+                .spawn()
+                .unwrap();
+            println!("grandchild_pid={}", child.id());
+            std::io::stdout().flush().unwrap();
+            drop(child);
+            ExitCode::SUCCESS
+        }
         _ => ExitCode::from(2),
     }
 }
