@@ -30,7 +30,7 @@ jobs:
           python - <<'PY'
           import base64, hashlib, json, os, subprocess, urllib.request
           from pathlib import Path
-          target = '576d1b93280fb1ccab02d9fe9ac58ac506863c71'
+          target = '50b79eb5f84b27d573acd295c343771d5d93b63b'
           base = 'ee93427eb3da95b64fb4ca1d91601850429cb6dd'
           def api(path):
               req = urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/' + path,
@@ -75,7 +75,12 @@ jobs:
               if current['id'] not in allowed:
                   assert previous==current, current['id']
                   continue
-              assert {k:v for k,v in previous.items() if k not in {'evidence','issue','state'}}=={k:v for k,v in current.items() if k not in {'evidence','issue','state'}}
+              excluded={'evidence','issue','state'}
+              if current['id']=='origin-migration':
+                  assert previous['paths']==['deploy/cloud-gateway']
+                  assert current['paths']==previous['paths']+['tests/cloud-gateway-deployment/test_migration.py','.github/workflows/origin-migration.yml']
+                  excluded.add('paths')
+              assert {k:v for k,v in previous.items() if k not in excluded}=={k:v for k,v in current.items() if k not in excluded}
               assert current['state']=='verified' and current['evidence']['revision']==base
               assert current['issue']==({'local-trace':56,'origin-migration':57}.get(current['id'],previous['issue']))
               assert current['evidence']['run_id']==(35773332161 if current['id']=='origin-migration' else 35773332089)
@@ -110,9 +115,9 @@ jobs:
           assert all(not x['execution_started'] for x in p['packets'])
           assert {k for k,v in p['states'].items() if v=='stale_evidence'}=={'issue-dispatch'}
           assert p['states']['local-trace']=='verified' and p['states']['origin-migration']=='verified'
-          print(json.dumps({'counts':dict(Counter(p['states'].values())),'packets':p['packets'],'release_blockers':p.get('release_blockers',[])},indent=2))
+          print(json.dumps({'counts':dict(Counter(p['states'].values())),'packets':p['packets'],'release_blockers':p['release_blockers']},indent=2))
           PY
-          test "$(git write-tree)" = 576d1b93280fb1ccab02d9fe9ac58ac506863c71
+          test "$(git write-tree)" = 50b79eb5f84b27d573acd295c343771d5d93b63b
           git diff --exit-code
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
