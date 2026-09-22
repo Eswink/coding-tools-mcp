@@ -29,9 +29,9 @@ jobs:
           set -euo pipefail
           mkdir -p evidence
           python - <<'PY'
-          import base64, json, os, subprocess, urllib.request
+          import base64, hashlib, json, os, subprocess, urllib.request
           from pathlib import Path
-          target = '42d4ea561d8b1afe925d5a251aff2060954c39b8'
+          target = '56ef1a2182e3772d457756a0ec832abb2120a0a2'
           def api(path):
               req = urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/' + path,
                   headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
@@ -72,8 +72,12 @@ jobs:
           assert actual == target, (actual,target)
           Path('evidence/changed-paths.json').write_text(json.dumps(changed),encoding='utf-8')
           Path('evidence/proposed-tree.txt').write_text(actual,encoding='utf-8')
+          receipt_paths = changed + ['deploy/cloud-gateway/migration.py',
+              'tests/cloud-gateway-deployment/test_migration.py','.github/workflows/origin-migration.yml']
+          hashes = {p: hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in receipt_paths}
+          Path('evidence/source-hashes.json').write_text(json.dumps(hashes,indent=2),encoding='utf-8')
           print('Verified proposed tree:', actual)
-          print('Changed files:', len(changed))
+          print(json.dumps(hashes,indent=2))
           PY
       - name: Pinned graph and staged impact before code commit
         shell: bash
@@ -82,24 +86,20 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9
           graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
           "$graph" analyze --workers 1 > evidence/graph.txt 2>&1
-          # Graph documentation generation cannot become part of the proposal.
           git restore -- AGENTS.md CLAUDE.md
           "$graph" impact 'Function:services/local-agent/src/registry.rs:ToolRegistry.invoke#3' --direction upstream > evidence/registry-impact.json 2>&1
           "$graph" detect-changes --scope staged > evidence/trace-impact.json 2>&1
           cat evidence/registry-impact.json evidence/trace-impact.json
-          test "$(git write-tree)" = 42d4ea561d8b1afe925d5a251aff2060954c39b8
-      - name: Inspect formatting and exercise candidate implementation
+          test "$(git write-tree)" = 56ef1a2182e3772d457756a0ec832abb2120a0a2
+      - name: Strict formatting and candidate implementation regressions
         shell: bash
         run: |
           set -euo pipefail
-          cargo fmt --manifest-path services/local-agent/Cargo.toml --check > evidence/fmt-before.txt 2>&1 || true
-          cat evidence/fmt-before.txt
-          cargo fmt --manifest-path services/local-agent/Cargo.toml
-          git diff -- services/local-agent > evidence/formatting.patch
           cargo fmt --manifest-path services/local-agent/Cargo.toml --check
           cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings
           cargo test --locked --manifest-path services/local-agent/Cargo.toml 2>&1 | tee evidence/tests.txt
           cargo check --locked --manifest-path services/local-agent/Cargo.toml
+          git diff --exit-code -- services/local-agent
           echo 'READ_ONLY_PROPOSAL_REVIEW_NOT_NATIVE_MATRIX_OR_RELEASE' > evidence/boundary.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
