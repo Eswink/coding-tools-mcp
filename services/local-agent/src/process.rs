@@ -230,6 +230,7 @@ pub enum ExecTermination {
     TimedOut,
     Cancelled,
     OutputLimit,
+    OutputError,
     StdinError,
     TerminationUncertain,
 }
@@ -420,9 +421,11 @@ impl ProcessManager {
                 input.shutdown().await
             }
             .await;
-            if result.is_err() {
+            let complete = result.is_ok();
+            if !complete {
                 let _ = stdin_error_tx.send(());
             }
+            complete
         });
 
         let (cancel_tx, mut cancel_rx) = watch::channel(false);
@@ -484,13 +487,18 @@ impl ProcessManager {
                 termination = ExecTermination::TerminationUncertain;
             }
 
-            let output_complete = join_io(stdout_task, stderr_task, stdin_task).await;
+            let io = join_io(stdout_task, stderr_task, stdin_task).await;
             let stdout = take_stream(&stdout_state);
             let stderr = take_stream(&stderr_state);
-            if termination == ExecTermination::Exited
-                && (stdout.truncated || stderr.truncated || !output_complete)
-            {
-                termination = ExecTermination::OutputLimit;
+            let output_complete = io.stdout && io.stderr;
+            if termination == ExecTermination::Exited {
+                if stdout.truncated || stderr.truncated {
+                    termination = ExecTermination::OutputLimit;
+                } else if !io.stdin {
+                    termination = ExecTermination::StdinError;
+                } else if !output_complete {
+                    termination = ExecTermination::OutputError;
+                }
             }
             let duration_ms = start.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
             let outcome = ExecOutcome {
@@ -528,18 +536,23 @@ async fn read_bounded<R>(
     state: SharedStream,
     limit: usize,
     overflow: mpsc::UnboundedSender<()>,
-) where
+) -> bool
+where
     R: AsyncRead + Unpin,
 {
     let mut signalled = false;
     let mut buf = [0u8; 4096];
-    while let Ok(read) = stream.read(&mut buf).await {
+    loop {
+        let read = match stream.read(&mut buf).await {
+            Ok(read) => read,
+            Err(_) => return false,
+        };
         if read == 0 {
-            break;
+            return true;
         }
         let mut shared = match state.lock() {
             Ok(value) => value,
-            Err(_) => break,
+            Err(_) => return false,
         };
         shared.total = shared.total.saturating_add(read as u64);
         let remaining = limit.saturating_sub(shared.retained.len());
@@ -557,16 +570,24 @@ async fn read_bounded<R>(
     }
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+struct IoCompletion {
+    stdout: bool,
+    stderr: bool,
+    stdin: bool,
+}
+
 async fn join_io(
-    mut stdout: JoinHandle<()>,
-    mut stderr: JoinHandle<()>,
-    mut stdin: JoinHandle<()>,
-) -> bool {
+    mut stdout: JoinHandle<bool>,
+    mut stderr: JoinHandle<bool>,
+    mut stdin: JoinHandle<bool>,
+) -> IoCompletion {
     let readers = async {
-        let a = (&mut stdout).await;
-        let b = (&mut stderr).await;
-        let c = (&mut stdin).await;
-        a.is_ok() && b.is_ok() && c.is_ok()
+        IoCompletion {
+            stdout: (&mut stdout).await.unwrap_or(false),
+            stderr: (&mut stderr).await.unwrap_or(false),
+            stdin: (&mut stdin).await.unwrap_or(false),
+        }
     };
     match tokio::time::timeout(READER_WAIT, readers).await {
         Ok(done) => done,
@@ -577,7 +598,7 @@ async fn join_io(
             let _ = stdout.await;
             let _ = stderr.await;
             let _ = stdin.await;
-            false
+            IoCompletion::default()
         }
     }
 }
@@ -633,6 +654,50 @@ mod tests {
             .unwrap()
             .with_stream_limit(MAX_STREAM_BYTES + 1)
             .is_err());
+    }
+
+    #[tokio::test]
+    async fn stream_read_error_is_incomplete_not_success() {
+        use std::{
+            pin::Pin,
+            task::{Context, Poll},
+        };
+        use tokio::io::ReadBuf;
+
+        struct ErrorAfterData {
+            delivered: bool,
+        }
+
+        impl AsyncRead for ErrorAfterData {
+            fn poll_read(
+                self: Pin<&mut Self>,
+                _cx: &mut Context<'_>,
+                buf: &mut ReadBuf<'_>,
+            ) -> Poll<std::io::Result<()>> {
+                let this = self.get_mut();
+                if !this.delivered {
+                    this.delivered = true;
+                    buf.put_slice(b"partial");
+                    Poll::Ready(Ok(()))
+                } else {
+                    Poll::Ready(Err(std::io::Error::other("fixture read failure")))
+                }
+            }
+        }
+
+        let state = Arc::new(Mutex::new(StreamState::default()));
+        let (overflow, _rx) = mpsc::unbounded_channel();
+        let complete = read_bounded(
+            ErrorAfterData { delivered: false },
+            state.clone(),
+            1024,
+            overflow,
+        )
+        .await;
+        assert!(!complete);
+        let captured = take_stream(&state);
+        assert_eq!(captured.retained, b"partial");
+        assert!(!captured.truncated);
     }
 
     #[test]
