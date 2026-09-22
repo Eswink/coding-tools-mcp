@@ -313,9 +313,19 @@
         "protocol-contracts"
       ],
       "issue": 35,
-      "state": "planned",
+      "state": "verified",
       "priority": 23,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "19fc7ce0b97fb7f02e5f3f195aa034e66c9b8446",
+        "run_id": 35720599497,
+        "files": {
+          "services/cloud-gateway/src/mcp/http.rs": "9cef070a6c59a8b1f480ac6525f9c4dbefb9ef8b5b5af137c3a6defac45785ed",
+          "services/cloud-gateway/src/mcp/protocol.rs": "8c48fc4ea9af8049e2bd7bf444dcfa7bd13be1f8ce01cdb3ca8c8232c0e61192",
+          "services/cloud-gateway/src/service/mcp_runtime.rs": "036047002d58a32e197a575cca4661c5c1e5440386499d25e731753518297a80",
+          "services/cloud-gateway/tests/mcp_postgres.rs": "6b24241ccfe7fe2ac0a7648369f34e8718c84a5bdfc2c0ea1e7b345a48219df5"
+        }
+      }
     },
     {
       "id": "offline-noise",
