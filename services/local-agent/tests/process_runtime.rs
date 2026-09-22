@@ -157,6 +157,31 @@ async fn nonzero_exit_is_distinct_from_spawn_failure() {
 }
 
 #[tokio::test]
+async fn dropping_session_does_not_detach_background_process() {
+    let manager = ProcessManager::default();
+    let session = manager
+        .start(
+            spec(&["sleep", "60000"])
+                .with_timeout(Duration::from_secs(30))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let id = session.id().to_owned();
+    drop(session);
+    tokio::time::sleep(Duration::from_millis(250)).await;
+
+    // The released active slot is the observable contract: dropping the only
+    // cancellation sender must make the supervisor clean up its owned tree.
+    let mut replacement = manager
+        .start(spec(&["echo", &format!("after-{id}")]))
+        .await
+        .expect("dropped session must release bounded capacity after cleanup");
+    let outcome = replacement.wait().await;
+    assert!(outcome.command_ok(), "{outcome:?}");
+}
+
+#[tokio::test]
 async fn active_process_limit_fails_closed() {
     let manager = ProcessManager::new(1).unwrap();
     let mut first = manager
