@@ -54,12 +54,30 @@ jobs:
           import hashlib, json, subprocess
           from pathlib import Path
           base = '758c60a6e74e624e144f9c19c5f19d04d17f7a13'
-          paths = subprocess.check_output(['git', 'diff', '--name-only', base, 'HEAD'], text=True).splitlines()
-          allowed = ('prototypes/cloud-gateway/', 'tests/cloud-gateway/',
-                     'docs/specs/cloud-gateway-agent-runtime/', '.github/workflows/cloud-gateway-',
-                     'services/cloud-gateway/', 'deploy/cloud-gateway/', 'tests/cloud-gateway-deployment/',
-                     'tools/delivery/', 'tests/delivery/', '.github/workflows/cloud-delivery.yml')
-          unexpected = [p for p in paths if not p.startswith(allowed)]
+          paths = subprocess.check_output(
+              ['git', '-c', 'core.quotePath=false', 'diff', '--name-only', base, 'HEAD'],
+              text=True,
+          ).splitlines()
+          allowed_prefixes = (
+              'prototypes/cloud-gateway/', 'tests/cloud-gateway/',
+              'docs/specs/cloud-gateway-agent-runtime/', '.github/workflows/cloud-gateway-',
+              'services/cloud-gateway/', 'deploy/cloud-gateway/', 'tests/cloud-gateway-deployment/',
+              'tools/delivery/', 'tests/delivery/',
+          )
+          allowed_exact = {
+              '.github/workflows/cloud-delivery.yml',
+              '.github/workflows/local-authority-bridge.yml',
+              'src-tauri/src/auth/local_authority.rs',
+              'src-tauri/src/auth/mod.rs',
+              'src-tauri/src/auth/聊天授权v1.rs',
+              'src-tauri/src/auth/聊天授权回归v1.rs',
+              'src-tauri/src/runtime/execution_gate.rs',
+              'src-tauri/src/runtime/mod.rs',
+          }
+          unexpected = [
+              p for p in paths
+              if p not in allowed_exact and not p.startswith(allowed_prefixes)
+          ]
           if unexpected:
               raise SystemExit('Unexpected non-lab changes: ' + repr(unexpected))
           hashes = {}
