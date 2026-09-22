@@ -3,6 +3,7 @@
 //! Code issuance and enrollment invitation creation require trusted operator
 //! authorization at the caller. Browser consent is the only HTTP code-issuance
 //! path; direct operator shortcuts and enrollment invitations remain unexposed.
+pub mod admission;
 pub mod browser;
 pub mod config;
 pub mod crypto;

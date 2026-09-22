@@ -213,9 +213,18 @@
         "identity-service"
       ],
       "issue": 47,
-      "state": "in_progress",
+      "state": "verified",
       "priority": 20,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "765664434a8016f05ce3a15fff87065506fbc7fc",
+        "run_id": 35685755495,
+        "files": {
+          "services/cloud-gateway/src/agent/client.rs": "1c336c0a1c8eac063886473bd8562395d27fee7390217501bd82a0f38b8006b6",
+          "services/cloud-gateway/src/service/control_cli.rs": "39bee481ee6ee6433a91207d86566cc00d0771aabfef6699eaf05b92e458cd2e",
+          "services/cloud-gateway/tests/run_agent_process.py": "189fbaef17ab9adba178ce32182f97024c701441c7ad612c9a45722bbfd421c3"
+        }
+      }
     },
     {
       "id": "issue-dispatch",
@@ -228,9 +237,18 @@
       ],
       "depends_on": [],
       "issue": 48,
-      "state": "in_progress",
+      "state": "verified",
       "priority": 20,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "765664434a8016f05ce3a15fff87065506fbc7fc",
+        "run_id": 35685755510,
+        "files": {
+          "tools/delivery/dispatch.py": "ee56ad164f79349d61579fe83fe3af966b22110dc2ab7b06ba20ff28504fe966",
+          "tests/delivery/test_dispatch.py": "fd442d78efa619bb41db41878254e230bf20aa45d671fd49fc5e7141173529d4",
+          ".github/workflows/cloud-delivery.yml": "12b3cd22b5e89624ff0f825776ac2a4a87db037e771fe8b8d19d763872f2cae4"
+        }
+      }
     },
     {
       "id": "request-admission",
@@ -244,7 +262,7 @@
         "grant-projection"
       ],
       "issue": 49,
-      "state": "planned",
+      "state": "in_progress",
       "priority": 21,
       "release_required": true
     },
