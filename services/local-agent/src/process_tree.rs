@@ -21,10 +21,6 @@ impl ProcessTree {
             Err(error)
         }
     }
-
-    pub(crate) fn disarm(&mut self) {
-        self.0 = None;
-    }
 }
 
 #[cfg(unix)]
