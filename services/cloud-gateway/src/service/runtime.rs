@@ -1,5 +1,8 @@
 use super::{input::GatewayConfig, lifecycle, Result, ServiceError};
-use crate::IdentityStore;
+use crate::{
+    observability::{ConnectionObservation, GatewayObservability, IngressRejection},
+    IdentityStore,
+};
 use axum::{
     extract::State,
     http::{header, Request, StatusCode},
@@ -31,6 +34,7 @@ struct RuntimeState {
     store: IdentityStore,
     cfg: GatewayConfig,
     budget: Arc<Mutex<(Instant, u32)>>,
+    observability: GatewayObservability,
 }
 fn safe_response(status: StatusCode, value: serde_json::Value) -> Response {
     let mut r = (status, Json(value)).into_response();
@@ -47,6 +51,7 @@ async fn controls(
     request: Request<axum::body::Body>,
     next: Next,
 ) -> Response {
+    let started = Instant::now();
     if request.headers().get_all(header::HOST).iter().count() != 1
         || request
             .headers()
@@ -59,6 +64,9 @@ async fn controls(
             .get(header::ORIGIN)
             .is_some_and(|h| !h.to_str().is_ok_and(|v| s.store.identity().allow_origin(v)))
     {
+        s.observability
+            .record_ingress_rejected(IngressRejection::HostOrOrigin);
+        s.observability.record_latency(started.elapsed());
         return safe_response(StatusCode::FORBIDDEN, json!({"error":"request_rejected"}));
     }
     let admitted = if let Ok(mut b) = s.budget.lock() {
@@ -75,6 +83,9 @@ async fn controls(
         false
     };
     if !admitted {
+        s.observability
+            .record_ingress_rejected(IngressRejection::RateLimit);
+        s.observability.record_latency(started.elapsed());
         let mut response =
             safe_response(StatusCode::TOO_MANY_REQUESTS, json!({"error":"try_later"}));
         response
@@ -82,7 +93,10 @@ async fn controls(
             .insert(header::RETRY_AFTER, "1".parse().unwrap());
         return response;
     }
-    next.run(request).await
+    s.observability.record_ingress_accepted();
+    let response = next.run(request).await;
+    s.observability.record_latency(started.elapsed());
+    response
 }
 async fn live() -> Response {
     safe_response(StatusCode::OK, json!({"live":true}))
@@ -125,10 +139,12 @@ pub(crate) async fn serve_managed(
         .await
         .map_err(|_| ServiceError::Bind)?;
     let address = listener.local_addr().map_err(|_| ServiceError::Bind)?;
+    let observability = GatewayObservability::default();
     let state = RuntimeState {
         store: store.clone(),
         cfg: cfg.clone(),
         budget: Arc::new(Mutex::new((Instant::now(), 0))),
+        observability: observability.clone(),
     };
     let health = Router::new()
         .route(&format!("{}/health/live", cfg.prefix), get(live))
@@ -162,9 +178,15 @@ pub(crate) async fn serve_managed(
             Some(_) = tasks.join_next(), if !tasks.is_empty() => {},
             accepted = listener.accept() => {
                 let (stream, _) = accepted.map_err(|_|ServiceError::Bind)?;
-                let Ok(permit) = semaphore.clone().try_acquire_owned() else { drop(stream); continue; };
+                let Ok(permit) = semaphore.clone().try_acquire_owned() else {
+                    observability.record_connection(ConnectionObservation::RejectedCapacity);
+                    drop(stream);
+                    continue;
+                };
+                observability.record_connection(ConnectionObservation::Accepted);
                 let app = routes.clone();
                 let mut closing = stop.subscribe();
+                let connection_observability = observability.clone();
                 tasks.spawn(async move {
                     let _permit = permit;
                     let mut builder = http1::Builder::new();
@@ -176,11 +198,16 @@ pub(crate) async fn serve_managed(
                     let connection = builder.serve_connection(TokioIo::new(stream),TowerToHyperService::new(app)).with_upgrades();
                     tokio::pin!(connection);
                     tokio::select! {
-                        _ = &mut connection => {},
-                        _ = tokio::time::sleep(Duration::from_secs(10)) => {},
+                        _ = &mut connection => {
+                            connection_observability.record_connection(ConnectionObservation::Closed);
+                        },
+                        _ = tokio::time::sleep(Duration::from_secs(10)) => {
+                            connection_observability.record_connection(ConnectionObservation::Timeout);
+                        },
                         _ = closing.changed() => {
                             connection.as_mut().graceful_shutdown();
                             let _ = tokio::time::timeout(Duration::from_secs(4), &mut connection).await;
+                            connection_observability.record_connection(ConnectionObservation::Closed);
                         }
                     }
                 });
