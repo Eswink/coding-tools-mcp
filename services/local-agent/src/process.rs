@@ -407,6 +407,39 @@ impl Drop for ProcessSession {
     }
 }
 
+pub struct SpawnContext<'a> {
+    call: &'a ToolCall,
+    verified: &'a VerifiedInvocation<'a>,
+    root: &'a ExecutionRoot,
+    policy: &'a ExecPolicy,
+    approval: Option<&'a ScopedApproval>,
+    now_unix_ms: u64,
+}
+
+impl<'a> SpawnContext<'a> {
+    pub fn new(
+        call: &'a ToolCall,
+        verified: &'a VerifiedInvocation<'a>,
+        root: &'a ExecutionRoot,
+        policy: &'a ExecPolicy,
+        now_unix_ms: u64,
+    ) -> Self {
+        Self {
+            call,
+            verified,
+            root,
+            policy,
+            approval: None,
+            now_unix_ms,
+        }
+    }
+
+    pub fn with_approval(mut self, approval: &'a ScopedApproval) -> Self {
+        self.approval = Some(approval);
+        self
+    }
+}
+
 pub struct ProcessManager {
     next_id: AtomicU64,
     sessions: Mutex<BTreeMap<ProcessId, Arc<ProcessSession>>>,
@@ -429,15 +462,10 @@ impl ProcessManager {
     pub async fn spawn(
         &self,
         request: SpawnRequest,
-        call: &ToolCall,
-        verified: &VerifiedInvocation<'_>,
-        root: &ExecutionRoot,
-        policy: &ExecPolicy,
-        approval: Option<&ScopedApproval>,
-        now_unix_ms: u64,
+        context: SpawnContext<'_>,
     ) -> Result<Arc<ProcessSession>, ProcessError> {
-        if now_unix_ms > verified.expires_at_unix_ms()
-            || !verified.has_capability(Capability::ProcessExec)
+        if context.now_unix_ms > context.verified.expires_at_unix_ms()
+            || !context.verified.has_capability(Capability::ProcessExec)
         {
             return Err(ProcessError::new(
                 ProcessErrorKind::Unauthorized,
@@ -448,10 +476,10 @@ impl ProcessManager {
         let command_for_policy = request.policy_command()?;
         match policy.authorize(
             &command_for_policy,
-            call,
-            verified,
-            approval,
-            now_unix_ms,
+            context.call,
+            context.verified,
+            context.approval,
+            context.now_unix_ms,
         ) {
             ExecutionAuthorization::Allowed => {}
             ExecutionAuthorization::ApprovalRequired
@@ -464,7 +492,10 @@ impl ProcessManager {
             }
         }
 
-        let cwd = root.resolve_cwd(&request.cwd, verified).await?;
+        let cwd = context
+            .root
+            .resolve_cwd(&request.cwd, context.verified)
+            .await?;
         {
             let sessions = self.sessions.lock().expect("process manager lock");
             if sessions.len() >= MAX_SESSIONS {
@@ -524,19 +555,23 @@ impl ProcessManager {
             stderr: stderr_buffer.clone(),
         });
 
-        {
+        let capacity_full = {
             let mut sessions = self.sessions.lock().expect("process manager lock");
             if sessions.len() >= MAX_SESSIONS {
-                drop(sessions);
-                let mut tree = tree;
-                let _ = tree.terminate();
-                let _ = child.kill().await;
-                return Err(ProcessError::new(
-                    ProcessErrorKind::Backpressure,
-                    "process session limit reached",
-                ));
+                true
+            } else {
+                sessions.insert(id, session.clone());
+                false
             }
-            sessions.insert(id, session.clone());
+        };
+        if capacity_full {
+            let mut tree = tree;
+            let _ = tree.terminate();
+            let _ = child.kill().await;
+            return Err(ProcessError::new(
+                ProcessErrorKind::Backpressure,
+                "process session limit reached",
+            ));
         }
 
         let stdout_task = tokio::spawn(read_stream(stdout, stdout_buffer));
@@ -760,7 +795,10 @@ mod tests {
         .unwrap();
         let manager = ProcessManager::new();
         let session = manager
-            .spawn(request, &call, &verified, &root, &policy, None, 100)
+            .spawn(
+                request,
+                SpawnContext::new(&call, &verified, &root, &policy, 100),
+            )
             .await
             .unwrap();
         let status = session.wait().await;
@@ -796,7 +834,10 @@ mod tests {
         .unwrap();
         let manager = ProcessManager::new();
         let session = manager
-            .spawn(request, &call, &verified, &root, &policy, None, 100)
+            .spawn(
+                request,
+                SpawnContext::new(&call, &verified, &root, &policy, 100),
+            )
             .await
             .unwrap();
         let status = session.wait().await;
@@ -830,7 +871,10 @@ mod tests {
         let policy = ExecPolicy::new(vec![], vec![], false).unwrap();
         let request = SpawnRequest::new(executable_text, vec![], cwd, 1_000).unwrap();
         let error = ProcessManager::new()
-            .spawn(request, &call, &verified, &root, &policy, None, 100)
+            .spawn(
+                request,
+                SpawnContext::new(&call, &verified, &root, &policy, 100),
+            )
             .await
             .unwrap_err();
         assert_eq!(error.kind, ProcessErrorKind::Unauthorized);
