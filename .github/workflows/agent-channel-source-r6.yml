@@ -1,0 +1,89 @@
+name: Agent channel exact source verification
+on:
+  push:
+    branches: ['ci/agent-channel-source-r6']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Recover exact reviewed source, no public deployment
+        run: |
+          set -euo pipefail
+          cp -a .round6-recovery "$RUNNER_TEMP/recovery"
+          git checkout --detach ac816e0962a8211b071f63380777b7cef1124f87
+          python3 "$RUNNER_TEMP/recovery/recover.py" reconstruct "$RUNNER_TEMP/recovery"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Independent actual PostgreSQL and HTTP/WS regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16
+          export PATH="/usr/lib/postgresql/16/bin:$PATH"
+          mkdir -p evidence
+          cluster="$(mktemp -d "$RUNNER_TEMP/ctm-r6.XXXXXX")"
+          port="$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')"
+          initdb -D "$cluster/data" -A trust -U channel_test --encoding=UTF8 --no-locale >/dev/null
+          pg_ctl -D "$cluster/data" -l "$cluster/postgres.log" -o "-h 127.0.0.1 -p $port -k $cluster" -w start >/dev/null
+          trap 'pg_ctl -D "$cluster/data" -m fast -w stop >/dev/null' EXIT
+          createdb -h 127.0.0.1 -p "$port" -U channel_test coding_tools_identity_test
+          export TEST_DATABASE_URL="postgresql://channel_test@127.0.0.1:$port/coding_tools_identity_test"
+          cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
+          cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml 2>&1 | tee evidence/all-rust.txt
+          cargo build --locked --manifest-path services/cloud-gateway/Cargo.toml --bin coding-tools-gateway
+          python3 services/cloud-gateway/tests/run_service_http.py --pg-bin /usr/lib/postgresql/16/bin --binary services/cloud-gateway/target/debug/coding-tools-gateway | tee evidence/standalone.json
+          node --test tests/cloud-gateway/*.test.mjs 2>&1 | tee evidence/lab.txt
+          node --test tests/offline-safe-ui.test.mjs tests/offline-safe-intent-ui.test.mjs 2>&1 | tee evidence/ui.txt
+          python3 scripts/connector_fault_proxy_tests.py 2>&1 | tee evidence/proxy.txt
+          python3 -m unittest discover -s tests/cloud-gateway-deployment -v 2>&1 | tee evidence/deploy.txt
+          test "$(git rev-parse HEAD^{tree})" = a8d88b79944f812c0bd0712ee62d96c4bb508ca7
+          git diff --exit-code
+          git rev-parse HEAD HEAD^{tree} > evidence/source.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agent-channel-source-verified-r6
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+  import:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reconstruct without executing product source
+        run: |
+          set -euo pipefail
+          cp -a .round6-recovery "$RUNNER_TEMP/recovery"
+          git checkout --detach ac816e0962a8211b071f63380777b7cef1124f87
+          python3 "$RUNNER_TEMP/recovery/recover.py" reconstruct "$RUNNER_TEMP/recovery"
+      - name: Import hash-verified blobs only; no refs, trees or permission changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 "$RUNNER_TEMP/recovery/recover.py" import "$RUNNER_TEMP/receipt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-channel-blob-receipt-r6
+          path: ${{ runner.temp }}/receipt/
+          retention-days: 14
+          if-no-files-found: error
