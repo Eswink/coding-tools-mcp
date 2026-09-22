@@ -365,13 +365,13 @@
       "priority": 30,
       "release_required": true,
       "evidence": {
-        "revision": "4f237bed96af1a327d9c286255a06407974da2a9",
-        "run_id": 35756923101,
+        "revision": "ee93427eb3da95b64fb4ca1d91601850429cb6dd",
+        "run_id": 35773332089,
         "files": {
           "services/local-agent/Cargo.toml": "9716589a494a3f0a6e013171850adb1b14e7862ef5b95a4a52d4acc188f6675c",
           "services/local-agent/Cargo.lock": "eb408e883d4026568782eff1ccb6ca24771d31a7a9476b60e4bb6a3c28930348",
           "services/local-agent/src/executor.rs": "2ebb486fefd08e3cc9997a7aaa87dbb64c1dd80482c9faf097ec21d67c14f092",
-          "services/local-agent/src/lib.rs": "be830c9503794518b8fc25a7efc402e8fc0c0eac55ae87e5e3da48ffbde54cac",
+          "services/local-agent/src/lib.rs": "92316e69f5c435ed000135a18313334e7dcd6b7404a7ec4c979355d238dff83c",
           "services/local-agent/src/model.rs": "01aab422c7e778fc0b4a29e4f512155029ae5652fbbe90964d1c26ddb1385e03",
           "services/local-agent/src/registry.rs": "b629fd6edf7448480c9380316a643ba3a909e447b5afc6d100cb450422733425",
           "services/local-agent/src/registry_tests.rs": "c3fffc772c493dfd337e8504b9310690b902010bbd4ebc7d8672ed9e79f031ee"
@@ -394,12 +394,12 @@
       "priority": 30,
       "release_required": true,
       "evidence": {
-        "revision": "4f237bed96af1a327d9c286255a06407974da2a9",
-        "run_id": 35756923101,
+        "revision": "ee93427eb3da95b64fb4ca1d91601850429cb6dd",
+        "run_id": 35773332089,
         "files": {
           "services/local-agent/Cargo.toml": "9716589a494a3f0a6e013171850adb1b14e7862ef5b95a4a52d4acc188f6675c",
           "services/local-agent/Cargo.lock": "eb408e883d4026568782eff1ccb6ca24771d31a7a9476b60e4bb6a3c28930348",
-          "services/local-agent/src/lib.rs": "be830c9503794518b8fc25a7efc402e8fc0c0eac55ae87e5e3da48ffbde54cac",
+          "services/local-agent/src/lib.rs": "92316e69f5c435ed000135a18313334e7dcd6b7404a7ec4c979355d238dff83c",
           "services/local-agent/src/process.rs": "bd48d73564c3feef3508e2d105fd2527b47bcbf5f285ab1d3c7a57795c24bb6a",
           "services/local-agent/src/process_tree.rs": "84ebc7615aaa8d65b1b11fcf31728c170a85c30a52b32cd5205afa6a554eff34",
           "services/local-agent/src/process_tree_windows.rs": "9eea0f6ebfea2162c3c18786d3a29d34d5d1f21508b10cdf73f46374f721b189",
@@ -440,12 +440,12 @@
       "priority": 30,
       "release_required": true,
       "evidence": {
-        "revision": "4f237bed96af1a327d9c286255a06407974da2a9",
-        "run_id": 35756923101,
+        "revision": "ee93427eb3da95b64fb4ca1d91601850429cb6dd",
+        "run_id": 35773332089,
         "files": {
           "services/local-agent/Cargo.toml": "9716589a494a3f0a6e013171850adb1b14e7862ef5b95a4a52d4acc188f6675c",
           "services/local-agent/Cargo.lock": "eb408e883d4026568782eff1ccb6ca24771d31a7a9476b60e4bb6a3c28930348",
-          "services/local-agent/src/lib.rs": "be830c9503794518b8fc25a7efc402e8fc0c0eac55ae87e5e3da48ffbde54cac",
+          "services/local-agent/src/lib.rs": "92316e69f5c435ed000135a18313334e7dcd6b7404a7ec4c979355d238dff83c",
           "services/local-agent/src/policy.rs": "937e79cddfb89031eeff8d1f5d108dcdddf1b8982b98bbe4d83ec846f2e732d8",
           "services/local-agent/src/registry.rs": "b629fd6edf7448480c9380316a643ba3a909e447b5afc6d100cb450422733425"
         }
@@ -560,10 +560,24 @@
       "depends_on": [
         "exec-unification"
       ],
-      "issue": null,
-      "state": "planned",
+      "issue": 56,
+      "state": "verified",
       "priority": 30,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "ee93427eb3da95b64fb4ca1d91601850429cb6dd",
+        "run_id": 35773332089,
+        "files": {
+          "services/local-agent/src/lib.rs": "92316e69f5c435ed000135a18313334e7dcd6b7404a7ec4c979355d238dff83c",
+          "services/local-agent/src/trace.rs": "d7ff25cb326d32bdf19d9c167151a8b753e318b2cc0ee82795e3e1835a071754",
+          "services/local-agent/src/trace/view.rs": "1f5f3d0111f6d3b6a1e8377d30f081cdfca06758ee08d4a7017e40b8c30d17c0",
+          "services/local-agent/src/trace/tests.rs": "f80c1c187bd80670c64f6ace5aac3263e8093485efa3aaf3a71b243f4d036c82",
+          "services/local-agent/src/trace/tests/authorization.rs": "3f5626f0472acb87d10b4308688406151f08860752937ab12072821ec9348ea9",
+          "services/local-agent/src/trace/tests/fault_boundary.rs": "6209860af95d27dce287af9a94097825c6d938e80fec032cc0429f5ce994e1a2",
+          "services/local-agent/src/trace/tests/lifecycle.rs": "b3b2ff07f87961d50c98b3f9bbbc27c17fbc4381c1163b83eb378ac0a52c159c",
+          "services/local-agent/src/trace/tests/retention.rs": "a6eccfdac6add1d3cb120aac6e3eb6b138e3eeb9cfc36e2a96d78e87327832ae"
+        }
+      }
     },
     {
       "id": "worktrees",
@@ -660,16 +674,27 @@
       "title": "Reversible origin and OAuth migration",
       "lane": "packaging",
       "paths": [
-        "deploy/cloud-gateway"
+        "deploy/cloud-gateway",
+        "tests/cloud-gateway-deployment/test_migration.py",
+        ".github/workflows/origin-migration.yml"
       ],
       "depends_on": [
         "mcp-business-gateway",
         "abuse-observability"
       ],
-      "issue": null,
-      "state": "planned",
+      "issue": 57,
+      "state": "verified",
       "priority": 30,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "4196b702b9c13debfd73fabe54c571c99bb14cd7",
+        "run_id": 35770305127,
+        "files": {
+          "deploy/cloud-gateway/migration.py": "dcef9e60a1adf9fe8f6a2b3822bba4632cb2c2a8273f75b53fda989f335e3d1f",
+          "tests/cloud-gateway-deployment/test_migration.py": "09ba9e3f4f69654fc49de43ff6ca2b28679dbc6329db2830c53547b268e91770",
+          ".github/workflows/origin-migration.yml": "e05461fd7a0a2e238d10d126cc7de863b161714f2b58a833ed1226982f81ffd5"
+        }
+      }
     },
     {
       "id": "reproducible-packages",
