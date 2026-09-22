@@ -1,11 +1,11 @@
-name: Continuation impact read-only helper
+name: Continuation metadata proposal review (never merge helper)
 on:
   push:
     branches: ['ci/continuation-impact-20260923']
 permissions:
   contents: read
 jobs:
-  impact:
+  review:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -17,29 +17,107 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
-      - name: Inspect existing metadata-test callers before changing assignment contracts
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Reconstruct bounded proposal and verify native evidence independently
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p evidence
+          python - <<'PY'
+          import base64, hashlib, json, os, subprocess, urllib.request
+          from pathlib import Path
+          target = '3ea9d6914667fb146eeca4f6b0841a3f8086b464'
+          base = 'ee93427eb3da95b64fb4ca1d91601850429cb6dd'
+          def api(path):
+              req = urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/' + path,
+                  headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  return json.load(response)
+          for run_id, workflow in [(35773332089,'.github/workflows/local-agent-runtime.yml'),
+                                   (35773332161,'.github/workflows/origin-migration.yml')]:
+              run = api('actions/runs/'+str(run_id))
+              assert run['head_sha']==base and run['status']=='completed' and run['conclusion']=='success'
+              assert run['path']==workflow and run['head_repository']['full_name']=='Eswink/coding-tools-mcp'
+              jobs=api('actions/runs/'+str(run_id)+'/jobs?per_page=100')
+              assert jobs['total_count']==len(jobs['jobs']) and len(jobs['jobs'])>=2
+              assert all(j['status']=='completed' and j['conclusion']=='success' for j in jobs['jobs'])
+              Path('evidence/verified-run-'+str(run_id)+'.json').write_text(json.dumps({
+                  'run':run_id,'source':base,'workflow':workflow,'jobs':[{k:j[k] for k in ['id','name','conclusion']} for j in jobs['jobs']]}),encoding='utf-8')
+          before=json.loads(Path('tools/delivery/manifest.json').read_text())
+          source=api('git/trees/'+target+'?recursive=1')
+          assert source['sha']==target and not source.get('truncated')
+          old={}
+          for row in subprocess.check_output(['git','ls-tree','-rz','--full-tree','HEAD']).split(b'\0'):
+              if row:
+                  meta,name=row.decode('utf-8').split('\t',1)
+                  old[name]=tuple(meta.split())
+          proposed={x['path']:(x['mode'],x['type'],x['sha']) for x in source['tree'] if x['type']!='tree'}
+          assert set(proposed)==set(old)
+          changed={p for p in proposed if proposed[p]!=old[p]}
+          assert changed=={'.github/workflows/cloud-delivery.yml','tests/delivery/metadata_contract.test.mjs','tools/delivery/manifest.json'}
+          for name in sorted(changed):
+              mode,kind,sha=proposed[name]
+              assert mode=='100644' and kind=='blob'
+              blob=api('git/blobs/'+sha)
+              assert blob['encoding']=='base64' and blob['size']<=100000
+              data=base64.b64decode(blob['content'])
+              assert subprocess.check_output(['git','hash-object','--stdin'],input=data).decode().strip()==sha
+              Path(name).write_bytes(data)
+          after=json.loads(Path('tools/delivery/manifest.json').read_text())
+          assert {k:v for k,v in before.items() if k!='tasks'}=={k:v for k,v in after.items() if k!='tasks'}
+          assert [t['id'] for t in before['tasks']]==[t['id'] for t in after['tasks']]
+          allowed={'tool-runtime','exec-unification','exec-policy','local-trace','origin-migration'}
+          for previous,current in zip(before['tasks'],after['tasks']):
+              if current['id'] not in allowed:
+                  assert previous==current, current['id']
+                  continue
+              assert {k:v for k,v in previous.items() if k not in {'evidence','issue','state'}}=={k:v for k,v in current.items() if k not in {'evidence','issue','state'}}
+              assert current['state']=='verified' and current['evidence']['revision']==base
+              assert current['issue']==({'local-trace':56,'origin-migration':57}.get(current['id'],previous['issue']))
+              assert current['evidence']['run_id']==(35773332161 if current['id']=='origin-migration' else 35773332089)
+              for path,digest in current['evidence']['files'].items():
+                  assert hashlib.sha256(Path(path).read_bytes()).hexdigest()==digest, path
+          subprocess.run(['git','add','--',*sorted(changed)],check=True)
+          assert subprocess.check_output(['git','write-tree'],text=True).strip()==target
+          hashes={p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in sorted(changed)}
+          Path('evidence/proposed-tree.txt').write_text(target)
+          Path('evidence/source-hashes.json').write_text(json.dumps(hashes,indent=2))
+          print(json.dumps(hashes,indent=2))
+          PY
+      - name: Exact staged graph impact and metadata regressions without issue writes
+        shell: bash
+        run: |
+          set -euo pipefail
           npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9
           graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
-          "$graph" analyze --workers 1 > evidence/analyze.txt 2>&1
-          git restore -- AGENTS.md CLAUDE.md
-          "$graph" context 'Function:tests/delivery/metadata_contract.test.mjs:run' > evidence/metadata-context.txt 2>&1
-          "$graph" impact 'Function:tests/delivery/metadata_contract.test.mjs:run' --direction upstream > evidence/metadata-impact.txt 2>&1
-          cat evidence/metadata-context.txt evidence/metadata-impact.txt
-          node --test tests/delivery/metadata_contract.test.mjs | tee evidence/metadata-tests.txt
-          python -m unittest discover -s tests/delivery -v 2>&1 | tee evidence/scheduler-tests.txt
+          "$graph" analyze --workers 1 > evidence/graph.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md .claude/skills/gitnexus
+          "$graph" detect-changes --scope staged > evidence/impact.json
+          cat evidence/impact.json
+          node --test tests/delivery/metadata_contract.test.mjs | tee evidence/metadata.tap
+          python -m unittest discover -s tests/delivery -v 2>&1 | tee evidence/scheduler.txt
           python tools/delivery/dispatch.py --manifest tools/delivery/manifest.json --repo-root . --output evidence/dispatch.json
-          cat evidence/dispatch.json
-          git rev-parse HEAD > evidence/source-commit.txt
+          python - <<'PY'
+          import json
+          from collections import Counter
+          p=json.load(open('evidence/dispatch.json'))
+          assert p['release_allowed'] is False and p['release_eligible_for_review'] is False
+          assert [x['id'] for x in p['packets']]==['native-pty']
+          assert all(not x['execution_started'] for x in p['packets'])
+          assert {k for k,v in p['states'].items() if v=='stale_evidence'}=={'issue-dispatch'}
+          assert p['states']['local-trace']=='verified' and p['states']['origin-migration']=='verified'
+          print(json.dumps({'counts':dict(Counter(p['states'].values())),'packets':p['packets'],'release_blockers':p['release_blockers']},indent=2))
+          PY
+          test "$(git write-tree)" = 3ea9d6914667fb146eeca4f6b0841a3f8086b464
           git diff --exit-code
-          echo 'READ_ONLY_HELPER_NEVER_MERGE' > evidence/boundary.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: continuation-metadata-impact
+          name: continuation-metadata-review
           path: evidence/
           retention-days: 14
           if-no-files-found: error
