@@ -29,3 +29,9 @@ Initial PostgreSQL tests exposed two defects before publication: concurrent exac
 ## Rollback and release boundary
 
 Migration `0005_request_ledger.sql` is additive and contains metadata/hashes only. Code rollback must not delete migration history or unknown-outcome rows. Stop future dispatch first, retain durable rows for reconciliation, then roll code back. No main merge, production DNS/Nginx/WAF/VPS change, installer or release is authorized by this engineering result.
+
+## Publication status
+
+Engineering source is published as `1e1db5faa0fdcf34133b615f9842b93a40fe7b9a`, exact tree `2ec47d544a1d5bd3d001fcf912516e01c6b56176`. Independent source verification run `35694160510` passed before native publication. Current-source request-admission CI `35694473116` passed Ubuntu PostgreSQL plus Windows/Ubuntu portable jobs. Full publication evidence is in `round8-publication.md`.
+
+This closes the isolated cloud admission/no-replay engineering increment only. The locally approved authority provider/execution gate bridge remains the next dependency; no local tool side effect is authorized by this module.
