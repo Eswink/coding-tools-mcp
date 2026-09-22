@@ -18,7 +18,7 @@ const source = workflow.slice(start + marker.length, end).split('\n').map(line =
 }).join('\n');
 
 const harness = String.raw`
-import contextlib, io, json, os, sys, tempfile
+import contextlib, io, json, sys, tempfile
 from pathlib import Path
 from unittest.mock import patch
 payload = json.load(sys.stdin)
@@ -32,8 +32,8 @@ def git(args, **kwargs):
     if args == ['git', 'rev-parse', 'HEAD']:
         return sha + '\n'
     raise AssertionError('unexpected subprocess call')
-with tempfile.TemporaryDirectory() as directory:
-    os.chdir(directory)
+# Restore cwd before TemporaryDirectory cleanup (required by Windows file locking).
+with tempfile.TemporaryDirectory() as directory, contextlib.chdir(directory):
     Path('evidence').mkdir()
     for name, contents in payload['files'].items():
         path = Path(name)
