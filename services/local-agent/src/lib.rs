@@ -4,6 +4,7 @@ mod policy;
 mod process;
 mod process_tree;
 mod registry;
+mod trace;
 
 pub use executor::{ToolExecutor, ToolFuture};
 pub use model::{
@@ -20,3 +21,7 @@ pub use process::{
     ProcessSession,
 };
 pub use registry::{ToolRegistry, VerifiedInvocation};
+pub use trace::{
+    RecoveryItem, RecoveryState, RecoveryView, TraceError, TraceEvent, TraceJournal, TracePhase,
+    TraceSnapshot, TraceToolError,
+};
