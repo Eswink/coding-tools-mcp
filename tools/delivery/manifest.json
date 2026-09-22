@@ -119,13 +119,13 @@
       "priority": 10,
       "release_required": true,
       "evidence": {
-        "revision": "765664434a8016f05ce3a15fff87065506fbc7fc",
-        "run_id": 35685755549,
+        "revision": "b46d33015cd47ed7182f9ead27f150bc1828c1f4",
+        "run_id": 35721433652,
         "files": {
           "services/cloud-gateway/src/service/cli.rs": "a55b304a86b7667297e44e2b1a76c2c00ade35f3994ab2c53f8277285e30c8a6",
           "services/cloud-gateway/src/service/input.rs": "89b4dfe42906f250323d9cb53ec885e5da3a8750452791862caad055d4fa7cdc",
           "services/cloud-gateway/src/service/lifecycle.rs": "770f0e7380459e18d55e50646dac43fed6a7fdebe967609f3ef8c51e7658dca1",
-          "services/cloud-gateway/src/service/mod.rs": "4246e746c6b8f41b0ec114c221618aa891a5943f18978f66c8fd48bc7016992a",
+          "services/cloud-gateway/src/service/mod.rs": "6fce3fb5d384be30f1c0684ee3a7ecd206ca8c776d5e9b7abf2258dccc6c0880",
           "services/cloud-gateway/src/service/runtime.rs": "a0c87a03572d9f6a23c76b1c7e4462d56770c3001343f73bf94eacfae46cac22"
         }
       }
@@ -191,12 +191,12 @@
       "priority": 10,
       "release_required": true,
       "evidence": {
-        "revision": "765664434a8016f05ce3a15fff87065506fbc7fc",
-        "run_id": 35685755675,
+        "revision": "b46d33015cd47ed7182f9ead27f150bc1828c1f4",
+        "run_id": 35721433691,
         "files": {
           "services/cloud-gateway/src/channel/mod.rs": "d7c71c96392958300418ba1f1fdd609748d08c1222b972e6f4c7a0ccd88b1b64",
           "services/cloud-gateway/src/channel/protocol.rs": "50f86b63ccc34af12fe16441c2f156b3527956fe496b6cb9960fd11aab00aab0",
-          "services/cloud-gateway/src/channel/store.rs": "29e8e003d4ed7d101ef98d29bf9ec06793492bc86c208370b27f1e88c9a67cff",
+          "services/cloud-gateway/src/channel/store.rs": "a6bf9c2d39c442053a59d16a28d27057aea451a9a160aab014b8bf1f9cdc23cc",
           "services/cloud-gateway/src/channel/transport.rs": "28e8389409bdd35d6cd28d3abfc2ff34864e67baf4e59fb9a189a834e6bb2997"
         }
       }

@@ -62,12 +62,13 @@ jobs:
           allowed_prefixes = (
               'prototypes/cloud-gateway/', 'tests/cloud-gateway/',
               'docs/specs/cloud-gateway-agent-runtime/', '.github/workflows/cloud-gateway-',
-              'services/cloud-gateway/', 'deploy/cloud-gateway/', 'tests/cloud-gateway-deployment/',
+              'services/cloud-gateway/', 'services/local-agent/', 'deploy/cloud-gateway/', 'tests/cloud-gateway-deployment/',
               'tools/delivery/', 'tests/delivery/',
           )
           allowed_exact = {
               '.github/workflows/cloud-delivery.yml',
               '.github/workflows/local-authority-bridge.yml',
+              '.github/workflows/local-agent-runtime.yml',
               'src-tauri/src/auth/local_authority.rs',
               'src-tauri/src/auth/mod.rs',
               'src-tauri/src/auth/聊天授权v1.rs',
