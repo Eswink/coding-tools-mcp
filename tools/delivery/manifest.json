@@ -262,9 +262,19 @@
         "grant-projection"
       ],
       "issue": 49,
-      "state": "in_progress",
+      "state": "verified",
       "priority": 21,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "1e1db5faa0fdcf34133b615f9842b93a40fe7b9a",
+        "run_id": 35694473116,
+        "files": {
+          "services/cloud-gateway/src/admission/store.rs": "d7f05ceadbffc2a2c6677e3dcf32fa1c58913e61ee19e0fa6c573e35a108355f",
+          "services/cloud-gateway/tests/admission_postgres.rs": "0f4aca30992871b49115ecec0c0b491603fa6bae5b05d68f43462b2fff42437c",
+          "services/cloud-gateway/migrations/0005_request_ledger.sql": "1b8a29d0f1fb0af046f06e2cde1d176479edca68df5169b7f4b65a8207a3cd96",
+          ".github/workflows/cloud-gateway-request-admission.yml": "cc1935dc367f0840443bf721e93daa19d5982702b71d3e402495f6c3770332a0"
+        }
+      }
     },
     {
       "id": "local-authority-provider",
