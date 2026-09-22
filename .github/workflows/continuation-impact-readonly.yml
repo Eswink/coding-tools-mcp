@@ -30,7 +30,7 @@ jobs:
           python - <<'PY'
           import base64, hashlib, json, os, subprocess, urllib.request
           from pathlib import Path
-          target = '3ea9d6914667fb146eeca4f6b0841a3f8086b464'
+          target = '576d1b93280fb1ccab02d9fe9ac58ac506863c71'
           base = 'ee93427eb3da95b64fb4ca1d91601850429cb6dd'
           def api(path):
               req = urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/' + path,
@@ -110,9 +110,9 @@ jobs:
           assert all(not x['execution_started'] for x in p['packets'])
           assert {k for k,v in p['states'].items() if v=='stale_evidence'}=={'issue-dispatch'}
           assert p['states']['local-trace']=='verified' and p['states']['origin-migration']=='verified'
-          print(json.dumps({'counts':dict(Counter(p['states'].values())),'packets':p['packets'],'release_blockers':p['release_blockers']},indent=2))
+          print(json.dumps({'counts':dict(Counter(p['states'].values())),'packets':p['packets'],'release_blockers':p.get('release_blockers',[])},indent=2))
           PY
-          test "$(git write-tree)" = 3ea9d6914667fb146eeca4f6b0841a3f8086b464
+          test "$(git write-tree)" = 576d1b93280fb1ccab02d9fe9ac58ac506863c71
           git diff --exit-code
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
