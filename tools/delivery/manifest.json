@@ -625,10 +625,21 @@
       "depends_on": [
         "mcp-business-gateway"
       ],
-      "issue": null,
-      "state": "planned",
+      "issue": 54,
+      "state": "verified",
       "priority": 30,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "2934c5b534dd2d76e46dd700b96ce1a4eaf83a91",
+        "run_id": 35751729527,
+        "files": {
+          "services/cloud-gateway/src/observability.rs": "a16ff13b7845a15c887d55c2ae0549e908da505391b696022e06c4c5c9c4be8e",
+          "services/cloud-gateway/src/mcp/http.rs": "32cf4f790bafd728782247857a9c6dd5f69fa8a3db9597ba5885c29f522b0c33",
+          "services/cloud-gateway/src/service/mcp_runtime.rs": "da0cca4befaccc7b9ab92753b66227c2018f2f3bd7f4d1efbcfd91a962d5d01e",
+          "services/cloud-gateway/src/service/runtime.rs": "87c3b649d5df8c6ac3d02e5eb42a6b8fd2f93e8696dd4e42b2b97937520ba82c",
+          "services/cloud-gateway/tests/mcp_postgres.rs": "905a83515c17899f8be547f40dda3272f48638fe22e6dd3ca6cf89195e2466a4"
+        }
+      }
     },
     {
       "id": "origin-migration",
