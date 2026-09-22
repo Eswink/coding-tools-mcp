@@ -42,7 +42,7 @@ jobs:
           from pathlib import Path
           p=Path('services/cloud-gateway/tests/mcp_postgres.rs')
           s=p.read_text(encoding='utf-8')
-          s=s.replace('http::{header, HeaderMap, Request, StatusCode}', 'http::{header, Request, StatusCode}')
+          s=s.replace('HeaderMap, ', '')
           s=s.replace('mod channel_support;', '#[allow(dead_code)]\nmod channel_support;')
           s=s.replace('mod projection_support;', '#[allow(dead_code)]\nmod projection_support;')
           p.write_text(s, encoding='utf-8')
