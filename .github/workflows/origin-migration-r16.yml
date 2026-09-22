@@ -1,0 +1,164 @@
+name: Reversible origin migration planner
+
+on:
+  push:
+    branches: ['ci/origin-migration-r16']
+    paths:
+      - 'deploy/cloud-gateway/migration.py'
+      - 'tests/cloud-gateway-deployment/test_migration.py'
+      - '.github/workflows/origin-migration-r16.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: origin-migration-r16
+  cancel-in-progress: true
+
+jobs:
+  portable:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Verify planner and existing deployment contracts
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python -m unittest             tests/cloud-gateway-deployment/test_render.py             tests/cloud-gateway-deployment/test_migration.py -v             2>&1 | tee evidence/tests.txt
+          tmp="$RUNNER_TEMP/origin-migration-review"
+          python deploy/cloud-gateway/migration.py             --connector-id 00000000-0000-0000-0000-000000000001             --inventory deploy/cloud-gateway/inventory.user-reported.json             --output "$tmp" > evidence/render-result.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          result=json.loads(Path('evidence/render-result.json').read_text(encoding='utf-8'))
+          assert result == {
+              'applied': False,
+              'mode': 'STABLE_ORIGIN_ROUTE_SWAP',
+              'release_allowed': False,
+              'rendered': True,
+          }
+          root=Path(os.environ['RUNNER_TEMP'])/'origin-migration-review'
+          plan=json.loads((root/'migration-plan.review.json').read_text(encoding='utf-8'))
+          assert plan['changes_applied'] is False
+          assert plan['release_allowed'] is False
+          assert plan['mode']=='STABLE_ORIGIN_ROUTE_SWAP'
+          assert (root/'artifact-manifest.review.json').is_file()
+          PY
+          git diff --check ef8c01ce9d92022d20fd75f4d6727e6caef68339 HEAD
+          git diff --name-only ef8c01ce9d92022d20fd75f4d6727e6caef68339 HEAD > evidence/changed-files.txt
+          python - <<'PY'
+          from pathlib import Path
+          paths=Path('evidence/changed-files.txt').read_text(encoding='utf-8').splitlines()
+          assert set(paths) <= {
+              'deploy/cloud-gateway/migration.py',
+              'tests/cloud-gateway-deployment/test_migration.py',
+              '.github/workflows/origin-migration-r16.yml',
+          }, paths
+          PY
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+      - name: Import verified planner blobs only
+        if: matrix.os == 'ubuntu-24.04'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, json, os, pathlib, subprocess, urllib.request
+          repo='Eswink/coding-tools-mcp'
+          token=os.environ['GH_TOKEN']
+          paths=[
+              pathlib.Path('deploy/cloud-gateway/migration.py'),
+              pathlib.Path('tests/cloud-gateway-deployment/test_migration.py'),
+          ]
+          rows=[]
+          for p in paths:
+              raw=p.read_bytes()
+              expected=subprocess.check_output(['git','hash-object',str(p)],text=True).strip()
+              req=urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/git/blobs',
+                  data=json.dumps({'content':base64.b64encode(raw).decode(),'encoding':'base64'}).encode(),
+                  headers={
+                      'Authorization':'Bearer '+token,
+                      'Accept':'application/vnd.github+json',
+                      'X-GitHub-Api-Version':'2022-11-28',
+                      'Content-Type':'application/json',
+                  },
+                  method='POST',
+              )
+              with urllib.request.urlopen(req,timeout=60) as response:
+                  got=json.load(response)
+              assert got['sha']==expected,(str(p),expected,got.get('sha'))
+              rows.append({'path':str(p).replace('\\','/'),'mode':'100644','sha':expected,'bytes':len(raw)})
+          pathlib.Path('evidence/blob-receipt.json').write_text(
+              json.dumps(rows,indent=2),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: origin-migration-r16-${{ matrix.os }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+
+  native-config:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated review-only config tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y nginx
+          mkdir -p "$RUNNER_TEMP/tools" evidence
+          curl --fail --location --retry 2             https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64             --output "$RUNNER_TEMP/tools/docker-compose"
+          curl --fail --location --retry 2             https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64.sha256             --output evidence/compose.sha256
+          expected="$(awk '{print $1}' evidence/compose.sha256)"
+          actual="$(sha256sum "$RUNNER_TEMP/tools/docker-compose" | awk '{print $1}')"
+          test "$expected" = "$actual"
+          chmod +x "$RUNNER_TEMP/tools/docker-compose"
+          "$RUNNER_TEMP/tools/docker-compose" version > evidence/compose-version.txt
+          nginx -v 2> evidence/nginx-version.txt
+      - name: Validate existing Compose/Nginx blueprint without daemon or VPS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tests/cloud-gateway-deployment/run_native_config_checks.py             --compose "$RUNNER_TEMP/tools/docker-compose"             --nginx /usr/sbin/nginx | tee evidence/native-config.json
+          python - <<'PY'
+          import json
+          result=json.load(open('evidence/native-config.json',encoding='utf-8'))
+          assert result['compose_config']=='PASS'
+          assert result['nginx_syntax']=='PASS'
+          assert result['nginx_loopback_http_routes']=='PASS'
+          assert result['docker_daemon_used'] is False
+          assert result['vps_or_baota_waf_tested'] is False
+          PY
+          git rev-parse HEAD > evidence/source-commit.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: origin-migration-r16-native-config
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
