@@ -20,7 +20,7 @@ use axum::{
     Json, Router,
 };
 use serde_json::{json, Value};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 const MAX_BODY: usize = 65_536;
@@ -515,26 +515,6 @@ async fn business_call(
     }
 }
 
-struct LatencyObservation {
-    observability: GatewayObservability,
-    started: Instant,
-}
-
-impl LatencyObservation {
-    fn new(observability: GatewayObservability) -> Self {
-        Self {
-            observability,
-            started: Instant::now(),
-        }
-    }
-}
-
-impl Drop for LatencyObservation {
-    fn drop(&mut self) {
-        self.observability.record_latency(self.started.elapsed());
-    }
-}
-
 fn record_business_outcome(observability: &GatewayObservability, data: &Value) {
     let outcome = match data
         .get("error")
@@ -551,7 +531,6 @@ fn record_business_outcome(observability: &GatewayObservability, data: &Value) {
 }
 
 async fn mcp_post(State(state): State<McpState>, headers: HeaderMap, body: Bytes) -> Response {
-    let _latency = LatencyObservation::new(state.observability.clone());
     if let Err(e) = boundary_headers(&state, &headers) {
         state
             .observability
@@ -561,7 +540,6 @@ async fn mcp_post(State(state): State<McpState>, headers: HeaderMap, body: Bytes
             json!({"jsonrpc":"2.0","error":{"code":e.code,"message":e.message}}),
         );
     }
-    state.observability.record_ingress_accepted();
     let principal = match authenticate(&state, &headers).await {
         Ok(p) => p,
         Err(AuthFailure::Invalid) => {
