@@ -287,9 +287,19 @@
         "request-admission"
       ],
       "issue": 50,
-      "state": "in_progress",
+      "state": "verified",
       "priority": 22,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "64a1e6ee9d6a592bc803f1860d4f9ccd7ec95a95",
+        "run_id": 35703595280,
+        "files": {
+          "src-tauri/src/auth/local_authority.rs": "5e45d0a46a581edf19bc1d0ed956267db92517bcb025518eb6f32115513eed87",
+          "src-tauri/src/auth/聊天授权v1.rs": "9a8b3df6291af1911c9668053a1426dbd1052fbfa4c6249023fec47c85c96c0b",
+          "src-tauri/src/auth/聊天授权回归v1.rs": "115d2939eaa9c6c442f5d69c11fcb74ef6fee6a714ff17a7d0cd9fdbfad2bd1e",
+          "src-tauri/src/runtime/execution_gate.rs": "87e767cbdfdec69f0ce34a12a342c434c535d6aaaf7c4348cff84e4ebd118c41"
+        }
+      }
     },
     {
       "id": "mcp-business-gateway",
