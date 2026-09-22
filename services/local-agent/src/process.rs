@@ -452,17 +452,13 @@ impl ProcessManager {
                         must_terminate = true;
                     }
                 }
-                message = overflow_rx.recv() => {
-                    if message.is_some() {
-                        termination = ExecTermination::OutputLimit;
-                        must_terminate = true;
-                    }
+                Some(_) = overflow_rx.recv() => {
+                    termination = ExecTermination::OutputLimit;
+                    must_terminate = true;
                 }
-                message = stdin_error_rx.recv() => {
-                    if message.is_some() {
-                        termination = ExecTermination::StdinError;
-                        must_terminate = true;
-                    }
+                Some(_) = stdin_error_rx.recv() => {
+                    termination = ExecTermination::StdinError;
+                    must_terminate = true;
                 }
             }
 
