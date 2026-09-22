@@ -1,0 +1,89 @@
+name: ISSUE-010 admission focused validation
+
+on:
+  push:
+    branches:
+      - design/shared-account-admission-policy
+    paths:
+      - 'src-tauri/src/auth/session_policy.rs'
+      - 'src-tauri/src/auth/聊天授权v1.rs'
+      - 'src-tauri/src/auth/聊天授权回归v1.rs'
+      - 'src-tauri/src/commands/聊天授权v1.rs'
+      - 'src/lib/remote-session-policy.ts'
+      - 'src/lib/components/RemoteSessionSettings.svelte'
+      - 'src/lib/components/聊天授权面板v1.svelte'
+      - 'tests/issue010-admission-contract.test.mjs'
+      - '.github/workflows/issue010-admission-focused.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue010-admission-focused-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  focused:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-targets: false
+      - name: Install Tauri Linux dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - name: Admission source contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/issue010-admission-contract.test.mjs
+      - name: Session policy regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml auth::session_policy::tests -- --nocapture --test-threads=1
+      - name: Admission state-machine regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml \
+            auth::chat::tests::local_window_is_single_use_and_resume_of_existing_grant_does_not_consume_a_new_ticket \
+            -- --exact --nocapture --test-threads=1
+          cargo test --locked --manifest-path src-tauri/Cargo.toml \
+            auth::chat::tests::local_window_allows_exactly_one_concurrent_new_grant_even_without_exclusive_owner \
+            -- --exact --nocapture --test-threads=1
+          cargo test --locked --manifest-path src-tauri/Cargo.toml \
+            auth::chat::tests::local_window_allocation_and_pause_have_one_linearization_order \
+            -- --exact --nocapture --test-threads=1
+          cargo test --locked --manifest-path src-tauri/Cargo.toml \
+            auth::chat::tests::local_window_survives_offline_rejection_until_resume_or_expiry \
+            -- --exact --nocapture --test-threads=1
+          cargo test --locked --manifest-path src-tauri/Cargo.toml \
+            auth::chat::tests::deny_new_and_closed_window_are_non_disclosing_but_existing_validation_stays_first \
+            -- --exact --nocapture --test-threads=1
+          cargo test --locked --manifest-path src-tauri/Cargo.toml \
+            auth::chat::tests::expired_window_and_policy_reconfiguration_clear_local_admission_state \
+            -- --exact --nocapture --test-threads=1
+          cargo test --locked --manifest-path src-tauri/Cargo.toml \
+            auth::chat::tests::recovery_and_exclusive_owner_stay_stronger_than_local_window_policy \
+            -- --exact --nocapture --test-threads=1
+      - name: Frontend type and Svelte checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check

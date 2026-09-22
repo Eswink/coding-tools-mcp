@@ -1,0 +1,95 @@
+name: ISSUE-010 new-chat admission impact gate
+
+on:
+  push:
+    branches:
+      - design/shared-account-admission-policy
+    paths:
+      - '.github/workflows/issue010-admission-impact.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build GitNexus index
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx -y gitnexus@latest analyze | tee evidence/analyze.txt
+          git reset --hard "$GITHUB_SHA"
+          npx -y gitnexus@latest status | tee evidence/status.txt
+      - name: Focused backend impact
+        shell: bash
+        run: |
+          set +e
+          npx -y gitnexus@latest impact SessionPolicy --file src-tauri/src/auth/session_policy.rs --direction upstream > evidence/impact-session-policy.txt 2>&1
+          session_policy_rc=$?
+          npx -y gitnexus@latest impact configure --file 'src-tauri/src/auth/聊天授权v1.rs' --direction upstream > evidence/impact-chat-configure.txt 2>&1
+          configure_rc=$?
+          npx -y gitnexus@latest impact request_guarded --file 'src-tauri/src/auth/聊天授权v1.rs' --direction upstream > evidence/impact-request-guarded.txt 2>&1
+          request_guarded_rc=$?
+          npx -y gitnexus@latest impact snapshot --file 'src-tauri/src/auth/聊天授权v1.rs' --direction upstream > evidence/impact-chat-snapshot.txt 2>&1
+          chat_snapshot_rc=$?
+          npx -y gitnexus@latest impact chat_authorization_control --file 'src-tauri/src/commands/聊天授权v1.rs' --direction upstream > evidence/impact-local-control.txt 2>&1
+          local_control_rc=$?
+          npx -y gitnexus@latest impact changed_services --file src-tauri/src/commands/configuration.rs --direction upstream > evidence/impact-changed-services.txt 2>&1
+          changed_services_rc=$?
+          printf 'session_policy_rc=%s\nconfigure_rc=%s\nrequest_guarded_rc=%s\nchat_snapshot_rc=%s\nlocal_control_rc=%s\nchanged_services_rc=%s\n' \
+            "$session_policy_rc" "$configure_rc" "$request_guarded_rc" "$chat_snapshot_rc" "$local_control_rc" "$changed_services_rc" | tee evidence/backend-impact-status.txt
+          exit 0
+      - name: Focused TypeScript policy impact
+        shell: bash
+        run: |
+          set +e
+          npx -y gitnexus@latest impact sessionPolicy --file src/lib/remote-session-policy.ts --direction upstream > evidence/impact-ts-session-policy.txt 2>&1
+          ts_session_policy_rc=$?
+          npx -y gitnexus@latest impact validateSessionPolicy --file src/lib/remote-session-policy.ts --direction upstream > evidence/impact-ts-validate-policy.txt 2>&1
+          ts_validate_policy_rc=$?
+          npx -y gitnexus@latest impact policyFromFields --file src/lib/remote-session-policy.ts --direction upstream > evidence/impact-ts-policy-from-fields.txt 2>&1
+          ts_policy_from_fields_rc=$?
+          printf 'ts_session_policy_rc=%s\nts_validate_policy_rc=%s\nts_policy_from_fields_rc=%s\n' \
+            "$ts_session_policy_rc" "$ts_validate_policy_rc" "$ts_policy_from_fields_rc" | tee evidence/ts-impact-status.txt
+          exit 0
+      - name: Probe Svelte impact and exact call sites
+        shell: bash
+        run: |
+          set +e
+          npx -y gitnexus@latest impact Props --file src/lib/components/RemoteSessionSettings.svelte --kind Interface --direction upstream > evidence/impact-remote-session-settings.txt 2>&1
+          remote_settings_rc=$?
+          npx -y gitnexus@latest impact Props --file 'src/lib/components/聊天授权面板v1.svelte' --kind Interface --direction upstream > evidence/impact-chat-auth-panel.txt 2>&1
+          chat_panel_rc=$?
+          printf 'remote_settings_rc=%s\nchat_panel_rc=%s\n' "$remote_settings_rc" "$chat_panel_rc" | tee evidence/svelte-impact-status.txt
+          {
+            echo '--- SessionPolicy/session_policy ---'
+            git grep -n 'session_policy\|SessionPolicy' -- 'src-tauri/src/**/*.rs' 'src/**/*.ts' 'src/**/*.svelte' || true
+            echo '--- chat_authorization_control ---'
+            git grep -n 'chat_authorization_control' -- 'src-tauri/src/**/*.rs' 'src/**/*.svelte' || true
+            echo '--- update workspace / config restart ---'
+            git grep -n 'changed_services\|update_workspace\|saveMcpAuth' -- 'src-tauri/src/**/*.rs' 'src/**/*.ts' 'src/**/*.svelte' || true
+          } | tee evidence/source-call-sites.txt
+          exit 0
+      - name: Query admission flows
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y gitnexus@latest query "chat authorization request session policy workspace config restart local approval pending event" | tee evidence/query-admission-flow.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: issue010-admission-impact
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30

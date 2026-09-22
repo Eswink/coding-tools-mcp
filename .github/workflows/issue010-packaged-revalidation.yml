@@ -1,0 +1,186 @@
+name: ISSUE-010 packaged revalidation
+
+on:
+  push:
+    branches:
+      - design/shared-account-admission-policy
+    paths:
+      - 'src-tauri/src/auth/session_policy.rs'
+      - 'src-tauri/src/auth/聊天授权v1.rs'
+      - 'src-tauri/src/commands/聊天授权v1.rs'
+      - 'src/lib/remote-session-policy.ts'
+      - 'src/lib/components/RemoteSessionSettings.svelte'
+      - 'src/lib/components/聊天授权面板v1.svelte'
+      - '.github/workflows/issue010-packaged-revalidation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue010-packaged-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ubuntu-package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-targets: false
+      - name: Install Linux build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev fakeroot patchelf
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Build Debian package
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run tauri -- build --bundles deb
+      - name: Install verify and purge
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          mapfile -t debs < <(find src-tauri/target/release/bundle/deb -maxdepth 1 -type f -name '*.deb' -print)
+          test "${#debs[@]}" -eq 1
+          deb="$(realpath "${debs[0]}")"
+          package="$(dpkg-deb -f "$deb" Package)"
+          version="$(dpkg-deb -f "$deb" Version)"
+          sha256="$(sha256sum "$deb" | awk '{print $1}')"
+          sudo apt-get install -y "$deb"
+          test "$(dpkg-query -W -f='${Status}' "$package")" = "install ok installed"
+          bin_path="$(dpkg -L "$package" | grep '^/usr/bin/' | head -n 1 || true)"
+          test -n "$bin_path"
+          test -x "$bin_path"
+          printf 'package=%s\nversion=%s\nsha256=%s\ninstalled_binary=%s\n' "$package" "$version" "$sha256" "$bin_path" | tee evidence/ubuntu-installed.txt
+          sudo apt-get purge -y "$package"
+          if dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q '^install ok installed$'; then
+            echo "package remains installed after purge" >&2
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: issue010-ubuntu-package
+          path: |
+            src-tauri/target/release/bundle/deb/*.deb
+            evidence/
+          if-no-files-found: warn
+          retention-days: 14
+
+  windows-package:
+    runs-on: windows-2025
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-targets: false
+      - name: Install frontend dependencies
+        shell: pwsh
+        run: npm ci
+      - name: Build NSIS package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm run tauri -- build --bundles nsis
+      - name: Install verify and uninstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force -Path evidence | Out-Null
+          $installers = @(Get-ChildItem "src-tauri/target/release/bundle/nsis" -Filter "*.exe" -File)
+          if ($installers.Count -ne 1) { throw "Expected exactly one installer, found $($installers.Count)" }
+          $installer = $installers[0]
+          $sha256 = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          $install = Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Silent install exited $($install.ExitCode)" }
+          Start-Sleep -Seconds 2
+
+          $roots = @(
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+          $entry = Get-ItemProperty $roots -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -eq "Coding Tools MCP" } |
+            Select-Object -First 1
+          if (-not $entry) { throw "Uninstall registration not found" }
+
+          $installLocation = [string]$entry.InstallLocation
+          $displayIcon = [string]$entry.DisplayIcon
+          $installedExe = $null
+          if ($installLocation -and (Test-Path $installLocation)) {
+            $installedExe = Get-ChildItem $installLocation -Filter "*.exe" -File -Recurse -ErrorAction SilentlyContinue |
+              Where-Object { $_.Name -notmatch 'uninstall' } | Select-Object -First 1
+          }
+          if (-not $installedExe -and $displayIcon) {
+            $iconPath = $displayIcon.Trim('"').Split(',')[0]
+            if (Test-Path $iconPath) { $installedExe = Get-Item $iconPath }
+          }
+          if (-not $installedExe) { throw "Installed executable not found" }
+
+          @(
+            "installer=$($installer.FullName)",
+            "sha256=$sha256",
+            "install_location=$installLocation",
+            "installed_executable=$($installedExe.FullName)",
+            "uninstall_string=$($entry.UninstallString)"
+          ) | Set-Content -Encoding UTF8 evidence/windows-installed.txt
+
+          $uninstall = [string]$entry.UninstallString
+          if ($uninstall -match '^"([^"]+)"\s*(.*)$') {
+            $uninstallExe = $Matches[1]
+            $uninstallArgs = $Matches[2].Trim()
+          } else {
+            $parts = $uninstall -split '\s+', 2
+            $uninstallExe = $parts[0]
+            $uninstallArgs = if ($parts.Count -gt 1) { $parts[1] } else { "" }
+          }
+          if (-not (Test-Path $uninstallExe)) { throw "Uninstaller not found: $uninstallExe" }
+          $args = @()
+          if ($uninstallArgs) { $args += $uninstallArgs }
+          if ($uninstallArgs -notmatch '(^|\s)/S($|\s)') { $args += "/S" }
+          $remove = Start-Process -FilePath $uninstallExe -ArgumentList $args -Wait -PassThru
+          if ($remove.ExitCode -ne 0) { throw "Silent uninstall exited $($remove.ExitCode)" }
+          Start-Sleep -Seconds 2
+          $remaining = Get-ItemProperty $roots -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -eq "Coding Tools MCP" } |
+            Select-Object -First 1
+          if ($remaining) { throw "Uninstall registration remains" }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: issue010-windows-package
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            evidence/
+          if-no-files-found: warn
+          retention-days: 14

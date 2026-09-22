@@ -5,7 +5,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use serde::Serialize;
 use serde_json::{json, Value};
 use ring::hmac;
-use super::{principal::VerifiedPrincipal, session_policy::SessionPolicy,
+use super::{principal::VerifiedPrincipal, session_policy::{NewChatAdmission, SessionPolicy},
     exclusive_lease::{Owner, Phase}, chat_events::ChatEvent};
 
 pub const SCOPES: &[&str] = &[
@@ -13,6 +13,7 @@ pub const SCOPES: &[&str] = &[
     "task.manage", "history.read", "history.write", "harness.write",
 ];
 const PENDING: u64 = 90;
+const NEW_CHAT_WINDOW: u64 = 90;
 const MAX_RECORDS: usize = 64;
 
 #[derive(Clone)]
@@ -71,6 +72,7 @@ impl Record {
 struct State {
     records: HashMap<String, Record>, owners: HashMap<String, Owner>,
     policies: HashMap<String, SessionPolicy>, flights: HashMap<String, usize>,
+    admission_windows: HashMap<String, Instant>,
     epoch: u64, revision: u64,
 }
 #[derive(Clone)]
@@ -105,6 +107,11 @@ pub(crate) fn unix_now() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 fn denied(code: &str) -> Value {
+    if code == "CHAT_AUTHORIZATION_UNAVAILABLE" {
+        return json!({"ok":false,"error":{"code":code,"category":"permission","retryable":false,
+            "message":"Workspace authorization requests are not currently accepted. Do not retry."},
+            "requires_local_action":false});
+    }
     if ["EXCLUSIVE_CHAT_LOCKED","CHAT_WORK_DRAINING","CHAT_RECOVERY_REQUIRED"].contains(&code) {
         return json!({"ok":false,"error":{"code":code,"category":"permission",
             "message":"This workspace is reserved by another conversation or is draining prior work. Do not request authorization or poll. The desktop owner controls release.",
@@ -150,9 +157,34 @@ impl ChatAuthorizer {
             Self::revoke_locked(&mut state, profile, None);
             Self::drain_transition(&mut state,profile);
             state.policies.insert(profile.into(), policy.clone());
+            state.admission_windows.remove(profile);
             self.event(&mut state, profile, "changed", None);
         }
         Ok(())
+    }
+
+    pub(crate) fn arm_new_chat(&self, profile: &str) -> Result<(), String> {
+        self.reconcile(profile);
+        if self.fence(profile).is_some_and(|f| !f.ready()) {
+            return Err("工作区仍处于恢复锁定，不能开放新聊天申请".into());
+        }
+        let mut state = self.state.lock().map_err(|_| "授权状态不可用")?;
+        if Self::policy(&state, profile).new_chat_admission != NewChatAdmission::LocalWindow {
+            return Err("当前新聊天策略不是“仅在本机临时开放时接受”".into());
+        }
+        state.admission_windows.insert(
+            profile.into(),
+            Instant::now() + Duration::from_secs(NEW_CHAT_WINDOW),
+        );
+        self.event(&mut state, profile, "changed", None);
+        Ok(())
+    }
+
+    pub(crate) fn disarm_new_chat(&self, profile: &str) {
+        let mut state = self.state.lock().expect("chat authorization lock");
+        if state.admission_windows.remove(profile).is_some() {
+            self.event(&mut state, profile, "changed", None);
+        }
     }
     pub(crate) fn register_work(&self, profile: &str, sessions: Arc<crate::tools::session::SessionStore>, tasks: Arc<crate::tools::exec_tasks::ExecTaskStore>) {
         let mut work = self.work.lock().expect("chat work registry");
@@ -258,6 +290,23 @@ impl ChatAuthorizer {
             }
         }
 
+        let policy = Self::policy(&state, &req.profile);
+        let mut consume_local_window = false;
+        match policy.new_chat_admission {
+            NewChatAdmission::Review => {}
+            NewChatAdmission::DenyNew => return denied("CHAT_AUTHORIZATION_UNAVAILABLE"),
+            NewChatAdmission::LocalWindow => {
+                let now = Instant::now();
+                match state.admission_windows.get(&req.profile).copied() {
+                    Some(deadline) if deadline > now => consume_local_window = true,
+                    _ => {
+                        state.admission_windows.remove(&req.profile);
+                        return denied("CHAT_AUTHORIZATION_UNAVAILABLE");
+                    }
+                }
+            }
+        }
+
         // This guard is acquired while the authorization mutex is held and is
         // retained until the new pending record/event has committed. That makes
         // pause-vs-authorization allocation linearizable without coupling the
@@ -268,6 +317,15 @@ impl ChatAuthorizer {
         };
 
         let now = Instant::now();
+        if consume_local_window {
+            match state.admission_windows.get(&req.profile).copied() {
+                Some(deadline) if deadline > now => {}
+                _ => {
+                    state.admission_windows.remove(&req.profile);
+                    return denied("CHAT_AUTHORIZATION_UNAVAILABLE");
+                }
+            }
+        }
         for r in state.records.values_mut() { r.refresh(now); }
         state.records.retain(|_, r| matches!(r.view.status.as_str(), "active" | "pending"));
         if state.records.values().filter(|r| r.profile == req.profile).count() >= MAX_RECORDS || state.records.len() >= 1024 {
@@ -278,6 +336,9 @@ impl ChatAuthorizer {
             scopes: requested, created_at: wall, expires_at: wall + PENDING, idle_expires_at: wall + PENDING };
         state.records.insert(key.into(), Record { profile: req.profile.clone(), binding: key.into(), view: view.clone(),
             since: now, touched: now, lease_seconds: policy.chat_lease_ttl_seconds, idle_seconds: policy.chat_idle_timeout_seconds });
+        if consume_local_window {
+            state.admission_windows.remove(&req.profile);
+        }
         if policy.exclusive { state.owners.insert(req.profile.clone(), Owner { binding: key.into(), request_id: view.id.clone(), phase: Phase::Reserved }); }
         self.event(&mut state, &req.profile, "pending", Some(view.id.clone()));
         json!({"ok":true,"authorization":view,"next":"Approve this fingerprint in the local desktop. Do not send any password or token in chat."})
@@ -346,9 +407,21 @@ impl ChatAuthorizer {
         let state = self.state.lock().expect("chat authorization lock");
         let mut views: Vec<_> = state.records.values().filter(|r| r.profile == profile).map(|r| r.view.clone()).collect();
         views.sort_by(|a,b| a.id.cmp(&b.id));
-        json!({"records":views,"exclusive":Self::policy(&state,profile).exclusive,"available_scopes":SCOPES,
+        let policy = Self::policy(&state, profile);
+        let now = Instant::now();
+        let remaining = state.admission_windows.get(profile).copied()
+            .filter(|deadline| *deadline > now)
+            .map(|deadline| deadline.duration_since(now).as_secs().max(1));
+        let admission_expires_at = remaining.map(|seconds| unix_now().saturating_add(seconds));
+        json!({"records":views,"exclusive":policy.exclusive,"available_scopes":SCOPES,
             "lease_state":state.owners.get(profile).map(|o|serde_json::to_value(o.phase).unwrap()).unwrap_or(json!("free")),
-            "revision":state.revision,"policy":Self::policy(&state,profile),
+            "revision":state.revision,"policy":policy,
+            "admission":{
+                "mode":policy.new_chat_admission.as_str(),
+                "armed":remaining.is_some() && policy.new_chat_admission == NewChatAdmission::LocalWindow,
+                "expires_at":admission_expires_at,
+                "single_use":true
+            },
             "recovery":self.fence(profile).map(|f|f.snapshot()).unwrap_or(json!({"required":false}))})
     }
     fn permit_locked(state: &mut State, req: &RemoteRequest, key: &str, scopes: &[&str]) -> Result<(), &'static str> {

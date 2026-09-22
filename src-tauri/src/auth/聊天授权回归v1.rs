@@ -220,6 +220,242 @@ fn recovery_required_precedes_offline_authorization_suppression() {
     assert!(svc.snapshot(&req.profile)["records"].as_array().unwrap().is_empty());
 }
 
+fn admission_policy(mode: NewChatAdmission, exclusive: bool) -> SessionPolicy {
+    SessionPolicy { new_chat_admission: mode, exclusive, ..Default::default() }
+}
+
+#[test]
+fn local_window_is_single_use_and_resume_of_existing_grant_does_not_consume_a_new_ticket() {
+    let svc = Arc::new(ChatAuthorizer::default());
+    let profile = "new-chat-local-window";
+    svc.configure(profile, &admission_policy(NewChatAdmission::LocalWindow, true)).unwrap();
+    let a = request(&svc, profile, "A");
+
+    let closed = svc.request(&a, &json!({}));
+    assert_eq!(closed["error"]["code"], "CHAT_AUTHORIZATION_UNAVAILABLE", "{closed}");
+    assert!(svc.snapshot(profile)["records"].as_array().unwrap().is_empty());
+
+    svc.arm_new_chat(profile).unwrap();
+    let armed = svc.snapshot(profile);
+    assert_eq!(armed["admission"]["mode"], "local_window");
+    assert_eq!(armed["admission"]["armed"], true);
+    assert_eq!(armed["admission"]["single_use"], true);
+    assert!(armed["admission"]["expires_at"].as_u64().is_some());
+
+    let pending = svc.request(&a, &json!({"scopes":["files.read"]}));
+    assert_eq!(pending["authorization"]["status"], "pending", "{pending}");
+    let id = pending["authorization"]["id"].as_str().unwrap().to_owned();
+    assert_eq!(svc.snapshot(profile)["admission"]["armed"], false);
+
+    svc.arm_new_chat(profile).unwrap();
+    let retry = svc.request(&a, &json!({"scopes":["exec.run"]}));
+    assert_eq!(retry["authorization"]["id"], id);
+    assert_eq!(retry["authorization"]["status"], "pending");
+    assert_eq!(svc.snapshot(profile)["admission"]["armed"], true, "existing pending retry consumed admission ticket");
+
+    svc.decide(profile, &id, true, &["files.read".into()]).unwrap();
+    let active_retry = svc.request(&a, &json!({}));
+    assert_eq!(active_retry["authorization"]["id"], id);
+    assert_eq!(active_retry["authorization"]["status"], "active");
+    assert_eq!(svc.snapshot(profile)["admission"]["armed"], true, "existing active retry consumed admission ticket");
+}
+
+#[test]
+fn local_window_allows_exactly_one_concurrent_new_grant_even_without_exclusive_owner() {
+    let svc = Arc::new(ChatAuthorizer::default());
+    let profile = "new-chat-single-use-race";
+    svc.configure(profile, &admission_policy(NewChatAdmission::LocalWindow, false)).unwrap();
+    svc.arm_new_chat(profile).unwrap();
+    let mut events = svc.subscribe();
+    let barrier = Arc::new(std::sync::Barrier::new(2));
+
+    let threads: Vec<_> = ["A", "B"].into_iter().map(|session| {
+        let svc = svc.clone();
+        let barrier = barrier.clone();
+        std::thread::spawn(move || {
+            let req = request(&svc, profile, session);
+            barrier.wait();
+            svc.request(&req, &json!({"scopes":["files.read"]}))
+        })
+    }).collect();
+    let results: Vec<_> = threads.into_iter().map(|thread| thread.join().unwrap()).collect();
+
+    assert_eq!(results.iter().filter(|value| value["ok"] == true).count(), 1, "{results:?}");
+    assert_eq!(
+        results.iter().filter(|value| value["error"]["code"] == "CHAT_AUTHORIZATION_UNAVAILABLE").count(),
+        1,
+        "{results:?}"
+    );
+    assert_eq!(svc.snapshot(profile)["records"].as_array().unwrap().len(), 1);
+    assert_eq!(svc.snapshot(profile)["admission"]["armed"], false);
+    let event = events.try_recv().expect("exactly one new pending event");
+    assert_eq!(event.kind, "pending");
+    assert!(events.try_recv().is_err());
+}
+
+#[test]
+fn local_window_allocation_and_pause_have_one_linearization_order() {
+    let svc = Arc::new(ChatAuthorizer::default());
+    let profile = "new-chat-window-pause-race";
+    svc.configure(profile, &admission_policy(NewChatAdmission::LocalWindow, false)).unwrap();
+    svc.arm_new_chat(profile).unwrap();
+
+    let req = request(&svc, profile, "A");
+    let gate = crate::runtime::WorkspaceExecutionGate::shared();
+    let request_gate = gate.clone();
+    let request_svc = svc.clone();
+    let request_req = req.clone();
+    let (hold_tx, hold_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+
+    let requester = std::thread::spawn(move || {
+        request_svc.request_guarded(&request_req, &json!({}), || {
+            let hold = request_gate.hold_online()
+                .map_err(|_| json!({"ok":false,"error":{"code":"CHAT_AUTHORIZATION_UNAVAILABLE"}}))?;
+            hold_tx.send(()).unwrap();
+            release_rx.recv().unwrap();
+            Ok(hold)
+        })
+    });
+
+    hold_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+
+    let pause_gate = gate.clone();
+    let (pause_done_tx, pause_done_rx) = std::sync::mpsc::channel();
+    let pauser = std::thread::spawn(move || {
+        let snapshot = pause_gate.pause().unwrap();
+        pause_done_tx.send(snapshot).unwrap();
+    });
+
+    std::thread::sleep(Duration::from_millis(20));
+    assert!(
+        pause_done_rx.try_recv().is_err(),
+        "Pause committed while a new pending allocation still held the Online linearization point"
+    );
+
+    release_tx.send(()).unwrap();
+    let result = requester.join().unwrap();
+    assert_eq!(result["authorization"]["status"], "pending", "{result}");
+
+    let paused = pause_done_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+    assert_eq!(paused.availability.as_str(), "offline");
+    pauser.join().unwrap();
+
+    let snapshot = svc.snapshot(profile);
+    assert_eq!(snapshot["records"].as_array().unwrap().len(), 1);
+    assert_eq!(snapshot["admission"]["armed"], false);
+}
+
+#[test]
+fn local_window_survives_offline_rejection_until_resume_or_expiry() {
+    let root = tempfile::tempdir().unwrap();
+    let harness = tempfile::tempdir().unwrap();
+    let svc = Arc::new(ChatAuthorizer::default());
+    let profile = "new-chat-window-offline";
+    svc.configure(profile, &admission_policy(NewChatAdmission::LocalWindow, true)).unwrap();
+    svc.arm_new_chat(profile).unwrap();
+
+    let req = request(&svc, profile, "A");
+    let mut ctx = ToolContext::for_test(root.path().into(), harness.path().into()).unwrap();
+    ctx.remote_request = Some(req);
+    ctx.execution_gate.pause().unwrap();
+
+    let blocked = call_tool(&ctx, "request_chat_authorization", &json!({}));
+    assert_eq!(blocked["error"]["code"], "CHAT_AUTHORIZATION_UNAVAILABLE", "{blocked}");
+    assert_eq!(svc.snapshot(profile)["records"].as_array().unwrap().len(), 0);
+    assert_eq!(svc.snapshot(profile)["admission"]["armed"], true, "Offline request consumed local admission ticket");
+
+    ctx.execution_gate.resume().unwrap();
+    let pending = call_tool(&ctx, "request_chat_authorization", &json!({}));
+    assert_eq!(pending["authorization"]["status"], "pending", "{pending}");
+    assert_eq!(svc.snapshot(profile)["admission"]["armed"], false);
+}
+
+#[test]
+fn deny_new_and_closed_window_are_non_disclosing_but_existing_validation_stays_first() {
+    let svc = Arc::new(ChatAuthorizer::default());
+
+    for (profile, mode) in [
+        ("deny-new-profile", NewChatAdmission::DenyNew),
+        ("closed-window-profile", NewChatAdmission::LocalWindow),
+    ] {
+        svc.configure(profile, &admission_policy(mode, true)).unwrap();
+        let req = request(&svc, profile, "A");
+
+        let malformed = svc.request(&req, &json!({"unexpected":true}));
+        assert_eq!(malformed["ok"], false, "{malformed}");
+        assert_ne!(malformed["error"]["code"], "CHAT_AUTHORIZATION_UNAVAILABLE", "{malformed}");
+
+        let blocked = svc.request(&req, &json!({}));
+        assert_eq!(blocked["error"]["code"], "CHAT_AUTHORIZATION_UNAVAILABLE", "{blocked}");
+        assert_eq!(blocked["error"]["category"], "permission");
+        assert_eq!(blocked["requires_local_action"], false);
+        let text = blocked.to_string().to_ascii_lowercase();
+        for forbidden in ["offline", "paused", "deny_new", "local_window", profile] {
+            assert!(!text.contains(forbidden), "admission denial leaked {forbidden:?}: {blocked}");
+        }
+        assert_eq!(svc.status(&req)["authorization"]["status"], "unauthorized");
+    }
+}
+
+#[test]
+fn expired_window_and_policy_reconfiguration_clear_local_admission_state() {
+    let svc = Arc::new(ChatAuthorizer::default());
+    let profile = "new-chat-window-expiry";
+    svc.configure(profile, &admission_policy(NewChatAdmission::LocalWindow, true)).unwrap();
+    svc.arm_new_chat(profile).unwrap();
+
+    {
+        let mut state = svc.state.lock().unwrap();
+        state.admission_windows.insert(profile.into(), Instant::now() - Duration::from_secs(1));
+    }
+    let expired = svc.request(&request(&svc, profile, "A"), &json!({}));
+    assert_eq!(expired["error"]["code"], "CHAT_AUTHORIZATION_UNAVAILABLE");
+    assert_eq!(svc.snapshot(profile)["admission"]["armed"], false);
+
+    svc.arm_new_chat(profile).unwrap();
+    assert_eq!(svc.snapshot(profile)["admission"]["armed"], true);
+    svc.configure(profile, &admission_policy(NewChatAdmission::DenyNew, true)).unwrap();
+    let snapshot = svc.snapshot(profile);
+    assert_eq!(snapshot["admission"]["mode"], "deny_new");
+    assert_eq!(snapshot["admission"]["armed"], false);
+    assert!(snapshot["admission"]["expires_at"].is_null());
+}
+
+#[test]
+fn recovery_and_exclusive_owner_stay_stronger_than_local_window_policy() {
+    let svc = Arc::new(ChatAuthorizer::default());
+    let profile = "new-chat-policy-ordering";
+    svc.configure(profile, &admission_policy(NewChatAdmission::LocalWindow, true)).unwrap();
+    svc.arm_new_chat(profile).unwrap();
+
+    let a = request(&svc, profile, "A");
+    let pending = svc.request(&a, &json!({}));
+    let id = pending["authorization"]["id"].as_str().unwrap().to_owned();
+    svc.decide(profile, &id, true, &["files.read".into(), "workspace.read".into(), "task.read".into(), "history.read".into()])
+        .unwrap_or_else(|_| svc.decide(profile, &id, true, &["workspace.read".into()]).unwrap());
+
+    svc.arm_new_chat(profile).unwrap();
+    let foreign = svc.request(&request(&svc, profile, "B"), &json!({}));
+    assert_eq!(foreign["error"]["code"], "EXCLUSIVE_CHAT_LOCKED", "{foreign}");
+
+    let recovery_profile = "new-chat-recovery-ordering";
+    svc.configure(recovery_profile, &admission_policy(NewChatAdmission::LocalWindow, true)).unwrap();
+    svc.arm_new_chat(recovery_profile).unwrap();
+    let req = request(&svc, recovery_profile, "R");
+    let binding = req.binding.as_ref().unwrap().clone();
+    let root = tempfile::tempdir().unwrap();
+    let initial = super::super::execution_fence::ExecutionFence::open(root.path()).unwrap();
+    initial.mark(&binding).unwrap();
+    drop(initial);
+    let recovered = Arc::new(super::super::execution_fence::ExecutionFence::open(root.path()).unwrap());
+    assert!(!recovered.ready());
+    svc.fences.lock().unwrap().insert(recovery_profile.into(), recovered);
+
+    let blocked = svc.request(&req, &json!({}));
+    assert_eq!(blocked["error"]["code"], "CHAT_RECOVERY_REQUIRED", "{blocked}");
+}
+
 #[test]
 fn runtime_cwd_sessions_jobs_harness_and_history_are_separate() {
     let root = tempfile::tempdir().unwrap(); let h = tempfile::tempdir().unwrap();

@@ -3,9 +3,10 @@
   import { invoke } from "@tauri-apps/api/core";
   import { confirm } from "@tauri-apps/plugin-dialog";
   import type { AuthConfig } from "$lib/types";
-  import { policyFromFields, sessionPolicy } from "$lib/remote-session-policy";
+  import { policyFromFields, sessionPolicy, type NewChatAdmission } from "$lib/remote-session-policy";
   let { workspaceId, auth, onSaveProfile }: { workspaceId: string; auth: AuthConfig; onSaveProfile: (auth: AuthConfig) => Promise<void> } = $props();
   let exclusive = $state(true);
+  let newChatAdmission = $state<NewChatAdmission>("review");
   let accessMinutes = $state<number | undefined>(60);
   let refreshDays = $state<number | undefined>(30);
   let leaseHours = $state<number | undefined>(24);
@@ -21,14 +22,15 @@
   $effect(() => {
     const id = workspaceId; const p = sessionPolicy(auth.session_policy);
     if (id !== loadedId) { loadedId = id; operation++; busy = false; }
-    generation++; exclusive = p.exclusive; accessMinutes = p.access_token_ttl_seconds / 60;
+    generation++; exclusive = p.exclusive; newChatAdmission = p.new_chat_admission;
+    accessMinutes = p.access_token_ttl_seconds / 60;
     refreshDays = p.refresh_session_ttl_seconds / 86400; leaseHours = p.chat_lease_ttl_seconds / 3600;
     idleMinutes = p.chat_idle_timeout_seconds / 60; error = ""; result = "";
   });
   async function save() {
     if (busy) return; const id = workspaceId, current = generation, original = auth;
     let policy;
-    try { policy = policyFromFields(exclusive, accessMinutes, refreshDays, leaseHours, idleMinutes); }
+    try { policy = policyFromFields(exclusive, newChatAdmission, accessMinutes, refreshDays, leaseHours, idleMinutes); }
     catch (e) { error = String(e); return; }
     const op = ++operation; busy = true; error = ""; result = "";
     try {
@@ -52,7 +54,8 @@
   // Presentation-only navigation contract: never return draft or credential values.
   export function navigationState(): { dirty: boolean; busy: boolean } {
     const saved = sessionPolicy(auth.session_policy);
-    return { dirty: exclusive !== saved.exclusive || accessMinutes !== saved.access_token_ttl_seconds / 60 ||
+    return { dirty: exclusive !== saved.exclusive || newChatAdmission !== saved.new_chat_admission ||
+      accessMinutes !== saved.access_token_ttl_seconds / 60 ||
       refreshDays !== saved.refresh_session_ttl_seconds / 86400 || leaseHours !== saved.chat_lease_ttl_seconds / 3600 ||
       idleMinutes !== saved.chat_idle_timeout_seconds / 60, busy };
   }
@@ -60,8 +63,17 @@
 <section class="remote-session-settings" aria-labelledby="remote-session-heading">
   <h3 id="remote-session-heading">远程会话安全</h3>
   <p>刷新令牌不等于聊天操作授权。令牌刷新不会续期、转移或自动批准独占聊天。</p>
+  <p>多人共用同一 ChatGPT 账号时，建议选择“仅在本机临时开放时接受”。这不会隐藏插件，但可以阻止陌生聊天自动制造本机审批请求。</p>
   <fieldset disabled={busy}>
     <label class="wide"><input type="checkbox" bind:checked={exclusive} />默认独占 ChatGPT 聊天（按工作区生效）</label>
+    <label class="wide admission-policy">
+      新聊天申请
+      <select bind:value={newChatAdmission}>
+        <option value="review">自动进入本机审批</option>
+        <option value="local_window">仅在本机临时开放时接受</option>
+        <option value="deny_new">禁止新聊天申请</option>
+      </select>
+    </label>
     <label>访问令牌有效期（分钟）<input type="number" min="5" max="480" step="1" bind:value={accessMinutes} /></label>
     <label>刷新会话有效期（天）<input type="number" min="1" max="90" step="1" bind:value={refreshDays} /></label>
     <label>独占聊天授权有效期（小时）<input type="number" min="1" max="720" step="1" bind:value={leaseHours} /></label>
@@ -75,5 +87,5 @@
   <div class="controls"><button type="button" class="tx-btn-primary" disabled={busy} onclick={() => void save()}>保存远程会话策略</button><button type="button" class="tx-btn-secondary" disabled={busy} onclick={() => void refreshStatus()}>查看刷新会话</button><button type="button" class="tx-btn-secondary" disabled={busy} onclick={() => void refreshStatus(true)}>撤销刷新会话</button></div>
 </section>
 <style>
-  .remote-session-settings{padding:1.25rem;border:1px solid var(--color-border);border-radius:12px;background:var(--card-bg);margin-top:1rem;}h3{font-size:1rem;font-weight:600;}p{font-size:.82rem;line-height:1.65;color:var(--color-text-muted);margin:.6rem 0;}fieldset{border:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1rem;margin:1rem 0;}label{display:flex;flex-direction:column;gap:.4rem;font-size:.85rem;}label.wide{grid-column:1/-1;flex-direction:row;align-items:center;gap:.6rem;}input[type=number]{padding:.6rem;border:1px solid var(--color-border);border-radius:8px;background:var(--card-bg);min-height:44px;}[role=alert],.warning{color:var(--danger);}.controls{display:flex;flex-wrap:wrap;gap:.7rem;}button{min-height:44px;}
+  .remote-session-settings{padding:1.25rem;border:1px solid var(--color-border);border-radius:12px;background:var(--card-bg);margin-top:1rem;}h3{font-size:1rem;font-weight:600;}p{font-size:.82rem;line-height:1.65;color:var(--color-text-muted);margin:.6rem 0;}fieldset{border:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1rem;margin:1rem 0;}label{display:flex;flex-direction:column;gap:.4rem;font-size:.85rem;}label.wide{grid-column:1/-1;flex-direction:row;align-items:center;gap:.6rem;}input[type=number],select{padding:.6rem;border:1px solid var(--color-border);border-radius:8px;background:var(--card-bg);min-height:44px;}.admission-policy{align-items:flex-start;}.admission-policy select{width:min(100%,360px);}[role=alert],.warning{color:var(--danger);}.controls{display:flex;flex-wrap:wrap;gap:.7rem;}button{min-height:44px;}
 </style>

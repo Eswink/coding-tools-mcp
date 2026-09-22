@@ -4,7 +4,25 @@
   import { invoke } from "@tauri-apps/api/core";
   import { confirm } from "@tauri-apps/plugin-dialog";
   type Grant = { id: string; fingerprint: string; status: string; scopes: string[]; expires_at: number; idle_expires_at: number };
-  type Snapshot = { records: Grant[]; exclusive: boolean; oauth_ready: boolean; available_scopes: string[]; lease_state: string; policy: { chat_lease_ttl_seconds: number; chat_idle_timeout_seconds: number }; recovery: {required: boolean; generation: string} };
+  type Snapshot = {
+    records: Grant[];
+    exclusive: boolean;
+    oauth_ready: boolean;
+    available_scopes: string[];
+    lease_state: string;
+    policy: {
+      chat_lease_ttl_seconds: number;
+      chat_idle_timeout_seconds: number;
+      new_chat_admission: "review" | "local_window" | "deny_new";
+    };
+    admission: {
+      mode: "review" | "local_window" | "deny_new";
+      armed: boolean;
+      expires_at: number | null;
+      single_use: boolean;
+    };
+    recovery: {required: boolean; generation: string};
+  };
   let { workspaceId }: { workspaceId: string } = $props();
   let snapshot = $state<Snapshot | null>(null);
   let error = $state("");
@@ -68,6 +86,22 @@
   {#if snapshot}
     {#if !snapshot.oauth_ready}<p role="alert">当前未启用 OAuth。所有网络业务调用将被拒绝，请先配置 OAuth；旧 Actions 不支持聊天授权。</p>{/if}
     <p class="exclusive">独占聊天模式：{snapshot.exclusive ? "开启" : "关闭"}。请在“远程会话安全”中修改并保存。</p>
+    {#if snapshot.admission.mode === "local_window"}
+      {#if snapshot.admission.armed}
+        <p role="status">
+          新聊天申请：本机临时开放中；仅允许下一条新申请，剩余
+          {Math.max(0, Math.ceil((snapshot.admission.expires_at ?? now) - now))} 秒。
+        </p>
+        <button type="button" class="tx-btn-secondary" disabled={busy} onclick={() => void act("disarm_new_chat")}>关闭新聊天申请</button>
+      {:else}
+        <p>新聊天申请：默认关闭。仅在你准备核对新聊天指纹时临时开放。</p>
+        <button type="button" class="tx-btn-primary" disabled={busy || snapshot.recovery.required} onclick={() => void act("arm_new_chat")}>允许下一条新聊天申请（90 秒）</button>
+      {/if}
+    {:else if snapshot.admission.mode === "deny_new"}
+      <p>新聊天申请已关闭。现有已授权聊天可继续按其租约使用；如需改变策略，请到“远程会话安全”保存设置。</p>
+    {:else}
+      <p>新聊天申请：自动进入本机审批（兼容模式）。陌生聊天可以创建待审批请求，但仍必须在本机核对指纹后批准。</p>
+    {/if}
     <p>待审批 90 秒；新授权最长 {snapshot.policy.chat_lease_ttl_seconds / 3600} 小时；空闲释放：{snapshot.policy.chat_idle_timeout_seconds === 0 ? "关闭" : `${snapshot.policy.chat_idle_timeout_seconds / 60} 分钟`}。应用重启后重新审批，令牌刷新不会续期聊天授权。</p>
     {#if snapshot.lease_state === "draining"}
       <p role="status">排空中：旧会话仍有未结束操作或持久化尚未确认，暂不接受其他聊天申请。撤销不回滚已执行操作。</p>

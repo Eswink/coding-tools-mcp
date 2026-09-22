@@ -10,7 +10,8 @@
 (() => {
   /** @template T @param {T} value @returns {T} */
   const clone = value => structuredClone(value);
-  const policy = {exclusive:true,access_token_ttl_seconds:3600,refresh_session_ttl_seconds:2592000,chat_lease_ttl_seconds:86400,chat_idle_timeout_seconds:0};
+  /** @type {import('../../src/lib/remote-session-policy').SessionPolicy} */
+  const policy = {exclusive:true,access_token_ttl_seconds:3600,refresh_session_ttl_seconds:2592000,chat_lease_ttl_seconds:86400,chat_idle_timeout_seconds:0,new_chat_admission:'review'};
   /** @type {import('../../src/lib/types').WorkspaceProfile} */
   const profile = {id:'fixture-workspace',name:'research-system',path:'D:\\research-system',
     tunnel:{type:'frp',public_url:'https://research.example.test',frp_server:'frp.example.test',frp_subdomain:'research',frp_server_port:7000,frp_profile_id:'fixture-frp',cloudflare_mode:'quick',cloudflare_http2:true,use_proxy:true},
@@ -25,6 +26,9 @@
     calls:[],unknown:[],pending:[],revision:1,confirmation:false,healthFailure:false,
     runtime:{mcp:'running',actions:'stopped'},secrets:Object.create(null)};
   let serial=0;
+  let admissionArmed=false;
+  /** @type {number|null} */
+  let admissionExpiresAt=null;
   /** @type {Map<number,(value:unknown)=>void>} */
   const callbacks=new Map();
   /** @type {Map<number,{event:string,handler:number,id:number}>} */
@@ -99,7 +103,11 @@
       if(args.action==='approve'||args.action==='deny'){
         state.pending=state.pending.filter(r=>r.grant.id!==args.requestId);state.revision++;emit('chat-authorization-changed');
       }
-      return {records:[],exclusive:true,oauth_ready:true,available_scopes:['files.read','files.write','exec.run'],lease_state:'free',policy:clone(policy),recovery:{required:false,generation:0}};
+      if(args.action==='arm_new_chat'){admissionArmed=true;admissionExpiresAt=Math.floor(Date.now()/1000)+90;}
+      if(args.action==='disarm_new_chat'){admissionArmed=false;admissionExpiresAt=null;}
+      return {records:[],exclusive:true,oauth_ready:true,available_scopes:['files.read','files.write','exec.run'],lease_state:'free',
+        policy:clone(policy),admission:{mode:policy.new_chat_admission,armed:admissionArmed,expires_at:admissionExpiresAt,single_use:true},
+        recovery:{required:false,generation:0}};
     }
     state.unknown.push(command);throw Error(`UNIMPLEMENTED SYNTHETIC IPC: ${command}`);
   }
