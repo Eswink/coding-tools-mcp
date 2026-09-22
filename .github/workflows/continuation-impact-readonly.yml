@@ -1,4 +1,4 @@
-name: Continuation metadata proposal review (never merge helper)
+name: Continuation assignment rebase review (never merge helper)
 on:
   push:
     branches: ['ci/continuation-impact-20260923']
@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ee93427eb3da95b64fb4ca1d91601850429cb6dd
+          ref: ff1907fc3bd3309f71d677193b2f0bf7073f8254
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
-      - name: Reconstruct bounded proposal and verify native evidence independently
+      - name: Preserve concurrent manifest work and reconstruct only reviewed assignment files
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -30,70 +30,29 @@ jobs:
           python - <<'PY'
           import base64, hashlib, json, os, subprocess, urllib.request
           from pathlib import Path
-          target = '50b79eb5f84b27d573acd295c343771d5d93b63b'
-          base = 'ee93427eb3da95b64fb4ca1d91601850429cb6dd'
-          def api(path):
-              req = urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/' + path,
+          changes={'.github/workflows/cloud-delivery.yml':'9d073b7b2dbc17d41847d06ad298aef2c30d902a',
+                   'tests/delivery/metadata_contract.test.mjs':'2db50de6c790fe42e454f6c0eab5e65316f384a1'}
+          before=Path('tools/delivery/manifest.json').read_bytes()
+          for name,sha in changes.items():
+              req=urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/git/blobs/'+sha,
                   headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
               with urllib.request.urlopen(req,timeout=30) as response:
-                  return json.load(response)
-          for run_id, workflow in [(35773332089,'.github/workflows/local-agent-runtime.yml'),
-                                   (35773332161,'.github/workflows/origin-migration.yml')]:
-              run = api('actions/runs/'+str(run_id))
-              assert run['head_sha']==base and run['status']=='completed' and run['conclusion']=='success'
-              assert run['path']==workflow and run['head_repository']['full_name']=='Eswink/coding-tools-mcp'
-              jobs=api('actions/runs/'+str(run_id)+'/jobs?per_page=100')
-              assert jobs['total_count']==len(jobs['jobs']) and len(jobs['jobs'])>=2
-              assert all(j['status']=='completed' and j['conclusion']=='success' for j in jobs['jobs'])
-              Path('evidence/verified-run-'+str(run_id)+'.json').write_text(json.dumps({
-                  'run':run_id,'source':base,'workflow':workflow,'jobs':[{k:j[k] for k in ['id','name','conclusion']} for j in jobs['jobs']]}),encoding='utf-8')
-          before=json.loads(Path('tools/delivery/manifest.json').read_text())
-          source=api('git/trees/'+target+'?recursive=1')
-          assert source['sha']==target and not source.get('truncated')
-          old={}
-          for row in subprocess.check_output(['git','ls-tree','-rz','--full-tree','HEAD']).split(b'\0'):
-              if row:
-                  meta,name=row.decode('utf-8').split('\t',1)
-                  old[name]=tuple(meta.split())
-          proposed={x['path']:(x['mode'],x['type'],x['sha']) for x in source['tree'] if x['type']!='tree'}
-          assert set(proposed)==set(old)
-          changed={p for p in proposed if proposed[p]!=old[p]}
-          assert changed=={'.github/workflows/cloud-delivery.yml','tests/delivery/metadata_contract.test.mjs','tools/delivery/manifest.json'}
-          for name in sorted(changed):
-              mode,kind,sha=proposed[name]
-              assert mode=='100644' and kind=='blob'
-              blob=api('git/blobs/'+sha)
-              assert blob['encoding']=='base64' and blob['size']<=100000
+                  blob=json.load(response)
+              assert blob['sha']==sha and blob['encoding']=='base64' and blob['size']<20000
               data=base64.b64decode(blob['content'])
               assert subprocess.check_output(['git','hash-object','--stdin'],input=data).decode().strip()==sha
               Path(name).write_bytes(data)
-          after=json.loads(Path('tools/delivery/manifest.json').read_text())
-          assert {k:v for k,v in before.items() if k!='tasks'}=={k:v for k,v in after.items() if k!='tasks'}
-          assert [t['id'] for t in before['tasks']]==[t['id'] for t in after['tasks']]
-          allowed={'tool-runtime','exec-unification','exec-policy','local-trace','origin-migration'}
-          for previous,current in zip(before['tasks'],after['tasks']):
-              if current['id'] not in allowed:
-                  assert previous==current, current['id']
-                  continue
-              excluded={'evidence','issue','state'}
-              if current['id']=='origin-migration':
-                  assert previous['paths']==['deploy/cloud-gateway']
-                  assert current['paths']==previous['paths']+['tests/cloud-gateway-deployment/test_migration.py','.github/workflows/origin-migration.yml']
-                  excluded.add('paths')
-              assert {k:v for k,v in previous.items() if k not in excluded}=={k:v for k,v in current.items() if k not in excluded}
-              assert current['state']=='verified' and current['evidence']['revision']==base
-              assert current['issue']==({'local-trace':56,'origin-migration':57}.get(current['id'],previous['issue']))
-              assert current['evidence']['run_id']==(35773332161 if current['id']=='origin-migration' else 35773332089)
-              for path,digest in current['evidence']['files'].items():
-                  assert hashlib.sha256(Path(path).read_bytes()).hexdigest()==digest, path
-          subprocess.run(['git','add','--',*sorted(changed)],check=True)
-          assert subprocess.check_output(['git','write-tree'],text=True).strip()==target
-          hashes={p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in sorted(changed)}
-          Path('evidence/proposed-tree.txt').write_text(target)
+          subprocess.run(['git','add','--',*changes],check=True)
+          assert Path('tools/delivery/manifest.json').read_bytes()==before
+          tree=subprocess.check_output(['git','write-tree'],text=True).strip()
+          assert tree=='7c0d9e1a3c203aa65e3cd6244b873f762207028a'
+          Path('evidence/proposed-tree.txt').write_text(tree)
+          paths=list(changes)+['tools/delivery/manifest.json','tools/delivery/dispatch.py','tests/delivery/test_dispatch.py']
+          hashes={p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths}
           Path('evidence/source-hashes.json').write_text(json.dumps(hashes,indent=2))
           print(json.dumps(hashes,indent=2))
           PY
-      - name: Exact staged graph impact and metadata regressions without issue writes
+      - name: Actual rebased impact and all dispatch contracts, without issue writes
         shell: bash
         run: |
           set -euo pipefail
@@ -117,12 +76,12 @@ jobs:
           assert p['states']['local-trace']=='verified' and p['states']['origin-migration']=='verified'
           print(json.dumps({'counts':dict(Counter(p['states'].values())),'packets':p['packets'],'release_blockers':p['release_blockers']},indent=2))
           PY
-          test "$(git write-tree)" = 50b79eb5f84b27d573acd295c343771d5d93b63b
+          test "$(git write-tree)" = 7c0d9e1a3c203aa65e3cd6244b873f762207028a
           git diff --exit-code
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: continuation-metadata-review
+          name: continuation-assignment-rebase-review
           path: evidence/
           retention-days: 14
           if-no-files-found: error
