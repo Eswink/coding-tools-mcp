@@ -1,0 +1,54 @@
+name: Isolated RC60 exact-source impact review (never merge)
+
+on:
+  push:
+    branches: ['ci/rc60-impact-20260923-r1']
+
+permissions:
+  contents: read
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: c22e08dc0bb2d2c80714b7efb2c3e90e1e7b808b
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Build pinned graph and inspect #60 candidate blast radius
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          test "$(git rev-parse HEAD)" = c22e08dc0bb2d2c80714b7efb2c3e90e1e7b808b
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/analyze.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md
+          "$graph" impact 'Function:src-tauri/src/tools/异步命令v1.rs:run' --direction upstream > evidence/async-run-impact.json 2>&1
+          "$graph" impact 'Function:src-tauri/src/tools/进程树Windowsv2.rs:spawn' --direction upstream > evidence/windows-spawn-impact.json 2>&1
+          "$graph" context 'http_revoked_owner_drains_actual_background_process_before_successor' > evidence/failing-test-context.json 2>&1
+          sha256sum \
+            src-tauri/src/auth/exclusive_refresh_http_tests.rs \
+            src-tauri/src/tools/异步命令v1.rs \
+            src-tauri/src/tools/任务仓库v2.rs \
+            src-tauri/src/data/任务快照v2.rs \
+            src-tauri/src/tools/进程树Windowsv2.rs \
+            .github/workflows/发布候选验证v4.yml > evidence/source-hashes.txt
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+          cat evidence/async-run-impact.json evidence/windows-spawn-impact.json evidence/failing-test-context.json
+          git diff --exit-code
+          printf '%s\n' 'READ_ONLY_IMPACT_HELPER_NEVER_MERGE' > evidence/boundary.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: rc60-exact-source-impact
+          path: evidence/
+          retention-days: 7
+          if-no-files-found: error
