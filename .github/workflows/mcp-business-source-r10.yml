@@ -61,7 +61,11 @@ jobs:
           trap 'pg_ctl -D "$pgroot/data" -m fast -w stop >/dev/null || true' EXIT
           createdb -h 127.0.0.1 -p "$port" -U mcp_test coding_tools_identity_test
           export TEST_DATABASE_URL="postgresql://mcp_test@127.0.0.1:$port/coding_tools_identity_test"
+          cargo fmt --manifest-path services/cloud-gateway/Cargo.toml
+          git add -- services/cloud-gateway
           cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
+          git diff --cached --check
+          git write-tree > evidence/verified-tree.txt
           cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib 2>&1 | tee evidence/lib-tests.txt
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test mcp_service_contracts 2>&1 | tee evidence/service-tests.txt
@@ -128,7 +132,11 @@ jobs:
           xz -dc "$RUNNER_TEMP/mcp-r10/change.patch.xz" > "$RUNNER_TEMP/mcp-r10/change.patch"
           git checkout --detach "$BASE"
           git apply --index --whitespace=error-all "$RUNNER_TEMP/mcp-r10/change.patch"
+          cargo fmt --manifest-path services/cloud-gateway/Cargo.toml
+          git add -- services/cloud-gateway
           cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
+          git diff --cached --check
+          git write-tree > evidence/verified-tree.txt
           cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib 2>&1 | tee evidence/lib-tests.txt
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test mcp_service_contracts 2>&1 | tee evidence/service-tests.txt
