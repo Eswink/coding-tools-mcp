@@ -474,7 +474,7 @@ impl ProcessManager {
         }
 
         let command_for_policy = request.policy_command()?;
-        match policy.authorize(
+        match context.policy.authorize(
             &command_for_policy,
             context.call,
             context.verified,
