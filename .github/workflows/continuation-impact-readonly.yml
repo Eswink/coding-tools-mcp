@@ -1,0 +1,56 @@
+name: Continuation impact read-only helper
+on:
+  push:
+    branches: ['ci/continuation-impact-20260923']
+permissions:
+  contents: read
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: e789dd28ff329fe04f4128521bc1088dd2d0117e
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: '22'
+      - name: Recover plan and inspect existing call boundaries without editing implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9 mcp-probe-kit@4.0.1
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          probe="$RUNNER_TEMP/graph/node_modules/.bin/mcp-probe-kit"
+          set +e
+          "$probe" exec resume_plan --json "{\"project_root\":\"$PWD\"}" > evidence/resume-plan.json 2>&1
+          echo $? > evidence/resume-exit.txt
+          set -e
+          "$graph" analyze --workers 1 > evidence/analyze.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md
+          set +e
+          "$graph" query "ToolRegistry local admission invocation" > evidence/query.txt 2>&1
+          echo $? > evidence/query-exit.txt
+          for target in ToolRegistry invoke register; do
+            "$graph" impact "$target" --direction upstream > "evidence/impact-$target.txt" 2>&1
+            echo $? > "evidence/impact-$target-exit.txt"
+            "$graph" context "$target" > "evidence/context-$target.txt" 2>&1
+            echo $? > "evidence/context-$target-exit.txt"
+          done
+          "$graph" detect-changes --scope compare --base-ref 08a4e57d8e9d3959a8f9805d0b750c468a442cd7 > evidence/narrow-diff.txt 2>&1
+          echo $? > evidence/narrow-diff-exit.txt
+          set -e
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+          git diff --exit-code
+          echo 'READ_ONLY_HELPER_NEVER_MERGE' > evidence/boundary.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: continuation-impact-e789dd2
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
