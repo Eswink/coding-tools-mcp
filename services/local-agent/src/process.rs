@@ -251,7 +251,11 @@ pub struct ExecOutcome {
 
 impl ExecOutcome {
     pub fn command_ok(&self) -> bool {
-        self.termination == ExecTermination::Exited && self.exit_code == Some(0)
+        self.termination == ExecTermination::Exited
+            && self.exit_code == Some(0)
+            && self.output_complete
+            && !self.stdout_truncated
+            && !self.stderr_truncated
     }
 }
 
@@ -483,6 +487,11 @@ impl ProcessManager {
             let output_complete = join_io(stdout_task, stderr_task, stdin_task).await;
             let stdout = take_stream(&stdout_state);
             let stderr = take_stream(&stderr_state);
+            if termination == ExecTermination::Exited
+                && (stdout.truncated || stderr.truncated || !output_complete)
+            {
+                termination = ExecTermination::OutputLimit;
+            }
             let duration_ms = start.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
             let outcome = ExecOutcome {
                 session_id: supervisor_id,
