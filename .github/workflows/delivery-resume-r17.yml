@@ -42,16 +42,19 @@ jobs:
             echo "$?" > ../evidence/resume-plan.status
           fi
           git status --short > ../evidence/tooling-worktree-status.txt
-      - name: Pinned graph context and upstream impact for existing runtime entrypoints
+      - name: Pinned graph and runtime upstream impact
         working-directory: source
         shell: bash
         run: |
           set -uo pipefail
-          npx --yes gitnexus@1.4.8 analyze > ../evidence/graph-analyze.txt 2>&1
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9 > ../evidence/graph-install.txt 2>&1
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > ../evidence/graph-analyze.txt 2>&1
           echo "$?" > ../evidence/graph-analyze.status
-          npx --yes gitnexus@1.4.8 impact run --direction upstream > ../evidence/impact-run.txt 2>&1
-          echo "$?" > ../evidence/impact-run.status
-          npx --yes gitnexus@1.4.8 detect-changes --scope all > ../evidence/detect-changes.txt 2>&1
+          "$graph" impact --help > ../evidence/impact-help.txt 2>&1
+          "$graph" impact ProcessManager --direction upstream > ../evidence/impact-process-manager.txt 2>&1
+          echo "$?" > ../evidence/impact-process-manager.status
+          "$graph" detect-changes --scope compare --base-ref 758c60a6e74e624e144f9c19c5f19d04d17f7a13 > ../evidence/detect-changes.txt 2>&1
           echo "$?" > ../evidence/detect-changes.status
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
