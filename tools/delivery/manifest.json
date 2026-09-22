@@ -119,14 +119,14 @@
       "priority": 10,
       "release_required": true,
       "evidence": {
-        "revision": "b46d33015cd47ed7182f9ead27f150bc1828c1f4",
-        "run_id": 35721433652,
+        "revision": "2934c5b534dd2d76e46dd700b96ce1a4eaf83a91",
+        "run_id": 35751729664,
         "files": {
           "services/cloud-gateway/src/service/cli.rs": "a55b304a86b7667297e44e2b1a76c2c00ade35f3994ab2c53f8277285e30c8a6",
           "services/cloud-gateway/src/service/input.rs": "89b4dfe42906f250323d9cb53ec885e5da3a8750452791862caad055d4fa7cdc",
           "services/cloud-gateway/src/service/lifecycle.rs": "770f0e7380459e18d55e50646dac43fed6a7fdebe967609f3ef8c51e7658dca1",
           "services/cloud-gateway/src/service/mod.rs": "6fce3fb5d384be30f1c0684ee3a7ecd206ca8c776d5e9b7abf2258dccc6c0880",
-          "services/cloud-gateway/src/service/runtime.rs": "a0c87a03572d9f6a23c76b1c7e4462d56770c3001343f73bf94eacfae46cac22"
+          "services/cloud-gateway/src/service/runtime.rs": "87c3b649d5df8c6ac3d02e5eb42a6b8fd2f93e8696dd4e42b2b97937520ba82c"
         }
       }
     },
@@ -317,13 +317,13 @@
       "priority": 23,
       "release_required": true,
       "evidence": {
-        "revision": "c6f746533d9fb4c81cf5c2d5f1b2c55acc3b3fc4",
-        "run_id": 35736626909,
+        "revision": "2934c5b534dd2d76e46dd700b96ce1a4eaf83a91",
+        "run_id": 35751729527,
         "files": {
-          "services/cloud-gateway/src/mcp/http.rs": "9cef070a6c59a8b1f480ac6525f9c4dbefb9ef8b5b5af137c3a6defac45785ed",
+          "services/cloud-gateway/src/mcp/http.rs": "32cf4f790bafd728782247857a9c6dd5f69fa8a3db9597ba5885c29f522b0c33",
           "services/cloud-gateway/src/mcp/protocol.rs": "8c48fc4ea9af8049e2bd7bf444dcfa7bd13be1f8ce01cdb3ca8c8232c0e61192",
-          "services/cloud-gateway/src/service/mcp_runtime.rs": "036047002d58a32e197a575cca4661c5c1e5440386499d25e731753518297a80",
-          "services/cloud-gateway/tests/mcp_postgres.rs": "4e02f0f318fddf7dc00674d044b08d926ae4c83c2a0f6fba8f294bdff5579f9b"
+          "services/cloud-gateway/src/service/mcp_runtime.rs": "da0cca4befaccc7b9ab92753b66227c2018f2f3bd7f4d1efbcfd91a962d5d01e",
+          "services/cloud-gateway/tests/mcp_postgres.rs": "905a83515c17899f8be547f40dda3272f48638fe22e6dd3ca6cf89195e2466a4"
         }
       }
     },
@@ -342,10 +342,10 @@
       "priority": 24,
       "release_required": true,
       "evidence": {
-        "revision": "c6f746533d9fb4c81cf5c2d5f1b2c55acc3b3fc4",
-        "run_id": 35736626909,
+        "revision": "2934c5b534dd2d76e46dd700b96ce1a4eaf83a91",
+        "run_id": 35751729527,
         "files": {
-          "services/cloud-gateway/tests/mcp_postgres.rs": "4e02f0f318fddf7dc00674d044b08d926ae4c83c2a0f6fba8f294bdff5579f9b"
+          "services/cloud-gateway/tests/mcp_postgres.rs": "905a83515c17899f8be547f40dda3272f48638fe22e6dd3ca6cf89195e2466a4"
         }
       }
     },
