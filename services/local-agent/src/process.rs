@@ -692,6 +692,150 @@ mod tests {
         assert!(!rendered.contains(&executable.to_string_lossy().to_string()));
     }
 
+    fn fixture_context(
+        executable: &str,
+    ) -> (
+        crate::LocalAdmission,
+        ToolCall,
+        ExecPolicy,
+    ) {
+        let admission = crate::LocalAdmission::fixture(
+            "conversation-a",
+            "workspace-a",
+            [Capability::ProcessExec],
+            7,
+            60_000,
+        );
+        let call = ToolCall::new(
+            "request-a",
+            "conversation-a",
+            "workspace-a",
+            crate::ToolName::parse("exec_command").unwrap(),
+            serde_json::json!({}),
+        )
+        .unwrap();
+        let rule = crate::PrefixRule::new(
+            vec![crate::TokenPattern::exact(executable).unwrap()],
+            crate::ExecDecision::Allow,
+        )
+        .unwrap();
+        let policy = ExecPolicy::new(vec![rule], vec![], false).unwrap();
+        (admission, call, policy)
+    }
+
+    #[test]
+    fn process_child_echo() {
+        if std::env::args().any(|arg| arg == "--exact") {
+            println!("ctm-process-echo");
+        }
+    }
+
+    #[test]
+    fn process_child_timeout_fixture() {
+        if std::env::args().any(|arg| arg == "--exact") {
+            std::thread::sleep(Duration::from_secs(30));
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn manager_runs_structured_argv_and_captures_bounded_output() {
+        let executable = std::env::current_exe().unwrap();
+        let executable_text = executable.to_string_lossy().to_string();
+        let cwd = std::env::current_dir().unwrap();
+        let (admission, call, policy) = fixture_context(&executable_text);
+        let verified = VerifiedInvocation::fixture(&admission);
+        let root = ExecutionRoot::from_verified(&verified, cwd.clone())
+            .await
+            .unwrap();
+        let request = SpawnRequest::new(
+            executable_text,
+            vec![
+                "--exact".into(),
+                "process::tests::process_child_echo".into(),
+                "--nocapture".into(),
+            ],
+            cwd,
+            10_000,
+        )
+        .unwrap();
+        let manager = ProcessManager::new();
+        let session = manager
+            .spawn(request, &call, &verified, &root, &policy, None, 100)
+            .await
+            .unwrap();
+        let status = session.wait().await;
+        assert_eq!(status.termination, Some(TerminationReason::Exited));
+        assert_eq!(status.exit_code, Some(0));
+        let stdout = session.read_stdout(OutputCursor(0), MAX_READ_BYTES).unwrap();
+        assert!(String::from_utf8_lossy(&stdout.data).contains("ctm-process-echo"));
+        assert!(stdout.eof);
+        manager.remove_terminal(session.id()).unwrap();
+        assert_eq!(manager.session_count(), 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn timeout_is_distinct_and_terminal() {
+        let executable = std::env::current_exe().unwrap();
+        let executable_text = executable.to_string_lossy().to_string();
+        let cwd = std::env::current_dir().unwrap();
+        let (admission, call, policy) = fixture_context(&executable_text);
+        let verified = VerifiedInvocation::fixture(&admission);
+        let root = ExecutionRoot::from_verified(&verified, cwd.clone())
+            .await
+            .unwrap();
+        let request = SpawnRequest::new(
+            executable_text,
+            vec![
+                "--exact".into(),
+                "process::tests::process_child_timeout_fixture".into(),
+                "--nocapture".into(),
+            ],
+            cwd,
+            150,
+        )
+        .unwrap();
+        let manager = ProcessManager::new();
+        let session = manager
+            .spawn(request, &call, &verified, &root, &policy, None, 100)
+            .await
+            .unwrap();
+        let status = session.wait().await;
+        assert_eq!(status.termination, Some(TerminationReason::TimedOut));
+    }
+
+    #[tokio::test]
+    async fn no_match_prompt_and_missing_capability_fail_before_spawn() {
+        let executable = std::env::current_exe().unwrap();
+        let executable_text = executable.to_string_lossy().to_string();
+        let cwd = std::env::current_dir().unwrap();
+        let admission = crate::LocalAdmission::fixture(
+            "conversation-a",
+            "workspace-a",
+            [],
+            7,
+            60_000,
+        );
+        let verified = VerifiedInvocation::fixture(&admission);
+        let root = ExecutionRoot::from_verified(&verified, cwd.clone())
+            .await
+            .unwrap();
+        let call = ToolCall::new(
+            "request-a",
+            "conversation-a",
+            "workspace-a",
+            crate::ToolName::parse("exec_command").unwrap(),
+            serde_json::json!({}),
+        )
+        .unwrap();
+        let policy = ExecPolicy::new(vec![], vec![], false).unwrap();
+        let request = SpawnRequest::new(executable_text, vec![], cwd, 1_000).unwrap();
+        let error = ProcessManager::new()
+            .spawn(request, &call, &verified, &root, &policy, None, 100)
+            .await
+            .unwrap_err();
+        assert_eq!(error.kind, ProcessErrorKind::Unauthorized);
+    }
+
     #[test]
     fn output_cursor_reports_truncation_without_unbounded_retention() {
         let output = OutputBuffer::new();
