@@ -438,7 +438,7 @@ impl ExecPolicy {
 
     fn collect_matches(&self, argv: &[String], resolved_program: Option<&str>) -> PolicyEvaluation {
         let mut matched_rules = Vec::new();
-        let mut decision = None;
+        let mut decision: Option<ExecDecision> = None;
         for rule in &self.rules {
             if !rule.matches(argv) {
                 continue;
