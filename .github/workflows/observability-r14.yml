@@ -8,7 +8,7 @@ on:
       - '.github/workflows/observability-r14.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: observability-r14
@@ -64,9 +64,47 @@ jobs:
           git add -- services/cloud-gateway
           git diff --cached --check
           git write-tree > evidence/verified-tree.txt
-          mkdir -p evidence/source
-          cp -R services/cloud-gateway/. evidence/source/
           git rev-parse HEAD > evidence/source-commit.txt
+      - name: Import verified observability source blobs only
+        if: matrix.os == 'ubuntu-24.04'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, json, os, pathlib, subprocess, urllib.request
+          repo='Eswink/coding-tools-mcp'
+          token=os.environ['GH_TOKEN']
+          paths=[
+              pathlib.Path('services/cloud-gateway/src/observability.rs'),
+              pathlib.Path('services/cloud-gateway/src/lib.rs'),
+              pathlib.Path('services/cloud-gateway/src/mcp/http.rs'),
+              pathlib.Path('services/cloud-gateway/src/mcp/mod.rs'),
+              pathlib.Path('services/cloud-gateway/src/service/runtime.rs'),
+              pathlib.Path('services/cloud-gateway/src/service/mcp_runtime.rs'),
+              pathlib.Path('services/cloud-gateway/tests/mcp_postgres.rs'),
+          ]
+          rows=[]
+          for p in paths:
+              raw=p.read_bytes()
+              expected=subprocess.check_output(['git','hash-object',str(p)],text=True).strip()
+              req=urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/git/blobs',
+                  data=json.dumps({'content':base64.b64encode(raw).decode(),'encoding':'base64'}).encode(),
+                  headers={
+                      'Authorization':'Bearer '+token,
+                      'Accept':'application/vnd.github+json',
+                      'X-GitHub-Api-Version':'2022-11-28',
+                      'Content-Type':'application/json',
+                  },
+                  method='POST')
+              with urllib.request.urlopen(req,timeout=60) as response:
+                  got=json.load(response)
+              assert got['sha']==expected,(str(p),expected,got.get('sha'))
+              rows.append({'path':str(p),'sha':expected,'bytes':len(raw)})
+          pathlib.Path('evidence/blob-receipt.json').write_text(
+              json.dumps(rows,indent=2),encoding='utf-8')
+          PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
