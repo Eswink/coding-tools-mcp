@@ -468,6 +468,7 @@ pub struct ScopedApproval {
 }
 
 impl ScopedApproval {
+    #[cfg(test)]
     fn issue_local(
         command: &Command,
         call: &ToolCall,
@@ -724,7 +725,7 @@ mod tests {
             vec![
                 HostExecutable::new(
                     "git",
-                    [r"C:\\Program Files\\Git\\cmd\\git".to_owned()],
+                    ["C:/Program Files/Git/cmd/git".to_owned()],
                 )
                 .unwrap(),
             ],
@@ -732,7 +733,7 @@ mod tests {
         )
         .unwrap();
         let result = policy.evaluate(&command(&[
-            r"C:\\Program Files\\Git\\cmd\\git",
+            "C:/Program Files/Git/cmd/git",
             "status",
         ]));
         assert_eq!(result.decision, Some(ExecDecision::Prompt));
