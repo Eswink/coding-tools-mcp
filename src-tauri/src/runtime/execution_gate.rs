@@ -19,6 +19,7 @@ impl ExecutionAvailability {
 pub struct ExecutionGateSnapshot {
     pub availability: ExecutionAvailability,
     pub in_flight: usize,
+    pub generation: u64,
 }
 
 /// Admission fence for remote workspace execution.
@@ -34,6 +35,7 @@ pub struct WorkspaceExecutionGate {
 struct GateState {
     availability: ExecutionAvailability,
     in_flight: usize,
+    generation: u64,
 }
 
 impl Default for WorkspaceExecutionGate {
@@ -42,6 +44,7 @@ impl Default for WorkspaceExecutionGate {
             state: Mutex::new(GateState {
                 availability: ExecutionAvailability::Online,
                 in_flight: 0,
+                generation: 1,
             }),
         }
     }
@@ -61,6 +64,7 @@ impl WorkspaceExecutionGate {
         ExecutionGateSnapshot {
             availability: state.availability,
             in_flight: state.in_flight,
+            generation: state.generation,
         }
     }
 
@@ -91,21 +95,46 @@ impl WorkspaceExecutionGate {
         Ok(ExecutionPermit { gate: self.clone() })
     }
 
+    /// Commit a previously observed local-authority hand-off only if the
+    /// workspace availability generation is still exactly the same.
+    pub(crate) fn try_admit_generation(
+        self: &Arc<Self>,
+        expected_generation: u64,
+    ) -> Result<ExecutionPermit, &'static str> {
+        let mut state = self.state.lock().map_err(|_| "WORKSPACE_EXECUTION_UNAVAILABLE")?;
+        if state.availability == ExecutionAvailability::Offline {
+            return Err("WORKSPACE_OFFLINE");
+        }
+        if state.generation != expected_generation {
+            return Err("WORKSPACE_EXECUTION_CHANGED");
+        }
+        state.in_flight = state.in_flight.saturating_add(1);
+        Ok(ExecutionPermit { gate: self.clone() })
+    }
+
     pub fn pause(&self) -> Result<ExecutionGateSnapshot, &'static str> {
         let mut state = self.state.lock().map_err(|_| "WORKSPACE_EXECUTION_UNAVAILABLE")?;
-        state.availability = ExecutionAvailability::Offline;
+        if state.availability != ExecutionAvailability::Offline {
+            state.availability = ExecutionAvailability::Offline;
+            state.generation = state.generation.checked_add(1).ok_or("WORKSPACE_EXECUTION_UNAVAILABLE")?;
+        }
         Ok(ExecutionGateSnapshot {
             availability: state.availability,
             in_flight: state.in_flight,
+            generation: state.generation,
         })
     }
 
     pub fn resume(&self) -> Result<ExecutionGateSnapshot, &'static str> {
         let mut state = self.state.lock().map_err(|_| "WORKSPACE_EXECUTION_UNAVAILABLE")?;
-        state.availability = ExecutionAvailability::Online;
+        if state.availability != ExecutionAvailability::Online {
+            state.availability = ExecutionAvailability::Online;
+            state.generation = state.generation.checked_add(1).ok_or("WORKSPACE_EXECUTION_UNAVAILABLE")?;
+        }
         Ok(ExecutionGateSnapshot {
             availability: state.availability,
             in_flight: state.in_flight,
+            generation: state.generation,
         })
     }
 }
@@ -177,6 +206,22 @@ mod tests {
         assert_eq!(paused.availability, ExecutionAvailability::Offline);
         assert_eq!(gate.snapshot().availability, ExecutionAvailability::Offline);
         worker.join().unwrap();
+    }
+
+    #[test]
+    fn generation_bound_admission_rejects_pause_resume_aba() {
+        let gate = WorkspaceExecutionGate::shared();
+        let observed = gate.snapshot().generation;
+        gate.pause().unwrap();
+        gate.resume().unwrap();
+        assert_ne!(gate.snapshot().generation, observed);
+        assert_eq!(
+            gate.try_admit_generation(observed).err(),
+            Some("WORKSPACE_EXECUTION_CHANGED")
+        );
+        let current = gate.snapshot().generation;
+        let permit = gate.try_admit_generation(current).expect("current generation admission");
+        drop(permit);
     }
 
     #[test]
