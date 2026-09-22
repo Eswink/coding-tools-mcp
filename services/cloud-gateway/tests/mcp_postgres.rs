@@ -171,24 +171,33 @@ async fn offline_foreign_authorization_request_is_suppressed_without_state_or_ch
         json!({"name":"request_chat_authorization","arguments":{"scopes":["files.read"]}}),
     );
     for _ in 0..2 {
-        let r = app
-            .clone()
-            .oneshot(request(token, &foreign))
-            .await
-            .unwrap();
+        let r = app.clone().oneshot(request(token, &foreign)).await.unwrap();
         assert_eq!(r.status(), StatusCode::OK);
         assert!(!r.headers().contains_key(header::WWW_AUTHENTICATE));
         let v = json_body(r).await;
         let result = &v["result"]["structuredContent"];
         assert_eq!(v["result"]["isError"], true, "{v}");
-        assert_eq!(result["error"]["code"], "CHAT_AUTHORIZATION_UNAVAILABLE", "{v}");
+        assert_eq!(
+            result["error"]["code"], "CHAT_AUTHORIZATION_UNAVAILABLE",
+            "{v}"
+        );
         assert_eq!(result["error"]["category"], "permission", "{v}");
         assert_eq!(result["error"]["retryable"], false, "{v}");
         assert_eq!(result["requires_local_action"], false, "{v}");
         assert!(result.get("authorization").is_none(), "{v}");
         let text = result.to_string().to_ascii_lowercase();
-        for forbidden in ["offline", "paused", "workspace", "owner", "grant", "request_id"] {
-            assert!(!text.contains(forbidden), "foreign response leaked {forbidden}: {v}");
+        for forbidden in [
+            "offline",
+            "paused",
+            "workspace",
+            "owner",
+            "grant",
+            "request_id",
+        ] {
+            assert!(
+                !text.contains(forbidden),
+                "foreign response leaked {forbidden}: {v}"
+            );
         }
     }
 
@@ -213,13 +222,22 @@ async fn offline_foreign_authorization_request_is_suppressed_without_state_or_ch
         .await
         .unwrap();
 
-    assert_eq!(channel_before, channel_after, "suppression mutated channel state");
+    assert_eq!(
+        channel_before, channel_after,
+        "suppression mutated channel state"
+    );
     assert_eq!(
         projection_before, projection_after,
         "suppression mutated local authority projection"
     );
-    assert_eq!(ledger_before, ledger_after, "suppression allocated request state");
-    assert_eq!(projection_rows, 1, "foreign request allocated per-chat projection state");
+    assert_eq!(
+        ledger_before, ledger_after,
+        "suppression allocated request state"
+    );
+    assert_eq!(
+        projection_rows, 1,
+        "foreign request allocated per-chat projection state"
+    );
 }
 
 #[tokio::test]
@@ -258,7 +276,10 @@ async fn offline_owner_authorization_remains_active_without_new_pending_state() 
         .fetch_one(&h.f.pool)
         .await
         .unwrap();
-    assert_eq!(ledger_before, ledger_after, "owner authorization check allocated request state");
+    assert_eq!(
+        ledger_before, ledger_after,
+        "owner authorization check allocated request state"
+    );
 }
 
 #[tokio::test]
