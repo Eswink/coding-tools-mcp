@@ -120,6 +120,23 @@ async fn output_overflow_is_memory_bounded_and_terminates() {
 }
 
 #[tokio::test]
+async fn zero_exit_with_output_overflow_is_never_command_ok() {
+    let manager = ProcessManager::default();
+    let outcome = manager
+        .run(
+            spec(&["flood", "8192"])
+                .with_stream_limit(256)
+                .unwrap()
+                .with_timeout(Duration::from_secs(10))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(outcome.termination, ExecTermination::OutputLimit);
+    assert!(!outcome.command_ok());
+}
+
+#[tokio::test]
 async fn nonzero_exit_is_distinct_from_spawn_failure() {
     let manager = ProcessManager::default();
     let outcome = manager.run(spec(&["exit", "7"])).await.unwrap();
