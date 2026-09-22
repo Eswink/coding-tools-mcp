@@ -528,10 +528,7 @@ async fn read_bounded<R>(
 {
     let mut signalled = false;
     let mut buf = [0u8; 4096];
-    loop {
-        let Ok(read) = stream.read(&mut buf).await else {
-            break;
-        };
+    while let Ok(read) = stream.read(&mut buf).await {
         if read == 0 {
             break;
         }
