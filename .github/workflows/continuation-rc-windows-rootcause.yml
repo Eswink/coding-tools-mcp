@@ -26,7 +26,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
-      - name: Resume repository plan before investigation
+      - name: Resume repository plan before source impact analysis
         shell: bash
         run: |
           set -euo pipefail
@@ -35,127 +35,44 @@ jobs:
             npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/probe-install.txt 2>&1
           fi
           printf '{"project_root":"%s"}\n' "$GITHUB_WORKSPACE" | ./.mcp-probe-kit/bin/probe exec resume_plan --stdin > evidence/resume-plan.json 2>&1 || true
-          git restore --worktree --staged -- . || true
+          git reset --hard HEAD
           git clean -fd -- .mcp-probe-kit 2>/dev/null || true
           git status --short > evidence/post-resume-status.txt
-      - name: Build pinned graph and inspect blast radius
+      - name: Pinned GitNexus exact production blast radius
         shell: bash
         run: |
           set -euo pipefail
           npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9
           graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
           "$graph" analyze --workers 1 > evidence/graph-analyze.txt 2>&1
-          git restore -- AGENTS.md CLAUDE.md || true
-          "$graph" query 'revoked owner background process successor exclusive refresh' > evidence/query.json 2>&1 || true
-          "$graph" context 'http_revoked_owner_drains_actual_background_process_before_successor' > evidence/test-context.json 2>&1 || true
-          "$graph" impact 'http_revoked_owner_drains_actual_background_process_before_successor' --direction upstream > evidence/test-impact.json 2>&1 || true
-          "$graph" query 'ExecTaskManager start execute_command ToolContext call_tool working directory' > evidence/runtime-query.json 2>&1 || true
-          "$graph" context 'start_exec_task' > evidence/start-context.json 2>&1 || true
-          "$graph" impact 'start_exec_task' --direction upstream > evidence/start-impact.json 2>&1 || true
-          cat evidence/test-context.json evidence/test-impact.json evidence/start-context.json evidence/start-impact.json || true
+          # Analyze may refresh tracked skill docs. Never allow generated docs into a proposal.
+          git reset --hard HEAD
+          "$graph" query 'async retained task durable checkpoint before exec_command process spawn session' > evidence/runtime-query.json 2>&1 || true
+          run_uid='Function:src-tauri/src/tools/异步命令v1.rs:run'
+          start_uid='Function:src-tauri/src/tools/异步命令v1.rs:start'
+          "$graph" context "$run_uid" > evidence/run-context.json 2>&1
+          "$graph" impact "$run_uid" --direction upstream > evidence/run-impact.json 2>&1
+          "$graph" context "$start_uid" > evidence/start-context.json 2>&1
+          "$graph" impact "$start_uid" --direction upstream > evidence/start-impact.json 2>&1
+          cat evidence/run-context.json evidence/run-impact.json evidence/start-context.json evidence/start-impact.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for name in ('run-impact.json','start-impact.json'):
+              data=json.loads(Path('evidence',name).read_text(encoding='utf-8'))
+              assert data.get('epistemic') == 'exact', data
+              assert data.get('risk') in {'LOW','MEDIUM'}, data
+              assert data.get('target',{}).get('filePath') == 'src-tauri/src/tools/异步命令v1.rs', data
+          PY
           git status --short > evidence/post-graph-status.txt
-          git diff --exit-code -- . ':(exclude)evidence/**'
+          git diff --exit-code
           git rev-parse HEAD > evidence/source-commit.txt
           git rev-parse HEAD^{tree} > evidence/source-tree.txt
           printf '%s\n' 'READ_ONLY_IMPACT_HELPER_NEVER_MERGE_NOT_A_RELEASE_GATE' > evidence/boundary.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: rc60-impact
-          path: evidence/
-          retention-days: 14
-          if-no-files-found: error
-
-  reproduce:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: old-pr-merge
-            source: 0d1874fd519855fd442aecabc53885e7127f2be9
-          - label: current-feature
-            source: c22e08dc0bb2d2c80714b7efb2c3e90e1e7b808b
-    runs-on: windows-2025
-    timeout-minutes: 28
-    env:
-      PYTHONUTF8: '1'
-      PYTHONIOENCODING: 'utf-8'
-      PYTHONLEGACYWINDOWSSTDIO: '0'
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          ref: ${{ matrix.source }}
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.12'
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
-        with:
-          toolchain: '1.98.1'
-      - name: Bind source and runner identity
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p evidence
-          git rev-parse HEAD > evidence/source-commit.txt
-          git rev-parse HEAD^{tree} > evidence/source-tree.txt
-          git status --short > evidence/source-status.txt
-          rustc --version --verbose > evidence/rustc.txt
-          cargo --version > evidence/cargo.txt
-          python --version > evidence/python-version.txt 2>&1
-          where.exe python > evidence/python-where.txt 2>&1 || true
-          pwd > evidence/pwd.txt
-          env | grep -E '^(ImageOS|ImageVersion|RUNNER_OS|RUNNER_ARCH)=' | sort > evidence/runner.txt || true
-          python - <<'PY'
-          import hashlib,json
-          from pathlib import Path
-          paths=['src-tauri/src/auth/exclusive_refresh_http_tests.rs','src-tauri/src/tools/异步命令v1.rs','.github/workflows/发布候选验证v4.yml']
-          out={p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths}
-          Path('evidence/source-hashes.json').write_text(json.dumps(out,indent=2,ensure_ascii=True),encoding='utf-8')
-          print(json.dumps(out,indent=2,ensure_ascii=True))
-          PY
-          printf '%s\n' '${{ matrix.label }}' > evidence/source-label.txt
-          printf '%s\n' 'DIAGNOSTIC_HELPER_NEVER_MERGE_NOT_A_RELEASE_GATE' > evidence/boundary.txt
-      - name: Fetch locked Rust dependencies
-        shell: bash
-        run: cargo fetch --locked --manifest-path src-tauri/Cargo.toml
-      - name: Repeat exact failing test without changing its 8 second gate
-        shell: bash
-        run: |
-          set -u
-          test_name='auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor'
-          failures=0
-          : > evidence/targeted-summary.txt
-          for i in $(seq 1 10); do
-            echo "=== targeted attempt $i ===" | tee -a evidence/targeted-summary.txt
-            set +e
-            RUST_BACKTRACE=1 cargo test --locked --offline --manifest-path src-tauri/Cargo.toml "$test_name" -- --exact --nocapture > "evidence/targeted-$i.txt" 2>&1
-            rc=$?
-            set -e
-            echo "attempt=$i rc=$rc" | tee -a evidence/targeted-summary.txt
-            if [[ $rc -ne 0 ]]; then failures=$((failures+1)); fi
-          done
-          echo "targeted_failures=$failures/10" | tee -a evidence/targeted-summary.txt
-          exit 0
-      - name: Run one unmodified full suite and preserve the real result
-        shell: bash
-        run: |
-          set +e
-          RUST_BACKTRACE=1 cargo test --locked --offline --manifest-path src-tauri/Cargo.toml -- --nocapture > evidence/full-suite.txt 2>&1
-          rc=$?
-          set -e
-          echo "$rc" > evidence/full-suite-exit-code.txt
-          tail -n 160 evidence/full-suite.txt || true
-          echo "full_suite_rc=$rc"
-          exit 0
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
-        with:
-          name: rc60-${{ matrix.label }}
+          name: rc60-production-impact
           path: evidence/
           retention-days: 14
           if-no-files-found: error
