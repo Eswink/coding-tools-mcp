@@ -39,11 +39,33 @@ jobs:
           git rev-parse HEAD > evidence/source-commit.txt
           git bundle create evidence/source.bundle HEAD
           (cd evidence && sha256sum *.tar.gz source.bundle > SHA256SUMS)
+          # Keep each connector download below its documented 512 MiB limit.
+          test "$(stat -c %s evidence/rust-tools.tar.gz)" -lt 520000000
+          test "$(stat -c %s evidence/node-tools.tar.gz)" -lt 520000000
+          ls -lh evidence/
           git diff --exit-code
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: continuation-public-build-tools
-          path: evidence/
+          name: continuation-rust-tools
+          path: evidence/rust-tools.tar.gz
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: continuation-node-tools
+          path: evidence/node-tools.tar.gz
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: continuation-source-registry-evidence
+          path: |
+            evidence/cargo-registry.tar.gz
+            evidence/source.bundle
+            evidence/*.txt
+            evidence/SHA256SUMS
           compression-level: 0
           retention-days: 3
           if-no-files-found: error
