@@ -21,6 +21,10 @@ impl VerifiedInvocation<'_> {
     pub fn expires_at_unix_ms(&self) -> u64 {
         self.admission.expires_at_unix_ms
     }
+
+    pub fn has_capability(&self, capability: crate::Capability) -> bool {
+        self.admission.capabilities.contains(&capability)
+    }
 }
 
 #[cfg(test)]
