@@ -1,0 +1,202 @@
+name: Isolated RC60 fix review r3 (never merge)
+
+on:
+  push:
+    branches: ['ci/rc60-fix-review-20260923-r3']
+    paths: ['.github/workflows/continuation-rc60-fix-review-r3.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: continuation-rc60-fix-review-r3-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BASE_SHA: c22e08dc0bb2d2c80714b7efb2c3e90e1e7b808b
+  PYTHONUTF8: '1'
+  PYTHONIOENCODING: 'utf-8'
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.BASE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Exact pre-edit impact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/graph-analyze.txt 2>&1
+          git reset --hard "$BASE_SHA"
+          "$graph" impact 'Function:src-tauri/src/tools/异步命令v1.rs:run' --direction upstream > evidence/run-impact.json
+          cat evidence/run-impact.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('evidence/run-impact.json').read_text(encoding='utf-8'))
+          assert data.get('epistemic') == 'exact', data
+          assert data.get('risk') in {'LOW','MEDIUM'}, data
+          assert data.get('target',{}).get('filePath') == 'src-tauri/src/tools/异步命令v1.rs', data
+          PY
+      - name: Apply and format disposable candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('src-tauri/src/tools/异步命令v1.rs')
+          text=path.read_text(encoding='utf-8')
+          pre='''    if ctx.exec_tasks.checkpoint(job).is_err() {\n        job.finish(Status::Failed, json!({"command_ok":false, "termination_reason":"storage_failed_before_spawn"}));\n        return;\n    }\n    // Keep ALL policy/baseline/operation logging in the one shared execution dispatcher.\n'''
+          pre_repl='''    // reserve() already persisted the queued no-replay record. Never put a durable\n    // filesystem checkpoint between the public Running state and actual child spawn.\n    // Keep ALL policy/baseline/operation logging in the one shared execution dispatcher.\n'''
+          post='''    job.data.lock().expect("job state").session = Some(session.clone());\n    // Noninteractive tasks cannot supply stdin. Close it so read-to-EOF programs do not hang.\n    tauri::async_runtime::block_on(async {\n        session.stdin.lock().await.take();\n        session.mark_stdin_closed();\n    });\n    let mut checkpoint_at = std::time::Instant::now();\n'''
+          post_repl='''    job.data.lock().expect("job state").session = Some(session.clone());\n    // Noninteractive tasks cannot supply stdin. Close it so read-to-EOF programs do not hang.\n    tauri::async_runtime::block_on(async {\n        session.stdin.lock().await.take();\n        session.mark_stdin_closed();\n    });\n    // Once the child exists, persist Running + session ownership. If that durable\n    // checkpoint fails, stop the child and fail closed rather than leaving an\n    // untracked process behind or inviting an automatic retry.\n    if ctx.exec_tasks.checkpoint(job).is_err() {\n        session.mark_termination_reason("killed");\n        let waited = tauri::async_runtime::block_on(async {\n            tokio::time::timeout(Duration::from_secs(5), session.kill_and_wait()).await.is_ok()\n        });\n        tauri::async_runtime::block_on(async {\n            session.refresh_status().await;\n            session.wait_for_readers().await;\n        });\n        let process_may_be_running = !waited || !session.has_exited();\n        let mut failure = session.snapshot(0);\n        failure["command_ok"] = json!(false);\n        failure["output_complete"] = json!(session.readers_completed());\n        failure["process_may_be_running"] = json!(process_may_be_running);\n        failure["termination_reason"] = json!("storage_failed_after_spawn");\n        failure["error"] = json!({\n            "code": "EXEC_TASK_CHECKPOINT_FAILED",\n            "message": if process_may_be_running {\n                "Durable task checkpoint failed after child start and termination could not be confirmed; inspect local processes and do not retry automatically"\n            } else {\n                "Durable task checkpoint failed after child start; child was terminated and the command must not be retried automatically"\n            }\n        });\n        if let Some(operation) = result.get("operation_id") {\n            failure["operation_id"] = operation.clone();\n        }\n        job.finish(Status::Failed, failure);\n        ctx.sessions.remove(&session.session_id);\n        return;\n    }\n    let mut checkpoint_at = std::time::Instant::now();\n'''
+          assert text.count(pre) == 1, 'pre-spawn checkpoint pattern changed'
+          assert text.count(post) == 1, 'post-spawn session pattern changed'
+          text=text.replace(pre, pre_repl).replace(post, post_repl)
+          path.write_text(text, encoding='utf-8')
+          PY
+          cargo fmt --manifest-path src-tauri/Cargo.toml
+          git diff --check
+          git add -- src-tauri/src/tools/异步命令v1.rs
+          git -c core.quotePath=false diff --cached --name-only | tee evidence/candidate-files.txt
+          python - <<'PY'
+          from pathlib import Path
+          names=Path('evidence/candidate-files.txt').read_text(encoding='utf-8').splitlines()
+          assert names == ['src-tauri/src/tools/异步命令v1.rs'], names
+          text=Path(names[0]).read_text(encoding='utf-8')
+          run=text[text.index('fn run('):text.index('\npub fn get(')]
+          assert run.index('crate::tools::call_tool(ctx, "exec_command", args)') < run.index('ctx.exec_tasks.checkpoint(job)')
+          assert 'storage_failed_before_spawn' not in run
+          assert 'storage_failed_after_spawn' in run
+          assert len(text.splitlines()) < 500
+          PY
+          sha256sum src-tauri/src/tools/异步命令v1.rs | tee evidence/candidate-source.sha256
+      - name: GitNexus staged detect changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" detect-changes --scope staged | tee evidence/detect-changes.txt
+          test "$(git -c core.quotePath=false diff --cached --name-only)" = 'src-tauri/src/tools/异步命令v1.rs'
+      - name: Rustfmt candidate check
+        shell: bash
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - name: Clippy candidate
+        shell: bash
+        run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+      - name: Exact RC60 regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 'auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor' -- --exact --nocapture 2>&1 | tee evidence/targeted-rc60.txt
+          grep -F 'http_revoked_owner_drains_actual_background_process_before_successor ... ok' evidence/targeted-rc60.txt
+      - name: Durable no-replay regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml queued_record_is_encrypted_and_restart_never_replays_it -- --nocapture 2>&1 | tee evidence/no-replay.txt
+          grep -F 'queued_record_is_encrypted_and_restart_never_replays_it ... ok' evidence/no-replay.txt
+      - name: Review boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD | tee evidence/base-source.txt
+          test "$(cat evidence/base-source.txt)" = "$BASE_SHA"
+          printf '%s\n' 'DISPOSABLE_CANDIDATE_REVIEW_NEVER_MERGE_NOT_A_RELEASE_GATE' | tee evidence/boundary.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: rc60-fix-r3-review
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+
+  native:
+    needs: review
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.BASE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt
+      - name: Apply identical disposable candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('src-tauri/src/tools/异步命令v1.rs')
+          text=path.read_text(encoding='utf-8')
+          pre='''    if ctx.exec_tasks.checkpoint(job).is_err() {\n        job.finish(Status::Failed, json!({"command_ok":false, "termination_reason":"storage_failed_before_spawn"}));\n        return;\n    }\n    // Keep ALL policy/baseline/operation logging in the one shared execution dispatcher.\n'''
+          pre_repl='''    // reserve() already persisted the queued no-replay record. Never put a durable\n    // filesystem checkpoint between the public Running state and actual child spawn.\n    // Keep ALL policy/baseline/operation logging in the one shared execution dispatcher.\n'''
+          post='''    job.data.lock().expect("job state").session = Some(session.clone());\n    // Noninteractive tasks cannot supply stdin. Close it so read-to-EOF programs do not hang.\n    tauri::async_runtime::block_on(async {\n        session.stdin.lock().await.take();\n        session.mark_stdin_closed();\n    });\n    let mut checkpoint_at = std::time::Instant::now();\n'''
+          post_repl='''    job.data.lock().expect("job state").session = Some(session.clone());\n    // Noninteractive tasks cannot supply stdin. Close it so read-to-EOF programs do not hang.\n    tauri::async_runtime::block_on(async {\n        session.stdin.lock().await.take();\n        session.mark_stdin_closed();\n    });\n    // Once the child exists, persist Running + session ownership. If that durable\n    // checkpoint fails, stop the child and fail closed rather than leaving an\n    // untracked process behind or inviting an automatic retry.\n    if ctx.exec_tasks.checkpoint(job).is_err() {\n        session.mark_termination_reason("killed");\n        let waited = tauri::async_runtime::block_on(async {\n            tokio::time::timeout(Duration::from_secs(5), session.kill_and_wait()).await.is_ok()\n        });\n        tauri::async_runtime::block_on(async {\n            session.refresh_status().await;\n            session.wait_for_readers().await;\n        });\n        let process_may_be_running = !waited || !session.has_exited();\n        let mut failure = session.snapshot(0);\n        failure["command_ok"] = json!(false);\n        failure["output_complete"] = json!(session.readers_completed());\n        failure["process_may_be_running"] = json!(process_may_be_running);\n        failure["termination_reason"] = json!("storage_failed_after_spawn");\n        failure["error"] = json!({\n            "code": "EXEC_TASK_CHECKPOINT_FAILED",\n            "message": if process_may_be_running {\n                "Durable task checkpoint failed after child start and termination could not be confirmed; inspect local processes and do not retry automatically"\n            } else {\n                "Durable task checkpoint failed after child start; child was terminated and the command must not be retried automatically"\n            }\n        });\n        if let Some(operation) = result.get("operation_id") {\n            failure["operation_id"] = operation.clone();\n        }\n        job.finish(Status::Failed, failure);\n        ctx.sessions.remove(&session.session_id);\n        return;\n    }\n    let mut checkpoint_at = std::time::Instant::now();\n'''
+          assert text.count(pre) == 1
+          assert text.count(post) == 1
+          path.write_text(text.replace(pre, pre_repl).replace(post, post_repl), encoding='utf-8')
+          PY
+          cargo fmt --manifest-path src-tauri/Cargo.toml
+          git diff --check
+          sha256sum src-tauri/src/tools/异步命令v1.rs | tee evidence/candidate-source.sha256
+          git rev-parse HEAD | tee evidence/base-source.txt
+          test "$(cat evidence/base-source.txt)" = "$BASE_SHA"
+      - name: Exact RC60 regression repeated ten times
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fetch --locked --manifest-path src-tauri/Cargo.toml
+          test_name='auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor'
+          for i in $(seq 1 10); do
+            cargo test --locked --offline --manifest-path src-tauri/Cargo.toml "$test_name" -- --exact --nocapture 2>&1 | tee "evidence/targeted-$i.txt"
+            grep -F 'http_revoked_owner_drains_actual_background_process_before_successor ... ok' "evidence/targeted-$i.txt"
+          done
+      - name: Durable no-replay regression native
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked --offline --manifest-path src-tauri/Cargo.toml queued_record_is_encrypted_and_restart_never_replays_it -- --nocapture 2>&1 | tee evidence/no-replay.txt
+          grep -F 'queued_record_is_encrypted_and_restart_never_replays_it ... ok' evidence/no-replay.txt
+      - name: Full unchanged Rust regression command
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked --offline --manifest-path src-tauri/Cargo.toml -- --nocapture 2>&1 | tee evidence/full-suite.txt
+          git diff --check
+          printf '%s\n' 'DISPOSABLE_CANDIDATE_REVIEW_NEVER_MERGE_NOT_A_RELEASE_GATE' | tee evidence/boundary.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: rc60-fix-r3-${{ matrix.os }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
