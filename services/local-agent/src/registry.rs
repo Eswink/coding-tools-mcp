@@ -1,6 +1,6 @@
 use crate::{
     LocalAdmission, ToolCall, ToolError, ToolErrorKind, ToolExecutor, ToolExposure, ToolFuture,
-    ToolOutput, ToolSpec,
+    ToolSpec,
 };
 use std::{collections::BTreeMap, sync::Arc};
 
