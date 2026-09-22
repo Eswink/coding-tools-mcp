@@ -172,7 +172,7 @@ pub struct ExecutionRoot {
 }
 
 impl ExecutionRoot {
-    pub async fn from_verified(
+    pub(crate) async fn from_verified(
         verified: &VerifiedInvocation<'_>,
         root: PathBuf,
     ) -> Result<Self, ProcessError> {
@@ -354,6 +354,10 @@ impl ProcessSession {
     pub async fn wait(&self) -> ProcessStatus {
         loop {
             let notified = self.notify.notified();
+            tokio::pin!(notified);
+            // Register with Notify before inspecting terminal state. Without this,
+            // notify_waiters() can race between the state read and first poll.
+            notified.as_mut().enable();
             let status = self.status();
             if !status.running() {
                 return status;
