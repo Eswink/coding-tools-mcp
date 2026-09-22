@@ -2,7 +2,35 @@ use crate::{
     LocalAdmission, ToolCall, ToolError, ToolErrorKind, ToolExecutor, ToolExposure, ToolFuture,
     ToolSpec,
 };
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeMap, fmt, sync::Arc};
+
+/// Proof that a ToolCall passed the local registry admission checks.
+///
+/// The field is private and the type has no public constructor or Clone/Copy
+/// implementation, so safe external callers cannot manufacture or reuse it to
+/// invoke ToolExecutor directly.
+pub struct VerifiedInvocation<'a> {
+    admission: &'a LocalAdmission,
+}
+
+impl VerifiedInvocation<'_> {
+    pub fn generation(&self) -> u64 {
+        self.admission.generation
+    }
+
+    pub fn expires_at_unix_ms(&self) -> u64 {
+        self.admission.expires_at_unix_ms
+    }
+}
+
+impl fmt::Debug for VerifiedInvocation<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("VerifiedInvocation")
+            .field("authority", &"<local-admission>")
+            .field("generation", &self.admission.generation)
+            .finish()
+    }
+}
 
 #[derive(Default)]
 pub struct ToolRegistry {
@@ -104,7 +132,8 @@ impl ToolRegistry {
                 ));
             }
 
-            let output = entry.executor.execute(call).await?;
+            let verified = VerifiedInvocation { admission };
+            let output = entry.executor.execute(call, verified).await?;
             if output.encoded_len()? > entry.spec.max_output_bytes {
                 return Err(ToolError::new(
                     ToolErrorKind::OutputTooLarge,
