@@ -8,7 +8,7 @@ on:
       - '.github/workflows/exec-policy-r13.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: exec-policy-r13
@@ -62,6 +62,41 @@ jobs:
           mkdir -p evidence/source
           cp -R services/local-agent/. evidence/source/
           git rev-parse HEAD > evidence/source-commit.txt
+      - name: Import verified policy blobs only
+        if: matrix.os == 'ubuntu-24.04'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, json, os, pathlib, subprocess, urllib.request
+          repo='Eswink/coding-tools-mcp'
+          token=os.environ['GH_TOKEN']
+          paths=[
+              pathlib.Path('services/local-agent/Cargo.toml'),
+              pathlib.Path('services/local-agent/Cargo.lock'),
+              *sorted(pathlib.Path('services/local-agent/src').glob('*.rs')),
+          ]
+          rows=[]
+          for p in paths:
+              raw=p.read_bytes()
+              expected=subprocess.check_output(['git','hash-object',str(p)],text=True).strip()
+              req=urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/git/blobs',
+                  data=json.dumps({'content':base64.b64encode(raw).decode(),'encoding':'base64'}).encode(),
+                  headers={
+                      'Authorization':'Bearer '+token,
+                      'Accept':'application/vnd.github+json',
+                      'X-GitHub-Api-Version':'2022-11-28',
+                      'Content-Type':'application/json',
+                  },
+                  method='POST')
+              with urllib.request.urlopen(req,timeout=60) as response:
+                  got=json.load(response)
+              assert got['sha']==expected,(str(p),expected,got.get('sha'))
+              rows.append({'path':str(p).replace('\\','/'),'mode':'100644','sha':expected,'bytes':len(raw)})
+          pathlib.Path('evidence/blob-receipt.json').write_text(json.dumps(rows,indent=2),encoding='utf-8')
+          PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
