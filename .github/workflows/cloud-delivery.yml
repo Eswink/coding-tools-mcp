@@ -36,11 +36,19 @@ jobs:
           node --test tests/delivery/metadata_contract.test.mjs 2>&1 | tee evidence/metadata.tap
           python tools/delivery/dispatch.py --manifest tools/delivery/manifest.json --repo-root . --output evidence/dispatch.json
           python - <<'PY'
-          import json,os
+          import hashlib,json,os
+          from pathlib import Path
           data=json.load(open('evidence/dispatch.json'))
           assert len(data['packets'])<=3 and data['release_allowed'] is False
           with open(os.environ['GITHUB_OUTPUT'],'a') as output:
               output.write('packets='+json.dumps({'revision':data['revision'],'packets':data['packets']},separators=(',',':'))+'\n')
+          paths=['tools/delivery/dispatch.py','tests/delivery/test_dispatch.py',
+                 '.github/workflows/cloud-delivery.yml','tests/delivery/metadata_contract.test.mjs']
+          hashes={p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths}
+          Path('evidence/source-hashes.json').write_text(json.dumps(hashes,indent=2),encoding='utf-8')
+          print(json.dumps(hashes,indent=2))
+          print(json.dumps({'states':data['states'],'packets':data['packets'],
+                            'release_allowed':data['release_allowed']},indent=2))
           PY
           git rev-parse HEAD > evidence/source-commit.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -99,13 +107,22 @@ jobs:
                 }
                 if(number===null){
                   if(!exhausted)throw Error('dedup_search_bound');
-                  const created=await github.rest.issues.create({owner,repo,title:'[AUTO] '+p.title,body:marker+'\n\nParent Epic #32. Work item `'+p.id+'`, lane `'+p.lane+'`.\n\nSource: `'+sha+'`. Dependencies: '+p.depends_on.map(x=>'`'+x+'`').join(', ')+'.\n\nRead the reviewed delivery manifest and repository rules before implementation. This issue is a bounded work packet, not implementation evidence. No coding worker has started, no permission to bypass local grants, and no production deployment is implied. Preserve physical/ChatGPT deferred gates. Record exact-source tests, review and rollback before completion.'});
+                  const created=await github.rest.issues.create({owner,repo,assignees:[owner],title:'[AUTO] '+p.title,body:marker+'\n\nParent Epic #32. Work item `'+p.id+'`, lane `'+p.lane+'`.\n\nSource: `'+sha+'`. Dependencies: '+p.depends_on.map(x=>'`'+x+'`').join(', ')+'.\n\nRead the reviewed delivery manifest and repository rules before implementation. This issue is a bounded work packet, not implementation evidence. No coding worker has started, no permission to bypass local grants, and no production deployment is implied. Preserve physical/ChatGPT deferred gates. Record exact-source tests, review and rollback before completion. Repository-owner assignment records accountability, not worker execution.'});
                   number=created.data.number;
                 }
               }
               const issue=await github.rest.issues.get({owner,repo,issue_number:number});
               if(issue.data.pull_request)throw Error('not_an_issue');
               if(issue.data.state!=='open'){receipts.push({id:p.id,issue:number,state:'closed_needs_manifest_review'});continue;}
+              if(!Array.isArray(issue.data.assignees))throw Error('invalid_assignee_state');
+              let assignees=issue.data.assignees;
+              // Preserve existing ownership; only unowned tasks receive the fixed repository owner.
+              // No assignee, command or worker identity is accepted from the work packet.
+              if(assignees.length===0){
+                const assigned=await github.rest.issues.addAssignees({owner,repo,issue_number:number,assignees:[owner]});
+                if(!Array.isArray(assigned.data.assignees)||!assigned.data.assignees.some(x=>x.login===owner))throw Error('assignment_not_confirmed');
+                assignees=assigned.data.assignees;
+              }
               const receiptMarker='<!-- ctm-queue:'+p.id+':'+sha+' -->';
               let duplicate=false,complete=false;
               for(let page=1;page<=5;page++){
@@ -115,9 +132,9 @@ jobs:
               }
               if(!duplicate){
                 if(!complete)throw Error('comment_dedup_bound');
-                await github.rest.issues.createComment({owner,repo,issue_number:number,body:receiptMarker+'\nDependency-ready engineering work queued for lane `'+p.lane+'` at source `'+sha+'`.\n\nExecution has **not** started; the next authorized coding executor must revalidate this source and dependencies. This queue record does not close the issue, approve code, waive tests or authorize a release.'});
+                await github.rest.issues.createComment({owner,repo,issue_number:number,body:receiptMarker+'\nDependency-ready engineering work queued for lane `'+p.lane+'` at source `'+sha+'`.\n\nExecution has **not** started; the next authorized coding executor must revalidate this source and dependencies. This queue record does not close the issue, approve code, waive tests or authorize a release. Existing assignees are preserved; otherwise the repository owner is assigned for accountability only.'});
               }
-              receipts.push({id:p.id,issue:number,state:duplicate?'already_queued':'queued',execution_started:false});
+              receipts.push({id:p.id,issue:number,state:duplicate?'already_queued':'queued',assignees:assignees.map(x=>x.login),execution_started:false});
             }
             fs.writeFileSync('queue-receipts.json',JSON.stringify({source:sha,receipts,release_performed:false},null,2));
             core.notice('Queued metadata only; no coding worker or release was launched.');
