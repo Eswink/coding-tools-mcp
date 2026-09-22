@@ -353,10 +353,23 @@
       "depends_on": [
         "local-authority-provider"
       ],
-      "issue": null,
-      "state": "planned",
+      "issue": 51,
+      "state": "verified",
       "priority": 30,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "935672250491afccfbfa47e7459ce227060db707",
+        "run_id": 35726846341,
+        "files": {
+          "services/local-agent/Cargo.toml": "052aad06d4e19ce0b37cb20b754266797aec776cd30972150c0d08b7d54668c8",
+          "services/local-agent/Cargo.lock": "ab3394e90b03f86aa36b3f8b27e429f0c5031e694d9fa070744a6e6543f312a5",
+          "services/local-agent/src/executor.rs": "2ebb486fefd08e3cc9997a7aaa87dbb64c1dd80482c9faf097ec21d67c14f092",
+          "services/local-agent/src/lib.rs": "7f61962ada94a0052bbdf182e31d9455aedfe50bd55d3eb9fc9512e97cbf96fd",
+          "services/local-agent/src/model.rs": "01aab422c7e778fc0b4a29e4f512155029ae5652fbbe90964d1c26ddb1385e03",
+          "services/local-agent/src/registry.rs": "1ef9a9aeb12ccf8663700e900a7af1df8c5af806055c2edb2362fca50e25600d",
+          "services/local-agent/src/registry_tests.rs": "c3fffc772c493dfd337e8504b9310690b902010bbd4ebc7d8672ed9e79f031ee"
+        }
+      }
     },
     {
       "id": "exec-unification",
