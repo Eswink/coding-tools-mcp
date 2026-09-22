@@ -43,3 +43,15 @@ OAuth, device, routing, production site or runtime state is touched. Reverting
 only the allowlist line reintroduces the known CI failure. This work does not
 satisfy the supported-host, installed Windows/Ubuntu, security-review, package
 or real-ChatGPT release gates. No main merge or release is authorized by test green.
+
+## Native Windows follow-up
+
+Run 35767741738 passed the actual scope guard on both Windows/Ubuntu and the
+Ubuntu contracts/graph jobs, but the new test failed on Windows because CRLF
+checkout prevented its LF-only heredoc marker from matching. Local CRLF replay
+reproduced this before the fix. Normalize CRLF only when extracting the inline
+Python text, and explicitly select Python UTF-8 mode for its JSON boundary.
+Source bytes hashed by the real guard remain unmodified. The 17 test cases pass
+locally with both LF and CRLF workflow fixtures, including a reviewed Chinese
+source path and digest. Native post-fix CI is still required; keep the failed
+Windows run as evidence, not as a passing regression.

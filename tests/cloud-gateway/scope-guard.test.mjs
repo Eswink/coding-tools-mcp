@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
-const workflow = readFileSync(new URL('../../.github/workflows/cloud-gateway-lab.yml', import.meta.url), 'utf8');
+// Normalize only the text extraction boundary, never the checked source bytes.
+const workflow = readFileSync(new URL('../../.github/workflows/cloud-gateway-lab.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const marker = "          python - <<'PY'\n";
 const start = workflow.indexOf(marker);
 assert.notEqual(start, -1, 'scope guard Python entry must exist');
@@ -55,7 +56,7 @@ with tempfile.TemporaryDirectory() as directory:
 `;
 
 function run(paths, files = Object.fromEntries(paths.map(path => [path, '# fixture\n']))) {
-  const result = spawnSync('python', ['-I', '-c', harness], {
+  const result = spawnSync('python', ['-I', '-X', 'utf8', '-c', harness], {
     input: JSON.stringify({ source, paths, files }), encoding: 'utf8', timeout: 10_000,
   });
   assert.ifError(result.error);
@@ -120,4 +121,11 @@ test('empty candidate has an empty digest set', () => {
   const result = run([]);
   assert.equal(result.accepted, true);
   assert.deepEqual(result.report.sha256, {});
+});
+
+test('UTF-8 source and a reviewed Unicode path survive the isolated Python boundary', () => {
+  const path = 'src-tauri/src/auth/聊天授权v1.rs';
+  const result = run([path], { [path]: '// UTF-8 中文 fixture\n' });
+  assert.equal(result.accepted, true, result.error);
+  assert.equal(result.report.sha256[path], createHash('sha256').update('// UTF-8 中文 fixture\n').digest('hex'));
 });
