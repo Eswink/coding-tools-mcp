@@ -1,6 +1,8 @@
 mod executor;
 mod model;
 mod policy;
+mod process;
+mod process_tree;
 mod registry;
 
 pub use executor::{ToolExecutor, ToolFuture};
@@ -12,5 +14,9 @@ pub use policy::{
     Command, CommandFingerprint, ExecDecision, ExecPolicy, ExecutionAuthorization, HostExecutable,
     PolicyError, PolicyErrorKind, PolicyEvaluation, PrefixRule, PrefixRuleMatch, ScopedApproval,
     TokenPattern,
+};
+pub use process::{
+    ExecError, ExecErrorKind, ExecOutcome, ExecSpec, ExecTermination, ProcessManager,
+    ProcessSession,
 };
 pub use registry::{ToolRegistry, VerifiedInvocation};
