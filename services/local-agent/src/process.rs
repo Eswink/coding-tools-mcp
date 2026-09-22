@@ -886,6 +886,71 @@ mod tests {
         assert_eq!(error.kind, ProcessErrorKind::Unauthorized);
     }
 
+    #[tokio::test]
+    async fn non_allow_policy_results_fail_before_process_creation() {
+        let executable = std::env::current_exe().unwrap();
+        let executable_text = executable.to_string_lossy().to_string();
+        let cwd = std::env::current_dir().unwrap();
+        let admission = crate::LocalAdmission::fixture(
+            "conversation-a",
+            "workspace-a",
+            [Capability::ProcessExec],
+            7,
+            60_000,
+        );
+        let verified = VerifiedInvocation::fixture(&admission);
+        let root = ExecutionRoot::from_verified(&verified, cwd.clone())
+            .await
+            .unwrap();
+        let call = ToolCall::new(
+            "request-policy-denied",
+            "conversation-a",
+            "workspace-a",
+            crate::ToolName::parse("exec_command").unwrap(),
+            serde_json::json!({}),
+        )
+        .unwrap();
+
+        for decision in [
+            None,
+            Some(crate::ExecDecision::Prompt),
+            Some(crate::ExecDecision::Forbidden),
+        ] {
+            let policy = match decision {
+                None => ExecPolicy::new(vec![], vec![], false).unwrap(),
+                Some(decision) => ExecPolicy::new(
+                    vec![
+                        crate::PrefixRule::new(
+                            vec![crate::TokenPattern::exact(&executable_text).unwrap()],
+                            decision,
+                        )
+                        .unwrap(),
+                    ],
+                    vec![],
+                    false,
+                )
+                .unwrap(),
+            };
+            let request = SpawnRequest::new(
+                executable_text.clone(),
+                vec!["--this-must-never-run".into()],
+                cwd.clone(),
+                1_000,
+            )
+            .unwrap();
+            let manager = ProcessManager::new();
+            let error = manager
+                .spawn(
+                    request,
+                    SpawnContext::new(&call, &verified, &root, &policy, 100),
+                )
+                .await
+                .unwrap_err();
+            assert_eq!(error.kind, ProcessErrorKind::PolicyDenied);
+            assert_eq!(manager.session_count(), 0);
+        }
+    }
+
     #[test]
     fn output_cursor_reports_truncation_without_unbounded_retention() {
         let output = OutputBuffer::new();
