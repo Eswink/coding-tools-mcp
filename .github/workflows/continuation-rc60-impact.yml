@@ -29,7 +29,7 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9
           graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
           "$graph" analyze --workers 1 > evidence/analyze.txt 2>&1
-          git restore -- AGENTS.md CLAUDE.md
+          git restore -- AGENTS.md CLAUDE.md .claude/skills/gitnexus
           "$graph" impact 'Function:src-tauri/src/tools/异步命令v1.rs:run' --direction upstream > evidence/async-run-impact.json 2>&1
           "$graph" impact 'Function:src-tauri/src/tools/进程树Windowsv2.rs:spawn' --direction upstream > evidence/windows-spawn-impact.json 2>&1
           "$graph" context 'http_revoked_owner_drains_actual_background_process_before_successor' > evidence/failing-test-context.json 2>&1
