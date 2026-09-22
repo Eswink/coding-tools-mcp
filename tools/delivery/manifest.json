@@ -317,13 +317,13 @@
       "priority": 23,
       "release_required": true,
       "evidence": {
-        "revision": "19fc7ce0b97fb7f02e5f3f195aa034e66c9b8446",
-        "run_id": 35720599497,
+        "revision": "c6f746533d9fb4c81cf5c2d5f1b2c55acc3b3fc4",
+        "run_id": 35736626909,
         "files": {
           "services/cloud-gateway/src/mcp/http.rs": "9cef070a6c59a8b1f480ac6525f9c4dbefb9ef8b5b5af137c3a6defac45785ed",
           "services/cloud-gateway/src/mcp/protocol.rs": "8c48fc4ea9af8049e2bd7bf444dcfa7bd13be1f8ce01cdb3ca8c8232c0e61192",
           "services/cloud-gateway/src/service/mcp_runtime.rs": "036047002d58a32e197a575cca4661c5c1e5440386499d25e731753518297a80",
-          "services/cloud-gateway/tests/mcp_postgres.rs": "6b24241ccfe7fe2ac0a7648369f34e8718c84a5bdfc2c0ea1e7b345a48219df5"
+          "services/cloud-gateway/tests/mcp_postgres.rs": "4e02f0f318fddf7dc00674d044b08d926ae4c83c2a0f6fba8f294bdff5579f9b"
         }
       }
     },
@@ -365,15 +365,15 @@
       "priority": 30,
       "release_required": true,
       "evidence": {
-        "revision": "935672250491afccfbfa47e7459ce227060db707",
-        "run_id": 35726846341,
+        "revision": "5ff668fd9557f7d6156313cb311b1ba513c04520",
+        "run_id": 35737499058,
         "files": {
-          "services/local-agent/Cargo.toml": "052aad06d4e19ce0b37cb20b754266797aec776cd30972150c0d08b7d54668c8",
-          "services/local-agent/Cargo.lock": "ab3394e90b03f86aa36b3f8b27e429f0c5031e694d9fa070744a6e6543f312a5",
+          "services/local-agent/Cargo.toml": "631b10a33d4f20545fead1e23dde468f1ce18fcafc7167f637d4672647bda59d",
+          "services/local-agent/Cargo.lock": "3eb773741dae7a739b1a93d7d312f43f37c46554b9e33a2e7a81cc3f4e271d8a",
           "services/local-agent/src/executor.rs": "2ebb486fefd08e3cc9997a7aaa87dbb64c1dd80482c9faf097ec21d67c14f092",
-          "services/local-agent/src/lib.rs": "7f61962ada94a0052bbdf182e31d9455aedfe50bd55d3eb9fc9512e97cbf96fd",
+          "services/local-agent/src/lib.rs": "1d746b19bb2a83b8fe7c980368b31f3cc2639631192e6fbf75f6021bdede3ae1",
           "services/local-agent/src/model.rs": "01aab422c7e778fc0b4a29e4f512155029ae5652fbbe90964d1c26ddb1385e03",
-          "services/local-agent/src/registry.rs": "1ef9a9aeb12ccf8663700e900a7af1df8c5af806055c2edb2362fca50e25600d",
+          "services/local-agent/src/registry.rs": "b629fd6edf7448480c9380316a643ba3a909e447b5afc6d100cb450422733425",
           "services/local-agent/src/registry_tests.rs": "c3fffc772c493dfd337e8504b9310690b902010bbd4ebc7d8672ed9e79f031ee"
         }
       }
