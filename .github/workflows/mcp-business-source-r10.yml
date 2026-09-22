@@ -27,12 +27,12 @@ jobs:
         shell: bash
         env:
           BASE: '8836fd1da266cea5729c4dcb6a4f1d5d70ac8a90'
-          XZ_SHA: '7dba174110ba1a3163b23eb82c8658f01c7f49d2c163190ef3228fae1cb8f2cd'
-          PATCH_SHA: '6fb8666647e9d77c8819692ac750e53ff788253ca33a3ad9d2b3ff6191d58c00'
+          XZ_SHA: 'dc1d253154efc7108152153be48714c32c10c7a0cba9b74015f8e6c8c461fca1'
+          PATCH_SHA: '9e69affc1dd5f9bd3136870c2462d4ab532383d8436d869d8502e4a192a2f616'
         run: |
           set -euo pipefail
           mkdir -p evidence "$RUNNER_TEMP/mcp-r10"
-          cat .source-recovery-r10/part-*.txt | base64 -d > "$RUNNER_TEMP/mcp-r10/change.patch.xz"
+          cat .source-recovery-r10/v2-part-*.txt | base64 -d > "$RUNNER_TEMP/mcp-r10/change.patch.xz"
           echo "$XZ_SHA  $RUNNER_TEMP/mcp-r10/change.patch.xz" | sha256sum -c -
           xz -dc "$RUNNER_TEMP/mcp-r10/change.patch.xz" > "$RUNNER_TEMP/mcp-r10/change.patch"
           echo "$PATCH_SHA  $RUNNER_TEMP/mcp-r10/change.patch" | sha256sum -c -
@@ -123,11 +123,11 @@ jobs:
       - name: Reconstruct and compile portable contracts
         env:
           BASE: '8836fd1da266cea5729c4dcb6a4f1d5d70ac8a90'
-          XZ_SHA: '7dba174110ba1a3163b23eb82c8658f01c7f49d2c163190ef3228fae1cb8f2cd'
+          XZ_SHA: 'dc1d253154efc7108152153be48714c32c10c7a0cba9b74015f8e6c8c461fca1'
         run: |
           set -euo pipefail
           mkdir -p evidence "$RUNNER_TEMP/mcp-r10"
-          cat .source-recovery-r10/part-*.txt | base64 -d > "$RUNNER_TEMP/mcp-r10/change.patch.xz"
+          cat .source-recovery-r10/v2-part-*.txt | base64 -d > "$RUNNER_TEMP/mcp-r10/change.patch.xz"
           echo "$XZ_SHA  $RUNNER_TEMP/mcp-r10/change.patch.xz" | sha256sum -c -
           xz -dc "$RUNNER_TEMP/mcp-r10/change.patch.xz" > "$RUNNER_TEMP/mcp-r10/change.patch"
           git checkout --detach "$BASE"
