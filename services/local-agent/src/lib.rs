@@ -17,7 +17,7 @@ pub use policy::{
 };
 pub use process::{
     ExecutionRoot, OutputChunk, OutputCursor, ProcessError, ProcessErrorKind, ProcessId,
-    ProcessManager, ProcessSession, ProcessStatus, SpawnRequest, TerminationReason,
+    ProcessManager, ProcessSession, ProcessStatus, SpawnContext, SpawnRequest, TerminationReason,
     MAX_READ_BYTES, MAX_RETAINED_STREAM_BYTES, MAX_SESSIONS, MAX_TIMEOUT_MS,
 };
 pub use registry::{ToolRegistry, VerifiedInvocation};
