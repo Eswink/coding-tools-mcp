@@ -40,7 +40,7 @@ jobs:
           git checkout --detach "$BASE"
           git apply --index --whitespace=error-all "$tmp/change.patch"
           git diff --cached --check
-          git diff --cached --name-only > evidence/changed-files.txt
+          git -c core.quotePath=false diff --cached --name-only > evidence/changed-files.txt
           python3 - <<'PY'
           from pathlib import Path
           allowed={
