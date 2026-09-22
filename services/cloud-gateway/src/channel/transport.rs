@@ -17,24 +17,65 @@ use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
-use tokio::sync::Semaphore;
+use tokio::sync::{watch, Semaphore};
 
 #[derive(Clone)]
 struct TransportState {
     control: ChannelController,
     connections: Arc<Semaphore>,
     attempts: Arc<Mutex<(Instant, u32)>>,
+    stop: Arc<watch::Sender<bool>>,
 }
 /// The caller must enforce loopback-only binding behind trusted TLS/WSS ingress,
 /// request-header deadlines and graceful socket shutdown. No private signing key is accepted.
 pub fn agent_channel_routes(control: ChannelController) -> Router {
+    managed_agent_channel_routes(control).0
+}
+
+/// Explicit shutdown ownership for upgraded sockets; HTTP connection tasks alone do not own them.
+pub struct ChannelShutdown {
+    stop: Arc<watch::Sender<bool>>,
+    connections: Arc<Semaphore>,
+    control: ChannelController,
+}
+impl ChannelShutdown {
+    pub fn signal(&self) {
+        self.stop.send_replace(true);
+    }
+    pub async fn drain(&self) -> Result<()> {
+        self.signal();
+        let _permits = tokio::time::timeout(
+            Duration::from_secs(6),
+            self.connections.clone().acquire_many_owned(8),
+        )
+        .await
+        .map_err(|_| IdentityError::InvalidRequest)?
+        .map_err(|_| IdentityError::InvalidRequest)?;
+        tokio::time::timeout(Duration::from_secs(3), self.control.deactivate())
+            .await
+            .map_err(|_| IdentityError::InvalidRequest)?
+    }
+}
+pub fn managed_agent_channel_routes(control: ChannelController) -> (Router, ChannelShutdown) {
     let path = format!("{}/agent", control.identity().prefix());
+    let (stop, _) = watch::channel(false);
+    let stop = Arc::new(stop);
+    let connections = Arc::new(Semaphore::new(8));
+    let handle = ChannelShutdown {
+        stop: stop.clone(),
+        connections: connections.clone(),
+        control: control.clone(),
+    };
     let state = TransportState {
         control,
-        connections: Arc::new(Semaphore::new(8)),
+        stop,
+        connections,
         attempts: Arc::new(Mutex::new((Instant::now(), 0))),
     };
-    Router::new().route(&path, get(upgrade)).with_state(state)
+    (
+        Router::new().route(&path, get(upgrade)).with_state(state),
+        handle,
+    )
 }
 fn allowed_headers(headers: &HeaderMap, uri: &Uri, authority: &str) -> bool {
     if uri.query().is_some()
@@ -66,7 +107,7 @@ async fn upgrade(
     uri: Uri,
     ws: WebSocketUpgrade,
 ) -> Response {
-    if !allowed_headers(&headers, &uri, s.control.identity().authority()) {
+    if *s.stop.borrow() || !allowed_headers(&headers, &uri, s.control.identity().authority()) {
         return denied(StatusCode::FORBIDDEN);
     }
     let admitted = s.attempts.lock().is_ok_and(|mut b| {
@@ -97,7 +138,14 @@ async fn upgrade(
         .on_upgrade(move |mut socket| async move {
             let _permit = permit;
             let mut session = None;
-            let _ = run_socket(&s.control, &mut socket, pending, &mut session).await;
+            let mut stop = s.stop.subscribe();
+            if !*stop.borrow() {
+                tokio::select! {
+                    biased;
+                    _ = stop.changed() => {},
+                    _ = run_socket(&s.control, &mut socket, pending, &mut session) => {},
+                }
+            }
             if let Some(session) = session {
                 let _ =
                     tokio::time::timeout(Duration::from_secs(3), s.control.disconnect(&session))

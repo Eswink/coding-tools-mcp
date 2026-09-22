@@ -27,3 +27,6 @@ pub mod projection;
 
 /// Opt-in native device control channel; not mounted by the identity-only service.
 pub mod channel;
+
+/// Native recovery-only control client; no local execution provider is installed.
+pub mod agent;

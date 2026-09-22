@@ -72,6 +72,26 @@ impl ChannelController {
             serial: Arc::new(Mutex::new(())),
         })
     }
+    /// Lifecycle-only fence, after upgraded sockets have drained. Never affects a newer boot.
+    pub async fn deactivate(&self) -> Result<()> {
+        let _guard = self.serial.lock().await;
+        let mut tx = bounded_tx(&self.identity).await?;
+        let boot: Uuid = sqlx::query_scalar(
+            "SELECT gateway_boot FROM ctm_grant_projection WHERE connector=$1 FOR UPDATE",
+        )
+        .bind(self.identity.identity.connector())
+        .fetch_one(&mut *tx)
+        .await?;
+        if boot != self.boot {
+            return Err(IdentityError::InvalidProof);
+        }
+        self.lock_channel(&mut tx).await?;
+        sqlx::query("UPDATE ctm_agent_channel SET connected=false,lease_until=0 WHERE connector=$1 AND gateway_boot=$2")
+            .bind(self.identity.identity.connector()).bind(self.boot).execute(&mut *tx).await?;
+        self.fence_projection(&mut tx).await?;
+        tx.commit().await?;
+        Ok(())
+    }
     pub fn identity(&self) -> &crate::PublicIdentity {
         self.identity.identity()
     }

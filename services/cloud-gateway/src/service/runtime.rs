@@ -100,6 +100,14 @@ async fn ready(State(s): State<RuntimeState>) -> Response {
 
 /// Only loopback accepts trusted TLS reverse-proxy traffic. No cloud execution endpoint.
 pub(crate) async fn serve(store: IdentityStore, cfg: GatewayConfig) -> Result<()> {
+    serve_managed(store, cfg, false).await
+}
+
+pub(crate) async fn serve_managed(
+    store: IdentityStore,
+    cfg: GatewayConfig,
+    enable_control: bool,
+) -> Result<()> {
     lifecycle::ready(&store, &cfg).await?;
     #[cfg(unix)]
     let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
@@ -126,7 +134,18 @@ pub(crate) async fn serve(store: IdentityStore, cfg: GatewayConfig) -> Result<()
         .route(&format!("{}/health/live", cfg.prefix), get(live))
         .route(&format!("{}/health/ready", cfg.prefix), get(ready))
         .with_state(state.clone());
+    let (agent_routes, agent_shutdown) = if enable_control {
+        // Bind first: a second process must not fence the live service before failing to bind.
+        let control = crate::channel::ChannelController::activate(store.clone())
+            .await
+            .map_err(|_| ServiceError::Store)?;
+        let (routes, handle) = crate::channel::managed_agent_channel_routes(control);
+        (routes, Some(handle))
+    } else {
+        (Router::new(), None)
+    };
     let routes = crate::http::identity_routes(store.clone())
+        .merge(agent_routes)
         .merge(health)
         .layer(middleware::from_fn_with_state(state, controls));
     let semaphore = Arc::new(Semaphore::new(MAX_CONNECTIONS));
@@ -134,7 +153,7 @@ pub(crate) async fn serve(store: IdentityStore, cfg: GatewayConfig) -> Result<()
     let mut tasks = JoinSet::new();
     println!(
         "{}",
-        json!({"status":"ready","listen":address.to_string(),"mode":"identity_only"})
+        json!({"status":"ready","listen":address.to_string(),"mode":if enable_control {"identity_with_agent_control"}else{"identity_only"}})
     );
     loop {
         tokio::select! {
@@ -150,8 +169,11 @@ pub(crate) async fn serve(store: IdentityStore, cfg: GatewayConfig) -> Result<()
                     let _permit = permit;
                     let mut builder = http1::Builder::new();
                     builder.timer(TokioTimer::new()).header_read_timeout(Duration::from_secs(5))
-                        .max_headers(32).max_buf_size(16_384).keep_alive(false);
-                    let connection = builder.serve_connection(TokioIo::new(stream),TowerToHyperService::new(app));
+                        .max_headers(32).max_buf_size(16_384).keep_alive(enable_control);
+                    // Hyper removes the required Connection: upgrade when keep_alive=false.
+                    // Opt-in control connections may upgrade; HTTP still has the same 10s
+                    // total lifetime and 64-slot budget. The identity-only default is unchanged.
+                    let connection = builder.serve_connection(TokioIo::new(stream),TowerToHyperService::new(app)).with_upgrades();
                     tokio::pin!(connection);
                     tokio::select! {
                         _ = &mut connection => {},
@@ -167,6 +189,9 @@ pub(crate) async fn serve(store: IdentityStore, cfg: GatewayConfig) -> Result<()
     }
     drop(listener);
     let _ = stop.send(true);
+    if let Some(agent) = &agent_shutdown {
+        agent.signal();
+    }
     let drained = tokio::time::timeout(Duration::from_secs(5), async {
         while tasks.join_next().await.is_some() {}
     })
@@ -175,10 +200,16 @@ pub(crate) async fn serve(store: IdentityStore, cfg: GatewayConfig) -> Result<()
     if !drained {
         tasks.abort_all();
     }
+    let agents_drained = if let Some(agent) = agent_shutdown {
+        agent.drain().await.is_ok()
+    } else {
+        true
+    };
     if tokio::time::timeout(Duration::from_secs(5), store.pool.close())
         .await
         .is_err()
         || !drained
+        || !agents_drained
     {
         return Err(ServiceError::Shutdown);
     }
