@@ -26,8 +26,8 @@ jobs:
         shell: bash
         env:
           BASE: '50fc0caa1be959adff3640b4d75b47ff778d2045'
-          PATCH_SHA: '1ffc84e98804cbd0379350561435e4d28b4069dfadba954bf1a922f932fe40f6'
-          XZ_SHA: '671700ac9cf7f0d92f8a3480177e087ae5210b10e8af04142bbec407704a6202'
+          PATCH_SHA: '743c41399e691a84758b638f5bbda24d9c3f9bf9ec4829da7f05681ee9f4c63c'
+          XZ_SHA: '993b7da973320cfc49691eb908bb1e70dd98bb2e46af1c374fd2a9ff11ff6ab9'
         run: |
           set -euo pipefail
           tmp="$RUNNER_TEMP/local-authority-r9"
