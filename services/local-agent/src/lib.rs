@@ -7,4 +7,4 @@ pub use model::{
     parse_arguments, Capability, LocalAdmission, ToolCall, ToolError, ToolErrorKind, ToolExposure,
     ToolName, ToolOutput, ToolSpec,
 };
-pub use registry::ToolRegistry;
+pub use registry::{ToolRegistry, VerifiedInvocation};
