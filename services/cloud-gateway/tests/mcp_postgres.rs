@@ -8,7 +8,8 @@ use axum::{
     http::{header, Request, StatusCode},
 };
 use coding_tools_cloud_gateway::{
-    mcp::{routes, MODERN},
+    mcp::{routes, routes_with_observability, MODERN},
+    observability::GatewayObservability,
     projection::ProjectionDecision,
 };
 use common::identity;
@@ -359,4 +360,87 @@ async fn host_session_never_comes_from_tool_arguments() {
         v["result"]["structuredContent"]["error"]["code"],
         "CHAT_CONTEXT_REQUIRED"
     );
+}
+
+#[tokio::test]
+async fn observability_separates_auth_permission_availability_and_ingress_without_labels() {
+    let (h, c) = channel_support::setup().await;
+    let pair = h.f.tokens(Uuid::from_u128(8)).await;
+    let token = pair.access_token.expose();
+    let metrics = GatewayObservability::default();
+    let app = routes_with_observability(h.f.store.clone(), c.clone(), metrics.clone());
+
+    let discover = message(20, "server/discover", None, json!({}));
+    let invalid = app
+        .clone()
+        .oneshot(request(&"x".repeat(43), &discover))
+        .await
+        .unwrap();
+    assert_eq!(invalid.status(), StatusCode::UNAUTHORIZED);
+
+    let session = channel_support::attach(&h, &c).await;
+    channel_support::project(&h, &c, &session, 1, 1).await;
+    c.disconnect(&session).await.unwrap();
+
+    let foreign = message(
+        21,
+        "tools/call",
+        Some("host-session-B"),
+        json!({"name":"workspace_probe","arguments":{}}),
+    );
+    let foreign_response = app
+        .clone()
+        .oneshot(request(token, &foreign))
+        .await
+        .unwrap();
+    assert_eq!(foreign_response.status(), StatusCode::OK);
+    let foreign_json = json_body(foreign_response).await;
+    assert_eq!(
+        foreign_json["result"]["structuredContent"]["error"]["category"],
+        "permission"
+    );
+
+    let owner = message(
+        22,
+        "tools/call",
+        Some("host-session-A"),
+        json!({"name":"workspace_probe","arguments":{}}),
+    );
+    let owner_response = app
+        .clone()
+        .oneshot(request(token, &owner))
+        .await
+        .unwrap();
+    assert_eq!(owner_response.status(), StatusCode::OK);
+    let owner_json = json_body(owner_response).await;
+    assert_eq!(
+        owner_json["result"]["structuredContent"]["error"]["category"],
+        "availability"
+    );
+
+    let mut bad_host = request(token, &discover);
+    bad_host
+        .headers_mut()
+        .insert(header::HOST, "foreign.invalid".parse().unwrap());
+    let rejected = app.oneshot(bad_host).await.unwrap();
+    assert_eq!(rejected.status(), StatusCode::FORBIDDEN);
+
+    let snapshot = metrics.snapshot();
+    assert_eq!(snapshot.auth_invalid, 1);
+    assert_eq!(snapshot.mcp_permission, 1);
+    assert_eq!(snapshot.mcp_availability, 1);
+    assert_eq!(snapshot.reject_host_or_origin, 1);
+    assert_eq!(snapshot.ingress_accepted, 3);
+    assert_eq!(
+        snapshot.latency_under_10_ms
+            + snapshot.latency_under_100_ms
+            + snapshot.latency_under_1_s
+            + snapshot.latency_1_s_or_more,
+        4
+    );
+
+    let rendered = serde_json::to_string(&snapshot).unwrap().to_ascii_lowercase();
+    assert!(!rendered.contains("host-session"));
+    assert!(!rendered.contains("bearer "));
+    assert!(!rendered.contains("workspace_probe"));
 }
