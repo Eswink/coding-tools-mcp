@@ -20,6 +20,14 @@ fn spec(args: &[&str]) -> ExecSpec {
     ExecSpec::new(argv, cwd()).expect("valid fixture spec")
 }
 
+fn grandchild_pid(outcome: &coding_tools_local_agent::ExecOutcome) -> u32 {
+    String::from_utf8_lossy(&outcome.stdout)
+        .lines()
+        .find_map(|line| line.strip_prefix("grandchild_pid="))
+        .and_then(|value| value.parse::<u32>().ok())
+        .expect("grandchild pid")
+}
+
 #[tokio::test]
 async fn captures_stdout_stderr_and_exit_code() {
     let manager = ProcessManager::default();
@@ -74,30 +82,52 @@ async fn timeout_terminates_owned_process_tree() {
         .await
         .unwrap();
     assert_eq!(outcome.termination, ExecTermination::TimedOut, "{outcome:?}");
-    let text = String::from_utf8_lossy(&outcome.stdout);
-    let pid = text
-        .lines()
-        .find_map(|line| line.strip_prefix("grandchild_pid="))
-        .and_then(|value| value.parse::<u32>().ok())
-        .expect("grandchild pid");
+    let pid = grandchild_pid(&outcome);
     tokio::time::sleep(Duration::from_millis(150)).await;
     assert!(!process_alive(pid), "grandchild survived process-tree timeout: {pid}");
 }
 
 #[tokio::test]
-async fn explicit_cancel_terminates_owned_process() {
+async fn explicit_cancel_terminates_owned_process_tree() {
     let manager = ProcessManager::default();
     let mut session = manager
         .start(
-            spec(&["sleep", "60000"])
+            spec(&["spawn-grandchild"])
                 .with_timeout(Duration::from_secs(30))
                 .unwrap(),
         )
         .await
         .unwrap();
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(150)).await;
     let outcome = session.cancel().await;
     assert_eq!(outcome.termination, ExecTermination::Cancelled, "{outcome:?}");
+    let pid = grandchild_pid(&outcome);
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    assert!(
+        !process_alive(pid),
+        "grandchild survived explicit process-tree cancel: {pid}"
+    );
+}
+
+#[tokio::test]
+async fn successful_parent_exit_still_cleans_owned_grandchild() {
+    let manager = ProcessManager::default();
+    let outcome = manager
+        .run(
+            spec(&["spawn-grandchild-exit"])
+                .with_timeout(Duration::from_secs(10))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(outcome.termination, ExecTermination::Exited, "{outcome:?}");
+    assert!(outcome.command_ok(), "{outcome:?}");
+    let pid = grandchild_pid(&outcome);
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    assert!(
+        !process_alive(pid),
+        "grandchild survived successful parent exit cleanup: {pid}"
+    );
 }
 
 #[tokio::test]
