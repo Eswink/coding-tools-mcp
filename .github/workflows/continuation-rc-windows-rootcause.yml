@@ -77,6 +77,10 @@ jobs:
             source: c22e08dc0bb2d2c80714b7efb2c3e90e1e7b808b
     runs-on: windows-2025
     timeout-minutes: 28
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: 'utf-8'
+      PYTHONLEGACYWINDOWSSTDIO: '0'
     defaults:
       run:
         shell: bash
@@ -111,8 +115,8 @@ jobs:
           from pathlib import Path
           paths=['src-tauri/src/auth/exclusive_refresh_http_tests.rs','src-tauri/src/tools/异步命令v1.rs','.github/workflows/发布候选验证v4.yml']
           out={p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths}
-          Path('evidence/source-hashes.json').write_text(json.dumps(out,indent=2,ensure_ascii=False),encoding='utf-8')
-          print(json.dumps(out,indent=2,ensure_ascii=False))
+          Path('evidence/source-hashes.json').write_text(json.dumps(out,indent=2,ensure_ascii=True),encoding='utf-8')
+          print(json.dumps(out,indent=2,ensure_ascii=True))
           PY
           printf '%s\n' '${{ matrix.label }}' > evidence/source-label.txt
           printf '%s\n' 'DIAGNOSTIC_HELPER_NEVER_MERGE_NOT_A_RELEASE_GATE' > evidence/boundary.txt
