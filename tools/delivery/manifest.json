@@ -421,10 +421,21 @@
       "depends_on": [
         "tool-runtime"
       ],
-      "issue": null,
-      "state": "planned",
+      "issue": 53,
+      "state": "verified",
       "priority": 30,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "5ff668fd9557f7d6156313cb311b1ba513c04520",
+        "run_id": 35737499058,
+        "files": {
+          "services/local-agent/Cargo.toml": "631b10a33d4f20545fead1e23dde468f1ce18fcafc7167f637d4672647bda59d",
+          "services/local-agent/Cargo.lock": "3eb773741dae7a739b1a93d7d312f43f37c46554b9e33a2e7a81cc3f4e271d8a",
+          "services/local-agent/src/lib.rs": "1d746b19bb2a83b8fe7c980368b31f3cc2639631192e6fbf75f6021bdede3ae1",
+          "services/local-agent/src/policy.rs": "937e79cddfb89031eeff8d1f5d108dcdddf1b8982b98bbe4d83ec846f2e732d8",
+          "services/local-agent/src/registry.rs": "b629fd6edf7448480c9380316a643ba3a909e447b5afc6d100cb450422733425"
+        }
+      }
     },
     {
       "id": "ubuntu-sandbox",
