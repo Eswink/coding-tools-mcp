@@ -95,6 +95,18 @@ async fn controls(
     }
     s.observability.record_ingress_accepted();
     let response = next.run(request).await;
+    match response.status() {
+        StatusCode::PAYLOAD_TOO_LARGE => s
+            .observability
+            .record_ingress_rejected(IngressRejection::Body),
+        StatusCode::REQUEST_TIMEOUT => s
+            .observability
+            .record_ingress_rejected(IngressRejection::Timeout),
+        status if status.is_server_error() => s
+            .observability
+            .record_ingress_rejected(IngressRejection::Internal),
+        _ => {}
+    }
     s.observability.record_latency(started.elapsed());
     response
 }
@@ -202,7 +214,10 @@ pub(crate) async fn serve_managed(
                             connection_observability.record_connection(ConnectionObservation::Closed);
                         },
                         _ = tokio::time::sleep(Duration::from_secs(10)) => {
-                            connection_observability.record_connection(ConnectionObservation::Timeout);
+                            connection_observability
+                                .record_connection(ConnectionObservation::Timeout);
+                            connection_observability
+                                .record_ingress_rejected(IngressRejection::Timeout);
                         },
                         _ = closing.changed() => {
                             connection.as_mut().graceful_shutdown();
