@@ -137,6 +137,131 @@ async fn authorized_agent_offline_is_tool_error_not_oauth_or_foreign_metadata() 
 }
 
 #[tokio::test]
+async fn offline_foreign_authorization_request_is_suppressed_without_state_or_channel_noise() {
+    let (h, c) = channel_support::setup().await;
+    let pair = h.f.tokens(Uuid::from_u128(8)).await;
+    let token = pair.access_token.expose();
+    let app = routes(h.f.store.clone(), c.clone());
+
+    let session = channel_support::attach(&h, &c).await;
+    channel_support::project(&h, &c, &session, 1, 1).await;
+    c.disconnect(&session).await.unwrap();
+
+    let channel_before: (i64, Option<Uuid>, bool, i64, i64, i64) = sqlx::query_as(
+        "SELECT generation,session,connected,last_seq,lease_until,absolute_until FROM ctm_agent_channel",
+    )
+    .fetch_one(&h.f.pool)
+    .await
+    .unwrap();
+    let projection_before: (i64, bool, i64, Option<Vec<u8>>) = sqlx::query_as(
+        "SELECT revision,reconciled,snapshot_until,last_digest FROM ctm_grant_projection",
+    )
+    .fetch_one(&h.f.pool)
+    .await
+    .unwrap();
+    let ledger_before: i64 = sqlx::query_scalar("SELECT count(*) FROM ctm_request_ledger")
+        .fetch_one(&h.f.pool)
+        .await
+        .unwrap();
+
+    let foreign = message(
+        5,
+        "tools/call",
+        Some("host-session-B"),
+        json!({"name":"request_chat_authorization","arguments":{"scopes":["files.read"]}}),
+    );
+    for _ in 0..2 {
+        let r = app
+            .clone()
+            .oneshot(request(token, &foreign))
+            .await
+            .unwrap();
+        assert_eq!(r.status(), StatusCode::OK);
+        assert!(!r.headers().contains_key(header::WWW_AUTHENTICATE));
+        let v = json_body(r).await;
+        let result = &v["result"]["structuredContent"];
+        assert_eq!(v["result"]["isError"], true, "{v}");
+        assert_eq!(result["error"]["code"], "CHAT_AUTHORIZATION_UNAVAILABLE", "{v}");
+        assert_eq!(result["error"]["category"], "permission", "{v}");
+        assert_eq!(result["error"]["retryable"], false, "{v}");
+        assert_eq!(result["requires_local_action"], false, "{v}");
+        assert!(result.get("authorization").is_none(), "{v}");
+        let text = result.to_string().to_ascii_lowercase();
+        for forbidden in ["offline", "paused", "workspace", "owner", "grant", "request_id"] {
+            assert!(!text.contains(forbidden), "foreign response leaked {forbidden}: {v}");
+        }
+    }
+
+    let channel_after: (i64, Option<Uuid>, bool, i64, i64, i64) = sqlx::query_as(
+        "SELECT generation,session,connected,last_seq,lease_until,absolute_until FROM ctm_agent_channel",
+    )
+    .fetch_one(&h.f.pool)
+    .await
+    .unwrap();
+    let projection_after: (i64, bool, i64, Option<Vec<u8>>) = sqlx::query_as(
+        "SELECT revision,reconciled,snapshot_until,last_digest FROM ctm_grant_projection",
+    )
+    .fetch_one(&h.f.pool)
+    .await
+    .unwrap();
+    let ledger_after: i64 = sqlx::query_scalar("SELECT count(*) FROM ctm_request_ledger")
+        .fetch_one(&h.f.pool)
+        .await
+        .unwrap();
+    let projection_rows: i64 = sqlx::query_scalar("SELECT count(*) FROM ctm_grant_projection")
+        .fetch_one(&h.f.pool)
+        .await
+        .unwrap();
+
+    assert_eq!(channel_before, channel_after, "suppression mutated channel state");
+    assert_eq!(
+        projection_before, projection_after,
+        "suppression mutated local authority projection"
+    );
+    assert_eq!(ledger_before, ledger_after, "suppression allocated request state");
+    assert_eq!(projection_rows, 1, "foreign request allocated per-chat projection state");
+}
+
+#[tokio::test]
+async fn offline_owner_authorization_remains_active_without_new_pending_state() {
+    let (h, c) = channel_support::setup().await;
+    let pair = h.f.tokens(Uuid::from_u128(8)).await;
+    let token = pair.access_token.expose();
+    let app = routes(h.f.store.clone(), c.clone());
+
+    let session = channel_support::attach(&h, &c).await;
+    channel_support::project(&h, &c, &session, 1, 1).await;
+    c.disconnect(&session).await.unwrap();
+
+    let ledger_before: i64 = sqlx::query_scalar("SELECT count(*) FROM ctm_request_ledger")
+        .fetch_one(&h.f.pool)
+        .await
+        .unwrap();
+    let owner = message(
+        6,
+        "tools/call",
+        Some("host-session-A"),
+        json!({"name":"request_chat_authorization","arguments":{}}),
+    );
+    let r = app.oneshot(request(token, &owner)).await.unwrap();
+    assert_eq!(r.status(), StatusCode::OK);
+    assert!(!r.headers().contains_key(header::WWW_AUTHENTICATE));
+    let v = json_body(r).await;
+    let result = &v["result"]["structuredContent"];
+    assert_eq!(v["result"]["isError"], false, "{v}");
+    assert_eq!(result["ok"], true, "{v}");
+    assert_eq!(result["authorization"]["status"], "active", "{v}");
+    assert_eq!(result["execution"], "offline", "{v}");
+    assert!(result.get("error").is_none(), "{v}");
+
+    let ledger_after: i64 = sqlx::query_scalar("SELECT count(*) FROM ctm_request_ledger")
+        .fetch_one(&h.f.pool)
+        .await
+        .unwrap();
+    assert_eq!(ledger_before, ledger_after, "owner authorization check allocated request state");
+}
+
+#[tokio::test]
 async fn online_call_enters_ledger_once_then_stops_before_local_side_effect() {
     let (h, c) = channel_support::setup().await;
     let pair = h.f.tokens(Uuid::from_u128(8)).await;
