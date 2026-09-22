@@ -1,0 +1,126 @@
+name: Isolated delivery manifest receipt reconciliation (never merge)
+
+on:
+  push:
+    branches: ['ci/manifest-receipt-reconcile-20260923']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: continuation-manifest-reconcile-20260923
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: b59d550294b6e0f7734299102fb80f8fb17eecd0
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Verify target ref and prepare exact manifest-only proposal
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          expected=b59d550294b6e0f7734299102fb80f8fb17eecd0
+          git fetch origin refs/heads/feat/cloud-gateway-agent-runtime:refs/remotes/origin/feat/cloud-gateway-agent-runtime
+          test "$(git rev-parse refs/remotes/origin/feat/cloud-gateway-agent-runtime)" = "$expected"
+          git switch -c continuation-manifest-reconcile
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          p=Path('tools/delivery/manifest.json')
+          doc=json.loads(p.read_text(encoding='utf-8'))
+          tasks={t['id']:t for t in doc['tasks']}
+          dispatch=tasks['issue-dispatch']
+          pty=tasks['native-pty']
+          assert dispatch['issue']==48 and dispatch['state']=='verified'
+          assert dispatch['evidence']['revision']=='765664434a8016f05ce3a15fff87065506fbc7fc'
+          assert dispatch['evidence']['run_id']==35685755510
+          assert pty['issue'] is None and pty['state']=='planned' and pty['depends_on']==['exec-unification']
+          dispatch['evidence']={
+            'revision':'b59d550294b6e0f7734299102fb80f8fb17eecd0',
+            'run_id':35776835893,
+            'files':{
+              'tools/delivery/dispatch.py':'ee56ad164f79349d61579fe83fe3af966b22110dc2ab7b06ba20ff28504fe966',
+              'tests/delivery/test_dispatch.py':'fd442d78efa619bb41db41878254e230bf20aa45d671fd49fc5e7141173529d4',
+              '.github/workflows/cloud-delivery.yml':'245b4765b07486f0b6f3dd7942dffa5bd3e30c4e33bdbba5c8eb7733f682e2c2',
+              'tests/delivery/metadata_contract.test.mjs':'a80375a68a211dd956f836c6e668acd69fa39cd682448e2ece472758bb8f5d08',
+            },
+          }
+          pty['issue']=59
+          p.write_text(json.dumps(doc,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
+          hashes={x:hashlib.sha256(Path(x).read_bytes()).hexdigest() for x in [
+            'tools/delivery/dispatch.py','tests/delivery/test_dispatch.py',
+            '.github/workflows/cloud-delivery.yml','tests/delivery/metadata_contract.test.mjs',
+            'tools/delivery/manifest.json']}
+          Path('evidence/proposal-hashes.json').write_text(json.dumps(hashes,indent=2),encoding='utf-8')
+          PY
+          git diff -- tools/delivery/manifest.json | tee evidence/manifest.patch
+          test "$(git diff --name-only | tr -d '\r')" = "tools/delivery/manifest.json"
+      - name: Run scheduler contracts and exact proposed plan before publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests/delivery -v 2>&1 | tee evidence/scheduler-tests.txt
+          node --test tests/delivery/metadata_contract.test.mjs 2>&1 | tee evidence/metadata-tests.txt
+          python tools/delivery/dispatch.py --manifest tools/delivery/manifest.json --repo-root . --output evidence/dispatch.json
+          python - <<'PY'
+          import json
+          data=json.load(open('evidence/dispatch.json',encoding='utf-8'))
+          assert data['states']['issue-dispatch']=='verified'
+          assert data['states']['native-pty']=='planned'
+          assert data['release_allowed'] is False
+          packets=data['packets']
+          assert len(packets)==1, packets
+          packet=packets[0]
+          assert packet['id']=='native-pty' and packet['issue']==59 and packet['action']=='queue_issue'
+          assert packet['execution_started'] is False and packet['authority']=='engineering_only'
+          PY
+      - name: Pinned graph change-scope review
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/graph-analyze.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md
+          git add tools/delivery/manifest.json
+          "$graph" detect-changes --scope staged > evidence/graph-changes.txt 2>&1
+          cat evidence/graph-changes.txt
+          test "$(git diff --cached --name-only | tr -d '\r')" = "tools/delivery/manifest.json"
+          git diff --cached --check
+      - name: Re-read target ref, commit once, and non-force push feature branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=b59d550294b6e0f7734299102fb80f8fb17eecd0
+          git fetch origin refs/heads/feat/cloud-gateway-agent-runtime:refs/remotes/origin/feat/cloud-gateway-agent-runtime
+          test "$(git rev-parse refs/remotes/origin/feat/cloud-gateway-agent-runtime)" = "$expected"
+          git config user.name 'Eswlnk'
+          git config user.email '1525566427@qq.com'
+          git commit -m 'chore(delivery): reconcile dispatch receipt and native PTY issue (#48)'
+          candidate="$(git rev-parse HEAD)"
+          git rev-parse HEAD^{tree} > evidence/candidate-tree.txt
+          printf '%s\n' "$candidate" > evidence/candidate-commit.txt
+          # Re-read immediately before push. A concurrent feature update makes this job fail closed.
+          git fetch origin refs/heads/feat/cloud-gateway-agent-runtime:refs/remotes/origin/feat/cloud-gateway-agent-runtime
+          test "$(git rev-parse refs/remotes/origin/feat/cloud-gateway-agent-runtime)" = "$expected"
+          git push origin HEAD:refs/heads/feat/cloud-gateway-agent-runtime
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: continuation-manifest-reconcile-evidence
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
