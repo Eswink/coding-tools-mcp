@@ -241,12 +241,13 @@
       "priority": 20,
       "release_required": true,
       "evidence": {
-        "revision": "765664434a8016f05ce3a15fff87065506fbc7fc",
-        "run_id": 35685755510,
+        "revision": "b59d550294b6e0f7734299102fb80f8fb17eecd0",
+        "run_id": 35776835893,
         "files": {
           "tools/delivery/dispatch.py": "ee56ad164f79349d61579fe83fe3af966b22110dc2ab7b06ba20ff28504fe966",
           "tests/delivery/test_dispatch.py": "fd442d78efa619bb41db41878254e230bf20aa45d671fd49fc5e7141173529d4",
-          ".github/workflows/cloud-delivery.yml": "12b3cd22b5e89624ff0f825776ac2a4a87db037e771fe8b8d19d763872f2cae4"
+          ".github/workflows/cloud-delivery.yml": "245b4765b07486f0b6f3dd7942dffa5bd3e30c4e33bdbba5c8eb7733f682e2c2",
+          "tests/delivery/metadata_contract.test.mjs": "a80375a68a211dd956f836c6e668acd69fa39cd682448e2ece472758bb8f5d08"
         }
       }
     },
@@ -419,7 +420,7 @@
       "depends_on": [
         "exec-unification"
       ],
-      "issue": null,
+      "issue": 59,
       "state": "planned",
       "priority": 30,
       "release_required": true
