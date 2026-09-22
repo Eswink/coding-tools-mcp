@@ -337,10 +337,17 @@
       "depends_on": [
         "mcp-business-gateway"
       ],
-      "issue": null,
-      "state": "planned",
+      "issue": 52,
+      "state": "verified",
       "priority": 24,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "c6f746533d9fb4c81cf5c2d5f1b2c55acc3b3fc4",
+        "run_id": 35736626909,
+        "files": {
+          "services/cloud-gateway/tests/mcp_postgres.rs": "4e02f0f318fddf7dc00674d044b08d926ae4c83c2a0f6fba8f294bdff5579f9b"
+        }
+      }
     },
     {
       "id": "tool-runtime",
