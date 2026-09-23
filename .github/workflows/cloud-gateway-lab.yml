@@ -76,6 +76,7 @@ jobs:
               'src-tauri/src/auth/聊天授权回归v1.rs',
               'src-tauri/src/runtime/execution_gate.rs',
               'src-tauri/src/runtime/mod.rs',
+              'src-tauri/src/tools/异步命令v1.rs',
           }
           unexpected = [
               p for p in paths
