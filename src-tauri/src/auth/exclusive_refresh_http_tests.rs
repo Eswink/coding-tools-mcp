@@ -138,9 +138,28 @@ async fn oauth_refresh_and_owner_survive_workspace_execution_pause() {
 async fn http_revoked_owner_drains_actual_background_process_before_successor() {
     let s=Server::new();let first=s.login("mcp").await;let access=first["access_token"].as_str().unwrap();
     s.approve(access,"A").await;
-    std::fs::write(s.root.path().join("hold.py"),"import pathlib, time\npathlib.Path('started').write_text('ready')\nwhile not pathlib.Path('release').exists():\n time.sleep(.05)\nprint('drained', flush=True)\n").unwrap();
-    let python=if cfg!(windows){"python"}else{"python3"};
-    let job=s.rpc(access,"A","start_exec_task",json!({"cmd":format!("{python} hold.py"),"request_id":"drain-http-job","timeout_ms":10000})).await;
+    #[cfg(windows)]
+    let fixture = {
+        std::fs::write(
+            s.root.path().join("hold.cmd"),
+            "@echo off\r\n<nul set /p \"=ready\">started\r\n:wait\r\nif exist release goto drained\r\n%SystemRoot%\\System32\\ping.exe -n 2 127.0.0.1 >nul\r\ngoto wait\r\n:drained\r\necho drained\r\n",
+        ).unwrap();
+        "hold.cmd"
+    };
+    #[cfg(unix)]
+    let fixture = {
+        use std::os::unix::fs::PermissionsExt;
+        let path = s.root.path().join("hold.sh");
+        std::fs::write(
+            &path,
+            "#!/bin/sh\nprintf 'ready' > started\nwhile [ ! -e release ]; do sleep 0.05; done\nprintf 'drained\\n'\n",
+        ).unwrap();
+        let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+        permissions.set_mode(0o700);
+        std::fs::set_permissions(&path, permissions).unwrap();
+        "hold.sh"
+    };
+    let job=s.rpc(access,"A","start_exec_task",json!({"cmd":fixture,"request_id":"drain-http-job","timeout_ms":10000})).await;
     assert_eq!(job["ok"],true,"{job}");
     let started_at=Instant::now();let start_deadline=started_at+Duration::from_secs(8);
     // A trusted, read-only test observer verifies actual task termination after A
