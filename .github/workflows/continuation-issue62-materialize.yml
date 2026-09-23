@@ -1,0 +1,80 @@
+name: Issue 62 candidate object materialization (never merge)
+
+on:
+  push:
+    branches: ['ci/issue62-materialize-helper-20260923']
+    paths: ['.github/workflows/continuation-issue62-materialize.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: 998abf5ff85aa13fad54797fb3a7ddfb981f8af6
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Reconstruct exact reviewed candidate and publish helper object only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src-tauri/src/mcp/listener.rs')
+          text = path.read_text(encoding='utf-8')
+          old = '''fn bind_listener(port: u16) -> Result<tokio::net::TcpListener, String> {
+              let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+              let listener = std::net::TcpListener::bind(addr)
+                  .map_err(|err| format!("MCP 本地端口 {port} 绑定失败: {err}"))?;
+              listener
+                  .set_nonblocking(true)
+                  .map_err(|err| format!("MCP 本地端口 {port} 设置非阻塞失败: {err}"))?;
+              tokio::net::TcpListener::from_std(listener)
+                  .map_err(|err| format!("MCP 本地监听器初始化失败: {err}"))
+          }
+          '''
+          new = '''fn bind_listener(port: u16) -> Result<tokio::net::TcpListener, String> {
+              let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+              #[cfg(unix)]
+              {
+                  let socket = tokio::net::TcpSocket::new_v4()
+                      .map_err(|err| format!("MCP 本地端口 {port} 套接字初始化失败: {err}"))?;
+                  socket
+                      .set_reuseaddr(true)
+                      .map_err(|err| format!("MCP 本地端口 {port} 设置快速重绑定失败: {err}"))?;
+                  socket
+                      .bind(addr)
+                      .map_err(|err| format!("MCP 本地端口 {port} 绑定失败: {err}"))?;
+                  socket
+                      .listen(1024)
+                      .map_err(|err| format!("MCP 本地监听器初始化失败: {err}"))
+              }
+              #[cfg(not(unix))]
+              {
+                  let listener = std::net::TcpListener::bind(addr)
+                      .map_err(|err| format!("MCP 本地端口 {port} 绑定失败: {err}"))?;
+                  listener
+                      .set_nonblocking(true)
+                      .map_err(|err| format!("MCP 本地端口 {port} 设置非阻塞失败: {err}"))?;
+                  tokio::net::TcpListener::from_std(listener)
+                      .map_err(|err| format!("MCP 本地监听器初始化失败: {err}"))
+              }
+          }
+          '''
+          if text.count(old) != 1:
+              raise SystemExit('expected exact bind_listener source not found once')
+          path.write_text(text.replace(old, new), encoding='utf-8', newline='')
+          PY
+          test "$(sha256sum src-tauri/src/mcp/listener.rs | awk '{print $1}')" = c07a0e1f72880d352c232d2a76c0fec9c6071c9cb62a33d16d332ccc747f1c96
+          test "$(git diff --name-only | wc -l)" -eq 1
+          test "$(git diff --name-only)" = src-tauri/src/mcp/listener.rs
+          git config user.name 'Eswlnk'
+          git config user.email '1525566427@qq.com'
+          git add -- src-tauri/src/mcp/listener.rs
+          git diff --cached --check
+          git commit -m 'ci: materialize reviewed issue 62 candidate source'
+          git push origin HEAD:refs/heads/ci/issue62-candidate-source-20260923
