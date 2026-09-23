@@ -1,0 +1,69 @@
+name: Safe patch pre-edit review (never merge)
+
+on:
+  push:
+    branches: ['ci/safe-patch-impact-20260924']
+    paths:
+      - '.github/workflows/continuation-safe-patch-impact.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: 13d01cd9c478db7ef82fac18428c1f6d5bbaf426
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Run repository mcp-probe fallback
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/probe-install.txt 2>&1
+          cat > "$RUNNER_TEMP/start-feature.json" <<'JSON'
+          {
+            "project_root": ".",
+            "description": "Issue #68 safe-patch: harden the existing transactional patch commit/rollback path only. Preserve parser and workspace policy boundaries; deterministic multi-file commit ordering; rollback original bytes and permissions; clean temporary files and transaction-created empty directories; failure-injection tests; no worktree/snapshot/sandbox/hooks/cloud/UI expansion.",
+            "spec_layout": "auto"
+          }
+          JSON
+          ./.mcp-probe-kit/bin/probe exec start_feature --stdin < "$RUNNER_TEMP/start-feature.json" > evidence/start-feature.json 2>&1 || {
+            cat evidence/start-feature.json
+            exit 1
+          }
+          cat evidence/start-feature.json
+      - name: Run pinned GitNexus context and impact
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.12
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/graph.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md || true
+          "$graph" context 'Function:src-tauri/src/tools/patch.rs:apply_patch' > evidence/apply-context.txt 2>&1 || true
+          "$graph" impact 'Function:src-tauri/src/tools/patch.rs:apply_patch' --direction upstream > evidence/apply-impact.txt 2>&1 || true
+          "$graph" context 'Function:src-tauri/src/tools/patch.rs:commit_staged_bytes' > evidence/commit-context.txt 2>&1 || true
+          "$graph" impact 'Function:src-tauri/src/tools/patch.rs:commit_staged_bytes' --direction upstream > evidence/commit-impact.txt 2>&1 || true
+          cat evidence/apply-context.txt evidence/apply-impact.txt evidence/commit-context.txt evidence/commit-impact.txt
+          git diff --exit-code
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: safe-patch-impact
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
