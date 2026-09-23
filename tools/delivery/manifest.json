@@ -511,10 +511,19 @@
       "depends_on": [
         "tool-runtime"
       ],
-      "issue": null,
-      "state": "planned",
+      "issue": 64,
+      "state": "verified",
       "priority": 30,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "b7e52b8860f2ec177865479bd53dc0f49ccbbd31",
+        "run_id": 35894291059,
+        "files": {
+          "services/local-agent/src/guidance.rs": "9b77e719eacf495403ea3cff8a78f22a93ff1960f64a40ea62061e65f7751a9e",
+          "services/local-agent/src/guidance_tests.rs": "8506ada163cfacf074c9c460a7bb6942951a6f0162a26fc7bc9af9580337be9b",
+          "services/local-agent/src/lib.rs": "2abe89aa7d11ddf3a943b591267223d0dcbd04949f08a6a22193fd6cdf21cf8c"
+        }
+      }
     },
     {
       "id": "local-skills",
