@@ -334,7 +334,7 @@ impl SkillCatalogLoader {
         if !canonical.starts_with(&self.workspace_root) {
             return Err(SkillError::OutsideWorkspace);
         }
-        let mut file = fs::File::open(canonical).map_err(|_| SkillError::Io)?;
+        let file = fs::File::open(canonical).map_err(|_| SkillError::Io)?;
         let mut bytes =
             Vec::with_capacity((metadata.len() as usize).min(self.limits.max_file_bytes));
         file.take((self.limits.max_file_bytes + 1) as u64)
