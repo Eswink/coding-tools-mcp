@@ -1,0 +1,158 @@
+name: RC60 exec-session timeline (never merge helper)
+
+on:
+  push:
+    branches: ['ci/rc60-exec-timeline-20260923']
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: 4f925e44c54066b5cf7df57e1133404542d70aec
+  RUST_BACKTRACE: '1'
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Impact before edit, then staged detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.12
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/analyze.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md || true
+          "$graph" context 'Function:src-tauri/src/tools/exec.rs:run_command' > evidence/context.txt 2>&1
+          "$graph" impact 'Function:src-tauri/src/tools/exec.rs:run_command' --direction upstream > evidence/impact.txt 2>&1
+          cat evidence/impact.txt
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          text=Path('evidence/impact.txt').read_text(encoding='utf-8')
+          data=json.loads(text[text.find('{'):])
+          assert data['risk'] not in {'HIGH','CRITICAL'}, data
+          assert data['epistemic']=='exact', data
+          PY
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src-tauri/src/tools/exec.rs')
+          s=p.read_text(encoding='utf-8')
+          pairs=[
+          ('''    let start = Instant::now();\n\n    let mut command = command_for_program(&program, &args);\n''',
+           '''    let start = Instant::now();\n    eprintln!("[rc60-exec] enter_epoch_ms={}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis());\n\n    let mut command = command_for_program(&program, &args);\n'''),
+          ('''    let spawned = if ctx.managed_task {\n        crate::tools::process_tree::spawn(&mut command).await.map(|(child, tree)| (child, Some(tree)))\n    } else { command.spawn().map(|child| (child, None)) };\n    let (child, tree) = spawned.map_err(|e| WorkspaceError::ToolDetails {\n''',
+           '''    eprintln!("[rc60-exec] before_process_spawn_ms={}", start.elapsed().as_millis());\n    let spawned = if ctx.managed_task {\n        crate::tools::process_tree::spawn(&mut command).await.map(|(child, tree)| (child, Some(tree)))\n    } else { command.spawn().map(|child| (child, None)) };\n    eprintln!("[rc60-exec] after_process_spawn_ms={} ok={}", start.elapsed().as_millis(), spawned.is_ok());\n    let (child, tree) = spawned.map_err(|e| WorkspaceError::ToolDetails {\n'''),
+          ('''    let session = ctx.sessions.insert(match tree {\n        Some(tree) => ExecSession::new_managed(child, tree),\n        None => ExecSession::new_with_mode(child, tty),\n    });\n    session.spawn_readers().await;\n''',
+           '''    let session = ctx.sessions.insert(match tree {\n        Some(tree) => ExecSession::new_managed(child, tree),\n        None => ExecSession::new_with_mode(child, tty),\n    });\n    eprintln!("[rc60-exec] after_session_insert_ms={} session_id={}", start.elapsed().as_millis(), session.session_id);\n    session.spawn_readers().await;\n    eprintln!("[rc60-exec] after_spawn_readers_ms={}", start.elapsed().as_millis());\n'''),
+          ('''    if yield_time.is_zero() {\n        let snapshot = session.snapshot(max_output);\n        spawn_timeout_monitor(ctx.sessions.clone(), session.clone(), deadline);\n        return Ok(merge_exec_result(snapshot, start, cmd, cwd, true));\n    }\n''',
+           '''    if yield_time.is_zero() {\n        let snapshot = session.snapshot(max_output);\n        spawn_timeout_monitor(ctx.sessions.clone(), session.clone(), deadline);\n        eprintln!("[rc60-exec] return_session_ms={}", start.elapsed().as_millis());\n        return Ok(merge_exec_result(snapshot, start, cmd, cwd, true));\n    }\n''')]
+          for old,new in pairs:
+              assert s.count(old)==1, s.count(old)
+              s=s.replace(old,new)
+          p.write_text(s,encoding='utf-8',newline='')
+          PY
+          git add -- src-tauri/src/tools/exec.rs
+          test "$(git diff --cached --name-only)" = 'src-tauri/src/tools/exec.rs'
+          "$graph" detect-changes --scope staged > evidence/detect.txt 2>&1
+          cat evidence/detect.txt
+          ! grep -q 'No changes detected' evidence/detect.txt
+          git diff --cached --check
+          git diff --cached -- src-tauri/src/tools/exec.rs > evidence/instrumentation.patch
+          sha256sum src-tauri/src/tools/exec.rs > evidence/instrumented-source.sha256
+          git rev-parse HEAD > evidence/source-commit.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: rc60-exec-impact
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+
+  windows-timeline:
+    needs: impact
+    runs-on: windows-2025
+    timeout-minutes: 55
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.98.1
+      - name: Apply read-only timing instrumentation
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src-tauri/src/tools/exec.rs')
+          s=p.read_text(encoding='utf-8')
+          pairs=[
+          ('''    let start = Instant::now();\n\n    let mut command = command_for_program(&program, &args);\n''','''    let start = Instant::now();\n    eprintln!("[rc60-exec] enter_epoch_ms={}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis());\n\n    let mut command = command_for_program(&program, &args);\n'''),
+          ('''    let spawned = if ctx.managed_task {\n        crate::tools::process_tree::spawn(&mut command).await.map(|(child, tree)| (child, Some(tree)))\n    } else { command.spawn().map(|child| (child, None)) };\n    let (child, tree) = spawned.map_err(|e| WorkspaceError::ToolDetails {\n''','''    eprintln!("[rc60-exec] before_process_spawn_ms={}", start.elapsed().as_millis());\n    let spawned = if ctx.managed_task {\n        crate::tools::process_tree::spawn(&mut command).await.map(|(child, tree)| (child, Some(tree)))\n    } else { command.spawn().map(|child| (child, None)) };\n    eprintln!("[rc60-exec] after_process_spawn_ms={} ok={}", start.elapsed().as_millis(), spawned.is_ok());\n    let (child, tree) = spawned.map_err(|e| WorkspaceError::ToolDetails {\n'''),
+          ('''    let session = ctx.sessions.insert(match tree {\n        Some(tree) => ExecSession::new_managed(child, tree),\n        None => ExecSession::new_with_mode(child, tty),\n    });\n    session.spawn_readers().await;\n''','''    let session = ctx.sessions.insert(match tree {\n        Some(tree) => ExecSession::new_managed(child, tree),\n        None => ExecSession::new_with_mode(child, tty),\n    });\n    eprintln!("[rc60-exec] after_session_insert_ms={} session_id={}", start.elapsed().as_millis(), session.session_id);\n    session.spawn_readers().await;\n    eprintln!("[rc60-exec] after_spawn_readers_ms={}", start.elapsed().as_millis());\n'''),
+          ('''    if yield_time.is_zero() {\n        let snapshot = session.snapshot(max_output);\n        spawn_timeout_monitor(ctx.sessions.clone(), session.clone(), deadline);\n        return Ok(merge_exec_result(snapshot, start, cmd, cwd, true));\n    }\n''','''    if yield_time.is_zero() {\n        let snapshot = session.snapshot(max_output);\n        spawn_timeout_monitor(ctx.sessions.clone(), session.clone(), deadline);\n        eprintln!("[rc60-exec] return_session_ms={}", start.elapsed().as_millis());\n        return Ok(merge_exec_result(snapshot, start, cmd, cwd, true));\n    }\n''')]
+          for old,new in pairs:
+              assert s.count(old)==1, s.count(old)
+              s=s.replace(old,new)
+          p.write_text(s,encoding='utf-8',newline='')
+          PY
+          git diff --check -- src-tauri/src/tools/exec.rs
+          sha256sum src-tauri/src/tools/exec.rs src-tauri/src/auth/exclusive_refresh_http_tests.rs > evidence/source-hashes.txt
+          git rev-parse HEAD > evidence/source-commit.txt
+      - name: Compile diagnostics
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml --all-targets 2>&1 | tee evidence/check.txt
+      - name: Repeat blocker and no-replay targets
+        run: |
+          set -euo pipefail
+          : > evidence/exact-summary.txt
+          target='auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor'
+          for i in $(seq 1 10); do
+            echo "=== exact $i ===" | tee -a evidence/exact-summary.txt
+            RUST_TEST_NOCAPTURE=1 cargo test --locked --manifest-path src-tauri/Cargo.toml "$target" -- --exact --nocapture > "evidence/exact-$i.log" 2>&1
+            grep -E '\[rc60-exec\]|drain-startup ready|test result:' "evidence/exact-$i.log" | tee -a evidence/exact-summary.txt || true
+          done
+          replay='tools::exec_tasks::durable_tests::queued_record_is_encrypted_and_restart_never_replays_it'
+          RUST_TEST_NOCAPTURE=1 cargo test --locked --manifest-path src-tauri/Cargo.toml "$replay" -- --exact --nocapture > evidence/no-replay.log 2>&1
+          grep -E '\[rc60-exec\]|test result:' evidence/no-replay.log > evidence/no-replay-summary.txt || true
+          cat evidence/no-replay-summary.txt
+      - name: Exercise full-suite contention three times
+        run: |
+          set -euo pipefail
+          failures=0
+          : > evidence/full-summary.txt
+          for i in 1 2 3; do
+            echo "=== full $i ===" | tee -a evidence/full-summary.txt
+            set +e
+            RUST_TEST_NOCAPTURE=1 cargo test --locked --manifest-path src-tauri/Cargo.toml --lib -- --nocapture > "evidence/full-$i.log" 2>&1
+            code=$?
+            set -e
+            echo "exit=$code" | tee -a evidence/full-summary.txt
+            grep -E '\[rc60-exec\]|drain-startup ready|worker must really start within original 8s gate|test result:' "evidence/full-$i.log" | tee -a evidence/full-summary.txt || true
+            if [ "$code" -ne 0 ]; then failures=$((failures+1)); fi
+          done
+          echo "full_suite_failures=$failures" | tee -a evidence/full-summary.txt
+          test "$failures" -eq 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: rc60-windows-exec-timeline
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
