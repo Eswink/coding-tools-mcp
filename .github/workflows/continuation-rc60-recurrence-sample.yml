@@ -1,0 +1,85 @@
+name: RC60 uninstrumented Windows recurrence sample (never merge helper)
+
+on:
+  push:
+    branches: ['ci/rc60-recurrence-sample-20260923']
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: 4f925e44c54066b5cf7df57e1133404542d70aec
+  RUST_BACKTRACE: '1'
+
+jobs:
+  windows-sample:
+    runs-on: windows-2025
+    timeout-minutes: 55
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: stable
+      - name: Bind immutable source and compile without instrumentation
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+          rustc --version --verbose > evidence/rustc.txt
+          sha256sum \
+            src-tauri/src/auth/exclusive_refresh_http_tests.rs \
+            src-tauri/src/tools/异步命令v1.rs \
+            src-tauri/src/tools/exec.rs \
+            src-tauri/src/tools/进程树Windowsv2.rs \
+            .github/workflows/local-authority-bridge.yml \
+            > evidence/source-hashes.txt
+          git diff --exit-code
+          cargo check --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/cargo-check.txt
+      - name: Exact blocker sanity check
+        run: |
+          set -euo pipefail
+          target='auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor'
+          cargo test --locked --manifest-path src-tauri/Cargo.toml "$target" -- --exact --nocapture > evidence/exact.log 2>&1
+          grep -E 'drain-startup ready|worker must really start within original 8s gate|test result:' evidence/exact.log | tee evidence/exact-summary.txt || true
+      - name: Repeat the uninstrumented full Windows authorization baseline twelve times
+        run: |
+          set -euo pipefail
+          failures=0
+          target_hits=0
+          : > evidence/full-summary.txt
+          for i in $(seq 1 12); do
+            echo "=== full $i ===" | tee -a evidence/full-summary.txt
+            set +e
+            cargo test --locked --manifest-path src-tauri/Cargo.toml > "evidence/full-$i.log" 2>&1
+            code=$?
+            set -e
+            echo "exit=$code" | tee -a evidence/full-summary.txt
+            if grep -q 'worker must really start within original 8s gate' "evidence/full-$i.log"; then
+              target_hits=$((target_hits+1))
+              echo 'rc60_target_recurred=1' | tee -a evidence/full-summary.txt
+            fi
+            grep -E 'http_revoked_owner_drains_actual_background_process_before_successor|worker must really start within original 8s gate|test result:' "evidence/full-$i.log" | tee -a evidence/full-summary.txt || true
+            if [ "$code" -ne 0 ]; then failures=$((failures+1)); fi
+          done
+          echo "full_suite_failures=$failures" | tee -a evidence/full-summary.txt
+          echo "rc60_target_recurrences=$target_hits" | tee -a evidence/full-summary.txt
+          git diff --exit-code
+          # This helper is observational. Preserve every failure in the artifact,
+          # but fail the job if any full baseline fails so recurrence cannot look green.
+          test "$failures" -eq 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: rc60-windows-uninstrumented-recurrence
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
