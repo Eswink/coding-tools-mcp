@@ -75,7 +75,7 @@ jobs:
           p.write_text(s,encoding='utf-8',newline='')
           PY
           git add -- src-tauri/src/tools/异步命令v1.rs
-          test "$(git diff --cached --name-only)" = 'src-tauri/src/tools/异步命令v1.rs'
+          test "$(git -c core.quotePath=false diff --cached --name-only)" = 'src-tauri/src/tools/异步命令v1.rs'
           graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
           "$graph" detect-changes --scope staged > evidence/detect.txt 2>&1
           cat evidence/detect.txt
