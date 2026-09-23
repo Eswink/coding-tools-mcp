@@ -19,10 +19,8 @@ impl Workspace {
             .unwrap()
             .as_nanos();
         let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-        let root = std::env::temp_dir().join(format!(
-            "ctm-skills-{}-{nonce}-{id}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("ctm-skills-{}-{nonce}-{id}", std::process::id()));
         fs::create_dir_all(&root).unwrap();
         Self { root }
     }
@@ -103,13 +101,22 @@ fn roots_must_be_relative_real_directories_inside_workspace() {
     ws.dir("skills");
     let loader = SkillCatalogLoader::new(&ws.root).unwrap();
 
-    assert_eq!(loader.load::<_, &str>([]).unwrap_err(), SkillError::InvalidRoot);
-    assert_eq!(loader.load(["../outside"]).unwrap_err(), SkillError::InvalidRoot);
+    assert_eq!(
+        loader.load::<_, &str>([]).unwrap_err(),
+        SkillError::InvalidRoot
+    );
+    assert_eq!(
+        loader.load(["../outside"]).unwrap_err(),
+        SkillError::InvalidRoot
+    );
     assert_eq!(
         loader.load([outside.root.as_path()]).unwrap_err(),
         SkillError::InvalidRoot
     );
-    assert_eq!(loader.load(["missing"]).unwrap_err(), SkillError::InvalidRoot);
+    assert_eq!(
+        loader.load(["missing"]).unwrap_err(),
+        SkillError::InvalidRoot
+    );
 }
 
 #[test]

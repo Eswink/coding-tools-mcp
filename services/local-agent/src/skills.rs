@@ -282,7 +282,10 @@ impl SkillCatalogLoader {
                 if name == OsStr::new(SKILL_FILE) {
                     return Err(SkillError::InvalidSkillFile);
                 }
-                if fs::metadata(&path).map(|meta| meta.is_dir()).unwrap_or(false) {
+                if fs::metadata(&path)
+                    .map(|meta| meta.is_dir())
+                    .unwrap_or(false)
+                {
                     return Err(SkillError::SymlinkDirectory);
                 }
                 continue;
@@ -292,13 +295,7 @@ impl SkillCatalogLoader {
                     return Err(SkillError::DepthExceeded);
                 }
                 let child_relative = relative.join(&name);
-                self.walk(
-                    &child_relative,
-                    &path,
-                    depth + 1,
-                    found,
-                    total_bytes,
-                )?;
+                self.walk(&child_relative, &path, depth + 1, found, total_bytes)?;
                 continue;
             }
             if file_type.is_file() && name == OsStr::new(SKILL_FILE) {
