@@ -1,0 +1,159 @@
+name: RC60 script warmup factorial diagnostic (never merge)
+
+on:
+  push:
+    branches: ['ci/rc60-script-factorial-20260924']
+    paths:
+      - '.github/workflows/continuation-rc60-script-factorial.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc60-script-factorial-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_SHA: 4f925e44c54066b5cf7df57e1133404542d70aec
+  TARGET: auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor
+
+jobs:
+  factorial:
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [none, write_same, exec_other, exec_same]
+        replica: [1, 2, 3]
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Bind immutable source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --exit-code
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Compile without executing tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          cargo check --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/cargo-check.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --no-run 2>&1 | tee evidence/lib-prebuild.txt
+      - name: Apply bounded warmup factor
+        if: matrix.mode != 'none'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $mode = '${{ matrix.mode }}'
+          $dir = Join-Path $env:RUNNER_TEMP ("rc60-factor-$mode-${{ matrix.replica }}-" + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $dir | Out-Null
+          $same = @"
+          import pathlib, time
+          pathlib.Path('started').write_text('ready')
+          while not pathlib.Path('release').exists():
+           time.sleep(.05)
+          print('drained', flush=True)
+          "@
+          $other = @"
+          import pathlib, time
+          pathlib.Path('other_started').write_text('ready')
+          while not pathlib.Path('other_release').exists():
+           time.sleep(.05)
+          print('other-drained', flush=True)
+          "@
+          $start = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+          if ($mode -eq 'write_same') {
+            $path = Join-Path $dir 'hold.py'
+            $same | Set-Content -Path $path -Encoding utf8
+            (Get-FileHash -Algorithm SHA256 $path).Hash.ToLowerInvariant() | Out-File evidence/warmup-file-sha256.txt -Encoding utf8
+          } elseif ($mode -eq 'exec_same') {
+            $path = Join-Path $dir 'hold.py'
+            $same | Set-Content -Path $path -Encoding utf8
+            Set-Content -Path (Join-Path $dir 'release') -Value '' -Encoding utf8
+            Push-Location $dir
+            try {
+              & python hold.py 2>&1 | Tee-Object -FilePath (Join-Path $env:GITHUB_WORKSPACE 'evidence/warmup-output.txt')
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              if (-not (Test-Path 'started')) { throw 'same-content warmup did not create started marker' }
+            } finally {
+              Pop-Location
+            }
+            (Get-FileHash -Algorithm SHA256 $path).Hash.ToLowerInvariant() | Out-File evidence/warmup-file-sha256.txt -Encoding utf8
+          } elseif ($mode -eq 'exec_other') {
+            $path = Join-Path $dir 'other.py'
+            $other | Set-Content -Path $path -Encoding utf8
+            Set-Content -Path (Join-Path $dir 'other_release') -Value '' -Encoding utf8
+            Push-Location $dir
+            try {
+              & python other.py 2>&1 | Tee-Object -FilePath (Join-Path $env:GITHUB_WORKSPACE 'evidence/warmup-output.txt')
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              if (-not (Test-Path 'other_started')) { throw 'different-content warmup did not create marker' }
+            } finally {
+              Pop-Location
+            }
+            (Get-FileHash -Algorithm SHA256 $path).Hash.ToLowerInvariant() | Out-File evidence/warmup-file-sha256.txt -Encoding utf8
+          } else {
+            throw "unknown warmup mode: $mode"
+          }
+          $elapsed = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - $start
+          "mode=$mode" | Out-File evidence/warmup-result.txt -Encoding utf8
+          "warmup_elapsed_ms=$elapsed" | Out-File evidence/warmup-result.txt -Encoding utf8 -Append
+      - name: First exact target measurement
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $start = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+          & cargo test --locked --manifest-path src-tauri/Cargo.toml --lib $env:TARGET -- --exact --nocapture 2>&1 | Tee-Object -FilePath evidence/first.txt
+          $code = $LASTEXITCODE
+          $elapsed = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - $start
+          $match = Select-String -Path evidence/first.txt -Pattern 'drain-startup ready after ([0-9]+)ms' | Select-Object -Last 1
+          $ready = if ($match -and $match.Matches.Count -gt 0) { $match.Matches[0].Groups[1].Value } else { 'NA' }
+          "mode=${{ matrix.mode }}" | Out-File evidence/result.txt -Encoding utf8
+          "replica=${{ matrix.replica }}" | Out-File evidence/result.txt -Encoding utf8 -Append
+          "first_readiness_ms=$ready" | Out-File evidence/result.txt -Encoding utf8 -Append
+          "first_elapsed_ms=$elapsed" | Out-File evidence/result.txt -Encoding utf8 -Append
+          "first_exit_code=$code" | Out-File evidence/result.txt -Encoding utf8 -Append
+          if ($code -ne 0) { exit $code }
+      - name: Second exact target measurement
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $start = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+          & cargo test --locked --manifest-path src-tauri/Cargo.toml --lib $env:TARGET -- --exact --nocapture 2>&1 | Tee-Object -FilePath evidence/second.txt
+          $code = $LASTEXITCODE
+          $elapsed = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - $start
+          $match = Select-String -Path evidence/second.txt -Pattern 'drain-startup ready after ([0-9]+)ms' | Select-Object -Last 1
+          $ready = if ($match -and $match.Matches.Count -gt 0) { $match.Matches[0].Groups[1].Value } else { 'NA' }
+          "second_readiness_ms=$ready" | Out-File evidence/result.txt -Encoding utf8 -Append
+          "second_elapsed_ms=$elapsed" | Out-File evidence/result.txt -Encoding utf8 -Append
+          "second_exit_code=$code" | Out-File evidence/result.txt -Encoding utf8 -Append
+          "runner_os=$env:RUNNER_OS" | Out-File evidence/environment.txt -Encoding utf8
+          "runner_arch=$env:RUNNER_ARCH" | Out-File evidence/environment.txt -Encoding utf8 -Append
+          "number_of_processors=$env:NUMBER_OF_PROCESSORS" | Out-File evidence/environment.txt -Encoding utf8 -Append
+          "python_path=$((Get-Command python).Source)" | Out-File evidence/environment.txt -Encoding utf8 -Append
+          & rustc -vV | Out-File evidence/environment.txt -Encoding utf8 -Append
+          Get-Content evidence/result.txt
+          if ($code -ne 0) { exit $code }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: rc60-factor-${{ matrix.mode }}-${{ matrix.replica }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
