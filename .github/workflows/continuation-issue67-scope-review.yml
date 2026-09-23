@@ -3,7 +3,10 @@ name: Issue 67 exact scope review (never merge)
 on:
   push:
     branches: ['ci/issue67-scope-review-20260924']
-    paths: ['.github/workflows/continuation-issue67-scope-review.yml']
+    paths:
+      - '.github/workflows/continuation-issue67-scope-review.yml'
+      - '.github/workflows/cloud-gateway-lab.yml'
+      - 'tests/cloud-gateway/scope-guard.test.mjs'
 
 permissions:
   contents: read
@@ -21,7 +24,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
-      - name: Pre-edit pinned GitNexus impact
+      - name: Review exact candidate with pinned graph
         shell: bash
         run: |
           set -euo pipefail
@@ -32,70 +35,10 @@ jobs:
           git restore -- AGENTS.md CLAUDE.md || true
           "$graph" impact 'Function:tests/cloud-gateway/scope-guard.test.mjs:run' --direction upstream > evidence/pre-impact.json 2>&1 || true
           cat evidence/pre-impact.json
-      - name: Construct exact additive scope candidate
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-          workflow=Path('.github/workflows/cloud-gateway-lab.yml')
-          text=workflow.read_text(encoding='utf-8')
-          anchor="              'src-tauri/src/mcp/listener.rs',\n"
-          addition=anchor+"              'src-tauri/src/auth/exclusive_refresh_http_tests.rs',\n"
-          if text.count(anchor)!=1 or 'src-tauri/src/auth/exclusive_refresh_http_tests.rs' in text:
-              raise SystemExit('workflow exact-path anchor mismatch')
-          workflow.write_text(text.replace(anchor,addition),encoding='utf-8',newline='')
-
-          test=Path('tests/cloud-gateway/scope-guard.test.mjs')
-          text=test.read_text(encoding='utf-8')
-          const_anchor="const mcpListener = 'src-tauri/src/mcp/listener.rs';\n"
-          const_new=const_anchor+"const exclusiveRefreshTests = 'src-tauri/src/auth/exclusive_refresh_http_tests.rs';\n"
-          if text.count(const_anchor)!=1 or 'const exclusiveRefreshTests' in text:
-              raise SystemExit('test const anchor mismatch')
-          text=text.replace(const_anchor,const_new)
-          test_anchor="""test('reviewed issue62 MCP listener source passes actual guard with source digest', () => {
-  const contents = '// reviewed issue62 listener fixture\\n';
-  const result = run([mcpListener], { [mcpListener]: contents });
-  assert.equal(result.accepted, true, result.error);
-  assert.equal(result.report.sha256[mcpListener], createHash('sha256').update(contents).digest('hex'));
-  assert.equal(result.git_calls, 2);
-});
-"""
-          extra=test_anchor+"""
-test('reviewed issue60 exclusive-refresh regression source passes actual guard with source digest', () => {
-  const contents = '// reviewed issue60 auth regression fixture\\n';
-  const result = run([exclusiveRefreshTests], { [exclusiveRefreshTests]: contents });
-  assert.equal(result.accepted, true, result.error);
-  assert.equal(result.report.sha256[exclusiveRefreshTests], createHash('sha256').update(contents).digest('hex'));
-  assert.equal(result.git_calls, 2);
-});
-"""
-          if text.count(test_anchor)!=1:
-              raise SystemExit('test body anchor mismatch')
-          text=text.replace(test_anchor,extra)
-          deny_anchor="  'src-tauri/src/mcp/unreviewed.rs',\n"
-          deny_new=deny_anchor+"  'src-tauri/src/auth/exclusive_refresh_http_tests.rs.bak',\n  'src-tauri/src/auth/unreviewed.rs',\n"
-          if text.count(deny_anchor)!=1:
-              raise SystemExit('deny anchor mismatch')
-          text=text.replace(deny_anchor,deny_new)
-          test.write_text(text,encoding='utf-8',newline='')
-          PY
-          git diff --check
-          git diff -- .github/workflows/cloud-gateway-lab.yml tests/cloud-gateway/scope-guard.test.mjs | tee evidence/candidate.patch
-          python - <<'PY'
-          import hashlib,json
-          from pathlib import Path
-          paths=['.github/workflows/cloud-gateway-lab.yml','tests/cloud-gateway/scope-guard.test.mjs']
-          hashes={p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths}
-          Path('evidence/source-hashes.json').write_text(json.dumps(hashes,indent=2),encoding='utf-8')
-          print(json.dumps(hashes,indent=2))
-          PY
-      - name: Staged detect and actual guard regressions
-        shell: bash
-        run: |
-          set -euo pipefail
-          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          git checkout "$GITHUB_SHA" -- .github/workflows/cloud-gateway-lab.yml tests/cloud-gateway/scope-guard.test.mjs
           git add -- .github/workflows/cloud-gateway-lab.yml tests/cloud-gateway/scope-guard.test.mjs
+          git diff --cached --check
+          git diff --cached | tee evidence/candidate.patch
           "$graph" detect-changes --scope staged > evidence/detect.json 2>&1 || true
           cat evidence/detect.json
           if grep -q 'No changes detected' evidence/detect.json; then
@@ -104,8 +47,12 @@ test('reviewed issue60 exclusive-refresh regression source passes actual guard w
           fi
           node --test tests/cloud-gateway/scope-guard.test.mjs 2>&1 | tee evidence/scope-guard.tap
           node --test tests/cloud-gateway/*.test.mjs 2>&1 | tee evidence/contracts.tap
-          git diff --cached --check
-          git rev-parse HEAD > evidence/base-commit.txt
+          python - <<'PY' | tee evidence/source-hashes.txt
+          import hashlib
+          for p in ['.github/workflows/cloud-gateway-lab.yml','tests/cloud-gateway/scope-guard.test.mjs']:
+              print(p, hashlib.sha256(open(p,'rb').read()).hexdigest())
+          PY
+          git rev-parse 7111c6658504cf93929e8260133e809466e841f0 > evidence/base-commit.txt
           echo NEVER_MERGE_HELPER_ONLY > evidence/boundary.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
