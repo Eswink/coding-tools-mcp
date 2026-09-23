@@ -1,0 +1,173 @@
+name: RC60 readiness timeline diagnostic (never merge)
+
+on:
+  push:
+    branches: ['ci/rc60-readiness-timeline-20260923']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc60-readiness-timeline-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_SHA: 4f925e44c54066b5cf7df57e1133404542d70aec
+  RUST_BACKTRACE: '1'
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Pinned graph impact before diagnostic instrumentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.12
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/analyze.txt 2>&1
+          git reset --hard HEAD
+          "$graph" context 'Function:src-tauri/src/tools/异步命令v1.rs:run' > evidence/run-context.json 2>&1
+          "$graph" impact 'Function:src-tauri/src/tools/异步命令v1.rs:run' --direction upstream > evidence/run-impact.json 2>&1
+          cat evidence/run-impact.json
+          python - <<'PY'
+          import json
+          data=json.load(open('evidence/run-impact.json',encoding='utf-8'))
+          risk=data.get('risk')
+          assert risk not in {'HIGH','CRITICAL'}, f'diagnostic instrumentation blocked by {risk} impact'
+          assert data.get('epistemic') in {'exact','lower-bound'}, data
+          PY
+      - name: Stage the exact diagnostic patch and require non-false-clean detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src-tauri/src/tools/异步命令v1.rs')
+          s=p.read_text(encoding='utf-8')
+          a='''        let worker_job = job.clone();\n        tauri::async_runtime::spawn_blocking(move || {\n            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {\n'''
+          b='''        let worker_job = job.clone();\n        eprintln!("[rc60] schedule_epoch_ms={}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis());\n        tauri::async_runtime::spawn_blocking(move || {\n            eprintln!("[rc60] worker_enter_epoch_ms={}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis());\n            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {\n'''
+          assert s.count(a)==1, s.count(a)
+          s=s.replace(a,b)
+          a='''fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {\n    {\n'''
+          b='''fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {\n    let rc60_started = std::time::Instant::now();\n    eprintln!("[rc60] run_enter_epoch_ms={}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis());\n    {\n'''
+          assert s.count(a)==1, s.count(a)
+          s=s.replace(a,b)
+          a='''    let result = crate::tools::call_tool(ctx, "exec_command", args);\n    let session = result.get("session_id").and_then(Value::as_str)\n'''
+          b='''    eprintln!("[rc60] before_call_tool_ms={}", rc60_started.elapsed().as_millis());\n    let result = crate::tools::call_tool(ctx, "exec_command", args);\n    eprintln!("[rc60] after_call_tool_ms={} exec_elapsed_ms={} session_present={}", rc60_started.elapsed().as_millis(), result.get("elapsed_ms").and_then(Value::as_u64).unwrap_or(u64::MAX), result.get("session_id").is_some());\n    let session = result.get("session_id").and_then(Value::as_str)\n'''
+          assert s.count(a)==1, s.count(a)
+          s=s.replace(a,b)
+          p.write_text(s,encoding='utf-8',newline='')
+          PY
+          git add -- src-tauri/src/tools/异步命令v1.rs
+          test "$(git diff --cached --name-only)" = 'src-tauri/src/tools/异步命令v1.rs'
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" detect-changes --scope staged > evidence/detect.json 2>&1
+          cat evidence/detect.json
+          ! grep -q 'No changes detected' evidence/detect.json
+          git diff --cached --check
+          sha256sum src-tauri/src/tools/异步命令v1.rs > evidence/instrumented-source.sha256
+          git rev-parse HEAD > evidence/source-commit.txt
+          git diff --cached -- src-tauri/src/tools/异步命令v1.rs > evidence/instrumentation.patch
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: rc60-readiness-impact
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+
+  windows-timeline:
+    needs: impact
+    runs-on: windows-2025
+    timeout-minutes: 55
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.98.1
+      - name: Apply fixed diagnostic instrumentation only
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src-tauri/src/tools/异步命令v1.rs')
+          s=p.read_text(encoding='utf-8')
+          a='''        let worker_job = job.clone();\n        tauri::async_runtime::spawn_blocking(move || {\n            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {\n'''
+          b='''        let worker_job = job.clone();\n        eprintln!("[rc60] schedule_epoch_ms={}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis());\n        tauri::async_runtime::spawn_blocking(move || {\n            eprintln!("[rc60] worker_enter_epoch_ms={}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis());\n            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {\n'''
+          assert s.count(a)==1, s.count(a)
+          s=s.replace(a,b)
+          a='''fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {\n    {\n'''
+          b='''fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {\n    let rc60_started = std::time::Instant::now();\n    eprintln!("[rc60] run_enter_epoch_ms={}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis());\n    {\n'''
+          assert s.count(a)==1, s.count(a)
+          s=s.replace(a,b)
+          a='''    let result = crate::tools::call_tool(ctx, "exec_command", args);\n    let session = result.get("session_id").and_then(Value::as_str)\n'''
+          b='''    eprintln!("[rc60] before_call_tool_ms={}", rc60_started.elapsed().as_millis());\n    let result = crate::tools::call_tool(ctx, "exec_command", args);\n    eprintln!("[rc60] after_call_tool_ms={} exec_elapsed_ms={} session_present={}", rc60_started.elapsed().as_millis(), result.get("elapsed_ms").and_then(Value::as_u64).unwrap_or(u64::MAX), result.get("session_id").is_some());\n    let session = result.get("session_id").and_then(Value::as_str)\n'''
+          assert s.count(a)==1, s.count(a)
+          s=s.replace(a,b)
+          p.write_text(s,encoding='utf-8',newline='')
+          PY
+          git diff --check -- src-tauri/src/tools/异步命令v1.rs
+          git rev-parse HEAD > evidence/source-commit.txt
+          sha256sum src-tauri/src/tools/异步命令v1.rs > evidence/instrumented-source.sha256
+          sha256sum src-tauri/src/auth/exclusive_refresh_http_tests.rs > evidence/blocker-test.sha256
+      - name: Compile exact current source plus diagnostics
+        run: |
+          set -euo pipefail
+          cargo check --locked --manifest-path src-tauri/Cargo.toml --all-targets 2>&1 | tee evidence/check.txt
+      - name: Repeat exact blocker target and no-replay target
+        run: |
+          set -euo pipefail
+          : > evidence/exact-summary.txt
+          for i in $(seq 1 10); do
+            echo "=== exact $i ===" | tee -a evidence/exact-summary.txt
+            RUST_TEST_NOCAPTURE=1 cargo test --locked --manifest-path src-tauri/Cargo.toml http_revoked_owner_drains_actual_background_process_before_successor -- --exact --nocapture > "evidence/exact-$i.log" 2>&1
+            grep -E '\[rc60\]|drain-startup ready|test result:' "evidence/exact-$i.log" | tee -a evidence/exact-summary.txt || true
+          done
+          RUST_TEST_NOCAPTURE=1 cargo test --locked --manifest-path src-tauri/Cargo.toml queued_record_is_encrypted_and_restart_never_replays_it -- --nocapture > evidence/no-replay.log 2>&1
+          grep -E '\[rc60\]|test result:' evidence/no-replay.log > evidence/no-replay-summary.txt || true
+          cat evidence/no-replay-summary.txt
+      - name: Exercise full-suite contention three times and retain the first recurrence
+        run: |
+          set -euo pipefail
+          failures=0
+          : > evidence/full-summary.txt
+          for i in 1 2 3; do
+            echo "=== full $i ===" | tee -a evidence/full-summary.txt
+            set +e
+            RUST_TEST_NOCAPTURE=1 cargo test --locked --manifest-path src-tauri/Cargo.toml --lib -- --nocapture > "evidence/full-$i.log" 2>&1
+            code=$?
+            set -e
+            echo "exit=$code" | tee -a evidence/full-summary.txt
+            grep -E '\[rc60\]|drain-startup ready|worker must really start within original 8s gate|test result:' "evidence/full-$i.log" | tee -a evidence/full-summary.txt || true
+            if [ "$code" -ne 0 ]; then failures=$((failures+1)); fi
+          done
+          echo "full_suite_failures=$failures" | tee -a evidence/full-summary.txt
+          # A diagnostic recurrence is expected evidence, not permission to hide the failing gate.
+          # Preserve job failure if any full-suite attempt fails.
+          test "$failures" -eq 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: rc60-windows-readiness-timeline
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
