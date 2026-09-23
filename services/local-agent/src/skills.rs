@@ -278,6 +278,9 @@ impl SkillCatalogLoader {
             let name = entry.file_name();
             let file_type = entry.file_type().map_err(|_| SkillError::Io)?;
             let path = entry.path();
+            if name == OsStr::new(SKILL_FILE) && !file_type.is_file() {
+                return Err(SkillError::InvalidSkillFile);
+            }
             if file_type.is_symlink() {
                 if name == OsStr::new(SKILL_FILE) {
                     return Err(SkillError::InvalidSkillFile);
