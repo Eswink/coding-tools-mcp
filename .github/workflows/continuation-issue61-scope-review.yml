@@ -1,0 +1,118 @@
+name: Isolated issue61 protocol-scope review (never merge)
+
+on:
+  push:
+    branches: ['ci/issue61-scope-review-20260923']
+    paths: ['.github/workflows/continuation-issue61-scope-review.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BASE_SHA: a88989d41ac5d93155b19c650d95d41d76de1df6
+  WORKFLOW: .github/workflows/cloud-gateway-lab.yml
+  TEST_FILE: tests/cloud-gateway/scope-guard.test.mjs
+  TARGET: src-tauri/src/tools/异步命令v1.rs
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.BASE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Build corrected graph and record pre-edit test-harness impact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence "$RUNNER_TEMP/graph"
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.12
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" --version | tee evidence/gitnexus-version.txt
+          "$graph" analyze --workers 1 --force --index-only > evidence/analyze.txt 2>&1
+          git reset --hard "$BASE_SHA"
+          "$graph" impact 'Function:tests/cloud-gateway/scope-guard.test.mjs:run' --direction upstream --repo "$GITHUB_WORKSPACE" > evidence/impact.txt 2>&1 || true
+          cat evidence/impact.txt
+      - name: Apply exact two-file proposal only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow=Path('.github/workflows/cloud-gateway-lab.yml')
+          text=workflow.read_text(encoding='utf-8')
+          old="""              'src-tauri/src/runtime/execution_gate.rs',\n              'src-tauri/src/runtime/mod.rs',\n          }\n"""
+          new="""              'src-tauri/src/runtime/execution_gate.rs',\n              'src-tauri/src/runtime/mod.rs',\n              'src-tauri/src/tools/异步命令v1.rs',\n          }\n"""
+          assert text.count(old)==1
+          workflow.write_text(text.replace(old,new),encoding='utf-8',newline='\n')
+
+          test_file=Path('tests/cloud-gateway/scope-guard.test.mjs')
+          text=test_file.read_text(encoding='utf-8')
+          old="const migration = '.github/workflows/origin-migration.yml';\n"
+          new=old+"const asyncCommand = 'src-tauri/src/tools/异步命令v1.rs';\n"
+          assert text.count(old)==1
+          text=text.replace(old,new)
+          anchor="""test('reviewed origin-migration workflow passes actual guard with source digest', () => {\n  const result = run([migration]);\n  assert.equal(result.accepted, true, result.error);\n  assert.equal(result.report.candidate, 'a'.repeat(40));\n  assert.equal(result.report.sha256[migration], createHash('sha256').update('# fixture\\n').digest('hex'));\n  assert.equal(result.git_calls, 2);\n});\n\n"""
+          addition=anchor+"""test('reviewed RC60 async-command source passes actual guard with source digest', () => {\n  const contents = '// reviewed RC60 UTF-8 fixture\\n';\n  const result = run([asyncCommand], { [asyncCommand]: contents });\n  assert.equal(result.accepted, true, result.error);\n  assert.equal(result.report.sha256[asyncCommand], createHash('sha256').update(contents).digest('hex'));\n  assert.equal(result.git_calls, 2);\n});\n\n"""
+          assert text.count(anchor)==1
+          text=text.replace(anchor,addition)
+          marker="""  'src-tauri/src/main.rs',\n"""
+          replacement="""  'src-tauri/src/main.rs',\n  'src-tauri/src/tools/异步命令v1.rs.bak',\n  'src-tauri/src/tools/unreviewed.rs',\n"""
+          assert text.count(marker)==1
+          test_file.write_text(text.replace(marker,replacement),encoding='utf-8',newline='\n')
+          PY
+          git add -- "$WORKFLOW" "$TEST_FILE"
+          test "$(git -c core.quotePath=false diff --cached --name-only | wc -l)" -eq 2
+          git -c core.quotePath=false diff --cached --check
+          git -c core.quotePath=false diff --cached -- "$WORKFLOW" "$TEST_FILE" | tee evidence/proposed.patch
+          sha256sum "$WORKFLOW" "$TEST_FILE" "$TARGET" | tee evidence/source-hashes.txt
+      - name: Detect actual staged proposal with corrected GitNexus
+        shell: bash
+        run: |
+          set -euo pipefail
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" detect-changes --scope staged --repo "$GITHUB_WORKSPACE" > evidence/detect-changes.txt 2>&1
+          cat evidence/detect-changes.txt
+          ! grep -F 'No changes detected.' evidence/detect-changes.txt
+          ! grep -F 'PARTIAL RESULT' evidence/detect-changes.txt
+          grep -F 'tests/cloud-gateway/scope-guard.test.mjs' evidence/detect-changes.txt
+      - name: Exercise the actual inline guard and protocol contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check tests/cloud-gateway/scope-guard.test.mjs
+          node --test tests/cloud-gateway/scope-guard.test.mjs 2>&1 | tee evidence/scope-guard.tap
+          node --test --test-reporter=tap tests/cloud-gateway/*.test.mjs 2>&1 | tee evidence/contracts.tap
+          python - <<'PY'
+          import hashlib,json,subprocess
+          from pathlib import Path
+          base='758c60a6e74e624e144f9c19c5f19d04d17f7a13'
+          paths=subprocess.check_output(['git','-c','core.quotePath=false','diff','--name-only',base,'HEAD'],text=True,encoding='utf-8').splitlines()
+          # HEAD is the immutable base; add the two staged proposal paths and the published RC60 source explicitly.
+          candidate=sorted(set(paths+['.github/workflows/cloud-gateway-lab.yml','tests/cloud-gateway/scope-guard.test.mjs','src-tauri/src/tools/异步命令v1.rs']))
+          report={'base_source':'a88989d41ac5d93155b19c650d95d41d76de1df6','candidate_paths':candidate,
+                  'sha256':{p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in candidate if Path(p).is_file()},
+                  'boundary':'NEVER_MERGE_HELPER_ONLY'}
+          Path('evidence/identity.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
+          PY
+          git rev-parse HEAD | tee evidence/base-source.txt
+          test "$(cat evidence/base-source.txt)" = "$BASE_SHA"
+          printf '%s\n' 'ISSUE61_EXACT_ALLOWLIST_PROPOSAL_REVIEWED_NEVER_MERGE' > evidence/boundary.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: issue61-scope-review
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
