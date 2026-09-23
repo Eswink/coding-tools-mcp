@@ -237,7 +237,7 @@ fn debug_surfaces_redact_workspace_and_guidance_text() {
     assert!(!resolver_debug.contains(ws.root.to_string_lossy().as_ref()));
     assert!(resolver_debug.contains("<workspace>"));
 
-    let entry_debug = format!("{:?}", &set.entries()[0]);
+    let entry_debug = format!("{:?}", set.entries()[0]);
     assert!(!entry_debug.contains("secret instruction"));
     assert!(entry_debug.contains("<untrusted-guidance>"));
 
