@@ -226,7 +226,9 @@ impl TraceJournal {
         admission: &LocalAdmission,
         now_unix_ms: u64,
     ) -> Result<VerificationEvidence, TraceError> {
-        Ok(self.snapshot(admission, now_unix_ms)?.verification_evidence())
+        Ok(self
+            .snapshot(admission, now_unix_ms)?
+            .verification_evidence())
     }
 
     /// Export only this journal's bounded, redacted local view. Not durable state.
