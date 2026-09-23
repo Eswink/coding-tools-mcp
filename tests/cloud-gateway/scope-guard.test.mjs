@@ -66,6 +66,7 @@ function run(paths, files = Object.fromEntries(paths.map(path => [path, '# fixtu
 
 const migration = '.github/workflows/origin-migration.yml';
 const asyncCommand = 'src-tauri/src/tools/异步命令v1.rs';
+const mcpListener = 'src-tauri/src/mcp/listener.rs';
 test('reviewed origin-migration workflow passes actual guard with source digest', () => {
   const result = run([migration]);
   assert.equal(result.accepted, true, result.error);
@@ -82,6 +83,14 @@ test('reviewed RC60 async-command source passes actual guard with source digest'
   assert.equal(result.git_calls, 2);
 });
 
+test('reviewed issue62 MCP listener source passes actual guard with source digest', () => {
+  const contents = '// reviewed issue62 listener fixture\n';
+  const result = run([mcpListener], { [mcpListener]: contents });
+  assert.equal(result.accepted, true, result.error);
+  assert.equal(result.report.sha256[mcpListener], createHash('sha256').update(contents).digest('hex'));
+  assert.equal(result.git_calls, 2);
+});
+
 for (const path of [
   '.github/workflows/unrelated.yml',
   '.github/workflows/origin-migration.yml.bak',
@@ -91,6 +100,8 @@ for (const path of [
   'src-tauri/src/main.rs',
   'src-tauri/src/tools/异步命令v1.rs.bak',
   'src-tauri/src/tools/unreviewed.rs',
+  'src-tauri/src/mcp/listener.rs.bak',
+  'src-tauri/src/mcp/unreviewed.rs',
   'AGENTS.md',
   'CLAUDE.md',
   'package.json',
