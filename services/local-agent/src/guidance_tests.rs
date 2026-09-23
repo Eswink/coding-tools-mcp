@@ -19,10 +19,8 @@ impl Workspace {
             .unwrap()
             .as_nanos();
         let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-        let root = std::env::temp_dir().join(format!(
-            "ctm-guidance-{}-{nonce}-{id}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("ctm-guidance-{}-{nonce}-{id}", std::process::id()));
         fs::create_dir_all(&root).unwrap();
         Self { root }
     }
@@ -69,7 +67,10 @@ fn resolves_root_to_leaf_and_excludes_siblings() {
     ws.file("a/sibling/AGENTS.md", "sibling");
     let target = ws.file("a/b/src/main.rs", "fn main() {}");
 
-    let set = GuidanceResolver::new(&ws.root).unwrap().resolve(target).unwrap();
+    let set = GuidanceResolver::new(&ws.root)
+        .unwrap()
+        .resolve(target)
+        .unwrap();
     assert_eq!(
         texts(&set),
         vec![
@@ -85,7 +86,10 @@ fn resolves_root_to_leaf_and_excludes_siblings() {
 fn no_guidance_is_an_empty_success() {
     let ws = Workspace::new();
     let target = ws.file("src/main.rs", "fn main() {}");
-    let set = GuidanceResolver::new(&ws.root).unwrap().resolve(target).unwrap();
+    let set = GuidanceResolver::new(&ws.root)
+        .unwrap()
+        .resolve(target)
+        .unwrap();
     assert!(set.is_empty());
     assert_eq!(set.total_bytes(), 0);
 }
@@ -95,7 +99,10 @@ fn lookalike_names_are_ignored() {
     let ws = Workspace::new();
     ws.file("AGENTS.md.bak", "not guidance");
     let target = ws.file("src/main.rs", "fn main() {}");
-    let set = GuidanceResolver::new(&ws.root).unwrap().resolve(target).unwrap();
+    let set = GuidanceResolver::new(&ws.root)
+        .unwrap()
+        .resolve(target)
+        .unwrap();
     assert!(set.is_empty());
 }
 
