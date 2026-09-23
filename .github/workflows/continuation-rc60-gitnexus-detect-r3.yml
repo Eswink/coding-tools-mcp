@@ -1,0 +1,111 @@
+name: Isolated RC60 GitNexus corrected detection r3 (never merge)
+
+on:
+  push:
+    branches: ['ci/rc60-gitnexus-detect-20260923-r3']
+    paths: ['.github/workflows/continuation-rc60-gitnexus-detect-r3.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BASE_SHA: c22e08dc0bb2d2c80714b7efb2c3e90e1e7b808b
+  TARGET: src-tauri/src/tools/异步命令v1.rs
+  PYTHONUTF8: '1'
+  PYTHONIOENCODING: 'utf-8'
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.BASE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Install pinned historical and corrected GitNexus
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence "$RUNNER_TEMP/gn-old" "$RUNNER_TEMP/gn-fixed"
+          npm install --prefix "$RUNNER_TEMP/gn-old" --no-audit --no-fund gitnexus@1.6.9
+          npm install --prefix "$RUNNER_TEMP/gn-fixed" --no-audit --no-fund gitnexus@1.6.12
+          "$RUNNER_TEMP/gn-old/node_modules/.bin/gitnexus" --version | tee evidence/old-version.txt
+          "$RUNNER_TEMP/gn-fixed/node_modules/.bin/gitnexus" --version | tee evidence/fixed-version.txt
+      - name: Index clean base with historical 1.6.9
+        shell: bash
+        run: |
+          set -euo pipefail
+          old="$RUNNER_TEMP/gn-old/node_modules/.bin/gitnexus"
+          "$old" analyze --workers 1 > evidence/old-analyze.txt 2>&1
+          git reset --hard "$BASE_SHA"
+      - name: Apply candidate for historical detector
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/apply_candidate.py" <<'PY'
+          from pathlib import Path
+          p=Path('src-tauri/src/tools/异步命令v1.rs')
+          s=p.read_text(encoding='utf-8')
+          a='''    if ctx.exec_tasks.checkpoint(job).is_err() {\n        job.finish(Status::Failed, json!({"command_ok":false, "termination_reason":"storage_failed_before_spawn"}));\n        return;\n    }\n    // Keep ALL policy/baseline/operation logging in the one shared execution dispatcher.\n'''
+          b='''    // reserve() already persisted the queued no-replay record. Never put a durable\n    // filesystem checkpoint between the public Running state and actual child spawn.\n    // Keep ALL policy/baseline/operation logging in the one shared execution dispatcher.\n'''
+          c='''    job.data.lock().expect("job state").session = Some(session.clone());\n    // Noninteractive tasks cannot supply stdin. Close it so read-to-EOF programs do not hang.\n    tauri::async_runtime::block_on(async {\n        session.stdin.lock().await.take();\n        session.mark_stdin_closed();\n    });\n    let mut checkpoint_at = std::time::Instant::now();\n'''
+          d='''    job.data.lock().expect("job state").session = Some(session.clone());\n    // Noninteractive tasks cannot supply stdin. Close it so read-to-EOF programs do not hang.\n    tauri::async_runtime::block_on(async {\n        session.stdin.lock().await.take();\n        session.mark_stdin_closed();\n    });\n    // Persist Running only after the real child/session exists. Failure here is fail-closed:\n    // terminate the child, preserve uncertainty, and never invite automatic replay.\n    if ctx.exec_tasks.checkpoint(job).is_err() {\n        session.mark_termination_reason("killed");\n        let waited = tauri::async_runtime::block_on(async {\n            tokio::time::timeout(Duration::from_secs(5), session.kill_and_wait()).await.is_ok()\n        });\n        tauri::async_runtime::block_on(async {\n            session.refresh_status().await;\n            session.wait_for_readers().await;\n        });\n        let process_may_be_running = !waited || !session.has_exited();\n        let mut failure = session.snapshot(0);\n        failure["command_ok"] = json!(false);\n        failure["output_complete"] = json!(session.readers_completed());\n        failure["process_may_be_running"] = json!(process_may_be_running);\n        failure["termination_reason"] = json!("storage_failed_after_spawn");\n        failure["error"] = json!({"code":"EXEC_TASK_CHECKPOINT_FAILED","message":\n            if process_may_be_running {"Durable checkpoint failed after child start and termination is unconfirmed; do not retry automatically"}\n            else {"Durable checkpoint failed after child start; child was terminated and must not be retried automatically"}});\n        if let Some(operation) = result.get("operation_id") { failure["operation_id"] = operation.clone(); }\n        job.finish(Status::Failed, failure);\n        ctx.sessions.remove(&session.session_id);\n        return;\n    }\n    let mut checkpoint_at = std::time::Instant::now();\n'''
+          assert s.count(a)==1 and s.count(c)==1
+          p.write_text(s.replace(a,b).replace(c,d),encoding='utf-8')
+          PY
+          python "$RUNNER_TEMP/apply_candidate.py"
+          git add -- "$TARGET"
+          sha256sum "$TARGET" | tee evidence/old-candidate.sha256
+          git diff --cached -U0 > evidence/default-diff.txt
+          git -c core.quotePath=false diff --cached -U0 > evidence/unquoted-diff.txt
+          old="$RUNNER_TEMP/gn-old/node_modules/.bin/gitnexus"
+          "$old" detect-changes --scope staged --repo "$GITHUB_WORKSPACE" > evidence/old-detect.txt 2>&1
+          cat evidence/old-detect.txt
+          grep -F 'No changes detected.' evidence/old-detect.txt
+      - name: Reindex exact base with corrected 1.6.12 and run pre-edit impact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git reset --hard "$BASE_SHA"
+          rm -rf .gitnexus
+          fixed="$RUNNER_TEMP/gn-fixed/node_modules/.bin/gitnexus"
+          "$fixed" analyze --workers 1 --force --index-only > evidence/fixed-analyze.txt 2>&1
+          git reset --hard "$BASE_SHA"
+          "$fixed" impact 'Function:src-tauri/src/tools/异步命令v1.rs:run' --direction upstream --repo "$GITHUB_WORKSPACE" > evidence/fixed-impact.txt 2>&1
+          cat evidence/fixed-impact.txt
+          grep -F '"risk": "LOW"' evidence/fixed-impact.txt
+      - name: Verify corrected staged detector sees the identical candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python "$RUNNER_TEMP/apply_candidate.py"
+          git add -- "$TARGET"
+          sha256sum "$TARGET" | tee evidence/fixed-candidate.sha256
+          test "$(cut -d' ' -f1 evidence/old-candidate.sha256)" = "$(cut -d' ' -f1 evidence/fixed-candidate.sha256)"
+          fixed="$RUNNER_TEMP/gn-fixed/node_modules/.bin/gitnexus"
+          "$fixed" detect-changes --scope staged --repo "$GITHUB_WORKSPACE" > evidence/fixed-detect.txt 2>&1
+          cat evidence/fixed-detect.txt
+          ! grep -F 'No changes detected.' evidence/fixed-detect.txt
+          ! grep -F 'PARTIAL RESULT' evidence/fixed-detect.txt
+          grep -F 'src-tauri/src/tools/异步命令v1.rs' evidence/fixed-detect.txt
+          grep -F 'src-tauri/src/tools/异步命令v1.rs' evidence/unquoted-diff.txt
+          grep -F '"a/src-tauri/src/tools/' evidence/default-diff.txt
+          git diff --cached --check
+          test "$(git -c core.quotePath=false diff --cached --name-only)" = "$TARGET"
+          printf '%s\n' 'GITNEXUS_1_6_9_FALSE_CLEAN_ON_UNICODE_PATH_AND_1_6_12_TRUSTWORTHY_DETECTION_CONFIRMED' | tee evidence/conclusion.txt
+          git rev-parse HEAD | tee evidence/base-source.txt
+          test "$(cat evidence/base-source.txt)" = "$BASE_SHA"
+          printf '%s\n' 'NEVER_MERGE_HELPER_ONLY' > evidence/boundary.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: rc60-gitnexus-detect-r3
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
