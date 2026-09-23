@@ -87,7 +87,7 @@ jobs:
           PY
           git diff --check
           git add -- src-tauri/src/tools/异步命令v1.rs
-          git diff --cached --name-only | tee evidence/candidate-files.txt
+          git -c core.quotepath=false diff --cached --name-only | tee evidence/candidate-files.txt
           test "$(cat evidence/candidate-files.txt)" = 'src-tauri/src/tools/异步命令v1.rs'
           sha256sum src-tauri/src/tools/异步命令v1.rs > evidence/candidate-source.sha256
       - name: Pre-commit graph scope and Rust checks
