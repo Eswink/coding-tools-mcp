@@ -1,0 +1,133 @@
+name: Isolated issue 62 authoritative impact review (never merge)
+
+on:
+  push:
+    branches: ['ci/issue62-impact-review-20260923-r2']
+
+permissions:
+  contents: read
+
+env:
+  BASE_SHA: 998abf5ff85aa13fad54797fb3a7ddfb981f8af6
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.BASE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Restore repository plan context and run exact pre-edit impact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/probe-install.txt 2>&1
+          printf '{"project_root":"%s"}\n' "$GITHUB_WORKSPACE" | ./.mcp-probe-kit/bin/probe exec resume_plan --stdin > evidence/resume-plan.json 2>&1 || true
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.12 > evidence/gitnexus-install.txt 2>&1
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/analyze.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md .agents/skills/mcp-probe-kit/SKILL.md 2>/dev/null || true
+          rm -rf .mcp-probe-kit
+          target='Function:src-tauri/src/mcp/listener.rs:bind_listener'
+          "$graph" context "$target" > evidence/bind-listener-context.json 2>&1
+          "$graph" impact "$target" --direction upstream > evidence/bind-listener-impact.json 2>&1
+          cat evidence/bind-listener-context.json evidence/bind-listener-impact.json
+          grep -q '"risk": "LOW"' evidence/bind-listener-impact.json
+          grep -q '"impactedCount": 24' evidence/bind-listener-impact.json
+      - name: Stage exact disposable candidate and require detectable scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          cargo=Path('src-tauri/Cargo.toml')
+          text=cargo.read_text(encoding='utf-8')
+          needle='shell-words = "1"\n'
+          assert needle in text and 'socket2 = "0.6"' not in text
+          cargo.write_text(text.replace(needle,needle+'socket2 = "0.6"\n',1),encoding='utf-8')
+
+          lock=Path('src-tauri/Cargo.lock')
+          text=lock.read_text(encoding='utf-8')
+          marker=' "shlex 1.3.0",\n "tar",\n'
+          assert marker in text
+          lock.write_text(text.replace(marker,' "shlex 1.3.0",\n "socket2",\n "tar",\n',1),encoding='utf-8')
+
+          listener=Path('src-tauri/src/mcp/listener.rs')
+          text=listener.read_text(encoding='utf-8')
+          old='''fn bind_listener(port: u16) -> Result<tokio::net::TcpListener, String> {
+              let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+              let listener = std::net::TcpListener::bind(addr)
+                  .map_err(|err| format!("MCP 本地端口 {port} 绑定失败: {err}"))?;
+              listener
+                  .set_nonblocking(true)
+                  .map_err(|err| format!("MCP 本地端口 {port} 设置非阻塞失败: {err}"))?;
+              tokio::net::TcpListener::from_std(listener)
+                  .map_err(|err| format!("MCP 本地监听器初始化失败: {err}"))
+          }
+          '''.replace('          ','')
+          new='''fn bind_listener(port: u16) -> Result<tokio::net::TcpListener, String> {
+              let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+              let listener = bind_std_listener(addr)
+                  .map_err(|err| format!("MCP 本地端口 {port} 绑定失败: {err}"))?;
+              listener
+                  .set_nonblocking(true)
+                  .map_err(|err| format!("MCP 本地端口 {port} 设置非阻塞失败: {err}"))?;
+              tokio::net::TcpListener::from_std(listener)
+                  .map_err(|err| format!("MCP 本地监听器初始化失败: {err}"))
+          }
+
+          #[cfg(unix)]
+          fn bind_std_listener(addr: std::net::SocketAddr) -> std::io::Result<std::net::TcpListener> {
+              use socket2::{Domain, Protocol, Socket, Type};
+
+              let socket = Socket::new(Domain::IPV4, Type::STREAM, Some(Protocol::TCP))?;
+              socket.set_reuse_address(true)?;
+              socket.bind(&addr.into())?;
+              socket.listen(1024)?;
+              Ok(socket.into())
+          }
+
+          #[cfg(not(unix))]
+          fn bind_std_listener(addr: std::net::SocketAddr) -> std::io::Result<std::net::TcpListener> {
+              std::net::TcpListener::bind(addr)
+          }
+          '''.replace('          ','')
+          assert old in text
+          listener.write_text(text.replace(old,new,1),encoding='utf-8')
+          PY
+          git add -- src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/src/mcp/listener.rs
+          git diff --cached --check
+          git diff --cached --stat | tee evidence/candidate-stat.txt
+          git diff --cached -- src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/src/mcp/listener.rs > evidence/candidate.patch
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" detect-changes --scope staged > evidence/detect-changes.txt 2>&1
+          cat evidence/detect-changes.txt
+          grep -Eq 'Changes:|Diff touched|Changed symbols|Risk level' evidence/detect-changes.txt
+          if grep -q 'No changes detected' evidence/detect-changes.txt; then
+            echo 'GitNexus falsely reported a clean candidate.' >&2
+            exit 3
+          fi
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          paths=['src-tauri/Cargo.toml','src-tauri/Cargo.lock','src-tauri/src/mcp/listener.rs','src-tauri/src/tools/任务恢复传输v2.rs']
+          data={p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths}
+          Path('evidence/source-hashes.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps(data,ensure_ascii=False,indent=2))
+          PY
+          git rev-parse HEAD > evidence/base-commit.txt
+          echo 'READ_ONLY_IMPACT_REVIEW_NEVER_MERGE' > evidence/boundary.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: issue62-authoritative-impact
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
