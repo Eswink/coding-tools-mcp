@@ -632,10 +632,21 @@
       "depends_on": [
         "local-trace"
       ],
-      "issue": null,
-      "state": "planned",
+      "issue": 65,
+      "state": "verified",
       "priority": 30,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "8c97a4c8a9d66666d91687ddfd05e9a132265775",
+        "run_id": 35895973655,
+        "files": {
+          "services/local-agent/src/trace/verification.rs": "1e1214bc55241091ca117348dc3cddf66a906b677d97981751a31e78489c3df0",
+          "services/local-agent/src/trace/tests/verification.rs": "b2614ab20e74b8b9fcfdb8535dde5ccf90634d4342adc2e844f8a37545231a9e",
+          "services/local-agent/src/trace.rs": "02757fe7242c8f2f7085c616ca2c52cc54fa363fa6bcf32d2c207e0a200d3a54",
+          "services/local-agent/src/trace/tests.rs": "6e463148c03b36930f9b2b787609b84c3b3643ca04ceddd45ddc686e223eb7f6",
+          "services/local-agent/src/lib.rs": "5b93d8db21ab50e53dc02424146d3d5deb6304aff6424e08e8536a24868a902f"
+        }
+      }
     },
     {
       "id": "tool-discovery",
