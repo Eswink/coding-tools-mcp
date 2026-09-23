@@ -5,6 +5,7 @@ mod policy;
 mod process;
 mod process_tree;
 mod registry;
+mod skills;
 mod trace;
 
 pub use executor::{ToolExecutor, ToolFuture};
@@ -23,6 +24,7 @@ pub use process::{
     ProcessSession,
 };
 pub use registry::{ToolRegistry, VerifiedInvocation};
+pub use skills::{LocalSkill, SkillCatalog, SkillCatalogLoader, SkillError, SkillLimits};
 pub use trace::{
     RecoveryItem, RecoveryState, RecoveryView, TraceError, TraceEvent, TraceJournal, TracePhase,
     TraceSnapshot, TraceToolError, VerificationEvidence, VerificationRecord,
