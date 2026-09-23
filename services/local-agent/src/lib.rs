@@ -25,5 +25,5 @@ pub use process::{
 pub use registry::{ToolRegistry, VerifiedInvocation};
 pub use trace::{
     RecoveryItem, RecoveryState, RecoveryView, TraceError, TraceEvent, TraceJournal, TracePhase,
-    TraceSnapshot, TraceToolError,
+    TraceSnapshot, TraceToolError, VerificationEvidence, VerificationRecord,
 };
