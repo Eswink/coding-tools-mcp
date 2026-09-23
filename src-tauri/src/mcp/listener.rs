@@ -286,13 +286,30 @@ async fn validate_origin(
 
 fn bind_listener(port: u16) -> Result<tokio::net::TcpListener, String> {
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
-    let listener = std::net::TcpListener::bind(addr)
-        .map_err(|err| format!("MCP 本地端口 {port} 绑定失败: {err}"))?;
-    listener
-        .set_nonblocking(true)
-        .map_err(|err| format!("MCP 本地端口 {port} 设置非阻塞失败: {err}"))?;
-    tokio::net::TcpListener::from_std(listener)
-        .map_err(|err| format!("MCP 本地监听器初始化失败: {err}"))
+    #[cfg(unix)]
+    {
+        let socket = tokio::net::TcpSocket::new_v4()
+            .map_err(|err| format!("MCP 本地端口 {port} 套接字初始化失败: {err}"))?;
+        socket
+            .set_reuseaddr(true)
+            .map_err(|err| format!("MCP 本地端口 {port} 设置快速重绑定失败: {err}"))?;
+        socket
+            .bind(addr)
+            .map_err(|err| format!("MCP 本地端口 {port} 绑定失败: {err}"))?;
+        socket
+            .listen(1024)
+            .map_err(|err| format!("MCP 本地监听器初始化失败: {err}"))
+    }
+    #[cfg(not(unix))]
+    {
+        let listener = std::net::TcpListener::bind(addr)
+            .map_err(|err| format!("MCP 本地端口 {port} 绑定失败: {err}"))?;
+        listener
+            .set_nonblocking(true)
+            .map_err(|err| format!("MCP 本地端口 {port} 设置非阻塞失败: {err}"))?;
+        tokio::net::TcpListener::from_std(listener)
+            .map_err(|err| format!("MCP 本地监听器初始化失败: {err}"))
+    }
 }
 
 async fn mcp_discovery() -> Response {
