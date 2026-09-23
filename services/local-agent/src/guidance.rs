@@ -1,8 +1,7 @@
 //! Bounded, read-only project guidance. Guidance text is never execution authority.
 use std::{
     error::Error,
-    fmt,
-    fs,
+    fmt, fs,
     io::Read,
     path::{Path, PathBuf},
 };
@@ -265,7 +264,8 @@ impl GuidanceResolver {
             return Err(GuidanceError::OutsideWorkspace);
         }
         let file = fs::File::open(canonical).map_err(|_| GuidanceError::Io)?;
-        let mut bytes = Vec::with_capacity((metadata.len() as usize).min(self.limits.max_file_bytes));
+        let mut bytes =
+            Vec::with_capacity((metadata.len() as usize).min(self.limits.max_file_bytes));
         file.take((self.limits.max_file_bytes + 1) as u64)
             .read_to_end(&mut bytes)
             .map_err(|_| GuidanceError::Io)?;
