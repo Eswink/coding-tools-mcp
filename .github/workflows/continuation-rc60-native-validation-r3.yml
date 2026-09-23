@@ -55,6 +55,7 @@ jobs:
           sha="$(python "$RUNNER_TEMP/rc60_apply_candidate.py")"
           test "$sha" = '8320b317d5bba31598b084987e6167ef1af4c0a1346a08af051d2aaf041ff0a7'
           printf '%s  %s\n' "$sha" 'src-tauri/src/tools/异步命令v1.rs' | tee evidence/candidate-source.sha256
+          cp 'src-tauri/src/tools/异步命令v1.rs' evidence/candidate-source.rs
           git diff -- src-tauri/src/tools/异步命令v1.rs > evidence/default-unstaged.patch
           git -c core.quotePath=false diff -- src-tauri/src/tools/异步命令v1.rs > evidence/utf8-unstaged.patch
           test -s evidence/default-unstaged.patch
