@@ -1,0 +1,202 @@
+name: RC60 process-churn diagnostic (never merge)
+
+on:
+  push:
+    branches: ['ci/rc60-process-churn-20260923']
+    paths:
+      - '.github/workflows/continuation-rc60-process-churn.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc60-process-churn-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_SHA: 4f925e44c54066b5cf7df57e1133404542d70aec
+
+jobs:
+  churn:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Bind immutable source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --exit-code
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+      - name: Install Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Record environment and prebuild once
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "runner_os=$RUNNER_OS"
+            echo "runner_arch=$RUNNER_ARCH"
+            echo "source_sha=$SOURCE_SHA"
+            echo "number_of_processors=${NUMBER_OF_PROCESSORS:-}"
+            if command -v nproc >/dev/null 2>&1; then echo "nproc=$(nproc)"; fi
+            python --version
+            rustc -vV
+          } | tee evidence/environment.txt
+          git diff --check
+          cargo check --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/cargo-check.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --no-run 2>&1 | tee evidence/lib-prebuild.txt
+      - name: Exact readiness sanity
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib \
+            auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor \
+            -- --exact --nocapture 2>&1 | tee evidence/exact-sanity.txt
+      - name: Measure readiness under bounded process-creation churn
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv
+          import re
+          import subprocess
+          import sys
+          import threading
+          import time
+          from pathlib import Path
+
+          out = Path('evidence')
+          target = 'auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor'
+          base = ['cargo', 'test', '--locked', '--manifest-path', 'src-tauri/Cargo.toml', '--lib']
+          rows = []
+          failures = 0
+
+          def start_churn(count):
+              stop = threading.Event()
+              counts = [0 for _ in range(count)]
+              errors = [0 for _ in range(count)]
+
+              def worker(slot):
+                  while not stop.is_set():
+                      try:
+                          subprocess.run(
+                              [sys.executable, '-c', 'pass'],
+                              stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL,
+                              timeout=5,
+                              check=True,
+                          )
+                          counts[slot] += 1
+                      except Exception:
+                          errors[slot] += 1
+                      time.sleep(0.025)
+
+              threads = [threading.Thread(target=worker, args=(i,), daemon=True) for i in range(count)]
+              for thread in threads:
+                  thread.start()
+              if threads:
+                  time.sleep(0.75)
+              return stop, threads, counts, errors
+
+          def stop_churn(state):
+              stop, threads, counts, errors = state
+              stop.set()
+              for thread in threads:
+                  thread.join(timeout=7.0)
+              return sum(counts), sum(errors), sum(1 for thread in threads if thread.is_alive())
+
+          def run_case(kind, workers, trial):
+              global failures
+              label = f'{kind}-workers-{workers}-trial-{trial}'
+              log_path = out / f'{label}.txt'
+              if kind == 'exact':
+                  cmd = base + [target, '--', '--exact', '--nocapture']
+              else:
+                  cmd = base + ['--', '--show-output']
+              state = start_churn(workers)
+              started = time.monotonic()
+              proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors='replace')
+              elapsed_ms = int((time.monotonic() - started) * 1000)
+              launches, churn_errors, live_threads = stop_churn(state)
+              log_path.write_text(proc.stdout, encoding='utf-8')
+              matches = re.findall(r'drain-startup ready after ([0-9]+)ms', proc.stdout)
+              readiness = int(matches[-1]) if matches else None
+              rows.append({
+                  'kind': kind,
+                  'workers': workers,
+                  'trial': trial,
+                  'readiness_ms': readiness if readiness is not None else 'NA',
+                  'elapsed_ms': elapsed_ms,
+                  'exit_code': proc.returncode,
+                  'child_launches': launches,
+                  'churn_errors': churn_errors,
+                  'live_churn_threads': live_threads,
+              })
+              print(
+                  f'{label}: readiness_ms={readiness} elapsed_ms={elapsed_ms} '
+                  f'exit_code={proc.returncode} child_launches={launches} '
+                  f'churn_errors={churn_errors} live_churn_threads={live_threads}',
+                  flush=True,
+              )
+              if proc.returncode != 0 or live_threads != 0:
+                  failures += 1
+
+          for workers in (0, 1, 2, 4):
+              for trial in (1, 2):
+                  run_case('exact', workers, trial)
+          for workers in (0, 4):
+              for trial in (1, 2):
+                  run_case('full', workers, trial)
+
+          fields = [
+              'kind', 'workers', 'trial', 'readiness_ms', 'elapsed_ms', 'exit_code',
+              'child_launches', 'churn_errors', 'live_churn_threads'
+          ]
+          with (out / 'readiness.csv').open('w', newline='', encoding='utf-8') as f:
+              writer = csv.DictWriter(f, fieldnames=fields)
+              writer.writeheader()
+              writer.writerows(rows)
+
+          numeric = [int(r['readiness_ms']) for r in rows if r['readiness_ms'] != 'NA']
+          max_ready = max(numeric) if numeric else -1
+          max_launches = max((int(r['child_launches']) for r in rows), default=0)
+          churn_errors = sum(int(r['churn_errors']) for r in rows)
+          (out / 'result.txt').write_text(
+              f'suite_failures={failures}\nmax_readiness_ms={max_ready}\n'
+              f'max_child_launches={max_launches}\nchurn_errors={churn_errors}\n',
+              encoding='utf-8',
+          )
+          print((out / 'readiness.csv').read_text(encoding='utf-8'))
+          print((out / 'result.txt').read_text(encoding='utf-8'))
+          if failures:
+              raise SystemExit(1)
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: rc60-process-churn-${{ matrix.os }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
