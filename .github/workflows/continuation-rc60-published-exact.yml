@@ -1,4 +1,4 @@
-name: Isolated RC60 published Windows exact validation (never merge)
+name: Isolated RC60 published correction validation (never merge)
 
 on:
   push:
@@ -14,8 +14,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  BASE_SHA: c22e08dc0bb2d2c80714b7efb2c3e90e1e7b808b
   PUBLISHED_SHA: a88989d41ac5d93155b19c650d95d41d76de1df6
-  EXPECTED_SOURCE_SHA256: 8320b317d5bba31598b084987e6167ef1af4c0a1346a08af051d2aaf041ff0a7
+  TARGET: src-tauri/src/tools/异步命令v1.rs
 
 jobs:
   windows-exact:
@@ -40,9 +41,7 @@ jobs:
           actual_commit="$(git rev-parse HEAD)"
           test "$actual_commit" = "$PUBLISHED_SHA"
           printf '%s\n' "$actual_commit" | tee evidence/source-commit.txt
-          actual_hash="$(sha256sum 'src-tauri/src/tools/异步命令v1.rs' | awk '{print $1}')"
-          test "$actual_hash" = "$EXPECTED_SOURCE_SHA256"
-          printf '%s  %s\n' "$actual_hash" 'src-tauri/src/tools/异步命令v1.rs' | tee evidence/source.sha256
+          sha256sum "$TARGET" | tee evidence/source.sha256
           sha256sum 'src-tauri/src/auth/exclusive_refresh_http_tests.rs' '.github/workflows/发布候选验证v4.yml' > evidence/supporting-source.sha256
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -71,7 +70,6 @@ jobs:
           root=Path('evidence'); root.mkdir(exist_ok=True)
           report={
             'published_source':os.environ['PUBLISHED_SHA'],
-            'expected_source_sha256':os.environ['EXPECTED_SOURCE_SHA256'],
             'run_id':os.environ['GITHUB_RUN_ID'],
             'attempt':os.environ['GITHUB_RUN_ATTEMPT'],
             'runner_os':os.environ['RUNNER_OS'],
@@ -84,6 +82,78 @@ jobs:
         if: always()
         with:
           name: rc60-published-windows-exact-${{ github.run_id }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+
+  gitnexus-published:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BASE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Index exact pre-correction source and assess impact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence "$RUNNER_TEMP/graph"
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.12
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" --version | tee evidence/gitnexus-version.txt
+          "$graph" analyze --workers 1 --force --index-only > evidence/analyze.txt 2>&1
+          git reset --hard "$BASE_SHA"
+          "$graph" impact 'Function:src-tauri/src/tools/异步命令v1.rs:run' --direction upstream --repo "$GITHUB_WORKSPACE" > evidence/impact.json 2>&1
+          cat evidence/impact.json
+          grep -F '"risk": "LOW"' evidence/impact.json
+      - name: Stage exact published correction and detect changed symbols
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show "$PUBLISHED_SHA:$TARGET" > "$TARGET"
+          git add -- "$TARGET"
+          git -c core.quotePath=false diff --cached --check
+          test "$(git -c core.quotePath=false diff --cached --name-only)" = "$TARGET"
+          sha256sum "$TARGET" | tee evidence/published-source.sha256
+          git -c core.quotePath=false diff --cached -U0 -- "$TARGET" > evidence/published.patch
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" detect-changes --scope staged --repo "$GITHUB_WORKSPACE" > evidence/detect-changes.txt 2>&1
+          cat evidence/detect-changes.txt
+          ! grep -F 'No changes detected.' evidence/detect-changes.txt
+          ! grep -F 'PARTIAL RESULT' evidence/detect-changes.txt
+          grep -F "$TARGET" evidence/detect-changes.txt
+          grep -F 'Function run' evidence/detect-changes.txt
+          git rev-parse HEAD | tee evidence/base-source.txt
+          test "$(cat evidence/base-source.txt)" = "$BASE_SHA"
+          printf '%s\n' "$PUBLISHED_SHA" | tee evidence/published-commit.txt
+          printf '%s\n' 'PUBLISHED_DIFF_GITNEXUS_DETECTED_NEVER_MERGE_HELPER' > evidence/boundary.txt
+      - name: Record evidence hashes
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          root=Path('evidence'); root.mkdir(exist_ok=True)
+          report={
+            'base_source':os.environ['BASE_SHA'],
+            'published_source':os.environ['PUBLISHED_SHA'],
+            'run_id':os.environ['GITHUB_RUN_ID'],
+            'attempt':os.environ['GITHUB_RUN_ATTEMPT'],
+            'boundary':'PUBLISHED_DIFF_GITNEXUS_READ_ONLY_NEVER_MERGE',
+            'sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.iterdir()) if p.is_file()},
+          }
+          (root/'identity.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rc60-published-gitnexus-${{ github.run_id }}
           path: evidence/
           retention-days: 14
           if-no-files-found: error
