@@ -86,7 +86,8 @@ jobs:
           cat evidence/detect-changes.txt
           ! grep -F 'No changes detected.' evidence/detect-changes.txt
           ! grep -F 'PARTIAL RESULT' evidence/detect-changes.txt
-          grep -F 'tests/cloud-gateway/scope-guard.test.mjs' evidence/detect-changes.txt
+          grep -F 'Diff touched 2 file(s)' evidence/detect-changes.txt
+          grep -F 'not a clean tree' evidence/detect-changes.txt
       - name: Exercise the actual inline guard and protocol contracts
         shell: bash
         run: |
