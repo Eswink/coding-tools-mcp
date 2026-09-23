@@ -120,6 +120,21 @@ fn roots_must_be_relative_real_directories_inside_workspace() {
 }
 
 #[test]
+fn root_count_is_bounded_before_discovery() {
+    let ws = Workspace::new();
+    ws.dir("one");
+    ws.dir("two");
+    let limits = SkillLimits::new(1, 2, 4, 1024, 4096).unwrap();
+    assert_eq!(
+        SkillCatalogLoader::with_limits(&ws.root, limits)
+            .unwrap()
+            .load(["one", "two"])
+            .unwrap_err(),
+        SkillError::InvalidRoot
+    );
+}
+
+#[test]
 fn file_size_total_skill_count_and_depth_are_bounded() {
     let ws = Workspace::new();
     ws.file("skills/a/SKILL.md", "1234");

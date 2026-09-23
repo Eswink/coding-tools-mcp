@@ -209,18 +209,21 @@ impl SkillCatalogLoader {
         I: IntoIterator<Item = P>,
         P: AsRef<Path>,
     {
-        let mut roots: Vec<_> = roots
-            .into_iter()
-            .map(|root| self.resolve_root(root.as_ref()))
-            .collect::<Result<_, _>>()?;
-        if roots.is_empty() || roots.len() > self.limits.max_roots {
+        let mut resolved_roots = Vec::with_capacity(self.limits.max_roots);
+        for root in roots {
+            if resolved_roots.len() >= self.limits.max_roots {
+                return Err(SkillError::InvalidRoot);
+            }
+            resolved_roots.push(self.resolve_root(root.as_ref())?);
+        }
+        if resolved_roots.is_empty() {
             return Err(SkillError::InvalidRoot);
         }
-        roots.sort_by(|left, right| left.0.cmp(&right.0));
+        resolved_roots.sort_by(|left, right| left.0.cmp(&right.0));
 
         let mut found = BTreeMap::new();
         let mut total_bytes = 0usize;
-        for (relative, absolute) in roots {
+        for (relative, absolute) in resolved_roots {
             self.walk(&relative, &absolute, 0, &mut found, &mut total_bytes)?;
         }
         Ok(SkillCatalog {
