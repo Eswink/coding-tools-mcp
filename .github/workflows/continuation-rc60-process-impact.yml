@@ -1,0 +1,51 @@
+name: RC60 process-path impact (never merge helper)
+
+on:
+  push:
+    branches: ['ci/rc60-process-impact-20260923']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: 4f925e44c54066b5cf7df57e1133404542d70aec
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Inspect current process-path symbols without editing source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.12
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/analyze.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md || true
+          "$graph" context 'Function:src-tauri/src/tools/exec.rs:run_command' > evidence/run-command-context.txt 2>&1
+          "$graph" impact 'Function:src-tauri/src/tools/exec.rs:run_command' --direction upstream > evidence/run-command-impact.txt 2>&1
+          "$graph" context 'Function:src-tauri/src/tools/进程树Windowsv2.rs:spawn' > evidence/windows-spawn-context.txt 2>&1
+          "$graph" impact 'Function:src-tauri/src/tools/进程树Windowsv2.rs:spawn' --direction upstream > evidence/windows-spawn-impact.txt 2>&1
+          cat evidence/run-command-context.txt
+          cat evidence/run-command-impact.txt
+          cat evidence/windows-spawn-context.txt
+          cat evidence/windows-spawn-impact.txt
+          git rev-parse HEAD > evidence/source-commit.txt
+          sha256sum src-tauri/src/tools/exec.rs src-tauri/src/tools/进程树Windowsv2.rs src-tauri/src/tools/异步命令v1.rs src-tauri/src/auth/exclusive_refresh_http_tests.rs > evidence/source-hashes.txt
+          git diff --exit-code
+          printf '%s\n' 'READ_ONLY_NEVER_MERGE_NO_PRODUCTION_EDIT' > evidence/boundary.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: rc60-process-impact
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
