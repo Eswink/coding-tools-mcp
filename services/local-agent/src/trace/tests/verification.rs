@@ -28,7 +28,14 @@ fn verification_is_redacted_ordered_and_never_authority() {
     assert!(!evidence.reconciliation_required);
 
     let json = serde_json::to_string(&evidence).unwrap();
-    for secret in [CANARY, TOOL, "arguments", "request_id", "conversation", "workspace"] {
+    for secret in [
+        CANARY,
+        TOOL,
+        "arguments",
+        "request_id",
+        "conversation",
+        "workspace",
+    ] {
         assert!(!json.contains(secret));
     }
 }
