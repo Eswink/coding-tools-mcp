@@ -537,10 +537,19 @@
         "project-guidance",
         "exec-policy"
       ],
-      "issue": null,
-      "state": "planned",
+      "issue": 66,
+      "state": "verified",
       "priority": 30,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "8c453c4dadc9e80c0a8befe144bc4f2b79f793c1",
+        "run_id": 35899866696,
+        "files": {
+          "services/local-agent/src/skills.rs": "37c4434cf773dbca9c246d0a961b835efe42d8e81c44f0ee7fc1bab94b66065d",
+          "services/local-agent/src/skills_tests.rs": "c9dcf835238e460503ded4270ac9d433b55e150fddf5e8619f93d8798f60250c",
+          "services/local-agent/src/lib.rs": "1dc191c1efd314d8eab16252ac94f51dc69de9eff2585fcc57d8ede30747ddfc"
+        }
+      }
     },
     {
       "id": "policy-hooks",
