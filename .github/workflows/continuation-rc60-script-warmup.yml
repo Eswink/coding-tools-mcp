@@ -1,0 +1,128 @@
+name: RC60 fresh-script warmup diagnostic (never merge)
+
+on:
+  push:
+    branches: ['ci/rc60-script-warmup-20260924']
+    paths:
+      - '.github/workflows/continuation-rc60-script-warmup.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc60-script-warmup-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_SHA: 4f925e44c54066b5cf7df57e1133404542d70aec
+  TARGET: auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor
+
+jobs:
+  script_warmup:
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [none, script]
+        replica: [1, 2, 3]
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Bind immutable source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --exit-code
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Compile without executing tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          cargo check --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/cargo-check.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --no-run 2>&1 | tee evidence/lib-prebuild.txt
+      - name: Warm exact fresh-script content outside the test
+        if: matrix.mode == 'script'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:RUNNER_TEMP ("rc60-script-warm-${{ matrix.replica }}-" + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $dir | Out-Null
+          @"
+          import pathlib, time
+          pathlib.Path('started').write_text('ready')
+          while not pathlib.Path('release').exists():
+           time.sleep(.05)
+          print('drained', flush=True)
+          "@ | Set-Content -Path (Join-Path $dir 'hold.py') -Encoding utf8
+          Set-Content -Path (Join-Path $dir 'release') -Value '' -Encoding utf8
+          $start = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+          Push-Location $dir
+          try {
+            & python hold.py 2>&1 | Tee-Object -FilePath (Join-Path $env:GITHUB_WORKSPACE 'evidence/script-warmup.txt')
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if (-not (Test-Path 'started')) { throw 'warmup script did not create started marker' }
+          } finally {
+            Pop-Location
+          }
+          $elapsed = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - $start
+          "script_warmup_elapsed_ms=$elapsed" | Out-File evidence/warmup-result.txt -Encoding utf8
+      - name: First exact target measurement
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $target = $env:TARGET
+          $start = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+          & cargo test --locked --manifest-path src-tauri/Cargo.toml --lib $target -- --exact --nocapture 2>&1 | Tee-Object -FilePath evidence/first.txt
+          $code = $LASTEXITCODE
+          $elapsed = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - $start
+          $match = Select-String -Path evidence/first.txt -Pattern 'drain-startup ready after ([0-9]+)ms' | Select-Object -Last 1
+          $ready = if ($match -and $match.Matches.Count -gt 0) { $match.Matches[0].Groups[1].Value } else { 'NA' }
+          "mode=${{ matrix.mode }}" | Out-File evidence/result.txt -Encoding utf8
+          "replica=${{ matrix.replica }}" | Out-File evidence/result.txt -Encoding utf8 -Append
+          "first_readiness_ms=$ready" | Out-File evidence/result.txt -Encoding utf8 -Append
+          "first_elapsed_ms=$elapsed" | Out-File evidence/result.txt -Encoding utf8 -Append
+          "first_exit_code=$code" | Out-File evidence/result.txt -Encoding utf8 -Append
+          if ($code -ne 0) { exit $code }
+      - name: Second exact target measurement
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $target = $env:TARGET
+          $start = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+          & cargo test --locked --manifest-path src-tauri/Cargo.toml --lib $target -- --exact --nocapture 2>&1 | Tee-Object -FilePath evidence/second.txt
+          $code = $LASTEXITCODE
+          $elapsed = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - $start
+          $match = Select-String -Path evidence/second.txt -Pattern 'drain-startup ready after ([0-9]+)ms' | Select-Object -Last 1
+          $ready = if ($match -and $match.Matches.Count -gt 0) { $match.Matches[0].Groups[1].Value } else { 'NA' }
+          "second_readiness_ms=$ready" | Out-File evidence/result.txt -Encoding utf8 -Append
+          "second_elapsed_ms=$elapsed" | Out-File evidence/result.txt -Encoding utf8 -Append
+          "second_exit_code=$code" | Out-File evidence/result.txt -Encoding utf8 -Append
+          "runner_os=$env:RUNNER_OS" | Out-File evidence/environment.txt -Encoding utf8
+          "runner_arch=$env:RUNNER_ARCH" | Out-File evidence/environment.txt -Encoding utf8 -Append
+          "number_of_processors=$env:NUMBER_OF_PROCESSORS" | Out-File evidence/environment.txt -Encoding utf8 -Append
+          "python_path=$((Get-Command python).Source)" | Out-File evidence/environment.txt -Encoding utf8 -Append
+          & rustc -vV | Out-File evidence/environment.txt -Encoding utf8 -Append
+          Get-Content evidence/result.txt
+          if ($code -ne 0) { exit $code }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: rc60-script-${{ matrix.mode }}-${{ matrix.replica }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
