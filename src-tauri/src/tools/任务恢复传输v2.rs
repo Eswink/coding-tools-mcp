@@ -40,7 +40,28 @@ async fn listener_restart_keeps_the_running_job_and_its_idempotency_key() {
     // does not drop it and can leave idle transport state alive until scope exit.
     drop(client);
     stop.send(()).unwrap(); handle.await.unwrap();
-    let (stop, handle) = start_listener(port).expect("same-port restart after completed shutdown");
+    let (stop, handle) = match start_listener(port) {
+        Ok(listener) => listener,
+        Err(error) => {
+            #[cfg(target_os = "linux")]
+            {
+                let port_hex = format!("{port:04X}");
+                for path in ["/proc/net/tcp", "/proc/net/tcp6"] {
+                    if let Ok(table) = std::fs::read_to_string(path) {
+                        for line in table.lines().skip(1) {
+                            let fields: Vec<_> = line.split_whitespace().collect();
+                            let local = fields.get(1).copied().unwrap_or_default();
+                            if local.rsplit(':').next().is_some_and(|value| value.eq_ignore_ascii_case(&port_hex)) {
+                                eprintln!("[issue62-socket] path={path} port={port} state={} row={line}",
+                                    fields.get(3).copied().unwrap_or("unknown"));
+                            }
+                        }
+                    }
+                }
+            }
+            panic!("same-port restart after completed shutdown: {error}");
+        }
+    };
     // A restarted HTTP listener invalidates the old keep-alive connection. Use a
     // new client exactly as a reconnecting MCP client would, without resubmitting
     // with a fresh idempotency key or changing the operation assertions.
