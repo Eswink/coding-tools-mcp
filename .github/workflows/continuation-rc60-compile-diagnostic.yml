@@ -1,0 +1,77 @@
+name: Isolated RC60 compiler diagnostic (never merge)
+
+on:
+  push:
+    branches: ['ci/rc60-fix-review-20260923']
+    paths: ['.github/workflows/continuation-rc60-compile-diagnostic.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: continuation-rc60-compile-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: c22e08dc0bb2d2c80714b7efb2c3e90e1e7b808b
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Apply exact disposable candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('src-tauri/src/tools/异步命令v1.rs')
+          text=path.read_text(encoding='utf-8')
+          old='''    if ctx.exec_tasks.checkpoint(job).is_err() {\n        job.finish(Status::Failed, json!({"command_ok":false, "termination_reason":"storage_failed_before_spawn"}));\n        return;\n    }\n    // Keep ALL policy/baseline/operation logging in the one shared execution dispatcher.\n'''
+          new='''    // reserve() already persisted the queued no-replay record. Never put a durable\n    // filesystem checkpoint between the public Running state and actual child spawn.\n    // Keep ALL policy/baseline/operation logging in the one shared execution dispatcher.\n'''
+          assert text.count(old) == 1
+          text=text.replace(old,new)
+          old='''    job.data.lock().expect("job state").session = Some(session.clone());\n    // Noninteractive tasks cannot supply stdin. Close it so read-to-EOF programs do not hang.\n    tauri::async_runtime::block_on(async {\n        session.stdin.lock().await.take();\n        session.mark_stdin_closed();\n    });\n    let mut checkpoint_at = std::time::Instant::now();\n'''
+          new='''    job.data.lock().expect("job state").session = Some(session.clone());\n    // Noninteractive tasks cannot supply stdin. Close it so read-to-EOF programs do not hang.\n    tauri::async_runtime::block_on(async {\n        session.stdin.lock().await.take();\n        session.mark_stdin_closed();\n    });\n    // Once the child exists, persist Running + session ownership. If that durable\n    // checkpoint fails, stop the child and fail closed rather than leaving an\n    // untracked process behind or inviting an automatic retry.\n    if ctx.exec_tasks.checkpoint(job).is_err() {\n        session.mark_termination_reason("killed");\n        let waited = tauri::async_runtime::block_on(async {\n            tokio::time::timeout(Duration::from_secs(5), session.kill_and_wait()).await.is_ok()\n        });\n        tauri::async_runtime::block_on(async {\n            session.refresh_status().await;\n            session.wait_for_readers().await;\n        });\n        let process_may_be_running = !waited || !session.has_exited();\n        let mut failure = session.snapshot(0);\n        failure["command_ok"] = json!(false);\n        failure["output_complete"] = json!(session.readers_completed());\n        failure["process_may_be_running"] = json!(process_may_be_running);\n        failure["termination_reason"] = json!("storage_failed_after_spawn");\n        failure["error"] = json!({\n            "code": "EXEC_TASK_CHECKPOINT_FAILED",\n            "message": if process_may_be_running {\n                "Durable task checkpoint failed after child start and termination could not be confirmed; inspect local processes and do not retry automatically"\n            } else {\n                "Durable task checkpoint failed after child start; child was terminated and the command must not be retried automatically"\n            }\n        });\n        if let Some(operation) = result.get("operation_id") {\n            failure["operation_id"] = operation.clone();\n        }\n        job.finish(Status::Failed, failure);\n        ctx.sessions.remove(&session.session_id);\n        return;\n    }\n    let mut checkpoint_at = std::time::Instant::now();\n'''
+          assert text.count(old) == 1
+          path.write_text(text.replace(old,new),encoding='utf-8')
+          PY
+          sha256sum src-tauri/src/tools/异步命令v1.rs | tee evidence/candidate-source.sha256
+          git diff --check | tee evidence/diff-check.txt
+          git rev-parse HEAD > evidence/base-source.txt
+      - name: Capture each compiler and test result
+        shell: bash
+        run: |
+          set +e
+          cargo fmt --manifest-path src-tauri/Cargo.toml --check > evidence/fmt.txt 2>&1
+          fmt_rc=$?
+          cargo check --locked --manifest-path src-tauri/Cargo.toml > evidence/check.txt 2>&1
+          check_rc=$?
+          cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings > evidence/clippy.txt 2>&1
+          clippy_rc=$?
+          cargo test --locked --manifest-path src-tauri/Cargo.toml queued_record_is_encrypted_and_restart_never_replays_it -- --nocapture > evidence/no-replay-test.txt 2>&1
+          no_replay_rc=$?
+          cargo test --locked --manifest-path src-tauri/Cargo.toml http_revoked_owner_drains_actual_background_process_before_successor -- --nocapture > evidence/rc60-test.txt 2>&1
+          rc60_rc=$?
+          printf 'fmt=%s\ncheck=%s\nclippy=%s\nno_replay=%s\nrc60=%s\n' "$fmt_rc" "$check_rc" "$clippy_rc" "$no_replay_rc" "$rc60_rc" | tee evidence/status.txt
+          cat evidence/check.txt
+          cat evidence/clippy.txt
+          cat evidence/no-replay-test.txt
+          cat evidence/rc60-test.txt
+          if (( fmt_rc || check_rc || clippy_rc || no_replay_rc || rc60_rc )); then exit 1; fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: rc60-compile-diagnostic
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
