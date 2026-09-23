@@ -5,7 +5,9 @@ use std::error::Error;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
 
+mod verification;
 mod view;
+pub use verification::{VerificationEvidence, VerificationRecord};
 pub use view::{
     RecoveryItem, RecoveryState, RecoveryView, TraceEvent, TracePhase, TraceSnapshot,
     TraceToolError,
@@ -215,6 +217,18 @@ impl TraceJournal {
             }
             state.append(invocation, phase, self.event_capacity);
         }
+    }
+
+    /// Export structured verification only after the same local authorization
+    /// checks as snapshots. This projection never grants or replays work.
+    pub fn verification_evidence(
+        &self,
+        admission: &LocalAdmission,
+        now_unix_ms: u64,
+    ) -> Result<VerificationEvidence, TraceError> {
+        Ok(self
+            .snapshot(admission, now_unix_ms)?
+            .verification_evidence())
     }
 
     /// Export only this journal's bounded, redacted local view. Not durable state.

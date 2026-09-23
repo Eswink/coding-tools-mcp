@@ -112,3 +112,5 @@ mod authorization;
 mod fault_boundary;
 mod lifecycle;
 mod retention;
+
+mod verification;
