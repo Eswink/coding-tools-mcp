@@ -57,7 +57,7 @@ jobs:
               errors.append(((msg.get("code") or {}).get("code"),msg.get("message"),files))
           print("clippy_errors",len(errors))
           for code,msg,files in errors:
-              print(json.dumps({"code":code,"message":msg,"files":files},ensure_ascii=False,sort_keys=True))
+              print(json.dumps({"code":code,"message":msg,"files":files},ensure_ascii=True,sort_keys=True))
           PY
           git rev-parse HEAD > evidence/source-commit.txt
           git diff --exit-code
