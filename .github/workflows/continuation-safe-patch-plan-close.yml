@@ -1,0 +1,149 @@
+name: Safe patch delegated plan closure (never merge)
+on:
+  push:
+    branches: ['ci/safe-patch-plan-close-20260924']
+    paths: ['.github/workflows/continuation-safe-patch-plan-close.yml']
+permissions:
+  contents: read
+env:
+  SOURCE_SHA: 13d01cd9c478db7ef82fac18428c1f6d5bbaf426
+  CANDIDATE_SHA: 510f3f1d16bfe3cc433bd45d7697aa31235553ec
+  PLAN_REF: 544a6760f9684daaf668b86bf5f6df21bcd84f31
+  SPEC_REF: ci/safe-patch-spec-review-20260924
+  PLAN_ID: feature-issue-68-safe-patch-steady-fb01dcf53f
+jobs:
+  close-plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Materialize checkpoint, specs, and exact candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence .mcp-probe-kit/plans docs/specs/issue-68-safe-patch
+          git fetch origin "$PLAN_REF" "$CANDIDATE_SHA" "$SPEC_REF"
+          git checkout "$PLAN_REF" -- ".mcp-probe-kit/plans/$PLAN_ID.json"
+          git checkout "$SPEC_REF" --             docs/specs/issue-68-safe-patch/requirements.md             docs/specs/issue-68-safe-patch/design.md             docs/specs/issue-68-safe-patch/tasks.md
+          git checkout "$CANDIDATE_SHA" --             src-tauri/src/tools/patch.rs             src-tauri/src/tools/patch_transaction.rs             src-tauri/src/tools/patch_transaction_tests.rs
+          git diff --check
+          git diff -- src-tauri/src/tools/patch.rs src-tauri/src/tools/patch_transaction.rs src-tauri/src/tools/patch_transaction_tests.rs > evidence/candidate.patch
+          git status --short | tee evidence/materialized-status.txt
+      - name: Install mcp-probe and resume the real plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume.json 2>&1
+          cat evidence/resume.json
+          node - <<'NODE'
+          const r=require('./evidence/resume.json');
+          if(r.isError===true || r.structuredContent?.found!==true) process.exit(1);
+          NODE
+      - name: Execute missing estimate step
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' > evidence/estimate-input.json
+          import json
+          print(json.dumps({
+            "task_description":"Issue #68 safe-patch: harden existing transactional patch commit/rollback only; deterministic ordering, byte/permission rollback, temp and transaction-created directory cleanup, failure injection tests; no parser/policy/worktree/snapshot/sandbox expansion.",
+            "code_context":"docs/specs/issue-68-safe-patch/tasks.md and the exact candidate diff in src-tauri/src/tools/patch.rs, patch_transaction.rs, patch_transaction_tests.rs"
+          }))
+          PY
+          ./.mcp-probe-kit/bin/probe exec estimate --stdin < evidence/estimate-input.json > evidence/estimate.json 2>&1
+          cat evidence/estimate.json
+          node - <<'NODE'
+          const r=require('./evidence/estimate.json'); if(r.isError===true) process.exit(1);
+          NODE
+      - name: Record completed implementation and test evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' > evidence/heartbeat-pre-review.json
+          import json, os
+          root=os.environ["GITHUB_WORKSPACE"]
+          payload={
+            "plan_id":os.environ["PLAN_ID"],
+            "project_root":root,
+            "status":"active",
+            "current_step_id":"review",
+            "completed_step_ids":["context","write-spec","check-spec","estimate","implement","test"],
+            "evidence":[
+              {"kind":"requirements","step_id":"write-spec","summary":"Issue #68 requirements/design/tasks are complete and scope-lock the transaction-only change.","reference":"docs/specs/issue-68-safe-patch/requirements.md","revision":"544a6760f9684daaf668b86bf5f6df21bcd84f31"},
+              {"kind":"spec","step_id":"check-spec","summary":"check_spec passed for issue-68-safe-patch.","reference":"GitHub Actions run 35907978737","revision":"544a6760f9684daaf668b86bf5f6df21bcd84f31"},
+              {"kind":"other","step_id":"estimate","summary":"mcp-probe estimate executed in this closure run.","reference":"evidence/estimate.json","revision":"510f3f1d16bfe3cc433bd45d7697aa31235553ec"},
+              {"kind":"implementation","step_id":"implement","summary":"Candidate changes only patch.rs, patch_transaction.rs, and patch_transaction_tests.rs; staged GitNexus detect risk LOW.","reference":"GitHub Actions run 35951413333","revision":"510f3f1d16bfe3cc433bd45d7697aa31235553ec"},
+              {"kind":"test","step_id":"test","summary":"Windows 2025 and Ubuntu 24.04 candidate validation passed: focused transaction tests, full desktop Rust suites, cargo check; candidate Clippy diagnostics contain zero candidate-file errors. Windows artifact 10789530095 sha256:84191138e434d759c2b1bd58f38a8f4fbf3681acf3f529a4c78ffbc3d605aac7; Ubuntu artifact 10789360167 sha256:607e257d0c075455d0a0ceb22d6b38cf929556b28c948b23ebd1de245a7b4447.","reference":"GitHub Actions run 35951413333","revision":"510f3f1d16bfe3cc433bd45d7697aa31235553ec"}
+            ],
+            "last_verified_revision":"510f3f1d16bfe3cc433bd45d7697aa31235553ec"
+          }
+          print(json.dumps(payload,ensure_ascii=False))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/heartbeat-pre-review.json > evidence/heartbeat-pre-review-output.json 2>&1
+          cat evidence/heartbeat-pre-review-output.json
+          node - <<'NODE'
+          const r=require('./evidence/heartbeat-pre-review-output.json'); if(r.isError===true) process.exit(1);
+          NODE
+      - name: Rerun code review with real Plan evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./.mcp-probe-kit/bin/probe exec code_review --json "{\"project_root\":\"$PWD\",\"focus\":\"all\"}" > evidence/code-review.json 2>&1
+          cat evidence/code-review.json
+          node - <<'NODE'
+          const r=require('./evidence/code-review.json');
+          if(r.isError===true) process.exit(1);
+          const findings=r.structuredContent?.consistency?.findings || r.structuredContent?.findings || [];
+          const high=findings.filter(f=>['high','critical'].includes(String(f.severity||'').toLowerCase()));
+          if(high.length){ console.error(JSON.stringify(high,null,2)); process.exit(2); }
+          NODE
+      - name: Complete review heartbeat
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' > evidence/heartbeat-review.json
+          import json, os
+          print(json.dumps({
+            "plan_id":os.environ["PLAN_ID"],
+            "project_root":os.environ["GITHUB_WORKSPACE"],
+            "status":"active",
+            "completed_step_ids":["review"],
+            "evidence":[{
+              "kind":"review","step_id":"review",
+              "summary":"mcp-probe code_review rerun after Plan test evidence recorded; no HIGH/CRITICAL consistency blocker remains.",
+              "reference":"evidence/code-review.json",
+              "revision":"510f3f1d16bfe3cc433bd45d7697aa31235553ec"
+            }],
+            "last_verified_revision":"510f3f1d16bfe3cc433bd45d7697aa31235553ec"
+          },ensure_ascii=False))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/heartbeat-review.json > evidence/heartbeat-review-output.json 2>&1
+          cat evidence/heartbeat-review-output.json
+          node - <<'NODE'
+          const r=require('./evidence/heartbeat-review-output.json'); if(r.isError===true) process.exit(1);
+          NODE
+      - name: Converge exact delegated plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./.mcp-probe-kit/bin/probe exec converge --json "{\"plan_id\":\"$PLAN_ID\",\"project_root\":\"$PWD\",\"feature_name\":\"issue-68-safe-patch\",\"docs_dir\":\"docs\"}" > evidence/converge.json 2>&1
+          cat evidence/converge.json
+          node - <<'NODE'
+          const r=require('./evidence/converge.json');
+          if(r.isError===true || r.structuredContent?.passed!==true) process.exit(1);
+          NODE
+          cp ".mcp-probe-kit/plans/$PLAN_ID.json" evidence/final-plan.json
+          git rev-parse "$SOURCE_SHA" > evidence/source-commit.txt
+          git rev-parse "$CANDIDATE_SHA" > evidence/candidate-commit.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: safe-patch-plan-closure
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
