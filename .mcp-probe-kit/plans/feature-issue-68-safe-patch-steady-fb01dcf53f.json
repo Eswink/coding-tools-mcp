@@ -218,13 +218,34 @@
       "reference": "GitHub Actions run 35953377131",
       "revision": "784ef80374dc9ee896cd12a457d4bd3ce0365a80",
       "verifiedAt": "2026-09-24T04:57:50.973Z"
+    },
+    {
+      "kind": "implementation",
+      "summary": "Clean production candidate c177357a contains exactly the three scoped production/test files and is one commit ahead of the feature base.",
+      "stepId": "implement",
+      "reference": "review/safe-patch-production-candidate-20260924",
+      "revision": "c177357aca6d7f428d558d4994682b183faef39e",
+      "verifiedAt": "2026-09-24T08:19:44.679Z"
+    },
+    {
+      "kind": "test",
+      "summary": "The three clean-candidate Git blobs are byte-identical to tested candidate 784ef803; run 35953377131 therefore validates the exact production bytes on Windows 2025 and Ubuntu 24.04.",
+      "stepId": "test",
+      "reference": "GitHub Actions run 35953377131; blob equality recorded by safe-patch clean revision checkpoint",
+      "revision": "c177357aca6d7f428d558d4994682b183faef39e",
+      "verifiedAt": "2026-09-24T08:19:44.679Z"
     }
   ],
   "declaredScope": {
     "projectRoot": "/home/runner/work/coding-tools-mcp/coding-tools-mcp",
     "docsDir": "docs",
     "featureName": "issue-68-safe-patch",
-    "specLayout": "flat"
+    "specLayout": "flat",
+    "files": [
+      "src-tauri/src/tools/patch.rs",
+      "src-tauri/src/tools/patch_transaction.rs",
+      "src-tauri/src/tools/patch_transaction_tests.rs"
+    ]
   },
   "artifacts": [
     {
@@ -255,8 +276,16 @@
   "memoryCandidates": [],
   "architectureCandidates": [],
   "acceptanceResults": [],
-  "runtimeEvidence": [],
-  "lastVerifiedRevision": "784ef80374dc9ee896cd12a457d4bd3ce0365a80",
+  "runtimeEvidence": [
+    {
+      "kind": "blob-equivalence",
+      "summary": "patch.rs blob ebb6108a5088c15a9abf30cd7446de897ca95d74; patch_transaction.rs c1c74be8e4c8f3be0f44f7a1c96f4103e59e13f4; patch_transaction_tests.rs 649aff13a5e2412f996cb868df143a910bd21092 are identical between tested and clean candidate.",
+      "reference": "evidence/blob-equality.txt",
+      "revision": "c177357aca6d7f428d558d4994682b183faef39e",
+      "verifiedAt": "2026-09-24T08:19:44.679Z"
+    }
+  ],
+  "lastVerifiedRevision": "c177357aca6d7f428d558d4994682b183faef39e",
   "createdAt": "2026-09-24T03:38:04.009Z",
-  "updatedAt": "2026-09-24T04:57:50.973Z"
+  "updatedAt": "2026-09-24T08:19:44.679Z"
 }
