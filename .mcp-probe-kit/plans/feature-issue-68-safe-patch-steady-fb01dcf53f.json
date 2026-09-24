@@ -176,7 +176,9 @@
     }
   },
   "status": "active",
-  "completedStepIds": [],
+  "completedStepIds": [
+    "context"
+  ],
   "skippedSteps": [],
   "unresolvedItems": [],
   "evidence": [],
@@ -192,5 +194,5 @@
   "acceptanceResults": [],
   "runtimeEvidence": [],
   "createdAt": "2026-09-24T03:38:04.009Z",
-  "updatedAt": "2026-09-24T03:38:04.009Z"
+  "updatedAt": "2026-09-24T03:47:07.671Z"
 }

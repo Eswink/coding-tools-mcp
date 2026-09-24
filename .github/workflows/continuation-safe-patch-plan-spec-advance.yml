@@ -1,0 +1,46 @@
+name: Safe patch plan spec advance (never merge)
+
+on:
+  push:
+    branches: ['ci/safe-patch-plan-heartbeat-init-20260924']
+    paths:
+      - '.github/workflows/continuation-safe-patch-plan-spec-advance.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  advance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ci/safe-patch-plan-heartbeat-init-20260924
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Advance write-spec check-spec estimate with heartbeats
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"feature-issue-68-safe-patch-steady-fb01dcf53f\"}" > evidence/resume.json 2>&1
+          grep -R -n -E '\[填写\]|TODO|// \.\.\.' docs/specs/issue-68-safe-patch && exit 1 || true
+          for f in requirements.md design.md tasks.md; do test -s "docs/specs/issue-68-safe-patch/$f"; done
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --json "{\"plan_id\":\"feature-issue-68-safe-patch-steady-fb01dcf53f\",\"project_root\":\"$PWD\",\"completed_step_ids\":[\"context\",\"write-spec\"]}" > evidence/heartbeat-write-spec.json 2>&1
+          ./.mcp-probe-kit/bin/probe exec check_spec --json "{\"project_root\":\"$PWD\",\"feature_name\":\"issue-68-safe-patch\",\"docs_dir\":\"docs\"}" > evidence/check-spec.json 2>&1
+          node -e "const r=require('./evidence/check-spec.json'); if(r.structuredContent?.passed!==true) process.exit(1)"
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --json "{\"plan_id\":\"feature-issue-68-safe-patch-steady-fb01dcf53f\",\"project_root\":\"$PWD\",\"completed_step_ids\":[\"context\",\"write-spec\",\"check-spec\"]}" > evidence/heartbeat-check-spec.json 2>&1
+          ./.mcp-probe-kit/bin/probe exec estimate --json "{\"task_description\":\"Implement issue-68-safe-patch from docs/specs/issue-68-safe-patch/tasks.md\",\"code_context\":\"Existing patch transaction is in src-tauri/src/tools/patch.rs; GitNexus pre-edit risk LOW.\"}" > evidence/estimate.json 2>&1
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --json "{\"plan_id\":\"feature-issue-68-safe-patch-steady-fb01dcf53f\",\"project_root\":\"$PWD\",\"completed_step_ids\":[\"context\",\"write-spec\",\"check-spec\",\"estimate\"]}" > evidence/heartbeat-estimate.json 2>&1
+          cat evidence/resume.json evidence/check-spec.json evidence/estimate.json evidence/heartbeat-estimate.json
+          cat .mcp-probe-kit/plans/feature-issue-68-safe-patch-steady-fb01dcf53f.json | tee evidence/plan-state.json
+          node -e "const s=require('./evidence/plan-state.json'); if(!['context','write-spec','check-spec','estimate'].every(x=>s.completedStepIds.includes(x))) process.exit(1)"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: safe-patch-plan-spec-advance
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
