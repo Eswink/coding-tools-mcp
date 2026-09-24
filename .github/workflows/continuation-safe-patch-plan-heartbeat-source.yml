@@ -20,9 +20,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p evidence
-          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
-          pkg="$(find "$HOME/.cache/mcp-probe-kit/npm-cache" -path '*/mcp-probe-kit/build/index.js' -print -quit)"
-          test -n "$pkg"
+          npm install --prefix "$RUNNER_TEMP/probe-src" --no-audit --no-fund mcp-probe-kit@4.0.1 > evidence/install.txt 2>&1
+          pkg="$RUNNER_TEMP/probe-src/node_modules/mcp-probe-kit/build/index.js"
+          test -f "$pkg"
           python - "$pkg" <<'PY' > evidence/heartbeat-source.txt
           import pathlib, sys
           p=pathlib.Path(sys.argv[1])
