@@ -1,0 +1,70 @@
+name: Safe patch Clippy baseline (never merge)
+
+on:
+  push:
+    branches: ['ci/safe-patch-clippy-baseline-20260924']
+    paths: ['.github/workflows/continuation-safe-patch-clippy-baseline.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 13d01cd9c478db7ef82fac18428c1f6d5bbaf426
+          persist-credentials: false
+      - name: Install Ubuntu dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev librsvg2-dev patchelf libssl-dev libayatana-appindicator3-dev libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.98.1
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Record exact source Clippy errors
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          set +e
+          cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --message-format=json -- -D warnings > evidence/clippy.jsonl 2> evidence/clippy.stderr
+          code=$?
+          set -e
+          echo "clippy_exit=$code" | tee evidence/result.txt
+          python - <<'PY' | tee -a evidence/result.txt
+          import json, pathlib, collections
+          errors=[]
+          for raw in pathlib.Path("evidence/clippy.jsonl").read_text(encoding="utf-8",errors="replace").splitlines():
+              try: item=json.loads(raw)
+              except json.JSONDecodeError: continue
+              if item.get("reason")!="compiler-message": continue
+              msg=item.get("message",{})
+              if msg.get("level")!="error": continue
+              files=sorted({str(s.get("file_name","")).replace("\\","/") for s in msg.get("spans",[]) if s.get("file_name")})
+              errors.append(((msg.get("code") or {}).get("code"),msg.get("message"),files))
+          print("clippy_errors",len(errors))
+          for code,msg,files in errors:
+              print(json.dumps({"code":code,"message":msg,"files":files},ensure_ascii=False,sort_keys=True))
+          PY
+          git rev-parse HEAD > evidence/source-commit.txt
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: safe-patch-clippy-baseline-${{ matrix.os }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
