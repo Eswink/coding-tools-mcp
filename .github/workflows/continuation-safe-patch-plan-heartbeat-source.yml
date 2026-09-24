@@ -39,6 +39,10 @@ jobs:
               'dependsOn',
               'function normalizePlan',
               'function normalizeDelegated',
+              'name: "code_review"',
+              'async function codeReview',
+              'function codeReview',
+              'plan_id',
           ]
           hits=set()
           for i,line in enumerate(lines):
