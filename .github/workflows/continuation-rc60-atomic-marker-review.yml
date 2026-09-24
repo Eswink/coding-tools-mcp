@@ -1,0 +1,159 @@
+name: RC60 atomic readiness marker review (never merge)
+
+on:
+  push:
+    branches: ['ci/rc60-atomic-marker-review-20260924']
+    paths:
+      - 'src-tauri/src/auth/exclusive_refresh_http_tests.rs'
+      - '.github/workflows/continuation-rc60-atomic-marker-review.yml'
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: fc3ae56329789a6bd62d2d6173cd213ebfdf0744
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Review exact test-only marker delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git merge-base HEAD "$SOURCE_SHA")" = "$SOURCE_SHA"
+          mkdir -p evidence
+          git checkout "$SOURCE_SHA"
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.12
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/analyze.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md || true
+          target='Function:src-tauri/src/auth/exclusive_refresh_http_tests.rs:http_revoked_owner_drains_actual_background_process_before_successor'
+          "$graph" context "$target" > evidence/context.txt 2>&1 || true
+          "$graph" impact "$target" --direction upstream > evidence/impact.txt 2>&1 || true
+          cat evidence/context.txt evidence/impact.txt
+          git checkout "$GITHUB_SHA" -- src-tauri/src/auth/exclusive_refresh_http_tests.rs
+          git add src-tauri/src/auth/exclusive_refresh_http_tests.rs
+          git diff --cached --check
+          git diff --cached --name-only | tee evidence/changed-paths.txt
+          test "$(wc -l < evidence/changed-paths.txt)" -eq 1
+          "$graph" detect-changes --scope staged > evidence/detect.txt 2>&1
+          cat evidence/detect.txt
+          ! grep -q 'No changes detected' evidence/detect.txt
+          git diff --cached > evidence/candidate.patch
+          python - <<'PY' | tee evidence/source-hashes.txt
+          import hashlib
+          p='src-tauri/src/auth/exclusive_refresh_http_tests.rs'
+          print(p, hashlib.sha256(open(p,'rb').read()).hexdigest())
+          PY
+          git rev-parse "$SOURCE_SHA" > evidence/source-commit.txt
+          git rev-parse HEAD > evidence/helper-commit.txt
+          echo NEVER_MERGE_HELPER_ONLY > evidence/boundary.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc60-atomic-marker-impact
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+
+  windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        replica: [1, 2, 3]
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.98.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Validate full suite first and repeat exact marker contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git merge-base HEAD "$SOURCE_SHA")" = "$SOURCE_SHA"
+          mkdir -p evidence
+          cargo check --locked --manifest-path src-tauri/Cargo.toml --all-targets
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/full.txt
+          for i in {1..20}; do
+            cargo test --locked --manifest-path src-tauri/Cargo.toml               auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor               -- --exact --nocapture 2>&1 | tee "evidence/exact-$i.txt"
+          done
+          cargo test --locked --manifest-path src-tauri/Cargo.toml             queued_record_is_encrypted_and_restart_never_replays_it -- --nocapture             2>&1 | tee evidence/no-replay.txt
+          grep -q 'test result: ok' evidence/full.txt
+          ! grep -R 'left: ""' evidence || false
+          python - <<'PY' | tee evidence/source-hashes.txt
+          import hashlib
+          p='src-tauri/src/auth/exclusive_refresh_http_tests.rs'
+          print(p, hashlib.sha256(open(p,'rb').read()).hexdigest())
+          PY
+          git rev-parse "$SOURCE_SHA" > evidence/source-commit.txt
+          git rev-parse HEAD > evidence/candidate-commit.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc60-atomic-marker-windows-${{ matrix.replica }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: warn
+
+  ubuntu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install native dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev librsvg2-dev patchelf libssl-dev libayatana-appindicator3-dev libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.98.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Validate unchanged Unix path and full regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git merge-base HEAD "$SOURCE_SHA")" = "$SOURCE_SHA"
+          mkdir -p evidence
+          cargo check --locked --manifest-path src-tauri/Cargo.toml --all-targets
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/full.txt
+          for i in {1..10}; do
+            cargo test --locked --manifest-path src-tauri/Cargo.toml               auth::exclusive_refresh_http_tests::http_revoked_owner_drains_actual_background_process_before_successor               -- --exact --nocapture 2>&1 | tee "evidence/exact-$i.txt"
+          done
+          cargo test --locked --manifest-path src-tauri/Cargo.toml             queued_record_is_encrypted_and_restart_never_replays_it -- --nocapture             2>&1 | tee evidence/no-replay.txt
+          python - <<'PY' | tee evidence/source-hashes.txt
+          import hashlib
+          p='src-tauri/src/auth/exclusive_refresh_http_tests.rs'
+          print(p, hashlib.sha256(open(p,'rb').read()).hexdigest())
+          PY
+          git rev-parse "$SOURCE_SHA" > evidence/source-commit.txt
+          git rev-parse HEAD > evidence/candidate-commit.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc60-atomic-marker-ubuntu
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: warn
