@@ -40,7 +40,43 @@ async fn listener_restart_keeps_the_running_job_and_its_idempotency_key() {
     // does not drop it and can leave idle transport state alive until scope exit.
     drop(client);
     stop.send(()).unwrap(); handle.await.unwrap();
-    let (stop, handle) = start_listener(port).expect("same-port restart after completed shutdown");
+    let rebind_started = Instant::now();
+    let (stop, handle) = match start_listener(port) {
+        Ok(listener) => {
+            eprintln!("[issue62-latency] initial_rebind=success elapsed_us={}", rebind_started.elapsed().as_micros());
+            listener
+        }
+        Err(first_error) => {
+            eprintln!("[issue62-latency] initial_rebind=failure elapsed_us={} error={first_error}", rebind_started.elapsed().as_micros());
+            let deadline = Instant::now() + Duration::from_millis(250);
+            let mut attempts = 0usize;
+            loop {
+                attempts += 1;
+                let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+                let socket = tokio::net::TcpSocket::new_v4().expect("diagnostic socket");
+                socket.set_reuseaddr(true).expect("diagnostic reuseaddr");
+                match socket.bind(addr).and_then(|socket| socket.listen(1024)) {
+                    Ok(probe) => {
+                        drop(probe);
+                        eprintln!(
+                            "[issue62-latency] probe_rebind=success attempts={attempts} elapsed_us={}",
+                            rebind_started.elapsed().as_micros()
+                        );
+                        break;
+                    }
+                    Err(error) => {
+                        if Instant::now() >= deadline {
+                            panic!(
+                                "same-port restart remained unavailable after 250ms: first={first_error}; last={error}"
+                            );
+                        }
+                        tokio::time::sleep(Duration::from_millis(1)).await;
+                    }
+                }
+            }
+            start_listener(port).expect("same-port restart after diagnostic release")
+        }
+    };
     // A restarted HTTP listener invalidates the old keep-alive connection. Use a
     // new client exactly as a reconnecting MCP client would, without resubmitting
     // with a fresh idempotency key or changing the operation assertions.
