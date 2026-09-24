@@ -205,6 +205,10 @@ fn commit_target(path: &Path, temporary: Option<&Path>) -> io::Result<()> {
     Ok(())
 }
 
+// Windows requires clearing the readonly file attribute before deletion. This
+// function is cfg-gated at the mutation site and restores the original
+// permissions from the transaction journal immediately after recreation.
+#[cfg_attr(windows, allow(clippy::permissions_set_readonly_false))]
 fn remove_for_restore(path: &Path) -> io::Result<()> {
     #[cfg(windows)]
     {

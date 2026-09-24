@@ -105,7 +105,50 @@ jobs:
           mkdir -p evidence
           rustfmt --edition 2021 --check src-tauri/src/tools/patch_transaction.rs src-tauri/src/tools/patch_transaction_tests.rs
           git diff --check "$SOURCE_SHA"...HEAD
-          cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+          set +e
+          cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --message-format=json -- -D warnings \
+            > evidence/clippy.jsonl 2> evidence/clippy.stderr
+          clippy_code=$?
+          set -e
+          echo "clippy_exit=$clippy_code" | tee evidence/clippy-result.txt
+          python - <<'PY' | tee -a evidence/clippy-result.txt
+          import json, pathlib, sys
+          candidates = {
+              "src/tools/patch.rs",
+              "src/tools/patch_transaction.rs",
+              "src/tools/patch_transaction_tests.rs",
+          }
+          candidate_errors = []
+          all_errors = 0
+          for raw in pathlib.Path("evidence/clippy.jsonl").read_text(encoding="utf-8", errors="replace").splitlines():
+              try:
+                  item = json.loads(raw)
+              except json.JSONDecodeError:
+                  continue
+              if item.get("reason") != "compiler-message":
+                  continue
+              message = item.get("message", {})
+              if message.get("level") != "error":
+                  continue
+              all_errors += 1
+              files = {
+                  str(span.get("file_name", "")).replace("\\", "/")
+                  for span in message.get("spans", [])
+              }
+              if any(any(name.endswith(candidate) for candidate in candidates) for name in files):
+                  candidate_errors.append({
+                      "code": (message.get("code") or {}).get("code"),
+                      "message": message.get("message"),
+                      "files": sorted(files),
+                  })
+          print(f"clippy_all_errors={all_errors}")
+          print(f"clippy_candidate_errors={len(candidate_errors)}")
+          for error in candidate_errors:
+              print(json.dumps(error, ensure_ascii=False, sort_keys=True))
+          if candidate_errors:
+              sys.exit(1)
+          PY
+          cat evidence/clippy.stderr
           cargo test --locked --manifest-path src-tauri/Cargo.toml patch_transaction -- --nocapture 2>&1 | tee evidence/focused.txt
           cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/full.txt
           cargo check --locked --manifest-path src-tauri/Cargo.toml --all-targets
