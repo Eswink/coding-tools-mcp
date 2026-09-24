@@ -144,7 +144,7 @@ jobs:
           cp "$PLAN_PATH" "$state/$PLAN_PATH"
           git -C "$state" config user.name github-actions
           git -C "$state" config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git -C "$state" add "$PLAN_PATH"
+          git -C "$state" add -f "$PLAN_PATH"
           git -C "$state" diff --cached --check
           git -C "$state" commit -m "chore(plan): converge safe-patch delivery"
           git -C "$state" push origin "HEAD:$PLAN_BRANCH"
