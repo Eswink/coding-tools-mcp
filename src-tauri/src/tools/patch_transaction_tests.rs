@@ -155,7 +155,6 @@ fn unix_mode_is_preserved_on_success_and_failure_rollback() {
     assert!(stage_files(root.path()).is_empty());
 }
 
-
 #[cfg(unix)]
 #[test]
 fn readonly_unix_mode_is_restored_after_later_commit_failure() {
