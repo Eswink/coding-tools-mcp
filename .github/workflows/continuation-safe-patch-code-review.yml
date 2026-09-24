@@ -33,13 +33,13 @@ jobs:
             src-tauri/src/tools/patch.rs \
             src-tauri/src/tools/patch_transaction.rs \
             src-tauri/src/tools/patch_transaction_tests.rs
-          git diff --check
-          git diff --name-only | tee evidence/changed-paths.txt
+          git diff --cached --check "$SOURCE_SHA"
+          git diff --cached --name-only "$SOURCE_SHA" | tee evidence/changed-paths.txt
           test "$(wc -l < evidence/changed-paths.txt)" -eq 3
           npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
           ./.mcp-probe-kit/bin/probe exec code_review --json "{\"project_root\":\"$PWD\",\"focus\":\"all\"}" > evidence/code-review.json 2>&1
           cat evidence/code-review.json
-          git diff -- src-tauri/src/tools/patch.rs src-tauri/src/tools/patch_transaction.rs src-tauri/src/tools/patch_transaction_tests.rs > evidence/candidate.patch
+          git diff --cached "$SOURCE_SHA" -- src-tauri/src/tools/patch.rs src-tauri/src/tools/patch_transaction.rs src-tauri/src/tools/patch_transaction_tests.rs > evidence/candidate.patch
           git rev-parse "$SOURCE_SHA" > evidence/source-commit.txt
           git rev-parse "$CANDIDATE_SHA" > evidence/candidate-commit.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
