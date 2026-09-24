@@ -1,0 +1,151 @@
+name: Issue 62 listener lifecycle architecture design (never merge)
+on:
+  push:
+    branches: ['ci/issue62-architecture-design-20260924']
+    paths:
+      - '.github/workflows/continuation-issue62-architecture-design.yml'
+permissions:
+  contents: read
+jobs:
+  design:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 13d01cd9c478db7ef82fac18428c1f6d5bbaf426
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Run ARC-8 design from the passed assess gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          python - <<'PY' > evidence/request.json
+          import json, os
+          structural="The shutdown contract currently collapses Rust listener task completion and Linux kernel confirmation that the exact loopback port is immediately bindable. Verified close-lag/inode evidence shows those states can differ by roughly 15-36 ms."
+          payload={
+            "mode":"design",
+            "project_root":os.getcwd(),
+            "description":"Design the smallest deterministic lifecycle boundary for issue #62 now that ARC-1..3 established that JoinHandle completion is not equivalent to immediate Linux same-port rebindability. Preserve strict same-port restart semantics without fixed sleeps, blind bind retries, SO_REUSEPORT broadening, auth/origin changes, or Windows behavior changes.",
+            "scope":[
+              "src-tauri/src/mcp/listener.rs",
+              "src-tauri/src/runtime/supervisor.rs",
+              "src-tauri/src/tools/任务恢复传输v2.rs",
+              "MCP listener shutdown/restart lifecycle"
+            ],
+            "constraints":[
+              "mcp::listener::serve and bind_listener are CRITICAL/exact in GitNexus; design before any production edit.",
+              "Immediate restart callers must receive an explicit deterministic completion contract, not a timing heuristic.",
+              "Occupied-port rejection must remain exclusive; do not use SO_REUSEPORT.",
+              "No fixed sleep, blind unbounded rebind retry, or weaker test assertion.",
+              "Windows listener implementation/semantics remain unchanged unless a separate Windows design proves otherwise.",
+              "Loopback-only/auth/origin invariants remain unchanged."
+            ],
+            "non_goals":[
+              "Implementing the selected design",
+              "Closing #62",
+              "Starting #59 native PTY",
+              "Release authorization"
+            ],
+            "current_facts":[
+              {
+                "statement":"JoinHandle completion and immediate kernel port rebindability are distinct lifecycle states on sampled Ubuntu runners.",
+                "classification":"fact",
+                "evidence":["close-lag run 35951904056: 3/3 target reproductions, 15-36 ms exact loopback LISTEN tail","listener-inode run 35953987232"]
+              },
+              {
+                "statement":"The normal Linux ephemeral allocator and another test using the same fixed 12000-19999 algorithm have been excluded in the sampled source/runner evidence.",
+                "classification":"fact",
+                "evidence":["run 35951528446","run 35947380359"]
+              },
+              {
+                "statement":"Axum graceful shutdown drops the listener before its server future completes; therefore the remaining boundary is below or outside the application future's simple ownership model.",
+                "classification":"inference",
+                "evidence":["Axum 0.8 serve source review","close-lag evidence"]
+              }
+            ],
+            "structural_causes":[structural],
+            "protected_invariants":[
+              "Loopback-only binding",
+              "Same-port restart after completed shutdown is deterministic",
+              "Occupied-port conflict stays synchronous and explicit",
+              "No auth/origin broadening",
+              "No timing heuristic masquerading as lifecycle completion"
+            ],
+            "alternatives":[
+              {
+                "id":"release-completion-boundary",
+                "summary":"Introduce an explicit Unix listener-release completion boundary distinct from server task completion. Restart-safe completion is emitted only after an OS-level release condition is verified; the verification mechanism must be implementation-reviewed and measurable rather than an arbitrary delay.",
+                "pros":["Smallest conceptual API correction","Preserves existing successor bind ownership","Makes the missing lifecycle state explicit"],
+                "cons":["Needs a trustworthy Linux release-observation primitive","Touches CRITICAL lifecycle code"]
+              },
+              {
+                "id":"bound-listener-handoff",
+                "summary":"Move same-port restart ownership into a supervisor transition that hands an already-bound replacement listener/socket to the successor rather than exposing close-then-independent-rebind as the restart boundary.",
+                "pros":["Eliminates caller-level close/rebind TOCTOU","Can make ownership transfer explicit"],
+                "cons":["Much larger supervisor/API change","Still needs a deterministic way to acquire the replacement binding when Linux delays release","Higher migration and rollback cost"]
+              },
+              {
+                "id":"reuseport-or-test-relaxation",
+                "summary":"Allow simultaneous listeners via SO_REUSEPORT, add fixed delays/retries, or weaken the immediate same-port assertion.",
+                "pros":["Superficially simple"],
+                "cons":["Violates exclusive occupied-port semantics","Masks rather than defines lifecycle completion","Contradicts protected invariants"]
+              }
+            ],
+            "decision":{
+              "recommended":"release-completion-boundary",
+              "rationale":"Prefer the smallest contract correction: explicitly model restart-safe listener release as a lifecycle state. Do not implement until a Linux release-observation primitive is validated under the existing CRITICAL impact gate.",
+              "rejectedAlternatives":[
+                {"id":"bound-listener-handoff","reason":"Keep as fallback if no trustworthy release-observation primitive exists; current evidence does not justify its broader supervisor migration."},
+                {"id":"reuseport-or-test-relaxation","reason":"Violates exclusivity or hides the lifecycle defect."}
+              ]
+            },
+            "target_architecture":{
+              "components":[
+                "Listener task completion (existing)",
+                "Unix restart-safe release completion (new explicit lifecycle boundary)",
+                "Restart caller consumes only restart-safe completion before same-port bind"
+              ],
+              "contracts":[
+                "Shutdown request stops accepting new work.",
+                "Server future completion alone is not documented as same-port-restart-safe on Unix.",
+                "A separate restart-safe completion proves the kernel-visible listener release condition.",
+                "Windows keeps its existing lifecycle contract."
+              ]
+            },
+            "transition_plan":{
+              "steps":[
+                "Validate one Linux release-observation primitive in never-merge experiments against the measured 15-36 ms tail.",
+                "Run fresh GitNexus impact/context for the exact symbols required by that primitive.",
+                "Implement the smallest lifecycle-completion seam only if evidence is LOW/MEDIUM or after explicit CRITICAL review.",
+                "Run exact same-port restart repetitions plus complete Ubuntu/Windows official matrices on the published correction.",
+                "Rollback only the lifecycle seam if any occupied-port, auth/origin, or Windows behavior regresses."
+              ]
+            },
+            "runtime_evidence":[
+              "close-lag run 35951904056",
+              "serve impact run 35953027211 CRITICAL/exact",
+              "bind_listener impact CRITICAL/exact",
+              "listener-inode run 35953987232"
+            ],
+            "collect_evidence":False,
+            "save_to_docs":False
+          }
+          print(json.dumps(payload,ensure_ascii=False,separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec architecture --stdin < evidence/request.json > evidence/architecture.json 2>&1
+          cat evidence/architecture.json
+          node - <<'NODE'
+          const r=require('./evidence/architecture.json');
+          if(r.isError===true) process.exit(1);
+          NODE
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue62-architecture-design
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
