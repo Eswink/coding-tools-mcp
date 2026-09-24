@@ -1,8 +1,7 @@
 //! Deterministic patch transaction commit and rollback.
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fs,
-    io,
+    fs, io,
     path::{Path, PathBuf},
 };
 
@@ -135,7 +134,9 @@ fn prepare(
             create_missing_parents(workspace.root(), parent, &mut journal.created_dirs)?;
             let temporary = path.with_file_name(format!(
                 ".{}.harness-stage-{}",
-                path.file_name().and_then(|value| value.to_str()).unwrap_or("file"),
+                path.file_name()
+                    .and_then(|value| value.to_str())
+                    .unwrap_or("file"),
                 Uuid::new_v4().simple()
             ));
             fs::write(&temporary, bytes)

@@ -10,12 +10,7 @@ fn workspace() -> (tempfile::TempDir, Workspace) {
 fn staged(entries: &[(&str, Option<&[u8]>)]) -> BTreeMap<String, Option<Vec<u8>>> {
     entries
         .iter()
-        .map(|(path, bytes)| {
-            (
-                (*path).to_owned(),
-                bytes.map(|value| value.to_vec()),
-            )
-        })
+        .map(|(path, bytes)| ((*path).to_owned(), bytes.map(|value| value.to_vec())))
         .collect()
 }
 
@@ -83,8 +78,14 @@ fn partial_add_update_delete_failure_restores_the_snapshot() {
     .unwrap_err();
 
     assert_eq!(error.to_error_value()["code"], "PATCH_FAILED");
-    assert_eq!(fs::read(root.path().join("a-update.txt")).unwrap(), b"old-a");
-    assert_eq!(fs::read(root.path().join("c-delete.txt")).unwrap(), b"old-c");
+    assert_eq!(
+        fs::read(root.path().join("a-update.txt")).unwrap(),
+        b"old-a"
+    );
+    assert_eq!(
+        fs::read(root.path().join("c-delete.txt")).unwrap(),
+        b"old-c"
+    );
     assert!(!root.path().join("b-created/nested.txt").exists());
     assert!(!root.path().join("b-created").exists());
     assert!(stage_files(root.path()).is_empty());
@@ -114,7 +115,10 @@ fn successful_update_keeps_existing_permissions_and_cleans_temps() {
     commit_staged_bytes(&workspace, &staged(&[("script.txt", Some(b"new"))])).unwrap();
 
     assert_eq!(fs::read(&path).unwrap(), b"new");
-    assert_eq!(fs::metadata(&path).unwrap().permissions().readonly(), readonly);
+    assert_eq!(
+        fs::metadata(&path).unwrap().permissions().readonly(),
+        readonly
+    );
     assert!(stage_files(root.path()).is_empty());
 }
 
@@ -129,12 +133,12 @@ fn unix_mode_is_preserved_on_success_and_failure_rollback() {
     fs::set_permissions(&path, fs::Permissions::from_mode(0o751)).unwrap();
 
     commit_staged_bytes(&workspace, &staged(&[("tool.sh", Some(b"first"))])).unwrap();
-    assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o751);
+    assert_eq!(
+        fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+        0o751
+    );
 
-    let staged = staged(&[
-        ("tool.sh", Some(b"second")),
-        ("z-new.txt", Some(b"new")),
-    ]);
+    let staged = staged(&[("tool.sh", Some(b"second")), ("z-new.txt", Some(b"new"))]);
     let _ = commit_staged_bytes_with_hook(&workspace, &staged, |index, _, _| {
         if index == 1 {
             return Err(io::Error::other("injected rollback"));
@@ -143,7 +147,10 @@ fn unix_mode_is_preserved_on_success_and_failure_rollback() {
     })
     .unwrap_err();
     assert_eq!(fs::read(&path).unwrap(), b"first");
-    assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o751);
+    assert_eq!(
+        fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+        0o751
+    );
     assert!(!root.path().join("z-new.txt").exists());
     assert!(stage_files(root.path()).is_empty());
 }
