@@ -495,10 +495,19 @@
       "depends_on": [
         "exec-policy"
       ],
-      "issue": null,
-      "state": "planned",
+      "issue": 68,
+      "state": "verified",
       "priority": 30,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "fc3ae56329789a6bd62d2d6173cd213ebfdf0744",
+        "run_id": 35977467577,
+        "files": {
+          "src-tauri/src/tools/patch.rs": "d1a47eb98f59aa80a78e4f67a2e842d2ab1481c16d201b219704e1d219129940",
+          "src-tauri/src/tools/patch_transaction.rs": "a330f234d47cd70d40ed3d346459dbbe610cd071d3744cda2c33f6e552537936",
+          "src-tauri/src/tools/patch_transaction_tests.rs": "6ec4c2e8d2070f7ef2941ddcfe53ac178b572241fb877c38cbf4a90b44774a55"
+        }
+      }
     },
     {
       "id": "project-guidance",

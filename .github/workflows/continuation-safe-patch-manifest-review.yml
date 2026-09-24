@@ -1,0 +1,81 @@
+name: Safe patch manifest evidence review (never merge)
+
+on:
+  push:
+    branches: ['ci/safe-patch-manifest-review-20260924']
+    paths:
+      - 'tools/delivery/manifest.json'
+      - '.github/workflows/continuation-safe-patch-manifest-review.yml'
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: fc3ae56329789a6bd62d2d6173cd213ebfdf0744
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Verify exact manifest delta and source evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          test "$(git merge-base HEAD "$SOURCE_SHA")" = "$SOURCE_SHA"
+          mapfile -t changed < <(git diff --name-only "$SOURCE_SHA"...HEAD)
+          printf '%s\n' "${changed[@]}" | tee evidence/changed-paths.txt
+          test "${#changed[@]}" -eq 2
+          test "${changed[0]}" = '.github/workflows/continuation-safe-patch-manifest-review.yml'
+          test "${changed[1]}" = 'tools/delivery/manifest.json'
+          git diff --check "$SOURCE_SHA"...HEAD
+          python -m unittest discover -s tests/delivery -v 2>&1 | tee evidence/delivery-tests.txt
+          node --test tests/delivery/metadata_contract.test.mjs 2>&1 | tee evidence/metadata-tests.txt
+          rm -f "$RUNNER_TEMP/report.json"
+          python tools/delivery/dispatch.py --manifest tools/delivery/manifest.json --repo-root . --output "$RUNNER_TEMP/report.json"
+          cp "$RUNNER_TEMP/report.json" evidence/report.json
+          python - <<'PY' | tee evidence/assertions.txt
+          import json, os
+          m=json.load(open('tools/delivery/manifest.json',encoding='utf-8'))
+          t=next(t for t in m['tasks'] if t['id']=='safe-patch')
+          assert t['state']=='verified'
+          assert t['issue']==68
+          assert t['evidence']['revision']=='fc3ae56329789a6bd62d2d6173cd213ebfdf0744'
+          assert t['evidence']['run_id']==35977467577
+          assert set(t['evidence']['files'])=={
+            'src-tauri/src/tools/patch.rs',
+            'src-tauri/src/tools/patch_transaction.rs',
+            'src-tauri/src/tools/patch_transaction_tests.rs',
+          }
+          report=json.load(open(os.path.join(os.environ['RUNNER_TEMP'],'report.json'),encoding='utf-8'))
+          assert report['states']['safe-patch']=='verified'
+          assert report['release_allowed'] is False
+          print('safe-patch=verified')
+          print('release_allowed=false')
+          print('packets=' + ','.join(p['id'] for p in report['packets']))
+          PY
+          python - <<'PY' | tee evidence/manifest-hash.txt
+          import hashlib
+          p='tools/delivery/manifest.json'
+          print(hashlib.sha256(open(p,'rb').read()).hexdigest())
+          PY
+          git rev-parse "$SOURCE_SHA" > evidence/source-commit.txt
+          git rev-parse HEAD > evidence/helper-commit.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: safe-patch-manifest-review
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
