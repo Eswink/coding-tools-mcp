@@ -1,0 +1,54 @@
+name: Safe patch code review schema probe (never merge)
+on:
+  push:
+    branches: ['ci/safe-patch-code-review-schema-20260924']
+    paths:
+      - '.github/workflows/continuation-safe-patch-code-review-schema.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 13d01cd9c478db7ef82fac18428c1f6d5bbaf426
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Inspect installed code_review input contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npm install --prefix "$RUNNER_TEMP/probe-src" --no-audit --no-fund mcp-probe-kit@4.0.1 > evidence/install.txt 2>&1
+          pkg="$RUNNER_TEMP/probe-src/node_modules/mcp-probe-kit/build/index.js"
+          test -f "$pkg"
+          python - "$pkg" <<'PY' > evidence/code-review-source.txt
+          import pathlib, sys
+          p=pathlib.Path(sys.argv[1])
+          lines=p.read_text(encoding='utf-8').splitlines()
+          needles=['name: "code_review"','async function codeReview','function codeReview','planLoaded','reviewInput','plan_id','planId']
+          hits=[]
+          for i,line in enumerate(lines):
+              if any(n in line for n in needles):
+                  hits.append(i)
+          seen=set()
+          for i in hits:
+              lo=max(0,i-90); hi=min(len(lines),i+220)
+              key=(lo,hi)
+              if key in seen: continue
+              seen.add(key)
+              print(f'=== around line {i+1} ===')
+              for j in range(lo,hi):
+                  print(f'{j+1}: {lines[j]}')
+          PY
+          cat evidence/code-review-source.txt
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: safe-patch-code-review-schema
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
