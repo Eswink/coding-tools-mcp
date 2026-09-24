@@ -231,10 +231,21 @@
     }
   },
   "status": "active",
-  "completedStepIds": [],
+  "completedStepIds": [
+    "context"
+  ],
   "skippedSteps": [],
   "unresolvedItems": [],
-  "evidence": [],
+  "evidence": [
+    {
+      "kind": "other",
+      "summary": "init_project_context executed; AGENTS/project context and graph-insights latest files are available for the #62 bugfix.",
+      "stepId": "context",
+      "reference": "GitHub Actions run 35982028615",
+      "revision": "4dc9f9d872c134d381cb1eba76999d34231d3ba6",
+      "verifiedAt": "2026-09-24T09:34:25.538Z"
+    }
+  ],
   "declaredScope": {
     "projectRoot": "/home/runner/work/coding-tools-mcp/coding-tools-mcp",
     "docsDir": "docs",
@@ -245,7 +256,7 @@
   "architectureCandidates": [],
   "acceptanceResults": [],
   "runtimeEvidence": [],
-  "lastVerifiedRevision": "84765fc5e4e813b558333dba3c396ea527aa8989",
+  "lastVerifiedRevision": "4dc9f9d872c134d381cb1eba76999d34231d3ba6",
   "createdAt": "2026-09-24T09:32:11.552Z",
-  "updatedAt": "2026-09-24T09:32:11.552Z"
+  "updatedAt": "2026-09-24T09:34:25.538Z"
 }
