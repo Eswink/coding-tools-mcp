@@ -73,7 +73,11 @@ where
         let result = before_commit(index, &target.path, target.temporary.as_deref())
             .and_then(|_| commit_target(&target.path, target.temporary.as_deref()));
         if let Err(error) = result {
-            journal.rollback();
+            if let Err(rollback_error) = journal.rollback() {
+                return Err(patch_failed(format!(
+                    "Failed to write file: {error}; rollback failed: {rollback_error}"
+                )));
+            }
             return Err(patch_failed(format!("Failed to write file: {error}")));
         }
     }
@@ -139,6 +143,9 @@ fn prepare(
                     .unwrap_or("file"),
                 Uuid::new_v4().simple()
             ));
+            journal
+                .temporary_files
+                .insert(path.clone(), temporary.clone());
             fs::write(&temporary, bytes)
                 .map_err(|error| patch_failed(format!("Failed to stage file: {error}")))?;
             if let Some(permissions) = journal
@@ -150,9 +157,6 @@ fn prepare(
                     patch_failed(format!("Failed to preserve file permissions: {error}"))
                 })?;
             }
-            journal
-                .temporary_files
-                .insert(path.clone(), temporary.clone());
             Some(temporary)
         } else {
             None
@@ -201,6 +205,20 @@ fn commit_target(path: &Path, temporary: Option<&Path>) -> io::Result<()> {
     Ok(())
 }
 
+fn remove_for_restore(path: &Path) -> io::Result<()> {
+    #[cfg(windows)]
+    {
+        if let Ok(metadata) = fs::metadata(path) {
+            let mut permissions = metadata.permissions();
+            if permissions.readonly() {
+                permissions.set_readonly(false);
+                fs::set_permissions(path, permissions)?;
+            }
+        }
+    }
+    fs::remove_file(path)
+}
+
 fn replace_file(temporary: &Path, path: &Path) -> io::Result<()> {
     #[cfg(windows)]
     {
@@ -217,29 +235,27 @@ impl Journal {
         self.cleanup_created_dirs();
     }
 
-    fn rollback(&mut self) {
+    fn rollback(&mut self) -> io::Result<()> {
         self.cleanup_temporary_files();
         for path in self.dirty_paths.iter().rev() {
             let Some(backup) = self.backups.get(path) else {
                 continue;
             };
-            match backup.bytes.as_ref() {
-                None => {
-                    let _ = fs::remove_file(path);
+            if path.exists() {
+                remove_for_restore(path)?;
+            }
+            if let Some(bytes) = backup.bytes.as_ref() {
+                if let Some(parent) = path.parent() {
+                    fs::create_dir_all(parent)?;
                 }
-                Some(bytes) => {
-                    if let Some(parent) = path.parent() {
-                        let _ = fs::create_dir_all(parent);
-                    }
-                    if fs::write(path, bytes).is_ok() {
-                        if let Some(permissions) = backup.permissions.clone() {
-                            let _ = fs::set_permissions(path, permissions);
-                        }
-                    }
+                fs::write(path, bytes)?;
+                if let Some(permissions) = backup.permissions.clone() {
+                    fs::set_permissions(path, permissions)?;
                 }
             }
         }
         self.cleanup_created_dirs();
+        Ok(())
     }
 
     fn cleanup_temporary_files(&mut self) {

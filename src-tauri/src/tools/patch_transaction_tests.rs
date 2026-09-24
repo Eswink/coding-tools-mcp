@@ -154,3 +154,35 @@ fn unix_mode_is_preserved_on_success_and_failure_rollback() {
     assert!(!root.path().join("z-new.txt").exists());
     assert!(stage_files(root.path()).is_empty());
 }
+
+
+#[cfg(unix)]
+#[test]
+fn readonly_unix_mode_is_restored_after_later_commit_failure() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let (root, workspace) = workspace();
+    let path = root.path().join("a-readonly.txt");
+    fs::write(&path, b"old").unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o444)).unwrap();
+
+    let staged = staged(&[
+        ("a-readonly.txt", Some(b"new")),
+        ("z-new.txt", Some(b"new")),
+    ]);
+    let _ = commit_staged_bytes_with_hook(&workspace, &staged, |index, _, _| {
+        if index == 1 {
+            return Err(io::Error::other("injected rollback"));
+        }
+        Ok(())
+    })
+    .unwrap_err();
+
+    assert_eq!(fs::read(&path).unwrap(), b"old");
+    assert_eq!(
+        fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+        0o444
+    );
+    assert!(!root.path().join("z-new.txt").exists());
+    assert!(stage_files(root.path()).is_empty());
+}
