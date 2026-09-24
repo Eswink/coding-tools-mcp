@@ -39,7 +39,8 @@ async fn listener_restart_keeps_the_running_job_and_its_idempotency_key() {
     // Explicitly release the old HTTP pool before shutdown; shadowing a Client
     // does not drop it and can leave idle transport state alive until scope exit.
     drop(client);
-    stop.send(()).unwrap(); handle.await.unwrap();
+    stop.send(()).unwrap();
+    crate::runtime::port::await_listener_shutdown(Some(handle), port).await;
     let (stop, handle) = start_listener(port).expect("same-port restart after completed shutdown");
     // A restarted HTTP listener invalidates the old keep-alive connection. Use a
     // new client exactly as a reconnecting MCP client would, without resubmitting
@@ -63,5 +64,6 @@ async fn listener_restart_keeps_the_running_job_and_its_idempotency_key() {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     drop(client);
-    stop.send(()).unwrap(); handle.await.unwrap();
+    stop.send(()).unwrap();
+    crate::runtime::port::await_listener_shutdown(Some(handle), port).await;
 }
