@@ -1,0 +1,222 @@
+name: Issue 62 port observer ARC-8 design r2 (never merge)
+
+on:
+  push:
+    branches: ['ci/issue62-port-observer-architecture-design-r2-20260924']
+    paths:
+      - '.github/workflows/continuation-issue62-port-observer-architecture-design-r2.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  design:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 4dc9f9d872c134d381cb1eba76999d34231d3ba6
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Complete ARC-4 through ARC-6 from passed assess baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          python - <<'PY' > evidence/request.json
+          import json, os
+          structural=[
+            "Linux port observation collapses two distinct kernel states—no LISTEN socket and an ownerless LISTEN inode that no longer maps to /proc/<pid>/fd—into Ok(None), so runtime/port can report free before immediate bindability exists.",
+            "The restart-safe lifecycle boundary is already centralized in runtime/port and supervisor; the defect is the Linux availability predicate feeding that boundary, not the absence of a lifecycle boundary."
+          ]
+          payload={
+            "mode":"design",
+            "project_root":os.getcwd(),
+            "description":"Design the smallest production correction for Issue #62 after ARC-8 assess run 36004726833 passed ARC-1..3. Repair Linux ownerless-LISTEN observation inside the existing runtime/port restart-safe boundary without editing CRITICAL MCP listener symbols, broadening Platform trait semantics, adding bind retries, or changing Windows/macOS.",
+            "scope":[
+              "src-tauri/src/platform/linux/net.rs",
+              "src-tauri/src/platform/mod.rs",
+              "src-tauri/src/runtime/port.rs",
+              "src-tauri/src/runtime/supervisor.rs",
+              "src-tauri/src/tools/任务恢复传输v2.rs"
+            ],
+            "constraints":[
+              "ARC-8 assess run 36004726833 passed ARC-1..3 for the ownerless-LISTEN root cause.",
+              "wait_for_port_free is LOW/exact; wait_for_port_free_blocking is LOW/exact; Linux find_pid_listening_on_port is LOW/lower-bound.",
+              "Do not edit CRITICAL/exact mcp::listener::serve or bind_listener.",
+              "Do not add SO_REUSEPORT, bind retry, new fixed delay, auth/origin changes, or Windows/macOS semantic widening.",
+              "Foreign PID-owned listeners must fail immediately rather than waiting for timeout.",
+              "Ownerless Linux LISTEN is transiently occupied and may use the existing bounded wait cadence/timeout only."
+            ],
+            "non_goals":[
+              "Changing public MCP/HTTP/OAuth contracts",
+              "Changing PID lookup semantics for tunnel/access callers",
+              "Extending the cross-platform Platform trait unless independently required",
+              "Starting #59 native PTY",
+              "Release authorization"
+            ],
+            "baseline":{
+              "summary":"ARC-8 assess run 36004726833 passed ARC-1..3 with the ownerless-LISTEN structural cause.",
+              "structuralCauses":structural,
+              "protectedInvariants":[
+                "Loopback-only MCP listener behavior unchanged",
+                "Foreign PID-owned port conflict fails immediately",
+                "Same-port restart is attempted once after restart-safe completion",
+                "Existing bounded shutdown timeout remains the only wait bound",
+                "Windows/macOS and auth/origin/wire semantics unchanged"
+              ],
+              "validation":{"passed":True,"gaps":[]}
+            },
+            "current_facts":[
+              {
+                "statement":"Ubuntu evidence shows 15-36 ms exact loopback LISTEN tails after listener task completion, including ownerless LISTEN in /proc/net/tcp.",
+                "classification":"fact",
+                "evidence":["run 35951904056","owner/inode diagnostics"]
+              },
+              {
+                "statement":"Production RuntimeSupervisor already calls await_listener_shutdown_blocking before restart.",
+                "classification":"fact",
+                "evidence":["src-tauri/src/runtime/supervisor.rs:533-546","run 35981142285"]
+              },
+              {
+                "statement":"The Linux PID detector returns None when LISTEN exists without a resolvable owner fd; runtime wait functions currently treat None as free.",
+                "classification":"fact",
+                "evidence":["src-tauri/src/platform/linux/net.rs","src-tauri/src/runtime/port.rs","run 36003461930"]
+              }
+            ],
+            "structural_causes":structural,
+            "protected_invariants":[
+              "Loopback-only binding",
+              "Foreign PID-owned port conflict remains synchronous and explicit",
+              "No bind retry or SO_REUSEPORT",
+              "No new fixed delay; only current bounded polling cadence/deadline",
+              "Windows/macOS behavior unchanged",
+              "Auth/origin/tool protocols unchanged"
+            ],
+            "alternatives":[
+              {
+                "id":"linux-listen-presence-runtime-state",
+                "summary":"Add a Linux-only exact LISTEN-presence observer while preserving the existing PID API. runtime/port uses owner PID first, then Linux presence to distinguish Free from OwnerlessListen, and applies the same state machine to async/blocking restart-safe waits.",
+                "pros":["Repairs the existing production boundary","Avoids CRITICAL listener code","No Platform trait migration","No Windows/macOS behavior change","Keeps foreign PID conflicts immediate"],
+                "cons":["Adds a Linux-specific internal observer and a small runtime release-state classifier"]
+              },
+              {
+                "id":"platform-trait-listener-state",
+                "summary":"Extend Platform with a cross-platform richer listener state and migrate all implementations/callers.",
+                "pros":["Uniform abstraction"],
+                "cons":["Broader migration and cross-platform surface than required","Changes many unrelated callers"]
+              },
+              {
+                "id":"listener-local-release-observer",
+                "summary":"Add release-completion logic in mcp/listener.rs.",
+                "pros":["Encapsulates MCP lifecycle"],
+                "cons":["Re-enters CRITICAL listener code","Duplicates runtime/port restart-safe boundary"]
+              }
+            ],
+            "decision":{
+              "recommended":"linux-listen-presence-runtime-state",
+              "rationale":"Repair the lower-risk observation defect where the restart-safe contract already lives. Keep PID lookup behavior stable for existing callers; only runtime/port interprets ownerless LISTEN as transiently occupied.",
+              "rejectedAlternatives":[
+                {"id":"platform-trait-listener-state","reason":"Unnecessary cross-platform migration for a Linux-only kernel observation gap."},
+                {"id":"listener-local-release-observer","reason":"Duplicates existing runtime lifecycle ownership and touches CRITICAL listener symbols."}
+              ]
+            },
+            "target_architecture":{
+              "boundaries":[
+                "src-tauri/src/platform/linux/net.rs owns parsing /proc/net/tcp LISTEN entries and exposes a Linux-internal exact listener-presence primitive in addition to the unchanged PID lookup.",
+                "src-tauri/src/platform/mod.rs may expose only a crate-visible Linux-specific presence adapter; it must not widen the public Platform trait.",
+                "src-tauri/src/runtime/port.rs owns release classification and bounded restart-safe waits. It distinguishes Free, OwnProcess, ForeignProcess and LinuxOwnerlessListen without changing external APIs.",
+                "src-tauri/src/runtime/supervisor.rs remains an unchanged consumer of await_listener_shutdown_blocking.",
+                "src-tauri/src/tools/任务恢复传输v2.rs validates the public crate::runtime::await_listener_shutdown boundary and retains a single immediate same-port bind assertion."
+              ],
+              "allowedDependencies":[
+                "runtime/port.rs -> crate-visible Linux listener-presence adapter in platform/mod.rs under cfg(target_os=linux)",
+                "platform/mod.rs -> platform/linux/net.rs",
+                "recovery_transport test -> crate::runtime::await_listener_shutdown"
+              ],
+              "forbiddenDependencies":[
+                "runtime/port.rs -> mcp/listener.rs internals",
+                "runtime/supervisor.rs -> /proc parsing",
+                "recovery_transport test -> /proc parsing, sleeps, or bind retries",
+                "Windows/macOS platform implementations -> Linux listener-presence logic"
+              ],
+              "dataOwnership":[
+                "Linux socket-table parsing remains platform-owned; runtime consumes only a boolean presence signal plus existing owner PID result.",
+                "Runtime owns restart wait deadlines and own/foreign classification."
+              ],
+              "publicContracts":[
+                "Existing Platform::find_pid_listening_on_port semantics remain unchanged for all callers.",
+                "Existing runtime::await_listener_shutdown and blocking public signatures remain unchanged.",
+                "MCP/OAuth/Origin/HTTP external contracts remain unchanged."
+              ],
+              "protectedBehaviors":[
+                "Foreign PID port conflict returns false immediately",
+                "Own-process listener waits using existing bounded polling",
+                "Ownerless Linux LISTEN waits using the same bounded polling and is never reported free until the exact LISTEN entry disappears",
+                "No retry of the successor bind",
+                "Windows/macOS behavior remains the current PID-only logic"
+              ]
+            },
+            "transition_plan":{
+              "stages":[
+                "Factor/test Linux exact LISTEN-presence parsing without changing find_pid_listening_on_port.",
+                "Expose a crate-visible Linux-only presence adapter through platform/mod.rs.",
+                "Factor a private runtime/port release-state classifier and update async/blocking wait loops plus final timeout check.",
+                "Update the recovery transport test to await the existing public restart-safe helper before its one-shot same-port restart assertion.",
+                "Run staged GitNexus detect, gentest, focused Linux state tests, repeated exact #62 target, foreign-port conflict checks, and complete Ubuntu/Windows suites.",
+                "Run ARC-8 validate/drift plus Plan heartbeat/converge before publishing."
+              ],
+              "migration":[
+                "No persisted data or public API migration.",
+                "Only internal Linux release observation and the #62 recovery test change."
+              ],
+              "compatibility":[
+                "Windows/macOS paths compile and retain existing behavior.",
+                "PID lookup consumers such as tunnel/access are unchanged.",
+                "Supervisor signatures/callers remain unchanged."
+              ],
+              "rollback":[
+                "Revert only the Linux presence adapter, runtime release-state classification, and recovery test lifecycle call if validation regresses behavior.",
+                "No data rollback is required."
+              ],
+              "observability":[
+                "Tests record exact ownerless-LISTEN and release timing evidence without secrets.",
+                "Foreign PID conflicts remain explicit rather than silently waiting."
+              ],
+              "cleanup":[
+                "Never-merge /proc and latency diagnostics stay out of production.",
+                "No fixed delays or retry loops remain in the accepted test."
+              ]
+            },
+            "runtime_evidence":[
+              "ARC-8 assess run 36004726833",
+              "close-lag run 35951904056",
+              "lifecycle callers run 35981142285",
+              "release-observer primitive run 35980510044",
+              "port observer impact run 36003461930"
+            ],
+            "collect_evidence":False,
+            "save_to_docs":False
+          }
+          print(json.dumps(payload,ensure_ascii=False,separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec architecture --stdin < evidence/request.json > evidence/architecture-design.json 2>&1
+          cat evidence/architecture-design.json
+          node - <<'NODE'
+          const r=require('./evidence/architecture-design.json');
+          if(r.isError===true) process.exit(1);
+          const s=r.structuredContent;
+          if(!s?.validation?.passed) process.exit(2);
+          for(const id of ['arc-4','arc-5','arc-6']) if(!s.arc8Status?.completedSteps?.includes(id)) process.exit(3);
+          if(!s.targetArchitecture?.boundaries?.length) process.exit(4);
+          NODE
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue62-port-observer-architecture-design-r2
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
