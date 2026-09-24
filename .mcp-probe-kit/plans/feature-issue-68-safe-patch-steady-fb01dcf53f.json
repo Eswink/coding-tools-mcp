@@ -175,14 +175,15 @@
       "persistPlanOnFirstHeartbeat": true
     }
   },
-  "status": "active",
+  "status": "converged",
   "completedStepIds": [
     "context",
     "write-spec",
     "check-spec",
     "estimate",
     "implement",
-    "test"
+    "test",
+    "review"
   ],
   "skippedSteps": [],
   "unresolvedItems": [],
@@ -234,6 +235,14 @@
       "reference": "GitHub Actions run 35953377131; blob equality recorded by safe-patch clean revision checkpoint",
       "revision": "c177357aca6d7f428d558d4994682b183faef39e",
       "verifiedAt": "2026-09-24T08:19:44.679Z"
+    },
+    {
+      "kind": "review",
+      "summary": "Plan-aware mcp-probe code_review completed after persisted test evidence; no HIGH/CRITICAL finding remains.",
+      "stepId": "review",
+      "reference": "GitHub Actions run 35975300911",
+      "revision": "c177357aca6d7f428d558d4994682b183faef39e",
+      "verifiedAt": "2026-09-24T08:27:14.771Z"
     }
   ],
   "declaredScope": {
@@ -287,5 +296,19 @@
   ],
   "lastVerifiedRevision": "c177357aca6d7f428d558d4994682b183faef39e",
   "createdAt": "2026-09-24T03:38:04.009Z",
-  "updatedAt": "2026-09-24T08:19:44.679Z"
+  "updatedAt": "2026-09-24T08:27:15.942Z",
+  "lastConvergence": {
+    "checkedAt": "2026-09-24T08:27:15.942Z",
+    "passed": true,
+    "blockers": [],
+    "requiredEvidenceKinds": [
+      "requirements",
+      "spec",
+      "implementation",
+      "test",
+      "review"
+    ],
+    "requiredQualityGates": [],
+    "missingQualityGates": []
+  }
 }
