@@ -43,6 +43,9 @@ jobs:
               'async function codeReview',
               'function codeReview',
               'plan_id',
+              'name: "start_bugfix"',
+              'async function startBugfix',
+              'function startBugfix',
           ]
           hits=set()
           for i,line in enumerate(lines):
