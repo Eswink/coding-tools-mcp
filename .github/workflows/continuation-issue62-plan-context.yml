@@ -1,0 +1,79 @@
+name: Issue 62 plan context step (never merge)
+
+on:
+  push:
+    branches: ['ci/issue62-plan-init-20260924']
+    paths:
+      - '.github/workflows/continuation-issue62-plan-context.yml'
+
+permissions:
+  contents: write
+
+env:
+  PLAN_ID: bugfix-issue-62-on-ubuntu-after-mcp-listene-eda04c324b
+  PLAN_PATH: .mcp-probe-kit/plans/bugfix-issue-62-on-ubuntu-after-mcp-listene-eda04c324b.json
+  SOURCE_SHA: 4dc9f9d872c134d381cb1eba76999d34231d3ba6
+
+jobs:
+  context:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Execute context step and heartbeat
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          ./.mcp-probe-kit/bin/probe exec init_project_context --json "{\"docs_dir\":\"docs\",\"project_root\":\"$PWD\"}" > evidence/context.json 2>&1
+          cat evidence/context.json
+          node - <<'NODE'
+          const r=require('./evidence/context.json'); if(r.isError===true) process.exit(1);
+          NODE
+          git restore -- AGENTS.md CLAUDE.md .cursor/rules .claude/skills 2>/dev/null || true
+          test -f docs/graph-insights/latest.md
+          test -f docs/graph-insights/latest.json
+          python - <<'PY' > evidence/heartbeat-request.json
+          import json, os
+          print(json.dumps({
+            "plan_id": os.environ["PLAN_ID"],
+            "project_root": os.getcwd(),
+            "completed_step_ids": ["context"],
+            "evidence": [{
+              "kind": "other",
+              "step_id": "context",
+              "summary": "init_project_context executed; AGENTS/project context and graph-insights latest files are available for the #62 bugfix.",
+              "reference": f"GitHub Actions run {os.environ['GITHUB_RUN_ID']}",
+              "revision": os.environ["SOURCE_SHA"]
+            }],
+            "last_verified_revision": os.environ["SOURCE_SHA"]
+          }, separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/heartbeat-request.json > evidence/heartbeat.json 2>&1
+          cat evidence/heartbeat.json
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume.json 2>&1
+          cat evidence/resume.json
+          node - <<'NODE'
+          const r=require('./evidence/resume.json');
+          if(r.isError===true || r.structuredContent?.found!==true || r.structuredContent?.nextStepId!=='src8-1' || r.structuredContent?.mustContinue!==true) process.exit(1);
+          NODE
+          git config user.name github-actions
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "$PLAN_PATH" docs/graph-insights/latest.md docs/graph-insights/latest.json
+          git diff --cached --check
+          git commit -m "chore(plan): complete issue62 context"
+          git fetch origin "ci/issue62-plan-init-20260924"
+          test "$(git rev-parse "origin/ci/issue62-plan-init-20260924")" = "$GITHUB_SHA"
+          git push origin "HEAD:ci/issue62-plan-init-20260924"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue62-plan-context
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
