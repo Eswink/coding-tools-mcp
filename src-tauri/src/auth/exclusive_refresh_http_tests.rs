@@ -142,7 +142,7 @@ async fn http_revoked_owner_drains_actual_background_process_before_successor() 
     let fixture = {
         std::fs::write(
             s.root.path().join("hold.cmd"),
-            "@echo off\r\n<nul set /p \"=ready\">started\r\n:wait\r\nif exist release goto drained\r\n%SystemRoot%\\System32\\ping.exe -n 2 127.0.0.1 >nul\r\ngoto wait\r\n:drained\r\necho drained\r\n",
+            "@echo off\r\n<nul set /p \"=ready\">started.tmp\r\nmove /y started.tmp started >nul\r\n:wait\r\nif exist release goto drained\r\n%SystemRoot%\\System32\\ping.exe -n 2 127.0.0.1 >nul\r\ngoto wait\r\n:drained\r\necho drained\r\n",
         ).unwrap();
         "hold.cmd"
     };
