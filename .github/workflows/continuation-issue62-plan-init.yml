@@ -1,0 +1,99 @@
+name: Issue 62 delegated bugfix plan init (never merge)
+
+on:
+  push:
+    branches: ['ci/issue62-plan-init-20260924']
+    paths:
+      - '.github/workflows/continuation-issue62-plan-init.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  init-plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Start bugfix and persist the first heartbeat
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          python - <<'PY' > evidence/start-request.json
+          import json, os
+          print(json.dumps({
+            "error_message": "Issue #62: on Ubuntu, after MCP listener graceful shutdown and JoinHandle completion, an immediate same-port restart can still fail EADDRINUSE. Never-merge close-lag evidence shows the exact 127.0.0.1:<port> LISTEN state can persist about 15-36 ms after handle.await. Windows does not reproduce. bind_listener and serve are GitNexus CRITICAL/exact, so the fix must establish restart-safe lifecycle completion without fixed sleeps, blind rebind retries, SO_REUSEPORT, auth/origin changes, or Windows semantic widening.",
+            "code_context": "Current source 4dc9f9d872c134d381cb1eba76999d34231d3ba6. Root-cause evidence: Issue #62 close-lag comment 5807317900; architecture review selected release-completion-boundary. src-tauri/src/mcp/listener.rs owns listener lifecycle. RuntimeSupervisor currently stores JoinHandle<()> and separately polls the port in await_listener_shutdown_blocking. GitNexus: serve CRITICAL/exact impactedCount=24; spawn_listener_with_origin_and_execution_gate CRITICAL/exact impactedCount=41; supervisor begin_stop and sync_stop_and_wait LOW. The next validated experiment is a bounded Linux exact-loopback release observer inside the MCP listener completion boundary; recovery test must consume restart-safe completion with no sleep/retry.",
+            "project_root": os.getcwd(),
+            "docs_dir": "docs",
+            "analysis_mode": "src8",
+            "template_profile": "strict",
+            "requirements_mode": "steady"
+          }, ensure_ascii=False))
+          PY
+          ./.mcp-probe-kit/bin/probe exec start_bugfix --stdin < evidence/start-request.json > evidence/start-bugfix.json 2>&1
+          cat evidence/start-bugfix.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const root=JSON.parse(fs.readFileSync('evidence/start-bugfix.json','utf8'));
+          if(root.isError===true) process.exit(1);
+          let plan=null;
+          function walk(v){
+            if(plan || !v) return;
+            if(Array.isArray(v)){ for(const x of v) walk(x); return; }
+            if(typeof v==='object'){
+              if(typeof v.planId==='string' && Array.isArray(v.steps)){ plan=v; return; }
+              for(const x of Object.values(v)) walk(x);
+            }
+          }
+          walk(root.structuredContent);
+          if(!plan) throw new Error('delegated plan not found in start_bugfix output');
+          fs.writeFileSync('evidence/plan.json',JSON.stringify(plan,null,2));
+          const request={
+            plan_id: plan.planId,
+            project_root: process.cwd(),
+            plan,
+            completed_step_ids: [],
+            unresolved_items: [],
+            evidence: [],
+            last_verified_revision: process.env.GITHUB_SHA
+          };
+          fs.writeFileSync('evidence/heartbeat-request.json',JSON.stringify(request));
+          fs.writeFileSync('evidence/plan-id.txt',plan.planId+'\n');
+          NODE
+          plan_id="$(cat evidence/plan-id.txt)"
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/heartbeat-request.json > evidence/heartbeat.json 2>&1
+          cat evidence/heartbeat.json
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$plan_id\"}" > evidence/resume.json 2>&1
+          cat evidence/resume.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const h=JSON.parse(fs.readFileSync('evidence/heartbeat.json','utf8'));
+          const r=JSON.parse(fs.readFileSync('evidence/resume.json','utf8'));
+          if(h.isError===true || r.isError===true || r.structuredContent?.found!==true) process.exit(1);
+          if(r.structuredContent?.mustContinue!==true) process.exit(2);
+          NODE
+          plan_path=".mcp-probe-kit/plans/$plan_id.json"
+          test -f "$plan_path"
+          cp "$plan_path" evidence/persisted-plan.json
+          git config user.name github-actions
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "$plan_path"
+          git diff --cached --check
+          git commit -m "chore(plan): initialize issue62 bugfix"
+          git fetch origin "ci/issue62-plan-init-20260924"
+          test "$(git rev-parse "origin/ci/issue62-plan-init-20260924")" = "$GITHUB_SHA"
+          git push origin "HEAD:ci/issue62-plan-init-20260924"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue62-plan-init
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
