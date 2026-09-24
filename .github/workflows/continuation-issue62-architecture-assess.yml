@@ -46,6 +46,9 @@ jobs:
               "Changing native PTY work",
               "Release authorization"
             ],
+            "structural_causes":[
+              "The current shutdown contract collapses two observably different states into one: Rust listener task completion (JoinHandle.await) and Linux kernel confirmation that the exact loopback listening port is immediately bindable again. Verified close-lag and inode evidence shows those states can differ for roughly 15-36 ms, so immediate restart races a kernel lifecycle tail even when the application future has completed."
+            ],
             "protected_invariants":[
               "Loopback-only listener binding",
               "Same-port restart after completed shutdown is deterministic",
@@ -80,9 +83,9 @@ jobs:
                 "evidence":["Axum 0.8 serve source previously reviewed; issue comment close-lag evidence"]
               },
               {
-                "statement":"The architecture must explain why JoinHandle completion is observable before immediate same-port bind becomes consistently available on Linux.",
-                "classification":"unknown",
-                "evidence":[]
+                "statement":"JoinHandle completion and immediate kernel port rebindability are distinct lifecycle states on the sampled Linux runners; the public shutdown/restart contract currently has no explicit representation for the latter.",
+                "classification":"inference",
+                "evidence":["close-lag run 35951904056","listener-inode run 35953987232"]
               }
             ],
             "runtime_evidence":[
