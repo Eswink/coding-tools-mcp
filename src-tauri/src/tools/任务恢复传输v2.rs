@@ -3,6 +3,61 @@ use serde_json::{json, Value};
 use crate::auth::{PublicOrigin, chat_fixture as fixture};
 use crate::workspace::{AuthConfig, RuntimeConfig};
 
+#[cfg(target_os = "linux")]
+fn diagnose_loopback_listener_owner(port: u16, phase: &str) {
+    let local = format!("0100007F:{port:04X}");
+    let Ok(table) = std::fs::read_to_string("/proc/net/tcp") else {
+        return;
+    };
+    for line in table.lines().skip(1) {
+        let fields = line.split_whitespace().collect::<Vec<_>>();
+        if fields.len() <= 9 || !fields[1].eq_ignore_ascii_case(&local) || fields[3] != "0A" {
+            continue;
+        }
+        let inode = fields[9];
+        let target = format!("socket:[{inode}]");
+        let mut owners = Vec::new();
+        if let Ok(proc_entries) = std::fs::read_dir("/proc") {
+            for proc_entry in proc_entries.flatten() {
+                let pid = proc_entry.file_name().to_string_lossy().into_owned();
+                if !pid.bytes().all(|byte| byte.is_ascii_digit()) {
+                    continue;
+                }
+                let fd_root = proc_entry.path().join("fd");
+                let Ok(fds) = std::fs::read_dir(fd_root) else {
+                    continue;
+                };
+                let owns_socket = fds.flatten().any(|entry| {
+                    std::fs::read_link(entry.path())
+                        .ok()
+                        .is_some_and(|link| link.to_string_lossy() == target)
+                });
+                if owns_socket {
+                    let command = std::fs::read(proc_entry.path().join("cmdline"))
+                        .ok()
+                        .map(|bytes| {
+                            String::from_utf8_lossy(&bytes)
+                                .replace('\0', " ")
+                                .trim()
+                                .to_owned()
+                        })
+                        .unwrap_or_default();
+                    owners.push(format!("{pid}:{command}"));
+                }
+            }
+        }
+        eprintln!(
+            "[issue62-owner-r2] phase={phase} self_pid={} local={} inode={} owners={owners:?}",
+            std::process::id(),
+            fields[1],
+            inode
+        );
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn diagnose_loopback_listener_owner(_port: u16, _phase: &str) {}
+
 #[tokio::test]
 async fn listener_restart_keeps_the_running_job_and_its_idempotency_key() {
     let root = tempfile::tempdir().unwrap();
@@ -40,7 +95,12 @@ async fn listener_restart_keeps_the_running_job_and_its_idempotency_key() {
     // does not drop it and can leave idle transport state alive until scope exit.
     drop(client);
     stop.send(()).unwrap(); handle.await.unwrap();
-    let (stop, handle) = start_listener(port).expect("same-port restart after completed shutdown");
+    diagnose_loopback_listener_owner(port, "after-handle-await");
+    let restarted = start_listener(port);
+    if restarted.is_err() {
+        diagnose_loopback_listener_owner(port, "after-rebind-failure");
+    }
+    let (stop, handle) = restarted.expect("same-port restart after completed shutdown");
     // A restarted HTTP listener invalidates the old keep-alive connection. Use a
     // new client exactly as a reconnecting MCP client would, without resubmitting
     // with a fresh idempotency key or changing the operation assertions.
