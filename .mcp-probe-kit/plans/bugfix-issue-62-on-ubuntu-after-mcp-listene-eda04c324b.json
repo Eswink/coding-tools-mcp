@@ -232,7 +232,12 @@
   },
   "status": "active",
   "completedStepIds": [
-    "context"
+    "context",
+    "src8-1",
+    "src8-2",
+    "src8-3",
+    "src8-4",
+    "src8-5"
   ],
   "skippedSteps": [],
   "unresolvedItems": [],
@@ -244,6 +249,46 @@
       "reference": "GitHub Actions run 35982028615",
       "revision": "4dc9f9d872c134d381cb1eba76999d34231d3ba6",
       "verifiedAt": "2026-09-24T09:34:25.538Z"
+    },
+    {
+      "kind": "requirements",
+      "summary": "Ideal: callers that require immediate same-port reuse wait for restart-safe listener completion. Actual: the #62 recovery test waits only for raw JoinHandle completion; Ubuntu close-lag evidence shows the exact loopback LISTEN can persist 15-36 ms beyond that boundary, causing immediate EADDRINUSE.",
+      "stepId": "src8-1",
+      "reference": "#62 comment 5807317900; close-lag run 35951904056",
+      "revision": "4dc9f9d872c134d381cb1eba76999d34231d3ba6",
+      "verifiedAt": "2026-09-24T13:00:19.957Z"
+    },
+    {
+      "kind": "other",
+      "summary": "Current production restart is already stronger than the failing test: RuntimeSupervisor::sync_stop_and_wait calls runtime::port::await_listener_shutdown_blocking(handle, port) before start; runtime::port also has async await_listener_shutdown. The failing recovery_transport test directly stop.send()+handle.await and bypasses this boundary.",
+      "stepId": "src8-2",
+      "reference": "src-tauri/src/runtime/supervisor.rs:533-546; src-tauri/src/runtime/port.rs:175-206; lifecycle caller run 35981142285; evidence/code-insight.json",
+      "revision": "4dc9f9d872c134d381cb1eba76999d34231d3ba6",
+      "verifiedAt": "2026-09-24T13:00:19.957Z"
+    },
+    {
+      "kind": "other",
+      "summary": "Acceptance: preserve the single immediate same-port bind assertion; change only the recovery test shutdown observation to the existing production await_listener_shutdown boundary; exact target must pass repeatedly on Ubuntu and Windows, full suites must pass, no sleeps/rebind retries/SO_REUSEPORT/auth-origin behavior changes.",
+      "stepId": "src8-3",
+      "reference": "Issue #62 acceptance plus architecture design run 35975824092",
+      "revision": "4dc9f9d872c134d381cb1eba76999d34231d3ba6",
+      "verifiedAt": "2026-09-24T13:00:19.957Z"
+    },
+    {
+      "kind": "other",
+      "summary": "Root cause: the regression test equates raw listener-task completion with production restart-safe completion. That equivalence is false on sampled Ubuntu kernels: the loopback LISTEN can remain visible 15-36 ms after handle.await. Production supervisor already waits for port release, so the test bypasses the real lifecycle contract. Ruled out: standard ephemeral allocator collision, another test using the same PID range, ordinary TIME_WAIT, and SO_REUSEADDR as a stable standalone fix.",
+      "stepId": "src8-4",
+      "reference": "runs 35951904056, 35951528446, 35947380359, 35981142285",
+      "revision": "4dc9f9d872c134d381cb1eba76999d34231d3ba6",
+      "verifiedAt": "2026-09-24T13:00:19.957Z"
+    },
+    {
+      "kind": "other",
+      "summary": "Minimal repair: in src-tauri/src/tools/任务恢复传输v2.rs replace raw handle.await at both listener shutdown points with runtime::port::await_listener_shutdown(Some(handle), port).await after sending shutdown. Do not edit CRITICAL listener.rs/serve/bind_listener. Re-run GitNexus staged detect, exact same-port target repetitions, occupied-port/idempotency behavior and full Ubuntu/Windows suites.",
+      "stepId": "src8-5",
+      "reference": "architecture design run 35975824092; release-observer primitive run 35980510044 proves the release condition is sufficient",
+      "revision": "4dc9f9d872c134d381cb1eba76999d34231d3ba6",
+      "verifiedAt": "2026-09-24T13:00:19.957Z"
     }
   ],
   "declaredScope": {
@@ -258,5 +303,5 @@
   "runtimeEvidence": [],
   "lastVerifiedRevision": "4dc9f9d872c134d381cb1eba76999d34231d3ba6",
   "createdAt": "2026-09-24T09:32:11.552Z",
-  "updatedAt": "2026-09-24T09:34:25.538Z"
+  "updatedAt": "2026-09-24T13:00:19.957Z"
 }
