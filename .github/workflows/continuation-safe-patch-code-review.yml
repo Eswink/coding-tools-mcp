@@ -11,7 +11,7 @@ permissions:
 
 env:
   SOURCE_SHA: 13d01cd9c478db7ef82fac18428c1f6d5bbaf426
-  CANDIDATE_SHA: 510f3f1d16bfe3cc433bd45d7697aa31235553ec
+  CANDIDATE_SHA: 784ef80374dc9ee896cd12a457d4bd3ce0365a80
 
 jobs:
   review:
