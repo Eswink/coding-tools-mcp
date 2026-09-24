@@ -57,6 +57,7 @@ jobs:
           PY
           ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/heartbeat-input.json > evidence/heartbeat-output.json 2>&1
           cat evidence/heartbeat-output.json
+          cat .mcp-probe-kit/plans/feature-issue-68-safe-patch-steady-fb01dcf53f.json | tee evidence/plan-state.json
           git status --short --untracked-files=all | tee evidence/git-status.txt
           find . -maxdepth 6 -type f \( -path '*plan*' -o -path '*/.mcp-probe/*' -o -path '*/.mcp-probe-kit/*' \) -print | sort | tee evidence/plan-files.txt
           while IFS= read -r f; do
