@@ -49,8 +49,8 @@ jobs:
             "requiredEvidenceKinds":["requirements","spec","implementation","test","review"],
             "qualityGates":[],
             "declaredScope":{"projectRoot":root,"docsDir":"docs","featureName":"issue-68-safe-patch","specLayout":"flat"},
-            "memoryPolicy":{"recallBeforeExecution":false,"extractAfterValidation":false,"writeOnlyReusableKnowledge":true,"allowNegativeMemory":true},
-            "executionStatePolicy":{"heartbeatTool":"plan_heartbeat","resumeTool":"resume_plan","convergenceTool":"converge","heartbeatAfterEachStep":true,"persistPlanOnFirstHeartbeat":true}
+            "memoryPolicy":{"recallBeforeExecution":False,"extractAfterValidation":False,"writeOnlyReusableKnowledge":True,"allowNegativeMemory":True},
+            "executionStatePolicy":{"heartbeatTool":"plan_heartbeat","resumeTool":"resume_plan","convergenceTool":"converge","heartbeatAfterEachStep":True,"persistPlanOnFirstHeartbeat":True}
           }
           payload={"plan_id":plan["planId"],"project_root":root,"plan":plan}
           open("evidence/heartbeat-input.json","w",encoding="utf-8").write(json.dumps(payload,ensure_ascii=False))
