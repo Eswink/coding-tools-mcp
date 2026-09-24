@@ -188,7 +188,46 @@ async fn serve(
             let _ = shutdown.await;
         })
         .await?;
+    #[cfg(all(test, target_os = "linux"))]
+    await_exact_loopback_listener_release(port).await?;
     Ok(())
+}
+
+#[cfg(all(test, target_os = "linux"))]
+async fn await_exact_loopback_listener_release(
+    port: u16,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    use std::time::{Duration, Instant};
+
+    let local = format!("0100007F:{port:04X}");
+    let started = Instant::now();
+    let deadline = started + Duration::from_millis(250);
+    let mut polls = 0usize;
+    loop {
+        polls += 1;
+        let table = tokio::fs::read_to_string("/proc/net/tcp").await?;
+        let listening = table.lines().skip(1).any(|line| {
+            let fields = line.split_whitespace().collect::<Vec<_>>();
+            fields.len() > 3
+                && fields[1].eq_ignore_ascii_case(&local)
+                && fields[3] == "0A"
+        });
+        if !listening {
+            eprintln!(
+                "[issue62-release-observer] port={port} polls={polls} elapsed_us={}",
+                started.elapsed().as_micros()
+            );
+            return Ok(());
+        }
+        if Instant::now() >= deadline {
+            return Err(format!(
+                "loopback listener {port} remained visible after {}us",
+                started.elapsed().as_micros()
+            )
+            .into());
+        }
+        tokio::task::yield_now().await;
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
