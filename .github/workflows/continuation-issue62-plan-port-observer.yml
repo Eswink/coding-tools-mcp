@@ -1,0 +1,107 @@
+name: Issue 62 port observer plan correction (never merge)
+
+on:
+  push:
+    branches: ['ci/issue62-plan-init-20260924']
+    paths:
+      - '.github/workflows/continuation-issue62-plan-port-observer.yml'
+
+permissions:
+  contents: write
+
+env:
+  PLAN_ID: bugfix-issue-62-on-ubuntu-after-mcp-listene-eda04c324b
+  PLAN_PATH: .mcp-probe-kit/plans/bugfix-issue-62-on-ubuntu-after-mcp-listene-eda04c324b.json
+  FEATURE_SHA: 4dc9f9d872c134d381cb1eba76999d34231d3ba6
+
+jobs:
+  checkpoint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Resume exact Plan and replace the disproven repair conclusion
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-before.json 2>&1
+          cat evidence/resume-before.json
+          node - <<'NODE'
+          const r=require('./evidence/resume-before.json');
+          if(r.isError===true || r.structuredContent?.found!==true) process.exit(1);
+          if(r.structuredContent?.nextStepId!=='src8-6') process.exit(2);
+          NODE
+          python - <<'PY' > evidence/heartbeat-request.json
+          import json, os
+          feature=os.environ["FEATURE_SHA"]
+          payload={
+            "plan_id":os.environ["PLAN_ID"],
+            "project_root":os.getcwd(),
+            "completed_step_ids":["context","src8-1","src8-2","src8-3","src8-4","src8-5"],
+            "evidence":[
+              {
+                "kind":"other",
+                "step_id":"src8-4",
+                "summary":"Correction to the earlier root-cause conclusion: the recovery test bypasses production restart-safe waiting, but that is not sufficient to explain the production defect. Linux find_pid_listening_on_port collapses 'no LISTEN' and 'ownerless LISTEN inode still present in /proc/net/tcp' into Ok(None), and runtime::port wait functions interpret None as free. Therefore the existing production restart-safe boundary can itself return early during the verified 15-36 ms ownerless LISTEN tail. The test-only await_listener_shutdown approach is a false root cause/failed repair.",
+                "reference":"ARC-8 assess run 36004726833; port observer impact run 36003461930; source src-tauri/src/platform/linux/net.rs + runtime/port.rs; failed test-lifecycle approach run 36003110886",
+                "revision":feature
+              },
+              {
+                "kind":"review",
+                "step_id":"src8-4",
+                "summary":"ARC-8 assess passed ARC-1..3 with no gaps for the ownerless-LISTEN structural cause.",
+                "reference":"Architecture assess run 36004726833",
+                "revision":feature
+              },
+              {
+                "kind":"other",
+                "step_id":"src8-5",
+                "summary":"Revised minimal repair: preserve Platform::find_pid_listening_on_port for existing callers; add a Linux-only exact LISTEN-presence primitive below platform/mod without widening the Platform trait; in runtime/port classify Free vs OwnProcess vs ForeignProcess vs LinuxOwnerlessListen, making both async/blocking restart-safe waits continue their existing bounded polling while ownerless LISTEN exists. Keep supervisor API unchanged and update the recovery test to await the existing public crate::runtime::await_listener_shutdown before the single immediate same-port bind. Do not edit CRITICAL mcp/listener.rs.",
+                "reference":"ARC-8 design run 36005201070; architecture decision linux-listen-presence-runtime-state",
+                "revision":feature
+              },
+              {
+                "kind":"review",
+                "step_id":"src8-5",
+                "summary":"ARC-8 design passed ARC-4..6 with a populated targetArchitecture and transitionPlan; listener-local and Platform-trait-wide alternatives were rejected.",
+                "reference":"Architecture design run 36005201070",
+                "revision":feature
+              }
+            ],
+            "last_verified_revision":feature
+          }
+          print(json.dumps(payload,ensure_ascii=False,separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/heartbeat-request.json > evidence/heartbeat.json 2>&1
+          cat evidence/heartbeat.json
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-after.json 2>&1
+          cat evidence/resume-after.json
+          node - <<'NODE'
+          const r=require('./evidence/resume-after.json');
+          if(r.isError===true || r.structuredContent?.nextStepId!=='src8-6' || r.structuredContent?.mustContinue!==true) process.exit(1);
+          NODE
+      - name: Persist corrected Plan checkpoint without overwriting another executor
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "$PLAN_PATH"
+          git diff --cached --check
+          git commit -m "chore(plan): correct issue62 port-observer root cause"
+          git fetch origin "ci/issue62-plan-init-20260924"
+          test "$(git rev-parse "origin/ci/issue62-plan-init-20260924")" = "$GITHUB_SHA"
+          git push origin "HEAD:ci/issue62-plan-init-20260924"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue62-port-observer-plan
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
