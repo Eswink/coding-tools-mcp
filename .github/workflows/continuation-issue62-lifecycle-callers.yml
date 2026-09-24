@@ -1,0 +1,61 @@
+name: Issue 62 lifecycle caller review (never merge)
+
+on:
+  push:
+    branches: ['ci/issue62-lifecycle-callers-20260924']
+    paths:
+      - '.github/workflows/continuation-issue62-lifecycle-callers.yml'
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: 4dc9f9d872c134d381cb1eba76999d34231d3ba6
+
+jobs:
+  callers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Bind exact lifecycle callsites and graph impact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          mkdir -p evidence
+          {
+            echo '=== spawn/listener lifecycle callsites ==='
+            git grep -n -E 'spawn_listener_with_origin_and_execution_gate|spawn_listener_with_origin\(|ShutdownSender|begin_stop\(|finish_stop\(|sync_stop_and_wait\(|await_listener_shutdown_blocking' -- 'src-tauri/src/**/*.rs' 'src-tauri/src/*.rs' || true
+            echo '=== join handle storage ==='
+            git grep -n -E 'handle: Option<JoinHandle|Option<JoinHandle|JoinHandle<\(\)>' -- 'src-tauri/src/**/*.rs' 'src-tauri/src/*.rs' || true
+          } | tee evidence/callsites.txt
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.12
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/analyze.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md || true
+          for target in             'Function:src-tauri/src/mcp/listener.rs:serve'             'Function:src-tauri/src/mcp/listener.rs:spawn_listener_with_origin_and_execution_gate'             'Function:src-tauri/src/runtime/supervisor.rs:RuntimeSupervisor.begin_stop#2'             'Function:src-tauri/src/runtime/supervisor.rs:RuntimeSupervisor.sync_stop_and_wait#2'
+          do
+            slug=$(printf '%s' "$target" | tr '/:#' '____')
+            "$graph" context "$target" > "evidence/context-$slug.txt" 2>&1 || true
+            "$graph" impact "$target" --direction upstream > "evidence/impact-$slug.txt" 2>&1 || true
+            echo "=== $target ==="
+            cat "evidence/context-$slug.txt" "evidence/impact-$slug.txt"
+          done
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue62-lifecycle-callers
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
