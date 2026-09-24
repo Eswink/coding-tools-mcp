@@ -27,7 +27,19 @@ jobs:
           import pathlib, sys
           p=pathlib.Path(sys.argv[1])
           lines=p.read_text(encoding='utf-8').splitlines()
-          needles=['function resolvePlan','async function recordPlanHeartbeat','async function planHeartbeat','首次 plan_heartbeat']
+          needles=[
+              'function resolvePlan',
+              'async function recordPlanHeartbeat',
+              'async function planHeartbeat',
+              '首次 plan_heartbeat',
+              'requiredEvidenceKinds',
+              'qualityGates',
+              'unresolvedItems',
+              'plan.steps',
+              'dependsOn',
+              'function normalizePlan',
+              'function normalizeDelegated',
+          ]
           hits=set()
           for i,line in enumerate(lines):
               if any(n in line for n in needles):
