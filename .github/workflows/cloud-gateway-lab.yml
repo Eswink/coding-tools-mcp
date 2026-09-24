@@ -79,6 +79,9 @@ jobs:
               'src-tauri/src/tools/异步命令v1.rs',
               'src-tauri/src/mcp/listener.rs',
               'src-tauri/src/auth/exclusive_refresh_http_tests.rs',
+              'src-tauri/src/tools/patch.rs',
+              'src-tauri/src/tools/patch_transaction.rs',
+              'src-tauri/src/tools/patch_transaction_tests.rs',
           }
           unexpected = [
               p for p in paths

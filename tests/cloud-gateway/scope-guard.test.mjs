@@ -68,6 +68,9 @@ const migration = '.github/workflows/origin-migration.yml';
 const asyncCommand = 'src-tauri/src/tools/异步命令v1.rs';
 const mcpListener = 'src-tauri/src/mcp/listener.rs';
 const exclusiveRefreshTests = 'src-tauri/src/auth/exclusive_refresh_http_tests.rs';
+const patchSource = 'src-tauri/src/tools/patch.rs';
+const patchTransaction = 'src-tauri/src/tools/patch_transaction.rs';
+const patchTransactionTests = 'src-tauri/src/tools/patch_transaction_tests.rs';
 test('reviewed origin-migration workflow passes actual guard with source digest', () => {
   const result = run([migration]);
   assert.equal(result.accepted, true, result.error);
@@ -100,6 +103,19 @@ test('reviewed issue60 exclusive-refresh regression source passes actual guard w
   assert.equal(result.git_calls, 2);
 });
 
+for (const [path, contents] of [
+  [patchSource, '// reviewed issue68 patch source fixture\n'],
+  [patchTransaction, '// reviewed issue68 patch transaction fixture\n'],
+  [patchTransactionTests, '// reviewed issue68 patch transaction tests fixture\n'],
+]) {
+  test(`reviewed issue68 transactional patch path passes actual guard with source digest: ${path}`, () => {
+    const result = run([path], { [path]: contents });
+    assert.equal(result.accepted, true, result.error);
+    assert.equal(result.report.sha256[path], createHash('sha256').update(contents).digest('hex'));
+    assert.equal(result.git_calls, 2);
+  });
+}
+
 for (const path of [
   '.github/workflows/unrelated.yml',
   '.github/workflows/origin-migration.yml.bak',
@@ -108,6 +124,9 @@ for (const path of [
   'src/App.svelte',
   'src-tauri/src/main.rs',
   'src-tauri/src/tools/异步命令v1.rs.bak',
+  'src-tauri/src/tools/patch.rs.bak',
+  'src-tauri/src/tools/patch_transaction.rs.bak',
+  'src-tauri/src/tools/patch_transaction_tests.rs.bak',
   'src-tauri/src/tools/unreviewed.rs',
   'src-tauri/src/mcp/listener.rs.bak',
   'src-tauri/src/mcp/unreviewed.rs',
