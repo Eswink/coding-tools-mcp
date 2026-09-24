@@ -180,22 +180,83 @@
     "context",
     "write-spec",
     "check-spec",
-    "estimate"
+    "estimate",
+    "implement",
+    "test"
   ],
   "skippedSteps": [],
   "unresolvedItems": [],
-  "evidence": [],
+  "evidence": [
+    {
+      "kind": "requirements",
+      "summary": "Issue #68 requirements and scope-lock are captured in the persisted feature spec.",
+      "stepId": "write-spec",
+      "reference": "docs/specs/issue-68-safe-patch/requirements.md",
+      "revision": "de9d2af07c104f93365b7e7722c4d2be5dae1158",
+      "verifiedAt": "2026-09-24T04:57:50.973Z"
+    },
+    {
+      "kind": "spec",
+      "summary": "check_spec passed for issue-68-safe-patch before implementation.",
+      "stepId": "check-spec",
+      "reference": "GitHub Actions run 35907978737",
+      "revision": "23a666f862b2664f5c939a8c49c6c7e77819cf03",
+      "verifiedAt": "2026-09-24T04:57:50.973Z"
+    },
+    {
+      "kind": "implementation",
+      "summary": "Three-file candidate implements deterministic commit order, transaction journal rollback, permission restoration, temporary cleanup and rollback continuation.",
+      "stepId": "implement",
+      "reference": "ci/safe-patch-candidate-review-20260924 candidate",
+      "revision": "784ef80374dc9ee896cd12a457d4bd3ce0365a80",
+      "verifiedAt": "2026-09-24T04:57:50.973Z"
+    },
+    {
+      "kind": "test",
+      "summary": "Run 35953377131 passed staged GitNexus LOW, candidate-file Clippy with zero candidate errors, focused transactional tests, complete desktop Rust regression and cargo check on Ubuntu 24.04 and Windows 2025.",
+      "stepId": "test",
+      "reference": "GitHub Actions run 35953377131",
+      "revision": "784ef80374dc9ee896cd12a457d4bd3ce0365a80",
+      "verifiedAt": "2026-09-24T04:57:50.973Z"
+    }
+  ],
   "declaredScope": {
     "projectRoot": "/home/runner/work/coding-tools-mcp/coding-tools-mcp",
     "docsDir": "docs",
     "featureName": "issue-68-safe-patch",
     "specLayout": "flat"
   },
-  "artifacts": [],
+  "artifacts": [
+    {
+      "id": "artifact-8ae0450a2d63",
+      "kind": "test",
+      "summary": "Windows 2025 safe-patch candidate evidence",
+      "reference": "artifact 10789985875 sha256:720a4fa11938a34c52194c9cb99ce0b449e11e26e99a29af1e80673459039291",
+      "revision": "784ef80374dc9ee896cd12a457d4bd3ce0365a80",
+      "recordedAt": "2026-09-24T04:57:50.973Z"
+    },
+    {
+      "id": "artifact-018feaa518ef",
+      "kind": "test",
+      "summary": "Ubuntu 24.04 safe-patch candidate evidence",
+      "reference": "artifact 10788858715 sha256:40822b0055edc56624517598e3c8d242966f2ba32dcaca999374ddab68ed7c49",
+      "revision": "784ef80374dc9ee896cd12a457d4bd3ce0365a80",
+      "recordedAt": "2026-09-24T04:57:50.973Z"
+    },
+    {
+      "id": "artifact-1e050b689f19",
+      "kind": "impact",
+      "summary": "Staged GitNexus and source-hash evidence",
+      "reference": "artifact 10789551575 sha256:6459f421e463d7c35646bd652ff775e89fc32421ae8ede5b6a7a318f6c653866",
+      "revision": "784ef80374dc9ee896cd12a457d4bd3ce0365a80",
+      "recordedAt": "2026-09-24T04:57:50.973Z"
+    }
+  ],
   "memoryCandidates": [],
   "architectureCandidates": [],
   "acceptanceResults": [],
   "runtimeEvidence": [],
+  "lastVerifiedRevision": "784ef80374dc9ee896cd12a457d4bd3ce0365a80",
   "createdAt": "2026-09-24T03:38:04.009Z",
-  "updatedAt": "2026-09-24T03:52:32.269Z"
+  "updatedAt": "2026-09-24T04:57:50.973Z"
 }
