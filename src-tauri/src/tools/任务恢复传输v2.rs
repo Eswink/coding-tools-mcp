@@ -3,6 +3,40 @@ use serde_json::{json, Value};
 use crate::auth::{PublicOrigin, chat_fixture as fixture};
 use crate::workspace::{AuthConfig, RuntimeConfig};
 
+#[cfg(target_os = "linux")]
+fn exact_loopback_listening(port: u16) -> bool {
+    let local = format!("0100007F:{port:04X}");
+    let Ok(table) = std::fs::read_to_string("/proc/net/tcp") else {
+        return false;
+    };
+    table.lines().skip(1).any(|line| {
+        let fields = line.split_whitespace().collect::<Vec<_>>();
+        fields.len() > 3
+            && fields[1].eq_ignore_ascii_case(&local)
+            && fields[3] == "0A"
+    })
+}
+
+#[cfg(target_os = "linux")]
+fn record_close_lag(port: u16, since_await: Instant) {
+    let started = Instant::now();
+    let mut polls = 0u32;
+    let initial_present = exact_loopback_listening(port);
+    while started.elapsed() < Duration::from_millis(100) && exact_loopback_listening(port) {
+        polls += 1;
+        std::thread::sleep(Duration::from_micros(100));
+    }
+    eprintln!(
+        "[issue62-close-lag] port={port} initial_present={initial_present} still_present={} since_await_us={} probe_us={} polls={polls}",
+        exact_loopback_listening(port),
+        since_await.elapsed().as_micros(),
+        started.elapsed().as_micros(),
+    );
+}
+
+#[cfg(not(target_os = "linux"))]
+fn record_close_lag(_port: u16, _since_await: Instant) {}
+
 #[tokio::test]
 async fn listener_restart_keeps_the_running_job_and_its_idempotency_key() {
     let root = tempfile::tempdir().unwrap();
@@ -40,7 +74,12 @@ async fn listener_restart_keeps_the_running_job_and_its_idempotency_key() {
     // does not drop it and can leave idle transport state alive until scope exit.
     drop(client);
     stop.send(()).unwrap(); handle.await.unwrap();
-    let (stop, handle) = start_listener(port).expect("same-port restart after completed shutdown");
+    let after_await = Instant::now();
+    let restarted = start_listener(port);
+    if restarted.is_err() {
+        record_close_lag(port, after_await);
+    }
+    let (stop, handle) = restarted.expect("same-port restart after completed shutdown");
     // A restarted HTTP listener invalidates the old keep-alive connection. Use a
     // new client exactly as a reconnecting MCP client would, without resubmitting
     // with a fresh idempotency key or changing the operation assertions.
