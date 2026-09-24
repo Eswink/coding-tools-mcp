@@ -3,6 +3,39 @@ use serde_json::{json, Value};
 use crate::auth::{PublicOrigin, chat_fixture as fixture};
 use crate::workspace::{AuthConfig, RuntimeConfig};
 
+#[cfg(target_os = "linux")]
+fn diagnose_listener_owner(port: u16, phase: &str) {
+    let needle = format!(":{port:04X}");
+    let Ok(table) = std::fs::read_to_string("/proc/net/tcp") else {
+        return;
+    };
+    for line in table.lines().skip(1) {
+        let fields = line.split_whitespace().collect::<Vec<_>>();
+        if fields.len() <= 9 || !fields[1].ends_with(&needle) || fields[3] != "0A" {
+            continue;
+        }
+        let inode = fields[9];
+        let target = format!("socket:[{inode}]");
+        let self_fds = std::fs::read_dir("/proc/self/fd")
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter_map(|entry| {
+                let link = std::fs::read_link(entry.path()).ok()?;
+                (link.to_string_lossy() == target).then(|| entry.file_name())
+            })
+            .map(|fd| fd.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        eprintln!(
+            "[issue62-owner] phase={phase} pid={} port={port} state=LISTEN inode={inode} self_fds={self_fds:?}",
+            std::process::id()
+        );
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn diagnose_listener_owner(_port: u16, _phase: &str) {}
+
 #[tokio::test]
 async fn listener_restart_keeps_the_running_job_and_its_idempotency_key() {
     let root = tempfile::tempdir().unwrap();
@@ -40,7 +73,12 @@ async fn listener_restart_keeps_the_running_job_and_its_idempotency_key() {
     // does not drop it and can leave idle transport state alive until scope exit.
     drop(client);
     stop.send(()).unwrap(); handle.await.unwrap();
-    let (stop, handle) = start_listener(port).expect("same-port restart after completed shutdown");
+    diagnose_listener_owner(port, "after-handle-await");
+    let restarted = start_listener(port);
+    if restarted.is_err() {
+        diagnose_listener_owner(port, "after-rebind-failure");
+    }
+    let (stop, handle) = restarted.expect("same-port restart after completed shutdown");
     // A restarted HTTP listener invalidates the old keep-alive connection. Use a
     // new client exactly as a reconnecting MCP client would, without resubmitting
     // with a fresh idempotency key or changing the operation assertions.
