@@ -241,25 +241,37 @@ impl Journal {
 
     fn rollback(&mut self) -> io::Result<()> {
         self.cleanup_temporary_files();
+        let mut first_error = None;
         for path in self.dirty_paths.iter().rev() {
             let Some(backup) = self.backups.get(path) else {
                 continue;
             };
-            if path.exists() {
-                remove_for_restore(path)?;
-            }
-            if let Some(bytes) = backup.bytes.as_ref() {
-                if let Some(parent) = path.parent() {
-                    fs::create_dir_all(parent)?;
+            let result = (|| -> io::Result<()> {
+                if path.exists() {
+                    remove_for_restore(path)?;
                 }
-                fs::write(path, bytes)?;
-                if let Some(permissions) = backup.permissions.clone() {
-                    fs::set_permissions(path, permissions)?;
+                if let Some(bytes) = backup.bytes.as_ref() {
+                    if let Some(parent) = path.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+                    fs::write(path, bytes)?;
+                    if let Some(permissions) = backup.permissions.clone() {
+                        fs::set_permissions(path, permissions)?;
+                    }
+                }
+                Ok(())
+            })();
+            if let Err(error) = result {
+                if first_error.is_none() {
+                    first_error = Some(error);
                 }
             }
         }
         self.cleanup_created_dirs();
-        Ok(())
+        match first_error {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
 
     fn cleanup_temporary_files(&mut self) {

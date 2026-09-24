@@ -185,3 +185,36 @@ fn readonly_unix_mode_is_restored_after_later_commit_failure() {
     assert!(!root.path().join("z-new.txt").exists());
     assert!(stage_files(root.path()).is_empty());
 }
+
+#[test]
+fn rollback_failure_on_one_path_still_restores_other_committed_paths() {
+    let (root, workspace) = workspace();
+    let good = root.path().join("a-good.txt");
+    let bad = root.path().join("b-bad.txt");
+    fs::write(&good, b"old-good").unwrap();
+    fs::write(&bad, b"old-bad").unwrap();
+
+    let staged = staged(&[
+        ("a-good.txt", Some(b"new-good")),
+        ("b-bad.txt", Some(b"new-bad")),
+        ("c-trigger.txt", Some(b"new-trigger")),
+    ]);
+    let error = commit_staged_bytes_with_hook(&workspace, &staged, |index, _, _| {
+        if index == 2 {
+            fs::remove_file(&bad)?;
+            fs::create_dir(&bad)?;
+            return Err(io::Error::other("injected commit failure"));
+        }
+        Ok(())
+    })
+    .unwrap_err();
+
+    assert!(
+        error.to_string().contains("rollback failed"),
+        "rollback failure must remain explicit: {error}"
+    );
+    assert_eq!(fs::read(&good).unwrap(), b"old-good");
+    assert!(bad.is_dir());
+    assert!(!root.path().join("c-trigger.txt").exists());
+    assert!(stage_files(root.path()).is_empty());
+}
