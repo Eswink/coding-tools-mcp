@@ -103,25 +103,61 @@ jobs:
               ]
             },
             "target_architecture":{
-              "components":[
-                "Listener task completion (existing)",
-                "Unix restart-safe release completion (new explicit lifecycle boundary)",
-                "Restart caller consumes only restart-safe completion before same-port bind"
+              "boundaries":[
+                "src-tauri/src/mcp/listener.rs owns MCP listener lifecycle and is the only module allowed to translate Unix kernel listener-release evidence into restart-safe completion.",
+                "src-tauri/src/runtime/supervisor.rs may store and await the MCP lifecycle completion handle but must not inspect Linux socket tables or implement same-port bind retries.",
+                "src-tauri/src/tools/任务恢复传输v2.rs consumes the restart-safe completion contract only for recovery verification; the test must not add sleeps, port polling, or retry loops."
               ],
-              "contracts":[
-                "Shutdown request stops accepting new work.",
-                "Server future completion alone is not documented as same-port-restart-safe on Unix.",
-                "A separate restart-safe completion proves the kernel-visible listener release condition.",
-                "Windows keeps its existing lifecycle contract."
+              "allowedDependencies":[
+                "src-tauri/src/runtime/supervisor.rs -> src-tauri/src/mcp/listener.rs lifecycle handle",
+                "src-tauri/src/tools/任务恢复传输v2.rs -> MCP listener test lifecycle API",
+                "src-tauri/src/mcp/listener.rs -> axum/tokio plus a Unix-only release observer contained inside the listener lifecycle module"
+              ],
+              "forbiddenDependencies":[
+                "src-tauri/src/runtime/supervisor.rs -> Linux /proc socket parsing or rebind loops",
+                "src-tauri/src/tools/任务恢复传输v2.rs -> fixed sleeps, blind rebind retries, or Linux socket-table parsing",
+                "MCP listener lifecycle -> actions listener lifecycle",
+                "Windows MCP listener path -> Unix release observer"
+              ],
+              "dataOwnership":[],
+              "publicContracts":[
+                "Internal MCP listener lifecycle contract distinguishes task completion from restart-safe completion on Unix; callers that immediately reuse the same port must await restart-safe completion.",
+                "External MCP HTTP, OAuth, Origin, auth, port exclusivity, and tool protocols remain unchanged."
+              ],
+              "protectedBehaviors":[
+                "Loopback-only binding",
+                "Occupied-port conflicts stay synchronous and explicit",
+                "Immediate same-port restart after reported restart-safe completion",
+                "No SO_REUSEPORT, fixed delay, blind retry, auth/origin change, or Windows semantic change"
               ]
             },
             "transition_plan":{
-              "steps":[
-                "Validate one Linux release-observation primitive in never-merge experiments against the measured 15-36 ms tail.",
-                "Run fresh GitNexus impact/context for the exact symbols required by that primitive.",
-                "Implement the smallest lifecycle-completion seam only if evidence is LOW/MEDIUM or after explicit CRITICAL review.",
-                "Run exact same-port restart repetitions plus complete Ubuntu/Windows official matrices on the published correction.",
-                "Rollback only the lifecycle seam if any occupied-port, auth/origin, or Windows behavior regresses."
+              "stages":[
+                "Validate one bounded Linux release-observation primitive in never-merge experiments against the measured 15-36 ms listener tail.",
+                "Run fresh GitNexus context/impact for the exact lifecycle symbols before implementation.",
+                "Introduce the smallest internal lifecycle handle/completion seam under explicit CRITICAL review.",
+                "Validate exact same-port restart repetitions and complete Ubuntu/Windows official matrices on the published correction."
+              ],
+              "migration":[
+                "Internal MCP lifecycle callers that require immediate same-port reuse migrate from raw JoinHandle completion to explicit restart-safe completion; no external wire or persisted-data migration.",
+                "Existing callers that only need task termination may continue to observe task completion through the lifecycle handle without new retry semantics."
+              ],
+              "compatibility":[
+                "Windows maps restart-safe completion to the current task-completion behavior unless separate Windows evidence requires otherwise.",
+                "Actions listener remains unchanged.",
+                "HTTP/MCP/OAuth/Origin contracts remain byte- and behavior-compatible."
+              ],
+              "rollback":[
+                "Revert only the new MCP lifecycle completion seam and restore the prior internal handle contract if validation regresses port exclusivity, auth/origin behavior, or Windows behavior.",
+                "No data rollback or migration is required because the design adds no persisted state."
+              ],
+              "observability":[
+                "Record bounded shutdown-to-restart-safe latency and exact loopback listener state in test/diagnostic evidence without secrets.",
+                "Preserve explicit bind failures and occupied-port diagnostics."
+              ],
+              "cleanup":[
+                "Remove never-merge /proc, inode, syscall-trace, and latency instrumentation after the lifecycle primitive is validated.",
+                "Do not leave test-only retries or sleeps in production or acceptance tests."
               ]
             },
             "runtime_evidence":[
