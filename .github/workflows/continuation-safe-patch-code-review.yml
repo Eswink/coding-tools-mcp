@@ -1,0 +1,51 @@
+name: Safe patch MCP code review (never merge)
+
+on:
+  push:
+    branches: ['ci/safe-patch-code-review-20260924']
+    paths:
+      - '.github/workflows/continuation-safe-patch-code-review.yml'
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: 13d01cd9c478db7ef82fac18428c1f6d5bbaf426
+  CANDIDATE_SHA: 510f3f1d16bfe3cc433bd45d7697aa31235553ec
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Materialize exact 3-file candidate and run mcp-probe code_review
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git fetch origin "$CANDIDATE_SHA"
+          git checkout "$CANDIDATE_SHA" -- \
+            src-tauri/src/tools/patch.rs \
+            src-tauri/src/tools/patch_transaction.rs \
+            src-tauri/src/tools/patch_transaction_tests.rs
+          git diff --check
+          git diff --name-only | tee evidence/changed-paths.txt
+          test "$(wc -l < evidence/changed-paths.txt)" -eq 3
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          ./.mcp-probe-kit/bin/probe exec code_review --json "{\"project_root\":\"$PWD\",\"focus\":\"all\"}" > evidence/code-review.json 2>&1
+          cat evidence/code-review.json
+          git diff -- src-tauri/src/tools/patch.rs src-tauri/src/tools/patch_transaction.rs src-tauri/src/tools/patch_transaction_tests.rs > evidence/candidate.patch
+          git rev-parse "$SOURCE_SHA" > evidence/source-commit.txt
+          git rev-parse "$CANDIDATE_SHA" > evidence/candidate-commit.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: safe-patch-code-review
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
