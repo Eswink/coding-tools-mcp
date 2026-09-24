@@ -1,0 +1,76 @@
+name: Issue 62 listener inode diagnostic (never merge)
+
+on:
+  push:
+    branches: ['ci/issue62-listener-inode-20260924']
+    paths:
+      - 'src-tauri/src/tools/任务恢复传输v2.rs'
+      - '.github/workflows/continuation-issue62-listener-inode.yml'
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: 13d01cd9c478db7ef82fac18428c1f6d5bbaf426
+
+jobs:
+  reproduce:
+    strategy:
+      fail-fast: false
+      matrix:
+        replica: [1, 2, 3]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Materialize diagnostic only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout "$GITHUB_SHA" -- src-tauri/src/tools/任务恢复传输v2.rs
+          git diff --check
+      - name: Install dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev librsvg2-dev patchelf libssl-dev libayatana-appindicator3-dev libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.98.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Repeat full suites and compare listener inode identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          cargo check --locked --manifest-path src-tauri/Cargo.toml
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --no-run
+          target_failures=0
+          for i in {1..24}; do
+            set +e
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --lib -- --nocapture 2>&1 | tee "evidence/full-$i.txt"
+            set -e
+            if grep -q 'listener_restart_keeps_the_running_job_and_its_idempotency_key ... FAILED' "evidence/full-$i.txt"; then
+              target_failures=$((target_failures+1))
+            fi
+          done
+          grep -h '\[issue62-inode\]' evidence/full-*.txt > evidence/inodes.txt || true
+          echo "target_failures=$target_failures" | tee evidence/result.txt
+          echo "same_after_await=$(grep -c 'phase=after-await.*same=true' evidence/inodes.txt || true)" | tee -a evidence/result.txt
+          echo "same_after_failure=$(grep -c 'phase=rebind-failed.*same=true' evidence/inodes.txt || true)" | tee -a evidence/result.txt
+          cat evidence/inodes.txt
+          git rev-parse "$SOURCE_SHA" > evidence/source-commit.txt
+          test "$target_failures" -eq 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue62-listener-inode-ubuntu-${{ matrix.replica }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: warn
