@@ -1,0 +1,76 @@
+name: Safe patch plan heartbeat init (never merge)
+
+on:
+  push:
+    branches: ['ci/safe-patch-plan-heartbeat-init-20260924']
+    paths:
+      - '.github/workflows/continuation-safe-patch-plan-heartbeat-init.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  checkpoint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 13d01cd9c478db7ef82fac18428c1f6d5bbaf426
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Create initial delegated plan checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          python - <<'PY'
+          import json, os
+          root=os.environ["GITHUB_WORKSPACE"]
+          plan={
+            "planId":"feature-issue-68-safe-patch-steady-fb01dcf53f",
+            "mode":"delegated",
+            "contractVersion":"2.0.0",
+            "workflow":"feature",
+            "workflowVersion":"4.0.0",
+            "objective":"规划并实施新功能：issue-68-safe-patch",
+            "steps":[
+              {"id":"context","tool":"init_project_context","when":"缺少 AGENTS.md 或 docs/graph-insights/latest.md / docs/graph-insights/latest.json","args":{"docs_dir":"docs","project_root":root},"outputs":["AGENTS.md","docs/graph-insights/latest.md","docs/graph-insights/latest.json"],"note":"兼容老项目：即使已有旧版 project-context，只要缺少图谱文档，也要先补齐 docs/graph-insights/latest.md","type":"tool","expectedOutputs":["AGENTS.md","docs/graph-insights/latest.md","docs/graph-insights/latest.json"]},
+              {"id":"write-spec","type":"agent_action","action":"write_embedded_feature_spec","requiredInputs":["structuredContent.metadata.specDraft"],"expectedOutputs":["docs/specs/issue-68-safe-patch/requirements.md","docs/specs/issue-68-safe-patch/design.md","docs/specs/issue-68-safe-patch/tasks.md"],"outputs":["docs/specs/issue-68-safe-patch/requirements.md","docs/specs/issue-68-safe-patch/design.md","docs/specs/issue-68-safe-patch/tasks.md"],"note":"规格模板已经由 start_feature 内部生成；Agent 直接按内嵌草稿写入并补全占位"},
+              {"id":"check-spec","type":"tool","tool":"check_spec","when":"requirements/design/tasks 落盘后、进入估算或实现前","args":{"feature_name":"issue-68-safe-patch","docs_dir":"docs","project_root":root},"outputs":[],"note":"未通过则按报告补全后重跑；通过前不要写实现代码","expectedOutputs":[]},
+              {"id":"estimate","type":"tool","tool":"estimate","args":{"task_description":"实现 issue-68-safe-patch 功能：Issue #68 safe-patch: harden the existing transactional patch commit/rollback path only. Preserve parser and workspace policy boundaries; deterministic multi-file commit ordering; rollback original bytes and permissions; clean temporary files and transaction-created empty directories; failure-injection tests; no worktree/snapshot/sandbox/hooks/cloud/UI expansion.","code_context":"参考生成的 docs/specs/issue-68-safe-patch/tasks.md\n如存在 docs/graph-insights/latest.md，请一并参考其中的模块依赖和调用链摘要"},"outputs":[],"expectedOutputs":[]},
+              {"id":"implement","type":"agent_action","action":"implement_feature_from_tasks","dependsOn":["check-spec","estimate"],"requiredInputs":["docs/specs/issue-68-safe-patch/tasks.md"],"expectedOutputs":["完成任务清单对应的生产代码与必要迁移"],"completionEvidence":["实际变更文件与完成的任务条目","关键行为与规格一致"],"outputs":[],"note":"Agent 使用宿主文件与代码能力实施；不得把规划结果当成已完成实现"},
+              {"id":"test","type":"agent_action","action":"run_affected_and_full_regression_tests","dependsOn":["implement"],"expectedOutputs":["受影响测试、主链回归和必要静态检查结果"],"completionEvidence":["真实测试命令、退出码和通过数量"],"outputs":[]},
+              {"id":"review","type":"tool","tool":"code_review","dependsOn":["test"],"args":{"project_root":root,"focus":"all"},"expectedOutputs":["变更范围代码审查结果与待处理问题"],"completionEvidence":["高优先级问题已关闭或有明确阻断记录"],"outputs":[]}
+            ],
+            "globalRules":["首次执行计划时调用 plan_heartbeat 并附完整 plan，建立本地检查点","每完成、跳过或阻塞一个步骤后调用 plan_heartbeat 更新证据与状态","会话中断或切换 Agent 后先调用 resume_plan，再继续未完成步骤","只有 converge 返回 passed=true 后，才能将本次结论正式写入长期记忆","Agent 必须按步骤顺序调用 MCP，并使用宿主能力完成真实文件与代码操作","首次执行前必须用完整 plan 建立 plan_heartbeat 检查点；每完成、跳过或阻断一步立即累计回写","check_spec 未通过前不得进入实现阶段","不得把 delegated plan 的输出误认为代码已经实施","历史记忆仅作为参考，当前项目事实与代码优先"],
+            "completionCriteria":["规格文档已生成并通过 check_spec","工作量与主要风险已完成评估","Agent 已按 tasks.md 完成实现、测试与代码审查","所有步骤状态与证据已通过 plan_heartbeat 写入检查点"],
+            "requiredEvidenceKinds":["requirements","spec","implementation","test","review"],
+            "qualityGates":[],
+            "declaredScope":{"projectRoot":root,"docsDir":"docs","featureName":"issue-68-safe-patch","specLayout":"flat"},
+            "memoryPolicy":{"recallBeforeExecution":false,"extractAfterValidation":false,"writeOnlyReusableKnowledge":true,"allowNegativeMemory":true},
+            "executionStatePolicy":{"heartbeatTool":"plan_heartbeat","resumeTool":"resume_plan","convergenceTool":"converge","heartbeatAfterEachStep":true,"persistPlanOnFirstHeartbeat":true}
+          }
+          payload={"plan_id":plan["planId"],"project_root":root,"plan":plan}
+          open("evidence/heartbeat-input.json","w",encoding="utf-8").write(json.dumps(payload,ensure_ascii=False))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/heartbeat-input.json > evidence/heartbeat-output.json 2>&1
+          cat evidence/heartbeat-output.json
+          git status --short --untracked-files=all | tee evidence/git-status.txt
+          find . -maxdepth 6 -type f \( -path '*plan*' -o -path '*/.mcp-probe/*' -o -path '*/.mcp-probe-kit/*' \) -print | sort | tee evidence/plan-files.txt
+          while IFS= read -r f; do
+            case "$f" in
+              *node_modules*|*.bin) continue ;;
+            esac
+            printf '\n===== %s =====\n' "$f"
+            head -c 20000 "$f" || true
+            printf '\n'
+          done < evidence/plan-files.txt > evidence/plan-files-content.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: safe-patch-plan-heartbeat-init
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
