@@ -1,0 +1,42 @@
+name: Issue 62 listener port source scan r2 (never merge)
+
+on:
+  push:
+    branches: ['ci/issue62-port-scan-r2-20260924']
+    paths:
+      - '.github/workflows/continuation-issue62-port-scan-r2.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 13d01cd9c478db7ef82fac18428c1f6d5bbaf426
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Enumerate listener and port allocation callsites with git grep
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '13d01cd9c478db7ef82fac18428c1f6d5bbaf426'
+          mkdir -p evidence
+          {
+            echo '=== listener constructors ==='
+            git grep -n -E 'spawn_listener_with_origin|spawn_listener_with_origin_and_execution_gate|bind_listener\(' -- 'src-tauri/src/**/*.rs' 'src-tauri/src/*.rs' || true
+            echo '=== port bind/allocation ==='
+            git grep -n -E 'TcpListener::bind|TcpSocket|server_port|mcp_port|local_addr|process::id\(\)|12000|17001|17256|find_map\(\|attempt\|' -- 'src-tauri/src/**/*.rs' 'src-tauri/src/*.rs' || true
+          } | tee evidence/port-scan.txt
+          git rev-parse HEAD > evidence/source-commit.txt
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue62-port-scan-r2
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
