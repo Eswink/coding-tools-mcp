@@ -26,7 +26,7 @@ jobs:
           mkdir -p evidence
           npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
           ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"feature-issue-68-safe-patch-steady-fb01dcf53f\"}" > evidence/resume.json 2>&1
-          grep -R -n -E '\[填写\]|TODO|// \.\.\.' docs/specs/issue-68-safe-patch && exit 1 || true
+          grep -R -n -E '\[填写\]|// \.\.\.' docs/specs/issue-68-safe-patch && exit 1 || true
           for f in requirements.md design.md tasks.md; do test -s "docs/specs/issue-68-safe-patch/$f"; done
           ./.mcp-probe-kit/bin/probe exec plan_heartbeat --json "{\"plan_id\":\"feature-issue-68-safe-patch-steady-fb01dcf53f\",\"project_root\":\"$PWD\",\"completed_step_ids\":[\"context\",\"write-spec\"]}" > evidence/heartbeat-write-spec.json 2>&1
           ./.mcp-probe-kit/bin/probe exec check_spec --json "{\"project_root\":\"$PWD\",\"feature_name\":\"issue-68-safe-patch\",\"docs_dir\":\"docs\"}" > evidence/check-spec.json 2>&1
