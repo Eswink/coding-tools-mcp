@@ -1,0 +1,124 @@
+name: Safe patch plan test checkpoint (never merge)
+
+on:
+  push:
+    branches: ['ci/safe-patch-plan-heartbeat-init-20260924']
+    paths:
+      - '.github/workflows/continuation-safe-patch-plan-test.yml'
+
+permissions:
+  contents: write
+
+env:
+  PLAN_ID: feature-issue-68-safe-patch-steady-fb01dcf53f
+  CANDIDATE_SHA: 784ef80374dc9ee896cd12a457d4bd3ce0365a80
+  PLAN_PATH: .mcp-probe-kit/plans/feature-issue-68-safe-patch-steady-fb01dcf53f.json
+
+jobs:
+  checkpoint-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Resume plan, record test evidence, persist checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-before.json 2>&1
+          cat evidence/resume-before.json
+          python - <<'PY' > evidence/heartbeat-request.json
+          import json, os
+          plan_id=os.environ["PLAN_ID"]
+          candidate=os.environ["CANDIDATE_SHA"]
+          payload={
+            "plan_id": plan_id,
+            "project_root": os.getcwd(),
+            "completed_step_ids":["context","write-spec","check-spec","estimate","implement","test"],
+            "evidence":[
+              {
+                "kind":"requirements",
+                "step_id":"write-spec",
+                "summary":"Issue #68 requirements and scope-lock are captured in the persisted feature spec.",
+                "reference":"docs/specs/issue-68-safe-patch/requirements.md",
+                "revision":"de9d2af07c104f93365b7e7722c4d2be5dae1158"
+              },
+              {
+                "kind":"spec",
+                "step_id":"check-spec",
+                "summary":"check_spec passed for issue-68-safe-patch before implementation.",
+                "reference":"GitHub Actions run 35907978737",
+                "revision":"23a666f862b2664f5c939a8c49c6c7e77819cf03"
+              },
+              {
+                "kind":"implementation",
+                "step_id":"implement",
+                "summary":"Three-file candidate implements deterministic commit order, transaction journal rollback, permission restoration, temporary cleanup and rollback continuation.",
+                "reference":"ci/safe-patch-candidate-review-20260924 candidate",
+                "revision":candidate
+              },
+              {
+                "kind":"test",
+                "step_id":"test",
+                "summary":"Run 35953377131 passed staged GitNexus LOW, candidate-file Clippy with zero candidate errors, focused transactional tests, complete desktop Rust regression and cargo check on Ubuntu 24.04 and Windows 2025.",
+                "reference":"GitHub Actions run 35953377131",
+                "revision":candidate
+              }
+            ],
+            "artifacts":[
+              {
+                "kind":"test",
+                "summary":"Windows 2025 safe-patch candidate evidence",
+                "reference":"artifact 10789985875 sha256:720a4fa11938a34c52194c9cb99ce0b449e11e26e99a29af1e80673459039291",
+                "revision":candidate
+              },
+              {
+                "kind":"test",
+                "summary":"Ubuntu 24.04 safe-patch candidate evidence",
+                "reference":"artifact 10788858715 sha256:40822b0055edc56624517598e3c8d242966f2ba32dcaca999374ddab68ed7c49",
+                "revision":candidate
+              },
+              {
+                "kind":"impact",
+                "summary":"Staged GitNexus and source-hash evidence",
+                "reference":"artifact 10789551575 sha256:6459f421e463d7c35646bd652ff775e89fc32421ae8ede5b6a7a318f6c653866",
+                "revision":candidate
+              }
+            ],
+            "last_verified_revision":candidate
+          }
+          print(json.dumps(payload,separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/heartbeat-request.json > evidence/heartbeat.json 2>&1
+          cat evidence/heartbeat.json
+          cat "$PLAN_PATH" | tee evidence/plan-after.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync(process.env.PLAN_PATH,'utf8'));
+          for (const id of ['implement','test']) if (!p.completedStepIds.includes(id)) process.exit(1);
+          const kinds=new Set(p.evidence.map(e=>e.kind));
+          for (const kind of ['requirements','spec','implementation','test']) if (!kinds.has(kind)) process.exit(1);
+          if (p.lastVerifiedRevision !== process.env.CANDIDATE_SHA) process.exit(1);
+          NODE
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-after.json 2>&1
+          cat evidence/resume-after.json
+          git config user.name github-actions
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "$PLAN_PATH"
+          git diff --cached --check
+          git commit -m "chore(plan): checkpoint safe-patch test evidence"
+          git fetch origin "ci/safe-patch-plan-heartbeat-init-20260924"
+          test "$(git rev-parse "origin/ci/safe-patch-plan-heartbeat-init-20260924")" = "$GITHUB_SHA"
+          git push origin "HEAD:ci/safe-patch-plan-heartbeat-init-20260924"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: safe-patch-plan-test
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
