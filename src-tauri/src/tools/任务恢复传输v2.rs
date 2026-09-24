@@ -55,7 +55,8 @@ async fn listener_restart_keeps_the_running_job_and_its_idempotency_key() {
                 let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
                 let socket = tokio::net::TcpSocket::new_v4().expect("diagnostic socket");
                 socket.set_reuseaddr(true).expect("diagnostic reuseaddr");
-                match socket.bind(addr).and_then(|socket| socket.listen(1024)) {
+                let probe_result = socket.bind(addr).and_then(|()| socket.listen(1024));
+                match probe_result {
                     Ok(probe) => {
                         drop(probe);
                         eprintln!(
