@@ -94,8 +94,8 @@ jobs:
               "run 36003461930 port observer impact",
               "current source 4dc9f9d872c134d381cb1eba76999d34231d3ba6"
             ],
-            "collect_evidence":false,
-            "save_to_docs":false
+            "collect_evidence":False,
+            "save_to_docs":False
           },ensure_ascii=False,separators=(",",":")))
           PY
           ./.mcp-probe-kit/bin/probe exec architecture --stdin < evidence/request.json > evidence/architecture-assess.json 2>&1
