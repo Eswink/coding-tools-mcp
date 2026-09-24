@@ -7,6 +7,7 @@ use uuid::Uuid;
 use crate::tools::context::ToolContext;
 use crate::tools::workspace::{tool_ok, WorkspaceError};
 
+#[path = "patch_transaction.rs"]
 mod patch_transaction;
 use patch_transaction::commit_staged;
 
