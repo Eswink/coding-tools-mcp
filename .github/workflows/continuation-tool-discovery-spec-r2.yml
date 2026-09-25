@@ -1,19 +1,15 @@
 name: Tool discovery spec, check and estimate (never merge)
-
 on:
   push:
     branches: ['ci/tool-discovery-plan-init-20260925']
     paths:
       - '.github/workflows/continuation-tool-discovery-spec-r2.yml'
-
 permissions:
   contents: write
-
 env:
   PLAN_ID: feature-issue-72-deferred-steady-057f3854d4
   PLAN_PATH: .mcp-probe-kit/plans/feature-issue-72-deferred-steady-057f3854d4.json
   SOURCE_SHA: f4f93af9ee28aa209bb67643421725fcb22fb7e5
-
 jobs:
   spec:
     runs-on: ubuntu-24.04
@@ -24,14 +20,12 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: true
-      - name: Resume Plan and regenerate embedded parent-child plan
+      - name: Regenerate full delegated Plan
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p evidence
           npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
-          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-before.json 2>&1
-          cat evidence/resume-before.json
           python - <<'PY' > evidence/start-feature-request.json
           import json, os
           print(json.dumps({
@@ -49,229 +43,52 @@ jobs:
           },separators=(",",":")))
           PY
           ./.mcp-probe-kit/bin/probe exec start_feature --stdin < evidence/start-feature-request.json > evidence/start-feature.json 2>&1
-          cat evidence/start-feature.json
           node - <<'NODE'
           const fs=require('fs');
           const r=JSON.parse(fs.readFileSync('evidence/start-feature.json','utf8'));
           if(r.isError===true) process.exit(1);
           const plan=r.structuredContent?.metadata?.plan;
           if(!plan || plan.planId!==process.env.PLAN_ID) process.exit(2);
-          fs.writeFileSync('evidence/full-plan.json', JSON.stringify(plan));
+          fs.writeFileSync('evidence/full-plan.json',JSON.stringify(plan));
           NODE
-
-      - name: Materialize completed parent-child specification
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-          import json
-          root=Path("docs/specs/issue-72-deferred")
-          files={
-          "README.md": """# issue-72-deferred
-
-## Principle
-
-Evaluate and implement only a bounded local Deferred-tool discovery view on the existing `services/local-agent` registry. This increment never invokes a tool, never creates authority, never changes admission/capabilities, and never publishes Hidden tools.
-
-## Subspec index
-
-| ID | Title | FR | Depends on |
-|---|---|---|---|
-| deferred-catalog-contract | Deferred catalog contract | FR-1, FR-2 | none |
-| discovery-safety-evaluation | Discovery safety and evaluation | FR-3 | deferred-catalog-contract |
-
-## Milestone
-
-1. Freeze deterministic bounded catalog semantics.
-2. Prove visibility and no-execution safety on both supported CI runners.
-""",
-          "requirements.md": """# Requirements: issue-72-deferred
-
-## Scope
-
-### In scope
-- A read-only registry discovery result for tools whose `ToolExposure` is exactly `Deferred`.
-- Deterministic name ordering and a repository-owned upper bound on returned entries and encoded metadata.
-- Focused tests for Direct/Deferred/Hidden separation, truncation/bounds, stable ordering, and proof that discovery never calls an executor.
-- Windows 2025 and Ubuntu 24.04 validation.
-
-### Out of scope
-- Automatic execution or promotion of deferred tools.
-- New LocalAdmission authority, capability expansion, policy bypass, cloud publication, UI, sandbox, worktree, snapshot, Hooks, PTY, or packaging changes.
-
-## Functional requirements
-
-| FR | Requirement | Owner |
-|---|---|---|
-| FR-1 | The registry SHALL discover only `ToolExposure::Deferred` entries in deterministic ToolName order; Direct and Hidden entries SHALL NOT appear. | deferred-catalog-contract |
-| FR-2 | The discovery result SHALL be bounded by repository constants for entry count and encoded metadata size and SHALL report whether additional deferred entries were omitted without exposing executor internals or host paths. | deferred-catalog-contract |
-| FR-3 | Reading discovery metadata SHALL NOT call any `ToolExecutor::execute`, create/reuse `VerifiedInvocation`, mutate registry entries, widen capabilities, or require LocalAdmission; tests SHALL prove these invariants on supported runners. | discovery-safety-evaluation |
-
-## Non-functional requirements
-- Existing ToolSpec validation limits remain authoritative for names, descriptions and schemas.
-- Debug/output must remain non-secret and host-path-free.
-- New Rust source files, if any, use English filenames and stay below repository source-length limits.
-- Published changes require staged GitNexus detect evidence and no force push.
-""",
-          "design.md": """# Design: issue-72-deferred
-
-## Existing state
-`ToolRegistry` stores tools in a `BTreeMap` and already separates `Direct`, `Deferred`, and `Hidden`. `deferred_specs()` clones all Deferred ToolSpec values but does not expose an explicit bounded discovery contract.
-
-## Proposed contract
-Add a small immutable discovery value and a registry method dedicated to Deferred discovery.
-
-- The registry remains the sole source of tool metadata.
-- Selection is exactly `ToolExposure::Deferred`.
-- Ordering reuses the registry BTreeMap order.
-- Discovery applies fixed repository limits before returning data. It never serializes executor objects or authority.
-- The result contains cloned validated `ToolSpec` values plus bounded summary state (returned count / omitted marker). No host-global path or secret field exists.
-- Discovery is read-only and never calls `invoke` or `ToolExecutor::execute`.
-
-## Compatibility
-Existing Direct invocation/admission behavior is unchanged. Hidden tools remain registered but undiscoverable. No wire protocol integration is added in this increment.
-
-## Risk control
-GitNexus reports `deferred_specs` as UNKNOWN/exact with zero resolved callers, which is not proof of safety; repository text search also finds no production call sites. Implementation therefore stays in the local-agent registry/model boundary and adds focused regression tests.
-""",
-          "tasks.md": """# Tasks: issue-72-deferred
-
-## Delivery phases
-1. deferred-catalog-contract/1.1 — implement bounded Deferred discovery contract.
-2. discovery-safety-evaluation/1.1 — prove visibility/bounds/no-execution invariants.
-3. Run staged GitNexus detect, Windows/Ubuntu relevant/full tests, review and publication checks.
-
-## Coverage matrix
-| FR | Subspec | Task | Status |
-|---|---|---|---|
-| FR-1 | deferred-catalog-contract | deferred-catalog-contract/1.1 | pending |
-| FR-2 | deferred-catalog-contract | deferred-catalog-contract/1.1 | pending |
-| FR-3 | discovery-safety-evaluation | discovery-safety-evaluation/1.1 | pending |
-""",
-          "spec-manifest.json": json.dumps({
-            "layout":"parent-child",
-            "subspecs":[
-              {"id":"deferred-catalog-contract","title":"Deferred catalog contract","fr":["FR-1","FR-2"]},
-              {"id":"discovery-safety-evaluation","title":"Discovery safety and evaluation","fr":["FR-3"],"dependsOn":["deferred-catalog-contract"]}
-            ]
-          },indent=2)+"\n",
-          "subspecs/deferred-catalog-contract/spec.md": """# Subspec: Deferred catalog contract
-
-## Scope
-Define the immutable, deterministic and bounded metadata view for Deferred tools only.
-
-## Requirements
-- FR-1
-- FR-2
-
-## Acceptance criteria
-1. WHEN the registry contains Direct, Deferred and Hidden tools THEN discovery SHALL return only Deferred entries ordered by ToolName.
-2. WHEN Deferred entries exceed the repository entry bound THEN discovery SHALL return at most the bound and SHALL indicate omission deterministically.
-3. WHEN metadata would exceed the repository discovery byte bound THEN discovery SHALL stop before exceeding that bound and SHALL indicate omission.
-4. WHEN a discovered item is inspected THEN it SHALL contain only cloned validated ToolSpec metadata and SHALL NOT contain an executor, admission token, filesystem path or host-global state.
-
-## Files
-- `services/local-agent/src/registry.rs`
-- `services/local-agent/src/model.rs`
-- focused tests under the existing local-agent test layout
-
-## Not included
-No wire protocol, cloud publishing or automatic execution.
-""",
-          "subspecs/deferred-catalog-contract/tasks.md": """# Subtasks: Deferred catalog contract
-
-- [ ] deferred-catalog-contract/1.1 Implement the bounded discovery result and registry method.
-  - Evidence first: `services/local-agent/src/registry.rs` ToolRegistry exposure methods; `services/local-agent/src/model.rs` ToolSpec limits.
-  - Files: registry/model plus focused tests only as required.
-  - Requirements: FR-1, FR-2.
-""",
-          "subspecs/discovery-safety-evaluation/spec.md": """# Subspec: Discovery safety and evaluation
-
-## Scope
-Prove that discovery is metadata-only and preserves the local authority boundary.
-
-## Requirements
-- FR-3
-
-## Acceptance criteria
-1. WHEN discovery is called THEN no registered executor SHALL execute and registry state SHALL remain unchanged.
-2. WHEN Hidden or Direct tools are present THEN neither SHALL appear in the Deferred discovery result.
-3. WHEN the same registry is discovered repeatedly THEN the returned metadata/order/truncation state SHALL be stable.
-4. WHEN tested on Windows 2025 and Ubuntu 24.04 THEN focused registry tests and the relevant local-agent full test suite SHALL pass.
-
-## Files
-- `services/local-agent/src/registry_tests.rs`
-- production files only if required by the catalog contract
-
-## Not included
-No new authority, capability, policy, network, process, or persistence behavior.
-""",
-          "subspecs/discovery-safety-evaluation/tasks.md": """# Subtasks: Discovery safety and evaluation
-
-- [ ] discovery-safety-evaluation/1.1 Add focused ordering, visibility, bounds and no-execution regression coverage.
-  - Evidence first: existing registry fixture tests and ToolExecutor boundary.
-  - Files: `services/local-agent/src/registry_tests.rs` and only necessary production files.
-  - Requirements: FR-3.
-"""
-          }
-          for rel,content in files.items():
-              path=root/rel
-              path.parent.mkdir(parents=True,exist_ok=True)
-              path.write_text(content,encoding="utf-8")
-          PY
-          find docs/specs/issue-72-deferred -type f -maxdepth 4 -print | sort
-
-      - name: Persist write-spec Plan state and check spec
+      - name: Heartbeat materialized spec and run check_spec
         shell: bash
         run: |
           set -euo pipefail
           node - <<'NODE' > evidence/write-spec-heartbeat.json
           const fs=require('fs');
           const plan=JSON.parse(fs.readFileSync('evidence/full-plan.json','utf8'));
-          const payload={
+          process.stdout.write(JSON.stringify({
             plan_id:process.env.PLAN_ID,
             project_root:process.cwd(),
             plan,
             completed_step_ids:["context","write-spec"],
             evidence:[
-              {kind:"requirements",step_id:"write-spec",summary:"Issue #72 scope and FR-1..FR-3 are materialized in the parent-child spec.",reference:"docs/specs/issue-72-deferred/requirements.md",revision:process.env.SOURCE_SHA},
-              {kind:"spec",step_id:"write-spec",summary:"Parent-child design, task matrix and two responsibility-aligned subspecs are materialized.",reference:"docs/specs/issue-72-deferred/",revision:process.env.SOURCE_SHA}
+              {kind:"requirements",step_id:"write-spec",summary:"Issue #72 FR-1..FR-3 and scope boundaries are materialized.",reference:"docs/specs/issue-72-deferred/requirements.md",revision:process.env.SOURCE_SHA},
+              {kind:"spec",step_id:"write-spec",summary:"Parent-child design/tasks/subspecs are materialized.",reference:"docs/specs/issue-72-deferred/",revision:process.env.SOURCE_SHA}
             ],
             last_verified_revision:process.env.SOURCE_SHA
-          };
-          process.stdout.write(JSON.stringify(payload));
+          }));
           NODE
           ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/write-spec-heartbeat.json > evidence/write-spec-heartbeat-output.json 2>&1
-          cat evidence/write-spec-heartbeat-output.json
-
           ./.mcp-probe-kit/bin/probe exec check_spec --json "{\"project_root\":\"$PWD\",\"feature_name\":\"issue-72-deferred\",\"docs_dir\":\"docs\"}" > evidence/check-spec.json 2>&1
           cat evidence/check-spec.json
           node - <<'NODE'
           const r=require('./evidence/check-spec.json');
           if(r.isError===true || r.structuredContent?.passed!==true) process.exit(1);
           NODE
-
           python - <<'PY' > evidence/check-heartbeat.json
           import json, os
           print(json.dumps({
             "plan_id":os.environ["PLAN_ID"],
             "project_root":os.getcwd(),
             "completed_step_ids":["context","write-spec","check-spec"],
-            "evidence":[{
-              "kind":"spec",
-              "step_id":"check-spec",
-              "summary":"check_spec passed for the materialized issue-72-deferred parent-child specification.",
-              "reference":"check_spec in this GitHub Actions run",
-              "revision":os.environ["SOURCE_SHA"]
-            }],
+            "evidence":[{"kind":"spec","step_id":"check-spec","summary":"check_spec passed for issue-72-deferred.","reference":"check_spec in this run","revision":os.environ["SOURCE_SHA"]}],
             "last_verified_revision":os.environ["SOURCE_SHA"]
           },separators=(",",":")))
           PY
           ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/check-heartbeat.json > evidence/check-heartbeat-output.json 2>&1
-          cat evidence/check-heartbeat-output.json
-
-      - name: Estimate implementation and persist estimate step
+      - name: Estimate and persist Plan
         shell: bash
         run: |
           set -euo pipefail
@@ -294,25 +111,13 @@ No new authority, capability, policy, network, process, or persistence behavior.
             "plan_id":os.environ["PLAN_ID"],
             "project_root":os.getcwd(),
             "completed_step_ids":["context","write-spec","check-spec","estimate"],
-            "evidence":[{
-              "kind":"spec",
-              "step_id":"estimate",
-              "summary":"mcp-probe estimate completed after check_spec; implementation remains bounded to local-agent registry/model/tests.",
-              "reference":"estimate output in this GitHub Actions run",
-              "revision":os.environ["SOURCE_SHA"]
-            }],
+            "evidence":[{"kind":"spec","step_id":"estimate","summary":"mcp-probe estimate completed; implementation remains bounded to local-agent registry/model/tests.","reference":"estimate in this run","revision":os.environ["SOURCE_SHA"]}],
             "last_verified_revision":os.environ["SOURCE_SHA"]
           },separators=(",",":")))
           PY
           ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/estimate-heartbeat.json > evidence/estimate-heartbeat-output.json 2>&1
-          cat evidence/estimate-heartbeat-output.json
           ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-after.json 2>&1
           cat evidence/resume-after.json
-
-      - name: Persist spec and Plan checkpoint without overwriting another executor
-        shell: bash
-        run: |
-          set -euo pipefail
           git config user.name github-actions
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add "$PLAN_PATH" docs/specs/issue-72-deferred
@@ -321,7 +126,6 @@ No new authority, capability, policy, network, process, or persistence behavior.
           git fetch origin "ci/tool-discovery-plan-init-20260925"
           test "$(git rev-parse "origin/ci/tool-discovery-plan-init-20260925")" = "$GITHUB_SHA"
           git push origin "HEAD:ci/tool-discovery-plan-init-20260925"
-
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

@@ -1,0 +1,23 @@
+{
+  "layout": "parent-child",
+  "subspecs": [
+    {
+      "id": "deferred-catalog-contract",
+      "title": "Deferred catalog contract",
+      "fr": [
+        "FR-1",
+        "FR-2"
+      ]
+    },
+    {
+      "id": "discovery-safety-evaluation",
+      "title": "Discovery safety and evaluation",
+      "fr": [
+        "FR-3"
+      ],
+      "dependsOn": [
+        "deferred-catalog-contract"
+      ]
+    }
+  ]
+}
