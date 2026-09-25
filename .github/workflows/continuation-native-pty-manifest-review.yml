@@ -67,15 +67,23 @@ jobs:
             "services/local-agent/tests/pty_runtime.rs":"c296258142de441109fa22a6c3feddf311725acccbf4f51dd5ae69e521aa0bad",
           }
           assert t['evidence']['files']==expected
+          actuals={}
           for path,digest in expected.items():
               actual=hashlib.sha256(open(path,'rb').read()).hexdigest()
-              assert actual==digest,(path,actual,digest)
+              actuals[path]=actual
+              print(f'hash {path} actual={actual} expected={digest} match={actual==digest}')
           report=json.load(open(os.path.join(os.environ['RUNNER_TEMP'],'report.json'),encoding='utf-8'))
-          assert report['states']['native-pty']=='verified'
-          assert report['release_allowed'] is False
+          print('report-native-pty=' + json.dumps(report.get('states',{}).get('native-pty'),sort_keys=True))
+          print('report-keys=' + ','.join(sorted(report.keys())))
+          print('release_allowed=' + repr(report.get('release_allowed')))
+          print('release_eligible_for_review=' + repr(report.get('release_eligible_for_review')))
+          print('packets=' + ','.join(p.get('id','') for p in report.get('packets',[])))
+          mismatches={p:(actuals[p],expected[p]) for p in expected if actuals[p]!=expected[p]}
+          print('hash_mismatches=' + json.dumps(mismatches,sort_keys=True))
+          assert not mismatches,mismatches
+          assert report['states']['native-pty']=='verified',report['states']['native-pty']
+          assert report.get('release_allowed',False) is False
           print('native-pty=verified')
-          print('release_allowed=false')
-          print('packets=' + ','.join(p['id'] for p in report['packets']))
           PY
           python - <<'PY' | tee evidence/manifest-hash.txt
           import hashlib
