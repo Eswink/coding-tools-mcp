@@ -1,0 +1,43 @@
+name: Resume active project Plans (never merge)
+on:
+  push:
+    branches: ['ci/resume-active-plans-20260926']
+    paths: ['.github/workflows/continuation-resume-active-plans.yml']
+permissions:
+  contents: read
+jobs:
+  resume:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Materialize persisted Plan checkpoints and resume both active Plans
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence .mcp-probe-kit/plans
+          git fetch origin ci/ubuntu-sandbox-plan-init-20260925 ci/issue74-plan-init-20260926
+          git show origin/ci/ubuntu-sandbox-plan-init-20260925:.mcp-probe-kit/plans/feature-issue-73-ubuntu-steady-1c1e22e5cd.json > .mcp-probe-kit/plans/feature-issue-73-ubuntu-steady-1c1e22e5cd.json
+          git show origin/ci/issue74-plan-init-20260926:.mcp-probe-kit/plans/bugfix-issue-74-current-feature-6fe8f8a3f1d-f6abaefb07.json > .mcp-probe-kit/plans/bugfix-issue-74-current-feature-6fe8f8a3f1d-f6abaefb07.json
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json '{"project_root":"'"$PWD"'","plan_id":"feature-issue-73-ubuntu-steady-1c1e22e5cd"}' > evidence/resume-73.json 2>&1
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json '{"project_root":"'"$PWD"'","plan_id":"bugfix-issue-74-current-feature-6fe8f8a3f1d-f6abaefb07"}' > evidence/resume-74.json 2>&1
+          cat evidence/resume-73.json evidence/resume-74.json
+          node - <<'NODE'
+          const a=require('./evidence/resume-73.json');
+          const b=require('./evidence/resume-74.json');
+          if(a.isError===true || a.structuredContent?.nextStepId!=='implement' || a.structuredContent?.mustContinue!==true) process.exit(1);
+          if(b.isError===true || b.structuredContent?.nextStepId!=='src8-4' || b.structuredContent?.mustContinue!==true) process.exit(2);
+          NODE
+          git diff --exit-code -- . ':!.mcp-probe-kit' ':!.cursor' ':!AGENTS.md' ':!CLAUDE.md' || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: active-plan-resume
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
