@@ -1,5 +1,5 @@
 use coding_tools_local_agent::{PtyErrorKind, PtyManager, PtySize, PtySpec, PtyTermination};
-use std::{path::PathBuf, time::Duration};
+use std::{path::PathBuf, time::{Duration, Instant}};
 
 fn fixture() -> String {
     env!("CARGO_BIN_EXE_pty_fixture").to_owned()
@@ -15,8 +15,12 @@ fn spec(args: &[&str]) -> PtySpec {
     PtySpec::new(argv, cwd()).expect("valid PTY fixture spec")
 }
 
+fn text_bytes(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).replace("\r\n", "\n")
+}
+
 fn text(outcome: &coding_tools_local_agent::PtyOutcome) -> String {
-    String::from_utf8_lossy(&outcome.output).replace("\r\n", "\n")
+    text_bytes(&outcome.output)
 }
 
 fn grandchild_pid(outcome: &coding_tools_local_agent::PtyOutcome) -> u32 {
@@ -53,6 +57,25 @@ async fn interactive_write_is_bounded_and_delivered() {
     let output = text(&outcome);
     assert!(output.contains("terminal=true"), "{output:?}");
     assert!(output.contains("input=héllo"), "{output:?}");
+}
+
+#[tokio::test]
+async fn live_output_snapshot_and_explicit_close_are_bounded() {
+    let manager = PtyManager::default();
+    let mut session = manager.start(spec(&["read-once"])).await.unwrap();
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let snapshot = session.output_snapshot().unwrap();
+        if text_bytes(&snapshot.output).contains("terminal=true") {
+            assert!(snapshot.output_total_bytes >= snapshot.output.len() as u64);
+            assert!(!snapshot.truncated);
+            break;
+        }
+        assert!(Instant::now() < deadline, "live PTY output never became observable");
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    let outcome = session.close().await;
+    assert_eq!(outcome.termination, PtyTermination::Cancelled, "{outcome:?}");
 }
 
 #[tokio::test]
