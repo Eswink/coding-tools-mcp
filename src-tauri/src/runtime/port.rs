@@ -5,6 +5,7 @@ use std::path::Path;
 
 use tauri::async_runtime::JoinHandle;
 
+use crate::error::AppResult;
 use crate::platform::platform;
 
 pub fn is_own_process(pid: u32) -> bool {
@@ -124,16 +125,43 @@ pub fn try_reclaim_own_port(port: u16) -> bool {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PortBindingState {
+    Free,
+    OwnProcess,
+    ForeignProcess,
+    LinuxOwnerlessListen,
+}
+
+fn port_binding_state(port: u16) -> AppResult<PortBindingState> {
+    match platform().find_pid_listening_on_port(port)? {
+        Some(pid) if is_own_process(pid) => Ok(PortBindingState::OwnProcess),
+        Some(_) => Ok(PortBindingState::ForeignProcess),
+        None => {
+            #[cfg(target_os = "linux")]
+            {
+                if crate::platform::linux_listen_socket_present(port)? {
+                    return Ok(PortBindingState::LinuxOwnerlessListen);
+                }
+            }
+            Ok(PortBindingState::Free)
+        }
+    }
+}
+
+fn port_is_free_now(port: u16) -> bool {
+    matches!(port_binding_state(port), Ok(PortBindingState::Free))
+}
+
 pub async fn wait_for_port_free(port: u16, timeout: Duration) -> bool {
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
-        match platform().find_pid_listening_on_port(port) {
-            Ok(None) => return true,
-            Ok(Some(pid)) if is_own_process(pid) => {
+        match port_binding_state(port) {
+            Ok(PortBindingState::Free) => return true,
+            Ok(PortBindingState::OwnProcess | PortBindingState::LinuxOwnerlessListen) => {
                 tokio::time::sleep(Duration::from_millis(50)).await;
             }
-            Ok(Some(_)) => return false,
-            Err(_) => return false,
+            Ok(PortBindingState::ForeignProcess) | Err(_) => return false,
         }
     }
 
@@ -141,23 +169,18 @@ pub async fn wait_for_port_free(port: u16, timeout: Duration) -> bool {
         return true;
     }
 
-    platform()
-        .find_pid_listening_on_port(port)
-        .ok()
-        .flatten()
-        .is_none()
+    port_is_free_now(port)
 }
 
 pub fn wait_for_port_free_blocking(port: u16, timeout: Duration) -> bool {
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
-        match platform().find_pid_listening_on_port(port) {
-            Ok(None) => return true,
-            Ok(Some(pid)) if is_own_process(pid) => {
+        match port_binding_state(port) {
+            Ok(PortBindingState::Free) => return true,
+            Ok(PortBindingState::OwnProcess | PortBindingState::LinuxOwnerlessListen) => {
                 std::thread::sleep(Duration::from_millis(50));
             }
-            Ok(Some(_)) => return false,
-            Err(_) => return false,
+            Ok(PortBindingState::ForeignProcess) | Err(_) => return false,
         }
     }
 
@@ -165,11 +188,7 @@ pub fn wait_for_port_free_blocking(port: u16, timeout: Duration) -> bool {
         return true;
     }
 
-    platform()
-        .find_pid_listening_on_port(port)
-        .ok()
-        .flatten()
-        .is_none()
+    port_is_free_now(port)
 }
 
 pub async fn await_listener_shutdown(handle: Option<JoinHandle<()>>, port: u16) {
