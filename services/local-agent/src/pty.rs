@@ -3,6 +3,7 @@ use crate::process::{
     MAX_STREAM_BYTES, MAX_TIMEOUT, MAX_TOKEN_BYTES,
 };
 use crate::pty_io;
+pub use crate::pty_io::PtyOutputSnapshot;
 use serde::Serialize;
 use std::{
     collections::BTreeMap,
@@ -249,6 +250,7 @@ pub struct PtySession {
     id: String,
     commands: mpsc::Sender<Command>,
     done: watch::Receiver<Option<PtyOutcome>>,
+    output: pty_io::SharedOutput,
 }
 impl PtySession {
     pub fn id(&self) -> &str {
@@ -268,6 +270,9 @@ impl PtySession {
     pub fn snapshot(&self) -> Option<PtyOutcome> {
         self.done.borrow().clone()
     }
+    pub fn output_snapshot(&self) -> Result<PtyOutputSnapshot, PtyError> {
+        pty_io::live_snapshot(&self.output).ok_or_else(io_error)
+    }
     pub async fn wait(&mut self) -> PtyOutcome {
         loop {
             if let Some(outcome) = self.done.borrow().clone() {
@@ -280,6 +285,10 @@ impl PtySession {
     }
     pub async fn cancel(&mut self) -> PtyOutcome {
         let _ = self.commands.send(Command::Cancel);
+        self.wait().await
+    }
+    pub async fn close(&mut self) -> PtyOutcome {
+        let _ = self.commands.send(Command::Close);
         self.wait().await
     }
 }
@@ -448,7 +457,12 @@ impl PtyManager {
             };
             done_tx.send_replace(Some(outcome));
         });
-        Ok(PtySession { id, commands, done })
+        Ok(PtySession {
+            id,
+            commands,
+            done,
+            output,
+        })
     }
     pub async fn run(&self, spec: PtySpec) -> Result<PtyOutcome, PtyError> {
         let mut session = self.start(spec).await?;
