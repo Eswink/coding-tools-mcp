@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "1.0.0",
+  "planId": "feature-issue-72-deferred-steady-057f3854d4",
+  "plan": {
+    "planId": "feature-issue-72-deferred-steady-057f3854d4",
+    "mode": "delegated",
+    "contractVersion": "2.0.0",
+    "workflow": "feature",
+    "workflowVersion": "4.0.0",
+    "objective": "规划并实施新功能：issue-72-deferred",
+    "steps": [
+      {
+        "id": "context",
+        "tool": "init_project_context",
+        "when": "缺少 AGENTS.md 或 docs/graph-insights/latest.md / docs/graph-insights/latest.json",
+        "args": {
+          "docs_dir": "docs",
+          "project_root": "/home/runner/work/coding-tools-mcp/coding-tools-mcp"
+        },
+        "outputs": [
+          "AGENTS.md",
+          "docs/graph-insights/latest.md",
+          "docs/graph-insights/latest.json"
+        ],
+        "note": "兼容老项目：即使已有旧版 project-context，只要缺少图谱文档，也要先补齐 docs/graph-insights/latest.md",
+        "type": "tool",
+        "expectedOutputs": [
+          "AGENTS.md",
+          "docs/graph-insights/latest.md",
+          "docs/graph-insights/latest.json"
+        ]
+      },
+      {
+        "id": "decompose-spec",
+        "type": "agent_action",
+        "action": "根据已确认需求把 issue-72-deferred 拆分为 2-8 个职责单一、可独立验收的子规格，并生成 SubspecDefinition[] 后重新调用 start_feature",
+        "when": "需求范围与 FR-n 已明确后、生成 parent-child 规格草稿前",
+        "requiredInputs": [
+          "已确认的功能需求与范围边界",
+          "代码图谱与模块边界",
+          "FR-n 需求编号"
+        ],
+        "expectedOutputs": [
+          "subspecs 数组：每项包含 id、title、fr 和可选 dependsOn"
+        ],
+        "completionEvidence": [
+          "每个 FR-n 至少映射到一个子规格",
+          "子规格之间无循环依赖",
+          "跨模块契约留在母规格，模块实现细节归入子规格"
+        ],
+        "qualityGates": [
+          "子规格数量与项目复杂度相称",
+          "不存在仅按文件夹机械拆分的子规格"
+        ],
+        "onFailure": {
+          "strategy": "ask_user",
+          "instruction": "模块边界不明确时，先向用户确认交付范围或调用 code_insight 收敛边界"
+        },
+        "note": "自动布局评分 4；原因：需求描述较长，包含较多约束与交付内容；需求跨越 2 类能力域"
+      },
+      {
+        "id": "resume-with-subspecs",
+        "type": "tool",
+        "tool": "start_feature",
+        "when": "decompose-spec 已产生完整 SubspecDefinition[] 后",
+        "args": {
+          "feature_name": "issue-72-deferred",
+          "description": "Issue #72 deferred tool discovery evaluation. Build the smallest bounded discovery increment on the existing local-agent ToolRegistry. Preserve Direct/Deferred/Hidden separation; expose only deterministic, bounded metadata for Deferred tools; Hidden tools must never appear; discovery must not invoke any executor, mint or bypass LocalAdmission, expand capabilities, or mutate registry state. Keep names/descriptions/schemas within existing ToolSpec limits and avoid host-global paths or secrets in output/debug. Add focused ordering/visibility/bounds/no-execution tests and Windows 2025 + Ubuntu 24.04 validation. Run pinned GitNexus impact/context before edits and staged detect before publication. Do not implement sandboxing, worktrees, snapshots, Hooks, UI, packaging, cloud authority or automatic deferred execution in this issue.",
+          "docs_dir": "docs",
+          "template_profile": "auto",
+          "spec_layout": "parent-child",
+          "subspecs": "[填入 decompose-spec 产生的 SubspecDefinition[]]",
+          "requirements_mode": "steady",
+          "project_root": "/home/runner/work/coding-tools-mcp/coding-tools-mcp"
+        },
+        "outputs": [
+          "docs/specs/issue-72-deferred/README.md",
+          "docs/specs/issue-72-deferred/requirements.md",
+          "docs/specs/issue-72-deferred/design.md",
+          "docs/specs/issue-72-deferred/tasks.md",
+          "docs/specs/issue-72-deferred/spec-manifest.json",
+          "docs/specs/issue-72-deferred/subspecs/<subspec-id>/spec.md",
+          "docs/specs/issue-72-deferred/subspecs/<subspec-id>/tasks.md"
+        ],
+        "note": "再次调用 start_feature 以生成内嵌 parent-child 规格草稿",
+        "expectedOutputs": [
+          "docs/specs/issue-72-deferred/README.md",
+          "docs/specs/issue-72-deferred/requirements.md",
+          "docs/specs/issue-72-deferred/design.md",
+          "docs/specs/issue-72-deferred/tasks.md",
+          "docs/specs/issue-72-deferred/spec-manifest.json",
+          "docs/specs/issue-72-deferred/subspecs/<subspec-id>/spec.md",
+          "docs/specs/issue-72-deferred/subspecs/<subspec-id>/tasks.md"
+        ]
+      }
+    ],
+    "globalRules": [
+      "首次执行计划时调用 plan_heartbeat 并附完整 plan，建立本地检查点",
+      "每完成、跳过或阻塞一个步骤后调用 plan_heartbeat 更新证据与状态",
+      "会话中断或切换 Agent 后先调用 resume_plan，再继续未完成步骤",
+      "只有 converge 返回 passed=true 后，才能将本次结论正式写入长期记忆",
+      "Agent 必须按步骤顺序调用 MCP，并使用宿主能力完成真实文件与代码操作",
+      "首次执行前必须用完整 plan 建立 plan_heartbeat 检查点；每完成、跳过或阻断一步立即累计回写",
+      "check_spec 未通过前不得进入实现阶段",
+      "不得把 delegated plan 的输出误认为代码已经实施",
+      "历史记忆仅作为参考，当前项目事实与代码优先"
+    ],
+    "completionCriteria": [
+      "规格文档已生成并通过 check_spec",
+      "工作量与主要风险已完成评估",
+      "Agent 已按 tasks.md 完成实现、测试与代码审查",
+      "所有步骤状态与证据已通过 plan_heartbeat 写入检查点"
+    ],
+    "requiredEvidenceKinds": [
+      "requirements",
+      "spec",
+      "implementation",
+      "test",
+      "review"
+    ],
+    "qualityGates": [],
+    "declaredScope": {
+      "projectRoot": "/home/runner/work/coding-tools-mcp/coding-tools-mcp",
+      "docsDir": "docs",
+      "featureName": "issue-72-deferred",
+      "specLayout": "parent-child"
+    },
+    "memoryPolicy": {
+      "recallBeforeExecution": false,
+      "extractAfterValidation": false,
+      "writeOnlyReusableKnowledge": true,
+      "allowNegativeMemory": true
+    },
+    "executionStatePolicy": {
+      "heartbeatTool": "plan_heartbeat",
+      "resumeTool": "resume_plan",
+      "convergenceTool": "converge",
+      "heartbeatAfterEachStep": true,
+      "persistPlanOnFirstHeartbeat": true
+    }
+  },
+  "status": "active",
+  "completedStepIds": [],
+  "skippedSteps": [],
+  "unresolvedItems": [],
+  "evidence": [],
+  "declaredScope": {
+    "projectRoot": "/home/runner/work/coding-tools-mcp/coding-tools-mcp",
+    "docsDir": "docs",
+    "featureName": "issue-72-deferred",
+    "specLayout": "parent-child"
+  },
+  "artifacts": [],
+  "memoryCandidates": [],
+  "architectureCandidates": [],
+  "acceptanceResults": [],
+  "runtimeEvidence": [],
+  "createdAt": "2026-09-25T13:39:34.624Z",
+  "updatedAt": "2026-09-25T13:39:34.624Z"
+}
