@@ -1,0 +1,57 @@
+name: Worktrees candidate formatter (never merge)
+
+on:
+  push:
+    branches: ['ci/worktrees-candidate-review-20260925']
+    paths:
+      - 'src-tauri/src/harness/worktree.rs'
+      - 'src-tauri/src/harness/worktree_tests.rs'
+      - '.github/workflows/continuation-worktrees-format.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.98.1
+          components: rustfmt
+      - name: Format candidate and preserve source-size gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          files=(src-tauri/src/harness/worktree.rs src-tauri/src/harness/worktree_tests.rs)
+          rustfmt --edition 2021 "${files[@]}"
+          wc -l "${files[@]}" | tee evidence/line-counts.txt
+          test "$(wc -l < src-tauri/src/harness/worktree.rs)" -lt 500
+          test "$(wc -l < src-tauri/src/harness/worktree_tests.rs)" -lt 500
+          git diff --check
+          if git diff --quiet -- "${files[@]}"; then
+            echo "already_formatted=true" | tee evidence/result.txt
+            exit 0
+          fi
+          git diff -- "${files[@]}" > evidence/rustfmt.patch
+          git config user.name github-actions
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "${files[@]}"
+          git commit -m "style(harness): format worktree candidate"
+          git fetch origin "ci/worktrees-candidate-review-20260925"
+          test "$(git rev-parse "origin/ci/worktrees-candidate-review-20260925")" = "$GITHUB_SHA"
+          git push origin "HEAD:ci/worktrees-candidate-review-20260925"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: worktrees-format
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: warn
