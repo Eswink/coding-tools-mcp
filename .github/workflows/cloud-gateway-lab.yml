@@ -82,6 +82,11 @@ jobs:
               'src-tauri/src/tools/patch.rs',
               'src-tauri/src/tools/patch_transaction.rs',
               'src-tauri/src/tools/patch_transaction_tests.rs',
+              'src-tauri/src/platform/linux/mod.rs',
+              'src-tauri/src/platform/linux/net.rs',
+              'src-tauri/src/platform/mod.rs',
+              'src-tauri/src/runtime/port.rs',
+              'src-tauri/src/tools/任务恢复传输v2.rs',
           }
           unexpected = [
               p for p in paths
