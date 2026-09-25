@@ -11,6 +11,7 @@
 | 类别 | 选择 | 理由 | 关联需求 |
 |---|---|---|---|
 | 生命周期模块 | src-tauri/src/harness/worktree.rs | Worktree 是 Harness 的隔离执行资源；Harness 已拥有独立 state root | FR-1, FR-2 |
+| bounded Git runner | src-tauri/src/harness/worktree_git.rs | rustfmt 后 manager 超过源码预算；独立纯 argv/timeout/output drain 模块保持各文件 <500 行 | FR-2, FR-3, FR-4, FR-5, NFR-1, NFR-4 |
 | 测试模块 | src-tauri/src/harness/worktree_tests.rs | 独立文件保证实现与测试均低于 500 行 | FR-6, NFR-4 |
 | 模块导出 | 修改 src-tauri/src/harness/mod.rs | 仅导出内部可复用 manager/result 类型，不注册 MCP tool | FR-5 |
 | Git 执行 | std::process::Command argv API + bounded pipe reader | 无 shell 拼接；显式 cwd、输出上限和 exit status | FR-2, FR-5 |
@@ -36,7 +37,8 @@ ToolContext
           └─ remove_clean()
               │
               ▼
-        bounded Git argv runner
+        worktree_git::run_git()
+          └─ bounded stdout/stderr + timeout
 ~~~
 
 主仓库、MCP registry、safe-patch parser 与 snapshot 逻辑均不进入该模块。
@@ -72,6 +74,7 @@ ToolContext
 src-tauri/src/harness/
 ├── mod.rs
 ├── worktree.rs
+├── worktree_git.rs
 └── worktree_tests.rs
 ~~~
 
@@ -119,7 +122,7 @@ list/remove 以 git worktree list porcelain -z 为权威来源；目录存在只
 | dirty tree 被误删 | 高 | status 必须可靠为空；不使用 force |
 | Git 输出过大 | 中 | bounded reader，超限 fail closed |
 | orphan managed dir | 中 | Git registry 是事实来源；失败保留可诊断状态，不递归误删 |
-| 模块膨胀 | 中 | 实现/测试拆文件，分别 <500 行 |
+| 模块膨胀 | 中 | manager、bounded Git runner、测试分别拆文件，均 <500 行 |
 
 ## 检查清单
 

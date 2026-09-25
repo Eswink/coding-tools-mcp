@@ -6,13 +6,14 @@
 
 ## 交付物清单（Scope-lock）
 
-- 预计新建文件数：2
+- 预计新建文件数：3
 - 预计修改文件数：1
-- 预计新增/修改函数数：约 16 个
+- 预计新增/修改函数数：约 18 个
 - 交付物：
   1. src-tauri/src/harness/worktree.rs
-  2. src-tauri/src/harness/worktree_tests.rs
-  3. src-tauri/src/harness/mod.rs
+  2. src-tauri/src/harness/worktree_git.rs
+  3. src-tauri/src/harness/worktree_tests.rs
+  4. src-tauri/src/harness/mod.rs
 
 ## 任务列表
 
@@ -30,7 +31,7 @@
   - 证据块：
     - src-tauri/src/tools/git.rs 现有 Git 工具通过 argv 调 git，但 worktree 生命周期不应继续扩大该只读模块。
     - src-tauri/src/harness/store.rs 使用稳定 code + message 错误风格。
-  - 涉及文件：worktree.rs 追加预算 100 行，总预算不超过 420 行。
+  - 涉及文件：新建 worktree_git.rs，预算 150 行；worktree.rs 仅保留 manager/边界逻辑。
   - 需求：FR-2, FR-3, FR-4, FR-5, NFR-1｜设计：技术选型、决策 3
 
 ## 阶段 2: 核心生命周期
@@ -47,7 +48,7 @@
 
 - [ ] 2.3 实现 clean-only remove、dirty refusal 与 NotFound
   - 证据块：safe-patch 已建立不确定状态不执行破坏性动作的 fail-closed 模式；本 Issue 禁止 force remove。
-  - 涉及文件：worktree.rs，预算 70 行；接近 500 行时先拆 bounded Git runner，禁止突破限制。
+  - 涉及文件：worktree.rs，预算 70 行；bounded Git runner 已按预算拆到 worktree_git.rs，禁止重新内联突破限制。
   - 需求：FR-4, FR-5｜设计：决策 4
 
 ## 阶段 3: 集成测试与验收
@@ -88,13 +89,14 @@
 
 | 文件 | 操作 | 行数预算 | 说明 |
 |---|---|---:|---|
-| src-tauri/src/harness/worktree.rs | 新建 | ≤420 | manager、error、bounded git runner、create/list/remove |
+| src-tauri/src/harness/worktree.rs | 新建 | ≤390 | manager、error、create/list/remove |
+| src-tauri/src/harness/worktree_git.rs | 新建 | ≤160 | bounded Git argv runner、timeout、stdout/stderr drain |
 | src-tauri/src/harness/worktree_tests.rs | 新建 | ≤430 | 真实 Git 生命周期与安全回归 |
-| src-tauri/src/harness/mod.rs | 修改 | +4 | 模块与类型导出 |
+| src-tauri/src/harness/mod.rs | 修改 | +5 | private runner module + manager/type export |
 
 ## 检查清单
 
-- [x] 交付物锁定为 2 新建 + 1 修改。
+- [x] 交付物锁定为 3 新建 + 1 修改；runner 拆分由源码 <500 行门禁触发。
 - [x] 每条任务含真实证据块。
 - [x] 每条任务含路径与行数预算。
 - [x] 所有任务回链 FR 与 design。
