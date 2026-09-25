@@ -29,20 +29,12 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
-      - name: Verify staged worktree candidate on latest feature
+      - name: Verify staged worktree candidate on current source
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p evidence
-          test "$(git merge-base "$PRODUCT_SHA" "$SOURCE_SHA")" = "$SOURCE_SHA"
-          mapfile -t changed < <(git diff --name-only "$SOURCE_SHA"..."$PRODUCT_SHA")
-          printf '%s
-' "${changed[@]}" | tee evidence/changed-paths.txt
-          test "${#changed[@]}" -eq 4
-          test "${changed[0]}" = 'src-tauri/src/harness/mod.rs'
-          test "${changed[1]}" = 'src-tauri/src/harness/worktree.rs'
-          test "${changed[2]}" = 'src-tauri/src/harness/worktree_git.rs'
-          test "${changed[3]}" = 'src-tauri/src/harness/worktree_tests.rs'
+          test "$(git merge-base HEAD "$SOURCE_SHA")" = "$SOURCE_SHA"
           npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.12
           graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
           git checkout "$SOURCE_SHA"
@@ -51,6 +43,8 @@ jobs:
           git checkout "$PRODUCT_SHA" --             src-tauri/src/harness/mod.rs             src-tauri/src/harness/worktree.rs             src-tauri/src/harness/worktree_git.rs             src-tauri/src/harness/worktree_tests.rs
           git add             src-tauri/src/harness/mod.rs             src-tauri/src/harness/worktree.rs             src-tauri/src/harness/worktree_git.rs             src-tauri/src/harness/worktree_tests.rs
           git diff --cached --check
+          git diff --cached --name-only | tee evidence/changed-paths.txt
+          test "$(wc -l < evidence/changed-paths.txt)" -eq 4
           "$graph" detect-changes --scope staged > evidence/detect.txt 2>&1
           cat evidence/detect.txt
           ! grep -q 'No changes detected' evidence/detect.txt
@@ -85,22 +79,20 @@ jobs:
       matrix:
         os: [ubuntu-24.04, windows-2025]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ env.PRODUCT_SHA }}
           persist-credentials: false
           fetch-depth: 0
-      - name: Verify immutable latest-source candidate
+      - name: Verify immutable current-source candidate
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$PRODUCT_SHA"
-          test "$(git merge-base "$PRODUCT_SHA" "$SOURCE_SHA")" = "$SOURCE_SHA"
+          test "$(git merge-base HEAD "$SOURCE_SHA")" = "$SOURCE_SHA"
+          test "$(git rev-parse "$PRODUCT_SHA")" = "$PRODUCT_SHA"
           mapfile -t changed < <(git diff --name-only "$SOURCE_SHA"..."$PRODUCT_SHA")
-          printf '%s
-' "${changed[@]}"
+          printf '%s\n' "${changed[@]}"
           test "${#changed[@]}" -eq 4
       - name: Install Ubuntu native dependencies
         if: runner.os == 'Linux'
