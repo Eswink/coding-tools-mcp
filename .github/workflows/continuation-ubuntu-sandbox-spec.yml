@@ -1,0 +1,487 @@
+name: Ubuntu sandbox spec and estimate (never merge)
+
+on:
+  push:
+    branches: ['ci/ubuntu-sandbox-plan-init-20260925']
+    paths:
+      - '.github/workflows/continuation-ubuntu-sandbox-spec.yml'
+
+permissions:
+  contents: write
+
+env:
+  PLAN_ID: feature-issue-73-ubuntu-steady-1c1e22e5cd
+  PLAN_PATH: .mcp-probe-kit/plans/feature-issue-73-ubuntu-steady-1c1e22e5cd.json
+  SOURCE_SHA: 6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd
+
+jobs:
+  spec:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Install mcp-probe and resume Plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence docs/specs/issue-73-ubuntu
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-before.json 2>&1
+          cat evidence/resume-before.json
+          node -e "const r=require('./evidence/resume-before.json'); if(r.isError===true||r.structuredContent?.nextStepId!=='context') process.exit(1)"
+      - name: Context and persisted spec
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./.mcp-probe-kit/bin/probe exec init_project_context --json "{\"project_root\":\"$PWD\",\"docs_dir\":\"docs\"}" > evidence/context.json 2>&1
+          cat > docs/specs/issue-73-ubuntu/requirements.md <<'DOC'
+# 需求文档：issue-73-ubuntu
+
+## 功能概述
+
+为已通过本地 `LocalAdmission` 与 `ExecPolicy` 的命令增加 Ubuntu-only 执行沙箱。沙箱位于策略批准之后、child exec 之前，默认限制 workspace 外的文件系统写入并禁止新建网络 socket；Linux 隔离原语不可用时必须 fail-closed。现有 Windows 执行语义、PTY/非 PTY I/O、取消与进程树清理保持不变。
+
+## 历史经验与坑
+
+- **可复用经验**: 现有 `process_tree` 只负责生命周期 containment，不能冒充安全沙箱；`VerifiedInvocation` 是不可由安全外部代码伪造的本地授权证明。
+- **必须规避的坑**: 不在 `pre_exec` 中构造复杂 Rust 对象或做可能分配的工作；不依赖未打包的外部 `bwrap`；不因 Landlock/seccomp 不可用而降级到 unsandboxed execution；不改变 Windows 行为。
+
+## 术语定义
+
+- **Workspace write confinement**: 系统文件仍可只读访问以支持动态加载与宿主 executable，但写入、创建、删除、rename、truncate 只允许发生在 canonical workspace 内。
+- **Network capability**: 仅当不可伪造的本地 `VerifiedInvocation` 对应 admission 包含 `Capability::Network` 时允许 child 创建新 socket；默认拒绝。
+- **Sandbox preparation**: 在父进程中创建 Landlock ruleset fd 与 seccomp BPF；child `pre_exec` 只调用预先确定的原始 syscall 安装限制。
+
+---
+
+## 范围边界
+
+**In Scope**
+- Ubuntu/Linux 普通 process execution 的 workspace-write sandbox。
+- Ubuntu/Linux PTY execution 的同一 sandbox。
+- 默认 network deny 与 capability-gated network allow。
+- Landlock ABI 与 seccomp 可用性检测和 fail-closed 分类。
+- workspace escape、symlink escape、network denial、network allow、cancel/process-tree、PTY/non-PTY、Windows no-change 回归测试。
+
+**Out of Scope**
+- Windows sandbox。
+- 文件系统读隔离或完整 rootfs virtualization。
+- Hooks、worktrees、snapshots、云端授权、UI、安装包。
+- 改变 `LocalAdmission` / `ExecPolicy` 决策语义。
+- 外部 sandbox daemon 或必须预装的 bubblewrap。
+
+---
+
+## 需求列表
+
+### FR-1: Ubuntu workspace 外写入必须被内核沙箱拒绝
+
+**优先级:** Must  
+**用户故事:** 作为本地执行 runtime，我要在 command 已获批准后限制其写作用域，以便模型/命令不能修改 workspace 外宿主文件。
+
+#### 验收标准
+
+1. WHEN Ubuntu child 在 approved workspace 内创建、修改、删除文件 THEN 系统 SHALL 允许该操作。
+2. WHEN child 直接写 workspace 外路径 THEN 系统 SHALL 由内核隔离拒绝，而不是由命令约定自律。
+3. WHEN workspace 内 symlink 指向 workspace 外目标且 child 通过该 symlink 写入 THEN 系统 SHALL 拒绝写入。
+4. IF Landlock ABI 小于所需版本或 ruleset 无法 fully install THEN 系统 SHALL 在 exec 前返回显式 Sandbox failure，且不得启动 unsandboxed child。
+
+### FR-2: 无 Network capability 时禁止新网络 socket
+
+**优先级:** Must  
+**用户故事:** 作为本地授权层，我要让网络能力与本地 admission 绑定，以便通过 ProcessExec 不会自动获得网络权限。
+
+#### 验收标准
+
+1. WHEN verified invocation 不含 `Capability::Network` THEN child SHALL 不能创建新 `socket` 或 `socketpair`。
+2. WHEN verified invocation 含 `Capability::Network` THEN network syscall filter SHALL 不阻断该 child；文件系统 write confinement 仍生效。
+3. IF seccomp filter 无法安装 THEN execution SHALL fail closed before target exec。
+
+### FR-3: 普通 exec 与 PTY 使用同一 Ubuntu sandbox contract
+
+**优先级:** Must  
+**用户故事:** 作为 runtime，我要让 PTY 与非 PTY 具有一致隔离，以免交互终端绕过安全边界。
+
+#### 验收标准
+
+1. WHEN `ProcessManager` 启动 child THEN sandbox SHALL 在 child exec 前安装。
+2. WHEN `PtyManager` 启动 child THEN 同一 sandbox policy SHALL 在 setsid/stdio 设置完成后、target exec 前安装。
+3. WHILE sandbox 生效，现有 bounded I/O、timeout、cancel 与 process-tree cleanup SHALL 保持通过。
+
+### FR-4: Windows 行为保持不变
+
+**优先级:** Must  
+**用户故事:** 作为 Windows 用户，我不要 Ubuntu sandbox 增量改变现有 ConPTY/Process 行为。
+
+#### 验收标准
+
+1. WHEN Windows 构建与测试运行 THEN 不编译或调用 Linux Landlock/seccomp implementation。
+2. WHEN现有 Windows process/PTY tests 运行 THEN 行为与当前 verified native-PTY baseline 一致。
+
+---
+
+## 非功能需求
+
+- **NFR-1（安全）**: sandbox 安装失败必须显式 fail-closed；不得记录 argv/env/host path 内容到 Debug 错误。
+- **NFR-2（兼容性）**: Ubuntu 24.04 runner 上要求 Landlock ABI >= 3 与 seccomp filter 可用；已验证 runner 为 kernel 6.17 / Landlock ABI 7。
+- **NFR-3（可维护性）**: Linux sandbox 实现独立英文文件，单文件 <500 行；Windows 文件不改或仅有 compile-only facade wiring。
+- **NFR-4（可审计性）**: production symbol 编辑前有 pinned GitNexus impact；提交前 staged detect 必须非 false-clean。
+
+## 依赖关系
+
+- 已 verified：`exec-policy`、`exec-unification`、`native-pty`。
+- Linux 原语：Landlock syscall、`PR_SET_NO_NEW_PRIVS`、seccomp BPF。
+- 现有 `libc` Unix dependency 可复用；第一增量不要求外部可执行文件。
+
+## 检查清单
+
+- [x] 历史边界与 process-tree 非 sandbox 事实已纳入
+- [x] 每条 FR 有稳定 ID
+- [x] EARS-style acceptance 可自动验证
+- [x] In/Out Scope 明确
+- [x] 不把 physical host / real ChatGPT 写成 PASS
+
+DOC
+          cat > docs/specs/issue-73-ubuntu/design.md <<'DOC'
+# 设计文档：issue-73-ubuntu
+
+## 概述
+
+本设计在 local-agent 的低层 process/PTY spawn 边界引入 Linux-only sandbox facade。策略与 admission 仍先于 spawn；sandbox 只负责将已决定的最小权限落实到 Linux kernel。默认策略为 workspace 外只读、network deny。Network allow 只能由 `VerifiedInvocation` 中的 `Capability::Network` 派生。
+
+**对应需求:** FR-1, FR-2, FR-3, FR-4, NFR-1..4
+
+---
+
+## 技术方案
+
+### 技术选型
+
+| 类别 | 选择 | 理由 | 关联需求 |
+|---|---|---|---|
+| 文件系统写隔离 | Linux Landlock raw syscall | 内核强制、无需外部 daemon；ABI 7 runner 已实测 | FR-1 |
+| 网络默认拒绝 | seccomp-BPF deny new socket/socketpair | 覆盖 TCP/UDP/Unix 新 socket，避免 Landlock ABI7 的网络范围不足 | FR-2 |
+| 权限来源 | `VerifiedInvocation` capability | 不增加可伪造 public bool 开关 | FR-2 |
+| child 安装 | parent prepare + child raw-syscall apply | 避免 post-fork 分配/复杂 Rust 调用 | FR-1, FR-3 |
+| Windows | cfg-gated no-op / existing path | 保持 ConPTY/process baseline | FR-4 |
+
+### 架构设计
+
+```
+ToolRegistry.invoke
+  -> VerifiedInvocation (LocalAdmission checked)
+  -> executor / spec construction
+       -> default Linux sandbox: workspace-write + deny-network
+       -> optional Network grant derived from VerifiedInvocation only
+  -> ProcessManager / PtyManager
+       -> parent: sandbox::prepare(canonical_workspace, network_mode)
+       -> child pre_exec:
+            PR_SET_NO_NEW_PRIVS
+            Landlock restrict_self(prepared ruleset fd)
+            seccomp filter install when network denied
+       -> exec target
+```
+
+Landlock 只声明 write-class handled rights：write/create/remove/rename/refer/truncate 等。未 handled 的 read/execute 权限继续由宿主 Unix DAC 控制，使 `/usr/bin`、动态 loader 与共享库可读/可执行，同时 workspace 外写入 fail-closed。
+
+网络 deny filter 在 child 没有继承网络 fd 的前提下拒绝 `socket` 与 `socketpair`，从源头阻止创建 TCP/UDP/Unix sockets。Network capability 存在时不安装网络 deny filter，但 Landlock write confinement 仍安装。
+
+---
+
+## 数据模型
+
+不涉及持久化。
+
+内部 runtime 增加：
+- `SandboxErrorKind`: Unsupported / Setup / Apply。
+- `LinuxSandboxPlan`: parent prepared Landlock fd + optional seccomp program；Debug 不显示 host path。
+- `ExecSpec/PtySpec` 内部 sandbox network mode，Linux 默认 Denied。
+- capability-gated network enable 方法接受 `VerifiedInvocation`，不接受裸 bool 作为 public authority。
+
+---
+
+## API 设计
+
+| 函数/类型 | 契约 | 关联需求 |
+|---|---|---|
+| `sandbox::prepare(workspace, allow_network)` | parent 侧 canonicalize + Landlock ruleset/BPF 准备；失败即 error | FR-1, FR-2 |
+| `LinuxSandboxPlan::install_in_child()` | pre_exec 中仅 raw syscall/close，失败阻止 exec | FR-1, FR-3 |
+| `ExecSpec/PtySpec network grant` | 只从 verified local Network capability 派生 | FR-2 |
+| process/PTY spawn wiring | Ubuntu child exec 前安装 sandbox；Windows 不走该实现 | FR-3, FR-4 |
+
+---
+
+## 文件结构
+
+```
+services/local-agent/
+├── Cargo.toml                         # 仅在确有需要时调整；优先复用 libc
+├── src/
+│   ├── lib.rs                         # 导出稳定 error/policy surface
+│   ├── registry.rs                    # VerifiedInvocation capability query（最小）
+│   ├── process.rs                     # ExecSpec + parent prepare
+│   ├── process_tree.rs                # Unix child pre_exec wiring
+│   ├── pty.rs                         # PtySpec sandbox policy
+│   ├── pty_unix.rs                    # existing PTY pre_exec + sandbox apply
+│   ├── sandbox.rs                     # cfg facade / bounded public error
+│   └── sandbox_linux.rs               # Landlock + seccomp raw implementation
+└── tests/
+    ├── process_runtime.rs
+    ├── pty_runtime.rs
+    └── sandbox_runtime.rs             # Ubuntu integration contracts
+```
+
+单文件预算：`sandbox_linux.rs < 500` 行，其余每个增量 <150 行。
+
+---
+
+## 设计决策
+
+### 决策 1: 不使用 bubblewrap（FR-1）
+
+**问题**: 外部 sandbox 工具可能未随产品安装。  
+**决策**: 第一增量使用内核原语，不引入必须存在的外部 binary。  
+**理由**: issue 要求 primitive 不可用时 fail-closed，而非依赖未打包工具。
+
+### 决策 2: Landlock 限制写，不限制全局只读读取（FR-1）
+
+**问题**: execve、动态 loader 和宿主 executable 需要读取 workspace 外系统文件。  
+**决策**: handled rights 只包含 write-class operations；workspace root 获得这些 rights。  
+**理由**: 与 Codex-style “workspace writable / host read-only”边界一致，且不会为动态依赖建立脆弱 allowlist。
+
+### 决策 3: seccomp 默认禁止新 socket（FR-2）
+
+**问题**: Ubuntu runner Landlock ABI 7 不能完整覆盖所有网络族/UDP。  
+**决策**: 无 Network capability 时拒绝 `socket`、`socketpair` syscall；Network capability 时省略该 filter。  
+**理由**: 默认无网络覆盖 TCP/UDP/Unix socket 创建，规则小且可在 parent 预构建。
+
+### 决策 4: 不把 process-group/Job Object 当 sandbox（FR-3）
+
+**问题**: 现有 process_tree 只处理生命周期。  
+**决策**: sandbox 单独模块，process-tree 保持 kill/cancel 职责。  
+**理由**: 安全隔离与生命周期 containment 分离，便于 Windows 后续独立实现。
+
+---
+
+## 测试策略
+
+Ubuntu 24.04：
+1. workspace 内 write 成功。
+2. workspace 外 write 被 EPERM/EACCES 拒绝且目标未改变。
+3. workspace 内 symlink 指向外部时 write 被拒绝。
+4. 无 Network capability 时 fixture 新建 socket 失败。
+5. 有本地 Network capability 的 unit path 可允许 socket 创建。
+6. Landlock/seccomp setup failure 在 exec 前映射 Sandbox error。
+7. process timeout/cancel/grandchild cleanup 原回归全绿。
+8. PTY terminal/read/write/resize/cancel/tree cleanup 在 sandbox 下全绿。
+
+Windows 2025：
+- 完整 local-agent process + PTY tests 不改变行为；Linux module 不编译。
+
+---
+
+## 风险评估
+
+| 风险 | 影响 | 缓解措施 |
+|---|---|---|
+| pre_exec 非 async-signal-safe | 高 | parent prepare；child 只执行 raw syscall/close |
+| Landlock ABI 差异 | 高 | require ABI>=3；不足即 fail closed |
+| seccomp arch/syscall 表错误 | 高 | cfg arch + audit arch check；Ubuntu fixture 实测 |
+| Network capability 绕过 | 高 | 只从不可伪造 VerifiedInvocation 派生 |
+| PTY 行为回归 | 中 | 在现有 setsid/dup2 后安装并跑完整 PTY regression |
+| Windows 回归 | 中 | cfg 隔离 + Windows 2025 full local-agent tests |
+
+DOC
+          cat > docs/specs/issue-73-ubuntu/tasks.md <<'DOC'
+# 任务清单：issue-73-ubuntu
+
+## 概述
+
+实现 Ubuntu-only fail-closed sandbox。所有 production 编辑必须先完成对应 GitNexus impact；HIGH/CRITICAL 需先停下评审。实现不得扩展到 Windows sandbox、Hooks、worktree/snapshot、UI 或 packaging。
+
+---
+
+## 交付物清单（Scope-lock）
+
+- **预计新建文件数**: 3 个（`sandbox.rs`, `sandbox_linux.rs`, `sandbox_runtime.rs`）
+- **预计修改文件数**: 7 个以内（`lib.rs`, `registry.rs`, `process.rs`, `process_tree.rs`, `pty.rs`, `pty_unix.rs`, 必要时 fixture）
+- **预计新增/修改函数数**: 约 12-18 个
+- **交付物逐项列举**:
+  1. Linux sandbox facade 与 bounded error surface。
+  2. parent-prepared Landlock write ruleset。
+  3. parent-prepared seccomp network deny filter。
+  4. ProcessManager sandbox wiring。
+  5. PtyManager sandbox wiring。
+  6. VerifiedInvocation-gated Network grant seam。
+  7. Ubuntu workspace/symlink/network/process-tree regression。
+  8. Windows no-change regression evidence。
+
+---
+
+## 阶段 1: 准备工作
+
+- [ ] 1.1 固化 primitive 与影响面证据，禁止在未知风险符号上编辑
+  - **证据块**: run `36160607897`: Ubuntu kernel 6.17, Landlock ABI 7, seccomp ERRNO available；GitNexus `process_tree::spawn` LOW/lower-bound，`pty_unix::spawn` lower-bound。
+  - **涉及文件**: 不改 production；保存 impact/primitive evidence。
+  - _需求: FR-1, FR-2, NFR-4_ ｜ _设计: 技术选型_
+
+- [ ] 1.2 对每个计划修改符号执行 fresh GitNexus context/impact
+  - **证据块**: 必须覆盖 `ProcessManager::start`, `ExecSpec`, `PtyManager::start`, `PtySpec`, `VerifiedInvocation`, Unix spawn seams。
+  - **涉及文件**: 只读；HIGH/CRITICAL 时暂停对应 production edit。
+  - _需求: FR-1..4_ ｜ _设计: 架构设计_
+
+---
+
+## 阶段 2: 核心实现
+
+- [ ] 2.1 新增 parent-prepared Linux sandbox primitive，缺失时 fail-closed
+  - **证据块**: 当前 `process_tree.rs` 注释明确“lifecycle containment, not a security sandbox”；现有 Unix dependency 已含 `libc`。
+  - **涉及文件**: 新建 `src/sandbox.rs` <180 行，`src/sandbox_linux.rs` <500 行；修改 `src/lib.rs` <30 行。
+  - _需求: FR-1, FR-2, NFR-1..3_ ｜ _设计: Landlock/seccomp_
+
+- [ ] 2.2 将默认 Linux sandbox 注入普通 process spawn
+  - **证据块**: `ProcessManager::start` canonicalize cwd 后构造 Command，随后进入 `process_tree::spawn`。
+  - **涉及文件**: `src/process.rs` <100 行，`src/process_tree.rs` <80 行。
+  - _需求: FR-1, FR-2, FR-3_ ｜ _设计: child 安装_
+
+- [ ] 2.3 将同一 sandbox 注入 PTY spawn 且保持 TTY 初始化
+  - **证据块**: `pty_unix.rs::spawn` 已在单个 `pre_exec` closure 中执行 setsid/TIOCSCTTY/dup2。
+  - **涉及文件**: `src/pty.rs` <90 行，`src/pty_unix.rs` <80 行。
+  - _需求: FR-2, FR-3, FR-4_ ｜ _设计: PTY wiring_
+
+- [ ] 2.4 将 Network 放行绑定到 VerifiedInvocation，而非 public bool
+  - **证据块**: `VerifiedInvocation` 无 public constructor/Clone；`LocalAdmission.capabilities` 仅 crate 内可读。
+  - **涉及文件**: `src/registry.rs` <40 行，`src/process.rs`/`src/pty.rs` builder 各 <30 行。
+  - _需求: FR-2_ ｜ _设计: 权限来源_
+
+---
+
+## 阶段 3: 集成测试
+
+- [ ] 3.1 验证 workspace write、escape、symlink escape 与 setup fail-closed
+  - **证据块**: 现有 `process_runtime.rs` 已覆盖 timeout/cancel/output/tree，新增 sandbox contract 不替代这些测试。
+  - **涉及文件**: 新建 `tests/sandbox_runtime.rs` <450 行，必要 fixture 增量 <120 行。
+  - _需求: FR-1, NFR-1_ ｜ _设计: 测试策略_
+
+- [ ] 3.2 验证 network deny/allow 与 PTY/process 等价
+  - **证据块**: `Capability::Network` 已存在；PTY integration tests 已覆盖 terminal/write/resize/cancel/tree。
+  - **涉及文件**: `tests/sandbox_runtime.rs`, `tests/pty_runtime.rs` <80 行增量。
+  - _需求: FR-2, FR-3_ ｜ _设计: 测试策略_
+
+- [ ] 3.3 运行 Ubuntu/Windows full regression 与 staged detect
+  - **证据块**: Ubuntu exact sandbox tests + local-agent full suite；Windows 2025 完整 local-agent no-change；GitNexus detect 非 false-clean。
+  - **涉及文件**: never-merge CI helper only。
+  - _需求: FR-1..4, NFR-4_ ｜ _设计: 测试策略_
+
+---
+
+## 检查点
+
+- [ ] 阶段 1 完成后：所有 production 目标符号有 fresh impact，HIGH/CRITICAL 已停审。
+- [ ] 阶段 2 完成后：Linux 缺原语无法启动 unsandboxed child；Windows 代码路径无行为变化。
+- [ ] 阶段 3 完成后：workspace escape/symlink/network/cancel/process-tree/PTY/Windows 回归全部通过。
+
+---
+
+## 需求覆盖矩阵
+
+| 需求 ID | 设计章节 | 任务编号 | 状态 |
+|---|---|---|---|
+| FR-1 | Landlock write confinement | 1.1, 1.2, 2.1, 2.2, 3.1 | 未开始 |
+| FR-2 | seccomp + VerifiedInvocation | 1.1, 2.1, 2.4, 3.2 | 未开始 |
+| FR-3 | process/PTY shared contract | 2.2, 2.3, 3.2 | 未开始 |
+| FR-4 | Windows no-change | 2.3, 3.3 | 未开始 |
+
+---
+
+## 文件变更清单
+
+| 文件 | 操作 | 行数预算 | 说明 |
+|---|---|---:|---|
+| services/local-agent/src/sandbox.rs | 新建 | <180 | cfg facade / bounded error |
+| services/local-agent/src/sandbox_linux.rs | 新建 | <500 | raw Landlock/seccomp |
+| services/local-agent/src/process.rs | 修改 | <100 | prepare/wiring/network grant |
+| services/local-agent/src/process_tree.rs | 修改 | <80 | child install |
+| services/local-agent/src/pty.rs | 修改 | <90 | sandbox policy |
+| services/local-agent/src/pty_unix.rs | 修改 | <80 | child install |
+| services/local-agent/src/registry.rs | 修改 | <40 | capability query |
+| services/local-agent/src/lib.rs | 修改 | <30 | stable exports |
+| services/local-agent/tests/sandbox_runtime.rs | 新建 | <450 | sandbox integration contracts |
+| services/local-agent/tests/pty_runtime.rs | 修改 | <80 | PTY equivalence |
+
+DOC
+          python - <<'PY' > evidence/hb-spec.json
+          import json, os
+          print(json.dumps({
+            "plan_id":os.environ["PLAN_ID"],
+            "project_root":os.getcwd(),
+            "completed_step_ids":["context","write-spec"],
+            "evidence":[
+              {"kind":"other","step_id":"context","summary":"Project context is available for the Ubuntu sandbox feature.","reference":f"GitHub Actions run {os.environ['GITHUB_RUN_ID']}","revision":os.environ["SOURCE_SHA"]},
+              {"kind":"requirements","step_id":"write-spec","summary":"Issue #73 requirements/design/tasks lock a Linux-only Landlock write sandbox plus capability-gated seccomp network deny; Windows and unrelated features are out of scope.","reference":"docs/specs/issue-73-ubuntu/requirements.md + design.md + tasks.md","revision":os.environ["SOURCE_SHA"]}
+            ],
+            "last_verified_revision":os.environ["SOURCE_SHA"]
+          }, separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/hb-spec.json > evidence/hb-spec-out.json 2>&1
+          cat evidence/hb-spec-out.json
+      - name: Check spec and estimate
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./.mcp-probe-kit/bin/probe exec check_spec --json "{\"project_root\":\"$PWD\",\"feature_name\":\"issue-73-ubuntu\",\"docs_dir\":\"docs\"}" > evidence/check-spec.json 2>&1
+          cat evidence/check-spec.json
+          node -e "const r=require('./evidence/check-spec.json'); if(r.isError===true||r.structuredContent?.passed!==true) process.exit(1)"
+          python - <<'PY' > evidence/estimate-request.json
+          import json, os
+          print(json.dumps({
+            "task_description":"Implement issue-73 Ubuntu sandbox from docs/specs/issue-73-ubuntu/tasks.md: parent-prepared Landlock workspace-write confinement plus default seccomp network deny, VerifiedInvocation-gated network allow, process and PTY wiring, fail-closed primitive errors, Ubuntu/Windows regression.",
+            "code_context":"Use docs/specs/issue-73-ubuntu/design.md and tasks.md plus primitive/impact run 36160607897.",
+            "project_root":os.getcwd()
+          }))
+          PY
+          ./.mcp-probe-kit/bin/probe exec estimate --stdin < evidence/estimate-request.json > evidence/estimate.json 2>&1
+          cat evidence/estimate.json
+          python - <<'PY' > evidence/hb-check.json
+          import json, os
+          print(json.dumps({
+            "plan_id":os.environ["PLAN_ID"],
+            "project_root":os.getcwd(),
+            "completed_step_ids":["context","write-spec","check-spec","estimate"],
+            "evidence":[
+              {"kind":"spec","step_id":"check-spec","summary":"check_spec passed for the concrete Ubuntu sandbox spec.","reference":f"GitHub Actions run {os.environ['GITHUB_RUN_ID']} evidence/check-spec.json","revision":os.environ["SOURCE_SHA"]},
+              {"kind":"other","step_id":"estimate","summary":"estimate executed after spec validation; implementation remains blocked on per-symbol fresh GitNexus impact.","reference":f"GitHub Actions run {os.environ['GITHUB_RUN_ID']} evidence/estimate.json","revision":os.environ["SOURCE_SHA"]},
+              {"kind":"review","step_id":"estimate","summary":"Primitive feasibility run 36160607897 observed Ubuntu kernel 6.17, Landlock ABI 7 and seccomp ERRNO support; process_tree::spawn impact LOW/lower-bound and PTY spawn lower-bound, so missing graph edges are not treated as safety proof.","reference":"GitHub Actions run 36160607897","revision":os.environ["SOURCE_SHA"]}
+            ],
+            "last_verified_revision":os.environ["SOURCE_SHA"]
+          }, separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/hb-check.json > evidence/hb-check-out.json 2>&1
+          cat evidence/hb-check-out.json
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-after.json 2>&1
+          cat evidence/resume-after.json
+          node -e "const r=require('./evidence/resume-after.json'); if(r.isError===true||r.structuredContent?.nextStepId!=='implement') process.exit(1)"
+      - name: Persist plan and spec without helper side effects
+        shell: bash
+        run: |
+          set -euo pipefail
+          git restore -- AGENTS.md CLAUDE.md docs/graph-insights/latest.md docs/graph-insights/latest.json docs/project-context.md docs/project-context 2>/dev/null || true
+          git config user.name github-actions
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "$PLAN_PATH" docs/specs/issue-73-ubuntu
+          git diff --cached --check
+          git commit -m "chore(plan): specify Ubuntu sandbox boundary"
+          git fetch origin "ci/ubuntu-sandbox-plan-init-20260925"
+          test "$(git rev-parse "origin/ci/ubuntu-sandbox-plan-init-20260925")" = "$GITHUB_SHA"
+          git push origin "HEAD:ci/ubuntu-sandbox-plan-init-20260925"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ubuntu-sandbox-spec
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
