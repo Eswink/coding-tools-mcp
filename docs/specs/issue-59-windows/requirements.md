@@ -1,102 +1,111 @@
 # Issue #59 — Native PTY requirements
 
-## Goal
+## 功能概述
 
-Add the first bounded native pseudo-terminal execution primitive to the local Agent runtime:
+本增量为 local Agent 增加第一个内部 native PTY execution primitive：
 
-- Windows uses the Windows Pseudo Console (ConPTY) API.
-- Ubuntu/Linux uses a real Unix PTY.
-- The increment remains an internal execution primitive. It does **not** register a new public MCP/tool-registry entry and does not expand local authorization.
-- Existing command policy, local admission, no-replay, sandbox, snapshot, Hook, cloud-authority, UI and packaging contracts remain unchanged.
+- Windows 使用 Windows Pseudo Console（ConPTY）。
+- Ubuntu/Linux 使用真实 Unix PTY。
+- 不新增公开 MCP Tool，不扩大 local authority、exec-policy、admission 或 no-replay 权限。
+- 不包含 sandbox、Hooks、worktree、snapshot、UI、packaging。
+- 新增或修改源码文件必须使用英文文件名并满足仓库源码长度限制。
 
-## Security and ownership invariants
+## 需求列表
 
-1. PTY execution must never bypass the existing local authority boundary. This issue adds no new remotely invocable tool.
-2. Process-tree containment is mandatory:
-   - Windows child code must not run before the process is owned by the existing kill-on-close Job Object.
-   - Linux child must enter an owned session/process group before exec so cancellation can terminate the full tree.
-   - A “spawn first, attach to a Job Object later” design is out of scope because it introduces an unmanaged-child race.
-3. Windows behavior must use native ConPTY rather than an emulated pipe-only terminal.
-4. Linux behavior must use a real PTY and controlling-terminal semantics rather than ordinary stdin/stdout pipes.
-5. Debug/error surfaces must not expose raw argv, environment values, workspace paths or terminal input/output.
-6. PTY handles, pipe/file descriptors, pseudo-console handles and process handles are RAII-owned and must fail closed on partial startup.
-7. No detached background child is permitted after timeout, cancel, close, output-limit termination or session drop.
+### FR-1 原生 PTY
+WHEN 平台为 Windows，THE SYSTEM SHALL 使用 ConPTY，而不是普通 pipe 模拟终端。
+WHEN 平台为 Ubuntu/Linux，THE SYSTEM SHALL 使用真实 PTY 和 controlling-terminal/session 语义。
 
-## Bounded input
+### FR-2 先归属后执行
+WHEN Windows 创建 PTY child，THE SYSTEM SHALL 使用 CREATE_SUSPENDED，并在 child 代码执行前完成 kill-on-close Job Object 归属，再 resume exact primary thread。
+WHEN Linux 创建 PTY child，THE SYSTEM SHALL 在 exec 前建立 owned session/process group，使取消和清理仍使用现有 negative-PGID tree semantics。
 
-The PTY request must validate before spawn:
+### FR-3 有界请求
+WHEN 请求进入 PTY manager 且尚未 spawn，THE SYSTEM SHALL fail-closed 校验：
+- executable 是 absolute path；
+- cwd 已存在并 canonical；
+- argv 数量 <= 128；
+- 单 token <= 4 KiB，argv 总计 <= 64 KiB；
+- env <= 64 项，单值 <= 16 KiB，总计 <= 64 KiB；
+- 不继承 ambient environment；
+- timeout > 0 且 <= 1 hour；
+- retained output > 0 且 <= 1 MiB；
+- rows/columns 非零且 <= 1000；
+- 单次 interactive write <= 64 KiB。
 
-- absolute executable path;
-- existing canonical working directory;
-- argv count <= 128;
-- token bytes <= 4 KiB and total argv bytes <= 64 KiB;
-- explicit environment only: <= 64 entries, <= 16 KiB per value and <= 64 KiB total;
-- no ambient environment inheritance;
-- timeout > 0 and <= 1 hour;
-- retained terminal output > 0 and <= 1 MiB;
-- initial terminal rows/columns are non-zero and bounded to an implementation-defined safe maximum no greater than 1000;
-- each interactive write is bounded to <= 64 KiB.
+### FR-4 会话 API
+WHEN PTY session 成功创建，THE SYSTEM SHALL 提供 opaque session ID、write、resize、output snapshot、total bytes、wait、cancel/close、status、exit code、duration、truncated、output_complete 和 termination cause。
+WHEN PTY output 被读取，THE SYSTEM SHALL 按单一 terminal byte stream 表达，不虚构 stdout/stderr 分离。
 
-The constants should reuse existing local-Agent execution limits where that can be done without modifying the already oversized legacy `process.rs`. New or modified source files in this issue must remain below 500 lines after rustfmt.
+### FR-5 Windows ConPTY 生命周期
+WHEN Windows backend 启动，THE SYSTEM SHALL：
+1. 创建 ConPTY input/output pipes；
+2. CreatePseudoConsole；
+3. 构造 STARTUPINFOEXW + PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE；
+4. CreateProcessW 使用 EXTENDED_STARTUPINFO_PRESENT、CREATE_UNICODE_ENVIRONMENT、CREATE_SUSPENDED；
+5. 在 resume 前 AssignProcessToJobObject(exact process handle)；
+6. ResumeThread(exact primary thread)；
+7. ResizePseudoConsole 支持 resize；
+8. 部分失败时确定性关闭 process/thread/Job/HPCON/pipes。
 
-## Session API
+### FR-6 Ubuntu/Linux PTY 生命周期
+WHEN Linux backend 启动，THE SYSTEM SHALL：
+1. allocate PTY master/slave；
+2. exec 前设置 initial winsize；
+3. pre-exec 只执行 audited syscall-level setsid / controlling-terminal setup；
+4. 显式设置 argv/cwd/env；
+5. parent spawn 后关闭 slave copies；
+6. child session/process-group 成为 owned tree identity；
+7. TIOCSWINSZ 支持 resize。
 
-The internal API must expose a bounded session with:
+### FR-7 终止与自然退出
+WHEN timeout、cancel、close、output overflow 或 session drop 发生，THE SYSTEM SHALL 终止完整 owned process tree，并在发布 terminal outcome 前确认 child 结束。
+WHEN parent 自然退出但 descendants 可能仍存活，THE SYSTEM SHALL 执行 owned-tree cleanup，保持现有 non-detach 行为。
 
-- opaque session ID;
-- write bytes to the terminal;
-- resize rows/columns;
-- read/snapshot retained terminal output and total byte count;
-- wait for completion;
-- cancel/close the owned PTY process tree;
-- terminal status/exit code/duration;
-- explicit output truncation and completion metadata.
+### FR-8 输出与容量
+WHEN total PTY output 超过 retained limit，THE SYSTEM SHALL 终止 session、最多保留配置字节数，并报告真实 total bytes 与 truncated=true。
+WHEN capacity 已耗尽，THE SYSTEM SHALL 在 spawn 前拒绝且不产生 child。
 
-The first increment does not promise an EOF-only half-close primitive. `close` is an explicit owned-session termination path and must not detach the child.
+### FR-9 双平台验收
+WHEN candidate 进入 VERIFY，THE SYSTEM SHALL 在 Windows Server 2025 与 Ubuntu 24.04 验证 terminal presence、Unicode/byte echo、resize、timeout、cancel/close、output overflow、capacity、drop cleanup、grandchild cleanup、Windows argv quoting 与 Debug redaction。
 
-Terminal output is a single PTY byte stream. Do not fabricate separate stdout/stderr because PTY semantics merge them.
+## 非功能需求
 
-## Platform requirements
+### NFR-1 权限边界
+PTY API SHALL 保持 library-internal，不注册公开 Tool，不绕过 local grant、exec-policy、admission 或 no-replay。
 
-### Windows
+### NFR-2 资源所有权
+Process/thread/Job/HPCON/pipe/fd SHALL 使用 RAII 或等价单一所有权；部分启动失败不得残留 unmanaged child。
 
-- Create input/output pipes for ConPTY.
-- Create the pseudo console with `CreatePseudoConsole`.
-- Build a `STARTUPINFOEXW` attribute list containing `PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE`.
-- Spawn with `CreateProcessW`, `EXTENDED_STARTUPINFO_PRESENT`, `CREATE_UNICODE_ENVIRONMENT`, `CREATE_SUSPENDED` and the existing process-group semantics.
-- Create the kill-on-close Job Object before process startup.
-- Assign the suspended child process to the Job Object using the exact process handle from `PROCESS_INFORMATION`, then resume the exact primary thread handle. Child code must not execute before assignment succeeds.
-- Resize with `ResizePseudoConsole`.
-- On every partial failure, terminate/close process, thread, Job Object, pseudo console and pipes deterministically.
+### NFR-3 不泄密
+Debug/error SHALL 不包含 raw argv、environment value、workspace absolute path 或 terminal input/output。
 
-### Ubuntu/Linux
+### NFR-4 源码规模
+本 Issue 新增或修改的 Rust source SHALL 在 rustfmt 后小于 500 行；不得扩张现有 oversized legacy process.rs。
 
-- Allocate master/slave PTY descriptors with the platform PTY syscall/API.
-- Configure the initial window size before exec.
-- Child pre-exec performs only audited syscall-level setup required for a new session/controlling terminal; no allocation or non-async-signal-safe application logic.
-- The executed child becomes the owned session/process-group leader so the existing negative-PGID termination model remains valid.
-- Resize with `TIOCSWINSZ`.
-- Parent closes the slave copies after spawn and owns bounded master reader/writer handles.
+### NFR-5 影响门禁
+任何 existing production symbol 编辑前 SHALL 有 pinned GitNexus context/impact；HIGH/CRITICAL 必须先告警并停止 production edit。
+提交前 SHALL 运行 staged detect_changes 且不得 false-clean。
 
-## Lifecycle semantics
+### NFR-6 发布纪律
+发布前 SHALL fresh-read remote feature ref，只允许 fast-forward/no-force-push。
+Runner tests SHALL NOT 被写成 physical installed-host 或 real ChatGPT PASS。
 
-- Capacity exhaustion fails before spawn.
-- Timeout/cancel/close/output overflow terminate the full owned process tree and confirm child termination.
-- Natural parent exit still performs owned-tree cleanup before reporting terminal completion, preserving current non-detach behavior.
-- Dropping the public PTY session must trigger cleanup rather than detach work.
-- Reader/writer tasks/threads are bounded and must not block shutdown indefinitely.
-- Output overflow terminates the session and retains at most the configured byte limit while reporting the true total seen.
-- Resize after terminal completion returns a stable closed-session error.
+## 依赖关系
 
-## Acceptance criteria
+- Manifest dependency exec-unification 已 verified。
+- 复用 services/local-agent/src/process_tree.rs。
+- 复用 services/local-agent/src/process_tree_windows.rs。
+- 保持 services/local-agent/src/process.rs 现有行为，不在本 Issue 扩张该超长文件。
+- Windows 继续使用现有 windows 0.61 crate，仅增加 ConPTY/pipe/startup attribute 所需 feature。
+- Unix 继续使用现有 libc，不引入第二个 PTY wrapper。
+- 不依赖 sandbox、Hooks、worktrees、snapshot rollback、cloud authority、UI 或 packaging。
 
-- Real Windows Server 2025 ConPTY test proves the fixture has terminal semantics, Unicode output/input, resize, cancel and process-tree cleanup.
-- Real Ubuntu 24.04 PTY test proves controlling-terminal semantics, Unicode, resize, cancel and process-tree cleanup.
-- Capacity, timeout, output-limit and dropped-session tests fail closed.
-- Windows tests prove Job Object ownership is established before resuming the child.
-- Full existing local-Agent tests remain green on Windows and Ubuntu.
-- GitNexus pre-edit context/impact is recorded for every existing production symbol modified; HIGH/CRITICAL stops production edits for review.
-- Staged GitNexus detect sees the candidate and is not false-clean.
-- All touched source files satisfy the repository source-length rule.
-- Exact SHA-256 and rollback information are recorded.
-- Runner tests do not count as physical installed-host or real ChatGPT acceptance.
+## 验收标准
+
+1. WHEN Windows 2025 执行 fixture，THE SYSTEM SHALL 证明真实 ConPTY、Unicode input/output、resize、cancel 与完整 tree cleanup。
+2. WHEN Ubuntu 24.04 执行 fixture，THE SYSTEM SHALL 证明 controlling-terminal PTY、Unicode、resize、cancel 与完整 tree cleanup。
+3. WHEN capacity/timeout/output-limit/drop 边界触发，THE SYSTEM SHALL fail closed 且无 detached descendant。
+4. WHEN Windows child 开始执行，THE SYSTEM SHALL 已完成 Job Object ownership。
+5. WHEN candidate 验证，THE SYSTEM SHALL 通过双平台 focused tests、complete local-Agent tests、candidate Clippy、check 与 staged GitNexus detect。
+6. WHEN 交付完成，THE SYSTEM SHALL 记录 exact SHA-256、CI artifacts 与 rollback；installed-host/real-ChatGPT gate 继续 deferred。

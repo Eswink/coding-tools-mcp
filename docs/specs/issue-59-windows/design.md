@@ -1,177 +1,151 @@
 # Issue #59 — Native PTY design
 
-## Current architecture
+## 概述
 
-The verified local Agent runtime already has:
+现有 local Agent 已有普通 pipe execution 与 race-free process-tree ownership，但没有 PTY/ConPTY。
+本设计添加内部 PTY session layer，同时保持既有授权和 process ownership 语义。
 
-- `process.rs`: bounded ordinary pipe execution, session/cancel/timeout/output accounting. It is a legacy 700+ line file and is not expanded in this issue.
-- `process_tree.rs`: Unix owned process-group termination and platform dispatch.
-- `process_tree_windows.rs`: race-free Windows startup using CREATE_SUSPENDED, kill-on-close Job Object assignment, then resume.
-- `process_fixture.rs` and `tests/process_runtime.rs`: cross-platform lifecycle/cancel/tree regression coverage.
+关键约束：
+- Windows 不能使用先 spawn 再 attach Job Object 的 wrapper。
+- Linux 必须是 controlling-terminal PTY。
+- 不新增公开 Tool。
+- 不自动替换现有 ProcessManager。
+- 新 PTY module 使用英文文件名且每个文件小于 500 行。
 
-The PTY increment must preserve those ownership properties without pretending that a pipe-backed child is a terminal.
+## 技术方案
 
-## Decision: direct native platform backends
+### Common model: src/pty.rs
 
-Do not add a cross-platform PTY wrapper whose Windows API returns an already-running child. Such a shape cannot preserve the current invariant that the child belongs to the Job Object before any child code executes.
+定义 PtySize、PtySpec、PtyError、PtyTermination、PtyOutcome、PtyManager、PtySession。
 
-Use the existing `windows` crate and `libc` dependency instead:
+职责：
+- request bounds；
+- capacity semaphore；
+- opaque session ID；
+- timeout/cancel/drop supervisor；
+- bounded output accounting；
+- platform backend facade；
+- non-secret Debug。
 
-- Windows: direct ConPTY/CreateProcessW startup.
-- Unix: direct PTY allocation plus audited pre-exec session/controlling-terminal setup.
+### IO: src/pty_io.rs
 
-No new remotely exposed tool is added.
+负责：
+- bounded master reader；
+- single-owner interactive writer；
+- output overflow signal；
+- bounded reader/writer shutdown；
+- merged terminal byte stream。
 
-## Modules
+### Linux backend: src/pty_unix.rs
 
-### `src/pty.rs`
+流程：
+1. allocate PTY；
+2. set winsize；
+3. parent 构造 explicit argv/cwd/env；
+4. pre-exec 中 setsid + controlling terminal；
+5. child 成为 session/PG leader；
+6. parent 关闭 slave；
+7. master 交给 common IO；
+8. TIOCSWINSZ resize；
+9. 终止复用 negative-PGID process-tree semantics。
 
-Common internal API and lifecycle:
+### Windows backend: src/pty_windows.rs
 
-- `PtySize`
-- `PtySpec`
-- `PtyError` / error kind
-- `PtyTermination`
-- `PtyOutcome`
-- `PtyManager`
-- `PtySession`
+流程：
+1. create anonymous pipes；
+2. CreatePseudoConsole；
+3. STARTUPINFOEXW attribute list；
+4. create kill-on-close Job Object；
+5. bounded UTF-16 argv/env/cwd；
+6. CreateProcessW suspended；
+7. AssignProcessToJobObject(exact hProcess)；
+8. ResumeThread(exact hThread)；
+9. 返回 owned process/PTY/pipe handles；
+10. ResizePseudoConsole。
 
-Responsibilities:
+任何 resume 前失败都 terminate/close，不允许 unmanaged child 执行。
 
-- validate bounds;
-- capacity semaphore;
-- opaque session IDs;
-- timeout/cancel/drop lifecycle;
-- bounded output accounting;
-- async facade around platform blocking handles;
-- no raw arguments/env/paths/output in Debug.
+### Minimal process-tree seams
 
-Target: <500 lines.
+process_tree.rs：
+- 仅增加 already-established Unix process group 的内部 ownership/termination seam。
 
-### `src/pty_io.rs`
+process_tree_windows.rs：
+- 仅增加 create unassigned kill-on-close Job Object 与 attach/resume exact suspended process/thread 的内部 seam。
 
-Bounded terminal master IO utilities:
+现有普通 spawn(Command) 行为不变。
 
-- bounded blocking reader;
-- single-owner writer guarded for interactive writes;
-- output overflow signal;
-- bounded join/cleanup.
+### Fixture
 
-Target: <500 lines.
+src/bin/pty_fixture.rs 支持 bounded modes：
+- report terminal presence；
+- echo bytes/Unicode；
+- report size；
+- spawn grandchild；
+- sleep；
+- flood；
+- explicit exit。
 
-### `src/pty_unix.rs`
+### Supervisor
 
-Linux/Unix PTY backend:
+1. acquire capacity；
+2. platform spawn；
+3. start bounded reader；
+4. select child completion / timeout / cancel / overflow；
+5. forced termination 时 terminate owned tree；
+6. bounded wait 确认 child exit；
+7. close PTY handles；
+8. join bounded reader；
+9. publish outcome；
+10. release capacity。
 
-1. allocate PTY pair;
-2. set initial winsize;
-3. configure slave terminal mode appropriate for byte-stable tests;
-4. create command with explicit argv/cwd/env and no inherited environment;
-5. in audited pre-exec syscall block: establish session and controlling terminal;
-6. spawn child;
-7. treat child PID as session/process-group ownership identity;
-8. expose master reader/writer and resize;
-9. hand the process group to existing `ProcessTree` termination semantics.
+## 文件结构
 
-No shell command-string construction.
+### 新增
+- services/local-agent/src/pty.rs
+- services/local-agent/src/pty_io.rs
+- services/local-agent/src/pty_unix.rs
+- services/local-agent/src/pty_windows.rs
+- services/local-agent/src/bin/pty_fixture.rs
+- services/local-agent/tests/pty_runtime.rs
 
-Target: <500 lines.
+### 最小修改
+- services/local-agent/src/lib.rs
+- services/local-agent/src/process_tree.rs
+- services/local-agent/src/process_tree_windows.rs
+- services/local-agent/Cargo.toml
+- services/local-agent/Cargo.lock，仅在 feature resolution 需要时
 
-### `src/pty_windows.rs`
+### 明确不修改
+- ToolRegistry public catalog
+- cloud gateway
+- auth/origin
+- sandbox
+- worktree/snapshot
+- Hooks
+- UI
+- installer/package
+- legacy process.rs，除非 fresh impact 证明无法避免并重新 review
 
-Windows ConPTY backend:
+## 数据与错误模型
 
-1. create ConPTY input/output pipes;
-2. create `HPCON`;
-3. allocate/update STARTUPINFOEX attribute list;
-4. build UTF-16 application path, argv command line, cwd and explicit environment block;
-5. create kill-on-close Job Object before process creation;
-6. `CreateProcessW` suspended with pseudo-console attribute;
-7. assign the exact process handle to the Job Object;
-8. resume the exact `PROCESS_INFORMATION.hThread`;
-9. return owned process/PTY/pipe handles;
-10. resize through `ResizePseudoConsole`.
+PTY outcome 包含 retained bytes、total bytes、truncated、output_complete、exit code 和 termination cause。
+Termination cause 只使用 exited、timed-out、cancelled、output-limit、io-error、termination-uncertain 等稳定非敏感类别。
+Resize-after-terminal 返回稳定 closed-session error。
 
-Windows argv quoting is implemented as a bounded private helper with direct regression coverage for spaces, quotes and trailing backslashes.
+## Windows argv / env
 
-On failure before resume, the child is terminated/closed and no unmanaged execution is allowed.
+使用 private bounded Windows argv quoting helper，覆盖 spaces、quotes、trailing backslashes。
+使用 explicit Unicode environment block，不继承 ambient env。
+Application path 单独传给 CreateProcessW，不构造 shell command string。
 
-Target: <500 lines.
+## Linux pre-exec
 
-### `process_tree.rs` / `process_tree_windows.rs`
+pre-exec 只做 syscall-level async-signal-safe setup；复杂参数、路径、env 在 parent 预先构造。
 
-Minimal internal seams only:
+## 兼容性与回滚
 
-- Unix constructor for an already-established owned process group.
-- Windows ability to create an unassigned kill-on-close Job Object and attach+resume an exact suspended process/thread pair.
-
-The existing ordinary `spawn(Command)` path keeps its current behavior.
-
-### `src/bin/pty_fixture.rs`
-
-Test-only executable with bounded modes:
-
-- report terminal/console presence;
-- byte/Unicode echo;
-- report observed terminal size;
-- spawn grandchild and report PID;
-- sleep/flood/exit.
-
-It does not add production authority.
-
-### `tests/pty_runtime.rs`
-
-Cross-platform public-library PTY regressions.
-
-## Windows dependency features
-
-Extend the existing target-specific `windows = 0.61` feature set only as needed for:
-
-- Console/ConPTY;
-- anonymous pipes/handle management;
-- process creation and startup attribute lists.
-
-No second Windows binding crate is introduced.
-
-## Outcome model
-
-PTY output is one terminal stream:
-
-- retained bytes;
-- total bytes;
-- truncated flag;
-- output_complete flag;
-- exit code;
-- `PtyTermination` using the same conceptual terminal causes as ordinary execution: exited, timed out, cancelled, output limit, IO error, termination uncertain.
-
-Do not map PTY output into separate stdout/stderr fields.
-
-## Cancellation and process-tree ownership
-
-The PTY platform backend returns an owned tree token plus child-wait handle.
-
-Common supervisor sequence:
-
-1. hold capacity permit;
-2. start bounded reader;
-3. wait on child completion / timeout / cancel / output overflow;
-4. if forced termination is needed, terminate the owned tree;
-5. confirm the child exits within bounded termination wait;
-6. close terminal handles;
-7. bound reader shutdown;
-8. publish final outcome;
-9. release capacity.
-
-Natural child exit still terminates/cleans the owned tree to prevent surviving descendants, matching current ProcessManager behavior.
-
-## Compatibility and non-goals
-
-- Existing `ProcessManager`, `ExecSpec`, ToolRegistry and exec-policy public contracts are unchanged.
-- PTY is not automatically selected for existing commands.
-- No shell parser, sandbox, worktree, snapshot, Hook or package changes.
-- No persisted PTY state or restart replay.
-- No physical-host/real-ChatGPT PASS claim.
-
-## Rollback
-
-The functional PTY commit must be independently revertible. Reverting it removes PTY modules, test fixture/tests, Windows feature additions and the small process-tree seams while leaving existing ordinary execution unchanged.
+Existing ProcessManager、ExecSpec、ToolRegistry、exec-policy contract 保持不变。
+PTY 不自动用于现有 command。
+不持久化 PTY session，不支持 restart replay。
+Functional commit 必须可单独 revert：移除 PTY modules/fixture/tests、Cargo feature 和小型 process-tree seams 后，ordinary pipe execution 仍工作。
