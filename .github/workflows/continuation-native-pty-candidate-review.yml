@@ -1,4 +1,5 @@
 name: Native PTY candidate review (never merge)
+# explicit rerun after canonical rustfmt
 
 on:
   push:
