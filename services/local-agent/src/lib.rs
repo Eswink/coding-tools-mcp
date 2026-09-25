@@ -29,7 +29,10 @@ pub use pty::{
     PtyError, PtyErrorKind, PtyManager, PtyOutcome, PtyOutputSnapshot, PtySession, PtySize,
     PtySpec, PtyTermination,
 };
-pub use registry::{ToolRegistry, VerifiedInvocation};
+pub use registry::{
+    DeferredToolCatalog, ToolRegistry, VerifiedInvocation, MAX_DEFERRED_DISCOVERY_BYTES,
+    MAX_DEFERRED_DISCOVERY_TOOLS,
+};
 pub use skills::{LocalSkill, SkillCatalog, SkillCatalogLoader, SkillError, SkillLimits};
 pub use trace::{
     RecoveryItem, RecoveryState, RecoveryView, TraceError, TraceEvent, TraceJournal, TracePhase,

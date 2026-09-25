@@ -7,7 +7,10 @@ use serde::Deserialize;
 use serde_json::json;
 use std::{
     future::Future,
-    sync::Arc,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
     task::{Context, Poll, Waker},
 };
 
@@ -15,6 +18,7 @@ struct Fixture {
     runtime_name: ToolName,
     spec: ToolSpec,
     parallel: bool,
+    executions: Arc<AtomicUsize>,
 }
 
 impl Fixture {
@@ -34,6 +38,7 @@ impl Fixture {
             runtime_name: name,
             spec,
             parallel: false,
+            executions: Arc::new(AtomicUsize::new(0)),
         }
     }
 }
@@ -57,6 +62,7 @@ impl ToolExecutor for Fixture {
         verified: VerifiedInvocation<'a>,
     ) -> ToolFuture<'a> {
         Box::pin(async move {
+            self.executions.fetch_add(1, Ordering::SeqCst);
             assert_eq!(verified.generation(), 7);
             Ok(ToolOutput::json(json!({
                 "request": call.request_id,
@@ -148,6 +154,120 @@ fn registry_is_sorted_and_exposure_is_separate() {
     );
     assert_eq!(registry.direct_specs()[0].name.as_str(), "a_direct");
     assert_eq!(registry.deferred_specs()[0].name.as_str(), "b_deferred");
+}
+
+#[test]
+fn deferred_discovery_is_sorted_bounded_and_excludes_other_exposures() {
+    let mut registry = ToolRegistry::new();
+    for (name, exposure) in [
+        ("z_hidden", ToolExposure::Hidden),
+        ("c_deferred", ToolExposure::Deferred),
+        ("a_direct", ToolExposure::Direct),
+        ("b_deferred", ToolExposure::Deferred),
+    ] {
+        registry
+            .register(Arc::new(Fixture::new(name, exposure, &[])))
+            .unwrap();
+    }
+
+    let catalog = registry.discover_deferred();
+    assert_eq!(
+        catalog
+            .specs()
+            .iter()
+            .map(|spec| spec.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["b_deferred", "c_deferred"]
+    );
+    assert!(!catalog.omitted());
+    assert!(catalog.metadata_bytes() <= MAX_DEFERRED_DISCOVERY_BYTES);
+}
+
+#[test]
+fn deferred_discovery_stops_at_entry_bound_without_cloning_the_tail() {
+    let mut registry = ToolRegistry::new();
+    for index in 0..(MAX_DEFERRED_DISCOVERY_TOOLS + 2) {
+        let name = format!("deferred_{index:03}");
+        registry
+            .register(Arc::new(Fixture::new(
+                &name,
+                ToolExposure::Deferred,
+                &[],
+            )))
+            .unwrap();
+    }
+
+    let catalog = registry.discover_deferred();
+    assert_eq!(catalog.specs().len(), MAX_DEFERRED_DISCOVERY_TOOLS);
+    assert!(catalog.omitted());
+    assert_eq!(catalog.specs()[0].name.as_str(), "deferred_000");
+    assert_eq!(
+        catalog.specs().last().unwrap().name.as_str(),
+        "deferred_063"
+    );
+}
+
+#[test]
+fn deferred_discovery_stops_before_metadata_byte_bound() {
+    let mut registry = ToolRegistry::new();
+    for index in 0..MAX_DEFERRED_DISCOVERY_TOOLS {
+        let name = ToolName::parse(format!("schema_{index:03}")).unwrap();
+        let spec = ToolSpec::new(
+            name,
+            "fixture",
+            json!({
+                "type":"object",
+                "description":"x".repeat(8 * 1024),
+                "additionalProperties":false
+            }),
+        )
+        .unwrap()
+        .exposure(ToolExposure::Deferred);
+        registry
+            .register(Arc::new(Fixture {
+                runtime_name: spec.name.clone(),
+                spec,
+                parallel: false,
+                executions: Arc::new(AtomicUsize::new(0)),
+            }))
+            .unwrap();
+    }
+
+    let catalog = registry.discover_deferred();
+    assert!(catalog.specs().len() < MAX_DEFERRED_DISCOVERY_TOOLS);
+    assert!(catalog.omitted());
+    assert!(catalog.metadata_bytes() <= MAX_DEFERRED_DISCOVERY_BYTES);
+}
+
+#[test]
+fn deferred_discovery_never_executes_or_requires_admission() {
+    let mut registry = ToolRegistry::new();
+    let fixture = Arc::new(Fixture::new(
+        "deferred_safe",
+        ToolExposure::Deferred,
+        &[Capability::WorkspaceRead],
+    ));
+    let executions = fixture.executions.clone();
+    registry.register(fixture).unwrap();
+
+    let first = registry.discover_deferred();
+    let second = registry.discover_deferred();
+
+    assert_eq!(executions.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        first
+            .specs()
+            .iter()
+            .map(|spec| spec.name.as_str())
+            .collect::<Vec<_>>(),
+        second
+            .specs()
+            .iter()
+            .map(|spec| spec.name.as_str())
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(first.metadata_bytes(), second.metadata_bytes());
+    assert_eq!(first.omitted(), second.omitted());
 }
 
 #[test]
