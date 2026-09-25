@@ -130,6 +130,7 @@ enum PortBindingState {
     Free,
     OwnProcess,
     ForeignProcess,
+    #[cfg(target_os = "linux")]
     LinuxOwnerlessListen,
 }
 
@@ -158,7 +159,11 @@ pub async fn wait_for_port_free(port: u16, timeout: Duration) -> bool {
     while Instant::now() < deadline {
         match port_binding_state(port) {
             Ok(PortBindingState::Free) => return true,
-            Ok(PortBindingState::OwnProcess | PortBindingState::LinuxOwnerlessListen) => {
+            Ok(PortBindingState::OwnProcess) => {
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+            #[cfg(target_os = "linux")]
+            Ok(PortBindingState::LinuxOwnerlessListen) => {
                 tokio::time::sleep(Duration::from_millis(50)).await;
             }
             Ok(PortBindingState::ForeignProcess) | Err(_) => return false,
@@ -177,7 +182,11 @@ pub fn wait_for_port_free_blocking(port: u16, timeout: Duration) -> bool {
     while Instant::now() < deadline {
         match port_binding_state(port) {
             Ok(PortBindingState::Free) => return true,
-            Ok(PortBindingState::OwnProcess | PortBindingState::LinuxOwnerlessListen) => {
+            Ok(PortBindingState::OwnProcess) => {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            #[cfg(target_os = "linux")]
+            Ok(PortBindingState::LinuxOwnerlessListen) => {
                 std::thread::sleep(Duration::from_millis(50));
             }
             Ok(PortBindingState::ForeignProcess) | Err(_) => return false,
