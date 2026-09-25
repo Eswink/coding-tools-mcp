@@ -34,7 +34,6 @@ impl WorktreeError {
     fn new(code: &'static str, message: &'static str) -> Self {
         Self { code, message }
     }
-
     pub fn code(&self) -> &'static str {
         self.code
     }
@@ -91,12 +90,10 @@ impl WorktreeManager {
         if workspace_root.starts_with(&harness_root) || harness_root.starts_with(&workspace_root) {
             return Err(boundary_error());
         }
-
         let repository_root = discover_repository_root(&workspace_root)?;
         if !repository_root.starts_with(&workspace_root) {
             return Err(boundary_error());
         }
-
         let worktrees_root = harness_root.join("worktrees-v1");
         ensure_owned_directory(&worktrees_root)?;
         let managed_root = worktrees_root.join(workspace_id);
@@ -107,19 +104,16 @@ impl WorktreeManager {
         if !managed_root.starts_with(&harness_root) {
             return Err(boundary_error());
         }
-
         Ok(Self {
             repository_root,
             managed_root,
             workspace_id: workspace_id.to_owned(),
         })
     }
-
     pub fn create_detached(&self) -> WorktreeResult<ManagedWorktree> {
         if self.list()?.len() >= MAX_MANAGED_WORKTREES {
             return Err(error("CAPACITY", "Managed worktree capacity reached."));
         }
-
         let (id, target) = (0..16)
             .find_map(|_| {
                 let id = Uuid::new_v4().simple().to_string();
@@ -127,7 +121,6 @@ impl WorktreeManager {
                 (!target.exists() && !target.is_symlink()).then_some((id, target))
             })
             .ok_or_else(|| error("CAPACITY", "Unable to allocate managed worktree."))?;
-
         let args = vec![
             OsString::from("worktree"),
             OsString::from("add"),
@@ -140,7 +133,6 @@ impl WorktreeManager {
             cleanup_empty_directory(&target);
             return Err(git_failed());
         }
-
         let item = self
             .list()?
             .into_iter()
@@ -148,11 +140,9 @@ impl WorktreeManager {
             .ok_or_else(|| error("GIT_FAILED", "Git did not register the managed worktree."))?;
         Ok(item)
     }
-
     pub fn list(&self) -> WorktreeResult<Vec<ManagedWorktree>> {
         let registry = self.registry_entries()?;
         let mut managed = Vec::new();
-
         for entry in registry {
             let raw_path = entry.path;
             let lexical_managed = raw_path.starts_with(&self.managed_root);
@@ -173,7 +163,6 @@ impl WorktreeManager {
             if canonical.parent() != Some(self.managed_root.as_path()) {
                 return Err(boundary_error());
             }
-
             let id = canonical
                 .file_name()
                 .and_then(|value| value.to_str())
@@ -193,14 +182,12 @@ impl WorktreeManager {
                 detached: true,
             });
         }
-
         managed.sort_by(|left, right| left.id.cmp(&right.id));
         if managed.len() > MAX_MANAGED_WORKTREES {
             return Err(error("CAPACITY", "Managed worktree capacity exceeded."));
         }
         Ok(managed)
     }
-
     pub fn remove_clean(&self, id: &str) -> WorktreeResult<()> {
         if !valid_id(id) {
             return Err(error("INVALID_ID", "Invalid managed worktree identifier."));
@@ -210,13 +197,11 @@ impl WorktreeManager {
             .into_iter()
             .find(|item| item.id == id)
             .ok_or_else(|| error("NOT_FOUND", "Managed worktree was not found."))?;
-
         let target = self.managed_root.join(&item.id);
         let target = target.canonicalize().map_err(|_| boundary_error())?;
         if target.parent() != Some(self.managed_root.as_path()) || target.is_symlink() {
             return Err(boundary_error());
         }
-
         let status = run_git(
             &target,
             &[
@@ -232,7 +217,6 @@ impl WorktreeManager {
         if !status.stdout.is_empty() {
             return Err(error("DIRTY", "Managed worktree contains local changes."));
         }
-
         let output = run_git(
             &self.repository_root,
             &[
@@ -246,7 +230,6 @@ impl WorktreeManager {
         }
         Ok(())
     }
-
     fn registry_entries(&self) -> WorktreeResult<Vec<RegistryEntry>> {
         let output = run_git(
             &self.repository_root,
@@ -300,7 +283,6 @@ fn discover_repository_root(workspace_root: &Path) -> WorktreeResult<PathBuf> {
 fn parse_registry(bytes: &[u8]) -> WorktreeResult<Vec<RegistryEntry>> {
     let mut entries = Vec::new();
     let mut current: Option<RegistryEntry> = None;
-
     for field in bytes.split(|byte| *byte == 0) {
         if field.is_empty() {
             if let Some(entry) = current.take() {
@@ -325,7 +307,6 @@ fn parse_registry(bytes: &[u8]) -> WorktreeResult<Vec<RegistryEntry>> {
             });
             continue;
         }
-
         let entry = current.as_mut().ok_or_else(parse_failed)?;
         if let Some(head) = field.strip_prefix("HEAD ") {
             entry.head = Some(head.to_owned());
@@ -341,7 +322,6 @@ fn parse_registry(bytes: &[u8]) -> WorktreeResult<Vec<RegistryEntry>> {
             return Err(parse_failed());
         }
     }
-
     if let Some(entry) = current {
         if entry.path.as_os_str().is_empty() {
             return Err(parse_failed());
@@ -376,7 +356,6 @@ fn run_git(cwd: &Path, args: &[OsString]) -> WorktreeResult<GitOutput> {
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         command.creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
     }
-
     let mut child = command.spawn().map_err(|_| {
         error(
             "GIT_UNAVAILABLE",
@@ -388,7 +367,6 @@ fn run_git(cwd: &Path, args: &[OsString]) -> WorktreeResult<GitOutput> {
     let budget = Arc::new(Mutex::new(0usize));
     let stdout_reader = spawn_reader(stdout, budget.clone());
     let stderr_reader = spawn_reader(stderr, budget);
-
     let deadline = Instant::now() + GIT_TIMEOUT;
     let status = loop {
         match child.try_wait().map_err(|_| io_failure())? {
