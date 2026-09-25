@@ -119,3 +119,23 @@ fn error(code: &'static str, message: &'static str) -> WorktreeError {
 fn io_failure() -> WorktreeError {
     error("IO_FAILED", "Managed worktree I/O failed.")
 }
+
+pub(super) fn git_path_arg(path: &Path) -> OsString {
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::{OsStrExt, OsStringExt};
+
+        let units = path.as_os_str().encode_wide().collect::<Vec<_>>();
+        const VERBATIM: &[u16] = &[92, 92, 63, 92];
+        const VERBATIM_UNC: &[u16] = &[92, 92, 63, 92, 85, 78, 67, 92];
+        if units.starts_with(VERBATIM_UNC) {
+            let mut normalized = vec![92, 92];
+            normalized.extend_from_slice(&units[VERBATIM_UNC.len()..]);
+            return OsString::from_wide(&normalized);
+        }
+        if units.starts_with(VERBATIM) {
+            return OsString::from_wide(&units[VERBATIM.len()..]);
+        }
+    }
+    path.as_os_str().to_owned()
+}

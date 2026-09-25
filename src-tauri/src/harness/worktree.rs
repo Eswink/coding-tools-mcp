@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use uuid::Uuid;
 
-use super::worktree_git::run_git;
+use super::worktree_git::{git_path_arg, run_git};
 
 const MAX_MANAGED_WORKTREES: usize = 8;
 const OPAQUE_ID_LEN: usize = 32;
@@ -118,7 +118,7 @@ impl WorktreeManager {
             OsString::from("worktree"),
             OsString::from("add"),
             OsString::from("--detach"),
-            target.as_os_str().to_owned(),
+            git_path_arg(&target),
             OsString::from("HEAD"),
         ];
         let output = run_git(&self.repository_root, &args)?;
@@ -215,7 +215,7 @@ impl WorktreeManager {
             &[
                 OsString::from("worktree"),
                 OsString::from("remove"),
-                target.as_os_str().to_owned(),
+                git_path_arg(&target),
             ],
         )?;
         if !output.success || target.exists() || self.list()?.iter().any(|value| value.id == id) {

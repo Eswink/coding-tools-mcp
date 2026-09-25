@@ -224,3 +224,27 @@ fn git(root: &Path, args: &[&str]) {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[cfg(windows)]
+#[test]
+fn git_path_argument_removes_only_windows_verbatim_prefix() {
+    use std::path::Path;
+
+    let drive = Path::new(r"\\?\C:\workspace\managed\id");
+    assert_eq!(
+        super::super::worktree_git::git_path_arg(drive),
+        std::ffi::OsString::from(r"C:\workspace\managed\id")
+    );
+
+    let unc = Path::new(r"\\?\UNC\server\share\managed\id");
+    assert_eq!(
+        super::super::worktree_git::git_path_arg(unc),
+        std::ffi::OsString::from(r"\\server\share\managed\id")
+    );
+
+    let normal = Path::new(r"C:\workspace\managed\id");
+    assert_eq!(
+        super::super::worktree_git::git_path_arg(normal),
+        normal.as_os_str()
+    );
+}
