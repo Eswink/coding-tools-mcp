@@ -1,3 +1,4 @@
+use serde::Serialize;
 use std::{
     fs::File,
     io::{self, Read},
@@ -8,6 +9,13 @@ use std::{
     thread,
     time::Duration,
 };
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct PtyOutputSnapshot {
+    pub output: Vec<u8>,
+    pub output_total_bytes: u64,
+    pub truncated: bool,
+}
 
 #[derive(Default)]
 pub(crate) struct OutputState {
@@ -79,6 +87,15 @@ impl ReaderHandle {
         }
         complete
     }
+}
+
+pub(crate) fn live_snapshot(state: &SharedOutput) -> Option<PtyOutputSnapshot> {
+    let output = state.lock().ok()?;
+    Some(PtyOutputSnapshot {
+        output: output.retained.clone(),
+        output_total_bytes: output.total,
+        truncated: output.truncated,
+    })
 }
 
 pub(crate) fn snapshot(state: &SharedOutput) -> (Vec<u8>, u64, bool) {
