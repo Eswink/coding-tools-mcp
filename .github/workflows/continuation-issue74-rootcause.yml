@@ -1,0 +1,156 @@
+name: Issue 74 Windows port handoff root-cause (never merge)
+
+on:
+  push:
+    branches: ['ci/issue74-rootcause-20260926']
+    paths:
+      - '.github/workflows/continuation-issue74-rootcause.yml'
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: 6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Inspect test and listener bind blast radius
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.12
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/analyze.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md || true
+          for target in             'Function:src-tauri/src/auth/聊天HTTP回归v1.rs:offline_new_authorization_is_a_non_oauth_tool_error_and_resumes_cleanly'             'Function:src-tauri/src/mcp/listener.rs:spawn_listener_with_origin_and_execution_gate'             'Function:src-tauri/src/mcp/listener.rs:bind_listener'
+          do
+            echo "=== $target ===" | tee -a evidence/impact.txt
+            "$graph" context "$target" 2>&1 | tee -a evidence/impact.txt || true
+            "$graph" impact "$target" --direction upstream 2>&1 | tee -a evidence/impact.txt || true
+          done
+          git rev-parse HEAD > evidence/source-commit.txt
+          echo NEVER_MERGE_DIAGNOSTIC_ONLY > evidence/boundary.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue74-rootcause-impact
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+
+  windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        replica: [1, 2, 3]
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.98.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Build exact source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          cargo check --locked --manifest-path src-tauri/Cargo.toml
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --no-run
+      - name: Repeat exact regression without synthetic contention
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          failures=0
+          for i in {1..30}; do
+            set +e
+            cargo test --locked --manifest-path src-tauri/Cargo.toml               auth::chat_http_tests::offline_new_authorization_is_a_non_oauth_tool_error_and_resumes_cleanly               -- --exact --nocapture 2>&1 | tee "evidence/exact-$i.txt"
+            code=${PIPESTATUS[0]}
+            set -e
+            if [ "$code" -ne 0 ]; then failures=$((failures+1)); fi
+          done
+          echo "baseline_exact_failures=$failures" | tee evidence/baseline-result.txt
+          grep -h -E 'bind failed|绑定失败|os error 10048|test result: FAILED' evidence/exact-*.txt > evidence/baseline-failures.txt || true
+      - name: Stress reserve-drop-rebind under concurrent ephemeral binds
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force evidence | Out-Null
+          @'
+          import socket, threading, time, json
+          stop=False
+          counts=[0]*8
+          def churn(k):
+              global stop
+              c=0
+              while not stop:
+                  s=socket.socket()
+                  try:
+                      s.bind(("127.0.0.1",0))
+                      c+=1
+                      time.sleep(0.001)
+                  except OSError:
+                      pass
+                  finally:
+                      s.close()
+              counts[k]=c
+          threads=[threading.Thread(target=churn,args=(i,),daemon=True) for i in range(len(counts))]
+          for t in threads:t.start()
+          open("evidence/churn-started.txt","w").write("ready")
+          while not stop:
+              time.sleep(0.1)
+          for t in threads:t.join()
+          open("evidence/churn-counts.json","w").write(json.dumps(counts))
+          '@ | Set-Content -Encoding utf8 "$env:RUNNER_TEMP\port_churn.py"
+          $p=Start-Process -FilePath python -ArgumentList "$env:RUNNER_TEMP\port_churn.py" -PassThru -NoNewWindow
+          while (!(Test-Path evidence/churn-started.txt)) { Start-Sleep -Milliseconds 50 }
+          Set-Content evidence/churn-pid.txt $p.Id
+      - name: Repeat exact regression with concurrent ephemeral allocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          failures=0
+          for i in {1..50}; do
+            set +e
+            cargo test --locked --manifest-path src-tauri/Cargo.toml               auth::chat_http_tests::offline_new_authorization_is_a_non_oauth_tool_error_and_resumes_cleanly               -- --exact --nocapture 2>&1 | tee "evidence/churn-exact-$i.txt"
+            code=${PIPESTATUS[0]}
+            set -e
+            if [ "$code" -ne 0 ]; then failures=$((failures+1)); fi
+          done
+          echo "churn_exact_failures=$failures" | tee evidence/churn-result.txt
+          grep -h -E 'bind failed|绑定失败|os error 10048|test result: FAILED' evidence/churn-exact-*.txt > evidence/churn-failures.txt || true
+      - name: Stop synthetic churn and record identity
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path evidence/churn-pid.txt) {
+            $id=Get-Content evidence/churn-pid.txt
+            Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
+          }
+          git rev-parse HEAD | Set-Content evidence/source-commit.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue74-rootcause-windows-${{ matrix.replica }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: warn
