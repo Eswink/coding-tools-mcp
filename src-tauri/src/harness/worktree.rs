@@ -123,6 +123,14 @@ impl WorktreeManager {
         ];
         let output = run_git(&self.repository_root, &args)?;
         if !output.success {
+            #[cfg(test)]
+            {
+                let rendered = String::from_utf8_lossy(&output.stderr)
+                    .replace(self.repository_root.to_string_lossy().as_ref(), "<repo>")
+                    .replace(self.managed_root.to_string_lossy().as_ref(), "<managed>")
+                    .replace(target.to_string_lossy().as_ref(), "<target>");
+                eprintln!("[worktree-wrapper-diagnostic] {rendered}");
+            }
             cleanup_empty_directory(&target);
             return Err(git_failed());
         }

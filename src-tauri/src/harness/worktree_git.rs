@@ -14,6 +14,8 @@ const GIT_TIMEOUT: Duration = Duration::from_secs(10);
 pub(super) struct GitOutput {
     pub(super) success: bool,
     pub(super) stdout: Vec<u8>,
+    #[cfg(test)]
+    pub(super) stderr: Vec<u8>,
 }
 
 struct Capture {
@@ -72,6 +74,8 @@ pub(super) fn run_git(cwd: &Path, args: &[OsString]) -> WorktreeResult<GitOutput
     Ok(GitOutput {
         success: status.success(),
         stdout: stdout.bytes,
+        #[cfg(test)]
+        stderr: stderr.bytes,
     })
 }
 
