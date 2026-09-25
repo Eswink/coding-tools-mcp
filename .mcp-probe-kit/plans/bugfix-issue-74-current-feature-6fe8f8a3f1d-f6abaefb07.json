@@ -231,10 +231,48 @@
     }
   },
   "status": "active",
-  "completedStepIds": [],
+  "completedStepIds": [
+    "context",
+    "src8-1",
+    "src8-2",
+    "src8-3"
+  ],
   "skippedSteps": [],
   "unresolvedItems": [],
-  "evidence": [],
+  "evidence": [
+    {
+      "kind": "other",
+      "summary": "init_project_context executed; AGENTS/project-context and graph-insights are available for issue #74.",
+      "stepId": "context",
+      "reference": "GitHub Actions run 36171538383",
+      "revision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
+      "verifiedAt": "2026-09-25T18:08:58.206Z"
+    },
+    {
+      "kind": "requirements",
+      "summary": "Ideal: an auth regression test starts an isolated MCP listener deterministically before exercising offline authorization. Actual: the test releases an OS-assigned ephemeral-port reservation and later asks spawn_listener to rebind that numeric port. On Windows RC run 36154924658 job 108137017396, the handoff port 64506 was reoccupied before spawn and bind failed WSAEADDRINUSE 10048, so auth assertions never ran.",
+      "stepId": "src8-1",
+      "reference": "Issue #74; RC run 36154924658 job 108137017396; src-tauri/src/auth/聊天HTTP回归v1.rs",
+      "revision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
+      "verifiedAt": "2026-09-25T18:08:59.471Z"
+    },
+    {
+      "kind": "other",
+      "summary": "code_insight executed for the reserve-drop-rebind listener path. The bug boundary is test setup/port handoff into spawn_listener; the listener's production bind conflict remains fail-closed and must not be weakened.",
+      "stepId": "src8-2",
+      "reference": "GitHub Actions run 36171538383 evidence/code-insight.json",
+      "revision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
+      "verifiedAt": "2026-09-25T18:09:02.170Z"
+    },
+    {
+      "kind": "requirements",
+      "summary": "Acceptance: reproduce or falsify the reserve-drop-rebind race on Windows; keep production bind conflicts strict; make the test fixture deterministic without arbitrary sleeps; preserve offline CHAT_AUTHORIZATION_UNAVAILABLE permission semantics, no OAuth challenge, no pending record/event, clean resume, and bounded listener shutdown; pass repeated exact Windows target, full Windows/Ubuntu suites, staged GitNexus detect and published RC.",
+      "stepId": "src8-3",
+      "reference": "Issue #74 acceptance contract",
+      "revision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
+      "verifiedAt": "2026-09-25T18:09:03.442Z"
+    }
+  ],
   "declaredScope": {
     "projectRoot": "/home/runner/work/coding-tools-mcp/coding-tools-mcp",
     "docsDir": "docs",
@@ -245,7 +283,7 @@
   "architectureCandidates": [],
   "acceptanceResults": [],
   "runtimeEvidence": [],
-  "lastVerifiedRevision": "de0f16790834987de16cc84f1cb85cf919298393",
+  "lastVerifiedRevision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
   "createdAt": "2026-09-25T18:07:06.914Z",
-  "updatedAt": "2026-09-25T18:07:06.914Z"
+  "updatedAt": "2026-09-25T18:09:03.442Z"
 }
