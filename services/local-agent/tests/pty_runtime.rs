@@ -1,5 +1,8 @@
 use coding_tools_local_agent::{PtyErrorKind, PtyManager, PtySize, PtySpec, PtyTermination};
-use std::{path::PathBuf, time::{Duration, Instant}};
+use std::{
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 fn fixture() -> String {
     env!("CARGO_BIN_EXE_pty_fixture").to_owned()
@@ -71,11 +74,18 @@ async fn live_output_snapshot_and_explicit_close_are_bounded() {
             assert!(!snapshot.truncated);
             break;
         }
-        assert!(Instant::now() < deadline, "live PTY output never became observable");
+        assert!(
+            Instant::now() < deadline,
+            "live PTY output never became observable"
+        );
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
     let outcome = session.close().await;
-    assert_eq!(outcome.termination, PtyTermination::Cancelled, "{outcome:?}");
+    assert_eq!(
+        outcome.termination,
+        PtyTermination::Cancelled,
+        "{outcome:?}"
+    );
 }
 
 #[tokio::test]
