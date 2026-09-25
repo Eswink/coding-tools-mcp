@@ -361,3 +361,23 @@ fn push_windows_arg(out: &mut String, arg: &str) {
 fn spawn_error() -> PtyError {
     PtyError::new(PtyErrorKind::Spawn, "failed to spawn PTY")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::push_windows_arg;
+
+    #[test]
+    fn windows_argument_quoting_preserves_spaces_quotes_and_trailing_backslashes() {
+        let cases = [
+            ("plain", "plain"),
+            ("two words", "\"two words\""),
+            ("a\"b", "\"a\\\"b\""),
+            ("C:\\path with space\\", "\"C:\\path with space\\\\\""),
+        ];
+        for (input, expected) in cases {
+            let mut rendered = String::new();
+            push_windows_arg(&mut rendered, input);
+            assert_eq!(rendered, expected, "{input:?}");
+        }
+    }
+}
