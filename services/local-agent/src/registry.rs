@@ -1,8 +1,42 @@
 use crate::{
-    LocalAdmission, ToolCall, ToolError, ToolErrorKind, ToolExecutor, ToolExposure, ToolFuture,
-    ToolSpec,
+    Capability, LocalAdmission, ToolCall, ToolError, ToolErrorKind, ToolExecutor, ToolExposure,
+    ToolFuture, ToolSpec,
 };
+use serde_json::json;
 use std::{collections::BTreeMap, fmt, sync::Arc};
+
+pub const MAX_DEFERRED_DISCOVERY_TOOLS: usize = 64;
+pub const MAX_DEFERRED_DISCOVERY_BYTES: usize = 256 * 1024;
+
+pub struct DeferredToolCatalog {
+    specs: Vec<ToolSpec>,
+    metadata_bytes: usize,
+    omitted: bool,
+}
+
+impl DeferredToolCatalog {
+    pub fn specs(&self) -> &[ToolSpec] {
+        &self.specs
+    }
+
+    pub fn metadata_bytes(&self) -> usize {
+        self.metadata_bytes
+    }
+
+    pub fn omitted(&self) -> bool {
+        self.omitted
+    }
+}
+
+impl fmt::Debug for DeferredToolCatalog {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DeferredToolCatalog")
+            .field("count", &self.specs.len())
+            .field("metadata_bytes", &self.metadata_bytes)
+            .field("omitted", &self.omitted)
+            .finish()
+    }
+}
 
 /// Proof that a ToolCall passed the local registry admission checks.
 ///
@@ -90,6 +124,38 @@ impl ToolRegistry {
             .collect()
     }
 
+    pub fn discover_deferred(&self) -> DeferredToolCatalog {
+        let mut specs = Vec::new();
+        let mut metadata_bytes = 2usize;
+        let mut omitted = false;
+
+        for entry in self
+            .tools
+            .values()
+            .filter(|entry| entry.spec.exposure == ToolExposure::Deferred)
+        {
+            let encoded = discovery_metadata_bytes(&entry.spec);
+            let separator = usize::from(!specs.is_empty());
+            if specs.len() >= MAX_DEFERRED_DISCOVERY_TOOLS
+                || metadata_bytes
+                    .saturating_add(separator)
+                    .saturating_add(encoded)
+                    > MAX_DEFERRED_DISCOVERY_BYTES
+            {
+                omitted = true;
+                break;
+            }
+            metadata_bytes += separator + encoded;
+            specs.push(entry.spec.clone());
+        }
+
+        DeferredToolCatalog {
+            specs,
+            metadata_bytes,
+            omitted,
+        }
+    }
+
     pub fn all_specs(&self) -> Vec<ToolSpec> {
         self.tools
             .values()
@@ -153,6 +219,30 @@ impl ToolRegistry {
             Ok(output)
         })
     }
+}
+
+fn discovery_metadata_bytes(spec: &ToolSpec) -> usize {
+    let capabilities = spec
+        .required_capabilities
+        .iter()
+        .map(|capability| match capability {
+            Capability::WorkspaceRead => "workspace_read",
+            Capability::WorkspaceWrite => "workspace_write",
+            Capability::ProcessExec => "process_exec",
+            Capability::GitWrite => "git_write",
+            Capability::Network => "network",
+        })
+        .collect::<Vec<_>>();
+    serde_json::to_vec(&json!({
+        "name": spec.name.as_str(),
+        "description": &spec.description,
+        "input_schema": &spec.input_schema,
+        "required_capabilities": capabilities,
+        "max_input_bytes": spec.max_input_bytes,
+        "max_output_bytes": spec.max_output_bytes,
+    }))
+    .expect("validated ToolSpec metadata is JSON-encodable")
+    .len()
 }
 
 #[cfg(test)]
