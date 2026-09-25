@@ -187,13 +187,15 @@
       "persistPlanOnFirstHeartbeat": true
     }
   },
-  "status": "active",
+  "status": "converged",
   "completedStepIds": [
     "context",
     "write-spec",
     "check-spec",
     "estimate",
-    "implement"
+    "implement",
+    "test",
+    "review"
   ],
   "skippedSteps": [],
   "unresolvedItems": [],
@@ -237,6 +239,30 @@
       "reference": "ci/tool-discovery-candidate-review-20260925",
       "revision": "4adc65541381ee881e302fabaf12a61ea5ec0cfc",
       "verifiedAt": "2026-09-25T13:51:36.395Z"
+    },
+    {
+      "kind": "implementation",
+      "summary": "Clean three-file production candidate is byte-identical to the successfully tested deferred-discovery source bytes.",
+      "stepId": "implement",
+      "reference": "review/tool-discovery-production-candidate-20260925",
+      "revision": "4a6360e624ce82cebb04423d531034c717721ff3",
+      "verifiedAt": "2026-09-25T13:59:21.683Z"
+    },
+    {
+      "kind": "test",
+      "summary": "Run 36143732990 passed staged GitNexus LOW/non-false-clean, fmt, Clippy -D warnings, focused registry tests, full local-agent tests and cargo check on Windows 2025 and Ubuntu 24.04.",
+      "stepId": "test",
+      "reference": "GitHub Actions run 36143732990",
+      "revision": "4a6360e624ce82cebb04423d531034c717721ff3",
+      "verifiedAt": "2026-09-25T13:59:21.683Z"
+    },
+    {
+      "kind": "review",
+      "summary": "Plan-aware code_review completed on the clean candidate with no HIGH/CRITICAL findings.",
+      "stepId": "review",
+      "reference": "GitHub Actions run 36144458087",
+      "revision": "4a6360e624ce82cebb04423d531034c717721ff3",
+      "verifiedAt": "2026-09-25T13:59:23.928Z"
     }
   ],
   "declaredScope": {
@@ -245,12 +271,51 @@
     "featureName": "issue-72-deferred",
     "specLayout": "parent-child"
   },
-  "artifacts": [],
+  "artifacts": [
+    {
+      "id": "artifact-51fa85e93a50",
+      "kind": "test",
+      "summary": "Ubuntu 24.04 deferred discovery evidence",
+      "reference": "artifact 10868701265 sha256:616801242d5dca5515e4ba90e1eac9272b3fc98fa629292600e0b16850a5c71a",
+      "revision": "4a6360e624ce82cebb04423d531034c717721ff3",
+      "recordedAt": "2026-09-25T13:59:21.683Z"
+    },
+    {
+      "id": "artifact-e7b4f88467f6",
+      "kind": "test",
+      "summary": "Windows 2025 deferred discovery evidence",
+      "reference": "artifact 10868242361 sha256:e588525a73eca1ec809450028cbf06ae4666f5e4e24b4e69679d63117c931c98",
+      "revision": "4a6360e624ce82cebb04423d531034c717721ff3",
+      "recordedAt": "2026-09-25T13:59:21.683Z"
+    },
+    {
+      "id": "artifact-f1d983907bb7",
+      "kind": "impact",
+      "summary": "Staged GitNexus LOW and exact source hashes",
+      "reference": "artifact 10868546620 sha256:66e0f76b7e09b8294ce32a150327cd610c55b16d1e8123ec821be65ee6047fa5",
+      "revision": "4a6360e624ce82cebb04423d531034c717721ff3",
+      "recordedAt": "2026-09-25T13:59:21.683Z"
+    }
+  ],
   "memoryCandidates": [],
   "architectureCandidates": [],
   "acceptanceResults": [],
   "runtimeEvidence": [],
-  "lastVerifiedRevision": "4adc65541381ee881e302fabaf12a61ea5ec0cfc",
+  "lastVerifiedRevision": "4a6360e624ce82cebb04423d531034c717721ff3",
   "createdAt": "2026-09-25T13:39:34.624Z",
-  "updatedAt": "2026-09-25T13:51:36.395Z"
+  "updatedAt": "2026-09-25T13:59:24.618Z",
+  "lastConvergence": {
+    "checkedAt": "2026-09-25T13:59:24.618Z",
+    "passed": true,
+    "blockers": [],
+    "requiredEvidenceKinds": [
+      "requirements",
+      "spec",
+      "implementation",
+      "test",
+      "review"
+    ],
+    "requiredQualityGates": [],
+    "missingQualityGates": []
+  }
 }
