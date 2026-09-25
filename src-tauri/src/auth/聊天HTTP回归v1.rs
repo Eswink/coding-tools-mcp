@@ -1,10 +1,18 @@
 use serde_json::{json, Value};
 use super::{PublicOrigin, chat_fixture as fixture};
 use crate::workspace::{AuthConfig, RuntimeConfig};
+use std::sync::atomic::{AtomicU16, Ordering};
+
+fn next_test_listener_port() -> u16 {
+    static NEXT_PORT: AtomicU16 = AtomicU16::new(20_000);
+    let port = NEXT_PORT.fetch_add(1, Ordering::Relaxed);
+    assert!(port < 26_000, "test listener port pool exhausted");
+    port
+}
 #[tokio::test]
 async fn http_conversations_require_separate_grants_and_cannot_observe_each_others_jobs() {
     let root = tempfile::tempdir().unwrap(); let profile = uuid::Uuid::new_v4().to_string();
-    let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap(); let port = reserve.local_addr().unwrap().port(); drop(reserve);
+    let port = next_test_listener_port();
     let (stop,task,execution_gate) = crate::mcp::spawn_listener_with_origin_and_execution_gate(port,root.path().into(),profile.clone(),
         AuthConfig { oauth_client_id:"test-client".into(), session_policy:super::session_policy::SessionPolicy {exclusive:false,..Default::default()}, ..Default::default() },PublicOrigin::managed(fixture::ORIGIN).unwrap(),
         None,Some("password".into()),Some(fixture::KEY.into()),RuntimeConfig::default()).unwrap();
@@ -43,7 +51,7 @@ async fn http_conversations_require_separate_grants_and_cannot_observe_each_othe
 #[tokio::test]
 async fn noauth_listener_discovery_does_not_authorize_business_or_self_approval() {
     let root = tempfile::tempdir().unwrap();
-    let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap(); let port = reserve.local_addr().unwrap().port(); drop(reserve);
+    let port = next_test_listener_port();
     let (stop,task) = crate::mcp::spawn_listener_with_origin(port,root.path().into(),uuid::Uuid::new_v4().to_string(),
         AuthConfig { auth_type:"noauth".into(),..Default::default() },PublicOrigin::managed("").unwrap(),None,None,None,RuntimeConfig::default()).unwrap();
     let client = fixture::client();let url = format!("http://127.0.0.1:{port}/mcp");
@@ -58,9 +66,7 @@ async fn noauth_listener_discovery_does_not_authorize_business_or_self_approval(
 async fn offline_new_authorization_is_a_non_oauth_tool_error_and_resumes_cleanly() {
     let root = tempfile::tempdir().unwrap();
     let profile = uuid::Uuid::new_v4().to_string();
-    let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = reserve.local_addr().unwrap().port();
-    drop(reserve);
+    let port = next_test_listener_port();
     let (stop, task, execution_gate) = crate::mcp::spawn_listener_with_origin_and_execution_gate(
         port,
         root.path().into(),
@@ -114,9 +120,7 @@ async fn offline_new_authorization_is_a_non_oauth_tool_error_and_resumes_cleanly
 async fn workspace_pause_keeps_oauth_and_chat_owner_but_blocks_new_business_dispatch() {
     let root = tempfile::tempdir().unwrap();
     let profile = uuid::Uuid::new_v4().to_string();
-    let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = reserve.local_addr().unwrap().port();
-    drop(reserve);
+    let port = next_test_listener_port();
     let (stop, task, execution_gate) = crate::mcp::spawn_listener_with_origin_and_execution_gate(
         port,
         root.path().into(),
