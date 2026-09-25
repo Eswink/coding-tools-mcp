@@ -6,6 +6,7 @@ on:
     paths:
       - 'src-tauri/src/harness/mod.rs'
       - 'src-tauri/src/harness/worktree.rs'
+      - 'src-tauri/src/harness/worktree_git.rs'
       - 'src-tauri/src/harness/worktree_tests.rs'
       - '.github/workflows/continuation-worktrees-candidate-review.yml'
 
@@ -13,7 +14,7 @@ permissions:
   contents: read
 
 env:
-  SOURCE_SHA: 4dc9f9d872c134d381cb1eba76999d34231d3ba6
+  SOURCE_SHA: 5f65d069343c0cdcb5455fa7cc76792a14bb5d2e
 
 jobs:
   impact:
@@ -41,24 +42,27 @@ jobs:
           files=(
             'src-tauri/src/harness/mod.rs'
             'src-tauri/src/harness/worktree.rs'
+            'src-tauri/src/harness/worktree_git.rs'
             'src-tauri/src/harness/worktree_tests.rs'
           )
           git checkout "$candidate" -- "${files[@]}"
           git add "${files[@]}"
           git diff --cached --check
           git diff --cached --name-only | tee evidence/changed-paths.txt
-          test "$(wc -l < evidence/changed-paths.txt)" -eq 3
+          test "$(wc -l < evidence/changed-paths.txt)" -eq 4
           "$graph" detect-changes --scope staged > evidence/detect.txt 2>&1
           cat evidence/detect.txt
           ! grep -q 'No changes detected' evidence/detect.txt
           wc -l "${files[@]}" | tee evidence/line-counts.txt
           test "$(wc -l < src-tauri/src/harness/worktree.rs)" -lt 500
+          test "$(wc -l < src-tauri/src/harness/worktree_git.rs)" -lt 500
           test "$(wc -l < src-tauri/src/harness/worktree_tests.rs)" -lt 500
           python - <<'PY' | tee evidence/source-hashes.txt
           import hashlib
           for p in [
               'src-tauri/src/harness/mod.rs',
               'src-tauri/src/harness/worktree.rs',
+              'src-tauri/src/harness/worktree_git.rs',
               'src-tauri/src/harness/worktree_tests.rs',
           ]:
               print(p, hashlib.sha256(open(p,'rb').read()).hexdigest())
@@ -104,7 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p evidence
-          rustfmt --edition 2021 --check src-tauri/src/harness/worktree.rs src-tauri/src/harness/worktree_tests.rs
+          rustfmt --edition 2021 --check src-tauri/src/harness/worktree.rs src-tauri/src/harness/worktree_git.rs src-tauri/src/harness/worktree_tests.rs
           git diff --check "$SOURCE_SHA"...HEAD
           set +e
           cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --message-format=json -- -D warnings > evidence/clippy.jsonl 2> evidence/clippy.stderr
@@ -113,7 +117,7 @@ jobs:
           echo "clippy_exit=$code" | tee evidence/clippy-result.txt
           python - <<'PY' | tee -a evidence/clippy-result.txt
           import json, pathlib, sys
-          candidates={'src/harness/mod.rs','src/harness/worktree.rs','src/harness/worktree_tests.rs'}
+          candidates={'src/harness/mod.rs','src/harness/worktree.rs','src/harness/worktree_git.rs','src/harness/worktree_tests.rs'}
           errors=[]
           for raw in pathlib.Path('evidence/clippy.jsonl').read_text(encoding='utf-8',errors='replace').splitlines():
               try: item=json.loads(raw)

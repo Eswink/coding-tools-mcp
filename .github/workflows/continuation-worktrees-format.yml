@@ -5,6 +5,7 @@ on:
     branches: ['ci/worktrees-candidate-review-20260925']
     paths:
       - 'src-tauri/src/harness/worktree.rs'
+      - 'src-tauri/src/harness/worktree_git.rs'
       - 'src-tauri/src/harness/worktree_tests.rs'
       - '.github/workflows/continuation-worktrees-format.yml'
 
@@ -30,10 +31,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p evidence
-          files=(src-tauri/src/harness/worktree.rs src-tauri/src/harness/worktree_tests.rs)
+          files=(src-tauri/src/harness/worktree.rs src-tauri/src/harness/worktree_git.rs src-tauri/src/harness/worktree_tests.rs)
           rustfmt --edition 2021 "${files[@]}"
           wc -l "${files[@]}" | tee evidence/line-counts.txt
           test "$(wc -l < src-tauri/src/harness/worktree.rs)" -lt 500
+          test "$(wc -l < src-tauri/src/harness/worktree_git.rs)" -lt 500
           test "$(wc -l < src-tauri/src/harness/worktree_tests.rs)" -lt 500
           git diff --check
           if git diff --quiet -- "${files[@]}"; then
