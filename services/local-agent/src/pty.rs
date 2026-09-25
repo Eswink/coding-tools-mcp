@@ -17,20 +17,17 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::sync::{watch, Semaphore};
-
 #[cfg(unix)]
 #[path = "pty_unix.rs"]
 mod platform;
 #[cfg(windows)]
 #[path = "pty_windows.rs"]
 mod platform;
-
 const MAX_ACTIVE: usize = 32;
 const MAX_DIMENSION: u16 = 1000;
 const MAX_WRITE_BYTES: usize = 64 * 1024;
 const TERMINATE_WAIT: Duration = Duration::from_secs(3);
 const READER_WAIT: Duration = Duration::from_secs(2);
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PtyErrorKind {
     InvalidSpec,
@@ -39,23 +36,19 @@ pub enum PtyErrorKind {
     Closed,
     Io,
 }
-
 #[derive(Clone)]
 pub struct PtyError {
     pub kind: PtyErrorKind,
     message: &'static str,
 }
-
 impl PtyError {
     pub(crate) const fn new(kind: PtyErrorKind, message: &'static str) -> Self {
         Self { kind, message }
     }
-
     pub fn public_message(&self) -> &'static str {
         self.message
     }
 }
-
 impl fmt::Debug for PtyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PtyError")
@@ -64,21 +57,17 @@ impl fmt::Debug for PtyError {
             .finish()
     }
 }
-
 impl fmt::Display for PtyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.message)
     }
 }
-
 impl Error for PtyError {}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub struct PtySize {
     pub columns: u16,
     pub rows: u16,
 }
-
 impl PtySize {
     pub fn new(columns: u16, rows: u16) -> Result<Self, PtyError> {
         if columns == 0 || rows == 0 || columns > MAX_DIMENSION || rows > MAX_DIMENSION {
@@ -90,7 +79,6 @@ impl PtySize {
         Ok(Self { columns, rows })
     }
 }
-
 #[derive(Clone)]
 pub struct PtySpec {
     argv: Vec<String>,
@@ -100,7 +88,6 @@ pub struct PtySpec {
     timeout: Duration,
     output_limit: usize,
 }
-
 impl PtySpec {
     pub fn new(argv: Vec<String>, cwd: impl Into<PathBuf>) -> Result<Self, PtyError> {
         let spec = Self {
@@ -114,7 +101,6 @@ impl PtySpec {
         spec.validate()?;
         Ok(spec)
     }
-
     pub fn with_env(
         mut self,
         key: impl Into<String>,
@@ -124,41 +110,33 @@ impl PtySpec {
         self.validate()?;
         Ok(self)
     }
-
     pub fn with_size(mut self, size: PtySize) -> Result<Self, PtyError> {
         self.size = size;
         self.validate()?;
         Ok(self)
     }
-
     pub fn with_timeout(mut self, timeout: Duration) -> Result<Self, PtyError> {
         self.timeout = timeout;
         self.validate()?;
         Ok(self)
     }
-
     pub fn with_output_limit(mut self, limit: usize) -> Result<Self, PtyError> {
         self.output_limit = limit;
         self.validate()?;
         Ok(self)
     }
-
     pub(crate) fn argv(&self) -> &[String] {
         &self.argv
     }
-
     pub(crate) fn cwd(&self) -> &Path {
         &self.cwd
     }
-
     pub(crate) fn env(&self) -> &BTreeMap<String, String> {
         &self.env
     }
-
     pub(crate) fn size(&self) -> PtySize {
         self.size
     }
-
     fn validate(&self) -> Result<(), PtyError> {
         if self.argv.is_empty() || self.argv.len() > MAX_ARGC {
             return Err(invalid());
@@ -200,7 +178,6 @@ impl PtySpec {
         Ok(())
     }
 }
-
 impl fmt::Debug for PtySpec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PtySpec")
@@ -215,7 +192,6 @@ impl fmt::Debug for PtySpec {
             .finish()
     }
 }
-
 fn valid_env_key(key: &str) -> bool {
     let mut chars = key.chars();
     let Some(first) = chars.next() else {
@@ -225,11 +201,9 @@ fn valid_env_key(key: &str) -> bool {
         && chars.all(|value| value == '_' || value.is_ascii_alphanumeric())
         && key.len() <= 128
 }
-
 fn invalid() -> PtyError {
     PtyError::new(PtyErrorKind::InvalidSpec, "invalid PTY specification")
 }
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PtyTermination {
@@ -240,7 +214,6 @@ pub enum PtyTermination {
     IoError,
     TerminationUncertain,
 }
-
 #[derive(Clone, Serialize)]
 pub struct PtyOutcome {
     pub session_id: String,
@@ -252,7 +225,6 @@ pub struct PtyOutcome {
     pub output_complete: bool,
     pub duration_ms: u64,
 }
-
 impl fmt::Debug for PtyOutcome {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PtyOutcome")
@@ -267,40 +239,33 @@ impl fmt::Debug for PtyOutcome {
             .finish()
     }
 }
-
 enum Command {
     Write(Vec<u8>, mpsc::Sender<Result<(), PtyError>>),
     Resize(PtySize, mpsc::Sender<Result<(), PtyError>>),
     Cancel,
     Close,
 }
-
 pub struct PtySession {
     id: String,
     commands: mpsc::Sender<Command>,
     done: watch::Receiver<Option<PtyOutcome>>,
 }
-
 impl PtySession {
     pub fn id(&self) -> &str {
         &self.id
     }
-
     pub fn write(&self, bytes: &[u8]) -> Result<(), PtyError> {
         if bytes.len() > MAX_WRITE_BYTES {
             return Err(invalid());
         }
         request(&self.commands, |reply| Command::Write(bytes.to_vec(), reply))
     }
-
     pub fn resize(&self, size: PtySize) -> Result<(), PtyError> {
         request(&self.commands, |reply| Command::Resize(size, reply))
     }
-
     pub fn snapshot(&self) -> Option<PtyOutcome> {
         self.done.borrow().clone()
     }
-
     pub async fn wait(&mut self) -> PtyOutcome {
         loop {
             if let Some(outcome) = self.done.borrow().clone() {
@@ -311,13 +276,11 @@ impl PtySession {
             }
         }
     }
-
     pub async fn cancel(&mut self) -> PtyOutcome {
         let _ = self.commands.send(Command::Cancel);
         self.wait().await
     }
 }
-
 impl Drop for PtySession {
     fn drop(&mut self) {
         if self.done.borrow().is_none() {
@@ -325,7 +288,6 @@ impl Drop for PtySession {
         }
     }
 }
-
 impl fmt::Debug for PtySession {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PtySession")
@@ -334,7 +296,6 @@ impl fmt::Debug for PtySession {
             .finish()
     }
 }
-
 fn request(
     commands: &mpsc::Sender<Command>,
     build: impl FnOnce(mpsc::Sender<Result<(), PtyError>>) -> Command,
@@ -347,13 +308,11 @@ fn request(
         .recv_timeout(Duration::from_secs(2))
         .map_err(|_| PtyError::new(PtyErrorKind::Closed, "PTY session is closed"))?
 }
-
 #[derive(Clone)]
 pub struct PtyManager {
     permits: Arc<Semaphore>,
     next_id: Arc<AtomicU64>,
 }
-
 impl PtyManager {
     pub fn new(max_active: usize) -> Result<Self, PtyError> {
         if max_active == 0 || max_active > MAX_ACTIVE {
@@ -364,7 +323,6 @@ impl PtyManager {
             next_id: Arc::new(AtomicU64::new(1)),
         })
     }
-
     pub async fn start(&self, spec: PtySpec) -> Result<PtySession, PtyError> {
         spec.validate()?;
         let cwd = std::fs::canonicalize(spec.cwd()).map_err(|_| invalid())?;
@@ -490,23 +448,19 @@ impl PtyManager {
         });
         Ok(PtySession { id, commands, done })
     }
-
     pub async fn run(&self, spec: PtySpec) -> Result<PtyOutcome, PtyError> {
         let mut session = self.start(spec).await?;
         Ok(session.wait().await)
     }
 }
-
 impl Default for PtyManager {
     fn default() -> Self {
         Self::new(4).expect("valid PTY capacity")
     }
 }
-
 fn io_error() -> PtyError {
     PtyError::new(PtyErrorKind::Io, "PTY I/O failed")
 }
-
 fn uncertain(id: &str) -> PtyOutcome {
     PtyOutcome {
         session_id: id.to_owned(),

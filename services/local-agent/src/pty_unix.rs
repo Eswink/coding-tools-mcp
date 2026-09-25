@@ -30,7 +30,7 @@ pub(crate) fn spawn(spec: &PtySpec, cwd: &std::path::Path) -> Result<Spawned, Pt
     set_size(master.as_raw_fd(), spec.size()).map_err(|_| spawn_error())?;
     let reader = duplicate_file(master.as_raw_fd()).map_err(|_| spawn_error())?;
     let writer = duplicate_file(master.as_raw_fd()).map_err(|_| spawn_error())?;
-    let resize_fd = master.as_raw_fd();
+    let resize_fd = writer.as_raw_fd();
 
     let mut command = Command::new(&spec.argv()[0]);
     command
@@ -101,7 +101,7 @@ impl PlatformPty {
 }
 
 fn open_master() -> io::Result<OwnedFd> {
-    let raw = unsafe { libc::posix_openpt(libc::O_RDWR | libc::O_NOCTTY) };
+    let raw = unsafe { libc::posix_openpt(libc::O_RDWR | libc::O_NOCTTY | libc::O_CLOEXEC) };
     if raw == -1 {
         return Err(io::Error::last_os_error());
     }
@@ -121,7 +121,7 @@ fn open_slave(master: RawFd) -> io::Result<OwnedFd> {
         return Err(io::Error::from_raw_os_error(result));
     }
     let path = unsafe { CStr::from_ptr(name.as_ptr()) };
-    let raw = unsafe { libc::open(path.as_ptr(), libc::O_RDWR | libc::O_NOCTTY) };
+    let raw = unsafe { libc::open(path.as_ptr(), libc::O_RDWR | libc::O_NOCTTY | libc::O_CLOEXEC) };
     if raw == -1 {
         return Err(io::Error::last_os_error());
     }
@@ -154,7 +154,7 @@ fn set_size(fd: RawFd, size: PtySize) -> io::Result<()> {
 }
 
 fn duplicate_file(fd: RawFd) -> io::Result<File> {
-    let duplicate = unsafe { libc::dup(fd) };
+    let duplicate = unsafe { libc::fcntl(fd, libc::F_DUPFD_CLOEXEC, 0) };
     if duplicate == -1 {
         return Err(io::Error::last_os_error());
     }

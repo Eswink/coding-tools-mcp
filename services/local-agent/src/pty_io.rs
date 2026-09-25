@@ -54,7 +54,7 @@ pub(crate) fn spawn_reader(
                         overflow.store(true, Ordering::Release);
                     }
                 }
-                Err(error) if cfg!(unix) && error.raw_os_error() == Some(libc::EIO) => break,
+                Err(error) if terminal_eof(&error) => break,
                 Err(_) => {
                     complete = false;
                     break;
@@ -87,4 +87,14 @@ pub(crate) fn snapshot(state: &SharedOutput) -> (Vec<u8>, u64, bool) {
     };
     let retained = std::mem::take(&mut output.retained);
     (retained, output.total, output.truncated)
+}
+
+#[cfg(unix)]
+fn terminal_eof(error: &io::Error) -> bool {
+    error.raw_os_error() == Some(libc::EIO)
+}
+
+#[cfg(not(unix))]
+fn terminal_eof(_error: &io::Error) -> bool {
+    false
 }

@@ -8,7 +8,7 @@ use std::{
     mem::size_of,
     os::windows::{
         ffi::OsStrExt,
-        io::{AsRawHandle, FromRawHandle, OwnedHandle},
+        io::{AsRawHandle, FromRawHandle, IntoRawHandle, OwnedHandle},
     },
     path::Path,
     ptr::{null, null_mut},
@@ -72,6 +72,7 @@ unsafe extern "system" {
     ) -> i32;
     fn GetExitCodeProcess(process: HANDLE, exit_code: *mut u32) -> i32;
     fn ResumeThread(thread: HANDLE) -> u32;
+    fn TerminateProcess(process: HANDLE, exit_code: u32) -> i32;
 }
 
 pub(crate) struct Spawned {
@@ -190,18 +191,26 @@ pub(crate) fn spawn(spec: &PtySpec, cwd: &Path) -> Result<Spawned, PtyError> {
         return Err(spawn_error());
     }
 
-    let mut process = unsafe { OwnedHandle::from_raw_handle(info.hProcess.0) };
+    let process = unsafe { OwnedHandle::from_raw_handle(info.hProcess.0) };
     let thread = unsafe { OwnedHandle::from_raw_handle(info.hThread.0) };
-    let mut tree = ProcessTree::new().map_err(|_| spawn_error())?;
+    let mut tree = match ProcessTree::new() {
+        Ok(tree) => tree,
+        Err(_) => {
+            unsafe { TerminateProcess(HANDLE(process.as_raw_handle()), 1) };
+            return Err(spawn_error());
+        }
+    };
     if tree
         .assign_process(HANDLE(process.as_raw_handle()))
         .is_err()
     {
+        unsafe { TerminateProcess(HANDLE(process.as_raw_handle()), 1) };
         let _ = tree.terminate();
         return Err(spawn_error());
     }
     let resumed = unsafe { ResumeThread(HANDLE(thread.as_raw_handle())) };
     if resumed != 1 {
+        unsafe { TerminateProcess(HANDLE(process.as_raw_handle()), 1) };
         let _ = tree.terminate();
         return Err(spawn_error());
     }
@@ -293,6 +302,9 @@ fn wide(value: &OsStr) -> Vec<u16> {
 }
 
 fn environment_block(env: &BTreeMap<String, String>) -> Vec<u16> {
+    if env.is_empty() {
+        return vec![0, 0];
+    }
     let mut block = Vec::new();
     for (key, value) in env {
         block.extend(OsStr::new(&format!("{key}={value}")).encode_wide());

@@ -1,6 +1,6 @@
 use std::{
     env,
-    io::{IsTerminal, Read, Write},
+    io::{BufRead, IsTerminal, Write},
     process::{Command, ExitCode},
     thread,
     time::Duration,
@@ -19,7 +19,7 @@ fn main() -> ExitCode {
             println!("terminal={}", std::io::stdin().is_terminal());
             std::io::stdout().flush().unwrap();
             let mut input = String::new();
-            std::io::stdin().read_to_string(&mut input).unwrap();
+            std::io::stdin().lock().read_line(&mut input).unwrap();
             print!("input={input}");
             ExitCode::SUCCESS
         }

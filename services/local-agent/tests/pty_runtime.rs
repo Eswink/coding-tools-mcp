@@ -45,19 +45,10 @@ async fn interactive_write_is_bounded_and_delivered() {
     let manager = PtyManager::default();
     let mut session = manager.start(spec(&["read-once"])).await.unwrap();
     session.write("héllo\n".as_bytes()).unwrap();
-    drop_input_by_cancel_after_marker(&mut session).await;
     let outcome = session.wait().await;
     let output = text(&outcome);
     assert!(output.contains("terminal=true"), "{output:?}");
-}
-
-async fn drop_input_by_cancel_after_marker(session: &mut coding_tools_local_agent::PtySession) {
-    for _ in 0..50 {
-        if session.snapshot().is_some() {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    }
+    assert!(output.contains("input=héllo"), "{output:?}");
 }
 
 #[tokio::test]
@@ -168,6 +159,7 @@ fn process_alive(pid: u32) -> bool {
 
 #[cfg(windows)]
 fn process_alive(pid: u32) -> bool {
+    use windows::Win32::Foundation::CloseHandle;
     use windows::Win32::System::Threading::{
         GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
     };
@@ -176,5 +168,8 @@ fn process_alive(pid: u32) -> bool {
         return false;
     };
     let mut code = 0u32;
-    unsafe { GetExitCodeProcess(handle, &mut code) }.is_ok() && code == STILL_ACTIVE_CODE
+    let active = unsafe { GetExitCodeProcess(handle, &mut code) }.is_ok()
+        && code == STILL_ACTIVE_CODE;
+    let _ = unsafe { CloseHandle(handle) };
+    active
 }
