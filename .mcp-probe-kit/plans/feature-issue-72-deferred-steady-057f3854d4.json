@@ -192,7 +192,8 @@
     "context",
     "write-spec",
     "check-spec",
-    "estimate"
+    "estimate",
+    "implement"
   ],
   "skippedSteps": [],
   "unresolvedItems": [],
@@ -228,6 +229,14 @@
       "reference": "estimate in this run",
       "revision": "f4f93af9ee28aa209bb67643421725fcb22fb7e5",
       "verifiedAt": "2026-09-25T13:48:40.379Z"
+    },
+    {
+      "kind": "implementation",
+      "summary": "Candidate adds a bounded read-only DeferredToolCatalog/discover_deferred contract and focused registry coverage in exactly registry.rs, registry_tests.rs and lib.rs.",
+      "stepId": "implement",
+      "reference": "ci/tool-discovery-candidate-review-20260925",
+      "revision": "4adc65541381ee881e302fabaf12a61ea5ec0cfc",
+      "verifiedAt": "2026-09-25T13:51:36.395Z"
     }
   ],
   "declaredScope": {
@@ -241,7 +250,7 @@
   "architectureCandidates": [],
   "acceptanceResults": [],
   "runtimeEvidence": [],
-  "lastVerifiedRevision": "f4f93af9ee28aa209bb67643421725fcb22fb7e5",
+  "lastVerifiedRevision": "4adc65541381ee881e302fabaf12a61ea5ec0cfc",
   "createdAt": "2026-09-25T13:39:34.624Z",
-  "updatedAt": "2026-09-25T13:48:40.379Z"
+  "updatedAt": "2026-09-25T13:51:36.395Z"
 }
