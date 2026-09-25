@@ -1,6 +1,6 @@
-# Subtasks: Deferred catalog contract
+# 子任务：Deferred catalog contract
 
-- [ ] deferred-catalog-contract/1.1 Implement the bounded discovery result and registry method.
-  - Evidence first: `services/local-agent/src/registry.rs` ToolRegistry exposure methods; `services/local-agent/src/model.rs` ToolSpec limits.
-  - Files: registry/model plus focused tests only as required.
-  - Requirements: FR-1, FR-2.
+- [ ] 1.1 实现 bounded Deferred discovery result 与 registry method。
+  - 证据块: 先读 `services/local-agent/src/registry.rs` exposure methods 与 `services/local-agent/src/model.rs` ToolSpec limits。
+  - 涉及文件: `services/local-agent/src/registry.rs`；必要时 `services/local-agent/src/model.rs`。
+  - _需求: FR-1, FR-2_

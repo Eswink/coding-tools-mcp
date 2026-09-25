@@ -1,17 +1,22 @@
 # issue-72-deferred
 
-## Principle
+## 原则
 
-Evaluate and implement only a bounded local Deferred-tool discovery view on the existing `services/local-agent` registry. This increment never invokes a tool, never creates authority, never changes admission/capabilities, and never publishes Hidden tools.
+只在现有 `services/local-agent` ToolRegistry 上评估并实现一个有界的 Deferred-tool discovery view。本增量不执行工具、不创建 authority、不改变 admission/capability，也不发布 Hidden tools。
 
-## Subspec index
+## 子规格索引
 
-| ID | Title | FR | Depends on |
+| ID | 标题 | FR | 依赖 |
 |---|---|---|---|
-| deferred-catalog-contract | Deferred catalog contract | FR-1, FR-2 | none |
+| deferred-catalog-contract | Deferred catalog contract | FR-1, FR-2 | 无 |
 | discovery-safety-evaluation | Discovery safety and evaluation | FR-3 | deferred-catalog-contract |
 
-## Milestone
+## 依赖关系
 
-1. Freeze deterministic bounded catalog semantics.
-2. Prove visibility and no-execution safety on both supported CI runners.
+`discovery-safety-evaluation` 依赖 `deferred-catalog-contract`。跨模块契约仅限 ToolRegistry/ToolSpec 元数据读取，不引入 wire/cloud/runtime 依赖。
+
+## 里程碑
+
+1. 冻结 deterministic bounded catalog 语义。
+2. 完成可见性、截断与 no-execution 安全验证。
+3. 完成 Windows 2025 / Ubuntu 24.04 双平台验证与 code review。

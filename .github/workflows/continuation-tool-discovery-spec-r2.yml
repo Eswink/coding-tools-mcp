@@ -1,4 +1,4 @@
-name: Tool discovery spec, check and estimate (never merge)
+name: Tool discovery spec, check and estimate r3 (never merge)
 on:
   push:
     branches: ['ci/tool-discovery-plan-init-20260925']

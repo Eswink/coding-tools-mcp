@@ -1,20 +1,29 @@
-# Subspec: Discovery safety and evaluation
+# 子规格：Discovery safety and evaluation
 
-## Scope
-Prove that discovery is metadata-only and preserves the local authority boundary.
+## 范围
 
-## Requirements
+证明 discovery 是 metadata-only，并保持 local authority boundary。
+
+## 需求回链
+
 - FR-3
 
-## Acceptance criteria
-1. WHEN discovery is called THEN no registered executor SHALL execute and registry state SHALL remain unchanged.
-2. WHEN Hidden or Direct tools are present THEN neither SHALL appear in the Deferred discovery result.
-3. WHEN the same registry is discovered repeatedly THEN the returned metadata/order/truncation state SHALL be stable.
-4. WHEN tested on Windows 2025 and Ubuntu 24.04 THEN focused registry tests and the relevant local-agent full test suite SHALL pass.
+## 验收标准（EARS）
 
-## Files
+1. WHEN discovery 被调用 THEN 系统 SHALL 不调用任何 registered executor。
+2. WHEN registry 含 Hidden 或 Direct tools THEN discovery SHALL 不返回它们。
+3. WHEN 对同一 registry 重复 discovery THEN order、returned metadata 与 omitted 状态 SHALL 稳定一致。
+4. WHEN 在 Windows 2025 与 Ubuntu 24.04 验证 THEN focused registry tests 与 relevant local-agent full tests SHALL 通过。
+
+## 涉及文件
+
 - `services/local-agent/src/registry_tests.rs`
-- production files only if required by the catalog contract
+- 仅为 catalog contract 必需的 production 文件
 
-## Not included
-No new authority, capability, policy, network, process, or persistence behavior.
+## 不做项
+
+- 不新增 authority、capability、policy、network、process 或 persistence 行为。
+
+## 设计要点
+
+使用带原子 execute counter 的 test executor 证明 discovery 不触发 `ToolExecutor::execute`；同时覆盖 entry/byte truncation 和 Hidden/Direct exclusion。

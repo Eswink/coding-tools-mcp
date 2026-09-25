@@ -1,20 +1,35 @@
-# Design: issue-72-deferred
+# 设计文档：issue-72-deferred
 
-## Existing state
-`ToolRegistry` stores tools in a `BTreeMap` and already separates `Direct`, `Deferred`, and `Hidden`. `deferred_specs()` clones all Deferred ToolSpec values but does not expose an explicit bounded discovery contract.
+## 概述
 
-## Proposed contract
-Add a small immutable discovery value and a registry method dedicated to Deferred discovery.
+现有 ToolRegistry 使用 `BTreeMap` 保存工具并已有 Direct/Deferred/Hidden 分层；`deferred_specs()` 会克隆全部 Deferred ToolSpec，但没有显式的有界 discovery contract。
 
-- The registry remains the sole source of tool metadata.
-- Selection is exactly `ToolExposure::Deferred`.
-- Ordering reuses the registry BTreeMap order.
-- Discovery applies fixed repository limits before returning data. It never serializes executor objects or authority.
-- The result contains cloned validated `ToolSpec` values plus bounded summary state (returned count / omitted marker). No host-global path or secret field exists.
-- Discovery is read-only and never calls `invoke` or `ToolExecutor::execute`.
+## 对应需求
 
-## Compatibility
-Existing Direct invocation/admission behavior is unchanged. Hidden tools remain registered but undiscoverable. No wire protocol integration is added in this increment.
+- FR-1：visibility 与 deterministic ordering。
+- FR-2：entry/metadata byte bounds 与 omitted 状态。
+- FR-3：metadata-only / no-execution authority boundary。
 
-## Risk control
-GitNexus reports `deferred_specs` as UNKNOWN/exact with zero resolved callers, which is not proof of safety; repository text search also finds no production call sites. Implementation therefore stays in the local-agent registry/model boundary and adds focused regression tests.
+## 技术方案
+
+在 local-agent registry 边界新增一个小型 immutable Deferred discovery value，以及专用只读 registry method。
+
+- registry 仍是元数据 SSOT。
+- 仅选择 `ToolExposure::Deferred`。
+- 直接按现有 `BTreeMap` 顺序遍历，达到固定 entry/byte 上限后停止，不先克隆全量集合。
+- result 只持有 cloned validated ToolSpec 与 returned/omitted/metadata-bytes 等非敏感摘要。
+- discovery 不调用 `invoke` / `ToolExecutor::execute`，不接触 LocalAdmission。
+- 旧 Direct invocation 路径和 Hidden registration 行为不变。
+
+## 文件结构
+
+- `services/local-agent/src/registry.rs`：bounded discovery contract / method。
+- `services/local-agent/src/registry_tests.rs`：排序、visibility、bounds、no-execution tests。
+- `services/local-agent/src/model.rs`：仅在确有必要时复用/导出常量；优先不改。
+- 不新增云端、UI 或运行时文件。
+
+## 设计决策
+
+- 不改变 `ToolSpec` 序列化/authority 语义。
+- 不删除现有 `deferred_specs()` compatibility method；新 bounded discovery 是显式评估入口。
+- GitNexus 对 `deferred_specs` 为 UNKNOWN/exact、0 resolved callers；结合全仓文本搜索无 production caller，只能作为 lower-confidence evidence，不能视为“未使用证明”。
