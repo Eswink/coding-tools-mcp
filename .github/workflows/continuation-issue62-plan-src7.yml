@@ -1,0 +1,104 @@
+name: Issue 62 Plan SRC-7 checkpoint (never merge)
+
+on:
+  push:
+    branches: ['ci/issue62-plan-init-20260924']
+    paths:
+      - '.github/workflows/continuation-issue62-plan-src7.yml'
+
+permissions:
+  contents: write
+
+env:
+  PLAN_ID: bugfix-issue-62-on-ubuntu-after-mcp-listene-eda04c324b
+  PLAN_PATH: .mcp-probe-kit/plans/bugfix-issue-62-on-ubuntu-after-mcp-listene-eda04c324b.json
+  CANDIDATE_SHA: 5d41565b60dc4f5b213c8c98236d3d5385a50fac
+
+jobs:
+  checkpoint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Resume and persist SRC-7 verification evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-before.json 2>&1
+          cat evidence/resume-before.json
+          node - <<'NODE'
+          const r=require('./evidence/resume-before.json');
+          if(r.isError===true || r.structuredContent?.found!==true) process.exit(1);
+          if(r.structuredContent?.nextStepId!=='src8-7') process.exit(2);
+          NODE
+          python - <<'PY' > evidence/heartbeat.json
+          import json, os
+          print(json.dumps({
+            "plan_id": os.environ["PLAN_ID"],
+            "project_root": os.getcwd(),
+            "completed_step_ids": [
+              "context","src8-1","src8-2","src8-3","src8-4","src8-5","src8-6","src8-7"
+            ],
+            "evidence": [
+              {
+                "kind":"test",
+                "step_id":"src8-7",
+                "summary":"mcp-probe gentest guidance was executed for the revised ownerless-LISTEN candidate; final never-merge run 36098896792 then passed cargo check, the exact same-port recovery target 20/20 on Windows 2025 and 20/20 on Ubuntu 24.04, plus complete desktop Rust suites 2/2 Windows and 6/6 Ubuntu with 404/404 each. Staged GitNexus detect saw 5 files / 8 symbols at MEDIUM risk and was not false-clean.",
+                "reference":"gentest run 36093934128; candidate validation run 36098896792",
+                "revision":os.environ["CANDIDATE_SHA"]
+              }
+            ],
+            "artifacts": [
+              {
+                "kind":"test",
+                "summary":"Ubuntu 24.04 ownerless-LISTEN candidate evidence",
+                "reference":"artifact 10848336847 sha256:f575048b1fe0dafd1d149284afb4316c2860ac3cdb41bc0c9d3767fb87d32dab",
+                "revision":os.environ["CANDIDATE_SHA"]
+              },
+              {
+                "kind":"test",
+                "summary":"Windows 2025 ownerless-LISTEN candidate evidence",
+                "reference":"artifact 10849100648 sha256:8bcc131e15ab7815aa9c0acc70547f76bb9353811cb95d7785ae6a7735dd5808",
+                "revision":os.environ["CANDIDATE_SHA"]
+              },
+              {
+                "kind":"impact",
+                "summary":"Staged GitNexus ownerless-LISTEN impact evidence",
+                "reference":"artifact 10848965642 sha256:ee828621cbee254111e6bd1ed7488c365efb60cf7d3158902f201b38235241f0",
+                "revision":os.environ["CANDIDATE_SHA"]
+              }
+            ],
+            "last_verified_revision": os.environ["CANDIDATE_SHA"]
+          }, separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/heartbeat.json > evidence/heartbeat-output.json 2>&1
+          cat evidence/heartbeat-output.json
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-after.json 2>&1
+          cat evidence/resume-after.json
+          cp "$PLAN_PATH" evidence/plan-after.json
+          node - <<'NODE'
+          const p=require('./.mcp-probe-kit/plans/bugfix-issue-62-on-ubuntu-after-mcp-listene-eda04c324b.json');
+          if(!p.completedStepIds.includes('src8-7')) process.exit(1);
+          if(p.lastVerifiedRevision!==process.env.CANDIDATE_SHA) process.exit(2);
+          NODE
+          git config user.name github-actions
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "$PLAN_PATH"
+          git diff --cached --check
+          git commit -m "chore(plan): checkpoint issue62 verification"
+          git fetch origin "ci/issue62-plan-init-20260924"
+          test "$(git rev-parse "origin/ci/issue62-plan-init-20260924")" = "$GITHUB_SHA"
+          git push origin "HEAD:ci/issue62-plan-init-20260924"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue62-plan-src7
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
