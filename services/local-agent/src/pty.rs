@@ -358,6 +358,7 @@ impl PtyManager {
         let (commands, command_rx) = mpsc::channel();
         let (done_tx, done) = watch::channel(None);
         let supervisor_id = id.clone();
+        let supervisor_output = output.clone();
         thread::spawn(move || {
             let _permit = permit;
             let start = Instant::now();
@@ -437,7 +438,7 @@ impl PtyManager {
             }
             process.close_session();
             let output_complete = reader.finish(READER_WAIT);
-            let (retained, total, truncated) = pty_io::snapshot(&output);
+            let (retained, total, truncated) = pty_io::snapshot(&supervisor_output);
             if termination == PtyTermination::Exited && (!output_complete || truncated) {
                 termination = if truncated {
                     PtyTermination::OutputLimit
