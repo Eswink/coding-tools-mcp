@@ -71,6 +71,13 @@ const exclusiveRefreshTests = 'src-tauri/src/auth/exclusive_refresh_http_tests.r
 const patchSource = 'src-tauri/src/tools/patch.rs';
 const patchTransaction = 'src-tauri/src/tools/patch_transaction.rs';
 const patchTransactionTests = 'src-tauri/src/tools/patch_transaction_tests.rs';
+const issue62RuntimePaths = [
+  'src-tauri/src/platform/linux/mod.rs',
+  'src-tauri/src/platform/linux/net.rs',
+  'src-tauri/src/platform/mod.rs',
+  'src-tauri/src/runtime/port.rs',
+  'src-tauri/src/tools/任务恢复传输v2.rs',
+];
 test('reviewed origin-migration workflow passes actual guard with source digest', () => {
   const result = run([migration]);
   assert.equal(result.accepted, true, result.error);
@@ -103,6 +110,16 @@ test('reviewed issue60 exclusive-refresh regression source passes actual guard w
   assert.equal(result.git_calls, 2);
 });
 
+for (const path of issue62RuntimePaths) {
+  test(`reviewed issue62 ownerless-LISTEN path passes actual guard with source digest: ${path}`, () => {
+    const contents = `// reviewed issue62 ownerless LISTEN fixture for ${path}\n`;
+    const result = run([path], { [path]: contents });
+    assert.equal(result.accepted, true, result.error);
+    assert.equal(result.report.sha256[path], createHash('sha256').update(contents).digest('hex'));
+    assert.equal(result.git_calls, 2);
+  });
+}
+
 for (const [path, contents] of [
   [patchSource, '// reviewed issue68 patch source fixture\n'],
   [patchTransaction, '// reviewed issue68 patch transaction fixture\n'],
@@ -127,6 +144,12 @@ for (const path of [
   'src-tauri/src/tools/patch.rs.bak',
   'src-tauri/src/tools/patch_transaction.rs.bak',
   'src-tauri/src/tools/patch_transaction_tests.rs.bak',
+  'src-tauri/src/platform/linux/net.rs.bak',
+  'src-tauri/src/platform/linux/unreviewed.rs',
+  'src-tauri/src/platform/unreviewed.rs',
+  'src-tauri/src/runtime/port.rs.bak',
+  'src-tauri/src/runtime/unreviewed.rs',
+  'src-tauri/src/tools/任务恢复传输v2.rs.bak',
   'src-tauri/src/tools/unreviewed.rs',
   'src-tauri/src/mcp/listener.rs.bak',
   'src-tauri/src/mcp/unreviewed.rs',
