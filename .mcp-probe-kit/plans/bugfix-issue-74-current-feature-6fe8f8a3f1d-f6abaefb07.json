@@ -235,7 +235,9 @@
     "context",
     "src8-1",
     "src8-2",
-    "src8-3"
+    "src8-3",
+    "src8-4",
+    "src8-5"
   ],
   "skippedSteps": [],
   "unresolvedItems": [],
@@ -271,6 +273,30 @@
       "reference": "Issue #74 acceptance contract",
       "revision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
       "verifiedAt": "2026-09-25T18:09:03.442Z"
+    },
+    {
+      "kind": "other",
+      "summary": "Root cause is a test-fixture TOCTOU: offline_new_authorization binds 127.0.0.1:0 only to discover a Windows dynamic port, drops that reservation, then later asks the production listener to bind the numeric port. Official RC run 36154924658 job 108137017396 failed exactly at that second bind with WSAEADDRINUSE on 64506. Windows 2025 run 36182179349 proves the runner dynamic TCP range is 49152-65535, so 64506 is allocator-owned dynamic space. Three never-merge replicas each passed 30 baseline and 50 synthetic-churn exact repeats; this non-reproduction shows rarity, not safety, because no ownership exists between drop and second bind. Production bind conflict behavior remains correct/fail-closed and GitNexus marks listener bind symbols CRITICAL, so production listener code is not the repair boundary.",
+      "stepId": "src8-4",
+      "reference": "RC run 36154924658 job 108137017396; root-cause run 36172251997; Windows range run 36182179349 artifact 10884817450 sha256:de45d761fd89e7102322eeaaa601c249ba0e15d8920271bb3baf1bffc0b9c0de",
+      "revision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
+      "verifiedAt": "2026-09-25T19:58:44.327Z"
+    },
+    {
+      "kind": "review",
+      "summary": "Pinned GitNexus 1.6.12 found the failing test symbol exact/UNKNOWN with no resolved upstream callers; spawn_listener/bind_listener remain CRITICAL/exact and are explicitly excluded from the edit. The observed bug is test setup before listener startup, not relaxed production bind semantics.",
+      "stepId": "src8-4",
+      "reference": "Issue 74 root-cause impact run 36172251997 artifact 10880606706 sha256:ca71e87374b48e58014ff6318ace3eeaf1c3e6d95fda75ad98cb551d77e45c3a",
+      "revision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
+      "verifiedAt": "2026-09-25T19:58:44.327Z"
+    },
+    {
+      "kind": "requirements",
+      "summary": "Minimal repair: remove reserve-drop-rebind from the affected chat HTTP test fixture. Allocate test-only ports from a process-local unique low range 20000-25999, outside the verified Windows dynamic range and the Ubuntu hosted-runner ephemeral range used by existing diagnostics; let spawn_listener perform the only bind. Preserve strict production port conflicts, auth/origin behavior, offline CHAT_AUTHORIZATION_UNAVAILABLE assertions, no pending event/record, clean resume, and bounded shutdown. Do not add sleeps or production retries.",
+      "stepId": "src8-5",
+      "reference": "Issue #74 acceptance plus source src-tauri/src/auth/聊天HTTP回归v1.rs",
+      "revision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
+      "verifiedAt": "2026-09-25T19:58:44.327Z"
     }
   ],
   "declaredScope": {
@@ -285,5 +311,5 @@
   "runtimeEvidence": [],
   "lastVerifiedRevision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
   "createdAt": "2026-09-25T18:07:06.914Z",
-  "updatedAt": "2026-09-25T18:09:03.442Z"
+  "updatedAt": "2026-09-25T19:58:44.327Z"
 }
