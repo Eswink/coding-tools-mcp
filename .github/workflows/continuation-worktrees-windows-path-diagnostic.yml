@@ -1,0 +1,72 @@
+name: Worktrees Windows extended-path diagnostic (never merge)
+
+on:
+  push:
+    branches: ['ci/worktrees-windows-path-diagnostic-20260925']
+    paths:
+      - '.github/workflows/continuation-worktrees-windows-path-diagnostic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: windows-2025
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 5f65d069343c0cdcb5455fa7cc76792a14bb5d2e
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Compare normal and extended Git worktree paths
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force evidence | Out-Null
+          $root = Join-Path $env:RUNNER_TEMP 'ctm-worktree-path-factorial'
+          Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force $root | Out-Null
+          $results = @()
+          foreach ($mode in @('normal-normal','extended-repo','extended-target','extended-both')) {
+            $base = Join-Path $root $mode
+            $repo = Join-Path $base 'repo'
+            $target = Join-Path $base 'managed\0123456789abcdef0123456789abcdef'
+            New-Item -ItemType Directory -Force $repo,(Split-Path $target -Parent) | Out-Null
+            git -C $repo init -q
+            git -C $repo config user.email tests@example.invalid
+            git -C $repo config user.name 'Worktree Tests'
+            Set-Content -Path (Join-Path $repo 'README.md') -Value 'baseline'
+            git -C $repo add README.md
+            git -C $repo commit -q -m initial
+
+            $repoArg = $repo
+            $targetArg = $target
+            if ($mode -eq 'extended-repo' -or $mode -eq 'extended-both') {
+              $repoArg = '\\?\' + $repo
+            }
+            if ($mode -eq 'extended-target' -or $mode -eq 'extended-both') {
+              $targetArg = '\\?\' + $target
+            }
+            $stdout = Join-Path $base 'stdout.txt'
+            $stderr = Join-Path $base 'stderr.txt'
+            $proc = Start-Process -FilePath git -ArgumentList @('-C',$repoArg,'worktree','add','--detach',$targetArg,'HEAD') -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            $raw = Get-Content -Raw -ErrorAction SilentlyContinue $stderr
+            if ($null -eq $raw) { $raw = '' }
+            $redacted = $raw.Replace($root,'<temp>').Replace($repo,'<repo>').Replace($target,'<target>')
+            $results += [pscustomobject]@{ mode=$mode; exit=$proc.ExitCode; stderr=$redacted.Trim() }
+            if ($proc.ExitCode -eq 0) {
+              git -C $repo worktree remove --force $targetArg 2>$null
+            }
+          }
+          $results | ConvertTo-Json -Depth 3 | Tee-Object -FilePath evidence/results.json
+          if (($results | Where-Object { $_.exit -ne 0 }).Count -gt 0) {
+            Write-Host 'At least one path mode fails; evidence captured intentionally.'
+          }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: worktrees-windows-path-diagnostic
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
