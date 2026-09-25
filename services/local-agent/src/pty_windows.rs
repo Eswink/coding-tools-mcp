@@ -24,6 +24,7 @@ use windows::Win32::System::Threading::{
 const EXTENDED_STARTUPINFO_PRESENT: u32 = 0x0008_0000;
 const CREATE_UNICODE_ENVIRONMENT: u32 = 0x0000_0400;
 const CREATE_SUSPENDED: u32 = 0x0000_0004;
+const STARTF_USESTDHANDLES: u32 = 0x0000_0100;
 const STILL_ACTIVE: u32 = 259;
 
 #[link(name = "kernel32")]
@@ -166,6 +167,13 @@ pub(crate) fn spawn(spec: &PtySpec, cwd: &Path) -> Result<Spawned, PtyError> {
     let mut attributes = AttributeList::new(hpc).map_err(|_| spawn_error())?;
     let mut startup = STARTUPINFOEXW::default();
     startup.StartupInfo.cb = size_of::<STARTUPINFOEXW>() as u32;
+    // A console parent can otherwise have its standard handles duplicated into
+    // the child even with bInheritHandles=FALSE. Explicit NULL standard handles
+    // let the pseudoconsole attachment install its own console handles.
+    startup.StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
+    startup.StartupInfo.hStdInput = HANDLE::default();
+    startup.StartupInfo.hStdOutput = HANDLE::default();
+    startup.StartupInfo.hStdError = HANDLE::default();
     startup.lpAttributeList = LPPROC_THREAD_ATTRIBUTE_LIST(attributes.raw());
 
     let app = wide(OsStr::new(&spec.argv()[0]));

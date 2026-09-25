@@ -42,6 +42,9 @@ async fn terminal_presence_and_unicode_are_real() {
 async fn interactive_write_is_bounded_and_delivered() {
     let manager = PtyManager::default();
     let mut session = manager.start(spec(&["read-once"])).await.unwrap();
+    #[cfg(windows)]
+    session.write("héllo\r\n".as_bytes()).unwrap();
+    #[cfg(not(windows))]
     session.write("héllo\n".as_bytes()).unwrap();
     let outcome = session.wait().await;
     let output = text(&outcome);
