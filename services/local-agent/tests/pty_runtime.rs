@@ -57,7 +57,10 @@ async fn windows_argv_round_trips_spaces_quotes_and_trailing_backslash() {
     let value = "space \"quote\" tail\\";
     let outcome = manager.run(spec(&["echo", value])).await.unwrap();
     assert_eq!(outcome.termination, PtyTermination::Exited, "{outcome:?}");
-    assert!(text(&outcome).contains(&format!("echo={value}")), "{outcome:?}");
+    assert!(
+        text(&outcome).contains(&format!("echo={value}")),
+        "{outcome:?}"
+    );
 }
 
 #[tokio::test]
