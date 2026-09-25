@@ -180,7 +180,9 @@
     "context",
     "write-spec",
     "check-spec",
-    "estimate"
+    "estimate",
+    "implement",
+    "test"
   ],
   "skippedSteps": [],
   "unresolvedItems": [],
@@ -216,6 +218,22 @@
       "reference": "GitHub Actions run 36108997270",
       "revision": "9a81f1e4d60afd3d6f91adf4940a7d373695e02b",
       "verifiedAt": "2026-09-25T07:42:33.668Z"
+    },
+    {
+      "kind": "implementation",
+      "summary": "Native PTY candidate implements library-only Windows ConPTY and Unix controlling-terminal PTY, explicit bounded IO/resize/close/cancel/output snapshot, Job-before-resume ownership, PGID cleanup, env isolation, output redaction and runtime fixtures without ToolRegistry registration.",
+      "stepId": "implement",
+      "reference": "ci/native-pty-candidate-review-20260925 exact candidate; 10 scoped files; staged GitNexus MEDIUM/non-false-clean",
+      "revision": "80318fdec82bd46493c370424c59d7ec61625fff",
+      "verifiedAt": "2026-09-25T08:58:51.860Z"
+    },
+    {
+      "kind": "test",
+      "summary": "Run 36115601417 passed Windows Server 2025 and Ubuntu 24.04 candidate Clippy -D warnings, focused PTY lifecycle tests, complete local-Agent/lib/process-runtime tests and check. Windows proved true ConPTY, Unicode, live snapshot, explicit close, resize, env isolation, argv quoting and tree cleanup; Ubuntu proved controlling-terminal PTY equivalents. Staged GitNexus detect reported 10 files / 8 symbols, MEDIUM risk, non-false-clean. All source modules remain below 500 lines.",
+      "stepId": "test",
+      "reference": "GitHub Actions run 36115601417",
+      "revision": "80318fdec82bd46493c370424c59d7ec61625fff",
+      "verifiedAt": "2026-09-25T08:58:53.875Z"
     }
   ],
   "declaredScope": {
@@ -224,12 +242,37 @@
     "featureName": "issue-59-windows",
     "specLayout": "flat"
   },
-  "artifacts": [],
+  "artifacts": [
+    {
+      "id": "artifact-bfa6e023d0e5",
+      "kind": "test",
+      "summary": "Windows 2025 native PTY candidate evidence",
+      "reference": "artifact 10855291243 sha256:62aa7717abc08d57748b5f25e1b4bdadc57976adafa728c7fc1502c9f516a5d4",
+      "revision": "80318fdec82bd46493c370424c59d7ec61625fff",
+      "recordedAt": "2026-09-25T08:58:53.875Z"
+    },
+    {
+      "id": "artifact-04e57366b486",
+      "kind": "test",
+      "summary": "Ubuntu 24.04 native PTY candidate evidence",
+      "reference": "artifact 10855096674 sha256:ce2350a860edd015580eedfbdd4d07ebe6c3aef03a7dcbba391d5b860a939120",
+      "revision": "80318fdec82bd46493c370424c59d7ec61625fff",
+      "recordedAt": "2026-09-25T08:58:53.875Z"
+    },
+    {
+      "id": "artifact-767d55df0276",
+      "kind": "impact",
+      "summary": "Staged GitNexus and source hash evidence",
+      "reference": "artifact 10855146561 sha256:bc14bf98958a2596a02b1b82ac95809af915cab38f50795ceb0ed283c9bd5441",
+      "revision": "80318fdec82bd46493c370424c59d7ec61625fff",
+      "recordedAt": "2026-09-25T08:58:53.875Z"
+    }
+  ],
   "memoryCandidates": [],
   "architectureCandidates": [],
   "acceptanceResults": [],
   "runtimeEvidence": [],
-  "lastVerifiedRevision": "5f65d069343c0cdcb5455fa7cc76792a14bb5d2e",
+  "lastVerifiedRevision": "80318fdec82bd46493c370424c59d7ec61625fff",
   "createdAt": "2026-09-25T06:55:57.295Z",
-  "updatedAt": "2026-09-25T07:42:33.668Z"
+  "updatedAt": "2026-09-25T08:58:53.875Z"
 }
