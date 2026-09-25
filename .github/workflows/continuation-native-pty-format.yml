@@ -1,0 +1,60 @@
+name: Native PTY one-shot formatter (never merge)
+
+on:
+  push:
+    branches: ['ci/native-pty-format-20260925']
+    paths:
+      - '.github/workflows/continuation-native-pty-format.yml'
+
+permissions:
+  contents: write
+
+env:
+  CANDIDATE_BRANCH: ci/native-pty-candidate-review-20260925
+  CANDIDATE_SHA: e759601fd28800ba1cc700fbb93a93c4aa347b40
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          persist-credentials: true
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.98.1
+          components: rustfmt
+      - name: Format exact PTY candidate and fast-forward helper branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            services/local-agent/src/lib.rs
+            services/local-agent/src/process_tree.rs
+            services/local-agent/src/process_tree_windows.rs
+            services/local-agent/src/pty.rs
+            services/local-agent/src/pty_io.rs
+            services/local-agent/src/pty_unix.rs
+            services/local-agent/src/pty_windows.rs
+            services/local-agent/src/bin/pty_fixture.rs
+            services/local-agent/tests/pty_runtime.rs
+          )
+          rustfmt --edition 2021 "${files[@]}"
+          git diff --check
+          for path in             services/local-agent/src/lib.rs             services/local-agent/src/process_tree.rs             services/local-agent/src/process_tree_windows.rs             services/local-agent/src/pty.rs             services/local-agent/src/pty_io.rs             services/local-agent/src/pty_unix.rs             services/local-agent/src/pty_windows.rs             services/local-agent/src/bin/pty_fixture.rs; do
+            test "$(wc -l < "$path")" -lt 500
+          done
+          git config user.name github-actions
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "${files[@]}"
+          if git diff --cached --quiet; then
+            echo "candidate already formatted"
+            exit 0
+          fi
+          git commit -m 'style(pty): format native PTY candidate'
+          git fetch origin "$CANDIDATE_BRANCH"
+          test "$(git rev-parse "origin/$CANDIDATE_BRANCH")" = "$CANDIDATE_SHA"
+          git push origin "HEAD:$CANDIDATE_BRANCH"
