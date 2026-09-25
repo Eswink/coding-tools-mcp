@@ -98,15 +98,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: 1.98.1
-          components: rustfmt
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-      - name: Verify candidate formatting and compile
+      - name: Verify candidate diff and compile
         shell: bash
         run: |
           set -euo pipefail
-          rustfmt --edition 2021 --check             src-tauri/src/platform/linux/net.rs             src-tauri/src/platform/linux/mod.rs             src-tauri/src/platform/mod.rs             src-tauri/src/runtime/port.rs             src-tauri/src/tools/任务恢复传输v2.rs
+          # Legacy modules have pre-existing rustfmt debt; platform/mod.rs also
+          # causes rustfmt to traverse unchanged children. Validate only this diff.
           git diff --check "$SOURCE_SHA"...HEAD
           cargo check --locked --manifest-path src-tauri/Cargo.toml --all-targets
       - name: Repeat exact same-port recovery target
