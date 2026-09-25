@@ -64,7 +64,10 @@ pub(super) fn run_git(cwd: &Path, args: &[OsString]) -> WorktreeResult<GitOutput
     let stdout = join_reader(stdout_reader)?;
     let stderr = join_reader(stderr_reader)?;
     if stdout.overflow || stderr.overflow {
-        return Err(error("OUTPUT_LIMIT", "Git output exceeded the configured limit."));
+        return Err(error(
+            "OUTPUT_LIMIT",
+            "Git output exceeded the configured limit.",
+        ));
     }
     Ok(GitOutput {
         success: status.success(),
@@ -88,7 +91,9 @@ fn read_bounded<R: Read>(mut reader: R, budget: Arc<Mutex<usize>>) -> io::Result
         if read == 0 {
             break;
         }
-        let mut used = budget.lock().map_err(|_| io::Error::other("budget poisoned"))?;
+        let mut used = budget
+            .lock()
+            .map_err(|_| io::Error::other("budget poisoned"))?;
         let remaining = MAX_GIT_OUTPUT_BYTES.saturating_sub(*used);
         let keep = remaining.min(read);
         bytes.extend_from_slice(&buffer[..keep]);
@@ -106,7 +111,6 @@ fn join_reader(handle: thread::JoinHandle<io::Result<Capture>>) -> WorktreeResul
         .map_err(|_| io_failure())?
         .map_err(|_| io_failure())
 }
-
 
 fn error(code: &'static str, message: &'static str) -> WorktreeError {
     WorktreeError::new(code, message)

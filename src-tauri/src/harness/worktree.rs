@@ -93,9 +93,7 @@ impl WorktreeManager {
         ensure_owned_directory(&worktrees_root)?;
         let managed_root = worktrees_root.join(workspace_id);
         ensure_owned_directory(&managed_root)?;
-        let managed_root = managed_root
-            .canonicalize()
-            .map_err(|_| io_failure())?;
+        let managed_root = managed_root.canonicalize().map_err(|_| io_failure())?;
         if !managed_root.starts_with(&harness_root) {
             return Err(boundary_error());
         }
@@ -258,19 +256,28 @@ fn discover_repository_root(workspace_root: &Path) -> WorktreeResult<PathBuf> {
         ],
     )?;
     if !output.success {
-        return Err(error("NOT_REPOSITORY", "Workspace is not a Git repository."));
+        return Err(error(
+            "NOT_REPOSITORY",
+            "Workspace is not a Git repository.",
+        ));
     }
     let text = std::str::from_utf8(&output.stdout)
         .map_err(|_| error("PARSE_FAILED", "Git repository metadata is invalid."))?
         .trim();
     if text.is_empty() {
-        return Err(error("NOT_REPOSITORY", "Workspace is not a Git repository."));
+        return Err(error(
+            "NOT_REPOSITORY",
+            "Workspace is not a Git repository.",
+        ));
     }
     let root = PathBuf::from(text)
         .canonicalize()
         .map_err(|_| error("NOT_REPOSITORY", "Workspace is not a Git repository."))?;
     if !root.is_dir() {
-        return Err(error("NOT_REPOSITORY", "Workspace is not a Git repository."));
+        return Err(error(
+            "NOT_REPOSITORY",
+            "Workspace is not a Git repository.",
+        ));
     }
     Ok(root)
 }
@@ -330,7 +337,9 @@ fn canonical_directory(path: &Path, message: &'static str) -> WorktreeResult<Pat
     if path.is_symlink() {
         return Err(boundary_error());
     }
-    let path = path.canonicalize().map_err(|_| error("BOUNDARY_VIOLATION", message))?;
+    let path = path
+        .canonicalize()
+        .map_err(|_| error("BOUNDARY_VIOLATION", message))?;
     if !path.is_dir() {
         return Err(error("BOUNDARY_VIOLATION", message));
     }

@@ -17,7 +17,10 @@ impl TestRepo {
         let repo = tempfile::tempdir().expect("repo");
         let harness = tempfile::tempdir().expect("harness");
         git(repo.path(), &["init", "-q"]);
-        git(repo.path(), &["config", "user.email", "tests@example.invalid"]);
+        git(
+            repo.path(),
+            &["config", "user.email", "tests@example.invalid"],
+        );
         git(repo.path(), &["config", "user.name", "Worktree Tests"]);
         fs::write(repo.path().join("README.md"), "baseline\n").expect("seed file");
         git(repo.path(), &["add", "README.md"]);
@@ -44,16 +47,26 @@ fn create_list_and_remove_are_bounded_and_stably_sorted() {
         assert_eq!(item.display_path, format!("managed/{}", item.id));
         assert!(item.detached);
         assert!(!item.head.is_empty());
-        assert!(!item.display_path.contains(fixture.repo.path().to_string_lossy().as_ref()));
-        assert!(!item.display_path.contains(fixture.harness.path().to_string_lossy().as_ref()));
+        assert!(!item
+            .display_path
+            .contains(fixture.repo.path().to_string_lossy().as_ref()));
+        assert!(!item
+            .display_path
+            .contains(fixture.harness.path().to_string_lossy().as_ref()));
     }
 
     let list = fixture.manager.list().expect("list");
     assert_eq!(list.len(), 2);
     assert!(list.windows(2).all(|pair| pair[0].id < pair[1].id));
 
-    fixture.manager.remove_clean(&first.id).expect("remove first");
-    fixture.manager.remove_clean(&second.id).expect("remove second");
+    fixture
+        .manager
+        .remove_clean(&first.id)
+        .expect("remove first");
+    fixture
+        .manager
+        .remove_clean(&second.id)
+        .expect("remove second");
     assert!(fixture.manager.list().expect("empty").is_empty());
 }
 
@@ -64,26 +77,42 @@ fn remove_refuses_tracked_staged_and_untracked_changes() {
     let path = fixture.manager.managed_root.join(&item.id);
 
     fs::write(path.join("README.md"), "modified\n").unwrap();
-    assert_eq!(fixture.manager.remove_clean(&item.id).unwrap_err().code(), "DIRTY");
+    assert_eq!(
+        fixture.manager.remove_clean(&item.id).unwrap_err().code(),
+        "DIRTY"
+    );
     git(&path, &["reset", "--hard", "HEAD"]);
 
     fs::write(path.join("staged.txt"), "staged\n").unwrap();
     git(&path, &["add", "staged.txt"]);
-    assert_eq!(fixture.manager.remove_clean(&item.id).unwrap_err().code(), "DIRTY");
+    assert_eq!(
+        fixture.manager.remove_clean(&item.id).unwrap_err().code(),
+        "DIRTY"
+    );
     git(&path, &["reset", "--hard", "HEAD"]);
 
     fs::write(path.join("untracked.txt"), "untracked\n").unwrap();
-    assert_eq!(fixture.manager.remove_clean(&item.id).unwrap_err().code(), "DIRTY");
+    assert_eq!(
+        fixture.manager.remove_clean(&item.id).unwrap_err().code(),
+        "DIRTY"
+    );
     fs::remove_file(path.join("untracked.txt")).unwrap();
 
-    fixture.manager.remove_clean(&item.id).expect("clean remove");
+    fixture
+        .manager
+        .remove_clean(&item.id)
+        .expect("clean remove");
 }
 
 #[test]
 fn invalid_unknown_and_non_repository_inputs_fail_closed() {
     let fixture = TestRepo::new();
     assert_eq!(
-        fixture.manager.remove_clean("../escape").unwrap_err().code(),
+        fixture
+            .manager
+            .remove_clean("../escape")
+            .unwrap_err()
+            .code(),
         "INVALID_ID"
     );
     assert_eq!(
@@ -133,7 +162,9 @@ fn oversized_dirty_status_fails_closed_without_removing_worktree() {
     let path = fixture.manager.managed_root.join(&item.id);
     for index in 0..1700 {
         fs::write(
-            path.join(format!("untracked-{index:04}-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.txt")),
+            path.join(format!(
+                "untracked-{index:04}-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.txt"
+            )),
             "x",
         )
         .unwrap();
@@ -167,7 +198,10 @@ fn symlinked_managed_root_is_rejected() {
     let external = tempfile::tempdir().unwrap();
     git(repo.path(), &["init", "-q"]);
     fs::write(repo.path().join("README.md"), "baseline\n").unwrap();
-    git(repo.path(), &["config", "user.email", "tests@example.invalid"]);
+    git(
+        repo.path(),
+        &["config", "user.email", "tests@example.invalid"],
+    );
     git(repo.path(), &["config", "user.name", "Worktree Tests"]);
     git(repo.path(), &["add", "README.md"]);
     git(repo.path(), &["commit", "-q", "-m", "initial"]);
