@@ -1,0 +1,149 @@
+name: Native PTY specification gates (never merge)
+
+on:
+  push:
+    branches: ['ci/native-pty-plan-init-20260925']
+    paths:
+      - 'docs/specs/issue-59-windows/**'
+      - '.github/workflows/continuation-native-pty-spec.yml'
+
+permissions:
+  contents: write
+
+env:
+  PLAN_ID: feature-issue-59-windows-steady-103f1c5cb8
+  PLAN_PATH: .mcp-probe-kit/plans/feature-issue-59-windows-steady-103f1c5cb8.json
+  FEATURE_NAME: issue-59-windows
+  SOURCE_SHA: 5f65d069343c0cdcb5455fa7cc76792a14bb5d2e
+
+jobs:
+  spec:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Resume at write-spec and checkpoint specification
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-write-spec.json 2>&1
+          cat evidence/resume-write-spec.json
+          node - <<'NODE'
+          const r=require('./evidence/resume-write-spec.json');
+          if(r.isError===true || r.structuredContent?.found!==true) process.exit(1);
+          if(r.structuredContent?.nextStepId!=='write-spec') process.exit(2);
+          NODE
+          for f in requirements.md design.md tasks.md; do
+            test -s "docs/specs/$FEATURE_NAME/$f"
+            ! grep -Eq 'TODO|TBD|\[待填写\]' "docs/specs/$FEATURE_NAME/$f"
+          done
+          python - <<'PY' > evidence/heartbeat-write-spec.json
+          import json, os, hashlib
+          files=[f"docs/specs/{os.environ['FEATURE_NAME']}/{name}" for name in ("requirements.md","design.md","tasks.md")]
+          refs=[f"{p} sha256:{hashlib.sha256(open(p,'rb').read()).hexdigest()}" for p in files]
+          print(json.dumps({
+            "plan_id":os.environ["PLAN_ID"],
+            "project_root":os.getcwd(),
+            "completed_step_ids":["write-spec"],
+            "evidence":[{
+              "kind":"requirements",
+              "step_id":"write-spec",
+              "summary":"Native PTY requirements/design/tasks define a library-only first increment, race-free Windows Job Object + ConPTY startup, real Unix PTY, bounded IO, resize/cancel/tree cleanup and explicit non-goals.",
+              "reference":"; ".join(refs),
+              "revision":os.environ["GITHUB_SHA"]
+            }],
+            "last_verified_revision":os.environ["SOURCE_SHA"]
+          },separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/heartbeat-write-spec.json > evidence/heartbeat-write-spec-output.json 2>&1
+          cat evidence/heartbeat-write-spec-output.json
+      - name: Run check_spec and checkpoint result
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./.mcp-probe-kit/bin/probe exec check_spec --json "{\"project_root\":\"$PWD\",\"feature_name\":\"$FEATURE_NAME\",\"docs_dir\":\"docs\"}" > evidence/check-spec.json 2>&1
+          cat evidence/check-spec.json
+          node - <<'NODE'
+          const r=require('./evidence/check-spec.json');
+          if(r.isError===true || r.structuredContent?.passed!==true) process.exit(1);
+          NODE
+          python - <<'PY' > evidence/heartbeat-check-spec.json
+          import json, os
+          print(json.dumps({
+            "plan_id":os.environ["PLAN_ID"],
+            "project_root":os.getcwd(),
+            "completed_step_ids":["check-spec"],
+            "evidence":[{
+              "kind":"spec",
+              "step_id":"check-spec",
+              "summary":"mcp-probe-kit check_spec passed for issue-59-windows.",
+              "reference":f"GitHub Actions run {os.environ['GITHUB_RUN_ID']}",
+              "revision":os.environ["GITHUB_SHA"]
+            }],
+            "last_verified_revision":os.environ["SOURCE_SHA"]
+          },separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/heartbeat-check-spec.json > evidence/heartbeat-check-spec-output.json 2>&1
+          cat evidence/heartbeat-check-spec-output.json
+      - name: Estimate and checkpoint implementation risk
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' > evidence/estimate-request.json
+          import json, os
+          print(json.dumps({
+            "project_root":os.getcwd(),
+            "task_description":"Implement issue #59 native PTY according to docs/specs/issue-59-windows/tasks.md with direct Windows ConPTY suspended Job Object startup and native Ubuntu PTY.",
+            "code_context":"Existing services/local-agent process.rs/process_tree.rs/process_tree_windows.rs and current graph-insights. Do not expand legacy process.rs; new files must remain below 500 lines."
+          },separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec estimate --stdin < evidence/estimate-request.json > evidence/estimate.json 2>&1
+          cat evidence/estimate.json
+          node - <<'NODE'
+          const r=require('./evidence/estimate.json');
+          if(r.isError===true) process.exit(1);
+          NODE
+          python - <<'PY' > evidence/heartbeat-estimate.json
+          import json, os
+          print(json.dumps({
+            "plan_id":os.environ["PLAN_ID"],
+            "project_root":os.getcwd(),
+            "completed_step_ids":["estimate"],
+            "evidence":[{
+              "kind":"spec",
+              "step_id":"estimate",
+              "summary":"mcp-probe estimate completed for native PTY implementation risks and scope.",
+              "reference":f"GitHub Actions run {os.environ['GITHUB_RUN_ID']}",
+              "revision":os.environ["GITHUB_SHA"]
+            }],
+            "last_verified_revision":os.environ["SOURCE_SHA"]
+          },separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/heartbeat-estimate.json > evidence/heartbeat-estimate-output.json 2>&1
+          cat evidence/heartbeat-estimate-output.json
+          cat "$PLAN_PATH" | tee evidence/plan-after.json
+      - name: Persist spec and cumulative Plan checkpoint without overwriting another executor
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "$PLAN_PATH" "docs/specs/$FEATURE_NAME/requirements.md" "docs/specs/$FEATURE_NAME/design.md" "docs/specs/$FEATURE_NAME/tasks.md"
+          git diff --cached --check
+          git commit -m "chore(plan): checkpoint native PTY specification"
+          git fetch origin "ci/native-pty-plan-init-20260925"
+          test "$(git rev-parse "origin/ci/native-pty-plan-init-20260925")" = "$GITHUB_SHA"
+          git push origin "HEAD:ci/native-pty-plan-init-20260925"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: native-pty-spec
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
