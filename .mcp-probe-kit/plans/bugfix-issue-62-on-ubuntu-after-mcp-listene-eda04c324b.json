@@ -230,7 +230,7 @@
       "persistPlanOnFirstHeartbeat": true
     }
   },
-  "status": "active",
+  "status": "converged",
   "completedStepIds": [
     "context",
     "src8-1",
@@ -239,7 +239,8 @@
     "src8-4",
     "src8-5",
     "src8-6",
-    "src8-7"
+    "src8-7",
+    "src8-8"
   ],
   "skippedSteps": [],
   "unresolvedItems": [],
@@ -339,6 +340,14 @@
       "reference": "gentest run 36093934128; candidate validation run 36098896792",
       "revision": "5d41565b60dc4f5b213c8c98236d3d5385a50fac",
       "verifiedAt": "2026-09-25T05:44:23.129Z"
+    },
+    {
+      "kind": "memory",
+      "summary": "Prepared a reusable bugfix/root-cause memory candidate for Linux ownerless LISTEN shutdown tails; formal memory write remains gated on converge.",
+      "stepId": "src8-8",
+      "reference": "Issue #62 Plan SRC-8 candidate",
+      "revision": "5d41565b60dc4f5b213c8c98236d3d5385a50fac",
+      "verifiedAt": "2026-09-25T05:50:17.614Z"
     }
   ],
   "declaredScope": {
@@ -372,11 +381,48 @@
       "recordedAt": "2026-09-25T05:44:23.129Z"
     }
   ],
-  "memoryCandidates": [],
+  "memoryCandidates": [
+    {
+      "id": "memoryCandidates-4913820a60ac",
+      "summary": "Linux same-port restart can outlive PID ownership because an ownerless LISTEN socket remains visible briefly after shutdown.",
+      "status": "candidate",
+      "evidence": [
+        "close-lag run 35951904056 reproduced 15-36 ms exact loopback LISTEN tails after JoinHandle completion",
+        "architecture design run 36005201070 revised the repair away from CRITICAL listener.rs",
+        "candidate validation run 36098896792 passed repeated exact and full Windows/Ubuntu regressions"
+      ],
+      "payload": {
+        "type": "bugfix",
+        "tags": [
+          "bugfix",
+          "root-cause",
+          "linux",
+          "listener-lifecycle"
+        ],
+        "summary": "Linux same-port restart can outlive PID ownership because an ownerless LISTEN socket remains visible briefly after shutdown.",
+        "content": "【现象】A completed listener task could still fail an immediate same-port restart on Linux with EADDRINUSE.\n【根因】The existing port observer equated find_pid_listening_on_port(None) with a free port, but Linux can retain the exact LISTEN entry for a short ownerless interval after process/socket ownership is no longer resolvable.\n【修复】Keep PID ownership semantics unchanged, add an exact Linux LISTEN-presence primitive, and make the existing bounded runtime shutdown wait treat ownerless LISTEN as still busy. Callers that require immediate same-port reuse await the established restart-safe runtime boundary.\n【验证】Never-merge run 36098896792: staged GitNexus MEDIUM/non-false-clean; exact regression 20/20 on Windows and 20/20 on Ubuntu; complete desktop Rust suites 2/2 Windows and 6/6 Ubuntu, 404/404 each. Earlier close-lag evidence measured 15-36 ms ownerless LISTEN tails.\n【来源参考】platform/linux/net.rs; runtime/port.rs; recovery transport regression.",
+        "applicability": "Applies when a Linux restart contract requires deterministic same-port reuse after graceful listener shutdown. Do not generalize to foreign-process listeners, Windows semantics, or use this as justification for fixed sleeps, blind rebind retries, or SO_REUSEPORT."
+      },
+      "recordedAt": "2026-09-25T05:50:17.614Z"
+    }
+  ],
   "architectureCandidates": [],
   "acceptanceResults": [],
   "runtimeEvidence": [],
   "lastVerifiedRevision": "5d41565b60dc4f5b213c8c98236d3d5385a50fac",
   "createdAt": "2026-09-24T09:32:11.552Z",
-  "updatedAt": "2026-09-25T05:44:23.129Z"
+  "updatedAt": "2026-09-25T05:50:18.686Z",
+  "lastConvergence": {
+    "checkedAt": "2026-09-25T05:50:18.686Z",
+    "passed": true,
+    "blockers": [],
+    "requiredEvidenceKinds": [
+      "requirements",
+      "implementation",
+      "test",
+      "review"
+    ],
+    "requiredQualityGates": [],
+    "missingQualityGates": []
+  }
 }
