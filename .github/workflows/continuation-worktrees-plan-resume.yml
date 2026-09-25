@@ -11,7 +11,7 @@ permissions:
 
 env:
   PLAN_ID: feature-issue-70-isolated-steady-19007e247b
-  PLAN_REF: ed07e4da0351cc626120b8849a676220eac22862
+  PLAN_REF: a91ab0a128bf15d9d9e6af751e34a51c601b2bc7
   PLAN_PATH: .mcp-probe-kit/plans/feature-issue-70-isolated-steady-19007e247b.json
 
 jobs:
@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: 4dc9f9d872c134d381cb1eba76999d34231d3ba6
+          ref: 5f65d069343c0cdcb5455fa7cc76792a14bb5d2e
           fetch-depth: 0
           persist-credentials: false
       - name: Materialize latest persisted Plan and resume
