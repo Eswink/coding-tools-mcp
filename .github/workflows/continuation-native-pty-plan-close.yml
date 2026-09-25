@@ -1,0 +1,190 @@
+name: Native PTY delegated Plan closure (never merge)
+on:
+  push:
+    branches: ['ci/native-pty-plan-close-20260925']
+    paths: ['.github/workflows/continuation-native-pty-plan-close.yml']
+permissions:
+  contents: write
+env:
+  BASE_SHA: 5f65d069343c0cdcb5455fa7cc76792a14bb5d2e
+  TESTED_SHA: 80318fdec82bd46493c370424c59d7ec61625fff
+  CANDIDATE_SHA: 1b8ca774cb88ba30e9c94f94613e2fc7b5c641de
+  PLAN_REF: f701b6a387cac18db911bb34818be5d6af756423
+  PLAN_BRANCH: ci/native-pty-plan-init-20260925
+  PLAN_ID: feature-issue-59-windows-steady-103f1c5cb8
+  PLAN_PATH: .mcp-probe-kit/plans/feature-issue-59-windows-steady-103f1c5cb8.json
+jobs:
+  close-plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Bind clean candidate and persisted Plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence .mcp-probe-kit/plans docs/specs/issue-59-windows
+          test "$(git rev-parse HEAD^)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse "$CANDIDATE_SHA^")" = "$BASE_SHA"
+          git fetch origin "$PLAN_REF" "$TESTED_SHA" "$CANDIDATE_SHA"
+          paths=(
+            services/local-agent/Cargo.toml
+            services/local-agent/src/bin/pty_fixture.rs
+            services/local-agent/src/lib.rs
+            services/local-agent/src/process_tree.rs
+            services/local-agent/src/process_tree_windows.rs
+            services/local-agent/src/pty.rs
+            services/local-agent/src/pty_io.rs
+            services/local-agent/src/pty_unix.rs
+            services/local-agent/src/pty_windows.rs
+            services/local-agent/tests/pty_runtime.rs
+          )
+          git diff --exit-code "$TESTED_SHA" "$CANDIDATE_SHA" -- "${paths[@]}" | tee evidence/blob-equivalence.txt
+          git diff --check "$BASE_SHA" "$CANDIDATE_SHA"
+          git diff --name-only "$BASE_SHA" "$CANDIDATE_SHA" | tee evidence/changed-paths.txt
+          test "$(wc -l < evidence/changed-paths.txt)" -eq 10
+          git show "$PLAN_REF:$PLAN_PATH" > "$PLAN_PATH"
+          for name in requirements.md design.md tasks.md; do
+            git show "$PLAN_REF:docs/specs/issue-59-windows/$name" > "docs/specs/issue-59-windows/$name"
+          done
+          git diff "$BASE_SHA" "$CANDIDATE_SHA" > evidence/candidate.patch
+          git rev-parse "$BASE_SHA" > evidence/base-commit.txt
+          git rev-parse "$TESTED_SHA" > evidence/tested-commit.txt
+          git rev-parse "$CANDIDATE_SHA" > evidence/candidate-commit.txt
+      - name: Install mcp-probe and isolate review scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md || true
+          {
+            echo '/.mcp-probe-kit/'
+            echo '/.cursor/rules/mcp-probe-kit.mdc'
+            echo '/docs/specs/issue-59-windows/'
+            echo '/evidence/'
+          } >> .git/info/exclude
+          git status --short | tee evidence/status-before-review.txt
+      - name: Bind tested evidence to clean production revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-before.json 2>&1
+          cat evidence/resume-before.json
+          node - <<'NODE'
+          const r=require('./evidence/resume-before.json');
+          if(r.isError===true || r.structuredContent?.found!==true) process.exit(1);
+          if(r.structuredContent?.nextStepId!=='review') process.exit(2);
+          NODE
+          python - <<'PY' > evidence/revision-heartbeat.json
+          import json, os
+          c=os.environ["CANDIDATE_SHA"]
+          print(json.dumps({
+            "plan_id":os.environ["PLAN_ID"],
+            "project_root":os.getcwd(),
+            "completed_step_ids":["context","write-spec","check-spec","estimate","implement","test"],
+            "evidence":[
+              {
+                "kind":"implementation",
+                "step_id":"implement",
+                "summary":"Clean production candidate contains exactly the 10 scoped native-PTY production/test files and excludes all continuation helpers; those files are byte-identical to tested candidate 80318fde.",
+                "reference":"review/native-pty-production-candidate-20260925",
+                "revision":c
+              },
+              {
+                "kind":"test",
+                "step_id":"test",
+                "summary":"Run 36115601417 validates byte-identical candidate content on Windows 2025 and Ubuntu 24.04 with Clippy -D warnings, focused PTY lifecycle/argv/env/live-output/resize/tree-cleanup tests, full local-agent regressions and staged GitNexus MEDIUM impact.",
+                "reference":"GitHub Actions run 36115601417; blob-equivalence check in this run",
+                "revision":c
+              }
+            ],
+            "last_verified_revision":c
+          },separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/revision-heartbeat.json > evidence/revision-heartbeat-result.json 2>&1
+          cat evidence/revision-heartbeat-result.json
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-review.json 2>&1
+          cat evidence/resume-review.json
+          node - <<'NODE'
+          const r=require('./evidence/resume-review.json');
+          if(r.isError===true || r.structuredContent?.nextStepId!=='review') process.exit(1);
+          NODE
+      - name: Run Plan-aware code review
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./.mcp-probe-kit/bin/probe exec code_review --json "{\"project_root\":\"$PWD\",\"focus\":\"all\",\"plan_id\":\"$PLAN_ID\",\"diff_mode\":\"range\",\"base_ref\":\"$BASE_SHA\",\"head_ref\":\"$CANDIDATE_SHA\"}" > evidence/code-review.json 2>&1
+          cat evidence/code-review.json
+          node - <<'NODE'
+          const r=require('./evidence/code-review.json');
+          if(r.isError===true) process.exit(1);
+          const all=[];
+          function walk(v){
+            if(!v) return;
+            if(Array.isArray(v)){for(const x of v) walk(x);return;}
+            if(typeof v==='object'){
+              if(typeof v.severity==='string' && typeof v.message==='string') all.push(v);
+              for(const x of Object.values(v)) walk(x);
+            }
+          }
+          walk(r.structuredContent);
+          const high=all.filter(f=>['high','critical'].includes(String(f.severity).toLowerCase()));
+          console.log(JSON.stringify({findingCount:all.length,high},null,2));
+          if(high.length) process.exit(2);
+          NODE
+      - name: Heartbeat review and converge
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' > evidence/review-heartbeat.json
+          import json, os
+          print(json.dumps({
+            "plan_id":os.environ["PLAN_ID"],
+            "project_root":os.getcwd(),
+            "completed_step_ids":["review"],
+            "evidence":[{
+              "kind":"review",
+              "step_id":"review",
+              "summary":"Plan-aware mcp-probe code_review of the clean 10-file native PTY production candidate completed with no HIGH/CRITICAL finding.",
+              "reference":f"GitHub Actions run {os.environ['GITHUB_RUN_ID']}",
+              "revision":os.environ["CANDIDATE_SHA"]
+            }],
+            "last_verified_revision":os.environ["CANDIDATE_SHA"]
+          },separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/review-heartbeat.json > evidence/review-heartbeat-result.json 2>&1
+          cat evidence/review-heartbeat-result.json
+          ./.mcp-probe-kit/bin/probe exec converge --json "{\"plan_id\":\"$PLAN_ID\",\"project_root\":\"$PWD\",\"feature_name\":\"issue-59-windows\",\"docs_dir\":\"docs\"}" > evidence/converge.json 2>&1
+          cat evidence/converge.json
+          node - <<'NODE'
+          const r=require('./evidence/converge.json');
+          if(r.isError===true || r.structuredContent?.passed!==true) process.exit(1);
+          NODE
+          cat "$PLAN_PATH" > evidence/final-plan.json
+      - name: Persist converged Plan without overwriting another executor
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$PLAN_BRANCH"
+          test "$(git rev-parse "origin/$PLAN_BRANCH")" = "$PLAN_REF"
+          state="$RUNNER_TEMP/plan-state"
+          git worktree add --detach "$state" "$PLAN_REF"
+          mkdir -p "$state/$(dirname "$PLAN_PATH")"
+          cp "$PLAN_PATH" "$state/$PLAN_PATH"
+          git -C "$state" config user.name github-actions
+          git -C "$state" config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C "$state" add "$PLAN_PATH"
+          git -C "$state" diff --cached --check
+          git -C "$state" commit -m "chore(plan): converge native PTY delivery"
+          git -C "$state" push origin "HEAD:$PLAN_BRANCH"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: native-pty-plan-closure
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
