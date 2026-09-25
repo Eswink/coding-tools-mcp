@@ -180,7 +180,8 @@
     "context",
     "write-spec",
     "check-spec",
-    "estimate"
+    "estimate",
+    "implement"
   ],
   "skippedSteps": [],
   "unresolvedItems": [],
@@ -240,6 +241,14 @@
       "reference": "GitHub Actions run 36100546824",
       "revision": "d60dd3fa3c2a302b18c1fb023273991c03f275a2",
       "verifiedAt": "2026-09-25T05:54:58.638Z"
+    },
+    {
+      "kind": "implementation",
+      "summary": "Issue #70 candidate implements bounded managed detached worktree create/list/clean-remove with canonical workspace/Harness boundaries and a separate bounded Git argv runner; no public MCP tool exposure or snapshot behavior.",
+      "stepId": "implement",
+      "reference": "ci/worktrees-candidate-review-20260925 production bytes",
+      "revision": "d951259ddf8a20b1287a51f57b532ce846acb94e",
+      "verifiedAt": "2026-09-25T06:59:33.827Z"
     }
   ],
   "declaredScope": {
@@ -253,7 +262,7 @@
   "architectureCandidates": [],
   "acceptanceResults": [],
   "runtimeEvidence": [],
-  "lastVerifiedRevision": "4dc9f9d872c134d381cb1eba76999d34231d3ba6",
+  "lastVerifiedRevision": "d951259ddf8a20b1287a51f57b532ce846acb94e",
   "createdAt": "2026-09-25T04:10:03.625Z",
-  "updatedAt": "2026-09-25T05:54:58.638Z"
+  "updatedAt": "2026-09-25T06:59:33.827Z"
 }
