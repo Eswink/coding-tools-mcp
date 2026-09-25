@@ -14,6 +14,8 @@
   2. src-tauri/src/harness/worktree_tests.rs
   3. src-tauri/src/harness/mod.rs
 
+## 任务列表
+
 ## 阶段 1: 安全边界与 Git 事实模型
 
 - [ ] 1.1 实现 WorktreeManager 构造与 canonical repository / Harness managed-root 校验
