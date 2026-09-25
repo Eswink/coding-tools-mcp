@@ -19,10 +19,24 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: true
-      - name: Start native PTY feature and persist delegated Plan
+      - name: Start feature and persist initial delegated Plan
         shell: bash
         env:
-          FEATURE_DESCRIPTION: "Issue #59 Windows ConPTY and Ubuntu PTY. Add the first bounded native pseudo-terminal execution layer on top of verified exec-unification without widening local execution authority. Preserve existing admission/capability/exec-policy/process-tree/cancel/no-replay semantics; use Windows ConPTY on Windows and a real PTY primitive on Ubuntu/Linux; keep bounded stdin/stdout/stderr or terminal stream handling, resize/close/cancel semantics and process-tree cleanup explicit; do not implement sandboxing, Hooks, snapshots, cloud authority, UI or packaging in this issue. Reuse existing process manager/session abstractions where possible instead of duplicating execution ownership. Require pre-edit GitNexus context/impact for every production symbol, HIGH/CRITICAL review before edits, staged detect non-false-clean, Windows 2025 + Ubuntu 24.04 real PTY lifecycle/Unicode/resize/cancel/process-tree tests, exact source hashes, fast-forward/no-force-push publication, rollback evidence, and no claim that runner tests equal installed-host/real-ChatGPT acceptance."
+          FEATURE_DESCRIPTION: >-
+            Issue 59 Windows ConPTY and Ubuntu PTY. Add the first bounded native
+            pseudo-terminal execution layer on top of verified exec-unification
+            without widening local execution authority. Preserve existing
+            admission, capability, exec-policy, process-tree, cancel and no-replay
+            semantics. Use Windows ConPTY on Windows and a real PTY primitive on
+            Ubuntu/Linux. Keep bounded terminal IO, resize, close, cancel and
+            process-tree cleanup explicit. Do not implement sandboxing, Hooks,
+            snapshots, cloud authority, UI or packaging in this issue. Reuse
+            existing process manager/session abstractions where possible instead
+            of duplicating execution ownership. Require pre-edit GitNexus
+            context/impact, HIGH or CRITICAL review before edits, staged detect
+            non-false-clean, Windows 2025 and Ubuntu 24.04 real PTY lifecycle,
+            Unicode, resize, cancel and process-tree tests, exact source hashes,
+            fast-forward/no-force-push publication and rollback evidence.
         run: |
           set -euo pipefail
           mkdir -p evidence
@@ -48,10 +62,9 @@ jobs:
             return null;
           }
           const plan=findPlan(r.structuredContent);
-          if(!plan) process.exit(2);
+          if(!plan) { console.error('Delegated Plan not found'); process.exit(2); }
           fs.writeFileSync('evidence/plan.json', JSON.stringify(plan,null,2));
-          fs.writeFileSync('evidence/plan-id.txt', plan.planId+'
-');
+          fs.writeFileSync('evidence/plan-id.txt', plan.planId+'\n');
           fs.writeFileSync('evidence/heartbeat-input.json', JSON.stringify({
             plan_id:plan.planId,
             project_root:process.cwd(),
