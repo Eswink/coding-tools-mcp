@@ -1,5 +1,6 @@
 use serde::Serialize;
 use std::{
+    fmt,
     fs::File,
     io::{self, Read},
     sync::{
@@ -10,11 +11,21 @@ use std::{
     time::Duration,
 };
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Eq, PartialEq, Serialize)]
 pub struct PtyOutputSnapshot {
     pub output: Vec<u8>,
     pub output_total_bytes: u64,
     pub truncated: bool,
+}
+
+impl fmt::Debug for PtyOutputSnapshot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PtyOutputSnapshot")
+            .field("output_bytes", &self.output.len())
+            .field("output_total_bytes", &self.output_total_bytes)
+            .field("truncated", &self.truncated)
+            .finish()
+    }
 }
 
 #[derive(Default)]
