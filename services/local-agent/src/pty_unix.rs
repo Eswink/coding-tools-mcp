@@ -121,7 +121,12 @@ fn open_slave(master: RawFd) -> io::Result<OwnedFd> {
         return Err(io::Error::from_raw_os_error(result));
     }
     let path = unsafe { CStr::from_ptr(name.as_ptr()) };
-    let raw = unsafe { libc::open(path.as_ptr(), libc::O_RDWR | libc::O_NOCTTY | libc::O_CLOEXEC) };
+    let raw = unsafe {
+        libc::open(
+            path.as_ptr(),
+            libc::O_RDWR | libc::O_NOCTTY | libc::O_CLOEXEC,
+        )
+    };
     if raw == -1 {
         return Err(io::Error::last_os_error());
     }

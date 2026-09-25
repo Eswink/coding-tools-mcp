@@ -280,10 +280,9 @@ fn pipe() -> io::Result<(OwnedHandle, OwnedHandle)> {
     if unsafe { CreatePipe(&mut read, &mut write, null(), 0) } == 0 {
         return Err(io::Error::last_os_error());
     }
-    Ok((
-        unsafe { OwnedHandle::from_raw_handle(read.0) },
-        unsafe { OwnedHandle::from_raw_handle(write.0) },
-    ))
+    Ok((unsafe { OwnedHandle::from_raw_handle(read.0) }, unsafe {
+        OwnedHandle::from_raw_handle(write.0)
+    }))
 }
 
 fn raw_handle(handle: &OwnedHandle) -> HANDLE {

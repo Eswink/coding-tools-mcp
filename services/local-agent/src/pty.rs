@@ -258,7 +258,9 @@ impl PtySession {
         if bytes.len() > MAX_WRITE_BYTES {
             return Err(invalid());
         }
-        request(&self.commands, |reply| Command::Write(bytes.to_vec(), reply))
+        request(&self.commands, |reply| {
+            Command::Write(bytes.to_vec(), reply)
+        })
     }
     pub fn resize(&self, size: PtySize) -> Result<(), PtyError> {
         request(&self.commands, |reply| Command::Resize(size, reply))

@@ -21,10 +21,12 @@ pub use policy::{
     PolicyError, PolicyErrorKind, PolicyEvaluation, PrefixRule, PrefixRuleMatch, ScopedApproval,
     TokenPattern,
 };
-pub use pty::{PtyError, PtyErrorKind, PtyManager, PtyOutcome, PtySession, PtySize, PtySpec, PtyTermination};
 pub use process::{
     ExecError, ExecErrorKind, ExecOutcome, ExecSpec, ExecTermination, ProcessManager,
     ProcessSession,
+};
+pub use pty::{
+    PtyError, PtyErrorKind, PtyManager, PtyOutcome, PtySession, PtySize, PtySpec, PtyTermination,
 };
 pub use registry::{ToolRegistry, VerifiedInvocation};
 pub use skills::{LocalSkill, SkillCatalog, SkillCatalogLoader, SkillError, SkillLimits};

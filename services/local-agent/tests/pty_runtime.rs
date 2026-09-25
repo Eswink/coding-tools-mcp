@@ -1,6 +1,4 @@
-use coding_tools_local_agent::{
-    PtyErrorKind, PtyManager, PtySize, PtySpec, PtyTermination,
-};
+use coding_tools_local_agent::{PtyErrorKind, PtyManager, PtySize, PtySpec, PtyTermination};
 use std::{path::PathBuf, time::Duration};
 
 fn fixture() -> String {
@@ -83,7 +81,11 @@ async fn timeout_and_cancel_terminate_owned_tree() {
         .unwrap();
     tokio::time::sleep(Duration::from_millis(250)).await;
     let outcome = session.cancel().await;
-    assert_eq!(outcome.termination, PtyTermination::Cancelled, "{outcome:?}");
+    assert_eq!(
+        outcome.termination,
+        PtyTermination::Cancelled,
+        "{outcome:?}"
+    );
     let pid = grandchild_pid(&outcome);
     tokio::time::sleep(Duration::from_millis(150)).await;
     assert!(!process_alive(pid), "PTY grandchild survived cancel: {pid}");
@@ -92,14 +94,14 @@ async fn timeout_and_cancel_terminate_owned_tree() {
 #[tokio::test]
 async fn successful_parent_exit_cleans_owned_grandchild() {
     let manager = PtyManager::default();
-    let outcome = manager
-        .run(spec(&["spawn-grandchild-exit"]))
-        .await
-        .unwrap();
+    let outcome = manager.run(spec(&["spawn-grandchild-exit"])).await.unwrap();
     assert_eq!(outcome.termination, PtyTermination::Exited, "{outcome:?}");
     let pid = grandchild_pid(&outcome);
     tokio::time::sleep(Duration::from_millis(150)).await;
-    assert!(!process_alive(pid), "PTY grandchild survived parent exit: {pid}");
+    assert!(
+        !process_alive(pid),
+        "PTY grandchild survived parent exit: {pid}"
+    );
 }
 
 #[tokio::test]
@@ -115,7 +117,11 @@ async fn output_overflow_is_bounded_and_terminates() {
         )
         .await
         .unwrap();
-    assert_eq!(outcome.termination, PtyTermination::OutputLimit, "{outcome:?}");
+    assert_eq!(
+        outcome.termination,
+        PtyTermination::OutputLimit,
+        "{outcome:?}"
+    );
     assert!(outcome.truncated);
     assert!(outcome.output_total_bytes > outcome.output.len() as u64);
     assert!(outcome.output.len() <= 1024);
@@ -124,10 +130,7 @@ async fn output_overflow_is_bounded_and_terminates() {
 #[tokio::test]
 async fn capacity_and_drop_fail_closed() {
     let manager = PtyManager::new(1).unwrap();
-    let session = manager
-        .start(spec(&["sleep", "60000"]))
-        .await
-        .unwrap();
+    let session = manager.start(spec(&["sleep", "60000"])).await.unwrap();
     let error = manager.start(spec(&["echo", "second"])).await.unwrap_err();
     assert_eq!(error.kind, PtyErrorKind::Capacity);
     drop(session);
@@ -168,8 +171,8 @@ fn process_alive(pid: u32) -> bool {
         return false;
     };
     let mut code = 0u32;
-    let active = unsafe { GetExitCodeProcess(handle, &mut code) }.is_ok()
-        && code == STILL_ACTIVE_CODE;
+    let active =
+        unsafe { GetExitCodeProcess(handle, &mut code) }.is_ok() && code == STILL_ACTIVE_CODE;
     let _ = unsafe { CloseHandle(handle) };
     active
 }

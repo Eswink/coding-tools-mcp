@@ -35,7 +35,10 @@ fn main() -> ExitCode {
             }
         }
         Some("sleep") => {
-            let ms = args.next().and_then(|v| v.parse().ok()).unwrap_or(60_000u64);
+            let ms = args
+                .next()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(60_000u64);
             thread::sleep(Duration::from_millis(ms));
             ExitCode::SUCCESS
         }
