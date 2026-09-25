@@ -1,0 +1,33 @@
+name: Worktrees resume current Plan (never merge)
+on:
+  push:
+    branches: ['ci/worktrees-plan-resume-20260926-r2']
+    paths:
+      - '.github/workflows/continuation-worktrees-plan-resume-r2.yml'
+permissions:
+  contents: read
+jobs:
+  resume:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resume persisted worktree Plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json '{"project_root":"'"$PWD"'","plan_id":"feature-issue-70-isolated-steady-19007e247b"}' > evidence/resume.json 2>&1
+          cat evidence/resume.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: worktrees-plan-resume-r2
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
