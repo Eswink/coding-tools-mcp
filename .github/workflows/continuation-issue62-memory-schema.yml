@@ -1,0 +1,52 @@
+name: Issue 62 memory candidate schema probe (never merge)
+
+on:
+  push:
+    branches: ['ci/issue62-memory-schema-20260925']
+    paths:
+      - '.github/workflows/continuation-issue62-memory-schema.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 4dc9f9d872c134d381cb1eba76999d34231d3ba6
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Inspect pinned memory candidate normalization
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npm install --prefix "$RUNNER_TEMP/probe-src" --no-audit --no-fund mcp-probe-kit@4.0.1 > evidence/install.txt 2>&1
+          pkg="$RUNNER_TEMP/probe-src/node_modules/mcp-probe-kit/build/index.js"
+          test -f "$pkg"
+          python - "$pkg" <<'PY' > evidence/memory-source.txt
+          import pathlib, sys
+          lines=pathlib.Path(sys.argv[1]).read_text(encoding='utf-8').splitlines()
+          needles=['memoryCandidates','memory_candidates','normalizeMemory','memorize_asset','MemoryCandidate']
+          hits=[i for i,line in enumerate(lines) if any(n in line for n in needles)]
+          emitted=set()
+          for i in hits:
+              lo=max(0,i-45); hi=min(len(lines),i+90)
+              key=(lo,hi)
+              if key in emitted: continue
+              emitted.add(key)
+              print(f'=== lines {lo+1}-{hi} ===')
+              for j in range(lo,hi): print(f'{j+1}: {lines[j]}')
+          PY
+          cat evidence/memory-source.txt
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue62-memory-schema
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
