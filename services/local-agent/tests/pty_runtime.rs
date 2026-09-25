@@ -1,4 +1,6 @@
-use coding_tools_local_agent::{PtyErrorKind, PtyManager, PtySize, PtySpec, PtyTermination};
+use coding_tools_local_agent::{
+    PtyErrorKind, PtyManager, PtyOutputSnapshot, PtySize, PtySpec, PtyTermination,
+};
 use std::{
     path::PathBuf,
     time::{Duration, Instant},
@@ -86,6 +88,23 @@ async fn live_output_snapshot_and_explicit_close_are_bounded() {
         PtyTermination::Cancelled,
         "{outcome:?}"
     );
+}
+
+#[tokio::test]
+async fn ambient_environment_is_cleared_and_explicit_environment_is_delivered() {
+    let manager = PtyManager::default();
+    let ambient = manager.run(spec(&["env", "PATH"])).await.unwrap();
+    assert!(text(&ambient).contains("env=<absent>"), "{ambient:?}");
+
+    let explicit = manager
+        .run(
+            spec(&["env", "PTY_EXPLICIT"])
+                .with_env("PTY_EXPLICIT", "visible")
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert!(text(&explicit).contains("env=visible"), "{explicit:?}");
 }
 
 #[tokio::test]
@@ -191,6 +210,12 @@ fn spec_and_debug_surfaces_are_bounded_and_redacted() {
     assert!(!rendered.contains(&cwd().display().to_string()));
     assert!(PtySize::new(0, 24).is_err());
     assert!(PtySize::new(80, 1001).is_err());
+    let snapshot = PtyOutputSnapshot {
+        output: b"super-secret-terminal-output".to_vec(),
+        output_total_bytes: 28,
+        truncated: false,
+    };
+    assert!(!format!("{snapshot:?}").contains("super-secret-terminal-output"));
 }
 
 #[cfg(unix)]
