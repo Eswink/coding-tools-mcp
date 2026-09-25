@@ -1,0 +1,137 @@
+name: Issue 73 pre-edit impact and primitive feasibility (never merge)
+
+on:
+  push:
+    branches: ['ci/issue73-impact-primitives-20260926']
+    paths:
+      - '.github/workflows/continuation-issue73-impact-primitives.yml'
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: 6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Build pinned graph and inspect exact spawn symbols
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.12
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/analyze.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md || true
+          targets=(
+            'Function:services/local-agent/src/process.rs:start'
+            'Function:services/local-agent/src/process_tree.rs:spawn'
+            'Function:services/local-agent/src/pty.rs:start'
+            'Function:services/local-agent/src/pty_unix.rs:spawn'
+          )
+          : > evidence/impact.txt
+          for target in "${targets[@]}"; do
+            echo "=== $target ===" | tee -a evidence/impact.txt
+            "$graph" context "$target" 2>&1 | tee -a evidence/impact.txt || true
+            "$graph" impact "$target" --direction upstream 2>&1 | tee -a evidence/impact.txt || true
+          done
+          grep -q 'services/local-agent/src/process.rs' evidence/impact.txt
+          grep -q 'services/local-agent/src/process_tree.rs' evidence/impact.txt
+          grep -q 'services/local-agent/src/pty.rs' evidence/impact.txt
+          grep -q 'services/local-agent/src/pty_unix.rs' evidence/impact.txt
+          git rev-parse HEAD > evidence/source-commit.txt
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue73-preedit-impact
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+
+  primitives:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.98.1
+      - name: Probe Ubuntu kernel Landlock/seccomp support and Rust dependency build
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          uname -a | tee evidence/kernel.txt
+          cat /proc/sys/kernel/seccomp/actions_avail | tee evidence/seccomp-actions.txt
+          cat > "$RUNNER_TEMP/probe.c" <<'C'
+          #define _GNU_SOURCE
+          #include <errno.h>
+          #include <linux/filter.h>
+          #include <linux/landlock.h>
+          #include <linux/seccomp.h>
+          #include <stdio.h>
+          #include <sys/syscall.h>
+          #include <unistd.h>
+          int main(void) {
+              errno = 0;
+              long abi = syscall(SYS_landlock_create_ruleset, NULL, 0, LANDLOCK_CREATE_RULESET_VERSION);
+              printf("landlock_abi=%ld errno=%d\n", abi, errno);
+              unsigned int action = SECCOMP_RET_ERRNO;
+              errno = 0;
+              long rc = syscall(SYS_seccomp, SECCOMP_GET_ACTION_AVAIL, 0, &action);
+              printf("seccomp_errno_action=%ld errno=%d\n", rc, errno);
+              return (abi >= 3 && rc == 0) ? 0 : 1;
+          }
+          C
+          cc -O2 -Wall -Wextra -Werror "$RUNNER_TEMP/probe.c" -o "$RUNNER_TEMP/probe"
+          "$RUNNER_TEMP/probe" | tee evidence/kernel-primitives.txt
+          abi=$(sed -n 's/^landlock_abi=\([0-9][0-9]*\).*/\1/p' evidence/kernel-primitives.txt)
+          test -n "$abi"
+          test "$abi" -ge 3
+          mkdir -p "$RUNNER_TEMP/rust-probe/src"
+          cat > "$RUNNER_TEMP/rust-probe/Cargo.toml" <<'TOML'
+          [package]
+          name = "sandbox-primitive-probe"
+          version = "0.0.0"
+          edition = "2021"
+          [dependencies]
+          landlock = "=0.4.7"
+          seccompiler = "=0.5.0"
+          libc = "0.2"
+          TOML
+          cat > "$RUNNER_TEMP/rust-probe/src/main.rs" <<'RS'
+          fn main() {
+              let _ = std::mem::size_of::<landlock::Ruleset>();
+              let _ = seccompiler::TargetArch::x86_64;
+              let _ = libc::AF_INET;
+          }
+          RS
+          cargo check --manifest-path "$RUNNER_TEMP/rust-probe/Cargo.toml" --locked 2>&1 | tee evidence/cargo-check.txt || {
+            cargo generate-lockfile --manifest-path "$RUNNER_TEMP/rust-probe/Cargo.toml"
+            cargo check --manifest-path "$RUNNER_TEMP/rust-probe/Cargo.toml" --locked 2>&1 | tee evidence/cargo-check.txt
+          }
+          git rev-parse HEAD > evidence/source-commit.txt
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue73-primitive-feasibility
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
