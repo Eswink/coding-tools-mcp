@@ -50,6 +50,16 @@ async fn terminal_presence_and_unicode_are_real() {
     assert!(outcome.output_complete);
 }
 
+#[cfg(windows)]
+#[tokio::test]
+async fn windows_argv_round_trips_spaces_quotes_and_trailing_backslash() {
+    let manager = PtyManager::default();
+    let value = "space \"quote\" tail\\";
+    let outcome = manager.run(spec(&["echo", value])).await.unwrap();
+    assert_eq!(outcome.termination, PtyTermination::Exited, "{outcome:?}");
+    assert!(text(&outcome).contains(&format!("echo={value}")), "{outcome:?}");
+}
+
 #[tokio::test]
 async fn interactive_write_is_bounded_and_delivered() {
     let manager = PtyManager::default();
