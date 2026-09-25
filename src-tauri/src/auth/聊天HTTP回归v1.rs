@@ -4,8 +4,8 @@ use crate::workspace::{AuthConfig, RuntimeConfig};
 #[tokio::test]
 async fn http_conversations_require_separate_grants_and_cannot_observe_each_others_jobs() {
     let root = tempfile::tempdir().unwrap(); let profile = uuid::Uuid::new_v4().to_string();
-    let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap(); let port = reserve.local_addr().unwrap().port(); drop(reserve);
-    let (stop,task,execution_gate) = crate::mcp::spawn_listener_with_origin_and_execution_gate(port,root.path().into(),profile.clone(),
+    let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap(); let port = reserve.local_addr().unwrap().port();
+    let (stop,task,execution_gate) = crate::mcp::spawn_listener_from_bound(reserve,root.path().into(),profile.clone(),
         AuthConfig { oauth_client_id:"test-client".into(), session_policy:super::session_policy::SessionPolicy {exclusive:false,..Default::default()}, ..Default::default() },PublicOrigin::managed(fixture::ORIGIN).unwrap(),
         None,Some("password".into()),Some(fixture::KEY.into()),RuntimeConfig::default()).unwrap();
     let client = fixture::client(); let url = format!("http://127.0.0.1:{port}/mcp");
@@ -38,20 +38,22 @@ async fn http_conversations_require_separate_grants_and_cannot_observe_each_othe
     execution_gate.resume().unwrap();
     super::chat::service().revoke(&profile,None);
     assert_eq!(invoke(&client,&url,"get_exec_task",json!({"job_id":id}),"A").await["ok"],false);
-    drop(client);stop.send(()).unwrap();task.await.unwrap();
+    drop(client);stop.send(()).unwrap();tokio::time::timeout(std::time::Duration::from_secs(5), task)
+        .await.expect("listener shutdown timed out").unwrap();
 }
 #[tokio::test]
 async fn noauth_listener_discovery_does_not_authorize_business_or_self_approval() {
     let root = tempfile::tempdir().unwrap();
-    let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap(); let port = reserve.local_addr().unwrap().port(); drop(reserve);
-    let (stop,task) = crate::mcp::spawn_listener_with_origin(port,root.path().into(),uuid::Uuid::new_v4().to_string(),
+    let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap(); let port = reserve.local_addr().unwrap().port();
+    let (stop,task,_execution_gate) = crate::mcp::spawn_listener_from_bound(reserve,root.path().into(),uuid::Uuid::new_v4().to_string(),
         AuthConfig { auth_type:"noauth".into(),..Default::default() },PublicOrigin::managed("").unwrap(),None,None,None,RuntimeConfig::default()).unwrap();
     let client = fixture::client();let url = format!("http://127.0.0.1:{port}/mcp");
     for name in ["server_info","request_chat_authorization","exec_command"] {
         let v: Value = client.post(&url).json(&fixture::request(name,json!({}),"A")).send().await.unwrap().json().await.unwrap();
         assert_eq!(v["result"]["structuredContent"]["ok"],false,"{v}");
     }
-    drop(client);stop.send(()).unwrap();task.await.unwrap();
+    drop(client);stop.send(()).unwrap();tokio::time::timeout(std::time::Duration::from_secs(5), task)
+        .await.expect("listener shutdown timed out").unwrap();
 }
 
 #[tokio::test]
@@ -60,9 +62,8 @@ async fn offline_new_authorization_is_a_non_oauth_tool_error_and_resumes_cleanly
     let profile = uuid::Uuid::new_v4().to_string();
     let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = reserve.local_addr().unwrap().port();
-    drop(reserve);
-    let (stop, task, execution_gate) = crate::mcp::spawn_listener_with_origin_and_execution_gate(
-        port,
+    let (stop, task, execution_gate) = crate::mcp::spawn_listener_from_bound(
+        reserve,
         root.path().into(),
         profile.clone(),
         AuthConfig { oauth_client_id: "test-client".into(), ..Default::default() },
@@ -107,7 +108,8 @@ async fn offline_new_authorization_is_a_non_oauth_tool_error_and_resumes_cleanly
     service.revoke(&profile, None);
     drop(client);
     stop.send(()).unwrap();
-    task.await.unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(5), task)
+        .await.expect("listener shutdown timed out").unwrap();
 }
 
 #[tokio::test]
@@ -116,9 +118,8 @@ async fn workspace_pause_keeps_oauth_and_chat_owner_but_blocks_new_business_disp
     let profile = uuid::Uuid::new_v4().to_string();
     let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = reserve.local_addr().unwrap().port();
-    drop(reserve);
-    let (stop, task, execution_gate) = crate::mcp::spawn_listener_with_origin_and_execution_gate(
-        port,
+    let (stop, task, execution_gate) = crate::mcp::spawn_listener_from_bound(
+        reserve,
         root.path().into(),
         profile.clone(),
         AuthConfig { oauth_client_id: "test-client".into(), ..Default::default() },
@@ -170,5 +171,6 @@ async fn workspace_pause_keeps_oauth_and_chat_owner_but_blocks_new_business_disp
 
     drop(client);
     stop.send(()).unwrap();
-    task.await.unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(5), task)
+        .await.expect("listener shutdown timed out").unwrap();
 }

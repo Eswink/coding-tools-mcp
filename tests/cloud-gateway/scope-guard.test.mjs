@@ -204,3 +204,24 @@ test('UTF-8 source and a reviewed Unicode path survive the isolated Python bound
   assert.equal(result.accepted, true, result.error);
   assert.equal(result.report.sha256[path], createHash('sha256').update('// UTF-8 中文 fixture\n').digest('hex'));
 });
+
+for (const path of [
+  'src-tauri/src/mcp/mod.rs',
+  'src-tauri/src/mcp/listener_test_support.rs',
+  'src-tauri/src/auth/聊天HTTP回归v1.rs',
+]) {
+  test(`reviewed issue74 bound-listener path passes actual guard with digest: ${path}`, () => {
+    const contents = `// reviewed issue74 retained socket fixture for ${path}\n`;
+    const result = run([path], { [path]: contents });
+    assert.equal(result.accepted, true, result.error);
+    assert.equal(result.report.sha256[path], createHash('sha256').update(contents).digest('hex'));
+    assert.equal(result.git_calls, 2);
+  });
+  test(`issue74 allowlist does not permit a suffixed path: ${path}.bak`, () => {
+    const result = run([`${path}.bak`]);
+    assert.equal(result.accepted, false);
+    assert.match(result.error, /Unexpected non-lab changes/);
+    assert.equal(result.report, null);
+    assert.equal(result.git_calls, 1);
+  });
+}
