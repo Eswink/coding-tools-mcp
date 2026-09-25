@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.CANDIDATE_SHA }}
           fetch-depth: 0
           persist-credentials: true
       - name: Bind clean candidate and persisted Plan
@@ -28,8 +28,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p evidence .mcp-probe-kit/plans docs/specs/issue-59-windows
-          test "$(git rev-parse HEAD^)" = "$CANDIDATE_SHA"
-          test "$(git rev-parse "$CANDIDATE_SHA^")" = "$BASE_SHA"
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
           git fetch origin "$PLAN_REF" "$TESTED_SHA" "$CANDIDATE_SHA"
           paths=(
             services/local-agent/Cargo.toml
