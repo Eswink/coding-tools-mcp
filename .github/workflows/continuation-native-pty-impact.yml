@@ -1,0 +1,85 @@
+name: Native PTY pre-edit impact review (never merge)
+
+on:
+  push:
+    branches: ['ci/native-pty-impact-20260925']
+    paths:
+      - '.github/workflows/continuation-native-pty-impact.yml'
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: 5f65d069343c0cdcb5455fa7cc76792a14bb5d2e
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Analyze exact existing ownership symbols
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          mkdir -p evidence
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.12
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/analyze.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md || true
+
+          targets=(
+            'Function:services/local-agent/src/process_tree.rs:spawn'
+            'Struct:services/local-agent/src/process_tree.rs:ProcessTree'
+            'Function:services/local-agent/src/process_tree_windows.rs:spawn'
+            'Function:services/local-agent/src/process_tree_windows.rs:resume_primary_thread'
+            'Struct:services/local-agent/src/process_tree_windows.rs:ProcessTree'
+            'File:services/local-agent/src/lib.rs'
+          )
+          : > evidence/summary.txt
+          for target in "${targets[@]}"; do
+            safe=$(printf '%s' "$target" | tr '/:# ' '____')
+            {
+              echo "=== $target ==="
+              "$graph" context "$target" || true
+              "$graph" impact "$target" --direction upstream || true
+            } > "evidence/$safe.txt" 2>&1
+            cat "evidence/$safe.txt" | tee -a evidence/summary.txt
+          done
+
+          wc -l             services/local-agent/src/lib.rs             services/local-agent/src/process_tree.rs             services/local-agent/src/process_tree_windows.rs             services/local-agent/src/bin/process_fixture.rs             services/local-agent/tests/process_runtime.rs             | tee evidence/line-counts.txt
+
+          python - <<'PY' | tee evidence/source-hashes.txt
+          import hashlib
+          paths=[
+            'services/local-agent/src/lib.rs',
+            'services/local-agent/src/process_tree.rs',
+            'services/local-agent/src/process_tree_windows.rs',
+            'services/local-agent/src/bin/process_fixture.rs',
+            'services/local-agent/tests/process_runtime.rs',
+            'services/local-agent/Cargo.toml',
+            'services/local-agent/Cargo.lock',
+          ]
+          for p in paths:
+              print(p, hashlib.sha256(open(p,'rb').read()).hexdigest())
+          PY
+
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+          git diff --exit-code
+          echo NEVER_MERGE_PRE_EDIT_ONLY > evidence/boundary.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: native-pty-impact
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
