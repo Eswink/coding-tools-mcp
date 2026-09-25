@@ -65,7 +65,8 @@ jobs:
               'src-tauri/src/runtime/port.rs',
               'src-tauri/src/tools/任务恢复传输v2.rs',
           ]:
-              print(p, hashlib.sha256(open(p,'rb').read()).hexdigest())
+              # ascii() keeps Windows runner stdout independent of the host code page.
+              print(ascii(p), hashlib.sha256(open(p,'rb').read()).hexdigest())
           PY
           git rev-parse "$SOURCE_SHA" > evidence/source-commit.txt
           git rev-parse "$candidate" > evidence/candidate-commit.txt
