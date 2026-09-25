@@ -1,0 +1,126 @@
+name: Tool discovery delegated spec decomposition (never merge)
+
+on:
+  push:
+    branches: ['ci/tool-discovery-plan-init-20260925']
+    paths:
+      - '.github/workflows/continuation-tool-discovery-spec.yml'
+
+permissions:
+  contents: write
+
+env:
+  PLAN_ID: feature-issue-72-deferred-steady-057f3854d4
+  PLAN_PATH: .mcp-probe-kit/plans/feature-issue-72-deferred-steady-057f3854d4.json
+
+jobs:
+  spec:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Resume Plan and materialize parent-child spec
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-before.json 2>&1
+          cat evidence/resume-before.json
+
+          python - <<'PY' > evidence/pre-spec-heartbeat.json
+          import json, os
+          print(json.dumps({
+            "plan_id": os.environ["PLAN_ID"],
+            "project_root": os.getcwd(),
+            "completed_step_ids": ["context","decompose-spec"],
+            "evidence": [{
+              "kind":"requirements",
+              "step_id":"decompose-spec",
+              "summary":"Current AGENTS/project-context/graph-insights exist. Issue #72 is decomposed into two responsibility-aligned subspecs: deferred catalog contract (FR-1/FR-2) and discovery safety/evaluation (FR-3).",
+              "reference":"Issue #72 and services/local-agent registry/model source at f4f93af9ee28aa209bb67643421725fcb22fb7e5",
+              "revision":"f4f93af9ee28aa209bb67643421725fcb22fb7e5"
+            }],
+            "last_verified_revision":"f4f93af9ee28aa209bb67643421725fcb22fb7e5"
+          },separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/pre-spec-heartbeat.json > evidence/pre-spec-heartbeat-output.json 2>&1
+          cat evidence/pre-spec-heartbeat-output.json
+
+          python - <<'PY' > evidence/start-feature-request.json
+          import json, os
+          payload={
+            "feature_name":"issue-72-deferred",
+            "description":"Issue #72 deferred tool discovery evaluation. Build the smallest bounded discovery increment on the existing local-agent ToolRegistry. Preserve Direct/Deferred/Hidden separation; expose only deterministic, bounded metadata for Deferred tools; Hidden tools must never appear; discovery must not invoke any executor, mint or bypass LocalAdmission, expand capabilities, or mutate registry state. Keep names/descriptions/schemas within existing ToolSpec limits and avoid host-global paths or secrets in output/debug. Add focused ordering/visibility/bounds/no-execution tests and Windows 2025 + Ubuntu 24.04 validation. Run pinned GitNexus impact/context before edits and staged detect before publication. Do not implement sandboxing, worktrees, snapshots, Hooks, UI, packaging, cloud authority or automatic deferred execution in this issue.",
+            "docs_dir":"docs",
+            "template_profile":"auto",
+            "spec_layout":"parent-child",
+            "subspecs":[
+              {
+                "id":"deferred-catalog-contract",
+                "title":"Deferred catalog contract",
+                "fr":["FR-1","FR-2"]
+              },
+              {
+                "id":"discovery-safety-evaluation",
+                "title":"Discovery safety and evaluation",
+                "fr":["FR-3"],
+                "dependsOn":["deferred-catalog-contract"]
+              }
+            ],
+            "requirements_mode":"steady",
+            "project_root":os.getcwd()
+          }
+          print(json.dumps(payload,separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec start_feature --stdin < evidence/start-feature-request.json > evidence/start-feature.json 2>&1
+          cat evidence/start-feature.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const r=JSON.parse(fs.readFileSync('evidence/start-feature.json','utf8'));
+          if(r.isError===true) process.exit(1);
+          NODE
+
+          test -f docs/specs/issue-72-deferred/requirements.md
+          test -f docs/specs/issue-72-deferred/design.md
+          test -f docs/specs/issue-72-deferred/tasks.md
+          test -f docs/specs/issue-72-deferred/spec-manifest.json
+
+          python - <<'PY' > evidence/post-spec-heartbeat.json
+          import json, os
+          print(json.dumps({
+            "plan_id": os.environ["PLAN_ID"],
+            "project_root": os.getcwd(),
+            "completed_step_ids":["resume-with-subspecs"],
+            "evidence":[{
+              "kind":"spec",
+              "step_id":"resume-with-subspecs",
+              "summary":"Parent-child feature spec generated for deferred catalog contract and discovery safety/evaluation.",
+              "reference":"docs/specs/issue-72-deferred/",
+              "revision":"f4f93af9ee28aa209bb67643421725fcb22fb7e5"
+            }],
+            "last_verified_revision":"f4f93af9ee28aa209bb67643421725fcb22fb7e5"
+          },separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/post-spec-heartbeat.json > evidence/post-spec-heartbeat-output.json 2>&1
+          cat evidence/post-spec-heartbeat-output.json
+
+          git config user.name github-actions
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "$PLAN_PATH" docs/specs/issue-72-deferred
+          git diff --cached --check
+          git commit -m "chore(spec): define deferred tool discovery"
+          git fetch origin "ci/tool-discovery-plan-init-20260925"
+          test "$(git rev-parse "origin/ci/tool-discovery-plan-init-20260925")" = "$GITHUB_SHA"
+          git push origin "HEAD:ci/tool-discovery-plan-init-20260925"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: tool-discovery-spec
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
