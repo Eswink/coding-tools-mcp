@@ -18,7 +18,7 @@ use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Console::{COORD, HPCON};
 use windows::Win32::System::Threading::{
     LPPROC_THREAD_ATTRIBUTE_LIST, PROCESS_INFORMATION, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
-    STARTUPINFOEXW,
+    STARTUPINFOEXW, STARTUPINFOW_FLAGS,
 };
 
 const EXTENDED_STARTUPINFO_PRESENT: u32 = 0x0008_0000;
@@ -170,7 +170,7 @@ pub(crate) fn spawn(spec: &PtySpec, cwd: &Path) -> Result<Spawned, PtyError> {
     // A console parent can otherwise have its standard handles duplicated into
     // the child even with bInheritHandles=FALSE. Explicit NULL standard handles
     // let the pseudoconsole attachment install its own console handles.
-    startup.StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
+    startup.StartupInfo.dwFlags |= STARTUPINFOW_FLAGS(STARTF_USESTDHANDLES);
     startup.StartupInfo.hStdInput = HANDLE::default();
     startup.StartupInfo.hStdOutput = HANDLE::default();
     startup.StartupInfo.hStdError = HANDLE::default();
