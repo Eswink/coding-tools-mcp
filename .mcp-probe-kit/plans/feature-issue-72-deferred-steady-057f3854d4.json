@@ -31,67 +31,115 @@
         ]
       },
       {
-        "id": "decompose-spec",
+        "id": "write-spec",
         "type": "agent_action",
-        "action": "根据已确认需求把 issue-72-deferred 拆分为 2-8 个职责单一、可独立验收的子规格，并生成 SubspecDefinition[] 后重新调用 start_feature",
-        "when": "需求范围与 FR-n 已明确后、生成 parent-child 规格草稿前",
+        "action": "write_embedded_feature_spec",
         "requiredInputs": [
-          "已确认的功能需求与范围边界",
-          "代码图谱与模块边界",
-          "FR-n 需求编号"
+          "structuredContent.metadata.specDraft"
         ],
         "expectedOutputs": [
-          "subspecs 数组：每项包含 id、title、fr 和可选 dependsOn"
+          "docs/specs/issue-72-deferred/README.md",
+          "docs/specs/issue-72-deferred/requirements.md",
+          "docs/specs/issue-72-deferred/design.md",
+          "docs/specs/issue-72-deferred/tasks.md",
+          "docs/specs/issue-72-deferred/spec-manifest.json",
+          "docs/specs/issue-72-deferred/subspecs/deferred-catalog-contract/spec.md",
+          "docs/specs/issue-72-deferred/subspecs/deferred-catalog-contract/tasks.md",
+          "docs/specs/issue-72-deferred/subspecs/discovery-safety-evaluation/spec.md",
+          "docs/specs/issue-72-deferred/subspecs/discovery-safety-evaluation/tasks.md"
         ],
-        "completionEvidence": [
-          "每个 FR-n 至少映射到一个子规格",
-          "子规格之间无循环依赖",
-          "跨模块契约留在母规格，模块实现细节归入子规格"
-        ],
-        "qualityGates": [
-          "子规格数量与项目复杂度相称",
-          "不存在仅按文件夹机械拆分的子规格"
-        ],
-        "onFailure": {
-          "strategy": "ask_user",
-          "instruction": "模块边界不明确时，先向用户确认交付范围或调用 code_insight 收敛边界"
-        },
-        "note": "自动布局评分 4；原因：需求描述较长，包含较多约束与交付内容；需求跨越 2 类能力域"
-      },
-      {
-        "id": "resume-with-subspecs",
-        "type": "tool",
-        "tool": "start_feature",
-        "when": "decompose-spec 已产生完整 SubspecDefinition[] 后",
-        "args": {
-          "feature_name": "issue-72-deferred",
-          "description": "Issue #72 deferred tool discovery evaluation. Build the smallest bounded discovery increment on the existing local-agent ToolRegistry. Preserve Direct/Deferred/Hidden separation; expose only deterministic, bounded metadata for Deferred tools; Hidden tools must never appear; discovery must not invoke any executor, mint or bypass LocalAdmission, expand capabilities, or mutate registry state. Keep names/descriptions/schemas within existing ToolSpec limits and avoid host-global paths or secrets in output/debug. Add focused ordering/visibility/bounds/no-execution tests and Windows 2025 + Ubuntu 24.04 validation. Run pinned GitNexus impact/context before edits and staged detect before publication. Do not implement sandboxing, worktrees, snapshots, Hooks, UI, packaging, cloud authority or automatic deferred execution in this issue.",
-          "docs_dir": "docs",
-          "template_profile": "auto",
-          "spec_layout": "parent-child",
-          "subspecs": "[填入 decompose-spec 产生的 SubspecDefinition[]]",
-          "requirements_mode": "steady",
-          "project_root": "/home/runner/work/coding-tools-mcp/coding-tools-mcp"
-        },
         "outputs": [
           "docs/specs/issue-72-deferred/README.md",
           "docs/specs/issue-72-deferred/requirements.md",
           "docs/specs/issue-72-deferred/design.md",
           "docs/specs/issue-72-deferred/tasks.md",
           "docs/specs/issue-72-deferred/spec-manifest.json",
-          "docs/specs/issue-72-deferred/subspecs/<subspec-id>/spec.md",
-          "docs/specs/issue-72-deferred/subspecs/<subspec-id>/tasks.md"
+          "docs/specs/issue-72-deferred/subspecs/deferred-catalog-contract/spec.md",
+          "docs/specs/issue-72-deferred/subspecs/deferred-catalog-contract/tasks.md",
+          "docs/specs/issue-72-deferred/subspecs/discovery-safety-evaluation/spec.md",
+          "docs/specs/issue-72-deferred/subspecs/discovery-safety-evaluation/tasks.md"
         ],
-        "note": "再次调用 start_feature 以生成内嵌 parent-child 规格草稿",
+        "note": "规格模板已经由 start_feature 内部生成；Agent 直接按内嵌草稿写入并补全占位"
+      },
+      {
+        "id": "check-spec",
+        "type": "tool",
+        "tool": "check_spec",
+        "when": "requirements/design/tasks 落盘后、进入估算或实现前",
+        "args": {
+          "feature_name": "issue-72-deferred",
+          "docs_dir": "docs",
+          "project_root": "/home/runner/work/coding-tools-mcp/coding-tools-mcp"
+        },
+        "outputs": [],
+        "note": "未通过则按报告补全后重跑；通过前不要写实现代码",
+        "expectedOutputs": []
+      },
+      {
+        "id": "estimate",
+        "type": "tool",
+        "tool": "estimate",
+        "args": {
+          "task_description": "实现 issue-72-deferred 功能：Issue #72 deferred tool discovery evaluation. Build the smallest bounded discovery increment on the existing local-agent ToolRegistry. Preserve Direct/Deferred/Hidden separation; expose only deterministic, bounded metadata for Deferred tools; Hidden tools must never appear; discovery must not invoke any executor, mint or bypass LocalAdmission, expand capabilities, or mutate registry state. Keep names/descriptions/schemas within existing ToolSpec limits and avoid host-global paths or secrets in output/debug. Add focused ordering/visibility/bounds/no-execution tests and Windows 2025 + Ubuntu 24.04 validation. Run pinned GitNexus impact/context before edits and staged detect before publication. Do not implement sandboxing, worktrees, snapshots, Hooks, UI, packaging, cloud authority or automatic deferred execution in this issue.",
+          "code_context": "参考生成的 docs/specs/issue-72-deferred/tasks.md\n如存在 docs/graph-insights/latest.md，请一并参考其中的模块依赖和调用链摘要"
+        },
+        "outputs": [],
+        "expectedOutputs": []
+      },
+      {
+        "id": "implement",
+        "type": "agent_action",
+        "action": "implement_feature_from_tasks",
+        "dependsOn": [
+          "check-spec",
+          "estimate"
+        ],
+        "requiredInputs": [
+          "docs/specs/issue-72-deferred/tasks.md"
+        ],
         "expectedOutputs": [
-          "docs/specs/issue-72-deferred/README.md",
-          "docs/specs/issue-72-deferred/requirements.md",
-          "docs/specs/issue-72-deferred/design.md",
-          "docs/specs/issue-72-deferred/tasks.md",
-          "docs/specs/issue-72-deferred/spec-manifest.json",
-          "docs/specs/issue-72-deferred/subspecs/<subspec-id>/spec.md",
-          "docs/specs/issue-72-deferred/subspecs/<subspec-id>/tasks.md"
-        ]
+          "完成任务清单对应的生产代码与必要迁移"
+        ],
+        "completionEvidence": [
+          "实际变更文件与完成的任务条目",
+          "关键行为与规格一致"
+        ],
+        "outputs": [],
+        "note": "Agent 使用宿主文件与代码能力实施；不得把规划结果当成已完成实现"
+      },
+      {
+        "id": "test",
+        "type": "agent_action",
+        "action": "run_affected_and_full_regression_tests",
+        "dependsOn": [
+          "implement"
+        ],
+        "expectedOutputs": [
+          "受影响测试、主链回归和必要静态检查结果"
+        ],
+        "completionEvidence": [
+          "真实测试命令、退出码和通过数量"
+        ],
+        "outputs": []
+      },
+      {
+        "id": "review",
+        "type": "tool",
+        "tool": "code_review",
+        "dependsOn": [
+          "test"
+        ],
+        "args": {
+          "project_root": "/home/runner/work/coding-tools-mcp/coding-tools-mcp",
+          "focus": "all"
+        },
+        "expectedOutputs": [
+          "变更范围代码审查结果与待处理问题"
+        ],
+        "completionEvidence": [
+          "高优先级问题已关闭或有明确阻断记录"
+        ],
+        "outputs": []
       }
     ],
     "globalRules": [
@@ -140,10 +188,48 @@
     }
   },
   "status": "active",
-  "completedStepIds": [],
+  "completedStepIds": [
+    "context",
+    "write-spec",
+    "check-spec",
+    "estimate"
+  ],
   "skippedSteps": [],
   "unresolvedItems": [],
-  "evidence": [],
+  "evidence": [
+    {
+      "kind": "requirements",
+      "summary": "Issue #72 FR-1..FR-3 and scope boundaries are materialized.",
+      "stepId": "write-spec",
+      "reference": "docs/specs/issue-72-deferred/requirements.md",
+      "revision": "f4f93af9ee28aa209bb67643421725fcb22fb7e5",
+      "verifiedAt": "2026-09-25T13:48:36.888Z"
+    },
+    {
+      "kind": "spec",
+      "summary": "Parent-child design/tasks/subspecs are materialized.",
+      "stepId": "write-spec",
+      "reference": "docs/specs/issue-72-deferred/",
+      "revision": "f4f93af9ee28aa209bb67643421725fcb22fb7e5",
+      "verifiedAt": "2026-09-25T13:48:36.888Z"
+    },
+    {
+      "kind": "spec",
+      "summary": "check_spec passed for issue-72-deferred.",
+      "stepId": "check-spec",
+      "reference": "check_spec in this run",
+      "revision": "f4f93af9ee28aa209bb67643421725fcb22fb7e5",
+      "verifiedAt": "2026-09-25T13:48:38.621Z"
+    },
+    {
+      "kind": "spec",
+      "summary": "mcp-probe estimate completed; implementation remains bounded to local-agent registry/model/tests.",
+      "stepId": "estimate",
+      "reference": "estimate in this run",
+      "revision": "f4f93af9ee28aa209bb67643421725fcb22fb7e5",
+      "verifiedAt": "2026-09-25T13:48:40.379Z"
+    }
+  ],
   "declaredScope": {
     "projectRoot": "/home/runner/work/coding-tools-mcp/coding-tools-mcp",
     "docsDir": "docs",
@@ -155,6 +241,7 @@
   "architectureCandidates": [],
   "acceptanceResults": [],
   "runtimeEvidence": [],
+  "lastVerifiedRevision": "f4f93af9ee28aa209bb67643421725fcb22fb7e5",
   "createdAt": "2026-09-25T13:39:34.624Z",
-  "updatedAt": "2026-09-25T13:39:34.624Z"
+  "updatedAt": "2026-09-25T13:48:40.379Z"
 }
