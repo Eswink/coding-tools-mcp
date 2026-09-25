@@ -4,6 +4,8 @@ mod model;
 mod policy;
 mod process;
 mod process_tree;
+mod pty;
+mod pty_io;
 mod registry;
 mod skills;
 mod trace;
@@ -22,6 +24,10 @@ pub use policy::{
 pub use process::{
     ExecError, ExecErrorKind, ExecOutcome, ExecSpec, ExecTermination, ProcessManager,
     ProcessSession,
+};
+pub use pty::{
+    PtyError, PtyErrorKind, PtyManager, PtyOutcome, PtyOutputSnapshot, PtySession, PtySize,
+    PtySpec, PtyTermination,
 };
 pub use registry::{ToolRegistry, VerifiedInvocation};
 pub use skills::{LocalSkill, SkillCatalog, SkillCatalogLoader, SkillError, SkillLimits};
