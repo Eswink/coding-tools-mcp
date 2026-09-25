@@ -237,7 +237,8 @@
     "src8-2",
     "src8-3",
     "src8-4",
-    "src8-5"
+    "src8-5",
+    "src8-6"
   ],
   "skippedSteps": [],
   "unresolvedItems": [],
@@ -321,6 +322,14 @@
       "reference": "Architecture design run 36005201070",
       "revision": "4dc9f9d872c134d381cb1eba76999d34231d3ba6",
       "verifiedAt": "2026-09-24T13:24:16.904Z"
+    },
+    {
+      "kind": "implementation",
+      "summary": "Implemented the revised #62 repair in a never-merge candidate: Linux exact LISTEN presence remains separate from PID ownership; runtime port waits treat ownerless LISTEN as busy using existing bounded polling; recovery regression awaits the production restart-safe shutdown boundary. CRITICAL mcp/listener.rs is unchanged.",
+      "stepId": "src8-6",
+      "reference": "ci/issue62-ownerless-listen-candidate-20260925",
+      "revision": "1ceeae929da3d0f0e4afb36a9f92e2ca7b19f975",
+      "verifiedAt": "2026-09-25T04:05:09.715Z"
     }
   ],
   "declaredScope": {
@@ -333,7 +342,7 @@
   "architectureCandidates": [],
   "acceptanceResults": [],
   "runtimeEvidence": [],
-  "lastVerifiedRevision": "4dc9f9d872c134d381cb1eba76999d34231d3ba6",
+  "lastVerifiedRevision": "1ceeae929da3d0f0e4afb36a9f92e2ca7b19f975",
   "createdAt": "2026-09-24T09:32:11.552Z",
-  "updatedAt": "2026-09-24T13:24:16.904Z"
+  "updatedAt": "2026-09-25T04:05:09.715Z"
 }
