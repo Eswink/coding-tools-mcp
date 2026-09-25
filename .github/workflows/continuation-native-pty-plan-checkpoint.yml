@@ -1,0 +1,117 @@
+name: Native PTY Plan implement and test checkpoint (never merge)
+on:
+  push:
+    branches: ['ci/native-pty-plan-init-20260925']
+    paths: ['.github/workflows/continuation-native-pty-plan-checkpoint.yml']
+permissions:
+  contents: write
+env:
+  PLAN_ID: feature-issue-59-windows-steady-103f1c5cb8
+  PLAN_PATH: .mcp-probe-kit/plans/feature-issue-59-windows-steady-103f1c5cb8.json
+  CANDIDATE_SHA: 80318fdec82bd46493c370424c59d7ec61625fff
+jobs:
+  checkpoint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Resume exact Plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-before.json 2>&1
+          cat evidence/resume-before.json
+          node - <<'NODE'
+          const r=require('./evidence/resume-before.json');
+          if(r.isError===true || r.structuredContent?.found!==true) process.exit(1);
+          if(r.structuredContent?.nextStepId!=='implement') process.exit(2);
+          NODE
+      - name: Heartbeat implement evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' > evidence/implement-request.json
+          import json, os
+          c=os.environ["CANDIDATE_SHA"]
+          print(json.dumps({
+            "plan_id":os.environ["PLAN_ID"],
+            "project_root":os.getcwd(),
+            "completed_step_ids":["context","write-spec","check-spec","estimate","implement"],
+            "evidence":[{
+              "kind":"implementation",
+              "step_id":"implement",
+              "summary":"Native PTY candidate implements library-only Windows ConPTY and Unix controlling-terminal PTY, explicit bounded IO/resize/close/cancel/output snapshot, Job-before-resume ownership, PGID cleanup, env isolation, output redaction and runtime fixtures without ToolRegistry registration.",
+              "reference":"ci/native-pty-candidate-review-20260925 exact candidate; 10 scoped files; staged GitNexus MEDIUM/non-false-clean",
+              "revision":c
+            }],
+            "last_verified_revision":c
+          },separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/implement-request.json > evidence/implement-heartbeat.json 2>&1
+          cat evidence/implement-heartbeat.json
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-after-implement.json 2>&1
+          cat evidence/resume-after-implement.json
+          node - <<'NODE'
+          const r=require('./evidence/resume-after-implement.json');
+          if(r.isError===true || r.structuredContent?.nextStepId!=='test') process.exit(1);
+          NODE
+      - name: Heartbeat test evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' > evidence/test-request.json
+          import json, os
+          c=os.environ["CANDIDATE_SHA"]
+          print(json.dumps({
+            "plan_id":os.environ["PLAN_ID"],
+            "project_root":os.getcwd(),
+            "completed_step_ids":["context","write-spec","check-spec","estimate","implement","test"],
+            "evidence":[{
+              "kind":"test",
+              "step_id":"test",
+              "summary":"Run 36115601417 passed Windows Server 2025 and Ubuntu 24.04 candidate Clippy -D warnings, focused PTY lifecycle tests, complete local-Agent/lib/process-runtime tests and check. Windows proved true ConPTY, Unicode, live snapshot, explicit close, resize, env isolation, argv quoting and tree cleanup; Ubuntu proved controlling-terminal PTY equivalents. Staged GitNexus detect reported 10 files / 8 symbols, MEDIUM risk, non-false-clean. All source modules remain below 500 lines.",
+              "reference":"GitHub Actions run 36115601417",
+              "revision":c
+            }],
+            "artifacts":[
+              {"kind":"test","summary":"Windows 2025 native PTY candidate evidence","reference":"artifact 10855291243 sha256:62aa7717abc08d57748b5f25e1b4bdadc57976adafa728c7fc1502c9f516a5d4","revision":c},
+              {"kind":"test","summary":"Ubuntu 24.04 native PTY candidate evidence","reference":"artifact 10855096674 sha256:ce2350a860edd015580eedfbdd4d07ebe6c3aef03a7dcbba391d5b860a939120","revision":c},
+              {"kind":"impact","summary":"Staged GitNexus and source hash evidence","reference":"artifact 10855146561 sha256:bc14bf98958a2596a02b1b82ac95809af915cab38f50795ceb0ed283c9bd5441","revision":c}
+            ],
+            "last_verified_revision":c
+          },separators=(",",":")))
+          PY
+          ./.mcp-probe-kit/bin/probe exec plan_heartbeat --stdin < evidence/test-request.json > evidence/test-heartbeat.json 2>&1
+          cat evidence/test-heartbeat.json
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume-after-test.json 2>&1
+          cat evidence/resume-after-test.json
+          node - <<'NODE'
+          const r=require('./evidence/resume-after-test.json');
+          if(r.isError===true || r.structuredContent?.nextStepId!=='review') process.exit(1);
+          NODE
+          cat "$PLAN_PATH" > evidence/plan-after-test.json
+      - name: Persist Plan checkpoint without overwriting another executor
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add "$PLAN_PATH"
+          git diff --cached --check
+          git commit -m "chore(plan): checkpoint native PTY implementation tests"
+          git fetch origin "ci/native-pty-plan-init-20260925"
+          test "$(git rev-parse "origin/ci/native-pty-plan-init-20260925")" = "$GITHUB_SHA"
+          git push origin "HEAD:ci/native-pty-plan-init-20260925"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: native-pty-plan-checkpoint
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
