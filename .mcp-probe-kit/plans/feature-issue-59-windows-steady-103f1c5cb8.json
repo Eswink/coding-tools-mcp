@@ -175,14 +175,15 @@
       "persistPlanOnFirstHeartbeat": true
     }
   },
-  "status": "active",
+  "status": "converged",
   "completedStepIds": [
     "context",
     "write-spec",
     "check-spec",
     "estimate",
     "implement",
-    "test"
+    "test",
+    "review"
   ],
   "skippedSteps": [],
   "unresolvedItems": [],
@@ -234,6 +235,30 @@
       "reference": "GitHub Actions run 36115601417",
       "revision": "80318fdec82bd46493c370424c59d7ec61625fff",
       "verifiedAt": "2026-09-25T08:58:53.875Z"
+    },
+    {
+      "kind": "implementation",
+      "summary": "Clean production candidate contains exactly the 10 scoped native-PTY production/test files and excludes all continuation helpers; those files are byte-identical to tested candidate 80318fde.",
+      "stepId": "implement",
+      "reference": "review/native-pty-production-candidate-20260925",
+      "revision": "1b8ca774cb88ba30e9c94f94613e2fc7b5c641de",
+      "verifiedAt": "2026-09-25T09:04:00.665Z"
+    },
+    {
+      "kind": "test",
+      "summary": "Run 36115601417 validates byte-identical candidate content on Windows 2025 and Ubuntu 24.04 with Clippy -D warnings, focused PTY lifecycle/argv/env/live-output/resize/tree-cleanup tests, full local-agent regressions and staged GitNexus MEDIUM impact.",
+      "stepId": "test",
+      "reference": "GitHub Actions run 36115601417; blob-equivalence check in this run",
+      "revision": "1b8ca774cb88ba30e9c94f94613e2fc7b5c641de",
+      "verifiedAt": "2026-09-25T09:04:00.665Z"
+    },
+    {
+      "kind": "review",
+      "summary": "Plan-aware mcp-probe code_review of the clean 10-file native PTY production candidate completed with no HIGH/CRITICAL finding.",
+      "stepId": "review",
+      "reference": "GitHub Actions run 36116332475",
+      "revision": "1b8ca774cb88ba30e9c94f94613e2fc7b5c641de",
+      "verifiedAt": "2026-09-25T09:04:04.320Z"
     }
   ],
   "declaredScope": {
@@ -272,7 +297,21 @@
   "architectureCandidates": [],
   "acceptanceResults": [],
   "runtimeEvidence": [],
-  "lastVerifiedRevision": "80318fdec82bd46493c370424c59d7ec61625fff",
+  "lastVerifiedRevision": "1b8ca774cb88ba30e9c94f94613e2fc7b5c641de",
   "createdAt": "2026-09-25T06:55:57.295Z",
-  "updatedAt": "2026-09-25T08:58:53.875Z"
+  "updatedAt": "2026-09-25T09:04:05.407Z",
+  "lastConvergence": {
+    "checkedAt": "2026-09-25T09:04:05.407Z",
+    "passed": true,
+    "blockers": [],
+    "requiredEvidenceKinds": [
+      "requirements",
+      "spec",
+      "implementation",
+      "test",
+      "review"
+    ],
+    "requiredQualityGates": [],
+    "missingQualityGates": []
+  }
 }
