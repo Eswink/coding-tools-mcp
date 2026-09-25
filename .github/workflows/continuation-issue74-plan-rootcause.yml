@@ -45,7 +45,7 @@ jobs:
             "completed_step_ids":["src8-4","src8-5"],
             "evidence":[
               {
-                "kind":"root_cause",
+                "kind":"other",
                 "step_id":"src8-4",
                 "summary":"Root cause is a test-fixture TOCTOU: offline_new_authorization binds 127.0.0.1:0 only to discover a Windows dynamic port, drops that reservation, then later asks the production listener to bind the numeric port. Official RC run 36154924658 job 108137017396 failed exactly at that second bind with WSAEADDRINUSE on 64506. Windows 2025 run 36182179349 proves the runner dynamic TCP range is 49152-65535, so 64506 is allocator-owned dynamic space. Three never-merge replicas each passed 30 baseline and 50 synthetic-churn exact repeats; this non-reproduction shows rarity, not safety, because no ownership exists between drop and second bind. Production bind conflict behavior remains correct/fail-closed and GitNexus marks listener bind symbols CRITICAL, so production listener code is not the repair boundary.",
                 "reference":"RC run 36154924658 job 108137017396; root-cause run 36172251997; Windows range run 36182179349 artifact 10884817450 sha256:de45d761fd89e7102322eeaaa601c249ba0e15d8920271bb3baf1bffc0b9c0de",
