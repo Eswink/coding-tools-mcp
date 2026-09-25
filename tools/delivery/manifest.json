@@ -366,13 +366,13 @@
       "priority": 30,
       "release_required": true,
       "evidence": {
-        "revision": "8c453c4dadc9e80c0a8befe144bc4f2b79f793c1",
-        "run_id": 35899866696,
+        "revision": "1b8ca774cb88ba30e9c94f94613e2fc7b5c641de",
+        "run_id": 36116589164,
         "files": {
-          "services/local-agent/Cargo.toml": "9716589a494a3f0a6e013171850adb1b14e7862ef5b95a4a52d4acc188f6675c",
+          "services/local-agent/Cargo.toml": "5f91a913256b8a7263e23d343ac8f762c8bf56a02586c94e7c4401a3d60a8b13",
           "services/local-agent/Cargo.lock": "eb408e883d4026568782eff1ccb6ca24771d31a7a9476b60e4bb6a3c28930348",
           "services/local-agent/src/executor.rs": "2ebb486fefd08e3cc9997a7aaa87dbb64c1dd80482c9faf097ec21d67c14f092",
-          "services/local-agent/src/lib.rs": "1dc191c1efd314d8eab16252ac94f51dc69de9eff2585fcc57d8ede30747ddfc",
+          "services/local-agent/src/lib.rs": "d0a567e2c00935f07610728e47d20697a7c81b0602cb8220bf2fff605953f45a",
           "services/local-agent/src/model.rs": "01aab422c7e778fc0b4a29e4f512155029ae5652fbbe90964d1c26ddb1385e03",
           "services/local-agent/src/registry.rs": "b629fd6edf7448480c9380316a643ba3a909e447b5afc6d100cb450422733425",
           "services/local-agent/src/registry_tests.rs": "c3fffc772c493dfd337e8504b9310690b902010bbd4ebc7d8672ed9e79f031ee"
