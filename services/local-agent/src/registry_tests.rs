@@ -189,11 +189,7 @@ fn deferred_discovery_stops_at_entry_bound_without_cloning_the_tail() {
     for index in 0..(MAX_DEFERRED_DISCOVERY_TOOLS + 2) {
         let name = format!("deferred_{index:03}");
         registry
-            .register(Arc::new(Fixture::new(
-                &name,
-                ToolExposure::Deferred,
-                &[],
-            )))
+            .register(Arc::new(Fixture::new(&name, ToolExposure::Deferred, &[])))
             .unwrap();
     }
 
