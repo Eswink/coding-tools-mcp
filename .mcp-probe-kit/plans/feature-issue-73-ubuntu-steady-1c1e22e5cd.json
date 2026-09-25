@@ -176,10 +176,56 @@
     }
   },
   "status": "active",
-  "completedStepIds": [],
+  "completedStepIds": [
+    "context",
+    "write-spec",
+    "check-spec",
+    "estimate"
+  ],
   "skippedSteps": [],
   "unresolvedItems": [],
-  "evidence": [],
+  "evidence": [
+    {
+      "kind": "other",
+      "summary": "Project context is available for the Ubuntu sandbox feature.",
+      "stepId": "context",
+      "reference": "GitHub Actions run 36172936370",
+      "revision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
+      "verifiedAt": "2026-09-25T18:22:04.566Z"
+    },
+    {
+      "kind": "requirements",
+      "summary": "Issue #73 requirements/design/tasks lock a Linux-only Landlock write sandbox plus capability-gated seccomp network deny; Windows and unrelated features are out of scope.",
+      "stepId": "write-spec",
+      "reference": "docs/specs/issue-73-ubuntu/requirements.md + design.md + tasks.md",
+      "revision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
+      "verifiedAt": "2026-09-25T18:22:04.566Z"
+    },
+    {
+      "kind": "spec",
+      "summary": "check_spec passed for the concrete Ubuntu sandbox spec.",
+      "stepId": "check-spec",
+      "reference": "GitHub Actions run 36172936370 evidence/check-spec.json",
+      "revision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
+      "verifiedAt": "2026-09-25T18:22:07.528Z"
+    },
+    {
+      "kind": "other",
+      "summary": "estimate executed after spec validation; implementation remains blocked on per-symbol fresh GitNexus impact.",
+      "stepId": "estimate",
+      "reference": "GitHub Actions run 36172936370 evidence/estimate.json",
+      "revision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
+      "verifiedAt": "2026-09-25T18:22:07.528Z"
+    },
+    {
+      "kind": "review",
+      "summary": "Primitive feasibility run 36160607897 observed Ubuntu kernel 6.17, Landlock ABI 7 and seccomp ERRNO support; process_tree::spawn impact LOW/lower-bound and PTY spawn lower-bound, so missing graph edges are not treated as safety proof.",
+      "stepId": "estimate",
+      "reference": "GitHub Actions run 36160607897",
+      "revision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
+      "verifiedAt": "2026-09-25T18:22:07.528Z"
+    }
+  ],
   "declaredScope": {
     "projectRoot": "/home/runner/work/coding-tools-mcp/coding-tools-mcp",
     "docsDir": "docs",
@@ -191,6 +237,7 @@
   "architectureCandidates": [],
   "acceptanceResults": [],
   "runtimeEvidence": [],
+  "lastVerifiedRevision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
   "createdAt": "2026-09-25T14:01:27.981Z",
-  "updatedAt": "2026-09-25T14:01:27.981Z"
+  "updatedAt": "2026-09-25T18:22:07.528Z"
 }
