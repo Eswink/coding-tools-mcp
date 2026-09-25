@@ -26,7 +26,8 @@ pub use process::{
     ProcessSession,
 };
 pub use pty::{
-    PtyError, PtyErrorKind, PtyManager, PtyOutcome, PtySession, PtySize, PtySpec, PtyTermination,
+    PtyError, PtyErrorKind, PtyManager, PtyOutcome, PtyOutputSnapshot, PtySession, PtySize, PtySpec,
+    PtyTermination,
 };
 pub use registry::{ToolRegistry, VerifiedInvocation};
 pub use skills::{LocalSkill, SkillCatalog, SkillCatalogLoader, SkillError, SkillLimits};
