@@ -177,7 +177,10 @@
   },
   "status": "active",
   "completedStepIds": [
-    "context"
+    "context",
+    "write-spec",
+    "check-spec",
+    "estimate"
   ],
   "skippedSteps": [],
   "unresolvedItems": [],
@@ -189,6 +192,30 @@
       "reference": "feature source 6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
       "revision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
       "verifiedAt": "2026-09-25T16:16:37.184Z"
+    },
+    {
+      "kind": "spec",
+      "summary": "Completed issue-73 requirements/design/tasks with scope-lock, EARS acceptance, real source evidence and line budgets; no placeholders remain.",
+      "stepId": "write-spec",
+      "reference": "docs/specs/issue-73/{requirements,design,tasks}.md",
+      "revision": "7d890186eea06c41dad00dc523ba950173ee3f2f",
+      "verifiedAt": "2026-09-25T16:22:39.053Z"
+    },
+    {
+      "kind": "spec",
+      "summary": "mcp-probe check_spec passed for issue-73; implementation remains blocked until estimate is checkpointed.",
+      "stepId": "check-spec",
+      "reference": "GitHub Actions run 36160330004",
+      "revision": "7d890186eea06c41dad00dc523ba950173ee3f2f",
+      "verifiedAt": "2026-09-25T16:22:40.891Z"
+    },
+    {
+      "kind": "spec",
+      "summary": "mcp-probe estimate completed for the bounded issue-73 implementation after spec validation.",
+      "stepId": "estimate",
+      "reference": "GitHub Actions run 36160330004",
+      "revision": "7d890186eea06c41dad00dc523ba950173ee3f2f",
+      "verifiedAt": "2026-09-25T16:22:42.733Z"
     }
   ],
   "declaredScope": {
@@ -204,5 +231,5 @@
   "runtimeEvidence": [],
   "lastVerifiedRevision": "6fe8f8a3f1dc55dc1e2f9704fa65586a8a1d2ecd",
   "createdAt": "2026-09-25T16:16:37.184Z",
-  "updatedAt": "2026-09-25T16:16:37.184Z"
+  "updatedAt": "2026-09-25T16:22:42.733Z"
 }
