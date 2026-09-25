@@ -1,0 +1,48 @@
+name: Tool discovery pre-edit impact (never merge)
+
+on:
+  push:
+    branches: ['ci/tool-discovery-impact-20260925']
+    paths:
+      - '.github/workflows/continuation-tool-discovery-impact.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: f4f93af9ee28aa209bb67643421725fcb22fb7e5
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Inspect deferred registry blast radius
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.12
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/analyze.txt 2>&1
+          git restore -- AGENTS.md CLAUDE.md || true
+          "$graph" query "deferred_specs ToolRegistry deferred tool discovery" > evidence/query.txt 2>&1 || true
+          "$graph" context deferred_specs > evidence/context-deferred.txt 2>&1 || true
+          "$graph" impact deferred_specs --direction upstream > evidence/impact-deferred.txt 2>&1 || true
+          "$graph" context ToolSpec > evidence/context-spec.txt 2>&1 || true
+          "$graph" impact ToolSpec --direction upstream > evidence/impact-spec.txt 2>&1 || true
+          cat evidence/query.txt evidence/context-deferred.txt evidence/impact-deferred.txt evidence/context-spec.txt evidence/impact-spec.txt
+          git rev-parse HEAD > evidence/source-commit.txt
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: tool-discovery-impact
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
