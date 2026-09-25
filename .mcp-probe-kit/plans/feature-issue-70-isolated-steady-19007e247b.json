@@ -216,6 +216,30 @@
       "reference": "GitHub Actions run 36099006757",
       "revision": "b893abedec01abc4bd9b691c54b1f32ad3478511",
       "verifiedAt": "2026-09-25T05:32:59.690Z"
+    },
+    {
+      "kind": "requirements",
+      "summary": "Complete bounded requirements/design/tasks for Issue #70 worktree lifecycle with scope-lock, repository evidence, cross-platform tests and no snapshot/tool exposure expansion.",
+      "stepId": "write-spec",
+      "reference": "docs/specs/issue-70-isolated/requirements.md;design.md;tasks.md",
+      "revision": "d60dd3fa3c2a302b18c1fb023273991c03f275a2",
+      "verifiedAt": "2026-09-25T05:54:54.269Z"
+    },
+    {
+      "kind": "spec",
+      "summary": "mcp-probe check_spec passed the complete issue-70-isolated flat specification.",
+      "stepId": "check-spec",
+      "reference": "GitHub Actions run 36100546824",
+      "revision": "d60dd3fa3c2a302b18c1fb023273991c03f275a2",
+      "verifiedAt": "2026-09-25T05:54:56.473Z"
+    },
+    {
+      "kind": "spec",
+      "summary": "mcp-probe estimate completed after spec validation; production implementation remains blocked until this checkpoint is persisted.",
+      "stepId": "estimate",
+      "reference": "GitHub Actions run 36100546824",
+      "revision": "d60dd3fa3c2a302b18c1fb023273991c03f275a2",
+      "verifiedAt": "2026-09-25T05:54:58.638Z"
     }
   ],
   "declaredScope": {
@@ -231,5 +255,5 @@
   "runtimeEvidence": [],
   "lastVerifiedRevision": "4dc9f9d872c134d381cb1eba76999d34231d3ba6",
   "createdAt": "2026-09-25T04:10:03.625Z",
-  "updatedAt": "2026-09-25T05:32:59.690Z"
+  "updatedAt": "2026-09-25T05:54:58.638Z"
 }
