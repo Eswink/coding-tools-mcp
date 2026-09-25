@@ -34,6 +34,14 @@ fn main() -> ExitCode {
                 None => ExitCode::from(3),
             }
         }
+        Some("env") => {
+            let key = args.next().unwrap_or_default();
+            match env::var_os(&key) {
+                Some(value) => println!("env={}", value.to_string_lossy()),
+                None => println!("env=<absent>"),
+            }
+            ExitCode::SUCCESS
+        }
         Some("sleep") => {
             let ms = args
                 .next()
