@@ -140,7 +140,7 @@ jobs:
               'src-tauri/src/runtime/port.rs',
               'src-tauri/src/tools/任务恢复传输v2.rs',
           ]:
-              print(p, hashlib.sha256(open(p,'rb').read()).hexdigest())
+              print(ascii(p), hashlib.sha256(open(p,'rb').read()).hexdigest())
           PY
           git rev-parse HEAD > evidence/candidate-commit.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
