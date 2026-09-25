@@ -421,9 +421,25 @@
         "exec-unification"
       ],
       "issue": 59,
-      "state": "planned",
+      "state": "verified",
       "priority": 30,
-      "release_required": true
+      "release_required": true,
+      "evidence": {
+        "revision": "1b8ca774cb88ba30e9c94f94613e2fc7b5c641de",
+        "run_id": 36116589164,
+        "files": {
+          "services/local-agent/Cargo.toml": "5f91a913256b8a7263e23d343ac8f762c8bf56a02586c94e7c4401a3d60a8b13",
+          "services/local-agent/src/bin/pty_fixture.rs": "cfeb9e4e6f3a73c747b27b6f665ee20e7d2837cd3bb9696d7bde91f695395f1f",
+          "services/local-agent/src/lib.rs": "d0a567e2c00935f07610728e47d20697a7c81b0602cb8220bf2fff605953f45a",
+          "services/local-agent/src/process_tree.rs": "8888fe05f9e46e4f9906b6547ec1fa009515a498a4240fb745239faa12674bbd",
+          "services/local-agent/src/process_tree_windows.rs": "448384c978313b7589443691d7193ddc3ac99482835aabaffd69ef96b03e7b30",
+          "services/local-agent/src/pty.rs": "c1b97addde68d332115ed0a82afa898bc0f128c65213413926d3d929564a40f9",
+          "services/local-agent/src/pty_io.rs": "9aa4e8bbd72e5ec230b528b450d4c8e22b0f632aae41cb05380d3603fc75e4a6",
+          "services/local-agent/src/pty_unix.rs": "4dc4eec7e0af7f25cada7b4d4d426d0b96f34f813d18ab0a84340d3245e5928e",
+          "services/local-agent/src/pty_windows.rs": "04df22383bc565514889b61f9af29d06a49a7cb754552da96f5076cfc1f7a69f",
+          "services/local-agent/tests/pty_runtime.rs": "c296258142de441109fa22a6c3feddf311725acccbf4f51dd5ae69e521aa0bad"
+        }
+      }
     },
     {
       "id": "exec-policy",
