@@ -17,7 +17,8 @@ use std::{
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Console::{COORD, HPCON};
 use windows::Win32::System::Threading::{
-    PROCESS_INFORMATION, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, STARTUPINFOEXW,
+    LPPROC_THREAD_ATTRIBUTE_LIST, PROCESS_INFORMATION, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+    STARTUPINFOEXW,
 };
 
 const EXTENDED_STARTUPINFO_PRESENT: u32 = 0x0008_0000;
@@ -119,7 +120,7 @@ impl AttributeList {
             UpdateProcThreadAttribute(
                 list,
                 0,
-                PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+                PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE as usize,
                 value,
                 size_of::<HPCON>(),
                 null_mut(),
@@ -165,7 +166,7 @@ pub(crate) fn spawn(spec: &PtySpec, cwd: &Path) -> Result<Spawned, PtyError> {
     let mut attributes = AttributeList::new(hpc).map_err(|_| spawn_error())?;
     let mut startup = STARTUPINFOEXW::default();
     startup.StartupInfo.cb = size_of::<STARTUPINFOEXW>() as u32;
-    startup.lpAttributeList = attributes.raw();
+    startup.lpAttributeList = LPPROC_THREAD_ATTRIBUTE_LIST(attributes.raw());
 
     let app = wide(OsStr::new(&spec.argv()[0]));
     let mut command = command_line(spec.argv());
