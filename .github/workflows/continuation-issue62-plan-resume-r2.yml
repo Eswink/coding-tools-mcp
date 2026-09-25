@@ -1,0 +1,50 @@
+name: Issue 62 resume current delegated Plan r2 (never merge)
+
+on:
+  push:
+    branches: ['ci/issue62-plan-resume-20260925-r2']
+    paths:
+      - '.github/workflows/continuation-issue62-plan-resume-r2.yml'
+
+permissions:
+  contents: read
+
+env:
+  PLAN_ID: bugfix-issue-62-on-ubuntu-after-mcp-listene-eda04c324b
+  PLAN_REF: c6ed910a51bb561bcfb545437a1f0cc20859bf27
+  PLAN_PATH: .mcp-probe-kit/plans/bugfix-issue-62-on-ubuntu-after-mcp-listene-eda04c324b.json
+
+jobs:
+  resume:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 4dc9f9d872c134d381cb1eba76999d34231d3ba6
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Materialize latest persisted Plan and resume
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence .mcp-probe-kit/plans
+          git fetch origin "$PLAN_REF"
+          git show "$PLAN_REF:$PLAN_PATH" > "$PLAN_PATH"
+          npx --yes mcp-probe-kit@4.0.1 install-agent --project-root . > evidence/install.txt 2>&1
+          ./.mcp-probe-kit/bin/probe exec resume_plan --json "{\"project_root\":\"$PWD\",\"plan_id\":\"$PLAN_ID\"}" > evidence/resume.json 2>&1
+          cat evidence/resume.json
+          node - <<'NODE'
+          const r=require('./evidence/resume.json');
+          if(r.isError===true || r.structuredContent?.found!==true) process.exit(1);
+          if(r.structuredContent?.mustContinue!==true && !['blocked','converged','cancelled'].includes(r.structuredContent?.status)) process.exit(2);
+          NODE
+          cp "$PLAN_PATH" evidence/plan.json
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue62-plan-resume-r2
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
