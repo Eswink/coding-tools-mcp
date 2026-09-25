@@ -176,10 +176,21 @@
     }
   },
   "status": "active",
-  "completedStepIds": [],
+  "completedStepIds": [
+    "context"
+  ],
   "skippedSteps": [],
   "unresolvedItems": [],
-  "evidence": [],
+  "evidence": [
+    {
+      "kind": "requirements",
+      "summary": "Repository instructions, project context and both current graph-insights documents exist and were revalidated before native PTY specification.",
+      "stepId": "context",
+      "reference": "AGENTS.md sha256:c67fcd8b7341c45087583c8da670ff3e9c43ac800a8711420f0450a2938defe7; docs/graph-insights/latest.md sha256:7a3cd08b0147e897c7e93fc32ffa476de4a1aba3758d5e916ee8a669feeb5397; docs/graph-insights/latest.json sha256:3d76a2a59d8aee65149e1c929f835bd0f7a37698ad6ded65dcd555746a2d0ae6; docs/project-context.md sha256:cfc13c7bac935b8dd5a70675ad3f3d74c9bcaadecf8ca533d79215d13567e622",
+      "revision": "5f65d069343c0cdcb5455fa7cc76792a14bb5d2e",
+      "verifiedAt": "2026-09-25T07:00:01.829Z"
+    }
+  ],
   "declaredScope": {
     "projectRoot": "/home/runner/work/coding-tools-mcp/coding-tools-mcp",
     "docsDir": "docs",
@@ -191,6 +202,7 @@
   "architectureCandidates": [],
   "acceptanceResults": [],
   "runtimeEvidence": [],
+  "lastVerifiedRevision": "5f65d069343c0cdcb5455fa7cc76792a14bb5d2e",
   "createdAt": "2026-09-25T06:55:57.295Z",
-  "updatedAt": "2026-09-25T06:55:57.295Z"
+  "updatedAt": "2026-09-25T07:00:01.829Z"
 }
