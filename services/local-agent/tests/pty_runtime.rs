@@ -22,7 +22,7 @@ fn text(outcome: &coding_tools_local_agent::PtyOutcome) -> String {
 fn grandchild_pid(outcome: &coding_tools_local_agent::PtyOutcome) -> u32 {
     text(outcome)
         .lines()
-        .find_map(|line| line.strip_prefix("grandchild_pid="))
+        .find_map(|line| line.find("grandchild_pid=").map(|index| &line[index + 15..]))
         .and_then(|value| value.trim().parse().ok())
         .expect("grandchild pid")
 }
