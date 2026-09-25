@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: 4dc9f9d872c134d381cb1eba76999d34231d3ba6
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: true
       - name: Start feature and persist initial delegated Plan
@@ -75,6 +75,8 @@ jobs:
           git commit -m "chore(plan): initialize worktree delivery"
           git fetch origin "ci/worktrees-plan-init-20260925"
           test "$(git rev-parse "origin/ci/worktrees-plan-init-20260925")" = "$GITHUB_SHA"
+          git fetch origin ci/worktrees-plan-init-20260925
+          test "$(git rev-parse origin/ci/worktrees-plan-init-20260925)" = "$GITHUB_SHA"
           git push origin "HEAD:ci/worktrees-plan-init-20260925"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
