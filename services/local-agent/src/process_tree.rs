@@ -13,6 +13,10 @@ pub(crate) struct ProcessTree(Option<libc::pid_t>);
 
 #[cfg(unix)]
 impl ProcessTree {
+    pub(crate) fn from_pgid(pgid: libc::pid_t) -> Self {
+        Self(Some(pgid))
+    }
+
     pub(crate) fn terminate(&mut self) -> io::Result<()> {
         let Some(pgid) = self.0.take() else {
             return Ok(());

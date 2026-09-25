@@ -29,7 +29,7 @@ fn handle(owned: &OwnedHandle) -> HANDLE {
 }
 
 impl ProcessTree {
-    fn new() -> io::Result<Self> {
+    pub(crate) fn new() -> io::Result<Self> {
         let raw = unsafe { CreateJobObjectW(None, PCWSTR::null()) }.map_err(winerr)?;
         let owned = unsafe { OwnedHandle::from_raw_handle(raw.0) };
         let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
@@ -44,6 +44,14 @@ impl ProcessTree {
         }
         .map_err(winerr)?;
         Ok(Self(Some(owned)))
+    }
+
+    pub(crate) fn assign_process(&self, process: HANDLE) -> io::Result<()> {
+        let job = self
+            .0
+            .as_ref()
+            .ok_or_else(|| io::Error::other("process tree is closed"))?;
+        unsafe { AssignProcessToJobObject(handle(job), process) }.map_err(winerr)
     }
 
     pub(crate) fn terminate(&mut self) -> io::Result<()> {
@@ -72,8 +80,7 @@ pub(super) async fn spawn(command: &mut Command) -> io::Result<(Child, ProcessTr
         let id = child
             .id()
             .ok_or_else(|| io::Error::other("missing child id"))?;
-        unsafe { AssignProcessToJobObject(handle(job.0.as_ref().expect("new job")), HANDLE(raw)) }
-            .map_err(winerr)?;
+        job.assign_process(HANDLE(raw))?;
         resume_primary_thread(id)
     })();
     if let Err(error) = attached {

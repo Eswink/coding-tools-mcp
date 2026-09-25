@@ -4,6 +4,8 @@ mod model;
 mod policy;
 mod process;
 mod process_tree;
+mod pty;
+mod pty_io;
 mod registry;
 mod skills;
 mod trace;
@@ -19,6 +21,7 @@ pub use policy::{
     PolicyError, PolicyErrorKind, PolicyEvaluation, PrefixRule, PrefixRuleMatch, ScopedApproval,
     TokenPattern,
 };
+pub use pty::{PtyError, PtyErrorKind, PtyManager, PtyOutcome, PtySession, PtySize, PtySpec, PtyTermination};
 pub use process::{
     ExecError, ExecErrorKind, ExecOutcome, ExecSpec, ExecTermination, ProcessManager,
     ProcessSession,
