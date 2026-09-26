@@ -1,0 +1,71 @@
+name: Cloud gateway preflight
+
+on:
+  push:
+    branches: ['feat/cloud-gateway-agent-runtime']
+    paths: ['.github/workflows/cloud-gateway-preflight.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloud-gateway-preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned planning tools outside the repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cloud-evidence" "$RUNNER_TEMP/cloud-tools"
+          npm install --prefix "$RUNNER_TEMP/cloud-tools" --no-audit --no-fund mcp-probe-kit@4.0.1 gitnexus@1.6.9
+      - name: Resume the repository plan before starting a new plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe="$RUNNER_TEMP/cloud-tools/node_modules/.bin/mcp-probe-kit"
+          out="$RUNNER_TEMP/cloud-evidence"
+          "$probe" exec resume_plan --json "{\"project_root\":\"$PWD\"}" > "$out/resume-plan.json"
+          for tool in start_feature plan_heartbeat resume_plan code_insight architecture check_spec code_review converge gencommit; do
+            "$probe" schema "$tool" > "$out/schema-$tool.json"
+          done
+      - name: Record baseline graph and source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          graph="$RUNNER_TEMP/cloud-tools/node_modules/.bin/gitnexus"
+          out="$RUNNER_TEMP/cloud-evidence"
+          "$graph" --version > "$out/gitnexus-version.txt"
+          "$graph" analyze --workers 1 > "$out/graph-analysis.txt" 2>&1
+          "$graph" query 'MCP listener OAuth conversation authorization execution gate tool dispatch' > "$out/graph-query.txt"
+          "$graph" detect-changes --scope compare --base-ref 758c60a6e74e624e144f9c19c5f19d04d17f7a13 > "$out/bootstrap-change-impact.txt"
+          git rev-parse HEAD > "$out/source-commit.txt"
+      - name: Export public source and pinned offline tooling
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/cloud-evidence"
+          git bundle create "$out/source.bundle" HEAD
+          tar --exclude='node_modules/onnxruntime-node' --exclude='node_modules/@huggingface' -czf "$out/planning-tools.tar.gz" -C "$RUNNER_TEMP/cloud-tools" node_modules
+          cd "$out"
+          sha256sum source.bundle planning-tools.tar.gz > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cloud-gateway-preflight
+          path: ${{ runner.temp }}/cloud-evidence/
+          retention-days: 7
+          if-no-files-found: error

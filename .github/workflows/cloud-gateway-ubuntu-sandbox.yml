@@ -1,0 +1,83 @@
+name: Ubuntu sandbox library regression
+
+on:
+  push:
+    branches: ['feat/issue-73-ubuntu-sandbox', 'feat/cloud-gateway-agent-runtime']
+    paths: ['services/local-agent/**', '.github/workflows/cloud-gateway-ubuntu-sandbox.yml']
+  pull_request:
+    branches: [main]
+    paths: ['services/local-agent/**', '.github/workflows/cloud-gateway-ubuntu-sandbox.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ubuntu-sandbox-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Use deterministic source checkout bytes
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Record exact source and platform
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/commit.txt
+          git rev-parse HEAD^{tree} > evidence/tree.txt
+          rustc --version > evidence/rustc.txt
+          uname -a > evidence/platform.txt
+      - name: Format and all-target Clippy
+        run: |
+          set -euo pipefail
+          cargo fmt --check --manifest-path services/local-agent/Cargo.toml
+          cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings
+      - name: Kernel sandbox regressions must actually execute
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml --test linux_sandbox -- --list | tee evidence/sandbox-list.txt
+          grep -q 'workspace_read_write_and_symlink_escape_are_kernel_enforced: test' evidence/sandbox-list.txt
+          grep -q 'unavailable_landlock_never_falls_back_to_unsandboxed_execution: test' evidence/sandbox-list.txt
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml --test linux_sandbox 2>&1 | tee evidence/sandbox.txt
+      - name: Complete unchanged and new Rust regressions
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml 2>&1 | tee evidence/tests.txt
+          cargo rustc --locked --manifest-path services/local-agent/Cargo.toml --lib -- -D warnings
+      - name: Hash evidence and preserve failure state
+        if: always()
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root = Path('evidence')
+          root.mkdir(exist_ok=True)
+          hashes = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in root.iterdir() if p.is_file()}
+          (root/'hashes.json').write_text(json.dumps(hashes, indent=2), encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ubuntu-sandbox-${{ matrix.os }}-${{ github.run_id }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error

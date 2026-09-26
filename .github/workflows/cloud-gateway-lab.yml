@@ -1,0 +1,167 @@
+name: Cloud gateway protocol laboratory
+
+on:
+  push:
+    branches: ['feat/cloud-gateway-agent-runtime']
+    paths:
+      - 'prototypes/cloud-gateway/**'
+      - 'tests/cloud-gateway/**'
+      - 'docs/specs/cloud-gateway-agent-runtime/**'
+      - '.github/workflows/cloud-gateway-lab.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'prototypes/cloud-gateway/**'
+      - 'tests/cloud-gateway/**'
+      - 'docs/specs/cloud-gateway-agent-runtime/**'
+      - '.github/workflows/cloud-gateway-lab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloud-gateway-lab-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify isolated increment scope and record candidate identity
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          import hashlib, json, subprocess
+          from pathlib import Path
+          base = '758c60a6e74e624e144f9c19c5f19d04d17f7a13'
+          paths = subprocess.check_output(
+              ['git', '-c', 'core.quotePath=false', 'diff', '--name-only', base, 'HEAD'],
+              encoding='utf-8',
+              text=True,
+          ).splitlines()
+          allowed_prefixes = (
+              'prototypes/cloud-gateway/', 'tests/cloud-gateway/',
+              'docs/specs/cloud-gateway-agent-runtime/', '.github/workflows/cloud-gateway-',
+              'services/cloud-gateway/', 'services/local-agent/', 'deploy/cloud-gateway/', 'tests/cloud-gateway-deployment/',
+              'tools/delivery/', 'tests/delivery/',
+          )
+          allowed_exact = {
+              'docs/specs/ubuntu-execution-sandbox/requirements.md',
+              'docs/specs/ubuntu-execution-sandbox/design.md',
+              'docs/specs/ubuntu-execution-sandbox/tasks.md',
+              '.github/workflows/cloud-delivery.yml',
+              '.github/workflows/local-authority-bridge.yml',
+              '.github/workflows/local-agent-runtime.yml',
+              '.github/workflows/origin-migration.yml',
+              'src-tauri/src/auth/local_authority.rs',
+              'src-tauri/src/auth/mod.rs',
+              'src-tauri/src/auth/聊天授权v1.rs',
+              'src-tauri/src/auth/聊天授权回归v1.rs',
+              'src-tauri/src/runtime/execution_gate.rs',
+              'src-tauri/src/runtime/mod.rs',
+              'src-tauri/src/tools/异步命令v1.rs',
+              'src-tauri/src/mcp/listener.rs',
+              'src-tauri/src/mcp/mod.rs',
+              'src-tauri/src/mcp/listener_test_support.rs',
+              'src-tauri/src/auth/聊天HTTP回归v1.rs',
+              'src-tauri/src/auth/exclusive_refresh_http_tests.rs',
+              'src-tauri/src/tools/patch.rs',
+              'src-tauri/src/tools/patch_transaction.rs',
+              'src-tauri/src/tools/patch_transaction_tests.rs',
+              'src-tauri/src/platform/linux/mod.rs',
+              'src-tauri/src/platform/linux/net.rs',
+              'src-tauri/src/platform/mod.rs',
+              'src-tauri/src/runtime/port.rs',
+              'src-tauri/src/tools/任务恢复传输v2.rs',
+          }
+          unexpected = [
+              p for p in paths
+              if p not in allowed_exact and not p.startswith(allowed_prefixes)
+          ]
+          if unexpected:
+              raise SystemExit('Unexpected non-lab changes: ' + repr(unexpected))
+          hashes = {}
+          for name in paths:
+              p = Path(name)
+              if not p.is_file():
+                  raise SystemExit('This additive increment must not delete files: ' + name)
+              data = p.read_bytes()
+              hashes[name] = hashlib.sha256(data).hexdigest()
+              if p.suffix == '.mjs' and len(data.splitlines()) >= 500:
+                  raise SystemExit('Source file exceeds the repository limit: ' + name)
+          report = {'base': base, 'candidate': subprocess.check_output(['git','rev-parse','HEAD'],encoding='utf-8',text=True).strip(),
+                    'classification': 'LAB_REGRESSIONS_WITH_AGENT_AND_DELIVERY_INCREMENT', 'sha256': hashes}
+          Path('evidence/candidate.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
+          PY
+      - name: Syntax and HTTP contract tests
+        run: |
+          set -euo pipefail
+          for file in prototypes/cloud-gateway/*.mjs tests/cloud-gateway/*.mjs; do
+            node --check "$file"
+          done
+          node --test --test-reporter=tap tests/cloud-gateway/*.test.mjs 2>&1 | tee evidence/contracts.tap
+      - name: Existing offline-safe contract regressions
+        run: |
+          set -euo pipefail
+          node --test tests/offline-safe-ui.test.mjs tests/offline-safe-intent-ui.test.mjs 2>&1 | tee evidence/desktop-contracts.tap
+          python scripts/connector_fault_proxy_tests.py 2>&1 | tee evidence/fault-proxy-tests.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cloud-gateway-contracts-${{ matrix.os }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build pinned graph and inspect actual candidate diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9 mcp-probe-kit@4.0.1
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/graph.txt 2>&1
+          "$graph" detect-changes --scope compare --base-ref 758c60a6e74e624e144f9c19c5f19d04d17f7a13 > evidence/impact.json
+          probe="$RUNNER_TEMP/graph/node_modules/.bin/mcp-probe-kit"
+          "$probe" exec check_spec --json "{\"project_root\":\"$PWD\",\"feature_name\":\"cloud-gateway-agent-runtime\",\"docs_dir\":\"docs\"}" > evidence/spec-check.json
+          node -e "const r=require('./evidence/spec-check.json'); if(r.structuredContent?.passed!==true) process.exit(1)"
+          git rev-parse HEAD > evidence/candidate-commit.txt
+          git bundle create evidence/source.bundle HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cloud-gateway-impact
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error

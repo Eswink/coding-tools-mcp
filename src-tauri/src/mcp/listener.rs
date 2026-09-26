@@ -76,6 +76,35 @@ pub(crate) fn spawn_listener_with_origin_and_execution_gate(
     oauth_token_secret: Option<String>,
     runtime: RuntimeConfig,
 ) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>, Arc<crate::runtime::WorkspaceExecutionGate>), String> {
+    // Keep production binding and startup-error ordering unchanged. Only tests
+    // can supply an already-owned socket through the private binding boundary.
+    spawn_listener_with_binding(
+        port,
+        workspace_path,
+        workspace_id,
+        auth,
+        public_base_url,
+        oauth_client_secret,
+        oauth_password,
+        oauth_token_secret,
+        runtime,
+        || bind_listener(port),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_listener_with_binding(
+    port: u16,
+    workspace_path: PathBuf,
+    workspace_id: String,
+    auth: AuthConfig,
+    public_base_url: PublicOrigin,
+    oauth_client_secret: Option<String>,
+    oauth_password: Option<String>,
+    oauth_token_secret: Option<String>,
+    runtime: RuntimeConfig,
+    bind: impl FnOnce() -> Result<tokio::net::TcpListener, String>,
+) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>, Arc<crate::runtime::WorkspaceExecutionGate>), String> {
     auth.session_policy.validate()?;
     crate::auth::chat::service().configure(&workspace_id, &auth.session_policy)?;
     let workspace_display = workspace_path.display().to_string();
@@ -130,7 +159,7 @@ pub(crate) fn spawn_listener_with_origin_and_execution_gate(
         oauth_client_secret,
     };
     // 在返回 Running 之前完成 bind，避免后台任务里的端口冲突被伪装成启动成功。
-    let listener = bind_listener(port)?;
+    let listener = bind()?;
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let profile_id = state.workspace_id.clone();
     let handle = tauri::async_runtime::spawn(async move {
@@ -286,13 +315,30 @@ async fn validate_origin(
 
 fn bind_listener(port: u16) -> Result<tokio::net::TcpListener, String> {
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
-    let listener = std::net::TcpListener::bind(addr)
-        .map_err(|err| format!("MCP 本地端口 {port} 绑定失败: {err}"))?;
-    listener
-        .set_nonblocking(true)
-        .map_err(|err| format!("MCP 本地端口 {port} 设置非阻塞失败: {err}"))?;
-    tokio::net::TcpListener::from_std(listener)
-        .map_err(|err| format!("MCP 本地监听器初始化失败: {err}"))
+    #[cfg(unix)]
+    {
+        let socket = tokio::net::TcpSocket::new_v4()
+            .map_err(|err| format!("MCP 本地端口 {port} 套接字初始化失败: {err}"))?;
+        socket
+            .set_reuseaddr(true)
+            .map_err(|err| format!("MCP 本地端口 {port} 设置快速重绑定失败: {err}"))?;
+        socket
+            .bind(addr)
+            .map_err(|err| format!("MCP 本地端口 {port} 绑定失败: {err}"))?;
+        socket
+            .listen(1024)
+            .map_err(|err| format!("MCP 本地监听器初始化失败: {err}"))
+    }
+    #[cfg(not(unix))]
+    {
+        let listener = std::net::TcpListener::bind(addr)
+            .map_err(|err| format!("MCP 本地端口 {port} 绑定失败: {err}"))?;
+        listener
+            .set_nonblocking(true)
+            .map_err(|err| format!("MCP 本地端口 {port} 设置非阻塞失败: {err}"))?;
+        tokio::net::TcpListener::from_std(listener)
+            .map_err(|err| format!("MCP 本地监听器初始化失败: {err}"))
+    }
 }
 
 async fn mcp_discovery() -> Response {
@@ -544,3 +590,9 @@ mod tests {
         assert_eq!(response.headers()[CACHE_CONTROL], "no-store");
     }
 }
+
+#[cfg(test)]
+#[path = "listener_test_support.rs"]
+mod test_support;
+#[cfg(test)]
+pub(crate) use test_support::spawn_listener_from_bound;
