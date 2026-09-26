@@ -49,6 +49,20 @@ jobs:
           subprocess.run(['cargo','fmt','--manifest-path','services/local-agent/Cargo.toml'],check=True)
           assert set(git('diff','--name-only').splitlines()) <= set(p['paths'])
           subprocess.run(['git','add','--',*p['paths']],check=True)
+          assert git('write-tree') == 'd891a0a706fcc7a6c7f114a187455486054332b8'
+          old_filter = Path('services/local-agent/src/sandbox/filter.rs').read_bytes()
+          encoded = (source/'review-correction.b64').read_text()
+          assert hashlib.sha1(f'blob {len(encoded.encode())}\0'.encode()+encoded.encode()).hexdigest() == '204e3ce2033363529e5600665e34dafa6dcd9f8d'
+          for bad, good in [('weDzHHXP','weDzHXP'),('pOPrcBB+','pOPrcB+'),('vkeVzLLpk','vkeVzLpk'),('Yv9GBNNw','Yv9GBNw')]:
+              assert encoded.count(bad)==1
+              encoded=encoded.replace(bad,good,1)
+          assert hashlib.sha1(f'blob {len(encoded.encode())}\0'.encode()+encoded.encode()).hexdigest() == '4813d06b0aed7f540559cad0bec4c2fdb92a51c6'
+          correction = gzip.decompress(base64.b64decode(encoded, validate=True))
+          assert hashlib.sha256(correction).hexdigest() == 'ee703afc66b322b5e5be17212e4cbe30b846ca55b95da674f3dec773fd3edf01'
+          subprocess.run(['git','apply','--index','-'],input=correction,check=True)
+          subprocess.run(['cargo','fmt','--manifest-path','services/local-agent/Cargo.toml'],check=True)
+          assert set(git('diff','--name-only').splitlines()) <= set(p['paths'])
+          subprocess.run(['git','add','--',*p['paths']],check=True)
           subprocess.run(['git','diff','--cached','--check'],check=True)
           tree = git('write-tree')
           subprocess.run(['git','config','user.name','Source verification fixture'],check=True)
@@ -56,6 +70,7 @@ jobs:
           commit = git('commit-tree',tree,'-p',p['base'],'-m','Isolated formatted source fixture; not a feature publication')
           subprocess.run(['git','update-ref','refs/heads/issue73-source-fixture',commit],check=True)
           out = Path('issue73-source'); out.mkdir()
+          (out/'filter-before-review.rs').write_bytes(old_filter)
           subprocess.run(['git','bundle','create',str(out/'source.bundle'),'refs/heads/issue73-source-fixture'],check=True)
           records = {}
           for f in p['paths']:
@@ -117,6 +132,33 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Failure-first regression proves the original filter gap
+        id: red
+        if: matrix.os == 'ubuntu-24.04'
+        working-directory: candidate
+        run: |
+          python - <<'PY'
+          import hashlib,subprocess
+          from pathlib import Path
+          path=Path('services/local-agent/src/sandbox/filter.rs')
+          final=path.read_bytes()
+          old=Path('../source/filter-before-review.rs').read_bytes()
+          assert hashlib.sha1(f'blob {len(old)}\0'.encode()+old).hexdigest()=='d2b436e3120bc5e8a713dcf1fa20efee32397cf5'
+          marker=b'#[cfg(test)]'
+          assert old.count(marker)==1 and final.count(marker)==1
+          try:
+              path.write_bytes(old.split(marker)[0]+marker+final.split(marker)[1])
+              run=subprocess.run(['cargo','test','--locked','--manifest-path','services/local-agent/Cargo.toml','--lib','sandbox::filter::tests::'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+              Path('evidence/failure-first.txt').write_bytes(run.stdout)
+              text=run.stdout.decode(errors='replace')
+              assert run.returncode != 0, 'old filter unexpectedly passed'
+              assert 'unreviewed_system_calls_never_reach_allow ... FAILED' in text, text
+              assert 'queued_signals_and_foreign_scheduler_control_are_denied ... FAILED' in text, text
+          finally:
+              path.write_bytes(final)
+          assert path.read_bytes()==final
+          print('Both new regression cases fail against the original production filter; final source restored.')
+          PY
       - name: Compiler and lint
         id: lint
         working-directory: candidate
@@ -155,6 +197,7 @@ jobs:
         if: always()
         working-directory: candidate
         env:
+          RED: ${{ steps.red.outcome }}
           LINT: ${{ steps.lint.outcome }}
           KERNEL: ${{ steps.kernel.outcome }}
           TESTS: ${{ steps.tests.outcome }}
@@ -164,7 +207,7 @@ jobs:
           import hashlib,json,os
           from pathlib import Path
           out=Path('evidence');out.mkdir(exist_ok=True)
-          (out/'outcomes.json').write_text(json.dumps({k:os.environ[k] for k in ['LINT','KERNEL','TESTS','GUARD']},indent=2))
+          (out/'outcomes.json').write_text(json.dumps({k:os.environ[k] for k in ['RED','LINT','KERNEL','TESTS','GUARD']},indent=2))
           (out/'sha256.json').write_text(json.dumps({p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in out.iterdir() if p.is_file()},indent=2))
           PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
