@@ -36,6 +36,8 @@ pub enum ExecErrorKind {
     InvalidSpec,
     Capacity,
     Spawn,
+    #[cfg(target_os = "linux")]
+    Sandbox,
 }
 
 #[derive(Clone)]
@@ -79,6 +81,8 @@ pub struct ExecSpec {
     stdin: Vec<u8>,
     timeout: Duration,
     stream_limit: usize,
+    #[cfg(target_os = "linux")]
+    sandbox: Option<crate::LinuxSandbox>,
 }
 
 impl ExecSpec {
@@ -90,9 +94,18 @@ impl ExecSpec {
             stdin: Vec::new(),
             timeout: Duration::from_secs(30),
             stream_limit: 64 * 1024,
+            #[cfg(target_os = "linux")]
+            sandbox: None,
         };
         spec.validate()?;
         Ok(spec)
+    }
+
+    /// Attach a host policy after local admission and execution-policy approval.
+    #[cfg(target_os = "linux")]
+    pub fn with_sandbox(mut self, sandbox: crate::LinuxSandbox) -> Self {
+        self.sandbox = Some(sandbox);
+        self
     }
 
     pub fn with_env(
@@ -397,16 +410,31 @@ impl ProcessManager {
         let mut command = Command::new(&spec.argv[0]);
         command
             .args(&spec.argv[1..])
-            .current_dir(cwd)
+            .current_dir(&cwd)
             .env_clear()
             .envs(&spec.env)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        let (mut child, tree) = process_tree::spawn(&mut command)
-            .await
-            .map_err(|_| ExecError::new(ExecErrorKind::Spawn, "failed to spawn process"))?;
+        #[cfg(target_os = "linux")]
+        if let Some(policy) = &spec.sandbox {
+            let sandbox = policy
+                .prepare(Path::new(&spec.argv[0]), &cwd)
+                .map_err(|_| ExecError::new(ExecErrorKind::Sandbox, "sandbox setup rejected"))?;
+            // Prepared state is owned by the closure; no allocation after fork.
+            unsafe {
+                command.pre_exec(move || sandbox.apply());
+            }
+        }
+
+        let (mut child, tree) = process_tree::spawn(&mut command).await.map_err(|_| {
+            #[cfg(target_os = "linux")]
+            if spec.sandbox.is_some() {
+                return ExecError::new(ExecErrorKind::Sandbox, "sandbox process startup rejected");
+            }
+            ExecError::new(ExecErrorKind::Spawn, "failed to spawn process")
+        })?;
         let stdin = child.stdin.take();
         let stdout = child
             .stdout

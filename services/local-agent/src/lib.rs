@@ -7,6 +7,8 @@ mod process_tree;
 mod pty;
 mod pty_io;
 mod registry;
+#[cfg(target_os = "linux")]
+mod sandbox;
 mod skills;
 mod trace;
 
@@ -38,3 +40,6 @@ pub use trace::{
     RecoveryItem, RecoveryState, RecoveryView, TraceError, TraceEvent, TraceJournal, TracePhase,
     TraceSnapshot, TraceToolError, VerificationEvidence, VerificationRecord,
 };
+
+#[cfg(target_os = "linux")]
+pub use sandbox::{LinuxSandbox, SandboxError, SandboxErrorKind};

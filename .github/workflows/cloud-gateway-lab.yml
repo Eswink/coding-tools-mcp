@@ -66,6 +66,9 @@ jobs:
               'tools/delivery/', 'tests/delivery/',
           )
           allowed_exact = {
+              'docs/specs/ubuntu-execution-sandbox/requirements.md',
+              'docs/specs/ubuntu-execution-sandbox/design.md',
+              'docs/specs/ubuntu-execution-sandbox/tasks.md',
               '.github/workflows/cloud-delivery.yml',
               '.github/workflows/local-authority-bridge.yml',
               '.github/workflows/local-agent-runtime.yml',

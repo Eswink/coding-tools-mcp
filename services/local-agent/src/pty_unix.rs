@@ -58,7 +58,24 @@ pub(crate) fn spawn(spec: &PtySpec, cwd: &std::path::Path) -> Result<Spawned, Pt
             Ok(())
         });
     }
-    let child = command.spawn().map_err(|_| spawn_error())?;
+    #[cfg(target_os = "linux")]
+    if let Some(policy) = spec.sandbox() {
+        let sandbox = policy
+            .prepare(std::path::Path::new(&spec.argv()[0]), cwd)
+            .map_err(|_| PtyError::new(PtyErrorKind::Sandbox, "sandbox setup rejected"))?;
+        // Runs after the controlling terminal is established; children cannot
+        // detach from that session/process group once this restriction applies.
+        unsafe {
+            command.pre_exec(move || sandbox.apply());
+        }
+    }
+    let child = command.spawn().map_err(|_| {
+        #[cfg(target_os = "linux")]
+        if spec.sandbox().is_some() {
+            return PtyError::new(PtyErrorKind::Sandbox, "sandbox PTY startup rejected");
+        }
+        spawn_error()
+    })?;
     let pid = child.id();
     drop(slave);
     let tree = ProcessTree::from_pgid(pid as libc::pid_t);

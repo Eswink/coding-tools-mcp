@@ -225,3 +225,21 @@ for (const path of [
     assert.equal(result.git_calls, 1);
   });
 }
+
+for (const leaf of ['requirements.md', 'design.md', 'tasks.md']) {
+  test(`Ubuntu sandbox exact spec path is allowed: ${leaf}`, () => {
+    const path = `docs/specs/ubuntu-execution-sandbox/${leaf}`;
+    const result = run([path]);
+    assert.equal(result.accepted, true, result.error);
+    assert.equal(result.report.sha256[path], createHash('sha256').update('# fixture\n').digest('hex'));
+  });
+}
+for (const path of [
+  'docs/specs/ubuntu-execution-sandbox/private.env',
+  'docs/specs/ubuntu-execution-sandbox-extra/requirements.md',
+  'src-tauri/src/sandbox.rs',
+]) {
+  test(`Ubuntu sandbox does not widen neighboring scope: ${path}`, () => {
+    assert.equal(run([path]).accepted, false);
+  });
+}

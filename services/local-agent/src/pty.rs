@@ -34,6 +34,8 @@ pub enum PtyErrorKind {
     InvalidSpec,
     Capacity,
     Spawn,
+    #[cfg(target_os = "linux")]
+    Sandbox,
     Closed,
     Io,
 }
@@ -88,6 +90,8 @@ pub struct PtySpec {
     size: PtySize,
     timeout: Duration,
     output_limit: usize,
+    #[cfg(target_os = "linux")]
+    sandbox: Option<crate::LinuxSandbox>,
 }
 impl PtySpec {
     pub fn new(argv: Vec<String>, cwd: impl Into<PathBuf>) -> Result<Self, PtyError> {
@@ -98,9 +102,21 @@ impl PtySpec {
             size: PtySize::new(80, 24)?,
             timeout: Duration::from_secs(30),
             output_limit: 64 * 1024,
+            #[cfg(target_os = "linux")]
+            sandbox: None,
         };
         spec.validate()?;
         Ok(spec)
+    }
+    /// Attach a host policy after local admission and execution-policy approval.
+    #[cfg(target_os = "linux")]
+    pub fn with_sandbox(mut self, sandbox: crate::LinuxSandbox) -> Self {
+        self.sandbox = Some(sandbox);
+        self
+    }
+    #[cfg(target_os = "linux")]
+    pub(crate) fn sandbox(&self) -> Option<&crate::LinuxSandbox> {
+        self.sandbox.as_ref()
     }
     pub fn with_env(
         mut self,
