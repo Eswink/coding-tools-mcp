@@ -1,0 +1,229 @@
+name: Issue 73 isolated source verification
+on:
+  push:
+    branches: [ci/issue-73-ubuntu-sandbox-source]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: issue73-source-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      tree: ${{ steps.source.outputs.tree }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt
+      - name: Verify exact patch and format only allowlisted source
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -r .ci-issue73 "$RUNNER_TEMP/issue73-input"
+          python - <<'PY'
+          import base64, gzip, hashlib, json, os, subprocess
+          from pathlib import Path
+          source = Path(os.environ['RUNNER_TEMP'], 'issue73-input')
+          p = json.loads((source/'payload.json').read_text())
+          assert p['base'] == '593b173cb7c36d3ac7b8b633f1410399756ad7e5'
+          assert len(p['paths']) == 16 and len(set(p['paths'])) == 16
+          for f in p['paths']:
+              assert not Path(f).is_absolute() and '..' not in Path(f).parts
+          patch = gzip.decompress(base64.b64decode(''.join((source/name).read_text() for name in p['parts']), validate=True))
+          assert hashlib.sha256(patch).hexdigest() == p['patch_sha256']
+          def git(*a): return subprocess.check_output(['git', *a], text=True).strip()
+          subprocess.run(['git','config','core.autocrlf','false'],check=True)
+          subprocess.run(['git','checkout','--detach',p['base']],check=True)
+          subprocess.run(['git','apply','--index','-'],input=patch,check=True)
+          assert set(git('diff','--cached','--name-only').splitlines()) == set(p['paths'])
+          assert git('write-tree') == p['input_tree']
+          subprocess.run(['cargo','fmt','--manifest-path','services/local-agent/Cargo.toml'],check=True)
+          assert set(git('diff','--name-only').splitlines()) <= set(p['paths'])
+          subprocess.run(['git','add','--',*p['paths']],check=True)
+          subprocess.run(['git','diff','--cached','--check'],check=True)
+          tree = git('write-tree')
+          subprocess.run(['git','config','user.name','Source verification fixture'],check=True)
+          subprocess.run(['git','config','user.email','ci-source-fixture@users.noreply.github.com'],check=True)
+          commit = git('commit-tree',tree,'-p',p['base'],'-m','Isolated formatted source fixture; not a feature publication')
+          subprocess.run(['git','update-ref','refs/heads/issue73-source-fixture',commit],check=True)
+          out = Path('issue73-source'); out.mkdir()
+          subprocess.run(['git','bundle','create',str(out/'source.bundle'),'refs/heads/issue73-source-fixture'],check=True)
+          records = {}
+          for f in p['paths']:
+              raw=Path(f).read_bytes()
+              records[f]={'git_blob':hashlib.sha1(f'blob {len(raw)}\0'.encode()+raw).hexdigest(),
+                          'sha256':hashlib.sha256(raw).hexdigest(),'bytes':len(raw)}
+          report={'base':p['base'],'input_tree':p['input_tree'],'formatted_tree':tree,'fixture_commit':commit,
+                  'files':records,'patch_sha256':p['patch_sha256'],'run_id':os.environ['GITHUB_RUN_ID']}
+          (out/'source.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
+          (out/'candidate.patch').write_bytes(subprocess.check_output(['git','diff','--cached','--binary']))
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('tree='+tree+'\n')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue73-source-${{ github.run_id }}
+          path: issue73-source/
+          retention-days: 14
+          if-no-files-found: error
+  native:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue73-source-${{ github.run_id }}
+          path: source
+      - name: Reconstruct and verify every changed file
+        run: |
+          set -euo pipefail
+          git -c core.autocrlf=false clone source/source.bundle candidate
+          cd candidate
+          git config core.autocrlf false
+          git checkout issue73-source-fixture
+          mkdir -p evidence
+          python - <<'PY'
+          import hashlib,json,subprocess
+          from pathlib import Path
+          p=json.loads(Path('../source/source.json').read_text())
+          assert subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip()==p['formatted_tree']
+          for f,m in p['files'].items(): assert hashlib.sha256(Path(f).read_bytes()).hexdigest()==m['sha256'],f
+          Path('evidence/source.json').write_text(json.dumps(p,indent=2))
+          PY
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compiler and lint
+        id: lint
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          rustc --version | tee evidence/toolchain.txt
+          cargo fmt --check --manifest-path services/local-agent/Cargo.toml
+          cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
+      - name: Positive kernel isolation tests, no zero-match or ignored pass
+        id: kernel
+        if: always() && matrix.os == 'ubuntu-24.04'
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          uname -a | tee evidence/kernel.txt
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml --test linux_sandbox -- --list | tee evidence/kernel-list.txt
+          grep -q 'tcp_udp_ipv6_and_unix_sockets_are_denied: test' evidence/kernel-list.txt
+          grep -q 'unavailable_landlock_never_falls_back_to_unsandboxed_execution: test' evidence/kernel-list.txt
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml --test linux_sandbox 2>&1 | tee evidence/kernel-tests.txt
+      - name: Full existing and new runtime regressions
+        id: tests
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml 2>&1 | tee evidence/tests.txt
+          cargo rustc --locked --manifest-path services/local-agent/Cargo.toml --lib -- -D warnings 2>&1 | tee evidence/production.txt
+      - name: Actual CI scope guard positive and negative contracts
+        id: guard
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          node --test tests/cloud-gateway/scope-guard.test.mjs 2>&1 | tee evidence/scope-guard.txt
+      - name: Hash retained evidence
+        if: always()
+        working-directory: candidate
+        env:
+          LINT: ${{ steps.lint.outcome }}
+          KERNEL: ${{ steps.kernel.outcome }}
+          TESTS: ${{ steps.tests.outcome }}
+          GUARD: ${{ steps.guard.outcome }}
+        run: |
+          python - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          out=Path('evidence');out.mkdir(exist_ok=True)
+          (out/'outcomes.json').write_text(json.dumps({k:os.environ[k] for k in ['LINT','KERNEL','TESTS','GUARD']},indent=2))
+          (out/'sha256.json').write_text(json.dumps({p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in out.iterdir() if p.is_file()},indent=2))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue73-native-${{ matrix.os }}-${{ github.run_id }}
+          path: candidate/evidence/
+          retention-days: 14
+          if-no-files-found: error
+  import_blobs:
+    # Only after both native jobs succeed. This creates unreferenced Git blobs,
+    # never commits, branches, tags, releases, deployments, or PRs.
+    needs: [prepare, native]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue73-source-${{ github.run_id }}
+          path: source
+      - name: Upload verified allowlisted blobs only
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_TREE: ${{ needs.prepare.outputs.tree }}
+        run: |
+          set -euo pipefail
+          git -c core.autocrlf=false clone source/source.bundle candidate
+          cd candidate
+          git checkout issue73-source-fixture
+          python - <<'PY'
+          import base64,hashlib,json,os,subprocess,urllib.request
+          from pathlib import Path
+          p=json.loads(Path('../source/source.json').read_text())
+          assert p['base']=='593b173cb7c36d3ac7b8b633f1410399756ad7e5'
+          assert p['formatted_tree']==os.environ['EXPECTED_TREE']
+          assert subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip()==p['formatted_tree']
+          assert len(p['files'])==16
+          endpoint='https://api.github.com/repos/Eswink/coding-tools-mcp/git/blobs'
+          result={}
+          for name,m in p['files'].items():
+              assert not Path(name).is_absolute() and '..' not in Path(name).parts
+              raw=Path(name).read_bytes()
+              assert hashlib.sha256(raw).hexdigest()==m['sha256']
+              assert hashlib.sha1(f'blob {len(raw)}\0'.encode()+raw).hexdigest()==m['git_blob']
+              data=json.dumps({'encoding':'base64','content':base64.b64encode(raw).decode()}).encode()
+              req=urllib.request.Request(endpoint,data=data,method='POST',headers={
+                  'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json',
+                  'Content-Type':'application/json'})
+              with urllib.request.urlopen(req,timeout=30) as response: receipt=json.load(response)
+              assert receipt['sha']==m['git_blob']
+              result[name]=receipt['sha']
+          Path('../source/imported-blobs.json').write_text(json.dumps({'tree':p['formatted_tree'],'blobs':result},indent=2))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue73-blobs-${{ github.run_id }}
+          path: source/imported-blobs.json
+          retention-days: 14
+          if-no-files-found: error

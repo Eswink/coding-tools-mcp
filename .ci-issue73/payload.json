@@ -1,0 +1,32 @@
+{
+  "base": "593b173cb7c36d3ac7b8b633f1410399756ad7e5",
+  "input_tree": "b0243964b3a2fdf44a44a2a78cd562697958d2c1",
+  "paths": [
+    ".github/workflows/cloud-gateway-lab.yml",
+    ".github/workflows/cloud-gateway-ubuntu-sandbox.yml",
+    "docs/specs/ubuntu-execution-sandbox/requirements.md",
+    "docs/specs/ubuntu-execution-sandbox/design.md",
+    "docs/specs/ubuntu-execution-sandbox/tasks.md",
+    "services/local-agent/src/lib.rs",
+    "services/local-agent/src/process.rs",
+    "services/local-agent/src/pty.rs",
+    "services/local-agent/src/pty_unix.rs",
+    "services/local-agent/src/sandbox/mod.rs",
+    "services/local-agent/src/sandbox/linux.rs",
+    "services/local-agent/src/sandbox/filter.rs",
+    "services/local-agent/src/sandbox/tests.rs",
+    "services/local-agent/src/bin/sandbox_fixture.rs",
+    "services/local-agent/tests/linux_sandbox.rs",
+    "tests/cloud-gateway/scope-guard.test.mjs"
+  ],
+  "patch_sha256": "712107db22f62459762182a20c7f5f7ff3506e6d1e73d62d499665024f2cd9ba",
+  "parts": [
+    "part-0.b64",
+    "part-1.b64",
+    "part-2.b64",
+    "part-3.b64",
+    "part-4.b64",
+    "part-5.b64",
+    "part-6.b64"
+  ]
+}
