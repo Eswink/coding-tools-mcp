@@ -1,0 +1,65 @@
+name: Issue73 desktop bridge source import
+
+on:
+  push:
+    branches: ['ci/issue-73-desktop-bridge-source']
+    paths: ['tools/delivery/issue73-desktop-patch.ready']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: issue73-desktop-bridge-source-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      BASE_SHA: '9b2639d47aaecc0a903124404c9c97cbf1f806d6'
+      PATCH_SHA256: '3351c9e962fd2419dfb1c710864ae37c17b65beafd817fcf9b5df99989629a3e'
+      TARGET_BRANCH: 'feat/issue-73-desktop-sandbox-bridge'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reconstruct, canonicalize and publish exact candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$RUNNER_TEMP/issue73-desktop-bridge"
+          mkdir -p "$tmp"
+          cat tools/delivery/issue73-desktop-patch.part-* > "$tmp/patch.b64"
+          base64 -d "$tmp/patch.b64" > "$tmp/candidate.patch"
+          printf '%s  %s\n' "$PATCH_SHA256" "$tmp/candidate.patch" | sha256sum -c -
+          test "$(git merge-base "$BASE_SHA" HEAD)" = "$BASE_SHA"
+          git reset --hard "$BASE_SHA"
+          git apply --check "$tmp/candidate.patch"
+          git apply "$tmp/candidate.patch"
+          cargo fmt --manifest-path services/local-agent/Cargo.toml
+          cargo fmt --manifest-path src-tauri/Cargo.toml
+          cargo metadata --locked --format-version 1 --manifest-path src-tauri/Cargo.toml > "$tmp/metadata.json"
+          node --test --test-name-pattern='desktop sandbox bridge|desktop bridge allowlist' tests/cloud-gateway/scope-guard.test.mjs
+          git diff --check
+          git add -A
+          if git diff --cached --name-only | grep -q '^tools/delivery/issue73-desktop-patch'; then
+            echo 'helper payload leaked into candidate' >&2
+            exit 1
+          fi
+          git config user.name 'Eswink'
+          git config user.email '1525566427@qq.com'
+          git commit -m 'feat(desktop): enforce remote Linux sandbox bridge (#73)'
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
