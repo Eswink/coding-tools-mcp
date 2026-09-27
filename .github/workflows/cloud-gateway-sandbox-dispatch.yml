@@ -1,0 +1,120 @@
+name: Ubuntu mandatory sandbox dispatch gate (red-first)
+on:
+  push:
+    branches: ['test/issue-73-sandbox-dispatch-gate']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: issue73-dispatch-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  host-probe:
+    name: Actual MCP dispatch (Ubuntu; expected blocked before integration)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Confirm production sources are untouched
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/dispatch-evidence"
+          python - <<'PY'
+          import hashlib,json,os,subprocess
+          from pathlib import Path
+          base='416af97bb483371f725798efb0cc4a967feef032'
+          def git(*args): return subprocess.check_output(['git',*args],text=True).strip()
+          for path in ['src-tauri','src','services','AGENTS.md','CLAUDE.md','package.json','package-lock.json','pnpm-lock.yaml']:
+              assert git('rev-parse',f'{base}:{path}') == git('rev-parse',f'HEAD:{path}'),path
+          report={'base':base,'head':git('rev-parse','HEAD'),'tree':git('rev-parse','HEAD^{tree}'),
+                  'event_sha':os.environ['GITHUB_SHA'],'production_unchanged':True,
+                  'test_sha256':hashlib.sha256(Path('tests/cloud-gateway/ubuntu_sandbox_dispatch.rs').read_bytes()).hexdigest()}
+          (Path(os.environ['RUNNER_TEMP'])/'dispatch-evidence/source.json').write_text(json.dumps(report,indent=2))
+          PY
+      - name: Install desktop test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Evidence classifier rejects false witnesses
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests/cloud-gateway/sandbox-dispatch -p 'test_*.py' -v 2>&1 | tee "$RUNNER_TEMP/dispatch-evidence/classifier.txt"
+          node --test tests/cloud-gateway/scope-guard.test.mjs 2>&1 | tee "$RUNNER_TEMP/dispatch-evidence/scope-guard.txt"
+      - name: Run exact controls and red-first acceptance probes
+        run: python tests/cloud-gateway/sandbox-dispatch/run_probe.py --expect-gap --evidence "$RUNNER_TEMP/dispatch-evidence"
+      - name: Verify temporary injection was restored
+        if: always()
+        run: git diff --exit-code -- src-tauri
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue73-dispatch-${{ github.run_id }}
+          path: ${{ runner.temp }}/dispatch-evidence/
+          retention-days: 14
+          if-no-files-found: error
+      - name: Mandatory safety gate is not satisfied by red witnesses
+        if: always()
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path(os.environ['RUNNER_TEMP'])/'dispatch-evidence/result.json'
+          result=json.loads(p.read_text()) if p.exists() else {}
+          if result.get('acceptance_passed') is not True:
+              raise SystemExit('BLOCKED: mandatory host sandbox acceptance is not passed. Diagnostic success is not a security pass.')
+          PY
+  unchanged-windows:
+    name: Unchanged Windows desktop regression
+    runs-on: windows-2025
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Full existing Windows suite (no Linux probe injection)
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/windows-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/windows-evidence/source.txt"
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/windows-evidence/tests.txt"
+          python - <<'PYHASH'
+          import hashlib,json,os
+          from pathlib import Path
+          out=Path(os.environ['RUNNER_TEMP'])/'windows-evidence'
+          (out/'sha256.json').write_text(json.dumps({p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in out.iterdir() if p.is_file()},indent=2))
+          PYHASH
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue73-dispatch-windows-${{ github.run_id }}
+          path: ${{ runner.temp }}/windows-evidence/
+          retention-days: 14
+          if-no-files-found: error
