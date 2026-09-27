@@ -1,0 +1,158 @@
+diff --git a/.github/workflows/cloud-gateway-lab.yml b/.github/workflows/cloud-gateway-lab.yml
+index d8a47d3..a0b9545 100644
+--- a/.github/workflows/cloud-gateway-lab.yml
++++ b/.github/workflows/cloud-gateway-lab.yml
+@@ -66,6 +66,8 @@ jobs:
+               'tools/delivery/', 'tests/delivery/',
+           )
+           allowed_exact = {
++              'src-tauri/tests/call_tool_security.rs',
++              'src-tauri/tests/harness_tool_contract.rs',
+               'src-tauri/Cargo.toml',
+               'src-tauri/Cargo.lock',
+               'src-tauri/src/tools/context.rs',
+diff --git a/src-tauri/src/tools/dispatch.rs b/src-tauri/src/tools/dispatch.rs
+index f988781..06ac38f 100644
+--- a/src-tauri/src/tools/dispatch.rs
++++ b/src-tauri/src/tools/dispatch.rs
+@@ -398,7 +398,8 @@ pub fn server_info(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
+         "workspace": ctx.workspace.root_display(),
+         "permission_mode": ctx.permission_mode,
+         "default_cwd": ctx.default_cwd_display(),
+-        "network_allowed": ctx.policy.network_allowed(),
++        "network_allowed": ctx.policy.network_allowed() && !cfg!(target_os = "linux"),
++        "workspace_exec_sandbox_required": cfg!(target_os = "linux"),
+         "tool_profile": ctx.tool_profile,
+         "auth_enabled": ctx.auth.auth_enabled(),
+         "auth_type": ctx.auth.auth_type,
+diff --git a/src-tauri/src/tools/exec.rs b/src-tauri/src/tools/exec.rs
+index 056a416..1cde8fe 100644
+--- a/src-tauri/src/tools/exec.rs
++++ b/src-tauri/src/tools/exec.rs
+@@ -479,6 +479,17 @@ fn execution_failure_result(error: &WorkspaceError, command: &str, cwd: &Path) -
+         object.insert("sandbox_enforced".into(), Value::Bool(false));
+         object.insert("execution_boundary".into(), json!("policy_only"));
+         object.insert("child_process".into(), Value::Bool(true));
++        #[cfg(target_os = "linux")]
++        {
++            // Timeout/stdin failures happen after isolated spawn; argument or
++            // program-resolution rejection does not establish a child at all.
++            let started = matches!(code, "TIMEOUT" | "STDIN_WRITE_FAILED");
++            object.insert("child_process".into(), Value::Bool(started));
++            object.insert("sandbox_enforced".into(), Value::Bool(started));
++            object.insert("execution_boundary".into(), json!(
++                if started { "landlock_seccomp" } else { "not_started" }));
++            object.insert("automatic_retry_allowed".into(), Value::Bool(false));
++        }
+         object.insert("transport_ok".into(), Value::Bool(true));
+         object.insert("command_ok".into(), Value::Bool(false));
+         object.insert("error".into(), error_value);
+diff --git a/src-tauri/src/tools/linux_exec_sandbox.rs b/src-tauri/src/tools/linux_exec_sandbox.rs
+index 3215a42..84f1635 100644
+--- a/src-tauri/src/tools/linux_exec_sandbox.rs
++++ b/src-tauri/src/tools/linux_exec_sandbox.rs
+@@ -95,7 +95,8 @@ pub(super) fn environment(ctx: &ToolContext, mut value: Value) -> Value {
+         "checked_at":"each_child_spawn"});
+     value["global_tmp_write"] = json!("denied");
+     value["workspace_exec_available"] = Value::Null;
+-    value["workspace_exec_sandbox_enforced"] = json!(true);
++    value["workspace_exec_sandbox_enforced"] = Value::Null;
++    value["workspace_exec_sandbox_required"] = json!(true);
+     value["workspace_exec_boundary"] = json!("landlock_seccomp_required");
+     value["warnings"] = json!(["Linux child execution requires kernel isolation; unsupported or privileged hosts fail closed. Network is denied, including in trusted mode."]);
+     value
+diff --git a/src-tauri/src/tools/linux_exec_sandbox_tests.rs b/src-tauri/src/tools/linux_exec_sandbox_tests.rs
+index e89c8e0..6db1017 100644
+--- a/src-tauri/src/tools/linux_exec_sandbox_tests.rs
++++ b/src-tauri/src/tools/linux_exec_sandbox_tests.rs
+@@ -139,3 +139,34 @@ fn environment_report_does_not_claim_an_unexecuted_kernel_probe() {
+     assert_eq!(report["network_allowed"], false);
+     assert_eq!(report["global_tmp_write"], "denied");
+ }
++
++#[test]
++fn server_info_and_environment_agree_on_network_and_required_isolation() {
++    let (_owner, _harness, ctx) = context();
++    let info = call_tool(&ctx, "server_info", &json!({}));
++    let env = call_tool(&ctx, "check_exec_environment", &json!({}));
++    assert_eq!(info["network_allowed"], false);
++    assert_eq!(env["network_allowed"], info["network_allowed"]);
++    assert_eq!(info["workspace_exec_sandbox_required"], true);
++    assert_eq!(env["workspace_exec_sandbox_required"], true);
++    assert!(env["workspace_exec_sandbox_enforced"].is_null());
++}
++
++#[test]
++fn timeout_does_not_misreport_an_isolated_child_as_unsandboxed() {
++    let (_owner, _harness, ctx) = context();
++    script(&ctx, "import time\ntime.sleep(5)\n");
++    let result = call_tool(
++        &ctx,
++        "exec_command",
++        &json!({
++            "cmd":"python3 probe.py", "timeout_ms":50, "yield_time_ms":500
++        }),
++    );
++    assert_eq!(result["error"]["code"], "TIMEOUT", "{result}");
++    assert_eq!(result["command_ok"], false, "{result}");
++    assert_eq!(result["child_process"], true, "{result}");
++    assert_eq!(result["sandbox_enforced"], true, "{result}");
++    assert_eq!(result["execution_boundary"], "landlock_seccomp", "{result}");
++    assert_eq!(result["automatic_retry_allowed"], false, "{result}");
++}
+diff --git a/src-tauri/tests/call_tool_security.rs b/src-tauri/tests/call_tool_security.rs
+index 6cef49b..938aaab 100644
+--- a/src-tauri/tests/call_tool_security.rs
++++ b/src-tauri/tests/call_tool_security.rs
+@@ -137,7 +137,11 @@ fn exec_command_allows_workspace_child_process_during_transition() {
+     let out = invoke(&ctx, "exec_command", json!({"cmd": "python --version"}));
+     let result = assert_ok(&out);
+     assert_eq!(result["filesystem_scope"], "workspace");
+-    assert_eq!(result["sandbox_enforced"], false);
++    // Linux has completed the transition to mandatory kernel isolation.
++    // Other platforms retain their existing execution contract.
++    assert_eq!(result["sandbox_enforced"], cfg!(target_os = "linux"));
++    assert_eq!(result["execution_boundary"],
++        if cfg!(target_os = "linux") { "landlock_seccomp" } else { "policy_only" });
+     assert_eq!(result["child_process"], true);
+ }
+ 
+diff --git a/src-tauri/tests/harness_tool_contract.rs b/src-tauri/tests/harness_tool_contract.rs
+index 0cbf652..31a8501 100644
+--- a/src-tauri/tests/harness_tool_contract.rs
++++ b/src-tauri/tests/harness_tool_contract.rs
+@@ -153,7 +153,11 @@ fn workspace_allows_exec_during_transition() {
+     assert_ne!(result["error"]["code"], "EXEC_SANDBOX_UNAVAILABLE");
+     assert_eq!(result["execution_mode"], "direct");
+     assert_eq!(result["filesystem_scope"], "workspace");
+-    assert_eq!(result["sandbox_enforced"], false);
++    // Linux has completed the transition to mandatory kernel isolation.
++    // Other platforms retain their existing execution contract.
++    assert_eq!(result["sandbox_enforced"], cfg!(target_os = "linux"));
++    assert_eq!(result["execution_boundary"],
++        if cfg!(target_os = "linux") { "landlock_seccomp" } else { "policy_only" });
+ }
+ 
+ #[test]
+diff --git a/tests/cloud-gateway/scope-guard.test.mjs b/tests/cloud-gateway/scope-guard.test.mjs
+index e7430a2..a410d2a 100644
+--- a/tests/cloud-gateway/scope-guard.test.mjs
++++ b/tests/cloud-gateway/scope-guard.test.mjs
+@@ -263,6 +263,7 @@ for (const path of [
+ }
+ 
+ const desktopSandboxPaths = [
++  'src-tauri/tests/call_tool_security.rs', 'src-tauri/tests/harness_tool_contract.rs',
+   'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock',
+   'src-tauri/src/tools/context.rs', 'src-tauri/src/tools/exec.rs',
+   'src-tauri/src/tools/session.rs', 'src-tauri/src/tools/dispatch.rs',
+@@ -277,7 +278,8 @@ test('reviewed desktop sandbox files pass as exact paths with complete digests',
+ });
+ test('desktop sandbox review does not allow adjacent source or backup files', () => {
+   for (const path of ['src-tauri/src/tools/linux_exec_sandbox.rs.bak', 'src-tauri/Cargo.toml.bak',
+-    'docs/specs/desktop-sandbox-enforcement/private.env']) {
++    'docs/specs/desktop-sandbox-enforcement/private.env',
++    'src-tauri/tests/call_tool_security.rs.bak', 'src-tauri/tests/harness_tool_contract.rs.bak']) {
+     assert.equal(run([path]).accepted, false, path);
+   }
+ });

@@ -1,14 +1,15 @@
 {
   "base": "9b2639d47aaecc0a903124404c9c97cbf1f806d6",
-  "tree": "d6c957cfb6e9585766dc36c837c84cb18d9b352d",
+  "tree": "438cb916bf4ea62c312b4dadfe12538aedf3a0d6",
   "patches": {
     "core.patch": "d13c6aa020f2249406a8e1580242bf000c6b8fca",
     "adapter.patch": "0aad67fce7d30d0c046fcb1754dac343c3ab1430",
     "contracts.patch": "1dfdf95251996681a472bbf8fe4db5a2bdab9ea3",
-    "specs.patch": "2a72788477dce98c224fec146c743b1014ad4320"
+    "specs.patch": "2a72788477dce98c224fec146c743b1014ad4320",
+    "fixups.patch": "590209f0d0dc6b3bd7a9d3f473eff7cbc9204a1f"
   },
   "files": {
-    ".github/workflows/cloud-gateway-lab.yml": "d8a47d3cf20229af85e6f98e14d888113f86731c",
+    ".github/workflows/cloud-gateway-lab.yml": "a0b9545e1a0b3e8f4bdf7e3d8b1bbbab03d3dd32",
     "docs/specs/desktop-sandbox-enforcement/design.md": "2a2f5ca61eda9958c4ac1ea5cdf0ce3e3756dffd",
     "docs/specs/desktop-sandbox-enforcement/requirements.md": "ba4f2ca9c4affff5faaf6e148e9b1d1556338b89",
     "docs/specs/desktop-sandbox-enforcement/tasks.md": "9cbdf9a8469c19115b8b7f0ef793f136bb536901",
@@ -17,12 +18,14 @@
     "src-tauri/Cargo.lock": "eafcbb3f8540fe6e251aba75b994c8b9ebc94669",
     "src-tauri/Cargo.toml": "8fb9e87ad5d691d3b8ac0a7e2c18f0a29452062a",
     "src-tauri/src/tools/context.rs": "84bc41b1cbd7d99117cff80153c86a32e1162676",
-    "src-tauri/src/tools/dispatch.rs": "f988781871ab734a698501143a715f6e28a1eeae",
-    "src-tauri/src/tools/exec.rs": "056a416006979949b70075d003376a096ac9fe7a",
-    "src-tauri/src/tools/linux_exec_sandbox.rs": "3215a42b559b29eba09ae4d542e3ecdbe5ddb9d6",
-    "src-tauri/src/tools/linux_exec_sandbox_tests.rs": "e89c8e03ea2bae837f75688f9b502944a0d3394d",
+    "src-tauri/src/tools/dispatch.rs": "06ac38f599883ff4228997e4b219f3830ae522b2",
+    "src-tauri/src/tools/exec.rs": "1cde8fe094bdb59a236ad9832c5c0329f71d6368",
+    "src-tauri/src/tools/linux_exec_sandbox.rs": "84f16355621ad5efb45dac09ef04e57aa9902257",
+    "src-tauri/src/tools/linux_exec_sandbox_tests.rs": "6db1017cae9eeedeb0183f4e3baf17860cf06a63",
     "src-tauri/src/tools/mod.rs": "7ab89677629cdda3528d973a5c544cbe07c336c2",
     "src-tauri/src/tools/session.rs": "883616edf9625ff5d5d54e8d8e56e2b204612797",
-    "tests/cloud-gateway/scope-guard.test.mjs": "e7430a2e301fc3fa88273562f14780531cbc4f19"
+    "src-tauri/tests/call_tool_security.rs": "938aaabcbe9b58fad3e9b81178d39c7fc5610b21",
+    "src-tauri/tests/harness_tool_contract.rs": "31a8501e0ab7395fe52d79c2c0f30888d774328d",
+    "tests/cloud-gateway/scope-guard.test.mjs": "a410d2aace6f2131e3f797cae56ebc5186af18f6"
   }
 }
