@@ -9,106 +9,40 @@ concurrency:
   group: desktop-sandbox-development-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  prepare:
+  inspect:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
-        with:
-          toolchain: '1.98.1'
-          components: rustfmt, clippy
-      - name: Resume and establish the bounded bridge plan
-        shell: bash
+      - name: Inspect exact prior development evidence without changing candidate code
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          mkdir -p evidence "$RUNNER_TEMP/offline" "$RUNNER_TEMP/archives"
-          npm install --prefix "$RUNNER_TEMP/offline" --no-audit --no-fund mcp-probe-kit@4.0.1 gitnexus@1.6.9
-          probe="$RUNNER_TEMP/offline/node_modules/.bin/mcp-probe-kit"
-          "$probe" exec resume_plan --json "{\"project_root\":\"$PWD\"}" > evidence/resume-plan.json
           python - <<'PY'
-          import json
-          r = json.load(open('evidence/resume-plan.json'))
-          assert r.get('isError') is not True
-          assert r['structuredContent']['found'] is False, 'An existing plan must be restored instead of starting another'
+          import hashlib, io, json, os, urllib.request, zipfile
+          request = urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/actions/artifacts/10925699027/zip', headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+          with urllib.request.urlopen(request, timeout=60) as response:
+              data = response.read(10 * 1024 * 1024)
+          assert hashlib.sha256(data).hexdigest() == '1466508bd2dfcb74fcbb6840b66db6f895618da76f803f2ddbf3b35856ff7cbf'
+          with zipfile.ZipFile(io.BytesIO(data)) as archive:
+              for name in archive.namelist():
+                  if name == 'start-feature.json':
+                      doc = json.loads(archive.read(name))
+                      print('===START_FEATURE===')
+                      print(json.dumps(doc.get('structuredContent'), ensure_ascii=False, indent=2))
+                  if '-impact-' in name or name in ['14-context-commit_local_admission.json', '15-context-new.json']:
+                      print('=== ' + name + ' ===')
+                      text = archive.read(name).decode('utf-8')
+                      print(text[:9000])
           PY
-          "$probe" exec start_feature --json "{\"project_root\":\"$PWD\",\"spec_layout\":\"auto\",\"description\":\"ubuntu-desktop-sandbox: connect the verified LinuxSandbox to actual desktop remote exec_command, exec_health_check and asynchronous command starts; preserve opaque local authority, require files.read/files.write/exec.run, pin the approved workspace, enforce host ExecPolicy and sanitized environment, retain bounded process-tree ownership, cancel on revoke and monotonic expiry, fail closed without isolation. Preserve Windows behavior. Add real desktop and HTTP regressions. No public LocalAdmission mint, no main merge, no release or deployment; physical workstation/VPS/ChatGPT tests remain pending.\"}" > evidence/start-feature.json
-      - name: Record every intended existing-symbol context and impact
-        shell: bash
+      - name: Describe exact plan checkpoint input schema
         run: |
           set -euo pipefail
-          graph="$RUNNER_TEMP/offline/node_modules/.bin/gitnexus"
-          "$graph" analyze --workers 1 > evidence/graph.txt 2>&1
-          git restore --worktree --source="$GITHUB_SHA" -- .
-          python - <<'PY'
-          import os, pathlib, subprocess
-          graph = os.environ['RUNNER_TEMP'] + '/offline/node_modules/.bin/gitnexus'
-          targets = [
-            ('from_workspace_with_harness_root', 'src-tauri/src/tools/context.rs'),
-            ('background_snapshot', 'src-tauri/src/tools/context.rs'),
-            ('exec_command', 'src-tauri/src/tools/exec.rs'),
-            ('run_command', 'src-tauri/src/tools/exec.rs'),
-            ('spawn_timeout_monitor', 'src-tauri/src/tools/exec.rs'),
-            ('execution_failure_result', 'src-tauri/src/tools/exec.rs'),
-            ('check_exec_environment', 'src-tauri/src/tools/dispatch.rs'),
-            ('new_with_mode', 'src-tauri/src/tools/session.rs'),
-            ('wait_for_readers', 'src-tauri/src/tools/session.rs'),
-            ('snapshot', 'src-tauri/src/tools/session.rs'),
-            ('refresh', 'src-tauri/src/auth/聊天授权v1.rs'),
-            ('request_guarded', 'src-tauri/src/auth/聊天授权v1.rs'),
-            ('decide_locked', 'src-tauri/src/auth/聊天授权v1.rs'),
-            ('revoke_locked', 'src-tauri/src/auth/聊天授权v1.rs'),
-            ('commit_local_admission', 'src-tauri/src/auth/聊天授权v1.rs'),
-            ('new', 'src-tauri/src/auth/local_authority.rs'),
-            ('run', 'src-tauri/src/tools/异步命令v1.rs'),
-            ('prepare', 'services/local-agent/src/sandbox/mod.rs'),
-          ]
-          for index, (symbol, path) in enumerate(targets):
-              for mode in ['context', 'impact']:
-                  args = [graph, mode, symbol, '--file', path]
-                  if mode == 'impact': args += ['--direction', 'upstream', '--depth', '3']
-                  result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=60)
-                  pathlib.Path(f'evidence/{index:02}-{mode}-{symbol}.json').write_text(result.stdout, encoding='utf-8')
-                  if result.returncode: raise SystemExit(f'{mode} failed for {symbol}')
-          PY
-      - name: Export read-only tools in separately bounded artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo vendor --locked --manifest-path services/local-agent/Cargo.toml "$RUNNER_TEMP/offline/vendor" > evidence/vendor-config.toml
-          toolchain=$(rustc --print sysroot)
-          mkdir -p "$RUNNER_TEMP/offline/rust"
-          cp -a "$toolchain/bin" "$toolchain/lib" "$RUNNER_TEMP/offline/rust/"
-          du -sm "$RUNNER_TEMP/offline/"* | tee evidence/tool-sizes.txt
-          tar -C "$RUNNER_TEMP/offline" -czf "$RUNNER_TEMP/archives/node-tools.tgz" node_modules
-          tar -C "$RUNNER_TEMP/offline" -czf "$RUNNER_TEMP/archives/rust-tools.tgz" vendor rust
-          sha256sum "$RUNNER_TEMP/archives/"*.tgz > evidence/archive-sha256.txt
-          git rev-parse HEAD > evidence/source-sha.txt
-          git bundle create evidence/source.bundle HEAD
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: desktop-sandbox-plan-${{ github.run_id }}
-          path: evidence/
-          retention-days: 7
-          if-no-files-found: error
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: desktop-sandbox-node-tools-${{ github.run_id }}
-          path: ${{ runner.temp }}/archives/node-tools.tgz
-          retention-days: 3
-          if-no-files-found: error
-          compression-level: 0
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: desktop-sandbox-rust-tools-${{ github.run_id }}
-          path: ${{ runner.temp }}/archives/rust-tools.tgz
-          retention-days: 3
-          if-no-files-found: error
-          compression-level: 0
+          npm install --prefix "$RUNNER_TEMP/probe" --no-audit --no-fund mcp-probe-kit@4.0.1
+          "$RUNNER_TEMP/probe/node_modules/.bin/mcp-probe-kit" --help
+          "$RUNNER_TEMP/probe/node_modules/.bin/mcp-probe-kit" exec plan_heartbeat --json "{\"project_root\":\"$PWD\"}" || true
