@@ -14,6 +14,8 @@ use crate::tools::session::{ExecSession, SessionStore};
 use crate::tools::workspace::{tool_ok, WorkspaceError};
 
 pub fn exec_command(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
+    #[cfg(target_os = "linux")]
+    super::linux_exec_sandbox::validate_arguments(args)?;
     let cmd = args
         .get("cmd")
         .and_then(Value::as_str)
@@ -87,10 +89,10 @@ pub fn exec_command(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceE
         Ok(mut out) => {
             if let Some(object) = out.as_object_mut() {
                 object.insert("filesystem_scope".into(), Value::String(filesystem_scope));
-                object.insert("sandbox_enforced".into(), Value::Bool(false));
+                object.insert("sandbox_enforced".into(), Value::Bool(cfg!(target_os = "linux")));
                 object.insert(
                     "execution_boundary".into(),
-                    Value::String("policy_only".into()),
+                    Value::String(if cfg!(target_os = "linux") { "landlock_seccomp" } else { "policy_only" }.into()),
                 );
                 object.insert("child_process".into(), Value::Bool(true));
             }
@@ -249,9 +251,21 @@ async fn run_command(
         .env("PYTHONIOENCODING", "utf-8")
         .env("PYTHONLEGACYWINDOWSSTDIO", "0");
 
-    let spawned = if ctx.managed_task {
+    #[cfg(target_os = "linux")]
+    super::linux_exec_sandbox::configure(ctx, &mut command)?;
+    #[cfg(target_os = "linux")]
+    let _local_admission = super::linux_exec_sandbox::admit(ctx)?;
+
+    // Every Linux child has a process-tree owner, including ordinary and tty
+    // calls. The two-phase permit above is held through session publication.
+    let spawned = if ctx.managed_task || cfg!(target_os = "linux") {
         crate::tools::process_tree::spawn(&mut command).await.map(|(child, tree)| (child, Some(tree)))
     } else { command.spawn().map(|child| (child, None)) };
+    #[cfg(target_os = "linux")]
+    let spawned = spawned.map_err(|_| super::linux_exec_sandbox::failed("SANDBOX_SETUP_FAILED"))?;
+    #[cfg(target_os = "linux")]
+    let (child, tree) = spawned;
+    #[cfg(not(target_os = "linux"))]
     let (child, tree) = spawned.map_err(|e| WorkspaceError::ToolDetails {
         code: "COMMAND_SPAWN_FAILED",
         message: format!("Failed to start command: {e}"),
@@ -265,6 +279,9 @@ async fn run_command(
     })?;
 
     let session = ctx.sessions.insert(match tree {
+        #[cfg(target_os = "linux")]
+        Some(tree) => ExecSession::new_sandboxed(child, tree, tty),
+        #[cfg(not(target_os = "linux"))]
         Some(tree) => ExecSession::new_managed(child, tree),
         None => ExecSession::new_with_mode(child, tty),
     });
@@ -462,6 +479,17 @@ fn execution_failure_result(error: &WorkspaceError, command: &str, cwd: &Path) -
         object.insert("sandbox_enforced".into(), Value::Bool(false));
         object.insert("execution_boundary".into(), json!("policy_only"));
         object.insert("child_process".into(), Value::Bool(true));
+        #[cfg(target_os = "linux")]
+        {
+            // Timeout/stdin failures happen after isolated spawn; argument or
+            // program-resolution rejection does not establish a child at all.
+            let started = matches!(code, "TIMEOUT" | "STDIN_WRITE_FAILED");
+            object.insert("child_process".into(), Value::Bool(started));
+            object.insert("sandbox_enforced".into(), Value::Bool(started));
+            object.insert("execution_boundary".into(), json!(
+                if started { "landlock_seccomp" } else { "not_started" }));
+            object.insert("automatic_retry_allowed".into(), Value::Bool(false));
+        }
         object.insert("transport_ok".into(), Value::Bool(true));
         object.insert("command_ok".into(), Value::Bool(false));
         object.insert("error".into(), error_value);

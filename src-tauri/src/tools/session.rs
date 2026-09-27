@@ -129,6 +129,13 @@ impl ExecSession {
         session
     }
 
+    #[cfg(target_os = "linux")]
+    pub(crate) fn new_sandboxed(child: Child, tree: crate::tools::process_tree::ProcessTree, interactive: bool) -> Self {
+        let mut session = Self::new_managed(child, tree);
+        session.interactive = interactive;
+        session
+    }
+
     fn terminate_tree(&self) {
         if let Some(mut tree) = self.process_tree.lock().expect("process tree").take() {
             if tree.terminate().is_err() { self.tree_cleanup_failed.store(true, Ordering::Release); }

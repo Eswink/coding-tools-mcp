@@ -312,3 +312,34 @@ async fn current_kernel_metadata_and_queued_signal_bypasses_are_denied() {
     );
     assert!(String::from_utf8_lossy(&output.stdout).contains("review-boundary-enforced"));
 }
+
+#[tokio::test]
+async fn existing_tokio_command_uses_the_same_kernel_boundary() {
+    let ws = Workspace::new();
+    for args in [
+        vec!["filesystem", ws.outside.to_str().unwrap()],
+        vec!["network"],
+    ] {
+        let mut command = tokio::process::Command::new(fixture());
+        command.args(args).current_dir(&ws.root).env_clear();
+        ws.policy().configure_command(&mut command).unwrap();
+        let result = command.output().await.unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+    assert_eq!(fs::read(ws.outside.join("secret")).unwrap(), b"private");
+    assert!(!ws.outside.join("write").exists());
+}
+
+#[test]
+fn existing_command_adapter_rejects_implicit_program_or_working_directory() {
+    let ws = Workspace::new();
+    let mut no_cwd = tokio::process::Command::new(fixture());
+    assert!(ws.policy().configure_command(&mut no_cwd).is_err());
+    let mut relative = tokio::process::Command::new("relative");
+    relative.current_dir(&ws.root);
+    assert!(ws.policy().configure_command(&mut relative).is_err());
+}

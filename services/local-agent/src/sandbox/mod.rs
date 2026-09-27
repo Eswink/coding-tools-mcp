@@ -74,6 +74,34 @@ impl LinuxSandbox {
         }
     }
 
+    /// Attach mandatory isolation to an existing host-owned Tokio command.
+    ///
+    /// The host must finish its authorization and execution-policy checks before
+    /// spawning, and must not change program/cwd afterwards. This method never
+    /// spawns, grants permission, or retries without isolation. Preparation runs
+    /// in the parent; the child closure only calls the allocation-free adapter.
+    pub fn configure_command(
+        &self,
+        command: &mut tokio::process::Command,
+    ) -> Result<(), SandboxError> {
+        let executable = std::path::Path::new(command.as_std().get_program());
+        let cwd = command.as_std().get_current_dir().ok_or(SandboxError {
+            kind: SandboxErrorKind::InvalidWorkingDirectory,
+        })?;
+        if !executable.is_absolute() || !cwd.is_absolute() {
+            return Err(SandboxError {
+                kind: SandboxErrorKind::InvalidExecutable,
+            });
+        }
+        let prepared = self.prepare(executable, cwd)?;
+        // SAFETY: all allocations and descriptor acquisition happened above.
+        // apply() uses only the reviewed post-fork syscall path and owns its FDs.
+        unsafe {
+            command.pre_exec(move || prepared.apply());
+        }
+        Ok(())
+    }
+
     pub(crate) fn prepare(
         &self,
         executable: &std::path::Path,
