@@ -2,9 +2,12 @@ name: Desktop sandbox isolated development tools
 on:
   push:
     branches: ['feat/issue-73-desktop-sandbox']
-    paths: ['.github/workflows/cloud-gateway-desktop-sandbox-dev.yml']
+    paths:
+      - '.github/workflows/cloud-gateway-desktop-sandbox-dev.yml'
+      - 'src-tauri/src/auth/local_admission_deadline_tests.rs'
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: desktop-sandbox-development-${{ github.ref }}
   cancel-in-progress: true
@@ -15,19 +18,58 @@ env:
 jobs:
   plan:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
-      - run: npm install --prefix "$RUNNER_TEMP/probe" --no-audit --no-fund mcp-probe-kit@4.0.1
+      - run: npm install --prefix "$RUNNER_TEMP/probe" --no-audit --no-fund mcp-probe-kit@4.0.1 gitnexus@1.6.9
       - name: Resume actual checkpoint and advance only verified specification steps
         env:
           GH_TOKEN: ${{ github.token }}
         run: python tools/delivery/dev-desktop-sandbox.py plan
+      - name: Record source-bound contexts and impacts before further edits
+        shell: bash
+        run: |
+          set -euo pipefail
+          graph="$RUNNER_TEMP/probe/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/graph.txt 2>&1
+          git restore --worktree --source="$GITHUB_SHA" -- .
+          python - <<'PY'
+          import json, os, pathlib, subprocess
+          graph = os.environ['RUNNER_TEMP'] + '/probe/node_modules/.bin/gitnexus'
+          targets = [
+            ('new', 'src-tauri/src/auth/local_admission_deadline_tests.rs'),
+            ('from_workspace_with_harness_root', 'src-tauri/src/tools/context.rs'),
+            ('background_snapshot', 'src-tauri/src/tools/context.rs'),
+            ('exec_command', 'src-tauri/src/tools/exec.rs'),
+            ('run_command', 'src-tauri/src/tools/exec.rs'),
+            ('spawn_timeout_monitor', 'src-tauri/src/tools/exec.rs'),
+            ('execution_failure_result', 'src-tauri/src/tools/exec.rs'),
+            ('check_exec_environment', 'src-tauri/src/tools/dispatch.rs'),
+            ('new_with_mode', 'src-tauri/src/tools/session.rs'),
+            ('wait_for_readers', 'src-tauri/src/tools/session.rs'),
+            ('snapshot', 'src-tauri/src/tools/session.rs'),
+            ('commit_local_admission', 'src-tauri/src/auth/聊天授权v1.rs'),
+            ('prepare', 'src-tauri/src/tools/linux_sandbox_bridge.rs'),
+            ('commit_runtime_admission', 'src-tauri/src/auth/runtime_admission.rs'),
+          ]
+          for index, (symbol, path) in enumerate(targets):
+              for mode in ['context', 'impact']:
+                  args = [graph, mode, symbol, '--file', path]
+                  if mode == 'impact': args += ['--direction', 'upstream', '--depth', '3']
+                  r = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=60)
+                  pathlib.Path(f'evidence/{index:02}-{mode}-{symbol}.json').write_text(r.stdout, encoding='utf-8')
+                  if r.returncode: raise SystemExit(f'{mode} failed for {path}:{symbol}')
+                  if mode == 'impact': print(f'IMPACT {path}:{symbol}\n{r.stdout}')
+          PY
+          git rev-parse HEAD > evidence/source-sha.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+          git bundle create evidence/source.bundle HEAD
       - name: Preserve checkpoint evidence without overriding failure
         if: always()
         run: python tools/delivery/dev-desktop-sandbox.py hash
@@ -88,6 +130,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
