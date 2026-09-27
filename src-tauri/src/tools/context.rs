@@ -19,6 +19,10 @@ pub struct ToolContext {
     pub(crate) chat_scoped: bool,
     pub(crate) chat_domains: Arc<super::chat_domain::ChatDomains>,
     pub(crate) execution_gate: Arc<crate::runtime::WorkspaceExecutionGate>,
+    // Pin the host-approved workspace once. Preserve setup failure instead of
+    // silently representing an unavailable sandbox as an optional policy.
+    #[cfg(target_os = "linux")]
+    pub(crate) linux_sandbox: Arc<Result<coding_tools_local_agent::LinuxSandbox, coding_tools_local_agent::SandboxError>>,
     pub sessions: Arc<SessionStore>,
     pub(crate) managed_task: bool,
     pub(crate) local_task_control: bool,
@@ -70,6 +74,8 @@ impl ToolContext {
         harness_root: PathBuf,
     ) -> Self {
         let root = workspace.root().to_path_buf();
+        #[cfg(target_os = "linux")]
+        let linux_sandbox = Arc::new(coding_tools_local_agent::LinuxSandbox::new(&root));
         Self {
             workspace,
             auth,
@@ -80,6 +86,8 @@ impl ToolContext {
             default_cwd: Arc::new(Mutex::new(root)),
             remote_request: None, chat_scoped: false, chat_domains: Arc::default(),
             execution_gate: crate::runtime::WorkspaceExecutionGate::shared(),
+            #[cfg(target_os = "linux")]
+            linux_sandbox,
             sessions: Arc::new(SessionStore::new()),
             managed_task: false,
             local_task_control: false,
@@ -110,6 +118,8 @@ impl ToolContext {
             harness: self.harness.clone(), default_cwd: Arc::new(Mutex::new(self.default_cwd_path())),
             remote_request: self.remote_request.clone(), chat_scoped: self.chat_scoped, chat_domains: self.chat_domains.clone(),
             execution_gate: self.execution_gate.clone(),
+            #[cfg(target_os = "linux")]
+            linux_sandbox: self.linux_sandbox.clone(),
             sessions: self.sessions.clone(), exec_tasks: self.exec_tasks.clone(),
             managed_task: self.managed_task,
             local_task_control: self.local_task_control,

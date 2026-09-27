@@ -129,6 +129,11 @@ impl ExecSession {
         session
     }
 
+    pub(crate) fn with_interactive_mode(mut self, interactive: bool) -> Self {
+        self.interactive = interactive;
+        self
+    }
+
     fn terminate_tree(&self) {
         if let Some(mut tree) = self.process_tree.lock().expect("process tree").take() {
             if tree.terminate().is_err() { self.tree_cleanup_failed.store(true, Ordering::Release); }

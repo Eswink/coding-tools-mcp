@@ -5,6 +5,8 @@
 //! to establish isolation never retries execution without it.
 use std::{error::Error, fmt, fs::File, path::PathBuf, sync::Arc};
 
+mod command;
+
 #[cfg(target_arch = "x86_64")]
 mod filter;
 #[cfg(target_arch = "x86_64")]

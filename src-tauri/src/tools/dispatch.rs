@@ -409,7 +409,7 @@ pub fn server_info(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
 }
 
 pub fn check_exec_environment(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
-    Ok(tool_ok(json!({
+    Ok(tool_ok(super::execution_sandbox::environment(ctx, json!({
         "workspace": ctx.workspace.root_display(),
         "permission_mode": ctx.permission_mode,
         "network_allowed": ctx.policy.network_allowed(),
@@ -433,7 +433,7 @@ pub fn check_exec_environment(ctx: &ToolContext) -> Result<Value, WorkspaceError
         // Backward-compatible alias for older MCP clients.
         "allowed_commands": ctx.policy.allowed_commands.iter().cloned().collect::<Vec<_>>(),
         "warnings": ["Workspace 子进程当前允许执行，但尚未启用操作系统级文件系统沙箱"]
-    })))
+    }))))
 }
 
 pub fn get_default_cwd(ctx: &ToolContext) -> Result<Value, WorkspaceError> {

@@ -94,10 +94,15 @@ pub fn exec_command(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceE
                 );
                 object.insert("child_process".into(), Value::Bool(true));
             }
+            super::execution_sandbox::annotate(ctx, &mut out, true);
             Ok(tool_ok(out))
         }
         Err(error) => match execution_failure_result(&error, cmd, &workdir.path) {
-            Some(result) => Ok(tool_ok(result)),
+            Some(mut result) => {
+                let child_started = matches!(result["error"]["code"].as_str(), Some("TIMEOUT" | "STDIN_WRITE_FAILED"));
+                super::execution_sandbox::annotate(ctx, &mut result, child_started);
+                Ok(tool_ok(result))
+            },
             None => Err(error),
         },
     }
@@ -249,14 +254,17 @@ async fn run_command(
         .env("PYTHONIOENCODING", "utf-8")
         .env("PYTHONLEGACYWINDOWSSTDIO", "0");
 
-    let spawned = if ctx.managed_task {
+    #[cfg(target_os = "linux")]
+    let admission = super::execution_sandbox::prepare(ctx, &mut command)?;
+
+    let spawned = if ctx.managed_task || super::execution_sandbox::required(ctx) {
         crate::tools::process_tree::spawn(&mut command).await.map(|(child, tree)| (child, Some(tree)))
     } else { command.spawn().map(|child| (child, None)) };
     let (child, tree) = spawned.map_err(|e| WorkspaceError::ToolDetails {
-        code: "COMMAND_SPAWN_FAILED",
-        message: format!("Failed to start command: {e}"),
+        code: if super::execution_sandbox::required(ctx) { "SANDBOX_SETUP_FAILED" } else { "COMMAND_SPAWN_FAILED" },
+        message: if super::execution_sandbox::required(ctx) { "Required workspace isolation rejected child startup.".into() } else { format!("Failed to start command: {e}") },
         category: "runtime",
-        retryable: true,
+        retryable: !super::execution_sandbox::required(ctx),
         details: json!({
             "termination_reason": "spawn_failed",
             "recoverable": true,
@@ -265,10 +273,12 @@ async fn run_command(
     })?;
 
     let session = ctx.sessions.insert(match tree {
-        Some(tree) => ExecSession::new_managed(child, tree),
+        Some(tree) => ExecSession::new_managed(child, tree).with_interactive_mode(tty),
         None => ExecSession::new_with_mode(child, tty),
     });
     session.spawn_readers().await;
+    #[cfg(target_os = "linux")]
+    super::execution_sandbox::retain_admission(session.clone(), admission);
     let deadline = start + limit;
 
     if !tty && !stdin_text.is_empty() {
@@ -388,7 +398,8 @@ pub fn exec_health_check(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
     });
 
     match result {
-        Ok(snapshot) => {
+        Ok(mut snapshot) => {
+            super::execution_sandbox::annotate(ctx, &mut snapshot, true);
             let session_created = snapshot.get("session_id").is_some();
             let command_run = snapshot.get("exit_code").and_then(Value::as_i64) == Some(0);
             let stdout_capture = snapshot
