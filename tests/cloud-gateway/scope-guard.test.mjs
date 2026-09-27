@@ -243,3 +243,23 @@ for (const path of [
     assert.equal(run([path]).accepted, false);
   });
 }
+
+// Exact parent/child dispatch specifications; no new production allowance.
+for (const leaf of ['README.md', 'requirements.md', 'design.md', 'tasks.md', 'spec-manifest.json', 'subspecs/authority/spec.md', 'subspecs/authority/tasks.md', 'subspecs/enforcement/spec.md', 'subspecs/enforcement/tasks.md', 'subspecs/verification/spec.md', 'subspecs/verification/tasks.md']) {
+  test(`mandatory sandbox dispatch exact spec path is allowed: ${leaf}`, () => {
+    const path = `docs/specs/ubuntu-sandbox-dispatch/${leaf}`;
+    const result = run([path]);
+    assert.equal(result.accepted, true, result.error);
+    assert.equal(result.report.sha256[path], createHash('sha256').update('# fixture\n').digest('hex'));
+  });
+}
+for (const path of [
+  'docs/specs/ubuntu-sandbox-dispatch/private.env',
+  'docs/specs/ubuntu-sandbox-dispatch-extra/requirements.md',
+  'docs/specs/ubuntu-sandbox-dispatch/subspecs/authority/private.env',
+  'src-tauri/src/tools/exec.rs',
+]) {
+  test(`dispatch diagnostic allowance does not permit production or neighboring paths: ${path}`, () => {
+    assert.equal(run([path]).accepted, false);
+  });
+}

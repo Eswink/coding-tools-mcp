@@ -1,0 +1,36 @@
+{
+  "layout": "parent-child",
+  "subspecs": [
+    {
+      "id": "authority",
+      "title": "Native authority and retained workspace",
+      "fr": [
+        "FR-1",
+        "FR-2",
+        "FR-3"
+      ]
+    },
+    {
+      "id": "enforcement",
+      "title": "Mandatory child-process isolation",
+      "fr": [
+        "FR-4",
+        "FR-5"
+      ],
+      "dependsOn": [
+        "authority"
+      ]
+    },
+    {
+      "id": "verification",
+      "title": "Actual dispatcher and lifecycle acceptance",
+      "fr": [
+        "FR-6",
+        "FR-7"
+      ],
+      "dependsOn": [
+        "enforcement"
+      ]
+    }
+  ]
+}

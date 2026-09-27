@@ -66,6 +66,17 @@ jobs:
               'tools/delivery/', 'tests/delivery/',
           )
           allowed_exact = {
+              'docs/specs/ubuntu-sandbox-dispatch/README.md',
+              'docs/specs/ubuntu-sandbox-dispatch/requirements.md',
+              'docs/specs/ubuntu-sandbox-dispatch/design.md',
+              'docs/specs/ubuntu-sandbox-dispatch/tasks.md',
+              'docs/specs/ubuntu-sandbox-dispatch/spec-manifest.json',
+              'docs/specs/ubuntu-sandbox-dispatch/subspecs/authority/spec.md',
+              'docs/specs/ubuntu-sandbox-dispatch/subspecs/authority/tasks.md',
+              'docs/specs/ubuntu-sandbox-dispatch/subspecs/enforcement/spec.md',
+              'docs/specs/ubuntu-sandbox-dispatch/subspecs/enforcement/tasks.md',
+              'docs/specs/ubuntu-sandbox-dispatch/subspecs/verification/spec.md',
+              'docs/specs/ubuntu-sandbox-dispatch/subspecs/verification/tasks.md',
               'docs/specs/ubuntu-execution-sandbox/requirements.md',
               'docs/specs/ubuntu-execution-sandbox/design.md',
               'docs/specs/ubuntu-execution-sandbox/tasks.md',
