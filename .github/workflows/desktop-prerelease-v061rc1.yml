@@ -86,6 +86,7 @@ jobs:
           npm audit --json > evidence/npm-audit.json
           code=$?
           set -e
+          cat evidence/npm-audit.json
           python - <<'PY'
           import json
           r=json.load(open('evidence/npm-audit.json',encoding='utf-8'))
