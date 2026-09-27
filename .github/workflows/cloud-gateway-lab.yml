@@ -2,7 +2,7 @@ name: Cloud gateway protocol laboratory
 
 on:
   push:
-    branches: ['feat/cloud-gateway-agent-runtime']
+    branches: ['feat/cloud-gateway-agent-runtime', 'ci/issue-73-dispatch-graph']
     paths:
       - 'prototypes/cloud-gateway/**'
       - 'tests/cloud-gateway/**'
