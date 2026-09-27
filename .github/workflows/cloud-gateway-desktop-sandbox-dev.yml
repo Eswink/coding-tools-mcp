@@ -8,6 +8,10 @@ permissions:
 concurrency:
   group: desktop-sandbox-development-${{ github.ref }}
   cancel-in-progress: true
+env:
+  CARGO_TERM_COLOR: never
+  PYTHONUTF8: '1'
+  RUST_BACKTRACE: '1'
 jobs:
   plan:
     runs-on: ubuntu-24.04
@@ -19,64 +23,91 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
-      - name: Install only the pinned external development tool
-        run: npm install --prefix "$RUNNER_TEMP/probe" --no-audit --no-fund mcp-probe-kit@4.0.1
-      - name: Restore actual delegated plan, establish checkpoint and validate specifications
+      - run: npm install --prefix "$RUNNER_TEMP/probe" --no-audit --no-fund mcp-probe-kit@4.0.1
+      - name: Resume actual checkpoint and advance only verified specification steps
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          python - <<'PY'
-          import hashlib, io, json, os, pathlib, subprocess, urllib.request, urllib.error, urllib.parse, zipfile
-          class NoRedirect(urllib.request.HTTPRedirectHandler):
-              def redirect_request(self, req, fp, code, msg, headers, newurl):
-                  return None
-          request = urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/actions/artifacts/10925699027/zip', headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
-          try:
-              urllib.request.build_opener(NoRedirect).open(request, timeout=60)
-              raise RuntimeError('expected artifact redirect')
-          except urllib.error.HTTPError as error:
-              if error.code != 302: raise
-              location = error.headers['Location']
-              assert urllib.parse.urlsplit(location).scheme == 'https'
-          with urllib.request.urlopen(location, timeout=60) as response:
-              data = response.read(10 * 1024 * 1024)
-          assert hashlib.sha256(data).hexdigest() == '1466508bd2dfcb74fcbb6840b66db6f895618da76f803f2ddbf3b35856ff7cbf'
-          with zipfile.ZipFile(io.BytesIO(data)) as archive:
-              delegated = json.loads(archive.read('start-feature.json'))
-              plan = delegated['structuredContent']['metadata']['plan']
-          root = pathlib.Path.cwd()
-          evidence = root / 'evidence'
-          evidence.mkdir(exist_ok=True)
-          probe = os.environ['RUNNER_TEMP'] + '/probe/node_modules/.bin/mcp-probe-kit'
-          schema = subprocess.check_output([probe, 'schema', 'plan_heartbeat'], text=True)
-          (evidence / 'heartbeat-schema.json').write_text(schema, encoding='utf-8')
-          print('HEARTBEAT_SCHEMA=' + schema)
-          def invoke(name, arguments, filename):
-              request_path = evidence / (filename + '-input.json')
-              request_path.write_text(json.dumps(arguments, ensure_ascii=False), encoding='utf-8')
-              result = subprocess.run([probe, 'exec', name, '--input', str(request_path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=90)
-              (evidence / (filename + '.json')).write_text(result.stdout, encoding='utf-8')
-              (evidence / (filename + '.stderr')).write_text(result.stderr, encoding='utf-8')
-              print(name + '=' + result.stdout)
-              assert result.returncode == 0, name
-              doc = json.loads(result.stdout)
-              assert doc.get('ok') is not False and doc.get('isError') is not True, name
-              return doc
-          assert plan['planId'] == 'feature-ubuntu-desktop-sandbox-connect-the-s-5aa75bc66e'
-          invoke('plan_heartbeat', {'project_root': str(root), 'plan_id': plan['planId'], 'plan': plan}, 'initial-checkpoint')
-          checked = invoke('check_spec', {'project_root': str(root), 'feature_name': 'ubuntu-desktop-sandbox-connect-the', 'docs_dir': 'docs'}, 'spec-check')
-          assert checked['structuredContent']['passed'] is True
-          estimate_args = next(step['args'] for step in plan['steps'] if step['id'] == 'estimate')
-          invoke('estimate', estimate_args, 'estimate')
-          invoke('resume_plan', {'project_root': str(root), 'plan_id': plan['planId']}, 'resumed-checkpoint')
-          (evidence / 'source-sha.txt').write_text(os.environ['GITHUB_SHA'] + '\n', encoding='utf-8')
-          hashes = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in evidence.iterdir() if p.is_file()}
-          (evidence / 'hashes.json').write_text(json.dumps(hashes, indent=2), encoding='utf-8')
-          PY
+        run: python tools/delivery/dev-desktop-sandbox.py plan
+      - name: Preserve checkpoint evidence without overriding failure
+        if: always()
+        run: python tools/delivery/dev-desktop-sandbox.py hash
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: desktop-sandbox-specification-${{ github.run_id }}
+          name: desktop-sandbox-plan-${{ github.run_id }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+  native:
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install Linux desktop build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: desktop-sandbox-development
+      - name: Reproduce old failure, verify fixed code, run complete native desktop suite
+        run: python tools/delivery/dev-desktop-sandbox.py deadline
+      - name: Preserve source-bound evidence without overriding failure
+        if: always()
+        run: python tools/delivery/dev-desktop-sandbox.py hash
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: desktop-deadline-${{ matrix.os }}-${{ github.run_id }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+  export:
+    needs: native
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/feat/issue-73-desktop-sandbox'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop-deadline-ubuntu-24.04-${{ github.run_id }}
+          path: ${{ runner.temp }}/native/ubuntu-24.04
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop-deadline-windows-2025-${{ github.run_id }}
+          path: ${{ runner.temp }}/native/windows-2025
+      - name: Import two identical tested blobs only; never update commits, refs or releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/delivery/dev-desktop-sandbox.py blobs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: desktop-deadline-blob-receipt-${{ github.run_id }}
           path: evidence/
           retention-days: 14
           if-no-files-found: error
