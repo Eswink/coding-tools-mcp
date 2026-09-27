@@ -87,6 +87,8 @@ pub struct ExecSession {
     initial_stdin_task: AsyncMutex<Option<tauri::async_runtime::JoinHandle<()>>>,
     process_tree: Mutex<Option<crate::tools::process_tree::ProcessTree>>,
     managed: bool,
+    #[cfg(target_os = "linux")]
+    sandbox_enforced: bool,
     tree_cleanup_failed: AtomicBool,
 }
 
@@ -118,6 +120,8 @@ impl ExecSession {
             initial_stdin_task: AsyncMutex::new(None),
             process_tree: Mutex::new(None),
             managed: false,
+            #[cfg(target_os = "linux")]
+            sandbox_enforced: false,
             tree_cleanup_failed: AtomicBool::new(false),
         }
     }
@@ -125,6 +129,19 @@ impl ExecSession {
     pub(crate) fn new_managed(child: Child, tree: crate::tools::process_tree::ProcessTree) -> Self {
         let mut session = Self::new_with_mode(child, false);
         session.managed = true;
+        *session.process_tree.lock().expect("process tree") = Some(tree);
+        session
+    }
+
+    #[cfg(target_os = "linux")]
+    pub(crate) fn new_isolated(
+        child: Child,
+        tree: crate::tools::process_tree::ProcessTree,
+        interactive: bool,
+    ) -> Self {
+        let mut session = Self::new_with_mode(child, interactive);
+        session.managed = true;
+        session.sandbox_enforced = true;
         *session.process_tree.lock().expect("process tree") = Some(tree);
         session
     }
@@ -348,7 +365,8 @@ impl ExecSession {
             "running" => None,
             _ => Some(false),
         };
-        json!({
+        #[allow(unused_mut)] // Mutated only by Linux isolation metadata below.
+        let mut snapshot = json!({
             "session_id": self.session_id,
             "interactive": self.interactive,
             "stdin_open": *self.stdin_open.lock().expect("stdin_open lock"),
@@ -375,7 +393,14 @@ impl ExecSession {
                 "stdout": format!("session:{}:stdout", self.session_id),
                 "stderr": format!("session:{}:stderr", self.session_id)
             }
-        })
+        });
+        #[cfg(target_os = "linux")]
+        if self.sandbox_enforced {
+            snapshot["sandbox_required"] = json!(true);
+            snapshot["sandbox_enforced"] = json!(true);
+            snapshot["execution_boundary"] = json!("linux_landlock_seccomp");
+        }
+        snapshot
     }
 }
 

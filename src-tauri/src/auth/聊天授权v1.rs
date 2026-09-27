@@ -523,6 +523,11 @@ impl ChatAuthorizer {
             .state
             .lock()
             .map_err(|_| "LOCAL_AUTHORITY_UNAVAILABLE")?;
+        // The ticket may expire while reconcile/state-lock acquisition waits.
+        // Validate again at the local commit point, not only at method entry.
+        if ticket.expired() {
+            return Err("LOCAL_ADMISSION_EXPIRED");
+        }
         if state.revision != ticket.authority_revision {
             return Err("LOCAL_AUTHORITY_CHANGED");
         }
@@ -547,6 +552,9 @@ impl ChatAuthorizer {
         // point invalidates generation/revision; a commit that wins here is an
         // established in-flight operation and retains the existing semantics.
         let execution = gate.try_admit_generation(ticket.execution_generation)?;
+        if ticket.expired() {
+            return Err("LOCAL_ADMISSION_EXPIRED");
+        }
         let scope_refs: Vec<&str> = ticket.required_scopes.iter().map(String::as_str).collect();
         Self::permit_locked(&mut state, req, key, &scope_refs)?;
         *state.flights.entry(req.profile.clone()).or_default() += 1;
@@ -610,3 +618,7 @@ mod inbox;
 #[cfg(test)]
 #[path = "chat_inbox_tests.rs"]
 mod inbox_tests;
+
+#[cfg(test)]
+#[path = "local_admission_expiry_tests.rs"]
+mod local_admission_expiry_tests;

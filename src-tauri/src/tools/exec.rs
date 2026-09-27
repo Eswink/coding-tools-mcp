@@ -14,6 +14,9 @@ use crate::tools::session::{ExecSession, SessionStore};
 use crate::tools::workspace::{tool_ok, WorkspaceError};
 
 pub fn exec_command(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
+    let isolation_required = cfg!(target_os = "linux") && ctx.remote_request.is_some();
+    #[cfg(target_os = "linux")]
+    super::linux_sandbox::validate_arguments(ctx, args)?;
     let cmd = args
         .get("cmd")
         .and_then(Value::as_str)
@@ -87,17 +90,29 @@ pub fn exec_command(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceE
         Ok(mut out) => {
             if let Some(object) = out.as_object_mut() {
                 object.insert("filesystem_scope".into(), Value::String(filesystem_scope));
-                object.insert("sandbox_enforced".into(), Value::Bool(false));
+                object.insert("sandbox_required".into(), Value::Bool(isolation_required));
+                object.insert("sandbox_enforced".into(), Value::Bool(isolation_required));
                 object.insert(
                     "execution_boundary".into(),
-                    Value::String("policy_only".into()),
+                    Value::String(if isolation_required { "linux_landlock_seccomp" } else { "policy_only" }.into()),
                 );
                 object.insert("child_process".into(), Value::Bool(true));
+                if isolation_required && object.get("process_may_be_running") == Some(&Value::Bool(true)) {
+                    object.insert("command_ok".into(), Value::Bool(false));
+                }
             }
             Ok(tool_ok(out))
         }
         Err(error) => match execution_failure_result(&error, cmd, &workdir.path) {
-            Some(result) => Ok(tool_ok(result)),
+            Some(mut result) => {
+                if isolation_required {
+                    let started = result.get("session_id").is_some_and(Value::is_string);
+                    result["sandbox_required"] = json!(true);
+                    result["sandbox_enforced"] = json!(started);
+                    result["execution_boundary"] = json!(if started { "linux_landlock_seccomp" } else { "not_started" });
+                }
+                Ok(tool_ok(result))
+            }
             None => Err(error),
         },
     }
@@ -249,22 +264,33 @@ async fn run_command(
         .env("PYTHONIOENCODING", "utf-8")
         .env("PYTHONLEGACYWINDOWSSTDIO", "0");
 
-    let spawned = if ctx.managed_task {
+    let isolation_required = cfg!(target_os = "linux") && ctx.remote_request.is_some();
+    #[cfg(target_os = "linux")]
+    let _local_admission = super::linux_sandbox::prepare(ctx, &mut command)?;
+    let spawned = if ctx.managed_task || isolation_required {
         crate::tools::process_tree::spawn(&mut command).await.map(|(child, tree)| (child, Some(tree)))
     } else { command.spawn().map(|child| (child, None)) };
-    let (child, tree) = spawned.map_err(|e| WorkspaceError::ToolDetails {
-        code: "COMMAND_SPAWN_FAILED",
-        message: format!("Failed to start command: {e}"),
-        category: "runtime",
-        retryable: true,
-        details: json!({
-            "termination_reason": "spawn_failed",
-            "recoverable": true,
-            "suggestion": "检查命令路径、权限和运行时环境后重试"
-        }),
+    let (child, tree) = spawned.map_err(|e| {
+        #[cfg(target_os = "linux")]
+        if isolation_required {
+            return super::linux_sandbox::setup_error();
+        }
+        WorkspaceError::ToolDetails {
+            code: "COMMAND_SPAWN_FAILED",
+            message: format!("Failed to start command: {e}"),
+            category: "runtime",
+            retryable: true,
+            details: json!({
+                "termination_reason": "spawn_failed",
+                "recoverable": true,
+                "suggestion": "检查命令路径、权限和运行时环境后重试"
+            }),
+        }
     })?;
 
     let session = ctx.sessions.insert(match tree {
+        #[cfg(target_os = "linux")]
+        Some(tree) if isolation_required => ExecSession::new_isolated(child, tree, tty),
         Some(tree) => ExecSession::new_managed(child, tree),
         None => ExecSession::new_with_mode(child, tty),
     });

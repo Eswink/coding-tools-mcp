@@ -5,6 +5,10 @@ pub(crate) mod chat_domain;
 pub mod context;
 pub mod dispatch;
 pub mod exec;
+#[cfg(target_os = "linux")]
+pub(crate) mod linux_sandbox;
+#[cfg(all(test, target_os = "linux"))]
+mod linux_sandbox_tests;
 #[path = "异步命令v1.rs"]
 pub mod exec_tasks;
 pub mod file;
