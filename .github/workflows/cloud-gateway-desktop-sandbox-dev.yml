@@ -1,0 +1,65 @@
+name: Desktop sandbox isolated development tools
+on:
+  push:
+    branches: ['feat/issue-73-desktop-sandbox']
+    paths: ['.github/workflows/cloud-gateway-desktop-sandbox-dev.yml']
+permissions:
+  contents: read
+concurrency:
+  group: desktop-sandbox-development-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Restore plan without manufacturing a completed checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence "$RUNNER_TEMP/offline"
+          npm install --prefix "$RUNNER_TEMP/offline" --no-audit --no-fund mcp-probe-kit@4.0.1 gitnexus@1.6.9
+          probe="$RUNNER_TEMP/offline/node_modules/.bin/mcp-probe-kit"
+          set +e
+          "$probe" exec resume_plan --json "{\"project_root\":\"$PWD\"}" > evidence/resume-plan.json 2> evidence/resume-plan.stderr
+          status=$?
+          set -e
+          printf '%s\n' "$status" > evidence/resume-plan.exit
+          cat evidence/resume-plan.json
+      - name: Export read-only tooling and locked library dependencies, not a release
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo vendor --locked --manifest-path services/local-agent/Cargo.toml "$RUNNER_TEMP/offline/vendor" > evidence/vendor-config.toml
+          toolchain=$(rustc --print sysroot)
+          mkdir -p "$RUNNER_TEMP/offline/rust"
+          cp -a "$toolchain/bin" "$toolchain/lib" "$RUNNER_TEMP/offline/rust/"
+          tar -C "$RUNNER_TEMP/offline" -czf evidence/development-tools-not-release.tgz node_modules vendor rust
+          git rev-parse HEAD > evidence/source-sha.txt
+          git bundle create evidence/source.bundle HEAD
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root = Path('evidence')
+          hashes = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in root.iterdir() if p.is_file()}
+          (root / 'hashes.json').write_text(json.dumps(hashes, indent=2), encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: desktop-sandbox-development-only-${{ github.run_id }}
+          path: evidence/
+          retention-days: 3
+          if-no-files-found: error
+          compression-level: 0
