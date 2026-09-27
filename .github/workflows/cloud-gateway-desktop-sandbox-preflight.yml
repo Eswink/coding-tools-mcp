@@ -1,0 +1,108 @@
+name: Desktop sandbox native preflight
+on:
+  push:
+    branches: ['ci/desktop-sandbox-preflight-20260927']
+permissions:
+  contents: read
+concurrency:
+  group: desktop-sandbox-preflight-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: never
+      PYTHONUTF8: '1'
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Reconstruct and canonicalize exact allowlisted source
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/preflight" "$RUNNER_TEMP/evidence"
+          cp tools/delivery/desktop-sandbox-input/part-*.txt "$RUNNER_TEMP/preflight/"
+          cp tools/delivery/desktop-sandbox-preflight.py "$RUNNER_TEMP/preflight/prepare.py"
+          python "$RUNNER_TEMP/preflight/prepare.py" prepare "$RUNNER_TEMP/preflight"
+          python "$RUNNER_TEMP/preflight/prepare.py" snapshot "$RUNNER_TEMP/evidence"
+          cp "$RUNNER_TEMP/preflight/rustfmt.patch" "$RUNNER_TEMP/evidence/"
+      - name: Install Linux native dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri
+            services/local-agent
+      - name: Shared runtime strict lint and full regression
+        run: |
+          set -euo pipefail
+          cargo fmt --check --manifest-path services/local-agent/Cargo.toml
+          cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/evidence/local-agent.txt"
+      - name: Original authenticated MCP containment assertions
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          export PATH="/usr/bin:/bin:$PATH"
+          python3 -m unittest discover -s tests/cloud-gateway/sandbox-dispatch -p 'test_*.py' -v 2>&1 | tee "$RUNNER_TEMP/evidence/classifier.txt"
+          python3 tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence "$RUNNER_TEMP/evidence/http"
+      - name: Desktop all-target check and complete regression
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:/bin:$PATH"; fi
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/evidence/desktop-check.txt"
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/evidence/desktop-tests.txt"
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee "$RUNNER_TEMP/evidence/desktop-strict.txt"
+      - name: Protocol, scope and offline regressions
+        run: |
+          set -euo pipefail
+          node --test tests/cloud-gateway/*.test.mjs 2>&1 | tee "$RUNNER_TEMP/evidence/contracts.txt"
+          node --test tests/offline-safe-ui.test.mjs tests/offline-safe-intent-ui.test.mjs 2>&1 | tee "$RUNNER_TEMP/evidence/offline-ui.txt"
+          python scripts/connector_fault_proxy_tests.py 2>&1 | tee "$RUNNER_TEMP/evidence/fault-proxy.txt"
+          git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: native-${{ matrix.os }}
+          path: ${{ runner.temp }}/evidence/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  import:
+    needs: native
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/ci/desktop-sandbox-preflight-20260927'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/verified
+      - name: Match both native source trees and import unreferenced blobs only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/delivery/desktop-sandbox-preflight.py import "$RUNNER_TEMP/verified"
