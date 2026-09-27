@@ -1,0 +1,230 @@
+diff --git a/services/local-agent/src/sandbox/mod.rs b/services/local-agent/src/sandbox/mod.rs
+index 66304d3..7e95f92 100644
+--- a/services/local-agent/src/sandbox/mod.rs
++++ b/services/local-agent/src/sandbox/mod.rs
+@@ -74,6 +74,34 @@ impl LinuxSandbox {
+         }
+     }
+ 
++    /// Attach mandatory isolation to an existing host-owned Tokio command.
++    ///
++    /// The host must finish its authorization and execution-policy checks before
++    /// spawning, and must not change program/cwd afterwards. This method never
++    /// spawns, grants permission, or retries without isolation. Preparation runs
++    /// in the parent; the child closure only calls the allocation-free adapter.
++    pub fn configure_command(
++        &self,
++        command: &mut tokio::process::Command,
++    ) -> Result<(), SandboxError> {
++        let executable = std::path::Path::new(command.as_std().get_program());
++        let cwd = command.as_std().get_current_dir().ok_or(SandboxError {
++            kind: SandboxErrorKind::InvalidWorkingDirectory,
++        })?;
++        if !executable.is_absolute() || !cwd.is_absolute() {
++            return Err(SandboxError {
++                kind: SandboxErrorKind::InvalidExecutable,
++            });
++        }
++        let prepared = self.prepare(executable, cwd)?;
++        // SAFETY: all allocations and descriptor acquisition happened above.
++        // apply() uses only the reviewed post-fork syscall path and owns its FDs.
++        unsafe {
++            command.pre_exec(move || prepared.apply());
++        }
++        Ok(())
++    }
++
+     pub(crate) fn prepare(
+         &self,
+         executable: &std::path::Path,
+diff --git a/src-tauri/Cargo.lock b/src-tauri/Cargo.lock
+index 3bf1d02..eafcbb3 100644
+--- a/src-tauri/Cargo.lock
++++ b/src-tauri/Cargo.lock
+@@ -609,12 +609,25 @@ dependencies = [
+  "inout",
+ ]
+ 
++[[package]]
++name = "coding-tools-local-agent"
++version = "0.1.0"
++dependencies = [
++ "libc",
++ "serde",
++ "serde_json",
++ "sha2",
++ "tokio",
++ "windows",
++]
++
+ [[package]]
+ name = "coding-tools-mcp-desktop"
+ version = "0.6.0-rc.4"
+ dependencies = [
+  "axum",
+  "base64 0.22.1",
++ "coding-tools-local-agent",
+  "dbus",
+  "dbus-secret-service",
+  "dirs",
+diff --git a/src-tauri/Cargo.toml b/src-tauri/Cargo.toml
+index 1f50c3a..8fb9e87 100644
+--- a/src-tauri/Cargo.toml
++++ b/src-tauri/Cargo.toml
+@@ -59,6 +59,7 @@ windows = { version = "0.61", features = [
+ ] }
+ 
+ [target.'cfg(target_os = "linux")'.dependencies]
++coding-tools-local-agent = { path = "../services/local-agent" }
+ dbus = "0.9"
+ dbus-secret-service = { version = "=4.0.3", features = ["crypto-rust"] }
+ 
+diff --git a/src-tauri/src/tools/context.rs b/src-tauri/src/tools/context.rs
+index e81bfbc..84bc41b 100644
+--- a/src-tauri/src/tools/context.rs
++++ b/src-tauri/src/tools/context.rs
+@@ -9,6 +9,8 @@ use crate::workspace::AuthConfig;
+ 
+ pub struct ToolContext {
+     pub workspace: Workspace,
++    #[cfg(target_os = "linux")]
++    pub(crate) linux_sandbox: Arc<Result<coding_tools_local_agent::LinuxSandbox, coding_tools_local_agent::SandboxError>>,
+     pub auth: AuthConfig,
+     pub policy: PolicySettings,
+     pub tool_profile: String,
+@@ -70,7 +72,11 @@ impl ToolContext {
+         harness_root: PathBuf,
+     ) -> Self {
+         let root = workspace.root().to_path_buf();
++        #[cfg(target_os = "linux")]
++        let linux_sandbox = Arc::new(coding_tools_local_agent::LinuxSandbox::new(&root));
+         Self {
++            #[cfg(target_os = "linux")]
++            linux_sandbox,
+             workspace,
+             auth,
+             policy,
+@@ -105,6 +111,8 @@ impl ToolContext {
+     /// Snapshot policy/cwd at acceptance; share the existing service-owned task/session stores.
+     pub(crate) fn background_snapshot(&self) -> Self {
+         Self {
++            #[cfg(target_os = "linux")]
++            linux_sandbox: self.linux_sandbox.clone(),
+             workspace: self.workspace.clone(), auth: self.auth.clone(), policy: self.policy.clone(),
+             tool_profile: self.tool_profile.clone(), permission_mode: self.permission_mode.clone(),
+             harness: self.harness.clone(), default_cwd: Arc::new(Mutex::new(self.default_cwd_path())),
+diff --git a/src-tauri/src/tools/dispatch.rs b/src-tauri/src/tools/dispatch.rs
+index 54f3a52..f988781 100644
+--- a/src-tauri/src/tools/dispatch.rs
++++ b/src-tauri/src/tools/dispatch.rs
+@@ -409,7 +409,7 @@ pub fn server_info(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
+ }
+ 
+ pub fn check_exec_environment(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
+-    Ok(tool_ok(json!({
++    let report = json!({
+         "workspace": ctx.workspace.root_display(),
+         "permission_mode": ctx.permission_mode,
+         "network_allowed": ctx.policy.network_allowed(),
+@@ -433,7 +433,10 @@ pub fn check_exec_environment(ctx: &ToolContext) -> Result<Value, WorkspaceError
+         // Backward-compatible alias for older MCP clients.
+         "allowed_commands": ctx.policy.allowed_commands.iter().cloned().collect::<Vec<_>>(),
+         "warnings": ["Workspace 子进程当前允许执行，但尚未启用操作系统级文件系统沙箱"]
+-    })))
++    });
++    #[cfg(target_os = "linux")]
++    let report = super::linux_exec_sandbox::environment(ctx, report);
++    Ok(tool_ok(report))
+ }
+ 
+ pub fn get_default_cwd(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
+diff --git a/src-tauri/src/tools/exec.rs b/src-tauri/src/tools/exec.rs
+index 76ceb59..056a416 100644
+--- a/src-tauri/src/tools/exec.rs
++++ b/src-tauri/src/tools/exec.rs
+@@ -14,6 +14,8 @@ use crate::tools::session::{ExecSession, SessionStore};
+ use crate::tools::workspace::{tool_ok, WorkspaceError};
+ 
+ pub fn exec_command(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
++    #[cfg(target_os = "linux")]
++    super::linux_exec_sandbox::validate_arguments(args)?;
+     let cmd = args
+         .get("cmd")
+         .and_then(Value::as_str)
+@@ -87,10 +89,10 @@ pub fn exec_command(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceE
+         Ok(mut out) => {
+             if let Some(object) = out.as_object_mut() {
+                 object.insert("filesystem_scope".into(), Value::String(filesystem_scope));
+-                object.insert("sandbox_enforced".into(), Value::Bool(false));
++                object.insert("sandbox_enforced".into(), Value::Bool(cfg!(target_os = "linux")));
+                 object.insert(
+                     "execution_boundary".into(),
+-                    Value::String("policy_only".into()),
++                    Value::String(if cfg!(target_os = "linux") { "landlock_seccomp" } else { "policy_only" }.into()),
+                 );
+                 object.insert("child_process".into(), Value::Bool(true));
+             }
+@@ -249,9 +251,21 @@ async fn run_command(
+         .env("PYTHONIOENCODING", "utf-8")
+         .env("PYTHONLEGACYWINDOWSSTDIO", "0");
+ 
+-    let spawned = if ctx.managed_task {
++    #[cfg(target_os = "linux")]
++    super::linux_exec_sandbox::configure(ctx, &mut command)?;
++    #[cfg(target_os = "linux")]
++    let _local_admission = super::linux_exec_sandbox::admit(ctx)?;
++
++    // Every Linux child has a process-tree owner, including ordinary and tty
++    // calls. The two-phase permit above is held through session publication.
++    let spawned = if ctx.managed_task || cfg!(target_os = "linux") {
+         crate::tools::process_tree::spawn(&mut command).await.map(|(child, tree)| (child, Some(tree)))
+     } else { command.spawn().map(|child| (child, None)) };
++    #[cfg(target_os = "linux")]
++    let spawned = spawned.map_err(|_| super::linux_exec_sandbox::failed("SANDBOX_SETUP_FAILED"))?;
++    #[cfg(target_os = "linux")]
++    let (child, tree) = spawned;
++    #[cfg(not(target_os = "linux"))]
+     let (child, tree) = spawned.map_err(|e| WorkspaceError::ToolDetails {
+         code: "COMMAND_SPAWN_FAILED",
+         message: format!("Failed to start command: {e}"),
+@@ -265,6 +279,9 @@ async fn run_command(
+     })?;
+ 
+     let session = ctx.sessions.insert(match tree {
++        #[cfg(target_os = "linux")]
++        Some(tree) => ExecSession::new_sandboxed(child, tree, tty),
++        #[cfg(not(target_os = "linux"))]
+         Some(tree) => ExecSession::new_managed(child, tree),
+         None => ExecSession::new_with_mode(child, tty),
+     });
+diff --git a/src-tauri/src/tools/mod.rs b/src-tauri/src/tools/mod.rs
+index 86a0547..7ab8967 100644
+--- a/src-tauri/src/tools/mod.rs
++++ b/src-tauri/src/tools/mod.rs
+@@ -5,6 +5,8 @@ pub(crate) mod chat_domain;
+ pub mod context;
+ pub mod dispatch;
+ pub mod exec;
++#[cfg(target_os = "linux")]
++mod linux_exec_sandbox;
+ #[path = "异步命令v1.rs"]
+ pub mod exec_tasks;
+ pub mod file;
+diff --git a/src-tauri/src/tools/session.rs b/src-tauri/src/tools/session.rs
+index 6bff694..883616e 100644
+--- a/src-tauri/src/tools/session.rs
++++ b/src-tauri/src/tools/session.rs
+@@ -129,6 +129,13 @@ impl ExecSession {
+         session
+     }
+ 
++    #[cfg(target_os = "linux")]
++    pub(crate) fn new_sandboxed(child: Child, tree: crate::tools::process_tree::ProcessTree, interactive: bool) -> Self {
++        let mut session = Self::new_managed(child, tree);
++        session.interactive = interactive;
++        session
++    }
++
+     fn terminate_tree(&self) {
+         if let Some(mut tree) = self.process_tree.lock().expect("process tree").take() {
+             if tree.terminate().is_err() { self.tree_cleanup_failed.store(true, Ordering::Release); }

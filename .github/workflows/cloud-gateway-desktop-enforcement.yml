@@ -1,0 +1,175 @@
+name: Desktop mandatory sandbox candidate
+on:
+  push:
+    branches: ['ci/issue73-desktop-validation']
+    paths:
+      - 'tools/delivery/desktop-candidate.json'
+      - 'tools/delivery/desktop-patch/**'
+      - 'tools/delivery/prepare-desktop-candidate.py'
+      - '.github/workflows/cloud-gateway-desktop-enforcement.yml'
+permissions:
+  contents: read
+concurrency:
+  group: desktop-sandbox-candidate-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: never
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: staging
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: '9b2639d47aaecc0a903124404c9c97cbf1f806d6'
+          path: source
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        if: runner.os == 'Linux'
+        with:
+          ref: 'f3a213b1bf0633e5cab2d58370a87aec07c5f011'
+          path: fixtures
+          persist-credentials: false
+      - name: Reconstruct and verify every candidate byte
+        id: prepare
+        run: python staging/tools/delivery/prepare-desktop-candidate.py source "$RUNNER_TEMP/desktop-evidence"
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            source/src-tauri
+            source/services/local-agent
+      - name: Install Linux desktop build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - name: Agent formatting Clippy and complete native suite
+        if: always() && steps.prepare.outcome == 'success'
+        run: |
+          set -euo pipefail
+          cd source
+          cargo fmt --check --manifest-path services/local-agent/Cargo.toml
+          cargo clippy --locked --all-targets --manifest-path services/local-agent/Cargo.toml -- -D warnings
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/desktop-evidence/agent-tests.txt"
+      - name: Desktop all-target compile and strict production library
+        id: compile
+        if: always() && steps.prepare.outcome == 'success'
+        run: |
+          set -euo pipefail
+          cd source
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/desktop-evidence/desktop-check.txt"
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee "$RUNNER_TEMP/desktop-evidence/desktop-strict.txt"
+      - name: Desktop complete existing and new regression
+        if: always() && steps.compile.outcome == 'success'
+        run: |
+          set -euo pipefail
+          cd source
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/desktop-evidence/desktop-tests.txt"
+      - name: Unmodified actual authenticated MCP isolation acceptance
+        if: always() && runner.os == 'Linux' && steps.compile.outcome == 'success'
+        run: |
+          set -euo pipefail
+          test "$(git -C fixtures hash-object tests/cloud-gateway/ubuntu_sandbox_dispatch.rs)" = 5284c554f92064fc41d46af6b1e4c4b0fd135ff1
+          test "$(git -C fixtures hash-object tests/cloud-gateway/sandbox-dispatch/run_probe.py)" = 1fdb18eae060c7a9c9903f86f5687e272f9ca1d0
+          cp fixtures/tests/cloud-gateway/ubuntu_sandbox_dispatch.rs source/tests/cloud-gateway/
+          cp -R fixtures/tests/cloud-gateway/sandbox-dispatch source/tests/cloud-gateway/
+          trap 'rm -f source/tests/cloud-gateway/ubuntu_sandbox_dispatch.rs; rm -rf source/tests/cloud-gateway/sandbox-dispatch' EXIT
+          python source/tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence "$RUNNER_TEMP/desktop-evidence/mcp"
+      - name: Contracts and unchanged offline-safe regressions
+        if: always() && steps.prepare.outcome == 'success'
+        run: |
+          set -euo pipefail
+          cd source
+          node --test tests/cloud-gateway/*.test.mjs 2>&1 | tee "$RUNNER_TEMP/desktop-evidence/contracts.tap"
+          node --test tests/offline-safe-ui.test.mjs tests/offline-safe-intent-ui.test.mjs 2>&1 | tee "$RUNNER_TEMP/desktop-evidence/offline.tap"
+          python scripts/connector_fault_proxy_tests.py 2>&1 | tee "$RUNNER_TEMP/desktop-evidence/proxy.txt"
+      - name: Preserve exact source evidence without masking failed steps
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/desktop-evidence"
+          git -C source diff --exit-code HEAD
+          git -C source bundle create "$RUNNER_TEMP/desktop-evidence/source.bundle" HEAD
+          rustc --version > "$RUNNER_TEMP/desktop-evidence/rustc.txt"
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'desktop-evidence'
+          hashes = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}
+          (root/'hashes.json').write_text(json.dumps(hashes, indent=2), encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: desktop-enforcement-${{ matrix.os }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/desktop-evidence/
+          retention-days: 14
+          if-no-files-found: error
+  import_verified_blobs:
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: staging
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: '9b2639d47aaecc0a903124404c9c97cbf1f806d6'
+          path: source
+          persist-credentials: false
+      - run: python staging/tools/delivery/prepare-desktop-candidate.py source "$RUNNER_TEMP/import-evidence"
+      - name: Store verified source blobs only no branch release or deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import base64, json, os, urllib.request
+          from pathlib import Path
+          manifest = json.loads(Path('staging/tools/delivery/desktop-candidate.json').read_text())
+          result = {}
+          for path, expected in manifest['files'].items():
+              raw = (Path('source')/path).read_bytes()
+              body = json.dumps({'content':base64.b64encode(raw).decode(), 'encoding':'base64'}).encode()
+              req = urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/git/blobs", data=body, method='POST', headers={'Authorization':f"Bearer {os.environ['GH_TOKEN']}", 'Accept':'application/vnd.github+json', 'Content-Type':'application/json', 'X-GitHub-Api-Version':'2022-11-28'})
+              with urllib.request.urlopen(req, timeout=60) as response:
+                  actual = json.load(response)['sha']
+              if actual != expected:
+                  raise SystemExit('Imported source identity mismatch: '+path)
+              result[path] = actual
+          output = Path(os.environ['RUNNER_TEMP'])/'import-evidence/source-import.json'
+          output.write_text(json.dumps({'source_tree':manifest['tree'],'blobs':result,'refs_updated':False}, indent=2))
+          print('IMPORTED_BLOBS='+json.dumps(result, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: desktop-enforcement-source-import-${{ github.run_id }}
+          path: ${{ runner.temp }}/import-evidence/
+          retention-days: 14
+          if-no-files-found: error

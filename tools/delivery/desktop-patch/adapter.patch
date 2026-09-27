@@ -1,0 +1,259 @@
+diff --git a/src-tauri/src/tools/linux_exec_sandbox.rs b/src-tauri/src/tools/linux_exec_sandbox.rs
+new file mode 100644
+index 0000000..3215a42
+--- /dev/null
++++ b/src-tauri/src/tools/linux_exec_sandbox.rs
+@@ -0,0 +1,106 @@
++//! Linux policy binding for the existing desktop dispatcher, not a new tool.
++use super::{workspace::WorkspaceError, ToolContext};
++use serde_json::{json, Value};
++use tokio::process::Command;
++
++pub(super) fn validate_arguments(args: &Value) -> Result<(), WorkspaceError> {
++    for name in [
++        "sandbox",
++        "disable_sandbox",
++        "sandbox_policy",
++        "sandbox_enforced",
++        "execution_boundary",
++    ] {
++        if args.get(name).is_some() {
++            return Err(WorkspaceError::invalid_argument(
++                "Sandbox policy is host-owned; model overrides are not accepted",
++            ));
++        }
++    }
++    Ok(())
++}
++
++pub(super) fn configure(ctx: &ToolContext, command: &mut Command) -> Result<(), WorkspaceError> {
++    let sandbox = ctx
++        .linux_sandbox
++        .as_ref()
++        .as_ref()
++        .map_err(|_| failed("SANDBOX_REQUIRED"))?;
++    // Never copy the desktop environment into model-controlled child code.
++    // Toolchain access remains bounded by the kernel policy; HOME/TMPDIR are
++    // workspace-local, not the owner's credential-bearing home or global /tmp.
++    command
++        .env_clear()
++        .env("PATH", "/usr/bin:/bin")
++        .env("HOME", ctx.workspace.root())
++        .env("TMPDIR", ctx.workspace.root())
++        .env("LANG", "C.UTF-8")
++        .env("PYTHONUTF8", "1");
++    sandbox
++        .configure_command(command)
++        .map_err(|_| failed("SANDBOX_SETUP_FAILED"))
++}
++
++/// Revalidate the existing opaque desktop ticket at the last parent-side point
++/// before spawn. This does not construct the shared library's LocalAdmission.
++/// Local host calls keep their trusted-context contract; every remote call must
++/// pass the production two-phase ChatAuthorizer and execution-generation gate.
++pub(super) fn admit(
++    ctx: &ToolContext,
++) -> Result<Option<crate::auth::LocalAdmissionPermit>, WorkspaceError> {
++    let Some(req) = &ctx.remote_request else {
++        return Ok(None);
++    };
++    let ticket = req
++        .service
++        .issue_local_admission_ticket(req, &["exec.run"], &ctx.execution_gate)
++        .map_err(authority_error)?;
++    req.service
++        .commit_local_admission(req, &ctx.execution_gate, ticket)
++        .map(Some)
++        .map_err(authority_error)
++}
++
++fn authority_error(code: &'static str) -> WorkspaceError {
++    WorkspaceError::Tool {
++        code,
++        message: "Local execution authority changed before child start".into(),
++        category: "permission",
++        retryable: false,
++    }
++}
++
++pub(super) fn failed(code: &'static str) -> WorkspaceError {
++    WorkspaceError::ToolDetails {
++        code,
++        message:
++            "Required Linux isolation could not be established; no unsandboxed retry was attempted"
++                .into(),
++        category: "security",
++        retryable: false,
++        details: json!({"stage":"sandbox_setup", "sandbox_enforced":false,
++            "execution_boundary":"unavailable", "child_process":false,
++            "automatic_retry_allowed":false}),
++    }
++}
++
++pub(super) fn environment(ctx: &ToolContext, mut value: Value) -> Value {
++    // Pinning a root does not establish that a future pre-exec will succeed.
++    // State the required policy, not a fabricated positive kernel probe.
++    value["network_allowed"] = json!(false);
++    value["landlock_enabled"] = Value::Null;
++    value["filesystem_sandbox"] = json!({"available":null,"enforced":false,
++        "required":true,"root_pinned":ctx.linux_sandbox.is_ok(),
++        "default_scope":"workspace","host_scope_available":false,
++        "checked_at":"each_child_spawn"});
++    value["global_tmp_write"] = json!("denied");
++    value["workspace_exec_available"] = Value::Null;
++    value["workspace_exec_sandbox_enforced"] = json!(true);
++    value["workspace_exec_boundary"] = json!("landlock_seccomp_required");
++    value["warnings"] = json!(["Linux child execution requires kernel isolation; unsupported or privileged hosts fail closed. Network is denied, including in trusted mode."]);
++    value
++}
++
++#[cfg(test)]
++#[path = "linux_exec_sandbox_tests.rs"]
++mod tests;
+diff --git a/src-tauri/src/tools/linux_exec_sandbox_tests.rs b/src-tauri/src/tools/linux_exec_sandbox_tests.rs
+new file mode 100644
+index 0000000..e89c8e0
+--- /dev/null
++++ b/src-tauri/src/tools/linux_exec_sandbox_tests.rs
+@@ -0,0 +1,141 @@
++use super::*;
++use crate::tools::call_tool;
++use std::sync::Arc;
++use tempfile::TempDir;
++
++fn context() -> (TempDir, TempDir, ToolContext) {
++    let owner = tempfile::tempdir().unwrap();
++    let root = owner.path().join("workspace");
++    std::fs::create_dir(&root).unwrap();
++    let harness = tempfile::tempdir().unwrap();
++    let ctx = ToolContext::for_test(root, harness.path().to_path_buf()).unwrap();
++    (owner, harness, ctx)
++}
++fn command(ctx: &ToolContext, cmd: &str) -> Value {
++    call_tool(
++        ctx,
++        "exec_command",
++        &json!({"cmd":cmd,"timeout_ms":10000,"yield_time_ms":10000}),
++    )
++}
++fn script(ctx: &ToolContext, text: &str) {
++    std::fs::write(ctx.workspace.root().join("probe.py"), text).unwrap();
++}
++
++#[test]
++fn background_snapshots_reuse_the_exact_host_policy() {
++    let (_owner, _harness, ctx) = context();
++    let copy = ctx.background_snapshot();
++    assert!(Arc::ptr_eq(&ctx.linux_sandbox, &copy.linux_sandbox));
++}
++
++#[test]
++fn missing_host_policy_rejects_child_without_fallback() {
++    let (_owner, _harness, mut ctx) = context();
++    script(&ctx, "open('unexpected', 'w').write('x')\n");
++    ctx.linux_sandbox = Arc::new(Err(coding_tools_local_agent::SandboxError {
++        kind: coding_tools_local_agent::SandboxErrorKind::Unavailable,
++    }));
++    let result = command(&ctx, "python3 probe.py");
++    assert_eq!(result["ok"], false, "{result}");
++    assert_eq!(result["error"]["code"], "SANDBOX_REQUIRED", "{result}");
++    assert!(!ctx.workspace.root().join("unexpected").exists());
++}
++
++#[test]
++fn model_cannot_override_host_sandbox_policy() {
++    let (_owner, _harness, ctx) = context();
++    for key in [
++        "sandbox",
++        "disable_sandbox",
++        "sandbox_policy",
++        "sandbox_enforced",
++        "execution_boundary",
++    ] {
++        let mut args = json!({"cmd":"python3 -c \"print('unexpected')\""});
++        args[key] = json!(false);
++        let result = call_tool(&ctx, "exec_command", &args);
++        assert_eq!(result["ok"], false, "{key}: {result}");
++        assert_eq!(
++            result["error"]["code"], "INVALID_ARGUMENT",
++            "{key}: {result}"
++        );
++        assert!(result["session_id"].is_null());
++    }
++}
++
++#[test]
++fn approved_host_execution_is_isolated_and_builtins_are_not_mislabelled() {
++    let (_owner, _harness, ctx) = context();
++    script(&ctx, "print('inside')\n");
++    let result = command(&ctx, "python3 probe.py");
++    assert_eq!(result["command_ok"], true, "{result}");
++    assert_eq!(result["sandbox_enforced"], true, "{result}");
++    assert_eq!(result["execution_boundary"], "landlock_seccomp", "{result}");
++    let builtin = command(&ctx, "echo inside");
++    assert_eq!(builtin["child_process"], false, "{builtin}");
++    assert_eq!(builtin["sandbox_enforced"], false, "{builtin}");
++}
++
++#[test]
++fn desktop_environment_is_not_inherited_by_the_child() {
++    let (_owner, _harness, ctx) = context();
++    script(
++        &ctx,
++        "import json, os\nprint(json.dumps(dict(os.environ)))\n",
++    );
++    let result = command(&ctx, "python3 probe.py");
++    assert_eq!(result["command_ok"], true, "{result}");
++    let env: Value = serde_json::from_str(result["stdout"].as_str().unwrap()).unwrap();
++    for key in env.as_object().unwrap().keys() {
++        assert!(
++            ["HOME", "TMPDIR", "PATH", "LANG", "PYTHONUTF8", "LC_CTYPE"].contains(&key.as_str()),
++            "inherited unexpected key {key}"
++        );
++    }
++    assert_eq!(env["HOME"].as_str(), ctx.workspace.root().to_str());
++    assert_eq!(env["TMPDIR"].as_str(), ctx.workspace.root().to_str());
++}
++
++#[test]
++fn replacing_workspace_path_does_not_replace_the_pinned_directory() {
++    let (owner, _harness, ctx) = context();
++    script(&ctx, "print('original-root')\n");
++    std::fs::rename(ctx.workspace.root(), owner.path().join("original")).unwrap();
++    std::fs::create_dir(ctx.workspace.root()).unwrap();
++    script(&ctx, "print('replacement-root')\n");
++    let result = command(&ctx, "python3 probe.py");
++    assert_eq!(result["command_ok"], true, "{result}");
++    assert_eq!(
++        result["stdout"].as_str().unwrap().trim(),
++        "original-root",
++        "{result}"
++    );
++    assert_eq!(result["sandbox_enforced"], true);
++}
++
++#[test]
++fn dangerous_permission_mode_does_not_disable_kernel_network_denial() {
++    let (_owner, _harness, mut ctx) = context();
++    ctx.policy.permission_mode = "dangerous".into();
++    ctx.permission_mode = "dangerous".into();
++    script(&ctx, "import socket\ntry:\n socket.socket()\n print('unsafe')\nexcept PermissionError:\n print('denied')\n");
++    let result = command(&ctx, "python3 probe.py");
++    assert_eq!(result["command_ok"], true, "{result}");
++    assert_eq!(
++        result["stdout"].as_str().unwrap().trim(),
++        "denied",
++        "{result}"
++    );
++}
++
++#[test]
++fn environment_report_does_not_claim_an_unexecuted_kernel_probe() {
++    let (_owner, _harness, ctx) = context();
++    let report = call_tool(&ctx, "check_exec_environment", &json!({}));
++    assert_eq!(report["filesystem_sandbox"]["required"], true);
++    assert_eq!(report["filesystem_sandbox"]["root_pinned"], true);
++    assert!(report["filesystem_sandbox"]["available"].is_null());
++    assert_eq!(report["network_allowed"], false);
++    assert_eq!(report["global_tmp_write"], "denied");
++}

@@ -1,0 +1,94 @@
+diff --git a/docs/specs/desktop-sandbox-enforcement/design.md b/docs/specs/desktop-sandbox-enforcement/design.md
+new file mode 100644
+index 0000000..2a2f5ca
+--- /dev/null
++++ b/docs/specs/desktop-sandbox-enforcement/design.md
+@@ -0,0 +1,23 @@
++# 设计文档：desktop-sandbox-enforcement
++## 概述
++覆盖FR-1至FR-6。复用9b2639d现有内核实现，不复制隔离规则。
++## 技术方案
++### 技术选型
++Linux-only path dependency到coding-tools-local-agent。configure_command只准备并附加已有allocation-free pre_exec闭包，不启动命令、不签发授权。Tokio、现有进程组、SessionStore与ExecTaskStore保持。
++### 架构设计
++本地配置 -> 固定ToolContext目录句柄 -> 既有call_tool授权/策略 -> sandbox.configure -> 现有ticket issue/commit -> 已管理的child -> 既有会话与任务监督。
++## 数据模型
++Linux-only Arc<Result<LinuxSandbox,SandboxError>>携带原目录句柄或永久失败状态；background_snapshot只clone；不存在模型可反序列化许可。
++## API设计
++LinuxSandbox::configure_command(&mut tokio::process::Command)要求明确绝对program与cwd。desktop helper不公开工具路由。
++## 设计决策
++FR-1固定根而非每次按路径重开；FR-2强制准备且绝不fallback；FR-3采用已有桌面LocalAdmissionPermit而非开放shared LocalAdmission构造器；FR-4环境白名单与逐次内核检查；FR-5保留在途drain，普通Linux/tty也持有进程组；FR-6源码和测试分离留证。
++## 测试策略
++原始PR77的Rust探针5284c554f92064fc41d46af6b1e4c4b0fd135ff1和runner1fdb18eae060c7a9c9903f86f5687e272f9ca1d0按不可变SHA读取，以acceptance模式运行。新增库适配测试、桌面根替换/环境/缺失策略/模型字段及后台共享测试，双平台全套和生产库-D warnings。
++## 风险评估
++上下文构造CRITICAL（5条流程/7模块）；执行入口HIGH。已在前轮警告后继续进行固定范围接线和全套回归，不将图谱等级当安全认证。图谱FTS不可用；新源码须原生编译。要求Linux x86_64 Landlock ABI3+，系统runtime目录有限，不宣称所有开发工具链支持。
++## 回滚
++功能分支普通revert本增量；不删除授权数据、任务记录或历史迁移，不force更新main。
++
++## 文件结构
++修改services/local-agent/src/sandbox/mod.rs及库适配测试；src-tauri/Cargo.toml/Cargo.lock、tools/{context,dispatch,exec,session,mod}.rs；新增tools/linux_exec_sandbox.rs和对应测试；三份本规格与精确范围守卫。
+diff --git a/docs/specs/desktop-sandbox-enforcement/requirements.md b/docs/specs/desktop-sandbox-enforcement/requirements.md
+new file mode 100644
+index 0000000..ba4f2ca
+--- /dev/null
++++ b/docs/specs/desktop-sandbox-enforcement/requirements.md
+@@ -0,0 +1,29 @@
++# 需求文档：desktop-sandbox-enforcement
++## 功能概述
++从9b2639d继续#73，消除生产桌面exec路径与已验证LinuxSandbox库之间的接线缺口。不是整个云网关路线图完成声明。
++## 需求列表
++### FR-1：固定宿主工作区
++ToolContext保存由本地配置构造的LinuxSandbox或失败状态，后台快照与会话域复用同一目录句柄，不从模型入参重新构造。
++- [ ] WHEN 工作区路径被替换 THEN 系统 SHALL 保留原目录边界或在执行前拒绝，不能扩大访问。
++### FR-2：实际执行强制隔离
++沿用唯一call_tool、原策略、任务及会话存储。所有Linux子进程（包含旧tty标志和异步任务）必须执行Landlock/seccomp准备；失败为明确安全错误，不重试无沙箱。
++- [ ] WHEN 原始MCP探针执行 THEN 系统 SHALL 通过4项授权控制和7项隔离断言，断言保持原样。
++### FR-3：本地授权
++在已完成桌面策略检查后、子进程启动前签发并提交现有不透明LocalAdmissionTicket；远程入参不能创建许可。
++- [ ] WHEN 授权/工作区generation改变 THEN 系统 SHALL 拒绝新子进程；保持已有在途排空语义。
++### FR-4：环境与元数据
++Linux子进程不继承桌面环境，HOME/TMPDIR均绑定工作区，网络始终拒绝。模型沙箱覆盖字段拒绝。成功执行与原生内建诊断分别如实标记是否隔离。
++- [ ] WHEN 仅检查环境 THEN 系统 SHALL 报告强制策略及尚未探测的内核可用性，而非伪造通过。
++### FR-5：生命周期与兼容
++所有Linux子进程由进程组管理；保留现有任务去重、取消、撤销排空、过期、重启不重放和输出语义。Windows生产行为不变；旧桌面tty标志不冒充新增原生PTY。
++- [ ] WHEN 双平台现有完整回归运行 THEN 系统 SHALL 无新增失败，Linux补充固定根、环境、默认隔离测试。
++### FR-6：交付
++固定源码树、锁定依赖、保留失败证据，专项与完整原生CI后才允许并入功能分支。main、生产部署和稳定Release不变。
++- [ ] WHEN 工程验证通过 THEN 系统 SHALL 记录准确范围，不将其他未完成路线图或实机观察标为通过。
++## 非功能需求
++默认拒绝、错误不泄露底层路径和环境、无新远程授权入口。
++## 范围之外
++Windows新沙箱、云端业务桥接、Hooks/worktrees/snapshots、安装包与实机验收不由本增量证明。
++
++## 依赖关系
++依赖已提交9b2639d的LinuxSandbox、桌面ChatAuthorizer两阶段票据、现有ToolContext/SessionStore/ExecTaskStore；不引入云授权来源。
+diff --git a/docs/specs/desktop-sandbox-enforcement/tasks.md b/docs/specs/desktop-sandbox-enforcement/tasks.md
+new file mode 100644
+index 0000000..9cbdf9a
+--- /dev/null
++++ b/docs/specs/desktop-sandbox-enforcement/tasks.md
+@@ -0,0 +1,24 @@
++# 任务清单：desktop-sandbox-enforcement
++## 任务列表
++- [x] 1. FR-1/FR-6 恢复已有Plan，阅读上下文与现有源码，执行新鲜影响分析。
++- [x] 2. FR-1至FR-6 明确接口、依赖、作用范围与测试策略。
++- [x] 3. FR-1/FR-2 固定根与强制child接线源码候选。
++- [x] 4. FR-3/FR-4 现有ticket提交、环境白名单和真实元数据。
++- [ ] 5. FR-5 专项与完整原生回归，保留所有失败。
++- [ ] 6. FR-6 当前源码审查、CI证据和正式功能分支集成。
++## 完成标准
++原始11个MCP断言实际通过、双平台完整回归通过。范围之外与真实主机验收不虚报。
++## 需求覆盖矩阵
++| 需求 | 任务 |
++|---|---|
++| FR-1 | 1,3 |
++| FR-2 | 2,3,5 |
++| FR-3 | 4,5 |
++| FR-4 | 4,5 |
++| FR-5 | 5 |
++| FR-6 | 1,6 |
++## 交付物清单
++源码、原始测试日志、精确源码身份、补丁与回滚说明。
++
++## 文件变更清单
++Linux-only path依赖及锁文件、固定工作区上下文、强制spawn适配、受管理交互会话、环境元数据、两份适配测试、三份规格和精确路径范围守卫。
