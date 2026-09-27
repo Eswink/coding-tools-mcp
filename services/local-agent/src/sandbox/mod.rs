@@ -57,6 +57,7 @@ struct Root {
 #[derive(Clone)]
 pub struct LinuxSandbox {
     root: Arc<Root>,
+    read_only: bool,
 }
 
 impl LinuxSandbox {
@@ -65,6 +66,7 @@ impl LinuxSandbox {
         {
             Ok(Self {
                 root: Arc::new(linux::pin_root(workspace_root.as_ref())?),
+                read_only: false,
             })
         }
         #[cfg(not(target_arch = "x86_64"))]
@@ -76,6 +78,13 @@ impl LinuxSandbox {
         }
     }
 
+    /// Reduce this policy to read/execute access. There is no inverse operation.
+    /// The pinned workspace is unchanged, and network remains denied.
+    pub fn read_only(mut self) -> Self {
+        self.read_only = true;
+        self
+    }
+
     pub(crate) fn prepare(
         &self,
         executable: &std::path::Path,
@@ -83,7 +92,7 @@ impl LinuxSandbox {
     ) -> Result<PreparedSandbox, SandboxError> {
         #[cfg(target_arch = "x86_64")]
         {
-            linux::prepare(&self.root, executable, cwd)
+            linux::prepare(&self.root, executable, cwd, self.read_only)
         }
         #[cfg(not(target_arch = "x86_64"))]
         {

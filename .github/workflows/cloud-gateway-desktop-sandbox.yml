@@ -46,6 +46,7 @@ jobs:
           workspaces: |
             src-tauri
             services/local-agent
+          save-if: ${{ !cancelled() }}
       - name: Record exact source and toolchain
         run: |
           mkdir -p evidence
@@ -69,8 +70,16 @@ jobs:
         run: |
           set -euo pipefail
           python3 tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence "$RUNNER_TEMP/mcp-probe"
-          cp -R "$RUNNER_TEMP/mcp-probe" evidence/mcp-probe
           git diff --exit-code
+      - name: Six Git auxiliary containment regressions
+        id: git_boundary
+        if: (success() || failure()) && runner.os == 'Linux' && steps.check.outcome == 'success'
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::git_runner::tests -- --list | tee evidence/git-list.txt
+          grep -q 'git_diff_does_not_execute_repository_external_diff' evidence/git-list.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::git_runner::tests 2>&1 | tee evidence/git-boundary.txt
+          grep -q '6 passed; 0 failed; 0 ignored' evidence/git-boundary.txt
       - name: Complete shared runtime, kernel and dispatcher regression
         id: runtime
         if: success() || failure()
@@ -79,27 +88,26 @@ jobs:
           cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
           cargo test --locked --manifest-path services/local-agent/Cargo.toml 2>&1 | tee evidence/runtime.txt
           cargo rustc --locked --manifest-path services/local-agent/Cargo.toml --lib -- -D warnings
-      - name: Canonical format check with failure patch retained
+      - name: Canonical new-source format
         id: format
         if: success() || failure()
         run: |
           set -euo pipefail
-          cargo fmt --manifest-path services/local-agent/Cargo.toml
-          rustfmt --edition 2021 src-tauri/src/tools/execution_sandbox.rs
-          git diff > evidence/rustfmt.patch
-          git restore --worktree services/local-agent src-tauri/src/tools/execution_sandbox.rs
-          test ! -s evidence/rustfmt.patch
+          cargo fmt --check --manifest-path services/local-agent/Cargo.toml
+          rustfmt --check --edition 2021 src-tauri/src/tools/execution_sandbox.rs src-tauri/src/tools/git_runner.rs src-tauri/src/tools/git_runner_tests.rs
+          git diff --exit-code
       - name: Preserve exact-source evidence and all failures
         if: always()
         env:
           CHECK: ${{ steps.check.outcome }}
           DESKTOP: ${{ steps.desktop.outcome }}
           PROBE: ${{ steps.probe.outcome }}
+          GIT_BOUNDARY: ${{ steps.git_boundary.outcome }}
           RUNTIME: ${{ steps.runtime.outcome }}
           FORMAT: ${{ steps.format.outcome }}
         run: |
           if [ -d "$RUNNER_TEMP/mcp-probe" ]; then
-            cp -R "$RUNNER_TEMP/mcp-probe" evidence/mcp-probe-finished
+            cp -R "$RUNNER_TEMP/mcp-probe" evidence/mcp-probe
           fi
           python - <<'PY'
           import hashlib,json,os
@@ -108,7 +116,7 @@ jobs:
           (p/'results.json').write_text(json.dumps({
             'source_sha':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],
             'platform':os.environ['RUNNER_OS'],
-            'outcomes':{k:os.environ[k] for k in ('CHECK','DESKTOP','PROBE','RUNTIME','FORMAT')},
+            'outcomes':{k:os.environ[k] for k in ('CHECK','DESKTOP','PROBE','GIT_BOUNDARY','RUNTIME','FORMAT')},
           },indent=2))
           (p/'sha256.json').write_text(json.dumps({
             x.relative_to(p).as_posix():hashlib.sha256(x.read_bytes()).hexdigest()
@@ -122,3 +130,24 @@ jobs:
           path: evidence/
           if-no-files-found: error
           retention-days: 14
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Archive exact source without generated files
+        run: |
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/commit.txt
+          git rev-parse HEAD^{tree} > evidence/tree.txt
+          git bundle create evidence/source.bundle HEAD
+          sha256sum evidence/source.bundle > evidence/bundle.sha256
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: desktop-exact-source-${{ github.run_id }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error

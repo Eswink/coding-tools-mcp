@@ -51,12 +51,17 @@ pub(crate) fn prepare(
     };
     let failure = || super::workspace::WorkspaceError::Tool {
         code: "SANDBOX_SETUP_FAILED",
-        message: "Required workspace isolation could not be established; command was not executed.".into(),
+        message: "Required workspace isolation could not be established; command was not executed."
+            .into(),
         category: "security",
         retryable: false,
     };
-    ctx.linux_sandbox.as_ref().as_ref().map_err(|_| failure())?
-        .configure_command(command).map_err(|_| failure())?;
+    ctx.linux_sandbox
+        .as_ref()
+        .as_ref()
+        .map_err(|_| failure())?
+        .configure_command(command)
+        .map_err(|_| failure())?;
     // Revalidate at the actual worker start, not just when an asynchronous job
     // was queued. An opaque ticket cannot be supplied by remote parameters.
     let denied = |code| super::workspace::WorkspaceError::Tool {
@@ -65,10 +70,12 @@ pub(crate) fn prepare(
         category: "permission",
         retryable: false,
     };
-    let ticket = req.service
+    let ticket = req
+        .service
         .issue_local_admission_ticket(req, &["exec.run"], &ctx.execution_gate)
         .map_err(denied)?;
-    let permit = req.service
+    let permit = req
+        .service
         .commit_local_admission(req, &ctx.execution_gate, ticket)
         .map_err(denied)?;
     Ok(Some(permit))
@@ -79,7 +86,9 @@ pub(crate) fn retain_admission(
     session: std::sync::Arc<super::session::ExecSession>,
     permit: Option<crate::auth::LocalAdmissionPermit>,
 ) {
-    let Some(permit) = permit else { return; };
+    let Some(permit) = permit else {
+        return;
+    };
     tauri::async_runtime::spawn(async move {
         // Preserve established semantics: revoke/pause stops NEW work; an
         // admitted operation drains or is explicitly cancelled by its owner.
@@ -120,7 +129,8 @@ mod tests {
         let harness = tempfile::tempdir().unwrap();
         let ctx = ToolContext::for_test(root.path().into(), harness.path().into()).unwrap();
         assert!(std::sync::Arc::ptr_eq(
-            &ctx.linux_sandbox, &ctx.background_snapshot().linux_sandbox
+            &ctx.linux_sandbox,
+            &ctx.background_snapshot().linux_sandbox
         ));
     }
 }

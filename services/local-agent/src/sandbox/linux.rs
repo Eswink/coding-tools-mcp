@@ -173,6 +173,7 @@ pub(super) fn prepare(
     root: &Root,
     executable: &Path,
     cwd: &Path,
+    read_only: bool,
 ) -> Result<PreparedSandbox, SandboxError> {
     require_unprivileged()?;
     let abi = unsafe {
@@ -213,7 +214,12 @@ pub(super) fn prepare(
     }
     let ruleset = unsafe { OwnedFd::from_raw_fd(fd as RawFd) };
     let setup = || -> io::Result<()> {
-        add_rule(ruleset.as_raw_fd(), &root.file, WORKSPACE_FS)?;
+        let workspace_rights = if read_only {
+            EXECUTE | READ_FILE | READ_DIR
+        } else {
+            WORKSPACE_FS
+        };
+        add_rule(ruleset.as_raw_fd(), &root.file, workspace_rights)?;
         add_rule(ruleset.as_raw_fd(), &program, EXECUTE | READ_FILE)?;
         for path in RUNTIME_DIRS {
             match open_path(Path::new(path)) {
