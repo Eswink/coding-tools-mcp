@@ -1,0 +1,76 @@
+name: Desktop prerelease version objects
+on:
+  push:
+    branches: ['ci/desktop-prerelease-version']
+permissions:
+  contents: read
+jobs:
+  version:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/ci/desktop-prerelease-version'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 2c5d133eaa75d7fc084b8122350d7768ce5b2382
+          persist-credentials: false
+      - name: Change only the five application version documents
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p evidence
+          python3 - <<'PY'
+          import base64, json, os, pathlib, subprocess, sys, urllib.request
+          root=pathlib.Path.cwd()
+          base='2c5d133eaa75d7fc084b8122350d7768ce5b2382'
+          expected={
+            'package.json':(1,'57bb2663d5434d7188feadf57e00286539b14341'),
+            'package-lock.json':(2,'14e0213f3f6211229c3dd4993b830ce948e6133c'),
+            'src-tauri/Cargo.toml':(1,'d522e0df243eadcfa66e134366887b38b0a54c95'),
+            'src-tauri/Cargo.lock':(1,'469bd03e057cdb9d0f5c4479ea96a2440d1ac25b'),
+            'src-tauri/tauri.conf.json':(1,'86ae6425b89de967f83a369578359c4e8fdb2bc2'),
+          }
+          def git(*args):
+              return subprocess.check_output(['git',*args]).decode().strip()
+          def api(path,data):
+              req=urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/'+path,
+                  data=json.dumps(data).encode(),headers={
+                    'Authorization':'Bearer '+os.environ['GH_TOKEN'],
+                    'Accept':'application/vnd.github+json','Content-Type':'application/json',
+                    'X-GitHub-Api-Version':'2022-11-28'})
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  return json.load(response)
+          assert git('rev-parse','HEAD')==base
+          entries=[]
+          for name,(count,sha) in expected.items():
+              p=root/name; old=p.read_bytes()
+              assert old.count(b'0.6.0-rc.4')==count
+              p.write_bytes(old.replace(b'0.6.0-rc.4',b'0.6.1-rc.1'))
+              assert git('hash-object',name)==sha
+              blob=api('git/blobs',{'content':base64.b64encode(p.read_bytes()).decode(),'encoding':'base64'})
+              assert blob['sha']==sha
+              entries.append({'path':name,'mode':'100644','type':'blob','sha':sha})
+          sys.path.insert(0,str(root/'scripts'))
+          from rc_version_gate import project_versions
+          version,fields=project_versions(root)
+          assert version=='0.6.1-rc.1'
+          subprocess.run(['git','add','--',*expected],check=True)
+          local_tree=git('write-tree')
+          tree=api('git/trees',{'base_tree':git('rev-parse','HEAD^{tree}'),'tree':entries})
+          assert tree['sha']==local_tree
+          commit=api('git/commits',{'message':'chore(desktop): prepare 0.6.1-rc.1 local-testing candidate',
+                                    'tree':local_tree,'parents':[base]})
+          receipt={'base':base,'commit':commit['sha'],'tree':local_tree,'application_version':version,
+                   'version_fields':fields,'files':entries,'refs_updated':False,'release_created':False}
+          (root/'evidence/version-objects.json').write_text(json.dumps(receipt,indent=2))
+          print(json.dumps(receipt))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: desktop-version-objects-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
