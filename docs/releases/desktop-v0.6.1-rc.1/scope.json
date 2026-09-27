@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "profile": "desktop-local-validation",
+  "version": "0.6.1-rc.1",
+  "channel": "prerelease",
+  "full_cloud_gateway_release": false,
+  "supported_builds": [
+    "ubuntu-24.04-x86_64",
+    "windows-x64"
+  ],
+  "ubuntu_required_isolation": "Landlock ABI >=3 + seccomp + openat2 + close_range",
+  "windows_os_sandbox": "not_implemented",
+  "desktop_tty": "existing bounded pipe sessions; not a native PTY",
+  "unshipped_roadmap": [
+    "cloud-to-desktop business dispatch",
+    "Windows native sandbox",
+    "policy Hooks",
+    "managed worktrees",
+    "workspace snapshots/rollback"
+  ],
+  "manual_gates": {
+    "physical_workstations": "deferred_to_owner",
+    "real_chatgpt": "deferred_to_owner",
+    "production_vps": "not_deployed"
+  },
+  "stable_branch_changes": false,
+  "credential_migration": false,
+  "release_evidence": "Exact-source native and installed-package CI required; no fixture substitution"
+}
