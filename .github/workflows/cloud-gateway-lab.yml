@@ -155,7 +155,7 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9 mcp-probe-kit@4.0.1
           graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
           "$graph" analyze --workers 1 > evidence/graph.txt 2>&1
-          "$graph" detect-changes --scope compare --base-ref 758c60a6e74e624e144f9c19c5f19d04d17f7a13 > evidence/impact.json
+          "$graph" detect-changes --scope compare --base-ref 416af97bb483371f725798efb0cc4a967feef032 > evidence/impact.json
           probe="$RUNNER_TEMP/graph/node_modules/.bin/mcp-probe-kit"
           "$probe" exec check_spec --json "{\"project_root\":\"$PWD\",\"feature_name\":\"cloud-gateway-agent-runtime\",\"docs_dir\":\"docs\"}" > evidence/spec-check.json
           node -e "const r=require('./evidence/spec-check.json'); if(r.structuredContent?.passed!==true) process.exit(1)"
