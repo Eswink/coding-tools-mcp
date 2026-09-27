@@ -1,0 +1,70 @@
+name: Desktop preview version objects
+on:
+  push:
+    branches: ['ci/desktop-preview-version-20260927']
+permissions:
+  contents: read
+jobs:
+  metadata:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/ci/desktop-preview-version-20260927'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 37d6f58c8e4d0e438ed06d3005594d5949f0f112
+          persist-credentials: false
+      - name: Change only six project version fields and create unreferenced blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, copy, hashlib, json, os, subprocess, sys, tomllib, urllib.request
+          from pathlib import Path
+          base='37d6f58c8e4d0e438ed06d3005594d5949f0f112'
+          assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==base
+          old,new='0.6.0-rc.4','0.7.0-rc.1'
+          paths={'package.json':1,'package-lock.json':2,'src-tauri/Cargo.toml':1,'src-tauri/Cargo.lock':1,'src-tauri/tauri.conf.json':1}
+          root=Path('evidence'); root.mkdir()
+          blobs={}
+          for name,count in paths.items():
+              path=Path(name); raw=path.read_text(encoding='utf-8')
+              assert raw.count(old)==count,(name,'unexpected version occurrences')
+              parse=tomllib.loads if name.endswith(('.toml','.lock')) else json.loads
+              expected=parse(raw); edited=copy.deepcopy(expected)
+              if name=='src-tauri/Cargo.toml':
+                  assert edited['package']['name']=='coding-tools-mcp-desktop'
+                  edited['package']['version']=new
+              elif name=='src-tauri/Cargo.lock':
+                  entries=[p for p in edited['package'] if p['name']=='coding-tools-mcp-desktop']
+                  assert len(entries)==1; entries[0]['version']=new
+              else:
+                  edited['version']=new
+                  if name=='package-lock.json': edited['packages']['']['version']=new
+              content=raw.replace(old,new)
+              assert parse(content)==edited,'non-version change'
+              data=content.encode('utf-8'); path.write_bytes(data)
+              target=root/'source'/name; target.parent.mkdir(parents=True,exist_ok=True); target.write_bytes(data)
+              sha=hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()
+              body=json.dumps({'content':base64.b64encode(data).decode(),'encoding':'base64'}).encode()
+              request=urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/git/blobs',data=body,method='POST',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'})
+              with urllib.request.urlopen(request,timeout=60) as response: actual=json.load(response)['sha']
+              assert actual==sha
+              blobs[name]=sha
+          sys.path.insert(0,'scripts')
+          from rc_version_gate import project_versions
+          assert project_versions(Path.cwd())[0]==new
+          report={'base':base,'old_version':old,'version':new,'files':blobs,'classification':'VERSION_ONLY_CANDIDATE_NOT_YET_BUILT'}
+          (root/'version.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
+          print('VERSION_CANDIDATE_BLOBS='+json.dumps(blobs,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: desktop-preview-version-source
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
