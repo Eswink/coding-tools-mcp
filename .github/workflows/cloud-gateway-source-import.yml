@@ -45,10 +45,11 @@ jobs:
                   return json.load(r)
           assert git('rev-parse','HEAD')==base
           encoded=''.join(api('git/blobs/ec21015fde5fe08540df0aa166736cede7f4ae9a')['content'].split())
-          # Repair two identified transcription differences in the transfer
-          # envelope only. Exact original compressed-object AND patch hashes
-          # must match before any source object is imported.
+          # Correct the independently reproduced transport transcription and
+          # decoder truncation. Both original hashes remain mandatory.
           encoded=encoded.replace('Ed927M9f921','Ed927M9r921').replace('DckevQ5efKfFzpKfF4','DckevQ5efKzpKfF4')
+          assert len(encoded)==9534 and encoded.endswith('BzO2FCVkAA')
+          encoded+='A='
           packed=base64.b64decode(encoded,validate=True)
           obj=hashlib.sha1(b'blob '+str(len(packed)).encode()+b'\0'+packed).hexdigest()
           print('transfer_object',obj, 'bytes',len(packed))
