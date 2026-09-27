@@ -78,15 +78,18 @@ impl Server {
             "yield_time_ms": 1000, "max_output_bytes": 4096});
         for (key, value) in extra.as_object().unwrap() { args[key] = value.clone(); }
         let mut out = self.rpc("owner", "exec_command", args).await;
-        // Ordinary execution can yield before exit. Fetch bounded session output,
+        // Ordinary execution can yield before exit. Fetch bounded session snapshots,
         // but retain the original sandbox metadata for the omission assertion.
         if let Some(id) = out["session_id"].as_str().map(str::to_owned) {
             if out["exit_code"].is_null() {
                 let end = std::time::Instant::now() + Duration::from_secs(5);
                 loop {
-                    let next = self.rpc("owner", "read_output", json!({"session_id":id,"max_output_bytes":4096})).await;
-                    assert!(next["ok"] == true, "PROBE_SETUP: cannot read session output: {next}");
-                    if !next["exit_code"].is_null() {
+                    let next = self.rpc("owner", "write_stdin", json!({"session_id":id,"chars":"","yield_time_ms":20,"max_output_bytes":4096})).await;
+                    assert!(next["ok"] == true, "PROBE_SETUP: cannot read session snapshot: {next}");
+                    // A terminal status can precede reader completion. Every fixture
+                    // prints a newline, so wait for that output without resending work.
+                    if !next["exit_code"].is_null() && (next["exit_code"] != 0
+                        || next["stdout"].as_str().is_some_and(|s| s.ends_with('\n'))) {
                         for key in ["stdout", "stderr", "exit_code", "command_ok"] {
                             if !next[key].is_null() { out[key] = next[key].clone(); }
                         }
