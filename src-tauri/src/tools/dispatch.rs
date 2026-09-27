@@ -398,7 +398,8 @@ pub fn server_info(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
         "workspace": ctx.workspace.root_display(),
         "permission_mode": ctx.permission_mode,
         "default_cwd": ctx.default_cwd_display(),
-        "network_allowed": ctx.policy.network_allowed(),
+        "network_allowed": ctx.policy.network_allowed() && !cfg!(target_os = "linux"),
+        "workspace_exec_sandbox_required": cfg!(target_os = "linux"),
         "tool_profile": ctx.tool_profile,
         "auth_enabled": ctx.auth.auth_enabled(),
         "auth_type": ctx.auth.auth_type,
@@ -409,7 +410,7 @@ pub fn server_info(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
 }
 
 pub fn check_exec_environment(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
-    Ok(tool_ok(json!({
+    let report = json!({
         "workspace": ctx.workspace.root_display(),
         "permission_mode": ctx.permission_mode,
         "network_allowed": ctx.policy.network_allowed(),
@@ -433,7 +434,10 @@ pub fn check_exec_environment(ctx: &ToolContext) -> Result<Value, WorkspaceError
         // Backward-compatible alias for older MCP clients.
         "allowed_commands": ctx.policy.allowed_commands.iter().cloned().collect::<Vec<_>>(),
         "warnings": ["Workspace 子进程当前允许执行，但尚未启用操作系统级文件系统沙箱"]
-    })))
+    });
+    #[cfg(target_os = "linux")]
+    let report = super::linux_exec_sandbox::environment(ctx, report);
+    Ok(tool_ok(report))
 }
 
 pub fn get_default_cwd(ctx: &ToolContext) -> Result<Value, WorkspaceError> {

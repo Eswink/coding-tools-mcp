@@ -153,7 +153,11 @@ fn workspace_allows_exec_during_transition() {
     assert_ne!(result["error"]["code"], "EXEC_SANDBOX_UNAVAILABLE");
     assert_eq!(result["execution_mode"], "direct");
     assert_eq!(result["filesystem_scope"], "workspace");
-    assert_eq!(result["sandbox_enforced"], false);
+    // Linux has completed the transition to mandatory kernel isolation.
+    // Other platforms retain their existing execution contract.
+    assert_eq!(result["sandbox_enforced"], cfg!(target_os = "linux"));
+    assert_eq!(result["execution_boundary"],
+        if cfg!(target_os = "linux") { "landlock_seccomp" } else { "policy_only" });
 }
 
 #[test]

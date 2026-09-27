@@ -261,3 +261,25 @@ for (const path of [
     assert.equal(run([path]).accepted, false);
   });
 }
+
+const desktopSandboxPaths = [
+  'src-tauri/tests/call_tool_security.rs', 'src-tauri/tests/harness_tool_contract.rs',
+  'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock',
+  'src-tauri/src/tools/context.rs', 'src-tauri/src/tools/exec.rs',
+  'src-tauri/src/tools/session.rs', 'src-tauri/src/tools/dispatch.rs',
+  'src-tauri/src/tools/mod.rs', 'src-tauri/src/tools/linux_exec_sandbox.rs',
+  'src-tauri/src/tools/linux_exec_sandbox_tests.rs',
+  ...['requirements.md', 'design.md', 'tasks.md'].map(name => `docs/specs/desktop-sandbox-enforcement/${name}`),
+];
+test('reviewed desktop sandbox files pass as exact paths with complete digests', () => {
+  const result = run(desktopSandboxPaths);
+  assert.equal(result.accepted, true, result.error);
+  assert.deepEqual(Object.keys(result.report.sha256).sort(), [...desktopSandboxPaths].sort());
+});
+test('desktop sandbox review does not allow adjacent source or backup files', () => {
+  for (const path of ['src-tauri/src/tools/linux_exec_sandbox.rs.bak', 'src-tauri/Cargo.toml.bak',
+    'docs/specs/desktop-sandbox-enforcement/private.env',
+    'src-tauri/tests/call_tool_security.rs.bak', 'src-tauri/tests/harness_tool_contract.rs.bak']) {
+    assert.equal(run([path]).accepted, false, path);
+  }
+});

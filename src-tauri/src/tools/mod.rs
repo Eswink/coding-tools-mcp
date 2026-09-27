@@ -5,6 +5,8 @@ pub(crate) mod chat_domain;
 pub mod context;
 pub mod dispatch;
 pub mod exec;
+#[cfg(target_os = "linux")]
+mod linux_exec_sandbox;
 #[path = "异步命令v1.rs"]
 pub mod exec_tasks;
 pub mod file;
