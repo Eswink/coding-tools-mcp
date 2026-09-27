@@ -161,6 +161,12 @@ jobs:
           git reset --hard "$GITHUB_SHA"
           git clean -fd
           "$graph" detect-changes --scope compare --base-ref 416af97bb483371f725798efb0cc4a967feef032 > evidence/impact.json
+          "$graph" impact call_tool --direction upstream --file src-tauri/src/tools/dispatch.rs --depth 3 > evidence/preedit-call_tool.txt
+          "$graph" impact intercept --direction upstream --file "src-tauri/src/tools/聊天运行域v1.rs" --depth 3 > evidence/preedit-intercept.txt
+          "$graph" impact exec_command --direction upstream --file src-tauri/src/tools/exec.rs --depth 3 > evidence/preedit-exec_command.txt
+          "$graph" impact run_command --direction upstream --file src-tauri/src/tools/exec.rs --depth 3 > evidence/preedit-run_command.txt
+          "$graph" impact issue_local_admission_ticket --direction upstream --file "src-tauri/src/auth/聊天授权v1.rs" --depth 3 > evidence/preedit-issue-local.txt
+          "$graph" impact commit_local_admission --direction upstream --file "src-tauri/src/auth/聊天授权v1.rs" --depth 3 > evidence/preedit-commit-local.txt
           probe="$RUNNER_TEMP/graph/node_modules/.bin/mcp-probe-kit"
           "$probe" exec check_spec --json "{\"project_root\":\"$PWD\",\"feature_name\":\"cloud-gateway-agent-runtime\",\"docs_dir\":\"docs\"}" > evidence/spec-check.json
           node -e "const r=require('./evidence/spec-check.json'); if(r.structuredContent?.passed!==true) process.exit(1)"
