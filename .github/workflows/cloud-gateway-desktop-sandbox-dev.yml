@@ -24,9 +24,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           python - <<'PY'
-          import hashlib, io, json, os, urllib.request, zipfile
+          import hashlib, io, json, os, urllib.request, urllib.error, urllib.parse, zipfile
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
           request = urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/actions/artifacts/10925699027/zip', headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
-          with urllib.request.urlopen(request, timeout=60) as response:
+          try:
+              response = urllib.request.build_opener(NoRedirect).open(request, timeout=60)
+              raise RuntimeError('expected artifact redirect')
+          except urllib.error.HTTPError as error:
+              if error.code != 302: raise
+              location = error.headers['Location']
+              assert urllib.parse.urlsplit(location).scheme == 'https'
+          # Never forward the repository credential to the signed storage URL.
+          with urllib.request.urlopen(location, timeout=60) as response:
               data = response.read(10 * 1024 * 1024)
           assert hashlib.sha256(data).hexdigest() == '1466508bd2dfcb74fcbb6840b66db6f895618da76f803f2ddbf3b35856ff7cbf'
           with zipfile.ZipFile(io.BytesIO(data)) as archive:
