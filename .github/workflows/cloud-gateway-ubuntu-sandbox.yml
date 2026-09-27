@@ -1,4 +1,5 @@
 name: Ubuntu sandbox library regression
+# issue73-dispatch-candidate: mandatory host-bound dispatcher validation
 
 on:
   push:
