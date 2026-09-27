@@ -1,0 +1,39 @@
+name: Pinned offline development toolchain
+on:
+  push:
+    branches: ['ci/issue73-local-toolchain']
+    paths: ['.github/workflows/cloud-gateway-local-toolchain.yml']
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Export only compiler/runtime and dependency cache, never credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p export
+          rustc --version > export/toolchain.txt
+          cargo fetch --locked --manifest-path services/local-agent/Cargo.toml
+          compiler=$(rustup which rustc)
+          toolchain=$(dirname "$(dirname "$compiler")")
+          tar -czf export/rust-toolchain.tar.gz -C "$toolchain" bin lib
+          tar -czf export/agent-registry.tar.gz -C "$HOME/.cargo" registry
+          cp "$(rustup which rustfmt)" export/rustfmt
+          git rev-parse HEAD > export/source.txt
+          (cd export && sha256sum rust-toolchain.tar.gz agent-registry.tar.gz rustfmt > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pinned-offline-rust-tools
+          path: export/
+          retention-days: 3
+          if-no-files-found: error
