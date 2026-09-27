@@ -21,6 +21,8 @@ jobs:
         run: |
           set -euo pipefail
           npm ci
+          npm audit fix --package-lock-only
+          git diff -- package-lock.json
           set +e
           npm audit --json > audit.json
           code=$?
