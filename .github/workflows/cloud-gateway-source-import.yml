@@ -1,0 +1,79 @@
+name: Exact desktop sandbox source import
+on:
+  push:
+    branches: ['ci/desktop-sandbox-source-import']
+permissions:
+  contents: read
+jobs:
+  import:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/ci/desktop-sandbox-source-import'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 9b2639d47aaecc0a903124404c9c97cbf1f806d6
+          persist-credentials: false
+      - name: Verify ten-file source and import unreferenced Git objects
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python3 - <<'PY'
+          import base64, hashlib, json, os, pathlib, subprocess, urllib.request
+          base = '9b2639d47aaecc0a903124404c9c97cbf1f806d6'
+          expected = '25c4cb09e718e03a28b3a4639c94785265b33c76'
+          allowed = {
+            'services/local-agent/src/sandbox/mod.rs', 'services/local-agent/src/sandbox/command.rs',
+            'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock', 'src-tauri/src/tools/context.rs',
+            'src-tauri/src/tools/dispatch.rs', 'src-tauri/src/tools/exec.rs', 'src-tauri/src/tools/mod.rs',
+            'src-tauri/src/tools/execution_sandbox.rs', 'src-tauri/src/tools/session.rs',
+          }
+          def git(*args):
+              return subprocess.check_output(['git', *args]).decode().strip()
+          def api(path, data=None):
+              body = None if data is None else json.dumps(data).encode()
+              req = urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/' + path,
+                  data=body, headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                  'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json',
+                  'X-GitHub-Api-Version': '2022-11-28'})
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.load(response)
+          assert git('rev-parse','HEAD') == base
+          raw = base64.b64decode(api('git/blobs/0600ac8e8996d2bf4466c1fcc413e837e26fc2a8')['content'])
+          # Normalize the one transport-only diff-header leading space, then
+          # require the exact original local patch digest before applying it.
+          patch = raw.replace(b'\n diff --git ', b'\ndiff --git ')
+          digest = hashlib.sha256(patch).hexdigest()
+          assert digest == 'd214cea9dd7269a5c1c4073bbdf3535439066ec6d440cc46b46914fdc6da9626'
+          subprocess.run(['git','apply','--index','--binary','-'], input=patch, check=True)
+          paths = set(git('diff','--cached','--name-only').splitlines())
+          assert paths == allowed
+          assert git('write-tree') == expected
+          elements=[]
+          for path in sorted(paths):
+              data = pathlib.Path(path).read_bytes()
+              actual=git('hash-object',path)
+              blob=api('git/blobs', {'content':base64.b64encode(data).decode(),'encoding':'base64'})
+              assert blob['sha'] == actual
+              elements.append({'path':path,'mode':'100644','type':'blob','sha':actual})
+          tree=api('git/trees', {'base_tree':git('rev-parse','HEAD^{tree}'),'tree':elements})
+          assert tree['sha'] == expected
+          commit=api('git/commits', {'message':'feat(desktop): enforce host-bound Linux sandbox on remote child execution (#73)',
+                                    'tree':expected,'parents':[base]})
+          receipt={'base':base,'tree':expected,'commit':commit['sha'],'patch_sha256':digest,
+                   'files':elements,'refs_updated':False,'release_created':False}
+          pathlib.Path('evidence/source-import.json').write_text(json.dumps(receipt,indent=2))
+          print(json.dumps(receipt))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: desktop-source-import-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
