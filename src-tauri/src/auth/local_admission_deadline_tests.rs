@@ -26,10 +26,9 @@ impl Fixture {
         .unwrap();
         let principal = crate::auth::principal::verify(
             &token,
-            "https://mcp.example",
-            "https://mcp.example",
             "deadline-fixture-key",
-            "deadline-client",
+            "https://mcp.example",
+            "https://mcp.example",
         )
         .unwrap();
         let mut request = RemoteRequest::verified(
