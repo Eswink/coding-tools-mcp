@@ -2,7 +2,7 @@ name: Cloud gateway protocol laboratory
 
 on:
   push:
-    branches: ['feat/cloud-gateway-agent-runtime']
+    branches: ['feat/cloud-gateway-agent-runtime', 'ci/issue-73-desktop-bridge-impact']
     paths:
       - 'prototypes/cloud-gateway/**'
       - 'tests/cloud-gateway/**'
@@ -155,7 +155,12 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9 mcp-probe-kit@4.0.1
           graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
           "$graph" analyze --workers 1 > evidence/graph.txt 2>&1
-          "$graph" detect-changes --scope compare --base-ref 758c60a6e74e624e144f9c19c5f19d04d17f7a13 > evidence/impact.json
+          "$graph" detect-changes --scope compare --base-ref 9b2639d47aaecc0a903124404c9c97cbf1f806d6 > evidence/impact.json
+          "$graph" impact background_snapshot --direction upstream --file src-tauri/src/tools/context.rs --depth 3 > evidence/preedit-background-snapshot.txt
+          "$graph" impact scoped --direction upstream --file "src-tauri/src/tools/聊天运行域v1.rs" --depth 3 > evidence/preedit-chat-scoped.txt
+          "$graph" impact prepare --direction upstream --file services/local-agent/src/sandbox/mod.rs --depth 3 > evidence/preedit-sandbox-prepare.txt
+          "$graph" impact revoke --direction upstream --file "src-tauri/src/auth/聊天授权v1.rs" --depth 3 > evidence/preedit-revoke.txt
+          "$graph" impact check_exec_environment --direction upstream --file src-tauri/src/tools/dispatch.rs --depth 3 > evidence/preedit-check-env.txt
           probe="$RUNNER_TEMP/graph/node_modules/.bin/mcp-probe-kit"
           "$probe" exec check_spec --json "{\"project_root\":\"$PWD\",\"feature_name\":\"cloud-gateway-agent-runtime\",\"docs_dir\":\"docs\"}" > evidence/spec-check.json
           node -e "const r=require('./evidence/spec-check.json'); if(r.structuredContent?.passed!==true) process.exit(1)"
