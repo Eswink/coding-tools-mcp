@@ -1,0 +1,36 @@
+name: Desktop prerelease npm audit probe
+on:
+  push:
+    branches: ['ci/desktop-prerelease-npm-audit']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Exact lockfile audit evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          set +e
+          npm audit --json > audit.json
+          code=$?
+          set -e
+          cat audit.json
+          echo "audit_exit=$code"
+          exit 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: desktop-prerelease-npm-audit
+          path: audit.json
+          retention-days: 7
+          if-no-files-found: error
