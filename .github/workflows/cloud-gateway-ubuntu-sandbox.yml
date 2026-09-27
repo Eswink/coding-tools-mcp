@@ -49,7 +49,15 @@ jobs:
       - name: Format and all-target Clippy
         run: |
           set -euo pipefail
-          cargo fmt --check --manifest-path services/local-agent/Cargo.toml
+          cargo fmt --manifest-path services/local-agent/Cargo.toml
+          mkdir -p evidence/formatted
+          if ! git diff --quiet -- services/local-agent/src/dispatch services/local-agent/src/lib.rs; then
+            git diff -- services/local-agent/src/dispatch services/local-agent/src/lib.rs > evidence/rustfmt.patch
+            cp -R services/local-agent/src/dispatch evidence/formatted/dispatch
+            cp services/local-agent/src/lib.rs evidence/formatted/lib.rs
+            echo "rustfmt changed candidate source; import the snapshot and rerun" >&2
+            exit 1
+          fi
           cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings
       - name: Kernel sandbox regressions must actually execute
         if: matrix.os == 'ubuntu-24.04'
