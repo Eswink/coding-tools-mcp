@@ -1,0 +1,62 @@
+name: Desktop sandbox integration
+on:
+  push:
+    branches: ['feat/desktop-sandbox-prerelease']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: desktop-sandbox-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore pinned tools and capture pre-edit impacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npm install --prefix "$RUNNER_TEMP/tools" --no-audit --no-fund gitnexus@1.6.9 mcp-probe-kit@4.0.1
+          graph="$RUNNER_TEMP/tools/node_modules/.bin/gitnexus"
+          probe="$RUNNER_TEMP/tools/node_modules/.bin/mcp-probe-kit"
+          "$probe" exec resume_plan --json "{\"project_root\":\"$PWD\"}" > evidence/resume.json
+          "$graph" analyze --workers 1 > evidence/graph.txt 2>&1
+          git restore --source=HEAD --worktree --staged .
+          while IFS='|' read -r symbol path; do
+            "$graph" context "$symbol" --file "$path" > "evidence/context-$symbol.json"
+            "$graph" impact "$symbol" --direction upstream --file "$path" --depth 3 > "evidence/impact-$symbol.json"
+          done <<'SYMBOLS'
+          from_workspace_with_harness_root|src-tauri/src/tools/context.rs
+          background_snapshot|src-tauri/src/tools/context.rs
+          run_command|src-tauri/src/tools/exec.rs
+          exec_command|src-tauri/src/tools/exec.rs
+          exec_health_check|src-tauri/src/tools/exec.rs
+          check_exec_environment|src-tauri/src/tools/dispatch.rs
+          prepare|services/local-agent/src/sandbox/mod.rs
+          SYMBOLS
+          "$graph" detect-changes --scope compare --base-ref 9b2639d47aaecc0a903124404c9c97cbf1f806d6 > evidence/changes.json
+          git rev-parse HEAD > evidence/commit.txt
+          git rev-parse HEAD^{tree} > evidence/tree.txt
+          tar -czf "$RUNNER_TEMP/pinned-tools.tgz" -C "$RUNNER_TEMP/tools" node_modules package.json package-lock.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: desktop-sandbox-impact-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pinned-analysis-tools
+          path: ${{ runner.temp }}/pinned-tools.tgz
+          if-no-files-found: error
+          retention-days: 1
