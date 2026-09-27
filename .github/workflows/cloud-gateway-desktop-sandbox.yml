@@ -46,7 +46,7 @@ jobs:
           workspaces: |
             src-tauri
             services/local-agent
-          save-if: ${{ !cancelled() }}
+          cache-on-failure: 'true'
       - name: Record exact source and toolchain
         run: |
           mkdir -p evidence
