@@ -243,3 +243,21 @@ for (const path of [
     assert.equal(run([path]).accepted, false);
   });
 }
+
+for (const leaf of ['requirements.md', 'design.md', 'tasks.md']) {
+  test(`mandatory dispatcher exact spec path is allowed: ${leaf}`, () => {
+    const path = `docs/specs/ubuntu-sandbox-dispatch/${leaf}`;
+    const result = run([path]);
+    assert.equal(result.accepted, true, result.error);
+    assert.equal(result.report.sha256[path], createHash('sha256').update('# fixture\n').digest('hex'));
+  });
+}
+for (const path of [
+  'docs/specs/ubuntu-sandbox-dispatch/private.env',
+  'docs/specs/ubuntu-sandbox-dispatch-extra/requirements.md',
+  'src-tauri/src/sandbox_dispatch.rs',
+]) {
+  test(`mandatory dispatcher does not widen neighboring scope: ${path}`, () => {
+    assert.equal(run([path]).accepted, false);
+  });
+}
