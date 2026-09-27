@@ -57,6 +57,17 @@ def prepare(root):
     assert sorted(paths) == sorted(PATHS), paths
     subprocess.run(["git", "apply", "--check", "--index", str(patch_file)], check=True)
     subprocess.run(["git", "apply", "--index", str(patch_file)], check=True)
+    # Run 36310467016 exposed nested block_on in this new test fixture's
+    # cleanup. Keep production semantics and every assertion unchanged.
+    fixture = Path("src-tauri/src/tools/linux_sandbox_tests.rs")
+    text = fixture.read_text(encoding="utf-8")
+    old = "        crate::auth::chat::service().cancel_local_sessions(&self.profile);"
+    new = """        let profile = self.profile.clone();
+        tokio::task::spawn_blocking(move || {
+            crate::auth::chat::service().cancel_local_sessions(&profile);
+        }).await.unwrap();"""
+    assert text.count(old) == 1, "cleanup correction preimage mismatch"
+    fixture.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
     for path, expected in GOLDEN.items():
         data = git("show", f"{PROBE_REF}:{path}", raw=True)
         assert blob_hash(data) == expected
