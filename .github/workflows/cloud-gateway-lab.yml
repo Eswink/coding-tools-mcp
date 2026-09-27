@@ -161,6 +161,9 @@ jobs:
           "$graph" impact prepare --direction upstream --file services/local-agent/src/sandbox/mod.rs --depth 3 > evidence/preedit-sandbox-prepare.txt
           "$graph" impact revoke --direction upstream --file "src-tauri/src/auth/聊天授权v1.rs" --depth 3 > evidence/preedit-revoke.txt
           "$graph" impact check_exec_environment --direction upstream --file src-tauri/src/tools/dispatch.rs --depth 3 > evidence/preedit-check-env.txt
+          "$graph" impact register_work --direction upstream --file "src-tauri/src/auth/聊天授权v1.rs" --depth 3 > evidence/preedit-register-work.txt
+          "$graph" impact cancel_local_sessions --direction upstream --file "src-tauri/src/auth/聊天授权v1.rs" --depth 3 > evidence/preedit-cancel-local.txt
+          "$graph" impact has_unfinished_work --direction upstream --file "src-tauri/src/tools/任务仓库v2.rs" --depth 3 > evidence/preedit-task-store.txt
           probe="$RUNNER_TEMP/graph/node_modules/.bin/mcp-probe-kit"
           "$probe" exec check_spec --json "{\"project_root\":\"$PWD\",\"feature_name\":\"cloud-gateway-agent-runtime\",\"docs_dir\":\"docs\"}" > evidence/spec-check.json
           node -e "const r=require('./evidence/spec-check.json'); if(r.structuredContent?.passed!==true) process.exit(1)"
