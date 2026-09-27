@@ -1,0 +1,88 @@
+name: Actual desktop sandbox acceptance
+on:
+  push:
+    branches: ['feat/issue-73-desktop-enforcement', 'feat/cloud-gateway-agent-runtime']
+    paths: ['src-tauri/**', 'services/local-agent/**', '.github/workflows/cloud-gateway-desktop-sandbox.yml']
+  pull_request:
+    branches: [main]
+    paths: ['src-tauri/**', 'services/local-agent/**', '.github/workflows/cloud-gateway-desktop-sandbox.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: actual-desktop-sandbox-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ubuntu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CARGO_TERM_COLOR: never
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 'f3a213b1bf0633e5cab2d58370a87aec07c5f011'
+          path: original-acceptance
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: source/src-tauri
+      - name: Install native desktop dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - name: Execute immutable actual MCP acceptance against current product source
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/desktop-sandbox"
+          mkdir -p "$evidence"
+          git -C source rev-parse HEAD > "$evidence/product-commit.txt"
+          git -C source rev-parse HEAD^{tree} > "$evidence/product-tree.txt"
+          test "$(git -C original-acceptance hash-object tests/cloud-gateway/ubuntu_sandbox_dispatch.rs)" = 5284c554f92064fc41d46af6b1e4c4b0fd135ff1
+          test "$(git -C original-acceptance hash-object tests/cloud-gateway/sandbox-dispatch/run_probe.py)" = 1fdb18eae060c7a9c9903f86f5687e272f9ca1d0
+          test ! -e source/tests/cloud-gateway/ubuntu_sandbox_dispatch.rs
+          test ! -e source/tests/cloud-gateway/sandbox-dispatch
+          cp original-acceptance/tests/cloud-gateway/ubuntu_sandbox_dispatch.rs source/tests/cloud-gateway/
+          cp -R original-acceptance/tests/cloud-gateway/sandbox-dispatch source/tests/cloud-gateway/
+          trap 'rm -f source/tests/cloud-gateway/ubuntu_sandbox_dispatch.rs; rm -rf source/tests/cloud-gateway/sandbox-dispatch' EXIT
+          python source/tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence "$evidence/mcp"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          result = json.loads((Path(os.environ['RUNNER_TEMP'])/'desktop-sandbox/mcp/result.json').read_text())
+          assert result['mode'] == 'acceptance' and result['acceptance_passed'] is True
+          assert result['production_source_restored'] is True and result['compile_exit'] == 0
+          assert len(result['tests']) == 11
+          assert all(item == {'exit_code': 0, 'status': 'pass'} for item in result['tests'].values())
+          PY
+      - name: Preserve identity and all failure evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          git -C source diff --exit-code HEAD
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])/'desktop-sandbox'
+          root.mkdir(parents=True, exist_ok=True)
+          hashes = {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}
+          (root/'hashes.json').write_text(json.dumps(hashes, indent=2), encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: actual-desktop-sandbox-${{ github.run_id }}
+          path: ${{ runner.temp }}/desktop-sandbox/
+          retention-days: 30
+          if-no-files-found: error
