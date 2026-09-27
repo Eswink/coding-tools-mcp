@@ -409,6 +409,10 @@ pub fn server_info(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
 }
 
 pub fn check_exec_environment(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
+    #[cfg(target_os = "linux")]
+    if super::linux_sandbox::required(ctx) {
+        return Ok(tool_ok(super::linux_sandbox::environment(ctx)));
+    }
     Ok(tool_ok(json!({
         "workspace": ctx.workspace.root_display(),
         "permission_mode": ctx.permission_mode,

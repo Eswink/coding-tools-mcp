@@ -261,3 +261,27 @@ for (const path of [
     assert.equal(run([path]).accepted, false);
   });
 }
+
+const desktopSandboxPaths = [
+  'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock',
+  'src-tauri/src/tools/context.rs', 'src-tauri/src/tools/dispatch.rs',
+  'src-tauri/src/tools/exec.rs', 'src-tauri/src/tools/mod.rs',
+  'src-tauri/src/tools/session.rs', 'src-tauri/src/tools/linux_sandbox.rs',
+  'src-tauri/src/tools/linux_sandbox_tests.rs',
+  'src-tauri/src/auth/local_admission_expiry_tests.rs',
+  'docs/specs/desktop-sandbox-prerelease/requirements.md',
+  'docs/specs/desktop-sandbox-prerelease/design.md',
+  'docs/specs/desktop-sandbox-prerelease/tasks.md',
+];
+for (const path of desktopSandboxPaths) {
+  test(`desktop sandbox reviewed exact path: ${path}`, () => {
+    const result = run([path]);
+    assert.equal(result.accepted, true, result.error);
+    assert.equal(result.report.sha256[path], createHash('sha256').update('# fixture\n').digest('hex'));
+  });
+  test(`desktop sandbox suffix remains rejected: ${path}.bak`, () => {
+    const result = run([`${path}.bak`]);
+    assert.equal(result.accepted, false);
+    assert.equal(result.report, null);
+  });
+}

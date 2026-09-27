@@ -610,11 +610,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "coding-tools-local-agent"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "windows",
+]
+
+[[package]]
 name = "coding-tools-mcp-desktop"
 version = "0.6.0-rc.4"
 dependencies = [
  "axum",
  "base64 0.22.1",
+ "coding-tools-local-agent",
  "dbus",
  "dbus-secret-service",
  "dirs",

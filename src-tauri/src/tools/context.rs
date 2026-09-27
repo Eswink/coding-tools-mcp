@@ -19,6 +19,11 @@ pub struct ToolContext {
     pub(crate) chat_scoped: bool,
     pub(crate) chat_domains: Arc<super::chat_domain::ChatDomains>,
     pub(crate) execution_gate: Arc<crate::runtime::WorkspaceExecutionGate>,
+    #[cfg(target_os = "linux")]
+    pub(crate) linux_sandbox: Result<
+        coding_tools_local_agent::LinuxSandbox,
+        coding_tools_local_agent::SandboxError,
+    >,
     pub sessions: Arc<SessionStore>,
     pub(crate) managed_task: bool,
     pub(crate) local_task_control: bool,
@@ -77,6 +82,8 @@ impl ToolContext {
             tool_profile: crate::tools::registry::normalize_tool_profile(&tool_profile).into(),
             permission_mode,
             harness: Harness::new(root.clone(), harness_root).expect("无法初始化 Harness"),
+            #[cfg(target_os = "linux")]
+            linux_sandbox: coding_tools_local_agent::LinuxSandbox::new(&root),
             default_cwd: Arc::new(Mutex::new(root)),
             remote_request: None, chat_scoped: false, chat_domains: Arc::default(),
             execution_gate: crate::runtime::WorkspaceExecutionGate::shared(),
@@ -110,6 +117,8 @@ impl ToolContext {
             harness: self.harness.clone(), default_cwd: Arc::new(Mutex::new(self.default_cwd_path())),
             remote_request: self.remote_request.clone(), chat_scoped: self.chat_scoped, chat_domains: self.chat_domains.clone(),
             execution_gate: self.execution_gate.clone(),
+            #[cfg(target_os = "linux")]
+            linux_sandbox: self.linux_sandbox.clone(),
             sessions: self.sessions.clone(), exec_tasks: self.exec_tasks.clone(),
             managed_task: self.managed_task,
             local_task_control: self.local_task_control,

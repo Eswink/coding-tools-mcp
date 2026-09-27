@@ -74,6 +74,34 @@ impl LinuxSandbox {
         }
     }
 
+    /// Attach the fixed host sandbox to the command's actual program and cwd.
+    ///
+    /// This adapter does not authorize execution. The trusted host must retain
+    /// its admission and policy fences through spawn and must not retry without
+    /// isolation. All allocation and filesystem work occurs before fork.
+    pub fn configure_command(
+        &self,
+        command: &mut tokio::process::Command,
+    ) -> Result<(), SandboxError> {
+        let executable = std::path::Path::new(command.as_std().get_program());
+        let cwd = command.as_std().get_current_dir().ok_or(SandboxError {
+            kind: SandboxErrorKind::InvalidWorkingDirectory,
+        })?;
+        let prepared = self.prepare(executable, cwd)?;
+        command
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .env("LANG", "C.UTF-8")
+            .env("HOME", &self.root.path)
+            .env("TMPDIR", ".");
+        // PreparedSandbox::apply performs only the reviewed child syscalls.
+        // The closure owns its descriptors/filter; no locks or allocations.
+        unsafe {
+            command.pre_exec(move || prepared.apply());
+        }
+        Ok(())
+    }
+
     pub(crate) fn prepare(
         &self,
         executable: &std::path::Path,
