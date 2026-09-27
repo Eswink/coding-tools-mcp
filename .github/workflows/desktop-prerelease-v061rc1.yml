@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: desktop-v0.6.1-rc.1-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   VERSION: '0.6.1-rc.1'
@@ -86,7 +86,6 @@ jobs:
           npm audit --json > evidence/npm-audit.json
           code=$?
           set -e
-          cat evidence/npm-audit.json
           python - <<'PY'
           import json
           r=json.load(open('evidence/npm-audit.json',encoding='utf-8'))
