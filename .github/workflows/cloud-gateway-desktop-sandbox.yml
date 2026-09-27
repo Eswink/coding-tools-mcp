@@ -6,6 +6,7 @@ on:
     branches: [main, feat/cloud-gateway-agent-runtime]
     paths: ['src-tauri/**', 'services/local-agent/**', 'tests/cloud-gateway/**', '.github/workflows/cloud-gateway-desktop-sandbox.yml']
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 concurrency:
