@@ -74,6 +74,35 @@ impl LinuxSandbox {
         }
     }
 
+    /// Attach isolation to a trusted host's existing process supervisor.
+    ///
+    /// The host must independently authorize this exact command and retain its
+    /// execution permit through cleanup. This method creates no local authority.
+    /// Set the absolute program and cwd first; do not replace them afterwards.
+    /// Inherited environment is cleared; any later values must be host-owned.
+    /// On any error the caller must not spawn or retry without isolation.
+    pub fn attach_to_command(
+        &self,
+        command: &mut tokio::process::Command,
+    ) -> Result<(), SandboxError> {
+        let program = PathBuf::from(command.as_std().get_program());
+        let cwd = command
+            .as_std()
+            .get_current_dir()
+            .ok_or(SandboxError {
+                kind: SandboxErrorKind::InvalidWorkingDirectory,
+            })?
+            .to_path_buf();
+        let prepared = self.prepare(&program, &cwd)?;
+        command.env_clear();
+        // All paths, descriptors and filters are prepared in the parent.
+        // The child callback only applies already-owned, allocation-free state.
+        unsafe {
+            command.pre_exec(move || prepared.apply());
+        }
+        Ok(())
+    }
+
     pub(crate) fn prepare(
         &self,
         executable: &std::path::Path,
