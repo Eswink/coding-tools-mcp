@@ -43,3 +43,8 @@ pub use trace::{
 
 #[cfg(target_os = "linux")]
 pub use sandbox::{LinuxSandbox, SandboxError, SandboxErrorKind};
+
+#[cfg(target_os = "linux")]
+mod dispatch;
+#[cfg(target_os = "linux")]
+pub use dispatch::SandboxedDispatch;
