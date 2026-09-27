@@ -159,7 +159,7 @@ jobs:
           # Restore the exact candidate bytes before asking detect-changes to
           # classify the candidate itself; the graph database stays intact.
           git reset --hard "$GITHUB_SHA"
-          git clean -fd
+          mkdir -p evidence
           "$graph" detect-changes --scope compare --base-ref 416af97bb483371f725798efb0cc4a967feef032 > evidence/impact.json
           "$graph" impact call_tool --direction upstream --file src-tauri/src/tools/dispatch.rs --depth 3 > evidence/preedit-call_tool.txt
           "$graph" impact intercept --direction upstream --file "src-tauri/src/tools/聊天运行域v1.rs" --depth 3 > evidence/preedit-intercept.txt
