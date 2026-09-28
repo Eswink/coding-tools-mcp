@@ -22,7 +22,9 @@ jobs:
           python3 - <<'PY'
           import hashlib,json,pathlib,re,shutil,subprocess
           root=pathlib.Path('public-sdk').resolve()
-          for source in [pathlib.Path('/usr/include'),pathlib.Path('/usr/lib/x86_64-linux-gnu/pkgconfig'),pathlib.Path('/usr/share/pkgconfig')]:
+          directories=['/usr/include','/usr/lib/x86_64-linux-gnu/pkgconfig','/usr/share/pkgconfig','/usr/lib/x86_64-linux-gnu/glib-2.0/include','/usr/lib/x86_64-linux-gnu/dbus-1.0/include']
+          for name in directories:
+              source=pathlib.Path(name)
               target=root/str(source).lstrip('/')
               shutil.copytree(source,target,symlinks=True,dirs_exist_ok=True)
           packages=['glib-2.0','gio-2.0','gobject-2.0','gtk+-3.0','gdk-3.0','cairo','pango','pangocairo','gdk-pixbuf-2.0','libsoup-3.0','javascriptcoregtk-4.1','webkit2gtk-4.1','ayatana-appindicator3-0.1','dbus-1','librsvg-2.0','openssl','x11']
@@ -36,13 +38,13 @@ jobs:
               path=queue.pop()
               if not path.exists():raise RuntimeError('missing declared public library: '+path.name)
               real=path.resolve()
-              if real in seen:continue
+              # Some excluded libc paths are linker scripts, not ELF objects.
+              if excluded.match(real.name) or real in seen:continue
               seen.add(real)
               output=subprocess.check_output(['ldd',str(real)],text=True,stderr=subprocess.STDOUT)
               for match in re.findall(r'=>\s+(/\S+)',output):
                   dep=pathlib.Path(match)
                   if not excluded.match(dep.name):queue.append(dep)
-              if excluded.match(real.name):continue
               target=root/'usr/lib/x86_64-linux-gnu'/real.name
               target.parent.mkdir(parents=True,exist_ok=True)
               shutil.copyfile(real,target)
