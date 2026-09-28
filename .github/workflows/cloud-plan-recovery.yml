@@ -1,0 +1,66 @@
+name: Full cloud plan recovery and impact
+on:
+  push:
+    branches: ['ci/cloud-plan-recovery-20260928']
+    paths: ['.github/workflows/cloud-plan-recovery.yml']
+permissions:
+  contents: read
+concurrency:
+  group: cloud-plan-recovery
+  cancel-in-progress: false
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 2c5d133eaa75d7fc084b8122350d7768ce5b2382
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Recover persisted plan without replacing it
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          npm install --prefix "$RUNNER_TEMP/planner" --no-audit --no-fund mcp-probe-kit@4.0.1
+          probe="$RUNNER_TEMP/planner/node_modules/.bin/mcp-probe-kit"
+          "$probe" exec resume_plan --json "{\"project_root\":\"$PWD\"}" > evidence/resume-plan.json
+          cat evidence/resume-plan.json
+          tar -czf evidence/planner-runtime.tar.gz -C "$RUNNER_TEMP/planner" node_modules package.json package-lock.json
+      - name: Exact source and file-scoped pre-edit impacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9
+          graph="$RUNNER_TEMP/graph/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/graph.txt 2>&1
+          "$graph" query 'cloud MCP business admission local authority outbound Agent execution' > evidence/execution-flows.json
+          "$graph" impact business_call --direction upstream --file services/cloud-gateway/src/mcp/http.rs --depth 3 > evidence/impact-business-call.json
+          "$graph" impact begin_execution --direction upstream --file services/cloud-gateway/src/admission/store.rs --depth 3 > evidence/impact-begin-execution.json
+          "$graph" impact run_socket --direction upstream --file services/cloud-gateway/src/channel/transport.rs --depth 3 > evidence/impact-control-socket.json
+          "$graph" impact control --direction upstream --file services/cloud-gateway/src/channel/store.rs --depth 3 > evidence/impact-controller.json
+          "$graph" impact drive --direction upstream --file services/cloud-gateway/src/agent/client.rs --depth 3 > evidence/impact-agent-drive.json
+          "$graph" impact snapshot --direction upstream --file services/cloud-gateway/src/agent/signer.rs --depth 3 > evidence/impact-signer.json
+          "$graph" impact call_tool --direction upstream --file src-tauri/src/tools/dispatch.rs --depth 3 > evidence/impact-desktop-dispatch.json
+          "$graph" impact local_authority_snapshot --direction upstream --file src-tauri/src/auth/聊天授权v1.rs --depth 3 > evidence/impact-local-snapshot.json
+          "$graph" impact issue_local_admission_ticket --direction upstream --file src-tauri/src/auth/聊天授权v1.rs --depth 3 > evidence/impact-local-ticket.json
+          "$graph" impact commit_local_admission --direction upstream --file src-tauri/src/auth/聊天授权v1.rs --depth 3 > evidence/impact-local-commit.json
+          git reset --hard 2c5d133eaa75d7fc084b8122350d7768ce5b2382
+          git rev-parse HEAD > evidence/source-sha.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+          python - <<'PY'
+          import hashlib,json,pathlib
+          p=pathlib.Path('evidence')
+          (p/'sha256.json').write_text(json.dumps({f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in p.iterdir() if f.is_file()},indent=2))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: full-cloud-plan-recovery
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error
