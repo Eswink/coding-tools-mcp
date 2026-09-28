@@ -19,6 +19,8 @@ jobs:
     defaults:
       run:
         shell: bash
+    env:
+      CARGO_TERM_COLOR: never
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -53,20 +55,37 @@ jobs:
           assert len(patch)==57625
           subprocess.run(['git','apply','--check','-'],input=patch,check=True)
           subprocess.run(['git','apply','--index','-'],input=patch,check=True)
-          expected='0bfb6bbc4686f8a952fe6c8d502f62edc8edfc89'
           tree=subprocess.check_output(['git','write-tree'],text=True).strip()
-          assert tree==expected,(tree,expected)
+          assert tree=='0bfb6bbc4686f8a952fe6c8d502f62edc8edfc89'
           paths=subprocess.check_output(['git','diff','--cached','--name-only'],text=True).splitlines()
           assert len(paths)==14 and all('..' not in p.split('/') for p in paths)
           pathlib.Path('evidence/input.patch').write_bytes(patch)
           pathlib.Path('evidence/paths.json').write_text(json.dumps(paths),encoding='utf-8')
           pathlib.Path('evidence/input-tree.txt').write_text(tree+'\n')
           PY
+      - name: Apply the exact reviewed test-only corrections
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('services/cloud-gateway/tests/dispatch_claim_postgres.rs');s=p.read_text()
+          old='.map(Result::unwrap).flatten()'
+          assert s.count(old)==1
+          s=s.replace(old,'.filter_map(Result::unwrap)')
+          anchor='async fn wait_deadline(h: &Harness, d: i64) {'
+          assert s.count(anchor)==1
+          helper='// Preserve a sub-two-second SQL lock wait while ensuring setup does not consume\n// an almost-expired whole-second deadline. This is fixture timing, not a clock\n// override or a relaxation of the post-lock production deadline check.\nasync fn lock_test_deadline(h: &Harness) -> i64 {\n    sqlx::query_scalar("SELECT ceil(extract(epoch FROM clock_timestamp()) + 0.5)::bigint")\n        .fetch_one(&h.f.pool)\n        .await\n        .unwrap()\n}\n'
+          s=s.replace(anchor,helper+anchor)
+          assert s.count('Duration::from_millis(1500)')==1
+          s=s.replace('Duration::from_millis(1500)','Duration::from_millis(1800)')
+          assert s.count('let d = clock(&h.f).await + 1;')==3
+          s=s.replace('let d = clock(&h.f).await + 1;','let d = lock_test_deadline(&h).await;')
+          p.write_text(s,encoding='utf-8',newline='\n')
+          PY
       - name: Canonicalize source with the pinned native toolchain
         run: |
           set -euo pipefail
           cargo fmt --manifest-path services/cloud-gateway/Cargo.toml
-          git diff --binary > evidence/format.patch
+          git diff --binary > evidence/format-and-fixture.patch
           python - <<'PY'
           import json,subprocess,pathlib
           paths=json.load(open('evidence/paths.json',encoding='utf-8'))
@@ -102,7 +121,7 @@ jobs:
           createdb -h 127.0.0.1 -p "$port" -U admission_test coding_tools_identity_test
           export TEST_DATABASE_URL="postgresql://admission_test@127.0.0.1:$port/coding_tools_identity_test"
           python - <<'PY'
-          import pathlib,subprocess,re
+          import pathlib,subprocess
           path=pathlib.Path('services/cloud-gateway/src/admission/store.rs'); original=path.read_bytes()
           text=original.decode(); start=text.index('    async fn current_fence('); end=text.index('    async fn recheck_locked(',start)
           part=text[start:end]
