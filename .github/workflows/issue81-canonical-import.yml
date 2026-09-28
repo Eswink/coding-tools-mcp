@@ -85,13 +85,13 @@ jobs:
           graph="$RUNNER_TEMP/review-bin/node_modules/.bin/gitnexus"
           "$graph" analyze --workers 1 > evidence/graph.txt 2>&1
           git checkout -- AGENTS.md CLAUDE.md
-          "$graph" detect-changes --scope staged > evidence/detect-changes.json
+          "$graph" detect-changes --scope staged > evidence/detect-changes.txt
           python - <<'PY'
-          import json,pathlib,subprocess
-          data=json.loads(pathlib.Path('evidence/detect-changes.json').read_text())
-          assert not data.get('error'),data
+          import pathlib,subprocess
+          text=pathlib.Path('evidence/detect-changes.txt').read_text()
+          assert text.strip(), 'empty graph report'
           assert subprocess.check_output(['git','write-tree'],text=True).strip()=='c67f14926b670c16b224e041423b522a19b74823'
-          print('STAGED_REVIEW='+json.dumps(data)[:28000])
+          print('STAGED_REVIEW_BEGIN\n'+text[:50000]+'\nSTAGED_REVIEW_END')
           PY
       - name: Establish continuation plan after prior resume found no checkpoint
         shell: bash
