@@ -1,0 +1,46 @@
+name: Cloud native workbench
+on:
+  push:
+    branches: ['ci/cloud-plan-recovery-20260928']
+    paths: ['.github/workflows/cloud-native-workbench.yml']
+permissions:
+  contents: read
+jobs:
+  tools:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 2c5d133eaa75d7fc084b8122350d7768ce5b2382
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Export exact compiler and dependency sources without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          cargo fetch --locked --manifest-path services/cloud-gateway/Cargo.toml
+          cargo fetch --locked --manifest-path services/local-agent/Cargo.toml
+          rustc --version > evidence/rustc.txt
+          cargo --version > evidence/cargo.txt
+          git rev-parse HEAD > evidence/source-sha.txt
+          tar -czf evidence/rust-toolchain.tar.gz -C "$(rustc --print sysroot)" bin lib libexec
+          tar -czf evidence/cargo-registry.tar.gz -C "$HOME/.cargo" registry
+          npm install --prefix "$RUNNER_TEMP/graph" --no-audit --no-fund gitnexus@1.6.9
+          tar -czf evidence/gitnexus-runtime.tar.gz -C "$RUNNER_TEMP/graph" node_modules package.json package-lock.json
+          (cd evidence && sha256sum *.tar.gz > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: cloud-pinned-native-workbench
+          path: evidence/
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
