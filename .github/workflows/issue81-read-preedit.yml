@@ -1,0 +1,34 @@
+name: Issue81 read retained pre-edit evidence
+on:
+  push:
+    branches: ['ci/issue81-resume-full-plan']
+    paths: ['.github/workflows/issue81-read-preedit.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  read:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-native-host-preedit
+          run-id: 36437839346
+          github-token: ${{ github.token }}
+          path: evidence
+      - name: Verify hashes and print only bounded review reports
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,json,pathlib
+          root=pathlib.Path('evidence')
+          hashes=json.loads((root/'hashes.json').read_text())
+          for name,digest in hashes.items():
+              assert '..' not in pathlib.PurePosixPath(name).parts and not pathlib.PurePosixPath(name).is_absolute()
+              assert hashlib.sha256((root/name).read_bytes()).hexdigest()==digest,name
+          names=['resume-plan.json','spec-check.json','source-tree.txt']+[p.name for p in root.glob('impact-*.txt')]
+          for name in names:
+              text=(root/name).read_text()
+              print('\n=== '+name+' ===\n'+text[:30000])
+          PY
