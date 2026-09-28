@@ -1,0 +1,93 @@
+name: Issue81 native host pre-edit review
+on:
+  push:
+    branches: ['ci/issue81-resume-full-plan']
+    paths: ['.github/workflows/issue81-host-preedit.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-pinned-review-tools
+          run-id: 36434991238
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/pinned-review
+      - name: Restore verified candidate and version-pinned review tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/pinned-review"
+          sha256sum -c SHA256SUMS.txt
+          mkdir -p "$RUNNER_TEMP/review-bin"
+          tar -xJf pinned-review-tools.tar.xz -C "$RUNNER_TEMP/review-bin"
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p evidence
+          python - <<'PY'
+          import base64,hashlib,lzma,pathlib,subprocess
+          patch=lzma.decompress(base64.b64decode(''.join(pathlib.Path(f'.ci/issue81-resume-{i}.b64').read_text() for i in range(3)),validate=True))
+          assert hashlib.sha256(patch).hexdigest()=='0d261b71434182bd6b7a791b2717faf5f3980dd3583e486171a2f1cc7c2f9189'
+          pathlib.Path('evidence/recovered.patch').write_bytes(patch)
+          subprocess.run(['git','checkout','--detach','2c5d133eaa75d7fc084b8122350d7768ce5b2382'],check=True)
+          subprocess.run(['git','apply','--index','evidence/recovered.patch'],check=True)
+          assert subprocess.check_output(['git','write-tree'],text=True).strip()=='c67f14926b670c16b224e041423b522a19b74823'
+          PY
+      - name: Attempt actual plan resume before any new implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe="$RUNNER_TEMP/review-bin/node_modules/.bin/mcp-probe-kit"
+          python - <<'PY' > evidence/resume-input.json
+          import json,os
+          print(json.dumps({'project_root':os.environ['GITHUB_WORKSPACE']}))
+          PY
+          "$probe" exec resume_plan --stdin < evidence/resume-input.json > evidence/resume-plan.json
+          "$probe" exec check_spec --stdin <<EOF > evidence/spec-check.json
+          {"project_root":"$GITHUB_WORKSPACE","feature_name":"cloud-execution-bridge"}
+          EOF
+      - name: Analyze exact candidate and inspect upstream host integration symbols
+        shell: bash
+        run: |
+          set -euo pipefail
+          graph="$RUNNER_TEMP/review-bin/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/graph.txt 2>&1
+          git checkout -- AGENTS.md CLAUDE.md
+          "$graph" impact drive --direction upstream --file services/cloud-gateway/src/agent/client.rs --depth 3 > evidence/impact-agent-drive.txt
+          "$graph" impact one_session --direction upstream --file services/cloud-gateway/src/agent/client.rs --depth 3 > evidence/impact-agent-session.txt
+          "$graph" impact snapshot --direction upstream --file services/cloud-gateway/src/agent/signer.rs --depth 3 > evidence/impact-signer-snapshot.txt
+          "$graph" impact run --direction upstream --file services/cloud-gateway/src/agent/cli.rs --depth 3 > evidence/impact-agent-cli.txt
+          "$graph" impact workspace_probe --direction upstream --file services/cloud-gateway/src/mcp/http.rs --depth 3 > evidence/impact-mcp-probe.txt
+          "$graph" impact issue_local_admission_ticket --direction upstream --file 'src-tauri/src/auth/聊天授权v1.rs' --depth 3 > evidence/impact-native-ticket.txt
+          "$graph" impact commit_local_admission --direction upstream --file 'src-tauri/src/auth/聊天授权v1.rs' --depth 3 > evidence/impact-native-admit.txt
+          "$graph" impact call_tool --direction upstream --file src-tauri/src/tools/dispatch.rs --depth 3 > evidence/impact-native-dispatch.txt
+          "$graph" impact from_workspace_with_harness_root --direction upstream --file src-tauri/src/tools/context.rs --depth 3 > evidence/impact-native-context.txt
+          "$graph" query 'local approval authority snapshot grant conversation execution gate' > evidence/native-query.txt
+          git diff --check
+      - name: Hash evidence and retain real source identity
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,json,pathlib,subprocess
+          root=pathlib.Path('evidence');root.mkdir(exist_ok=True)
+          (root/'source-tree.txt').write_text(subprocess.check_output(['git','write-tree'],text=True))
+          (root/'hashes.json').write_text(json.dumps({str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file() and p.name!='hashes.json'},indent=2))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-native-host-preedit
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error
