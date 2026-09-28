@@ -460,6 +460,21 @@ async fn business_call(
                 Ok(v) => v,
                 Err(_) => return availability("REQUEST_EXPIRED"),
             };
+            let requested = AdmissionRequest {
+                request_id,
+                conversation: &binding,
+                scope: TOOL_SCOPE,
+                tool_name: name,
+                arguments: &args,
+                class: RequestClass::ReadOnly,
+                deadline,
+            };
+            let deadline = match state.admission.original_deadline(&requested).await {
+                Ok(Some(original)) => original,
+                Ok(None) => deadline,
+                Err(IdentityError::Conflict) => return permission("REQUEST_ID_CONFLICT"),
+                Err(_) => return availability("EXECUTION_OUTCOME_UNKNOWN"),
+            };
             let receipt = match state
                 .admission
                 .admit(AdmissionRequest {
@@ -498,8 +513,31 @@ async fn business_call(
                 }
                 AdmissionDecision::ReconcileRequired => availability("EXECUTION_OUTCOME_UNKNOWN"),
                 AdmissionDecision::Admitted => {
-                    let _ = state.admission.cancel(request_id).await;
-                    availability("EXECUTION_NOT_CONNECTED")
+                    match state
+                        .control
+                        .dispatch_admitted(AdmissionRequest {
+                            request_id,
+                            conversation: &binding,
+                            scope: TOOL_SCOPE,
+                            tool_name: name,
+                            arguments: &args,
+                            class: RequestClass::ReadOnly,
+                            deadline,
+                        })
+                        .await
+                    {
+                        Ok(result) => result,
+                        Err(error) => {
+                            if matches!(
+                                error,
+                                crate::execution::DispatchError::NotConnected
+                                    | crate::execution::DispatchError::Backpressure
+                            ) {
+                                let _ = state.admission.cancel(request_id).await;
+                            }
+                            availability(error.code())
+                        }
+                    }
                 }
                 AdmissionDecision::Existing => match receipt.state {
                     RequestState::Running | RequestState::OutcomeUnknown => {

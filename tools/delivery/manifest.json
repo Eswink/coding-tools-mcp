@@ -329,6 +329,29 @@
       }
     },
     {
+      "id": "cloud-execution-bridge",
+      "title": "Production cloud-to-desktop approval, execution and no-replay bridge",
+      "lane": "request-admission",
+      "paths": [
+        "services/cloud-gateway",
+        "src-tauri",
+        "services/local-agent",
+        "docs/specs/cloud-execution-bridge"
+      ],
+      "depends_on": [
+        "mcp-business-gateway",
+        "outbound-client",
+        "request-admission",
+        "local-authority-provider",
+        "tool-runtime"
+      ],
+      "issue": 81,
+      "state": "planned",
+      "priority": 21,
+      "release_required": true,
+      "reason": "Recovered routing candidate is not full integration; live native approval projection and actual host execution remain required."
+    },
+    {
       "id": "offline-noise",
       "title": "Offline authorization suppression through the real channel",
       "lane": "agent-client",
@@ -783,7 +806,8 @@
         "snapshot-rollback",
         "verification",
         "tool-discovery",
-        "origin-migration"
+        "origin-migration",
+        "cloud-execution-bridge"
       ],
       "issue": null,
       "state": "planned",

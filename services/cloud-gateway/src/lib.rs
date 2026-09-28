@@ -33,3 +33,6 @@ pub mod channel;
 
 /// Native recovery-only control client; no local execution provider is installed.
 pub mod agent;
+
+/// Bounded authenticated routing, not an executor or authority issuer.
+pub mod execution;
