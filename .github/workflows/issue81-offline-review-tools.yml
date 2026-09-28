@@ -1,0 +1,33 @@
+name: Issue81 pinned review tool recovery
+on:
+  push:
+    branches: ['ci/issue81-resume-full-plan']
+    paths: ['.github/workflows/issue81-offline-review-tools.yml']
+permissions:
+  contents: read
+jobs:
+  tools:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install public exact-version review tools without project changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/review-tools"
+          mkdir -p "$root"
+          npm install --prefix "$root" --no-audit --no-fund mcp-probe-kit@4.0.1 gitnexus@1.6.9
+          node -e "const p=require('$root/node_modules/mcp-probe-kit/package.json'); const g=require('$root/node_modules/gitnexus/package.json'); if(p.version!=='4.0.1'||g.version!=='1.6.9')process.exit(1); console.log(JSON.stringify({mcp:p.version,gitnexus:g.version}));" > "$root/VERSIONS.json"
+          mkdir -p "$RUNNER_TEMP/export"
+          tar -C "$root" -cJf "$RUNNER_TEMP/export/pinned-review-tools.tar.xz" node_modules package.json package-lock.json VERSIONS.json
+          cd "$RUNNER_TEMP/export"
+          sha256sum pinned-review-tools.tar.xz > SHA256SUMS.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-pinned-review-tools
+          path: ${{ runner.temp }}/export/
+          retention-days: 7
+          if-no-files-found: error
