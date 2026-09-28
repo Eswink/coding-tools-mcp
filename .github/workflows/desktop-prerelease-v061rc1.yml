@@ -323,7 +323,12 @@ jobs:
           mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
           chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
           touch "$HOME/.ubuntu-ci-fixture-v1"
-          xvfb-run -a -s '-screen 0 1920x1080x24' dbus-run-session -- bash scripts/Ubuntu图形会话v2.sh "$GITHUB_WORKSPACE/scripts/exclusive_native_acceptance.py" "$app" "$RUNNER_TEMP/linux-rc-driver/tauri-driver" "$PACKAGE_KIND" "$GITHUB_WORKSPACE/evidence" 2>&1 | tee evidence/native-session.log
+          test -x /usr/bin/python3
+          # The enforced sandbox supports system runtimes plus the workspace.
+          # setup-python prepends /opt/hostedtoolcache, which is intentionally
+          # outside that boundary; pin the installed-package acceptance to the
+          # supported system Python without changing application policy.
+          PATH="/usr/bin:/bin:$PATH" xvfb-run -a -s '-screen 0 1920x1080x24' dbus-run-session -- bash scripts/Ubuntu图形会话v2.sh "$GITHUB_WORKSPACE/scripts/exclusive_native_acceptance.py" "$app" "$RUNNER_TEMP/linux-rc-driver/tauri-driver" "$PACKAGE_KIND" "$GITHUB_WORKSPACE/evidence" 2>&1 | tee evidence/native-session.log
           python scripts/rc_native_gate.py --input evidence/exclusive-native.json --binary "$app" --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --version "$VERSION" --kind "$PACKAGE_KIND" | tee evidence/native-gate.json
           git diff --exit-code HEAD --
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
