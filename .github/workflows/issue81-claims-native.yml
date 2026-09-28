@@ -1,0 +1,188 @@
+name: Issue 81 exact dispatch claim candidate
+on:
+  push:
+    branches: ['ci/issue-81-claims-native']
+    paths: ['.github/workflows/issue81-claims-native.yml']
+permissions:
+  contents: read
+concurrency:
+  group: issue81-claims-native
+  cancel-in-progress: true
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 2c5d133eaa75d7fc084b8122350d7768ce5b2382
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: services/cloud-gateway
+          shared-key: issue81-claims
+      - name: Reconstruct hash-verified exact allowlisted candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          import base64,gzip,hashlib,json,pathlib,subprocess
+          parts=['d5aac10ff6ab4ef93c1034e4e779e65dbd5f7433','a2446ce61c0e61732020020193db666ab127c9e3','3ea751b9169f61c9830f2036446bcd5a2bb243a0','8b42392852e56820c47284c5425fa4dc7468f70f']
+          text=''
+          for sha in parts:
+              value=json.loads(subprocess.check_output(['gh','api',f'repos/Eswink/coding-tools-mcp/git/blobs/{sha}'],text=True))
+              text+=base64.b64decode(value['content']).decode('ascii')
+          raw=base64.b64decode(text,validate=True)
+          assert hashlib.sha256(raw).hexdigest()=='c9df72c88b8644caf0e9f23ecd7a6fd7bb493a903288a071d261c1a91e87d1d7'
+          patch=gzip.decompress(raw)
+          assert len(patch)==57625
+          subprocess.run(['git','apply','--check','-'],input=patch,check=True)
+          subprocess.run(['git','apply','--index','-'],input=patch,check=True)
+          expected='0bfb6bbc4686f8a952fe6c8d502f62edc8edfc89'
+          tree=subprocess.check_output(['git','write-tree'],text=True).strip()
+          assert tree==expected,(tree,expected)
+          paths=subprocess.check_output(['git','diff','--cached','--name-only'],text=True).splitlines()
+          assert len(paths)==14 and all('..' not in p.split('/') for p in paths)
+          pathlib.Path('evidence/input.patch').write_bytes(patch)
+          pathlib.Path('evidence/paths.json').write_text(json.dumps(paths),encoding='utf-8')
+          pathlib.Path('evidence/input-tree.txt').write_text(tree+'\n')
+          PY
+      - name: Canonicalize source with the pinned native toolchain
+        run: |
+          set -euo pipefail
+          cargo fmt --manifest-path services/cloud-gateway/Cargo.toml
+          git diff --binary > evidence/format.patch
+          python - <<'PY'
+          import json,subprocess,pathlib
+          paths=json.load(open('evidence/paths.json',encoding='utf-8'))
+          changed=subprocess.check_output(['git','diff','--name-only'],text=True).splitlines()
+          assert set(changed)<=set(paths),changed
+          subprocess.run(['git','add','--']+paths,check=True)
+          tree=subprocess.check_output(['git','write-tree'],text=True).strip()
+          pathlib.Path('evidence/source-tree.txt').write_text(tree+'\n')
+          pathlib.Path('evidence/source-base.txt').write_text('2c5d133eaa75d7fc084b8122350d7768ce5b2382\n')
+          pathlib.Path('evidence/source.patch').write_bytes(subprocess.check_output(['git','diff','--cached','--binary','--full-index']))
+          subprocess.run(['git','archive','--format=tar.gz','--output=evidence/source.tar.gz',tree],check=True)
+          PY
+          rustc --version > evidence/toolchain.txt
+      - name: Strict native compilation and opaque-claim contracts
+        run: |
+          set -euo pipefail
+          cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib 2>&1 | tee evidence/portable.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --doc 2>&1 | tee evidence/opaque-claims.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test dispatch_claim_postgres --no-run
+      - name: Real PostgreSQL, failure-first deadline and complete cloud regressions
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16
+          export PATH="/usr/lib/postgresql/16/bin:$PATH"
+          cluster="$(mktemp -d "$RUNNER_TEMP/ctm-claims.XXXXXX")"
+          port="$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')"
+          initdb -D "$cluster/data" -A trust -U admission_test --encoding=UTF8 --no-locale >/dev/null
+          pg_ctl -D "$cluster/data" -l "$cluster/postgres.log" -o "-h 127.0.0.1 -p $port -k $cluster" -w start >/dev/null
+          trap 'pg_ctl -D "$cluster/data" -m fast -w stop >/dev/null' EXIT
+          createdb -h 127.0.0.1 -p "$port" -U admission_test coding_tools_identity_test
+          export TEST_DATABASE_URL="postgresql://admission_test@127.0.0.1:$port/coding_tools_identity_test"
+          python - <<'PY'
+          import pathlib,subprocess,re
+          path=pathlib.Path('services/cloud-gateway/src/admission/store.rs'); original=path.read_bytes()
+          text=original.decode(); start=text.index('    async fn current_fence('); end=text.index('    async fn recheck_locked(',start)
+          part=text[start:end]
+          needle='        let at = now(tx).await?.max(at);\n        if request.deadline <= at {\n            return Ok(Err(AdmissionDeny::Deadline));\n        }\n'
+          assert part.count(needle)==1
+          try:
+              path.write_text(text[:start]+part.replace(needle,'')+text[end:],encoding='utf-8')
+              result=subprocess.run(['cargo','test','--locked','--manifest-path','services/cloud-gateway/Cargo.toml','--test','dispatch_claim_postgres','admission_deadline_is_rechecked_after_channel_lock_wait','--','--exact','--nocapture'],capture_output=True,text=True,timeout=180)
+              log=result.stdout+result.stderr
+              pathlib.Path('evidence/deadline-before-fix.txt').write_text(log,encoding='utf-8')
+              assert result.returncode==101 and '0 passed; 1 failed; 0 ignored' in log and 'assertion `left == right` failed' in log,log[-3000:]
+          finally:
+              path.write_bytes(original)
+          assert path.read_bytes()==original
+          PY
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test dispatch_claim_postgres 2>&1 | tee evidence/dispatch-claims.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml 2>&1 | tee evidence/full-cloud.txt
+          cargo rustc --locked --manifest-path services/cloud-gateway/Cargo.toml --lib -- -D warnings 2>&1 | tee evidence/strict-production.txt
+          git diff --exit-code --
+      - name: Full-plan metadata and exact path contracts
+        run: |
+          set -euo pipefail
+          node --test tests/delivery/*.test.mjs 2>&1 | tee evidence/delivery-js.txt
+          python -m unittest discover -s tests/delivery 2>&1 | tee evidence/delivery-python.txt
+          node --test tests/cloud-gateway/scope-guard.test.mjs 2>&1 | tee evidence/scope.txt
+          git diff --exit-code --
+      - name: Evidence hashes without altering job result
+        if: always()
+        run: |
+          python - <<'PY'
+          import hashlib,json,pathlib,os
+          root=pathlib.Path('evidence');root.mkdir(exist_ok=True)
+          result={'run_id':os.environ['GITHUB_RUN_ID'],'os':os.environ['RUNNER_OS'],'files':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in root.iterdir() if p.is_file()}}
+          (root/'hashes.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-claims-${{ matrix.os }}
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error
+  source-agreement:
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: issue81-claims-*
+          path: native-evidence
+      - name: Compare exact native trees and import only unreferenced source blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64,hashlib,json,pathlib,tarfile,urllib.request,os
+          u=pathlib.Path('native-evidence/issue81-claims-ubuntu-24.04');w=pathlib.Path('native-evidence/issue81-claims-windows-2025')
+          assert (u/'source-tree.txt').read_text().strip()==(w/'source-tree.txt').read_text().strip()
+          paths=json.loads((u/'paths.json').read_text());assert paths==json.loads((w/'paths.json').read_text())
+          out={}
+          with tarfile.open(u/'source.tar.gz','r:gz') as tar:
+              for path in paths:
+                  member=tar.getmember(path);assert member.isfile() and member.size<2_000_000
+                  data=tar.extractfile(member).read()
+                  expected=hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
+                  req=urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/git/blobs',method='POST',data=json.dumps({'content':base64.b64encode(data).decode(),'encoding':'base64'}).encode(),headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json'})
+                  with urllib.request.urlopen(req,timeout=30) as r: result=json.load(r)
+                  assert result['sha']==expected
+                  out[path]=expected
+          report={'base':'2c5d133eaa75d7fc084b8122350d7768ce5b2382','tree':(u/'source-tree.txt').read_text().strip(),'blobs':out,'no_ref_updated':True}
+          pathlib.Path('source-agreement.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
+          print(json.dumps(report))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-claims-source-agreement
+          path: source-agreement.json
+          retention-days: 30
+          if-no-files-found: error
