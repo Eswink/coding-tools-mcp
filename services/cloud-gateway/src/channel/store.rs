@@ -45,6 +45,7 @@ pub struct ChannelController {
     // Serialize the session check + existing projection API without holding SQL locks
     // across a nested transaction. Never hold this guard over a socket send/receive.
     serial: Arc<Mutex<()>>,
+    pub(crate) execution: crate::execution::Broker,
 }
 impl ChannelController {
     /// Once per lifecycle, never per upgrade. Device binding is a separate trusted
@@ -64,12 +65,15 @@ impl ChannelController {
         }
         sqlx::query("INSERT INTO ctm_agent_channel(connector,gateway_boot) VALUES($1,$2) ON CONFLICT(connector) DO UPDATE SET gateway_boot=$2,session=NULL,connected=false,last_seq=0,lease_until=0,absolute_until=0")
             .bind(identity.identity.connector()).bind(boot).execute(&mut *tx).await?;
+        sqlx::query("UPDATE ctm_request_ledger SET state='outcome_unknown' WHERE connector=$1 AND state IN ('admitted','running') AND gateway_boot IS DISTINCT FROM $2")
+            .bind(identity.identity.connector()).bind(boot).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(Self {
             identity,
             projection,
             boot,
             serial: Arc::new(Mutex::new(())),
+            execution: crate::execution::Broker::default(),
         })
     }
     /// Lifecycle-only fence, after upgraded sockets have drained. Never affects a newer boot.
@@ -91,6 +95,9 @@ impl ChannelController {
         self.fence_projection(&mut tx).await?;
         tx.commit().await?;
         Ok(())
+    }
+    pub(crate) fn identity_store(&self) -> IdentityStore {
+        self.identity.clone()
     }
     pub fn identity(&self) -> &crate::PublicIdentity {
         self.identity.identity()
@@ -210,6 +217,17 @@ impl ChannelController {
             .await?;
         tx.commit().await?;
         match message {
+            ControlMessage::ExecutionReady { version, .. } => {
+                if version != crate::execution::EXECUTION_VERSION {
+                    return Err(IdentityError::InvalidProof);
+                }
+                Ok(
+                    json!({"type":"execution_ready_ack","seq":seq,"peer":session.execution_binding(self.identity().connector())}),
+                )
+            }
+            ControlMessage::ExecutionReply { .. } => {
+                Ok(json!({"type":"execution_reply_ack","seq":seq}))
+            }
             ControlMessage::Heartbeat { .. } => Ok(json!({"type":"heartbeat_ack","seq":seq})),
             ControlMessage::ProjectionChallenge { .. } => {
                 let c = self.projection.challenge(session.device).await?;
@@ -370,4 +388,17 @@ async fn bounded_tx(store: &IdentityStore) -> Result<Transaction<'_, Postgres>> 
         .execute(&mut *tx)
         .await?;
     Ok(tx)
+}
+
+impl ChannelSession {
+    pub(crate) fn execution_binding(&self, connector: Uuid) -> crate::execution::PeerBinding {
+        crate::execution::PeerBinding {
+            connector,
+            device: self.device,
+            device_epoch: self.epoch,
+            gateway_boot: self.boot,
+            channel_session: self.session,
+            channel_generation: self.generation,
+        }
+    }
 }
