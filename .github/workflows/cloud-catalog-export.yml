@@ -1,0 +1,61 @@
+name: Exact desktop catalog export
+on:
+  push:
+    branches: ['ci/cloud-plan-recovery-20260928']
+    paths: ['.github/workflows/cloud-catalog-export.yml']
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 2c5d133eaa75d7fc084b8122350d7768ce5b2382
+          persist-credentials: false
+      - name: Desktop build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Export actual registry schemas through a temporary test only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src-tauri/src/lib.rs')
+          Path('evidence/original-lib.rs').write_bytes(p.read_bytes())
+          with p.open('a') as f:
+              f.write('''
+          #[cfg(test)]
+          #[test]
+          fn export_cloud_catalog_metadata_only() {
+              let mut tools=crate::tools::registry::list_tools_for_profile("advanced");
+              tools.retain(|v|v["name"]!="request_permissions");
+              tools.extend(crate::tools::chat_domain::auth_tools());
+              std::fs::write("../evidence/desktop-catalog.json", serde_json::to_vec_pretty(&tools).unwrap()).unwrap();
+          }
+          ''')
+          PY
+          trap 'cp evidence/original-lib.rs src-tauri/src/lib.rs' EXIT
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib export_cloud_catalog_metadata_only -- --exact 2>&1 | tee evidence/export-test.txt
+          test -s evidence/desktop-catalog.json
+          cp evidence/original-lib.rs src-tauri/src/lib.rs
+          git diff --exit-code HEAD --
+          git rev-parse HEAD > evidence/source-sha.txt
+          sha256sum evidence/desktop-catalog.json > evidence/catalog.sha256
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: cloud-desktop-catalog-export
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
