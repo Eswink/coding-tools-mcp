@@ -81,6 +81,24 @@ jobs:
           cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts 2>&1 | tee evidence/portable.txt
           cargo rustc --locked --manifest-path services/cloud-gateway/Cargo.toml --lib -- -D warnings 2>&1 | tee evidence/production.txt
+          python - <<'PY' > evidence/temp-path-diagnostic.json
+          import json,os,pathlib,tempfile
+          with tempfile.TemporaryDirectory() as p:
+              ambient=pathlib.Path(p)
+              before=ambient==ambient.resolve()
+          canonical=pathlib.Path(os.environ['RUNNER_TEMP']).resolve(strict=True)
+          print(json.dumps({'ambient_temp_is_canonical':before,'runner_temp_is_canonical':canonical==canonical.resolve()}))
+          with open(os.environ['GITHUB_ENV'],'a',encoding='utf-8') as out:
+              for key in ('TMPDIR','TEMP','TMP'): out.write(f'{key}={canonical}\n')
+          PY
+      - name: Unchanged delivery and protocol tests in isolated canonical temp
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import pathlib,tempfile
+          with tempfile.TemporaryDirectory() as p:
+              assert pathlib.Path(p)==pathlib.Path(p).resolve(), 'fixture root must be canonical; source verifier is unchanged'
+          PY
           python -m unittest discover -s tests/delivery -p 'test_*.py' 2>&1 | tee evidence/delivery-python.txt
           node --test tests/delivery/*.test.mjs 2>&1 | tee evidence/delivery-js.txt
           node --test tests/cloud-gateway/*.test.mjs 2>&1 | tee evidence/cloud-js.txt
