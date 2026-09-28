@@ -1,0 +1,149 @@
+name: Issue81 source workflow repair and full-plan checkpoint
+on:
+  push:
+    branches: ['ci/issue81-resume-full-plan']
+    paths: ['.github/workflows/issue81-source-ci-plan.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  ci-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 8dbab5c2883c1b9d0169aeee3c11e75db0becd58
+          persist-credentials: false
+      - name: Validate and repair job-context availability without changing tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          python - <<'PY'
+          import base64,json,os,pathlib,subprocess,urllib.request
+          binary=pathlib.Path.home()/'go/bin/actionlint'
+          path=pathlib.Path('.github/workflows/cloud-execution-bridge.yml')
+          before=subprocess.run([str(binary),'-shellcheck=','-pyflakes=',str(path)],capture_output=True,text=True)
+          pathlib.Path('evidence/before.txt').write_text(before.stdout+before.stderr)
+          print('BEFORE_ACTIONLINT\n'+before.stdout+before.stderr)
+          source=path.read_text()
+          old='    env:\n      TEST_DATABASE_URL: postgresql://mcp_test:disposable-ci-fixture@127.0.0.1:${{ job.services.postgres.ports[5432] }}/coding_tools_identity_test\n'
+          assert source.count(old)==1
+          source=source.replace(old,'')
+          needle='      - name: Real PostgreSQL and authenticated transport regressions\n        id: native\n'
+          assert source.count(needle)==1
+          source=source.replace(needle,needle+'        env:\n          TEST_DATABASE_URL: postgresql://mcp_test:disposable-ci-fixture@127.0.0.1:${{ job.services.postgres.ports[5432] }}/coding_tools_identity_test\n')
+          path.write_text(source)
+          after=subprocess.run([str(binary),'-shellcheck=','-pyflakes=',str(path)],capture_output=True,text=True)
+          pathlib.Path('evidence/after.txt').write_text(after.stdout+after.stderr)
+          print('AFTER_ACTIONLINT\n'+after.stdout+after.stderr)
+          assert after.returncode==0
+          data=path.read_bytes()
+          request=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/git/blobs",data=json.dumps({'content':base64.b64encode(data).decode(),'encoding':'base64'}).encode(),method='POST',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Content-Type':'application/json','Accept':'application/vnd.github+json'})
+          with urllib.request.urlopen(request,timeout=30) as response:blob=json.load(response)
+          pathlib.Path('evidence/source.yml').write_bytes(data)
+          print('VERIFIED_WORKFLOW_BLOB='+blob['sha'])
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-source-ci-validation
+          path: evidence/
+          retention-days: 30
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: a8d84b61da2d241af39910b6a7c7148c40538f8f
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-clean-review-plan
+          run-id: 36441124984
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/prior
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-pinned-review-tools
+          run-id: 36434991238
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/tools
+      - name: Recheck existing specification and recover actual recorded implementation state
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/tools"
+          sha256sum -c SHA256SUMS.txt
+          mkdir -p "$RUNNER_TEMP/review-bin"
+          tar -xJf pinned-review-tools.tar.xz -C "$RUNNER_TEMP/review-bin"
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p "$RUNNER_TEMP/plan-output"
+          probe="$RUNNER_TEMP/review-bin/node_modules/.bin/mcp-probe-kit"
+          "$probe" exec check_spec --stdin <<EOF > "$RUNNER_TEMP/plan-output/check-spec.json"
+          {"feature_name":"cloud-execution-bridge","project_root":"$GITHUB_WORKSPACE","docs_dir":"docs"}
+          EOF
+          node --input-type=module <<'JS'
+          import fs from 'node:fs/promises';
+          import path from 'node:path';
+          import {pathToFileURL} from 'node:url';
+          const toolRoot=path.join(process.env.RUNNER_TEMP,'review-bin/node_modules/mcp-probe-kit');
+          const prior=path.join(process.env.RUNNER_TEMP,'prior');const out=path.join(process.env.RUNNER_TEMP,'plan-output');
+          const plan=JSON.parse(await fs.readFile(path.join(prior,'retained-plan.json'),'utf8'));
+          const planId=plan.planId??plan.id;
+          if(!planId)throw new Error('missing retained plan ID');
+          const files=[];
+          async function walk(dir){for(const e of await fs.readdir(dir,{withFileTypes:true})){const p=path.join(dir,e.name);if(e.isDirectory()){if(e.name!=='node_modules')await walk(p);}else if(p.endsWith('.js'))files.push(p);}}
+          await walk(toolRoot);
+          let backend;
+          for(const p of files){const s=await fs.readFile(p,'utf8');if(s.includes('export async function recordPlanHeartbeat(')){backend=await import(pathToFileURL(p).href);console.log('CHECKPOINT_BACKEND='+path.relative(toolRoot,p));break;}}
+          if(!backend)throw new Error('pinned native heartbeat export not found');
+          const completed=[];
+          // Actual context/spec/estimate receipts came from the verified clean-source review.
+          for(const filename of ['check-spec.json','estimate.json','detect-changes.txt']){
+            const bytes=await fs.readFile(path.join(prior,filename));if(bytes.length===0)throw new Error('empty prior evidence');
+          }
+          for(const step of ['context','write-spec','check-spec','estimate']){
+            completed.push(step);
+            const result=await backend.recordPlanHeartbeat({projectRoot:process.env.GITHUB_WORKSPACE,planId,plan,
+              completedStepIds:[...completed],currentStepId:completed.length===4?'implement':undefined,status:'active'});
+            await fs.writeFile(path.join(out,`heartbeat-${step}.json`),JSON.stringify(result,null,2));
+            if(!result.success)throw new Error('heartbeat refused');
+            console.log('CHECKPOINT_STEP='+JSON.stringify({step,status:result.metadata?.status,completed:result.metadata?.completedStepIds}));
+          }
+          JS
+          "$probe" exec resume_plan --stdin <<EOF > "$RUNNER_TEMP/plan-output/resume-plan.json"
+          {"project_root":"$GITHUB_WORKSPACE","plan_id":"feature-cloud-execution-bridge-steady-9c2e7dee8a"}
+          EOF
+          python - <<'PY'
+          import json,os,pathlib,shutil
+          root=pathlib.Path(os.environ['GITHUB_WORKSPACE']);out=pathlib.Path(os.environ['RUNNER_TEMP'])/'plan-output'
+          checkpoint=root/'docs/specs/cloud-execution-bridge/.mcp-plan.json'
+          assert checkpoint.is_file()
+          shutil.copyfile(checkpoint,out/'persisted-plan.json')
+          data=json.loads(checkpoint.read_text())
+          def find(obj,key):
+              if isinstance(obj,dict):
+                  if key in obj:yield obj[key]
+                  for value in obj.values():yield from find(value,key)
+              elif isinstance(obj,list):
+                  for value in obj:yield from find(value,key)
+          completed=list(find(data,'completedStepIds'))
+          assert any(set(x)=={'context','write-spec','check-spec','estimate'} for x in completed if isinstance(x,list)),completed
+          print('VERIFIED_CHECKPOINT='+json.dumps(data,ensure_ascii=False)[:16000])
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-actual-implementation-checkpoint
+          path: ${{ runner.temp }}/plan-output/
+          include-hidden-files: true
+          retention-days: 30
