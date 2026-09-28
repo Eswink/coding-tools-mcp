@@ -5,6 +5,7 @@ on:
     paths: ['.github/workflows/issue81-claims-native.yml']
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: issue81-claims-native
   cancel-in-progress: true
@@ -21,6 +22,7 @@ jobs:
         shell: bash
     env:
       CARGO_TERM_COLOR: never
+      RUST_BACKTRACE: '0'
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -28,6 +30,12 @@ jobs:
           ref: 2c5d133eaa75d7fc084b8122350d7768ce5b2382
           persist-credentials: false
           fetch-depth: 0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue81-claims-ubuntu-24.04
+          run-id: 36420256472
+          github-token: ${{ github.token }}
+          path: input-evidence
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: '1.98.1'
@@ -36,43 +44,23 @@ jobs:
         with:
           workspaces: services/cloud-gateway
           shared-key: issue81-claims
-      - name: Reconstruct hash-verified exact allowlisted candidate
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Reconstruct exact canonical input and apply reviewed test corrections
         run: |
           set -euo pipefail
           mkdir -p evidence
           python - <<'PY'
-          import base64,gzip,hashlib,json,pathlib,subprocess
-          parts=['d5aac10ff6ab4ef93c1034e4e779e65dbd5f7433','a2446ce61c0e61732020020193db666ab127c9e3','3ea751b9169f61c9830f2036446bcd5a2bb243a0','8b42392852e56820c47284c5425fa4dc7468f70f']
-          text=''
-          for sha in parts:
-              value=json.loads(subprocess.check_output(['gh','api',f'repos/Eswink/coding-tools-mcp/git/blobs/{sha}'],text=True))
-              text+=base64.b64decode(value['content']).decode('ascii')
-          raw=base64.b64decode(text,validate=True)
-          assert hashlib.sha256(raw).hexdigest()=='c9df72c88b8644caf0e9f23ecd7a6fd7bb493a903288a071d261c1a91e87d1d7'
-          patch=gzip.decompress(raw)
-          assert len(patch)==57625
-          subprocess.run(['git','apply','--check','-'],input=patch,check=True)
-          subprocess.run(['git','apply','--index','-'],input=patch,check=True)
-          tree=subprocess.check_output(['git','write-tree'],text=True).strip()
-          assert tree=='0bfb6bbc4686f8a952fe6c8d502f62edc8edfc89'
+          import json,pathlib,subprocess
+          source=pathlib.Path('input-evidence/source.patch').read_bytes()
+          subprocess.run(['git','apply','--check','-'],input=source,check=True)
+          subprocess.run(['git','apply','--index','-'],input=source,check=True)
+          assert subprocess.check_output(['git','write-tree'],text=True).strip()=='682ce0a03e241b7f5f24d833264a966e2812ce31'
           paths=subprocess.check_output(['git','diff','--cached','--name-only'],text=True).splitlines()
-          assert len(paths)==14 and all('..' not in p.split('/') for p in paths)
-          pathlib.Path('evidence/input.patch').write_bytes(patch)
+          assert len(paths)==14
           pathlib.Path('evidence/paths.json').write_text(json.dumps(paths),encoding='utf-8')
-          pathlib.Path('evidence/input-tree.txt').write_text(tree+'\n')
-          PY
-      - name: Apply the exact reviewed test-only corrections
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('services/cloud-gateway/tests/dispatch_claim_postgres.rs');s=p.read_text()
-          old='.map(Result::unwrap).flatten()'
-          assert s.count(old)==1
+          p=pathlib.Path('services/cloud-gateway/tests/dispatch_claim_postgres.rs');s=p.read_text()
+          old='.map(Result::unwrap).flatten()';assert s.count(old)==1
           s=s.replace(old,'.filter_map(Result::unwrap)')
-          anchor='async fn wait_deadline(h: &Harness, d: i64) {'
-          assert s.count(anchor)==1
+          anchor='async fn wait_deadline(h: &Harness, d: i64) {';assert s.count(anchor)==1
           helper='// Preserve a sub-two-second SQL lock wait while ensuring setup does not consume\n// an almost-expired whole-second deadline. This is fixture timing, not a clock\n// override or a relaxation of the post-lock production deadline check.\nasync fn lock_test_deadline(h: &Harness) -> i64 {\n    sqlx::query_scalar("SELECT ceil(extract(epoch FROM clock_timestamp()) + 0.5)::bigint")\n        .fetch_one(&h.f.pool)\n        .await\n        .unwrap()\n}\n'
           s=s.replace(anchor,helper+anchor)
           assert s.count('Duration::from_millis(1500)')==1
@@ -81,18 +69,15 @@ jobs:
           s=s.replace('let d = clock(&h.f).await + 1;','let d = lock_test_deadline(&h).await;')
           p.write_text(s,encoding='utf-8',newline='\n')
           PY
-      - name: Canonicalize source with the pinned native toolchain
-        run: |
-          set -euo pipefail
           cargo fmt --manifest-path services/cloud-gateway/Cargo.toml
-          git diff --binary > evidence/format-and-fixture.patch
           python - <<'PY'
           import json,subprocess,pathlib
           paths=json.load(open('evidence/paths.json',encoding='utf-8'))
           changed=subprocess.check_output(['git','diff','--name-only'],text=True).splitlines()
-          assert set(changed)<=set(paths),changed
+          assert changed==['services/cloud-gateway/tests/dispatch_claim_postgres.rs'],changed
           subprocess.run(['git','add','--']+paths,check=True)
           tree=subprocess.check_output(['git','write-tree'],text=True).strip()
+          assert tree=='21a85396ce986b68595e2d7e90d1b620e4101079',tree
           pathlib.Path('evidence/source-tree.txt').write_text(tree+'\n')
           pathlib.Path('evidence/source-base.txt').write_text('2c5d133eaa75d7fc084b8122350d7768ce5b2382\n')
           pathlib.Path('evidence/source.patch').write_bytes(subprocess.check_output(['git','diff','--cached','--binary','--full-index']))
@@ -102,6 +87,7 @@ jobs:
       - name: Strict native compilation and opaque-claim contracts
         run: |
           set -euo pipefail
+          cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
           cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib 2>&1 | tee evidence/portable.txt
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --doc 2>&1 | tee evidence/opaque-claims.txt
@@ -170,8 +156,9 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+      actions: read
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           pattern: issue81-claims-*
           path: native-evidence
@@ -183,7 +170,8 @@ jobs:
           python - <<'PY'
           import base64,hashlib,json,pathlib,tarfile,urllib.request,os
           u=pathlib.Path('native-evidence/issue81-claims-ubuntu-24.04');w=pathlib.Path('native-evidence/issue81-claims-windows-2025')
-          assert (u/'source-tree.txt').read_text().strip()==(w/'source-tree.txt').read_text().strip()
+          tree=(u/'source-tree.txt').read_text().strip()
+          assert tree=='21a85396ce986b68595e2d7e90d1b620e4101079' and tree==(w/'source-tree.txt').read_text().strip()
           paths=json.loads((u/'paths.json').read_text());assert paths==json.loads((w/'paths.json').read_text())
           out={}
           with tarfile.open(u/'source.tar.gz','r:gz') as tar:
@@ -195,7 +183,7 @@ jobs:
                   with urllib.request.urlopen(req,timeout=30) as r: result=json.load(r)
                   assert result['sha']==expected
                   out[path]=expected
-          report={'base':'2c5d133eaa75d7fc084b8122350d7768ce5b2382','tree':(u/'source-tree.txt').read_text().strip(),'blobs':out,'no_ref_updated':True}
+          report={'base':'2c5d133eaa75d7fc084b8122350d7768ce5b2382','tree':tree,'blobs':out,'no_ref_updated':True}
           pathlib.Path('source-agreement.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
           print(json.dumps(report))
           PY
