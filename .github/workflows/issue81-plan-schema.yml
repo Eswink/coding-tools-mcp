@@ -1,0 +1,37 @@
+name: Issue81 inspect pinned checkpoint schema
+on:
+  push:
+    branches: ['ci/issue81-resume-full-plan']
+    paths: ['.github/workflows/issue81-plan-schema.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-pinned-review-tools
+          run-id: 36434991238
+          github-token: ${{ github.token }}
+          path: tools
+      - name: Read exact heartbeat input contract, not guessed completion keys
+        run: |
+          set -euo pipefail
+          cd tools
+          sha256sum -c SHA256SUMS.txt
+          tar -xJf pinned-review-tools.tar.xz
+          python - <<'PY'
+          import pathlib
+          root=pathlib.Path('node_modules/mcp-probe-kit')
+          matches=[]
+          for p in root.rglob('*.js'):
+              text=p.read_text()
+              if 'plan_heartbeat' in text and ('inputSchema' in text or 'step_id' in text or 'completedStepIds' in text):
+                  matches.append((p,text))
+          for p,text in matches[:8]:
+              print('\nSCHEMA_FILE '+str(p)+'\n'+text[:20000])
+          assert matches,'no heartbeat contract found'
+          PY
