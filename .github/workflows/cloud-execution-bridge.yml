@@ -2,7 +2,7 @@ name: Cloud execution bridge native gates
 
 on:
   push:
-    branches: ['feat/cloud-gateway-agent-runtime', 'feat/issue-81-cloud-execution-bridge']
+    branches: ['feat/cloud-gateway-agent-runtime', 'feat/issue-81-cloud-execution-bridge', 'feat/issue81-cloud-routing']
     paths:
       - 'services/cloud-gateway/**'
       - 'tools/delivery/**'
@@ -10,7 +10,7 @@ on:
       - 'docs/specs/cloud-execution-bridge/**'
       - '.github/workflows/cloud-execution-bridge.yml'
   pull_request:
-    branches: [main]
+    branches: [main, feat/cloud-gateway-agent-runtime]
     paths:
       - 'services/cloud-gateway/**'
       - 'tools/delivery/**'
@@ -29,6 +29,7 @@ env:
   CARGO_TERM_COLOR: never
   RUST_BACKTRACE: '1'
   PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
 
 jobs:
   portable:
@@ -59,6 +60,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: services/cloud-gateway
+      - name: Use a canonical disposable fixture directory without changing the source verifier
+        run: |
+          python - <<'PY'
+          import os,pathlib
+          root=pathlib.Path(os.environ['RUNNER_TEMP']).resolve(strict=True)
+          with open(os.environ['GITHUB_ENV'],'a',encoding='utf-8') as out:
+              for key in ('TMPDIR','TEMP','TMP'):out.write(f'{key}={root}\n')
+          PY
       - name: Portable source, binding and full-plan contracts
         id: native
         run: |
@@ -71,7 +80,7 @@ jobs:
           cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib execution::tests 2>&1 | tee evidence/execution-unit.txt
           grep -F '13 passed; 0 failed; 0 ignored' evidence/execution-unit.txt
-          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_cli 2>&1 | tee evidence/portable.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts 2>&1 | tee evidence/portable.txt
           cargo rustc --locked --manifest-path services/cloud-gateway/Cargo.toml --lib -- -D warnings
           python -m unittest discover -s tests/delivery 2>&1 | tee evidence/delivery-python.txt
           node --test tests/delivery/*.test.mjs 2>&1 | tee evidence/delivery-js.txt
