@@ -1,0 +1,141 @@
+name: Publish verified desktop v0.6.1-rc.1 draft
+
+on:
+  push:
+    branches: ['ci/publish-desktop-v061rc1-draft']
+    paths: ['.github/workflows/publish-desktop-v061rc1-draft.yml']
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: publish-desktop-v061rc1-draft
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/ci/publish-desktop-v061rc1-draft'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: Eswink/coding-tools-mcp
+      RELEASE_ID: '397952294'
+      SOURCE_RUN_ID: '36376901870'
+      SOURCE_SHA: cd931f16cd154514eb73d51de5ceb1135737fca5
+      TAG: v0.6.1-rc.1
+    steps:
+      - name: Verify exact failed-only-at-publication run and draft assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, subprocess
+          repo=os.environ['GH_REPO']; run=os.environ['SOURCE_RUN_ID']
+          release_id=os.environ['RELEASE_ID']; sha=os.environ['SOURCE_SHA']; tag=os.environ['TAG']
+          def api(path):
+              return json.loads(subprocess.check_output(['gh','api',path],text=True))
+          source=api(f'repos/{repo}/actions/runs/{run}')
+          assert source['head_sha']==sha and source['status']=='completed' and source['conclusion']=='failure'
+          jobs=api(f'repos/{repo}/actions/runs/{run}/jobs?per_page=100')['jobs']
+          required={
+            'Version, packaging and dependency contracts',
+            'Exact-source sandbox and desktop regression / native (windows-2025)',
+            'Exact-source sandbox and desktop regression / native (ubuntu-24.04)',
+            'Exact-source sandbox and desktop regression / source',
+            'Security audit',
+            'Build exact Ubuntu DEB and AppImage',
+            'Build and install exact Windows NSIS',
+            'Installed Ubuntu (appimage)',
+            'Installed Ubuntu (deb)',
+            'Assemble exact-source prerelease bundle',
+          }
+          by_name={j['name']:j for j in jobs}
+          missing=required-set(by_name)
+          assert not missing, missing
+          failed={name:by_name[name]['conclusion'] for name in required if by_name[name]['conclusion']!='success'}
+          assert not failed, failed
+          publish=[j for j in jobs if j['name']=='Publish GitHub prerelease after asset digest verification']
+          assert len(publish)==1 and publish[0]['conclusion']=='failure'
+          release=api(f'repos/{repo}/releases/{release_id}')
+          assert release['draft'] is True and release['prerelease'] is True
+          assert release['tag_name']==tag and release['target_commitish']==sha
+          expected={
+            'BUILDINFO.json':(2223,'sha256:0039363ea8198d9be9722316d44c7a1862732947db8d49873799e68e351c1500'),
+            'LOCAL-TEST.zh-CN.md':(4465,'sha256:e17b3e66bc80ae1a090dc941eabd9c935efad659ddab3e96ef715c8ed39db124'),
+            'MCP_0.6.1-rc.1_amd64.AppImage':(85359096,'sha256:11c00446bc3884c81d89d09894a6fa0c835d01c81937066d315ada0a3b0e1469'),
+            'MCP_0.6.1-rc.1_amd64.deb':(7438596,'sha256:8e442b2af85118c4cd22436016a17d1ab818c40cf319447fa2874f5a736c91d2'),
+            'MCP_0.6.1-rc.1_x64-setup.exe':(5766574,'sha256:4bc9c80a46fd85104ffc7ec3add4f4d5c84593ed396507100b9ec891bcbc2e48'),
+            'scope.json':(937,'sha256:1811e0578ef530879ba1833ebecb0a2b824541f618ff3d34ef51f99008e53ab3'),
+            'SHA256SUMS.txt':(616,'sha256:27c15cdfc088a18ea9a10b71dea2ad737626a0881127b1e56a074dea062009ee'),
+            'VALIDATION-EVIDENCE.zip':(8054270,'sha256:18bd8364b7ee12bf7b4d56a8075b9058a5bed93acda5285da73abfee82cceee4'),
+          }
+          actual={a['name']:(a['size'],a.get('digest')) for a in release['assets']}
+          assert actual==expected,(actual,expected)
+          refs=subprocess.run(['gh','api',f'repos/{repo}/git/ref/tags/{tag}'],text=True,capture_output=True)
+          assert refs.returncode!=0, 'public tag already exists before draft publication'
+          rows=api(f'repos/{repo}/releases?per_page=100')
+          matches=[r for r in rows if r.get('tag_name')==tag]
+          assert len(matches)==1 and matches[0]['id']==int(release_id) and matches[0]['draft'] is True
+          with open('verified-draft.json','w',encoding='utf-8') as f:
+              json.dump({'source_sha':sha,'source_run_id':run,'release_id':int(release_id),
+                         'required_jobs':sorted(required),'assets':expected},f,indent=2)
+          PY
+
+      - name: Publish exact verified draft as non-latest prerelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' '{"draft":false,"prerelease":true,"make_latest":"false"}' |
+            gh api --method PATCH "repos/$GH_REPO/releases/$RELEASE_ID" --input - > published-release.json
+
+      - name: Verify public tag, unchanged assets and anonymous downloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, os, pathlib, subprocess, urllib.request
+          repo=os.environ['GH_REPO']; release_id=os.environ['RELEASE_ID']
+          sha=os.environ['SOURCE_SHA']; tag=os.environ['TAG']
+          verified=json.load(open('verified-draft.json',encoding='utf-8'))
+          release=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/releases/{release_id}'],text=True))
+          assert release['draft'] is False and release['prerelease'] is True
+          assert release['tag_name']==tag and release['target_commitish']==sha
+          ref=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/git/ref/tags/{tag}'],text=True))
+          assert ref['object']['type']=='commit' and ref['object']['sha']==sha
+          expected={name:tuple(value) for name,value in verified['assets'].items()}
+          actual={a['name']:(a['size'],a.get('digest')) for a in release['assets']}
+          assert actual==expected,(actual,expected)
+          downloads=[]
+          for name,(size,digest) in sorted(expected.items()):
+              url=f'https://github.com/{repo}/releases/download/{tag}/{name}'
+              h=hashlib.sha256(); count=0
+              req=urllib.request.Request(url,headers={'User-Agent':'desktop-prerelease-public-check'})
+              with urllib.request.urlopen(req,timeout=180) as response:
+                  while True:
+                      chunk=response.read(1024*1024)
+                      if not chunk: break
+                      count+=len(chunk)
+                      assert count<=size
+                      h.update(chunk)
+              actual_digest='sha256:'+h.hexdigest()
+              assert count==size and actual_digest==digest,(name,count,size,actual_digest,digest)
+              downloads.append({'name':name,'bytes':count,'digest':actual_digest,'anonymous_download_verified':True})
+          receipt={'passed':True,'tag':tag,'source_sha':sha,'source_run_id':verified['source_run_id'],
+                   'release_id':int(release_id),'prerelease':True,'draft':False,
+                   'url':release['html_url'],'assets':downloads}
+          pathlib.Path('prerelease-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(receipt))
+          PY
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: desktop-v0.6.1-rc.1-publication-receipt
+          path: |
+            verified-draft.json
+            published-release.json
+            prerelease-receipt.json
+          retention-days: 90
+          if-no-files-found: warn
