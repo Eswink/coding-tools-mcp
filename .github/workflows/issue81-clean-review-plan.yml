@@ -1,0 +1,111 @@
+name: Issue81 clean source review and persisted plan
+on:
+  push:
+    branches: ['ci/issue81-resume-full-plan']
+    paths: ['.github/workflows/issue81-clean-review-plan.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-verified-cloud-source-import
+          run-id: 36439990289
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/prior
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-pinned-review-tools
+          run-id: 36434991238
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/tools
+      - name: Restore tested candidate without placing evidence source copies in the indexer tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/tools"
+          sha256sum -c SHA256SUMS.txt
+          mkdir -p "$RUNNER_TEMP/review-bin"
+          tar -xJf pinned-review-tools.tar.xz -C "$RUNNER_TEMP/review-bin"
+          cd "$GITHUB_WORKSPACE"
+          git checkout --detach 2c5d133eaa75d7fc084b8122350d7768ce5b2382
+          git apply --index "$RUNNER_TEMP/prior/input.patch"
+          test "$(git write-tree)" = c67f14926b670c16b224e041423b522a19b74823
+          mkdir -p "$RUNNER_TEMP/review-output"
+      - name: Persist existing requirements and actual plan progress
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,os,pathlib,subprocess
+          root=pathlib.Path(os.environ['GITHUB_WORKSPACE']);out=pathlib.Path(os.environ['RUNNER_TEMP'])/'review-output'
+          probe=str(pathlib.Path(os.environ['RUNNER_TEMP'])/'review-bin/node_modules/.bin/mcp-probe-kit')
+          def call(name,args,file):
+              r=subprocess.run([probe,'exec',name,'--stdin'],input=json.dumps(args),text=True,capture_output=True,timeout=180)
+              (out/file).write_text(r.stdout,encoding='utf-8')
+              assert r.returncode==0,(name,r.stderr)
+              data=json.loads(r.stdout)
+              assert data.get('ok') is True and not data.get('isError'),(name,data)
+              return data
+          original=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'prior/continuation-plan.json').read_text())
+          plan=original['structuredContent']['metadata']['plan']
+          plan['declaredScope']['specLayout']='parent-child'
+          # Retain the already-written 8-FR / 3-subspec contract; no template overwrite.
+          (out/'retained-plan.json').write_text(json.dumps(plan,ensure_ascii=False,indent=2),encoding='utf-8')
+          call('plan_heartbeat',{'plan_id':plan['planId'],'project_root':str(root),'plan':plan},'heartbeat-initial.json')
+          call('check_spec',{'feature_name':'cloud-execution-bridge','project_root':str(root),'docs_dir':'docs'},'check-spec.json')
+          call('estimate',{'task_description':'Complete actual native desktop approval and outbound Agent dispatch for Epic32 Issue81, preserving all existing 8 FR and 3 subspecs. The cloud request routing candidate has passed native tests; host integration and end-to-end tests remain unimplemented.','code_context':(root/'docs/specs/cloud-execution-bridge/design.md').read_text()+'\n'+(root/'docs/specs/cloud-execution-bridge/tasks.md').read_text()},'estimate.json')
+          call('plan_heartbeat',{'plan_id':plan['planId'],'project_root':str(root),'completed_step_ids':['context','write-spec','check-spec','estimate']},'heartbeat-implementation.json')
+          resumed=call('resume_plan',{'plan_id':plan['planId'],'project_root':str(root)},'resume-implementation.json')
+          print('PLAN_CHECKPOINT='+json.dumps(resumed,ensure_ascii=False)[:16000])
+          PY
+      - name: Rebuild uncontaminated graph and inspect exact changes and new integration boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          graph="$RUNNER_TEMP/review-bin/node_modules/.bin/gitnexus"
+          out="$RUNNER_TEMP/review-output"
+          "$graph" analyze --workers 1 > "$out/graph.txt" 2>&1
+          git checkout -- AGENTS.md CLAUDE.md
+          "$graph" detect-changes --scope staged > "$out/detect-changes.txt"
+          "$graph" impact business_call --direction upstream --file services/cloud-gateway/src/mcp/http.rs --depth 3 > "$out/impact-business-call.txt"
+          "$graph" impact transition --direction upstream --file services/cloud-gateway/src/projection/claims.rs --depth 3 > "$out/impact-transition.txt"
+          "$graph" impact validate_shape --direction upstream --file services/cloud-gateway/src/projection/claims.rs --depth 3 > "$out/impact-projection-shape.txt"
+          "$graph" impact identity --direction upstream --file 'src-tauri/src/auth/聊天授权v1.rs' --depth 3 > "$out/impact-native-identity.txt"
+          "$graph" impact verified --direction upstream --file 'src-tauri/src/auth/聊天授权v1.rs' --depth 3 > "$out/impact-native-verified.txt"
+          "$graph" impact from_workspace_with_harness_root --direction upstream --file src-tauri/src/tools/context.rs --depth 3 > "$out/impact-native-context.txt"
+          test "$(git write-tree)" = c67f14926b670c16b224e041423b522a19b74823
+          cat "$out/detect-changes.txt" "$out"/impact-*.txt
+      - name: Preserve actual checkpoint and hash receipts
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,json,os,pathlib,shutil,subprocess
+          root=pathlib.Path(os.environ['GITHUB_WORKSPACE']);out=pathlib.Path(os.environ['RUNNER_TEMP'])/'review-output';out.mkdir(exist_ok=True)
+          (out/'source-tree.txt').write_text(subprocess.check_output(['git','write-tree'],text=True))
+          for base in (root/'docs/.mcp-probe',root/'.mcp-probe-kit'):
+              if base.exists():
+                  for p in base.rglob('*.json'):
+                      if 'plan' in str(p.relative_to(base)).lower():
+                          dest=out/'checkpoint'/p.relative_to(root);dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(p,dest)
+          (out/'hashes.json').write_text(json.dumps({str(p.relative_to(out)):hashlib.sha256(p.read_bytes()).hexdigest() for p in out.rglob('*') if p.is_file() and p.name!='hashes.json'},indent=2),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-clean-review-plan
+          path: ${{ runner.temp }}/review-output/
+          include-hidden-files: true
+          retention-days: 30
+          if-no-files-found: error
