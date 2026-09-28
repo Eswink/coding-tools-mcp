@@ -1,0 +1,61 @@
+name: Bounded cloud workbench artifacts
+on:
+  push:
+    branches: ['ci/cloud-plan-recovery-20260928']
+    paths: ['.github/workflows/cloud-workbench-parts.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  split:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: cloud-pinned-native-workbench
+          run-id: 36379620602
+          github-token: ${{ github.token }}
+          path: workbench
+      - name: Verify original receipts and split only archive bytes
+        run: |
+          set -euo pipefail
+          (cd workbench && sha256sum -c SHA256SUMS.txt)
+          ls -lh workbench/*.tar.gz
+          mkdir -p parts
+          split -b 350M workbench/rust-toolchain.tar.gz parts/rust-
+          split -b 350M workbench/cargo-registry.tar.gz parts/registry-
+          split -b 350M workbench/gitnexus-runtime.tar.gz parts/graph-
+          cp workbench/SHA256SUMS.txt parts/SHA256SUMS.txt
+          (cd parts && sha256sum *-?? > PARTSUMS.txt)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cloud-rust-part-aa
+          path: parts/rust-aa
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cloud-rust-part-ab
+          path: parts/rust-ab
+          compression-level: 0
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cloud-registry-part-aa
+          path: parts/registry-aa
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cloud-graph-part-aa
+          path: parts/graph-aa
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cloud-graph-part-ab
+          path: parts/graph-ab
+          compression-level: 0
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cloud-workbench-part-receipts
+          path: parts/*.txt
