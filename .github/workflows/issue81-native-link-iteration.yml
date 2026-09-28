@@ -1,0 +1,137 @@
+name: Issue81 native link implementation iteration
+on:
+  push:
+    branches: ['ci/issue81-resume-full-plan']
+    paths: ['.github/workflows/issue81-native-link-iteration.yml']
+permissions:
+  contents: read
+concurrency:
+  group: issue81-native-link-iteration
+  cancel-in-progress: true
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      CARGO_TERM_COLOR: never
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: services/native-link
+          cache-on-failure: true
+      - name: Materialize exact proposed source blobs and complete internal interfaces
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          import base64,hashlib,json,os,pathlib,subprocess,urllib.request
+          subprocess.run(['git','checkout','--detach','a8d84b61da2d241af39910b6a7c7148c40538f8f'],check=True)
+          blobs={
+            'Cargo.toml':'dbe964c1467c9a07bdfd4199bd4e64060778a326',
+            'src/lib.rs':'2a55c26a1d6d2338b2ebecb9d510abedff258448',
+            'src/wire.rs':'a3f23c488c74fec44db1c6cfffc37676e1f4501f',
+            'src/canonical.rs':'3c2c9752ca096f528616b600bc99a430ef9dbe2f',
+            'src/config.rs':'b6ba9db4ddfe977faeb1d4380a3118f119fb1a6f',
+            'src/journal.rs':'4c08f7f90b93011b15cf564af2118002954372c6',
+            'src/projection.rs':'ef9a3c212654494d7f0f4b4279f09c3c3a6bc6fa',
+            'src/transport.rs':'c521a28949df9b6b77ea9c046cbe4e1d3619f56e',
+            'src/tests.rs':'956dbe4f073196aecd2013e5ff00af8575a84017',
+          }
+          root=pathlib.Path('services/native-link')
+          for name,sha in blobs.items():
+              req=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/git/blobs/{sha}",headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(req,timeout=30) as response:obj=json.load(response)
+              data=base64.b64decode(obj['content']);assert hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()==sha
+              p=root/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data)
+          def replace(path,old,new,count=1):
+              p=root/path;text=p.read_text();assert text.count(old)==count,(path,old,text.count(old));p.write_text(text.replace(old,new),encoding='utf-8')
+          replace('src/lib.rs','mod wire;','mod wire;\n#[cfg(test)]\nmod tests;')
+          replace('src/journal.rs','state_file.by_ref()','Read::by_ref(&mut state_file)')
+          replace('src/journal.rs','log.by_ref()','Read::by_ref(&mut log)')
+          old='    pub(crate) fn recovery_projection(&self)->Result<Option<Offered>> {\n        let inner=self.inner.lock().map_err(|_|LinkError::Journal)?;\n        if inner.poisoned {return Err(LinkError::Journal);}\n        Ok(inner.state.offered.clone().or_else(||inner.state.confirmed.clone()))\n    }'
+          new='    pub(crate) fn projection_state(&self)->Result<(Option<Offered>,Option<Offered>)> {\n        let inner=self.inner.lock().map_err(|_|LinkError::Journal)?;\n        if inner.poisoned {return Err(LinkError::Journal);}\n        Ok((inner.state.confirmed.clone(),inner.state.offered.clone()))\n    }\n    pub(crate) fn check_binding(&self,cfg:&DeviceConfig,key:&DeviceKey)->Result<()> {\n        let inner=self.inner.lock().map_err(|_|LinkError::Journal)?;\n        if inner.poisoned || inner.state.binding!=cfg.fingerprint(key)? {return Err(LinkError::Journal);}\n        Ok(())\n    }'
+          replace('src/journal.rs',old,new)
+          (root/'Cargo.lock').write_bytes(pathlib.Path('services/cloud-gateway/Cargo.lock').read_bytes())
+          pathlib.Path('evidence/input-blobs.json').write_text(json.dumps(blobs,indent=2))
+          PY
+          cargo fmt --manifest-path services/native-link/Cargo.toml
+          cargo test --manifest-path services/native-link/Cargo.toml --lib --no-run 2>&1 | tee evidence/initial-compile.txt
+      - name: Demonstrate original complete-record truncation is rejected by new test
+        run: |
+          python - <<'PY'
+          import pathlib,subprocess
+          result=subprocess.run(['cargo','test','--locked','--manifest-path','services/native-link/Cargo.toml','--lib','tests::journal_rejects_complete_record_truncation','--','--exact','--nocapture'],text=True,capture_output=True)
+          text=result.stdout+result.stderr;pathlib.Path('evidence/failure-first-truncation.txt').write_text(text,encoding='utf-8');print(text)
+          assert result.returncode==101 and 'NATIVE_JOURNAL_COMPLETE_RECORD_TRUNCATION' in text and '0 passed; 1 failed; 0 ignored' in text
+          PY
+      - name: Seal durable log position before returning any execution claim
+        run: |
+          python - <<'PY'
+          import pathlib
+          p=pathlib.Path('services/native-link/src/journal.rs');text=p.read_text()
+          # rustfmt changed layout; insert based on unique syntax anchors, not whole-file renaming.
+          def replace(old,new,count=1):
+              global text
+              assert text.count(old)==count,(old,text.count(old));text=text.replace(old,new)
+          replace('    binding: [u8; 32],\n    revision: i64,','    binding: [u8; 32],\n    log_sequence: u64,\n    log_head: [u8; 32],\n    revision: i64,')
+          replace('        let state = State {','        let mut state = State {')
+          replace('            version: 1,\n            binding: cfg.fingerprint(&key)?,','            version: 1,\n            binding: cfg.fingerprint(&key)?,\n            log_sequence: 1,\n            log_head: [0; 32],')
+          replace('        write_initial_state(root, &key, &state)?;','        state.log_head = hash;\n        write_initial_state(root, &key, &state)?;')
+          replace('        if sequence == 0 {','        if sequence == 0 || state.log_sequence != sequence || state.log_head != previous {')
+          replace('        inner.sequence = sequence;\n        inner.previous = hash;','        let mut state = inner.state.clone();\n        state.log_sequence = sequence;\n        state.log_head = hash;\n        self.save(inner, state)?;\n        inner.sequence = sequence;\n        inner.previous = hash;')
+          p.write_text(text,encoding='utf-8')
+          PY
+          cargo fmt --manifest-path services/native-link/Cargo.toml
+      - name: Native link full tests and strict compiler
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path services/native-link/Cargo.toml 2>&1 | tee evidence/full-tests.txt
+          cargo clippy --locked --manifest-path services/native-link/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
+          cargo rustc --locked --manifest-path services/native-link/Cargo.toml --lib -- -D warnings 2>&1 | tee evidence/strict-lib.txt
+          cargo fmt --check --manifest-path services/native-link/Cargo.toml
+      - name: Retain candidate source and exact evidence even on failure
+        if: always()
+        run: |
+          python - <<'PY'
+          import hashlib,json,pathlib,shutil,subprocess
+          out=pathlib.Path('evidence');out.mkdir(exist_ok=True);root=pathlib.Path('services/native-link');proof={}
+          for path in sorted(root.rglob('*')):
+              if not path.is_file() or 'target' in path.parts:continue
+              relative=path.relative_to(root);data=path.read_bytes();dest=out/'source/services/native-link'/relative
+              dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(data)
+              proof[str(path)]={'sha256':hashlib.sha256(data).hexdigest(),'git_blob':hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()}
+          (out/'source.json').write_text(json.dumps(proof,indent=2))
+          (out/'hashes.json').write_text(json.dumps({str(p.relative_to(out)):hashlib.sha256(p.read_bytes()).hexdigest() for p in out.rglob('*') if p.is_file() and p.name!='hashes.json'},indent=2))
+          print('SOURCE_BLOBS='+json.dumps(proof,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-native-link-${{ matrix.os }}
+          path: evidence/
+          include-hidden-files: true
+          retention-days: 30
+          if-no-files-found: error
