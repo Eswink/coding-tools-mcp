@@ -79,7 +79,7 @@ jobs:
           set -euo pipefail
           cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml 2>&1 | tee evidence/fmt.txt
           cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
-          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_cli 2>&1 | tee evidence/portable.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts 2>&1 | tee evidence/portable.txt
           cargo rustc --locked --manifest-path services/cloud-gateway/Cargo.toml --lib -- -D warnings 2>&1 | tee evidence/production.txt
           python -m unittest discover -s tests/delivery -p 'test_*.py' 2>&1 | tee evidence/delivery-python.txt
           node --test tests/delivery/*.test.mjs 2>&1 | tee evidence/delivery-js.txt
