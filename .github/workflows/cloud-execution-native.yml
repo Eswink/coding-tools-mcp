@@ -48,7 +48,7 @@ jobs:
           patch=lzma.decompress(base64.b64decode(encoded,validate=True))
           assert hashlib.sha256(patch).hexdigest()=='5dcc9c092b5d812ab5218279e7b1540e75d9e0e529adabdc13b9d8e4598bb5b6'
           paths=[line.split(' b/',1)[1] for line in patch.decode().splitlines() if line.startswith('diff --git ')]
-          assert len(paths)==15 and len(paths)==len(set(paths))
+          assert len(paths)==14 and len(paths)==len(set(paths))
           assert all(p.startswith('services/cloud-gateway/') and '..' not in pathlib.PurePosixPath(p).parts for p in paths)
           pathlib.Path('evidence/input.patch').write_bytes(patch)
           subprocess.run(['git','apply','--check','evidence/input.patch'],check=True)
@@ -108,5 +108,42 @@ jobs:
         with:
           name: issue81-native-${{ matrix.os }}
           path: evidence/
+          retention-days: 30
+          if-no-files-found: error
+  canonical-objects:
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: issue81-native-*
+          path: checked
+      - name: Require cross-platform source agreement and import unreferenced blobs only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import base64,hashlib,json,os,pathlib,urllib.request
+          root=pathlib.Path('checked');a=root/'issue81-native-ubuntu-24.04';b=root/'issue81-native-windows-2025'
+          first=json.loads((a/'source.json').read_text());second=json.loads((b/'source.json').read_text())
+          assert first==second and first['ci_sha']==os.environ['GITHUB_SHA']
+          blobs={}
+          for path,proof in first['files'].items():
+              data=(a/'formatted'/path).read_bytes()
+              assert data==(b/'formatted'/path).read_bytes()
+              assert hashlib.sha256(data).hexdigest()==proof['sha256']
+              request=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/git/blobs",data=json.dumps({'encoding':'base64','content':base64.b64encode(data).decode()}).encode(),method='POST',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'})
+              with urllib.request.urlopen(request,timeout=30) as r: sha=json.load(r)['sha']
+              assert sha==proof['git_blob'];blobs[path]=sha
+          pathlib.Path('canonical-objects.json').write_text(json.dumps({'source':first,'blobs':blobs},indent=2))
+          print('CANONICAL_OBJECTS='+json.dumps(blobs,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-canonical-objects
+          path: canonical-objects.json
           retention-days: 30
           if-no-files-found: error
