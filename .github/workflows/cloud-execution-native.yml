@@ -1,0 +1,112 @@
+name: Issue81 native candidate validation
+on:
+  push:
+    branches: ['ci/issue81-native-candidate']
+permissions:
+  contents: read
+concurrency:
+  group: issue81-native-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: '1'
+      CARGO_TERM_COLOR: never
+      RUST_BACKTRACE: '0'
+    steps:
+      - name: Deterministic checkout
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: services/cloud-gateway
+          cache-on-failure: true
+      - name: Apply exact reviewed source and export canonical candidate
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          import base64, hashlib, json, lzma, os, pathlib, subprocess
+          root=pathlib.Path('.')
+          encoded=''.join((root/f'.ci/issue81-part{i}.txt').read_text() for i in range(2))
+          patch=lzma.decompress(base64.b64decode(encoded,validate=True))
+          assert hashlib.sha256(patch).hexdigest()=='5dcc9c092b5d812ab5218279e7b1540e75d9e0e529adabdc13b9d8e4598bb5b6'
+          paths=[line.split(' b/',1)[1] for line in patch.decode().splitlines() if line.startswith('diff --git ')]
+          assert len(paths)==15 and len(paths)==len(set(paths))
+          assert all(p.startswith('services/cloud-gateway/') and '..' not in pathlib.PurePosixPath(p).parts for p in paths)
+          pathlib.Path('evidence/input.patch').write_bytes(patch)
+          subprocess.run(['git','apply','--check','evidence/input.patch'],check=True)
+          subprocess.run(['git','apply','evidence/input.patch'],check=True)
+          subprocess.run(['cargo','fmt','--manifest-path','services/cloud-gateway/Cargo.toml'],check=True)
+          subprocess.run(['git','diff','--check'],check=True)
+          env={**os.environ,'GIT_INDEX_FILE':str(pathlib.Path('evidence/candidate.index').resolve())}
+          subprocess.run(['git','read-tree','2c5d133eaa75d7fc084b8122350d7768ce5b2382'],env=env,check=True)
+          subprocess.run(['git','add','--',*paths],env=env,check=True)
+          tree=subprocess.check_output(['git','write-tree'],env=env,text=True).strip()
+          files={}
+          for path in paths:
+              data=pathlib.Path(path).read_bytes()
+              target=pathlib.Path('evidence/formatted')/path
+              target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data)
+              files[path]={'sha256':hashlib.sha256(data).hexdigest(),'git_blob':hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()}
+          receipt={'baseline':'2c5d133eaa75d7fc084b8122350d7768ce5b2382','candidate_tree':tree,'ci_sha':os.environ['GITHUB_SHA'],'files':files}
+          pathlib.Path('evidence/source.json').write_text(json.dumps(receipt,indent=2),encoding='utf-8')
+          print('CANDIDATE_TREE='+tree)
+          PY
+      - name: All-target strict compiler and focused protocol tests
+        run: |
+          set -euo pipefail
+          cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib execution::tests 2>&1 | tee evidence/execution-unit.txt
+          grep -q '12 passed; 0 failed; 0 ignored' evidence/execution-unit.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_cli 2>&1 | tee evidence/portable.txt
+          cargo rustc --locked --manifest-path services/cloud-gateway/Cargo.toml --lib -- -D warnings 2>&1 | tee evidence/production.txt
+      - name: Real PostgreSQL and authenticated WebSocket regression
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-16
+          export PATH="/usr/lib/postgresql/16/bin:$PATH"
+          mkdir -p "$RUNNER_TEMP/pg81"
+          initdb -D "$RUNNER_TEMP/pg81/data" -A trust -U mcp_test --encoding=UTF8 --no-locale >/dev/null
+          pg_ctl -D "$RUNNER_TEMP/pg81/data" -l "$RUNNER_TEMP/pg81/log" -o "-h 127.0.0.1 -p 55432 -k $RUNNER_TEMP/pg81" -w start >/dev/null
+          trap 'pg_ctl -D "$RUNNER_TEMP/pg81/data" -m fast -w stop >/dev/null || true' EXIT
+          createdb -h 127.0.0.1 -p 55432 -U mcp_test coding_tools_identity_test
+          export TEST_DATABASE_URL=postgresql://mcp_test@127.0.0.1:55432/coding_tools_identity_test
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test execution_postgres -- --nocapture 2>&1 | tee evidence/execution-postgres.txt
+          grep -q '10 passed; 0 failed; 0 ignored' evidence/execution-postgres.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml 2>&1 | tee evidence/full-postgres.txt
+      - name: Hash all evidence without hiding failures
+        if: always()
+        run: |
+          python - <<'PY'
+          import hashlib,json,pathlib
+          root=pathlib.Path('evidence');root.mkdir(exist_ok=True)
+          (root/'candidate.index').unlink(missing_ok=True)
+          data={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file() and p.name!='hashes.json'}
+          (root/'hashes.json').write_text(json.dumps(data,indent=2),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-native-${{ matrix.os }}
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error
