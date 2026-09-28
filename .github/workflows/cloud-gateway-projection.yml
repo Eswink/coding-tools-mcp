@@ -1,0 +1,52 @@
+name: Cloud gateway grant projection contracts
+on:
+  push:
+    branches: ['feat/cloud-gateway-agent-runtime']
+    paths: ['services/cloud-gateway/**', '.github/workflows/cloud-gateway-projection.yml']
+  pull_request:
+    branches: [main]
+    paths: ['services/cloud-gateway/**', '.github/workflows/cloud-gateway-projection.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cloud-gateway-projection-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  portable:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Verify portable cryptographic projection contracts
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+          cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
+          cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test projection_contracts 2>&1 | tee evidence/projection-contracts.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cloud-gateway-projection-${{ matrix.os }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+# Full database tests are deliberately run by cloud-gateway-identity.yml's
+# isolated Ubuntu PostgreSQL job. They are not silently skipped on Windows,
+# nor described as physical desktop or real ChatGPT acceptance.

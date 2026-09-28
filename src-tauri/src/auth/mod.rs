@@ -1,4 +1,8 @@
 mod execution_fence;
+#[cfg_attr(not(test), allow(dead_code))]
+mod local_authority;
+#[cfg_attr(not(test), allow(unused_imports))]
+pub(crate) use local_authority::{LocalAdmissionPermit, LocalAdmissionTicket, LocalAuthorityPhase, LocalAuthoritySnapshot, LocalExecutionState};
 pub(crate) mod oauth_refresh;
 mod oauth_scope;
 pub(crate) mod session_policy;

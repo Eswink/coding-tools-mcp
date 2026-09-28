@@ -4,31 +4,37 @@ use std::path::Path;
 use crate::error::{AppError, AppResult};
 
 pub fn find_pid_listening_on_port(port: u16) -> AppResult<Option<u32>> {
-    let port_hex = format!("{:04X}", port);
-    let content = fs::read_to_string("/proc/net/tcp")
-        .map_err(|err| AppError::Message(format!("read /proc/net/tcp failed: {err}")))?;
-
-    for line in content.lines().skip(1) {
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() < 10 {
-            continue;
-        }
-        let local = parts[1];
-        let state = parts[3];
-        if state != "0A" {
-            continue;
-        }
-        let Some((_, port_part)) = local.split_once(':') else {
-            continue;
-        };
-        if port_part.eq_ignore_ascii_case(&port_hex) {
-            let inode = parts[9];
-            if let Some(pid) = pid_for_socket_inode(inode)? {
-                return Ok(Some(pid));
-            }
+    for inode in listening_socket_inodes(port)? {
+        if let Some(pid) = pid_for_socket_inode(&inode)? {
+            return Ok(Some(pid));
         }
     }
     Ok(None)
+}
+
+pub(crate) fn listen_socket_present(port: u16) -> AppResult<bool> {
+    Ok(!listening_socket_inodes(port)?.is_empty())
+}
+
+fn listening_socket_inodes(port: u16) -> AppResult<Vec<String>> {
+    let port_hex = format!("{:04X}", port);
+    let content = fs::read_to_string("/proc/net/tcp")
+        .map_err(|err| AppError::Message(format!("read /proc/net/tcp failed: {err}")))?;
+    let mut inodes = Vec::new();
+
+    for line in content.lines().skip(1) {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 10 || parts[3] != "0A" {
+            continue;
+        }
+        let Some((_, port_part)) = parts[1].split_once(':') else {
+            continue;
+        };
+        if port_part.eq_ignore_ascii_case(&port_hex) {
+            inodes.push(parts[9].to_string());
+        }
+    }
+    Ok(inodes)
 }
 
 fn pid_for_socket_inode(inode: &str) -> AppResult<Option<u32>> {

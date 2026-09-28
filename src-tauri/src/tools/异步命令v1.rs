@@ -113,10 +113,8 @@ fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {
         }
         data.status = Status::Running;
     }
-    if ctx.exec_tasks.checkpoint(job).is_err() {
-        job.finish(Status::Failed, json!({"command_ok":false, "termination_reason":"storage_failed_before_spawn"}));
-        return;
-    }
+    // reserve() already persisted the queued no-replay record. Never put a durable
+    // filesystem checkpoint between the public Running state and actual child spawn.
     // Keep ALL policy/baseline/operation logging in the one shared execution dispatcher.
     let result = crate::tools::call_tool(ctx, "exec_command", args);
     let session = result.get("session_id").and_then(Value::as_str)
@@ -129,6 +127,41 @@ fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {
         return;
     };
     job.data.lock().expect("job state").session = Some(session.clone());
+    // Once the child exists, persist Running + session ownership. If that durable
+    // checkpoint fails, stop the child and fail closed rather than leaving an
+    // untracked process behind or inviting an automatic retry.
+    if ctx.exec_tasks.checkpoint(job).is_err() {
+        session.mark_termination_reason("killed");
+        let waited = tauri::async_runtime::block_on(async {
+            tokio::time::timeout(Duration::from_secs(5), session.kill_and_wait())
+                .await
+                .is_ok()
+        });
+        tauri::async_runtime::block_on(async {
+            session.refresh_status().await;
+            session.wait_for_readers().await;
+        });
+        let process_may_be_running = !waited || !session.has_exited();
+        let mut failure = session.snapshot(0);
+        failure["command_ok"] = json!(false);
+        failure["output_complete"] = json!(session.readers_completed());
+        failure["process_may_be_running"] = json!(process_may_be_running);
+        failure["termination_reason"] = json!("storage_failed_after_spawn");
+        failure["error"] = json!({
+            "code": "EXEC_TASK_CHECKPOINT_FAILED",
+            "message": if process_may_be_running {
+                "Durable task checkpoint failed after child start and termination could not be confirmed; inspect local processes and do not retry automatically"
+            } else {
+                "Durable task checkpoint failed after child start; child was terminated and the command must not be retried automatically"
+            }
+        });
+        if let Some(operation) = result.get("operation_id") {
+            failure["operation_id"] = operation.clone();
+        }
+        job.finish(Status::Failed, failure);
+        ctx.sessions.remove(&session.session_id);
+        return;
+    }
     // Noninteractive tasks cannot supply stdin. Close it so read-to-EOF programs do not hang.
     tauri::async_runtime::block_on(async {
         session.stdin.lock().await.take();

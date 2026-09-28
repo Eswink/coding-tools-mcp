@@ -1,0 +1,146 @@
+name: Cloud dependency-driven issue dispatch
+on:
+  push:
+    branches: ['feat/cloud-gateway-agent-runtime']
+    paths: ['tools/delivery/**', 'tests/delivery/**', '.github/workflows/cloud-delivery.yml']
+  pull_request:
+    branches: [main]
+    paths: ['tools/delivery/**', 'tests/delivery/**', '.github/workflows/cloud-delivery.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cloud-delivery-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      packets: ${{ steps.plan.outputs.packets }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Test deterministic scheduler and compute work packets
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python -m unittest discover -s tests/delivery -v 2>&1 | tee evidence/tests.txt
+          node --test tests/delivery/metadata_contract.test.mjs 2>&1 | tee evidence/metadata.tap
+          python tools/delivery/dispatch.py --manifest tools/delivery/manifest.json --repo-root . --output evidence/dispatch.json
+          python - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          data=json.load(open('evidence/dispatch.json'))
+          assert len(data['packets'])<=3 and data['release_allowed'] is False
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+              output.write('packets='+json.dumps({'revision':data['revision'],'packets':data['packets']},separators=(',',':'))+'\n')
+          paths=['tools/delivery/dispatch.py','tests/delivery/test_dispatch.py',
+                 '.github/workflows/cloud-delivery.yml','tests/delivery/metadata_contract.test.mjs']
+          hashes={p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths}
+          Path('evidence/source-hashes.json').write_text(json.dumps(hashes,indent=2),encoding='utf-8')
+          print(json.dumps(hashes,indent=2))
+          print(json.dumps({'states':data['states'],'packets':data['packets'],
+                            'release_allowed':data['release_allowed']},indent=2))
+          PY
+          git rev-parse HEAD > evidence/source-commit.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: cloud-delivery-plan
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+  queue-issues:
+    needs: plan
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push' && github.ref == 'refs/heads/feat/cloud-gateway-agent-runtime'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      # Deliberately NO checkout, cache restore, repository script or artifact execution.
+      - name: Bounded idempotent issue queue receipts, never a coding-worker claim
+        env:
+          PACKETS: ${{ needs.plan.outputs.packets }}
+          SOURCE_HEAD: ${{ github.sha }}
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const fs=require('fs');
+            const owner='Eswink',repo='coding-tools-mcp';
+            const raw=process.env.PACKETS||'';
+            if(raw.length>24000)throw Error('packet_size');
+            const data=JSON.parse(raw),sha=process.env.SOURCE_HEAD;
+            const validId=x=>typeof x==='string'&&/^[a-z][a-z0-9-]{1,63}$/.test(x);
+            const lanes=new Set(['protocol','identity','agent-client','request-admission','tool-runtime','packaging','release-review','delivery']);
+            if(!/^[0-9a-f]{40}$/.test(sha)||data.revision!==sha||!Array.isArray(data.packets)||data.packets.length>3)throw Error('packet_source');
+            const current=await github.rest.git.getRef({owner,repo,ref:'heads/feat/cloud-gateway-agent-runtime'});
+            if(current.data.object.sha!==sha){core.notice('Source superseded; no issue writes.');return;}
+            const seen=new Set(),receipts=[];
+            for(const p of data.packets){
+              if(!validId(p.id)||seen.has(p.id)||!lanes.has(p.lane)||p.execution_started!==false||p.authority!=='engineering_only')throw Error('packet_contract');
+              if(p.issue!==null&&(!Number.isSafeInteger(p.issue)||p.issue<1||p.issue>=1000000))throw Error('issue_id');
+              if(typeof p.title!=='string'||p.title.length<1||p.title.length>180||/[\x00-\x1f]/.test(p.title))throw Error('title');
+              if(!Array.isArray(p.depends_on)||p.depends_on.length>64||!p.depends_on.every(validId))throw Error('dependencies');
+              seen.add(p.id);
+            }
+            // Validate the entire batch before the first issue mutation.
+            for(const p of data.packets){
+              const marker='<!-- ctm-delivery:'+p.id+' -->';
+              let number=p.issue;
+              if(number===null){
+                let exhausted=false;
+                for(let page=1;page<=5;page++){
+                  const r=await github.rest.issues.listForRepo({owner,repo,state:'all',per_page:100,page,sort:'created',direction:'desc'});
+                  const existing=r.data.find(x=>!x.pull_request&&['Eswink','github-actions[bot]'].includes(x.user?.login)&&x.body?.includes(marker));
+                  if(existing){number=existing.number;break;}
+                  if(r.data.length<100){exhausted=true;break;}
+                }
+                if(number===null){
+                  if(!exhausted)throw Error('dedup_search_bound');
+                  const created=await github.rest.issues.create({owner,repo,assignees:[owner],title:'[AUTO] '+p.title,body:marker+'\n\nParent Epic #32. Work item `'+p.id+'`, lane `'+p.lane+'`.\n\nSource: `'+sha+'`. Dependencies: '+p.depends_on.map(x=>'`'+x+'`').join(', ')+'.\n\nRead the reviewed delivery manifest and repository rules before implementation. This issue is a bounded work packet, not implementation evidence. No coding worker has started, no permission to bypass local grants, and no production deployment is implied. Preserve physical/ChatGPT deferred gates. Record exact-source tests, review and rollback before completion. Repository-owner assignment records accountability, not worker execution.'});
+                  number=created.data.number;
+                }
+              }
+              const issue=await github.rest.issues.get({owner,repo,issue_number:number});
+              if(issue.data.pull_request)throw Error('not_an_issue');
+              if(issue.data.state!=='open'){receipts.push({id:p.id,issue:number,state:'closed_needs_manifest_review'});continue;}
+              if(!Array.isArray(issue.data.assignees))throw Error('invalid_assignee_state');
+              let assignees=issue.data.assignees;
+              // Preserve existing ownership; only unowned tasks receive the fixed repository owner.
+              // No assignee, command or worker identity is accepted from the work packet.
+              if(assignees.length===0){
+                const assigned=await github.rest.issues.addAssignees({owner,repo,issue_number:number,assignees:[owner]});
+                if(!Array.isArray(assigned.data.assignees)||!assigned.data.assignees.some(x=>x.login===owner))throw Error('assignment_not_confirmed');
+                assignees=assigned.data.assignees;
+              }
+              const receiptMarker='<!-- ctm-queue:'+p.id+':'+sha+' -->';
+              let duplicate=false,complete=false;
+              for(let page=1;page<=5;page++){
+                const list=await github.rest.issues.listComments({owner,repo,issue_number:number,per_page:100,page});
+                if(list.data.some(x=>['Eswink','github-actions[bot]'].includes(x.user?.login)&&x.body?.includes(receiptMarker))){duplicate=true;break;}
+                if(list.data.length<100){complete=true;break;}
+              }
+              if(!duplicate){
+                if(!complete)throw Error('comment_dedup_bound');
+                await github.rest.issues.createComment({owner,repo,issue_number:number,body:receiptMarker+'\nDependency-ready engineering work queued for lane `'+p.lane+'` at source `'+sha+'`.\n\nExecution has **not** started; the next authorized coding executor must revalidate this source and dependencies. This queue record does not close the issue, approve code, waive tests or authorize a release. Existing assignees are preserved; otherwise the repository owner is assigned for accountability only.'});
+              }
+              receipts.push({id:p.id,issue:number,state:duplicate?'already_queued':'queued',assignees:assignees.map(x=>x.login),execution_started:false});
+            }
+            fs.writeFileSync('queue-receipts.json',JSON.stringify({source:sha,receipts,release_performed:false},null,2));
+            core.notice('Queued metadata only; no coding worker or release was launched.');
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cloud-delivery-queue-receipts
+          path: queue-receipts.json
+          retention-days: 14
+          if-no-files-found: warn

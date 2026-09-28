@@ -1,0 +1,86 @@
+name: Cloud gateway standalone service
+on:
+  push:
+    branches: ['feat/cloud-gateway-agent-runtime']
+    paths: ['services/cloud-gateway/**', '.github/workflows/cloud-gateway-service.yml']
+  pull_request:
+    branches: [main]
+    paths: ['services/cloud-gateway/**', '.github/workflows/cloud-gateway-service.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cloud-gateway-service-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  portable:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Native executable and portable boundary contracts
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-commit.txt
+          python -m unittest discover -s services/cloud-gateway/tests -p 'test_service_diagnostics.py' -v > evidence/diagnostics.txt 2>&1
+          cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
+          cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test service_contracts 2>&1 | tee evidence/service-contracts.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cloud-gateway-service-${{ matrix.os }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+  process-and-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare public test tools only
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16 openssl
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps chromium
+      - name: Independent disposable process and browser gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-commit.txt
+          cargo build --locked --manifest-path services/cloud-gateway/Cargo.toml --bin coding-tools-gateway
+          binary="$PWD/services/cloud-gateway/target/debug/coding-tools-gateway"
+          python services/cloud-gateway/tests/run_service_http.py --pg-bin /usr/lib/postgresql/16/bin --binary "$binary" | tee evidence/process-http.json
+          chromium="$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')"
+          python services/cloud-gateway/tests/run_service_browser_ci.py --pg-bin /usr/lib/postgresql/16/bin --binary "$binary" --chromium "$chromium" | tee evidence/browser.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cloud-gateway-service-process-browser
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error

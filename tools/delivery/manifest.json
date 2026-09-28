@@ -1,0 +1,834 @@
+{
+  "version": 1,
+  "repository": "Eswink/coding-tools-mcp",
+  "integration_branch": "feat/cloud-gateway-agent-runtime",
+  "tasks": [
+    {
+      "id": "architecture",
+      "title": "Cloud control and local execution boundaries",
+      "lane": "protocol",
+      "paths": [
+        "docs/specs/cloud-gateway-agent-runtime/design.md",
+        "docs/specs/cloud-gateway-agent-runtime/threat-model.md"
+      ],
+      "depends_on": [],
+      "issue": 33,
+      "state": "verified",
+      "priority": 10,
+      "release_required": true,
+      "evidence": {
+        "revision": "99ed3d061b8c72bde36fcb64b9a29aca6c703a6d",
+        "run_id": 35679713001,
+        "files": {
+          "docs/specs/cloud-gateway-agent-runtime/design.md": "605a0ef4a6a764bb54ac6d7c6dc9d143c1a89731e3e247d323f3902300c46e09",
+          "docs/specs/cloud-gateway-agent-runtime/threat-model.md": "b92c2118f77b276136c5a8473944442f85f1eb5ef8f063b96f23b9cd004d004a"
+        }
+      }
+    },
+    {
+      "id": "protocol-contracts",
+      "title": "Modern and legacy MCP laboratory contracts",
+      "lane": "protocol",
+      "paths": [
+        "prototypes/cloud-gateway"
+      ],
+      "depends_on": [
+        "architecture"
+      ],
+      "issue": 34,
+      "state": "verified",
+      "priority": 10,
+      "release_required": true,
+      "evidence": {
+        "revision": "99ed3d061b8c72bde36fcb64b9a29aca6c703a6d",
+        "run_id": 35679713001,
+        "files": {
+          "prototypes/cloud-gateway/README.md": "462937e9aa0cd2e970b71b646c218261fc265a0f9ba5baabf9b3affe73fbd427",
+          "prototypes/cloud-gateway/cli.mjs": "3fac7dcd5d8545edd308bb8240b615b288af9eaf1eddf760a5c70534dcf4efa1",
+          "prototypes/cloud-gateway/gateway.mjs": "f19efe54f1d52da0d2b6d64ce0f6759acd82423c7b880cf082661033b55dff82",
+          "prototypes/cloud-gateway/protocol.mjs": "f31d28d6aa08f499a965ddae9d0d0e6de6346ff7ef847a95ee93e61c89e55692",
+          "prototypes/cloud-gateway/state.mjs": "12bc8ff737763e4417c3bc9bce41855bf57eab9f6429353938dddbfa9ccfef71"
+        }
+      }
+    },
+    {
+      "id": "identity-core",
+      "title": "Durable OAuth code and refresh identity core",
+      "lane": "identity",
+      "paths": [
+        "services/cloud-gateway/src/oauth.rs",
+        "services/cloud-gateway/src/store.rs",
+        "services/cloud-gateway/src/crypto.rs"
+      ],
+      "depends_on": [
+        "architecture"
+      ],
+      "issue": 37,
+      "state": "verified",
+      "priority": 10,
+      "release_required": true,
+      "evidence": {
+        "revision": "99ed3d061b8c72bde36fcb64b9a29aca6c703a6d",
+        "run_id": 35679712964,
+        "files": {
+          "services/cloud-gateway/src/oauth.rs": "b8da359fa4b5e954340c883fadfa38852707910b580a68dba0cb69b2b4cf4240",
+          "services/cloud-gateway/src/store.rs": "0b0f27fdcd84cc4e1c4cde03bb21b065e61b3c037dc04a354c8b42f4201efe9e",
+          "services/cloud-gateway/src/crypto.rs": "cd2a61127a401242e5dc72d79f6b36b122b6439acd0db3a40ce2446debb9b80e"
+        }
+      }
+    },
+    {
+      "id": "browser-consent",
+      "title": "Owner login and atomic browser consent",
+      "lane": "identity",
+      "paths": [
+        "services/cloud-gateway/src/browser"
+      ],
+      "depends_on": [
+        "identity-core"
+      ],
+      "issue": 41,
+      "state": "verified",
+      "priority": 10,
+      "release_required": true,
+      "evidence": {
+        "revision": "99ed3d061b8c72bde36fcb64b9a29aca6c703a6d",
+        "run_id": 35679713017,
+        "files": {
+          "services/cloud-gateway/src/browser/credentials.rs": "7fd9a51a35c49ac93c34dce246f4bf67153767e959a14d8a42e0913c01ba26e8",
+          "services/cloud-gateway/src/browser/envelope.rs": "51e48be5d42cf104f9b73c36db5f5b05086c4db6f5b6be2e00e87f39479b0156",
+          "services/cloud-gateway/src/browser/flows.rs": "ffb0f70b54da0d1ac1d1eecd86b89807d04ccb4fa80bb8fddb8ebb09207b57d3",
+          "services/cloud-gateway/src/browser/html.rs": "99eb06fcde765916222ed9cdc0827bec2e3ca2f301820564670e0b9a0a59fa63",
+          "services/cloud-gateway/src/browser/http.rs": "fd17e3d4dd96aeb5f8d3d6a6b8cccdc78016a2d728f3298e357c69ab444b7804",
+          "services/cloud-gateway/src/browser/mod.rs": "2e8336bc0bbef417c313a516281a90d7ca14c647d988f199cc3f903b054e6957"
+        }
+      }
+    },
+    {
+      "id": "identity-service",
+      "title": "Standalone identity-only service lifecycle",
+      "lane": "identity",
+      "paths": [
+        "services/cloud-gateway/src/service"
+      ],
+      "depends_on": [
+        "browser-consent"
+      ],
+      "issue": 42,
+      "state": "verified",
+      "priority": 10,
+      "release_required": true,
+      "evidence": {
+        "revision": "2934c5b534dd2d76e46dd700b96ce1a4eaf83a91",
+        "run_id": 35751729664,
+        "files": {
+          "services/cloud-gateway/src/service/cli.rs": "a55b304a86b7667297e44e2b1a76c2c00ade35f3994ab2c53f8277285e30c8a6",
+          "services/cloud-gateway/src/service/input.rs": "89b4dfe42906f250323d9cb53ec885e5da3a8750452791862caad055d4fa7cdc",
+          "services/cloud-gateway/src/service/lifecycle.rs": "770f0e7380459e18d55e50646dac43fed6a7fdebe967609f3ef8c51e7658dca1",
+          "services/cloud-gateway/src/service/mod.rs": "6fce3fb5d384be30f1c0684ee3a7ecd206ca8c776d5e9b7abf2258dccc6c0880",
+          "services/cloud-gateway/src/service/runtime.rs": "87c3b649d5df8c6ac3d02e5eb42a6b8fd2f93e8696dd4e42b2b97937520ba82c"
+        }
+      }
+    },
+    {
+      "id": "device-enrollment",
+      "title": "Single-use enrolled device proof core",
+      "lane": "identity",
+      "paths": [
+        "services/cloud-gateway/src/device.rs"
+      ],
+      "depends_on": [
+        "identity-core"
+      ],
+      "issue": 39,
+      "state": "verified",
+      "priority": 10,
+      "release_required": true,
+      "evidence": {
+        "revision": "99ed3d061b8c72bde36fcb64b9a29aca6c703a6d",
+        "run_id": 35679712964,
+        "files": {
+          "services/cloud-gateway/src/device.rs": "25805d8c472498126cbcc98c9b4df2d68bdf50ff1796a44b27b8ef957fd55569"
+        }
+      }
+    },
+    {
+      "id": "grant-projection",
+      "title": "Durable device-signed authority projection",
+      "lane": "agent-client",
+      "paths": [
+        "services/cloud-gateway/src/projection"
+      ],
+      "depends_on": [
+        "device-enrollment"
+      ],
+      "issue": 43,
+      "state": "verified",
+      "priority": 10,
+      "release_required": true,
+      "evidence": {
+        "revision": "99ed3d061b8c72bde36fcb64b9a29aca6c703a6d",
+        "run_id": 35679713036,
+        "files": {
+          "services/cloud-gateway/src/projection/claims.rs": "6b463003edca27e83e59f8b98c16d6ebcbc1f62d9e01e18f465881571d6140b1",
+          "services/cloud-gateway/src/projection/mod.rs": "5d61fd35f84a481854a498b02dfb781a659abeb56326754adaa67f1bd0e2c15f",
+          "services/cloud-gateway/src/projection/store.rs": "ab2e703dadb58934da7db4385850bb6cf23b5f5078a5cc49010e4c9cda6d45da"
+        }
+      }
+    },
+    {
+      "id": "control-channel",
+      "title": "Authenticated control-channel library",
+      "lane": "agent-client",
+      "paths": [
+        "services/cloud-gateway/src/channel"
+      ],
+      "depends_on": [
+        "grant-projection"
+      ],
+      "issue": 46,
+      "state": "verified",
+      "priority": 10,
+      "release_required": true,
+      "evidence": {
+        "revision": "b46d33015cd47ed7182f9ead27f150bc1828c1f4",
+        "run_id": 35721433691,
+        "files": {
+          "services/cloud-gateway/src/channel/mod.rs": "d7c71c96392958300418ba1f1fdd609748d08c1222b972e6f4c7a0ccd88b1b64",
+          "services/cloud-gateway/src/channel/protocol.rs": "50f86b63ccc34af12fe16441c2f156b3527956fe496b6cb9960fd11aab00aab0",
+          "services/cloud-gateway/src/channel/store.rs": "a6bf9c2d39c442053a59d16a28d27057aea451a9a160aab014b8bf1f9cdc23cc",
+          "services/cloud-gateway/src/channel/transport.rs": "28e8389409bdd35d6cd28d3abfc2ff34864e67baf4e59fb9a189a834e6bb2997"
+        }
+      }
+    },
+    {
+      "id": "outbound-client",
+      "title": "Outbound WSS Agent and managed control service",
+      "lane": "agent-client",
+      "paths": [
+        "services/cloud-gateway"
+      ],
+      "depends_on": [
+        "control-channel",
+        "identity-service"
+      ],
+      "issue": 47,
+      "state": "verified",
+      "priority": 20,
+      "release_required": true,
+      "evidence": {
+        "revision": "765664434a8016f05ce3a15fff87065506fbc7fc",
+        "run_id": 35685755495,
+        "files": {
+          "services/cloud-gateway/src/agent/client.rs": "1c336c0a1c8eac063886473bd8562395d27fee7390217501bd82a0f38b8006b6",
+          "services/cloud-gateway/src/service/control_cli.rs": "39bee481ee6ee6433a91207d86566cc00d0771aabfef6699eaf05b92e458cd2e",
+          "services/cloud-gateway/tests/run_agent_process.py": "189fbaef17ab9adba178ce32182f97024c701441c7ad612c9a45722bbfd421c3"
+        }
+      }
+    },
+    {
+      "id": "issue-dispatch",
+      "title": "Issue lane dispatch and release gates",
+      "lane": "delivery",
+      "paths": [
+        "tools/delivery",
+        "tests/delivery",
+        ".github/workflows/cloud-delivery.yml"
+      ],
+      "depends_on": [],
+      "issue": 48,
+      "state": "verified",
+      "priority": 20,
+      "release_required": true,
+      "evidence": {
+        "revision": "b59d550294b6e0f7734299102fb80f8fb17eecd0",
+        "run_id": 35776835893,
+        "files": {
+          "tools/delivery/dispatch.py": "ee56ad164f79349d61579fe83fe3af966b22110dc2ab7b06ba20ff28504fe966",
+          "tests/delivery/test_dispatch.py": "fd442d78efa619bb41db41878254e230bf20aa45d671fd49fc5e7141173529d4",
+          ".github/workflows/cloud-delivery.yml": "245b4765b07486f0b6f3dd7942dffa5bd3e30c4e33bdbba5c8eb7733f682e2c2",
+          "tests/delivery/metadata_contract.test.mjs": "a80375a68a211dd956f836c6e668acd69fa39cd682448e2ece472758bb8f5d08"
+        }
+      }
+    },
+    {
+      "id": "request-admission",
+      "title": "Bounded admission and durable no-replay reconciliation",
+      "lane": "request-admission",
+      "paths": [
+        "services/cloud-gateway"
+      ],
+      "depends_on": [
+        "outbound-client",
+        "grant-projection"
+      ],
+      "issue": 49,
+      "state": "verified",
+      "priority": 21,
+      "release_required": true,
+      "evidence": {
+        "revision": "1e1db5faa0fdcf34133b615f9842b93a40fe7b9a",
+        "run_id": 35694473116,
+        "files": {
+          "services/cloud-gateway/src/admission/store.rs": "d7f05ceadbffc2a2c6677e3dcf32fa1c58913e61ee19e0fa6c573e35a108355f",
+          "services/cloud-gateway/tests/admission_postgres.rs": "0f4aca30992871b49115ecec0c0b491603fa6bae5b05d68f43462b2fff42437c",
+          "services/cloud-gateway/migrations/0005_request_ledger.sql": "1b8a29d0f1fb0af046f06e2cde1d176479edca68df5169b7f4b65a8207a3cd96"
+        }
+      }
+    },
+    {
+      "id": "local-authority-provider",
+      "title": "Locally approved authority provider and execution gate",
+      "lane": "agent-client",
+      "paths": [
+        "services/cloud-gateway",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "request-admission"
+      ],
+      "issue": 50,
+      "state": "verified",
+      "priority": 22,
+      "release_required": true,
+      "evidence": {
+        "revision": "64a1e6ee9d6a592bc803f1860d4f9ccd7ec95a95",
+        "run_id": 35703595280,
+        "files": {
+          "src-tauri/src/auth/local_authority.rs": "5e45d0a46a581edf19bc1d0ed956267db92517bcb025518eb6f32115513eed87",
+          "src-tauri/src/auth/聊天授权v1.rs": "9a8b3df6291af1911c9668053a1426dbd1052fbfa4c6249023fec47c85c96c0b",
+          "src-tauri/src/auth/聊天授权回归v1.rs": "115d2939eaa9c6c442f5d69c11fcb74ef6fee6a714ff17a7d0cd9fdbfad2bd1e",
+          "src-tauri/src/runtime/execution_gate.rs": "87e767cbdfdec69f0ce34a12a342c434c535d6aaaf7c4348cff84e4ebd118c41"
+        }
+      }
+    },
+    {
+      "id": "mcp-business-gateway",
+      "title": "Stable cloud MCP catalog and authorized tool dispatch",
+      "lane": "protocol",
+      "paths": [
+        "services/cloud-gateway"
+      ],
+      "depends_on": [
+        "local-authority-provider",
+        "protocol-contracts"
+      ],
+      "issue": 35,
+      "state": "verified",
+      "priority": 23,
+      "release_required": true,
+      "evidence": {
+        "revision": "2934c5b534dd2d76e46dd700b96ce1a4eaf83a91",
+        "run_id": 35751729527,
+        "files": {
+          "services/cloud-gateway/src/mcp/http.rs": "32cf4f790bafd728782247857a9c6dd5f69fa8a3db9597ba5885c29f522b0c33",
+          "services/cloud-gateway/src/mcp/protocol.rs": "8c48fc4ea9af8049e2bd7bf444dcfa7bd13be1f8ce01cdb3ca8c8232c0e61192",
+          "services/cloud-gateway/src/service/mcp_runtime.rs": "da0cca4befaccc7b9ab92753b66227c2018f2f3bd7f4d1efbcfd91a962d5d01e",
+          "services/cloud-gateway/tests/mcp_postgres.rs": "905a83515c17899f8be547f40dda3272f48638fe22e6dd3ca6cf89195e2466a4"
+        }
+      }
+    },
+    {
+      "id": "offline-noise",
+      "title": "Offline authorization suppression through the real channel",
+      "lane": "agent-client",
+      "paths": [
+        "services/cloud-gateway"
+      ],
+      "depends_on": [
+        "mcp-business-gateway"
+      ],
+      "issue": 52,
+      "state": "verified",
+      "priority": 24,
+      "release_required": true,
+      "evidence": {
+        "revision": "2934c5b534dd2d76e46dd700b96ce1a4eaf83a91",
+        "run_id": 35751729527,
+        "files": {
+          "services/cloud-gateway/tests/mcp_postgres.rs": "905a83515c17899f8be547f40dda3272f48638fe22e6dd3ca6cf89195e2466a4"
+        }
+      }
+    },
+    {
+      "id": "tool-runtime",
+      "title": "Shared tool contracts and bounded local execution",
+      "lane": "tool-runtime",
+      "paths": [
+        "src-tauri",
+        "services/local-agent"
+      ],
+      "depends_on": [
+        "local-authority-provider"
+      ],
+      "issue": 51,
+      "state": "verified",
+      "priority": 30,
+      "release_required": true,
+      "evidence": {
+        "revision": "4a6360e624ce82cebb04423d531034c717721ff3",
+        "run_id": 36144614243,
+        "files": {
+          "services/local-agent/Cargo.toml": "5f91a913256b8a7263e23d343ac8f762c8bf56a02586c94e7c4401a3d60a8b13",
+          "services/local-agent/Cargo.lock": "eb408e883d4026568782eff1ccb6ca24771d31a7a9476b60e4bb6a3c28930348",
+          "services/local-agent/src/executor.rs": "2ebb486fefd08e3cc9997a7aaa87dbb64c1dd80482c9faf097ec21d67c14f092",
+          "services/local-agent/src/lib.rs": "134c917e692ee4dc4bb11ec0f5ffdd638f843fab7d062a0d51c4fd8bf7169a70",
+          "services/local-agent/src/model.rs": "01aab422c7e778fc0b4a29e4f512155029ae5652fbbe90964d1c26ddb1385e03",
+          "services/local-agent/src/registry.rs": "861c9df82b06bde1f067ce12e06309d10b98210eb6f48659d3896b7dc51486b4",
+          "services/local-agent/src/registry_tests.rs": "8dd3903a5b9d0a328e6814e73ded7e66d46c29be82f4e3844fc7364e87c8ad7a"
+        }
+      }
+    },
+    {
+      "id": "exec-unification",
+      "title": "Unified bounded execution",
+      "lane": "tool-runtime",
+      "paths": [
+        "services/local-agent",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "tool-runtime"
+      ],
+      "issue": 55,
+      "state": "verified",
+      "priority": 30,
+      "release_required": true,
+      "evidence": {
+        "revision": "1b8ca774cb88ba30e9c94f94613e2fc7b5c641de",
+        "run_id": 36116589164,
+        "files": {
+          "services/local-agent/Cargo.toml": "5f91a913256b8a7263e23d343ac8f762c8bf56a02586c94e7c4401a3d60a8b13",
+          "services/local-agent/Cargo.lock": "eb408e883d4026568782eff1ccb6ca24771d31a7a9476b60e4bb6a3c28930348",
+          "services/local-agent/src/lib.rs": "d0a567e2c00935f07610728e47d20697a7c81b0602cb8220bf2fff605953f45a",
+          "services/local-agent/src/process.rs": "bd48d73564c3feef3508e2d105fd2527b47bcbf5f285ab1d3c7a57795c24bb6a",
+          "services/local-agent/src/process_tree.rs": "8888fe05f9e46e4f9906b6547ec1fa009515a498a4240fb745239faa12674bbd",
+          "services/local-agent/src/process_tree_windows.rs": "448384c978313b7589443691d7193ddc3ac99482835aabaffd69ef96b03e7b30",
+          "services/local-agent/src/bin/process_fixture.rs": "1269ad285e530ebcc2a6c9e0ffdebb0a0290fe1de28c82a7151ceed4c5bf7ecc",
+          "services/local-agent/tests/process_runtime.rs": "532c0af122a740b7a38db1648b29e6bfe8c9e600648c63357e93487ec2ad03a5"
+        }
+      }
+    },
+    {
+      "id": "native-pty",
+      "title": "Windows ConPTY and Ubuntu PTY",
+      "lane": "tool-runtime",
+      "paths": [
+        "services/local-agent",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "exec-unification"
+      ],
+      "issue": 59,
+      "state": "verified",
+      "priority": 30,
+      "release_required": true,
+      "evidence": {
+        "revision": "1b8ca774cb88ba30e9c94f94613e2fc7b5c641de",
+        "run_id": 36116589164,
+        "files": {
+          "services/local-agent/Cargo.toml": "5f91a913256b8a7263e23d343ac8f762c8bf56a02586c94e7c4401a3d60a8b13",
+          "services/local-agent/src/bin/pty_fixture.rs": "cfeb9e4e6f3a73c747b27b6f665ee20e7d2837cd3bb9696d7bde91f695395f1f",
+          "services/local-agent/src/lib.rs": "d0a567e2c00935f07610728e47d20697a7c81b0602cb8220bf2fff605953f45a",
+          "services/local-agent/src/process_tree.rs": "8888fe05f9e46e4f9906b6547ec1fa009515a498a4240fb745239faa12674bbd",
+          "services/local-agent/src/process_tree_windows.rs": "448384c978313b7589443691d7193ddc3ac99482835aabaffd69ef96b03e7b30",
+          "services/local-agent/src/pty.rs": "c1b97addde68d332115ed0a82afa898bc0f128c65213413926d3d929564a40f9",
+          "services/local-agent/src/pty_io.rs": "9aa4e8bbd72e5ec230b528b450d4c8e22b0f632aae41cb05380d3603fc75e4a6",
+          "services/local-agent/src/pty_unix.rs": "4dc4eec7e0af7f25cada7b4d4d426d0b96f34f813d18ab0a84340d3245e5928e",
+          "services/local-agent/src/pty_windows.rs": "04df22383bc565514889b61f9af29d06a49a7cb754552da96f5076cfc1f7a69f",
+          "services/local-agent/tests/pty_runtime.rs": "c296258142de441109fa22a6c3feddf311725acccbf4f51dd5ae69e521aa0bad"
+        }
+      }
+    },
+    {
+      "id": "exec-policy",
+      "title": "Execution policy and scoped approval",
+      "lane": "tool-runtime",
+      "paths": [
+        "services/local-agent",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "tool-runtime"
+      ],
+      "issue": 53,
+      "state": "verified",
+      "priority": 30,
+      "release_required": true,
+      "evidence": {
+        "revision": "8c453c4dadc9e80c0a8befe144bc4f2b79f793c1",
+        "run_id": 35899866696,
+        "files": {
+          "services/local-agent/Cargo.toml": "9716589a494a3f0a6e013171850adb1b14e7862ef5b95a4a52d4acc188f6675c",
+          "services/local-agent/Cargo.lock": "eb408e883d4026568782eff1ccb6ca24771d31a7a9476b60e4bb6a3c28930348",
+          "services/local-agent/src/lib.rs": "1dc191c1efd314d8eab16252ac94f51dc69de9eff2585fcc57d8ede30747ddfc",
+          "services/local-agent/src/policy.rs": "937e79cddfb89031eeff8d1f5d108dcdddf1b8982b98bbe4d83ec846f2e732d8",
+          "services/local-agent/src/registry.rs": "b629fd6edf7448480c9380316a643ba3a909e447b5afc6d100cb450422733425"
+        }
+      }
+    },
+    {
+      "id": "ubuntu-sandbox",
+      "title": "Ubuntu native sandbox",
+      "lane": "tool-runtime",
+      "paths": [
+        "services/local-agent",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "exec-policy"
+      ],
+      "issue": null,
+      "state": "planned",
+      "priority": 30,
+      "release_required": true
+    },
+    {
+      "id": "windows-sandbox",
+      "title": "Windows native sandbox",
+      "lane": "tool-runtime",
+      "paths": [
+        "services/local-agent",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "exec-policy"
+      ],
+      "issue": null,
+      "state": "planned",
+      "priority": 30,
+      "release_required": true
+    },
+    {
+      "id": "safe-patch",
+      "title": "Transactional patch verification",
+      "lane": "tool-runtime",
+      "paths": [
+        "services/local-agent",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "exec-policy"
+      ],
+      "issue": 68,
+      "state": "verified",
+      "priority": 30,
+      "release_required": true,
+      "evidence": {
+        "revision": "fc3ae56329789a6bd62d2d6173cd213ebfdf0744",
+        "run_id": 35977467577,
+        "files": {
+          "src-tauri/src/tools/patch.rs": "d1a47eb98f59aa80a78e4f67a2e842d2ab1481c16d201b219704e1d219129940",
+          "src-tauri/src/tools/patch_transaction.rs": "a330f234d47cd70d40ed3d346459dbbe610cd071d3744cda2c33f6e552537936",
+          "src-tauri/src/tools/patch_transaction_tests.rs": "6ec4c2e8d2070f7ef2941ddcfe53ac178b572241fb877c38cbf4a90b44774a55"
+        }
+      }
+    },
+    {
+      "id": "project-guidance",
+      "title": "Hierarchical project instructions",
+      "lane": "tool-runtime",
+      "paths": [
+        "services/local-agent",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "tool-runtime"
+      ],
+      "issue": 64,
+      "state": "verified",
+      "priority": 30,
+      "release_required": true,
+      "evidence": {
+        "revision": "8c453c4dadc9e80c0a8befe144bc4f2b79f793c1",
+        "run_id": 35899866696,
+        "files": {
+          "services/local-agent/src/guidance.rs": "9b77e719eacf495403ea3cff8a78f22a93ff1960f64a40ea62061e65f7751a9e",
+          "services/local-agent/src/guidance_tests.rs": "8506ada163cfacf074c9c460a7bb6942951a6f0162a26fc7bc9af9580337be9b",
+          "services/local-agent/src/lib.rs": "1dc191c1efd314d8eab16252ac94f51dc69de9eff2585fcc57d8ede30747ddfc"
+        }
+      }
+    },
+    {
+      "id": "local-skills",
+      "title": "Bounded trusted local Skills",
+      "lane": "tool-runtime",
+      "paths": [
+        "services/local-agent",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "project-guidance",
+        "exec-policy"
+      ],
+      "issue": 66,
+      "state": "verified",
+      "priority": 30,
+      "release_required": true,
+      "evidence": {
+        "revision": "8c453c4dadc9e80c0a8befe144bc4f2b79f793c1",
+        "run_id": 35899866696,
+        "files": {
+          "services/local-agent/src/skills.rs": "37c4434cf773dbca9c246d0a961b835efe42d8e81c44f0ee7fc1bab94b66065d",
+          "services/local-agent/src/skills_tests.rs": "c9dcf835238e460503ded4270ac9d433b55e150fddf5e8619f93d8798f60250c",
+          "services/local-agent/src/lib.rs": "1dc191c1efd314d8eab16252ac94f51dc69de9eff2585fcc57d8ede30747ddfc"
+        }
+      }
+    },
+    {
+      "id": "policy-hooks",
+      "title": "Hooks under the execution policy",
+      "lane": "tool-runtime",
+      "paths": [
+        "services/local-agent",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "ubuntu-sandbox",
+        "windows-sandbox"
+      ],
+      "issue": null,
+      "state": "planned",
+      "priority": 30,
+      "release_required": true
+    },
+    {
+      "id": "local-trace",
+      "title": "Redacted local trace and recovery views",
+      "lane": "tool-runtime",
+      "paths": [
+        "services/local-agent",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "exec-unification"
+      ],
+      "issue": 56,
+      "state": "verified",
+      "priority": 30,
+      "release_required": true,
+      "evidence": {
+        "revision": "8c453c4dadc9e80c0a8befe144bc4f2b79f793c1",
+        "run_id": 35899866696,
+        "files": {
+          "services/local-agent/src/lib.rs": "1dc191c1efd314d8eab16252ac94f51dc69de9eff2585fcc57d8ede30747ddfc",
+          "services/local-agent/src/trace.rs": "02757fe7242c8f2f7085c616ca2c52cc54fa363fa6bcf32d2c207e0a200d3a54",
+          "services/local-agent/src/trace/view.rs": "1f5f3d0111f6d3b6a1e8377d30f081cdfca06758ee08d4a7017e40b8c30d17c0",
+          "services/local-agent/src/trace/tests.rs": "6e463148c03b36930f9b2b787609b84c3b3643ca04ceddd45ddc686e223eb7f6",
+          "services/local-agent/src/trace/tests/authorization.rs": "3f5626f0472acb87d10b4308688406151f08860752937ab12072821ec9348ea9",
+          "services/local-agent/src/trace/tests/fault_boundary.rs": "6209860af95d27dce287af9a94097825c6d938e80fec032cc0429f5ce994e1a2",
+          "services/local-agent/src/trace/tests/lifecycle.rs": "b3b2ff07f87961d50c98b3f9bbbc27c17fbc4381c1163b83eb378ac0a52c159c",
+          "services/local-agent/src/trace/tests/retention.rs": "a6eccfdac6add1d3cb120aac6e3eb6b138e3eeb9cfc36e2a96d78e87327832ae"
+        }
+      }
+    },
+    {
+      "id": "worktrees",
+      "title": "Isolated worktree management",
+      "lane": "tool-runtime",
+      "paths": [
+        "services/local-agent",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "safe-patch"
+      ],
+      "issue": null,
+      "state": "planned",
+      "priority": 30,
+      "release_required": true
+    },
+    {
+      "id": "snapshot-rollback",
+      "title": "Explicit workspace snapshots and rollback",
+      "lane": "tool-runtime",
+      "paths": [
+        "services/local-agent",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "worktrees"
+      ],
+      "issue": null,
+      "state": "planned",
+      "priority": 30,
+      "release_required": true
+    },
+    {
+      "id": "verification",
+      "title": "Structured coding verification evidence",
+      "lane": "tool-runtime",
+      "paths": [
+        "services/local-agent",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "local-trace"
+      ],
+      "issue": 65,
+      "state": "verified",
+      "priority": 30,
+      "release_required": true,
+      "evidence": {
+        "revision": "8c453c4dadc9e80c0a8befe144bc4f2b79f793c1",
+        "run_id": 35899866696,
+        "files": {
+          "services/local-agent/src/trace/verification.rs": "1e1214bc55241091ca117348dc3cddf66a906b677d97981751a31e78489c3df0",
+          "services/local-agent/src/trace/tests/verification.rs": "b2614ab20e74b8b9fcfdb8535dde5ccf90634d4342adc2e844f8a37545231a9e",
+          "services/local-agent/src/trace.rs": "02757fe7242c8f2f7085c616ca2c52cc54fa363fa6bcf32d2c207e0a200d3a54",
+          "services/local-agent/src/trace/tests.rs": "6e463148c03b36930f9b2b787609b84c3b3643ca04ceddd45ddc686e223eb7f6",
+          "services/local-agent/src/lib.rs": "1dc191c1efd314d8eab16252ac94f51dc69de9eff2585fcc57d8ede30747ddfc"
+        }
+      }
+    },
+    {
+      "id": "tool-discovery",
+      "title": "Deferred tool discovery evaluation",
+      "lane": "tool-runtime",
+      "paths": [
+        "services/local-agent",
+        "src-tauri"
+      ],
+      "depends_on": [
+        "tool-runtime"
+      ],
+      "issue": 72,
+      "state": "verified",
+      "priority": 30,
+      "release_required": true,
+      "evidence": {
+        "revision": "4a6360e624ce82cebb04423d531034c717721ff3",
+        "run_id": 36144614243,
+        "files": {
+          "services/local-agent/src/registry.rs": "861c9df82b06bde1f067ce12e06309d10b98210eb6f48659d3896b7dc51486b4",
+          "services/local-agent/src/registry_tests.rs": "8dd3903a5b9d0a328e6814e73ded7e66d46c29be82f4e3844fc7364e87c8ad7a",
+          "services/local-agent/src/lib.rs": "134c917e692ee4dc4bb11ec0f5ffdd638f843fab7d062a0d51c4fd8bf7169a70"
+        }
+      }
+    },
+    {
+      "id": "abuse-observability",
+      "title": "Bounded ingress and redacted observability",
+      "lane": "identity",
+      "paths": [
+        "services/cloud-gateway"
+      ],
+      "depends_on": [
+        "mcp-business-gateway"
+      ],
+      "issue": 54,
+      "state": "verified",
+      "priority": 30,
+      "release_required": true,
+      "evidence": {
+        "revision": "2934c5b534dd2d76e46dd700b96ce1a4eaf83a91",
+        "run_id": 35751729527,
+        "files": {
+          "services/cloud-gateway/src/observability.rs": "a16ff13b7845a15c887d55c2ae0549e908da505391b696022e06c4c5c9c4be8e",
+          "services/cloud-gateway/src/mcp/http.rs": "32cf4f790bafd728782247857a9c6dd5f69fa8a3db9597ba5885c29f522b0c33",
+          "services/cloud-gateway/src/service/mcp_runtime.rs": "da0cca4befaccc7b9ab92753b66227c2018f2f3bd7f4d1efbcfd91a962d5d01e",
+          "services/cloud-gateway/src/service/runtime.rs": "87c3b649d5df8c6ac3d02e5eb42a6b8fd2f93e8696dd4e42b2b97937520ba82c",
+          "services/cloud-gateway/tests/mcp_postgres.rs": "905a83515c17899f8be547f40dda3272f48638fe22e6dd3ca6cf89195e2466a4"
+        }
+      }
+    },
+    {
+      "id": "origin-migration",
+      "title": "Reversible origin and OAuth migration",
+      "lane": "packaging",
+      "paths": [
+        "deploy/cloud-gateway",
+        "tests/cloud-gateway-deployment/test_migration.py",
+        ".github/workflows/origin-migration.yml"
+      ],
+      "depends_on": [
+        "mcp-business-gateway",
+        "abuse-observability"
+      ],
+      "issue": 57,
+      "state": "verified",
+      "priority": 30,
+      "release_required": true,
+      "evidence": {
+        "revision": "4196b702b9c13debfd73fabe54c571c99bb14cd7",
+        "run_id": 35770305127,
+        "files": {
+          "deploy/cloud-gateway/migration.py": "dcef9e60a1adf9fe8f6a2b3822bba4632cb2c2a8273f75b53fda989f335e3d1f",
+          "tests/cloud-gateway-deployment/test_migration.py": "09ba9e3f4f69654fc49de43ff6ca2b28679dbc6329db2830c53547b268e91770",
+          ".github/workflows/origin-migration.yml": "e05461fd7a0a2e238d10d126cc7de863b161714f2b58a833ed1226982f81ffd5"
+        }
+      }
+    },
+    {
+      "id": "reproducible-packages",
+      "title": "Reproducible native and cloud packages with rollback",
+      "lane": "packaging",
+      "paths": [
+        "deploy/cloud-gateway",
+        ".github/workflows"
+      ],
+      "depends_on": [
+        "exec-unification",
+        "native-pty",
+        "exec-policy",
+        "ubuntu-sandbox",
+        "windows-sandbox",
+        "safe-patch",
+        "project-guidance",
+        "local-skills",
+        "policy-hooks",
+        "local-trace",
+        "worktrees",
+        "snapshot-rollback",
+        "verification",
+        "tool-discovery",
+        "origin-migration"
+      ],
+      "issue": null,
+      "state": "planned",
+      "priority": 40,
+      "release_required": true
+    },
+    {
+      "id": "vps-acceptance",
+      "title": "Isolated supported-host VPS acceptance",
+      "lane": "release-review",
+      "paths": [
+        "deploy/cloud-gateway"
+      ],
+      "depends_on": [
+        "reproducible-packages"
+      ],
+      "issue": 40,
+      "state": "blocked",
+      "priority": 50,
+      "release_required": true,
+      "reason": "Physical VPS acceptance deferred; CentOS Stream 8 production security gate unresolved."
+    },
+    {
+      "id": "host-acceptance",
+      "title": "Windows Ubuntu and real ChatGPT release acceptance",
+      "lane": "release-review",
+      "paths": [
+        "docs/specs/cloud-gateway-agent-runtime"
+      ],
+      "depends_on": [
+        "vps-acceptance"
+      ],
+      "issue": null,
+      "state": "deferred",
+      "priority": 50,
+      "release_required": true,
+      "reason": "User deferred physical workstation and real ChatGPT observations; not PASS."
+    }
+  ],
+  "release_gates": {
+    "security-review": "pending",
+    "supported-host": "blocked",
+    "windows-installed": "deferred",
+    "ubuntu-installed": "deferred",
+    "real-chatgpt": "deferred",
+    "reproducible-packages": "pending"
+  }
+}

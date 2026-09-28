@@ -7,6 +7,7 @@ use serde_json::{json, Value};
 use ring::hmac;
 use super::{principal::VerifiedPrincipal, session_policy::SessionPolicy,
     exclusive_lease::{Owner, Phase}, chat_events::ChatEvent};
+use super::local_authority::{AuthorityEpochStore, LocalAdmissionPermit, LocalAdmissionTicket, LocalAuthorityPhase, LocalAuthoritySnapshot, LocalExecutionState};
 
 pub const SCOPES: &[&str] = &[
     "workspace.read", "files.read", "files.write", "exec.run", "task.read",
@@ -81,11 +82,12 @@ struct WorkSource {
 pub(crate) struct ChatAuthorizer {
     state: Mutex<State>, work: Mutex<HashMap<String, Vec<WorkSource>>>,
     fences: Mutex<HashMap<String, Arc<super::execution_fence::ExecutionFence>>>,
+    authority_epochs: Mutex<HashMap<String, Arc<AuthorityEpochStore>>>,
     events: tokio::sync::broadcast::Sender<ChatEvent>,
 }
 impl Default for ChatAuthorizer {
     fn default() -> Self {
-        Self { state: Mutex::default(), work: Mutex::default(), fences:Mutex::default(), events: tokio::sync::broadcast::channel(128).0 }
+        Self { state: Mutex::default(), work: Mutex::default(), fences:Mutex::default(), authority_epochs:Mutex::default(), events: tokio::sync::broadcast::channel(128).0 }
     }
 }
 pub(crate) struct AdmissionGuard { service: Arc<ChatAuthorizer>, profile: String }
@@ -115,17 +117,31 @@ fn denied(code: &str) -> Value {
 impl ChatAuthorizer {
     pub(crate) fn attach_storage(&self, profile:&str, root:&std::path::Path, harness_root:&std::path::Path)->Result<(),String> {
         let mut fences=self.fences.lock().map_err(|_|"执行恢复锁不可用")?;
-        if fences.contains_key(profile){return Ok(());}
+        let mut authority_epochs=self.authority_epochs.lock().map_err(|_|"本地授权版本不可用")?;
+        let fence_exists=fences.contains_key(profile);
+        let epoch_exists=authority_epochs.contains_key(profile);
+        if fence_exists || epoch_exists {
+            if fence_exists && epoch_exists { return Ok(()); }
+            return Err("本地授权存储状态不一致；未允许远程执行".into());
+        }
+        // Open both authenticated namespaces before publishing either one.
         let fence=Arc::new(super::execution_fence::ExecutionFence::open(root)?);
+        let authority_epoch=Arc::new(AuthorityEpochStore::open(root)?);
         for binding in fence.bindings() {
             let tasks=crate::tools::exec_tasks::ExecTaskStore::shared(harness_root.join("chat-v1").join(binding).join("exec-tasks-v1"));
             tasks.bind_profile(profile);
             self.register_work(profile,Arc::new(crate::tools::session::SessionStore::new()),tasks);
         }
-        fences.insert(profile.into(),fence);Ok(())
+        fences.insert(profile.into(),fence);
+        authority_epochs.insert(profile.into(),authority_epoch);
+        Ok(())
     }
     fn fence(&self,profile:&str)->Option<Arc<super::execution_fence::ExecutionFence>> {
         self.fences.lock().expect("execution fences").get(profile).cloned()
+    }
+    fn authority_epoch(&self,profile:&str)->Result<u64,&'static str> {
+        self.authority_epochs.lock().map_err(|_|"LOCAL_AUTHORITY_UNAVAILABLE")?
+            .get(profile).ok_or("LOCAL_AUTHORITY_UNAVAILABLE")?.epoch()
     }
     pub(crate) fn acknowledge_recovery(&self,profile:&str,generation:&str)->Result<(),String> {
         if self.busy(profile){return Err("仍有运行中或终止状态未确认的任务，请先在异步任务面板处理".into());}
@@ -351,6 +367,203 @@ impl ChatAuthorizer {
             "revision":state.revision,"policy":Self::policy(&state,profile),
             "recovery":self.fence(profile).map(|f|f.snapshot()).unwrap_or(json!({"required":false}))})
     }
+    /// Export only this already-approved conversation's local authority.
+    /// This function cannot create or widen a grant and does not touch idle TTL.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn local_authority_snapshot(
+        &self,
+        req: &RemoteRequest,
+        gate: &crate::runtime::WorkspaceExecutionGate,
+    ) -> Result<LocalAuthoritySnapshot, &'static str> {
+        let key = req.identity()?;
+        self.reconcile(&req.profile);
+        let authority_epoch = self.authority_epoch(&req.profile)?;
+        let recovery_required = self.fence(&req.profile).is_some_and(|fence| !fence.ready());
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| "LOCAL_AUTHORITY_UNAVAILABLE")?;
+        let owner = state.owners.get(&req.profile).cloned();
+        if owner.as_ref().is_some_and(|owner| owner.binding != key) {
+            return Err("EXCLUSIVE_CHAT_LOCKED");
+        }
+        let revision = state.revision;
+        let record = state.records.get_mut(key).ok_or("CHAT_NOT_APPROVED")?;
+        record.refresh(Instant::now());
+        if record.profile != req.profile || record.binding != key {
+            return Err("CHAT_NOT_APPROVED");
+        }
+        let owner_matches = owner
+            .as_ref()
+            .is_some_and(|owner| owner.binding == key && owner.request_id == record.view.id);
+        let phase = if recovery_required {
+            if !owner_matches {
+                return Err("CHAT_RECOVERY_REQUIRED");
+            }
+            LocalAuthorityPhase::RecoveryRequired
+        } else if owner
+            .as_ref()
+            .is_some_and(|owner| owner.phase == Phase::Draining)
+        {
+            if !owner_matches {
+                return Err("CHAT_WORK_DRAINING");
+            }
+            LocalAuthorityPhase::Draining
+        } else {
+            if record.view.status != "active"
+                || owner
+                    .as_ref()
+                    .is_some_and(|owner| owner.phase != Phase::Active)
+            {
+                return Err("CHAT_NOT_APPROVED");
+            }
+            LocalAuthorityPhase::Active
+        };
+        let view = record.view.clone();
+        let gate_snapshot = gate.snapshot();
+        let execution_state = if phase == LocalAuthorityPhase::Active {
+            gate_snapshot.availability.into()
+        } else {
+            LocalExecutionState::Offline
+        };
+        Ok(LocalAuthoritySnapshot::new(
+            phase,
+            key.to_string(),
+            view.id,
+            view.scopes,
+            view.created_at,
+            view.expires_at,
+            view.idle_expires_at,
+            authority_epoch,
+            revision,
+            gate_snapshot.generation,
+            execution_state,
+        ))
+    }
+
+    /// Mint a process-local hand-off ticket from current local authority only.
+    /// The ticket is intentionally not serializable or cloneable.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn issue_local_admission_ticket(
+        &self,
+        req: &RemoteRequest,
+        scopes: &[&str],
+        gate: &crate::runtime::WorkspaceExecutionGate,
+    ) -> Result<LocalAdmissionTicket, &'static str> {
+        let key = req.identity()?;
+        self.reconcile(&req.profile);
+        if self.fence(&req.profile).is_some_and(|fence| !fence.ready()) {
+            return Err("CHAT_RECOVERY_REQUIRED");
+        }
+        if scopes.is_empty() {
+            return Err("INSUFFICIENT_CHAT_SCOPE");
+        }
+        let authority_epoch = self.authority_epoch(&req.profile)?;
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| "LOCAL_AUTHORITY_UNAVAILABLE")?;
+        Self::owner_check(&state, &req.profile, key)?;
+        let record = state.records.get_mut(key).ok_or("CHAT_NOT_APPROVED")?;
+        record.refresh(Instant::now());
+        if record.profile != req.profile || record.binding != key || record.view.status != "active"
+        {
+            return Err("CHAT_NOT_APPROVED");
+        }
+        if scopes
+            .iter()
+            .any(|scope| !record.view.scopes.contains(*scope))
+        {
+            return Err("INSUFFICIENT_CHAT_SCOPE");
+        }
+        let grant_id = record.view.id.clone();
+        let required_scopes = scopes.iter().map(|scope| (*scope).to_string()).collect();
+        let authority_revision = state.revision;
+        // Lock order stays authorization -> execution gate, matching the
+        // existing guarded authorization allocation path.
+        let gate_snapshot = gate.snapshot();
+        if gate_snapshot.availability == crate::runtime::ExecutionAvailability::Offline {
+            return Err("WORKSPACE_OFFLINE");
+        }
+        Ok(LocalAdmissionTicket::new(
+            req.profile.clone(),
+            key.to_string(),
+            grant_id,
+            required_scopes,
+            authority_epoch,
+            authority_revision,
+            gate_snapshot.generation,
+        ))
+    }
+
+    /// Final local linearization point immediately before future tool dispatch.
+    /// Any authority/gate transition after ticket issuance rejects the ticket.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn commit_local_admission(
+        self: &Arc<Self>,
+        req: &RemoteRequest,
+        gate: &Arc<crate::runtime::WorkspaceExecutionGate>,
+        ticket: LocalAdmissionTicket,
+    ) -> Result<LocalAdmissionPermit, &'static str> {
+        if ticket.expired() {
+            return Err("LOCAL_ADMISSION_EXPIRED");
+        }
+        let key = req.identity()?;
+        if ticket.profile != req.profile || ticket.binding != key {
+            return Err("LOCAL_ADMISSION_MISMATCH");
+        }
+        self.reconcile(&req.profile);
+        if self.fence(&req.profile).is_some_and(|fence| !fence.ready()) {
+            return Err("CHAT_RECOVERY_REQUIRED");
+        }
+        if self.authority_epoch(&req.profile)? != ticket.authority_epoch {
+            return Err("LOCAL_AUTHORITY_CHANGED");
+        }
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| "LOCAL_AUTHORITY_UNAVAILABLE")?;
+        if state.revision != ticket.authority_revision {
+            return Err("LOCAL_AUTHORITY_CHANGED");
+        }
+        Self::owner_check(&state, &req.profile, key)?;
+        let record = state.records.get_mut(key).ok_or("CHAT_NOT_APPROVED")?;
+        record.refresh(Instant::now());
+        if record.profile != req.profile
+            || record.binding != key
+            || record.view.status != "active"
+            || record.view.id != ticket.grant_id
+        {
+            return Err("CHAT_NOT_APPROVED");
+        }
+        if ticket
+            .required_scopes
+            .iter()
+            .any(|scope| !record.view.scopes.contains(scope))
+        {
+            return Err("INSUFFICIENT_CHAT_SCOPE");
+        }
+        // Auth mutex is still held here: a pause/revoke that wins before this
+        // point invalidates generation/revision; a commit that wins here is an
+        // established in-flight operation and retains the existing semantics.
+        let execution = gate.try_admit_generation(ticket.execution_generation)?;
+        let scope_refs: Vec<&str> = ticket.required_scopes.iter().map(String::as_str).collect();
+        Self::permit_locked(&mut state, req, key, &scope_refs)?;
+        *state.flights.entry(req.profile.clone()).or_default() += 1;
+        state.epoch = state.epoch.wrapping_add(1);
+        let chat = AdmissionGuard {
+            service: self.clone(),
+            profile: req.profile.clone(),
+        };
+        drop(state);
+        if ticket.required_scopes.contains("exec.run") {
+            if let Some(fence) = self.fence(&req.profile) {
+                fence.mark(key)?;
+            }
+        }
+        Ok(LocalAdmissionPermit::new(chat, execution))
+    }
+
     fn permit_locked(state: &mut State, req: &RemoteRequest, key: &str, scopes: &[&str]) -> Result<(), &'static str> {
         Self::owner_check(state,&req.profile,key)?;
         let r = state.records.get_mut(key).ok_or("CHAT_NOT_APPROVED")?;

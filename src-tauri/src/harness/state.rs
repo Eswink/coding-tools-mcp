@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(not(target_os = "linux"))]
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -544,16 +545,21 @@ fn should_skip(path: &Path, root: &Path) -> bool {
 }
 
 fn git_value(root: &Path, args: &[&str]) -> Option<String> {
-    let mut cmd = Command::new("git");
-    cmd.arg("-C").arg(root).args(args);
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
-    }
-    let output = cmd.output().ok()?;
+    #[cfg(target_os = "linux")]
+    let output = crate::tools::git_runner::run(root, root, args, std::time::Duration::from_secs(5)).ok()?;
+    #[cfg(not(target_os = "linux"))]
+    let output = {
+        let mut cmd = Command::new("git");
+        cmd.arg("-C").arg(root).args(args);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            cmd.creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
+        }
+        cmd.output().ok()?
+    };
     if !output.status.success() {
         return None;
     }

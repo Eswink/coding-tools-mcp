@@ -1,0 +1,18 @@
+{
+  "source": "User-provided inventory; not a live server probe",
+  "os_id": "centos-stream",
+  "os_version": "8",
+  "architecture": "x86_64",
+  "compose_version": "2.27.0",
+  "docker_engine_version": null,
+  "domain": "research-system.eswlnk.com",
+  "tls_listener_owner": "existing nginx and Baota WAF",
+  "nginx_binary": "/www/server/nginx/sbin/nginx",
+  "nginx_config": "/www/server/nginx/conf/nginx.conf",
+  "planned_upstream_port": 28880,
+  "upstream_port_available": null,
+  "prefix_routes_available": null,
+  "tls_verified": null,
+  "waf_protocol_verified": null,
+  "external_port_isolation_verified": null
+}

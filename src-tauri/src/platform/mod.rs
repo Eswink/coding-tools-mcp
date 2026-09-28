@@ -71,6 +71,8 @@ pub use open::{is_allowed_url, open_path_in_file_manager, open_url};
 
 #[cfg(target_os = "linux")]
 pub use linux::LinuxPlatform;
+#[cfg(target_os = "linux")]
+pub(crate) use linux::listen_socket_present as linux_listen_socket_present;
 #[cfg(target_os = "macos")]
 pub use macos::MacPlatform;
 #[cfg(target_os = "windows")]

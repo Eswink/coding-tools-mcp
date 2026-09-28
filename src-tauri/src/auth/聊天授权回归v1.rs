@@ -267,3 +267,161 @@ fn concurrent_exclusive_grants_have_exactly_one_winner() {
     for thread in threads { thread.join().unwrap(); }
     assert_eq!(svc.snapshot("p")["records"].as_array().unwrap().iter().filter(|v|v["status"] == "active").count(),1);
 }
+
+#[test]
+fn local_authority_export_is_local_grant_only_and_tracks_offline_state() {
+    use crate::auth::{LocalAuthorityPhase, LocalExecutionState};
+    let svc = Arc::new(ChatAuthorizer::default());
+    let storage = tempfile::tempdir().unwrap();
+    let harness = tempfile::tempdir().unwrap();
+    let profile = "local-authority-export";
+    svc.attach_storage(profile, storage.path(), harness.path())
+        .unwrap();
+    let req = request(&svc, profile, "owner-A");
+    allow(&req, &["files.read", "exec.run"]);
+    let gate = crate::runtime::WorkspaceExecutionGate::shared();
+
+    let active = svc.local_authority_snapshot(&req, &gate).unwrap();
+    assert_eq!(active.phase(), LocalAuthorityPhase::Active);
+    assert_eq!(active.execution_state(), LocalExecutionState::Online);
+    assert!(active.scopes().contains("files.read"));
+    assert!(active.scopes().contains("exec.run"));
+    assert_eq!(active.authority_epoch(), 1);
+    assert!(active.authority_revision() > 0);
+
+    gate.pause().unwrap();
+    let offline = svc.local_authority_snapshot(&req, &gate).unwrap();
+    assert_eq!(offline.phase(), LocalAuthorityPhase::Active);
+    assert_eq!(offline.execution_state(), LocalExecutionState::Offline);
+    assert_eq!(offline.authority_epoch(), active.authority_epoch());
+
+    let foreign = request(&svc, profile, "foreign-B");
+    assert_eq!(
+        svc.local_authority_snapshot(&foreign, &gate).unwrap_err(),
+        "EXCLUSIVE_CHAT_LOCKED"
+    );
+}
+
+#[test]
+fn local_authority_export_preserves_draining_owner_without_enabling_execution() {
+    use crate::auth::{LocalAuthorityPhase, LocalExecutionState};
+    let svc = Arc::new(ChatAuthorizer::default());
+    let storage = tempfile::tempdir().unwrap();
+    let harness = tempfile::tempdir().unwrap();
+    let profile = "local-authority-draining";
+    svc.attach_storage(profile, storage.path(), harness.path())
+        .unwrap();
+    let req = request(&svc, profile, "owner-A");
+    allow(&req, &["files.read"]);
+    let gate = crate::runtime::WorkspaceExecutionGate::shared();
+    let id = svc.snapshot(profile)["records"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let in_flight = svc.admit(&req, &["files.read"]).unwrap();
+
+    svc.revoke(profile, Some(&id));
+    let draining = svc.local_authority_snapshot(&req, &gate).unwrap();
+    assert_eq!(draining.phase(), LocalAuthorityPhase::Draining);
+    assert_eq!(draining.execution_state(), LocalExecutionState::Offline);
+
+    drop(in_flight);
+    assert!(svc.local_authority_snapshot(&req, &gate).is_err());
+    assert_eq!(svc.snapshot(profile)["lease_state"], "free");
+}
+
+#[test]
+fn local_admission_ticket_is_one_handoff_and_fails_after_pause_or_revoke() {
+    let svc = Arc::new(ChatAuthorizer::default());
+    let storage = tempfile::tempdir().unwrap();
+    let harness = tempfile::tempdir().unwrap();
+    let profile = "local-admission-fences";
+    svc.attach_storage(profile, storage.path(), harness.path())
+        .unwrap();
+    let req = request(&svc, profile, "owner-A");
+    allow(&req, &["files.read"]);
+    let gate = crate::runtime::WorkspaceExecutionGate::shared();
+
+    let stale_gate = svc
+        .issue_local_admission_ticket(&req, &["files.read"], &gate)
+        .unwrap();
+    gate.pause().unwrap();
+    gate.resume().unwrap();
+    assert_eq!(
+        svc.commit_local_admission(&req, &gate, stale_gate)
+            .err().unwrap(),
+        "WORKSPACE_EXECUTION_CHANGED"
+    );
+
+    let stale_grant = svc
+        .issue_local_admission_ticket(&req, &["files.read"], &gate)
+        .unwrap();
+    let id = svc.snapshot(profile)["records"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    svc.revoke(profile, Some(&id));
+    assert!(svc
+        .commit_local_admission(&req, &gate, stale_grant)
+        .is_err());
+}
+
+#[test]
+fn committed_local_admission_uses_existing_in_flight_drain_semantics() {
+    let svc = Arc::new(ChatAuthorizer::default());
+    let storage = tempfile::tempdir().unwrap();
+    let harness = tempfile::tempdir().unwrap();
+    let profile = "local-admission-commit";
+    svc.attach_storage(profile, storage.path(), harness.path())
+        .unwrap();
+    let req = request(&svc, profile, "owner-A");
+    allow(&req, &["files.read"]);
+    let gate = crate::runtime::WorkspaceExecutionGate::shared();
+    let id = svc.snapshot(profile)["records"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    let ticket = svc
+        .issue_local_admission_ticket(&req, &["files.read"], &gate)
+        .unwrap();
+    let permit = svc
+        .commit_local_admission(&req, &gate, ticket)
+        .expect("local admission commit");
+    assert_eq!(gate.snapshot().in_flight, 1);
+
+    svc.revoke(profile, Some(&id));
+    assert_eq!(svc.snapshot(profile)["lease_state"], "draining");
+    drop(permit);
+    assert_eq!(gate.snapshot().in_flight, 0);
+    assert_eq!(svc.snapshot(profile)["lease_state"], "free");
+}
+
+#[test]
+fn local_admission_ticket_is_bounded_and_cannot_expand_scope() {
+    let svc = Arc::new(ChatAuthorizer::default());
+    let storage = tempfile::tempdir().unwrap();
+    let harness = tempfile::tempdir().unwrap();
+    let profile = "local-admission-bounds";
+    svc.attach_storage(profile, storage.path(), harness.path())
+        .unwrap();
+    let req = request(&svc, profile, "owner-A");
+    allow(&req, &["files.read"]);
+    let gate = crate::runtime::WorkspaceExecutionGate::shared();
+
+    assert!(svc.issue_local_admission_ticket(&req, &[], &gate).is_err());
+    assert_eq!(
+        svc.issue_local_admission_ticket(&req, &["exec.run"], &gate)
+            .err().unwrap(),
+        "INSUFFICIENT_CHAT_SCOPE"
+    );
+    let mut expired = svc
+        .issue_local_admission_ticket(&req, &["files.read"], &gate)
+        .unwrap();
+    expired.expire_for_test();
+    assert_eq!(
+        svc.commit_local_admission(&req, &gate, expired)
+            .err().unwrap(),
+        "LOCAL_ADMISSION_EXPIRED"
+    );
+}

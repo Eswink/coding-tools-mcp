@@ -1,0 +1,86 @@
+name: Cloud gateway request admission
+on:
+  push:
+    branches: ['feat/cloud-gateway-agent-runtime']
+    paths: ['services/cloud-gateway/**', '.github/workflows/cloud-gateway-request-admission.yml']
+  pull_request:
+    branches: [main]
+    paths: ['services/cloud-gateway/**', '.github/workflows/cloud-gateway-request-admission.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cloud-request-admission-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  portable:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Portable admission contracts and compilation
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+          rustc --version > evidence/toolchain.txt
+          cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
+          cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib admission:: 2>&1 | tee evidence/admission-pure.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: request-admission-portable-${{ matrix.os }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+  postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - name: Real isolated PostgreSQL admission and reconciliation races
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16
+          export PATH="/usr/lib/postgresql/16/bin:$PATH"
+          mkdir -p evidence
+          cluster="$(mktemp -d "$RUNNER_TEMP/ctm-admission.XXXXXX")"
+          port="$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')"
+          initdb -D "$cluster/data" -A trust -U admission_test --encoding=UTF8 --no-locale >/dev/null
+          pg_ctl -D "$cluster/data" -l "$cluster/postgres.log" -o "-h 127.0.0.1 -p $port -k $cluster" -w start >/dev/null
+          trap 'pg_ctl -D "$cluster/data" -m fast -w stop >/dev/null' EXIT
+          createdb -h 127.0.0.1 -p "$port" -U admission_test coding_tools_identity_test
+          export TEST_DATABASE_URL="postgresql://admission_test@127.0.0.1:$port/coding_tools_identity_test"
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test admission_postgres 2>&1 | tee evidence/admission-postgres.txt
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+          /usr/lib/postgresql/16/bin/postgres --version > evidence/postgres-version.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: request-admission-postgres
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error

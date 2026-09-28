@@ -5,10 +5,13 @@ pub(crate) mod chat_domain;
 pub mod context;
 pub mod dispatch;
 pub mod exec;
+pub(crate) mod execution_sandbox;
 #[path = "异步命令v1.rs"]
 pub mod exec_tasks;
 pub mod file;
 pub mod git;
+#[cfg(target_os = "linux")]
+pub(crate) mod git_runner;
 pub mod history;
 mod image_tool;
 pub mod patch;
