@@ -1,0 +1,55 @@
+name: Issue81 public desktop build SDK
+on:
+  push:
+    branches: ['ci/issue81-desktop-build-sdk']
+permissions:
+  contents: read
+jobs:
+  sdk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Install public native build dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev libdbus-1-dev libssl-dev libxdo-dev librsvg2-dev
+      - name: Export only public package files and identities
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/sdk"
+          python3 - <<'PY'
+          import os, pathlib, subprocess, tarfile
+          roots=['libgtk-3-dev','libwebkit2gtk-4.1-dev','libayatana-appindicator3-dev','libdbus-1-dev','libssl-dev','libxdo-dev','librsvg2-dev']
+          text=subprocess.check_output(['apt-cache','depends','--recurse','--no-recommends','--no-suggests','--no-conflicts','--no-breaks','--no-replaces','--no-enhances',*roots],text=True)
+          names=sorted({line.strip() for line in text.splitlines() if line and not line[0].isspace() and not line.startswith('<')})
+          paths=set(); identities=[]
+          for name in names:
+              result=subprocess.run(['dpkg-query','-L',name],text=True,capture_output=True)
+              if result.returncode: continue
+              version=subprocess.check_output(['dpkg-query','-W','-f=${Package}\t${Version}\n',name],text=True)
+              identities.append(version)
+              for raw in result.stdout.splitlines():
+                  p=pathlib.Path(raw)
+                  if not (raw.startswith('/usr/include/') or raw.startswith('/usr/lib/') or raw.startswith('/lib/') or raw.startswith('/usr/share/pkgconfig/')): continue
+                  if p.is_file() or p.is_symlink(): paths.add(raw)
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])/'sdk'
+          (root/'packages.tsv').write_text(''.join(identities))
+          with tarfile.open(root/'desktop-sdk.tar.xz','w:xz',preset=3) as archive:
+              for raw in sorted(paths):
+                  p=pathlib.Path(raw)
+                  # Symlinks become regular bytes so the extracted SDK cannot
+                  # resolve a link outside its isolated root.
+                  if p.is_file():
+                      archive.dereference=True
+                      archive.add(p,arcname=raw.lstrip('/'),recursive=False)
+          (root/'SCOPE.txt').write_text('Public Ubuntu 24.04 build libraries/headers only. No source workspace, credentials, home, cache, application data, tests, or acceptance result.\n')
+          PY
+          cd "$RUNNER_TEMP/sdk"
+          sha256sum desktop-sdk.tar.xz packages.tsv SCOPE.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-public-desktop-sdk
+          path: ${{ runner.temp }}/sdk/
+          retention-days: 7
+          if-no-files-found: error
