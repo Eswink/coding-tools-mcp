@@ -1,0 +1,80 @@
+name: Issue81 public offline native toolchain
+on:
+  push:
+    branches: ['ci/issue81-offline-native-environment']
+permissions:
+  contents: read
+jobs:
+  public-tools:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Fetch only public locked dependency packages
+        run: |
+          set -euo pipefail
+          cargo fetch --locked --manifest-path services/cloud-gateway/Cargo.toml
+          cargo fetch --locked --manifest-path services/local-agent/Cargo.toml
+          cargo fetch --locked --manifest-path src-tauri/Cargo.toml
+      - name: Archive pinned compiler and public registry only
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          sysroot=$(rustc --print sysroot)
+          tar -C "$sysroot" -cJf out/rust-1.98.1-linux.tar.xz bin lib
+          tar -C "$HOME/.cargo" -cJf out/public-cargo-registry.tar.xz registry
+          rustc --version > out/rustc.txt
+          printf '%s\n' 'Public compiler and crates.io registry only; no credentials, Git configuration, environment, or private directories.' > out/SCOPE.txt
+          (cd out && sha256sum *.tar.xz > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-public-compiler
+          path: |
+            out/rust-1.98.1-linux.tar.xz
+            out/rustc.txt
+            out/SCOPE.txt
+            out/SHA256SUMS.txt
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-public-registry
+          path: out/public-cargo-registry.tar.xz
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+      - name: Export public PostgreSQL runtime for isolated fixtures
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-16
+          mkdir -p pg/bin pg/lib pg/share
+          cp -a /usr/lib/postgresql/16/bin/. pg/bin/
+          cp -a /usr/lib/postgresql/16/lib/. pg/lib/
+          cp -a /usr/share/postgresql/16/. pg/share/
+          python - <<'PY'
+          import pathlib,re,shutil,subprocess
+          targets=list(pathlib.Path('pg/bin').glob('*'))+list(pathlib.Path('pg/lib').glob('*.so'))
+          skip=re.compile(r'^(?:ld-linux|libc\.|libm\.|libpthread\.|libdl\.|librt\.)')
+          for path in targets:
+              text=subprocess.run(['ldd',str(path)],text=True,capture_output=True).stdout
+              for raw in re.findall(r'=> (/\S+)',text):
+                  p=pathlib.Path(raw)
+                  if p.is_file() and not skip.match(p.name): shutil.copyfile(p,pathlib.Path('pg/lib')/p.name)
+          PY
+          tar -C pg -cJf out/postgres16-fixture.tar.xz bin lib share
+          sha256sum out/postgres16-fixture.tar.xz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-public-postgres
+          path: out/postgres16-fixture.tar.xz
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
