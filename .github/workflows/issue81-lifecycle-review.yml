@@ -1,0 +1,101 @@
+name: Issue81 connection lifecycle pre-edit review
+on:
+  push:
+    branches: ['ci/issue81-connection-lifecycle']
+    paths: ['.github/workflows/issue81-lifecycle-review.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-verified-cloud-source-import
+          run-id: 36439990289
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/prior
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-pinned-review-tools
+          run-id: 36434991238
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/tools
+      - name: Restore pinned review tools and resume retained full-plan contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/tools"
+          sha256sum -c SHA256SUMS.txt
+          mkdir -p "$RUNNER_TEMP/review-bin" "$RUNNER_TEMP/lifecycle-review"
+          tar -xJf pinned-review-tools.tar.xz -C "$RUNNER_TEMP/review-bin"
+          cd "$GITHUB_WORKSPACE"
+          python - <<'PY'
+          import json,os,pathlib,subprocess
+          root=pathlib.Path(os.environ['GITHUB_WORKSPACE']);out=pathlib.Path(os.environ['RUNNER_TEMP'])/'lifecycle-review'
+          probe=str(pathlib.Path(os.environ['RUNNER_TEMP'])/'review-bin/node_modules/.bin/mcp-probe-kit')
+          original=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'prior/continuation-plan.json').read_text())
+          plan=original['structuredContent']['metadata']['plan']
+          plan['declaredScope']['specLayout']='parent-child'
+          def call(name,args,filename):
+              r=subprocess.run([probe,'exec',name,'--stdin'],input=json.dumps(args),text=True,capture_output=True,timeout=180)
+              (out/filename).write_text(r.stdout+'\n'+r.stderr,encoding='utf-8')
+              if r.returncode: raise RuntimeError(name+' failed')
+              data=json.loads(r.stdout)
+              if data.get('isError') or data.get('ok') is False: raise RuntimeError(name+' rejected')
+              return data
+          call('plan_heartbeat',{'plan_id':plan['planId'],'project_root':str(root),'plan':plan},'heartbeat-restored.json')
+          resumed=call('resume_plan',{'plan_id':plan['planId'],'project_root':str(root)},'resume-plan.json')
+          print('RESUMED_PLAN='+json.dumps(resumed,ensure_ascii=False))
+          (out/'retained-plan.json').write_text(json.dumps(plan,ensure_ascii=False,indent=2),encoding='utf-8')
+          (out/'source.txt').write_text(subprocess.check_output(['git','rev-parse','HEAD','HEAD^{tree}'],text=True))
+          (out/'context.md').write_text((root/'docs/project-context.md').read_text()+'\n'+(root/'docs/specs/cloud-execution-bridge/design.md').read_text(),encoding='utf-8')
+          PY
+      - name: Fresh graph and file-scoped native lifecycle impacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          graph="$RUNNER_TEMP/review-bin/node_modules/.bin/gitnexus"
+          out="$RUNNER_TEMP/lifecycle-review"
+          "$graph" analyze --workers 1 > "$out/graph.txt" 2>&1
+          git checkout -- AGENTS.md CLAUDE.md
+          "$graph" impact run --direction upstream --file services/native-link/src/transport.rs --depth 3 > "$out/impact-run.txt"
+          "$graph" impact one_session --direction upstream --file services/native-link/src/transport.rs --depth 3 > "$out/impact-session.txt"
+          "$graph" impact requires_local_recovery --direction upstream --file services/native-link/src/transport.rs --depth 3 > "$out/impact-recovery.txt"
+          "$graph" impact open --direction upstream --file services/native-link/src/journal.rs --depth 3 > "$out/impact-journal-open.txt"
+          "$graph" impact append --direction upstream --file services/native-link/src/journal.rs --depth 3 > "$out/impact-journal-append.txt"
+          "$graph" impact create --direction upstream --file services/native-link/src/journal.rs --depth 3 > "$out/impact-journal-create.txt"
+          "$graph" impact recovery_projection --direction upstream --file services/native-link/src/journal.rs --depth 3 > "$out/impact-journal-projection.txt"
+          "$graph" detect-changes --scope unstaged > "$out/detect-changes.txt"
+          cat "$out"/impact-*.txt
+      - name: Preserve checkpoint and immutable review evidence
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib,json,os,pathlib,shutil
+          root=pathlib.Path(os.environ['GITHUB_WORKSPACE']);out=pathlib.Path(os.environ['RUNNER_TEMP'])/'lifecycle-review';out.mkdir(exist_ok=True)
+          for base in (root/'docs/.mcp-probe',root/'.mcp-probe-kit'):
+              if base.exists():
+                  for p in base.rglob('*.json'):
+                      if 'plan' in str(p.relative_to(base)).lower():
+                          target=out/'checkpoint'/p.relative_to(root);target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(p,target)
+          (out/'hashes.json').write_text(json.dumps({str(p.relative_to(out)):hashlib.sha256(p.read_bytes()).hexdigest() for p in out.rglob('*') if p.is_file() and p.name!='hashes.json'},indent=2))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-lifecycle-preedit
+          path: ${{ runner.temp }}/lifecycle-review/
+          include-hidden-files: true
+          retention-days: 30
+          if-no-files-found: error
