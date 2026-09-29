@@ -1,0 +1,152 @@
+name: Issue81 native connection lifecycle validation
+on:
+  push:
+    branches: ['ci/issue81-connection-lifecycle']
+    paths:
+      - '.github/workflows/issue81-lifecycle-native.yml'
+      - '.ci/issue81_lifecycle_candidate.py'
+      - 'services/native-link/src/lifecycle*.rs'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: issue81-lifecycle-native-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      CARGO_TERM_COLOR: never
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: services/native-link
+          cache-on-failure: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-lifecycle-implementation-plan
+          run-id: 36521984484
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/retained-plan
+      - name: Verify implementation checkpoint and compile unchanged-behavior prerequisite
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'retained-plan/resume-implement.json'
+          raw=p.read_text();data,_=json.JSONDecoder().raw_decode(raw)
+          assert data['structuredContent']['nextStepId']=='implement'
+          assert data['structuredContent']['record']['completedStepIds']==['context','write-spec','check-spec','estimate']
+          pathlib.Path('evidence/plan.json').write_text(raw)
+          PY
+          python .ci/issue81_lifecycle_candidate.py prepare
+          cargo test --manifest-path services/native-link/Cargo.toml --lib --no-run > evidence/baseline-compile.txt 2>&1 || { tail -100 evidence/baseline-compile.txt; exit 1; }
+      - name: Prove original journal truncation and concurrent connection regressions fail
+        run: |
+          python - <<'PY'
+          import pathlib,subprocess
+          cases={
+            'tests::journal_rejects_complete_record_truncation':'NATIVE_JOURNAL_COMPLETE_RECORD_TRUNCATION',
+            'lifecycle_tests::different_links_sharing_journal_cannot_start_concurrently':'NATIVE_CONCURRENT_CONNECTION_OWNER',
+          }
+          for test,marker in cases.items():
+              r=subprocess.run(['cargo','test','--locked','--manifest-path','services/native-link/Cargo.toml','--lib',test,'--','--exact','--nocapture'],text=True,capture_output=True,timeout=40)
+              text=r.stdout+r.stderr;pathlib.Path('evidence/red-'+test.split('::')[-1]+'.txt').write_text(text)
+              print(text)
+              assert r.returncode==101 and marker in text and '0 passed; 1 failed; 0 ignored' in text, (test,r.returncode)
+          PY
+      - name: Apply reviewed repair and run all native-link tests and strict checks
+        run: |
+          set -euo pipefail
+          python .ci/issue81_lifecycle_candidate.py fix
+          cargo fmt --manifest-path services/native-link/Cargo.toml
+          cargo test --locked --manifest-path services/native-link/Cargo.toml > evidence/full-tests.txt 2>&1 || { tail -120 evidence/full-tests.txt; exit 1; }
+          cargo clippy --locked --manifest-path services/native-link/Cargo.toml --all-targets -- -D warnings > evidence/clippy.txt 2>&1 || { tail -120 evidence/clippy.txt; exit 1; }
+          cargo rustc --locked --manifest-path services/native-link/Cargo.toml --lib -- -D warnings > evidence/strict-lib.txt 2>&1 || { tail -120 evidence/strict-lib.txt; exit 1; }
+          cargo fmt --check --manifest-path services/native-link/Cargo.toml
+          cat evidence/full-tests.txt
+      - name: Preserve exact canonical source and genuine outcomes
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          python - <<'PY'
+          import hashlib,json,os,pathlib,subprocess
+          root=pathlib.Path('services/native-link');out=pathlib.Path('evidence');out.mkdir(exist_ok=True);files={}
+          for path in sorted(root.rglob('*')):
+              if not path.is_file() or 'target' in path.parts: continue
+              data=path.read_bytes();target=out/'source'/path;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data)
+              files[str(path)]={'sha256':hashlib.sha256(data).hexdigest(),'git_blob':hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()}
+          (out/'source.json').write_text(json.dumps({'base':'9e5eff720f647690e2b95952eedb87b10a5e15d5','ci_sha':os.environ['GITHUB_SHA'],'files':files},indent=2))
+          (out/'result.json').write_text(json.dumps({'platform':os.environ['RUNNER_OS'],'ci_sha':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],'status':os.environ['JOB_STATUS']},indent=2))
+          (out/'toolchain.txt').write_text(subprocess.check_output(['rustc','--version','--verbose'],text=True))
+          (out/'hashes.json').write_text(json.dumps({str(p.relative_to(out)):hashlib.sha256(p.read_bytes()).hexdigest() for p in out.rglob('*') if p.is_file() and p.name!='hashes.json'},indent=2))
+          print('VALIDATION_STATUS='+os.environ['JOB_STATUS'])
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-lifecycle-${{ matrix.os }}
+          path: evidence/
+          include-hidden-files: true
+          retention-days: 30
+          if-no-files-found: error
+  canonical:
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: issue81-lifecycle-*
+          path: checked
+      - name: Compare native source and import immutable blobs without modifying refs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import base64,hashlib,json,os,pathlib,urllib.request
+          root=pathlib.Path('checked');a=root/'issue81-lifecycle-ubuntu-24.04';b=root/'issue81-lifecycle-windows-2025'
+          first=json.loads((a/'source.json').read_text());second=json.loads((b/'source.json').read_text())
+          assert first==second and first['ci_sha']==os.environ['GITHUB_SHA']
+          for directory in (a,b):
+              assert json.loads((directory/'result.json').read_text())['status']=='success'
+          blobs={}
+          for path,proof in first['files'].items():
+              assert path.startswith('services/native-link/') and '..' not in pathlib.PurePosixPath(path).parts
+              data=(a/'source'/path).read_bytes();assert data==(b/'source'/path).read_bytes()
+              assert hashlib.sha256(data).hexdigest()==proof['sha256']
+              req=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/git/blobs",data=json.dumps({'encoding':'base64','content':base64.b64encode(data).decode()}).encode(),method='POST',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json'})
+              with urllib.request.urlopen(req,timeout=30) as response: sha=json.load(response)['sha']
+              assert sha==proof['git_blob'];blobs[path]=sha
+          pathlib.Path('canonical-objects.json').write_text(json.dumps({'source':first,'blobs':blobs},indent=2))
+          print('CANONICAL_OBJECTS='+json.dumps(blobs,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-lifecycle-canonical
+          path: canonical-objects.json
+          retention-days: 30
+          if-no-files-found: error
