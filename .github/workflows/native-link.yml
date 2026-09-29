@@ -1,0 +1,101 @@
+name: Native Agent connection lifecycle
+on:
+  push:
+    branches: ['feat/cloud-gateway-agent-runtime', 'feat/issue81-connection-lifecycle']
+    paths: ['services/native-link/**', '.github/workflows/native-link.yml']
+  pull_request:
+    branches: [main, 'feat/cloud-gateway-agent-runtime']
+    paths: ['services/native-link/**', '.github/workflows/native-link.yml']
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+concurrency:
+  group: native-link-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      CARGO_TERM_COLOR: never
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: services/native-link
+          cache-on-failure: true
+      - name: Exact committed source and full native-link regression
+        id: native
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+          rustc --version --verbose > evidence/toolchain.txt
+          cargo fmt --check --manifest-path services/native-link/Cargo.toml
+          cargo clippy --locked --manifest-path services/native-link/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
+          cargo test --locked --manifest-path services/native-link/Cargo.toml --lib -- --list > evidence/test-list.txt
+          cargo test --locked --manifest-path services/native-link/Cargo.toml 2>&1 | tee evidence/full-tests.txt
+          cargo rustc --locked --manifest-path services/native-link/Cargo.toml --lib -- -D warnings 2>&1 | tee evidence/strict-lib.txt
+          python - <<'PY'
+          import json,os,pathlib,re
+          root=pathlib.Path('evidence')
+          names={line[:-6] for line in (root/'test-list.txt').read_text().splitlines() if line.endswith(': test')}
+          required={
+            'tests::journal_rejects_complete_record_truncation',
+            'lifecycle_tests::different_links_sharing_journal_cannot_start_concurrently',
+            'lifecycle_tests::stop_waits_for_native_work_not_just_socket_closure',
+            'lifecycle_tests::aborted_loop_cannot_overlap_its_surviving_worker',
+            'lifecycle_tests::unfinished_worker_drop_returns_recovery_not_success',
+            'projection_window_tests::projection_signature_preserves_exact_interval_and_domain',
+            'projection_window_tests::projection_rejects_empty_reversed_negative_and_overlong_intervals',
+          }
+          assert required <= names, sorted(required-names)
+          matches=re.findall(r'test result: (ok|FAILED)\. (\d+) passed; (\d+) failed; (\d+) ignored;', (root/'full-tests.txt').read_text())
+          assert matches and all(row[0]=='ok' and row[2:]==('0','0') for row in matches)
+          count=sum(int(row[1]) for row in matches)
+          assert count==len(names) and count>0, (count,len(names))
+          report={'passed':True,'source_sha':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],
+                  'platform':os.environ['RUNNER_OS'],'test_count':count,
+                  'scope':'native-link unit and real loopback TCP lifecycle; not desktop/WSS/PG end-to-end acceptance'}
+          (root/'tests.json').write_text(json.dumps(report,indent=2))
+          print('NATIVE_LINK_RECEIPT='+json.dumps(report))
+          PY
+          git diff --exit-code HEAD --
+      - name: Preserve exact outcomes without hiding failures
+        if: always()
+        env:
+          NATIVE_OUTCOME: ${{ steps.native.outcome }}
+        run: |
+          python - <<'PY'
+          import hashlib,json,os,pathlib
+          root=pathlib.Path('evidence');root.mkdir(exist_ok=True)
+          source={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in pathlib.Path('services/native-link').rglob('*') if p.is_file() and 'target' not in p.parts}
+          (root/'source-hashes.json').write_text(json.dumps(source,indent=2))
+          (root/'result.json').write_text(json.dumps({'source_sha':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],'platform':os.environ['RUNNER_OS'],'passed':os.environ['NATIVE_OUTCOME']=='success'},indent=2))
+          (root/'hashes.json').write_text(json.dumps({p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in root.iterdir() if p.is_file() and p.name!='hashes.json'},indent=2))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: native-link-${{ matrix.os }}-${{ github.run_id }}
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error
