@@ -1,0 +1,197 @@
+name: Issue81 exact native drain v2
+on:
+  push:
+    branches: ['ci/issue81-native-drain-v2-20260930']
+    paths: ['.ci/issue81-drain-v2*', '.ci/native-drain-v2-restore.py', '.github/workflows/issue81-native-drain-v2.yml']
+permissions:
+  contents: read
+concurrency:
+  group: issue81-native-drain-v2-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 65
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      CARGO_TERM_COLOR: never
+      RUST_BACKTRACE: '1'
+      CARGO_BUILD_JOBS: '4'
+    steps:
+      - name: Deterministic checkout
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Restore exact product tree without transfer helper files
+        id: source
+        run: python .ci/native-drain-v2-restore.py
+      - name: Linux native dependencies and supported system interpreter
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev postgresql-16
+          test -x /usr/bin/python3
+          echo /usr/bin >> "$GITHUB_PATH"
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri
+            services/cloud-agent
+            services/cloud-gateway
+            services/local-agent
+          cache-on-failure: 'true'
+      - name: Shared Agent complete strict regression
+        id: agent
+        run: |
+          set -euo pipefail
+          rustc --version | tee evidence/toolchain.txt
+          cargo fmt --check --manifest-path services/cloud-agent/Cargo.toml
+          cargo clippy --locked --manifest-path services/cloud-agent/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/agent-clippy.txt
+          cargo test --locked --manifest-path services/cloud-agent/Cargo.toml 2>&1 | tee evidence/agent-full.txt
+          grep -F '88 passed; 0 failed; 0 ignored' evidence/agent-full.txt
+          cargo rustc --locked --manifest-path services/cloud-agent/Cargo.toml --lib -- -D warnings 2>&1 | tee evidence/agent-production.txt
+      - name: Native all-target compilation
+        id: check
+        if: (success() || failure()) && steps.source.outcome == 'success'
+        run: |
+          set -euo pipefail
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-check.txt
+      - name: Native drain and complete desktop suite with original assertions
+        id: desktop
+        if: (success() || failure()) && steps.check.outcome == 'success'
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::native_drain::tests 2>&1 | tee evidence/native-drain.txt
+          if [ "$RUNNER_OS" = Linux ]; then
+            grep -F '12 passed; 0 failed; 0 ignored' evidence/native-drain.txt
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::session::drain_tests 2>&1 | tee evidence/session-joins.txt
+            grep -F '2 passed; 0 failed; 0 ignored' evidence/session-joins.txt
+          else
+            grep -F '8 passed; 0 failed; 0 ignored' evidence/native-drain.txt
+          fi
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-full.txt
+          cargo rustc --locked --manifest-path src-tauri/Cargo.toml --lib -- -D warnings 2>&1 | tee evidence/desktop-production.txt
+      - name: Original authenticated MCP isolation probes
+        id: probe
+        if: (success() || failure()) && runner.os == 'Linux' && steps.check.outcome == 'success'
+        run: |
+          set -euo pipefail
+          PATH="/usr/bin:/bin:$PATH" python3 tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence evidence/original-mcp-probes
+          git diff --exit-code HEAD --
+      - name: Complete original process PTY and kernel runtime
+        id: runtime
+        if: (success() || failure()) && steps.source.outcome == 'success'
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
+          cargo fmt --check --manifest-path services/local-agent/Cargo.toml
+          cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/runtime-clippy.txt
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml 2>&1 | tee evidence/runtime-full.txt
+      - name: Real PostgreSQL WSS gateway and native authorizer integration
+        id: postgres
+        if: (success() || failure()) && runner.os == 'Linux' && steps.check.outcome == 'success'
+        run: |
+          set -euo pipefail
+          export PATH="/usr/lib/postgresql/16/bin:/usr/bin:/bin:$PATH"
+          mkdir -p "$RUNNER_TEMP/pg81-drain-v2"
+          initdb -D "$RUNNER_TEMP/pg81-drain-v2/data" -A trust -U mcp_test --encoding=UTF8 --no-locale >/dev/null
+          pg_ctl -D "$RUNNER_TEMP/pg81-drain-v2/data" -l "$RUNNER_TEMP/pg81-drain-v2/log" -o "-h 127.0.0.1 -p 55432 -k $RUNNER_TEMP/pg81-drain-v2" -w start >/dev/null
+          trap 'pg_ctl -D "$RUNNER_TEMP/pg81-drain-v2/data" -m fast -w stop >/dev/null || true' EXIT
+          createdb -h 127.0.0.1 -p 55432 -U mcp_test coding_tools_identity_test
+          export TEST_DATABASE_URL=postgresql://mcp_test@127.0.0.1:55432/coding_tools_identity_test
+          cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
+          cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/gateway-clippy.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml 2>&1 | tee evidence/gateway-full.txt
+          cargo build --locked --manifest-path services/cloud-gateway/Cargo.toml --example native_desktop_fixture 2>&1 | tee evidence/fixture-build.txt
+          export CTM_NATIVE_GATEWAY_FIXTURE_BIN="$GITHUB_WORKSPACE/services/cloud-gateway/target/debug/examples/native_desktop_fixture"
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --features cloud-agent-integration-tests --lib tools::cloud_host::live::wss_tests -- --test-threads=1 2>&1 | tee evidence/native-wss.txt
+          grep -F '9 passed; 0 failed; 0 ignored' evidence/native-wss.txt
+          cargo rustc --locked --manifest-path services/cloud-gateway/Cargo.toml --lib -- -D warnings
+          git diff --exit-code HEAD --
+      - name: Preserve exact source and actual outcomes
+        if: always()
+        env:
+          SOURCE: ${{ steps.source.outcome }}
+          AGENT: ${{ steps.agent.outcome }}
+          CHECK: ${{ steps.check.outcome }}
+          DESKTOP: ${{ steps.desktop.outcome }}
+          PROBE: ${{ steps.probe.outcome }}
+          RUNTIME: ${{ steps.runtime.outcome }}
+          POSTGRES: ${{ steps.postgres.outcome }}
+        run: |
+          python - <<'PY'
+          import hashlib,json,os,pathlib,subprocess
+          root=pathlib.Path('evidence');root.mkdir(exist_ok=True)
+          outcomes={k:os.environ.get(k,'not-run') for k in ['SOURCE','AGENT','CHECK','DESKTOP','PROBE','RUNTIME','POSTGRES']}
+          required=['SOURCE','AGENT','CHECK','DESKTOP','RUNTIME']+(['PROBE','POSTGRES'] if os.environ['RUNNER_OS']=='Linux' else [])
+          unchanged=subprocess.run(['git','diff','--quiet','HEAD','--'],check=False).returncode==0
+          report={'outcomes':outcomes,'passed':unchanged and all(outcomes[k]=='success' for k in required),'source_unchanged':unchanged,'platform':os.environ['RUNNER_OS'],'run_id':os.environ['GITHUB_RUN_ID'],'workflow_sha':os.environ['GITHUB_SHA'],'scope':'native backend regression; not GUI, physical host, full app lifecycle or prerelease acceptance'}
+          (root/'results.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
+          (root/'sha256.json').write_text(json.dumps({p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file() and p.name!='sha256.json'},indent=2),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-drain-v2-${{ matrix.os }}
+          path: evidence/
+          include-hidden-files: true
+          retention-days: 30
+          if-no-files-found: error
+  canonical-objects:
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: issue81-drain-v2-*
+          path: checked
+      - name: Require complete source agreement and import unreferenced blobs only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import base64,hashlib,json,os,pathlib,urllib.request
+          root=pathlib.Path('checked');a=root/'issue81-drain-v2-ubuntu-24.04';b=root/'issue81-drain-v2-windows-2025'
+          first=json.loads((a/'source.json').read_text());second=json.loads((b/'source.json').read_text())
+          assert first==second and first['workflow_sha']==os.environ['GITHUB_SHA']
+          assert first['candidate_tree']=='22c8c5e79a737989a42188318994032c603ce556'
+          assert len(first['files'])==100
+          assert all(json.loads((p/'results.json').read_text())['passed'] is True for p in (a,b))
+          blobs={}
+          for path,proof in first['files'].items():
+              data=(a/'source'/path).read_bytes()
+              assert data==(b/'source'/path).read_bytes() and hashlib.sha256(data).hexdigest()==proof['sha256']
+              request=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/git/blobs",data=json.dumps({'encoding':'base64','content':base64.b64encode(data).decode()}).encode(),method='POST',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'})
+              with urllib.request.urlopen(request,timeout=30) as response: sha=json.load(response)['sha']
+              assert sha==proof['git_blob'];blobs[path]={'sha':sha,'mode':proof['mode']}
+          pathlib.Path('canonical-objects.json').write_text(json.dumps({'source':first,'blobs':blobs},indent=2),encoding='utf-8')
+          print('Exact native source verified; unreferenced blobs exported: '+str(len(blobs)))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-drain-v2-canonical-objects
+          path: canonical-objects.json
+          retention-days: 30
+          if-no-files-found: error
