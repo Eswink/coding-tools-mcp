@@ -1,0 +1,39 @@
+name: Issue81 public Debian13 native dependencies
+on:
+  push:
+    branches: ['ci/issue81-debian13-native-deps']
+    paths: ['.github/workflows/issue81-debian13-native-deps.yml']
+permissions:
+  contents: read
+jobs:
+  public-build-dependencies:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Export public packages only, without repository or credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/native-public"
+          docker run --rm -v "$RUNNER_TEMP/native-public:/export" debian:13-slim bash -euc '
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq
+            apt-get install -y --no-install-recommends build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+            mkdir -p /export/debs
+            dpkg-query -W -f="\${binary:Package}=\${Version}\n" > /export/packages.txt
+            cd /export/debs
+            xargs -r -a /export/packages.txt -n 40 apt-get download
+            cd /export
+            sha256sum debs/*.deb > SHA256SUMS.txt
+            printf "%s\n" "Public Debian 13 package files only. No application source, private keys, repository token, workspace data or production deployment. Development dependencies, not a release." > SCOPE.txt
+            tar -cf native-debian13-debs.tar debs packages.txt SHA256SUMS.txt SCOPE.txt
+            rm -rf debs
+            sha256sum native-debian13-debs.tar > ARCHIVE.sha256
+          '
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-public-debian13-native-deps
+          path: ${{ runner.temp }}/native-public/
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
