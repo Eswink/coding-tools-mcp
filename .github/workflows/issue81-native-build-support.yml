@@ -24,7 +24,7 @@ jobs:
           installed={line.split('\t')[0]:line.split('\t')[1] for line in subprocess.check_output(['dpkg-query','-W','-f=${binary:Package}\t${Version}\n'],text=True).splitlines() if '\t' in line}
           names=set(seeds)
           for line in raw.splitlines():
-              if line and not line[0].isspace() and '<' not in line and line in installed: names.add(line)
+              if line and not line[0].isspace() and '<' not in line and (line in installed or line+':amd64' in installed): names.add(line)
           paths=set(); receipts={}
           for name in sorted(names):
               candidates=[name] if name in installed else [name+':amd64']
@@ -36,12 +36,13 @@ jobs:
                       if not line.startswith(('/usr/include/','/usr/lib/','/lib/','/usr/share/pkgconfig/')): continue
                       if '/fonts/' in line or p.suffix in ('.a','.pyc'): continue
                       if p.is_file() or p.is_symlink(): paths.add(p)
-          # Include symlink targets so the sysroot is self-contained for linking.
           for p in list(paths):
               try:
                   target=p.resolve(strict=True)
                   if target.is_file() and str(target).startswith(('/usr/lib/','/lib/','/usr/include/')) and '/fonts/' not in str(target): paths.add(target)
               except OSError: pass
+          required=['/usr/lib/x86_64-linux-gnu/pkgconfig/glib-2.0.pc','/usr/lib/x86_64-linux-gnu/pkgconfig/pango.pc','/usr/lib/x86_64-linux-gnu/pkgconfig/libsoup-3.0.pc']
+          assert all(pathlib.Path(p) in paths for p in required), 'transitive pkg-config files are missing'
           with tarfile.open('evidence/native-sysroot.tar.xz','w:xz') as archive:
               for p in sorted(paths): archive.add(p,arcname=str(p).lstrip('/'),recursive=False)
           pathlib.Path('evidence/packages.json').write_text(json.dumps(receipts,indent=2)+'\n')
