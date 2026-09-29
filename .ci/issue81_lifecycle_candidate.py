@@ -74,6 +74,11 @@ def fix():
     replace('src/transport.rs', '                                Finished::Execution(ExecutionReply{binding:request.binding,result})', '                                if result["process_may_be_running"]!=true && result["execution_outcome"]!="unknown" {worker.finish();}\n                                Finished::Execution(ExecutionReply{binding:request.binding,result})')
     replace('src/transport.rs', 'let permit=permit.map_err(|_|LinkError::Capacity)?;let host=self.host.clone();let live=session.clone();', 'let permit=permit.map_err(|_|LinkError::Capacity)?;let host=self.host.clone();let live=session.clone();\n                            let worker=self.journal.lifecycle.worker()?;')
     replace('src/transport.rs', '                                Finished::Approval(ApprovalReply{binding,result:bounded_result(result.unwrap_or(Err(LinkError::NotApproved)))})', '                                worker.finish();\n                                Finished::Approval(ApprovalReply{binding,result:bounded_result(result.unwrap_or(Err(LinkError::NotApproved)))})')
+    # File-scoped projection/one_session impacts reviewed in run 36522683379.
+    # This is an argument grouping only: retain every signed field and bound.
+    replace('src/config.rs', 'at:i64,until:i64,state:&Projected)->Result<SignedPayload> {', 'window:std::ops::Range<i64>,state:&Projected)->Result<SignedPayload> {\n        let (at,until)=(window.start,window.end);')
+    replace('src/transport.rs', 'self.key.projection(&self.cfg,boot,&nonce,prepared.offered.revision,crate::now()?,until,&prepared.offered.state)?', 'self.key.projection(&self.cfg,boot,&nonce,prepared.offered.revision,crate::now()?..until,&prepared.offered.state)?')
+    replace('src/lib.rs', 'mod lifecycle_tests;', 'mod lifecycle_tests;\n#[cfg(test)]\nmod projection_window_tests;')
 
 if __name__ == '__main__':
     {'prepare': prepare, 'fix': fix}[sys.argv[1]]()
