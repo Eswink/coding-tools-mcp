@@ -1,0 +1,63 @@
+name: Issue81 public native build dependencies
+on:
+  push:
+    branches: ['ci/issue81-native-build-support-20260929']
+    paths: ['.github/workflows/issue81-native-build-support.yml']
+permissions:
+  contents: read
+jobs:
+  native-dependencies:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Install public native development dependencies only
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev libssl-dev
+          mkdir -p evidence/sysroot
+          python3 - <<'PY'
+          import hashlib,json,pathlib,subprocess,tarfile
+          seeds=['libgtk-3-dev','libwebkit2gtk-4.1-dev','libayatana-appindicator3-dev','librsvg2-dev','libxdo-dev','libdbus-1-dev','libssl-dev']
+          raw=subprocess.check_output(['apt-cache','depends','--recurse','--no-recommends','--no-suggests','--no-conflicts','--no-breaks','--no-replaces','--no-enhances',*seeds],text=True)
+          installed={line.split('\t')[0]:line.split('\t')[1] for line in subprocess.check_output(['dpkg-query','-W','-f=${binary:Package}\t${Version}\n'],text=True).splitlines() if '\t' in line}
+          names=set(seeds)
+          for line in raw.splitlines():
+              if line and not line[0].isspace() and '<' not in line and line in installed: names.add(line)
+          paths=set(); receipts={}
+          for name in sorted(names):
+              candidates=[name] if name in installed else [name+':amd64']
+              for key in candidates:
+                  if key not in installed: continue
+                  receipts[key]=installed[key]
+                  for line in subprocess.check_output(['dpkg-query','-L',key],text=True).splitlines():
+                      p=pathlib.Path(line)
+                      if not line.startswith(('/usr/include/','/usr/lib/','/lib/','/usr/share/pkgconfig/')): continue
+                      if '/fonts/' in line or p.suffix in ('.a','.pyc'): continue
+                      if p.is_file() or p.is_symlink(): paths.add(p)
+          # Include symlink targets so the sysroot is self-contained for linking.
+          for p in list(paths):
+              try:
+                  target=p.resolve(strict=True)
+                  if target.is_file() and str(target).startswith(('/usr/lib/','/lib/','/usr/include/')) and '/fonts/' not in str(target): paths.add(target)
+              except OSError: pass
+          with tarfile.open('evidence/native-sysroot.tar.xz','w:xz') as archive:
+              for p in sorted(paths): archive.add(p,arcname=str(p).lstrip('/'),recursive=False)
+          pathlib.Path('evidence/packages.json').write_text(json.dumps(receipts,indent=2)+'\n')
+          p=pathlib.Path('evidence/native-sysroot.tar.xz')
+          with p.open('rb') as f: digest=hashlib.file_digest(f,'sha256').hexdigest()
+          pathlib.Path('evidence/SHA256SUMS.txt').write_text(digest+'  '+p.name+'\n')
+          pathlib.Path('evidence/SCOPE.txt').write_text('Public distro headers/libraries only. Build support, not product-test evidence. No repository checkout, credentials, config, databases or fonts.\n')
+          print(json.dumps({'packages':len(receipts),'files':len(paths),'bytes':p.stat().st_size,'sha256':digest}))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-public-native-sysroot
+          path: |
+            evidence/native-sysroot.tar.xz
+            evidence/packages.json
+            evidence/SHA256SUMS.txt
+            evidence/SCOPE.txt
+          if-no-files-found: error
+          retention-days: 7
