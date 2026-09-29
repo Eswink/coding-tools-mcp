@@ -1,0 +1,37 @@
+name: Issue81 pinned public development tools
+on:
+  push:
+    branches: ['ci/issue81-resume-tools-20260929']
+    paths: ['.github/workflows/issue81-resume-tools.yml']
+permissions:
+  contents: read
+jobs:
+  tooling:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install exact public graph and plan tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/issue81-public-tools" "$RUNNER_TEMP/export"
+          npm install --prefix "$RUNNER_TEMP/issue81-public-tools" --no-audit --no-fund gitnexus@1.6.9 mcp-probe-kit@4.0.1
+          npm ci --no-audit --no-fund
+          tar -C "$RUNNER_TEMP/issue81-public-tools" -czf "$RUNNER_TEMP/export/graph-probe-tools.tar.gz" node_modules package.json package-lock.json
+          tar -czf "$RUNNER_TEMP/export/frontend-dependencies.tar.gz" node_modules
+          printf '%s\n' 'Public npm dependencies only. No source completion, credentials, home directory, application state, or real-host acceptance is claimed.' > "$RUNNER_TEMP/export/SCOPE.txt"
+          node --version > "$RUNNER_TEMP/export/node-version.txt"
+          cd "$RUNNER_TEMP/export"
+          sha256sum *.tar.gz > SHA256SUMS.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-public-node-tools
+          path: ${{ runner.temp }}/export/
+          retention-days: 14
+          if-no-files-found: error
