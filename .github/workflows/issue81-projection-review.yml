@@ -1,0 +1,73 @@
+name: Issue81 signature and candidate change review
+on:
+  push:
+    branches: ['ci/issue81-connection-lifecycle']
+    paths: ['.github/workflows/issue81-projection-review.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-lifecycle-ubuntu-24.04
+          run-id: 36522490299
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/candidate
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-pinned-review-tools
+          run-id: 36434991238
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/tools
+      - name: Verify and inspect exact candidate without changing production symbols
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/tools"; sha256sum -c SHA256SUMS.txt
+          mkdir -p "$RUNNER_TEMP/review-bin" "$RUNNER_TEMP/signature-review"
+          tar -xJf pinned-review-tools.tar.xz -C "$RUNNER_TEMP/review-bin"
+          cd "$GITHUB_WORKSPACE"
+          python - <<'PY'
+          import hashlib,json,os,pathlib,shutil
+          source=pathlib.Path(os.environ['RUNNER_TEMP'])/'candidate'
+          receipt=json.loads((source/'source.json').read_text())
+          assert receipt['ci_sha']=='8299aa0a74f0a0b1e4f00466fe9921a1bf4fb150'
+          for path,proof in receipt['files'].items():
+              assert path.startswith('services/native-link/') and '..' not in pathlib.PurePosixPath(path).parts
+              data=(source/'source'/path).read_bytes();assert hashlib.sha256(data).hexdigest()==proof['sha256']
+              pathlib.Path(path).write_bytes(data)
+          out=pathlib.Path(os.environ['RUNNER_TEMP'])/'signature-review'
+          shutil.copyfile(source/'full-tests.txt',out/'previous-full-tests.txt')
+          print((source/'full-tests.txt').read_text())
+          PY
+          graph="$RUNNER_TEMP/review-bin/node_modules/.bin/gitnexus"
+          out="$RUNNER_TEMP/signature-review"
+          "$graph" analyze --workers 1 > "$out/graph.txt" 2>&1
+          git checkout -- AGENTS.md CLAUDE.md
+          "$graph" impact projection --direction upstream --file services/native-link/src/config.rs --depth 3 > "$out/impact-projection.txt"
+          "$graph" impact proof_is_bound_to_challenge_and_domain --direction upstream --file services/native-link/src/tests.rs --depth 3 > "$out/impact-test.txt"
+          cat "$out/impact-projection.txt"
+          git add services/native-link
+          "$graph" detect-changes --scope staged > "$out/detect-candidate.json"
+          cat "$out/detect-candidate.json"
+          git diff --cached --check
+          git diff --cached --binary > "$out/candidate.patch"
+          git write-tree > "$out/tree.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-signature-review
+          path: ${{ runner.temp }}/signature-review/
+          retention-days: 30
+          if-no-files-found: error
