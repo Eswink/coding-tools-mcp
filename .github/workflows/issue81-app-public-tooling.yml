@@ -1,0 +1,55 @@
+name: Issue81 application integration public tooling
+on:
+  push:
+    branches: ['ci/issue81-app-integration-20260930']
+    paths: ['.github/workflows/issue81-app-public-tooling.yml']
+permissions:
+  contents: read
+concurrency:
+  group: issue81-app-public-tooling
+  cancel-in-progress: false
+jobs:
+  public-tools:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install exact public analysis tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/issue81-analysis" --no-audit --no-fund gitnexus@1.6.9 mcp-probe-kit@4.0.1
+          node -e 'const fs=require("fs");const p=process.env.RUNNER_TEMP+"/issue81-analysis/node_modules/";for(const [n,v] of [["gitnexus","1.6.9"],["mcp-probe-kit","4.0.1"]]){if(JSON.parse(fs.readFileSync(p+n+"/package.json")).version!==v)throw Error(n)}'
+          mkdir -p "$RUNNER_TEMP/issue81-export/analysis"
+          tar -C "$RUNNER_TEMP/issue81-analysis" -czf "$RUNNER_TEMP/issue81-export/analysis/public-analysis-tools.tar.gz" node_modules package.json package-lock.json
+          cd "$RUNNER_TEMP/issue81-export/analysis"
+          sha256sum public-analysis-tools.tar.gz > SHA256SUMS.txt
+          printf '%s\n' 'Public npm packages only. No home directory, Git config, credentials, private source or environment export. gitnexus=1.6.9 mcp-probe-kit=4.0.1.' > SCOPE.txt
+      - name: Install locked public frontend packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          mkdir -p "$RUNNER_TEMP/issue81-export/frontend"
+          tar -czf "$RUNNER_TEMP/issue81-export/frontend/public-frontend-tools.tar.gz" node_modules
+          cp package-lock.json "$RUNNER_TEMP/issue81-export/frontend/source-package-lock.json"
+          cd "$RUNNER_TEMP/issue81-export/frontend"
+          sha256sum public-frontend-tools.tar.gz source-package-lock.json > SHA256SUMS.txt
+          printf '%s\n' 'Public npm packages from the checked repository lockfile only. No source, home, credentials or Git metadata.' > SCOPE.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-app-public-analysis
+          path: ${{ runner.temp }}/issue81-export/analysis/
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-app-public-frontend
+          path: ${{ runner.temp }}/issue81-export/frontend/
+          retention-days: 7
+          if-no-files-found: error
