@@ -4,6 +4,12 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('./fixtures/ui-refactor-ipc.js',import.meta.url),'utf8');
+test('startup status fixture models ready desktop without granting conversation authority',async()=>{
+  const {invoke,state}=fixture();const status=await invoke('get_startup_status');
+  assert.deepEqual(JSON.parse(JSON.stringify(status)),{state:'ready',ready:true,recoverable:false,reasonCode:null,message:'Synthetic ready desktop',platform:'synthetic',safeMode:false});
+  assert.equal(state.pending.length,0);assert.equal(state.unknown.length,0);
+  await assert.rejects(invoke('unimplemented-startup-command'),/UNIMPLEMENTED SYNTHETIC IPC/);
+});
 function fixture(){
   const window={};vm.runInNewContext(source,{window,structuredClone,addEventListener:()=>{}});
   return {invoke:window.__TAURI_INTERNALS__.invoke,state:window.__UI_FIXTURE__.state,window};

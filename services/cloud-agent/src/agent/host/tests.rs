@@ -606,9 +606,26 @@ fn journal_does_not_persist_command_arguments_or_output() {
         .unwrap()
         .claim(&a.worker.signer, &r)
         .unwrap();
+    // A second owner is still denied while the durable journal is attached.
+    assert!(matches!(f.agent(false), Err(AgentError::Journal)));
+    // Windows byte-range locks also reject a second read handle in this process.
+    // Close the sole test owner after the claim was synced; do not relax locking.
+    drop(a);
     let bytes = fs::read(f.root.join("state.bin")).unwrap();
+    assert!(bytes.starts_with(b"CTMHST01") && bytes.len() > 104);
     assert!(!bytes
         .windows(b"sensitive-fixture-path".len())
         .any(|x| x == b"sensitive-fixture-path"));
     assert!(!String::from_utf8_lossy(&bytes).contains("not-for-cloud-or-state"));
+    // Inspection did not truncate, replace, or discard the durable claim.
+    let reopened = f.agent(false).unwrap();
+    assert_eq!(
+        reopened
+            .worker
+            .journal
+            .lock()
+            .unwrap()
+            .claim(&reopened.worker.signer, &r),
+        Err(AgentError::Duplicate)
+    );
 }

@@ -54,6 +54,8 @@ jobs:
           sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
       - uses: Swatinem/rust-cache@v2
         with:
+          key: native-${{ matrix.os }}-source-only-v1
+          cache-targets: false
           workspaces: |
             src-tauri
             services/cloud-agent
@@ -88,7 +90,7 @@ jobs:
           done
           cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
           cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/gateway-clippy.txt
-          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_cli 2>&1 | tee evidence/gateway-portable.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts 2>&1 | tee evidence/gateway-portable.txt
       - name: Complete native application regression
         run: |
           set -euo pipefail
@@ -140,6 +142,8 @@ jobs:
           sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
       - uses: Swatinem/rust-cache@v2
         with:
+          key: transport-${{ matrix.os }}-source-only-v1
+          cache-targets: false
           workspaces: |
             src-tauri
             services/cloud-gateway

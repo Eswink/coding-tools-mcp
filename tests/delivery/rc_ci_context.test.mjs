@@ -1,6 +1,27 @@
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+
+test('portable gateway targets exist and retain CLI contracts', () => {
+  const source = readFileSync(new URL('../../.github/workflows/dot-rc-integration.yml', import.meta.url), 'utf8');
+  const command = source.split('\n').find(line => line.includes('--lib --test'));
+  assert.ok(command);
+  const target = command.match(/--test ([a-z_]+)/)[1];
+  assert.ok(existsSync(new URL(`../../services/cloud-gateway/tests/${target}.rs`, import.meta.url)), target);
+  assert.equal(target, 'service_contracts');
+});
+
+test('release evidence does not restore compiled targets across Ubuntu generations', () => {
+  const source = readFileSync(new URL('../../.github/workflows/dot-rc-integration.yml', import.meta.url), 'utf8');
+  const caches = source.split('uses: Swatinem/rust-cache@v2').slice(1);
+  assert.equal(caches.length, 2);
+  for (const cache of caches) {
+    const settings = cache.split('      - name:')[0];
+    assert.match(settings, /cache-targets: false/);
+    assert.match(settings, /key:.*matrix.os/);
+  }
+});
 
 for (const name of ['dot-rc-integration.yml', 'cloud-execution-bridge.yml']) {
   test(`${name}: ephemeral PostgreSQL endpoint is evaluated in a step`, () => {

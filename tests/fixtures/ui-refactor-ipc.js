@@ -42,6 +42,7 @@
     // Tauri JSON serialization, and wrongly accepts circular arguments.
     args = JSON.parse(JSON.stringify(args));
     state.calls.push({command,args:clone(args)});
+    if(command==='get_startup_status')return {state:'ready',ready:true,recoverable:false,reasonCode:null,message:'Synthetic ready desktop',platform:'synthetic',safeMode:false};
     if(command==='plugin:event|listen'){const id=++serial;listeners.set(id,{event:String(args.event),handler:Number(args.handler),id});return id;}
     if(command==='plugin:event|unlisten'){listeners.delete(args.eventId);return;}
     if(command==='plugin:window|is_minimized')return false;
