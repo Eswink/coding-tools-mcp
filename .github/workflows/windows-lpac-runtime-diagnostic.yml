@@ -1,0 +1,81 @@
+name: Windows zero-capability LPAC runtime diagnostic
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci/windows-lpac-runtime-diagnostic']
+    paths:
+      - 'tests/windows-lpac-runtime/**'
+      - '.github/workflows/windows-lpac-runtime-diagnostic.yml'
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Audit retained controls and exact source
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path evidence -Force | Out-Null
+          if((git rev-parse HEAD) -ne $env:GITHUB_SHA){throw 'checkout identity differs from workflow SHA'}
+          git rev-parse HEAD | Set-Content evidence/source.txt
+          git rev-parse 'HEAD^{tree}' | Add-Content evidence/source.txt
+          python tests/windows-lpac-runtime/audit.py
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+      - name: Build isolated diagnostic binaries
+        id: build
+        shell: pwsh
+        run: |
+          cargo fmt --manifest-path tests/windows-lpac-runtime/Cargo.toml --check
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+          cargo clippy --locked --manifest-path tests/windows-lpac-runtime/Cargo.toml --all-targets -- -D warnings
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+          cargo build --locked --manifest-path tests/windows-lpac-runtime/Cargo.toml --bins
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+          Get-ChildItem tests/windows-lpac-runtime/target/debug/windows_*_fixture.exe | Get-FileHash -Algorithm SHA256 |
+            ForEach-Object {$_.Hash+' '+[IO.Path]::GetFileName($_.Path)} | Set-Content evidence/fixture-binaries-sha256.txt
+      - name: Retained ordinary AppContainer and LPAC network controls
+        id: foundation
+        shell: powershell
+        run: |
+          & tests/windows-lpac-runtime/baseline/run.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_sandbox_fixture.exe -Evidence evidence/foundation
+      - name: Copy and fingerprint CI runtimes without warm-up
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        id: payload
+        shell: powershell
+        run: |
+          & tests/windows-lpac-runtime/prepare.ps1 -Payload "$env:RUNNER_TEMP/lpac-runtime-payload" -Evidence evidence/runtime
+      - name: Observe offline runtimes despite retained native-gate failure
+        if: ${{ !cancelled() && steps.payload.outcome == 'success' }}
+        shell: powershell
+        run: |
+          & tests/windows-lpac-runtime/run-runtime.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_runtime_fixture.exe -Payload "$env:RUNNER_TEMP/lpac-runtime-payload" -Evidence evidence/runtime
+      - name: Preserve boundary and evidence identity
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path evidence -Force | Out-Null
+          'CI-only offline runtime observations. Production SANDBOX_REQUIRED is unchanged. WSAStartup 10107 remains an initialization failure, never network-denial evidence. Full RC and security scope remain required.' | Set-Content evidence/scope.txt
+          Get-ChildItem evidence -File -Recurse | Where-Object Name -ne 'evidence-sha256.txt' | Sort-Object FullName | ForEach-Object {
+            (Get-FileHash $_.FullName -Algorithm SHA256).Hash+' '+[IO.Path]::GetRelativePath($PWD.Path,$_.FullName)
+          } | Set-Content evidence/evidence-sha256.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: windows-lpac-runtime-diagnostic
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
