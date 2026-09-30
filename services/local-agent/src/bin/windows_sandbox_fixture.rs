@@ -7,6 +7,7 @@ fn main() {
         time::Duration,
     };
     use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::Networking::WinSock::{WSACleanup, WSAStartup, WSADATA};
     use windows::Win32::Security::{GetTokenInformation, TokenIsAppContainer, TOKEN_QUERY};
     use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
     let args: Vec<_> = std::env::args_os().collect();
@@ -54,6 +55,18 @@ fn main() {
             .unwrap_or(false);
     let outside_read = fs::read(outside.join("canary.txt")).is_ok();
     let outside_write = fs::write(outside.join("probe-write.txt"), b"synthetic").is_ok();
+    // Observe the WinSock initialization error directly instead of treating a
+    // Rust std initialization panic as network denial. No capability is added.
+    unsafe {
+        let mut data = WSADATA::default();
+        let result = WSAStartup(0x0202, &mut data);
+        if result != 0 {
+            std::process::exit(5000 + result);
+        }
+        if WSACleanup() != 0 {
+            std::process::exit(4999);
+        }
+    }
     // A runtime initialization panic is setup failure, never a denied socket.
     let network = match std::panic::catch_unwind(|| {
         TcpStream::connect_timeout(&endpoint, Duration::from_secs(2)).is_ok()
