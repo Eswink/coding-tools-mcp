@@ -149,3 +149,22 @@ Additional snapshot hardening/validation is incomplete. The existing Issue86 dra
 - Added exact-build dependency evidence without modifying the strict final-release audit gate or suppressing raw RustSec findings.22local verifier tests and a separate tiny real Cargo fixture passed; actual product applicability proof is still pending. A fresh official advisory database is bound before and after the actual build/audit.
 - Existing Windows/Linux packaging workflows now expose bounded preliminary engineering branch triggers. Full Rust failures remain failures; independent package build/install diagnostics can continue after those failures. Every artifact is marked NOT_FINAL/NOT_PUBLISHABLE and tied to its source SHA. No final version, tag, release or acceptance is implied. Five failure-propagation contracts,32topology contracts,22audit contracts and workflow lint passed locally.
 - Snapshot root-binding draft remains incomplete and unintegrated following a tool refusal. No alternate route or validation claim is used. Windows sandbox profile and final version still need owner decisions; production, VPS and real-account observations remain deferred. No issue closed and no release published.
+
+### Downloaded preliminary installer checkpoint — 2026-09-30 13:12 UTC
+
+These are exact4e engineering artifacts using the unchanged0.6.0-rc.4 source version, NOT a new released RC and NOT final publishable assets. A selected final version must be rebuilt from its final source.
+
+- Source `4e93d1fbd95494df6613fec9fdb9214fac3fcb7e`, tree `d9d7685ac4a07c72fef5cd9d006d63a145a5cc2f`.
+- [Linux package run36716191509](https://github.com/Eswink/coding-tools-mcp/actions/runs/36716191509): DEB/AppImage installed native acceptance PASS on Ubuntu22.04 and24.04 (four separate jobs). Required full Rust regression FAIL, so overall package acceptance remains FAIL.
+- [Windows package run36716191636](https://github.com/Eswink/coding-tools-mcp/actions/runs/36716191636): actual NSIS build, silent install, exact installed payload and standard-user native12-stage acceptance PASS. Required Rust regression FAIL; no final package approval. Application executable is unsigned, and real ChatGPT/physical host remain unverified.
+- Maintainer downloaded both package archives and five native evidence archives, checked exact sizes/SHA256/ZIP CRC, checked source/tree/version receipts, extracted and inspected actual DEB/AppImage ELF and NSIS AMD64 payloads, and matched their hashes to the installed receipts. The NSIS bootstrap itself is PE32; the contained application is actualPE32+AMD64. This is not inferred solely from the filename. Actual native approval screenshots were inspected on Ubuntu and Windows.
+
+| Engineering file | Bytes | SHA256 |
+|---|---:|---|
+| MCP_0.6.0-rc.4_amd64.deb | 8710364 | e1ac21b4168b422d5ed1714e3cf3d5549581fd4e7c73180b5d2e6a4f35a9d0a2 |
+| MCP_0.6.0-rc.4_amd64.AppImage | 89373176 | cf80390e7a2ba54c9bdfe49448b941c0e77eb27f6e2411413d78cc164e34957d |
+| Coding Tools MCP_0.6.0-rc.4_x64-setup.exe | 6991393 | 3080aa9ecb965de8a6829400789dab1f63d589613e5e8e63ab46b2b0cf0e53ac |
+
+- Extracted DEB payload SHA256 `c70b1a78a43643c9c676465b8ac56a13b5e48e3e83e7e1cffdd87479ed8c227b`; AppImage payload `143b4080281e367c9603a61f241497fe27a576e3f2042f5235c624bf1f074e87`; NSIS application payload `e0213fd7ab916691ba286c264d5d9cd78cbb268a0454d9f7622589f77d5b6d65`.
+- Full4e native source results: bothUbuntu662unit+22contract+24security pass, then two stdin end-to-end timing assertions fail; Windows595/602 with five sandbox failures, snapshot Unsupported and a newly added legacy fixture mismatch. The production Git external-root/lock/slash tests pass; strict legacy matching is unchanged and the fixture correction is pending CI. Four non-snapshot warnings are fixed; four snapshot warnings remain.
+- [Diagnostic run36718139994](https://github.com/Eswink/coding-tools-mcp/actions/runs/36718139994), sourcef6: fresh stdin6/6PASS; after original preceding suites the same two assertions FAIL. Core tool durations2ms/107ms versus total5.95s/6.06s isolate native-state dispatch overhead; the3s assertions remain unchanged. Timing investigation is active, with no cached authority or skipped ledger checks.

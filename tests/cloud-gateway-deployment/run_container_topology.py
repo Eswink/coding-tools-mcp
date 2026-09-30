@@ -201,5 +201,5 @@ def main():
 if __name__=='__main__':
     try:main()
     except Exception as error:
-        print(json.dumps({'passed':False,'stage':STAGE,'error_class':type(error).__name__,'error_code':error.code if isinstance(error,FixtureFailure) else None,'completed_cases':CASES}))
+        print(json.dumps({'passed':False,'stage':STAGE,'error_class':type(error).__name__,'error_code':error.code if isinstance(error,FixtureFailure) else None,'diagnostic':error.diagnostic if isinstance(error,FixtureFailure) else None,'completed_cases':CASES}))
         raise SystemExit(1) from None

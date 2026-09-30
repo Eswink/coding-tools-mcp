@@ -24,7 +24,7 @@ class EngineeringContracts(unittest.TestCase):
             text = workflow(platform)
             self.assertNotIn('continue-on-error', text)
             regression = step(text, 'regression')
-            self.assertIn('cargo test --manifest-path src-tauri/Cargo.toml --locked', regression)
+            self.assertIn('cargo test --no-fail-fast --manifest-path src-tauri/Cargo.toml --locked', regression)
             self.assertNotIn('        if:', regression)
             self.assertNotIn('|| true', regression)
             if platform == 'windows':

@@ -104,6 +104,29 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertNotIn("self.dc('--profile','operator','up'",source)
         self.assertIn("normalized['services']['operator']['logging']['driver']=='none'",source)
 
+    def test_command_diagnostics_never_expose_arguments_or_output(self):
+        from types import SimpleNamespace
+        sys.path.insert(0,str(Path(__file__).parent))
+        import container_fixture as fixture
+        secret='unique-private-fixture-value'
+        result=SimpleNamespace(returncode=126,stdout=secret.encode(),stderr=b'permission denied '+secret.encode())
+        value=fixture.command_diagnostic(['/fixed/compose','-f',secret,'exec','-T','namespace','id','-u'],result,'/fixed/compose')
+        self.assertEqual(value,dict(operation='compose_exec_namespace_id',exit_code=126,category='permission_denied'))
+        self.assertNotIn(secret,str(value))
+        result.stderr=b'unknown '+secret.encode()
+        self.assertEqual(fixture.command_diagnostic(['unrecognized',secret],result,'/fixed/compose')['category'],'unspecified')
+
+    def test_command_failure_retains_original_assertion_with_fixed_diagnostics(self):
+        from types import SimpleNamespace
+        sys.path.insert(0,str(Path(__file__).parent))
+        import container_fixture as fixture
+        item=fixture.Fixture.__new__(fixture.Fixture);item.compose='/fixed/compose'
+        with patch.object(fixture.subprocess,'run',return_value=SimpleNamespace(returncode=1,stdout=b'',stderr=b'container is not running')):
+            with self.assertRaises(fixture.FixtureFailure) as failure:item.exec(['/fixed/compose','up','-d','ingress'])
+        self.assertEqual(failure.exception.code,'fixture_command_failed')
+        self.assertEqual(failure.exception.diagnostic,dict(operation='compose_up_ingress',exit_code=1,category='container_not_running'))
+        self.assertEqual(item.last_action,'compose_up_ingress')
+
     def test_docker_fixture_refuses_nonhosted_environment_before_actions(self):
         sys.path.insert(0,str(Path(__file__).parent))
         import container_fixture

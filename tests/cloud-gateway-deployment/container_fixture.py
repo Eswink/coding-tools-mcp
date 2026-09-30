@@ -20,12 +20,53 @@ topology=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(topolog
 
 
 class FixtureFailure(RuntimeError):
-    def __init__(self,code):
-        super().__init__(code);self.code=code
+    def __init__(self,code,diagnostic=None):
+        super().__init__(code);self.code=code;self.diagnostic=diagnostic
 
 
 def require(condition,name):
     if not condition:raise FixtureFailure(name)
+
+
+def command_diagnostic(args,result,compose):
+    """Fixed labels only: never return command arguments or process output."""
+    tokens=list(map(str,args))
+    operation='external_command'
+    services=('namespace','gateway','ingress','postgres','operator')
+    if tokens and tokens[0]==compose:
+        operation='compose'
+        for verb in ('config','version','up','run','exec','ps','create','rm','stop','start','logs','down'):
+            if verb in tokens:
+                operation+='_'+verb
+                rest=tokens[tokens.index(verb)+1:]
+                selected=next((name for name in services if name in rest),None)
+                if selected:operation+='_'+selected
+                if verb=='exec':
+                    action=next((name for name in ('id','cat','sha256sum','psql') if name in rest),None)
+                    if action:operation+='_'+action
+                break
+    elif tokens[:2]==['docker','inspect']:operation='docker_inspect'
+    elif tokens[:2]==['docker','network']:operation='docker_network'
+    elif tokens[:2]==['docker','context']:operation='docker_context'
+    elif tokens[:2]==['docker','version']:operation='docker_version'
+    elif tokens[:2]==['docker','image']:operation='docker_image'
+    elif tokens[:2]==['docker','ps']:operation='docker_ps'
+    elif tokens[:2]==['docker','rm']:operation='docker_rm'
+    elif tokens[:2]==['sudo','chown']:operation='fixture_chown'
+    elif tokens[:2]==['sudo','rm']:operation='fixture_cleanup'
+    category='unspecified'
+    raw=(result.stdout+b'\n'+result.stderr).lower()
+    for name,markers in [
+        ('resource_limit',(b'resource temporarily unavailable',b'pids limit',b'cannot allocate memory')),
+        ('permission_denied',(b'permission denied',b'operation not permitted')),
+        ('container_not_running',(b'is not running',b'non running container',b'not running')),
+        ('missing_executable_or_path',(b'no such file or directory',b'executable file not found',b'not found in $path')),
+        ('read_only_filesystem',(b'read-only file system',)),
+        ('address_collision',(b'address already in use',b'port is already allocated')),
+        ('dependency_failure',(b'dependency failed',b'is unhealthy')),
+        ('oci_runtime_failure',(b'oci runtime',))]:
+        if any(marker in raw for marker in markers):category=name;break
+    return dict(operation=operation,exit_code=result.returncode,category=category)
 
 
 class Fixture:
@@ -74,8 +115,12 @@ class Fixture:
 
     def exec(self,args,*,packet=None,timeout=60,success=True):
         data=json.dumps(packet).encode() if packet is not None else b''
+        self.last_action=command_diagnostic(args,subprocess.CompletedProcess(args,0,b'',b''),self.compose)['operation']
         result=subprocess.run(list(map(str,args)),input=data,capture_output=True,timeout=timeout,check=False)
-        if success:require(result.returncode==0,'fixture_command_failed')
+        diagnostic=command_diagnostic(args,result,self.compose)
+        self.last_action=diagnostic['operation']
+        if success and result.returncode!=0:
+            raise FixtureFailure('fixture_command_failed',diagnostic)
         return result
 
     def dc(self,*args,**kwargs):return self.exec([*self.command,*args],**kwargs)

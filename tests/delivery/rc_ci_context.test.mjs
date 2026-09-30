@@ -92,3 +92,31 @@ test('native credential evidence runs independently without masking failed full 
   assert.match(source, /id: native_checks/);
   assert.match(source, /native_root_cross_process_crash_fences \.\.\. ok/);
 });
+
+test('native and preliminary package regressions continue across binaries but still fail', () => {
+  const cases = [
+    ['dot-rc-integration.yml', 'Complete native application regression', 2, 'bash'],
+    ['linux-rc-packages.yml', 'Required full Rust regression with private Secret Service', 1, 'bash'],
+    ['windows-rc-packages.yml', 'Required full Rust regression', 1, 'pwsh'],
+  ];
+  for (const [file, name, count, shell] of cases) {
+    const source = readFileSync(new URL(`../../.github/workflows/${file}`, import.meta.url), 'utf8');
+    const step = source.split(`      - name: ${name}\n`)[1]?.split('      - ')[0];
+    assert.ok(step, name);
+    const commands = step.split('\n').map(line => line.trim()).filter(line => line.startsWith('cargo test '));
+    assert.equal(commands.length, count, name);
+    for (const command of commands) {
+      assert.match(command, /^cargo test --no-fail-fast /, name);
+      const args = command.split(' 2>&1 | ')[0].split(' ').slice(3);
+      assert.deepEqual(args.sort(), ['--locked', '--manifest-path', 'src-tauri/Cargo.toml'].sort(),
+        `${name}: retain the complete unfiltered target set`);
+    }
+    assert.doesNotMatch(step, /continue-on-error|\|\| true|--skip|--ignored/, name);
+    if (shell === 'bash') {
+      assert.match(step, /set -euo pipefail/, name);
+      assert.match(step, /dbus-run-session -- bash -euo pipefail/, name);
+    } else {
+      assert.match(step, /if \(\$LASTEXITCODE -ne 0\) \{ throw 'Windows Rust regression failed' \}/, name);
+    }
+  }
+});

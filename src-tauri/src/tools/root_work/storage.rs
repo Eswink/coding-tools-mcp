@@ -79,6 +79,8 @@ pub(super) fn persisted_conflict(
     anchor: &RootIdentity,
     registry: &HashMap<PathBuf, Weak<RootWorkTracker>>,
 ) -> Result<(), RootWorkError> {
+    #[cfg(feature = "native-state-timing")]
+    let mut timing = crate::data::native_timing::Span::new("persisted_scan");
     let known: std::collections::HashSet<String> = registry
         .iter()
         .filter(|(_, value)| value.strong_count() > 0)
@@ -103,6 +105,8 @@ pub(super) fn persisted_conflict(
         let path = entry.path();
         regular(&path.join("auth.json"))?;
         regular(&path.join("auth.lock"))?;
+        #[cfg(feature = "native-state-timing")]
+        timing.ledger();
         let disk = AuthDocument::open(&path).map_err(|_| RootWorkError)?;
         let doc: Document = disk
             .load()

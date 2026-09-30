@@ -1,4 +1,6 @@
 mod auth_document;
+#[cfg(feature = "native-state-timing")]
+pub(crate) mod native_timing;
 pub(crate) use auth_document::AuthDocument;
 #[path = "任务快照v2.rs"]
 mod task_archive;

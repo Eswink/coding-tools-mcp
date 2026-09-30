@@ -79,6 +79,8 @@ version = "=0.17.14"
 version = "1"
 
 [features]
+# Engineering diagnostics only; no authority or execution behavior changes.
+native-state-timing = []
 # Explicit opt-in integration tests require the real OS credential service.
 native-keyring-tests = []
 frp-binary-tests = []

@@ -157,18 +157,33 @@ fn windows_legacy_link_records_remain_bound_to_exact_managed_paths() {
     let fixture = TestRepo::new();
     let item = fixture.manager.create_detached().unwrap();
     let root = fixture.manager.managed_root.join(&item.id);
-    let metadata = fixture.repo.path().join(".git/worktrees").join(&item.id);
-    fs::write(
-        root.join(".git"),
-        format!("gitdir: {}\n", git_path_arg(&metadata).to_string_lossy()),
-    )
-    .unwrap();
+    // Mirror the old writer's source.git.join("worktrees").join(id) exactly.
+    // Joining ".git/worktrees" introduces a mixed separator string that the
+    // broker never emitted and its exact compatibility reader must reject.
+    let metadata = fixture
+        .manager
+        .repository_root
+        .join(".git")
+        .join("worktrees")
+        .join(&item.id);
+    let legacy_metadata = git_path_arg(&metadata).to_string_lossy().into_owned();
+    assert!(!legacy_metadata.contains('/'));
+    let legacy_link = format!("gitdir: {legacy_metadata}\n");
+    fs::write(root.join(".git"), &legacy_link).unwrap();
     fs::write(
         metadata.join("gitdir"),
         format!("{}\n", git_path_arg(&root.join(".git")).to_string_lossy()),
     )
     .unwrap();
     assert_eq!(fixture.manager.list().unwrap(), vec![item]);
+    let mixed_link = legacy_link.replace(r"\.git\", r"\.git/");
+    assert_ne!(mixed_link, legacy_link);
+    fs::write(root.join(".git"), mixed_link).unwrap();
+    assert_eq!(
+        fixture.manager.list().unwrap_err().code(),
+        "BOUNDARY_VIOLATION"
+    );
+    fs::write(root.join(".git"), legacy_link).unwrap();
     let outside = tempfile::tempdir().unwrap();
     fs::write(
         metadata.join("gitdir"),

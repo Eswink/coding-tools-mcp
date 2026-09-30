@@ -19,6 +19,8 @@ fn unavailable(error: &keyring::Error) -> AppError {
 
 impl KeyStore for NativeKeyStore {
     fn get(&self, id: &str) -> AppResult<Option<Zeroizing<Vec<u8>>>> {
+        #[cfg(feature = "native-state-timing")]
+        let _timing = super::native_timing::key_read();
         let entry = keyring::Entry::new(SERVICE, id).map_err(|error| unavailable(&error))?;
         match entry.get_secret() {
             Ok(secret) => Ok(Some(Zeroizing::new(secret))),

@@ -64,7 +64,7 @@ jobs:
         id: regression
         shell: pwsh
         run: |
-          cargo test --manifest-path src-tauri/Cargo.toml --locked 2>&1 | Tee-Object -FilePath evidence/windows-rust-tests.log
+          cargo test --no-fail-fast --manifest-path src-tauri/Cargo.toml --locked 2>&1 | Tee-Object -FilePath evidence/windows-rust-tests.log
           if ($LASTEXITCODE -ne 0) { throw 'Windows Rust regression failed' }
       - name: Unverified engineering NSIS build
         id: package_build

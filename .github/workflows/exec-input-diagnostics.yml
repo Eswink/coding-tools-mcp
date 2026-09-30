@@ -59,7 +59,7 @@ jobs:
           npm ci
           npm run build
           export PATH="/usr/bin:$PATH"
-          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --test call_tool_contract --test call_tool_security --test exec_input_contract --no-run 2>&1 | tee evidence/build.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-state-timing --lib --test call_tool_contract --test call_tool_security --test exec_input_contract --no-run 2>&1 | tee evidence/build.txt
       - name: Compare fresh and original preceding suites
         if: always() && steps.build.outcome == 'success'
         run: |
@@ -80,7 +80,7 @@ jobs:
                 local label="$1"
                 shift
                 local status
-                if cargo test --locked --manifest-path src-tauri/Cargo.toml "$@" -- --nocapture 2>&1 | tee "evidence/$DIAGNOSTIC_SCENARIO-$label.txt"; then
+                if cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-state-timing "$@" -- --nocapture 2>&1 | tee "evidence/$DIAGNOSTIC_SCENARIO-$label.txt"; then
                   status=0
                 else
                   status=$?
