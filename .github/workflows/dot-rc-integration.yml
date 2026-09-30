@@ -122,8 +122,6 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U gateway_test -d coding_tools_identity_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      TEST_DATABASE_URL: postgresql://gateway_test:disposable-ci-fixture@127.0.0.1:${{ job.services.postgres.ports[5432] }}/coding_tools_identity_test
     defaults:
       run:
         shell: bash
@@ -145,6 +143,8 @@ jobs:
             src-tauri
             services/cloud-gateway
       - name: Real database, authenticated WSS and application-owned execution
+        env:
+          TEST_DATABASE_URL: postgresql://gateway_test:disposable-ci-fixture@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/coding_tools_identity_test
         run: |
           set -euo pipefail
           export PATH="/usr/bin:$PATH"
