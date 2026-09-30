@@ -134,5 +134,90 @@ class RuntimeTopologyTests(unittest.TestCase):
             with self.assertRaises(container_fixture.FixtureFailure):container_fixture.Fixture(Path('/tmp/no-tool'),IMAGES)
             command.assert_not_called()
 
+    def process_fixture(self,service='namespace'):
+        sys.path.insert(0,str(Path(__file__).parent))
+        import container_fixture as fixture
+        item=fixture.Fixture.__new__(fixture.Fixture);item.compose='/fixed/compose'
+        uid='999' if service=='postgres' else '65532'
+        record={'Config':{'User':uid+':'+uid},'State':{'Running':True,'Restarting':False,'Pid':123}}
+        return fixture,item,record,uid
+
+    def test_process_identity_observes_owned_live_processes_without_exec(self):
+        from types import SimpleNamespace
+        for service in ('namespace','gateway','ingress','postgres'):
+            with self.subTest(service=service):
+                fixture,item,record,uid=self.process_fixture(service)
+                result=SimpleNamespace(stdout=f'  PID UID GID\n 123 {uid} {uid}\n 456 {uid} {uid}\n'.encode())
+                with patch.object(item,'container',return_value=('a'*64,record)) as owned,\
+                     patch.object(item,'exec',return_value=result) as observed,patch.object(item,'dc') as compose:
+                    item.assert_process_identity(service)
+                    owned.assert_called_once_with(service)
+                    observed.assert_called_once_with(['docker','top','a'*64,'-eo','pid,uid,gid'])
+                    compose.assert_not_called()
+
+    def test_process_identity_refuses_wrong_or_stopped_container_before_top(self):
+        for change in ({'Config':{'User':'0:0'}},{'Config':{'User':'65532:0'}},
+                       {'State':{'Running':False,'Pid':123}}, {'State':{'Running':True,'Restarting':True,'Pid':123}},
+                       {'State':{'Running':True,'Pid':0}}, {'State':{'Running':True,'Pid':'123'}},
+                       {'State':{'Running':True,'Pid':True}}):
+            with self.subTest(change=change):
+                fixture,item,record,_=self.process_fixture();record.update(change)
+                with patch.object(item,'container',return_value=('a'*64,record)),patch.object(item,'exec') as observed:
+                    with self.assertRaises(fixture.FixtureFailure):item.assert_process_identity('namespace')
+                    observed.assert_not_called()
+
+    def test_process_identity_refuses_empty_malformed_mixed_or_stale_observation(self):
+        from types import SimpleNamespace
+        observations=(b'',b'PID UID GID\n',b'UID GID\n65532 65532\n',
+                      b'PID UID GID COMMAND\n123 65532 65532 private-value\n',
+                      b'PID UID GID\n123 65532\n',b'PID UID GID\n123 nobody 65532\n',
+                      b'PID UID GID\n123 0 0\n',b'PID UID GID\n123 65532 0\n',
+                      b'PID UID GID\n123 65532 65532\n456 0 0\n',
+                      b'PID UID GID\n456 65532 65532\n',b'PID UID GID\n0 65532 65532\n',
+                      b'PID UID GID\n123 65532 65532\n123 65532 65532\n',
+                      b'PID UID GID\n123 65532 65532\n\n',b'PID UID GID\n123 \xff 65532\n')
+        for output in observations:
+            with self.subTest(output=output):
+                fixture,item,record,_=self.process_fixture()
+                with patch.object(item,'container',return_value=('a'*64,record)),\
+                     patch.object(item,'exec',return_value=SimpleNamespace(stdout=output)):
+                    with self.assertRaises(fixture.FixtureFailure) as failure:item.assert_process_identity('namespace')
+                    self.assertNotIn('private-value',str(failure.exception))
+
+    def test_process_identity_preserves_owned_container_and_command_failures(self):
+        fixture,item,record,_=self.process_fixture()
+        with patch.object(item,'container',side_effect=fixture.FixtureFailure('container_owner_mismatch')),\
+             patch.object(item,'exec') as observed:
+            with self.assertRaisesRegex(fixture.FixtureFailure,'container_owner_mismatch'):item.assert_process_identity('namespace')
+            observed.assert_not_called()
+        with patch.object(item,'container',return_value=('a'*64,record)),\
+             patch.object(item,'exec',side_effect=fixture.FixtureFailure('fixture_command_failed')):
+            with self.assertRaisesRegex(fixture.FixtureFailure,'fixture_command_failed'):item.assert_process_identity('namespace')
+
+    def test_process_identity_refuses_unknown_service_without_actions(self):
+        fixture,item,_,_=self.process_fixture()
+        with patch.object(item,'container') as owned,patch.object(item,'exec') as observed:
+            with self.assertRaises(fixture.FixtureFailure):item.assert_process_identity('foreign')
+            owned.assert_not_called();observed.assert_not_called()
+
+    def test_top_diagnostics_do_not_export_identity_rows_or_arguments(self):
+        from types import SimpleNamespace
+        fixture,item,_,_=self.process_fixture()
+        result=SimpleNamespace(returncode=1,stdout=b'private-value',stderr=b'private-value is not running')
+        value=fixture.command_diagnostic(['docker','top','private-value','-eo','pid,uid,gid'],result,item.compose)
+        self.assertEqual(value,dict(operation='docker_top',exit_code=1,category='container_not_running'))
+
+    def test_identity_observer_does_not_relax_anchor_limits_or_spawn_id(self):
+        import ast
+        self.assertEqual(self.value()['services']['namespace']['pids_limit'],4)
+        self.assertEqual(self.value()['services']['namespace']['mem_limit'],'16m')
+        tree=ast.parse((ROOT/'tests/cloud-gateway-deployment/run_container_topology.py').read_text())
+        observer=next(node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name=='inspect_boundaries')
+        calls=[node for node in ast.walk(observer) if isinstance(node,ast.Call)]
+        self.assertEqual(sum(isinstance(node.func,ast.Attribute) and node.func.attr=='assert_process_identity' for node in calls),1)
+        for call in calls:
+            if isinstance(call.func,ast.Attribute) and call.func.attr=='dc':
+                self.assertNotIn('id',[arg.value for arg in call.args if isinstance(arg,ast.Constant)])
+
 
 if __name__=='__main__':unittest.main()

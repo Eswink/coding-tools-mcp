@@ -51,6 +51,7 @@ def command_diagnostic(args,result,compose):
     elif tokens[:2]==['docker','version']:operation='docker_version'
     elif tokens[:2]==['docker','image']:operation='docker_image'
     elif tokens[:2]==['docker','ps']:operation='docker_ps'
+    elif tokens[:2]==['docker','top']:operation='docker_top'
     elif tokens[:2]==['docker','rm']:operation='docker_rm'
     elif tokens[:2]==['sudo','chown']:operation='fixture_chown'
     elif tokens[:2]==['sudo','rm']:operation='fixture_cleanup'
@@ -130,6 +131,30 @@ class Fixture:
         record=json.loads(self.exec(['docker','inspect',value]).stdout)[0]
         require(record['Config']['Labels']['com.docker.compose.project']==self.project,'container_owner_mismatch')
         return value,record
+
+    def assert_process_identity(self,service):
+        """Observe existing tasks from the daemon, without exec in the target cgroup."""
+        identities={'namespace':65532,'gateway':65532,'ingress':65532,'postgres':999}
+        require(service in identities,'fixed_identity_observation_service')
+        uid=identities[service];container,record=self.container(service)
+        require(record['Config']['User']==f'{uid}:{uid}','actual_nonroot_service_user_config')
+        state=record['State'];pid=state.get('Pid')
+        require(state.get('Running') is True and not state.get('Restarting',False)
+                and type(pid) is int and pid>0,'running_service_identity_required')
+        # Docker filters daemon-side ps output by container PID. Keep PID mandatory,
+        # and request only numeric IDs, never command arguments or environment.
+        rows=self.exec(['docker','top',container,'-eo','pid,uid,gid']).stdout.splitlines()
+        require(len(rows)>1 and rows[0].split()==[b'PID',b'UID',b'GID'],'process_identity_header_required')
+        observed=set()
+        for row in rows[1:]:
+            fields=row.split()
+            require(len(fields)==3 and all(re.fullmatch(rb'[0-9]+',field) for field in fields),
+                    'numeric_process_identity_required')
+            task,user,group=map(int,fields)
+            require(task>0 and task not in observed,'unique_live_process_identity_required')
+            require(user==uid and group==uid,'actual_nonroot_service_process_identity')
+            observed.add(task)
+        require(pid in observed,'running_service_init_identity_required')
 
     def cli(self,binary,args,packet=None,success=True):
         self.last_action='cli_'+binary+'_'+args[0]
