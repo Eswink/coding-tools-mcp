@@ -16,4 +16,14 @@ foreach($invalid in @('[{"runtime":"cmd","ready":true},{"runtime":"cmd","ready":
     try {$null=@(Read-RuntimeInventory $invalid)} catch {$rejected=$true}
     if(-not $rejected) {throw 'malformed inventory was not rejected'}
 }
-'METADATA_CONTRACT_PASS: scalar source, flat independent records, retained failure, invalid/duplicate rejection'
+$owned=Join-Path ([IO.Path]::GetTempPath()) ('ctm-hash-contract-'+[guid]::NewGuid().ToString('N'))
+if(Test-Path -LiteralPath $owned) {throw 'hash contract directory must be new'}
+[IO.Directory]::CreateDirectory($owned) | Out-Null
+try {
+    # Git's distribution has a real file named [.exe; it is not a glob.
+    $literal=Join-Path $owned '[.exe'
+    [IO.File]::WriteAllText($literal,'fixture',[Text.UTF8Encoding]::new($false))
+    $hash=(Get-FileHash -LiteralPath $literal -Algorithm SHA256).Hash
+    if($hash -ne 'f16d05ec6b29248d2c61adb1e9263f78e4f7bace1b955014a2d17872cfe4064d') {throw 'literal filename hash differs'}
+} finally {[IO.Directory]::Delete($owned,$true)}
+'METADATA_CONTRACT_PASS: scalar source, flat records, retained failure, invalid/duplicate rejection, literal filename hash'

@@ -74,12 +74,14 @@ def audit(files):
         errors.append('runtime inventory must use scalar-record parser')
     if 'metadata-contract-tests.ps1' not in workflow:
         errors.append('PowerShell data-shape tests missing')
+    if any('Get-FileHash ' in line and 'Get-FileHash -LiteralPath ' not in line for line in files['prepare.ps1'].splitlines()):
+        errors.append('payload hash paths must be literal')
     return errors
 
 
 def load_files():
     names = ['baseline/'+name for name in HASHES]
-    names += ['RuntimeLauncher.cs', 'runtime_fixture.rs', 'run-runtime.ps1']
+    names += ['RuntimeLauncher.cs', 'runtime_fixture.rs', 'run-runtime.ps1', 'prepare.ps1']
     files = {name: (ROOT/name).read_bytes().decode('utf-8') for name in names}
     files['workflow'] = (ROOT.parent.parent/'.github/workflows/windows-lpac-runtime-diagnostic.yml').read_bytes().decode('utf-8')
     return files
@@ -128,6 +130,11 @@ class AuditMutations(unittest.TestCase):
         files = load_files()
         files['run-runtime.ps1'] = files['run-runtime.ps1'].replace('Read-RuntimeInventory (Get-Content', 'ConvertFrom-Json (Get-Content')
         self.assertIn('runtime inventory must use scalar-record parser', audit(files))
+
+    def test_wildcard_hash_paths_rejected(self):
+        files = load_files()
+        files['prepare.ps1'] = files['prepare.ps1'].replace('Get-FileHash -LiteralPath ', 'Get-FileHash ')
+        self.assertIn('payload hash paths must be literal', audit(files))
 
 
 if __name__ == '__main__':
