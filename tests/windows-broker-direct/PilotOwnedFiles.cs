@@ -182,6 +182,32 @@ public static partial class BrokerDirectLauncher {
         if(sid=="S-1-3-0") return "creator_owner";
         return "other";
     }
+    // Observation only: finish the already-buffered ACL before evaluating trust.
+    // Completion/count are committed only after every ACE's existing metadata succeeds.
+    static void RecordPilotParentAcl(RawSecurityDescriptor descriptor,string user,string label,DirectReceipt r) {
+        r.Numbers[label+"_acl_observation_completed"]=0;
+        r.Numbers[label+"_acl_observed_ace_count"]=-1;
+        int observed=0;
+        if(descriptor.DiscretionaryAcl!=null) foreach(GenericAce raw in descriptor.DiscretionaryAcl) {
+            string aceLabel=label+"_ace_"+observed;
+            r.Identities[aceLabel+"_type"]=raw.GetType().Name;
+            r.Numbers[aceLabel+"_native_type"]=(int)raw.AceType;
+            r.Numbers[aceLabel+"_flags"]=(int)raw.AceFlags;
+            var known=raw as KnownAce;
+            if(known!=null) {
+                r.Numbers[aceLabel+"_access_mask"]=unchecked((uint)known.AccessMask);
+                r.Identities[aceLabel+"_sid_category"]=PilotOwnerCategory(known.SecurityIdentifier==null?null:known.SecurityIdentifier.Value,user);
+            }
+            var ace=raw as CommonAce;
+            if(ace!=null) {
+                r.Numbers[aceLabel+"_qualifier"]=(int)ace.AceQualifier;
+                r.Numbers[aceLabel+"_callback"]=ace.IsCallback?1:0;
+            }
+            observed++;
+        }
+        r.Numbers[label+"_acl_observed_ace_count"]=observed;
+        r.Numbers[label+"_acl_observation_completed"]=1;
+    }
     static FILE_INFO PilotValidateParent(IntPtr handle,string path,string identity,string label,DirectReceipt r) {
         FILE_INFO info=PilotValidateObject(handle,path,true,identity,null);
         IntPtr data=IntPtr.Zero;
@@ -202,37 +228,39 @@ public static partial class BrokerDirectLauncher {
             r.Numbers[label+"_security_control_flags"]=(int)descriptor.ControlFlags;
             r.Numbers[label+"_dacl_ace_count"]=descriptor.DiscretionaryAcl==null?-1:descriptor.DiscretionaryAcl.Count;
             r.Numbers[label+"_broker_owned"]=0;
+            r.Numbers[label+"_first_rejected_ace_index"]=-1;
+            r.Identities[label+"_first_rejected_reason"]="not_evaluated";
+            RecordPilotParentAcl(descriptor,user,label,r);
+            r.Identities[label+"_first_rejected_reason"]="none";
             if((owner!=user && owner!="S-1-5-18" && owner!="S-1-5-32-544") ||
-                (descriptor.ControlFlags&ControlFlags.DiscretionaryAclPresent)==0 || descriptor.DiscretionaryAcl==null)
+                (descriptor.ControlFlags&ControlFlags.DiscretionaryAclPresent)==0 || descriptor.DiscretionaryAcl==null) {
+                r.Identities[label+"_first_rejected_reason"]="owner_or_dacl";
                 throw new InvalidOperationException("pilot parent is not broker-owned");
-            // No ACL mutation or optimistic effective-access approximation. Unknown
-            // write/delete/security grants fail closed; ordinary read grants are safe.
+            }
+            // Exact original rejection order/predicate, including inherit-only grants.
             const uint writeMask=0x500D0156; // GENERIC_WRITE/ALL, DELETE, WRITE_DAC/OWNER, directory writes.
-            int aceIndex=0; // Indexed labels are bounded by the already bounded descriptor's ACE count.
+            int aceIndex=0;
             foreach(GenericAce raw in descriptor.DiscretionaryAcl) {
-                string aceLabel=label+"_ace_"+(aceIndex++);
-                r.Identities[aceLabel+"_type"]=raw.GetType().Name;
-                r.Numbers[aceLabel+"_native_type"]=(int)raw.AceType;
-                r.Numbers[aceLabel+"_flags"]=(int)raw.AceFlags;
-                var known=raw as KnownAce;
-                if(known!=null) {
-                    r.Numbers[aceLabel+"_access_mask"]=unchecked((uint)known.AccessMask);
-                    r.Identities[aceLabel+"_sid_category"]=PilotOwnerCategory(known.SecurityIdentifier==null?null:known.SecurityIdentifier.Value,user);
-                }
+                int currentIndex=aceIndex++;
                 var ace=raw as CommonAce;
-                if(ace!=null) {
-                    r.Numbers[aceLabel+"_qualifier"]=(int)ace.AceQualifier;
-                    r.Numbers[aceLabel+"_callback"]=ace.IsCallback?1:0;
-                }
-                if(ace==null || ace.IsCallback || (ace.AceQualifier!=AceQualifier.AccessAllowed && ace.AceQualifier!=AceQualifier.AccessDenied))
+                if(ace==null || ace.IsCallback || (ace.AceQualifier!=AceQualifier.AccessAllowed && ace.AceQualifier!=AceQualifier.AccessDenied)) {
+                    r.Numbers[label+"_first_rejected_ace_index"]=currentIndex;
+                    r.Identities[label+"_first_rejected_reason"]="unsupported_ace_shape";
                     throw new InvalidOperationException("pilot parent ACL shape unsupported");
+                }
                 if(ace.AceQualifier!=AceQualifier.AccessAllowed) continue;
                 uint mask=unchecked((uint)ace.AccessMask);
-                if((mask&~0xF01F01FFu)!=0) throw new InvalidOperationException("pilot parent ACL access mask unsupported");
+                if((mask&~0xF01F01FFu)!=0) {
+                    r.Numbers[label+"_first_rejected_ace_index"]=currentIndex;
+                    r.Identities[label+"_first_rejected_reason"]="unsupported_access_mask";
+                    throw new InvalidOperationException("pilot parent ACL access mask unsupported");
+                }
                 string sid=ace.SecurityIdentifier.Value;
-                // Include inherit-only grants: a fresh owned root inherits them.
-                if((mask&writeMask)!=0 && sid!=user && sid!="S-1-5-18" && sid!="S-1-5-32-544")
+                if((mask&writeMask)!=0 && sid!=user && sid!="S-1-5-18" && sid!="S-1-5-32-544") {
+                    r.Numbers[label+"_first_rejected_ace_index"]=currentIndex;
+                    r.Identities[label+"_first_rejected_reason"]="untrusted_write_grant";
                     throw new InvalidOperationException("pilot parent has an untrusted write grant");
+                }
             }
             r.Numbers[label+"_broker_owned"]=1;
         } finally {

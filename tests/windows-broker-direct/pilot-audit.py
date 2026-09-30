@@ -13,7 +13,7 @@ PILOT_NAMES = (
     'PilotGates.cs', 'PilotRunner.cs', 'PilotClassification.cs', 'PilotPolicyTests.cs',
     'PilotGateTests.cs', 'PilotClassificationTests.cs', 'run-pilot.ps1',
 )
-PILOT_PINS = {'PilotOwnedFiles.cs': '217c50be9247ca0264636f7f0dab1547c6e2d9f4ed23ab9e670ddba23e5c0660', 'PilotSubjects.cs': 'bb12619c082a1b26a6d6ccd5a6af5012a2d64764ebe6c856856ad1be14e36c92', 'PilotPolicy.cs': '1791fa47cf3a5afd62bd4029c4e8a085c674269a0cad2b5190cfd8621bbb16ea', 'PilotJournal.cs': '815e611986e04abd5efa934c2f56e20d50c42ccc0d6b98fbb1850de2d271fa21', 'PilotGates.cs': 'e5f5b416ea63f1ab96014d145a802f82a9de1b809d118ca58de4e93d7c5c88ad', 'PilotRunner.cs': '30c6c51ad2b26b202f776bd453c5fa2de2311eea3e12eca2a42eb179c64e9e2e', 'PilotClassification.cs': 'e8438e7e516ad0a9e842489df11b800e53be65519ff9211c13f6e29e227078ab', 'PilotPolicyTests.cs': 'd6c37576dc802590888616cbe4f8eadf8420718da4e4cb92db6f7fb090a968d8', 'PilotGateTests.cs': 'c1b5495f780633da8c0656e097f54cdea74de2d002274d6afe2afae8194f2b8d', 'PilotClassificationTests.cs': 'b0d8c3613743f9913715e343298611cd78ccd2c48f3591c5c85a1203c4a3dfad', 'run-pilot.ps1': '81ddeaab12758c9dbde5983a5140629d435e6d20e87fb68de1c3c7edfacf45c1'}
+PILOT_PINS = {'PilotOwnedFiles.cs': '7638cf9dffa7859bde43df943cfa3bee5384a7c9ee7d52f587abdca43c43ad92', 'PilotSubjects.cs': 'bb12619c082a1b26a6d6ccd5a6af5012a2d64764ebe6c856856ad1be14e36c92', 'PilotPolicy.cs': '1791fa47cf3a5afd62bd4029c4e8a085c674269a0cad2b5190cfd8621bbb16ea', 'PilotJournal.cs': '815e611986e04abd5efa934c2f56e20d50c42ccc0d6b98fbb1850de2d271fa21', 'PilotGates.cs': 'e5f5b416ea63f1ab96014d145a802f82a9de1b809d118ca58de4e93d7c5c88ad', 'PilotRunner.cs': '30c6c51ad2b26b202f776bd453c5fa2de2311eea3e12eca2a42eb179c64e9e2e', 'PilotClassification.cs': 'e8438e7e516ad0a9e842489df11b800e53be65519ff9211c13f6e29e227078ab', 'PilotPolicyTests.cs': 'd6c37576dc802590888616cbe4f8eadf8420718da4e4cb92db6f7fb090a968d8', 'PilotGateTests.cs': 'c1b5495f780633da8c0656e097f54cdea74de2d002274d6afe2afae8194f2b8d', 'PilotClassificationTests.cs': 'b0d8c3613743f9913715e343298611cd78ccd2c48f3591c5c85a1203c4a3dfad', 'run-pilot.ps1': '81ddeaab12758c9dbde5983a5140629d435e6d20e87fb68de1c3c7edfacf45c1'}
 
 
 def uncomment(source):
@@ -102,6 +102,36 @@ def inspect(files, legacy, check_pins=True):
                      'scope.ParentIdentity', 'scope.RootIdentity', 'scope.Volume',
                      'String.Equals(entry.Name,scope.Leaf,StringComparison.OrdinalIgnoreCase)', 'scope.RemovalConfirmed=valid && closed'):
         assert required in owned, required
+    observer = uncomment(owned[owned.index('    static void RecordPilotParentAcl('):owned.index('    static FILE_INFO PilotValidateParent(')])
+    validator = uncomment(owned[owned.index('    static FILE_INFO PilotValidateParent('):owned.index('    static List<PilotDirectoryEntry> PilotEnumerateDirectory(')])
+    assert 'RecordPilotParentAcl(descriptor,user,label,r);' in validator
+    assert validator.index('RecordPilotParentAcl(descriptor,user,label,r);') < validator.index('if((owner!=user') < validator.index('foreach(GenericAce raw')
+    observation_order = ['_acl_observation_completed"]=0;', 'foreach(GenericAce raw', '_acl_observed_ace_count"]=observed;', '_acl_observation_completed"]=1;']
+    for fragment in observation_order: assert fragment in observer, fragment
+    assert [observer.index(fragment) for fragment in observation_order] == sorted(observer.index(fragment) for fragment in observation_order)
+    assert 'int observed=0;' in observer and 'observed++;' in observer
+    for forbidden in ('break;', 'continue;', 'return;', '_broker_owned', '_first_rejected', 'Create', 'OpenProcessToken(', 'GetTokenInformation(', 'SetFile', 'throw new'):
+        assert forbidden not in observer, 'metadata pass must not change authority or terminate early'
+    for exact in ('if((owner!=user && owner!="S-1-5-18" && owner!="S-1-5-32-544") ||',
+                  '(descriptor.ControlFlags&ControlFlags.DiscretionaryAclPresent)==0 || descriptor.DiscretionaryAcl==null)',
+                  'if(ace==null || ace.IsCallback || (ace.AceQualifier!=AceQualifier.AccessAllowed && ace.AceQualifier!=AceQualifier.AccessDenied))',
+                  'if(ace.AceQualifier!=AceQualifier.AccessAllowed) continue;', 'const uint writeMask=0x500D0156;',
+                  'if((mask&~0xF01F01FFu)!=0)', 'if((mask&writeMask)!=0 && sid!=user && sid!="S-1-5-18" && sid!="S-1-5-32-544")',
+                  'int currentIndex=aceIndex++;', '_first_rejected_ace_index\"]=-1;', '_first_rejected_ace_index\"]=currentIndex;'):
+        assert exact in validator, exact
+    assert len(re.findall(r'\bif\s*\(', validator)) == 8, 'new policy branch requires explicit review'
+    assert validator.count('continue;') == 1 and 'AceFlags' not in validator, 'inheritance does not relax this observation-only predicate'
+    assert re.findall(r'\bmask\s*=[^;]*;', validator) == ['mask=unchecked((uint)ace.AccessMask);']
+    assert re.findall(r'\bsid\s*=[^;]*;', validator) == ['sid=ace.SecurityIdentifier.Value;']
+    assert re.findall(r'_first_rejected_ace_index"\]=([^;]+);', validator) == ['-1', 'currentIndex', 'currentIndex', 'currentIndex']
+    reasons = re.findall(r'_first_rejected_reason"\]=\"([^\"]+)\";', validator)
+    assert reasons == ['not_evaluated', 'none', 'owner_or_dacl', 'unsupported_ace_shape', 'unsupported_access_mask', 'untrusted_write_grant']
+    for reason, message in (('owner_or_dacl','pilot parent is not broker-owned'),
+                            ('unsupported_ace_shape','pilot parent ACL shape unsupported'),
+                            ('unsupported_access_mask','pilot parent ACL access mask unsupported'),
+                            ('untrusted_write_grant','pilot parent has an untrusted write grant')):
+        tail=validator[validator.index('="'+reason+'";'):]
+        assert tail.index('throw new InvalidOperationException("'+message+'")') < tail.index('\n            }')
     assert 'CloseOwned(ref token' not in owned and 'CloseChecked(PilotGetCurrentProcess' not in owned
     assert 'Identities[label+"_broker_owner_sid"]' not in owned
     assert 'DuplicateToken' not in uncomment(owned) and 'AccessCheck(' not in owned
@@ -234,6 +264,16 @@ class PilotAudit(unittest.TestCase):
 
 
 MUTATIONS = [
+ ('acl_complete_pass','PilotOwnedFiles.cs','RecordPilotParentAcl(descriptor,user,label,r);',''),
+ ('acl_completion_starts_false','PilotOwnedFiles.cs','_acl_observation_completed"]=0;','_acl_observation_completed"]=1;'),
+ ('acl_complete_count','PilotOwnedFiles.cs','_acl_observed_ace_count"]=observed;','_acl_observed_ace_count"]=0;'),
+ ('acl_completion_marker','PilotOwnedFiles.cs','_acl_observation_completed"]=1;',''),
+ ('acl_no_early_break','PilotOwnedFiles.cs','observed++;','observed++;break;'),
+ ('acl_first_reject_index','PilotOwnedFiles.cs','_first_rejected_ace_index"]=currentIndex;','_first_rejected_ace_index"]=0;'),
+ ('acl_first_reject_reason','PilotOwnedFiles.cs','_first_rejected_reason"]="untrusted_write_grant";','_first_rejected_reason"]="none";'),
+ ('acl_inherit_only_not_waived','PilotOwnedFiles.cs','int currentIndex=aceIndex++;','int currentIndex=aceIndex++;if((raw.AceFlags&AceFlags.InheritOnly)!=0) continue;'),
+ ('acl_creator_owner_not_trusted','PilotOwnedFiles.cs','sid!="S-1-5-32-544") {','sid!="S-1-5-32-544" && sid!="S-1-3-0") {'),
+ ('acl_original_write_mask','PilotOwnedFiles.cs','const uint writeMask=0x500D0156;','const uint writeMask=0x000D0156;'),
  ('capability_count','PilotSubjects.cs','capabilities.Sid=s.Sid;','capabilities.Sid=s.Sid;capabilities.Count=1;'),
  ('job_breakaway','PilotSubjects.cs','limits.Basic.flags=KILL_ON_JOB_CLOSE;','limits.Basic.flags=KILL_ON_JOB_CLOSE|0x800;'),
  ('stdin_write','PilotSubjects.cs','inputPath,0x80000000,3,true','inputPath,0xC0000000,3,true'),
