@@ -308,31 +308,35 @@ impl Dir {
         {
             return Err(SnapshotError::Unsupported);
         }
-        let from = security::wide(
-            self.path
-                .join(name)
-                .to_str()
-                .ok_or(SnapshotError::Boundary)?,
-        );
-        let into = security::wide(
-            to.path
-                .join(destination)
-                .to_str()
-                .ok_or(SnapshotError::Boundary)?,
-        );
-        // No REPLACE_EXISTING or COPY_ALLOWED. Both ancestors stay pinned by HANDLE.
+        let source = opened(&self.path.join(name), READ | 0x00010000, 1)?; // DELETE
+        let mut info = BY_HANDLE_FILE_INFORMATION::default();
+        unsafe { GetFileInformationByHandle(HANDLE(source.as_raw_handle()), &mut info) }
+            .map_err(error)?;
+        let info = file_info(&source, info.dwFileAttributes & 0x10 != 0)?;
+        let name: Vec<u16> = destination.encode_utf16().collect();
+        let offset = std::mem::offset_of!(FILE_RENAME_INFO, FileName);
+        let size = std::mem::size_of::<FILE_RENAME_INFO>().max(offset + name.len() * 2);
+        let mut storage = vec![0u64; size.div_ceil(8)];
+        let rename = storage.as_mut_ptr().cast::<FILE_RENAME_INFO>();
+        // Use the retained destination HANDLE, avoiding a conflicting parent reopen.
+        // No replacement flag, POSIX rename semantics, or copy fallback is requested.
         unsafe {
-            MoveFileExW(
-                PCWSTR(from.as_ptr()),
-                PCWSTR(into.as_ptr()),
-                MOVEFILE_WRITE_THROUGH,
-            )
-        }
-        .map_err(|_error| {
+            (*rename).Anonymous.ReplaceIfExists = false;
+            (*rename).RootDirectory = HANDLE(to.file.as_raw_handle());
+            (*rename).FileNameLength = (name.len() * 2) as u32;
+            std::ptr::copy_nonoverlapping(name.as_ptr(),
+                storage.as_mut_ptr().cast::<u8>().add(offset).cast::<u16>(), name.len());
+            SetFileInformationByHandle(HANDLE(source.as_raw_handle()), FileRenameInfo,
+                rename.cast(), size as u32)
+        }.map_err(|_error| {
             #[cfg(test)]
-            eprintln!("snapshot no-replace move failed: HRESULT={:#x}", _error.code().0);
+            eprintln!("snapshot handle no-replace rename failed: HRESULT={:#x}", _error.code().0);
             SnapshotError::Changed
         })?;
+        if identity(&file_info(&source, info.dwFileAttributes & 0x10 != 0)?) != identity(&info) {
+            return Err(SnapshotError::Changed);
+        }
+        drop(source);
         self.sync()?;
         to.sync()
     }

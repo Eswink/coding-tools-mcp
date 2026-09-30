@@ -300,3 +300,19 @@ fn unsafe_windows_roots_and_protected_content_are_refused() {
     );
     assert!(store.list(&target).unwrap().is_empty());
 }
+
+#[test]
+fn handle_relative_moves_preserve_bytes_with_live_parent_pins() {
+    let (_temp, target, _store) = fixture();
+    let root = Dir::open(&target.root).unwrap();
+    let destination = root.mkdir("destination").unwrap();
+    root.write_new("from-file", b"preserved", 0o600).unwrap();
+    root.move_new("from-file", &destination, "moved-file").unwrap();
+    assert_eq!(destination.read("moved-file", 100).unwrap().0, b"preserved");
+    assert!(!target.root.join("from-file").exists());
+    let from = root.mkdir("from-directory").unwrap();
+    from.write_new("nested", b"nested", 0o600).unwrap();
+    drop(from);
+    root.move_new("from-directory", &destination, "moved-directory").unwrap();
+    assert_eq!(destination.child("moved-directory").unwrap().read("nested", 100).unwrap().0, b"nested");
+}
