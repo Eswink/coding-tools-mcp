@@ -129,7 +129,7 @@ class Fixture:
         require(image['Id']==self.images['gateway'] and image['Config']['User']=='65532:65532'
                 and image['Config']['Labels']['org.opencontainers.image.revision']==os.environ['GITHUB_SHA']
                 and image['Config']['Labels']['org.opencontainers.image.version']==component,'exact_gateway_image_source')
-        normalized=json.loads(self.dc('config','--format','json').stdout)
+        normalized=json.loads(self.dc('--profile','operator','config','--format','json').stdout)
         require(normalized['services']['namespace']['ports'][0]['host_ip']=='127.0.0.1','normalized_loopback_binding')
         require(not normalized['services']['postgres'].get('ports'),'no_database_host_port')
         require(normalized['services']['operator']['logging']['driver']=='none','operator_secret_output_must_not_be_logged')

@@ -111,7 +111,8 @@ fn blocked_initial_input_obeys_process_deadline() {
     let result = f.exec("import time; time.sleep(4)", &input, 100, 10_000);
     assert!(
         started.elapsed() < Duration::from_secs(3),
-        "blocked stdin bypassed deadline"
+        "blocked stdin bypassed deadline: total_wall={:?}; result={result}",
+        started.elapsed()
     );
     assert_eq!(result["ok"], true, "{result}");
     assert_eq!(result["command_ok"], false, "{result}");
@@ -128,7 +129,8 @@ fn blocked_initial_input_keeps_zero_yield_responsive() {
     let first = f.exec("import time; time.sleep(4)", &input, 500, 0);
     assert!(
         started.elapsed() < Duration::from_secs(3),
-        "zero yield waited for the pipe"
+        "zero yield waited for the pipe: total_wall={:?}; first={first}",
+        started.elapsed()
     );
     let result = f.terminal(first);
     assert_eq!(result["command_ok"], false, "{result}");

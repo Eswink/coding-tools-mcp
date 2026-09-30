@@ -1,0 +1,115 @@
+name: Native stdin timing diagnostics
+on:
+  push:
+    branches: ['ci/exec-input-diagnostics']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: exec-input-diagnostics-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: '3'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - name: Existing native Linux prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev dbus-x11 gnome-keyring
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: native-ubuntu-24.04-source-only-v1
+          cache-targets: false
+          workspaces: src-tauri
+      - name: Build exact diagnostic source
+        id: build
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git rev-parse HEAD > evidence/source-sha.txt
+          git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
+          npm ci
+          npm run build
+          export PATH="/usr/bin:$PATH"
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --test call_tool_contract --test call_tool_security --test exec_input_contract --no-run 2>&1 | tee evidence/build.txt
+      - name: Compare fresh and original preceding suites
+        if: always() && steps.build.outcome == 'success'
+        run: |
+          set -euo pipefail
+          export PATH="/usr/bin:$PATH"
+          overall=0
+          for scenario in fresh preceded; do
+            export DIAGNOSTIC_SCENARIO="$scenario"
+            export XDG_RUNTIME_DIR="$RUNNER_TEMP/exec-input-$scenario-runtime"
+            export XDG_DATA_HOME="$RUNNER_TEMP/exec-input-$scenario-data"
+            export XDG_CONFIG_HOME="$RUNNER_TEMP/exec-input-$scenario-config"
+            export XDG_STATE_HOME="$RUNNER_TEMP/exec-input-$scenario-state"
+            mkdir -p "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+            chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+            if dbus-run-session -- bash -euo pipefail -c '
+              printf "%s" "isolated-rc-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets
+              run_test() {
+                local label="$1"
+                shift
+                local status
+                if cargo test --locked --manifest-path src-tauri/Cargo.toml "$@" -- --nocapture 2>&1 | tee "evidence/$DIAGNOSTIC_SCENARIO-$label.txt"; then
+                  status=0
+                else
+                  status=$?
+                fi
+                printf "%s %s\n" "$label" "$status" >> "evidence/$DIAGNOSTIC_SCENARIO-status.txt"
+                return "$status"
+              }
+              failed=0
+              if [ "$DIAGNOSTIC_SCENARIO" = preceded ]; then
+                run_test lib --lib || failed=1
+                run_test call-tool-contract --test call_tool_contract || failed=1
+                run_test call-tool-security --test call_tool_security || failed=1
+              fi
+              # Keep all six original tests, their concurrency and <3s assertions.
+              run_test exec-input --test exec_input_contract || failed=1
+              exit "$failed"
+            '; then
+              printf "%s success\n" "$scenario" >> evidence/comparison-status.txt
+            else
+              printf "%s failure\n" "$scenario" >> evidence/comparison-status.txt
+              overall=1
+            fi
+          done
+          git diff --exit-code HEAD --
+          exit "$overall"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: exec-input-diagnostics-${{ github.sha }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30

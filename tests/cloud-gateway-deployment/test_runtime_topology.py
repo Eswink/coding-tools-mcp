@@ -92,6 +92,18 @@ class RuntimeTopologyTests(unittest.TestCase):
             self.assertFalse(module.port_observation(28881,[path])['collision_observed'])
             self.assertIsNone(module.port_observation(28880,[Path(raw)/'missing'])['collision_observed'])
 
+    def test_readonly_config_explicitly_includes_operator_profile(self):
+        import ast
+        source=(ROOT/'tests/cloud-gateway-deployment/container_fixture.py').read_text()
+        calls=[node for node in ast.walk(ast.parse(source)) if isinstance(node,ast.Call)
+               and isinstance(node.func,ast.Attribute) and node.func.attr=='dc']
+        config_calls=[[arg.value for arg in node.args if isinstance(arg,ast.Constant)]
+                      for node in calls if any(isinstance(arg,ast.Constant) and arg.value=='config' for arg in node.args)]
+        self.assertEqual(config_calls,[['--profile','operator','config','--format','json']])
+        # Profile inclusion is read-only, not an unconditional operator service start.
+        self.assertNotIn("self.dc('--profile','operator','up'",source)
+        self.assertIn("normalized['services']['operator']['logging']['driver']=='none'",source)
+
     def test_docker_fixture_refuses_nonhosted_environment_before_actions(self):
         sys.path.insert(0,str(Path(__file__).parent))
         import container_fixture
