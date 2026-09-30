@@ -1,0 +1,128 @@
+name: Issue81 verified native configuration receipt
+on:
+  push:
+    branches: ['ci/issue81-app-integration-20260930']
+    paths: ['.github/workflows/issue81-configuration-final-receipt.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SOURCE: f855ff75518303be1e7b87e6cd7d557dcce5855d
+      BASE: 2c5d133eaa75d7fc084b8122350d7768ce5b2382
+      NATIVE_RUN: '36673834979'
+      PROOF_RUN: '36673835035'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: f855ff75518303be1e7b87e6cd7d557dcce5855d
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: issue81-configuration-*
+          run-id: 36673834979
+          github-token: ${{ github.token }}
+          path: current-evidence
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-configuration-initialization-proof
+          run-id: 36673835035
+          github-token: ${{ github.token }}
+          path: mutation-proof
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-configuration-refinement-review
+          run-id: 36673362510
+          github-token: ${{ github.token }}
+          path: first-failure-evidence
+      - name: Recompute evidence, exact source objects and unchanged protected paths
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch --quiet --no-tags --unshallow origin "$SOURCE"
+          python - <<'PY'
+          import hashlib,json,os,pathlib,re,shutil,subprocess,tarfile,urllib.request
+          root=pathlib.Path('verified');root.mkdir()
+          source=os.environ['SOURCE'];base=os.environ['BASE']
+          def git(*args):
+              return subprocess.check_output(['git',*args],text=True).strip()
+          assert git('rev-parse','HEAD')==source
+          tree=git('rev-parse','HEAD^{tree}')
+          assert tree=='92086b22d5b1a286bbbb09d163ce092cd76172ed'
+          def api(path):
+              req=urllib.request.Request('https://api.github.com/repos/Eswink/coding-tools-mcp/'+path,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  return json.load(response)
+          for run in [os.environ['NATIVE_RUN'],os.environ['PROOF_RUN']]:
+              value=api('actions/runs/'+run)
+              assert value['head_sha']==source and value['status']=='completed' and value['conclusion']=='success'
+          counts={};receipts={}
+          for platform,expected_focused,expected_full in [('ubuntu-24.04',30,525),('windows-2025',29,517)]:
+              folder=pathlib.Path('current-evidence')/('issue81-configuration-'+platform)
+              receipt=json.loads((folder/'receipt.json').read_text())
+              assert receipt['source_sha']==source and receipt['run_id']==os.environ['NATIVE_RUN']
+              assert receipt['passed'] is True and set(receipt['results'].values())=={'success'}
+              assert (folder/'tree.txt').read_text().strip()==tree
+              for name,digest in receipt['hashes'].items():
+                  assert hashlib.sha256((folder/name).read_bytes()).hexdigest()==digest
+              totals={}
+              for name in ['configuration.log','native-full.log']:
+                  text=(folder/name).read_text(encoding='utf-8')
+                  rows=re.findall(r'test result: (ok|FAILED)\. (\d+) passed; (\d+) failed; (\d+) ignored;',text)
+                  assert rows and all(r[0]=='ok' and r[2:]==('0','0') for r in rows)
+                  totals[name]=sum(int(r[1]) for r in rows)
+              assert totals=={'configuration.log':expected_focused,'native-full.log':expected_full},totals
+              counts[platform]={'configuration_tests':expected_focused,'full_native_tests_including_configuration':expected_full,'failed':0,'ignored':0}
+              receipts[platform]=receipt
+              shutil.copytree(folder,root/'evidence'/platform)
+          proof=json.loads(pathlib.Path('mutation-proof/proof.json').read_text())
+          assert proof['source_sha']==source and proof['run_id']==os.environ['PROOF_RUN']
+          assert proof['passed'] and proof['assertions_unchanged'] and proof['production_source_restored']
+          assert [r['exit_code'] for r in proof['runs']]==[0,101,0]
+          for row in proof['runs']:
+              path=pathlib.Path('mutation-proof')/(row['name']+'.log')
+              assert hashlib.sha256(path.read_bytes()).hexdigest()==row['sha256']
+          shutil.copytree('mutation-proof',root/'evidence'/'mutation-proof')
+          shutil.copytree('first-failure-evidence',root/'evidence'/'first-failures')
+          review=pathlib.Path('current-evidence/issue81-configuration-source-review')
+          text=(review/'impact.json').read_text()
+          impact=json.JSONDecoder().raw_decode(text[text.index('{'):])[0]
+          shutil.copy(review/'impact.json',root/'evidence'/'final-impact.json')
+          paths=git('diff','--name-only',base,source).splitlines()
+          assert len(paths)==9 and len(paths)==len(set(paths))
+          expected={'docs/specs/cloud-execution-bridge/native-configuration.md','src-tauri/src/cloud_connection/mod.rs','src-tauri/src/cloud_connection/storage.rs','src-tauri/src/cloud_connection/tests.rs','src-tauri/src/commands/cloud_connection.rs','src-tauri/src/commands/mod.rs','src-tauri/src/lib.rs','.github/workflows/issue81-native-configuration.yml','.github/workflows/issue81-configuration-initialization-proof.yml'}
+          assert set(paths)==expected
+          files={}
+          with tarfile.open(review/'exact-source.tar.gz','r:gz') as archive:
+              for path in paths:
+                  data=pathlib.Path(path).read_bytes()
+                  assert archive.extractfile(path).read()==data
+                  blob=hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()
+                  assert blob==git('rev-parse',source+':'+path)
+                  files[path]={'git_blob':blob,'sha256':hashlib.sha256(data).hexdigest()}
+                  target=root/'source'/path;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data)
+          protected=['src-tauri/src/auth','src-tauri/src/tools','src-tauri/src/data','src-tauri/src/runtime','src-tauri/src/mcp','src-tauri/src/actions','services','src-tauri/Cargo.toml','src-tauri/Cargo.lock','package.json','package-lock.json']
+          subprocess.run(['git','diff','--exit-code',base,source,'--',*protected],check=True)
+          patch=subprocess.check_output(['git','diff','--binary',base,source])
+          (root/'configuration.patch').write_bytes(patch)
+          subprocess.run(['git','bundle','create',str(root/'incremental.bundle'),base+'..HEAD'],check=True)
+          subprocess.run(['git','bundle','verify',str(root/'incremental.bundle')],check=True)
+          report={'source_sha':source,'source_tree':tree,'base_sha':base,'native_run':os.environ['NATIVE_RUN'],'proof_run':os.environ['PROOF_RUN'],'passed':True,'scope':'native-configuration-component-only','counts':counts,'files':files,'impact':impact,'full_bridge_complete':False,'cumulative_native_host_commit_not_replaced':'229a1a41ab2215ede18588d13cc2110c2c5b3bb6','real_os_keyring_tested':False,'native_ui_clicks_tested':False,'physical_hosts_tested':False,'release_approved':False}
+          (root/'acceptance.json').write_text(json.dumps(report,indent=2)+'\n')
+          (root/'README.md').write_text('# Native configuration development increment\n\nSource '+source+'; base '+base+'. This is not an installer, complete cloud bridge or release.\nThe incremental Git bundle requires the base already present. PR #83 contains the same committed source. Do not replace the separate cumulative native-host/drain source at 229a1a41.\nAll hashes and native test counts are in acceptance.json. Configuration tests are included in complete-suite totals. The controlled mutant is not a historical product version. Existing auth/runtime/tools/services and dependency files are unchanged.\n')
+          manifest={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}
+          (root/'SHA256.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          print('FINAL_CONFIGURATION_RECEIPT='+json.dumps({'source_sha':source,'tree':tree,'counts':counts,'files':len(files),'payload_files':len(manifest),'risk':impact.get('risk_level',impact.get('risk')),'mutation_verified':True,'full_bridge_complete':False,'release_approved':False},sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-native-configuration-verified-source
+          path: verified/
+          retention-days: 30
+          if-no-files-found: error
