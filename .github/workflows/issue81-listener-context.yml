@@ -1,12 +1,15 @@
 name: Issue81 listener context lifetime
 on:
   push:
-    branches: ['feat/issue81-listener-context-lease']
+    branches: ['feat/issue81-listener-context-lease', 'feat/issue81-listener-context-verified']
+  pull_request:
+    branches: [feat/cloud-gateway-agent-runtime]
+    paths: ['src-tauri/src/mcp/**', 'src-tauri/src/runtime/**', 'src-tauri/src/tools/listener_context*', 'src-tauri/src/tools/listener_context/**', '.github/workflows/issue81-listener-context.yml']
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: issue81-listener-context-${{ github.ref }}
+  group: issue81-listener-context-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   impact:
@@ -26,7 +29,11 @@ jobs:
           run-id: 36676879488
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/public-tools
-      - name: Verify and run pinned pre-edit analysis
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt
+      - name: Pre-edit scope and actual staged candidate graph
         shell: bash
         run: |
           set -euo pipefail
@@ -34,17 +41,25 @@ jobs:
           (cd "$RUNNER_TEMP/public-tools" && sha256sum -c SHA256SUMS.txt)
           tar -xJf "$RUNNER_TEMP/public-tools/pinned-analysis-tools.tar.xz" -C "$RUNNER_TEMP/analysis"
           graph="$RUNNER_TEMP/analysis/node_modules/.bin/gitnexus"
-          "$graph" analyze --workers 1 > evidence/graph.log 2>&1
-          for target in spawn_listener_with_binding spawn_listener_with_origin_and_execution_gate; do
-            "$graph" impact "$target" --direction upstream --file src-tauri/src/mcp/listener.rs --depth 3 > "evidence/impact-$target.txt"
-          done
-          for target in start begin_stop finish_stop is_running; do
-            "$graph" impact "$target" --direction upstream --file src-tauri/src/runtime/supervisor.rs --depth 3 > "evidence/impact-$target.txt"
-          done
-          "$graph" impact spawn_listener_from_bound --direction upstream --file src-tauri/src/mcp/listener_test_support.rs --depth 3 > evidence/impact-test-listener.txt
-          printf '\nEXACT PREEDIT BASE: 2c5d133eaa75d7fc084b8122350d7768ce5b2382\n'
-          for path in evidence/impact-*.txt; do printf '\n=== %s ===\n' "$path"; cat "$path"; done
-          git rev-parse HEAD HEAD^{tree} > evidence/source.txt
+          "$graph" analyze --workers 1 > evidence/preedit-graph.log 2>&1
+          "$graph" impact refresh --direction upstream --file src-tauri/src/runtime/supervisor.rs --depth 3 > evidence/preedit-refresh.txt
+          cat evidence/preedit-refresh.txt
+          git restore --source="$GITHUB_SHA" -- AGENTS.md
+          if git cat-file -e "$GITHUB_SHA:CLAUDE.md" 2>/dev/null; then git restore --source="$GITHUB_SHA" -- CLAUDE.md; fi
+          if [ -f .ci/issue81_listener_apply.py ]; then python .ci/issue81_listener_apply.py; fi
+          rustfmt --edition 2021 --config skip_children=true src-tauri/src/tools/listener_context.rs src-tauri/src/tools/listener_context/tests.rs src-tauri/src/mcp/listener_context_tests.rs src-tauri/src/runtime/supervisor_context_tests.rs
+          "$graph" analyze --workers 1 > evidence/candidate-graph.log 2>&1
+          git restore --source="$GITHUB_SHA" -- AGENTS.md
+          if git cat-file -e "$GITHUB_SHA:CLAUDE.md" 2>/dev/null; then git restore --source="$GITHUB_SHA" -- CLAUDE.md; fi
+          # Local CI-only index, representing the real product diff, not assembly helpers.
+          git reset --mixed 2c5d133eaa75d7fc084b8122350d7768ce5b2382
+          git add -- src-tauri/src/mcp/listener.rs src-tauri/src/mcp/mod.rs src-tauri/src/runtime/supervisor.rs src-tauri/src/tools/mod.rs src-tauri/src/tools/listener_context.rs src-tauri/src/tools/listener_context/tests.rs src-tauri/src/mcp/listener_context_tests.rs src-tauri/src/runtime/supervisor_context_tests.rs docs/specs/cloud-execution-bridge/listener-context-lifetime.md .github/workflows/issue81-listener-context.yml
+          git diff --cached --check
+          git diff --cached --stat > evidence/candidate-stat.txt
+          git diff --cached --binary > evidence/candidate.patch
+          git write-tree > evidence/candidate-tree.txt
+          "$graph" detect-changes --scope staged > evidence/staged-impact.json
+          cat evidence/candidate-stat.txt evidence/candidate-tree.txt evidence/staged-impact.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -52,3 +67,184 @@ jobs:
           path: evidence/
           if-no-files-found: error
           retention-days: 30
+
+  native:
+    needs: impact
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: '1'
+      CARGO_TERM_COLOR: never
+      RUST_BACKTRACE: '0'
+    steps:
+      - name: Deterministic native checkout
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Linux native prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri
+            services/local-agent
+          cache-on-failure: 'true'
+      - name: Apply exact candidate and bind source identity
+        id: source
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          if [ -f .ci/issue81_listener_apply.py ]; then python .ci/issue81_listener_apply.py; fi
+          rustfmt --edition 2021 --config skip_children=true src-tauri/src/tools/listener_context.rs src-tauri/src/tools/listener_context/tests.rs src-tauri/src/mcp/listener_context_tests.rs src-tauri/src/runtime/supervisor_context_tests.rs
+          git diff --check
+          python - <<'PY'
+          import hashlib,json,os,pathlib,subprocess
+          paths=['src-tauri/src/mcp/listener.rs','src-tauri/src/mcp/mod.rs','src-tauri/src/runtime/supervisor.rs','src-tauri/src/tools/mod.rs','src-tauri/src/tools/listener_context.rs','src-tauri/src/tools/listener_context/tests.rs','src-tauri/src/mcp/listener_context_tests.rs','src-tauri/src/runtime/supervisor_context_tests.rs','docs/specs/cloud-execution-bridge/listener-context-lifetime.md','.github/workflows/issue81-listener-context.yml']
+          root=pathlib.Path('evidence'); files={}
+          for path in paths:
+              data=pathlib.Path(path).read_bytes(); out=root/'source'/path
+              out.parent.mkdir(parents=True,exist_ok=True);out.write_bytes(data)
+              files[path]={'sha256':hashlib.sha256(data).hexdigest(),'git_blob':hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest(),'bytes':len(data)}
+          env={**os.environ,'GIT_INDEX_FILE':str((root/'source.index').resolve())}
+          subprocess.run(['git','read-tree','2c5d133eaa75d7fc084b8122350d7768ce5b2382'],env=env,check=True)
+          subprocess.run(['git','add','--',*paths],env=env,check=True)
+          tree=subprocess.check_output(['git','write-tree'],env=env,text=True).strip()
+          patch=subprocess.check_output(['git','diff','--cached','--binary','2c5d133eaa75d7fc084b8122350d7768ce5b2382','--'],env=env)
+          (root/'candidate.patch').write_bytes(patch)
+          (root/'source.index').unlink()
+          receipt={'baseline':'2c5d133eaa75d7fc084b8122350d7768ce5b2382','candidate_tree':tree,'ci_sha':os.environ['GITHUB_SHA'],'files':files}
+          (root/'source.json').write_text(json.dumps(receipt,indent=2),encoding='utf-8')
+          print('CANDIDATE_TREE='+tree)
+          PY
+      - name: Native all-target compilation and strict production library
+        id: check
+        run: |
+          set -euo pipefail
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/check.txt
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/production.txt
+      - name: Exact lease, supervisor and real listener regression
+        id: focused
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::listener_context::tests 2>&1 | tee evidence/lease.txt
+          grep -q '14 passed; 0 failed; 0 ignored' evidence/lease.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib runtime::supervisor::context_lease_tests 2>&1 | tee evidence/supervisor.txt
+          grep -q '5 passed; 0 failed; 0 ignored' evidence/supervisor.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib mcp::listener::context_lease_tests 2>&1 | tee evidence/listener.txt
+          grep -q '4 passed; 0 failed; 0 ignored' evidence/listener.txt
+      - name: Complete unchanged native regression
+        id: full
+        if: (success() || failure()) && steps.check.outcome == 'success'
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/full.txt
+      - name: Original authenticated Ubuntu sandbox assertions
+        id: sandbox
+        if: (success() || failure()) && runner.os == 'Linux' && steps.check.outcome == 'success'
+        run: |
+          set -euo pipefail
+          python3 tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence "$RUNNER_TEMP/listener-sandbox"
+          cp -R "$RUNNER_TEMP/listener-sandbox" evidence/sandbox
+      - name: Final source identity and new-file format remain exact
+        id: final
+        if: (success() || failure()) && steps.source.outcome == 'success'
+        run: |
+          set -euo pipefail
+          rustfmt --check --edition 2021 --config skip_children=true src-tauri/src/tools/listener_context.rs src-tauri/src/tools/listener_context/tests.rs src-tauri/src/mcp/listener_context_tests.rs src-tauri/src/runtime/supervisor_context_tests.rs
+          python - <<'PY'
+          import hashlib,json,pathlib
+          receipt=json.loads(pathlib.Path('evidence/source.json').read_text(encoding='utf-8'))
+          for name,proof in receipt['files'].items():
+              assert hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()==proof['sha256'],name
+          print('All tested product source bytes unchanged')
+          PY
+      - name: Preserve results without masking failures
+        if: always()
+        env:
+          SOURCE: ${{ steps.source.outcome }}
+          CHECK: ${{ steps.check.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
+          FULL: ${{ steps.full.outcome }}
+          SANDBOX: ${{ steps.sandbox.outcome }}
+          FINAL: ${{ steps.final.outcome }}
+        run: |
+          python - <<'PY'
+          import hashlib,json,os,pathlib,re
+          root=pathlib.Path('evidence');root.mkdir(exist_ok=True)
+          outcomes={k:os.environ[k] for k in ('SOURCE','CHECK','FOCUSED','FULL','SANDBOX','FINAL')}
+          counts={}
+          for name in ['lease','supervisor','listener','full']:
+              p=root/(name+'.txt')
+              if p.is_file():
+                  rows=re.findall(r'test result: (?:ok|FAILED)\. (\d+) passed; (\d+) failed; (\d+) ignored;',p.read_text(encoding='utf-8',errors='replace'))
+                  counts[name]={'passed':sum(int(r[0]) for r in rows),'failed':sum(int(r[1]) for r in rows),'ignored':sum(int(r[2]) for r in rows),'targets':len(rows)}
+          data={'source_sha':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],'platform':os.environ['RUNNER_OS'],'outcomes':outcomes,'counts':counts}
+          (root/'results.json').write_text(json.dumps(data,indent=2),encoding='utf-8')
+          (root/'sha256.json').write_text(json.dumps({p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file() and p.name!='sha256.json'},indent=2),encoding='utf-8')
+          print(json.dumps(data))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-listener-${{ matrix.os }}
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error
+
+  canonical:
+    needs: [impact, native]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feat/issue81-listener-context-lease'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: issue81-listener-*
+          path: checked
+      - name: Verify native source agreement and import unreferenced blobs only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import base64,hashlib,json,os,pathlib,urllib.request
+          root=pathlib.Path('checked');a=root/'issue81-listener-ubuntu-24.04';b=root/'issue81-listener-windows-2025'
+          source=json.loads((a/'source.json').read_text());other=json.loads((b/'source.json').read_text())
+          assert source==other and source['ci_sha']==os.environ['GITHUB_SHA']
+          assert (root/'issue81-listener-impact/candidate-tree.txt').read_text().strip()==source['candidate_tree']
+          blobs={}
+          for path,proof in source['files'].items():
+              data=(a/'source'/path).read_bytes();assert data==(b/'source'/path).read_bytes()
+              assert hashlib.sha256(data).hexdigest()==proof['sha256']
+              request=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/git/blobs",data=json.dumps({'encoding':'base64','content':base64.b64encode(data).decode()}).encode(),method='POST',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'})
+              with urllib.request.urlopen(request,timeout=30) as response: sha=json.load(response)['sha']
+              assert sha==proof['git_blob'];blobs[path]=sha
+          receipt={'source':source,'blobs':blobs}
+          pathlib.Path('canonical-objects.json').write_text(json.dumps(receipt,indent=2))
+          print('CANONICAL_OBJECTS='+json.dumps(blobs,sort_keys=True))
+          print('CANONICAL_TREE='+source['candidate_tree'])
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-listener-canonical
+          path: canonical-objects.json
+          retention-days: 30
+          if-no-files-found: error
