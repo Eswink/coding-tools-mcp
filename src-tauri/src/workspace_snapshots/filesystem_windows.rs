@@ -13,6 +13,8 @@ use windows::{
     core::PCWSTR,
     Win32::{Foundation::HANDLE, Security::SECURITY_ATTRIBUTES, Storage::FileSystem::*},
 };
+#[path = "windows_rename.rs"]
+mod native_rename;
 const READ: u32 = 0x80000000;
 const WRITE: u32 = 0x40000000;
 const MAX_ALLOWED: u32 = 0x02000000;
@@ -301,45 +303,7 @@ impl Dir {
         Ok(file)
     }
     pub fn move_new(&self, name: &str, to: &Dir, destination: &str) -> Result<()> {
-        safe_component(name)?;
-        safe_component(destination)?;
-        if file_info(&self.file, true)?.dwVolumeSerialNumber
-            != file_info(&to.file, true)?.dwVolumeSerialNumber
-        {
-            return Err(SnapshotError::Unsupported);
-        }
-        let source = opened(&self.path.join(name), READ | 0x00010000, 1)?; // DELETE
-        let mut info = BY_HANDLE_FILE_INFORMATION::default();
-        unsafe { GetFileInformationByHandle(HANDLE(source.as_raw_handle()), &mut info) }
-            .map_err(error)?;
-        let info = file_info(&source, info.dwFileAttributes & 0x10 != 0)?;
-        let name: Vec<u16> = destination.encode_utf16().collect();
-        let offset = std::mem::offset_of!(FILE_RENAME_INFO, FileName);
-        // Reserve the complete ABI header and an explicit UTF-16 terminator.
-        let size = std::mem::size_of::<FILE_RENAME_INFO>() + (name.len() + 1) * 2;
-        let mut storage = vec![0u64; size.div_ceil(8)];
-        let rename = storage.as_mut_ptr().cast::<FILE_RENAME_INFO>();
-        // Use the retained destination HANDLE, avoiding a conflicting parent reopen.
-        // No replacement flag, POSIX rename semantics, or copy fallback is requested.
-        unsafe {
-            (*rename).Anonymous.ReplaceIfExists = false;
-            (*rename).RootDirectory = HANDLE(to.file.as_raw_handle());
-            (*rename).FileNameLength = (name.len() * 2) as u32;
-            std::ptr::copy_nonoverlapping(name.as_ptr(),
-                storage.as_mut_ptr().cast::<u8>().add(offset).cast::<u16>(), name.len());
-            SetFileInformationByHandle(HANDLE(source.as_raw_handle()), FileRenameInfo,
-                rename.cast(), size as u32)
-        }.map_err(|_error| {
-            #[cfg(test)]
-            eprintln!("snapshot handle no-replace rename failed: HRESULT={:#x}", _error.code().0);
-            SnapshotError::Changed
-        })?;
-        if identity(&file_info(&source, info.dwFileAttributes & 0x10 != 0)?) != identity(&info) {
-            return Err(SnapshotError::Changed);
-        }
-        drop(source);
-        self.sync()?;
-        to.sync()
+        native_rename::move_new(self, name, to, destination)
     }
     pub fn scan(&self, skip_git: bool) -> Result<Tree> {
         let mut tree = Tree {
