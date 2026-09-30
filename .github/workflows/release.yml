@@ -27,6 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
+      channel: ${{ steps.source.outputs.channel }}
       source_sha: ${{ steps.source.outputs.source_sha }}
       release_tag: ${{ steps.source.outputs.release_tag }}
     steps:
@@ -41,9 +42,41 @@ jobs:
         id: source
         env:
           RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
-        run: python scripts/发布版本校验v4.py --resolve-only --tag "$RELEASE_TAG" --github-output
+        run: python scripts/release_tag_gate.py route --tag "$RELEASE_TAG" --github-output
+
+  rc-tag-evidence:
+    name: Read-only RC tag exact-source evidence
+    if: needs.prepare.outputs.channel == 'release-candidate' && github.event_name == 'push'
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      GH_TOKEN: ${{ github.token }}
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Inspect completed FINAL packaging and full integration without rebuilding
+        run: python scripts/release_tag_gate.py verify --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/rc-tag-evidence.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rc-tag-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rc-tag-evidence.json
+          if-no-files-found: error
 
   build-windows:
+    if: needs.prepare.outputs.channel == 'stable'
     needs: prepare
     runs-on: windows-latest
     timeout-minutes: 45
@@ -102,7 +135,7 @@ jobs:
 
   # macOS is deliberately absent: it requires a separate explicit manual dispatch.
   publish-release:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+    if: ${{ needs.prepare.outputs.channel == 'stable' && github.event_name == 'workflow_dispatch' && inputs.publish }}
     needs: [prepare, build-windows]
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -2,11 +2,19 @@ name: 发布来源验证v4
 
 on:
   push:
-    branches: ['feat/固定公网入口v1']
+    branches: ['feat/固定公网入口v1', 'ci/rc-tag-evidence-*']
     paths:
       - 'scripts/发布版本*.py'
       - 'scripts/source_provenance_gate*.py'
       - 'scripts/rc_version_gate*.py'
+      - 'scripts/release_tag_gate*.py'
+      - 'scripts/reviewed_source_gate*.py'
+      - 'scripts/final_rc_evidence.py'
+      - 'scripts/cloud_release_bundle.py'
+      - '.github/workflows/final-rc-packages.yml'
+      - '.github/workflows/full-rc-cloud-binaries.yml'
+      - '.github/workflows/issue40-container-topology.yml'
+      - '.github/workflows/dot-rc-integration.yml'
       - 'package*.json'
       - 'src-tauri/Cargo.*'
       - 'src-tauri/tauri.conf.json'
@@ -18,6 +26,14 @@ on:
       - 'scripts/发布版本*.py'
       - 'scripts/source_provenance_gate*.py'
       - 'scripts/rc_version_gate*.py'
+      - 'scripts/release_tag_gate*.py'
+      - 'scripts/reviewed_source_gate*.py'
+      - 'scripts/final_rc_evidence.py'
+      - 'scripts/cloud_release_bundle.py'
+      - '.github/workflows/final-rc-packages.yml'
+      - '.github/workflows/full-rc-cloud-binaries.yml'
+      - '.github/workflows/issue40-container-topology.yml'
+      - '.github/workflows/dot-rc-integration.yml'
       - 'package*.json'
       - 'src-tauri/Cargo.*'
       - 'src-tauri/tauri.conf.json'
@@ -60,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           status=0
-          for suite in 发布版本回归v4 rc_version_gate_tests source_provenance_gate_tests; do
+          for suite in 发布版本回归v4 rc_version_gate_tests source_provenance_gate_tests reviewed_source_gate_tests release_tag_gate_tests; do
             python "scripts/$suite.py" || status=1
           done
           exit "$status"
