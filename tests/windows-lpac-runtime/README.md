@@ -34,7 +34,11 @@ manifest/lock; no production dependency manifest is edited.
 1. Run the unmodified baseline first, including its unsandboxed *native fixture*
    positive control, ordinary AppContainer outside-AAP-read witness, LPAC modes,
    token checks, filesystem canaries, network assertions, and cleanup. Its
-   failure remains a failed workflow step. No language runtime is warmed up.
+   failure remains a failed workflow step. Diagnostic preparation performs no
+   unsandboxed runtime warm-up and supplies no initialized Winsock/privileged
+   handles or state to the child. Ordinary setup-node and checkout version
+   commands remain standard CI setup; this is not a claim that the runner's
+   binaries have never executed outside LPAC.
 2. Copy the runner's Python 3.12 and Node 22 installations, npm shim, Git,
    Windows PowerShell, PowerShell 7, and cmd into disposable fixture storage.
    Read file-version metadata/npm package metadata and hash every copied file;
@@ -79,6 +83,13 @@ These are observations of the exact hashed binaries and copied distributions,
 not support claims for an entire version range. A nonzero exit, spawn error,
 missing runtime or deadline expiration is retained as a failed observation;
 deadline expiration alone does not establish intrinsic incompatibility.
+
+Preparation failures remain explicit failed required rows. A missing runtime or
+reparse point does not prevent independent prepared runtimes from being observed,
+but the final required-row gate remains failed. Reparse metadata is collected
+without target resolution or recursion through links; no rejected link is copied
+or dereferenced. Python inventory records both Get-Command's executable/root and
+setup-python's declared location to diagnose distribution-versus-shim selection.
 
 ## Reading outcomes honestly
 

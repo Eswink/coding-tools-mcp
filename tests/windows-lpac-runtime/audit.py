@@ -67,6 +67,9 @@ def audit(files):
     for expected in ["'exit=15107'", "'winsock_initialization_failed_10107'", '$true,1,$bundle', 'outside canary was written', 'owned process-tree cleanup unconfirmed']:
         if expected not in runner:
             errors.append('missing runtime control: '+expected)
+    for expected in ['offline_passed=$false;preparation_failed=$true', '$outcomes.Count -ne $cases.Count', 'one or more required preparation or offline runtime contracts failed']:
+        if expected not in runner:
+            errors.append('missing required preparation failure control: '+expected)
     return errors
 
 
@@ -111,6 +114,11 @@ class AuditMutations(unittest.TestCase):
         files = load_files()
         files['workflow'] += '\ncontinue-on-error: true\n'
         self.assertIn('failure laundering is forbidden', audit(files))
+
+    def test_preparation_failure_cannot_pass(self):
+        files = load_files()
+        files['run-runtime.ps1'] = files['run-runtime.ps1'].replace('offline_passed=$false;preparation_failed=$true', 'offline_passed=$true;preparation_failed=$true')
+        self.assertTrue(any('required preparation failure control' in error for error in audit(files)))
 
 
 if __name__ == '__main__':

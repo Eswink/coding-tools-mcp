@@ -10,6 +10,7 @@ $root=Join-Path $env:RUNNER_TEMP ('ctm runtime-'+[guid]::NewGuid().ToString('N')
 New-Item -ItemType Directory -Path $root | Out-Null
 $outcomes=@()
 $cases=[ordered]@{'python-budget'='python';'python-workspace'='python';'node-workspace'='node';'npm-cmd'='node';'git-local'='git';'cmd-workspace'='cmd';'powershell-workspace'='powershell';'pwsh-workspace'='pwsh'}
+$inventory=@(Get-Content -Raw (Join-Path $evidencePath 'runtime-inventory.json') | ConvertFrom-Json)
 $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0)
 $listener.Start()
 $port=([Net.IPEndPoint]$listener.LocalEndpoint).Port
@@ -22,6 +23,20 @@ try {
         $run=Join-Path $caseRoot 'run'
         $caseEvidence=Join-Path $evidencePath $case
         New-Item -ItemType Directory -Path $outside,$bundle,$run,$caseEvidence | Out-Null
+        $required=@($cases[$case],'cmd') | Select-Object -Unique
+        if($case -eq 'npm-cmd') {$required+=@('npm')}
+        $preparationFailures=@()
+        foreach($requiredName in $required) {
+            $records=@($inventory | Where-Object {$_.runtime -eq $requiredName})
+            if($records.Count -ne 1 -or $records[0].ready -ne $true) {$preparationFailures+=@{runtime=$requiredName;records=$records}}
+        }
+        if($preparationFailures.Count) {
+            $row=@{case=$case;offline_passed=$false;preparation_failed=$true;preparation_failures=$preparationFailures;runtime=$null;native_classification='not_started_preparation_failed';network_denial_proven=$false}
+            $row | ConvertTo-Json -Depth 12 | Set-Content (Join-Path $caseEvidence 'preparation-failure.json')
+            $outcomes+=@($row)
+            $outcomes | ConvertTo-Json -Depth 12 | Set-Content (Join-Path $evidencePath 'runtime-matrix.json')
+            continue
+        }
         [IO.File]::WriteAllText((Join-Path $outside 'canary.txt'),'synthetic-outside-canary')
         [IO.File]::WriteAllText((Join-Path $bundle 'case.txt'),$case)
         Copy-Item -LiteralPath (Join-Path $payloadPath 'cmd.exe') -Destination (Join-Path $bundle 'cmd.exe')
@@ -61,7 +76,7 @@ try {
         if(Test-Path (Join-Path $outside 'probe-write.txt')) {throw 'outside canary was written'}
         if([IO.File]::ReadAllText((Join-Path $outside 'canary.txt')) -ne 'synthetic-outside-canary') {throw 'outside canary mutated'}
     }
-    if(@($outcomes | Where-Object {-not $_.offline_passed}).Count) {throw 'one or more offline runtime contracts failed; see per-case raw evidence'}
+    if($outcomes.Count -ne $cases.Count -or @($outcomes | Where-Object {-not $_.offline_passed}).Count) {throw 'one or more required preparation or offline runtime contracts failed; see per-case raw evidence'}
     'Offline runtime observations passed. This is not production integration or network-isolation acceptance.' | Set-Content (Join-Path $evidencePath 'offline-result.txt')
 } finally {
     $listener.Stop()
