@@ -130,17 +130,14 @@ pub async fn recreate_ui_webview(app: AppHandle) -> AppResult<()> {
     let outer_size = window.outer_size().ok().filter(|size| is_sane_size(size));
 
     // Keepalive window: ensures destroy(main) is not "close last window → exit".
-    let keepalive = WebviewWindowBuilder::new(
-        &app,
-        KEEPALIVE_LABEL,
-        WebviewUrl::App("index.html".into()),
-    )
-    .visible(false)
-    .skip_taskbar(true)
-    .title(" ")
-    .inner_size(1.0, 1.0)
-    .build()
-    .map_err(|err| AppError::Message(format!("keepalive window failed: {err}")))?;
+    let keepalive =
+        WebviewWindowBuilder::new(&app, KEEPALIVE_LABEL, WebviewUrl::App("index.html".into()))
+            .visible(false)
+            .skip_taskbar(true)
+            .title(" ")
+            .inner_size(1.0, 1.0)
+            .build()
+            .map_err(|err| AppError::Message(format!("keepalive window failed: {err}")))?;
 
     window
         .destroy()
@@ -163,16 +160,18 @@ pub async fn recreate_ui_webview(app: AppHandle) -> AppResult<()> {
 
     let new_window = match new_window {
         Ok(w) => w,
-        Err(config_err) => WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
-            .title("Coding Tools MCP")
-            .inner_size(1280.0, 800.0)
-            .min_inner_size(960.0, 640.0)
-            .build()
-            .map_err(|err| {
-                AppError::Message(format!(
-                    "rebuild webview failed ({config_err}); fallback also failed: {err}"
-                ))
-            })?,
+        Err(config_err) => {
+            WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
+                .title("Coding Tools MCP")
+                .inner_size(1280.0, 800.0)
+                .min_inner_size(960.0, 640.0)
+                .build()
+                .map_err(|err| {
+                    AppError::Message(format!(
+                        "rebuild webview failed ({config_err}); fallback also failed: {err}"
+                    ))
+                })?
+        }
     };
 
     if let Some(size) = outer_size {
@@ -224,7 +223,8 @@ mod tests {
     #[cfg(not(windows))]
     #[test]
     fn unsupported_platform_returns_an_explicit_empty_memory_sample() {
-        let sample = super::get_webview_memory_sample().expect("unsupported sampling is not an error");
+        let sample =
+            super::get_webview_memory_sample().expect("unsupported sampling is not an error");
         assert!(!sample.supported);
         assert_eq!(sample.main_mb, 0.0);
         assert_eq!(sample.webview_mb, 0.0);

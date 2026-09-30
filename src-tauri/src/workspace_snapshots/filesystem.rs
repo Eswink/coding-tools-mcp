@@ -15,7 +15,9 @@ use std::{
     },
 };
 
-pub struct Dir { pub file: File }
+pub struct Dir {
+    pub file: File,
+}
 pub struct Tree {
     pub entries: Vec<Entry>,
     pub data: BTreeMap<String, Vec<u8>>,

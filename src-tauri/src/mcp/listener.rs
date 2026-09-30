@@ -2,7 +2,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::extract::{DefaultBodyLimit, Form, Query, Request, State};
-use axum::http::{header::{CACHE_CONTROL, ORIGIN}, HeaderMap, StatusCode, Uri};
+use axum::http::{
+    header::{CACHE_CONTROL, ORIGIN},
+    HeaderMap, StatusCode, Uri,
+};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -12,15 +15,15 @@ use tokio::sync::oneshot;
 use tower_http::cors::CorsLayer;
 
 use crate::auth::{
-    authorization_server_metadata, authorize_get, authorize_post,
-    protected_resource_metadata, token_exchange, verify_bearer_header, verify_oauth_bearer_header,
-    AuthorizeForm, AuthorizeParams, OAuthRuntime, PublicOrigin, TokenForm,
+    authorization_server_metadata, authorize_get, authorize_post, protected_resource_metadata,
+    token_exchange, verify_bearer_header, verify_oauth_bearer_header, AuthorizeForm,
+    AuthorizeParams, OAuthRuntime, PublicOrigin, TokenForm,
 };
 use crate::mcp::server::{handle_request, new_state, SharedState};
 use crate::secret::SecretStore;
+use crate::tools::policy::PolicySettings;
 use crate::tools::Workspace;
 use crate::tunnel::append_profile_log;
-use crate::tools::policy::PolicySettings;
 use crate::workspace::{AuthConfig, RuntimeConfig};
 
 pub type ShutdownSender = oneshot::Sender<()>;
@@ -61,7 +64,8 @@ pub fn spawn_listener_with_origin(
         oauth_password,
         oauth_token_secret,
         runtime,
-    ).map(|(shutdown, handle, _execution_gate)| (shutdown, handle))
+    )
+    .map(|(shutdown, handle, _execution_gate)| (shutdown, handle))
 }
 
 #[cfg(test)]
@@ -76,7 +80,14 @@ pub(crate) fn spawn_listener_with_origin_and_execution_gate(
     oauth_password: Option<String>,
     oauth_token_secret: Option<String>,
     runtime: RuntimeConfig,
-) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>, Arc<crate::runtime::WorkspaceExecutionGate>), String> {
+) -> Result<
+    (
+        ShutdownSender,
+        tauri::async_runtime::JoinHandle<()>,
+        Arc<crate::runtime::WorkspaceExecutionGate>,
+    ),
+    String,
+> {
     // Keep production binding and startup-error ordering unchanged. Only tests
     // can supply an already-owned socket through the private binding boundary.
     spawn_listener_with_binding(
@@ -106,7 +117,14 @@ fn spawn_listener_with_binding(
     oauth_token_secret: Option<String>,
     runtime: RuntimeConfig,
     bind: impl FnOnce() -> Result<tokio::net::TcpListener, String>,
-) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>, Arc<crate::runtime::WorkspaceExecutionGate>), String> {
+) -> Result<
+    (
+        ShutdownSender,
+        tauri::async_runtime::JoinHandle<()>,
+        Arc<crate::runtime::WorkspaceExecutionGate>,
+    ),
+    String,
+> {
     spawn_listener_with_lease_binding(
         port,
         workspace_path,
@@ -118,7 +136,8 @@ fn spawn_listener_with_binding(
         oauth_token_secret,
         runtime,
         bind,
-    ).map(|(shutdown, handle, gate, _lease)| (shutdown, handle, gate))
+    )
+    .map(|(shutdown, handle, gate, _lease)| (shutdown, handle, gate))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -132,7 +151,15 @@ pub(crate) fn spawn_listener_with_origin_and_context_lease(
     oauth_password: Option<String>,
     oauth_token_secret: Option<String>,
     runtime: RuntimeConfig,
-) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>, Arc<crate::runtime::WorkspaceExecutionGate>, crate::tools::listener_context::ListenerContextLease), String> {
+) -> Result<
+    (
+        ShutdownSender,
+        tauri::async_runtime::JoinHandle<()>,
+        Arc<crate::runtime::WorkspaceExecutionGate>,
+        crate::tools::listener_context::ListenerContextLease,
+    ),
+    String,
+> {
     spawn_listener_with_lease_binding(
         port,
         workspace_path,
@@ -159,7 +186,15 @@ fn spawn_listener_with_lease_binding(
     oauth_token_secret: Option<String>,
     runtime: RuntimeConfig,
     bind: impl FnOnce() -> Result<tokio::net::TcpListener, String>,
-) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>, Arc<crate::runtime::WorkspaceExecutionGate>, crate::tools::listener_context::ListenerContextLease), String> {
+) -> Result<
+    (
+        ShutdownSender,
+        tauri::async_runtime::JoinHandle<()>,
+        Arc<crate::runtime::WorkspaceExecutionGate>,
+        crate::tools::listener_context::ListenerContextLease,
+    ),
+    String,
+> {
     auth.session_policy.validate()?;
     crate::auth::chat::service().configure(&workspace_id, &auth.session_policy)?;
     let workspace_display = workspace_path.display().to_string();
@@ -172,10 +207,15 @@ fn spawn_listener_with_lease_binding(
         runtime.tool_profile.clone(),
         runtime.permission_mode.clone(),
     );
-    Arc::get_mut(&mut mcp).expect("new listener context").enable_durable_tasks(&workspace_id, "mcp");
+    Arc::get_mut(&mut mcp)
+        .expect("new listener context")
+        .enable_durable_tasks(&workspace_id, "mcp");
     let execution_gate = mcp.execution_gate();
-    crate::auth::chat::service().attach_storage(&workspace_id,
-        &crate::auth::oauth_refresh::storage_root(&workspace_id)?.join("execution"),mcp.harness.store_root())?;
+    crate::auth::chat::service().attach_storage(
+        &workspace_id,
+        &crate::auth::oauth_refresh::storage_root(&workspace_id)?.join("execution"),
+        mcp.harness.store_root(),
+    )?;
     let bearer_token = if auth.bearer_enabled() {
         let key = "bearer_token";
         if auth.use_shared_secrets {
@@ -191,14 +231,21 @@ fn spawn_listener_with_lease_binding(
         let password = oauth_password.unwrap_or_default();
         let token_secret = oauth_token_secret.unwrap_or_default();
         let oauth_base = configured_public_url.resolve(&HeaderMap::new(), port);
-        Some(Arc::new(OAuthRuntime::new(
-            oauth_base,
-            auth.oauth_client_id.clone(),
-            oauth_client_secret.clone(),
-            password,
-            token_secret,
-        ).with_redirect_uri(auth.oauth_redirect_uri.clone()).with_mcp_resource()
-            .with_refresh_store(auth.session_policy.clone(),crate::auth::oauth_refresh::storage_root(&workspace_id)?.join("refresh"))?))
+        Some(Arc::new(
+            OAuthRuntime::new(
+                oauth_base,
+                auth.oauth_client_id.clone(),
+                oauth_client_secret.clone(),
+                password,
+                token_secret,
+            )
+            .with_redirect_uri(auth.oauth_redirect_uri.clone())
+            .with_mcp_resource()
+            .with_refresh_store(
+                auth.session_policy.clone(),
+                crate::auth::oauth_refresh::storage_root(&workspace_id)?.join("refresh"),
+            )?,
+        ))
     } else {
         None
     };
@@ -217,7 +264,8 @@ fn spawn_listener_with_lease_binding(
     let listener = bind()?;
     // Guard construction precedes spawn, including cancellation before first poll.
     // The lease shares the exact context; it never creates execution authority.
-    let context_lease = crate::tools::listener_context::ListenerContextLease::new(state.mcp.clone());
+    let context_lease =
+        crate::tools::listener_context::ListenerContextLease::new(state.mcp.clone());
     let lifetime = context_lease.lifetime_guard();
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let profile_id = state.workspace_id.clone();
@@ -257,15 +305,29 @@ async fn serve(
             get(oauth_protected_resource_metadata),
         )
         // RFC 9728 path-specific discovery; root remains a compatibility alias.
-        .route("/.well-known/oauth-protected-resource/mcp", get(oauth_protected_resource_metadata))
-        .route("/oauth/authorize", get(oauth_authorize_get).post(oauth_authorize_post).layer(DefaultBodyLimit::max(8192)))
-        .route("/oauth/token", post(oauth_token_post).layer(DefaultBodyLimit::max(8192)))
+        .route(
+            "/.well-known/oauth-protected-resource/mcp",
+            get(oauth_protected_resource_metadata),
+        )
+        .route(
+            "/oauth/authorize",
+            get(oauth_authorize_get)
+                .post(oauth_authorize_post)
+                .layer(DefaultBodyLimit::max(8192)),
+        )
+        .route(
+            "/oauth/token",
+            post(oauth_token_post).layer(DefaultBodyLimit::max(8192)),
+        )
         .with_state(state)
         .layer(CorsLayer::permissive())
         // The listener is loopback-only but may be browser-reachable through a
         // managed tunnel. Keep non-browser clients compatible (no Origin) while
         // denying foreign browser Origins before MCP/OAuth handlers run.
-        .layer(middleware::from_fn_with_state(origin_guard_state, validate_origin));
+        .layer(middleware::from_fn_with_state(
+            origin_guard_state,
+            validate_origin,
+        ));
 
     append_profile_log(
         &profile_id,
@@ -414,7 +476,9 @@ fn mcp_discovery_payload() -> Value {
 }
 
 fn resolve_oauth_base(state: &ListenerState, headers: &HeaderMap) -> String {
-    state.configured_public_url.resolve(headers, state.bind_port)
+    state
+        .configured_public_url
+        .resolve(headers, state.bind_port)
 }
 
 async fn mcp_post(
@@ -449,23 +513,37 @@ async fn mcp_post(
     let mut request_ctx = state.mcp.background_snapshot();
     let mut remote = crate::auth::chat::RemoteRequest::unresolved(&state.workspace_id);
     if let Some(oauth) = state.oauth.as_ref() {
-        let token = headers.get(axum::http::header::AUTHORIZATION).and_then(|h| h.to_str().ok())
-            .and_then(|h| h.strip_prefix("Bearer ")).map(str::trim).unwrap_or("");
+        let token = headers
+            .get(axum::http::header::AUTHORIZATION)
+            .and_then(|h| h.to_str().ok())
+            .and_then(|h| h.strip_prefix("Bearer "))
+            .map(str::trim)
+            .unwrap_or("");
         if let Some(principal) = oauth.principal(token, &resolve_oauth_base(&state, &headers)) {
-            remote = crate::auth::chat::RemoteRequest::verified(&state.workspace_id,
-                &state.workspace_path, principal, &body["params"]["_meta"], &oauth.token_secret);
+            remote = crate::auth::chat::RemoteRequest::verified(
+                &state.workspace_id,
+                &state.workspace_path,
+                principal,
+                &body["params"]["_meta"],
+                &oauth.token_secret,
+            );
         }
     }
     request_ctx.remote_request = Some(remote);
     let mcp = Arc::new(request_ctx);
     let profile_id = state.workspace_id.clone();
-    let result = crate::tools::root_work::blocking_context(mcp, move |mcp| handle_request(&mcp, &body)).await;
+    let result =
+        crate::tools::root_work::blocking_context(mcp, move |mcp| handle_request(&mcp, &body))
+            .await;
     match result {
         Ok(response) => {
             append_profile_log(
                 &profile_id,
                 "mcp-requests.log",
-                &format!("[rpc] completed id={} method={} tool={}", request_id, method, tool_name),
+                &format!(
+                    "[rpc] completed id={} method={} tool={}",
+                    request_id, method, tool_name
+                ),
             );
             if tool_name == "exec_command" || tool_name == "exec_health_check" {
                 let structured = response
@@ -549,12 +627,12 @@ async fn oauth_authorization_server_metadata(
         return oauth_not_configured();
     }
     let base = resolve_oauth_base(&state, &headers);
-    let mut metadata=authorization_server_metadata(&base,state.oauth_client_secret.as_deref());
-    if state.oauth.as_ref().is_some_and(|o|o.refresh_enabled()) {
-        metadata["grant_types_supported"]=json!(["authorization_code","refresh_token"]);
-        metadata["scopes_supported"]=json!(["mcp","offline_access"]);
+    let mut metadata = authorization_server_metadata(&base, state.oauth_client_secret.as_deref());
+    if state.oauth.as_ref().is_some_and(|o| o.refresh_enabled()) {
+        metadata["grant_types_supported"] = json!(["authorization_code", "refresh_token"]);
+        metadata["scopes_supported"] = json!(["mcp", "offline_access"]);
     }
-    ([(CACHE_CONTROL,"no-store")],Json(metadata)).into_response()
+    ([(CACHE_CONTROL, "no-store")], Json(metadata)).into_response()
 }
 
 async fn oauth_protected_resource_metadata(
@@ -566,7 +644,11 @@ async fn oauth_protected_resource_metadata(
     }
     let issuer = resolve_oauth_base(&state, &headers);
     let resource = format!("{}/mcp", issuer.trim_end_matches('/'));
-    ([(CACHE_CONTROL, "no-store")], Json(protected_resource_metadata(&resource, &issuer))).into_response()
+    (
+        [(CACHE_CONTROL, "no-store")],
+        Json(protected_resource_metadata(&resource, &issuer)),
+    )
+        .into_response()
 }
 
 async fn oauth_authorize_get(
@@ -576,11 +658,7 @@ async fn oauth_authorize_get(
     let Some(oauth) = state.oauth.as_ref() else {
         return oauth_not_configured();
     };
-    authorize_get(
-        oauth,
-        params,
-        None,
-    )
+    authorize_get(oauth, params, None)
 }
 
 async fn oauth_authorize_post(
@@ -606,10 +684,18 @@ async fn oauth_token_post(
         )
             .into_response();
     };
-    let oauth=oauth.clone(); let base=resolve_oauth_base(&state,&headers);
-    tokio::task::spawn_blocking(move||token_exchange(&oauth,&headers,form,&base)).await.unwrap_or_else(|_| {
-        (StatusCode::SERVICE_UNAVAILABLE,[(CACHE_CONTROL,"no-store")],Json(json!({"error":"server_error"}))).into_response()
-    })
+    let oauth = oauth.clone();
+    let base = resolve_oauth_base(&state, &headers);
+    tokio::task::spawn_blocking(move || token_exchange(&oauth, &headers, form, &base))
+        .await
+        .unwrap_or_else(|_| {
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                [(CACHE_CONTROL, "no-store")],
+                Json(json!({"error":"server_error"})),
+            )
+                .into_response()
+        })
 }
 
 fn oauth_not_configured() -> Response {

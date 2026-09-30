@@ -533,20 +533,26 @@ fn junction_namespace_is_rejected_without_following_its_target() {
 
 #[test]
 fn runtime_material_loads_only_immutable_local_configuration_without_initializing_journals() {
-    let fixture=Fixture::new(); fixture.initialize();
-    let before=fixture.encrypted();
-    let material=fixture.store.runtime_material().unwrap();
+    let fixture = Fixture::new();
+    fixture.initialize();
+    let before = fixture.encrypted();
+    let material = fixture.store.runtime_material().unwrap();
     assert!(!material.root.exists());
-    let cfg=coding_tools_cloud_agent::AgentConfig::from_bytes(&material.config).unwrap();
-    assert_eq!(cfg.origin,"https://gateway.example.test");
+    let cfg = coding_tools_cloud_agent::AgentConfig::from_bytes(&material.config).unwrap();
+    assert_eq!(cfg.origin, "https://gateway.example.test");
     assert!(cfg.ca_der_file.is_none());
-    assert!(material.link.for_workspace("selected-profile",&fixture.workspace));
-    assert_eq!(before,fixture.encrypted());
+    assert!(material
+        .link
+        .for_workspace("selected-profile", &fixture.workspace));
+    assert_eq!(before, fixture.encrypted());
     assert!(material.prepare_journals(false).is_err());
     assert!(!material.root.exists());
     let journal_root = material.prepare_journals(true).unwrap();
     assert_eq!(journal_root, material.root.canonicalize().unwrap());
-    assert_eq!(journal_root.parent().unwrap().canonicalize().unwrap(), journal_root.parent().unwrap());
+    assert_eq!(
+        journal_root.parent().unwrap().canonicalize().unwrap(),
+        journal_root.parent().unwrap()
+    );
     assert!(material.prepare_journals(true).is_err());
     assert!(material.prepare_journals(false).is_err());
 }

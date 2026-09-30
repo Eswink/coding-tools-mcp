@@ -39,8 +39,8 @@ fn listening_socket_inodes(port: u16) -> AppResult<Vec<String>> {
 
 fn pid_for_socket_inode(inode: &str) -> AppResult<Option<u32>> {
     let proc = Path::new("/proc");
-    let entries = fs::read_dir(proc)
-        .map_err(|err| AppError::Message(format!("read /proc failed: {err}")))?;
+    let entries =
+        fs::read_dir(proc).map_err(|err| AppError::Message(format!("read /proc failed: {err}")))?;
 
     for entry in entries.flatten() {
         let file_name = entry.file_name();

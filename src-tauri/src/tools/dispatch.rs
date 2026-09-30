@@ -52,7 +52,9 @@ fn policy_tool_err(err: PolicyError) -> Value {
 /// **唯一工具执行入口**。MCP `tools/call` 与 Actions `POST /actions/{tool}` 必须且只能调用此函数。
 /// 策略校验、分发、错误格式在此统一，两路传输层不得另做执行前校验（Actions 仅允许额外的暴露层 `validate_actions_exposure`）。
 pub fn call_tool(ctx: &ToolContext, name: &str, args: &Value) -> Value {
-    if let Some(result) = crate::tools::chat_domain::intercept(ctx, name, args) { return result; }
+    if let Some(result) = crate::tools::chat_domain::intercept(ctx, name, args) {
+        return result;
+    }
     let effective_args = apply_default_cwd(ctx, name, args);
     if let Err(e) = validate_tool_arguments_for_workspace(
         name,
@@ -63,12 +65,17 @@ pub fn call_tool(ctx: &ToolContext, name: &str, args: &Value) -> Value {
         return policy_tool_err(e);
     }
 
-    super::policy_hooks::run(ctx,name,&effective_args,|nested,bounded|call_admitted(nested,name,args,bounded))
+    super::policy_hooks::run(ctx, name, &effective_args, |nested, bounded| {
+        call_admitted(nested, name, args, bounded)
+    })
 }
 
-fn call_admitted(ctx:&ToolContext,name:&str,args:&Value,effective_args:&Value)->Value {
+fn call_admitted(ctx: &ToolContext, name: &str, args: &Value, effective_args: &Value) -> Value {
     // Worktree errors must not trigger ambient Git/config diagnostics through Harness status.
-    if matches!(name, "worktree_create" | "worktree_list" | "worktree_remove") {
+    if matches!(
+        name,
+        "worktree_create" | "worktree_list" | "worktree_remove"
+    ) {
         return match crate::tools::worktree_tools::call(ctx, name, &effective_args) {
             Ok(value) => value,
             Err(error) => tool_err(error),
@@ -259,7 +266,9 @@ fn apply_default_cwd(ctx: &ToolContext, name: &str, args: &Value) -> Value {
 
     let mut effective = args.clone();
     match name {
-        "exec_command" | "start_exec_task" if effective.get("workdir").is_none() && effective.get("cwd").is_none() => {
+        "exec_command" | "start_exec_task"
+            if effective.get("workdir").is_none() && effective.get("cwd").is_none() =>
+        {
             effective["workdir"] = Value::String(base.clone());
         }
         "list_dir" | "list_files" | "git_status" | "git_log" => {
@@ -421,31 +430,34 @@ pub fn server_info(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
 }
 
 pub fn check_exec_environment(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
-    Ok(tool_ok(super::execution_sandbox::environment(ctx, json!({
-        "workspace": ctx.workspace.root_display(),
-        "permission_mode": ctx.permission_mode,
-        "network_allowed": ctx.policy.network_allowed(),
-        "landlock_enabled": false,
-        "filesystem_sandbox": {
-            "available": false,
-            "enforced": false,
-            "default_scope": "workspace",
-            "host_scope_available": false
-        },
-        "global_tmp_write": if ctx.permission_mode == "dangerous" { "allowed" } else { "tmp-prefix" },
-        "workspace_exec_available": true,
-        "workspace_exec_sandbox_enforced": false,
-        "workspace_exec_boundary": "policy_only",
-        "system_command_allowlist": ctx.policy.allowed_commands.iter().cloned().collect::<Vec<_>>(),
-        "workspace_local_entries": {
-            "enabled": ctx.policy.workspace_local_entries,
-            "script_extensions": ctx.policy.workspace_script_extensions.iter().cloned().collect::<Vec<_>>(),
-            "resolution": "workdir_first"
-        },
-        // Backward-compatible alias for older MCP clients.
-        "allowed_commands": ctx.policy.allowed_commands.iter().cloned().collect::<Vec<_>>(),
-        "warnings": ["Workspace 子进程当前允许执行，但尚未启用操作系统级文件系统沙箱"]
-    }))))
+    Ok(tool_ok(super::execution_sandbox::environment(
+        ctx,
+        json!({
+            "workspace": ctx.workspace.root_display(),
+            "permission_mode": ctx.permission_mode,
+            "network_allowed": ctx.policy.network_allowed(),
+            "landlock_enabled": false,
+            "filesystem_sandbox": {
+                "available": false,
+                "enforced": false,
+                "default_scope": "workspace",
+                "host_scope_available": false
+            },
+            "global_tmp_write": if ctx.permission_mode == "dangerous" { "allowed" } else { "tmp-prefix" },
+            "workspace_exec_available": true,
+            "workspace_exec_sandbox_enforced": false,
+            "workspace_exec_boundary": "policy_only",
+            "system_command_allowlist": ctx.policy.allowed_commands.iter().cloned().collect::<Vec<_>>(),
+            "workspace_local_entries": {
+                "enabled": ctx.policy.workspace_local_entries,
+                "script_extensions": ctx.policy.workspace_script_extensions.iter().cloned().collect::<Vec<_>>(),
+                "resolution": "workdir_first"
+            },
+            // Backward-compatible alias for older MCP clients.
+            "allowed_commands": ctx.policy.allowed_commands.iter().cloned().collect::<Vec<_>>(),
+            "warnings": ["Workspace 子进程当前允许执行，但尚未启用操作系统级文件系统沙箱"]
+        }),
+    )))
 }
 
 pub fn get_default_cwd(ctx: &ToolContext) -> Result<Value, WorkspaceError> {

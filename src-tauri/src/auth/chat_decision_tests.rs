@@ -5,11 +5,19 @@ use super::*;
 fn pending() -> (Arc<ChatAuthorizer>, RemoteRequest, String, Instant) {
     let service = Arc::new(ChatAuthorizer::default());
     let principal = VerifiedPrincipal {
-        issuer: "https://fixture.example".into(), subject: "desktop-owner".into(),
-        client_id: "fixture-client".into(), expires_at: unix_now() + 3600, family_id: None,
+        issuer: "https://fixture.example".into(),
+        subject: "desktop-owner".into(),
+        client_id: "fixture-client".into(),
+        expires_at: unix_now() + 3600,
+        family_id: None,
     };
-    let mut request = RemoteRequest::verified("decision-boundary", "fixture-workspace",
-        principal, &json!({"openai/session": "fixture-chat"}), "fixture-secret");
+    let mut request = RemoteRequest::verified(
+        "decision-boundary",
+        "fixture-workspace",
+        principal,
+        &json!({"openai/session": "fixture-chat"}),
+        "fixture-secret",
+    );
     request.service = service.clone();
     let response = service.request(&request, &json!({"scopes": ["files.read"]}));
     let id = response["authorization"]["id"].as_str().unwrap().to_owned();
@@ -29,8 +37,16 @@ fn decision_rechecks_deadline_after_an_earlier_successful_reconciliation() {
         let original = state.records[key].view.clone();
         // The time between reconciliation and acquiring the decision mutex can
         // cross the deadline. Pass that instant to the production decision core.
-        assert!(service.decide_locked(&mut state, &request.profile, &id, true,
-            &["files.read".into()], since + Duration::from_secs(elapsed)).is_err());
+        assert!(service
+            .decide_locked(
+                &mut state,
+                &request.profile,
+                &id,
+                true,
+                &["files.read".into()],
+                since + Duration::from_secs(elapsed)
+            )
+            .is_err());
         assert_eq!(state.records[key].view.status, "expired");
         assert_eq!(state.records[key].view.scopes, original.scopes);
         assert_eq!(state.records[key].view.expires_at, original.expires_at);
@@ -46,11 +62,28 @@ fn approval_before_deadline_still_requires_nonempty_requested_scope_subset() {
     let mut state = service.state.lock().unwrap();
     let now = since + Duration::from_secs(PENDING) - Duration::from_nanos(1);
     for scopes in [vec![], vec!["exec.run".into()]] {
-        assert!(service.decide_locked(&mut state, &request.profile, &id, true, &scopes, now).is_err());
-        assert_eq!(state.records[request.binding.as_ref().unwrap()].view.status, "pending");
+        assert!(service
+            .decide_locked(&mut state, &request.profile, &id, true, &scopes, now)
+            .is_err());
+        assert_eq!(
+            state.records[request.binding.as_ref().unwrap()].view.status,
+            "pending"
+        );
     }
-    service.decide_locked(&mut state, &request.profile, &id, true, &["files.read".into()], now).unwrap();
-    assert_eq!(state.records[request.binding.as_ref().unwrap()].view.status, "active");
+    service
+        .decide_locked(
+            &mut state,
+            &request.profile,
+            &id,
+            true,
+            &["files.read".into()],
+            now,
+        )
+        .unwrap();
+    assert_eq!(
+        state.records[request.binding.as_ref().unwrap()].view.status,
+        "active"
+    );
     assert_eq!(state.owners[&request.profile].phase, Phase::Active);
 }
 
@@ -59,18 +92,42 @@ fn stale_id_or_expired_denial_cannot_change_a_successor() {
     let (service, request, id, since) = pending();
     let mut state = service.state.lock().unwrap();
     let revision = state.revision;
-    assert!(service.decide_locked(&mut state, &request.profile, "not-the-request", true,
-        &["files.read".into()], since).is_err());
+    assert!(service
+        .decide_locked(
+            &mut state,
+            &request.profile,
+            "not-the-request",
+            true,
+            &["files.read".into()],
+            since
+        )
+        .is_err());
     assert_eq!(state.revision, revision);
-    assert!(service.decide_locked(&mut state, &request.profile, &id, false, &[],
-        since + Duration::from_secs(PENDING)).is_err());
-    assert_eq!(state.records[request.binding.as_ref().unwrap()].view.status, "expired");
+    assert!(service
+        .decide_locked(
+            &mut state,
+            &request.profile,
+            &id,
+            false,
+            &[],
+            since + Duration::from_secs(PENDING)
+        )
+        .is_err());
+    assert_eq!(
+        state.records[request.binding.as_ref().unwrap()].view.status,
+        "expired"
+    );
     drop(state);
     service.reconcile(&request.profile);
     let next = service.request(&request, &json!({"scopes": ["files.read"]}));
     let next_id = next["authorization"]["id"].as_str().unwrap();
     assert_ne!(next_id, id);
-    assert!(service.decide(&request.profile, &id, true, &["files.read".into()]).is_err());
+    assert!(service
+        .decide(&request.profile, &id, true, &["files.read".into()])
+        .is_err());
     assert_eq!(service.status(&request)["authorization"]["id"], next_id);
-    assert_eq!(service.status(&request)["authorization"]["status"], "pending");
+    assert_eq!(
+        service.status(&request)["authorization"]["status"],
+        "pending"
+    );
 }

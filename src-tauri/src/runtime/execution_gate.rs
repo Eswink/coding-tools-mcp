@@ -75,7 +75,10 @@ impl WorkspaceExecutionGate {
     /// this gate. The hold is intentionally short and must never wrap tool
     /// execution or blocking I/O.
     pub(crate) fn hold_online(&self) -> Result<OnlineExecutionHold<'_>, &'static str> {
-        let state = self.state.lock().map_err(|_| "WORKSPACE_EXECUTION_UNAVAILABLE")?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| "WORKSPACE_EXECUTION_UNAVAILABLE")?;
         if state.availability == ExecutionAvailability::Offline {
             return Err("WORKSPACE_OFFLINE");
         }
@@ -87,7 +90,10 @@ impl WorkspaceExecutionGate {
     /// A permit acquired before pause commits may finish. Once pause returns,
     /// subsequent admissions fail until resume.
     pub fn try_admit(self: &Arc<Self>) -> Result<ExecutionPermit, &'static str> {
-        let mut state = self.state.lock().map_err(|_| "WORKSPACE_EXECUTION_UNAVAILABLE")?;
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| "WORKSPACE_EXECUTION_UNAVAILABLE")?;
         if state.availability == ExecutionAvailability::Offline {
             return Err("WORKSPACE_OFFLINE");
         }
@@ -101,7 +107,10 @@ impl WorkspaceExecutionGate {
         self: &Arc<Self>,
         expected_generation: u64,
     ) -> Result<ExecutionPermit, &'static str> {
-        let mut state = self.state.lock().map_err(|_| "WORKSPACE_EXECUTION_UNAVAILABLE")?;
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| "WORKSPACE_EXECUTION_UNAVAILABLE")?;
         if state.availability == ExecutionAvailability::Offline {
             return Err("WORKSPACE_OFFLINE");
         }
@@ -113,10 +122,16 @@ impl WorkspaceExecutionGate {
     }
 
     pub fn pause(&self) -> Result<ExecutionGateSnapshot, &'static str> {
-        let mut state = self.state.lock().map_err(|_| "WORKSPACE_EXECUTION_UNAVAILABLE")?;
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| "WORKSPACE_EXECUTION_UNAVAILABLE")?;
         if state.availability != ExecutionAvailability::Offline {
             state.availability = ExecutionAvailability::Offline;
-            state.generation = state.generation.checked_add(1).ok_or("WORKSPACE_EXECUTION_UNAVAILABLE")?;
+            state.generation = state
+                .generation
+                .checked_add(1)
+                .ok_or("WORKSPACE_EXECUTION_UNAVAILABLE")?;
         }
         Ok(ExecutionGateSnapshot {
             availability: state.availability,
@@ -126,10 +141,16 @@ impl WorkspaceExecutionGate {
     }
 
     pub fn resume(&self) -> Result<ExecutionGateSnapshot, &'static str> {
-        let mut state = self.state.lock().map_err(|_| "WORKSPACE_EXECUTION_UNAVAILABLE")?;
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| "WORKSPACE_EXECUTION_UNAVAILABLE")?;
         if state.availability != ExecutionAvailability::Online {
             state.availability = ExecutionAvailability::Online;
-            state.generation = state.generation.checked_add(1).ok_or("WORKSPACE_EXECUTION_UNAVAILABLE")?;
+            state.generation = state
+                .generation
+                .checked_add(1)
+                .ok_or("WORKSPACE_EXECUTION_UNAVAILABLE")?;
         }
         Ok(ExecutionGateSnapshot {
             availability: state.availability,
@@ -197,12 +218,17 @@ mod tests {
         });
         started_rx.recv().unwrap();
         std::thread::sleep(std::time::Duration::from_millis(20));
-        assert!(done_rx.try_recv().is_err(), "pause committed while online hold was alive");
+        assert!(
+            done_rx.try_recv().is_err(),
+            "pause committed while online hold was alive"
+        );
         // Do not call snapshot() while this thread owns the non-reentrant gate
         // mutex through OnlineExecutionHold; the blocked pause itself is the
         // linearization assertion.
         drop(hold);
-        let paused = done_rx.recv_timeout(std::time::Duration::from_secs(1)).unwrap();
+        let paused = done_rx
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap();
         assert_eq!(paused.availability, ExecutionAvailability::Offline);
         assert_eq!(gate.snapshot().availability, ExecutionAvailability::Offline);
         worker.join().unwrap();
@@ -220,7 +246,9 @@ mod tests {
             Some("WORKSPACE_EXECUTION_CHANGED")
         );
         let current = gate.snapshot().generation;
-        let permit = gate.try_admit_generation(current).expect("current generation admission");
+        let permit = gate
+            .try_admit_generation(current)
+            .expect("current generation admission");
         drop(permit);
     }
 

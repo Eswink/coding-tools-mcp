@@ -210,27 +210,13 @@ async fn application_stop_retains_slot_and_journal_until_real_native_callback_fi
             false
         )
         .is_err());
-    assert!(HostAgent::open(
-        &fixture.config,
-        &fixture.key,
-        &journal,
-        false,
-        host.clone()
-    )
-    .is_err());
+    assert!(HostAgent::open(&fixture.config, &fixture.key, &journal, false, host.clone()).is_err());
     release.send(()).unwrap();
     assert_eq!(
         handle.wait(Duration::from_secs(5)).await.unwrap(),
         RunOutcome::Drained
     );
-    assert!(HostAgent::open(
-        &fixture.config,
-        &fixture.key,
-        &journal,
-        false,
-        host
-    )
-    .is_ok());
+    assert!(HostAgent::open(&fixture.config, &fixture.key, &journal, false, host).is_ok());
     fixture.close_listener().await;
 }
 
@@ -295,28 +281,43 @@ async fn partial_setup_never_self_heals_or_overwrites_existing_namespace() {
 
 #[tokio::test]
 async fn native_workspace_removal_preserves_uncertain_occupancy() {
-    let mut fixture=Fixture::new();let app=ApplicationAgents::default();
-    let material=fixture.material();
-    let handle=app.manager.launch(workspace_identity(&fixture.id), |_| async {
-        panic!("synthetic native owner failure");
-        #[allow(unreachable_code)] TaskExit::Drained
-    }).unwrap();
-    app.views.lock().unwrap().insert(fixture.id.clone(),View {
-        handle:handle.clone(),link:material.link,host:Arc::new(Mutex::new(None)),
-    });
+    let mut fixture = Fixture::new();
+    let app = ApplicationAgents::default();
+    let material = fixture.material();
+    let handle = app
+        .manager
+        .launch(workspace_identity(&fixture.id), |_| async {
+            panic!("synthetic native owner failure");
+            #[allow(unreachable_code)]
+            TaskExit::Drained
+        })
+        .unwrap();
+    app.views.lock().unwrap().insert(
+        fixture.id.clone(),
+        View {
+            handle: handle.clone(),
+            link: material.link,
+            host: Arc::new(Mutex::new(None)),
+        },
+    );
     assert!(handle.wait(Duration::from_secs(2)).await.is_err());
-    assert_eq!(app.status(&fixture.id,true).unwrap().phase,"recovery");
+    assert_eq!(app.status(&fixture.id, true).unwrap().phase, "recovery");
     assert!(app.remove_drained_workspace(&fixture.id).is_err());
-    assert!(app.start(&fixture.id,fixture.lease.clone(),fixture.material(),true).is_err());
+    assert!(app
+        .start(&fixture.id, fixture.lease.clone(), fixture.material(), true)
+        .is_err());
     assert!(!fixture.root.path().join("runtime").exists());
     fixture.close_listener().await;
 }
 
 #[tokio::test]
 async fn native_workspace_removal_releases_only_drained_view_and_preserves_disk() {
-    let mut fixture=Fixture::new();let app=ApplicationAgents::default();
-    app.start(&fixture.id,fixture.lease.clone(),fixture.material(),true).unwrap();
-    let opened=host(&app,&fixture.id).await;drop(opened);
+    let mut fixture = Fixture::new();
+    let app = ApplicationAgents::default();
+    app.start(&fixture.id, fixture.lease.clone(), fixture.material(), true)
+        .unwrap();
+    let opened = host(&app, &fixture.id).await;
+    drop(opened);
     assert!(app.remove_drained_workspace(&fixture.id).is_err());
     app.stop(&fixture.id).await.unwrap();
     app.remove_drained_workspace(&fixture.id).unwrap();

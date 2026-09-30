@@ -209,7 +209,12 @@ fn core_profile_keeps_the_default_capabilities_and_adds_history_tools() {
         .collect::<std::collections::HashSet<_>>();
     assert_eq!(names, expected);
     assert_eq!(names.len(), 30);
-    for name in ["start_exec_task", "get_exec_task", "list_exec_tasks", "cancel_exec_task"] {
+    for name in [
+        "start_exec_task",
+        "get_exec_task",
+        "list_exec_tasks",
+        "cancel_exec_task",
+    ] {
         assert!(names.contains(name));
     }
     assert!(names.contains("grep_text"));

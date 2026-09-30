@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use tauri::async_runtime::JoinHandle;
 
+use super::execution_gate::WorkspaceExecutionGate;
 use crate::actions;
 use crate::auth::PublicOrigin;
 use crate::error::{AppError, AppResult};
@@ -18,7 +19,6 @@ use crate::secret::SecretStore;
 use crate::tools::policy::PolicySettings;
 use crate::tunnel::{append_profile_log, cleanup_orphan_for_runtime, TunnelServiceKind};
 use crate::workspace::{RuntimeStatusDto, WorkspaceProfile};
-use super::execution_gate::WorkspaceExecutionGate;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ServiceKind {
@@ -81,8 +81,12 @@ impl RuntimeSupervisor {
     }
 
     /// Exact listener-owned context; never a new gate or execution permission.
-    pub fn mcp_context_lease(&self, workspace_id: &str) -> Option<crate::tools::listener_context::ListenerContextLease> {
-        self.entries.get(&(workspace_id.to_string(), ServiceKind::Mcp))
+    pub fn mcp_context_lease(
+        &self,
+        workspace_id: &str,
+    ) -> Option<crate::tools::listener_context::ListenerContextLease> {
+        self.entries
+            .get(&(workspace_id.to_string(), ServiceKind::Mcp))
             .filter(|entry| entry.phase == RuntimePhase::Running)
             .and_then(|entry| entry.context_lease.as_ref())
             .filter(|lease| lease.is_live())
@@ -132,7 +136,8 @@ impl RuntimeSupervisor {
     /// Capture before awaiting tunnel I/O. A late response only changes its own
     /// listener generation, never a replacement listener created in the meantime.
     pub fn public_origin_handle(&self, id: &str, kind: ServiceKind) -> Option<PublicOrigin> {
-        self.entries.get(&(id.to_string(), kind))
+        self.entries
+            .get(&(id.to_string(), kind))
             .filter(|entry| matches!(entry.phase, RuntimePhase::Running | RuntimePhase::Starting))
             .map(|entry| entry.public_origin.clone())
     }
@@ -144,18 +149,28 @@ impl RuntimeSupervisor {
     ) -> AppResult<RuntimeStatusDto> {
         let key = (profile.id.clone(), ServiceKind::Mcp);
         {
-            let entry = self.entries.get_mut(&key)
+            let entry = self
+                .entries
+                .get_mut(&key)
                 .ok_or_else(|| AppError::Message("MCP 未运行，无法暂停远程执行。".into()))?;
             if entry.phase != RuntimePhase::Running {
-                return Err(AppError::Message("MCP 未处于运行状态，无法暂停远程执行。".into()));
+                return Err(AppError::Message(
+                    "MCP 未处于运行状态，无法暂停远程执行。".into(),
+                ));
             }
             if entry.generation != expected_generation {
-                return Err(AppError::Message("MCP 运行时已变更，请刷新状态后重试。".into()));
+                return Err(AppError::Message(
+                    "MCP 运行时已变更，请刷新状态后重试。".into(),
+                ));
             }
-            let gate = entry.execution_gate.as_ref()
+            let gate = entry
+                .execution_gate
+                .as_ref()
                 .ok_or_else(|| AppError::Message("MCP 执行门控不可用，请重启 MCP 服务。".into()))?;
             let before = gate.snapshot();
-            let snapshot = gate.pause().map_err(|code| AppError::Message(code.into()))?;
+            let snapshot = gate
+                .pause()
+                .map_err(|code| AppError::Message(code.into()))?;
             append_profile_log(
                 &profile.id,
                 "mcp-requests.log",
@@ -179,18 +194,28 @@ impl RuntimeSupervisor {
     ) -> AppResult<RuntimeStatusDto> {
         let key = (profile.id.clone(), ServiceKind::Mcp);
         {
-            let entry = self.entries.get_mut(&key)
+            let entry = self
+                .entries
+                .get_mut(&key)
                 .ok_or_else(|| AppError::Message("MCP 未运行，无法恢复远程执行。".into()))?;
             if entry.phase != RuntimePhase::Running {
-                return Err(AppError::Message("MCP 未处于运行状态，无法恢复远程执行。".into()));
+                return Err(AppError::Message(
+                    "MCP 未处于运行状态，无法恢复远程执行。".into(),
+                ));
             }
             if entry.generation != expected_generation {
-                return Err(AppError::Message("MCP 运行时已变更，请刷新状态后重试。".into()));
+                return Err(AppError::Message(
+                    "MCP 运行时已变更，请刷新状态后重试。".into(),
+                ));
             }
-            let gate = entry.execution_gate.as_ref()
+            let gate = entry
+                .execution_gate
+                .as_ref()
                 .ok_or_else(|| AppError::Message("MCP 执行门控不可用，请重启 MCP 服务。".into()))?;
             let before = gate.snapshot();
-            let snapshot = gate.resume().map_err(|code| AppError::Message(code.into()))?;
+            let snapshot = gate
+                .resume()
+                .map_err(|code| AppError::Message(code.into()))?;
             append_profile_log(
                 &profile.id,
                 "mcp-requests.log",
@@ -212,7 +237,9 @@ impl RuntimeSupervisor {
         let entry = self.entries.get_mut(&key)?;
 
         entry.phase = RuntimePhase::Stopping;
-        if let Some(lease) = entry.context_lease.as_ref() { lease.close(); }
+        if let Some(lease) = entry.context_lease.as_ref() {
+            lease.close();
+        }
         let shutdown = entry.shutdown.take();
         let handle = entry.handle.take();
         if let Some(shutdown) = shutdown {
@@ -223,7 +250,9 @@ impl RuntimeSupervisor {
 
     pub fn finish_stop(&mut self, workspace_id: &str, kind: ServiceKind) {
         if let Some(entry) = self.entries.remove(&(workspace_id.to_string(), kind)) {
-            if let Some(lease) = entry.context_lease { lease.close(); }
+            if let Some(lease) = entry.context_lease {
+                lease.close();
+            }
         }
     }
 
@@ -237,7 +266,8 @@ impl RuntimeSupervisor {
 
         let runtime_generation = self.entries.get(&key).map(|entry| entry.generation.clone());
         let execution_state = if kind == ServiceKind::Mcp {
-            self.entries.get(&key)
+            self.entries
+                .get(&key)
                 .and_then(|entry| entry.execution_gate.as_ref())
                 .map(|gate| gate.snapshot().availability.as_str().to_string())
         } else {
@@ -246,10 +276,17 @@ impl RuntimeSupervisor {
         let (local_endpoint, mut public_endpoint) = endpoints(profile, kind);
         if let Some(entry) = self.entries.get(&key) {
             let base = entry.public_origin.snapshot();
-            public_endpoint = if base.is_empty() { String::new() } else {
-                format!("{}{}", base, match kind {
-                    ServiceKind::Mcp => "/mcp", ServiceKind::Actions => "/openapi.json",
-                })
+            public_endpoint = if base.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    "{}{}",
+                    base,
+                    match kind {
+                        ServiceKind::Mcp => "/mcp",
+                        ServiceKind::Actions => "/openapi.json",
+                    }
+                )
             };
         } else if is_quick_tunnel(profile, kind) {
             public_endpoint.clear();
@@ -393,7 +430,9 @@ impl RuntimeSupervisor {
                 let oauth_client_secret = if auth.oauth_enabled() {
                     resolve_secret(&profile.id, "oauth_client_secret", use_shared)?
                         .filter(|secret| !secret.is_empty())
-                } else { None };
+                } else {
+                    None
+                };
                 let oauth_password = if profile.auth.oauth_enabled() {
                     resolve_secret(&profile.id, "oauth_password", use_shared)?
                 } else {
@@ -414,7 +453,10 @@ impl RuntimeSupervisor {
                     oauth_password,
                     oauth_token_secret,
                     profile.runtime.clone(),
-                ).map(|(shutdown, handle, execution_gate, context_lease)| (shutdown, handle, Some(execution_gate), Some(context_lease)))
+                )
+                .map(|(shutdown, handle, execution_gate, context_lease)| {
+                    (shutdown, handle, Some(execution_gate), Some(context_lease))
+                })
             }
             ServiceKind::Actions => {
                 let auth_type = profile.actions.auth_type.clone();
@@ -470,7 +512,8 @@ impl RuntimeSupervisor {
                     oauth_password,
                     oauth_token_secret,
                     policy,
-                ).map(|(shutdown, handle)| (shutdown, handle, None, None))
+                )
+                .map(|(shutdown, handle)| (shutdown, handle, None, None))
             }
         };
 
@@ -580,7 +623,9 @@ impl RuntimeSupervisor {
                     }
                 };
                 if should_mark_runtime_error(entry, listening) {
-                    if let Some(lease) = entry.context_lease.as_ref() { lease.close(); }
+                    if let Some(lease) = entry.context_lease.as_ref() {
+                        lease.close();
+                    }
                     if let Some(handle) = entry.handle.take() {
                         handle.abort();
                         tauri::async_runtime::spawn(async move {
@@ -714,13 +759,20 @@ fn actions_oauth_secret(profile_id: &str, key: &str) -> AppResult<String> {
 
 fn is_quick_tunnel(profile: &WorkspaceProfile, kind: ServiceKind) -> bool {
     match kind {
-        ServiceKind::Mcp => profile.tunnel.tunnel_type == "cloudflare" && profile.tunnel.cloudflare_mode == "quick",
-        ServiceKind::Actions => profile.actions.tunnel_type == "cloudflare" && profile.actions.cloudflare_mode == "quick",
+        ServiceKind::Mcp => {
+            profile.tunnel.tunnel_type == "cloudflare" && profile.tunnel.cloudflare_mode == "quick"
+        }
+        ServiceKind::Actions => {
+            profile.actions.tunnel_type == "cloudflare"
+                && profile.actions.cloudflare_mode == "quick"
+        }
     }
 }
 
 fn initial_public_origin(profile: &WorkspaceProfile, kind: ServiceKind) -> AppResult<PublicOrigin> {
-    let value = if is_quick_tunnel(profile, kind) { String::new() } else {
+    let value = if is_quick_tunnel(profile, kind) {
+        String::new()
+    } else {
         match kind {
             ServiceKind::Mcp => profile.effective_public_url(),
             ServiceKind::Actions => profile.actions_effective_public_url(),
@@ -813,7 +865,10 @@ mod tests {
             .expect("pause current runtime generation");
         assert_eq!(paused.state, "running");
         assert_eq!(paused.execution_state.as_deref(), Some("offline"));
-        assert_eq!(paused.runtime_generation.as_deref(), Some(generation.as_str()));
+        assert_eq!(
+            paused.runtime_generation.as_deref(),
+            Some(generation.as_str())
+        );
         assert_eq!(paused.public_endpoint, "https://stable.example.com/mcp");
         assert_eq!(runtime.active_tunnel_service_keys(), before_keys);
         assert_eq!(
@@ -829,7 +884,10 @@ mod tests {
             .expect("resume same runtime generation");
         assert_eq!(resumed.state, "running");
         assert_eq!(resumed.execution_state.as_deref(), Some("online"));
-        assert_eq!(resumed.runtime_generation.as_deref(), Some(generation.as_str()));
+        assert_eq!(
+            resumed.runtime_generation.as_deref(),
+            Some(generation.as_str())
+        );
         assert_eq!(runtime.active_tunnel_service_keys(), before_keys);
     }
 
@@ -873,8 +931,18 @@ mod tests {
         profile.actions.tunnel_type = "cloudflare".into();
         profile.actions.cloudflare_mode = "quick".into();
         profile.actions.public_url = "https://old-actions.trycloudflare.com".into();
-        assert_eq!(initial_public_origin(&profile, ServiceKind::Mcp).unwrap().snapshot(), "");
-        assert_eq!(initial_public_origin(&profile, ServiceKind::Actions).unwrap().snapshot(), "");
+        assert_eq!(
+            initial_public_origin(&profile, ServiceKind::Mcp)
+                .unwrap()
+                .snapshot(),
+            ""
+        );
+        assert_eq!(
+            initial_public_origin(&profile, ServiceKind::Actions)
+                .unwrap()
+                .snapshot(),
+            ""
+        );
     }
 
     #[test]
@@ -882,11 +950,18 @@ mod tests {
         let profile = WorkspaceProfile::new("/tmp/current".into(), None);
         let mut runtime = RuntimeSupervisor::default();
         let active = entry(RuntimePhase::Running, None);
-        active.public_origin.publish("https://current.trycloudflare.com").unwrap();
-        runtime.entries.insert((profile.id.clone(), ServiceKind::Mcp), active);
-        assert_eq!(runtime.mcp_status(&profile).public_endpoint, "https://current.trycloudflare.com/mcp");
+        active
+            .public_origin
+            .publish("https://current.trycloudflare.com")
+            .unwrap();
+        runtime
+            .entries
+            .insert((profile.id.clone(), ServiceKind::Mcp), active);
+        assert_eq!(
+            runtime.mcp_status(&profile).public_endpoint,
+            "https://current.trycloudflare.com/mcp"
+        );
     }
-
 }
 
 #[cfg(test)]

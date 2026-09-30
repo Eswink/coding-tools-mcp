@@ -24,7 +24,10 @@ pub fn handle_request(state: &SharedState, body: &Value) -> Value {
         "ping" => Ok(serde_json::json!({})),
         "tools/list" => {
             let mut tools = list_tools_for_profile(&state.tool_profile);
-            for tool in &mut tools { tool["securitySchemes"] = serde_json::json!([{ "type": "oauth2", "scopes": ["mcp"] }]); }
+            for tool in &mut tools {
+                tool["securitySchemes"] =
+                    serde_json::json!([{ "type": "oauth2", "scopes": ["mcp"] }]);
+            }
             tools.extend(crate::tools::chat_domain::auth_tools());
             Ok(serde_json::json!({ "tools": tools }))
         }
@@ -66,7 +69,9 @@ fn handle_tools_call(state: &SharedState, params: &Value) -> Result<Value, Value
 
     let canonical_name = crate::tools::registry::canonical_tool_name(name);
     let known = crate::tools::registry::exposed_tool_names(&state.tool_profile);
-    if !["auth_status", "request_chat_authorization"].contains(&canonical_name) && !known.iter().any(|n| n == &canonical_name) {
+    if !["auth_status", "request_chat_authorization"].contains(&canonical_name)
+        && !known.iter().any(|n| n == &canonical_name)
+    {
         return Err(serde_json::json!({
             "code": -32602,
             "message": format!("Unknown tool: {name}"),

@@ -105,18 +105,24 @@ pub(crate) async fn start_mcp_service(state: &AppState, id: &str) -> AppResult<R
 }
 
 pub(crate) async fn start_mcp_service_checked(
-    state: &AppState, id: &str, strict_tunnel: bool,
+    state: &AppState,
+    id: &str,
+    strict_tunnel: bool,
 ) -> AppResult<RuntimeStatusDto> {
     ensure_service_start_allowed()?;
     validate_start_resources(state, id, WorkspaceService::Mcp)?;
     let profile = profile_by_id(state, id)?;
     ensure_port_available(profile.runtime.local_port, "本地 MCP").await?;
     let started = state.with_runtime(|runtime| runtime.start_mcp(&profile))?;
-    if started.state != "running" { return Err(AppError::Message(started.local_message)); }
-    let origin = state.with_runtime(|runtime| Ok(runtime.public_origin_handle(id, ServiceKind::Mcp)))?;
+    if started.state != "running" {
+        return Err(AppError::Message(started.local_message));
+    }
+    let origin =
+        state.with_runtime(|runtime| Ok(runtime.public_origin_handle(id, ServiceKind::Mcp)))?;
     sync_tunnel_routes_from_runtime(state).await?;
 
-    let tunnel_result = maybe_start_for_runtime(&profile, TunnelServiceKind::Mcp, origin.as_ref()).await;
+    let tunnel_result =
+        maybe_start_for_runtime(&profile, TunnelServiceKind::Mcp, origin.as_ref()).await;
     if let Err(error) = &tunnel_result {
         eprintln!("mcp tunnel auto-start failed for {id}: {error}");
     }
@@ -134,7 +140,10 @@ pub(crate) async fn start_mcp_service_checked(
     })
 }
 
-pub(crate) async fn stop_actions_service(state: &AppState, id: &str) -> AppResult<RuntimeStatusDto> {
+pub(crate) async fn stop_actions_service(
+    state: &AppState,
+    id: &str,
+) -> AppResult<RuntimeStatusDto> {
     let profile = profile_by_id(state, id)?;
     let port = profile.actions.local_port;
     let handle = state.with_runtime(|runtime| Ok(runtime.begin_stop(id, ServiceKind::Actions)))?;
@@ -148,23 +157,32 @@ pub(crate) async fn stop_actions_service(state: &AppState, id: &str) -> AppResul
     state.with_runtime(|runtime| Ok(runtime.actions_status(&profile)))
 }
 
-pub(crate) async fn start_actions_service(state: &AppState, id: &str) -> AppResult<RuntimeStatusDto> {
+pub(crate) async fn start_actions_service(
+    state: &AppState,
+    id: &str,
+) -> AppResult<RuntimeStatusDto> {
     start_actions_service_checked(state, id, false).await
 }
 
 pub(crate) async fn start_actions_service_checked(
-    state: &AppState, id: &str, strict_tunnel: bool,
+    state: &AppState,
+    id: &str,
+    strict_tunnel: bool,
 ) -> AppResult<RuntimeStatusDto> {
     ensure_service_start_allowed()?;
     validate_start_resources(state, id, WorkspaceService::Actions)?;
     let profile = profile_by_id(state, id)?;
     ensure_port_available(profile.actions.local_port, "本地 Actions").await?;
     let started = state.with_runtime(|runtime| runtime.start_actions(&profile))?;
-    if started.state != "running" { return Err(AppError::Message(started.local_message)); }
-    let origin = state.with_runtime(|runtime| Ok(runtime.public_origin_handle(id, ServiceKind::Actions)))?;
+    if started.state != "running" {
+        return Err(AppError::Message(started.local_message));
+    }
+    let origin =
+        state.with_runtime(|runtime| Ok(runtime.public_origin_handle(id, ServiceKind::Actions)))?;
     sync_tunnel_routes_from_runtime(state).await?;
 
-    let tunnel_result = maybe_start_for_runtime(&profile, TunnelServiceKind::Actions, origin.as_ref()).await;
+    let tunnel_result =
+        maybe_start_for_runtime(&profile, TunnelServiceKind::Actions, origin.as_ref()).await;
     if let Err(error) = &tunnel_result {
         eprintln!("actions tunnel auto-start failed for {id}: {error}");
     }
@@ -183,14 +201,9 @@ pub(crate) async fn start_actions_service_checked(
 }
 
 /// Async stop→start for MCP. Used by the Tauri command and secret-change hooks.
-pub(crate) async fn restart_mcp_by_id(
-    state: &AppState,
-    id: &str,
-) -> AppResult<RuntimeStatusDto> {
+pub(crate) async fn restart_mcp_by_id(state: &AppState, id: &str) -> AppResult<RuntimeStatusDto> {
     let _guard = RESTART_GATE.lock().await;
-    let was_running = state.with_runtime(|runtime| {
-        Ok(runtime.is_running(id, ServiceKind::Mcp))
-    })?;
+    let was_running = state.with_runtime(|runtime| Ok(runtime.is_running(id, ServiceKind::Mcp)))?;
     if was_running {
         let _ = stop_mcp_service(state, id).await?;
     }
@@ -203,9 +216,8 @@ pub(crate) async fn restart_actions_by_id(
     id: &str,
 ) -> AppResult<RuntimeStatusDto> {
     let _guard = RESTART_GATE.lock().await;
-    let was_running = state.with_runtime(|runtime| {
-        Ok(runtime.is_running(id, ServiceKind::Actions))
-    })?;
+    let was_running =
+        state.with_runtime(|runtime| Ok(runtime.is_running(id, ServiceKind::Actions)))?;
     if was_running {
         let _ = stop_actions_service(state, id).await?;
     }

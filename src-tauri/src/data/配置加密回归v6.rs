@@ -7,7 +7,9 @@ const CANARY: &str = "credential-canary-v6-not-a-real-secret";
 #[test]
 fn all_snapshot_fields_are_encrypted_and_roundtrip_exactly() {
     let keys = MemoryKeys::default();
-    let plaintext = format!(r#"{{"schema_version":1,"shared_secrets":{{"token":"{CANARY}"}},"proxy":{{"url":"https://user:{CANARY}@example.com"}},"unknown":"{CANARY}"}}"#);
+    let plaintext = format!(
+        r#"{{"schema_version":1,"shared_secrets":{{"token":"{CANARY}"}},"proxy":{{"url":"https://user:{CANARY}@example.com"}},"unknown":"{CANARY}"}}"#
+    );
     let sealed = seal(&plaintext, ID, true, &keys).unwrap();
     assert!(!sealed.contains(CANARY));
     assert!(!sealed.contains("shared_secrets"));
@@ -19,8 +21,12 @@ fn all_snapshot_fields_are_encrypted_and_roundtrip_exactly() {
 #[test]
 fn repeated_writes_use_distinct_nonces_and_ciphertext() {
     let keys = MemoryKeys::default();
-    let a = parse_envelope(&seal(CANARY, ID, true, &keys).unwrap()).unwrap().unwrap();
-    let b = parse_envelope(&seal(CANARY, ID, false, &keys).unwrap()).unwrap().unwrap();
+    let a = parse_envelope(&seal(CANARY, ID, true, &keys).unwrap())
+        .unwrap()
+        .unwrap();
+    let b = parse_envelope(&seal(CANARY, ID, false, &keys).unwrap())
+        .unwrap()
+        .unwrap();
     assert_ne!(a.nonce, b.nonce);
     assert_ne!(a.ciphertext, b.ciphertext);
 }
@@ -66,8 +72,12 @@ fn missing_key_does_not_create_a_replacement() {
 fn unknown_envelope_fields_versions_and_algorithms_fail_closed() {
     let keys = MemoryKeys::default();
     let sealed = seal(CANARY, ID, true, &keys).unwrap();
-    for (field, v) in [("schema_version", serde_json::json!(3)), ("storage_version", serde_json::json!(99)),
-        ("algorithm", serde_json::json!("none")), ("extra", serde_json::json!(CANARY))] {
+    for (field, v) in [
+        ("schema_version", serde_json::json!(3)),
+        ("storage_version", serde_json::json!(99)),
+        ("algorithm", serde_json::json!("none")),
+        ("extra", serde_json::json!(CANARY)),
+    ] {
         let mut value: serde_json::Value = serde_json::from_str(&sealed).unwrap();
         value[field] = v;
         assert!(parse_envelope(&value.to_string()).is_err());
@@ -91,8 +101,12 @@ fn invalid_key_length_never_saves_a_document() {
 
 struct FailingKeys;
 impl KeyStore for FailingKeys {
-    fn get(&self, _: &str) -> AppResult<Option<Zeroizing<Vec<u8>>>> { Ok(None) }
-    fn set(&self, _: &str, _: &[u8]) -> AppResult<()> { Err(invalid()) }
+    fn get(&self, _: &str) -> AppResult<Option<Zeroizing<Vec<u8>>>> {
+        Ok(None)
+    }
+    fn set(&self, _: &str, _: &[u8]) -> AppResult<()> {
+        Err(invalid())
+    }
 }
 
 #[test]
@@ -102,8 +116,12 @@ fn backend_write_failure_is_not_a_plaintext_fallback() {
 
 struct NonPersistentKeys;
 impl KeyStore for NonPersistentKeys {
-    fn get(&self, _: &str) -> AppResult<Option<Zeroizing<Vec<u8>>>> { Ok(None) }
-    fn set(&self, _: &str, _: &[u8]) -> AppResult<()> { Ok(()) }
+    fn get(&self, _: &str) -> AppResult<Option<Zeroizing<Vec<u8>>>> {
+        Ok(None)
+    }
+    fn set(&self, _: &str, _: &[u8]) -> AppResult<()> {
+        Ok(())
+    }
 }
 
 #[test]
@@ -130,8 +148,12 @@ fn changed_or_missing_format_does_not_bypass_envelope_validation() {
     for format in [Some("unknown"), None] {
         let mut value: serde_json::Value = serde_json::from_str(&sealed).unwrap();
         match format {
-            Some(format) => { value["format"] = format.into(); }
-            None => { value.as_object_mut().unwrap().remove("format"); }
+            Some(format) => {
+                value["format"] = format.into();
+            }
+            None => {
+                value.as_object_mut().unwrap().remove("format");
+            }
         }
         assert!(parse_envelope(&value.to_string()).is_err());
     }

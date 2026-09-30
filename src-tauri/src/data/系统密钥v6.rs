@@ -57,7 +57,10 @@ impl KeyStore for MemoryKeys {
         Ok(self.values.lock().unwrap().get(id).cloned())
     }
     fn set(&self, id: &str, value: &[u8]) -> AppResult<()> {
-        self.values.lock().unwrap().insert(id.into(), Zeroizing::new(value.to_vec()));
+        self.values
+            .lock()
+            .unwrap()
+            .insert(id.into(), Zeroizing::new(value.to_vec()));
         Ok(())
     }
 }
@@ -71,7 +74,8 @@ mod provider_contract_tests {
     fn native_adapter_is_available_without_calling_the_users_keyring() {
         let _provider: &dyn KeyStore = &NativeKeyStore;
         assert_eq!(SERVICE, "coding-tools-mcp.config.v1");
-        let message = AppError::startup_storage(StartupFailureReason::SecretServiceUnavailable).to_string();
+        let message =
+            AppError::startup_storage(StartupFailureReason::SecretServiceUnavailable).to_string();
         assert!(message.contains("原配置已保留"));
         assert!(!message.contains("BadEncoding"));
     }

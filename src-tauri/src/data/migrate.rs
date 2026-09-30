@@ -16,13 +16,18 @@ const LEGACY_PROFILES_FILE: &str = "profiles.json";
 const LEGACY_SETTINGS_FILE: &str = "app_settings.json";
 
 #[cfg(not(test))]
-fn app_root() -> AppResult<PathBuf> { platform().app_config_dir() }
+fn app_root() -> AppResult<PathBuf> {
+    platform().app_config_dir()
+}
 
 #[cfg(test)]
 fn app_root() -> AppResult<PathBuf> {
     // Unit-test keys must never encrypt a real user's configuration.
     static ROOT: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();
-    Ok(ROOT.get_or_init(|| tempfile::tempdir().expect("isolated unit data root")).path().to_path_buf())
+    Ok(ROOT
+        .get_or_init(|| tempfile::tempdir().expect("isolated unit data root"))
+        .path()
+        .to_path_buf())
 }
 
 pub fn data_file_path() -> AppResult<PathBuf> {
@@ -34,13 +39,17 @@ fn read_current(path: &Path) -> AppResult<AppData> {
     let (raw, encrypted) = vault.read(path)?;
     let data = decode_data(&raw, path)?;
     // Validation precedes migration: damaged/future snapshots are never rewritten.
-    if !encrypted { write_data(path, &data)?; }
+    if !encrypted {
+        write_data(path, &data)?;
+    }
     Ok(data)
 }
 
 pub fn load_or_migrate() -> AppResult<AppData> {
     let path = data_file_path()?;
-    if path.try_exists()? { return read_current(&path); }
+    if path.try_exists()? {
+        return read_current(&path);
+    }
 
     let app_root = app_root()?;
     let mut data = AppData::default();
@@ -67,12 +76,19 @@ fn decode_json<T: serde::de::DeserializeOwned>(raw: &str, path: &Path) -> AppRes
     // serde can deserialize a defaulted struct from an empty sequence; a
     // configuration file must be a JSON object, not [] or null.
     if !raw.trim_start().starts_with('{') {
-        return Err(AppError::Message(format!("配置文件 {} 必须为 JSON 对象。原文件已保留。", path.display())));
+        return Err(AppError::Message(format!(
+            "配置文件 {} 必须为 JSON 对象。原文件已保留。",
+            path.display()
+        )));
     }
-    serde_json::from_str(raw).map_err(|error| AppError::Message(format!(
-        "配置文件 {} 无效（行 {}，列 {}）。原文件已保留，请恢复备份后重试。",
-        path.display(), error.line(), error.column()
-    )))
+    serde_json::from_str(raw).map_err(|error| {
+        AppError::Message(format!(
+            "配置文件 {} 无效（行 {}，列 {}）。原文件已保留，请恢复备份后重试。",
+            path.display(),
+            error.line(),
+            error.column()
+        ))
+    })
 }
 
 fn decode_data(raw: &str, path: &Path) -> AppResult<AppData> {
@@ -90,7 +106,8 @@ pub(super) fn migrate_data(mut data: AppData) -> AppResult<AppData> {
         if profile.tunnel.tunnel_type == "cloudflare" && profile.tunnel.cloudflare_mode == "quick" {
             profile.tunnel.public_url.clear();
         }
-        if profile.actions.tunnel_type == "cloudflare" && profile.actions.cloudflare_mode == "quick" {
+        if profile.actions.tunnel_type == "cloudflare" && profile.actions.cloudflare_mode == "quick"
+        {
             profile.actions.public_url.clear();
         }
     }
@@ -111,17 +128,23 @@ fn write_data(path: &Path, data: &AppData) -> AppResult<()> {
 }
 
 pub fn maybe_backup_legacy_files(path: &Path) -> AppResult<()> {
-    if !path.try_exists()? { return Ok(()); }
+    if !path.try_exists()? {
+        return Ok(());
+    }
     // Only app-managed legacy paths, not external user backups or other apps.
     let root = app_root()?;
     let vault = Vault::new(default_keys());
     for name in [LEGACY_PROFILES_FILE, LEGACY_SETTINGS_FILE] {
         let legacy = root.join(name);
         let backup = root.join(format!("{name}.bak"));
-        if backup.try_exists()? { vault.protect_legacy(&backup)?; }
+        if backup.try_exists()? {
+            vault.protect_legacy(&backup)?;
+        }
         if legacy.try_exists()? {
             vault.protect_legacy(&legacy)?;
-            if !backup.try_exists()? { fs::rename(&legacy, &backup)?; }
+            if !backup.try_exists()? {
+                fs::rename(&legacy, &backup)?;
+            }
         }
     }
     Ok(())
@@ -137,7 +160,6 @@ fn merge_settings(data: &mut AppData, settings: AppSettings) {
     data.app_secrets = settings.app_secrets;
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -151,13 +173,20 @@ mod tests {
 
     #[test]
     fn valid_legacy_empty_data_remains_readable() {
-        assert!(decode_data(r#"{"profiles":[]}"#, Path::new("profiles.json"))
-            .unwrap().profiles.is_empty());
+        assert!(
+            decode_data(r#"{"profiles":[]}"#, Path::new("profiles.json"))
+                .unwrap()
+                .profiles
+                .is_empty()
+        );
     }
 
     #[test]
     fn decoding_errors_do_not_echo_secret_values() {
-        let result = decode_data(r#"{"profiles":"canary-secret-not-for-logs"}"#, Path::new("profiles.json"));
+        let result = decode_data(
+            r#"{"profiles":"canary-secret-not-for-logs"}"#,
+            Path::new("profiles.json"),
+        );
         let error = result.unwrap_err().to_string();
         assert!(error.contains("原文件已保留"));
         assert!(!error.contains("canary-secret"));
@@ -194,12 +223,19 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("profiles.json");
         write_data(&path, &AppData::default()).unwrap();
-        assert_eq!(fs::metadata(path).unwrap().permissions().mode() & 0o777, 0o600);
+        assert_eq!(
+            fs::metadata(path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
     }
 
     #[test]
     fn unknown_top_level_metadata_survives_a_read_write_roundtrip() {
-        let data = decode_data(r#"{"extension":{"retained":true}}"#, Path::new("profiles.json")).unwrap();
+        let data = decode_data(
+            r#"{"extension":{"retained":true}}"#,
+            Path::new("profiles.json"),
+        )
+        .unwrap();
         assert_eq!(data.schema_version, CURRENT_SCHEMA_VERSION);
         let value = serde_json::to_value(data).unwrap();
         assert_eq!(value["extension"]["retained"], true);
@@ -227,11 +263,18 @@ mod tests {
         profile.actions.cloudflare_mode = "named".into();
         profile.actions.public_url = "https://actions.example.com".into();
         data.profiles.push(profile);
-        data.shared_secrets.insert("oauth_token_secret".into(), "unchanged-signing-key".into());
+        data.shared_secrets
+            .insert("oauth_token_secret".into(), "unchanged-signing-key".into());
         let migrated = migrate_data(data).unwrap();
         assert!(migrated.profiles[0].tunnel.public_url.is_empty());
-        assert_eq!(migrated.profiles[0].actions.public_url, "https://actions.example.com");
-        assert_eq!(migrated.shared_secrets["oauth_token_secret"], "unchanged-signing-key");
+        assert_eq!(
+            migrated.profiles[0].actions.public_url,
+            "https://actions.example.com"
+        );
+        assert_eq!(
+            migrated.shared_secrets["oauth_token_secret"],
+            "unchanged-signing-key"
+        );
     }
 
     #[test]
@@ -241,11 +284,20 @@ mod tests {
         let raw = r#"{"shared_secrets":{"oauth_token_secret":"migration-canary-v6"},"extension":{"retained":true}}"#;
         fs::write(&path, raw).unwrap();
         let first = read_current(&path).unwrap();
-        assert_eq!(first.shared_secrets["oauth_token_secret"], "migration-canary-v6");
-        assert_eq!(serde_json::to_value(&first).unwrap()["extension"]["retained"], true);
+        assert_eq!(
+            first.shared_secrets["oauth_token_secret"],
+            "migration-canary-v6"
+        );
+        assert_eq!(
+            serde_json::to_value(&first).unwrap()["extension"]["retained"],
+            true
+        );
         let encrypted = fs::read_to_string(&path).unwrap();
         assert!(!encrypted.contains("migration-canary-v6"));
-        assert_eq!(read_current(&path).unwrap().shared_secrets, first.shared_secrets);
+        assert_eq!(
+            read_current(&path).unwrap().shared_secrets,
+            first.shared_secrets
+        );
         assert_eq!(fs::read_to_string(&path).unwrap(), encrypted);
     }
 
@@ -259,5 +311,4 @@ mod tests {
             assert_eq!(fs::read_to_string(&path).unwrap(), raw);
         }
     }
-
 }

@@ -98,7 +98,11 @@ impl TunnelSupervisor {
     /// Probe active FRP workspaces; restart frpc when process is alive but proxy is dead.
     pub async fn heal_unhealthy_frpc(&mut self, settings: &AppSettings) -> usize {
         let mut workspace_ids: HashSet<String> = self.frpc.keys().cloned().collect();
-        workspace_ids.extend(self.frp_routes.keys().map(|(workspace_id, _)| workspace_id.clone()));
+        workspace_ids.extend(
+            self.frp_routes
+                .keys()
+                .map(|(workspace_id, _)| workspace_id.clone()),
+        );
         let mut restarted = 0usize;
         let host_online = frp::probe_host_network_available().await;
         for workspace_id in workspace_ids {
@@ -299,7 +303,10 @@ impl TunnelSupervisor {
             }
         }
 
-        let state = self.frpc_health.entry(workspace_id.to_string()).or_default();
+        let state = self
+            .frpc_health
+            .entry(workspace_id.to_string())
+            .or_default();
         if !checked_public_route {
             state.public_probe_failures = 0;
             return FrpcHealthVerdict::Healthy;
@@ -397,7 +404,9 @@ impl TunnelSupervisor {
         if self.session_is_running(&key)
             && (tunnel_type == "frp") != self.frp_routes.contains_key(&key)
         {
-            return Err(AppError::Message("切换隧道提供方前请先停止原隧道，或使用重启操作。".into()));
+            return Err(AppError::Message(
+                "切换隧道提供方前请先停止原隧道，或使用重启操作。".into(),
+            ));
         }
         if self.session_is_running(&key) && tunnel_type != "frp" {
             return Ok(self.status(profile, kind, settings));
@@ -423,9 +432,13 @@ impl TunnelSupervisor {
                 return Err(error);
             }
 
-            let mut configs: Vec<_> = self.frp_routes.iter()
+            let mut configs: Vec<_> = self
+                .frp_routes
+                .iter()
                 .filter(|((id, _), _)| id == &profile.id)
-                .map(|(_, route)| frp::frp_server_config(&route.profile, route.kind, settings, None))
+                .map(|(_, route)| {
+                    frp::frp_server_config(&route.profile, route.kind, settings, None)
+                })
                 .collect();
             configs.push(config);
             if let Err(error) = frp::verify_frpc_configs(&configs).await {
@@ -683,7 +696,11 @@ impl TunnelSupervisor {
                         changed_workspaces.insert(profile.id.clone());
                     }
                     None => {
-                        if self.sessions.get(&key).is_some_and(|session| session.child.is_some()) {
+                        if self
+                            .sessions
+                            .get(&key)
+                            .is_some_and(|session| session.child.is_some())
+                        {
                             continue;
                         }
                         self.frp_routes.insert(
@@ -1012,7 +1029,8 @@ fn public_url_for_profile(
             profile.tunnel.tunnel_type == "cloudflare" && profile.tunnel.cloudflare_mode == "quick"
         }
         TunnelServiceKind::Actions => {
-            profile.actions.tunnel_type == "cloudflare" && profile.actions.cloudflare_mode == "quick"
+            profile.actions.tunnel_type == "cloudflare"
+                && profile.actions.cloudflare_mode == "quick"
         }
     };
     if quick {
@@ -1063,7 +1081,8 @@ fn validate_tunnel_requirements(
                 "Cloudflare 命名隧道模式需要填写 Tunnel Token。".into(),
             ));
         }
-        crate::workspace::endpoint::normalize_named_origin(&named_url).map_err(AppError::Message)?;
+        crate::workspace::endpoint::normalize_named_origin(&named_url)
+            .map_err(AppError::Message)?;
     } else if mode != "quick" {
         return Err(AppError::Message("未知 Cloudflare 隧道模式。".into()));
     }
@@ -1355,9 +1374,24 @@ mod tests {
         draft.tunnel.frp_subdomain = "not-applied".into();
         let key = (applied.id.clone(), TunnelServiceKind::Mcp);
         let mut supervisor = TunnelSupervisor::new();
-        supervisor.frp_routes.insert(key.clone(), FrpRoute { profile: applied, kind: key.1 });
+        supervisor.frp_routes.insert(
+            key.clone(),
+            FrpRoute {
+                profile: applied,
+                kind: key.1,
+            },
+        );
         supervisor.restore_active_frp_routes(&[draft], &HashSet::from([key.clone()]), &settings);
-        assert_eq!(supervisor.frp_routes.get(&key).unwrap().profile.tunnel.frp_subdomain, "applied");
+        assert_eq!(
+            supervisor
+                .frp_routes
+                .get(&key)
+                .unwrap()
+                .profile
+                .tunnel
+                .frp_subdomain,
+            "applied"
+        );
     }
 
     #[test]
@@ -1371,13 +1405,32 @@ mod tests {
         second.tunnel = first.tunnel.clone();
         second.tunnel.frp.custom_domain = "two.example.com".into();
         let mut supervisor = TunnelSupervisor::new();
-        supervisor.frp_routes.insert((first.id.clone(), TunnelServiceKind::Mcp),
-            FrpRoute { profile: first, kind: TunnelServiceKind::Mcp });
-        let cfg = frp::frp_server_config(&second, TunnelServiceKind::Mcp, &settings, Some(String::new()));
-        assert!(supervisor.validate_frp_route_compatibility(&second.id, &cfg, &settings).is_ok());
+        supervisor.frp_routes.insert(
+            (first.id.clone(), TunnelServiceKind::Mcp),
+            FrpRoute {
+                profile: first,
+                kind: TunnelServiceKind::Mcp,
+            },
+        );
+        let cfg = frp::frp_server_config(
+            &second,
+            TunnelServiceKind::Mcp,
+            &settings,
+            Some(String::new()),
+        );
+        assert!(supervisor
+            .validate_frp_route_compatibility(&second.id, &cfg, &settings)
+            .is_ok());
         second.tunnel.frp.custom_domain = "ONE.EXAMPLE.COM.".into();
-        let cfg = frp::frp_server_config(&second, TunnelServiceKind::Mcp, &settings, Some(String::new()));
-        assert!(supervisor.validate_frp_route_compatibility(&second.id, &cfg, &settings).is_err());
+        let cfg = frp::frp_server_config(
+            &second,
+            TunnelServiceKind::Mcp,
+            &settings,
+            Some(String::new()),
+        );
+        assert!(supervisor
+            .validate_frp_route_compatibility(&second.id, &cfg, &settings)
+            .is_err());
     }
 
     #[test]
@@ -1410,8 +1463,14 @@ mod tests {
         profile.actions.public_url = "https://actions.example.com".into();
         let supervisor = TunnelSupervisor::new();
         let settings = AppSettings::default();
-        assert_eq!(supervisor.public_url(&profile, TunnelServiceKind::Mcp, &settings), "https://mcp.example.com");
-        assert_eq!(supervisor.public_url(&profile, TunnelServiceKind::Actions, &settings), "https://actions.example.com");
+        assert_eq!(
+            supervisor.public_url(&profile, TunnelServiceKind::Mcp, &settings),
+            "https://mcp.example.com"
+        );
+        assert_eq!(
+            supervisor.public_url(&profile, TunnelServiceKind::Actions, &settings),
+            "https://actions.example.com"
+        );
     }
 
     #[test]
@@ -1421,14 +1480,16 @@ mod tests {
         profile.tunnel.cloudflare_mode = "quick".into();
         profile.tunnel.public_url = "https://stale.trycloudflare.com".into();
         let mut supervisor = TunnelSupervisor::new();
-        supervisor.sessions.insert((profile.id.clone(), TunnelServiceKind::Mcp), TunnelSession {
-            public_url: "https://current.trycloudflare.com".into(),
-            pid: Some(std::process::id()),
-            child: None,
-        });
+        supervisor.sessions.insert(
+            (profile.id.clone(), TunnelServiceKind::Mcp),
+            TunnelSession {
+                public_url: "https://current.trycloudflare.com".into(),
+                pid: Some(std::process::id()),
+                child: None,
+            },
+        );
         let status = supervisor.status(&profile, TunnelServiceKind::Mcp, &AppSettings::default());
         assert_eq!(status.state, "running");
         assert_eq!(status.public_url, "https://current.trycloudflare.com");
     }
-
 }

@@ -2,9 +2,9 @@ use tauri::State;
 
 use crate::app_state::AppState;
 use crate::auth::PublicOrigin;
-use crate::runtime::ServiceKind;
 use crate::error::{AppError, AppResult};
 use crate::platform::platform;
+use crate::runtime::ServiceKind;
 use crate::tunnel::{
     frp_snippet, supervisor, sync_managed_runtime_routes, TunnelServiceKind, TunnelStatus,
 };
@@ -31,15 +31,25 @@ fn validate_tunnel_start_resources(
     state.with_workspaces(|store| validate_service_start(store.list(), id, service))
 }
 
-fn runtime_origin(state: &AppState, id: &str, kind: TunnelServiceKind) -> AppResult<Option<PublicOrigin>> {
-    let service = match kind { TunnelServiceKind::Mcp => ServiceKind::Mcp, TunnelServiceKind::Actions => ServiceKind::Actions };
+fn runtime_origin(
+    state: &AppState,
+    id: &str,
+    kind: TunnelServiceKind,
+) -> AppResult<Option<PublicOrigin>> {
+    let service = match kind {
+        TunnelServiceKind::Mcp => ServiceKind::Mcp,
+        TunnelServiceKind::Actions => ServiceKind::Actions,
+    };
     state.with_runtime(|runtime| Ok(runtime.public_origin_handle(id, service)))
 }
 
 fn persist_public_url(origin: Option<&PublicOrigin>, status: &TunnelStatus) -> AppResult<()> {
     if let Some(origin) = origin {
-        if status.state == "running" { origin.publish(&status.public_url)?; }
-        else { origin.clear(); }
+        if status.state == "running" {
+            origin.publish(&status.public_url)?;
+        } else {
+            origin.clear();
+        }
     }
     Ok(())
 }
@@ -159,22 +169,25 @@ pub async fn restart_tunnel(
         let mut guard = supervisor().lock().await;
         let was_running = guard.status(&profile, kind, &settings).state == "running";
         let tunnel_type = tunnel_type_for(&profile, kind);
-        let result = if was_running && tunnel_type == "frp" && guard.route_profile(&id, kind).is_some() {
-            // Start validates the candidate before replacing the existing FRP
-            // routes. Stopping first destroys the state needed for rollback.
-            guard.start(&profile, kind, &settings).await
-                .map_err(|error| (error, guard.route_profile(&id, kind)))
-        } else if was_running {
-            match guard.stop(&profile, kind, &settings).await {
-                Ok(()) => guard
+        let result =
+            if was_running && tunnel_type == "frp" && guard.route_profile(&id, kind).is_some() {
+                // Start validates the candidate before replacing the existing FRP
+                // routes. Stopping first destroys the state needed for rollback.
+                guard
                     .start(&profile, kind, &settings)
                     .await
-                    .map_err(|error| (error, None)),
-                Err(error) => Err((error, None)),
-            }
-        } else {
-            Ok(guard.status(&profile, kind, &settings))
-        };
+                    .map_err(|error| (error, guard.route_profile(&id, kind)))
+            } else if was_running {
+                match guard.stop(&profile, kind, &settings).await {
+                    Ok(()) => guard
+                        .start(&profile, kind, &settings)
+                        .await
+                        .map_err(|error| (error, None)),
+                    Err(error) => Err((error, None)),
+                }
+            } else {
+                Ok(guard.status(&profile, kind, &settings))
+            };
         // A failed replacement may either restore the previous route or leave
         // no connector. Publish the actual visible state, not the failed candidate.
         let visible = match &result {
@@ -183,7 +196,6 @@ pub async fn restart_tunnel(
         };
         persist_public_url(origin.as_ref(), &visible)?;
         result
-
     };
 
     let status = match result {
@@ -243,7 +255,9 @@ pub async fn stop_tunnel(
     let settings = state.with_settings(|store| Ok(store.settings()))?;
     let mut guard = supervisor().lock().await;
     guard.stop(&profile, kind, &settings).await?;
-    if let Some(origin) = origin { origin.clear(); }
+    if let Some(origin) = origin {
+        origin.clear();
+    }
     Ok(guard.status(&profile, kind, &settings))
 }
 
@@ -291,8 +305,10 @@ pub async fn test_tunnel(
 
     let result = {
         let mut guard = supervisor().lock().await;
-        let result = if was_tunnel_running && tunnel_type_for(&profile, kind) == "frp"
-            && guard.route_profile(&id, kind).is_some() {
+        let result = if was_tunnel_running
+            && tunnel_type_for(&profile, kind) == "frp"
+            && guard.route_profile(&id, kind).is_some()
+        {
             guard
                 .start(&profile, kind, &settings)
                 .await
@@ -319,7 +335,6 @@ pub async fn test_tunnel(
         };
         persist_public_url(origin.as_ref(), &visible)?;
         result
-
     };
 
     let status = match result {
@@ -357,7 +372,9 @@ pub async fn test_tunnel(
     {
         let mut guard = supervisor().lock().await;
         guard.stop(&profile, kind, &settings).await?;
-        if let Some(origin) = origin.as_ref() { origin.clear(); }
+        if let Some(origin) = origin.as_ref() {
+            origin.clear();
+        }
     }
 
     let success = !public_url.is_empty();
@@ -380,27 +397,43 @@ mod tests {
     use super::*;
 
     fn visible(state: &str, public_url: &str) -> TunnelStatus {
-        TunnelStatus { state: state.into(), public_url: public_url.into(), tunnel_pid: None }
+        TunnelStatus {
+            state: state.into(),
+            public_url: public_url.into(),
+            tunnel_pid: None,
+        }
     }
 
     #[test]
     fn failed_replacement_with_no_connector_clears_the_previous_origin() {
         let origin = PublicOrigin::managed("https://old.trycloudflare.com").unwrap();
-        persist_public_url(Some(&origin), &visible("stopped", "https://old.trycloudflare.com")).unwrap();
+        persist_public_url(
+            Some(&origin),
+            &visible("stopped", "https://old.trycloudflare.com"),
+        )
+        .unwrap();
         assert!(origin.snapshot().is_empty());
     }
 
     #[test]
     fn successful_rollback_keeps_the_restored_route_identity() {
         let origin = PublicOrigin::managed("https://old.example.com").unwrap();
-        persist_public_url(Some(&origin), &visible("running", "https://old.example.com")).unwrap();
+        persist_public_url(
+            Some(&origin),
+            &visible("running", "https://old.example.com"),
+        )
+        .unwrap();
         assert_eq!(origin.snapshot(), "https://old.example.com");
     }
 
     #[test]
     fn invalid_running_origin_does_not_overwrite_current_identity() {
         let origin = PublicOrigin::managed("https://fixed.example.com").unwrap();
-        assert!(persist_public_url(Some(&origin), &visible("running", "https://wrong.example.com/mcp")).is_err());
+        assert!(persist_public_url(
+            Some(&origin),
+            &visible("running", "https://wrong.example.com/mcp")
+        )
+        .is_err());
         assert_eq!(origin.snapshot(), "https://fixed.example.com");
     }
 

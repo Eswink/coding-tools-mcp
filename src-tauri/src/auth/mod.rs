@@ -5,28 +5,29 @@ mod execution_fence;
 #[cfg_attr(not(test), allow(dead_code))]
 mod local_authority;
 #[cfg_attr(not(test), allow(unused_imports))]
-pub(crate) use local_authority::{LocalAdmissionPermit, LocalAdmissionTicket, LocalAuthorityPhase, LocalAuthoritySnapshot, LocalExecutionState};
+pub(crate) use local_authority::{
+    LocalAdmissionPermit, LocalAdmissionTicket, LocalAuthorityPhase, LocalAuthoritySnapshot,
+    LocalExecutionState,
+};
+pub(crate) mod chat_events;
+mod exclusive_lease;
 pub(crate) mod oauth_refresh;
 mod oauth_scope;
-pub(crate) mod session_policy;
-mod exclusive_lease;
-pub(crate) mod chat_events;
 #[path = "公网身份v2.rs"]
 mod public_origin;
+pub(crate) mod session_policy;
 pub use public_origin::PublicOrigin;
 
+mod bearer;
 #[path = "聊天授权v1.rs"]
 pub(crate) mod chat;
-#[path = "OAuth身份v1.rs"]
-pub(crate) mod principal;
-mod bearer;
 mod oauth;
 mod oauth_flow;
+#[path = "OAuth身份v1.rs"]
+pub(crate) mod principal;
 
 pub use bearer::verify_bearer_header;
-pub use oauth::{
-    authorization_server_metadata, external_base_url, protected_resource_metadata,
-};
+pub use oauth::{authorization_server_metadata, external_base_url, protected_resource_metadata};
 pub use oauth_flow::{
     authorize_get, authorize_post, token_exchange, verify_oauth_bearer_header, AuthorizeForm,
     AuthorizeParams, OAuthRuntime, TokenForm,

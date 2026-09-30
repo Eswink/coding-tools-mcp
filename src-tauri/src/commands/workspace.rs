@@ -6,9 +6,7 @@ use crate::app_state::{bootstrap_workspace, teardown_workspace, AppState};
 use crate::error::{AppError, AppResult};
 use crate::platform::open_path_in_file_manager;
 use crate::tunnel::drop_workspace as drop_tunnel_workspace;
-use crate::workspace::resources::{
-    assign_free_workspace_ports,
-};
+use crate::workspace::resources::assign_free_workspace_ports;
 use crate::workspace::WorkspaceProfile;
 
 #[tauri::command]
@@ -35,11 +33,14 @@ pub fn create_workspace(
 
 #[tauri::command]
 pub async fn update_workspace(
-    state: State<'_, AppState>, profile: WorkspaceProfile,
+    state: State<'_, AppState>,
+    profile: WorkspaceProfile,
     tunnel_secret: Option<super::configuration::TunnelSecretUpdate>,
 ) -> AppResult<()> {
     match tunnel_secret {
-        Some(secret) => super::configuration::update_with_tunnel_secret(&state, profile, Some(secret)).await,
+        Some(secret) => {
+            super::configuration::update_with_tunnel_secret(&state, profile, Some(secret)).await
+        }
         None => super::configuration::update(&state, profile).await,
     }
 }
@@ -71,6 +72,8 @@ pub async fn delete_workspace(state: State<'_, AppState>, id: String) -> AppResu
         Ok(())
     })?;
     state.cloud_agents.remove_drained_workspace(&id)?;
-    for guard in guards { guard.commit(); }
+    for guard in guards {
+        guard.commit();
+    }
     Ok(())
 }

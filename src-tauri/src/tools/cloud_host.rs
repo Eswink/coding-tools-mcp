@@ -233,14 +233,19 @@ impl NativeToolHost {
         self.execute_scoped(call, None, None)
     }
 
-    fn execute_scoped(&self, call: PreparedCall,
+    fn execute_scoped(
+        &self,
+        call: PreparedCall,
         work: Option<coding_tools_cloud_agent::work::WorkScope>,
-        cancelled: Option<tokio::sync::watch::Receiver<bool>>) -> Result<Value, &'static str> {
+        cancelled: Option<tokio::sync::watch::Receiver<bool>>,
+    ) -> Result<Value, &'static str> {
         if call.host != self.id || call.request.profile != self.profile {
             return Err("CLOUD_HOST_CONTEXT_REJECTED");
         }
-        if Instant::now() >= call.deadline || now()? >= call.deadline_epoch
-            || cancelled.as_ref().is_some_and(|rx| *rx.borrow()) {
+        if Instant::now() >= call.deadline
+            || now()? >= call.deadline_epoch
+            || cancelled.as_ref().is_some_and(|rx| *rx.borrow())
+        {
             return Err("CLOUD_DEADLINE_REJECTED");
         }
         self.current(&call.authority)?;
@@ -252,8 +257,10 @@ impl NativeToolHost {
             call.ticket,
         )?;
         // The final ticket may have waited on the authorizer/gate mutexes.
-        if Instant::now() >= call.deadline || now()? >= call.deadline_epoch
-            || cancelled.as_ref().is_some_and(|rx| *rx.borrow()) {
+        if Instant::now() >= call.deadline
+            || now()? >= call.deadline_epoch
+            || cancelled.as_ref().is_some_and(|rx| *rx.borrow())
+        {
             return Err("CLOUD_DEADLINE_REJECTED");
         }
         let mut context = self.context.background_snapshot();

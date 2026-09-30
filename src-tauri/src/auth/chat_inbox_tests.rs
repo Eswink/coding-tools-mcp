@@ -2,11 +2,20 @@
 use super::*;
 
 fn add(service: &Arc<ChatAuthorizer>, profile: &str) -> RemoteRequest {
-    let principal = VerifiedPrincipal { issuer: "https://fixture.example".into(),
-        subject: "desktop-owner".into(), client_id: "fixture-client".into(),
-        expires_at: unix_now() + 3600, family_id: None };
-    let mut req = RemoteRequest::verified(profile, "fixture-workspace", principal,
-        &json!({"openai/session": "fixture-session"}), "fixture-secret");
+    let principal = VerifiedPrincipal {
+        issuer: "https://fixture.example".into(),
+        subject: "desktop-owner".into(),
+        client_id: "fixture-client".into(),
+        expires_at: unix_now() + 3600,
+        family_id: None,
+    };
+    let mut req = RemoteRequest::verified(
+        profile,
+        "fixture-workspace",
+        principal,
+        &json!({"openai/session": "fixture-session"}),
+        "fixture-secret",
+    );
     req.service = service.clone();
     assert_eq!(service.request(&req, &json!({}))["ok"], true);
     req
@@ -16,7 +25,9 @@ fn add(service: &Arc<ChatAuthorizer>, profile: &str) -> RemoteRequest {
 fn empty_workspace_selection_keeps_the_global_revision() {
     let service = Arc::new(ChatAuthorizer::default());
     let req = add(&service, "removed-workspace");
-    let before = service.pending_inbox(&BTreeSet::from([req.profile.clone()])).unwrap();
+    let before = service
+        .pending_inbox(&BTreeSet::from([req.profile.clone()]))
+        .unwrap();
     assert!(before.revision > 0);
     assert_eq!(before.entries.len(), 1);
     // Mirrors deletion of the final workspace: revoke its grants then remove
@@ -37,7 +48,13 @@ fn inbox_filters_nonselected_and_expired_requests_without_mutating_permissions()
     assert_eq!(first.entries.len(), 1);
     assert_eq!(first.entries[0].profile, a.profile);
     assert!(first.entries[0].exclusive);
-    service.state.lock().unwrap().records.get_mut(a.binding.as_ref().unwrap()).unwrap()
+    service
+        .state
+        .lock()
+        .unwrap()
+        .records
+        .get_mut(a.binding.as_ref().unwrap())
+        .unwrap()
         .since -= Duration::from_secs(PENDING);
     let expired = service.pending_inbox(&selected).unwrap();
     assert!(expired.entries.is_empty());

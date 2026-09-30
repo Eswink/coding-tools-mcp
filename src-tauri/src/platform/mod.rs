@@ -70,9 +70,9 @@ mod paths;
 pub use open::{is_allowed_url, open_path_in_file_manager, open_url};
 
 #[cfg(target_os = "linux")]
-pub use linux::LinuxPlatform;
-#[cfg(target_os = "linux")]
 pub(crate) use linux::listen_socket_present as linux_listen_socket_present;
+#[cfg(target_os = "linux")]
+pub use linux::LinuxPlatform;
 #[cfg(target_os = "macos")]
 pub use macos::MacPlatform;
 #[cfg(target_os = "windows")]
@@ -155,7 +155,8 @@ fn detect_context() -> PlatformContext {
         default_shell: "unknown",
         shell_modes: vec!["direct"],
         command_execution: "direct-argv",
-        command_guidance: "Unsupported host platform; do not assume Windows or POSIX shell semantics.",
+        command_guidance:
+            "Unsupported host platform; do not assume Windows or POSIX shell semantics.",
     }
 }
 
@@ -165,7 +166,9 @@ fn linux_distribution() -> Option<String> {
     let mut id = None;
     let mut version = None;
     for line in raw.lines() {
-        let Some((key, value)) = line.split_once('=') else { continue; };
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
         let value = value.trim_matches('"');
         match key {
             "ID" if !value.is_empty() => id = Some(value.to_string()),

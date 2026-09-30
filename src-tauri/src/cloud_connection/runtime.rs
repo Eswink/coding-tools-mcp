@@ -110,7 +110,9 @@ impl RuntimeMaterial {
         // includes the verbatim path prefix; retain the strict journal check.
         // Resolve only after create-once setup and no-reparse validation.
         directory_chain(&self.root)?;
-        self.root.canonicalize().map_err(|_| ConfigurationError::Unavailable)
+        self.root
+            .canonicalize()
+            .map_err(|_| ConfigurationError::Unavailable)
     }
 }
 

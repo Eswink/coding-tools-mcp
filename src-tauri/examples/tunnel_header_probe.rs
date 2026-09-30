@@ -30,7 +30,12 @@ fn parse_port() -> u16 {
 fn sanitize_authority(value: &str) -> Option<String> {
     Authority::from_maybe_shared(value.trim().to_owned())
         .ok()
-        .map(|authority| authority.host().trim_matches(['[', ']']).to_ascii_lowercase())
+        .map(|authority| {
+            authority
+                .host()
+                .trim_matches(['[', ']'])
+                .to_ascii_lowercase()
+        })
 }
 
 fn header_host(request: &Request) -> Option<String> {
@@ -42,10 +47,12 @@ fn header_host(request: &Request) -> Option<String> {
 }
 
 async fn probe(request: Request) -> impl IntoResponse {
-    let uri_authority_host = request
-        .uri()
-        .authority()
-        .map(|authority| authority.host().trim_matches(['[', ']']).to_ascii_lowercase());
+    let uri_authority_host = request.uri().authority().map(|authority| {
+        authority
+            .host()
+            .trim_matches(['[', ']'])
+            .to_ascii_lowercase()
+    });
     let host = header_host(&request);
     let unix_seconds = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -91,16 +98,21 @@ async fn main() {
         .expect("serve tunnel header probe");
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::sanitize_authority;
 
     #[test]
     fn authority_sanitizer_keeps_only_normalized_hostname() {
-        assert_eq!(sanitize_authority("Example.COM:8443").as_deref(), Some("example.com"));
+        assert_eq!(
+            sanitize_authority("Example.COM:8443").as_deref(),
+            Some("example.com")
+        );
         assert_eq!(sanitize_authority("[::1]:28768").as_deref(), Some("::1"));
-        assert_eq!(sanitize_authority("127.0.0.1:28768").as_deref(), Some("127.0.0.1"));
+        assert_eq!(
+            sanitize_authority("127.0.0.1:28768").as_deref(),
+            Some("127.0.0.1")
+        );
     }
 
     #[test]

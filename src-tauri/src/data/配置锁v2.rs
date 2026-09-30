@@ -25,10 +25,14 @@ impl ConfigFileLock {
         loop {
             match fs2::FileExt::try_lock_exclusive(&file) {
                 Ok(()) => return Ok(Self(file)),
-                Err(error) if error.raw_os_error() == fs2::lock_contended_error().raw_os_error()
-                    || error.kind() == std::io::ErrorKind::WouldBlock => {
+                Err(error)
+                    if error.raw_os_error() == fs2::lock_contended_error().raw_os_error()
+                        || error.kind() == std::io::ErrorKind::WouldBlock =>
+                {
                     if start.elapsed() >= timeout {
-                        return Err(AppError::Message("另一应用实例正在读写配置，等待超时；本次未写入，请重试。".into()));
+                        return Err(AppError::Message(
+                            "另一应用实例正在读写配置，等待超时；本次未写入，请重试。".into(),
+                        ));
                     }
                     std::thread::sleep(Duration::from_millis(20));
                 }
@@ -75,16 +79,23 @@ mod tests {
     #[test]
     fn independent_files_do_not_block_each_other() {
         let dir = tempfile::tempdir().unwrap();
-        let first = ConfigFileLock::acquire(&dir.path().join("first.lock"), Duration::ZERO).unwrap();
-        let second = ConfigFileLock::acquire(&dir.path().join("second.lock"), Duration::ZERO).unwrap();
+        let first =
+            ConfigFileLock::acquire(&dir.path().join("first.lock"), Duration::ZERO).unwrap();
+        let second =
+            ConfigFileLock::acquire(&dir.path().join("second.lock"), Duration::ZERO).unwrap();
         drop((first, second));
     }
 
     #[test]
     fn child_lock_probe() {
-        let Ok(path) = std::env::var("MCP_TEST_CONFIG_LOCK_PATH") else { return; };
+        let Ok(path) = std::env::var("MCP_TEST_CONFIG_LOCK_PATH") else {
+            return;
+        };
         let expected = std::env::var("MCP_TEST_CONFIG_LOCK_AVAILABLE").unwrap() == "1";
-        assert_eq!(ConfigFileLock::acquire(Path::new(&path), Duration::ZERO).is_ok(), expected);
+        assert_eq!(
+            ConfigFileLock::acquire(Path::new(&path), Duration::ZERO).is_ok(),
+            expected
+        );
     }
 
     #[test]
@@ -93,11 +104,23 @@ mod tests {
         let path = dir.path().join("profiles.lock");
         let probe = |available: bool| {
             let output = std::process::Command::new(std::env::current_exe().unwrap())
-                .args(["--exact", "data::config_lock::tests::child_lock_probe", "--nocapture"])
+                .args([
+                    "--exact",
+                    "data::config_lock::tests::child_lock_probe",
+                    "--nocapture",
+                ])
                 .env("MCP_TEST_CONFIG_LOCK_PATH", &path)
-                .env("MCP_TEST_CONFIG_LOCK_AVAILABLE", if available { "1" } else { "0" })
-                .output().unwrap();
-            assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+                .env(
+                    "MCP_TEST_CONFIG_LOCK_AVAILABLE",
+                    if available { "1" } else { "0" },
+                )
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
             assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
         };
         let lock = ConfigFileLock::acquire(&path, Duration::ZERO).unwrap();

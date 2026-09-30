@@ -7,9 +7,7 @@ use crate::{
         worktree::{SnapshotTarget, WorktreeManager},
         Harness,
     },
-    snapshots::{
-        RestorePlan, RestoreReport, SnapshotError, SnapshotStore, TargetAuthority,
-    },
+    snapshots::{RestorePlan, RestoreReport, SnapshotError, SnapshotStore, TargetAuthority},
     tools::{
         exec_tasks::TaskAdmissionGuard,
         root_work::{RootRestoreGuard, RootWorkTracker},

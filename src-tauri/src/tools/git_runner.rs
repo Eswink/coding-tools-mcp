@@ -66,8 +66,11 @@ pub(crate) fn run(
             .map_err(|_| "Invalid host Git configuration")?;
     }
     let mut native_work = super::native_drain::current_child()?;
-    if native_work.is_some() { spec = spec.with_tree_exit_confirmation(); }
-    super::native_drain::begin(&mut native_work).map_err(|_| "Native Git drain rejected startup")?;
+    if native_work.is_some() {
+        spec = spec.with_tree_exit_confirmation();
+    }
+    super::native_drain::begin(&mut native_work)
+        .map_err(|_| "Native Git drain rejected startup")?;
     // The existing public inspection APIs are synchronous and can be called
     // either inside or outside a Tokio runtime. Never nest block_on on a caller's
     // runtime thread. The worker is joined; it cannot detach from its caller.
@@ -85,9 +88,12 @@ pub(crate) fn run(
         Ok(Err(error)) => {
             // These errors precede execution. An unclassified spawn failure or
             // panic is conservatively quarantined rather than called drained.
-            if matches!(error.kind, coding_tools_local_agent::ExecErrorKind::InvalidSpec
-                | coding_tools_local_agent::ExecErrorKind::Capacity
-                | coding_tools_local_agent::ExecErrorKind::Sandbox) {
+            if matches!(
+                error.kind,
+                coding_tools_local_agent::ExecErrorKind::InvalidSpec
+                    | coding_tools_local_agent::ExecErrorKind::Capacity
+                    | coding_tools_local_agent::ExecErrorKind::Sandbox
+            ) {
                 super::native_drain::complete(native_work);
             }
             return Err("Git isolation or process startup failed");

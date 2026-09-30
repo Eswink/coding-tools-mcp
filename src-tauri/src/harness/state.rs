@@ -11,9 +11,9 @@ use uuid::Uuid;
 use walkdir::WalkDir;
 
 use super::model::{
-    BaselineEntry, CapabilityStatus, FileChangeRecord, HarnessEvent, HarnessStatus, OperationRecord,
-    ProjectBaseline, ProjectFileState, ProjectState, TaskSession,
-    TaskStatus, WorkspaceHarnessState, SCHEMA_VERSION,
+    BaselineEntry, CapabilityStatus, FileChangeRecord, HarnessEvent, HarnessStatus,
+    OperationRecord, ProjectBaseline, ProjectFileState, ProjectState, TaskSession, TaskStatus,
+    WorkspaceHarnessState, SCHEMA_VERSION,
 };
 use super::store::{HarnessError, HarnessResult, HarnessStore};
 
@@ -46,7 +46,9 @@ impl Harness {
         static ROOT: std::sync::OnceLock<Result<tempfile::TempDir, String>> =
             std::sync::OnceLock::new();
         let root = ROOT.get_or_init(|| {
-            tempfile::Builder::new().prefix("coding-tools-unit-host-").tempdir()
+            tempfile::Builder::new()
+                .prefix("coding-tools-unit-host-")
+                .tempdir()
                 .map_err(|error| error.to_string())
         });
         root.as_ref()
@@ -261,7 +263,8 @@ impl Harness {
             affected_files: Vec::new(),
             created_at: timestamp(),
         };
-        self.store.append_operation(&self.workspace_id, &operation)?;
+        self.store
+            .append_operation(&self.workspace_id, &operation)?;
         Ok(operation)
     }
 
@@ -564,7 +567,8 @@ fn should_skip(path: &Path, root: &Path) -> bool {
 
 fn git_value(root: &Path, args: &[&str]) -> Option<String> {
     #[cfg(target_os = "linux")]
-    let output = crate::tools::git_runner::run(root, root, args, std::time::Duration::from_secs(5)).ok()?;
+    let output =
+        crate::tools::git_runner::run(root, root, args, std::time::Duration::from_secs(5)).ok()?;
     #[cfg(not(target_os = "linux"))]
     let output = {
         let mut cmd = Command::new("git");

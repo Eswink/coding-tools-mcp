@@ -68,13 +68,19 @@ impl AppState {
 
     pub fn startup_status(&self) -> StartupStatus {
         let ready = self.is_ready();
-        let reason = if ready { None } else { Some(self.current_startup_reason()) };
+        let reason = if ready {
+            None
+        } else {
+            Some(self.current_startup_reason())
+        };
         StartupStatus {
             state: if ready { "ready" } else { "locked" }.into(),
             ready,
             recoverable: !ready,
             reason_code: reason.map(|value| value.code().to_string()),
-            message: reason.map(|value| value.user_message().to_string()).unwrap_or_default(),
+            message: reason
+                .map(|value| value.user_message().to_string())
+                .unwrap_or_default(),
             platform: crate::platform::platform().os_name().into(),
             safe_mode: crate::bootstrap::safe_mode(),
         }
@@ -121,7 +127,10 @@ impl AppState {
         f(store)
     }
 
-    pub fn with_workspaces<R>(&self, f: impl FnOnce(&mut DataStore) -> AppResult<R>) -> AppResult<R> {
+    pub fn with_workspaces<R>(
+        &self,
+        f: impl FnOnce(&mut DataStore) -> AppResult<R>,
+    ) -> AppResult<R> {
         self.with_data(f)
     }
 
@@ -129,7 +138,10 @@ impl AppState {
         self.with_data(f)
     }
 
-    pub fn with_runtime<R>(&self, f: impl FnOnce(&mut RuntimeSupervisor) -> AppResult<R>) -> AppResult<R> {
+    pub fn with_runtime<R>(
+        &self,
+        f: impl FnOnce(&mut RuntimeSupervisor) -> AppResult<R>,
+    ) -> AppResult<R> {
         let mut guard = self
             .runtime
             .lock()
@@ -158,12 +170,17 @@ mod tests {
 
     #[test]
     fn storage_failure_enters_recoverable_locked_state_instead_of_panicking() {
-        let state = AppState::from_store_result(Err(AppError::Message("fixture-secret-must-not-leak".into())));
+        let state = AppState::from_store_result(Err(AppError::Message(
+            "fixture-secret-must-not-leak".into(),
+        )));
         let status = state.startup_status();
         assert_eq!(status.state, "locked");
         assert!(!status.ready);
         assert!(status.recoverable);
-        assert_eq!(status.reason_code.as_deref(), Some("unknown_secure_storage_failure"));
+        assert_eq!(
+            status.reason_code.as_deref(),
+            Some("unknown_secure_storage_failure")
+        );
         assert!(!status.message.contains("fixture-secret-must-not-leak"));
         assert!(state.with_data(|_| Ok(())).is_err());
     }
@@ -174,7 +191,10 @@ mod tests {
             StartupFailureReason::SecretServiceLockedOrDenied,
         )));
         let status = state.startup_status();
-        assert_eq!(status.reason_code.as_deref(), Some("secret_service_locked_or_denied"));
+        assert_eq!(
+            status.reason_code.as_deref(),
+            Some("secret_service_locked_or_denied")
+        );
         assert!(status.message.contains("系统凭据库"));
         assert!(!status.message.contains("BadEncoding"));
     }

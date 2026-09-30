@@ -29,7 +29,9 @@ fn parallel_private_config_creation_does_not_share_acl_state() {
                 private_windows::verify_current_user(&fs::File::open(&path).unwrap()).unwrap();
             }));
         }
-        for worker in workers { worker.join().unwrap(); }
+        for worker in workers {
+            worker.join().unwrap();
+        }
     });
     assert_eq!(fs::read_dir(root.path()).unwrap().count(), 16);
 }

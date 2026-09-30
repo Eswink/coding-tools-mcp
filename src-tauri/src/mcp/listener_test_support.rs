@@ -22,7 +22,11 @@ pub(crate) fn spawn_listener_from_bound(
     oauth_token_secret: Option<String>,
     runtime: RuntimeConfig,
 ) -> Result<
-    (ShutdownSender, tauri::async_runtime::JoinHandle<()>, Arc<WorkspaceExecutionGate>),
+    (
+        ShutdownSender,
+        tauri::async_runtime::JoinHandle<()>,
+        Arc<WorkspaceExecutionGate>,
+    ),
     String,
 > {
     let address = listener.local_addr().map_err(|err| err.to_string())?;
@@ -42,7 +46,9 @@ pub(crate) fn spawn_listener_from_bound(
         oauth_token_secret,
         runtime,
         move || {
-            listener.set_nonblocking(true).map_err(|err| err.to_string())?;
+            listener
+                .set_nonblocking(true)
+                .map_err(|err| err.to_string())?;
             tokio::net::TcpListener::from_std(listener).map_err(|err| err.to_string())
         },
     )
@@ -59,7 +65,10 @@ async fn requested_port_conflict_still_fails_synchronously() {
         address.port(),
         root.path().into(),
         uuid::Uuid::new_v4().to_string(),
-        AuthConfig { auth_type: "noauth".into(), ..Default::default() },
+        AuthConfig {
+            auth_type: "noauth".into(),
+            ..Default::default()
+        },
         PublicOrigin::managed("").unwrap(),
         None,
         None,
@@ -71,11 +80,16 @@ async fn requested_port_conflict_still_fails_synchronously() {
         Ok((stop, task, _gate)) => {
             let _ = stop.send(());
             tokio::time::timeout(Duration::from_secs(5), task)
-                .await.expect("listener shutdown timed out").unwrap();
+                .await
+                .expect("listener shutdown timed out")
+                .unwrap();
             panic!("an occupied requested port must not report startup success");
         }
     };
-    assert!(error.contains(&format!("MCP 本地端口 {} 绑定失败", address.port())), "{error}");
+    assert!(
+        error.contains(&format!("MCP 本地端口 {} 绑定失败", address.port())),
+        "{error}"
+    );
     // No alternate port, retry or deferred background error is accepted.
     assert_eq!(competing_owner.local_addr().unwrap(), address);
 }
@@ -85,29 +99,46 @@ async fn retained_socket_stays_owned_and_serves_the_same_endpoint() {
     let root = tempfile::tempdir().unwrap();
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
     let address = listener.local_addr().unwrap();
-    assert!(TcpListener::bind(address).is_err(), "reserved socket was not exclusive");
+    assert!(
+        TcpListener::bind(address).is_err(),
+        "reserved socket was not exclusive"
+    );
     let (stop, task, _gate) = spawn_listener_from_bound(
         listener,
         root.path().into(),
         uuid::Uuid::new_v4().to_string(),
-        AuthConfig { auth_type: "noauth".into(), ..Default::default() },
+        AuthConfig {
+            auth_type: "noauth".into(),
+            ..Default::default()
+        },
         PublicOrigin::managed("").unwrap(),
         None,
         None,
         None,
         RuntimeConfig::default(),
-    ).unwrap();
-    assert!(TcpListener::bind(address).is_err(), "handoff released the reserved socket");
+    )
+    .unwrap();
+    assert!(
+        TcpListener::bind(address).is_err(),
+        "handoff released the reserved socket"
+    );
     let client = reqwest::Client::builder()
         .no_proxy()
         .timeout(Duration::from_secs(5))
-        .build().unwrap();
-    let response = client.get(format!("http://{address}/mcp")).send().await.unwrap();
+        .build()
+        .unwrap();
+    let response = client
+        .get(format!("http://{address}/mcp"))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(response.status(), 200);
     let body: serde_json::Value = response.json().await.unwrap();
     assert_eq!(body["name"], "coding-tools-mcp");
     drop(client);
     stop.send(()).unwrap();
     tokio::time::timeout(Duration::from_secs(5), task)
-        .await.expect("listener shutdown timed out").unwrap();
+        .await
+        .expect("listener shutdown timed out")
+        .unwrap();
 }

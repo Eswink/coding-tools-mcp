@@ -10,7 +10,10 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 
 use super::bearer::constant_time_eq_str;
-use super::{oauth_refresh::{RefreshContext, RefreshStore}, session_policy::SessionPolicy};
+use super::{
+    oauth_refresh::{RefreshContext, RefreshStore},
+    session_policy::SessionPolicy,
+};
 #[path = "oauth_token.rs"]
 mod token;
 pub use token::token_exchange;
@@ -77,35 +80,71 @@ impl OAuthRuntime {
         }
     }
 
-    pub fn with_redirect_uri(mut self, uri: String) -> Self { self.redirect_uri = uri; self }
-    pub fn with_mcp_resource(mut self) -> Self { self.resource_path = "/mcp"; self }
-    pub(crate) fn with_refresh_store(mut self, policy: SessionPolicy, root: std::path::PathBuf) -> Result<Self,String> {
+    pub fn with_redirect_uri(mut self, uri: String) -> Self {
+        self.redirect_uri = uri;
+        self
+    }
+    pub fn with_mcp_resource(mut self) -> Self {
+        self.resource_path = "/mcp";
+        self
+    }
+    pub(crate) fn with_refresh_store(
+        mut self,
+        policy: SessionPolicy,
+        root: std::path::PathBuf,
+    ) -> Result<Self, String> {
         policy.validate()?;
-        self.session_policy=policy;
-        self.refresh=Some(RefreshStore::shared(root));
+        self.session_policy = policy;
+        self.refresh = Some(RefreshStore::shared(root));
         Ok(self)
     }
-    pub(crate) fn refresh_enabled(&self) -> bool { self.refresh.is_some() }
+    pub(crate) fn refresh_enabled(&self) -> bool {
+        self.refresh.is_some()
+    }
     fn refresh_context(&self, client: &str, issuer: &str) -> RefreshContext {
-        RefreshContext::new(client,issuer,&self.resource_url(issuer),&self.token_secret,
-            &self.password,self.client_secret.as_deref(),&self.session_policy)
+        RefreshContext::new(
+            client,
+            issuer,
+            &self.resource_url(issuer),
+            &self.token_secret,
+            &self.password,
+            self.client_secret.as_deref(),
+            &self.session_policy,
+        )
     }
     pub fn resource_url(&self, issuer: &str) -> String {
         format!("{}{}", issuer.trim_end_matches('/'), self.resource_path)
     }
     fn resource_metadata_url(&self, issuer: &str) -> String {
-        format!("{}/.well-known/oauth-protected-resource{}", issuer.trim_end_matches('/'), self.resource_path)
+        format!(
+            "{}/.well-known/oauth-protected-resource{}",
+            issuer.trim_end_matches('/'),
+            self.resource_path
+        )
     }
     fn redirect_allowed(&self, uri: &str) -> bool {
-        if uri != self.redirect_uri || uri.len() > 2048 { return false; }
-        reqwest::Url::parse(uri).ok().is_some_and(|u| u.scheme() == "https"
-            && u.host_str().is_some() && u.username().is_empty() && u.password().is_none() && u.fragment().is_none())
+        if uri != self.redirect_uri || uri.len() > 2048 {
+            return false;
+        }
+        reqwest::Url::parse(uri).ok().is_some_and(|u| {
+            u.scheme() == "https"
+                && u.host_str().is_some()
+                && u.username().is_empty()
+                && u.password().is_none()
+                && u.fragment().is_none()
+        })
     }
     fn allow_login_attempt(&self) -> bool {
         let mut attempts = self.attempts.lock().expect("oauth login attempts");
         let bucket = unix_now() / 60;
-        if attempts.0 != bucket { *attempts = (bucket, 0); }
-        if attempts.1 >= 10 { return false; } attempts.1 += 1; true
+        if attempts.0 != bucket {
+            *attempts = (bucket, 0);
+        }
+        if attempts.1 >= 10 {
+            return false;
+        }
+        attempts.1 += 1;
+        true
     }
     pub fn client_id_allowed(&self, client_id: &str) -> bool {
         if client_id.is_empty() || client_id.len() > 256 {
@@ -120,16 +159,31 @@ impl OAuthRuntime {
     pub fn verify_access_token(&self, token: &str, server_url: &str) -> bool {
         self.principal(token, server_url).is_some()
     }
-    pub(crate) fn principal(&self, token: &str, server_url: &str) -> Option<super::principal::VerifiedPrincipal> {
-        let principal = super::principal::verify(token, &self.token_secret, server_url, &self.resource_url(server_url))?;
-        if !self.client_id_allowed(&principal.client_id) { return None; }
+    pub(crate) fn principal(
+        &self,
+        token: &str,
+        server_url: &str,
+    ) -> Option<super::principal::VerifiedPrincipal> {
+        let principal = super::principal::verify(
+            token,
+            &self.token_secret,
+            server_url,
+            &self.resource_url(server_url),
+        )?;
+        if !self.client_id_allowed(&principal.client_id) {
+            return None;
+        }
         if let Some(family) = principal.family_id.as_deref() {
-            let store=self.refresh.as_ref()?;
-            if !store.valid_family(&self.refresh_context(&principal.client_id,server_url),family) { return None; }
+            let store = self.refresh.as_ref()?;
+            if !store.valid_family(
+                &self.refresh_context(&principal.client_id, server_url),
+                family,
+            ) {
+                return None;
+            }
         }
         Some(principal)
     }
-
 }
 
 pub fn verify_oauth_bearer_header(
@@ -137,15 +191,30 @@ pub fn verify_oauth_bearer_header(
     oauth: &OAuthRuntime,
     server_url: &str,
 ) -> Option<Response> {
-    let token = headers.get(AUTHORIZATION).and_then(|h| h.to_str().ok())
-        .and_then(|h| h.strip_prefix("Bearer ")).map(str::trim).unwrap_or("");
-    if oauth.verify_access_token(token, server_url) { return None; }
-    let challenge = format!("Bearer resource_metadata=\"{}\", scope=\"mcp\"", oauth.resource_metadata_url(server_url));
+    let token = headers
+        .get(AUTHORIZATION)
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .map(str::trim)
+        .unwrap_or("");
+    if oauth.verify_access_token(token, server_url) {
+        return None;
+    }
+    let challenge = format!(
+        "Bearer resource_metadata=\"{}\", scope=\"mcp\"",
+        oauth.resource_metadata_url(server_url)
+    );
     let mut response = (StatusCode::UNAUTHORIZED, "OAuth authentication required").into_response();
-    if let Ok(value) = challenge.parse() { response.headers_mut().insert(axum::http::header::WWW_AUTHENTICATE, value); }
-    response.headers_mut().insert(axum::http::header::CACHE_CONTROL, axum::http::HeaderValue::from_static("no-store"));
+    if let Ok(value) = challenge.parse() {
+        response
+            .headers_mut()
+            .insert(axum::http::header::WWW_AUTHENTICATE, value);
+    }
+    response.headers_mut().insert(
+        axum::http::header::CACHE_CONTROL,
+        axum::http::HeaderValue::from_static("no-store"),
+    );
     Some(response)
-
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -204,9 +273,11 @@ pub fn authorize_get(
     params: AuthorizeParams,
     _workspace_path: Option<&str>,
 ) -> Response {
-    let scope=super::oauth_scope::normalize(&params.scope,oauth.refresh_enabled());
-    if !oauth.redirect_allowed(&params.redirect_uri) || !valid_resource(&params.resource)
-        || scope.is_err() {
+    let scope = super::oauth_scope::normalize(&params.scope, oauth.refresh_enabled());
+    if !oauth.redirect_allowed(&params.redirect_uri)
+        || !valid_resource(&params.resource)
+        || scope.is_err()
+    {
         return html_error("Invalid redirect_uri or scope", StatusCode::BAD_REQUEST);
     }
     if params.response_type != "code" {
@@ -236,12 +307,20 @@ pub fn authorize_get(
 }
 
 pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &str) -> Response {
-    let scope=super::oauth_scope::normalize(&form.scope,oauth.refresh_enabled());
-    if !oauth.redirect_allowed(&form.redirect_uri) || scope.is_err()
-        || !valid_resource(&form.resource) || form.resource != oauth.resource_url(server_url) {
-        return html_error("Invalid redirect_uri, resource or scope", StatusCode::BAD_REQUEST);
+    let scope = super::oauth_scope::normalize(&form.scope, oauth.refresh_enabled());
+    if !oauth.redirect_allowed(&form.redirect_uri)
+        || scope.is_err()
+        || !valid_resource(&form.resource)
+        || form.resource != oauth.resource_url(server_url)
+    {
+        return html_error(
+            "Invalid redirect_uri, resource or scope",
+            StatusCode::BAD_REQUEST,
+        );
     }
-    if !oauth.allow_login_attempt() { return html_error("Too many login attempts", StatusCode::TOO_MANY_REQUESTS); }
+    if !oauth.allow_login_attempt() {
+        return html_error("Too many login attempts", StatusCode::TOO_MANY_REQUESTS);
+    }
     if !oauth.client_id_allowed(&form.client_id) {
         return Html(login_page(
             &form.client_id,
@@ -270,7 +349,10 @@ pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &st
         ))
         .into_response();
     }
-    if oauth.password.is_empty() || oauth.token_secret.is_empty() || !constant_time_eq_str(&form.password, &oauth.password) {
+    if oauth.password.is_empty()
+        || oauth.token_secret.is_empty()
+        || !constant_time_eq_str(&form.password, &oauth.password)
+    {
         return (
             StatusCode::UNAUTHORIZED,
             Html(login_page(
@@ -294,7 +376,12 @@ pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &st
     {
         let mut pending = oauth.pending.lock().expect("oauth pending lock");
         pending.retain(|_, v| v.expires_at > now);
-        if pending.len() >= 128 { return html_error("Too many pending authorizations", StatusCode::TOO_MANY_REQUESTS); }
+        if pending.len() >= 128 {
+            return html_error(
+                "Too many pending authorizations",
+                StatusCode::TOO_MANY_REQUESTS,
+            );
+        }
         pending.insert(
             code.clone(),
             PendingCode {
@@ -314,12 +401,15 @@ pub fn authorize_post(oauth: &OAuthRuntime, form: AuthorizeForm, server_url: &st
     if !form.state.is_empty() {
         qs.push_str(&format!("&state={}", urlencoding_encode(&form.state)));
     }
-    let sep = if form.redirect_uri.contains('?') { '&' } else { '?' };
+    let sep = if form.redirect_uri.contains('?') {
+        '&'
+    } else {
+        '?'
+    };
     // 授权页面通过 POST 表单提交，但客户端回调必须使用 GET。
     // 307 会保留 POST 并把表单体转发到 ChatGPT connector，导致 Bad Request。
     Redirect::to(&format!("{}{}{}", form.redirect_uri, sep, qs)).into_response()
 }
-
 
 fn verify_pkce(code_verifier: &str, code_challenge: &str) -> bool {
     let digest = Sha256::digest(code_verifier.as_bytes());
@@ -362,9 +452,11 @@ fn login_page(
     error: &str,
     workspace_path: Option<&str>,
 ) -> String {
-    let offline_notice = if scope.split_whitespace().any(|s|s=="offline_access") {
+    let offline_notice = if scope.split_whitespace().any(|s| s == "offline_access") {
         "<p>Offline access requested: this client may refresh its connection until the configured refresh-session deadline. Local conversation approval is still required and is never renewed by token refresh.</p>"
-    } else { "" };
+    } else {
+        ""
+    };
     let error_block = if error.is_empty() {
         String::new()
     } else {

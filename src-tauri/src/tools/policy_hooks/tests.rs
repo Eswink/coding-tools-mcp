@@ -174,17 +174,25 @@ fn async_primary_does_not_retrigger_exec_command_hooks() {
     std::fs::write(root.path().join("check.py"), "raise SystemExit(1)\n").unwrap();
     let prepared = ctx.policy_hooks.prepare(&ctx, vec![spec()]).unwrap();
     ctx.policy_hooks.install(prepared).unwrap();
-    let accepted = crate::tools::call_tool(&ctx, "start_exec_task", &json!({
-        "request_id":"nested-hook-regression", "cmd":"python3 -c \"print('primary')\"", "timeout_ms":1000
-    }));
+    let accepted = crate::tools::call_tool(
+        &ctx,
+        "start_exec_task",
+        &json!({
+            "request_id":"nested-hook-regression", "cmd":"python3 -c \"print('primary')\"", "timeout_ms":1000
+        }),
+    );
     assert_eq!(accepted["ok"], true, "{accepted}");
     let until = Instant::now() + std::time::Duration::from_secs(10);
     loop {
-        let result = crate::tools::call_tool(&ctx, "get_exec_task", &json!({"job_id":accepted["job_id"]}));
+        let result =
+            crate::tools::call_tool(&ctx, "get_exec_task", &json!({"job_id":accepted["job_id"]}));
         if result["terminal"] == true {
             // This host may fail mandatory sandbox startup. Either outcome must
             // come from the primary command, never a second unapproved hook.
-            assert!(!result.to_string().contains("HOOK_LOCAL_AUTHORITY_REQUIRED"), "{result}");
+            assert!(
+                !result.to_string().contains("HOOK_LOCAL_AUTHORITY_REQUIRED"),
+                "{result}"
+            );
             break;
         }
         assert!(Instant::now() < until, "{result}");
@@ -195,14 +203,18 @@ fn async_primary_does_not_retrigger_exec_command_hooks() {
 #[cfg(target_os = "linux")]
 #[test]
 fn script_preview_is_exact_utf8_and_unknown_encoding_is_rejected() {
-    let root=tempdir().unwrap();let storage=tempdir().unwrap();
-    let ctx=ToolContext::for_test(root.path().into(),storage.path().into()).unwrap();
+    let root = tempdir().unwrap();
+    let storage = tempdir().unwrap();
+    let ctx = ToolContext::for_test(root.path().into(), storage.path().into()).unwrap();
     for bytes in [&b"print('\xff')\n"[..], &b"print('ok')\0\n"[..]] {
-        std::fs::write(root.path().join("check.py"),bytes).unwrap();
-        assert!(matches!(ctx.policy_hooks.prepare(&ctx,vec![spec()]),Err("HOOK_SCRIPT_REJECTED")));
+        std::fs::write(root.path().join("check.py"), bytes).unwrap();
+        assert!(matches!(
+            ctx.policy_hooks.prepare(&ctx, vec![spec()]),
+            Err("HOOK_SCRIPT_REJECTED")
+        ));
     }
-    let source="# exact native preview: 中文 café 🐈\nprint('hello')\n";
-    std::fs::write(root.path().join("check.py"),source).unwrap();
-    let prepared=ctx.policy_hooks.prepare(&ctx,vec![spec()]).unwrap();
-    assert_eq!(prepared.preview()["hooks"][0]["script_source"],source);
+    let source = "# exact native preview: 中文 café 🐈\nprint('hello')\n";
+    std::fs::write(root.path().join("check.py"), source).unwrap();
+    let prepared = ctx.policy_hooks.prepare(&ctx, vec![spec()]).unwrap();
+    assert_eq!(prepared.preview()["hooks"][0]["script_source"], source);
 }

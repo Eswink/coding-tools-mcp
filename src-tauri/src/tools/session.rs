@@ -51,24 +51,44 @@ impl SessionStore {
     }
 
     pub(crate) fn has_unfinished_work(&self) -> bool {
-        let Ok(sessions) = self.sessions.lock() else { return true; };
+        let Ok(sessions) = self.sessions.lock() else {
+            return true;
+        };
         sessions.values().any(|s| {
             if let Ok(mut child) = s.child.try_lock() {
-                if let Ok(Some(status)) = child.try_wait() { s.record_exit_status(status); }
+                if let Ok(Some(status)) = child.try_wait() {
+                    s.record_exit_status(status);
+                }
             }
             !s.has_exited() || s.tree_cleanup_failed.load(Ordering::Acquire)
         })
     }
 
     pub(crate) fn cancel_local(&self) {
-        let ids:Vec<_>=self.sessions.lock().expect("sessions lock").keys().cloned().collect();
-        for id in ids {let _=kill_session(self,&json!({"session_id":id,"signal":"KILL","wait_ms":1000}));}
+        let ids: Vec<_> = self
+            .sessions
+            .lock()
+            .expect("sessions lock")
+            .keys()
+            .cloned()
+            .collect();
+        for id in ids {
+            let _ = kill_session(
+                self,
+                &json!({"session_id":id,"signal":"KILL","wait_ms":1000}),
+            );
+        }
     }
     pub fn remove(&self, session_id: &str) {
-        let mut sessions=self.sessions.lock().expect("sessions lock");
+        let mut sessions = self.sessions.lock().expect("sessions lock");
         // Managed jobs retain uncertainty in their durable task record. Unmanaged
         // interactive/time-out sessions must not disappear while their child lives.
-        if sessions.get(session_id).is_some_and(|s|s.managed||s.has_exited()) {sessions.remove(session_id);}
+        if sessions
+            .get(session_id)
+            .is_some_and(|s| s.managed || s.has_exited())
+        {
+            sessions.remove(session_id);
+        }
     }
 }
 
@@ -155,7 +175,9 @@ impl ExecSession {
         }
         #[cfg(not(windows))]
         if let Some(mut tree) = self.process_tree.lock().expect("process tree").take() {
-            if tree.terminate().is_err() { self.tree_cleanup_failed.store(true, Ordering::Release); }
+            if tree.terminate().is_err() {
+                self.tree_cleanup_failed.store(true, Ordering::Release);
+            }
         }
     }
 
@@ -202,9 +224,14 @@ impl ExecSession {
                 input.write_all(text.as_bytes()).await?;
                 input.shutdown().await?;
                 Ok::<(), std::io::Error>(())
-            }).await;
+            })
+            .await;
             if !matches!(outcome, Ok(Ok(()))) {
-                let reason = if outcome.is_err() { "timeout" } else { "stdin_error" };
+                let reason = if outcome.is_err() {
+                    "timeout"
+                } else {
+                    "stdin_error"
+                };
                 session.mark_initial_stdin_failure(reason);
                 session.kill_and_wait().await;
             }
@@ -223,9 +250,11 @@ impl ExecSession {
 
     async fn wait_for_initial_stdin(&self) {
         let mut pending = self.initial_stdin_task.lock().await;
-        let Some(task) = pending.as_mut() else { return; };
+        let Some(task) = pending.as_mut() else {
+            return;
+        };
         match tokio::time::timeout(std::time::Duration::from_millis(500), &mut *task).await {
-            Ok(Ok(())) => {},
+            Ok(Ok(())) => {}
             other => {
                 self.mark_initial_stdin_failure("stdin_error");
                 if other.is_err() {
@@ -241,9 +270,16 @@ impl ExecSession {
         self.wait_for_initial_stdin().await;
         let mut tasks = self.reader_tasks.lock().await;
         while let Some(task) = tasks.last_mut() {
-            match tokio::time::timeout(std::time::Duration::from_millis(if self.managed { 5000 } else { 500 }), &mut *task).await {
-                Ok(Ok(())) => {},
-                Ok(Err(_)) => { self.reader_failed.store(true, Ordering::Release); },
+            match tokio::time::timeout(
+                std::time::Duration::from_millis(if self.managed { 5000 } else { 500 }),
+                &mut *task,
+            )
+            .await
+            {
+                Ok(Ok(())) => {}
+                Ok(Err(_)) => {
+                    self.reader_failed.store(true, Ordering::Release);
+                }
                 Err(_) => {
                     // A descendant may retain an inherited pipe after the direct child exits.
                     // Do not detach a reader that can keep the whole session alive indefinitely.

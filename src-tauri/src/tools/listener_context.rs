@@ -97,7 +97,11 @@ impl ListenerContextLease {
     /// existing admitted local jobs retain their established drain semantics.
     /// Cloud supervisors must observe closure and invalidate their own transport.
     pub(crate) fn close(&self) {
-        let mut closed = self.0.closed.lock().unwrap_or_else(|error| error.into_inner());
+        let mut closed = self
+            .0
+            .closed
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         *closed = true;
         self.0.stopped.send_replace(true);
     }

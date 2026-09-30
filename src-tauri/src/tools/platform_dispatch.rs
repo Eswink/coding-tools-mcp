@@ -10,11 +10,17 @@ use crate::tools::context::ToolContext;
 pub fn call_tool(ctx: &ToolContext, name: &str, args: &Value) -> Value {
     // Privileged desktop inspection/cancellation remains available during
     // recovery. This flag is native-only and the IPC whitelist cannot execute.
-    let mut result = if ctx.local_task_control && matches!(name,"list_exec_tasks"|"get_exec_task"|"cancel_exec_task") {
-        crate::tools::dispatch::call_tool(ctx,name,args)
+    let mut result = if ctx.local_task_control
+        && matches!(
+            name,
+            "list_exec_tasks" | "get_exec_task" | "cancel_exec_task"
+        ) {
+        crate::tools::dispatch::call_tool(ctx, name, args)
     } else {
-        super::root_work::dispatch(ctx, |scoped| crate::tools::dispatch::call_tool(scoped, name, args))
-            .unwrap_or_else(super::root_work::error_value)
+        super::root_work::dispatch(ctx, |scoped| {
+            crate::tools::dispatch::call_tool(scoped, name, args)
+        })
+        .unwrap_or_else(super::root_work::error_value)
     };
     if matches!(name, "server_info" | "check_exec_environment") {
         attach_host_context(&mut result);
@@ -23,14 +29,18 @@ pub fn call_tool(ctx: &ToolContext, name: &str, args: &Value) -> Value {
 }
 
 fn attach_host_context(result: &mut Value) {
-    let Some(object) = result.as_object_mut() else { return; };
+    let Some(object) = result.as_object_mut() else {
+        return;
+    };
     let host = crate::platform::context();
     object.insert(
         "host".into(),
-        serde_json::to_value(host).unwrap_or_else(|_| json!({
-            "os": crate::platform::platform().os_name(),
-            "commandExecution": "direct-argv"
-        })),
+        serde_json::to_value(host).unwrap_or_else(|_| {
+            json!({
+                "os": crate::platform::platform().os_name(),
+                "commandExecution": "direct-argv"
+            })
+        }),
     );
     object.insert(
         "command_input_semantics".into(),
@@ -52,14 +62,25 @@ mod tests {
         {
             assert_eq!(value["host"]["os"], "windows");
             assert_eq!(value["host"]["pathStyle"], "windows");
-            assert!(value["host"]["shellModes"].as_array().unwrap().iter().any(|v| v == "powershell"));
+            assert!(value["host"]["shellModes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|v| v == "powershell"));
         }
         #[cfg(target_os = "linux")]
         {
             assert_eq!(value["host"]["os"], "linux");
             assert_eq!(value["host"]["pathStyle"], "posix");
-            assert!(value["host"]["shellModes"].as_array().unwrap().iter().any(|v| v == "sh"));
-            assert!(value["host"]["commandGuidance"].as_str().unwrap().contains("Do not emit cmd.exe"));
+            assert!(value["host"]["shellModes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|v| v == "sh"));
+            assert!(value["host"]["commandGuidance"]
+                .as_str()
+                .unwrap()
+                .contains("Do not emit cmd.exe"));
         }
     }
 }

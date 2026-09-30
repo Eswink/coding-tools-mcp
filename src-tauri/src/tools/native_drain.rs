@@ -14,51 +14,130 @@ struct NativeScopes {
 }
 thread_local! {static CURRENT:RefCell<NativeScopes>=const{RefCell::new(NativeScopes { cloud: None, root: None })};}
 /// Thread-confined scope; never retain this guard across async suspension.
-pub(crate) struct ThreadScope { previous: NativeScopes, _thread: PhantomData<Rc<()>> }
+pub(crate) struct ThreadScope {
+    previous: NativeScopes,
+    _thread: PhantomData<Rc<()>>,
+}
 pub(crate) fn enter(scope: Option<WorkScope>) -> ThreadScope {
-    let previous=CURRENT.with(|current| {
-        let mut next=current.borrow().clone();next.cloud=scope;current.replace(next)
+    let previous = CURRENT.with(|current| {
+        let mut next = current.borrow().clone();
+        next.cloud = scope;
+        current.replace(next)
     });
-    ThreadScope {previous,_thread:PhantomData}
+    ThreadScope {
+        previous,
+        _thread: PhantomData,
+    }
 }
-pub(crate) fn enter_context(ctx:&ToolContext)->ThreadScope {
-    let next=NativeScopes {cloud:ctx.native_work.clone(),root:ctx.root_scope.clone()};
-    let previous=CURRENT.with(|current|current.replace(next));ThreadScope{previous,_thread:PhantomData}
+pub(crate) fn enter_context(ctx: &ToolContext) -> ThreadScope {
+    let next = NativeScopes {
+        cloud: ctx.native_work.clone(),
+        root: ctx.root_scope.clone(),
+    };
+    let previous = CURRENT.with(|current| current.replace(next));
+    ThreadScope {
+        previous,
+        _thread: PhantomData,
+    }
 }
-impl Drop for ThreadScope { fn drop(&mut self) { CURRENT.with(|c|c.replace(std::mem::take(&mut self.previous))); } }
+impl Drop for ThreadScope {
+    fn drop(&mut self) {
+        CURRENT.with(|c| c.replace(std::mem::take(&mut self.previous)));
+    }
+}
 /// Both independent lifetimes must retain the actual descendant. Neither is authority.
-pub(crate) struct NativeGuard {cloud:Option<WorkGuard>,root:Option<super::root_work::RootWorkGuard>}
-impl From<WorkGuard> for NativeGuard { fn from(cloud:WorkGuard)->Self {Self{cloud:Some(cloud),root:None}} }
+pub(crate) struct NativeGuard {
+    cloud: Option<WorkGuard>,
+    root: Option<super::root_work::RootWorkGuard>,
+}
+impl From<WorkGuard> for NativeGuard {
+    fn from(cloud: WorkGuard) -> Self {
+        Self {
+            cloud: Some(cloud),
+            root: None,
+        }
+    }
+}
 impl NativeGuard {
-    fn complete(self) {if let Some(g)=self.cloud{g.complete();}if let Some(g)=self.root{g.complete();}}
+    fn complete(self) {
+        if let Some(g) = self.cloud {
+            g.complete();
+        }
+        if let Some(g) = self.root {
+            g.complete();
+        }
+    }
 }
-fn fork(scopes:&NativeScopes)->Result<Option<NativeGuard>, &'static str> {
-    let cloud=scopes.cloud.as_ref().map(WorkScope::fork).transpose().map_err(|_|"Native drain rejected child")?;
-    let root=scopes.root.as_ref().map(super::root_work::RootWorkScope::fork).transpose().map_err(|_|"Native root rejected child")?;
-    Ok(if cloud.is_none()&&root.is_none(){None}else{Some(NativeGuard{cloud,root})})
+fn fork(scopes: &NativeScopes) -> Result<Option<NativeGuard>, &'static str> {
+    let cloud = scopes
+        .cloud
+        .as_ref()
+        .map(WorkScope::fork)
+        .transpose()
+        .map_err(|_| "Native drain rejected child")?;
+    let root = scopes
+        .root
+        .as_ref()
+        .map(super::root_work::RootWorkScope::fork)
+        .transpose()
+        .map_err(|_| "Native root rejected child")?;
+    Ok(if cloud.is_none() && root.is_none() {
+        None
+    } else {
+        Some(NativeGuard { cloud, root })
+    })
 }
-pub(crate) fn current_child()->Result<Option<NativeGuard>, &'static str> { CURRENT.with(|c|fork(&c.borrow())) }
-fn rejected()->WorkspaceError {WorkspaceError::Tool{code:"CLOUD_HOST_STOPPING",message:"Native work admission is closed.".into(),category:"availability",retryable:false}}
-pub(crate) fn child(ctx:&ToolContext)->Result<Option<NativeGuard>,WorkspaceError> {
-    fork(&NativeScopes{cloud:ctx.native_work.clone(),root:ctx.root_scope.clone()}).map_err(|_|rejected())
+pub(crate) fn current_child() -> Result<Option<NativeGuard>, &'static str> {
+    CURRENT.with(|c| fork(&c.borrow()))
 }
-pub(crate) fn begin(guard:&mut Option<NativeGuard>)->Result<(),WorkspaceError> {
-    if let Some(g)=guard {
-        if let Some(cloud)=g.cloud.as_mut(){cloud.begin().map_err(|_|rejected())?;}
-        if let Some(root)=g.root.as_mut(){
-            if root.begin().is_err(){
+fn rejected() -> WorkspaceError {
+    WorkspaceError::Tool {
+        code: "CLOUD_HOST_STOPPING",
+        message: "Native work admission is closed.".into(),
+        category: "availability",
+        retryable: false,
+    }
+}
+pub(crate) fn child(ctx: &ToolContext) -> Result<Option<NativeGuard>, WorkspaceError> {
+    fork(&NativeScopes {
+        cloud: ctx.native_work.clone(),
+        root: ctx.root_scope.clone(),
+    })
+    .map_err(|_| rejected())
+}
+pub(crate) fn begin(guard: &mut Option<NativeGuard>) -> Result<(), WorkspaceError> {
+    if let Some(g) = guard {
+        if let Some(cloud) = g.cloud.as_mut() {
+            cloud.begin().map_err(|_| rejected())?;
+        }
+        if let Some(root) = g.root.as_mut() {
+            if root.begin().is_err() {
                 // No caller effects have occurred yet. Retire the already-begun
                 // paired cloud registration instead of inventing uncertainty.
-                if let Some(cloud)=g.cloud.take(){cloud.complete();}
+                if let Some(cloud) = g.cloud.take() {
+                    cloud.complete();
+                }
                 return Err(rejected());
             }
         }
     }
     Ok(())
 }
-pub(crate) fn scope(guard:&Option<NativeGuard>)->Option<WorkScope>{guard.as_ref().and_then(|g|g.cloud.as_ref().map(WorkGuard::scope))}
-pub(crate) fn root_scope(guard:&Option<NativeGuard>)->Option<super::root_work::RootWorkScope>{guard.as_ref().and_then(|g|g.root.as_ref().map(super::root_work::RootWorkGuard::scope))}
-pub(crate) fn complete(guard:Option<NativeGuard>){if let Some(g)=guard{g.complete();}}
+pub(crate) fn scope(guard: &Option<NativeGuard>) -> Option<WorkScope> {
+    guard
+        .as_ref()
+        .and_then(|g| g.cloud.as_ref().map(WorkGuard::scope))
+}
+pub(crate) fn root_scope(guard: &Option<NativeGuard>) -> Option<super::root_work::RootWorkScope> {
+    guard
+        .as_ref()
+        .and_then(|g| g.root.as_ref().map(super::root_work::RootWorkGuard::scope))
+}
+pub(crate) fn complete(guard: Option<NativeGuard>) {
+    if let Some(g) = guard {
+        g.complete();
+    }
+}
 
 /// Registration is synchronous, before a returned future can be queued or
 /// cancelled. The worker owns the guard, not the JoinHandle's waiting future.
@@ -105,7 +184,11 @@ fn group_gone(_pid: u32) -> bool {
 /// Called only after all session readers/initial input have been registered.
 /// The monitor retains both the real session and work guard. Cancellation or
 /// panic quarantines the drain instead of freeing the Agent's journal lock.
-pub(crate) fn track_process<G: Into<NativeGuard>>(session: Arc<ExecSession>, guard: Option<G>, pid: Option<u32>) {
+pub(crate) fn track_process<G: Into<NativeGuard>>(
+    session: Arc<ExecSession>,
+    guard: Option<G>,
+    pid: Option<u32>,
+) {
     let Some(guard) = guard else {
         return;
     };
@@ -121,8 +204,14 @@ pub(crate) fn track_process<G: Into<NativeGuard>>(session: Arc<ExecSession>, gua
         session.wait_for_readers().await;
         let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
         let owned_tree_gone = || {
-            #[cfg(windows)] { session.owned_job_drained() }
-            #[cfg(not(windows))] { pid.is_some_and(group_gone) }
+            #[cfg(windows)]
+            {
+                session.owned_job_drained()
+            }
+            #[cfg(not(windows))]
+            {
+                pid.is_some_and(group_gone)
+            }
         };
         while !owned_tree_gone() && tokio::time::Instant::now() < deadline {
             tokio::time::sleep(Duration::from_millis(20)).await;

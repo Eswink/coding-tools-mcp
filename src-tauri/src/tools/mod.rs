@@ -1,20 +1,20 @@
-#[path = "进程树v2.rs"]
-pub(crate) mod process_tree;
 #[path = "聊天运行域v1.rs"]
 pub(crate) mod chat_domain;
 pub mod context;
 pub mod listener_context;
 pub(crate) mod native_drain;
-pub(crate) mod root_work;
 pub(crate) mod policy_hooks;
+#[path = "进程树v2.rs"]
+pub(crate) mod process_tree;
+pub(crate) mod root_work;
 // Crate-private adapter: not exposed without an owned Agent supervisor.
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) mod cloud_host;
 pub mod dispatch;
 pub mod exec;
-pub(crate) mod execution_sandbox;
 #[path = "异步命令v1.rs"]
 pub mod exec_tasks;
+pub(crate) mod execution_sandbox;
 pub mod file;
 pub mod git;
 #[cfg(target_os = "linux")]

@@ -35,10 +35,14 @@ fn legacy_protection_is_lossless_and_idempotent() {
 fn lost_key_never_overwrites_ciphertext() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("profiles.json");
-    Vault::new(&MemoryKeys::default()).write(&path, r#"{"token":"old"}"#).unwrap();
+    Vault::new(&MemoryKeys::default())
+        .write(&path, r#"{"token":"old"}"#)
+        .unwrap();
     let bytes = fs::read(&path).unwrap();
     let keys = MemoryKeys::default();
-    assert!(Vault::new(&keys).write(&path, r#"{"token":"new"}"#).is_err());
+    assert!(Vault::new(&keys)
+        .write(&path, r#"{"token":"new"}"#)
+        .is_err());
     assert_eq!(fs::read(&path).unwrap(), bytes);
 }
 
@@ -49,7 +53,8 @@ fn tampered_ciphertext_is_not_replaced_with_new_data() {
     let keys = MemoryKeys::default();
     let vault = Vault::new(&keys);
     vault.write(&path, r#"{"token":"old"}"#).unwrap();
-    let mut value: serde_json::Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    let mut value: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
     value["ciphertext"] = "AAAA".into();
     fs::write(&path, value.to_string()).unwrap();
     let bytes = fs::read(&path).unwrap();

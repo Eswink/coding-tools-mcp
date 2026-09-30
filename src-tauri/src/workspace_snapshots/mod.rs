@@ -306,7 +306,6 @@ impl SnapshotStore {
 #[cfg(test)]
 mod tests;
 
-
 #[cfg(all(test, target_os = "linux"))]
 #[path = "metadata_tests.rs"]
 mod metadata_tests;

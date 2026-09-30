@@ -99,10 +99,13 @@ pub fn exec_command(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceE
         }
         Err(error) => match execution_failure_result(&error, cmd, &workdir.path) {
             Some(mut result) => {
-                let child_started = matches!(result["error"]["code"].as_str(), Some("TIMEOUT" | "STDIN_WRITE_FAILED"));
+                let child_started = matches!(
+                    result["error"]["code"].as_str(),
+                    Some("TIMEOUT" | "STDIN_WRITE_FAILED")
+                );
                 super::execution_sandbox::annotate(ctx, &mut result, child_started);
                 Ok(tool_ok(result))
-            },
+            }
             None => Err(error),
         },
     }
@@ -259,22 +262,36 @@ async fn run_command(
 
     let mut native_work = super::native_drain::child(ctx)?;
     super::native_drain::begin(&mut native_work)?;
-    let spawned = if ctx.managed_task || super::execution_sandbox::required(ctx) || native_work.is_some() {
-        crate::tools::process_tree::spawn(&mut command).await.map(|(child, tree)| (child, Some(tree)))
-    } else { command.spawn().map(|child| (child, None)) };
+    let spawned =
+        if ctx.managed_task || super::execution_sandbox::required(ctx) || native_work.is_some() {
+            crate::tools::process_tree::spawn(&mut command)
+                .await
+                .map(|(child, tree)| (child, Some(tree)))
+        } else {
+            command.spawn().map(|child| (child, None))
+        };
     let (child, tree) = spawned.map_err(|e| {
         super::native_drain::complete(native_work.take());
         WorkspaceError::ToolDetails {
-        code: if super::execution_sandbox::required(ctx) { "SANDBOX_SETUP_FAILED" } else { "COMMAND_SPAWN_FAILED" },
-        message: if super::execution_sandbox::required(ctx) { "Required workspace isolation rejected child startup.".into() } else { format!("Failed to start command: {e}") },
-        category: "runtime",
-        retryable: !super::execution_sandbox::required(ctx),
-        details: json!({
-            "termination_reason": "spawn_failed",
-            "recoverable": true,
-            "suggestion": "检查命令路径、权限和运行时环境后重试"
-        }),
-    }})?;
+            code: if super::execution_sandbox::required(ctx) {
+                "SANDBOX_SETUP_FAILED"
+            } else {
+                "COMMAND_SPAWN_FAILED"
+            },
+            message: if super::execution_sandbox::required(ctx) {
+                "Required workspace isolation rejected child startup.".into()
+            } else {
+                format!("Failed to start command: {e}")
+            },
+            category: "runtime",
+            retryable: !super::execution_sandbox::required(ctx),
+            details: json!({
+                "termination_reason": "spawn_failed",
+                "recoverable": true,
+                "suggestion": "检查命令路径、权限和运行时环境后重试"
+            }),
+        }
+    })?;
     let native_pid = child.id();
 
     let session = ctx.sessions.insert(match tree {
@@ -287,7 +304,9 @@ async fn run_command(
     let deadline = start + limit;
 
     if !tty && !stdin_text.is_empty() {
-        session.spawn_initial_stdin(stdin_text.to_owned(), deadline).await;
+        session
+            .spawn_initial_stdin(stdin_text.to_owned(), deadline)
+            .await;
     }
 
     super::native_drain::track_process(session.clone(), native_work, native_pid);
@@ -303,7 +322,10 @@ async fn run_command(
         if session.has_exited() {
             session.wait_for_readers().await;
             let snapshot = session.snapshot(max_output);
-            if matches!(snapshot["termination_reason"].as_str(), Some("timeout" | "stdin_error")) {
+            if matches!(
+                snapshot["termination_reason"].as_str(),
+                Some("timeout" | "stdin_error")
+            ) {
                 schedule_session_eviction(ctx.sessions.clone(), session.session_id.clone());
                 return Err(command_io_failure(snapshot));
             }
@@ -331,8 +353,17 @@ async fn run_command(
 fn command_io_failure(snapshot: Value) -> WorkspaceError {
     let timed_out = snapshot["termination_reason"] == "timeout";
     WorkspaceError::ToolDetails {
-        code: if timed_out { "TIMEOUT" } else { "STDIN_WRITE_FAILED" },
-        message: if timed_out { "Command timed out." } else { "Initial stdin delivery failed." }.into(),
+        code: if timed_out {
+            "TIMEOUT"
+        } else {
+            "STDIN_WRITE_FAILED"
+        },
+        message: if timed_out {
+            "Command timed out."
+        } else {
+            "Initial stdin delivery failed."
+        }
+        .into(),
         category: "runtime",
         retryable: timed_out,
         details: json!({
@@ -355,7 +386,9 @@ fn spawn_timeout_monitor(
     tauri::async_runtime::spawn(async move {
         loop {
             session.refresh_status().await;
-            if session.has_exited() { break; }
+            if session.has_exited() {
+                break;
+            }
             if Instant::now() >= deadline {
                 session.mark_termination_reason("timeout");
                 session.kill_and_wait().await;
@@ -741,7 +774,8 @@ mod tests {
         assert!(runner.contains("powershell") || runner.contains("pwsh"));
         assert!(script.as_std().get_args().any(|arg| arg == "-File"));
 
-        let python = command_for_program("C:/Python312/python.exe", &["-c".into(), "print(1)".into()]);
+        let python =
+            command_for_program("C:/Python312/python.exe", &["-c".into(), "print(1)".into()]);
         assert_eq!(
             python.as_std().get_program().to_string_lossy(),
             "C:/Python312/python.exe"
@@ -778,7 +812,10 @@ mod tests {
                 ("any-name.cmd", "tooling-cmd-ok"),
                 ("any-name.ps1", "tooling-powershell-ok"),
                 ("cmd /c echo tooling-cmd-ok", "tooling-cmd-ok"),
-                ("powershell -NoProfile -Command \"Write-Output tooling-powershell-ok\"", "tooling-powershell-ok"),
+                (
+                    "powershell -NoProfile -Command \"Write-Output tooling-powershell-ok\"",
+                    "tooling-powershell-ok",
+                ),
                 ("python -c \"print('中文输出正常 ✅')\"", "中文输出正常 ✅"),
             ] {
                 let output = call_tool(
@@ -788,13 +825,27 @@ mod tests {
                              "yield_time_ms": FUNCTIONAL_BUDGET_MS }),
                 );
                 assert_eq!(output["ok"], true, "round {round}: {command}: {output}");
-                assert_eq!(output["command_ok"], true, "round {round}: {command}: {output}");
+                assert_eq!(
+                    output["command_ok"], true,
+                    "round {round}: {command}: {output}"
+                );
                 assert_eq!(output["child_process"], true, "{command}: {output}");
                 assert_eq!(output["exit_code"], 0, "{command}: {output}");
-                assert_eq!(output["termination_reason"], "exited", "{command}: {output}");
-                assert!(output["stdout"].as_str().unwrap_or_default().contains(expected),
-                        "round {round}: expected {expected}: {output}");
-                eprintln!("runner round {round}/5: {command}; elapsed_ms={}", output["elapsed_ms"]);
+                assert_eq!(
+                    output["termination_reason"], "exited",
+                    "{command}: {output}"
+                );
+                assert!(
+                    output["stdout"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .contains(expected),
+                    "round {round}: expected {expected}: {output}"
+                );
+                eprintln!(
+                    "runner round {round}/5: {command}; elapsed_ms={}",
+                    output["elapsed_ms"]
+                );
             }
         }
 

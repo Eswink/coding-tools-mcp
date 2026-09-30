@@ -1,9 +1,9 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use serde_json::{json, Value};
-use serde::{Deserialize, Serialize};
 use base64::{engine::general_purpose::STANDARD, Engine};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::tools::session::ExecSession;
@@ -28,14 +28,21 @@ pub(super) enum Status {
 
 impl Status {
     pub fn terminal(self) -> bool {
-        matches!(self, Self::Succeeded | Self::Failed | Self::TimedOut | Self::Cancelled | Self::Interrupted)
+        matches!(
+            self,
+            Self::Succeeded | Self::Failed | Self::TimedOut | Self::Cancelled | Self::Interrupted
+        )
     }
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Queued => "queued", Self::Running => "running",
-            Self::Cancelling => "cancelling", Self::Succeeded => "succeeded",
-            Self::Failed => "failed", Self::TimedOut => "timed_out", Self::Cancelled => "cancelled",
+            Self::Queued => "queued",
+            Self::Running => "running",
+            Self::Cancelling => "cancelling",
+            Self::Succeeded => "succeeded",
+            Self::Failed => "failed",
+            Self::TimedOut => "timed_out",
+            Self::Cancelled => "cancelled",
             Self::Interrupted => "interrupted",
         }
     }
@@ -55,7 +62,11 @@ pub(super) struct JobData {
 impl JobData {
     pub(super) fn holds_capacity(&self) -> bool {
         !self.status.terminal()
-            || self.result.as_ref().and_then(|r| r.get("process_may_be_running")) == Some(&Value::Bool(true))
+            || self
+                .result
+                .as_ref()
+                .and_then(|r| r.get("process_may_be_running"))
+                == Some(&Value::Bool(true))
     }
 }
 
@@ -73,15 +84,31 @@ pub(super) struct Job {
 }
 
 impl Job {
-    pub(super) fn new(request_id: String, fingerprint: String, timeout_ms: u64, persistent: bool) -> Self {
+    pub(super) fn new(
+        request_id: String,
+        fingerprint: String,
+        timeout_ms: u64,
+        persistent: bool,
+    ) -> Self {
         Self {
-            id: Uuid::new_v4().to_string(), request_id, fingerprint, timeout_ms,
-            created_at: unix_ms(), started: Instant::now(), persistent, restored_elapsed: None,
+            id: Uuid::new_v4().to_string(),
+            request_id,
+            fingerprint,
+            timeout_ms,
+            created_at: unix_ms(),
+            started: Instant::now(),
+            persistent,
+            restored_elapsed: None,
             persistence_failed: std::sync::atomic::AtomicBool::new(false),
             data: Mutex::new(JobData {
-                status: Status::Queued, cancel_requested: false, session: None, result: None,
-                native_stdout: (Vec::new(), 0), native_stderr: (Vec::new(), 0),
-                finished: None, completed_at: None,
+                status: Status::Queued,
+                cancel_requested: false,
+                session: None,
+                result: None,
+                native_stdout: (Vec::new(), 0),
+                native_stderr: (Vec::new(), 0),
+                finished: None,
+                completed_at: None,
             }),
         }
     }
@@ -108,14 +135,25 @@ impl Job {
 
     pub fn finish(&self, status: Status, mut result: Value) {
         let mut d = self.data.lock().expect("job state");
-        if d.status.terminal() { return; }
+        if d.status.terminal() {
+            return;
+        }
         if d.session.is_none() {
-            d.native_stdout = bounded_output(result.get("stdout").and_then(Value::as_str).unwrap_or(""));
-            d.native_stderr = bounded_output(result.get("stderr").and_then(Value::as_str).unwrap_or(""));
+            d.native_stdout =
+                bounded_output(result.get("stdout").and_then(Value::as_str).unwrap_or(""));
+            d.native_stderr =
+                bounded_output(result.get("stderr").and_then(Value::as_str).unwrap_or(""));
         }
         if let Some(obj) = result.as_object_mut() {
             // Output is paged separately. Never publish expired legacy session references.
-            for key in ["stdout", "stderr", "output_refs", "session_id", "harness_status", "next_actions"] {
+            for key in [
+                "stdout",
+                "stderr",
+                "output_refs",
+                "session_id",
+                "harness_status",
+                "next_actions",
+            ] {
                 obj.remove(key);
             }
         }
@@ -128,8 +166,14 @@ impl Job {
     pub fn output(&self, stream: &str, cursor: u64, limit: u64) -> Result<Value, WorkspaceError> {
         let (session, native) = {
             let d = self.data.lock().expect("job state");
-            let native = if d.session.is_some() { None } else {
-                Some(if stream == "stdout" { d.native_stdout.clone() } else { d.native_stderr.clone() })
+            let native = if d.session.is_some() {
+                None
+            } else {
+                Some(if stream == "stdout" {
+                    d.native_stdout.clone()
+                } else {
+                    d.native_stderr.clone()
+                })
             };
             (d.session.clone(), native)
         };
@@ -143,12 +187,22 @@ impl Job {
 
 fn bounded_output(text: &str) -> (Vec<u8>, usize) {
     let bytes = text.as_bytes();
-    (bytes[bytes.len().saturating_sub(RETAIN_BYTES)..].to_vec(), bytes.len())
+    (
+        bytes[bytes.len().saturating_sub(RETAIN_BYTES)..].to_vec(),
+        bytes.len(),
+    )
 }
 
-pub(super) fn page(bytes: &[u8], total: usize, cursor: u64, limit: u64) -> Result<Value, WorkspaceError> {
+pub(super) fn page(
+    bytes: &[u8],
+    total: usize,
+    cursor: u64,
+    limit: u64,
+) -> Result<Value, WorkspaceError> {
     if cursor > total as u64 {
-        return Err(WorkspaceError::invalid_argument("output cursor exceeds total produced bytes"));
+        return Err(WorkspaceError::invalid_argument(
+            "output cursor exceeds total produced bytes",
+        ));
     }
     let base = total.saturating_sub(bytes.len()) as u64;
     let offset = cursor.max(base);
@@ -165,9 +219,17 @@ pub(super) fn page(bytes: &[u8], total: usize, cursor: u64, limit: u64) -> Resul
 }
 
 pub(super) fn error(code: &'static str, message: &str, retryable: bool) -> WorkspaceError {
-    WorkspaceError::Tool { code, message: message.into(), category: "runtime", retryable }
+    WorkspaceError::Tool {
+        code,
+        message: message.into(),
+        category: "runtime",
+        retryable,
+    }
 }
 
 pub(super) fn unix_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }

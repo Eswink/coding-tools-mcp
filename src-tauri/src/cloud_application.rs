@@ -105,7 +105,8 @@ impl ApplicationAgents {
                             return TaskExit::Drained;
                         }
                         let opened = (|| {
-                            let journal_root = material.prepare_journals(initialize).map_err(|_| ())?;
+                            let journal_root =
+                                material.prepare_journals(initialize).map_err(|_| ())?;
                             let tools = Arc::new(
                                 NativeToolHost::new(
                                     &profile,
@@ -268,11 +269,21 @@ impl ApplicationAgents {
     /// Read-only proof for native restore admission. A missing UI row cannot
     /// hide an occupied lifecycle slot; uncertain completion is never idle.
     pub(crate) fn ensure_quiescent(&self, id: &str) -> AppResult<()> {
-        if self.manager.current(workspace_identity(id)).map_err(|_|unavailable())?.is_some() {
+        if self
+            .manager
+            .current(workspace_identity(id))
+            .map_err(|_| unavailable())?
+            .is_some()
+        {
             return Err(unavailable());
         }
-        if self.views.lock().map_err(|_|unavailable())?.get(id)
-            .is_some_and(|view|view.handle.outcome()==Some(RunOutcome::Unconfirmed)) {
+        if self
+            .views
+            .lock()
+            .map_err(|_| unavailable())?
+            .get(id)
+            .is_some_and(|view| view.handle.outcome() == Some(RunOutcome::Unconfirmed))
+        {
             return Err(unavailable());
         }
         Ok(())

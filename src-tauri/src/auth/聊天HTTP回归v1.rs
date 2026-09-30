@@ -1,59 +1,163 @@
-use serde_json::{json, Value};
-use super::{PublicOrigin, chat_fixture as fixture};
+use super::{chat_fixture as fixture, PublicOrigin};
 use crate::workspace::{AuthConfig, RuntimeConfig};
+use serde_json::{json, Value};
 #[tokio::test]
 async fn http_conversations_require_separate_grants_and_cannot_observe_each_others_jobs() {
-    let root = tempfile::tempdir().unwrap(); let profile = uuid::Uuid::new_v4().to_string();
-    let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap(); let port = reserve.local_addr().unwrap().port();
-    let (stop,task,execution_gate) = crate::mcp::spawn_listener_from_bound(reserve,root.path().into(),profile.clone(),
-        AuthConfig { oauth_client_id:"test-client".into(), session_policy:super::session_policy::SessionPolicy {exclusive:false,..Default::default()}, ..Default::default() },PublicOrigin::managed(fixture::ORIGIN).unwrap(),
-        None,Some("password".into()),Some(fixture::KEY.into()),RuntimeConfig::default()).unwrap();
-    let client = fixture::client(); let url = format!("http://127.0.0.1:{port}/mcp");
-    async fn invoke(client:&reqwest::Client,url:&str,name:&str,args:Value,session:&str)->Value {
-        let value: Value = client.post(url).json(&fixture::request(name,args,session)).send().await.unwrap().json().await.unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let profile = uuid::Uuid::new_v4().to_string();
+    let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = reserve.local_addr().unwrap().port();
+    let (stop, task, execution_gate) = crate::mcp::spawn_listener_from_bound(
+        reserve,
+        root.path().into(),
+        profile.clone(),
+        AuthConfig {
+            oauth_client_id: "test-client".into(),
+            session_policy: super::session_policy::SessionPolicy {
+                exclusive: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        PublicOrigin::managed(fixture::ORIGIN).unwrap(),
+        None,
+        Some("password".into()),
+        Some(fixture::KEY.into()),
+        RuntimeConfig::default(),
+    )
+    .unwrap();
+    let client = fixture::client();
+    let url = format!("http://127.0.0.1:{port}/mcp");
+    async fn invoke(
+        client: &reqwest::Client,
+        url: &str,
+        name: &str,
+        args: Value,
+        session: &str,
+    ) -> Value {
+        let value: Value = client
+            .post(url)
+            .json(&fixture::request(name, args, session))
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
         value["result"]["structuredContent"].clone()
     }
-    assert_eq!(invoke(&client,&url,"server_info",json!({}),"A").await["ok"],false);
-    fixture::approve(&profile,root.path(),"A");
-    assert_eq!(invoke(&client,&url,"server_info",json!({}),"A").await["ok"],true);
-    assert_eq!(invoke(&client,&url,"server_info",json!({"_meta":{"openai/session":"A"}}),"B").await["ok"],false);
-    let started = invoke(&client,&url,"start_exec_task",json!({"cmd":"echo chat-A-only","request_id":"same-key"}),"A").await;
-    assert_eq!(started["ok"],true,"{started}"); let id = started["job_id"].clone();
-    fixture::approve(&profile,root.path(),"B");
+    assert_eq!(
+        invoke(&client, &url, "server_info", json!({}), "A").await["ok"],
+        false
+    );
+    fixture::approve(&profile, root.path(), "A");
+    assert_eq!(
+        invoke(&client, &url, "server_info", json!({}), "A").await["ok"],
+        true
+    );
+    assert_eq!(
+        invoke(
+            &client,
+            &url,
+            "server_info",
+            json!({"_meta":{"openai/session":"A"}}),
+            "B"
+        )
+        .await["ok"],
+        false
+    );
+    let started = invoke(
+        &client,
+        &url,
+        "start_exec_task",
+        json!({"cmd":"echo chat-A-only","request_id":"same-key"}),
+        "A",
+    )
+    .await;
+    assert_eq!(started["ok"], true, "{started}");
+    let id = started["job_id"].clone();
+    fixture::approve(&profile, root.path(), "B");
     execution_gate.pause().unwrap();
-    assert_eq!(invoke(&client,&url,"list_exec_tasks",json!({}),"B").await["jobs"],json!([]));
-    assert_eq!(invoke(&client,&url,"list_exec_tasks",json!({}),"A").await["jobs"].as_array().unwrap().len(),1);
-    let foreign_get = invoke(&client,&url,"get_exec_task",json!({"job_id":id}),"B").await;
-    assert_eq!(foreign_get["ok"],false);
+    assert_eq!(
+        invoke(&client, &url, "list_exec_tasks", json!({}), "B").await["jobs"],
+        json!([])
+    );
+    assert_eq!(
+        invoke(&client, &url, "list_exec_tasks", json!({}), "A").await["jobs"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    let foreign_get = invoke(&client, &url, "get_exec_task", json!({"job_id":id}), "B").await;
+    assert_eq!(foreign_get["ok"], false);
     assert!(!foreign_get.to_string().contains(id.as_str().unwrap()));
-    let foreign_cancel = invoke(&client,&url,"cancel_exec_task",json!({"job_id":id}),"B").await;
-    assert_eq!(foreign_cancel["ok"],false);
+    let foreign_cancel = invoke(&client, &url, "cancel_exec_task", json!({"job_id":id}), "B").await;
+    assert_eq!(foreign_cancel["ok"], false);
     assert!(!foreign_cancel.to_string().contains(id.as_str().unwrap()));
     let until = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
-        let v = invoke(&client,&url,"get_exec_task",json!({"job_id":id}),"A").await;
-        if v["terminal"] == true { assert_eq!(v["status"],"succeeded","{v}"); break; }
-        assert!(std::time::Instant::now() < until,"{v}"); tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let v = invoke(&client, &url, "get_exec_task", json!({"job_id":id}), "A").await;
+        if v["terminal"] == true {
+            assert_eq!(v["status"], "succeeded", "{v}");
+            break;
+        }
+        assert!(std::time::Instant::now() < until, "{v}");
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
     execution_gate.resume().unwrap();
-    super::chat::service().revoke(&profile,None);
-    assert_eq!(invoke(&client,&url,"get_exec_task",json!({"job_id":id}),"A").await["ok"],false);
-    drop(client);stop.send(()).unwrap();tokio::time::timeout(std::time::Duration::from_secs(5), task)
-        .await.expect("listener shutdown timed out").unwrap();
+    super::chat::service().revoke(&profile, None);
+    assert_eq!(
+        invoke(&client, &url, "get_exec_task", json!({"job_id":id}), "A").await["ok"],
+        false
+    );
+    drop(client);
+    stop.send(()).unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(5), task)
+        .await
+        .expect("listener shutdown timed out")
+        .unwrap();
 }
 #[tokio::test]
 async fn noauth_listener_discovery_does_not_authorize_business_or_self_approval() {
     let root = tempfile::tempdir().unwrap();
-    let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap(); let port = reserve.local_addr().unwrap().port();
-    let (stop,task,_execution_gate) = crate::mcp::spawn_listener_from_bound(reserve,root.path().into(),uuid::Uuid::new_v4().to_string(),
-        AuthConfig { auth_type:"noauth".into(),..Default::default() },PublicOrigin::managed("").unwrap(),None,None,None,RuntimeConfig::default()).unwrap();
-    let client = fixture::client();let url = format!("http://127.0.0.1:{port}/mcp");
-    for name in ["server_info","request_chat_authorization","exec_command"] {
-        let v: Value = client.post(&url).json(&fixture::request(name,json!({}),"A")).send().await.unwrap().json().await.unwrap();
-        assert_eq!(v["result"]["structuredContent"]["ok"],false,"{v}");
+    let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = reserve.local_addr().unwrap().port();
+    let (stop, task, _execution_gate) = crate::mcp::spawn_listener_from_bound(
+        reserve,
+        root.path().into(),
+        uuid::Uuid::new_v4().to_string(),
+        AuthConfig {
+            auth_type: "noauth".into(),
+            ..Default::default()
+        },
+        PublicOrigin::managed("").unwrap(),
+        None,
+        None,
+        None,
+        RuntimeConfig::default(),
+    )
+    .unwrap();
+    let client = fixture::client();
+    let url = format!("http://127.0.0.1:{port}/mcp");
+    for name in ["server_info", "request_chat_authorization", "exec_command"] {
+        let v: Value = client
+            .post(&url)
+            .json(&fixture::request(name, json!({}), "A"))
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert_eq!(v["result"]["structuredContent"]["ok"], false, "{v}");
     }
-    drop(client);stop.send(()).unwrap();tokio::time::timeout(std::time::Duration::from_secs(5), task)
-        .await.expect("listener shutdown timed out").unwrap();
+    drop(client);
+    stop.send(()).unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(5), task)
+        .await
+        .expect("listener shutdown timed out")
+        .unwrap();
 }
 
 #[tokio::test]
@@ -66,50 +170,88 @@ async fn offline_new_authorization_is_a_non_oauth_tool_error_and_resumes_cleanly
         reserve,
         root.path().into(),
         profile.clone(),
-        AuthConfig { oauth_client_id: "test-client".into(), ..Default::default() },
+        AuthConfig {
+            oauth_client_id: "test-client".into(),
+            ..Default::default()
+        },
         PublicOrigin::managed(fixture::ORIGIN).unwrap(),
         None,
         Some("password".into()),
         Some(fixture::KEY.into()),
         RuntimeConfig::default(),
-    ).unwrap();
+    )
+    .unwrap();
     let client = fixture::client();
     let url = format!("http://127.0.0.1:{port}/mcp");
     let service = super::chat::service();
     let mut events = service.subscribe();
 
     execution_gate.pause().unwrap();
-    let response = client.post(&url)
-        .json(&fixture::request("request_chat_authorization", json!({}), "offline-new"))
-        .send().await.unwrap();
+    let response = client
+        .post(&url)
+        .json(&fixture::request(
+            "request_chat_authorization",
+            json!({}),
+            "offline-new",
+        ))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(response.status(), 200);
     assert!(response.headers().get("www-authenticate").is_none());
     let body: Value = response.json().await.unwrap();
     let blocked = &body["result"]["structuredContent"];
-    assert_eq!(blocked["error"]["code"], "CHAT_AUTHORIZATION_UNAVAILABLE", "{body}");
+    assert_eq!(
+        blocked["error"]["code"], "CHAT_AUTHORIZATION_UNAVAILABLE",
+        "{body}"
+    );
     assert_eq!(blocked["error"]["category"], "permission", "{body}");
     assert_eq!(blocked["requires_local_action"], false, "{body}");
     assert!(blocked.get("authorization").is_none(), "{body}");
-    assert!(service.snapshot(&profile)["records"].as_array().unwrap().is_empty());
+    assert!(service.snapshot(&profile)["records"]
+        .as_array()
+        .unwrap()
+        .is_empty());
     while let Ok(event) = events.try_recv() {
-        assert_ne!(event.profile, profile, "suppressed request emitted a profile event");
+        assert_ne!(
+            event.profile, profile,
+            "suppressed request emitted a profile event"
+        );
     }
 
     execution_gate.resume().unwrap();
-    let response = client.post(&url)
-        .json(&fixture::request("request_chat_authorization", json!({}), "offline-new"))
-        .send().await.unwrap();
+    let response = client
+        .post(&url)
+        .json(&fixture::request(
+            "request_chat_authorization",
+            json!({}),
+            "offline-new",
+        ))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(response.status(), 200);
     assert!(response.headers().get("www-authenticate").is_none());
     let body: Value = response.json().await.unwrap();
-    assert_eq!(body["result"]["structuredContent"]["authorization"]["status"], "pending", "{body}");
-    assert_eq!(service.snapshot(&profile)["records"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        body["result"]["structuredContent"]["authorization"]["status"], "pending",
+        "{body}"
+    );
+    assert_eq!(
+        service.snapshot(&profile)["records"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
 
     service.revoke(&profile, None);
     drop(client);
     stop.send(()).unwrap();
     tokio::time::timeout(std::time::Duration::from_secs(5), task)
-        .await.expect("listener shutdown timed out").unwrap();
+        .await
+        .expect("listener shutdown timed out")
+        .unwrap();
 }
 
 #[tokio::test]
@@ -122,19 +264,26 @@ async fn workspace_pause_keeps_oauth_and_chat_owner_but_blocks_new_business_disp
         reserve,
         root.path().into(),
         profile.clone(),
-        AuthConfig { oauth_client_id: "test-client".into(), ..Default::default() },
+        AuthConfig {
+            oauth_client_id: "test-client".into(),
+            ..Default::default()
+        },
         PublicOrigin::managed(fixture::ORIGIN).unwrap(),
         None,
         Some("password".into()),
         Some(fixture::KEY.into()),
         RuntimeConfig::default(),
-    ).unwrap();
+    )
+    .unwrap();
     let client = fixture::client();
     let url = format!("http://127.0.0.1:{port}/mcp");
     async fn invoke(client: &reqwest::Client, url: &str, name: &str, session: &str) -> Value {
-        let response = client.post(url)
+        let response = client
+            .post(url)
             .json(&fixture::request(name, json!({}), session))
-            .send().await.unwrap();
+            .send()
+            .await
+            .unwrap();
         assert_eq!(response.status(), 200);
         assert!(response.headers().get("www-authenticate").is_none());
         let value: Value = response.json().await.unwrap();
@@ -172,5 +321,7 @@ async fn workspace_pause_keeps_oauth_and_chat_owner_but_blocks_new_business_disp
     drop(client);
     stop.send(()).unwrap();
     tokio::time::timeout(std::time::Duration::from_secs(5), task)
-        .await.expect("listener shutdown timed out").unwrap();
+        .await
+        .expect("listener shutdown timed out")
+        .unwrap();
 }

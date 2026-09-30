@@ -324,8 +324,13 @@ pub const P0_TOOLS: &[(&str, &str, &str, bool, bool, bool)] = &[
 
 /// old Python 版本默认提供的核心工具集。默认 MCP 只暴露这一组，保持 Agent 的工具面稳定。
 pub const CORE_TOOLS: &[&str] = &[
-    "worktree_create", "worktree_list", "worktree_remove",
-    "start_exec_task", "get_exec_task", "list_exec_tasks", "cancel_exec_task",
+    "worktree_create",
+    "worktree_list",
+    "worktree_remove",
+    "start_exec_task",
+    "get_exec_task",
+    "list_exec_tasks",
+    "cancel_exec_task",
     "server_info",
     "history_session_bootstrap",
     "history_session_checkpoint",
@@ -356,7 +361,8 @@ pub const CORE_TOOLS: &[&str] = &[
 
 pub const CORE_READ_ONLY_TOOLS: &[&str] = &[
     "worktree_list",
-    "get_exec_task", "list_exec_tasks",
+    "get_exec_task",
+    "list_exec_tasks",
     "server_info",
     "check_exec_environment",
     "get_default_cwd",
@@ -377,8 +383,13 @@ pub const CORE_READ_ONLY_TOOLS: &[&str] = &[
 ];
 
 pub const ALLOWED_TOOLS: &[&str] = &[
-    "worktree_create", "worktree_list", "worktree_remove",
-    "start_exec_task", "get_exec_task", "list_exec_tasks", "cancel_exec_task",
+    "worktree_create",
+    "worktree_list",
+    "worktree_remove",
+    "start_exec_task",
+    "get_exec_task",
+    "list_exec_tasks",
+    "cancel_exec_task",
     "harness_status",
     "operation_log",
     "server_info",
@@ -422,8 +433,10 @@ pub const ALLOWED_TOOLS: &[&str] = &[
 ];
 
 pub const MUTATING_TOOLS: &[&str] = &[
-    "worktree_create", "worktree_remove",
-    "start_exec_task", "cancel_exec_task",
+    "worktree_create",
+    "worktree_remove",
+    "start_exec_task",
+    "cancel_exec_task",
     "history_session_bootstrap",
     "history_session_checkpoint",
     "history_session_validate",
@@ -441,7 +454,8 @@ pub const MUTATING_TOOLS: &[&str] = &[
 
 pub const READ_ONLY_TOOLS: &[&str] = &[
     "worktree_list",
-    "get_exec_task", "list_exec_tasks",
+    "get_exec_task",
+    "list_exec_tasks",
     "harness_status",
     "operation_log",
     "server_info",
@@ -510,7 +524,11 @@ pub fn list_tools_for_profile(tool_profile: &str) -> Vec<Value> {
         .filter_map(|name| {
             P0_TOOLS.iter().find(|(n, ..)| *n == name).map(|entry| {
                 let (name, title, description, read_only, destructive, open_world) = *entry;
-                let (read_only, destructive, open_world) = if compat && !matches!(name, "worktree_create" | "worktree_list" | "worktree_remove") {
+                let (read_only, destructive, open_world) = if compat
+                    && !matches!(
+                        name,
+                        "worktree_create" | "worktree_list" | "worktree_remove"
+                    ) {
                     (true, false, false)
                 } else {
                     (read_only, destructive, open_world)
@@ -534,10 +552,16 @@ pub fn list_tools_for_profile(tool_profile: &str) -> Vec<Value> {
 }
 
 pub fn input_schema(name: &str) -> Value {
-    if let Some(schema) = crate::tools::exec_tasks::input_schema(name) { return schema; }
+    if let Some(schema) = crate::tools::exec_tasks::input_schema(name) {
+        return schema;
+    }
     match name {
-        "worktree_create" | "worktree_list" => json!({"type":"object","properties":{},"additionalProperties":false}),
-        "worktree_remove" => json!({"type":"object","properties":{"id":{"type":"string","minLength":32,"maxLength":32,"pattern":"^[0-9a-f]{32}$"}},"required":["id"],"additionalProperties":false}),
+        "worktree_create" | "worktree_list" => {
+            json!({"type":"object","properties":{},"additionalProperties":false})
+        }
+        "worktree_remove" => {
+            json!({"type":"object","properties":{"id":{"type":"string","minLength":32,"maxLength":32,"pattern":"^[0-9a-f]{32}$"}},"required":["id"],"additionalProperties":false})
+        }
         "history_session_bootstrap" => json!({
             "type": "object",
             "properties": {
@@ -952,7 +976,9 @@ mod tests {
         let unique: HashSet<_> = names.iter().copied().collect();
 
         assert_eq!(tools.len(), 33); // 26 legacy, four asynchronous execution and three managed worktree tools.
-        for name in ["worktree_create", "worktree_list", "worktree_remove"] { assert!(names.contains(&name)); }
+        for name in ["worktree_create", "worktree_list", "worktree_remove"] {
+            assert!(names.contains(&name));
+        }
         assert_eq!(unique.len(), tools.len());
         assert!(names.contains(&"history_session_bootstrap"));
         assert!(names.contains(&"history_session_checkpoint"));

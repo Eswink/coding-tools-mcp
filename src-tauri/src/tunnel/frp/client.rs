@@ -397,13 +397,21 @@ pub async fn stop_frpc(child: Child, pid: Option<u32>) -> AppResult<()> {
 }
 
 fn validate_frp_config(config: &FrpServerConfig) -> AppResult<()> {
-    crate::workspace::endpoint::normalize_server_host(&config.server_addr).map_err(AppError::Message)?;
+    crate::workspace::endpoint::normalize_server_host(&config.server_addr)
+        .map_err(AppError::Message)?;
     if config.server_port == 0 {
         return Err(AppError::Message("FRP 控制端口必须为 1–65535。".into()));
     }
-    config.proxy.options.public_origin(&config.server_addr, &config.proxy.subdomain)
+    config
+        .proxy
+        .options
+        .public_origin(&config.server_addr, &config.proxy.subdomain)
         .map_err(AppError::Message)?;
-    config.proxy.options.validate_target(config.proxy.local_port).map_err(AppError::Message)?;
+    config
+        .proxy
+        .options
+        .validate_target(config.proxy.local_port)
+        .map_err(AppError::Message)?;
     Ok(())
 }
 
@@ -639,9 +647,15 @@ async fn wait_for_frpc_ready(
         let detail = read_log_since(log_path, log_offset);
         // With loginFailExit=false the process stays alive through DNS/outages.
         // Keep supervising it instead of killing the only recovery path.
-        if detail.to_ascii_lowercase().contains("login to the server failed")
-            || detail.to_ascii_lowercase().contains("connect to server error")
-            || detail.to_ascii_lowercase().contains("try to connect to server")
+        if detail
+            .to_ascii_lowercase()
+            .contains("login to the server failed")
+            || detail
+                .to_ascii_lowercase()
+                .contains("connect to server error")
+            || detail
+                .to_ascii_lowercase()
+                .contains("try to connect to server")
         {
             return Ok(true);
         }
@@ -746,8 +760,11 @@ fn strip_ansi(text: &str) -> String {
     out
 }
 
-async fn stream_frpc_logs<R>(stderr: R, log_paths: Vec<PathBuf>, redactions: std::sync::Arc<Vec<String>>)
-where
+async fn stream_frpc_logs<R>(
+    stderr: R,
+    log_paths: Vec<PathBuf>,
+    redactions: std::sync::Arc<Vec<String>>,
+) where
     R: tokio::io::AsyncRead + Unpin + Send + 'static,
 {
     let mut files = Vec::new();

@@ -38,8 +38,14 @@ impl DataStore {
         #[cfg(not(test))]
         let imported = import_legacy_profiles_if_empty(&mut data)?;
         #[cfg(test)]
-        let imported = { let _ = &mut data; 0 };
-        let store = Self { baseline: data.clone(), data };
+        let imported = {
+            let _ = &mut data;
+            0
+        };
+        let store = Self {
+            baseline: data.clone(),
+            data,
+        };
         if !existed_before || imported > 0 {
             store.persist_unlocked()?;
         }
@@ -102,7 +108,9 @@ impl DataStore {
             _ => {
                 self.data = current.clone();
                 self.baseline = current;
-                return Err(AppError::Message("同一配置项已被其他操作更新，本次修改未写入，请重试。".into()));
+                return Err(AppError::Message(
+                    "同一配置项已被其他操作更新，本次修改未写入，请重试。".into(),
+                ));
             }
         };
         let candidate = super::migrate::migrate_data(candidate)?;
@@ -147,13 +155,19 @@ impl DataStore {
 
     /// One encrypted snapshot: a route and its credential must not commit separately.
     pub(crate) fn update_with_workspace_secret(
-        &mut self, profile: WorkspaceProfile, secret: Option<(&str, &str)>,
+        &mut self,
+        profile: WorkspaceProfile,
+        secret: Option<(&str, &str)>,
     ) -> AppResult<()> {
         self.stage_profile_update(profile, secret)?;
         self.save()
     }
 
-    fn stage_profile_update(&mut self, profile: WorkspaceProfile, secret: Option<(&str, &str)>) -> AppResult<()> {
+    fn stage_profile_update(
+        &mut self,
+        profile: WorkspaceProfile,
+        secret: Option<(&str, &str)>,
+    ) -> AppResult<()> {
         let Some(index) = self
             .data
             .profiles
@@ -166,7 +180,10 @@ impl DataStore {
             )));
         };
         if let Some((key, value)) = secret {
-            self.data.workspace_secrets.entry(profile.id.clone()).or_default()
+            self.data
+                .workspace_secrets
+                .entry(profile.id.clone())
+                .or_default()
                 .insert(key.to_string(), value.to_string());
         }
         self.data.profiles[index] = profile;
@@ -185,7 +202,9 @@ impl DataStore {
 
     pub fn init_workspace_secrets(&mut self, profile_id: &str) -> AppResult<()> {
         // One snapshot commit; retries preserve every already initialized secret.
-        if seed_workspace_secrets(&mut self.data, profile_id) { self.save()?; }
+        if seed_workspace_secrets(&mut self.data, profile_id) {
+            self.save()?;
+        }
         Ok(())
     }
 
@@ -229,7 +248,11 @@ impl DataStore {
         self.save()
     }
 
-    pub fn regenerate_workspace_secret(&mut self, profile_id: &str, key: &str) -> AppResult<String> {
+    pub fn regenerate_workspace_secret(
+        &mut self,
+        profile_id: &str,
+        key: &str,
+    ) -> AppResult<String> {
         let value = shared_value_for_key(key);
         self.set_workspace_secret(profile_id, key, &value)?;
         Ok(value)
@@ -284,7 +307,6 @@ impl DataStore {
         }
         self.save()
     }
-
 }
 
 /// Three-way merge preserves unrelated concurrent updates. Arrays are atomic:
@@ -295,18 +317,30 @@ fn merge_snapshot_value(
     current: Option<&serde_json::Value>,
 ) -> Result<Option<serde_json::Value>, ()> {
     use serde_json::{Map, Value};
-    if proposed == base { return Ok(current.cloned()); }
-    if current == base || current == proposed { return Ok(proposed.cloned()); }
+    if proposed == base {
+        return Ok(current.cloned());
+    }
+    if current == base || current == proposed {
+        return Ok(proposed.cloned());
+    }
     if let (Some(Value::Object(proposed)), Some(Value::Object(current))) = (proposed, current) {
-        if base.is_some_and(|value| !value.is_object()) { return Err(()); }
+        if base.is_some_and(|value| !value.is_object()) {
+            return Err(());
+        }
         let base = base.and_then(Value::as_object);
         let mut keys = std::collections::BTreeSet::new();
-        if let Some(base) = base { keys.extend(base.keys()); }
+        if let Some(base) = base {
+            keys.extend(base.keys());
+        }
         keys.extend(proposed.keys());
         keys.extend(current.keys());
         let mut merged = Map::new();
         for key in keys {
-            if let Some(value) = merge_snapshot_value(base.and_then(|value| value.get(key)), proposed.get(key), current.get(key))? {
+            if let Some(value) = merge_snapshot_value(
+                base.and_then(|value| value.get(key)),
+                proposed.get(key),
+                current.get(key),
+            )? {
                 merged.insert(key.clone(), value);
             }
         }
@@ -322,19 +356,31 @@ struct DataFileLock {
 }
 
 fn lock_data_file() -> AppResult<DataFileLock> {
-    let thread = DATA_FILE_LOCK.lock()
+    let thread = DATA_FILE_LOCK
+        .lock()
         .map_err(|_| AppError::Message("data file lock poisoned".into()))?;
     let path = data_file_path()?.with_file_name("profiles.lock");
-    let file = super::config_lock::ConfigFileLock::acquire(&path, std::time::Duration::from_secs(3))?;
-    Ok(DataFileLock { _file: file, _thread: thread })
+    let file =
+        super::config_lock::ConfigFileLock::acquire(&path, std::time::Duration::from_secs(3))?;
+    Ok(DataFileLock {
+        _file: file,
+        _thread: thread,
+    })
 }
 
 fn seed_workspace_secrets(data: &mut AppData, profile_id: &str) -> bool {
     let secrets = data.workspace_secrets.entry(profile_id.into()).or_default();
     let mut changed = false;
     // MCP oauth_client_secret is optional (PKCE), so do not synthesize it.
-    for key in ["oauth_password", "oauth_token_secret", "bearer_token", "actions_api_key",
-        "actions_oauth_client_secret", "actions_oauth_password", "actions_oauth_token_secret"] {
+    for key in [
+        "oauth_password",
+        "oauth_token_secret",
+        "bearer_token",
+        "actions_api_key",
+        "actions_oauth_client_secret",
+        "actions_oauth_password",
+        "actions_oauth_token_secret",
+    ] {
         if let std::collections::hash_map::Entry::Vacant(entry) = secrets.entry(key.into()) {
             entry.insert(random_secret());
             changed = true;
@@ -376,40 +422,76 @@ mod tests {
     #[test]
     fn failed_persistence_restores_in_memory_state() {
         let baseline = AppData::default();
-        let mut store = DataStore { data: baseline.clone(), baseline: baseline.clone() };
+        let mut store = DataStore {
+            data: baseline.clone(),
+            baseline: baseline.clone(),
+        };
         store.data.last_workspace_id = "must-not-remain".into();
-        assert!(store.commit_snapshot(baseline, |_| Err(AppError::Message("disk failure".into()))).is_err());
+        assert!(store
+            .commit_snapshot(baseline, |_| Err(AppError::Message("disk failure".into())))
+            .is_err());
         assert!(store.data.last_workspace_id.is_empty());
     }
 
     #[test]
     fn stale_snapshot_does_not_overwrite_a_new_secret() {
         let mut baseline = AppData::default();
-        baseline.shared_secrets.insert("oauth_token_secret".into(), "original".into());
-        let mut store = DataStore { data: baseline.clone(), baseline: baseline.clone() };
-        store.data.shared_secrets.insert("oauth_token_secret".into(), "conflicting-value".into());
+        baseline
+            .shared_secrets
+            .insert("oauth_token_secret".into(), "original".into());
+        let mut store = DataStore {
+            data: baseline.clone(),
+            baseline: baseline.clone(),
+        };
+        store
+            .data
+            .shared_secrets
+            .insert("oauth_token_secret".into(), "conflicting-value".into());
         let mut latest = baseline;
-        latest.shared_secrets.insert("oauth_token_secret".into(), "newer-value".into());
+        latest
+            .shared_secrets
+            .insert("oauth_token_secret".into(), "newer-value".into());
         let wrote = std::cell::Cell::new(false);
-        assert!(store.commit_snapshot(latest, |_| { wrote.set(true); Ok(()) }).is_err());
+        assert!(store
+            .commit_snapshot(latest, |_| {
+                wrote.set(true);
+                Ok(())
+            })
+            .is_err());
         assert!(!wrote.get());
-        assert_eq!(store.data.shared_secrets["oauth_token_secret"], "newer-value");
+        assert_eq!(
+            store.data.shared_secrets["oauth_token_secret"],
+            "newer-value"
+        );
         assert!(store.data.last_workspace_id.is_empty());
     }
 
     #[test]
     fn unrelated_concurrent_secret_is_preserved_when_saving_workspace_selection() {
         let baseline = AppData::default();
-        let mut store = DataStore { data: baseline.clone(), baseline: baseline.clone() };
+        let mut store = DataStore {
+            data: baseline.clone(),
+            baseline: baseline.clone(),
+        };
         store.data.last_workspace_id = "selected".into();
         let mut latest = baseline;
-        latest.shared_secrets.insert("oauth_token_secret".into(), "newer-value".into());
-        store.commit_snapshot(latest, |candidate| {
-            assert_eq!(candidate.last_workspace_id, "selected");
-            assert_eq!(candidate.shared_secrets["oauth_token_secret"], "newer-value");
-            Ok(())
-        }).unwrap();
-        assert_eq!(store.data.shared_secrets["oauth_token_secret"], "newer-value");
+        latest
+            .shared_secrets
+            .insert("oauth_token_secret".into(), "newer-value".into());
+        store
+            .commit_snapshot(latest, |candidate| {
+                assert_eq!(candidate.last_workspace_id, "selected");
+                assert_eq!(
+                    candidate.shared_secrets["oauth_token_secret"],
+                    "newer-value"
+                );
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(
+            store.data.shared_secrets["oauth_token_secret"],
+            "newer-value"
+        );
     }
 
     #[test]
@@ -431,7 +513,10 @@ mod tests {
     #[test]
     fn successful_snapshot_commit_updates_the_next_comparison_baseline() {
         let baseline = AppData::default();
-        let mut store = DataStore { data: baseline.clone(), baseline: baseline.clone() };
+        let mut store = DataStore {
+            data: baseline.clone(),
+            baseline: baseline.clone(),
+        };
         store.data.last_workspace_id = "saved".into();
         store.commit_snapshot(baseline, |_| Ok(())).unwrap();
         assert_eq!(store.baseline.last_workspace_id, "saved");
@@ -447,11 +532,16 @@ mod tests {
     #[test]
     fn workspace_initialization_is_idempotent_and_preserves_existing_tokens() {
         let mut data = AppData::default();
-        data.workspace_secrets.entry("workspace".into()).or_default()
+        data.workspace_secrets
+            .entry("workspace".into())
+            .or_default()
             .insert("bearer_token".into(), "existing-canary-v6".into());
         assert!(seed_workspace_secrets(&mut data, "workspace"));
         assert_eq!(data.workspace_secrets["workspace"].len(), 7);
-        assert_eq!(data.workspace_secrets["workspace"]["bearer_token"], "existing-canary-v6");
+        assert_eq!(
+            data.workspace_secrets["workspace"]["bearer_token"],
+            "existing-canary-v6"
+        );
         let before = data.workspace_secrets.clone();
         assert!(!seed_workspace_secrets(&mut data, "workspace"));
         assert_eq!(before, data.workspace_secrets);
@@ -461,18 +551,22 @@ mod tests {
     #[test]
     fn initializing_all_workspace_keys_rolls_back_as_one_snapshot_on_failure() {
         let baseline = AppData::default();
-        let mut store = DataStore { data: baseline.clone(), baseline: baseline.clone() };
+        let mut store = DataStore {
+            data: baseline.clone(),
+            baseline: baseline.clone(),
+        };
         seed_workspace_secrets(&mut store.data, "workspace");
         let writes = std::cell::Cell::new(0);
-        assert!(store.commit_snapshot(baseline, |candidate| {
-            writes.set(writes.get() + 1);
-            assert_eq!(candidate.workspace_secrets["workspace"].len(), 7);
-            Err(AppError::Message("simulated disk failure".into()))
-        }).is_err());
+        assert!(store
+            .commit_snapshot(baseline, |candidate| {
+                writes.set(writes.get() + 1);
+                assert_eq!(candidate.workspace_secrets["workspace"].len(), 7);
+                Err(AppError::Message("simulated disk failure".into()))
+            })
+            .is_err());
         assert_eq!(writes.get(), 1);
         assert!(store.data.workspace_secrets.is_empty());
     }
-
 }
 
 #[cfg(test)]

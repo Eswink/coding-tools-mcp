@@ -2,8 +2,16 @@
 use super::*;
 impl NativeLiveHost {
     pub(crate) fn application_phase(&self) -> &'static str {
-        match self.tools.context.root_work.as_ref().map(|root|root.native_state()) {
-            Ok("available")=>{},Ok("paused")=>return "paused",_=>return "recovery",
+        match self
+            .tools
+            .context
+            .root_work
+            .as_ref()
+            .map(|root| root.native_state())
+        {
+            Ok("available") => {}
+            Ok("paused") => return "paused",
+            _ => return "recovery",
         }
         let root = self.tools.authorizer.snapshot(&self.tools.profile);
         if root["recovery"]["required"] != false {

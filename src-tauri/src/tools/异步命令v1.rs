@@ -9,65 +9,124 @@ use sha2::{Digest, Sha256};
 use crate::tools::context::ToolContext;
 use crate::tools::workspace::{tool_ok, WorkspaceError};
 
-#[path = "异步命令状态v1.rs"]
-mod state;
 #[path = "异步命令协议v1.rs"]
 mod protocol;
+#[path = "异步命令状态v1.rs"]
+mod state;
 use state::{Job, Status, PAGE_BYTES};
-#[path = "任务仓库v2.rs"]
-mod store;
 #[path = "任务记录v2.rs"]
 mod record;
+#[path = "任务仓库v2.rs"]
+mod store;
+pub use protocol::input_schema;
 pub use store::ExecTaskStore;
 pub(crate) use store::TaskAdmissionGuard;
-pub use protocol::input_schema;
 
-fn object<'a>(args: &'a Value, allowed: &[&str]) -> Result<&'a serde_json::Map<String, Value>, WorkspaceError> {
-    let obj = args.as_object().ok_or_else(|| WorkspaceError::invalid_argument("arguments must be an object"))?;
+fn object<'a>(
+    args: &'a Value,
+    allowed: &[&str],
+) -> Result<&'a serde_json::Map<String, Value>, WorkspaceError> {
+    let obj = args
+        .as_object()
+        .ok_or_else(|| WorkspaceError::invalid_argument("arguments must be an object"))?;
     if obj.keys().any(|key| !allowed.contains(&key.as_str())) {
-        return Err(WorkspaceError::invalid_argument("unexpected async execution argument"));
+        return Err(WorkspaceError::invalid_argument(
+            "unexpected async execution argument",
+        ));
     }
     Ok(obj)
 }
 
 fn text<'a>(args: &'a Value, key: &str) -> Result<&'a str, WorkspaceError> {
-    args.get(key).and_then(Value::as_str).filter(|s| !s.trim().is_empty())
-        .ok_or_else(|| WorkspaceError::invalid_argument(format!("{key} must be a non-empty string")))
+    args.get(key)
+        .and_then(Value::as_str)
+        .filter(|s| !s.trim().is_empty())
+        .ok_or_else(|| {
+            WorkspaceError::invalid_argument(format!("{key} must be a non-empty string"))
+        })
 }
 
-fn number(args: &Value, key: &str, default: u64, min: u64, max: u64) -> Result<u64, WorkspaceError> {
+fn number(
+    args: &Value,
+    key: &str,
+    default: u64,
+    min: u64,
+    max: u64,
+) -> Result<u64, WorkspaceError> {
     let n = match args.get(key) {
         None => default,
-        Some(value) => value.as_u64().ok_or_else(|| WorkspaceError::invalid_argument(format!("{key} must be an unsigned integer")))?,
+        Some(value) => value.as_u64().ok_or_else(|| {
+            WorkspaceError::invalid_argument(format!("{key} must be an unsigned integer"))
+        })?,
     };
-    if n < min || n > max { return Err(WorkspaceError::invalid_argument(format!("{key} out of range [{min}, {max}]"))); }
+    if n < min || n > max {
+        return Err(WorkspaceError::invalid_argument(format!(
+            "{key} out of range [{min}, {max}]"
+        )));
+    }
     Ok(n)
 }
 
 pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
-    object(args, &["cmd", "request_id", "workdir", "timeout_ms", "confirm", "filesystem_scope", "reason"])?;
+    object(
+        args,
+        &[
+            "cmd",
+            "request_id",
+            "workdir",
+            "timeout_ms",
+            "confirm",
+            "filesystem_scope",
+            "reason",
+        ],
+    )?;
     let request_id = text(args, "request_id")?;
     if request_id.len() > 128 || request_id.chars().any(char::is_control) {
-        return Err(WorkspaceError::invalid_argument("request_id must be 1..128 UTF-8 bytes without control characters"));
+        return Err(WorkspaceError::invalid_argument(
+            "request_id must be 1..128 UTF-8 bytes without control characters",
+        ));
     }
     let cmd = text(args, "cmd")?;
-    let timeout_ms = number(args, "timeout_ms", 600_000.min(ctx.policy.max_task_timeout_ms), 1, ctx.policy.max_task_timeout_ms.min(86_400_000))?;
+    let timeout_ms = number(
+        args,
+        "timeout_ms",
+        600_000.min(ctx.policy.max_task_timeout_ms),
+        1,
+        ctx.policy.max_task_timeout_ms.min(86_400_000),
+    )?;
     if args.get("confirm").is_some_and(|v| !v.is_boolean()) {
         return Err(WorkspaceError::invalid_argument("confirm must be boolean"));
     }
     for key in ["workdir", "filesystem_scope", "reason"] {
         if args.get(key).is_some_and(|v| !v.is_string()) {
-            return Err(WorkspaceError::invalid_argument(format!("{key} must be a string")));
+            return Err(WorkspaceError::invalid_argument(format!(
+                "{key} must be a string"
+            )));
         }
     }
-    let cwd = ctx.workspace.resolve_existing(args.get("workdir").and_then(Value::as_str).unwrap_or("."))?;
-    if !cwd.path.is_dir() { return Err(WorkspaceError::not_a_directory("workdir is not a directory")); }
-    let fingerprint = format!("{:x}", Sha256::digest(serde_json::to_vec(&json!({
-        "cmd": cmd, "cwd": cwd.path, "timeout_ms": timeout_ms,
-    })).expect("serializable command")));
+    let cwd = ctx
+        .workspace
+        .resolve_existing(args.get("workdir").and_then(Value::as_str).unwrap_or("."))?;
+    if !cwd.path.is_dir() {
+        return Err(WorkspaceError::not_a_directory(
+            "workdir is not a directory",
+        ));
+    }
+    let fingerprint = format!(
+        "{:x}",
+        Sha256::digest(
+            serde_json::to_vec(&json!({
+                "cmd": cmd, "cwd": cwd.path, "timeout_ms": timeout_ms,
+            }))
+            .expect("serializable command")
+        )
+    );
     let mut native_work = super::native_drain::child(ctx)?;
-    let (job, created) = ctx.exec_tasks.reserve_checked(request_id, &fingerprint, timeout_ms,
-        || validate_submission(ctx))?;
+    let (job, created) =
+        ctx.exec_tasks
+            .reserve_checked(request_id, &fingerprint, timeout_ms, || {
+                validate_submission(ctx)
+            })?;
     if !created {
         let mut summary = job.summary();
         summary["deduplicated"] = json!(true);
@@ -80,57 +139,67 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
     let mut result = match validate_submission(ctx) {
         Err(error) => super::workspace::tool_err(error),
         Ok(()) => super::policy_hooks::run_reserved_async(ctx, args, |ctx, _| {
-        // Hooks and their registry may also wait. This is the final submission
-        // check; an already launched job retains its independent native budget.
-        if let Err(error) = validate_submission(ctx) {
-            return super::workspace::tool_err(error);
-        }
-        launched = true;
-        let mut background = ctx.background_snapshot();
-        // The accepted task is the primary operation, not a second public hook event.
-        background.hook_nested = true;
-        background.managed_task = true;
-        background.native_work = super::native_drain::scope(&native_work);
-        background.root_scope = super::native_drain::root_scope(&native_work);
-        background.policy.max_exec_timeout_ms = background.policy.max_task_timeout_ms.min(86_400_000);
-        let mut command = args.clone();
-        command.as_object_mut().expect("validated object").remove("request_id");
-        command["workdir"] = json!(cwd.display);
-        command["timeout_ms"] = json!(timeout_ms);
-        command["yield_time_ms"] = json!(0);
-        command["max_output_bytes"] = json!(1024);
-        let worker_job = job.clone();
-        tauri::async_runtime::spawn_blocking(move || {
-            if super::native_drain::begin(&mut native_work).is_err() {
-                worker_job.finish(Status::Failed, json!({"command_ok":false,
-                    "termination_reason":"native_drain_rejected_before_start"}));
-                let _ = background.exec_tasks.checkpoint(&worker_job);
-                return;
+            // Hooks and their registry may also wait. This is the final submission
+            // check; an already launched job retains its independent native budget.
+            if let Err(error) = validate_submission(ctx) {
+                return super::workspace::tool_err(error);
             }
-            let _thread = super::native_drain::enter_context(&background);
-            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                run(&background, &worker_job, &command);
-            }));
-            if outcome.is_err() {
-                // A failed worker must never leave the public task permanently "running".
-                let session = worker_job.data.lock().ok().and_then(|d| d.session.clone());
-                if let Some(session) = session {
-                    let _ = tauri::async_runtime::block_on(async {
-                        tokio::time::timeout(Duration::from_secs(5), session.kill_and_wait()).await
-                    });
+            launched = true;
+            let mut background = ctx.background_snapshot();
+            // The accepted task is the primary operation, not a second public hook event.
+            background.hook_nested = true;
+            background.managed_task = true;
+            background.native_work = super::native_drain::scope(&native_work);
+            background.root_scope = super::native_drain::root_scope(&native_work);
+            background.policy.max_exec_timeout_ms =
+                background.policy.max_task_timeout_ms.min(86_400_000);
+            let mut command = args.clone();
+            command
+                .as_object_mut()
+                .expect("validated object")
+                .remove("request_id");
+            command["workdir"] = json!(cwd.display);
+            command["timeout_ms"] = json!(timeout_ms);
+            command["yield_time_ms"] = json!(0);
+            command["max_output_bytes"] = json!(1024);
+            let worker_job = job.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                if super::native_drain::begin(&mut native_work).is_err() {
+                    worker_job.finish(
+                        Status::Failed,
+                        json!({"command_ok":false,
+                    "termination_reason":"native_drain_rejected_before_start"}),
+                    );
+                    let _ = background.exec_tasks.checkpoint(&worker_job);
+                    return;
                 }
-                // Do not release capacity or the retry key after an unclassified
-                // panic: the command might have started before session publication.
-                worker_job.finish(Status::Interrupted, json!({"command_ok": false,
+                let _thread = super::native_drain::enter_context(&background);
+                let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    run(&background, &worker_job, &command);
+                }));
+                if outcome.is_err() {
+                    // A failed worker must never leave the public task permanently "running".
+                    let session = worker_job.data.lock().ok().and_then(|d| d.session.clone());
+                    if let Some(session) = session {
+                        let _ = tauri::async_runtime::block_on(async {
+                            tokio::time::timeout(Duration::from_secs(5), session.kill_and_wait())
+                                .await
+                        });
+                    }
+                    // Do not release capacity or the retry key after an unclassified
+                    // panic: the command might have started before session publication.
+                    worker_job.finish(Status::Interrupted, json!({"command_ok": false,
                     "process_may_be_running": true, "output_complete": false,
                     "error": {"code": "EXEC_TASK_WORKER_FAILED", "message": "Execution worker failed; inspect local processes before acknowledging termination"}}));
-            }
-            let _ = background.exec_tasks.checkpoint(&worker_job);
-            if outcome.is_ok() { super::native_drain::complete(native_work); }
-        });
-        let mut summary = job.summary();
-        summary["deduplicated"] = json!(false);
-        tool_ok(summary)
+                }
+                let _ = background.exec_tasks.checkpoint(&worker_job);
+                if outcome.is_ok() {
+                    super::native_drain::complete(native_work);
+                }
+            });
+            let mut summary = job.summary();
+            summary["deduplicated"] = json!(false);
+            tool_ok(summary)
         }),
     };
     if !launched {
@@ -140,8 +209,17 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
         let uncertain = result["error"]["code"] == "HOOK_OUTCOME_UNKNOWN";
         result["job_id"] = json!(job.id);
         result["accepted"] = json!(true);
-        if uncertain { result["process_may_be_running"] = json!(true); }
-        job.finish(if uncertain { Status::Interrupted } else { Status::Failed }, result.clone());
+        if uncertain {
+            result["process_may_be_running"] = json!(true);
+        }
+        job.finish(
+            if uncertain {
+                Status::Interrupted
+            } else {
+                Status::Failed
+            },
+            result.clone(),
+        );
         if ctx.exec_tasks.checkpoint(&job).is_err() {
             result["task_checkpoint_failed"] = json!(true);
         }
@@ -151,7 +229,9 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
 
 // Transport controls bound acceptance, never the budget of an accepted task.
 fn validate_submission(ctx: &ToolContext) -> Result<(), WorkspaceError> {
-    if ctx.hook_deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline)
+    if ctx
+        .hook_deadline
+        .is_some_and(|deadline| std::time::Instant::now() >= deadline)
         || ctx.hook_cancel.as_ref().is_some_and(|rx| *rx.borrow())
     {
         return Err(WorkspaceError::Tool {
@@ -168,7 +248,10 @@ fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {
         let mut data = job.data.lock().expect("job state");
         if data.cancel_requested {
             drop(data);
-            job.finish(Status::Cancelled, json!({"command_ok": false, "termination_reason": "cancelled_before_start"}));
+            job.finish(
+                Status::Cancelled,
+                json!({"command_ok": false, "termination_reason": "cancelled_before_start"}),
+            );
             return;
         }
         data.status = Status::Running;
@@ -177,12 +260,16 @@ fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {
     // filesystem checkpoint between the public Running state and actual child spawn.
     // Keep ALL policy/baseline/operation logging in the one shared execution dispatcher.
     let result = crate::tools::call_tool(ctx, "exec_command", args);
-    let session = result.get("session_id").and_then(Value::as_str)
+    let session = result
+        .get("session_id")
+        .and_then(Value::as_str)
         .and_then(|id| ctx.sessions.get(id).ok());
     let Some(session) = session else {
         let status = if result.get("command_ok").and_then(Value::as_bool) == Some(true) {
             Status::Succeeded
-        } else { Status::Failed };
+        } else {
+            Status::Failed
+        };
         job.finish(status, result);
         return;
     };
@@ -236,11 +323,15 @@ fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {
             checkpoint_at = std::time::Instant::now();
         }
         tauri::async_runtime::block_on(session.refresh_status());
-        if session.has_exited() { break; }
+        if session.has_exited() {
+            break;
+        }
         if job.data.lock().expect("job state").cancel_requested {
             session.mark_termination_reason("killed");
             let waited = tauri::async_runtime::block_on(async {
-                tokio::time::timeout(Duration::from_secs(5), session.kill_and_wait()).await.is_ok()
+                tokio::time::timeout(Duration::from_secs(5), session.kill_and_wait())
+                    .await
+                    .is_ok()
             });
             if !waited || !session.has_exited() {
                 job.finish(Status::Failed, json!({"command_ok": false,
@@ -256,14 +347,18 @@ fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {
     tauri::async_runtime::block_on(session.wait_for_readers());
     let mut final_result = session.snapshot(0);
     final_result["output_complete"] = json!(session.readers_completed());
-    if final_result["process_may_be_running"] == true { final_result["command_ok"] = json!(false); }
+    if final_result["process_may_be_running"] == true {
+        final_result["command_ok"] = json!(false);
+    }
     let status = match final_result["termination_reason"].as_str() {
         Some("timeout") => Status::TimedOut,
         Some("killed") => Status::Cancelled,
         _ if final_result["command_ok"] == true => Status::Succeeded,
         _ => Status::Failed,
     };
-    if let Some(operation) = result.get("operation_id") { final_result["operation_id"] = operation.clone(); }
+    if let Some(operation) = result.get("operation_id") {
+        final_result["operation_id"] = operation.clone();
+    }
     job.finish(status, final_result);
     // Job owns the bounded buffers until its TTL; remove the legacy session map entry.
     ctx.sessions.remove(&session.session_id);
@@ -283,15 +378,26 @@ pub fn get(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
 
 pub fn list(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
     object(args, &["request_id"])?;
-    let filter = if args.get("request_id").is_some() { Some(text(args, "request_id")?) } else { None };
-    Ok(tool_ok(json!({"jobs": ctx.exec_tasks.list(filter)?, "recovery_scope": if ctx.exec_tasks.persistent() { "workspace_service" } else { "service_instance" },
-        "restart_recoverable": ctx.exec_tasks.persistent(), "execution_survives_app_restart": false, "max_active": 4, "max_retained": 32})))
+    let filter = if args.get("request_id").is_some() {
+        Some(text(args, "request_id")?)
+    } else {
+        None
+    };
+    Ok(tool_ok(
+        json!({"jobs": ctx.exec_tasks.list(filter)?, "recovery_scope": if ctx.exec_tasks.persistent() { "workspace_service" } else { "service_instance" },
+        "restart_recoverable": ctx.exec_tasks.persistent(), "execution_survives_app_restart": false, "max_active": 4, "max_retained": 32}),
+    ))
 }
 
 pub fn cancel(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
     object(args, &["job_id", "confirm_terminated"])?;
-    if args.get("confirm_terminated").is_some_and(|v| !v.is_boolean()) {
-        return Err(WorkspaceError::invalid_argument("confirm_terminated must be boolean"));
+    if args
+        .get("confirm_terminated")
+        .is_some_and(|v| !v.is_boolean())
+    {
+        return Err(WorkspaceError::invalid_argument(
+            "confirm_terminated must be boolean",
+        ));
     }
     if args.get("confirm_terminated") == Some(&Value::Bool(true)) && !ctx.local_task_control {
         return Err(WorkspaceError::invalid_argument(
@@ -302,9 +408,15 @@ pub fn cancel(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> 
         let mut data = job.data.lock().expect("job state");
         if args.get("confirm_terminated") == Some(&Value::Bool(true)) {
             if !data.status.terminal() {
-                return Err(WorkspaceError::invalid_argument("A running task must be cancelled, not manually acknowledged"));
+                return Err(WorkspaceError::invalid_argument(
+                    "A running task must be cancelled, not manually acknowledged",
+                ));
             }
-            if data.result.as_ref().is_some_and(|result| result["process_may_be_running"] == true) {
+            if data
+                .result
+                .as_ref()
+                .is_some_and(|result| result["process_may_be_running"] == true)
+            {
                 if let Some(result) = data.result.as_mut() {
                     result["process_may_be_running"] = json!(false);
                     result["termination_confirmed_by_user"] = json!(true);

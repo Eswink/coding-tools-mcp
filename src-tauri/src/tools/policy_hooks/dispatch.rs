@@ -28,12 +28,14 @@ where
     run_inner(ctx, name, args, primary)
 }
 pub(crate) fn run_reserved_async<F>(ctx: &ToolContext, args: &Value, primary: F) -> Value
-where F: FnOnce(&ToolContext, &Value) -> Value,
+where
+    F: FnOnce(&ToolContext, &Value) -> Value,
 {
     run_inner(ctx, "start_exec_task", args, primary)
 }
 fn run_inner<F>(ctx: &ToolContext, name: &str, args: &Value, primary: F) -> Value
-where F: FnOnce(&ToolContext, &Value) -> Value,
+where
+    F: FnOnce(&ToolContext, &Value) -> Value,
 {
     if ctx.hook_nested {
         return primary(ctx, args);

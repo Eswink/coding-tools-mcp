@@ -1,50 +1,83 @@
 //! Per-conversation runtime state; physical workspace files remain deliberately shared.
+use super::{exec_tasks::ExecTaskStore, session::SessionStore, ToolContext};
+use crate::auth::chat::RemoteRequest;
+use crate::harness::Harness;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use serde_json::{json, Value};
-use crate::auth::chat::RemoteRequest;
-use crate::harness::Harness;
-use super::{ToolContext, session::SessionStore, exec_tasks::ExecTaskStore};
 #[derive(Default)]
 pub(crate) struct ChatDomains(Mutex<HashMap<String, Resources>>);
 #[derive(Clone)]
 struct Resources {
-    cwd: Arc<Mutex<PathBuf>>, sessions: Arc<SessionStore>, tasks: Arc<ExecTaskStore>, harness: Harness,
+    cwd: Arc<Mutex<PathBuf>>,
+    sessions: Arc<SessionStore>,
+    tasks: Arc<ExecTaskStore>,
+    harness: Harness,
 }
 impl ChatDomains {
     /// Native owner inventory only. Never exposed as a cloud tool or supplied
     /// by model metadata; these domains were established by verified identities.
     pub(crate) fn native_harnesses(&self) -> Result<Vec<Harness>, String> {
-        self.0.lock().map(|domains| domains.values().map(|r|r.harness.clone()).collect())
-            .map_err(|_|"Native conversation resources unavailable".into())
+        self.0
+            .lock()
+            .map(|domains| domains.values().map(|r| r.harness.clone()).collect())
+            .map_err(|_| "Native conversation resources unavailable".into())
     }
 
     pub fn scoped(&self, ctx: &ToolContext, req: &RemoteRequest) -> Result<ToolContext, String> {
         let key = req.identity()?;
         let mut domains = self.0.lock().map_err(|_| "会话运行域不可用")?;
         if !domains.contains_key(key) {
-            if domains.len() >= 64 { return Err("会话运行域已达到容量上限，请在所有任务终止后重启应用".into()); }
+            if domains.len() >= 64 {
+                return Err("会话运行域已达到容量上限，请在所有任务终止后重启应用".into());
+            }
             let root = ctx.harness.store_root().join("chat-v1").join(key);
-            let harness = Harness::new(ctx.workspace.root().to_path_buf(), root.clone()).map_err(|e| e.to_string())?;
-            let tasks = ExecTaskStore::shared(root.join("exec-tasks-v1")); tasks.bind_profile(&req.profile);
-            domains.insert(key.into(), Resources { cwd: Arc::new(Mutex::new(ctx.workspace.root().to_path_buf())),
-                sessions: Arc::new(SessionStore::new()), tasks, harness });
+            let harness = Harness::new(ctx.workspace.root().to_path_buf(), root.clone())
+                .map_err(|e| e.to_string())?;
+            let tasks = ExecTaskStore::shared(root.join("exec-tasks-v1"));
+            tasks.bind_profile(&req.profile);
+            domains.insert(
+                key.into(),
+                Resources {
+                    cwd: Arc::new(Mutex::new(ctx.workspace.root().to_path_buf())),
+                    sessions: Arc::new(SessionStore::new()),
+                    tasks,
+                    harness,
+                },
+            );
         }
         let r = domains.get(key).unwrap();
         let mut copy = ctx.background_snapshot();
-        copy.default_cwd = r.cwd.clone(); copy.sessions = r.sessions.clone();
-        req.service.register_work(&req.profile, r.sessions.clone(), r.tasks.clone());
-        copy.exec_tasks = r.tasks.clone(); copy.harness = r.harness.clone(); copy.chat_scoped = true;
+        copy.default_cwd = r.cwd.clone();
+        copy.sessions = r.sessions.clone();
+        req.service
+            .register_work(&req.profile, r.sessions.clone(), r.tasks.clone());
+        copy.exec_tasks = r.tasks.clone();
+        copy.harness = r.harness.clone();
+        copy.chat_scoped = true;
         Ok(copy)
     }
 }
 pub(crate) fn required(name: &str, args: &Value) -> Option<&'static [&'static str]> {
     Some(match name {
-        "server_info" | "check_exec_environment" | "get_default_cwd" | "set_default_cwd" |
-        "git_status" | "git_diff" | "git_log" | "git_show" | "git_blame" | "harness_status" | "operation_log" |
-        "project_state" | "task_context" | "list_task_events" | "change_summary" => &["workspace.read"],
-        "read_file" | "list_dir" | "list_files" | "search_text" | "grep_text" | "grep" | "view_image" | "patch_check" => &["files.read"],
+        "server_info"
+        | "check_exec_environment"
+        | "get_default_cwd"
+        | "set_default_cwd"
+        | "git_status"
+        | "git_diff"
+        | "git_log"
+        | "git_show"
+        | "git_blame"
+        | "harness_status"
+        | "operation_log"
+        | "project_state"
+        | "task_context"
+        | "list_task_events"
+        | "change_summary" => &["workspace.read"],
+        "read_file" | "list_dir" | "list_files" | "search_text" | "grep_text" | "grep"
+        | "view_image" | "patch_check" => &["files.read"],
         "worktree_list" => &["workspace.read"],
         "worktree_create" | "worktree_remove" => &["files.write"],
         "apply_patch" => &["files.write"],
@@ -53,9 +86,17 @@ pub(crate) fn required(name: &str, args: &Value) -> Option<&'static [&'static st
         "cancel_exec_task" | "kill_session" => &["task.manage"],
         "write_stdin" => &["task.manage", "exec.run"],
         "history_session_read" | "history_session_search" => &["history.read"],
-        "history_session_validate" if !args.get("repair").and_then(Value::as_bool).unwrap_or(false) => &["history.read"],
-        "history_session_bootstrap" | "history_session_checkpoint" | "history_session_validate" => &["history.write"],
-        "start_task" | "update_task" | "pause_task" | "resume_task" | "finish_task" => &["harness.write"],
+        "history_session_validate"
+            if !args.get("repair").and_then(Value::as_bool).unwrap_or(false) =>
+        {
+            &["history.read"]
+        }
+        "history_session_bootstrap" | "history_session_checkpoint" | "history_session_validate" => {
+            &["history.write"]
+        }
+        "start_task" | "update_task" | "pause_task" | "resume_task" | "finish_task" => {
+            &["harness.write"]
+        }
         // request_permissions is intentionally not capable of granting remote scopes.
         _ => return None,
     })
@@ -66,11 +107,17 @@ fn denied(code: &str) -> Value {
             "message":"Workspace authorization requests are not currently accepted. Do not retry."},
             "requires_local_action":false});
     }
-    if matches!(code, "WORKSPACE_OFFLINE" | "WORKSPACE_EXECUTION_UNAVAILABLE") {
+    if matches!(
+        code,
+        "WORKSPACE_OFFLINE" | "WORKSPACE_EXECUTION_UNAVAILABLE"
+    ) {
         return json!({"ok":false,"error":{"code":code,"category":"availability","retryable":false,
             "message":"Workspace execution is paused locally."},"requires_local_action":false});
     }
-    if matches!(code, "EXCLUSIVE_CHAT_LOCKED" | "CHAT_WORK_DRAINING" | "CHAT_RECOVERY_REQUIRED") {
+    if matches!(
+        code,
+        "EXCLUSIVE_CHAT_LOCKED" | "CHAT_WORK_DRAINING" | "CHAT_RECOVERY_REQUIRED"
+    ) {
         return json!({"ok":false,"error":{"code":code,"category":"permission","retryable":false,
             "message":"Workspace unavailable to this conversation. Do not retry or request authorization."},"requires_local_action":false});
     }
@@ -103,13 +150,23 @@ fn request_chat_authorization(ctx: &ToolContext, req: &RemoteRequest, args: &Val
 /// This hook precedes policy, cwd, Harness and every dispatch branch, including async workers.
 pub(crate) fn intercept(ctx: &ToolContext, name: &str, args: &Value) -> Option<Value> {
     let req = ctx.remote_request.as_ref()?;
-    if name == "auth_status" { return Some(req.service.status(req)); }
-    if name == "request_chat_authorization" { return Some(request_chat_authorization(ctx, req, args)); }
-    let scopes = match required(name,args) { Some(s) => s, None => return Some(denied("REMOTE_TOOL_NOT_PERMITTED")) };
-    if ctx.chat_scoped {
-        return req.service.permit(req,scopes).err().map(denied);
+    if name == "auth_status" {
+        return Some(req.service.status(req));
     }
-    let _admission = match req.service.admit(req,scopes) { Ok(g) => g, Err(e) => return Some(denied(e)) };
+    if name == "request_chat_authorization" {
+        return Some(request_chat_authorization(ctx, req, args));
+    }
+    let scopes = match required(name, args) {
+        Some(s) => s,
+        None => return Some(denied("REMOTE_TOOL_NOT_PERMITTED")),
+    };
+    if ctx.chat_scoped {
+        return req.service.permit(req, scopes).err().map(denied);
+    }
+    let _admission = match req.service.admit(req, scopes) {
+        Ok(g) => g,
+        Err(e) => return Some(denied(e)),
+    };
     let _execution = if requires_online_execution(name) {
         match ctx.execution_gate.try_admit() {
             Ok(permit) => Some(permit),
@@ -128,19 +185,29 @@ pub(crate) fn intercept(ctx: &ToolContext, name: &str, args: &Value) -> Option<V
     } else {
         None
     };
-    let domain = match ctx.chat_domains.scoped(ctx,req) { Ok(v) => v, Err(_) => return Some(denied("CHAT_RUNTIME_UNAVAILABLE")) };
+    let domain = match ctx.chat_domains.scoped(ctx, req) {
+        Ok(v) => v,
+        Err(_) => return Some(denied("CHAT_RUNTIME_UNAVAILABLE")),
+    };
     let mut scoped_args = args.clone();
     if name.starts_with("history_session_") {
-        let Some(obj) = scoped_args.as_object_mut() else { return Some(denied("INVALID_ARGUMENT")); };
+        let Some(obj) = scoped_args.as_object_mut() else {
+            return Some(denied("INVALID_ARGUMENT"));
+        };
         let key = req.binding.as_deref().unwrap();
         let dir = format!("docs/history-session/chat-v1/{key}");
-        if obj.get("history_dir").is_some_and(|v| v.as_str() != Some(&dir)) { return Some(denied("HISTORY_SCOPE_MISMATCH")); }
+        if obj
+            .get("history_dir")
+            .is_some_and(|v| v.as_str() != Some(&dir))
+        {
+            return Some(denied("HISTORY_SCOPE_MISMATCH"));
+        }
         obj.remove("workspace_root");
-        obj.insert("history_dir".into(),json!(dir));
-        obj.insert("session_key".into(),json!(key));
-        obj.insert("_host_session_key".into(),json!(key));
+        obj.insert("history_dir".into(), json!(dir));
+        obj.insert("session_key".into(), json!(key));
+        obj.insert("_host_session_key".into(), json!(key));
     }
-    Some(super::call_tool(&domain,name,&scoped_args))
+    Some(super::call_tool(&domain, name, &scoped_args))
 }
 pub(crate) fn auth_tools() -> Vec<Value> {
     [("auth_status", "Return only this authenticated conversation's authorization status; no workspace data."),
@@ -161,10 +228,24 @@ mod availability_tests {
 
     #[test]
     fn only_existing_work_control_is_allowed_while_offline() {
-        for name in ["get_exec_task", "list_exec_tasks", "read_output", "cancel_exec_task", "kill_session", "write_stdin"] {
+        for name in [
+            "get_exec_task",
+            "list_exec_tasks",
+            "read_output",
+            "cancel_exec_task",
+            "kill_session",
+            "write_stdin",
+        ] {
             assert!(!requires_online_execution(name), "{name}");
         }
-        for name in ["read_file", "git_status", "exec_command", "start_exec_task", "history_session_read", "server_info"] {
+        for name in [
+            "read_file",
+            "git_status",
+            "exec_command",
+            "start_exec_task",
+            "history_session_read",
+            "server_info",
+        ] {
             assert!(requires_online_execution(name), "{name}");
         }
     }

@@ -82,14 +82,7 @@ pub async fn approve_policy_hooks(
         let profile = store.get(&id).ok_or_else(unavailable)?;
         approval_summary(&pending, profile)
     })?;
-    let Some(approval) = confirm(
-        &app,
-        "hooks",
-        "批准本机策略 Hooks",
-        summary,
-        &digest,
-    )
-    .await?
+    let Some(approval) = confirm(&app, "hooks", "批准本机策略 Hooks", summary, &digest).await?
     else {
         return Ok(None);
     };
@@ -122,9 +115,11 @@ fn approval_summary(
     }
     // The shared native dialog caps this entire serialized wrapper at 64 KiB.
     // Large otherwise-valid manifests are refused, never truncated for approval.
-    Ok(json!({"operation":"approve_policy_hooks", "profile_id":profile.id,
+    Ok(
+        json!({"operation":"approve_policy_hooks", "profile_id":profile.id,
         "profile_name":profile.name, "canonical_root":root,
-        "manifest":pending.prepared.preview()}))
+        "manifest":pending.prepared.preview()}),
+    )
 }
 fn commit_pending(
     pending: PendingHooks,
@@ -236,23 +231,28 @@ mod native_tests {
     fn hook_dialog_identifies_native_profile_and_rejects_changed_target() {
         let root = tempfile::tempdir().unwrap();
         let storage = tempfile::tempdir().unwrap();
-        let ctx = Arc::new(ToolContext::for_test(root.path().into(), storage.path().into()).unwrap());
+        let ctx =
+            Arc::new(ToolContext::for_test(root.path().into(), storage.path().into()).unwrap());
         let mut profile = crate::workspace::WorkspaceProfile::new(
-            root.path().to_string_lossy().into_owned(), Some("native selected workspace".into()));
-        let pending = PendingHooks { profile:profile.id.clone(),
-            lease:ListenerContextLease::new(ctx.clone()), context:ctx.clone(),
-            prepared:ctx.policy_hooks.prepare(&ctx, Vec::new()).unwrap(),
-            expires:Instant::now()+Duration::from_secs(60) };
-        let summary=approval_summary(&pending,&profile).unwrap();
-        assert_eq!(summary["profile_id"],profile.id);
-        assert_eq!(summary["profile_name"],profile.name);
-        assert_eq!(summary["canonical_root"],json!(ctx.workspace.root()));
-        assert_eq!(summary["manifest"],pending.prepared.preview());
-        profile.path=storage.path().to_string_lossy().into_owned();
-        assert!(approval_summary(&pending,&profile).is_err());
-        profile.path=root.path().to_string_lossy().into_owned();
-        profile.id="other-native-profile".into();
-        assert!(approval_summary(&pending,&profile).is_err());
+            root.path().to_string_lossy().into_owned(),
+            Some("native selected workspace".into()),
+        );
+        let pending = PendingHooks {
+            profile: profile.id.clone(),
+            lease: ListenerContextLease::new(ctx.clone()),
+            context: ctx.clone(),
+            prepared: ctx.policy_hooks.prepare(&ctx, Vec::new()).unwrap(),
+            expires: Instant::now() + Duration::from_secs(60),
+        };
+        let summary = approval_summary(&pending, &profile).unwrap();
+        assert_eq!(summary["profile_id"], profile.id);
+        assert_eq!(summary["profile_name"], profile.name);
+        assert_eq!(summary["canonical_root"], json!(ctx.workspace.root()));
+        assert_eq!(summary["manifest"], pending.prepared.preview());
+        profile.path = storage.path().to_string_lossy().into_owned();
+        assert!(approval_summary(&pending, &profile).is_err());
+        profile.path = root.path().to_string_lossy().into_owned();
+        profile.id = "other-native-profile".into();
+        assert!(approval_summary(&pending, &profile).is_err());
     }
-
 }
