@@ -137,7 +137,7 @@ def inspect(sources):
 
 class DirectAudit(unittest.TestCase):
     def setUp(self):
-        self.sources = {p.name: p.read_text() for p in pathlib.Path(__file__).parent.iterdir() if p.suffix in ('.cs', '.ps1')}
+        self.sources = {name: (pathlib.Path(__file__).parent / name).read_text() for name in APPROVED_BOUNDARY}
 
     def test_approved_source(self):
         inspect(self.sources)
@@ -287,7 +287,7 @@ class DirectAudit(unittest.TestCase):
         self.assertIn('timeout-minutes: 30', workflow)
         self.assertIn('tests/windows-lpac-runtime/baseline/run.ps1', workflow)
         self.assertIn('tests/windows-lpac-runtime/run-runtime.ps1', workflow)
-        self.assertIn('tests/windows-broker-direct/run-direct.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_sandbox_fixture.exe', workflow)
+        self.assertIn('tests/windows-broker-direct/run-qualification.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_sandbox_fixture.exe', workflow)
 
 
 if __name__ == '__main__':

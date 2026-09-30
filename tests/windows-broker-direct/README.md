@@ -112,3 +112,64 @@ security changes are involved.
 provides the read-only TOKEN_QUERY contract and native status distinctions. It does
 not prove class 46 support on the measured runner. The results are confined to this
 exact API shape, token and runner image.
+
+## Paired AccessCheck qualification, still unadopted
+
+The workflow now routes the single observation invocation to
+`run-qualification.ps1`. The old single-reference source and evidence remain;
+its retained failure is not followed or bypassed by a second invocation. The new
+entry refuses any prior recovery marker, prepares exactly two native references
+(ordinary AppContainer and LPAC-configured) suspended in independent fresh fixture
+scopes, and gathers both sets within one bounded unit. It has no job-assignment
+or resume path. Cleanup attempts both exact-process stops, drains and all owned
+closes even if another operation fails; empty jobs are not process-stop proof.
+
+Only the new target's actual primary token is opened with QUERY|DUPLICATE (0xA).
+After primary/AppContainer/SID/zero-capability/LowIL checks, DuplicateTokenEx requests
+QUERY only (0x8), NULL attributes, SecurityIdentification and TokenImpersonation.
+The returned handle is verified non-inheritable and property-matched. It is used
+only for token inspection and AccessCheck, never thread impersonation, resource
+access or process creation. Failed API outputs do not establish ownership and are
+never blindly closed. All original Win32/native class46 failures remain recorded.
+
+Each verified identification duplicate is tested against four fixed absolute
+in-memory descriptors, all owned by/grouped to LocalSystem, with no SACL, no NULL
+DACL or inherited ACE. Concrete World/AAP/ARAP allow masks reproduce Chromium's
+mixed test and three controls. DesiredAccess is MAXIMUM_ALLOWED only inside
+AccessCheck; generic mapping is zero and checked after MapGenericMask. Neither
+these descriptors nor their results alter any real object's ACL.
+
+Expected candidate signatures (API success is mandatory in every row):
+
+| Descriptor | Ordinary access status / mask | LPAC access status / mask |
+| --- | --- | --- |
+| World3 + AAP1 + ARAP2 | true / 3 | true / 2 |
+| World1 + AAP1 | true / 1 | false / 0 |
+| World2 + ARAP2 | true / 2 | true / 2 |
+| World3 only | false / 0 | false / 0 |
+
+The ordinary/supplementary expectations are hypotheses requiring this exact
+qualification, not previously measured results or a versioned IsLPAC contract.
+Unknown/error/wrong-mask output rejects qualification without recalibration.
+AccessStatus/GrantedAccess/privilege outputs use non-passing sentinels; only
+API-success and bounded valid output are interpreted. A fixed20-byte privilege
+buffer must describe zero privileges; this deliberately stricter limit can fail
+inconclusively. Denied AccessStatus retains its immediate last-error observation.
+
+An eight-row matching signature is evidence about the verified duplicates of these
+actual targets only. It never changes TokenVerified, adopts a verifier, resumes a
+reference or runs a runtime. Individual cleanup receipts are separate from the
+intentionally false full CleanupConfirmed and retained recovery marker. The step
+remains failed and all original20 rows/foundation gates remain required.
+
+`qualification-audit.py` pins the new sources, tests authority/output/cleanup
+mutations, and enforces exhaustive union coverage of every `.cs`/`.ps1` fixture
+file with the unchanged-method pins in `audit.py`. Portable audits do not execute
+Windows APIs; C# compilation and the real paired matrix remain distinct CI stages.
+
+Primary implementation reference: Chromium
+[CheckLpacToken](https://chromium.googlesource.com/chromium/src/+/a1fa952ac0a8487e1b9c77fbdd856af78f2116ff/sandbox/win/src/app_container_test.cc#109),
+[identification duplication](https://chromium.googlesource.com/chromium/src/+/a1fa952ac0a8487e1b9c77fbdd856af78f2116ff/base/win/access_token.cc#211),
+and [AccessCheck wrapper](https://chromium.googlesource.com/chromium/src/+/a1fa952ac0a8487e1b9c77fbdd856af78f2116ff/base/win/security_descriptor.cc#437).
+Microsoft documents [DuplicateTokenEx](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-duplicatetokenex)
+and [AccessCheck](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-accesscheck).

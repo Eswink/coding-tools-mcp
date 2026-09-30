@@ -41,6 +41,8 @@ jobs:
         run: |
           python tests/windows-broker-direct/audit.py
           if($LASTEXITCODE){exit $LASTEXITCODE}
+          python tests/windows-broker-direct/qualification-audit.py
+          if($LASTEXITCODE){exit $LASTEXITCODE}
       - name: Compile isolated broker-direct fixture without launching
         shell: powershell
         run: |
@@ -77,11 +79,11 @@ jobs:
         shell: powershell
         run: |
           & tests/windows-lpac-runtime/run-runtime.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_runtime_fixture.exe -Payload "$env:RUNNER_TEMP/lpac-runtime-payload" -Evidence evidence/runtime
-      - name: Observe separate broker-direct four-runtime pilot
+      - name: Qualify paired token authorization without resuming references
         if: ${{ !cancelled() && steps.payload.outcome == 'success' }}
         shell: powershell
         run: |
-          & tests/windows-broker-direct/run-direct.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_sandbox_fixture.exe -Payload "$env:RUNNER_TEMP/lpac-runtime-payload" -Evidence evidence/direct -Foundation evidence/foundation
+          & tests/windows-broker-direct/run-qualification.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_sandbox_fixture.exe -Evidence evidence/qualification -Foundation evidence/foundation
       - name: Preserve boundary and evidence identity
         if: always()
         shell: pwsh
