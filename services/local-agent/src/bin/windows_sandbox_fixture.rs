@@ -19,21 +19,32 @@ fn main() {
     }
     let root = std::path::Path::new(&args[2]);
     let outside = std::path::Path::new(&args[3]);
-    let endpoint: SocketAddr = args[4].to_str().unwrap().parse().unwrap();
+    let endpoint: SocketAddr = match args[4].to_str().and_then(|s| s.parse().ok()) {
+        Some(endpoint) => endpoint,
+        None => std::process::exit(96),
+    };
     let mut token = windows::Win32::Foundation::HANDLE::default();
     let mut is_container = 0u32;
     let mut returned = 0u32;
     unsafe {
-        OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).unwrap();
-        GetTokenInformation(
+        if let Err(error) = OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) {
+            std::process::exit(1000 + (error.code().0 as u32 & 0xffff) as i32);
+        }
+        if let Err(error) = GetTokenInformation(
             token,
             TokenIsAppContainer,
             Some((&mut is_container as *mut u32).cast()),
             4,
             &mut returned,
-        )
-        .unwrap();
-        CloseHandle(token).unwrap();
+        ) {
+            std::process::exit(2000 + (error.code().0 as u32 & 0xffff) as i32);
+        }
+        if let Err(error) = CloseHandle(token) {
+            std::process::exit(3000 + (error.code().0 as u32 & 0xffff) as i32);
+        }
+        if returned != 4 {
+            std::process::exit(97);
+        }
     }
     let token_ok = (is_container != 0) == sandbox;
     let inside = root.join("inside-result.txt");
@@ -43,7 +54,13 @@ fn main() {
             .unwrap_or(false);
     let outside_read = fs::read(outside.join("canary.txt")).is_ok();
     let outside_write = fs::write(outside.join("probe-write.txt"), b"synthetic").is_ok();
-    let network = TcpStream::connect_timeout(&endpoint, Duration::from_secs(2)).is_ok();
+    // A runtime initialization panic is setup failure, never a denied socket.
+    let network = match std::panic::catch_unwind(|| {
+        TcpStream::connect_timeout(&endpoint, Duration::from_secs(2)).is_ok()
+    }) {
+        Ok(connected) => connected,
+        Err(_) => std::process::exit(4000),
+    };
     let expected_access = !sandbox;
     let results = [
         token_ok,
