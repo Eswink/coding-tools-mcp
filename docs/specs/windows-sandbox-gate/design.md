@@ -18,3 +18,6 @@ Run locked local-agent fmt/clippy/full tests on Linux; Windows native same-sourc
 
 ## 文件结构
 services/local-agent/src/isolation.rs; services/local-agent/src/bin/windows_sandbox_fixture.rs; tests/windows-sandbox; .github/workflows/windows-sandbox-foundation.yml. Launcher and fixture are separate test-only components.
+
+## Bounded WSA10107 diagnostic matrix
+Retained runs prove AppContainer creation and token queries work, but WinSock initialization returns10107. A fixed test-only matrix changes only OS-owned environment entries (minimal versus Windows/System32 PATH,windir,SystemDrive) and, separately, CREATE_NO_WINDOW. Fresh profiles retain identical zero capabilities and fixture ACLs. Each viable mode must pass the original exact ordinary-AppContainer mutation and all5LPAC assertions. Failed modes and4-case pre-network observations remain evidence, never a network pass. Any write escape or uncertain cleanup fails the whole matrix. No production fallback or profile is enabled.

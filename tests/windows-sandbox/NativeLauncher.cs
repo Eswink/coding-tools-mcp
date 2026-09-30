@@ -98,7 +98,8 @@ public static class LpacFixtureLauncher {
         finally { LocalFree(sd); }
     }
     // root must be a NEW EMPTY directory created by this method; no caller-selected existing ACLs are touched.
-    public static int Run(string fixture,string parent,string outside,int port,bool lpac) {
+    public static int Run(string fixture,string parent,string outside,int port,bool lpac,int mode) {
+        if(mode<0 || mode>2) throw new ArgumentException("unknown fixed diagnostic mode");
         string root=Path.Combine(parent,"lpac-"+Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         string code=Path.Combine(root,"code"),workspace=Path.Combine(root,"workspace");
@@ -143,17 +144,23 @@ public static class LpacFixtureLauncher {
                     throw new InvalidOperationException("required OS environment unavailable");
             }
             // Case-insensitive alphabetical order and explicit double terminator.
-            string environment="LOCALAPPDATA="+localAppData+"\0SystemRoot="+systemRoot+"\0TEMP="+workspace+"\0TMP="+workspace+"\0\0";
+            string osPaths=mode==0?"":"Path="+Path.Combine(systemRoot,"System32")+";"+systemRoot+
+                "\0SystemDrive="+Path.GetPathRoot(systemRoot).TrimEnd('\\')+"\0";
+            string environment="LOCALAPPDATA="+localAppData+"\0"+osPaths+"SystemRoot="+systemRoot+
+                "\0TEMP="+workspace+"\0TMP="+workspace+"\0"+(mode==0?"":"windir="+systemRoot+"\0")+"\0";
             env=Marshal.StringToHGlobalUni(environment);
             var startup=new STARTUPINFOEX();startup.Startup.cb=(uint)Marshal.SizeOf(startup);startup.Attributes=list;
             string command=Quote(exe)+" sandbox "+Quote(workspace)+" "+Quote(outside)+" 127.0.0.1:"+port;
             Check(CreateProcess(exe,new StringBuilder(command),IntPtr.Zero,IntPtr.Zero,false,
-                CREATE_SUSPENDED|EXTENDED|UNICODE,env,workspace,ref startup,out pi),lpac?"LPAC create suspended":"AppContainer create suspended");
+                CREATE_SUSPENDED|EXTENDED|UNICODE|(mode==2?0x08000000u:0u),env,workspace,ref startup,out pi),lpac?"LPAC create suspended":"AppContainer create suspended");
             Check(AssignProcessToJobObject(job,pi.process),"assign before resume");
             if(ResumeThread(pi.thread)!=1) throw new InvalidOperationException("unexpected suspension state");
             uint wait=WaitForSingleObject(pi.process,15000);
             if(wait!=WAIT_OBJECT_0) throw new InvalidOperationException(wait==WAIT_TIMEOUT?"native fixture timeout":"native fixture wait failure");
             uint exit;Check(GetExitCodeProcess(pi.process,out exit),"fixture exit code");
+            string prefix=lpac?"sandbox":"ordinary-appcontainer";
+            string preliminary=Path.Combine(workspace,"pre-network.txt");
+            if(File.Exists(preliminary)) File.Copy(preliminary,Path.Combine(parent,prefix+"-pre-network.txt"),false);
             string receipt=Path.Combine(workspace,"receipt.txt");
             if(!File.Exists(receipt)) throw new InvalidOperationException("fixture did not produce receipt; exit="+exit+" hex="+exit.ToString("X8")+"; startup is not containment proof");
             // Copy only fixed booleans into the evidence root; no source/payload paths.

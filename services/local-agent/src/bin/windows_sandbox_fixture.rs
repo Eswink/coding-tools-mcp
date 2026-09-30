@@ -55,6 +55,16 @@ fn main() {
             .unwrap_or(false);
     let outside_read = fs::read(outside.join("canary.txt")).is_ok();
     let outside_write = fs::write(outside.join("probe-write.txt"), b"synthetic").is_ok();
+    let preliminary = format!(
+        "token={}\ninside={}\noutside_read={}\noutside_write={}\n",
+        token_ok,
+        inside_ok,
+        outside_read != sandbox,
+        outside_write != sandbox
+    );
+    if fs::write(root.join("pre-network.txt"), preliminary).is_err() {
+        std::process::exit(98);
+    }
     // Observe the WinSock initialization error directly instead of treating a
     // Rust std initialization panic as network denial. No capability is added.
     unsafe {
