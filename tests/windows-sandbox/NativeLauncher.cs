@@ -71,7 +71,12 @@ public static class LpacFixtureLauncher {
     [DllImport("kernel32.dll",SetLastError=true)] static extern bool TerminateJobObject(IntPtr job,uint code);
     [DllImport("kernel32.dll",SetLastError=true)] static extern bool TerminateProcess(IntPtr process,uint code);
     [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
-    static void Check(bool ok,string label) { if(!ok) throw new Win32Exception(Marshal.GetLastWin32Error(),label); }
+    static void Check(bool ok,string label) {
+        if(!ok) {
+            int code=Marshal.GetLastWin32Error();
+            throw new Win32Exception(code,label+" win32="+code);
+        }
+    }
     static string Quote(string s) {
         // All inputs are fixture paths/arguments. Reject syntax instead of accepting arbitrary shell quoting.
         if(s.IndexOf('"')>=0 || s.IndexOf('\0')>=0 || s.EndsWith("\\")) throw new ArgumentException("fixture argument rejected");
@@ -134,7 +139,7 @@ public static class LpacFixtureLauncher {
             var startup=new STARTUPINFOEX();startup.Startup.cb=(uint)Marshal.SizeOf(startup);startup.Attributes=list;
             string command=Quote(exe)+" sandbox "+Quote(workspace)+" "+Quote(outside)+" 127.0.0.1:"+port;
             Check(CreateProcess(exe,new StringBuilder(command),IntPtr.Zero,IntPtr.Zero,false,
-                CREATE_SUSPENDED|EXTENDED|UNICODE,env,workspace,ref startup,out pi),"LPAC create suspended");
+                CREATE_SUSPENDED|EXTENDED|UNICODE,env,workspace,ref startup,out pi),lpac?"LPAC create suspended":"AppContainer create suspended");
             Check(AssignProcessToJobObject(job,pi.process),"assign before resume");
             if(ResumeThread(pi.thread)!=1) throw new InvalidOperationException("unexpected suspension state");
             uint wait=WaitForSingleObject(pi.process,15000);

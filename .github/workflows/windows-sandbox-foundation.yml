@@ -51,7 +51,9 @@ jobs:
         shell: pwsh
         run: |
           'Foundation fixture only. Production Windows workspace ACL lifecycle, desktop/cloud execution and ConPTY integration remain REQUIRED and NOT VERIFIED by this workflow.' | Set-Content evidence/scope.txt
-          Get-ChildItem evidence -File | Get-FileHash -Algorithm SHA256 | Format-Table -AutoSize | Out-File evidence/evidence-hashes.txt
+          $hashes = @(Get-ChildItem evidence -File | Where-Object Name -ne 'evidence-hashes.txt' |
+            Get-FileHash -Algorithm SHA256 | ForEach-Object {$_.Hash+' '+[IO.Path]::GetFileName($_.Path)})
+          $hashes | Set-Content evidence/evidence-hashes.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
