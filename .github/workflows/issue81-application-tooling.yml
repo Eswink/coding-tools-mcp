@@ -1,0 +1,38 @@
+name: Issue81 application public tooling
+on:
+  push:
+    branches: ['ci/issue81-application-tooling']
+    paths: ['.github/workflows/issue81-application-tooling.yml']
+permissions:
+  contents: read
+jobs:
+  tooling:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Export public tools only, no user configuration or credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/public-tools" "$RUNNER_TEMP/export"
+          npm install --prefix "$RUNNER_TEMP/public-tools" --no-audit --no-fund gitnexus@1.6.9 mcp-probe-kit@4.0.1
+          npm ci --no-audit --no-fund
+          tar -C "$RUNNER_TEMP/public-tools" -cJf "$RUNNER_TEMP/export/pinned-analysis-tools.tar.xz" node_modules package.json package-lock.json
+          tar -cJf "$RUNNER_TEMP/export/pinned-frontend-tools.tar.xz" node_modules
+          cp package-lock.json "$RUNNER_TEMP/export/frontend-package-lock.json"
+          node --version > "$RUNNER_TEMP/export/node-version.txt"
+          printf 'Public third-party dependencies only. No application state, credentials, signing keys, source edits or product acceptance.\n' > "$RUNNER_TEMP/export/SCOPE.txt"
+          cd "$RUNNER_TEMP/export"
+          sha256sum *.tar.xz frontend-package-lock.json node-version.txt SCOPE.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue81-application-public-tools
+          path: ${{ runner.temp }}/export/
+          retention-days: 7
+          if-no-files-found: error
