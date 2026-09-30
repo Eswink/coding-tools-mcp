@@ -1,0 +1,54 @@
+name: Issue81 native application pre-edit review
+on:
+  push:
+    branches: ['ci/issue81-app-integration-20260930']
+    paths: ['.github/workflows/issue81-app-preedit.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 2c5d133eaa75d7fc084b8122350d7768ce5b2382
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-app-public-analysis
+          run-id: 36669665015
+          github-token: ${{ github.token }}
+          path: analysis-export
+      - name: Restore pinned tools and record continuation boundary
+        run: |
+          set -euo pipefail
+          (cd analysis-export && sha256sum -c SHA256SUMS.txt)
+          mkdir -p "$RUNNER_TEMP/issue81-analysis" evidence
+          tar -xzf analysis-export/public-analysis-tools.tar.gz -C "$RUNNER_TEMP/issue81-analysis"
+          probe="$RUNNER_TEMP/issue81-analysis/node_modules/.bin/mcp-probe-kit"
+          "$probe" exec resume_plan --json "{\"project_root\":\"$PWD\"}" > evidence/remote-resume.json
+          cat evidence/remote-resume.json
+          printf '%s\n' 'The owner continuation checkpoint remains in the verified local 229a1a41 recovery bundle. This disposable CI checkout is the published 2c5d133 base; absence of its ignored local Plan is not a new completion claim. This review covers additive native configuration work compatible with that continuation.' > evidence/scope.txt
+      - name: Query and impact existing application entry before changing handlers
+        run: |
+          set -euo pipefail
+          graph="$RUNNER_TEMP/issue81-analysis/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/analyze.log 2>&1
+          "$graph" query 'native application command configuration import' > evidence/query.json
+          "$graph" impact run --direction upstream --file src-tauri/src/lib.rs --depth 3 > evidence/preedit-run.json
+          "$graph" impact open --direction upstream --file src-tauri/src/data/auth_document.rs --depth 3 > evidence/preedit-document-open.json
+          "$graph" impact save --direction upstream --file src-tauri/src/data/auth_document.rs --depth 3 > evidence/preedit-document-save.json
+          cat evidence/preedit-run.json evidence/preedit-document-open.json evidence/preedit-document-save.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-app-preedit-review
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error
