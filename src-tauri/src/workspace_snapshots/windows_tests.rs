@@ -90,13 +90,15 @@ fn capture_reopen_and_complete_restore_preserve_descriptor_and_binary() {
 }
 #[test]
 fn live_pinned_handle_blocks_root_rename_and_reopen_reuses_ownership() {
-    let (temp, target, _store) = fixture();
+    let (temp, target, store) = fixture();
     let guard = Dir::open(&target.root).unwrap();
     let second = Dir::open(&target.root).unwrap();
     assert_eq!(guard.identity().unwrap(), second.identity().unwrap());
     assert!(fs::rename(&target.root, temp.path().join("replacement")).is_err());
     drop(second);
     drop(guard);
+    // The sibling store also owns ancestor pins. Release all managed handles.
+    drop(store);
     fs::rename(&target.root, temp.path().join("replacement")).unwrap();
     assert!(target.verify().is_err());
 }
@@ -128,7 +130,9 @@ fn junction_escape_refused() {
         .unwrap();
     assert!(
         result.status.success(),
-        "disposable junction fixture must exist"
+        "disposable junction fixture must exist: status={:?}, stdout={}, stderr={}",
+        result.status.code(), String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
     );
     assert!(store.capture(&target).is_err());
     assert_eq!(fs::read(outside.join("value")).unwrap(), b"outside");

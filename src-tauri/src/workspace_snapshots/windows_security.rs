@@ -242,7 +242,23 @@ pub fn apply(file: &File, desired: &str) -> Result<()> {
     if status.0 != 0 {
         return Err(SnapshotError::Unavailable);
     }
-    if read(file)? != desired {
+    let actual = read(file)?;
+    if actual != desired {
+        #[cfg(test)]
+        {
+            let flags = |text: &str| -> String {
+                text.split("D:")
+                    .nth(1)
+                    .unwrap_or("")
+                    .split('(')
+                    .next()
+                    .unwrap_or("")
+                    .to_owned()
+            };
+            eprintln!("staged descriptor readback mismatch: immutable_equal={} dacl_flags_equal={} actual_flags={} desired_flags={}",
+                immutable_parts(&actual)? == immutable_parts(desired)?,
+                flags(&actual) == flags(desired), flags(&actual), flags(desired));
+        }
         return Err(SnapshotError::Changed);
     }
     Ok(())
