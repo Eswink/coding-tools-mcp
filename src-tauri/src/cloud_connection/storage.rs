@@ -10,8 +10,8 @@ use super::{
     decode_key, verify_private_key, CheckedImport, ConfigurationError, ConnectionConfig,
     ConnectionSummary, URL_SAFE_NO_PAD,
 };
-use base64::Engine;
 use crate::data::AuthDocument;
+use base64::Engine;
 
 const DOCUMENT_VERSION: u32 = 1;
 const DOCUMENT_STATE: &str = "configured_without_runtime_journals";
@@ -82,7 +82,11 @@ impl ConnectionStore {
             .to_str()
             .ok_or(ConfigurationError::InvalidBinding)?
             .to_owned();
-        Ok(Self { root, profile: profile.to_owned(), workspace })
+        Ok(Self {
+            root,
+            profile: profile.to_owned(),
+            workspace,
+        })
     }
 
     pub(crate) fn initialize(
@@ -114,10 +118,13 @@ impl ConnectionStore {
             use std::os::unix::fs::DirBuilderExt;
             parent_builder.mode(0o700);
         }
-        parent_builder.create(parent).map_err(|_| ConfigurationError::Unavailable)?;
+        parent_builder
+            .create(parent)
+            .map_err(|_| ConfigurationError::Unavailable)?;
         directory_chain(parent)?;
         private_directory(parent)?;
         let mut exclusive = fs::DirBuilder::new();
+        exclusive.recursive(false);
         #[cfg(unix)]
         {
             use std::os::unix::fs::DirBuilderExt;
@@ -133,11 +140,17 @@ impl ConnectionStore {
             }
         })?;
         sync_directory(parent)?;
-        let mut disk = AuthDocument::open(&self.root).map_err(|_| ConfigurationError::Unavailable)?;
-        if disk.load::<Document>().map_err(|_| ConfigurationError::Unavailable)?.is_some() {
+        let mut disk =
+            AuthDocument::open(&self.root).map_err(|_| ConfigurationError::Unavailable)?;
+        if disk
+            .load::<Document>()
+            .map_err(|_| ConfigurationError::Unavailable)?
+            .is_some()
+        {
             return Err(ConfigurationError::AlreadyInitialized);
         }
-        disk.save(&document).map_err(|_| ConfigurationError::Unavailable)?;
+        disk.save(&document)
+            .map_err(|_| ConfigurationError::Unavailable)?;
         sync_directory(&self.root)?;
         let verified: Document = disk
             .load()
@@ -179,7 +192,10 @@ impl ConnectionStore {
         {
             return Err(ConfigurationError::InvalidBinding);
         }
-        document.config.validate().map_err(|_| ConfigurationError::Unavailable)?;
+        document
+            .config
+            .validate()
+            .map_err(|_| ConfigurationError::Unavailable)?;
         verify_private_key(&document.config, &document.pkcs8)
             .map_err(|_| ConfigurationError::Unavailable)?;
         decode_key(&document.binding_key, 32).map_err(|_| ConfigurationError::Unavailable)?;

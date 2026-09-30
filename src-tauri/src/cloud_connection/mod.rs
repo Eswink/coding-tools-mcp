@@ -70,7 +70,9 @@ impl ConnectionConfig {
         let route = self.prefix.strip_prefix('/').ok_or(invalid)?;
         if route.is_empty()
             || route.len() > 64
-            || !route.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+            || !route
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
             || route.starts_with('-')
             || route.ends_with('-')
         {
@@ -95,7 +97,9 @@ impl ConnectionConfig {
 
 fn decode_key(raw: &str, length: usize) -> Result<Zeroizing<Vec<u8>>, ConfigurationError> {
     let bytes = Zeroizing::new(
-        URL_SAFE_NO_PAD.decode(raw).map_err(|_| ConfigurationError::InvalidInput)?,
+        URL_SAFE_NO_PAD
+            .decode(raw)
+            .map_err(|_| ConfigurationError::InvalidInput)?,
     );
     if bytes.len() != length || URL_SAFE_NO_PAD.encode(&*bytes) != raw {
         return Err(ConfigurationError::InvalidInput);
@@ -156,7 +160,9 @@ pub(super) fn verify_private_key(
         return Err(ConfigurationError::InvalidInput);
     }
     let bytes = Zeroizing::new(
-        URL_SAFE_NO_PAD.decode(encoded).map_err(|_| ConfigurationError::InvalidInput)?,
+        URL_SAFE_NO_PAD
+            .decode(encoded)
+            .map_err(|_| ConfigurationError::InvalidInput)?,
     );
     if URL_SAFE_NO_PAD.encode(&*bytes) != encoded {
         return Err(ConfigurationError::InvalidInput);

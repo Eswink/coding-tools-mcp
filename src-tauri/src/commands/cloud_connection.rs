@@ -13,11 +13,8 @@ fn unavailable() -> AppError {
 }
 
 fn local_store(state: &AppState, id: &str) -> AppResult<ConnectionStore> {
-    let profile = state.with_workspaces(|store| {
-        store.get(id).cloned().ok_or_else(unavailable)
-    })?;
-    ConnectionStore::for_workspace(&profile.id, Path::new(&profile.path))
-        .map_err(|_| unavailable())
+    let profile = state.with_workspaces(|store| store.get(id).cloned().ok_or_else(unavailable))?;
+    ConnectionStore::for_workspace(&profile.id, Path::new(&profile.path)).map_err(|_| unavailable())
 }
 
 #[tauri::command]

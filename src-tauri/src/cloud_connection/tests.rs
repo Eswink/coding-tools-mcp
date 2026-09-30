@@ -34,7 +34,14 @@ impl Fixture {
             "run_seconds": 3600
         });
         let store = ConnectionStore::at(root.clone(), "selected-profile", &workspace).unwrap();
-        Self { _directory: directory, store, root, workspace, config, private }
+        Self {
+            _directory: directory,
+            store,
+            root,
+            workspace,
+            config,
+            private,
+        }
     }
 
     fn input(&self) -> CheckedImport {
@@ -48,6 +55,17 @@ impl Fixture {
     fn encrypted(&self) -> Vec<u8> {
         fs::read(self.root.join("auth.json")).unwrap()
     }
+}
+
+fn create_private_fixture_directory(path: &std::path::Path) {
+    let mut builder = fs::DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+    builder.create(path).unwrap();
 }
 
 fn key_pair() -> (String, String) {
@@ -74,7 +92,15 @@ fn matching_input_has_a_configuration_only_public_summary() {
     assert_eq!(value["configured"], true);
     assert_eq!(value["scope"], "configuration_only_not_execution_authority");
     assert_eq!(value["origin"], fixture.config["origin"]);
-    for forbidden in ["pkcs8", "binding_key", "workspace", "grants", "scopes", "online", "execution_enabled"] {
+    for forbidden in [
+        "pkcs8",
+        "binding_key",
+        "workspace",
+        "grants",
+        "scopes",
+        "online",
+        "execution_enabled",
+    ] {
         assert!(value.get(forbidden).is_none(), "unexpected summary field");
     }
 }
@@ -89,20 +115,30 @@ fn stored_credentials_are_encrypted_and_reopen_without_changes() {
     assert!(!text.contains(private["pkcs8"].as_str().unwrap()));
     assert!(!text.contains("selected-profile"));
     assert!(!text.contains("approved-workspace"));
-    let second = ConnectionStore::at(fixture.root.clone(), "selected-profile", &fixture.workspace).unwrap();
+    let second =
+        ConnectionStore::at(fixture.root.clone(), "selected-profile", &fixture.workspace).unwrap();
     assert!(second.summary().unwrap().unwrap().configured);
-    assert_eq!(second.summary().unwrap().unwrap().origin, "https://gateway.example.test");
+    assert_eq!(
+        second.summary().unwrap().unwrap().origin,
+        "https://gateway.example.test"
+    );
     assert_eq!(encrypted, fixture.encrypted());
 }
 
 #[test]
 fn unsupported_origin_forms_are_not_normalized_into_trusted_identity() {
     for origin in [
-        "http://gateway.example.test", "https://gateway.example.test/", "https://gateway.example.test/path",
-        "https://user@gateway.example.test", "https://user:password@gateway.example.test",
-        "https://gateway.example.test?q=1", "https://gateway.example.test#fragment",
-        "https://GATEWAY.example.test", "https://gateway.example.test:443",
-        "https://gateway.example.test\\evil", "https://gateway.example.test\n",
+        "http://gateway.example.test",
+        "https://gateway.example.test/",
+        "https://gateway.example.test/path",
+        "https://user@gateway.example.test",
+        "https://user:password@gateway.example.test",
+        "https://gateway.example.test?q=1",
+        "https://gateway.example.test#fragment",
+        "https://GATEWAY.example.test",
+        "https://gateway.example.test:443",
+        "https://gateway.example.test\\evil",
+        "https://gateway.example.test\n",
     ] {
         reject_field("origin", json!(origin));
     }
@@ -125,14 +161,38 @@ fn unknown_identity_versions_are_rejected() {
 
 #[test]
 fn model_authority_paths_and_sandbox_switches_are_not_import_fields() {
-    for key in ["grant", "scopes", "workspace", "path", "revision_file", "ca_der_file", "environment", "disable_sandbox", "force", "approved"] {
+    for key in [
+        "grant",
+        "scopes",
+        "workspace",
+        "path",
+        "revision_file",
+        "ca_der_file",
+        "environment",
+        "disable_sandbox",
+        "force",
+        "approved",
+    ] {
         reject_field(key, json!(true));
     }
 }
 
 #[test]
 fn route_prefix_cannot_traverse_or_become_a_second_url() {
-    for prefix in ["", "/", "coding-tools", "/../x", "/a/b", "/a%2fb", "/A", "/-a", "/a-", "/a?b", "/a#b", "//host"] {
+    for prefix in [
+        "",
+        "/",
+        "coding-tools",
+        "/../x",
+        "/a/b",
+        "/a%2fb",
+        "/A",
+        "/-a",
+        "/a-",
+        "/a?b",
+        "/a#b",
+        "//host",
+    ] {
         reject_field("prefix", json!(prefix));
     }
     reject_field("prefix", json!(format!("/{}", "a".repeat(65))));
@@ -141,7 +201,13 @@ fn route_prefix_cannot_traverse_or_become_a_second_url() {
 #[test]
 fn connector_and_device_require_canonical_nonnil_uuids() {
     for key in ["connector", "device"] {
-        for id in ["", "../../other", "00000000-0000-0000-0000-000000000000", "A45D243B-9954-4A7E-894A-9B91ED6F622C", "a45d243b99544a7e894a9b91ed6f622c"] {
+        for id in [
+            "",
+            "../../other",
+            "00000000-0000-0000-0000-000000000000",
+            "A45D243B-9954-4A7E-894A-9B91ED6F622C",
+            "a45d243b99544a7e894a9b91ed6f622c",
+        ] {
             reject_field(key, json!(id));
         }
     }
@@ -158,14 +224,25 @@ fn epochs_are_positive_signed_integers_without_coercion() {
 
 #[test]
 fn duration_is_bounded_and_not_implicitly_infinite() {
-    for duration in [json!(0), json!(3601), json!(u64::MAX), json!("3600"), Value::Null] {
+    for duration in [
+        json!(0),
+        json!(3601),
+        json!(u64::MAX),
+        json!("3600"),
+        Value::Null,
+    ] {
         reject_field("run_seconds", duration);
     }
 }
 
 #[test]
 fn public_key_requires_canonical_base64url_and_exact_length() {
-    for key in ["".to_owned(), "a".repeat(43), URL_SAFE_NO_PAD.encode([0u8; 31]), format!("{}=", URL_SAFE_NO_PAD.encode([0u8; 32]))] {
+    for key in [
+        "".to_owned(),
+        "a".repeat(43),
+        URL_SAFE_NO_PAD.encode([0u8; 31]),
+        format!("{}=", URL_SAFE_NO_PAD.encode([0u8; 32])),
+    ] {
         reject_field("public_key", json!(key));
     }
 }
@@ -174,15 +251,25 @@ fn public_key_requires_canonical_base64url_and_exact_length() {
 fn private_key_mismatch_is_rejected_before_namespace_creation() {
     let fixture = Fixture::new();
     let (_, other) = key_pair();
-    assert!(matches!(CheckedImport::parse(&fixture.config.to_string(), &other), Err(ConfigurationError::InvalidBinding)));
+    assert!(matches!(
+        CheckedImport::parse(&fixture.config.to_string(), &other),
+        Err(ConfigurationError::InvalidBinding)
+    ));
     assert!(!fixture.root.exists());
 }
 
 #[test]
 fn invalid_or_extra_private_fields_are_rejected_without_echoing_input() {
     let fixture = Fixture::new();
-    for private in ["{}", "{\"pkcs8\":\"synthetic-secret-canary\"}", "{\"pkcs8\":false}", "[]"] {
-        let error = CheckedImport::parse(&fixture.config.to_string(), private).err().unwrap();
+    for private in [
+        "{}",
+        "{\"pkcs8\":\"synthetic-secret-canary\"}",
+        "{\"pkcs8\":false}",
+        "[]",
+    ] {
+        let error = CheckedImport::parse(&fixture.config.to_string(), private)
+            .err()
+            .unwrap();
         assert!(!error.to_string().contains("synthetic-secret-canary"));
     }
     let mut private: Value = serde_json::from_str(&fixture.private).unwrap();
@@ -195,7 +282,9 @@ fn invalid_or_extra_private_fields_are_rejected_without_echoing_input() {
 fn bounded_inputs_reject_oversize_and_duplicate_fields() {
     let fixture = Fixture::new();
     assert!(CheckedImport::parse(&" ".repeat(MAX_CONFIG_BYTES + 1), &fixture.private).is_err());
-    assert!(CheckedImport::parse(&fixture.config.to_string(), &" ".repeat(MAX_KEY_BYTES + 1)).is_err());
+    assert!(
+        CheckedImport::parse(&fixture.config.to_string(), &" ".repeat(MAX_KEY_BYTES + 1)).is_err()
+    );
     let public = fixture.config.to_string();
     let duplicate = format!("{{\"version\":1,{}", &public[1..]);
     assert!(CheckedImport::parse(&duplicate, &fixture.private).is_err());
@@ -205,8 +294,14 @@ fn bounded_inputs_reject_oversize_and_duplicate_fields() {
 #[test]
 fn checked_input_and_store_debug_are_redacted() {
     let fixture = Fixture::new();
-    assert_eq!(format!("{:?}", fixture.input()), "CheckedImport([REDACTED])");
-    assert_eq!(format!("{:?}", fixture.store), "ConnectionStore([LOCAL_BINDING_REDACTED])");
+    assert_eq!(
+        format!("{:?}", fixture.input()),
+        "CheckedImport([REDACTED])"
+    );
+    assert_eq!(
+        format!("{:?}", fixture.store),
+        "ConnectionStore([LOCAL_BINDING_REDACTED])"
+    );
 }
 
 #[test]
@@ -222,7 +317,10 @@ fn repeated_import_never_replaces_existing_ciphertext() {
     let fixture = Fixture::new();
     fixture.initialize();
     let original = fixture.encrypted();
-    assert!(matches!(fixture.store.initialize(fixture.input()), Err(ConfigurationError::AlreadyInitialized)));
+    assert!(matches!(
+        fixture.store.initialize(fixture.input()),
+        Err(ConfigurationError::AlreadyInitialized)
+    ));
     assert_eq!(original, fixture.encrypted());
 }
 
@@ -233,24 +331,38 @@ fn concurrent_initializers_have_exactly_one_winner() {
     let mut threads = Vec::new();
     for _ in 0..8 {
         let barrier = barrier.clone();
-        let store = ConnectionStore::at(fixture.root.clone(), "selected-profile", &fixture.workspace).unwrap();
+        let store =
+            ConnectionStore::at(fixture.root.clone(), "selected-profile", &fixture.workspace)
+                .unwrap();
         let input = fixture.input();
         threads.push(std::thread::spawn(move || {
             barrier.wait();
             store.initialize(input).map(|_| ())
         }));
     }
-    let results: Vec<_> = threads.into_iter().map(|thread| thread.join().unwrap()).collect();
+    let results: Vec<_> = threads
+        .into_iter()
+        .map(|thread| thread.join().unwrap())
+        .collect();
     assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 1);
-    assert_eq!(results.iter().filter(|result| matches!(result, Err(ConfigurationError::AlreadyInitialized))).count(), 7);
+    assert_eq!(
+        results
+            .iter()
+            .filter(|result| matches!(result, Err(ConfigurationError::AlreadyInitialized)))
+            .count(),
+        7
+    );
     assert!(fixture.store.summary().unwrap().is_some());
 }
 
 #[test]
 fn empty_existing_namespace_is_not_a_fresh_import() {
     let fixture = Fixture::new();
-    fs::create_dir_all(&fixture.root).unwrap();
-    assert!(fixture.store.initialize(fixture.input()).is_err());
+    create_private_fixture_directory(&fixture.root);
+    assert!(matches!(
+        fixture.store.initialize(fixture.input()),
+        Err(ConfigurationError::AlreadyInitialized)
+    ));
     assert!(fixture.store.summary().is_err());
     assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 0);
 }
@@ -258,11 +370,17 @@ fn empty_existing_namespace_is_not_a_fresh_import() {
 #[test]
 fn partial_namespace_is_preserved_without_lock_or_document_recreation() {
     let fixture = Fixture::new();
-    fs::create_dir_all(&fixture.root).unwrap();
+    create_private_fixture_directory(&fixture.root);
     fs::write(fixture.root.join("partial-canary"), "do-not-delete").unwrap();
-    assert!(fixture.store.initialize(fixture.input()).is_err());
+    assert!(matches!(
+        fixture.store.initialize(fixture.input()),
+        Err(ConfigurationError::AlreadyInitialized)
+    ));
     assert!(fixture.store.summary().is_err());
-    assert_eq!(fs::read_to_string(fixture.root.join("partial-canary")).unwrap(), "do-not-delete");
+    assert_eq!(
+        fs::read_to_string(fixture.root.join("partial-canary")).unwrap(),
+        "do-not-delete"
+    );
     assert_eq!(fs::read_dir(&fixture.root).unwrap().count(), 1);
 }
 
@@ -307,12 +425,20 @@ fn existing_document_lock_is_respected() {
 fn copied_ciphertext_cannot_switch_profile_or_workspace() {
     let fixture = Fixture::new();
     fixture.initialize();
-    let other_profile = ConnectionStore::at(fixture.root.clone(), "other-profile", &fixture.workspace).unwrap();
-    assert!(matches!(other_profile.summary(), Err(ConfigurationError::InvalidBinding)));
+    let other_profile =
+        ConnectionStore::at(fixture.root.clone(), "other-profile", &fixture.workspace).unwrap();
+    assert!(matches!(
+        other_profile.summary(),
+        Err(ConfigurationError::InvalidBinding)
+    ));
     let other_workspace = fixture.workspace.parent().unwrap().join("other-workspace");
     fs::create_dir(&other_workspace).unwrap();
-    let other = ConnectionStore::at(fixture.root.clone(), "selected-profile", &other_workspace).unwrap();
-    assert!(matches!(other.summary(), Err(ConfigurationError::InvalidBinding)));
+    let other =
+        ConnectionStore::at(fixture.root.clone(), "selected-profile", &other_workspace).unwrap();
+    assert!(matches!(
+        other.summary(),
+        Err(ConfigurationError::InvalidBinding)
+    ));
 }
 
 #[test]
@@ -344,8 +470,10 @@ fn authenticated_unknown_document_state_still_fails_closed() {
 fn no_authorization_or_runtime_journals_are_created_by_import() {
     let fixture = Fixture::new();
     fixture.initialize();
-    let mut names: Vec<_> = fs::read_dir(&fixture.root).unwrap()
-        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    let mut names: Vec<_> = fs::read_dir(&fixture.root)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
     names.sort();
     assert_eq!(names, ["auth.json", "auth.lock"]);
 }
@@ -355,10 +483,15 @@ fn no_authorization_or_runtime_journals_are_created_by_import() {
 fn symlink_namespace_and_ancestor_are_rejected() {
     use std::os::unix::fs::symlink;
     let fixture = Fixture::new();
-    fs::create_dir_all(fixture.root.parent().unwrap()).unwrap();
+    create_private_fixture_directory(fixture.root.parent().unwrap());
     symlink(&fixture.workspace, &fixture.root).unwrap();
     assert!(fixture.store.initialize(fixture.input()).is_err());
     assert!(fixture.store.summary().is_err());
+    assert_eq!(fs::read_dir(&fixture.workspace).unwrap().count(), 0);
+    fs::remove_file(&fixture.root).unwrap();
+    fs::remove_dir(fixture.root.parent().unwrap()).unwrap();
+    symlink(&fixture.workspace, fixture.root.parent().unwrap()).unwrap();
+    assert!(fixture.store.initialize(fixture.input()).is_err());
     assert_eq!(fs::read_dir(&fixture.workspace).unwrap().count(), 0);
 }
 
@@ -368,7 +501,11 @@ fn writable_by_other_users_parent_is_rejected() {
     use std::os::unix::fs::PermissionsExt;
     let fixture = Fixture::new();
     fs::create_dir_all(fixture.root.parent().unwrap()).unwrap();
-    fs::set_permissions(fixture.root.parent().unwrap(), fs::Permissions::from_mode(0o777)).unwrap();
+    fs::set_permissions(
+        fixture.root.parent().unwrap(),
+        fs::Permissions::from_mode(0o777),
+    )
+    .unwrap();
     assert!(fixture.store.initialize(fixture.input()).is_err());
     assert!(!fixture.root.exists());
 }
@@ -380,8 +517,14 @@ fn junction_namespace_is_rejected_without_following_its_target() {
     fs::create_dir_all(fixture.root.parent().unwrap()).unwrap();
     let output = std::process::Command::new("cmd.exe")
         .args(["/d", "/c", "mklink", "/J"])
-        .arg(&fixture.root).arg(&fixture.workspace).output().unwrap();
-    assert!(output.status.success(), "owned junction fixture setup failed");
+        .arg(&fixture.root)
+        .arg(&fixture.workspace)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "owned junction fixture setup failed"
+    );
     assert!(fixture.store.initialize(fixture.input()).is_err());
     assert!(fixture.store.summary().is_err());
     assert_eq!(fs::read_dir(&fixture.workspace).unwrap().count(), 0);
