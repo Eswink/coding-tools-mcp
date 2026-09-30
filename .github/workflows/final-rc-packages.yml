@@ -28,10 +28,69 @@ env:
   PYTHONDONTWRITEBYTECODE: '1'
 
 jobs:
-  contracts:
-    name: Version, packaging and dependency contracts
+  source:
+    name: Exact approved source and integration prerequisite
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
     outputs:
       version: ${{ steps.source.outputs.version }}
+      integration_run: ${{ steps.source.outputs.integration_run_id }}
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Resolve exact approved candidate source and integration evidence
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INTEGRATION_RUN: ${{ inputs.integration_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rc-source"
+          python scripts/final_rc_evidence.py integration --version "$VERSION" --integration-run "$INTEGRATION_RUN" --github-output --output "$RUNNER_TEMP/rc-source/integration.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rc-source
+          path: ${{ runner.temp }}/rc-source/
+          if-no-files-found: error
+
+  cloud:
+    needs: source
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/full-rc-cloud-binaries.yml
+    with:
+      version: ${{ needs.source.outputs.version }}
+      integration_run: ${{ needs.source.outputs.integration_run }}
+
+  topology:
+    name: Same-source nonproduction topology acceptance
+    needs: source
+    uses: ./.github/workflows/issue40-container-topology.yml
+
+  contracts:
+    name: Version, packaging and authenticated dependency contracts
+    needs: [source, cloud]
+    env:
+      VERSION: ${{ needs.source.outputs.version }}
+      EXPECTED_ARCHIVE: ${{ needs.cloud.outputs.archive_sha256 }}
+      EXPECTED_ENVELOPE: ${{ needs.cloud.outputs.envelope_sha256 }}
+      PRODUCER_RUN: ${{ needs.cloud.outputs.producer_run_id }}
+      PRODUCER_ATTEMPT: ${{ needs.cloud.outputs.producer_run_attempt }}
+      PRODUCER_WORKFLOW: ${{ needs.cloud.outputs.producer_workflow_ref }}
+      PRODUCER_JOB: ${{ needs.cloud.outputs.producer_job }}
+    outputs:
+      version: ${{ needs.source.outputs.version }}
+      identity_sha256: ${{ steps.dependencies.outputs.identity_sha256 }}
     permissions:
       contents: read
       actions: read
@@ -53,25 +112,24 @@ jobs:
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: '1.98.1'
-      - name: Resolve exact approved candidate source and integration evidence
-        id: source
-        env:
-          GH_TOKEN: ${{ github.token }}
-          INTEGRATION_RUN: ${{ inputs.integration_run }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p evidence
-          python scripts/final_rc_evidence.py integration --version "$VERSION" --integration-run "$INTEGRATION_RUN" --github-output --output evidence/integration.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: rc-source
+          path: ${{ runner.temp }}/rc-contracts
+      - uses: actions/download-artifact@v4
+        with:
+          name: rc-cloud-linux-amd64
+          path: ${{ runner.temp }}/cloud-release
       - name: Exact committed source and packaging unit gates
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/rc_version_gate.py --expect-version "$VERSION" --expect-sha "$GITHUB_SHA" --output evidence/version.json
+          python scripts/rc_version_gate.py --expect-version "$VERSION" --expect-sha "$GITHUB_SHA" --output "$RUNNER_TEMP/rc-contracts/version.json"
           python scripts/rc_version_gate_tests.py
           python scripts/rc_packages_tests.py
           python scripts/rc_windows_install_contract_tests.py
           python scripts/final_rc_evidence_tests.py
+          python scripts/release_dependency_capture_tests.py
           node --test tests/cloud-gateway/*.test.mjs
           node --test tests/offline-safe-ui.test.mjs tests/offline-safe-intent-ui.test.mjs
           python scripts/connector_fault_proxy_tests.py
@@ -84,35 +142,54 @@ jobs:
           npm run check
           npm run build
           set +e
-          npm audit --json > evidence/npm-audit.json
+          npm audit --json > "$RUNNER_TEMP/rc-contracts/npm-audit.json"
           code=$?
           set -e
           python - <<'PY'
-          import json
-          r=json.load(open('evidence/npm-audit.json',encoding='utf-8'))
+          import json,os,pathlib
+          r=json.loads(pathlib.Path(os.environ['RUNNER_TEMP'],'rc-contracts/npm-audit.json').read_text())
           assert type(r['metadata']['vulnerabilities']['total']) is int
           assert r['metadata']['vulnerabilities']['total'] == 0, r['metadata']['vulnerabilities']
           PY
           test "$code" -eq 0
-      - name: Real RustSec JSON for every production lockfile
+      - name: Preserve real raw audits and independent desktop backport provenance
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          cargo install cargo-audit --version 0.22.2 --locked
-          audit_status=0
-          for pair in desktop:src-tauri local-agent:services/local-agent cloud-agent:services/cloud-agent cloud-gateway:services/cloud-gateway; do
-            name=${pair%%:*}; directory=${pair#*:}
-            cargo audit --json --file "$directory/Cargo.lock" > "evidence/rust-audit-$name.json" || audit_status=1
-          done
-          test "$audit_status" -eq 0
-          python scripts/final_rc_evidence.py audits --version "$VERSION" --directory evidence --output evidence/identity.json
+          cargo install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/audit-tools"
+          python scripts/release_dependency_capture.py --root "$GITHUB_WORKSPACE" \
+            --expected-sha "$GITHUB_SHA" --version "$VERSION" \
+            --audit-bin "$RUNNER_TEMP/audit-tools/bin/cargo-audit" --audit-db "$RUNNER_TEMP/contract-advisory-db" \
+            --output "$RUNNER_TEMP/noncloud-audits"
+          cp -R "$RUNNER_TEMP/noncloud-audits/." "$RUNNER_TEMP/rc-contracts/"
+          cp "$RUNNER_TEMP/cloud-release/exact-build/raw-audit.json" "$RUNNER_TEMP/rc-contracts/rust-audit-cloud-gateway.json"
+      - name: Recompute complete dependency and exact archive contract
+        id: dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/release_dependency_contract_tests.py
+          python scripts/final_rc_evidence.py dependencies --version "$VERSION" \
+            --directory "$RUNNER_TEMP/rc-contracts" --output "$RUNNER_TEMP/rc-contracts/identity.json" \
+            --cloud-directory "$RUNNER_TEMP/cloud-release" --unpack-directory "$RUNNER_TEMP/contracts-cloud-unpacked" \
+            --expected-archive-sha256 "$EXPECTED_ARCHIVE" --expected-envelope-sha256 "$EXPECTED_ENVELOPE" \
+            --producer-run-id "$PRODUCER_RUN" --producer-run-attempt "$PRODUCER_ATTEMPT" \
+            --producer-workflow-ref "$PRODUCER_WORKFLOW" --producer-job "$PRODUCER_JOB"
+          printf 'identity_sha256=%s\n' "$(sha256sum "$RUNNER_TEMP/rc-contracts/identity.json" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
           git diff --exit-code HEAD --
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: rc-package-contracts
-          path: evidence/
+          path: ${{ runner.temp }}/rc-contracts/
+          retention-days: 30
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-noncloud-audit-diagnostics
+          path: ${{ runner.temp }}/noncloud-audits/
           retention-days: 30
           if-no-files-found: error
 
@@ -331,9 +408,16 @@ jobs:
 
   bundle:
     name: Collect exact-source packaging evidence (release remains blocked)
-    needs: [contracts, windows, linux-build, linux-installed]
+    needs: [contracts, cloud, topology, windows, linux-build, linux-installed]
     env:
       VERSION: ${{ needs.contracts.outputs.version }}
+      EXPECTED_ARCHIVE: ${{ needs.cloud.outputs.archive_sha256 }}
+      EXPECTED_ENVELOPE: ${{ needs.cloud.outputs.envelope_sha256 }}
+      EXPECTED_CONTRACTS: ${{ needs.contracts.outputs.identity_sha256 }}
+      PRODUCER_RUN: ${{ needs.cloud.outputs.producer_run_id }}
+      PRODUCER_ATTEMPT: ${{ needs.cloud.outputs.producer_run_attempt }}
+      PRODUCER_WORKFLOW: ${{ needs.cloud.outputs.producer_workflow_ref }}
+      PRODUCER_JOB: ${{ needs.cloud.outputs.producer_job }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -353,7 +437,13 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/final_rc_evidence.py bundle --version "$VERSION" \
-            --directory "$RUNNER_TEMP/rc-package-evidence" --output "$RUNNER_TEMP/rc-structural-bundle"
+            --directory "$RUNNER_TEMP/rc-package-evidence" --output "$RUNNER_TEMP/rc-structural-bundle" \
+            --cloud-directory "$RUNNER_TEMP/rc-package-evidence/rc-cloud-linux-amd64" \
+            --unpack-directory "$RUNNER_TEMP/bundle-cloud-unpacked" \
+            --expected-contracts-sha256 "$EXPECTED_CONTRACTS" \
+            --expected-archive-sha256 "$EXPECTED_ARCHIVE" --expected-envelope-sha256 "$EXPECTED_ENVELOPE" \
+            --producer-run-id "$PRODUCER_RUN" --producer-run-attempt "$PRODUCER_ATTEMPT" \
+            --producer-workflow-ref "$PRODUCER_WORKFLOW" --producer-job "$PRODUCER_JOB"
           cd "$RUNNER_TEMP/rc-structural-bundle"
           sha256sum -c SHA256SUMS.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

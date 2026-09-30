@@ -13,6 +13,7 @@ import urllib.request
 from rc_version_gate import verify_source, require
 from rc_native_gate import verify as verify_native
 from exclusive_native_gate import legacy
+import release_dependency_contract as dependency
 
 REPOSITORY = 'Eswink/coding-tools-mcp'
 WORKFLOW = '.github/workflows/dot-rc-integration.yml'
@@ -134,11 +135,49 @@ def copy_package(directory: Path, record: dict, output: Path) -> None:
     shutil.copyfile(path, output / name)
 
 
-def bundle(artifacts: Path, output: Path, expected: dict) -> dict:
+def evidence_inventory(directory: Path) -> dict:
+    require(directory.is_dir() and not directory.is_symlink(), 'invalid evidence directory')
+    require(not any(p.is_symlink() for p in directory.rglob('*')), 'symlink in evidence inventory')
+    return {p.relative_to(directory).as_posix(): dependency.hash_file(p)
+            for p in sorted(directory.rglob('*')) if p.is_file() and p != directory / 'identity.json'}
+
+
+def dependency_contract(directory: Path, cloud: Path, unpacked: Path, root: Path,
+                        expected: dict, trust: dict) -> dict:
+    proof = dependency.verify_archive(root, cloud, cloud / 'exact-build', unpacked,
+                                      expected['version'], expected['source_sha'],
+                                      'x86_64-unknown-linux-gnu', **trust)
+    require(proof['artifact_kind'] == 'release-cloud' and proof['archive_to_build_verified'] is True,
+            'engineering evidence cannot satisfy final dependency contract')
+    require((directory / 'rust-audit-cloud-gateway.json').read_bytes() ==
+            (cloud / 'exact-build/raw-audit.json').read_bytes(), 'canonical raw cloud audit mismatch')
+    npm = read_json(directory / 'npm-audit.json')
+    total = npm.get('metadata', {}).get('vulnerabilities', {}).get('total')
+    require('error' not in npm and type(total) is int and total == 0, 'npm audit missing or vulnerable')
+    noncloud = dependency.verify_noncloud_audits(root, directory, expected)
+    return dict(noncloud=noncloud, cloud=proof, raw_zero_claim=False,
+                release_approved=False, publish_approved=False,
+                scope='Exact cloud archive and per-lock dependency evidence; native/security gates remain separate')
+
+
+def bundle(artifacts: Path, output: Path, expected: dict, *, dependency_options=None) -> dict:
     require(not output.exists(), 'bundle output must be new')
     contracts = artifacts / 'rc-package-contracts'
-    identity(read_json(contracts / 'identity.json'), expected)
-    audits(contracts)
+    contract_identity = read_json(contracts / 'identity.json')
+    identity(contract_identity, expected)
+    dependency_report = None
+    if dependency_options is None:
+        # Legacy structural helper remains raw-zero. Final CLI always supplies
+        # the authenticated cloud contract; there is no CLI fallback/ignore flag.
+        audits(contracts)
+    else:
+        root, cloud, unpacked, trust, contracts_digest = dependency_options
+        dependency.hash_value(contracts_digest)
+        require(dependency.hash_file(contracts / 'identity.json') == contracts_digest,
+                'untrusted dependency contract identity')
+        require(contract_identity.get('evidence_inventory') == evidence_inventory(contracts),
+                'raw audit/source proof evidence changed')
+        dependency_report = dependency_contract(contracts, cloud, unpacked, root, expected, trust)
     prior = read_json(contracts / 'integration.json')
     require(prior.get('passed') is True and prior.get('source_sha') == expected['source_sha'],
             'missing exact integration receipt')
@@ -177,11 +216,18 @@ def bundle(artifacts: Path, output: Path, expected: dict) -> dict:
     for entry in manifest['packages'].values():
         copy_package(linux, entry['artifact'], output)
     copy_package(windows, win['package'], output)
+    if dependency_report is not None:
+        cloud = dependency_options[1]
+        copy_package(cloud, dict(name='cloud-linux-amd64.tar.gz',
+                     size=dependency_report['cloud']['archive_size'],
+                     sha256=dependency_report['cloud']['archive_sha256']), output)
     shutil.copytree(artifacts, output / 'evidence')
     report = {**expected, 'passed': True, 'publish_approved': False,
               'scope': 'Exact package bytes and installed acceptance only',
               'release_blockers': ['Windows production isolation security profile remains unresolved',
                                    'Full original release ledger and external release approval remain required']}
+    if dependency_report is not None:
+        report.update(dependency_contract=dependency_report, release_approved=False)
     (output / 'packaging-report.json').write_text(json.dumps(report, indent=2) + '\n')
     paths = sorted(p for p in output.rglob('*') if p.is_file())
     require(not any(p.is_symlink() for p in output.rglob('*')), 'symlink in evidence')
@@ -193,12 +239,18 @@ def bundle(artifacts: Path, output: Path, expected: dict) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=('integration', 'audits', 'bundle'))
+    parser.add_argument('mode', choices=('integration', 'audits', 'dependencies', 'bundle'))
     parser.add_argument('--version', default='')
     parser.add_argument('--github-output', action='store_true')
     parser.add_argument('--integration-run')
     parser.add_argument('--directory', type=Path, default=Path('evidence'))
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--cloud-directory', type=Path)
+    parser.add_argument('--unpack-directory', type=Path)
+    parser.add_argument('--expected-contracts-sha256')
+    for name in ('expected-archive-sha256', 'expected-envelope-sha256', 'producer-run-id',
+                 'producer-run-attempt', 'producer-workflow-ref', 'producer-job'):
+        parser.add_argument('--' + name)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     require(bool(args.version) or (args.mode == 'integration' and push_context(os.environ)),
@@ -212,8 +264,20 @@ def main() -> None:
     elif args.mode == 'audits':
         audits(args.directory)
         value = {**expected, 'passed': True}
+    elif args.mode == 'dependencies':
+        require(args.cloud_directory is not None and args.unpack_directory is not None,
+                'cloud archive and fresh external unpack directory required')
+        trust = dependency.trust_arguments(args, expected['source_sha'])
+        report = dependency_contract(args.directory, args.cloud_directory, args.unpack_directory,
+                                     root, expected, trust)
+        value = {**expected, 'passed': True, 'dependency_contract': report,
+                 'evidence_inventory': evidence_inventory(args.directory)}
     else:
-        bundle(args.directory, args.output, expected)
+        require(args.cloud_directory is not None and args.unpack_directory is not None,
+                'cloud archive and fresh external unpack directory required')
+        trust = dependency.trust_arguments(args, expected['source_sha'])
+        bundle(args.directory, args.output, expected, dependency_options=(root, args.cloud_directory,
+               args.unpack_directory, trust, args.expected_contracts_sha256))
         return
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(value, indent=2) + '\n', encoding='utf-8')
@@ -221,6 +285,7 @@ def main() -> None:
         require(args.mode == 'integration', 'outputs supported only after source/integration validation')
         with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as stream:
             stream.write('version=' + proof['version'] + '\n')
+            stream.write('integration_run_id=' + value['integration_run_id'] + '\n')
         with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as stream:
             stream.write('VERSION=' + proof['version'] + '\n')
 

@@ -1,7 +1,5 @@
 name: Full RC standalone cloud binaries
 on:
-  push:
-    branches: ['release/full-rc-candidate-*']
   workflow_dispatch:
     inputs:
       version:
@@ -12,10 +10,31 @@ on:
         description: 'Successful exact-source seven-job integration run'
         type: string
         required: true
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      integration_run:
+        type: string
+        required: true
+    outputs:
+      archive_sha256:
+        value: ${{ jobs.build.outputs.archive_sha256 }}
+      envelope_sha256:
+        value: ${{ jobs.build.outputs.envelope_sha256 }}
+      producer_run_id:
+        value: ${{ jobs.build.outputs.producer_run_id }}
+      producer_run_attempt:
+        value: ${{ jobs.build.outputs.producer_run_attempt }}
+      producer_workflow_ref:
+        value: ${{ jobs.build.outputs.producer_workflow_ref }}
+      producer_job:
+        value: ${{ jobs.build.outputs.producer_job }}
 permissions:
   contents: read
 concurrency:
-  group: full-rc-cloud-binaries-${{ github.ref }}
+  group: full-rc-cloud-binaries-${{ github.run_id }}-${{ github.run_attempt }}
   cancel-in-progress: true
 env:
   PYTHONUTF8: '1'
@@ -30,6 +49,12 @@ jobs:
       actions: read
     outputs:
       version: ${{ steps.source.outputs.version }}
+      archive_sha256: ${{ steps.proof.outputs.archive_sha256 }}
+      envelope_sha256: ${{ steps.proof.outputs.envelope_sha256 }}
+      producer_run_id: ${{ steps.proof.outputs.producer_run_id }}
+      producer_run_attempt: ${{ steps.proof.outputs.producer_run_attempt }}
+      producer_workflow_ref: ${{ steps.proof.outputs.producer_workflow_ref }}
+      producer_job: ${{ steps.proof.outputs.producer_job }}
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -55,38 +80,44 @@ jobs:
           INTEGRATION_RUN: ${{ inputs.integration_run }}
         run: |
           set -euo pipefail
-          mkdir -p evidence
-          python scripts/final_rc_evidence.py integration --version "$VERSION" --integration-run "$INTEGRATION_RUN" --github-output --output evidence/integration.json
+          mkdir -p "$RUNNER_TEMP/cloud-evidence"
+          python scripts/final_rc_evidence.py integration --version "$VERSION" --integration-run "$INTEGRATION_RUN" --github-output --output "$RUNNER_TEMP/cloud-evidence/integration.json"
       - name: Product authority and artifact regression
         run: |
           set -euo pipefail
           python scripts/cloud_release_bundle_tests.py
-          python scripts/cloud_release_bundle.py versions --version "$VERSION" > evidence/versions.json
-      - name: Build actual locked release binaries and audit dependencies
+          python scripts/cloud_release_bundle.py versions --version "$VERSION" > "$RUNNER_TEMP/cloud-evidence/versions.json"
+      - name: Build once, retain raw audit and bind the exact release archive
+        id: proof
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev binutils
-          cargo build --release --locked --manifest-path services/cloud-gateway/Cargo.toml --bins --example agent_fixture
-          cargo install cargo-audit --version 0.22.2 --locked
-          cargo audit --json --file services/cloud-gateway/Cargo.lock > evidence/rust-audit-cloud-gateway.json
-          python scripts/cloud_release_bundle.py build --version "$VERSION" --directory services/cloud-gateway/target/release --output "$RUNNER_TEMP/cloud-release"
-          cp evidence/*.json "$RUNNER_TEMP/cloud-release/"
-          mkdir -p "$RUNNER_TEMP/cloud-test-fixture"
-          cp services/cloud-gateway/target/release/examples/agent_fixture "$RUNNER_TEMP/cloud-test-fixture/agent_fixture"
-          python - <<'PY_FIXTURE'
-          import hashlib,json,os,pathlib,subprocess
-          p=pathlib.Path(os.environ['RUNNER_TEMP'],'cloud-test-fixture','agent_fixture')
-          report={'source_sha':os.environ['GITHUB_SHA'],'source_tree':subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip(),'run_id':os.environ['GITHUB_RUN_ID'],'product_version':os.environ['VERSION'],'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'size':p.stat().st_size,'scope':'CI disposable enrollment fixture only, never customer bundle or production image'}
-          p.with_name('fixture-receipt.json').write_text(json.dumps(report,indent=2)+'\n')
-          PY_FIXTURE
+          cargo install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/audit-tools"
+          python scripts/exact_build_audit_tests.py
+          python scripts/release_dependency_contract_tests.py
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/cloud-target"
+          python scripts/exact_build_audit.py collect \
+            --root "$GITHUB_WORKSPACE" --expected-sha "$GITHUB_SHA" --version "$VERSION" \
+            --target x86_64-unknown-linux-gnu --output "$RUNNER_TEMP/exact-cloud-build" \
+            --audit-bin "$RUNNER_TEMP/audit-tools/bin/cargo-audit" \
+            --audit-db "$RUNNER_TEMP/advisory-db" --clone-advisory-db
+          python scripts/cloud_release_bundle.py build --version "$VERSION" \
+            --directory "$CARGO_TARGET_DIR/x86_64-unknown-linux-gnu/release" --output "$RUNNER_TEMP/cloud-release"
+          cp -R "$RUNNER_TEMP/exact-cloud-build" "$RUNNER_TEMP/cloud-release/exact-build"
+          cp "$RUNNER_TEMP/cloud-evidence/"*.json "$RUNNER_TEMP/cloud-release/"
+          archive=$(sha256sum "$RUNNER_TEMP/cloud-release/cloud-linux-amd64.tar.gz" | cut -d' ' -f1)
+          envelope=$(sha256sum "$RUNNER_TEMP/cloud-release/exact-build/envelope.json" | cut -d' ' -f1)
+          python scripts/release_dependency_contract.py --root "$GITHUB_WORKSPACE" \
+            --directory "$RUNNER_TEMP/cloud-release" --evidence "$RUNNER_TEMP/cloud-release/exact-build" \
+            --unpack "$RUNNER_TEMP/build-verified-cloud" --output "$RUNNER_TEMP/cloud-release/build-contract.json" \
+            --version "$VERSION" --expected-sha "$GITHUB_SHA" \
+            --expected-archive-sha256 "$archive" --expected-envelope-sha256 "$envelope" \
+            --producer-run-id "$GITHUB_RUN_ID" --producer-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --producer-workflow-ref "$GITHUB_WORKFLOW_REF" --producer-job build
+          printf 'archive_sha256=%s\nenvelope_sha256=%s\nproducer_run_id=%s\nproducer_run_attempt=%s\nproducer_workflow_ref=%s\nproducer_job=build\n' \
+            "$archive" "$envelope" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$GITHUB_WORKFLOW_REF" >> "$GITHUB_OUTPUT"
           git diff --exit-code HEAD --
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: rc-cloud-test-fixture
-          path: ${{ runner.temp }}/cloud-test-fixture/
-          if-no-files-found: error
-          retention-days: 7
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: rc-cloud-built
@@ -97,7 +128,9 @@ jobs:
         if: always()
         with:
           name: rc-cloud-build-evidence
-          path: evidence/
+          path: |
+            ${{ runner.temp }}/cloud-evidence/
+            ${{ runner.temp }}/exact-cloud-build/
           if-no-files-found: error
           retention-days: 30
   process:
@@ -106,6 +139,12 @@ jobs:
     timeout-minutes: 30
     env:
       VERSION: ${{ needs.build.outputs.version }}
+      EXPECTED_ARCHIVE: ${{ needs.build.outputs.archive_sha256 }}
+      EXPECTED_ENVELOPE: ${{ needs.build.outputs.envelope_sha256 }}
+      PRODUCER_RUN: ${{ needs.build.outputs.producer_run_id }}
+      PRODUCER_ATTEMPT: ${{ needs.build.outputs.producer_run_attempt }}
+      PRODUCER_WORKFLOW: ${{ needs.build.outputs.producer_workflow_ref }}
+      PRODUCER_JOB: ${{ needs.build.outputs.producer_job }}
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -119,34 +158,27 @@ jobs:
         with:
           name: rc-cloud-built
           path: ${{ runner.temp }}/cloud-release
-      - uses: actions/download-artifact@v4
-        with:
-          name: rc-cloud-test-fixture
-          path: ${{ runner.temp }}/cloud-test-fixture
       - name: Verify exact downloaded archive before extraction
         run: |
           set -euo pipefail
-          python scripts/cloud_release_bundle.py unpack --version "$VERSION" --directory "$RUNNER_TEMP/cloud-release" --output "$RUNNER_TEMP/cloud-unpacked"
+          python scripts/release_dependency_contract.py --root "$GITHUB_WORKSPACE" \
+            --directory "$RUNNER_TEMP/cloud-release" --evidence "$RUNNER_TEMP/cloud-release/exact-build" \
+            --unpack "$RUNNER_TEMP/cloud-unpacked" --output "$RUNNER_TEMP/cloud-evidence/cloud-unpacked-contract.json" \
+            --version "$VERSION" --expected-sha "$GITHUB_SHA" \
+            --expected-archive-sha256 "$EXPECTED_ARCHIVE" --expected-envelope-sha256 "$EXPECTED_ENVELOPE" \
+            --producer-run-id "$PRODUCER_RUN" --producer-run-attempt "$PRODUCER_ATTEMPT" \
+            --producer-workflow-ref "$PRODUCER_WORKFLOW" --producer-job "$PRODUCER_JOB"
           sudo apt-get update
           sudo apt-get install -y postgresql-16 openssl binutils
-          python - <<'PY_FIXTURE'
-          import hashlib,json,os,pathlib,shutil,subprocess
-          p=pathlib.Path(os.environ['RUNNER_TEMP'],'cloud-test-fixture','agent_fixture')
-          report=json.loads(p.with_name('fixture-receipt.json').read_text())
-          expected={'source_sha':os.environ['GITHUB_SHA'],'source_tree':subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip(),'run_id':os.environ['GITHUB_RUN_ID'],'product_version':os.environ['VERSION'],'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'size':p.stat().st_size}
-          assert p.is_file() and not p.is_symlink() and all(report.get(k)==v for k,v in expected.items())
-          target=pathlib.Path(os.environ['RUNNER_TEMP'],'cloud-unpacked','bin','examples','agent_fixture')
-          target.parent.mkdir(exist_ok=False);shutil.copyfile(p,target);target.chmod(0o755)
-          PY_FIXTURE
       - name: Actual release process HTTP and authenticated WSS smoke
         run: |
           set -euo pipefail
-          mkdir -p evidence
+          mkdir -p "$RUNNER_TEMP/cloud-evidence"
           binary="$RUNNER_TEMP/cloud-unpacked/bin"
-          python services/cloud-gateway/tests/run_service_http.py --pg-bin /usr/lib/postgresql/16/bin --binary "$binary/coding-tools-gateway" | tee evidence/standalone_process_http.json
-          python services/cloud-gateway/tests/run_agent_process.py --pg-bin /usr/lib/postgresql/16/bin --bin-dir "$binary" | tee evidence/agent_process_wss.json
-          python scripts/cloud_release_bundle.py finish --version "$VERSION" --directory "$RUNNER_TEMP/cloud-unpacked" --evidence evidence --output "$RUNNER_TEMP/cloud-release/process-receipt.json"
-          cp evidence/*.json "$RUNNER_TEMP/cloud-release/"
+          python services/cloud-gateway/tests/run_service_http.py --pg-bin /usr/lib/postgresql/16/bin --binary "$binary/coding-tools-gateway" | tee "$RUNNER_TEMP/cloud-evidence/standalone_process_http.json"
+          python services/cloud-gateway/tests/run_agent_process.py --pg-bin /usr/lib/postgresql/16/bin --bin-dir "$binary" | tee "$RUNNER_TEMP/cloud-evidence/agent_process_wss.json"
+          python scripts/cloud_release_bundle.py finish --version "$VERSION" --directory "$RUNNER_TEMP/cloud-unpacked" --evidence "$RUNNER_TEMP/cloud-evidence" --output "$RUNNER_TEMP/cloud-release/process-receipt.json"
+          cp "$RUNNER_TEMP/cloud-evidence/"*.json "$RUNNER_TEMP/cloud-release/"
           cd "$RUNNER_TEMP/cloud-release"
           sha256sum ./*.json ./*.tar.gz > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
@@ -160,7 +192,7 @@ jobs:
         if: always()
         with:
           name: rc-cloud-process-evidence
-          path: evidence/
+          path: ${{ runner.temp }}/cloud-evidence/
           if-no-files-found: error
           retention-days: 30
   image:
@@ -170,6 +202,12 @@ jobs:
     timeout-minutes: 30
     env:
       VERSION: ${{ needs.build.outputs.version }}
+      EXPECTED_ARCHIVE: ${{ needs.build.outputs.archive_sha256 }}
+      EXPECTED_ENVELOPE: ${{ needs.build.outputs.envelope_sha256 }}
+      PRODUCER_RUN: ${{ needs.build.outputs.producer_run_id }}
+      PRODUCER_ATTEMPT: ${{ needs.build.outputs.producer_run_attempt }}
+      PRODUCER_WORKFLOW: ${{ needs.build.outputs.producer_workflow_ref }}
+      PRODUCER_JOB: ${{ needs.build.outputs.producer_job }}
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -186,9 +224,15 @@ jobs:
       - name: Verify accepted release bytes and image fixture contracts
         run: |
           set -euo pipefail
-          mkdir -p evidence
+          mkdir -p "$RUNNER_TEMP/cloud-evidence"
           python scripts/cloud_image_gate_tests.py
-          python scripts/cloud_release_bundle.py unpack --version "$VERSION" --directory "$RUNNER_TEMP/cloud-release" --output "$RUNNER_TEMP/image-context"
+          python scripts/release_dependency_contract.py --root "$GITHUB_WORKSPACE" \
+            --directory "$RUNNER_TEMP/cloud-release" --evidence "$RUNNER_TEMP/cloud-release/exact-build" \
+            --unpack "$RUNNER_TEMP/image-context" --output "$RUNNER_TEMP/cloud-evidence/image-context-contract.json" \
+            --version "$VERSION" --expected-sha "$GITHUB_SHA" \
+            --expected-archive-sha256 "$EXPECTED_ARCHIVE" --expected-envelope-sha256 "$EXPECTED_ENVELOPE" \
+            --producer-run-id "$PRODUCER_RUN" --producer-run-attempt "$PRODUCER_ATTEMPT" \
+            --producer-workflow-ref "$PRODUCER_WORKFLOW" --producer-job "$PRODUCER_JOB"
           cp deploy/cloud-gateway/Dockerfile.runtime "$RUNNER_TEMP/image-context/Dockerfile"
       - name: Resolve immutable official base and build local non-root image
         run: |
@@ -196,27 +240,27 @@ jobs:
           docker pull ubuntu:22.04
           base=$(docker image inspect ubuntu:22.04 --format '{{index .RepoDigests 0}}')
           printf '%s\n' "$base" | grep -Eq '^ubuntu@sha256:[0-9a-f]{64}$'
-          printf '%s\n' "$base" > evidence/runtime-base.txt
-          docker build --build-arg "BASE_IMAGE=$base" --build-arg "SOURCE_SHA=$GITHUB_SHA" --build-arg "PRODUCT_VERSION=$VERSION" --iidfile evidence/image-id.txt "$RUNNER_TEMP/image-context"
-          image=$(cat evidence/image-id.txt)
-          python scripts/cloud_image_gate.py --image "$image" --version "$VERSION" --context "$RUNNER_TEMP/image-context" --output evidence/image-fixture.json
-          docker image inspect "$image" > evidence/image-inspect.json
-          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges:true --user 65532:65532 --entrypoint /usr/bin/dpkg-query "$image" -W > evidence/runtime-packages.txt
+          printf '%s\n' "$base" > "$RUNNER_TEMP/cloud-evidence/runtime-base.txt"
+          docker build --build-arg "BASE_IMAGE=$base" --build-arg "SOURCE_SHA=$GITHUB_SHA" --build-arg "PRODUCT_VERSION=$VERSION" --iidfile "$RUNNER_TEMP/cloud-evidence/image-id.txt" "$RUNNER_TEMP/image-context"
+          image=$(cat "$RUNNER_TEMP/cloud-evidence/image-id.txt")
+          python scripts/cloud_image_gate.py --image "$image" --version "$VERSION" --context "$RUNNER_TEMP/image-context" --output "$RUNNER_TEMP/cloud-evidence/image-fixture.json"
+          docker image inspect "$image" > "$RUNNER_TEMP/cloud-evidence/image-inspect.json"
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges:true --user 65532:65532 --entrypoint /usr/bin/dpkg-query "$image" -W > "$RUNNER_TEMP/cloud-evidence/runtime-packages.txt"
           docker save "$image" -o "$RUNNER_TEMP/cloud-image.tar"
-          (cd "$RUNNER_TEMP" && sha256sum cloud-image.tar) > evidence/image-archive.sha256
+          (cd "$RUNNER_TEMP" && sha256sum cloud-image.tar) > "$RUNNER_TEMP/cloud-evidence/image-archive.sha256"
           git diff --exit-code HEAD --
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: rc-cloud-image-build
           path: |
             ${{ runner.temp }}/cloud-image.tar
-            evidence/
+            ${{ runner.temp }}/cloud-evidence/
           if-no-files-found: error
           retention-days: 30
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: rc-cloud-image-evidence
-          path: evidence/
+          path: ${{ runner.temp }}/cloud-evidence/
           if-no-files-found: error
           retention-days: 30

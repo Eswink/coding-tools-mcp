@@ -25,6 +25,9 @@ jobs:
       version: ${{ steps.evidence.outputs.version }}
       envelope_sha256: ${{ steps.evidence.outputs.envelope_sha256 }}
       archive_sha256: ${{ steps.evidence.outputs.archive_sha256 }}
+      producer_run_id: ${{ steps.evidence.outputs.producer_run_id }}
+      producer_run_attempt: ${{ steps.evidence.outputs.producer_run_attempt }}
+      producer_workflow_ref: ${{ steps.evidence.outputs.producer_workflow_ref }}
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -53,6 +56,7 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/exact_build_audit_tests.py
+          python scripts/release_dependency_contract_tests.py
           export CARGO_TARGET_DIR="$RUNNER_TEMP/issue85-target"
           VERSION=$(python -c 'import json; print(json.load(open("package.json"))["version"])')
           python scripts/exact_build_audit.py collect \
@@ -73,6 +77,9 @@ jobs:
               print('version=' + summary['product_version'], file=output)
               print('envelope_sha256=' + summary['envelope_sha256'], file=output)
               print('archive_sha256=' + archive_hash, file=output)
+              print('producer_run_id=' + os.environ['GITHUB_RUN_ID'], file=output)
+              print('producer_run_attempt=' + os.environ['GITHUB_RUN_ATTEMPT'], file=output)
+              print('producer_workflow_ref=' + os.environ['GITHUB_WORKFLOW_REF'], file=output)
           (evidence / 'engineering-scope.json').write_text(json.dumps({
               'source_sha': os.environ['GITHUB_SHA'], 'run_id': os.environ['GITHUB_RUN_ID'],
               'archive_sha256': archive_hash, 'envelope_sha256': summary['envelope_sha256'],
@@ -93,6 +100,9 @@ jobs:
       EXPECTED_VERSION: ${{ needs.build.outputs.version }}
       EXPECTED_ENVELOPE: ${{ needs.build.outputs.envelope_sha256 }}
       EXPECTED_ARCHIVE: ${{ needs.build.outputs.archive_sha256 }}
+      PRODUCER_RUN: ${{ needs.build.outputs.producer_run_id }}
+      PRODUCER_ATTEMPT: ${{ needs.build.outputs.producer_run_attempt }}
+      PRODUCER_WORKFLOW: ${{ needs.build.outputs.producer_workflow_ref }}
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -106,38 +116,19 @@ jobs:
         with:
           name: issue85-exact-product-evidence
           path: ${{ runner.temp }}/issue85-evidence
-      - name: Validate archive digest and fixed regular members before extraction
+      - name: Independent archive, producer, build and warning-policy verification
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import hashlib, os, sys, tarfile
-          from pathlib import Path
-          sys.path.insert(0, 'scripts')
-          from exact_build_audit import BINS, need
-          root = Path(os.environ['RUNNER_TEMP'])
-          archive = root / 'issue85-evidence/engineering-binaries.tar.gz'
-          with archive.open('rb') as stream:
-              need(hashlib.file_digest(stream, 'sha256').hexdigest() == os.environ['EXPECTED_ARCHIVE'], 'archive_hash_mismatch')
-          destination = root / 'issue85-unpacked'
-          destination.mkdir()
-          with tarfile.open(archive, 'r:gz') as tar:
-              members = tar.getmembers()
-              need(len(members) == 4 and {m.name for m in members} == BINS, 'archive_member_mismatch')
-              for member in members:
-                  need(member.isfile() and not member.issym() and not member.islnk(), 'archive_member_type')
-                  need(0 < member.size <= 256 * 1024 * 1024, 'archive_member_size')
-                  data = tar.extractfile(member).read(member.size + 1)
-                  need(len(data) == member.size, 'archive_member_truncated')
-                  (destination / member.name).write_bytes(data)
-          PY
-      - name: Reverify actual four archived bytes against exact Cargo build evidence
-        run: |
-          set -euo pipefail
-          python scripts/exact_build_audit.py verify \
-            --root "$GITHUB_WORKSPACE" --expected-sha "$GITHUB_SHA" --version "$EXPECTED_VERSION" \
-            --target x86_64-unknown-linux-gnu --output "$RUNNER_TEMP/issue85-evidence" \
-            --expected-envelope-sha256 "$EXPECTED_ENVELOPE" \
-            --binary-dir "$RUNNER_TEMP/issue85-unpacked" > "$RUNNER_TEMP/issue85-archive-verification.json"
+          test "$PRODUCER_RUN" = "$GITHUB_RUN_ID"
+          test "$PRODUCER_ATTEMPT" = "$GITHUB_RUN_ATTEMPT"
+          test "$PRODUCER_WORKFLOW" = "$GITHUB_WORKFLOW_REF"
+          python scripts/release_dependency_contract.py --engineering --root "$GITHUB_WORKSPACE" \
+            --directory "$RUNNER_TEMP/issue85-evidence" --evidence "$RUNNER_TEMP/issue85-evidence" \
+            --unpack "$RUNNER_TEMP/issue85-unpacked" --output "$RUNNER_TEMP/issue85-archive-verification.json" \
+            --version "$EXPECTED_VERSION" --expected-sha "$GITHUB_SHA" \
+            --expected-archive-sha256 "$EXPECTED_ARCHIVE" --expected-envelope-sha256 "$EXPECTED_ENVELOPE" \
+            --producer-run-id "$PRODUCER_RUN" --producer-run-attempt "$PRODUCER_ATTEMPT" \
+            --producer-workflow-ref "$PRODUCER_WORKFLOW" --producer-job build
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

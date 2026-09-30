@@ -147,6 +147,15 @@ def unpack(directory: Path, output: Path, expected: dict) -> dict:
     return manifest
 
 
+def unpack_trusted(directory: Path, output: Path, expected: dict, archive_sha256: str) -> dict:
+    from release_dependency_contract import hash_value
+    hash_value(archive_sha256)
+    archive = directory / 'cloud-linux-amd64.tar.gz'
+    require(archive.is_file() and not archive.is_symlink() and digest(archive) == archive_sha256,
+            'archive differs from trusted producer digest')
+    return unpack(directory, output, expected)
+
+
 def smoke_reports(root: Path, evidence: Path) -> dict:
     results = {}
     for script, suite in [('run_service_http.py', 'standalone_process_http'), ('run_agent_process.py', 'agent_process_wss')]:
@@ -172,6 +181,7 @@ def main() -> None:
     parser.add_argument('--directory', type=Path)
     parser.add_argument('--output', type=Path)
     parser.add_argument('--evidence', type=Path)
+    parser.add_argument('--expected-archive-sha256')
     args = parser.parse_args(); root = Path(__file__).resolve().parents[1]
     expected = identity(root, args.version)
     if args.mode == 'versions':
@@ -180,7 +190,8 @@ def main() -> None:
     if args.mode == 'build':
         build(root, args.directory.resolve(), args.output.resolve(), expected)
     elif args.mode == 'unpack':
-        unpack(args.directory.resolve(), args.output.resolve(), expected)
+        require(args.expected_archive_sha256 is not None, 'trusted producer archive digest required')
+        unpack_trusted(args.directory.resolve(), args.output.resolve(), expected, args.expected_archive_sha256)
     else:
         require(args.evidence is not None, 'process evidence required')
         reports = smoke_reports(root, args.evidence)
