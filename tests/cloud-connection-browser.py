@@ -32,7 +32,7 @@ window.__TAURI_INTERNALS__.invoke=async (cmd,args)=>{
 report={'transport':'synthetic IPC / actual built Svelte UI','native_verified':False,'real_host_verified':False,'states':[],'errors':[]}
 try:
  with sync_playwright() as p:
-  browser=p.chromium.launch(headless=True,args=['--no-sandbox'],executable_path=os.environ.get('CHROMIUM_PATH'))
+  browser=p.chromium.launch(headless=True,chromium_sandbox=True,executable_path=os.environ.get('CHROMIUM_PATH'))
   page=browser.new_page(viewport={'width':1280,'height':900},locale='zh-CN')
   page.on('pageerror',lambda error:report['errors'].append(str(error)))
   page.add_init_script(fixture+'\n'+extra)

@@ -432,59 +432,110 @@ async fn observability_separates_auth_permission_availability_and_ingress_withou
 
 #[tokio::test]
 async fn full_catalog_foreign_calls_never_disclose_offline_workspace_or_enter_ledger() {
-    let (h,c)=channel_support::setup().await;
-    let pair=h.f.tokens(Uuid::from_u128(8)).await;
-    let token=pair.access_token.expose();
-    let app=routes(h.f.store.clone(),c.clone());
-    let session=channel_support::attach(&h,&c).await;
-    channel_support::project(&h,&c,&session,1,1).await;
+    let (h, c) = channel_support::setup().await;
+    let pair = h.f.tokens(Uuid::from_u128(8)).await;
+    let token = pair.access_token.expose();
+    let app = routes(h.f.store.clone(), c.clone());
+    let session = channel_support::attach(&h, &c).await;
+    channel_support::project(&h, &c, &session, 1, 1).await;
     c.disconnect(&session).await.unwrap();
-    for (index,spec) in coding_tools_cloud_agent::catalog::tools().iter().enumerate() {
-        let mut arguments=json!({});
-        if let Some(required)=spec.schema["required"].as_array() {
+    for (index, spec) in coding_tools_cloud_agent::catalog::tools()
+        .iter()
+        .enumerate()
+    {
+        let mut arguments = json!({});
+        if let Some(required) = spec.schema["required"].as_array() {
             for key in required.iter().filter_map(Value::as_str) {
-                arguments[key]=json!("placeholder");
+                arguments[key] = json!("placeholder");
             }
         }
-        let body=message(9000+index as i64,"tools/call",Some("host-session-B"),json!({"name":spec.name,"arguments":arguments}));
-        let result=json_body(app.clone().oneshot(request(token,&body)).await.unwrap()).await;
-        let data=&result["result"]["structuredContent"];
-        assert_eq!(data["error"]["code"],"CHAT_AUTHORIZATION_REQUIRED","{}: {data}",spec.name);
-        for private in ["offline","device","workspace_root","owner","grant_id"] {
-            assert!(!data.to_string().contains(private),"{}: {data}",spec.name);
+        let body = message(
+            9000 + index as i64,
+            "tools/call",
+            Some("host-session-B"),
+            json!({"name":spec.name,"arguments":arguments}),
+        );
+        let result = json_body(app.clone().oneshot(request(token, &body)).await.unwrap()).await;
+        let data = &result["result"]["structuredContent"];
+        assert_eq!(
+            data["error"]["code"], "CHAT_AUTHORIZATION_REQUIRED",
+            "{}: {data}",
+            spec.name
+        );
+        for private in ["offline", "device", "workspace_root", "owner", "grant_id"] {
+            assert!(!data.to_string().contains(private), "{}: {data}", spec.name);
         }
     }
-    let count:i64=sqlx::query_scalar("SELECT count(*) FROM ctm_request_ledger").fetch_one(&h.f.pool).await.unwrap();
-    assert_eq!(count,0);
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM ctm_request_ledger")
+        .fetch_one(&h.f.pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
 }
 
 #[tokio::test]
 async fn offline_authorization_does_not_report_ungranted_requested_scopes_active() {
-    let (h,c)=channel_support::setup().await;
-    let pair=h.f.tokens(Uuid::from_u128(8)).await;
-    let app=routes(h.f.store.clone(),c.clone());
-    let session=channel_support::attach(&h,&c).await;
-    channel_support::project(&h,&c,&session,1,1).await;
+    let (h, c) = channel_support::setup().await;
+    let pair = h.f.tokens(Uuid::from_u128(8)).await;
+    let app = routes(h.f.store.clone(), c.clone());
+    let session = channel_support::attach(&h, &c).await;
+    channel_support::project(&h, &c, &session, 1, 1).await;
     c.disconnect(&session).await.unwrap();
-    let body=message(9200,"tools/call",Some("host-session-A"),json!({"name":"request_chat_authorization","arguments":{"scopes":["files.read","files.write"]}}));
-    let result=json_body(app.oneshot(request(pair.access_token.expose(),&body)).await.unwrap()).await;
-    assert_eq!(result["result"]["structuredContent"]["error"]["code"],"CHAT_SCOPE_REQUIRED");
-    assert!(!result["result"]["structuredContent"].to_string().contains("offline"));
+    let body = message(
+        9200,
+        "tools/call",
+        Some("host-session-A"),
+        json!({"name":"request_chat_authorization","arguments":{"scopes":["files.read","files.write"]}}),
+    );
+    let result = json_body(
+        app.oneshot(request(pair.access_token.expose(), &body))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(
+        result["result"]["structuredContent"]["error"]["code"],
+        "CHAT_SCOPE_REQUIRED"
+    );
+    assert!(!result["result"]["structuredContent"]
+        .to_string()
+        .contains("offline"));
 }
 
 #[tokio::test]
 async fn history_read_validation_is_admitted_read_only_but_repair_requires_write_scope() {
-    let (mut h,c)=channel_support::setup().await;
-    h.lease.scopes=vec!["history.read".into()];
-    let pair=h.f.tokens(Uuid::from_u128(8)).await;
-    let app=routes(h.f.store.clone(),c.clone());
-    let session=channel_support::attach(&h,&c).await;
-    channel_support::project(&h,&c,&session,1,1).await;
-    for (id,args,expected) in [(9300,json!({}),"EXECUTION_NOT_CONNECTED"),(9301,json!({"repair":true}),"CHAT_SCOPE_REQUIRED")] {
-        let body=message(id,"tools/call",Some("host-session-A"),json!({"name":"history_session_validate","arguments":args}));
-        let result=json_body(app.clone().oneshot(request(pair.access_token.expose(),&body)).await.unwrap()).await;
-        assert_eq!(result["result"]["structuredContent"]["error"]["code"],expected,"{result}");
+    let (mut h, c) = channel_support::setup().await;
+    h.lease.scopes = vec!["history.read".into()];
+    let pair = h.f.tokens(Uuid::from_u128(8)).await;
+    let app = routes(h.f.store.clone(), c.clone());
+    let session = channel_support::attach(&h, &c).await;
+    channel_support::project(&h, &c, &session, 1, 1).await;
+    for (id, args, expected) in [
+        (9300, json!({}), "EXECUTION_NOT_CONNECTED"),
+        (9301, json!({"repair":true}), "CHAT_SCOPE_REQUIRED"),
+    ] {
+        let body = message(
+            id,
+            "tools/call",
+            Some("host-session-A"),
+            json!({"name":"history_session_validate","arguments":args}),
+        );
+        let result = json_body(
+            app.clone()
+                .oneshot(request(pair.access_token.expose(), &body))
+                .await
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(
+            result["result"]["structuredContent"]["error"]["code"], expected,
+            "{result}"
+        );
     }
-    let rows:Vec<(String,String)>=sqlx::query_as("SELECT scope, request_class FROM ctm_request_ledger").fetch_all(&h.f.pool).await.unwrap();
-    assert_eq!(rows,vec![("history.read".into(),"read_only".into())]);
+    let rows: Vec<(String, String)> =
+        sqlx::query_as("SELECT scope, request_class FROM ctm_request_ledger")
+            .fetch_all(&h.f.pool)
+            .await
+            .unwrap();
+    assert_eq!(rows, vec![("history.read".into(), "read_only".into())]);
 }

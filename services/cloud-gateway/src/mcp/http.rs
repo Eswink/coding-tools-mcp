@@ -313,7 +313,8 @@ fn validate_authorize_args(message: &RpcMessage) -> Result<(), Value> {
     coding_tools_cloud_agent::approval::validate_arguments(
         coding_tools_cloud_agent::approval::ApprovalMethod::Request,
         message.params.get("arguments").unwrap_or(&json!({})),
-    ).map_err(|_| permission("INVALID_ARGUMENTS"))
+    )
+    .map_err(|_| permission("INVALID_ARGUMENTS"))
 }
 
 fn request_uuid(
@@ -361,7 +362,6 @@ fn map_projection(d: ProjectionDecision, for_request: bool) -> Value {
         ProjectionDecision::AuthorizationUnavailable => permission("CHAT_AUTHORIZATION_REQUIRED"),
     }
 }
-
 
 fn record_business_outcome(observability: &GatewayObservability, data: &Value) {
     let outcome = match data

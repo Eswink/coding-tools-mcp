@@ -4,8 +4,8 @@
 pub mod agent;
 pub mod approval;
 mod canonical;
-pub mod channel;
 pub mod catalog;
+pub mod channel;
 pub mod execution;
 mod identity;
 pub mod lifecycle;

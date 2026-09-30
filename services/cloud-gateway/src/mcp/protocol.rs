@@ -383,8 +383,13 @@ mod tests {
             .into_iter()
             .map(|v| v["name"].as_str().unwrap().to_string())
             .collect();
-        let expected: Vec<_> = ["auth_status", "request_chat_authorization"].into_iter()
-            .chain(coding_tools_cloud_agent::catalog::tools().iter().map(|spec| spec.name.as_str()))
+        let expected: Vec<_> = ["auth_status", "request_chat_authorization"]
+            .into_iter()
+            .chain(
+                coding_tools_cloud_agent::catalog::tools()
+                    .iter()
+                    .map(|spec| spec.name.as_str()),
+            )
             .collect();
         assert_eq!(names, expected);
         assert_eq!(names.len(), 46);

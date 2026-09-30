@@ -52,7 +52,6 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
-          echo /usr/bin >> "$GITHUB_PATH"
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
@@ -79,6 +78,7 @@ jobs:
       - name: Shared runtimes and production warning gates
         run: |
           set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
           for unit in cloud-agent local-agent; do
             manifest="services/$unit/Cargo.toml"
             cargo fmt --check --manifest-path "$manifest"
@@ -92,6 +92,7 @@ jobs:
       - name: Complete native application regression
         run: |
           set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
           cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-check.txt
           cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-full.txt
           cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/desktop-warnings.txt
@@ -183,13 +184,18 @@ jobs:
       - run: npm ci && npm run check && npm run build
       - run: python -m pip install playwright==1.58.0
       - run: python -m playwright install --with-deps chromium
+      - name: Use the runner's supported sandboxed Chrome
+        run: |
+          test -x /opt/google/chrome/chrome
+          /opt/google/chrome/chrome --version
       - run: python tests/cloud-connection-browser.py
         env:
           UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/cloud-ui
+          CHROMIUM_PATH: /opt/google/chrome/chrome
       - run: python tests/ui-refactor-browser.py
         env:
           UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/existing-ui
-          CHROMIUM_PATH: playwright-managed
+          CHROMIUM_PATH: /opt/google/chrome/chrome
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

@@ -121,7 +121,8 @@ impl<H: LocalHost> Worker<H> {
             projected,
             request,
             peer,
-            self.host.required_scope(&request.binding.tool, &request.arguments),
+            self.host
+                .required_scope(&request.binding.tool, &request.arguments),
             now()?,
         )?;
         self.journal
@@ -180,7 +181,8 @@ impl<H: LocalHost> Worker<H> {
                 projected,
                 request,
                 peer,
-                self.host.required_scope(&request.binding.tool, &request.arguments),
+                self.host
+                    .required_scope(&request.binding.tool, &request.arguments),
                 now()?,
             )
             .map_err(|_| AgentError::ExecutionUnknown)?;

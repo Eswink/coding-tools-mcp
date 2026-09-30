@@ -20,3 +20,18 @@ test('complete candidate keeps both Ubuntu generations and native Windows', () =
   assert.match(source, /sandbox-dispatch\/run_probe\.py --evidence/);
   assert.doesNotMatch(source, /--expect-gap|continue-on-error: true/);
 });
+
+test('control tests keep setup-python while child sandbox tests select system tools locally', () => {
+  const source = readFileSync(new URL('../../.github/workflows/dot-rc-integration.yml', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /echo \/usr\/bin >>.*GITHUB_PATH/);
+  assert.match(source, /python-version: '3\.12'/);
+  assert.match(source, /if \[ "\$RUNNER_OS" = Linux \]; then export PATH="\/usr\/bin:\$PATH"; fi/);
+});
+
+test('browser evidence never disables Chromium sandbox', () => {
+  for (const path of ['cloud-connection-browser.py', 'ui-refactor-browser.py']) {
+    const source = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /--no-sandbox|chromium_sandbox\s*[:=]\s*False/);
+    assert.match(source, /chromium_sandbox['"]?\s*[:=]\s*True/);
+  }
+});
