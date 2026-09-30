@@ -5,6 +5,7 @@ on:
     branches: ['ci/windows-lpac-runtime-diagnostic']
     paths:
       - 'tests/windows-lpac-runtime/**'
+      - 'tests/windows-broker-direct/**'
       - '.github/workflows/windows-lpac-runtime-diagnostic.yml'
 permissions:
   contents: read
@@ -35,6 +36,15 @@ jobs:
           git rev-parse 'HEAD^{tree}' | Add-Content evidence/source.txt
           python tests/windows-lpac-runtime/audit.py
           if($LASTEXITCODE){exit $LASTEXITCODE}
+      - name: Audit separate broker-direct boundary
+        shell: pwsh
+        run: |
+          python tests/windows-broker-direct/audit.py
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+      - name: Compile isolated broker-direct fixture without launching
+        shell: powershell
+        run: |
+          Add-Type -Path @(Get-ChildItem tests/windows-broker-direct/*.cs | ForEach-Object {$_.FullName})
       - name: PowerShell 5.1 metadata-shape contracts
         shell: powershell
         run: |
@@ -67,6 +77,11 @@ jobs:
         shell: powershell
         run: |
           & tests/windows-lpac-runtime/run-runtime.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_runtime_fixture.exe -Payload "$env:RUNNER_TEMP/lpac-runtime-payload" -Evidence evidence/runtime
+      - name: Observe separate broker-direct four-runtime pilot
+        if: ${{ !cancelled() && steps.payload.outcome == 'success' }}
+        shell: powershell
+        run: |
+          & tests/windows-broker-direct/run-direct.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_sandbox_fixture.exe -Payload "$env:RUNNER_TEMP/lpac-runtime-payload" -Evidence evidence/direct -Foundation evidence/foundation
       - name: Preserve boundary and evidence identity
         if: always()
         shell: pwsh
