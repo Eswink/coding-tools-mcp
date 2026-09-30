@@ -4,6 +4,7 @@ mod actions;
 mod app_state;
 mod auth;
 mod bootstrap;
+mod cloud_connection;
 mod commands;
 mod data;
 mod error;
@@ -226,6 +227,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::cloud_connection::import_cloud_connection,
+            commands::cloud_connection::get_cloud_connection_configuration,
             list_workspaces,
             create_workspace,
             update_workspace,
