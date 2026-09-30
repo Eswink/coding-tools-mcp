@@ -53,10 +53,16 @@ impl AuthDocument {
         })
     }
     pub(crate) fn load<T: DeserializeOwned>(&self) -> AppResult<Option<T>> {
+        self.load_using(key_store::default_keys())
+    }
+    fn load_using<T: DeserializeOwned>(
+        &self,
+        keys: &dyn key_store::KeyStore,
+    ) -> AppResult<Option<T>> {
         if !self.initialized {
             return Ok(None);
         }
-        let plain = Vault::new(key_store::default_keys()).read_scoped(&self.path, &self.key_id)?;
+        let plain = Vault::new(keys).read_scoped(&self.path, &self.key_id)?;
         serde_json::from_str(&plain)
             .map(Some)
             .map_err(|_| invalid())
@@ -80,6 +86,31 @@ impl AuthDocument {
         Ok(())
     }
 }
+
+/// One read-only transport session owned by one scan. Neither credentials nor
+/// documents survive a load: each record still performs a fresh system lookup
+/// and authenticates its current ciphertext while holding its existing lock.
+#[derive(Default)]
+pub(crate) struct AuthDocumentReader {
+    #[cfg(all(target_os = "linux", any(not(test), feature = "native-keyring-tests")))]
+    keys: super::scan_keys::ScanKeys,
+}
+
+impl AuthDocumentReader {
+    pub(crate) fn load<T: DeserializeOwned>(
+        &self,
+        document: &AuthDocument,
+    ) -> AppResult<Option<T>> {
+        #[cfg(all(target_os = "linux", any(not(test), feature = "native-keyring-tests")))]
+        return document.load_using(&self.keys);
+        #[cfg(not(all(target_os = "linux", any(not(test), feature = "native-keyring-tests"))))]
+        document.load()
+    }
+}
+
+#[cfg(test)]
+#[path = "auth_document_scan_tests.rs"]
+mod scan_tests;
 #[cfg(test)]
 mod tests {
     use super::*;

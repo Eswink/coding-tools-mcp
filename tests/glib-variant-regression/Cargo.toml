@@ -1,0 +1,17 @@
+[package]
+name = "issue85-glib-regression"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+glib = "=0.18.5"
+
+[patch.crates-io]
+glib = { path = "../../vendor/glib-0.18.5" }
+
+[profile.release]
+debug = 0
+incremental = false

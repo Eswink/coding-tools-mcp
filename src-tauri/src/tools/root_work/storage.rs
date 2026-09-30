@@ -87,6 +87,7 @@ pub(super) fn persisted_conflict(
         .map(|(path, _)| path)
         .map(|p| format!("{:x}", Sha256::digest(p.to_string_lossy().as_bytes())))
         .collect();
+    let reader = crate::data::AuthDocumentReader::default();
     for (index, entry) in std::fs::read_dir(parent)
         .map_err(|_| RootWorkError)?
         .enumerate()
@@ -108,8 +109,8 @@ pub(super) fn persisted_conflict(
         #[cfg(feature = "native-state-timing")]
         timing.ledger();
         let disk = AuthDocument::open(&path).map_err(|_| RootWorkError)?;
-        let doc: Document = disk
-            .load()
+        let doc: Document = reader
+            .load(&disk)
             .map_err(|_| RootWorkError)?
             .ok_or(RootWorkError)?;
         if doc.version != 1

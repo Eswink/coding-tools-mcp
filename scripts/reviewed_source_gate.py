@@ -12,6 +12,7 @@ BASE = '758c60a6e74e624e144f9c19c5f19d04d17f7a13'
 MANIFEST = 'docs/releases/reviewed-source-manifest.json'
 SHA = re.compile(r'[0-9a-f]{40}')
 LIMIT = 8 * 1024 * 1024
+LEGACY_BRANCH = 'feat/cloud-gateway-agent-runtime'
 
 
 def require(value: bool, message: str) -> None:
@@ -97,15 +98,40 @@ def verify(root: Path, source: str, *, baseline: str = BASE) -> dict:
             'trust': 'Repository consistency only; external code review and branch protection establish approval'}
 
 
+def select_route(root: Path, source: str, *, head_ref: str = '', ref: str = '') -> dict:
+    """Choose the required validator, never approval or a fallback after failure."""
+    require(SHA.fullmatch(source) is not None, 'invalid source identity')
+    require(git(root, 'rev-parse', 'HEAD').decode().strip() == source,
+            'checkout does not match expected source SHA')
+    clean = subprocess.run(['git', 'diff', '--quiet', 'HEAD', '--'], cwd=root, timeout=30)
+    require(clean.returncode == 0, 'tracked source differs from the candidate commit')
+    # Only the immutable Git tree can select cumulative review. An untracked
+    # file cannot opt the old branch out of its strict additive scope guard.
+    manifest = blob(root, source, MANIFEST)
+    legacy = head_ref == LEGACY_BRANCH if head_ref else ref == 'refs/heads/' + LEGACY_BRANCH
+    mode = 'isolated-increment' if legacy and manifest is None else 'reviewed-cumulative'
+    return {'scope_mode': mode, 'source_sha': source, 'publish_approved': False,
+            'trust': 'Routing only; the selected validator and required CI must still pass'}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path.cwd())
     parser.add_argument('--expect-sha', required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--select-route', action='store_true')
+    parser.add_argument('--head-ref', default='')
+    parser.add_argument('--ref', default='')
+    parser.add_argument('--github-output', type=Path)
     args = parser.parse_args()
-    value = verify(args.root.resolve(), args.expect_sha)
+    require(args.github_output is None or args.select_route, '--github-output requires --select-route')
+    value = (select_route(args.root.resolve(), args.expect_sha, head_ref=args.head_ref, ref=args.ref)
+             if args.select_route else verify(args.root.resolve(), args.expect_sha))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(value, indent=2) + '\n', encoding='utf-8')
+    if args.github_output is not None:
+        with args.github_output.open('a', encoding='utf-8') as output:
+            output.write('scope_mode=' + value['scope_mode'] + '\n')
     print(json.dumps(value))
 
 

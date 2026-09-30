@@ -8,6 +8,16 @@ on:
       - 'tests/cloud-gateway/**'
       - 'docs/specs/cloud-gateway-agent-runtime/**'
       - '.github/workflows/cloud-gateway-lab.yml'
+      - 'scripts/reviewed_source_gate.py'
+      - 'scripts/reviewed_source_gate_tests.py'
+      - 'scripts/source_provenance_gate.py'
+      - 'scripts/source_provenance_gate_tests.py'
+      - 'scripts/rc_version_gate.py'
+      - 'scripts/rc_version_gate_tests.py'
+      - 'scripts/发布版本校验v4.py'
+      - 'docs/releases/reviewed-source-manifest.json'
+      - 'tests/delivery/metadata_contract.test.mjs'
+      - '.github/workflows/cloud-delivery.yml'
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -47,6 +57,7 @@ jobs:
           set -euo pipefail
           mkdir -p evidence
           python scripts/reviewed_source_gate_tests.py
+          node --test tests/delivery/metadata_contract.test.mjs
       - name: Syntax and HTTP contract tests
         if: always()
         run: |
@@ -65,8 +76,19 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/connector_fault_proxy_tests.py 2>&1 | tee evidence/fault-proxy-tests.txt
+      - name: Select exact-source scope validator
+        id: scope_route
+        if: always()
+        env:
+          SOURCE_HEAD_REF: ${{ github.head_ref }}
+          SOURCE_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          python scripts/reviewed_source_gate.py --expect-sha "$GITHUB_SHA" --select-route \
+            --head-ref="$SOURCE_HEAD_REF" --ref="$SOURCE_REF" \
+            --output evidence/scope-route.json --github-output "$GITHUB_OUTPUT"
       - name: Verify isolated increment scope and record candidate identity
-        if: always() && (github.head_ref == 'feat/cloud-gateway-agent-runtime' || github.ref == 'refs/heads/feat/cloud-gateway-agent-runtime')
+        if: always() && steps.scope_route.outputs.scope_mode == 'isolated-increment'
         run: |
           set -euo pipefail
           mkdir -p evidence
@@ -137,7 +159,7 @@ jobs:
           Path('evidence/candidate.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
           PY
       - name: Verify reviewed cumulative source manifest
-        if: always() && !(github.head_ref == 'feat/cloud-gateway-agent-runtime' || github.ref == 'refs/heads/feat/cloud-gateway-agent-runtime')
+        if: always() && steps.scope_route.outputs.scope_mode == 'reviewed-cumulative'
         run: |
           set -euo pipefail
           python scripts/reviewed_source_gate.py --expect-sha "$GITHUB_SHA" --output evidence/candidate.json

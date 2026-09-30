@@ -136,12 +136,57 @@ jobs:
           grep -F 'native_keychain_cross_process_file_roundtrip ... ok' evidence/native-keyring-restart.txt
           grep -F 'native_task_journal_cross_process_restore_and_missing_key ... ok' evidence/native-keyring-restart.txt
           grep -F 'native_root_cross_process_crash_fences ... ok' evidence/native-keyring-restart.txt
+      - name: Linux scan transport revocation and restart proofs
+        if: always() && runner.os == 'Linux' && steps.native_checks.outcome == 'success'
+        run: |
+          set -euo pipefail
+          export PATH="/usr/bin:$PATH"
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/scan-runtime" XDG_DATA_HOME="$RUNNER_TEMP/scan-data"
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/scan-config" XDG_STATE_HOME="$RUNNER_TEMP/scan-state"
+          mkdir -p "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+          chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+          failed=0
+          dbus-run-session -- bash -euo pipefail -c '
+            printf "%s" "isolated-scan-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets
+            : > evidence/native-scan-keys.txt
+            failed=0
+            for test_name in \
+              data::auth_document::scan_tests::native_scan_reader_rechecks_deleted_rotated_keys_and_ciphertext \
+              data::scan_keys::tests::native_scan_keys_use_fresh_unique_lookups_and_legacy_fallback \
+              data::scan_keys::tests::native_scan_exact_match_precedes_legacy_and_fallback_stays_in_default; do
+              cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --features native-keyring-tests "$test_name" -- --exact --nocapture --test-threads=1 2>&1 | tee -a evidence/native-scan-keys.txt || failed=1
+            done
+            exit "$failed"
+          ' || failed=1
+          grep -F 'native_scan_reader_rechecks_deleted_rotated_keys_and_ciphertext ... ok' evidence/native-scan-keys.txt || failed=1
+          grep -F 'native_scan_keys_use_fresh_unique_lookups_and_legacy_fallback ... ok' evidence/native-scan-keys.txt || failed=1
+          grep -F 'native_scan_exact_match_precedes_legacy_and_fallback_stays_in_default ... ok' evidence/native-scan-keys.txt || failed=1
+          python scripts/native_scan_keyring_fixture.py cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --features native-keyring-tests data::scan_keys::tests::native_scan_service_lifecycle -- --exact --nocapture 2>&1 | tee evidence/native-scan-service-faults.txt || failed=1
+          grep -F 'native_scan_service_lifecycle ... ok' evidence/native-scan-service-faults.txt || failed=1
+          exit "$failed"
       - name: Independent production warnings and source integrity
         if: always() && steps.native_checks.outcome == 'success'
         run: |
           set -euo pipefail
           if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
           cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/desktop-warnings.txt
+          git diff --exit-code HEAD --
+      - name: Independent Linux GLib source and optimized regression proof
+        if: always() && runner.os == 'Linux' && steps.native_checks.outcome == 'success'
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/glib-0.18.5.crate"
+          curl --fail --location --retry 2 https://static.crates.io/crates/glib/glib-0.18.5.crate --output "$archive"
+          python scripts/verify_glib_backport_tests.py --archive "$archive" 2>&1 | tee evidence/glib-verifier-tests.txt
+          python scripts/verify_glib_backport.py --root "$GITHUB_WORKSPACE" --archive "$archive" > evidence/glib-source-proof.json
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/glib-regression-target"
+          status=0
+          python scripts/glib_backport_regression.py --root "$GITHUB_WORKSPACE" --archive "$archive" \
+            --output "$RUNNER_TEMP/glib-regression-evidence" > evidence/glib-regression-summary.json 2> evidence/glib-regression-error.txt || status=$?
+          if [ -d "$RUNNER_TEMP/glib-regression-evidence" ]; then
+            cp -a "$RUNNER_TEMP/glib-regression-evidence" evidence/glib-regression
+          fi
+          test "$status" -eq 0
           git diff --exit-code HEAD --
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

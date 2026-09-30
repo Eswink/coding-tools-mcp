@@ -19,6 +19,26 @@ pub(crate) fn annotate(ctx: &ToolContext, result: &mut Value, child_started: boo
 }
 
 pub(crate) fn environment(ctx: &ToolContext, mut result: Value) -> Value {
+    if ctx.remote_request.is_some() && !cfg!(target_os = "linux") {
+        // Match NativeToolHost's actual fail-closed admission rule. A local
+        // policy-only process path does not establish remote OS isolation.
+        result["workspace_exec_available"] = json!(false);
+        result["workspace_exec_boundary"] = json!("sandbox_unavailable");
+        result["workspace_exec_unavailable_reason"] = json!("SANDBOX_REQUIRED");
+        result["workspace_exec_sandbox_enforced"] = json!(false);
+        result["network_allowed"] = json!(false);
+        result["global_tmp_write"] = json!("denied");
+        result["filesystem_sandbox"] = json!({
+            "available": false, "enforced": false, "required": true,
+            "default_scope": "workspace", "host_scope_available": false,
+            "support": "Mandatory remote execution isolation is unavailable on this platform"
+        });
+        result["warnings"] = json!([
+            "Remote child execution is unavailable because mandatory OS isolation is not implemented.",
+            "No policy-only or unsandboxed fallback is permitted."
+        ]);
+        return result;
+    }
     if required(ctx) {
         // Configuration is not an execution proof. Kernel availability is
         // checked again for every child and reported by that child's result.
@@ -120,6 +140,20 @@ mod tests {
         annotate(&ctx, &mut value, false);
         assert_eq!(value["sandbox_enforced"], false);
         assert_eq!(value["sandbox_required"], false);
+    }
+
+    #[test]
+    fn local_environment_preserves_policy_only_diagnostics() {
+        let root = tempfile::tempdir().unwrap();
+        let harness = tempfile::tempdir().unwrap();
+        let ctx = ToolContext::for_test(root.path().into(), harness.path().into()).unwrap();
+        let original = json!({
+            "workspace_exec_available": true,
+            "workspace_exec_boundary": "policy_only",
+            "workspace_exec_sandbox_enforced": false,
+            "network_allowed": true
+        });
+        assert_eq!(environment(&ctx, original.clone()), original);
     }
 
     #[cfg(target_os = "linux")]

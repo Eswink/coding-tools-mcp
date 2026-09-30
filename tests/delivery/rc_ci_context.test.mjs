@@ -3,6 +3,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 
+test('Linux GLib source and optimized controls are mandatory independent evidence', () => {
+  const source = readFileSync(new URL('../../.github/workflows/dot-rc-integration.yml', import.meta.url), 'utf8');
+  const step = source.split('      - name: Independent Linux GLib source and optimized regression proof\n')[1]?.split('      - ')[0];
+  assert.ok(step);
+  assert.match(step, /if: always\(\) && runner.os == 'Linux' && steps.native_checks.outcome == 'success'/);
+  assert.match(step, /set -euo pipefail/);
+  for (const script of ['verify_glib_backport_tests.py', 'verify_glib_backport.py', 'glib_backport_regression.py']) assert.ok(step.includes(script));
+  assert.match(step, /CARGO_TARGET_DIR="\$RUNNER_TEMP\/glib-regression-target"/);
+  assert.match(step, /\|\| status=\$\?/);
+  assert.match(step, /test "\$status" -eq 0/);
+  assert.match(step, /cp -a.*evidence\/glib-regression/);
+  assert.doesNotMatch(step, /continue-on-error|\|\| true|--skip|--ignored/);
+});
+
 test('portable gateway targets exist and retain CLI contracts', () => {
   const source = readFileSync(new URL('../../.github/workflows/dot-rc-integration.yml', import.meta.url), 'utf8');
   const command = source.split('\n').find(line => line.includes('--lib --test'));

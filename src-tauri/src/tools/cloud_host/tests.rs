@@ -84,6 +84,47 @@ impl Fixture {
     }
 }
 #[test]
+fn remote_environment_reports_the_actual_platform_execution_gate() {
+    let f = Fixture::new();
+    let a = f.approve(&["workspace.read"]);
+    let call = f
+        .host
+        .prepare(
+            &a,
+            "check_exec_environment",
+            &json!({}),
+            now().unwrap() + 30,
+        )
+        .unwrap();
+    let value = f.host.execute(call).unwrap();
+    assert_eq!(value["ok"], true, "{value}");
+    assert_eq!(value["workspace_exec_sandbox_enforced"], false);
+    assert_eq!(value["filesystem_sandbox"]["required"], true);
+    assert_eq!(value["network_allowed"], false);
+    if cfg!(target_os = "linux") {
+        assert_eq!(value["workspace_exec_available"], true);
+        assert_eq!(
+            value["workspace_exec_boundary"],
+            "landlock_seccomp_required"
+        );
+        assert_eq!(value["filesystem_sandbox"]["available"], Value::Null);
+        assert_eq!(
+            value["filesystem_sandbox"]["availability_check"],
+            "per_child_before_exec"
+        );
+    } else {
+        assert_eq!(value["workspace_exec_available"], false);
+        assert_eq!(value["workspace_exec_boundary"], "sandbox_unavailable");
+        assert_eq!(
+            value["workspace_exec_unavailable_reason"],
+            "SANDBOX_REQUIRED"
+        );
+        assert_eq!(value["filesystem_sandbox"]["available"], false);
+        assert_eq!(value["global_tmp_write"], "denied");
+    }
+}
+
+#[test]
 fn actual_native_authorization_is_required_before_snapshot_or_prepare() {
     let f = Fixture::new();
     assert!(f.host.authority(&f.conversation()).is_err());

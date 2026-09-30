@@ -1,7 +1,9 @@
 mod auth_document;
 #[cfg(feature = "native-state-timing")]
 pub(crate) mod native_timing;
-pub(crate) use auth_document::AuthDocument;
+pub(crate) use auth_document::{AuthDocument, AuthDocumentReader};
+#[cfg(all(target_os = "linux", any(not(test), feature = "native-keyring-tests")))]
+mod scan_keys;
 #[path = "任务快照v2.rs"]
 mod task_archive;
 pub(crate) use task_archive::TaskArchive;

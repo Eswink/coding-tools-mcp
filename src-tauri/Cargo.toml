@@ -87,3 +87,7 @@ frp-binary-tests = []
 
 # Requires a separate disposable real PostgreSQL/TLS gateway fixture binary.
 cloud-agent-integration-tests = []
+
+# Exact upstream RUSTSEC-2024-0429 backport; retain separate upstream audit identity.
+[patch.crates-io]
+glib = { path = "../vendor/glib-0.18.5" }

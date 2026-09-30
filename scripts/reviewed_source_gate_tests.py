@@ -101,5 +101,100 @@ class ReviewedTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.verify(command(self.root, 'rev-parse', 'HEAD'))
 
 
+class RouteTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.base = repository(self.root)
+        self.branch = 'feat/cloud-gateway-agent-runtime'
+
+    def freeze(self, contents=None):
+        path = self.root / gate.MANIFEST; path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(contents if contents is not None else json.dumps(dict(
+            schema=1, base_commit=self.base, version='1.2.3-rc.4',
+            review_reference='Synthetic route fixture, not external approval', entries=[])))
+        return commit(self.root)
+
+    def route(self, source=None, *, head_ref='', ref=''):
+        return gate.select_route(self.root, source or command(self.root, 'rev-parse', 'HEAD'),
+                                 head_ref=head_ref, ref=ref)
+
+    def test_only_exact_historical_branch_without_manifest_selects_legacy(self):
+        for head_ref, ref in [(self.branch, 'refs/pull/36/merge'), ('', 'refs/heads/' + self.branch)]:
+            self.assertEqual(self.route(head_ref=head_ref, ref=ref)['scope_mode'], 'isolated-increment')
+        for head_ref, ref in [('', ''), ('other', 'refs/pull/36/merge'),
+                              (self.branch + '-extra', ''), ('', 'refs/heads/' + self.branch + '-extra'),
+                              ('other', 'refs/heads/' + self.branch), ('', 'refs/tags/' + self.branch)]:
+            self.assertEqual(self.route(head_ref=head_ref, ref=ref)['scope_mode'], 'reviewed-cumulative')
+
+    def test_valid_committed_manifest_selects_reviewed_on_pr_and_push(self):
+        source = self.freeze()
+        for head_ref, ref in [(self.branch, 'refs/pull/36/merge'), ('', 'refs/heads/' + self.branch), ('other', '')]:
+            result = self.route(source, head_ref=head_ref, ref=ref)
+            self.assertEqual(result['scope_mode'], 'reviewed-cumulative')
+            self.assertFalse(result['publish_approved'])
+            self.assertNotIn('passed', result)  # Selecting a validator is not passing it.
+            self.assertTrue(gate.verify(self.root, source, baseline=self.base)['passed'])
+
+    def test_untracked_manifest_never_selects_or_satisfies_reviewed_validation(self):
+        path = self.root / gate.MANIFEST; path.parent.mkdir(parents=True); path.write_text('{}')
+        self.assertEqual(self.route(head_ref=self.branch)['scope_mode'], 'isolated-increment')
+        with self.assertRaisesRegex(ValueError, 'BLOCKED'):
+            gate.verify(self.root, self.base, baseline=self.base)
+
+    def test_exact_cumulative_path_outside_legacy_allowlist_passes_only_reviewed_route(self):
+        name = 'src-tauri/src/main.rs'; data = b'// synthetic cumulative source\n'
+        path = self.root / name; path.parent.mkdir(parents=True); path.write_bytes(data)
+        commit(self.root)
+        source = self.freeze(json.dumps(dict(schema=1, base_commit=self.base, version='1.2.3-rc.4',
+            review_reference='Synthetic cumulative review, not approval', entries=[
+                dict(path=name, status='A', before=None, after=descriptor(data))])))
+        self.assertEqual(self.route(source, head_ref=self.branch)['scope_mode'], 'reviewed-cumulative')
+        self.assertEqual(gate.verify(self.root, source, baseline=self.base)['entry_count'], 1)
+
+    def test_malformed_manifest_selects_reviewed_and_fails_without_fallback(self):
+        for contents in ['{}', 'not json', '{"schema":1,"schema":1}', '{"schema":NaN}']:
+            source = self.freeze(contents)
+            self.assertEqual(self.route(source, head_ref=self.branch)['scope_mode'], 'reviewed-cumulative')
+            with self.assertRaises(ValueError): gate.verify(self.root, source, baseline=self.base)
+
+    def test_stale_manifest_selects_reviewed_and_fails_without_fallback(self):
+        self.freeze(); (self.root / 'unreviewed.txt').write_text('new source')
+        source = commit(self.root)
+        self.assertEqual(self.route(source, head_ref=self.branch)['scope_mode'], 'reviewed-cumulative')
+        with self.assertRaisesRegex(ValueError, 'frozen reviewed source differs'):
+            gate.verify(self.root, source, baseline=self.base)
+
+    def test_missing_manifest_on_nonlegacy_branch_still_fails_closed(self):
+        self.assertEqual(self.route(head_ref='release/candidate')['scope_mode'], 'reviewed-cumulative')
+        with self.assertRaisesRegex(ValueError, 'BLOCKED'):
+            gate.verify(self.root, self.base, baseline=self.base)
+
+    def test_invalid_or_wrong_source_identity_never_selects_a_route(self):
+        for source in ['0' * 40, self.base + '\n', 'HEAD', '--help']:
+            with self.assertRaises(ValueError): self.route(source, head_ref=self.branch)
+
+    def test_dirty_tracked_source_or_deleted_manifest_never_selects_a_route(self):
+        self.freeze(); path = self.root / gate.MANIFEST
+        path.write_text('{}')
+        with self.assertRaisesRegex(ValueError, 'tracked source'): self.route(head_ref=self.branch)
+        path.unlink()
+        with self.assertRaisesRegex(ValueError, 'tracked source'): self.route(head_ref=self.branch)
+
+    def test_directory_at_manifest_path_fails_closed(self):
+        path = self.root / gate.MANIFEST; path.mkdir(parents=True)
+        (path / 'not-a-manifest').write_text('{}'); source = commit(self.root)
+        with self.assertRaisesRegex(ValueError, 'Git blob'): self.route(source, head_ref=self.branch)
+
+    def test_cli_emits_only_fixed_mode_for_github_output(self):
+        output = self.root / 'route.json'; github_output = self.root / 'github-output'
+        subprocess.run(['python', str(Path(gate.__file__).resolve()), '--root', str(self.root),
+                        '--expect-sha', self.base, '--select-route', '--head-ref', self.branch,
+                        '--output', str(output), '--github-output', str(github_output)], check=True,
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.assertEqual(github_output.read_text(), 'scope_mode=isolated-increment\n')
+        self.assertEqual(json.loads(output.read_text())['source_sha'], self.base)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -85,9 +85,8 @@ def inspect_boundaries(f):
     require(proxy['HostConfig']['NetworkMode']=='container:'+anchor and gw['HostConfig']['NetworkMode']=='container:'+anchor,
             'actual_shared_stable_namespace')
     require(not gw['HostConfig'].get('PortBindings'),'gateway_has_no_separate_host_binding')
-    for service,uid in [('namespace','65532'),('gateway','65532'),('ingress','65532'),('postgres','999')]:
-        result=f.dc('exec','-T',service,'id','-u')
-        require(result.stdout.decode().strip()==uid,'actual_nonroot_service_uid')
+    for service in ('namespace','gateway','ingress','postgres'):
+        f.assert_process_identity(service)
     dbnet=[name for name in db['NetworkSettings']['Networks'] if name.endswith('_database')]
     require(len(dbnet)==1,'one_private_database_network')
     network=json.loads(f.exec(['docker','network','inspect',dbnet[0]]).stdout)[0]

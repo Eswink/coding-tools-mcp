@@ -111,3 +111,89 @@ test('missing assignee response is not interpreted as an unowned task',async()=>
     assert.match(error.message,/invalid_assignee_state/);assert.equal(error.mutations,0);return true;
   });
 });
+
+// Evaluate the actual job condition; no GitHub API or token is involved.
+const queueJob = workflow.split('  queue-issues:\n')[1];
+const queueCondition = queueJob.split('\n').find(line => line.startsWith('    if: ')).slice(8);
+function queueAllowed({ mode = 'isolated-increment', result = 'success', event = 'push',
+                        ref = 'refs/heads/feat/cloud-gateway-agent-runtime',
+                        repository = 'Eswink/coding-tools-mcp' } = {}) {
+  return vm.runInNewContext(queueCondition, {
+    needs: { plan: { result, outputs: { scope_mode: mode } } },
+    github: { repository, event_name: event, ref },
+  }, { timeout: 1000 });
+}
+
+test('ordinary isolated feature push retains bounded issue queue', () => {
+  assert.equal(queueAllowed(), true);
+});
+test('reviewed cumulative feature push never opens a legacy release-work queue', () => {
+  assert.equal(queueAllowed({ mode: 'reviewed-cumulative' }), false);
+});
+for (const mode of ['', 'unknown', undefined]) {
+  test(`missing or unknown route cannot authorize queue: ${String(mode)}`, () => {
+    const condition = vm.runInNewContext(queueCondition, {
+      needs: { plan: { result: 'success', outputs: { scope_mode: mode } } },
+      github: { repository: 'Eswink/coding-tools-mcp', event_name: 'push',
+                ref: 'refs/heads/feat/cloud-gateway-agent-runtime' },
+    });
+    assert.equal(condition, false);
+  });
+}
+for (const result of ['failure', 'cancelled', 'skipped']) {
+  test(`failed source verification or planning cannot queue: ${result}`, () => {
+    assert.equal(queueAllowed({ result }), false);
+  });
+}
+test('PR, manual, foreign-repository and other-branch events remain read-only', () => {
+  for (const options of [{ event: 'pull_request' }, { event: 'workflow_dispatch' },
+                         { repository: 'other/fork' }, { ref: 'refs/heads/release/rc' }]) {
+    assert.equal(queueAllowed(options), false);
+  }
+});
+test('delivery verifies selected cumulative source and retains read-only packet tests', () => {
+  const plan = workflow.split('  plan:\n')[1].split('  queue-issues:\n')[0];
+  assert.match(plan, /scope_mode: \$\{\{ steps\.scope_route\.outputs\.scope_mode \}\}/);
+  assert.match(plan, /--select-route[\s\S]*--github-output "\$GITHUB_OUTPUT"/);
+  const verification = plan.split('      - name: Verify cumulative source before read-only delivery planning\n')[1].split('      - name:')[0];
+  assert.match(verification, /if: steps\.scope_route\.outputs\.scope_mode == 'reviewed-cumulative'/);
+  assert.match(verification, /reviewed_source_gate\.py --expect-sha "\$GITHUB_SHA" --output/);
+  assert.doesNotMatch(verification, /--select-route|continue-on-error|\|\| true/);
+  const tests = plan.split('      - name: Test deterministic scheduler and compute work packets\n')[1];
+  assert.match(tests, /if: always\(\)/);
+  assert.match(tests, /python -m unittest discover -s tests\/delivery -v/);
+  assert.match(tests, /node --test tests\/delivery\/metadata_contract\.test\.mjs/);
+  assert.match(tests, /python tools\/delivery\/dispatch\.py/);
+});
+test('lab selects exactly one required scope validator without branch-name exclusion', () => {
+  const lab = fs.readFileSync(new URL('../../.github/workflows/cloud-gateway-lab.yml', import.meta.url), 'utf8');
+  const selection = lab.split('      - name: Select exact-source scope validator\n')[1].split('      - name:')[0];
+  assert.match(selection, /if: always\(\)/);
+  assert.match(selection, /--expect-sha "\$GITHUB_SHA" --select-route/);
+  for (const [name, mode] of [['Verify isolated increment scope and record candidate identity', 'isolated-increment'],
+                            ['Verify reviewed cumulative source manifest', 'reviewed-cumulative']]) {
+    const step = lab.split(`      - name: ${name}\n`)[1].split('      - ')[0];
+    assert.ok(step);
+    const condition = step.split('\n').find(line => line.trim().startsWith('if: ')).trim().slice(4);
+    for (const actual of ['isolated-increment', 'reviewed-cumulative', '', undefined]) {
+      assert.equal(vm.runInNewContext(condition, { always: () => true,
+        steps: { scope_route: { outputs: { scope_mode: actual } } } }), actual === mode);
+    }
+    assert.doesNotMatch(step, /continue-on-error|\|\| true/);
+  }
+});
+test('gate-only changes trigger read-only checks without expanding issue-writing push events', () => {
+  const lab = fs.readFileSync(new URL('../../.github/workflows/cloud-gateway-lab.yml', import.meta.url), 'utf8');
+  const labPush = lab.split('  push:\n')[1].split('  pull_request:\n')[0];
+  const deliveryPr = workflow.split('  pull_request:\n')[1].split('  workflow_dispatch:')[0];
+  for (const path of ['scripts/reviewed_source_gate.py', 'scripts/reviewed_source_gate_tests.py',
+                     'scripts/source_provenance_gate.py', 'scripts/source_provenance_gate_tests.py',
+                     'scripts/rc_version_gate.py', 'scripts/rc_version_gate_tests.py',
+                     'scripts/发布版本校验v4.py', 'docs/releases/reviewed-source-manifest.json']) {
+    assert.ok(labPush.includes(`- '${path}'`), path);
+    assert.ok(deliveryPr.includes(`- '${path}'`), path);
+  }
+  assert.match(lab, /node --test tests\/delivery\/metadata_contract\.test\.mjs/);
+  const deliveryPush = workflow.split('  push:\n')[1].split('  pull_request:\n')[0];
+  assert.equal(deliveryPush.trim(), "branches: ['feat/cloud-gateway-agent-runtime']\n    paths: ['tools/delivery/**', 'tests/delivery/**', '.github/workflows/cloud-delivery.yml']");
+});
