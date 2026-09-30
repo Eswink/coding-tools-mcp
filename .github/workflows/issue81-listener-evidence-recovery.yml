@@ -1,0 +1,99 @@
+name: Issue81 verified listener evidence recovery
+on:
+  push:
+    branches: ['ci/issue81-listener-evidence-recovery']
+    paths: ['.github/workflows/issue81-listener-evidence-recovery.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    env:
+      SOURCE_SHA: 7fa70540c94f6bd52ba085cf0c904747187eb88b
+      SOURCE_RUN: '36679621081'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 7fa70540c94f6bd52ba085cf0c904747187eb88b
+          fetch-depth: 0
+          persist-credentials: false
+          path: original
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: issue81-listener-*
+          run-id: 36679621081
+          github-token: ${{ github.token }}
+          path: checked
+      - name: Restore only the missing workflow blob and verify complete source and results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64,hashlib,json,os,pathlib,subprocess,urllib.request
+          root=pathlib.Path('checked');a=root/'issue81-listener-ubuntu-24.04';b=root/'issue81-listener-windows-2025'
+          source=json.loads((a/'source.json').read_text(encoding='utf-8'))
+          assert source==json.loads((b/'source.json').read_text(encoding='utf-8'))
+          assert source['ci_sha']==os.environ['SOURCE_SHA'] and len(source['files'])==10
+          original=pathlib.Path('original').resolve()
+          assert subprocess.check_output(['git','-C',str(original),'rev-parse','HEAD'],text=True).strip()==source['ci_sha']
+          restored='.github/workflows/issue81-listener-context.yml'
+          original_bytes=(original/restored).read_bytes()
+          assert hashlib.sha256(original_bytes).hexdigest()==source['files'][restored]['sha256']
+          summaries={}
+          for directory,platform in [(a,'Linux'),(b,'Windows')]:
+              missing=directory/'source'/restored
+              assert not missing.exists(), 'unexpected different input evidence'
+              missing.parent.mkdir(parents=True,exist_ok=True);missing.write_bytes(original_bytes)
+              hashes=json.loads((directory/'sha256.json').read_text(encoding='utf-8'))
+              for name,digest in hashes.items():
+                  assert hashlib.sha256((directory/name).read_bytes()).hexdigest()==digest,name
+              report=json.loads((directory/'results.json').read_text(encoding='utf-8'))
+              assert report['source_sha']==source['ci_sha'] and report['run_id']==os.environ['SOURCE_RUN'] and report['platform']==platform
+              assert all(report['outcomes'][k]=='success' for k in ['SOURCE','CHECK','FOCUSED','FULL','FINAL'])
+              assert report['outcomes']['SANDBOX']==('success' if platform=='Linux' else 'skipped')
+              for name,count in [('lease',14),('supervisor',5),('listener',4)]:
+                  assert report['counts'][name]['passed']==count and report['counts'][name]['failed']==0 and report['counts'][name]['ignored']==0
+              assert report['counts']['full']['passed']>0 and report['counts']['full']['failed']==0 and report['counts']['full']['ignored']==0
+              summaries[platform]=report
+              print('NATIVE_RESULT='+json.dumps(report,sort_keys=True))
+          assert (root/'issue81-listener-impact/candidate-tree.txt').read_text().strip()==source['candidate_tree']
+          blobs={}
+          for path,proof in source['files'].items():
+              data=(a/'source'/path).read_bytes()
+              assert data==(b/'source'/path).read_bytes()
+              assert hashlib.sha256(data).hexdigest()==proof['sha256']
+              blob=hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()
+              assert blob==proof['git_blob']
+              request=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/git/blobs",data=json.dumps({'encoding':'base64','content':base64.b64encode(data).decode()}).encode(),method='POST',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'})
+              with urllib.request.urlopen(request,timeout=30) as response: sha=json.load(response)['sha']
+              assert sha==blob;blobs[path]=sha
+          # Reconstruct exact reviewed product tree independently of the raw CI checkout.
+          env={**os.environ,'GIT_INDEX_FILE':str(pathlib.Path('product.index').resolve())}
+          subprocess.run(['git','-C',str(original),'read-tree',source['baseline']],env=env,check=True)
+          for path,blob in blobs.items():
+              subprocess.run(['git','-C',str(original),'hash-object','-w','--stdin'],input=(a/'source'/path).read_bytes(),check=True,stdout=subprocess.PIPE)
+              subprocess.run(['git','-C',str(original),'update-index','--add','--cacheinfo',f'100644,{blob},{path}'],env=env,check=True)
+          tree=subprocess.check_output(['git','-C',str(original),'write-tree'],env=env,text=True).strip()
+          assert tree==source['candidate_tree']
+          proof={'source':source,'blobs':blobs,'results':summaries,'recovery':{'missing_path':restored,'origin':'exact original CI source commit; hash agrees with both native receipts','production_changes':False}}
+          pathlib.Path('canonical-objects.json').write_text(json.dumps(proof,indent=2)+'\n',encoding='utf-8')
+          print('CANONICAL_OBJECTS='+json.dumps(blobs,sort_keys=True))
+          print('CANONICAL_TREE='+tree)
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-listener-recovered-evidence
+          path: |
+            canonical-objects.json
+            checked/
+          include-hidden-files: true
+          retention-days: 30
+          if-no-files-found: error
