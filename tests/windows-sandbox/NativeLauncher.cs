@@ -134,7 +134,16 @@ public static class LpacFixtureLauncher {
             job=CreateJobObject(IntPtr.Zero,null);Check(job!=IntPtr.Zero,"job creation");
             var limits=new EXTENDED_LIMIT();limits.Basic.flags=KILL_ON_JOB_CLOSE;
             Check(SetInformationJobObject(job,9,ref limits,(uint)Marshal.SizeOf(limits)),"job limits");
-            string environment="SystemRoot="+Environment.GetEnvironmentVariable("SystemRoot")+"\0TEMP="+workspace+"\0TMP="+workspace+"\0\0";
+            // AppContainer process creation requires these two OS-owned values.
+            // Do not inherit the parent environment or any credential variables.
+            string systemRoot=Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            string localAppData=Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            foreach(string value in new string[]{systemRoot,localAppData}) {
+                if(String.IsNullOrEmpty(value) || !Path.IsPathRooted(value) || value.IndexOf('\0')>=0 || !Directory.Exists(value))
+                    throw new InvalidOperationException("required OS environment unavailable");
+            }
+            // Case-insensitive alphabetical order and explicit double terminator.
+            string environment="LOCALAPPDATA="+localAppData+"\0SystemRoot="+systemRoot+"\0TEMP="+workspace+"\0TMP="+workspace+"\0\0";
             env=Marshal.StringToHGlobalUni(environment);
             var startup=new STARTUPINFOEX();startup.Startup.cb=(uint)Marshal.SizeOf(startup);startup.Attributes=list;
             string command=Quote(exe)+" sandbox "+Quote(workspace)+" "+Quote(outside)+" 127.0.0.1:"+port;
