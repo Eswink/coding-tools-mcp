@@ -161,6 +161,8 @@ public static class LpacFixtureLauncher {
             string prefix=lpac?"sandbox":"ordinary-appcontainer";
             string preliminary=Path.Combine(workspace,"pre-network.txt");
             if(File.Exists(preliminary)) File.Copy(preliminary,Path.Combine(parent,prefix+"-pre-network.txt"),false);
+            string runtimeChecks=Path.Combine(workspace,"runtime-checks.txt");
+            if(File.Exists(runtimeChecks)) File.Copy(runtimeChecks,Path.Combine(parent,prefix+"-runtime-checks.txt"),false);
             string receipt=Path.Combine(workspace,"receipt.txt");
             if(!File.Exists(receipt)) throw new InvalidOperationException("fixture did not produce receipt; exit="+exit+" hex="+exit.ToString("X8")+"; startup is not containment proof");
             // Copy only fixed booleans into the evidence root; no source/payload paths.

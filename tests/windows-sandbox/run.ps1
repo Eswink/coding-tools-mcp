@@ -48,7 +48,7 @@ try {
             $reason=$failure.GetType().Name
             $errorNumbers=@([regex]::Matches($failure.Message,'win32=\d+|exit=\d+|hex=[0-9A-F]+') | ForEach-Object {$_.Value})
         } finally {
-            Get-ChildItem $run -File | Where-Object Name -match '^(sandbox|ordinary-appcontainer)-(receipt|pre-network)\.txt$' |
+            Get-ChildItem $run -File | Where-Object Name -match '^(sandbox|ordinary-appcontainer)-(receipt|pre-network|runtime-checks)\.txt$' |
                 ForEach-Object {Copy-Item $_.FullName (Join-Path $evidencePath ('mode-'+$mode+'-'+$_.Name))}
         }
         $outcomes+=@{mode=$mode;passed=$passed;reason=$reason;numeric_diagnosis=$errorNumbers}

@@ -6,9 +6,13 @@ fn main() {
         net::{SocketAddr, TcpStream},
         time::Duration,
     };
+    use windows::core::w;
     use windows::Win32::Foundation::CloseHandle;
     use windows::Win32::Networking::WinSock::{WSACleanup, WSAStartup, WSADATA};
     use windows::Win32::Security::{GetTokenInformation, TokenIsAppContainer, TOKEN_QUERY};
+    use windows::Win32::System::Registry::{
+        RegCloseKey, RegOpenKeyExW, HKEY, HKEY_LOCAL_MACHINE, KEY_QUERY_VALUE,
+    };
     use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
     let args: Vec<_> = std::env::args_os().collect();
     if args.len() != 5 {
@@ -63,6 +67,56 @@ fn main() {
         outside_write != sandbox
     );
     if fs::write(root.join("pre-network.txt"), preliminary).is_err() {
+        std::process::exit(98);
+    }
+    // Read-only fixed OS-runtime probes: no values, ACL changes or capabilities.
+    let mut catalog = HKEY::default();
+    let registry_error = unsafe {
+        RegOpenKeyExW(
+            HKEY_LOCAL_MACHINE,
+            w!("SYSTEM\\CurrentControlSet\\Services\\WinSock2\\Parameters\\Protocol_Catalog9"),
+            None,
+            KEY_QUERY_VALUE,
+            &mut catalog,
+        )
+    }
+    .0;
+    let registry_close = if registry_error == 0 {
+        unsafe { RegCloseKey(catalog).0 }
+    } else {
+        0
+    };
+    let mut namespaces = HKEY::default();
+    let namespace_error = unsafe {
+        RegOpenKeyExW(
+            HKEY_LOCAL_MACHINE,
+            w!("SYSTEM\\CurrentControlSet\\Services\\WinSock2\\Parameters\\Namespace_Catalog5"),
+            None,
+            KEY_QUERY_VALUE,
+            &mut namespaces,
+        )
+    }
+    .0;
+    let namespace_close = if namespace_error == 0 {
+        unsafe { RegCloseKey(namespaces).0 }
+    } else {
+        0
+    };
+    let system_root = match std::env::var_os("SystemRoot") {
+        Some(path) => std::path::PathBuf::from(path),
+        None => std::process::exit(99),
+    };
+    let provider_error = fs::File::open(system_root.join("System32").join("mswsock.dll"))
+        .err()
+        .map(|error| error.raw_os_error().unwrap_or(-1))
+        .unwrap_or(0);
+    let winsock_error = fs::File::open(system_root.join("System32").join("ws2_32.dll"))
+        .err()
+        .map(|error| error.raw_os_error().unwrap_or(-1))
+        .unwrap_or(0);
+    let diagnostic = format!("protocol_catalog_open={}\nprotocol_catalog_close={}\nnamespace_catalog_open={}\nnamespace_catalog_close={}\nprovider_dll_open={}\nwinsock_dll_open={}\n",
+        registry_error, registry_close, namespace_error, namespace_close, provider_error, winsock_error);
+    if fs::write(root.join("runtime-checks.txt"), diagnostic).is_err() {
         std::process::exit(98);
     }
     // Observe the WinSock initialization error directly instead of treating a
