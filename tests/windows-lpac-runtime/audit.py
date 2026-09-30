@@ -1,6 +1,7 @@
 """Portable fail-closed source audit; no Windows command is executed here."""
 from hashlib import sha256
 from pathlib import Path
+import re
 import unittest
 
 ROOT = Path(__file__).resolve().parent
@@ -81,12 +82,25 @@ def audit(files):
         errors.append('original null stdin must remain unchanged')
     if 'if !preflight_cleanup_ok {' not in runtime or runtime.index('if !preflight_cleanup_ok {') > runtime.index('cmd.spawn()'):
         errors.append('diagnostic cleanup must gate original spawn')
+    original_cases = "$cases=[ordered]@{'python-budget'='python';'python-workspace'='python';'node-workspace'='node';'npm-cmd'='node';'git-local'='git';'cmd-workspace'='cmd';'powershell-workspace'='powershell';'pwsh-workspace'='pwsh'}"
+    if original_cases not in runner or 'if($cases.Count -ne 14)' not in runner:
+        errors.append('original eight and all fourteen rows must remain required')
+    eof_names = {name+'-private-eof' for name in ['node-workspace', 'npm-cmd', 'git-local', 'cmd-workspace', 'powershell-workspace', 'pwsh-workspace']}
+    mode_source = runtime.split('let private_eof =', 1)[-1].split('let base_case =', 1)[0]
+    if set(re.findall(r'"([^\"]+-private-eof)"', mode_source)) != eof_names or not mode_source.lstrip().startswith('matches!('):
+        errors.append('only six explicit additive cases may select EOF')
+    start = runtime.find('        "python-budget" =>')
+    end = runtime.find('        _ =>', start)
+    if start < 0 or end < 0 or sha256(runtime[start:end].encode()).hexdigest() != '54d3ef93d7e79ba2b0097a0d03f13570f1ebeda9fe31fa42c5e7e0b3e1195194':
+        errors.append('original binary and argv cases must remain identical')
+    if '.create_new(true)' not in files['private_stdin.rs'] or 'fs::File::open(&path)' not in files['private_stdin.rs']:
+        errors.append('private stdin must be new and reopened read-only')
     return errors
 
 
 def load_files():
     names = ['baseline/'+name for name in HASHES]
-    names += ['RuntimeLauncher.cs', 'runtime_fixture.rs', 'run-runtime.ps1', 'prepare.ps1', 'runtime_contract.rs']
+    names += ['RuntimeLauncher.cs', 'runtime_fixture.rs', 'run-runtime.ps1', 'prepare.ps1', 'runtime_contract.rs', 'private_stdin.rs']
     files = {name: (ROOT/name).read_bytes().decode('utf-8') for name in names}
     files['workflow'] = (ROOT.parent.parent/'.github/workflows/windows-lpac-runtime-diagnostic.yml').read_bytes().decode('utf-8')
     return files
@@ -150,6 +164,26 @@ class AuditMutations(unittest.TestCase):
         files = load_files()
         files['runtime_contract.rs'] = files['runtime_contract.rs'].replace('if !preflight_cleanup_ok {', 'if false {')
         self.assertIn('diagnostic cleanup must gate original spawn', audit(files))
+
+    def test_original_rows_cannot_be_replaced(self):
+        files = load_files()
+        files['run-runtime.ps1'] = files['run-runtime.ps1'].replace("'node-workspace'='node'", "'removed-node'='node'")
+        self.assertIn('original eight and all fourteen rows must remain required', audit(files))
+
+    def test_eof_cannot_be_default(self):
+        files = load_files()
+        files['runtime_contract.rs'] = files['runtime_contract.rs'].replace('let private_eof = matches!', 'let private_eof = true; let ignored = matches!')
+        self.assertIn('only six explicit additive cases may select EOF', audit(files))
+
+    def test_existing_input_file_rejected(self):
+        files = load_files()
+        files['private_stdin.rs'] = files['private_stdin.rs'].replace('.create_new(true)', '.create(true)')
+        self.assertIn('private stdin must be new and reopened read-only', audit(files))
+
+    def test_original_argv_change_rejected(self):
+        files = load_files()
+        files['runtime_contract.rs'] = files['runtime_contract.rs'].replace("print('budget')", "print('changed')")
+        self.assertIn('original binary and argv cases must remain identical', audit(files))
 
 
 if __name__ == '__main__':

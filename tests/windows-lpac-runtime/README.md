@@ -123,7 +123,19 @@ Original null stdin and all eight cases remain unchanged. NUL's non-inheritable
 read observation differs from Rust's actual inheritable open. A failed Rust
 spawn result may precede CreateProcessW; even successful preflight checks do not
 prove that CreateProcessW was reached or identify its result. No NUL/device ACL,
-host-handle inheritance, EOF substitution or production setting is changed.
+host-handle inheritance or production setting is changed by those observations.
+
+The separate private-EOF comparison preserves the eight original rows and adds
+six explicitly named `-private-eof` rows for Node, npm, Git, cmd and both
+PowerShell runtimes. All fourteen remain required, so original failures keep the
+job red. Only those six rows replace stdin with a freshly created empty regular
+file, reopened read-only and validated as zero-length with an immediate EOF,
+entirely inside the existing LPAC workspace. The original binary and argv are
+reused; receipts name the base case, stdin kind and validation details. NUL denial
+is still observed. No host-opened handle or new permission is provided. An input
+setup/close/validation failure prevents launch. Success would establish only the
+fixed operation with this explicitly different stdin representation, without
+claiming original-null-stdin parity, network denial or production acceptance.
 
 Current source anchors: `.github/workflows/dot-rc-integration.yml` (Windows-2025,
 Node 22, Python 3.12, Rust 1.98.1); `src-tauri/src/tools/exec.rs` (direct argv and

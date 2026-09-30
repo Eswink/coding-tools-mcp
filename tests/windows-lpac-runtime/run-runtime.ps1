@@ -11,6 +11,9 @@ $root=Join-Path $env:RUNNER_TEMP ('ctm runtime-'+[guid]::NewGuid().ToString('N')
 New-Item -ItemType Directory -Path $root | Out-Null
 $outcomes=@()
 $cases=[ordered]@{'python-budget'='python';'python-workspace'='python';'node-workspace'='node';'npm-cmd'='node';'git-local'='git';'cmd-workspace'='cmd';'powershell-workspace'='powershell';'pwsh-workspace'='pwsh'}
+$eofCases=[ordered]@{'node-workspace-private-eof'='node';'npm-cmd-private-eof'='node';'git-local-private-eof'='git';'cmd-workspace-private-eof'='cmd';'powershell-workspace-private-eof'='powershell';'pwsh-workspace-private-eof'='pwsh'}
+foreach($name in $eofCases.Keys) {$cases.Add($name,$eofCases[$name])}
+if($cases.Count -ne 14) {throw 'exact fourteen required diagnostic rows expected'}
 $inventory=@(Read-RuntimeInventory (Get-Content -Raw (Join-Path $evidencePath 'runtime-inventory.json')))
 $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0)
 $listener.Start()
@@ -25,7 +28,7 @@ try {
         $caseEvidence=Join-Path $evidencePath $case
         New-Item -ItemType Directory -Path $outside,$bundle,$run,$caseEvidence | Out-Null
         $required=@($cases[$case],'cmd') | Select-Object -Unique
-        if($case -eq 'npm-cmd') {$required+=@('npm')}
+        if($case -eq 'npm-cmd' -or $case -eq 'npm-cmd-private-eof') {$required+=@('npm')}
         $preparationFailures=@()
         foreach($requiredName in $required) {
             $records=@($inventory | Where-Object {$_.runtime -eq $requiredName})

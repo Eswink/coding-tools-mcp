@@ -1,6 +1,8 @@
 //! No arbitrary commands: fixed offline cases, clean inherited fixture environment,
 //! private stdio files, bounded waits. The native network gate runs afterwards.
 use std::os::windows::process::CommandExt;
+#[path = "private_stdin.rs"]
+mod private_stdin;
 #[path = "spawn_observations.rs"]
 mod spawn_observations;
 use std::{
@@ -11,14 +13,25 @@ use std::{
     time::{Duration, Instant},
 };
 
-fn command(exe: &Path, args: &[&str], workspace: &Path, code: &Path) -> serde_json::Value {
+fn command(
+    exe: &Path,
+    args: &[&str],
+    workspace: &Path,
+    code: &Path,
+    private_eof: bool,
+) -> serde_json::Value {
+    let stdin_kind = if private_eof {
+        "private_empty_regular_file"
+    } else {
+        "null_device"
+    };
     let stdout = fs::File::create(workspace.join("runtime-stdout.txt")).unwrap();
     let stderr = fs::File::create(workspace.join("runtime-stderr.txt")).unwrap();
     let (preflight, preflight_cleanup_ok) = spawn_observations::inspect(exe, &stdout, &stderr);
     if !preflight_cleanup_ok {
         // Do not spawn with an uncertain inheritable diagnostic handle.
         return serde_json::json!({"started":false,"spawn_error":null,"exit":null,
-            "timeout":false,"diagnostic_cleanup_failed":true,"preflight":preflight});
+            "timeout":false,"diagnostic_cleanup_failed":true,"preflight":preflight,"stdin_kind":stdin_kind,"stdin_validation":null});
     }
     let mut cmd = Command::new(exe);
     // cmd.exe has shell parsing rather than CommandLineToArgvW semantics.
@@ -33,6 +46,20 @@ fn command(exe: &Path, args: &[&str], workspace: &Path, code: &Path) -> serde_js
         .stdin(Stdio::null())
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr));
+    let stdin_validation = if private_eof {
+        match private_stdin::prepare(workspace) {
+            Ok((input, receipt)) => {
+                cmd.stdin(Stdio::from(input));
+                receipt
+            }
+            Err(receipt) => {
+                return serde_json::json!({"started":false,"exit":null,"timeout":false,
+                "stdin_setup_failed":true,"stdin_kind":stdin_kind,"stdin_validation":receipt,"preflight":preflight})
+            }
+        }
+    } else {
+        serde_json::Value::Null
+    };
     // Only this synthetic sandbox's executable/data directories plus the already
     // allowlisted OS PATH. Never inherit runner credentials, user config or HOME.
     let path = format!(
@@ -62,25 +89,25 @@ fn command(exe: &Path, args: &[&str], workspace: &Path, code: &Path) -> serde_js
     let mut child = match cmd.spawn() {
         Ok(child) => child,
         Err(error) => {
-            return serde_json::json!({"started":false,"spawn_error":error.raw_os_error(),"exit":null,"timeout":false,"preflight":preflight})
+            return serde_json::json!({"started":false,"spawn_error":error.raw_os_error(),"exit":null,"timeout":false,"preflight":preflight,"stdin_kind":stdin_kind,"stdin_validation":stdin_validation})
         }
     };
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                return serde_json::json!({"started":true,"exit":status.code(),"exit_unsigned":status.code().map(|v| v as u32),"exit_hex":status.code().map(|v| format!("{:08X}", v as u32)),"timeout":false,"preflight":preflight})
+                return serde_json::json!({"started":true,"exit":status.code(),"exit_unsigned":status.code().map(|v| v as u32),"exit_hex":status.code().map(|v| format!("{:08X}", v as u32)),"timeout":false,"preflight":preflight,"stdin_kind":stdin_kind,"stdin_validation":stdin_validation})
             }
             Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(20)),
             Ok(None) => {
                 let killed = child.kill().is_ok();
                 let reaped = child.wait().is_ok();
-                return serde_json::json!({"started":true,"exit":null,"timeout":true,"child_killed":killed,"child_reaped":reaped,"preflight":preflight});
+                return serde_json::json!({"started":true,"exit":null,"timeout":true,"child_killed":killed,"child_reaped":reaped,"preflight":preflight,"stdin_kind":stdin_kind,"stdin_validation":stdin_validation});
             }
             Err(error) => {
                 let _ = child.kill();
                 let _ = child.wait();
-                return serde_json::json!({"started":true,"wait_error":error.raw_os_error(),"exit":null,"timeout":false,"preflight":preflight});
+                return serde_json::json!({"started":true,"wait_error":error.raw_os_error(),"exit":null,"timeout":false,"preflight":preflight,"stdin_kind":stdin_kind,"stdin_validation":stdin_validation});
             }
         }
     }
@@ -90,6 +117,20 @@ pub fn observe(workspace: &Path, outside: &Path) {
     let exe = std::env::current_exe().unwrap();
     let code = exe.parent().unwrap();
     let case = fs::read_to_string(code.join("case.txt")).unwrap();
+    let private_eof = matches!(
+        case.trim(),
+        "node-workspace-private-eof"
+            | "npm-cmd-private-eof"
+            | "git-local-private-eof"
+            | "cmd-workspace-private-eof"
+            | "powershell-workspace-private-eof"
+            | "pwsh-workspace-private-eof"
+    );
+    let base_case = if private_eof {
+        case.trim().strip_suffix("-private-eof").unwrap()
+    } else {
+        case.trim()
+    };
     let runtime = code.join("runtime");
     // raw cmd tails only interpolate this generated private path. Refuse shell
     // expansion syntax instead of trying to escape arbitrary caller input.
@@ -120,7 +161,7 @@ pub fn observe(workspace: &Path, outside: &Path) {
     let node = "const fs=require('node:fs');fs.writeFileSync('mutation.txt','runtime-ok');console.log(fs.readFileSync('mutation.txt','utf8'))";
     let powershell = "[IO.File]::WriteAllText('mutation.txt','runtime-ok'); [Console]::WriteLine([IO.File]::ReadAllText('mutation.txt'))";
     let cmd_exe = code.join("cmd.exe");
-    let (program, args, expected, mutation_kind): (PathBuf, Vec<&str>, &str, &str) = match case.trim() {
+    let (program, args, expected, mutation_kind): (PathBuf, Vec<&str>, &str, &str) = match base_case {
         "python-budget" => (runtime.join("python.exe"), vec!["-c", "print('budget')"], "budget", "none"),
         "python-workspace" => (runtime.join("python.exe"), vec!["-I", "-c", python], "runtime-ok", "file"),
         "node-workspace" => (runtime.join("node.exe"), vec!["-e", node], "runtime-ok", "file"),
@@ -138,7 +179,7 @@ pub fn observe(workspace: &Path, outside: &Path) {
     };
     // cmd uses fixed quoted absolute paths to the private copied runtime.
     let mut command_args = args.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-    if matches!(case.trim(), "npm-cmd" | "git-local") {
+    if matches!(base_case, "npm-cmd" | "git-local") {
         let prefix = format!("\"{}\\", runtime.display());
         command_args[3] = command_args[3]
             .replace("runtime\\npm.cmd", &format!("{}npm.cmd\"", prefix))
@@ -149,7 +190,7 @@ pub fn observe(workspace: &Path, outside: &Path) {
         command_args[3] = format!("\"{}\"", command_args[3]);
     }
     let refs = command_args.iter().map(String::as_str).collect::<Vec<_>>();
-    let process = command(&program, &refs, workspace, code);
+    let process = command(&program, &refs, workspace, code, private_eof);
     let output = fs::read_to_string(workspace.join("runtime-stdout.txt")).unwrap_or_default();
     let output_ok = output.trim() == expected;
     let mutation_ok = match mutation_kind {
@@ -173,6 +214,8 @@ pub fn observe(workspace: &Path, outside: &Path) {
     let exit_ok = process["started"] == true && process["exit"] == 0 && process["timeout"] == false;
     let process_classification = if process["diagnostic_cleanup_failed"] == true {
         "not_attempted_diagnostic_cleanup_failed"
+    } else if process["stdin_setup_failed"] == true {
+        "not_attempted_private_stdin_failed"
     } else if process["started"] == false {
         "spawn_failed"
     } else if process["timeout"] == true {
@@ -190,7 +233,7 @@ pub fn observe(workspace: &Path, outside: &Path) {
     let outside_write_denied =
         fs::write(outside.join("probe-write.txt"), "runtime-escape").is_err();
     let result = serde_json::json!({
-        "case":case.trim(),"process":process,"process_classification":process_classification,"output_ok":output_ok,
+        "case":case.trim(),"base_case":base_case,"process":process,"process_classification":process_classification,"output_ok":output_ok,
         "executable":program,"argv":command_args,"expected_output":expected,
         "mutation_required":mutation_kind != "none","mutation_ok":mutation_ok,
         "parent_fixture_outside_read_denied":outside_read_denied,"parent_fixture_outside_write_denied":outside_write_denied,
