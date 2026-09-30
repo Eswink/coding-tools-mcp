@@ -115,6 +115,16 @@ fn sid_string(sid: PSID) -> Result<String> {
     }
     value
 }
+fn canonical_sid(text: &str) -> Result<String> {
+    let raw = wide(text);
+    let mut sid = PSID::default();
+    unsafe { ConvertStringSidToSidW(PCWSTR(raw.as_ptr()), &mut sid) }.map_err(fail)?;
+    let value = sid_string(sid);
+    unsafe {
+        LocalFree(Some(HLOCAL(sid.0)));
+    }
+    value
+}
 fn token_sid(owner: bool) -> Result<String> {
     let mut token = HANDLE::default();
     unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) }.map_err(fail)?;
@@ -159,7 +169,10 @@ pub fn private(file: &File) -> Result<()> {
     let mut owner = PSID::default();
     let mut defaulted = BOOL(0);
     unsafe { GetSecurityDescriptorOwner(sd.0, &mut owner, &mut defaulted) }.map_err(fail)?;
-    if sid_string(owner)? != token_sid(true)? {
+    let owner = sid_string(owner)?;
+    if owner != token_sid(true)? && owner != token_sid(false)? {
+        #[cfg(test)]
+        eprintln!("snapshot private-directory owner is not this token's owner/user");
         return Err(SnapshotError::Boundary);
     }
     supported_dacl(&read(file)?)
@@ -177,12 +190,17 @@ fn supported_dacl(text: &str) -> Result<()> {
         if fields.len() != 6 || !matches!(fields[0], "A" | "D") {
             return Err(SnapshotError::Unsupported);
         }
-        if fields[0] == "A"
-            && !matches!(fields[5], "SY" | "BA")
-            && fields[5] != user
-            && !(fields[5] == "CO" && fields[1].contains("IO"))
-        {
-            return Err(SnapshotError::Boundary);
+        if fields[0] == "A" {
+            // SDDL may abbreviate the actual current SID (for example LA). Compare SID identity.
+            let principal = canonical_sid(fields[5])?;
+            if !matches!(principal.as_str(), "S-1-5-18" | "S-1-5-32-544")
+                && principal != user
+                && !(principal == "S-1-3-0" && fields[1].contains("IO"))
+            {
+                #[cfg(test)]
+                eprintln!("snapshot private-directory ACL contains an unsupported allow principal");
+                return Err(SnapshotError::Boundary);
+            }
         }
     }
     Ok(())
@@ -233,6 +251,15 @@ pub fn apply(file: &File, desired: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn well_known_aliases_compare_by_sid_identity() {
+        assert_eq!(canonical_sid("SY").unwrap(), "S-1-5-18");
+        assert_eq!(canonical_sid("BA").unwrap(), "S-1-5-32-544");
+        let user = token_sid(false).unwrap();
+        assert_eq!(canonical_sid(&user).unwrap(), user);
+        let descriptor = private_descriptor().unwrap();
+        drop(descriptor);
+    }
     #[test]
     fn broad_grant_is_refused_without_applying_acl() {
         assert!(parse("D:P(A;;FA;;;WD)").is_err());
