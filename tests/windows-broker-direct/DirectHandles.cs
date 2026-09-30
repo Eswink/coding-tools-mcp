@@ -104,16 +104,53 @@ public static partial class BrokerDirectLauncher {
             string value=new SecurityIdentifier(sid).Value;r.Identities[label]=value;return value;
         } finally {Marshal.FreeHGlobal(data);}
     }
+    static void ObserveLpacSizing(IntPtr token,DirectReceipt r) {
+        uint size;bool success=GetTokenInformation(token,46,IntPtr.Zero,0,out size);
+        int error=success?0:Marshal.GetLastWin32Error();
+        // Preserve the original null/zero observation, including its error87 on the prior run.
+        r.Numbers["lpac_size_call_success"]=success?1:0;
+        r.Numbers["lpac_size_error"]=error;r.Numbers["lpac_required_bytes"]=size;
+        r.Numbers["lpac_sizing_expected_insufficient_buffer"] = !success && error==122 && size==4 ? 1 : 0;
+    }
+    static int? ObserveFixedLpacDword(IntPtr token,DirectReceipt r) {
+        // DWORD is a native-enum hypothesis, not a portable Win32 support guarantee.
+        // One aligned, initialized four-byte observation; no alternate/native query path.
+        IntPtr data=Marshal.AllocHGlobal(4);
+        try {
+            Marshal.WriteInt32(data,unchecked((int)0xA5A5A5A5));
+            uint returned;bool success=GetTokenInformation(token,46,data,4,out returned);
+            int error=success?0:Marshal.GetLastWin32Error();
+            int raw=Marshal.ReadInt32(data);
+            r.Numbers["lpac_fixed_buffer_bytes"]=4;r.Numbers["lpac_fixed_initial_value"]=unchecked((int)0xA5A5A5A5);
+            r.Numbers["lpac_fixed_query_success"]=success?1:0;r.Numbers["lpac_fixed_query_error"]=error;
+            r.Numbers["lpac_fixed_returned_bytes"]=returned;r.Numbers["lpac_fixed_raw_value"]=raw;
+            r.Numbers["lpac_fixed_value_valid"]=success && returned==4 ? 1 : 0;
+            if(!success || returned!=4) return null;
+            return raw;
+        } finally {Marshal.FreeHGlobal(data);}
+    }
+    static bool RequiredTokenObservation(Func<bool> observation,string label,DirectReceipt r) {
+        bool success=false;
+        try {success=observation();}
+        catch(Exception failure) {r.Identities[label+"_observation_failure"]=failure.GetType().Name;}
+        r.Numbers[label+"_observation_success"]=success?1:0;return success;
+    }
     static bool VerifyToken(IntPtr process,string package,DirectReceipt r) {
         IntPtr token=IntPtr.Zero;bool valid=false,closed=true;
         try {
             bool opened=OpenProcessToken(process,8,out token);
             r.Numbers["token_open_error"]=opened?0:Marshal.GetLastWin32Error();
             Check(opened,"read-only target token");
-            int app=TokenCount(token,29,"appcontainer",r),lpac=TokenCount(token,46,"lpac",r);
-            int capabilities=TokenCount(token,30,"capabilities",r);
-            string actualPackage=TokenSid(token,31,"appcontainer_sid",r),integrity=TokenSid(token,25,"integrity_sid",r);
-            valid=app==1 && lpac==1 && capabilities==0 && actualPackage==package && integrity=="S-1-16-4096";
+            int? app=null,lpac=null,capabilities=null;string actualPackage=null,integrity=null;
+            bool all=true;
+            // Each left operand runs even after a previous failure. Missing data stays null.
+            all=RequiredTokenObservation(delegate {app=TokenCount(token,29,"appcontainer",r);return r.Numbers["appcontainer_returned_bytes"]==4;},"appcontainer",r) && all;
+            ObserveLpacSizing(token,r);
+            all=RequiredTokenObservation(delegate {lpac=ObserveFixedLpacDword(token,r);return lpac.HasValue;},"lpac",r) && all;
+            all=RequiredTokenObservation(delegate {capabilities=TokenCount(token,30,"capabilities",r);return true;},"capabilities",r) && all;
+            all=RequiredTokenObservation(delegate {actualPackage=TokenSid(token,31,"appcontainer_sid",r);return true;},"appcontainer_sid",r) && all;
+            all=RequiredTokenObservation(delegate {integrity=TokenSid(token,25,"integrity_sid",r);return true;},"integrity_sid",r) && all;
+            valid=all && app==1 && lpac==1 && capabilities==0 && actualPackage==package && integrity=="S-1-16-4096";
         } finally {closed=CloseOwned(ref token,"token",r);}
         return valid && closed;
     }

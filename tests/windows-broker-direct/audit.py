@@ -10,7 +10,7 @@ FROZEN = {'tests/windows-lpac-runtime/.gitattributes': 'fbb21c6a8f92cc82badddc64
 
 
 # Reviewed new-method bytes: intentional changes require updating these pins in the same reviewed patch.
-APPROVED_BOUNDARY = {'DirectNative.cs': '36123701edbeb11c8227ff903b7c399201acccc4bcaa0e7fe489f14fe028af3f', 'DirectHandles.cs': 'f68fb8438f3da5b57c791a845fd3f5c7ef631ddbfdeb1b12c1f2e33bb4becb82', 'DirectCases.cs': '2dd6d671e8e75c4b64620c08c974eeeb5a4a4c2690b143b716fa8efb31f66932', 'DirectLauncher.cs': '84e76a575a803642b1b419868830960362f0c694151d772e80c3e4da5585a570', 'DirectCapture.cs': 'ee66abb5bc9c79e696eec72d35e97fffdc039d393289fde20db31be0c41c56bd', 'run-direct.ps1': '099443bd437ac9d9b4633ec741089c4df50c734ca3a5ff0eb902f540ba9c0a09'}
+APPROVED_BOUNDARY = {'DirectNative.cs': '36123701edbeb11c8227ff903b7c399201acccc4bcaa0e7fe489f14fe028af3f', 'DirectHandles.cs': '7af347a11ac91ce9a4c65adc3fdbc169dd23b0405cd68232e09b8c432ae0f5b8', 'DirectCases.cs': '2dd6d671e8e75c4b64620c08c974eeeb5a4a4c2690b143b716fa8efb31f66932', 'DirectLauncher.cs': '84e76a575a803642b1b419868830960362f0c694151d772e80c3e4da5585a570', 'DirectCapture.cs': 'ee66abb5bc9c79e696eec72d35e97fffdc039d393289fde20db31be0c41c56bd', 'run-direct.ps1': '099443bd437ac9d9b4633ec741089c4df50c734ca3a5ff0eb902f540ba9c0a09'}
 
 def inspect(sources):
     for name, digest in APPROVED_BOUNDARY.items():
@@ -36,6 +36,23 @@ def inspect(sources):
                      'pointer<start', 'pointer-start<(ulong)header', '(ulong)returned-(pointer-start)<8',
                      'sidBytes>(ulong)returned-(pointer-start)', 'CloseOwned(ref token,"token",r)']:
         assert fragment in handles, fragment
+    for fragment in ['GetTokenInformation(token,46,IntPtr.Zero,0,out size)',
+                     'r.Numbers["lpac_size_error"]=error', 'Marshal.AllocHGlobal(4)',
+                     'Marshal.WriteInt32(data,unchecked((int)0xA5A5A5A5))',
+                     'GetTokenInformation(token,46,data,4,out returned)',
+                     'if(!success || returned!=4) return null',
+                     'r.Numbers["lpac_fixed_value_valid"]=success && returned==4 ? 1 : 0',
+                     'int? app=null,lpac=null,capabilities=null',
+                     'valid=all && app==1 && lpac==1 && capabilities==0',
+                     'r.Numbers[label+"_observation_success"]=success?1:0']:
+        assert fragment in handles, fragment
+    assert handles.count('all=RequiredTokenObservation(') == 5
+    assert handles.count('},"appcontainer",r) && all;') == 1
+    assert handles.count('},"lpac",r) && all;') == 1
+    assert handles.count('},"capabilities",r) && all;') == 1
+    assert handles.count('},"appcontainer_sid",r) && all;') == 1
+    assert handles.count('},"integrity_sid",r) && all;') == 1
+    assert 'all=all && RequiredTokenObservation' not in handles
     assert handles.index('pointer<start') < handles.index('Marshal.ReadByte(sid,1)') < handles.index('!IsValidSid(sid)')
     assert 'File.WriteAllText(recovery,"Pending owned recovery scope:' in launch
     assert launch.index('File.WriteAllText(recovery,') < launch.index('Directory.CreateDirectory(root)')
@@ -203,6 +220,27 @@ class DirectAudit(unittest.TestCase):
 
     def test_observed_escape_invalidates_positive_before_serialization(self):
         self.mutation('run-direct.ps1', '$row.positive_passed=$row.positive_passed -and -not $row.runtime_outside_read_observed', '')
+
+    def test_failed_fixed_query_value_never_accepted(self):
+        self.mutation('DirectHandles.cs', 'if(!success || returned!=4) return null', 'if(returned!=4) return null')
+
+    def test_fixed_query_exact_length_required(self):
+        self.mutation('DirectHandles.cs', 'if(!success || returned!=4) return null', 'if(!success) return null')
+
+    def test_fixed_query_nonpassing_sentinel_required(self):
+        self.mutation('DirectHandles.cs', 'Marshal.WriteInt32(data,unchecked((int)0xA5A5A5A5))', 'Marshal.WriteInt32(data,1)')
+
+    def test_missing_capability_query_cannot_default_zero(self):
+        self.mutation('DirectHandles.cs', 'int? app=null,lpac=null,capabilities=null', 'int? app=null,lpac=null,capabilities=0')
+
+    def test_exact_lpac_value_one_required(self):
+        self.mutation('DirectHandles.cs', 'valid=all && app==1 && lpac==1 && capabilities==0', 'valid=all && app==1 && capabilities==0')
+
+    def test_independent_queries_not_short_circuited(self):
+        self.mutation('DirectHandles.cs', 'all=RequiredTokenObservation(', 'all=all && RequiredTokenObservation(')
+
+    def test_original_sizing_observation_preserved(self):
+        self.mutation('DirectHandles.cs', 'GetTokenInformation(token,46,IntPtr.Zero,0,out size)', 'GetTokenInformation(token,29,IntPtr.Zero,0,out size)')
 
     def test_existing_workflow_gates_retained(self):
         workflow = (ROOT / '.github/workflows/windows-lpac-runtime-diagnostic.yml').read_text()

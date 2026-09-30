@@ -72,3 +72,22 @@ Primary API contracts:
 - [Process creation flags](https://learn.microsoft.com/en-us/windows/win32/procthread/process-creation-flags)
 
 Known loader/initialization status names come from the [Microsoft NTSTATUS table](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55). Absence of a script-entry receipt remains inconclusive about the exact failure phase.
+
+## Token-query call-shape diagnostic
+
+The first broker-direct run (208b34f / 36768242988) created its native reference
+suspended, verified private stdio and TokenIsAppContainer, then failed the class46
+null/zero sizing call with error87. It did not resume or attempt any runtime.
+The observation remains in the receipt. A separate single initialized four-byte
+class46 query records API success/error, exact returned size and raw storage.
+Only success plus returned size4 makes the value valid; only value1 satisfies the
+mandatory LPAC predicate. Other required token observations run independently,
+with explicit success flags and nullable missing values. Every predicate and the
+token close still must pass before resume.
+
+The [Win32 buffer API](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-gettokeninformation)
+and enum do not establish per-build support or a class46-specific output contract.
+The DWORD hypothesis comes from the [native/driver enum](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ne-ntifs-_token_information_class),
+which is a different documented surface. This is a bounded read-only call-shape
+observation, not a claim of portable Win32 support. A failed fixed-size query stays
+unverified/no-resume; it is not retried through reserved attributes or native APIs.
