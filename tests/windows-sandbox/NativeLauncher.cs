@@ -155,7 +155,7 @@ public static class LpacFixtureLauncher {
             if(wait!=WAIT_OBJECT_0) throw new InvalidOperationException(wait==WAIT_TIMEOUT?"native fixture timeout":"native fixture wait failure");
             uint exit;Check(GetExitCodeProcess(pi.process,out exit),"fixture exit code");
             string receipt=Path.Combine(workspace,"receipt.txt");
-            if(!File.Exists(receipt)) throw new InvalidOperationException("fixture did not produce receipt; startup is not containment proof");
+            if(!File.Exists(receipt)) throw new InvalidOperationException("fixture did not produce receipt; exit="+exit+" hex="+exit.ToString("X8")+"; startup is not containment proof");
             // Copy only fixed booleans into the evidence root; no source/payload paths.
             File.Copy(receipt,Path.Combine(parent,lpac?"sandbox-receipt.txt":"ordinary-appcontainer-receipt.txt"),false);
             return checked((int)exit);
