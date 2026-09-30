@@ -66,11 +66,32 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
         "cmd": cmd, "cwd": cwd.path, "timeout_ms": timeout_ms,
     })).expect("serializable command")));
     let mut native_work = super::native_drain::child(ctx)?;
-    let (job, created) = ctx.exec_tasks.reserve(request_id, &fingerprint, timeout_ms)?;
-    if created {
+    let (job, created) = ctx.exec_tasks.reserve_checked(request_id, &fingerprint, timeout_ms,
+        || validate_submission(ctx))?;
+    if !created {
+        let mut summary = job.summary();
+        summary["deduplicated"] = json!(true);
+        return Ok(tool_ok(summary));
+    }
+    // reserve() durably writes the exact conversation-scoped command key under
+    // one mutex. Only its creator may execute hooks or launch the primary.
+    // Concurrent/new outer requests see queued or terminal state without replay.
+    let mut launched = false;
+    let mut result = match validate_submission(ctx) {
+        Err(error) => super::workspace::tool_err(error),
+        Ok(()) => super::policy_hooks::run_reserved_async(ctx, args, |ctx, _| {
+        // Hooks and their registry may also wait. This is the final submission
+        // check; an already launched job retains its independent native budget.
+        if let Err(error) = validate_submission(ctx) {
+            return super::workspace::tool_err(error);
+        }
+        launched = true;
         let mut background = ctx.background_snapshot();
+        // The accepted task is the primary operation, not a second public hook event.
+        background.hook_nested = true;
         background.managed_task = true;
         background.native_work = super::native_drain::scope(&native_work);
+        background.root_scope = super::native_drain::root_scope(&native_work);
         background.policy.max_exec_timeout_ms = background.policy.max_task_timeout_ms.min(86_400_000);
         let mut command = args.clone();
         command.as_object_mut().expect("validated object").remove("request_id");
@@ -86,7 +107,7 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
                 let _ = background.exec_tasks.checkpoint(&worker_job);
                 return;
             }
-            let _thread = super::native_drain::enter(background.native_work.clone());
+            let _thread = super::native_drain::enter_context(&background);
             let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 run(&background, &worker_job, &command);
             }));
@@ -107,10 +128,39 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
             let _ = background.exec_tasks.checkpoint(&worker_job);
             if outcome.is_ok() { super::native_drain::complete(native_work); }
         });
+        let mut summary = job.summary();
+        summary["deduplicated"] = json!(false);
+        tool_ok(summary)
+        }),
+    };
+    if !launched {
+        // Failure before primary start still consumed this logical key. A crash
+        // before checkpoint leaves the original queued no-replay record, which
+        // restores as interrupted; neither path may rerun a write-enabled hook.
+        let uncertain = result["error"]["code"] == "HOOK_OUTCOME_UNKNOWN";
+        result["job_id"] = json!(job.id);
+        result["accepted"] = json!(true);
+        if uncertain { result["process_may_be_running"] = json!(true); }
+        job.finish(if uncertain { Status::Interrupted } else { Status::Failed }, result.clone());
+        if ctx.exec_tasks.checkpoint(&job).is_err() {
+            result["task_checkpoint_failed"] = json!(true);
+        }
     }
-    let mut summary = job.summary();
-    summary["deduplicated"] = json!(!created);
-    Ok(tool_ok(summary))
+    Ok(result)
+}
+
+// Transport controls bound acceptance, never the budget of an accepted task.
+fn validate_submission(ctx: &ToolContext) -> Result<(), WorkspaceError> {
+    if ctx.hook_deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline)
+        || ctx.hook_cancel.as_ref().is_some_and(|rx| *rx.borrow())
+    {
+        return Err(WorkspaceError::Tool {
+            code: "EXEC_TASK_SUBMISSION_EXPIRED",
+            message: "Task submission expired or was cancelled before primary start; no primary was launched. An already reserved logical key remains consumed.".into(),
+            category: "availability", retryable: false,
+        });
+    }
+    Ok(())
 }
 
 fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {

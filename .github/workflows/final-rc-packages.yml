@@ -1,0 +1,360 @@
+name: Full RC structural packaging gates
+
+on:
+  push:
+    branches: ['release/full-rc-candidate-*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Owner-selected RC version already committed in all six fields'
+        type: string
+        required: true
+      integration_run:
+        description: 'Successful complete integration run for this exact commit'
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-rc-packages-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERSION: ${{ inputs.version }}
+  CARGO_TERM_COLOR: never
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  contracts:
+    name: Version, packaging and dependency contracts
+    outputs:
+      version: ${{ steps.source.outputs.version }}
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - name: Resolve exact approved candidate source and integration evidence
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INTEGRATION_RUN: ${{ inputs.integration_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python scripts/final_rc_evidence.py integration --version "$VERSION" --integration-run "$INTEGRATION_RUN" --github-output --output evidence/integration.json
+      - name: Exact committed source and packaging unit gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/rc_version_gate.py --expect-version "$VERSION" --expect-sha "$GITHUB_SHA" --output evidence/version.json
+          python scripts/rc_version_gate_tests.py
+          python scripts/rc_packages_tests.py
+          python scripts/rc_windows_install_contract_tests.py
+          python scripts/final_rc_evidence_tests.py
+          node --test tests/cloud-gateway/*.test.mjs
+          node --test tests/offline-safe-ui.test.mjs tests/offline-safe-intent-ui.test.mjs
+          python scripts/connector_fault_proxy_tests.py
+          git diff --exit-code HEAD --
+      - name: Frontend lockfile and vulnerability gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          npm run build
+          set +e
+          npm audit --json > evidence/npm-audit.json
+          code=$?
+          set -e
+          python - <<'PY'
+          import json
+          r=json.load(open('evidence/npm-audit.json',encoding='utf-8'))
+          assert type(r['metadata']['vulnerabilities']['total']) is int
+          assert r['metadata']['vulnerabilities']['total'] == 0, r['metadata']['vulnerabilities']
+          PY
+          test "$code" -eq 0
+      - name: Real RustSec JSON for every production lockfile
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo install cargo-audit --version 0.22.2 --locked
+          audit_status=0
+          for pair in desktop:src-tauri local-agent:services/local-agent cloud-agent:services/cloud-agent cloud-gateway:services/cloud-gateway; do
+            name=${pair%%:*}; directory=${pair#*:}
+            cargo audit --json --file "$directory/Cargo.lock" > "evidence/rust-audit-$name.json" || audit_status=1
+          done
+          test "$audit_status" -eq 0
+          python scripts/final_rc_evidence.py audits --version "$VERSION" --directory evidence --output evidence/identity.json
+          git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-package-contracts
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error
+
+  windows:
+    name: Build and install exact Windows NSIS (isolation unresolved)
+    needs: contracts
+    env:
+      VERSION: ${{ needs.contracts.outputs.version }}
+    runs-on: windows-2025
+    timeout-minutes: 70
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Exact-source NSIS build
+        shell: pwsh
+        run: |
+          python scripts/rc_version_gate.py --expect-version $env:VERSION --expect-sha $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'RC identity gate failed' }
+          npm ci
+          if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
+          npm run check
+          if ($LASTEXITCODE -ne 0) { throw 'frontend check failed' }
+          npm run tauri -- build --ci --bundles nsis -- --locked
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS build failed' }
+          git diff --exit-code HEAD --
+          if ($LASTEXITCODE -ne 0) { throw 'build changed tracked source' }
+      - name: Prepare exact native WebView2 driver
+        shell: pwsh
+        run: ./scripts/Windows原生驱动准备v8.ps1 -OutputDirectory "$env:RUNNER_TEMP/windows-rc-driver"
+      - name: Standard-user installed native acceptance
+        shell: pwsh
+        run: ./scripts/rc_windows_install.ps1 -OutputDirectory "$env:RUNNER_TEMP/rc-windows-package" -Driver "$env:RUNNER_TEMP/windows-rc-driver/msedgedriver.exe"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-windows-package
+          path: ${{ runner.temp }}/rc-windows-package/
+          retention-days: 30
+          if-no-files-found: error
+
+  linux-build:
+    name: Build exact Ubuntu22 DEB and AppImage
+    needs: contracts
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    outputs:
+      version: ${{ needs.contracts.outputs.version }}
+    env:
+      VERSION: ${{ needs.contracts.outputs.version }}
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev patchelf libfuse2 libegl1 libgles2 libgl1
+      - name: Exact-source Linux package build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/rc_version_gate.py --expect-version "$VERSION" --expect-sha "$GITHUB_SHA"
+          npm ci
+          npm run check
+          npm run build
+          npm run tauri -- build --config src-tauri/Ubuntu桌面v1.json --bundles deb,appimage -- --locked
+          image=$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' -print -quit)
+          test -n "$image"
+          python scripts/AppImage入口配置v3.py --verify "$image" --output "$RUNNER_TEMP/appimage-entry.json"
+          python scripts/rc_packages.py prepare --directory . --output "$RUNNER_TEMP/rc-linux-packages" --source "$GITHUB_SHA"
+          python -c "import json,os,pathlib,platform; p=platform.freedesktop_os_release(); pathlib.Path(os.environ['RUNNER_TEMP'],'rc-linux-packages','build-platform.json').write_text(json.dumps({'id':p['ID'],'version_id':p['VERSION_ID']}))"
+          cargo install tauri-driver --version 2.0.6 --locked --root "$RUNNER_TEMP/linux-rc-driver"
+          git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rc-linux-packages
+          path: ${{ runner.temp }}/rc-linux-packages/
+          retention-days: 30
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rc-linux-driver
+          path: ${{ runner.temp }}/linux-rc-driver/bin/tauri-driver
+          retention-days: 7
+          if-no-files-found: error
+
+  linux-installed:
+    name: Installed ${{ matrix.os }} (${{ matrix.kind }})
+    needs: linux-build
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [deb, appimage]
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      VERSION: ${{ needs.linux-build.outputs.version }}
+      PACKAGE_KIND: ${{ matrix.kind }}
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+      GDK_BACKEND: x11
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: rc-linux-packages
+          path: ${{ runner.temp }}/rc-linux-packages
+      - uses: actions/download-artifact@v4
+        with:
+          name: rc-linux-driver
+          path: ${{ runner.temp }}/linux-rc-driver
+      - name: Install exact package and startup prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y xvfb xauth x11-utils fonts-noto-cjk desktop-file-utils gnome-keyring dbus-x11 xdg-desktop-portal xdg-desktop-portal-gtk libayatana-appindicator3-1 libsecret-1-0 libxdo3 libfuse2
+          chmod +x "$RUNNER_TEMP/linux-rc-driver/tauri-driver" "$RUNNER_TEMP/rc-linux-packages/"*.AppImage
+          if [ "$PACKAGE_KIND" = deb ]; then
+            sudo apt-get install -y "$RUNNER_TEMP/rc-linux-packages/"*.deb
+          fi
+          mkdir -p evidence
+          python -c "import json,pathlib,platform; p=platform.freedesktop_os_release(); pathlib.Path('evidence/installed-platform.json').write_text(json.dumps({'id':p['ID'],'version_id':p['VERSION_ID']}))"
+          python scripts/rc_packages.py installed --directory "$RUNNER_TEMP/rc-linux-packages" --source "$GITHUB_SHA" --kind "$PACKAGE_KIND" --output evidence/rc-package.json
+      - name: Raw installed startup safety matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=$(python -c "import json; print(json.load(open('evidence/rc-package.json',encoding='utf-8'))['executable'])")
+          export HOME="$RUNNER_TEMP/desktop-startup-$PACKAGE_KIND"
+          export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+          mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          touch "$HOME/.linux-startup-disposable"
+          for scenario in missing-bus unlocked-keyring split-session-bus safe-mode; do
+            export XDG_STATE_HOME="$HOME/state-$scenario"
+            mkdir -p "$XDG_STATE_HOME"; chmod 700 "$XDG_STATE_HOME"
+            xvfb-run -a -s '-screen 0 1280x800x24' dbus-run-session -- python3 scripts/linux_startup_candidate.py --app "$app" --case "$scenario" --seconds 20 --output "evidence/startup-$scenario"
+          done
+          if grep -R -E 'failed to load app state|panic' evidence/startup-*/stderr.txt; then
+            echo 'fatal startup signature detected' >&2; exit 1
+          fi
+      - name: Install WebDriver after raw startup gate
+        shell: bash
+        run: sudo apt-get install -y webkit2gtk-driver
+      - name: Installed native OAuth, exclusive ownership, refresh and drain acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=$(python -c "import json; print(json.load(open('evidence/rc-package.json',encoding='utf-8'))['executable'])")
+          export HOME="$RUNNER_TEMP/desktop-native-$PACKAGE_KIND"
+          export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
+          mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          touch "$HOME/.ubuntu-ci-fixture-v1"
+          test -x /usr/bin/python3
+          # The enforced sandbox supports system runtimes plus the workspace.
+          # setup-python prepends /opt/hostedtoolcache, which is intentionally
+          # outside that boundary; pin the installed-package acceptance to the
+          # supported system Python without changing application policy.
+          PATH="/usr/bin:/bin:$PATH" xvfb-run -a -s '-screen 0 1920x1080x24' dbus-run-session -- bash scripts/Ubuntu图形会话v2.sh "$GITHUB_WORKSPACE/scripts/exclusive_native_acceptance.py" "$app" "$RUNNER_TEMP/linux-rc-driver/tauri-driver" "$PACKAGE_KIND" "$GITHUB_WORKSPACE/evidence" 2>&1 | tee evidence/native-session.log
+          python scripts/rc_native_gate.py --input evidence/exclusive-native.json --binary "$app" --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --version "$VERSION" --kind "$PACKAGE_KIND" | tee evidence/native-gate.json
+          git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-linux-installed-${{ matrix.os }}-${{ matrix.kind }}
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error
+
+  bundle:
+    name: Collect exact-source packaging evidence (release remains blocked)
+    needs: [contracts, windows, linux-build, linux-installed]
+    env:
+      VERSION: ${{ needs.contracts.outputs.version }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/rc-package-evidence
+      - name: Validate package evidence without release approval
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/final_rc_evidence.py bundle --version "$VERSION" \
+            --directory "$RUNNER_TEMP/rc-package-evidence" --output "$RUNNER_TEMP/rc-structural-bundle"
+          cd "$RUNNER_TEMP/rc-structural-bundle"
+          sha256sum -c SHA256SUMS.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rc-structural-bundle
+          path: ${{ runner.temp }}/rc-structural-bundle/
+          retention-days: 30
+          if-no-files-found: error

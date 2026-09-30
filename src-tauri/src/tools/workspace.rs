@@ -142,6 +142,7 @@ pub type WorkspaceResult<T> = Result<T, WorkspaceError>;
 #[derive(Debug, Clone)]
 pub struct Workspace {
     root: PathBuf,
+    confined_reads: bool,
 }
 
 impl Workspace {
@@ -154,8 +155,11 @@ impl Workspace {
                 "Workspace root must be a directory",
             ));
         }
-        Ok(Self { root })
+        Ok(Self { root, confined_reads:false })
     }
+
+    /// Native-only managed workspace restriction. There is no IPC/model toggle.
+    pub(crate) fn confine_reads(&mut self) {self.confined_reads=true;}
 
     pub fn root(&self) -> &Path {
         &self.root
@@ -198,6 +202,7 @@ impl Workspace {
     /// 解析只读路径。显式的绝对路径和 `..` 路径允许指向 Workspace 外部，
     /// 但不会被任何写入工具复用。
     pub fn resolve_read_path(&self, raw_path: &str) -> WorkspaceResult<ResolvedPath> {
+        if self.confined_reads {return self.resolve_existing(raw_path);}
         let raw = if raw_path.is_empty() { "." } else { raw_path };
         self.validate_read_text(raw)?;
         let input = Path::new(raw);

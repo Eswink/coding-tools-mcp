@@ -127,8 +127,17 @@ impl ExecTaskStore {
         });
     }
 
+    #[cfg(test)]
     pub(super) fn reserve(&self, request_id: &str, fingerprint: &str, timeout_ms: u64)
         -> Result<(Arc<Job>, bool), WorkspaceError> {
+        self.reserve_checked(request_id, fingerprint, timeout_ms, || Ok(()))
+    }
+
+    pub(super) fn reserve_checked(&self, request_id: &str, fingerprint: &str, timeout_ms: u64,
+        validate_submission: impl FnOnce() -> Result<(), WorkspaceError>)
+        -> Result<(Arc<Job>, bool), WorkspaceError> {
+        #[cfg(test)]
+        admission_tests::before_lock();
         let mut inner = self.inner.lock().expect("job store");
         self.initialize(&mut inner)?;
         self.prune(&mut inner);
@@ -145,11 +154,16 @@ impl ExecTaskStore {
         if active >= self.max_active || inner.jobs.len() >= self.max_retained {
             return Err(error("EXEC_TASK_CAPACITY", "Task capacity reached; query existing tasks and never blindly resubmit", true));
         }
+        // Existing keys above are read-only reconciliation. A NEW acceptance
+        // must still be live after all mutex, archive and pruning waits.
+        validate_submission()?;
         let job = Arc::new(Job::new(request_id.into(), fingerprint.into(), timeout_ms, self.persistent()));
         if let Some(archive) = &inner.archive {
             archive.save(&job.id, || record::snapshot(&job)).map_err(storage_error)?;
         }
         inner.jobs.insert(job.id.clone(), job.clone());
+        #[cfg(test)]
+        admission_tests::after_acceptance();
         Ok((job, true))
     }
 
@@ -194,3 +208,7 @@ impl ExecTaskStore {
 fn storage_error(err: crate::error::AppError) -> WorkspaceError {
     error("EXEC_TASK_STORAGE", &format!("Task storage unavailable; no automatic command retry: {err}"), false)
 }
+
+#[cfg(test)]
+#[path = "async_admission_tests.rs"]
+mod admission_tests;

@@ -1,5 +1,7 @@
 <script lang="ts">
   import CloudConnectionPanel from "./CloudConnectionPanel.svelte";
+  import PolicyHooksPanel from "./PolicyHooksPanel.svelte";
+  import WorkspaceSnapshots from "./WorkspaceSnapshots.svelte";
   import { LockKeyhole } from "@lucide/svelte";
   import { untrack } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
@@ -60,6 +62,8 @@
 </script>
 
 <CloudConnectionPanel {workspaceId} />
+<PolicyHooksPanel {workspaceId} />
+<WorkspaceSnapshots sourceId={workspaceId} />
 
 <section class="chat-authorization" aria-labelledby="chat-authorization-heading">
   <div class="heading">

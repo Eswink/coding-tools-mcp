@@ -51,7 +51,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev dbus-x11 gnome-keyring
       - uses: Swatinem/rust-cache@v2
         with:
           key: native-${{ matrix.os }}-source-only-v1
@@ -95,8 +95,25 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
+          cargo fmt --all --check --manifest-path src-tauri/Cargo.toml
           cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-check.txt
-          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-full.txt
+          if [ "$RUNNER_OS" = Linux ]; then
+            export XDG_RUNTIME_DIR="$RUNNER_TEMP/native-runtime" XDG_DATA_HOME="$RUNNER_TEMP/native-data"
+            export XDG_CONFIG_HOME="$RUNNER_TEMP/native-config" XDG_STATE_HOME="$RUNNER_TEMP/native-state"
+            mkdir -p "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+            chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+            dbus-run-session -- bash -euo pipefail -c '
+              printf "%s" "isolated-rc-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets
+              cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-full.txt
+              cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-keyring-tests data::secure_file::native_tests -- --nocapture --test-threads=1 2>&1 | tee evidence/native-keyring-restart.txt
+            '
+          else
+            cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-full.txt
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-keyring-tests data::secure_file::native_tests -- --nocapture --test-threads=1 2>&1 | tee evidence/native-keyring-restart.txt
+          fi
+          grep -F 'native_keychain_cross_process_file_roundtrip ... ok' evidence/native-keyring-restart.txt
+          grep -F 'native_task_journal_cross_process_restore_and_missing_key ... ok' evidence/native-keyring-restart.txt
+          grep -F 'native_root_cross_process_crash_fences ... ok' evidence/native-keyring-restart.txt
           cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/desktop-warnings.txt
           git diff --exit-code HEAD --
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -199,6 +216,14 @@ jobs:
       - run: python tests/ui-refactor-browser.py
         env:
           UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/existing-ui
+          CHROMIUM_PATH: /opt/google/chrome/chrome
+      - run: python tests/policy-hooks-browser.py
+        env:
+          UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/hooks-ui
+          CHROMIUM_PATH: /opt/google/chrome/chrome
+      - run: python tests/workspace-snapshots-browser.py
+        env:
+          UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/snapshot-ui
           CHROMIUM_PATH: /opt/google/chrome/chrome
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

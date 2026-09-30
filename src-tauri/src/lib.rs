@@ -2,6 +2,8 @@
 
 mod actions;
 mod app_state;
+#[path="workspace_snapshots/mod.rs"]
+mod snapshots;
 mod auth;
 mod bootstrap;
 mod cloud_connection;
@@ -231,6 +233,16 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::cloud_connection::import_cloud_connection,
+            commands::policy_hooks::preview_policy_hooks,
+            commands::policy_hooks::approve_policy_hooks,
+            commands::policy_hooks::get_policy_hooks,
+            commands::policy_hooks::disable_policy_hooks,
+            commands::managed_workspace::list_managed_workspaces,
+            commands::managed_workspace::register_managed_workspace,
+            commands::workspace_snapshots::snapshot_list,
+            commands::workspace_snapshots::snapshot_capture,
+            commands::workspace_snapshots::snapshot_plan_restore,
+            commands::workspace_snapshots::snapshot_restore,
             commands::cloud_connection::get_cloud_connection_configuration,
             commands::cloud_connection::import_cloud_connection_files,
             commands::cloud_connection::start_cloud_connection,

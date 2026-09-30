@@ -76,6 +76,8 @@ impl Error for ExecError {}
 #[derive(Clone)]
 pub struct ExecSpec {
     argv: Vec<String>,
+    #[cfg(unix)]
+    argv0: Option<String>,
     cwd: PathBuf,
     env: BTreeMap<String, String>,
     stdin: Vec<u8>,
@@ -91,6 +93,8 @@ impl ExecSpec {
     pub fn new(argv: Vec<String>, cwd: impl Into<PathBuf>) -> Result<Self, ExecError> {
         let spec = Self {
             argv,
+            #[cfg(unix)]
+            argv0: None,
             cwd: cwd.into(),
             env: BTreeMap::new(),
             stdin: Vec::new(),
@@ -420,6 +424,11 @@ impl ProcessManager {
             })?;
 
         let mut command = Command::new(&spec.argv[0]);
+        #[cfg(unix)]
+        if let Some(argv0) = &spec.argv0 {
+            use std::os::unix::process::CommandExt;
+            command.as_std_mut().arg0(argv0);
+        }
         command
             .args(&spec.argv[1..])
             .current_dir(&cwd)
@@ -809,3 +818,7 @@ mod tests {
 #[cfg(all(test, unix))]
 #[path = "process_group_completion_tests.rs"]
 mod group_completion_tests;
+
+#[cfg(unix)]
+#[path = "process_argv0.rs"]
+mod argv0;

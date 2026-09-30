@@ -1,3 +1,7 @@
+#[cfg(windows)]
+#[path = "session_windows_job.rs"]
+mod windows_job;
+
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -135,6 +139,21 @@ impl ExecSession {
     }
 
     fn terminate_tree(&self) {
+        #[cfg(windows)]
+        {
+            // Retain the owned Job handle until its membership can be queried.
+            // Poison/missing evidence is conservative uncertainty, never panic-success.
+            let Ok(mut tree) = self.process_tree.lock() else {
+                self.tree_cleanup_failed.store(true, Ordering::Release);
+                return;
+            };
+            if let Some(tree) = tree.as_mut() {
+                if tree.terminate().is_err() {
+                    self.tree_cleanup_failed.store(true, Ordering::Release);
+                }
+            }
+        }
+        #[cfg(not(windows))]
         if let Some(mut tree) = self.process_tree.lock().expect("process tree").take() {
             if tree.terminate().is_err() { self.tree_cleanup_failed.store(true, Ordering::Release); }
         }

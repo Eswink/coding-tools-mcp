@@ -93,7 +93,7 @@ async fn discovery_and_catalog_are_stable_without_agent_presence() {
     c.disconnect(&session).await.unwrap();
     let after = json_body(app.oneshot(request(token, &list)).await.unwrap()).await;
     assert_eq!(before["result"]["tools"], after["result"]["tools"]);
-    assert_eq!(after["result"]["tools"].as_array().unwrap().len(), 46);
+    assert_eq!(after["result"]["tools"].as_array().unwrap().len(), 49);
 }
 
 #[tokio::test]
@@ -340,7 +340,7 @@ async fn legacy_initialize_list_and_tool_call_keep_same_auth_boundary() {
         .insert("mcp-protocol-version", "2025-06-18".parse().unwrap());
     r.headers_mut().remove("mcp-method");
     let v = json_body(app.oneshot(r).await.unwrap()).await;
-    assert_eq!(v["result"]["tools"].as_array().unwrap().len(), 46);
+    assert_eq!(v["result"]["tools"].as_array().unwrap().len(), 49);
 }
 
 #[tokio::test]
@@ -446,7 +446,11 @@ async fn full_catalog_foreign_calls_never_disclose_offline_workspace_or_enter_le
         let mut arguments = json!({});
         if let Some(required) = spec.schema["required"].as_array() {
             for key in required.iter().filter_map(Value::as_str) {
-                arguments[key] = json!("placeholder");
+                arguments[key] = if spec.schema["properties"][key]["pattern"] == "^[0-9a-f]{32}$" {
+                    json!("a".repeat(32))
+                } else {
+                    json!("placeholder")
+                };
             }
         }
         let body = message(

@@ -63,6 +63,18 @@ pub fn call_tool(ctx: &ToolContext, name: &str, args: &Value) -> Value {
         return policy_tool_err(e);
     }
 
+    super::policy_hooks::run(ctx,name,&effective_args,|nested,bounded|call_admitted(nested,name,args,bounded))
+}
+
+fn call_admitted(ctx:&ToolContext,name:&str,args:&Value,effective_args:&Value)->Value {
+    // Worktree errors must not trigger ambient Git/config diagnostics through Harness status.
+    if matches!(name, "worktree_create" | "worktree_list" | "worktree_remove") {
+        return match crate::tools::worktree_tools::call(ctx, name, &effective_args) {
+            Ok(value) => value,
+            Err(error) => tool_err(error),
+        };
+    }
+
     if crate::harness::tools::TOOL_NAMES.contains(&name) {
         return match crate::harness::tools::call(ctx, name, args) {
             Ok(value) => value,

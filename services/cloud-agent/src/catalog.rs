@@ -157,6 +157,18 @@ fn matches_schema(schema: &Value, value: &Value, depth: usize) -> bool {
             })
         }
         Some("string") => value.as_str().is_some_and(|text| {
+            // Only this reviewed fixed opaque-ID pattern is supported. Never
+            // evaluate attacker-supplied regexes or silently ignore a pattern.
+            if let Some(pattern) = schema.get("pattern") {
+                if pattern != "^[0-9a-f]{32}$"
+                    || text.len() != 32
+                    || !text
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                {
+                    return false;
+                }
+            }
             let len = text.chars().count() as u64;
             schema
                 .get("minLength")

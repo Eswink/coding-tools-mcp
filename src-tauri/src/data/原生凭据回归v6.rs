@@ -1,5 +1,7 @@
 //! Opt-in native test. Unlike unit doubles, this must fail when the actual
 //! OS credential service is unavailable. It only creates its own random entry.
+#[path = "native_root_restart_tests.rs"]
+mod root_restart;
 use super::*;
 use crate::data::key_store::{NativeKeyStore, SERVICE};
 

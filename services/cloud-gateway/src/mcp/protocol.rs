@@ -392,7 +392,7 @@ mod tests {
             )
             .collect();
         assert_eq!(names, expected);
-        assert_eq!(names.len(), 46);
+        assert_eq!(names.len(), 49);
         assert!(!names.iter().any(|name| name == "request_permissions"));
     }
 }

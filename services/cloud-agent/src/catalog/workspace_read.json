@@ -13,5 +13,6 @@
 {"name": "project_state", "scopes": ["workspace.read"], "mutating": false, "schema": {"type": "object", "properties": {"max_files": {"type": "integer", "minimum": 1, "maximum": 10000, "default": 200}}, "additionalProperties": false}},
 {"name": "task_context", "scopes": ["workspace.read"], "mutating": false, "schema": {"type": "object", "properties": {"task_id": {"type": "string"}, "max_bytes": {"type": "integer", "minimum": 8192, "maximum": 131072, "default": 32768}}, "additionalProperties": false}},
 {"name": "list_task_events", "scopes": ["workspace.read"], "mutating": false, "schema": {"type": "object", "properties": {"task_id": {"type": "string", "minLength": 1}, "cursor": {"type": "integer", "minimum": 0, "default": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50}}, "required": ["task_id"], "additionalProperties": false}},
-{"name": "change_summary", "scopes": ["workspace.read"], "mutating": false, "schema": {"type": "object", "properties": {"task_id": {"type": "string"}, "change_id": {"type": "string"}}, "additionalProperties": false}}
+{"name": "change_summary", "scopes": ["workspace.read"], "mutating": false, "schema": {"type": "object", "properties": {"task_id": {"type": "string"}, "change_id": {"type": "string"}}, "additionalProperties": false}},
+{"name": "worktree_list", "scopes": ["workspace.read"], "mutating": false, "schema": {"type": "object", "properties": {}, "additionalProperties": false}}
 ]

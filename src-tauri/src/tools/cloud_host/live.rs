@@ -217,7 +217,7 @@ impl LocalHost for NativeLiveHost {
                 return Err(AgentError::ExecutionUnknown);
             }
             let probe=request.binding.tool=="workspace_probe";
-            let result=tools.execute_scoped(permit.prepared,Some(work))
+            let result=tools.execute_scoped(permit.prepared,Some(work),Some(cancelled.clone()))
                 .map_err(|_|AgentError::ExecutionUnknown)?;
             if *cancelled.borrow() { return Err(AgentError::ExecutionUnknown); }
             if probe && result["ok"]==true {

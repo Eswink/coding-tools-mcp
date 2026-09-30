@@ -333,3 +333,10 @@ fn closing_cloud_link_rejects_prepared_work_without_native_authority_mutation() 
         1
     );
 }
+
+#[cfg(target_os="linux")]
+#[path = "hook_tests.rs"]
+mod hook_tests;
+
+#[path = "async_deadline_tests.rs"]
+mod async_deadline_tests;

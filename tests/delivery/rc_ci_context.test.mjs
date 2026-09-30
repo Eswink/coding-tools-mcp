@@ -50,7 +50,7 @@ test('control tests keep setup-python while child sandbox tests select system to
 });
 
 test('browser evidence never disables Chromium sandbox', () => {
-  for (const path of ['cloud-connection-browser.py', 'ui-refactor-browser.py', '../services/cloud-gateway/tests/run_service_acceptance.py']) {
+  for (const path of ['cloud-connection-browser.py', 'ui-refactor-browser.py', 'policy-hooks-browser.py', 'workspace-snapshots-browser.py', '../services/cloud-gateway/tests/run_service_acceptance.py']) {
     const source = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
     assert.doesNotMatch(source, /--no-sandbox|chromium_sandbox\s*[:=]\s*False/);
     assert.match(source, /chromium_sandbox['"]?\s*[:=]\s*True/);
@@ -66,4 +66,13 @@ test('release matrix runs actual OAuth process browser acceptance separately fro
   assert.match(job, /run_service_browser_ci\.py.*--binary "\$binary" --chromium \/opt\/google\/chrome\/chrome/);
   assert.match(job, /source-sha\.txt/);
   assert.doesNotMatch(job, /continue-on-error|--no-sandbox|\|\| true/);
+});
+
+test('native integration and restart proofs use real OS credential services', () => {
+  const source = readFileSync(new URL('../../.github/workflows/dot-rc-integration.yml', import.meta.url), 'utf8');
+  assert.match(source, /dbus-x11 gnome-keyring/);
+  assert.match(source, /dbus-run-session -- bash -euo pipefail/);
+  assert.equal((source.match(/--features native-keyring-tests data::secure_file::native_tests/g) || []).length, 2);
+  assert.match(source, /cargo fmt --all --check --manifest-path src-tauri\/Cargo.toml/);
+  assert.doesNotMatch(source, /--skip|--ignored|continue-on-error: true/);
 });

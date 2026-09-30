@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 #[test]
 fn complete_catalog_is_closed_unique_and_has_only_native_scopes() {
     let specs = tools();
-    assert_eq!(specs.len(), 44);
+    assert_eq!(specs.len(), 47);
     assert_eq!(
         specs.iter().map(|s| &s.name).collect::<BTreeSet<_>>().len(),
         specs.len()
@@ -158,4 +158,36 @@ fn history_validation_is_least_scope_and_bound_to_repair_argument() {
     }
     assert_eq!(spec.primary_scope(&json!({"repair":true})), "history.write");
     assert!(spec.is_mutating(&json!({"repair":true})));
+}
+
+#[test]
+fn worktree_tools_accept_only_opaque_identity_and_existing_local_scopes() {
+    for name in ["worktree_create", "worktree_list"] {
+        assert!(tool(name).unwrap().arguments(&json!({})).is_ok());
+        for args in [
+            json!({"path":"."}),
+            json!({"root":"/"}),
+            json!({"ref":"HEAD"}),
+            json!({"argv":[]}),
+        ] {
+            assert!(tool(name).unwrap().arguments(&args).is_err());
+        }
+    }
+    let remove = tool("worktree_remove").unwrap();
+    assert_eq!(remove.scopes, ["files.write"]);
+    assert!(remove.mutating);
+    assert_eq!(tool("worktree_list").unwrap().scopes, ["workspace.read"]);
+    assert!(remove.arguments(&json!({"id":"a".repeat(32)})).is_ok());
+    for id in [
+        "../outside".to_string(),
+        "A".repeat(32),
+        "g".repeat(32),
+        "a".repeat(31),
+        "a".repeat(33),
+    ] {
+        assert!(remove.arguments(&json!({"id":id})).is_err());
+    }
+    assert!(remove
+        .arguments(&json!({"id":"a".repeat(32),"force":true}))
+        .is_err());
 }

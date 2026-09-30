@@ -5,6 +5,8 @@ pub(crate) mod chat_domain;
 pub mod context;
 pub mod listener_context;
 pub(crate) mod native_drain;
+pub(crate) mod root_work;
+pub(crate) mod policy_hooks;
 // Crate-private adapter: not exposed without an owned Agent supervisor.
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) mod cloud_host;
@@ -25,6 +27,7 @@ pub mod policy;
 pub mod registry;
 pub mod session;
 pub mod workspace;
+pub(crate) mod worktree_tools;
 
 pub use context::{SharedToolContext, ToolContext};
 /// 唯一工具执行入口；MCP 与 Actions 必须调用此函数，不得分叉执行实现。

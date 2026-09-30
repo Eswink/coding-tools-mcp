@@ -8,6 +8,12 @@ use crate::tools::workspace::{relative_display, Workspace};
 use crate::workspace::AuthConfig;
 
 pub struct ToolContext {
+    pub(crate) policy_hooks: Arc<super::policy_hooks::HookRegistry>,
+    pub(crate) hook_nested: bool,
+    pub(crate) hook_deadline: Option<std::time::Instant>,
+    pub(crate) hook_cancel: Option<tokio::sync::watch::Receiver<bool>>,
+    pub(crate) root_work: Result<Arc<super::root_work::RootWorkTracker>, super::root_work::RootWorkError>,
+    pub(crate) root_scope: Option<super::root_work::RootWorkScope>,
     pub(crate) native_work: Option<coding_tools_cloud_agent::work::WorkScope>,
     pub workspace: Workspace,
     pub auth: AuthConfig,
@@ -77,14 +83,22 @@ impl ToolContext {
         let root = workspace.root().to_path_buf();
         #[cfg(target_os = "linux")]
         let linux_sandbox = Arc::new(coding_tools_local_agent::LinuxSandbox::new(&root));
+        let harness = Harness::new(root.clone(), harness_root).expect("无法初始化 Harness");
+        let root_work = super::root_work::RootWorkTracker::for_workspace(&root);
+        let mut workspace=workspace;
+        // An unavailable ledger never falls back to ordinary host-reading mode;
+        // the outer dispatcher also refuses all business calls on that failure.
+        if root_work.as_ref().map_or(true,|root|root.managed_reads()) {workspace.confine_reads();}
         Self {
+            root_work, root_scope: None,
+            policy_hooks: Arc::new(super::policy_hooks::HookRegistry::new(root.clone())), hook_nested:false, hook_deadline:None, hook_cancel:None,
             native_work: None,
             workspace,
             auth,
             policy,
             tool_profile: crate::tools::registry::normalize_tool_profile(&tool_profile).into(),
             permission_mode,
-            harness: Harness::new(root.clone(), harness_root).expect("无法初始化 Harness"),
+            harness,
             default_cwd: Arc::new(Mutex::new(root)),
             remote_request: None, chat_scoped: false, chat_domains: Arc::default(),
             execution_gate: crate::runtime::WorkspaceExecutionGate::shared(),
@@ -115,6 +129,8 @@ impl ToolContext {
     /// Snapshot policy/cwd at acceptance; share the existing service-owned task/session stores.
     pub(crate) fn background_snapshot(&self) -> Self {
         Self {
+            root_work: self.root_work.clone(), root_scope: self.root_scope.clone(),
+            policy_hooks:self.policy_hooks.clone(), hook_nested:self.hook_nested, hook_deadline:self.hook_deadline, hook_cancel:self.hook_cancel.clone(),
             native_work: self.native_work.clone(),
             workspace: self.workspace.clone(), auth: self.auth.clone(), policy: self.policy.clone(),
             tool_profile: self.tool_profile.clone(), permission_mode: self.permission_mode.clone(),

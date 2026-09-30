@@ -8,7 +8,14 @@ use crate::tools::context::ToolContext;
 /// layer only attaches authoritative host semantics to the two discovery
 /// tools so clients do not infer Windows commands on Linux (or vice versa).
 pub fn call_tool(ctx: &ToolContext, name: &str, args: &Value) -> Value {
-    let mut result = crate::tools::dispatch::call_tool(ctx, name, args);
+    // Privileged desktop inspection/cancellation remains available during
+    // recovery. This flag is native-only and the IPC whitelist cannot execute.
+    let mut result = if ctx.local_task_control && matches!(name,"list_exec_tasks"|"get_exec_task"|"cancel_exec_task") {
+        crate::tools::dispatch::call_tool(ctx,name,args)
+    } else {
+        super::root_work::dispatch(ctx, |scoped| crate::tools::dispatch::call_tool(scoped, name, args))
+            .unwrap_or_else(super::root_work::error_value)
+    };
     if matches!(name, "server_info" | "check_exec_environment") {
         attach_host_context(&mut result);
     }

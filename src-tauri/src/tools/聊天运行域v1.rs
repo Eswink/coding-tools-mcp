@@ -13,6 +13,13 @@ struct Resources {
     cwd: Arc<Mutex<PathBuf>>, sessions: Arc<SessionStore>, tasks: Arc<ExecTaskStore>, harness: Harness,
 }
 impl ChatDomains {
+    /// Native owner inventory only. Never exposed as a cloud tool or supplied
+    /// by model metadata; these domains were established by verified identities.
+    pub(crate) fn native_harnesses(&self) -> Result<Vec<Harness>, String> {
+        self.0.lock().map(|domains| domains.values().map(|r|r.harness.clone()).collect())
+            .map_err(|_|"Native conversation resources unavailable".into())
+    }
+
     pub fn scoped(&self, ctx: &ToolContext, req: &RemoteRequest) -> Result<ToolContext, String> {
         let key = req.identity()?;
         let mut domains = self.0.lock().map_err(|_| "会话运行域不可用")?;
@@ -38,6 +45,8 @@ pub(crate) fn required(name: &str, args: &Value) -> Option<&'static [&'static st
         "git_status" | "git_diff" | "git_log" | "git_show" | "git_blame" | "harness_status" | "operation_log" |
         "project_state" | "task_context" | "list_task_events" | "change_summary" => &["workspace.read"],
         "read_file" | "list_dir" | "list_files" | "search_text" | "grep_text" | "grep" | "view_image" | "patch_check" => &["files.read"],
+        "worktree_list" => &["workspace.read"],
+        "worktree_create" | "worktree_remove" => &["files.write"],
         "apply_patch" => &["files.write"],
         "exec_command" | "exec_health_check" | "start_exec_task" => &["exec.run"],
         "get_exec_task" | "list_exec_tasks" | "read_output" => &["task.read"],

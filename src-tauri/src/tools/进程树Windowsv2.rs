@@ -10,7 +10,8 @@ use windows::Win32::System::Diagnostics::ToolHelp::{
 use windows::Win32::System::JobObjects::{
     AssignProcessToJobObject, CreateJobObjectW, SetInformationJobObject, TerminateJobObject,
     JobObjectExtendedLimitInformation, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
-    JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JobObjectBasicAccountingInformation,
+    JOBOBJECT_BASIC_ACCOUNTING_INFORMATION, QueryInformationJobObject,
 };
 use windows::Win32::System::Threading::{
     GetProcessIdOfThread, OpenThread, ResumeThread, THREAD_QUERY_LIMITED_INFORMATION,
@@ -36,11 +37,26 @@ impl ProcessTree {
     }
 
     pub(crate) fn terminate(&mut self) -> io::Result<()> {
-        if let Some(owned) = self.0.take() {
-            // Closing the last job handle also enforces kill-on-close on failure.
-            unsafe { TerminateJobObject(handle(&owned), 1) }.map_err(winerr)?;
+        if let Some(owned) = self.0.as_ref() {
+            // Keep the unique Job identity for completion queries. Handle close
+            // remains defensive cleanup in Drop, never evidence of completion.
+            unsafe { TerminateJobObject(handle(owned), 1) }.map_err(winerr)?;
         }
         Ok(())
+    }
+
+    /// One observation of this owned Job only; parent exit is not enough.
+    pub(crate) fn is_empty(&self) -> io::Result<bool> {
+        let owned = self.0.as_ref().ok_or_else(|| io::Error::other("owned job unavailable"))?;
+        let mut accounting = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
+        unsafe {
+            QueryInformationJobObject(
+                Some(handle(owned)), JobObjectBasicAccountingInformation,
+                &mut accounting as *mut _ as *mut _,
+                size_of::<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION>() as u32, None,
+            )
+        }.map_err(winerr)?;
+        Ok(accounting.ActiveProcesses == 0)
     }
 }
 
@@ -126,3 +142,7 @@ mod resume_result_tests {
         for count in [2, 3, u32::MAX] { assert!(confirmed_resume(count).is_err()); }
     }
 }
+
+#[cfg(test)]
+#[path = "windows_job_drain_tests.rs"]
+mod drain_tests;

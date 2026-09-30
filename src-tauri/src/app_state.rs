@@ -19,6 +19,7 @@ pub struct StartupStatus {
 }
 
 pub struct AppState {
+    pub(crate) native_controls: crate::commands::native_owner::NativeControls,
     pub(crate) cloud_agents: crate::cloud_application::ApplicationAgents,
     data: Mutex<Option<DataStore>>,
     startup_reason: Mutex<Option<StartupFailureReason>>,
@@ -43,6 +44,7 @@ impl AppState {
         };
         Self {
             cloud_agents: Default::default(),
+            native_controls: Default::default(),
             data: Mutex::new(data),
             startup_reason: Mutex::new(startup_reason),
             runtime: Mutex::new(RuntimeSupervisor::default()),

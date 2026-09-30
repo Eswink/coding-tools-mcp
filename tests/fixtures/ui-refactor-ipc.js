@@ -43,6 +43,7 @@
     args = JSON.parse(JSON.stringify(args));
     state.calls.push({command,args:clone(args)});
     if(command==='get_startup_status')return {state:'ready',ready:true,recoverable:false,reasonCode:null,message:'Synthetic ready desktop',platform:'synthetic',safeMode:false};
+    if(command==='get_policy_hooks')return {enabled:false,count:0,recovery_required:false};
     if(command==='plugin:event|listen'){const id=++serial;listeners.set(id,{event:String(args.event),handler:Number(args.handler),id});return id;}
     if(command==='plugin:event|unlisten'){listeners.delete(args.eventId);return;}
     if(command==='plugin:window|is_minimized')return false;
@@ -95,6 +96,7 @@
       const logs=[{name:'synthetic.log',content:'Synthetic log — no real process was started.'}];
       return logs;
     }
+    if(command==='list_managed_workspaces')return [];
     if(command==='get_cloud_connection_status')return {phase:'unconfigured',connected:false,generation:null,configured:false};
     if(command==='chat_authorization_inbox')return {revision:state.revision,now:Date.now()/1000,pending:clone(state.pending)};
     if(command==='chat_authorization_control'){

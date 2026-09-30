@@ -176,6 +176,10 @@ async fn application_stop_retains_slot_and_journal_until_real_native_callback_fi
     app.start(&fixture.id, fixture.lease.clone(), fixture.material(), true)
         .unwrap();
     let host = host(&app, &fixture.id).await;
+    // Both assertions must exercise the same valid journal path, so a Windows
+    // path-normalization refusal cannot masquerade as the live exclusive lock.
+    let journal_parent = fixture.root.path().join("runtime").canonicalize().unwrap();
+    let journal = journal_parent.join("executions.bin");
     let (ready, started) = tokio::sync::oneshot::channel();
     let (release, held) = std::sync::mpsc::channel();
     let work = crate::tools::native_drain::blocking(&host.application_test_work(), move |_| {
@@ -209,7 +213,7 @@ async fn application_stop_retains_slot_and_journal_until_real_native_callback_fi
     assert!(HostAgent::open(
         &fixture.config,
         &fixture.key,
-        &fixture.root.path().join("runtime/executions.bin"),
+        &journal,
         false,
         host.clone()
     )
@@ -222,7 +226,7 @@ async fn application_stop_retains_slot_and_journal_until_real_native_callback_fi
     assert!(HostAgent::open(
         &fixture.config,
         &fixture.key,
-        &fixture.root.path().join("runtime/executions.bin"),
+        &journal,
         false,
         host
     )

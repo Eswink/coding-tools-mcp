@@ -47,6 +47,41 @@ async fn past_deadline(h: &projection_support::Harness, deadline: i64) {
     }
 }
 
+async fn hold_until_expired<F>(
+    h: &projection_support::Harness,
+    holder: i32,
+    deadline: i64,
+    pending: &mut F,
+) where
+    F: std::future::Future<Output = Result<AdmissionReceipt, IdentityError>> + Unpin,
+{
+    // A sleeping/unpolled future is not evidence of a database lock wait.
+    // Drive the real request while observing its blocker, then across expiry.
+    let blocked = async {
+        loop {
+            let waiting: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid)))",
+            )
+            .bind(holder)
+            .fetch_one(&h.f.pool)
+            .await
+            .unwrap();
+            if waiting {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    };
+    tokio::select! {
+        result = &mut *pending => panic!("PROBE_SETUP: request completed before observed channel lock: {result:?}"),
+        result = tokio::time::timeout(Duration::from_secs(1), blocked) => result.expect("PROBE_SETUP: no actual channel blocker observed"),
+    }
+    tokio::select! {
+        result = &mut *pending => panic!("PROBE_SETUP: request completed while channel lock still held: {result:?}"),
+        _ = past_deadline(h, deadline) => {},
+    }
+}
+
 #[tokio::test]
 async fn admission_rechecks_deadline_after_channel_lock_wait() {
     let (h, c) = channel_support::setup().await;
@@ -54,6 +89,10 @@ async fn admission_rechecks_deadline_after_channel_lock_wait() {
     channel_support::project(&h, &c, &s, 1, 1).await;
     let store = AdmissionStore::new(h.f.store.clone());
     let mut held = h.f.pool.begin().await.unwrap();
+    let holder: i32 = sqlx::query_scalar("SELECT pg_backend_pid()")
+        .fetch_one(&mut *held)
+        .await
+        .unwrap();
     sqlx::query("SELECT connector FROM ctm_agent_channel FOR UPDATE")
         .fetch_all(&mut *held)
         .await
@@ -61,13 +100,7 @@ async fn admission_rechecks_deadline_after_channel_lock_wait() {
     let deadline = near_deadline(&h).await;
     let args = json!({"path":"fixture.txt"});
     let mut pending = Box::pin(store.admit(input(&h, Uuid::new_v4(), &args, deadline)));
-    assert!(
-        tokio::time::timeout(Duration::from_millis(50), &mut pending)
-            .await
-            .is_err(),
-        "PROBE_SETUP: admission did not wait on held channel lock"
-    );
-    past_deadline(&h, deadline).await;
+    hold_until_expired(&h, holder, deadline, &mut pending).await;
     held.commit().await.unwrap();
     let result = pending.await.unwrap();
     assert_eq!(
@@ -95,18 +128,16 @@ async fn legacy_begin_rechecks_deadline_after_channel_lock_wait() {
         AdmissionDecision::Admitted
     );
     let mut held = h.f.pool.begin().await.unwrap();
+    let holder: i32 = sqlx::query_scalar("SELECT pg_backend_pid()")
+        .fetch_one(&mut *held)
+        .await
+        .unwrap();
     sqlx::query("SELECT connector FROM ctm_agent_channel FOR UPDATE")
         .fetch_all(&mut *held)
         .await
         .unwrap();
     let mut pending = Box::pin(store.begin_execution(id));
-    assert!(
-        tokio::time::timeout(Duration::from_millis(50), &mut pending)
-            .await
-            .is_err(),
-        "PROBE_SETUP: begin did not wait on held channel lock"
-    );
-    past_deadline(&h, deadline).await;
+    hold_until_expired(&h, holder, deadline, &mut pending).await;
     held.commit().await.unwrap();
     assert_eq!(
         pending.await.unwrap().decision,

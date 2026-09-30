@@ -37,6 +37,24 @@ impl Harness {
         })
     }
 
+    // Ordinary unit tests use process-local MemoryKeys. Sharing encrypted host
+    // documents across test processes would lose their keys and correctly trip
+    // production recovery fences. Keep test host storage at the same lifetime;
+    // never delete/reinitialize a production ledger to make a test pass.
+    #[cfg(all(test, not(feature = "native-keyring-tests")))]
+    pub fn default_root() -> HarnessResult<PathBuf> {
+        static ROOT: std::sync::OnceLock<Result<tempfile::TempDir, String>> =
+            std::sync::OnceLock::new();
+        let root = ROOT.get_or_init(|| {
+            tempfile::Builder::new().prefix("coding-tools-unit-host-").tempdir()
+                .map_err(|error| error.to_string())
+        });
+        root.as_ref()
+            .map(|root| root.path().join("harness"))
+            .map_err(|error| HarnessError::new("STORE_UNAVAILABLE", error.clone()))
+    }
+
+    #[cfg(any(not(test), feature = "native-keyring-tests"))]
     pub fn default_root() -> HarnessResult<PathBuf> {
         let root = dirs::data_local_dir()
             .or_else(dirs::data_dir)

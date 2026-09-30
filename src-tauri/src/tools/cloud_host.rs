@@ -230,15 +230,17 @@ impl NativeToolHost {
     /// A cancellation/transport failure after this point is UNKNOWN, not a
     /// signal to replay. The caller must retain this work until it terminates.
     pub(crate) fn execute(&self, call: PreparedCall) -> Result<Value, &'static str> {
-        self.execute_scoped(call, None)
+        self.execute_scoped(call, None, None)
     }
 
     fn execute_scoped(&self, call: PreparedCall,
-        work: Option<coding_tools_cloud_agent::work::WorkScope>) -> Result<Value, &'static str> {
+        work: Option<coding_tools_cloud_agent::work::WorkScope>,
+        cancelled: Option<tokio::sync::watch::Receiver<bool>>) -> Result<Value, &'static str> {
         if call.host != self.id || call.request.profile != self.profile {
             return Err("CLOUD_HOST_CONTEXT_REJECTED");
         }
-        if Instant::now() >= call.deadline || now()? >= call.deadline_epoch {
+        if Instant::now() >= call.deadline || now()? >= call.deadline_epoch
+            || cancelled.as_ref().is_some_and(|rx| *rx.borrow()) {
             return Err("CLOUD_DEADLINE_REJECTED");
         }
         self.current(&call.authority)?;
@@ -250,15 +252,20 @@ impl NativeToolHost {
             call.ticket,
         )?;
         // The final ticket may have waited on the authorizer/gate mutexes.
-        if Instant::now() >= call.deadline || now()? >= call.deadline_epoch {
+        if Instant::now() >= call.deadline || now()? >= call.deadline_epoch
+            || cancelled.as_ref().is_some_and(|rx| *rx.borrow()) {
             return Err("CLOUD_DEADLINE_REJECTED");
         }
         let mut context = self.context.background_snapshot();
         context.remote_request = Some(call.request);
         context.native_work = work.clone();
+        context.hook_deadline = Some(call.deadline);
+        context.hook_cancel = cancelled;
         let _thread = super::native_drain::enter(work);
         let mut args = call.args;
-        if matches!(call.tool.as_str(), "exec_command" | "start_exec_task") {
+        // Async timeout_ms is the independently approved job budget. Only a
+        // synchronous command consumes the remaining RPC execution budget.
+        if call.tool == "exec_command" {
             let remaining = call
                 .deadline
                 .saturating_duration_since(Instant::now())
@@ -274,6 +281,9 @@ impl NativeToolHost {
             args["timeout_ms"] = json!(remaining.min(requested));
         }
         let result = super::call_tool(&context, &call.tool, &args);
+        if result["error"]["code"] == "HOOK_OUTCOME_UNKNOWN" {
+            return Err("CLOUD_EXECUTION_UNKNOWN");
+        }
         // Revocation/connection change after an operation may hide its result;
         // it cannot erase the durable outer claim or assert non-execution.
         if Instant::now() >= call.deadline

@@ -1,3 +1,7 @@
+pub(crate) mod workspace_snapshots;
+pub(crate) mod native_owner;
+pub(crate) mod policy_hooks;
+pub(crate) mod managed_workspace;
 pub(crate) mod cloud_connection;
 pub(crate) mod chat_notifications;
 pub use chat_notifications::{chat_authorization_inbox,refresh_session_control};

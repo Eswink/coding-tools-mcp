@@ -459,7 +459,7 @@ async fn mcp_post(
     request_ctx.remote_request = Some(remote);
     let mcp = Arc::new(request_ctx);
     let profile_id = state.workspace_id.clone();
-    let result = tokio::task::spawn_blocking(move || handle_request(&mcp, &body)).await;
+    let result = crate::tools::root_work::blocking_context(mcp, move |mcp| handle_request(&mcp, &body)).await;
     match result {
         Ok(response) => {
             append_profile_log(
