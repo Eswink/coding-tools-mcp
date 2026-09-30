@@ -221,6 +221,10 @@ pub fn validate_staged(file: &File, desired: &str) -> Result<()> {
 /// Ownership/group/integrity label are never changed and must match before mutation.
 pub fn apply(file: &File, desired: &str) -> Result<()> {
     validate_staged(file, desired)?;
+    // Avoid changing inheritance control flags when the exact descriptor already matches.
+    if read(file)? == desired {
+        return Ok(());
+    }
     let sd = parse(desired)?;
     let acl = dacl(&sd)?;
     let flags = if desired.contains("D:P") {

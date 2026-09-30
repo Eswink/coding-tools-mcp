@@ -124,8 +124,8 @@ fn junction_escape_refused() {
     fs::write(outside.join("value"), b"outside").unwrap();
     let result = std::process::Command::new("cmd.exe")
         .args(["/D", "/C", "mklink", "/J"])
-        .arg(target.root.join("junction"))
-        .arg(&outside)
+        .arg(target.root.join("junction").to_str().unwrap().replace('/', "\\"))
+        .arg(outside.to_str().unwrap().replace('/', "\\"))
         .output()
         .unwrap();
     assert!(
