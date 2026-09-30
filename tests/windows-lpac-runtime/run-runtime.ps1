@@ -1,6 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$Fixture,[Parameter(Mandatory=$true)][string]$Payload,[Parameter(Mandatory=$true)][string]$Evidence)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'metadata.ps1')
 if($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows') {throw 'GitHub-hosted Windows diagnostic only'}
 $fixturePath=(Resolve-Path $Fixture).Path
 $payloadPath=(Resolve-Path $Payload).Path
@@ -10,7 +11,7 @@ $root=Join-Path $env:RUNNER_TEMP ('ctm runtime-'+[guid]::NewGuid().ToString('N')
 New-Item -ItemType Directory -Path $root | Out-Null
 $outcomes=@()
 $cases=[ordered]@{'python-budget'='python';'python-workspace'='python';'node-workspace'='node';'npm-cmd'='node';'git-local'='git';'cmd-workspace'='cmd';'powershell-workspace'='powershell';'pwsh-workspace'='pwsh'}
-$inventory=@(Get-Content -Raw (Join-Path $evidencePath 'runtime-inventory.json') | ConvertFrom-Json)
+$inventory=@(Read-RuntimeInventory (Get-Content -Raw (Join-Path $evidencePath 'runtime-inventory.json')))
 $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0)
 $listener.Start()
 $port=([Net.IPEndPoint]$listener.LocalEndpoint).Port

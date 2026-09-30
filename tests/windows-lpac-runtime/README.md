@@ -90,6 +90,10 @@ but the final required-row gate remains failed. Reparse metadata is collected
 without target resolution or recursion through links; no rejected link is copied
 or dereferenced. Python inventory records both Get-Command's executable/root and
 setup-python's declared location to diagnose distribution-versus-shim selection.
+When Get-Command supplies multiple applications, inventory retains all candidates
+but selects the first PATH match as one scalar executable. Unselected aliases are
+not traversed. PowerShell 5.1 data-only tests check this selection and explicitly
+flattened JSON records before any native probing; duplicate/invalid rows fail.
 
 ## Reading outcomes honestly
 

@@ -1,6 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$Payload,[Parameter(Mandatory=$true)][string]$Evidence)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'metadata.ps1')
 if($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows') {throw 'GitHub-hosted Windows diagnostic only'}
 if(Test-Path -LiteralPath $Payload) {throw 'payload must be new'}
 New-Item -ItemType Directory -Path $Payload,$Evidence -Force | Out-Null
@@ -38,7 +39,9 @@ foreach($name in @('python','node','git','powershell','pwsh')) {
             $resolved=Join-Path $source 'powershell.exe'
         } else {
             $commandName=$executables[$name].Split('\')[-1]
-            $resolved=(Get-Command $commandName -CommandType Application).Source
+            $candidates=@(Get-Command $commandName -CommandType Application)
+            $row.source_candidates=@($candidates | ForEach-Object {$_.Source})
+            $resolved=Select-ApplicationPath $candidates
             $source=Split-Path $resolved
             if($name -eq 'git') {$source=Split-Path $source}
         }

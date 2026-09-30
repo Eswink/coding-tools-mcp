@@ -70,6 +70,10 @@ def audit(files):
     for expected in ['offline_passed=$false;preparation_failed=$true', '$outcomes.Count -ne $cases.Count', 'one or more required preparation or offline runtime contracts failed']:
         if expected not in runner:
             errors.append('missing required preparation failure control: '+expected)
+    if 'Read-RuntimeInventory (Get-Content' not in runner:
+        errors.append('runtime inventory must use scalar-record parser')
+    if 'metadata-contract-tests.ps1' not in workflow:
+        errors.append('PowerShell data-shape tests missing')
     return errors
 
 
@@ -119,6 +123,11 @@ class AuditMutations(unittest.TestCase):
         files = load_files()
         files['run-runtime.ps1'] = files['run-runtime.ps1'].replace('offline_passed=$false;preparation_failed=$true', 'offline_passed=$true;preparation_failed=$true')
         self.assertTrue(any('required preparation failure control' in error for error in audit(files)))
+
+    def test_nested_inventory_parser_rejected(self):
+        files = load_files()
+        files['run-runtime.ps1'] = files['run-runtime.ps1'].replace('Read-RuntimeInventory (Get-Content', 'ConvertFrom-Json (Get-Content')
+        self.assertIn('runtime inventory must use scalar-record parser', audit(files))
 
 
 if __name__ == '__main__':

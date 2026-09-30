@@ -35,6 +35,10 @@ jobs:
           git rev-parse 'HEAD^{tree}' | Add-Content evidence/source.txt
           python tests/windows-lpac-runtime/audit.py
           if($LASTEXITCODE){exit $LASTEXITCODE}
+      - name: PowerShell 5.1 metadata-shape contracts
+        shell: powershell
+        run: |
+          & tests/windows-lpac-runtime/metadata-contract-tests.ps1
       - name: Build isolated diagnostic binaries
         id: build
         shell: pwsh
