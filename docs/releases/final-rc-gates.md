@@ -5,7 +5,7 @@ This workflow prepares structural package evidence only. It does not select a ve
 ## Immutable-source contract
 Either manually dispatch `final-rc-packages.yml` on the exact candidate commit with an owner-selected `major.minor.patch-rc.N` already present in all six committed version fields and a successful `dot-rc-integration.yml` run for that identical commit. Required jobs include the three native platforms, two real-transport platforms, browser and oauth-process-browser. Alternatively, after the owner has selected the version and engineering gates pass, the parent may create `release/full-rc-candidate-*` pointing at that same immutable commit. This push derives the committed version, reads successful exact-SHA runs for the fixed integration workflow, selects the unique highest run ID, then revalidates the run and its latest seven-job attempt. Missing or ambiguous evidence fails immediately without polling. Branch creation does not change source, tags or releases. Dispatch continues to require explicit version and run inputs. Every returned job must succeed; a historical green run, skipped job, different source or partial matrix fails closed.
 
-Linux packages are built on Ubuntu22.04, then the identical DEB/AppImage bytes are installed and exercised on both22.04 and24.04. Windows NSIS is built and checked through the existing fresh standard-user installed acceptance. No large local build was attempted in the Dot cloud workspace. Native packaging execution remains pending.
+Linux packages are built on Ubuntu22.04, then the identical DEB/AppImage bytes are installed and exercised on both22.04 and24.04. Windows NSIS is built and checked through the existing fresh standard-user installed acceptance. Preliminary fde46cc packages have been built in Actions and actually downloaded: both Ubuntu22/24 DEB/AppImage installed matrices pass, and Windows NSIS standard-user installed acceptance passes while required Windows full regression fails. These unchanged0.6.0-rc.4 engineering bytes are NOT_FINAL/NOT_PUBLISHABLE. Final selected-version/source packaging remains pending.
 
 The four production Rust lockfiles are audited through actual cargo-audit0.22.2 JSON. npm audit JSON must show zero vulnerabilities. No advisory is ignored and no success-shaped receipt is fabricated. Issue84's devalue remediation is separately required before the audit can pass.
 
@@ -32,12 +32,14 @@ Precise repair: keep stable verifier and its positive/negative regression unchan
 ### Hardcoded historical versions remain historical
 Existing linux/windows-rc-packages.yml pins0.6.0-rc.4; prior desktop workflow pins0.6.1-rc.1 and a reduced desktop-only allowlist. The new parameterized workflow does not alter those historical policies or assert their versions are available. Stable0.6.0 and desktop0.6.1-rc.1 already exist. Owner version choice and tag/release collision verification remain required.
 
-## Windows security decision and consequences
+## Windows implementation investigation and security decisions
 Verified provider run36695185909 at7dc2aed: all three zero-capability LPAC modes deny WinSock catalog registry opens (error5), read provider DLLs, then fail WSAStartup10107. Ordinary AppContainer initializes and demonstrates actual denied networking, but fails the stronger outside-AAP-file read boundary. Startup failure is never network-denial evidence.
 
 - Keep zero-capability LPAC: preserves the intended current boundary, but functional networking proof and production execution remain blocked.
 - Add registryRead: Microsoft describes HKLM-hive read access, broader than the two runtime catalog keys. Protected synthetic canaries do not prove confidentiality for third-party machine configuration under inherited ACLs. This is a security-profile change requiring an explicit decision; it has not been implemented.
 - Host-opened socket or ordinary AppContainer: changes authority/boundary and cannot serve as an equivalent passing test.
 - Separate disposable VM/container: could isolate host-registry secrets but needs another supported execution platform, workspace mapping, lifecycle and resource design. It is a larger engineering decision, not a completed fallback.
+
+The measured initialization error does not prove every offline runtime is unusable or that registryRead is necessary. Test-only exact Python/Node/npm/Git/shell observations are being collected with the original zero-capability boundary. Preparation failures are explicit failed required rows, not compatibility results or passing security tests.
 
 No system registry ACL change, network capability, global preparation or persistent grant was made. See Microsoft's capability/access semantics: https://learn.microsoft.com/en-us/windows/win32/secauthz/implementing-an-appcontainer and https://learn.microsoft.com/en-us/windows/win32/secauthz/createprocessinsandbox . The latter API is explicitly experimental and is not adopted.
