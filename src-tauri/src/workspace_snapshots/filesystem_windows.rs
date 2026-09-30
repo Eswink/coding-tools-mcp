@@ -315,7 +315,8 @@ impl Dir {
         let info = file_info(&source, info.dwFileAttributes & 0x10 != 0)?;
         let name: Vec<u16> = destination.encode_utf16().collect();
         let offset = std::mem::offset_of!(FILE_RENAME_INFO, FileName);
-        let size = std::mem::size_of::<FILE_RENAME_INFO>().max(offset + name.len() * 2);
+        // Reserve the complete ABI header and an explicit UTF-16 terminator.
+        let size = std::mem::size_of::<FILE_RENAME_INFO>() + (name.len() + 1) * 2;
         let mut storage = vec![0u64; size.div_ceil(8)];
         let rename = storage.as_mut_ptr().cast::<FILE_RENAME_INFO>();
         // Use the retained destination HANDLE, avoiding a conflicting parent reopen.
