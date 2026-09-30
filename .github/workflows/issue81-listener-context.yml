@@ -1,0 +1,54 @@
+name: Issue81 listener context lifetime
+on:
+  push:
+    branches: ['feat/issue81-listener-context-lease']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: issue81-listener-context-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  impact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-application-public-tools
+          run-id: 36676879488
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/public-tools
+      - name: Verify and run pinned pre-edit analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence "$RUNNER_TEMP/analysis"
+          (cd "$RUNNER_TEMP/public-tools" && sha256sum -c SHA256SUMS.txt)
+          tar -xJf "$RUNNER_TEMP/public-tools/pinned-analysis-tools.tar.xz" -C "$RUNNER_TEMP/analysis"
+          graph="$RUNNER_TEMP/analysis/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/graph.log 2>&1
+          for target in spawn_listener_with_binding spawn_listener_with_origin_and_execution_gate; do
+            "$graph" impact "$target" --direction upstream --file src-tauri/src/mcp/listener.rs --depth 3 > "evidence/impact-$target.txt"
+          done
+          for target in start begin_stop finish_stop is_running; do
+            "$graph" impact "$target" --direction upstream --file src-tauri/src/runtime/supervisor.rs --depth 3 > "evidence/impact-$target.txt"
+          done
+          "$graph" impact spawn_listener_from_bound --direction upstream --file src-tauri/src/mcp/listener_test_support.rs --depth 3 > evidence/impact-test-listener.txt
+          printf '\nEXACT PREEDIT BASE: 2c5d133eaa75d7fc084b8122350d7768ce5b2382\n'
+          for path in evidence/impact-*.txt; do printf '\n=== %s ===\n' "$path"; cat "$path"; done
+          git rev-parse HEAD HEAD^{tree} > evidence/source.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-listener-impact
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
