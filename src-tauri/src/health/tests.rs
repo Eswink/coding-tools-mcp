@@ -356,14 +356,15 @@ async fn local_mcp_discovery_passes_while_proxy_metadata_failure_is_distinguishe
         "name":"coding-tools-mcp", "version":env!("CARGO_PKG_VERSION"), "protocolVersion":"2025-06-18"
     })) }))).await;
     let root = tempfile::tempdir().unwrap();
-    let port = std::net::TcpListener::bind("127.0.0.1:0")
-        .unwrap()
-        .local_addr()
-        .unwrap()
-        .port();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let port = address.port();
+    // Keep ownership until the real listener takes over; releasing an ephemeral
+    // port here lets another parallel test claim it before MCP startup.
+    assert!(std::net::TcpListener::bind(address).is_err());
     let id = uuid::Uuid::new_v4().to_string();
-    let (stop, task) = crate::mcp::spawn_listener_with_origin(
-        port,
+    let (stop, task, _gate) = crate::mcp::spawn_listener_from_bound(
+        listener,
         root.path().into(),
         id,
         AuthConfig::default(),
@@ -374,6 +375,7 @@ async fn local_mcp_discovery_passes_while_proxy_metadata_failure_is_distinguishe
         RuntimeConfig::default(),
     )
     .unwrap();
+    assert!(std::net::TcpListener::bind(address).is_err());
     let mut profile = WorkspaceProfile::new(root.path().display().to_string(), None);
     profile.runtime.local_port = port;
     // A persisted stale URL must not replace the active runtime origin.
