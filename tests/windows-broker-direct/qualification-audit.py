@@ -118,7 +118,8 @@ def inspect(files):
 
 class QualificationAudit(unittest.TestCase):
     def setUp(self):
-        fixture_coverage({p.name for p in HERE.iterdir() if p.suffix.lower() in ('.cs', '.ps1')}, legacy_names())
+        # The new pilot audit checks the exhaustive union; these old mutation contracts stay exact.
+        fixture_coverage({p.name for p in HERE.iterdir() if p.name in LEGACY_NAMES | set(NAMES)}, legacy_names())
         self.files = {name: (HERE / name).read_text() for name in NAMES}
 
     def test_source_contract(self):
@@ -229,7 +230,7 @@ class QualificationAudit(unittest.TestCase):
         self.assertIn('tests/windows-lpac-runtime/baseline/run.ps1', workflow)
         self.assertIn('tests/windows-lpac-runtime/run-runtime.ps1', workflow)
         self.assertIn('tests/windows-broker-direct/qualification-audit.py', workflow)
-        self.assertIn('tests/windows-broker-direct/run-qualification.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_sandbox_fixture.exe', workflow)
+        self.assertIn('tests/windows-broker-direct/run-pilot.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_sandbox_fixture.exe', workflow)
         self.assertNotIn('continue-on-error', workflow)
         self.assertIn('timeout-minutes: 30', workflow)
         self.assertTrue((HERE / 'run-direct.ps1').exists())

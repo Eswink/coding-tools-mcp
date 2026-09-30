@@ -5,7 +5,65 @@ This is a CI-only comparison of direct process creation by the native broker. Th
 byte-identical. Their failures continue to fail the job. Nothing here is a
 production fallback, a release acceptance reduction, or a Python packaging change.
 
-## Boundary and order
+## Explicit observed-token pilot
+
+`run-pilot.ps1` selects only the CI policy `accesscheck_signature_v1_ci`. The same
+invocation first checks a suspended ordinary-AppContainer native control and proves
+that its actual identification-token signature is rejected as LPAC. It then checks
+and resumes the unchanged LPAC native reference, followed by exactly Node, cmd,
+Windows PowerShell and pwsh. Every target's own suspended primary token must pass
+AppContainer/SID/zero-capability/LowIL checks and its own noninheritable query-only
+identification duplicate must pass all four fixed AccessCheck descriptors. All
+observer/source handles close before assignment/resume. Requested flags and the
+known Win32/native class46 failures never become authority proof; those failures
+remain recorded, and changed method-diagnostic results halt for review.
+
+The unchanged eight-row qualification was measured at f5a4d7b in run36779515843.
+That run resumed no target. The separate old entry points remain unchanged and
+still prohibit resume. Current pilot compatibility conclusions require its own
+Windows execution; portable source tests and managed synthetic tests are not
+runtime support evidence.
+
+The native reference can qualify the offline launch/filesystem route with exact
+preliminary receipts plus WSAStartup10107/exit15107, while its full native gate stays
+failed. Even exit0 and all five native booleans do not prove a precise network
+authorization denial: the fixture records connect failure through is_ok(). Every
+pilot receipt keeps network_denial_proven false. The original20 nested rows and
+foundation failures remain required and independently fail the workflow.
+
+A current-owner run journal survives all case receipt/matrix writes. Case journals
+bind planned profile/root names and immutable nonce-bound cleanup preconditions;
+actual root/profile/process ownership is recorded as it becomes known. Hidden,
+wrong-type, reparse, old, failed or unknown markers stop allocation, resume, cleanup
+or final completion. No prior marker is repaired or cleared. Every subject must
+stop, every job drain, every owned handle close, and capture pass before the exact
+owned profile is deleted through DeleteAppContainerProfile S_OK. This is documented
+API-confirmed profile deletion, not independent inspection of all OS-managed
+storage. Exact newly created private roots are disposed via identity-checked
+no-follow handles, with bounded parent enumeration proving root-name absence.
+Unknown ACL/object shapes or cleanup errors retain recovery without repair.
+
+The cleanup parent-owner check uses an explicitly bounded current-broker
+TOKEN_QUERY-only TokenUser read. It is separate from target authority verification,
+never duplicates or impersonates the broker, does not log its SID, and each query closes
+before its helper returns and before any later target creation/resume. No new ACL template or privilege is introduced.
+
+The completed journal commits only the six required case outcomes, any subject/
+profile scopes actually created, and the disposable run root. Preparation evidence,
+PowerShell loopback-listener teardown, outer workflow capture and artifact upload
+are separate outcomes. New journal/ownership/precondition/case/matrix records use
+Flush(true). The unchanged bounded raw capture helper provides validated copying
+and confirmed close; it does not claim power-loss-durable raw files. Final C#
+journal resolution binds its immutable preconditions record and is the last
+required fallible C# pilot action. No later launch is possible.
+
+`pilot-audit.py` enforces the exhaustive old/new C#/PowerShell source union, pins
+preserved entry points, rejects partial-class load-time initializers/member
+collisions, and tests authority/lifecycle mutations independently of hash pins.
+Managed policy, commit-order, cleanup-gate and classification tests execute the
+same pure C# predicates during Windows CI; they never open a real token or process.
+
+## Original direct-method boundary (retained source)
 
 1. Require the retained native live control and ordinary-AppContainer AAP-read
    witness. Refuse another launch while an earlier owned diagnostic recovery
@@ -115,7 +173,7 @@ exact API shape, token and runner image.
 
 ## Paired AccessCheck qualification, still unadopted
 
-The workflow now routes the single observation invocation to
+The qualification commit f5a4d7b routed the single observation invocation to
 `run-qualification.ps1`. The old single-reference source and evidence remain;
 its retained failure is not followed or bypassed by a second invocation. The new
 entry refuses any prior recovery marker, prepares exactly two native references

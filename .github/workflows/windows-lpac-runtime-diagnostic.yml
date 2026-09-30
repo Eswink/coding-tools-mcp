@@ -43,10 +43,15 @@ jobs:
           if($LASTEXITCODE){exit $LASTEXITCODE}
           python tests/windows-broker-direct/qualification-audit.py
           if($LASTEXITCODE){exit $LASTEXITCODE}
+          python tests/windows-broker-direct/pilot-audit.py
+          if($LASTEXITCODE){exit $LASTEXITCODE}
       - name: Compile isolated broker-direct fixture without launching
         shell: powershell
         run: |
           Add-Type -Path @(Get-ChildItem tests/windows-broker-direct/*.cs | ForEach-Object {$_.FullName})
+          [BrokerDirectLauncher]::RunPilotPolicyContractTests()
+          [BrokerDirectLauncher]::RunPilotGateContractTests()
+          [BrokerDirectLauncher]::RunPilotClassificationContractTests()
       - name: PowerShell 5.1 metadata-shape contracts
         shell: powershell
         run: |
@@ -79,11 +84,11 @@ jobs:
         shell: powershell
         run: |
           & tests/windows-lpac-runtime/run-runtime.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_runtime_fixture.exe -Payload "$env:RUNNER_TEMP/lpac-runtime-payload" -Evidence evidence/runtime
-      - name: Qualify paired token authorization without resuming references
+      - name: Observe verified direct offline pilot with scoped cleanup
         if: ${{ !cancelled() && steps.payload.outcome == 'success' }}
         shell: powershell
         run: |
-          & tests/windows-broker-direct/run-qualification.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_sandbox_fixture.exe -Evidence evidence/qualification -Foundation evidence/foundation
+          & tests/windows-broker-direct/run-pilot.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_sandbox_fixture.exe -Payload "$env:RUNNER_TEMP/lpac-runtime-payload" -Evidence evidence/pilot -Foundation evidence/foundation
       - name: Preserve boundary and evidence identity
         if: always()
         shell: pwsh
