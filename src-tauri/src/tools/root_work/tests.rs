@@ -1,6 +1,16 @@
 use super::*;
-fn fixture() -> (tempfile::TempDir, Arc<ToolContext>) {
-    let root = tempfile::tempdir().unwrap();
+fn fixture() -> (Arc<tempfile::TempDir>, Arc<ToolContext>) {
+    // The process-private encrypted ledger deliberately retains Busy/Restore
+    // records across cold tracker reopen. Retain their workspace directories for
+    // the same lifetime too: deleting them lets filesystems recycle their inode
+    // identities into unrelated fixtures, correctly tripping the physical fence.
+    static ROOTS: OnceLock<Mutex<Vec<Arc<tempfile::TempDir>>>> = OnceLock::new();
+    let root = Arc::new(tempfile::tempdir().unwrap());
+    ROOTS
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap()
+        .push(root.clone());
     let workspace = root.path().join("workspace");
     let store = root.path().join("store");
     std::fs::create_dir(&workspace).unwrap();
@@ -219,4 +229,32 @@ fn managed_reads_are_native_persistent_and_cannot_inherit_trusted_external_readi
         crate::tools::call_tool(&managed, "read_file", &json!({"path":"inside.txt"}))["ok"],
         true
     );
+}
+
+#[test]
+fn uncertain_fixture_identity_survives_cleanup_without_blocking_unrelated_roots() {
+    for restoring in [false, true] {
+        let (root, ctx) = fixture();
+        let path = ctx.workspace.root().to_path_buf();
+        let identity = RootIdentity::open(&path).unwrap().key;
+        let tracker = ctx.root_work.as_ref().unwrap();
+        if restoring {
+            let mut restore = tracker.restore().unwrap();
+            restore.before_write().unwrap();
+            drop(restore);
+        } else {
+            let mut work = tracker.register().unwrap();
+            work.begin().unwrap();
+            drop(work);
+        }
+        drop(ctx);
+        drop(root);
+        // Dropping a fixture must not free its persisted physical identity for
+        // reuse by another test while its unresolved ledger is still alive.
+        assert_eq!(RootIdentity::open(&path).unwrap().key, identity);
+        assert!(RootWorkTracker::for_workspace(&path).is_err());
+        let (_other_root, other) = fixture();
+        assert!(other.root_work.as_ref().unwrap().register().is_ok());
+        assert!(RootWorkTracker::for_workspace(&path).is_err());
+    }
 }

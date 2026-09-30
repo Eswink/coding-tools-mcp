@@ -137,7 +137,7 @@ impl SnapshotStore {
         {
             return Err(SnapshotError::Changed);
         }
-        let json = serde_json::to_vec(&manifest).map_err(|_| SnapshotError::Corrupt)?;
+        let json = bounded_json(&manifest)?;
         dir.write_new("manifest.json", &json, 0o600)?;
         dir.write_new("complete", hash(&json).as_bytes(), 0o600)?;
         Ok(manifest)
@@ -268,7 +268,7 @@ impl SnapshotStore {
         plan.approval_digest = plan_digest(&plan)?;
         self.directory.write_new(
             &format!("plan-{}.json", plan.id),
-            &serde_json::to_vec(&plan).map_err(|_| SnapshotError::Corrupt)?,
+            &bounded_json(&plan)?,
             0o600,
         )?;
         Ok(plan)

@@ -1,3 +1,4 @@
+import {parse as parseSvelte} from 'svelte/compiler';
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import ts from 'typescript';
 const source=readFileSync(new URL('../src/lib/workspace-snapshots.ts',import.meta.url),'utf8');
 const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
@@ -18,3 +19,29 @@ test('double clicks cannot create duplicate captures',async()=>{const pending=de
 test('late read after workspace disposal cannot publish',async()=>{const pending=deferred();const s=setup(cmd=>cmd==='snapshot_plan_restore'?pending.promise:Promise.resolve(undefined));await selected(s);const op=s.controller.act('plan',snapshot.id);s.controller.dispose();const view=s.view;pending.resolve(plan);await op;assert.equal(s.view,view);assert.equal(s.view.plan,null)});
 test('uncertain restore is redacted and locked against retry',async()=>{const s=setup(async cmd=>{if(cmd==='snapshot_restore')throw Error('SECRET_CONTENT');});await selected(s);await s.controller.act('plan',snapshot.id);await s.controller.act('restore');assert.equal(s.view.uncertain,true);assert.doesNotMatch(s.view.error,/SECRET_CONTENT/);await s.controller.act('restore');await s.controller.act('capture');assert.equal(s.calls.filter(c=>c.command==='snapshot_restore').length,1);assert.equal(s.calls.filter(c=>c.command==='snapshot_capture').length,0)});
 test('UI discloses platform/bounds, local confirmation, preserved authority and backup limits',()=>{const s=readFileSync(new URL('../src/lib/components/WorkspaceSnapshots.svelte',import.meta.url),'utf8');for(const term of ['Windows','256','16 MiB','单文件最多 1 MiB','本机对话框','外部编辑器','恢复日志'])assert.ok(s.includes(term));assert.doesNotMatch(s,/console\.|localStorage|sessionStorage/)});
+
+test('worktree select has an exact text-only label and a unique component ID',()=>{
+  const source=readFileSync(new URL('../src/lib/components/WorkspaceSnapshots.svelte',import.meta.url),'utf8');
+  const ast=parseSvelte(source,{modern:true});
+  const elements=[];
+  function walk(node){
+    if(!node||typeof node!=='object')return;
+    if(node.type==='RegularElement')elements.push(node);
+    for(const value of Object.values(node)){
+      if(Array.isArray(value))value.forEach(walk);
+      else if(value&&typeof value==='object')walk(value);
+    }
+  }
+  walk(ast.fragment);
+  const select=elements.find(node=>node.name==='select');
+  const expression=(node,name)=>node.attributes.find(attr=>attr.type==='Attribute'&&attr.name===name)?.value?.expression;
+  assert.equal(expression(select,'id')?.name,'worktreeSelectId');
+  const label=elements.find(node=>node.name==='label'&&expression(node,'for')?.name==='worktreeSelectId');
+  assert.ok(label,'The select needs an explicit associated label');
+  assert.ok(label.fragment.nodes.every(node=>node.type==='Text'),'Options must not be part of the label text');
+  assert.equal(label.fragment.nodes.map(node=>node.data).join('').trim(),'工作区');
+  const declaration=ast.instance.content.body.filter(node=>node.type==='VariableDeclaration').flatMap(node=>node.declarations).find(node=>node.id.name==='worktreeSelectId');
+  assert.equal(declaration?.init?.type,'CallExpression');
+  assert.equal(declaration.init.callee.object.name,'$props');
+  assert.equal(declaration.init.callee.property.name,'id');
+});

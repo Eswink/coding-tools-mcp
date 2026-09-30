@@ -316,10 +316,25 @@ async fn websocket_upgrade_pool_is_bounded() {
 async fn websocket_application_frame_rate_is_bounded() {
     let s = Server::start().await;
     let mut w = s.connected().await;
-    for seq in 1..=8 {
-        write(&mut w, &json!({"type":"heartbeat","seq":seq})).await;
-        assert_eq!(read(&mut w).await["type"], "heartbeat_ack");
+    // Eight sequential DB-backed heartbeat roundtrips need not fit one second.
+    // Buffer one burst of control frames instead: they consume the same ingress
+    // budget without database latency, and the ninth application frame must fail.
+    for seq in 1_u8..=8 {
+        w.feed(Message::Ping(vec![seq].into())).await.unwrap();
     }
-    write(&mut w, &json!({"type":"heartbeat","seq":9})).await;
+    w.feed(Message::Text(
+        json!({"type":"heartbeat","seq":1}).to_string().into(),
+    ))
+    .await
+    .unwrap();
+    w.flush().await.unwrap();
+    for seq in 1_u8..=8 {
+        let frame = tokio::time::timeout(Duration::from_secs(4), w.next())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(frame, Message::Pong(vec![seq].into()));
+    }
     closed(&mut w).await;
 }

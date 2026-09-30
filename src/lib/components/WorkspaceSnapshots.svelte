@@ -5,6 +5,7 @@
   import { workspaces } from '$lib/stores/app';
   import { createWorkspaceSnapshotsController, type SnapshotsView } from '$lib/workspace-snapshots';
   let { sourceId }: { sourceId:string }=$props();
+  const worktreeSelectId=$props.id();
   let view=$state<SnapshotsView>({targets:[],selected:'',snapshots:[],plan:null,busy:false,uncertain:false,error:'',notice:''});
   let controller:ReturnType<typeof createWorkspaceSnapshotsController>|undefined;
   const selected=$derived(view.targets.find(t=>t.id===view.selected));
@@ -22,7 +23,7 @@
   <p>当前安全适配器仅支持 Linux；Windows 快照尚不可用。每次最多 256 项、16 MiB，单文件最多 1 MiB；链接、特殊文件和受保护内容会使整个快照被拒绝。需移动的只读顶层目录会在恢复预览时被拒绝。</p>
   <div class="controls">
     <button class="tx-btn-secondary" type="button" disabled={view.busy} onclick={()=>void controller?.refresh()}>刷新受管工作区</button>
-    <label>工作区 <select disabled={view.busy} value={view.selected} onchange={e=>void controller?.select(e.currentTarget.value)}><option value="">请选择受管工作区</option>{#each view.targets as target (target.id)}<option value={target.id}>{target.display_path}</option>{/each}</select></label>
+    <div class="workspace-select"><label for={worktreeSelectId}>工作区</label><select id={worktreeSelectId} disabled={view.busy} value={view.selected} onchange={e=>void controller?.select(e.currentTarget.value)}><option value="">请选择受管工作区</option>{#each view.targets as target (target.id)}<option value={target.id}>{target.display_path}</option>{/each}</select></div>
   </div>
   {#if !view.busy&&view.targets.length===0}<p>暂无受管工作区。先通过受管 worktree 流程创建独立工作区。</p>{/if}
   {#if view.error}<p role="alert">{view.error}</p>{/if}
@@ -52,5 +53,5 @@
 </section>
 <style>
   .snapshots{margin-top:1rem;padding:20px;border:1px solid var(--color-border);border-radius:var(--card-radius);background:var(--card-bg)}
-  h3{font-size:17px;font-weight:600}p,li,label{font-size:.8rem;line-height:1.6;color:var(--color-text-muted)}p{margin:.5rem 0}.controls{display:flex;flex-wrap:wrap;align-items:center;gap:.7rem}button,select,a{min-height:44px}label{display:grid;gap:4px;min-width:0;max-width:100%;flex:1 1 18rem}select{max-width:100%;min-width:0;width:100%}article{border-top:1px solid var(--color-border);margin-top:1rem;padding-top:.7rem}code{overflow-wrap:anywhere}[role="alert"]{color:var(--danger)}ul{padding-left:1.5rem}a{display:inline-flex;align-items:center}
+  h3{font-size:17px;font-weight:600}p,li,label{font-size:.8rem;line-height:1.6;color:var(--color-text-muted)}p{margin:.5rem 0}.controls{display:flex;flex-wrap:wrap;align-items:center;gap:.7rem}button,select,a{min-height:44px}.workspace-select{display:grid;gap:4px;min-width:0;max-width:100%;flex:1 1 18rem}select{max-width:100%;min-width:0;width:100%}article{border-top:1px solid var(--color-border);margin-top:1rem;padding-top:.7rem}code{overflow-wrap:anywhere}[role="alert"]{color:var(--danger)}ul{padding-left:1.5rem}a{display:inline-flex;align-items:center}
 </style>

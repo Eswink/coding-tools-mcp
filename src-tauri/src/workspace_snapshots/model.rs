@@ -8,6 +8,37 @@ pub const MAX_TOTAL: u64 = 16 * 1024 * 1024;
 pub const MAX_OBJECTS: usize = 16;
 pub const MAX_METADATA: u64 = 8 * 1024 * 1024;
 pub type Result<T> = std::result::Result<T, SnapshotError>;
+pub fn bounded_json<T: Serialize>(value: &T) -> Result<Vec<u8>> {
+    struct Buffer {
+        bytes: Vec<u8>,
+        exceeded: bool,
+    }
+    impl std::io::Write for Buffer {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if bytes.len() > MAX_METADATA as usize - self.bytes.len() {
+                self.exceeded = true;
+                return Err(std::io::Error::other("snapshot metadata capacity"));
+            }
+            self.bytes.extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut buffer = Buffer {
+        bytes: Vec::new(),
+        exceeded: false,
+    };
+    if serde_json::to_writer(&mut buffer, value).is_err() {
+        return Err(if buffer.exceeded {
+            SnapshotError::Capacity
+        } else {
+            SnapshotError::Corrupt
+        });
+    }
+    Ok(buffer.bytes)
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SnapshotError {
     Unsupported,
@@ -260,4 +291,22 @@ pub fn validate_entries(entries: &[Entry]) -> Result<()> {
         return Err(SnapshotError::Corrupt);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod bounded_tests {
+    use super::*;
+    #[test]
+    fn metadata_json_limit_is_enforced_before_publication() {
+        let limit = MAX_METADATA as usize;
+        assert_eq!(bounded_json(&"a".repeat(limit - 2)).unwrap().len(), limit);
+        assert_eq!(
+            bounded_json(&"a".repeat(limit - 1)),
+            Err(SnapshotError::Capacity)
+        );
+        assert_eq!(
+            bounded_json(&"\n".repeat(limit / 2)),
+            Err(SnapshotError::Capacity)
+        );
+    }
 }

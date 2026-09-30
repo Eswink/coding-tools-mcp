@@ -205,8 +205,23 @@ async fn capacity_and_drop_fail_closed() {
     let error = manager.start(spec(&["echo", "second"])).await.unwrap_err();
     assert_eq!(error.kind, PtyErrorKind::Capacity);
     drop(session);
-    tokio::time::sleep(Duration::from_millis(300)).await;
-    let outcome = manager.run(spec(&["echo", "after-drop"])).await.unwrap();
+    // Drop requests asynchronous tree termination and reader draining. Capacity
+    // must remain unavailable until the supervisor finishes; a fixed sleep is
+    // not a completion barrier (especially under loaded Windows CI).
+    let mut replacement = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            match manager.start(spec(&["echo", "after-drop"])).await {
+                Ok(session) => break session,
+                Err(error) if error.kind == PtyErrorKind::Capacity => {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+                Err(error) => panic!("unexpected PTY restart error: {error:?}"),
+            }
+        }
+    })
+    .await
+    .expect("dropped PTY must terminate and release capacity");
+    let outcome = replacement.wait().await;
     assert_eq!(outcome.termination, PtyTermination::Exited, "{outcome:?}");
 }
 

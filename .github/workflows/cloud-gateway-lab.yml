@@ -10,11 +10,6 @@ on:
       - '.github/workflows/cloud-gateway-lab.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'prototypes/cloud-gateway/**'
-      - 'tests/cloud-gateway/**'
-      - 'docs/specs/cloud-gateway-agent-runtime/**'
-      - '.github/workflows/cloud-gateway-lab.yml'
   workflow_dispatch:
 
 permissions:
@@ -36,6 +31,7 @@ jobs:
       run:
         shell: bash
     steps:
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -46,7 +42,31 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Frozen manifest validator regression
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python scripts/reviewed_source_gate_tests.py
+      - name: Syntax and HTTP contract tests
+        if: always()
+        run: |
+          set -euo pipefail
+          for file in prototypes/cloud-gateway/*.mjs tests/cloud-gateway/*.mjs; do
+            node --check "$file"
+          done
+          node --test --test-reporter=tap tests/cloud-gateway/*.test.mjs 2>&1 | tee evidence/contracts.tap
+      - name: Existing offline-safe contract regressions
+        if: always()
+        run: |
+          set -euo pipefail
+          node --test tests/offline-safe-ui.test.mjs tests/offline-safe-intent-ui.test.mjs 2>&1 | tee evidence/desktop-contracts.tap
+      - name: Existing fault-proxy regressions
+        if: always()
+        run: |
+          set -euo pipefail
+          python scripts/connector_fault_proxy_tests.py 2>&1 | tee evidence/fault-proxy-tests.txt
       - name: Verify isolated increment scope and record candidate identity
+        if: always() && (github.head_ref == 'feat/cloud-gateway-agent-runtime' || github.ref == 'refs/heads/feat/cloud-gateway-agent-runtime')
         run: |
           set -euo pipefail
           mkdir -p evidence
@@ -116,18 +136,11 @@ jobs:
                     'classification': 'LAB_REGRESSIONS_WITH_AGENT_AND_DELIVERY_INCREMENT', 'sha256': hashes}
           Path('evidence/candidate.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
           PY
-      - name: Syntax and HTTP contract tests
+      - name: Verify reviewed cumulative source manifest
+        if: always() && !(github.head_ref == 'feat/cloud-gateway-agent-runtime' || github.ref == 'refs/heads/feat/cloud-gateway-agent-runtime')
         run: |
           set -euo pipefail
-          for file in prototypes/cloud-gateway/*.mjs tests/cloud-gateway/*.mjs; do
-            node --check "$file"
-          done
-          node --test --test-reporter=tap tests/cloud-gateway/*.test.mjs 2>&1 | tee evidence/contracts.tap
-      - name: Existing offline-safe contract regressions
-        run: |
-          set -euo pipefail
-          node --test tests/offline-safe-ui.test.mjs tests/offline-safe-intent-ui.test.mjs 2>&1 | tee evidence/desktop-contracts.tap
-          python scripts/connector_fault_proxy_tests.py 2>&1 | tee evidence/fault-proxy-tests.txt
+          python scripts/reviewed_source_gate.py --expect-sha "$GITHUB_SHA" --output evidence/candidate.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -140,6 +153,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
