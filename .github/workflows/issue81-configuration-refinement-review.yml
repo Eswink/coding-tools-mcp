@@ -1,0 +1,66 @@
+name: Issue81 configuration refinement review
+on:
+  push:
+    branches: ['ci/issue81-app-integration-20260930']
+    paths: ['.github/workflows/issue81-configuration-refinement-review.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: f2f635de7e324a7cede8bd8ebc5f7144597a6a48
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-app-public-analysis
+          run-id: 36669665015
+          github-token: ${{ github.token }}
+          path: analysis-export
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: issue81-configuration-*
+          run-id: 36672421559
+          github-token: ${{ github.token }}
+          path: prior-evidence
+      - name: Preserve real first-run outcomes and review initializer impact
+        run: |
+          set -euo pipefail
+          (cd analysis-export && sha256sum -c SHA256SUMS.txt)
+          mkdir -p "$RUNNER_TEMP/analysis" evidence
+          tar -xzf analysis-export/public-analysis-tools.tar.gz -C "$RUNNER_TEMP/analysis"
+          graph="$RUNNER_TEMP/analysis/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/analyze.log 2>&1
+          "$graph" impact initialize --direction upstream --file src-tauri/src/cloud_connection/storage.rs --depth 3 > evidence/initializer-impact.txt
+          "$graph" impact summary --direction upstream --file src-tauri/src/cloud_connection/storage.rs --depth 3 > evidence/summary-impact.txt
+          cat evidence/initializer-impact.txt evidence/summary-impact.txt
+          python - <<'PY'
+          import hashlib,json,pathlib,shutil
+          reports={}
+          for os_name in ['ubuntu-24.04','windows-2025']:
+              root=pathlib.Path('prior-evidence')/('issue81-configuration-'+os_name)
+              value=json.loads((root/'receipt.json').read_text())
+              assert value['source_sha']=='f2f635de7e324a7cede8bd8ebc5f7144597a6a48'
+              assert value['run_id']=='36672421559'
+              for name,digest in value['hashes'].items():
+                  assert hashlib.sha256((root/name).read_bytes()).hexdigest()==digest
+              reports[os_name]=value
+              shutil.copytree(root,pathlib.Path('evidence')/os_name)
+          pathlib.Path('evidence/first-run-receipts.json').write_text(json.dumps(reports,indent=2)+'\n')
+          print('FIRST_RUN_RECEIPTS='+json.dumps(reports,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-configuration-refinement-review
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error
