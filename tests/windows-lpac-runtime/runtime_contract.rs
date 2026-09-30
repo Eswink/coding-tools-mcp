@@ -1,6 +1,8 @@
 //! No arbitrary commands: fixed offline cases, clean inherited fixture environment,
 //! private stdio files, bounded waits. The native network gate runs afterwards.
 use std::os::windows::process::CommandExt;
+#[path = "spawn_observations.rs"]
+mod spawn_observations;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -12,6 +14,12 @@ use std::{
 fn command(exe: &Path, args: &[&str], workspace: &Path, code: &Path) -> serde_json::Value {
     let stdout = fs::File::create(workspace.join("runtime-stdout.txt")).unwrap();
     let stderr = fs::File::create(workspace.join("runtime-stderr.txt")).unwrap();
+    let (preflight, preflight_cleanup_ok) = spawn_observations::inspect(exe, &stdout, &stderr);
+    if !preflight_cleanup_ok {
+        // Do not spawn with an uncertain inheritable diagnostic handle.
+        return serde_json::json!({"started":false,"spawn_error":null,"exit":null,
+            "timeout":false,"diagnostic_cleanup_failed":true,"preflight":preflight});
+    }
     let mut cmd = Command::new(exe);
     // cmd.exe has shell parsing rather than CommandLineToArgvW semantics.
     // Only the fixed /d /s /c or /d /q /c strings below reach raw_arg.
@@ -54,25 +62,25 @@ fn command(exe: &Path, args: &[&str], workspace: &Path, code: &Path) -> serde_js
     let mut child = match cmd.spawn() {
         Ok(child) => child,
         Err(error) => {
-            return serde_json::json!({"started":false,"spawn_error":error.raw_os_error(),"exit":null,"timeout":false})
+            return serde_json::json!({"started":false,"spawn_error":error.raw_os_error(),"exit":null,"timeout":false,"preflight":preflight})
         }
     };
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                return serde_json::json!({"started":true,"exit":status.code(),"exit_unsigned":status.code().map(|v| v as u32),"exit_hex":status.code().map(|v| format!("{:08X}", v as u32)),"timeout":false})
+                return serde_json::json!({"started":true,"exit":status.code(),"exit_unsigned":status.code().map(|v| v as u32),"exit_hex":status.code().map(|v| format!("{:08X}", v as u32)),"timeout":false,"preflight":preflight})
             }
             Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(20)),
             Ok(None) => {
                 let killed = child.kill().is_ok();
                 let reaped = child.wait().is_ok();
-                return serde_json::json!({"started":true,"exit":null,"timeout":true,"child_killed":killed,"child_reaped":reaped});
+                return serde_json::json!({"started":true,"exit":null,"timeout":true,"child_killed":killed,"child_reaped":reaped,"preflight":preflight});
             }
             Err(error) => {
                 let _ = child.kill();
                 let _ = child.wait();
-                return serde_json::json!({"started":true,"wait_error":error.raw_os_error(),"exit":null,"timeout":false});
+                return serde_json::json!({"started":true,"wait_error":error.raw_os_error(),"exit":null,"timeout":false,"preflight":preflight});
             }
         }
     }
@@ -163,7 +171,9 @@ pub fn observe(workspace: &Path, outside: &Path) {
         _ => false,
     };
     let exit_ok = process["started"] == true && process["exit"] == 0 && process["timeout"] == false;
-    let process_classification = if process["started"] == false {
+    let process_classification = if process["diagnostic_cleanup_failed"] == true {
+        "not_attempted_diagnostic_cleanup_failed"
+    } else if process["started"] == false {
         "spawn_failed"
     } else if process["timeout"] == true {
         "deadline_exceeded"

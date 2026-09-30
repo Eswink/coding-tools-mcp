@@ -115,6 +115,16 @@ flattened JSON records before any native probing; duplicate/invalid rows fail.
 - Even an all-positive offline matrix leaves all production and full RC gates
   unchanged. No new Windows sandbox support is declared here
 
+The spawn-stage observation adds numeric LPAC-side read-open/close results for
+the exact copied executable and NUL, and duplicate/close results for the already
+owned stdout/stderr files. All diagnostic handles are closed before the original
+spawn; an uncertain close prevents spawning and remains a failed observation.
+Original null stdin and all eight cases remain unchanged. NUL's non-inheritable
+read observation differs from Rust's actual inheritable open. A failed Rust
+spawn result may precede CreateProcessW; even successful preflight checks do not
+prove that CreateProcessW was reached or identify its result. No NUL/device ACL,
+host-handle inheritance, EOF substitution or production setting is changed.
+
 Current source anchors: `.github/workflows/dot-rc-integration.yml` (Windows-2025,
 Node 22, Python 3.12, Rust 1.98.1); `src-tauri/src/tools/exec.rs` (direct argv and
 Windows script routing); `src-tauri/src/tools/execution_sandbox.rs` and

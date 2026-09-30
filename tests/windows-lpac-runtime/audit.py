@@ -76,12 +76,17 @@ def audit(files):
         errors.append('PowerShell data-shape tests missing')
     if any('Get-FileHash ' in line and 'Get-FileHash -LiteralPath ' not in line for line in files['prepare.ps1'].splitlines()):
         errors.append('payload hash paths must be literal')
+    runtime = files['runtime_contract.rs']
+    if '.stdin(Stdio::null())' not in runtime:
+        errors.append('original null stdin must remain unchanged')
+    if 'if !preflight_cleanup_ok {' not in runtime or runtime.index('if !preflight_cleanup_ok {') > runtime.index('cmd.spawn()'):
+        errors.append('diagnostic cleanup must gate original spawn')
     return errors
 
 
 def load_files():
     names = ['baseline/'+name for name in HASHES]
-    names += ['RuntimeLauncher.cs', 'runtime_fixture.rs', 'run-runtime.ps1', 'prepare.ps1']
+    names += ['RuntimeLauncher.cs', 'runtime_fixture.rs', 'run-runtime.ps1', 'prepare.ps1', 'runtime_contract.rs']
     files = {name: (ROOT/name).read_bytes().decode('utf-8') for name in names}
     files['workflow'] = (ROOT.parent.parent/'.github/workflows/windows-lpac-runtime-diagnostic.yml').read_bytes().decode('utf-8')
     return files
@@ -135,6 +140,16 @@ class AuditMutations(unittest.TestCase):
         files = load_files()
         files['prepare.ps1'] = files['prepare.ps1'].replace('Get-FileHash -LiteralPath ', 'Get-FileHash ')
         self.assertIn('payload hash paths must be literal', audit(files))
+
+    def test_stdin_substitution_rejected(self):
+        files = load_files()
+        files['runtime_contract.rs'] = files['runtime_contract.rs'].replace('.stdin(Stdio::null())', '.stdin(Stdio::inherit())')
+        self.assertIn('original null stdin must remain unchanged', audit(files))
+
+    def test_uncertain_probe_cleanup_rejected(self):
+        files = load_files()
+        files['runtime_contract.rs'] = files['runtime_contract.rs'].replace('if !preflight_cleanup_ok {', 'if false {')
+        self.assertIn('diagnostic cleanup must gate original spawn', audit(files))
 
 
 if __name__ == '__main__':
