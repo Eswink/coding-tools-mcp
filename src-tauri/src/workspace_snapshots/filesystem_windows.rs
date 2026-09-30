@@ -191,6 +191,24 @@ impl Dir {
         self.sync()?;
         self.child_access(name, true)
     }
+    fn mkdir_desired(&self, name: &str, desired: &str) -> Result<Self> {
+        safe_component(name)?;
+        let path = security::wide(self.path.join(name).to_str().ok_or(SnapshotError::Boundary)?);
+        let descriptor = security::parse(desired)?;
+        let attributes = SECURITY_ATTRIBUTES {
+            nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+            lpSecurityDescriptor: descriptor.0 .0,
+            bInheritHandle: false.into(),
+        };
+        // Desired security is supplied at creation; never rewrite a preimage's ACL.
+        unsafe { CreateDirectoryW(PCWSTR(path.as_ptr()), Some(&attributes)) }.map_err(error)?;
+        self.sync()?;
+        let child = self.child_access(name, true)?;
+        if security::read(&child.file)? != desired {
+            return Err(SnapshotError::Unsupported);
+        }
+        Ok(child)
+    }
     pub fn names(&self) -> Result<Vec<String>> {
         let mut names = Vec::new();
         for entry in std::fs::read_dir(&self.path)? {
@@ -310,7 +328,11 @@ impl Dir {
                 MOVEFILE_WRITE_THROUGH,
             )
         }
-        .map_err(|_| SnapshotError::Changed)?;
+        .map_err(|_error| {
+            #[cfg(test)]
+            eprintln!("snapshot no-replace move failed: HRESULT={:#x}", _error.code().0);
+            SnapshotError::Changed
+        })?;
         self.sync()?;
         to.sync()
     }
@@ -390,7 +412,7 @@ impl Dir {
             let parent = self.child_path(&parts[..parts.len() - 1], true)?;
             let name = parts[parts.len() - 1];
             if entry.directory {
-                parent.mkdir(name)?;
+                parent.mkdir_desired(name, entry.security.as_deref().ok_or(SnapshotError::Corrupt)?)?;
             } else {
                 let bytes = data.get(&entry.path).ok_or(SnapshotError::Corrupt)?;
                 if bytes.len() as u64 != entry.size || hash(bytes) != entry.hash {
