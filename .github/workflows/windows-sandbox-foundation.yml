@@ -1,0 +1,61 @@
+name: Windows LPAC foundation gate
+on:
+  workflow_dispatch:
+  push:
+    branches: ['feat/windows-sandbox-gate', 'ci/windows-sandbox-gate']
+    paths:
+      - 'services/local-agent/**'
+      - 'tests/windows-sandbox/**'
+      - '.github/workflows/windows-sandbox-foundation.yml'
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Exact source identity
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path evidence -Force | Out-Null
+          git rev-parse HEAD | Set-Content evidence/source.txt
+          git rev-parse 'HEAD^{tree}' | Add-Content evidence/source.txt
+          Get-ChildItem services/local-agent/src,tests/windows-sandbox -File -Recurse |
+            Get-FileHash -Algorithm SHA256 | ForEach-Object {
+              $_.Hash+' '+[IO.Path]::GetRelativePath($PWD.Path,$_.Path)
+            } | Set-Content evidence/source-sha256.txt
+      - name: Locked full native library regression
+        shell: pwsh
+        run: |
+          cargo fmt --manifest-path services/local-agent/Cargo.toml --check
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+          cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml -- --test-threads=1
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+          cargo build --locked --manifest-path services/local-agent/Cargo.toml --bin windows_sandbox_fixture
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+      - name: Actual LPAC positive negative and mutation proof
+        shell: powershell
+        run: |
+          & tests/windows-sandbox/run.ps1 -Fixture services/local-agent/target/debug/windows_sandbox_fixture.exe -Evidence evidence
+      - name: Preserve boundary truth
+        if: always()
+        shell: pwsh
+        run: |
+          'Foundation fixture only. Production Windows workspace ACL lifecycle, desktop/cloud execution and ConPTY integration remain REQUIRED and NOT VERIFIED by this workflow.' | Set-Content evidence/scope.txt
+          Get-ChildItem evidence -File | Get-FileHash -Algorithm SHA256 | Format-Table -AutoSize | Out-File evidence/evidence-hashes.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: windows-lpac-foundation
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30

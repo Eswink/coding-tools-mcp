@@ -1,5 +1,6 @@
 mod executor;
 mod guidance;
+mod isolation;
 mod model;
 mod policy;
 mod process;
@@ -14,6 +15,7 @@ mod trace;
 
 pub use executor::{ToolExecutor, ToolFuture};
 pub use guidance::{GuidanceEntry, GuidanceError, GuidanceLimits, GuidanceResolver, GuidanceSet};
+pub use isolation::{IsolationRequirements, RequiredIsolationBackend};
 pub use model::{
     parse_arguments, Capability, LocalAdmission, ToolCall, ToolError, ToolErrorKind, ToolExposure,
     ToolName, ToolOutput, ToolSpec,
