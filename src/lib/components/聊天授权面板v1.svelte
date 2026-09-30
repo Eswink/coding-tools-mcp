@@ -1,4 +1,5 @@
 <script lang="ts">
+  import WorkspaceSnapshots from "./WorkspaceSnapshots.svelte";
   import CloudConnectionPanel from "./CloudConnectionPanel.svelte";
   import { LockKeyhole } from "@lucide/svelte";
   import { untrack } from "svelte";
@@ -60,6 +61,7 @@
 </script>
 
 <CloudConnectionPanel {workspaceId} />
+<WorkspaceSnapshots sourceId={workspaceId} />
 
 <section class="chat-authorization" aria-labelledby="chat-authorization-heading">
   <div class="heading">

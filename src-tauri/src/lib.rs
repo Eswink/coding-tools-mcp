@@ -1,5 +1,7 @@
 #![cfg_attr(target_os = "windows", allow(linker_messages))]
 
+#[path = "workspace_snapshots/mod.rs"]
+mod snapshots;
 mod actions;
 mod app_state;
 mod auth;
