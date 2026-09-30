@@ -1,0 +1,3 @@
+[
+{"name": "apply_patch", "scopes": ["files.write"], "mutating": true, "schema": {"type": "object", "properties": {"patch": {"type": "string", "minLength": 1}, "dry_run": {"type": "boolean", "default": false}, "confirm": {"type": "boolean", "default": false}, "reason": {"type": "string", "default": ""}}, "required": ["patch"], "additionalProperties": false}}
+]

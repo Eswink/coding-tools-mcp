@@ -127,6 +127,7 @@ impl ProjectionClaims {
             execution: self.execution,
             authority_epoch: self.authority_epoch,
             grant: self.grant.clone(),
+            last_drained_grant: self.drained_grant,
         }
     }
 }
@@ -138,10 +139,17 @@ pub(super) struct ProjectedState {
     pub execution: ExecutionState,
     pub authority_epoch: i64,
     pub grant: Option<LocalLease>,
+    // Minimal receipt, not an authorization. Retained so a lost acknowledgement
+    // can be reconciled with a fresh signed proof without inventing a new grant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_drained_grant: Option<Uuid>,
 }
 impl ProjectedState {
     pub fn validate_shape(&self) -> Result<()> {
         if self.authority_epoch <= 0
+            || self
+                .last_drained_grant
+                .is_some_and(|id| id.is_nil() || self.phase != ProjectionPhase::Free)
             || (self.phase != ProjectionPhase::Active && self.execution != ExecutionState::Offline)
             || (self.phase == ProjectionPhase::Free && self.grant.is_some())
             || (matches!(
@@ -192,7 +200,11 @@ pub(super) fn transition(
         }
         match p.phase {
             Free => {
-                if next.drained_grant.is_some() {
+                if next.drained_grant.is_some()
+                    && !(state.phase == Free
+                        && state.authority_epoch == p.authority_epoch
+                        && next.drained_grant == p.last_drained_grant)
+                {
                     return Err(IdentityError::InvalidProof);
                 }
             }

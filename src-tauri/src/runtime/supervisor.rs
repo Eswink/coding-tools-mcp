@@ -45,6 +45,7 @@ struct RuntimeEntry {
     missing_port_checks: u8,
     generation: String,
     execution_gate: Option<Arc<WorkspaceExecutionGate>>,
+    context_lease: Option<crate::tools::listener_context::ListenerContextLease>,
 }
 
 #[derive(Default)]
@@ -79,6 +80,15 @@ impl RuntimeSupervisor {
         self.restart(profile, ServiceKind::Actions)
     }
 
+    /// Exact listener-owned context; never a new gate or execution permission.
+    pub fn mcp_context_lease(&self, workspace_id: &str) -> Option<crate::tools::listener_context::ListenerContextLease> {
+        self.entries.get(&(workspace_id.to_string(), ServiceKind::Mcp))
+            .filter(|entry| entry.phase == RuntimePhase::Running)
+            .and_then(|entry| entry.context_lease.as_ref())
+            .filter(|lease| lease.is_live())
+            .cloned()
+    }
+
     /// True when the service for this workspace is currently running.
     pub fn is_running(&self, workspace_id: &str, kind: ServiceKind) -> bool {
         matches!(
@@ -86,7 +96,7 @@ impl RuntimeSupervisor {
                 .get(&(workspace_id.to_string(), kind))
                 .map(|entry| &entry.phase),
             Some(RuntimePhase::Running)
-        )
+        ) && (kind != ServiceKind::Mcp || self.mcp_context_lease(workspace_id).is_some())
     }
 
     pub fn refresh_mcp(&mut self, profile: &WorkspaceProfile) {
@@ -202,6 +212,7 @@ impl RuntimeSupervisor {
         let entry = self.entries.get_mut(&key)?;
 
         entry.phase = RuntimePhase::Stopping;
+        if let Some(lease) = entry.context_lease.as_ref() { lease.close(); }
         let shutdown = entry.shutdown.take();
         let handle = entry.handle.take();
         if let Some(shutdown) = shutdown {
@@ -211,7 +222,9 @@ impl RuntimeSupervisor {
     }
 
     pub fn finish_stop(&mut self, workspace_id: &str, kind: ServiceKind) {
-        self.entries.remove(&(workspace_id.to_string(), kind));
+        if let Some(entry) = self.entries.remove(&(workspace_id.to_string(), kind)) {
+            if let Some(lease) = entry.context_lease { lease.close(); }
+        }
     }
 
     fn status(&self, profile: &WorkspaceProfile, kind: ServiceKind) -> RuntimeStatusDto {
@@ -341,6 +354,7 @@ impl RuntimeSupervisor {
                 missing_port_checks: 0,
                 generation: generation.clone(),
                 execution_gate: None,
+                context_lease: None,
             },
         );
 
@@ -390,7 +404,7 @@ impl RuntimeSupervisor {
                 } else {
                     None
                 };
-                mcp::spawn_listener_with_origin_and_execution_gate(
+                mcp::spawn_listener_with_origin_and_context_lease(
                     port,
                     PathBuf::from(&profile.path),
                     profile.id.clone(),
@@ -400,7 +414,7 @@ impl RuntimeSupervisor {
                     oauth_password,
                     oauth_token_secret,
                     profile.runtime.clone(),
-                ).map(|(shutdown, handle, execution_gate)| (shutdown, handle, Some(execution_gate)))
+                ).map(|(shutdown, handle, execution_gate, context_lease)| (shutdown, handle, Some(execution_gate), Some(context_lease)))
             }
             ServiceKind::Actions => {
                 let auth_type = profile.actions.auth_type.clone();
@@ -456,12 +470,12 @@ impl RuntimeSupervisor {
                     oauth_password,
                     oauth_token_secret,
                     policy,
-                ).map(|(shutdown, handle)| (shutdown, handle, None))
+                ).map(|(shutdown, handle)| (shutdown, handle, None, None))
             }
         };
 
         match spawn_result {
-            Ok((shutdown, handle, execution_gate)) => {
+            Ok((shutdown, handle, execution_gate, context_lease)) => {
                 let started_at = self
                     .entries
                     .get(&key)
@@ -479,6 +493,7 @@ impl RuntimeSupervisor {
                         missing_port_checks: 0,
                         generation: generation.clone(),
                         execution_gate,
+                        context_lease,
                     },
                 );
             }
@@ -504,6 +519,7 @@ impl RuntimeSupervisor {
                         missing_port_checks: 0,
                         generation,
                         execution_gate: None,
+                        context_lease: None,
                     },
                 );
             }
@@ -564,6 +580,7 @@ impl RuntimeSupervisor {
                     }
                 };
                 if should_mark_runtime_error(entry, listening) {
+                    if let Some(lease) = entry.context_lease.as_ref() { lease.close(); }
                     if let Some(handle) = entry.handle.take() {
                         handle.abort();
                         tauri::async_runtime::spawn(async move {
@@ -726,6 +743,7 @@ mod tests {
             started_at,
             missing_port_checks: 0,
             generation: uuid::Uuid::new_v4().to_string(),
+            context_lease: None,
             execution_gate: if phase == RuntimePhase::Running {
                 Some(WorkspaceExecutionGate::shared())
             } else {
@@ -870,3 +888,7 @@ mod tests {
     }
 
 }
+
+#[cfg(test)]
+#[path = "supervisor_context_tests.rs"]
+mod context_lease_tests;

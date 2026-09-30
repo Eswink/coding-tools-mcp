@@ -64,6 +64,7 @@ pub fn spawn_listener_with_origin(
     ).map(|(shutdown, handle, _execution_gate)| (shutdown, handle))
 }
 
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_listener_with_origin_and_execution_gate(
     port: u16,
@@ -92,6 +93,7 @@ pub(crate) fn spawn_listener_with_origin_and_execution_gate(
     )
 }
 
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 fn spawn_listener_with_binding(
     port: u16,
@@ -105,6 +107,59 @@ fn spawn_listener_with_binding(
     runtime: RuntimeConfig,
     bind: impl FnOnce() -> Result<tokio::net::TcpListener, String>,
 ) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>, Arc<crate::runtime::WorkspaceExecutionGate>), String> {
+    spawn_listener_with_lease_binding(
+        port,
+        workspace_path,
+        workspace_id,
+        auth,
+        public_base_url,
+        oauth_client_secret,
+        oauth_password,
+        oauth_token_secret,
+        runtime,
+        bind,
+    ).map(|(shutdown, handle, gate, _lease)| (shutdown, handle, gate))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn spawn_listener_with_origin_and_context_lease(
+    port: u16,
+    workspace_path: PathBuf,
+    workspace_id: String,
+    auth: AuthConfig,
+    public_base_url: PublicOrigin,
+    oauth_client_secret: Option<String>,
+    oauth_password: Option<String>,
+    oauth_token_secret: Option<String>,
+    runtime: RuntimeConfig,
+) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>, Arc<crate::runtime::WorkspaceExecutionGate>, crate::tools::listener_context::ListenerContextLease), String> {
+    spawn_listener_with_lease_binding(
+        port,
+        workspace_path,
+        workspace_id,
+        auth,
+        public_base_url,
+        oauth_client_secret,
+        oauth_password,
+        oauth_token_secret,
+        runtime,
+        || bind_listener(port),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_listener_with_lease_binding(
+    port: u16,
+    workspace_path: PathBuf,
+    workspace_id: String,
+    auth: AuthConfig,
+    public_base_url: PublicOrigin,
+    oauth_client_secret: Option<String>,
+    oauth_password: Option<String>,
+    oauth_token_secret: Option<String>,
+    runtime: RuntimeConfig,
+    bind: impl FnOnce() -> Result<tokio::net::TcpListener, String>,
+) -> Result<(ShutdownSender, tauri::async_runtime::JoinHandle<()>, Arc<crate::runtime::WorkspaceExecutionGate>, crate::tools::listener_context::ListenerContextLease), String> {
     auth.session_policy.validate()?;
     crate::auth::chat::service().configure(&workspace_id, &auth.session_policy)?;
     let workspace_display = workspace_path.display().to_string();
@@ -160,9 +215,14 @@ fn spawn_listener_with_binding(
     };
     // 在返回 Running 之前完成 bind，避免后台任务里的端口冲突被伪装成启动成功。
     let listener = bind()?;
+    // Guard construction precedes spawn, including cancellation before first poll.
+    // The lease shares the exact context; it never creates execution authority.
+    let context_lease = crate::tools::listener_context::ListenerContextLease::new(state.mcp.clone());
+    let lifetime = context_lease.lifetime_guard();
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let profile_id = state.workspace_id.clone();
     let handle = tauri::async_runtime::spawn(async move {
+        let _lifetime = lifetime;
         let result = serve(listener, port, state, shutdown_rx).await;
         if let Err(err) = &result {
             append_profile_log(
@@ -175,7 +235,7 @@ fn spawn_listener_with_binding(
             append_profile_log(&profile_id, "stderr.log", "[mcp] listener stopped");
         }
     });
-    Ok((shutdown_tx, handle, execution_gate))
+    Ok((shutdown_tx, handle, execution_gate, context_lease))
 }
 
 async fn serve(
@@ -596,3 +656,7 @@ mod tests {
 mod test_support;
 #[cfg(test)]
 pub(crate) use test_support::spawn_listener_from_bound;
+
+#[cfg(test)]
+#[path = "listener_context_tests.rs"]
+mod context_lease_tests;

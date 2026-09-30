@@ -177,7 +177,16 @@ impl ProjectionStore {
         }
         let old = read_state(&row)?;
         let floor = transition(old.as_ref(), &c, row.try_get("revoked_through_epoch")?)?;
-        let state = serde_json::to_string(&c.state()).map_err(|_| IdentityError::InvalidProof)?;
+        let mut state = c.state();
+        if state.phase == ProjectionPhase::Free && state.last_drained_grant.is_none() {
+            if let Some(previous) = old.as_ref().filter(|previous| {
+                previous.phase == ProjectionPhase::Free
+                    && previous.authority_epoch == state.authority_epoch
+            }) {
+                state.last_drained_grant = previous.last_drained_grant;
+            }
+        }
+        let state = serde_json::to_string(&state).map_err(|_| IdentityError::InvalidProof)?;
         // Lock waits and state validation are not allowed to make an expired proof valid.
         let at = now(&mut tx).await?;
         c.validate_time(at)?;

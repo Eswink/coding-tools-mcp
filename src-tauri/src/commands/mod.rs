@@ -1,3 +1,4 @@
+pub(crate) mod cloud_connection;
 pub(crate) mod chat_notifications;
 pub use chat_notifications::{chat_authorization_inbox,refresh_session_control};
 #[path = "异步任务v2.rs"]

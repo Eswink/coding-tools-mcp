@@ -141,14 +141,41 @@ impl SignedPayload {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ControlMessage {
-    Heartbeat { seq: i64 },
-    ProjectionChallenge { seq: i64 },
-    Projection { seq: i64, proof: SignedPayload },
+    Heartbeat {
+        seq: i64,
+    },
+    ExecutionReady {
+        seq: i64,
+        version: u8,
+    },
+    ApprovalReady {
+        seq: i64,
+        version: u8,
+    },
+    ApprovalReply {
+        seq: i64,
+        reply: Box<crate::approval::ApprovalReply>,
+    },
+    ExecutionReply {
+        seq: i64,
+        reply: Box<crate::execution::ExecutionReply>,
+    },
+    ProjectionChallenge {
+        seq: i64,
+    },
+    Projection {
+        seq: i64,
+        proof: SignedPayload,
+    },
 }
 impl ControlMessage {
     pub(crate) fn sequence(&self) -> i64 {
         match self {
-            Self::Heartbeat { seq }
+            Self::ExecutionReady { seq, .. }
+            | Self::ApprovalReady { seq, .. }
+            | Self::ApprovalReply { seq, .. }
+            | Self::ExecutionReply { seq, .. }
+            | Self::Heartbeat { seq }
             | Self::ProjectionChallenge { seq }
             | Self::Projection { seq, .. } => *seq,
         }

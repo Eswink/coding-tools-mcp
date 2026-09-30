@@ -32,7 +32,7 @@ impl ChatDomains {
         Ok(copy)
     }
 }
-fn required(name: &str, args: &Value) -> Option<&'static [&'static str]> {
+pub(crate) fn required(name: &str, args: &Value) -> Option<&'static [&'static str]> {
     Some(match name {
         "server_info" | "check_exec_environment" | "get_default_cwd" | "set_default_cwd" |
         "git_status" | "git_diff" | "git_log" | "git_show" | "git_blame" | "harness_status" | "operation_log" |

@@ -249,11 +249,19 @@ fn tool(name: &str, description: &str, input: Value, read_only: bool) -> Value {
 
 pub fn catalog() -> Vec<Value> {
     let empty = json!({"type":"object","properties":{},"additionalProperties":false});
-    vec![
-        tool("auth_status", "Return only the current conversation's cloud-visible local authorization class; never workspace paths, owner identity, tasks, or grants.", empty.clone(), true),
-        tool("request_chat_authorization", "Check for an already-approved local conversation. Cloud service cannot create local approval; unavailable requests must not be retried or converted into OAuth reconnect.", json!({"type":"object","properties":{"scopes":{"type":"array","minItems":1,"maxItems":1,"items":{"type":"string","enum":["files.read"]}}},"additionalProperties":false}), false),
-        tool("workspace_probe", "Read-only availability probe for the locally approved workspace. Offline is a normal tool error and never an OAuth failure. This cloud increment never performs local filesystem or command side effects.", empty, true),
-    ]
+    let mut result = vec![
+        tool("auth_status", "Return only this conversation's authorization class. OAuth never grants local execution authority.", empty, true),
+        tool("request_chat_authorization", "Request pending local desktop approval for this conversation. Only the local owner can approve; never retry offline authorization or reconnect OAuth to bypass it.", json!({"type":"object","properties":{"scopes":{"type":"array","minItems":1,"maxItems":9,"uniqueItems":true,"items":{"type":"string","enum":coding_tools_cloud_agent::grant::LOCAL_SCOPES}}},"additionalProperties":false}), false),
+    ];
+    result.extend(coding_tools_cloud_agent::catalog::tools().iter().map(|spec| {
+        json!({"name":spec.name,
+            "description":format!("Execute {} only in the locally approved workspace with scopes {}. Arguments are limited to 4096 bytes and results to 8192 bytes. Offline calls are not queued. Uncertain outcomes must not be automatically resubmitted; query existing task state when available.",spec.name,if spec.read_scopes.is_some() { "history.read for repair=false; history.write for repair=true".to_string() } else { spec.scopes.join(", ") }),
+            "inputSchema":spec.schema,
+            "annotations":{"readOnlyHint":!spec.mutating,"destructiveHint":spec.mutating,"openWorldHint":spec.scopes.iter().any(|scope|scope=="exec.run")},
+            "securitySchemes":[{"type":"oauth2","scopes":["mcp"]}]
+        })
+    }));
+    result
 }
 
 pub fn protocol_result(message: &RpcMessage, version: &str) -> Result<Option<Value>, WireError> {
@@ -375,13 +383,11 @@ mod tests {
             .into_iter()
             .map(|v| v["name"].as_str().unwrap().to_string())
             .collect();
-        assert_eq!(
-            names,
-            [
-                "auth_status",
-                "request_chat_authorization",
-                "workspace_probe"
-            ]
-        );
+        let expected: Vec<_> = ["auth_status", "request_chat_authorization"].into_iter()
+            .chain(coding_tools_cloud_agent::catalog::tools().iter().map(|spec| spec.name.as_str()))
+            .collect();
+        assert_eq!(names, expected);
+        assert_eq!(names.len(), 46);
+        assert!(!names.iter().any(|name| name == "request_permissions"));
     }
 }

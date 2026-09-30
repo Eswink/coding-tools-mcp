@@ -4,6 +4,8 @@ mod actions;
 mod app_state;
 mod auth;
 mod bootstrap;
+mod cloud_connection;
+mod cloud_application;
 mod commands;
 mod data;
 mod error;
@@ -41,6 +43,8 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager, WindowEvent};
 use std::sync::atomic::{AtomicBool, Ordering};
+static CLOUD_EXIT_STARTED: AtomicBool = AtomicBool::new(false);
+static CLOUD_EXIT_DRAINED: AtomicBool = AtomicBool::new(false);
 
 #[cfg(target_os = "windows")]
 fn signal_existing_instance() -> bool {
@@ -226,6 +230,12 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::cloud_connection::import_cloud_connection,
+            commands::cloud_connection::get_cloud_connection_configuration,
+            commands::cloud_connection::import_cloud_connection_files,
+            commands::cloud_connection::start_cloud_connection,
+            commands::cloud_connection::stop_cloud_connection,
+            commands::cloud_connection::get_cloud_connection_status,
             list_workspaces,
             create_workspace,
             update_workspace,
@@ -291,6 +301,23 @@ pub fn run() {
                 // and take MCP/FRP down with it (0.1.30 regression).
                 if commands::ui_memory::should_prevent_exit() {
                     api.prevent_exit();
+                } else if !CLOUD_EXIT_DRAINED.load(Ordering::SeqCst) {
+                    api.prevent_exit();
+                    if !CLOUD_EXIT_STARTED.swap(true, Ordering::SeqCst) {
+                        let app = app_handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let result = app.state::<AppState>().cloud_agents.shutdown().await;
+                            if result.is_ok() {
+                                CLOUD_EXIT_DRAINED.store(true, Ordering::SeqCst);
+                                app.exit(0);
+                            } else {
+                                // A bounded wait is not a drain receipt. Keep the
+                                // app alive and the permanently closed manager owned.
+                                CLOUD_EXIT_STARTED.store(false, Ordering::SeqCst);
+                                let _ = app.emit("cloud-drain-incomplete", ());
+                            }
+                        });
+                    }
                 }
             }
             tauri::RunEvent::WindowEvent { label, event, .. } => {

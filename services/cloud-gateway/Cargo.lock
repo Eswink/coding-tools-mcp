@@ -195,12 +195,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 
 [[package]]
+name = "coding-tools-cloud-agent"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "futures-util",
+ "libc",
+ "ring",
+ "rustls",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "url",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
 name = "coding-tools-cloud-gateway"
 version = "0.1.0"
 dependencies = [
  "argon2",
  "axum",
  "base64",
+ "coding-tools-cloud-agent",
  "futures-util",
  "http-body-util",
  "hyper",

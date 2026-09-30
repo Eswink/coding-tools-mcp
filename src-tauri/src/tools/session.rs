@@ -204,8 +204,8 @@ impl ExecSession {
 
     async fn wait_for_initial_stdin(&self) {
         let mut pending = self.initial_stdin_task.lock().await;
-        let Some(mut task) = pending.take() else { return; };
-        match tokio::time::timeout(std::time::Duration::from_millis(500), &mut task).await {
+        let Some(task) = pending.as_mut() else { return; };
+        match tokio::time::timeout(std::time::Duration::from_millis(500), &mut *task).await {
             Ok(Ok(())) => {},
             other => {
                 self.mark_initial_stdin_failure("stdin_error");
@@ -215,13 +215,14 @@ impl ExecSession {
                 }
             }
         }
+        pending.take();
     }
 
     pub async fn wait_for_readers(&self) {
         self.wait_for_initial_stdin().await;
         let mut tasks = self.reader_tasks.lock().await;
-        while let Some(mut task) = tasks.pop() {
-            match tokio::time::timeout(std::time::Duration::from_millis(if self.managed { 5000 } else { 500 }), &mut task).await {
+        while let Some(task) = tasks.last_mut() {
+            match tokio::time::timeout(std::time::Duration::from_millis(if self.managed { 5000 } else { 500 }), &mut *task).await {
                 Ok(Ok(())) => {},
                 Ok(Err(_)) => { self.reader_failed.store(true, Ordering::Release); },
                 Err(_) => {
@@ -232,6 +233,7 @@ impl ExecSession {
                     let _ = task.await;
                 }
             }
+            tasks.pop();
         }
     }
 
@@ -623,3 +625,7 @@ fn send_session_signal(pid: u32, _signal: &str) {
         }
     }
 }
+
+#[cfg(all(test, unix))]
+#[path = "session_drain_tests.rs"]
+mod drain_tests;

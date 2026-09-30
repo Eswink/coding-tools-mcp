@@ -257,10 +257,14 @@ async fn run_command(
     #[cfg(target_os = "linux")]
     let admission = super::execution_sandbox::prepare(ctx, &mut command)?;
 
-    let spawned = if ctx.managed_task || super::execution_sandbox::required(ctx) {
+    let mut native_work = super::native_drain::child(ctx)?;
+    super::native_drain::begin(&mut native_work)?;
+    let spawned = if ctx.managed_task || super::execution_sandbox::required(ctx) || native_work.is_some() {
         crate::tools::process_tree::spawn(&mut command).await.map(|(child, tree)| (child, Some(tree)))
     } else { command.spawn().map(|child| (child, None)) };
-    let (child, tree) = spawned.map_err(|e| WorkspaceError::ToolDetails {
+    let (child, tree) = spawned.map_err(|e| {
+        super::native_drain::complete(native_work.take());
+        WorkspaceError::ToolDetails {
         code: if super::execution_sandbox::required(ctx) { "SANDBOX_SETUP_FAILED" } else { "COMMAND_SPAWN_FAILED" },
         message: if super::execution_sandbox::required(ctx) { "Required workspace isolation rejected child startup.".into() } else { format!("Failed to start command: {e}") },
         category: "runtime",
@@ -270,7 +274,8 @@ async fn run_command(
             "recoverable": true,
             "suggestion": "检查命令路径、权限和运行时环境后重试"
         }),
-    })?;
+    }})?;
+    let native_pid = child.id();
 
     let session = ctx.sessions.insert(match tree {
         Some(tree) => ExecSession::new_managed(child, tree).with_interactive_mode(tty),
@@ -284,6 +289,8 @@ async fn run_command(
     if !tty && !stdin_text.is_empty() {
         session.spawn_initial_stdin(stdin_text.to_owned(), deadline).await;
     }
+
+    super::native_drain::track_process(session.clone(), native_work, native_pid);
 
     if yield_time.is_zero() {
         let snapshot = session.snapshot(max_output);

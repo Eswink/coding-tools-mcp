@@ -1,0 +1,7 @@
+[
+{"name": "start_task", "scopes": ["harness.write"], "mutating": true, "schema": {"type": "object", "properties": {"objective": {"type": "string", "minLength": 1}}, "required": ["objective"], "additionalProperties": false}},
+{"name": "update_task", "scopes": ["harness.write"], "mutating": true, "schema": {"type": "object", "properties": {"task_id": {"type": "string", "minLength": 1}, "completed_steps": {"type": "array", "items": {"type": "string"}}, "pending_steps": {"type": "array", "items": {"type": "string"}}}, "required": ["task_id"], "additionalProperties": false}},
+{"name": "pause_task", "scopes": ["harness.write"], "mutating": true, "schema": {"type": "object", "properties": {"task_id": {"type": "string", "minLength": 1}}, "required": ["task_id"], "additionalProperties": false}},
+{"name": "resume_task", "scopes": ["harness.write"], "mutating": true, "schema": {"type": "object", "properties": {"task_id": {"type": "string", "minLength": 1}}, "required": ["task_id"], "additionalProperties": false}},
+{"name": "finish_task", "scopes": ["harness.write"], "mutating": true, "schema": {"type": "object", "properties": {"task_id": {"type": "string", "minLength": 1}, "summary": {"type": "string"}, "allow_unverified": {"type": "boolean", "default": false}}, "required": ["task_id"], "additionalProperties": false}}
+]

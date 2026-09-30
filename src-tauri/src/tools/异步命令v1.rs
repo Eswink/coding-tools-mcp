@@ -65,10 +65,12 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
     let fingerprint = format!("{:x}", Sha256::digest(serde_json::to_vec(&json!({
         "cmd": cmd, "cwd": cwd.path, "timeout_ms": timeout_ms,
     })).expect("serializable command")));
+    let mut native_work = super::native_drain::child(ctx)?;
     let (job, created) = ctx.exec_tasks.reserve(request_id, &fingerprint, timeout_ms)?;
     if created {
         let mut background = ctx.background_snapshot();
         background.managed_task = true;
+        background.native_work = super::native_drain::scope(&native_work);
         background.policy.max_exec_timeout_ms = background.policy.max_task_timeout_ms.min(86_400_000);
         let mut command = args.clone();
         command.as_object_mut().expect("validated object").remove("request_id");
@@ -78,6 +80,13 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
         command["max_output_bytes"] = json!(1024);
         let worker_job = job.clone();
         tauri::async_runtime::spawn_blocking(move || {
+            if super::native_drain::begin(&mut native_work).is_err() {
+                worker_job.finish(Status::Failed, json!({"command_ok":false,
+                    "termination_reason":"native_drain_rejected_before_start"}));
+                let _ = background.exec_tasks.checkpoint(&worker_job);
+                return;
+            }
+            let _thread = super::native_drain::enter(background.native_work.clone());
             let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 run(&background, &worker_job, &command);
             }));
@@ -96,6 +105,7 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
                     "error": {"code": "EXEC_TASK_WORKER_FAILED", "message": "Execution worker failed; inspect local processes before acknowledging termination"}}));
             }
             let _ = background.exec_tasks.checkpoint(&worker_job);
+            if outcome.is_ok() { super::native_drain::complete(native_work); }
         });
     }
     let mut summary = job.summary();

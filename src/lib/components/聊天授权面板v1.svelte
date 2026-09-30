@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CloudConnectionPanel from "./CloudConnectionPanel.svelte";
   import { LockKeyhole } from "@lucide/svelte";
   import { untrack } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
@@ -57,6 +58,8 @@
     selections = { ...selections, [g.id]: [...selected] };
   }
 </script>
+
+<CloudConnectionPanel {workspaceId} />
 
 <section class="chat-authorization" aria-labelledby="chat-authorization-heading">
   <div class="heading">

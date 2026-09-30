@@ -70,6 +70,7 @@ pub async fn delete_workspace(state: State<'_, AppState>, id: String) -> AppResu
         }
         Ok(())
     })?;
+    state.cloud_agents.remove_drained_workspace(&id)?;
     for guard in guards { guard.commit(); }
     Ok(())
 }

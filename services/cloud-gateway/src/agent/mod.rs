@@ -1,7 +1,12 @@
-//! Native recovery-only control Agent. No shell, file tools, grant or remote signing API.
+//! Legacy recovery-only CLI plus the shared, native-host-bound live Agent runtime.
 mod cli;
 mod client;
 mod config;
+pub mod host {
+    pub use coding_tools_cloud_agent::{
+        AgentError, HostAgent, HostAuthoritySnapshot, HostFuture, LocalHost,
+    };
+}
 mod journal;
 mod signer;
 mod wire;
@@ -21,6 +26,10 @@ pub enum AgentError {
     Transport,
     Exhausted,
     Cancelled,
+    LocalAuthority,
+    Capacity,
+    Duplicate,
+    ExecutionUnknown,
 }
 impl std::fmt::Display for AgentError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -35,6 +44,10 @@ impl std::fmt::Display for AgentError {
             Self::Transport => "agent_transport_interrupted",
             Self::Exhausted => "agent_retry_budget_exhausted",
             Self::Cancelled => "agent_cancelled",
+            Self::LocalAuthority => "agent_local_authority_changed",
+            Self::Capacity => "agent_local_capacity_exhausted",
+            Self::Duplicate => "agent_request_already_claimed",
+            Self::ExecutionUnknown => "agent_execution_outcome_unknown",
         })
     }
 }

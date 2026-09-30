@@ -19,6 +19,7 @@ pub struct StartupStatus {
 }
 
 pub struct AppState {
+    pub(crate) cloud_agents: crate::cloud_application::ApplicationAgents,
     data: Mutex<Option<DataStore>>,
     startup_reason: Mutex<Option<StartupFailureReason>>,
     pub runtime: Mutex<RuntimeSupervisor>,
@@ -41,6 +42,7 @@ impl AppState {
             Err(error) => (None, Some(error.startup_failure_reason())),
         };
         Self {
+            cloud_agents: Default::default(),
             data: Mutex::new(data),
             startup_reason: Mutex::new(startup_reason),
             runtime: Mutex::new(RuntimeSupervisor::default()),

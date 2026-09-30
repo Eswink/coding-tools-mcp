@@ -20,12 +20,13 @@ const MAX_RECORDS: usize = 64;
 pub(crate) struct RemoteRequest {
     pub profile: String,
     pub principal: Option<VerifiedPrincipal>,
+    cloud: Option<super::cloud_context::CloudCredential>,
     pub binding: Option<String>,
     pub service: Arc<ChatAuthorizer>,
 }
 impl RemoteRequest {
     pub fn unresolved(profile: &str) -> Self {
-        Self { profile: profile.into(), principal: None, binding: None, service: service() }
+        Self { profile: profile.into(), principal: None, cloud: None, binding: None, service: service() }
     }
     pub fn verified(profile: &str, workspace: &str, principal: VerifiedPrincipal, meta: &Value, secret: &str) -> Self {
         let binding = meta.get("openai/session").and_then(Value::as_str)
@@ -36,11 +37,25 @@ impl RemoteRequest {
                 hmac::sign(&hmac::Key::new(hmac::HMAC_SHA256, secret.as_bytes()), &bytes)
                     .as_ref().iter().map(|b| format!("{b:02x}")).collect()
             });
-        Self { profile: profile.into(), principal: Some(principal), binding, service: service() }
+        Self { profile: profile.into(), principal: Some(principal), cloud: None, binding, service: service() }
+    }
+    pub(super) fn from_cloud(profile: &str, cloud: super::cloud_context::CloudCredential, service: Arc<ChatAuthorizer>) -> Self {
+        let binding = Some(cloud.binding().to_owned());
+        Self { profile: profile.into(), principal: None, cloud: Some(cloud), binding, service }
     }
     pub fn identity(&self) -> Result<&str, &'static str> {
-        if !self.principal.as_ref().is_some_and(VerifiedPrincipal::is_current) {
-            return Err("OAUTH_REQUIRED");
+        match (&self.principal, &self.cloud) {
+            (Some(_), Some(_)) => return Err("AUTHENTICATION_CONTEXT_AMBIGUOUS"),
+            (None, Some(cloud)) => {
+                if !cloud.is_current(&self.profile, self.binding.as_deref()) {
+                    return Err("CLOUD_CONNECTION_REQUIRED");
+                }
+            }
+            (_, None) => {
+                if !self.principal.as_ref().is_some_and(VerifiedPrincipal::is_current) {
+                    return Err("OAUTH_REQUIRED");
+                }
+            }
         }
         self.binding.as_deref().ok_or("CHAT_CONTEXT_REQUIRED")
     }
@@ -547,6 +562,13 @@ impl ChatAuthorizer {
         // point invalidates generation/revision; a commit that wins here is an
         // established in-flight operation and retains the existing semantics.
         let execution = gate.try_admit_generation(ticket.execution_generation)?;
+        // Both reconciliation and the final gate may wait on mutexes. Neither
+        // the process-local ticket nor the authenticated transport may expire
+        // during those waits and still authorize a new operation.
+        if ticket.expired() {
+            return Err("LOCAL_ADMISSION_EXPIRED");
+        }
+        req.identity()?;
         let scope_refs: Vec<&str> = ticket.required_scopes.iter().map(String::as_str).collect();
         Self::permit_locked(&mut state, req, key, &scope_refs)?;
         *state.flights.entry(req.profile.clone()).or_default() += 1;

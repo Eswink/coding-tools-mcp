@@ -81,6 +81,8 @@ pub struct ExecSpec {
     stdin: Vec<u8>,
     timeout: Duration,
     stream_limit: usize,
+    #[cfg(unix)]
+    require_tree_exit: bool,
     #[cfg(target_os = "linux")]
     sandbox: Option<crate::LinuxSandbox>,
 }
@@ -94,6 +96,8 @@ impl ExecSpec {
             stdin: Vec::new(),
             timeout: Duration::from_secs(30),
             stream_limit: 64 * 1024,
+            #[cfg(unix)]
+            require_tree_exit: false,
             #[cfg(target_os = "linux")]
             sandbox: None,
         };
@@ -105,6 +109,14 @@ impl ExecSpec {
     #[cfg(target_os = "linux")]
     pub fn with_sandbox(mut self, sandbox: crate::LinuxSandbox) -> Self {
         self.sandbox = Some(sandbox);
+        self
+    }
+
+    /// Require observed termination of the original child-owned process group.
+    /// This strengthens drainage; it neither grants authority nor disables the sandbox.
+    #[cfg(unix)]
+    pub fn with_tree_exit_confirmation(mut self) -> Self {
+        self.require_tree_exit = true;
         self
     }
 
@@ -435,6 +447,8 @@ impl ProcessManager {
             }
             ExecError::new(ExecErrorKind::Spawn, "failed to spawn process")
         })?;
+        #[cfg(unix)]
+        let process_id = child.id();
         let stdin = child.stdin.take();
         let stdout = child
             .stdout
@@ -540,6 +554,10 @@ impl ProcessManager {
             }
 
             let io = join_io(stdout_task, stderr_task, stdin_task).await;
+            #[cfg(unix)]
+            if spec.require_tree_exit && !confirm_group_exit(process_id).await {
+                termination = ExecTermination::TerminationUncertain;
+            }
             let stdout = take_stream(&stdout_state);
             let stderr = take_stream(&stderr_state);
             let output_complete = io.stdout && io.stderr;
@@ -666,6 +684,27 @@ fn take_stream(state: &SharedStream) -> StreamState {
     std::mem::take(&mut *guard)
 }
 
+#[cfg(unix)]
+async fn confirm_group_exit(process_id: Option<u32>) -> bool {
+    let Some(id) = process_id
+        .and_then(|n| i32::try_from(n).ok())
+        .filter(|n| *n > 1)
+    else {
+        return false;
+    };
+    let deadline = tokio::time::Instant::now() + TERMINATE_WAIT;
+    loop {
+        // Only observe. Do not kill again using a possibly recycled identifier.
+        if unsafe { libc::kill(-id, 0) } < 0 {
+            return std::io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH);
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return false;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
 fn uncertain_outcome(id: &str) -> ExecOutcome {
     ExecOutcome {
         session_id: id.to_owned(),
@@ -766,3 +805,7 @@ mod tests {
         assert!(!rendered.contains(&cwd.display().to_string()));
     }
 }
+
+#[cfg(all(test, unix))]
+#[path = "process_group_completion_tests.rs"]
+mod group_completion_tests;

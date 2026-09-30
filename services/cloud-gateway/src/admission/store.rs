@@ -145,6 +145,9 @@ struct ProjectedState {
     execution: ExecutionState,
     authority_epoch: i64,
     grant: Option<LocalLease>,
+    // A retained Free receipt is never a grant or an admission capability.
+    #[serde(default, rename = "last_drained_grant")]
+    _last_drained_grant: Option<Uuid>,
 }
 #[derive(Clone)]
 struct Fence {
@@ -185,7 +188,6 @@ impl AdmissionStore {
         let fingerprint = self.fingerprint(&request)?;
         let mut tx = bounded_tx(&self.identity).await?;
         let at = now(&mut tx).await?;
-        self.validate_request(&request, at)?;
         // Serialize retries for one external request ID before the existence check.
         // This is a transaction-scoped lock only; it carries no execution authority.
         sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))")
@@ -198,10 +200,11 @@ impl AdmissionStore {
             tx.commit().await?;
             return Ok(receipt);
         }
+        // Expired exact retries reconcile immutable existing metadata above;
+        // only a genuinely new admission is subject to the new-request TTL.
+        self.validate_request(&request, at)?;
 
-        let decision = self
-            .current_fence(&mut tx, &request, &fingerprint, at)
-            .await?;
+        let decision = self.current_fence(&mut tx, &request, &fingerprint).await?;
         let (state, deny, fence) = match decision {
             Ok(fence) => {
                 let active: i64 = sqlx::query_scalar(
@@ -268,7 +271,10 @@ impl AdmissionStore {
                 result_ok: None,
             });
         }
-        let deny = self.recheck_locked(&mut tx, &row, at).await?;
+        let deny = self.recheck_locked(&mut tx, &row).await?;
+        let at = now(&mut tx).await?;
+        let deny = deny
+            .or_else(|| (row.get::<i64, _>("deadline") <= at).then_some(AdmissionDeny::Deadline));
         if let Some(deny) = deny {
             set_denied(&mut tx, request_id, deny, at).await?;
             tx.commit().await?;
@@ -411,7 +417,7 @@ impl AdmissionStore {
         if cutoff <= 0 || !(1..=1000).contains(&limit) {
             return Err(IdentityError::InvalidRequest);
         }
-        let result = sqlx::query("WITH doomed AS (SELECT request_id FROM ctm_request_ledger WHERE connector=$1 AND updated_at<$2 AND state IN ('not_admitted','completed','cancelled') ORDER BY updated_at LIMIT $3) DELETE FROM ctm_request_ledger l USING doomed d WHERE l.request_id=d.request_id")
+        let result = sqlx::query("WITH doomed AS (SELECT request_id FROM ctm_request_ledger WHERE connector=$1 AND updated_at<$2 AND NOT dispatch_claimed AND state IN ('not_admitted','completed','cancelled') ORDER BY updated_at LIMIT $3) DELETE FROM ctm_request_ledger l USING doomed d WHERE l.request_id=d.request_id")
             .bind(self.identity.identity.connector()).bind(cutoff).bind(limit).execute(&self.identity.pool).await?;
         Ok(result.rows_affected())
     }
@@ -464,7 +470,6 @@ impl AdmissionStore {
         tx: &mut Transaction<'_, Postgres>,
         request: &AdmissionRequest<'_>,
         fingerprint: &Fingerprint,
-        at: i64,
     ) -> Result<std::result::Result<Fence, AdmissionDeny>> {
         let selected: Option<Uuid> =
             sqlx::query_scalar("SELECT device FROM ctm_grant_projection WHERE connector=$1")
@@ -482,7 +487,9 @@ impl AdmissionStore {
         };
         let projection = lock_projection(&self.identity, tx).await?;
         let channel = lock_channel(&self.identity, tx).await?;
-        evaluate(
+        // SQL locks may have waited across the request/grant/lease deadline.
+        let at = now(tx).await?;
+        let decision = evaluate(
             &self.identity,
             request,
             fingerprint,
@@ -490,13 +497,16 @@ impl AdmissionStore {
             &projection,
             &channel,
             at,
-        )
+        )?;
+        match decision {
+            Ok(_) if request.deadline <= at => Ok(Err(AdmissionDeny::Deadline)),
+            other => Ok(other),
+        }
     }
     async fn recheck_locked(
         &self,
         tx: &mut Transaction<'_, Postgres>,
         request: &PgRow,
-        at: i64,
     ) -> Result<Option<AdmissionDeny>> {
         let Some(device_id) = request.get::<Option<Uuid>, _>("device") else {
             return Ok(Some(AdmissionDeny::Authorization));
@@ -508,6 +518,7 @@ impl AdmissionStore {
         };
         let projection = lock_projection(&self.identity, tx).await?;
         let channel = lock_channel(&self.identity, tx).await?;
+        let at = now(tx).await?;
         let state = parse_state(&projection)?;
         let Some(grant) = state.grant.as_ref() else {
             return Ok(Some(AdmissionDeny::Authorization));
@@ -545,7 +556,8 @@ impl AdmissionStore {
                 at,
             },
         )
-        .err())
+        .err()
+        .or_else(|| (request.get::<i64, _>("deadline") <= at).then_some(AdmissionDeny::Deadline)))
     }
 }
 
@@ -799,3 +811,6 @@ fn decision_for_state(state: RequestState, deny: Option<AdmissionDeny>) -> Admis
         RequestState::Completed | RequestState::Cancelled => AdmissionDecision::Existing,
     }
 }
+
+#[path = "dispatch.rs"]
+mod dispatch;

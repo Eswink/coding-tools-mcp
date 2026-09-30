@@ -65,11 +65,12 @@ test('aggregate reads only mounted editors for this tab and never returns creden
 });
 function route(){
  const d=deferred();const h=new Function('d',`
- let activeService='mcp',workspaceId='one',switchingService=false,configurationBusy=false,mcpBusy=false,actionsBusy=false,disposed=false;
+ let activeService='mcp',workspaceId='one',switchingService=false,configurationBusy=false,mcpBusy=false,mcpExecutionBusy=false,actionsBusy=false,disposed=false;
  let serviceView={requestLeave:()=>d.promise};
  ${service}
  return {changeService,inspect:()=>({activeService,switchingService}),changeWorkspace:()=>workspaceId='two',
-   replaceView:()=>serviceView={requestLeave:async()=>true},mutate:()=>configurationBusy=true,dispose:()=>disposed=true};
+   replaceView:()=>serviceView={requestLeave:async()=>true},mutate:()=>configurationBusy=true,
+   setExecutionBusy:value=>mcpExecutionBusy=value,dispose:()=>disposed=true};
  `)(d);return {h,d};
 }
 test('MCP/Actions switch respects cancellation and does not race workspace/view replacement',async()=>{
@@ -80,4 +81,12 @@ test('MCP/Actions switch respects cancellation and does not race workspace/view 
 });
 test('accepted service switch activates exactly the requested service',async()=>{
  const {h,d}=route();const pending=h.changeService('actions');d.resolve(true);await pending;assert.equal(h.inspect().activeService,'actions');
+});
+test('active execution blocks a service switch before confirmation',async()=>{
+ const {h}=route();h.setExecutionBusy(true);await h.changeService('actions');
+ assert.equal(h.inspect().activeService,'mcp');assert.equal(h.inspect().switchingService,false);
+});
+test('execution starting during confirmation prevents a late service switch',async()=>{
+ const {h,d}=route();const pending=h.changeService('actions');h.setExecutionBusy(true);d.resolve(true);await pending;
+ assert.equal(h.inspect().activeService,'mcp');assert.equal(h.inspect().switchingService,false);
 });

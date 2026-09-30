@@ -1,0 +1,199 @@
+name: Complete RC integration candidate
+
+on:
+  push:
+    branches: ['release/dot-rc-reconciliation-20260930']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: full-rc-integration-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: '3'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Native Linux development libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+          echo /usr/bin >> "$GITHUB_PATH"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri
+            services/cloud-agent
+            services/cloud-gateway
+            services/local-agent
+      - name: Exact source and complete frontend contracts
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git rev-parse HEAD > evidence/source-sha.txt
+          git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
+          npm ci
+          npm run check 2>&1 | tee evidence/frontend-check.txt
+          npm run build 2>&1 | tee evidence/frontend-build.txt
+          node scripts/前端完整回归v4.mjs 2>&1 | tee evidence/frontend-full.txt
+          node --test tests/cloud-gateway/*.test.mjs tests/delivery/*.test.mjs 2>&1 | tee evidence/gateway-delivery-js.txt
+          python scripts/release_preflight_tests.py 2>&1 | tee evidence/preflight-contracts.txt
+          python scripts/rc_version_gate_tests.py 2>&1 | tee evidence/rc-version-contracts.txt
+          python scripts/发布版本回归v4.py 2>&1 | tee evidence/stable-version-contracts.txt
+          python scripts/connector_fault_proxy_tests.py 2>&1 | tee evidence/fault-proxy.txt
+      - name: Shared runtimes and production warning gates
+        run: |
+          set -euo pipefail
+          for unit in cloud-agent local-agent; do
+            manifest="services/$unit/Cargo.toml"
+            cargo fmt --check --manifest-path "$manifest"
+            cargo clippy --locked --manifest-path "$manifest" --all-targets -- -D warnings 2>&1 | tee "evidence/$unit-clippy.txt"
+            cargo test --locked --manifest-path "$manifest" 2>&1 | tee "evidence/$unit-full.txt"
+            cargo rustc --locked --manifest-path "$manifest" --lib -- -D warnings
+          done
+          cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
+          cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/gateway-clippy.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_cli 2>&1 | tee evidence/gateway-portable.txt
+      - name: Complete native application regression
+        run: |
+          set -euo pipefail
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-check.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-full.txt
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/desktop-warnings.txt
+          git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-integration-native-${{ matrix.os }}-${{ github.sha }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  real-transport:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gateway_test
+          POSTGRES_PASSWORD: disposable-ci-fixture
+          POSTGRES_DB: coding_tools_identity_test
+        ports: ['5432/tcp']
+        options: >-
+          --health-cmd "pg_isready -U gateway_test -d coding_tools_identity_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://gateway_test:disposable-ci-fixture@127.0.0.1:${{ job.services.postgres.ports[5432] }}/coding_tools_identity_test
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - name: System dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri
+            services/cloud-gateway
+      - name: Real database, authenticated WSS and application-owned execution
+        run: |
+          set -euo pipefail
+          export PATH="/usr/bin:$PATH"
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-sha.txt
+          git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml 2>&1 | tee evidence/gateway-full.txt
+          cargo build --locked --manifest-path services/cloud-gateway/Cargo.toml --example native_desktop_fixture
+          export CTM_NATIVE_GATEWAY_FIXTURE_BIN="$GITHUB_WORKSPACE/services/cloud-gateway/target/debug/examples/native_desktop_fixture"
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --features cloud-agent-integration-tests --lib tools::cloud_host::live:: -- --nocapture --test-threads=1 2>&1 | tee evidence/native-live-host.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --features cloud-agent-integration-tests --lib cloud_application::wss_tests -- --nocapture --test-threads=1 2>&1 | tee evidence/application-wss.txt
+          grep -E 'test result: ok\. [1-9][0-9]* passed; 0 failed; 0 ignored' evidence/application-wss.txt
+          python3 tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence evidence/sandbox-dispatch
+          git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-integration-transport-${{ matrix.os }}-${{ github.sha }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci && npm run check && npm run build
+      - run: python -m pip install playwright==1.58.0
+      - run: python -m playwright install --with-deps chromium
+      - run: python tests/cloud-connection-browser.py
+        env:
+          UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/cloud-ui
+      - run: python tests/ui-refactor-browser.py
+        env:
+          UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/existing-ui
+          CHROMIUM_PATH: playwright-managed
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-integration-synthetic-browser-${{ github.sha }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30

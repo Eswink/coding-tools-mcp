@@ -4,6 +4,7 @@
 //! authorization at the caller. Browser consent is the only HTTP code-issuance
 //! path; direct operator shortcuts and enrollment invitations remain unexposed.
 pub mod admission;
+pub mod approval;
 pub mod browser;
 pub mod config;
 pub mod crypto;
@@ -33,3 +34,6 @@ pub mod channel;
 
 /// Native recovery-only control client; no local execution provider is installed.
 pub mod agent;
+
+/// Bounded authenticated routing, not an executor or authority issuer.
+pub mod execution;

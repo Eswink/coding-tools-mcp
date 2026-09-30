@@ -10,3 +10,8 @@ pub use store::{
     AdmissionDecision, AdmissionDeny, AdmissionReceipt, AdmissionRequest, AdmissionStore,
     RequestClass, RequestState, MAX_ARGUMENT_BYTES, MAX_DEADLINE_SECONDS, MAX_IN_FLIGHT,
 };
+
+/// Canonical digest shared by cloud and locally authoritative execution adapters.
+pub fn canonical_digest(value: &serde_json::Value, max: usize) -> crate::Result<[u8; 32]> {
+    canonical::digest_json(value, max)
+}

@@ -8,6 +8,7 @@
   import AppShell from "$lib/components/AppShell.svelte";
   import StartupRecovery from "$lib/components/StartupRecovery.svelte";
   import ChatAuthorizationHost from "$lib/components/ChatAuthorizationHost.svelte";
+  import CloudDrainWarning from "$lib/components/CloudDrainWarning.svelte";
   import ToastHost from "$lib/components/ToastHost.svelte";
   import WorkspaceNavItem from "$lib/components/WorkspaceNavItem.svelte";
   import {
@@ -161,6 +162,7 @@
   });
 </script>
 
+<CloudDrainWarning />
 <AppShell onAddWorkspace={addWorkspace}>
   {#snippet settingsNav()}
     <button

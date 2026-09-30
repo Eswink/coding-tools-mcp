@@ -3,6 +3,11 @@ pub(crate) mod process_tree;
 #[path = "聊天运行域v1.rs"]
 pub(crate) mod chat_domain;
 pub mod context;
+pub mod listener_context;
+pub(crate) mod native_drain;
+// Crate-private adapter: not exposed without an owned Agent supervisor.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) mod cloud_host;
 pub mod dispatch;
 pub mod exec;
 pub(crate) mod execution_sandbox;

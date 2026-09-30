@@ -8,6 +8,7 @@ use crate::tools::workspace::{relative_display, Workspace};
 use crate::workspace::AuthConfig;
 
 pub struct ToolContext {
+    pub(crate) native_work: Option<coding_tools_cloud_agent::work::WorkScope>,
     pub workspace: Workspace,
     pub auth: AuthConfig,
     pub policy: PolicySettings,
@@ -77,6 +78,7 @@ impl ToolContext {
         #[cfg(target_os = "linux")]
         let linux_sandbox = Arc::new(coding_tools_local_agent::LinuxSandbox::new(&root));
         Self {
+            native_work: None,
             workspace,
             auth,
             policy,
@@ -113,6 +115,7 @@ impl ToolContext {
     /// Snapshot policy/cwd at acceptance; share the existing service-owned task/session stores.
     pub(crate) fn background_snapshot(&self) -> Self {
         Self {
+            native_work: self.native_work.clone(),
             workspace: self.workspace.clone(), auth: self.auth.clone(), policy: self.policy.clone(),
             tool_profile: self.tool_profile.clone(), permission_mode: self.permission_mode.clone(),
             harness: self.harness.clone(), default_cwd: Arc::new(Mutex::new(self.default_cwd_path())),

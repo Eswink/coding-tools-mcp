@@ -23,6 +23,9 @@ use uuid::Uuid;
 
 const MAX_BODY: usize = 65_536;
 const TOOL_SCOPE: &str = "files.read";
+#[path = "business.rs"]
+mod business;
+use business::business_call;
 
 #[derive(Clone)]
 pub struct McpState {
@@ -307,23 +310,10 @@ fn validate_empty_args(message: &RpcMessage) -> Result<Value, Value> {
     }
 }
 fn validate_authorize_args(message: &RpcMessage) -> Result<(), Value> {
-    match message.params.get("arguments") {
-        None => Ok(()),
-        Some(Value::Object(m)) if m.is_empty() => Ok(()),
-        Some(Value::Object(m))
-            if m.len() == 1
-                && m.get("scopes")
-                    .and_then(Value::as_array)
-                    .is_some_and(|a| a.len() == 1 && a[0].as_str() == Some(TOOL_SCOPE)) =>
-        {
-            Ok(())
-        }
-        _ => Err(denial(
-            "INVALID_ARGUMENTS",
-            "permission",
-            "Invalid tool arguments.",
-        )),
-    }
+    coding_tools_cloud_agent::approval::validate_arguments(
+        coding_tools_cloud_agent::approval::ApprovalMethod::Request,
+        message.params.get("arguments").unwrap_or(&json!({})),
+    ).map_err(|_| permission("INVALID_ARGUMENTS"))
 }
 
 fn request_uuid(
@@ -372,146 +362,6 @@ fn map_projection(d: ProjectionDecision, for_request: bool) -> Value {
     }
 }
 
-async fn business_call(
-    state: &McpState,
-    principal: &OAuthPrincipal,
-    message: &RpcMessage,
-) -> Value {
-    let Some(name) = message.params.get("name").and_then(Value::as_str) else {
-        return permission("INVALID_ARGUMENTS");
-    };
-    if ![
-        "auth_status",
-        "request_chat_authorization",
-        "workspace_probe",
-    ]
-    .contains(&name)
-    {
-        return permission("INVALID_ARGUMENTS");
-    }
-    let Some(session) = host_session(message) else {
-        return permission("CHAT_CONTEXT_REQUIRED");
-    };
-    let binding = match state.control.conversation_binding(principal, session) {
-        Ok(v) => v,
-        Err(_) => return permission("CHAT_CONTEXT_REQUIRED"),
-    };
-    match name {
-        "auth_status" => {
-            if validate_empty_args(message).is_err() {
-                return permission("INVALID_ARGUMENTS");
-            }
-            match state.control.assess(&binding, TOOL_SCOPE).await {
-                Ok(ProjectionDecision::RecoveryRequired)
-                    if state.control.is_online().await.ok() == Some(false) =>
-                {
-                    json!({"ok":true,"authorization":{"status":"active"},"execution":"offline"})
-                }
-                Ok(d) => map_projection(d, false),
-                Err(_) => availability("WORKSPACE_OFFLINE"),
-            }
-        }
-        "request_chat_authorization" => {
-            if let Err(v) = validate_authorize_args(message) {
-                return v;
-            }
-            match state.control.assess(&binding, TOOL_SCOPE).await {
-                Ok(ProjectionDecision::RecoveryRequired)
-                    if state.control.is_online().await.ok() == Some(false) =>
-                {
-                    json!({"ok":true,"authorization":{"status":"active"},"execution":"offline"})
-                }
-                Ok(d) => map_projection(d, true),
-                Err(_) => permission("CHAT_AUTHORIZATION_UNAVAILABLE"),
-            }
-        }
-        "workspace_probe" => {
-            let args = match validate_empty_args(message) {
-                Ok(v) => v,
-                Err(v) => return v,
-            };
-            match state.control.assess(&binding, TOOL_SCOPE).await {
-                Ok(ProjectionDecision::AuthorizationUnavailable) => {
-                    return permission("CHAT_AUTHORIZATION_REQUIRED")
-                }
-                Ok(ProjectionDecision::ScopeDenied) => return permission("CHAT_SCOPE_REQUIRED"),
-                Ok(ProjectionDecision::RecoveryRequired) => {
-                    if state.control.is_online().await.ok() == Some(false) {
-                        return availability("WORKSPACE_OFFLINE");
-                    }
-                    return permission("CHAT_RECOVERY_REQUIRED");
-                }
-                Ok(ProjectionDecision::WorkspaceOffline) => {
-                    return availability("WORKSPACE_OFFLINE")
-                }
-                Err(_) => return availability("WORKSPACE_OFFLINE"),
-                Ok(ProjectionDecision::Eligible) => {}
-            }
-            let Some(external_id) = message.id.as_ref() else {
-                return permission("INVALID_ARGUMENTS");
-            };
-            let request_id = match request_uuid(state, &binding, external_id) {
-                Ok(v) => v,
-                Err(_) => return permission("INVALID_ARGUMENTS"),
-            };
-            let deadline = match unix_now()
-                .and_then(|n| n.checked_add(30).ok_or(IdentityError::InvalidRequest))
-            {
-                Ok(v) => v,
-                Err(_) => return availability("REQUEST_EXPIRED"),
-            };
-            let receipt = match state
-                .admission
-                .admit(AdmissionRequest {
-                    request_id,
-                    conversation: &binding,
-                    scope: TOOL_SCOPE,
-                    tool_name: name,
-                    arguments: &args,
-                    class: RequestClass::ReadOnly,
-                    deadline,
-                })
-                .await
-            {
-                Ok(r) => r,
-                Err(IdentityError::Conflict) => return permission("REQUEST_ID_CONFLICT"),
-                Err(_) => return availability("EXECUTION_NOT_CONNECTED"),
-            };
-            match receipt.decision {
-                AdmissionDecision::Denied(AdmissionDeny::Authorization) => {
-                    permission("CHAT_AUTHORIZATION_REQUIRED")
-                }
-                AdmissionDecision::Denied(AdmissionDeny::Scope) => {
-                    permission("CHAT_SCOPE_REQUIRED")
-                }
-                AdmissionDecision::Denied(AdmissionDeny::Recovery) => {
-                    permission("CHAT_RECOVERY_REQUIRED")
-                }
-                AdmissionDecision::Denied(AdmissionDeny::Offline) => {
-                    availability("WORKSPACE_OFFLINE")
-                }
-                AdmissionDecision::Denied(AdmissionDeny::Backpressure) => {
-                    availability("EXECUTION_BACKPRESSURE")
-                }
-                AdmissionDecision::Denied(AdmissionDeny::Deadline) => {
-                    availability("REQUEST_EXPIRED")
-                }
-                AdmissionDecision::ReconcileRequired => availability("EXECUTION_OUTCOME_UNKNOWN"),
-                AdmissionDecision::Admitted => {
-                    let _ = state.admission.cancel(request_id).await;
-                    availability("EXECUTION_NOT_CONNECTED")
-                }
-                AdmissionDecision::Existing => match receipt.state {
-                    RequestState::Running | RequestState::OutcomeUnknown => {
-                        availability("EXECUTION_OUTCOME_UNKNOWN")
-                    }
-                    _ => availability("EXECUTION_NOT_CONNECTED"),
-                },
-            }
-        }
-        _ => permission("INVALID_ARGUMENTS"),
-    }
-}
 
 fn record_business_outcome(observability: &GatewayObservability, data: &Value) {
     let outcome = match data

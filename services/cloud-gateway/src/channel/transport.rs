@@ -207,6 +207,14 @@ async fn run_socket(
     )
     .await?;
     let mut budget = (Instant::now(), 0_u32);
+    let mut registration: Option<crate::execution::Registration> = None;
+    let mut commands: Option<tokio::sync::mpsc::Receiver<crate::execution::Delivery>> = None;
+    let mut in_flight = std::collections::HashMap::<uuid::Uuid, crate::execution::Delivery>::new();
+    let mut approval_registration: Option<crate::approval::Registration> = None;
+    let mut approval_commands: Option<tokio::sync::mpsc::Receiver<crate::approval::Delivery>> =
+        None;
+    let mut approval_in_flight =
+        std::collections::HashMap::<uuid::Uuid, crate::approval::Delivery>::new();
     let mut checks = tokio::time::interval(Duration::from_secs(5));
     checks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let end = tokio::time::sleep(Duration::from_secs(MAX_AGE_SECONDS as u64));
@@ -216,6 +224,44 @@ async fn run_socket(
             _ = &mut end => return Err(IdentityError::InvalidProof),
             _ = checks.tick() => {
                 tokio::time::timeout(Duration::from_secs(3),c.validate(&s)).await.map_err(|_|IdentityError::InvalidProof)??;
+                let now = crate::execution::now()?;
+                in_flight.retain(|_,d| !d.reply.is_closed() && d.request.binding.deadline > now);
+                approval_in_flight.retain(|_,d|d.request.binding.deadline>now);
+            },
+            delivery = async {
+                match commands.as_mut() {
+                    Some(rx) => rx.recv().await,
+                    None => std::future::pending().await,
+                }
+            } => {
+                let delivery = delivery.ok_or(IdentityError::InvalidProof)?;
+                if delivery.reply.is_closed() {continue;}
+                tokio::time::timeout(Duration::from_secs(3), c.validate(&s)).await.map_err(|_|IdentityError::InvalidProof)??;
+                delivery.request.validate_at(&s.execution_binding(c.identity().connector()),crate::execution::now()?)?;
+                if in_flight.len() >= crate::execution::CAPACITY || in_flight.contains_key(&delivery.request.binding.request_id) {
+                    return Err(IdentityError::InvalidProof);
+                }
+                send(socket,&json!({"type":"execution_request","request":delivery.request})).await?;
+                in_flight.insert(delivery.request.binding.request_id, delivery);
+            },
+            delivery=async {
+                match approval_commands.as_mut() {
+                    Some(rx)=>rx.recv().await,
+                    None=>std::future::pending().await,
+                }
+            }=>{
+                let delivery=delivery.ok_or(IdentityError::InvalidProof)?;
+                if delivery.reply.is_closed() {continue;}
+                tokio::time::timeout(Duration::from_secs(3),c.validate(&s)).await
+                    .map_err(|_|IdentityError::InvalidProof)??;
+                delivery.request.validate_at(
+                    &crate::approval::peer(s.execution_binding(c.identity().connector())),
+                    crate::execution::now()?).map_err(|_|IdentityError::InvalidProof)?;
+                if approval_in_flight.len()>=crate::approval::APPROVAL_CAPACITY
+                    || approval_in_flight.contains_key(&delivery.request.binding.request_id)
+                {return Err(IdentityError::InvalidProof);}
+                send(socket,&json!({"type":"approval_request","request":delivery.request})).await?;
+                approval_in_flight.insert(delivery.request.binding.request_id,delivery);
             },
             frame=socket.recv()=> {
                 let frame=frame.ok_or(IdentityError::InvalidRequest)?.map_err(|_|IdentityError::InvalidRequest)?;
@@ -227,8 +273,40 @@ async fn run_socket(
                     Message::Ping(_) | Message::Pong(_)=>{}, // Not an application heartbeat, no renewal.
                     Message::Text(text)=>{
                         let msg:ControlMessage=serde_json::from_str(&text).map_err(|_|IdentityError::InvalidRequest)?;
+                        let ready = matches!(&msg, ControlMessage::ExecutionReady { .. });
+                        let approval_ready=matches!(&msg,ControlMessage::ApprovalReady {..});
+                        let approval_reply=match &msg {
+                            ControlMessage::ApprovalReply {reply,..}=>Some((**reply).clone()),
+                            _=>None,
+                        };
+                        if approval_ready && (registration.is_none() || approval_registration.is_some()) {
+                            return Err(IdentityError::InvalidProof);
+                        }
+                        let execution_reply = match &msg { ControlMessage::ExecutionReply { reply, .. } => Some((**reply).clone()), _=>None };
+                        if ready && registration.is_some() {return Err(IdentityError::InvalidProof);}
                         let reply=tokio::time::timeout(Duration::from_secs(3),c.control(&s,msg)).await
                             .map_err(|_|IdentityError::InvalidProof)??;
+                        if ready {
+                            let (owner,rx)=c.execution.register(s.execution_binding(c.identity().connector()))?;
+                            registration=Some(owner);commands=Some(rx);
+                        }
+                        if approval_ready {
+                            let (owner,rx)=c.approval.register(crate::approval::peer(s.execution_binding(c.identity().connector())))?;
+                            approval_registration=Some(owner);approval_commands=Some(rx);
+                        }
+                        if let Some(reply)=approval_reply {
+                            let delivery=approval_in_flight.remove(&reply.binding.request_id)
+                                .ok_or(IdentityError::InvalidProof)?;
+                            reply.validate_for(&delivery.request.binding,crate::execution::now()?)
+                                .map_err(|_|IdentityError::InvalidProof)?;
+                            let _=delivery.reply.send(reply);
+                        }
+                        if let Some(execution_reply) = execution_reply {
+                            let delivery=in_flight.remove(&execution_reply.binding.request_id).ok_or(IdentityError::InvalidProof)?;
+                            execution_reply.validate_for(&delivery.request.binding,crate::execution::now()?)?;
+                            // A response lost by its HTTP observer still cannot be replayed.
+                            let _=delivery.reply.send(execution_reply);
+                        }
                         send(socket,&reply).await?;
                     },
                     _=>return Err(IdentityError::InvalidRequest),

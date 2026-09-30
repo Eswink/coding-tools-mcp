@@ -86,6 +86,7 @@ async fn ensure_port_available(port: u16, service_label: &str) -> AppResult<()> 
 }
 
 pub(crate) async fn stop_mcp_service(state: &AppState, id: &str) -> AppResult<RuntimeStatusDto> {
+    state.cloud_agents.stop(id).await?;
     let profile = profile_by_id(state, id)?;
     let port = profile.runtime.local_port;
     let handle = state.with_runtime(|runtime| Ok(runtime.begin_stop(id, ServiceKind::Mcp)))?;

@@ -361,9 +361,19 @@ async fn expired_snapshot_is_offline_not_released_owner() {
 #[tokio::test]
 async fn grant_expiry_does_not_silently_confirm_drain() {
     let mut h = Harness::new().await;
-    h.lease.expires_at = clock(&h.f).await + 1;
+    // The old one-second fixture could expire BEFORE initial signed admission,
+    // so it failed in active() rather than testing the post-expiry drain fence.
+    // Admit once with a bounded setup margin; never retry the mutation or alter
+    // the production clock. Observe the actual database deadline before asserting.
+    h.lease.expires_at = clock(&h.f).await + 5;
     h.active().await;
-    tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+    tokio::time::timeout(std::time::Duration::from_secs(7), async {
+        while clock(&h.f).await < h.lease.expires_at {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("fixture database clock did not reach the grant deadline");
     assert_eq!(
         h.projection.assess(&h.a, "files.read").await.unwrap(),
         AuthorizationUnavailable
@@ -536,4 +546,65 @@ async fn invalid_session_contexts_are_rejected_not_merged_into_a_shared_chat() {
             .as_str(),
         h.a.as_str()
     );
+}
+
+#[tokio::test]
+async fn acknowledged_drain_is_idempotent_across_fresh_signed_reconciliation() {
+    let h = Harness::new().await;
+    h.active().await;
+    h.drain_free().await;
+    // The server committed Free, but its acknowledgement was lost. The device
+    // must be able to re-prove the same drain under a fresh challenge/revision.
+    let mut again = h.claims(4, Free, Offline).await;
+    again.drained_grant = Some(h.lease.id);
+    assert_eq!(
+        h.apply(&again).await,
+        Ok(ApplyOutcome::Applied),
+        "DRAIN_ACK_LOST_MUST_RECONCILE_WITHOUT_OWNER_RESURRECTION"
+    );
+    assert_eq!(
+        h.projection.assess(&h.a, "files.read").await.unwrap(),
+        AuthorizationUnavailable
+    );
+    let mut resurrect = h.claims(5, Active, Online).await;
+    assert_eq!(h.apply(&resurrect).await, Err(IdentityError::InvalidProof));
+    resurrect.authority_epoch = 2;
+    resurrect.grant.as_mut().unwrap().id = Uuid::new_v4();
+    resurrect.grant.as_mut().unwrap().conversation = h.b.as_str().into();
+    h.apply(&resurrect).await.unwrap();
+    let mut stale = h.claims(6, Free, Offline).await;
+    stale.drained_grant = Some(h.lease.id);
+    assert_eq!(h.apply(&stale).await, Err(IdentityError::InvalidProof));
+    // Issuing a fresh challenge itself fences cached eligibility. An invalid
+    // reply must not silently restore that cached state.
+    assert_eq!(
+        h.projection.assess(&h.b, "files.read").await.unwrap(),
+        RecoveryRequired
+    );
+    let mut reprove = h.claims(7, Active, Online).await;
+    reprove.authority_epoch = 2;
+    reprove.grant = resurrect.grant;
+    h.apply(&reprove).await.unwrap();
+    assert_eq!(
+        h.projection.assess(&h.b, "files.read").await.unwrap(),
+        Eligible
+    );
+}
+
+#[tokio::test]
+async fn free_drain_reconciliation_is_bound_to_exact_epoch_and_retired_grant() {
+    let h = Harness::new().await;
+    h.active().await;
+    h.drain_free().await;
+    let mut wrong = h.claims(4, Free, Offline).await;
+    wrong.drained_grant = Some(Uuid::new_v4());
+    assert_eq!(h.apply(&wrong).await, Err(IdentityError::InvalidProof));
+    wrong.drained_grant = Some(h.lease.id);
+    wrong.authority_epoch = 2;
+    assert_eq!(h.apply(&wrong).await, Err(IdentityError::InvalidProof));
+    wrong.authority_epoch = 1;
+    wrong.phase = Active;
+    wrong.execution = Online;
+    wrong.grant = Some(h.lease.clone());
+    assert_eq!(h.apply(&wrong).await, Err(IdentityError::InvalidProof));
 }

@@ -65,6 +65,9 @@ pub(crate) fn run(
             .with_env(key, value)
             .map_err(|_| "Invalid host Git configuration")?;
     }
+    let mut native_work = super::native_drain::current_child()?;
+    if native_work.is_some() { spec = spec.with_tree_exit_confirmation(); }
+    super::native_drain::begin(&mut native_work).map_err(|_| "Native Git drain rejected startup")?;
     // The existing public inspection APIs are synchronous and can be called
     // either inside or outside a Tokio runtime. Never nest block_on on a caller's
     // runtime thread. The worker is joined; it cannot detach from its caller.
@@ -76,9 +79,24 @@ pub(crate) fn run(
                 tauri::async_runtime::block_on(manager.run(spec))
             })
             .join()
-    })
-    .map_err(|_| "Git inspection worker failed")?
-    .map_err(|_| "Git isolation or process startup failed")?;
+    });
+    let outcome = match outcome {
+        Ok(Ok(outcome)) => outcome,
+        Ok(Err(error)) => {
+            // These errors precede execution. An unclassified spawn failure or
+            // panic is conservatively quarantined rather than called drained.
+            if matches!(error.kind, coding_tools_local_agent::ExecErrorKind::InvalidSpec
+                | coding_tools_local_agent::ExecErrorKind::Capacity
+                | coding_tools_local_agent::ExecErrorKind::Sandbox) {
+                super::native_drain::complete(native_work);
+            }
+            return Err("Git isolation or process startup failed");
+        }
+        Err(_) => return Err("Git inspection worker failed"),
+    };
+    if outcome.termination != ExecTermination::TerminationUncertain {
+        super::native_drain::complete(native_work);
+    }
     if outcome.termination != ExecTermination::Exited
         || !outcome.output_complete
         || outcome.stdout_truncated

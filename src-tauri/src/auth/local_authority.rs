@@ -118,6 +118,42 @@ pub(crate) struct LocalAuthoritySnapshot {
 }
 
 impl LocalAuthoritySnapshot {
+    /// Compare the authority fences, not the idle deadline refreshed by a
+    /// successful admission. Expiry itself is checked separately on both views.
+    pub(crate) fn same_authority(&self, other: &Self) -> bool {
+        self.phase == other.phase
+            && self.conversation_binding == other.conversation_binding
+            && self.grant_id == other.grant_id
+            && self.scopes == other.scopes
+            && self.grant_issued_at == other.grant_issued_at
+            && self.grant_expires_at == other.grant_expires_at
+            && self.authority_epoch == other.authority_epoch
+            && self.authority_revision == other.authority_revision
+            && self.execution_generation == other.execution_generation
+            && self.execution_state == other.execution_state
+    }
+
+    pub(crate) fn grant_identity(&self) -> &str {
+        &self.grant_id
+    }
+    pub(crate) fn grant_created_at(&self) -> u64 {
+        self.grant_issued_at
+    }
+    pub(crate) fn grant_hard_deadline(&self) -> u64 {
+        self.grant_expires_at
+    }
+    pub(crate) fn source_epoch(&self) -> u64 {
+        self.authority_epoch
+    }
+    pub(crate) fn source_revision(&self) -> u64 {
+        self.authority_revision
+    }
+    pub(crate) fn source_generation(&self) -> u64 {
+        self.execution_generation
+    }
+    pub(crate) fn deadline(&self) -> u64 {
+        self.grant_expires_at.min(self.idle_expires_at)
+    }
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         phase: LocalAuthorityPhase,

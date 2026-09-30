@@ -425,3 +425,32 @@ fn local_admission_ticket_is_bounded_and_cannot_expand_scope() {
         "LOCAL_ADMISSION_EXPIRED"
     );
 }
+
+
+#[test]
+fn local_ticket_expiry_is_rechecked_after_authority_lock_wait() {
+    let svc = Arc::new(ChatAuthorizer::default());
+    let storage = tempfile::tempdir().unwrap();
+    let harness = tempfile::tempdir().unwrap();
+    let profile = "local-admission-post-lock-expiry";
+    svc.attach_storage(profile, storage.path(), harness.path()).unwrap();
+    let req = request(&svc, profile, "owner-A");
+    allow(&req, &["files.read"]);
+    let gate = crate::runtime::WorkspaceExecutionGate::shared();
+    let mut ticket = svc.issue_local_admission_ticket(&req, &["files.read"], &gate).unwrap();
+    ticket.expires = Instant::now() + Duration::from_millis(100);
+    let held = svc.state.lock().unwrap();
+    let (entered_tx, entered_rx) = std::sync::mpsc::sync_channel(1);
+    let worker_svc = svc.clone();
+    let worker_gate = gate.clone();
+    let worker = std::thread::spawn(move || {
+        entered_tx.send(()).unwrap();
+        worker_svc.commit_local_admission(&req, &worker_gate, ticket).err()
+    });
+    entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+    std::thread::sleep(Duration::from_millis(250));
+    drop(held);
+    assert_eq!(worker.join().unwrap(), Some("LOCAL_ADMISSION_EXPIRED"),
+        "POST_LOCK_NATIVE_TICKET_EXPIRY_MUST_REJECT");
+    assert_eq!(gate.snapshot().in_flight,0);
+}

@@ -1,3 +1,6 @@
+// The cloud adapter is crate-private until the owned sidecar supervisor is wired.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) mod cloud_context;
 mod execution_fence;
 #[cfg_attr(not(test), allow(dead_code))]
 mod local_authority;
