@@ -207,3 +207,43 @@ jobs:
           path: evidence/
           if-no-files-found: error
           retention-days: 30
+
+  oauth-process-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Disposable database and sandboxed browser prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-16 openssl
+          python -m pip install playwright==1.58.0
+          test -x /opt/google/chrome/chrome
+      - name: Actual service lifecycle and OAuth browser acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-sha.txt
+          git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
+          python -m unittest discover -s services/cloud-gateway/tests -p 'test_service_diagnostics.py' -v 2>&1 | tee evidence/diagnostics.txt
+          cargo build --locked --manifest-path services/cloud-gateway/Cargo.toml --bin coding-tools-gateway
+          binary="$PWD/services/cloud-gateway/target/debug/coding-tools-gateway"
+          python services/cloud-gateway/tests/run_service_http.py --pg-bin /usr/lib/postgresql/16/bin --binary "$binary" | tee evidence/process-http.json
+          python services/cloud-gateway/tests/run_service_browser_ci.py --pg-bin /usr/lib/postgresql/16/bin --binary "$binary" --chromium /opt/google/chrome/chrome | tee evidence/browser.json
+          git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-integration-oauth-process-browser-${{ github.sha }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30

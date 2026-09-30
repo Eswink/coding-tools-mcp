@@ -50,9 +50,20 @@ test('control tests keep setup-python while child sandbox tests select system to
 });
 
 test('browser evidence never disables Chromium sandbox', () => {
-  for (const path of ['cloud-connection-browser.py', 'ui-refactor-browser.py']) {
+  for (const path of ['cloud-connection-browser.py', 'ui-refactor-browser.py', '../services/cloud-gateway/tests/run_service_acceptance.py']) {
     const source = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
     assert.doesNotMatch(source, /--no-sandbox|chromium_sandbox\s*[:=]\s*False/);
     assert.match(source, /chromium_sandbox['"]?\s*[:=]\s*True/);
   }
+});
+
+test('release matrix runs actual OAuth process browser acceptance separately from synthetic UI', () => {
+  const source = readFileSync(new URL('../../.github/workflows/dot-rc-integration.yml', import.meta.url), 'utf8');
+  const job = source.split('  oauth-process-browser:')[1];
+  assert.ok(job);
+  assert.match(job, /cargo build --locked.*--bin coding-tools-gateway/);
+  assert.match(job, /run_service_http\.py.*--binary "\$binary"/);
+  assert.match(job, /run_service_browser_ci\.py.*--binary "\$binary" --chromium \/opt\/google\/chrome\/chrome/);
+  assert.match(job, /source-sha\.txt/);
+  assert.doesNotMatch(job, /continue-on-error|--no-sandbox|\|\| true/);
 });

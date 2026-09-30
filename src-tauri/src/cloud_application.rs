@@ -105,7 +105,7 @@ impl ApplicationAgents {
                             return TaskExit::Drained;
                         }
                         let opened = (|| {
-                            material.prepare_journals(initialize).map_err(|_| ())?;
+                            let journal_root = material.prepare_journals(initialize).map_err(|_| ())?;
                             let tools = Arc::new(
                                 NativeToolHost::new(
                                     &profile,
@@ -118,7 +118,7 @@ impl ApplicationAgents {
                             let host = Arc::new(
                                 NativeLiveHost::open(
                                     tools,
-                                    &material.root.join("projection"),
+                                    &journal_root.join("projection"),
                                     initialize,
                                     material.authority_epoch,
                                 )
@@ -127,7 +127,7 @@ impl ApplicationAgents {
                             let agent = HostAgent::open(
                                 &material.config,
                                 &material.key,
-                                &material.root.join("executions.bin"),
+                                &journal_root.join("executions.bin"),
                                 initialize,
                                 host.clone(),
                             )

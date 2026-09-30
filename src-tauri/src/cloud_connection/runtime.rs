@@ -70,7 +70,7 @@ impl ConnectionStore {
 impl RuntimeMaterial {
     /// Called only after this application's lifecycle has reserved the workspace.
     /// Partial setup remains occupied on disk forever; retry cannot overwrite it.
-    pub(crate) fn prepare_journals(&self, initialize: bool) -> Result<(), ConfigurationError> {
+    pub(crate) fn prepare_journals(&self, initialize: bool) -> Result<PathBuf, ConfigurationError> {
         directory_chain(&self.root)?;
         if initialize {
             let mut builder = fs::DirBuilder::new();
@@ -106,7 +106,11 @@ impl RuntimeMaterial {
                 regular_file(&self.root.join(name))?;
             }
         }
-        Ok(())
+        // HostJournal requires an already canonical parent. On Windows this
+        // includes the verbatim path prefix; retain the strict journal check.
+        // Resolve only after create-once setup and no-reparse validation.
+        directory_chain(&self.root)?;
+        self.root.canonicalize().map_err(|_| ConfigurationError::Unavailable)
     }
 }
 

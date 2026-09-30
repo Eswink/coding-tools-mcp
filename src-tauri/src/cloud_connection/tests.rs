@@ -544,7 +544,9 @@ fn runtime_material_loads_only_immutable_local_configuration_without_initializin
     assert_eq!(before,fixture.encrypted());
     assert!(material.prepare_journals(false).is_err());
     assert!(!material.root.exists());
-    material.prepare_journals(true).unwrap();
+    let journal_root = material.prepare_journals(true).unwrap();
+    assert_eq!(journal_root, material.root.canonicalize().unwrap());
+    assert_eq!(journal_root.parent().unwrap().canonicalize().unwrap(), journal_root.parent().unwrap());
     assert!(material.prepare_journals(true).is_err());
     assert!(material.prepare_journals(false).is_err());
 }

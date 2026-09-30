@@ -79,7 +79,7 @@ def main():
             from playwright.sync_api import sync_playwright
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch(executable_path=str(a.chromium.resolve(strict=True)),
-                                                     headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
+                                                     headless=True, chromium_sandbox=True)
                 context = browser.new_context(ignore_https_errors=True)
                 context.route("**/*", lambda route: route.continue_()
                               if route.request.url.startswith((origin + "/", foreign + "/")) else route.abort())
@@ -246,6 +246,7 @@ def main():
             passed("bounded_graceful_shutdown")
         print(json.dumps({"suite": "service_process_and_chromium", "passed": len(cases), "cases": cases,
                           "agent_connected": False, "production_touched": False,
+                          "browser_sandbox_enabled": True,
                           "browser_os_sandbox_tested": False, "real_chatgpt_tested": False}))
 
 
