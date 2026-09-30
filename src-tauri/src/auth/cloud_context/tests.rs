@@ -149,6 +149,13 @@ fn expired_cloud_lease_cannot_be_revived_by_a_late_heartbeat() {
     let req = f.request(1);
     std::thread::sleep(Duration::from_millis(20));
     assert!(req.identity().is_err());
+    let denied = f.service.request(&req, &json!({"scopes":["files.read"]}));
+    assert_eq!(denied["error"]["code"], "CHAT_AUTHORIZATION_REQUIRED");
+    assert_eq!(denied["error"]["message"], "CLOUD_CONNECTION_REQUIRED");
+    assert!(f.service.snapshot("native-cloud-profile")["records"]
+        .as_array()
+        .unwrap()
+        .is_empty());
     assert!(f.link.renew(&f.peer, Duration::from_secs(30)).is_err());
 }
 #[test]

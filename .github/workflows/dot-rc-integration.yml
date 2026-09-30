@@ -75,6 +75,7 @@ jobs:
           node --test tests/cloud-gateway/*.test.mjs tests/delivery/*.test.mjs 2>&1 | tee evidence/gateway-delivery-js.txt
           python scripts/release_preflight_tests.py 2>&1 | tee evidence/preflight-contracts.txt
           python scripts/rc_version_gate_tests.py 2>&1 | tee evidence/rc-version-contracts.txt
+          python scripts/rust_tls_lock_tests.py 2>&1 | tee evidence/rust-tls-lock-contracts.txt
           python scripts/发布版本回归v4.py 2>&1 | tee evidence/stable-version-contracts.txt
           python scripts/connector_fault_proxy_tests.py 2>&1 | tee evidence/fault-proxy.txt
       - name: Shared runtimes and production warning gates
@@ -90,13 +91,19 @@ jobs:
           done
           cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
           cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/gateway-clippy.txt
-          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts 2>&1 | tee evidence/gateway-portable.txt
-      - name: Complete native application regression
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts --test enrollment_contracts 2>&1 | tee evidence/gateway-portable.txt
+      - name: Native format and all-target compile gate
+        id: native_checks
         run: |
           set -euo pipefail
           if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
           cargo fmt --all --check --manifest-path src-tauri/Cargo.toml
           cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-check.txt
+      - name: Complete native application regression
+        if: always() && steps.native_checks.outcome == 'success'
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
           if [ "$RUNNER_OS" = Linux ]; then
             export XDG_RUNTIME_DIR="$RUNNER_TEMP/native-runtime" XDG_DATA_HOME="$RUNNER_TEMP/native-data"
             export XDG_CONFIG_HOME="$RUNNER_TEMP/native-config" XDG_STATE_HOME="$RUNNER_TEMP/native-state"
@@ -105,15 +112,35 @@ jobs:
             dbus-run-session -- bash -euo pipefail -c '
               printf "%s" "isolated-rc-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets
               cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-full.txt
-              cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-keyring-tests data::secure_file::native_tests -- --nocapture --test-threads=1 2>&1 | tee evidence/native-keyring-restart.txt
             '
           else
             cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-full.txt
+          fi
+      - name: Independent native credential and restart proofs
+        if: always() && steps.native_checks.outcome == 'success'
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
+          if [ "$RUNNER_OS" = Linux ]; then
+            export XDG_RUNTIME_DIR="$RUNNER_TEMP/native-runtime" XDG_DATA_HOME="$RUNNER_TEMP/native-data"
+            export XDG_CONFIG_HOME="$RUNNER_TEMP/native-config" XDG_STATE_HOME="$RUNNER_TEMP/native-state"
+            mkdir -p "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+            chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+            dbus-run-session -- bash -euo pipefail -c '
+              printf "%s" "isolated-rc-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets
+              cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-keyring-tests data::secure_file::native_tests -- --nocapture --test-threads=1 2>&1 | tee evidence/native-keyring-restart.txt
+            '
+          else
             cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-keyring-tests data::secure_file::native_tests -- --nocapture --test-threads=1 2>&1 | tee evidence/native-keyring-restart.txt
           fi
           grep -F 'native_keychain_cross_process_file_roundtrip ... ok' evidence/native-keyring-restart.txt
           grep -F 'native_task_journal_cross_process_restore_and_missing_key ... ok' evidence/native-keyring-restart.txt
           grep -F 'native_root_cross_process_crash_fences ... ok' evidence/native-keyring-restart.txt
+      - name: Independent production warnings and source integrity
+        if: always() && steps.native_checks.outcome == 'success'
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
           cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/desktop-warnings.txt
           git diff --exit-code HEAD --
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -260,8 +287,10 @@ jobs:
           git rev-parse HEAD > evidence/source-sha.txt
           git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
           python -m unittest discover -s services/cloud-gateway/tests -p 'test_service_diagnostics.py' -v 2>&1 | tee evidence/diagnostics.txt
-          cargo build --locked --manifest-path services/cloud-gateway/Cargo.toml --bin coding-tools-gateway
+          cargo build --locked --manifest-path services/cloud-gateway/Cargo.toml --bins
           binary="$PWD/services/cloud-gateway/target/debug/coding-tools-gateway"
+          python services/cloud-gateway/tests/run_enrollment_process.py --pg-bin /usr/lib/postgresql/16/bin --bin-dir "$PWD/services/cloud-gateway/target/debug" | tee evidence/enrollment-process.json
+          python services/cloud-gateway/tests/run_agent_process.py --pg-bin /usr/lib/postgresql/16/bin --bin-dir "$PWD/services/cloud-gateway/target/debug" | tee evidence/agent-process-wss.json
           python services/cloud-gateway/tests/run_service_http.py --pg-bin /usr/lib/postgresql/16/bin --binary "$binary" | tee evidence/process-http.json
           python services/cloud-gateway/tests/run_service_browser_ci.py --pg-bin /usr/lib/postgresql/16/bin --binary "$binary" --chromium /opt/google/chrome/chrome | tee evidence/browser.json
           git diff --exit-code HEAD --

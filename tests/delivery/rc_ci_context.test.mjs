@@ -61,7 +61,8 @@ test('release matrix runs actual OAuth process browser acceptance separately fro
   const source = readFileSync(new URL('../../.github/workflows/dot-rc-integration.yml', import.meta.url), 'utf8');
   const job = source.split('  oauth-process-browser:')[1];
   assert.ok(job);
-  assert.match(job, /cargo build --locked.*--bin coding-tools-gateway/);
+  assert.match(job, /cargo build --locked.*--bins/);
+  for (const script of ['run_enrollment_process.py', 'run_agent_process.py']) assert.ok(job.includes(script));
   assert.match(job, /run_service_http\.py.*--binary "\$binary"/);
   assert.match(job, /run_service_browser_ci\.py.*--binary "\$binary" --chromium \/opt\/google\/chrome\/chrome/);
   assert.match(job, /source-sha\.txt/);
@@ -75,4 +76,19 @@ test('native integration and restart proofs use real OS credential services', ()
   assert.equal((source.match(/--features native-keyring-tests data::secure_file::native_tests/g) || []).length, 2);
   assert.match(source, /cargo fmt --all --check --manifest-path src-tauri\/Cargo.toml/);
   assert.doesNotMatch(source, /--skip|--ignored|continue-on-error: true/);
+});
+
+
+test('native credential evidence runs independently without masking failed full tests', () => {
+  const source = readFileSync(new URL('../../.github/workflows/dot-rc-integration.yml', import.meta.url), 'utf8');
+  const names = ['Complete native application regression', 'Independent native credential and restart proofs', 'Independent production warnings and source integrity'];
+  for (const name of names) {
+    const step = source.split(`      - name: ${name}`)[1]?.split('      - ')[0];
+    assert.ok(step, name);
+    assert.match(step, /if: always\(\) && steps.native_checks.outcome == 'success'/);
+    assert.match(step, /set -euo pipefail/);
+    assert.doesNotMatch(step, /continue-on-error|\|\| true|--skip|--ignored/);
+  }
+  assert.match(source, /id: native_checks/);
+  assert.match(source, /native_root_cross_process_crash_fences \.\.\. ok/);
 });

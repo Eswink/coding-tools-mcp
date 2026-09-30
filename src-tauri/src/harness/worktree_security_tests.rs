@@ -269,9 +269,10 @@ fn explicitly_locked_git_worktree_is_not_removed() {
     let fixture = TestRepo::new();
     let item = fixture.manager.create_detached().unwrap();
     let path = fixture.manager.managed_root.join(&item.id);
+    let argument = git_path_arg(&path);
     git(
         fixture.repo.path(),
-        &["worktree", "lock", path.to_str().unwrap()],
+        &["worktree", "lock", argument.to_str().unwrap()],
     );
     assert_eq!(
         fixture.manager.remove_clean(&item.id).unwrap_err().code(),

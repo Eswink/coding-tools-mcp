@@ -67,12 +67,26 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev binutils
-          cargo build --release --locked --manifest-path services/cloud-gateway/Cargo.toml --bins
+          cargo build --release --locked --manifest-path services/cloud-gateway/Cargo.toml --bins --example agent_fixture
           cargo install cargo-audit --version 0.22.2 --locked
           cargo audit --json --file services/cloud-gateway/Cargo.lock > evidence/rust-audit-cloud-gateway.json
           python scripts/cloud_release_bundle.py build --version "$VERSION" --directory services/cloud-gateway/target/release --output "$RUNNER_TEMP/cloud-release"
           cp evidence/*.json "$RUNNER_TEMP/cloud-release/"
+          mkdir -p "$RUNNER_TEMP/cloud-test-fixture"
+          cp services/cloud-gateway/target/release/examples/agent_fixture "$RUNNER_TEMP/cloud-test-fixture/agent_fixture"
+          python - <<'PY_FIXTURE'
+          import hashlib,json,os,pathlib,subprocess
+          p=pathlib.Path(os.environ['RUNNER_TEMP'],'cloud-test-fixture','agent_fixture')
+          report={'source_sha':os.environ['GITHUB_SHA'],'source_tree':subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip(),'run_id':os.environ['GITHUB_RUN_ID'],'product_version':os.environ['VERSION'],'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'size':p.stat().st_size,'scope':'CI disposable enrollment fixture only, never customer bundle or production image'}
+          p.with_name('fixture-receipt.json').write_text(json.dumps(report,indent=2)+'\n')
+          PY_FIXTURE
           git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rc-cloud-test-fixture
+          path: ${{ runner.temp }}/cloud-test-fixture/
+          if-no-files-found: error
+          retention-days: 7
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: rc-cloud-built
@@ -105,12 +119,25 @@ jobs:
         with:
           name: rc-cloud-built
           path: ${{ runner.temp }}/cloud-release
+      - uses: actions/download-artifact@v4
+        with:
+          name: rc-cloud-test-fixture
+          path: ${{ runner.temp }}/cloud-test-fixture
       - name: Verify exact downloaded archive before extraction
         run: |
           set -euo pipefail
           python scripts/cloud_release_bundle.py unpack --version "$VERSION" --directory "$RUNNER_TEMP/cloud-release" --output "$RUNNER_TEMP/cloud-unpacked"
           sudo apt-get update
           sudo apt-get install -y postgresql-16 openssl binutils
+          python - <<'PY_FIXTURE'
+          import hashlib,json,os,pathlib,shutil,subprocess
+          p=pathlib.Path(os.environ['RUNNER_TEMP'],'cloud-test-fixture','agent_fixture')
+          report=json.loads(p.with_name('fixture-receipt.json').read_text())
+          expected={'source_sha':os.environ['GITHUB_SHA'],'source_tree':subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip(),'run_id':os.environ['GITHUB_RUN_ID'],'product_version':os.environ['VERSION'],'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'size':p.stat().st_size}
+          assert p.is_file() and not p.is_symlink() and all(report.get(k)==v for k,v in expected.items())
+          target=pathlib.Path(os.environ['RUNNER_TEMP'],'cloud-unpacked','bin','examples','agent_fixture')
+          target.parent.mkdir(exist_ok=False);shutil.copyfile(p,target);target.chmod(0o755)
+          PY_FIXTURE
       - name: Actual release process HTTP and authenticated WSS smoke
         run: |
           set -euo pipefail
@@ -133,6 +160,63 @@ jobs:
         if: always()
         with:
           name: rc-cloud-process-evidence
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+  image:
+    name: Non-root image build and protected-file fixture (no deployment)
+    needs: [build, process]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: rc-cloud-linux-amd64
+          path: ${{ runner.temp }}/cloud-release
+      - name: Verify accepted release bytes and image fixture contracts
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python scripts/cloud_image_gate_tests.py
+          python scripts/cloud_release_bundle.py unpack --version "$VERSION" --directory "$RUNNER_TEMP/cloud-release" --output "$RUNNER_TEMP/image-context"
+          cp deploy/cloud-gateway/Dockerfile.runtime "$RUNNER_TEMP/image-context/Dockerfile"
+      - name: Resolve immutable official base and build local non-root image
+        run: |
+          set -euo pipefail
+          docker pull ubuntu:22.04
+          base=$(docker image inspect ubuntu:22.04 --format '{{index .RepoDigests 0}}')
+          printf '%s\n' "$base" | grep -Eq '^ubuntu@sha256:[0-9a-f]{64}$'
+          printf '%s\n' "$base" > evidence/runtime-base.txt
+          docker build --build-arg "BASE_IMAGE=$base" --build-arg "SOURCE_SHA=$GITHUB_SHA" --build-arg "PRODUCT_VERSION=$VERSION" --iidfile evidence/image-id.txt "$RUNNER_TEMP/image-context"
+          image=$(cat evidence/image-id.txt)
+          python scripts/cloud_image_gate.py --image "$image" --version "$VERSION" --context "$RUNNER_TEMP/image-context" --output evidence/image-fixture.json
+          docker image inspect "$image" > evidence/image-inspect.json
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges:true --user 65532:65532 --entrypoint /usr/bin/dpkg-query "$image" -W > evidence/runtime-packages.txt
+          docker save "$image" -o "$RUNNER_TEMP/cloud-image.tar"
+          (cd "$RUNNER_TEMP" && sha256sum cloud-image.tar) > evidence/image-archive.sha256
+          git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rc-cloud-image-build
+          path: |
+            ${{ runner.temp }}/cloud-image.tar
+            evidence/
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-cloud-image-evidence
           path: evidence/
           if-no-files-found: error
           retention-days: 30

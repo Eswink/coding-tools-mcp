@@ -20,27 +20,29 @@ struct Server {
 }
 impl Server {
     fn new() -> Self {
+        Self::from_bound(std::net::TcpListener::bind("127.0.0.1:0").unwrap())
+    }
+    fn from_bound(socket: std::net::TcpListener) -> Self {
         let root = tempfile::tempdir().unwrap();
         let profile = uuid::Uuid::new_v4().to_string();
-        let socket = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let port = socket.local_addr().unwrap().port();
-        drop(socket);
-        let (stop, _task, execution_gate) =
-            crate::mcp::spawn_listener_with_origin_and_execution_gate(
-                port,
-                root.path().into(),
-                profile.clone(),
-                AuthConfig {
-                    oauth_client_id: "test-client".into(),
-                    ..Default::default()
-                },
-                PublicOrigin::managed(fixture::ORIGIN).unwrap(),
-                Some(SECRET.into()),
-                Some(PASSWORD.into()),
-                Some(fixture::KEY.into()),
-                RuntimeConfig::default(),
-            )
-            .unwrap();
+        // Move the bound socket into the server; releasing and rebinding its
+        // ephemeral port lets concurrent tests or outbound connections claim it.
+        let (stop, _task, execution_gate) = crate::mcp::spawn_listener_from_bound(
+            socket,
+            root.path().into(),
+            profile.clone(),
+            AuthConfig {
+                oauth_client_id: "test-client".into(),
+                ..Default::default()
+            },
+            PublicOrigin::managed(fixture::ORIGIN).unwrap(),
+            Some(SECRET.into()),
+            Some(PASSWORD.into()),
+            Some(fixture::KEY.into()),
+            RuntimeConfig::default(),
+        )
+        .unwrap();
         let client = reqwest::Client::builder()
             .no_proxy()
             .redirect(reqwest::redirect::Policy::none())
@@ -444,4 +446,30 @@ async fn http_revoked_owner_drains_actual_background_process_before_successor() 
             .await["authorization"]["status"],
         "pending"
     );
+}
+
+#[tokio::test]
+async fn refresh_http_fixture_retains_bound_socket_ownership() {
+    let socket = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = socket.local_addr().unwrap();
+    // Keep the same socket alive across construction: reopening its port must
+    // fail, whereas transferring ownership of the original socket must work.
+    let retained = socket.try_clone().unwrap();
+    let server = Server::from_bound(socket);
+    assert_eq!(server.base, format!("http://{address}"));
+    assert!(std::net::TcpListener::bind(address).is_err());
+    drop(retained);
+    assert!(std::net::TcpListener::bind(address).is_err());
+    let response = server
+        .client
+        .get(format!(
+            "{}/.well-known/oauth-authorization-server",
+            server.base
+        ))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let metadata: Value = response.json().await.unwrap();
+    assert_eq!(metadata["issuer"], fixture::ORIGIN);
 }

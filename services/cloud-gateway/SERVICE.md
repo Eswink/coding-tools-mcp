@@ -1,3 +1,5 @@
+> Scope: this guide describes the identity-only `coding-tools-gateway` service. For the full candidate, device bootstrap, Agent channel and MCP routing, start at [README.md](README.md) and [ENROLLMENT.md](ENROLLMENT.md). Statements about absent execution routes here describe this binary, not the entire current repository.
+
 # Standalone identity service — Issue #42
 
 This executable serves OAuth metadata, browser owner login/consent, token exchange,

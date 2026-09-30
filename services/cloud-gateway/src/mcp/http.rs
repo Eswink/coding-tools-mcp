@@ -435,7 +435,13 @@ async fn mcp_post(State(state): State<McpState>, headers: HeaderMap, body: Bytes
         }
         Ok(None) => {
             state.observability.record_mcp(McpObservation::Success);
-            safe_json(StatusCode::ACCEPTED, json!({}))
+            // Legacy Streamable HTTP accepts notifications with 202 and no
+            // body. Keep the security headers, but do not emit a JSON response.
+            let mut response = safe_json(StatusCode::ACCEPTED, json!({}));
+            *response.body_mut() = axum::body::Body::empty();
+            response.headers_mut().remove(header::CONTENT_TYPE);
+            response.headers_mut().remove(header::CONTENT_LENGTH);
+            response
         }
         Err(e) => {
             state

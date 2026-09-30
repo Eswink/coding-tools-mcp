@@ -48,3 +48,7 @@ pub use control_cli::run_control;
 mod mcp_cli;
 mod mcp_runtime;
 pub use mcp_cli::run_mcp;
+
+mod enrollment;
+pub(crate) mod enrollment_device;
+mod enrollment_io;

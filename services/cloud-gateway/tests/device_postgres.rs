@@ -92,3 +92,42 @@ async fn expired_invite_and_revoked_device_are_rejected() {
         .await
         .is_err());
 }
+
+#[tokio::test]
+async fn enrollment_lock_wait_does_not_extend_invitation_expiry() {
+    let f = Fixture::new().await;
+    let invite = f.store.create_device_invitation().await.unwrap();
+    let k = key();
+    let public = k.public_key().as_ref().to_vec();
+    let signature = k
+        .sign(&enrollment_message(&identity(), invite.token.expose(), &public).unwrap())
+        .as_ref()
+        .to_vec();
+    sqlx::query("UPDATE ctm_enrollments SET expires_at=floor(extract(epoch FROM clock_timestamp()))::bigint+1 WHERE id=$1")
+        .bind(invite.id).execute(&f.pool).await.unwrap();
+    let mut lock = f.pool.begin().await.unwrap();
+    sqlx::query("SELECT id FROM ctm_enrollments WHERE id=$1 FOR UPDATE")
+        .bind(invite.id)
+        .fetch_one(&mut *lock)
+        .await
+        .unwrap();
+    let store = f.store.clone();
+    let token = invite.token.expose().to_owned();
+    let pending = tokio::spawn(async move {
+        store
+            .redeem_device_invitation(&token, &public, &signature)
+            .await
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+    assert!(
+        !pending.is_finished(),
+        "redemption did not wait on the held row lock"
+    );
+    lock.commit().await.unwrap();
+    assert!(pending.await.unwrap().is_err());
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM ctm_devices")
+        .fetch_one(&f.pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
+}

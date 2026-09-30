@@ -198,13 +198,8 @@ def main():
             return obj
 
         def enroll():
-            r = subprocess.run([str(rootbin / "examples" / "agent_fixture")],
-                               input=json.dumps({"config": f.config_data, "secrets": f.packet}).encode(),
-                               capture_output=True, timeout=12, env=f.env)
-            require(r.returncode == 0, "actual_device_enrollment")
-            obj = json.loads(r.stdout)
-            secrets.append(obj["pkcs8"])
-            return obj
+            from run_enrollment_process import bootstrap
+            return bootstrap(f, rootbin, secrets)
 
         try:
             origin = f"https://localhost:{relay.port}"

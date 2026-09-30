@@ -2,6 +2,7 @@
 import functools, http.server, json, os, threading
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
+from browser_viewport_evidence import capture_control_viewports, native_window_contract, visible_control_capture
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = Path(os.environ.get('UI_EVIDENCE_DIR', ROOT / 'hooks-ui-evidence'))
@@ -54,10 +55,13 @@ try:
         expect(approve).to_be_disabled()
         expect(panel.get_by_label('Hook 1 完整脚本', exact=True)).to_contain_text('<script>not executed</script>')
         assert panel.locator('script').count() == 0
-        for width in [1280, 390]:
-            page.set_viewport_size({'width':width,'height':1000})
-            assert panel.evaluate('(e)=>e.scrollWidth<=e.clientWidth+1')
-            panel.screenshot(path=str(OUT/f'preview-{width}.png'))
+        before_capture_calls = page.evaluate('window.__HOOK_CALLS__.length')
+        capture_control_viewports(page, panel, ROOT, OUT, 'preview',
+            [1280, native_window_contract(ROOT)['min_width'], 390], 1000, [
+                ('manifest', panel.get_by_label('Hooks JSON 清单', exact=True)),
+                ('review', panel.get_by_role('checkbox')),
+                ('approval', approve)], report)
+        assert page.evaluate('window.__HOOK_CALLS__.length') == before_capture_calls
         panel.get_by_role('checkbox').check()
         approve.click()
         expect(panel.get_by_text('已取消本机确认。若要继续，请重新生成预览。', exact=True)).to_be_visible()
@@ -78,7 +82,7 @@ try:
         assert 'SYNTHETIC_PRIVATE_ERROR' not in panel.inner_text()
         panel.get_by_role('button', name='刷新 Hooks 状态', exact=True).click()
         expect(panel.get_by_role('button', name='生成本机预览', exact=True)).to_be_disabled()
-        panel.screenshot(path=str(OUT/'uncertain.png'))
+        report['uncertain_viewport'] = visible_control_capture(page, panel.get_by_role('button', name='生成本机预览', exact=True), OUT/'uncertain.png')
         report['scenarios'].append('uncertain mutation stays locked through read-only refresh')
         page.evaluate('window.__HOOKS__.recovery_required=true')
         panel.get_by_role('button', name='停用全部 Hooks', exact=True).click()

@@ -90,3 +90,6 @@ async fn host_capacity_rejection_does_not_disconnect_four_inflight_winners() {
     }
     assert_eq!(h.host.inner.calls.load(Ordering::SeqCst), 4);
 }
+
+#[path = "host_agent_protocol_matrix/mod.rs"]
+mod protocol_matrix;

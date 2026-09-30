@@ -1,11 +1,26 @@
 //! Native Windows fixtures: junction creation failure is a test failure, never a skip.
 use super::*;
 
+fn junction_path(path: &Path) -> std::ffi::OsString {
+    use std::os::windows::ffi::{OsStrExt, OsStringExt};
+    let units = git_path_arg(path)
+        .encode_wide()
+        .map(|unit| {
+            if unit == b'/' as u16 {
+                b'\\' as u16
+            } else {
+                unit
+            }
+        })
+        .collect::<Vec<_>>();
+    std::ffi::OsString::from_wide(&units)
+}
+
 fn junction(link: &Path, target: &Path) {
     let result = Command::new("cmd")
-        .args(["/C", "mklink", "/J"])
-        .arg(link)
-        .arg(target)
+        .args(["/D", "/V:OFF", "/C", "mklink", "/J"])
+        .arg(junction_path(link))
+        .arg(junction_path(target))
         .output()
         .expect("native Windows junction command");
     assert!(
@@ -104,4 +119,16 @@ fn windows_private_pin_hardlink_cannot_become_registration_authority() {
         .join(&item.id)
         .join("README.md")
         .exists());
+}
+
+#[test]
+fn windows_junction_arguments_preserve_spaces_and_use_native_separators() {
+    assert_eq!(
+        junction_path(Path::new(r"\\?\C:\fixture with spaces\.git/objects")),
+        std::ffi::OsString::from(r"C:\fixture with spaces\.git\objects")
+    );
+    assert_eq!(
+        junction_path(Path::new(r"\\?\UNC\server\share\工具/objects")),
+        std::ffi::OsString::from(r"\\server\share\工具\objects")
+    );
 }

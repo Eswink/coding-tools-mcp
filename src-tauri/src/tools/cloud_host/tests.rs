@@ -303,11 +303,17 @@ fn native_pause_and_foreign_conversations_do_not_create_extra_pending_work() {
     f.host.context.execution_gate.resume().unwrap();
     f.approve(&["files.read"]);
     let other = URL_SAFE_NO_PAD.encode([8; 32]);
-    for _ in 0..100 {
+    for attempt in 0..100 {
+        // This exercises exclusivity under a live peer, not lease expiry.
+        // Windows durable authorization reads can outlast a single 30s lease;
+        // model the real peer's heartbeat without changing its identity.
+        f.host.link.renew(&f.peer, Duration::from_secs(30)).unwrap();
+        let result = f
+            .host
+            .request_authorization(&other, &json!({"scopes":["exec.run"]}));
         assert_eq!(
-            f.host
-                .request_authorization(&other, &json!({"scopes":["exec.run"]}))["error"]["code"],
-            "EXCLUSIVE_CHAT_LOCKED"
+            result["error"]["code"], "EXCLUSIVE_CHAT_LOCKED",
+            "foreign request {attempt}: {result}"
         );
     }
     assert_eq!(

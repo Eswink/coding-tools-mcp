@@ -6,13 +6,13 @@ use serde_json::json;
 use std::{io::IsTerminal, path::PathBuf};
 
 const HELP: &str = "coding-tools-gateway (identity-only; not an MCP execution gateway)\n\
-Commands: check-config | migrate | provision-owner | register-client | rotate-owner | serve\n\
+Commands: check-config | migrate | provision-owner | register-client | rotate-owner | serve | invite-device | redeem-device | revoke-device\n\
 Required: --config ABSOLUTE_JSON_PATH\n\
-Except check-config: exactly one of --secrets-stdin | --secrets-file ABSOLUTE_PATH\n\
+Identity commands except check-config: exactly one of --secrets-stdin | --secrets-file ABSOLUTE_PATH\n\
 rotate-owner also requires: --expected-epoch POSITIVE_INTEGER\n\
 Credentials are never accepted as argument values. Secret files are Unix owner-only;\n\
 Windows requires non-terminal stdin until the native ACL adapter is available.\n\
-No public signup, HTTP admin, default owner/password, automatic migration, or Agent execution.\n";
+No public signup, HTTP admin, default owner/password, automatic migration, or Agent execution.\nEnrollment commands require explicit protected documents; see ENROLLMENT.md for file/stream contracts.\n";
 struct Args {
     command: String,
     config: PathBuf,
@@ -87,6 +87,12 @@ fn check_secret_use(command: &str, cfg: &GatewayConfig, secrets: &Secrets) -> Re
     Ok(())
 }
 pub async fn run(args: Vec<String>) -> Result<()> {
+    if args
+        .first()
+        .is_some_and(|s| ["invite-device", "redeem-device", "revoke-device"].contains(&s.as_str()))
+    {
+        return super::enrollment::run(args).await;
+    }
     if args == ["--help"] {
         print!("{HELP}");
         return Ok(());

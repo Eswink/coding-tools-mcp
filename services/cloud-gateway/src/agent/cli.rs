@@ -8,7 +8,7 @@ use std::{
 };
 use tokio::sync::watch;
 use zeroize::Zeroizing;
-const HELP:&str="coding-tools-agent (recovery-only control client; no local executor)\nCommands: check-config | init-state | run\n--config ABSOLUTE_JSON_PATH\ninit-state/run also require exactly one: --key-stdin | --key-file ABSOLUTE_PATH\nPrivate keys are never command-line values. Windows key-file is refused until ACL verification.\nWSS and certificate/name verification are mandatory. No grant/scopes or generic signing arguments.\n";
+const HELP:&str="coding-tools-agent (recovery-only control client; no local executor)\nCommands: check-config | init-state | run | generate-key | prove-enrollment\nRecovery commands use --config ABSOLUTE_JSON_PATH\ninit-state/run also require exactly one: --key-stdin | --key-file ABSOLUTE_PATH\nPrivate keys are never command-line values. Windows key-file is refused until ACL verification.\nWSS and certificate/name verification are mandatory. No grant/scopes or generic signing arguments.\nEnrollment: generate-key needs an explicit --output-file or nonterminal --output-stdout.\nprove-enrollment uses independently pinned --config and protected inputs; see ENROLLMENT.md.\n";
 struct Args {
     command: String,
     config: PathBuf,
@@ -50,6 +50,12 @@ fn parse(args: Vec<String>) -> Result<Args> {
     })
 }
 pub async fn run(args: Vec<String>) -> Result<()> {
+    if args
+        .first()
+        .is_some_and(|s| ["generate-key", "prove-enrollment"].contains(&s.as_str()))
+    {
+        return crate::service::enrollment_device::run(args).map_err(|_| AgentError::Credentials);
+    }
     if args == ["--help"] {
         print!("{HELP}");
         return Ok(());

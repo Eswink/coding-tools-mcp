@@ -60,14 +60,28 @@ async fn job_remains_queryable_until_real_members_exit() {
 
 #[tokio::test]
 async fn parent_exit_does_not_prove_owned_descendant_or_pipe_completion() {
+    let scripts = tempfile::Builder::new()
+        .prefix("owned job drain fixture ")
+        .tempdir()
+        .unwrap();
+    let parent_script = scripts.path().join("parent.cmd");
+    std::fs::write(
+        scripts.path().join("descendant.cmd"),
+        b"@echo off\r\necho descendant-ready\r\nset /p response=\r\n",
+    )
+    .unwrap();
+    std::fs::write(
+        &parent_script,
+        b"@echo off\r\nstart \"\" /B cmd.exe /D /Q /C call \"%~dp0descendant.cmd\"\r\nexit /B 0\r\n",
+    )
+    .unwrap();
+    // Let cmd parse literal batch syntax rather than passing nested quotes
+    // through Rust's C-runtime argument escaping. Both scripts remain alive
+    // until the owned descendant and its inherited pipe have been drained.
     let mut command = Command::new("cmd.exe");
     command
-        .args([
-            "/D",
-            "/Q",
-            "/C",
-            "start /B cmd.exe /D /Q /C \"echo descendant-ready & set /p response=\" & exit /B 0",
-        ])
+        .args(["/D", "/Q", "/C"])
+        .arg(&parent_script)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

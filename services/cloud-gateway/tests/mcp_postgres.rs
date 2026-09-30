@@ -543,3 +543,6 @@ async fn history_read_validation_is_admitted_read_only_but_repair_requires_write
             .unwrap();
     assert_eq!(rows, vec![("history.read".into(), "read_only".into())]);
 }
+
+#[path = "mcp_protocol_matrix/mod.rs"]
+mod protocol_matrix;
