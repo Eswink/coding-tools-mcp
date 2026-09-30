@@ -27,6 +27,8 @@ public static partial class BrokerDirectLauncher {
     [DllImport("advapi32.dll",SetLastError=true)] static extern bool GetTokenInformation(
         IntPtr token,int kind,IntPtr buffer,uint length,out uint returned);
     [DllImport("advapi32.dll")] static extern bool IsValidSid(IntPtr sid);
+    [DllImport("ntdll.dll",ExactSpelling=true)] static extern int NtQueryInformationToken(
+        IntPtr token,int kind,IntPtr buffer,uint length,ref uint returned);
 
     public sealed class DirectReceipt {
         public string Kind,Stage="setup",Failure,Executable,CommandLine,ExecutableSha256,ProfileSid;
@@ -135,6 +137,30 @@ public static partial class BrokerDirectLauncher {
         catch(Exception failure) {r.Identities[label+"_observation_failure"]=failure.GetType().Name;}
         r.Numbers[label+"_observation_success"]=success?1:0;return success;
     }
+    static void ObserveNativeDword(IntPtr token,int kind,string label,DirectReceipt r) {
+        if(kind!=29 && kind!=46) throw new ArgumentException("fixed native observation class required");
+        IntPtr data=IntPtr.Zero;r.Numbers[label+"_call_completed"]=0;
+        try {
+            data=Marshal.AllocHGlobal(4);
+            if((data.ToInt64()&3)!=0) throw new InvalidOperationException("native observation buffer alignment");
+            Marshal.WriteInt32(data,unchecked((int)0xA5A5A5A5));
+            uint returned=0xDEADBEEF;
+            r.Numbers[label+"_class"]=kind;r.Numbers[label+"_buffer_bytes"]=4;
+            r.Numbers[label+"_initial_value"]=unchecked((int)0xA5A5A5A5);
+            r.Numbers[label+"_initial_returned_bytes"]=returned;
+            int status=NtQueryInformationToken(token,kind,data,4,ref returned);
+            int raw=Marshal.ReadInt32(data);
+            r.Numbers[label+"_call_completed"]=1;r.Numbers[label+"_ntstatus_signed"]=status;
+            r.Numbers[label+"_ntstatus_unsigned"]=unchecked((uint)status);
+            r.Identities[label+"_ntstatus_hex"]=unchecked((uint)status).ToString("X8");
+            r.Numbers[label+"_returned_bytes"]=returned;r.Numbers[label+"_raw_value"]=raw;
+            r.Numbers[label+"_buffer_unchanged"]=raw==unchecked((int)0xA5A5A5A5)?1:0;
+            r.Numbers[label+"_return_length_unchanged"]=returned==0xDEADBEEF?1:0;
+            r.Numbers[label+"_complete_dword_observed"]=status==0 && returned==4?1:0;
+        } catch(Exception failure) {r.Identities[label+"_call_exception"]=failure.GetType().Name;}
+        finally {if(data!=IntPtr.Zero) Marshal.FreeHGlobal(data);}
+        // Deliberately void: native results cannot contribute to the acceptance predicate.
+    }
     static bool VerifyToken(IntPtr process,string package,DirectReceipt r) {
         IntPtr token=IntPtr.Zero;bool valid=false,closed=true;
         try {
@@ -151,6 +177,9 @@ public static partial class BrokerDirectLauncher {
             all=RequiredTokenObservation(delegate {actualPackage=TokenSid(token,31,"appcontainer_sid",r);return true;},"appcontainer_sid",r) && all;
             all=RequiredTokenObservation(delegate {integrity=TokenSid(token,25,"integrity_sid",r);return true;},"integrity_sid",r) && all;
             valid=all && app==1 && lpac==1 && capabilities==0 && actualPackage==package && integrity=="S-1-16-4096";
+            r.Numbers["native_queries_observation_only"]=1;
+            ObserveNativeDword(token,29,"native_appcontainer",r);
+            ObserveNativeDword(token,46,"native_lpac",r);
         } finally {closed=CloseOwned(ref token,"token",r);}
         return valid && closed;
     }

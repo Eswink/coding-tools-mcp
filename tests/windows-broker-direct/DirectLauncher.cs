@@ -90,6 +90,9 @@ public static partial class BrokerDirectLauncher {
             if(!created) throw new System.ComponentModel.Win32Exception(r.CreateError,"direct CreateProcessW failed");
             r.Stage="verify_suspended_token";r.TokenVerified=VerifyToken(pi.process,r.ProfileSid,r);
             if(!r.TokenVerified) throw new InvalidOperationException("exact suspended target token unverified");
+            // Even an unexpected successful Win32 verifier cannot resume this observation-only run.
+            if(r.Numbers.ContainsKey("native_queries_observation_only"))
+                throw new InvalidOperationException("native token observations collected; reference must remain unresumed");
             r.Stage="assign_job";Check(AssignProcessToJobObject(job,pi.process),"assign before resume");r.Assigned=true;
             r.Stage="resume";
             uint previous=ResumeThread(pi.thread);r.Numbers["resume_previous_count"]=previous;

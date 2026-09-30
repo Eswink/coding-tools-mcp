@@ -91,3 +91,24 @@ The DWORD hypothesis comes from the [native/driver enum](https://learn.microsoft
 which is a different documented surface. This is a bounded read-only call-shape
 observation, not a claim of portable Win32 support. A failed fixed-size query stays
 unverified/no-resume; it is not retried through reserved attributes or native APIs.
+
+## Native query comparison, observation only
+
+The next bounded comparison uses the same already-open TOKEN_QUERY handle to the
+suspended reference: one class 29 control and one class 46 NtQueryInformationToken
+call, each with aligned initialized four-byte storage. Raw NTSTATUS, returned
+length, buffer value and unchanged sentinel flags are recorded independently.
+The native return-length storage is also initialized so an unwritten value is
+visible. No native result contributes to the unchanged Win32 acceptance expression.
+
+An explicit observation-only guard before job assignment prevents resume even if
+the Win32 predicate unexpectedly passes. The existing termination, drain, handle
+closure and retained recovery path then applies; no direct runtime is launched.
+This is not a native fallback or permission to replace the verification policy.
+No alternate-class search, token duplication/impersonation, additional rights or
+security changes are involved.
+
+[NtQueryInformationToken documentation](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/nf-ntifs-ntqueryinformationtoken)
+provides the read-only TOKEN_QUERY contract and native status distinctions. It does
+not prove class 46 support on the measured runner. The results are confined to this
+exact API shape, token and runner image.

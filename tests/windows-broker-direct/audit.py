@@ -10,7 +10,7 @@ FROZEN = {'tests/windows-lpac-runtime/.gitattributes': 'fbb21c6a8f92cc82badddc64
 
 
 # Reviewed new-method bytes: intentional changes require updating these pins in the same reviewed patch.
-APPROVED_BOUNDARY = {'DirectNative.cs': '36123701edbeb11c8227ff903b7c399201acccc4bcaa0e7fe489f14fe028af3f', 'DirectHandles.cs': '7af347a11ac91ce9a4c65adc3fdbc169dd23b0405cd68232e09b8c432ae0f5b8', 'DirectCases.cs': '2dd6d671e8e75c4b64620c08c974eeeb5a4a4c2690b143b716fa8efb31f66932', 'DirectLauncher.cs': '84e76a575a803642b1b419868830960362f0c694151d772e80c3e4da5585a570', 'DirectCapture.cs': 'ee66abb5bc9c79e696eec72d35e97fffdc039d393289fde20db31be0c41c56bd', 'run-direct.ps1': '099443bd437ac9d9b4633ec741089c4df50c734ca3a5ff0eb902f540ba9c0a09'}
+APPROVED_BOUNDARY = {'DirectNative.cs': '36123701edbeb11c8227ff903b7c399201acccc4bcaa0e7fe489f14fe028af3f', 'DirectHandles.cs': '927d73169be1bea2f578ad79fa9d508b35d46c000295b41269a93577087c57ca', 'DirectCases.cs': '2dd6d671e8e75c4b64620c08c974eeeb5a4a4c2690b143b716fa8efb31f66932', 'DirectLauncher.cs': '309adbf2b5c00712a914631c1b2849c5ecdac8fd42feb7f43ee7d5869f033a48', 'DirectCapture.cs': 'ee66abb5bc9c79e696eec72d35e97fffdc039d393289fde20db31be0c41c56bd', 'run-direct.ps1': '099443bd437ac9d9b4633ec741089c4df50c734ca3a5ff0eb902f540ba9c0a09'}
 
 def inspect(sources):
     for name, digest in APPROVED_BOUNDARY.items():
@@ -53,6 +53,24 @@ def inspect(sources):
     assert handles.count('},"appcontainer_sid",r) && all;') == 1
     assert handles.count('},"integrity_sid",r) && all;') == 1
     assert 'all=all && RequiredTokenObservation' not in handles
+    assert '[DllImport("ntdll.dll",ExactSpelling=true)] static extern int NtQueryInformationToken(' in handles
+    assert 'static void ObserveNativeDword(' in handles
+    assert 'if(kind!=29 && kind!=46) throw' in handles
+    assert 'if((data.ToInt64()&3)!=0) throw' in handles
+    assert 'uint returned=0xDEADBEEF;' in handles
+    assert 'int status=NtQueryInformationToken(token,kind,data,4,ref returned);' in handles
+    assert re.findall(r'ObserveNativeDword\(token,(.*)\);', handles) == [
+        '29,"native_appcontainer",r', '46,"native_lpac",r']
+    assert 'r.Numbers["native_queries_observation_only"]=1;' in handles
+    assert 'r.Numbers[label+"_ntstatus_unsigned"]=unchecked((uint)status)' in handles
+    assert 'r.Numbers[label+"_buffer_unchanged"]=raw==unchecked((int)0xA5A5A5A5)?1:0' in handles
+    assert 'r.Numbers[label+"_return_length_unchanged"]=returned==0xDEADBEEF?1:0' in handles
+    native_guard = 'if(r.Numbers.ContainsKey("native_queries_observation_only"))'
+    assert native_guard in launch
+    assert launch.index('if(!r.TokenVerified) throw') < launch.index(native_guard) < launch.index('AssignProcessToJobObject(job,pi.process)') < launch.index('ResumeThread(pi.thread)')
+    assert 'throw new InvalidOperationException("native token observations collected; reference must remain unresumed")' in launch
+    predicate = 'valid=all && app==1 && lpac==1 && capabilities==0 && actualPackage==package && integrity=="S-1-16-4096";'
+    assert predicate in handles and handles.index(predicate) < handles.index('ObserveNativeDword(token,29,')
     assert handles.index('pointer<start') < handles.index('Marshal.ReadByte(sid,1)') < handles.index('!IsValidSid(sid)')
     assert 'File.WriteAllText(recovery,"Pending owned recovery scope:' in launch
     assert launch.index('File.WriteAllText(recovery,') < launch.index('Directory.CreateDirectory(root)')
@@ -241,6 +259,27 @@ class DirectAudit(unittest.TestCase):
 
     def test_original_sizing_observation_preserved(self):
         self.mutation('DirectHandles.cs', 'GetTokenInformation(token,46,IntPtr.Zero,0,out size)', 'GetTokenInformation(token,29,IntPtr.Zero,0,out size)')
+
+    def test_native_observation_no_resume_guard_required(self):
+        self.mutation('DirectLauncher.cs', 'if(r.Numbers.ContainsKey("native_queries_observation_only"))', 'if(false)')
+
+    def test_native_observation_cannot_replace_win32_predicate(self):
+        self.mutation('DirectHandles.cs', 'valid=all && app==1 && lpac==1 && capabilities==0 && actualPackage==package && integrity=="S-1-16-4096";', 'valid=true;')
+
+    def test_native_classes_are_finite(self):
+        self.mutation('DirectHandles.cs', 'ObserveNativeDword(token,46,"native_lpac",r);', 'ObserveNativeDword(token,39,"native_lpac",r);')
+
+    def test_native_buffer_alignment_required(self):
+        self.mutation('DirectHandles.cs', 'if((data.ToInt64()&3)!=0) throw', 'if(false) throw')
+
+    def test_native_return_length_sentinel_required(self):
+        self.mutation('DirectHandles.cs', 'uint returned=0xDEADBEEF;', 'uint returned=4;')
+
+    def test_native_ntstatus_not_booleanized(self):
+        self.mutation('DirectHandles.cs', 'r.Numbers[label+"_ntstatus_unsigned"]=unchecked((uint)status)', 'r.Numbers[label+"_ntstatus_unsigned"]=status==0?1:0')
+
+    def test_native_observation_cannot_flip_valid_after_win32(self):
+        self.mutation('DirectHandles.cs', 'ObserveNativeDword(token,46,"native_lpac",r);', 'ObserveNativeDword(token,46,"native_lpac",r);valid=true;')
 
     def test_existing_workflow_gates_retained(self):
         workflow = (ROOT / '.github/workflows/windows-lpac-runtime-diagnostic.yml').read_text()
