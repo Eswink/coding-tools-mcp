@@ -1,0 +1,73 @@
+name: Re-materialize exact fde46cc ZIP (NOT FINAL)
+on:
+  push:
+    branches: ['ci/rematerialize-linux-fde46cc']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: rematerialize-linux-fde46cc
+  cancel-in-progress: false
+jobs:
+  transfer:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/ci/rematerialize-linux-fde46cc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Test fixed-scope transfer contracts
+        run: python3 scripts/rematerialize_linux_fde46cc_tests.py
+      - name: Read exact existing artifact and split unchanged opaque ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_HOST: github.com
+          GH_DEBUG: ''
+        run: python3 scripts/rematerialize_linux_fde46cc.py fetch
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: NOT_FINAL-fde46cc-original-zip-receipt
+          path: ${{ runner.temp }}/fde46cc-transfer/chunks/receipt.json
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: NOT_FINAL-fde46cc-original-zip-part-00
+          path: ${{ runner.temp }}/fde46cc-transfer/chunks/original.zip.part-00
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: NOT_FINAL-fde46cc-original-zip-part-01
+          path: ${{ runner.temp }}/fde46cc-transfer/chunks/original.zip.part-01
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: NOT_FINAL-fde46cc-original-zip-part-02
+          path: ${{ runner.temp }}/fde46cc-transfer/chunks/original.zip.part-02
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: NOT_FINAL-fde46cc-original-zip-part-03
+          path: ${{ runner.temp }}/fde46cc-transfer/chunks/original.zip.part-03
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: NOT_FINAL-fde46cc-original-zip-part-04
+          path: ${{ runner.temp }}/fde46cc-transfer/chunks/original.zip.part-04
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
