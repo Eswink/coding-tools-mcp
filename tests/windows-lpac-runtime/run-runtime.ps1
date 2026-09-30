@@ -13,7 +13,9 @@ $outcomes=@()
 $cases=[ordered]@{'python-budget'='python';'python-workspace'='python';'node-workspace'='node';'npm-cmd'='node';'git-local'='git';'cmd-workspace'='cmd';'powershell-workspace'='powershell';'pwsh-workspace'='pwsh'}
 $eofCases=[ordered]@{'node-workspace-private-eof'='node';'npm-cmd-private-eof'='node';'git-local-private-eof'='git';'cmd-workspace-private-eof'='cmd';'powershell-workspace-private-eof'='powershell';'pwsh-workspace-private-eof'='pwsh'}
 foreach($name in $eofCases.Keys) {$cases.Add($name,$eofCases[$name])}
-if($cases.Count -ne 14) {throw 'exact fourteen required diagnostic rows expected'}
+$noWindowCases=[ordered]@{'node-workspace-private-eof-no-window'='node';'npm-cmd-private-eof-no-window'='node';'git-local-private-eof-no-window'='git';'cmd-workspace-private-eof-no-window'='cmd';'powershell-workspace-private-eof-no-window'='powershell';'pwsh-workspace-private-eof-no-window'='pwsh'}
+foreach($name in $noWindowCases.Keys) {$cases.Add($name,$noWindowCases[$name])}
+if($cases.Count -ne 20) {throw 'exact twenty required diagnostic rows expected'}
 $inventory=@(Read-RuntimeInventory (Get-Content -Raw (Join-Path $evidencePath 'runtime-inventory.json')))
 $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0)
 $listener.Start()
@@ -28,7 +30,7 @@ try {
         $caseEvidence=Join-Path $evidencePath $case
         New-Item -ItemType Directory -Path $outside,$bundle,$run,$caseEvidence | Out-Null
         $required=@($cases[$case],'cmd') | Select-Object -Unique
-        if($case -eq 'npm-cmd' -or $case -eq 'npm-cmd-private-eof') {$required+=@('npm')}
+        if($case -eq 'npm-cmd' -or $case -eq 'npm-cmd-private-eof' -or $case -eq 'npm-cmd-private-eof-no-window') {$required+=@('npm')}
         $preparationFailures=@()
         foreach($requiredName in $required) {
             $records=@($inventory | Where-Object {$_.runtime -eq $requiredName})

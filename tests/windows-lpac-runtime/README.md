@@ -137,6 +137,19 @@ setup/close/validation failure prevents launch. Success would establish only the
 fixed operation with this explicitly different stdin representation, without
 claiming original-null-stdin parity, network denial or production acceptance.
 
+The next console comparison preserves those fourteen rows and adds six exact
+`-private-eof-no-window` rows, making twenty required rows. Only the new names set
+`CREATE_NO_WINDOW` (`0x08000000`); receipts distinguish that caller flag from
+Rust's automatic Unicode-environment flag (`0x400`). It suppresses a console
+handle, without granting desktop access or adding breakaway/authorization flags.
+Binary/argv, stdin validation and all security settings remain identical to the
+corresponding EOF row. This is a headless CLI observation, not ConPTY acceptance.
+Additional numeric probes request only `FILE_EXECUTE` (`0x20`) on the copied image
+and duplicate/close the existing private input handle with SAME_ACCESS. These
+separate read access from execute access and input-handle duplication. Every
+probe handle closes before spawn; uncertainty prevents launch. Passing probes
+still does not establish that the internal CreateProcessW call was reached.
+
 Current source anchors: `.github/workflows/dot-rc-integration.yml` (Windows-2025,
 Node 22, Python 3.12, Rust 1.98.1); `src-tauri/src/tools/exec.rs` (direct argv and
 Windows script routing); `src-tauri/src/tools/execution_sandbox.rs` and

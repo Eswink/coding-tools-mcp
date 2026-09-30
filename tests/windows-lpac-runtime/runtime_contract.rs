@@ -19,7 +19,9 @@ fn command(
     workspace: &Path,
     code: &Path,
     private_eof: bool,
+    no_window: bool,
 ) -> serde_json::Value {
+    let caller_creation_flags = if no_window { 0x08000000 } else { 0 };
     let stdin_kind = if private_eof {
         "private_empty_regular_file"
     } else {
@@ -31,9 +33,10 @@ fn command(
     if !preflight_cleanup_ok {
         // Do not spawn with an uncertain inheritable diagnostic handle.
         return serde_json::json!({"started":false,"spawn_error":null,"exit":null,
-            "timeout":false,"diagnostic_cleanup_failed":true,"preflight":preflight,"stdin_kind":stdin_kind,"stdin_validation":null});
+            "timeout":false,"diagnostic_cleanup_failed":true,"preflight":preflight,"caller_creation_flags":caller_creation_flags,"rust_automatic_creation_flags":0x400,"stdin_kind":stdin_kind,"stdin_validation":null});
     }
     let mut cmd = Command::new(exe);
+    cmd.creation_flags(caller_creation_flags);
     // cmd.exe has shell parsing rather than CommandLineToArgvW semantics.
     // Only the fixed /d /s /c or /d /q /c strings below reach raw_arg.
     if exe.file_name().is_some_and(|name| name == "cmd.exe") {
@@ -48,13 +51,20 @@ fn command(
         .stderr(Stdio::from(stderr));
     let stdin_validation = if private_eof {
         match private_stdin::prepare(workspace) {
-            Ok((input, receipt)) => {
+            Ok((input, mut receipt)) => {
+                let (stdin_duplicate, input_duplicate_closed) =
+                    spawn_observations::duplicate_and_close(&input);
+                receipt["handle_duplicate"] = stdin_duplicate;
+                if !input_duplicate_closed {
+                    return serde_json::json!({"started":false,"exit":null,"timeout":false,
+                        "diagnostic_cleanup_failed":true,"caller_creation_flags":caller_creation_flags,"rust_automatic_creation_flags":0x400,"stdin_kind":stdin_kind,"stdin_validation":receipt,"preflight":preflight});
+                }
                 cmd.stdin(Stdio::from(input));
                 receipt
             }
             Err(receipt) => {
                 return serde_json::json!({"started":false,"exit":null,"timeout":false,
-                "stdin_setup_failed":true,"stdin_kind":stdin_kind,"stdin_validation":receipt,"preflight":preflight})
+                "stdin_setup_failed":true,"caller_creation_flags":caller_creation_flags,"rust_automatic_creation_flags":0x400,"stdin_kind":stdin_kind,"stdin_validation":receipt,"preflight":preflight})
             }
         }
     } else {
@@ -89,25 +99,25 @@ fn command(
     let mut child = match cmd.spawn() {
         Ok(child) => child,
         Err(error) => {
-            return serde_json::json!({"started":false,"spawn_error":error.raw_os_error(),"exit":null,"timeout":false,"preflight":preflight,"stdin_kind":stdin_kind,"stdin_validation":stdin_validation})
+            return serde_json::json!({"started":false,"spawn_error":error.raw_os_error(),"exit":null,"timeout":false,"preflight":preflight,"caller_creation_flags":caller_creation_flags,"rust_automatic_creation_flags":0x400,"stdin_kind":stdin_kind,"stdin_validation":stdin_validation})
         }
     };
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                return serde_json::json!({"started":true,"exit":status.code(),"exit_unsigned":status.code().map(|v| v as u32),"exit_hex":status.code().map(|v| format!("{:08X}", v as u32)),"timeout":false,"preflight":preflight,"stdin_kind":stdin_kind,"stdin_validation":stdin_validation})
+                return serde_json::json!({"started":true,"exit":status.code(),"exit_unsigned":status.code().map(|v| v as u32),"exit_hex":status.code().map(|v| format!("{:08X}", v as u32)),"timeout":false,"preflight":preflight,"caller_creation_flags":caller_creation_flags,"rust_automatic_creation_flags":0x400,"stdin_kind":stdin_kind,"stdin_validation":stdin_validation})
             }
             Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(20)),
             Ok(None) => {
                 let killed = child.kill().is_ok();
                 let reaped = child.wait().is_ok();
-                return serde_json::json!({"started":true,"exit":null,"timeout":true,"child_killed":killed,"child_reaped":reaped,"preflight":preflight,"stdin_kind":stdin_kind,"stdin_validation":stdin_validation});
+                return serde_json::json!({"started":true,"exit":null,"timeout":true,"child_killed":killed,"child_reaped":reaped,"preflight":preflight,"caller_creation_flags":caller_creation_flags,"rust_automatic_creation_flags":0x400,"stdin_kind":stdin_kind,"stdin_validation":stdin_validation});
             }
             Err(error) => {
                 let _ = child.kill();
                 let _ = child.wait();
-                return serde_json::json!({"started":true,"wait_error":error.raw_os_error(),"exit":null,"timeout":false,"preflight":preflight,"stdin_kind":stdin_kind,"stdin_validation":stdin_validation});
+                return serde_json::json!({"started":true,"wait_error":error.raw_os_error(),"exit":null,"timeout":false,"preflight":preflight,"caller_creation_flags":caller_creation_flags,"rust_automatic_creation_flags":0x400,"stdin_kind":stdin_kind,"stdin_validation":stdin_validation});
             }
         }
     }
@@ -117,6 +127,15 @@ pub fn observe(workspace: &Path, outside: &Path) {
     let exe = std::env::current_exe().unwrap();
     let code = exe.parent().unwrap();
     let case = fs::read_to_string(code.join("case.txt")).unwrap();
+    let no_window = matches!(
+        case.trim(),
+        "node-workspace-private-eof-no-window"
+            | "npm-cmd-private-eof-no-window"
+            | "git-local-private-eof-no-window"
+            | "cmd-workspace-private-eof-no-window"
+            | "powershell-workspace-private-eof-no-window"
+            | "pwsh-workspace-private-eof-no-window"
+    );
     let private_eof = matches!(
         case.trim(),
         "node-workspace-private-eof"
@@ -125,8 +144,10 @@ pub fn observe(workspace: &Path, outside: &Path) {
             | "cmd-workspace-private-eof"
             | "powershell-workspace-private-eof"
             | "pwsh-workspace-private-eof"
-    );
-    let base_case = if private_eof {
+    ) || no_window;
+    let base_case = if no_window {
+        case.trim().strip_suffix("-private-eof-no-window").unwrap()
+    } else if private_eof {
         case.trim().strip_suffix("-private-eof").unwrap()
     } else {
         case.trim()
@@ -190,7 +211,7 @@ pub fn observe(workspace: &Path, outside: &Path) {
         command_args[3] = format!("\"{}\"", command_args[3]);
     }
     let refs = command_args.iter().map(String::as_str).collect::<Vec<_>>();
-    let process = command(&program, &refs, workspace, code, private_eof);
+    let process = command(&program, &refs, workspace, code, private_eof, no_window);
     let output = fs::read_to_string(workspace.join("runtime-stdout.txt")).unwrap_or_default();
     let output_ok = output.trim() == expected;
     let mutation_ok = match mutation_kind {

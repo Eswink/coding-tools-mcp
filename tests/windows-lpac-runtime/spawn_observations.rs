@@ -1,7 +1,10 @@
 //! Numeric-only observations inside the existing LPAC fixture. No substitutions.
 use std::{
     fs,
-    os::windows::io::{AsRawHandle, IntoRawHandle},
+    os::windows::{
+        fs::OpenOptionsExt,
+        io::{AsRawHandle, IntoRawHandle},
+    },
     path::Path,
 };
 use windows::Win32::Foundation::{CloseHandle, DuplicateHandle, DUPLICATE_SAME_ACCESS, HANDLE};
@@ -32,7 +35,7 @@ fn read_open_and_close(path: &Path) -> (serde_json::Value, bool) {
     }
 }
 
-fn duplicate_and_close(file: &fs::File) -> (serde_json::Value, bool) {
+pub fn duplicate_and_close(file: &fs::File) -> (serde_json::Value, bool) {
     let mut duplicate = HANDLE::default();
     // Match Rust's stdio duplication. The source is an already-owned private
     // output file in this LPAC process; no host handle or extra access is used.
@@ -65,8 +68,33 @@ fn duplicate_and_close(file: &fs::File) -> (serde_json::Value, bool) {
     }
 }
 
+fn execute_open_and_close(exe: &Path) -> (serde_json::Value, bool) {
+    // FILE_EXECUTE only; this opens a handle without running or modifying the file.
+    const FILE_EXECUTE_ACCESS: u32 = 0x20;
+    match fs::OpenOptions::new()
+        .access_mode(FILE_EXECUTE_ACCESS)
+        .open(exe)
+    {
+        Ok(file) => {
+            let close_error = unsafe { CloseHandle(HANDLE(file.into_raw_handle())) }
+                .err()
+                .map(win32_error)
+                .unwrap_or(0);
+            (
+                serde_json::json!({"desired_access":FILE_EXECUTE_ACCESS,"open_error":0,"close_error":close_error}),
+                close_error == 0,
+            )
+        }
+        Err(error) => (
+            serde_json::json!({"desired_access":FILE_EXECUTE_ACCESS,"open_error":error.raw_os_error().unwrap_or(-1),"close_error":null}),
+            true,
+        ),
+    }
+}
+
 pub fn inspect(exe: &Path, stdout: &fs::File, stderr: &fs::File) -> (serde_json::Value, bool) {
     let (executable_read, executable_closed) = read_open_and_close(exe);
+    let (executable_execute_only, execute_closed) = execute_open_and_close(exe);
     // This non-inheritable read observation is NOT identical to Rust's actual
     // inheritable NUL open. It narrows hypotheses, never locates CreateProcess.
     let (nul_read_noninheritable, nul_closed) = read_open_and_close(Path::new(r"\\.\NUL"));
@@ -74,8 +102,8 @@ pub fn inspect(exe: &Path, stdout: &fs::File, stderr: &fs::File) -> (serde_json:
     let (stderr_duplicate, stderr_closed) = duplicate_and_close(stderr);
     (
         serde_json::json!({"stdout_create_error":0,"stderr_create_error":0,
-        "executable_read":executable_read,"nul_read_noninheritable":nul_read_noninheritable,
+        "executable_read":executable_read,"executable_execute_only":executable_execute_only,"nul_read_noninheritable":nul_read_noninheritable,
         "stdout_duplicate":stdout_duplicate,"stderr_duplicate":stderr_duplicate}),
-        executable_closed && nul_closed && stdout_closed && stderr_closed,
+        executable_closed && execute_closed && nul_closed && stdout_closed && stderr_closed,
     )
 }

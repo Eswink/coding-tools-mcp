@@ -83,12 +83,22 @@ def audit(files):
     if 'if !preflight_cleanup_ok {' not in runtime or runtime.index('if !preflight_cleanup_ok {') > runtime.index('cmd.spawn()'):
         errors.append('diagnostic cleanup must gate original spawn')
     original_cases = "$cases=[ordered]@{'python-budget'='python';'python-workspace'='python';'node-workspace'='node';'npm-cmd'='node';'git-local'='git';'cmd-workspace'='cmd';'powershell-workspace'='powershell';'pwsh-workspace'='pwsh'}"
-    if original_cases not in runner or 'if($cases.Count -ne 14)' not in runner:
-        errors.append('original eight and all fourteen rows must remain required')
+    original_eof = "$eofCases=[ordered]@{'node-workspace-private-eof'='node';'npm-cmd-private-eof'='node';'git-local-private-eof'='git';'cmd-workspace-private-eof'='cmd';'powershell-workspace-private-eof'='powershell';'pwsh-workspace-private-eof'='pwsh'}"
+    if original_cases not in runner or original_eof not in runner or 'if($cases.Count -ne 20)' not in runner:
+        errors.append('original fourteen and all twenty rows must remain required')
     eof_names = {name+'-private-eof' for name in ['node-workspace', 'npm-cmd', 'git-local', 'cmd-workspace', 'powershell-workspace', 'pwsh-workspace']}
     mode_source = runtime.split('let private_eof =', 1)[-1].split('let base_case =', 1)[0]
     if set(re.findall(r'"([^\"]+-private-eof)"', mode_source)) != eof_names or not mode_source.lstrip().startswith('matches!('):
         errors.append('only six explicit additive cases may select EOF')
+    headless_source = runtime.split('let no_window =', 1)[-1].split('let private_eof =', 1)[0]
+    if set(re.findall(r'"([^\"]+-private-eof-no-window)"', headless_source)) != {name+'-no-window' for name in eof_names} or not headless_source.lstrip().startswith('matches!('):
+        errors.append('only six explicit no-window cases may select headless mode')
+    if 'let caller_creation_flags = if no_window { 0x08000000 } else { 0 };' not in runtime or runtime.count('.creation_flags(') != 1:
+        errors.append('caller flags may only select CREATE_NO_WINDOW')
+    if 'if !input_duplicate_closed {' not in runtime or runtime.index('if !input_duplicate_closed {') > runtime.index('cmd.spawn()'):
+        errors.append('input duplicate cleanup must gate spawn')
+    if 'const FILE_EXECUTE_ACCESS: u32 = 0x20;' not in files['spawn_observations.rs']:
+        errors.append('execute probe must request FILE_EXECUTE only')
     start = runtime.find('        "python-budget" =>')
     end = runtime.find('        _ =>', start)
     if start < 0 or end < 0 or sha256(runtime[start:end].encode()).hexdigest() != '54d3ef93d7e79ba2b0097a0d03f13570f1ebeda9fe31fa42c5e7e0b3e1195194':
@@ -100,7 +110,7 @@ def audit(files):
 
 def load_files():
     names = ['baseline/'+name for name in HASHES]
-    names += ['RuntimeLauncher.cs', 'runtime_fixture.rs', 'run-runtime.ps1', 'prepare.ps1', 'runtime_contract.rs', 'private_stdin.rs']
+    names += ['RuntimeLauncher.cs', 'runtime_fixture.rs', 'run-runtime.ps1', 'prepare.ps1', 'runtime_contract.rs', 'private_stdin.rs', 'spawn_observations.rs']
     files = {name: (ROOT/name).read_bytes().decode('utf-8') for name in names}
     files['workflow'] = (ROOT.parent.parent/'.github/workflows/windows-lpac-runtime-diagnostic.yml').read_bytes().decode('utf-8')
     return files
@@ -168,7 +178,7 @@ class AuditMutations(unittest.TestCase):
     def test_original_rows_cannot_be_replaced(self):
         files = load_files()
         files['run-runtime.ps1'] = files['run-runtime.ps1'].replace("'node-workspace'='node'", "'removed-node'='node'")
-        self.assertIn('original eight and all fourteen rows must remain required', audit(files))
+        self.assertIn('original fourteen and all twenty rows must remain required', audit(files))
 
     def test_eof_cannot_be_default(self):
         files = load_files()
@@ -184,6 +194,26 @@ class AuditMutations(unittest.TestCase):
         files = load_files()
         files['runtime_contract.rs'] = files['runtime_contract.rs'].replace("print('budget')", "print('changed')")
         self.assertIn('original binary and argv cases must remain identical', audit(files))
+
+    def test_no_window_cannot_be_default(self):
+        files = load_files()
+        files['runtime_contract.rs'] = files['runtime_contract.rs'].replace('let no_window = matches!', 'let no_window = true; let ignored = matches!')
+        self.assertIn('only six explicit no-window cases may select headless mode', audit(files))
+
+    def test_extra_creation_flags_rejected(self):
+        files = load_files()
+        files['runtime_contract.rs'] = files['runtime_contract.rs'].replace('0x08000000', '0x09000000')
+        self.assertIn('caller flags may only select CREATE_NO_WINDOW', audit(files))
+
+    def test_execute_probe_broadening_rejected(self):
+        files = load_files()
+        files['spawn_observations.rs'] = files['spawn_observations.rs'].replace('FILE_EXECUTE_ACCESS: u32 = 0x20', 'FILE_EXECUTE_ACCESS: u32 = 0x10000000')
+        self.assertIn('execute probe must request FILE_EXECUTE only', audit(files))
+
+    def test_input_duplicate_cleanup_cannot_be_ignored(self):
+        files = load_files()
+        files['runtime_contract.rs'] = files['runtime_contract.rs'].replace('if !input_duplicate_closed {', 'if false {')
+        self.assertIn('input duplicate cleanup must gate spawn', audit(files))
 
 
 if __name__ == '__main__':
