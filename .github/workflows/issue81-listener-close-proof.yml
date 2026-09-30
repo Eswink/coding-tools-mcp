@@ -1,0 +1,75 @@
+name: Issue81 listener close regression proof
+on:
+  push:
+    branches: ['ci/issue81-listener-close-proof']
+    paths: ['.github/workflows/issue81-listener-close-proof.yml']
+permissions:
+  contents: read
+jobs:
+  proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PYTHONUTF8: '1'
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Native build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: 'true'
+      - name: Same assertions pass, fail for controlled regression, then pass after exact restoration
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python .ci/issue81_listener_apply.py
+          rustfmt --edition 2021 --config skip_children=true src-tauri/src/tools/listener_context.rs src-tauri/src/tools/listener_context/tests.rs src-tauri/src/mcp/listener_context_tests.rs src-tauri/src/runtime/supervisor_context_tests.rs
+          python - <<'PY'
+          import hashlib,json,pathlib,re,subprocess
+          path=pathlib.Path('src-tauri/src/tools/listener_context.rs')
+          tests=pathlib.Path('src-tauri/src/tools/listener_context/tests.rs')
+          original=path.read_bytes(); assertions=tests.read_bytes()
+          command=['cargo','test','--locked','--manifest-path','src-tauri/Cargo.toml','--lib','tools::listener_context::tests::close_winner_never_invokes_a_registration_factory','--','--exact','--nocapture']
+          records=[]
+          def run(name, expected):
+              with open('evidence/'+name+'.txt','w',encoding='utf-8') as log:
+                  result=subprocess.run(command,stdout=log,stderr=subprocess.STDOUT,timeout=1500)
+              text=pathlib.Path('evidence/'+name+'.txt').read_text(encoding='utf-8')
+              rows=re.findall(r'test result: (?:ok|FAILED)\. (\d+) passed; (\d+) failed; (\d+) ignored;',text)
+              assert rows==[expected], (name,result.returncode,rows)
+              assert result.returncode==(101 if expected[1]=='1' else 0),(name,result.returncode)
+              assert tests.read_bytes()==assertions,'test assertions changed'
+              records.append({'name':name,'exit_code':result.returncode,'counts':expected,'sha256':hashlib.sha256(pathlib.Path('evidence/'+name+'.txt').read_bytes()).hexdigest()})
+          try:
+              run('candidate-before',('1','0','0'))
+              old='        if *closed {\n            return Err(ListenerLeaseError::Closed);\n        }\n'
+              text=original.decode('utf-8');assert text.count(old)==1
+              path.write_bytes(text.replace(old,'',1).encode('utf-8'))
+              run('removed-close-check-mutant',('0','1','0'))
+          finally:
+              path.write_bytes(original)
+          run('candidate-restored',('1','0','0'))
+          assert path.read_bytes()==original and tests.read_bytes()==assertions
+          receipt={'passed':True,'scope':'controlled mutation proof, not a historical preexisting product failure','source_input':'7fa70540c94f6bd52ba085cf0c904747187eb88b','assertions_sha256':hashlib.sha256(assertions).hexdigest(),'product_sha256':hashlib.sha256(original).hexdigest(),'records':records}
+          pathlib.Path('evidence/proof.json').write_text(json.dumps(receipt,indent=2),encoding='utf-8')
+          print(json.dumps(receipt))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-listener-close-proof
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
