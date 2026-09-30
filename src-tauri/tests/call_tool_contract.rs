@@ -208,7 +208,89 @@ fn core_profile_keeps_the_default_capabilities_and_adds_history_tools() {
         .copied()
         .collect::<std::collections::HashSet<_>>();
     assert_eq!(names, expected);
-    assert_eq!(names.len(), 30);
+    // #70 (reconcile-existing-managed/design.md) adds only these three tools.
+    // Freeze the prior capability surface independently of the production list,
+    // so a removed legacy tool cannot be hidden by an unrelated replacement.
+    let baseline = [
+        "start_exec_task",
+        "get_exec_task",
+        "list_exec_tasks",
+        "cancel_exec_task",
+        "server_info",
+        "history_session_bootstrap",
+        "history_session_checkpoint",
+        "history_session_validate",
+        "history_session_search",
+        "history_session_read",
+        "check_exec_environment",
+        "get_default_cwd",
+        "set_default_cwd",
+        "read_file",
+        "list_dir",
+        "list_files",
+        "search_text",
+        "grep_text",
+        "apply_patch",
+        "exec_command",
+        "write_stdin",
+        "kill_session",
+        "read_output",
+        "git_status",
+        "git_diff",
+        "git_log",
+        "git_show",
+        "git_blame",
+        "request_permissions",
+        "view_image",
+    ]
+    .into_iter()
+    .collect::<std::collections::HashSet<_>>();
+    let additions = ["worktree_create", "worktree_list", "worktree_remove"]
+        .into_iter()
+        .collect::<std::collections::HashSet<_>>();
+    assert_eq!(baseline.len(), 30);
+    assert_eq!(
+        names
+            .difference(&baseline)
+            .copied()
+            .collect::<std::collections::HashSet<_>>(),
+        additions
+    );
+    assert!(baseline.is_subset(&names));
+    assert_eq!(tools.len(), names.len(), "duplicate catalog entries");
+    assert_eq!(names.len(), baseline.len() + additions.len());
+
+    let read_only = list_tools_for_profile("read-only");
+    for (name, read, destructive, scope) in [
+        ("worktree_create", false, false, "files.write"),
+        ("worktree_list", true, false, "workspace.read"),
+        ("worktree_remove", false, true, "files.write"),
+    ] {
+        let tool = tools.iter().find(|tool| tool["name"] == name).unwrap();
+        let schema = if name == "worktree_remove" {
+            json!({"type":"object","properties":{"id":{"type":"string","minLength":32,
+                "maxLength":32,"pattern":"^[0-9a-f]{32}$"}},"required":["id"],
+                "additionalProperties":false})
+        } else {
+            json!({"type":"object","properties":{},"additionalProperties":false})
+        };
+        assert_eq!(tool["inputSchema"], schema, "{name}: opaque authority only");
+        for (hint, expected) in [
+            ("readOnlyHint", read),
+            ("destructiveHint", destructive),
+            ("idempotentHint", read),
+            ("openWorldHint", false),
+        ] {
+            assert_eq!(tool["annotations"][hint], expected, "{name}: {hint}");
+        }
+        // Authorization scopes are asserted through the native dispatch fixture;
+        // profile exposure must not present files.write operations as read-only.
+        assert_eq!(
+            read_only.iter().any(|tool| tool["name"] == name),
+            read,
+            "{name}: {scope} profile boundary"
+        );
+    }
     for name in [
         "start_exec_task",
         "get_exec_task",

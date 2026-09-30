@@ -87,6 +87,7 @@ fn fork(scopes: &NativeScopes) -> Result<Option<NativeGuard>, &'static str> {
         Some(NativeGuard { cloud, root })
     })
 }
+#[cfg(any(target_os = "linux", test))]
 pub(crate) fn current_child() -> Result<Option<NativeGuard>, &'static str> {
     CURRENT.with(|c| fork(&c.borrow()))
 }
@@ -176,10 +177,10 @@ fn group_gone(pid: u32) -> bool {
     let result = unsafe { libc::kill(-id, 0) };
     result < 0 && std::io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
 }
-#[cfg(not(unix))]
+#[cfg(all(not(unix), not(windows)))]
 fn group_gone(_pid: u32) -> bool {
     false
-} // Windows cloud execution remains fail-closed.
+} // Unsupported platforms cannot prove process-tree completion.
 
 /// Called only after all session readers/initial input have been registered.
 /// The monitor retains both the real session and work guard. Cancellation or
@@ -187,7 +188,8 @@ fn group_gone(_pid: u32) -> bool {
 pub(crate) fn track_process<G: Into<NativeGuard>>(
     session: Arc<ExecSession>,
     guard: Option<G>,
-    pid: Option<u32>,
+    #[cfg(not(windows))] pid: Option<u32>,
+    #[cfg(windows)] _pid: Option<u32>,
 ) {
     let Some(guard) = guard else {
         return;

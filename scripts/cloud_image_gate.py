@@ -101,7 +101,7 @@ def run(image, context, expected):
         subprocess.run(['sudo','rm','-rf','--',str(fixture)], check=True, timeout=10)
     return dict(expected, passed=True, image_id=image, tests=tests, publish_approved=False,
                 production_touched=False, network_mode='none',
-                scope='Image build, exact CLI bytes and protected-file fixture only; functional ingress remains unimplemented')
+                scope='Image build, exact CLI bytes and protected-file fixture only; functional ingress requires the separate exact-source container topology gate')
 
 
 def main():

@@ -47,13 +47,13 @@ fn registration(source: &Source, managed: &Path, id: &str) -> WorktreeResult<(Pa
     objects::checked_path(&source.git, &metadata)?;
     validate_tree(&metadata, 64, 8 * 1024 * 1024)?;
     let link = read_file(&target.join(".git"), 8192)?;
-    let expected = format!("gitdir: {}\n", git_path_arg(&metadata).to_string_lossy());
-    if link != expected.as_bytes() || read_file(&metadata.join("commondir"), 128)? != b"../..\n" {
+    if !matches_git_link(&link, "gitdir: ", &metadata)
+        || read_file(&metadata.join("commondir"), 128)? != b"../..\n"
+    {
         return Err(failure("BOUNDARY_VIOLATION"));
     }
     let gitdir = read_file(&metadata.join("gitdir"), 8192)?;
-    let expected = format!("{}\n", git_path_arg(&target.join(".git")).to_string_lossy());
-    if gitdir != expected.as_bytes() {
+    if !matches_git_link(&gitdir, "", &target.join(".git")) {
         return Err(failure("BOUNDARY_VIOLATION"));
     }
     Ok((target, metadata))
@@ -185,13 +185,11 @@ pub(super) fn run_git(
                     write_new(&metadata.join("commondir"), b"../..\n")?;
                     write_new(
                         &metadata.join("gitdir"),
-                        format!("{}\n", git_path_arg(&target.join(".git")).to_string_lossy())
-                            .as_bytes(),
+                        format!("{}\n", git_metadata_path(&target.join(".git"))).as_bytes(),
                     )?;
                     write_new(
                         &target.join(".git"),
-                        format!("gitdir: {}\n", git_path_arg(&metadata).to_string_lossy())
-                            .as_bytes(),
+                        format!("gitdir: {}\n", git_metadata_path(&metadata)).as_bytes(),
                     )?;
                     objects::checkout(&source, &target, &metadata, head)?;
                     registration(&source, managed, id)?;
@@ -269,4 +267,22 @@ pub(super) fn git_path_arg(path: &Path) -> OsString {
         }
     }
     path.as_os_str().to_owned()
+}
+
+// Git's linked-worktree reader strips the literal "/.git" suffix, including
+// Git for Windows. Native Windows separators are valid argv, but not this format.
+pub(super) fn git_metadata_path(path: &Path) -> String {
+    let native = git_path_arg(path).to_string_lossy().into_owned();
+    #[cfg(windows)]
+    return native.replace('\\', "/");
+    #[cfg(not(windows))]
+    native
+}
+
+fn matches_git_link(bytes: &[u8], prefix: &str, path: &Path) -> bool {
+    let canonical = format!("{prefix}{}\n", git_metadata_path(path));
+    let legacy = format!("{prefix}{}\n", git_path_arg(path).to_string_lossy());
+    // Preserve only the exact previous broker serialization of this validated
+    // path. Do not canonicalize arbitrary metadata paths or rewrite old records.
+    bytes == canonical.as_bytes() || bytes == legacy.as_bytes()
 }

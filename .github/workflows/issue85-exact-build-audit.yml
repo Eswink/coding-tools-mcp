@@ -1,0 +1,147 @@
+name: Issue85 exact product build evidence (not release approval)
+on:
+  push:
+    branches: ['ci/issue85-exact-build-*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: issue85-exact-build-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: '0'
+  CARGO_BUILD_JOBS: '2'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+  CARGO_PROFILE_RELEASE_DEBUG: '0'
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    outputs:
+      version: ${{ steps.evidence.outputs.version }}
+      envelope_sha256: ${{ steps.evidence.outputs.envelope_sha256 }}
+      archive_sha256: ${{ steps.evidence.outputs.archive_sha256 }}
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: issue85-source-only
+          cache-targets: false
+          workspaces: services/cloud-gateway
+      - name: Install pinned audit tool and acquire immutable advisory snapshot
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libssl-dev binutils
+          cargo install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/audit-tools"
+      - name: Test verifier, build actual product once and retain raw findings
+        id: evidence
+        run: |
+          set -euo pipefail
+          python scripts/exact_build_audit_tests.py
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/issue85-target"
+          VERSION=$(python -c 'import json; print(json.load(open("package.json"))["version"])')
+          python scripts/exact_build_audit.py collect \
+            --root "$GITHUB_WORKSPACE" --expected-sha "$GITHUB_SHA" --version "$VERSION" \
+            --target x86_64-unknown-linux-gnu --output "$RUNNER_TEMP/issue85-evidence" \
+            --audit-bin "$RUNNER_TEMP/audit-tools/bin/cargo-audit" --audit-db "$RUNNER_TEMP/advisory-db" --clone-advisory-db
+          tar -czf "$RUNNER_TEMP/issue85-evidence/engineering-binaries.tar.gz" \
+            -C "$CARGO_TARGET_DIR/x86_64-unknown-linux-gnu/release" \
+            coding-tools-gateway coding-tools-agent coding-tools-control-gateway coding-tools-mcp-gateway
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          evidence = Path(os.environ['RUNNER_TEMP']) / 'issue85-evidence'
+          summary = json.loads((evidence / 'summary.json').read_text())
+          with (evidence / 'engineering-binaries.tar.gz').open('rb') as archive:
+              archive_hash = hashlib.file_digest(archive, 'sha256').hexdigest()
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              print('version=' + summary['product_version'], file=output)
+              print('envelope_sha256=' + summary['envelope_sha256'], file=output)
+              print('archive_sha256=' + archive_hash, file=output)
+          (evidence / 'engineering-scope.json').write_text(json.dumps({
+              'source_sha': os.environ['GITHUB_SHA'], 'run_id': os.environ['GITHUB_RUN_ID'],
+              'archive_sha256': archive_hash, 'envelope_sha256': summary['envelope_sha256'],
+              'engineering_only': True, 'release_approved': False, 'publish_approved': False}) + '\n')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue85-exact-product-evidence
+          path: ${{ runner.temp }}/issue85-evidence/
+          if-no-files-found: error
+          retention-days: 30
+  verify-archive:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      EXPECTED_VERSION: ${{ needs.build.outputs.version }}
+      EXPECTED_ENVELOPE: ${{ needs.build.outputs.envelope_sha256 }}
+      EXPECTED_ARCHIVE: ${{ needs.build.outputs.archive_sha256 }}
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue85-exact-product-evidence
+          path: ${{ runner.temp }}/issue85-evidence
+      - name: Validate archive digest and fixed regular members before extraction
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, os, sys, tarfile
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from exact_build_audit import BINS, need
+          root = Path(os.environ['RUNNER_TEMP'])
+          archive = root / 'issue85-evidence/engineering-binaries.tar.gz'
+          with archive.open('rb') as stream:
+              need(hashlib.file_digest(stream, 'sha256').hexdigest() == os.environ['EXPECTED_ARCHIVE'], 'archive_hash_mismatch')
+          destination = root / 'issue85-unpacked'
+          destination.mkdir()
+          with tarfile.open(archive, 'r:gz') as tar:
+              members = tar.getmembers()
+              need(len(members) == 4 and {m.name for m in members} == BINS, 'archive_member_mismatch')
+              for member in members:
+                  need(member.isfile() and not member.issym() and not member.islnk(), 'archive_member_type')
+                  need(0 < member.size <= 256 * 1024 * 1024, 'archive_member_size')
+                  data = tar.extractfile(member).read(member.size + 1)
+                  need(len(data) == member.size, 'archive_member_truncated')
+                  (destination / member.name).write_bytes(data)
+          PY
+      - name: Reverify actual four archived bytes against exact Cargo build evidence
+        run: |
+          set -euo pipefail
+          python scripts/exact_build_audit.py verify \
+            --root "$GITHUB_WORKSPACE" --expected-sha "$GITHUB_SHA" --version "$EXPECTED_VERSION" \
+            --target x86_64-unknown-linux-gnu --output "$RUNNER_TEMP/issue85-evidence" \
+            --expected-envelope-sha256 "$EXPECTED_ENVELOPE" \
+            --binary-dir "$RUNNER_TEMP/issue85-unpacked" > "$RUNNER_TEMP/issue85-archive-verification.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue85-archive-verification
+          path: ${{ runner.temp }}/issue85-archive-verification.json
+          if-no-files-found: error
+          retention-days: 30

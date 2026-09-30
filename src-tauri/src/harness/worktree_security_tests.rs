@@ -13,6 +13,35 @@ fn detached_registration_is_recognized_by_trusted_git() {
     let text = String::from_utf8(result.stdout).unwrap();
     assert!(text.contains(&item.id));
     assert!(text.contains("detached"));
+    let root = fixture.manager.managed_root.join(&item.id);
+    let listed = text
+        .lines()
+        .filter_map(|line| line.strip_prefix("worktree "))
+        .find(|path| path.contains(&item.id))
+        .expect("Git must list the created worktree");
+    assert_eq!(
+        fs::canonicalize(listed).unwrap(),
+        fs::canonicalize(&root).unwrap(),
+        "Git must identify the root, not its .git control file"
+    );
+    let pointer = fs::read_to_string(
+        fixture
+            .repo
+            .path()
+            .join(".git/worktrees")
+            .join(&item.id)
+            .join("gitdir"),
+    )
+    .unwrap();
+    assert!(
+        pointer.ends_with("/.git\n"),
+        "Git requires a literal /.git suffix: {pointer:?}"
+    );
+    #[cfg(windows)]
+    assert!(
+        !pointer.contains('\\'),
+        "Git metadata uses slash separators"
+    );
     let result = Command::new("git")
         .current_dir(fixture.manager.managed_root.join(&item.id))
         .args(["status", "--porcelain"])

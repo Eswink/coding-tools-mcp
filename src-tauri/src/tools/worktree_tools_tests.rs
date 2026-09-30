@@ -119,6 +119,18 @@ fn public_dispatch_create_list_remove_is_idempotent_and_preserves_original() {
 
 #[test]
 fn public_dispatch_denies_unapproved_and_read_only_remote_mutations() {
+    // #70 grants only workspace.read for listing and files.write for mutations.
+    // Keep this independent of catalog annotations, which are not authority.
+    for (name, scope) in [
+        ("worktree_list", "workspace.read"),
+        ("worktree_create", "files.write"),
+        ("worktree_remove", "files.write"),
+    ] {
+        assert_eq!(
+            crate::tools::chat_domain::required(name, &json!({})),
+            Some(&[scope][..])
+        );
+    }
     let f = Fixture::new(true);
     for name in ["worktree_create", "worktree_list", "worktree_remove"] {
         let args = if name == "worktree_remove" {
@@ -134,6 +146,12 @@ fn public_dispatch_denies_unapproved_and_read_only_remote_mutations() {
     assert_eq!(list["ok"], true, "{list}");
     let create = call_tool(&f.ctx, "worktree_create", &json!({}));
     assert_eq!(create["ok"], false, "{create}");
+    let remove = call_tool(
+        &f.ctx,
+        "worktree_remove",
+        &json!({"id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}),
+    );
+    assert_eq!(remove["ok"], false, "{remove}");
     assert!(!f.root.path().join(".git/worktrees").exists());
 }
 

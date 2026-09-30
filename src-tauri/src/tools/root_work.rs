@@ -140,7 +140,9 @@ impl RootWorkTracker {
         if protected && !initialize_managed && std::fs::symlink_metadata(&namespace).is_err() {
             return Err(RootWorkError);
         }
-        let mut builder = std::fs::DirBuilder::new();
+        let builder = std::fs::DirBuilder::new();
+        #[cfg(unix)]
+        let mut builder = builder;
         #[cfg(unix)]
         {
             use std::os::unix::fs::DirBuilderExt;

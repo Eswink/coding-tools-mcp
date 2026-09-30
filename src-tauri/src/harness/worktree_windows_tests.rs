@@ -132,3 +132,52 @@ fn windows_junction_arguments_preserve_spaces_and_use_native_separators() {
         std::ffi::OsString::from(r"\\server\share\工具\objects")
     );
 }
+
+#[test]
+fn windows_git_metadata_uses_slashes_for_drive_and_unc_paths() {
+    use crate::harness::worktree_git::git_metadata_path;
+    for (native, expected) in [
+        (r"C:\space dir\資料\.git", "C:/space dir/資料/.git"),
+        (r"\\?\C:\space dir\資料\.git", "C:/space dir/資料/.git"),
+        (
+            r"\\?\UNC\server\share\資料\.git",
+            "//server/share/資料/.git",
+        ),
+        (
+            r"\\server\share\space dir\.git",
+            "//server/share/space dir/.git",
+        ),
+    ] {
+        assert_eq!(git_metadata_path(Path::new(native)), expected);
+    }
+}
+
+#[test]
+fn windows_legacy_link_records_remain_bound_to_exact_managed_paths() {
+    let fixture = TestRepo::new();
+    let item = fixture.manager.create_detached().unwrap();
+    let root = fixture.manager.managed_root.join(&item.id);
+    let metadata = fixture.repo.path().join(".git/worktrees").join(&item.id);
+    fs::write(
+        root.join(".git"),
+        format!("gitdir: {}\n", git_path_arg(&metadata).to_string_lossy()),
+    )
+    .unwrap();
+    fs::write(
+        metadata.join("gitdir"),
+        format!("{}\n", git_path_arg(&root.join(".git")).to_string_lossy()),
+    )
+    .unwrap();
+    assert_eq!(fixture.manager.list().unwrap(), vec![item]);
+    let outside = tempfile::tempdir().unwrap();
+    fs::write(
+        metadata.join("gitdir"),
+        format!(
+            "{}\n",
+            git_path_arg(&outside.path().join(".git")).to_string_lossy()
+        ),
+    )
+    .unwrap();
+    assert!(fixture.manager.list().unwrap().is_empty());
+    assert!(root.join("README.md").exists());
+}

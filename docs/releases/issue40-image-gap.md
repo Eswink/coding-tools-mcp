@@ -1,5 +1,7 @@
 # Issue40 deployment contract reconciliation
 
+Update: the later runnable nonproduction topology is implemented in runtime_topology.py and documented in [issue40-topology.md](issue40-topology.md). Its actual Docker evidence is a separate mandatory gate. The image-only findings below explain the original gap; they are not a claim that the later source implementation is absent.
+
 Issue: https://github.com/Eswink/coding-tools-mcp/issues/40
 
 ## Acceptance against executable source
@@ -17,10 +19,10 @@ Native tests run the image with network disabled, read-only root filesystem, no 
 
 The image is exported as an Actions archive with checksum and receipts. It does not expose a port, start a configured service, connect to a database, install a service unit or alter a host. Image package inventory is retained. A digest-pinned base makes the selected base identifiable; apt-installed package versions are recorded and the resulting image ID identifies the build. This is not a claim of bit-for-bit rebuild reproducibility or a completed container vulnerability scan.
 
-## Remaining executable engineering gaps, not external deferrals
+## Gaps identified at the image-only checkpoint
 1. Old Compose supplies PUBLIC_ORIGIN/LISTEN_ADDR and separate DATABASE_URL_FILE/IDENTITY_KEY_FILE variables. Current binaries instead require explicit --config JSON plus --secrets-file containing the implemented JSON schema. No compatibility loader exists. Do not label the old template runnable.
 2. Current GatewayConfig intentionally accepts only loopback bind addresses. The old template expects 0.0.0.0:8080 inside a bridged container. Docker port forwarding does not make a service bound to the container's loopback reachable through its bridge address. Do not widen production binds merely to pass an image test.
-3. A reviewed container ingress adapter is still needed. One possible design is a narrowly scoped non-root proxy sharing the gateway's network namespace, forwarding an internal bridge listener to the gateway's loopback listener, with only the host loopback port published. This requires implementation and real tests for Host/MCP headers, bounded buffers, shutdown, namespace ownership and private DB connectivity. It is a proposal, not implemented by this image recipe.
+3. A reviewed container ingress adapter was required; the subsequent topology increment supplies it, with native verification still required. One possible design is a narrowly scoped non-root proxy sharing the gateway's network namespace, forwarding an internal bridge listener to the gateway's loopback listener, with only the host loopback port published. The subsequent increment implements this with real-test gates for Host/MCP headers, bounded buffers, shutdown, namespace ownership and private DB connectivity. It is not implemented by this image recipe itself; see the separate topology source and exact-source gate.
 4. Protected config/secrets must have actual owner UID65532, non-shared parent permissions and private modes. Compose file-backed secrets do not automatically solve arbitrary host ownership. Do not assume uid/gid/mode declarations prove effective permissions; verify actual mounts and avoid global permission changes.
 5. Least-privilege DB provisioning, readiness, graceful service shutdown, restore/rollback and revocation preservation must be exercised through the final runnable container topology. The no-network CLI fixture does not replace these tests.
 
