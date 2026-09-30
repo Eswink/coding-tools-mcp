@@ -1,0 +1,204 @@
+name: Issue81 native connection configuration
+on:
+  push:
+    branches: ['feat/issue81-native-configuration']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: issue81-native-configuration-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  CARGO_TERM_COLOR: never
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Deterministic source bytes
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Ubuntu native development prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: issue81-native-configuration-v1
+          cache-on-failure: true
+      - name: Record immutable candidate and no protected-source drift
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source.txt
+          git rev-parse 'HEAD^{tree}' > evidence/tree.txt
+          rustc --version --verbose > evidence/rustc.txt
+          git diff --exit-code 2c5d133eaa75d7fc084b8122350d7768ce5b2382 HEAD -- src-tauri/src/auth src-tauri/src/tools src-tauri/src/data src-tauri/src/runtime src-tauri/src/mcp src-tauri/src/actions services Cargo.lock src-tauri/Cargo.toml src-tauri/Cargo.lock package.json package-lock.json
+      - name: All-target native compilation
+        id: check
+        run: |
+          set -euo pipefail
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/check.log
+      - name: Actual encrypted native configuration regressions
+        id: focused
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib cloud_connection::tests -- --nocapture 2>&1 | tee evidence/configuration.log
+          python - <<'PY'
+          import pathlib,re
+          text=pathlib.Path('evidence/configuration.log').read_text(encoding='utf-8')
+          rows=re.findall(r'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;',text)
+          assert len(rows)==1 and int(rows[0][0])>=28 and rows[0][1:]==('0','0'),rows
+          PY
+      - name: Complete unchanged native regression
+        id: full
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/native-full.log
+      - name: Strict production library compilation
+        id: strict
+        run: |
+          set -euo pipefail
+          cargo rustc --locked --manifest-path src-tauri/Cargo.toml --lib -- -D warnings 2>&1 | tee evidence/production.log
+      - name: Canonical new-source formatting
+        id: format
+        run: |
+          set -euo pipefail
+          rustfmt --edition 2021 --check src-tauri/src/cloud_connection/mod.rs src-tauri/src/cloud_connection/storage.rs src-tauri/src/cloud_connection/tests.rs src-tauri/src/commands/cloud_connection.rs 2>&1 | tee evidence/format.log
+          git diff --exit-code HEAD --
+      - name: Preserve pass and failure receipts without masking any gate
+        if: always()
+        env:
+          CHECK_RESULT: ${{ steps.check.outcome }}
+          FOCUSED_RESULT: ${{ steps.focused.outcome }}
+          FULL_RESULT: ${{ steps.full.outcome }}
+          STRICT_RESULT: ${{ steps.strict.outcome }}
+          FORMAT_RESULT: ${{ steps.format.outcome }}
+        run: |
+          python - <<'PY'
+          import hashlib,json,os,pathlib,re
+          root=pathlib.Path('evidence');root.mkdir(exist_ok=True)
+          results={k:os.environ.get(v,'not-run') for k,v in [('check','CHECK_RESULT'),('focused','FOCUSED_RESULT'),('full','FULL_RESULT'),('strict','STRICT_RESULT'),('format','FORMAT_RESULT')]}
+          counts={}
+          for name in ['configuration.log','native-full.log']:
+              p=root/name
+              counts[name]=re.findall(r'test result: (ok|FAILED)\. (\d+) passed; (\d+) failed; (\d+) ignored;',p.read_text(encoding='utf-8',errors='replace')) if p.exists() else []
+          receipt={'source_sha':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],'runner_os':os.environ['RUNNER_OS'],'results':results,'passed':all(v=='success' for v in results.values()),'test_summaries':counts,'hashes':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in root.iterdir() if p.is_file()}}
+          (root/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(receipt))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-configuration-${{ matrix.os }}
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error
+
+  canonical-source:
+    if: github.event_name == 'push' && github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/feat/issue81-native-configuration'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt
+      - name: Export allowlisted formatting as unreferenced blobs only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          rustfmt --edition 2021 src-tauri/src/cloud_connection/mod.rs src-tauri/src/cloud_connection/storage.rs src-tauri/src/cloud_connection/tests.rs src-tauri/src/commands/cloud_connection.rs
+          git diff --check
+          git diff > evidence/format-only.patch
+          python - <<'PY'
+          import base64,hashlib,json,os,pathlib,urllib.request
+          paths=['src-tauri/src/cloud_connection/mod.rs','src-tauri/src/cloud_connection/storage.rs','src-tauri/src/cloud_connection/tests.rs','src-tauri/src/commands/cloud_connection.rs']
+          records={}
+          for path in paths:
+              data=pathlib.Path(path).read_bytes()
+              req=urllib.request.Request(f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/git/blobs",data=json.dumps({'encoding':'base64','content':base64.b64encode(data).decode()}).encode(),method='POST',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'})
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  sha=json.load(response)['sha']
+              assert sha==hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()
+              records[path]={'blob':sha,'sha256':hashlib.sha256(data).hexdigest()}
+          receipt={'source_sha':os.environ['GITHUB_SHA'],'files':records,'refs_changed':False,'tests_claimed':False}
+          pathlib.Path('evidence/canonical.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          print('CANONICAL_SOURCE='+json.dumps(receipt,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-configuration-canonical
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error
+
+  graph:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue81-app-public-analysis
+          run-id: 36669665015
+          github-token: ${{ github.token }}
+          path: analysis-export
+      - name: Exact-source graph and explicit configuration-only boundary
+        run: |
+          set -euo pipefail
+          (cd analysis-export && sha256sum -c SHA256SUMS.txt)
+          mkdir -p "$RUNNER_TEMP/analysis" evidence
+          tar -xzf analysis-export/public-analysis-tools.tar.gz -C "$RUNNER_TEMP/analysis"
+          graph="$RUNNER_TEMP/analysis/node_modules/.bin/gitnexus"
+          "$graph" analyze --workers 1 > evidence/analyze.log 2>&1
+          git reset --hard "$GITHUB_SHA"
+          "$graph" detect-changes --scope compare --base-ref 2c5d133eaa75d7fc084b8122350d7768ce5b2382 > evidence/impact.json
+          cat evidence/impact.json
+          git diff --name-only 2c5d133eaa75d7fc084b8122350d7768ce5b2382 HEAD > evidence/changed-files.txt
+          git archive --format=tar.gz -o evidence/exact-source.tar.gz HEAD
+          printf '%s\n' 'Configuration-only increment. No live Agent/UI/OS credential/real-host acceptance inferred. Full #81 and Epic gates remain open.' > evidence/scope.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue81-configuration-source-review
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error
