@@ -7,7 +7,8 @@ production fallback, a release acceptance reduction, or a Python packaging chang
 
 ## Additive cmd exit sentinel
 
-The pilot preserves the six original cases and appends one `cmd-exit23` case.
+The pilot preserves the six original cases and appends `cmd-exit23`, followed by
+the separately identified `cmd-batch-exit23` comparison.
 It launches a fresh private copy of the original cmd case's verified executable
 bytes with exactly `/d /q /c exit 23`. The experiment identity remains distinct
 from its `Launcher.Kind=cmd` runtime family. Its own suspended target must satisfy
@@ -23,17 +24,49 @@ handles close before profile creation. Missing, replaced, oversized or uncertain
 evidence stops progression. These bytes describe what was generated, not proof
 that cmd subsequently opened or executed the batch.
 
-The original six-case verdict is reduced independently before the additive case.
+The original six-case and seventh command-line sentinel verdicts are reduced
+independently, including after a later case, evidence-write or final-cleanup failure.
 Sentinel success cannot repair an original failure. The full allocated and cleaned
-path has seven case journals and one run journal; blocked or unprepared rows do
+path has eight case journals and one run journal; blocked or unprepared rows do
 not invent case journals. Contained nonzero exits may complete cleanup while
 their observations remain failed. Any ownership, capture, marker or cleanup
 uncertainty retains recovery and prevents further launches.
 
+## Minimal cmd batch delivery comparison
+
+`cmd-batch-exit23` uses a fresh private copy of the same original cmd executable
+bytes and the original `/d /q /c direct.cmd` route, with the same private workspace
+current directory. Its batch contains exactly nine ASCII bytes, `exit 23` followed
+by CRLF, with SHA256
+`cab50bf1c23956b80d898c7af8f1c1e853e5bba6b14b8a2fbe4981d382fb7e8a`.
+The original batch generator and command-line sentinel remain unchanged.
+
+The new case has its own profile, root, case identity, evidence directory and
+journal. Its separately bound capture adapter requires the actual source's exact
+nine bytes and fixed hash, validated ordinary-file identities, byte-identical raw
+destination readback and every confirmed close before profile/process creation.
+Its copied executable hash must equal the original cmd case before assignment or
+resume. All authority, stdio, deadline and cleanup gates remain the same.
+
+An observed queried exit 23 means only that this minimal relative batch route
+reached the expected builtin exit. It does not prove that the original batch was
+opened, that any original operation succeeded, or that access was denied. Other
+exits or timeout leave lookup, opening, parsing and batch initialization unresolved.
+The new observation cannot change either earlier aggregate or earn script-entry,
+mutation, runtime-support or network-denial credit. Overall evidence or cleanup
+failure still retains the failed run journal.
+
+The `/c` string remains the unquoted literal `direct.cmd`, and `/s` remains absent.
+Microsoft's [cmd parsing rules](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/cmd#remarks)
+describe `/s` quote stripping; adding it would change this comparison. Plain
+[`exit 23`](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/exit)
+terminates cmd with the supplied process exit code. The test adds no `/b`, `call`,
+redirection or fallback command.
+
 ## Explicit LocalApplicationData Temp selection
 
-The current workflow invokes `run-pilot.ps1` with six original cases, the additive
-cmd sentinel, and the fixed
+The current workflow invokes `run-pilot.ps1` with six original cases, the two
+separate cmd observations, and the fixed
 `localappdata_temp_ci_v1` parent policy. The wrapper and C# helper independently
 resolve only `Environment.GetFolderPath(LocalApplicationData, DoNotVerify)` plus
 the literal `Temp` child, require exact agreement and fresh unchanged owner/DACL
@@ -65,7 +98,7 @@ metadata enumeration rejects hidden, wrong-type, duplicate, reparse or unknown
 markers, then recurses only through existing diagnostic-name families and evidence.
 Unrelated Temp subtrees are never traversed. The depth32/100000-entry limits remain.
 A short lease protects pre-allocation checks. After the run journal exists, a
-long lease remains held through all seven cases and owned-root removal. Any failed
+long lease remains held through all eight cases and owned-root removal. Any failed
 scan, metadata check or uncertain close stops progression and retains recovery.
 
 The final recovery scan and independent reverse single-attempt pin closes precede
@@ -114,7 +147,7 @@ exercise pure observation gates, not Windows compatibility.
 invocation first checks a suspended ordinary-AppContainer native control and proves
 that its actual identification-token signature is rejected as LPAC. It then checks
 and resumes the unchanged LPAC native reference, followed by exactly Node, cmd,
-Windows PowerShell, pwsh and the separate cmd sentinel. Every target's own suspended primary token must pass
+Windows PowerShell, pwsh and the two separate cmd observations. Every target's own suspended primary token must pass
 AppContainer/SID/zero-capability/LowIL checks and its own noninheritable query-only
 identification duplicate must pass all four fixed AccessCheck descriptors. All
 observer/source handles close before assignment/resume. Requested flags and the
@@ -151,7 +184,7 @@ TOKEN_QUERY-only TokenUser read. It is separate from target authority verificati
 never duplicates or impersonates the broker, does not log its SID, and each query closes
 before its helper returns and before any later target creation/resume. No new ACL template or privilege is introduced.
 
-The completed journal commits only the seven required case outcomes, any subject/
+The completed journal commits only the eight required case outcomes, any subject/
 profile scopes actually created, the disposable run root and selected-parent metadata
 handles. Preparation evidence,
 PowerShell loopback-listener teardown, outer workflow capture and artifact upload

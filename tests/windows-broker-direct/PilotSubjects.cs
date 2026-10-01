@@ -16,7 +16,7 @@ public static partial class BrokerDirectLauncher {
             s.Job!=IntPtr.Zero || s.SourceToken!=IntPtr.Zero || s.Process.process!=IntPtr.Zero || s.Process.thread!=IntPtr.Zero ||
             s.Receipt.CreateAttempted || s.Receipt.Assigned || s.Receipt.Resumed)
             throw new InvalidOperationException("fresh coordinator-owned pilot subject required");
-        if(kind!="ordinary" && kind!="reference" && kind!="node" && kind!="cmd" && kind!="powershell" && kind!="pwsh" && kind!="cmd-exit23")
+        if(kind!="ordinary" && kind!="reference" && kind!="node" && kind!="cmd" && kind!="powershell" && kind!="pwsh" && kind!="cmd-exit23" && kind!="cmd-batch-exit23")
             throw new ArgumentException("fixed pilot kind required");
         if(port<1 || port>65535 || String.IsNullOrEmpty(s.Profile)) throw new ArgumentException("fixed pilot setup invalid");
         foreach(string path in new string[]{s.Parent,s.Root,s.Code,s.Workspace,s.Outside,fixture,payload}) SafePath(path);
@@ -59,7 +59,7 @@ public static partial class BrokerDirectLauncher {
     static void PreparePilotSubject(QualificationSubject s,string fixture,string payload,string kind,int port,string evidence,Action profileCheckpoint) {
         if(profileCheckpoint==null) throw new ArgumentNullException("profileCheckpoint");
         ValidatePilotPreparation(s,fixture,payload,kind,port);
-        DirectReceipt r=s.Receipt;bool lpac=kind!="ordinary";r.Kind=kind=="cmd-exit23"?"cmd":kind;
+        DirectReceipt r=s.Receipt;bool lpac=kind!="ordinary";r.Kind=(kind=="cmd-exit23" || kind=="cmd-batch-exit23")?"cmd":kind;
         IntPtr list=IntPtr.Zero,caps=IntPtr.Zero,policy=IntPtr.Zero,handles=IntPtr.Zero,environment=IntPtr.Zero;
         IntPtr writer=IntPtr.Zero,input=IntPtr.Zero,output=IntPtr.Zero,error=IntPtr.Zero;
         bool initialized=false,closed=true;
@@ -73,7 +73,7 @@ public static partial class BrokerDirectLauncher {
             string privateFixture=Path.Combine(s.Code,"fixture.exe");
             CopyPilotFile(fixture,privateFixture,"fixture.exe",provenance);
             r.Identities["fixture_source_sha256"]=HashFile(fixture);
-            if(kind=="cmd" || kind=="cmd-exit23") CopyPilotFile(Path.Combine(payload,"cmd.exe"),Path.Combine(s.Code,"cmd.exe"),"cmd.exe",provenance);
+            if(kind=="cmd" || kind=="cmd-exit23" || kind=="cmd-batch-exit23") CopyPilotFile(Path.Combine(payload,"cmd.exe"),Path.Combine(s.Code,"cmd.exe"),"cmd.exe",provenance);
             else if(kind!="ordinary" && kind!="reference") {
                 string runtime=Path.Combine(s.Code,"runtime"),source=Path.Combine(payload,kind);
                 Check(PilotCreateDirectory(runtime,IntPtr.Zero),"fresh pilot runtime directory");
@@ -83,9 +83,13 @@ public static partial class BrokerDirectLauncher {
             string exe;
             if(kind=="cmd-exit23") {
                 exe=Path.Combine(s.Code,"cmd.exe");r.CommandLine=FixedPilotCmdSentinelCommand(exe);
+            } else if(kind=="cmd-batch-exit23") {
+                exe=Path.Combine(s.Code,"cmd.exe");r.CommandLine=FixedPilotCmdBatchCommand(exe);
+                File.WriteAllBytes(Path.Combine(s.Workspace,"direct.cmd"),PilotCmdMinimalBatchBytes());
             } else r.CommandLine=FixedCommand(kind=="ordinary"?"reference":kind,s.Code,s.Workspace,s.Outside,port,out exe);
             r.Executable=exe;r.ExecutableSha256=HashFile(exe);
             if(kind=="cmd") CapturePilotOriginalCmdBatch(s,evidence);
+            if(kind=="cmd-batch-exit23") CapturePilotMinimalCmdBatch(s,evidence);
             File.WriteAllText(Path.Combine(s.Root,"copy-source-destination-sha256.txt"),provenance.ToString());
             var privateHashes=new StringBuilder();
             foreach(string file in Directory.GetFiles(s.Code,"*",SearchOption.AllDirectories))

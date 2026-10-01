@@ -13,17 +13,17 @@ public static partial class BrokerDirectLauncher {
         public bool CleanupPreconditionsConfirmed,CaseMarkerResolved,ScopedLifecycleCleanupConfirmed;
         public bool OutsideUnchanged,OutsideWriteAbsent,OutsideReadObserved,OutsideWriteObserved,ScriptEntryObserved,OutputOk,MutationOk;
         public bool PositivePassed,OfflineReferenceRouteValid,NativeFiveAssertionsPassed,NetworkDenialProven=false;
-        public bool CmdExit23Observed;
+        public bool CmdExit23Observed,CmdBatchExit23Observed;
         public string ExitHex,KnownStartupStatus;
     }
     public sealed class PilotRunReceipt {
         public string Policy="accesscheck_signature_v1_ci",Phase="collecting",Failure;
-        public string CleanupScope="seven required case outcomes, their actually created profile/private scopes and disposable run root and selected-parent metadata handles only; listener, preparation evidence, outer workflow capture/upload are separate outcomes";
+        public string CleanupScope="eight required case outcomes, their actually created profile/private scopes and disposable run root and selected-parent metadata handles only; listener, preparation evidence, outer workflow capture/upload are separate outcomes";
         public string CompletionJournal,JournalProtocol="completed filename is the final resolution receipt; preconditions alone are not completion";
         public bool OrdinaryControlPassed,ReferenceRoutePassed,AllFourOfflineCasesPassed,AllCaseCleanupConfirmed,RunRootRemoved;
-        public bool CmdSentinelObservationPassed;
+        public bool CmdSentinelObservationPassed,CmdBatchObservationPassed;
         public bool NetworkDenialProven=false;
-        public int RequiredCaseCount=7,OriginalPilotRequiredCaseCount=6,AdditiveSentinelRequiredCaseCount=1,OriginalNestedRequiredRows=20;
+        public int RequiredCaseCount=8,OriginalPilotRequiredCaseCount=6,AdditiveSentinelRequiredCaseCount=1,AdditiveBatchRequiredCaseCount=1,OriginalNestedRequiredRows=20;
         public string[] NotCovered=new string[]{"python","npm.cmd","git","nested_child_support","ConPTY","production_integration"};
         public SelectedParentReceipt InitialSelectedParent,SelectedParent=new SelectedParentReceipt();
         public DirectReceipt Broker=new DirectReceipt();
@@ -47,7 +47,7 @@ public static partial class BrokerDirectLauncher {
     }
     static PilotCaseReceipt RunPilotCase(string fixture,string fixtureHash,string payload,string parent,string evidence,string kind,int port,string originalCmdHash,
         bool ordinaryControlPassed,PilotJournal runJournal,Action<string[]> markerGuard,Func<PilotCaseReceipt,string> serialize) {
-        var row=new PilotCaseReceipt();row.Case=kind;row.Launcher.Kind=kind=="cmd-exit23"?"cmd":kind;DirectReceipt r=row.Launcher;
+        var row=new PilotCaseReceipt();row.Case=kind;row.Launcher.Kind=(kind=="cmd-exit23" || kind=="cmd-batch-exit23")?"cmd":kind;DirectReceipt r=row.Launcher;
         r.Identities["pilot_case_id"]=kind;
         var s=new QualificationSubject();s.Receipt=r;s.Parent=parent;s.Profile="ctm.fixture.pilot."+Guid.NewGuid().ToString("N");
         string leaf="owned-"+Guid.NewGuid().ToString("N");s.Root=Path.Combine(parent,leaf);
@@ -67,7 +67,7 @@ public static partial class BrokerDirectLauncher {
             if(!s.ProfileCreated || !s.OwnershipCertain || !PilotIdentity(r,"fixture_source_sha256",fixtureHash) ||
                 ((kind=="ordinary" || kind=="reference") && r.ExecutableSha256!=fixtureHash))
                 throw new InvalidOperationException("same-run native bytes or owned profile unverified");
-            if(kind=="cmd-exit23") {
+            if(kind=="cmd-exit23" || kind=="cmd-batch-exit23") {
                 r.Numbers["pilot_cmd_same_binary_verified"]=0;
                 if(!PilotCmdSha256(originalCmdHash) || originalCmdHash!=r.ExecutableSha256)
                     throw new InvalidOperationException("sentinel cmd bytes differ from original cmd case");
@@ -182,14 +182,14 @@ public static partial class BrokerDirectLauncher {
                 available.Add(kind,true);
             }
             bool blocked=false;string originalCmdHash=null;
-            foreach(string kind in new string[]{"ordinary","reference","node","cmd","powershell","pwsh","cmd-exit23"}) {
+            foreach(string kind in new string[]{"ordinary","reference","node","cmd","powershell","pwsh","cmd-exit23","cmd-batch-exit23"}) {
                 PilotCaseReceipt row;
-                string runtime=kind=="cmd-exit23"?"cmd":kind;
+                string runtime=(kind=="cmd-exit23" || kind=="cmd-batch-exit23")?"cmd":kind;
                 if(blocked || (kind!="ordinary" && !result.OrdinaryControlPassed) || (kind!="ordinary" && kind!="reference" && !result.ReferenceRoutePassed)) {
                     row=new PilotCaseReceipt();row.Case=kind;row.Status="blocked_prior_control_or_recovery";row.Fatal=true;row.NoCaseResourcesAllocated=true;
                 } else if(kind!="ordinary" && kind!="reference" && !available.ContainsKey(runtime)) {
                     row=new PilotCaseReceipt();row.Case=kind;row.Status="preparation_failed";row.NoCaseResourcesAllocated=true;
-                } else if(kind=="cmd-exit23" && !PilotCmdSha256(originalCmdHash)) {
+                } else if((kind=="cmd-exit23" || kind=="cmd-batch-exit23") && !PilotCmdSha256(originalCmdHash)) {
                     row=new PilotCaseReceipt();row.Case=kind;row.Status="blocked_original_cmd_provenance";row.Fatal=true;row.NoCaseResourcesAllocated=true;
                 } else {
                     journal.VerifyPending();markerGuard(new string[]{journal.Path});string caseEvidence=Path.Combine(evidence,kind);
@@ -199,7 +199,8 @@ public static partial class BrokerDirectLauncher {
                 }
                 result.Cases.Add(row);
                 result.AllFourOfflineCasesPassed=PilotOriginalSixPassed(result.Cases);
-                if(kind=="cmd-exit23") result.CmdSentinelObservationPassed=row.CmdExit23Observed && row.ScopedLifecycleCleanupConfirmed && !row.Fatal;
+                result.CmdSentinelObservationPassed=PilotCmdSentinelPassed(result.Cases);
+                result.CmdBatchObservationPassed=PilotCmdBatchPassed(result.Cases);
                 WritePilotEvidence(Path.Combine(evidence,"matrix-"+result.Cases.Count.ToString("D2")+".json"),serializeRun(result),result.Broker,"matrix_"+result.Cases.Count);
                 if(!PilotMayAdvance(row)) {blocked=true;journal.Failed=true;}
                 if(kind=="ordinary") result.OrdinaryControlPassed=row.OrdinarySignatureMatched && row.OrdinaryRejected && row.ScopedLifecycleCleanupConfirmed && !row.Fatal;
@@ -210,7 +211,7 @@ public static partial class BrokerDirectLauncher {
             foreach(PilotCaseReceipt row in result.Cases) {
                 allCleanup=allCleanup && PilotMayAdvance(row);
             }
-            result.AllCaseCleanupConfirmed=allCleanup && result.Cases.Count==7;
+            result.AllCaseCleanupConfirmed=allCleanup && result.Cases.Count==8;
             if(!result.AllCaseCleanupConfirmed || journal.Failed) throw new InvalidOperationException("required case cleanup incomplete; run journal retained");
             journal.VerifyPending();markerGuard(new string[]{journal.Path});
             result.RunRootRemoved=RemovePilotOwnedScope(scope,result.Broker);
@@ -231,10 +232,11 @@ public static partial class BrokerDirectLauncher {
             result.Failure=failure.GetType().Name+": "+failure.Message;result.Phase="failed_recovery_retained";
             var recorded=new Dictionary<string,bool>(StringComparer.Ordinal);
             foreach(PilotCaseReceipt row in result.Cases) if(!recorded.ContainsKey(row.Case)) recorded.Add(row.Case,true);
-            foreach(string kind in new string[]{"ordinary","reference","node","cmd","powershell","pwsh","cmd-exit23"})
+            foreach(string kind in new string[]{"ordinary","reference","node","cmd","powershell","pwsh","cmd-exit23","cmd-batch-exit23"})
                 if(!recorded.ContainsKey(kind)) {var blocked=new PilotCaseReceipt();blocked.Case=kind;blocked.Fatal=true;blocked.Status="blocked_run_failure_no_subject_created";blocked.NoCaseResourcesAllocated=true;result.Cases.Add(blocked);}
             result.AllFourOfflineCasesPassed=PilotOriginalSixPassed(result.Cases);
-            result.CmdSentinelObservationPassed=false;
+            result.CmdSentinelObservationPassed=PilotCmdSentinelPassed(result.Cases);
+            result.CmdBatchObservationPassed=PilotCmdBatchPassed(result.Cases);
             // Best-effort error evidence never resolves or substitutes for the blocking journal.
             try {WritePilotEvidence(Path.Combine(evidence,"pilot-failure.json"),serializeRun(result),result.Broker,"failure");} catch {}
             throw new InvalidOperationException(result.Failure,failure);

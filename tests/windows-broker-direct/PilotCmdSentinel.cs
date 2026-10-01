@@ -111,6 +111,17 @@ public static partial class BrokerDirectLauncher {
             s.Receipt.CreateAttempted || s.Receipt.Created || s.Receipt.Assigned || s.Receipt.Resumed ||
             s.Receipt.Kind!="cmd" || !PilotIdentity(s.Receipt,"pilot_case_id","cmd"))
             throw new InvalidOperationException("original cmd capture must precede all profile/process allocation");
+        CapturePilotCmdBatchCore(s,evidence,ops,false);
+    }
+    static void CapturePilotMinimalCmdBatchUsing(QualificationSubject s,string evidence,PilotCmdCaptureOperations ops) {
+        if(s==null || s.Receipt==null || !s.OwnershipCertain || s.ProfileCreated || s.Sid!=IntPtr.Zero ||
+            s.Job!=IntPtr.Zero || s.SourceToken!=IntPtr.Zero || s.Process.process!=IntPtr.Zero || s.Process.thread!=IntPtr.Zero ||
+            s.Receipt.CreateAttempted || s.Receipt.Created || s.Receipt.Assigned || s.Receipt.Resumed ||
+            s.Receipt.Kind!="cmd" || !PilotIdentity(s.Receipt,"pilot_case_id","cmd-batch-exit23"))
+            throw new InvalidOperationException("minimal batch capture must precede all profile/process allocation");
+        CapturePilotCmdBatchCore(s,evidence,ops,true);
+    }
+    static void CapturePilotCmdBatchCore(QualificationSubject s,string evidence,PilotCmdCaptureOperations ops,bool minimal) {
         if(ops==null || ops.OpenRead==null || ops.OpenWrite==null || ops.Validate==null || ops.Read==null || ops.Write==null || ops.Close==null)
             throw new ArgumentException("complete cmd capture operations required");
         DirectReceipt r=s.Receipt;r.Numbers["pilot_cmd_batch_capture_confirmed"]=0;
@@ -119,7 +130,14 @@ public static partial class BrokerDirectLauncher {
         SafePath(source);SafePath(destination);
         if(String.Equals(source,destination,StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("cmd capture paths must be distinct");
         r.Identities["pilot_cmd_batch_stage"]="before_profile_and_process_creation";
+        r.Numbers["pilot_cmd_minimal_payload_verified"]=0;
         byte[] bytes=ReadPilotCmdCapture(s,source,null,"pilot_cmd_batch_source",ops);
+        if(minimal) {
+            if(bytes.Length!=9 || !PilotCmdRawEqual(bytes,PilotCmdMinimalBatchBytes()) ||
+                PilotCmdRawHash(bytes)!="cab50bf1c23956b80d898c7af8f1c1e853e5bba6b14b8a2fbe4981d382fb7e8a")
+                throw new InvalidOperationException("minimal batch actual bytes differ from fixed payload");
+            r.Numbers["pilot_cmd_minimal_payload_verified"]=1;
+        }
         IntPtr writer=IntPtr.Zero;bool closed=false;string destinationIdentity=null;
         r.Identities["pilot_cmd_batch_destination_path"]=destination;r.Numbers["pilot_cmd_batch_destination_write_confirmed"]=0;
         try {
@@ -149,7 +167,7 @@ public static partial class BrokerDirectLauncher {
     }
     static void ClassifyPilotCmdSentinel(PilotCaseReceipt row) {
         if(row==null || row.Launcher==null) throw new ArgumentNullException("cmd sentinel facts");
-        row.CmdExit23Observed=false;row.PositivePassed=false;row.ScriptEntryObserved=false;row.OutputOk=false;row.MutationOk=false;
+        row.CmdExit23Observed=false;row.CmdBatchExit23Observed=false;row.PositivePassed=false;row.ScriptEntryObserved=false;row.OutputOk=false;row.MutationOk=false;
         row.OfflineReferenceRouteValid=false;row.NativeFiveAssertionsPassed=false;row.NetworkDenialProven=false;
         if(row.Fatal) return;
         DirectReceipt r=row.Launcher;row.ExitHex=r.Exit.ToString("X8");
@@ -161,6 +179,61 @@ public static partial class BrokerDirectLauncher {
             !row.OutsideReadObserved && !row.OutsideWriteObserved && r.CreateAttempted && r.Created && r.CreateError==0 &&
             r.Assigned && r.Resumed && r.Wait==WAIT_OBJECT_0 && r.Exit==23;
         row.Status=r.Wait==WAIT_TIMEOUT?"deadline_exceeded":row.CmdExit23Observed?"cmd_exit23_observed":"cmd_exit23_not_observed";
+    }
+    static string FixedPilotCmdBatchCommand(string privateCmdExe) {
+        SafePath(privateCmdExe);
+        if(Path.GetFileName(privateCmdExe)!="cmd.exe") throw new ArgumentException("fixed private cmd executable required");
+        return Quote(privateCmdExe)+" /d /q /c direct.cmd";
+    }
+    static byte[] PilotCmdMinimalBatchBytes() {
+        return new byte[]{0x65,0x78,0x69,0x74,0x20,0x32,0x33,0x0d,0x0a};
+    }
+    static void CapturePilotMinimalCmdBatch(QualificationSubject s,string evidence) {
+        CapturePilotMinimalCmdBatchUsing(s,evidence,PilotCmdNativeCaptureOperations());
+    }
+    static bool PilotCmdMinimalCaptureVerified(DirectReceipt r) {
+        if(!PilotNumber(r,"pilot_cmd_minimal_payload_verified",1) || !PilotNumber(r,"pilot_cmd_batch_capture_confirmed",1) ||
+            !PilotIdentity(r,"pilot_cmd_batch_stage","before_profile_and_process_creation")) return false;
+        string destination,readback;
+        if(!r.Identities.TryGetValue("pilot_cmd_batch_destination",out destination) || String.IsNullOrEmpty(destination) ||
+            !r.Identities.TryGetValue("pilot_cmd_batch_readback",out readback) || destination!=readback) return false;
+        foreach(string part in new string[]{"source","destination","readback"}) {
+            string label="pilot_cmd_batch_"+part,identity;
+            if(!r.Identities.TryGetValue(label,out identity) || String.IsNullOrEmpty(identity) ||
+                !PilotNumber(r,label+"_bytes",9) || !PilotNumber(r,label+"_close_confirmed",1) ||
+                !PilotIdentity(r,label+"_sha256","cab50bf1c23956b80d898c7af8f1c1e853e5bba6b14b8a2fbe4981d382fb7e8a")) return false;
+        }
+        return PilotNumber(r,"pilot_cmd_batch_source_read_confirmed",1) && PilotNumber(r,"pilot_cmd_batch_destination_write_confirmed",1) &&
+            PilotNumber(r,"pilot_cmd_batch_readback_read_confirmed",1);
+    }
+    static void ClassifyPilotCmdBatch(PilotCaseReceipt row) {
+        if(row==null || row.Launcher==null) throw new ArgumentNullException("cmd batch facts");
+        row.CmdExit23Observed=false;row.CmdBatchExit23Observed=false;row.PositivePassed=false;row.ScriptEntryObserved=false;row.OutputOk=false;row.MutationOk=false;
+        row.OfflineReferenceRouteValid=false;row.NativeFiveAssertionsPassed=false;row.NetworkDenialProven=false;
+        if(row.Fatal) return;
+        DirectReceipt r=row.Launcher;row.ExitHex=r.Exit.ToString("X8");
+        row.CanaryClassification="minimal_batch_did_not_attempt_runtime_canary";
+        row.CmdBatchExit23Observed=row.Case=="cmd-batch-exit23" && r.Kind=="cmd" && PilotIdentity(r,"pilot_case_id","cmd-batch-exit23") &&
+            PilotCmdMinimalCaptureVerified(r) && PilotCmdSha256(r.ExecutableSha256) && PilotIdentity(r,"pilot_original_cmd_sha256",r.ExecutableSha256) &&
+            PilotNumber(r,"pilot_cmd_same_binary_verified",1) && PilotNumber(r,"pilot_exit_query_success",1) &&
+            row.AuthorityObserved && row.PreResumeReady && row.OutsideUnchanged && row.OutsideWriteAbsent &&
+            !row.OutsideReadObserved && !row.OutsideWriteObserved && r.CreateAttempted && r.Created && r.CreateError==0 &&
+            r.Assigned && r.Resumed && r.Wait==WAIT_OBJECT_0 && r.Exit==23;
+        row.Status=r.Wait==WAIT_TIMEOUT?"deadline_exceeded":row.CmdBatchExit23Observed?"cmd_minimal_batch_exit23_observed":"cmd_minimal_batch_exit23_not_observed";
+    }
+    static bool PilotCmdSentinelPassed(IList<PilotCaseReceipt> rows) {
+        if(rows==null || rows.Count<7) return false;
+        PilotCaseReceipt row=rows[6];
+        return row!=null && row.Case=="cmd-exit23" && row.Launcher!=null && row.Launcher.Kind=="cmd" &&
+            PilotIdentity(row.Launcher,"pilot_case_id","cmd-exit23") && row.CmdExit23Observed &&
+            !row.NoCaseResourcesAllocated && PilotMayAdvance(row) && row.ScopedLifecycleCleanupConfirmed;
+    }
+    static bool PilotCmdBatchPassed(IList<PilotCaseReceipt> rows) {
+        if(rows==null || rows.Count<8) return false;
+        PilotCaseReceipt row=rows[7];
+        return row!=null && row.Case=="cmd-batch-exit23" && row.Launcher!=null && row.Launcher.Kind=="cmd" &&
+            PilotIdentity(row.Launcher,"pilot_case_id","cmd-batch-exit23") && row.CmdBatchExit23Observed &&
+            !row.NoCaseResourcesAllocated && PilotMayAdvance(row) && row.ScopedLifecycleCleanupConfirmed;
     }
     static bool PilotOriginalSixPassed(IList<PilotCaseReceipt> rows) {
         if(rows==null || rows.Count<6) return false;

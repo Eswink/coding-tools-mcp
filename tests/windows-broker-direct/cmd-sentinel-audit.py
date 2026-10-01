@@ -11,7 +11,7 @@ ROOT = HERE.parents[1]
 SELECTED = runpy.run_path(str(HERE / 'selected-parent-audit.py'))
 OLD_NAMES = SELECTED['OLD_NAMES'] | set(SELECTED['NAMES'])
 NAMES = ('PilotCmdSentinel.cs', 'PilotCmdSentinelTests.cs')
-PINS = {'PilotCmdSentinel.cs': '36a2edb4ae0d5cb5866bf1a464f953d1e790938d6d53f4617e29eb0196388fd4', 'PilotCmdSentinelTests.cs': 'ae3ff1b4018337b46276b5bceb069fdd9161e405b8728cb3ac62066a2539f945'}
+PINS = {'PilotCmdSentinel.cs': '8257e4c61050b635b4f51f928bf709f1f61d00852e888313660a4a4ff6f15ed2', 'PilotCmdSentinelTests.cs': '0b72937ed39f5d45c6196c784793abd205206ac3daae9ba4e06531c430131a34'}
 
 
 def coverage(names):
@@ -87,7 +87,7 @@ def inspect(files, old, workflow, pins=True):
         'if(!PilotCmdRawEqual(bytes,readback)',
         'pilot_cmd_batch_capture_confirmed"]=0;',
         'pilot_cmd_batch_capture_confirmed"]=1;',
-        'row.CmdExit23Observed=false;row.PositivePassed=false;',
+        'row.CmdExit23Observed=false;row.CmdBatchExit23Observed=false;row.PositivePassed=false;',
         'row.Case=="cmd-exit23" && r.Kind=="cmd" && PilotIdentity(r,"pilot_case_id","cmd-exit23")',
         'PilotNumber(r,"pilot_cmd_same_binary_verified",1)',
         'PilotIdentity(r,"pilot_original_cmd_sha256",r.ExecutableSha256)',
@@ -108,42 +108,113 @@ def inspect(files, old, workflow, pins=True):
     assert 'return true;' in aggregate and 'rows[6]' not in aggregate
     assert aggregate.count('rows.Count') == 1 and 'cmd-exit23' not in aggregate
     subjects, runner, facts = old['PilotSubjects.cs'], old['PilotRunner.cs'], old['PilotClassification.cs']
-    assert 'kind!="pwsh" && kind!="cmd-exit23"' in subjects
-    assert 'r.Kind=kind=="cmd-exit23"?"cmd":kind;' in subjects
-    assert 'if(kind=="cmd" || kind=="cmd-exit23") CopyPilotFile(Path.Combine(payload,"cmd.exe")' in subjects
+    assert 'kind!="pwsh" && kind!="cmd-exit23" && kind!="cmd-batch-exit23"' in subjects
+    assert 'r.Kind=(kind=="cmd-exit23" || kind=="cmd-batch-exit23")?"cmd":kind;' in subjects
+    assert 'if(kind=="cmd" || kind=="cmd-exit23" || kind=="cmd-batch-exit23") CopyPilotFile(Path.Combine(payload,"cmd.exe")' in subjects
     assert 'if(kind=="cmd") CapturePilotOriginalCmdBatch(s,evidence);' in subjects
     assert subjects.count('CapturePilotOriginalCmdBatch(') == 1
     assert subjects.index('r.CommandLine=FixedCommand(') < subjects.index('CapturePilotOriginalCmdBatch(') < subjects.index('CreateAppContainerProfile(') < subjects.index('CreateProcess(')
     assert 'exe=Path.Combine(s.Code,"cmd.exe");r.CommandLine=FixedPilotCmdSentinelCommand(exe);' in subjects
-    assert 'row.Launcher.Kind=kind=="cmd-exit23"?"cmd":kind;' in runner
+    assert 'row.Launcher.Kind=(kind=="cmd-exit23" || kind=="cmd-batch-exit23")?"cmd":kind;' in runner
     assert 'r.Identities["pilot_case_id"]=kind;' in runner
     assert 'if(!PilotCmdSha256(originalCmdHash) || originalCmdHash!=r.ExecutableSha256)' in runner
     assert 'r.Identities["pilot_original_cmd_sha256"]=originalCmdHash;' in runner
     assert runner.index('originalCmdHash!=r.ExecutableSha256') < runner.index('ObserveQualificationSource(s)') < runner.index('AssignProcessToJobObject(')
     assert 'Check(GetExitCodeProcess(s.Process.process,out exit),"pilot exit code");r.Exit=exit;r.Numbers["pilot_exit_query_success"]=1;' in runner
-    sequence = 'new string[]{"ordinary","reference","node","cmd","powershell","pwsh","cmd-exit23"}'
+    sequence = 'new string[]{"ordinary","reference","node","cmd","powershell","pwsh","cmd-exit23","cmd-batch-exit23"}'
     assert runner.count(sequence) == 2
-    assert 'RequiredCaseCount=7,OriginalPilotRequiredCaseCount=6,AdditiveSentinelRequiredCaseCount=1,OriginalNestedRequiredRows=20;' in runner
-    assert 'string runtime=kind=="cmd-exit23"?"cmd":kind;' in runner and '!available.ContainsKey(runtime)' in runner
+    assert 'RequiredCaseCount=8,OriginalPilotRequiredCaseCount=6,AdditiveSentinelRequiredCaseCount=1,AdditiveBatchRequiredCaseCount=1,OriginalNestedRequiredRows=20;' in runner
+    assert 'string runtime=(kind=="cmd-exit23" || kind=="cmd-batch-exit23")?"cmd":kind;' in runner and '!available.ContainsKey(runtime)' in runner
     assert 'blocked_original_cmd_provenance";row.Fatal=true;row.NoCaseResourcesAllocated=true;' in runner
-    assert 'else if(kind=="cmd-exit23" && !PilotCmdSha256(originalCmdHash))' in runner
+    assert 'else if((kind=="cmd-exit23" || kind=="cmd-batch-exit23") && !PilotCmdSha256(originalCmdHash))' in runner
     assert 'if(kind=="cmd" && PilotNumber(row.Launcher,"pilot_copied_bytes_verified",1)) originalCmdHash=row.Launcher.ExecutableSha256;' in runner
     assignments = re.findall(r'result\.AllFourOfflineCasesPassed\s*=[^;]+;', runner)
     assert assignments == ['result.AllFourOfflineCasesPassed=PilotOriginalSixPassed(result.Cases);'] * 2
     assert runner.index('result.AllFourOfflineCasesPassed=PilotOriginalSixPassed(result.Cases);') < runner.index('"matrix-"')
-    assert runner.index('if(kind=="cmd-exit23") result.CmdSentinelObservationPassed=') < runner.index('"matrix-"')
-    assert 'row.CmdExit23Observed && row.ScopedLifecycleCleanupConfirmed && !row.Fatal;' in runner
-    assert 'result.AllCaseCleanupConfirmed=allCleanup && result.Cases.Count==7;' in runner
+    for field, reducer in (('CmdSentinelObservationPassed', 'PilotCmdSentinelPassed'), ('CmdBatchObservationPassed', 'PilotCmdBatchPassed')):
+        assignment = 'result.'+field+'='+reducer+'(result.Cases);'
+        assert re.findall(r'result\.'+field+r'\s*=[^;]+;', runner) == [assignment]*2
+        assert runner.index(assignment) < runner.index('"matrix-"')
+        catch = runner[runner.index('result.Failure=failure.GetType().Name+": "+failure.Message;result.Phase="failed_recovery_retained";'):]
+        assert catch.index(assignment) < catch.index('WritePilotEvidence(')
+    assert 'result.AllCaseCleanupConfirmed=allCleanup && result.Cases.Count==8;' in runner
     assert runner.count('new PilotJournal(') == 2 and runner.count('RunPilotCase(fixture,') == 1
     assert 'journal=new PilotJournal(evidence,kind,s.Root,s.Profile,r);' in runner
     assert 'if(!PilotMayAdvance(row)) {blocked=true;journal.Failed=true;}' in runner
     assert 'if(!result.AllCaseCleanupConfirmed || journal.Failed) throw' in runner
-    assert 'row.NetworkDenialProven=false;row.CmdExit23Observed=false;' in facts
+    assert 'row.NetworkDenialProven=false;row.CmdExit23Observed=false;row.CmdBatchExit23Observed=false;' in facts
     assert facts.index('row.CmdExit23Observed=false;') < facts.index('if(row.Fatal) return;')
     assert facts.index('if(!row.OutsideUnchanged || !row.OutsideWriteAbsent)') < facts.index('if(row.Case=="cmd-exit23") {ClassifyPilotCmdSentinel(row);return;}')
     wrapper = old['run-pilot.ps1']
     assert 'if(-not $result.AllFourOfflineCasesPassed) {throw' in wrapper
     assert 'if(-not $result.CmdSentinelObservationPassed) {throw' in wrapper
+    assert 'if(-not $result.CmdBatchObservationPassed) {throw' in wrapper
+    original_capture = helper[helper.index('    static void CapturePilotCmdBatchUsing('):helper.index('    static void CapturePilotMinimalCmdBatchUsing(')]
+    minimal_capture = helper[helper.index('    static void CapturePilotMinimalCmdBatchUsing('):helper.index('    static void CapturePilotCmdBatchCore(')]
+    for adapter, case, mode in ((original_capture, 'cmd', 'false'), (minimal_capture, 'cmd-batch-exit23', 'true')):
+        assert 's.Receipt.Kind!="cmd" || !PilotIdentity(s.Receipt,"pilot_case_id","'+case+'")' in adapter
+        for guard in ('!s.OwnershipCertain', 's.ProfileCreated', 's.Sid!=IntPtr.Zero', 's.Job!=IntPtr.Zero',
+                      's.SourceToken!=IntPtr.Zero', 's.Process.process!=IntPtr.Zero', 's.Process.thread!=IntPtr.Zero',
+                      's.Receipt.CreateAttempted', 's.Receipt.Created', 's.Receipt.Assigned', 's.Receipt.Resumed'):
+            assert guard in adapter
+        call='CapturePilotCmdBatchCore(s,evidence,ops,'+mode+');'
+        assert call in adapter
+        assert adapter.index('throw new InvalidOperationException(') < adapter.index(call)
+    assert helper.count('CapturePilotCmdBatchCore(s,evidence,ops,') == 2
+    core = helper[helper.index('    static void CapturePilotCmdBatchCore('):helper.index('    static void CapturePilotOriginalCmdBatch(')]
+    for exact in ('if(minimal)', 'bytes.Length!=9', '!PilotCmdRawEqual(bytes,PilotCmdMinimalBatchBytes())',
+                  'PilotCmdRawHash(bytes)!="cab50bf1c23956b80d898c7af8f1c1e853e5bba6b14b8a2fbe4981d382fb7e8a"',
+                  'r.Numbers["pilot_cmd_minimal_payload_verified"]=0;', 'r.Numbers["pilot_cmd_minimal_payload_verified"]=1;'):
+        assert exact in core
+    assert core.index('ReadPilotCmdCapture(s,source,') < core.index('bytes.Length!=9') < core.index('ops.OpenWrite(')
+    assert core.index('bytes.Length!=9') < core.index('pilot_cmd_minimal_payload_verified"]=1;')
+    assert core.index('ReadPilotCmdCapture(s,destination,') < core.index('pilot_cmd_batch_capture_confirmed"]=1;')
+    for exact in ('return Quote(privateCmdExe)+" /d /q /c direct.cmd";',
+                  'return new byte[]{0x65,0x78,0x69,0x74,0x20,0x32,0x33,0x0d,0x0a};',
+                  'CapturePilotMinimalCmdBatchUsing(s,evidence,PilotCmdNativeCaptureOperations());'):
+        assert exact in helper
+    assert 'File.WriteAllBytes(Path.Combine(s.Workspace,"direct.cmd"),PilotCmdMinimalBatchBytes());' in subjects
+    assert 'if(kind=="cmd-batch-exit23") CapturePilotMinimalCmdBatch(s,evidence);' in subjects
+    assert subjects.index('File.WriteAllBytes(') < subjects.index('CapturePilotMinimalCmdBatch(s,evidence);') < subjects.index('CreateAppContainerProfile(')
+    assert subjects.count('File.WriteAllBytes(') == 1 and subjects.count('CapturePilotMinimalCmdBatch(s,evidence);') == 1
+    assert 'if(kind=="cmd-exit23" || kind=="cmd-batch-exit23") {' in runner
+    assert facts.index('row.CmdBatchExit23Observed=false;') < facts.index('if(row.Fatal) return;')
+    assert 'if(row.Case=="cmd-batch-exit23") {ClassifyPilotCmdBatch(row);return;}' in facts
+    assert facts.index('if(!row.OutsideUnchanged || !row.OutsideWriteAbsent)') < facts.index('if(row.Case=="cmd-batch-exit23") {ClassifyPilotCmdBatch(row);return;}')
+    capture_predicate = helper[helper.index('    static bool PilotCmdMinimalCaptureVerified('):helper.index('    static void ClassifyPilotCmdBatch(')]
+    for exact in ('!PilotNumber(r,"pilot_cmd_minimal_payload_verified",1)', '!PilotNumber(r,"pilot_cmd_batch_capture_confirmed",1)',
+                  '!PilotIdentity(r,"pilot_cmd_batch_stage","before_profile_and_process_creation")', 'destination!=readback',
+                  'new string[]{"source","destination","readback"}', '!PilotNumber(r,label+"_bytes",9)', '!PilotNumber(r,label+"_close_confirmed",1)',
+                  '!PilotIdentity(r,label+"_sha256","cab50bf1c23956b80d898c7af8f1c1e853e5bba6b14b8a2fbe4981d382fb7e8a")',
+                  'PilotNumber(r,"pilot_cmd_batch_source_read_confirmed",1)', 'PilotNumber(r,"pilot_cmd_batch_destination_write_confirmed",1)',
+                  'PilotNumber(r,"pilot_cmd_batch_readback_read_confirmed",1)'):
+        assert exact in capture_predicate
+    for method, next_method, case, observed in (
+        ('ClassifyPilotCmdSentinel', 'FixedPilotCmdBatchCommand', 'cmd-exit23', 'CmdExit23Observed'),
+        ('ClassifyPilotCmdBatch', 'PilotCmdSentinelPassed', 'cmd-batch-exit23', 'CmdBatchExit23Observed')):
+        body=helper[helper.index('    static void '+method+'('):helper.index('    static ',helper.index('    static void '+method+'(')+5)]
+        for field in ('CmdExit23Observed', 'CmdBatchExit23Observed', 'PositivePassed', 'ScriptEntryObserved', 'OutputOk', 'MutationOk',
+                      'OfflineReferenceRouteValid', 'NativeFiveAssertionsPassed', 'NetworkDenialProven'):
+            assert 'row.'+field+'=false;' in body
+            assert body.index('row.'+field+'=false;') < body.index('if(row.Fatal) return;')
+        for exact in ('row.Case=="'+case+'" && r.Kind=="cmd" && PilotIdentity(r,"pilot_case_id","'+case+'")',
+                      'PilotCmdSha256(r.ExecutableSha256)', 'PilotIdentity(r,"pilot_original_cmd_sha256",r.ExecutableSha256)',
+                      'PilotNumber(r,"pilot_cmd_same_binary_verified",1)', 'PilotNumber(r,"pilot_exit_query_success",1)',
+                      'row.AuthorityObserved && row.PreResumeReady && row.OutsideUnchanged && row.OutsideWriteAbsent',
+                      '!row.OutsideReadObserved && !row.OutsideWriteObserved', 'r.CreateAttempted && r.Created && r.CreateError==0',
+                      'r.Assigned && r.Resumed && r.Wait==WAIT_OBJECT_0 && r.Exit==23'):
+            assert exact in body
+        if case=='cmd-batch-exit23': assert 'PilotCmdMinimalCaptureVerified(r)' in body
+    for method, slot, count, case, observed, following in (
+        ('PilotCmdSentinelPassed', 6, 7, 'cmd-exit23', 'CmdExit23Observed', 'PilotCmdBatchPassed'),
+        ('PilotCmdBatchPassed', 7, 8, 'cmd-batch-exit23', 'CmdBatchExit23Observed', 'PilotOriginalSixPassed')):
+        body=helper[helper.index('    static bool '+method+'('):helper.index('    static bool '+following+'(')]
+        for exact in ('if(rows==null || rows.Count<'+str(count)+') return false;', 'PilotCaseReceipt row=rows['+str(slot)+'];',
+                      'row.Case=="'+case+'"', 'row.Launcher.Kind=="cmd"', 'PilotIdentity(row.Launcher,"pilot_case_id","'+case+'")',
+                      'row.'+observed, '!row.NoCaseResourcesAllocated && PilotMayAdvance(row) && row.ScopedLifecycleCleanupConfirmed'):
+            assert exact in body
+        assert body.count('rows[')==1 and body.count('rows.Count')==1 and 'foreach' not in body
+    assert 'RunPilotCmdBatchTests(ref checks);' in tests and 'static void RunPilotCmdBatchTests(ref int checks)' in tests
     assert workflow.count('& tests/windows-broker-direct/run-pilot.ps1') == 1
     for exact in ('cmd-sentinel-audit.py', 'RunPilotCmdSentinelContractTests()', 'RunSelectedParentContractTests()',
                   'RunPilotPolicyContractTests()', 'RunPilotGateContractTests()', 'RunPilotClassificationContractTests()',
@@ -211,14 +282,52 @@ MUTATIONS = [
     ('original_positive_required','PilotCmdSentinel.cs','if(i>=2 && !row.PositivePassed) return false;',''),
     ('sentinel_positive','PilotCmdSentinel.cs','row.PositivePassed=false;','row.PositivePassed=true;'),
     ('wrong_batch_case','PilotSubjects.cs','if(kind=="cmd") CapturePilotOriginalCmdBatch','if(kind=="cmd-exit23") CapturePilotOriginalCmdBatch'),
-    ('wrong_family','PilotSubjects.cs','r.Kind=kind=="cmd-exit23"?"cmd":kind;','r.Kind=kind;'),
+    ('wrong_family','PilotSubjects.cs','r.Kind=(kind=="cmd-exit23" || kind=="cmd-batch-exit23")?"cmd":kind;','r.Kind=kind;'),
     ('binary_comparison','PilotRunner.cs','originalCmdHash!=r.ExecutableSha256','false'),
     ('rewrite_original','PilotRunner.cs','result.AllFourOfflineCasesPassed=PilotOriginalSixPassed(result.Cases);','result.AllFourOfflineCasesPassed=true;'),
-    ('omit_seventh','PilotRunner.cs','"pwsh","cmd-exit23"}','"pwsh"}'),
+    ('omit_seventh','PilotRunner.cs','"pwsh","cmd-exit23","cmd-batch-exit23"}','"pwsh","cmd-batch-exit23"}'),
     ('hide_provenance','PilotRunner.cs','blocked_original_cmd_provenance";row.Fatal=true;','blocked_original_cmd_provenance";row.Fatal=false;'),
-    ('seventh_cleanup','PilotRunner.cs','result.Cases.Count==7','result.Cases.Count==6'),
+    ('seventh_cleanup','PilotRunner.cs','result.Cases.Count==8','result.Cases.Count==7'),
     ('reset_stale','PilotClassification.cs','row.CmdExit23Observed=false;',''),
     ('drop_wrapper_gate','run-pilot.ps1','if(-not $result.CmdSentinelObservationPassed) {throw','if($false) {throw'),
+    ('minimal_argv','PilotCmdSentinel.cs',' /d /q /c direct.cmd',' /d /q /s /c direct.cmd'),
+    ('minimal_bytes','PilotCmdSentinel.cs','0x65,0x78,0x69,0x74,0x20,0x32,0x33,0x0d,0x0a','0x65,0x78,0x69,0x74,0x20,0x32,0x33,0x0a'),
+    ('minimal_adapter_identity','PilotCmdSentinel.cs','!PilotIdentity(s.Receipt,"pilot_case_id","cmd-batch-exit23")','false'),
+    ('original_adapter_mode','PilotCmdSentinel.cs','CapturePilotCmdBatchCore(s,evidence,ops,false);','CapturePilotCmdBatchCore(s,evidence,ops,true);'),
+    ('minimal_adapter_mode','PilotCmdSentinel.cs','CapturePilotCmdBatchCore(s,evidence,ops,true);','CapturePilotCmdBatchCore(s,evidence,ops,false);'),
+    ('minimal_source_length','PilotCmdSentinel.cs','bytes.Length!=9 || ','') ,
+    ('minimal_source_equality','PilotCmdSentinel.cs','!PilotCmdRawEqual(bytes,PilotCmdMinimalBatchBytes())','false'),
+    ('minimal_source_hash','PilotCmdSentinel.cs','PilotCmdRawHash(bytes)!="cab50bf1c23956b80d898c7af8f1c1e853e5bba6b14b8a2fbe4981d382fb7e8a"','false'),
+    ('minimal_source_guard','PilotCmdSentinel.cs','if(minimal) {','if(false) {'),
+    ('minimal_stale_payload','PilotCmdSentinel.cs','r.Numbers["pilot_cmd_minimal_payload_verified"]=0;',''),
+    ('minimal_capture_dispatch','PilotSubjects.cs','if(kind=="cmd-batch-exit23") CapturePilotMinimalCmdBatch','if(kind=="cmd-exit23") CapturePilotMinimalCmdBatch'),
+    ('minimal_payload_write','PilotSubjects.cs','File.WriteAllBytes(Path.Combine(s.Workspace,"direct.cmd"),PilotCmdMinimalBatchBytes());',''),
+    ('minimal_capture_predicate','PilotCmdSentinel.cs','PilotCmdMinimalCaptureVerified(r) && PilotCmdSha256','PilotCmdSha256'),
+    ('minimal_capture_count','PilotCmdSentinel.cs','!PilotNumber(r,label+"_bytes",9)','false'),
+    ('minimal_capture_close','PilotCmdSentinel.cs','!PilotNumber(r,label+"_close_confirmed",1)','false'),
+    ('minimal_capture_identity','PilotCmdSentinel.cs','destination!=readback','false'),
+    ('minimal_capture_fixed_hash','PilotCmdSentinel.cs','!PilotIdentity(r,label+"_sha256","cab50bf1c23956b80d898c7af8f1c1e853e5bba6b14b8a2fbe4981d382fb7e8a")','false'),
+    ('minimal_capture_stage','PilotCmdSentinel.cs','!PilotIdentity(r,"pilot_cmd_batch_stage","before_profile_and_process_creation")','false'),
+    ('minimal_capture_source_read','PilotCmdSentinel.cs','PilotNumber(r,"pilot_cmd_batch_source_read_confirmed",1)','true'),
+    ('minimal_capture_destination_write','PilotCmdSentinel.cs','PilotNumber(r,"pilot_cmd_batch_destination_write_confirmed",1)','true'),
+    ('minimal_capture_readback_read','PilotCmdSentinel.cs','PilotNumber(r,"pilot_cmd_batch_readback_read_confirmed",1)','true'),
+    ('minimal_classification_dispatch','PilotClassification.cs','if(row.Case=="cmd-batch-exit23") {ClassifyPilotCmdBatch(row);return;}',''),
+    ('minimal_fact_stale','PilotClassification.cs','row.CmdBatchExit23Observed=false;',''),
+    ('inline_stale_batch','PilotCmdSentinel.cs','row.CmdBatchExit23Observed=false;',''),
+    ('seventh_reducer_slot','PilotCmdSentinel.cs','PilotCaseReceipt row=rows[6];','PilotCaseReceipt row=rows[7];'),
+    ('eighth_reducer_slot','PilotCmdSentinel.cs','PilotCaseReceipt row=rows[7];','PilotCaseReceipt row=rows[6];'),
+    ('seventh_reducer_count','PilotCmdSentinel.cs','if(rows==null || rows.Count<7)','if(rows==null || rows.Count!=8)'),
+    ('eighth_reducer_count','PilotCmdSentinel.cs','if(rows==null || rows.Count<8)','if(rows==null || rows.Count!=8)'),
+    ('seventh_reducer_cleanup','PilotCmdSentinel.cs','!row.NoCaseResourcesAllocated && PilotMayAdvance(row) && row.ScopedLifecycleCleanupConfirmed','true'),
+    ('seventh_reduction_wiring','PilotRunner.cs','result.CmdSentinelObservationPassed=PilotCmdSentinelPassed(result.Cases);','result.CmdSentinelObservationPassed=false;'),
+    ('eighth_reduction_wiring','PilotRunner.cs','result.CmdBatchObservationPassed=PilotCmdBatchPassed(result.Cases);','result.CmdBatchObservationPassed=true;'),
+    ('eighth_binary_scope','PilotRunner.cs','if(kind=="cmd-exit23" || kind=="cmd-batch-exit23") {','if(kind=="cmd-exit23") {'),
+    ('omit_eighth','PilotRunner.cs','"pwsh","cmd-exit23","cmd-batch-exit23"}','"pwsh","cmd-exit23"}'),
+    ('drop_batch_wrapper_gate','run-pilot.ps1','if(-not $result.CmdBatchObservationPassed) {throw','if($false) {throw'),
+    ('catch_seventh_reset','PilotRunner.cs','\n            result.CmdSentinelObservationPassed=PilotCmdSentinelPassed(result.Cases);','\n            result.CmdSentinelObservationPassed=false;'),
+    ('catch_eighth_reset','PilotRunner.cs','\n            result.CmdBatchObservationPassed=PilotCmdBatchPassed(result.Cases);','\n            result.CmdBatchObservationPassed=false;'),
+    ('minimal_direct_stale_inline','PilotCmdSentinel.cs','throw new ArgumentNullException("cmd batch facts");\n        row.CmdExit23Observed=false;','throw new ArgumentNullException("cmd batch facts");\n        '),
+    ('minimal_direct_stale_batch','PilotCmdSentinel.cs','throw new ArgumentNullException("cmd batch facts");\n        row.CmdExit23Observed=false;row.CmdBatchExit23Observed=false;','throw new ArgumentNullException("cmd batch facts");\n        row.CmdExit23Observed=false;'),
 ]
 for label, file, before, after in MUTATIONS:
     def test(self, file=file, before=before, after=after):

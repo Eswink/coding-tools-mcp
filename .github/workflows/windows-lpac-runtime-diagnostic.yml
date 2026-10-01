@@ -93,7 +93,7 @@ jobs:
         shell: powershell
         run: |
           & tests/windows-lpac-runtime/run-runtime.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_runtime_fixture.exe -Payload "$env:RUNNER_TEMP/lpac-runtime-payload" -Evidence evidence/runtime
-      - name: Observe six original cases and one additive cmd sentinel
+      - name: Observe six original cases and two separate cmd observations
         if: ${{ !cancelled() && steps.payload.outcome == 'success' }}
         shell: powershell
         run: |
