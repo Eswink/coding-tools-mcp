@@ -3,6 +3,7 @@
 Only the Python driver subprocesses use fakes; these are evidence/cleanup contracts,
 not native sandbox evidence. The real Rust suite still requires native CI.
 """
+import hashlib
 import importlib.util
 import json
 import os
@@ -34,7 +35,7 @@ class RunnerTests(unittest.TestCase):
         self.auth.parent.mkdir(parents=True)
         self.original = b"// original production auth module\n"
         self.auth.write_bytes(self.original)
-        for name in (*probe.GOLDEN, "tests/cloud-gateway/linux_sandbox_lifecycle.rs"):
+        for name in (*probe.GOLDEN, *probe.PAYLOADS.values()):
             target = self.root / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / name, target)
@@ -46,7 +47,9 @@ class RunnerTests(unittest.TestCase):
             self.calls.append((cmd, kwargs))
             if "--no-run" in cmd:
                 self.assertEqual(self.auth.read_bytes(), self.original + probe.INJECTION)
-                self.assertTrue(self.target.exists())
+                for name, source in probe.PAYLOADS.items():
+                    self.assertEqual(self.auth.with_name(name).read_bytes(),
+                                     (self.root / source).read_bytes())
                 if error == "compile-timeout":
                     return 124, "PROBE_SETUP: compile deadline exceeded"
                 if error == "missing-cargo":
@@ -65,16 +68,17 @@ class RunnerTests(unittest.TestCase):
 
     def assert_restored(self, receipt):
         self.assertEqual(self.auth.read_bytes(), self.original)
-        self.assertFalse(self.target.exists())
+        for name in probe.PAYLOADS:
+            self.assertFalse(self.auth.with_name(name).exists())
         self.assertTrue(receipt["production_source_restored"])
         self.assertTrue(receipt["golden_unchanged"])
 
-    def test_exact_three_cases_pass_and_restore(self):
+    def test_exact_seven_cases_pass_and_restore(self):
         result, receipt = self.execute()
         self.assertEqual(result, 0)
         self.assertTrue(receipt["acceptance_passed"])
         self.assertEqual(set(receipt["tests"]), set(probe.CASES))
-        self.assertEqual(len(receipt["tests"]), 5)
+        self.assertEqual(len(receipt["tests"]), 7)
         self.assert_restored(receipt)
         self.assertEqual(receipt["head"], "fixed-source")
         self.assertIn("probe_sha256", receipt)
@@ -135,7 +139,7 @@ class RunnerTests(unittest.TestCase):
     def test_per_case_timeout_keeps_partial_logs_and_continues(self):
         result, receipt = self.execute(error="test-timeout")
         self.assertEqual(result, 1)
-        self.assertEqual(len(receipt["tests"]), 5)
+        self.assertEqual(len(receipt["tests"]), 7)
         for name in probe.CASES:
             self.assertIn("partial test output", (self.out / (name + ".txt")).read_text())
             self.assertEqual(receipt["tests"][name]["exit_code"], 124)
@@ -176,7 +180,7 @@ class RunnerTests(unittest.TestCase):
     def test_exact_test_selection_and_bounded_native_environment(self):
         self.execute()
         for name, (cmd, kwargs) in zip(probe.CASES, self.calls[1:], strict=True):
-            self.assertIn(f"auth::sandbox_lifecycle_probe::{name}", cmd)
+            self.assertIn(probe.CASE_PATHS[name], cmd)
             self.assertIn("--exact", cmd)
             self.assertIn("--test-threads=1", cmd)
             self.assertEqual(kwargs["env"]["CTM_LIFECYCLE_HOST_ONLY"], "synthetic-host-value")
@@ -247,11 +251,14 @@ class RunnerTests(unittest.TestCase):
             "authenticated_zero_yield_input_completes_without_replay",
             "authenticated_dangerous_mode_still_denies_network",
             "approved_primary_missing_policy_fails_closed_without_hooks",
+            "authenticated_timeout_stops_sandboxed_process_tree",
+            "authenticated_kill_session_stops_sandboxed_process_tree",
         ))
 
     def test_either_negative_case_failure_rejects_acceptance(self):
         for failed in ("authenticated_dangerous_mode_still_denies_network",
-                       "approved_primary_missing_policy_fails_closed_without_hooks"):
+                       "approved_primary_missing_policy_fails_closed_without_hooks",
+                       *probe.CASES[-2:]):
             def case_result(root, name, env, deadline):
                 if name == failed:
                     return 101, "test result: FAILED. 0 passed; 1 failed; 0 ignored;"
@@ -267,146 +274,121 @@ class RunnerTests(unittest.TestCase):
             self.assert_restored(receipt)
 
 
-@unittest.skipUnless(sys.platform == "linux", "process group proof requires Linux")
-class OwnedProcessTests(unittest.TestCase):
-    def test_real_subprocess_success_preserves_output(self):
-        code, text = probe.run_owned([sys.executable, "-c", "print('owned-output')"],
-                                    cwd=ROOT, env=os.environ.copy(), timeout=5)
-        self.assertEqual((code, text), (0, "owned-output\n"))
+    def test_every_payload_hash_is_bound_to_source_bytes(self):
+        result, receipt = self.execute()
+        self.assertEqual(result, 0)
+        expected = {source: hashlib.sha256((self.root / source).read_bytes()).hexdigest()
+                    for source in probe.PAYLOADS.values()}
+        self.assertEqual(receipt["payload_sha256"], expected)
+        self.assertEqual(receipt["probe_sha256"], expected[probe.PAYLOADS[self.target.name]])
+        for name in probe.CASES:
+            self.assertEqual(receipt["tests"][name]["test_filter"], probe.CASE_PATHS[name])
 
-    def test_real_timeout_kills_and_reaps_owned_group(self):
-        started = time.monotonic()
-        code, text = probe.run_owned(
-            [sys.executable, "-u", "-c", "import time; print('before-timeout'); time.sleep(60)"],
-            cwd=ROOT, env=os.environ.copy(), timeout=0.2)
-        self.assertEqual(code, 124)
-        self.assertIn("before-timeout", text)
-        self.assertIn("PROBE_SETUP:", text)
-        self.assertLess(time.monotonic() - started, 5)
+    def test_changed_payload_has_its_own_hash(self):
+        source = probe.PAYLOADS["linux_sandbox_deadline.rs"]
+        path = self.root / source
+        path.write_bytes(path.read_bytes() + b"\n// changed fixture\n")
+        result, receipt = self.execute()
+        self.assertEqual(result, 0)
+        self.assertEqual(receipt["payload_sha256"][source], hashlib.sha256(path.read_bytes()).hexdigest())
+        self.assertNotEqual(receipt["payload_sha256"][source], hashlib.sha256((ROOT / source).read_bytes()).hexdigest())
 
-    def test_timeout_stops_inherited_grandchild_group(self):
-        script = ("import subprocess,sys,time; "
-                  "p=subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)']); "
-                  "print(p.pid,flush=True); time.sleep(60)")
-        code, text = probe.run_owned([sys.executable, "-u", "-c", script],
-                                    cwd=ROOT, env=os.environ.copy(), timeout=0.2)
-        self.assertEqual(code, 124)
-        pid = int(text.splitlines()[0])
-        deadline = time.monotonic() + 2
-        while True:
-            try:
-                stat = Path(f"/proc/{pid}/stat").read_text()
-            except FileNotFoundError:
-                break
-            if stat.rsplit(") ", 1)[1].startswith("Z "):
-                break  # Reparented zombie cannot execute or hold a live child workload.
-            self.assertLess(time.monotonic(), deadline, "live grandchild escaped owned group")
-            time.sleep(0.01)
+    def test_each_preexisting_payload_is_preserved(self):
+        for name in probe.PAYLOADS:
+            with self.subTest(name=name):
+                target = self.auth.with_name(name)
+                target.write_bytes(b"other owner")
+                self.calls.clear()
+                result, receipt = self.execute()
+                self.assertEqual(result, 1)
+                self.assertFalse(receipt["acceptance_passed"])
+                self.assertEqual(target.read_bytes(), b"other owner")
+                self.assertEqual(self.auth.read_bytes(), self.original)
+                self.assertEqual(self.calls, [])
+                target.unlink()
 
-    def test_missing_executable_is_a_failed_setup(self):
-        code, text = probe.run_owned(["/nonexistent/lifecycle-fixture-cargo"],
-                                    cwd=ROOT, env=os.environ.copy(), timeout=5)
-        self.assertEqual(code, 127)
-        self.assertIn("PROBE_SETUP:", text)
+    def test_missing_payload_prevents_all_injection(self):
+        for source in probe.PAYLOADS.values():
+            with self.subTest(source=source):
+                path = self.root / source
+                payload = path.read_bytes()
+                path.unlink()
+                self.calls.clear()
+                result, receipt = self.execute()
+                self.assertEqual(result, 1)
+                self.assertEqual(self.calls, [])
+                self.assert_restored(receipt)
+                path.write_bytes(payload)
 
+    def test_partial_payload_write_removes_every_owned_file(self):
+        original_open = Path.open
+        for name in probe.PAYLOADS:
+            target = self.auth.with_name(name)
+            def partial(path, mode="r", *args, **kwargs):
+                stream = original_open(path, mode, *args, **kwargs)
+                if path != target or mode != "xb":
+                    return stream
+                class PartialWrite:
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *error):
+                        stream.close()
+                    def write(self, payload):
+                        stream.write(payload[:5])
+                        raise OSError("synthetic partial payload write")
+                return PartialWrite()
+            with self.subTest(name=name), patch.object(Path, "open", partial):
+                result, receipt = self.execute()
+            self.assertEqual(result, 1)
+            self.assertEqual(self.calls, [])
+            self.assert_restored(receipt)
 
-class WiringTests(unittest.TestCase):
-    def setUp(self):
-        self.workflow = (ROOT / ".github/workflows/linux-authenticated-lifecycle.yml").read_text()
+    def test_partial_registration_write_restores_original_bytes(self):
+        original_write = Path.write_bytes
+        def partial(path, payload):
+            if path == self.auth and payload == self.original + probe.INJECTION:
+                original_write(path, payload[:5])
+                raise OSError("synthetic partial registration")
+            return original_write(path, payload)
+        with patch.object(Path, "write_bytes", partial):
+            result, receipt = self.execute()
+        self.assertEqual(result, 1)
+        self.assertEqual(self.calls, [])
+        self.assert_restored(receipt)
 
-    def test_validation_trigger_is_exact_branch_only(self):
-        self.assertIn("branches: ['test/linux-auth-negatives-20261001']", self.workflow)
-        self.assertNotIn("pull_request:", self.workflow)
-        self.assertNotIn("workflow_dispatch:", self.workflow)
-        self.assertEqual(self.workflow.count("github.ref == 'refs/heads/test/linux-auth-negatives-20261001'"), 2)
-        self.assertIn("os: [ubuntu-22.04, ubuntu-24.04]", self.workflow)
-        self.assertIn("timeout-minutes: 75", self.workflow)
+    def test_each_removal_failure_still_removes_other_payloads(self):
+        original_unlink = Path.unlink
+        for name in probe.PAYLOADS:
+            target = self.auth.with_name(name)
+            def fail(path, *args, **kwargs):
+                if path == target:
+                    raise OSError("synthetic selected removal")
+                return original_unlink(path, *args, **kwargs)
+            with self.subTest(name=name), patch.object(Path, "unlink", fail):
+                result, receipt = self.execute()
+            self.assertEqual(result, 1)
+            self.assertFalse(receipt["production_source_restored"])
+            self.assertEqual(self.auth.read_bytes(), self.original)
+            self.assertTrue(target.exists())
+            for other in set(probe.PAYLOADS) - {name}:
+                self.assertFalse(self.auth.with_name(other).exists())
+            target.unlink()
 
-    def test_actions_are_pinned_and_permissions_are_read_only(self):
-        actions = re.findall(r"uses: (\S+)", self.workflow)
-        self.assertTrue(actions)
-        for action in actions:
-            self.assertRegex(action, r"^[\w/-]+@[a-f0-9]{40}$")
-        self.assertIn("permissions:\n  contents: read", self.workflow)
-        self.assertNotIn("write", self.workflow.split("permissions:", 1)[1].split("env:", 1)[0])
-        self.assertNotIn("secrets.", self.workflow)
-        self.assertNotIn("continue-on-error", self.workflow)
-        self.assertEqual(self.workflow.count("persist-credentials: false"), 2)
-
-    def test_four_native_results_are_independent_and_exact(self):
-        self.assertEqual(self.workflow.count("if: always() && steps.compile.outcome == 'success'"), 4)
-        for name in ("golden", "lifecycle", "kernel", "stdin"):
-            self.assertIn("id: " + name, self.workflow)
-            self.assertIn("steps." + name + ".outcome", self.workflow)
-        self.assertIn("[('ok', '14', '0', '0', '0', '0')]", self.workflow)
-        self.assertIn("[('ok', '6', '0', '0', '0', '0')]", self.workflow)
-        self.assertIn('cargo test --locked --manifest-path src-tauri/Cargo.toml --test exec_input_contract 2>&1', self.workflow)
-
-    def test_source_receipts_precede_setup_and_cleanup_precedes_upload(self):
-        self.assertLess(self.workflow.index("git rev-parse HEAD"), self.workflow.index("actions/setup-python@"))
-        self.assertEqual(self.workflow.count('test "$(cat evidence/source-sha.txt)" = "$GITHUB_SHA"'), 2)
-        self.assertIn('export PATH="/usr/bin:$PATH"', self.workflow)
-        final = self.workflow.index("name: Preserve all outcomes")
-        self.assertLess(final, self.workflow.rindex("actions/upload-artifact@"))
-        for module in ("sandbox_dispatch_probe", "sandbox_lifecycle_probe"):
-            self.assertIn(f"test ! -e src-tauri/src/auth/{module}.rs", self.workflow[final:])
-        for digest in probe.GOLDEN.values():
-            self.assertIn(digest, self.workflow[final:])
-        self.assertIn("| sha256sum --check", self.workflow[final:])
-
-    def test_stdin_uses_owned_native_keyring_before_unchanged_tests(self):
-        dependencies = self.workflow.split("- name: Native Linux development libraries", 1)[1].split("- name:", 1)[0]
-        self.assertIn("dbus-x11 gnome-keyring", dependencies)
-        stdin = self.workflow.split("- name: Six unchanged child stdin and deadline contracts", 1)[1].split("- name:", 1)[0]
-        command = "cargo test --locked --manifest-path src-tauri/Cargo.toml --test exec_input_contract 2>&1 | tee evidence/exec-input.txt"
-        ordered = (
-            'export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}" RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}"',
-            'fixture_root="$(mktemp -d "$RUNNER_TEMP/linux-lifecycle-stdin.XXXXXX")"',
-            'trap \'rm -rf -- "$fixture_root"\' EXIT',
-            'export HOME="$fixture_root/home"',
-            'mkdir -p "$HOME"',
-            'chmod 700 "$HOME"',
-            'unset DBUS_SESSION_BUS_ADDRESS GNOME_KEYRING_CONTROL SSH_AUTH_SOCK',
-            "dbus-run-session -- bash -euo pipefail -c '",
-            'printf "%s" "isolated-rc-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets',
-            command,
-            '"$HOST_PYTHON" -',
-        )
-        offsets = [stdin.index(part) for part in ordered]
-        self.assertEqual(offsets, sorted(offsets))
-        for name, directory in (("XDG_RUNTIME_DIR", "runtime"), ("XDG_DATA_HOME", "data"),
-                                ("XDG_CONFIG_HOME", "config"), ("XDG_STATE_HOME", "state"),
-                                ("XDG_CACHE_HOME", "cache")):
-            self.assertIn(f'{name}="$fixture_root/{directory}"', stdin)
-            for prefix in ('mkdir -p "$HOME"', 'chmod 700 "$HOME"'):
-                line = next(line for line in stdin.splitlines() if prefix in line)
-                self.assertIn(f'"${name}"', line)
-        self.assertEqual(stdin.count(command), 1)
-        self.assertNotIn("--test-threads", stdin)
-        self.assertNotIn("--features", stdin)
-        self.assertNotIn("--skip", stdin)
-        self.assertIn("[('ok', '6', '0', '0', '0', '0')]", stdin)
-
-    def test_full_integration_retains_golden_then_adds_lifecycle(self):
-        full = (ROOT / ".github/workflows/dot-rc-integration.yml").read_text()
-        golden_command = "python3 tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence evidence/sandbox-dispatch"
-        new_command = "python3 tests/cloud-gateway/sandbox-lifecycle/run_probe.py --evidence evidence/sandbox-lifecycle"
-        self.assertEqual(full.count(golden_command), 1)
-        self.assertEqual(full.count(new_command), 1)
-        self.assertIn(golden_command + "\n          " + new_command, full)
-
-    def test_only_three_native_cases_and_no_snapshot_metadata_grafting(self):
-        source = (ROOT / "tests/cloud-gateway/linux_sandbox_lifecycle.rs").read_text()
-        names = re.findall(r"#\[(?:tokio::)?test\]\n(?:async )?fn (\w+)", source)
-        self.assertEqual(tuple(names), probe.CASES)
-        self.assertEqual(len(names), 5)
-        self.assertIn("A/D HTTP and E direct dispatcher", self.workflow)
-        self.assertIn("Four HTTP cases and one direct primary dispatcher case", self.workflow)
-        collector = source.split("async fn collect_terminal", 1)[1].split("async fn close", 1)[0]
-        self.assertNotIn("sandbox_enforced", collector)
-        self.assertNotIn("as_object_mut", collector)
-        self.assertIn('raw = self', collector)
-        self.assertEqual(probe.INJECTION, b'\n#[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]\nmod sandbox_lifecycle_probe;\n')
+    def test_payload_creation_is_exclusive(self):
+        original_open = Path.open
+        target = self.auth.with_name("linux_sandbox_lifecycle_support.rs")
+        def concurrent(path, mode="r", *args, **kwargs):
+            if path == target and mode == "xb":
+                with original_open(path, "wb") as stream:
+                    stream.write(b"concurrent owner")
+            return original_open(path, mode, *args, **kwargs)
+        with patch.object(Path, "open", concurrent):
+            result, receipt = self.execute()
+        self.assertEqual(result, 1)
+        self.assertFalse(receipt["acceptance_passed"])
+        self.assertEqual(target.read_bytes(), b"concurrent owner")
+        self.assertEqual(self.auth.read_bytes(), self.original)
+        self.assertFalse(self.target.exists())
 
 
 if __name__ == "__main__":

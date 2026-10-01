@@ -2,7 +2,7 @@ name: Linux authenticated lifecycle engineering validation
 
 on:
   push:
-    branches: ['test/linux-auth-negatives-20261001']
+    branches: ['test/linux-auth-deadlines-20261001']
 
 permissions:
   contents: read
@@ -19,7 +19,7 @@ env:
 
 jobs:
   runner-contracts:
-    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/test/linux-auth-negatives-20261001'
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/test/linux-auth-deadlines-20261001'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
@@ -49,7 +49,7 @@ jobs:
           set -euo pipefail
           status=0
           python -m unittest discover -s tests/delivery -p 'test_probe_classifier.py' -v > evidence/golden-classifier.txt 2>&1 || status=1
-          python -m unittest discover -s tests/delivery -p 'test_linux_lifecycle_probe.py' -v > evidence/lifecycle-runner.txt 2>&1 || status=1
+          python -m unittest discover -s tests/delivery -p 'test_linux_lifecycle_*.py' -v > evidence/lifecycle-runner.txt 2>&1 || status=1
           cat evidence/golden-classifier.txt evidence/lifecycle-runner.txt
           exit "$status"
       - name: Required contract outcomes and source integrity
@@ -73,7 +73,7 @@ jobs:
           retention-days: 14
 
   native:
-    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/test/linux-auth-negatives-20261001'
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/test/linux-auth-deadlines-20261001'
     strategy:
       fail-fast: false
       matrix:
@@ -98,7 +98,7 @@ jobs:
           test "$(cat evidence/source-sha.txt)" = "$GITHUB_SHA"
           uname -a > evidence/kernel-version.txt
           printf 'run_id=%s\nrun_attempt=%s\nos=%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$ImageOS" > evidence/context.txt
-          printf '%s\n' 'Synthetic-authenticated A/D HTTP and E direct dispatcher engineering evidence; not full RC or real ChatGPT acceptance.' > evidence/scope.txt
+          printf '%s\n' 'Synthetic-authenticated A/D/deadline HTTP and E direct dispatcher engineering evidence; not full RC or real ChatGPT acceptance.' > evidence/scope.txt
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         id: python
         with:
@@ -123,7 +123,7 @@ jobs:
           export PATH="/usr/bin:$PATH"
           cargo --version > evidence/cargo-version.txt
           rustc --version > evidence/rustc-version.txt
-          rustfmt --edition 2021 --check tests/cloud-gateway/linux_sandbox_lifecycle.rs
+          rustfmt --edition 2021 --check tests/cloud-gateway/linux_sandbox_lifecycle.rs tests/cloud-gateway/linux_sandbox_lifecycle_support.rs tests/cloud-gateway/linux_sandbox_deadline.rs
           cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --test exec_input_contract --no-run 2>&1 | tee evidence/desktop-compile.txt
           cargo test --locked --manifest-path services/local-agent/Cargo.toml --test linux_sandbox --no-run 2>&1 | tee evidence/kernel-compile.txt
       - name: All eleven unchanged authenticated golden probes
@@ -133,7 +133,7 @@ jobs:
           set -euo pipefail
           export PATH="/usr/bin:$PATH"
           "$HOST_PYTHON" tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence evidence/sandbox-dispatch
-      - name: Four HTTP cases and one direct primary dispatcher case
+      - name: Six HTTP cases and one direct primary dispatcher case
         id: lifecycle
         if: always() && steps.compile.outcome == 'success'
         run: |
@@ -197,6 +197,8 @@ jobs:
           git diff --exit-code HEAD -- > evidence/tracked-clean.txt
           test ! -e src-tauri/src/auth/sandbox_dispatch_probe.rs
           test ! -e src-tauri/src/auth/sandbox_lifecycle_probe.rs
+          test ! -e src-tauri/src/auth/linux_sandbox_lifecycle_support.rs
+          test ! -e src-tauri/src/auth/linux_sandbox_deadline.rs
           printf '%s\n' 'aed13ff4af30cbb0dbf693ad250991e375f61f005106295528fa16af2d6ab032  tests/cloud-gateway/ubuntu_sandbox_dispatch.rs' '6d6288fb2a5f119f734a268a80e540f0b75faefa85df7a32ebe7b47417f54b22  tests/cloud-gateway/sandbox-dispatch/run_probe.py' | sha256sum --check | tee evidence/golden-integrity.txt
           for result in "$SOURCE_RESULT" "$COMPILE_RESULT" "$GOLDEN_RESULT" "$LIFECYCLE_RESULT" "$KERNEL_RESULT" "$STDIN_RESULT"; do
             test "$result" = success
