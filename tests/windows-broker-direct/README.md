@@ -5,9 +5,35 @@ This is a CI-only comparison of direct process creation by the native broker. Th
 byte-identical. Their failures continue to fail the job. Nothing here is a
 production fallback, a release acceptance reduction, or a Python packaging change.
 
+## Additive cmd exit sentinel
+
+The pilot preserves the six original cases and appends one `cmd-exit23` case.
+It launches a fresh private copy of the original cmd case's verified executable
+bytes with exactly `/d /q /c exit 23`. The experiment identity remains distinct
+from its `Launcher.Kind=cmd` runtime family. Its own suspended target must satisfy
+the unchanged token, private stdio, job, deadline and cleanup predicates.
+An observed exit 23 records only that builtin result; it never sets the original
+script's positive result or establishes runtime support or network denial.
+
+Before the original cmd case creates a profile or process, it captures the actual
+generated `direct.cmd` bytes to `generated-direct.cmd.bin`. A bounded no-follow
+regular-file read records the exact identity, byte count and SHA256; the fresh
+capture is flushed, read back and compared without text conversion. All capture
+handles close before profile creation. Missing, replaced, oversized or uncertain
+evidence stops progression. These bytes describe what was generated, not proof
+that cmd subsequently opened or executed the batch.
+
+The original six-case verdict is reduced independently before the additive case.
+Sentinel success cannot repair an original failure. The full allocated and cleaned
+path has seven case journals and one run journal; blocked or unprepared rows do
+not invent case journals. Contained nonzero exits may complete cleanup while
+their observations remain failed. Any ownership, capture, marker or cleanup
+uncertainty retains recovery and prevents further launches.
+
 ## Explicit LocalApplicationData Temp selection
 
-The current workflow invokes the existing six-case `run-pilot.ps1` with the fixed
+The current workflow invokes `run-pilot.ps1` with six original cases, the additive
+cmd sentinel, and the fixed
 `localappdata_temp_ci_v1` parent policy. The wrapper and C# helper independently
 resolve only `Environment.GetFolderPath(LocalApplicationData, DoNotVerify)` plus
 the literal `Temp` child, require exact agreement and fresh unchanged owner/DACL
@@ -39,7 +65,7 @@ metadata enumeration rejects hidden, wrong-type, duplicate, reparse or unknown
 markers, then recurses only through existing diagnostic-name families and evidence.
 Unrelated Temp subtrees are never traversed. The depth32/100000-entry limits remain.
 A short lease protects pre-allocation checks. After the run journal exists, a
-long lease remains held through all six cases and owned-root removal. Any failed
+long lease remains held through all seven cases and owned-root removal. Any failed
 scan, metadata check or uncertain close stops progression and retains recovery.
 
 The final recovery scan and independent reverse single-attempt pin closes precede
@@ -47,7 +73,7 @@ final evidence and immutable cleanup-precondition writes. No selected-namespace
 operation occurs afterward; unchanged journal verification and no-replace rename
 remain the final required C# actions. A completed journal additionally covers these
 metadata handles, while listener/preparation/upload outcomes remain separate.
-`selected-parent-audit.py` enforces the complete26-file executable union, exact
+The selected-parent and cmd-sentinel audits enforce the complete executable union, exact
 new sources, partial-class loading boundaries and effective negative mutations.
 New managed tests inject all operations and do not exercise Windows APIs locally.
 Windows compilation, actual pin acquisition and any runtime results require the
@@ -88,7 +114,7 @@ exercise pure observation gates, not Windows compatibility.
 invocation first checks a suspended ordinary-AppContainer native control and proves
 that its actual identification-token signature is rejected as LPAC. It then checks
 and resumes the unchanged LPAC native reference, followed by exactly Node, cmd,
-Windows PowerShell and pwsh. Every target's own suspended primary token must pass
+Windows PowerShell, pwsh and the separate cmd sentinel. Every target's own suspended primary token must pass
 AppContainer/SID/zero-capability/LowIL checks and its own noninheritable query-only
 identification duplicate must pass all four fixed AccessCheck descriptors. All
 observer/source handles close before assignment/resume. Requested flags and the
@@ -125,7 +151,7 @@ TOKEN_QUERY-only TokenUser read. It is separate from target authority verificati
 never duplicates or impersonates the broker, does not log its SID, and each query closes
 before its helper returns and before any later target creation/resume. No new ACL template or privilege is introduced.
 
-The completed journal commits only the six required case outcomes, any subject/
+The completed journal commits only the seven required case outcomes, any subject/
 profile scopes actually created, the disposable run root and selected-parent metadata
 handles. Preparation evidence,
 PowerShell loopback-listener teardown, outer workflow capture and artifact upload

@@ -16,7 +16,7 @@ PINS = {'PilotSelectedParent.cs': '6ed8db8e4b4dd0807e6c02ebc55ab4bf148a93667fddb
 
 def coverage(names):
     assert len(OLD_NAMES) == 24
-    assert names == OLD_NAMES | set(NAMES), 'unreviewed/missing executable fixture'
+    assert names == OLD_NAMES | set(NAMES) | {'PilotCmdSentinel.cs', 'PilotCmdSentinelTests.cs'}, 'unreviewed/missing executable fixture'
     assert len(names) == len({n.casefold() for n in names})
 
 
@@ -156,7 +156,8 @@ class SelectedParentAudit(unittest.TestCase):
     def test_exact_source_and_boundary(self): inspect(self.files,self.old,self.workflow)
     def test_hash_independent_boundary(self): inspect(self.files,self.old,self.workflow,False)
     def test_union_rejects_unknown_missing_collision(self):
-        all_names=OLD_NAMES|set(NAMES)
+        all_names=OLD_NAMES|set(NAMES)|{'PilotCmdSentinel.cs', 'PilotCmdSentinelTests.cs'}
+        coverage(all_names)
         for variant in (all_names|{'extra.cs'},all_names|{'hidden.ps1'},all_names-{'PilotSelectedParent.cs'},all_names|{'pilotselectedparent.cs'}):
             with self.assertRaises(AssertionError): coverage(variant)
     def test_partial_initializer_rejected(self):
