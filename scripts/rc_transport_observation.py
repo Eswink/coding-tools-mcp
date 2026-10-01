@@ -137,7 +137,9 @@ def observation_get(path, token):
 
 def observe_fixed_redirect(token):
     observation_stage(1)
-    observation_require(type(token) is str and re.fullmatch(r"[A-Za-z0-9_]{1,4096}", token) is not None, 26)
+    # RFC 6750 section 2.1 header syntax only; no provider prefix, JWT or claims inspection.
+    observation_require(type(token) is str and 1 <= len(token) <= 4096
+                        and re.fullmatch(r"[A-Za-z0-9._~+/\-]+=*", token) is not None, 26)
     observation_exact(observation_get(PATHS[0], token), {"id": REPOSITORY_ID, "full_name": REPOSITORY})
     run = observation_get(PATHS[1], token)
     observation_exact(run, {"id": RUN_ID, "head_sha": SOURCE_SHA, "status": "completed", "conclusion": "success"})

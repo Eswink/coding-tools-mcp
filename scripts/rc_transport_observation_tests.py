@@ -284,14 +284,21 @@ class FixedObservationTests(unittest.TestCase):
                         key=lambda n: (n.lineno, n.col_offset))
         self.assertEqual(len(guards), 31)
         self.assertEqual([n.args[1].value for n in guards], list(range(1, 32)))
-        data = json.dumps([ast.dump(n.args[0], include_attributes=False) for n in guards], separators=(",", ":"))
+        # Predicate 26 intentionally changes only to opaque RFC 6750 header syntax.
+        approved = ast.parse('type(token) is str and 1 <= len(token) <= 4096 and '
+                             're.fullmatch(r"[A-Za-z0-9._~+/\\-]+=*", token) is not None', mode="eval").body
+        self.assertEqual(ast.dump(guards[25].args[0]), ast.dump(approved))
+        conditions = [ast.dump(n.args[0], include_attributes=False) for n in guards]
+        original = ast.parse('type(token) is str and re.fullmatch(r"[A-Za-z0-9_]{1,4096}", token) is not None', mode="eval").body
+        conditions[25] = ast.dump(original, include_attributes=False)
+        data = json.dumps(conditions, separators=(",", ":"))
         self.assertEqual(hashlib.sha256(data.encode()).hexdigest(),
                          "36845f1113d3857873ce86e84819ad1006904580d4dd9d2bee01e97d20c90c34")
 
     def test_rejected_tokens_report_identical_fixed_stage_and_predicate_without_details(self):
         expected = {"scope": subject.SCOPE, "error": "observation_failed", "release_approved": False,
                     "publish_approved": False, "stage_id": 1, "predicate_id": 26}
-        for token in ("", "synthetic.token", "synthetic/token", "x" * 4097, "synthetic\nsecret"):
+        for token in ("", "synthetic token", "synthetic=token", "x" * 4097, "synthetic\nsecret"):
             with self.subTest(case="synthetic invalid token"):
                 code, output = self.run_fixture(token=token, main=True)
                 self.assertEqual(code, 1)
@@ -360,6 +367,31 @@ class FixedObservationTests(unittest.TestCase):
             self.assertEqual(subject.observation_main(), 1)
         self.assertEqual(json.loads(output.getvalue()), {"scope": subject.SCOPE, "error": "observation_failed",
                          "release_approved": False, "publish_approved": False, "stage_id": 0, "predicate_id": 31})
+
+    def test_rfc6750_opaque_bearer_synthetic_formats_are_forwarded_without_parsing(self):
+        baseline = self.run_fixture(main=True)[1]
+        tokens = ("synthetic.segment.signature", "synthetic-with-hyphens", "opaque~+/==",
+                  "ghs_12345_Not-A-JWT.NoPayload.ClaimsNotDecoded", "x", "x" * 4096)
+        for index, token in enumerate(tokens):
+            with self.subTest(synthetic_case=index):
+                self.calls, self.connections = [], []
+                code, output = self.run_fixture(token=token, main=True)
+                self.assertEqual(code, 0)
+                self.assertEqual(len(self.calls), 5)
+                self.assertEqual(json.loads(output)["hostname"], "storage.example.com")
+                self.assertEqual(self.responses[-1].reads, [])
+                self.assertEqual(output, baseline)
+
+    def test_bearer_header_rejects_all_controls_whitespace_unicode_and_bad_padding(self):
+        invalid = ["a" + chr(c) + "b" for c in range(33)] + ["a\x7fb", "é", "a\u0085b", "a\u2028b",
+                   "a\r\nAuthorization: x", "a=b", "=a", "=", "a:b", "a,b", 'a"b', "a\\b", "a;b",
+                   "a@b", "a?b", "", "x" * 4097, b"bytes", None, True]
+        for index, token in enumerate(invalid):
+            with self.subTest(synthetic_case=index):
+                with self.assertRaises(subject.ObservationRejected) as failure:
+                    self.run_fixture(token=token)
+                self.assertEqual(failure.exception.predicate_id, 26)
+                self.assertEqual(self.calls, [])
 
 
 if __name__ == "__main__":
