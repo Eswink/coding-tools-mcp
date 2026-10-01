@@ -50,6 +50,7 @@ test('portable target validation binds the three-platform source and preserves f
   assert.match(source, /git rev-parse 'HEAD\^\{tree\}' > evidence\/source-tree.txt/);
   for (const [name, expected] of [
     ['JavaScript workflow and gateway contracts', 'node --test tests/cloud-gateway/*.test.mjs tests/delivery/*.test.mjs'],
+    ['Python delivery and probe classifier contracts', 'python -m unittest discover -s tests/delivery -v'],
     ['Standalone portable Cargo selection', 'cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts'],
     ['RC portable Cargo selection', 'cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts --test enrollment_contracts'],
   ]) {
@@ -62,6 +63,16 @@ test('portable target validation binds the three-platform source and preserves f
     assert.ok(step.includes('exit "${codes[1]}"'), name);
     assert.doesNotMatch(step, /\|\| true|--skip|--ignored/, name);
   }
+  const python = source.split('      - name: Python delivery and probe classifier contracts\n')[1]?.split('      - ')[0];
+  assert.match(python, /id: python_contracts\n        if: always\(\) && steps.source.outcome == 'success' && steps.python.outcome == 'success'\n        run: \|/);
+  assert.ok(python.includes('python --version > evidence/delivery-python-version.txt'));
+  assert.ok(python.includes('tee evidence/python-contracts.txt'));
+  assert.ok(python.includes('> evidence/python-exit.txt'));
+  assert.ok(existsSync(new URL('./test_probe_classifier.py', import.meta.url)), 'classifier tests retained in discovery');
+  const outcomes = source.split('      - name: Preserve all step outcomes\n')[1]?.split('      - ')[0];
+  assert.match(outcomes, /PYTHON_RESULT: \$\{\{ steps.python_contracts.outcome \}\}/);
+  assert.ok(outcomes.includes('python=%s\\n'));
+  assert.ok(outcomes.includes('"$JS_RESULT" "$PYTHON_RESULT" "$STANDALONE_RESULT"'));
   assert.match(source, /name: Preserve all step outcomes\n        if: always\(\)/);
   assert.match(source, /uses: actions\/upload-artifact@[a-f0-9]{40}\n        if: always\(\)/);
   assert.match(source, /if-no-files-found: error/);

@@ -40,7 +40,7 @@ jobs:
           git rev-parse HEAD > evidence/source-sha.txt
           git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
           test "$(cat evidence/source-sha.txt)" = "$GITHUB_SHA"
-          printf '%s\n' 'Portable gateway targets and JS contracts only; not full RC acceptance.' > evidence/scope.txt
+          printf '%s\n' 'Portable gateway targets, JS and Python delivery contracts only; not full RC acceptance.' > evidence/scope.txt
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         id: rust
         with:
@@ -67,6 +67,19 @@ jobs:
           codes=("${PIPESTATUS[@]}")
           set -e
           printf 'command=%s\ntee=%s\n' "${codes[0]}" "${codes[1]}" > evidence/js-exit.txt
+          if [ "${codes[0]}" -ne 0 ]; then exit "${codes[0]}"; fi
+          exit "${codes[1]}"
+      - name: Python delivery and probe classifier contracts
+        id: python_contracts
+        if: always() && steps.source.outcome == 'success' && steps.python.outcome == 'success'
+        run: |
+          set -euo pipefail
+          python --version > evidence/delivery-python-version.txt
+          set +e
+          python -m unittest discover -s tests/delivery -v 2>&1 | tee evidence/python-contracts.txt
+          codes=("${PIPESTATUS[@]}")
+          set -e
+          printf 'command=%s\ntee=%s\n' "${codes[0]}" "${codes[1]}" > evidence/python-exit.txt
           if [ "${codes[0]}" -ne 0 ]; then exit "${codes[0]}"; fi
           exit "${codes[1]}"
       - name: Standalone portable Cargo selection
@@ -100,11 +113,12 @@ jobs:
         env:
           SOURCE_RESULT: ${{ steps.source.outcome }}
           JS_RESULT: ${{ steps.contracts.outcome }}
+          PYTHON_RESULT: ${{ steps.python_contracts.outcome }}
           STANDALONE_RESULT: ${{ steps.standalone.outcome }}
           RC_RESULT: ${{ steps.rc.outcome }}
         run: |
           mkdir -p evidence
-          printf 'source=%s\njs=%s\nstandalone=%s\nrc=%s\n' "$SOURCE_RESULT" "$JS_RESULT" "$STANDALONE_RESULT" "$RC_RESULT" > evidence/step-outcomes.txt
+          printf 'source=%s\njs=%s\npython=%s\nstandalone=%s\nrc=%s\n' "$SOURCE_RESULT" "$JS_RESULT" "$PYTHON_RESULT" "$STANDALONE_RESULT" "$RC_RESULT" > evidence/step-outcomes.txt
           git diff --exit-code HEAD --
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
