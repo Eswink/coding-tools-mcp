@@ -5,7 +5,36 @@ This is a CI-only comparison of direct process creation by the native broker. Th
 byte-identical. Their failures continue to fail the job. Nothing here is a
 production fallback, a release acceptance reduction, or a Python packaging change.
 
-## Explicit observed-token pilot
+## Current read-only parent observation
+
+The current workflow invokes `run-parent-candidates.ps1`, which observes exactly
+RUNNER_TEMP, the current broker's documented LocalApplicationData path, and its
+literal Temp child. LocalApplicationData is retrieved with `DoNotVerify`, never
+`Create`; each candidate must be an exact local absolute path before an
+`OPEN_EXISTING` handle is requested. The same bounded parent owner/DACL/identity
+checker is reused without modification. No directory, sandbox root, profile,
+listener or target process is created by this observer. Only bounded create-new
+receipt files are written into the existing workflow evidence area.
+
+The full RUNNER_TEMP ACL observation at2153687/run36790412270 recorded seven ACEs.
+The unchanged first rejection remains the inherit-only CreatorOwner entry3, while
+unresolved trustee entries5/6 also carry effective directory-write grants. No
+pilot root, profile or target was created in that run. A CreatorOwner-only change
+would not satisfy the unchanged trust policy.
+
+A favorable `candidate_trust_verified` observation requires normal checker
+completion, final same-handle identity verification and confirmed cleanup.
+`selected_for_execution=false` remains explicit. There is no candidate fallback,
+selection, permission repair, marker resolution or runtime attempt. Missing paths
+are reported only from the initial open's errors2/3; later metadata errors cannot
+be recast as absence. Uncertain cleanup stops remaining observations. The original
+20 nested controls, native foundation failures and old pilot sources remain
+required/preserved. A future parent selection requires separate review of fresh
+checks and that exact recovery namespace. `parent-candidate-audit.py` enforces the
+exhaustive union of all preserved and new C#/PowerShell sources; its managed tests
+exercise pure observation gates, not Windows compatibility.
+
+## Explicit observed-token pilot (retained entry point)
 
 `run-pilot.ps1` selects only the CI policy `accesscheck_signature_v1_ci`. The same
 invocation first checks a suspended ordinary-AppContainer native control and proves
@@ -57,7 +86,7 @@ and confirmed close; it does not claim power-loss-durable raw files. Final C#
 journal resolution binds its immutable preconditions record and is the last
 required fallible C# pilot action. No later launch is possible.
 
-`pilot-audit.py` enforces the exhaustive old/new C#/PowerShell source union, pins
+`pilot-audit.py` retains its original pilot-source contract and pins
 preserved entry points, rejects partial-class load-time initializers/member
 collisions, and tests authority/lifecycle mutations independently of hash pins.
 Managed policy, commit-order, cleanup-gate and classification tests execute the
@@ -220,9 +249,9 @@ reference or runs a runtime. Individual cleanup receipts are separate from the
 intentionally false full CleanupConfirmed and retained recovery marker. The step
 remains failed and all original20 rows/foundation gates remain required.
 
-`qualification-audit.py` pins the new sources, tests authority/output/cleanup
-mutations, and enforces exhaustive union coverage of every `.cs`/`.ps1` fixture
-file with the unchanged-method pins in `audit.py`. Portable audits do not execute
+`qualification-audit.py` retains qualification source pins and authority/output/
+cleanup mutations. The current parent-observation audit enforces exhaustive union
+coverage together with all preserved source pins. Portable audits do not execute
 Windows APIs; C# compilation and the real paired matrix remain distinct CI stages.
 
 Primary implementation reference: Chromium

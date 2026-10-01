@@ -213,7 +213,8 @@ def inspect(files, legacy, check_pins=True):
 
 class PilotAudit(unittest.TestCase):
     def setUp(self):
-        fixture_coverage({p.name for p in HERE.iterdir() if p.suffix.lower() in ('.cs', '.ps1')})
+        # The parent-observation audit enforces the exhaustive union including additions.
+        fixture_coverage({p.name for p in HERE.iterdir() if p.name in set(LEGACY_PINS) | set(PILOT_NAMES)})
         self.files = {name: (HERE / name).read_text() for name in PILOT_NAMES}
         self.legacy = {name: (HERE / name).read_text() for name in LEGACY_PINS}
 
@@ -256,7 +257,7 @@ class PilotAudit(unittest.TestCase):
 
     def test_workflow_and_old_controls(self):
         workflow=(ROOT/'.github/workflows/windows-lpac-runtime-diagnostic.yml').read_text()
-        for fragment in ('baseline/run.ps1','run-runtime.ps1','run-pilot.ps1','qualification-audit.py','pilot-audit.py',
+        for fragment in ('baseline/run.ps1','run-runtime.ps1','run-parent-candidates.ps1','qualification-audit.py','pilot-audit.py',
                          'RunPilotPolicyContractTests()', 'RunPilotGateContractTests()', 'RunPilotClassificationContractTests()', 'timeout-minutes: 30'):
             self.assertIn(fragment,workflow)
         self.assertNotIn('continue-on-error',workflow)

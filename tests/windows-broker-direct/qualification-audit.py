@@ -230,7 +230,7 @@ class QualificationAudit(unittest.TestCase):
         self.assertIn('tests/windows-lpac-runtime/baseline/run.ps1', workflow)
         self.assertIn('tests/windows-lpac-runtime/run-runtime.ps1', workflow)
         self.assertIn('tests/windows-broker-direct/qualification-audit.py', workflow)
-        self.assertIn('tests/windows-broker-direct/run-pilot.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_sandbox_fixture.exe', workflow)
+        self.assertIn('tests/windows-broker-direct/run-parent-candidates.ps1 -Evidence evidence', workflow)
         self.assertNotIn('continue-on-error', workflow)
         self.assertIn('timeout-minutes: 30', workflow)
         self.assertTrue((HERE / 'run-direct.ps1').exists())

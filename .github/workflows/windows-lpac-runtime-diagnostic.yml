@@ -45,6 +45,8 @@ jobs:
           if($LASTEXITCODE){exit $LASTEXITCODE}
           python tests/windows-broker-direct/pilot-audit.py
           if($LASTEXITCODE){exit $LASTEXITCODE}
+          python tests/windows-broker-direct/parent-candidate-audit.py
+          if($LASTEXITCODE){exit $LASTEXITCODE}
       - name: Compile isolated broker-direct fixture without launching
         shell: powershell
         run: |
@@ -52,6 +54,7 @@ jobs:
           [BrokerDirectLauncher]::RunPilotPolicyContractTests()
           [BrokerDirectLauncher]::RunPilotGateContractTests()
           [BrokerDirectLauncher]::RunPilotClassificationContractTests()
+          [BrokerDirectLauncher]::RunParentCandidateContractTests()
       - name: PowerShell 5.1 metadata-shape contracts
         shell: powershell
         run: |
@@ -84,11 +87,11 @@ jobs:
         shell: powershell
         run: |
           & tests/windows-lpac-runtime/run-runtime.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_runtime_fixture.exe -Payload "$env:RUNNER_TEMP/lpac-runtime-payload" -Evidence evidence/runtime
-      - name: Observe verified direct offline pilot with scoped cleanup
+      - name: Observe three existing parent candidates without allocation
         if: ${{ !cancelled() && steps.payload.outcome == 'success' }}
         shell: powershell
         run: |
-          & tests/windows-broker-direct/run-pilot.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_sandbox_fixture.exe -Payload "$env:RUNNER_TEMP/lpac-runtime-payload" -Evidence evidence/pilot -Foundation evidence/foundation
+          & tests/windows-broker-direct/run-parent-candidates.ps1 -Evidence evidence
       - name: Preserve boundary and evidence identity
         if: always()
         shell: pwsh
