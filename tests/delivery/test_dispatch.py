@@ -141,19 +141,25 @@ class DispatchTests(unittest.TestCase):
             m.validate(d)
 
     def test_actual_git_source_and_tamper(self):
-        with tempfile.TemporaryDirectory() as root:
-            root = Path(root)
-            subprocess.run(["git", "init", "-q", root], check=True)
-            f = root / "services/test/f.rs"; f.parent.mkdir(parents=True); f.write_bytes(b"verified source\n")
-            subprocess.run(["git", "-C", root, "add", "."], check=True)
-            subprocess.run(["git", "-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture"], check=True)
-            sha = m.git(root, "rev-parse", "HEAD").decode().strip()
-            evidence = {"revision": sha, "run_id": 1, "files": {"services/test/f.rs": hashlib.sha256(f.read_bytes()).hexdigest()}}
-            self.assertTrue(m.verify_sources(root, evidence))
-            f.write_bytes(b"changed source\n")
-            self.assertFalse(m.verify_sources(root, evidence))
-            evidence["files"]["services/test/f.rs"] = hashlib.sha256(f.read_bytes()).hexdigest()
-            self.assertFalse(m.verify_sources(root, evidence))
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            (base / "alias-hop").mkdir()
+            for fixture_root in (base / "direct", base / "alias-hop" / ".." / "aliased"):
+                with self.subTest(root=fixture_root):
+                    # Match plan()'s canonical-root contract, including temp aliases.
+                    root = fixture_root.resolve()
+                    root.mkdir()
+                    subprocess.run(["git", "init", "-q", root], check=True)
+                    f = root / "services/test/f.rs"; f.parent.mkdir(parents=True); f.write_bytes(b"verified source\n")
+                    subprocess.run(["git", "-C", root, "add", "."], check=True)
+                    subprocess.run(["git", "-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture"], check=True)
+                    sha = m.git(root, "rev-parse", "HEAD").decode().strip()
+                    evidence = {"revision": sha, "run_id": 1, "files": {"services/test/f.rs": hashlib.sha256(f.read_bytes()).hexdigest()}}
+                    self.assertTrue(m.verify_sources(root, evidence))
+                    f.write_bytes(b"changed source\n")
+                    self.assertFalse(m.verify_sources(root, evidence))
+                    evidence["files"]["services/test/f.rs"] = hashlib.sha256(f.read_bytes()).hexdigest()
+                    self.assertFalse(m.verify_sources(root, evidence))
 
 
 if __name__ == "__main__":
