@@ -1,0 +1,115 @@
+name: Portable CI target correction validation
+
+on:
+  push:
+    branches: ['fix/stale-portable-ci-target-20261001']
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: '3'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
+
+jobs:
+  portable:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Bind exact source and narrow evidence scope
+        id: source
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-sha.txt
+          git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
+          test "$(cat evidence/source-sha.txt)" = "$GITHUB_SHA"
+          printf '%s\n' 'Portable gateway targets and JS contracts only; not full RC acceptance.' > evidence/scope.txt
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        id: rust
+        with:
+          toolchain: '1.98.1'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        id: node
+        if: always() && steps.source.outcome == 'success'
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        id: python
+        if: always() && steps.source.outcome == 'success'
+        with:
+          python-version: '3.12'
+      - name: JavaScript workflow and gateway contracts
+        id: contracts
+        if: always() && steps.source.outcome == 'success' && steps.node.outcome == 'success' && steps.python.outcome == 'success'
+        run: |
+          set -euo pipefail
+          node --version > evidence/node-version.txt
+          python --version > evidence/python-version.txt
+          set +e
+          node --test tests/cloud-gateway/*.test.mjs tests/delivery/*.test.mjs 2>&1 | tee evidence/js-contracts.txt
+          codes=("${PIPESTATUS[@]}")
+          set -e
+          printf 'command=%s\ntee=%s\n' "${codes[0]}" "${codes[1]}" > evidence/js-exit.txt
+          if [ "${codes[0]}" -ne 0 ]; then exit "${codes[0]}"; fi
+          exit "${codes[1]}"
+      - name: Standalone portable Cargo selection
+        id: standalone
+        if: always() && steps.source.outcome == 'success' && steps.rust.outcome == 'success'
+        run: |
+          set -euo pipefail
+          rustc --version > evidence/rustc-version.txt
+          cargo --version > evidence/cargo-version.txt
+          set +e
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts 2>&1 | tee evidence/standalone-portable.txt
+          codes=("${PIPESTATUS[@]}")
+          set -e
+          printf 'command=%s\ntee=%s\n' "${codes[0]}" "${codes[1]}" > evidence/standalone-exit.txt
+          if [ "${codes[0]}" -ne 0 ]; then exit "${codes[0]}"; fi
+          exit "${codes[1]}"
+      - name: RC portable Cargo selection
+        id: rc
+        if: always() && steps.source.outcome == 'success' && steps.rust.outcome == 'success'
+        run: |
+          set -euo pipefail
+          set +e
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts --test enrollment_contracts 2>&1 | tee evidence/rc-portable.txt
+          codes=("${PIPESTATUS[@]}")
+          set -e
+          printf 'command=%s\ntee=%s\n' "${codes[0]}" "${codes[1]}" > evidence/rc-exit.txt
+          if [ "${codes[0]}" -ne 0 ]; then exit "${codes[0]}"; fi
+          exit "${codes[1]}"
+      - name: Preserve all step outcomes
+        if: always()
+        env:
+          SOURCE_RESULT: ${{ steps.source.outcome }}
+          JS_RESULT: ${{ steps.contracts.outcome }}
+          STANDALONE_RESULT: ${{ steps.standalone.outcome }}
+          RC_RESULT: ${{ steps.rc.outcome }}
+        run: |
+          mkdir -p evidence
+          printf 'source=%s\njs=%s\nstandalone=%s\nrc=%s\n' "$SOURCE_RESULT" "$JS_RESULT" "$STANDALONE_RESULT" "$RC_RESULT" > evidence/step-outcomes.txt
+          git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: portable-target-validation-${{ matrix.os }}-${{ github.sha }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
