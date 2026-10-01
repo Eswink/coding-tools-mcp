@@ -17,13 +17,65 @@ test('Linux GLib source and optimized controls are mandatory independent evidenc
   assert.doesNotMatch(step, /continue-on-error|\|\| true|--skip|--ignored/);
 });
 
-test('portable gateway targets exist and retain CLI contracts', () => {
-  const source = readFileSync(new URL('../../.github/workflows/dot-rc-integration.yml', import.meta.url), 'utf8');
-  const command = source.split('\n').find(line => line.includes('--lib --test'));
-  assert.ok(command);
-  const target = command.match(/--test ([a-z_]+)/)[1];
-  assert.ok(existsSync(new URL(`../../services/cloud-gateway/tests/${target}.rs`, import.meta.url)), target);
-  assert.equal(target, 'service_contracts');
+for (const [name, expectedTargets] of [
+  ['dot-rc-integration.yml', ['service_contracts', 'enrollment_contracts']],
+  ['cloud-execution-bridge.yml', ['service_contracts']],
+]) {
+  test(`${name}: portable gateway targets exist and retain CLI contracts`, () => {
+    const source = readFileSync(new URL(`../../.github/workflows/${name}`, import.meta.url), 'utf8');
+    const commands = source.split('\n').filter(line => line.includes('--manifest-path services/cloud-gateway/Cargo.toml --lib --test'));
+    assert.equal(commands.length, 1, `${name}: one portable gateway command`);
+    const targets = [...commands[0].matchAll(/--test\s+(\S+)/g)].map(match => match[1]);
+    for (const target of targets) {
+      assert.ok(existsSync(new URL(`../../services/cloud-gateway/tests/${target}.rs`, import.meta.url)), `${name}: ${target}`);
+    }
+    assert.deepEqual(targets, expectedTargets, `${name}: retain the complete portable contract set`);
+  });
+}
+
+test('portable target validation binds the three-platform source and preserves failures', () => {
+  const source = readFileSync(new URL('../../.github/workflows/portable-ci-target-validation.yml', import.meta.url), 'utf8');
+  assert.match(source, /branches: \['fix\/stale-portable-ci-target-20261001'\]/);
+  assert.doesNotMatch(source, /pull_request:|workflow_dispatch:|secrets\.|continue-on-error/);
+  assert.match(source, /permissions:\n  contents: read\n/);
+  assert.match(source, /os: \[ubuntu-22\.04, ubuntu-24\.04, windows-2025\]/);
+  assert.match(source, /fail-fast: false/);
+  assert.equal([...source.matchAll(/uses: [^@\s]+@[a-f0-9]{40}\n/g)].length, 5);
+  assert.match(source, /id: node\n        if: always\(\) && steps.source.outcome == 'success'/);
+  assert.match(source, /id: python\n        if: always\(\) && steps.source.outcome == 'success'/);
+  assert.match(source, /python-version: '3\.12'/);
+  assert.match(source, /steps.node.outcome == 'success' && steps.python.outcome == 'success'/);
+  assert.match(source, /ref: \$\{\{ github.sha \}\}\n          persist-credentials: false/);
+  assert.match(source, /test "\$\(cat evidence\/source-sha.txt\)" = "\$GITHUB_SHA"/);
+  assert.match(source, /git rev-parse 'HEAD\^\{tree\}' > evidence\/source-tree.txt/);
+  for (const [name, expected] of [
+    ['JavaScript workflow and gateway contracts', 'node --test tests/cloud-gateway/*.test.mjs tests/delivery/*.test.mjs'],
+    ['Python delivery and probe classifier contracts', 'python -m unittest discover -s tests/delivery -v'],
+    ['Standalone portable Cargo selection', 'cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts'],
+    ['RC portable Cargo selection', 'cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts --test enrollment_contracts'],
+  ]) {
+    const step = source.split(`      - name: ${name}\n`)[1]?.split('      - ')[0];
+    assert.ok(step, name);
+    assert.match(step, /if: always\(\) && steps.source.outcome == 'success'/);
+    assert.ok(step.includes(`${expected} 2>&1 | tee evidence/`), name);
+    assert.ok(step.includes('codes=("${PIPESTATUS[@]}")'), name);
+    assert.ok(step.includes('exit "${codes[0]}"'), name);
+    assert.ok(step.includes('exit "${codes[1]}"'), name);
+    assert.doesNotMatch(step, /\|\| true|--skip|--ignored/, name);
+  }
+  const python = source.split('      - name: Python delivery and probe classifier contracts\n')[1]?.split('      - ')[0];
+  assert.match(python, /id: python_contracts\n        if: always\(\) && steps.source.outcome == 'success' && steps.python.outcome == 'success'\n        run: \|/);
+  assert.ok(python.includes('python --version > evidence/delivery-python-version.txt'));
+  assert.ok(python.includes('tee evidence/python-contracts.txt'));
+  assert.ok(python.includes('> evidence/python-exit.txt'));
+  assert.ok(existsSync(new URL('./test_probe_classifier.py', import.meta.url)), 'classifier tests retained in discovery');
+  const outcomes = source.split('      - name: Preserve all step outcomes\n')[1]?.split('      - ')[0];
+  assert.match(outcomes, /PYTHON_RESULT: \$\{\{ steps.python_contracts.outcome \}\}/);
+  assert.ok(outcomes.includes('python=%s\\n'));
+  assert.ok(outcomes.includes('"$JS_RESULT" "$PYTHON_RESULT" "$STANDALONE_RESULT"'));
+  assert.match(source, /name: Preserve all step outcomes\n        if: always\(\)/);
+  assert.match(source, /uses: actions\/upload-artifact@[a-f0-9]{40}\n        if: always\(\)/);
+  assert.match(source, /if-no-files-found: error/);
 });
 
 test('release evidence does not restore compiled targets across Ubuntu generations', () => {

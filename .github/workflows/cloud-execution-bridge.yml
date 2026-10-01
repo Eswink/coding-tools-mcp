@@ -82,7 +82,7 @@ jobs:
           cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib execution::tests 2>&1 | tee evidence/execution-unit.txt
           grep -F '13 passed; 0 failed; 0 ignored' evidence/execution-unit.txt
-          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_cli 2>&1 | tee evidence/portable.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts 2>&1 | tee evidence/portable.txt
           cargo rustc --locked --manifest-path services/cloud-gateway/Cargo.toml --lib -- -D warnings
           python -m unittest discover -s tests/delivery 2>&1 | tee evidence/delivery-python.txt
           node --test tests/delivery/*.test.mjs 2>&1 | tee evidence/delivery-js.txt
