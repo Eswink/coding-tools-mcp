@@ -328,6 +328,39 @@ class WiringTests(unittest.TestCase):
             self.assertIn(digest, self.workflow[final:])
         self.assertIn("| sha256sum --check", self.workflow[final:])
 
+    def test_stdin_uses_owned_native_keyring_before_unchanged_tests(self):
+        dependencies = self.workflow.split("- name: Native Linux development libraries", 1)[1].split("- name:", 1)[0]
+        self.assertIn("dbus-x11 gnome-keyring", dependencies)
+        stdin = self.workflow.split("- name: Six unchanged child stdin and deadline contracts", 1)[1].split("- name:", 1)[0]
+        command = "cargo test --locked --manifest-path src-tauri/Cargo.toml --test exec_input_contract 2>&1 | tee evidence/exec-input.txt"
+        ordered = (
+            'export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}" RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}"',
+            'fixture_root="$(mktemp -d "$RUNNER_TEMP/linux-lifecycle-stdin.XXXXXX")"',
+            'trap \'rm -rf -- "$fixture_root"\' EXIT',
+            'export HOME="$fixture_root/home"',
+            'mkdir -p "$HOME"',
+            'chmod 700 "$HOME"',
+            'unset DBUS_SESSION_BUS_ADDRESS GNOME_KEYRING_CONTROL SSH_AUTH_SOCK',
+            "dbus-run-session -- bash -euo pipefail -c '",
+            'printf "%s" "isolated-rc-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets',
+            command,
+            '"$HOST_PYTHON" -',
+        )
+        offsets = [stdin.index(part) for part in ordered]
+        self.assertEqual(offsets, sorted(offsets))
+        for name, directory in (("XDG_RUNTIME_DIR", "runtime"), ("XDG_DATA_HOME", "data"),
+                                ("XDG_CONFIG_HOME", "config"), ("XDG_STATE_HOME", "state"),
+                                ("XDG_CACHE_HOME", "cache")):
+            self.assertIn(f'{name}="$fixture_root/{directory}"', stdin)
+            for prefix in ('mkdir -p "$HOME"', 'chmod 700 "$HOME"'):
+                line = next(line for line in stdin.splitlines() if prefix in line)
+                self.assertIn(f'"${name}"', line)
+        self.assertEqual(stdin.count(command), 1)
+        self.assertNotIn("--test-threads", stdin)
+        self.assertNotIn("--features", stdin)
+        self.assertNotIn("--skip", stdin)
+        self.assertIn("[('ok', '6', '0', '0', '0', '0')]", stdin)
+
     def test_full_integration_retains_golden_then_adds_lifecycle(self):
         full = (ROOT / ".github/workflows/dot-rc-integration.yml").read_text()
         golden_command = "python3 tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence evidence/sandbox-dispatch"
