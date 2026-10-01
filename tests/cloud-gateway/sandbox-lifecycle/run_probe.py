@@ -1,4 +1,4 @@
-"""Run three real authenticated Linux lifecycle cases in a disposable checkout.
+"""Run four authenticated HTTP cases and one direct dispatcher case on Linux.
 
 A successful compilation and exactly one passing test per invocation are required.
 This temporarily injects test-only Rust, restores source on ordinary failures, and
@@ -21,6 +21,8 @@ CASES = (
     "authenticated_environment_and_child_boundary_are_truthful",
     "authenticated_child_environment_stdin_and_temp_are_confined",
     "authenticated_zero_yield_input_completes_without_replay",
+    "authenticated_dangerous_mode_still_denies_network",
+    "approved_primary_missing_policy_fails_closed_without_hooks",
 )
 GOLDEN = {
     "tests/cloud-gateway/ubuntu_sandbox_dispatch.rs":
@@ -99,7 +101,8 @@ def write_receipt(out: Path, receipt: dict) -> None:
 
 def run_probe(root: Path, out: Path) -> int:
     out.mkdir(parents=True, exist_ok=True)
-    receipt = {"mode": "acceptance", "scope": "synthetic-authenticated Linux lifecycle A",
+    receipt = {"mode": "acceptance",
+               "scope": "synthetic-authenticated Linux A/D HTTP and E direct dispatcher",
                "platform": platform.platform(), "tests": {}, "acceptance_passed": False,
                "compile_exit": None, "production_source_restored": False}
     auth = root / "src-tauri/src/auth/mod.rs"

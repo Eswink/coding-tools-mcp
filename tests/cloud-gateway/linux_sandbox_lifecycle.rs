@@ -1,4 +1,4 @@
-//! Synthetic OAuth/local approval over the real MCP listener, not live ChatGPT proof.
+//! Synthetic OAuth/local approval: four HTTP cases and one direct dispatcher case.
 //! Injected by the sibling runner only. Original eleven golden probes stay unchanged.
 use super::{chat_fixture as fixture, PublicOrigin};
 use crate::workspace::{AuthConfig, RuntimeConfig};
@@ -50,6 +50,10 @@ struct LifecycleServer {
 
 impl LifecycleServer {
     fn start() -> Self {
+        Self::start_with_permission_mode("safe")
+    }
+
+    fn start_with_permission_mode(permission_mode: &str) -> Self {
         let root = tempfile::tempdir().expect("PROBE_SETUP: fixture directory");
         let workspace = root.path().join("workspace");
         std::fs::create_dir(&workspace).unwrap();
@@ -70,7 +74,7 @@ impl LifecycleServer {
             Some("synthetic-password".into()),
             Some(fixture::KEY.into()),
             RuntimeConfig {
-                permission_mode: "safe".into(),
+                permission_mode: permission_mode.into(),
                 ..Default::default()
             },
         )
@@ -307,4 +311,183 @@ async fn authenticated_zero_yield_input_completes_without_replay() {
         "x"
     );
     s.close().await;
+}
+
+async fn require_host_io<T>(step: impl std::future::Future<Output = std::io::Result<T>>) -> T {
+    tokio::time::timeout(Duration::from_secs(2), step)
+        .await
+        .expect("PROBE_SETUP: host loopback deadline")
+        .expect("PROBE_SETUP: host loopback operation")
+}
+
+#[tokio::test]
+async fn authenticated_dangerous_mode_still_denies_network() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let s = LifecycleServer::start_with_permission_mode("dangerous");
+    s.approve();
+    let env = s.rpc("check_exec_environment", json!({})).await;
+    assert_eq!(env["permission_mode"], "dangerous", "{env}");
+    assert_eq!(env["ok"], true, "{env}");
+    assert_eq!(env["network_allowed"], false, "{env}");
+    assert_eq!(env["filesystem_sandbox"]["required"], true, "{env}");
+    assert_eq!(env["filesystem_sandbox"]["enforced"], false, "{env}");
+    assert_eq!(
+        env["filesystem_sandbox"].get("available"),
+        Some(&Value::Null)
+    );
+    let first = s
+        .rpc(
+            "exec_command",
+            json!({"cmd": "python3 lifecycle_probe.py inside", "timeout_ms": 8000,
+                   "yield_time_ms": 1000}),
+        )
+        .await;
+    assert_initial_boundary(&first);
+    let control = s.collect_terminal(first).await;
+    require_real_child(&control);
+    assert_eq!(control["stdout"], "LIFECYCLE_CHILD_OK\n", "{control}");
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let mut host = require_host_io(tokio::net::TcpStream::connect(address)).await;
+    require_host_io(host.write_all(b"HOST_CONTROL")).await;
+    let (mut accepted, _) = require_host_io(listener.accept()).await;
+    let mut payload = [0; 12];
+    require_host_io(accepted.read_exact(&mut payload)).await;
+    assert_eq!(&payload, b"HOST_CONTROL");
+    drop(host);
+    drop(accepted);
+    let script = r#"import json, pathlib, socket, sys
+root = pathlib.Path(__file__).parent
+with (root / 'network-attempted').open('a') as marker:
+    marker.write('x')
+stage = 'socket'
+result = {'denied': False}
+try:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
+        connection.settimeout(1)
+        stage = 'connect'
+        connection.connect(('127.0.0.1', int(sys.argv[1])))
+        connection.sendall(b'CHILD_MUST_NOT_ARRIVE')
+except PermissionError as error:
+    result = {'denied': True, 'errno': error.errno, 'stage': stage}
+print(json.dumps(result), flush=True)
+"#;
+    std::fs::write(s.workspace.join("network_probe.py"), script).unwrap();
+    let first = s
+        .rpc(
+            "exec_command",
+            json!({"cmd": format!("python3 network_probe.py {}", address.port()),
+                   "timeout_ms": 8000, "yield_time_ms": 1000}),
+        )
+        .await;
+    assert_initial_boundary(&first);
+    let terminal = s.collect_terminal(first).await;
+    require_real_child(&terminal);
+    assert_eq!(terminal["process_may_be_running"], false, "{terminal}");
+    let output: Value = serde_json::from_str(terminal["stdout"].as_str().unwrap()).unwrap();
+    assert_eq!(output["denied"], true, "{output}");
+    assert_eq!(output["errno"], 1, "expected kernel EPERM: {output}");
+    assert!(matches!(
+        output["stage"].as_str(),
+        Some("socket" | "connect")
+    ));
+    assert_eq!(
+        std::fs::read_to_string(s.workspace.join("network-attempted")).unwrap(),
+        "x"
+    );
+    assert!(
+        tokio::time::timeout(Duration::from_secs(1), listener.accept())
+            .await
+            .is_err(),
+        "sandboxed child connected to the host listener"
+    );
+    s.close().await;
+}
+
+#[test]
+fn approved_primary_missing_policy_fails_closed_without_hooks() {
+    use std::sync::Arc;
+    let workspace = tempfile::tempdir().unwrap();
+    let harness = tempfile::tempdir().unwrap();
+    let storage = tempfile::tempdir().unwrap();
+    let mut ctx =
+        crate::tools::ToolContext::for_test(workspace.path().into(), harness.path().into())
+            .unwrap();
+    assert!(ctx.root_work.is_ok(), "PROBE_SETUP: native root authority");
+    assert!(
+        ctx.linux_sandbox.as_ref().is_ok(),
+        "PROBE_SETUP: valid pinned policy"
+    );
+    let profile = uuid::Uuid::new_v4().to_string();
+    let principal = super::principal::verify(
+        &fixture::token(),
+        fixture::KEY,
+        fixture::ORIGIN,
+        &format!("{}/mcp", fixture::ORIGIN),
+    )
+    .unwrap();
+    let request = super::chat::RemoteRequest::verified(
+        &profile,
+        &workspace.path().display().to_string(),
+        principal,
+        &json!({"openai/session": "primary-policy-owner"}),
+        fixture::KEY,
+    );
+    request
+        .service
+        .attach_storage(&profile, storage.path(), harness.path())
+        .unwrap();
+    fixture::approve(&profile, workspace.path(), "primary-policy-owner");
+    request
+        .service
+        .local_authority_snapshot(&request, &ctx.execution_gate)
+        .expect("PROBE_SETUP: local authority must be usable");
+    ctx.remote_request = Some(request);
+    let hooks = ctx.policy_hooks.status();
+    assert_eq!(hooks["enabled"], false);
+    assert_eq!(hooks["count"], 0);
+    assert_eq!(hooks["recovery_required"], false);
+    let marker = workspace.path().join("primary-effect");
+    std::fs::write(
+        workspace.path().join("primary_probe.py"),
+        "open('primary-effect', 'a').write('x')\nprint('PRIMARY_CHILD_OK', flush=True)\n",
+    )
+    .unwrap();
+    let args = json!({"cmd": "python3 primary_probe.py", "filesystem_scope": "workspace",
+                      "timeout_ms": 8000, "yield_time_ms": 8000});
+    let valid_policy = ctx.linux_sandbox.clone();
+    let missing_root = workspace.path().join("nonexistent-policy-root");
+    assert!(!missing_root.exists());
+    let invalid_policy = coding_tools_local_agent::LinuxSandbox::new(&missing_root);
+    assert_eq!(
+        invalid_policy.as_ref().unwrap_err().kind,
+        coding_tools_local_agent::SandboxErrorKind::InvalidRoot
+    );
+    ctx.linux_sandbox = Arc::new(invalid_policy);
+    let denied = crate::tools::call_tool(&ctx, "exec_command", &args);
+    eprintln!("PRIMARY_POLICY_DENIAL: {denied}");
+    assert_eq!(denied["ok"], false, "{denied}");
+    assert_eq!(denied["error"]["code"], "SANDBOX_SETUP_FAILED", "{denied}");
+    assert_eq!(denied["error"]["category"], "security", "{denied}");
+    assert_eq!(denied["error"]["retryable"], false, "{denied}");
+    assert!(denied["session_id"].is_null(), "{denied}");
+    assert_ne!(denied["sandbox_enforced"], true, "{denied}");
+    assert_ne!(denied["command_ok"], true, "{denied}");
+    assert!(
+        !marker.exists(),
+        "missing policy allowed a primary side effect"
+    );
+    assert_eq!(ctx.policy_hooks.status(), hooks);
+
+    ctx.linux_sandbox = valid_policy;
+    let control = crate::tools::call_tool(&ctx, "exec_command", &args);
+    eprintln!("PRIMARY_POLICY_CONTROL: {control}");
+    assert_initial_boundary(&control);
+    require_real_child(&control);
+    assert_eq!(control["stdout"], "PRIMARY_CHILD_OK\n", "{control}");
+    assert_eq!(control["process_may_be_running"], false, "{control}");
+    assert_eq!(std::fs::read_to_string(marker).unwrap(), "x");
+    assert_eq!(ctx.policy_hooks.status(), hooks);
+    super::chat::service().revoke(&profile, None);
 }
