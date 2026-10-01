@@ -17,12 +17,13 @@ public static partial class BrokerDirectLauncher {
     }
     public sealed class PilotRunReceipt {
         public string Policy="accesscheck_signature_v1_ci",Phase="collecting",Failure;
-        public string CleanupScope="six required case outcomes, their actually created profile/private scopes and disposable run root only; listener, preparation evidence, outer workflow capture/upload are separate outcomes";
+        public string CleanupScope="six required case outcomes, their actually created profile/private scopes and disposable run root and selected-parent metadata handles only; listener, preparation evidence, outer workflow capture/upload are separate outcomes";
         public string CompletionJournal,JournalProtocol="completed filename is the final resolution receipt; preconditions alone are not completion";
         public bool OrdinaryControlPassed,ReferenceRoutePassed,AllFourOfflineCasesPassed,AllCaseCleanupConfirmed,RunRootRemoved;
         public bool NetworkDenialProven=false;
         public int RequiredCaseCount=6,OriginalNestedRequiredRows=20;
         public string[] NotCovered=new string[]{"python","npm.cmd","git","nested_child_support","ConPTY","production_integration"};
+        public SelectedParentReceipt InitialSelectedParent,SelectedParent=new SelectedParentReceipt();
         public DirectReceipt Broker=new DirectReceipt();
         public List<PilotCaseReceipt> Cases=new List<PilotCaseReceipt>();
     }
@@ -149,13 +150,20 @@ public static partial class BrokerDirectLauncher {
         foreach(string path in new string[]{fixture,payload,evidence,temp}) SafePath(path);
         if(Path.GetFileName(fixture)!="windows_sandbox_fixture.exe" || port<1 || port>65535) throw new ArgumentException("fixed native fixture and bounded endpoint required");
         if(markerGuard==null || serializeCase==null || serializeRun==null) throw new ArgumentException("mandatory fixed guard and evidence serializers required");
-        markerGuard(new string[0]);
-        var result=new PilotRunReceipt();PilotJournal journal=null;PilotOwnedScope scope=null;
+        var result=new PilotRunReceipt();PilotJournal journal=null;PilotOwnedScope scope=null;PilotSelectedParent selectedParent=null;
+        Action<string[]> fixedMarkerGuard=markerGuard;
         string fixtureHash=HashFile(fixture);result.Broker.Identities["same_run_native_fixture_sha256"]=fixtureHash;
         try {
+            result.InitialSelectedParent=CheckSelectedParentRecovery(temp,fixedMarkerGuard,new string[0]);
+            if(result.InitialSelectedParent.Failure!=null || !result.InitialSelectedParent.FinalScanConfirmed || !result.InitialSelectedParent.CloseConfirmed)
+                throw new InvalidOperationException("selected-parent initial recovery preflight failed");
             string runLeaf="ctm-direct-pilot-"+Guid.NewGuid().ToString("N");
             journal=new PilotJournal(evidence,"run",Path.Combine(temp,runLeaf),null,result.Broker);result.CompletionJournal=Path.GetFileName(journal.CompletedPath);
-            journal.VerifyPending();markerGuard(new string[]{journal.Path});
+            journal.VerifyPending();
+            selectedParent=new PilotSelectedParent(temp,result.SelectedParent,SelectedParentNativeOperations());
+            selectedParent.AcquireSelectedParent();
+            markerGuard=delegate(string[] allowed) {selectedParent.GuardSelectedRecovery(fixedMarkerGuard,allowed);};
+            markerGuard(new string[]{journal.Path});
             scope=CreatePilotOwnedScope(temp,runLeaf,result.Broker);
             var available=new Dictionary<string,bool>(StringComparer.Ordinal);
             foreach(string kind in ready) {
@@ -193,14 +201,19 @@ public static partial class BrokerDirectLauncher {
             journal.VerifyPending();markerGuard(new string[]{journal.Path});
             result.RunRootRemoved=RemovePilotOwnedScope(scope,result.Broker);
             if(!result.RunRootRemoved) throw new InvalidOperationException("run scaffolding removal unconfirmed");
+            journal.VerifyPending();markerGuard(new string[]{journal.Path});
+            result.SelectedParent.FinalScanConfirmed=true;
+            if(!selectedParent.CloseSelectedParent()) throw new InvalidOperationException("selected parent pin closure unconfirmed");
+            // Selected-namespace operations end here. Only fixed evidence and journal operations follow.
             result.Phase="completion_preconditions_persisted";
             WritePilotEvidence(Path.Combine(evidence,"pilot-result.json"),serializeRun(result),result.Broker,"final_result");
             journal.BindPreconditions(serializeRun(result));
-            journal.VerifyPending();markerGuard(new string[]{journal.Path});
+            journal.VerifyPending();
             journal.Resolve(); // Last required fallible pilot action. No later persistence or launch.
             return result;
         } catch(Exception failure) {
             if(journal!=null) journal.Failed=true;
+            if(selectedParent!=null) selectedParent.CloseSelectedParent();
             result.Failure=failure.GetType().Name+": "+failure.Message;result.Phase="failed_recovery_retained";
             var recorded=new Dictionary<string,bool>(StringComparer.Ordinal);
             foreach(PilotCaseReceipt row in result.Cases) if(!recorded.ContainsKey(row.Case)) recorded.Add(row.Case,true);

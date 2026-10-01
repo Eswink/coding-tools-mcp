@@ -287,7 +287,7 @@ class DirectAudit(unittest.TestCase):
         self.assertIn('timeout-minutes: 30', workflow)
         self.assertIn('tests/windows-lpac-runtime/baseline/run.ps1', workflow)
         self.assertIn('tests/windows-lpac-runtime/run-runtime.ps1', workflow)
-        self.assertIn('tests/windows-broker-direct/run-parent-candidates.ps1 -Evidence evidence', workflow)
+        self.assertIn('tests/windows-broker-direct/run-pilot.ps1 -Fixture', workflow)
 
 
 if __name__ == '__main__':

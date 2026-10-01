@@ -15,7 +15,7 @@ PINS = {'ParentCandidateObservations.cs': '1084b425a6268010388a0de255d8eead80706
 
 
 def fixture_coverage(discovered):
-    expected = set(OLD_PINS) | set(NAMES)
+    expected = set(OLD_PINS) | set(NAMES) | {'PilotSelectedParent.cs', 'PilotSelectedParentTests.cs'}
     assert len(OLD_PINS) == 21 and not (set(OLD_PINS) & set(NAMES))
     assert discovered == expected, 'missing or unreviewed executable fixture file'
     assert len(discovered) == len({name.casefold() for name in discovered})
@@ -125,13 +125,14 @@ def inspect(files, old, workflow, check_pins=True):
                       'TcpListener', 'Start-Process', 'run-pilot.ps1', 'run-direct.ps1', 'run-qualification.ps1'):
         assert forbidden not in wrapper, forbidden
     assert wrapper.count('Get-ChildItem') == 1 and '-LiteralPath $PSScriptRoot -Filter' in wrapper
+    assert workflow.count('& tests/windows-broker-direct/run-pilot.ps1') == 1
     assert 'continue-on-error' not in workflow
     for required in ('timeout-minutes: 30', 'baseline/run.ps1', 'run-runtime.ps1', 'qualification-audit.py',
                      'pilot-audit.py', 'parent-candidate-audit.py', 'RunPilotPolicyContractTests()',
                      'RunPilotGateContractTests()', 'RunPilotClassificationContractTests()', 'RunParentCandidateContractTests()',
-                     '& tests/windows-broker-direct/run-parent-candidates.ps1 -Evidence evidence'):
+                     '& tests/windows-broker-direct/run-pilot.ps1 -Fixture'):
         assert required in workflow, required
-    for forbidden in ('& tests/windows-broker-direct/run-pilot.ps1', '& tests/windows-broker-direct/run-direct.ps1',
+    for forbidden in ('& tests/windows-broker-direct/run-parent-candidates.ps1', '& tests/windows-broker-direct/run-direct.ps1',
                       '& tests/windows-broker-direct/run-qualification.ps1'):
         assert forbidden not in workflow, forbidden
 
@@ -156,7 +157,8 @@ class ParentCandidateAudit(unittest.TestCase):
             inspect(self.files, self.old, self.workflow, False)
 
     def test_unknown_missing_and_case_collision(self):
-        names=set(OLD_PINS) | set(NAMES)
+        names=set(OLD_PINS) | set(NAMES) | {'PilotSelectedParent.cs', 'PilotSelectedParentTests.cs'}
+        fixture_coverage(names)
         for changed in (names | {'hidden.cs'}, names | {'new.ps1'}, names - {'DirectLauncher.cs'}, names | {'parentcandidateobservations.cs'}):
             with self.assertRaises(AssertionError): fixture_coverage(changed)
 

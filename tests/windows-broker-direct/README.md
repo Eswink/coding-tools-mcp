@@ -5,9 +5,57 @@ This is a CI-only comparison of direct process creation by the native broker. Th
 byte-identical. Their failures continue to fail the job. Nothing here is a
 production fallback, a release acceptance reduction, or a Python packaging change.
 
-## Current read-only parent observation
+## Explicit LocalApplicationData Temp selection
 
-The current workflow invokes `run-parent-candidates.ps1`, which observes exactly
+The current workflow invokes the existing six-case `run-pilot.ps1` with the fixed
+`localappdata_temp_ci_v1` parent policy. The wrapper and C# helper independently
+resolve only `Environment.GetFolderPath(LocalApplicationData, DoNotVerify)` plus
+the literal `Temp` child, require exact agreement and fresh unchanged owner/DACL
+checks, and never choose an alternate parent. No existing ACL is changed.
+
+A bounded lease opens only that directory's exact drive-root-to-leaf chain, at
+most32 handles. Each ancestor requests FILE_READ_ATTRIBUTES|FILE_TRAVERSE
+(0xA0); the endpoint keeps READ_CONTROL|FILE_LIST_DIRECTORY|FILE_READ_ATTRIBUTES
+(0x20081). All opens are noninheritable, OPEN_EXISTING, share-read only and
+OPEN_REPARSE_POINT|BACKUP_SEMANTICS. Root-to-leaf acquisition and each recovery
+guard recheck same-handle identities, volume, directory type, final paths and
+absence of reparse points. The endpoint also rechecks its unchanged strict DACL.
+No ancestor is enumerated, and the target HANDLE_LIST remains exactly its three
+fresh private stdio handles.
+
+FILE_TRAVERSE's0x20 bit participates in the documented sharing algorithm;
+FILE_READ_ATTRIBUTES alone would not pin deletion/rename. Attribute-only writes
+are not universally excluded by sharing. The directory reparse-set contract
+requires an empty directory, while each held nonterminal ancestor contains its
+pinned next child; the endpoint has the separate strict write-trust check. This
+is bounded ordinary-directory reasoning, not protection against arbitrary
+privileged OS operations. See Microsoft's
+[sharing algorithm](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsa/8c0e3f4f-0729-49f4-a14d-7f7add593819)
+and [reparse-set contract](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsa/4aeefef8-92c3-4abc-af7a-a610caf8a165).
+
+Every existing recovery boundary includes the exact selected Temp namespace as
+well as evidence and the retained RUNNER_TEMP/GetTempPath control roots. Immediate
+metadata enumeration rejects hidden, wrong-type, duplicate, reparse or unknown
+markers, then recurses only through existing diagnostic-name families and evidence.
+Unrelated Temp subtrees are never traversed. The depth32/100000-entry limits remain.
+A short lease protects pre-allocation checks. After the run journal exists, a
+long lease remains held through all six cases and owned-root removal. Any failed
+scan, metadata check or uncertain close stops progression and retains recovery.
+
+The final recovery scan and independent reverse single-attempt pin closes precede
+final evidence and immutable cleanup-precondition writes. No selected-namespace
+operation occurs afterward; unchanged journal verification and no-replace rename
+remain the final required C# actions. A completed journal additionally covers these
+metadata handles, while listener/preparation/upload outcomes remain separate.
+`selected-parent-audit.py` enforces the complete26-file executable union, exact
+new sources, partial-class loading boundaries and effective negative mutations.
+New managed tests inject all operations and do not exercise Windows APIs locally.
+Windows compilation, actual pin acquisition and any runtime results require the
+next exact CI run; the original20 failed nested rows remain required.
+
+## Retained read-only parent observation
+
+The preserved `run-parent-candidates.ps1` entry point observes exactly
 RUNNER_TEMP, the current broker's documented LocalApplicationData path, and its
 literal Temp child. LocalApplicationData is retrieved with `DoNotVerify`, never
 `Create`; each candidate must be an exact local absolute path before an
@@ -29,12 +77,12 @@ selection, permission repair, marker resolution or runtime attempt. Missing path
 are reported only from the initial open's errors2/3; later metadata errors cannot
 be recast as absence. Uncertain cleanup stops remaining observations. The original
 20 nested controls, native foundation failures and old pilot sources remain
-required/preserved. A future parent selection requires separate review of fresh
+required/preserved. The selected pilot above was separately reviewed for fresh
 checks and that exact recovery namespace. `parent-candidate-audit.py` enforces the
 exhaustive union of all preserved and new C#/PowerShell sources; its managed tests
 exercise pure observation gates, not Windows compatibility.
 
-## Explicit observed-token pilot (retained entry point)
+## Explicit observed-token pilot
 
 `run-pilot.ps1` selects only the CI policy `accesscheck_signature_v1_ci`. The same
 invocation first checks a suspended ordinary-AppContainer native control and proves
@@ -78,7 +126,8 @@ never duplicates or impersonates the broker, does not log its SID, and each quer
 before its helper returns and before any later target creation/resume. No new ACL template or privilege is introduced.
 
 The completed journal commits only the six required case outcomes, any subject/
-profile scopes actually created, and the disposable run root. Preparation evidence,
+profile scopes actually created, the disposable run root and selected-parent metadata
+handles. Preparation evidence,
 PowerShell loopback-listener teardown, outer workflow capture and artifact upload
 are separate outcomes. New journal/ownership/precondition/case/matrix records use
 Flush(true). The unchanged bounded raw capture helper provides validated copying
@@ -250,7 +299,7 @@ intentionally false full CleanupConfirmed and retained recovery marker. The step
 remains failed and all original20 rows/foundation gates remain required.
 
 `qualification-audit.py` retains qualification source pins and authority/output/
-cleanup mutations. The current parent-observation audit enforces exhaustive union
+cleanup mutations. The selected-parent audit enforces exhaustive union
 coverage together with all preserved source pins. Portable audits do not execute
 Windows APIs; C# compilation and the real paired matrix remain distinct CI stages.
 

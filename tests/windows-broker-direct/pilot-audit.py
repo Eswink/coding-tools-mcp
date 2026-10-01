@@ -13,7 +13,7 @@ PILOT_NAMES = (
     'PilotGates.cs', 'PilotRunner.cs', 'PilotClassification.cs', 'PilotPolicyTests.cs',
     'PilotGateTests.cs', 'PilotClassificationTests.cs', 'run-pilot.ps1',
 )
-PILOT_PINS = {'PilotOwnedFiles.cs': '7638cf9dffa7859bde43df943cfa3bee5384a7c9ee7d52f587abdca43c43ad92', 'PilotSubjects.cs': 'bb12619c082a1b26a6d6ccd5a6af5012a2d64764ebe6c856856ad1be14e36c92', 'PilotPolicy.cs': '1791fa47cf3a5afd62bd4029c4e8a085c674269a0cad2b5190cfd8621bbb16ea', 'PilotJournal.cs': '815e611986e04abd5efa934c2f56e20d50c42ccc0d6b98fbb1850de2d271fa21', 'PilotGates.cs': 'e5f5b416ea63f1ab96014d145a802f82a9de1b809d118ca58de4e93d7c5c88ad', 'PilotRunner.cs': '30c6c51ad2b26b202f776bd453c5fa2de2311eea3e12eca2a42eb179c64e9e2e', 'PilotClassification.cs': 'e8438e7e516ad0a9e842489df11b800e53be65519ff9211c13f6e29e227078ab', 'PilotPolicyTests.cs': 'd6c37576dc802590888616cbe4f8eadf8420718da4e4cb92db6f7fb090a968d8', 'PilotGateTests.cs': 'c1b5495f780633da8c0656e097f54cdea74de2d002274d6afe2afae8194f2b8d', 'PilotClassificationTests.cs': 'b0d8c3613743f9913715e343298611cd78ccd2c48f3591c5c85a1203c4a3dfad', 'run-pilot.ps1': '81ddeaab12758c9dbde5983a5140629d435e6d20e87fb68de1c3c7edfacf45c1'}
+PILOT_PINS = {'PilotOwnedFiles.cs': '7638cf9dffa7859bde43df943cfa3bee5384a7c9ee7d52f587abdca43c43ad92', 'PilotSubjects.cs': 'bb12619c082a1b26a6d6ccd5a6af5012a2d64764ebe6c856856ad1be14e36c92', 'PilotPolicy.cs': '1791fa47cf3a5afd62bd4029c4e8a085c674269a0cad2b5190cfd8621bbb16ea', 'PilotJournal.cs': '815e611986e04abd5efa934c2f56e20d50c42ccc0d6b98fbb1850de2d271fa21', 'PilotGates.cs': 'e5f5b416ea63f1ab96014d145a802f82a9de1b809d118ca58de4e93d7c5c88ad', 'PilotRunner.cs': 'f418f4cb94055a2b22bc50243d54ecd22045360458bcbbbd36d9c9d8e94433aa', 'PilotClassification.cs': 'e8438e7e516ad0a9e842489df11b800e53be65519ff9211c13f6e29e227078ab', 'PilotPolicyTests.cs': 'd6c37576dc802590888616cbe4f8eadf8420718da4e4cb92db6f7fb090a968d8', 'PilotGateTests.cs': 'c1b5495f780633da8c0656e097f54cdea74de2d002274d6afe2afae8194f2b8d', 'PilotClassificationTests.cs': 'b0d8c3613743f9913715e343298611cd78ccd2c48f3591c5c85a1203c4a3dfad', 'run-pilot.ps1': 'fa1ea887051a7acc68bcd462181feae8c2746e67a8632bff045e10e599105daa'}
 
 
 def uncomment(source):
@@ -159,7 +159,7 @@ def inspect(files, legacy, check_pins=True):
                      'row.ScopedLifecycleCleanupConfirmed=row.CleanupPreconditionsConfirmed && row.CaseMarkerResolved;',
                      'case_receipt_persistence_failed', 'runJournal.Failed=true;',
                      'if(!PilotMayAdvance(row)) {blocked=true;journal.Failed=true;}',
-                     'markerGuard==null', 'markerGuard(new string[0])',
+                     'markerGuard==null', 'CheckSelectedParentRecovery(temp,fixedMarkerGuard,new string[0])',
                      'new string[]{"ordinary","reference","node","cmd","powershell","pwsh"}',
                      'ownership-root.json', 'ownership-profile.json', 'ownership-process.json',
                      'PilotIdentity(r,"fixture_source_sha256",fixtureHash)', 'r.ExecutableSha256!=fixtureHash'):
@@ -168,7 +168,8 @@ def inspect(files, legacy, check_pins=True):
     assert runner.index('StopQualificationSubject(s)') < runner.index('s.ProcessStopped && s.JobDrained') < runner.index('bool captured=true')
     assert 'markerGuard(new string[]{runJournal.Path,journal.Path});\n                bool captured=true;' in runner
     assert 'journal.VerifyPending();markerGuard(new string[]{journal.Path});\n            result.RunRootRemoved=' in runner
-    assert 'journal.BindPreconditions(serializeRun(result));\n            journal.VerifyPending();markerGuard(new string[]{journal.Path});\n            journal.Resolve();' in runner
+    assert 'journal.BindPreconditions(serializeRun(result));\n            journal.VerifyPending();\n            journal.Resolve();' in runner
+    assert runner.index('result.SelectedParent.FinalScanConfirmed=true;') < runner.index('if(!selectedParent.CloseSelectedParent())') < runner.index('journal.BindPreconditions(serializeRun(result));')
     assert runner.index('result.Cases.Add(row);') < runner.index('"matrix-"') < runner.index('if(!PilotMayAdvance(row))')
     assert 'row.Fatal=true;row.PositivePassed=false;row.OfflineReferenceRouteValid=false;' in runner
     for required in ('PreconditionsPath=', 'planned_root=', 'planned_profile=', 'preconditions_record=',
@@ -196,9 +197,9 @@ def inspect(files, legacy, check_pins=True):
                      '$markerGuard=[Action[string[]]]', 'Assert-PilotRecoveryScope -Allowed $allowed',
                      '[string[]]$ready,$markerGuard,$serializeCase,$serializeRun', 'same-run native binary manifest mismatch'):
         assert required in wrapper, required
-    scanner = wrapper[wrapper.index('function Assert-PilotRecoveryScope'):wrapper.index('Assert-PilotRecoveryScope -Allowed @()')]
+    scanner = wrapper[wrapper.index('function Assert-PilotRecoveryScope'):wrapper.index('$markerGuard=[Action[string[]]]')]
     scan_calls = re.findall(r'\bGet-(?:Child)?Item\s+-LiteralPath\s+([^|\n]+)', scanner)
-    assert len(scan_calls) == 4, 'unexpected recovery scanner API surface'
+    assert len(scan_calls) == 5, 'unexpected recovery scanner API surface'
     for call in scan_calls:
         assert re.search(r'(?:^|\s)-Force(?:\s|$)', call), 'hidden entries must be scanned at every site'
         assert re.search(r'-ErrorAction\s+Stop\b', call), 'every scan error must stop'
@@ -257,7 +258,7 @@ class PilotAudit(unittest.TestCase):
 
     def test_workflow_and_old_controls(self):
         workflow=(ROOT/'.github/workflows/windows-lpac-runtime-diagnostic.yml').read_text()
-        for fragment in ('baseline/run.ps1','run-runtime.ps1','run-parent-candidates.ps1','qualification-audit.py','pilot-audit.py',
+        for fragment in ('baseline/run.ps1','run-runtime.ps1','run-pilot.ps1','qualification-audit.py','pilot-audit.py',
                          'RunPilotPolicyContractTests()', 'RunPilotGateContractTests()', 'RunPilotClassificationContractTests()', 'timeout-minutes: 30'):
             self.assertIn(fragment,workflow)
         self.assertNotIn('continue-on-error',workflow)
