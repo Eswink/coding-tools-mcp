@@ -190,8 +190,7 @@ async fn authenticated_environment_and_child_boundary_are_truthful() {
     );
     assert_eq!(env["filesystem_sandbox"]["enforced"], false, "{env}");
     assert_eq!(
-        env["filesystem_sandbox"]["availability_check"],
-        "per_child_before_exec",
+        env["filesystem_sandbox"]["availability_check"], "per_child_before_exec",
         "{env}"
     );
     assert_eq!(env["workspace_exec_sandbox_enforced"], false, "{env}");
