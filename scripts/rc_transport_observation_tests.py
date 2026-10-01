@@ -1,5 +1,7 @@
 """Hermetic transport/security tests; all URLs and credentials below are synthetic."""
+import ast
 import copy
+import hashlib
 import io
 import json
 import os
@@ -236,7 +238,8 @@ class FixedObservationTests(unittest.TestCase):
             code, output = self.run_fixture(responses=[response], main=True)
             self.assertEqual(code, 1)
             self.assertEqual(json.loads(output), {"scope": subject.SCOPE, "error": "observation_failed",
-                             "release_approved": False, "publish_approved": False})
+                             "release_approved": False, "publish_approved": False,
+                             "stage_id": 2, "predicate_id": 0, "http_status": 200})
             self.assertNotIn(TOKEN, output)
             self.assertNotIn(LOCATION, output)
 
@@ -273,6 +276,90 @@ class FixedObservationTests(unittest.TestCase):
             self.assertIn(text, workflow)
         for text in ("inputs:", "pull_request", "write", "environment:", "upload-artifact", "cache:", "secrets."):
             self.assertNotIn(text, workflow)
+
+    def test_guard_conditions_match_original_8488272_ast_without_acceptance_changes(self):
+        tree = ast.parse(Path(subject.__file__).read_text())
+        guards = sorted([n for n in ast.walk(tree) if isinstance(n, ast.Call)
+                         and isinstance(n.func, ast.Name) and n.func.id == "observation_require"],
+                        key=lambda n: (n.lineno, n.col_offset))
+        self.assertEqual(len(guards), 31)
+        self.assertEqual([n.args[1].value for n in guards], list(range(1, 32)))
+        data = json.dumps([ast.dump(n.args[0], include_attributes=False) for n in guards], separators=(",", ":"))
+        self.assertEqual(hashlib.sha256(data.encode()).hexdigest(),
+                         "36845f1113d3857873ce86e84819ad1006904580d4dd9d2bee01e97d20c90c34")
+
+    def test_rejected_tokens_report_identical_fixed_stage_and_predicate_without_details(self):
+        expected = {"scope": subject.SCOPE, "error": "observation_failed", "release_approved": False,
+                    "publish_approved": False, "stage_id": 1, "predicate_id": 26}
+        for token in ("", "synthetic.token", "synthetic/token", "x" * 4097, "synthetic\nsecret"):
+            with self.subTest(case="synthetic invalid token"):
+                code, output = self.run_fixture(token=token, main=True)
+                self.assertEqual(code, 1)
+                self.assertEqual(json.loads(output), expected)
+                self.assertEqual(self.calls, [])
+
+    def test_fixed_stage_identifies_each_metadata_guard_without_returning_field_values(self):
+        for index, stage, key in ((0, 2, "id"), (1, 3, "head_sha"), (2, 4, "total_count"), (3, 5, "digest")):
+            with self.subTest(stage=stage):
+                self.calls, self.connections = [], []
+                metadata = observation_fixture()
+                metadata[index][key] = "synthetic-private-value"
+                code, output = self.run_fixture(metadata=metadata, main=True)
+                self.assertEqual(code, 1)
+                self.assertEqual(json.loads(output), {"scope": subject.SCOPE, "error": "observation_failed",
+                                 "release_approved": False, "publish_approved": False,
+                                 "stage_id": stage, "predicate_id": 27 if index == 2 else 5,
+                                 "http_status": 200})
+
+    def test_http_failure_status_is_typed_and_does_not_disclose_headers(self):
+        for status in (403, "403", True, 99, 600):
+            with self.subTest(status=status):
+                self.calls, self.connections = [], []
+                response = ObservationResponse(status=status, headers=[("Location", LOCATION)])
+                code, output = self.run_fixture(responses=[response], main=True)
+                self.assertEqual(code, 1)
+                expected = {"scope": subject.SCOPE, "error": "observation_failed", "release_approved": False,
+                            "publish_approved": False, "stage_id": 2, "predicate_id": 17}
+                if type(status) is int and 100 <= status <= 599:
+                    expected["http_status"] = status
+                self.assertEqual(json.loads(output), expected)
+                self.assertEqual(response.reads, [])
+
+    def test_redirect_failure_reports_only_fixed_ids_and_status_and_still_never_reads_body(self):
+        for headers, predicate in (([("Location", LOCATION)] * 2, 16), ([("Location", "https://a.com:80/private?secret")], 10)):
+            with self.subTest(predicate=predicate):
+                self.calls, self.connections = [], []
+                response = ObservationResponse(status=302, headers=headers)
+                code, output = self.run_fixture(responses=[ObservationResponse(x) for x in observation_fixture()] + [response], main=True)
+                self.assertEqual(code, 1)
+                self.assertEqual(json.loads(output), {"scope": subject.SCOPE, "error": "observation_failed",
+                                 "release_approved": False, "publish_approved": False,
+                                 "stage_id": 6, "predicate_id": predicate, "http_status": 302})
+                self.assertEqual(response.reads, [])
+
+    def test_unexpected_and_tampered_error_metadata_never_escape_fixed_allowlists(self):
+        secret = TOKEN + LOCATION
+        for error in (RuntimeError(secret), subject.ObservationRejected(secret), subject.ObservationRejected(True),
+                      subject.ObservationRejected(-1), subject.ObservationRejected(33)):
+            def fail(_token):
+                subject.OBSERVATION_STATE[:] = [secret, secret]
+                raise error
+            with patch.object(subject, "observe_fixed_redirect", fail):
+                code, output = self.run_fixture(main=True)
+            self.assertEqual(code, 1)
+            self.assertEqual(json.loads(output), {"scope": subject.SCOPE, "error": "observation_failed",
+                             "release_approved": False, "publish_approved": False,
+                             "stage_id": 0, "predicate_id": 0})
+
+    def test_json_noninteger_and_cli_rejection_have_fixed_predicate_ids(self):
+        code, output = self.run_fixture(responses=[ObservationResponse(raw=b'{"n":NaN}')], main=True)
+        self.assertEqual(code, 1)
+        self.assertEqual(json.loads(output)["predicate_id"], 32)
+        output = io.StringIO()
+        with patch.object(sys, "argv", ["probe", "synthetic-private-argument"]), redirect_stdout(output):
+            self.assertEqual(subject.observation_main(), 1)
+        self.assertEqual(json.loads(output.getvalue()), {"scope": subject.SCOPE, "error": "observation_failed",
+                         "release_approved": False, "publish_approved": False, "stage_id": 0, "predicate_id": 31})
 
 
 if __name__ == "__main__":
