@@ -1,0 +1,25 @@
+{
+  "layout": "parent-child",
+  "subspecs": [
+    {
+      "id": "inventory",
+      "title": "Unverified publication recipe and inventory",
+      "fr": [
+        "FR-1",
+        "FR-2",
+        "FR-4"
+      ]
+    },
+    {
+      "id": "journal",
+      "title": "Unverified transaction journal and reconciliation",
+      "fr": [
+        "FR-3",
+        "FR-4"
+      ],
+      "dependsOn": [
+        "inventory"
+      ]
+    }
+  ]
+}
