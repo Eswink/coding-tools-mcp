@@ -252,6 +252,7 @@ jobs:
           cargo test --locked --manifest-path src-tauri/Cargo.toml --features cloud-agent-integration-tests --lib cloud_application::wss_tests -- --nocapture --test-threads=1 2>&1 | tee evidence/application-wss.txt
           grep -E 'test result: ok\. [1-9][0-9]* passed; 0 failed; 0 ignored' evidence/application-wss.txt
           python3 tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence evidence/sandbox-dispatch
+          python3 tests/cloud-gateway/sandbox-lifecycle/run_probe.py --evidence evidence/sandbox-lifecycle
           git diff --exit-code HEAD --
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
