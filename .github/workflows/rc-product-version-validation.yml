@@ -1,0 +1,165 @@
+name: RC product version engineering validation
+
+on:
+  push:
+    branches: ['fix/rc070-metadata-20261001']
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: '3'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_INCREMENTAL: '0'
+  BASELINE_SHA: e61aaf2da99baccdb99db4922b39f7d8d5997096
+  RC_VERSION: '0.7.0-rc.1'
+
+jobs:
+  metadata:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/fix/rc070-metadata-20261001'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bind exact source and fixed transition baseline
+        id: source
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git fetch --no-tags origin "$BASELINE_SHA"
+          git cat-file -e "$BASELINE_SHA^{commit}"
+          git merge-base --is-ancestor "$BASELINE_SHA" HEAD
+          git rev-parse HEAD > evidence/source-sha.txt
+          git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
+          printf 'repository=%s\nrun_id=%s\nrun_attempt=%s\nos=%s\nrunner=%s\n' "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$RUNNER_OS" "$ImageOS" > evidence/context.txt
+          printf '%s\n' 'ENGINEERING ONLY: product metadata, frontend and compiled gateway version proof; no final/native/package/release acceptance.' > evidence/scope.txt
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        id: python
+        if: always() && steps.source.outcome == 'success'
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        id: node
+        if: always() && steps.source.outcome == 'success'
+        with:
+          node-version: '22'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        id: rust
+        if: always() && steps.source.outcome == 'success'
+        with:
+          toolchain: '1.98.1'
+      - name: Product version and original release contracts
+        id: contracts
+        if: always() && steps.source.outcome == 'success' && steps.python.outcome == 'success'
+        run: |
+          set -euo pipefail
+          python --version > evidence/python-version.txt
+          status=0
+          for suite in rc_version_gate_tests release_preflight_tests cloud_release_bundle_tests rc_packages_tests source_provenance_gate_tests reviewed_source_gate_tests release_tag_gate_tests 发布版本回归v4 preliminary_package_contract_tests rc_windows_install_contract_tests; do
+            if python "scripts/$suite.py" -v > "evidence/$suite.txt" 2>&1; then
+              printf '%s=0\n' "$suite" >> evidence/python-exits.txt
+            else
+              code=$?; printf '%s=%s\n' "$suite" "$code" >> evidence/python-exits.txt; status=1
+            fi
+            cat "evidence/$suite.txt"
+          done
+          exit "$status"
+      - name: Exact input-only and byte-preservation evidence
+        id: transition
+        if: always() && steps.source.outcome == 'success' && steps.python.outcome == 'success'
+        run: |
+          set -euo pipefail
+          python scripts/rc_version_gate.py --expect-version "$RC_VERSION" --expect-sha "$GITHUB_SHA" --output evidence/rc-source.json
+          python scripts/release_preflight.py --channel rc --expect-sha "$GITHUB_SHA" > evidence/preflight.json
+          python - <<'PY'
+          import json, os, pathlib, sys
+          sys.path.insert(0, 'scripts')
+          from rc_version_gate_tests import verify_metadata_transition
+          report = verify_metadata_transition(pathlib.Path.cwd(), os.environ['BASELINE_SHA'], os.environ['RC_VERSION'])
+          pathlib.Path('evidence/metadata-transition.json').write_text(json.dumps(report, indent=2) + '\n')
+          PY
+      - name: Actual frontend install check build and full regressions
+        id: frontend
+        if: always() && steps.source.outcome == 'success' && steps.node.outcome == 'success'
+        run: |
+          set -euo pipefail
+          node --version > evidence/node-version.txt
+          npm --version > evidence/npm-version.txt
+          npm ci 2>&1 | tee evidence/npm-ci.txt
+          npm run check 2>&1 | tee evidence/frontend-check.txt
+          npm run build 2>&1 | tee evidence/frontend-build.txt
+          node scripts/前端完整回归v4.mjs 2>&1 | tee evidence/frontend-full.txt
+          node --test tests/cloud-gateway/*.test.mjs tests/delivery/*.test.mjs 2>&1 | tee evidence/gateway-delivery.txt
+      - name: Full locked Cargo metadata for all four manifests
+        id: cargo_metadata
+        if: always() && steps.source.outcome == 'success' && steps.rust.outcome == 'success'
+        run: |
+          set -euo pipefail
+          rustc --version > evidence/rustc-version.txt
+          cargo --version > evidence/cargo-version.txt
+          for unit in src-tauri services/cloud-gateway services/cloud-agent services/local-agent; do
+            cargo metadata --locked --format-version 1 --manifest-path "$unit/Cargo.toml" > "evidence/metadata-${unit##*/}.json"
+          done
+      - name: Build and probe actual four-binary product versions
+        id: binaries
+        if: always() && steps.source.outcome == 'success' && steps.rust.outcome == 'success' && steps.python.outcome == 'success'
+        run: |
+          set -euo pipefail
+          cargo build --locked --bins --manifest-path services/cloud-gateway/Cargo.toml 2>&1 | tee evidence/gateway-build.txt
+          python - <<'PY'
+          import hashlib, json, os, pathlib, subprocess
+          binaries = {'coding-tools-gateway':'identity-only', 'coding-tools-agent':'recovery-only',
+                      'coding-tools-control-gateway':'control-only', 'coding-tools-mcp-gateway':'control-plane'}
+          observations = {}
+          suffix = '.exe' if os.name == 'nt' else ''
+          for name, capability in binaries.items():
+              path = pathlib.Path('services/cloud-gateway/target/debug', name + suffix)
+              result = subprocess.run([str(path.resolve()), '--version'], capture_output=True, text=True, timeout=20)
+              expected = f"{name} {os.environ['RC_VERSION']} {capability}\n"
+              if result.returncode != 0 or result.stderr or result.stdout != expected:
+                  raise SystemExit(f'Version probe mismatch for {name}: exit={result.returncode}, stdout={result.stdout!r}, stderr={result.stderr!r}')
+              observations[name] = {'output':result.stdout, 'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
+          report = {'source_sha':os.environ['GITHUB_SHA'], 'version':os.environ['RC_VERSION'],
+                    'binaries':observations, 'scope':'compiled engineering version proof', 'publish_approved':False}
+          pathlib.Path('evidence/binary-versions.json').write_text(json.dumps(report, indent=2) + '\n')
+          PY
+      - name: Preserve required outcomes and unchanged tracked source
+        if: always()
+        env:
+          SOURCE_RESULT: ${{ steps.source.outcome }}
+          CONTRACT_RESULT: ${{ steps.contracts.outcome }}
+          TRANSITION_RESULT: ${{ steps.transition.outcome }}
+          FRONTEND_RESULT: ${{ steps.frontend.outcome }}
+          METADATA_RESULT: ${{ steps.cargo_metadata.outcome }}
+          BINARY_RESULT: ${{ steps.binaries.outcome }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          printf 'source=%s\ncontracts=%s\ntransition=%s\nfrontend=%s\nmetadata=%s\nbinaries=%s\n' "$SOURCE_RESULT" "$CONTRACT_RESULT" "$TRANSITION_RESULT" "$FRONTEND_RESULT" "$METADATA_RESULT" "$BINARY_RESULT" > evidence/step-outcomes.txt
+          git diff --exit-code HEAD -- > evidence/tracked-clean.txt
+          for result in "$SOURCE_RESULT" "$CONTRACT_RESULT" "$TRANSITION_RESULT" "$FRONTEND_RESULT" "$METADATA_RESULT" "$BINARY_RESULT"; do
+            test "$result" = success
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-product-version-${{ matrix.os }}-${{ github.sha }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error

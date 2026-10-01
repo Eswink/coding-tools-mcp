@@ -214,7 +214,7 @@ dependencies = [
 
 [[package]]
 name = "coding-tools-cloud-gateway"
-version = "0.1.0"
+version = "0.7.0-rc.1"
 dependencies = [
  "argon2",
  "axum",
