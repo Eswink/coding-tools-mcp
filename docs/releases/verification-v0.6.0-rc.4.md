@@ -6,7 +6,7 @@ This guide matches the existing source metadata so engineering-only package/inpu
 
 ## Authoritative status
 
-Use [the release ledger](next-rc-ledger.md), [source acceptance audit](source-acceptance-audit.md), and the exact candidate commit's GitHub Actions. Do not reuse another commit's green run. Current final release gates are unresolved, including Windows sandbox/restore, snapshot root binding, gateway dependency classification, deployment topology, final version, installed packages and post-publication checks.
+Use [the current release ledger](next-rc-ledger.md#current-engineering-evidence--2026-10-01), [current source reconciliation](source-acceptance-audit.md#current-source-and-executed-evidence), and the exact candidate commit's GitHub Actions. The audit's original 49bbbef body is explicitly historical; its bootstrap/protocol gaps are superseded by the current reconciliation. Do not reuse another commit's green run. Exact 1281915 non-Windows integration and provenance engineering evidence is verified, but overall integration still fails on Windows. Final release gates remain unresolved: Windows isolation/restore and warnings, the held snapshot root-binding repair, final source/version audits and topology, final installed packages, the RC publication consumer and post-publication checks.
 
 ## Required automated checks
 

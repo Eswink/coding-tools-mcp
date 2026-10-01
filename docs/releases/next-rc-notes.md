@@ -10,16 +10,18 @@ The candidate also includes managed Git worktrees, native owner-approved Hooks, 
 
 ## Implemented / fixed, pending final acceptance
 
-- #34: modern and legacy protocol source reconciliation; shipped-Rust negative tests and legacy notification response correction pass locally; final CI pending
+- #34: shipped-Rust modern and both legacy protocol matrices, real authenticated WSS fixture reads and empty HTTP 202 notification correction pass in exact `1281915` hosted real-transport jobs; final release acceptance remains pending
 - #37, #41, #42, #45: runnable identity service, owner browser consent, PKCE, token rotation/replay protection and browser-compatible strict Origin policy
 - #38, #43, #44, #46, #81: locally issued grants, signed projections, live Agent channel, generation fencing, bound results, durable reconciliation and no automatic uncertain mutation replay
-- #39: invitation and device-proof foundations exist; shipped device-local bootstrap commands and real process tests now pass locally; final native/cumulative CI pending
+- #39: shipped invitation/redemption/revocation commands and device-local key/proof flow are implemented; exact `1281915` hosted enrollment contracts and eight real PostgreSQL/process bootstrap cases pass. Windows/full-release gates remain separate
 - #70: in-process managed worktree lifecycle, private ownership records, path containment, dirty-state refusal and isolated native profiles
 - #73: Ubuntu admission/policy-first sandbox enforcement, filesystem/network limits, bounded output and process cancellation
 - #84: devalue updated to5.9.4 with malformed-reference regression and aligned npm/pnpm locks
-- #85: desktop TLS lock updated to patched Rustls; gateway optional RSA lock finding remains under explicit build-reachability review
-- #86: snapshot opened-root authority binding remains a release-blocking repair
-- #40: deployment/build preparation is being reconciled with actual protected-file CLI contracts; historical templates are not a verified deployment
+- #85: patched Rustls and the exact two-line upstream GLib 0.18.5 backport are integrated. Exact `1281915` Ubuntu source checks retain five upstream SIGSEGV controls and nine optimized patched passes; separately downloaded four-binary engineering archives have exact-build reachability/audit proof. Raw RSA/advisory and maintenance-warning records remain visible; final-source audits are still required
+- #86: snapshot opened-root authority binding remains blocked: the required repair is unimplemented/unverified and outside this documentation increment
+- #40: exact `2602478` nonproduction container topology passed 14 cases plus cleanup; downloaded source/tree/binary/audit bindings were verified. The mandatory FINAL DAG must rerun topology on the frozen final source; real VPS deployment remains deferred
+- #87: the read-only RC-tag evidence route passes exact `1281915` provenance tests on Ubuntu and Windows; actual tag-event and successful full FINAL-DAG validation remain pending
+- #88: a full-scope RC publication consumer is still missing. Its first increment is design-only/nonpublishing; a separately reviewed publisher and real final evidence are required
 
 A source implementation or an old passing run is not a completed issue. Final issue classifications and exact evidence belong in the release ledger.
 
@@ -35,7 +37,9 @@ No production credentials, device private keys, OAuth secrets or user data belon
 
 Required targets: Windows x64; Ubuntu amd6422.04 and24.04. Other platforms are not claimed.
 
-Before publication, replace this section with the final candidate SHA and successful run links for frontend, Rust, PostgreSQL, authenticated TCP/WSS, real browser, native credential restart, admission/sandbox, worktree/Hook/snapshot and installed-package tests. Current cumulative CI is not all green.
+Engineering baseline: `1281915b38c2364c4476ca94aabae3043423ed5f`, tree `a0e84eb7e7f237b64908058e5a5ee1f306752ca4`. [Integration 36773728707](https://github.com/Eswink/coding-tools-mcp/actions/runs/36773728707) has six non-Windows jobs PASS and Windows FAIL: 599 passed / 6 failed / 0 ignored, plus four production warning errors. Both Ubuntu native library suites pass 665 tests; the health repair and three actual credential/restart cases on Windows and each Ubuntu OS pass. [Provenance 36774018809](https://github.com/Eswink/coding-tools-mcp/actions/runs/36774018809) passes 78 tests per OS with zero skips. All nine evidence ZIPs were downloaded, hash/integrity checked and bound to the exact source/tree or committed browser manifest; see the [current ledger checkpoint](next-rc-ledger.md#current-engineering-evidence--2026-10-01).
+
+These results do not establish final-source/version acceptance, the FINAL packaging DAG or an actual RC-tag event. Before publication, replace this engineering baseline with the approved final candidate SHA and successful complete regression, audit and installed-package evidence. A later docs-only commit does not inherit these exact-source CI results.
 
 ## Known limitations and external acceptance
 
@@ -54,4 +58,6 @@ Rollback requires a previously verified installer/binary set and a schema-compat
 
 ## Artifacts and checksums
 
-Pending final builds: Windows NSIS, Ubuntu DEB/AppImage, standalone cloud executable bundle and evidence/checksum files. Publish only artifacts built from the final selected source and product version. Record every filename, byte size and SHA256, verify downloaded bytes, and link the final SHA256SUMS file here.
+The three `fde46cc6299be88ffcf6b3fa3236d222dbdda7b1` engineering NSIS/DEB/AppImage files were downloaded and hash-verified against five installed receipts, including four Ubuntu 22.04/24.04 format/OS combinations and Windows standard-user acceptance. They retain `0.6.0-rc.4`, the Windows regression failure and the unsigned-Windows limitation. They are not final `1281915` or owner-selected-version assets.
+
+Final builds remain pending: Windows NSIS, Ubuntu DEB/AppImage, standalone four-binary cloud bundle and evidence/checksum files. Publish only artifacts built from the final selected source and product version. Record every filename, byte size and SHA256, verify downloaded bytes, and link the final SHA256SUMS file here. The [#88 consumer](https://github.com/Eswink/coding-tools-mcp/issues/88) must verify authenticated FINAL artifact bytes before any separately authorized publication.
