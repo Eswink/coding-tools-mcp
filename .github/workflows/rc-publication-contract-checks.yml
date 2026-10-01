@@ -1,0 +1,346 @@
+name: Publication observation contracts (synthetic only)
+
+on:
+  push:
+    branches: ['feat/rc-publication-contract-70aa']
+    paths:
+      - 'scripts/rc_publication_*.py'
+      - 'docs/specs/issue-88-additive/**'
+      - '.github/workflows/rc-publication-contract-checks.yml'
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  fixtures:
+    name: Non-executing contracts and unchanged regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Initialize fresh bounded diagnostic receipts
+        id: initialize
+        env:
+          RC_RAW: ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/raw
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RC_RAW'])
+          root.parent.mkdir()
+          root.mkdir()
+          for name, expected in (('new', None), ('pretag', 53), ('consumer', 159), ('original', 208)):
+              value = dict(status='not_run', reason='checkout_or_setup_unavailable', original_exit=None,
+                  loaded=None, executed=None, skipped=None, errors=None, failures=None,
+                  expected=expected, log_truncated=False)
+              (root / (name + '.json')).write_text(json.dumps(value) + '\n')
+              (root / (name + '.log')).write_text('not_run: checkout_or_setup_unavailable\n')
+          for name in ('source', 'fixture', 'tools', 'checks'):
+              (root / (name + '.json')).write_text(json.dumps({'status': 'not_run'}) + '\n')
+          PY
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        id: checkout
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        id: python
+        with:
+          python-version: '3.12'
+      - name: Acquire fixed checksum-pinned existing GLib source fixture
+        id: fixture
+        env:
+          RC_RAW: ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/raw
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/glib-0.18.5.crate
+        shell: bash
+        run: |
+          set +e
+          curl --fail --silent --show-error --proto '=https' --max-redirs 0 \
+            --connect-timeout 10 --max-time 30 --max-filesize 1048576 \
+            --output "$RC_CONSUMER_TEST_GLIB_ARCHIVE" \
+            https://static.crates.io/crates/glib/glib-0.18.5.crate
+          export RC_CURL_EXIT=$?
+          python - <<'PY'
+          import hashlib, json, os, stat
+          from pathlib import Path
+          expected = '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5'
+          path = Path(os.environ['RC_CONSUMER_TEST_GLIB_ARCHIVE'])
+          value = dict(status='failed', curl_exit=int(os.environ['RC_CURL_EXIT']), sha256=None, size=None)
+          try:
+              info = path.lstat()
+              if stat.S_ISREG(info.st_mode) and 0 < info.st_size <= 1048576:
+                  value.update(size=info.st_size, sha256=hashlib.sha256(path.read_bytes()).hexdigest())
+              if value['curl_exit'] == 0 and value['sha256'] == expected:
+                  value['status'] = 'passed'
+          except OSError:
+              pass
+          (Path(os.environ['RC_RAW']) / 'fixture.json').write_text(json.dumps(value) + '\n')
+          raise SystemExit(0 if value['status'] == 'passed' else 1)
+          PY
+      - name: Run independent counted groups and source checks
+        id: gate
+        if: ${{ always() && steps.initialize.outcome == 'success' && steps.checkout.outcome == 'success' && steps.python.outcome == 'success' }}
+        env:
+          RC_RAW: ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/raw
+          RC_EXPECTED_SHA: ${{ github.sha }}
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/glib-0.18.5.crate
+        shell: bash
+        run: |
+          python - <<'PY'
+          # BEGIN RC_GROUP_RUNNER
+          import hashlib, json, os, re, subprocess, sys
+          from pathlib import Path
+
+          EXPECTED = {'new': None, 'pretag': 53, 'consumer': 159, 'original': 208}
+          ORIGINAL = ('release_tag_gate', 'rc_version_gate', 'reviewed_source_gate', 'cloud_release_bundle',
+              'final_rc_evidence', 'release_dependency_capture', 'release_dependency_contract',
+              'exact_build_audit', 'rc_packages', 'rc_windows_install_contract',
+              'exclusive_native_contract', 'exclusive_release', 'source_provenance_gate')
+          BASE = '70aa9e3644fc50861992717c6c879d8c7261539f'
+          NEW = tuple('scripts/rc_publication_' + name + '.py' for name in ('types', 'contract',
+              'reconcile', 'fixtures', 'types_tests', 'contract_tests', 'reconcile_tests', 'boundary_tests'))
+          NEW += ('.github/workflows/rc-publication-contract-checks.yml',)
+          NEW += tuple('docs/specs/issue-88-additive/' + name for name in ('README.md', 'requirements.md',
+              'design.md', 'tasks.md', 'spec-manifest.json', 'subspecs/inventory/spec.md',
+              'subspecs/inventory/tasks.md', 'subspecs/journal/spec.md', 'subspecs/journal/tasks.md'))
+          LOG_CAP = 65536
+          SUITE = r'''
+          import importlib, json, sys, unittest
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').absolute()))
+          label, destination, *names = sys.argv[1:]
+          loader = unittest.TestLoader()
+          if label == 'original':
+              suite = unittest.TestSuite(loader.loadTestsFromModule(importlib.import_module(name)) for name in names)
+          else:
+              pattern = {'new': 'rc_publication_*_tests.py', 'pretag': 'rc_pretag*_tests.py',
+                         'consumer': 'rc_consumer*_tests.py'}[label]
+              suite = loader.discover('scripts', pattern=pattern)
+          loaded = suite.countTestCases()
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          value = dict(loaded=loaded, executed=result.testsRun, skipped=len(result.skipped),
+                       errors=len(result.errors), failures=len(result.failures))
+          Path(destination).write_text(json.dumps(value) + '\n')
+          expected = {'new': None, 'pretag': 53, 'consumer': 159, 'original': 208}[label]
+          counted = loaded == result.testsRun and (loaded > 0 if expected is None else loaded == expected)
+          raise SystemExit(0 if counted and result.wasSuccessful() and not result.skipped else 1)
+          '''
+
+          def write(root, name, value):
+              (root / (name + '.json')).write_text(json.dumps(value, sort_keys=True) + '\n')
+
+          def git(*args):
+              return subprocess.check_output(['git', *args], stderr=subprocess.DEVNULL, timeout=30).decode().strip()
+
+          def run_group(root, label):
+              metric = root.parent / (label + '-counts.json')
+              names = [name + '_tests' for name in ORIGINAL] + ['发布版本回归v4'] if label == 'original' else []
+              process = subprocess.Popen([sys.executable, '-c', SUITE, label, str(metric), *names],
+                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+              size, truncated = 0, False
+              with (root / (label + '.log')).open('wb') as log:
+                  while chunk := process.stdout.read(8192):
+                      kept = chunk[:max(0, LOG_CAP - size)]
+                      log.write(kept)
+                      size += len(kept)
+                      truncated |= len(kept) != len(chunk)
+              original_exit = process.wait()
+              value = dict(status='failed', reason='missing_counts', expected=EXPECTED[label],
+                  original_exit=original_exit, loaded=None, executed=None, skipped=None,
+                  errors=None, failures=None, log_truncated=truncated)
+              try:
+                  value.update(json.loads(metric.read_text()))
+                  value.update(status='passed' if original_exit == 0 and not truncated else 'failed', reason='completed')
+              except (OSError, ValueError):
+                  pass
+              write(root, label, value)
+              return value['status'] == 'passed'
+
+          def main():
+              root = Path(os.environ['RC_RAW'])
+              expected = os.environ['RC_EXPECTED_SHA']
+              source = dict(status='failed', expected_sha=expected, actual_head=None,
+                  actual_tree=None, expected_tree=None, predecessor_unchanged=False, exact_additions=False)
+              try:
+                  if not re.fullmatch('[0-9a-f]{40}', expected):
+                      raise ValueError('missing_source')
+                  source.update(actual_head=git('rev-parse', 'HEAD'), actual_tree=git('rev-parse', 'HEAD^{tree}'),
+                      expected_tree=git('rev-parse', expected + '^{tree}'))
+                  changes = git('diff', '--name-status', BASE, 'HEAD').splitlines()
+                  source['exact_additions'] = set(changes) == {'A\t' + name for name in NEW}
+                  source['predecessor_unchanged'] = all(row.startswith('A\t') for row in changes)
+                  if source['actual_head'] == expected and source['actual_tree'] == source['expected_tree'] \
+                          and source['exact_additions'] and source['predecessor_unchanged']:
+                      source['status'] = 'passed'
+              except (OSError, ValueError, subprocess.SubprocessError):
+                  pass
+              write(root, 'source', source)
+              tools = dict(status='passed' if sys.version_info[:2] == (3, 12) else 'failed', python=sys.version.split()[0])
+              try:
+                  tools['git'] = git('--version')
+              except (OSError, subprocess.SubprocessError):
+                  tools['status'] = 'failed'
+              write(root, 'tools', tools)
+              valid = source['status'] == tools['status'] == 'passed'
+              archive = Path(os.environ['RC_CONSUMER_TEST_GLIB_ARCHIVE'])
+              fixture = False
+              try:
+                  fixture = not archive.is_symlink() and archive.is_file() and archive.stat().st_size <= 1048576 \
+                      and hashlib.sha256(archive.read_bytes()).hexdigest() == \
+                      '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5'
+              except OSError:
+                  pass
+              passed = []
+              for label in EXPECTED:
+                  if not valid or (label == 'consumer' and not fixture):
+                      value = json.loads((root / (label + '.json')).read_text())
+                      value['reason'] = 'source_or_python_unavailable' if not valid else 'required_fixture_unavailable'
+                      write(root, label, value)
+                      passed.append(False)
+                  else:
+                      passed.append(run_group(root, label))
+              checks = dict(status='failed', compile=False, tracked_clean=False)
+              try:
+                  for path in Path('scripts').glob('*.py'):
+                      compile(path.read_bytes(), str(path), 'exec')
+                  checks['compile'] = True
+                  checks['tracked_clean'] = subprocess.run(['git', 'diff', '--quiet', 'HEAD'], check=False).returncode == 0
+                  if all(checks[key] for key in ('compile', 'tracked_clean')):
+                      checks['status'] = 'passed'
+              except (OSError, SyntaxError):
+                  pass
+              write(root, 'checks', checks)
+              return 0 if valid and all(passed) and checks['status'] == 'passed' else 1
+
+          if __name__ == '__main__':
+              raise SystemExit(main())
+          # END RC_GROUP_RUNNER
+          PY
+      - name: Collect explicit bounded diagnostics even after failure
+        id: collect
+        if: always()
+        env:
+          RC_RAW: ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/raw
+          RC_UPLOAD: ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/upload
+          RC_INITIALIZE: ${{ steps.initialize.outcome }}
+          RC_CHECKOUT: ${{ steps.checkout.outcome }}
+          RC_PYTHON: ${{ steps.python.outcome }}
+          RC_FIXTURE: ${{ steps.fixture.outcome }}
+          RC_GATE: ${{ steps.gate.outcome }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          # BEGIN RC_DIAGNOSTIC_COLLECTOR
+          import hashlib, json, os, stat
+          from pathlib import Path
+
+          PER_FILE_CAP, TOTAL_CAP, RECEIPT_RESERVE = 65536, 524288, 16384
+          EXPECTED = {'new': None, 'pretag': 53, 'consumer': 159, 'original': 208}
+          ALLOWLIST = tuple(name + suffix for name in EXPECTED for suffix in ('.json', '.log')) \
+              + ('source.json', 'fixture.json', 'tools.json', 'checks.json')
+
+          def collect(raw, destination, steps):
+              issues, files, data = [], [], {}
+              if destination.parent != raw.parent or destination.parent.is_symlink():
+                  raise ValueError('unsafe_evidence_directory')
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.mkdir(exist_ok=False)
+              remaining = TOTAL_CAP - RECEIPT_RESERVE
+              if raw.is_symlink() or not raw.is_dir() or raw.parent.is_symlink():
+                  issues.append('missing_or_linked_raw_directory')
+              else:
+                  if set(path.name for path in raw.iterdir()) - set(ALLOWLIST):
+                      issues.append('unexpected_file')
+                  for name in ALLOWLIST:
+                      path = raw / name
+                      try:
+                          fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                          with os.fdopen(fd, 'rb') as stream:
+                              info = os.fstat(stream.fileno())
+                              if not stat.S_ISREG(info.st_mode):
+                                  raise ValueError('non_regular_file')
+                              content = stream.read(min(PER_FILE_CAP, remaining) + 1)
+                          limit = min(PER_FILE_CAP, remaining)
+                          truncated = info.st_size > limit or len(content) > limit
+                          if truncated:
+                              issues.append('oversize_or_truncated')
+                          content = content[:limit]
+                          (destination / name).write_bytes(content)
+                          remaining -= len(content)
+                          files.append(dict(name=name, source_bytes=info.st_size, retained_bytes=len(content),
+                              sha256=hashlib.sha256(content).hexdigest(), truncated=truncated))
+                          if name.endswith('.json') and not truncated:
+                              value = json.loads(content)
+                              if type(value) is not dict:
+                                  raise ValueError('invalid_receipt_object')
+                              data[name] = value
+                      except (OSError, ValueError, RecursionError):
+                          issues.append('missing_linked_or_invalid_file')
+              for name, expected in EXPECTED.items():
+                  value = data.get(name + '.json', {})
+                  counts = [value.get(key) for key in ('loaded', 'executed', 'skipped', 'errors', 'failures')]
+                  counted = all(type(count) is int and count >= 0 for count in counts)
+                  if counted:
+                      loaded, executed, skipped, errors, failures = counts
+                      counted = loaded == executed and (loaded > 0 if expected is None else loaded == expected) \
+                          and skipped == errors == failures == 0
+                  if value.get('status') != 'passed' or type(value.get('original_exit')) is not int \
+                          or value['original_exit'] != 0 or value.get('expected') != expected \
+                          or value.get('log_truncated') is not False or not counted:
+                      issues.append('group_failed_or_not_run:' + name)
+              source = data.get('source.json', {})
+              if source.get('status') != 'passed' or not source.get('actual_head') \
+                      or source.get('actual_head') != source.get('expected_sha') \
+                      or not source.get('actual_tree') or source.get('actual_tree') != source.get('expected_tree') \
+                      or source.get('predecessor_unchanged') is not True or source.get('exact_additions') is not True:
+                  issues.append('source_not_bound')
+              for name in ('fixture', 'tools', 'checks'):
+                  if data.get(name + '.json', {}).get('status') != 'passed':
+                      issues.append(name + '_failed_or_unavailable')
+              if set(steps) != {'initialize', 'checkout', 'python', 'fixture', 'gate'} \
+                      or any(value != 'success' for value in steps.values()):
+                  issues.append('workflow_step_failed_or_not_run')
+              report = dict(status='failed' if issues else 'passed', issues=sorted(set(issues)), files=files,
+                  steps=steps, per_file_cap=PER_FILE_CAP, total_cap=TOTAL_CAP,
+                  evidence_authentication='unverified', execution_enabled=False,
+                  release_approved=False, publish_approved=False, snapshot_atomic=False,
+                  limitation='Synthetic diagnostics only. Retention is attempted while the runner survives; '
+                      'checkout/setup failure, cancellation, timeout or runner loss may prevent logs or upload.')
+              encoded = (json.dumps(report, sort_keys=True) + '\n').encode()
+              if len(encoded) > RECEIPT_RESERVE:
+                  raise ValueError('collector_receipt_oversize')
+              (destination / 'collector.json').write_bytes(encoded)
+              return 1 if issues else 0
+
+          if __name__ == '__main__':
+              steps = {name: os.environ['RC_' + name.upper()] for name in
+                       ('initialize', 'checkout', 'python', 'fixture', 'gate')}
+              raise SystemExit(collect(Path(os.environ['RC_RAW']), Path(os.environ['RC_UPLOAD']), steps))
+          # END RC_DIAGNOSTIC_COLLECTOR
+          PY
+      - name: Retain diagnostic evidence only (seven days)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rc-publication-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/upload/new.json
+            ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/upload/new.log
+            ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/upload/pretag.json
+            ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/upload/pretag.log
+            ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/upload/consumer.json
+            ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/upload/consumer.log
+            ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/upload/original.json
+            ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/upload/original.log
+            ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/upload/source.json
+            ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/upload/fixture.json
+            ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/upload/tools.json
+            ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/upload/checks.json
+            ${{ runner.temp }}/rc-publication-${{ github.run_id }}-${{ github.run_attempt }}/upload/collector.json
