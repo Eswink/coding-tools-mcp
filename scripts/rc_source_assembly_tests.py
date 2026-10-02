@@ -41,10 +41,14 @@ class SourceHistoryTests(unittest.TestCase):
         self.enterContext(patch.object(assembly, 'ANCHOR', self.anchor))
         self.enterContext(patch.object(assembly, 'ANCHOR_TREE', self.anchor_tree))
         self.enterContext(patch.object(assembly, 'COMPONENTS', {self.anchor: (self.anchor_tree, [])}))
-        for name in assembly.ADDED:
+        for name in assembly.LEGACY_ADDED:
             write(self.root, name, 'synthetic addition ' + name + '\n')
         write(self.root, 'scripts/engineering_dependency_capture.py', 'synthetic approved adapter\n')
-        self.first = self.commit('synthetic integration')
+        self.legacy = self.commit('synthetic reviewed fifteen-path integration')
+        self.enterContext(patch.object(assembly, 'LEGACY_IMPLEMENTATION', self.legacy))
+        self.enterContext(patch.object(assembly, 'LEGACY_TREE', self.git('rev-parse', 'HEAD^{tree}')))
+        write(self.root, assembly.DISPATCH_TESTS, 'synthetic dispatch regression module\n')
+        self.first = self.commit('synthetic sixteen-path correction')
         self.event = self.base / 'event.json'
         self.env = dict(GITHUB_ACTIONS='true', GITHUB_REPOSITORY=assembly.REPOSITORY,
                         GITHUB_REF='refs/heads/' + assembly.BRANCH, GITHUB_EVENT_NAME='push',
@@ -77,8 +81,9 @@ class SourceHistoryTests(unittest.TestCase):
     def test_valid_first_source_binds_every_input_and_fourteen_delta_paths(self):
         report = self.verify()
         self.assertEqual(report['anchor'], self.anchor)
-        self.assertEqual(set(report['history'][0]['delta_blobs']), assembly.SCOPE)
-        self.assertEqual(len(assembly.SCOPE), 15)
+        self.assertEqual(set(report['history'][0]['delta_blobs']), assembly.LEGACY_ADDED | assembly.MODIFIED)
+        self.assertEqual(set(report['history'][1]['delta_blobs']), assembly.SCOPE)
+        self.assertEqual(len(assembly.SCOPE), 16)
         self.assertEqual(report['inputs']['protected.txt']['sha256'], hashlib.sha256(b'immutable source\n').hexdigest())
         self.assertFalse(report['full_release_eligible'])
 
@@ -87,7 +92,7 @@ class SourceHistoryTests(unittest.TestCase):
         sha = self.commit('synthetic append-only correction')
         self.push(sha, self.first)
         result = self.verify()
-        self.assertEqual([x['sha'] for x in result['history']], [self.first, sha])
+        self.assertEqual([x['sha'] for x in result['history']], [self.legacy, self.first, sha])
         self.assertEqual(result['anchor'], self.anchor)
 
     def test_wrong_github_context_is_rejected(self):

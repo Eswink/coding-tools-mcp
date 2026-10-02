@@ -16,7 +16,7 @@ Stage1: approve source-evidence and correctly recreate assembly. Stage2: impleme
 | FR-5 | focused-validation | focused-validation/2.3 | Pending review |
 
 ## 文件变更清单
-The exact fifteen-path list in design.md: five added implementation files, one modified engineering helper, and nine added specifications. No existing isolated workflow or original test changes. The nine specifications are explicit reviewed documentation additions.
+The exact sixteen-path list in design.md: six added implementation files, one modified engineering helper, and nine added specifications. No existing isolated workflow or original test changes. The nine specifications are explicit reviewed documentation additions.
 
 ## 子规格任务覆盖矩阵
 | 子规格任务 | 父 FR | 阶段 |

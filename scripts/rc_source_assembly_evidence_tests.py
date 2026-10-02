@@ -68,7 +68,9 @@ def workflow_commands(root, evidence, source):
 def executed_argv(argv):
     executed = argv
     executable = shutil.which(argv[0])
-    if os.name == 'nt' and executable and Path(executable).suffix.lower() in {'.cmd', '.bat'}:
+    if os.name == 'nt' and argv[0] == 'bash':
+        executed = [r'C:\Program Files\Git\bin\bash.exe', *argv[1:]]
+    elif os.name == 'nt' and executable and Path(executable).suffix.lower() in {'.cmd', '.bat'}:
         executed = [os.environ.get('COMSPEC', 'cmd.exe'), '/d', '/s', '/c',
                     subprocess.list2cmdline([executable, *argv[1:]])]
     return executed

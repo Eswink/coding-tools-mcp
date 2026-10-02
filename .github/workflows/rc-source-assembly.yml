@@ -114,7 +114,7 @@ jobs:
         run: |
           python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name release-contracts --timeout 600 -- bash -euo pipefail -c '
             status=0
-            for suite in rc_version_gate_tests release_preflight_tests cloud_release_bundle_tests rc_packages_tests source_provenance_gate_tests reviewed_source_gate_tests release_tag_gate_tests 发布版本回归v4 preliminary_package_contract_tests rc_windows_install_contract_tests rc_source_assembly_tests rc_source_assembly_evidence_tests; do
+            for suite in rc_version_gate_tests release_preflight_tests cloud_release_bundle_tests rc_packages_tests source_provenance_gate_tests reviewed_source_gate_tests release_tag_gate_tests 发布版本回归v4 preliminary_package_contract_tests rc_windows_install_contract_tests rc_source_assembly_tests rc_source_assembly_evidence_tests rc_source_assembly_dispatch_tests; do
               if python "scripts/$suite.py" -v > "$RUNNER_TEMP/assembly-evidence/$suite.txt" 2>&1; then code=0; else code=$?; status=1; fi
               printf "%s=%s\n" "$suite" "$code" >> "$RUNNER_TEMP/assembly-evidence/python-exits.txt"
               cat "$RUNNER_TEMP/assembly-evidence/$suite.txt"

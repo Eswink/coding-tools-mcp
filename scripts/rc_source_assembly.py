@@ -23,6 +23,9 @@ WORKFLOW = REPOSITORY + '/.github/workflows/rc-source-assembly.yml@refs/heads/' 
 ANCHOR = '049ff5d381f345bf681ac3501b952269531b7045'
 ANCHOR_TREE = '4e55549810e74236e14eb28a48785c3268ae107d'
 FIRST_MERGE = 'c959ef5e6e9913ccb5eeb3139e7d7ecb72358378'
+LEGACY_IMPLEMENTATION = '46f88c60f3a5f8726e4c28cee73e941a7f15a36d'
+LEGACY_TREE = '1412f9e1408b1dbb7beefa2db37f70b5965fea65'
+DISPATCH_TESTS = 'scripts/rc_source_assembly_dispatch_tests.py'
 PR96 = '43cc4fcfcee45b65be6faa79c33fedc3dce2407c'
 PR93 = 'bd3053eca83cb0fcc07468abb3b81bf6fada1bcf'
 PR94 = 'e26e36aedb7db7458adbf17ec5185b998e5641f7'
@@ -37,12 +40,13 @@ COMPONENTS = {
 SPEC = 'docs/specs/rc-source-assembly-engineering/'
 ADDED = {'.github/workflows/rc-source-assembly.yml', 'scripts/rc_source_assembly.py',
          'scripts/rc_source_assembly_frontend.py', 'scripts/rc_source_assembly_tests.py',
-         'scripts/rc_source_assembly_evidence_tests.py'}
+         'scripts/rc_source_assembly_evidence_tests.py', DISPATCH_TESTS}
 ADDED |= {SPEC + p for p in ('README.md', 'requirements.md', 'design.md', 'tasks.md', 'spec-manifest.json',
           'subspecs/source-evidence/spec.md', 'subspecs/source-evidence/tasks.md',
           'subspecs/focused-validation/spec.md', 'subspecs/focused-validation/tasks.md')}
 MODIFIED = {'scripts/engineering_dependency_capture.py'}
 SCOPE = ADDED | MODIFIED
+LEGACY_ADDED = ADDED - {DISPATCH_TESTS}
 FLAGS = dict(engineering_only=True, release_approved=False, publish_approved=False,
              native_verified=False, real_chatgpt_verified=False, full_release_eligible=False)
 BINS = {'coding-tools-gateway': 'identity-only', 'coding-tools-agent': 'recovery-only',
@@ -56,7 +60,7 @@ UNITS = {'src-tauri': ('src-tauri', 'coding-tools-mcp-desktop', '0.7.0-rc.1'),
 # Exact YAML-decoded bodies of the six shell blocks in the reviewed workflow.
 # No whitespace normalization: CR, quoting and shell line boundaries affect execution.
 SHELL_DIGESTS = {
-    'release-contracts': '4987d06c7f84776cc99c7b627f040c307429ed83fcb50ecedd592a11d3cb8052',
+    'release-contracts': 'd4e2a306b2ca21829672cf66b2d7852f08759a283f3daebb233906aaa646c966',
     'metadata': '6f6875f063d31367e9c5fb0ab5c84f1dd790ccb452099437999a8cfe98af0929',
     'native-dependencies': 'e141b1466e7c2368bf51654e1180c95aa23abee8bf3599fd26fed1cf2cee4e2a',
     'native-compile': '9600bb5459a69c53b55f01803e757c43ed0a28133b8c3566baca07fcd0d50f8c',
@@ -66,7 +70,7 @@ SHELL_DIGESTS = {
 RELEASE_SUITES = ('rc_version_gate_tests release_preflight_tests cloud_release_bundle_tests rc_packages_tests '
                   'source_provenance_gate_tests reviewed_source_gate_tests release_tag_gate_tests 发布版本回归v4 '
                   'preliminary_package_contract_tests rc_windows_install_contract_tests rc_source_assembly_tests '
-                  'rc_source_assembly_evidence_tests').split()
+                  'rc_source_assembly_evidence_tests rc_source_assembly_dispatch_tests').split()
 CAPTURE_SUITES = ['engineering_dependency_capture_tests', 'release_dependency_capture_tests',
                   'release_dependency_contract_tests', 'exact_build_audit_tests']
 PORTABLE_COUNTS = {'Linux': {'portable-standalone': [50, 23], 'portable-rc': [50, 11, 23]},
@@ -101,16 +105,20 @@ def verify_history(root, sha):
                    git(root, 'show', '-s', '--format=%P', commit).split() == parents, 'wrong_reviewed_component')
     chain = git(root, 'rev-list', '--reverse', sha, '^' + ANCHOR).splitlines()
     exact.need(1 <= len(chain) <= 32, 'invalid_descendant_count')
+    exact.need(chain[0] == LEGACY_IMPLEMENTATION, 'wrong_legacy_implementation')
     before = tree_files(root, ANCHOR)
     previous, records = ANCHOR, []
     for commit in chain:
         exact.need(git(root, 'show', '-s', '--format=%P', commit).split() == [previous], 'nonlinear_or_foreign_history')
         after = tree_files(root, commit)
-        exact.need(set(after) - set(before) == ADDED and set(before) - set(after) == set(), 'wrong_added_removed_paths')
+        added = LEGACY_ADDED if commit == LEGACY_IMPLEMENTATION else ADDED
+        tree = git(root, 'rev-parse', commit + '^{tree}')
+        exact.need(commit != LEGACY_IMPLEMENTATION or tree == LEGACY_TREE, 'wrong_legacy_tree')
+        exact.need(set(after) - set(before) == added and set(before) - set(after) == set(), 'wrong_added_removed_paths')
         changed = {p for p in before if before[p] != after[p]}
         exact.need(changed == MODIFIED, 'protected_source_changed')
-        records.append({'sha': commit, 'parent': previous, 'tree': git(root, 'rev-parse', commit + '^{tree}'),
-                        'delta_blobs': {p: after[p] for p in sorted(SCOPE)}})
+        records.append({'sha': commit, 'parent': previous, 'tree': tree,
+                        'delta_blobs': {p: after[p] for p in sorted(added | MODIFIED)}})
         previous = commit
     exact.need(previous == sha, 'head_not_in_chain')
     return records
@@ -170,7 +178,11 @@ def capture_command(root, evidence, name, timeout, argv):
     code = 125
     executed = argv
     executable = shutil.which(argv[0])
-    if os.name == 'nt' and executable and Path(executable).suffix.lower() in {'.cmd', '.bat'}:
+    if os.name == 'nt' and argv[0] == 'bash':
+        executable = r'C:\Program Files\Git\bin\bash.exe'
+        exact.need(os.path.isfile(executable), 'missing_windows_git_bash')
+        executed = [executable, *argv[1:]]
+    elif os.name == 'nt' and executable and Path(executable).suffix.lower() in {'.cmd', '.bat'}:
         executed = [os.environ.get('COMSPEC', 'cmd.exe'), '/d', '/s', '/c', subprocess.list2cmdline([executable, *argv[1:]])]
     record['executed_command'] = executed
     with (directory / 'stdout.txt').open('wb') as out, (directory / 'stderr.txt').open('wb') as err:
@@ -271,7 +283,11 @@ def command_result(evidence, name, expected=None):
     exact.need(all(type(x) is str for x in actual) and data.get('timed_out', False) is False, 'invalid_executed_receipt')
     executed = actual
     executable = shutil.which(actual[0])
-    if os.name == 'nt' and executable and Path(executable).suffix.lower() in {'.cmd', '.bat'}:
+    if os.name == 'nt' and actual[0] == 'bash':
+        executable = r'C:\Program Files\Git\bin\bash.exe'
+        exact.need(os.path.isfile(executable), 'missing_windows_git_bash')
+        executed = [executable, *actual[1:]]
+    elif os.name == 'nt' and executable and Path(executable).suffix.lower() in {'.cmd', '.bat'}:
         executed = [os.environ.get('COMSPEC', 'cmd.exe'), '/d', '/s', '/c', subprocess.list2cmdline([executable, *actual[1:]])]
     exact.need(data.get('executed_command') == executed, 'wrong_executed_command_' + name)
     if name in SHELL_DIGESTS:

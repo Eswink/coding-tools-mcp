@@ -13,4 +13,4 @@ Obtain fresh focused engineering evidence for the exact reviewed PR96, PR93 and 
 Source identity precedes every CI assertion. spec-manifest.json owns FR assignments and dependency order. Child task lists are authoritative; parent tasks.md contains references only.
 
 ## 里程碑
-M1: specifications, check_spec, impact and independent review. M2: correctly gated source assembly and fifteen-path integration. M3: local checks, exact-source focused hosted CI and independent artifact-byte verification. Final release gates remain separately required.
+M1: specifications, check_spec, impact and independent review. M2: correctly gated source assembly and initial fifteen-path integration followed by the exact reviewed sixteen-path correction. M3: local checks, exact-source focused hosted CI and independent artifact-byte verification. Final release gates remain separately required.

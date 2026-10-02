@@ -4,7 +4,7 @@
 Assemble exact reviewed source into a separately gated branch, then obtain fresh focused engineering CI evidence. No old green result applies to the new SHA. Details and immutable component IDs are in the parent requirements.md and subspecs/source-evidence/spec.md.
 
 ## 范围边界
-In scope: six implementation paths plus nine durable specification additions, exact source gates, three OS portable/metadata/version proof, two Linux native jobs, four Ubuntu24 browser suites, and four-lock capture plus independent verification. The nine durable spec files are explicit published additions. Caches and local execution evidence remain excluded.
+In scope: seven implementation paths plus nine durable specification additions, exact source gates, three OS portable/metadata/version proof, two Linux native jobs, four Ubuntu24 browser suites, and four-lock capture plus independent verification. The nine durable spec files are explicit published additions. Caches and local execution evidence remain excluded.
 Out of scope: No PR89/schema/PR97 stack, Windows security driver, Issue86 opened-root binding, consumer malformed-redirect cleanup, runtime production edits, secrets, security weakening, main/canonical advancement, tag or Release. Preserve every original workflow/guard/test/lock/payload. No held-action retry.
 
 ## 需求列表

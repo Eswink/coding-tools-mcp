@@ -136,7 +136,13 @@ def commands(evidence):
         need(type(receipt.get("exit")) is int and receipt["exit"] == 0, "nonzero command exit: " + name)
         need(raw(evidence, prefix + "exit-code.txt").decode().strip() == "0", "command exit disagreement: " + name)
         need(utc_time(receipt.get("started_at")) <= utc_time(receipt.get("completed_at")), "reversed command timestamps: " + name)
-        need(raw(evidence, prefix + "stdout.txt").strip(), "empty command stdout: " + name)
+        stdout = raw(evidence, prefix + "stdout.txt")
+        if name == "ui-browser" and not stdout.strip():
+            # The unchanged UI runner writes files without printing on success.
+            # Quiet output is valid only with its full UI/report/source proof.
+            ui(evidence, document(evidence, "source.json")["inputs"])
+        else:
+            need(stdout.strip(), "empty command stdout: " + name)
         raw(evidence, prefix + "stderr.txt")  # Empty stderr is valid, missing stderr is not.
 
 
