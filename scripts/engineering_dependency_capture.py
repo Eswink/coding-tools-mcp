@@ -23,9 +23,16 @@ def write_json(path, value):
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + '\n')
 
 
-def producer(sha):
+def producer(sha, root=None):
     exact.need(os.environ.get('GITHUB_ACTIONS') == 'true', 'github_actions_required')
-    expected = dict(repository=contract.REPOSITORY, workflow_ref=WORKFLOW, sha=sha, job='capture')
+    workflow = WORKFLOW
+    from rc_source_assembly import WORKFLOW as ASSEMBLY_WORKFLOW, verify_source
+    if os.environ.get('GITHUB_WORKFLOW_REF') == ASSEMBLY_WORKFLOW:
+        exact.need(root is not None, 'assembly_source_root_required')
+        exact.need(os.environ.get('GITHUB_JOB') in {'capture', 'verify'}, 'wrong_assembly_capture_job')
+        verify_source(root, sha)
+        workflow = ASSEMBLY_WORKFLOW
+    expected = dict(repository=contract.REPOSITORY, workflow_ref=workflow, sha=sha, job='capture')
     for key, env in (('repository', 'GITHUB_REPOSITORY'), ('workflow_ref', 'GITHUB_WORKFLOW_REF'), ('sha', 'GITHUB_SHA')):
         exact.need(os.environ.get(env) == expected[key], 'wrong_producer_' + key)
     for key, env in (('run_id', 'GITHUB_RUN_ID'), ('run_attempt', 'GITHUB_RUN_ATTEMPT')):
@@ -108,7 +115,7 @@ def verify(root, output, sha, version, trusted_digest):
     source = exact.source_identity(root, sha, version, TARGET)
     exact.need(type(receipt.get('schema')) is int and receipt['schema'] == 1, 'wrong_schema')
     exact.need(all(receipt.get(key) is value for key, value in FLAGS.items()), 'wrong_authority')
-    exact.need(receipt.get('source') == source and receipt.get('producer') == producer(sha), 'wrong_source_or_producer')
+    exact.need(receipt.get('source') == source and receipt.get('producer') == producer(sha, root), 'wrong_source_or_producer')
     exact.need(receipt.get('files') == inventory(output), 'artifact_inventory_mismatch')
     required = {'commands.json', 'noncloud/raw-audit-capture.json'}
     required |= {name + suffix for name in ('cargo', 'rustc', 'audit-version', 'collector', 'gateway')
@@ -138,7 +145,7 @@ def verify(root, output, sha, version, trusted_digest):
     exact.need(type(snapshot.get('file_count')) is int and snapshot['file_count'] > 0, 'wrong_database_count')
     noncloud = output / 'noncloud'
     captured = exact.decode(exact.read(noncloud / 'raw-audit-capture.json'))
-    expected = {**source, **producer(sha), 'source_root': receipt['source_root'], 'audit_version': 'cargo-audit 0.22.2',
+    expected = {**source, **producer(sha, root), 'source_root': receipt['source_root'], 'audit_version': 'cargo-audit 0.22.2',
                 'audit_binary_sha256': receipt['audit_binary_sha256'], 'advisory_database': snapshot,
                 'release_approved': False, 'publish_approved': False}
     exact.need(type(captured.get('schema')) is int and captured['schema'] == 1, 'wrong_capture_schema')
@@ -192,7 +199,7 @@ def verify(root, output, sha, version, trusted_digest):
                    [audit_bin, 'audit', '--no-fetch', '--db', database, '--file', relative, '--json'], 'wrong_glib_command')
         raw_report(raw, tomllib.loads(exact.read(root / relative).decode()), record['exit'], snapshot)
     return dict(schema=1, **FLAGS, pipeline_integrity='verified', security_acceptance='not_evaluated',
-                source=source, producer=producer(sha), reports=results, receipt_sha256=trusted_digest,
+                source=source, producer=producer(sha, root), reports=results, receipt_sha256=trusted_digest,
                 desktop_source_backport_verified=True, installed_desktop_bytes_verified=False)
 
 
@@ -203,7 +210,7 @@ def collect(root, output, audit_bin, database, sha, version):
     records = {}
     try:
         source = exact.source_identity(root, sha, version, TARGET)
-        ci = producer(sha)
+        ci = producer(sha, root)
         exact.need(os.environ.get('GITHUB_JOB') == 'capture', 'wrong_capture_job')
         audit_hash = contract.hash_file(audit_bin)
         toolchain = {}
