@@ -105,8 +105,8 @@ class SourceHistoryTests(unittest.TestCase):
                 self.verify()
 
     def test_explicit_matrix_survives_missing_image_label_but_cannot_be_missing(self):
-        environment = dict(os.environ)
-        environment.pop('ImageOS', None)
+        environment = {key: value for key, value in os.environ.items()
+                       if key.upper() != 'IMAGEOS'}
         with patch.dict(os.environ, environment, clear=True):
             report = self.verify()
             self.assertEqual(report['matrix_os'], 'ubuntu-24.04')
@@ -291,7 +291,8 @@ class WiringTests(unittest.TestCase):
             source, outcomes = portable_fixture(ROOT, evidence)
             environment = dict(os.environ, GITHUB_SHA=source['source_sha'],
                                ASSEMBLY_MATRIX_OS='ubuntu-24.04', STEP_OUTCOMES=json.dumps(outcomes))
-            environment.pop('ImageOS', None)
+            environment = {key: value for key, value in environment.items()
+                           if key.upper() != 'IMAGEOS'}
             with patch.dict(os.environ, environment, clear=True), patch.object(assembly, 'verify_source', return_value=source), \
                     patch.object(frontend, 'verify', return_value={'passed': False}) as browser:
                 result = assembly.finish(ROOT, evidence, 'portable')

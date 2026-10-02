@@ -3,6 +3,7 @@
 Windows process creation and filesystem presence are mocked explicitly. These
 contracts neither launch Windows processes nor claim hosted/native acceptance.
 """
+from collections.abc import MutableMapping
 import io
 import json
 from pathlib import Path
@@ -181,6 +182,49 @@ class LegacyMigrationTests(unittest.TestCase):
         replacement = fixture.commit('synthetic unreviewed replacement integration')
         with self.assertRaisesRegex(ValueError, 'wrong_legacy_implementation'):
             assembly.verify_history(fixture.root, replacement)
+
+
+class UppercaseEnvironment(MutableMapping):
+    """Synthetic Windows key casing without reading or saving host values."""
+    def __init__(self, values):
+        self.values = {key.upper(): value for key, value in values.items()}
+
+    def __getitem__(self, key):
+        return self.values[key.upper()]
+
+    def __setitem__(self, key, value):
+        self.values[key.upper()] = value
+
+    def __delitem__(self, key):
+        del self.values[key.upper()]
+
+    def __iter__(self):
+        return iter(self.values)
+
+    def __len__(self):
+        return len(self.values)
+
+
+class EnvironmentKeyCaseTests(unittest.TestCase):
+    def test_missing_image_label_fixture_removes_uppercase_windows_key(self):
+        cases = [
+            (contracts.SourceHistoryTests, 'test_explicit_matrix_survives_missing_image_label_but_cannot_be_missing', 'verify_source'),
+            (contracts.WiringTests, 'test_missing_image_label_cannot_skip_ubuntu24_browser_acceptance', 'finish'),
+        ]
+        for test_class, name, target in cases:
+            environment = UppercaseEnvironment({'ImageOS': 'synthetic-host-label'})
+            original, observed = getattr(assembly, target), []
+            def check_absent(*args, **kwargs):
+                self.assertNotIn('IMAGEOS', {key.upper() for key in contracts.os.environ})
+                observed.append(True)
+                return original(*args, **kwargs)
+            result = unittest.TestResult()
+            with self.subTest(fixture=name), patch.object(contracts.os, 'environ', environment), \
+                    patch.object(assembly, target, side_effect=check_absent):
+                test_class(name).run(result)
+                self.assertEqual(result.errors, [])
+                self.assertEqual(result.failures, [])
+                self.assertEqual(len(observed), 2)
 
 
 if __name__ == '__main__':
