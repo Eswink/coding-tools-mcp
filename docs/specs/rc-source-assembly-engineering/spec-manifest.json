@@ -1,0 +1,25 @@
+{
+  "layout": "parent-child",
+  "subspecs": [
+    {
+      "id": "source-evidence",
+      "title": "Immutable source and exact engineering producer evidence",
+      "fr": [
+        "FR-1",
+        "FR-2"
+      ]
+    },
+    {
+      "id": "focused-validation",
+      "title": "Focused CI execution and honest artifact verification",
+      "fr": [
+        "FR-3",
+        "FR-4",
+        "FR-5"
+      ],
+      "dependsOn": [
+        "source-evidence"
+      ]
+    }
+  ]
+}

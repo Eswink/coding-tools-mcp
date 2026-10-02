@@ -1,0 +1,336 @@
+name: Issue84 frontend acceptance engineering evidence
+
+on:
+  push:
+    branches: ['ci/issue84-frontend-acceptance-20261001']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue84-frontend-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  BASELINE_SHA: 171e8e87b735800a629049ddc35c563f748f73f2
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  UI_MODE: candidate
+  CHROMIUM_PATH: /opt/google/chrome/chrome
+
+jobs:
+  frontend:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push' && github.ref == 'refs/heads/ci/issue84-frontend-acceptance-20261001'
+    runs-on: ubuntu-24.04
+    # 21m commands + <=140s kill grace + 7m setup + 3m finalization; retain failures.
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        id: checkout
+        timeout-minutes: 2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bind exact source and install bounded evidence capture
+        id: source
+        timeout-minutes: 1
+        env:
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/commands
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git merge-base --is-ancestor "$BASELINE_SHA" HEAD
+          git diff --name-status "$BASELINE_SHA" HEAD -- > evidence/source-diff.txt
+          test "$(cat evidence/source-diff.txt)" = $'A\t.github/workflows/issue84-frontend-acceptance.yml'
+          test "$(git ls-tree HEAD .github/workflows/issue84-frontend-acceptance.yml | cut -d' ' -f1)" = 100644
+          python3 - <<'PY'
+          import datetime, hashlib, json, os, pathlib, subprocess
+          root = pathlib.Path.cwd()
+          git = lambda *args: subprocess.check_output(['git', *args], text=True).strip()
+          paths = subprocess.check_output(['git', 'ls-files', '-z', '--', 'src', 'tests', 'package.json',
+              'package-lock.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'vite.config.js',
+              'svelte.config.js', 'tsconfig.json', 'src-tauri/tauri.conf.json',
+              'scripts/前端完整回归v4.mjs', '.github/workflows/issue84-frontend-acceptance.yml']).decode().split('\0')
+          files = {p: {'sha256': hashlib.sha256((root/p).read_bytes()).hexdigest(),
+                       'git_blob': git('rev-parse', 'HEAD:' + p)} for p in paths if p}
+          report = {'source_sha': git('rev-parse', 'HEAD'), 'source_tree': git('rev-parse', 'HEAD^{tree}'),
+              'baseline_sha': os.environ['BASELINE_SHA'], 'workflow_sha': os.environ['WORKFLOW_SHA'],
+              'workflow_ref': os.environ['WORKFLOW_REF'], 'repository': os.environ['GITHUB_REPOSITORY'],
+              'ref': os.environ['GITHUB_REF'], 'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'], 'runner_os': os.environ['RUNNER_OS'],
+              'runner_image': os.environ.get('ImageOS'), 'runner_image_version': os.environ.get('ImageVersion'),
+              'recorded_at': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'inputs': files,
+              'scope': 'Engineering prefreeze frontend: real browser, synthetic IPC; no FINAL release acceptance',
+              'native_verified': False, 'real_chatgpt_verified': False, 'publish_approved': False}
+          assert report['workflow_sha'] == report['source_sha'] == os.environ['GITHUB_SHA']
+          pathlib.Path('evidence/source.json').write_text(json.dumps(report, indent=2) + '\n')
+          PY
+          cat > "$RUNNER_TEMP/issue84-capture" <<'SH'
+          #!/usr/bin/env bash
+          set -uo pipefail
+          name=$1; seconds=$2; shift 2
+          out="$GITHUB_WORKSPACE/evidence/commands/$name"
+          mkdir -p "$out"
+          printf '%q ' "$@" > "$out/command.txt"
+          printf '\n' >> "$out/command.txt"
+          date -u +%FT%TZ > "$out/started-at.txt"
+          timeout --signal=TERM --kill-after=10s "${seconds}s" "$@" > "$out/stdout.txt" 2> "$out/stderr.txt"
+          code=$?
+          printf '%s\n' "$code" > "$out/exit-code.txt"
+          date -u +%FT%TZ > "$out/finished-at.txt"
+          cat "$out/stdout.txt"
+          cat "$out/stderr.txt" >&2
+          exit "$code"
+          SH
+          chmod +x "$RUNNER_TEMP/issue84-capture"
+          cp "$RUNNER_TEMP/issue84-capture" evidence/capture.sh
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        id: node
+        if: always() && steps.source.outcome == 'success'
+        timeout-minutes: 2
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        id: python
+        if: always() && steps.source.outcome == 'success'
+        timeout-minutes: 2
+        with:
+          python-version: '3.12'
+      - name: Record actual frontend tool versions
+        id: versions
+        if: always() && steps.node.outcome == 'success' && steps.python.outcome == 'success'
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/issue84-capture" versions 30 bash -euo pipefail -c 'node --version; npm --version; python --version; npm config get registry; npm config get omit'
+      - name: Install exact frontend lockfile
+        id: install
+        if: always() && steps.source.outcome == 'success' && steps.node.outcome == 'success'
+        run: '"$RUNNER_TEMP/issue84-capture" npm-ci 180 npm ci'
+      - name: Retain actual dependency tree
+        id: dependency
+        if: always() && steps.install.outcome == 'success'
+        run: '"$RUNNER_TEMP/issue84-capture" npm-ls-devalue 30 npm ls devalue --json'
+      - name: Frontend static check
+        id: check
+        if: always() && steps.install.outcome == 'success'
+        run: '"$RUNNER_TEMP/issue84-capture" frontend-check 90 npm run check'
+      - name: Actual production frontend build
+        id: build
+        if: always() && steps.install.outcome == 'success'
+        run: '"$RUNNER_TEMP/issue84-capture" frontend-build 120 npm run build'
+      - name: Full existing frontend regression driver
+        id: regression
+        if: always() && steps.install.outcome == 'success'
+        run: '"$RUNNER_TEMP/issue84-capture" frontend-full 90 node scripts/前端完整回归v4.mjs'
+      - name: Retain unmodified full npm audit JSON and actual exit
+        id: audit
+        # A failed install or regression must not suppress the lockfile audit.
+        if: always() && steps.source.outcome == 'success' && steps.node.outcome == 'success'
+        run: |
+          set +e
+          "$RUNNER_TEMP/issue84-capture" npm-audit 60 npm audit --json
+          code=$?
+          cp evidence/commands/npm-audit/stdout.txt evidence/npm-audit.json
+          cp evidence/commands/npm-audit/stderr.txt evidence/npm-audit.stderr.txt
+          exit "$code"
+      - name: Install pinned Playwright
+        id: playwright
+        if: always() && steps.python.outcome == 'success'
+        run: '"$RUNNER_TEMP/issue84-capture" playwright-install 90 python -m pip install playwright==1.58.0'
+      - name: Install canonical browser dependencies
+        id: browser_dependencies
+        if: always() && steps.playwright.outcome == 'success'
+        run: '"$RUNNER_TEMP/issue84-capture" browser-dependencies 180 python -m playwright install --with-deps chromium'
+      - name: Verify sandboxed hosted Chrome and retain versions
+        id: sandbox
+        if: always() && steps.browser_dependencies.outcome == 'success'
+        run: |
+          set -euo pipefail
+          test -x "$CHROMIUM_PATH"
+          "$CHROMIUM_PATH" --version > evidence/chrome-version.txt
+          sha256sum "$CHROMIUM_PATH" > evidence/chrome-sha256.txt
+          python -m pip show playwright > evidence/playwright-version.txt
+          "$RUNNER_TEMP/issue84-capture" sandbox-preflight 30 python -c 'import json,os; from playwright.sync_api import sync_playwright; p=sync_playwright().start(); b=p.chromium.launch(headless=True, chromium_sandbox=True, executable_path=os.environ["CHROMIUM_PATH"]); print(json.dumps({"chromium_sandbox":True,"browser_version":b.version,"native_verified":False})); b.close(); p.stop()'
+      - name: Cloud connection actual browser regression
+        id: cloud
+        if: always() && steps.build.outcome == 'success' && steps.sandbox.outcome == 'success'
+        env:
+          UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/cloud-ui
+        run: '"$RUNNER_TEMP/issue84-capture" cloud-browser 60 python tests/cloud-connection-browser.py'
+      - name: Existing UI actual browser security and state regression
+        id: ui
+        if: always() && steps.build.outcome == 'success' && steps.sandbox.outcome == 'success'
+        env:
+          UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/existing-ui
+        run: '"$RUNNER_TEMP/issue84-capture" ui-browser 180 python tests/ui-refactor-browser.py'
+      - name: Policy Hooks actual browser regression
+        id: hooks
+        if: always() && steps.build.outcome == 'success' && steps.sandbox.outcome == 'success'
+        env:
+          UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/hooks-ui
+        run: '"$RUNNER_TEMP/issue84-capture" hooks-browser 60 python tests/policy-hooks-browser.py'
+      - name: Snapshot UI actual browser regression
+        id: snapshots
+        if: always() && steps.build.outcome == 'success' && steps.sandbox.outcome == 'success'
+        env:
+          UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/snapshot-ui
+        run: '"$RUNNER_TEMP/issue84-capture" snapshots-browser 60 python tests/workspace-snapshots-browser.py'
+      - name: Retain all outcomes and fail closed on incomplete acceptance evidence
+        id: acceptance
+        if: always()
+        timeout-minutes: 1
+        env:
+          STEP_OUTCOMES: ${{ toJSON(steps) }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          printf '%s\n' "$STEP_OUTCOMES" > evidence/step-outcomes.json
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, re, subprocess
+          root = pathlib.Path.cwd()
+          evidence = root / 'evidence'
+          failures = []
+          def require(condition, message):
+              if not condition:
+                  failures.append(message)
+          def read_json(relative):
+              try:
+                  return json.loads((evidence / relative).read_text())
+              except (OSError, ValueError) as error:
+                  failures.append(f'{relative}: {type(error).__name__}')
+                  return {}
+          def require_list(report, key, size, label):
+              value = report.get(key)
+              require(type(value) is list and len(value) == size, f'{label}: expected {size} {key}')
+              return value if type(value) is list else []
+          def image(relative):
+              path = evidence / relative
+              require(path.is_file() and path.read_bytes().startswith(b'\x89PNG\r\n\x1a\n'), f'missing PNG: {relative}')
+          required_steps = ['checkout', 'source', 'node', 'python', 'versions', 'install', 'dependency',
+              'check', 'build', 'regression', 'audit', 'playwright', 'browser_dependencies', 'sandbox',
+              'cloud', 'ui', 'hooks', 'snapshots']
+          commands = ['versions', 'npm-ci', 'npm-ls-devalue', 'frontend-check', 'frontend-build',
+              'frontend-full', 'npm-audit', 'playwright-install', 'browser-dependencies', 'sandbox-preflight',
+              'cloud-browser', 'ui-browser', 'hooks-browser', 'snapshots-browser']
+          try:
+              outcomes = read_json('step-outcomes.json')
+              for name in required_steps:
+                  require(outcomes.get(name, {}).get('outcome') == 'success', f'failed/skipped step: {name}')
+              for name in commands:
+                  directory = evidence / 'commands' / name
+                  for item in ['command.txt', 'started-at.txt', 'finished-at.txt', 'stdout.txt', 'stderr.txt', 'exit-code.txt']:
+                      require((directory/item).is_file(), f'missing {name}/{item}')
+                  code = (directory/'exit-code.txt').read_text().strip() if (directory/'exit-code.txt').is_file() else None
+                  require(code == '0', f'nonzero/missing command exit: {name}={code}')
+              source = read_json('source.json')
+              head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+              tree = subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], text=True).strip()
+              require(source.get('source_sha') == source.get('workflow_sha') == head == os.environ['GITHUB_SHA'], 'source/workflow SHA mismatch')
+              require(source.get('source_tree') == tree, 'source tree mismatch')
+              require(source.get('baseline_sha') == os.environ['BASELINE_SHA'], 'baseline mismatch')
+              require(source.get('native_verified') is False and source.get('real_chatgpt_verified') is False
+                  and source.get('publish_approved') is False, 'engineering scope mismatch')
+              inputs = source.get('inputs', {})
+              required_inputs = ['package.json', 'package-lock.json', 'pnpm-lock.yaml', 'vite.config.js',
+                  'svelte.config.js', 'tsconfig.json', 'src-tauri/tauri.conf.json', 'scripts/前端完整回归v4.mjs',
+                  'tests/devalue-security.test.mjs', 'tests/fixtures/ui-refactor-ipc.js',
+                  'tests/ui_refactor_states.py', 'tests/browser_viewport_evidence.py',
+                  'tests/cloud-connection-browser.py', 'tests/ui-refactor-browser.py',
+                  'tests/policy-hooks-browser.py', 'tests/workspace-snapshots-browser.py']
+              require(all(p in inputs for p in required_inputs), 'input manifest incomplete')
+              for name, item in inputs.items():
+                  require(hashlib.sha256((root/name).read_bytes()).hexdigest() == item['sha256'], f'input changed: {name}')
+              clean = subprocess.run(['git', 'diff', '--exit-code', 'HEAD', '--'], capture_output=True, text=True)
+              (evidence/'tracked-clean.txt').write_text(clean.stdout + clean.stderr)
+              require(clean.returncode == 0, 'tracked source changed during execution')
+              build = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in (root/'build').rglob('*') if p.is_file()}
+              (evidence/'build-manifest.json').write_text(json.dumps(build, indent=2) + '\n')
+              require('build/index.html' in build and len(build) > 1, 'built output missing')
+              audit = read_json('npm-audit.json')
+              require((evidence/'npm-audit.json').read_bytes() == (evidence/'commands/npm-audit/stdout.txt').read_bytes(), 'audit JSON was modified')
+              require('error' not in audit and audit.get('vulnerabilities') == {}, 'audit error or vulnerability entries')
+              counts = audit.get('metadata', {}).get('vulnerabilities', {})
+              require(all(type(counts.get(k)) is int and counts[k] == 0
+                  for k in ['info', 'low', 'moderate', 'high', 'critical', 'total']), 'audit counts missing/nonzero/invalid')
+              dependency_total = audit.get('metadata', {}).get('dependencies', {}).get('total')
+              require(type(dependency_total) is int and dependency_total > 0, 'empty audit dependency scope')
+              full = (evidence/'commands/frontend-full/stdout.txt').read_text()
+              full = re.sub(r'\x1b\[[0-9;]*m', '', full)
+              for key, value in [('tests',233), ('pass',233), ('fail',0), ('cancelled',0), ('skipped',0), ('todo',0)]:
+                  require(re.findall(r'^(?:#|ℹ) ' + key + r' (\d+)\s*$', full, re.M) == [str(value)], f'frontend count mismatch: {key}')
+              for name in ['both lockfiles select the same verified devalue package and integrity',
+                  'serialized Set rejects an out-of-bounds reference', 'supported serialization still round-trips shared values']:
+                  require(name in full, f'missing devalue regression: {name}')
+              sandbox = read_json('commands/sandbox-preflight/stdout.txt')
+              require(sandbox.get('chromium_sandbox') is True and sandbox.get('native_verified') is False
+                  and bool(sandbox.get('browser_version')), 'sandbox preflight absent/invalid')
+              for file in ['chrome-version.txt', 'chrome-sha256.txt', 'playwright-version.txt']:
+                  require((evidence/file).is_file() and bool((evidence/file).read_text().strip()), f'missing browser provenance: {file}')
+              cloud = read_json('cloud-ui/report.json')
+              states = require_list(cloud, 'states', 9, 'cloud')
+              require(set(states) == {'unconfigured','configured','starting','connected','pending_approval','approved','paused','draining','recovery'}, 'cloud states mismatch')
+              for flag in ['ok', 'global_drain_warning_outside_workspace', 'confirmation_cancelled_without_submit', 'explicit_normal_start_without_initialization']:
+                  require(cloud.get(flag) is True, f'cloud missing assertion: {flag}')
+              require(cloud.get('errors') == [] and cloud.get('native_verified') is False and cloud.get('real_host_verified') is False, 'cloud error/scope mismatch')
+              for name in states + ['connected-390', 'connected-1280', 'global-drain-warning']:
+                  image(f'cloud-ui/{name}.png')
+              ui = read_json('existing-ui/result.json')
+              require(ui.get('ok') is True and ui.get('mode') == 'candidate' and ui.get('browser_errors') == [], 'UI result incomplete')
+              require(ui.get('native_verified') is False and ui.get('real_chatgpt_verified') is False, 'UI scope mismatch')
+              screens = require_list(ui, 'screens', 40, 'UI')
+              keys = {(x['page'],x['width'],x['height'],x['theme']) for x in screens}
+              expected = {(p,w,h,t) for p in ['workspace-overview','general-settings','credentials-and-keys','frp-configuration','software-management']
+                  for w,h in [(1586,992),(1280,800),(960,640),(1920,1080)] for t in ['light','dark']}
+              require(keys == expected, 'UI screen coverage mismatch')
+              for row in screens:
+                  require(row.get('overflow') == [], 'UI overflow')
+                  image('existing-ui/' + row['file'])
+              for row in require_list(ui, 'scenarios', 10, 'UI'):
+                  require(row.get('ok') is True, 'UI scenario failed')
+              state_rows = require_list(ui, 'state_scenarios', 8, 'UI')
+              require(read_json('existing-ui/state-results.json') == state_rows, 'UI state reports differ')
+              require({x['name'] for x in state_rows} == {'empty-workspace','empty-frp','empty-software','long-workspace',
+                  'partial-secret-failure','task-empty-and-error','approval-minimum-dark','system-theme-live'}, 'UI state coverage mismatch')
+              for row in state_rows:
+                  require(row.get('ok') is True and row.get('native_verified') is False, 'UI state failed/scope mismatch')
+                  image('existing-ui/' + row['file'])
+              manifest = read_json('existing-ui/source-manifest.json')
+              require(manifest.get('files') == {p: v['sha256'] for p,v in inputs.items() if p.startswith('src/')}, 'UI source manifest mismatch')
+              require(manifest.get('fixture_sha256') == inputs['tests/fixtures/ui-refactor-ipc.js']['sha256'], 'UI fixture mismatch')
+              hooks = read_json('hooks-ui/report.json')
+              require(hooks.get('ok') is True and hooks.get('errors') == [] and hooks.get('native_verified') is False, 'Hooks result/scope mismatch')
+              require_list(hooks, 'scenarios', 4, 'Hooks')
+              snapshots = read_json('snapshot-ui/report.json')
+              for flag in ['ok','owner_cancel_preserved','plan_bound_restore','no_auto_capture']:
+                  require(snapshots.get(flag) is True, f'snapshot missing assertion: {flag}')
+              require(snapshots.get('errors') == [] and snapshots.get('native_verified') is False
+                  and snapshots.get('real_host_verified') is False, 'snapshot error/scope mismatch')
+              for directory, report in [('hooks-ui',hooks), ('snapshot-ui',snapshots)]:
+                  viewports = require_list(report, 'viewport_evidence', 3, directory)
+                  for viewport in viewports:
+                      for checkpoint in require_list(viewport, 'checkpoints', 3, directory):
+                          image(directory + '/' + checkpoint['image'])
+          except Exception as error:
+              failures.append(f'incomplete/malformed evidence: {type(error).__name__}: {error}')
+          summary = {'source_sha': os.environ.get('GITHUB_SHA'), 'passed': not failures, 'failures': failures,
+              'scope': 'Issue84 prefreeze frontend engineering only; synthetic IPC', 'native_verified': False,
+              'real_chatgpt_verified': False, 'publish_approved': False}
+          (evidence/'acceptance-summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+          print(json.dumps(summary, indent=2))
+          raise SystemExit(0 if not failures else 1)
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        timeout-minutes: 2
+        with:
+          name: issue84-frontend-${{ github.sha }}-${{ github.run_attempt }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30

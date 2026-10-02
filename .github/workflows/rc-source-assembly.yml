@@ -1,0 +1,500 @@
+name: RC source assembly engineering evidence
+on:
+  push:
+    branches: ['ci/rc-source-assembly-v2-20261001']
+permissions:
+  contents: read
+concurrency:
+  group: rc-source-assembly-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  WORKFLOW_SHA: ${{ github.workflow_sha }}
+  ASSEMBLY_MATRIX_OS: ubuntu-24.04
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: '3'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
+  BASELINE_SHA: e61aaf2da99baccdb99db4922b39f7d8d5997096
+  RC_VERSION: '0.7.0-rc.1'
+# Focused engineering only; release integration, Windows security, packages and real-host/VPS/ChatGPT gates remain separate.
+jobs:
+  portable:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push' && github.ref == 'refs/heads/ci/rc-source-assembly-v2-20261001'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    # <=101m captured commands + setup, kill grace and finalization.
+    timeout-minutes: 130
+    defaults:
+      run:
+        shell: bash
+    env:
+      ASSEMBLY_MATRIX_OS: ${{ matrix.os }}
+      UI_MODE: candidate
+      CHROMIUM_PATH: /opt/google/chrome/chrome
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        id: checkout
+        timeout-minutes: 2
+        with: {ref: "${{ github.sha }}", fetch-depth: 0, persist-credentials: false}
+      - name: Bind reviewed assembly before setup
+        id: source
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          BOOTSTRAP_PYTHON=$(python -c 'import glob,os; paths=glob.glob(os.path.join(os.environ["RUNNER_TOOL_CACHE"],"Python","3.12.*","x64","python.exe" if os.name=="nt" else "bin/python")); assert len(paths)==1,("expected exactly one cached Python3.12 interpreter",paths); print(paths[0])')
+          mkdir -p "$RUNNER_TEMP/assembly-evidence"
+          "$BOOTSTRAP_PYTHON" scripts/rc_source_assembly.py source --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --expected-sha "$GITHUB_SHA"
+          "$BOOTSTRAP_PYTHON" -c 'import sys; assert sys.version_info[:2] == (3,12),sys.version; print(sys.executable); print(sys.version)' > "$RUNNER_TEMP/assembly-evidence/bootstrap-python-version.txt"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        id: node
+        if: always() && steps.source.outcome == 'success'
+        timeout-minutes: 2
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        id: python
+        if: always() && steps.source.outcome == 'success'
+        timeout-minutes: 2
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        id: rust
+        if: always() && steps.source.outcome == 'success'
+        timeout-minutes: 5
+        with:
+          toolchain: '1.98.1'
+      - name: Record actual frontend and Rust tool versions
+        id: versions
+        if: always() && steps.node.outcome == 'success' && steps.python.outcome == 'success' && steps.rust.outcome == 'success'
+        run: |
+          set -euo pipefail
+          python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name versions --timeout 30 -- bash -euo pipefail -c 'node --version; npm --version; python --version; npm config get registry; npm config get omit'
+          rustc --version > "$RUNNER_TEMP/assembly-evidence/rustc-version.txt"
+          cargo --version > "$RUNNER_TEMP/assembly-evidence/cargo-version.txt"
+          uname -a > "$RUNNER_TEMP/assembly-evidence/kernel-version.txt"
+      - name: Install exact frontend lockfile
+        id: install
+        if: always() && steps.source.outcome == 'success' && steps.node.outcome == 'success' && steps.python.outcome == 'success'
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name npm-ci --timeout 180 -- npm ci
+      - name: Retain actual dependency tree
+        id: dependency
+        if: always() && matrix.os == 'ubuntu-24.04' && steps.install.outcome == 'success'
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name npm-ls-devalue --timeout 30 -- npm ls devalue --json
+      - name: Frontend static check
+        id: check
+        if: always() && steps.install.outcome == 'success'
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name frontend-check --timeout 90 -- npm run check
+      - name: Actual production frontend build
+        id: build
+        if: always() && steps.install.outcome == 'success'
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name frontend-build --timeout 120 -- npm run build
+      - name: Full unchanged frontend regression driver
+        id: regression
+        if: always() && steps.install.outcome == 'success'
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name frontend-full --timeout 90 -- node scripts/前端完整回归v4.mjs
+      - name: JavaScript gateway and delivery contracts
+        id: gateway_delivery
+        if: always() && steps.source.outcome == 'success' && steps.node.outcome == 'success' && steps.python.outcome == 'success'
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name gateway-delivery --timeout 180 -- node --test tests/cloud-gateway/*.test.mjs tests/delivery/*.test.mjs
+      - name: All original Python delivery methods with honest platform skips
+        id: delivery
+        if: always() && steps.source.outcome == 'success' && steps.python.outcome == 'success'
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name delivery --timeout 180 -- python -m unittest discover -s tests/delivery -v
+      - name: Original release contracts and separate assembly contracts
+        id: release_contracts
+        if: always() && steps.source.outcome == 'success' && steps.python.outcome == 'success'
+        run: |
+          python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name release-contracts --timeout 600 -- bash -euo pipefail -c '
+            status=0
+            for suite in rc_version_gate_tests release_preflight_tests cloud_release_bundle_tests rc_packages_tests source_provenance_gate_tests reviewed_source_gate_tests release_tag_gate_tests 发布版本回归v4 preliminary_package_contract_tests rc_windows_install_contract_tests rc_source_assembly_tests rc_source_assembly_evidence_tests rc_source_assembly_dispatch_tests; do
+              if python "scripts/$suite.py" -v > "$RUNNER_TEMP/assembly-evidence/$suite.txt" 2>&1; then code=0; else code=$?; status=1; fi
+              printf "%s=%s\n" "$suite" "$code" >> "$RUNNER_TEMP/assembly-evidence/python-exits.txt"
+              cat "$RUNNER_TEMP/assembly-evidence/$suite.txt"
+            done
+            exit "$status"
+          '
+      - name: Four locked metadata manifests and original input-only gates
+        id: metadata
+        if: always() && steps.source.outcome == 'success' && steps.python.outcome == 'success' && steps.rust.outcome == 'success'
+        run: |
+          python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name metadata --timeout 600 -- bash -euo pipefail -c '
+            python scripts/rc_version_gate.py --expect-version "$RC_VERSION" --expect-sha "$GITHUB_SHA" --output "$RUNNER_TEMP/assembly-evidence/rc-source.json"
+            python scripts/release_preflight.py --channel rc --expect-sha "$GITHUB_SHA" > "$RUNNER_TEMP/assembly-evidence/preflight.json"
+            python -c "import json,os,pathlib,sys; sys.path.insert(0, \"scripts\"); from rc_version_gate_tests import verify_metadata_transition; report=verify_metadata_transition(pathlib.Path.cwd(),os.environ[\"BASELINE_SHA\"],os.environ[\"RC_VERSION\"]); pathlib.Path(os.environ[\"RUNNER_TEMP\"],\"assembly-evidence/metadata-transition.json\").write_text(json.dumps(report,indent=2)+\"\\n\")"
+            for unit in src-tauri services/cloud-gateway services/cloud-agent services/local-agent; do
+              cargo metadata --locked --format-version 1 --manifest-path "$unit/Cargo.toml" > "$RUNNER_TEMP/assembly-evidence/metadata-${unit##*/}.json"
+            done
+          '
+      - name: Compile the four actual gateway binaries
+        id: binaries
+        if: always() && steps.source.outcome == 'success' && steps.python.outcome == 'success' && steps.rust.outcome == 'success'
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name binary-build --timeout 1200 -- cargo build --locked --bins --manifest-path services/cloud-gateway/Cargo.toml
+      - name: Probe all four actual binary versions
+        id: binary_versions
+        if: always() && steps.binaries.outcome == 'success'
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name binary-versions --timeout 120 -- python scripts/rc_source_assembly.py versions --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence"
+      - name: Unchanged standalone portable Cargo selection
+        id: standalone
+        if: always() && steps.source.outcome == 'success' && steps.python.outcome == 'success' && steps.rust.outcome == 'success'
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name portable-standalone --timeout 900 -- cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts
+      - name: Unchanged RC portable Cargo selection
+        id: rc
+        if: always() && steps.source.outcome == 'success' && steps.python.outcome == 'success' && steps.rust.outcome == 'success'
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name portable-rc --timeout 900 -- cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts --test enrollment_contracts
+      - name: Retain unmodified full npm audit and actual exit
+        id: audit
+        if: always() && matrix.os == 'ubuntu-24.04' && steps.source.outcome == 'success' && steps.node.outcome == 'success' && steps.python.outcome == 'success'
+        run: |
+          set +e
+          python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name npm-audit --timeout 60 -- npm audit --json
+          code=$?
+          cp "$RUNNER_TEMP/assembly-evidence/commands/npm-audit/stdout.txt" "$RUNNER_TEMP/assembly-evidence/npm-audit.json" || exit 1
+          cp "$RUNNER_TEMP/assembly-evidence/commands/npm-audit/stderr.txt" "$RUNNER_TEMP/assembly-evidence/npm-audit.stderr.txt" || exit 1
+          exit "$code"
+      - name: Install pinned Playwright
+        id: playwright
+        if: always() && matrix.os == 'ubuntu-24.04' && steps.python.outcome == 'success'
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name playwright-install --timeout 90 -- python -m pip install playwright==1.58.0
+      - name: Install canonical browser dependencies
+        id: browser_dependencies
+        if: always() && steps.playwright.outcome == 'success'
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name browser-dependencies --timeout 180 -- python -m playwright install --with-deps chromium
+      - name: Verify sandboxed hosted Chrome and retain provenance
+        id: sandbox
+        if: always() && steps.browser_dependencies.outcome == 'success'
+        run: |
+          set -euo pipefail
+          test -x "$CHROMIUM_PATH"
+          "$CHROMIUM_PATH" --version > "$RUNNER_TEMP/assembly-evidence/chrome-version.txt"
+          sha256sum "$CHROMIUM_PATH" > "$RUNNER_TEMP/assembly-evidence/chrome-sha256.txt"
+          python -m pip show playwright > "$RUNNER_TEMP/assembly-evidence/playwright-version.txt"
+          python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name sandbox-preflight --timeout 30 -- python -c 'import json,os; from playwright.sync_api import sync_playwright; p=sync_playwright().start(); b=p.chromium.launch(headless=True, chromium_sandbox=True, executable_path=os.environ["CHROMIUM_PATH"]); print(json.dumps({"chromium_sandbox":True,"browser_version":b.version,"native_verified":False})); b.close(); p.stop()'
+      - name: Cloud connection browser regression
+        id: cloud
+        if: always() && steps.build.outcome == 'success' && steps.sandbox.outcome == 'success'
+        env:
+          UI_EVIDENCE_DIR: ${{ runner.temp }}/assembly-evidence/cloud-ui
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name cloud-browser --timeout 60 -- python tests/cloud-connection-browser.py
+      - name: Existing UI browser security and state regression
+        id: ui
+        if: always() && steps.build.outcome == 'success' && steps.sandbox.outcome == 'success'
+        env:
+          UI_EVIDENCE_DIR: ${{ runner.temp }}/assembly-evidence/existing-ui
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name ui-browser --timeout 180 -- python tests/ui-refactor-browser.py
+      - name: Policy Hooks browser regression
+        id: hooks
+        if: always() && steps.build.outcome == 'success' && steps.sandbox.outcome == 'success'
+        env:
+          UI_EVIDENCE_DIR: ${{ runner.temp }}/assembly-evidence/hooks-ui
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name hooks-browser --timeout 60 -- python tests/policy-hooks-browser.py
+      - name: Snapshot UI browser regression
+        id: snapshots
+        if: always() && steps.build.outcome == 'success' && steps.sandbox.outcome == 'success'
+        env:
+          UI_EVIDENCE_DIR: ${{ runner.temp }}/assembly-evidence/snapshot-ui
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name snapshots-browser --timeout 60 -- python tests/workspace-snapshots-browser.py
+      - name: Preserve all original frontend acceptance assertions
+        id: acceptance
+        if: always() && matrix.os == 'ubuntu-24.04'
+        timeout-minutes: 2
+        env:
+          STEP_OUTCOMES: ${{ toJSON(steps) }}
+        run: python scripts/rc_source_assembly_frontend.py --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence"
+      - name: Require complete portable evidence and source restoration
+        id: finish
+        if: always()
+        timeout-minutes: 2
+        env:
+          STEP_OUTCOMES: ${{ toJSON(steps) }}
+        run: python scripts/rc_source_assembly.py finish --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --kind portable
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        timeout-minutes: 3
+        with:
+          name: rc-assembly-portable-${{ matrix.os }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/assembly-evidence/
+          if-no-files-found: error
+          retention-days: 30
+  native:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push' && github.ref == 'refs/heads/ci/rc-source-assembly-v2-20261001'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    # <=177m command bounds retain the unchanged 4500s lifecycle deadline.
+    # The remaining 23m cover setup, process termination and failure uploads.
+    timeout-minutes: 200
+    env:
+      ASSEMBLY_MATRIX_OS: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        id: checkout
+        timeout-minutes: 2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bind reviewed assembly before native setup
+        id: source
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/assembly-native-target"
+          printf 'CARGO_TARGET_DIR=%s\n' "$CARGO_TARGET_DIR" >> "$GITHUB_ENV"
+          BOOTSTRAP_PYTHON=$(python -c 'import glob,os; paths=glob.glob(os.path.join(os.environ["RUNNER_TOOL_CACHE"],"Python","3.12.*","x64","python.exe" if os.name=="nt" else "bin/python")); assert len(paths)==1,("expected exactly one cached Python3.12 interpreter",paths); print(paths[0])')
+          mkdir -p "$RUNNER_TEMP/assembly-evidence"
+          "$BOOTSTRAP_PYTHON" scripts/rc_source_assembly.py source --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --expected-sha "$GITHUB_SHA"
+          "$BOOTSTRAP_PYTHON" -c 'import sys; assert sys.version_info[:2] == (3,12),sys.version; print(sys.executable); print(sys.version)' > "$RUNNER_TEMP/assembly-evidence/bootstrap-python-version.txt"
+          printf '%s\n' "$CARGO_TARGET_DIR" > "$RUNNER_TEMP/assembly-evidence/cargo-target-dir.txt"
+          uname -a > "$RUNNER_TEMP/assembly-evidence/kernel-version.txt"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        id: python
+        if: always() && steps.source.outcome == 'success'
+        timeout-minutes: 2
+        with:
+          python-version: '3.12'
+      - name: Retain host interpreter without changing sandbox child PATH
+        id: host_python
+        if: always() && steps.python.outcome == 'success'
+        run: printf 'HOST_PYTHON=%s\n' "$(command -v python3)" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        id: rust
+        if: always() && steps.source.outcome == 'success'
+        timeout-minutes: 5
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt
+      - name: Native Linux development libraries
+        id: dependencies
+        if: always() && steps.python.outcome == 'success'
+        run: |
+          python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name native-dependencies --timeout 600 -- bash -euo pipefail -c '
+            sudo apt-get update -qq
+            sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev dbus-x11 gnome-keyring
+          '
+      - name: Genuine desktop and kernel test compilation
+        id: compile
+        if: always() && steps.source.outcome == 'success' && steps.host_python.outcome == 'success' && steps.rust.outcome == 'success' && steps.dependencies.outcome == 'success'
+        run: |
+          set -euo pipefail
+          export PATH="/usr/bin:$PATH"
+          cargo --version > "$RUNNER_TEMP/assembly-evidence/cargo-version.txt"
+          rustc --version > "$RUNNER_TEMP/assembly-evidence/rustc-version.txt"
+          "$HOST_PYTHON" --version > "$RUNNER_TEMP/assembly-evidence/python-version.txt"
+          "$HOST_PYTHON" scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name native-compile --timeout 2400 -- bash -euo pipefail -c '
+            rustfmt --edition 2021 --check tests/cloud-gateway/linux_sandbox_lifecycle.rs tests/cloud-gateway/linux_sandbox_lifecycle_support.rs tests/cloud-gateway/linux_sandbox_deadline.rs
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --test exec_input_contract --no-run
+            cargo test --locked --manifest-path services/local-agent/Cargo.toml --test linux_sandbox --no-run
+          '
+      - name: All eleven unchanged authenticated golden probes
+        id: golden
+        if: always() && steps.compile.outcome == 'success'
+        run: |
+          export PATH="/usr/bin:$PATH"
+          "$HOST_PYTHON" scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name golden --timeout 2400 -- "$HOST_PYTHON" tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence "$RUNNER_TEMP/assembly-evidence/sandbox-dispatch"
+      - name: Six HTTP cases and one direct primary dispatcher case
+        id: lifecycle
+        if: always() && steps.compile.outcome == 'success'
+        run: |
+          export PATH="/usr/bin:$PATH"
+          "$HOST_PYTHON" scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name lifecycle --timeout 4600 -- "$HOST_PYTHON" tests/cloud-gateway/sandbox-lifecycle/run_probe.py --evidence "$RUNNER_TEMP/assembly-evidence/sandbox-lifecycle"
+      - name: Fourteen actual kernel sandbox tests
+        id: kernel
+        if: always() && steps.compile.outcome == 'success'
+        run: |
+          export PATH="/usr/bin:$PATH"
+          "$HOST_PYTHON" scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name kernel --timeout 300 -- cargo test --locked --manifest-path services/local-agent/Cargo.toml --test linux_sandbox
+      - name: Six unchanged child stdin and deadline contracts
+        id: stdin
+        if: always() && steps.compile.outcome == 'success'
+        run: |
+          set -euo pipefail
+          export PATH="/usr/bin:$PATH"
+          export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}" RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}"
+          fixture_root="$(mktemp -d "$RUNNER_TEMP/linux-lifecycle-stdin.XXXXXX")"
+          trap 'rm -rf -- "$fixture_root"' EXIT
+          export HOME="$fixture_root/home"
+          export XDG_RUNTIME_DIR="$fixture_root/runtime" XDG_DATA_HOME="$fixture_root/data"
+          export XDG_CONFIG_HOME="$fixture_root/config" XDG_STATE_HOME="$fixture_root/state"
+          export XDG_CACHE_HOME="$fixture_root/cache"
+          mkdir -p "$HOME" "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME"
+          chmod 700 "$HOME" "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME"
+          unset DBUS_SESSION_BUS_ADDRESS GNOME_KEYRING_CONTROL SSH_AUTH_SOCK
+          "$HOST_PYTHON" scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name stdin --timeout 300 -- dbus-run-session -- bash -euo pipefail -c '
+            printf "%s" "isolated-rc-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --test exec_input_contract
+          '
+      - name: Require complete native evidence and restored payloads
+        id: finish
+        if: always()
+        timeout-minutes: 2
+        env:
+          STEP_OUTCOMES: ${{ toJSON(steps) }}
+        run: python scripts/rc_source_assembly.py finish --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --kind native
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        timeout-minutes: 3
+        with:
+          name: rc-assembly-native-${{ matrix.os }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/assembly-evidence/
+          if-no-files-found: error
+          retention-days: 30
+  capture:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push' && github.ref == 'refs/heads/ci/rc-source-assembly-v2-20261001'
+    runs-on: ubuntu-24.04
+    # 45m captured commands plus tool setup, kill grace and failure uploads.
+    timeout-minutes: 65
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      receipt_sha256: ${{ steps.collect.outputs.receipt_sha256 }}
+      version: ${{ steps.source.outputs.version }}
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        id: checkout
+        timeout-minutes: 2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bind reviewed assembly before tool installation
+        id: source
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          BOOTSTRAP_PYTHON=$(python -c 'import glob,os; paths=glob.glob(os.path.join(os.environ["RUNNER_TOOL_CACHE"],"Python","3.12.*","x64","python.exe" if os.name=="nt" else "bin/python")); assert len(paths)==1,("expected exactly one cached Python3.12 interpreter",paths); print(paths[0])')
+          mkdir -p "$RUNNER_TEMP/assembly-evidence"
+          "$BOOTSTRAP_PYTHON" scripts/rc_source_assembly.py source --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --expected-sha "$GITHUB_SHA"
+          "$BOOTSTRAP_PYTHON" -c 'import sys; assert sys.version_info[:2] == (3,12),sys.version; print(sys.executable); print(sys.version)' > "$RUNNER_TEMP/assembly-evidence/bootstrap-python-version.txt"
+          VERSION=$(python -c 'import json; print(json.load(open("package.json"))["version"])')
+          printf 'version=%s\n' "$VERSION" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        id: python
+        if: always() && steps.source.outcome == 'success'
+        timeout-minutes: 2
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        id: rust
+        if: always() && steps.source.outcome == 'success'
+        timeout-minutes: 5
+        with:
+          toolchain: '1.98.1'
+      - name: Install exact audit tool
+        id: audit_tool
+        if: always() && steps.python.outcome == 'success' && steps.rust.outcome == 'success'
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name audit-tool --timeout 1200 -- cargo install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/audit-tools"
+      - name: Preserve all original deterministic capture contracts
+        id: contracts
+        if: always() && steps.source.outcome == 'success' && steps.python.outcome == 'success'
+        run: |
+          python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name capture-contracts --timeout 300 -- bash -euo pipefail -c '
+            status=0
+            for suite in engineering_dependency_capture release_dependency_capture release_dependency_contract exact_build_audit; do
+              if python "scripts/${suite}_tests.py" > "$RUNNER_TEMP/assembly-evidence/${suite}-tests.txt" 2>&1; then code=0; else code=$?; status=1; fi
+              printf "%s=%s\n" "$suite" "$code" >> "$RUNNER_TEMP/assembly-evidence/capture-contract-exits.txt"
+              cat "$RUNNER_TEMP/assembly-evidence/${suite}-tests.txt"
+            done
+            exit "$status"
+          '
+      - name: Capture raw four-lock findings and GLib provenance
+        id: collect
+        if: always() && steps.source.outcome == 'success' && steps.audit_tool.outcome == 'success' && steps.contracts.outcome == 'success'
+        env:
+          VERSION: ${{ steps.source.outputs.version }}
+        run: |
+          set -euo pipefail
+          python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name collect --timeout 1200 -- python scripts/engineering_dependency_capture.py collect --root "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/assembly-evidence/capture" --expected-sha "$GITHUB_SHA" --version "$VERSION" --audit-bin "$RUNNER_TEMP/audit-tools/bin/cargo-audit" --audit-db "$RUNNER_TEMP/dependency-advisory-db"
+          printf 'receipt_sha256=%s\n' "$(sha256sum "$RUNNER_TEMP/assembly-evidence/capture/engineering-receipt.json" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - name: Require complete integrity evidence without security acceptance
+        id: finish
+        if: always()
+        timeout-minutes: 2
+        env:
+          STEP_OUTCOMES: ${{ toJSON(steps) }}
+        run: python scripts/rc_source_assembly.py finish --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --kind capture
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        timeout-minutes: 3
+        with:
+          name: rc-assembly-capture-ubuntu-24.04-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/assembly-evidence/
+          if-no-files-found: error
+          retention-days: 30
+  verify:
+    needs: capture
+    if: always() && github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push' && github.ref == 'refs/heads/ci/rc-source-assembly-v2-20261001'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        id: checkout
+        timeout-minutes: 2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Independently bind reviewed verifier source before setup
+        id: source
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          BOOTSTRAP_PYTHON=$(python -c 'import glob,os; paths=glob.glob(os.path.join(os.environ["RUNNER_TOOL_CACHE"],"Python","3.12.*","x64","python.exe" if os.name=="nt" else "bin/python")); assert len(paths)==1,("expected exactly one cached Python3.12 interpreter",paths); print(paths[0])')
+          mkdir -p "$RUNNER_TEMP/assembly-evidence"
+          "$BOOTSTRAP_PYTHON" scripts/rc_source_assembly.py source --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --expected-sha "$GITHUB_SHA"
+          "$BOOTSTRAP_PYTHON" -c 'import sys; assert sys.version_info[:2] == (3,12),sys.version; print(sys.executable); print(sys.version)' > "$RUNNER_TEMP/assembly-evidence/bootstrap-python-version.txt"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        id: python
+        if: always() && steps.source.outcome == 'success'
+        timeout-minutes: 2
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        id: download
+        if: always() && steps.source.outcome == 'success'
+        timeout-minutes: 2
+        with:
+          name: rc-assembly-capture-ubuntu-24.04-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/assembly-downloaded
+      - name: Verify same-run evidence against external producer digest
+        id: verify
+        if: always() && steps.python.outcome == 'success' && steps.download.outcome == 'success'
+        env:
+          VERSION: ${{ needs.capture.outputs.version }}
+          RECEIPT_SHA256: ${{ needs.capture.outputs.receipt_sha256 }}
+        run: python scripts/rc_source_assembly.py run --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --name verify --timeout 120 -- python scripts/engineering_dependency_capture.py verify --root "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/assembly-downloaded/capture" --expected-sha "$GITHUB_SHA" --version "$VERSION" --expected-receipt-sha256 "$RECEIPT_SHA256"
+      - name: Require independent verification and unchanged source
+        id: finish
+        if: always()
+        timeout-minutes: 2
+        env:
+          STEP_OUTCOMES: ${{ toJSON(steps) }}
+          RECEIPT_SHA256: ${{ needs.capture.outputs.receipt_sha256 }}
+        run: python scripts/rc_source_assembly.py finish --root "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/assembly-evidence" --kind verify
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        timeout-minutes: 3
+        with:
+          name: rc-assembly-verify-ubuntu-24.04-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/assembly-evidence/
+          if-no-files-found: error
+          retention-days: 30
