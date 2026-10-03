@@ -274,7 +274,9 @@ $literalLoad = '. tests/windows-applocker-observation/observe.ps1'
 Assert-Contract (($wrapper.Split(@($literalLoad), [StringSplitOptions]::None)).Count -eq 2) 'one fixed helper load'
 $wrapper = $wrapper.Replace($literalLoad, 'Invoke-SyntheticLoad')
 Assert-Contract ($wrapper -notmatch 'run-pilot\.ps1|tests/windows-applocker-observation/observe\.ps1') 'only synthetic pilot and load remain'
-$script:Wrapper = [scriptblock]::Create($wrapper)
+$script:WrapperBlock = [scriptblock]::Create($wrapper)
+Assert-Contract ($wrapper -is [string]) 'workflow wrapper text stays a string'
+Assert-Contract ($script:WrapperBlock -is [scriptblock]) 'compiled wrapper stays a ScriptBlock'
 $script:SavedPython = $env:APPLOCKER_PYTHON
 $env:APPLOCKER_PYTHON = 'C:\fixed-setup-python\python.exe'
 
@@ -294,7 +296,7 @@ function Invoke-SyntheticCase {
     Remove-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
     if ($PilotMode -cne 'absent') { Set-Variable -Name LASTEXITCODE -Scope Global -Value $(if ($PilotMode -ceq 'zero') { 0 } else { 17 }) }
     $caught = $null
-    try { & $script:Wrapper } catch { $caught = $_ }
+    try { & $script:WrapperBlock } catch { $caught = $_ }
     Assert-Contract ($script:PilotCalls -eq 1) 'pilot called exactly once despite observer failure'
     if ($PilotMode -ceq 'throw') {
         Assert-Contract ($null -ne $caught) 'original throw survives'
@@ -360,16 +362,16 @@ try {
                 Invoke-SyntheticCase 'normal' 'throw'
                 # A failed restoration cannot replace the pending pilot exception.
                 # Deliberately failed restoration makes no value-preservation claim.
-                $savedWrapper = $script:Wrapper
+                $savedWrapper = $script:WrapperBlock
                 $restore = 'Set-Variable -Name LASTEXITCODE -Scope Global -Value $appLockerExitValue'
-                $script:Wrapper = [scriptblock]::Create($wrapper.Replace($restore, "throw 'synthetic restore failure'"))
+                $script:WrapperBlock = [scriptblock]::Create($wrapper.Replace($restore, "throw 'synthetic restore failure'"))
                 try { Invoke-SyntheticCase 'normal' 'throw' 'normal' 'normal' -RestorationFailure }
-                finally { $script:Wrapper = $savedWrapper }
+                finally { $script:WrapperBlock = $savedWrapper }
                 $capture = '$appLockerExitState=Get-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue'
                 Assert-Contract ($wrapper.Contains($capture)) 'actual exit-state capture is present'
-                $script:Wrapper = [scriptblock]::Create($wrapper.Replace($capture, "throw 'synthetic capture failure'"))
+                $script:WrapperBlock = [scriptblock]::Create($wrapper.Replace($capture, "throw 'synthetic capture failure'"))
                 try { Invoke-SyntheticCase 'capture failure' 'throw' }
-                finally { $script:Wrapper = $savedWrapper }
+                finally { $script:WrapperBlock = $savedWrapper }
             }
             'native nonzero' { Invoke-SyntheticCase 'normal' 'nonzero' }
             'absent exit variable' { Invoke-SyntheticCase 'normal' 'absent' }

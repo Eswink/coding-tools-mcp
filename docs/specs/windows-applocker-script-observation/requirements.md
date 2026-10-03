@@ -119,3 +119,17 @@ FR-5 additional acceptance criteria:
 5. WHEN hashing the44 immutable broker files THEN the audit SHALL explicitly order UTF8 filename bytes and retain the exact existing raw-byte digest1509f8ae681e529a732bc90d1c3e24e76ad8680ef1dd027751a6e174f10d2083; Windows casefold path ordering SHALL be covered as a regression, with no newline/content normalization.
 6. WHEN testing timestamp comparisons THEN independent literal Windows/POSIX snapshots SHALL cover stable creation/change-time differences, every comparable field changed at each stage, ctime-only changes, and missing/malformed Windows birthtime. All32 existing test identities and every old assertion family SHALL remain, with actual expanded counts reported.
 7. WHEN a synthetic real-file boundary read fails THEN test-only diagnostics MAY report at most ten already-returned metadata snapshots and fixed member/size/phase identifiers within16KiB. They SHALL issue no extra stat/read/reopen/retry, disclose no paths or file contents, and leave the failure intact. Runtime driver output and public schemas SHALL remain unchanged.
+
+## Published2dd PowerShell harness correction (FR-1, FR-5)
+
+Run37113307310 on2dd8315dadf409cee2204ee738586bde512a0fd9/tree8cb3b09127f7e4ace278dfa7ac9d436d7bf03682 passed all330 retained and32 observation Python methods/407 variants on Windows. The PS5.1 harness passed its normal-return scenario, then failed at contract-tests.ps1:365 because its script-scoped text variable was overwritten by the case-insensitively identical compiled-block variable. No managed/Rust/native/event stages ran. This correction changes exactly two existing test files and these three specifications after fresh impact and root review.
+
+FR-1 additional acceptance criteria:
+
+5. WHEN the synthetic harness compiles the extracted workflow text THEN its compiled storage SHALL use the distinct script-scoped WrapperBlock identifier at all seven existing references, retaining all twelve wrapper text references unchanged.
+6. WHEN compilation completes THEN explicit assertions SHALL require the retained text to be a string and compiled value to be a ScriptBlock. All16 named scenarios,95 intended wrapper variants, original exception/exit/resource assertions and four actual-writer cases SHALL remain; no skip or continue-on-error is introduced.
+
+FR-5 additional acceptance criteria:
+
+8. WHEN auditing the harness source THEN the existing Python method SHALL reject case-insensitive text/block variable aliasing, a missing compiler assignment and an invocation of a different compiled variable through three new mutation subcases. The existing Create($wrapper) source pin and all362 test identities SHALL remain.
+9. IF GitNexus cannot resolve PowerShell variables for rename/impact THEN the packet SHALL report the unsupported result and supply exact seven-reference/source-span/manual call proof; no graph-backed rename or complete callable coverage may be claimed. Actual PS5.1 success requires the reviewed candidate's Windows workflow.

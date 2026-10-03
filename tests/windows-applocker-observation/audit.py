@@ -406,6 +406,23 @@ class AppLockerAudit(unittest.TestCase):
         synthetic = (HERE / 'contract-tests.ps1').read_text()
         for token in ('APPLOCKER_OUTER_BEGIN', 'APPLOCKER_OUTER_END', '[scriptblock]::Create($wrapper)', 'Invoke-SyntheticPilot', 'Invoke-SyntheticLoad'):
             self.assertIn(token, synthetic)
+        def inspect_bindings(text):
+            pairs = re.findall(r'(?m)^\s*\$script:(\w+) = \[scriptblock\]::Create\(\$(\w+)', text)
+            self.assertEqual(len(pairs), 3)
+            names = {name.casefold() for name, value in pairs}
+            self.assertEqual(len(names), 1)
+            self.assertTrue(all(name.casefold() != value.casefold() for name, value in pairs))
+            invoked = re.findall(r'(?m)^\s*try \{ & \$script:(\w+) \} catch', text)
+            self.assertEqual([name.casefold() for name in invoked], list(names))
+        inspect_bindings(synthetic)
+        changes = [
+            ('$script:WrapperBlock', '$script:wRaPpEr'),
+            ('$script:WrapperBlock = [scriptblock]::Create($wrapper)', '# removed compilation'),
+            ('try { & $script:WrapperBlock } catch', 'try { & $script:OtherBlock } catch'),
+        ]
+        for before, after in changes:
+            with self.variant(wrapper_binding=after), self.assertRaises(AssertionError):
+                inspect_bindings(synthetic.replace(before, after))
         source = (HERE / 'observe.ps1').read_text()
         inspect_reader_source(source)
         selector = re.search(r'\$expected = "([^\n]+)"', source).group(1)

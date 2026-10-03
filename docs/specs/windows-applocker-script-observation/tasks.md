@@ -152,3 +152,34 @@ Publication of the original eleven-path increment is verified:20128605b3ecb39257
   - _需求: FR-2, FR-5_ | _设计: Published201 portability correction_
 
 Correction local results: all330 retained methods pass with unchanged identities; all32 observation methods pass with407 expanded variants. The increase from327 comprises70 independent metadata cases, seven bounded-capture self-tests, two path-flavor ordering cases and one new source-inventory cap case. The helper has204lines, driver133 and audit462. These are Linux execution and synthetic Windows metadata branches only. Actual Windows portable/PowerShell/native/event stages remain pending a reviewed candidate; no new real observation or original failure verdict is inferred.
+
+## Published2dd harness correction tasks (FR-1, FR-5)
+
+The portability correction is published and actually passed all362 Windows Python methods/407 variants in run37113307310. PS5.1 then failed after the normal-return scenario because script-scoped wrapper text and the compiled Wrapper variable alias under case-insensitive name resolution. Artifact11270481225 is737bytes, SHA2563c0b7e3a5c52479588be00c2716e281078fdb2348b256d05b79e36aff109db99; CRC, two manifest records and2dd/tree8cb3 binding verified. No real query or native execution occurred. The existing feature Plan remains active.
+
+- [x] P1 Resume the existing Plan and preserve authenticated failed-stage evidence and exact2dd source
+  - **证据块:** job111175227786 log reports ScriptBlock lacks Replace at contract-tests.ps1:365; published source269/277 establishes the same script-scope storage collision
+  - **涉及文件:** External evidence and these three specifications only
+  - _需求: FR-1, FR-5_ | _设计: Published2dd PowerShell harness correction_
+- [x] P2 Complete fresh exact-source graph/rename-availability/manual reference proof, check_spec and root pre-edit review
+  - **证据块:** AGENTS.md requires pre-edit impact and graph-aware rename; unsupported PS symbols require explicit limitation rather than fake graph proof
+  - **涉及文件:** Exactly contract-tests.ps1<=480, audit.py<=480 and three existing specifications<=500; no new code file
+  - _需求: FR-5_ | _设计: Published2dd PowerShell harness correction_
+- [x] P3 Apply seven compiled-variable token edits, two type assertions and three Python source-mutation regressions
+  - **证据块:** Compiled references occur at277/297/363/365/367/370/372; all twelve text references and the existing audit token can remain unchanged
+  - **涉及文件:** Only the two reviewed test files; observer/runtime/workflow immutable
+  - _需求: FR-1, FR-5_ | _设计: Published2dd PowerShell harness correction_
+- [x] P4 Execute retained330 plus32 observation methods and prove all previous assertions/scenario/variant identities remain
+  - **证据块:** Source enumeration retains16 names and95 wrapper variants; actual prior run completed only the normal-return name, so static counts are not a PS runtime pass
+  - **涉及文件:** Existing test entries only, exact final candidate bytes
+  - _需求: FR-1, FR-5_ | _设计: Published2dd PowerShell harness correction_
+- [ ] P5 Complete staged graph/detect_changes/full review/gencommit and exact sole2ddparent candidate disposition
+  - **证据块:** New nested Python checker needs exact current-definition review; PS dynamic scriptblock execution needs manual/source proof
+  - **涉及文件:** Exactly five reviewed paths; no publication before disposition
+  - _需求: FR-5_ | _设计: Published2dd PowerShell harness correction_
+- [ ] P6 Publish reviewed candidate, verify actual Windows PS/compiler/managed/Rust/native stages and authenticated artifact
+  - **证据块:** No local PS runtime is available; no gate may be skipped and no synthetic event may become real observation proof
+  - **涉及文件:** Existing diagnostic branch/PR/workflow only, no new workflow or settings
+  - _需求: FR-1, FR-5_ | _设计: Published2dd PowerShell harness correction_
+
+Harness-correction local results: all330 retained and32 observation methods pass; the observation audit executes410 expanded variants, adding exactly three binding-source mutations. The source checker rejects the exact published aliasing source. Whole-file byte comparison proves only seven compiled-token changes and two type assertions in the477-line PS file; the479-line Python audit retains all previous assertion calls and identities. Independent review confirms all56 old PS assertion sites,16 scenario names,95 intended wrapper variants and four writer modes remain. These are local Python/source results; full PS5.1/runtime success is still hosted pending the reviewed candidate.
