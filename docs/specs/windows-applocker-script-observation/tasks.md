@@ -183,3 +183,34 @@ The portability correction is published and actually passed all362 Windows Pytho
   - _需求: FR-1, FR-5_ | _设计: Published2dd PowerShell harness correction_
 
 Harness-correction local results: all330 retained and32 observation methods pass; the observation audit executes410 expanded variants, adding exactly three binding-source mutations. The source checker rejects the exact published aliasing source. Whole-file byte comparison proves only seven compiled-token changes and two type assertions in the477-line PS file; the479-line Python audit retains all previous assertion calls and identities. Independent review confirms all56 old PS assertion sites,16 scenario names,95 intended wrapper variants and four writer modes remain. These are local Python/source results; full PS5.1/runtime success is still hosted pending the reviewed candidate.
+
+## Published9d fixture-clock correction tasks (FR-1, FR-5)
+
+The compiled-wrapper correction is published9d/treec984. Run37114718919/job111179180060 passed all362 Python methods/410 variants and16 named PS scenarios; a later writer fixture failed because the culture result overwrote fixed Bracket. Artifact11270168969 is737bytes, SHA2567daed473c9e17ce5040bd126b078e64f42dd224e32beb2526f96a56da86a0f65; CRC, two manifest records and source/tree verify only source/scope, with no pilot/event evidence. The existing Plan remains active. The denied stale PR-body call was abandoned unretried; a separately reviewed accurate terminal update succeeded.
+
+- [x] F1 Resume the existing Plan, verify exact9d failure/artifact and scope the fixture collision
+  - **证据块:** contract-tests.ps1:441 assigns actual culture clock to the fixed fixture name; observe.ps1:263 preserves exact timestamp binding and rejects it;448 is the only remaining normal invocation after all16 PASS lines
+  - **涉及文件:** External evidence and these three specs only
+  - _需求: FR-1, FR-5_ | _设计: Published9d culture-clock fixture correction_
+- [x] F2 Complete fresh impact/rename-availability/manual byte scope, check_spec and root pre-edit disposition
+  - **证据块:** Existing AGENTS graph/rename rules and explicit PS UNKNOWN limits require exact source proof
+  - **涉及文件:** Exactly PS<=480, audit<=480 and three specs<=500; no new file
+  - _需求: FR-5_ | _设计: Published9d culture-clock fixture correction_
+- [x] F3 Apply two explicit cultureBracket token edits, one fixture assertion and one Python source regression
+  - **证据块:** Only culture result441/442 changes; fixed fixture/request/observer comparison remain immutable
+  - **涉及文件:** Only contract-tests.ps1 and audit.py within existing caps
+  - _需求: FR-1, FR-5_ | _设计: Published9d culture-clock fixture correction_
+- [x] F4 Verify published source fails the new regression, all362/410 portable tests pass, and exact whole-file/old-assertion preservation
+  - **证据块:** Prior full PS suite did not reach writer completion; local source tests cannot establish actual PS success
+  - **涉及文件:** Existing test entries and reviewed five paths only
+  - _需求: FR-1, FR-5_ | _设计: Published9d culture-clock fixture correction_
+- [ ] F5 Fresh staged graph/detect_changes/full review/gencommit and exact sole9dparent publication disposition
+  - **证据块:** No code after the staged gate without current-definition impact; PS dynamic behavior remains hosted pending
+  - **涉及文件:** Exactly five reviewed paths
+  - _需求: FR-5_ | _设计: Published9d culture-clock fixture correction_
+- [ ] F6 Publish only reviewed candidate and verify actual complete PS/writer/native/event stages plus artifact provenance
+  - **证据块:** No local PS5.1 execution; unchanged existing workflow must run all required gates without skips
+  - **涉及文件:** Existing diagnostic branch/PR/workflow, no settings or scope expansion
+  - _需求: FR-1, FR-5_ | _设计: Published9d culture-clock fixture correction_
+
+Fixture-clock local results: all330 retained plus32 observation methods pass;410 variants are unchanged. The new anchored source guard rejects the exact published9d assignment and a mixed-case script-qualified alias, and accepts the candidate. Exact byte proof permits only two culture-result tokens and one fixture assertion in the478-line PS file; the480-line Python audit adds only its one regression assertion. All58 prior PS assertion sites and prior Python assertions remain. Independent source review found no defect. Actual full PS/writer/native/event execution remains pending a reviewed candidate.

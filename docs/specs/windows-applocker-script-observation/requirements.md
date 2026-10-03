@@ -133,3 +133,11 @@ FR-5 additional acceptance criteria:
 
 8. WHEN auditing the harness source THEN the existing Python method SHALL reject case-insensitive text/block variable aliasing, a missing compiler assignment and an invocation of a different compiled variable through three new mutation subcases. The existing Create($wrapper) source pin and all362 test identities SHALL remain.
 9. IF GitNexus cannot resolve PowerShell variables for rename/impact THEN the packet SHALL report the unsupported result and supply exact seven-reference/source-span/manual call proof; no graph-backed rename or complete callable coverage may be claimed. Actual PS5.1 success requires the reviewed candidate's Windows workflow.
+
+## Published9d culture-clock fixture correction (FR-1, FR-5)
+
+Run37114718919 on9d005e42eae7efd54e541da2f327cfb7a8d64529/treec9848e975c3472c9858a55efa2b43282bbe1f3e5 passed362 Python methods/410 variants and all16 named PS scenarios, then failed the later writer-fixture match assertion. The culture test's unqualified bracket assignment overwrote the script-scoped fixed Bracket fixture. Exact request/bracket validation correctly rejected it before event acquisition. No native or real event stages ran.
+
+FR-1 additional acceptance criterion7: WHEN exercising real invariant culture-clock formatting THEN the synthetic test SHALL store its result only in cultureBracket, preserving the fixed script:Bracket timestamps and elapsed value for later writer tests. Two culture-result tokens and one post-culture fixture-preservation assertion are the only PS changes.
+
+FR-5 additional acceptance criterion10: WHEN auditing the PS source THEN one anchored case-insensitive assertion SHALL reject assigning RealEndClock directly into the fixed bracket variable. The exact published failing source SHALL fail this regression. All362 Python identities/410 variants,58 existing PS assertion sites,16 names,95 intended wrapper variants and four writer modes SHALL remain; actual full PS success still requires reviewed hosted execution.

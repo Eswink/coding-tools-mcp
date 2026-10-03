@@ -404,6 +404,7 @@ class AppLockerAudit(unittest.TestCase):
         self.assertIn('APPLOCKER_PYTHON: ${{ steps.python.outputs.python-path }}', workflow)
         self.assertIn('python tests/windows-applocker-observation/audit.py', workflow)
         synthetic = (HERE / 'contract-tests.ps1').read_text()
+        self.assertNotRegex(synthetic, r'(?im)^\s*\$(?:script:)?bracket\s*=\s*&\s*\$script:RealEndClock\b')
         for token in ('APPLOCKER_OUTER_BEGIN', 'APPLOCKER_OUTER_END', '[scriptblock]::Create($wrapper)', 'Invoke-SyntheticPilot', 'Invoke-SyntheticLoad'):
             self.assertIn(token, synthetic)
         def inspect_bindings(text):

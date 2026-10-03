@@ -438,12 +438,13 @@ try {
     try {
         [Threading.Thread]::CurrentThread.CurrentCulture = [Globalization.CultureInfo]::GetCultureInfo('th-TH')
         $clock = & $script:RealStartClock
-        $bracket = & $script:RealEndClock -Clock $clock
-        Assert-Contract ($bracket.StartedUtc.StartsWith([DateTime]::UtcNow.Year.ToString([Globalization.CultureInfo]::InvariantCulture))) 'Gregorian invariant clock year'
+        $cultureBracket = & $script:RealEndClock -Clock $clock
+        Assert-Contract ($cultureBracket.StartedUtc.StartsWith([DateTime]::UtcNow.Year.ToString([Globalization.CultureInfo]::InvariantCulture))) 'Gregorian invariant clock year'
         $record = New-SyntheticRecord
         $decision = Test-AppLockerMatchedFields $record $null ([pscustomobject]$script:Request)
         Assert-Contract ($decision.Utc -ceq '2026-10-03T07:00:00.5000000Z') 'invariant selected record time'
     } finally { [Threading.Thread]::CurrentThread.CurrentCulture = $culture }
+    Assert-Contract ($script:Bracket.StartedUtc -ceq $script:Request.StartedUtc -and $script:Bracket.EndedUtc -ceq $script:Request.EndedUtc -and $script:Bracket.ElapsedMilliseconds -eq 1000) 'fixed fixture bracket survives culture clock sample'
     # Exercise the actual writer with complete favorable synthetic bytes in fresh local directories.
     Invoke-SyntheticCase 'normal' 'normal'
     $value = $script:Summary
