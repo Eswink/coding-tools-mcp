@@ -88,20 +88,21 @@ public static partial class BrokerDirectLauncher {
                 File.WriteAllBytes(Path.Combine(s.Workspace,"direct.cmd"),PilotCmdMinimalBatchBytes());
             } else if(PilotCmdObservationKind(kind)) {
                 exe=Path.Combine(s.Code,"cmd.exe");
-                r.CommandLine=kind=="cmd-cwd"?FixedPilotCmdCwdCommand(exe):FixedPilotCmdReadCommand(exe);
+                r.CommandLine=FixedPilotCmdObservationCommand(kind,exe);
                 PilotOwnedPath(s.Workspace);
                 if(!String.Equals(s.Workspace,Path.GetFullPath(s.Workspace),StringComparison.Ordinal))
                     throw new InvalidOperationException("exact pilot observation cwd required");
-                r.Identities["pilot_cmd_observation_protocol"]="cmd-cwd-read-raw-v1";
+                r.Identities["pilot_cmd_observation_protocol"]=PilotCmdObservationProtocol(kind);
                 r.Identities["pilot_cmd_observation_case"]=kind;
                 r.Identities["pilot_cmd_observation_command"]=r.CommandLine;
                 r.Identities["pilot_cmd_observation_cwd"]=s.Workspace;
-                if(kind=="cmd-read-direct") File.WriteAllBytes(Path.Combine(s.Workspace,"direct.cmd"),PilotCmdMinimalBatchBytes());
+                if(kind=="cmd-read-direct" || kind=="cmd-relative-batch-exit23") File.WriteAllBytes(Path.Combine(s.Workspace,"direct.cmd"),PilotCmdMinimalBatchBytes());
             } else r.CommandLine=FixedCommand(kind=="ordinary"?"reference":kind,s.Code,s.Workspace,s.Outside,port,out exe);
             r.Executable=exe;r.ExecutableSha256=HashFile(exe);
             if(kind=="cmd") CapturePilotOriginalCmdBatch(s,evidence);
             if(kind=="cmd-batch-exit23") CapturePilotMinimalCmdBatch(s,evidence);
             if(kind=="cmd-read-direct") CapturePilotCmdReadBatch(s,evidence);
+            if(kind=="cmd-relative-batch-exit23") CapturePilotCmdRelativeBatch(s,evidence);
             File.WriteAllText(Path.Combine(s.Root,"copy-source-destination-sha256.txt"),provenance.ToString());
             var privateHashes=new StringBuilder();
             foreach(string file in Directory.GetFiles(s.Code,"*",SearchOption.AllDirectories))

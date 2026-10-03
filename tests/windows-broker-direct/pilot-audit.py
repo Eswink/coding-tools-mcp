@@ -13,7 +13,7 @@ PILOT_NAMES = (
     'PilotGates.cs', 'PilotRunner.cs', 'PilotClassification.cs', 'PilotPolicyTests.cs',
     'PilotGateTests.cs', 'PilotClassificationTests.cs', 'run-pilot.ps1',
 )
-PILOT_PINS = {'PilotOwnedFiles.cs': '7638cf9dffa7859bde43df943cfa3bee5384a7c9ee7d52f587abdca43c43ad92', 'PilotSubjects.cs': 'e32307a10ccaffce84e306ecd4ca8b7e8cac0742153de4b823ab3c9ac4bb80e2', 'PilotPolicy.cs': '1791fa47cf3a5afd62bd4029c4e8a085c674269a0cad2b5190cfd8621bbb16ea', 'PilotJournal.cs': '815e611986e04abd5efa934c2f56e20d50c42ccc0d6b98fbb1850de2d271fa21', 'PilotGates.cs': 'e5f5b416ea63f1ab96014d145a802f82a9de1b809d118ca58de4e93d7c5c88ad', 'PilotRunner.cs': '05059220b7801959ab3772dc98e09bf083056b73c550c0a599b034ef6ed7ae03', 'PilotClassification.cs': 'f7b4cd960b17d576d393dd7eb78d17aab838f44f3cbabd5a36456391b3db0782', 'PilotPolicyTests.cs': 'd6c37576dc802590888616cbe4f8eadf8420718da4e4cb92db6f7fb090a968d8', 'PilotGateTests.cs': 'c1b5495f780633da8c0656e097f54cdea74de2d002274d6afe2afae8194f2b8d', 'PilotClassificationTests.cs': 'b0d8c3613743f9913715e343298611cd78ccd2c48f3591c5c85a1203c4a3dfad', 'run-pilot.ps1': 'b45f0c7fc55d5dc7895966a7b50a702146a0d3612cae445c47512a2b4e72508e'}
+PILOT_PINS = {'PilotOwnedFiles.cs': '7638cf9dffa7859bde43df943cfa3bee5384a7c9ee7d52f587abdca43c43ad92', 'PilotSubjects.cs': '0612f1b85807f7377577fad28532ed64b4925063ce53aef94bb0dc0ba92f8d01', 'PilotPolicy.cs': '1791fa47cf3a5afd62bd4029c4e8a085c674269a0cad2b5190cfd8621bbb16ea', 'PilotJournal.cs': '815e611986e04abd5efa934c2f56e20d50c42ccc0d6b98fbb1850de2d271fa21', 'PilotGates.cs': 'e5f5b416ea63f1ab96014d145a802f82a9de1b809d118ca58de4e93d7c5c88ad', 'PilotRunner.cs': '7dbee5e433e3488323755822315b8f22e97c52d797b0d43f07215179acc9cad1', 'PilotClassification.cs': 'bca3dab748e4b4e103499e21e623e0dbe54d588f713d1324f9004e46862a5948', 'PilotPolicyTests.cs': 'd6c37576dc802590888616cbe4f8eadf8420718da4e4cb92db6f7fb090a968d8', 'PilotGateTests.cs': 'c1b5495f780633da8c0656e097f54cdea74de2d002274d6afe2afae8194f2b8d', 'PilotClassificationTests.cs': 'b0d8c3613743f9913715e343298611cd78ccd2c48f3591c5c85a1203c4a3dfad', 'run-pilot.ps1': 'f864fc009e5de40029d49aca42303afc3c043a906a82a11392afc0ae9e2fa48a'}
 
 
 def uncomment(source):
@@ -160,7 +160,7 @@ def inspect(files, legacy, check_pins=True):
                      'case_receipt_persistence_failed', 'runJournal.Failed=true;',
                      'if(!PilotMayAdvance(row)) {blocked=true;journal.Failed=true;}',
                      'markerGuard==null', 'CheckSelectedParentRecovery(temp,fixedMarkerGuard,new string[0])',
-                     'new string[]{"ordinary","reference","node","cmd","powershell","pwsh","cmd-exit23","cmd-batch-exit23","cmd-cwd","cmd-read-direct"}',
+                     'new string[]{"ordinary","reference","node","cmd","powershell","pwsh","cmd-exit23","cmd-batch-exit23","cmd-cwd","cmd-read-direct","cmd-relative-batch-exit23"}',
                      'ownership-root.json', 'ownership-profile.json', 'ownership-process.json',
                      'PilotIdentity(r,"fixture_source_sha256",fixtureHash)', 'r.ExecutableSha256!=fixtureHash'):
         assert required in runner, required

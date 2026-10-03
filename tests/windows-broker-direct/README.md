@@ -27,7 +27,7 @@ that cmd subsequently opened or executed the batch.
 The original six-case and seventh command-line sentinel verdicts are reduced
 independently, including after a later case, evidence-write or final-cleanup failure.
 Sentinel success cannot repair an original failure. The full allocated and cleaned
-path now has ten case journals and one run journal; blocked or unprepared rows do
+path now has eleven case journals and one run journal; blocked or unprepared rows do
 not invent case journals. Contained nonzero exits may complete cleanup while
 their observations remain failed. Any ownership, capture, marker or cleanup
 uncertainty retains recovery and prevents further launches.
@@ -80,8 +80,8 @@ unsupported/inconclusive. TYPE independently expects exactly `exit 23\r\n` and
 empty stderr, with queried exit zero. No BOM, newline or whitespace conversion
 is allowed, and no code-page or shell-flag fallback exists.
 
-Case receipts contain only `CmdCwdObserved`/`CmdReadObserved`, and run receipts
-only `CmdCwdRawObservationMatched`/`CmdReadRawObservationMatched`. These facts can
+These two case observations use `CmdCwdObserved`/`CmdReadObserved`, and run fields
+`CmdCwdRawObservationMatched`/`CmdReadRawObservationMatched`. These facts can
 remain true after later persistence or cleanup failure. They are never accepted
 run verdicts. The pure `evaluate_cmd_observation_artifact` evaluator separately
 derives `CmdCwdObservationPassed`/`CmdReadObservationPassed`, default false, from
@@ -91,7 +91,7 @@ body; preconditions and favorable matrices alone cannot establish completion.
 There is no producer accepted field or post-Resolve persistence action.
 
 Run `python tests/windows-broker-direct/cmd-observations-audit.py` for the unified
-source and synthetic artifact tests. Its five local Python modules contain no
+source and synthetic artifact tests. Its seven local Python modules contain no
 acquisition, network or OS lifecycle operation. Synthetic failure-shaped artifacts
 cover case.json, matrices, run-root removal, final scans, selected-parent closes,
 final writes and journal bind/verify/rename; they are not Windows fault injection.
@@ -102,7 +102,7 @@ Opaque legacy JSON contributes no prerequisite or accepted-result truth. Its byt
 are hash-verified only; semantic checks cover the parsed contributing receipts and
 named wrappers, including rejection of new accepted-result fields.
 
-The full allocated path is ten case plus one run journals; actual profile, pin
+The full allocated path is eleven case plus one run journals; actual profile, pin
 and recovery-boundary counts must be read from that run. Scoped confirmation does
 not assert universal CleanupConfirmed. All eight original observations and their
 reducers stay independent. TYPE success proves a read of those bytes only; it is
@@ -111,10 +111,48 @@ TokenVerified=false remain; observed AppContainer/SID/zero-capability/LowIL and
 AccessCheck signatures are surrogate observations. NetworkDenialProven remains
 false and the original native/nested/runtime aggregate failures remain failures.
 
+## Explicit-relative nine-byte batch observation
+
+The eleventh case, `cmd-relative-batch-exit23`, uses exactly
+`/d /q /c .\direct.cmd` with the same nine-byte `exit 23\r\n` payload and current-run
+cmd executable bytes. It expects a queried exit23 and empty stdout/stderr. The
+new case has its own independently verified profile, workspace, PID and regular
+stdio handles; preparation, grants, environment, authority, deadline and cleanup
+use the existing machinery. Empty output remains supported for a non-ASCII cwd.
+
+The producer records only `CmdRelativeBatchExit23Observed` on the case and
+`CmdRelativeBatchRawObservationMatched` on the run. The existing raw readers bind
+all four stream handles and the captured minimal payload without conversion.
+`ScriptEntryObserved` stays false because this batch has no entry marker. Late
+cleanup or persistence failure can preserve raw facts, while accepted results
+remain false until all eleven cases and their final journals validate.
+
+The pure evaluator emits protocol `cmd-cwd-read-relative-batch-acceptance-v1` and
+independently derives `CmdRelativeBatchObservationPassed`/`RelativeBatchStatus`.
+It requires the explicit eleven-case schema; old ten-case artifacts use their
+pinned `071d559` evaluator. A clean exit1 or output mismatch in the new case leaves
+otherwise committed cwd/TYPE acceptance independent. Missing or inconsistent
+proof rejects completion. The fixed descriptors have independent literal audits;
+fixtures cannot confirm a shared descriptor mistake by using it as their only oracle.
+
+The preceding [071d559 diagnostic run](https://github.com/Eswink/coding-tools-mcp/actions/runs/37096520158)
+provided committed cwd/TYPE observations while both retained bare-name batches
+still returned1 with empty streams. Its overall runtime workflow failed; the
+accepted observations did not change those failures. This new case has no measured
+Windows outcome until its exact candidate is run and its artifact is verified.
+
+This tests path qualification only. Microsoft documents current-directory search
+for a bare executable name and direct qualification when a backslash is present
+([NeedCurrentDirectoryForExePathW](https://learn.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-needcurrentdirectoryforexepathw)).
+Neither a changed result nor another exit1 establishes the failed internal
+operation, an omitted search, a quoting defect, or a root-cause fix. No `/s`, `call`,
+marker batch, chained command, fallback, capability or production admission is added.
+The original native/nested/runtime failures and direct class46 failures remain.
+
 ## Explicit LocalApplicationData Temp selection
 
-The current workflow invokes `run-pilot.ps1` with eight retained cases and two raw cwd/read
-observations, and the fixed
+The current workflow invokes `run-pilot.ps1` with ten retained cases and one
+explicit-relative batch observation, and the fixed
 `localappdata_temp_ci_v1` parent policy. The wrapper and C# helper independently
 resolve only `Environment.GetFolderPath(LocalApplicationData, DoNotVerify)` plus
 the literal `Temp` child, require exact agreement and fresh unchanged owner/DACL
@@ -146,7 +184,7 @@ metadata enumeration rejects hidden, wrong-type, duplicate, reparse or unknown
 markers, then recurses only through existing diagnostic-name families and evidence.
 Unrelated Temp subtrees are never traversed. The depth32/100000-entry limits remain.
 A short lease protects pre-allocation checks. After the run journal exists, a
-long lease remains held through all ten cases and owned-root removal. Any failed
+long lease remains held through all eleven cases and owned-root removal. Any failed
 scan, metadata check or uncertain close stops progression and retains recovery.
 
 The final recovery scan and independent reverse single-attempt pin closes precede
@@ -195,7 +233,8 @@ exercise pure observation gates, not Windows compatibility.
 invocation first checks a suspended ordinary-AppContainer native control and proves
 that its actual identification-token signature is rejected as LPAC. It then checks
 and resumes the unchanged LPAC native reference, followed by exactly Node, cmd,
-Windows PowerShell, pwsh and the two separate cmd observations. Every target's own suspended primary token must pass
+Windows PowerShell, pwsh, the two earlier cmd exit comparisons, cwd/TYPE and the
+explicit-relative batch. Every target's own suspended primary token must pass
 AppContainer/SID/zero-capability/LowIL checks and its own noninheritable query-only
 identification duplicate must pass all four fixed AccessCheck descriptors. All
 observer/source handles close before assignment/resume. Requested flags and the

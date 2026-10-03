@@ -6,6 +6,8 @@ from cmd_observation_artifact import evaluate_cmd_observation_artifact as evalua
 from cmd_observation_fixtures import (CASES, OLD_POSITIVES, RUN_NONCE, MINIMAL,
     completed_fixture, decode, encode, digest, reseal)
 from cmd_observation_failure_fixtures import late_failure, unicode_fixture
+from cmd_observation_cases import OBSERVATIONS, observation_case, observation_expected_bytes
+from cmd_observation_late_failure_tests import assert_late_failures_keep_raw_and_old_results
 
 
 REASON_CODES = {'identity', 'provenance', 'missing', 'parse', 'stage', 'commit', 'cleanup',
@@ -47,7 +49,7 @@ def mutate_run(members, operation):
 
 
 def raw_output(members, kind, stdout=None, stderr=None):
-    base = 'pilot/' + kind + '/'
+    case, base = observation_case(kind), 'pilot/' + kind + '/'
     for stream, value in [('stdout', stdout), ('stderr', stderr)]:
         if value is None:
             continue
@@ -63,28 +65,28 @@ def raw_output(members, kind, stdout=None, stderr=None):
         mutate_case(members, kind, update)
     def classify(row):
         n, ids = row['Launcher']['Numbers'], row['Launcher']['Identities']
-        expected = (ids['pilot_cmd_observation_cwd'] + '\r\n').encode('ascii') if kind == 'cmd-cwd' else MINIMAL
+        expected = observation_expected_bytes(kind, ids['pilot_cmd_observation_cwd'])
         matched = members[base + 'stdout.txt'] == expected and not members[base + 'stderr.txt']
         n['pilot_cmd_observation_stdout_matches'] = int(members[base + 'stdout.txt'] == expected)
         n['pilot_cmd_observation_stderr_empty'] = int(not members[base + 'stderr.txt'])
-        row['CmdCwdObserved' if kind == 'cmd-cwd' else 'CmdReadObserved'] = matched
-        row['Status'] = ('cmd_cwd' if kind == 'cmd-cwd' else 'cmd_read_direct') + ('_raw_observed' if matched else '_raw_not_observed')
+        row[case['row_flag']] = matched
+        row['Status'] = case['matched_status'] if matched else case['unmatched_status']
     mutate_case(members, kind, classify)
     def aggregate(run):
-        slot = 8 if kind == 'cmd-cwd' else 9
-        run['CmdCwdRawObservationMatched' if slot == 8 else 'CmdReadRawObservationMatched'] = (
-            len(run['Cases']) > slot and run['Cases'][slot]['CmdCwdObserved' if slot == 8 else 'CmdReadObserved'])
+        slot = case['slot']
+        run[case['run_flag']] = len(run['Cases']) > slot and run['Cases'][slot][case['row_flag']]
     mutate_run(members, aggregate)
 
 
 class ArtifactAcceptanceTests(unittest.TestCase):
     def assert_contract(self, result):
-        self.assertEqual(result['protocol'], 'cmd-cwd-read-acceptance-v1')
-        for key in ('CmdCwdObservationPassed', 'CmdReadObservationPassed', 'RunCompletionValidated',
-                    'CmdCwdRawObservationMatched', 'CmdReadRawObservationMatched'):
-            self.assertIs(type(result[key]), bool)
-        for key in ('CwdStatus', 'ReadStatus'):
-            self.assertIn(result[key], ('accepted', 'not_matched', 'incomplete', 'inconsistent'))
+        self.assertEqual(result['protocol'], 'cmd-cwd-read-relative-batch-acceptance-v1')
+        self.assertIs(type(result['RunCompletionValidated']), bool)
+        for case in OBSERVATIONS:
+            for key in (case['accepted_field'], case['run_flag']):
+                self.assertIs(type(result[key]), bool)
+            self.assertIs(type(result[case['status_key']]), str)
+            self.assertIn(result[case['status_key']], ('accepted', 'not_matched', 'incomplete', 'inconsistent'))
         self.assertLessEqual(len(result['Reasons']), 64)
         for reason in result['Reasons']:
             self.assertEqual(set(reason), {'code', 'case', 'member'})
@@ -98,8 +100,8 @@ class ArtifactAcceptanceTests(unittest.TestCase):
         return result
 
     def assert_rejected(self, result, code=None):
-        self.assertFalse(result['CmdCwdObservationPassed'])
-        self.assertFalse(result['CmdReadObservationPassed'])
+        for case in OBSERVATIONS:
+            self.assertFalse(result[case['accepted_field']])
         if code:
             self.assertIn(code, [reason['code'] for reason in result['Reasons']])
 
@@ -110,6 +112,8 @@ class ArtifactAcceptanceTests(unittest.TestCase):
         self.assertTrue(result['RunCompletionValidated'])
         self.assertTrue(result['CmdCwdObservationPassed'])
         self.assertTrue(result['CmdReadObservationPassed'])
+        self.assertTrue(result['CmdRelativeBatchObservationPassed'])
+        self.assertTrue(result['CmdRelativeBatchRawObservationMatched'])
         self.assertEqual(result['Reasons'], [])
         self.assertEqual((context, members), before)
         self.assertIn(b'state=pending\n', members['pilot/completed-' + RUN_NONCE + '.txt'])
@@ -117,8 +121,25 @@ class ArtifactAcceptanceTests(unittest.TestCase):
             matrix = decode(members['pilot/matrix-0' + str(count) + '.json'])
             self.assertEqual(matrix['OrdinaryControlPassed'], count > 1)
             self.assertFalse(matrix['ReferenceRoutePassed'])
+        run = decode(members['pilot/pilot-result.json'])
+        self.assertEqual([row['Case'] for row in run['Cases']], [
+            'ordinary', 'reference', 'node', 'cmd', 'powershell', 'pwsh',
+            'cmd-exit23', 'cmd-batch-exit23', 'cmd-cwd', 'cmd-read-direct', 'cmd-relative-batch-exit23'])
+        self.assertEqual(decode(members['pilot/matrix-11.json'])['Cases'], run['Cases'])
+        for slot, tail in ((8, ' /d /q /c cd'), (9, ' /d /q /c type direct.cmd'), (10, r' /d /q /c .\direct.cmd')):
+            row = run['Cases'][slot]
+            self.assertEqual(row['Launcher']['CommandLine'], '"' + row['Launcher']['Executable'] + '"' + tail)
+            self.assertEqual(row['CmdRelativeBatchExit23Observed'], slot == 10)
+        base, row = 'pilot/cmd-relative-batch-exit23/', run['Cases'][10]
+        self.assertEqual(members[base + 'generated-direct.cmd.bin'], b'exit 23\r\n')
+        self.assertEqual(digest(members[base + 'generated-direct.cmd.bin']), 'cab50bf1c23956b80d898c7af8f1c1e853e5bba6b14b8a2fbe4981d382fb7e8a')
+        self.assertEqual((members[base + 'stdout.txt'], members[base + 'stderr.txt']), (b'', b''))
+        self.assertEqual((row['Launcher']['Wait'], row['Launcher']['Exit'], row['Launcher']['Numbers']['pilot_exit_query_success']), (0, 23, 1))
         for key in OLD_POSITIVES[2:]:
-            self.assertFalse(decode(members['pilot/pilot-result.json'])[key])
+            self.assertFalse(run[key])
+        for row in run['Cases'][2:6]:
+            for key in ('ScriptEntryObserved', 'OutputOk', 'MutationOk', 'PositivePassed', 'NetworkDenialProven'):
+                self.assertFalse(row[key])
 
     def test_complete_optional_no_allocation_rows(self):
         for missing in (('node',), ('powershell',), ('pwsh',), ('node', 'powershell', 'pwsh'), ('cmd',)):
@@ -127,6 +148,7 @@ class ArtifactAcceptanceTests(unittest.TestCase):
                 result = self.evaluate(context, members)
                 self.assertEqual(result['CmdCwdObservationPassed'], 'cmd' not in missing)
                 self.assertEqual(result['CmdReadObservationPassed'], 'cmd' not in missing)
+                self.assertEqual(result['CmdRelativeBatchObservationPassed'], 'cmd' not in missing)
                 self.assertTrue(result['RunCompletionValidated'])
 
     def test_non_ascii_cwd_is_unsupported_without_blocking_type(self):
@@ -134,6 +156,7 @@ class ArtifactAcceptanceTests(unittest.TestCase):
         result = self.evaluate(context, members)
         self.assertFalse(result['CmdCwdObservationPassed'])
         self.assertTrue(result['CmdReadObservationPassed'])
+        self.assertTrue(result['CmdRelativeBatchObservationPassed'])
         self.assertTrue(result['RunCompletionValidated'])
         self.assertIn('unsupported_encoding', [reason['code'] for reason in result['Reasons']])
 
@@ -145,27 +168,52 @@ class ArtifactAcceptanceTests(unittest.TestCase):
                 self.assertFalse(result['CmdCwdObservationPassed'])
                 self.assertEqual(result['CwdStatus'], 'not_matched')
                 self.assertTrue(result['CmdReadObservationPassed'])
+                self.assertTrue(result['CmdRelativeBatchObservationPassed'])
                 self.assertTrue(result['RunCompletionValidated'])
 
     def test_each_minimal_payload_byte_and_framing_mismatch(self):
         values = [MINIMAL[:i] + bytes([MINIMAL[i] ^ 1]) + MINIMAL[i + 1:] for i in range(len(MINIMAL))]
         values += [MINIMAL + b'\0', MINIMAL[:-1], b'\xef\xbb\xbf' + MINIMAL, b'', b'exit 23\n']
-        for value in values:
-            with self.subTest(value=value):
-                context, members = completed_fixture()
-                raw_output(members, 'cmd-read-direct', stdout=value)
-                result = self.evaluate(context, members)
-                self.assertEqual(result['ReadStatus'], 'not_matched')
-                self.assertTrue(result['CmdCwdObservationPassed'])
-                self.assertFalse(result['CmdReadObservationPassed'])
+        self.assertEqual(len(values), 14)
+        for kind in ('cmd-read-direct', 'cmd-relative-batch-exit23'):
+            for value in values:
+                with self.subTest(kind=kind, value=value):
+                    context, members = completed_fixture()
+                    if kind == 'cmd-read-direct':
+                        raw_output(members, kind, stdout=value)
+                    else:
+                        members['pilot/' + kind + '/generated-direct.cmd.bin'] = value
+                        def payload(row):
+                            n, ids = row['Launcher']['Numbers'], row['Launcher']['Identities']
+                            for part in ('source', 'readback', 'destination'):
+                                label = 'pilot_cmd_batch_' + part
+                                n[label + '_bytes'], ids[label + '_sha256'] = len(value), digest(value)
+                                if part != 'destination':
+                                    n[label + '_advertised_bytes'] = len(value)
+                        mutate_case(members, kind, payload)
+                    result = self.evaluate(context, members)
+                    if kind == 'cmd-read-direct':
+                        self.assertEqual(result['ReadStatus'], 'not_matched')
+                        self.assertTrue(result['CmdCwdObservationPassed'])
+                        self.assertTrue(result['CmdRelativeBatchObservationPassed'])
+                        self.assertFalse(result['CmdReadObservationPassed'])
+                    else:
+                        self.assert_rejected(result, 'raw_mismatch')
 
     def test_stderr_nonempty_is_independent_mismatch(self):
-        for kind, tag, other in [('cmd-cwd', 'Cwd', 'Read'), ('cmd-read-direct', 'Read', 'Cwd')]:
-            context, members = completed_fixture()
-            raw_output(members, kind, stderr=b'error\r\n')
-            result = self.evaluate(context, members)
-            self.assertEqual(result[tag + 'Status'], 'not_matched')
-            self.assertTrue(result['Cmd' + other + 'ObservationPassed'])
+        scenarios = [(case, {'stderr': b'error\r\n'}) for case in OBSERVATIONS]
+        scenarios += [(observation_case('cmd-relative-batch-exit23'), {'stdout': value})
+                      for value in (b'\0', b'x', b'\xef\xbb\xbf', b'\n', b'\r', b'\r\n', b'exit 23\r\n')]
+        self.assertEqual(len(scenarios), 10)
+        for case, change in scenarios:
+            with self.subTest(kind=case['kind'], change=change):
+                context, members = completed_fixture()
+                raw_output(members, case['kind'], **change)
+                result = self.evaluate(context, members)
+                self.assertEqual(result[case['status_key']], 'not_matched')
+                self.assertTrue(result['RunCompletionValidated'])
+                for other in OBSERVATIONS:
+                    self.assertEqual(result[other['accepted_field']], other != case)
 
     def test_trusted_identity_and_provenance_fields_fail_closed(self):
         changes = dict(repository='other/repo', workflow_path='other.yml', artifact_name='other',
@@ -187,7 +235,11 @@ class ArtifactAcceptanceTests(unittest.TestCase):
         paths = ('source.txt', 'foundation/control-receipt.txt', 'selected-parent-preflight.json',
                  'pilot/pilot-result.json', 'pilot/matrix-01.json', 'pilot/matrix-10.json',
                  'pilot/cmd-cwd/case.json', 'pilot/cmd-cwd/stdout.txt', 'pilot/cmd-read-direct/generated-direct.cmd.bin',
-                 'pilot/preconditions-' + RUN_NONCE + '.json', 'pilot/completed-' + RUN_NONCE + '.txt')
+                 'pilot/preconditions-' + RUN_NONCE + '.json', 'pilot/completed-' + RUN_NONCE + '.txt',
+                 'pilot/matrix-11.json', 'pilot/cmd-relative-batch-exit23/case.json',
+                 'pilot/cmd-relative-batch-exit23/stdout.txt', 'pilot/cmd-relative-batch-exit23/stderr.txt',
+                 'pilot/cmd-relative-batch-exit23/generated-direct.cmd.bin')
+        self.assertEqual(len(paths), 16)
         for path in paths:
             for mode in ('missing', 'truncated'):
                 with self.subTest(path=path, mode=mode):
@@ -195,7 +247,7 @@ class ArtifactAcceptanceTests(unittest.TestCase):
                     if mode == 'missing':
                         members.pop(path)
                     else:
-                        members[path] = members[path][:len(members[path]) // 2]
+                        members[path] = members[path][:len(members[path]) // 2] if members[path] else b'\0'
                     self.assert_rejected(self.evaluate(context, members))
 
     def test_strict_json_types_duplicates_nonfinite_and_acceptance_leaks(self):
@@ -205,7 +257,7 @@ class ArtifactAcceptanceTests(unittest.TestCase):
                 context, members = completed_fixture()
                 members[path] = payload
                 self.assert_rejected(self.evaluate(context, members), 'parse')
-        for name in ('CmdCwdObservationPassed', 'CmdReadObservationPassed', 'NestedObservationPassed'):
+        for name in ('CmdCwdObservationPassed', 'CmdReadObservationPassed', 'NestedObservationPassed', 'CmdRelativeBatchObservationPassed'):
             context, members = completed_fixture()
             mutate_json(members, path, lambda row: row.update({name: True}))
             self.assert_rejected(self.evaluate(context, members), 'producer_acceptance_leak')
@@ -284,65 +336,26 @@ class ArtifactAcceptanceTests(unittest.TestCase):
                    ('duplicate_requested_level', 2), ('stdout_handle_flags', 0), ('stdout_desired_access', 0x80000000),
                    ('pilot_cmd_stdout_source_close_confirmed', 0), ('pilot_cmd_stdout_evidence_bytes', 1),
                    ('pilot_cmd_observation_raw_complete', 0), ('delete_profile_hresult', 5)]
-        for area, entries in [(None, changes), ('Launcher', launcher), ('Numbers', numbers)]:
-            for key, value in entries:
-                with self.subTest(area=area, key=key):
-                    context, members = completed_fixture()
-                    def mutation(row):
-                        target = row if area is None else row['Launcher'] if area == 'Launcher' else row['Launcher']['Numbers']
-                        target[key] = value
-                    mutate_case(members, 'cmd-cwd', mutation)
-                    result = self.evaluate(context, members)
-                    self.assertFalse(result['CmdCwdObservationPassed'])
+        for kind in ('cmd-cwd', 'cmd-relative-batch-exit23'):
+            for area, entries in [(None, changes), ('Launcher', launcher), ('Numbers', numbers)]:
+                for key, value in entries:
+                    with self.subTest(kind=kind, area=area, key=key):
+                        context, members = completed_fixture()
+                        def mutation(row):
+                            target = row if area is None else row['Launcher'] if area == 'Launcher' else row['Launcher']['Numbers']
+                            target[key] = value
+                        mutate_case(members, kind, mutation)
+                        result = self.evaluate(context, members)
+                        self.assertFalse(result[observation_case(kind)['accepted_field']])
 
     def test_noallocation_cannot_rewrite_allocated_evidence(self):
-        for kind in ('ordinary', 'reference', 'cmd-cwd', 'cmd-read-direct', 'node'):
+        for kind in ('ordinary', 'reference', 'cmd-cwd', 'cmd-read-direct', 'node', 'cmd-relative-batch-exit23'):
             context, members = completed_fixture()
             mutate_case(members, kind, lambda row: row.update(NoCaseResourcesAllocated=True))
             self.assert_rejected(self.evaluate(context, members))
 
     def test_late_failures_keep_raw_and_old_results_without_acceptance(self):
-        categories = ('case_profile_delete_false case_profile_delete_throw case_root_remove_false case_root_remove_throw '
-                      'case_bind_serialize case_bind_create case_bind_write case_bind_flush case_bind_close '
-                      'case_verify_pending case_binding_content case_binding_identity case_binding_read case_binding_close case_rename '
-                      'case_receipt_serialize case_receipt_create case_receipt_write case_receipt_flush case_receipt_close_false case_receipt_close_throw '
-                      'matrix_serialize matrix_create matrix_write matrix_flush matrix_close_false matrix_close_throw '
-                      'run_root_false run_root_throw final_guard final_identity_scan selected_pin_close_false selected_pin_close_throw selected_pin_uncertain '
-                      'final_result_serialize final_result_create final_result_write final_result_flush final_result_close_false final_result_close_throw '
-                      'run_bind_serialize run_bind_create run_bind_write run_bind_flush run_bind_close '
-                      'run_verify_pending run_binding_content run_binding_identity run_binding_read run_binding_close run_resolve_rename').split()
-        for category in categories:
-            with self.subTest(category=category):
-                context, members = completed_fixture()
-                preconditions = 'pilot/preconditions-' + RUN_NONCE + '.json'
-                bound = members[preconditions]
-                baseline = late_failure(members, category)
-                self.assertIn('pilot/cleanup-uncertain.txt', members)
-                self.assertNotIn('pilot/completed-' + RUN_NONCE + '.txt', members)
-                if category in ('run_verify_pending', 'run_bind_close', 'run_bind_flush'):
-                    self.assertEqual(members[preconditions], bound)
-                elif category == 'run_bind_write':
-                    self.assertEqual(members[preconditions], b'{"Policy":')
-                elif category in ('run_bind_serialize', 'run_bind_create'):
-                    self.assertNotIn(preconditions, members)
-                result = self.evaluate(context, members)
-                self.assert_rejected(result)
-                failure = decode(members['pilot/pilot-failure.json'])
-                if category == 'run_bind_close':
-                    self.assertEqual(failure['Broker']['Numbers']['evidence_journal_preconditions_' + RUN_NONCE + '_close_confirmed'], 0)
-                self.assertEqual({key: failure[key] for key in OLD_POSITIVES}, baseline)
-                self.assertTrue(failure['CmdCwdRawObservationMatched'])
-                self.assertTrue(failure['CmdReadRawObservationMatched'])
-                self.assertFalse(result['RunCompletionValidated'])
-                if not category.startswith('matrix_'):
-                    self.assertTrue(result['CmdCwdRawObservationMatched'])
-                    self.assertTrue(result['CmdReadRawObservationMatched'])
-        for category in ('case_root_remove_false', 'case_receipt_close_false', 'selected_pin_close_throw', 'run_binding_close'):
-            context, members = completed_fixture()
-            late_failure(members, category, contradiction=True)
-            result = self.evaluate(context, members)
-            self.assert_rejected(result, 'commit')
-            self.assertEqual(result['CwdStatus'], 'inconsistent')
+        assert_late_failures_keep_raw_and_old_results(self)
 
 
     def test_size_depth_array_and_member_bounds(self):
@@ -382,19 +395,30 @@ class ArtifactAcceptanceTests(unittest.TestCase):
             self.assertEqual(self.evaluate(context, members)['CwdStatus'], 'not_matched')
 
     def test_clean_nonzero_exit_and_timeout_remain_independent(self):
-        for wait, exit_code in ((0, 1), (0, 23), (258, 0xffffffff)):
-            context, members = completed_fixture()
-            def change(row):
-                row['Launcher'].update(Wait=wait, Exit=exit_code)
-                if wait == 258:
-                    row['Launcher']['Numbers'].pop('pilot_exit_query_success')
-                row.update(CmdCwdObserved=False, ExitHex=format(exit_code, '08X'),
-                           Status='deadline_exceeded' if wait == 258 else 'cmd_cwd_raw_not_observed')
-            mutate_case(members, 'cmd-cwd', change)
-            mutate_run(members, lambda run: run.update(CmdCwdRawObservationMatched=False))
-            result = self.evaluate(context, members)
-            self.assertEqual(result['CwdStatus'], 'not_matched')
-            self.assertTrue(result['CmdReadObservationPassed'])
+        scenarios = [('cmd-cwd', wait, code) for wait, code in ((0, 1), (0, 23), (258, 0xffffffff))]
+        scenarios += [('cmd-relative-batch-exit23', wait, code) for wait, code in ((0, 0), (0, 1), (258, 0xffffffff), (258, 23))]
+        self.assertEqual(len(scenarios), 7)
+        for kind, wait, exit_code in scenarios:
+            with self.subTest(kind=kind, wait=wait, exit_code=exit_code):
+                case = observation_case(kind)
+                context, members = completed_fixture()
+                def change(row):
+                    row['Launcher'].update(Wait=wait, Exit=exit_code)
+                    if wait == 258:
+                        row['Launcher']['Numbers'].pop('pilot_exit_query_success')
+                    row.update({case['row_flag']: False, 'ExitHex': format(exit_code, '08X'),
+                                'Status': 'deadline_exceeded' if wait == 258 else case['unmatched_status']})
+                mutate_case(members, kind, change)
+                mutate_run(members, lambda run: run.update({case['run_flag']: False}))
+                result = self.evaluate(context, members)
+                if wait == 258 and exit_code == 23:
+                    self.assert_rejected(result, 'stage')
+                    self.assertEqual(result['RelativeBatchStatus'], 'inconsistent')
+                else:
+                    self.assertEqual(result[case['status_key']], 'not_matched')
+                    self.assertTrue(result['RunCompletionValidated'])
+                    for other in OBSERVATIONS:
+                        self.assertEqual(result[other['accepted_field']], other != case)
 
     def test_old_aggregates_cannot_claim_unsupported_success(self):
         for key in OLD_POSITIVES[2:]:
@@ -408,23 +432,26 @@ class ArtifactAcceptanceTests(unittest.TestCase):
                   'pilot_cmd_observation_stage': 'before_resume', 'pilot_original_cmd_sha256': '0' * 64,
                   'pilot_cmd_stdout_source': '9' * 4301 + ':0:1', 'pilot_cmd_stdout_evidence': '1:0:0',
                   'pilot_cmd_batch_stage': 'after_create', 'pilot_cmd_batch_source_sha256': '0' * 64,
-                  'pilot_cmd_batch_readback_path': 'C:\\wrong', 'pilot_cmd_batch_destination': '1:0:0'}
-        for key, value in values.items():
-            context, members = completed_fixture()
-            mutate_case(members, 'cmd-read-direct', lambda row: put(row['Launcher']['Identities'], key, value))
-            self.assertFalse(self.evaluate(context, members)['CmdReadObservationPassed'])
-        for key in ('pilot_cmd_stdout_source_read_confirmed', 'pilot_exit_query_success',
-                    'source_type_returned_bytes', 'accesscheck_mixed_ace_0_mask', 'pilot_cmd_batch_destination_write_confirmed'):
-            context, members = completed_fixture()
-            mutate_case(members, 'cmd-read-direct', lambda row: row['Launcher']['Numbers'].pop(key))
-            self.assertFalse(self.evaluate(context, members)['CmdReadObservationPassed'])
+                  'pilot_cmd_batch_readback_path': 'C:\\wrong', 'pilot_cmd_batch_destination': '1:0:0',
+                  'pilot_cmd_batch_source_path': 'C:\\wrong'}
+        self.assertEqual(len(values), 13)
+        for kind in ('cmd-read-direct', 'cmd-relative-batch-exit23'):
+            for key, value in values.items():
+                context, members = completed_fixture()
+                mutate_case(members, kind, lambda row: put(row['Launcher']['Identities'], key, value))
+                self.assertFalse(self.evaluate(context, members)[observation_case(kind)['accepted_field']])
+            for key in ('pilot_cmd_stdout_source_read_confirmed', 'pilot_exit_query_success',
+                        'source_type_returned_bytes', 'accesscheck_mixed_ace_0_mask', 'pilot_cmd_batch_destination_write_confirmed'):
+                context, members = completed_fixture()
+                mutate_case(members, kind, lambda row: row['Launcher']['Numbers'].pop(key))
+                self.assertFalse(self.evaluate(context, members)[observation_case(kind)['accepted_field']])
 
     def test_each_missing_matrix_position_blocks_acceptance(self):
-        for count in range(1, 11):
+        for count in range(1, 12):
             context, members = completed_fixture()
             original = decode(members['pilot/pilot-result.json'])
-            late_failure(members, 'matrix_write')
-            for index in range(count, 11):
+            late_failure(members, 'matrix_write', matrix_position=11)
+            for index in range(count, 12):
                 members.pop('pilot/matrix-' + str(index).zfill(2) + '.json', None)
             result = self.evaluate(context, members)
             self.assert_rejected(result)
@@ -432,21 +459,23 @@ class ArtifactAcceptanceTests(unittest.TestCase):
             self.assertEqual([failure[k] for k in OLD_POSITIVES], [original[k] for k in OLD_POSITIVES])
 
     def test_opaque_legacy_claims_cannot_supply_acceptance(self):
-        context, members = completed_fixture()
-        rows = decode(members['runtime/runtime-matrix.json'])
-        rows[0].update(CmdCwdObservationPassed=True, CmdReadObservationPassed=True)
-        members['runtime/runtime-matrix.json'] = encode(rows)
-        self.assertTrue(self.evaluate(context, members)['CmdCwdObservationPassed'])
-        members.pop('pilot/cmd-cwd/case.json')
-        self.assert_rejected(self.evaluate(context, members))
+        for kind in ('cmd-cwd', 'cmd-relative-batch-exit23'):
+            context, members = completed_fixture()
+            rows = decode(members['runtime/runtime-matrix.json'])
+            rows[0].update(CmdCwdObservationPassed=True, CmdReadObservationPassed=True, CmdRelativeBatchObservationPassed=True)
+            members['runtime/runtime-matrix.json'] = encode(rows)
+            self.assertTrue(self.evaluate(context, members)[observation_case(kind)['accepted_field']])
+            members.pop('pilot/' + kind + '/case.json')
+            self.assert_rejected(self.evaluate(context, members))
 
     def test_source_descriptor_and_selected_pin_integrity(self):
-        for field, value in [('accesscheck_mixed_ace_1_mask', 2), ('accesscheck_mixed_mapping_all', 1),
-                             ('accesscheck_mixed_memory_0_free_completed', 0), ('duplicate_appcontainer_sid_sid_offset', 0),
-                             ('source_type_required_bytes', True), ('accesscheck_world_unknown', 0)]:
-            context, members = completed_fixture()
-            mutate_case(members, 'cmd-cwd', lambda row: put(row['Launcher']['Numbers'], field, value))
-            self.assertFalse(self.evaluate(context, members)['CmdCwdObservationPassed'])
+        for kind in ('cmd-cwd', 'cmd-relative-batch-exit23'):
+            for field, value in [('accesscheck_mixed_ace_1_mask', 2), ('accesscheck_mixed_mapping_all', 1),
+                                 ('accesscheck_mixed_memory_0_free_completed', 0), ('duplicate_appcontainer_sid_sid_offset', 0),
+                                 ('source_type_required_bytes', True), ('accesscheck_world_unknown', 0)]:
+                context, members = completed_fixture()
+                mutate_case(members, kind, lambda row: put(row['Launcher']['Numbers'], field, value))
+                self.assertFalse(self.evaluate(context, members)[observation_case(kind)['accepted_field']])
         for field, value in [('selected_pin_0_close_confirmed', 0), ('selected_pin_3_handle_flags', 1),
                              ('selected_parent_broker_owner_token_close_confirmed', 0), ('selected_parent_ace_0_native_type', 99)]:
             context, members = completed_fixture()

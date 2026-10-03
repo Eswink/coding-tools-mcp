@@ -17,8 +17,22 @@ OLD = runpy.run_path(str(HERE / 'cmd-sentinel-audit.py'))
 OLD_NAMES = OLD['OLD_NAMES'] | set(OLD['NAMES'])
 NAMES = ('PilotCmdObservations.cs', 'PilotCmdObservationsTests.cs')
 PYTHON = ('cmd_observation_artifact.py', 'cmd_observation_contracts.py',
-          'cmd_observation_fixtures.py', 'cmd_observation_artifact_tests.py', 'cmd_observation_failure_fixtures.py')
-PINS = {'PilotCmdObservations.cs': '1611c700bf080e8c69ccc1af8bf8e7a5edaad2862a7810c1ab50926bb4df3822', 'PilotCmdObservationsTests.cs': 'c7a1847f6db94aa257452e0aa8a28b14b5850912ef3ba5fb76aad86de51adea5'}
+          'cmd_observation_fixtures.py', 'cmd_observation_artifact_tests.py', 'cmd_observation_failure_fixtures.py',
+          'cmd_observation_cases.py', 'cmd_observation_late_failure_tests.py')
+PYTHON_CAPS = dict(zip(PYTHON, (500, 490, 500, 500, 200, 80, 140)))
+DESCRIPTOR_FIELDS = ('kind', 'slot', 'tag', 'row_flag', 'run_flag', 'accepted_field', 'status_key',
+                     'raw_protocol', 'command_tail', 'output_policy', 'expected_exit', 'matched_status', 'unmatched_status', 'canary')
+DESCRIPTOR_ROWS = (
+    ('cmd-cwd', 8, 'Cwd', 'CmdCwdObserved', 'CmdCwdRawObservationMatched', 'CmdCwdObservationPassed', 'CwdStatus',
+     'cmd-cwd-read-raw-v1', ' /d /q /c cd', 'cwd_ascii_crlf', 0, 'cmd_cwd_raw_observed', 'cmd_cwd_raw_not_observed',
+     'cwd_observation_did_not_attempt_runtime_canary'),
+    ('cmd-read-direct', 9, 'Read', 'CmdReadObserved', 'CmdReadRawObservationMatched', 'CmdReadObservationPassed', 'ReadStatus',
+     'cmd-cwd-read-raw-v1', ' /d /q /c type direct.cmd', 'minimal_batch_bytes', 0, 'cmd_read_direct_raw_observed',
+     'cmd_read_direct_raw_not_observed', 'read_observation_did_not_attempt_runtime_canary'),
+    ('cmd-relative-batch-exit23', 10, 'RelativeBatch', 'CmdRelativeBatchExit23Observed', 'CmdRelativeBatchRawObservationMatched',
+     'CmdRelativeBatchObservationPassed', 'RelativeBatchStatus', 'cmd-relative-batch-raw-v1', ' /d /q /c .\\direct.cmd', 'empty', 23,
+     'cmd_relative_batch_exit23_raw_observed', 'cmd_relative_batch_exit23_raw_not_observed', 'relative_batch_observation_did_not_attempt_runtime_canary'))
+PINS = {'PilotCmdObservations.cs': '158b4b24446b0be8e9aa4a54964b410919d67487159912b762b05835526234c3', 'PilotCmdObservationsTests.cs': 'f5256de6a0de8edb70f1e235ff48ec0960d51392978e0381981d2884bb169b5a'}
 SPANS = (
     ('PilotSubjects.cs', '            IntPtr candidateSid=IntPtr.Zero;int hr;\n', 8935, 'd7063c0d7f2e76b52976e9d9fba899283a30830cb341a0720ee1b976cd6c88df'),
     ('PilotRunner.cs', '    static void ClassifyPilotCase(PilotCaseReceipt row,string evidence) {\n', 1156, '21d8e6982d3316622c1e9178285fa8b2c34b59ac6ad9cfc46acd2f83f7197860'),
@@ -32,7 +46,22 @@ SPANS = (
 HELPERS = {'PilotCmdObservationKind', 'FixedPilotCmdCwdCommand', 'FixedPilotCmdReadCommand',
            'CapturePilotCmdReadBatchUsing', 'CapturePilotCmdReadBatch', 'PilotCmdObservationExpectedBytes',
            'ReadPilotCmdObservationUsing', 'ReadPilotCmdObservation', 'PilotCmdObservationEvidenceVerified',
-           'ClassifyPilotCmdObservation', 'PilotCmdCwdRawMatched', 'PilotCmdReadRawMatched'}
+           'ClassifyPilotCmdObservation', 'PilotCmdCwdRawMatched', 'PilotCmdReadRawMatched',
+           'FixedPilotCmdRelativeBatchCommand', 'FixedPilotCmdObservationCommand', 'PilotCmdObservationProtocol',
+           'CapturePilotCmdRelativeBatchUsing', 'CapturePilotCmdRelativeBatch', 'PilotCmdRelativeBatchRawMatched'}
+RELATIVE_MUTATIONS = (
+    ('FixedPilotCmdRelativeBatchCommand', ' /d /q /c .\\\\direct.cmd"', ' /d /q /c direct.cmd"'),
+    ('FixedPilotCmdRelativeBatchCommand', ' /d /q /c .\\\\direct.cmd"', ' /d /q /s /c .\\\\direct.cmd"'),
+    ('PilotCmdObservationProtocol', '"cmd-relative-batch-raw-v1"', '"cmd-cwd-read-raw-v1"'),
+    ('PilotCmdObservationExpectedBytes', 'if(kind=="cmd-relative-batch-exit23") return new byte[0];', 'if(kind=="cmd-relative-batch-exit23") return PilotCmdMinimalBatchBytes();'),
+    ('PilotCmdObservationEvidenceVerified', 'uint expectedExit=row.Case=="cmd-relative-batch-exit23"?23u:0u;', 'uint expectedExit=row.Case=="cmd-relative-batch-exit23"?0u:0u;'),
+    ('CapturePilotCmdRelativeBatchUsing', '"pilot_case_id","cmd-relative-batch-exit23"', '"pilot_case_id","cmd-read-direct"'),
+    ('CapturePilotCmdRelativeBatchUsing', 'CapturePilotCmdBatchCore(s,evidence,ops,true);', 'CapturePilotCmdBatchCore(s,evidence,ops,false);'),
+    ('ClassifyPilotCmdObservation', 'row.CmdRelativeBatchExit23Observed=false;', ''),
+    ('ClassifyPilotCmdObservation', 'row.CmdRelativeBatchExit23Observed=!cwd && !read && matched;', 'row.CmdReadObserved=!cwd && !read && matched;'),
+    ('PilotCmdRelativeBatchRawMatched', 'PilotCaseReceipt row=rows[10];', 'PilotCaseReceipt row=rows[9];'),
+    ('PilotCmdRelativeBatchRawMatched', 'rows.Count!=11', 'rows.Count<11 || rows.Count>12'),
+    ('PilotCmdRelativeBatchRawMatched', 'return row!=null', 'return row!=null && !row.Fatal'))
 
 
 def coverage(names):
@@ -52,9 +81,10 @@ def immutable(sources):
 def pure_python(files):
     assert set(files) == set(PYTHON)
     allowed = {'hashlib', 're', 'copy', 'json', 'unittest', 'cmd_observation_contracts',
-               'cmd_observation_artifact', 'cmd_observation_fixtures', 'cmd_observation_failure_fixtures'}
+               'cmd_observation_artifact', 'cmd_observation_fixtures', 'cmd_observation_failure_fixtures',
+               'cmd_observation_cases', 'cmd_observation_late_failure_tests'}
     for name, source in files.items():
-        assert len(source.splitlines()) <= (140 if name == 'cmd_observation_failure_fixtures.py' else 480), name
+        assert len(source.splitlines()) <= PYTHON_CAPS[name], name
         tree = ast.parse(source)
         for node in ast.walk(tree):
             if isinstance(node, (ast.Import, ast.ImportFrom)):
@@ -66,6 +96,22 @@ def pure_python(files):
                 assert not node.attr.startswith('__') or (node.attr == '__init__' and isinstance(node.value, ast.Call)
                     and isinstance(node.value.func, ast.Name) and node.value.func.id == 'super'), name
                 assert node.attr not in ('skip', 'skipIf', 'skipUnless', 'SkipTest'), 'required synthetic tests cannot be skipped'
+    descriptor = ast.parse(files['cmd_observation_cases.py'])
+    assert not any(isinstance(node, (ast.Import, ast.ImportFrom)) for node in ast.walk(descriptor))
+    assert [node.name for node in descriptor.body if isinstance(node, (ast.ClassDef, ast.FunctionDef))] == [
+        'ArtifactError', 'observation_case', 'observation_expected_bytes']
+    assignments = [node for node in descriptor.body if isinstance(node, ast.Assign)]
+    assert len(assignments) == 1 and [ast.dump(target) for target in assignments[0].targets] == ["Name(id='OBSERVATIONS', ctx=Store())"]
+    rows = assignments[0].value
+    assert isinstance(rows, ast.Tuple) and len(rows.elts) == 3
+    for row, expected in zip(rows.elts, DESCRIPTOR_ROWS):
+        assert isinstance(row, ast.Call) and isinstance(row.func, ast.Name) and row.func.id == 'dict' and not row.args
+        assert tuple(item.arg for item in row.keywords) == DESCRIPTOR_FIELDS
+        assert all(isinstance(item.value, ast.Constant) and type(item.value.value) is type(value) and item.value.value == value
+                   for item, value in zip(row.keywords, expected)), 'independent literal descriptor mismatch'
+    support = ast.parse(files['cmd_observation_late_failure_tests.py'])
+    assert [node.name for node in support.body if isinstance(node, (ast.ClassDef, ast.FunctionDef))] == [
+        'assert_late_failures_keep_raw_and_old_results']
 
 
 def inspect(new, old, python, workflow, pins=True):
@@ -98,10 +144,12 @@ def inspect(new, old, python, workflow, pins=True):
                       'Impersonate', 'SetThreadToken(', 'SetTokenInformation(', 'OwnedAcl(', 'Registry.',
                       'File.', 'Directory.', 'System.Linq', 'HashSet<', '.TryAdd('):
             assert token not in plain, (name, token)
-        assert len(source.splitlines()) <= (350 if name == NAMES[0] else 480)
+        assert len(source.splitlines()) <= (400 if name == NAMES[0] else 500)
     helper, tests = new[NAMES[0]], new[NAMES[1]]
     assert methods(helper) == HELPERS
-    for token in ('PilotCmdNativeCaptureOperations(', 'ReadPilotCmdObservation(', 'CapturePilotCmdReadBatch(',
+    for method, before, _ in RELATIVE_MUTATIONS:
+        assert before in re.search(r'    static [^\n]+ ' + method + r'\([^\n]+\{[\s\S]*?(?=\n    static |\n\})', helper).group(), method
+    for token in ('PilotCmdNativeCaptureOperations(', 'ReadPilotCmdObservation(', 'CapturePilotCmdReadBatch(', 'CapturePilotCmdRelativeBatch(',
                   'PilotOpenHandle(', 'OpenPrivate('):
         assert token not in tests, token
     for token in (' /d /q /c cd"', ' /d /q /c type direct.cmd"', 'CapturePilotCmdBatchCore(s,evidence,ops,true);',
@@ -119,31 +167,34 @@ def inspect(new, old, python, workflow, pins=True):
                   '!PilotNumber(r,"pilot_cmd_observation_expected_supported",1)', '!PilotPinnedMethodDiagnostics(r)',
                   '!PilotKnownAccessCheckKey(key)', '!PilotTokenSid(r,"appcontainer_sid",r.ProfileSid',
                   'PilotDescriptorDecision(r,"mixed",1,2', 'PilotDescriptorDecision(r,"aap",0,0',
-                  'r.TokenVerified || r.Wait!=WAIT_OBJECT_0 || r.Exit!=0',
+                  'r.TokenVerified || r.Wait!=WAIT_OBJECT_0 || r.Exit!=expectedExit',
                   'row.CmdCwdObserved=false;row.CmdReadObserved=false;', 'cmd_cwd_expected_encoding_unsupported',
                   'PilotCaseReceipt row=rows[8];', 'PilotCaseReceipt row=rows[9];',
                   'RunPilotCmdObservationContractTests()'):
         assert token in (tests if token == 'RunPilotCmdObservationContractTests()' else helper), token
     for field in ('PositivePassed', 'OfflineReferenceRouteValid', 'NativeFiveAssertionsPassed', 'NetworkDenialProven'):
         assert 'row.' + field + '=true' not in helper
-    for method in ('PilotCmdCwdRawMatched', 'PilotCmdReadRawMatched'):
-        body = helper[helper.index('    static bool ' + method + '('):]
-        if method == 'PilotCmdCwdRawMatched':
-            body = body[:body.index('    static bool PilotCmdReadRawMatched')]
+    for method in ('PilotCmdCwdRawMatched', 'PilotCmdReadRawMatched', 'PilotCmdRelativeBatchRawMatched'):
+        body = re.search(r'    static bool ' + method + r'\([^\n]+\{[\s\S]*?(?=\n    static |\n\})', helper).group()
         assert 'row.Fatal' not in body and 'PilotMayAdvance' not in body and 'ScopedLifecycleCleanupConfirmed' not in body
     runner, subjects, facts = old['PilotRunner.cs'], old['PilotSubjects.cs'], old['PilotClassification.cs']
-    sequence = '"ordinary","reference","node","cmd","powershell","pwsh","cmd-exit23","cmd-batch-exit23","cmd-cwd","cmd-read-direct"'
+    sequence = '"ordinary","reference","node","cmd","powershell","pwsh","cmd-exit23","cmd-batch-exit23","cmd-cwd","cmd-read-direct","cmd-relative-batch-exit23"'
     assert runner.count(sequence) == 2
-    for field, reducer in [('CmdCwdRawObservationMatched', 'PilotCmdCwdRawMatched'), ('CmdReadRawObservationMatched', 'PilotCmdReadRawMatched')]:
+    for field, reducer in [('CmdCwdRawObservationMatched', 'PilotCmdCwdRawMatched'), ('CmdReadRawObservationMatched', 'PilotCmdReadRawMatched'),
+                           ('CmdRelativeBatchRawObservationMatched', 'PilotCmdRelativeBatchRawMatched')]:
         assert runner.count('result.' + field + '=' + reducer + '(result.Cases);') == 2
     assert 'if(PilotCmdObservationKind(kind)) ReadPilotCmdObservation(s,evidence);' in runner
     assert runner.index('if(PilotCmdObservationKind(kind)) ReadPilotCmdObservation(s,evidence);') > runner.index('if(!captured) throw')
-    assert 'CapturePilotCmdReadBatch(s,evidence);' in subjects
-    assert subjects.index('CapturePilotCmdReadBatch(s,evidence);') < subjects.index('CreateAppContainerProfile(')
+    for token in ('CapturePilotCmdReadBatch(s,evidence);', 'CapturePilotCmdRelativeBatch(s,evidence);'):
+        assert subjects.index(token) < subjects.index('CreateAppContainerProfile(')
     assert facts.index('row.CmdCwdObserved=false;row.CmdReadObserved=false;') < facts.index('if(row.Fatal) return;')
+    assert facts.index('row.CmdRelativeBatchExit23Observed=false;') < facts.index('if(row.Fatal) return;')
     assert facts.index('ClassifyPilotCmdBatch(row);return;') < facts.index('ClassifyPilotCmdObservation(row);return;')
-    assert 'CmdCwdObservationPassed' not in runner + helper + subjects
-    assert 'CmdReadObservationPassed' not in runner + helper + subjects
+    for field in ('CmdCwdObservationPassed', 'CmdReadObservationPassed', 'CmdRelativeBatchObservationPassed'):
+        assert field not in runner + helper + subjects
+    assert 'assert_late_failures_keep_raw_and_old_results(self)' in python['cmd_observation_artifact_tests.py']
+    assert "'cmd-cwd-read-relative-batch-acceptance-v1'" in python['cmd_observation_artifact.py']
+    assert 'public int AdditiveRelativeBatchRequiredCaseCount=1;' in runner
     assert workflow.count('python tests/windows-broker-direct/cmd-observations-audit.py') == 1
     assert workflow.count('[BrokerDirectLauncher]::RunPilotCmdObservationContractTests()') == 1
     assert workflow.count('& tests/windows-broker-direct/run-pilot.ps1') == 1
@@ -201,6 +252,7 @@ class CmdObservationSourceAudit(unittest.TestCase):
                 pure_python(changed)
 
     def test_semantic_mutations_without_pins(self):
+        inspect(self.new, self.old, self.python, self.workflow, False)
         mutations = [(' /d /q /c cd"', ' /d /q /c pwd"'), (' /d /q /c type direct.cmd"', ' /d /q /c direct.cmd"'),
                      ('!s.OwnershipCertain || !s.ProfileCreated || !s.ProcessStopped || !s.JobDrained', 'false'),
                      ('full!=exactWorkspace', 'false'), ('Path.GetFullPath(exactWorkspace)!=exactWorkspace', 'false'),
@@ -210,17 +262,28 @@ class CmdObservationSourceAudit(unittest.TestCase):
                      ('r.Identities.ContainsKey(label+"_close_exception")', 'false'),
                      ('!PilotNumber(r,"pilot_cmd_observation_expected_supported",1)', 'false'),
                      ('!PilotPinnedMethodDiagnostics(r)', 'false'), ('!PilotKnownAccessCheckKey(key)', 'false'),
-                     ('r.TokenVerified || r.Wait!=WAIT_OBJECT_0 || r.Exit!=0', 'false'),
+                     ('r.TokenVerified || r.Wait!=WAIT_OBJECT_0 || r.Exit!=expectedExit', 'false'),
                      ('PilotCaseReceipt row=rows[8];', 'PilotCaseReceipt row=rows[9];'),
                      ('PilotCaseReceipt row=rows[9];', 'PilotCaseReceipt row=rows[8];'),
                      ('row.CmdCwdObserved=false;row.CmdReadObserved=false;', ''),
                      ('CapturePilotCmdBatchCore(s,evidence,ops,true);', 'CapturePilotCmdBatchCore(s,evidence,ops,false);')]
-        for before, after in mutations:
+        self.assertEqual((len(mutations), len(RELATIVE_MUTATIONS), len(DESCRIPTOR_FIELDS)), (18, 12, 14))
+        for method, before, after in [(None, *parts) for parts in mutations] + list(RELATIVE_MUTATIONS):
             changed = dict(self.new)
-            self.assertIn(before, changed[NAMES[0]])
-            changed[NAMES[0]] = changed[NAMES[0]].replace(before, after)
+            source = changed[NAMES[0]]
+            body = re.search(r'    static [^\n]+ ' + method + r'\([^\n]+\{[\s\S]*?(?=\n    static |\n\})', source).group() if method else source
+            self.assertIn(before, body)
+            changed[NAMES[0]] = source.replace(body, body.replace(before, after))
             with self.subTest(mutation=before), self.assertRaises(AssertionError):
                 inspect(changed, self.old, self.python, self.workflow, False)
+        for position, field in enumerate(DESCRIPTOR_FIELDS):
+            changed = dict(self.python)
+            tree = ast.parse(changed['cmd_observation_cases.py'])
+            cell = next(node for node in tree.body if isinstance(node, ast.Assign)).value.elts[2].keywords[position].value
+            cell.value = cell.value + 1 if type(cell.value) is int else cell.value + '_changed'
+            changed['cmd_observation_cases.py'] = ast.unparse(tree)
+            with self.subTest(descriptor_cell=field), self.assertRaises(AssertionError):
+                inspect(self.new, self.old, changed, self.workflow, False)
 
 
 def load_tests(loader, tests, pattern):

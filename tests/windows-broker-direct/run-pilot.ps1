@@ -104,6 +104,7 @@ try {
     if(-not $result.CmdBatchObservationPassed) {throw 'required minimal cmd batch observation failed; prior verdicts remain independent'}
     if(-not $result.CmdCwdRawObservationMatched) {throw 'required cmd cwd raw observation did not match; committed artifact acceptance is separate'}
     if(-not $result.CmdReadRawObservationMatched) {throw 'required cmd read raw observation did not match; committed artifact acceptance is separate'}
+    if(-not $result.CmdRelativeBatchRawObservationMatched) {throw 'required relative cmd batch raw observation did not match; committed artifact acceptance is separate'}
 } finally {
     $listener.Stop()
     # Never delete profiles, roots or recovery journals in a PowerShell finally block.

@@ -2,8 +2,10 @@
 import hashlib
 import re
 
+from cmd_observation_cases import ArtifactError, OBSERVATIONS, observation_case, observation_expected_bytes
+
 CASES = ('ordinary', 'reference', 'node', 'cmd', 'powershell', 'pwsh',
-         'cmd-exit23', 'cmd-batch-exit23', 'cmd-cwd', 'cmd-read-direct')
+         'cmd-exit23', 'cmd-batch-exit23', 'cmd-cwd', 'cmd-read-direct', 'cmd-relative-batch-exit23')
 POLICY = 'accesscheck_signature_v1_ci'
 RAW_PROTOCOL = 'cmd-cwd-read-raw-v1'
 MINIMAL = b'exit 23\r\n'
@@ -18,18 +20,12 @@ CASE_BOOLS = ('Fatal NoCaseResourcesAllocated AuthorityObserved OrdinarySignatur
               'CleanupPreconditionsConfirmed CaseMarkerResolved ScopedLifecycleCleanupConfirmed OutsideUnchanged '
               'OutsideWriteAbsent OutsideReadObserved OutsideWriteObserved ScriptEntryObserved OutputOk MutationOk '
               'PositivePassed OfflineReferenceRouteValid NativeFiveAssertionsPassed NetworkDenialProven '
-              'CmdExit23Observed CmdBatchExit23Observed CmdCwdObserved CmdReadObserved').split()
+              'CmdExit23Observed CmdBatchExit23Observed CmdCwdObserved CmdReadObserved CmdRelativeBatchExit23Observed').split()
 UNRELATED = ('PositivePassed OfflineReferenceRouteValid NativeFiveAssertionsPassed NetworkDenialProven '
              'ScriptEntryObserved OutputOk MutationOk CmdExit23Observed CmdBatchExit23Observed').split()
 CAPTURES = ('stdout.txt', 'stderr.txt', 'script-entry.txt', 'mutation.txt', 'runtime-canary.txt',
             'outside-read.txt', 'pre-network.txt', 'runtime-checks.txt', 'receipt.txt', 'canary.txt',
             'probe-write.txt', 'copy-source-destination-sha256.txt', 'private-code-sha256.txt', 'environment.txt')
-
-
-class ArtifactError(ValueError):
-    def __init__(self, code, member='', case='', status='inconsistent'):
-        super().__init__(code)
-        self.code, self.member, self.case, self.status = code, member, case, status
 
 
 def require(condition, code='identity', member='', case='', status='inconsistent'):
@@ -87,6 +83,8 @@ def case_schema(row):
         require(type(row[key]) is bool, 'parse')
     direct_schema(row['Launcher'])
     require(row['Case'] in CASES and row['Policy'] == POLICY)
+    for observation in OBSERVATIONS:
+        require(row['Case'] == observation['kind'] or row[observation['row_flag']] is False, 'raw_mismatch')
 
 
 def default_direct():
@@ -293,15 +291,16 @@ def raw_observation(row, members, original_hash):
     case_schema(row)
     case, r = row['Case'], row['Launcher']
     require(case in CASES[8:] and not row['NoCaseResourcesAllocated'])
+    observation = observation_case(case)
     n, i = r['Numbers'], r['Identities']
     cwd = owned_path(i.get('pilot_cmd_observation_cwd'))
     root = cwd.rsplit('\\', 1)[0]
     require(cwd == root + '\\workspace' and re.fullmatch(r'owned-[0-9a-f]{32}', root.rsplit('\\', 1)[-1]))
     exe = root + '\\code\\cmd.exe'
-    command = '"' + exe + '" /d /q /c ' + ('cd' if case == 'cmd-cwd' else 'type direct.cmd')
+    command = '"' + exe + '"' + observation['command_tail']
     require(type(original_hash) is str and SHA.fullmatch(original_hash))
     exact(r, {'Kind': 'cmd', 'Stage': 'target_observation_terminal', 'Executable': exe, 'CommandLine': command, 'ExecutableSha256': original_hash})
-    exact(i, {'pilot_case_id': case, 'pilot_cmd_observation_case': case, 'pilot_cmd_observation_protocol': RAW_PROTOCOL,
+    exact(i, {'pilot_case_id': case, 'pilot_cmd_observation_case': case, 'pilot_cmd_observation_protocol': observation['raw_protocol'],
               'pilot_cmd_observation_command': command, 'pilot_original_cmd_sha256': original_hash,
               'pilot_cmd_observation_stage': 'after_target_stop_and_job_drain'})
     exact(n, {'pilot_cmd_same_binary_verified': 1, 'resume_previous_count': 1,
@@ -339,7 +338,7 @@ def raw_observation(row, members, original_hash):
                                  '_read_confirmed', '_close_confirmed', '_close_error')), (i, ('', '_path', '_sha256'))]:
         allowed = {label + suffix for label in labels for suffix in suffixes}
         require(all(not key.startswith(('pilot_cmd_stdout_', 'pilot_cmd_stderr_')) or key in allowed for key in values))
-    expected = MINIMAL if case == 'cmd-read-direct' else (cwd + '\r\n').encode('ascii') if cwd.isascii() else None
+    expected = observation_expected_bytes(case, cwd)
     exact(n, {'pilot_cmd_observation_expected_supported': int(expected is not None),
               'pilot_cmd_observation_expected_bytes': -1 if expected is None else len(expected),
               'pilot_cmd_observation_stdout_matches': int(expected is not None and stdout == expected),
@@ -348,7 +347,7 @@ def raw_observation(row, members, original_hash):
         require('pilot_cmd_observation_expected_sha256' not in i, 'unsupported_encoding')
     else:
         exact(i, {'pilot_cmd_observation_expected_sha256': digest(expected)}, 'raw_mismatch')
-    if case == 'cmd-read-direct':
+    if case in ('cmd-read-direct', 'cmd-relative-batch-exit23'):
         require(members.get(base + 'generated-direct.cmd.bin') == MINIMAL, 'raw_mismatch')
         exact(i, {'pilot_cmd_batch_stage': 'before_profile_and_process_creation'})
         exact(n, {'pilot_cmd_minimal_payload_verified': 1, 'pilot_cmd_batch_capture_confirmed': 1})
@@ -361,7 +360,7 @@ def raw_observation(row, members, original_hash):
                   'pilot_cmd_batch_destination_sha256': digest(MINIMAL),
                   'pilot_cmd_batch_destination': i['pilot_cmd_batch_readback']})
         require(i['pilot_cmd_batch_source'] != i['pilot_cmd_batch_destination'])
-    return expected is not None and stdout == expected and not stderr and r['Wait'] == 0 and r['Exit'] == 0, expected is None
+    return expected is not None and stdout == expected and not stderr and r['Wait'] == 0 and r['Exit'] == observation['expected_exit'], expected is None
 
 
 def case_provenance(row, members, native, runtime_hashes, inventory):

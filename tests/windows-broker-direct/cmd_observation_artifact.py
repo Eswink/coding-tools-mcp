@@ -10,15 +10,16 @@ import re
 from cmd_observation_contracts import (ArtifactError, CASES, POLICY, SHA, NONCE, require, exact,
     digest, direct_schema, case_schema, no_allocation, writer, without_writer,
     authority_facts, capture_files, raw_observation, owned_path, file_identity, case_provenance, selected_acl)
+from cmd_observation_cases import OBSERVATIONS
 
 BOM_WRAPPERS = {'source.txt', 'fixture-binaries-sha256.txt', 'evidence-sha256.txt',
                 'pilot/preparation-premise.json', 'runtime/runtime-inventory.json', 'runtime/runtime-copy-sha256.txt'}
 RUN_BOOLS = ('OrdinaryControlPassed ReferenceRoutePassed AllFourOfflineCasesPassed AllCaseCleanupConfirmed '
              'RunRootRemoved CmdSentinelObservationPassed CmdBatchObservationPassed NetworkDenialProven '
-             'CmdCwdRawObservationMatched CmdReadRawObservationMatched').split()
-RUN_COUNTS = dict(RequiredCaseCount=10, OriginalPilotRequiredCaseCount=6, AdditiveSentinelRequiredCaseCount=1,
+             'CmdCwdRawObservationMatched CmdReadRawObservationMatched CmdRelativeBatchRawObservationMatched').split()
+RUN_COUNTS = dict(RequiredCaseCount=11, OriginalPilotRequiredCaseCount=6, AdditiveSentinelRequiredCaseCount=1,
                   AdditiveBatchRequiredCaseCount=1, AdditiveCwdRequiredCaseCount=1, AdditiveReadRequiredCaseCount=1,
-                  OriginalNestedRequiredRows=20)
+                  AdditiveRelativeBatchRequiredCaseCount=1, OriginalNestedRequiredRows=20)
 RUN_STRINGS = 'Policy Phase Failure CleanupScope CompletionJournal JournalProtocol'.split()
 JOURNAL_PROTOCOL = 'completed filename is the final resolution receipt; preconditions alone are not completion'
 REASON_CODES = {'identity', 'provenance', 'missing', 'parse', 'stage', 'commit', 'cleanup',
@@ -128,7 +129,7 @@ def run_schema(run):
     for key in RUN_STRINGS:
         require(run[key] is None or type(run[key]) is str, 'parse')
     require(run['NotCovered'] == ['python', 'npm.cmd', 'git', 'nested_child_support', 'ConPTY', 'production_integration'])
-    require(type(run['Cases']) is list and len(run['Cases']) <= 10, 'parse')
+    require(type(run['Cases']) is list and len(run['Cases']) <= 11, 'parse')
     require([row.get('Case') for row in run['Cases'] if type(row) is dict] == list(CASES[:len(run['Cases'])]))
     for row in run['Cases']:
         case_schema(row)
@@ -254,6 +255,7 @@ def committed_case(row, members, run_root, inventory, run_identity):
     for name in ('ownership-root.json', 'ownership-profile.json', 'ownership-process.json'):
         snapshot = json_member(members, prefix + name)
         case_schema(snapshot)
+        require(all(snapshot[observation['row_flag']] is False for observation in OBSERVATIONS), 'stage')
         require(snapshot['Case'] == kind and snapshot['Launcher']['Identities'].get('pilot_case_id') == kind, 'identity')
         require(snapshot['Launcher']['Identities'].get('pilot_profile_name') == profile, 'identity')
         observed = snapshot['Launcher']
@@ -313,8 +315,8 @@ def validate_completion(run, members, parsed):
     run_schema(run)
     exact(run, {'Phase': 'completion_preconditions_persisted', 'Failure': None, 'OrdinaryControlPassed': True,
                 'ReferenceRoutePassed': True, 'AllCaseCleanupConfirmed': True, 'RunRootRemoved': True}, 'commit')
-    require(len(run['Cases']) == 10, 'missing', status='incomplete')
-    matrices = {'pilot/matrix-' + str(n).zfill(2) + '.json' for n in range(1, 11)}
+    require(len(run['Cases']) == 11, 'missing', status='incomplete')
+    matrices = {'pilot/matrix-' + str(n).zfill(2) + '.json' for n in range(1, 12)}
     require({name for name in members if name.startswith('pilot/matrix-')} == matrices, 'stage')
     require('pilot/pilot-failure.json' not in members and not any(n.startswith('pilot/') and n.endswith('/cleanup-uncertain.txt') for n in members), 'commit')
     for receipt in (run['InitialSelectedParent'], run['SelectedParent'], json_member(members, 'selected-parent-preflight.json')):
@@ -353,7 +355,7 @@ def validate_completion(run, members, parsed):
     for slot, aggregate, flag in [(6, 'CmdSentinelObservationPassed', 'CmdExit23Observed'), (7, 'CmdBatchObservationPassed', 'CmdBatchExit23Observed')]:
         row = run['Cases'][slot]
         require(run[aggregate] == (row[flag] and not row['NoCaseResourcesAllocated'] and not row['Fatal'] and row['ScopedLifecycleCleanupConfirmed']), 'stage')
-    for count in range(1, 11):
+    for count in range(1, 12):
         name = 'pilot/matrix-' + str(count).zfill(2) + '.json'
         matrix = parsed.get(name)
         require(matrix is not None, 'missing', name, status='incomplete')
@@ -373,7 +375,8 @@ def validate_completion(run, members, parsed):
             writer(matrix['Broker'], 'matrix_' + str(earlier))
         require('evidence_matrix_' + str(count) not in matrix['Broker']['Identities'], 'stage', name)
         writer(run['Broker'], 'matrix_' + str(count))
-        for key, slot in [('CmdCwdRawObservationMatched', 8), ('CmdReadRawObservationMatched', 9)]:
+        for observation in OBSERVATIONS:
+            key, slot = observation['run_flag'], observation['slot']
             require(matrix[key] == (run[key] if count > slot else False), 'stage', name)
         for key, count_needed in [('AllFourOfflineCasesPassed', 6), ('CmdSentinelObservationPassed', 7), ('CmdBatchObservationPassed', 8)]:
             require(matrix[key] == (run[key] if count >= count_needed else False), 'stage', name)
@@ -383,10 +386,10 @@ def validate_completion(run, members, parsed):
 def _evaluate(trusted_context, members):
     """Return reviewer-only acceptance. Every missing/invalid gate defaults false."""
     context = trusted_context if type(trusted_context) is dict else {}
-    result = {'protocol': 'cmd-cwd-read-acceptance-v1', 'CmdCwdObservationPassed': False,
-              'CmdReadObservationPassed': False, 'CwdStatus': 'incomplete', 'ReadStatus': 'incomplete',
-              'RunCompletionValidated': False, 'CmdCwdRawObservationMatched': False,
-              'CmdReadRawObservationMatched': False, 'Reasons': []}
+    result = {'protocol': 'cmd-cwd-read-relative-batch-acceptance-v1', 'RunCompletionValidated': False, 'Reasons': []}
+    for observation in OBSERVATIONS:
+        result.update({observation['accepted_field']: False, observation['run_flag']: False,
+                       observation['status_key']: 'incomplete'})
     for output, key in [('source_commit', 'commit'), ('source_tree', 'tree'), ('run_id', 'run_id'),
                         ('job_id', 'job_id'), ('run_attempt', 'run_attempt'), ('artifact_id', 'artifact_id')]:
         result[output] = context.get(key)
@@ -399,7 +402,8 @@ def _evaluate(trusted_context, members):
         trust_members(context, members)
     except ArtifactError as error:
         record(error)
-        result['CwdStatus'] = result['ReadStatus'] = error.status
+        for observation in OBSERVATIONS:
+            result[observation['status_key']] = error.status
         return result
     parsed, parse_errors = {}, []
     for name in members:
@@ -411,40 +415,41 @@ def _evaluate(trusted_context, members):
                 record(error)
     candidate = parsed.get('pilot/pilot-result.json')
     if candidate is None:
-        candidate = next((parsed['pilot/matrix-' + str(n).zfill(2) + '.json'] for n in range(10, 0, -1)
+        candidate = next((parsed['pilot/matrix-' + str(n).zfill(2) + '.json'] for n in range(11, 0, -1)
                           if 'pilot/matrix-' + str(n).zfill(2) + '.json' in parsed), None)
     try:
         require(candidate is not None, 'missing', 'pilot/pilot-result.json', status='incomplete')
         run_schema(candidate)
     except ArtifactError as error:
         record(error)
-        result['CwdStatus'] = result['ReadStatus'] = error.status
+        for observation in OBSERVATIONS:
+            result[observation['status_key']] = error.status
         return result
     raw_errors, unsupported = {}, {}
     original_hash = candidate['Cases'][3]['Launcher']['ExecutableSha256'] if len(candidate['Cases']) > 3 else None
-    for slot, tag, flag in [(8, 'Cwd', 'CmdCwdObserved'), (9, 'Read', 'CmdReadObserved')]:
-        kind = CASES[slot]
+    for observation in OBSERVATIONS:
+        slot, tag, flag = observation['slot'], observation['tag'], observation['row_flag']
+        kind, run_flag, status_key = observation['kind'], observation['run_flag'], observation['status_key']
         try:
             require(len(candidate['Cases']) > slot, 'missing', case=kind, status='incomplete')
             row = candidate['Cases'][slot]
             matched, unsupported[tag] = (False, False) if row['NoCaseResourcesAllocated'] else raw_observation(row, members, original_hash)
-            result['Cmd' + tag + 'RawObservationMatched'] = matched
-            require(row[flag] == matched and candidate['Cmd' + tag + 'RawObservationMatched'] == matched, 'raw_mismatch')
-            other = 'CmdReadObserved' if tag == 'Cwd' else 'CmdCwdObserved'
-            require(row[other] is False, 'raw_mismatch')
+            result[run_flag] = matched
+            require(row[flag] == matched and candidate[run_flag] == matched, 'raw_mismatch')
+            require(all(row[other['row_flag']] is False for other in OBSERVATIONS if other['kind'] != kind), 'raw_mismatch')
             if not row['Fatal'] and not row['NoCaseResourcesAllocated']:
-                expected_status = 'cmd_cwd_raw_observed' if tag == 'Cwd' else 'cmd_read_direct_raw_observed'
+                expected_status = observation['matched_status']
                 if not matched:
-                    expected_status = 'cmd_cwd_expected_encoding_unsupported' if unsupported[tag] else expected_status.replace('_observed', '_not_observed')
+                    expected_status = 'cmd_cwd_expected_encoding_unsupported' if unsupported[tag] else observation['unmatched_status']
                 require(row['Status'] == ('deadline_exceeded' if row['Launcher']['Wait'] == 258 else expected_status), 'stage')
-                require(row['CanaryClassification'] == ('cwd' if tag == 'Cwd' else 'read') + '_observation_did_not_attempt_runtime_canary', 'stage')
-            result[tag + 'Status'] = 'not_matched'
+                require(row['CanaryClassification'] == observation['canary'], 'stage')
+            result[status_key] = 'not_matched'
             if not matched:
                 record(ArtifactError('unsupported_encoding' if unsupported[tag] else 'raw_mismatch'), kind)
         except ArtifactError as error:
             raw_errors[tag] = error
             record(error, kind)
-            result[tag + 'Status'] = error.status
+            result[status_key] = error.status
     try:
         require(not parse_errors, 'parse', status='incomplete')
         require(not raw_errors, 'raw_mismatch', status='incomplete' if any(e.status == 'incomplete' for e in raw_errors.values()) else 'inconsistent')
@@ -452,12 +457,13 @@ def _evaluate(trusted_context, members):
         result['RunCompletionValidated'] = validate_completion(candidate, members, parsed)
     except ArtifactError as error:
         record(error)
-        result['CwdStatus'] = result['ReadStatus'] = error.status
+        for observation in OBSERVATIONS:
+            result[observation['status_key']] = error.status
         return result
-    for tag in ('Cwd', 'Read'):
-        if tag not in raw_errors and result['Cmd' + tag + 'RawObservationMatched']:
-            result['Cmd' + tag + 'ObservationPassed'] = True
-            result[tag + 'Status'] = 'accepted'
+    for observation in OBSERVATIONS:
+        if observation['tag'] not in raw_errors and result[observation['run_flag']]:
+            result[observation['accepted_field']] = True
+            result[observation['status_key']] = 'accepted'
     return result
 
 
@@ -468,5 +474,6 @@ def evaluate_cmd_observation_artifact(trusted_context, members):
     except (KeyError, TypeError, IndexError, UnicodeError, OverflowError):
         result = _evaluate({}, {})
         result['Reasons'] = [dict(code='parse', case='', member='')]
-        result['CwdStatus'] = result['ReadStatus'] = 'incomplete'
+        for observation in OBSERVATIONS:
+            result[observation['status_key']] = 'incomplete'
         return result

@@ -121,9 +121,9 @@ def inspect(files, old, workflow, pins=True):
     assert 'r.Identities["pilot_original_cmd_sha256"]=originalCmdHash;' in runner
     assert runner.index('originalCmdHash!=r.ExecutableSha256') < runner.index('ObserveQualificationSource(s)') < runner.index('AssignProcessToJobObject(')
     assert 'Check(GetExitCodeProcess(s.Process.process,out exit),"pilot exit code");r.Exit=exit;r.Numbers["pilot_exit_query_success"]=1;' in runner
-    sequence = 'new string[]{"ordinary","reference","node","cmd","powershell","pwsh","cmd-exit23","cmd-batch-exit23","cmd-cwd","cmd-read-direct"}'
+    sequence = 'new string[]{"ordinary","reference","node","cmd","powershell","pwsh","cmd-exit23","cmd-batch-exit23","cmd-cwd","cmd-read-direct","cmd-relative-batch-exit23"}'
     assert runner.count(sequence) == 2
-    assert 'RequiredCaseCount=10,OriginalPilotRequiredCaseCount=6,AdditiveSentinelRequiredCaseCount=1,AdditiveBatchRequiredCaseCount=1,OriginalNestedRequiredRows=20;' in runner
+    assert 'RequiredCaseCount=11,OriginalPilotRequiredCaseCount=6,AdditiveSentinelRequiredCaseCount=1,AdditiveBatchRequiredCaseCount=1,OriginalNestedRequiredRows=20;' in runner
     assert 'string runtime=(kind=="cmd-exit23" || kind=="cmd-batch-exit23" || PilotCmdObservationKind(kind))?"cmd":kind;' in runner and '!available.ContainsKey(runtime)' in runner
     assert 'blocked_original_cmd_provenance";row.Fatal=true;row.NoCaseResourcesAllocated=true;' in runner
     assert 'else if((kind=="cmd-exit23" || kind=="cmd-batch-exit23" || PilotCmdObservationKind(kind)) && !PilotCmdSha256(originalCmdHash))' in runner
@@ -137,7 +137,7 @@ def inspect(files, old, workflow, pins=True):
         assert runner.index(assignment) < runner.index('"matrix-"')
         catch = runner[runner.index('result.Failure=failure.GetType().Name+": "+failure.Message;result.Phase="failed_recovery_retained";'):]
         assert catch.index(assignment) < catch.index('WritePilotEvidence(')
-    assert 'result.AllCaseCleanupConfirmed=allCleanup && result.Cases.Count==10;' in runner
+    assert 'result.AllCaseCleanupConfirmed=allCleanup && result.Cases.Count==11;' in runner
     assert runner.count('new PilotJournal(') == 2 and runner.count('RunPilotCase(fixture,') == 1
     assert 'journal=new PilotJournal(evidence,kind,s.Root,s.Profile,r);' in runner
     assert 'if(!PilotMayAdvance(row)) {blocked=true;journal.Failed=true;}' in runner
@@ -285,9 +285,9 @@ MUTATIONS = [
     ('wrong_family','PilotSubjects.cs','r.Kind=(kind=="cmd-exit23" || kind=="cmd-batch-exit23" || PilotCmdObservationKind(kind))?"cmd":kind;','r.Kind=kind;'),
     ('binary_comparison','PilotRunner.cs','originalCmdHash!=r.ExecutableSha256','false'),
     ('rewrite_original','PilotRunner.cs','result.AllFourOfflineCasesPassed=PilotOriginalSixPassed(result.Cases);','result.AllFourOfflineCasesPassed=true;'),
-    ('omit_seventh','PilotRunner.cs','"pwsh","cmd-exit23","cmd-batch-exit23","cmd-cwd","cmd-read-direct"}','"pwsh","cmd-batch-exit23","cmd-cwd","cmd-read-direct"}'),
+    ('omit_seventh','PilotRunner.cs','"pwsh","cmd-exit23","cmd-batch-exit23","cmd-cwd","cmd-read-direct","cmd-relative-batch-exit23"}','"pwsh","cmd-batch-exit23","cmd-cwd","cmd-read-direct","cmd-relative-batch-exit23"}'),
     ('hide_provenance','PilotRunner.cs','blocked_original_cmd_provenance";row.Fatal=true;','blocked_original_cmd_provenance";row.Fatal=false;'),
-    ('seventh_cleanup','PilotRunner.cs','result.Cases.Count==10','result.Cases.Count==7'),
+    ('seventh_cleanup','PilotRunner.cs','result.Cases.Count==11','result.Cases.Count==7'),
     ('reset_stale','PilotClassification.cs','row.CmdExit23Observed=false;',''),
     ('drop_wrapper_gate','run-pilot.ps1','if(-not $result.CmdSentinelObservationPassed) {throw','if($false) {throw'),
     ('minimal_argv','PilotCmdSentinel.cs',' /d /q /c direct.cmd',' /d /q /s /c direct.cmd'),
@@ -322,7 +322,7 @@ MUTATIONS = [
     ('seventh_reduction_wiring','PilotRunner.cs','result.CmdSentinelObservationPassed=PilotCmdSentinelPassed(result.Cases);','result.CmdSentinelObservationPassed=false;'),
     ('eighth_reduction_wiring','PilotRunner.cs','result.CmdBatchObservationPassed=PilotCmdBatchPassed(result.Cases);','result.CmdBatchObservationPassed=true;'),
     ('eighth_binary_scope','PilotRunner.cs','if(kind=="cmd-exit23" || kind=="cmd-batch-exit23" || PilotCmdObservationKind(kind)) {','if(kind=="cmd-exit23") {'),
-    ('omit_eighth','PilotRunner.cs','"pwsh","cmd-exit23","cmd-batch-exit23","cmd-cwd","cmd-read-direct"}','"pwsh","cmd-exit23","cmd-cwd","cmd-read-direct"}'),
+    ('omit_eighth','PilotRunner.cs','"pwsh","cmd-exit23","cmd-batch-exit23","cmd-cwd","cmd-read-direct","cmd-relative-batch-exit23"}','"pwsh","cmd-exit23","cmd-cwd","cmd-read-direct","cmd-relative-batch-exit23"}'),
     ('drop_batch_wrapper_gate','run-pilot.ps1','if(-not $result.CmdBatchObservationPassed) {throw','if($false) {throw'),
     ('catch_seventh_reset','PilotRunner.cs','\n            result.CmdSentinelObservationPassed=PilotCmdSentinelPassed(result.Cases);','\n            result.CmdSentinelObservationPassed=false;'),
     ('catch_eighth_reset','PilotRunner.cs','\n            result.CmdBatchObservationPassed=PilotCmdBatchPassed(result.Cases);','\n            result.CmdBatchObservationPassed=false;'),

@@ -2,7 +2,7 @@
 from copy import deepcopy
 
 from cmd_observation_fixtures import (OLD_POSITIVES, RUN_NONCE, completed_fixture,
-    decode, encode, digest, reseal, writer)
+    case_defaults, decode, encode, digest, reseal, writer)
 
 
 def erase_writer(receipt, label):
@@ -11,8 +11,10 @@ def erase_writer(receipt, label):
     receipt['Identities'].pop(prefix, None)
 
 
-def late_failure(members, category, contradiction=False):
+def late_failure(members, category, contradiction=False, target='cmd-read-direct', matrix_position=10):
     """Drop completed receipts impossible at the injected persistence/lifecycle stage."""
+    if target not in ('cmd-read-direct', 'cmd-relative-batch-exit23') or type(matrix_position) is not int or matrix_position not in (10, 11):
+        raise ValueError('finite late-failure target and matrix position required')
     run = decode(members['pilot/pilot-result.json'])
     baseline = {key: run[key] for key in OLD_POSITIVES}
     favorable = deepcopy(run)
@@ -20,9 +22,22 @@ def late_failure(members, category, contradiction=False):
     run.update(Phase='failed_recovery_retained', Failure='IOException: synthetic ' + category)
     after_scan = category.startswith(('final_result_', 'run_bind', 'run_verify', 'run_resolve'))
     run['RunRootRemoved'] = not category.startswith(('case_', 'matrix_', 'run_root'))
-    run['SelectedParent']['VerifiedGuards'] = 42 if after_scan or category.startswith('selected_pin_') else 40 if category.startswith(('case_', 'matrix_')) else 41
+    reached = 10 if category.startswith('case_') and target == 'cmd-read-direct' else matrix_position if category.startswith('matrix_') else 11
+    guards = 4 * reached
+    run['SelectedParent']['VerifiedGuards'] = guards + 2 if after_scan or category.startswith('selected_pin_') else guards if category.startswith(('case_', 'matrix_')) else guards + 1
     if category.startswith(('case_', 'matrix_')):
         run['Broker']['Numbers'].pop('pilot_owned_root_removed', None)
+        run['AllCaseCleanupConfirmed'] = False
+    if reached == 10:
+        blocked = case_defaults('cmd-relative-batch-exit23')
+        blocked.update(Fatal=True, NoCaseResourcesAllocated=True,
+                       Status='blocked_prior_control_or_recovery' if category.startswith('case_') else 'blocked_run_failure_no_subject_created')
+        run['Cases'][10] = blocked
+        run['CmdRelativeBatchRawObservationMatched'] = False
+        if not contradiction:
+            for name in tuple(members):
+                if name.startswith('pilot/cmd-relative-batch-exit23/'):
+                    members.pop(name)
     run['SelectedParent']['FinalScanConfirmed'] = after_scan or category.startswith('selected_pin_')
     if category.startswith(('selected_pin_', 'final_guard', 'final_identity_scan')):
         run['SelectedParent']['Failure'] = 'IOException: synthetic selected-parent failure'
@@ -35,7 +50,7 @@ def late_failure(members, category, contradiction=False):
     if not contradiction:
         members['pilot/cleanup-uncertain.txt'] = members.pop(run_completed)
     if category.startswith('case_'):
-        kind, slot = 'cmd-read-direct', 9
+        kind, slot = target, 9 if target == 'cmd-read-direct' else 10
         row = run['Cases'][slot]
         nonce = row['Launcher']['Identities']['pilot_journal_' + kind + '_nonce']
         base = 'pilot/' + kind + '/'
@@ -77,15 +92,21 @@ def late_failure(members, category, contradiction=False):
                 members[base + 'case.json'] = encode(stored)
         run['AllCaseCleanupConfirmed'] = False
         if not contradiction:
-            matrix = decode(members['pilot/matrix-10.json'])
+            matrix_name = 'pilot/matrix-' + str(slot + 1) + '.json'
+            matrix = decode(members[matrix_name])
             matrix['Cases'][slot] = deepcopy(row)
-            members['pilot/matrix-10.json'] = encode(matrix)
+            members[matrix_name] = encode(matrix)
+            if slot == 9:
+                matrix['Cases'].append(deepcopy(run['Cases'][10]))
+                writer(matrix['Broker'], 'matrix_10', run['Broker']['Identities']['evidence_matrix_10'])
+                members['pilot/matrix-11.json'] = encode(matrix)
     if not contradiction:
         members.pop('pilot/pilot-result.json')
         members.pop('pilot/preconditions-' + RUN_NONCE + '.json')
         if category.startswith('matrix_'):
-            erase_writer(run['Broker'], 'matrix_10')
-            members.pop('pilot/matrix-10.json')
+            for position in range(matrix_position, 12):
+                erase_writer(run['Broker'], 'matrix_' + str(position))
+                members.pop('pilot/matrix-' + str(position) + '.json')
         elif category.startswith('final_result_') and category.endswith(('write', 'flush', 'close_false', 'close_throw')):
             members['pilot/pilot-result.json'] = encode(favorable) if 'close' in category else b'{"Policy":'
         elif category.startswith('run_') and not category.startswith('run_root'):

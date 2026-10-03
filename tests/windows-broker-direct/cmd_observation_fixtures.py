@@ -3,8 +3,10 @@ from copy import deepcopy
 import hashlib
 import json
 
+from cmd_observation_cases import OBSERVATIONS, observation_case
+
 CASES = ('ordinary', 'reference', 'node', 'cmd', 'powershell', 'pwsh',
-         'cmd-exit23', 'cmd-batch-exit23', 'cmd-cwd', 'cmd-read-direct')
+         'cmd-exit23', 'cmd-batch-exit23', 'cmd-cwd', 'cmd-read-direct', 'cmd-relative-batch-exit23')
 NATIVE_HASH = '45216b87a18180c292ca6f490e0f7163c914958f07155269eabea9db5d807527'
 CMD_HASH = '8' * 64
 PARENT = r'C:\Fixture\Local\Temp'
@@ -185,7 +187,7 @@ def case_defaults(kind):
               'CleanupPreconditionsConfirmed CaseMarkerResolved ScopedLifecycleCleanupConfirmed OutsideUnchanged '
               'OutsideWriteAbsent OutsideReadObserved OutsideWriteObserved ScriptEntryObserved OutputOk MutationOk '
               'PositivePassed OfflineReferenceRouteValid NativeFiveAssertionsPassed NetworkDenialProven '
-              'CmdExit23Observed CmdBatchExit23Observed CmdCwdObserved CmdReadObserved').split()
+              'CmdExit23Observed CmdBatchExit23Observed CmdCwdObserved CmdReadObserved CmdRelativeBatchExit23Observed').split()
     row = dict.fromkeys(fields, False)
     row.update(Case=kind, Policy='accesscheck_signature_v1_ci', Status='pending', Failure=None,
                CanaryClassification='not_measured', ExitHex=None, KnownStartupStatus=None, Launcher=direct())
@@ -261,7 +263,8 @@ def allocated_case(kind, index, members, cwd_output=None):
     profile = 'ctm.fixture.pilot.' + nonce
     is_cmd = kind == 'cmd' or kind.startswith('cmd-')
     exe = code + ('\\cmd.exe' if is_cmd else '\\fixture.exe' if kind in CASES[:2] else '\\runtime\\' + kind + '.exe')
-    command = '"' + exe + '" /d /q /c ' + {'cmd-cwd': 'cd', 'cmd-read-direct': 'type direct.cmd', 'cmd-exit23': 'exit 23'}.get(kind, 'direct.cmd')
+    command = '"' + exe + '" /d /q /c ' + {'cmd-cwd': 'cd', 'cmd-read-direct': 'type direct.cmd',
+        'cmd-exit23': 'exit 23', 'cmd-relative-batch-exit23': '.\\direct.cmd'}.get(kind, 'direct.cmd')
     if not is_cmd:
         command = '"' + exe + '" sandbox "' + cwd + '" "' + root + '\\outside" 127.0.0.1:12345'
     if kind == 'node':
@@ -330,10 +333,11 @@ def allocated_case(kind, index, members, cwd_output=None):
         ids['pilot_original_cmd_sha256'] = CMD_HASH
         n['pilot_cmd_same_binary_verified'] = 1
     if kind in CASES[8:]:
-        expected = (cwd + '\r\n').encode('ascii') if kind == 'cmd-cwd' else MINIMAL
+        observation = observation_case(kind)
+        expected = (cwd + '\r\n').encode('ascii') if kind == 'cmd-cwd' else b'exit 23\r\n' if kind == 'cmd-read-direct' else b''
         output = expected if cwd_output is None or kind != 'cmd-cwd' else cwd_output
         members[base + 'stdout.txt'] = output
-        ids.update(pilot_cmd_observation_protocol='cmd-cwd-read-raw-v1', pilot_cmd_observation_case=kind,
+        ids.update(pilot_cmd_observation_protocol=observation['raw_protocol'], pilot_cmd_observation_case=kind,
                    pilot_cmd_observation_command=command, pilot_cmd_observation_cwd=cwd,
                    pilot_cmd_observation_stage='after_target_stop_and_job_drain', pilot_cmd_observation_expected_sha256=digest(expected))
         n.update(pilot_cmd_observation_raw_complete=1, pilot_cmd_observation_expected_supported=1,
@@ -342,10 +346,12 @@ def allocated_case(kind, index, members, cwd_output=None):
             data = members[base + stream + '.txt']
             raw_read(r, 'pilot_cmd_' + stream + '_source', data, cwd + '\\' + stream + '.txt', ids[stream])
             raw_read(r, 'pilot_cmd_' + stream + '_evidence', data, evidence + '\\' + stream + '.txt', '7:0:' + str(400 + index * 2 + (stream == 'stderr')))
-        row.update(CmdCwdObserved=kind == 'cmd-cwd' and output == expected, CmdReadObserved=kind == 'cmd-read-direct',
-                   CanaryClassification=('cwd' if kind == 'cmd-cwd' else 'read') + '_observation_did_not_attempt_runtime_canary',
-                   Status=('cmd_cwd' if kind == 'cmd-cwd' else 'cmd_read_direct') + ('_raw_observed' if output == expected else '_raw_not_observed'))
-    if kind in ('cmd', 'cmd-batch-exit23', 'cmd-read-direct'):
+        row[observation['row_flag']] = output == expected
+        row.update(CanaryClassification=observation['canary'],
+                   Status=observation['matched_status'] if output == expected else observation['unmatched_status'])
+        if kind == 'cmd-relative-batch-exit23':
+            r['Exit'], row['ExitHex'] = 23, '00000017'
+    if kind in ('cmd', 'cmd-batch-exit23', 'cmd-read-direct', 'cmd-relative-batch-exit23'):
         payload = MINIMAL
         if kind == 'cmd':
             payload = ('@echo off\r\necho runtime-entered>script-entry.txt\r\necho runtime-ok>mutation.txt\r\ntype mutation.txt\r\n' +
@@ -439,12 +445,12 @@ def completed_fixture(cwd_output=None, optional_missing=()):
     members['pilot/preparation-premise.json'] = encode(dict(selected_parent_policy='localappdata_temp_ci_v1', selected_parent=PARENT,
         runner_temp_control=r'C:\runner-temp', policy='accesscheck_signature_v1_ci', foundation_valid=True, network_denial_proven=False,
         runtime_inventory=inventory, ready=[k for k in ('node', 'cmd', 'powershell', 'pwsh') if k not in optional_missing], native_fixture_sha256=NATIVE_HASH))
-    run = dict.fromkeys(OLD_POSITIVES + ('AllCaseCleanupConfirmed', 'RunRootRemoved', 'CmdCwdRawObservationMatched', 'CmdReadRawObservationMatched'), False)
+    run = dict.fromkeys(OLD_POSITIVES + ('AllCaseCleanupConfirmed', 'RunRootRemoved') + tuple(o['run_flag'] for o in OBSERVATIONS), False)
     run.update(Policy='accesscheck_signature_v1_ci', Phase='collecting', Failure=None,
-               CleanupScope='ten required case outcomes, their actually created profile/private scopes and disposable run root and selected-parent metadata handles only; listener, preparation evidence, outer workflow capture/upload are separate outcomes',
+               CleanupScope='eleven required case outcomes, their actually created profile/private scopes and disposable run root and selected-parent metadata handles only; listener, preparation evidence, outer workflow capture/upload are separate outcomes',
                CompletionJournal='completed-' + RUN_NONCE + '.txt', JournalProtocol='completed filename is the final resolution receipt; preconditions alone are not completion',
-               RequiredCaseCount=10, OriginalPilotRequiredCaseCount=6, AdditiveSentinelRequiredCaseCount=1, AdditiveBatchRequiredCaseCount=1,
-               AdditiveCwdRequiredCaseCount=1, AdditiveReadRequiredCaseCount=1, OriginalNestedRequiredRows=20,
+               RequiredCaseCount=11, OriginalPilotRequiredCaseCount=6, AdditiveSentinelRequiredCaseCount=1, AdditiveBatchRequiredCaseCount=1,
+               AdditiveCwdRequiredCaseCount=1, AdditiveReadRequiredCaseCount=1, AdditiveRelativeBatchRequiredCaseCount=1, OriginalNestedRequiredRows=20,
                NotCovered=['python', 'npm.cmd', 'git', 'nested_child_support', 'ConPTY', 'production_integration'],
                InitialSelectedParent=selected_parent(), SelectedParent=selected_parent(1, False), Broker=direct(), Cases=[])
     broker = run['Broker']
@@ -460,9 +466,9 @@ def completed_fixture(cwd_output=None, optional_missing=()):
             row = allocated_case(kind, index, members, cwd_output)
             ownership_snapshots(row, members)
         run['Cases'].append(row)
-        run['CmdCwdRawObservationMatched'] = any(r['CmdCwdObserved'] for r in run['Cases'])
-        run['CmdReadRawObservationMatched'] = any(r['CmdReadObserved'] for r in run['Cases'])
-        run['SelectedParent']['VerifiedGuards'] += 4 if kind != 'ordinary' else 3
+        for observation in OBSERVATIONS:
+            run[observation['run_flag']] = any(r[observation['row_flag']] for r in run['Cases'])
+        run['SelectedParent']['VerifiedGuards'] += 0 if row['NoCaseResourcesAllocated'] else 3 if kind == 'ordinary' else 4
         members['pilot/matrix-' + str(index + 1).zfill(2) + '.json'] = encode(run)
         writer(broker, 'matrix_' + str(index + 1), '7:0:' + str(1100 + index))
         if kind == 'ordinary':
@@ -470,7 +476,7 @@ def completed_fixture(cwd_output=None, optional_missing=()):
         if kind == 'reference':
             run['ReferenceRoutePassed'] = True
     run.update(Phase='completion_preconditions_persisted', AllCaseCleanupConfirmed=True, RunRootRemoved=True)
-    run['SelectedParent'] = selected_parent(42)
+    run['SelectedParent'] = selected_parent(run['SelectedParent']['VerifiedGuards'] + 2)
     broker['Numbers']['pilot_owned_root_removed'] = 1
     members['pilot/pilot-result.json'] = encode(run)
     writer(broker, 'final_result', '7:0:1200')

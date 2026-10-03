@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 public static partial class BrokerDirectLauncher {
     static bool PilotCmdObservationKind(string kind) {
-        return kind=="cmd-cwd" || kind=="cmd-read-direct";
+        return kind=="cmd-cwd" || kind=="cmd-read-direct" || kind=="cmd-relative-batch-exit23";
     }
     static string FixedPilotCmdCwdCommand(string privateCmdExe) {
         SafePath(privateCmdExe);
@@ -16,6 +16,21 @@ public static partial class BrokerDirectLauncher {
         SafePath(privateCmdExe);
         if(Path.GetFileName(privateCmdExe)!="cmd.exe") throw new ArgumentException("fixed private cmd executable required");
         return Quote(privateCmdExe)+" /d /q /c type direct.cmd";
+    }
+    static string FixedPilotCmdRelativeBatchCommand(string privateCmdExe) {
+        SafePath(privateCmdExe);
+        if(Path.GetFileName(privateCmdExe)!="cmd.exe") throw new ArgumentException("fixed private cmd executable required");
+        return Quote(privateCmdExe)+" /d /q /c .\\direct.cmd";
+    }
+    static string FixedPilotCmdObservationCommand(string kind,string privateCmdExe) {
+        if(!PilotCmdObservationKind(kind)) throw new ArgumentException("fixed cmd observation case required");
+        if(kind=="cmd-cwd") return FixedPilotCmdCwdCommand(privateCmdExe);
+        if(kind=="cmd-read-direct") return FixedPilotCmdReadCommand(privateCmdExe);
+        return FixedPilotCmdRelativeBatchCommand(privateCmdExe);
+    }
+    static string PilotCmdObservationProtocol(string kind) {
+        if(!PilotCmdObservationKind(kind)) throw new ArgumentException("fixed cmd observation case required");
+        return kind=="cmd-relative-batch-exit23"?"cmd-relative-batch-raw-v1":"cmd-cwd-read-raw-v1";
     }
     static void CapturePilotCmdReadBatchUsing(QualificationSubject s,string evidence,PilotCmdCaptureOperations ops) {
         if(s==null || s.Receipt==null || !s.OwnershipCertain || s.ProfileCreated || s.Sid!=IntPtr.Zero ||
@@ -37,6 +52,26 @@ public static partial class BrokerDirectLauncher {
     static void CapturePilotCmdReadBatch(QualificationSubject s,string evidence) {
         CapturePilotCmdReadBatchUsing(s,evidence,PilotCmdNativeCaptureOperations());
     }
+    static void CapturePilotCmdRelativeBatchUsing(QualificationSubject s,string evidence,PilotCmdCaptureOperations ops) {
+        if(s==null || s.Receipt==null || !s.OwnershipCertain || s.ProfileCreated || s.Sid!=IntPtr.Zero ||
+            s.Job!=IntPtr.Zero || s.SourceToken!=IntPtr.Zero || s.Process.process!=IntPtr.Zero || s.Process.thread!=IntPtr.Zero ||
+            s.Receipt.CreateAttempted || s.Receipt.Created || s.Receipt.Assigned || s.Receipt.Resumed ||
+            s.Receipt.Kind!="cmd" || !PilotIdentity(s.Receipt,"pilot_case_id","cmd-relative-batch-exit23"))
+            throw new InvalidOperationException("relative batch capture must precede all profile/process allocation");
+        PilotCmdObservationExpectedBytes("cmd-relative-batch-exit23",s.Workspace);
+        DirectReceipt r=s.Receipt;
+        string exe=Path.Combine(Path.GetDirectoryName(s.Workspace),"code","cmd.exe");
+        if(r.Executable!=exe || r.CommandLine!=FixedPilotCmdRelativeBatchCommand(exe) ||
+            !PilotIdentity(r,"pilot_cmd_observation_protocol","cmd-relative-batch-raw-v1") ||
+            !PilotIdentity(r,"pilot_cmd_observation_case","cmd-relative-batch-exit23") ||
+            !PilotIdentity(r,"pilot_cmd_observation_command",r.CommandLine) ||
+            !PilotIdentity(r,"pilot_cmd_observation_cwd",s.Workspace))
+            throw new InvalidOperationException("relative batch fixture identity changed");
+        CapturePilotCmdBatchCore(s,evidence,ops,true);
+    }
+    static void CapturePilotCmdRelativeBatch(QualificationSubject s,string evidence) {
+        CapturePilotCmdRelativeBatchUsing(s,evidence,PilotCmdNativeCaptureOperations());
+    }
     static byte[] PilotCmdObservationExpectedBytes(string kind,string exactWorkspace) {
         if(!PilotCmdObservationKind(kind) || String.IsNullOrEmpty(exactWorkspace)) throw new ArgumentException("fixed cmd observation and workspace required");
         string full=PilotOwnedPath(exactWorkspace);
@@ -47,6 +82,7 @@ public static partial class BrokerDirectLauncher {
         if(!leaf.StartsWith("owned-",StringComparison.Ordinal)) throw new ArgumentException("owned case workspace required");
         foreach(string part in full.Substring(3).Split('\\')) PilotLeafName(part,false);
         if(kind=="cmd-read-direct") return PilotCmdMinimalBatchBytes();
+        if(kind=="cmd-relative-batch-exit23") return new byte[0];
         foreach(char c in exactWorkspace) if(c>127) return null;
         var bytes=new byte[exactWorkspace.Length+2];
         for(int i=0;i<exactWorkspace.Length;i++) bytes[i]=(byte)exactWorkspace[i];
@@ -70,19 +106,19 @@ public static partial class BrokerDirectLauncher {
             throw new InvalidOperationException("raw reads require the exact stopped, drained and closed target");
         byte[] expected=PilotCmdObservationExpectedBytes(kind,s.Workspace);
         string exe=Path.Combine(Path.GetDirectoryName(s.Workspace),"code","cmd.exe");
-        string command=kind=="cmd-cwd"?FixedPilotCmdCwdCommand(exe):FixedPilotCmdReadCommand(exe);
+        string command=FixedPilotCmdObservationCommand(kind,exe);
         if(r.Executable!=exe || r.CommandLine!=command || s.Root!=Path.GetDirectoryName(s.Workspace) || s.Code!=Path.GetDirectoryName(exe) ||
-            !PilotIdentity(r,"pilot_cmd_observation_protocol","cmd-cwd-read-raw-v1") ||
+            !PilotIdentity(r,"pilot_cmd_observation_protocol",PilotCmdObservationProtocol(kind)) ||
             !PilotIdentity(r,"pilot_cmd_observation_case",kind) || !PilotIdentity(r,"pilot_cmd_observation_command",command) ||
             !PilotIdentity(r,"pilot_cmd_observation_cwd",s.Workspace) ||
             !PilotCmdSha256(r.ExecutableSha256) || !PilotIdentity(r,"pilot_original_cmd_sha256",r.ExecutableSha256) ||
-            !PilotNumber(r,"pilot_cmd_same_binary_verified",1) || (kind=="cmd-read-direct" && !PilotCmdMinimalCaptureVerified(r)))
+            !PilotNumber(r,"pilot_cmd_same_binary_verified",1) || (kind!="cmd-cwd" && !PilotCmdMinimalCaptureVerified(r)))
             throw new InvalidOperationException("raw command, cwd or provenance identity changed");
         string fullEvidence=PilotOwnedPath(evidence);
         if(fullEvidence!=evidence || Path.GetFullPath(evidence)!=evidence || Path.GetFileName(evidence)!=kind ||
             String.Equals(evidence,s.Workspace,StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("exact separate case evidence directory required");
-        if(kind=="cmd-read-direct") {
+        if(kind!="cmd-cwd") {
             foreach(string part in new string[]{"source","destination","readback"}) {
                 string label="pilot_cmd_batch_"+part,identity=r.Identities[label];
                 string path=part=="source"?Path.Combine(s.Workspace,"direct.cmd"):Path.Combine(evidence,"generated-direct.cmd.bin");
@@ -155,7 +191,7 @@ public static partial class BrokerDirectLauncher {
         DirectReceipt r=row.Launcher;string cwd,evidence;
         if(r.Numbers==null || r.Identities==null || r.Kind!="cmd" || row.NoCaseResourcesAllocated ||
             !PilotIdentity(r,"pilot_case_id",row.Case) || !PilotIdentity(r,"pilot_cmd_observation_case",row.Case) ||
-            !PilotIdentity(r,"pilot_cmd_observation_protocol","cmd-cwd-read-raw-v1") ||
+            !PilotIdentity(r,"pilot_cmd_observation_protocol",PilotCmdObservationProtocol(row.Case)) ||
             !PilotIdentity(r,"pilot_cmd_observation_stage","after_target_stop_and_job_drain") ||
             !r.Identities.TryGetValue("pilot_cmd_observation_cwd",out cwd) ||
             !r.Identities.TryGetValue("pilot_cmd_stdout_evidence_path",out evidence)) return false;
@@ -163,7 +199,7 @@ public static partial class BrokerDirectLauncher {
         try {
             expected=PilotCmdObservationExpectedBytes(row.Case,cwd);
             string exe=Path.Combine(Path.GetDirectoryName(cwd),"code","cmd.exe");
-            string command=row.Case=="cmd-cwd"?FixedPilotCmdCwdCommand(exe):FixedPilotCmdReadCommand(exe);
+            string command=FixedPilotCmdObservationCommand(row.Case,exe);
             evidence=Path.GetDirectoryName(evidence);
             if(expected==null || r.Executable!=exe || r.CommandLine!=command ||
                 !PilotIdentity(r,"pilot_cmd_observation_command",command) || evidence!=PilotOwnedPath(evidence) ||
@@ -175,8 +211,8 @@ public static partial class BrokerDirectLauncher {
             !PilotNumber(r,"pilot_cmd_observation_expected_bytes",expected.Length) ||
             !PilotIdentity(r,"pilot_cmd_observation_expected_sha256",PilotCmdRawHash(expected)) ||
             !PilotNumber(r,"pilot_cmd_observation_raw_complete",1) || !PilotNumber(r,"pilot_cmd_observation_stdout_matches",1) ||
-            !PilotNumber(r,"pilot_cmd_observation_stderr_empty",1) || (row.Case=="cmd-read-direct" && !PilotCmdMinimalCaptureVerified(r))) return false;
-        if(row.Case=="cmd-read-direct") {
+            !PilotNumber(r,"pilot_cmd_observation_stderr_empty",1) || (row.Case!="cmd-cwd" && !PilotCmdMinimalCaptureVerified(r))) return false;
+        if(row.Case!="cmd-cwd") {
             foreach(string part in new string[]{"source","destination","readback"}) {
                 string label="pilot_cmd_batch_"+part,identity=r.Identities[label];
                 string path=part=="source"?Path.Combine(cwd,"direct.cmd"):Path.Combine(evidence,"generated-direct.cmd.bin");
@@ -238,9 +274,10 @@ public static partial class BrokerDirectLauncher {
                     if(key.StartsWith(prefix,StringComparison.Ordinal)) return false;
         }
         // Validate measured policy facts without re-running the pre-resume predicate on a terminal receipt.
+        uint expectedExit=row.Case=="cmd-relative-batch-exit23"?23u:0u;
         if(!row.AuthorityObserved || !row.PreResumeReady || !row.OutsideUnchanged || !row.OutsideWriteAbsent ||
             row.OutsideReadObserved || row.OutsideWriteObserved || !r.CreateAttempted || !r.Created || r.CreateError!=0 ||
-            !r.Assigned || !r.Resumed || !r.Drained || r.TokenVerified || r.Wait!=WAIT_OBJECT_0 || r.Exit!=0 ||
+            !r.Assigned || !r.Resumed || !r.Drained || r.TokenVerified || r.Wait!=WAIT_OBJECT_0 || r.Exit!=expectedExit ||
             !PilotNumber(r,"pilot_exit_query_success",1) || r.CreationFlags!=(CREATE_SUSPENDED|EXTENDED|UNICODE|0x08000000u) ||
             String.IsNullOrEmpty(r.ProfileSid) || !PilotStdioClosed(r) || !PilotPinnedMethodDiagnostics(r)) return false;
         foreach(string key in r.Numbers.Keys) if(!PilotKnownAccessCheckKey(key)) return false;
@@ -267,14 +304,17 @@ public static partial class BrokerDirectLauncher {
     static void ClassifyPilotCmdObservation(PilotCaseReceipt row) {
         if(row==null || row.Launcher==null) throw new ArgumentNullException("cmd observation facts");
         row.CmdCwdObserved=false;row.CmdReadObserved=false;row.CmdExit23Observed=false;row.CmdBatchExit23Observed=false;
+        row.CmdRelativeBatchExit23Observed=false;
         row.PositivePassed=false;row.ScriptEntryObserved=false;row.OutputOk=false;row.MutationOk=false;
         row.OfflineReferenceRouteValid=false;row.NativeFiveAssertionsPassed=false;row.NetworkDenialProven=false;
         if(row.Fatal) return;
         if(!PilotCmdObservationKind(row.Case)) throw new ArgumentException("fixed cmd observation case required");
         DirectReceipt r=row.Launcher;row.ExitHex=r.Exit.ToString("X8");row.KnownStartupStatus=null;
-        bool cwd=row.Case=="cmd-cwd",matched=PilotCmdObservationEvidenceVerified(row);
-        row.CanaryClassification=cwd?"cwd_observation_did_not_attempt_runtime_canary":"read_observation_did_not_attempt_runtime_canary";
-        row.CmdCwdObserved=cwd && matched;row.CmdReadObserved=!cwd && matched;
+        bool cwd=row.Case=="cmd-cwd",read=row.Case=="cmd-read-direct",matched=PilotCmdObservationEvidenceVerified(row);
+        row.CanaryClassification=cwd?"cwd_observation_did_not_attempt_runtime_canary":read?
+            "read_observation_did_not_attempt_runtime_canary":"relative_batch_observation_did_not_attempt_runtime_canary";
+        row.CmdCwdObserved=cwd && matched;row.CmdReadObserved=read && matched;
+        row.CmdRelativeBatchExit23Observed=!cwd && !read && matched;
         bool unsupported=false;string workspace;
         if(cwd && r.Numbers!=null && r.Identities!=null && PilotNumber(r,"pilot_cmd_observation_expected_supported",0) && PilotNumber(r,"pilot_cmd_observation_expected_bytes",-1) &&
             PilotNumber(r,"pilot_cmd_observation_raw_complete",1) && !r.Identities.ContainsKey("pilot_cmd_observation_expected_sha256") &&
@@ -284,18 +324,26 @@ public static partial class BrokerDirectLauncher {
         }
         row.Status=r.Wait==WAIT_TIMEOUT?"deadline_exceeded":cwd?
             (matched?"cmd_cwd_raw_observed":unsupported?"cmd_cwd_expected_encoding_unsupported":"cmd_cwd_raw_not_observed"):
-            (matched?"cmd_read_direct_raw_observed":"cmd_read_direct_raw_not_observed");
+            read?(matched?"cmd_read_direct_raw_observed":"cmd_read_direct_raw_not_observed"):
+            (matched?"cmd_relative_batch_exit23_raw_observed":"cmd_relative_batch_exit23_raw_not_observed");
     }
     static bool PilotCmdCwdRawMatched(IList<PilotCaseReceipt> rows) {
-        if(rows==null || rows.Count<9 || rows.Count>10) return false;
+        if(rows==null || rows.Count<9 || rows.Count>11) return false;
         for(int i=0;i<rows.Count;i++) if(i!=8 && rows[i]!=null && rows[i].Case=="cmd-cwd") return false;
         PilotCaseReceipt row=rows[8];
-        return row!=null && row.Case=="cmd-cwd" && row.CmdCwdObserved && !row.CmdReadObserved && PilotCmdObservationEvidenceVerified(row);
+        return row!=null && row.Case=="cmd-cwd" && row.CmdCwdObserved && !row.CmdReadObserved && !row.CmdRelativeBatchExit23Observed && PilotCmdObservationEvidenceVerified(row);
     }
     static bool PilotCmdReadRawMatched(IList<PilotCaseReceipt> rows) {
-        if(rows==null || rows.Count!=10) return false;
+        if(rows==null || rows.Count<10 || rows.Count>11) return false;
         for(int i=0;i<rows.Count;i++) if(i!=9 && rows[i]!=null && rows[i].Case=="cmd-read-direct") return false;
         PilotCaseReceipt row=rows[9];
-        return row!=null && row.Case=="cmd-read-direct" && row.CmdReadObserved && !row.CmdCwdObserved && PilotCmdObservationEvidenceVerified(row);
+        return row!=null && row.Case=="cmd-read-direct" && row.CmdReadObserved && !row.CmdCwdObserved && !row.CmdRelativeBatchExit23Observed && PilotCmdObservationEvidenceVerified(row);
+    }
+    static bool PilotCmdRelativeBatchRawMatched(IList<PilotCaseReceipt> rows) {
+        if(rows==null || rows.Count!=11) return false;
+        for(int i=0;i<rows.Count;i++) if(i!=10 && rows[i]!=null && rows[i].Case=="cmd-relative-batch-exit23") return false;
+        PilotCaseReceipt row=rows[10];
+        return row!=null && row.Case=="cmd-relative-batch-exit23" && row.CmdRelativeBatchExit23Observed &&
+            !row.CmdCwdObserved && !row.CmdReadObserved && PilotCmdObservationEvidenceVerified(row);
     }
 }

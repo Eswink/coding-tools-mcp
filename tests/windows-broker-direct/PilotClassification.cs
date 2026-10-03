@@ -38,6 +38,7 @@ public static partial class BrokerDirectLauncher {
         // Reclassification cannot retain an earlier positive result or a network-denial claim.
         row.PositivePassed=false;row.OfflineReferenceRouteValid=false;row.NetworkDenialProven=false;row.CmdExit23Observed=false;row.CmdBatchExit23Observed=false;
         row.CmdCwdObserved=false;row.CmdReadObserved=false;
+        row.CmdRelativeBatchExit23Observed=false;
         if(row.Fatal) return; // Keep prior factual escape/entry/exit evidence intact.
         row.NativeFiveAssertionsPassed=false;
         row.OutsideUnchanged=false;row.OutsideWriteAbsent=false;row.OutsideReadObserved=false;row.OutsideWriteObserved=false;
