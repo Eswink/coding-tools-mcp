@@ -149,6 +149,51 @@ operation, an omitted search, a quoting defect, or a root-cause fix. No `/s`, `c
 marker batch, chained command, fallback, capability or production admission is added.
 The original native/nested/runtime failures and direct class46 failures remain.
 
+## Independent AppLocker record observation
+
+The diagnostic workflow brackets its unchanged pilot invocation with UTC and
+monotonic timestamps. A separate observer in `tests/windows-applocker-observation`
+queries only existing records in `Microsoft-Windows-AppLocker/MSI and Script` for
+the explicit-relative case's exact recorded PID, generated `direct.cmd` path and
+bounded invocation interval. Provider, IDs 8005/8006/8007, SCRIPT policy, PID, path
+and both time bounds are conjoined in one service-side selector. Query tolerance
+is disabled and batch size is one; at most two records are read. No policy, audit,
+permission or logging setting is changed, and no broader query follows a miss.
+
+The separate `evidence/applocker-observation` files contain the invocation bracket,
+fixed status/reason, input/query hashes and at most one decision ID/time. They
+contain no raw event XML, formatted message, user/rule details or new accepted
+control fields. The summary is first created as observation-pending.json, fully
+flushed and closed, then renamed without overwrite to observation.json as the last
+observer persistence action. Pending evidence is retained after uncertainty;
+review requires the final name and rejects pending, extra or conflicting siblings. The original pilot exception and native exit state are preserved;
+the pilot's final journal action and every command/security helper remain unchanged.
+
+An ID 8007 match describes a recorded AppLocker block; 8006 is audit would-block,
+and 8005 records permission only. Exact PID/path/time correlation does not prove a
+process creation instance, script entry or the cause of every exit 1. Logged paths
+may use variables such as `%OSDRIVE%`, and delayed, absent, unavailable or malformed
+records remain inconclusive. The read timeouts do not bound query construction or
+rendering; the existing job deadline remains the outer limit.
+
+The checkout step disables automatic LF-to-CRLF conversion only for that action,
+so the immutable-source audit checks exact Git-blob bytes without changing global
+or repository Git configuration.
+
+Run `python tests/windows-applocker-observation/audit.py` for the new strict input,
+query, source and synthetic artifact contracts. PowerShell 5.1 executes the
+separate `contract-tests.ps1` scenarios without querying a real channel. These
+fixtures are not real event evidence. The pure new evaluator requires independently
+authenticated artifact identity and the unchanged old `RunCompletionValidated`
+gate before reporting a reviewed match. Missing final journals or late persistence
+failure remain inconclusive even when a raw event match survives. Old observation
+verdicts continue to be derived separately by their unchanged evaluator.
+
+Primary references: [Microsoft AppLocker event meanings](https://learn.microsoft.com/en-us/windows/security/application-security/application-control/app-control-for-business/applocker/using-event-viewer-with-applocker),
+[Microsoft's field selectors](https://github.com/microsoft/AaronLocker/blob/main/AaronLocker/Get-AppLockerEvents.ps1),
+[event query subset](https://learn.microsoft.com/en-us/windows/win32/wes/consuming-events),
+and [query error-tolerance behavior](https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_query_flags).
+
 ## Explicit LocalApplicationData Temp selection
 
 The current workflow invokes `run-pilot.ps1` with ten retained cases and one

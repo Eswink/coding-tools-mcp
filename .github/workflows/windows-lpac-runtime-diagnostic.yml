@@ -6,6 +6,7 @@ on:
     paths:
       - 'tests/windows-lpac-runtime/**'
       - 'tests/windows-broker-direct/**'
+      - 'tests/windows-applocker-observation/**'
       - '.github/workflows/windows-lpac-runtime-diagnostic.yml'
 permissions:
   contents: read
@@ -15,9 +16,14 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        env:
+          GIT_CONFIG_COUNT: '1'
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: 'false'
         with:
           persist-credentials: false
       - uses: actions/setup-python@v5
+        id: python
         with:
           python-version: '3.12'
       - uses: actions/setup-node@v4
@@ -53,6 +59,15 @@ jobs:
           if($LASTEXITCODE){exit $LASTEXITCODE}
           python tests/windows-broker-direct/cmd-observations-audit.py
           if($LASTEXITCODE){exit $LASTEXITCODE}
+      - name: Audit bounded AppLocker observation contracts
+        shell: pwsh
+        run: |
+          python tests/windows-applocker-observation/audit.py
+          if($LASTEXITCODE){exit $LASTEXITCODE}
+      - name: PowerShell 5.1 synthetic AppLocker failure contracts
+        shell: powershell
+        run: |
+          & tests/windows-applocker-observation/contract-tests.ps1
       - name: Compile isolated broker-direct fixture without launching
         shell: powershell
         run: |
@@ -99,8 +114,41 @@ jobs:
       - name: Observe ten retained cases and one explicit-relative cmd batch
         if: ${{ !cancelled() && steps.payload.outcome == 'success' }}
         shell: powershell
+        env:
+          APPLOCKER_PYTHON: ${{ steps.python.outputs.python-path }}
         run: |
-          & tests/windows-broker-direct/run-pilot.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_sandbox_fixture.exe -Payload "$env:RUNNER_TEMP/lpac-runtime-payload" -Evidence evidence/pilot -Foundation evidence/foundation
+          # APPLOCKER_OUTER_BEGIN
+          $appLockerClock=$null
+          try {
+            . tests/windows-applocker-observation/observe.ps1
+            $appLockerClock=New-AppLockerInvocationClock
+          } catch { }
+          try {
+            & tests/windows-broker-direct/run-pilot.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_sandbox_fixture.exe -Payload "$env:RUNNER_TEMP/lpac-runtime-payload" -Evidence evidence/pilot -Foundation evidence/foundation
+          } finally {
+            try {
+              $appLockerExitState=Get-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
+              $appLockerHadExit=$null -ne $appLockerExitState
+              $appLockerExitValue=$null
+              if($appLockerHadExit) {$appLockerExitValue=$appLockerExitState.Value}
+              try {
+                if($null -ne $appLockerClock) {
+                  $appLockerBracket=Complete-AppLockerInvocationClock -Clock $appLockerClock
+                  Invoke-AppLockerScriptObservation -Bracket $appLockerBracket -PythonPath $env:APPLOCKER_PYTHON -RepositoryRoot $PWD.Path
+                }
+              } catch { }
+              finally {
+                try {
+                  if($appLockerHadExit) {
+                    Set-Variable -Name LASTEXITCODE -Scope Global -Value $appLockerExitValue
+                  } else {
+                    Remove-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
+                  }
+                } catch { }
+              }
+            } catch { }
+          }
+          # APPLOCKER_OUTER_END
       - name: Preserve boundary and evidence identity
         if: always()
         shell: pwsh
