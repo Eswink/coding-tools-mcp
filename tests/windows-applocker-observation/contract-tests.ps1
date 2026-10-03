@@ -1,6 +1,7 @@
 # Synthetic Windows PowerShell 5.1 contracts: no pilot and no real event reader.
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/observe.ps1"
+. "$PSScriptRoot/contract-boundary.ps1"
 $script:RealStartClock = ${function:New-AppLockerInvocationClock}
 $script:RealEndClock = ${function:Complete-AppLockerInvocationClock}
 $script:RealWriter = ${function:Write-AppLockerBoundedJson}
@@ -351,7 +352,7 @@ function Invoke-SyntheticCase {
 $scenarios = @('normal return', 'pilot throw', 'native nonzero', 'absent exit variable', 'present zero exit variable',
     'observer setup failure', 'start clock failure', 'end clock failure', 'driver failure', 'query creation failure',
     'first read failure', 'second read failure', 'record close failure', 'selector close failure', 'reader close failure', 'summary write failure')
-try {
+Invoke-AppLockerSyntheticBoundary -Body {
     foreach ($scenario in $scenarios) {
         switch -Exact ($scenario) {
             'normal return' {
@@ -472,7 +473,7 @@ try {
     # Preserve temporary pending states without cleanup, repair, or retry.
     Assert-Contract ($scenarios.Count -eq 16) 'exact named scenario count'
     Write-Output "AppLocker synthetic contracts: $($scenarios.Count) named scenarios; $script:Variants wrapper variants; $script:Assertions assertions. No real event query or pilot."
-} finally {
+} -Cleanup {
     $script:WriterRoot = $null
     $env:APPLOCKER_PYTHON = $script:SavedPython
 }

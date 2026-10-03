@@ -214,3 +214,34 @@ The compiled-wrapper correction is published9d/treec984. Run37114718919/job11117
   - _需求: FR-1, FR-5_ | _设计: Published9d culture-clock fixture correction_
 
 Fixture-clock local results: all330 retained plus32 observation methods pass;410 variants are unchanged. The new anchored source guard rejects the exact published9d assignment and a mixed-case script-qualified alias, and accepts the candidate. Exact byte proof permits only two culture-result tokens and one fixture assertion in the478-line PS file; the480-line Python audit adds only its one regression assertion. All58 prior PS assertion sites and prior Python assertions remain. Independent source review found no defect. Actual full PS/writer/native/event execution remains pending a reviewed candidate.
+
+## Published73 suite-exit correction tasks (FR-1, FR-5)
+
+Published73/tree96ed run37116291215/job111183645671 completed362 Python methods/410 variants and printed16 PS names/95 variants/2069 assertions, then process1. Pinned runner/PowerShell evidence identifies leaked synthetic exit state, with no native/event execution. Artifact11271925967 is737bytes, SHA2561edda7b8134b7d2da16c70186eadccf4761e032b7f27705be7a8fe0a6f1863ba; CRC, two manifest records and source/tree verified. The accurate terminal PR update initially received an authorization-only read-only-scope rejection; one identical retry after explicit transcript evidence succeeded. All unrelated holds remain.
+
+- [x] E1 Resume the active Plan and pin the completed-body/failed-shell diagnosis to exact73 and runner2.337.0
+  - **证据块:** contract-tests.ps1 final normal case preserves17; final cleanup does not restore caller state; exact runner template/epilogue and Microsoft -Command semantics explain process1
+  - **涉及文件:** External primary-source/evidence reports and three specs only
+  - _需求: FR-1, FR-5_ | _设计: Published73 suite-exit boundary correction_
+- [x] E2 Review exact eight-path scope, callback data flow, error precedence, audit cap490, fresh impact and checked specs
+  - **证据块:** Main478/audit480 cannot fit readable direct guard plus meaningful tests under current caps; shared test-only helper enables actual boundary regression without duplicating semantics
+  - **涉及文件:** Two new PS files<=100/200; main<=480; audit<=490; existing workflow<500; three specs<=500
+  - _需求: FR-1, FR-5_ | _设计: Published73 suite-exit boundary correction_
+- [x] E3 Implement the shared boundary and33-case hosted entry, preserve main Body/Cleanup statements, and wire one fixed PS step
+  - **证据块:** Existing outer suite try begins after all fixture setup; explicit script: state and writerMode copy must retain meaning across callback scope
+  - **涉及文件:** Only the five reviewed test/CI code paths
+  - _需求: FR-1, FR-5_ | _设计: Published73 suite-exit boundary correction_
+- [x] E4 Run362 local Python identities/412 variants and verify source/caps/full-body preservation plus independent semantic review
+  - **证据块:** Two inventory files add two variants only; actual33-case/16-scenario PS execution cannot be inferred locally
+  - **涉及文件:** Reviewed eight paths and external proof only
+  - _需求: FR-1, FR-5_ | _设计: Published73 suite-exit boundary correction_
+- [ ] E5 Fresh staged graph/detect_changes/full review/gencommit and exact sole73parent candidate disposition
+  - **证据块:** New PS symbols may be unindexed; exact file/manual proof must not masquerade as callable graph coverage
+  - **涉及文件:** Exactly eight reviewed paths; no publication before disposition
+  - _需求: FR-5_ | _设计: Published73 suite-exit boundary correction_
+- [ ] E6 Verify actual new33-case and original full-suite Actions steps, then unchanged compiler/native/event outcomes and artifact
+  - **证据块:** Source-complete summary is distinct from process success; no exit0, shell override, ignored errors or weaker gate is allowed
+  - **涉及文件:** Existing diagnostic branch/Draft99/workflow only
+  - _需求: FR-1, FR-5_ | _设计: Published73 suite-exit boundary correction_
+
+Suite-boundary local results: all330 retained plus32 observation methods pass, with412 expanded variants. The helper is48lines, boundary entry161, main479, audit490 and workflow171. Exact whole-file proof preserves all59 main assertion sites,11 functions,16 scenarios,95 intended wrapper variants and four writer modes. Independent source review found no defect in presence/value restoration, error precedence, callback scope, forwarding shims or output/error oracles. All1,634 other baseline files remain byte-identical. Actual33-case PowerShell and complete original suite Actions success, followed by downstream native/event evidence, remain hosted pending.

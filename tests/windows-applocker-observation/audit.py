@@ -358,7 +358,8 @@ class AppLockerAudit(unittest.TestCase):
 
     def test_source_inventory_caps_and_pure_driver_functions(self):
         caps = {'observe.ps1': 450, 'contract-tests.ps1': 480, 'applocker_observation_contract.py': 450,
-                'prepare_query.py': 200, 'audit.py': 480, 'contract_fixtures.py': 220, 'driver_contract_tests.py': 240}
+                'prepare_query.py': 200, 'audit.py': 490, 'contract_fixtures.py': 220, 'driver_contract_tests.py': 240,
+                'contract-boundary.ps1': 100, 'boundary-contract-tests.ps1': 200}
         self.assertEqual({path.name for path in HERE.iterdir() if path.is_file()}, set(caps))
         for name, cap in caps.items():
             with self.variant(name=name): self.assertLessEqual(len((HERE / name).read_text().splitlines()), cap)
@@ -403,7 +404,16 @@ class AppLockerAudit(unittest.TestCase):
         self.assertNotRegex(outer, r'\b(?:return|exit|continue-on-error)\b')
         self.assertIn('APPLOCKER_PYTHON: ${{ steps.python.outputs.python-path }}', workflow)
         self.assertIn('python tests/windows-applocker-observation/audit.py', workflow)
+        self.assertIn('& tests/windows-applocker-observation/boundary-contract-tests.ps1', workflow)
         synthetic = (HERE / 'contract-tests.ps1').read_text()
+        self.assertIn('. "$PSScriptRoot/contract-boundary.ps1"', synthetic)
+        self.assertIn('Invoke-AppLockerSyntheticBoundary -Body {', synthetic)
+        self.assertIn('} -Cleanup {', synthetic)
+        boundary_tests = (HERE / 'boundary-contract-tests.ps1').read_text(encoding='utf-8')
+        self.assertIn('$PSScriptRoot/contract-boundary.ps1', boundary_tests)
+        boundary = (HERE / 'contract-boundary.ps1').read_text(encoding='utf-8')
+        self.assertIn('function Invoke-AppLockerSyntheticBoundary', boundary)
+        self.assertNotRegex(boundary, r'(?im)^\s*exit(?:\s|$)|Get-WinEvent|Start-Process|Invoke-Expression|DllImport')
         self.assertNotRegex(synthetic, r'(?im)^\s*\$(?:script:)?bracket\s*=\s*&\s*\$script:RealEndClock\b')
         for token in ('APPLOCKER_OUTER_BEGIN', 'APPLOCKER_OUTER_END', '[scriptblock]::Create($wrapper)', 'Invoke-SyntheticPilot', 'Invoke-SyntheticLoad'):
             self.assertIn(token, synthetic)
