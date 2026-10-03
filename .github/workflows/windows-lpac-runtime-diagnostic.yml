@@ -51,6 +51,8 @@ jobs:
           if($LASTEXITCODE){exit $LASTEXITCODE}
           python tests/windows-broker-direct/cmd-sentinel-audit.py
           if($LASTEXITCODE){exit $LASTEXITCODE}
+          python tests/windows-broker-direct/cmd-observations-audit.py
+          if($LASTEXITCODE){exit $LASTEXITCODE}
       - name: Compile isolated broker-direct fixture without launching
         shell: powershell
         run: |
@@ -61,6 +63,7 @@ jobs:
           [BrokerDirectLauncher]::RunParentCandidateContractTests()
           [BrokerDirectLauncher]::RunSelectedParentContractTests()
           [BrokerDirectLauncher]::RunPilotCmdSentinelContractTests()
+          [BrokerDirectLauncher]::RunPilotCmdObservationContractTests()
       - name: PowerShell 5.1 metadata-shape contracts
         shell: powershell
         run: |
@@ -93,7 +96,7 @@ jobs:
         shell: powershell
         run: |
           & tests/windows-lpac-runtime/run-runtime.ps1 -Fixture tests/windows-lpac-runtime/target/debug/windows_runtime_fixture.exe -Payload "$env:RUNNER_TEMP/lpac-runtime-payload" -Evidence evidence/runtime
-      - name: Observe six original cases and two separate cmd observations
+      - name: Observe eight retained cases and two raw cmd cwd/read observations
         if: ${{ !cancelled() && steps.payload.outcome == 'success' }}
         shell: powershell
         run: |

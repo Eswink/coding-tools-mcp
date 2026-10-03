@@ -27,7 +27,7 @@ that cmd subsequently opened or executed the batch.
 The original six-case and seventh command-line sentinel verdicts are reduced
 independently, including after a later case, evidence-write or final-cleanup failure.
 Sentinel success cannot repair an original failure. The full allocated and cleaned
-path has eight case journals and one run journal; blocked or unprepared rows do
+path now has ten case journals and one run journal; blocked or unprepared rows do
 not invent case journals. Contained nonzero exits may complete cleanup while
 their observations remain failed. Any ownership, capture, marker or cleanup
 uncertainty retains recovery and prevents further launches.
@@ -63,10 +63,58 @@ describe `/s` quote stripping; adding it would change this comparison. Plain
 terminates cmd with the supplied process exit code. The test adds no `/b`, `call`,
 redirection or fallback command.
 
+## Raw cwd and nine-byte read observations
+
+The two appended cases are `cmd-cwd` with exactly `/d /q /c cd` and
+`cmd-read-direct` with exactly `/d /q /c type direct.cmd`. Each receives a fresh
+profile, workspace, PID and three regular stdio handles under the same unchanged
+policy. Its cmd bytes must match the current run's original cmd case. These are
+independent objects; the experiment does not claim the same token or directory.
+
+After stop, drain and mandatory evidence capture, four bounded, non-inherited
+read-only handles independently reread source/evidence stdout and stderr. Source
+identities must equal the original stdio identities; evidence copies have their
+own measured and rechecked identities. Every read and single-attempt close must
+be confirmed. Cwd expects the exact ASCII workspace plus CRLF; non-ASCII cwd is
+unsupported/inconclusive. TYPE independently expects exactly `exit 23\r\n` and
+empty stderr, with queried exit zero. No BOM, newline or whitespace conversion
+is allowed, and no code-page or shell-flag fallback exists.
+
+Case receipts contain only `CmdCwdObserved`/`CmdReadObserved`, and run receipts
+only `CmdCwdRawObservationMatched`/`CmdReadRawObservationMatched`. These facts can
+remain true after later persistence or cleanup failure. They are never accepted
+run verdicts. The pure `evaluate_cmd_observation_artifact` evaluator separately
+derives `CmdCwdObservationPassed`/`CmdReadObservationPassed`, default false, from
+trusted exact-source/run provenance, all raw bytes and stage-correct committed
+case/run journals. A completed filename commits an unchanged `state=pending`
+body; preconditions and favorable matrices alone cannot establish completion.
+There is no producer accepted field or post-Resolve persistence action.
+
+Run `python tests/windows-broker-direct/cmd-observations-audit.py` for the unified
+source and synthetic artifact tests. Its five local Python modules contain no
+acquisition, network or OS lifecycle operation. Synthetic failure-shaped artifacts
+cover case.json, matrices, run-root removal, final scans, selected-parent closes,
+final writes and journal bind/verify/rename; they are not Windows fault injection.
+The evaluator bounds and validates raw member hashes, exact schemas, journal
+linkage and stage projections. Trust context must come from independent artifact
+verification, never self-asserted receipt fields; hashes alone are not provenance.
+Opaque legacy JSON contributes no prerequisite or accepted-result truth. Its bytes
+are hash-verified only; semantic checks cover the parsed contributing receipts and
+named wrappers, including rejection of new accepted-result fields.
+
+The full allocated path is ten case plus one run journals; actual profile, pin
+and recovery-boundary counts must be read from that run. Scoped confirmation does
+not assert universal CleanupConfirmed. All eight original observations and their
+reducers stay independent. TYPE success proves a read of those bytes only; it is
+not original batch execution or runtime support. Direct class46 failures and
+TokenVerified=false remain; observed AppContainer/SID/zero-capability/LowIL and
+AccessCheck signatures are surrogate observations. NetworkDenialProven remains
+false and the original native/nested/runtime aggregate failures remain failures.
+
 ## Explicit LocalApplicationData Temp selection
 
-The current workflow invokes `run-pilot.ps1` with six original cases, the two
-separate cmd observations, and the fixed
+The current workflow invokes `run-pilot.ps1` with eight retained cases and two raw cwd/read
+observations, and the fixed
 `localappdata_temp_ci_v1` parent policy. The wrapper and C# helper independently
 resolve only `Environment.GetFolderPath(LocalApplicationData, DoNotVerify)` plus
 the literal `Temp` child, require exact agreement and fresh unchanged owner/DACL
@@ -98,7 +146,7 @@ metadata enumeration rejects hidden, wrong-type, duplicate, reparse or unknown
 markers, then recurses only through existing diagnostic-name families and evidence.
 Unrelated Temp subtrees are never traversed. The depth32/100000-entry limits remain.
 A short lease protects pre-allocation checks. After the run journal exists, a
-long lease remains held through all eight cases and owned-root removal. Any failed
+long lease remains held through all ten cases and owned-root removal. Any failed
 scan, metadata check or uncertain close stops progression and retains recovery.
 
 The final recovery scan and independent reverse single-attempt pin closes precede

@@ -15,7 +15,7 @@ PINS = {'ParentCandidateObservations.cs': '1084b425a6268010388a0de255d8eead80706
 
 
 def fixture_coverage(discovered):
-    expected = set(OLD_PINS) | set(NAMES) | {'PilotSelectedParent.cs', 'PilotSelectedParentTests.cs', 'PilotCmdSentinel.cs', 'PilotCmdSentinelTests.cs'}
+    expected = set(OLD_PINS) | set(NAMES) | {'PilotSelectedParent.cs', 'PilotSelectedParentTests.cs', 'PilotCmdSentinel.cs', 'PilotCmdSentinelTests.cs', 'PilotCmdObservations.cs', 'PilotCmdObservationsTests.cs'}
     assert len(OLD_PINS) == 21 and not (set(OLD_PINS) & set(NAMES))
     assert discovered == expected, 'missing or unreviewed executable fixture file'
     assert len(discovered) == len({name.casefold() for name in discovered})
@@ -157,7 +157,7 @@ class ParentCandidateAudit(unittest.TestCase):
             inspect(self.files, self.old, self.workflow, False)
 
     def test_unknown_missing_and_case_collision(self):
-        names=set(OLD_PINS) | set(NAMES) | {'PilotSelectedParent.cs', 'PilotSelectedParentTests.cs', 'PilotCmdSentinel.cs', 'PilotCmdSentinelTests.cs'}
+        names=set(OLD_PINS) | set(NAMES) | {'PilotSelectedParent.cs', 'PilotSelectedParentTests.cs', 'PilotCmdSentinel.cs', 'PilotCmdSentinelTests.cs', 'PilotCmdObservations.cs', 'PilotCmdObservationsTests.cs'}
         fixture_coverage(names)
         for changed in (names | {'hidden.cs'}, names | {'new.ps1'}, names - {'DirectLauncher.cs'}, names | {'parentcandidateobservations.cs'}):
             with self.assertRaises(AssertionError): fixture_coverage(changed)

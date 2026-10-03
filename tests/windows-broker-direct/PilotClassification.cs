@@ -37,6 +37,7 @@ public static partial class BrokerDirectLauncher {
         DirectReceipt r=row.Launcher;
         // Reclassification cannot retain an earlier positive result or a network-denial claim.
         row.PositivePassed=false;row.OfflineReferenceRouteValid=false;row.NetworkDenialProven=false;row.CmdExit23Observed=false;row.CmdBatchExit23Observed=false;
+        row.CmdCwdObserved=false;row.CmdReadObserved=false;
         if(row.Fatal) return; // Keep prior factual escape/entry/exit evidence intact.
         row.NativeFiveAssertionsPassed=false;
         row.OutsideUnchanged=false;row.OutsideWriteAbsent=false;row.OutsideReadObserved=false;row.OutsideWriteObserved=false;
@@ -47,6 +48,7 @@ public static partial class BrokerDirectLauncher {
         if(!row.OutsideUnchanged || !row.OutsideWriteAbsent) {row.Fatal=true;row.Status="outside_boundary_failed";return;}
         if(row.Case=="cmd-exit23") {ClassifyPilotCmdSentinel(row);return;}
         if(row.Case=="cmd-batch-exit23") {ClassifyPilotCmdBatch(row);return;}
+        if(PilotCmdObservationKind(row.Case)) {ClassifyPilotCmdObservation(row);return;}
         if(row.Case=="ordinary") {row.Status="ordinary_signature_matched_and_lpac_rejected";return;}
         bool executed=row.AuthorityObserved && row.PreResumeReady && r.Assigned && r.Resumed && r.Wait==WAIT_OBJECT_0;
         if(row.Case=="reference") {
