@@ -20,6 +20,8 @@ import time
 BASE_SHA = '1dfe6b0f3aff7c51e90fcd624b838948e518800c'
 BASE_TREE = '0d251466e935e4689f7350d6be56a8caad86f512'
 BASE_COUNT = 1628
+PARENT_SHA = '229990a2daebac89a796dac2b31c20ab7254a227'
+PARENT_TREE = 'ce28e65f86132339d3962166d34efb9b4f968f43'
 GUARD_PATH = 'scripts/rc_publication_boundary_tests.py'
 GUARD_BLOB = '85627ca59cc6b7d700af30867c1e7aa0c8fb547f'
 ADDITIONS = tuple(sorted([
@@ -64,6 +66,8 @@ class SourceVerification:
     guard_blob: str
     additions: tuple
     working_bytes: int
+    baseline_sha: str
+    baseline_tree: str
     source_verified: bool = field(default=True, init=False)
     published_candidate: bool = field(default=False, init=False)
     release_approved: bool = field(default=False, init=False)
@@ -341,11 +345,14 @@ def working_bytes(root, entries, budget):
 
 
 def verify_source(root, expected_source_sha, *, expected_tree=None, staged=False):
-    """Verify pinned PR97 -> exact16 increment. Raises on any mismatch.
+    """Verify the one-step append to pinned 229, itself a sole child of PR97.
 
     committed: source_sha is the actual one-commit candidate HEAD, whose sole parent
-    is PR97. staged: expected_source_sha MUST be PR97; source_tree is prospective,
+    is 229. staged: expected_source_sha MUST be 229; source_tree is prospective,
     and the report's mode is 'prospective_index', never a published candidate.
+    parent_sha/tree identify direct parent 229. baseline_sha/tree and predecessor
+    counts describe PR97's 1628 entries (1627 unchanged plus the pinned guard).
+    The exact 16 additions are relative to PR97, not new additions to 229.
     An independently expected tree may be supplied; otherwise actual commit/index
     tree is measured. All results are local observations, not publication proof.
     """
@@ -366,13 +373,16 @@ def verify_source(root, expected_source_sha, *, expected_tree=None, staged=False
     base_tree, _ = parse_commit(reader.read('commit', BASE_SHA), BASE_SHA)
     require(base_tree == BASE_TREE, 'base_tree_mismatch')
     base = parse_inventory(reader.read('tree', BASE_TREE))
+    parent_tree, parents = parse_commit(reader.read('commit', PARENT_SHA), PARENT_SHA)
+    require(parent_tree == PARENT_TREE, 'published_parent_tree_mismatch')
+    require(parents == (BASE_SHA,), 'published_parent_lineage_mismatch')
     if staged:
-        require(actual == BASE_SHA, 'staged_head_mismatch')
+        require(actual == PARENT_SHA, 'staged_head_mismatch')
         candidate = parse_inventory(reader.read('index'), index=True)
         candidate_tree = tree_hash(candidate)
     else:
         candidate_tree, parents = parse_commit(reader.read('commit', actual), actual)
-        require(parents == (BASE_SHA,), 'candidate_parent_mismatch')
+        require(parents == (PARENT_SHA,), 'candidate_parent_mismatch')
         candidate = parse_inventory(reader.read('tree', candidate_tree))
         require(inventory(parse_inventory(reader.read('index'), index=True)) ==
                 inventory(candidate), 'index_mismatch')
@@ -386,5 +396,5 @@ def verify_source(root, expected_source_sha, *, expected_tree=None, staged=False
             inventory(candidate), 'index_changed')
     reader.remaining()
     return SourceVerification('prospective_index' if staged else 'committed', actual,
-        candidate_tree, BASE_SHA, BASE_TREE, len(base), len(base) - 1,
-        GUARD_PATH, GUARD_BLOB, additions, total)
+        candidate_tree, PARENT_SHA, PARENT_TREE, len(base), len(base) - 1,
+        GUARD_PATH, GUARD_BLOB, additions, total, BASE_SHA, BASE_TREE)

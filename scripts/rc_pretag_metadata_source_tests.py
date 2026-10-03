@@ -157,13 +157,19 @@ class RepositoryTests(unittest.TestCase):
         self.git('commit', '-qm', 'Synthetic baseline')
         self.base = self.git('rev-parse', 'HEAD').decode().strip()
         self.base_tree = self.git('rev-parse', 'HEAD^{tree}').decode().strip()
-        self.pins = mock.patch.multiple(source, BASE_SHA=self.base,
-            BASE_TREE=self.base_tree, BASE_COUNT=3, GUARD_BLOB=blob(b'synthetic approved guard\n'))
-        self.pins.start()
-        self.addCleanup(self.pins.stop)
         for path in source.ADDITIONS:
             self.write(path, path.encode() + b'\n')
         self.write(source.GUARD_PATH, b'synthetic approved guard\n')
+        self.git('add', '.')
+        self.git('commit', '-qm', 'Synthetic published parent')
+        self.parent = self.git('rev-parse', 'HEAD').decode().strip()
+        self.parent_tree = self.git('rev-parse', 'HEAD^{tree}').decode().strip()
+        self.pins = mock.patch.multiple(source, BASE_SHA=self.base, BASE_TREE=self.base_tree,
+            BASE_COUNT=3, GUARD_BLOB=blob(b'synthetic approved guard\n'),
+            PARENT_SHA=self.parent, PARENT_TREE=self.parent_tree)
+        self.pins.start()
+        self.addCleanup(self.pins.stop)
+        self.write('scripts/rc_pretag_metadata_live.py', b'synthetic diagnostic correction\n')
         self.git('add', '.')
         self.prospective = self.git('write-tree').decode().strip()  # Test fixture only.
         self.git('commit', '-qm', 'Synthetic candidate')
@@ -185,7 +191,8 @@ class RepositoryTests(unittest.TestCase):
         result = self.verify(expected_tree=self.prospective)
         self.assertEqual((result.mode, result.source_sha, result.source_tree),
                          ('committed', self.candidate, self.prospective))
-        self.assertEqual(result.parent_sha, self.base)
+        self.assertEqual((result.parent_sha, result.parent_tree), (self.parent, self.parent_tree))
+        self.assertEqual((result.baseline_sha, result.baseline_tree), (self.base, self.base_tree))
         self.assertEqual(result.predecessor_count, 3)
         self.assertEqual(result.unchanged_predecessor_count, 2)
         self.assertEqual(result.guard_path, source.GUARD_PATH)
@@ -197,13 +204,13 @@ class RepositoryTests(unittest.TestCase):
             replace(result, release_approved=True)
 
     def test_positive_staged_is_only_prospective(self):
-        self.git('reset', '--soft', self.base)
-        result = source.verify_source(self.root, self.base, staged=True,
+        self.git('reset', '--soft', self.parent)
+        result = source.verify_source(self.root, self.parent, staged=True,
                                       expected_tree=self.prospective)
         self.assertEqual(result.mode, 'prospective_index')
-        self.assertEqual(result.source_sha, self.base)
+        self.assertEqual(result.source_sha, self.parent)
         self.assertFalse(result.published_candidate)
-        self.assertEqual(self.git('rev-parse', 'HEAD').decode().strip(), self.base)
+        self.assertEqual(self.git('rev-parse', 'HEAD').decode().strip(), self.parent)
 
     def test_production_gate_does_not_mutate_index_objects_or_files(self):
         def snapshot():
@@ -225,10 +232,39 @@ class RepositoryTests(unittest.TestCase):
                 call()
 
     def test_wrong_pinned_base_sha_or_tree(self):
-        for changes in ({'BASE_SHA': 'a' * 40}, {'BASE_TREE': 'a' * 40}):
+        for changes in ({'BASE_SHA': 'a' * 40}, {'BASE_TREE': 'a' * 40},
+                        {'PARENT_SHA': 'a' * 40}, {'PARENT_TREE': 'a' * 40}):
             with mock.patch.multiple(source, **changes):
                 with self.assertRaises(source.SourceVerificationError):
                     self.verify()
+
+    def test_published_parent_requires_exact_sole_baseline_parent(self):
+        for parents in ((), (self.candidate,), (self.base, self.candidate)):
+            arguments = [item for parent in parents for item in ('-p', parent)]
+            sha = self.git('commit-tree', self.parent_tree, *arguments,
+                           '-m', 'Synthetic wrong published lineage').decode().strip()
+            with mock.patch.object(source, 'PARENT_SHA', sha), self.assertRaisesRegex(
+                    source.SourceVerificationError, 'published_parent_lineage_mismatch'):
+                self.verify()
+
+    def test_candidate_cannot_skip_published_parent_or_stage_on_baseline(self):
+        sha = self.git('commit-tree', self.prospective, '-p', self.base,
+                       '-m', 'Synthetic skipped published parent').decode().strip()
+        self.git('reset', '--hard', sha)
+        with self.assertRaisesRegex(source.SourceVerificationError, 'candidate_parent_mismatch'):
+            source.verify_source(self.root, sha)
+        self.git('reset', '--soft', self.base)
+        with self.assertRaisesRegex(source.SourceVerificationError, 'staged_head_mismatch'):
+            source.verify_source(self.root, self.base, staged=True)
+
+    def test_candidate_cannot_use_same_tree_alternate_published_commit(self):
+        alternate = self.git('commit-tree', self.parent_tree, '-p', self.base,
+                             '-m', 'Synthetic alternate parent identity').decode().strip()
+        sha = self.git('commit-tree', self.prospective, '-p', alternate,
+                       '-m', 'Synthetic candidate on alternate parent').decode().strip()
+        self.git('reset', '--hard', sha)
+        with self.assertRaisesRegex(source.SourceVerificationError, 'candidate_parent_mismatch'):
+            source.verify_source(self.root, sha)
 
     def test_dirty_bytes_in_every_predecessor_and_addition(self):
         for path in ('baseline/a', 'root.txt', source.GUARD_PATH, *source.ADDITIONS):
@@ -302,13 +338,13 @@ class RepositoryTests(unittest.TestCase):
         with self.assertRaisesRegex(source.SourceVerificationError, 'candidate_paths_mismatch'):
             source.verify_source(self.root, sha)
         self.git('reset', '--hard', self.candidate)
-        self.git('reset', '--soft', self.base)
+        self.git('reset', '--soft', self.parent)
         self.git('rm', '--cached', source.ADDITIONS[0])
         with self.assertRaisesRegex(source.SourceVerificationError, 'candidate_paths_mismatch'):
-            source.verify_source(self.root, self.base, staged=True)
+            source.verify_source(self.root, self.parent, staged=True)
 
     def test_same_tree_extra_parent_fails(self):
-        sha = self.git('commit-tree', self.prospective, '-p', self.base,
+        sha = self.git('commit-tree', self.prospective, '-p', self.parent,
                        '-p', self.candidate, '-m', 'Synthetic multiparent').decode().strip()
         self.git('reset', '--hard', sha)
         with self.assertRaisesRegex(source.SourceVerificationError, 'candidate_parent_mismatch'):
@@ -336,7 +372,7 @@ class RepositoryTests(unittest.TestCase):
     def test_noncontiguous_parent_headers_cannot_forge_lineage(self):
         author = b'author Fixture <fixture@example.invalid> 1000000000 +0000\n'
         committer = author.replace(b'author ', b'committer ')
-        parent = b'parent ' + self.base.encode() + b'\n'
+        parent = b'parent ' + self.parent.encode() + b'\n'
         for headers in (author + parent + committer, author + committer + parent,
                         author + committer + b'encoding UTF-8\n' + parent):
             raw = b'tree ' + self.prospective.encode() + b'\n' + headers + b'\nSynthetic\n'
@@ -404,6 +440,59 @@ class GitBoundsTests(unittest.TestCase):
     def test_new_files_stay_below_500_lines(self):
         for name in ('rc_pretag_metadata_source.py', 'rc_pretag_metadata_source_tests.py'):
             self.assertLess(len(Path(__file__).with_name(name).read_text().splitlines()), 500)
+
+class FailureSummaryBoundsTests(unittest.TestCase):
+    def test_exact_17_plus_16_rows_fit_and_overflow_is_rejected(self):
+        import json
+        import rc_pretag_metadata_live as live
+        from rc_pretag_metadata_fixtures import REQUEST, FixtureAPI
+        from rc_pretag_metadata_types import MetadataObservation
+        receipt = live.collect_metadata(REQUEST, FixtureAPI())
+        changed = MetadataObservation('collection', 'changed', 'snapshot_changed', 1)
+        receipt = replace(receipt, collection_status='blocked', observations=receipt.observations + (changed,))
+        summary = live.failure_summary(receipt)
+        self.assertEqual((len(summary['pass_a']), len(summary['pass_b'])), (17, 16))
+        self.assertEqual(summary['pass_a'][-1], dict(key='collection', state='changed', reason='snapshot_changed'))
+        error = dict(status='failed', code='collection_failed', stage='quality', observations=summary,
+            release_approved=False, publish_approved=False, evidence_authentication='unverified')
+        self.assertLessEqual(len(json.dumps(error, sort_keys=True).encode()), live.ERROR_BYTES)
+        for field, values in (('observations', receipt.observations + (changed,)),
+                ('revalidation_observations', receipt.revalidation_observations + (changed,))):
+            forged = replace(receipt)
+            object.__setattr__(forged, field, values)
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                live.failure_summary(forged)
+
+        oversized = replace(receipt.observations[0].records[0])
+        for name in ('record_id', 'source_sha', 'name', 'state'):
+            object.__setattr__(oversized, name, 'x' * 512)
+        for field, value in (('records', (asdict(receipt.observations[0].records[0]),)),
+                ('key', type('StringSubclass', (str,), {})('commit')), ('count', 2**63),
+                ('key', 'x' * 513), ('records', tuple(range(129))), ('records', (receipt,)),
+                ('records', (oversized,) * 128)):
+            forged = replace(receipt)
+            row = replace(receipt.observations[0])
+            object.__setattr__(row, field, value)
+            object.__setattr__(forged, 'observations', (row,) + receipt.observations[1:])
+            with mock.patch.object(live, 'encode', side_effect=AssertionError('serialization reached')):
+                with self.subTest(field=field), self.assertRaises(ValueError):
+                    live.failure_summary(forged)
+
+    def test_error_byte_cap_is_exact_and_never_truncates_or_overwrites(self):
+        import rc_pretag_metadata_live as live
+        self.assertEqual(live.ERROR_BYTES, 8192)
+        with tempfile.TemporaryDirectory() as folder:
+            fd = live.directory(Path(folder))
+            try:
+                raw = b'x' * live.ERROR_BYTES
+                live.write(fd, 'error.json', raw, live.ERROR_BYTES)
+                with self.assertRaises(ValueError):
+                    live.write(fd, 'error.json', raw + b'x', live.ERROR_BYTES)
+                self.assertEqual((Path(folder) / 'error.json').read_bytes(), raw)
+                with self.assertRaises(FileExistsError):
+                    live.write(fd, 'error.json', b'{}', live.ERROR_BYTES)
+            finally:
+                os.close(fd)
 
 
 if __name__ == '__main__':

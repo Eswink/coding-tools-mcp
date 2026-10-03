@@ -452,6 +452,43 @@ class MetadataCorrectionTests(unittest.TestCase):
         self.assertNotIn(b'private-body-marker', raw)
         self.assertNotIn(hashlib.sha256(body.encode()).hexdigest().encode(), raw)
 
+class FailureSummaryBoundaryTests(unittest.TestCase):
+    def test_summary_retains_only_existing_normalized_rows(self):
+        from rc_pretag_metadata_live import failure_summary
+        receipt = collect_metadata(REQUEST, FixtureAPI())
+        summary = failure_summary(receipt)
+        for label, rows in (('pass_a', receipt.observations), ('pass_b', receipt.revalidation_observations)):
+            self.assertEqual(summary[label], [dict(key=row.key, state=row.state, reason=row.reason) for row in rows])
+            self.assertTrue(all(set(row) == {'key', 'state', 'reason'} for row in summary[label]))
+        self.assertEqual(set(summary), {'pass_a', 'pass_b'})
+
+    def test_forged_types_enums_extra_fields_and_secret_sentinels_are_rejected(self):
+        from rc_pretag_metadata_live import failure_summary
+        receipt = collect_metadata(REQUEST, FixtureAPI())
+        sentinel = 'https://secret.invalid/TOKEN?private=ARBITRARY-PROSE'
+        for raw in ({'observations': sentinel}, sentinel, object()):
+            with self.assertRaises(ValueError):
+                failure_summary(raw)
+        for field in ('key', 'state', 'reason', 'extra'):
+            row = replace(receipt.observations[0])
+            object.__setattr__(row, field, sentinel)
+            forged = replace(receipt, collection_status='blocked')
+            object.__setattr__(forged, 'observations', (row,) + receipt.observations[1:])
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                failure_summary(forged)
+        for field, value in (('request', asdict(receipt.request)),
+                             ('extra', sentinel), ('observations', [receipt.observations[0]]),
+                             ('revalidation_observations', (object(),)), ('release_approved', True)):
+            forged = replace(receipt)
+            object.__setattr__(forged, field, value)
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                failure_summary(forged)
+        for target in (receipt.request, receipt.request.source, receipt.observations[0].records[0]):
+            object.__setattr__(target, 'unexpected', sentinel)
+            with self.assertRaises(ValueError):
+                failure_summary(receipt)
+            object.__delattr__(target, 'unexpected')
+
 
 if __name__ == '__main__':
     unittest.main()

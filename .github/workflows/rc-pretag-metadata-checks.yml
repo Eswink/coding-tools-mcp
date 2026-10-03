@@ -72,7 +72,7 @@ jobs:
               'final_rc_evidence release_dependency_capture release_dependency_contract exact_build_audit '
               'rc_packages rc_windows_install_contract exclusive_native_contract exclusive_release '
               'source_provenance_gate').split()
-          groups = {'metadata': (174, sorted(p.stem for p in Path('scripts').glob('rc_pretag_metadata*_tests.py'))),
+          groups = {'metadata': (182, sorted(p.stem for p in Path('scripts').glob('rc_pretag_metadata*_tests.py'))),
               'pretag': (53, ['rc_pretag_identity_tests', 'rc_pretag_policy_tests']),
               'consumer': (159, sorted(p.stem for p in Path('scripts').glob('rc_consumer*_tests.py'))),
               'publication': (135, sorted(p.stem for p in Path('scripts').glob('rc_publication*_tests.py'))),

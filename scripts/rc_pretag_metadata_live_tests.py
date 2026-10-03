@@ -29,8 +29,9 @@ def provider(folder):
 
 
 def proof():
-    return source.SourceVerification('committed', 'a' * 40, 'b' * 40, source.BASE_SHA,
-        source.BASE_TREE, 1628, 1627, source.GUARD_PATH, source.GUARD_BLOB, source.ADDITIONS, 1)
+    return source.SourceVerification('committed', 'a' * 40, 'b' * 40, source.PARENT_SHA,
+        source.PARENT_TREE, 1628, 1627, source.GUARD_PATH, source.GUARD_BLOB, source.ADDITIONS, 1,
+        source.BASE_SHA, source.BASE_TREE)
 
 
 def negative(operation, arguments, occurrence, value):
@@ -63,7 +64,7 @@ class LiveDiagnosticTests(unittest.TestCase):
             channel='fixed_origin_tls_bearer_request')
 
     def invoke(self, *, environment=None, before=None, after=None, receipt=None,
-               failure=None, writer=None, closer=None):
+               failure=None, writer=None, closer=None, adapter_failure=None):
         with tempfile.TemporaryDirectory() as folder, ExitStack() as stack:
             env = provider(folder) | (environment or {})
             stack.enter_context(mock.patch.dict(os.environ, env, clear=True))
@@ -73,7 +74,7 @@ class LiveDiagnosticTests(unittest.TestCase):
                 self.assertEqual(kwargs, {})
                 return next(proofs)
             gate = stack.enter_context(mock.patch.object(live, 'verify_source', side_effect=verify))
-            adapter = stack.enter_context(mock.patch.object(live, 'MetadataGitHub'))
+            adapter = stack.enter_context(mock.patch.object(live, 'MetadataGitHub', side_effect=adapter_failure))
             collector = stack.enter_context(mock.patch.object(live, 'collect_metadata',
                 return_value=receipt or self.trusted_output_mock, side_effect=failure))
             if writer:
@@ -130,6 +131,8 @@ class LiveDiagnosticTests(unittest.TestCase):
         status, files, _, _, _ = self.invoke(receipt=replace(self.synthetic, request=self.request))
         self.assertEqual(status, 1)
         self.assertEqual(set(files), {'error.json'})
+        self.assertEqual(json.loads(files['error.json'])['stage'], 'quality')
+        self.assertIn('observations', json.loads(files['error.json']))
 
     def test_only_complete_repeated_empty_negative_profile_is_accepted(self):
         for key, state, reason in (('repository', 'inaccessible', 'forbidden'),
@@ -178,6 +181,7 @@ class LiveDiagnosticTests(unittest.TestCase):
         self.assertEqual((status, gate.call_count), (1, 2))
         self.assertEqual(set(files), {'error.json'})
         self.assertEqual(json.loads(files['error.json'])['code'], 'source_revalidation_failed')
+        self.assertEqual(json.loads(files['error.json'])['stage'], 'source_revalidation')
 
     def test_cleanup_uncertain_and_private_exceptions_produce_only_fixed_error(self):
         for error, code in ((live.CleanupUncertain(), 'cleanup_uncertain'),
@@ -187,6 +191,25 @@ class LiveDiagnosticTests(unittest.TestCase):
             self.assertEqual(set(files), {'error.json'})
             self.assertEqual(json.loads(files['error.json'])['code'], code)
             self.assertNotIn(b'private', files['error.json'])
+            self.assertEqual(json.loads(files['error.json'])['stage'], 'collection')
+            self.assertNotIn('observations', json.loads(files['error.json']))
+
+    def test_adapter_failure_and_malformed_return_have_no_observation_summary(self):
+        sentinel = 'SECRET-URL-TOKEN-ARBITRARY-EXCEPTION'
+        status, files, _, _, collector = self.invoke(adapter_failure=ValueError(sentinel))
+        error = json.loads(files['error.json'])
+        self.assertEqual((status, error['code'], error['stage']), (1, 'collection_failed', 'adapter_construction'))
+        self.assertNotIn('observations', error)
+        self.assertNotIn(sentinel.encode(), files['error.json'])
+        collector.assert_not_called()
+        forged = replace(self.trusted_output_mock)
+        object.__setattr__(forged, 'unexpected', sentinel)
+        for malformed in ({'raw': sentinel}, forged):
+            status, files, _, _, _ = self.invoke(receipt=malformed)
+            error = json.loads(files['error.json'])
+            self.assertEqual((status, error['stage']), (1, 'quality'))
+            self.assertNotIn('observations', error)
+            self.assertNotIn(sentinel.encode(), files['error.json'])
 
     def test_collision_preserves_other_file_and_fails_without_deleting_it(self):
         original = live.write
@@ -199,6 +222,7 @@ class LiveDiagnosticTests(unittest.TestCase):
         self.assertEqual(files['source.json'], b'collision-marker')
         self.assertNotIn('metadata.json', files)
         self.assertEqual(json.loads(files['error.json'])['code'], 'output_failed')
+        self.assertEqual(json.loads(files['error.json'])['stage'], 'output')
 
     def test_error_write_failure_and_final_fd_close_failure_return_failure(self):
         def no_write(*args, **kwargs):
@@ -403,7 +427,7 @@ class WorkflowTests(unittest.TestCase):
     def test_file_caps_and_live_has_no_subprocess_or_test_switch(self):
         self.assertLessEqual(len(self.text.splitlines()), 180)
         code = (ROOT / 'scripts/rc_pretag_metadata_live.py').read_text()
-        self.assertLessEqual(len(code.splitlines()), 230)
+        self.assertLessEqual(len(code.splitlines()), 280)
         self.assertLess(len(Path(__file__).read_text().splitlines()), 500)
         for forbidden in ('subprocess', 'shell=True', 'TEST_MODE', 'RC_TEST', 'getpass', 'keyring'):
             self.assertNotIn(forbidden, code)
@@ -412,7 +436,7 @@ class WorkflowTests(unittest.TestCase):
         begin = self.text.index('          import importlib, json, os, sys, unittest\n')
         end = self.text.index('          PY\n', begin)
         code = '\n'.join(line[10:] for line in self.text[begin:end].splitlines())
-        expected = [174, 53, 159, 135, 208]
+        expected = [182, 53, 159, 135, 208]
         suites, results = [], []
         for index, count in enumerate(expected):
             loaded = count + (1 if index == bad_group and field == 'loaded' else 0)
@@ -440,7 +464,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertEqual(report['status'], 'passed')
         self.assertEqual({key: value['executed'] for key, value in report['counts'].items()},
-            dict(metadata=174, pretag=53, consumer=159, publication=135, original=208))
+            dict(metadata=182, pretag=53, consumer=159, publication=135, original=208))
         self.assertEqual(len(namespace['groups']['original'][1]), 14)
         self.assertIn('exclusive_native_contract_tests', namespace['groups']['original'][1])
         self.assertIn('发布版本回归v4', namespace['groups']['original'][1])

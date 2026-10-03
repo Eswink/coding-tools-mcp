@@ -67,6 +67,17 @@ Requirement coverage: FR-1 -> I2/I5; FR-2 -> I2/I5; FR-3 -> I3/I4/I5; FR-4 -> I3
 
 ## Completion and error-output protocol
 
-Entry<=230 lines, workflow<=180, each Python module<500. Exclusive ordinary payloads precede a bounded exclusive pending manifest. Confirm flush/fsync/close before a no-overwrite hard link to completion.json; keep the pending bytes immutable. Linkcount2 is allowed only for this known pair. Never delete, overwrite, repair or retry uncertain files. No atomic multi-file snapshot is claimed.
+Entry<=280 lines, workflow<=180, each Python module<500. Exclusive ordinary payloads precede a bounded exclusive pending manifest. Confirm flush/fsync/close before a no-overwrite hard link to completion.json; keep the pending bytes immutable. Linkcount2 is allowed only for this known pair. Never delete, overwrite, repair or retry uncertain files. No atomic multi-file snapshot is claimed.
 
 A successful collect step, final completion marker and exact manifest byte-hash set are all required. Failure/collision/late-close/incomplete output rejects even when local residue exists. Failure artifacts upload only explicit bootstrap/fixed-error names; success uses the fixed payload+completion allowlist. Test partial write/close/fsync/link/collision/marker absence/history preservation and expectedFailure/unexpectedSuccess rejection. Independent review precedes publication.
+
+## Active correction after first hosted failure
+
+- [x] C1: Verify published229 raw commit/tree/blobs and first hosted729 fixture pass; retain failedrun37133434238/artifact11277613624 with collection_failed, no guessed cause
+- [x] C2: Complete read-only shape diagnosis; root approves bounded stage/typed A-B failure projection and pinned229 append-only lineage
+- [ ] C3: Implement only new live/source-gate/test/spec corrections under fresh229 impacts, same16 paths and exact oldguard85627
+- [ ] C4: Focused/prospective/source/diagnostic adversaries, checked specs, fresh staged graph/full diff/gencommit and independent exactpatch/tree review
+- [ ] C5: Only after rootapproval, create one unreferenced229-child object, verify raw bytes, run full135 and every other actual committed group with zero nonpass outcomes before ref movement/CI
+- [ ] C6: If all gates pass and root authorizes publication, nonforce append; verify exact CI/artifacts. Preserve first failedrun and no release/security acceptance. DraftPR100 exists after renewed authorization; any further publication still requires the exact reviewed source gates
+
+Tests cover fixed stage distinctions, strict typed A/B max33-row projection, enum/type/extra-field/secret rejection,8KiB/+1 output bounds, no summary on cleanupunknown/no return, unchanged completion/failure allowlist, and exact229 predecessor raw tree/parent with skip/intermediate/extra-parent rejection. No skipped historical guard or synthetic placeholder can satisfy C5.

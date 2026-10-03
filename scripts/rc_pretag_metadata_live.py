@@ -1,19 +1,22 @@
 """Exact-source read-only diagnostic; a passing diagnostic grants no authority."""
-from dataclasses import asdict
+from dataclasses import asdict, fields
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
 import stat
+from types import UnionType
+from typing import get_args, get_origin, get_type_hints
 
 from rc_pretag_metadata import collect_metadata
 from rc_pretag_metadata_api import CleanupUncertain, MetadataGitHub
 from rc_pretag_metadata_source import SourceVerification, verify_source
-from rc_pretag_metadata_types import ENGINEERING_REF, MetadataReceipt, MetadataRequest, OBSERVATION_KEYS
-from rc_pretag_types import REPOSITORY, REPOSITORY_ID, SourceIdentity, encode, parse_json
+from rc_pretag_metadata_types import ENGINEERING_REF, MetadataObservation, MetadataReceipt, MetadataRecord, MetadataRequest, OBSERVATION_KEYS
+from rc_pretag_types import MAX_JSON_BYTES, REPOSITORY, REPOSITORY_ID, SourceIdentity, encode, parse_json
 
 WORKFLOW = '.github/workflows/rc-pretag-metadata-checks.yml'
+ERROR_BYTES = 8192
 EXPECTED_VERSION = '0.6.0-rc.4'  # Explicit unchanged-baseline expectation, not acceptance.
 FALSE_FLAGS = ('published_candidate', 'release_approved', 'publish_approved',
                'security_approved', 'snapshot_atomic')
@@ -71,6 +74,59 @@ def quality(receipt, request):
             require((row.state, row.reason) == ('observed', 'observed') and row.comparison_sha256)
         require(all('unknown' not in (r.name, r.state, r.conclusion, r.event) for r in row.records))
     return encode(receipt)
+
+
+def bounded_receipt_shape(receipt):
+    allowed = (MetadataReceipt, MetadataRequest, SourceIdentity, MetadataObservation, MetadataRecord)
+    hints = {kind: get_type_hints(kind) for kind in allowed}
+    remaining = MAX_JSON_BYTES - 1  # Reserve the strict codec's trailing newline.
+    def charge(size):
+        nonlocal remaining
+        remaining -= size
+        require(remaining >= 0)
+    def visit(value, expected, depth):
+        require(depth <= 16)
+        origin, args = get_origin(expected), get_args(expected)
+        if origin is UnionType:
+            require(len(args) == 2 and type(None) in args)
+            expected = type(None) if value is None else next(kind for kind in args if kind is not type(None))
+        if origin is tuple:
+            require(type(value) is tuple and len(value) <= 128)
+            charge(2 + max(0, len(value) - 1))
+            for child in value:
+                visit(child, args[0], depth + 1)
+            return
+        require(type(value) is expected)
+        if expected in allowed:
+            raw, names = vars(value), tuple(field.name for field in fields(expected))
+            require(type(raw) is dict and len(raw) == len(names) and set(raw) == set(names))
+            charge(2 + max(0, len(names) - 1))
+            for name in names:
+                charge(len(name) + 3)  # Fixed ASCII field name, quotes, and colon.
+                visit(raw[name], hints[expected][name], depth + 1)
+        elif expected is str:
+            require(len(value) <= 512)
+            charge(len(json.dumps(value, ensure_ascii=True)))  # At most one bounded scalar.
+        elif expected is int:
+            require(-(2**63) <= value < 2**63)
+            charge(len(str(value)))
+        elif expected is bool:
+            charge(4 if value else 5)
+        elif value is None:
+            charge(4)
+        else:
+            require(False)
+    visit(receipt, MetadataReceipt, 0)
+
+
+def failure_summary(receipt):
+    require(type(receipt) is MetadataReceipt)
+    for rows, limit in ((receipt.observations, 17), (receipt.revalidation_observations, 16)):
+        require(type(rows) is tuple and len(rows) <= limit)
+    bounded_receipt_shape(receipt)
+    checked = parse_json(MetadataReceipt, encode(receipt))
+    return {name: [dict(key=row.key, state=row.state, reason=row.reason) for row in rows]
+        for name, rows in (('pass_a', checked.observations), ('pass_b', checked.revalidation_observations))}
 
 
 def directory(path):
@@ -146,7 +202,7 @@ def complete(fd, payloads):
 def main():
     token = os.environ.pop('GITHUB_TOKEN', '')  # Before any Git or worker child.
     fd = None
-    code = 'output_failed'
+    code, stage, summary = 'output_failed', 'output', None
     try:
         parent = directory(Path(os.environ['RC_DIAGNOSTIC_DIR']))
         try:
@@ -154,21 +210,24 @@ def main():
             fd = os.open('live', os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
         finally:
             os.close(parent)
-        code = 'invalid_context'
+        code, stage = 'invalid_context', 'context'
         invocation = context()
         root = Path(__file__).absolute().parent.parent
-        code = 'source_verification_failed'
+        code, stage = 'source_verification_failed', 'source_verification'
         before = source(root, invocation['source_sha'])
         request = MetadataRequest(SourceIdentity(REPOSITORY, REPOSITORY_ID,
             before.source_sha, before.source_tree, EXPECTED_VERSION), ENGINEERING_REF)
-        code = 'collection_failed'
+        code, stage = 'collection_failed', 'adapter_construction'
         api = MetadataGitHub(token)
         token = ''
+        stage = 'collection'
         receipt = collect_metadata(request, api)
+        stage = 'quality'
+        summary = failure_summary(receipt)
         raw = quality(receipt, request)
-        code = 'source_revalidation_failed'
+        code, stage = 'source_revalidation_failed', 'source_revalidation'
         require(source(root, before.source_sha) == before)
-        code = 'output_failed'
+        code, stage = 'output_failed', 'output'
         payloads = [write(fd, 'source.json', asdict(before)),
             write(fd, 'scope.json', invocation | dict(status='collected', evidence_authentication='unverified',
                 release_approved=False, publish_approved=False, snapshot_atomic=False)),
@@ -177,11 +236,14 @@ def main():
         return 0
     except (Exception, KeyboardInterrupt) as exc:
         if isinstance(exc, CleanupUncertain):
-            code = 'cleanup_uncertain'
+            code, summary = 'cleanup_uncertain', None
         if fd is not None:
             try:
-                write(fd, 'error.json', dict(status='failed', code=code, release_approved=False,
-                    publish_approved=False, evidence_authentication='unverified'), 1024)
+                error = dict(status='failed', code=code, stage=stage, release_approved=False,
+                    publish_approved=False, evidence_authentication='unverified')
+                if summary is not None:
+                    error['observations'] = summary
+                write(fd, 'error.json', error, ERROR_BYTES)
             except (OSError, ValueError):
                 pass  # A failed diagnostic never overwrites another file to retain an error.
         return 1
