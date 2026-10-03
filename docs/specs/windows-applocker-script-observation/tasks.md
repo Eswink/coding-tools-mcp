@@ -245,3 +245,34 @@ Published73/tree96ed run37116291215/job111183645671 completed362 Python methods/
   - _需求: FR-1, FR-5_ | _设计: Published73 suite-exit boundary correction_
 
 Suite-boundary local results: all330 retained plus32 observation methods pass, with412 expanded variants. The helper is48lines, boundary entry161, main479, audit490 and workflow171. Exact whole-file proof preserves all59 main assertion sites,11 functions,16 scenarios,95 intended wrapper variants and four writer modes. Independent source review found no defect in presence/value restoration, error precedence, callback scope, forwarding shims or output/error oracles. All1,634 other baseline files remain byte-identical. Actual33-case PowerShell and complete original suite Actions success, followed by downstream native/event evidence, remain hosted pending.
+
+## Published358 identifier-oracle correction tasks (FR-1, FR-5)
+
+The reviewed suite-boundary increment was published as 35815da5, with all eight blobs, 1,909 recursive tree entries, raw message, sole parent and branch verified. Its first blob received an authorization-only hourly-scope rejection; one identical retry after the original user transcript succeeded. The accurate terminal Draft99 update also succeeded and read back exactly. Run37120470476 passed 362 Python methods/412 observation variants, then failed the new identifier assertion; no full PS/native/event completion. The 734-byte artifact11272868268 has verified SHA256/CRC/two manifest records/source-tree identity. The existing feature Plan remains active.
+
+- [x] I1 Resume the existing Plan, retain actual failed-run evidence and establish exact358 source
+  - **证据块:** boundary-contract-tests.ps1:115 compares a caught prefix against a thrown record's full mutable ID; the log does not include the compared values
+  - **涉及文件:** External primary-source diagnosis and these three specs only
+  - _需求: FR-1, FR-5_ | _设计: Published358 independent error-identifier oracle_
+- [x] I2 Complete exact baseline impact/manual source proof, check_spec and root scope/cap review
+  - **证据块:** Current PS symbols may remain UNKNOWN; exact definition/caller proof cannot be replaced by a File LOW result
+  - **涉及文件:** Exactly five paths; proposed audit cap492, boundary cap200, no new helper or workflow edit
+  - _需求: FR-5_ | _设计: Published358 independent error-identifier oracle_
+- [x] I3 Add the independent literal selector, bounded failure label and two focused source guards
+  - **证据块:** Keep all 33 cases and error/state/output checks; only identifier expectation and its failure label change
+  - **涉及文件:** Existing boundary-contract-tests.ps1 and audit.py only
+  - _需求: FR-1, FR-5_ | _设计: Published358 independent error-identifier oracle_
+- [x] I4 Prove exact allowed delta and all prior assertions, run 362/412 portable gates and independent review
+  - **证据块:** Published source and case/whitespace/wrong-variable mutants must fail the focused guards; all other 1,637 files remain unchanged
+  - **涉及文件:** Reviewed five paths and external evidence only
+  - _需求: FR-1, FR-5_ | _设计: Published358 independent error-identifier oracle_
+- [ ] I5 Refresh staged graph/detect_changes/full review/gencommit and present exact sole358parent candidate
+  - **证据块:** No subsequent source correction without current-definition impact; no publication before exact review
+  - **涉及文件:** Exactly five reviewed paths
+  - _需求: FR-5_ | _设计: Published358 independent error-identifier oracle_
+- [ ] I6 Verify the actual 33-case boundary and original suite Actions successes, then downstream results/artifact
+  - **证据块:** 394 boundary assertions is static arithmetic until logged; original failure and inconclusive observation truth remain
+  - **涉及文件:** Existing diagnostic branch, Draft99 and workflow only; no skipped gates or forced success
+  - _需求: FR-1, FR-5_ | _设计: Published358 independent error-identifier oracle_
+
+Identifier-oracle local results: all 330 retained plus 32 observation methods pass, with 412 observation variants unchanged. Both focused source/cap tests and three published/mutant source negatives pass. Whole-file reconstruction permits exactly six PS lines plus its identifier assertion replacement and two Python guards/cap token; all other 1,637 baseline files and prior Python assertions remain unchanged. Independent source review found no defect. All 16 boundary assertion sites and 33 cases remain; 394 is still a static expected count. Actual PS5.1 completion and downstream native/event results remain hosted pending.

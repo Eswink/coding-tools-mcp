@@ -99,6 +99,10 @@ function Invoke-BoundaryContractCase {
         elseif ($CleanupFails) { $script:BoundaryCleanupError }
         elseif ($RestorationFails) { $script:BoundaryRestoreError }
         else { $null }
+    $expectedIdentifier = if ($BodyFails) { 'AppLockerBoundaryBodyFailure' }
+        elseif ($CleanupFails) { 'AppLockerBoundaryCleanupFailure' }
+        elseif ($RestorationFails) { 'AppLockerBoundaryRestoreFailure' }
+        else { $null }
     $expectedSetCalls = if ($InitialPresent) { 1 } else { 0 }
     $expectedRemoveCalls = if (-not $InitialPresent -and -not $BeforeMutation) { 1 } else { 0 }
     Assert-BoundaryContract ($script:BoundaryBodyCalls -eq 1) 'Body runs once'
@@ -112,7 +116,9 @@ function Invoke-BoundaryContractCase {
         Assert-BoundaryContract ([object]::ReferenceEquals($caseError.Exception, $expectedError.Exception)) 'selected exception object'
         Assert-BoundaryContract ($caseError.CategoryInfo.Category -eq $expectedError.CategoryInfo.Category) 'selected error category'
         Assert-BoundaryContract ($caseError.Exception.Message -ceq $expectedError.Exception.Message) 'selected error message'
-        Assert-BoundaryContract ($caseError.FullyQualifiedErrorId.Split(',')[0] -ceq $expectedError.FullyQualifiedErrorId) 'selected identifier prefix'
+        $identifierLabel = 'selected identifier prefix (expected {0}; actual {1}; completed {2})' -f `
+            $expectedIdentifier, $caseError.FullyQualifiedErrorId.Split(',')[0], $script:BoundaryCases
+        Assert-BoundaryContract ($caseError.FullyQualifiedErrorId.Split(',')[0] -ceq $expectedIdentifier) $identifierLabel
     }
     if ($RestorationFails) {
         # A deliberate restoration fault establishes failure, not state preservation.
