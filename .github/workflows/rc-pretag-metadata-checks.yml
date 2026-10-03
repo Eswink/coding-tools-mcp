@@ -1,0 +1,160 @@
+name: Read-only pre-tag metadata diagnostic
+on:
+  push:
+    branches: ['feat/rc-pretag-metadata-1dfe']
+    paths:
+      - 'scripts/rc_pretag_metadata.py'
+      - 'scripts/rc_pretag_metadata_types.py'
+      - 'scripts/rc_pretag_metadata_api.py'
+      - 'scripts/rc_pretag_metadata_worker.py'
+      - 'scripts/rc_pretag_metadata_fixtures.py'
+      - 'scripts/rc_pretag_metadata_tests.py'
+      - 'scripts/rc_pretag_metadata_api_tests.py'
+      - 'scripts/rc_pretag_metadata_boundary_tests.py'
+      - 'scripts/rc_pretag_metadata_source.py'
+      - 'scripts/rc_pretag_metadata_source_tests.py'
+      - 'scripts/rc_pretag_metadata_live.py'
+      - 'scripts/rc_pretag_metadata_live_tests.py'
+      - 'scripts/rc_publication_boundary_tests.py'
+      - 'docs/specs/issue-88-pretag-metadata/requirements.md'
+      - 'docs/specs/issue-88-pretag-metadata/design.md'
+      - 'docs/specs/issue-88-pretag-metadata/tasks.md'
+      - '.github/workflows/rc-pretag-metadata-checks.yml'
+permissions:
+  contents: read
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  PYTHONUTF8: '1'
+jobs:
+  fixtures:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Initialize independent not-run diagnostic
+        run: |
+          export RC_DIAGNOSTIC_DIR="$RUNNER_TEMP/rc-pretag-metadata-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir -m 700 "$RC_DIAGNOSTIC_DIR"
+          printf 'RC_DIAGNOSTIC_DIR=%s\n' "$RC_DIAGNOSTIC_DIR" >> "$GITHUB_ENV"
+          (set -o noclobber; printf '%s\n' '{"initial_status":"not_run","release_approved":false,"publish_approved":false}' > "$RC_DIAGNOSTIC_DIR/bootstrap.json")
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Acquire bounded checksum-pinned GLib data fixture
+        env:
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ env.RC_DIAGNOSTIC_DIR }}/glib-0.18.5.crate
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --proto '=https' --max-redirs 0 \
+            --connect-timeout 10 --max-time 30 --max-filesize 1048576 \
+            --output "$RC_CONSUMER_TEST_GLIB_ARCHIVE" https://static.crates.io/crates/glib/glib-0.18.5.crate
+          test "$(stat -c %s "$RC_CONSUMER_TEST_GLIB_ARCHIVE")" -le 1048576
+          printf '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5  %s\n' \
+            "$RC_CONSUMER_TEST_GLIB_ARCHIVE" | sha256sum --check --strict
+      - name: Exact committed source and counted current-source regressions
+        env:
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ env.RC_DIAGNOSTIC_DIR }}/glib-0.18.5.crate
+        run: |
+          python - <<'PY'
+          import importlib, json, os, sys, unittest
+          from dataclasses import asdict
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').absolute()))
+          from rc_pretag_metadata_source import verify_source
+          assert 'GITHUB_TOKEN' not in os.environ and sys.version_info[:2] == (3, 12)
+          destination = Path(os.environ['RC_DIAGNOSTIC_DIR'])
+          before = verify_source(Path.cwd(), os.environ['GITHUB_SHA'])
+          original = ('release_tag_gate rc_version_gate reviewed_source_gate cloud_release_bundle '
+              'final_rc_evidence release_dependency_capture release_dependency_contract exact_build_audit '
+              'rc_packages rc_windows_install_contract exclusive_native_contract exclusive_release '
+              'source_provenance_gate').split()
+          groups = {'metadata': (182, sorted(p.stem for p in Path('scripts').glob('rc_pretag_metadata*_tests.py'))),
+              'pretag': (53, ['rc_pretag_identity_tests', 'rc_pretag_policy_tests']),
+              'consumer': (159, sorted(p.stem for p in Path('scripts').glob('rc_consumer*_tests.py'))),
+              'publication': (135, sorted(p.stem for p in Path('scripts').glob('rc_publication*_tests.py'))),
+              'original': (208, [name + '_tests' for name in original] + ['发布版本回归v4'])}
+          counts = {}
+          for label, (expected, names) in groups.items():
+              suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromModule(importlib.import_module(name)) for name in names)
+              loaded = suite.countTestCases()
+              result = unittest.TextTestRunner(verbosity=2).run(suite)
+              counts[label] = dict(expected=expected, loaded=loaded, executed=result.testsRun,
+                  failures=len(result.failures), errors=len(result.errors), skipped=len(result.skipped),
+                  expected_failures=len(result.expectedFailures), unexpected_successes=len(result.unexpectedSuccesses))
+          after = verify_source(Path.cwd(), os.environ['GITHUB_SHA'])
+          passed = before == after and all(row['loaded'] == row['executed']
+              and (row['loaded'] > 0 if row['expected'] is None else row['loaded'] == row['expected'])
+              and row['failures'] == row['errors'] == row['skipped'] == row['expected_failures']
+              == row['unexpected_successes'] == 0 for row in counts.values())
+          report = dict(status='passed' if passed else 'failed', counts=counts, source=asdict(after),
+              evidence_authentication='unverified', release_approved=False, publish_approved=False)
+          raw = json.dumps(report, sort_keys=True).encode()
+          assert len(raw) <= 16384
+          with (destination / 'fixtures.json').open('xb') as stream:
+              stream.write(raw)
+          raise SystemExit(0 if passed else 1)
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-pretag-metadata-fixtures-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            ${{ env.RC_DIAGNOSTIC_DIR }}/bootstrap.json
+            ${{ env.RC_DIAGNOSTIC_DIR }}/fixtures.json
+  metadata:
+    name: metadata
+    needs: fixtures
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Initialize independent not-run diagnostic
+        run: |
+          export RC_DIAGNOSTIC_DIR="$RUNNER_TEMP/rc-pretag-metadata-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir -m 700 "$RC_DIAGNOSTIC_DIR"
+          printf 'RC_DIAGNOSTIC_DIR=%s\n' "$RC_DIAGNOSTIC_DIR" >> "$GITHUB_ENV"
+          (set -o noclobber; printf '%s\n' '{"initial_status":"not_run","release_approved":false,"publish_approved":false}' > "$RC_DIAGNOSTIC_DIR/bootstrap.json")
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Collect stable read-only metadata with blocked release eligibility
+        id: collect
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RC_EXPECTED_VERSION: '0.6.0-rc.4'
+        run: python scripts/rc_pretag_metadata_live.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ always() && steps.collect.outcome == 'success' }}
+        with:
+          name: rc-pretag-metadata-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            ${{ env.RC_DIAGNOSTIC_DIR }}/bootstrap.json
+            ${{ env.RC_DIAGNOSTIC_DIR }}/live/source.json
+            ${{ env.RC_DIAGNOSTIC_DIR }}/live/scope.json
+            ${{ env.RC_DIAGNOSTIC_DIR }}/live/metadata.json
+            ${{ env.RC_DIAGNOSTIC_DIR }}/live/completion.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ always() && steps.collect.outcome != 'success' }}
+        with:
+          name: rc-pretag-metadata-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            ${{ env.RC_DIAGNOSTIC_DIR }}/bootstrap.json
+            ${{ env.RC_DIAGNOSTIC_DIR }}/live/error.json
