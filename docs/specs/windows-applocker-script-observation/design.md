@@ -104,3 +104,30 @@ Fresh full index has21173nodes/47795edges/300flows and854persisted Community nod
 - [x] Existing functions/security/commands/late-failure sequence immutable
 - [x] Correlation and path/PID/time/source-attestation limits explicit
 - [x] No implementation, event acquisition, settings change or CI performed in preparation
+
+## Published201 portability correction
+
+This section governs the next six-path increment on20128605b3ecb39257e86c20f215412653cb8132/tree6ee934230cb9975f9b3a9787ec51937a510e6524; the original eleven-path scope above records the published feature. No PowerShell, workflow, query, pure evaluator, original pilot, old audit, production or snapshot file changes in this correction.
+
+The inventory failure is reproduced exactly using Windows pathlib casefold ordering over the same44 raw LF files:63118873e3239342d68542f0b775734567f3a597be9b2b5c937d2bd4bb159dab. Explicit filename-byte ordering restores the existing1509f8ae pin. No byte normalization or replacement pin is permitted.
+
+Exact [CPython3.12.10 path stat](https://github.com/python/cpython/blob/v3.12.10/Modules/posixmodule.c) replaces Windows ctime with birthtime; [descriptor stat](https://github.com/python/cpython/blob/v3.12.10/Python/fileutils.c) preserves metadata ChangeTime. The historical CI did not capture the differing field. Independent proxy reproduction proves that stable differing creation/change timestamps reject in the published reader, but does not prove those were the historical values. No cache/sleep explanation is established.
+
+In read_fixed_member only, select comparable timestamps by the actual interpreter platform, with no caller/environment/CLI option. On Windows, construct the shared identity from st_dev, st_ino, complete st_mode, st_nlink, st_size, st_mtime_ns and validated st_birthtime_ns. Compare that identity at all four member snapshots. Separately require opened.st_ctime_ns==final.st_ctime_ns and initial.st_ctime_ns==last.st_ctime_ns. Missing, bool, noninteger or negative birthtime rejects. On POSIX retain the original ctime-based identity. Existing ancestor identity/reparse checks, link/type/size limits, bounded read and exactly one finally-close remain. No native import, timestamp conversion/tolerance, retry, warm-up or permissions change is introduced. Standard-library Windows lstat does not expose true pre-open ChangeTime; this contract explicitly does not require or claim it.
+
+Exact correction paths and readable caps:
+
+| Path | Change | Cap |
+|---|---|---|
+|tests/windows-applocker-observation/prepare_query.py|Only read_fixed_member timestamp comparisons; unchanged three top-level functions and silent fail-closed main|200|
+|tests/windows-applocker-observation/audit.py|Existing driver tests call independent helper; explicit inventory ordering/regression; source inventory verifies test-only module/imports|480|
+|tests/windows-applocker-observation/driver_contract_tests.py|New test-only metadata matrix and bounded snapshot capture; no runtime import|240|
+|docs/specs/windows-applocker-script-observation/requirements.md|FR-2/FR-5 correction criteria|500|
+|docs/specs/windows-applocker-script-observation/design.md|This finite correction|500|
+|docs/specs/windows-applocker-script-observation/tasks.md|Correction tasks and evidence status|500|
+
+The new helper uses literal snapshots, distinct creation100/change200 timestamps and independent expected outcomes. It patches only the existing driver's operations for synthetic cases. Its matrix is called from the existing identity-race method after all seven old failure cases. Cross-platform positives, each shared field changed at opened/final/path stage, descriptor-only/path-only ctime changes and malformed/missing Windows birthtime are explicit subcases. Every old test identity remains; expanded variant totals are measured, not promised as executed before implementation.
+
+The real-file boundary test captures already-returned lstat/fstat values through forwarding wrappers, at most ten snapshots per existing fixed member/size case. On failure it records only finite field names and integer values, phase/index, fixed member key/size, and reparse bits, bounded before accumulation/output at16KiB. There are no extra filesystem calls, retries, paths, content bytes, event records, environment dumps or raw exceptions. A residual failure remains a failed test. Both new exported helpers must be directly exercised by the unified audit, and runtime AST checks forbid importing the test module. Unchanged driver main still emits no failure detail.
+
+Local acceptance includes failing-before proxy and sorting reproductions; all retained330 plus32 methods; new finite matrix; full source immutability; check_spec; and fresh staged graph/detect_changes/gencommit. Exact reviewed publication must then run the existing Windows workflow without skips or continue-on-error changes. Portable success only enables the unchanged PowerShell/native gates; each actual outcome and authenticated artifact must be reviewed. Original sandbox verdicts remain truthful.

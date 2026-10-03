@@ -33,6 +33,7 @@ from contract_fixtures import (
     inspect_reader_source, CASE, BASE, START, END, PATH, CHANNEL,
     PREDICATES, SELECTOR, QUERY, BRACKET,
 )
+from driver_contract_tests import check_metadata_snapshots, capture_fixed_stats
 
 COUNTS = {}
 
@@ -287,7 +288,8 @@ class AppLockerAudit(unittest.TestCase):
     def test_driver_regular_size_links_reparse_and_arbitrary_path(self):
         with tempfile.TemporaryDirectory() as temp, mock.patch.object(driver, 'EVIDENCE', pathlib.Path(temp)):
             path = pathlib.Path(temp) / contract.FIXED_MEMBERS['payload']; path.parent.mkdir(parents=True); path.write_bytes(b'exit 23\r\n')
-            self.assertEqual(driver.read_fixed_member(contract.FIXED_MEMBERS['payload']), b'exit 23\r\n')
+            with capture_fixed_stats(driver, 'payload', 9):
+                self.assertEqual(driver.read_fixed_member(contract.FIXED_MEMBERS['payload']), b'exit 23\r\n')
             for name in ('../source.txt', str(path), 'pilot/other/case.json'):
                 with self.variant(name=name), self.assertRaises(ValueError): driver.read_fixed_member(name)
             for mode in ('oversize', 'hardlink', 'symlink', 'reparse', 'directory'):
@@ -310,7 +312,7 @@ class AppLockerAudit(unittest.TestCase):
                 path = pathlib.Path(temp) / contract.FIXED_MEMBERS[key]; path.parent.mkdir(parents=True, exist_ok=True)
                 self.assertEqual(driver.LIMITS[key], limit)
                 for size in (limit, limit + 1):
-                    with self.variant(member=key, size=size):
+                    with self.variant(member=key, size=size), capture_fixed_stats(driver, key, size):
                         data = b'x' * size; path.write_bytes(data)
                         if size == limit: self.assertEqual(driver.read_fixed_member(contract.FIXED_MEMBERS[key]), data)
                         else:
@@ -335,6 +337,7 @@ class AppLockerAudit(unittest.TestCase):
                     elif failure == 'short_read': patch = mock.patch.object(driver.os, 'read', side_effect=[b'exit', b''])
                     else: patch = mock.patch.object(driver.os, failure, side_effect=close_uncertain if failure == 'close' else OSError('synthetic'))
                     with patch as operation, self.assertRaises((ValueError, OSError)): driver.read_fixed_member(contract.FIXED_MEMBERS['payload'])
+        check_metadata_snapshots(self, driver)
 
     def test_driver_cli_import_shadowing_and_fail_closed_main(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -355,7 +358,7 @@ class AppLockerAudit(unittest.TestCase):
 
     def test_source_inventory_caps_and_pure_driver_functions(self):
         caps = {'observe.ps1': 450, 'contract-tests.ps1': 480, 'applocker_observation_contract.py': 450,
-                'prepare_query.py': 200, 'audit.py': 480, 'contract_fixtures.py': 220}
+                'prepare_query.py': 200, 'audit.py': 480, 'contract_fixtures.py': 220, 'driver_contract_tests.py': 240}
         self.assertEqual({path.name for path in HERE.iterdir() if path.is_file()}, set(caps))
         for name, cap in caps.items():
             with self.variant(name=name): self.assertLessEqual(len((HERE / name).read_text().splitlines()), cap)
@@ -372,11 +375,18 @@ class AppLockerAudit(unittest.TestCase):
         self.assertEqual(imported, set(exported))
         callers = {node.func.id for node in ast.walk(audit) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
         self.assertEqual(callers & helpers, helpers)
+        test_helpers = {'check_metadata_snapshots', 'capture_fixed_stats'}
+        helper_tree = ast.parse((HERE / 'driver_contract_tests.py').read_text(encoding='utf-8'))
+        exported = next(ast.literal_eval(node.value) for node in helper_tree.body if isinstance(node, ast.Assign)
+                        and any(isinstance(target, ast.Name) and target.id == '__all__' for target in node.targets))
+        self.assertEqual(set(exported), test_helpers)
+        self.assertEqual(callers & test_helpers, test_helpers)
         for name in ('applocker_observation_contract.py', 'prepare_query.py'):
             runtime = ast.parse((HERE / name).read_text())
             imports = {node.module for node in ast.walk(runtime) if isinstance(node, ast.ImportFrom)}
             imports.update(alias.name for node in ast.walk(runtime) if isinstance(node, ast.Import) for alias in node.names)
             self.assertNotIn('contract_fixtures', imports)
+            self.assertNotIn('driver_contract_tests', imports)
         source = (HERE / 'applocker_observation_contract.py').read_text()
         inspect_pure_source(source)
         for forbidden in ('os', 'http.client'):
@@ -415,7 +425,17 @@ class AppLockerAudit(unittest.TestCase):
         self.assertNotRegex(source, r'Get-WinEvent|FormatDescription|\.ToXml\(|DllImport|Register-ObjectEvent|OpenProcess')
 
     def test_source_immutable_bytes_and_retained_330_identities(self):
-        paths = sorted(path for path in BROKER.iterdir() if path.suffix in ('.cs', '.ps1', '.py'))
+        paths = sorted((path for path in BROKER.iterdir() if path.suffix in ('.cs', '.ps1', '.py')),
+                       key=lambda path: path.name.encode('utf-8'))
+        names = [path.name for path in paths]
+        for flavor in (pathlib.PurePosixPath, pathlib.PureWindowsPath):
+            with self.variant(path_flavor=flavor.__name__):
+                self.assertEqual([path.name for path in sorted(map(flavor, reversed(names)),
+                                 key=lambda path: path.name.encode('utf-8'))], names)
+        windows_order = sorted(paths, key=lambda path: pathlib.PureWindowsPath(path.name))
+        self.assertNotEqual([path.name for path in windows_order], names)
+        wrong_order = b''.join(path.name.encode() + b'\0' + path.read_bytes() + b'\0' for path in windows_order)
+        self.assertEqual(digest(wrong_order), '63118873e3239342d68542f0b775734567f3a597be9b2b5c937d2bd4bb159dab')
         immutable = b''.join(path.name.encode() + b'\0' + path.read_bytes() + b'\0' for path in paths)
         self.assertEqual((len(paths), digest(immutable)), (44, '1509f8ae681e529a732bc90d1c3e24e76ad8680ef1dd027751a6e174f10d2083'))
         entries = ['tests/windows-lpac-runtime/audit.py'] + ['tests/windows-broker-direct/' + name for name in

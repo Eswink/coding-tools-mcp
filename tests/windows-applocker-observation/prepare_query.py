@@ -34,6 +34,17 @@ def read_fixed_member(member):
         raise ValueError('fixed member required')
     key = next(key for key, value in FIXED_MEMBERS.items() if value == member)
     limit = LIMITS[key]
+    windows = sys.platform == 'win32'
+
+    def member_identity(info):
+        timestamp = info.st_ctime_ns
+        if windows:
+            timestamp = getattr(info, 'st_birthtime_ns', None)
+            if type(timestamp) is not int or timestamp < 0:
+                raise ValueError('member birthtime required')
+        return (info.st_dev, info.st_ino, info.st_mode, info.st_nlink,
+                info.st_size, info.st_mtime_ns, timestamp)
+
     parts = member.split('/')
     paths = [EVIDENCE]
     for part in parts:
@@ -46,14 +57,12 @@ def read_fixed_member(member):
     initial = before[-1]
     if initial.st_nlink != 1 or not 0 <= initial.st_size <= limit:
         raise ValueError('member links or size')
-    identity = (initial.st_dev, initial.st_ino, initial.st_mode, initial.st_nlink,
-                initial.st_size, initial.st_mtime_ns, initial.st_ctime_ns)
+    identity = member_identity(initial)
     descriptor = None
     try:
         descriptor = os.open(paths[-1], os.O_RDONLY | getattr(os, 'O_BINARY', 0) | getattr(os, 'O_NOFOLLOW', 0))
         opened = os.fstat(descriptor)
-        actual = (opened.st_dev, opened.st_ino, opened.st_mode, opened.st_nlink,
-                  opened.st_size, opened.st_mtime_ns, opened.st_ctime_ns)
+        actual = member_identity(opened)
         if actual != identity or getattr(opened, 'st_file_attributes', 0) & 0x400:
             raise ValueError('open identity changed')
         data = bytearray()
@@ -69,9 +78,10 @@ def read_fixed_member(member):
         if not complete or len(data) != initial.st_size:
             raise ValueError('incomplete member')
         final = os.fstat(descriptor)
-        actual = (final.st_dev, final.st_ino, final.st_mode, final.st_nlink,
-                  final.st_size, final.st_mtime_ns, final.st_ctime_ns)
-        if actual != identity or getattr(final, 'st_file_attributes', 0) & 0x400:
+        actual = member_identity(final)
+        # Windows path ctime is creation time; descriptor ctime is ChangeTime.
+        if (actual != identity or getattr(final, 'st_file_attributes', 0) & 0x400 or
+                (windows and final.st_ctime_ns != opened.st_ctime_ns)):
             raise ValueError('read identity changed')
         after = [os.lstat(path) for path in paths]
         for old, new in zip(before, after):
@@ -80,7 +90,8 @@ def read_fixed_member(member):
                     getattr(new, 'st_file_attributes', 0) & 0x400):
                 raise ValueError('path identity changed')
         last = after[-1]
-        if (last.st_size, last.st_mtime_ns, last.st_ctime_ns) != identity[4:]:
+        if (member_identity(last)[4:] != identity[4:] or
+                last.st_ctime_ns != initial.st_ctime_ns):
             raise ValueError('member content changed')
     finally:
         if descriptor is not None:

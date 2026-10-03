@@ -103,3 +103,19 @@ Current11-case producer and artifact evaluator, already configured Python3.12 an
 - [x] Positive and missing/denied/late-failure outcomes distinguished
 - [x] Existing security and diagnostic truth retained
 - [x] Pre-edit review and actual hosted validation remain separate gates
+
+## Published201 portability correction (FR-2, FR-5)
+
+The original increment is published as20128605b3ecb39257e86c20f215412653cb8132/tree6ee934230cb9975f9b3a9787ec51937a510e6524. Its run37110825877 passed all330 retained portable tests, then the new32-method audit reported two open-metadata errors and one inventory-order failure. PowerShell, native execution and event acquisition were skipped. Artifact11268983773 contains only source/scope/manifest; it cannot establish an observation. This correction has exactly six paths: two modified Python files, one new test-only helper, and these three existing specifications. Root reviews its fresh impact packet before code edits.
+
+FR-2 additional acceptance criteria:
+
+6. WHEN comparing Windows path and descriptor metadata THEN shared device, inode, full mode, link count, size, mtime_ns and explicit birthtime_ns SHALL agree at initial-path/open-descriptor/final-descriptor/final-path observations; birthtime SHALL be a nonnegative integer excluding bool, and missing or malformed birthtime SHALL reject without fallback.
+7. WHEN comparing Windows change signals THEN descriptor ctime_ns SHALL remain equal before/after reading, and path ctime_ns SHALL remain equal before/after reading. POSIX SHALL retain its existing cross-API ctime comparisons. All existing regular-file, ancestor/path identity, reparse, multilink, size, bounded-read and confirmed-close checks SHALL remain.
+8. IF metadata differs or an operation is uncertain THEN the fixed driver SHALL continue to fail closed with no emitted request and no event query. The correction SHALL NOT claim a true pre-open Windows metadata ChangeTime, an atomic snapshot, or absence of every concurrent mutation.
+
+FR-5 additional acceptance criteria:
+
+5. WHEN hashing the44 immutable broker files THEN the audit SHALL explicitly order UTF8 filename bytes and retain the exact existing raw-byte digest1509f8ae681e529a732bc90d1c3e24e76ad8680ef1dd027751a6e174f10d2083; Windows casefold path ordering SHALL be covered as a regression, with no newline/content normalization.
+6. WHEN testing timestamp comparisons THEN independent literal Windows/POSIX snapshots SHALL cover stable creation/change-time differences, every comparable field changed at each stage, ctime-only changes, and missing/malformed Windows birthtime. All32 existing test identities and every old assertion family SHALL remain, with actual expanded counts reported.
+7. WHEN a synthetic real-file boundary read fails THEN test-only diagnostics MAY report at most ten already-returned metadata snapshots and fixed member/size/phase identifiers within16KiB. They SHALL issue no extra stat/read/reopen/retry, disclose no paths or file contents, and leave the failure intact. Runtime driver output and public schemas SHALL remain unchanged.

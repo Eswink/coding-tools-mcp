@@ -117,3 +117,38 @@ Local execution: all330 retained identities and32 new methods pass; the new meth
 - [x] All old executable/evaluator/security boundaries retained
 - [x] No implementation or Windows/event/CI operation performed by this preparation
 - [ ] Implementation, tests, review, publication and hosted work remain gated by exact review
+
+## Published201 correction tasks (FR-2, FR-5)
+
+Publication of the original eleven-path increment is verified:20128605b3ecb39257e86c20f215412653cb8132/tree6ee934230cb9975f9b3a9787ec51937a510e6524, Draft99. Run37110825877 failed only after330 retained tests passed:32 new methods/327 expanded variants reported two open-metadata errors and one inventory-order failure. All PowerShell/native/event stages were skipped. Artifact11268983773 is736bytes, SHA256ff12c8b40cf01a91d70df39d7e1d344daf51df8226904f4e2830204711f0536c, CRC and two manifest records verified; its three members contain no pilot observation. The feature Plan remains active.
+
+- [x] C1 Resume the existing Plan and authenticate published201/source/artifact; record the real failing stage
+  - **证据块:** run37110825877 step8; source.txt binds201/tree6ee; failure log identifies prepare_query.py:58 and audit.py:420, but contains no differing stat field values
+  - **涉及文件:** External evidence only; new source checkout exact201
+  - _需求: FR-5_ | _设计: Published201 portability correction_
+- [x] C2 Reproduce Windows filename ordering and unlike timestamp comparisons without source edits
+  - **证据块:** Exact raw-byte Windows ordering gives63118873; ordinal gives unchanged1509f8ae. Literal proxy creation100/change200 fails original reader; equal100 passes with one close
+  - **涉及文件:** External proof and these three specification updates
+  - _需求: FR-2, FR-5_ | _设计: Published201 portability correction_
+- [x] C3 Complete fresh exact-UID impact, checked specifications and root pre-edit disposition
+  - **证据块:** AGENTS.md requires upstream impacts before existing function edits; full exact201 graph and source/index hashes are required
+  - **涉及文件:** Six exact correction paths in design; prepare_query200, audit480, new driver_contract_tests240, each spec500lines
+  - _需求: FR-5_ | _设计: Published201 portability correction_
+- [x] C4 Implement comparable metadata identities and independent test matrix/capture; preserve all old cases and guards
+  - **证据块:** prepare_query.py:49-83 currently compares path creation ctime against descriptor metadata ctime; audit.py:418 uses platform-specific Path sorting
+  - **涉及文件:** Only prepare_query.py, audit.py and new test-only driver_contract_tests.py within reviewed caps
+  - _需求: FR-2, FR-5_ | _设计: Published201 portability correction_
+- [x] C5 Execute focused then all portable checks; retain330+32 test identities and report actual expanded counts
+  - **证据块:** Hosted32-method failure means local prior passes did not establish Windows portability; negative matrices must use independent literal values
+  - **涉及文件:** Reviewed three Python files; old tests/runtime/workflow unchanged
+  - _需求: FR-2, FR-5_ | _设计: Published201 portability correction_
+- [ ] C6 Fresh staged graph/detect_changes/full review/gencommit and exact tree/sole201parent/message disposition
+  - **证据块:** New helper has no pre-edit UID; staged callable/source validation and dynamic unittest coverage proof required
+  - **涉及文件:** Exactly six correction paths; no publication until root candidate review
+  - _需求: FR-5_ | _设计: Published201 portability correction_
+- [ ] C7 Publish only reviewed candidate; verify actual Windows portable/PS/native/query stages and authenticated artifact
+  - **证据块:** Prior run skipped PS/native/event query; no success or AppLocker availability may be inferred from local or synthetic checks
+  - **涉及文件:** Existing diagnostic branch/PR/workflow, no workflow changes or skipped gates
+  - _需求: FR-2, FR-5_ | _设计: Published201 portability correction_
+
+Correction local results: all330 retained methods pass with unchanged identities; all32 observation methods pass with407 expanded variants. The increase from327 comprises70 independent metadata cases, seven bounded-capture self-tests, two path-flavor ordering cases and one new source-inventory cap case. The helper has204lines, driver133 and audit462. These are Linux execution and synthetic Windows metadata branches only. Actual Windows portable/PowerShell/native/event stages remain pending a reviewed candidate; no new real observation or original failure verdict is inferred.
