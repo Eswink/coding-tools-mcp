@@ -113,11 +113,84 @@ class RuntimeBoundaryTests(unittest.TestCase):
             hints.assert_not_called()
 
     def test_all_predecessor_tracked_content_and_modes_are_unchanged(self):
+        import hashlib
+        import selectors
+        import stat
+        import time
+
+        gate_path = 'scripts/rc_pretag_metadata_source.py'
+
+        def profile_read(*arguments):
+            process = subprocess.Popen(
+                ['/usr/bin/git', '--no-optional-locks', '--no-replace-objects', '-c',
+                 'core.fsmonitor=false', '-c', 'core.hooksPath=/dev/null',
+                 '-c', 'protocol.allow=never', '-c', 'core.commitGraph=false', *arguments], cwd=ROOT,
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, shell=False,
+                env={'PATH': os.defpath, 'GIT_CONFIG_NOSYSTEM': '1',
+                     'GIT_CONFIG_GLOBAL': os.devnull, 'GIT_NO_REPLACE_OBJECTS': '1',
+                     'GIT_NO_LAZY_FETCH': '1', 'GIT_TERMINAL_PROMPT': '0',
+                     'HOME': '/nonexistent', 'LC_ALL': 'C'})
+            data, deadline = bytearray(), time.monotonic() + 5
+            try:
+                os.set_blocking(process.stdout.fileno(), False)
+                with selectors.DefaultSelector() as selector:
+                    selector.register(process.stdout, selectors.EVENT_READ)
+                    while True:
+                        remaining = deadline - time.monotonic()
+                        self.assertGreater(remaining, 0, 'source profile query timed out')
+                        self.assertTrue(selector.select(remaining), 'source profile query timed out')
+                        block = os.read(process.stdout.fileno(), 4097 - len(data))
+                        if not block:
+                            break
+                        data.extend(block)
+                        self.assertLessEqual(len(data), 4096, 'source profile query exceeded bound')
+                self.assertEqual(process.wait(timeout=max(0, deadline - time.monotonic())),
+                                 0, 'source profile query failed')
+                return bytes(data)
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                process.wait(timeout=1)
+                process.stdout.close()
+
+        indexed = profile_read('ls-files', '--stage', '-z', '--', gate_path)
+        committed = profile_read('ls-tree', '-z', 'HEAD', '--', gate_path)
+        if indexed or committed:
+            pattern = rb'100644 ([0-9a-f]{40}) 0\tscripts/rc_pretag_metadata_source\.py\x00'
+            match = re.fullmatch(pattern, indexed)
+            self.assertIsNotNone(match, 'collector gate must be an exact stage-0 regular blob')
+            if committed:
+                expected = b'100644 blob ' + match[1] + b'\t' + gate_path.encode() + b'\x00'
+                self.assertEqual(committed, expected, 'committed and indexed gate differ')
+            descriptor = os.open(ROOT / gate_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(descriptor, 'rb') as stream:
+                info = os.fstat(stream.fileno())
+                self.assertTrue(stat.S_ISREG(info.st_mode) and not info.st_mode & 0o111,
+                                'collector gate working file must be regular nonexecutable')
+                content = stream.read(262145)
+            self.assertLessEqual(len(content), 262144, 'collector gate working bytes exceed bound')
+            blob = hashlib.sha1(b'blob ' + str(len(content)).encode() + b'\0' + content).hexdigest()
+            self.assertEqual(blob.encode(), match[1], 'collector gate working bytes differ from index')
+            head = profile_read('rev-parse', '--verify', 'HEAD').decode().strip()
+            self.assertRegex(head, r'^[0-9a-f]{40}$')
+            namespace = {'__name__': '_reviewed_rc_pretag_metadata_source',
+                         '__file__': str(ROOT / gate_path)}
+            exec(compile(content, str(ROOT / gate_path), 'exec'), namespace)
+            proof = namespace['verify_source'](
+                ROOT, head, staged=head == '1dfe6b0f3aff7c51e90fcd624b838948e518800c')
+            self.assertTrue(proof.source_verified)
+            self.assertEqual(proof.predecessor_count, 1628)
+            self.assertEqual(proof.unchanged_predecessor_count, 1627)
+            self.assertEqual(proof.guard_path, 'scripts/rc_publication_boundary_tests.py')
+            self.assertEqual(len(proof.additions), 16)
+            self.assertFalse(proof.release_approved)
+            self.assertFalse(proof.publish_approved)
+            self.assertFalse(proof.security_approved)
+            return
         runner = inline_namespace('RC_GROUP_RUNNER')
         command = ['git', 'diff', '--exit-code', BASE, '--', '.', *[':(exclude)' + name for name in runner['NEW']]]
         result = subprocess.run(command, cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         self.assertEqual(result.returncode, 0, 'predecessor tracked blob/mode changed or source unavailable')
-
 
 class WorkflowBoundaryTests(unittest.TestCase):
     def setUp(self):
