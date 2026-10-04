@@ -1,5 +1,11 @@
 """Hermetic transport tests; example.invalid is never contacted."""
+import base64
 from email.message import Message
+import json
+import os
+import subprocess
+import sys
+import weakref
 import hashlib
 import io
 from pathlib import Path
@@ -14,6 +20,17 @@ import rc_consumer_transport as transport
 
 HOST = 'fixture.example.invalid'
 URL = 'https://' + HOST + '/data?signature=PRIVATE'
+# Isolate fixture disposal from finalization tests' production os.unlink spies.
+_FIXTURE_UNLINK, _FIXTURE_RMDIR = os.unlink, os.rmdir
+
+
+def _remove_fixture(directory):
+    for name in ('fixture.json', 'observed.json'):
+        try:
+            _FIXTURE_UNLINK(directory / name)
+        except FileNotFoundError:
+            pass
+    _FIXTURE_RMDIR(directory)
 
 
 class Response:
@@ -23,26 +40,79 @@ class Response:
         self.headers = Message()
         for key, value in headers:
             self.headers[key] = value
-        self.closed = False
+        self._closed = False
+        self._observer = None
+        self.failure = None
 
     def read1(self, size):
         return self.body.read(size)
 
+    @property
+    def closed(self):
+        observer = self._observer() if self._observer else None
+        return self._closed or bool(observer and self._index in observer.observations().get('closed', []))
+
     def close(self):
-        self.closed = True
+        self._closed = True
 
 
 class Opener:
-    def __init__(self, *responses):
+    """Inert child fixture; telemetry is separate from the production byte IPC."""
+    def __init__(self, *responses, mode='responses', port=None):
         self.responses = list(responses)
-        self.requests = []
+        self.mode, self.port = mode, port
+        self.directory = Path(tempfile.mkdtemp(prefix='transport-fixture-'))
+        self._remove = weakref.finalize(self, _remove_fixture, self.directory)
+        self.process = None
+        for index, response in enumerate(self.responses):
+            if isinstance(response, Response):
+                response._observer, response._index = weakref.ref(self), index
 
-    def open(self, request, timeout):
-        self.requests.append((request, timeout))
-        response = self.responses.pop(0)
-        if isinstance(response, Exception):
-            raise response
-        return response
+    def __del__(self):
+        process = getattr(self, 'process', None)
+        if process is not None and process.poll() is None:
+            process.kill()
+            process.wait(timeout=1)
+        if hasattr(self, '_remove'):
+            self._remove()
+
+    def observations(self):
+        path = self.directory / 'observed.json'
+        if not path.exists():
+            return {}
+        with path.open('rb') as stream:
+            raw = stream.read(131073)
+        assert len(raw) <= 131072
+        return json.loads(raw)
+
+    @property
+    def requests(self):
+        import urllib.request
+        return [(urllib.request.Request(row['url'], headers=dict(row['headers']),
+                    method=row['method']), row['timeout'])
+                for row in self.observations().get('requests', [])]
+
+    def start_worker(self):
+        rows = []
+        for response in self.responses:
+            if isinstance(response, urllib.error.HTTPError):
+                rows.append(dict(code=response.code, headers=list(response.headers.items()),
+                                 http_error=True, body=''))
+            elif isinstance(response, Response):
+                rows.append(dict(code=response.code, headers=list(response.headers.items()),
+                    body=base64.b64encode(response.body.getvalue()).decode(), failure=response.failure))
+            else:
+                rows.append(dict(failure='open'))
+        raw = json.dumps(dict(responses=rows, mode=self.mode, port=self.port)).encode()
+        assert len(raw) <= 8 * 1024**2
+        config = self.directory / 'fixture.json'
+        config.write_bytes(raw)
+        self.process = subprocess.Popen([sys.executable, '-B', '-I', '-S',
+            str(Path(__file__).with_name('rc_consumer_transport_supervisor_tests.py')),
+            '--worker-fixture', str(config)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, shell=False, close_fds=True, bufsize=0,
+            env={'LC_ALL': 'C', 'LANG': 'C'})
+        return self.process
 
 
 class TransportTests(unittest.TestCase):
@@ -161,7 +231,7 @@ class TransportTests(unittest.TestCase):
 
     def test_stream_error_has_fixed_code(self):
         response = Response(200)
-        response.read1 = lambda _: (_ for _ in ()).throw(TimeoutError(URL))
+        response.failure = 'read'
         with self.assertRaisesRegex(ConsumerError, '^artifact_transport_failed$'):
             self.run_download(Opener(self.redirect(), response))
 

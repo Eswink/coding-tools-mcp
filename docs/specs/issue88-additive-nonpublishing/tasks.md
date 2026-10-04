@@ -84,3 +84,24 @@ Actual files (each at most 500 lines):
 - scripts/rc_consumer_workflow_tests.py
 - scripts/rc_consumer_finalize.py
 - scripts/rc_consumer_finalization_tests.py
+
+## Finite deadline bugfix tasks (2026-10-04; separate Plan)
+
+Historical checkboxes above describe PR89's original increment, not this fix. Engineering base is exact unmerged PR89 `6b6ad879` / tree `29cbb919`. No integration selection is approved by this preparation.
+
+- [x] Read AGENTS, Probe4.0.1 Skill and current project context; create genuinely new finite bugfix Plan
+- [x] Bind unchanged source and preserved original 0.20s/0.7593s local HTTP observation; run unchanged 12-test fake-opener transport baseline (12 pass, no skips)
+- [x] Finish fresh exact-symbol impacts/manual call graph, source-bound requirements/design/test matrix and check_spec; obtain independent exact-plan review and root approval
+- [x] Implement only existing transport plus one private byte worker after approval; keep both public signatures and source/host/finalization contracts
+- [x] Adapt shared existing transport fixture and add one supervised-boundary test module; preserve plan/finalization test callers without edits
+- [x] Verify actual header/body trickle cancellation, startup/partial IPC, error/cancel, HTTP close, DONE-then-hang, abnormal exit, file-I/O lateness and uncertain terminate/kill/reap cases
+- [ ] Run focused tests, full zero-skip consumer fixture runner and unchanged producer suites; validate syntax, line caps, default-host no-spawn, exact diff and independent staged review
+- [ ] Parent decides source integration and publication separately; reuse existing hermetic CI and verify exact candidate head/tree without adding a workflow
+
+Coverage: FR-7 -> supervisor deadline tests; FR-8 -> cancel/cleanup fault matrix; FR-9 -> parent integrity, DONE/EOF/exit and consumer parser/plan exclusion; FR-10 -> unchanged policy regressions/default-host no-spawn and exact frozen exclusions; FR-11 -> Ubuntu24/Python3.12 exact-source run and documented OS limits. The full finite matrix and source bindings are in the review preparation evidence, not assertions of completed candidate tests.
+
+CI reuse: existing `rc-artifact-consumer-checks.yml` discovers `rc_consumer*_tests.py`, requires the official checksum-pinned GLib data fixture, >=159 tests and zero skips, then runs unchanged producer regressions. Existing push prefixes exclude local `fix/artifact-transport-deadline`; the approved `feat/rc-final-artifact-consumer-deadline-20261004` name matches without workflow edits. A fresh remote matching-ref query returned an empty list before the local rename; no remote ref or publication was created. Alternatively a PR merge SHA requires exact candidate-tree equality checks and cannot silently count as head-source evidence. No FINAL workflow is part of testing.
+
+Finite lifecycle bug tracking: [Issue107](https://github.com/Eswink/coding-tools-mcp/issues/107); Issue88 remains the broader consumer/release scope.
+
+Local candidate checkpoint (Issue107, 2026-10-04): original159 consumer tests plus15 new lifecycle tests pass (174 total), with all194 unchanged producer tests and14 version tests also passing;382 local tests, zero skips. Earlier candidate fixture-cleanup instrumentation failures were fixed only in the shared test adapter; no finalization assertions/code changed. Short-cleanup terminate-failure testing exposed and corrected lack of reserved kill/reap time. The retained original0.20s/0.7593s header witness is untouched. A fresh same-loopback scenario at0.5s budget measured baseline headers4.0323s vs supervised candidate0.5020s (reaped); baseline slow-body0.5052s is a passing control, preserved at candidate0.5021s. This remains local HTTP/fake API/token evidence, not TLS or authenticated GitHub acceptance. Final frozen-tree review and hosted CI remain pending.
