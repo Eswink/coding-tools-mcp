@@ -60,7 +60,7 @@ No memory-store result was supplied. Current-source facts govern: EXIT_PROCESS_D
 **优先级:** Must
 **用户故事:** As a maintainer I need a reviewable diagnostic increment that does not relax the existing safety gates.
 #### 验收标准（EARS）
-1. WHEN integrating THEN both existing Add-Type sites SHALL append the exact sibling files and existing runtime invocation/triggers/permissions SHALL remain unchanged.
+1. WHEN integrating THEN both existing Add-Type sites SHALL append the exact sibling files, existing runtime invocation/branch filters/permissions SHALL remain unchanged, and the observer source subtree SHALL be covered by the existing branch-scoped push trigger.
 2. WHEN changing Runner THEN all legacy catches and the separate1869-byte classifier-to-persistence span SHALL remain byte-identical.
 3. BEFORE publication or one Windows attempt THEN the exact candidate SHALL receive independent review, staged graph/source checks and applicable regression evidence.
 
@@ -100,3 +100,12 @@ Existing Windows broker pilot, its source/object identity captures and recovery 
 5. WHEN projecting v3 THEN exactly37 numeric and6 enum keys SHALL be required; v1/v2 schemas and archived interpretations SHALL remain unchanged, with no new field accepted retroactively.
 6. WHEN extracting pure receipt tests THEN actual prior test.id() identities, discovery counts, bodies and mutations SHALL be preserved without omissions or duplicates.
 7. BEFORE publication or native execution THEN the exact candidate SHALL receive independent review and a separate decision; neither is authorized by source implementation approval.
+
+### FR-9: Run the diagnostic when its observer source changes
+**优先级:** Must
+**用户故事:** As a maintainer I need changes to the isolated observer subtree to reach the existing diagnostic gates automatically on its dedicated CI branch.
+#### 验收标准（EARS）
+1. WHEN files under tests/windows-cmd-debugger-observation/** change on ci/windows-lpac-runtime-diagnostic THEN the existing workflow push path filter SHALL include that exact subtree.
+2. WHEN correcting the filter THEN only that one path line SHALL be added; other trigger paths, branch restriction, workflow_dispatch, permissions, jobs and runtime source SHALL remain byte-identical.
+3. WHEN source-auditing the workflow THEN a missing, altered, duplicated, misindented or out-of-block observer path SHALL be rejected.
+4. BEFORE publishing the correction THEN its exact diff/tree SHALL receive independent review; no old job rerun or browser dispatch SHALL substitute for the structural fix.

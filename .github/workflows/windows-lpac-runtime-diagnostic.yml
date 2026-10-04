@@ -7,6 +7,7 @@ on:
       - 'tests/windows-lpac-runtime/**'
       - 'tests/windows-broker-direct/**'
       - 'tests/windows-applocker-observation/**'
+      - 'tests/windows-cmd-debugger-observation/**'
       - '.github/workflows/windows-lpac-runtime-diagnostic.yml'
 permissions:
   contents: read

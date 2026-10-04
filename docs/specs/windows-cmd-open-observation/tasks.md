@@ -115,3 +115,14 @@ Additional scope rows: tests/windows-cmd-debugger-observation/CmdDebugContextTes
   - Evidence: exact candidate and unavailable-stage disclosure; no normalization or extra experiment
 
 Additional scope row: tests/windows-cmd-debugger-observation/receipt_tests.py (new,<=500lines), pure receipt fixtures and versioned unit tests only. Native/workflow/runtime wrappers/AppLocker remain unchanged in this increment. The published v2 attempt ended incomplete with field mask8; it established no flag whitelist or batch root cause.
+
+## CI path-filter correction (FR-9)
+
+- [x]6.1 Bind published54af source and verify the omitted observer path plus exact guard impact
+  - Evidence: workflow lines2-10, trigger-preimpact.json and source-bound graph hashes
+- [x]6.2 Add only the exact observer push path, a focused audit regression and updated scope requirements
+  - Files: workflow, audit.py and existing three specs; no runtime/C# changes
+- [ ]6.3 Run retained regressions and path mutations, then independently review exact diff/tree before publication
+  - Evidence: commands/results, path-only preservation proof and staged graph
+
+No v3 runtime observation occurred at54af. The pending experiment is not an old-run retry; the reviewed integration correction must first reach the unchanged test gates.

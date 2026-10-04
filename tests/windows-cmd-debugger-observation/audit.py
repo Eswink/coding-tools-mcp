@@ -258,6 +258,12 @@ def inspect_sources(sources, old, runner, workflow, wrapper, pins=True):
     assert 'windows-cmd-debugger-observation/*.cs' not in workflow + wrapper, 'no sibling wildcard'
     assert workflow.count('[BrokerDirectLauncher]::RunCmdDebugContractTests()') == 1, 'fake test invocation'
     assert workflow.count('python tests/windows-cmd-debugger-observation/audit.py') == 1, 'audit invocation'
+    # Fixed workflow indentation: only a real on.push.paths entry satisfies this guard.
+    triggers = re.search(r'^on:\n((?:[ \t][^\n]*\n|\n)*)', workflow, re.M)
+    push = triggers and re.search(r'^  push:\n((?: {4}[^\n]*\n|\n)*)', triggers[1], re.M)
+    paths = push and re.search(r'^    paths:\n((?: {6}[^\n]*\n|\n)*)', push[1], re.M)
+    assert paths and paths[1].splitlines().count(
+        "      - 'tests/windows-cmd-debugger-observation/**'") == 1, 'observer push path'
 
 
 class ReceiptContracts(unittest.TestCase):
@@ -401,6 +407,27 @@ class SourceContracts(unittest.TestCase):
                 inspect_sources(self.sources, self.old, self.runner, self.workflow.replace(name, ''), self.wrapper, False)
             with self.subTest(wrapper=name), self.assertRaises(AssertionError):
                 inspect_sources(self.sources, self.old, self.runner, self.workflow, self.wrapper + name, False)
+
+    def test_observer_push_path_mutations(self):
+        path = "      - 'tests/windows-cmd-debugger-observation/**'\n"
+        self.assertEqual(self.workflow.count(path), 1)
+        missing = self.workflow.replace(path, '', 1)
+        changes = (
+            ('missing', missing),
+            ('wrong_glob', self.workflow.replace(path, path.replace('/**', '/*'), 1)),
+            ('narrow_extension', self.workflow.replace(path, path.replace('/**', '/*.py'), 1)),
+            ('broadened', self.workflow.replace(path, "      - 'tests/**'\n", 1)),
+            ('duplicate', self.workflow.replace(path, path + path, 1)),
+            ('less_indented', self.workflow.replace(path, path[2:], 1)),
+            ('more_indented', self.workflow.replace(path, '  ' + path, 1)),
+            ('comment', self.workflow.replace(path, '      #' + path[6:], 1)),
+            ('other_event', missing.replace('  workflow_dispatch:\n', '  workflow_dispatch:\n    paths:\n' + path, 1)),
+            ('after_push', missing.replace('permissions:\n', '  pull_request:\n    paths:\n' + path + 'permissions:\n', 1)),
+            ('outside_on', missing + path),
+        )
+        for mutation, workflow in changes:
+            with self.subTest(mutation=mutation), self.assertRaisesRegex(AssertionError, 'observer push path'):
+                inspect_sources(self.sources, self.old, self.runner, workflow, self.wrapper, False)
 
     def test_path_loading_keeps_exact_sibling_contract(self):
         loaded = runpy.run_path(str(HERE / 'audit.py'))['check_receipt']
