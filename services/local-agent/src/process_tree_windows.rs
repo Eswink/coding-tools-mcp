@@ -9,8 +9,10 @@ use windows::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, Thread32First, Thread32Next, TH32CS_SNAPTHREAD, THREADENTRY32,
 };
 use windows::Win32::System::JobObjects::{
-    AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
-    SetInformationJobObject, TerminateJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+    AssignProcessToJobObject, CreateJobObjectW, JobObjectBasicAccountingInformation,
+    JobObjectExtendedLimitInformation, QueryInformationJobObject,
+    SetInformationJobObject, TerminateJobObject, JOBOBJECT_BASIC_ACCOUNTING_INFORMATION,
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
     JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
 };
 use windows::Win32::System::Threading::{
@@ -52,6 +54,36 @@ impl ProcessTree {
             .as_ref()
             .ok_or_else(|| io::Error::other("process tree is closed"))?;
         unsafe { AssignProcessToJobObject(handle(job), process) }.map_err(winerr)
+    }
+
+    /// Request termination while retaining the original Job for opt-in queries.
+    /// Failure cannot discard ownership; Drop remains defensive cleanup only.
+    pub(crate) fn request_termination(&self) -> io::Result<()> {
+        let owned = self
+            .0
+            .as_ref()
+            .ok_or_else(|| io::Error::other("owned job unavailable"))?;
+        unsafe { TerminateJobObject(handle(owned), 1) }.map_err(winerr)
+    }
+
+    /// One observation of this exact owned Job, never the caller's ambient Job.
+    pub(crate) fn is_empty(&self) -> io::Result<bool> {
+        let owned = self
+            .0
+            .as_ref()
+            .ok_or_else(|| io::Error::other("owned job unavailable"))?;
+        let mut accounting = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
+        unsafe {
+            QueryInformationJobObject(
+                Some(handle(owned)),
+                JobObjectBasicAccountingInformation,
+                &mut accounting as *mut _ as *mut _,
+                size_of::<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION>() as u32,
+                None,
+            )
+        }
+        .map_err(winerr)?;
+        Ok(accounting.ActiveProcesses == 0)
     }
 
     pub(crate) fn terminate(&mut self) -> io::Result<()> {

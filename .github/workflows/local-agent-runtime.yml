@@ -2,7 +2,7 @@ name: Local Agent tool runtime
 
 on:
   push:
-    branches: ['feat/cloud-gateway-agent-runtime']
+    branches: ['feat/cloud-gateway-agent-runtime', 'fix/windows-owned-job-completion']
     paths:
       - 'services/local-agent/**'
       - '.github/workflows/local-agent-runtime.yml'
@@ -39,6 +39,14 @@ jobs:
         with:
           toolchain: '1.98.1'
           components: rustfmt, clippy
+      - name: Record exact source before validation
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-commit.txt
+          git rev-parse HEAD^{tree} > evidence/source-tree.txt
+          rustc --version > evidence/toolchain.txt
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml -- --list 2>&1 | tee evidence/test-inventory.txt
       - name: Verify shared Tool Runtime
         run: |
           set -euo pipefail
@@ -47,9 +55,28 @@ jobs:
           cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings
           cargo test --locked --manifest-path services/local-agent/Cargo.toml 2>&1 | tee evidence/tests.txt
           cargo check --locked --manifest-path services/local-agent/Cargo.toml
-          git rev-parse HEAD > evidence/source-commit.txt
-          git rev-parse HEAD^{tree} > evidence/source-tree.txt
-          rustc --version > evidence/toolchain.txt
+          python - <<'PYCODE'
+          import json, pathlib, re
+          inventory = pathlib.Path('evidence/test-inventory.txt').read_text(encoding='utf-8')
+          log = pathlib.Path('evidence/tests.txt').read_text(encoding='utf-8')
+          expected = len(re.findall(r'^.+: test$', inventory, re.M))
+          rows = re.findall(r'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored; (\d+) measured; (\d+) filtered out', log)
+          passed = sum(int(row[0]) for row in rows)
+          assert expected > 0 and passed == expected, (expected, passed)
+          assert rows and all(all(int(value) == 0 for value in row[1:]) for row in rows), rows
+          pathlib.Path('evidence/counts.json').write_text(json.dumps(dict(listed=expected, passed=passed, nonpass=0)), encoding='utf-8')
+          PYCODE
+      - name: Verify native Windows owned-Job proofs
+        if: runner.os == 'Windows'
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml --test windows_job_completion -- --nocapture 2>&1 | tee evidence/windows-job-completion.txt
+          python - <<'PYCODE'
+          import pathlib, re
+          log = pathlib.Path('evidence/windows-job-completion.txt').read_text(encoding='utf-8')
+          rows = re.findall(r'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored; (\d+) measured; (\d+) filtered out', log)
+          assert len(rows) == 1 and int(rows[0][0]) == 8 and all(int(value) == 0 for value in rows[0][1:]), rows
+          PYCODE
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

@@ -82,6 +82,70 @@ fn main() -> ExitCode {
             drop(child);
             ExitCode::SUCCESS
         }
+        Some("spawn-private-descendant") => spawn_private_descendant(args),
+        Some("private-descendant") => {
+            println!("descendant_ready={}", std::process::id());
+            std::io::stdout().flush().unwrap();
+            // Neither parent exit nor stdin EOF ends this bounded lifetime.
+            thread::sleep(Duration::from_secs(60));
+            ExitCode::SUCCESS
+        }
         _ => ExitCode::from(2),
     }
+}
+
+fn spawn_private_descendant(mut args: impl Iterator<Item = String>) -> ExitCode {
+    use std::{
+        io::{BufRead, BufReader},
+        path::PathBuf,
+        process::Stdio,
+        sync::mpsc,
+        time::Instant,
+    };
+
+    let (Some(ready), Some(release)) = (args.next(), args.next()) else {
+        return ExitCode::from(2);
+    };
+    let release = PathBuf::from(release);
+    let mut child = Command::new(env::current_exe().unwrap())
+        .arg("private-descendant")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    // The descendant must not inherit either captured parent output pipe.
+    let pipe = child.stdout.take().unwrap();
+    let (sender, receiver) = mpsc::sync_channel(1);
+    let reader = thread::spawn(move || {
+        let mut line = String::new();
+        let result = BufReader::new(pipe).read_line(&mut line).map(|_| line);
+        let _ = sender.send(result);
+    });
+    let expected = format!("descendant_ready={}\n", child.id());
+    let ready = match receiver.recv_timeout(Duration::from_secs(5)) {
+        Ok(Ok(line)) if line == expected => std::fs::write(ready, &line).is_ok(),
+        _ => false,
+    };
+    if !ready {
+        let _ = child.kill();
+        let _ = child.wait();
+        let _ = reader.join();
+        return ExitCode::from(3);
+    }
+    let _ = reader.join();
+    println!("parent_ready");
+    eprintln!("parent_ready");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while Instant::now() < deadline {
+        if release.is_file() {
+            // The test already owns a process handle before allowing this exit.
+            drop(child);
+            return ExitCode::SUCCESS;
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+    ExitCode::from(4)
 }
