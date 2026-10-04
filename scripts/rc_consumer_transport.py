@@ -19,8 +19,8 @@ REPOSITORY, API = wire.REPOSITORY, wire.API
 MAX_ZIP, READ_SIZE, READ_TIMEOUT = wire.MAX_ZIP, wire.READ_SIZE, wire.READ_TIMEOUT
 TOTAL_TIMEOUT = 300
 CLEANUP_TIMEOUT = 5.0
-# Held until separately reviewed host admission; reject before any worker starts.
-TRUSTED_STORAGE_HOSTS: frozenset[str] = frozenset()
+# Reviewed exact host; an empty policy still fails closed before worker launch.
+TRUSTED_STORAGE_HOSTS: frozenset[str] = frozenset({'productionresultssa5.blob.core.windows.net'})
 WORKER = Path(__file__).resolve().with_name('rc_consumer_transport_worker.py')
 NoRedirect = wire.NoRedirect
 SAFE_ERRORS = wire.ERROR_CODES | frozenset({
