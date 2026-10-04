@@ -235,10 +235,18 @@ def _strict_run(evidence, repository_id, source, expected_id, expected_attempt, 
 def select_source_runs(api, candidate: dict, expectations: dict) -> dict:
     _inputs(expectations)
     need(candidate['source_sha'] == expectations['source_sha'], 'candidate_source_mismatch')
+    return _select_source_runs_for_identity(api, candidate['source_sha'],
+                                            candidate['consumer']['repository_id'], expectations)
+
+
+def _select_source_runs_for_identity(api, source, expected_repository_id, expectations):
+    # Deliberate duplicate pure checks: direct pretag callers cannot bypass inputs.
+    _inputs(expectations)
+    need(source == expectations['source_sha'], 'candidate_source_mismatch')
+    need(gate.positive(expected_repository_id), 'repository_identity_mismatch')
     repository = _call(api.get, '/')
-    repository_id = _repository(repository, candidate['consumer']['repository_id'])
+    repository_id = _repository(repository, expected_repository_id)
     observed = _ObservedAPI(api, repository_id)
-    source = candidate['source_sha']
     result = dict(repository_id=repository_id)
     for key, prefix, path, names in (
             ('integration', 'integration', gate.final.WORKFLOW, gate.final.REQUIRED_JOBS),

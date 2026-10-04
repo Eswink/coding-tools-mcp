@@ -164,6 +164,17 @@ def make_asset_plan(snapshot_value, content, bundle, output, receipts):
     return plan
 
 
+def _verify_bundle_bytes(root, api, selection, metadata, producer, download, bundle, cloud, *, opener=None):
+    path = transport.download_artifact_zip(api, metadata, download, opener=opener)
+    snapshot.revalidate_download(api, selection, metadata)
+    archive.extract_bounded_zip(path, bundle, [name for name, _, _ in payloads(producer.version)])
+    archive.verify_checksum_inventory(bundle)
+    archive.extract_bounded_cloud_tar(bundle.path / 'cloud-linux-amd64.tar.gz', cloud)
+    content = contracts.verify_consumed_bundle(root, bundle.path, cloud.path, producer, selection['integration'])
+    download.files(); bundle.files(); cloud.files()
+    return content
+
+
 def consume(root, expectations, environment, api, *, temporary_parent=None, opener=None):
     """Live-authenticated production sequence. No offline snapshot CLI exists."""
     candidate = snapshot.resolve_candidate(root, expectations, environment, api)
@@ -180,13 +191,8 @@ def consume(root, expectations, environment, api, *, temporary_parent=None, open
                     return temporary_roots.enter_context(PrivateRoot(parent, prefix, source_root=root))
                 download, bundle, cloud = (fresh(prefix) for prefix in
                     ('rc-consumer-download-', 'rc-consumer-bundle-', 'rc-consumer-cloud-'))
-                path = transport.download_artifact_zip(api, metadata, download, opener=opener)
-                snapshot.revalidate_download(api, selection, metadata)
-                archive.extract_bounded_zip(path, bundle, [name for name, _, _ in payloads(producer.version)])
-                archive.verify_checksum_inventory(bundle)
-                archive.extract_bounded_cloud_tar(bundle.path / 'cloud-linux-amd64.tar.gz', cloud)
-                content = contracts.verify_consumed_bundle(root, bundle.path, cloud.path, producer, selection['integration'])
-                download.files(); bundle.files(); cloud.files()
+                content = _verify_bundle_bytes(root, api, selection, metadata, producer,
+                                               download, bundle, cloud, opener=opener)
                 output = fresh('rc-consumer-assets-')
                 receipts = final_roots.enter_context(PrivateRoot(parent, 'rc-consumer-receipts-', source_root=root))
                 plan = make_asset_plan(observation, content, bundle, output, receipts)
