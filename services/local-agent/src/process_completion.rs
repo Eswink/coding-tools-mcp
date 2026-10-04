@@ -19,10 +19,7 @@ pub(super) async fn publish(
     done.send_replace(Some(outcome));
 }
 
-async fn confirm_empty(
-    mut query: impl FnMut() -> io::Result<bool>,
-    deadline: Instant,
-) -> bool {
+async fn confirm_empty(mut query: impl FnMut() -> io::Result<bool>, deadline: Instant) -> bool {
     loop {
         if Instant::now() >= deadline {
             return false;

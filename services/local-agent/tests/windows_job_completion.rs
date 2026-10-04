@@ -20,8 +20,7 @@ use tokio::{io::AsyncReadExt, process::Command};
 use windows::Win32::{
     Foundation::{HANDLE, WAIT_OBJECT_0, WAIT_TIMEOUT},
     System::Threading::{
-        OpenProcess, TerminateProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE,
-        PROCESS_TERMINATE,
+        OpenProcess, TerminateProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
     },
 };
 
@@ -162,14 +161,20 @@ impl DescendantObserver {
                 let deadline = Instant::now() + Duration::from_secs(40);
                 let observation = loop {
                     if stopped.load(Ordering::Acquire) {
-                        break Err(io::Error::new(io::ErrorKind::Interrupted, "observer stopped"));
+                        break Err(io::Error::new(
+                            io::ErrorKind::Interrupted,
+                            "observer stopped",
+                        ));
                     }
                     if Instant::now() >= deadline {
                         break Err(io::Error::new(io::ErrorKind::TimedOut, "observer deadline"));
                     }
                     let wait = unsafe { WaitForSingleObject(descendant.handle(), 20) };
                     if stopped.load(Ordering::Acquire) {
-                        break Err(io::Error::new(io::ErrorKind::Interrupted, "observer stopped"));
+                        break Err(io::Error::new(
+                            io::ErrorKind::Interrupted,
+                            "observer stopped",
+                        ));
                     }
                     if Instant::now() >= deadline {
                         break Err(io::Error::new(io::ErrorKind::TimedOut, "observer deadline"));
@@ -367,7 +372,10 @@ async fn runtime_completion(expected: ExecTermination) -> TestResult {
     cleanup?;
     assert!(live_before_trigger?);
     assert_eq!(outcome.termination, expected, "{outcome:?}");
-    assert!(immediately_signaled, "no native exit proof at outcome return");
+    assert!(
+        immediately_signaled,
+        "no native exit proof at outcome return"
+    );
     assert!(outcome.output_complete, "{outcome:?}");
     if expected == ExecTermination::Exited {
         assert!(outcome.command_ok(), "{outcome:?}");
@@ -412,7 +420,10 @@ async fn stopped_live_observer_cleanup_cannot_manufacture_exit_proof() -> TestRe
     drop(tree);
     assert!(live_before_stop?);
     assert_eq!(stopped.unwrap_err().kind(), io::ErrorKind::Interrupted);
-    assert!(!proof_after_cleanup, "cleanup must not record native exit proof");
+    assert!(
+        !proof_after_cleanup,
+        "cleanup must not record native exit proof"
+    );
     reaped??;
     drained?;
     Ok(())
@@ -439,7 +450,11 @@ async fn confirmed_output_overflow_preserves_limit_classification() -> TestResul
     }
     drop(session);
     let outcome = observed?;
-    assert_eq!(outcome.termination, ExecTermination::OutputLimit, "{outcome:?}");
+    assert_eq!(
+        outcome.termination,
+        ExecTermination::OutputLimit,
+        "{outcome:?}"
+    );
     assert!(outcome.stdout_truncated);
     assert!(outcome.stdout_total_bytes > outcome.stdout.len() as u64);
     assert!(outcome.stdout.len() <= 1024);

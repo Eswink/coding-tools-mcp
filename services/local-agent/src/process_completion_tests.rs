@@ -83,11 +83,7 @@ async fn zero_returning_after_deadline_is_uncertain() {
 
 #[tokio::test]
 async fn persistent_nonzero_exhausts_one_deadline() {
-    assert!(!confirm_empty(
-        || Ok(false),
-        Instant::now() + Duration::from_millis(45),
-    )
-    .await);
+    assert!(!confirm_empty(|| Ok(false), Instant::now() + Duration::from_millis(45),).await);
 }
 
 #[tokio::test]
@@ -102,7 +98,14 @@ async fn publication_preserves_original_reasons_and_sticky_uncertainty() {
         ExecTermination::TerminationUncertain,
     ] {
         let (tx, rx) = watch::channel(None);
-        publish(tx, outcome(reason), true, || Ok(true), std::time::Instant::now()).await;
+        publish(
+            tx,
+            outcome(reason),
+            true,
+            || Ok(true),
+            std::time::Instant::now(),
+        )
+        .await;
         assert_eq!(rx.borrow().as_ref().unwrap().termination, reason);
     }
 }
@@ -146,7 +149,10 @@ async fn failed_query_prevents_success_despite_zero_exit_and_complete_streams() 
 #[cfg(windows)]
 fn help_spec() -> super::super::ExecSpec {
     super::super::ExecSpec::new(
-        vec![std::env::current_exe().unwrap().display().to_string(), "--help".into()],
+        vec![
+            std::env::current_exe().unwrap().display().to_string(),
+            "--help".into(),
+        ],
         std::env::current_dir().unwrap(),
     )
     .unwrap()
