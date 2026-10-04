@@ -23,7 +23,7 @@ Finite source-only adapter from J1694fe8c; implementation ends at local frozen r
 ### 阶段3: Verify exact acceptance and review
 - [x] 3.1 Run named new negative/positive fixtures, unchanged J412 and adopted53 with mandatory GLib, compile/actionlint/spec/source gates
   - **证据块**: actual unittest discovery includes four inherited consumer IDs; all original test bodies/modes remain exact J
-  - Files: fixtures<=300, admission tests<=350, collection tests<=375, composition tests<=300; FR-1 through FR-7; design tests
+  - Files: fixtures<=300, admission tests<=450, collection tests<=430, composition tests<=470; FR-1 through FR-7; design tests
 - [ ] 3.2 Stage only22 paths, retain/reconcile GitNexus anomalies, obtain independent exact diff/tree/hash review and gencommit guidance
   - **证据块**: staged source manifest, inverse originals, exact inventory/counts/logs; FR-7; design risks
 
@@ -60,9 +60,9 @@ Finite source-only adapter from J1694fe8c; implementation ends at local frozen r
 | scripts/rc_pretag_collect.py | new | 200 |
 | scripts/rc_pretag_collection_result.py | new | 195 |
 | scripts/rc_pretag_collect_fixtures.py | new | 300 |
-| scripts/rc_pretag_admission_tests.py | new | 350 |
-| scripts/rc_pretag_collection_tests.py | new | 375 |
-| scripts/rc_pretag_composition_tests.py | new | 300 |
+| scripts/rc_pretag_admission_tests.py | new | 450 |
+| scripts/rc_pretag_collection_tests.py | new | 430 |
+| scripts/rc_pretag_composition_tests.py | new | 470 |
 | .github/workflows/rc-pretag-evidence.yml | new | 100 |
 | .github/workflows/rc-pretag-evidence-checks.yml | new | 120 |
 | docs/specs/issue88-pretag-adopter/requirements.md | new | 100 |
@@ -76,3 +76,11 @@ Finite source-only adapter from J1694fe8c; implementation ends at local frozen r
 Local source checkpoint: unchanged J412 and exact adopted53 plus65 named new cases passed with zero skips/xfails/xpasses. The strict new runner freezes118 exact IDs (53 adopted +33 admission +22 collection +10 composition). Real positive fixtures exercise the current byte pipeline without mocking the bundle verifier. Inverse J bytes,22-path scope and both workflow pins pass. Final stable-source rerun, staged graph reconciliation and independent exact review remain separate pending evidence; no hosted/current-head, real FINAL, manifest or release approval is claimed.
 
 Review correction: freeze own-run created_at across fences; prepare bounded audit/policy summaries before descriptor close/final revalidation; mint/serialize afterward. Actions handoff consumes each FD close authority once, closes newly owned child even if prior parent close fails, and caps the entire encoded receipt_path line. Root-approved per-file budgets become collect200/result195/collection-tests375;22paths/runtime640/total3966 unchanged.
+
+## Approved finite integration-context correction
+- [x] Independent clean B clone and index-only fresh impacts; original118 passes and faithful[R,[J,B]] fails first-parent composition, with sanitized owned Git child traces
+- [ ] Correct exact pure/synthetic immutable-source profiles and add only exact PR89 target to strict push branches; keep runtime/eightadoptions/J helper bytes fixed
+- [ ] Scoped test-only Git child guard, cleanup-before-construction, nested owned roots and original outer token observer; sentinel metadata never mutated
+- [ ] Retain118 IDs plus6 composition and6 fixture-Git cases named in EXPECTED_GROUPS; prove strict/raw130 and unchanged412 on frozen pure/PR110/PR89 synthetic contexts before claiming542
+- [ ] Independent exact-tree review, compile/actionlint/spec/source/budget/fresh graph/gencommit; no publication/merge/live activation without separate root approval
+Only eight existing paths change: three fixture/test files, composition tests, strict fixture YAML and these three specs. Caps300/450/430/470/120/100each are reviewed reallocations; aggregate3966/runtime640 remain hard, source/runtime547 unchanged. Old412 requires clean external launch; this is not universal legacy fixture hardening.

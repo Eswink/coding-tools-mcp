@@ -1,5 +1,9 @@
 """Strict J composition and frozen named fixture inventory; never a release gate."""
 import ast
+from contextlib import contextmanager
+import shutil
+import tempfile
+from unittest.mock import patch
 from collections import Counter
 import hashlib
 import json
@@ -10,11 +14,19 @@ import subprocess
 import unittest
 from rc_consumer_io import read_bytes
 from verify_glib_backport import ARCHIVE_SHA
+from rc_pretag_collect_fixtures import owned_git_scope, git_environment
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = '1694fe8c771e57c72c89ca096693b03404c24b84'
 BASE_TREE = '8fa2331a170e265b1c5dfbb45180113aefeed6b0'
 ORIGIN = '70aa9e3644fc50861992717c6c879d8c7261539f'
+RELEASE = 'e2e011f7f2a3a1df838bbd588106205b999db610'
+RELEASE_TREE = 'c0dfe00fdcc7ebc8e26acaad5d18ff3f94df9ba3'
+RELEASE_DOCS = dict(zip(('docs/releases/' + name for name in
+    ('next-rc-ledger.md', 'next-rc-notes.md', 'source-acceptance-audit.md', 'verification-v0.6.0-rc.4.md')),
+    (('100644', 'blob', blob) for blob in ('f44a9b8abf0dac1e35cea0e23b36750b297d0704',
+     'c5cffd2d3dba5ce70f4dbe41167cf9f699c807d3', '7dd36643c0931fd5c8b6e2c2de8152b2f4c0366c',
+     'de0f6f90e184bb41af7bb714ad425e51f0a9d819'))))
 ADOPTED = {
     'scripts/rc_pretag_types.py': ('2b937d1be26274e8862d35849262385384b63b43', 'd79e667808b305f89bae92d5e3df6766d05f3f77380b75098b6dd0f1a65b19d6'),
     'scripts/rc_pretag_evidence.py': ('a366e08bbad9f2635136dca8c92ad785b7a7e972', 'aded3cfebe8dfc44b17035213721b245d0bcb85c0c55ef06853a1fbf97de0056'),
@@ -31,14 +43,14 @@ NARROW = {
 }
 BUDGET = dict(zip(('scripts/rc_pretag_' + suffix + '.py' for suffix in
     ('admission', 'collect', 'collection_result', 'collect_fixtures', 'admission_tests', 'collection_tests', 'composition_tests')),
-    (280, 200, 195, 300, 350, 375, 300)))
+    (280, 200, 195, 300, 450, 430, 470)))
 LIVE, CHECKS = ('.github/workflows/rc-pretag-evidence' + suffix + '.yml' for suffix in ('', '-checks'))
 BUDGET.update({LIVE: 100, CHECKS: 120})
 BUDGET.update({'docs/specs/issue88-pretag-adopter/' + name + '.md': 100 for name in ('requirements', 'design', 'tasks')})
 ALLOWED = set(ADOPTED) | set(NARROW) | set(BUDGET)
 # These pins must change meaningfully with reviewed execution-envelope changes.
 LIVE_PIN = ('9dd8100fd6611358efaacaf98b573ee250de65f2', 'a58f14ba9c278b240362eee53d25a3894cff45c022477a693927f673c1032370')
-CHECKS_PIN = ('5d81f72bd766724ec0ed1773b8704c6ba9683834', '1ad9ca78a24d4111e308e0bc4d46d1d1889d795e4fa77fee30bd74413764a271')
+CHECKS_PIN = ('dec0de32a339b88ab1f5a39ddaf226d75dacfbe1', 'fce45846190ee075ddba4b6198956711472ce85626f5b7c8480f1139800c9352')
 PURE_VALIDATION = (
     '    _inputs(expectations)\n',
     "    need(source == expectations['source_sha'], 'candidate_source_mismatch')\n",
@@ -63,8 +75,92 @@ BYTE_CALL = ('                content = _verify_bundle_bytes(root, api, selectio
              '                                               download, bundle, cloud, opener=opener)\n')
 
 
-def _git(*args):
-    return subprocess.check_output(['git', '-c', 'core.quotepath=false', *args], cwd=ROOT, timeout=30)
+def _git(*args, root=ROOT, env=None):
+    assert args[0] in {'rev-parse', 'rev-list', 'ls-tree', 'ls-files', 'diff', 'show', 'cat-file'}
+    root = Path(root).resolve(); gitdir = root / '.git'
+    assert gitdir.is_dir() and not gitdir.is_symlink()
+    assert not (gitdir / 'commondir').exists() and not (gitdir / 'objects/info/alternates').exists()
+    extra = ('--no-ext-diff', '--no-textconv') if args[0] in {'diff', 'show'} else ()
+    return subprocess.check_output(['git', '--git-dir=' + str(gitdir), '--work-tree=' + str(root),
+        '-c', 'core.quotepath=false', '-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=/dev/null',
+        args[0], *extra, *args[1:]], cwd=root, env=git_environment(env), timeout=30)
+
+
+def _entries(ref, root=ROOT):
+    return {path: tuple(header.split()) for header, path in
+            (row.split('\t', 1) for row in _git('ls-tree', '-rz', ref, root=root).decode().split('\0') if row)}
+
+
+def _index_entries(raw):
+    result = {}
+    for row in raw.decode().split('\0'):
+        if not row: continue
+        header, path = row.split('\t', 1)
+        mode, blob, stage = header.split()
+        assert stage == '0' and path not in result
+        result[path] = (mode, 'blob', blob)
+    return result
+
+
+def _feature_profile(ref, root=ROOT):
+    assert _git('rev-parse', BASE + '^{tree}', root=root).decode().strip() == BASE_TREE
+    assert BASE in _git('rev-list', '--first-parent', ref, root=root).decode().splitlines()
+    original, actual = _entries(BASE, root), _entries(ref, root)
+    assert original.keys() <= actual.keys() and actual.keys() - original.keys() <= ALLOWED
+    assert all(actual[path] == entry for path, entry in original.items() if path not in NARROW)
+    assert ALLOWED <= actual.keys() and all(value[:2] == ('100644', 'blob') for value in actual.values())
+    data = {path: _git('cat-file', 'blob', actual[path][2], root=root) for path in ALLOWED}
+    for path, pin in {**ADOPTED, LIVE: LIVE_PIN, CHECKS: CHECKS_PIN}.items():
+        assert (_blob(data[path]), hashlib.sha256(data[path]).hexdigest()) == pin
+    for path, reconstruct in zip(NARROW, (_reconstruct_snapshot, _reconstruct_consumer)):
+        original_data = _git('cat-file', 'blob', original[path][2], root=root)
+        assert (_blob(original_data), hashlib.sha256(original_data).hexdigest()) == NARROW[path]
+        assert reconstruct(data[path].decode()).encode() == original_data
+    assert all(len(data[path].splitlines()) <= cap for path, cap in BUDGET.items())
+    narrow = [sum(map(int, _git('diff', '--numstat', BASE, ref, '--', path, root=root).split()[:2])) for path in NARROW]
+    assert all(count <= 35 for count in narrow)
+    assert sum(len(data[path].splitlines()) for path in BUDGET) + 1436 + sum(narrow) <= 3966
+    assert sum(len(data['scripts/rc_pretag_' + name + '.py'].splitlines()) for name in
+               ('admission', 'collect', 'collection_result')) <= 640
+    return actual
+
+
+def _selected_profile(ref='HEAD', root=ROOT):
+    parents = _git('show', '-s', '--format=%P', ref, root=root).decode().split()
+    if parents and parents[0] == RELEASE:
+        assert len(parents) == 2
+        expected = _feature_profile(parents[1], root)
+        assert _git('rev-parse', RELEASE + '^{tree}', root=root).decode().strip() == RELEASE_TREE
+        assert all(_entries(RELEASE, root)[path] == entry for path, entry in RELEASE_DOCS.items())
+        expected.update(RELEASE_DOCS)
+        assert _entries(ref, root) == expected
+        return expected
+    return _feature_profile(ref, root)
+
+
+@contextmanager
+def _profile_fixture():
+    current = _git('rev-parse', 'HEAD').decode().strip()
+    parents = _git('show', '-s', '--format=%P', current).decode().split()
+    candidate = parents[1] if parents and parents[0] == RELEASE else current
+    temp = tempfile.TemporaryDirectory()
+    with temp:
+        repo = Path(temp.name) / 'source'; repo.mkdir()
+        def write(*args, data=None):
+            with owned_git_scope(temp):
+                return subprocess.check_output(['git', '-c', 'user.name=Fixture', '-c',
+                    'user.email=fixture@example.invalid', *args], cwd=repo,
+                    env=git_environment(), input=data, timeout=30).decode().strip()
+        write('init', '-q')
+        shutil.copytree(ROOT / '.git/objects', repo / '.git/objects', dirs_exist_ok=True)
+        def commit(parents, entries):
+            write('read-tree', '--empty')
+            write('update-index', '-z', '--index-info', data=''.join(
+                f'{mode} {blob}\t{path}\0' for path, (mode, kind, blob) in sorted(entries.items())).encode())
+            return write('commit-tree', write('write-tree'), *(part for parent in parents for part in ('-p', parent)),
+                         data=b'Owned synthetic composition fixture; no release authority\n')
+        yield repo, candidate, commit, lambda data: write('hash-object', '-w', '--stdin', data=data)
+
 
 
 def _blob(data):
@@ -92,27 +188,16 @@ def _reconstruct_consumer(text):
 
 class CompositionTests(unittest.TestCase):
     def test_exact_tracked_tree_modes_and_scope(self):
-        self.assertEqual(_git('rev-parse', BASE + '^{tree}').decode().strip(), BASE_TREE)
-        self.assertIn(BASE, _git('rev-list', '--first-parent', 'HEAD').decode().splitlines())
-        records = [row.split('\t', 1) for row in _git('ls-tree', '-r', BASE).decode().splitlines()]
-        original = {path for _, path in records}
-        tracked = set(_git('ls-files').decode().splitlines())
+        expected = _selected_profile()
+        index = _index_entries(_git('ls-files', '--stage', '-z'))
+        self.assertEqual(index, expected)
         self.assertEqual(len(ALLOWED), 22)
-        self.assertEqual(original - tracked, set())
-        self.assertLessEqual(tracked - original, ALLOWED)
-        self.assertLessEqual(set(_git('diff', '--name-only', BASE, '--').decode().splitlines()), ALLOWED)
-        for header, path in records:
+        for path, (mode, kind, blob) in expected.items():
             with self.subTest(path=path):
-                mode, kind, blob = header.split()
-                self.assertEqual((mode, kind), ('100644', 'blob'))
                 actual = ROOT / path
                 self.assertTrue(stat.S_ISREG(actual.lstat().st_mode))
                 self.assertEqual(actual.stat().st_mode & 0o111, 0)
-                if path not in NARROW:
-                    self.assertEqual(_blob(actual.read_bytes()), blob)
-        for path in ALLOWED:
-            self.assertTrue(stat.S_ISREG((ROOT / path).lstat().st_mode), path)
-            self.assertEqual((ROOT / path).stat().st_mode & 0o111, 0, path)
+                self.assertEqual(_blob(actual.read_bytes()), blob)
 
     def test_adopted_contracts_are_byte_identical(self):
         for path, (blob, sha256) in ADOPTED.items():
@@ -187,7 +272,8 @@ class CompositionTests(unittest.TestCase):
         data = (ROOT / CHECKS).read_bytes()
         self.assertEqual((_blob(data), hashlib.sha256(data).hexdigest()), CHECKS_PIN)
         text = data.decode()
-        self.assertIn("branches: ['feat/rc-final-artifact-consumer-pretag-1694fe8c']", text)
+        self.assertIn("branches: ['feat/rc-final-artifact-consumer-pretag-1694fe8c', 'feat/rc-final-artifact-consumer-128']", text)
+        self.assertEqual(text.count('branches:'), 1)
         self.assertIn('pull_request:', text)
         for path in ('scripts/rc_pretag*', 'scripts/rc_release_policy.py', 'scripts/rc_release_eligibility.py',
                      'scripts/rc_consumer_snapshot.py', 'scripts/rc_artifact_consumer.py',
@@ -203,6 +289,69 @@ class CompositionTests(unittest.TestCase):
         self.assertEqual(preserved.count("'scripts/rc_*'"), 2)
         self.assertIn("'feat/rc-final-artifact-consumer-*'", preserved)
 
+    def test_pure_and_exact_pr89_profiles_accept(self):
+        with _profile_fixture() as (repo, candidate, commit, blob):
+            original = _feature_profile(candidate, repo)
+            merged = commit([BASE, candidate], original)
+            self.assertEqual(_selected_profile(merged, repo), original)
+            synthetic = commit([RELEASE, merged], original | RELEASE_DOCS)
+            self.assertEqual(_selected_profile(synthetic, repo), original | RELEASE_DOCS)
+
+    def test_synthetic_parent_shape_rejects_unknown_reversed_extra_nested(self):
+        with _profile_fixture() as (repo, candidate, commit, blob):
+            entries = _feature_profile(candidate, repo) | RELEASE_DOCS
+            synthetic = commit([RELEASE, candidate], entries)
+            for parents in ([], [candidate], [candidate, RELEASE], [BASE, candidate],
+                            [RELEASE, candidate, BASE], [RELEASE, synthetic]):
+                with self.subTest(parents=parents), self.assertRaises(AssertionError):
+                    _selected_profile(commit(parents, entries), repo)
+
+    def test_candidate_requires_j_first_parent_and_pure_profile(self):
+        with _profile_fixture() as (repo, candidate, commit, blob):
+            entries = _feature_profile(candidate, repo)
+            invalid = commit([RELEASE, candidate], entries)
+            with self.assertRaises(AssertionError):
+                _selected_profile(commit([RELEASE, invalid], entries | RELEASE_DOCS), repo)
+
+    def test_synthetic_overlay_rejects_doc_mode_path_and_deletion_mutations(self):
+        with _profile_fixture() as (repo, candidate, commit, blob):
+            expected = _feature_profile(candidate, repo) | RELEASE_DOCS
+            bad = blob(b'Unreviewed documentation mutation\n')
+            for path in [*RELEASE_DOCS, 'scripts/rc_consumer_io.py', 'unreviewed-extra.txt']:
+                for change in (None, ('100644', 'blob', bad), ('100755', 'blob', bad)):
+                    mutated = dict(expected)
+                    if change is None: mutated.pop(path, None)
+                    else: mutated[path] = change
+                    if mutated == expected: continue
+                    with self.subTest(path=path, change=change), self.assertRaises(AssertionError):
+                        _selected_profile(commit([RELEASE, candidate], mutated), repo)
+
+    def test_pure_profile_preserves_exact_j_source_and_docs(self):
+        with _profile_fixture() as (repo, candidate, commit, blob):
+            original = _feature_profile(candidate, repo)
+            for path in [*RELEASE_DOCS, 'scripts/rc_consumer_io.py']:
+                mutated = dict(original); mutated[path] = ('100644', 'blob', blob(b'Changed protected source\n'))
+                with self.subTest(path=path), self.assertRaises(AssertionError):
+                    _feature_profile(commit([candidate], mutated), repo)
+
+        clean = b'100644 ' + b'a' * 40 + b' 0\tfixture\0'
+        self.assertEqual(_index_entries(clean), {'fixture': ('100644', 'blob', 'a' * 40)})
+        for raw in (clean.replace(b' 0\t', b' 1\t'), clean + clean,
+                    clean.replace(b' 0\t', b' 2\t') + clean.replace(b' 0\t', b' 3\t')):
+            with self.subTest(index=raw), self.assertRaises(AssertionError): _index_entries(raw)
+
+    def test_source_reader_rejects_ambient_git_redirection(self):
+        expected = _git('rev-parse', 'HEAD')
+        with tempfile.TemporaryDirectory() as raw:
+            hostile = dict(GIT_DIR=raw, GIT_WORK_TREE=raw, GIT_INDEX_FILE=raw + '/index',
+                GIT_COMMON_DIR=raw, GIT_OBJECT_DIRECTORY=raw, GIT_ALTERNATE_OBJECT_DIRECTORIES=raw,
+                GIT_CONFIG_COUNT='1', GIT_CONFIG_KEY_0='core.worktree', GIT_CONFIG_VALUE_0=raw)
+            with patch.dict(os.environ, hostile):
+                self.assertEqual(_git('rev-parse', 'HEAD'), expected)
+                self.assertEqual(_git('rev-parse', 'HEAD', env=hostile), expected)
+            self.assertEqual(list(Path(raw).iterdir()), [])
+            with self.assertRaises(AssertionError): _git('init')
+
     def test_no_new_publication_or_alternate_validator(self):
         forbidden = {'make_asset_plan', 'write_sanitized_provenance', 'PlanCommit', 'verify_consumed_bundle',
                      'download_artifact_zip', 'extract_bounded_zip', 'extract_bounded_cloud_tar',
@@ -213,7 +362,7 @@ class CompositionTests(unittest.TestCase):
             self.assertFalse(calls & forbidden, (suffix, calls & forbidden))
 
 
-# Reviewed frozen IDs: adopted53 + admission33 + collection22 + composition10.
+# Reviewed frozen IDs: original118 + six composition + six fixture-Git isolation.
 EXPECTED_GROUPS = {
     'rc_pretag_admission_tests.AdmissionTests': ('test_absent_tag_still_rejected_by_unchanged_posttag_consumer test_active_job_requires_exact_unique_identity_attempt_and_status test_actual_ref_requires_exact_version_and_alphanumeric_nonce test_all_invocation_environment_fields_are_mandatory '
         'test_all_six_version_slots_reject_independently test_annotated_and_foreign_local_tags_reject_without_repair test_current_and_exact_attempt_runs_must_be_live_and_matching test_discovery_values_cannot_replace_strict_fixed_selection '
@@ -233,7 +382,14 @@ EXPECTED_GROUPS = {
         'test_handoff_consumes_close_authority_once_and_bounds_full_line '),
     'rc_pretag_composition_tests.CompositionTests': ('test_adopted_contracts_are_byte_identical test_consumer_inverse_reconstructs_pinned_j test_exact_tracked_tree_modes_and_scope test_extraction_mutations_do_not_reconstruct_j '
         'test_finite_review_budgets test_fixture_workflow_triggers_and_no_duplicate_regressions test_live_workflow_exact_execution_envelope test_no_new_publication_or_alternate_validator '
-        'test_original_transport_asts_and_supervisor test_snapshot_inverse_reconstructs_pinned_j '),
+        'test_original_transport_asts_and_supervisor test_snapshot_inverse_reconstructs_pinned_j '
+        'test_pure_and_exact_pr89_profiles_accept test_synthetic_parent_shape_rejects_unknown_reversed_extra_nested '
+        'test_candidate_requires_j_first_parent_and_pure_profile test_synthetic_overlay_rejects_doc_mode_path_and_deletion_mutations '
+        'test_pure_profile_preserves_exact_j_source_and_docs test_source_reader_rejects_ambient_git_redirection '),
+    'rc_pretag_admission_tests.FixtureGitIsolationTests': ('test_fixture_git_environment_inherited_explicit_and_empty '
+        'test_fixture_git_launch_surfaces_use_owned_cwd test_fixture_git_sentinel_repository_unchanged '
+        'test_fixture_git_context_escapes_reject_before_launch test_fixture_git_lifetime_nested_roots_and_restoration '
+        'test_fixture_git_preserves_credential_and_non_git_observers '),
     'rc_pretag_identity_tests.PreTagIdentityTests': ('test_all_invocation_integer_fields_reject_boolean_float_string test_artifact_source_current_attempt_job_and_outer_digest_binding test_bounded_json_bytes_depth_arrays_strings test_candidate_and_empty_full_receipts_roundtrip '
         'test_candidate_does_not_accept_tag_objects_or_bypass_modes test_candidate_invocation_source_tree_version_binding test_clean_six_versions_gateway_and_manifest_fields test_consumer_and_integration_attempt3_remain_supported '
         'test_consumer_push_is_not_dispatch test_every_candidate_field_required_no_extra_keys test_every_selected_job_source_attempt_id_and_time_binding test_exact_four_payload_inventory_and_no_paths '

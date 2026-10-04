@@ -15,7 +15,7 @@ from rc_consumer_io import ConsumerError, PrivateRoot
 import rc_pretag_collect as collect
 import rc_pretag_collection_result as result
 from rc_pretag_types import ContractError
-from rc_pretag_collect_fixtures import PreTagFixture, FINAL_BRANCH
+from rc_pretag_collect_fixtures import owned_git_scope, PreTagFixture, FINAL_BRANCH
 
 NAME = 'rc-pretag-observation.json'
 SECRET = 'SECRET-must-never-appear-in-a-report'
@@ -40,6 +40,7 @@ class CollectionTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
+        self.git_scope = self.enterContext(owned_git_scope(self.temp))
         self.f = PreTagFixture(self.temp.name)
 
     def invoke(self, opener=None):
@@ -72,7 +73,9 @@ class CollectionTests(unittest.TestCase):
                  (consumer.archive, 'extract_bounded_cloud_tar'),
                  (consumer.contracts, 'verify_consumed_bundle')]
         from rc_consumer_plan_tests import PlanTests
-        post = PlanTests(); post.setUp(); self.addCleanup(post.doCleanups)
+        post = PlanTests(); self.addCleanup(post.doCleanups)
+        with patch.object(tempfile, 'TemporaryDirectory', self.git_scope.temporary_directory):
+            post.setUp()
         names = [name for _, name in edges] + ['download.files', 'bundle.files', 'cloud.files']
         for phase, invoke in (('pretag', self.invoke), ('posttag', post.invoke)):
             for stop in range(len(names) + 1):
@@ -119,7 +122,7 @@ class CollectionTests(unittest.TestCase):
                 page['workflow_runs'].insert(0, dict(page['workflow_runs'][0], id=124, conclusion='failure'))
                 page['total_count'] = 2
         for kind in ('source', 'ref', 'run', 'job', 'attempt', 'artifact', 'tag', 'newest'):
-            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as base:
+            with self.subTest(kind=kind), self.git_scope.temporary_directory() as base:
                 fixture = PreTagFixture(base)
                 original = consumer._verify_bundle_bytes
                 def mutate(*args, **kwargs):
@@ -369,6 +372,59 @@ class OutputLifecycleTests(unittest.TestCase):
             self.assertLessEqual(len(output.getvalue().encode()), result.FAILURE_LIMIT)
             self.assertIs(json.loads(output.getvalue())['passed'], False)
             self.assertEqual(self.f.api.token, '')
+
+def fixture_git_snapshot(root):
+    return {p.relative_to(root).as_posix(): (p.stat().st_mode, p.read_bytes())
+            for p in root.rglob('*') if p.is_file()}
+
+
+def fixture_git_test_setup(test):
+    """Capture the real child boundary below the scoped delegate, including setup."""
+    import subprocess
+    test.temp = tempfile.TemporaryDirectory()
+    test.addCleanup(test.temp.cleanup)
+    test.children, launch = [], subprocess.Popen
+    def observe(args, *positional, **kwargs):
+        test.children.append((args, kwargs.copy()))
+        if Path(args[0]).name == 'git':
+            test.assertEqual(
+                {key: value for key, value in kwargs['env'].items() if key.startswith('GIT_')},
+                dict(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull,
+                     GIT_CONFIG_NOSYSTEM='1', GIT_NO_REPLACE_OBJECTS='1', GIT_OPTIONAL_LOCKS='0'))
+            test.assertTrue(Path(kwargs['cwd']).is_absolute())
+            test.assertNotIn('-C', args)
+            test.assertIn('core.hooksPath=' + os.devnull, args)
+            test.assertIn('core.fsmonitor=false', args)
+        return launch(args, *positional, **kwargs)
+    test.enterContext(patch.object(subprocess, 'Popen', observe))
+    test.guard = test.enterContext(owned_git_scope(test.temp))
+    test.root = Path(test.temp.name) / 'source'
+    test.root.mkdir()
+    subprocess.check_call(['git', 'init', '-q'], cwd=test.root)
+
+def fixture_git_launch_audit(test):
+    """Finite launch-surface review; not a Python sandbox or a legacy hardening claim."""
+    import ast
+    names = ('rc_consumer_fixtures', 'source_provenance_gate_tests', 'reviewed_source_gate',
+             'rc_pretag_admission', 'rc_version_gate', 'release_tag_gate',
+             'rc_pretag_collect_fixtures', 'rc_pretag_composition_tests')
+    for name in names:
+        for node in ast.walk(ast.parse(Path(__file__).with_name(name + '.py').read_text())):
+            if isinstance(node, ast.Import):
+                test.assertFalse(any(x.name in ('subprocess', 'os', 'asyncio') and x.asname for x in node.names))
+            if isinstance(node, ast.ImportFrom):
+                test.assertNotIn(node.module, ('subprocess', 'os', 'asyncio'))
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+                test.assertFalse(node.value.id in ('os', 'asyncio') and
+                    node.attr.startswith(('system', 'popen', 'spawn', 'exec', 'create_subprocess')))
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Attribute):
+                if ast.unparse(node.value) == 'subprocess.Popen':
+                    test.assertEqual([ast.unparse(t) for t in node.targets], ['self.launch'])
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                test.assertNotIn(node.func.id, ('eval', 'exec', '__import__'))
+            if isinstance(node, ast.Call):
+                test.assertFalse(any(k.arg == 'shell' and not (isinstance(k.value, ast.Constant)
+                    and k.value.value is False) for k in node.keywords))
 
 if __name__ == '__main__':
     unittest.main()

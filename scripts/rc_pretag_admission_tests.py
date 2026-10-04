@@ -16,7 +16,9 @@ from rc_consumer_snapshot_fixtures import environment as post_environment
 from rc_consumer_io import ConsumerError
 import rc_pretag_admission as admission
 from rc_pretag_collect_fixtures import (
-    PreTagFixture, PreTagAPI, WORKFLOW, OWN_JOB, OWN_RUN, OWN_ATTEMPT, FINAL_BRANCH)
+    owned_git_scope, git_environment, fixture_git_hostile, PreTagFixture, PreTagAPI, WORKFLOW, OWN_JOB, OWN_RUN, OWN_ATTEMPT, FINAL_BRANCH)
+import rc_pretag_collection_tests as collection_tests
+from rc_pretag_collection_tests import fixture_git_launch_audit, fixture_git_snapshot
 import rc_pretag_types as types
 from source_provenance_gate_tests import command, commit
 
@@ -25,6 +27,7 @@ class AdmissionTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
+        self.git_scope = self.enterContext(owned_git_scope(self.temp))
         self.f = PreTagFixture(self.temp.name)
 
     def reject(self):
@@ -345,6 +348,103 @@ class AdmissionTests(unittest.TestCase):
         with self.assertRaises(ConsumerError): self.f.revalidate(captured)
         self.assertEqual(captured[0].candidate.remote_tag_observation, 'unknown')
 
+
+class FixtureGitIsolationTests(unittest.TestCase):
+    from rc_pretag_collection_tests import fixture_git_test_setup as setUp
+
+    def test_fixture_git_environment_inherited_explicit_and_empty(self):
+        hostile = fixture_git_hostile(self.root)
+        with patch.dict(os.environ, dict(hostile, FIXTURE_MARKER='kept'), clear=True):
+            for supplied in (None, dict(hostile, FIXTURE_MARKER='explicit'), {}):
+                before = copy.deepcopy(supplied)
+                subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=self.root, env=supplied)
+                argv, options = self.children[-1]
+                self.assertEqual(options['env'], git_environment(supplied))
+                self.assertEqual(options['env'].get('FIXTURE_MARKER'),
+                                 'kept' if supplied is None else supplied.get('FIXTURE_MARKER'))
+                self.assertEqual(supplied, before)
+            self.assertEqual(os.environ['GIT_DIR'], hostile['GIT_DIR'])
+
+    def test_fixture_git_launch_surfaces_use_owned_cwd(self):
+        fixture_git_launch_audit(self)
+        argv = ['git', '-C', str(self.root), '-C', '.', 'rev-parse', '--show-toplevel']
+        for launch in (subprocess.run, subprocess.check_output, subprocess.check_call, subprocess.call):
+            launch(argv, stderr=subprocess.PIPE)
+            self.assertEqual(self.children[-1][1]['cwd'], str(self.root))
+        with subprocess.Popen(argv, stdout=subprocess.PIPE) as child:
+            self.assertEqual(child.communicate()[0].strip(), str(self.root).encode())
+        self.assertEqual(len(self.children), 6)
+
+    def test_fixture_git_sentinel_repository_unchanged(self):
+        temporary = self.guard.temporary_directory()
+        self.addCleanup(temporary.cleanup)
+        sentinel = Path(temporary.name)
+        command(sentinel, 'init', '-q')
+        (sentinel / 'sentinel').write_text('must remain unchanged')
+        commit(sentinel); command(sentinel, 'tag', 'sentinel-ref')
+        self.assertEqual(subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], env=fixture_git_hostile(sentinel), cwd=self.root, text=True).strip(), str(self.root))
+        before = fixture_git_snapshot(sentinel)
+        with patch.dict(os.environ, fixture_git_hostile(sentinel)):
+            for case in (AdmissionTests(), collection_tests.CollectionTests()):
+                self.addCleanup(case.doCleanups)
+                case.setUp()
+                self.assertEqual(case.f.admit().source.source_sha, case.f.sha)
+                commit(case.f.root)
+        self.assertEqual(fixture_git_snapshot(sentinel), before)
+
+    def test_fixture_git_context_escapes_reject_before_launch(self):
+        outside = Path(__file__).resolve().parents[1]
+        cases = [(['git', 'status'], {'cwd': outside}), (['git', '-C', str(outside), 'status'], {}),
+            (['git', '--git-dir=' + str(outside / '.git'), 'status'], {}),
+            (['git', '-c', 'core.worktree=' + str(outside), 'status'], {}),
+            (['git', 'status'], {'shell': True}), (['git', 'status'], {'executable': '/bin/sh'}),
+            ('git status', {}), (['ignored', 'status'], {'executable': self.guard.executable})]
+        link = Path(self.temp.name) / 'link'; link.symlink_to(self.root, target_is_directory=True)
+        cases.append((['git', 'status'], {'cwd': link}))
+        for argv, kwargs in cases:
+            with self.subTest(argv=argv), self.assertRaises(ValueError):
+                subprocess.Popen(argv, **dict({'cwd': self.root}, **kwargs))
+        for name in ('commondir', 'objects/info/alternates'):
+            path = self.root / '.git' / name; path.write_text(str(outside / '.git'))
+            with self.assertRaises(ValueError): command(self.root, 'status')
+            path.unlink()
+        metadata = self.root / '.git'; backup = self.root / 'metadata'
+        metadata.rename(backup); metadata.write_text('gitdir: ' + str(outside / '.git'))
+        with self.assertRaises(ValueError): command(self.root, 'status')
+        metadata.unlink(); backup.rename(metadata)
+        self.assertEqual(len(self.children), 1)
+
+    def test_fixture_git_lifetime_nested_roots_and_restoration(self):
+        launch, factory = subprocess.Popen, tempfile.TemporaryDirectory
+        for failure in (ValueError, KeyboardInterrupt):
+            case = AdmissionTests()
+            with patch('rc_pretag_collect_fixtures.ConsumerFixture', side_effect=failure):
+                with self.assertRaises(failure): case.setUp()
+            case.doCleanups()
+            self.assertEqual(subprocess.Popen, launch)
+        case = collection_tests.CollectionTests(); self.addCleanup(case.doCleanups); case.setUp()
+        case.test_shared_pipeline_failure_edges_stop_in_exact_order()
+        case.test_post_content_fences_reject_mutation_without_reselection()
+        case.doCleanups()
+        self.assertEqual(subprocess.Popen, launch)
+        self.assertIs(tempfile.TemporaryDirectory, factory)
+
+    def test_fixture_git_preserves_credential_and_non_git_observers(self):
+        launch = subprocess.Popen
+        def observer(*args, **kwargs):
+            self.assertNotIn('GH_TOKEN', os.environ)
+            self.assertNotIn('GH_TOKEN', kwargs.get('env') or os.environ)
+            return launch(*args, **kwargs)
+        with patch.dict(os.environ, {'GH_TOKEN': 'synthetic-token'}):
+            with patch.object(subprocess, 'Popen', observer), self.assertRaises(AssertionError):
+                command(self.root, 'status')
+            subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=self.root)
+            self.assertEqual(self.children[-1][1]['env']['GH_TOKEN'], 'synthetic-token')
+        supplied = {'GH_TOKEN': 'synthetic-token', 'GIT_DIR': 'unchanged-for-non-git'}
+        with patch.object(self.guard, 'launch', return_value='forwarded') as saved:
+            self.assertEqual(subprocess.Popen(['ordinary-command'], env=supplied, cwd='/'), 'forwarded')
+            saved.assert_called_once_with(['ordinary-command'], env=supplied, cwd='/')
+        self.assertIs(saved.call_args.kwargs['env'], supplied)
 
 if __name__ == '__main__':
     unittest.main()

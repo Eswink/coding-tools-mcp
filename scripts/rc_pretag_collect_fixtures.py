@@ -8,6 +8,10 @@ import copy
 from email.message import Message
 import io
 import json
+import os
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 import urllib.error
@@ -24,6 +28,124 @@ WORKFLOW = '.github/workflows/rc-pretag-evidence.yml'
 JOB_NAME = 'Collect pre-tag FINAL evidence (release remains blocked)'
 OWN_RUN, OWN_ATTEMPT, OWN_JOB, OWN_WORKFLOW = 900, 3, 9001, 20
 FINAL_BRANCH = 'release/full-rc-candidate-fixture'
+
+def git_environment(env=None):
+    """Child-only Git isolation; preserve explicit empty input and non-Git keys."""
+    clean = {key: value for key, value in (os.environ if env is None else env).items()
+             if not key.startswith('GIT_')}
+    clean.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull,
+                 GIT_CONFIG_NOSYSTEM='1', GIT_NO_REPLACE_OBJECTS='1', GIT_OPTIONAL_LOCKS='0')
+    return clean
+
+
+class OwnedGitScope:
+    """Scoped fixture launch discipline, not containment of arbitrary Python code."""
+    def __init__(self, temporary):
+        self.roots = {}
+        self.temporary_factory = tempfile.TemporaryDirectory
+        self.executable = str(Path(shutil.which('git', path=os.defpath)).resolve())
+        self.register(temporary)
+
+    def register(self, temporary):
+        root = Path(temporary.name).absolute()
+        source = Path(__file__).resolve().parents[1]
+        if (not isinstance(temporary, self.temporary_factory) or not temporary._finalizer.alive
+                or root != root.resolve() or source.is_relative_to(root) or root.is_relative_to(source)
+                or root.stat().st_mode & 0o077 or root.stat().st_uid != os.getuid()):
+            raise ValueError('fixture root is not an owned private temporary directory')
+        self.roots[root] = (temporary, root.stat().st_dev, root.stat().st_ino)
+        return temporary
+
+    def temporary_directory(self, *args, **kwargs):
+        return self.register(self.temporary_factory(*args, **kwargs))
+
+    def __enter__(self):
+        self.launch = subprocess.Popen
+        outer = getattr(self.launch, '__self__', None)
+        if isinstance(outer, OwnedGitScope):
+            self.roots.update(outer.roots)
+            self.launch = outer.launch
+        self.patch = patch.object(subprocess, 'Popen', self._launch)
+        self.patch.start()
+        return self
+
+    def __exit__(self, *error):
+        self.patch.stop()
+
+    def _cwd(self, cwd, initializing):
+        if cwd is None:
+            raise ValueError('fixture Git requires an explicit owned cwd')
+        root = Path(cwd).absolute()
+        owner = next((base for base in self.roots if root.is_relative_to(base)), None)
+        if owner is None or root != root.resolve():
+            raise ValueError('fixture Git cwd escaped ownership')
+        temporary, device, inode = self.roots[owner]
+        if not temporary._finalizer.alive or (owner.stat().st_dev, owner.stat().st_ino) != (device, inode):
+            raise ValueError('fixture Git root lifetime ended')
+        repository = next((p for p in (root, *root.parents) if p.is_relative_to(owner)
+                           and ((p / '.git').exists() or (p / '.git').is_symlink())), None)
+        if repository is None:
+            if initializing:
+                return root
+            raise ValueError('fixture Git requires an independent repository')
+        metadata = repository / '.git'
+        if (not metadata.is_dir() or metadata.is_symlink()
+                or any((metadata / p).exists() for p in ('commondir', 'objects/info/alternates'))
+                or any(p.is_symlink() or (p.is_file() and p.stat().st_nlink != 1)
+                       for p in metadata.rglob('*'))):
+            raise ValueError('fixture Git metadata is shared or redirected')
+        config = (metadata / 'config').read_text()
+        if any(word in config.lower() for word in ('worktree', '[include', 'fsmonitor')):
+            raise ValueError('fixture Git local configuration redirects context')
+        return root
+
+    def _launch(self, args, *positional, **kwargs):
+        first = args[0] if isinstance(args, (list, tuple)) and args else args
+        name = os.fsdecode(first).split()[0] if isinstance(first, (str, bytes, os.PathLike)) else ''
+        override = Path(os.fsdecode(kwargs.get('executable') or '')).name
+        if Path(name).name not in ('git', 'git.exe') and override not in ('git', 'git.exe'):
+            return self.launch(args, *positional, **kwargs)
+        if (positional or not isinstance(args, (list, tuple)) or kwargs.get('shell')
+                or kwargs.get('executable') is not None or str(first) not in ('git', self.executable)):
+            raise ValueError('ambiguous fixture Git launch')
+        argv = [os.fspath(value) for value in args[1:]]
+        cwd, config = kwargs.get('cwd'), []
+        while argv and argv[0] in ('-C', '-c'):
+            option, value, *argv = argv
+            if option == '-C':
+                cwd = Path(cwd or os.getcwd()) / value
+            elif value.partition('=')[0] in ('user.name', 'user.email'):
+                config.extend((option, value))
+            else:
+                raise ValueError('fixture Git configuration redirection')
+        allowed = {'init', 'add', 'commit', 'tag', 'checkout', 'rev-parse', 'ls-files', 'ls-tree',
+                   'status', 'diff', 'diff-tree', 'show', 'cat-file', 'merge-base', 'show-ref',
+                   'rev-list', 'hash-object', 'mktree', 'commit-tree',
+                   'read-tree', 'update-index', 'write-tree'}
+        forbidden = ('--git-dir', '--work-tree', '--config-env', '--namespace', '--exec-path',
+                     '--output', '--index-output', '--separate-git-dir', '--shared', '--template', '--ext-diff')
+        if (not argv or argv[0] not in allowed or any(value.startswith(forbidden) for value in argv)
+                or (argv[0] == 'init' and any(value not in ('-q', '--quiet') for value in argv[1:]))):
+            raise ValueError('unreviewed fixture Git command')
+        kwargs['cwd'] = str(self._cwd(cwd, argv[0] == 'init'))
+        kwargs['env'] = git_environment(kwargs.get('env'))
+        fixed = ['-c', 'core.hooksPath=' + os.devnull, '-c', 'core.fsmonitor=false']
+        return self.launch([self.executable, *config, *fixed, *argv], **kwargs)
+
+
+owned_git_scope = OwnedGitScope
+
+def fixture_git_hostile(root):
+    """Adversarial inherited inputs; all destinations are disposable sentinel data."""
+    metadata = str(root / '.git')
+    return dict(GIT_DIR=metadata, GIT_WORK_TREE=str(root), GIT_COMMON_DIR=metadata,
+        GIT_INDEX_FILE=metadata + '/index', GIT_OBJECT_DIRECTORY=metadata + '/objects',
+        GIT_ALTERNATE_OBJECT_DIRECTORIES=metadata + '/objects', GIT_CONFIG=metadata + '/config',
+        GIT_CONFIG_GLOBAL=metadata + '/config', GIT_CONFIG_SYSTEM=metadata + '/config',
+        GIT_CONFIG_COUNT='2', GIT_CONFIG_KEY_0='core.worktree', GIT_CONFIG_VALUE_0=str(root),
+        GIT_CONFIG_KEY_1='core.hooksPath', GIT_CONFIG_VALUE_1=str(root),
+        GIT_CONFIG_PARAMETERS="'core.bare=true'", GIT_CONFIG_NOSYSTEM='0',
+        GIT_OPTIONAL_LOCKS='1', GIT_NO_REPLACE_OBJECTS='0', GIT_TEMPLATE_DIR=str(root))
 
 
 class PreTagAPI(BundleAPI):

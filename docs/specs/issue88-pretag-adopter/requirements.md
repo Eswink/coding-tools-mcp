@@ -41,7 +41,7 @@ WHEN main starts THEN pop GH_TOKEN before inherited Git/subprocess; no fallback/
 ### FR-7: Enforce finite source and fixture gates
 **优先级:** Must
 #### 验收标准（EARS）
-WHEN validated THEN run J412 (204 actual consumer IDs including inherited +194producer +14version) unchanged, adopted53 unchanged, frozen new named discovery inventory with loaded=executed and zero skips/xfails/xpasses, pinned GLib, compile/actionlint/source/spec/staged graph gates. Real positive fixture SHALL use current transport→archive→contracts without mocked verify_consumed_bundle. The strict new fixture workflow SHALL test exact composition/live YAML and not duplicate412; exact-head/PR-synthetic412 remain later hosted obligations.
+WHEN validated THEN run J412 (204 actual consumer IDs including inherited +194producer +14version) unchanged, adopted53 unchanged, frozen new named discovery inventory with loaded=executed and zero skips/xfails/xpasses, pinned GLib, compile/actionlint/source/spec/staged graph gates. Real positive fixture SHALL use current transport→archive→contracts without mocked verify_consumed_bundle. The strict fixture workflow SHALL test exact composition/live YAML on both exact consumer feature branches without duplicating412; exact-head/PR-synthetic412 remain later hosted obligations.
 
 ## 非功能需求
 - NFR-1: <=3966 changed/added lines including copies; new runtime<=640; each extraction<=35 added/changed lines; fixed per-file budgets in tasks
@@ -53,3 +53,9 @@ Reuse J gate/cloud/reviewed helpers and exact contract modules. Future genuine F
 
 ## 检查清单
 - [x] Finite review, source boundaries, measurable bounds and test obligations frozen
+
+## Reviewed integration-context correction (2026-10-04)
+FR-1 preserves the pure feature profile on immutable candidate objects: J first-parent,22-path scope, exact protected modes/blobs/adoptions/inverses. PR89 synthetic requires exactly[R,candidate], R=e2e011f7f2a3a1df838bbd588106205b999db610, no recursive synthetic candidate, and complete candidate tree plus exactly four pinned R release-doc entries. Unknown/reversed/extra parents, fifth paths and changed doc bytes/modes reject; checked-out unique-stage0 index/files bind to selected commit.
+FR-7 preserves118 IDs and adds12 named context/Git-isolation cases; intended strict130/unique542 is claimed only after actual execution. Push branches are exactly feat/rc-final-artifact-consumer-pretag-1694fe8c and feat/rc-final-artifact-consumer-128; no live trigger expansion.
+Fixture Git children are controlled throughout new pretag test setup, execution and cleanup: copied explicit environment, all inherited GIT_* removed, fixed child-only system/global-config/replacement/lock/hook/fsmonitor controls, validated owned cwd and independent temporary metadata. Original J helpers remain byte-identical; old412 suites require clean external launch and are not universally hardened. Non-Git values and the original outer GH_TOKEN observer remain unchanged.
+Eight existing paths only; approved caps fixture300/admission-tests450/collection-tests430/composition-tests470/strict-YAML120/specs100 each, while aggregate3966/runtime640/same22paths remain hard. No publication, merge, live pretag, FINAL, manifest or tag/Release authority.

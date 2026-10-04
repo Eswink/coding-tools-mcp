@@ -2,7 +2,7 @@ name: Exact pre-tag adopter composition and hermetic evidence
 
 on:
   push:
-    branches: ['feat/rc-final-artifact-consumer-pretag-1694fe8c']
+    branches: ['feat/rc-final-artifact-consumer-pretag-1694fe8c', 'feat/rc-final-artifact-consumer-128']
     paths:
       - 'scripts/rc_pretag*'
       - 'scripts/rc_release_policy.py'
