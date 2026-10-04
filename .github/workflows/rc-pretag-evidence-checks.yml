@@ -1,0 +1,69 @@
+name: Exact pre-tag adopter composition and hermetic evidence
+
+on:
+  push:
+    branches: ['feat/rc-final-artifact-consumer-pretag-1694fe8c']
+    paths:
+      - 'scripts/rc_pretag*'
+      - 'scripts/rc_release_policy.py'
+      - 'scripts/rc_release_eligibility.py'
+      - 'scripts/rc_consumer_snapshot.py'
+      - 'scripts/rc_artifact_consumer.py'
+      - 'docs/specs/issue88-pretag-adopter/**'
+      - '.github/workflows/rc-pretag-contract-checks.yml'
+      - '.github/workflows/rc-pretag-evidence-checks.yml'
+      - '.github/workflows/rc-pretag-evidence.yml'
+  pull_request:
+    paths:
+      - 'scripts/rc_pretag*'
+      - 'scripts/rc_release_policy.py'
+      - 'scripts/rc_release_eligibility.py'
+      - 'scripts/rc_consumer_snapshot.py'
+      - 'scripts/rc_artifact_consumer.py'
+      - 'docs/specs/issue88-pretag-adopter/**'
+      - '.github/workflows/rc-pretag-contract-checks.yml'
+      - '.github/workflows/rc-pretag-evidence-checks.yml'
+      - '.github/workflows/rc-pretag-evidence.yml'
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  fixtures:
+    name: Exact adopted and new test inventory, source and execution envelope
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Acquire existing checksum-pinned regression source fixture only
+        env:
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ runner.temp }}/glib-0.18.5.crate
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --proto '=https' --max-redirs 0 \
+            --connect-timeout 10 --max-time 30 --max-filesize 1048576 \
+            --output "$RC_CONSUMER_TEST_GLIB_ARCHIVE" \
+            https://static.crates.io/crates/glib/glib-0.18.5.crate
+          test "$(stat -c %s "$RC_CONSUMER_TEST_GLIB_ARCHIVE")" -le 1048576
+          printf '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5  %s\n' \
+            "$RC_CONSUMER_TEST_GLIB_ARCHIVE" | sha256sum --check --strict
+      - name: Frozen adopted53 and new exact named inventory only
+        env:
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ runner.temp }}/glib-0.18.5.crate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/rc_pretag_composition_tests.py
+          git diff --exit-code
