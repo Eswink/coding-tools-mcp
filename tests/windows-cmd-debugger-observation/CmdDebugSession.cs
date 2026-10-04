@@ -54,7 +54,7 @@ public static partial class BrokerDirectLauncher {
             foreach(string key in ("attach_attempted attach_succeeded attach_break_seen entries_ready_before_resume event_count "+
                 "cleanup_event_count thread_peak module_peak entry_hits unsupported_names read_bytes write_attempts pair_complete "+
                 "active_patches_at_exit owned_suspends_at_exit exit_event_seen exit_event_continued process_signaled abort_terminate_attempted native_error elapsed_ms").Split(' ')) N(key,0);
-            I("protocol","own-child-open-v3");I("result","incomplete");I("error","none");I("error_api","none");I("cleanup","not_attached");I("open_api","none");
+            I("protocol","own-child-open-v4");I("result","incomplete");I("error","none");I("error_api","none");I("cleanup","not_attached");I("open_api","none");
             foreach(IntPtr h in new IntPtr[]{s.Process.process,s.Process.thread,s.Job,s.SourceToken}) if(h!=IntPtr.Zero) AddProtected(h);
         }
         bool AddProtected(IntPtr handle) {
@@ -225,7 +225,7 @@ public static partial class BrokerDirectLauncher {
             uint flags=actual.U32(68)^c.U32(68);
             N("context_mismatch_mask",fields);
             N("eflags_difference_mask",(long)flags);
-            if(!actual.SameRequested(c)) Fault("context_roundtrip_mismatch");
+            if(!actual.SameRequestedState(c)) Fault("context_roundtrip_mismatch");
         }
         void PatchByte(Patch p,bool arm) {
             if(p.Uncertain || p.Active==arm || reader.Read(p.Address,1)[0]!=(arm?p.Original:(byte)0xcc)) Fault("patch_failed");

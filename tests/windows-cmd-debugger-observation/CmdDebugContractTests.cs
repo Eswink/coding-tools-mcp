@@ -60,6 +60,7 @@ public static partial class BrokerDirectLauncher {
         public string FailName="";public bool ThrowFault,Terminated,ExitContinued,Signal=true,NoExit,WrongIdentity,ShortWrite,ShortRead,PartialSetFailure,BadReadback,BadSet;
         public bool StepFirst,AlwaysNonmatch;public string NonmatchText=@"\??\C:\different.cmd",FailedCall="";public int FailedIndex;
         public bool WrongStepR10,WrongStepRip,WrongStepOther,ResumeMismatch;
+        public uint StepEflagsDifference;
         public uint MainPrevious=1,TargetPid=41,ExitValue=1,FileAttributes=0x80,ReturnFlags;public ushort Machine,NativeMachine=0x8664;
         public ulong Creation=12345,DuplicateValue=301,TargetFileValue=0x777;public long Clock;
         public override long NowMilliseconds { get { return Clock; } }
@@ -130,6 +131,7 @@ public static partial class BrokerDirectLauncher {
             CmdDebugContext context;if(EventContexts.TryGetValue(value,out context) && live.ContainsKey(value.Tid)) contexts[live[value.Tid]]=context.Copy();
             if(value.Code==1 && value.ExceptionCode==0x80000004 && live.ContainsKey(value.Tid)) {
                 context=contexts[live[value.Tid]];
+                CmdTestPut(context.Raw,68,context.U32(68)^StepEflagsDifference,4);
                 if(WrongStepR10) CmdTestPut(context.Raw,200,0x55,8);
                 if(WrongStepRip) CmdTestPut(context.Raw,248,value.Address+1,8);
                 if(WrongStepOther) CmdTestPut(context.Raw,136,0x55,8);

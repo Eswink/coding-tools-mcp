@@ -51,7 +51,7 @@ No memory-store result was supplied. Current-source facts govern: EXIT_PROCESS_D
 **优先级:** Must
 **用户故事:** As a maintainer I need useful operation facts without target paths, secrets or false success.
 #### 验收标准（EARS）
-1. WHEN writing new evidence THEN only the version-specific35 (v1),36 (v2) or37 (v3) numeric and6 enum keys in design.md SHALL be emitted.
+1. WHEN writing new evidence THEN only the version-specific35 (v1),36 (v2) or37 (v3/v4) numeric and6 enum keys in design.md SHALL be emitted.
 2. IF a new exception occurs THEN a fixed code SHALL replace its message/stack/inner exception before escaping any new entry point.
 3. IF exit/output changes or a complete matched operation is absent THEN a fatal pre-classifier gate SHALL prevent acceptance and journal resolution; debugger exit23 SHALL never count as success.
 4. WHEN one open fails or succeeds THEN the report SHALL describe only that operation; no match SHALL remain inconclusive.
@@ -68,7 +68,7 @@ No memory-store result was supplied. Current-source facts govern: EXIT_PROCESS_D
 
 - NFR-1: No security-sensitive setting/access expansion; exact22 native APIs only, no installations or external software
 - NFR-2: Operational30s plus cleanup5s; bounded event/thread/module/read/write/receipt counts as design.md
-- NFR-3: At most16 cumulative changed/new paths (13 original plus three pure test/schema helpers); new code files each at most500 readable lines; no compression to conceal unsafe complexity
+- NFR-3: At most17 cumulative changed/new paths (13 original plus four pure test/schema/guard-data helpers); new code files each at most500 readable lines; no compression to conceal unsafe complexity
 - NFR-4: Existing access and supported-bootstrap feasibility remain unproven until the one reviewed Windows attempt; synthetic results do not imply native success
 
 ## 依赖关系
@@ -86,7 +86,7 @@ Existing Windows broker pilot, its source/object identity captures and recovery 
 3. IF successful Get returns null THEN context_roundtrip_unavailable SHALL have mask -1, API none and native error0; IF nonnull comparison fails THEN context_roundtrip_mismatch SHALL have a nonzero21-bit mask, API none and native error0.
 4. WHEN comparing existing contexts THEN mask0 SHALL be equivalent to the unchanged SameRequested predicate; either invalid ContextFlags SHALL set bit0 even when equally invalid.
 5. WHEN projecting receipts THEN v1 SHALL retain its exact old schema and semantics, while v2 SHALL require exactly one additional context_mismatch_mask field, with range -1 or0..0x1fffff.
-6. WHEN any first failure is recorded THEN subsequent cleanup SHALL not replace its reason, API, native error or mask. Existing abort, cleanup, continuation and equality acceptance SHALL remain unchanged.
+6. WHEN any first failure is recorded THEN subsequent cleanup SHALL not replace its reason, API, native error or mask. Existing abort, cleanup, continuation protocol and raw equality semantics SHALL remain unchanged; any architectural comparison exception SHALL be limited by FR-10.
 7. BEFORE publication or native execution THEN the exact revision SHALL receive a new independent review; the ended v1 attempt SHALL not be rerun automatically.
 
 ### FR-8: Identify differing EFLAGS bits without exposing register values
@@ -96,7 +96,7 @@ Existing Windows broker pilot, its source/object identity captures and recovery 
 1. WHEN the existing immediate Get succeeds with a nonnull context THEN Session SHALL compute unsigned32 requested EFLAGS XOR actual EFLAGS and widen it to a nonnegative long, using only those existing buffers.
 2. WHEN an immediate round-trip starts THEN both diagnostics SHALL reset to -1 before Set; IF Get fails or returns null THEN both SHALL remain unavailable.
 3. WHEN emitting a completed comparison THEN both diagnostic values SHALL be computed before either is emitted, and field-mask bit3 SHALL be set exactly when the XOR is nonzero.
-4. WHEN deciding acceptance THEN the byte-identical SameRequested predicate SHALL remain the sole guard; TF ownership/repair, API calls, abort and cleanup SHALL remain unchanged.
+4. WHEN deciding acceptance THEN the full raw SameRequested predicate SHALL remain byte-identical; architectural comparison SHALL be explicitly versioned under FR-10, while TF ownership/repair, API calls, abort and cleanup SHALL remain unchanged.
 5. WHEN projecting v3 THEN exactly37 numeric and6 enum keys SHALL be required; v1/v2 schemas and archived interpretations SHALL remain unchanged, with no new field accepted retroactively.
 6. WHEN extracting pure receipt tests THEN actual prior test.id() identities, discovery counts, bodies and mutations SHALL be preserved without omissions or duplicates.
 7. BEFORE publication or native execution THEN the exact candidate SHALL receive independent review and a separate decision; neither is authorized by source implementation approval.
@@ -109,3 +109,16 @@ Existing Windows broker pilot, its source/object identity captures and recovery 
 2. WHEN correcting the filter THEN only that one path line SHALL be added; other trigger paths, branch restriction, workflow_dispatch, permissions, jobs and runtime source SHALL remain byte-identical.
 3. WHEN source-auditing the workflow THEN a missing, altered, duplicated, misindented or out-of-block observer path SHALL be rejected.
 4. BEFORE publishing the correction THEN its exact diff/tree SHALL receive independent review; no old job rerun or browser dispatch SHALL substitute for the structural fix.
+
+### FR-10: Compare meaningful requested state without depending on reserved bit1
+**优先级:** Must
+**用户故事:** As a maintainer I need the debugger to verify architecturally meaningful requested state while preserving exact checks on every controllable flag and all other requested fields.
+#### 验收标准（EARS）
+1. WHEN comparing requested state THEN a separate SameRequestedState predicate SHALL accept full raw equality or only raw fieldmask8 with full EFLAGS XOR0x00000002; null, invalid ContextFlags and every other mismatch SHALL fail.
+2. WHEN invoking the new predicate THEN only Session.SetContext and the final MatchesAfterMov comparison SHALL use it; raw SameRequested, RequestedMismatchMask and fake setter freshness SHALL remain byte-identical.
+3. WHEN constructing requests or MOV expectations THEN all existing bytes, RIP/R10 logic, TF handling and ownership SHALL remain unchanged; no context bit SHALL be set, cleared or copied back to normalize the difference.
+4. WHEN writing v4 receipts THEN full raw masks SHALL remain the latest immediate Set/Get facts, with the same37 numeric/6 enum keys; they SHALL NOT claim a history or describe the later MOV comparison.
+5. IF a v4 context_roundtrip_mismatch names an admissible raw pair THEN validation SHALL reject it; error none SHALL require an admissible pair plus every existing completed-open/exit/cleanup/perturbation prerequisite.
+6. WHEN validating earlier versions THEN v1-v3 semantics and archived interpretations SHALL remain unchanged, including the incomplete v3 raw8/XOR2 result.
+7. WHEN extracting guard data THEN the ordered evaluated inventory and all existing mutations SHALL be preserved before only enumerated call-site/protocol replacements and approved additions are applied.
+8. BEFORE publication or native execution THEN the exact candidate SHALL pass independent review and receive a separate decision; this correction SHALL NOT waive a security, authority, output or lifecycle assertion.

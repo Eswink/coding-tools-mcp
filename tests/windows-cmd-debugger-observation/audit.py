@@ -16,29 +16,33 @@ import unittest
 
 HERE = pathlib.Path(__file__).parent
 CONTRACT = runpy.run_path(str(HERE / 'receipt_contract.py'))
-(APIS, CONTEXT_ERRORS, COUNTERS, ENUMS, ENUMS_V2, ENUMS_V3, FLAGS, MASKS,
- NUMERIC, NUMERIC_V2, NUMERIC_V3, PREFIX, check_receipt, require) = (CONTRACT[name] for name in (
-    'APIS', 'CONTEXT_ERRORS', 'COUNTERS', 'ENUMS', 'ENUMS_V2', 'ENUMS_V3', 'FLAGS', 'MASKS',
-    'NUMERIC', 'NUMERIC_V2', 'NUMERIC_V3', 'PREFIX', 'check_receipt', 'require'))
+(APIS, CONTEXT_ERRORS, COUNTERS, ENUMS, ENUMS_V2, ENUMS_V3, ENUMS_V4, FLAGS, MASKS,
+ NUMERIC, NUMERIC_V2, NUMERIC_V3, NUMERIC_V4, PREFIX, check_receipt, require) = (CONTRACT[name] for name in (
+    'APIS', 'CONTEXT_ERRORS', 'COUNTERS', 'ENUMS', 'ENUMS_V2', 'ENUMS_V3', 'ENUMS_V4', 'FLAGS', 'MASKS',
+    'NUMERIC', 'NUMERIC_V2', 'NUMERIC_V3', 'NUMERIC_V4', 'PREFIX', 'check_receipt', 'require'))
 RECEIPT_TESTS = runpy.run_path(str(HERE / 'receipt_tests.py'))
-(fixture, encoded, ContextReceiptContracts, EflagsReceiptContracts) = (RECEIPT_TESTS[name] for name in (
-    'fixture', 'encoded', 'ContextReceiptContracts', 'EflagsReceiptContracts'))
+(fixture, encoded, ContextReceiptContracts, EflagsReceiptContracts, ArchitecturalReceiptContracts) = (RECEIPT_TESTS[name] for name in (
+    'fixture', 'encoded', 'ContextReceiptContracts', 'EflagsReceiptContracts', 'ArchitecturalReceiptContracts'))
 # Preserve CLI and path-loaded unittest identities after the pure helper extraction.
 fixture.__module__ = encoded.__module__ = __name__
-ContextReceiptContracts.__module__ = EflagsReceiptContracts.__module__ = __name__
+ContextReceiptContracts.__module__ = EflagsReceiptContracts.__module__ = ArchitecturalReceiptContracts.__module__ = __name__
 for _receipt_method in vars(ContextReceiptContracts).values():
+    if callable(_receipt_method):
+        _receipt_method.__module__ = __name__
+for _receipt_method in vars(ArchitecturalReceiptContracts).values():
     if callable(_receipt_method):
         _receipt_method.__module__ = __name__
 del _receipt_method
 BROKER = HERE.parent / 'windows-broker-direct'
 ROOT = HERE.parents[1]
-NAMES = ('CmdDebugNative.cs', 'CmdDebugSession.cs', 'CmdDebugContractTests.cs', 'CmdDebugContextTests.cs')
+SOURCE_GUARDS = runpy.run_path(str(HERE / 'source_guards.py'))
+NAMES, GUARDS = SOURCE_GUARDS['NAMES'], SOURCE_GUARDS['GUARDS']
 # Frozen candidate pins for independent review; later changes require repinning and re-review.
 PINS = {
-    'CmdDebugNative.cs': '2eea026fabf9d77523cb73125f5bd1f992fee311f2967473547ac9102b8eca5d',
-    'CmdDebugSession.cs': '6d8e09ff44df7ec6d273a4db1d0abd39717d076e7b536073924084cebb3e3f5f',
-    'CmdDebugContractTests.cs': 'd975c381c1e4273f490ec7471bc3c2faea575d304439a3dff81884b35a2e60d6',
-    'CmdDebugContextTests.cs': '4664ebb25704297d4e4ae079e7cf943511514e12f21e32155a75cc060266d9fb',
+    'CmdDebugNative.cs': 'ad3eddb39f62e4a72b446ee40100a3031b091250cf859575cb032d372c76a6aa',
+    'CmdDebugSession.cs': 'a188f7cf0cdd998c58e871b66f72816d1ff58c7f24a54e9f98d6095ffe675b65',
+    'CmdDebugContractTests.cs': '280ae53ba5d19baa306fb4939d8e735e17eb68cda6e1080ccfd4e45642db858c',
+    'CmdDebugContextTests.cs': '3fb8d234db58bf20fc95f07a5638e735b30bb7a776de8c0846e0f853d8bacd15',
 }
 FORBIDDEN = ('NtReadFile NtClose ZwClose DUPLICATE_CLOSE_SOURCE DebugActiveProcessStop DebugBreakProcess '
              'DebugSetProcessKillOnExit VirtualProtect VirtualProtectEx OpenProcess OpenThread CreateProcess '
@@ -70,127 +74,6 @@ def source_text(source, strings=True):
 
 def compact(source):
     return re.sub(r'\s+', '', source_text(source))
-
-
-# Exact guard fragments are mutation-tested independently of whole-source hashes.
-GUARDS = {
-    NAMES[0]: (
-        'allocation=Marshal.AllocHGlobal(1232+15);', '(allocation.ToInt64()+15)&~15L',
-        'new int[]{48,56,66,68,120,128,136,144,152,160,168,176,184,192,200,208,216,224,232,240,248}',
-        'if(IntPtr.Size!=8 || !BitConverter.IsLittleEndian)', 'Raw=new byte[1232];Put32(48,0x00100003);',
-        'expected.Put64(200,before.U64(128));return SameRequested(expected);',
-        'CmdRemoteReader.Add(before.U64(248),2)',
-        'WriteProcessMemory(process.Value,Pointer(address),new byte[]{value},(UIntPtr)1,out actual)',
-        'FlushInstructionCache(process.Value,Pointer(address),(UIntPtr)1)',
-        'DuplicateHandle(process.Value,Pointer(target),GetCurrentProcess(),out output,0,false,2)',
-        'duplicate=ok?new CmdDuplicate(output):default(CmdDuplicate);',
-        'public override bool CloseImage(CmdImageFile file) { return Result(CloseHandle(file.Value)); }',
-        'public override bool CloseDuplicate(CmdDuplicate file) { return Result(CloseHandle(file.Value)); }',
-        'TerminateProcess(process.Value,91)', 'if(address==0 || delta>UInt64.MaxValue-address)',
-        'if(count<=0 || count>1048576-BytesRead)', 'BytesRead+=count;', 'actual!=(ulong)count',
-        'sections>=1 && sections<=96', 'CmdU16(header,4)==0x8664', 'CmdU16(optional,0)==0x20b',
-        'module.ExportSize<=524288', 'functions<=8192 && names>0 && names<=8192',
-        'Require(result[target]==0);', '!(rva>=module.ExportRva && rva-module.ExportRva<module.ExportSize)',
-        '''public bool SameRequested(CmdDebugContext other) {
-            if(other==null || U32(48)!=0x00100003 || other.U32(48)!=0x00100003 ||
-                CmdU16(Raw,56)!=CmdU16(other.Raw,56) || CmdU16(Raw,66)!=CmdU16(other.Raw,66) || U32(68)!=other.U32(68)) return false;
-            for(int offset=120;offset<=248;offset+=8) if(U64(offset)!=other.U64(offset)) return false;
-            return true;
-        }''',
-        '''public long RequestedMismatchMask(CmdDebugContext other) {
-            if(other==null) return -1;
-            long mask=0;
-            if(U32(48)!=0x00100003 || other.U32(48)!=0x00100003) mask|=1L;
-            if(CmdU16(Raw,56)!=CmdU16(other.Raw,56)) mask|=1L<<1;
-            if(CmdU16(Raw,66)!=CmdU16(other.Raw,66)) mask|=1L<<2;
-            if(U32(68)!=other.U32(68)) mask|=1L<<3;
-            for(int offset=120;offset<=248;offset+=8)
-                if(U64(offset)!=other.U64(offset)) mask|=1L<<(4+(offset-120)/8);
-            return mask;
-        }''',
-    ),
-    NAMES[1]: (
-        'subject.OwnershipCertain && subject.ProfileCreated && receipt.Created && receipt.Assigned && !receipt.Resumed',
-        'receipt.CreationFlags==0x08080404 && receipt.Kind=="cmd"', 'machine==0 && native==0x8664',
-        'N("attach_attempted",1);MayCallOriginalCleanup=false;attachUnknown=true;',
-        'bool ok=api.Attach(subject.Process.pid);attachUnknown=false;',
-        'if(pending==null || continueAttempted)', 'continueAttempted=true;',
-        'Require(api.Continue(pending,disposition),"native_failed","ContinueDebugEvent");pending=null;',
-        'e.Pid!=subject.Process.pid', '(cleanup?512:4096)', 'Math.Min(remaining,100)',
-        'threads.Count>=32', 'modules.Count>=128', 'N("entry_hits")>=128', 'N("write_attempts")>=264',
-        'if(t.IncrementOwned || t.ReleaseAttempted)', 't.ReleaseAttempted=true;',
-        'previous==t.Previous+1', 'peer.Handle.Tid!=owner',
-        'N("entries_ready_before_resume",1);ready=true;', 'Require(previous==1,"resume_failed","ResumeThread");',
-        'p.Uncertain=true;', 'count==1', 'p.Active=arm;p.Uncertain=false;',
-        '!c.MatchesAfterMov(beforeStep)', 'PatchByte(stepping,true);SetContext(t,c.WithRipTf(c.U64(248),false));ReleasePeers();',
-        'if((c.U32(68)&0x100)!=0)', 'if(!attachBreak)', 'c.U64(152)!=CmdRemoteReader.Add(entryRsp,8)',
-        'length>8192 || length>CmdU16(name,2)', 'new UnicodeEncoding(false,false,true)',
-        r'String.Equals(text,@"\??\"+subject.Workspace+@"\direct.cmd",',
-        'foreach(Patch p in patches) PatchByte(p,false);',
-        'if(status==0x103) {I("result","observed_pending");Fault("pending_io");}',
-        'uint status=(uint)(c.U64(120)&UInt32.MaxValue);', '(status&0x80000000)!=0',
-        'protectedHandles.ContainsKey(candidate.Value)', 'api.CloseDuplicate(candidate)',
-        'Continue(0x10002);N("exit_event_continued",1);', 'Math.Min(started+35000,api.NowMilliseconds+5000)',
-        'Require(exit==debugExit,"target_identity","GetExitCodeProcess");BindIdentity(false);',
-        '(first || value==creation)', 'identityUncertain=true;', 'identityUncertain=false;',
-        'if(pending!=null && pending.Code==5) {Exit(true);return;}',
-        'if(terminationAttempted) {Retain();return;}terminationAttempted=true;',
-        'if(attachUnknown || identityUncertain || (pending!=null && (pending.Pid!=subject.Process.pid || continueAttempted)))',
-        'waitUnknown=true;bool ok=api.Wait(', '!terminated || waitUnknown',
-        'retainedCmdDebug=this;', 'r.Exit==1', 'pilot_cmd_observation_raw_complete',
-        'pilot_cmd_observation_stdout_matches', 'pilot_cmd_observation_stderr_empty',
-        '!session.MayCallOriginalCleanup || session.Failed', '!PilotNumber(r,"cmd_debug_pair_complete",1)',
-        'row.Fatal=true;row.PositivePassed=false;', 'throw new InvalidOperationException("cmd_debug_incomplete");',
-        'SetContext(t,c.WithRipTf(returnPatch.Address,(c.U32(68)&0x100)!=0));',
-        'enum ImageOwnership {None,Owned,Attempted,Closed,Unknown}',
-        'if(e==null || e.Pid!=subject.Process.pid) Fault("event_protocol");AdoptImage(e);if(e.Tid==0) Fault("event_protocol");',
-        'pendingImage=e.File;pendingImageState=ImageOwnership.Unknown;',
-        '(e.Code==3 && (e.File==e.Process || e.File==e.Thread))) Fault("close_uncertain");pendingImageState=ImageOwnership.Owned;',
-        'if(value!=pendingImage) Fault("close_uncertain");',
-        'if(pendingImageState!=ImageOwnership.Owned) Fault("close_uncertain");',
-        'pendingImageState=ImageOwnership.Attempted;Require(api.CloseImage(new CmdImageFile(value)),"close_uncertain","CloseHandle");pendingImageState=ImageOwnership.Closed;',
-        'if(pendingImageState!=ImageOwnership.None && pendingImageState!=ImageOwnership.Closed) Fault("close_uncertain");continueAttempted=true;',
-        'if(pending!=null) {if(pending.Code==3 || pending.Code==6) CloseImage(pending.File);Continue(pending.Code==1?0x80010001u:0x10002u);}',
-        'if(N("exit_event_seen")==1 || pendingImageState==ImageOwnership.Attempted || pendingImageState==ImageOwnership.Unknown) {Retain();return;}',
-        'I("protocol","own-child-open-v3");',
-        '''void SetContext(ThreadSlot t,CmdDebugContext c) {
-            N("context_mismatch_mask",-1);
-            N("eflags_difference_mask",-1);
-            Require(api.SetContext(t.Handle,c),"context_failed","SetThreadContext");
-            CmdDebugContext actual;
-            Require(api.GetContext(t.Handle,out actual),"context_get_failed","GetThreadContext");
-            if(actual==null) Fault("context_roundtrip_unavailable");
-            long fields=actual.RequestedMismatchMask(c);
-            uint flags=actual.U32(68)^c.U32(68);
-            N("context_mismatch_mask",fields);
-            N("eflags_difference_mask",(long)flags);
-            if(!actual.SameRequested(c)) Fault("context_roundtrip_mismatch");
-        }''',
-    ),
-    NAMES[2]: ('RunCmdDebugContractTests()', 'MOV permits fresh R10=RCX and exact RIP delta',
-               'never close original, borrowed or target handles', 'fatal precedes classifier and resolution',
-               'pending never reads output or IO_STATUS_BLOCK', 'CmdTestFaultSweep()',
-               'return TF preservation is exercised', 'false or exceptional image close is never retried',
-               'uncertain early image close retains before any continuation', 'CmdTestContextContracts();'),
-    NAMES[3]: ('CmdTestContextContracts()', 'all 21 requested fields have distinct mismatch bits',
-               'mask zero iff unchanged SameRequested accepts', 'equally invalid flags still set bit zero',
-               'stale mask cleared before every Set', 'failed Set has no readback',
-               'successful Set has exactly one immediate Get', 'first failure reason API error and mask survive cleanup',
-               'context diagnostics add no native calls', 'context diagnostics preserve exact native call order',
-               'standalone context failure retains its original reason', 'post MOV mismatch retains existing context_failed route',
-               'fixed baseline context call counts remain unchanged',
-               'stale EFLAGS XOR cleared before every Set',
-               'EFLAGS XOR remains unavailable until immediate comparison',
-               'all 32 EFLAGS positions retain their exact unsigned identity',
-               'XOR compares requested TF-set and TF-clear contexts',
-               'bit31 is positive rather than sign-extended', 'allbits is the complete uint32 range',
-               'field and EFLAGS diagnostics have identical availability',
-               'EFLAGS field bit is set iff the XOR is nonzero',
-               'all non-EFLAGS mismatches leave XOR zero while still failing closed',
-               'both initial and subsequent Set reset the previous available EFLAGS XOR',
-               'earlier exact comparison and failed cleanup retain the first XOR diagnosis',
-               'long fields=otherFields|(difference==0?0L:8L);'),
-}
 
 
 def inspect_sources(sources, old, runner, workflow, wrapper, pins=True):
@@ -237,12 +120,14 @@ def inspect_sources(sources, old, runner, workflow, wrapper, pins=True):
     session = compact(sources[NAMES[1]])
     assert session.count('api.Attach(') == session.count('api.ResumeMain(') == session.count('api.Terminate(') == 1, 'one target lifecycle'
     assert session.count('api.ResumePeer(') == session.count('api.CloseDuplicate(') == session.count('api.CloseImage(') == 1, 'one owned release site'
+    assert compact(native).count('SameRequestedState(') == 2, 'exact native state comparison sites'
+    assert session.count('SameRequestedState(') == 1, 'exact session state comparison site'
     assert session.count('api.GetContext(') == 2 and session.count('api.SetContext(') == 1, 'unchanged native context call count'
-    assert set(re.findall(r'\bN\("([^"]+)"', sources[NAMES[1]])) <= set(NUMERIC_V3), 'numeric emission allowlist'
+    assert set(re.findall(r'\bN\("([^"]+)"', sources[NAMES[1]])) <= set(NUMERIC_V4), 'numeric emission allowlist'
     emitted = set(re.findall(r'\["cmd_debug_([^"]+)"\]', sources[NAMES[1]]))
-    assert emitted <= set(NUMERIC_V3) | set(ENUMS_V3), 'additional field allowlist'
+    assert emitted <= set(NUMERIC_V4) | set(ENUMS_V4), 'additional field allowlist'
     keys = re.search(r'NumericKeys=\((.*?)\)\.Split', sources[NAMES[1]], re.S)
-    assert keys and ''.join(re.findall(r'"([^"]*)"', keys[1])).split() == NUMERIC_V3, 'numeric schema'
+    assert keys and ''.join(re.findall(r'"([^"]*)"', keys[1])).split() == NUMERIC_V4, 'numeric schema'
     assert set(re.findall(r'\bI\("([^"]+)"', sources[NAMES[1]])) == set(ENUMS), 'enum schema'
     gate = 'RequireCmdDebugComparable(cmdDebug,row);'
     assert runner.count(gate) == 1 and runner.index(gate) < runner.index('ClassifyPilotCase(row,evidence);'), 'preclassifier order'
@@ -367,8 +252,8 @@ class SourceContracts(unittest.TestCase):
         inspect_sources(sources or self.sources, self.old, self.runner, self.workflow, self.wrapper, pins)
 
     def test_exact_source_and_combined_boundary(self):
-        self.assertEqual({p.name for p in HERE.iterdir() if p.suffix in ('.cs', '.ps1', '.py')}, set(NAMES) | {'audit.py', 'receipt_contract.py', 'receipt_tests.py'})
-        for name in ('audit.py', 'receipt_contract.py', 'receipt_tests.py'):
+        self.assertEqual({p.name for p in HERE.iterdir() if p.suffix in ('.cs', '.ps1', '.py')}, set(NAMES) | {'audit.py', 'receipt_contract.py', 'receipt_tests.py', 'source_guards.py'})
+        for name in ('audit.py', 'receipt_contract.py', 'receipt_tests.py', 'source_guards.py'):
             self.assertLessEqual(len((HERE / name).read_text(encoding='utf-8').splitlines()), 500)
         self.inspect(pins=True)
         sys.path.insert(0, str(BROKER))
@@ -455,7 +340,7 @@ class SourceContracts(unittest.TestCase):
             ('N("eflags_difference_mask",(long)flags);', 'N("eflags_difference_mask",(int)flags);'),
             ('uint flags=actual.U32(68)^c.U32(68);',
              'N("context_mismatch_mask",fields);uint flags=actual.U32(68)^c.U32(68);'),
-            ('if(!actual.SameRequested(c))', 'if(fields!=0 && flags!=0)'),
+            ('if(!actual.SameRequestedState(c))', 'if(fields!=0 && flags!=0)'),
             ('N("eflags_difference_mask",(long)flags);', 'N("eflags_actual",actual.U32(68));'),
         )
         for before, after in changes:
@@ -486,6 +371,78 @@ class SourceContracts(unittest.TestCase):
             changed = dict(self.sources); changed[NAMES[1]] += '\n' + code
             with self.subTest(capability=code), self.assertRaises(AssertionError):
                 self.inspect(changed)
+
+
+    def test_reserved_bit_state_policy_mutations(self):
+        changes = (
+            ('if(SameRequested(other)) return true;', 'if(other==null || SameRequested(other)) return true;'),
+            ('if(SameRequested(other)) return true;', 'if(other!=null) return true;'),
+            ('if(SameRequested(other)) return true;', ''),
+            ('RequestedMismatchMask(other)==8L &&', 'RequestedMismatchMask(other)>=0 &&'),
+            ('RequestedMismatchMask(other)==8L &&', '(RequestedMismatchMask(other)&8L)!=0 &&'),
+            ('RequestedMismatchMask(other)==8L &&', 'RequestedMismatchMask(other)==8L ||'),
+            ('RequestedMismatchMask(other)==8L &&', ''),
+            ('==0x00000002U;', '==0x00000003U;'),
+            ('==0x00000002U;', '<=0x00000003U;'),
+            ('==0x00000002U;', '!=0U;'),
+            ('(U32(68)^other.U32(68))==0x00000002U', '((U32(68)^other.U32(68))&0x00000002U)!=0'),
+            ('(U32(68)^other.U32(68))==0x00000002U', '((U32(68)^other.U32(68))&0x100U)==0'),
+        )
+        self.inspect()
+        for before, after in changes:
+            changed = dict(self.sources)
+            self.assertEqual(changed[NAMES[0]].count(before), 1)
+            changed[NAMES[0]] = changed[NAMES[0]].replace(before, after, 1)
+            with self.subTest(before=before, after=after), self.assertRaises(AssertionError):
+                self.inspect(changed)
+
+    def test_raw_request_diagnostic_and_call_site_mutations(self):
+        changes = (
+            (NAMES[0], 'return SameRequestedState(expected);', 'return SameRequested(expected);'),
+            (NAMES[0], 'return SameRequestedState(expected);', 'return true;'),
+            (NAMES[0], 'if(SameRequested(other)) return true;', 'if(SameRequestedState(other)) return true;'),
+            (NAMES[0], 'U32(68)!=other.U32(68)) return false;', '((U32(68)^other.U32(68))&~2U)!=0) return false;'),
+            (NAMES[0], 'if(U32(68)!=other.U32(68)) mask|=1L<<3;', 'if(((U32(68)^other.U32(68))&~2U)!=0) mask|=1L<<3;'),
+            (NAMES[0], 'var result=Copy();result.Put64(248,rip);', 'var result=Copy();result.Put32(68,U32(68)|2U);result.Put64(248,rip);'),
+            (NAMES[0], 'tf?U32(68)|0x100U:U32(68)&~0x100U', 'tf?U32(68)|0x102U:U32(68)&~0x102U'),
+            (NAMES[0], 'Raw=(byte[])bytes.Clone();', 'Raw=(byte[])bytes.Clone();Raw[68]|=2;'),
+            (NAMES[0], 'Marshal.Copy(context.Raw,0,buffer.Aligned,1232);', 'context.Raw[68]&=0xfd;Marshal.Copy(context.Raw,0,buffer.Aligned,1232);'),
+            (NAMES[0], 'context=initial;return true;', 'initial.Raw[68]|=2;context=initial;return true;'),
+            (NAMES[1], 'if(!actual.SameRequestedState(c))', 'if(!actual.SameRequested(c))'),
+            (NAMES[1], 'actual.RequestedMismatchMask(c)', 'actual.SameRequestedState(c)?0:actual.RequestedMismatchMask(c)'),
+            (NAMES[1], 'uint flags=actual.U32(68)^c.U32(68);', 'uint flags=(actual.U32(68)^c.U32(68))&~2U;'),
+            (NAMES[1], 'N("context_mismatch_mask",fields);', 'N("context_mismatch_mask",fields&~8L);'),
+            (NAMES[1], 'N("eflags_difference_mask",(long)flags);', 'N("eflags_difference_mask",(long)(flags&~2U));'),
+            (NAMES[1], 'if(actual==null) Fault("context_roundtrip_unavailable");', 'if(actual==null) return;'),
+            (NAMES[2], 'context.SameRequested(allowed)', 'context.SameRequestedState(allowed)'),
+            (NAMES[2], 'context.SameRequested(allowed)', 'true'),
+        )
+        for name, before, after in changes:
+            changed = dict(self.sources)
+            self.assertEqual(changed[name].count(before), 1)
+            changed[name] = changed[name].replace(before, after, 1)
+            with self.subTest(file=name, before=before), self.assertRaises(AssertionError):
+                self.inspect(changed)
+        for name in NAMES[:2]:
+            changed = dict(self.sources); changed[name] += '\nSameRequestedState(extra);'
+            with self.subTest(extra_call=name), self.assertRaisesRegex(AssertionError, 'state comparison site'):
+                self.inspect(changed)
+
+    def test_source_guards_exact_sibling_loading(self):
+        sentinel = object(); previous = sys.modules.get('source_guards', sentinel)
+        sys.modules['source_guards'] = sentinel
+        try:
+            loaded = runpy.run_path(str(HERE / 'audit.py'))
+        finally:
+            if previous is sentinel:
+                del sys.modules['source_guards']
+            else:
+                sys.modules['source_guards'] = previous
+        helper = loaded['SOURCE_GUARDS']
+        self.assertEqual(pathlib.Path(helper['__file__']).resolve(), (HERE / 'source_guards.py').resolve())
+        self.assertEqual({key for key in helper if not key.startswith('__')}, {'NAMES', 'GUARDS'})
+        self.assertEqual(loaded['NAMES'], NAMES)
+        self.assertEqual(list(loaded['GUARDS'].items()), list(GUARDS.items()))
 
 
 if __name__ == '__main__':

@@ -63,9 +63,13 @@ public static partial class BrokerDirectLauncher {
                 if(U64(offset)!=other.U64(offset)) mask|=1L<<(4+(offset-120)/8);
             return mask;
         }
+        public bool SameRequestedState(CmdDebugContext other) {
+            if(SameRequested(other)) return true;
+            return RequestedMismatchMask(other)==8L && (U32(68)^other.U32(68))==0x00000002U;
+        }
         public bool MatchesAfterMov(CmdDebugContext before) {
             var expected=before.WithRipTf(CmdRemoteReader.Add(before.U64(248),2),(U32(68)&0x100)!=0);
-            expected.Put64(200,before.U64(128));return SameRequested(expected);
+            expected.Put64(200,before.U64(128));return SameRequestedState(expected);
         }
     }
     abstract class CmdDebugApi {

@@ -126,3 +126,18 @@ Additional scope row: tests/windows-cmd-debugger-observation/receipt_tests.py (n
   - Evidence: commands/results, path-only preservation proof and staged graph
 
 No v3 runtime observation occurred at54af. The pending experiment is not an old-run retry; the reviewed integration correction must first reach the unchanged test gates.
+
+## v4 architectural comparison correction (FR-10)
+
+- [x]7.1 Bind publishedbf baseline, primary-source rationale, approved17-path design and exact call-site impact
+  - Evidence: v4-reserved-bit1-proposal.json, v4-preimpact.json and v4-preimpact-graph-binding.json
+- [x]7.2 Add the separate exact(0,0)/(8,2) state predicate at only the two named runtime comparisons
+  - Evidence: Native raw helpers/WithRipTf/marshaling and Session immediate Set/Get; raw requests and fake setter freshness preserved
+- [x]7.3 Add strict v4 receipt rules and complete all-bit/direction/combination/error tests; extract guard data without inventory loss
+  - Evidence: evaluated ordered guards, actual old test IDs, v1-v3 behavior/archive preservation and raw/latest-immediate semantics
+- [ ]7.4 Run retained/local contracts, refresh staged graph and independently review the exact candidate before publication/native decision
+  - Evidence: measured commands, explicit local compiler limitation and exact source/tree proof
+
+Additional scope row: tests/windows-cmd-debugger-observation/source_guards.py (new,<=500lines), data-only fixed guard inventory. No runtime helper or workflow change. Original batch exit1 remains unexplained until valid target-open evidence supports a cause-directed conclusion.
+
+V4 local validation: all362 retained Python methods and37 observer methods pass; 9,401 legacy differential calls have zero differences and all three archived interpretations/hashes are preserved. The four C# files pass syntax-only parsing; managed compilation and PowerShell execution are unavailable locally and remain Windows CI gates. Exact candidate review and any publication/native decision remain separate.

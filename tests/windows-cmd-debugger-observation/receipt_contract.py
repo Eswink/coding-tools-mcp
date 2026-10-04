@@ -42,8 +42,10 @@ CONTEXT_ERRORS = {'context_get_failed', 'context_roundtrip_unavailable', 'contex
 ENUMS_V2 = dict(ENUMS, protocol={'own-child-open-v2'}, error=ENUMS['error'] | CONTEXT_ERRORS)
 NUMERIC_V3 = NUMERIC_V2 + ['eflags_difference_mask']
 ENUMS_V3 = dict(ENUMS_V2, protocol={'own-child-open-v3'})
+NUMERIC_V4 = list(NUMERIC_V3)
+ENUMS_V4 = dict(ENUMS_V3, protocol={'own-child-open-v4'})
 SCHEMAS = {'own-child-open-v1': (NUMERIC, ENUMS), 'own-child-open-v2': (NUMERIC_V2, ENUMS_V2),
-           'own-child-open-v3': (NUMERIC_V3, ENUMS_V3)}
+           'own-child-open-v3': (NUMERIC_V3, ENUMS_V3), 'own-child-open-v4': (NUMERIC_V4, ENUMS_V4)}
 
 
 def require(condition):
@@ -140,6 +142,8 @@ def check_receipt(data):
         check_context_roundtrip(n, i)
     if protocol == 'own-child-open-v3':
         check_eflags_difference(n)
+    if protocol == 'own-child-open-v4':
+        check_architectural_roundtrip(n, i)
     if i['result'].startswith('matched_open_') and not n['pair_complete']:
         return 'incomplete'
     return i['result']
@@ -173,3 +177,29 @@ def check_eflags_difference(n):
     require((fields == -1) == (flags == -1))
     if fields >= 0:
         require(((fields & 8) != 0) == (flags != 0))
+
+
+def check_architectural_roundtrip(n, i):
+    """Validate v4 acceptance separately, retaining the latest full raw diagnostics."""
+    fields = n['context_mismatch_mask']
+    flags = n['eflags_difference_mask']
+    require(-1 <= fields <= 0x1fffff and -1 <= flags <= 0xffffffff)
+    require((fields == -1) == (flags == -1))
+    if fields >= 0:
+        require(((fields & 8) != 0) == (flags != 0))
+    unavailable = fields == flags == -1
+    admissible = (fields, flags) in ((0, 0), (8, 2))
+    if i['error'] in CONTEXT_ERRORS:
+        require(n['pair_complete'] == 0)
+    if i['error'] == 'context_get_failed':
+        require(unavailable and i['error_api'] == 'GetThreadContext')
+    elif i['error'] == 'context_roundtrip_unavailable':
+        require(unavailable and i['error_api'] == 'none' and n['native_error'] == 0)
+    elif i['error'] == 'context_roundtrip_mismatch':
+        require(fields >= 0 and not admissible and i['error_api'] == 'none' and n['native_error'] == 0)
+    elif i['error'] == 'context_failed' and i['error_api'] == 'SetThreadContext':
+        require(unavailable and n['pair_complete'] == 0)
+    else:
+        require(unavailable or admissible)
+    if i['error'] == 'none':
+        require(admissible)

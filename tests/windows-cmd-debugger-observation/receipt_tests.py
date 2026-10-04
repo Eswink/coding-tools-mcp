@@ -12,6 +12,7 @@ CONTRACT = runpy.run_path(str(HERE / 'receipt_contract.py'))
  NUMERIC_V3, PREFIX, check_receipt) = (CONTRACT[name] for name in (
     'CONTEXT_ERRORS', 'COUNTERS', 'ENUMS_V2', 'ENUMS_V3', 'FLAGS', 'NUMERIC',
     'NUMERIC_V2', 'NUMERIC_V3', 'PREFIX', 'check_receipt'))
+NUMERIC_V4, ENUMS_V4 = (CONTRACT[name] for name in ('NUMERIC_V4', 'ENUMS_V4'))
 
 
 def fixture(result='matched_open_failed'):
@@ -251,3 +252,178 @@ class EflagsReceiptContracts(unittest.TestCase):
                     sys.modules.pop(name, None)
                 else:
                     sys.modules[name] = original[name]
+
+
+class ArchitecturalReceiptContracts(unittest.TestCase):
+    def value(self, error='none', fields=0, flags=0, api='none', native_error=0):
+        value = EflagsReceiptContracts().value(error, fields, flags, api, native_error)
+        value['Identities'][PREFIX + 'protocol'] = 'own-child-open-v4'
+        return value
+
+    def test_v4_exact_separate_schemas_and_legacy_bit1(self):
+        self.assertEqual((len(NUMERIC_V4), len(ENUMS_V4)), (37, 6))
+        self.assertEqual(NUMERIC_V4, NUMERIC_V3)
+        self.assertIsNot(NUMERIC_V4, NUMERIC_V3)
+        self.assertEqual(ENUMS_V4['error'], ENUMS_V3['error'])
+        self.assertEqual(ENUMS_V4['protocol'], {'own-child-open-v4'})
+        for version in (1, 2, 3, 4, 5):
+            for error in ('none', 'context_roundtrip_mismatch'):
+                value = self.value(error, 8, 2)
+                value['Identities'][PREFIX + 'protocol'] = 'own-child-open-v' + str(version)
+                with self.subTest(version=version, error=error):
+                    if (version, error) in ((3, 'context_roundtrip_mismatch'), (4, 'none')):
+                        expected = 'incomplete' if version == 3 else 'matched_open_failed'
+                        self.assertEqual(check_receipt(encoded(value)), expected)
+                    else:
+                        with self.assertRaises(ValueError):
+                            check_receipt(encoded(value))
+        for value in (fixture(), ContextReceiptContracts().value()):
+            value['Identities'][PREFIX + 'protocol'] = 'own-child-open-v4'
+            with self.assertRaises(ValueError):
+                check_receipt(encoded(value))
+
+    def test_v4_required_fields_types_and_extra_fields(self):
+        for section, keys in (('Numbers', NUMERIC_V4), ('Identities', ENUMS_V4)):
+            for key in keys:
+                for bad in (None, True, False, [], {}, 1.0, 'unknown', -(2**63), 2**64):
+                    value = self.value(fields=8, flags=2)
+                    value[section][PREFIX + key] = bad
+                    with self.subTest(key=key, bad=bad), self.assertRaises(ValueError):
+                        check_receipt(encoded(value))
+                value = self.value()
+                del value[section][PREFIX + key]
+                with self.subTest(missing=key), self.assertRaises(ValueError):
+                    check_receipt(encoded(value))
+        for section in ('Numbers', 'Identities', None):
+            for key in ('unknown', 'eflags_requested', 'eflags_actual', 'direction', 'context'):
+                value = self.value()
+                destination = value if section is None else value[section]
+                destination[PREFIX + key] = 0
+                with self.subTest(section=section, extra=key), self.assertRaises(ValueError):
+                    check_receipt(encoded(value))
+
+    def test_v4_admissible_pairs_keep_all_success_prerequisites(self):
+        bad_numbers = dict(pair_complete=0, matched_tid=-1, attach_break_seen=0, entry_hits=0,
+                           ntstatus_u32=-1, desired_access=-1, object_identity_matched=1,
+                           exit_event_seen=0, exit_event_continued=0, process_signaled=0,
+                           terminal_exit_u32=23, active_patches_at_exit=1, owned_suspends_at_exit=1,
+                           abort_terminate_attempted=1, native_error=5, elapsed_ms=-1)
+        bad_identities = dict(cleanup='retained_fatal', error_api='GetThreadContext',
+                             open_api='none', result='debugger_perturbed')
+        for fields, flags in ((0, 0), (8, 2)):
+            value = self.value(fields=fields, flags=flags)
+            self.assertEqual(check_receipt(encoded(value)), 'matched_open_failed')
+            value['Numbers'].update({PREFIX + 'ntstatus_u32': 0, PREFIX + 'object_identity_matched': 1})
+            value['Identities'][PREFIX + 'result'] = 'matched_open_succeeded'
+            self.assertEqual(check_receipt(encoded(value)), 'matched_open_succeeded')
+            for section, changes in (('Numbers', bad_numbers), ('Identities', bad_identities)):
+                for key, bad in changes.items():
+                    value = self.value(fields=fields, flags=flags)
+                    value[section][PREFIX + key] = bad
+                    with self.subTest(fields=fields, key=key), self.assertRaises(ValueError):
+                        check_receipt(encoded(value))
+            with self.assertRaises(ValueError):
+                check_receipt(encoded(self.value('context_roundtrip_mismatch', fields, flags)))
+
+    def test_v4_every_other_eflags_bit_and_field_combination(self):
+        differences = [(8, mask) for bit in range(32) if bit != 1
+                       for mask in (1 << bit, (1 << bit) | 2)]
+        differences += [(8, mask) for mask in (0x101, 0x100100, 0x80000102, 0xffffffff)]
+        differences += [(mask, 0) for mask in [1 << bit for bit in range(21) if bit != 3]]
+        differences += [((1 << bit) | 8, 2) for bit in range(21) if bit != 3]
+        differences += [(0x1ffff7, 0), (0x1fffff, 2), (0x1fffff, 0xffffffff)]
+        for fields, flags in differences:
+            with self.subTest(fields=fields, flags=flags):
+                mismatch = self.value('context_roundtrip_mismatch', fields, flags)
+                self.assertEqual(check_receipt(encoded(mismatch)), 'incomplete')
+                for error in ('none', 'internal_exception'):
+                    with self.assertRaises(ValueError):
+                        check_receipt(encoded(self.value(error, fields, flags)))
+
+    def test_v4_range_availability_and_raw_consistency(self):
+        for fields, flags in ((-2, -1), (-1, -2), (0x200000, 2), (0xffffffff, 2),
+                              (8, -0x80000000), (8, 0x100000000), (8, 2**63),
+                              (-1, 0), (0, -1), (-1, 2), (8, -1), (8, 0),
+                              (0, 2), (1, 2), (9, 0), (0x1ffff7, 0xffffffff)):
+            for error in ('none', 'context_roundtrip_mismatch', 'internal_exception'):
+                value = self.value(error, fields, flags)
+                with self.subTest(fields=fields, flags=flags, error=error), self.assertRaises(ValueError):
+                    check_receipt(encoded(value))
+        for flags in (1, 0x7fffffff, 0x80000000, 0x80000002, 0xfffffffe, 0xffffffff):
+            value = self.value('context_roundtrip_mismatch', 0x1fffff, flags)
+            self.assertEqual(check_receipt(encoded(value)), 'incomplete')
+
+    def test_v4_reason_api_pair_and_diagnostic_matrix(self):
+        reasons = CONTEXT_ERRORS | {'context_failed', 'native_failed', 'internal_exception', 'none'}
+        for reason in sorted(reasons):
+            for fields in (-1, 0, 1, 8, 9, 0x100001, 0x1fffff):
+                for flags in (-1, 0, 1, 2, 3, 0x100, 0x10000, 0x80000000, 0xffffffff):
+                    for api in ('none', 'GetThreadContext', 'SetThreadContext'):
+                        for native_error in (0, 5, 0xffffffff):
+                            for paired in (0, 1):
+                                unavailable = fields == flags == -1
+                                completed = fields >= 0 and flags >= 0 and bool(fields & 8) == bool(flags)
+                                admissible = (fields, flags) in ((0, 0), (8, 2))
+                                if reason == 'context_get_failed':
+                                    valid = unavailable and api == 'GetThreadContext' and paired == 0
+                                elif reason == 'context_roundtrip_unavailable':
+                                    valid = unavailable and api == 'none' and native_error == paired == 0
+                                elif reason == 'context_roundtrip_mismatch':
+                                    valid = completed and not admissible and api == 'none' and native_error == paired == 0
+                                elif reason == 'context_failed' and api == 'SetThreadContext':
+                                    valid = unavailable and paired == 0
+                                elif reason == 'none':
+                                    valid = admissible and paired == 1 and api == 'none' and native_error == 0
+                                else:
+                                    valid = unavailable or admissible
+                                value = self.value(reason, fields, flags, api, native_error)
+                                value['Numbers'][PREFIX + 'pair_complete'] = paired
+                                with self.subTest(reason=reason, fields=fields, flags=flags, api=api,
+                                                  native_error=native_error, paired=paired):
+                                    if valid:
+                                        expected = 'matched_open_failed' if paired else 'incomplete'
+                                        self.assertEqual(check_receipt(encoded(value)), expected)
+                                    else:
+                                        with self.assertRaises(ValueError):
+                                            check_receipt(encoded(value))
+
+    def test_v4_later_errors_cannot_hide_a_first_disallowed_mismatch(self):
+        for error in sorted(ENUMS_V4['error'] - CONTEXT_ERRORS - {'none'}):
+            for fields, flags in ((-1, -1), (0, 0), (8, 2), (1, 0), (8, 1), (9, 2), (8, 0x102)):
+                value = self.value(error, fields, flags)
+                with self.subTest(error=error, fields=fields, flags=flags):
+                    if (fields, flags) in ((-1, -1), (0, 0), (8, 2)):
+                        self.assertEqual(check_receipt(encoded(value)), 'incomplete')
+                    else:
+                        with self.assertRaises(ValueError):
+                            check_receipt(encoded(value))
+
+    def test_v4_duplicate_and_strict_json(self):
+        value = self.value(fields=8, flags=2)
+        good = encoded(value)
+        for entries in value.values():
+            for key, item in entries.items():
+                token = json.dumps(key).encode() + b':' + encoded(item)
+                with self.subTest(duplicate=key), self.assertRaises(ValueError):
+                    check_receipt(good.replace(token, token + b',' + token, 1))
+        token = b'"cmd_debug_eflags_difference_mask":2'
+        for bad in (b'NaN', b'Infinity', b'-Infinity', b'2.0', b'true', b'false', b'null', b'"2"', b'9' * 21):
+            with self.subTest(raw=bad), self.assertRaises(ValueError):
+                check_receipt(good.replace(token, token[:-1] + bad))
+        for bad in (b'', b'\xef\xbb\xbf' + good, good + b'\xff', good + b'{}', b' ' * 16385):
+            with self.subTest(raw=bad[:20]), self.assertRaises(ValueError):
+                check_receipt(bad)
+
+    def test_v4_exact_sibling_export_and_unique_inventory(self):
+        loaded = runpy.run_path(str(HERE / 'audit.py'), run_name='v4_sibling_probe')
+        module = types.ModuleType('v4_sibling_probe')
+        module.__dict__.update(loaded)
+        suite = unittest.defaultTestLoader.loadTestsFromModule(module)
+        ids = [test.id() for group in suite for test in group]
+        self.assertEqual(len(ids), len(set(ids)))
+        exported = loaded['ArchitecturalReceiptContracts']
+        self.assertEqual(exported.__module__, 'v4_sibling_probe')
+        methods = [method for name, method in vars(exported).items() if name.startswith('test_')]
+        self.assertEqual(sum('.ArchitecturalReceiptContracts.' in name for name in ids), len(methods))
+        self.assertTrue(all(method.__module__ == 'v4_sibling_probe' for method in methods))
+        self.assertTrue(all(name.startswith('v4_sibling_probe.') for name in ids))
