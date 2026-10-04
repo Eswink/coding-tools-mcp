@@ -240,5 +240,93 @@ class TransportTests(unittest.TestCase):
         self.assertIsNone(handler.redirect_request(None, None, 302, '', Message(), URL))
 
 
+class CompiledStoragePolicyTests(unittest.TestCase):
+    """Unpatched source defaults; fake responses do not establish live TLS."""
+    def test_compiled_defaults_are_exact_reviewed_singleton(self):
+        expected = frozenset({'productionresultssa5.blob.core.windows.net'})
+        self.assertEqual(transport.TRUSTED_STORAGE_HOSTS, expected)
+        self.assertEqual(transport.wire.TRUSTED_STORAGE_HOSTS, expected)
+        self.assertIs(type(transport.TRUSTED_STORAGE_HOSTS), frozenset)
+        self.assertIs(type(transport.wire.TRUSTED_STORAGE_HOSTS), frozenset)
+
+    def test_both_defaults_accept_only_reviewed_host_urls(self):
+        for authority in ('productionresultssa5.blob.core.windows.net',
+                          'productionresultssa5.blob.core.windows.net:443'):
+            with self.subTest(authority=authority):
+                url = 'https://' + authority + '/data?signature=SYNTHETIC'
+                self.assertEqual(transport.storage_url(url), url)
+                self.assertEqual(transport.wire.storage_url(
+                    url, transport.wire.TRUSTED_STORAGE_HOSTS), url)
+
+    def test_both_defaults_reject_adversarial_destinations(self):
+        host = 'productionresultssa5.blob.core.windows.net'
+        urls = ['https://productionresultssa50.blob.core.windows.net/a',
+                'https://productionresultssa5.blob.core.windows.net.evil.invalid/a',
+                'https://sub.' + host + '/a', 'https://other.blob.core.windows.net/a',
+                'https://productionresultssа5.blob.core.windows.net/a',
+                'https://127.0.0.1/a', 'https://[::1]/a',
+                'https://u:p@' + host + '/a', 'https://' + host + '@evil.invalid/a',
+                'https://' + host + ':444/a', 'https://' + host + '/a#fragment',
+                'http://' + host + '/a', 'https://' + host + './a']
+        for url in urls:
+            with self.subTest(url=url):
+                with self.assertRaises(ConsumerError):
+                    transport.storage_url(url)
+                with self.assertRaises(transport.wire.WireError):
+                    transport.wire.storage_url(url, transport.wire.TRUSTED_STORAGE_HOSTS)
+
+    def test_default_worker_synthetic_two_hop_preserves_headers_and_closes(self):
+        url = 'https://productionresultssa5.blob.core.windows.net/data?signature=SYNTHETIC'
+        first = Response(302, headers=[('Location', url)])
+        second = Response(200, b'fixture', [('Content-Length', '7')])
+        responses, requests, frames = iter((first, second)), [], []
+        opener = SimpleNamespace(open=lambda request, timeout:
+            (requests.append((request, timeout)), next(responses))[1])
+        transport.wire.download(dict(id=42, size=7, token='SYNTHETIC-API-ONLY'),
+                                frames.append, opener=opener)
+        self.assertEqual(frames, [b'Bfixture', b'D'])
+        self.assertTrue(first.closed and second.closed)
+        self.assertEqual(len(requests), 2)
+        api, storage = [request for request, _ in requests]
+        self.assertEqual(api.full_url, transport.API +
+                         '/repos/Eswink/coding-tools-mcp/actions/artifacts/42/zip')
+        self.assertEqual(api.get_header('Authorization'), 'Bearer SYNTHETIC-API-ONLY')
+        self.assertEqual(storage.full_url, url)
+        self.assertEqual(storage.header_items(), [('Accept', 'application/zip')])
+        self.assertEqual([request.get_method() for request, _ in requests], ['GET', 'GET'])
+
+    def test_default_worker_rejects_untrusted_host_before_storage_request(self):
+        for host in ('productionresultssa50.blob.core.windows.net',
+                     'productionresultssa5.blob.core.windows.net.evil.invalid',
+                     'sub.productionresultssa5.blob.core.windows.net'):
+            with self.subTest(host=host):
+                first = Response(302, headers=[('Location', 'https://' + host + '/data')])
+                requests, frames = [], []
+                opener = SimpleNamespace(open=lambda request, timeout:
+                    (requests.append(request), first)[1])
+                with self.assertRaisesRegex(transport.wire.WireError, '^unverified_storage_host$'):
+                    transport.wire.download(dict(id=42, size=7, token='SYNTHETIC'),
+                                            frames.append, opener=opener)
+                self.assertEqual(len(requests), 1)
+                self.assertEqual(frames, [])
+                self.assertTrue(first.closed)
+
+    def test_default_worker_rejects_second_redirect_without_done(self):
+        url = 'https://productionresultssa5.blob.core.windows.net/data?signature=SYNTHETIC'
+        for destination in (url, 'https://evil.invalid/data'):
+            with self.subTest(destination=destination):
+                first = Response(302, headers=[('Location', url)])
+                second = Response(302, headers=[('Location', destination)])
+                responses, requests, frames = iter((first, second)), [], []
+                opener = SimpleNamespace(open=lambda request, timeout:
+                    (requests.append(request), next(responses))[1])
+                with self.assertRaisesRegex(transport.wire.WireError, '^unexpected_storage_status$'):
+                    transport.wire.download(dict(id=42, size=7, token='SYNTHETIC'),
+                                            frames.append, opener=opener)
+                self.assertEqual(len(requests), 2)
+                self.assertEqual(frames, [])
+                self.assertTrue(first.closed and second.closed)
+
+
 if __name__ == '__main__':
     unittest.main()

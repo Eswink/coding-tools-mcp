@@ -17,7 +17,8 @@ READ_TIMEOUT = 15
 MAX_ZIP = 2 * 1024**3
 MAX_REQUEST = 16384
 MAX_FRAME = READ_SIZE + 1
-TRUSTED_STORAGE_HOSTS: frozenset[str] = frozenset()
+# Reviewed exact host; an empty policy still fails closed before storage access.
+TRUSTED_STORAGE_HOSTS: frozenset[str] = frozenset({'productionresultssa5.blob.core.windows.net'})
 ERROR_CODES = frozenset({
     'invalid_storage_redirect', 'unverified_storage_host',
     'unexpected_artifact_download_status', 'unexpected_storage_status',
