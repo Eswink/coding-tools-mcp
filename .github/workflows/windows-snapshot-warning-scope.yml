@@ -1,0 +1,362 @@
+name: Snapshot strict warning scope (Issue 105; runtime failures remain visible)
+'on':
+  push:
+    branches:
+    - fix/windows-snapshot-warning-scope
+permissions:
+  contents: read
+concurrency:
+  group: snapshot-warning-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: '3'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
+  PYTHONUTF8: '1'
+jobs:
+  windows-baseline:
+    name: Immutable Windows four-warning baseline witness
+    runs-on: windows-2025
+    timeout-minutes: 75
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - run: git config --global core.autocrlf false
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+        ref: c3fcfb1f2617d56f8f395317a18d93884d551789
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: '22'
+    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+      with:
+        python-version: '3.12'
+    - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+      with:
+        toolchain: 1.98.1
+        components: rustfmt
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      with:
+        key: snapshot-warning-baseline-windows
+        cache-targets: false
+        workspaces: src-tauri
+    - name: Bind immutable baseline and prepare existing frontend assets
+      id: prepare
+      run: |
+        set -euo pipefail
+        python - <<'PY'
+        import hashlib,json,os,subprocess
+        from pathlib import Path
+        e=Path('evidence');e.mkdir(exist_ok=True)
+        def git(*args):return subprocess.check_output(['git',*args],text=True).strip()
+        head=git('rev-parse','HEAD');tree=git('rev-parse','HEAD^{tree}')
+        assert head=='c3fcfb1f2617d56f8f395317a18d93884d551789' and tree=='2066e8ae62522e3a9ee579e03d36ebfbdddeafd0','not immutable canonical baseline'
+        expected={'src-tauri/src/workspace_snapshots/filesystem.rs': 'e5d2ba5b3eb641a3904710051b58a49de5514f47', 'src-tauri/src/workspace_snapshots/model.rs': '53daa75fc4b7390403504f2301a539361d0e8e93', 'src-tauri/src/workspace_snapshots/mod.rs': '595f90cd2a7155644b4040a08583c95f5c26174a', 'src-tauri/src/workspace_snapshots/restore.rs': '764f472e03682efe49c850db49382016c7ed8f1d', 'src-tauri/src/workspace_snapshots/tests.rs': 'b4156c2f775b848b5c01c939911a33a2f0ea5fe7', 'src-tauri/src/workspace_snapshots/metadata_tests.rs': 'a0bb907c7664c959dd861272877d3be9cec6930b', 'src-tauri/src/commands/workspace_snapshots.rs': '214ae5d00a976485a7543d7469896b4f2da8cbf5', 'src-tauri/src/commands/workspace_snapshot_control_tests.rs': '71c1a6a072ce669be01a9319e9d44eb1072d96df', 'src-tauri/src/harness/worktree_snapshot.rs': 'fbe55d95a297091a74537f6cfeca9e55eac614b6'}
+        records=[]
+        for path,blob in expected.items():
+            assert git('rev-parse','HEAD:'+path)==blob and git('hash-object',path)==blob,'source blob mismatch: '+path
+            data=Path(path).read_bytes();records.append({'path':path,'blob':blob,'sha256':hashlib.sha256(data).hexdigest(),'bytes':len(data)})
+        assert not git('diff','HEAD'),'tracked source is dirty'
+        (e/'source-binding.json').write_text(json.dumps({'commit':head,'tree':tree,'workflow_commit':os.environ['GITHUB_SHA'],'runner':os.environ['RUNNER_OS'],'files':records},indent=2))
+        PY
+        rustc --version --verbose > evidence/toolchain.txt
+        cargo --version >> evidence/toolchain.txt
+        node --version >> evidence/toolchain.txt
+        npm ci
+        npm run build
+        git diff --exit-code HEAD --
+    - name: Prove exactly four canonical Windows strict compiler diagnostics
+      run: |
+        python - <<'PY'
+        import json
+        from pathlib import Path
+
+        EXPECTED = {
+            'unused imports: `Read` and `Write`': ('unused_imports', 'src/workspace_snapshots/filesystem.rs', 6),
+            'field `file` is never read': ('dead_code', 'src/workspace_snapshots/filesystem.rs', 19),
+            'method `sync` is never used': ('dead_code', 'src/workspace_snapshots/filesystem.rs', 324),
+            'variant `Busy` is never constructed': ('dead_code', 'src/workspace_snapshots/model.rs', 51),
+        }
+        def validate(stdout, stderr, status):
+            assert status == 101, f'expected compiler exit 101, got {status}'
+            messages = [json.loads(line) for line in stdout.splitlines() if line.strip()]
+            finished = [m for m in messages if m.get('reason') == 'build-finished']
+            assert len(finished) == 1 and finished[0].get('success') is False, 'missing failed compiler completion'
+            errors = [m for m in messages if m.get('reason') == 'compiler-message' and m['message']['level'] == 'error']
+            assert len(errors) == 4, f'expected exactly four errors, got {len(errors)}'
+            assert {m['message']['message'] for m in errors} == set(EXPECTED), 'unexpected diagnostic identity'
+            for item in errors:
+                msg = item['message']; code, suffix, line = EXPECTED[msg['message']]
+                assert item['target']['name'] == 'coding_tools_mcp_desktop_lib' and set(item['target']['kind']) == {'rlib', 'staticlib', 'cdylib'} and set(item['target']['crate_types']) == {'staticlib', 'cdylib', 'rlib'}, 'wrong compilation target'
+                assert msg.get('code', {}).get('code') == code, 'wrong lint identity'
+                primary = [s for s in msg['spans'] if s['is_primary']]
+                assert primary and all(s['file_name'].replace('\\', '/').endswith(suffix) and s['line_start'] == line for s in primary), 'wrong source span'
+            unexpected = [line for line in stderr.splitlines() if line.startswith('error:') and line != 'error: could not compile `coding-tools-mcp-desktop` (lib) due to 4 previous errors']
+            assert not unexpected, f'other build errors: {unexpected}'
+            return {'scope': 'Windows baseline strict-warning witness only', 'status': status, 'diagnostics': list(EXPECTED), 'diagnostic_count': 4}
+
+        if __name__ == '__main__':
+            import subprocess
+            e=Path('evidence'); e.mkdir(exist_ok=True)
+            command=['cargo','rustc','--locked','--lib','--manifest-path','src-tauri/Cargo.toml','--message-format=json','--','-D','warnings']
+            (e/'baseline-command.json').write_text(json.dumps(command))
+            p=subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,encoding='utf-8',errors='replace')
+            (e/'baseline-compiler.jsonl').write_text(p.stdout,encoding='utf-8'); (e/'baseline-stderr.txt').write_text(p.stderr,encoding='utf-8'); (e/'baseline-exit.txt').write_text(str(p.returncode))
+            print(p.stderr); print(p.stdout)
+            result=validate(p.stdout,p.stderr,p.returncode)
+            (e/'baseline-witness.json').write_text(json.dumps(result,indent=2));print(json.dumps(result))
+        PY
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      if: always()
+      with:
+        name: snapshot-warning-baseline-${{ github.sha }}
+        path: evidence/
+        if-no-files-found: error
+        retention-days: 30
+  native:
+    name: ${{ matrix.os }} strict warnings and unchanged runtime gates
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - windows-2025
+        - ubuntu-24.04
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - run: git config --global core.autocrlf false
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: '22'
+    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+      with:
+        python-version: '3.12'
+    - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+      with:
+        toolchain: 1.98.1
+        components: rustfmt
+    - name: Existing Linux native prerequisites
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev dbus-x11 gnome-keyring
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      with:
+        key: snapshot-warning-${{ matrix.os }}
+        cache-targets: false
+        workspaces: src-tauri
+    - name: Bind exact six-path candidate and prepare existing frontend assets
+      id: prepare
+      run: |
+        set -euo pipefail
+        python - <<'PY'
+        import hashlib,json,os,subprocess
+        from pathlib import Path
+        e=Path('evidence');e.mkdir(exist_ok=True)
+        def git(*args):return subprocess.check_output(['git',*args],text=True).strip()
+        head=git('rev-parse','HEAD');tree=git('rev-parse','HEAD^{tree}')
+        assert head==os.environ['GITHUB_SHA'],'candidate SHA mismatch'
+        assert set(git('diff','--name-only','c3fcfb1f2617d56f8f395317a18d93884d551789','HEAD').splitlines())==set(['src-tauri/src/workspace_snapshots/filesystem.rs', 'src-tauri/src/workspace_snapshots/model.rs', 'docs/specs/windows-snapshot-warning-scope/requirements.md', 'docs/specs/windows-snapshot-warning-scope/design.md', 'docs/specs/windows-snapshot-warning-scope/tasks.md', '.github/workflows/windows-snapshot-warning-scope.yml']),'candidate scope differs from approved six paths'
+        expected={'src-tauri/src/workspace_snapshots/filesystem.rs': 'f3de379c5f107ddfe558fcdc885a344c71cf7054', 'src-tauri/src/workspace_snapshots/model.rs': 'c639b79bf3d852e30d532a2a3e647d6dcd88b0ee', 'src-tauri/src/workspace_snapshots/mod.rs': '595f90cd2a7155644b4040a08583c95f5c26174a', 'src-tauri/src/workspace_snapshots/restore.rs': '764f472e03682efe49c850db49382016c7ed8f1d', 'src-tauri/src/workspace_snapshots/tests.rs': 'b4156c2f775b848b5c01c939911a33a2f0ea5fe7', 'src-tauri/src/workspace_snapshots/metadata_tests.rs': 'a0bb907c7664c959dd861272877d3be9cec6930b', 'src-tauri/src/commands/workspace_snapshots.rs': '214ae5d00a976485a7543d7469896b4f2da8cbf5', 'src-tauri/src/commands/workspace_snapshot_control_tests.rs': '71c1a6a072ce669be01a9319e9d44eb1072d96df', 'src-tauri/src/harness/worktree_snapshot.rs': 'fbe55d95a297091a74537f6cfeca9e55eac614b6'}
+        records=[]
+        for path,blob in expected.items():
+            assert git('rev-parse','HEAD:'+path)==blob and git('hash-object',path)==blob,'source blob mismatch: '+path
+            data=Path(path).read_bytes();records.append({'path':path,'blob':blob,'sha256':hashlib.sha256(data).hexdigest(),'bytes':len(data)})
+        assert not git('diff','HEAD'),'tracked source is dirty'
+        (e/'source-binding.json').write_text(json.dumps({'commit':head,'tree':tree,'workflow_commit':os.environ['GITHUB_SHA'],'runner':os.environ['RUNNER_OS'],'files':records},indent=2))
+        PY
+        rustc --version --verbose > evidence/toolchain.txt
+        cargo --version >> evidence/toolchain.txt
+        node --version >> evidence/toolchain.txt
+        npm ci
+        npm run build
+        git diff --exit-code HEAD --
+    - name: Native formatting gate
+      if: always() && steps.prepare.outcome == 'success'
+      run: |
+        set -euo pipefail
+        if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
+        printf "%s\n" "cargo fmt --all --check --manifest-path src-tauri/Cargo.toml" > evidence/format-command.txt
+        set +e
+        cargo fmt --all --check --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/format.txt
+        status=$?
+        set -e
+        printf "%s\n" "$status" > evidence/format-exit.txt
+        exit "$status"
+    - name: Native all-target compilation gate
+      if: always() && steps.prepare.outcome == 'success'
+      run: |
+        set -euo pipefail
+        if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
+        printf "%s\n" "cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml" > evidence/all-targets-command.txt
+        set +e
+        cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/all-targets.txt
+        status=$?
+        set -e
+        printf "%s\n" "$status" > evidence/all-targets-exit.txt
+        exit "$status"
+    - name: Strict snapshot warning acceptance gate
+      if: always() && steps.prepare.outcome == 'success'
+      run: |
+        set -euo pipefail
+        if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
+        printf "%s\n" "cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings" > evidence/strict-warnings-command.txt
+        set +e
+        cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/strict-warnings.txt
+        status=$?
+        set -e
+        printf "%s\n" "$status" > evidence/strict-warnings-exit.txt
+        exit "$status"
+    - name: Ordinary full native runtime tests (Windows failures stay red)
+      if: always() && steps.prepare.outcome == 'success'
+      run: |
+        set -euo pipefail
+        cat > evidence/runtime-driver.py <<'PY'
+        import collections, json, re
+        from pathlib import Path
+
+        HEADER = re.compile(r'^\s+(Running .+\(.+\)|Doc-tests .+)\s*$')
+        SUMMARY = re.compile(r'^test result: (ok|FAILED)\. (\d+) passed; (\d+) failed; (\d+) ignored; (\d+) measured; (\d+) filtered out;')
+        POSITIVE = 'commands::workspace_snapshots::native_tests::exact_native_restore_lease_waits_for_real_work_and_restores_saved_tree'
+
+        def groups(text):
+            found={}; current=None
+            for line in text.splitlines():
+                header=HEADER.match(line)
+                if header:
+                    current=header.group(1).strip();assert current not in found, f'duplicate harness {current}';found[current]=[]
+                elif current is not None: found[current].append(line)
+            assert found,'no native harness headers'
+            return found
+
+        def inspect(inventory, runtime, status):
+            listed=groups(inventory); results=groups(runtime);assert set(listed)==set(results),'different harness inventory/result sets'
+            out=[]; total=0
+            for name, lines in listed.items():
+                names=[line[:-6] for line in lines if line.endswith(': test')]
+                assert len(names)==len(set(names)),f'duplicate test inventory in {name}'
+                inventories=[tuple(map(int,m.groups())) for line in lines if (m:=re.fullmatch(r'(\d+) tests?, (\d+) benchmarks?',line))]
+                assert len(inventories)==1 and inventories[0]==(len(names),0),f'incomplete inventory in {name}'
+                observed=[]; in_failure=False; summaries=[]
+                for line in results[name]:
+                    if line=='failures:':in_failure=True
+                    match=SUMMARY.match(line)
+                    if match:summaries.append(match.groups())
+                    match=re.fullmatch(r'test (.+?) \.\.\. (ok|FAILED|ignored(?:,.*)?)',line)
+                    if match and not in_failure:observed.append(match.groups())
+                assert summaries,f'missing completed native result {name}'
+                verdict,*counts=summaries[-1]; passed,failed,ignored,measured,filtered=map(int,counts)
+                assert collections.Counter(t for t,_ in observed)==collections.Counter(names),f'missing/extra test result {name}'
+                assert (passed,failed,ignored)==(sum(v=='ok' for _,v in observed),sum(v=='FAILED' for _,v in observed),sum(v.startswith('ignored') for _,v in observed)),f'miscount {name}'
+                assert measured==filtered==0 and ignored==0,f'skipped/filtered tests {name}'
+                assert len(names)==passed+failed and (verdict=='ok')==(failed==0),f'inconsistent summary {name}'
+                total+=len(names);out.append({'harness':name,'inventory':len(names),'passed':passed,'failed':failed,'ignored':ignored})
+            assert total>0,'zero tests is not acceptance'
+            allnames=[line[:-6] for lines in listed.values() for line in lines if line.endswith(': test')]
+            assert POSITIVE in allnames,'positive restore test missing'
+            if status==0:assert all(x['failed']==0 for x in out),'failed tests with zero exit'
+            return {'scope':'ordinary native runtime results; failures are not normalized to success','exit':status,'inventory_total':total,'harnesses':out}
+
+        if __name__=='__main__':
+            import subprocess,sys
+            e=Path('evidence');e.mkdir(exist_ok=True)
+            base=['cargo','test','--no-fail-fast','--locked','--manifest-path','src-tauri/Cargo.toml']
+            commands={'inventory':base+['--','--list'],'runtime':base+['--','--test-threads=1']}
+            results={};(e/'runtime-commands.json').write_text(json.dumps(commands,indent=2))
+            for label,command in commands.items():
+                with (e/f'{label}.txt').open('w',encoding='utf-8') as log:
+                    p=subprocess.run(command,stdout=log,stderr=subprocess.STDOUT)
+                results[label]=p.returncode;(e/f'{label}-exit.txt').write_text(str(p.returncode));print((e/f'{label}.txt').read_text(encoding='utf-8',errors='replace'))
+            code=results['runtime'] or results['inventory']
+            try:
+                assert results['inventory']==0,'test inventory command failed'
+                proof=inspect((e/'inventory.txt').read_text(encoding='utf-8',errors='replace'),(e/'runtime.txt').read_text(encoding='utf-8',errors='replace'),results['runtime'])
+                (e/'runtime-counts.json').write_text(json.dumps(proof,indent=2));print(json.dumps(proof))
+            except (AssertionError,ValueError) as error:
+                (e/'runtime-counts-error.txt').write_text(str(error));print(str(error));code=code or 1
+            sys.exit(code)
+
+        PY
+        if [ "$RUNNER_OS" = Linux ]; then
+          export PATH="/usr/bin:$PATH"
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/snapshot-runtime" XDG_DATA_HOME="$RUNNER_TEMP/snapshot-data"
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/snapshot-config" XDG_STATE_HOME="$RUNNER_TEMP/snapshot-state"
+          mkdir -p "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+          chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+          dbus-run-session -- bash -euo pipefail -c '
+            printf "%s" "isolated-rc-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets
+            python evidence/runtime-driver.py
+          '
+        else
+          python evidence/runtime-driver.py
+        fi
+    - name: Unchanged positive native restore gate (Unsupported remains failure)
+      if: always() && steps.prepare.outcome == 'success'
+      run: |
+        set -euo pipefail
+        cat > evidence/positive-driver.py <<'PY'
+        import json,re
+        from pathlib import Path
+        NAME='commands::workspace_snapshots::native_tests::exact_native_restore_lease_waits_for_real_work_and_restores_saved_tree'
+        def inspect(text,status):
+            prefix=text.split('failures:')[0]
+            hits=re.findall(r'^test (.+?) \.\.\. (ok|FAILED)$',prefix,re.M)
+            assert len(hits)==1 and hits[0][0]==NAME,'missing exact positive test result'
+            summaries=re.findall(r'^test result: (ok|FAILED)\. (\d+) passed; (\d+) failed; (\d+) ignored; (\d+) measured; (\d+) filtered out;',text,re.M)
+            assert summaries,'missing completed positive test'
+            verdict,passed,failed,ignored,measured,filtered=summaries[-1]
+            assert int(passed)+int(failed)==1 and int(ignored)==int(measured)==0,'positive test not executed exactly once'
+            assert (status==0)==(hits[0][1]=='ok')==(verdict=='ok')==(int(passed)==1),'inconsistent native outcome'
+            return {'test':NAME,'passed':int(passed),'failed':int(failed),'ignored':int(ignored),'filtered':int(filtered),'exit':status,'scope':'unchanged product-positive gate; failure remains red'}
+
+        if __name__=='__main__':
+            import subprocess,sys
+            command=['cargo','test','--locked','--manifest-path','src-tauri/Cargo.toml','--lib',NAME,'--','--exact','--test-threads=1']
+            e=Path('evidence');(e/'positive-restore-command.json').write_text(json.dumps(command))
+            with (e/'positive-restore.txt').open('w',encoding='utf-8') as log:
+                p=subprocess.run(command,stdout=log,stderr=subprocess.STDOUT)
+            text=(e/'positive-restore.txt').read_text(encoding='utf-8',errors='replace');print(text)
+            (e/'positive-restore-exit.txt').write_text(str(p.returncode));code=p.returncode
+            try:
+                result=inspect(text,p.returncode);(e/'positive-restore-counts.json').write_text(json.dumps(result,indent=2))
+            except AssertionError as error:
+                (e/'positive-restore-counts-error.txt').write_text(str(error));print(str(error));code=code or 1
+            sys.exit(code)
+
+        PY
+        if [ "$RUNNER_OS" = Linux ]; then
+          export PATH="/usr/bin:$PATH"
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/snapshot-runtime" XDG_DATA_HOME="$RUNNER_TEMP/snapshot-data"
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/snapshot-config" XDG_STATE_HOME="$RUNNER_TEMP/snapshot-state"
+          mkdir -p "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+          chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+          dbus-run-session -- bash -euo pipefail -c '
+            printf "%s" "isolated-rc-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets
+            python evidence/positive-driver.py
+          '
+        else
+          python evidence/positive-driver.py
+        fi
+    - name: Unchanged tracked source after native verification
+      if: always() && steps.prepare.outcome == 'success'
+      run: git diff --exit-code HEAD --
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      if: always()
+      with:
+        name: snapshot-warning-native-${{ matrix.os }}-${{ github.sha }}
+        path: evidence/
+        if-no-files-found: error
+        retention-days: 30
