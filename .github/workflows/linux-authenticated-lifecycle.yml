@@ -2,7 +2,7 @@ name: Linux authenticated lifecycle engineering validation
 
 on:
   push:
-    branches: ['test/linux-auth-lifecycle-20261001']
+    branches: ['test/linux-auth-negatives-20261001']
 
 permissions:
   contents: read
@@ -19,7 +19,7 @@ env:
 
 jobs:
   runner-contracts:
-    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/test/linux-auth-lifecycle-20261001'
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/test/linux-auth-negatives-20261001'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
@@ -73,7 +73,7 @@ jobs:
           retention-days: 14
 
   native:
-    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/test/linux-auth-lifecycle-20261001'
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/test/linux-auth-negatives-20261001'
     strategy:
       fail-fast: false
       matrix:
@@ -98,7 +98,7 @@ jobs:
           test "$(cat evidence/source-sha.txt)" = "$GITHUB_SHA"
           uname -a > evidence/kernel-version.txt
           printf 'run_id=%s\nrun_attempt=%s\nos=%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$ImageOS" > evidence/context.txt
-          printf '%s\n' 'Increment A synthetic-authenticated engineering evidence; not full RC or real ChatGPT acceptance.' > evidence/scope.txt
+          printf '%s\n' 'Synthetic-authenticated A/D HTTP and E direct dispatcher engineering evidence; not full RC or real ChatGPT acceptance.' > evidence/scope.txt
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         id: python
         with:
@@ -133,7 +133,7 @@ jobs:
           set -euo pipefail
           export PATH="/usr/bin:$PATH"
           "$HOST_PYTHON" tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence evidence/sandbox-dispatch
-      - name: Three authenticated lifecycle cases
+      - name: Four HTTP cases and one direct primary dispatcher case
         id: lifecycle
         if: always() && steps.compile.outcome == 'success'
         run: |

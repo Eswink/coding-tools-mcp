@@ -74,7 +74,7 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertTrue(receipt["acceptance_passed"])
         self.assertEqual(set(receipt["tests"]), set(probe.CASES))
-        self.assertEqual(len(receipt["tests"]), 3)
+        self.assertEqual(len(receipt["tests"]), 5)
         self.assert_restored(receipt)
         self.assertEqual(receipt["head"], "fixed-source")
         self.assertIn("probe_sha256", receipt)
@@ -135,7 +135,7 @@ class RunnerTests(unittest.TestCase):
     def test_per_case_timeout_keeps_partial_logs_and_continues(self):
         result, receipt = self.execute(error="test-timeout")
         self.assertEqual(result, 1)
-        self.assertEqual(len(receipt["tests"]), 3)
+        self.assertEqual(len(receipt["tests"]), 5)
         for name in probe.CASES:
             self.assertIn("partial test output", (self.out / (name + ".txt")).read_text())
             self.assertEqual(receipt["tests"][name]["exit_code"], 124)
@@ -240,6 +240,32 @@ class RunnerTests(unittest.TestCase):
     def test_original_golden_hashes_are_unchanged(self):
         self.assertEqual(probe.hashes(ROOT), probe.GOLDEN)
 
+    def test_required_case_list_includes_http_and_direct_negatives(self):
+        self.assertEqual(probe.CASES, (
+            "authenticated_environment_and_child_boundary_are_truthful",
+            "authenticated_child_environment_stdin_and_temp_are_confined",
+            "authenticated_zero_yield_input_completes_without_replay",
+            "authenticated_dangerous_mode_still_denies_network",
+            "approved_primary_missing_policy_fails_closed_without_hooks",
+        ))
+
+    def test_either_negative_case_failure_rejects_acceptance(self):
+        for failed in ("authenticated_dangerous_mode_still_denies_network",
+                       "approved_primary_missing_policy_fails_closed_without_hooks"):
+            def case_result(root, name, env, deadline):
+                if name == failed:
+                    return 101, "test result: FAILED. 0 passed; 1 failed; 0 ignored;"
+                return 0, PASS
+            with self.subTest(failed=failed), \
+                    patch.object(probe, "run_case", side_effect=case_result):
+                result, receipt = self.execute()
+            self.assertEqual(result, 1)
+            self.assertFalse(receipt["acceptance_passed"])
+            self.assertEqual(receipt["tests"][failed]["status"], "invalid_evidence")
+            for name in set(probe.CASES) - {failed}:
+                self.assertEqual(receipt["tests"][name]["status"], "pass")
+            self.assert_restored(receipt)
+
 
 @unittest.skipUnless(sys.platform == "linux", "process group proof requires Linux")
 class OwnedProcessTests(unittest.TestCase):
@@ -289,10 +315,10 @@ class WiringTests(unittest.TestCase):
         self.workflow = (ROOT / ".github/workflows/linux-authenticated-lifecycle.yml").read_text()
 
     def test_validation_trigger_is_exact_branch_only(self):
-        self.assertIn("branches: ['test/linux-auth-lifecycle-20261001']", self.workflow)
+        self.assertIn("branches: ['test/linux-auth-negatives-20261001']", self.workflow)
         self.assertNotIn("pull_request:", self.workflow)
         self.assertNotIn("workflow_dispatch:", self.workflow)
-        self.assertEqual(self.workflow.count("github.ref == 'refs/heads/test/linux-auth-lifecycle-20261001'"), 2)
+        self.assertEqual(self.workflow.count("github.ref == 'refs/heads/test/linux-auth-negatives-20261001'"), 2)
         self.assertIn("os: [ubuntu-22.04, ubuntu-24.04]", self.workflow)
         self.assertIn("timeout-minutes: 75", self.workflow)
 
@@ -371,8 +397,11 @@ class WiringTests(unittest.TestCase):
 
     def test_only_three_native_cases_and_no_snapshot_metadata_grafting(self):
         source = (ROOT / "tests/cloud-gateway/linux_sandbox_lifecycle.rs").read_text()
-        names = re.findall(r"#\[tokio::test\]\nasync fn (\w+)", source)
+        names = re.findall(r"#\[(?:tokio::)?test\]\n(?:async )?fn (\w+)", source)
         self.assertEqual(tuple(names), probe.CASES)
+        self.assertEqual(len(names), 5)
+        self.assertIn("A/D HTTP and E direct dispatcher", self.workflow)
+        self.assertIn("Four HTTP cases and one direct primary dispatcher case", self.workflow)
         collector = source.split("async fn collect_terminal", 1)[1].split("async fn close", 1)[0]
         self.assertNotIn("sandbox_enforced", collector)
         self.assertNotIn("as_object_mut", collector)
