@@ -465,9 +465,9 @@ class AppLockerAudit(unittest.TestCase):
         windows_order = sorted(paths, key=lambda path: pathlib.PureWindowsPath(path.name))
         self.assertNotEqual([path.name for path in windows_order], names)
         wrong_order = b''.join(path.name.encode() + b'\0' + path.read_bytes() + b'\0' for path in windows_order)
-        self.assertEqual(digest(wrong_order), '63118873e3239342d68542f0b775734567f3a597be9b2b5c937d2bd4bb159dab')
+        self.assertEqual(digest(wrong_order), 'c955157c558d1cff3ad224ecff5123ed4157d877fdb7961bbe905dc8c1bfeb58')
         immutable = b''.join(path.name.encode() + b'\0' + path.read_bytes() + b'\0' for path in paths)
-        self.assertEqual((len(paths), digest(immutable)), (44, '1509f8ae681e529a732bc90d1c3e24e76ad8680ef1dd027751a6e174f10d2083'))
+        self.assertEqual((len(paths), digest(immutable)), (44, 'c7f16d51c3d59cca4d395b8dd320476f71541cee3002576b80ccd8761da55287'))
         entries = ['tests/windows-lpac-runtime/audit.py'] + ['tests/windows-broker-direct/' + name for name in
                    ('audit.py', 'qualification-audit.py', 'pilot-audit.py', 'parent-candidate-audit.py', 'selected-parent-audit.py', 'cmd-sentinel-audit.py', 'cmd-observations-audit.py')]
         identities = []

@@ -36,7 +36,11 @@ PINS = {'PilotCmdObservations.cs': '158b4b24446b0be8e9aa4a54964b410919d674871599
 SPANS = (
     ('PilotSubjects.cs', '            IntPtr candidateSid=IntPtr.Zero;int hr;\n', 8935, 'd7063c0d7f2e76b52976e9d9fba899283a30830cb341a0720ee1b976cd6c88df'),
     ('PilotRunner.cs', '    static void ClassifyPilotCase(PilotCaseReceipt row,string evidence) {\n', 1156, '21d8e6982d3316622c1e9178285fa8b2c34b59ac6ad9cfc46acd2f83f7197860'),
-    ('PilotRunner.cs', '            r.Stage="inspect_actual_suspended_target";\n', 4045, '78afd29c1c99572f5d8f760995aedd0766cd9c36e5eb81f00fe02a0eaefb24e2'),
+    ('PilotRunner.cs', '            r.Stage="inspect_actual_suspended_target";\n', 1839, '426b7eb62ad3b81a52dc56a1762bdfa660beefccb4db5f7131497f46866fa24e'),
+    ('PilotRunner.cs', '                r.Stage="resume_verified_target";uint previous=ResumeThread(s.Process.thread);r.Numbers["resume_previous_count"]=previous;\n', 648, 'bcabe3ba18d08d2199aefc9fc19b8de23b735be12e2632920dda6fff53695247'),
+    ('PilotRunner.cs', '                r.Stage="target_observation_terminal";\n', 328, '763d590338aa4c19106c9c5e0db8b46929d36f684e7374e2c0c75d32bb7bc6ba'),
+    ('PilotRunner.cs', '            try {row.IndividualResourceCleanupConfirmed=StopQualificationSubject(s);}\n', 209, '34ac213282052cded8787f578eeca273596f36ef54e615c6e184579c565e596f'),
+    ('PilotRunner.cs', '            if(!row.IndividualResourceCleanupConfirmed) {row.Fatal=true;row.Status="individual_resource_cleanup_uncertain";}\n', 1021, '2a9675b574cbe07cc6f51a4bd94c5f404207ab38bcb41be89482750d1ac1d2cf'),
     ('PilotRunner.cs', '                ClassifyPilotCase(row,evidence);\n', 1869, '3f1d2f592775061ac70e60d59511229a83a33d1af80fefda752befe271e8bb20'),
     ('PilotRunner.cs', '            journal.VerifyPending();markerGuard(new string[]{journal.Path});\n', 1063, 'b977365bcaf5ff8555f6aef192000a4d7b1ca3ccd20a9181dbcbebcb6534c0ed'),
     ('run-pilot.ps1', 'function Assert-PilotRecoveryScope([string[]]$Allowed) {\n', 3654, '277dcdf7654c665e7e8f7a8947c0ff0314b93a1a36af9b667ccee47754756e28'),

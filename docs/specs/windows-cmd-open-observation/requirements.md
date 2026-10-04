@@ -1,0 +1,76 @@
+# 需求文档：windows-cmd-open-observation
+
+## 功能概述
+
+Add one bounded observation of the first exact batch-file open attempted by the original suspended cmd child in the existing diagnostic pilot. This is operation evidence, not a fix, full LPAC verification, runtime acceptance or policy attribution. Baseline: PR99 4d8fc29595cf4e832deb0e336bb9932f162673f2. The current failure is exit1/empty output even for a minimal9-byte exit23 batch; prior same-binary builtin/cwd/TYPE controls passed.
+
+## 历史经验与坑（来自记忆库）
+
+No memory-store result was supplied. Current-source facts govern: EXIT_PROCESS_DEBUG_EVENT must be continued before kernel shutdown completes; the old unconditional cleanup cannot safely handle a pending debug event. Source graph C# partial/PowerShell edges are incomplete, so manual lifecycle risk remains HIGH.
+
+## 范围边界
+
+- In Scope: one existing cmd-relative-batch-exit23 subject; native AMD64; one paired NtCreateFile/NtOpenFile operation; fixed sanitized receipt; fake-native and source/artifact adversarial tests; existing compile integration
+- Out of Scope: extra processes/cases, read tracing, async completion, live detach, system logging, stronger access, privileges, settings, production verifier changes, publication, unreviewed Actions execution, automatic alternate diagnostic facilities
+
+## 需求列表
+
+### FR-1: Preserve the exact target and containment
+**优先级:** Must
+**用户故事:** As a maintainer I need evidence from the original child so that separate-process controls are not mistaken for its behavior.
+#### 验收标准（EARS）
+1. WHEN the existing authority predicate and job assignment pass THEN the observer SHALL bind the original PID, creation FILETIME and existing process/thread handles.
+2. IF any existing predicate or ownership premise fails THEN it SHALL not attach or resume through the observer.
+3. WHEN another pilot case runs THEN its existing launch/resume/wait behavior SHALL stay unchanged.
+
+### FR-2: Observe one bounded native open without increasing access
+**优先级:** Must
+**用户故事:** As a maintainer I need the exact attempted access and returned status for one prepared-file open.
+#### 验收标准（EARS）
+1. WHEN a supported native AMD64 ntdll module is observed THEN the observer SHALL resolve remote exports and arm only the two fixed entry bytes before the original resume.
+2. WHEN the first absolute exact prepared batch path matches THEN it SHALL remove both entry traps permanently and pair one same-thread return with saved RSP binding.
+3. IF STATUS_PENDING, an unsupported form, denial or a bound is encountered THEN it SHALL remain incomplete and never obtain stronger access or invoke another facility.
+4. WHEN a successful nonpending return is observed THEN only a SAME_ACCESS broker duplicate SHALL be used for existing-object identity metadata, and never target CloseHandle or DUPLICATE_CLOSE_SOURCE.
+
+### FR-3: Own breakpoint and suspension transitions precisely
+**优先级:** Must
+**用户故事:** As a maintainer I need the debugger not to corrupt unrelated thread state.
+#### 验收标准（EARS）
+1. WHEN a nonmatched entry needs step-over THEN the observer SHALL acquire exactly one owned suspension per peer, execute only the fixed mov r10,rcx, verify RIP/R10, rearm and release precisely those increments.
+2. IF an event, context, byte, handle or suspension result is ambiguous THEN it SHALL abort without stale context restoration or retrying an uncertain operation.
+
+### FR-4: Fail closed through cleanup
+**优先级:** Must
+**用户故事:** As a maintainer I need unresolved debugger state to retain recovery instead of reaching legacy cleanup blindly.
+#### 验收标准（EARS）
+1. WHEN attach succeeds THEN legacy StopQualificationSubject SHALL be gated on successful EXIT continuation and original-handle signal plus identity/exit confirmation.
+2. IF the observer fails THEN it SHALL attempt original-target termination at most once and drain bounded exact-target exit events.
+3. IF terminal proof is absent THEN it SHALL retain original resources and journals and SHALL NOT call legacy cleanup, detach, delete or classify.
+
+### FR-5: Keep evidence sanitized and diagnostically honest
+**优先级:** Must
+**用户故事:** As a maintainer I need useful operation facts without target paths, secrets or false success.
+#### 验收标准（EARS）
+1. WHEN writing new evidence THEN only the35 numeric and6 enum keys in design.md SHALL be emitted.
+2. IF a new exception occurs THEN a fixed code SHALL replace its message/stack/inner exception before escaping any new entry point.
+3. IF exit/output changes or a complete matched operation is absent THEN a fatal pre-classifier gate SHALL prevent acceptance and journal resolution; debugger exit23 SHALL never count as success.
+4. WHEN one open fails or succeeds THEN the report SHALL describe only that operation; no match SHALL remain inconclusive.
+
+### FR-6: Preserve source/test boundaries and review
+**优先级:** Must
+**用户故事:** As a maintainer I need a reviewable diagnostic increment that does not relax the existing safety gates.
+#### 验收标准（EARS）
+1. WHEN integrating THEN both existing Add-Type sites SHALL append the exact sibling files and existing runtime invocation/triggers/permissions SHALL remain unchanged.
+2. WHEN changing Runner THEN all legacy catches and the separate1869-byte classifier-to-persistence span SHALL remain byte-identical.
+3. BEFORE publication or one Windows attempt THEN the exact candidate SHALL receive independent review, staged graph/source checks and applicable regression evidence.
+
+## 非功能需求
+
+- NFR-1: No security-sensitive setting/access expansion; exact22 native APIs only, no installations or external software
+- NFR-2: Operational30s plus cleanup5s; bounded event/thread/module/read/write/receipt counts as design.md
+- NFR-3: Exactly13 changed/new paths; new code files each at most500 readable lines; no compression to conceal unsafe complexity
+- NFR-4: Existing access and supported-bootstrap feasibility remain unproven until the one reviewed Windows attempt; synthetic results do not imply native success
+
+## 依赖关系
+
+Existing Windows broker pilot, its source/object identity captures and recovery journals; existing GitHub diagnostic compile/runtime job; installed Python and existing local tooling. No new package dependency. The root-cause bugfix remains blocked separately until actual evidence supports a cause-directed fix.

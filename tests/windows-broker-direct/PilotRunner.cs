@@ -60,6 +60,7 @@ public static partial class BrokerDirectLauncher {
         r.Identities["pilot_profile_name"]=s.Profile;
         s.Code=Path.Combine(s.Root,"code");s.Workspace=Path.Combine(s.Root,"workspace");s.Outside=Path.Combine(s.Root,"outside");
         PilotJournal journal=null;PilotOwnedScope owned=null;
+        CmdDebugSession cmdDebug=null;
         try {
             runJournal.VerifyPending();
             journal=new PilotJournal(evidence,kind,s.Root,s.Profile,r);
@@ -107,19 +108,29 @@ public static partial class BrokerDirectLauncher {
                 row.PreResumeReady=PilotMayResume(ordinaryControlPassed,s.OwnershipCertain,s.ProfileCreated,row);
                 if(!row.PreResumeReady) throw new InvalidOperationException("current-run ordinary control or actual suspended target predicate unverified");
                 r.Stage="assign_verified_target";Check(AssignProcessToJobObject(s.Job,s.Process.process),"pilot assign before resume");r.Assigned=true;
+                if(kind=="cmd-relative-batch-exit23") {
+                    cmdDebug=new CmdDebugSession(s,new CmdDebugNative());
+                    cmdDebug.Observe();
+                    if(cmdDebug.Failed) throw new InvalidOperationException("cmd_debug_observation_failed");
+                } else {
                 r.Stage="resume_verified_target";uint previous=ResumeThread(s.Process.thread);r.Numbers["resume_previous_count"]=previous;
                 if(previous!=1) throw new InvalidOperationException("unexpected target suspension state");r.Resumed=true;
                 r.Stage="wait";r.Wait=WaitForSingleObject(s.Process.process,30000);
                 if(r.Wait!=WAIT_OBJECT_0 && r.Wait!=WAIT_TIMEOUT) throw new InvalidOperationException("pilot wait failed");
                 if(r.Wait==WAIT_OBJECT_0) {uint exit;Check(GetExitCodeProcess(s.Process.process,out exit),"pilot exit code");r.Exit=exit;r.Numbers["pilot_exit_query_success"]=1;}
+                }
                 r.Stage="target_observation_terminal";
             }
         } catch(Exception failure) {
             row.Fatal=true;row.Failure=failure.GetType().Name+": "+failure.Message;row.Status="pilot_setup_or_authority_failed";r.Failure=row.Failure;
             if(journal!=null) journal.Failed=true;
         } finally {
+            if(cmdDebug!=null && !cmdDebug.MayCallOriginalCleanup) {
+                row.Fatal=true;row.IndividualResourceCleanupConfirmed=false;row.Status="cmd_debug_recovery_retained";
+            } else {
             try {row.IndividualResourceCleanupConfirmed=StopQualificationSubject(s);}
             catch(Exception failure) {row.Fatal=true;row.Failure="cleanup: "+failure.GetType().Name+": "+failure.Message;}
+            }
             if(!row.IndividualResourceCleanupConfirmed) {row.Fatal=true;row.Status="individual_resource_cleanup_uncertain";}
         }
         if(!row.Fatal && s.ProcessStopped && s.JobDrained) {
@@ -134,6 +145,7 @@ public static partial class BrokerDirectLauncher {
                 row.CaptureIntegrityConfirmed=captured;
                 if(!captured) throw new InvalidOperationException("capture close uncertain");
                 if(PilotCmdObservationKind(kind)) ReadPilotCmdObservation(s,evidence);
+                RequireCmdDebugComparable(cmdDebug,row);
                 ClassifyPilotCase(row,evidence);
                 if(!row.Fatal) {
                     if(!s.ProfileCreated) throw new InvalidOperationException("profile ownership absent");

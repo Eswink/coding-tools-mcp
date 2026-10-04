@@ -21,7 +21,8 @@ function Test-ExactPilotPremise([string]$Path,[string[]]$Expected) {
 $foundationValid=(Test-ExactPilotPremise (Join-Path $Foundation 'control-receipt.txt') @('token=true','inside=true','outside_read=true','outside_write=true','network=true')) -and
     (Test-ExactPilotPremise (Join-Path $Foundation 'mode-2-ordinary-appcontainer-receipt.txt') @('token=true','inside=true','outside_read=false','outside_write=true','network=true'))
 if(-not $foundationValid) {throw 'retained live/ordinary native foundation missing or invalid'}
-Add-Type -Path @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.cs' -File | ForEach-Object {$_.FullName})
+$cmdDebugSources=@((Join-Path $PSScriptRoot '../windows-cmd-debugger-observation/CmdDebugNative.cs'),(Join-Path $PSScriptRoot '../windows-cmd-debugger-observation/CmdDebugSession.cs'))
+Add-Type -Path (@(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.cs' -File | ForEach-Object {$_.FullName})+$cmdDebugSources)
 $selectedParent=[BrokerDirectLauncher]::ResolvePilotSelectedPath()
 # Repeated metadata-only guard. Hidden markers, wrong types, links and scan errors fail closed.
 function Assert-PilotRecoveryScope([string[]]$Allowed) {
