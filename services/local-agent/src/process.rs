@@ -120,6 +120,8 @@ impl ExecSpec {
 
     /// Require observed termination of the original child-owned process group or Job.
     /// This strengthens drainage; it neither grants authority nor disables the sandbox.
+    /// Windows currently rejects this request before execution: its complete
+    /// descendant-handle proof is unsupported. Default Windows behavior is unchanged.
     pub fn with_tree_exit_confirmation(mut self) -> Self {
         self.require_tree_exit = true;
         self
@@ -162,6 +164,13 @@ impl ExecSpec {
     }
 
     fn validate(&self) -> Result<(), ExecError> {
+        #[cfg(windows)]
+        if self.require_tree_exit {
+            return Err(ExecError::new(
+                ExecErrorKind::InvalidSpec,
+                "Windows tree-exit confirmation is unsupported",
+            ));
+        }
         if self.argv.is_empty() || self.argv.len() > MAX_ARGC {
             return Err(ExecError::new(
                 ExecErrorKind::InvalidSpec,

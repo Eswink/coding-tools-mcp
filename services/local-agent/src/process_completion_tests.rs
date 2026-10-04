@@ -289,3 +289,30 @@ async fn real_supervisor_deadline_publishes_uncertain_never_success() {
     assert!(!result.command_ok());
     assert!(calls.load(Ordering::SeqCst) >= 2);
 }
+
+#[cfg(windows)]
+#[tokio::test]
+async fn unsupported_windows_confirmation_precedes_capacity_and_spawn() {
+    use super::super::{ExecErrorKind, ExecSpec, ProcessManager};
+    let manager = ProcessManager::new(1).unwrap();
+    let occupied = manager.permits.clone().try_acquire_owned().unwrap();
+    let missing = ExecSpec::new(
+        vec![r"C:\definitely-missing\ctm-unsupported-proof.exe".into()],
+        std::env::current_dir().unwrap(),
+    )
+    .unwrap();
+    let capacity = manager.run(missing.clone()).await.unwrap_err();
+    assert_eq!(capacity.kind, ExecErrorKind::Capacity);
+    let unsupported = manager
+        .run(missing.clone().with_tree_exit_confirmation())
+        .await
+        .unwrap_err();
+    assert_eq!(unsupported.kind, ExecErrorKind::InvalidSpec);
+    assert_eq!(
+        unsupported.public_message(),
+        "Windows tree-exit confirmation is unsupported"
+    );
+    drop(occupied);
+    let spawn = manager.run(missing).await.unwrap_err();
+    assert_eq!(spawn.kind, ExecErrorKind::Spawn);
+}

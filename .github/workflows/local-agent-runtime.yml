@@ -53,7 +53,7 @@ jobs:
           mkdir -p evidence
           cargo fmt --check --manifest-path services/local-agent/Cargo.toml
           cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings
-          cargo test --locked --manifest-path services/local-agent/Cargo.toml 2>&1 | tee evidence/tests.txt
+          cargo test --locked --no-fail-fast --manifest-path services/local-agent/Cargo.toml 2>&1 | tee evidence/tests.txt
           cargo check --locked --manifest-path services/local-agent/Cargo.toml
           python - <<'PYCODE'
           import json, pathlib, re

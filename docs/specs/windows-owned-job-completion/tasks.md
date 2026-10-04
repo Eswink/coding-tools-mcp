@@ -33,3 +33,14 @@ services/local-agent/src/process.rs; process_supervisor.rs(new); process_tests.r
 ## 证据块
 
 1.1 current-source reconciliation/issue101;1.2 exact graph and independent manual review;2.1 checked spec and mechanical-body comparison;2.2 source-bound diff;3.1 named injected supervisor tests;3.2 original-owned Job and process-handle native results;3.3 full Windows/Ubuntu test outputs/counts;4.1 frozen tree/staged graph/gencommit;4.2 verified remote SHA/tree/CI artifacts. Unrun gates stay explicitly pending.
+
+## Safe incomplete boundary
+
+- [ ]5.1 Reject unsupported Windows strengthening before permit/spawn; distinguish InvalidSpec from occupied Capacity and missing-program Spawn
+  - 证据块: unchanged positive tests plus a separate pre-spawn guard test
+- [ ]5.2 Run all targets with --no-fail-fast and preserve unmet positive gates as failures, not skips or expected passes
+  - 证据块: exact source/run/artifact evidence; Issue101 remains open
+- [ ]5.3 Isolate the independent consumed-JoinHandle correction on a c3-based branch; do not call its green regressions Windows feature completion
+  - 证据块: separate issue/PR and unchanged baseline production failure witness
+
+Status: FEATURE INCOMPLETE. Tasks3.3 and4.2 cannot be marked complete for Windows strengthening merely because the unsupported guard works. No census implementation, sandbox/admission change or release is authorized.

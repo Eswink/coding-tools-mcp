@@ -1,10 +1,16 @@
 # Design: retained Job proof for opted-in non-PTY execution
 
+## Current resolution: unsupported before spawn
+
+The Windows strengthening remains incomplete. Native086530d/run37204048253 returned confirmed outcomes while immediate retained descendant handles were unsignaled. Accounting zero is insufficient for this contract. The proposed lifetime-counter census is not implemented: its DWORD counter/no-wrap premise does not establish unconditional lifetime coverage.
+
+Windows require_tree_exit=true is rejected in ExecSpec::validate with existing InvalidSpec and fixed `Windows tree-exit confirmation is unsupported`, before permits or spawn. Default Windows and Unix remain unchanged. The strict positive tests below remain unmodified and failing; the separate unsupported guard test is not feature completion. CI uses --no-fail-fast to execute all test targets and retain these unmet gates.
+
 ## 概述
 
 Implements FR-1..FR-4 for issue #101. This is lifecycle containment, not execution authority. Baseline/integration dependency is PR98 c3fcfb1; PR100 reconciliation does not import its metadata layer.
 
-## 技术方案
+## 技术方案 — rejected accounting-only prototype retained for evidence
 
 ExecSpec exposes its existing strengthening on Windows and keeps false as default. The original ProcessTree::terminate and Drop remain unchanged, as do all PTY production files. New request_termination(&self) borrows the original Job, rejects absent ownership, and retains the handle on success/error. New is_empty(&self) queries only that handle using basic Job accounting.
 

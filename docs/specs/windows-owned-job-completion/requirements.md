@@ -1,5 +1,9 @@
 # Requirements: opt-in Windows owned-Job completion (#101)
 
+## Current status: FEATURE INCOMPLETE / WINDOWS UNSUPPORTED
+
+Native run37204048253 on086530d demonstrated that Job accounting zero did not establish immediate descendant-handle signaling. The Windows opt-in must therefore fail before execution with InvalidSpec and the fixed message `Windows tree-exit confirmation is unsupported`. Passing this safety guard does not satisfy the stronger completion feature. All existing strict positive assertions remain unchanged and unmet; no expected-failure or skip converts them to PASS.
+
 ## 功能概述
 
 ### Scope and baseline
@@ -10,12 +14,14 @@ This is a source-level evidence gap, not a reproduced process leak or current cl
 
 ## 需求列表
 
+FR-2..FR-4 remain the strict, unmet completion acceptance contract; accounting-only prototype checks do not fulfill them. The current safe behavior is the FR-1 unsupported guard.
+
 ### FR-1: Explicit compatibility boundary
 **优先级:** Must
 **用户故事:** As a runtime caller I can explicitly request stronger Windows completion without changing legacy callers.
 ### 验收标准（EARS）
 1. WHEN constructing ExecSpec THEN require_tree_exit SHALL default to false.
-2. WHEN with_tree_exit_confirmation is selected on Windows THEN only that non-PTY execution SHALL use retained Job completion.
+2. WHEN with_tree_exit_confirmation is selected on Windows THEN validation SHALL return InvalidSpec with `Windows tree-exit confirmation is unsupported` before capacity acquisition or spawn, until the stronger completion feature is implemented and verified.
 3. WHEN using the default, Unix or PTY path THEN existing termination, outcome classification and admission behavior SHALL remain unchanged, except that the shared I/O timeout path SHALL avoid polling an already-consumed JoinHandle again.
 
 ### FR-2: Exact ownership observation
