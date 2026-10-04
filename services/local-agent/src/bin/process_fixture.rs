@@ -107,6 +107,11 @@ fn spawn_private_descendant(mut args: impl Iterator<Item = String>) -> ExitCode 
         return ExitCode::from(2);
     };
     let release = PathBuf::from(release);
+    #[cfg(windows)]
+    if let Err(error) = prevent_captured_pipe_inheritance() {
+        eprintln!("fixture output-handle inheritance setup failed: {error}");
+        return ExitCode::from(3);
+    }
     let mut child = Command::new(env::current_exe().unwrap())
         .arg("private-descendant")
         .stdin(Stdio::null())
@@ -148,4 +153,23 @@ fn spawn_private_descendant(mut args: impl Iterator<Item = String>) -> ExitCode 
     let _ = child.kill();
     let _ = child.wait();
     ExitCode::from(4)
+}
+
+#[cfg(windows)]
+fn prevent_captured_pipe_inheritance() -> std::io::Result<()> {
+    use std::os::windows::io::AsRawHandle;
+    use windows::Win32::Foundation::{
+        SetHandleInformation, HANDLE, HANDLE_FLAGS, HANDLE_FLAG_INHERIT,
+    };
+
+    // Command's explicit stdio does not exclude other inheritable handles.
+    // Change only this fixture process's captured outputs before its sole spawn.
+    for raw in [
+        std::io::stdout().as_raw_handle(),
+        std::io::stderr().as_raw_handle(),
+    ] {
+        unsafe { SetHandleInformation(HANDLE(raw), HANDLE_FLAG_INHERIT.0, HANDLE_FLAGS(0)) }
+            .map_err(|error| std::io::Error::other(error.to_string()))?;
+    }
+    Ok(())
 }

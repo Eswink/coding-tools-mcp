@@ -157,7 +157,7 @@ impl DescendantObserver {
         let worker = std::thread::Builder::new()
             .name("owned-descendant-observer".to_owned())
             .spawn(move || {
-                // Longer than the 15s execution plus all 8s cleanup stages.
+                // Independent finite watchdog for the stopped-observer control.
                 let deadline = Instant::now() + Duration::from_secs(40);
                 let observation = loop {
                     if stopped.load(Ordering::Acquire) {
@@ -181,8 +181,7 @@ impl DescendantObserver {
                     }
                     match wait {
                         WAIT_OBJECT_0 => {
-                            // Publish genuine native evidence BEFORE releasing the
-                            // process reference that can pin Job ActiveProcesses.
+                            // Record native evidence before releasing this handle.
                             observed.store(true, Ordering::Release);
                             break Ok(());
                         }
@@ -291,22 +290,25 @@ async fn parent_exit_and_captured_eof_do_not_prove_owned_job_empty() -> TestResu
     let mut stdout = child.stdout.take().ok_or("missing stdout")?;
     let mut stderr = child.stderr.take().ok_or("missing stderr")?;
     std::fs::write(markers.release(), b"release")?;
-    let status = tokio::time::timeout(SETUP_WAIT, child.wait()).await??;
+    let status = tokio::time::timeout(SETUP_WAIT, child.wait())
+        .await
+        .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "parent exit wait deadline"))??;
     drop(child);
     let (mut out, mut err) = (Vec::new(), Vec::new());
-    tokio::time::timeout(SETUP_WAIT, async {
-        stdout.read_to_end(&mut out).await?;
-        stderr.read_to_end(&mut err).await?;
-        io::Result::Ok(())
-    })
-    .await??;
+    let io_deadline = tokio::time::Instant::now() + SETUP_WAIT;
+    tokio::time::timeout_at(io_deadline, stdout.read_to_end(&mut out))
+        .await
+        .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "captured stdout EOF deadline"))??;
+    tokio::time::timeout_at(io_deadline, stderr.read_to_end(&mut err))
+        .await
+        .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "captured stderr EOF deadline"))??;
     let nonempty_after_parent_and_eof = tree.is_empty().map(|empty| !empty);
     let live_after_parent_and_eof = descendant.signaled().map(|signaled| !signaled);
     let requested = tree.request_termination();
     let signaled_after_request = descendant.wait_signaled();
     let cleanup = descendant.cleanup();
-    // ActiveProcesses may include a terminated process until all references
-    // close, so this test's own handle must not pin the subsequent Job query.
+    // Release this test's process reference after native exit evidence, before
+    // the separate Job-zero observation.
     drop(descendant);
     let drained = wait_empty(&tree).await;
     let repeated_request = tree.request_termination();
@@ -343,7 +345,6 @@ async fn runtime_completion(expected: ExecTermination) -> TestResult {
     let observations: TestResult<_> = async {
         let descendant = markers.descendant().await?;
         let live_before_trigger = descendant.signaled().map(|signaled| !signaled);
-        let mut observer = DescendantObserver::start(descendant)?;
         if expected == ExecTermination::Exited {
             std::fs::write(markers.release(), b"release")?;
         }
@@ -355,11 +356,11 @@ async fn runtime_completion(expected: ExecTermination) -> TestResult {
             }
         })
         .await?;
-        // One immediate snapshot of prior native evidence; no wait, PID reopen,
-        // sleep or cleanup between outcome return and this Acquire load.
-        let immediately_signaled = observer.proof.load(Ordering::Acquire);
-        let cleanup = observer.finish();
-        drop(observer);
+        // First operation at return: zero-time native wait on our retained handle.
+        // No sleep, PID reopen, observer scheduling or cleanup can establish this.
+        let immediately_signaled = descendant.signaled();
+        let cleanup = descendant.cleanup();
+        drop(descendant);
         Ok((outcome, live_before_trigger, immediately_signaled, cleanup))
     }
     .await;
@@ -369,16 +370,17 @@ async fn runtime_completion(expected: ExecTermination) -> TestResult {
     }
     drop(session);
     let (outcome, live_before_trigger, immediately_signaled, cleanup) = observations?;
-    cleanup?;
-    assert!(live_before_trigger?);
-    assert_eq!(outcome.termination, expected, "{outcome:?}");
-    assert!(
-        immediately_signaled,
-        "no native exit proof at outcome return"
+    let diagnostic = format!(
+        "expected={expected:?}; outcome={outcome:?}; live_before={live_before_trigger:?}; \
+         immediate_signal={immediately_signaled:?}; cleanup={cleanup:?}"
     );
-    assert!(outcome.output_complete, "{outcome:?}");
+    assert!(matches!(live_before_trigger, Ok(true)), "{diagnostic}");
+    assert_eq!(outcome.termination, expected, "{diagnostic}");
+    assert!(matches!(immediately_signaled, Ok(true)), "{diagnostic}");
+    assert!(cleanup.is_ok(), "{diagnostic}");
+    assert!(outcome.output_complete, "{diagnostic}");
     if expected == ExecTermination::Exited {
-        assert!(outcome.command_ok(), "{outcome:?}");
+        assert!(outcome.command_ok(), "{diagnostic}");
     }
     Ok(())
 }
