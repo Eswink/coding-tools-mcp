@@ -77,7 +77,7 @@ jobs:
       - name: Compile isolated broker-direct fixture without launching
         shell: powershell
         run: |
-          $cmdDebugSources=@('tests/windows-cmd-debugger-observation/CmdDebugNative.cs','tests/windows-cmd-debugger-observation/CmdDebugSession.cs','tests/windows-cmd-debugger-observation/CmdDebugContractTests.cs')
+          $cmdDebugSources=@('tests/windows-cmd-debugger-observation/CmdDebugNative.cs','tests/windows-cmd-debugger-observation/CmdDebugSession.cs','tests/windows-cmd-debugger-observation/CmdDebugContractTests.cs','tests/windows-cmd-debugger-observation/CmdDebugContextTests.cs')
           Add-Type -Path (@(Get-ChildItem tests/windows-broker-direct/*.cs | ForEach-Object {$_.FullName})+$cmdDebugSources)
           [BrokerDirectLauncher]::RunPilotPolicyContractTests()
           [BrokerDirectLauncher]::RunPilotGateContractTests()

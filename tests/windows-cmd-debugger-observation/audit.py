@@ -15,42 +15,21 @@ import sys
 import unittest
 
 HERE = pathlib.Path(__file__).parent
+CONTRACT = runpy.run_path(str(HERE / 'receipt_contract.py'))
+(APIS, CONTEXT_ERRORS, COUNTERS, ENUMS, ENUMS_V2, FLAGS, MASKS,
+ NUMERIC, NUMERIC_V2, PREFIX, check_receipt, require) = (CONTRACT[name] for name in (
+    'APIS', 'CONTEXT_ERRORS', 'COUNTERS', 'ENUMS', 'ENUMS_V2', 'FLAGS', 'MASKS',
+    'NUMERIC', 'NUMERIC_V2', 'PREFIX', 'check_receipt', 'require'))
 BROKER = HERE.parent / 'windows-broker-direct'
 ROOT = HERE.parents[1]
-NAMES = ('CmdDebugNative.cs', 'CmdDebugSession.cs', 'CmdDebugContractTests.cs')
+NAMES = ('CmdDebugNative.cs', 'CmdDebugSession.cs', 'CmdDebugContractTests.cs', 'CmdDebugContextTests.cs')
 # Frozen candidate pins for independent review; later changes require repinning and re-review.
-PINS = {'CmdDebugNative.cs': 'b88f6c504edf06e5aee16836a0d06f96222be09117e905f5f70e82d9789df547', 'CmdDebugSession.cs': 'e9d5e493b7ae1c79f17ce5b290cd352e5ca26baf7283cdd1d677f71ab13f7155', 'CmdDebugContractTests.cs': '182f3baa5620214d6d62aa74ebec50eb951e881754845340f3a6857eddd55491'}
-PREFIX = 'cmd_debug_'
-APIS = ('GetProcessId GetProcessTimes IsWow64Process2 GetSystemDirectoryW DebugActiveProcess '
-        'WaitForDebugEvent ContinueDebugEvent ReadProcessMemory WriteProcessMemory FlushInstructionCache '
-        'GetThreadContext SetThreadContext SuspendThread ResumeThread GetFinalPathNameByHandleW '
-        'DuplicateHandle GetCurrentProcess GetFileInformationByHandle CloseHandle WaitForSingleObject '
-        'GetExitCodeProcess TerminateProcess').split()
-NUMERIC = ('pid main_tid creation_filetime attach_attempted attach_succeeded attach_break_seen '
-           'entries_ready_before_resume event_count cleanup_event_count thread_peak module_peak entry_hits '
-           'unsupported_names read_bytes write_attempts matched_tid pair_complete desired_access '
-           'object_attributes share_access file_attributes create_disposition open_options ntstatus_u32 '
-           'object_identity_matched active_patches_at_exit owned_suspends_at_exit exit_event_seen '
-           'exit_event_continued process_signaled terminal_exit_u32 abort_terminate_attempted '
-           'abort_terminate_error native_error elapsed_ms').split()
-ENUMS = {
-    'protocol': {'own-child-open-v1'},
-    'result': set('incomplete no_match matched_open_failed matched_open_succeeded observed_pending debugger_perturbed'.split()),
-    'error': set(('none abi_unsupported target_identity attach_failed attach_unknown bootstrap_incomplete module_identity '
-                  'pe_invalid stub_unsupported native_failed read_failed patch_failed context_failed suspend_failed '
-                  'resume_failed event_protocol thread_limit module_limit event_limit entry_limit read_limit write_limit '
-                  'deadline unsupported_match return_ambiguous pending_io object_mismatch close_uncertain exit_unconfirmed '
-                  'selected_case_failed debugger_perturbed internal_exception').split()),
-    'error_api': {'none'} | (set(APIS) - {'GetCurrentProcess'}),
-    'cleanup': {'not_attached', 'exit_confirmed', 'retained_fatal'},
-    'open_api': {'none', 'NtCreateFile', 'NtOpenFile'},
+PINS = {
+    'CmdDebugNative.cs': '2eea026fabf9d77523cb73125f5bd1f992fee311f2967473547ac9102b8eca5d',
+    'CmdDebugSession.cs': '3a46b61110a9ab10548af4983549f35f134c6e4bff2a46cf2fe62bddf91e6488',
+    'CmdDebugContractTests.cs': 'fe8161eaade72258f3e410748c40d1c30e58cf37acc533d9718fd7bcd185a6f3',
+    'CmdDebugContextTests.cs': '72565104ede02a46b20e64ee90a664c10bdd449e704698ae992508f9b5c215c5',
 }
-FLAGS = set(('attach_attempted attach_succeeded attach_break_seen entries_ready_before_resume pair_complete '
-             'exit_event_seen exit_event_continued process_signaled abort_terminate_attempted').split())
-COUNTERS = dict(event_count=4096, cleanup_event_count=512, thread_peak=32, module_peak=128,
-                entry_hits=128, unsupported_names=128, read_bytes=1048576, write_attempts=264,
-                active_patches_at_exit=3, owned_suspends_at_exit=31, native_error=0xffffffff)
-MASKS = set('desired_access object_attributes share_access file_attributes create_disposition open_options ntstatus_u32 terminal_exit_u32 abort_terminate_error'.split())
 FORBIDDEN = ('NtReadFile NtClose ZwClose DUPLICATE_CLOSE_SOURCE DebugActiveProcessStop DebugBreakProcess '
              'DebugSetProcessKillOnExit VirtualProtect VirtualProtectEx OpenProcess OpenThread CreateProcess '
              'CreateRemoteThread QueueUserAPC AdjustTokenPrivileges SetThreadToken SetTokenInformation '
@@ -83,98 +62,6 @@ def compact(source):
     return re.sub(r'\s+', '', source_text(source))
 
 
-def require(condition):
-    if not condition:
-        raise ValueError('invalid cmd debug receipt')
-
-
-def check_receipt(data):
-    """Validate bounded declared facts. The returned label is not an acceptance verdict."""
-    require(type(data) is bytes and 0 < len(data) <= 16384)
-    def pairs(items):
-        result = {}
-        for key, value in items:
-            require(key not in result)
-            result[key] = value
-        return result
-    def integer(value):
-        require(len(value) <= 20)
-        return int(value)
-    def reject(_):
-        raise ValueError('invalid cmd debug receipt')
-    try:
-        value = json.loads(data.decode('utf-8', errors='strict'), object_pairs_hook=pairs,
-                           parse_int=integer, parse_float=reject, parse_constant=reject)
-    except (ValueError, UnicodeError, RecursionError):
-        raise ValueError('invalid cmd debug receipt') from None
-    require(type(value) is dict and set(value) == {'Numbers', 'Identities'})
-    raw_n, raw_i = value['Numbers'], value['Identities']
-    require(type(raw_n) is dict and set(raw_n) == {PREFIX + k for k in NUMERIC})
-    require(type(raw_i) is dict and set(raw_i) == {PREFIX + k for k in ENUMS})
-    n, i = ({k[len(PREFIX):]: v for k, v in values.items()} for values in (raw_n, raw_i))
-    require(all(type(v) is int for v in n.values()))
-    require(all(type(i[k]) is str and i[k] in choices for k, choices in ENUMS.items()))
-    require(all(n[k] in (0, 1) for k in FLAGS))
-    require(all(0 <= n[k] <= maximum for k, maximum in COUNTERS.items()))
-    require(all(-1 <= n[k] <= 0xffffffff for k in MASKS))
-    require(all(n[k] == -1 or 0 < n[k] <= 0xffffffff for k in ('pid', 'main_tid', 'matched_tid')))
-    require(n['creation_filetime'] == -1 or 0 < n['creation_filetime'] < 2**63)
-    require(n['object_identity_matched'] in (-1, 0, 1) and -1 <= n['elapsed_ms'] <= 35000)
-    require(n['attach_succeeded'] <= n['attach_attempted'])
-    require(n['attach_break_seen'] <= n['entries_ready_before_resume'] <= n['attach_succeeded'])
-    require(n['process_signaled'] <= n['exit_event_continued'] <= n['exit_event_seen'] <= n['attach_succeeded'])
-    require(n['abort_terminate_attempted'] <= n['attach_succeeded'])
-    require(n['unsupported_names'] <= n['entry_hits'])
-    if n['attach_succeeded']:
-        require(all(n[k] > 0 for k in ('pid', 'main_tid', 'creation_filetime')))
-    if i['cleanup'] == 'exit_confirmed':
-        require(n['process_signaled'] == 1 and n['terminal_exit_u32'] >= 0)
-    elif i['cleanup'] == 'not_attached':
-        require(n['attach_succeeded'] == n['exit_event_seen'] == 0)
-    else:
-        require(i['error'] != 'none')
-    if i['open_api'] == 'none':
-        require(n['matched_tid'] == -1 and n['pair_complete'] == 0 and n['ntstatus_u32'] == -1)
-        require(all(n[k] == -1 for k in MASKS - {'terminal_exit_u32', 'abort_terminate_error'}))
-    else:
-        require(all(n[k] >= 0 for k in ('desired_access', 'object_attributes', 'share_access', 'open_options')))
-        if i['open_api'] == 'NtOpenFile':
-            require(n['file_attributes'] == n['create_disposition'] == -1)
-        else:
-            require(n['file_attributes'] >= 0 and n['create_disposition'] >= 0)
-    status = n['ntstatus_u32']
-    if status == 0x103:
-        require(i['result'] in ('observed_pending', 'debugger_perturbed'))
-        require(n['pair_complete'] == 0 and n['object_identity_matched'] == -1 and i['error'] != 'none')
-    if status >= 0x80000000:
-        require(n['object_identity_matched'] == -1)
-    if n['object_identity_matched'] == 1:
-        require(0 <= status < 0x80000000 and status != 0x103)
-    if n['pair_complete']:
-        require(n['matched_tid'] > 0 and n['attach_break_seen'] == 1 and n['entry_hits'] > 0)
-        require(status >= 0 and status != 0x103 and i['open_api'] != 'none')
-        require(status >= 0x80000000 or n['object_identity_matched'] == 1)
-        expected = 'matched_open_failed' if status >= 0x80000000 else 'matched_open_succeeded'
-        require(i['result'] in (expected, 'debugger_perturbed'))
-    if i['result'] == 'matched_open_failed':
-        require(status >= 0x80000000)
-    if i['result'] == 'matched_open_succeeded':
-        require(0 <= status < 0x80000000 and status != 0x103 and n['object_identity_matched'] == 1)
-    if i['result'] == 'observed_pending':
-        require(status == 0x103 and i['error'] == 'pending_io')
-    if i['result'] == 'no_match':
-        require(n['matched_tid'] == -1 and n['pair_complete'] == 0 and i['error'] != 'none')
-    if i['result'] == 'debugger_perturbed':
-        require(i['error'] == 'debugger_perturbed')
-    if i['error'] == 'none':
-        require(n['pair_complete'] == 1 and i['cleanup'] == 'exit_confirmed' and n['terminal_exit_u32'] == 1)
-        require(n['active_patches_at_exit'] == n['owned_suspends_at_exit'] == n['abort_terminate_attempted'] == 0)
-        require(i['error_api'] == 'none' and n['native_error'] == 0 and n['elapsed_ms'] >= 0)
-    if i['result'].startswith('matched_open_') and not n['pair_complete']:
-        return 'incomplete'
-    return i['result']
-
-
 # Exact guard fragments are mutation-tested independently of whole-source hashes.
 GUARDS = {
     NAMES[0]: (
@@ -194,6 +81,23 @@ GUARDS = {
         'sections>=1 && sections<=96', 'CmdU16(header,4)==0x8664', 'CmdU16(optional,0)==0x20b',
         'module.ExportSize<=524288', 'functions<=8192 && names>0 && names<=8192',
         'Require(result[target]==0);', '!(rva>=module.ExportRva && rva-module.ExportRva<module.ExportSize)',
+        '''public bool SameRequested(CmdDebugContext other) {
+            if(other==null || U32(48)!=0x00100003 || other.U32(48)!=0x00100003 ||
+                CmdU16(Raw,56)!=CmdU16(other.Raw,56) || CmdU16(Raw,66)!=CmdU16(other.Raw,66) || U32(68)!=other.U32(68)) return false;
+            for(int offset=120;offset<=248;offset+=8) if(U64(offset)!=other.U64(offset)) return false;
+            return true;
+        }''',
+        '''public long RequestedMismatchMask(CmdDebugContext other) {
+            if(other==null) return -1;
+            long mask=0;
+            if(U32(48)!=0x00100003 || other.U32(48)!=0x00100003) mask|=1L;
+            if(CmdU16(Raw,56)!=CmdU16(other.Raw,56)) mask|=1L<<1;
+            if(CmdU16(Raw,66)!=CmdU16(other.Raw,66)) mask|=1L<<2;
+            if(U32(68)!=other.U32(68)) mask|=1L<<3;
+            for(int offset=120;offset<=248;offset+=8)
+                if(U64(offset)!=other.U64(offset)) mask|=1L<<(4+(offset-120)/8);
+            return mask;
+        }''',
     ),
     NAMES[1]: (
         'subject.OwnershipCertain && subject.ProfileCreated && receipt.Created && receipt.Assigned && !receipt.Resumed',
@@ -238,12 +142,29 @@ GUARDS = {
         'if(pendingImageState!=ImageOwnership.None && pendingImageState!=ImageOwnership.Closed) Fault("close_uncertain");continueAttempted=true;',
         'if(pending!=null) {if(pending.Code==3 || pending.Code==6) CloseImage(pending.File);Continue(pending.Code==1?0x80010001u:0x10002u);}',
         'if(N("exit_event_seen")==1 || pendingImageState==ImageOwnership.Attempted || pendingImageState==ImageOwnership.Unknown) {Retain();return;}',
+        'I("protocol","own-child-open-v2");',
+        '''void SetContext(ThreadSlot t,CmdDebugContext c) {
+            N("context_mismatch_mask",-1);
+            Require(api.SetContext(t.Handle,c),"context_failed","SetThreadContext");
+            CmdDebugContext actual;
+            Require(api.GetContext(t.Handle,out actual),"context_get_failed","GetThreadContext");
+            if(actual==null) Fault("context_roundtrip_unavailable");
+            N("context_mismatch_mask",actual.RequestedMismatchMask(c));
+            if(!actual.SameRequested(c)) Fault("context_roundtrip_mismatch");
+        }''',
     ),
     NAMES[2]: ('RunCmdDebugContractTests()', 'MOV permits fresh R10=RCX and exact RIP delta',
                'never close original, borrowed or target handles', 'fatal precedes classifier and resolution',
                'pending never reads output or IO_STATUS_BLOCK', 'CmdTestFaultSweep()',
                'return TF preservation is exercised', 'false or exceptional image close is never retried',
-               'uncertain early image close retains before any continuation'),
+               'uncertain early image close retains before any continuation', 'CmdTestContextContracts();'),
+    NAMES[3]: ('CmdTestContextContracts()', 'all 21 requested fields have distinct mismatch bits',
+               'mask zero iff unchanged SameRequested accepts', 'equally invalid flags still set bit zero',
+               'stale mask cleared before every Set', 'failed Set has no readback',
+               'successful Set has exactly one immediate Get', 'first failure reason API error and mask survive cleanup',
+               'context diagnostics add no native calls', 'context diagnostics preserve exact native call order',
+               'standalone context failure retains its original reason', 'post MOV mismatch retains existing context_failed route',
+               'fixed baseline context call counts remain unchanged'),
 }
 
 
@@ -270,7 +191,7 @@ def inspect_sources(sources, old, runner, workflow, wrapper, pins=True):
             assert not any(re.search(r'\b' + api + r'\s*\(', code) for api in APIS), 'direct API outside adapter'
         if name == NAMES[1]:
             assert not re.search(r'\.\s*(?:Message|StackTrace|InnerException|ToString|GetBaseException)\b', code), 'exception disclosure'
-        if name == NAMES[2]:
+        if name in NAMES[2:]:
             assert 'newCmdDebugNative(' not in compact(source), 'native test construction'
         repeated = {NAMES[1]: {10, 15, 39, 57}, NAMES[2]: {5}}
         for position, guard in enumerate(GUARDS[name]):
@@ -291,11 +212,12 @@ def inspect_sources(sources, old, runner, workflow, wrapper, pins=True):
     session = compact(sources[NAMES[1]])
     assert session.count('api.Attach(') == session.count('api.ResumeMain(') == session.count('api.Terminate(') == 1, 'one target lifecycle'
     assert session.count('api.ResumePeer(') == session.count('api.CloseDuplicate(') == session.count('api.CloseImage(') == 1, 'one owned release site'
-    assert set(re.findall(r'\bN\("([^"]+)"', sources[NAMES[1]])) <= set(NUMERIC), 'numeric emission allowlist'
+    assert session.count('api.GetContext(') == 2 and session.count('api.SetContext(') == 1, 'unchanged native context call count'
+    assert set(re.findall(r'\bN\("([^"]+)"', sources[NAMES[1]])) <= set(NUMERIC_V2), 'numeric emission allowlist'
     emitted = set(re.findall(r'\["cmd_debug_([^"]+)"\]', sources[NAMES[1]]))
-    assert emitted <= set(NUMERIC) | set(ENUMS), 'additional field allowlist'
+    assert emitted <= set(NUMERIC_V2) | set(ENUMS_V2), 'additional field allowlist'
     keys = re.search(r'NumericKeys=\((.*?)\)\.Split', sources[NAMES[1]], re.S)
-    assert keys and ''.join(re.findall(r'"([^"]*)"', keys[1])).split() == NUMERIC, 'numeric schema'
+    assert keys and ''.join(re.findall(r'"([^"]*)"', keys[1])).split() == NUMERIC_V2, 'numeric schema'
     assert set(re.findall(r'\bI\("([^"]+)"', sources[NAMES[1]])) == set(ENUMS), 'enum schema'
     gate = 'RequireCmdDebugComparable(cmdDebug,row);'
     assert runner.count(gate) == 1 and runner.index(gate) < runner.index('ClassifyPilotCase(row,evidence);'), 'preclassifier order'
@@ -307,7 +229,8 @@ def inspect_sources(sources, old, runner, workflow, wrapper, pins=True):
     assert 'if(cmdDebug.Failed) throw new InvalidOperationException("cmd_debug_observation_failed");' in runner, 'fixed observer exception'
     for name in NAMES[:2]:
         assert wrapper.count(name) == 1 and workflow.count(name) == 1, 'both compile lists'
-    assert workflow.count(NAMES[2]) == 1 and NAMES[2] not in wrapper, 'fake test compile isolation'
+    for name in NAMES[2:]:
+        assert workflow.count(name) == 1 and name not in wrapper, 'fake test compile isolation'
     assert 'windows-cmd-debugger-observation/*.cs' not in workflow + wrapper, 'no sibling wildcard'
     assert workflow.count('[BrokerDirectLauncher]::RunCmdDebugContractTests()') == 1, 'fake test invocation'
     assert workflow.count('python tests/windows-cmd-debugger-observation/audit.py') == 1, 'audit invocation'
@@ -423,6 +346,74 @@ class ReceiptContracts(unittest.TestCase):
                 check_receipt(encoded(value))
 
 
+class ContextReceiptContracts(unittest.TestCase):
+    def value(self, error='none', mask=0, api='none', native_error=0):
+        value = fixture(); n, i = value['Numbers'], value['Identities']
+        n.update({PREFIX + 'context_mismatch_mask': mask, PREFIX + 'native_error': native_error})
+        i.update({PREFIX + 'protocol': 'own-child-open-v2', PREFIX + 'error': error, PREFIX + 'error_api': api})
+        if error != 'none':
+            n[PREFIX + 'pair_complete'] = 0
+        return value
+
+    def test_versions_have_separate_exact_schemas(self):
+        self.assertEqual((len(NUMERIC), len(NUMERIC_V2), len(ENUMS_V2)), (35, 36, 6))
+        self.assertEqual(check_receipt(encoded(self.value())), 'matched_open_failed')
+        legacy = fixture(); legacy['Numbers'][PREFIX + 'pair_complete'] = 0
+        legacy['Identities'].update({PREFIX + 'error': 'context_failed', PREFIX + 'error_api': 'GetThreadContext'})
+        self.assertEqual(check_receipt(encoded(legacy)), 'incomplete')
+        variants = [fixture(), self.value()]
+        variants[0]['Numbers'][PREFIX + 'context_mismatch_mask'] = 0
+        del variants[1]['Numbers'][PREFIX + 'context_mismatch_mask']
+        for error in CONTEXT_ERRORS:
+            value = fixture(); value['Identities'][PREFIX + 'error'] = error; variants.append(value)
+        for value in variants:
+            with self.assertRaises(ValueError):
+                check_receipt(encoded(value))
+
+    def test_v2_all_fields_are_required_and_strictly_typed(self):
+        for section, keys in (('Numbers', NUMERIC_V2), ('Identities', ENUMS_V2)):
+            for key in keys:
+                for bad in (None, True, False, [], {}, 1.0, 'unknown', -(2**63), 2**64):
+                    value = self.value(); value[section][PREFIX + key] = bad
+                    with self.subTest(key=key, bad=bad), self.assertRaises(ValueError):
+                        check_receipt(encoded(value))
+                value = self.value(); del value[section][PREFIX + key]
+                with self.subTest(missing=key), self.assertRaises(ValueError):
+                    check_receipt(encoded(value))
+            value = self.value(); value[section][PREFIX + 'unknown'] = 0
+            with self.assertRaises(ValueError):
+                check_receipt(encoded(value))
+        good = encoded(self.value())
+        token = b'"cmd_debug_context_mismatch_mask":0'
+        for raw in (good.replace(token, token + b',' + token), good.replace(token, token[:-1] + b'NaN')):
+            with self.assertRaises(ValueError):
+                check_receipt(raw)
+
+    def test_v2_reason_mask_and_native_error_matrix(self):
+        for reason in sorted(CONTEXT_ERRORS | {'context_failed', 'native_failed'}):
+            for mask in (-2, -1, 0, 1, 8, 0x100001, 0x1fffff, 0x200000):
+                for api in ('none', 'GetThreadContext', 'SetThreadContext'):
+                    for error in (0, 5, 0xffffffff):
+                        for paired in (0, 1):
+                            valid = ((reason == 'context_get_failed' and mask == -1 and api == 'GetThreadContext') or
+                                     (reason == 'context_roundtrip_unavailable' and mask == -1 and api == 'none' and error == 0) or
+                                     (reason == 'context_roundtrip_mismatch' and 0 < mask <= 0x1fffff and api == 'none' and error == 0) or
+                                     (reason not in CONTEXT_ERRORS and mask in (-1, 0)))
+                            valid = valid and (reason not in CONTEXT_ERRORS or paired == 0)
+                            valid = valid and (reason != 'context_failed' or api != 'SetThreadContext' or (mask == -1 and paired == 0))
+                            value = self.value(reason, mask, api, error)
+                            value['Numbers'][PREFIX + 'pair_complete'] = paired
+                            with self.subTest(reason=reason, mask=mask, api=api, native_error=error, paired=paired):
+                                if valid:
+                                    self.assertEqual(check_receipt(encoded(value)), 'matched_open_failed' if paired else 'incomplete')
+                                else:
+                                    with self.assertRaises(ValueError):
+                                        check_receipt(encoded(value))
+        for mask in (-1, 1, 0x1fffff):
+            with self.subTest(success_mask=mask), self.assertRaises(ValueError):
+                check_receipt(encoded(self.value(mask=mask)))
+
+
 class SourceContracts(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -435,8 +426,9 @@ class SourceContracts(unittest.TestCase):
         inspect_sources(sources or self.sources, self.old, self.runner, self.workflow, self.wrapper, pins)
 
     def test_exact_source_and_combined_boundary(self):
-        self.assertEqual({p.name for p in HERE.iterdir() if p.suffix in ('.cs', '.ps1', '.py')}, set(NAMES) | {'audit.py'})
-        self.assertLessEqual(len((HERE / 'audit.py').read_text(encoding='utf-8').splitlines()), 500)
+        self.assertEqual({p.name for p in HERE.iterdir() if p.suffix in ('.cs', '.ps1', '.py')}, set(NAMES) | {'audit.py', 'receipt_contract.py'})
+        for name in ('audit.py', 'receipt_contract.py'):
+            self.assertLessEqual(len((HERE / name).read_text(encoding='utf-8').splitlines()), 500)
         self.inspect(pins=True)
         sys.path.insert(0, str(BROKER))
         try:
@@ -468,6 +460,18 @@ class SourceContracts(unittest.TestCase):
         for before, after in changes:
             with self.subTest(gate=before), self.assertRaises((AssertionError, ValueError)):
                 inspect_sources(self.sources, self.old, self.runner.replace(before, after, 1), self.workflow, self.wrapper, False)
+
+    def test_context_helper_compile_isolation_mutations(self):
+        for name in NAMES[2:]:
+            with self.subTest(missing=name), self.assertRaises(AssertionError):
+                inspect_sources(self.sources, self.old, self.runner, self.workflow.replace(name, ''), self.wrapper, False)
+            with self.subTest(wrapper=name), self.assertRaises(AssertionError):
+                inspect_sources(self.sources, self.old, self.runner, self.workflow, self.wrapper + name, False)
+
+    def test_path_loading_keeps_exact_sibling_contract(self):
+        loaded = runpy.run_path(str(HERE / 'audit.py'))['check_receipt']
+        self.assertEqual(pathlib.Path(loaded.__globals__['__file__']).resolve(), (HERE / 'receipt_contract.py').resolve())
+        self.assertEqual(loaded(encoded(fixture())), 'matched_open_failed')
 
     def test_all_imports_forbidden_capabilities_and_exception_leaks(self):
         self.inspect()

@@ -52,6 +52,17 @@ public static partial class BrokerDirectLauncher {
             for(int offset=120;offset<=248;offset+=8) if(U64(offset)!=other.U64(offset)) return false;
             return true;
         }
+        public long RequestedMismatchMask(CmdDebugContext other) {
+            if(other==null) return -1;
+            long mask=0;
+            if(U32(48)!=0x00100003 || other.U32(48)!=0x00100003) mask|=1L;
+            if(CmdU16(Raw,56)!=CmdU16(other.Raw,56)) mask|=1L<<1;
+            if(CmdU16(Raw,66)!=CmdU16(other.Raw,66)) mask|=1L<<2;
+            if(U32(68)!=other.U32(68)) mask|=1L<<3;
+            for(int offset=120;offset<=248;offset+=8)
+                if(U64(offset)!=other.U64(offset)) mask|=1L<<(4+(offset-120)/8);
+            return mask;
+        }
         public bool MatchesAfterMov(CmdDebugContext before) {
             var expected=before.WithRipTf(CmdRemoteReader.Add(before.U64(248),2),(U32(68)&0x100)!=0);
             expected.Put64(200,before.U64(128));return SameRequested(expected);

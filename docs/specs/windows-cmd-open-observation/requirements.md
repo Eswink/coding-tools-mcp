@@ -51,7 +51,7 @@ No memory-store result was supplied. Current-source facts govern: EXIT_PROCESS_D
 **优先级:** Must
 **用户故事:** As a maintainer I need useful operation facts without target paths, secrets or false success.
 #### 验收标准（EARS）
-1. WHEN writing new evidence THEN only the35 numeric and6 enum keys in design.md SHALL be emitted.
+1. WHEN writing new evidence THEN only the version-specific35 (v1) or36 (v2) numeric and6 enum keys in design.md SHALL be emitted.
 2. IF a new exception occurs THEN a fixed code SHALL replace its message/stack/inner exception before escaping any new entry point.
 3. IF exit/output changes or a complete matched operation is absent THEN a fatal pre-classifier gate SHALL prevent acceptance and journal resolution; debugger exit23 SHALL never count as success.
 4. WHEN one open fails or succeeds THEN the report SHALL describe only that operation; no match SHALL remain inconclusive.
@@ -68,9 +68,23 @@ No memory-store result was supplied. Current-source facts govern: EXIT_PROCESS_D
 
 - NFR-1: No security-sensitive setting/access expansion; exact22 native APIs only, no installations or external software
 - NFR-2: Operational30s plus cleanup5s; bounded event/thread/module/read/write/receipt counts as design.md
-- NFR-3: Exactly13 changed/new paths; new code files each at most500 readable lines; no compression to conceal unsafe complexity
+- NFR-3: At most15 cumulative changed/new paths (13 original plus two pure test/schema helpers); new code files each at most500 readable lines; no compression to conceal unsafe complexity
 - NFR-4: Existing access and supported-bootstrap feasibility remain unproven until the one reviewed Windows attempt; synthetic results do not imply native success
 
 ## 依赖关系
 
 Existing Windows broker pilot, its source/object identity captures and recovery journals; existing GitHub diagnostic compile/runtime job; installed Python and existing local tooling. No new package dependency. The root-cause bugfix remains blocked separately until actual evidence supports a cause-directed fix.
+
+## Reviewed v2 context-reason increment
+
+### FR-7: Discriminate only the immediate context round-trip
+**优先级:** Must
+**用户故事:** As a maintainer I need a bounded reason for the already-performed immediate Set/Get verification so that native failure and strict comparison failure are distinguishable without relaxing the guard.
+#### 验收标准（EARS）
+1. WHEN the existing SetThreadContext is followed by its existing immediate GetThreadContext THEN the observer SHALL reset the new mask to -1 before Set and perform exactly the same native calls, with no retry or extra read/write.
+2. IF Set fails THEN the existing Set error SHALL remain distinct; IF Get fails THEN context_get_failed SHALL preserve its immediate native error including zero and mask -1.
+3. IF successful Get returns null THEN context_roundtrip_unavailable SHALL have mask -1, API none and native error0; IF nonnull comparison fails THEN context_roundtrip_mismatch SHALL have a nonzero21-bit mask, API none and native error0.
+4. WHEN comparing existing contexts THEN mask0 SHALL be equivalent to the unchanged SameRequested predicate; either invalid ContextFlags SHALL set bit0 even when equally invalid.
+5. WHEN projecting receipts THEN v1 SHALL retain its exact old schema and semantics, while v2 SHALL require exactly one additional context_mismatch_mask field, with range -1 or0..0x1fffff.
+6. WHEN any first failure is recorded THEN subsequent cleanup SHALL not replace its reason, API, native error or mask. Existing abort, cleanup, continuation and equality acceptance SHALL remain unchanged.
+7. BEFORE publication or native execution THEN the exact revision SHALL receive a new independent review; the ended v1 attempt SHALL not be rerun automatically.

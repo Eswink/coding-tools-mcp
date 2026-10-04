@@ -55,6 +55,7 @@ public static partial class BrokerDirectLauncher {
         readonly Dictionary<uint,IntPtr> live=new Dictionary<uint,IntPtr>();
         readonly Dictionary<CmdDebugEvent,bool> continued=new Dictionary<CmdDebugEvent,bool>();
         public CmdDebugEvent Pending;
+        public CmdContextFake ContextCase;
         public int FailAt,CallCount,PointerWidth=8,ResumeCount,TerminateCount,DuplicateCount,PeerReleases,OutputReads,EntrySeen;
         public string FailName="";public bool ThrowFault,Terminated,ExitContinued,Signal=true,NoExit,WrongIdentity,ShortWrite,ShortRead,PartialSetFailure,BadReadback,BadSet;
         public bool StepFirst,AlwaysNonmatch;public string NonmatchText=@"\??\C:\different.cmd",FailedCall="";public int FailedIndex;
@@ -172,7 +173,9 @@ public static partial class BrokerDirectLauncher {
         public override bool FlushByte(CmdOriginalProcess process,ulong address) { Process(process);Instrument();return Call("FlushInstructionCache"); }
         public override bool GetContext(CmdBorrowedThread thread,out CmdDebugContext context) {
             Instrument();Require(Pending!=null && live.ContainsKey(thread.Tid) && live[thread.Tid]==thread.Value,"live stopped context owner");
-            context=null;if(!Call("GetThreadContext")) return false;context=contexts[thread.Value].Copy();return true;
+            context=null;if(!Call("GetThreadContext")) return false;context=contexts[thread.Value].Copy();
+            if(ContextCase!=null) {bool ok=ContextCase.Get(this,ref context);Error=ContextCase.Error;return ok;}
+            return true;
         }
         public override bool SetContext(CmdBorrowedThread thread,CmdDebugContext context) {
             Instrument();var fresh=contexts[thread.Value];var allowed=fresh.WithRipTf(context.U64(248),(context.U32(68)&0x100)!=0);
@@ -181,7 +184,9 @@ public static partial class BrokerDirectLauncher {
                 Require((context.U32(68)&0x100)==(fresh.U32(68)&0x100),"return correction cannot change fresh TF");
                 ReturnFlags=context.U32(68);
             }
-            if(!Call("SetThreadContext")) return false;contexts[thread.Value]=context.Copy();
+            if(!Call("SetThreadContext")) return false;
+            if(ContextCase!=null && !ContextCase.Set(this)) {Error=ContextCase.Error;return false;}
+            contexts[thread.Value]=context.Copy();
             if(PartialSetFailure) {Error=5;return false;}
             if(BadSet) CmdTestPut(contexts[thread.Value].Raw,136,0x55,8);return true;
         }
@@ -305,7 +310,7 @@ public static partial class BrokerDirectLauncher {
             int numbers=0,identities=0;
             foreach(string key in fake.Subject.Receipt.Numbers.Keys) if(key.StartsWith("cmd_debug_",StringComparison.Ordinal)) numbers++;
             foreach(string key in fake.Subject.Receipt.Identities.Keys) if(key.StartsWith("cmd_debug_",StringComparison.Ordinal)) identities++;
-            CmdTestAssert(numbers==35 && identities==6,"frozen receipt key cardinality");
+            CmdTestAssert(numbers==36 && identities==6,"frozen receipt key cardinality");
         }
         var returnTf=new CmdFakeApi(false,false,false);CmdTestPut(returnTf.EventContexts[returnTf.Events[4]].Raw,68,0x302,4);
         CmdTestRun(returnTf,false,"fresh return TF=1 is preserved while correcting only RIP");
@@ -476,5 +481,6 @@ public static partial class BrokerDirectLauncher {
         finally {CmdTestAssert(Object.ReferenceEquals(retainedCmdDebug,guarded),"foreign retained slot survives guard");CmdTestClearRetained(guarded);}
         CmdTestAssert(rejected,"retention reset guard is nonvacuous");
         CmdTestAbiAndParser();CmdTestPairs();CmdTestPeers();CmdTestFailuresAndHandback();CmdTestBoundsAndEvents();CmdTestFaultSweep();CmdTestPreclassifierGate();
+        CmdTestContextContracts();
     }
 }
