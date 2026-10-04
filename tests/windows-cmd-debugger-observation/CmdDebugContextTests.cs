@@ -1,4 +1,4 @@
-// Pure context-mask and reason-routing contracts; all operations use the existing fake.
+// Pure context-mask, EFLAGS XOR and reason-routing contracts; all operations use the existing fake.
 using System;
 using System.Collections.Generic;
 
@@ -14,13 +14,17 @@ public static partial class BrokerDirectLauncher {
         public string Mode="none";
         public int AtSet=1,AtOrdinaryGet=1,ReportedError=87,Error,Sets,Readbacks,OrdinaryGets,FailureCall=-1;
         public long MismatchMask=1;
+        public uint EflagsDifference;
         public bool SawPriorZero;
         public readonly List<int> SetCalls=new List<int>(),ReadbackCalls=new List<int>();
-        public readonly List<long> MasksBeforeSet=new List<long>();
+        public readonly List<long> MasksBeforeSet=new List<long>(),EflagsBeforeSet=new List<long>();
+        public readonly List<uint> RequestedEflags=new List<uint>();
         bool awaitingReadback;
         public bool Set(CmdFakeApi fake) {
             Sets++;SetCalls.Add(fake.Calls.Count-1);MasksBeforeSet.Add(fake.Number("context_mismatch_mask"));Error=0;
+            EflagsBeforeSet.Add(fake.Number("eflags_difference_mask"));
             CmdTestAssert(fake.Number("context_mismatch_mask")==-1,"stale mask cleared before every Set");
+            CmdTestAssert(fake.Number("eflags_difference_mask")==-1,"stale EFLAGS XOR cleared before every Set");
             if(Sets==AtSet && (Mode=="set_false" || Mode=="set_throw")) {
                 FailureCall=fake.Calls.Count-1;Error=ReportedError;
                 if(Mode=="set_throw") throw new InvalidOperationException("secret context setter");
@@ -32,7 +36,9 @@ public static partial class BrokerDirectLauncher {
             Error=0;
             if(!awaitingReadback) {
                 OrdinaryGets++;
-                if(Sets>0 && fake.Number("context_mismatch_mask")==0) SawPriorZero=true;
+                if(Sets>0 && fake.Number("context_mismatch_mask")==0) {
+                    SawPriorZero=true;CmdTestAssert(fake.Number("eflags_difference_mask")==0,"prior exact roundtrip has both diagnostics zero");
+                }
                 if(Mode=="ordinary_false" && OrdinaryGets==AtOrdinaryGet) {
                     FailureCall=fake.Calls.Count-1;Error=ReportedError;return false;
                 }
@@ -40,7 +46,16 @@ public static partial class BrokerDirectLauncher {
             }
             awaitingReadback=false;Readbacks++;ReadbackCalls.Add(fake.Calls.Count-1);
             CmdTestAssert(fake.Number("context_mismatch_mask")==-1,"mask remains unavailable until immediate comparison");
+            CmdTestAssert(fake.Number("eflags_difference_mask")==-1,"EFLAGS XOR remains unavailable until immediate comparison");
+            RequestedEflags.Add(context.U32(68));
             if(Sets!=AtSet || Mode=="none" || Mode=="ordinary_false") return true;
+            if(Mode=="eflags") {
+                CmdTestAssert((MismatchMask&8)==0,"independent field injection excludes the EFLAGS field");
+                CmdTestMutateContext(context,MismatchMask);
+                CmdTestPut(context.Raw,68,context.U32(68)^EflagsDifference,4);
+                if(MismatchMask!=0 || EflagsDifference!=0) FailureCall=fake.Calls.Count-1;
+                return true;
+            }
             FailureCall=fake.Calls.Count-1;Error=ReportedError;
             if(Mode=="get_false") return false;
             if(Mode=="get_throw") throw new InvalidOperationException("secret context getter",new Exception("secret inner"));
@@ -109,9 +124,11 @@ public static partial class BrokerDirectLauncher {
         }
     }
     static void CmdTestContextOutcome(CmdFakeApi fake,string reason,string api,long error,long mask) {
-        CmdTestAssert(fake.Identity("protocol")=="own-child-open-v2","context reason split uses strict v2 protocol");
+        CmdTestAssert(fake.Identity("protocol")=="own-child-open-v3","context reason split uses strict v3 protocol");
         CmdTestAssert(fake.Identity("error")==reason && fake.Identity("error_api")==api && fake.Number("native_error")==error &&
             fake.Number("context_mismatch_mask")==mask,"first failure reason API error and mask survive cleanup");
+        long difference=mask<0?-1:(mask&8)==0?0:fake.ContextCase.Mode=="eflags"?(long)fake.ContextCase.EflagsDifference:1;
+        CmdTestEflagsValue(fake,difference);
         CmdTestAssert(fake.Number("pair_complete")==0,"context failure never accepts a paired operation");
         CmdTestContextCallOrder(fake,fake.ContextCase);
     }
@@ -182,6 +199,7 @@ public static partial class BrokerDirectLauncher {
             CmdTestRun(fake,false,"exact requested context remains accepted");
             CmdTestAssert(fake.Number("context_mismatch_mask")==0 && fake.Identity("error")=="none" && fake.Number("pair_complete")==1,
                 "zero mask preserves existing acceptance");
+            CmdTestEflagsValue(fake,0);
             CmdTestAssert(fake.Calls.Count==baseline.Calls.Count,"context diagnostics add no native calls");
             for(int i=0;i<baseline.Calls.Count;i++) CmdTestAssert(fake.Calls[i]==baseline.Calls[i],"context diagnostics preserve exact native call order");
             CmdTestAssert(fake.ContextCase.Sets==(step?4:2) && fake.ContextCase.Readbacks==fake.ContextCase.Sets,
@@ -190,6 +208,87 @@ public static partial class BrokerDirectLauncher {
                 "fixed baseline context call counts remain unchanged");
             CmdTestContextCallOrder(fake,fake.ContextCase);
         }
-        CmdTestContextRoutes();CmdTestContextResetAndFirstFailure();
+        CmdTestContextRoutes();CmdTestContextResetAndFirstFailure();CmdTestEflagsContracts();
+    }
+
+    static void CmdTestEflagsValue(CmdFakeApi fake,long expected) {
+        long fields=fake.Number("context_mismatch_mask"),difference=fake.Number("eflags_difference_mask");
+        CmdTestAssert(difference==expected && difference>=-1 && difference<=UInt32.MaxValue,"EFLAGS XOR is exact unsigned32 widened to long or unavailable");
+        CmdTestAssert((fields==-1)==(difference==-1),"field and EFLAGS diagnostics have identical availability");
+        if(fields>=0) CmdTestAssert(((fields&8)!=0)==(difference!=0),"EFLAGS field bit is set iff the XOR is nonzero");
+    }
+    static CmdFakeApi CmdTestEflagsRoute(bool step,int atSet,uint difference,long otherFields) {
+        var fake=new CmdFakeApi(step,false,false);
+        fake.ContextCase=new CmdContextFake {Mode="eflags",AtSet=atSet,MismatchMask=otherFields,EflagsDifference=difference};
+        bool failed=difference!=0 || otherFields!=0;
+        CmdTestRun(fake,failed,"same-buffer EFLAGS XOR never relaxes strict context acceptance");
+        long fields=otherFields|(difference==0?0:8);
+        if(failed) CmdTestContextOutcome(fake,"context_roundtrip_mismatch","none",0,fields);
+        else {
+            CmdTestEflagsValue(fake,0);
+            CmdTestAssert(fake.Identity("error")=="none" && fake.Number("pair_complete")==1,"zero injected difference preserves paired baseline");
+            CmdTestContextCallOrder(fake,fake.ContextCase);
+        }
+        CmdTestAssert(fake.ContextCase.Sets==(failed?atSet:step?4:2) && fake.ContextCase.Readbacks==fake.ContextCase.Sets,
+            "each reached Set retains exactly one immediate readback");
+        return fake;
+    }
+    static void CmdTestEflagsBitsAndRoutes() {
+        foreach(int atSet in new int[]{1,2}) {
+            for(int bit=0;bit<32;bit++) {
+                uint difference=1U<<bit;var fake=CmdTestEflagsRoute(true,atSet,difference,0);
+                CmdTestAssert(fake.Number("eflags_difference_mask")==1L<<bit,"all 32 EFLAGS positions retain their exact unsigned identity");
+                uint requested=fake.ContextCase.RequestedEflags[atSet-1];
+                CmdTestAssert(requested==(atSet==1?0x302U:0x202U),"XOR compares requested TF-set and TF-clear contexts");
+                if(bit==8) CmdTestAssert(((requested^difference)&0x100)==(atSet==1?0U:0x100U),
+                    "a missing requested TF and an unexpected retained TF both fail closed");
+                if(bit==31) CmdTestAssert(fake.Number("eflags_difference_mask")==2147483648L,"bit31 is positive rather than sign-extended");
+            }
+            foreach(uint difference in new uint[]{0,0x80000100U,0x80010201U,UInt32.MaxValue}) {
+                var fake=CmdTestEflagsRoute(true,atSet,difference,0);
+                CmdTestAssert(fake.Number("eflags_difference_mask")==difference,"zero multiple and all EFLAGS bits preserve the exact XOR");
+                if(difference==UInt32.MaxValue) CmdTestAssert(fake.Number("eflags_difference_mask")==4294967295L,"allbits is the complete uint32 range");
+            }
+        }
+        CmdTestEflagsRoute(false,1,0x80000100U,(1L<<14)|(1L<<20));
+        var nonflags=CmdTestEflagsRoute(false,1,0,0x1fffff&~8L);
+        CmdTestAssert(nonflags.Number("context_mismatch_mask")== (0x1fffff&~8L) && nonflags.Number("eflags_difference_mask")==0,
+            "all non-EFLAGS mismatches leave XOR zero while still failing closed");
+        foreach(uint flags in new uint[]{0x202U,0x302U}) {
+            var fake=new CmdFakeApi(false,false,false);fake.ContextCase=new CmdContextFake();
+            CmdTestPut(fake.EventContexts[fake.Events[4]].Raw,68,flags,4);
+            CmdTestRun(fake,false,"fresh return TF remains independent of XOR diagnostics");
+            CmdTestEflagsValue(fake,0);
+            CmdTestAssert(fake.ReturnFlags==flags && fake.ContextCase.RequestedEflags[1]==flags,
+                "return correction preserves both clear and preexisting set TF");
+            CmdTestContextCallOrder(fake,fake.ContextCase);
+        }
+    }
+    static void CmdTestEflagsResetAndFirstFailure() {
+        foreach(int error in new int[]{0,5,87}) foreach(string mode in new string[]{"set_false","get_false","null","set_throw","get_throw"}) {
+            var fake=CmdTestContextFailure(mode,error,2,0);CmdTestRun(fake,true,"later native null or managed failure cannot reuse prior XOR zero");
+            string reason=mode=="set_false"?"context_failed":mode=="get_false"?"context_get_failed":
+                mode=="null"?"context_roundtrip_unavailable":"internal_exception";
+            string api=mode=="set_false"?"SetThreadContext":mode=="get_false"?"GetThreadContext":"none";
+            CmdTestContextOutcome(fake,reason,api,api=="none"?0:error,-1);
+            CmdTestAssert(fake.ContextCase.SawPriorZero && fake.ContextCase.Sets==2 &&
+                fake.ContextCase.EflagsBeforeSet.Count==2 && fake.ContextCase.EflagsBeforeSet[0]==-1 && fake.ContextCase.EflagsBeforeSet[1]==-1,
+                "both initial and subsequent Set reset the previous available EFLAGS XOR");
+        }
+        foreach(bool cleanupThrows in new bool[]{false,true}) foreach(uint difference in new uint[]{0x100U,0x80000000U,UInt32.MaxValue}) {
+            var fake=new CmdFakeApi(true,false,false);
+            fake.ContextCase=new CmdContextFake {Mode="eflags",AtSet=2,MismatchMask=1L<<14,EflagsDifference=difference};
+            fake.FailName="TerminateProcess";fake.ThrowFault=cleanupThrows;
+            var session=CmdTestRun(fake,true,"cleanup cannot overwrite the first EFLAGS mismatch or error");
+            CmdTestContextOutcome(fake,"context_roundtrip_mismatch","none",0,(1L<<14)|8);
+            CmdTestAssert(fake.ContextCase.SawPriorZero && fake.TerminateCount==1 && !session.MayCallOriginalCleanup &&
+                fake.Identity("cleanup")=="retained_fatal","earlier exact comparison and failed cleanup retain the first XOR diagnosis");
+        }
+    }
+    static void CmdTestEflagsContracts() {
+        var initial=new CmdFakeApi(false,false,false);var session=new CmdDebugSession(initial.Subject,initial);
+        CmdTestEflagsValue(initial,-1);
+        CmdTestAssert(initial.Calls.Count==0 && !session.Failed,"both diagnostics initialize unavailable without a native call");
+        CmdTestEflagsBitsAndRoutes();CmdTestEflagsResetAndFirstFailure();
     }
 }

@@ -51,7 +51,7 @@ No memory-store result was supplied. Current-source facts govern: EXIT_PROCESS_D
 **优先级:** Must
 **用户故事:** As a maintainer I need useful operation facts without target paths, secrets or false success.
 #### 验收标准（EARS）
-1. WHEN writing new evidence THEN only the version-specific35 (v1) or36 (v2) numeric and6 enum keys in design.md SHALL be emitted.
+1. WHEN writing new evidence THEN only the version-specific35 (v1),36 (v2) or37 (v3) numeric and6 enum keys in design.md SHALL be emitted.
 2. IF a new exception occurs THEN a fixed code SHALL replace its message/stack/inner exception before escaping any new entry point.
 3. IF exit/output changes or a complete matched operation is absent THEN a fatal pre-classifier gate SHALL prevent acceptance and journal resolution; debugger exit23 SHALL never count as success.
 4. WHEN one open fails or succeeds THEN the report SHALL describe only that operation; no match SHALL remain inconclusive.
@@ -68,7 +68,7 @@ No memory-store result was supplied. Current-source facts govern: EXIT_PROCESS_D
 
 - NFR-1: No security-sensitive setting/access expansion; exact22 native APIs only, no installations or external software
 - NFR-2: Operational30s plus cleanup5s; bounded event/thread/module/read/write/receipt counts as design.md
-- NFR-3: At most15 cumulative changed/new paths (13 original plus two pure test/schema helpers); new code files each at most500 readable lines; no compression to conceal unsafe complexity
+- NFR-3: At most16 cumulative changed/new paths (13 original plus three pure test/schema helpers); new code files each at most500 readable lines; no compression to conceal unsafe complexity
 - NFR-4: Existing access and supported-bootstrap feasibility remain unproven until the one reviewed Windows attempt; synthetic results do not imply native success
 
 ## 依赖关系
@@ -88,3 +88,15 @@ Existing Windows broker pilot, its source/object identity captures and recovery 
 5. WHEN projecting receipts THEN v1 SHALL retain its exact old schema and semantics, while v2 SHALL require exactly one additional context_mismatch_mask field, with range -1 or0..0x1fffff.
 6. WHEN any first failure is recorded THEN subsequent cleanup SHALL not replace its reason, API, native error or mask. Existing abort, cleanup, continuation and equality acceptance SHALL remain unchanged.
 7. BEFORE publication or native execution THEN the exact revision SHALL receive a new independent review; the ended v1 attempt SHALL not be rerun automatically.
+
+### FR-8: Identify differing EFLAGS bits without exposing register values
+**优先级:** Must
+**用户故事:** As a maintainer I need only the differing flag-bit identities from the already-obtained contexts, so a future review can reason about the strict guard without guessing or relaxing it.
+#### 验收标准（EARS）
+1. WHEN the existing immediate Get succeeds with a nonnull context THEN Session SHALL compute unsigned32 requested EFLAGS XOR actual EFLAGS and widen it to a nonnegative long, using only those existing buffers.
+2. WHEN an immediate round-trip starts THEN both diagnostics SHALL reset to -1 before Set; IF Get fails or returns null THEN both SHALL remain unavailable.
+3. WHEN emitting a completed comparison THEN both diagnostic values SHALL be computed before either is emitted, and field-mask bit3 SHALL be set exactly when the XOR is nonzero.
+4. WHEN deciding acceptance THEN the byte-identical SameRequested predicate SHALL remain the sole guard; TF ownership/repair, API calls, abort and cleanup SHALL remain unchanged.
+5. WHEN projecting v3 THEN exactly37 numeric and6 enum keys SHALL be required; v1/v2 schemas and archived interpretations SHALL remain unchanged, with no new field accepted retroactively.
+6. WHEN extracting pure receipt tests THEN actual prior test.id() identities, discovery counts, bodies and mutations SHALL be preserved without omissions or duplicates.
+7. BEFORE publication or native execution THEN the exact candidate SHALL receive independent review and a separate decision; neither is authorized by source implementation approval.

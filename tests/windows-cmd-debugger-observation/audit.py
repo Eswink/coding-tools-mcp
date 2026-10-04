@@ -16,19 +16,29 @@ import unittest
 
 HERE = pathlib.Path(__file__).parent
 CONTRACT = runpy.run_path(str(HERE / 'receipt_contract.py'))
-(APIS, CONTEXT_ERRORS, COUNTERS, ENUMS, ENUMS_V2, FLAGS, MASKS,
- NUMERIC, NUMERIC_V2, PREFIX, check_receipt, require) = (CONTRACT[name] for name in (
-    'APIS', 'CONTEXT_ERRORS', 'COUNTERS', 'ENUMS', 'ENUMS_V2', 'FLAGS', 'MASKS',
-    'NUMERIC', 'NUMERIC_V2', 'PREFIX', 'check_receipt', 'require'))
+(APIS, CONTEXT_ERRORS, COUNTERS, ENUMS, ENUMS_V2, ENUMS_V3, FLAGS, MASKS,
+ NUMERIC, NUMERIC_V2, NUMERIC_V3, PREFIX, check_receipt, require) = (CONTRACT[name] for name in (
+    'APIS', 'CONTEXT_ERRORS', 'COUNTERS', 'ENUMS', 'ENUMS_V2', 'ENUMS_V3', 'FLAGS', 'MASKS',
+    'NUMERIC', 'NUMERIC_V2', 'NUMERIC_V3', 'PREFIX', 'check_receipt', 'require'))
+RECEIPT_TESTS = runpy.run_path(str(HERE / 'receipt_tests.py'))
+(fixture, encoded, ContextReceiptContracts, EflagsReceiptContracts) = (RECEIPT_TESTS[name] for name in (
+    'fixture', 'encoded', 'ContextReceiptContracts', 'EflagsReceiptContracts'))
+# Preserve CLI and path-loaded unittest identities after the pure helper extraction.
+fixture.__module__ = encoded.__module__ = __name__
+ContextReceiptContracts.__module__ = EflagsReceiptContracts.__module__ = __name__
+for _receipt_method in vars(ContextReceiptContracts).values():
+    if callable(_receipt_method):
+        _receipt_method.__module__ = __name__
+del _receipt_method
 BROKER = HERE.parent / 'windows-broker-direct'
 ROOT = HERE.parents[1]
 NAMES = ('CmdDebugNative.cs', 'CmdDebugSession.cs', 'CmdDebugContractTests.cs', 'CmdDebugContextTests.cs')
 # Frozen candidate pins for independent review; later changes require repinning and re-review.
 PINS = {
     'CmdDebugNative.cs': '2eea026fabf9d77523cb73125f5bd1f992fee311f2967473547ac9102b8eca5d',
-    'CmdDebugSession.cs': '3a46b61110a9ab10548af4983549f35f134c6e4bff2a46cf2fe62bddf91e6488',
-    'CmdDebugContractTests.cs': 'fe8161eaade72258f3e410748c40d1c30e58cf37acc533d9718fd7bcd185a6f3',
-    'CmdDebugContextTests.cs': '72565104ede02a46b20e64ee90a664c10bdd449e704698ae992508f9b5c215c5',
+    'CmdDebugSession.cs': '6d8e09ff44df7ec6d273a4db1d0abd39717d076e7b536073924084cebb3e3f5f',
+    'CmdDebugContractTests.cs': 'd975c381c1e4273f490ec7471bc3c2faea575d304439a3dff81884b35a2e60d6',
+    'CmdDebugContextTests.cs': 'e70a04a7248b36da7ac9215f61c3d8927d0bef3c8ba0ae25d5f907b02b02a8b8',
 }
 FORBIDDEN = ('NtReadFile NtClose ZwClose DUPLICATE_CLOSE_SOURCE DebugActiveProcessStop DebugBreakProcess '
              'DebugSetProcessKillOnExit VirtualProtect VirtualProtectEx OpenProcess OpenThread CreateProcess '
@@ -142,14 +152,18 @@ GUARDS = {
         'if(pendingImageState!=ImageOwnership.None && pendingImageState!=ImageOwnership.Closed) Fault("close_uncertain");continueAttempted=true;',
         'if(pending!=null) {if(pending.Code==3 || pending.Code==6) CloseImage(pending.File);Continue(pending.Code==1?0x80010001u:0x10002u);}',
         'if(N("exit_event_seen")==1 || pendingImageState==ImageOwnership.Attempted || pendingImageState==ImageOwnership.Unknown) {Retain();return;}',
-        'I("protocol","own-child-open-v2");',
+        'I("protocol","own-child-open-v3");',
         '''void SetContext(ThreadSlot t,CmdDebugContext c) {
             N("context_mismatch_mask",-1);
+            N("eflags_difference_mask",-1);
             Require(api.SetContext(t.Handle,c),"context_failed","SetThreadContext");
             CmdDebugContext actual;
             Require(api.GetContext(t.Handle,out actual),"context_get_failed","GetThreadContext");
             if(actual==null) Fault("context_roundtrip_unavailable");
-            N("context_mismatch_mask",actual.RequestedMismatchMask(c));
+            long fields=actual.RequestedMismatchMask(c);
+            uint flags=actual.U32(68)^c.U32(68);
+            N("context_mismatch_mask",fields);
+            N("eflags_difference_mask",(long)flags);
             if(!actual.SameRequested(c)) Fault("context_roundtrip_mismatch");
         }''',
     ),
@@ -164,7 +178,17 @@ GUARDS = {
                'successful Set has exactly one immediate Get', 'first failure reason API error and mask survive cleanup',
                'context diagnostics add no native calls', 'context diagnostics preserve exact native call order',
                'standalone context failure retains its original reason', 'post MOV mismatch retains existing context_failed route',
-               'fixed baseline context call counts remain unchanged'),
+               'fixed baseline context call counts remain unchanged',
+               'stale EFLAGS XOR cleared before every Set',
+               'EFLAGS XOR remains unavailable until immediate comparison',
+               'all 32 EFLAGS positions retain their exact unsigned identity',
+               'XOR compares requested TF-set and TF-clear contexts',
+               'bit31 is positive rather than sign-extended', 'allbits is the complete uint32 range',
+               'field and EFLAGS diagnostics have identical availability',
+               'EFLAGS field bit is set iff the XOR is nonzero',
+               'all non-EFLAGS mismatches leave XOR zero while still failing closed',
+               'both initial and subsequent Set reset the previous available EFLAGS XOR',
+               'earlier exact comparison and failed cleanup retain the first XOR diagnosis'),
 }
 
 
@@ -213,11 +237,11 @@ def inspect_sources(sources, old, runner, workflow, wrapper, pins=True):
     assert session.count('api.Attach(') == session.count('api.ResumeMain(') == session.count('api.Terminate(') == 1, 'one target lifecycle'
     assert session.count('api.ResumePeer(') == session.count('api.CloseDuplicate(') == session.count('api.CloseImage(') == 1, 'one owned release site'
     assert session.count('api.GetContext(') == 2 and session.count('api.SetContext(') == 1, 'unchanged native context call count'
-    assert set(re.findall(r'\bN\("([^"]+)"', sources[NAMES[1]])) <= set(NUMERIC_V2), 'numeric emission allowlist'
+    assert set(re.findall(r'\bN\("([^"]+)"', sources[NAMES[1]])) <= set(NUMERIC_V3), 'numeric emission allowlist'
     emitted = set(re.findall(r'\["cmd_debug_([^"]+)"\]', sources[NAMES[1]]))
-    assert emitted <= set(NUMERIC_V2) | set(ENUMS_V2), 'additional field allowlist'
+    assert emitted <= set(NUMERIC_V3) | set(ENUMS_V3), 'additional field allowlist'
     keys = re.search(r'NumericKeys=\((.*?)\)\.Split', sources[NAMES[1]], re.S)
-    assert keys and ''.join(re.findall(r'"([^"]*)"', keys[1])).split() == NUMERIC_V2, 'numeric schema'
+    assert keys and ''.join(re.findall(r'"([^"]*)"', keys[1])).split() == NUMERIC_V3, 'numeric schema'
     assert set(re.findall(r'\bI\("([^"]+)"', sources[NAMES[1]])) == set(ENUMS), 'enum schema'
     gate = 'RequireCmdDebugComparable(cmdDebug,row);'
     assert runner.count(gate) == 1 and runner.index(gate) < runner.index('ClassifyPilotCase(row,evidence);'), 'preclassifier order'
@@ -234,28 +258,6 @@ def inspect_sources(sources, old, runner, workflow, wrapper, pins=True):
     assert 'windows-cmd-debugger-observation/*.cs' not in workflow + wrapper, 'no sibling wildcard'
     assert workflow.count('[BrokerDirectLauncher]::RunCmdDebugContractTests()') == 1, 'fake test invocation'
     assert workflow.count('python tests/windows-cmd-debugger-observation/audit.py') == 1, 'audit invocation'
-
-
-def fixture(result='matched_open_failed'):
-    n = dict.fromkeys(NUMERIC, -1)
-    n.update(dict.fromkeys(FLAGS | set(COUNTERS), 0))
-    n.update(pid=41, main_tid=51, creation_filetime=12345, attach_attempted=1, attach_succeeded=1,
-             attach_break_seen=1, entries_ready_before_resume=1, event_count=5, thread_peak=1, module_peak=2,
-             entry_hits=1, read_bytes=4096, write_attempts=6, matched_tid=51, pair_complete=1,
-             desired_access=0x80120089, object_attributes=0x40, share_access=7, file_attributes=0x80,
-             create_disposition=1, open_options=0x60, ntstatus_u32=0xc0000022, exit_event_seen=1,
-             exit_event_continued=1, process_signaled=1, terminal_exit_u32=1, elapsed_ms=10)
-    i = dict(protocol='own-child-open-v1', result=result, error='none', error_api='none', cleanup='exit_confirmed', open_api='NtCreateFile')
-    if result == 'matched_open_succeeded':
-        n.update(ntstatus_u32=0, object_identity_matched=1)
-    if result == 'observed_pending':
-        n.update(ntstatus_u32=0x103, pair_complete=0, abort_terminate_attempted=1, abort_terminate_error=0, active_patches_at_exit=1)
-        i['error'] = 'pending_io'
-    return {'Numbers': {PREFIX + k: v for k, v in n.items()}, 'Identities': {PREFIX + k: v for k, v in i.items()}}
-
-
-def encoded(value):
-    return json.dumps(value, separators=(',', ':'), ensure_ascii=True).encode()
 
 
 class ReceiptContracts(unittest.TestCase):
@@ -346,74 +348,6 @@ class ReceiptContracts(unittest.TestCase):
                 check_receipt(encoded(value))
 
 
-class ContextReceiptContracts(unittest.TestCase):
-    def value(self, error='none', mask=0, api='none', native_error=0):
-        value = fixture(); n, i = value['Numbers'], value['Identities']
-        n.update({PREFIX + 'context_mismatch_mask': mask, PREFIX + 'native_error': native_error})
-        i.update({PREFIX + 'protocol': 'own-child-open-v2', PREFIX + 'error': error, PREFIX + 'error_api': api})
-        if error != 'none':
-            n[PREFIX + 'pair_complete'] = 0
-        return value
-
-    def test_versions_have_separate_exact_schemas(self):
-        self.assertEqual((len(NUMERIC), len(NUMERIC_V2), len(ENUMS_V2)), (35, 36, 6))
-        self.assertEqual(check_receipt(encoded(self.value())), 'matched_open_failed')
-        legacy = fixture(); legacy['Numbers'][PREFIX + 'pair_complete'] = 0
-        legacy['Identities'].update({PREFIX + 'error': 'context_failed', PREFIX + 'error_api': 'GetThreadContext'})
-        self.assertEqual(check_receipt(encoded(legacy)), 'incomplete')
-        variants = [fixture(), self.value()]
-        variants[0]['Numbers'][PREFIX + 'context_mismatch_mask'] = 0
-        del variants[1]['Numbers'][PREFIX + 'context_mismatch_mask']
-        for error in CONTEXT_ERRORS:
-            value = fixture(); value['Identities'][PREFIX + 'error'] = error; variants.append(value)
-        for value in variants:
-            with self.assertRaises(ValueError):
-                check_receipt(encoded(value))
-
-    def test_v2_all_fields_are_required_and_strictly_typed(self):
-        for section, keys in (('Numbers', NUMERIC_V2), ('Identities', ENUMS_V2)):
-            for key in keys:
-                for bad in (None, True, False, [], {}, 1.0, 'unknown', -(2**63), 2**64):
-                    value = self.value(); value[section][PREFIX + key] = bad
-                    with self.subTest(key=key, bad=bad), self.assertRaises(ValueError):
-                        check_receipt(encoded(value))
-                value = self.value(); del value[section][PREFIX + key]
-                with self.subTest(missing=key), self.assertRaises(ValueError):
-                    check_receipt(encoded(value))
-            value = self.value(); value[section][PREFIX + 'unknown'] = 0
-            with self.assertRaises(ValueError):
-                check_receipt(encoded(value))
-        good = encoded(self.value())
-        token = b'"cmd_debug_context_mismatch_mask":0'
-        for raw in (good.replace(token, token + b',' + token), good.replace(token, token[:-1] + b'NaN')):
-            with self.assertRaises(ValueError):
-                check_receipt(raw)
-
-    def test_v2_reason_mask_and_native_error_matrix(self):
-        for reason in sorted(CONTEXT_ERRORS | {'context_failed', 'native_failed'}):
-            for mask in (-2, -1, 0, 1, 8, 0x100001, 0x1fffff, 0x200000):
-                for api in ('none', 'GetThreadContext', 'SetThreadContext'):
-                    for error in (0, 5, 0xffffffff):
-                        for paired in (0, 1):
-                            valid = ((reason == 'context_get_failed' and mask == -1 and api == 'GetThreadContext') or
-                                     (reason == 'context_roundtrip_unavailable' and mask == -1 and api == 'none' and error == 0) or
-                                     (reason == 'context_roundtrip_mismatch' and 0 < mask <= 0x1fffff and api == 'none' and error == 0) or
-                                     (reason not in CONTEXT_ERRORS and mask in (-1, 0)))
-                            valid = valid and (reason not in CONTEXT_ERRORS or paired == 0)
-                            valid = valid and (reason != 'context_failed' or api != 'SetThreadContext' or (mask == -1 and paired == 0))
-                            value = self.value(reason, mask, api, error)
-                            value['Numbers'][PREFIX + 'pair_complete'] = paired
-                            with self.subTest(reason=reason, mask=mask, api=api, native_error=error, paired=paired):
-                                if valid:
-                                    self.assertEqual(check_receipt(encoded(value)), 'matched_open_failed' if paired else 'incomplete')
-                                else:
-                                    with self.assertRaises(ValueError):
-                                        check_receipt(encoded(value))
-        for mask in (-1, 1, 0x1fffff):
-            with self.subTest(success_mask=mask), self.assertRaises(ValueError):
-                check_receipt(encoded(self.value(mask=mask)))
-
-
 class SourceContracts(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -426,8 +360,8 @@ class SourceContracts(unittest.TestCase):
         inspect_sources(sources or self.sources, self.old, self.runner, self.workflow, self.wrapper, pins)
 
     def test_exact_source_and_combined_boundary(self):
-        self.assertEqual({p.name for p in HERE.iterdir() if p.suffix in ('.cs', '.ps1', '.py')}, set(NAMES) | {'audit.py', 'receipt_contract.py'})
-        for name in ('audit.py', 'receipt_contract.py'):
+        self.assertEqual({p.name for p in HERE.iterdir() if p.suffix in ('.cs', '.ps1', '.py')}, set(NAMES) | {'audit.py', 'receipt_contract.py', 'receipt_tests.py'})
+        for name in ('audit.py', 'receipt_contract.py', 'receipt_tests.py'):
             self.assertLessEqual(len((HERE / name).read_text(encoding='utf-8').splitlines()), 500)
         self.inspect(pins=True)
         sys.path.insert(0, str(BROKER))
@@ -472,6 +406,26 @@ class SourceContracts(unittest.TestCase):
         loaded = runpy.run_path(str(HERE / 'audit.py'))['check_receipt']
         self.assertEqual(pathlib.Path(loaded.__globals__['__file__']).resolve(), (HERE / 'receipt_contract.py').resolve())
         self.assertEqual(loaded(encoded(fixture())), 'matched_open_failed')
+
+    def test_eflags_emission_guard_mutations(self):
+        changes = (
+            ('N("eflags_difference_mask",-1);', ''),
+            ('uint flags=actual.U32(68)^c.U32(68);', 'int flags=(int)(actual.U32(68)^c.U32(68));'),
+            ('actual.U32(68)^c.U32(68)', 'actual.U32(68)&c.U32(68)'),
+            ('actual.U32(68)^c.U32(68)', 'actual.U32(68)^actual.U32(68)'),
+            ('actual.U32(68)^c.U32(68)', '(actual.U32(68)^c.U32(68))&0x100'),
+            ('N("eflags_difference_mask",(long)flags);', 'N("eflags_difference_mask",(int)flags);'),
+            ('uint flags=actual.U32(68)^c.U32(68);',
+             'N("context_mismatch_mask",fields);uint flags=actual.U32(68)^c.U32(68);'),
+            ('if(!actual.SameRequested(c))', 'if(fields!=0 && flags!=0)'),
+            ('N("eflags_difference_mask",(long)flags);', 'N("eflags_actual",actual.U32(68));'),
+        )
+        for before, after in changes:
+            changed = dict(self.sources)
+            self.assertEqual(changed[NAMES[1]].count(before), 1)
+            changed[NAMES[1]] = changed[NAMES[1]].replace(before, after, 1)
+            with self.subTest(mutation=before, replacement=after), self.assertRaises(AssertionError):
+                self.inspect(changed)
 
     def test_all_imports_forbidden_capabilities_and_exception_leaks(self):
         self.inspect()

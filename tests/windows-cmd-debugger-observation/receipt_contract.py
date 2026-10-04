@@ -36,11 +36,14 @@ COUNTERS = dict(event_count=4096, cleanup_event_count=512, thread_peak=32, modul
                 entry_hits=128, unsupported_names=128, read_bytes=1048576, write_attempts=264,
                 active_patches_at_exit=3, owned_suspends_at_exit=31, native_error=0xffffffff)
 MASKS = set('desired_access object_attributes share_access file_attributes create_disposition open_options ntstatus_u32 terminal_exit_u32 abort_terminate_error'.split())
-# The v1 required fields and enums remain exact; v2 is a separate schema.
+# Prior required fields and enums remain exact; each version has a separate schema.
 NUMERIC_V2 = NUMERIC + ['context_mismatch_mask']
 CONTEXT_ERRORS = {'context_get_failed', 'context_roundtrip_unavailable', 'context_roundtrip_mismatch'}
 ENUMS_V2 = dict(ENUMS, protocol={'own-child-open-v2'}, error=ENUMS['error'] | CONTEXT_ERRORS)
-SCHEMAS = {'own-child-open-v1': (NUMERIC, ENUMS), 'own-child-open-v2': (NUMERIC_V2, ENUMS_V2)}
+NUMERIC_V3 = NUMERIC_V2 + ['eflags_difference_mask']
+ENUMS_V3 = dict(ENUMS_V2, protocol={'own-child-open-v3'})
+SCHEMAS = {'own-child-open-v1': (NUMERIC, ENUMS), 'own-child-open-v2': (NUMERIC_V2, ENUMS_V2),
+           'own-child-open-v3': (NUMERIC_V3, ENUMS_V3)}
 
 
 def require(condition):
@@ -133,8 +136,10 @@ def check_receipt(data):
         require(n['pair_complete'] == 1 and i['cleanup'] == 'exit_confirmed' and n['terminal_exit_u32'] == 1)
         require(n['active_patches_at_exit'] == n['owned_suspends_at_exit'] == n['abort_terminate_attempted'] == 0)
         require(i['error_api'] == 'none' and n['native_error'] == 0 and n['elapsed_ms'] >= 0)
-    if protocol == 'own-child-open-v2':
+    if protocol in ('own-child-open-v2', 'own-child-open-v3'):
         check_context_roundtrip(n, i)
+    if protocol == 'own-child-open-v3':
+        check_eflags_difference(n)
     if i['result'].startswith('matched_open_') and not n['pair_complete']:
         return 'incomplete'
     return i['result']
@@ -158,3 +163,13 @@ def check_context_roundtrip(n, i):
         require(mask in (-1, 0))
     if i['error'] == 'none':
         require(mask == 0)
+
+
+def check_eflags_difference(n):
+    """Validate paired availability and bit identity, never register values or direction."""
+    fields = n['context_mismatch_mask']
+    flags = n['eflags_difference_mask']
+    require(-1 <= flags <= 0xffffffff)
+    require((fields == -1) == (flags == -1))
+    if fields >= 0:
+        require(((fields & 8) != 0) == (flags != 0))

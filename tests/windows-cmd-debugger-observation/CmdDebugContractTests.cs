@@ -310,7 +310,7 @@ public static partial class BrokerDirectLauncher {
             int numbers=0,identities=0;
             foreach(string key in fake.Subject.Receipt.Numbers.Keys) if(key.StartsWith("cmd_debug_",StringComparison.Ordinal)) numbers++;
             foreach(string key in fake.Subject.Receipt.Identities.Keys) if(key.StartsWith("cmd_debug_",StringComparison.Ordinal)) identities++;
-            CmdTestAssert(numbers==36 && identities==6,"frozen receipt key cardinality");
+            CmdTestAssert(numbers==37 && identities==6,"frozen receipt key cardinality");
         }
         var returnTf=new CmdFakeApi(false,false,false);CmdTestPut(returnTf.EventContexts[returnTf.Events[4]].Raw,68,0x302,4);
         CmdTestRun(returnTf,false,"fresh return TF=1 is preserved while correcting only RIP");

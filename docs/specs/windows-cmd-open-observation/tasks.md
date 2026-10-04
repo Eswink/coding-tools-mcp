@@ -101,3 +101,17 @@ Published49edb3d3/tree10f01917 passed all372 Python methods, both PowerShell syn
   - Evidence: candidate diff/tree; review; no new native experiment unless separately approved
 
 Additional scope rows: tests/windows-cmd-debugger-observation/CmdDebugContextTests.cs (new,<=500lines); tests/windows-cmd-debugger-observation/receipt_contract.py (new,<=500lines). The workflow test list gains the C#helper; run-pilot and AppLocker audit are unchanged in this increment. The earlier13-path inventory is the historical v1 increment, not a claim that the cumulative v2 inventory is13.
+
+## Finite v3 XOR revision tasks (FR-8)
+
+- [x]5.1 Record published888 baseline, source-only design approval,16-path helper scope and checked specification
+  - Evidence: xor-preimpact.json and xor-preimpact-graph-binding.json; independent reviewer constraints
+- [x]5.2 Emit unsigned same-buffer XOR in Session and separate strict v3 schema; extract pure receipt tests preserving actual IDs
+  - Evidence: Session217-224; Native45-64; audit fixture/encoded/ContextReceiptContracts; receipt_contract check_context_roundtrip
+  - Files: Session, two existing C#tests, audit, receipt_contract, receipt_tests(new), three specs
+- [ ]5.3 Run all32-bit, availability, contradiction and first-failure tests; retained regressions and v1/v2 differential checks
+  - Evidence: actual commands/results, old/new test inventory and archived digest equality
+- [ ]5.4 Freeze exact source/tree, staged graph and independent review before any publication/native decision
+  - Evidence: exact candidate and unavailable-stage disclosure; no normalization or extra experiment
+
+Additional scope row: tests/windows-cmd-debugger-observation/receipt_tests.py (new,<=500lines), pure receipt fixtures and versioned unit tests only. Native/workflow/runtime wrappers/AppLocker remain unchanged in this increment. The published v2 attempt ended incomplete with field mask8; it established no flag whitelist or batch root cause.
