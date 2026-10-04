@@ -222,7 +222,7 @@ public static partial class BrokerDirectLauncher {
         fake.ContextCase=new CmdContextFake {Mode="eflags",AtSet=atSet,MismatchMask=otherFields,EflagsDifference=difference};
         bool failed=difference!=0 || otherFields!=0;
         CmdTestRun(fake,failed,"same-buffer EFLAGS XOR never relaxes strict context acceptance");
-        long fields=otherFields|(difference==0?0:8);
+        long fields=otherFields|(difference==0?0L:8L);
         if(failed) CmdTestContextOutcome(fake,"context_roundtrip_mismatch","none",0,fields);
         else {
             CmdTestEflagsValue(fake,0);

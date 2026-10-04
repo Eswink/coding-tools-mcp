@@ -38,7 +38,7 @@ PINS = {
     'CmdDebugNative.cs': '2eea026fabf9d77523cb73125f5bd1f992fee311f2967473547ac9102b8eca5d',
     'CmdDebugSession.cs': '6d8e09ff44df7ec6d273a4db1d0abd39717d076e7b536073924084cebb3e3f5f',
     'CmdDebugContractTests.cs': 'd975c381c1e4273f490ec7471bc3c2faea575d304439a3dff81884b35a2e60d6',
-    'CmdDebugContextTests.cs': 'e70a04a7248b36da7ac9215f61c3d8927d0bef3c8ba0ae25d5f907b02b02a8b8',
+    'CmdDebugContextTests.cs': '4664ebb25704297d4e4ae079e7cf943511514e12f21e32155a75cc060266d9fb',
 }
 FORBIDDEN = ('NtReadFile NtClose ZwClose DUPLICATE_CLOSE_SOURCE DebugActiveProcessStop DebugBreakProcess '
              'DebugSetProcessKillOnExit VirtualProtect VirtualProtectEx OpenProcess OpenThread CreateProcess '
@@ -188,7 +188,8 @@ GUARDS = {
                'EFLAGS field bit is set iff the XOR is nonzero',
                'all non-EFLAGS mismatches leave XOR zero while still failing closed',
                'both initial and subsequent Set reset the previous available EFLAGS XOR',
-               'earlier exact comparison and failed cleanup retain the first XOR diagnosis'),
+               'earlier exact comparison and failed cleanup retain the first XOR diagnosis',
+               'long fields=otherFields|(difference==0?0L:8L);'),
 }
 
 
@@ -407,6 +408,16 @@ class SourceContracts(unittest.TestCase):
                 inspect_sources(self.sources, self.old, self.runner, self.workflow.replace(name, ''), self.wrapper, False)
             with self.subTest(wrapper=name), self.assertRaises(AssertionError):
                 inspect_sources(self.sources, self.old, self.runner, self.workflow, self.wrapper + name, False)
+
+    def test_eflags_expected_mask_uses_long_literals(self):
+        good = 'long fields=otherFields|(difference==0?0L:8L);'
+        bad = 'long fields=otherFields|(difference==0?0:8);'
+        changed = dict(self.sources)
+        self.assertEqual(changed[NAMES[3]].count(good), 1)
+        self.inspect(pins=False)
+        changed[NAMES[3]] = changed[NAMES[3]].replace(good, bad, 1)
+        with self.assertRaisesRegex(AssertionError, 'required guard changed'):
+            self.inspect(changed, pins=False)
 
     def test_observer_push_path_mutations(self):
         path = "      - 'tests/windows-cmd-debugger-observation/**'\n"
