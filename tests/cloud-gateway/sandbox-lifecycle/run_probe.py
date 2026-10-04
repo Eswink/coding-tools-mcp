@@ -1,4 +1,4 @@
-"""Run four authenticated HTTP cases and one direct dispatcher case on Linux.
+"""Run six authenticated HTTP cases and one direct dispatcher case on Linux.
 
 A successful compilation and exactly one passing test per invocation are required.
 This temporarily injects test-only Rust, restores source on ordinary failures, and
@@ -23,7 +23,16 @@ CASES = (
     "authenticated_zero_yield_input_completes_without_replay",
     "authenticated_dangerous_mode_still_denies_network",
     "approved_primary_missing_policy_fails_closed_without_hooks",
+    "authenticated_timeout_stops_sandboxed_process_tree",
+    "authenticated_kill_session_stops_sandboxed_process_tree",
 )
+CASE_PATHS = {name: "auth::sandbox_lifecycle_probe::"
+              + ("deadline::" if name in CASES[-2:] else "") + name for name in CASES}
+PAYLOADS = {
+    "sandbox_lifecycle_probe.rs": "tests/cloud-gateway/linux_sandbox_lifecycle.rs",
+    "linux_sandbox_lifecycle_support.rs": "tests/cloud-gateway/linux_sandbox_lifecycle_support.rs",
+    "linux_sandbox_deadline.rs": "tests/cloud-gateway/linux_sandbox_deadline.rs",
+}
 GOLDEN = {
     "tests/cloud-gateway/ubuntu_sandbox_dispatch.rs":
         "aed13ff4af30cbb0dbf693ad250991e375f61f005106295528fa16af2d6ab032",
@@ -83,7 +92,7 @@ def run_owned(cmd: list, *, cwd: Path, env: dict, timeout: float,
 
 def run_case(root: Path, name: str, env: dict, deadline: float) -> tuple:
     cmd = ["cargo", "test", "--locked", "--manifest-path", "src-tauri/Cargo.toml",
-           "--lib", f"auth::sandbox_lifecycle_probe::{name}",
+           "--lib", CASE_PATHS[name],
            "--", "--exact", "--nocapture", "--test-threads=1"]
     remaining = deadline - time.monotonic()
     if remaining <= 0:
@@ -102,13 +111,14 @@ def write_receipt(out: Path, receipt: dict) -> None:
 def run_probe(root: Path, out: Path) -> int:
     out.mkdir(parents=True, exist_ok=True)
     receipt = {"mode": "acceptance",
-               "scope": "synthetic-authenticated Linux A/D HTTP and E direct dispatcher",
+               "scope": "synthetic-authenticated Linux A/D/deadline HTTP and E direct dispatcher",
                "platform": platform.platform(), "tests": {}, "acceptance_passed": False,
                "compile_exit": None, "production_source_restored": False}
     auth = root / "src-tauri/src/auth/mod.rs"
-    target = auth.with_name("sandbox_lifecycle_probe.rs")
+    targets = [auth.with_name(name) for name in PAYLOADS]
     original = None
-    injected = False
+    injected = []
+    auth_touched = False
     deadline = time.monotonic() + TOTAL_TIMEOUT
     try:
         if platform.system() != "Linux" or platform.machine() != "x86_64":
@@ -121,15 +131,22 @@ def run_probe(root: Path, out: Path) -> int:
         if receipt["golden_sha256"] != GOLDEN:
             raise RuntimeError("original golden probe bytes changed")
         original = auth.read_bytes()
-        if (target.exists() or b"sandbox_lifecycle_probe" in original
+        if (any(target.exists() for target in targets) or b"sandbox_lifecycle_probe" in original
                 or auth.with_name("sandbox_dispatch_probe.rs").exists()
                 or b"mod sandbox_dispatch_probe" in original):
             raise RuntimeError("refusing preexisting or concurrent probe injection")
-        source = root / "tests/cloud-gateway/linux_sandbox_lifecycle.rs"
-        payload = source.read_bytes()
-        receipt["probe_sha256"] = hashlib.sha256(payload).hexdigest()
-        target.write_bytes(payload)
-        injected = True
+        payloads = {name: (root / source).read_bytes() for name, source in PAYLOADS.items()}
+        receipt["payload_sha256"] = {
+            PAYLOADS[name]: hashlib.sha256(payload).hexdigest()
+            for name, payload in payloads.items()
+        }
+        receipt["probe_sha256"] = receipt["payload_sha256"][PAYLOADS["sandbox_lifecycle_probe.rs"]]
+        for name, payload in payloads.items():
+            target = auth.with_name(name)
+            with target.open("xb") as stream:
+                injected.append(target)  # Own even a partially written payload.
+                stream.write(payload)
+        auth_touched = True  # A partial registration write still needs restoration.
         auth.write_bytes(original + INJECTION)
         env = {**os.environ, "CARGO_TERM_COLOR": "never", "RUST_BACKTRACE": "0",
                "PATH": "/usr/bin:/bin:" + os.environ.get("PATH", ""),
@@ -150,25 +167,27 @@ def run_probe(root: Path, out: Path) -> int:
             # Even an apparent success cannot hide a fixture/setup warning.
             if "PROBE_SETUP:" in text:
                 status = "invalid_evidence"
-            receipt["tests"][name] = {"exit_code": code, "status": status}
+            receipt["tests"][name] = {"exit_code": code, "status": status,
+                                      "test_filter": CASE_PATHS[name]}
             print(f"{name}: {status}", flush=True)
     except (OSError, RuntimeError, subprocess.SubprocessError) as error:
         receipt["error"] = f"PROBE_SETUP: {error}"
     finally:
         cleanup_errors = []
-        if injected:
+        if auth_touched:
             try:
                 auth.write_bytes(original)
             except OSError as error:
                 cleanup_errors.append(f"source restoration failed: {error}")
+        for target in injected:
             try:
                 target.unlink()
             except OSError as error:
-                cleanup_errors.append(f"injected module removal failed: {error}")
+                cleanup_errors.append(f"injected module removal failed: {target.name}: {error}")
         if original is not None:
             try:
                 receipt["production_source_restored"] = (
-                    auth.read_bytes() == original and (not injected or not target.exists()))
+                    auth.read_bytes() == original and all(not target.exists() for target in injected))
             except OSError as error:
                 cleanup_errors.append(f"source restoration check failed: {error}")
         if cleanup_errors:
@@ -183,7 +202,7 @@ def run_probe(root: Path, out: Path) -> int:
             receipt["compile_exit"] == 0
             and "error" not in receipt
             and receipt["production_source_restored"]
-            and not target.exists()
+            and all(not target.exists() for target in targets)
             and receipt["golden_unchanged"]
             and set(receipt["tests"]) == set(CASES)
             and all(receipt["tests"][name]["status"] == "pass" for name in CASES)
