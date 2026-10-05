@@ -15,8 +15,11 @@ class DesktopCompositionTests(unittest.TestCase):
     def setUp(self):
         self.repo, _, self.commit, self.blob = self.enterContext(c._profile_fixture())
         self.source = c._entries(d.SOURCE, self.repo)
-        self.good = self.source | {p: ('100644', 'blob', self.blob((c.ROOT / p).read_bytes()))
-                                   for p in d.AMENDMENT_CAPS}
+        self.assertEqual(tuple(o._parents(c.nginx.F, self.repo, c._git)), c.nginx.F_PARENTS)
+        self.assertEqual(c._git('rev-parse', c.nginx.F + '^{tree}', root=self.repo).decode().strip(),
+                         c.nginx.F_TREE)
+        frozen = self.selected(c.nginx.F)
+        self.good = self.source | {p: frozen[p] for p in d.AMENDMENT_CAPS}
         self.pure = self.commit([d.SOURCE], self.good)
         self.feature = self.commit([d.X, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -244,6 +247,16 @@ class DesktopCompositionTests(unittest.TestCase):
         original = c._git('show', d.X + ':' + d.COMPOSITION, root=self.repo)
         self.assertEqual(hashlib.sha256(original).hexdigest(), d.COMPOSITION_BASE_SHA256)
         current = (c.ROOT / d.COMPOSITION).read_text()
+        for before, after in (
+            ('import rc_pretag_nginx_profile as nginx\n', ''),
+            ('expected = nginx.selected_profile(', 'expected = desktop.selected_profile('),
+            ('assert not (EXPECTED_GROUPS.keys() & nginx.EXPECTED_GROUPS.keys())\n'
+             'EXPECTED_GROUPS.update(nginx.EXPECTED_GROUPS)\n', ''),
+        ):
+            current = c._replace_once(current, before, after)
+        self.assertEqual(current.encode(), c._git('show', c.nginx.F + ':' + d.COMPOSITION, root=self.repo))
+        self.assertEqual(o.pin(current.encode()), d.AMENDMENT_PINS[d.COMPOSITION])
+        frozen = current
         replacements = (
             ('import rc_pretag_desktop_profile as desktop\n', ''),
             ('expected = desktop.selected_profile(', 'expected = ownership.selected_profile('),
@@ -254,7 +267,7 @@ class DesktopCompositionTests(unittest.TestCase):
         for before, after in replacements:
             current = c._replace_once(current, before, after)
         self.assertEqual(current.encode(), original)
-        old_tree, new_tree = ast.parse(original), ast.parse((c.ROOT / d.COMPOSITION).read_bytes())
+        old_tree, new_tree = ast.parse(original), ast.parse(frozen)
         def methods(tree):
             owner = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'CompositionTests')
             return {n.name: ast.dump(n, include_attributes=False) for n in owner.body if isinstance(n, ast.FunctionDef)}
@@ -269,7 +282,9 @@ class DesktopCompositionTests(unittest.TestCase):
         old = ast.literal_eval(node.value)
         self.assertEqual(sum(len(names.split()) for names in old.values()), 147)
         self.assertFalse(old.keys() & d.EXPECTED_GROUPS.keys())
-        self.assertEqual(c.EXPECTED_GROUPS, old | d.EXPECTED_GROUPS)
+        self.assertFalse((old.keys() | d.EXPECTED_GROUPS.keys()) & c.nginx.EXPECTED_GROUPS.keys())
+        self.assertEqual(sum(len(names.split()) for names in c.nginx.EXPECTED_GROUPS.values()), 20)
+        self.assertEqual(c.EXPECTED_GROUPS, old | d.EXPECTED_GROUPS | c.nginx.EXPECTED_GROUPS)
         names = next(iter(d.EXPECTED_GROUPS.values())).split()
         self.assertEqual(len(names), 20)
         self.assertEqual(set(names), set(unittest.defaultTestLoader.getTestCaseNames(type(self))))
@@ -277,7 +292,7 @@ class DesktopCompositionTests(unittest.TestCase):
         loaded = [test.id() for test in c._flatten(suite)]
         expected = [prefix + '.' + name for prefix, names in c.EXPECTED_GROUPS.items() for name in names.split()]
         self.assertEqual(c.Counter(loaded), c.Counter(expected))
-        self.assertEqual((len(loaded), len(set(loaded))), (167, 167))
+        self.assertEqual((len(loaded), len(set(loaded))), (187, 187))
 
     def test_git_context_isolation_and_topology_only_dispatch(self):
         calls = []
