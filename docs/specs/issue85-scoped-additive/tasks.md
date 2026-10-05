@@ -4,7 +4,7 @@
 Implement only the independently reviewed compiler-input/DEB engineering proof on exact baseline44ff. Existing production contracts remain unchanged.
 
 ## 交付物清单（Scope-lock）
-Expected new files:11; existing modified files:0. Contract module≤480 lines; other new source modules≤450 each (DEB≤300), tests≤450 each, workflow≤220, specifications≤200 each. No automatic path expansion.
+Expected new files:11; existing modified files:0. Contract module≤480 lines; other new source modules≤450 each (DEB≤300), collector tests≤460, other tests≤450 each, workflow≤220, specifications≤200 each. No automatic path expansion.
 
 ## 任务列表
 - [x] 1.1 Read source/contracts and refresh exact baseline graph
@@ -29,7 +29,7 @@ Expected new files:11; existing modified files:0. Contract module≤480 lines; o
   - Requirements FR-3,FR-5; design DEB/Resource bounds
 - [x] 2.4 Implement additive engineering workflow and contract regressions
   - **证据块**: final-rc-packages.yml:287 invokes actual Tauri; existing validators retain false installed/release flags
-  - Files: issue85-desktop-glib-deb.yml≤220; desktop_glib_build_evidence_tests.py≤450
+  - Files: issue85-desktop-glib-deb.yml≤220; desktop_glib_build_evidence_tests.py≤460
   - Requirements FR-1..FR-5; design CI/Tests
 - [x] 3.1 Verify all rejection cases, unchanged regressions and exact scope
   - **证据块**: existing baseline local tests343 pass (source39/dependency35/package3/exact-build22/consumer244), zero skips; no native-build claim

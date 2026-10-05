@@ -172,8 +172,18 @@ class JsonAndOwnershipTests(unittest.TestCase):
         with self.assertRaises(FileExistsError): c.copy_regular(self.path, self.path)
 
     def test_descriptor_mutation_rejects(self):
+        for field in ('st_mtime_ns', 'st_ctime_ns'):
+            before = self.path.stat()
+            after = mock.Mock(**{k: getattr(before, k) for k in dir(before) if k.startswith('st_')})
+            setattr(after, field, getattr(before, field) + 1)
+            with mock.patch.object(c.os, 'fstat', side_effect=[before, after]), self.assertRaisesRegex(ValueError, 'changed_during_read'):
+                with c.regular_descriptor(self.path): self.path.write_bytes(b'changed!')
         with self.assertRaisesRegex(ValueError, 'changed_during_read'):
-            with c.regular_descriptor(self.path): self.path.write_bytes(b'changed!')
+            with c.regular_descriptor(self.path): self.path.write_bytes(b'changed-size')
+        before = c.file_record(self.path)
+        self.path.write_bytes(b'other-values')
+        self.assertEqual(before['size'], self.path.stat().st_size)
+        self.assertNotEqual(before['sha256'], c.file_record(self.path)['sha256'])
 
     def test_file_size_and_root_boundaries(self):
         with self.assertRaises(ValueError): c.read_regular(self.path, 2)
