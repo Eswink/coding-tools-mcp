@@ -13,6 +13,7 @@ import stat
 import subprocess
 import unittest
 from rc_consumer_io import read_bytes
+import rc_pretag_ownership_profile as ownership
 from verify_glib_backport import ARCHIVE_SHA
 from rc_pretag_collect_fixtures import owned_git_scope, git_environment
 
@@ -140,9 +141,7 @@ def _selected_profile(ref='HEAD', root=ROOT):
 
 @contextmanager
 def _profile_fixture():
-    current = _git('rev-parse', 'HEAD').decode().strip()
-    parents = _git('show', '-s', '--format=%P', current).decode().split()
-    candidate = parents[1] if parents and parents[0] == RELEASE else current
+    candidate = ownership.M  # Original J/adopter tests retain their exact historical M tree.
     temp = tempfile.TemporaryDirectory()
     with temp:
         repo = Path(temp.name) / 'source'; repo.mkdir()
@@ -157,8 +156,11 @@ def _profile_fixture():
             write('read-tree', '--empty')
             write('update-index', '-z', '--index-info', data=''.join(
                 f'{mode} {blob}\t{path}\0' for path, (mode, kind, blob) in sorted(entries.items())).encode())
-            return write('commit-tree', write('write-tree'), *(part for parent in parents for part in ('-p', parent)),
-                         data=b'Owned synthetic composition fixture; no release authority\n')
+            # Literal headers preserve duplicate parents for isolated grammar negatives.
+            body = ('tree ' + write('write-tree') + '\n' + ''.join('parent ' + p + '\n' for p in parents)
+                    + 'author Fixture <fixture@example.invalid> 1 +0000\n'
+                    + 'committer Fixture <fixture@example.invalid> 1 +0000\n\nOwned composition fixture\n')
+            return write('hash-object', '-t', 'commit', '-w', '--stdin', data=body.encode())
         yield repo, candidate, commit, lambda data: write('hash-object', '-w', '--stdin', data=data)
 
 
@@ -188,7 +190,8 @@ def _reconstruct_consumer(text):
 
 class CompositionTests(unittest.TestCase):
     def test_exact_tracked_tree_modes_and_scope(self):
-        expected = _selected_profile()
+        expected = ownership.selected_profile(
+            'HEAD', ROOT, _git, _entries, _feature_profile, RELEASE, RELEASE_TREE, RELEASE_DOCS)
         index = _index_entries(_git('ls-files', '--stage', '-z'))
         self.assertEqual(index, expected)
         self.assertEqual(len(ALLOWED), 22)
@@ -238,16 +241,17 @@ class CompositionTests(unittest.TestCase):
                          'e45608f7ae523c25ea5d12cd4d24cbd56a3f1c12')
 
     def test_finite_review_budgets(self):
+        frozen = {path: _git('show', ownership.M + ':' + path) for path in BUDGET}
         for path, cap in BUDGET.items():
-            self.assertLessEqual(len((ROOT / path).read_bytes().splitlines()), cap, path)
-        self.assertLessEqual(sum(len((ROOT / ('scripts/rc_pretag_' + name + '.py')).read_bytes().splitlines())
+            self.assertLessEqual(len(frozen[path].splitlines()), cap, path)
+        self.assertLessEqual(sum(len(frozen['scripts/rc_pretag_' + name + '.py'].splitlines())
                                  for name in ('admission', 'collect', 'collection_result')), 640)
         narrow_count = 0
         for path in NARROW:
-            added, removed, _ = _git('diff', '--numstat', BASE, '--', path).decode().split()
+            added, removed, _ = _git('diff', '--numstat', BASE, ownership.M, '--', path).decode().split()
             self.assertLessEqual(int(added) + int(removed), 35, path)
             narrow_count += int(added) + int(removed)
-        self.assertLessEqual(sum(len((ROOT / p).read_bytes().splitlines()) for p in BUDGET) + 1436 + narrow_count, 3966)
+        self.assertLessEqual(sum(len(frozen[p].splitlines()) for p in BUDGET) + 1436 + narrow_count, 3966)
 
     def test_live_workflow_exact_execution_envelope(self):
         data = (ROOT / LIVE).read_bytes()
@@ -269,8 +273,13 @@ class CompositionTests(unittest.TestCase):
         self.assertEqual(text.count('GH_TOKEN:'), 1)
 
     def test_fixture_workflow_triggers_and_no_duplicate_regressions(self):
-        data = (ROOT / CHECKS).read_bytes()
+        data = _git('show', ownership.M + ':' + CHECKS)
         self.assertEqual((_blob(data), hashlib.sha256(data).hexdigest()), CHECKS_PIN)
+        current = (ROOT / CHECKS).read_bytes()
+        self.assertEqual(ownership.pin(current), ownership.NEW_PINS[CHECKS])
+        self.assertIn("'" + ownership.BRANCH + "'", current.decode())
+        for path in ownership.FILTERS:
+            self.assertEqual(current.decode().count("'" + path + "'"), 2, path)
         text = data.decode()
         self.assertIn("branches: ['feat/rc-final-artifact-consumer-pretag-1694fe8c', 'feat/rc-final-artifact-consumer-128']", text)
         self.assertEqual(text.count('branches:'), 1)
@@ -364,6 +373,16 @@ class CompositionTests(unittest.TestCase):
 
 # Reviewed frozen IDs: original118 + six composition + six fixture-Git isolation.
 EXPECTED_GROUPS = {
+    'rc_pretag_ownership_tests.OwnershipCompositionTests': (
+        'test_exact_m_ownership_overlay_accepts_only_reviewed_delta test_ownership_io_drift_and_reverted_handoff_reject '
+        'test_proof_bodies_live_pins_and_fixture_identity_reject_drift test_overlay_modes_paths_deletions_and_extra_sources_reject '
+        'test_original_adopter_and_ownership_budgets_are_separate test_pure_candidate_chain_anchors_at_m_with_fixed_limit '
+        'test_exact_fix_merge_has_m_then_pure_candidate test_exact_release_overlay_has_r_then_validated_nonrelease '
+        'test_invalid_pure_topologies_reject_with_valid_trees test_invalid_fix_merges_reject_with_valid_trees '
+        'test_invalid_release_overlays_reject_with_valid_trees '),
+    'rc_pretag_ownership_tests.OwnershipFailureBoundaryTests': (
+        'test_actual_directory_fault_blocks_collection_observation test_actual_handoff_walk_fault_preserves_uncertainty '
+        'test_actual_constructor_fault_blocks_collect_and_emit '),
     'rc_pretag_admission_tests.AdmissionTests': ('test_absent_tag_still_rejected_by_unchanged_posttag_consumer test_active_job_requires_exact_unique_identity_attempt_and_status test_actual_ref_requires_exact_version_and_alphanumeric_nonce test_all_invocation_environment_fields_are_mandatory '
         'test_all_six_version_slots_reject_independently test_annotated_and_foreign_local_tags_reject_without_repair test_current_and_exact_attempt_runs_must_be_live_and_matching test_discovery_values_cannot_replace_strict_fixed_selection '
         'test_environment_identity_types_and_event_are_not_coerced test_existing_lightweight_tag_passes_posttag_and_blocks_pretag test_final_source_fence_rechecks_after_artifact_metadata test_fixed_admission_and_final_branch_change_reject_freshness '

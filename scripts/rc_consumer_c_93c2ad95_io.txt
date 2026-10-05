@@ -60,12 +60,11 @@ def _directory(path) -> int:
             if not part:
                 continue
             new = os.open(part, DIR_FLAGS, dir_fd=fd)
-            previous, fd = fd, new
-            os.close(previous)
+            os.close(fd)
+            fd = new
         return fd
     except BaseException:
-        closing, fd = fd, None
-        os.close(closing)
+        os.close(fd)
         raise
 
 
@@ -151,31 +150,21 @@ class PrivateRoot:
         source = _absolute(source_root or Path(__file__).absolute().parents[1])
         need(os.path.commonpath((source, parent)) != source, 'root_inside_source')
         need(type(prefix) is str and re.fullmatch(r'[A-Za-z0-9_-]{1,64}', prefix), 'invalid_root_prefix')
-        parent_fd = root_fd = None
+        parent_fd = None
         try:
-            try:
-                parent_fd = _directory(parent)
-                # Nofollow traversal makes lexical and actual ancestry identical.
-                need(os.path.realpath(parent) == parent, 'unsafe_root_parent')
-                name = prefix + secrets.token_hex(16)
-                os.mkdir(name, 0o700, dir_fd=parent_fd)
-                root_fd = os.open(name, DIR_FLAGS, dir_fd=parent_fd)
-                self.path = Path(parent) / name
-                self._dirs[''] = self._identity(root_fd)
-                closing, parent_fd = parent_fd, None
-                os.close(closing)
-                self.fd, root_fd = root_fd, None
-            finally:
-                try:
-                    if root_fd is not None:
-                        closing, root_fd = root_fd, None
-                        os.close(closing)
-                finally:
-                    if parent_fd is not None:
-                        closing, parent_fd = parent_fd, None
-                        os.close(closing)
+            parent_fd = _directory(parent)
+            # Nofollow traversal makes lexical and actual ancestry identical.
+            need(os.path.realpath(parent) == parent, 'unsafe_root_parent')
+            name = prefix + secrets.token_hex(16)
+            os.mkdir(name, 0o700, dir_fd=parent_fd)
+            self.fd = os.open(name, DIR_FLAGS, dir_fd=parent_fd)
+            self.path = Path(parent) / name
+            self._dirs[''] = self._identity(self.fd)
         except OSError:
             raise ConsumerError('unsafe_root_parent') from None
+        finally:
+            if parent_fd is not None:
+                os.close(parent_fd)
 
     @staticmethod
     def _identity(fd):
@@ -206,26 +195,19 @@ class PrivateRoot:
                     need(create, 'unknown_private_directory')
                     os.mkdir(part, 0o700, dir_fd=fd)
                     child = os.open(part, DIR_FLAGS, dir_fd=fd)
-                    try:
-                        self._dirs[relative] = self._identity(child)
-                    except BaseException:
-                        closing, child = child, None
-                        os.close(closing)
-                        raise
+                    self._dirs[relative] = self._identity(child)
                 else:
                     child = os.open(part, DIR_FLAGS, dir_fd=fd)
                     try:
                         need(self._identity(child) == self._dirs[relative], 'private_directory_replaced')
                     except BaseException:
-                        closing, child = child, None
-                        os.close(closing)
+                        os.close(child)
                         raise
-                previous, fd = fd, child
-                os.close(previous)
+                os.close(fd)
+                fd = child
             return fd, parts[-1]
         except BaseException:
-            closing, fd = fd, None
-            os.close(closing)
+            os.close(fd)
             raise
 
     def mkdir(self, relative):
