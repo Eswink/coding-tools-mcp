@@ -20,6 +20,40 @@ impl Drop for Server {
         let _ = self.0.wait();
     }
 }
+fn native_host(
+    root: &std::path::Path,
+    cfg: &coding_tools_cloud_agent::AgentConfig,
+    initialize: bool,
+) -> Arc<NativeLiveHost> {
+    let workspace = root.join("workspace");
+    if initialize {
+        std::fs::create_dir(&workspace).unwrap();
+        std::fs::write(
+            workspace.join("native-canary.txt"),
+            "native-cloud-real-file-canary",
+        )
+        .unwrap();
+    }
+    let context = Arc::new(ToolContext::for_test(workspace.clone(), root.join("harness")).unwrap());
+    let authorizer = Arc::new(ChatAuthorizer::default());
+    authorizer
+        .attach_storage("native-wss", &root.join("auth"), &root.join("harness"))
+        .unwrap();
+    let link = CloudTransport::new(
+        "native-wss",
+        &workspace,
+        &cfg.origin,
+        &cfg.prefix,
+        cfg.connector,
+        cfg.device,
+        cfg.device_epoch as u64,
+        "native-wss-fixture-separate-binding-key",
+    )
+    .unwrap();
+    let tools = Arc::new(NativeToolHost::new("native-wss", context, link, authorizer).unwrap());
+    Arc::new(NativeLiveHost::open(tools, &root.join("projection"), initialize, 1).unwrap())
+}
+
 struct Harness {
     _root: tempfile::TempDir,
     _server: Server,
@@ -92,39 +126,7 @@ impl Harness {
         let config = serde_json::to_vec(&info["config"]).unwrap();
         let key = serde_json::to_vec(&info["key"]).unwrap();
         let cfg = coding_tools_cloud_agent::AgentConfig::from_bytes(&config).unwrap();
-        let workspace = root.path().join("workspace");
-        std::fs::create_dir(&workspace).unwrap();
-        std::fs::write(
-            workspace.join("native-canary.txt"),
-            "native-cloud-real-file-canary",
-        )
-        .unwrap();
-        let context = Arc::new(
-            ToolContext::for_test(workspace.clone(), root.path().join("harness")).unwrap(),
-        );
-        let authorizer = Arc::new(ChatAuthorizer::default());
-        authorizer
-            .attach_storage(
-                "native-wss",
-                &root.path().join("auth"),
-                &root.path().join("harness"),
-            )
-            .unwrap();
-        let link = CloudTransport::new(
-            "native-wss",
-            &workspace,
-            &cfg.origin,
-            &cfg.prefix,
-            cfg.connector,
-            cfg.device,
-            cfg.device_epoch as u64,
-            "native-wss-fixture-separate-binding-key",
-        )
-        .unwrap();
-        let tools = Arc::new(NativeToolHost::new("native-wss", context, link, authorizer).unwrap());
-        let host = Arc::new(
-            NativeLiveHost::open(tools, &root.path().join("projection"), true, 1).unwrap(),
-        );
+        let host = native_host(root.path(), &cfg, true);
         let journal = root.path().join("host-state.bin");
         let mut agent = HostAgent::open(&config, &key, &journal, true, host.clone()).unwrap();
         let (stop, rx) = watch::channel(false);
@@ -423,3 +425,7 @@ mod managed_drain_tests;
 
 #[path = "wss_catalog_tests.rs"]
 mod catalog_tests;
+
+#[cfg(all(feature = "nginx-agent-integration-tests", target_os = "linux"))]
+#[path = "wss_two_hop_tests.rs"]
+mod two_hop_tests;
