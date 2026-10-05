@@ -1,0 +1,172 @@
+name: Issue85 desktop GLib compiler-input and DEB binding (engineering only)
+on:
+  push:
+    branches: ['ci/issue85-desktop-glib-deb-*']
+permissions:
+  contents: read
+concurrency:
+  group: issue85-desktop-glib-deb-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    outputs:
+      envelope_sha256: ${{ steps.evidence.outputs.envelope_sha256 }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
+      version: ${{ steps.evidence.outputs.version }}
+      producer_run_id: ${{ steps.evidence.outputs.producer_run_id }}
+      producer_run_attempt: ${{ steps.evidence.outputs.producer_run_attempt }}
+      producer_workflow_ref: ${{ steps.evidence.outputs.producer_workflow_ref }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - name: Install native build prerequisites and pinned audit tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -c 'import sys; assert sys.version_info[:2] == (3, 12)'
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev libegl1 libgles2 libgl1
+          cargo install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/desktop-audit-tools"
+          npm ci
+          npm run check
+      - name: Acquire checksum-pinned official GLib source data
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --proto '=https' --max-redirs 0 \
+            --connect-timeout 10 --max-time 60 --max-filesize 1048576 \
+            --output "$RUNNER_TEMP/desktop-glib.crate" \
+            https://static.crates.io/crates/glib/glib-0.18.5.crate
+          printf '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5  %s\n' \
+            "$RUNNER_TEMP/desktop-glib.crate" | sha256sum --check --strict
+      - name: Adversarial contracts and unchanged source/package/consumer regressions
+        env:
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ runner.temp }}/desktop-glib.crate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/desktop_glib_deb_tests.py
+          python scripts/desktop_glib_link_tests.py
+          python scripts/desktop_glib_build_evidence_tests.py
+          python scripts/verify_glib_backport_tests.py --archive "$RC_CONSUMER_TEST_GLIB_ARCHIVE"
+          python -m unittest discover -s scripts -p 'release_dependency*tests.py' -v
+          python scripts/rc_packages_tests.py
+          python scripts/exact_build_audit_tests.py
+          python -m unittest discover -s scripts -p 'rc_consumer*tests.py' -v
+          git diff --exit-code HEAD --
+      - name: Capture actual fresh Tauri compiler-input and DEB evidence
+        id: evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/desktop_glib_build_evidence.py collect \
+            --root "$GITHUB_WORKSPACE" --source "$GITHUB_SHA" \
+            --directory "$RUNNER_TEMP/desktop-glib-evidence" \
+            --target-directory "$RUNNER_TEMP/desktop-glib-target" \
+            --archive "$RUNNER_TEMP/desktop-glib.crate" \
+            --audit-bin "$RUNNER_TEMP/desktop-audit-tools/bin/cargo-audit" \
+            --audit-db "$RUNNER_TEMP/desktop-advisory-db" \
+            --output "$RUNNER_TEMP/desktop-glib-producer-verification.json"
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          proof = json.loads((root / 'desktop-glib-producer-verification.json').read_text())
+          assert proof['desktop_compiler_input_to_deb_binding_verified'] is True
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              for key, value in {
+                  'envelope_sha256': hashlib.sha256((root / 'desktop-glib-evidence/envelope.json').read_bytes()).hexdigest(),
+                  'version': proof['version'], 'producer_run_id': os.environ['GITHUB_RUN_ID'],
+                  'producer_run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+                  'producer_workflow_ref': os.environ['GITHUB_WORKFLOW_REF']}.items():
+                  print(key + '=' + value, file=output)
+          PY
+          git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        id: upload
+        if: always()
+        with:
+          name: issue85-desktop-glib-deb-evidence
+          path: ${{ runner.temp }}/desktop-glib-evidence/
+          if-no-files-found: error
+          retention-days: 30
+  verify:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      EXPECTED_ENVELOPE: ${{ needs.build.outputs.envelope_sha256 }}
+      EXPECTED_ARTIFACT_ID: ${{ needs.build.outputs.artifact_id }}
+      EXPECTED_ARTIFACT_DIGEST: ${{ needs.build.outputs.artifact_digest }}
+      EXPECTED_VERSION: ${{ needs.build.outputs.version }}
+      PRODUCER_RUN: ${{ needs.build.outputs.producer_run_id }}
+      PRODUCER_ATTEMPT: ${{ needs.build.outputs.producer_run_attempt }}
+      PRODUCER_WORKFLOW: ${{ needs.build.outputs.producer_workflow_ref }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          path: ${{ runner.temp }}/desktop-glib-evidence
+          merge-multiple: true
+      - name: Independent data-only replay and actual-byte mutation controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PRODUCER_RUN" = "$GITHUB_RUN_ID"
+          test "$PRODUCER_ATTEMPT" = "$GITHUB_RUN_ATTEMPT"
+          test "$PRODUCER_WORKFLOW" = "$GITHUB_WORKFLOW_REF"
+          python scripts/desktop_glib_build_evidence.py verify \
+            --root "$GITHUB_WORKSPACE" --source "$GITHUB_SHA" \
+            --directory "$RUNNER_TEMP/desktop-glib-evidence" \
+            --expected-envelope-sha256 "$EXPECTED_ENVELOPE" \
+            --producer-run-id "$PRODUCER_RUN" --producer-run-attempt "$PRODUCER_ATTEMPT" \
+            --producer-workflow-ref "$PRODUCER_WORKFLOW" \
+            --output "$RUNNER_TEMP/desktop-glib-replay.json"
+          python scripts/desktop_glib_build_evidence_tests.py --real-evidence "$RUNNER_TEMP/desktop-glib-evidence" --real-version "$EXPECTED_VERSION" --real-output "$RUNNER_TEMP/desktop-glib-real-mutations.json"
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          assert re.fullmatch('[1-9][0-9]*', os.environ['EXPECTED_ARTIFACT_ID'])
+          assert re.fullmatch('[0-9a-f]{64}', os.environ['EXPECTED_ARTIFACT_DIGEST'])
+          proof = json.loads((Path(os.environ['RUNNER_TEMP']) / 'desktop-glib-replay.json').read_text())
+          assert proof['version'] == os.environ['EXPECTED_VERSION']
+          print('Trusted upload artifact ID=' + os.environ['EXPECTED_ARTIFACT_ID'])
+          print('Trusted upload artifact digest=' + os.environ['EXPECTED_ARTIFACT_DIGEST'])
+          print('Authenticated outer ZIP and exact upload job-attempt association require separate API audit')
+          PY
+          git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue85-desktop-glib-deb-replay
+          path: |
+            ${{ runner.temp }}/desktop-glib-replay.json
+            ${{ runner.temp }}/desktop-glib-real-mutations.json
+          if-no-files-found: error
+          retention-days: 30
