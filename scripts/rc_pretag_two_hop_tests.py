@@ -70,8 +70,10 @@ class TwoHopCompositionTests(unittest.TestCase):
     def setUp(self):
         self.repo, _, self.commit, self.blob = self.enterContext(c._profile_fixture())
         self.source = c._entries(t.P, self.repo)
-        self.good = self.source | {p: ('100644', 'blob', self.blob((c.ROOT / p).read_bytes()))
-                                   for p in t.AMENDMENT_CAPS}
+        self.assertEqual(tuple(o._parents(c.authenticated_two_hop.M, self.repo, c._git)), c.authenticated_two_hop.M_PARENTS)
+        self.assertEqual(c._git('rev-parse', c.authenticated_two_hop.M + '^{tree}', root=self.repo).decode().strip(), c.authenticated_two_hop.M_TREE)
+        frozen = self.selected(c.authenticated_two_hop.M)
+        self.good = self.source | {p: frozen[p] for p in t.AMENDMENT_CAPS}
         self.pure = self.commit([t.P], self.good)
         self.feature = self.commit([t.F, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -176,7 +178,7 @@ class TwoHopCompositionTests(unittest.TestCase):
         for path, (mode, blob, digest, size, lines) in t.SOURCE_PINS.items():
             data = c._git('show', t.P + ':' + path, root=self.repo)
             self.assertEqual((mode, blob, digest, size, lines), ('100644', *o.pin(data), len(data), len(data.splitlines())))
-            self.assertEqual((c.ROOT / path).read_bytes(), data)
+            self.assertEqual(c._git('show', c.authenticated_two_hop.M + ':' + path, root=self.repo), data)
 
     def test_exact_p_and_one_reviewed_amendment_accept(self):
         self.assertEqual(self.selected(t.P), self.source)
@@ -307,12 +309,12 @@ class TwoHopCompositionTests(unittest.TestCase):
         self.assertEqual(self.amended(self.pure), self.good)
         self.assertEqual((len(t.AMENDMENT_CAPS), len(t.AMENDMENT_PINS), t.AMENDMENT_DELTA_LIMIT), (8, 7, 1300))
         for path, pin in t.AMENDMENT_PINS.items():
-            self.bad_content(self.changed(path, (c.ROOT / path).read_bytes() + b'\n'))
+            self.bad_content(self.changed(path, c._git('cat-file', 'blob', self.good[path][2], root=self.repo) + b'\n'))
             for altered in (('0' * 40, pin[1]), (pin[0], '0' * 64)):
                 with patch.object(t, 'AMENDMENT_PINS', t.AMENDMENT_PINS | {path: altered}), self.assertRaises(AssertionError):
                     self.amended(self.pure)
         for path, (_, diff_cap) in t.AMENDMENT_CAPS.items():
-            cap = len((c.ROOT / path).read_bytes().splitlines()) - 1
+            cap = len(c._git('cat-file', 'blob', self.good[path][2], root=self.repo).splitlines()) - 1
             with patch.object(t, 'AMENDMENT_CAPS', t.AMENDMENT_CAPS | {path: (cap, diff_cap)}), self.assertRaises(AssertionError):
                 self.amended(self.pure)
             def oversized_diff(*args, root):
@@ -388,7 +390,7 @@ class TwoHopCompositionTests(unittest.TestCase):
 
     def adapter(self, path):
         frozen = c._git('show', t.F + ':' + path, root=self.repo)
-        current = (c.ROOT / path).read_bytes()
+        current = c._git('show', c.authenticated_two_hop.M + ':' + path, root=self.repo)
         self.assertEqual(inverse_adapter(path, current, frozen), frozen)
         for before, _ in FRAGMENTS[path]:
             for replacement in ('', before * 2):
@@ -436,7 +438,8 @@ class TwoHopCompositionTests(unittest.TestCase):
             case = nt.NginxCompositionTests(); self.addCleanup(case.doCleanups)
             with patch.object(c, '_git', corrupt), self.assertRaises(AssertionError): case.setUp()
     def test_frozen_187_plus_22_inventory_is_exactly_loaded_and_executed(self):
-        expected = [prefix + '.' + name for prefix, names in c.EXPECTED_GROUPS.items() for name in names.split()]
+        all_expected = [prefix + '.' + name for prefix, names in c.EXPECTED_GROUPS.items() for name in names.split()]
+        expected = [name for name in all_expected if name.rsplit('.', 1)[0] not in c.authenticated_two_hop.EXPECTED_GROUPS]
         inventory_ids(expected)
         legacy = [name for name in expected if not name.startswith('rc_pretag_two_hop_tests.')]
         self.assertEqual((len(legacy), hashlib.sha256('\n'.join(sorted(legacy)).encode()).hexdigest()),
@@ -445,7 +448,9 @@ class TwoHopCompositionTests(unittest.TestCase):
         self.assertEqual((len(names), len(set(names))), (22, 22))
         self.assertEqual(set(names), set(unittest.defaultTestLoader.getTestCaseNames(type(self))))
         suite = unittest.defaultTestLoader.discover(str(c.ROOT / 'scripts'), pattern='rc_pretag*_tests.py')
-        loaded = [case.id() for case in c._flatten(suite)]; inventory_ids(loaded)
+        all_loaded = [case.id() for case in c._flatten(suite)]
+        self.assertEqual((len(all_loaded), len(set(all_loaded))), (233, 233)); self.assertEqual(Counter(all_loaded), Counter(all_expected))
+        loaded = [name for name in all_loaded if name.rsplit('.', 1)[0] not in c.authenticated_two_hop.EXPECTED_GROUPS]; inventory_ids(loaded)
         self.assertEqual(Counter(loaded), Counter(expected))
         for index, name in enumerate(legacy):
             for altered in (expected[:index] + expected[index + 1:], expected + [name], [x if x != name else x + '_replaced' for x in expected]):
