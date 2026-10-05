@@ -58,7 +58,7 @@ class TraceTests(unittest.TestCase):
         parsed = link.rustc_outputs(args[1:], '/owned/source', self.expected['target_dir'])
         source_hash = identity(source.encode())
         self.expected['local_source_hashes'][source] = source_hash['sha256']
-        self.records.append(dict(schema=1, id=f'{index:032x}', argv=args, cwd='/owned/source',
+        self.records.append(dict(schema=2, parent=None, id=f'{index:032x}', argv=args, cwd='/owned/source',
             compiler={'path': self.expected['real_rustc'], 'sha256': self.expected['real_rustc_sha256']},
             source_sha=self.expected['source_sha'], source_root=self.expected['source_root'],
             target_dir=self.expected['target_dir'], environment={}, role=parsed['role'], unit=parsed['unit'],
@@ -250,6 +250,22 @@ class TraceTests(unittest.TestCase):
         self.records[0]['error'] = value
         self.reject()
         self.records[0]['error'] = float('nan')
+        self.reject()
+
+    def test_prefer_dynamic_is_exact_and_host_proc_macro_only(self):
+        args = ['--crate-name', 'macros', '--crate-type=proc-macro', '/owned/source/macros.rs',
+                '--emit=dep-info,link', '--out-dir', '/owned/target/release/deps',
+                '--extern', 'proc_macro', '-C', 'prefer-dynamic']
+        self.assertEqual(link.rustc_outputs(args, '/owned/source', '/owned/target')['role'], 'host')
+        for changed in (args + ['-C', 'prefer-dynamic'], args[:-1] + ['prefer-dynamic=yes'],
+                        args[:-2] + ['-Cprefer-dynamic'],
+                        ['--crate-type=bin' if a == '--crate-type=proc-macro' else a for a in args],
+                        args + ['--target', link.TARGET]):
+            with self.subTest(changed=changed), self.assertRaises(ValueError):
+                link.rustc_outputs(changed, '/owned/source', '/owned/target')
+
+    def test_schema_one_cannot_gain_missing_parent_observation(self):
+        self.records[0]['schema'] = 1
         self.reject()
 
 

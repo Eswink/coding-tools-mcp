@@ -59,12 +59,16 @@ def parse_externs(values, cwd):
     return result
 
 
-def rustc_outputs(args, cwd, target_dir):
+def rustc_outputs(args, cwd, target_dir, environment=None):
     """Parse the pinned Linux naming subset; unknown syntax cannot establish proof."""
     valid_argv(args)
     if any(a in ('-vV', '-V', '--version', '--help', '-h', '--print') or
            a.startswith('--print=') for a in args):
         return {'role': 'query', 'unit': None, 'externs': [], 'outputs': []}
+    from desktop_glib_probes import classify_probe
+    probe = classify_probe(args, cwd, target_dir, environment or {})
+    if probe is not None:
+        return dict(role='probe', unit=probe, externs=[], outputs=[])
     values, codes, sources, i = {}, {}, [], 0
     while i < len(args):
         arg = args[i]
@@ -84,7 +88,11 @@ def rustc_outputs(args, cwd, target_dir):
                 value = args[i]
             if key == '-C':
                 name, sep, setting = value.partition('=')
-                need(sep and name in CODEGEN, 'unsupported_codegen_option:' + name)
+                if name == 'prefer-dynamic':
+                    need(not sep and arg == '-C', 'unsupported_prefer_dynamic_value')
+                    setting = 'yes'
+                else:
+                    need(sep and name in CODEGEN, 'unsupported_codegen_option:' + name)
                 need(name == 'link-arg' or name not in codes, 'duplicate_codegen_option')
                 if name == 'link-arg':
                     need(not re.search(r'(^|[,\s])(-o|--output|@|--out-implib)', setting),
@@ -111,8 +119,12 @@ def rustc_outputs(args, cwd, target_dir):
     target = values.get('target', [None])[0]
     need(target in (None, TARGET), 'unsupported_rustc_target')
     role = 'target' if target else 'host'
+    need('prefer-dynamic' not in codes or (role == 'host' and types == ['proc-macro'] and
+         'link' in emits), 'unsupported_prefer_dynamic_unit')
     out = canonical(values['out-dir'][0], cwd)
     need(inside(out, target_dir), 'output_outside_fresh_target')
+    need('prefer-dynamic' not in codes or out == str(Path(target_dir) / 'release/deps'),
+         'wrong_prefer_dynamic_profile')
     if role == 'target':
         need(out == str(Path(target_dir) / TARGET / 'release/deps'), 'wrong_target_profile')
     else:
@@ -189,25 +201,28 @@ def propagate_exit(code):
 def capture_rustc(argv, config):
     """Inherit live stdio, record bounded data, and return the actual child's status."""
     from desktop_glib_build_contract import file_record, stable_file, write_json
+    from desktop_glib_probes import capture_probe_parent
     valid_argv(argv)
     compiler = canonical(config['real_rustc'])
     need(argv[0] == compiler and os.path.realpath(compiler) == compiler, 'alternate_rustc')
     identity = file_record(compiler, MAX_BINARY, single_link=False)
     need(identity['sha256'] == config['real_rustc_sha256'], 'changed_real_rustc')
     cwd, started = os.getcwd(), time.time_ns()
-    record = dict(schema=1, id=uuid.uuid4().hex, argv=argv, cwd=cwd,
+    record = dict(schema=2, id=uuid.uuid4().hex, argv=argv, cwd=cwd,
         compiler={'path': compiler, 'sha256': identity['sha256']},
         source_sha=config['source_sha'], source_root=config['source_root'],
         target_dir=config['target_dir'], environment={k: v for k, v in os.environ.items()
             if k in ENVIRONMENT}, started_ns=started, finished_ns=None, returncode=None,
-        role='invalid', unit=None, source=None, externs=[], outputs=[], error=None)
+        role='invalid', unit=None, source=None, externs=[], outputs=[], error=None, parent=None)
     def snapshot(path, target=False):
         return stable_file(path, config['target_dir'] if target else '/',
                            MAX_BINARY, allow_hardlinks=target)
     try:
-        parsed = rustc_outputs(argv[1:], cwd, config['target_dir'])
+        parsed = rustc_outputs(argv[1:], cwd, config['target_dir'], record['environment'])
         record.update(role=parsed['role'], unit=parsed['unit'])
-        if parsed['unit']:
+        if parsed['role'] == 'probe':
+            record['parent'] = capture_probe_parent(config['target_dir'], parsed['unit']['out_dir'])
+        if parsed['unit'] and parsed['unit']['source'] is not None:
             path = parsed['unit']['source']
             record['source'] = {'path': path, 'before': snapshot(path), 'after': None}
             for ext in parsed['externs']:
@@ -226,6 +241,9 @@ def capture_rustc(argv, config):
                 ext['after'] = snapshot(ext['path'], True)
             if record['returncode'] == 0:
                 record['outputs'] = [dict(o, **snapshot(o['path'], True)) for o in parsed['outputs']]
+        if not record['error'] and record['role'] == 'probe':
+            record['parent'] = capture_probe_parent(config['target_dir'],
+                parsed['unit']['out_dir'], record['parent'])
         need(file_record(compiler, MAX_BINARY, single_link=False) == identity, 'compiler_changed')
     except (EvidenceError, OSError, ValueError) as exc:
         record['error'] = str(exc)
@@ -264,18 +282,19 @@ def verify_link_trace(records, expected):
     owners, units, edges, total = {}, {}, {}, 0
     keys = {'schema', 'id', 'argv', 'cwd', 'compiler', 'source_sha', 'source_root', 'target_dir',
             'environment', 'started_ns', 'finished_ns', 'returncode', 'role', 'unit', 'source',
-            'externs', 'outputs', 'error'}
+            'externs', 'outputs', 'error', 'parent'}
     for rec in records:
         need(isinstance(rec, dict) and set(rec) == keys, 'invalid_trace_schema')
         bounded_data(rec)
         length = len(json.dumps(rec, allow_nan=False).encode())
         total += length
         need(length <= MAX_RECORD and total <= MAX_TRACE, 'trace_resource_limit')
-        need(type(rec['schema']) is int and rec['schema'] == 1, 'invalid_trace_version')
+        need(type(rec['schema']) is int and rec['schema'] == 2, 'invalid_trace_version')
         ident = rec['id']
         need(isinstance(ident, str) and re.fullmatch(r'[0-9a-f]{32}', ident) and ident not in units,
              'duplicate_or_invalid_invocation')
-        need(type(rec['returncode']) is int and rec['returncode'] == 0 and rec['error'] is None,
+        need(type(rec['returncode']) is int and
+             rec['returncode'] in ((0, 1) if rec['role'] == 'probe' else (0,)) and rec['error'] is None,
              'failed_or_incomplete_rustc')
         need(all(type(rec[k]) is int and 0 <= rec[k] < 2**63 for k in ('started_ns', 'finished_ns'))
              and rec['finished_ns'] >= rec['started_ns'], 'invalid_trace_timestamps')
@@ -289,10 +308,14 @@ def verify_link_trace(records, expected):
         env = rec['environment']
         need(isinstance(env, dict) and set(env) <= ENVIRONMENT and all(isinstance(v, str) and
              len(os.fsencode(v)) <= 16384 for v in env.values()), 'invalid_trace_environment')
-        parsed = rustc_outputs(rec['argv'][1:], rec['cwd'], expected['target_dir'])
+        parsed = rustc_outputs(rec['argv'][1:], rec['cwd'], expected['target_dir'], env)
         need(rec['role'] == parsed['role'] and rec['unit'] == parsed['unit'], 'changed_trace_unit')
         need(isinstance(rec['externs'], list) and isinstance(rec['outputs'], list), 'invalid_trace_lists')
         units[ident], edges[ident] = rec, set()
+        if rec['role'] == 'probe':
+            need(rec['externs'] == rec['outputs'] == [], 'probe_has_proof_artifacts')
+            continue
+        need(rec['parent'] is None, 'unexpected_compiler_parent')
         if rec['role'] == 'query':
             need(rec['source'] is None and not rec['externs'] and not rec['outputs'], 'query_has_outputs')
             continue
@@ -333,6 +356,10 @@ def verify_link_trace(records, expected):
                      producer['unit']['crate_types'] == ['proc-macro'] and ext['path'].endswith('.so'),
                      'cross_target_compiler_edge')
             edges[ident].add(owner)
+    from desktop_glib_probes import verify_probe_trace
+    for rec in records:
+        if rec['role'] == 'probe':
+            verify_probe_trace(rec, expected, units, owners)
     # Kahn elimination rejects all cycles without unbounded recursive traversal.
     remaining = {k: set(v) for k, v in edges.items()}
     while remaining:
@@ -371,4 +398,6 @@ def verify_link_trace(records, expected):
     need(glib['id'] in ancestry, 'glib_not_on_target_compiler_input_ancestry')
     return {'compiler_input_provenance_verified': True, 'glib_invocation': glib['id'],
             'root_invocation': selected['root']['id'], 'target_ancestry_units': len(ancestry),
+            'diagnostic_probes': sum(r['role'] == 'probe' for r in records),
+            'diagnostic_probe_failures': sum(r['role'] == 'probe' and r['returncode'] == 1 for r in records),
             'native_linker_consumption_verified': False, 'retained_glib_code_verified': False}

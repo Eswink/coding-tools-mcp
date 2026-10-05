@@ -4,7 +4,7 @@
 Implement only the independently reviewed compiler-input/DEB engineering proof on exact baseline44ff. Existing production contracts remain unchanged.
 
 ## 交付物清单（Scope-lock）
-Expected new files:11; existing modified files:0. Contract module≤480 lines; other new source modules≤450 each (DEB≤300), collector tests≤460, other tests≤450 each, workflow≤220, specifications≤200 each. No automatic path expansion.
+Expected new files:13; existing modified files:0. Contract module≤480 lines; other new source modules≤450 each (DEB≤300), collector tests≤460, other tests≤450 each, workflow≤220, specifications≤200 each. Probe helper≤300 and dedicated probe tests≤350; no automatic path expansion.
 
 ## 任务列表
 - [x] 1.1 Read source/contracts and refresh exact baseline graph
@@ -23,6 +23,10 @@ Expected new files:11; existing modified files:0. Contract module≤480 lines; o
   - **证据块**: pinned Cargo797e8a9 compiler/mod.rs:1957 selects rmeta for intermediate compiles; :629 uplifts binary outputs
   - Files: desktop_glib_link.py≤450; desktop_glib_link_tests.py≤450
   - Requirements FR-2,FR-5; design Compiler-input lineage/Copies
+- [x] 2.2a Authenticate finite native probe roles and preserve host proc-macro snapshots
+  - **证据块**: actual run37261569945 compiled/bundled successfully, but rejected 31 bare prefer-dynamic units and 21 build probes; missing snapshots/parent observations cannot be repaired
+  - Files: desktop_glib_probes.py≤300, desktop_glib_probes_tests.py≤350; link≤450/tests≤450; contract≤480; collector tests≤460; only the existing additive workflow/specs otherwise
+  - Requirements FR-2,FR-4,FR-5; design Finite diagnostic probes; exact HIGH packet c8c6a7c7daba1c4043d2d378b7538a013fd400235a391dca725c63079d703742 independently accepted and root authorized
 - [x] 2.3 Implement bounded DEB/ELF exact transformation checker
   - **证据块**: pinned Tauri8909f221 bundle.rs:36 replaces first UNK; debian.rs:94 emits three ar members; :161 derives Package from product name
   - Files: desktop_glib_deb.py≤300; desktop_glib_deb_tests.py≤450
@@ -51,4 +55,4 @@ Specifications pass before implementation. Exact candidate review precedes remot
 FR-1:1.1,1.2,2.1,2.4,3.1; FR-2:2.1,2.2,2.4,3.1,3.3; FR-3:2.3,2.4,3.1,3.3; FR-4:2.1,2.4,3.2,3.3; FR-5:all steps.
 
 ## 文件变更清单
-The eleven exact paths listed in design.md are the entire scope. Four source modules, three test modules, one workflow and three specification files. Every existing tracked path remains byte-identical to baseline.
+The thirteen exact paths listed in design.md are the entire scope. Five source modules, four test modules, one workflow and three specification files. Every existing tracked path remains byte-identical to baseline.

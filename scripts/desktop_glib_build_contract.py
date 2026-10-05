@@ -33,6 +33,7 @@ SOURCE_INPUTS = (
     'scripts/verify_glib_backport.py', 'scripts/exact_build_audit.py', 'scripts/rc_version_gate.py',
     'scripts/desktop_glib_build_evidence.py', 'scripts/desktop_glib_build_contract.py',
     'scripts/desktop_glib_deb.py', 'scripts/desktop_glib_link.py',
+    'scripts/desktop_glib_probes.py',
     '.github/workflows/' + WORKFLOW)
 
 FILES = {'upstream.crate', 'advisory-clone.stdout', 'advisory-clone.stderr',
@@ -249,6 +250,7 @@ def verify_compiler_events(metadata, selected_text, build_bytes, source_root, ta
               if not set(t['kind']) & {'test', 'example', 'bench'} and
               ('bin' not in t['kind'] or pid == root)}
     features, units, important, finished = {}, set(), {}, False
+    build_scripts = {'artifacts': [], 'executed': []}
     for line in build_bytes.splitlines():
         need(line and len(line) <= 4 * 1024**2 and not finished, 'invalid_or_late_build_event')
         event = decode(line, 4 * 1024**2)
@@ -270,6 +272,7 @@ def verify_compiler_events(metadata, selected_text, build_bytes, source_root, ta
                  'invalid_compiler_features')
             features.setdefault(pid, set()).update(fs)
             units.add(unit)
+            if target['kind'] == ['custom-build']: build_scripts['artifacts'].append(event)
             key = 'glib' if pid == gid and target['kind'] == ['lib'] else (
                 'root' if pid == root and target['kind'] == ['bin'] else None)
             if key:
@@ -292,10 +295,11 @@ def verify_compiler_events(metadata, selected_text, build_bytes, source_root, ta
                  'compiler_error_or_unknown_package')
         elif reason == 'build-script-executed':
             need(event.get('package_id') in selected, 'unknown_build_script')
+            build_scripts['executed'].append(event)
         else: need(False, 'unknown_compiler_event')
     need(finished and units == set(needed) and features == selected and set(important) == {'glib', 'root'},
          'incomplete_compiler_evidence')
-    return important
+    return dict(**important, build_scripts=build_scripts)
 
 
 def evidence_inventory(directory):
@@ -434,7 +438,8 @@ def verify(root, directory, sha, expected_producer, trusted_digest):
          type(acquisition.get('finished_ns')) is int and 0 < acquisition['started_ns'] <= acquisition['finished_ns'],
          'wrong_advisory_acquisition')
     paired = verify_paired_source(root, directory, e)
-    events = verify_compiler_events(decode(read_regular(directory / 'metadata.json')),
+    metadata = decode(read_regular(directory / 'metadata.json'))
+    events = verify_compiler_events(metadata,
         read_regular(directory / 'selected-tree.txt').decode(), read_regular(directory / 'build.jsonl'),
         e['source_root'], e['target_dir'])
     root_record = file_record(directory / 'desktop.elf')
@@ -463,7 +468,8 @@ def verify(root, directory, sha, expected_producer, trusted_digest):
         glib_source_sha256=local_sources[glib_source], glib_rlib={'path': glib_rlib, **glib_record},
         root_source=root_source, root_source_sha256=local_sources[root_source],
         root_executable={'path': events['root']['executable'], **root_record},
-        local_source_hashes=local_sources))
+        local_source_hashes=local_sources, probe_context={**events['build_scripts'], 'packages': metadata['packages'],
+            'lock_packages': tomllib.loads(read_regular(root / 'src-tauri/Cargo.lock').decode())['package']}))
     package = verify_deb(read_regular(directory / 'desktop.elf', MAX_BINARY),
                          read_regular(directory / 'desktop.deb', MAX_BINARY), source['version'])
     return dict(**source, **FLAGS, producer=expected_producer, envelope_sha256=trusted_digest,

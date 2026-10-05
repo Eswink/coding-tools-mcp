@@ -19,7 +19,6 @@ import verify_glib_backport_tests as source_tests
 
 ROOT = Path(__file__).resolve().parents[1]
 
-
 def fixture():
     source, target = '/trusted/source', '/owned/target'
     packages = []
@@ -64,7 +63,7 @@ class CompilerContractTests(unittest.TestCase):
             check_events(f)
 
     def test_complete_required_units_pass(self):
-        self.assertEqual(set(check_events(fixture())), {'root', 'glib'})
+        self.assertEqual(set(check_events(fixture())), {'root', 'glib', 'build_scripts'})
 
     def test_missing_glib_or_root_or_dependency(self):
         for index in range(3):
@@ -323,7 +322,7 @@ class EnvelopeBoundaryTests(unittest.TestCase):
         for name in c.FILES:
             path = self.evidence / name
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(b'{}')
+            path.write_bytes(b'{"packages": []}' if name == 'metadata.json' else b'{}')
         (self.evidence/'traces').mkdir()
         self.paths = ['src-tauri/src/main.rs', 'vendor/glib-0.18.5/src/lib.rs']
         for n, path in enumerate(self.paths):
@@ -332,6 +331,7 @@ class EnvelopeBoundaryTests(unittest.TestCase):
             target.write_bytes(b'trusted-source')
             c.write_json(self.evidence/'traces'/('rustc-' + str(n)*32 + '.json'),
                          {'id': str(n)*32, 'source': {'path': '/trusted/source/' + path}})
+        (self.root/'src-tauri/Cargo.lock').write_text('package = []\n')
         runner = '/trusted/source/scripts/desktop_glib_build_evidence.py'
         env = dict(PYTHONUTF8='1', PYTHONDONTWRITEBYTECODE='1', CARGO_TERM_COLOR='never', CARGO_INCREMENTAL='0',
             CARGO_BUILD_JOBS='2', CARGO_PROFILE_RELEASE_DEBUG='0', CARGO_TARGET_DIR='/owned/target', TZ='UTC',
