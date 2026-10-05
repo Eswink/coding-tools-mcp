@@ -21,6 +21,7 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
+from rc_consumer_proof_fixtures import install_historical
 
 ROOT = Path(__file__).absolute().parents[1]
 NAMES = ('rc_consumer_io', 'rc_consumer_transport_worker', 'rc_consumer_transport')
@@ -41,7 +42,6 @@ FIXTURE = (
     'AwDFAAAAtQIAAAAA'
 )
 
-
 def load_harness():
     path = ROOT / 'scripts/rc_consumer_default_worker_proof.py'
     spec = importlib.util.spec_from_file_location('synthetic_proof_under_test', path)
@@ -49,15 +49,15 @@ def load_harness():
     exec(compile(path.read_bytes(), str(path), 'exec', dont_inherit=True), module.__dict__)
     return module
 
-
 class DefaultWorkerProofTests(unittest.TestCase):
     """Twenty-four named design categories; subtests are also fully offline."""
     def setUp(self):
         self.h = load_harness()
+        install_historical(self)
         self.data = base64.b64decode(FIXTURE)
 
     def buffers(self):
-        return {name: (ROOT / 'scripts' / (name + '.py')).read_bytes() for name in NAMES}
+        return {name: (self.h.ROOT / 'scripts' / (name + '.py')).read_bytes() for name in NAMES}
 
     @contextmanager
     def production(self, buffers=None):

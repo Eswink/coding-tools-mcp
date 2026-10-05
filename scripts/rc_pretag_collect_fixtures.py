@@ -10,6 +10,7 @@ import io
 import json
 import os
 import shutil
+import stat
 import subprocess
 import tempfile
 from pathlib import Path
@@ -90,10 +91,12 @@ class OwnedGitScope:
             raise ValueError('fixture Git requires an independent repository')
         metadata = repository / '.git'
         if (not metadata.is_dir() or metadata.is_symlink()
-                or any((metadata / p).exists() for p in ('commondir', 'objects/info/alternates'))
-                or any(p.is_symlink() or (p.is_file() and p.stat().st_nlink != 1)
-                       for p in metadata.rglob('*'))):
+                or any((metadata / p).exists() for p in ('commondir', 'objects/info/alternates'))):
             raise ValueError('fixture Git metadata is shared or redirected')
+        for entry in metadata.rglob('*'):
+            info = entry.lstat()
+            if stat.S_ISLNK(info.st_mode) or (stat.S_ISREG(info.st_mode) and info.st_nlink != 1):
+                raise ValueError('fixture Git metadata is shared or redirected')
         config = (metadata / 'config').read_text()
         if any(word in config.lower() for word in ('worktree', '[include', 'fsmonitor')):
             raise ValueError('fixture Git local configuration redirects context')
@@ -129,7 +132,9 @@ class OwnedGitScope:
             raise ValueError('unreviewed fixture Git command')
         kwargs['cwd'] = str(self._cwd(cwd, argv[0] == 'init'))
         kwargs['env'] = git_environment(kwargs.get('env'))
-        fixed = ['-c', 'core.hooksPath=' + os.devnull, '-c', 'core.fsmonitor=false']
+        # gc.auto=0 also covers direct/legacy automatic-GC paths.
+        fixed = ['-c', 'core.hooksPath=' + os.devnull, '-c', 'core.fsmonitor=false',
+                 '-c', 'maintenance.auto=false', '-c', 'gc.auto=0']
         return self.launch([self.executable, *config, *fixed, *argv], **kwargs)
 
 

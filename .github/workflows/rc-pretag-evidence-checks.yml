@@ -2,9 +2,15 @@ name: Exact pre-tag adopter composition and hermetic evidence
 
 on:
   push:
-    branches: ['feat/rc-final-artifact-consumer-pretag-1694fe8c', 'feat/rc-final-artifact-consumer-128']
+    branches: ['feat/rc-final-artifact-consumer-pretag-1694fe8c', 'feat/rc-final-artifact-consumer-128', 'feat/rc-final-artifact-consumer-io-ownership-m5a270a2']
     paths:
       - 'scripts/rc_pretag*'
+      - 'scripts/rc_consumer_io.py'
+      - 'scripts/rc_consumer_io_ownership_tests.py'
+      - 'scripts/rc_consumer_default_worker_proof_tests.py'
+      - 'scripts/rc_consumer_proof_fixtures.py'
+      - 'scripts/rc_consumer_c_93c2ad95_io.txt'
+      - 'docs/specs/rc-consumer-close-ownership/**'
       - 'scripts/rc_release_policy.py'
       - 'scripts/rc_release_eligibility.py'
       - 'scripts/rc_consumer_snapshot.py'
@@ -16,6 +22,12 @@ on:
   pull_request:
     paths:
       - 'scripts/rc_pretag*'
+      - 'scripts/rc_consumer_io.py'
+      - 'scripts/rc_consumer_io_ownership_tests.py'
+      - 'scripts/rc_consumer_default_worker_proof_tests.py'
+      - 'scripts/rc_consumer_proof_fixtures.py'
+      - 'scripts/rc_consumer_c_93c2ad95_io.txt'
+      - 'docs/specs/rc-consumer-close-ownership/**'
       - 'scripts/rc_release_policy.py'
       - 'scripts/rc_release_eligibility.py'
       - 'scripts/rc_consumer_snapshot.py'
