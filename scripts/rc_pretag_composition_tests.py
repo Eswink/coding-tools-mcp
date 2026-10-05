@@ -14,6 +14,7 @@ import subprocess
 import unittest
 from rc_consumer_io import read_bytes
 import rc_pretag_ownership_profile as ownership
+import rc_pretag_desktop_profile as desktop
 from verify_glib_backport import ARCHIVE_SHA
 from rc_pretag_collect_fixtures import owned_git_scope, git_environment
 
@@ -190,7 +191,7 @@ def _reconstruct_consumer(text):
 
 class CompositionTests(unittest.TestCase):
     def test_exact_tracked_tree_modes_and_scope(self):
-        expected = ownership.selected_profile(
+        expected = desktop.selected_profile(
             'HEAD', ROOT, _git, _entries, _feature_profile, RELEASE, RELEASE_TREE, RELEASE_DOCS)
         index = _index_entries(_git('ls-files', '--stage', '-z'))
         self.assertEqual(index, expected)
@@ -199,7 +200,7 @@ class CompositionTests(unittest.TestCase):
             with self.subTest(path=path):
                 actual = ROOT / path
                 self.assertTrue(stat.S_ISREG(actual.lstat().st_mode))
-                self.assertEqual(actual.stat().st_mode & 0o111, 0)
+                self.assertEqual(actual.stat().st_mode & 0o111, int(mode, 8) & 0o111)
                 self.assertEqual(_blob(actual.read_bytes()), blob)
 
     def test_adopted_contracts_are_byte_identical(self):
@@ -428,6 +429,10 @@ EXPECTED_GROUPS = {
     'rc_pretag_policy_tests.PreTagRefinementTests': ('test_rc_zero_matches_existing_canonical_version_contract test_stale_review_source_cannot_hide_behind_matching_invocation test_tag_absence_map_names_exact_read_and_explicit_blocked_receipt '),
     'rc_pretag_policy_tests.PreTagReviewCorrectionTests': ('test_hosted_floor_matches_all_current_reviewed_fixtures test_issue88_is_explicit_later_scope_without_circular_pretag_run test_negative_and_pending_review_claims_retain_explicit_outcomes '),
 }
+
+
+assert not (EXPECTED_GROUPS.keys() & desktop.EXPECTED_GROUPS.keys())
+EXPECTED_GROUPS.update(desktop.EXPECTED_GROUPS)
 
 
 def _flatten(suite):
