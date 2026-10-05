@@ -248,6 +248,17 @@ class DesktopCompositionTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(original).hexdigest(), d.COMPOSITION_BASE_SHA256)
         current = (c.ROOT / d.COMPOSITION).read_text()
         for before, after in (
+            ('import rc_pretag_two_hop_profile as two_hop\n',
+             ''),
+            ('expected = two_hop.selected_profile(',
+             'expected = nginx.selected_profile('),
+            ('assert not (EXPECTED_GROUPS.keys() & two_hop.EXPECTED_GROUPS.keys())\n'
+             'EXPECTED_GROUPS.update(two_hop.EXPECTED_GROUPS)\n',
+             ''),
+        ):
+            current = c._replace_once(current, before, after)
+        self.assertEqual(current.encode(), c._git('show', c.two_hop.F + ':' + d.COMPOSITION, root=self.repo))
+        for before, after in (
             ('import rc_pretag_nginx_profile as nginx\n', ''),
             ('expected = nginx.selected_profile(', 'expected = desktop.selected_profile('),
             ('assert not (EXPECTED_GROUPS.keys() & nginx.EXPECTED_GROUPS.keys())\n'
@@ -284,7 +295,13 @@ class DesktopCompositionTests(unittest.TestCase):
         self.assertFalse(old.keys() & d.EXPECTED_GROUPS.keys())
         self.assertFalse((old.keys() | d.EXPECTED_GROUPS.keys()) & c.nginx.EXPECTED_GROUPS.keys())
         self.assertEqual(sum(len(names.split()) for names in c.nginx.EXPECTED_GROUPS.values()), 20)
-        self.assertEqual(c.EXPECTED_GROUPS, old | d.EXPECTED_GROUPS | c.nginx.EXPECTED_GROUPS)
+        historical = old | d.EXPECTED_GROUPS | c.nginx.EXPECTED_GROUPS
+        self.assertEqual((sum(len(names.split()) for names in (old | d.EXPECTED_GROUPS).values()),
+                          sum(len(names.split()) for names in historical.values())), (167, 187))
+        self.assertFalse(historical.keys() & c.two_hop.EXPECTED_GROUPS.keys())
+        self.assertEqual(sum(len(names.split()) for names in c.two_hop.EXPECTED_GROUPS.values()), 22)
+        self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in historical}, old | d.EXPECTED_GROUPS | c.nginx.EXPECTED_GROUPS)
+        self.assertEqual(c.EXPECTED_GROUPS, historical | c.two_hop.EXPECTED_GROUPS)
         names = next(iter(d.EXPECTED_GROUPS.values())).split()
         self.assertEqual(len(names), 20)
         self.assertEqual(set(names), set(unittest.defaultTestLoader.getTestCaseNames(type(self))))
@@ -292,7 +309,9 @@ class DesktopCompositionTests(unittest.TestCase):
         loaded = [test.id() for test in c._flatten(suite)]
         expected = [prefix + '.' + name for prefix, names in c.EXPECTED_GROUPS.items() for name in names.split()]
         self.assertEqual(c.Counter(loaded), c.Counter(expected))
-        self.assertEqual((len(loaded), len(set(loaded))), (187, 187))
+        legacy = [name for name in loaded if name.rsplit('.', 1)[0] in historical]
+        self.assertEqual((len(legacy), len(set(legacy))), (187, 187))
+        self.assertEqual((len(loaded), len(set(loaded))), (209, 209))
 
     def test_git_context_isolation_and_topology_only_dispatch(self):
         calls = []

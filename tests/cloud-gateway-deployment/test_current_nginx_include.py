@@ -273,7 +273,6 @@ class CurrentIncludeTests(unittest.TestCase):
 
     def test_historical_renderer_and_runtime_sources_stay_byte_unchanged(self):
         pins = {'deploy/cloud-gateway/render.py': 'acea9a34118a2ed8a68e5176f64be286aadbc4f018daa4c4fc3bb6b07288b199',
-                'deploy/cloud-gateway/runtime_topology.py': '3946aa29a4aa1cf90081859f690bb2b989bbbd84e6bff533fa377c6692f317a6',
                 'tests/cloud-gateway-deployment/run_container_topology.py': 'd194cb411121c9ab9a03fda7234b5ec1dd444fc76ce3e3aa0d79ea2c38378d59'}
         for relative, expected in pins.items():
             self.assertEqual(hashlib.sha256((ROOT / relative).read_bytes()).hexdigest(), expected, relative)

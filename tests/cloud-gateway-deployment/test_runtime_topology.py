@@ -2,6 +2,7 @@
 import copy
 import importlib.util
 from pathlib import Path
+import re
 import sys
 import unittest
 import tempfile
@@ -53,12 +54,42 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertEqual(value.count('proxy_pass http://127.0.0.1:28880;'),4)
         self.assertIn('if ($http_host != "gateway.example.invalid") { return 421; }',value)
         for line in ('proxy_set_header Forwarded "";','proxy_set_header X-Forwarded-Host "";',
-                     'proxy_set_header MCP-Protocol-Version $http_mcp_protocol_version;',
-                     'proxy_set_header Sec-WebSocket-Protocol $http_sec_websocket_protocol;',
+                     'proxy_set_header X-Real-IP "";', 'proxy_set_header Host $http_host;',
                      'access_log off;','error_log /dev/null crit;'):
             self.assertIn(line,value)
+        self.assertEqual(value.count('proxy_pass_request_headers on;'),4)
+        overrides=[name.lower() for name in re.findall(r'proxy_set_header\s+(\S+)',value)]
+        for name in ('authorization','origin','cookie','accept','content-type','mcp-protocol-version',
+                     'mcp-session-id','mcp-method','mcp-name','last-event-id'):
+            self.assertNotIn(name,overrides)
+        self.assertNotRegex(value,r'\$http_(?:authorization|origin|cookie|accept|mcp|last_event|content_type|sec_websocket_protocol)')
+        self.assertIn('location = /coding-tools {',value)
+        self.assertIn('location ^~ /coding-tools/ {',value)
+        self.assertIn('listen 8080;',value)
+        self.assertIn('location = / { return 404; }',value)
         self.assertNotIn('listen 443',value)
         self.assertEqual(value.count('proxy_set_header Upgrade $http_upgrade;'),1)
+
+    def test_ingress_embeds_exact_reviewed_locations_after_source_validation(self):
+        domain='gateway.example.invalid'
+        expected=module.current.locations(domain,CONNECTOR,28880)
+        value=module.ingress_config(domain,CONNECTOR)
+        self.assertEqual(value.count(expected),1)
+        calls=[]
+        with patch.object(module.current,'source_contract',side_effect=lambda: calls.append('source')) as source, \
+             patch.object(module.current,'locations',side_effect=lambda *args: calls.append(args) or expected) as locations:
+            self.assertEqual(module.ingress_config(domain,CONNECTOR),value)
+        source.assert_called_once_with();locations.assert_called_once_with(domain,CONNECTOR,28880)
+        self.assertEqual(calls,['source',(domain,CONNECTOR,28880)])
+
+    def test_ingress_refuses_source_drift_before_rendering_locations(self):
+        for failure in (ValueError('source drift'),FileNotFoundError('missing source')):
+            with self.subTest(failure=type(failure).__name__), \
+                 patch.object(module.current,'source_contract',side_effect=failure), \
+                 patch.object(module.current,'locations') as locations:
+                with self.assertRaises(type(failure)):
+                    module.ingress_config('gateway.example.invalid',CONNECTOR)
+                locations.assert_not_called()
 
     def test_upgrade_route_matches_shipped_managed_channel(self):
         import re
