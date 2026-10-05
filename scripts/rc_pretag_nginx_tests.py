@@ -18,8 +18,10 @@ class NginxCompositionTests(unittest.TestCase):
     def setUp(self):
         self.repo, _, self.commit, self.blob = self.enterContext(c._profile_fixture())
         self.source = c._entries(n.P, self.repo)
-        self.good = self.source | {p: ('100644', 'blob', self.blob((c.ROOT / p).read_bytes()))
-                                   for p in n.AMENDMENT_CAPS}
+        self.assertEqual(tuple(o._parents(c.two_hop.F, self.repo, c._git)), c.two_hop.F_PARENTS)
+        self.assertEqual(c._git('rev-parse', c.two_hop.F + '^{tree}', root=self.repo).decode().strip(), c.two_hop.F_TREE)
+        frozen = self.selected(c.two_hop.F)
+        self.good = self.source | {p: frozen[p] for p in n.AMENDMENT_CAPS}
         self.pure = self.commit([n.P], self.good)
         self.feature = self.commit([n.F, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -120,7 +122,7 @@ class NginxCompositionTests(unittest.TestCase):
             data = c._git('show', n.P + ':' + path, root=self.repo)
             self.assertEqual((mode, blob, digest, size, lines),
                              ('100644', *o.pin(data), len(data), len(data.splitlines())))
-            self.assertEqual((c.ROOT / path).read_bytes(), data)
+            self.assertEqual(c._git('show', c.two_hop.F + ':' + path, root=self.repo), data)
 
     def test_exact_p_and_single_reviewed_amendment_accept(self):
         self.assertEqual(self.selected(n.P), self.source)
@@ -256,7 +258,7 @@ class NginxCompositionTests(unittest.TestCase):
                 with patch.object(n, 'AMENDMENT_PINS', n.AMENDMENT_PINS | {path: altered}), self.assertRaises(AssertionError):
                     self.amended(self.pure)
         for path, (_, diff_cap) in n.AMENDMENT_CAPS.items():
-            cap = len((c.ROOT / path).read_bytes().splitlines()) - 1
+            cap = len(c._git('cat-file', 'blob', self.good[path][2], root=self.repo).splitlines()) - 1
             with patch.object(n, 'AMENDMENT_CAPS', n.AMENDMENT_CAPS | {path: (cap, diff_cap)}), self.assertRaises(AssertionError):
                 self.amended(self.pure)
             def oversized_diff(*args, root):
@@ -278,17 +280,58 @@ class NginxCompositionTests(unittest.TestCase):
         frozen = c._git('show', n.F + ':' + n.COMPOSITION, root=self.repo)
         self.assertEqual(o.pin(frozen), d.AMENDMENT_PINS[d.COMPOSITION])
         current = (c.ROOT / n.COMPOSITION).read_text()
+        for before, after in (
+            ('import rc_pretag_two_hop_profile as two_hop\n',
+             ''),
+            ('expected = two_hop.selected_profile(',
+             'expected = nginx.selected_profile('),
+            ('assert not (EXPECTED_GROUPS.keys() & two_hop.EXPECTED_GROUPS.keys())\n'
+             'EXPECTED_GROUPS.update(two_hop.EXPECTED_GROUPS)\n',
+             ''),
+        ):
+            current = c._replace_once(current, before, after)
+        self.assertEqual(current.encode(), c._git('show', c.two_hop.F + ':' + n.COMPOSITION, root=self.repo))
+        intermediate = current.encode()
         for before, after in (('import rc_pretag_nginx_profile as nginx\n', ''),
                               ('expected = nginx.selected_profile(', 'expected = desktop.selected_profile('),
                               ('assert not (EXPECTED_GROUPS.keys() & nginx.EXPECTED_GROUPS.keys())\n'
                                'EXPECTED_GROUPS.update(nginx.EXPECTED_GROUPS)\n', '')):
             current = c._replace_once(current, before, after)
         self.assertEqual(current.encode(), frozen)
-        self.assertEqual(o.pin((c.ROOT / n.COMPOSITION).read_bytes()), n.AMENDMENT_PINS[n.COMPOSITION])
+        self.assertEqual(o.pin(intermediate), n.AMENDMENT_PINS[n.COMPOSITION])
 
     def test_desktop_fixture_adapter_preserves_historical_assertions(self):
         frozen = c._git('show', n.F + ':' + n.DESKTOP_TESTS, root=self.repo)
-        current = (c.ROOT / n.DESKTOP_TESTS).read_bytes()
+        current = (c.ROOT / n.DESKTOP_TESTS).read_text()
+        for before, after in (
+            ('        for before, after in (\n'
+             "            ('import rc_pretag_two_hop_profile as two_hop\\n',\n"
+             "             ''),\n"
+             "            ('expected = two_hop.selected_profile(',\n"
+             "             'expected = nginx.selected_profile('),\n"
+             "            ('assert not (EXPECTED_GROUPS.keys() & two_hop.EXPECTED_GROUPS.keys())\\n'\n"
+             "             'EXPECTED_GROUPS.update(two_hop.EXPECTED_GROUPS)\\n',\n"
+             "             ''),\n"
+             '        ):\n'
+             '            current = c._replace_once(current, before, after)\n'
+             "        self.assertEqual(current.encode(), c._git('show', c.two_hop.F + ':' + d.COMPOSITION, root=self.repo))\n",
+             ''),
+            ('        historical = old | d.EXPECTED_GROUPS | c.nginx.EXPECTED_GROUPS\n'
+             '        self.assertEqual((sum(len(names.split()) for names in (old | d.EXPECTED_GROUPS).values()),\n'
+             '                          sum(len(names.split()) for names in historical.values())), (167, 187))\n'
+             '        self.assertFalse(historical.keys() & c.two_hop.EXPECTED_GROUPS.keys())\n'
+             '        self.assertEqual(sum(len(names.split()) for names in c.two_hop.EXPECTED_GROUPS.values()), 22)\n'
+             '        self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in historical}, old | d.EXPECTED_GROUPS | c.nginx.EXPECTED_GROUPS)\n'
+             '        self.assertEqual(c.EXPECTED_GROUPS, historical | c.two_hop.EXPECTED_GROUPS)\n',
+             '        self.assertEqual(c.EXPECTED_GROUPS, old | d.EXPECTED_GROUPS | c.nginx.EXPECTED_GROUPS)\n'),
+            ("        legacy = [name for name in loaded if name.rsplit('.', 1)[0] in historical]\n"
+             '        self.assertEqual((len(legacy), len(set(legacy))), (187, 187))\n'
+             '        self.assertEqual((len(loaded), len(set(loaded))), (209, 209))\n',
+             '        self.assertEqual((len(loaded), len(set(loaded))), (187, 187))\n'),
+        ):
+            current = c._replace_once(current, before, after)
+        current = current.encode()
+        self.assertEqual(current, c._git('show', c.two_hop.F + ':' + n.DESKTOP_TESTS, root=self.repo))
         self.assertEqual(o.pin(frozen), d.AMENDMENT_PINS[d.TESTS])
         self.assertEqual(o.pin(current), n.AMENDMENT_PINS[n.DESKTOP_TESTS])
         def methods(data):
@@ -321,7 +364,12 @@ class NginxCompositionTests(unittest.TestCase):
         historical = old | d.EXPECTED_GROUPS
         self.assertEqual(sum(len(names.split()) for names in historical.values()), 167)
         self.assertFalse(historical.keys() & n.EXPECTED_GROUPS.keys())
-        self.assertEqual(c.EXPECTED_GROUPS, historical | n.EXPECTED_GROUPS)
+        legacy = historical | n.EXPECTED_GROUPS
+        self.assertEqual(sum(len(names.split()) for names in legacy.values()), 187)
+        self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in legacy}, historical | n.EXPECTED_GROUPS)
+        self.assertFalse(legacy.keys() & c.two_hop.EXPECTED_GROUPS.keys())
+        self.assertEqual(sum(len(names.split()) for names in c.two_hop.EXPECTED_GROUPS.values()), 22)
+        self.assertEqual(c.EXPECTED_GROUPS, legacy | c.two_hop.EXPECTED_GROUPS)
         names = next(iter(n.EXPECTED_GROUPS.values())).split()
         self.assertEqual((len(names), len(set(names))), (20, 20))
         self.assertEqual(set(names), set(unittest.defaultTestLoader.getTestCaseNames(type(self))))
@@ -329,7 +377,9 @@ class NginxCompositionTests(unittest.TestCase):
         loaded = [test.id() for test in c._flatten(suite)]
         expected = [prefix + '.' + name for prefix, names in c.EXPECTED_GROUPS.items() for name in names.split()]
         self.assertEqual(Counter(loaded), Counter(expected))
-        self.assertEqual((len(loaded), len(set(loaded))), (187, 187))
+        historical_loaded = [name for name in loaded if name.rsplit('.', 1)[0] in legacy]
+        self.assertEqual((len(historical_loaded), len(set(historical_loaded))), (187, 187))
+        self.assertEqual((len(loaded), len(set(loaded))), (209, 209))
         current = ast.parse((c.ROOT / n.COMPOSITION).read_bytes())
         for name in ('run_inventory', 'InventoryResult', '_flatten'):
             extract = lambda tree: ast.dump(next(node for node in tree.body if getattr(node, 'name', '') == name))
