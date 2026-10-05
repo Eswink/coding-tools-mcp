@@ -113,7 +113,7 @@ jobs:
           mkdir -m 700 "$RUNNER_TEMP/current-nginx-evidence" "$RUNNER_TEMP/current-nginx-tools"
           evidence="$RUNNER_TEMP/current-nginx-evidence"
           sudo apt-get update
-          sudo env NEEDRESTART_MODE=l apt-get install -y --no-install-recommends pkg-config libssl-dev curl ca-certificates
+          sudo env NEEDRESTART_MODE=l apt-get install -y --no-install-recommends pkg-config libssl-dev curl ca-certificates libpcre3 libssl3 zlib1g libcrypt1
           test -f services/cloud-gateway/tests/run_enrollment_process.py
           python -m unittest discover -s tests/cloud-gateway-deployment -p 'test_*.py' -v 2>&1 | tee "$evidence/deployment-tests.txt"
           export CARGO_TARGET_DIR="$RUNNER_TEMP/current-nginx-portable-target"
@@ -130,18 +130,25 @@ jobs:
             --target x86_64-unknown-linux-gnu --output "$RUNNER_TEMP/exact-cloud-audit" \
             --audit-bin "$RUNNER_TEMP/audit-tools/bin/cargo-audit" \
             --audit-db "$RUNNER_TEMP/advisory-db" --clone-advisory-db
-      - name: Acquire exact Compose and immutable official image references
+      - name: Acquire private distro Nginx, exact Compose and immutable official image references
         run: |
           set -euo pipefail
           tools="$RUNNER_TEMP/current-nginx-tools"
           evidence="$RUNNER_TEMP/current-nginx-evidence"
+          mkdir "$tools/nginx-download"
+          (cd "$tools/nginx-download" && apt-get download nginx-core)
+          packages=("$tools"/nginx-download/*.deb)
+          test "${#packages[@]}" -eq 1
+          dpkg-deb --extract "${packages[0]}" "$tools/nginx"
+          dpkg-deb --field "${packages[0]}" Package Version Architecture > "$evidence/nginx-package.txt"
+          "$tools/nginx/usr/sbin/nginx" -v 2> "$evidence/nginx-version.txt"
           curl --fail --location --retry 2 https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 --output "$tools/compose"
           curl --fail --location --retry 2 https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64.sha256 --output "$evidence/compose-release.sha256"
           test "$(sha256sum "$tools/compose" | awk '{print $1}')" = "$(awk '{print $1}' "$evidence/compose-release.sha256")"
           chmod 700 "$tools/compose"
           test "$("$tools/compose" version --short)" = '2.27.0'
           "$tools/compose" version > "$evidence/compose-version.txt"
-          sha256sum "$tools/compose" > "$evidence/tool-sha256.txt"
+          sha256sum "$tools/compose" "$tools/nginx/usr/sbin/nginx" "${packages[0]}" > "$evidence/tool-sha256.txt"
           docker pull --platform linux/amd64 ubuntu:22.04
           docker pull --platform linux/amd64 postgres:16-bookworm
           docker pull --platform linux/amd64 nginx:stable-alpine
@@ -186,6 +193,14 @@ jobs:
             --compose "$RUNNER_TEMP/current-nginx-tools/compose" --gateway-image "$GATEWAY_IMAGE" \
             --ingress-image "$INGRESS_IMAGE" --postgres-image "$POSTGRES_IMAGE" \
             --output "$RUNNER_TEMP/current-nginx-evidence/current-runtime.json"
+      - name: Outer private Nginx to repaired published ingress in a separate fresh fixture
+        run: |
+          set -euo pipefail
+          python tests/cloud-gateway-deployment/run_current_nginx_runtime.py \
+            --compose "$RUNNER_TEMP/current-nginx-tools/compose" --gateway-image "$GATEWAY_IMAGE" \
+            --ingress-image "$INGRESS_IMAGE" --postgres-image "$POSTGRES_IMAGE" \
+            --two-hop --nginx "$RUNNER_TEMP/current-nginx-tools/nginx/usr/sbin/nginx" \
+            --output "$RUNNER_TEMP/current-nginx-evidence/current-two-hop-runtime.json"
       - name: Bind safe evidence to exact clean source and Actions attempt
         if: always()
         run: |
