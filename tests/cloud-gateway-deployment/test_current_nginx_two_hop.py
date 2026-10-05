@@ -1,5 +1,6 @@
 """Pure helper and failure-path contracts; no native Nginx, Docker or Agent proof."""
 import hashlib
+import json
 import os
 from pathlib import Path
 import stat
@@ -13,6 +14,7 @@ from unittest.mock import Mock, call, patch
 sys.path.insert(0, str(Path(__file__).parent))
 import container_fixture
 import run_current_nginx_runtime as runtime
+import run_current_nginx_agent as agent
 sys.path.pop(0)
 DOMAIN = runtime.DOMAIN
 CONNECTOR = '00000000-0000-0000-0000-000000000001'
@@ -235,6 +237,152 @@ class TwoHopHelperTests(unittest.TestCase):
             runtime.inner_ingress_evidence(self.fixture)
         self.fixture.dc.assert_called_once_with('exec', '-T', 'ingress', 'sha256sum', '/run/ingress/nginx.conf')
         self.fixture.container.assert_not_called(); self.fixture.exec.assert_not_called()
+
+
+    def test_agent_native_source_and_inventory_exact(self):
+        expected = '211077ae04e8c87ca568c0246b7c47319131a60fcc44f77d98c63b94bc9a09bd'
+        self.assertEqual((len(agent.BASELINE), len(agent.NEW), len(set(agent.ALL))), (11, 9, 20))
+        self.assertEqual(hashlib.sha256('\n'.join(agent.ALL).encode()).hexdigest(), expected)
+        self.assertEqual(agent.declared_inventory(), list(agent.ALL))
+        receipt = 'CTM_NATIVE_IDENTITY={"uid": 65532, "caps": 0, "no_new_privileges": true}\n'
+        output = receipt + ''.join('test ' + name + ' ... ok\n' for name in agent.ALL)
+        output += 'test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n'
+        self.assertEqual(agent.executed(output.encode(), agent.ALL), list(agent.ALL))
+        mutations = [output.replace(agent.ALL[0], agent.ALL[1]), output.replace(' ... ok', ' ... ignored', 1),
+                     output.replace('20 passed', '19 passed'), output.replace(receipt, ''),
+                     output + 'test foreign::unexpected ... ok\n', receipt]
+        for changed in mutations:
+            with self.subTest(changed=changed[-80:]), self.assertRaises(container_fixture.FixtureFailure):
+                agent.executed(changed.encode(), agent.ALL)
+
+    def test_agent_fixture_identity_and_bind443_guard(self):
+        for domain, project, image in [('foreign.invalid', self.fixture.project, 'sha256:' + 'c' * 64),
+                (DOMAIN, 'existing-service', 'sha256:' + 'c' * 64), (DOMAIN, self.fixture.project, 'mutable:latest')]:
+            owned = SimpleNamespace(domain=domain, project=project)
+            with self.assertRaisesRegex(container_fixture.FixtureFailure, 'owned_native_fixture'):
+                agent.agent_compose(owned, image)
+        for raw in (b'0', b'443'):
+            self.assertEqual(agent.require_bind443(raw), int(raw))
+        for raw in (b'444', b'1024', b'-1', b'', b'not-a-number', b'0\n443'):
+            with self.assertRaises(container_fixture.FixtureFailure):
+                agent.require_bind443(raw)
+        self.fixture.exec.assert_not_called()
+
+    def test_agent_compose_preserves_security_and_unpublished443(self):
+        images = dict(gateway='sha256:' + 'a' * 64, ingress='nginx@sha256:' + 'b' * 64,
+                      postgres='postgres@sha256:' + 'c' * 64)
+        original = agent.topology.compose(self.root, images, DOMAIN, CONNECTOR, self.fixture.port)
+        self.fixture.file = self.root / 'compose.json'
+        self.fixture.file.write_text(json.dumps(original))
+        configured = agent.agent_compose(self.fixture, 'sha256:' + 'd' * 64)
+        self.assertEqual(json.loads(self.fixture.file.read_text()), original)
+        self.assertEqual(configured['services']['namespace']['ports'], original['services']['namespace']['ports'])
+        self.assertEqual(configured['services']['namespace']['networks']['edge']['aliases'], [DOMAIN])
+        for name in ('native', 'outer'):
+            service = configured['services'][name]
+            self.assertEqual(service['user'], '65532:65532')
+            self.assertTrue(service['read_only'])
+            self.assertEqual(service['cap_drop'], ['ALL'])
+            self.assertEqual(service['security_opt'], ['no-new-privileges:true'])
+            self.assertFalse(service.get('ports'))
+        self.assertEqual(configured['services']['outer']['network_mode'], 'service:namespace')
+        self.assertEqual(configured['services']['native']['logging'], {'driver': 'none'})
+        for field, value in [('cap_add', ['NET_BIND_SERVICE']), ('sysctls', {'net.ipv4.ip_unprivileged_port_start': '0'})]:
+            damaged = json.loads(json.dumps(original))
+            damaged['services']['namespace'][field] = value
+            self.fixture.file.write_text(json.dumps(damaged))
+            with self.assertRaisesRegex(container_fixture.FixtureFailure, 'existing_low_port_policy_only'):
+                agent.agent_compose(self.fixture, 'sha256:' + 'd' * 64)
+
+    def test_agent_control_rejects_unknown_fields_ops_peers_ids(self):
+        for op in agent.OPS:
+            self.assertEqual(agent.validate_request({'id': 1, 'op': op}, 65532, 0), (1, op))
+        for request, uid, last in [({'id': 1, 'op': 'inspect', 'sql': 'SELECT 1'}, 65532, 0),
+                ({'id': 1, 'op': 'arbitrary'}, 65532, 0), ({'id': 1, 'op': []}, 65532, 0),
+                ({'id': 1, 'op': 'inspect'}, 1000, 0), ({'id': 1, 'op': 'inspect'}, 65532, 1),
+                ({'id': True, 'op': 'inspect'}, 65532, 0), ({'id': 2, 'op': 'inspect'}, 65532, 0),
+                ({'id': 10001, 'op': 'inspect'}, 65532, 10000), ({}, 65532, 0)]:
+            with self.subTest(request=request, uid=uid), self.assertRaises(container_fixture.FixtureFailure):
+                agent.validate_request(request, uid, last)
+        with self.assertRaisesRegex(container_fixture.FixtureFailure, 'duplicate_json_field'):
+            json.loads('{"id":1,"id":2,"op":"inspect"}', object_pairs_hook=agent.unique_json)
+
+    def test_agent_ca_private_owner_and_bad_modes(self):
+        root = self.root / 'private'; root.mkdir(mode=0o700)
+        ca = root / 'ca.der'; ca.write_bytes(b'public test certificate'); ca.chmod(0o600)
+        self.assertEqual(agent.private_file(ca, os.getuid()), ca)
+        for mode in (0o644, 0o660):
+            ca.chmod(mode)
+            with self.assertRaises(container_fixture.FixtureFailure): agent.private_file(ca, os.getuid())
+        ca.chmod(0o600); root.chmod(0o755)
+        with self.assertRaises(container_fixture.FixtureFailure): agent.private_file(ca, os.getuid())
+        root.chmod(0o700)
+        with self.assertRaises(container_fixture.FixtureFailure): agent.private_file(ca, os.getuid() + 1)
+        link = root / 'linked'; link.symlink_to(ca)
+        with self.assertRaises(container_fixture.FixtureFailure): agent.private_file(link, os.getuid())
+        hard = root / 'hard'; os.link(ca, hard)
+        with self.assertRaises(container_fixture.FixtureFailure): agent.private_file(ca, os.getuid())
+        hard.unlink(); link.unlink()
+        for mode in ('valid', 'untrusted_ca', 'wrong_hostname', 'expired'):
+            folder = self.root / mode; folder.mkdir(mode=0o700)
+            report = agent.certificate_material(folder, mode)
+            self.assertEqual(report['mode'], mode)
+            self.assertEqual(report['san'], 'wrong.example.invalid' if mode == 'wrong_hostname' else DOMAIN)
+            self.assertEqual(stat.S_IMODE((folder / 'ca.der').stat().st_mode), 0o600)
+            if mode == 'expired': self.assertLess(report['not_after'], 1000000000)
+
+    def test_agent_source_drift_fails_before_runtime(self):
+        identity = dict(source_sha='a' * 40, source_tree='b' * 40)
+        manifest = dict(identity, source_root=str(agent.ROOT), base_image='ubuntu@sha256:' + 'c' * 64,
+                        binaries={'native-tests': 'd' * 64, 'native-fixture': 'e' * 64})
+        with patch.object(agent, 'source_identity', return_value=identity), \
+             patch.object(agent.subprocess, 'check_output', return_value=b'') as clean, \
+             patch.object(agent.current, 'source_contract') as check:
+            self.assertEqual(agent.verify_source(manifest), identity)
+            check.assert_called_once()
+            for field, wrong in [('source_sha', 'f' * 40), ('source_tree', 'f' * 40), ('source_root', '/wrong')]:
+                check.reset_mock()
+                with self.assertRaisesRegex(container_fixture.FixtureFailure, 'native_source_drift'):
+                    agent.verify_source(dict(manifest, **{field: wrong}))
+                check.assert_not_called()
+            with self.assertRaisesRegex(container_fixture.FixtureFailure, 'native_immutable_base'):
+                agent.verify_source(dict(manifest, base_image='ubuntu:22.04'))
+            with self.assertRaisesRegex(container_fixture.FixtureFailure, 'native_binary_manifest'):
+                agent.verify_source(dict(manifest, binaries={'native-tests': 'd' * 64}))
+            clean.return_value = b' M changed-source\n'
+            with self.assertRaises(container_fixture.FixtureFailure):
+                agent.verify_source(manifest)
+
+    def test_agent_secret_material_never_enters_report(self):
+        report = {'passed': True, 'cases': list(agent.NEW), 'cleanup_completed': True}
+        self.assertIs(agent.safe_report(report, ['private-canary']), report)
+        for field in ('pkcs8', 'password', 'owner_password', 'bootstrap', 'connection', 'key',
+                      'access_token', 'refresh_token', 'stdout'):
+            with self.assertRaisesRegex(container_fixture.FixtureFailure, 'private_report_field'):
+                agent.safe_report({'nested': [{field: 'fixture-value'}]}, [])
+        with self.assertRaisesRegex(container_fixture.FixtureFailure, 'private_report_value'):
+            agent.safe_report({'diagnostic': 'private-canary'}, ['private-canary'])
+
+    def test_agent_failure_reaps_before_fixture_cleanup(self):
+        order = []
+        fixture = Mock(project=self.fixture.project)
+        def execute(command, **kwargs):
+            if command[:2] == ['docker', 'ps']: return SimpleNamespace(stdout=b'abc123\n')
+            if command[:2] == ['docker', 'inspect']:
+                return SimpleNamespace(stdout=json.dumps([{'Config': {'Labels': {
+                    'com.docker.compose.project': fixture.project}}}]).encode())
+            if command[:3] == ['docker', 'rm', '-f']: order.append('native')
+            return SimpleNamespace(stdout=b'')
+        fixture.exec.side_effect = execute
+        fixture.close.side_effect = lambda: order.append('fixture')
+        control = Mock(close=Mock(side_effect=lambda: order.append('control')))
+        agent.cleanup(fixture, control, fixture.project + '-native')
+        self.assertEqual(order, ['native', 'control', 'fixture'])
+        order.clear(); control.close.side_effect = RuntimeError('control still running')
+        with self.assertRaisesRegex(RuntimeError, 'control still running'):
+            agent.cleanup(fixture, control, fixture.project + '-native')
+        self.assertEqual(order, ['native'])
+
 
 
 if __name__ == '__main__':
