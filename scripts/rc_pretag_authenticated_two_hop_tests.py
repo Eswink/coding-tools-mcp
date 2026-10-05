@@ -77,8 +77,10 @@ class AuthenticatedTwoHopCompositionTests(unittest.TestCase):
     def setUp(self):
         self.repo, _, self.commit, self.blob = self.enterContext(c._profile_fixture())
         self.source = c._entries(a.P, self.repo)
-        self.good = self.source | {p: ('100644', 'blob', self.blob((c.ROOT / p).read_bytes()))
-                                   for p in a.AMENDMENT_CAPS}
+        self.assertEqual(tuple(o._parents(c.publication.N, self.repo, c._git)), c.publication.N_PARENTS)
+        self.assertEqual(c._git('rev-parse', c.publication.N + '^{tree}', root=self.repo).decode().strip(), c.publication.N_TREE)
+        frozen = self.selected(c.publication.N)
+        self.good = self.source | {p: frozen[p] for p in a.AMENDMENT_CAPS}
         self.pure = self.commit([a.P], self.good)
         self.feature = self.commit([a.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -307,7 +309,7 @@ class AuthenticatedTwoHopCompositionTests(unittest.TestCase):
         self.assertEqual((len(a.AMENDMENT_CAPS), len(a.AMENDMENT_PINS), a.AMENDMENT_DELTA_LIMIT), (6, 5, 900))
         self.assertEqual((len(a.SOURCE_CAPS), a.SOURCE_DELTA_LIMIT), (13, 2200))
         for path, pin in a.AMENDMENT_PINS.items():
-            self.bad_content(self.changed(path, (c.ROOT / path).read_bytes() + b'\n'))
+            self.bad_content(self.changed(path, c._git('show', c.publication.N + ':' + path, root=self.repo) + b'\n'))
             for altered in (('0' * 40, pin[1]), (pin[0], '0' * 64)):
                 with patch.object(a, 'AMENDMENT_PINS', a.AMENDMENT_PINS | {path: altered}), self.assertRaises(AssertionError): self.amended(self.pure)
         for name, baseline, ref, probe in (('SOURCE_CAPS', a.M, a.P, self.native), ('AMENDMENT_CAPS', a.P, self.pure, self.amended)):
@@ -384,7 +386,7 @@ class AuthenticatedTwoHopCompositionTests(unittest.TestCase):
 
     def adapter(self, path):
         frozen = c._git('show', a.M + ':' + path, root=self.repo)
-        current = (c.ROOT / path).read_bytes()
+        current = c._git('show', c.publication.N + ':' + path, root=self.repo)
         self.assertEqual(inverse_adapter(path, current, frozen), frozen)
         for before, _ in FRAGMENTS[path]:
             for replacement in ('', before * 2):
@@ -419,7 +421,8 @@ class AuthenticatedTwoHopCompositionTests(unittest.TestCase):
         self.adapter(a.NGINX_TESTS)
 
     def test_frozen_209_plus_24_inventory_is_exactly_loaded_and_executed(self):
-        expected = [prefix + '.' + name for prefix, names in c.EXPECTED_GROUPS.items() for name in names.split()]
+        all_expected = [prefix + '.' + name for prefix, names in c.EXPECTED_GROUPS.items() for name in names.split()]
+        expected = [name for name in all_expected if name.rsplit('.', 1)[0] not in c.publication.EXPECTED_GROUPS]
         inventory_ids(expected)
         legacy = [name for name in expected if not name.startswith('rc_pretag_authenticated_two_hop_tests.')]
         self.assertEqual((len(legacy), hashlib.sha256('\n'.join(sorted(legacy)).encode()).hexdigest()),
@@ -428,7 +431,10 @@ class AuthenticatedTwoHopCompositionTests(unittest.TestCase):
         self.assertEqual((len(names), len(set(names))), (24, 24))
         self.assertEqual(set(names), set(unittest.defaultTestLoader.getTestCaseNames(type(self))))
         suite = unittest.defaultTestLoader.discover(str(c.ROOT / 'scripts'), pattern='rc_pretag*_tests.py')
-        loaded = [case.id() for case in c._flatten(suite)]; inventory_ids(loaded)
+        all_loaded = [case.id() for case in c._flatten(suite)]
+        self.assertEqual((len(all_loaded), len(set(all_loaded))), (283, 283))
+        self.assertEqual(Counter(all_loaded), Counter(all_expected))
+        loaded = [name for name in all_loaded if name.rsplit('.', 1)[0] not in c.publication.EXPECTED_GROUPS]; inventory_ids(loaded)
         self.assertEqual(Counter(loaded), Counter(expected))
         for index, name in enumerate(legacy):
             for altered in (expected[:index] + expected[index + 1:], expected + [name], [x if x != name else x + '_replaced' for x in expected]):
