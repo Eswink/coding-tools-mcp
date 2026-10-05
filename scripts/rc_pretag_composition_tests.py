@@ -373,6 +373,9 @@ class CompositionTests(unittest.TestCase):
 
 # Reviewed frozen IDs: original118 + six composition + six fixture-Git isolation.
 EXPECTED_GROUPS = {
+    'rc_pretag_ownership_tests.FixtureMetadataTests': (
+        'test_metadata_snapshot_and_disappearance_boundaries test_metadata_links_and_owned_identity_remain_rejected '
+        'test_automatic_maintenance_controls_are_fixed_child_only'),
     'rc_pretag_ownership_tests.OwnershipCompositionTests': (
         'test_exact_m_ownership_overlay_accepts_only_reviewed_delta test_ownership_io_drift_and_reverted_handoff_reject '
         'test_proof_bodies_live_pins_and_fixture_identity_reject_drift test_overlay_modes_paths_deletions_and_extra_sources_reject '

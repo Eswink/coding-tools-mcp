@@ -21,7 +21,7 @@ FR-2: created-child identity and compounded cleanup regressions.
 FR-3: constructor success, pre-root, identity, normal-parent-close and cancellation regressions.
 FR-4: cleanup precedence and bounded public consumer/pretag failure records.
 FR-5: six historical boundary tests plus unchanged24 execution and exact C data.
-FR-6: frozen M source/mode/pin/budget gates and separate12-path ownership envelope.
+FR-6: frozen M source/mode/pin/budget gates and separate13-path ownership envelope.
 FR-7: positive P/F/L plus same-tree malformed parent and16/17 chain boundaries.
 FR-8: exact inventories, GLib-positive pipeline, CI-equivalent contexts and review.
 
@@ -34,10 +34,18 @@ scripts/rc_consumer_c_93c2ad95_io.txt
 scripts/rc_pretag_composition_tests.py
 scripts/rc_pretag_ownership_profile.py
 scripts/rc_pretag_ownership_tests.py
+scripts/rc_pretag_collect_fixtures.py
 .github/workflows/rc-pretag-evidence-checks.yml
 docs/specs/rc-consumer-close-ownership/requirements.md
 docs/specs/rc-consumer-close-ownership/design.md
 docs/specs/rc-consumer-close-ownership/tasks.md
+
+## Linked PR112 fixture-repair tasks
+- [x] 2.1 Bind actual P, approved packet and fresh impacts; preserve converged ownership Plan separately. FR-9–FR-11.
+- [ ] 2.2 Apply two-method fixture repair and exact reviewed pin, retaining IO/C/H/workflow and original-M profile. FR-9–FR-10.
+- [ ] 2.3 Run identical final regression red/green, retained596 plus three, four contexts and raw147; preserve failed logs. FR-11.
+- [ ] 2.4 Freeze exact tree/diff/log manifests, staged graph, gencommit and independent source approval. FR-9–FR-11.
+证据块: local repair completion excludes parent-owned hosted/integration/publication/live gates; original CI lock writer remains unproved.
 
 ## 未关闭门槛
 Publication, actual-head/PR-synthetic hosted checks, integration/new-merge CI and issue closure remain separate parent gates. No current-source live compatibility or FINAL/manifest approval is claimed.

@@ -9,20 +9,23 @@ IO = 'scripts/rc_consumer_io.py'
 PROOF = 'scripts/rc_consumer_default_worker_proof_tests.py'
 FIXTURE = 'scripts/rc_consumer_c_93c2ad95_io.txt'
 CHECKS = '.github/workflows/rc-pretag-evidence-checks.yml'
-CAPS = {IO: (400, 120), 'scripts/rc_consumer_io_ownership_tests.py': (490, 490),
+GIT_FIXTURE = 'scripts/rc_pretag_collect_fixtures.py'
+CAPS = {GIT_FIXTURE: (330, 50), IO: (400, 120), 'scripts/rc_consumer_io_ownership_tests.py': (490, 490),
     PROOF: (500, 20), 'scripts/rc_consumer_proof_fixtures.py': (120, 120), FIXTURE: (360, 360),
     'scripts/rc_pretag_composition_tests.py': (500, 120),
     'scripts/rc_pretag_ownership_profile.py': (220, 220),
-    'scripts/rc_pretag_ownership_tests.py': (300, 300), CHECKS: (90, 20),
+    'scripts/rc_pretag_ownership_tests.py': (380, 380), CHECKS: (90, 20),
     **{'docs/specs/rc-consumer-close-ownership/' + name + '.md': (100, 100)
        for name in ('requirements', 'design', 'tasks')}}
 DELTA_LIMIT = 2200
 OLD_PINS = {
+    GIT_FIXTURE: ('cd544d6b304d80963f262aacb959b34276f20496', '89a403b593683070cfc4bfb8b5e3fa634ec1abbd9e8ec4d15338063da5df31d8'),
     IO: ('40bb2fd647a09019884a1f77e3d4515805751ca1', '3856af4ab573a91838ca2e06bb224ac983c8200a29b34f8a6a6c2bc9619b8de9'),
     PROOF: ('f45fee4efd895bdadc7b5efe1a10379765ed2caf', 'df21b751a5415384b02be03ef388e25450201c5911622d2dc2b8f8b220a16f8f'),
 }
 # Fixed reviewed values, never inferred from the candidate being checked.
-NEW_PINS = {IO: ('2719bd8cb0ed3c3a9b149ca5b89832325f5aac52', '4dffc2c0773f107b7abdc6e0970516b8e793826babd9696ac258768b5de00459'), PROOF: ('bcef44e5e047045f6c5fc447d98c020016a0bb1a', '50bcc0421def780a8b119ce709052962ca2e87eb2d87bb48dfed1b5ea1bbee53'),
+NEW_PINS = {GIT_FIXTURE: ('6489dc4f6a073a3a48bc330fa1b16ec787554183', 'a656c6e4b49d3f5947de3303ae2728847226f7942350fc51b1dbaee9b6c6b7eb'),
+    IO: ('2719bd8cb0ed3c3a9b149ca5b89832325f5aac52', '4dffc2c0773f107b7abdc6e0970516b8e793826babd9696ac258768b5de00459'), PROOF: ('bcef44e5e047045f6c5fc447d98c020016a0bb1a', '50bcc0421def780a8b119ce709052962ca2e87eb2d87bb48dfed1b5ea1bbee53'),
     'scripts/rc_consumer_proof_fixtures.py': ('ee7f3f7a70fcbe274665bcc71fe66c371ddaa89a', '11e678c770a7ca70fcfcfd8fb920671ac8dd396e716854d5139635830d33ff21'),
     FIXTURE: OLD_PINS[IO], CHECKS: ('a88058a7142ca2d5890e91e9926c66e40240c483', '00565b5a5b5427559c831c820a29971ff58417e6a5d75a3f2095bd9adf3c84ca')}
 FILTERS = (IO, 'scripts/rc_consumer_io_ownership_tests.py', PROOF,

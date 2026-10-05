@@ -1,7 +1,11 @@
 """Issue111: exact reviewed ownership source, finite topology and failure boundaries."""
 import ast
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, contextmanager, nullcontext
+import errno
 import json
+import os
+import stat
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
@@ -11,6 +15,7 @@ import rc_pretag_composition_tests as c
 import rc_pretag_ownership_profile as o
 import rc_pretag_collect as collect
 import rc_pretag_collection_result as result
+import rc_pretag_collect_fixtures as fixtures
 from rc_consumer_io_ownership_tests import load_current
 
 
@@ -51,7 +56,7 @@ class OwnershipCompositionTests(unittest.TestCase):
     def test_exact_m_ownership_overlay_accepts_only_reviewed_delta(self):
         self.assertEqual(c._git('rev-parse', o.M + '^{tree}', root=self.repo).decode().strip(), o.M_TREE)
         self.assertEqual(self.selected(self.pure), self.good)
-        self.assertEqual((len(c.ALLOWED), len(o.CAPS), len(c.ALLOWED | o.CAPS.keys())), (22, 12, 32))
+        self.assertEqual((len(c.ALLOWED), len(o.CAPS), len(c.ALLOWED | o.CAPS.keys())), (22, 13, 32))
         with self.assertRaises(o.TopologyError): self.selected(o.M)
         for path, pin in o.NEW_PINS.items(): self.assertEqual(o.pin((c.ROOT / path).read_bytes()), pin)
 
@@ -104,7 +109,7 @@ class OwnershipCompositionTests(unittest.TestCase):
         delta = o.budgets(self.pure, self.repo, c._git, data)
         self.assertLessEqual(delta, 2200)
         path = 'scripts/rc_pretag_ownership_tests.py'
-        for count, widened in ((301, False), (len(data[path].splitlines()) + 2201 - delta, True)):
+        for count, widened in ((381, False), (len(data[path].splitlines()) + 2201 - delta, True)):
             changed = dict(data); changed[path] = data[path] + b'# budget boundary\n' * (count - len(data[path].splitlines()))
             ref = self.commit([o.M], self.changed(path, changed[path]))
             caps = {p: (10000, 10000) for p in o.CAPS} if widened else o.CAPS
@@ -232,6 +237,135 @@ class OwnershipFailureBoundaryTests(unittest.TestCase):
                 self.assertEqual(io.os.opens, 2); self.assertFalse(io.os.foreign_closed)
                 failure = failed.exception if isinstance(failed.exception, result.Failure) else result.Failure('output', failed.exception)
                 self.bounded(failure, 'output')
+
+
+class FixtureMetadataTests(unittest.TestCase):
+    from rc_pretag_collection_tests import fixture_git_test_setup as setUp
+
+    def test_metadata_snapshot_and_disappearance_boundaries(self):
+        target = self.root / '.git/objects/maintenance.lock'
+        original_stat, original_symlink = Path.stat, Path.is_symlink
+        observed = self.metadata_observations = []
+        lookups = self.metadata_lookups = []
+        self.metadata_removals = 0
+        def observe(path, *args, **kwargs):
+            if path == target:
+                lookups.append(kwargs.get('follow_symlinks', True))
+            info = original_stat(path, *args, **kwargs)
+            if path == target:
+                self.assertTrue(stat.S_ISREG(info.st_mode))
+                observed.append(info)
+                target.unlink()
+                self.metadata_removals += 1
+            return info
+        def symlink(path):
+            # Keep the old preliminary link check real; delete at its is_file observation.
+            if path == target:
+                return stat.S_ISLNK(original_stat(path, follow_symlinks=False).st_mode)
+            return original_symlink(path)
+        target.write_bytes(b'owned lock')
+        before = len(self.children)
+        with self.subTest(boundary='after-observation'):
+            try:
+                with patch.object(Path, 'stat', observe), patch.object(Path, 'is_symlink', symlink):
+                    fixtures.command(self.root, 'status', '--porcelain')
+            finally:
+                self.assertEqual(self.metadata_removals, 1)
+                self.assertEqual(len(observed), 1)
+                self.assertFalse(target.exists())
+            self.assertEqual(lookups, [False])  # The real lstat snapshot is the only entry lookup.
+            self.assertEqual(len(self.children), before + 1)
+        for number in (errno.ENOENT, errno.EACCES, errno.EIO):
+            with self.subTest(errno=number):
+                target.write_bytes(b'owned lock')
+                def fail(path):
+                    if path == target:
+                        if number == errno.ENOENT:
+                            target.unlink()
+                            return original_stat(path, follow_symlinks=False)
+                        raise OSError(number, 'owned metadata lookup')
+                    return original_stat(path, follow_symlinks=False)
+                before = len(self.children)
+                try:
+                    with patch.object(Path, 'lstat', fail), self.assertRaises(OSError) as raised:
+                        fixtures.command(self.root, 'status', '--porcelain')
+                    self.assertEqual(raised.exception.errno, number)
+                finally:
+                    target.unlink(missing_ok=True)
+                    self.assertEqual(len(self.children), before)
+
+    def test_metadata_links_and_owned_identity_remain_rejected(self):
+        from rc_pretag_admission_tests import FixtureGitIsolationTests
+        FixtureGitIsolationTests.test_fixture_git_context_escapes_reject_before_launch(self)
+        target, referent = self.root / '.git/owned-entry', self.root / 'referent'
+        referent.write_bytes(b'owned data')
+        original_lstat = Path.lstat
+        for kind in ('symlink', 'dangling', 'hardlink', 'file', 'directory'):
+            if kind == 'symlink': target.symlink_to(referent)
+            elif kind == 'dangling': target.symlink_to(self.root / 'missing')
+            elif kind == 'hardlink': os.link(referent, target)
+            elif kind == 'file': target.write_bytes(b'owned data')
+            else: target.mkdir()
+            lookups, before = [], len(self.children)
+            def observe(path):
+                if path == target: lookups.append(path)
+                return original_lstat(path)
+            rejected = kind in ('symlink', 'dangling', 'hardlink')
+            with self.subTest(kind=kind), patch.object(Path, 'lstat', observe):
+                with self.assertRaises(ValueError) if rejected else nullcontext():
+                    fixtures.command(self.root, 'status', '--porcelain')
+            self.assertEqual(lookups, [target])
+            self.assertEqual(len(self.children), before + (not rejected))
+            if kind == 'directory': target.rmdir()
+            else: target.unlink()
+        owner = Path(self.temp.name)
+        temporary, device, inode = self.guard.roots[owner]
+        before = len(self.children)
+        with patch.dict(self.guard.roots, {owner: (temporary, device, inode + 1)}):
+            with self.assertRaises(ValueError): fixtures.command(self.root, 'status')
+        self.assertEqual(len(self.children), before)
+
+    def test_automatic_maintenance_controls_are_fixed_child_only(self):
+        config = self.root / '.git/config'
+        config_before, process_before = config.read_bytes(), dict(os.environ)
+        hostile = fixtures.fixture_git_hostile(self.root) | dict(GIT_CONFIG_COUNT='2',
+            GIT_CONFIG_KEY_0='maintenance.auto', GIT_CONFIG_VALUE_0='true',
+            GIT_CONFIG_KEY_1='gc.auto', GIT_CONFIG_VALUE_1='1',
+            GIT_CONFIG_PARAMETERS="'maintenance.auto=true' 'gc.auto=1'", FIXTURE_MARKER='kept')
+        user = ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid']
+        argv = ['git', *user, 'status', '--porcelain']
+        argv_before = list(argv)
+        with patch.dict(os.environ, hostile):
+            inherited = dict(os.environ)
+            fixtures.commit(self.root)
+            for supplied in (None, dict(hostile), {}):
+                supplied_before = None if supplied is None else dict(supplied)
+                for launch in (subprocess.run, subprocess.check_output, subprocess.check_call, subprocess.call):
+                    value = launch(argv, cwd=self.root, env=supplied, stderr=subprocess.PIPE)
+                    self.assertIn(getattr(value, 'returncode', value), (0, b''))
+                    self.assertEqual(self.children[-1][1]['env'], fixtures.git_environment(supplied))
+                with subprocess.Popen(argv, cwd=self.root, env=supplied, stdout=subprocess.PIPE) as child:
+                    self.assertEqual(child.communicate()[0], b'')
+                    self.assertEqual(child.returncode, 0)
+                self.assertEqual(supplied, supplied_before)
+            self.assertEqual(dict(os.environ), inherited)
+        self.assertEqual(dict(os.environ), process_before)
+        self.assertEqual(argv, argv_before)
+        fixed = ['-c', 'core.hooksPath=' + os.devnull, '-c', 'core.fsmonitor=false',
+                 '-c', 'maintenance.auto=false', '-c', 'gc.auto=0']
+        self.assertEqual(self.children[0][0], [self.guard.executable, *fixed, 'init', '-q'])
+        for args, options in self.children:
+            accepted = user if args[1:5] == user else []
+            prefix = [self.guard.executable, *accepted, *fixed]
+            self.assertEqual(args[:len(prefix)], prefix)
+            self.assertIn(args[len(prefix)], ('init', 'add', 'commit', 'rev-parse', 'status'))
+            self.assertEqual((args.count('maintenance.auto=false'), args.count('gc.auto=0')), (1, 1))
+        before = len(self.children)
+        for option in ('maintenance.auto=true', 'maintenance.auto=false', 'gc.auto=1', 'gc.auto=0'):
+            with self.subTest(option=option), self.assertRaises(ValueError):
+                fixtures.command(self.root, '-c', option, 'status')
+        self.assertEqual(len(self.children), before)
+        self.assertEqual(config.read_bytes(), config_before)
 
 
 if __name__ == '__main__':
