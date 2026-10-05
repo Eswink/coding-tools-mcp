@@ -15,6 +15,7 @@ import unittest
 from rc_consumer_io import read_bytes
 import rc_pretag_ownership_profile as ownership
 import rc_pretag_desktop_profile as desktop
+import rc_pretag_nginx_profile as nginx
 from verify_glib_backport import ARCHIVE_SHA
 from rc_pretag_collect_fixtures import owned_git_scope, git_environment
 
@@ -191,7 +192,7 @@ def _reconstruct_consumer(text):
 
 class CompositionTests(unittest.TestCase):
     def test_exact_tracked_tree_modes_and_scope(self):
-        expected = desktop.selected_profile(
+        expected = nginx.selected_profile(
             'HEAD', ROOT, _git, _entries, _feature_profile, RELEASE, RELEASE_TREE, RELEASE_DOCS)
         index = _index_entries(_git('ls-files', '--stage', '-z'))
         self.assertEqual(index, expected)
@@ -433,6 +434,8 @@ EXPECTED_GROUPS = {
 
 assert not (EXPECTED_GROUPS.keys() & desktop.EXPECTED_GROUPS.keys())
 EXPECTED_GROUPS.update(desktop.EXPECTED_GROUPS)
+assert not (EXPECTED_GROUPS.keys() & nginx.EXPECTED_GROUPS.keys())
+EXPECTED_GROUPS.update(nginx.EXPECTED_GROUPS)
 
 
 def _flatten(suite):
