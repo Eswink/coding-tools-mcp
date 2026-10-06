@@ -10,7 +10,9 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
+import stat
 import subprocess
 import tempfile
 
@@ -153,7 +155,142 @@ def verify_graphics_runtime(appdir: Path) -> dict[str, dict[str, object]]:
     return result
 
 
-def verify(root: Path, image: Path, output: Path) -> dict:
+def setup_python_library(record: dict | None) -> str | None:
+    """Validate a retained setup-python loader record without filesystem access."""
+    if record is None:
+        return None
+    if type(record) is not dict or set(record) != {'schema', 'version', 'executable', 'library_path', 'library_directory'}:
+        raise ValueError('invalid_setup_python_loader_record')
+    version, executable, directory = (record[key] for key in ('version', 'executable', 'library_directory'))
+    if (record['schema'] != 'setup-python-loader-v1' or type(version) is not str or
+            not re.fullmatch(r'3\.12\.(?:0|[1-9][0-9]*)', version) or
+            type(executable) is not dict or set(executable) != {'path', 'sha256', 'size'} or
+            type(directory) is not dict or set(directory) != {'device', 'inode', 'mode', 'uid'}):
+        raise ValueError('invalid_setup_python_loader_identity')
+    installation = '/opt/hostedtoolcache/Python/' + version + '/x64'
+    if (executable['path'] != installation + '/bin/python3.12' or record['library_path'] != installation + '/lib' or
+            type(executable['size']) is not int or not 0 < executable['size'] <= 32 * 1024**2 or
+            type(executable['sha256']) is not str or not re.fullmatch('[0-9a-f]{64}', executable['sha256'])):
+        raise ValueError('invalid_setup_python_loader_path_or_bytes')
+    for key, maximum in (('device', 2**64-1), ('inode', 2**64-1), ('mode', 0xffff), ('uid', 2**32-1)):
+        if type(directory[key]) is not int or not 0 <= directory[key] <= maximum:
+            raise ValueError('invalid_setup_python_library_metadata')
+    if not directory['inode'] or not stat.S_ISDIR(directory['mode']) or directory['mode'] & 0o7022:
+        raise ValueError('unsafe_setup_python_library_directory')
+    return record['library_path']
+
+
+def _projection_need(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def setup_python_omitted(omission: dict) -> bool:
+    _projection_need(type(omission) is dict and set(omission) == {'schema', 'input',
+        'original_ld_library_path', 'child_ld_library_path', 'loading_authorized'}, 'invalid_loader_omission')
+    _projection_need(omission['schema'] == 'setup-python-omission-v1' and
+        omission['child_ld_library_path'] is None and omission['loading_authorized'] is False, 'invalid_omission_authority')
+    record, expected = omission['input'], None
+    if record is not None:
+        try:
+            expected = setup_python_library(record)
+        except ValueError as error:
+            _projection_need(str(error) == 'unsafe_setup_python_library_directory' and
+                record['library_directory']['mode'] == 0o40777 and record['library_directory']['inode'] > 0,
+                'unrecognized_omitted_loader_identity')
+            expected = record['library_path']
+    _projection_need(omission['original_ld_library_path'] == expected, 'omitted_loader_value_mismatch')
+    return True
+
+
+def omit_setup_python_input(projection: dict, omission: dict) -> dict:
+    setup_python_omitted(omission)
+    allowed = set(('LD_LIBRARY_PATH LD_PRELOAD LD_AUDIT LD_DEBUG LD_BIND_NOW GIO_EXTRA_MODULES GIO_MODULE_DIR '
+        'GIO_USE_TLS GIO_USE_VFS GTK_PATH GTK_MODULES GDK_BACKEND APPIMAGE APPDIR APPIMAGE_EXTRACT_AND_RUN').split())
+    _projection_need(type(projection) is dict and set(projection) <= allowed and all(type(v) is str and
+        len(v.encode()) <= 4096 for v in projection.values()) and len(json.dumps(projection).encode()) <= 16384,
+        'invalid_harness_environment_projection')
+    original = omission['original_ld_library_path']
+    _projection_need(projection.get('LD_LIBRARY_PATH') == original and
+        ('LD_LIBRARY_PATH' in projection) == (original is not None), 'loader_omission_presence_or_value_mismatch')
+    result = dict(projection)
+    result.pop('LD_LIBRARY_PATH', None)
+    return result
+
+
+def validate_runtime_environment(launch, observed, package_root, python_loader=None, python_loader_omission=None):
+    for key in ('LD_PRELOAD', 'LD_AUDIT', 'LD_DEBUG', 'GTK_PATH', 'GTK_MODULES', 'GIO_USE_TLS', 'GIO_USE_VFS'):
+        _projection_need(not launch.get(key) and not observed.get(key), 'loader override present')
+    expected = {key: launch.get(key, '') for key in ('LD_LIBRARY_PATH', 'GIO_MODULE_DIR', 'GIO_EXTRA_MODULES')}
+    if package_root:
+        root = package_root['path']
+        expected['LD_LIBRARY_PATH'] = root + '/usr/lib:' + root + '/usr/lib/x86_64-linux-gnu'
+        expected['GIO_MODULE_DIR'] = expected['GIO_EXTRA_MODULES'] = root + '/usr/lib/x86_64-linux-gnu/gio/modules'
+    _projection_need(all(observed.get(key, '') == value for key, value in expected.items()), 'loader environment disagreement')
+    _projection_need(python_loader is None and setup_python_omitted(python_loader_omission) and
+        not any(launch.get(k) for k in ('LD_LIBRARY_PATH', 'GIO_MODULE_DIR', 'GIO_EXTRA_MODULES')),
+        'inherited loader override present')
+
+
+def validate_harness_projection(proof, binding, phase, harness, launch):
+    _projection_need(type(proof) is dict and set(proof) == {'schema', 'phase', 'binding_sha256', 'omission',
+        'original', 'projected'}, 'invalid_harness_projection')
+    group = 'native' if phase in ('native-1', 'native-2', 'native') else phase
+    _projection_need(group in ('native', 'startup-missing-bus', 'startup-unlocked-keyring',
+        'startup-split-session-bus', 'startup-safe-mode'), 'invalid_harness_phase')
+    digest = hashlib.sha256(json.dumps(binding, sort_keys=True, ensure_ascii=True,
+        separators=(',', ':'), allow_nan=False).encode('ascii')).hexdigest()
+    _projection_need(binding.get('schema') == 'linux-installed-binding-v1' and proof['schema'] == 'linux-harness-projection-v1' and
+        proof['phase'] == group and proof['binding_sha256'] == digest and
+        proof['omission'] == binding['python_loader_omission'], 'harness_projection_binding_mismatch')
+    _projection_need(omit_setup_python_input(proof['original'], proof['omission']) == proof['projected'] == harness and
+        'LD_LIBRARY_PATH' not in harness, 'harness_projection_changed')
+    validate_runtime_environment(harness, harness, None, binding['python_loader'], binding['python_loader_omission'])
+    validate_runtime_environment(launch, launch, None, binding['python_loader'], binding['python_loader_omission'])
+    return proof['projected']
+
+
+def elf_inventory(appdir: Path, retained: Path | None = None) -> dict:
+    """Bound the actual extracted tree and retain independent protected bytes."""
+    import desktop_glib_build_contract as c
+    from appimage_relro_contract import PROTECTED
+    records, entries, total, seen = {}, 0, 0, set()
+    root = appdir.resolve(strict=True)
+    for base, directories, files in os.walk(root, followlinks=False):
+        for name in sorted(directories + files):
+            path = Path(base) / name
+            relative = path.relative_to(root).as_posix()
+            c.need(relative not in seen, 'duplicate_appimage_member')
+            seen.add(relative)
+            info = path.lstat()
+            entries += 1
+            c.need(entries <= 8192 and len(relative.encode()) <= 1024, 'appimage_inventory_limit')
+            if stat.S_ISLNK(info.st_mode):
+                target = os.readlink(path)
+                c.need(not Path(target).is_absolute() and path.resolve(strict=True).is_relative_to(root),
+                       'appimage_alias_escape')
+                records[relative] = dict(kind='symlink', target=target, mode=stat.S_IMODE(info.st_mode))
+                continue
+            if stat.S_ISDIR(info.st_mode):
+                continue
+            c.need(stat.S_ISREG(info.st_mode) and info.st_nlink == 1, 'appimage_special_or_linked_member')
+            total += info.st_size
+            c.need(info.st_size <= c.MAX_BINARY and total <= 512 * 1024**2, 'appimage_member_byte_limit')
+            with c.regular_descriptor(path, c.MAX_BINARY) as (fd, _):
+                is_elf = os.read(fd, 4) == b'\x7fELF'
+            if is_elf:
+                records[relative] = dict(kind='file', mode=stat.S_IMODE(info.st_mode), nlink=1,
+                                         **c.file_record(path))
+                if retained is not None and relative in PROTECTED:
+                    destination = retained / relative
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    c.copy_regular(path, destination)
+    c.need(records and len(records) <= 4096, 'empty_or_oversized_elf_inventory')
+    return records
+
+
+def verify(root: Path, image: Path, output: Path, source_sha: str | None = None,
+           evidence_root: Path | None = None) -> dict:
     source = root / LAUNCHER
     with tempfile.TemporaryDirectory(prefix="apprun-proof-v3-") as scratch:
         # Inspect bytes only; this does not launch the GUI or alter its environment.
@@ -170,13 +307,17 @@ def verify(root: Path, image: Path, output: Path) -> dict:
             raise RuntimeError("expected GTK wrapper missing; review bundler changes")
         if not os.access(inner, os.X_OK):
             raise RuntimeError("packaged launcher lost executable permission")
-        result = {"passed": True, "source_sha": os.environ["GITHUB_SHA"],
+        result = {"passed": True, "source_sha": source_sha if source_sha is not None else os.environ["GITHUB_SHA"],
                   "cli_version": CLI_VERSION, "launcher_sha256": digest(inner),
                   "appimage_sha256": digest(image), "gtk_hook_retained": True,
                   "webkit_helpers": verify_helpers(appdir), "gui_cwd": "APPDIR/usr",
                   "gio_tls_module": verify_gio_module(appdir),
                   "graphics_runtime": verify_graphics_runtime(appdir),
                   "scope": "final package entry/runtime bytes; native host Python is a separate GUI gate"}
+        if evidence_root is not None:
+            import desktop_glib_build_contract as c
+            result['members'] = elf_inventory(appdir, evidence_root / 'appimage-members')
+            c.copy_regular(appdir / 'usr/bin/coding-tools-mcp-desktop', evidence_root / 'appimage-desktop.elf')
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return result
@@ -186,12 +327,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--verify", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--source")
+    parser.add_argument("--evidence-root", type=Path)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     if args.verify:
         if not args.output:
             parser.error("--verify requires --output")
-        print(json.dumps(verify(root, args.verify, args.output), ensure_ascii=False))
+        print(json.dumps(verify(root, args.verify, args.output, args.source, args.evidence_root), ensure_ascii=False))
     else:
         path = install(root)
         print(json.dumps({"launcher": str(path), "sha256": digest(path)}, ensure_ascii=False))
