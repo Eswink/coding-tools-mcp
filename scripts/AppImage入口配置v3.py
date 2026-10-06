@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import platform
 import shutil
+import stat
 import subprocess
 import tempfile
 
@@ -153,7 +154,47 @@ def verify_graphics_runtime(appdir: Path) -> dict[str, dict[str, object]]:
     return result
 
 
-def verify(root: Path, image: Path, output: Path) -> dict:
+def elf_inventory(appdir: Path, retained: Path | None = None) -> dict:
+    """Bound the actual extracted tree and retain independent protected bytes."""
+    import desktop_glib_build_contract as c
+    from appimage_relro_contract import PROTECTED
+    records, entries, total, seen = {}, 0, 0, set()
+    root = appdir.resolve(strict=True)
+    for base, directories, files in os.walk(root, followlinks=False):
+        for name in sorted(directories + files):
+            path = Path(base) / name
+            relative = path.relative_to(root).as_posix()
+            c.need(relative not in seen, 'duplicate_appimage_member')
+            seen.add(relative)
+            info = path.lstat()
+            entries += 1
+            c.need(entries <= 8192 and len(relative.encode()) <= 1024, 'appimage_inventory_limit')
+            if stat.S_ISLNK(info.st_mode):
+                target = os.readlink(path)
+                c.need(not Path(target).is_absolute() and path.resolve(strict=True).is_relative_to(root),
+                       'appimage_alias_escape')
+                records[relative] = dict(kind='symlink', target=target, mode=stat.S_IMODE(info.st_mode))
+                continue
+            if stat.S_ISDIR(info.st_mode):
+                continue
+            c.need(stat.S_ISREG(info.st_mode) and info.st_nlink == 1, 'appimage_special_or_linked_member')
+            total += info.st_size
+            c.need(info.st_size <= c.MAX_BINARY and total <= 512 * 1024**2, 'appimage_member_byte_limit')
+            with c.regular_descriptor(path, c.MAX_BINARY) as (fd, _):
+                is_elf = os.read(fd, 4) == b'\x7fELF'
+            if is_elf:
+                records[relative] = dict(kind='file', mode=stat.S_IMODE(info.st_mode), nlink=1,
+                                         **c.file_record(path))
+                if retained is not None and relative in PROTECTED:
+                    destination = retained / relative
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    c.copy_regular(path, destination)
+    c.need(records and len(records) <= 4096, 'empty_or_oversized_elf_inventory')
+    return records
+
+
+def verify(root: Path, image: Path, output: Path, source_sha: str | None = None,
+           evidence_root: Path | None = None) -> dict:
     source = root / LAUNCHER
     with tempfile.TemporaryDirectory(prefix="apprun-proof-v3-") as scratch:
         # Inspect bytes only; this does not launch the GUI or alter its environment.
@@ -170,13 +211,17 @@ def verify(root: Path, image: Path, output: Path) -> dict:
             raise RuntimeError("expected GTK wrapper missing; review bundler changes")
         if not os.access(inner, os.X_OK):
             raise RuntimeError("packaged launcher lost executable permission")
-        result = {"passed": True, "source_sha": os.environ["GITHUB_SHA"],
+        result = {"passed": True, "source_sha": source_sha if source_sha is not None else os.environ["GITHUB_SHA"],
                   "cli_version": CLI_VERSION, "launcher_sha256": digest(inner),
                   "appimage_sha256": digest(image), "gtk_hook_retained": True,
                   "webkit_helpers": verify_helpers(appdir), "gui_cwd": "APPDIR/usr",
                   "gio_tls_module": verify_gio_module(appdir),
                   "graphics_runtime": verify_graphics_runtime(appdir),
                   "scope": "final package entry/runtime bytes; native host Python is a separate GUI gate"}
+        if evidence_root is not None:
+            import desktop_glib_build_contract as c
+            result['members'] = elf_inventory(appdir, evidence_root / 'appimage-members')
+            c.copy_regular(appdir / 'usr/bin/coding-tools-mcp-desktop', evidence_root / 'appimage-desktop.elf')
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return result
@@ -186,12 +231,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--verify", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--source")
+    parser.add_argument("--evidence-root", type=Path)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     if args.verify:
         if not args.output:
             parser.error("--verify requires --output")
-        print(json.dumps(verify(root, args.verify, args.output), ensure_ascii=False))
+        print(json.dumps(verify(root, args.verify, args.output, args.source, args.evidence_root), ensure_ascii=False))
     else:
         path = install(root)
         print(json.dumps({"launcher": str(path), "sha256": digest(path)}, ensure_ascii=False))
