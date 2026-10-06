@@ -18,6 +18,7 @@ import rc_pretag_desktop_profile as desktop
 import rc_pretag_nginx_profile as nginx
 import rc_pretag_two_hop_profile as two_hop
 import rc_pretag_authenticated_two_hop_profile as authenticated_two_hop
+import rc_pretag_publication_profile as publication
 from verify_glib_backport import ARCHIVE_SHA
 from rc_pretag_collect_fixtures import owned_git_scope, git_environment
 
@@ -194,7 +195,7 @@ def _reconstruct_consumer(text):
 
 class CompositionTests(unittest.TestCase):
     def test_exact_tracked_tree_modes_and_scope(self):
-        expected = authenticated_two_hop.selected_profile(
+        expected = publication.selected_profile(
             'HEAD', ROOT, _git, _entries, _feature_profile, RELEASE, RELEASE_TREE, RELEASE_DOCS)
         index = _index_entries(_git('ls-files', '--stage', '-z'))
         self.assertEqual(index, expected)
@@ -209,6 +210,7 @@ class CompositionTests(unittest.TestCase):
     def test_adopted_contracts_are_byte_identical(self):
         for path, (blob, sha256) in ADOPTED.items():
             data = (ROOT / path).read_bytes()
+            if path in publication.TIMEOUT_BASE_PINS: data = publication.timeout_inverse(path, data)
             self.assertEqual((_blob(data), hashlib.sha256(data).hexdigest()), (blob, sha256), path)
         self.assertEqual(sum(len((ROOT / path).read_bytes().splitlines()) for path in ADOPTED), 1436)
 
@@ -279,7 +281,7 @@ class CompositionTests(unittest.TestCase):
     def test_fixture_workflow_triggers_and_no_duplicate_regressions(self):
         data = _git('show', ownership.M + ':' + CHECKS)
         self.assertEqual((_blob(data), hashlib.sha256(data).hexdigest()), CHECKS_PIN)
-        current = (ROOT / CHECKS).read_bytes()
+        current = publication.timeout_inverse(CHECKS, (ROOT / CHECKS).read_bytes())
         self.assertEqual(ownership.pin(current), ownership.NEW_PINS[CHECKS])
         self.assertIn("'" + ownership.BRANCH + "'", current.decode())
         for path in ownership.FILTERS:
@@ -442,6 +444,8 @@ assert not (EXPECTED_GROUPS.keys() & two_hop.EXPECTED_GROUPS.keys())
 EXPECTED_GROUPS.update(two_hop.EXPECTED_GROUPS)
 assert not (EXPECTED_GROUPS.keys() & authenticated_two_hop.EXPECTED_GROUPS.keys())
 EXPECTED_GROUPS.update(authenticated_two_hop.EXPECTED_GROUPS)
+assert not (EXPECTED_GROUPS.keys() & publication.EXPECTED_GROUPS.keys())
+EXPECTED_GROUPS.update(publication.EXPECTED_GROUPS)
 
 
 def _flatten(suite):

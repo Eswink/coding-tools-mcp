@@ -76,7 +76,11 @@ class DesktopCompositionTests(unittest.TestCase):
         self.assertEqual(len(expected), 1632)
         self.assertEqual((len(c.ALLOWED), len(o.CAPS), o.DELTA_LIMIT), (22, 13, 2200))
         for path in ('scripts/rc_pretag_ownership_profile.py', 'scripts/rc_pretag_ownership_tests.py'):
-            self.assertEqual((c.ROOT / path).read_bytes(), c._git('show', d.X + ':' + path, root=self.repo))
+            from rc_pretag_publication_tests import inverse_ownership
+            frozen = c._git('show', d.X + ':' + path, root=self.repo)
+            current = (c.ROOT / path).read_bytes()
+            if path == c.publication.OWNERSHIP_TESTS: current = inverse_ownership(current, frozen)
+            self.assertEqual(current, frozen)
         with patch.object(o, 'selected_profile', wraps=o.selected_profile) as legacy:
             self.desktop(d.SOURCE)
             self.assertEqual(legacy.call_args.args[0], d.X)
@@ -303,7 +307,9 @@ class DesktopCompositionTests(unittest.TestCase):
         self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in historical}, old | d.EXPECTED_GROUPS | c.nginx.EXPECTED_GROUPS)
         previous = historical | c.two_hop.EXPECTED_GROUPS
         self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in previous}, historical | c.two_hop.EXPECTED_GROUPS)
-        self.assertEqual(c.EXPECTED_GROUPS, previous | c.authenticated_two_hop.EXPECTED_GROUPS)
+        complete_historical = previous | c.authenticated_two_hop.EXPECTED_GROUPS
+        self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in complete_historical}, complete_historical)
+        self.assertEqual(c.EXPECTED_GROUPS, complete_historical | c.publication.EXPECTED_GROUPS)
         names = next(iter(d.EXPECTED_GROUPS.values())).split()
         self.assertEqual(len(names), 20)
         self.assertEqual(set(names), set(unittest.defaultTestLoader.getTestCaseNames(type(self))))
@@ -315,7 +321,9 @@ class DesktopCompositionTests(unittest.TestCase):
         self.assertEqual((len(legacy), len(set(legacy))), (187, 187))
         prior_loaded = [name for name in loaded if name.rsplit('.', 1)[0] in previous]
         self.assertEqual((len(prior_loaded), len(set(prior_loaded))), (209, 209))
-        self.assertEqual((len(loaded), len(set(loaded))), (233, 233))
+        full_historical = [name for name in loaded if name.rsplit('.', 1)[0] in complete_historical]
+        self.assertEqual((len(full_historical), len(set(full_historical))), (233, 233))
+        self.assertEqual((len(loaded), len(set(loaded))), (283, 283))
 
     def test_git_context_isolation_and_topology_only_dispatch(self):
         calls = []

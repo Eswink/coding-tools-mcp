@@ -132,8 +132,10 @@ class TwoHopCompositionTests(unittest.TestCase):
                 (n.PROFILE, '7569005c75c9dae73e61172c6979d5ca8e4057e32250d4d7bffb9a5e65f3c019')):
             self.assertEqual((c.ROOT / path).read_bytes(), c._git('show', t.F + ':' + path, root=self.repo))
             self.assertEqual(hashlib.sha256((c.ROOT / path).read_bytes()).hexdigest(), digest)
+        from rc_pretag_publication_tests import inverse_ownership
         path = 'scripts/rc_pretag_ownership_tests.py'
-        self.assertEqual((c.ROOT / path).read_bytes(), c._git('show', t.F + ':' + path, root=self.repo))
+        frozen = c._git('show', t.F + ':' + path, root=self.repo)
+        self.assertEqual(inverse_ownership((c.ROOT / path).read_bytes(), frozen), frozen)
         self.assertEqual((len(c.ALLOWED), len(o.CAPS), o.DELTA_LIMIT, d.AMENDMENT_DELTA_LIMIT,
                           n.AMENDMENT_DELTA_LIMIT), (22, 13, 2200, 1100, 1250))
         for ref in (d.X, d.SOURCE, n.F, n.P, t.F):
@@ -439,7 +441,8 @@ class TwoHopCompositionTests(unittest.TestCase):
             with patch.object(c, '_git', corrupt), self.assertRaises(AssertionError): case.setUp()
     def test_frozen_187_plus_22_inventory_is_exactly_loaded_and_executed(self):
         all_expected = [prefix + '.' + name for prefix, names in c.EXPECTED_GROUPS.items() for name in names.split()]
-        expected = [name for name in all_expected if name.rsplit('.', 1)[0] not in c.authenticated_two_hop.EXPECTED_GROUPS]
+        historical_expected = [name for name in all_expected if name.rsplit('.', 1)[0] not in c.publication.EXPECTED_GROUPS]
+        expected = [name for name in historical_expected if name.rsplit('.', 1)[0] not in c.authenticated_two_hop.EXPECTED_GROUPS]
         inventory_ids(expected)
         legacy = [name for name in expected if not name.startswith('rc_pretag_two_hop_tests.')]
         self.assertEqual((len(legacy), hashlib.sha256('\n'.join(sorted(legacy)).encode()).hexdigest()),
@@ -449,8 +452,10 @@ class TwoHopCompositionTests(unittest.TestCase):
         self.assertEqual(set(names), set(unittest.defaultTestLoader.getTestCaseNames(type(self))))
         suite = unittest.defaultTestLoader.discover(str(c.ROOT / 'scripts'), pattern='rc_pretag*_tests.py')
         all_loaded = [case.id() for case in c._flatten(suite)]
-        self.assertEqual((len(all_loaded), len(set(all_loaded))), (233, 233)); self.assertEqual(Counter(all_loaded), Counter(all_expected))
-        loaded = [name for name in all_loaded if name.rsplit('.', 1)[0] not in c.authenticated_two_hop.EXPECTED_GROUPS]; inventory_ids(loaded)
+        self.assertEqual((len(all_loaded), len(set(all_loaded))), (283, 283)); self.assertEqual(Counter(all_loaded), Counter(all_expected))
+        historical_loaded = [name for name in all_loaded if name.rsplit('.', 1)[0] not in c.publication.EXPECTED_GROUPS]
+        self.assertEqual((len(historical_loaded), len(set(historical_loaded))), (233, 233))
+        loaded = [name for name in historical_loaded if name.rsplit('.', 1)[0] not in c.authenticated_two_hop.EXPECTED_GROUPS]; inventory_ids(loaded)
         self.assertEqual(Counter(loaded), Counter(expected))
         for index, name in enumerate(legacy):
             for altered in (expected[:index] + expected[index + 1:], expected + [name], [x if x != name else x + '_replaced' for x in expected]):

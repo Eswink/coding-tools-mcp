@@ -23,8 +23,10 @@ class OwnershipCompositionTests(unittest.TestCase):
     def setUp(self):
         self.repo, _, self.commit, self.blob = self.enterContext(c._profile_fixture())
         self.good = c._entries(o.M, self.repo)
+        frozen = c._entries(c.publication.N, self.repo)
         for path in o.CAPS:
-            self.good[path] = ('100644', 'blob', self.blob((c.ROOT / path).read_bytes()))
+            self.good[path] = frozen[path] if path in (o.CHECKS, c.publication.OWNERSHIP_TESTS) else (
+                '100644', 'blob', self.blob((c.ROOT / path).read_bytes()))
         self.pure = self.commit([o.M], self.good)
 
     def content(self, ref):
@@ -58,7 +60,10 @@ class OwnershipCompositionTests(unittest.TestCase):
         self.assertEqual(self.selected(self.pure), self.good)
         self.assertEqual((len(c.ALLOWED), len(o.CAPS), len(c.ALLOWED | o.CAPS.keys())), (22, 13, 32))
         with self.assertRaises(o.TopologyError): self.selected(o.M)
-        for path, pin in o.NEW_PINS.items(): self.assertEqual(o.pin((c.ROOT / path).read_bytes()), pin)
+        for path, pin in o.NEW_PINS.items():
+            data = (c.ROOT / path).read_bytes()
+            if path == o.CHECKS: data = c.publication.timeout_inverse(path, data)
+            self.assertEqual(o.pin(data), pin)
 
     def test_ownership_io_drift_and_reverted_handoff_reject(self):
         old = c._git('show', o.M + ':' + o.IO, root=self.repo)
@@ -105,7 +110,7 @@ class OwnershipCompositionTests(unittest.TestCase):
 
     def test_original_adopter_and_ownership_budgets_are_separate(self):
         self.assertEqual(c._feature_profile(o.M, self.repo), c._entries(o.M, self.repo))
-        data = {p: (c.ROOT / p).read_bytes() for p in o.CAPS}
+        data = {p: c._git('cat-file', 'blob', self.good[p][2], root=self.repo) for p in o.CAPS}
         delta = o.budgets(self.pure, self.repo, c._git, data)
         self.assertLessEqual(delta, 2200)
         path = 'scripts/rc_pretag_ownership_tests.py'
