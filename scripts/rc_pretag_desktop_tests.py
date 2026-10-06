@@ -309,7 +309,7 @@ class DesktopCompositionTests(unittest.TestCase):
         self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in previous}, historical | c.two_hop.EXPECTED_GROUPS)
         complete_historical = previous | c.authenticated_two_hop.EXPECTED_GROUPS
         self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in complete_historical}, complete_historical)
-        self.assertEqual(c.EXPECTED_GROUPS, complete_historical | c.publication.EXPECTED_GROUPS)
+        self.assertEqual(c.EXPECTED_GROUPS, complete_historical | c.publication.EXPECTED_GROUPS | c.publication.JOIN_ONCE_GROUPS)
         names = next(iter(d.EXPECTED_GROUPS.values())).split()
         self.assertEqual(len(names), 20)
         self.assertEqual(set(names), set(unittest.defaultTestLoader.getTestCaseNames(type(self))))
@@ -323,7 +323,9 @@ class DesktopCompositionTests(unittest.TestCase):
         self.assertEqual((len(prior_loaded), len(set(prior_loaded))), (209, 209))
         full_historical = [name for name in loaded if name.rsplit('.', 1)[0] in complete_historical]
         self.assertEqual((len(full_historical), len(set(full_historical))), (233, 233))
-        self.assertEqual((len(loaded), len(set(loaded))), (283, 283))
+        original_loaded = [name for name in loaded if name.rsplit('.', 1)[0] not in c.publication.JOIN_ONCE_GROUPS]
+        self.assertEqual((len(original_loaded), len(set(original_loaded))), (283, 283))
+        self.assertEqual((len(loaded), len(set(loaded))), (303, 303))
 
     def test_git_context_isolation_and_topology_only_dispatch(self):
         calls = []
