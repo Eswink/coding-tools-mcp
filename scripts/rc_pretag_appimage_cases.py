@@ -69,9 +69,10 @@ def execution_valid(loaded, result):
 
 class AppImageCompositionTests(unittest.TestCase):
     def setUp(self):
+        from rc_pretag_linux_package_inverse import normalize
         self.repo, _, self.commit, self.blob = self.enterContext(c._profile_fixture())
         self.original = c._entries(a.M, self.repo)
-        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in a.CAPS}
+        self.good = self.original | {path: ('100644', 'blob', self.blob(normalize(path, (c.ROOT / path).read_bytes()))) for path in a.CAPS}
         self.pure = self.commit([a.M], self.good)
         self.feature = self.commit([a.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -148,13 +149,14 @@ class AppImageCompositionTests(unittest.TestCase):
                 self.verified_baseline(a.M, *self._baseline_args[:-1], c.RELEASE_DOCS)
 
     def test_candidate_exact_eleven_paths_and_pins(self):
+        from rc_pretag_linux_package_inverse import normalize
         self.assertEqual(self.selected(self.pure), self.good)
         self.assertEqual((len(self.original), len(self.good), len(a.CAPS)), (1698, 1705, 11))
         self.assertEqual({path for path in self.good if self.good[path] != self.original.get(path)}, a.CAPS.keys())
         self.assertEqual(a.SOURCE_PINS.keys(), a.CAPS.keys() - {a.PROFILE})
         self.assertEqual(len(a.CAPS.keys() - self.original.keys()), 7)
         for path, row in a.SOURCE_PINS.items():
-            data = (c.ROOT / path).read_bytes()
+            data = normalize(path, (c.ROOT / path).read_bytes())
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())))
             self.bad_content(self.changed(path, data + b'\n'))
 
@@ -221,7 +223,8 @@ class AppImageCompositionTests(unittest.TestCase):
             with self.assertRaises(AssertionError): pt.inventory_ids(invalid, 20, HELPER_DIGEST)
 
     def test_workflow_inverse_preserves_all_original_gates_and_jobs(self):
-        current = (c.ROOT / a.WORKFLOW).read_bytes()
+        from rc_pretag_linux_package_inverse import normalize
+        current = normalize(a.WORKFLOW, (c.ROOT / a.WORKFLOW).read_bytes())
         self.assertEqual(workflow_inverse(current), self.frozen(a.WORKFLOW))
         for before, _ in WORKFLOW_FRAGMENTS:
             for replacement in ('', before * 2):
@@ -231,7 +234,8 @@ class AppImageCompositionTests(unittest.TestCase):
             with self.assertRaises(AssertionError): workflow_inverse(altered)
 
     def test_workflow_runs_pinned_preparation_and_pre_post_checks(self):
-        current = (c.ROOT / a.WORKFLOW).read_text()
+        from rc_pretag_linux_package_inverse import normalize
+        current = normalize(a.WORKFLOW, (c.ROOT / a.WORKFLOW).read_bytes()).decode()
         self.assertEqual(current.count('fetch-depth: 0'), 1)
         self.assertLess(current.index('fetch-depth: 0'), current.index('  installed:'))
         for command in ('python -B scripts/appimage_tools_tests.py', 'python -B scripts/rc_pretag_appimage_cases.py',
@@ -260,9 +264,10 @@ class AppImageCompositionTests(unittest.TestCase):
         self.bad_content(self.changed('unreviewed-extra.py', b'extra\n'))
 
     def test_individual_and_aggregate_budgets_reject(self):
+        from rc_pretag_linux_package_inverse import normalize
         self.assertEqual((a.DELTA_LIMIT, sum(cap[1] for cap in a.CAPS.values())), (2200, 2272))
         for path, (_, delta) in a.CAPS.items():
-            lines = len((c.ROOT / path).read_bytes().splitlines())
+            lines = len(normalize(path, (c.ROOT / path).read_bytes()).splitlines())
             with patch.dict(a.CAPS, {path: (lines - 1, delta)}), self.assertRaises(AssertionError): self.content(self.pure)
             def oversized(*args, root):
                 return f'{delta + 1}\t0\t{path}\n'.encode() if args == ('diff', '--numstat', a.M, self.pure, '--', path) else c._git(*args, root=root)
@@ -278,20 +283,22 @@ class AppImageCompositionTests(unittest.TestCase):
             with self.assertRaises(AssertionError): self.content(self.pure, malformed)
 
     def test_current_inverses_recover_complete_m_guards(self):
+        from rc_pretag_linux_package_inverse import normalize
         self.assertEqual(a.BASE_PINS.keys(), {p.PROFILE, p.JOIN_ONCE_HELPER, a.WARNING})
         for path in a.BASE_PINS:
-            current = (c.ROOT / path).read_bytes()
+            current = normalize(path, (c.ROOT / path).read_bytes())
             frozen = self.frozen(path)
             self.assertEqual(a.inverse_appimage_adapter(path, current), frozen)
             self.assertEqual(a.inverse_appimage_adapter(path, frozen), frozen)
             self.assertEqual(o.pin(frozen), a.BASE_PINS[path])
-        self.assertEqual(adapters.inverse_warning_adapter(p.PROFILE, (c.ROOT / p.PROFILE).read_bytes()),
+        self.assertEqual(adapters.inverse_warning_adapter(p.PROFILE, normalize(p.PROFILE, (c.ROOT / p.PROFILE).read_bytes())),
                          c._git('show', p.WARNING_B + ':' + p.PROFILE, root=self.repo))
         self.assertEqual((c.ROOT / p.JOIN_ONCE_TESTS).read_bytes(), self.frozen(p.JOIN_ONCE_TESTS))
 
     def test_adapter_fragments_missing_duplicate_outside_edits_reject(self):
+        from rc_pretag_linux_package_inverse import normalize
         for path, fragments in a.FRAGMENTS.items():
-            current = (c.ROOT / path).read_bytes()
+            current = normalize(path, (c.ROOT / path).read_bytes())
             for before, _ in fragments:
                 for replacement in ('', before * 2):
                     changed = current.replace(before.encode(), replacement.encode(), 1)
@@ -365,6 +372,7 @@ class AppImageCompositionTests(unittest.TestCase):
             with self.assertRaises(AssertionError): execution_valid(loaded, SimpleNamespace(**(good | {'executed_ids': invalid})))
 
     def test_protected_runtime_held_versions_and_release_scope_unchanged(self):
+        from rc_pretag_linux_package_inverse import normalize
         self.assertTrue(all(self.good[path] == value for path, value in self.original.items() if path not in a.CAPS))
         held = {'docs/specs/rc-source-assembly-engineering/' + name for name in ('README.md', 'design.md', 'requirements.md',
                 'tasks.md', 'subspecs/focused-validation/spec.md', 'subspecs/source-evidence/spec.md')}
@@ -377,7 +385,7 @@ class AppImageCompositionTests(unittest.TestCase):
                      p.CHECKS, p.CONTRACTS, '.github/workflows/rc-pretag-evidence.yml', '.github/workflows/final-rc-packages.yml',
                      'scripts/rc_release_policy.py', 'scripts/rc_release_eligibility.py', 'scripts/AppImage启动入口v3.sh',
                      'scripts/AppImage入口配置v3.py', 'services/local-agent/src/process.rs', 'src-tauri/src/workspace_snapshots/filesystem.rs'):
-            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path), path)
+            self.assertEqual(normalize(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
 
 
 def main():
