@@ -20,6 +20,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import linux_runtime_provenance as runtime
 
 VERSION = "0.2.6"
 HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -57,7 +58,8 @@ def port() -> int:
 
 
 class NativeSession:
-    def __init__(self, executable: Path, driver: Path, output: Path, attempt: int):
+    def __init__(self, executable: Path, driver: Path, output: Path, attempt: int, observer=None):
+        self.observer = observer
         self.session = ""
         self.process = None
         self.log = (output / f"原生驱动v1-{attempt}.log").open("wb")
@@ -75,14 +77,17 @@ class NativeSession:
             self.process = subprocess.Popen([str(driver), "--port", str(number), "--native-port", str(native),
                                              "--native-host", "127.0.0.1"], stdout=self.log, stderr=subprocess.STDOUT,
                                             start_new_session=True)
+            runtime.notify(self.observer, "attach", self.process)
             wait_for(lambda: request(self.base + "/status", timeout=3), timeout=15)
             result = request(self.base + "/session", {"capabilities": {"alwaysMatch": {
                 "browserName": "wry", "webkitgtk:browserOptions": {"binary": str(executable), "args": []}}}}, timeout=90)
             self.session = result["value"]["sessionId"]
             self.call("timeouts", {"script": 30000, "pageLoad": 60000, "implicit": 0})
             wait_for(lambda: self.execute("return !!window.__TAURI_INTERNALS__?.invoke"))
-        except BaseException:
-            self.close()
+        except BaseException as original:
+            try: self.close()
+            except BaseException as cleanup_error:
+                original.add_note("native cleanup failed: " + type(cleanup_error).__name__)
             raise
 
     def call(self, path: str, data: dict | None = None, method: str | None = None):
@@ -139,7 +144,10 @@ class NativeSession:
             return
 
     def close(self) -> None:
+        observer = getattr(self, "observer", None)
+        cleanup_completed = False
         try:
+            runtime.notify(observer, "checkpoint", "before-cleanup")
             if self.session and self.process and self.process.poll() is None:
                 try:
                     self.execute("setTimeout(()=>window.__TAURI_INTERNALS__.invoke('quit_app'),50);return true")
@@ -151,16 +159,26 @@ class NativeSession:
                 except (OSError, RuntimeError):
                     pass
         finally:
-            self.session = ""
-            if self.process and self.process.poll() is None:
-                # This process group was created by this test, never a disk-restored PID.
-                os.killpg(self.process.pid, signal.SIGTERM)
+            try:
                 try:
-                    self.process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    os.killpg(self.process.pid, signal.SIGKILL)
-                    self.process.wait(timeout=5)
-            self.log.close()
+                    self.session = ""
+                    if self.process and self.process.poll() is None:
+                        # This process group was created by this test, never a disk-restored PID.
+                        os.killpg(self.process.pid, signal.SIGTERM)
+                        try:
+                            self.process.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            os.killpg(self.process.pid, signal.SIGKILL)
+                            self.process.wait(timeout=5)
+                finally:
+                    original = sys.exc_info()[1]
+                    try: self.log.close()
+                    except BaseException as log_error:
+                        if original is None: raise
+                        original.add_note("native log cleanup failed: " + type(log_error).__name__)
+                cleanup_completed = True
+            finally:
+                runtime.notify(observer, "finish", cleanup_completed)
 
 
 def open_workspace(session: NativeSession, workspace_id: str) -> None:

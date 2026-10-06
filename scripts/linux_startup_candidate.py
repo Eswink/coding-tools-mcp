@@ -13,6 +13,7 @@ import signal
 import subprocess
 import tempfile
 import time
+import linux_runtime_provenance as runtime
 
 
 def start_keyring(env: dict[str, str], output: Path) -> None:
@@ -145,10 +146,14 @@ def main() -> None:
     with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
         process = subprocess.Popen(app_command, cwd=env['HOME'], env=env, start_new_session=True,
                                    stdout=stdout, stderr=stderr)
+        observer = None
         observations: list[bool] = []
         natural_returncode = None
         try:
+            observer = runtime.configured(output / 'runtime-provenance.json', 'startup-' + args.case, env)
+            runtime.notify(observer, 'attach', process)
             while time.monotonic() - start < args.seconds:
+                runtime.notify(observer, 'checkpoint', 'startup-loop')
                 natural_returncode = process.poll()
                 if natural_returncode is not None:
                     break
@@ -156,16 +161,26 @@ def main() -> None:
                     tree = subprocess.run(['xwininfo', '-root', '-tree'], env=env, capture_output=True,
                                           text=True, timeout=5)
                     observations.append('Coding Tools MCP' in tree.stdout)
+                    if observations[-1] and not any(observations[:-1]):
+                        runtime.notify(observer, 'checkpoint', 'first-window')
                 time.sleep(0.25 if args.case in ('diagnose-startup', 'diagnose-no-bus') else 1)
         finally:
             was_alive = process.poll() is None
-            try: os.killpg(process.pid, signal.SIGTERM)
-            except ProcessLookupError: pass
-            try: process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL); process.wait(timeout=5)
-            try: os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError: pass
+            cleanup_completed = False
+            try:
+                runtime.notify(observer, 'checkpoint', 'before-cleanup')
+            finally:
+                try:
+                    try: os.killpg(process.pid, signal.SIGTERM)
+                    except ProcessLookupError: pass
+                    try: process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(process.pid, signal.SIGKILL); process.wait(timeout=5)
+                    try: os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError: pass
+                    cleanup_completed = True
+                finally:
+                    runtime.notify(observer, 'finish', cleanup_completed)
         stderr.seek(0); error = stderr.read(65536).decode('utf-8', errors='replace')
         stdout.seek(0); out = stdout.read(8192).decode('utf-8', errors='replace')
 

@@ -139,6 +139,9 @@ def cargo_runner(arguments):
     copies = {'desktop': c.copy_regular(binary, evidence / 'desktop.elf'),
               'glib': c.copy_regular(rlib, evidence / 'glib.rlib', 128 * 1024**2)}
     c.write_json(evidence / 'compiler-copies.json', {'events': events, 'copies': copies})
+    if config.get('profile') == 'linux-engineering-packages-v1':
+        from appimage_relro_tool import bind_compiler
+        bind_compiler(evidence / 'appimage-relro/config.json', {'events': events, 'copies': copies})
     return 0
 
 
@@ -270,7 +273,7 @@ def main():
         c.need(sys.argv[1:2] == [config['real_rustc']], 'unexpected_wrapper_entry')
         return propagate_exit(capture_rustc(sys.argv[1:], config))
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=['collect', 'verify'])
+    parser.add_argument('mode', choices=['collect', 'verify', 'collect-linux', 'verify-linux'])
     for name in ('root', 'directory'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--source', required=True)
@@ -279,13 +282,21 @@ def main():
     parser.add_argument('--audit-bin', type=Path)
     parser.add_argument('--audit-db', type=Path)
     parser.add_argument('--expected-envelope-sha256')
+    parser.add_argument('--expected-profile')
+    parser.add_argument('--artifact-id')
+    parser.add_argument('--artifact-digest')
+    parser.add_argument('--packages-directory', type=Path)
+    parser.add_argument('--originals-directory', type=Path)
     parser.add_argument('--producer-run-id')
     parser.add_argument('--producer-run-attempt')
     parser.add_argument('--producer-workflow-ref')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     root, directory = args.root.absolute(), args.directory.absolute()
-    if args.mode == 'collect':
+    if args.mode.endswith('-linux'):
+        from linux_package_provenance import dispatch
+        result = dispatch(args)
+    elif args.mode == 'collect':
         c.need(all((args.target_directory, args.archive, args.audit_bin, args.audit_db)), 'missing_collect_input')
         result = collect(root, directory, args.target_directory.absolute(), args.source,
                          args.archive.absolute(), args.audit_bin.resolve(strict=True), args.audit_db.absolute())
