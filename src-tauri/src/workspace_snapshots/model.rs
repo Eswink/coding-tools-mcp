@@ -48,6 +48,7 @@ pub enum SnapshotError {
     Changed,
     Corrupt,
     Unavailable,
+    #[cfg(target_os = "linux")]
     Busy,
     Approval,
     Expired,

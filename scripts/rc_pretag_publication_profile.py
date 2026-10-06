@@ -238,6 +238,16 @@ def selected_profile(ref, root, git, entries, historical, release, release_tree,
             continue
         return select(ref, root, git, entries, historical, release, release_tree, documents)
     try:
+        kind, tip, source = warning_topology(ref, root, git, release)
+    except ownership.TopologyError:
+        pass
+    else:
+        expected = warning_content(source, root, git, entries, historical, release, release_tree, documents)
+        assert entries(tip, root) == expected
+        if kind == 'release':
+            return ownership.release_content(ref, expected, root, git, entries, release, release_tree, documents)
+        return expected
+    try:
         kind, tip, source = join_once_topology(ref, root, git, release)
     except ownership.TopologyError:
         pass
@@ -373,3 +383,102 @@ def join_once_content(ref, root, git, entries, historical, release, release_tree
                            JOIN_ONCE_DELTA_LIMIT, 'join_once_delta_budget')
     return actual
 # END JOIN-ONCE M ADOPTION
+
+
+# BEGIN SNAPSHOT WARNING B ADOPTION
+WARNING_B = '6edd4e6137a6947319183b3ac8801bfa608ac722'
+WARNING_TREE = '35cfad529c2427bac17c344089686b2cf3d46823'
+WARNING_PARENTS = (JOIN_ONCE_M, '02ea77dda8d65ea15dd6b0ffbfce13aae800fc3f')
+WARNING_CAPS = {
+    'src-tauri/src/workspace_snapshots/filesystem.rs': (342, 12),
+    'src-tauri/src/workspace_snapshots/model.rs': (313, 1),
+    'docs/specs/windows-snapshot-warning-scope/requirements.md': (90, 90),
+    'docs/specs/windows-snapshot-warning-scope/design.md': (110, 110),
+    'docs/specs/windows-snapshot-warning-scope/tasks.md': (90, 90),
+    '.github/workflows/windows-snapshot-warning-scope.yml': (420, 420),
+    PROFILE: (500, 180), JOIN_ONCE_HELPER: (300, 140), JOIN_ONCE_TESTS: (497, 60),
+    'scripts/rc_pretag_snapshot_warning_cases.py': (480, 480),
+}
+WARNING_DELTA_LIMIT = 1500
+# Frozen nine non-self pins; external review binds self-bytes and history is never repinned.
+WARNING_PINS = {
+    'src-tauri/src/workspace_snapshots/filesystem.rs': ('100644', 'f3de379c5f107ddfe558fcdc885a344c71cf7054', '6e353de816d36f31d8b25f69b7bd3c98fa49970097362c277016c6796cc54afd', 12175, 342),
+    'src-tauri/src/workspace_snapshots/model.rs': ('100644', 'c639b79bf3d852e30d532a2a3e647d6dcd88b0ee', '248f2c5924452e80761ca015c77c2d97d7e62657ff579831b7edc05c5a84e1b0', 9421, 313),
+    'docs/specs/windows-snapshot-warning-scope/requirements.md': ('100644', '840c0fd054a5a19fca0c8a6bb53f66e5cf76e150', '2d3691cff73cdec92e7f3a38e1dffea2569e0b53e46c179ec0893aa9dfb05007', 6751, 62),
+    'docs/specs/windows-snapshot-warning-scope/design.md': ('100644', 'b49c3ad7295959a34f7a15fe62f689c7419dd9a3', '53691bb3c3335c68aed34d7d096f2173a68021fbd739a3517159be793753ce9c', 6780, 54),
+    'docs/specs/windows-snapshot-warning-scope/tasks.md': ('100644', 'c3e0861e4c58296b7bc4e2955f4aadf68f949c0d', 'a641ea4a10bfb3fde4d392978fb6d49ba69ba3c1ba93c9ee0f0d18e20bbc32f7', 3559, 46),
+    '.github/workflows/windows-snapshot-warning-scope.yml': ('100644', 'b805877b4248370d1e4fe0932ea983f7eea71c70', '351092b40985fcc5521a0463ef7f4450e5d844fd73ceaf0b4f64f932c6f50a48', 23209, 375),
+    JOIN_ONCE_HELPER: ('100644', '5fe498145f77d1f73f8f1142810f2d1441ed0bcd', 'b5a822b35a105e5d7dd64997690ac9612dece7f900447aeb440d1eeb46586687', 24555, 246),
+    JOIN_ONCE_TESTS: ('100644', '12d613675c60dc5babbcfa4324691b583896e943', '52e4276c4a25531c62ed34d5715e778dc091be12d91cb84cbae0b229a272ea1b', 33738, 497),
+    'scripts/rc_pretag_snapshot_warning_cases.py': ('100644', '23b1669bfe2f5565fc6e13b957e6b9451e02eded', '45b4425fc45c2b46d30cd4de970c0f59d46d8bb143fd77d30497f87199e98ec4', 29487, 445),
+}
+WARNING_GROUPS = {'rc_pretag_snapshot_warning_cases.SnapshotWarningCompositionTests': (
+    'test_exact_6edd_anchor_tree_parents_and_historical_validation '
+    'test_candidate_has_only_ten_reviewed_paths '
+    'test_ordered_feature_merge_requires_entire_candidate_tree '
+    'test_release_overlay_requires_exact_four_historical_documents '
+    'test_missing_reversed_extra_duplicate_nested_parents_reject '
+    'test_unknown_same_tree_anchors_and_correction_chains_reject '
+    'test_two_production_blobs_match_pr106_donor '
+    'test_four_edits_preserve_linux_bodies_and_other_refusals '
+    'test_protected_snapshot_tests_adapters_and_authority_unchanged '
+    'test_workflow_inverse_allows_only_anchor_scope_branch_and_case_step '
+    'test_baseline_and_candidate_native_source_bindings_fail_closed '
+    'test_original_warning_runtime_positive_parsers_are_unchanged '
+    'test_missing_extra_rename_mode_symlink_gitlink_binary_reject '
+    'test_individual_and_aggregate_budgets_reject '
+    'test_current_inverses_recover_complete_6edd_files '
+    'test_historical_profiles_pins_shapes_and_assertions_preserved '
+    'test_selected_content_failure_is_terminal_without_fallback '
+    'test_mutable_refs_and_ambient_git_cannot_change_identity '
+    'test_exact_303_and_452_ids_and_separate_twenty_cases '
+    'test_held_scope_versions_and_release_permissions_unchanged '
+)}
+
+
+def warning_topology(ref, root, git, release):
+    """Only D=[B], I=[B,D], J=[R,I]; preserve complete ordered ancestry."""
+    if release != R:
+        raise ownership.TopologyError('warning_release_anchor')
+    parents = ownership._parents(ref, root, git)
+    if parents == [WARNING_B]:
+        kind, tip, source = 'nonrelease', ref, ref
+    elif len(parents) == 2 and parents[0] == WARNING_B:
+        kind, tip, source = 'nonrelease', ref, parents[1]
+    elif len(parents) == 2 and parents[0] == R:
+        kind, tip = 'release', parents[1]
+        feature_parents = ownership._parents(tip, root, git)
+        if len(feature_parents) != 2 or feature_parents[0] != WARNING_B:
+            raise ownership.TopologyError('warning_feature_parents')
+        source = feature_parents[1]
+    else:
+        raise ownership.TopologyError('warning_candidate_parents')
+    if ownership._parents(source, root, git) != [WARNING_B]:
+        raise ownership.TopologyError('warning_candidate_parent')
+    if tuple(ownership._parents(WARNING_B, root, git)) != WARNING_PARENTS:
+        raise ownership.TopologyError('warning_anchor_parents')
+    return kind, tip, source
+
+
+def warning_content(ref, root, git, entries, historical, release, release_tree, documents):
+    """Ten reviewed paths over exact B; this admits warning repair only."""
+    assert (release, release_tree, documents) == (R, R_TREE, R_DOCUMENTS)
+    assert tuple(ownership._parents(WARNING_B, root, git)) == WARNING_PARENTS
+    assert git('rev-parse', WARNING_B + '^{tree}', root=root).decode().strip() == WARNING_TREE
+    baseline = selected_profile(WARNING_B, root, git, entries, historical, release, release_tree, documents)
+    actual = entries(ref, root)
+    paths = WARNING_CAPS.keys()
+    assert len(baseline) == 1693 and len(paths) == 10
+    assert WARNING_PINS.keys() == paths - {PROFILE}
+    assert actual.keys() == baseline.keys() | paths and len(actual) == 1698
+    assert {path for path in actual if actual[path] != baseline.get(path)} == paths
+    assert all(actual[path] == value for path, value in baseline.items() if path not in paths)
+    assert all(actual[path][:2] == ('100644', 'blob') for path in paths)
+    data = {path: git('cat-file', 'blob', actual[path][2], root=root) for path in paths}
+    for path, (mode, blob, digest, size, lines) in WARNING_PINS.items():
+        assert mode == '100644' and ownership.pin(data[path]) == (blob, digest), path
+        assert (len(data[path]), len(data[path].splitlines())) == (size, lines), path
+    authenticated._budgets(ref, WARNING_B, root, git, data, WARNING_CAPS,
+                           WARNING_DELTA_LIMIT, 'warning_delta_budget')
+    return actual
+# END SNAPSHOT WARNING B ADOPTION

@@ -1,14 +1,10 @@
 //! Linux handle-relative, no-follow filesystem access. Other OSes fail closed.
 use super::model::*;
-use std::{
-    collections::BTreeMap,
-    fs::File,
-    io::{Read, Write},
-    path::Path,
-};
+use std::{collections::BTreeMap, fs::File, path::Path};
 #[cfg(target_os = "linux")]
 use std::{
     ffi::CString,
+    io::{Read, Write},
     os::{
         fd::{AsRawFd, FromRawFd},
         unix::fs::MetadataExt,
@@ -16,6 +12,7 @@ use std::{
 };
 
 pub struct Dir {
+    #[cfg(target_os = "linux")]
     pub file: File,
 }
 pub struct Tree {
@@ -319,9 +316,6 @@ impl Dir {
         Err(SnapshotError::Unsupported)
     }
     pub fn private(&self) -> Result<()> {
-        Err(SnapshotError::Unsupported)
-    }
-    pub fn sync(&self) -> Result<()> {
         Err(SnapshotError::Unsupported)
     }
     pub fn read(&self, _: &str, _: u64) -> Result<(Vec<u8>, u32)> {

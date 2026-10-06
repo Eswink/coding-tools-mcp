@@ -183,3 +183,64 @@ def publication_profile_inverse(current):
     restored = c._replace_once(restored.split(marker)[0], PROFILE_DISPATCH, '')
     assert o.pin(restored.encode()) == M_PROFILE_PIN, 'complete M publication profile'
     return restored.encode()
+
+
+# BEGIN SNAPSHOT WARNING B INVERSES
+WARNING_BASE_PINS = {
+    p.PROFILE: ('14c96334d0185908c65161452a967209070951dc', '8b520007a2914b75934160749aaff1f4506aa0ca936b90af03f1c1806b885d12'),
+    p.JOIN_ONCE_HELPER: ('669f38760c6ea949b468d5c140a684570c009994', 'fbbea7fac1121f8b7f1aa7b1237c7633292b2e7921d15c53bc0f776913d1bad6'),
+    p.JOIN_ONCE_TESTS: ('a82efa478868410d257da54bf5285a6691b0f37b', '40ee7d6123d8dd14ac235923a8e972946b4e88ba51681a6d8d5aa76ed916c26a'),
+}
+WARNING_DISPATCH = (
+    '    try:\n'
+    '        kind, tip, source = warning_topology(ref, root, git, release)\n'
+    '    except ownership.TopologyError:\n'
+    '        pass\n'
+    '    else:\n'
+    '        expected = warning_content(source, root, git, entries, historical, release, release_tree, documents)\n'
+    '        assert entries(tip, root) == expected\n'
+    "        if kind == 'release':\n"
+    '            return ownership.release_content(ref, expected, root, git, entries, release, release_tree, documents)\n'
+    '        return expected\n'
+)
+WARNING_JOIN_ONCE_FRAGMENTS = (
+    ('import rc_pretag_publication_tests as pt\nfrom rc_pretag_publication_adapters import inverse_warning_adapter\n',
+     'import rc_pretag_publication_tests as pt\n\n'),
+    ("        self.good = self.original | {path: ('100644', 'blob', self.blob(inverse_warning_adapter(path, (c.ROOT / path).read_bytes())))\n",
+     "        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes()))\n"),
+    ('        for path, row in p.JOIN_ONCE_PINS.items():\n            data = inverse_warning_adapter(path, (c.ROOT / path).read_bytes())\n',
+     '        for path, row in p.JOIN_ONCE_PINS.items():\n            data = (c.ROOT / path).read_bytes()\n'),
+    ('            lines = len(inverse_warning_adapter(path, (c.ROOT / path).read_bytes()).splitlines())\n',
+     '            lines = len((c.ROOT / path).read_bytes().splitlines())\n'),
+    ('        current, helper = (c.ROOT / p.TESTS).read_bytes(), inverse_warning_adapter(p.JOIN_ONCE_HELPER, (c.ROOT / p.JOIN_ONCE_HELPER).read_bytes())\n',
+     '        current, helper = (c.ROOT / p.TESTS).read_bytes(), (c.ROOT / p.JOIN_ONCE_HELPER).read_bytes()\n'),
+    ('        current = inverse_warning_adapter(p.PROFILE, (c.ROOT / p.PROFILE).read_bytes())\n',
+     '        current = (c.ROOT / p.PROFILE).read_bytes()\n'),
+)
+
+
+def inverse_warning_adapter(path, current):
+    """Recover complete frozen B guard bytes before any historical inverse."""
+    if path not in WARNING_BASE_PINS:
+        return current
+    if path != p.PROFILE:
+        assert o.pin(current) == p.WARNING_PINS[path][1:3], 'current warning adapter pin'
+    try:
+        restored = current.decode()
+    except UnicodeDecodeError as error:
+        raise AssertionError('warning adapter encoding') from error
+    if path == p.JOIN_ONCE_TESTS:
+        for before, after in WARNING_JOIN_ONCE_FRAGMENTS:
+            restored = c._replace_once(restored, before, after)
+    else:
+        suffix = 'ADOPTION' if path == p.PROFILE else 'INVERSES'
+        begin = '\n\n# BEGIN SNAPSHOT WARNING B ' + suffix + '\n'
+        end = '# END SNAPSHOT WARNING B ' + suffix + '\n'
+        assert restored.count(begin) == restored.count(end) == 1
+        assert restored.endswith(end)
+        restored = restored.split(begin)[0]
+        if path == p.PROFILE:
+            restored = c._replace_once(restored, WARNING_DISPATCH, '')
+    assert o.pin(restored.encode()) == WARNING_BASE_PINS[path], 'complete B warning inverse'
+    return restored.encode()
+# END SNAPSHOT WARNING B INVERSES

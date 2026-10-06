@@ -19,7 +19,7 @@ import rc_pretag_authenticated_two_hop_tests as at
 import rc_pretag_publication_profile as p
 import rc_pretag_publication_adapters as adapters
 import rc_pretag_publication_tests as pt
-
+from rc_pretag_publication_adapters import inverse_warning_adapter
 PROCESS = 'services/local-agent/src/process.rs'
 SUPERVISOR = 'services/local-agent/src/process_supervisor.rs'
 REGRESSIONS = 'services/local-agent/src/process_io_join_tests.rs'
@@ -60,7 +60,7 @@ class JoinOnceCompositionTests(unittest.TestCase):
     def setUp(self):
         self.repo, _, self.commit, self.blob = self.enterContext(c._profile_fixture())
         self.original = c._entries(p.JOIN_ONCE_M, self.repo)
-        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes()))
+        self.good = self.original | {path: ('100644', 'blob', self.blob(inverse_warning_adapter(path, (c.ROOT / path).read_bytes())))
                                      for path in p.JOIN_ONCE_CAPS}
         self.pure = self.commit([p.JOIN_ONCE_M], self.good)
         self.feature = self.commit([p.JOIN_ONCE_M, self.pure], self.good)
@@ -148,7 +148,7 @@ class JoinOnceCompositionTests(unittest.TestCase):
         self.assertEqual({path for path in self.good if self.good[path] != self.original.get(path)}, p.JOIN_ONCE_CAPS.keys())
         self.assertEqual(p.JOIN_ONCE_PINS.keys(), p.JOIN_ONCE_CAPS.keys() - {p.PROFILE})
         for path, row in p.JOIN_ONCE_PINS.items():
-            data = (c.ROOT / path).read_bytes()
+            data = inverse_warning_adapter(path, (c.ROOT / path).read_bytes())
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())))
             self.bad_content(self.changed(path, data + b'\n'))
         path = PROCESS
@@ -364,7 +364,7 @@ class JoinOnceCompositionTests(unittest.TestCase):
     def test_individual_and_aggregate_budgets_reject(self):
         self.assertEqual((p.JOIN_ONCE_DELTA_LIMIT, sum(cap[1] for cap in p.JOIN_ONCE_CAPS.values())), (2400, 2485))
         for path, (_, delta) in p.JOIN_ONCE_CAPS.items():
-            lines = len((c.ROOT / path).read_bytes().splitlines())
+            lines = len(inverse_warning_adapter(path, (c.ROOT / path).read_bytes()).splitlines())
             with patch.dict(p.JOIN_ONCE_CAPS, {path: (lines - 1, delta)}), self.assertRaises(AssertionError):
                 self.content(self.pure)
             def oversized(*args, root):
@@ -396,7 +396,7 @@ class JoinOnceCompositionTests(unittest.TestCase):
                 adapters.inverse_join_once_adapter(path, data + b'# unrelated\n')
 
     def test_publication_helper_extraction_preserves_twenty_tests_and_assertions(self):
-        current, helper = (c.ROOT / p.TESTS).read_bytes(), (c.ROOT / p.JOIN_ONCE_HELPER).read_bytes()
+        current, helper = (c.ROOT / p.TESTS).read_bytes(), inverse_warning_adapter(p.JOIN_ONCE_HELPER, (c.ROOT / p.JOIN_ONCE_HELPER).read_bytes())
         frozen = self.frozen(p.TESTS)
         self.assertEqual(adapters.publication_tests_inverse(current, helper), frozen)
         self.assertEqual(helper.decode().split(adapters.EXTRACT_BEGIN, 1)[1].split(adapters.EXTRACT_END, 1)[0],
@@ -416,7 +416,7 @@ class JoinOnceCompositionTests(unittest.TestCase):
     def test_historical_profiles_pins_shapes_and_ownership_bytes_are_immutable(self):
         for path in (*at.PROFILE_DIGESTS, p.authenticated.PROFILE, p.OWNERSHIP_TESTS, p.CONTRACTS, p.CHECKS):
             self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path))
-        current = (c.ROOT / p.PROFILE).read_bytes()
+        current = inverse_warning_adapter(p.PROFILE, (c.ROOT / p.PROFILE).read_bytes())
         self.assertEqual(adapters.publication_profile_inverse(current), self.frozen(p.PROFILE))
         with self.assertRaises(AssertionError):
             adapters.publication_profile_inverse(current + b'# drift\n')
