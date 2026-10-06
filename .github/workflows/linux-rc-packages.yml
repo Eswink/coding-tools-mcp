@@ -19,9 +19,20 @@ jobs:
     timeout-minutes: 65
     outputs:
       packages_ready: ${{ steps.package_upload.outcome == 'success' && steps.driver_upload.outcome == 'success' }}
+      package_artifact_id: ${{ steps.package_upload.outputs.artifact-id }}
+      package_artifact_digest: ${{ steps.package_upload.outputs.artifact-digest }}
+      driver_artifact_id: ${{ steps.driver_upload.outputs.artifact-id }}
+      evidence_artifact_id: ${{ steps.evidence_upload.outputs.artifact-id }}
+      evidence_artifact_digest: ${{ steps.evidence_upload.outputs.artifact-digest }}
+      envelope_sha256: ${{ steps.package_build.outputs.envelope_sha256 }}
     env:
       APPIMAGE_EXTRACT_AND_RUN: '1'
     steps:
+      - name: Set external evidence paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'EVIDENCE_DIRECTORY=%s/linux-rc-evidence\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.sha }}
@@ -34,6 +45,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Required package binding prerequisite
+        id: package_binding
+        shell: bash
+        run: python -B scripts/linux_package_binding_tests.py
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: 1.98.1
@@ -47,23 +62,30 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev patchelf libfuse2 libegl1 libgles2 libgl1 dbus-x11 gnome-keyring
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev patchelf libfuse2 libegl1 libgles2 libgl1 dbus-x11 gnome-keyring squashfs-tools
       - name: Required source and frontend prerequisites
         id: prerequisites
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p evidence
+          mkdir -p "$EVIDENCE_DIRECTORY"
           # BEGIN PINNED APPIMAGE CASES
           python -B scripts/appimage_tools_tests.py
           python -B scripts/rc_pretag_appimage_cases.py
           python -B scripts/rc_pretag_snapshot_warning_cases.py
           # END PINNED APPIMAGE CASES
+          python -B scripts/rc_pretag_linux_package_cases.py
+          python -B scripts/linux_package_provenance_tests.py
+          python -B scripts/linux_runtime_provenance_tests.py
+          python -B scripts/linux_runtime_workflow_tests.py
+          python -B scripts/appimage_relro_tool_tests.py
+          python -B scripts/appimage_relro_guard_tests.py
+          python -B scripts/appimage_relro_contract_tests.py
           python scripts/preliminary_package_contract_tests.py
           python scripts/rc_version_gate_tests.py
           python scripts/rc_packages_tests.py
           python scripts/exclusive_native_contract_tests.py
-          python scripts/rc_version_gate.py --expect-version "$RC_VERSION" --expect-sha "$GITHUB_SHA" --output evidence/rc-source.json
+          python scripts/rc_version_gate.py --expect-version "$RC_VERSION" --expect-sha "$GITHUB_SHA" --output "$EVIDENCE_DIRECTORY/rc-source.json"
           npm ci
           npm run check
           npm run build
@@ -79,7 +101,7 @@ jobs:
           chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
           dbus-run-session -- bash -euo pipefail -c '
             printf "%s" "isolated-preliminary-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets
-            cargo test --no-fail-fast --manifest-path src-tauri/Cargo.toml --locked 2>&1 | tee evidence/rust-tests.log
+            cargo test --no-fail-fast --manifest-path src-tauri/Cargo.toml --locked 2>&1 | tee "$EVIDENCE_DIRECTORY/rust-tests.log"
           '
 
       - name: Build and verify unverified engineering package bytes
@@ -88,23 +110,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # BEGIN PINNED APPIMAGE PREPARATION
-          target_directory=$(cargo metadata --offline --no-deps --format-version 1 --manifest-path src-tauri/Cargo.toml | python -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')
-          export LDAI_RUNTIME_FILE="$RUNNER_TEMP/appimage-originals/runtime-x86_64"
-          python -B scripts/appimage_tools.py prepare --root "$GITHUB_WORKSPACE" --target-directory "$target_directory" \
-            --directory "$RUNNER_TEMP/appimage-originals" --source "$GITHUB_SHA" --output evidence/appimage-tools-prepared.json
-          python -B scripts/appimage_tools.py verify --root "$GITHUB_WORKSPACE" --target-directory "$target_directory" \
-            --directory "$RUNNER_TEMP/appimage-originals" --source "$GITHUB_SHA" --phase before --output evidence/appimage-tools-before.json
-          # END PINNED APPIMAGE PREPARATION
-          npm run tauri -- build --config src-tauri/Ubuntu桌面v1.json --bundles deb,appimage -- --locked 2>&1 | tee evidence/rc-package-build.log
-          # BEGIN PINNED APPIMAGE POSTCHECK
-          python -B scripts/appimage_tools.py verify --root "$GITHUB_WORKSPACE" --target-directory "$target_directory" \
-            --directory "$RUNNER_TEMP/appimage-originals" --source "$GITHUB_SHA" --phase after --output evidence/appimage-tools-after.json
-          # END PINNED APPIMAGE POSTCHECK
-          image=$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' -print -quit)
-          test -n "$image"
-          python scripts/AppImage入口配置v3.py --verify "$image" --output evidence/appimage-entry.json
-          python scripts/rc_packages.py prepare --directory . --output "$RUNNER_TEMP/linux-rc-packages" --source "$GITHUB_SHA"
+          cargo install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/desktop-audit-tools"
+          /usr/bin/curl --disable --fail --silent --show-error --proto '=https' --max-redirs 0 \
+            --connect-timeout 10 --max-time 60 --max-filesize 1048576 \
+            --output "$RUNNER_TEMP/desktop-glib.crate" https://static.crates.io/crates/glib/glib-0.18.5.crate
+          printf '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5  %s\n' \
+            "$RUNNER_TEMP/desktop-glib.crate" | sha256sum --check --strict
+          python scripts/desktop_glib_build_evidence.py collect-linux \
+            --root "$GITHUB_WORKSPACE" --source "$GITHUB_SHA" --expected-profile linux-engineering-packages-v1 \
+            --directory "$EVIDENCE_DIRECTORY/compiler" --target-directory "$RUNNER_TEMP/linux-rc-provenance-target" \
+            --archive "$RUNNER_TEMP/desktop-glib.crate" --audit-bin "$RUNNER_TEMP/desktop-audit-tools/bin/cargo-audit" \
+            --audit-db "$RUNNER_TEMP/linux-rc-advisory-db" --originals-directory "$RUNNER_TEMP/appimage-originals" \
+            --packages-directory "$RUNNER_TEMP/linux-rc-packages" --output "$EVIDENCE_DIRECTORY/compiler-verification.json"
+          python scripts/desktop_glib_build_evidence_tests.py --real-evidence "$EVIDENCE_DIRECTORY/compiler" \
+            --real-version "$RC_VERSION" --real-output "$EVIDENCE_DIRECTORY/real-mutations.json"
+          printf 'envelope_sha256=%s\n' "$(sha256sum "$EVIDENCE_DIRECTORY/compiler/envelope.json" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
           python - <<'PYTHON'
           import hashlib, json, os, pathlib, subprocess
           root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'linux-rc-packages'
@@ -115,6 +135,7 @@ jobs:
                          native_acceptance='NOT_EXECUTED', source_sha=os.environ['GITHUB_SHA'],
                          source_tree=subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip(),
                          version=os.environ['RC_VERSION'], run_id=os.environ['GITHUB_RUN_ID'],
+                         run_attempt=os.environ['GITHUB_RUN_ATTEMPT'],
                          files={p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in files})
           (root/'engineering-build.json').write_text(json.dumps(receipt,indent=2)+'\n')
           PYTHON
@@ -142,10 +163,11 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@v4
+        id: evidence_upload
         if: always()
         with:
           name: NOT_FINAL-NOT_PUBLISHABLE-linux-rc-build-evidence-${{ github.sha }}
-          path: evidence/
+          path: ${{ runner.temp }}/linux-rc-evidence/
           if-no-files-found: error
           retention-days: 30
 
@@ -164,6 +186,12 @@ jobs:
       PACKAGE_KIND: ${{ matrix.kind }}
       GDK_BACKEND: x11
     steps:
+      - name: Set external evidence paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'EVIDENCE_DIRECTORY=%s/linux-rc-evidence\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'LINUX_PACKAGE_PROVENANCE_BINDING=%s/linux-rc-evidence/provenance-binding.json\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.sha }}
@@ -173,11 +201,13 @@ jobs:
           python-version: '3.12'
       - uses: actions/download-artifact@v4
         with:
-          name: NOT_FINAL-NOT_PUBLISHABLE-linux-rc-packages-${{ github.sha }}
+          artifact-ids: ${{ needs.build.outputs.package_artifact_id }}
+          merge-multiple: true
           path: ${{ runner.temp }}/linux-rc-packages
       - uses: actions/download-artifact@v4
         with:
-          name: NOT_FINAL-NOT_PUBLISHABLE-linux-rc-driver-${{ github.sha }}
+          artifact-ids: ${{ needs.build.outputs.driver_artifact_id }}
+          merge-multiple: true
           path: ${{ runner.temp }}/linux-rc-driver
       - name: Install only pre-driver runtime and observation dependencies
         shell: bash
@@ -189,13 +219,19 @@ jobs:
           if [ "$PACKAGE_KIND" = deb ]; then
             sudo apt-get install -y "$RUNNER_TEMP/linux-rc-packages/"*.deb
           fi
-          mkdir -p evidence
-          python scripts/rc_packages.py installed --directory "$RUNNER_TEMP/linux-rc-packages" --source "$GITHUB_SHA" --kind "$PACKAGE_KIND" --output evidence/rc-package.json
+          mkdir -p "$EVIDENCE_DIRECTORY"
+          python scripts/linux_package_provenance_contract.py installed \
+            --directory "$RUNNER_TEMP/linux-rc-packages" --source "$GITHUB_SHA" --expected-profile linux-engineering-packages-v1 \
+            --producer-run-id "$GITHUB_RUN_ID" --producer-run-attempt "$GITHUB_RUN_ATTEMPT" --producer-workflow-ref "$GITHUB_WORKFLOW_REF" \
+            --expected-envelope-sha256 '${{ needs.build.outputs.envelope_sha256 }}' \
+            --artifact-id '${{ needs.build.outputs.package_artifact_id }}' --artifact-digest '${{ needs.build.outputs.package_artifact_digest }}' \
+            --kind "$PACKAGE_KIND" --os '${{ matrix.os }}' --output "$LINUX_PACKAGE_PROVENANCE_BINDING"
+          python scripts/rc_packages.py installed --directory "$RUNNER_TEMP/linux-rc-packages" --source "$GITHUB_SHA" --kind "$PACKAGE_KIND" --output "$EVIDENCE_DIRECTORY/rc-package.json"
       - name: Launch exact installed bytes before WebDriver dependencies
         shell: bash
         run: |
           set -euo pipefail
-          app=$(python -c "import json; print(json.load(open('evidence/rc-package.json',encoding='utf-8'))['executable'])")
+          app=$(python -c "import json; print(json.load(open(__import__('os').environ['EVIDENCE_DIRECTORY']+'/rc-package.json',encoding='utf-8'))['executable'])")
           export HOME="$RUNNER_TEMP/rc-startup-fixture"
           export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
           mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
@@ -205,9 +241,9 @@ jobs:
             export XDG_STATE_HOME="$HOME/state-$scenario"
             mkdir -p "$XDG_STATE_HOME"
             chmod 700 "$XDG_STATE_HOME"
-            xvfb-run -a -s '-screen 0 1280x800x24' dbus-run-session -- python3 scripts/linux_startup_candidate.py --app "$app" --case "$scenario" --seconds 20 --output "evidence/startup-$scenario"
+            xvfb-run -a -s '-screen 0 1280x800x24' dbus-run-session -- python3 scripts/linux_startup_candidate.py --app "$app" --case "$scenario" --seconds 20 --output "$EVIDENCE_DIRECTORY/startup-$scenario"
           done
-          if grep -R -E 'failed to load app state|panic' evidence/startup-*/stderr.txt; then
+          if grep -R -E 'failed to load app state|panic' "$EVIDENCE_DIRECTORY"/startup-*/stderr.txt; then
             echo 'fatal startup signature detected'; exit 1
           fi
       - name: Install WebDriver only after raw startup gate
@@ -219,18 +255,43 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          app=$(python -c "import json; print(json.load(open('evidence/rc-package.json',encoding='utf-8'))['executable'])")
+          app=$(python -c "import json; print(json.load(open(__import__('os').environ['EVIDENCE_DIRECTORY']+'/rc-package.json',encoding='utf-8'))['executable'])")
           export HOME="$RUNNER_TEMP/rc-native-fixture"
           export XDG_CONFIG_HOME="$HOME/config" XDG_DATA_HOME="$HOME/data" XDG_CACHE_HOME="$HOME/cache" XDG_RUNTIME_DIR="$HOME/run"
           mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
           chmod 700 "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
           touch "$HOME/.ubuntu-ci-fixture-v1"
-          PATH="/usr/bin:/bin:$PATH" xvfb-run -a -s '-screen 0 1920x1080x24' dbus-run-session -- bash scripts/Ubuntu图形会话v2.sh "$GITHUB_WORKSPACE/scripts/exclusive_native_acceptance.py" "$app" "$RUNNER_TEMP/linux-rc-driver/tauri-driver" "$PACKAGE_KIND" "$GITHUB_WORKSPACE/evidence" 2>&1 | tee evidence/rc-native-session.log
-          python scripts/rc_native_gate.py --input evidence/exclusive-native.json --binary "$app" --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --version "$RC_VERSION" --kind "$PACKAGE_KIND" | tee evidence/rc-native-gate.json
+          PATH="/usr/bin:/bin:$PATH" xvfb-run -a -s '-screen 0 1920x1080x24' dbus-run-session -- bash scripts/Ubuntu图形会话v2.sh "$GITHUB_WORKSPACE/scripts/exclusive_native_acceptance.py" "$app" "$RUNNER_TEMP/linux-rc-driver/tauri-driver" "$PACKAGE_KIND" "$EVIDENCE_DIRECTORY" 2>&1 | tee "$EVIDENCE_DIRECTORY/rc-native-session.log"
+          python scripts/rc_native_gate.py --input "$EVIDENCE_DIRECTORY/exclusive-native.json" --binary "$app" --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --version "$RC_VERSION" --kind "$PACKAGE_KIND" | tee "$EVIDENCE_DIRECTORY/rc-native-gate.json"
+      - name: Verify sampled runtime mappings after native behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/linux_runtime_provenance.py verify --binding "$LINUX_PACKAGE_PROVENANCE_BINDING" \
+            --directory "$EVIDENCE_DIRECTORY" --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" \
+            --run-attempt "$GITHUB_RUN_ATTEMPT" --os '${{ matrix.os }}' --kind "$PACKAGE_KIND" \
+            --output "$EVIDENCE_DIRECTORY/runtime-verification.json"
+      - uses: actions/download-artifact@v4
+        if: matrix.os == 'ubuntu-24.04' && matrix.kind == 'deb'
+        with:
+          artifact-ids: ${{ needs.build.outputs.evidence_artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/independent-build-evidence
+      - name: Independently replay full compiler and guard evidence
+        if: matrix.os == 'ubuntu-24.04' && matrix.kind == 'deb'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/desktop_glib_build_evidence.py verify-linux --root "$GITHUB_WORKSPACE" --source "$GITHUB_SHA" \
+            --directory "$RUNNER_TEMP/independent-build-evidence/compiler" --expected-profile linux-engineering-packages-v1 \
+            --producer-run-id "$GITHUB_RUN_ID" --producer-run-attempt "$GITHUB_RUN_ATTEMPT" --producer-workflow-ref "$GITHUB_WORKFLOW_REF" \
+            --expected-envelope-sha256 '${{ needs.build.outputs.envelope_sha256 }}' \
+            --artifact-id '${{ needs.build.outputs.evidence_artifact_id }}' --artifact-digest '${{ needs.build.outputs.evidence_artifact_digest }}' \
+            --output "$EVIDENCE_DIRECTORY/independent-compiler-verification.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: NOT_FINAL-NOT_PUBLISHABLE-linux-rc-installed-${{ matrix.os }}-${{ matrix.kind }}-${{ github.sha }}
-          path: evidence/
+          path: ${{ runner.temp }}/linux-rc-evidence/
           if-no-files-found: error
           retention-days: 30

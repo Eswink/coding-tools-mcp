@@ -133,7 +133,9 @@ class EntryProcessTests(unittest.TestCase):
         tools = target / ".tauri"
         tools.mkdir(parents=True)
         (tools / "AppRun-x86_64").write_bytes(b"old-generic-launcher")
-        with patch.object(entry.subprocess, "check_output", return_value=json.dumps({"target_directory": str(target)})):
+        query = entry.subprocess.check_output
+        with patch.object(entry.subprocess, "check_output", side_effect=lambda args, **kw:
+                          json.dumps({"target_directory": str(target)}) if args[:2] == ["cargo", "metadata"] else query(args, **kw)):
             path = entry.install(self.root)
         self.assertEqual(entry.digest(path), entry.digest(ROOT / entry.LAUNCHER))
         self.assertEqual(path.stat().st_mode & 0o777, 0o755)
@@ -143,7 +145,9 @@ class EntryProcessTests(unittest.TestCase):
         (self.root / "scripts").mkdir()
         shutil.copyfile(ROOT / entry.LAUNCHER, self.root / entry.LAUNCHER)
         target = self.root / "相对目标v3"
-        with patch.object(entry.subprocess, "check_output", return_value=json.dumps({"target_directory": str(target)})) as metadata:
+        query = entry.subprocess.check_output
+        with patch.object(entry.subprocess, "check_output", side_effect=lambda args, **kw:
+                          json.dumps({"target_directory": str(target)}) if args[:2] == ["cargo", "metadata"] else query(args, **kw)) as metadata:
             entry.install(self.root)
         self.assertEqual(metadata.call_args.kwargs.get("cwd"), self.root / "src-tauri")
 
@@ -152,7 +156,9 @@ class EntryProcessTests(unittest.TestCase):
         target = self.root / "构建v3"
         target.mkdir()
         (target / ".tauri").symlink_to(self.appdir, target_is_directory=True)
-        with patch.object(entry.subprocess, "check_output", return_value=json.dumps({"target_directory": str(target)})):
+        query = entry.subprocess.check_output
+        with patch.object(entry.subprocess, "check_output", side_effect=lambda args, **kw:
+                          json.dumps({"target_directory": str(target)}) if args[:2] == ["cargo", "metadata"] else query(args, **kw)):
             with self.assertRaisesRegex(RuntimeError, "symlink"):
                 entry.install(self.root)
 
