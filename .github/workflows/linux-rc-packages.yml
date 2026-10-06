@@ -25,6 +25,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -53,6 +54,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p evidence
+          # BEGIN PINNED APPIMAGE CASES
+          python -B scripts/appimage_tools_tests.py
+          python -B scripts/rc_pretag_appimage_cases.py
+          python -B scripts/rc_pretag_snapshot_warning_cases.py
+          # END PINNED APPIMAGE CASES
           python scripts/preliminary_package_contract_tests.py
           python scripts/rc_version_gate_tests.py
           python scripts/rc_packages_tests.py
@@ -82,7 +88,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # BEGIN PINNED APPIMAGE PREPARATION
+          target_directory=$(cargo metadata --offline --no-deps --format-version 1 --manifest-path src-tauri/Cargo.toml | python -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')
+          export LDAI_RUNTIME_FILE="$RUNNER_TEMP/appimage-originals/runtime-x86_64"
+          python -B scripts/appimage_tools.py prepare --root "$GITHUB_WORKSPACE" --target-directory "$target_directory" \
+            --directory "$RUNNER_TEMP/appimage-originals" --source "$GITHUB_SHA" --output evidence/appimage-tools-prepared.json
+          python -B scripts/appimage_tools.py verify --root "$GITHUB_WORKSPACE" --target-directory "$target_directory" \
+            --directory "$RUNNER_TEMP/appimage-originals" --source "$GITHUB_SHA" --phase before --output evidence/appimage-tools-before.json
+          # END PINNED APPIMAGE PREPARATION
           npm run tauri -- build --config src-tauri/Ubuntu桌面v1.json --bundles deb,appimage -- --locked 2>&1 | tee evidence/rc-package-build.log
+          # BEGIN PINNED APPIMAGE POSTCHECK
+          python -B scripts/appimage_tools.py verify --root "$GITHUB_WORKSPACE" --target-directory "$target_directory" \
+            --directory "$RUNNER_TEMP/appimage-originals" --source "$GITHUB_SHA" --phase after --output evidence/appimage-tools-after.json
+          # END PINNED APPIMAGE POSTCHECK
           image=$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' -print -quit)
           test -n "$image"
           python scripts/AppImage入口配置v3.py --verify "$image" --output evidence/appimage-entry.json
