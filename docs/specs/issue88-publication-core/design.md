@@ -54,7 +54,7 @@ Source S, sole parent exact N, adds five mode100644 files, at most 1340 changed 
 - docs/specs/issue88-publication-core/design.md: final/delta 180
 - docs/specs/issue88-publication-core/tasks.md: final/delta 120
 
-Candidate C, sole parent S, changes exactly seven guard paths, at most 1050 changed lines and 1685 entries:
+Candidate C, sole parent S, changes seven guard paths plus six pinned ancillary replacements, jointly at most 1050 changed lines and 1685 entries:
 - scripts/rc_pretag_composition_tests.py: final 500/delta 24
 - scripts/rc_pretag_desktop_tests.py: final 400/delta 36
 - scripts/rc_pretag_nginx_tests.py: final 480/delta 44
@@ -62,6 +62,12 @@ Candidate C, sole parent S, changes exactly seven guard paths, at most 1050 chan
 - scripts/rc_pretag_authenticated_two_hop_tests.py: final 500/delta 100
 - new scripts/rc_pretag_publication_profile.py: final/delta 400
 - new scripts/rc_pretag_publication_tests.py: final/delta 500
+
+Ancillary replacements retain the original S blobs/pins and change only these existing paths (final/delta caps): requirements.md 120/20, design.md 180/50, tasks.md 120/20 within this spec directory; scripts/rc_pretag_ownership_tests.py 380/24; .github/workflows/rc-pretag-contract-checks.yml 74/2; .github/workflows/rc-pretag-evidence-checks.yml 81/2. The cumulative N scope is 15 paths, 13 changed relative to C2; no new file is added by this amendment.
+
+Each workflow permits only its unique timeout-minutes line changing 15 to 20. Its inverse must recover complete original bytes, preserving events, permissions, pinned actions, commands and all tests. Strict took 888 seconds; contracts was cancelled after 915 seconds with only 277 of 283 cases observed and no old452 sequence. Cancellation cause/actor are unconfirmed. Preserve that incomplete attempt; the explicitly approved fresh candidate must complete strict283, contracts735 and consumer452.
+
+Ownership fixtures use the frozen N workflow and self-test bytes. A separate ownership inverse binds blob ec89a839c11dfffb37923086a3c35ba5455a28c8, SHA256 ab67f3fc6eb172377dfab672e25023c55f9c2936db103e170719b65cd0150fc6, 22471 bytes/372 lines; never insert this path into an old profile's pin map. Desktop, nginx, two-hop and authenticated tests recover those same historical bytes before their original assertions. Current spec replacements have ancillary pins; all five original S pins remain unchanged.
 
 The authenticated adapter starts at 477 lines; 23-line headroom is an estimate, never permission to minify, lose assertions or exceed the cap. Stop for a reasoned scope amendment if the frozen scope cannot fit.
 
@@ -71,7 +77,7 @@ Profile engineering/issue88-publication-core-composition-v1 accepts only C=[S], 
 
 Freeze N SHA/tree/parents and validate it through the unchanged authenticated profile. Freeze S SHA/tree plus full five-source pins; six non-self guard pins and an external independent manifest bind all seven guard paths including profile self bytes and the full tree. No self-hash cycle or historical repinning is introduced.
 
-Only genuine topology mismatch permits profile dispatch fallback. Once topology selects, all content/pin/budget failures are terminal. Five exact-once adapter inverses recover N bytes. Only the frozen methods, one composition import and disjoint EXPECTED_GROUPS extension may change; all existing method IDs/assertions and Git/inventory helper implementations remain intact.
+Only genuine topology mismatch permits profile dispatch fallback. Once topology selects, all content/pin/budget failures are terminal. Five original exact-once adapter inverses plus the separately anchored ownership inverse recover N bytes. Only the frozen methods, one composition import and disjoint EXPECTED_GROUPS extension may change; all existing method IDs/assertions and Git/inventory helper implementations remain intact.
 
 ## 测试和证据
 

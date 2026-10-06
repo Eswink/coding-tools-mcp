@@ -74,7 +74,11 @@ class NginxCompositionTests(unittest.TestCase):
 
     def test_exact_historical_profiles_and_pins_remain_unchanged(self):
         for path in (d.PROFILE, 'scripts/rc_pretag_ownership_profile.py', 'scripts/rc_pretag_ownership_tests.py'):
-            self.assertEqual((c.ROOT / path).read_bytes(), c._git('show', n.F + ':' + path, root=self.repo))
+            from rc_pretag_publication_tests import inverse_ownership
+            frozen = c._git('show', n.F + ':' + path, root=self.repo)
+            current = (c.ROOT / path).read_bytes()
+            if path == c.publication.OWNERSHIP_TESTS: current = inverse_ownership(current, frozen)
+            self.assertEqual(current, frozen)
         self.assertEqual((len(c.ALLOWED), len(o.CAPS), o.DELTA_LIMIT, d.AMENDMENT_DELTA_LIMIT), (22, 13, 2200, 1100))
         self.assertEqual(d.AMENDMENT_PINS[d.COMPOSITION], ('988c4be1175b68feecc2c38f8aee7f932e4589e2',
                          'ff5e95e6ff14416aa969e1c9dad9e729c96c3aa624da63af4ff93c9edc397694'))
@@ -371,7 +375,9 @@ class NginxCompositionTests(unittest.TestCase):
         self.assertEqual(sum(len(names.split()) for names in c.two_hop.EXPECTED_GROUPS.values()), 22)
         previous = legacy | c.two_hop.EXPECTED_GROUPS
         self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in previous}, legacy | c.two_hop.EXPECTED_GROUPS)
-        self.assertEqual(c.EXPECTED_GROUPS, previous | c.authenticated_two_hop.EXPECTED_GROUPS)
+        complete_historical = previous | c.authenticated_two_hop.EXPECTED_GROUPS
+        self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in complete_historical}, complete_historical)
+        self.assertEqual(c.EXPECTED_GROUPS, complete_historical | c.publication.EXPECTED_GROUPS)
         names = next(iter(n.EXPECTED_GROUPS.values())).split()
         self.assertEqual((len(names), len(set(names))), (20, 20))
         self.assertEqual(set(names), set(unittest.defaultTestLoader.getTestCaseNames(type(self))))
@@ -383,7 +389,9 @@ class NginxCompositionTests(unittest.TestCase):
         self.assertEqual((len(historical_loaded), len(set(historical_loaded))), (187, 187))
         prior_loaded = [name for name in loaded if name.rsplit('.', 1)[0] in previous]
         self.assertEqual((len(prior_loaded), len(set(prior_loaded))), (209, 209))
-        self.assertEqual((len(loaded), len(set(loaded))), (233, 233))
+        full_historical = [name for name in loaded if name.rsplit('.', 1)[0] in complete_historical]
+        self.assertEqual((len(full_historical), len(set(full_historical))), (233, 233))
+        self.assertEqual((len(loaded), len(set(loaded))), (283, 283))
         current = ast.parse((c.ROOT / n.COMPOSITION).read_bytes())
         for name in ('run_inventory', 'InventoryResult', '_flatten'):
             extract = lambda tree: ast.dump(next(node for node in tree.body if getattr(node, 'name', '') == name))

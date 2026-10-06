@@ -21,10 +21,11 @@ As the maintainer, I need one reusable engine to decide every draft/upload/verif
 
 ## 非功能需求
 
-- Exactly 12 approved paths; source delta at most 1340, guard delta at most 1050, all final files at most 500 lines and tighter individual caps
+- Exactly 15 approved cumulative paths; immutable S source delta at most 1340, combined guard/ancillary delta at most 1050, all final files at most 500 lines and tighter individual caps
 - Bounded integers reject booleans; fixed sanitized result codes exclude raw errors, credentials, signed URLs and freeform logs
 - Confirmed pre-dispatch cancellation produces no mutation; uncertain post-dispatch cancellation stays uncertain. An outstanding intent does not authorize stale execution
-- No live adapter, CLI, I/O, workflow, dependency, credential, version, producer, consumer or production-runtime changes
+- No live adapter, CLI, I/O, dependency, credential, version, producer, consumer or production-runtime changes; only the two existing hermetic strict/contracts workflow timeouts change from 15 to 20 minutes
+- Preserve both complete workflow byte sequences through exact timeout inverses, all original 283+452 test IDs, historical pins and immutable S source pins; separately pin the six ancillary replacements
 
 ## 依赖关系
 
@@ -36,7 +37,7 @@ When the pure engine receives any input, it SHALL satisfy every applicable invar
 
 - Exact 30 core cases exercise the 25-intent trace, negative identities, six byte checks, external authority boundary, all failure phases and terminal behavior
 - Exactly 283 source-declared, loaded, executed and independently discovered strict IDs occur once; historical 233 and old 452 regressions remain unchanged, with no skips or expected-failure substitutions
-- Full trees, ordered parents, modes/blobs/digests/bytes/lines, per-file and aggregate budgets, five adapter inverses and the externally bound profile self bytes pass independent review
+- Full trees, ordered parents, modes/blobs/digests/bytes/lines, per-file and aggregate budgets, five original adapter inverses plus the separate ownership inverse and the externally bound profile self bytes pass independent review
 - Repeated pure calls create inert decisions only; no public entry point executes a mutation or authenticates owner permission
 - Staged impact, Probe/spec/review/gencommit gates and source-bound tests pass before separately authorized publication
 

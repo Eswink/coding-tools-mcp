@@ -7,15 +7,16 @@
 - [ ] Implement immutable closed records and pure start/advance/request_publish with the same future live-adapter seam, six real consumer asset rows and 25-intent trace
 - [ ] Implement all 30 frozen core cases, including every failure/cancellation/uncertainty phase, request/authority separation and no-I/O/false-report boundary
 - [ ] Freeze structural source S from the five source files with sole parent N; preserve actual remote-object versus local-surrogate identity distinctions
-- [ ] Implement the separate finite C/I/J profile, five mechanical adapter inverses and 20 frozen guard cases without historical pin changes or broad fallback
+- [ ] Implement the finite C/I/J profile, five original mechanical inverses plus the separately anchored ownership inverse and 20 frozen guard cases without historical pin changes or broad fallback
 - [ ] Bind all source/non-self/self/tree/parent/budget and exact283 inventories, then run focused cases, strict and independent discovery plus unchanged452 regressions
 - [ ] Run staged GitNexus detect_changes, Probe code_review/architecture consistency/gencommit and independent exact source/guard reviews; preserve limitations and all original admission gates
 - [ ] Send the exact staged source/test/review packet to the parent before any remote publication or CI activation
 - [ ] After separately authorized publication, verify actual remote identities and scoped CI; converge only the implemented inert-core task, never real publication readiness
+- [ ] Apply only the approved strict/contracts timeout 15-to-20 inverses and six ancillary pins; preserve all original 283+452 IDs, immutable S pins and complete historical assertion recovery
 
 ## 交付物清单
 
-Exactly five source additions and seven guard paths; full external manifest, test IDs, command/status/count records, impact evidence and independent review. No extra repository artifact/helper/workflow path is authorized.
+Exactly 15 cumulative paths: the five immutable S additions, seven original guard paths and three existing ownership/workflow paths. Six ancillary replacements include these three paths and the three current specs, all sharing the guard1050 delta cap. No new repository file is added by the timeout amendment.
 
 ## 文件变更清单
 
@@ -31,6 +32,9 @@ Exactly five source additions and seven guard paths; full external manifest, tes
 - scripts/rc_pretag_authenticated_two_hop_tests.py
 - scripts/rc_pretag_publication_profile.py
 - scripts/rc_pretag_publication_tests.py
+- scripts/rc_pretag_ownership_tests.py
+- .github/workflows/rc-pretag-contract-checks.yml
+- .github/workflows/rc-pretag-evidence-checks.yml
 
 ## 验证计划
 
@@ -44,8 +48,8 @@ Reports separate modeled outcomes from real publication and named executions fro
 - FR-3, FR-4: frozen subject, fresh fences, six individual byte checks and bounded complete trace
 - FR-5, FR-7: separate owner/admission/byte authority, current cancellation, preserved false flags and held final gates
 - FR-6: phase-specific failure/uncertainty outcomes, malformed events and no automatic mutation/retry/recovery
-- FR-8: exact S/C/I/J topology, historical pins/233, new50, full283 and five byte-exact adapter inverses
+- FR-8: exact S/C/I/J topology, historical pins/233, new50, full283 and five original byte-exact inverses plus the separate ownership inverse
 
 ## 不在范围
 
-No live adapter, workflow, tag/draft/upload/release mutation, credentials, package/version change, producer/consumer rewrite, PR98, cancelled86 retry or snapshot implementation. Owner 0.7.0 RC intent is settled; this task does not choose an ordinal or claim real publication admission.
+No live adapter, write-capable workflow, tag/draft/upload/release mutation, credentials, package/version change, producer/consumer rewrite, PR98, cancelled86 retry or snapshot implementation. Only the approved two hermetic timeout lines and fresh CI are added. Owner 0.7.0 RC intent is settled; this task does not choose an ordinal or claim real publication admission.
