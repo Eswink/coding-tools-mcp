@@ -17,6 +17,7 @@ import rc_pretag_ownership_profile as o
 import rc_pretag_publication_profile as p
 import rc_pretag_publication_adapters as adapters
 import rc_pretag_publication_tests as pt
+from rc_pretag_appimage_profile import inverse_appimage_adapter
 
 FILESYSTEM = 'src-tauri/src/workspace_snapshots/filesystem.rs'
 MODEL = 'src-tauri/src/workspace_snapshots/model.rs'
@@ -71,7 +72,7 @@ class SnapshotWarningCompositionTests(unittest.TestCase):
     def setUp(self):
         self.repo, _, self.commit, self.blob = self.enterContext(c._profile_fixture())
         self.original = c._entries(p.WARNING_B, self.repo)
-        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in p.WARNING_CAPS}
+        self.good = self.original | {path: ('100644', 'blob', self.blob(inverse_appimage_adapter(path, (c.ROOT / path).read_bytes()))) for path in p.WARNING_CAPS}
         self.pure = self.commit([p.WARNING_B], self.good)
         self.feature = self.commit([p.WARNING_B, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -131,7 +132,7 @@ class SnapshotWarningCompositionTests(unittest.TestCase):
         self.assertEqual({path for path in self.good if self.good[path] != self.original.get(path)}, p.WARNING_CAPS.keys())
         self.assertEqual(p.WARNING_PINS.keys(), p.WARNING_CAPS.keys() - {p.PROFILE})
         for path, row in p.WARNING_PINS.items():
-            data = (c.ROOT / path).read_bytes()
+            data = inverse_appimage_adapter(path, (c.ROOT / path).read_bytes())
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())))
             self.bad_content(self.changed(path, data + b'\n'))
         row = p.WARNING_PINS[FILESYSTEM]
@@ -312,7 +313,7 @@ class SnapshotWarningCompositionTests(unittest.TestCase):
     def test_individual_and_aggregate_budgets_reject(self):
         self.assertEqual((p.WARNING_DELTA_LIMIT, sum(cap[1] for cap in p.WARNING_CAPS.values())), (1500, 1583))
         for path, (_, delta) in p.WARNING_CAPS.items():
-            lines = len((c.ROOT / path).read_bytes().splitlines())
+            lines = len(inverse_appimage_adapter(path, (c.ROOT / path).read_bytes()).splitlines())
             with patch.dict(p.WARNING_CAPS, {path: (lines - 1, delta)}), self.assertRaises(AssertionError):
                 self.content(self.pure)
             def oversized(*args, root):
@@ -334,7 +335,7 @@ class SnapshotWarningCompositionTests(unittest.TestCase):
     def test_current_inverses_recover_complete_6edd_files(self):
         self.assertEqual(adapters.WARNING_BASE_PINS.keys(), {p.PROFILE, p.JOIN_ONCE_HELPER, JOIN_TESTS})
         for path in adapters.WARNING_BASE_PINS:
-            data = (c.ROOT / path).read_bytes()
+            data = inverse_appimage_adapter(path, (c.ROOT / path).read_bytes())
             self.assertEqual(adapters.inverse_warning_adapter(path, data), self.frozen(path))
             for changed in (data + b'# outside\n', data.replace(b'assert ', b'# assert ', 1)):
                 with self.assertRaises(AssertionError):

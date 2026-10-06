@@ -237,6 +237,17 @@ def selected_profile(ref, root, git, entries, historical, release, release_tree,
         except ownership.TopologyError:
             continue
         return select(ref, root, git, entries, historical, release, release_tree, documents)
+    import rc_pretag_appimage_profile as appimage
+    try:
+        kind, tip, source = appimage.topology(ref, root, git, release)
+    except ownership.TopologyError:
+        pass
+    else:
+        expected = appimage.content(source, root, git, entries, historical, release, release_tree, documents)
+        assert entries(tip, root) == expected
+        if kind == 'release':
+            return ownership.release_content(ref, expected, root, git, entries, release, release_tree, documents)
+        return expected
     try:
         kind, tip, source = warning_topology(ref, root, git, release)
     except ownership.TopologyError:

@@ -221,6 +221,8 @@ WARNING_JOIN_ONCE_FRAGMENTS = (
 
 def inverse_warning_adapter(path, current):
     """Recover complete frozen B guard bytes before any historical inverse."""
+    from rc_pretag_appimage_profile import inverse_appimage_adapter
+    current = inverse_appimage_adapter(path, current)
     if path not in WARNING_BASE_PINS:
         return current
     if path != p.PROFILE:
