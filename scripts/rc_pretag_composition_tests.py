@@ -446,6 +446,8 @@ assert not (EXPECTED_GROUPS.keys() & authenticated_two_hop.EXPECTED_GROUPS.keys(
 EXPECTED_GROUPS.update(authenticated_two_hop.EXPECTED_GROUPS)
 assert not (EXPECTED_GROUPS.keys() & publication.EXPECTED_GROUPS.keys())
 EXPECTED_GROUPS.update(publication.EXPECTED_GROUPS)
+assert not (EXPECTED_GROUPS.keys() & publication.JOIN_ONCE_GROUPS.keys())
+EXPECTED_GROUPS.update(publication.JOIN_ONCE_GROUPS)
 
 
 def _flatten(suite):

@@ -16,73 +16,13 @@ import rc_pretag_authenticated_two_hop_profile as a
 import rc_pretag_authenticated_two_hop_tests as at
 import rc_pretag_publication_profile as p
 
-FRAGMENTS = {
-    'scripts/rc_pretag_composition_tests.py': (
-        ('            data = (ROOT / path).read_bytes()\n            if path in publication.TIMEOUT_BASE_PINS: data = publication.timeout_inverse(path, data)\n            self.assertEqual((_blob(data), hashlib.sha256(data).hexdigest()), (blob, sha256), path)', '            data = (ROOT / path).read_bytes()\n            self.assertEqual((_blob(data), hashlib.sha256(data).hexdigest()), (blob, sha256), path)'),
-        ('        current = publication.timeout_inverse(CHECKS, (ROOT / CHECKS).read_bytes())\n', '        current = (ROOT / CHECKS).read_bytes()\n'),
-        ('import rc_pretag_authenticated_two_hop_profile as authenticated_two_hop\nimport rc_pretag_publication_profile as publication\n', 'import rc_pretag_authenticated_two_hop_profile as authenticated_two_hop\n'),
-        ('expected = publication.selected_profile(', 'expected = authenticated_two_hop.selected_profile('),
-        ('EXPECTED_GROUPS.update(authenticated_two_hop.EXPECTED_GROUPS)\nassert not (EXPECTED_GROUPS.keys() & publication.EXPECTED_GROUPS.keys())\nEXPECTED_GROUPS.update(publication.EXPECTED_GROUPS)\n', 'EXPECTED_GROUPS.update(authenticated_two_hop.EXPECTED_GROUPS)\n'),
-    ),
-    'scripts/rc_pretag_desktop_tests.py': (
-        ("            from rc_pretag_publication_tests import inverse_ownership\n            frozen = c._git('show', d.X + ':' + path, root=self.repo)\n            current = (c.ROOT / path).read_bytes()\n            if path == c.publication.OWNERSHIP_TESTS: current = inverse_ownership(current, frozen)\n            self.assertEqual(current, frozen)\n", "            self.assertEqual((c.ROOT / path).read_bytes(), c._git('show', d.X + ':' + path, root=self.repo))\n"),
-        ('        complete_historical = previous | c.authenticated_two_hop.EXPECTED_GROUPS\n        self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in complete_historical}, complete_historical)\n        self.assertEqual(c.EXPECTED_GROUPS, complete_historical | c.publication.EXPECTED_GROUPS)\n', '        self.assertEqual(c.EXPECTED_GROUPS, previous | c.authenticated_two_hop.EXPECTED_GROUPS)\n'),
-        ("        full_historical = [name for name in loaded if name.rsplit('.', 1)[0] in complete_historical]\n        self.assertEqual((len(full_historical), len(set(full_historical))), (233, 233))\n        self.assertEqual((len(loaded), len(set(loaded))), (283, 283))\n", '        self.assertEqual((len(loaded), len(set(loaded))), (233, 233))\n'),
-    ),
-    'scripts/rc_pretag_nginx_tests.py': (
-        ("            from rc_pretag_publication_tests import inverse_ownership\n            frozen = c._git('show', n.F + ':' + path, root=self.repo)\n            current = (c.ROOT / path).read_bytes()\n            if path == c.publication.OWNERSHIP_TESTS: current = inverse_ownership(current, frozen)\n            self.assertEqual(current, frozen)\n", "            self.assertEqual((c.ROOT / path).read_bytes(), c._git('show', n.F + ':' + path, root=self.repo))\n"),
-        ('        complete_historical = previous | c.authenticated_two_hop.EXPECTED_GROUPS\n        self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in complete_historical}, complete_historical)\n        self.assertEqual(c.EXPECTED_GROUPS, complete_historical | c.publication.EXPECTED_GROUPS)\n', '        self.assertEqual(c.EXPECTED_GROUPS, previous | c.authenticated_two_hop.EXPECTED_GROUPS)\n'),
-        ("        full_historical = [name for name in loaded if name.rsplit('.', 1)[0] in complete_historical]\n        self.assertEqual((len(full_historical), len(set(full_historical))), (233, 233))\n        self.assertEqual((len(loaded), len(set(loaded))), (283, 283))\n", '        self.assertEqual((len(loaded), len(set(loaded))), (233, 233))\n'),
-    ),
-    'scripts/rc_pretag_two_hop_tests.py': (
-        ("        from rc_pretag_publication_tests import inverse_ownership\n        path = 'scripts/rc_pretag_ownership_tests.py'\n        frozen = c._git('show', t.F + ':' + path, root=self.repo)\n        self.assertEqual(inverse_ownership((c.ROOT / path).read_bytes(), frozen), frozen)\n", "        path = 'scripts/rc_pretag_ownership_tests.py'\n        self.assertEqual((c.ROOT / path).read_bytes(), c._git('show', t.F + ':' + path, root=self.repo))\n"),
-        ("        historical_expected = [name for name in all_expected if name.rsplit('.', 1)[0] not in c.publication.EXPECTED_GROUPS]\n        expected = [name for name in historical_expected if name.rsplit('.', 1)[0] not in c.authenticated_two_hop.EXPECTED_GROUPS]\n", "        expected = [name for name in all_expected if name.rsplit('.', 1)[0] not in c.authenticated_two_hop.EXPECTED_GROUPS]\n"),
-        ("        self.assertEqual((len(all_loaded), len(set(all_loaded))), (283, 283)); self.assertEqual(Counter(all_loaded), Counter(all_expected))\n        historical_loaded = [name for name in all_loaded if name.rsplit('.', 1)[0] not in c.publication.EXPECTED_GROUPS]\n        self.assertEqual((len(historical_loaded), len(set(historical_loaded))), (233, 233))\n        loaded = [name for name in historical_loaded if name.rsplit('.', 1)[0] not in c.authenticated_two_hop.EXPECTED_GROUPS]; inventory_ids(loaded)\n", "        self.assertEqual((len(all_loaded), len(set(all_loaded))), (233, 233)); self.assertEqual(Counter(all_loaded), Counter(all_expected))\n        loaded = [name for name in all_loaded if name.rsplit('.', 1)[0] not in c.authenticated_two_hop.EXPECTED_GROUPS]; inventory_ids(loaded)\n"),
-    ),
-    'scripts/rc_pretag_authenticated_two_hop_tests.py': (
-        ("        from rc_pretag_publication_tests import inverse_ownership\n        path = 'scripts/rc_pretag_ownership_tests.py'\n        frozen = c._git('show', a.M + ':' + path, root=self.repo)\n        self.assertEqual(inverse_ownership((c.ROOT / path).read_bytes(), frozen), frozen)\n", "        path = 'scripts/rc_pretag_ownership_tests.py'\n        self.assertEqual((c.ROOT / path).read_bytes(), c._git('show', a.M + ':' + path, root=self.repo))\n"),
-        ("        self.assertEqual(tuple(o._parents(c.publication.N, self.repo, c._git)), c.publication.N_PARENTS)\n        self.assertEqual(c._git('rev-parse', c.publication.N + '^{tree}', root=self.repo).decode().strip(), c.publication.N_TREE)\n        frozen = self.selected(c.publication.N)\n        self.good = self.source | {p: frozen[p] for p in a.AMENDMENT_CAPS}\n", "        self.good = self.source | {p: ('100644', 'blob', self.blob((c.ROOT / p).read_bytes()))\n                                   for p in a.AMENDMENT_CAPS}\n"),
-        ("            self.bad_content(self.changed(path, c._git('show', c.publication.N + ':' + path, root=self.repo) + b'\\n'))\n", "            self.bad_content(self.changed(path, (c.ROOT / path).read_bytes() + b'\\n'))\n"),
-        ("        current = c._git('show', c.publication.N + ':' + path, root=self.repo)\n", '        current = (c.ROOT / path).read_bytes()\n'),
-        ("        all_expected = [prefix + '.' + name for prefix, names in c.EXPECTED_GROUPS.items() for name in names.split()]\n        expected = [name for name in all_expected if name.rsplit('.', 1)[0] not in c.publication.EXPECTED_GROUPS]\n", "        expected = [prefix + '.' + name for prefix, names in c.EXPECTED_GROUPS.items() for name in names.split()]\n"),
-        ("        all_loaded = [case.id() for case in c._flatten(suite)]\n        self.assertEqual((len(all_loaded), len(set(all_loaded))), (283, 283))\n        self.assertEqual(Counter(all_loaded), Counter(all_expected))\n        loaded = [name for name in all_loaded if name.rsplit('.', 1)[0] not in c.publication.EXPECTED_GROUPS]; inventory_ids(loaded)\n", '        loaded = [case.id() for case in c._flatten(suite)]; inventory_ids(loaded)\n'),
-    ),
-}
-ALLOWED_METHODS = {'scripts/rc_pretag_composition_tests.py': {'test_adopted_contracts_are_byte_identical', 'test_fixture_workflow_triggers_and_no_duplicate_regressions', 'test_exact_tracked_tree_modes_and_scope'}, 'scripts/rc_pretag_desktop_tests.py': {'test_exact_x_preserves_legacy_profile_and_pins', 'test_legacy_inventory_and_new_named_inventory_are_exact'}, 'scripts/rc_pretag_nginx_tests.py': {'test_exact_historical_profiles_and_pins_remain_unchanged', 'test_frozen_167_plus_20_inventory_has_exact_loaded_and_executed_ids'}, 'scripts/rc_pretag_two_hop_tests.py': {'test_frozen_historical_profiles_and_pins_remain_exact', 'test_frozen_187_plus_22_inventory_is_exactly_loaded_and_executed'}, 'scripts/rc_pretag_authenticated_two_hop_tests.py': {'test_frozen_four_profiles_and_pins_remain_exact', 'test_frozen_209_plus_24_inventory_is_exactly_loaded_and_executed', 'adapter', 'setUp', 'test_amendment_pins_scope_binary_and_individual_total_budgets_reject'}}
-OWNERSHIP_FRAGMENTS = (
-    ("        frozen = c._entries(c.publication.N, self.repo)\n        for path in o.CAPS:\n            self.good[path] = frozen[path] if path in (o.CHECKS, c.publication.OWNERSHIP_TESTS) else (\n                '100644', 'blob', self.blob((c.ROOT / path).read_bytes()))\n", "        for path in o.CAPS:\n            self.good[path] = ('100644', 'blob', self.blob((c.ROOT / path).read_bytes()))\n"),
-    ('        for path, pin in o.NEW_PINS.items():\n            data = (c.ROOT / path).read_bytes()\n            if path == o.CHECKS: data = c.publication.timeout_inverse(path, data)\n            self.assertEqual(o.pin(data), pin)\n', '        for path, pin in o.NEW_PINS.items(): self.assertEqual(o.pin((c.ROOT / path).read_bytes()), pin)\n'),
-    ("        data = {p: c._git('cat-file', 'blob', self.good[p][2], root=self.repo) for p in o.CAPS}\n", '        data = {p: (c.ROOT / p).read_bytes() for p in o.CAPS}\n'),
-)
-OWNERSHIP_METHODS = {'setUp', 'test_exact_m_ownership_overlay_accepts_only_reviewed_delta', 'test_original_adopter_and_ownership_budgets_are_separate'}
-ADAPTER_FRAGMENTS = FRAGMENTS | {p.OWNERSHIP_TESTS: OWNERSHIP_FRAGMENTS}
+from rc_pretag_publication_adapters import (
+    FRAGMENTS, ALLOWED_METHODS, OWNERSHIP_FRAGMENTS, OWNERSHIP_METHODS, ADAPTER_FRAGMENTS,
+    inverse_adapter as _historical_inverse, inverse_ownership, inverse_join_once_adapter)
 
 
 def inverse_adapter(path, current, frozen):
-    pins = p.OWNERSHIP_PINS if path == p.OWNERSHIP_TESTS else a.AMENDMENT_PINS
-    assert o.pin(frozen) == pins[path], 'historical N adapter pin'
-    try:
-        restored = current.decode()
-    except UnicodeDecodeError as error:
-        raise AssertionError('adapter encoding') from error
-    for before, after in ADAPTER_FRAGMENTS[path]:
-        restored = c._replace_once(restored, before, after)
-    assert restored.encode() == frozen, 'complete N inverse'
-    old, new = at.methods(frozen), at.methods(current)
-    assert old.keys() == new.keys(), 'method names'
-    allowed = OWNERSHIP_METHODS if path == p.OWNERSHIP_TESTS else ALLOWED_METHODS[path]
-    assert {name for name in old if ast.dump(old[name]) != ast.dump(new[name])} == allowed
-    recovered = at.methods(restored)
-    assertions = lambda node: Counter(ast.dump(call) for call in ast.walk(node) if isinstance(call, ast.Call)
-        and isinstance(call.func, ast.Attribute) and call.func.attr.startswith('assert'))
-    for name in old:
-        assert assertions(old[name]) == assertions(recovered[name]), name
-    return restored.encode()
-
-
-def inverse_ownership(current, frozen):
-    assert p.OWNERSHIP_PINS.keys() == {p.OWNERSHIP_TESTS} and (len(frozen), len(frozen.splitlines())) == (22471, 372)
-    return inverse_adapter(p.OWNERSHIP_TESTS, current, frozen)
+    return _historical_inverse(path, inverse_join_once_adapter(path, current), frozen)
 
 
 def inventory_ids(ids, count=283, digest='8c511a659163f2e88a60246b95f9fbf077efde6d1679f28814ca014a48b3a907'):
@@ -95,8 +35,9 @@ class PublicationCompositionTests(unittest.TestCase):
         self.repo, _, self.commit, self.blob = self.enterContext(c._profile_fixture())
         self.original = c._entries(p.N, self.repo)
         self.source = c._entries(p.S, self.repo)
-        self.good = self.source | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes()))
-                                   for path in p.AMENDMENT_CAPS | p.ANCILLARY_CAPS}
+        self.assertEqual(tuple(o._parents(p.JOIN_ONCE_M, self.repo, c._git)), p.JOIN_ONCE_PARENTS)
+        self.assertEqual(c._git('rev-parse', p.JOIN_ONCE_M + '^{tree}', root=self.repo).decode().strip(), p.JOIN_ONCE_TREE)
+        self.good = self.selected(p.JOIN_ONCE_M)
         self.pure = self.commit([p.S], self.good)
         self.feature = self.commit([p.N, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -190,7 +131,7 @@ class PublicationCompositionTests(unittest.TestCase):
         self.assertEqual({path for path in self.good if self.good[path] != self.source.get(path)}, (p.AMENDMENT_CAPS | p.ANCILLARY_CAPS).keys())
         self.assertEqual(p.AMENDMENT_PINS.keys(), p.AMENDMENT_CAPS.keys() - {p.PROFILE})
         for path, expected in (p.AMENDMENT_PINS | p.ANCILLARY_PINS).items():
-            data = (c.ROOT / path).read_bytes()
+            data = c._git('show', p.JOIN_ONCE_M + ':' + path, root=self.repo)
             self.assertEqual(o.pin(data), expected)
             self.bad_content(self.changed(path, data + b'\n'))
             for altered in (('0' * 40, expected[1]), (expected[0], '0' * 64)):
@@ -361,8 +302,9 @@ class PublicationCompositionTests(unittest.TestCase):
                         inverse_adapter(path, current.replace(text.encode(), edit.encode(), 1), frozen)
 
     def test_outside_fragment_and_missing_duplicate_fragment_edits_reject(self):
+        inverse_adapter = _historical_inverse
         for path, fragments in ADAPTER_FRAGMENTS.items():
-            current = (c.ROOT / path).read_bytes()
+            current = inverse_join_once_adapter(path, (c.ROOT / path).read_bytes())
             frozen = c._git('show', p.N + ':' + path, root=self.repo)
             for before, _ in fragments:
                 for replacement in ('', before * 2):
@@ -422,7 +364,8 @@ class PublicationCompositionTests(unittest.TestCase):
         self.assertTrue(all(args[:3] == ('show', '-s', '--format=%P') for args in calls))
 
     def test_frozen_233_plus_50_named_inventory_is_exact(self):
-        expected = [prefix + '.' + name for prefix, names in c.EXPECTED_GROUPS.items() for name in names.split()]
+        all_expected = [prefix + '.' + name for prefix, names in c.EXPECTED_GROUPS.items() for name in names.split()]
+        expected = [name for name in all_expected if name.rsplit('.', 1)[0] not in p.JOIN_ONCE_GROUPS]
         added = [prefix + '.' + name for prefix, names in p.EXPECTED_GROUPS.items() for name in names.split()]
         historical = [name for name in expected if name.rsplit('.', 1)[0] not in p.EXPECTED_GROUPS]
         inventory_ids(expected)
@@ -431,7 +374,9 @@ class PublicationCompositionTests(unittest.TestCase):
         self.assertEqual(set(next(names for prefix, names in p.EXPECTED_GROUPS.items() if prefix.endswith('.PublicationCompositionTests')).split()),
                          set(unittest.defaultTestLoader.getTestCaseNames(type(self))))
         suite = unittest.defaultTestLoader.discover(str(c.ROOT / 'scripts'), pattern='rc_pretag*_tests.py')
-        loaded = [case.id() for case in c._flatten(suite)]
+        all_loaded = [case.id() for case in c._flatten(suite)]
+        self.assertEqual(Counter(all_loaded), Counter(all_expected))
+        loaded = [name for name in all_loaded if name.rsplit('.', 1)[0] not in p.JOIN_ONCE_GROUPS]
         inventory_ids(loaded)
         self.assertEqual(Counter(loaded), Counter(expected))
         for index, name in enumerate(expected):

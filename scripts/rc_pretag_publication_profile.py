@@ -237,6 +237,16 @@ def selected_profile(ref, root, git, entries, historical, release, release_tree,
         except ownership.TopologyError:
             continue
         return select(ref, root, git, entries, historical, release, release_tree, documents)
+    try:
+        kind, tip, source = join_once_topology(ref, root, git, release)
+    except ownership.TopologyError:
+        pass
+    else:
+        expected = join_once_content(source, root, git, entries, historical, release, release_tree, documents)
+        assert entries(tip, root) == expected
+        if kind == 'release':
+            return ownership.release_content(ref, expected, root, git, entries, release, release_tree, documents)
+        return expected
     kind, tip, source = publication_topology(ref, root, git, release)
     expected = publication_content(S, root, git, entries, historical, release, release_tree, documents)
     expected = amendment_content(source, expected, root, git, entries)
@@ -245,3 +255,121 @@ def selected_profile(ref, root, git, entries, historical, release, release_tree,
     if kind == 'release':
         return ownership.release_content(ref, expected, root, git, entries, release, release_tree, documents)
     return expected
+
+
+# BEGIN JOIN-ONCE M ADOPTION
+JOIN_ONCE_M = '9c5c031d24aadc5d704160bb5a5a65bff126c10c'
+JOIN_ONCE_TREE = 'dafa6aa8dce10cf396971329244aeb8ac36d4ed3'
+JOIN_ONCE_PARENTS = (N, '5e8808e6046fe435de82a51d8989811455307a19')
+JOIN_ONCE_HELPER = 'scripts/rc_pretag_publication_adapters.py'
+JOIN_ONCE_TESTS = 'scripts/rc_pretag_join_once_tests.py'
+JOIN_ONCE_CAPS = {
+    'services/local-agent/src/process.rs': (450, 392),
+    'services/local-agent/src/process_supervisor.rs': (316, 316),
+    'services/local-agent/src/process_tests.rs': (81, 81),
+    'services/local-agent/src/process_io_join_tests.rs': (40, 40),
+    '.github/workflows/local-agent-runtime.yml': (243, 196),
+    'docs/specs/process-io-join-once/requirements.md': (90, 90),
+    'docs/specs/process-io-join-once/design.md': (110, 110),
+    'docs/specs/process-io-join-once/tasks.md': (90, 90),
+    COMPOSITION: (500, 8), DESKTOP_TESTS: (400, 12), NGINX_TESTS: (480, 12),
+    TWO_HOP_TESTS: (500, 14), AUTHENTICATED_TESTS: (500, 14),
+    PROFILE: (400, 180), TESTS: (500, 190),
+    JOIN_ONCE_HELPER: (240, 240), JOIN_ONCE_TESTS: (500, 500),
+}
+JOIN_ONCE_DELTA_LIMIT = 2400
+# Frozen reviewed non-self mode/blob/SHA256/bytes/lines; external manifest binds self.
+JOIN_ONCE_PINS = {
+    '.github/workflows/local-agent-runtime.yml': ('100644', '8dfe9699cd118a32438a39b40154545cd33e9e85', '3e8a3147a73963b20e5d47f0b387df2184888b8c99bdc447c3143f5e144b3a82', 12678, 243),
+    'docs/specs/process-io-join-once/design.md': ('100644', 'dd5e310779598d69a907e12158b004209f2122a0', '5e6ba21ea17d4dc02e2a28753a5b578f933fcd9835aab20aa49408acf18aa635', 8075, 47),
+    'docs/specs/process-io-join-once/requirements.md': ('100644', '3d9de06b46f1d30841c5315de0827ac19ef71a9b', 'bff261c833f6c51334a4dfe4dd92b85da5422ef417fcaf3a8cf337aa519bb3c6', 5956, 62),
+    'docs/specs/process-io-join-once/tasks.md': ('100644', '63d48a96553c7c9957d9d8a0739bb77b3856f144', '9dd63551829513fc882ba96b3a615e9d9dc1e9a7d2bf7de57739c7aace983314', 3259, 42),
+    'scripts/rc_pretag_authenticated_two_hop_tests.py': ('100644', '3f3959228d9241670dbe8201674ec18612386208', 'ce937e3b07b88a7143d08f51e31d759956b0aad29c4444cdd69b12e9aebba0ee', 38035, 485),
+    'scripts/rc_pretag_composition_tests.py': ('100644', '56549d0a55f3162dfb7b3ed993e4ddcff18ff69f', '105f8562da48ff4557898e017ead8762f55e55357a664e1372e1443d25f217e2', 36290, 489),
+    'scripts/rc_pretag_desktop_tests.py': ('100644', '46667ca502be125391068998e6a0a88c2d40a3ef', '3b4399957c607435860f3834ef0600ee440b470038a6c477927c6a2d8db66474', 23104, 381),
+    'scripts/rc_pretag_join_once_tests.py': ('100644', 'a82efa478868410d257da54bf5285a6691b0f37b', '40ee7d6123d8dd14ac235923a8e972946b4e88ba51681a6d8d5aa76ed916c26a', 33498, 497),
+    'scripts/rc_pretag_nginx_tests.py': ('100644', '9c595dee88bb11dedbc06f839d722ae2ac621ef5', '609e69f51a72462a4d86128a16e8a72e5d5bbe9aa1813da37cd9e0f968d155a4', 30796, 451),
+    'scripts/rc_pretag_publication_adapters.py': ('100644', '669f38760c6ea949b468d5c140a684570c009994', 'fbbea7fac1121f8b7f1aa7b1237c7633292b2e7921d15c53bc0f776913d1bad6', 20977, 185),
+    'scripts/rc_pretag_publication_tests.py': ('100644', '7edd71605311422b18a5e278aa1d457aaa8a88d4', '75f122d730e30a1a8895a618ba373d5f87b760c2e811869df5f4db5c4db841d2', 29775, 443),
+    'scripts/rc_pretag_two_hop_tests.py': ('100644', '22ddb47076e16bdcdf550f6088e68f694ec6f2ca', '3d9e6e6fdef1e78683730527c8abbac6889495a1eea200b189ea06046a98c624', 39776, 479),
+    'services/local-agent/src/process.rs': ('100644', 'f3a8c96a5c19f2fb9a6ff1949bf646c60dceca96', 'a5f870b1d4e9c4030a00232c1475fe6f0b4ada526151ac28ca169ace09813552', 12646, 450),
+    'services/local-agent/src/process_io_join_tests.rs': ('100644', '1727d5eb9ca69a2b9baed0718c4619d708cce289', 'fd6a58051958af7a6521e99027ed6c87b5bc2508f278dd54efe53709eb58fbbe', 1528, 40),
+    'services/local-agent/src/process_supervisor.rs': ('100644', '0e7d7b33b195631882d77799f6be6bd16404ad3c', 'e93beab3111da44930034f4b76a954308110bcf0528b2e9b0a3bfab699886a43', 11113, 316),
+    'services/local-agent/src/process_tests.rs': ('100644', 'bc966ea8738e2a09793b100cfbfc84313aa30588', '68332f600e0554ee0953ec5c5262019a9795663bf358b66fc6a97216a7b5f57b', 2529, 81),
+}
+JOIN_ONCE_GROUPS = {'rc_pretag_join_once_tests.JoinOnceCompositionTests': (
+    'test_exact_m_anchor_tree_parents_and_historical_validation '
+    'test_direct_child_accepts_only_seventeen_reviewed_paths '
+    'test_ordered_feature_merge_requires_entire_child_tree '
+    'test_release_overlay_requires_exact_four_r_documents '
+    'test_missing_reversed_extra_duplicate_nested_parents_reject '
+    'test_unknown_same_tree_anchors_and_correction_chains_reject '
+    'test_four_runtime_blobs_and_shared_regressions_match_reviewed_donor '
+    'test_mechanical_supervisor_extraction_preserves_tokens_and_outcomes '
+    'test_workflow_inverse_allows_only_m_base_tree_and_branch '
+    'test_baseline_overlay_preserves_exact_m_production_prefix '
+    'test_native_witness_and_candidate_parsers_reject_false_evidence '
+    'test_missing_extra_rename_mode_symlink_gitlink_binary_reject '
+    'test_individual_and_aggregate_budgets_reject '
+    'test_current_adapter_inverses_recover_complete_m_bytes '
+    'test_publication_helper_extraction_preserves_twenty_tests_and_assertions '
+    'test_historical_profiles_pins_shapes_and_ownership_bytes_are_immutable '
+    'test_selected_content_failure_is_terminal_without_fallback '
+    'test_mutable_refs_and_ambient_git_cannot_change_identity '
+    'test_exact_283_plus_20_inventory_loaded_and_executed '
+    'test_protected_scope_versions_runtime_and_old452_are_unchanged '
+)}
+
+
+def join_once_topology(ref, root, git, release):
+    """Only D=[M], I=[M,D], J=[R,I]; no donor ancestry or correction chain."""
+    if release != R:
+        raise ownership.TopologyError('join_once_release_anchor')
+
+    def candidate(tip):
+        if ownership._parents(tip, root, git) != [JOIN_ONCE_M]:
+            raise ownership.TopologyError('join_once_candidate_parent')
+        return tip
+
+    def feature(tip):
+        parents = ownership._parents(tip, root, git)
+        if len(parents) != 2 or parents[0] != JOIN_ONCE_M:
+            raise ownership.TopologyError('join_once_feature_parents')
+        return tip, candidate(parents[1])
+
+    parents = ownership._parents(ref, root, git)
+    if parents and parents[0] == R:
+        if len(parents) != 2:
+            raise ownership.TopologyError('join_once_release_parents')
+        tip, source = feature(parents[1]); kind = 'release'
+    elif len(parents) == 2 and parents[0] == JOIN_ONCE_M:
+        tip, source = feature(ref); kind = 'nonrelease'
+    else:
+        tip = source = candidate(ref); kind = 'nonrelease'
+    if tuple(ownership._parents(JOIN_ONCE_M, root, git)) != JOIN_ONCE_PARENTS:
+        raise ownership.TopologyError('join_once_anchor_parents')
+    return kind, tip, source
+
+
+def join_once_content(ref, root, git, entries, historical, release, release_tree, documents):
+    """Exact current-M repair and integrated guard overlay, independently pinned."""
+    assert (release, release_tree, documents) == (R, R_TREE, R_DOCUMENTS)
+    assert tuple(ownership._parents(JOIN_ONCE_M, root, git)) == JOIN_ONCE_PARENTS
+    assert git('rev-parse', JOIN_ONCE_M + '^{tree}', root=root).decode().strip() == JOIN_ONCE_TREE
+    baseline = selected_profile(JOIN_ONCE_M, root, git, entries, historical, release, release_tree, documents)
+    actual = entries(ref, root)
+    paths = JOIN_ONCE_CAPS.keys()
+    assert len(baseline) == 1685 and len(paths) == 17
+    assert JOIN_ONCE_PINS.keys() == paths - {PROFILE}
+    assert actual.keys() == baseline.keys() | paths and len(actual) == 1693
+    assert {path for path in actual if actual[path] != baseline.get(path)} == paths
+    assert all(actual[path] == value for path, value in baseline.items() if path not in paths)
+    assert all(actual[path][:2] == ('100644', 'blob') for path in paths)
+    data = {path: git('cat-file', 'blob', actual[path][2], root=root) for path in paths}
+    for path, (mode, blob, digest, size, lines) in JOIN_ONCE_PINS.items():
+        assert mode == '100644' and ownership.pin(data[path]) == (blob, digest), path
+        assert (len(data[path]), len(data[path].splitlines())) == (size, lines), path
+    authenticated._budgets(ref, JOIN_ONCE_M, root, git, data, JOIN_ONCE_CAPS,
+                           JOIN_ONCE_DELTA_LIMIT, 'join_once_delta_budget')
+    return actual
+# END JOIN-ONCE M ADOPTION
