@@ -377,7 +377,7 @@ class NginxCompositionTests(unittest.TestCase):
         self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in previous}, legacy | c.two_hop.EXPECTED_GROUPS)
         complete_historical = previous | c.authenticated_two_hop.EXPECTED_GROUPS
         self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in complete_historical}, complete_historical)
-        self.assertEqual(c.EXPECTED_GROUPS, complete_historical | c.publication.EXPECTED_GROUPS)
+        self.assertEqual(c.EXPECTED_GROUPS, complete_historical | c.publication.EXPECTED_GROUPS | c.publication.JOIN_ONCE_GROUPS)
         names = next(iter(n.EXPECTED_GROUPS.values())).split()
         self.assertEqual((len(names), len(set(names))), (20, 20))
         self.assertEqual(set(names), set(unittest.defaultTestLoader.getTestCaseNames(type(self))))
@@ -391,7 +391,9 @@ class NginxCompositionTests(unittest.TestCase):
         self.assertEqual((len(prior_loaded), len(set(prior_loaded))), (209, 209))
         full_historical = [name for name in loaded if name.rsplit('.', 1)[0] in complete_historical]
         self.assertEqual((len(full_historical), len(set(full_historical))), (233, 233))
-        self.assertEqual((len(loaded), len(set(loaded))), (283, 283))
+        original_loaded = [name for name in loaded if name.rsplit('.', 1)[0] not in c.publication.JOIN_ONCE_GROUPS]
+        self.assertEqual((len(original_loaded), len(set(original_loaded))), (283, 283))
+        self.assertEqual((len(loaded), len(set(loaded))), (303, 303))
         current = ast.parse((c.ROOT / n.COMPOSITION).read_bytes())
         for name in ('run_inventory', 'InventoryResult', '_flatten'):
             extract = lambda tree: ast.dump(next(node for node in tree.body if getattr(node, 'name', '') == name))

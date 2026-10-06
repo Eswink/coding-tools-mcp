@@ -424,7 +424,7 @@ class AuthenticatedTwoHopCompositionTests(unittest.TestCase):
 
     def test_frozen_209_plus_24_inventory_is_exactly_loaded_and_executed(self):
         all_expected = [prefix + '.' + name for prefix, names in c.EXPECTED_GROUPS.items() for name in names.split()]
-        expected = [name for name in all_expected if name.rsplit('.', 1)[0] not in c.publication.EXPECTED_GROUPS]
+        expected = [name for name in all_expected if name.rsplit('.', 1)[0] not in (c.publication.EXPECTED_GROUPS | c.publication.JOIN_ONCE_GROUPS)]
         inventory_ids(expected)
         legacy = [name for name in expected if not name.startswith('rc_pretag_authenticated_two_hop_tests.')]
         self.assertEqual((len(legacy), hashlib.sha256('\n'.join(sorted(legacy)).encode()).hexdigest()),
@@ -434,9 +434,9 @@ class AuthenticatedTwoHopCompositionTests(unittest.TestCase):
         self.assertEqual(set(names), set(unittest.defaultTestLoader.getTestCaseNames(type(self))))
         suite = unittest.defaultTestLoader.discover(str(c.ROOT / 'scripts'), pattern='rc_pretag*_tests.py')
         all_loaded = [case.id() for case in c._flatten(suite)]
-        self.assertEqual((len(all_loaded), len(set(all_loaded))), (283, 283))
+        self.assertEqual((len(all_loaded), len(set(all_loaded))), (303, 303))
         self.assertEqual(Counter(all_loaded), Counter(all_expected))
-        loaded = [name for name in all_loaded if name.rsplit('.', 1)[0] not in c.publication.EXPECTED_GROUPS]; inventory_ids(loaded)
+        loaded = [name for name in all_loaded if name.rsplit('.', 1)[0] not in (c.publication.EXPECTED_GROUPS | c.publication.JOIN_ONCE_GROUPS)]; inventory_ids(loaded)
         self.assertEqual(Counter(loaded), Counter(expected))
         for index, name in enumerate(legacy):
             for altered in (expected[:index] + expected[index + 1:], expected + [name], [x if x != name else x + '_replaced' for x in expected]):
