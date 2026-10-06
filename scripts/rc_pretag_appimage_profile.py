@@ -87,6 +87,8 @@ NAMES = (
 
 def inverse_appimage_adapter(path, current):
     """Remove exact-once additions and recover complete immutable M bytes."""
+    import rc_pretag_linux_package_inverse as linux_package
+    current = linux_package.inverse(path, current) if path in linux_package.BASE_PINS else current
     if path not in BASE_PINS or o.pin(current) == BASE_PINS[path]:
         return current
     assert o.pin(current) == SOURCE_PINS[path][1:3], 'current AppImage adapter pin'
