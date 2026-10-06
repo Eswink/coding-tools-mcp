@@ -226,6 +226,10 @@ def amendment_content(ref, baseline, root, git, entries):
 def selected_profile(ref, root, git, entries, historical, release, release_tree, documents, *, profile=PROFILE_ID):
     assert profile == PROFILE_ID, 'unknown_composition_profile'
     ref = ownership._commit(ref, root, git)
+    import rc_pretag_linux_package_profile as linux_package
+    selected = linux_package.select(ref, root, git, entries, historical, release, release_tree, documents)
+    if selected is not None:
+        return selected
     # Catch topology failures only. A selected profile owns every content error.
     for topology, select in ((ownership.topology, ownership.selected_profile),
                              (desktop.desktop_topology, desktop.selected_profile),

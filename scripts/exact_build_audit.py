@@ -14,7 +14,6 @@ from pathlib import Path
 import re
 import subprocess
 import sys
-import tomllib
 
 MANIFEST = "services/cloud-gateway/Cargo.toml"
 LOCK = "services/cloud-gateway/Cargo.lock"
@@ -295,6 +294,7 @@ def database_identity(root):
 
 
 def verify(root, evidence, sha, version, target, trusted_digest, binary_dir=None):
+    import tomllib
     expected = source_identity(root, sha, version, target)
     envelope_bytes = read(evidence / "envelope.json")
     need(digest(envelope_bytes) == trusted_digest, "untrusted_envelope_digest")
@@ -333,6 +333,7 @@ def verify(root, evidence, sha, version, target, trusted_digest, binary_dir=None
 
 
 def collect(root, output, sha, version, target, audit_bin, audit_db, clone_advisory_db=False):
+    import tomllib
     expected = source_identity(root, sha, version, target)
     need(not output.exists() and not output.is_relative_to(root), "output_must_be_new_and_outside_source")
     need(not any(os.environ.get(k) for k in ("RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER", "RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS")), "unreviewed_compiler_environment")

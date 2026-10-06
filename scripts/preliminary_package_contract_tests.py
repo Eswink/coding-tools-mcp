@@ -42,7 +42,15 @@ class EngineeringContracts(unittest.TestCase):
             build = step(text, 'package_build')
             self.assertIn("if: always() && steps.prerequisites.outcome == 'success'", build)
             self.assertNotIn('steps.regression', build)
-            self.assertIn('npm run tauri -- build', build)
+            if platform == 'linux':
+                import linux_package_provenance_contract as provenance
+                self.assertIn('desktop_glib_build_evidence.py collect-linux', build)
+                self.assertEqual(provenance.tauri_command('/source'), ['npm', 'run', 'tauri', '--',
+                    '--verbose', 'build', '--config', 'src-tauri/Ubuntu桌面v1.json', '--bundles',
+                    'deb,appimage', '--target', 'x86_64-unknown-linux-gnu', '--runner',
+                    str(Path('/source') / 'scripts' / 'desktop_glib_build_evidence.py'), '--', '--locked', '--message-format=json'])
+            else:
+                self.assertIn('npm run tauri -- build', build)
             self.assertIn('git diff --exit-code', build)
 
     def test_failed_build_cannot_feed_native_installation(self):
@@ -72,7 +80,7 @@ class EngineeringContracts(unittest.TestCase):
         self.assertIn('export PATH="/usr/bin:$PATH"', regression)
         self.assertIn('gnome-keyring-daemon --unlock --components=secrets', regression)
         self.assertIn('chmod 700 "$XDG_RUNTIME_DIR"', regression)
-        self.assertIn('PATH="/usr/bin:/bin:$PATH" xvfb-run', text)
+        self.assertIn('PATH="/usr/bin:/bin:$PATH" exec xvfb-run', text)
 
 
 if __name__ == '__main__':
