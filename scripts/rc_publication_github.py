@@ -50,7 +50,7 @@ def _safe(method):
 
 def _authenticate(selection, api, *, check_active, deadline):
     try:
-        report = admission.authenticate_integration(api, selection, check_active=check_active, deadline=deadline)
+        report = admission.authenticate_packaging(api, selection, check_active=check_active, deadline=deadline)
     except admission._Interrupted as error:
         raise WireFailure(error.code, 'none') from None
     except WireFailure:

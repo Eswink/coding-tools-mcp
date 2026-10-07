@@ -153,7 +153,8 @@ class PreTagPolicyTests(unittest.TestCase):
             self.assertTrue(gate.scope and gate.endpoints and gate.artifact_contract)
             self.assertTrue(gate.visibility and gate.identity_binding and gate.completeness)
             self.assertTrue(gate.failure_semantics and gate.freshness)
-            expected = 'github_full_integration_v1' if gate.gate_id == 'full_integration' else 'unimplemented'
+            expected = {'full_integration': 'github_full_integration_v1',
+                        'final_packaging': 'github_final_packaging_v1'}.get(gate.gate_id, 'unimplemented')
             self.assertEqual(gate.verifier, expected)
             self.assertLessEqual(set(gate.permissions), set(PERMISSIONS))
             self.assertTrue(all(path.startswith('GET /repos/Eswink/coding-tools-mcp') for path in gate.endpoints))

@@ -59,6 +59,8 @@ class IntegrationTLS(HTTPSFixture):
         self.expected_paths = [wire.ROOT + ('' if p == '/' else p)
                                for p in self.sources + one*2 + [self.runs, self.current] + self.sources]
         self.route = self.integration_route
+        from rc_publication_final_admission_cases import add_final
+        add_final(self)
 
     def reference_digest(self):
         s, i = self.subject.source, self.subject.runs[1]
@@ -326,8 +328,8 @@ class AdmissionCases(unittest.TestCase):
     def test_authenticate_real_reads_and_blocks_remaining_gates(self):
         with IntegrationTLS() as f:
             self.blocked(f)
-            self.assertEqual([r[1] for r in f.requests], f.expected_paths)
-            self.assertEqual([g.gate_id for g in GATES if g.verifier != 'unimplemented'], ['full_integration'])
+            self.assertEqual([r[1] for r in f.requests], f.packaging_paths)
+            self.assertEqual([g.gate_id for g in GATES if g.verifier != 'unimplemented'], ['full_integration', 'final_packaging'])
             with self.assertRaises(wire.WireFailure): wire._remote_constraint(f.subject)
             with self.assertRaises(wire.WireFailure): wire._authenticated_latest_absence(f.selection)
 
@@ -337,7 +339,7 @@ class AdmissionCases(unittest.TestCase):
                 with self.assertRaises(wire.WireFailure) as error: session.run_until_pause()
                 self.assertEqual((error.exception.code, session.outcome), ('fence_blocked', 'blocked_no_effect'))
                 self.assertIsNone(session.transition); stage.assert_not_called()
-            self.assertEqual([r[1] for r in f.requests], f.expected_paths)
+            self.assertEqual([r[1] for r in f.requests], f.packaging_paths)
             self.assertTrue(all(r[0] == 'GET' and not r[3] for r in f.requests))
 
     def test_all_direct_mutation_sinks_authenticate_and_send_no_mutation(self):
@@ -355,7 +357,7 @@ class AdmissionCases(unittest.TestCase):
                         else: f.api.publish_prerelease(operation, **options)
                     self.assertEqual((error.exception.code, error.exception.effect), ('fence_blocked', 'none'))
                     authorize.assert_not_called()
-                self.assertEqual([r[1] for r in f.requests[before:]], f.expected_paths)
+                self.assertEqual([r[1] for r in f.requests[before:]], f.packaging_paths)
                 self.assertTrue(all(r[0] == 'GET' and not r[3] for r in f.requests))
 
     def test_caller_claims_and_reports_cannot_bypass_fixed_authentication(self):
@@ -367,7 +369,7 @@ class AdmissionCases(unittest.TestCase):
         with IntegrationTLS() as f:
             f.api.get = lambda *args, **kwargs: self.fail('caller GET invoked')
             self.blocked(f)
-            self.assertEqual([r[1] for r in f.requests], f.expected_paths)
+            self.assertEqual([r[1] for r in f.requests], f.packaging_paths)
             class Foreign(wire.GitHub): pass
             with self.assertRaises(ConsumerError):
                 admission.authenticate_integration(Foreign('fixture-token', f.selection), f.selection,
