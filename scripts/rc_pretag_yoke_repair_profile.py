@@ -139,6 +139,10 @@ def content(ref, root, git, entries, historical, release, release_tree, document
 def select(ref, root, git, entries, historical, release, release_tree, documents):
     """Only topology mismatch delegates; selected and historical failures propagate."""
     ref = o._commit(ref, root, git)
+    import rc_pretag_publisher_executor_profile as publisher
+    selected = publisher.select(ref, root, git, entries, historical, release, release_tree, documents)
+    if selected is not None:
+        return selected
     try:
         kind, tip, source = topology(ref, root, git, release)
     except o.TopologyError:
