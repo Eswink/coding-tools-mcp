@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 import rc_pretag_composition_tests as c
 import rc_pretag_ownership_profile as o
+from rc_pretag_integration_admission_profile import normalize as integration_bytes
 import rc_pretag_publication_profile as p
 import rc_pretag_publication_adapters as adapters
 import rc_pretag_publication_tests as pt
@@ -350,14 +351,14 @@ class SnapshotWarningCompositionTests(unittest.TestCase):
         for path in (p.COMPOSITION, p.TESTS, p.DESKTOP_TESTS, p.NGINX_TESTS, p.TWO_HOP_TESTS, p.AUTHENTICATED_TESTS,
                      'scripts/rc_pretag_ownership_profile.py', p.authenticated.PROFILE, 'scripts/rc_pretag_two_hop_profile.py',
                      'scripts/rc_pretag_desktop_profile.py', 'scripts/rc_pretag_nginx_profile.py'):
-            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path), path)
+            self.assertEqual(integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
         for ref in (p.desktop.X, p.nginx.F, p.two_hop.F, p.authenticated.M, p.N, p.JOIN_ONCE_M, p.WARNING_B):
             self.assertEqual(self.selected(ref), c._entries(ref, self.repo))
         frozen = ast.parse(self.frozen(JOIN_TESTS))
-        restored = ast.parse(adapters.inverse_warning_adapter(JOIN_TESTS, (c.ROOT / JOIN_TESTS).read_bytes()))
+        restored = ast.parse(adapters.inverse_warning_adapter(JOIN_TESTS, integration_bytes(JOIN_TESTS, (c.ROOT / JOIN_TESTS).read_bytes())))
         self.assertEqual(ast.dump(frozen), ast.dump(restored))
         methods = lambda tree: {node.name: node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
-        old, new = methods(frozen), methods(ast.parse((c.ROOT / JOIN_TESTS).read_bytes()))
+        old, new = methods(frozen), methods(ast.parse(integration_bytes(JOIN_TESTS, (c.ROOT / JOIN_TESTS).read_bytes())))
         self.assertEqual(old.keys(), new.keys())
         self.assertEqual(sum(name.startswith('test_') for name in old), 20)
         assertions = lambda node: Counter(ast.dump(call) for call in ast.walk(node) if isinstance(call, ast.Call)
@@ -426,7 +427,7 @@ class SnapshotWarningCompositionTests(unittest.TestCase):
         for path in ('package.json', 'package-lock.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json',
                      p.CHECKS, p.CONTRACTS, '.github/workflows/rc-pretag-evidence.yml', '.github/workflows/final-rc-packages.yml',
                      'scripts/rc_release_policy.py', 'scripts/rc_release_eligibility.py'):
-            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path), path)
+            self.assertEqual(integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
 
 
 def main():

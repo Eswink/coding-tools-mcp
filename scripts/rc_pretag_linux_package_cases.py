@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import rc_pretag_composition_tests as c
 import rc_pretag_ownership_profile as o
+from rc_pretag_integration_admission_profile import normalize as integration_bytes
 import rc_pretag_publication_profile as p
 import rc_pretag_publication_tests as pt
 import rc_pretag_appimage_profile as a
@@ -64,7 +65,7 @@ class LinuxPackageCompositionTests(unittest.TestCase):
 
     def setUp(self):
         self.original = c._entries(l.M, self.repo)
-        self.good = self.original | {path: (l.MODES[path], 'blob', self.blob((c.ROOT / path).read_bytes())) for path in l.CAPS}
+        self.good = self.original | {path: (l.MODES[path], 'blob', self.blob(integration_bytes(path, (c.ROOT / path).read_bytes()))) for path in l.CAPS}
         self.pure = self.commit([l.M], self.good)
         self.feature = self.commit([l.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -136,7 +137,7 @@ class LinuxPackageCompositionTests(unittest.TestCase):
         self.assertEqual(l.SOURCE_PINS.keys(), l.CAPS.keys() - {l.PROFILE})
         self.assertEqual((len(l.CAPS.keys() - self.original.keys()), len(inverse.BASE_PINS)), (21, 16))
         for path, row in l.SOURCE_PINS.items():
-            data = (c.ROOT / path).read_bytes()
+            data = integration_bytes(path, (c.ROOT / path).read_bytes())
             self.assertEqual(row, (l.MODES[path], *o.pin(data), len(data), len(data.splitlines())))
             self.assertEqual(bool((c.ROOT / path).stat().st_mode & 0o111), row[0] == '100755', path)
         self.assertEqual(l.MODES['scripts/appimage_relro_guard.py'], '100755')
@@ -179,7 +180,7 @@ class LinuxPackageCompositionTests(unittest.TestCase):
                 changed = list(row); changed[index] = value
                 with self.subTest(path=path, field=index), patch.dict(l.SOURCE_PINS, {path: tuple(changed)}), self.assertRaises(AssertionError):
                     self.content()
-            self.bad_content(self.changed(path, (c.ROOT / path).read_bytes() + b'\n'))
+            self.bad_content(self.changed(path, integration_bytes(path, (c.ROOT / path).read_bytes()) + b'\n'))
         for pins in ({k: v for k, v in l.SOURCE_PINS.items() if k != l.CASES}, l.SOURCE_PINS | {'extra': row}):
             with patch.dict(l.SOURCE_PINS, pins, clear=True), self.assertRaises(AssertionError):
                 self.content()
@@ -196,12 +197,12 @@ class LinuxPackageCompositionTests(unittest.TestCase):
 
     def test_individual_and_aggregate_budgets_reject(self):
         self.assertEqual((l.DELTA_LIMIT, sum(cap[1] for cap in l.CAPS.values())), (8500, 9161))
-        data = {path: (c.ROOT / path).read_bytes() for path in l.CAPS}
+        data = {path: integration_bytes(path, (c.ROOT / path).read_bytes()) for path in l.CAPS}
         def budgets(git=c._git):
             return p.authenticated._budgets(self.pure, l.M, self.repo, git, data, l.CAPS, l.DELTA_LIMIT, 'linux_package_delta_budget')
         budgets()
         for path, (_, delta) in l.CAPS.items():
-            lines = len((c.ROOT / path).read_bytes().splitlines())
+            lines = len(integration_bytes(path, (c.ROOT / path).read_bytes()).splitlines())
             with patch.dict(l.CAPS, {path: (lines - 1, delta)}), self.assertRaises(AssertionError):
                 budgets()
             def oversized(*args, root):
@@ -227,7 +228,7 @@ class LinuxPackageCompositionTests(unittest.TestCase):
         self.assertEqual(inverse.BASE_PINS.keys(), inverse.CURRENT_PINS.keys())
         self.assertEqual(inverse.BASE_PINS.keys(), inverse.FRAGMENTS.keys())
         for path in inverse.BASE_PINS:
-            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
+            current, frozen = integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
             with patch('builtins.open', side_effect=AssertionError('IO forbidden')), patch('subprocess.check_output', side_effect=AssertionError('git forbidden')):
                 self.assertEqual(inverse.inverse(path, current), frozen, path)
             self.assertEqual(inverse.inverse(path, frozen), frozen, path)
@@ -235,8 +236,8 @@ class LinuxPackageCompositionTests(unittest.TestCase):
             self.assertEqual(o.pin(current), inverse.CURRENT_PINS[path])
         for path in a.BASE_PINS:
             frozen = c._git('show', a.M + ':' + path, root=self.repo)
-            self.assertEqual(a.inverse_appimage_adapter(path, (c.ROOT / path).read_bytes()), frozen)
-        self.assertEqual((c.ROOT / p.JOIN_ONCE_HELPER).read_bytes(), self.frozen(p.JOIN_ONCE_HELPER))
+            self.assertEqual(a.inverse_appimage_adapter(path, integration_bytes(path, (c.ROOT / path).read_bytes())), frozen)
+        self.assertEqual(integration_bytes(p.JOIN_ONCE_HELPER, (c.ROOT / p.JOIN_ONCE_HELPER).read_bytes()), self.frozen(p.JOIN_ONCE_HELPER))
 
     def test_inverse_fragments_and_historical_passthrough_pins_are_exact(self):
         self.assertEqual(inverse.PRIOR_PINS.keys(), {p.PROFILE})
@@ -244,7 +245,7 @@ class LinuxPackageCompositionTests(unittest.TestCase):
         prior = c._git('show', a.M + ':' + p.PROFILE, root=self.repo)
         self.assertEqual(inverse.inverse(p.PROFILE, prior), prior)
         for path, fragments in inverse.FRAGMENTS.items():
-            current = (c.ROOT / path).read_bytes()
+            current = integration_bytes(path, (c.ROOT / path).read_bytes())
             for before, _ in fragments:
                 self.assertEqual(current.count(before), 1)
                 for replacement in (b'', before * 2):
@@ -272,7 +273,7 @@ class LinuxPackageCompositionTests(unittest.TestCase):
         self.assertEqual(set(old), set(ac.old_inventory() + ac.ids(ac.HELPER_CLASS) + ac.ids(a.CLASS)))
         for module in {name.split('.', 1)[0] for name in old}:
             path = 'scripts/' + module + '.py'
-            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
+            current, frozen = integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
             self.assertEqual(inverse.normalize(path, current), frozen, path)
             methods = lambda data: {node.name: node for node in ast.walk(ast.parse(data)) if isinstance(node, ast.FunctionDef)}
             before, after = methods(frozen), methods(current)
@@ -283,7 +284,7 @@ class LinuxPackageCompositionTests(unittest.TestCase):
                 self.assertEqual(assertions(before[name]), assertions(SourceReadNormalization().visit(after[name])), path + ':' + name)
         for path in ('scripts/rc_pretag_ownership_profile.py', 'scripts/rc_pretag_desktop_profile.py',
                      'scripts/rc_pretag_nginx_profile.py', 'scripts/rc_pretag_two_hop_profile.py', p.authenticated.PROFILE):
-            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path), path)
+            self.assertEqual(integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
         self.assertEqual(p.PROFILE_ID, 'engineering/issue88-publication-core-composition-v1')
 
     def test_mandatory_supplemental_and_new_inventory_are_disjoint(self):
@@ -371,7 +372,7 @@ class LinuxPackageCompositionTests(unittest.TestCase):
                      'services/local-agent/src/process.rs', 'src-tauri/src/workspace_snapshots/filesystem.rs',
                      '.github/workflows/windows-snapshot-warning-scope.yml', '.github/workflows/desktop-glib-backport.yml'):
             if path in self.original:
-                self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path), path)
+                self.assertEqual(integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
 
     def test_selected_content_failure_is_terminal_without_fallback(self):
         for error in (AssertionError, o.TopologyError):

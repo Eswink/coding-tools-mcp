@@ -14,6 +14,7 @@ import subprocess
 import unittest
 from rc_consumer_io import read_bytes
 import rc_pretag_ownership_profile as ownership
+from rc_pretag_integration_admission_profile import normalize as integration_bytes
 import rc_pretag_desktop_profile as desktop
 import rc_pretag_nginx_profile as nginx
 import rc_pretag_two_hop_profile as two_hop
@@ -209,10 +210,10 @@ class CompositionTests(unittest.TestCase):
 
     def test_adopted_contracts_are_byte_identical(self):
         for path, (blob, sha256) in ADOPTED.items():
-            data = (ROOT / path).read_bytes()
+            data = integration_bytes(path, (ROOT / path).read_bytes())
             if path in publication.TIMEOUT_BASE_PINS: data = publication.timeout_inverse(path, data)
             self.assertEqual((_blob(data), hashlib.sha256(data).hexdigest()), (blob, sha256), path)
-        self.assertEqual(sum(len((ROOT / path).read_bytes().splitlines()) for path in ADOPTED), 1436)
+        self.assertEqual(sum(len(integration_bytes(path, (ROOT / path).read_bytes()).splitlines()) for path in ADOPTED), 1436)
 
     def test_snapshot_inverse_reconstructs_pinned_j(self):
         path = 'scripts/rc_consumer_snapshot.py'

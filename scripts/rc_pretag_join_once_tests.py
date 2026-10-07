@@ -15,6 +15,7 @@ from unittest.mock import patch
 
 import rc_pretag_composition_tests as c
 import rc_pretag_ownership_profile as o
+from rc_pretag_integration_admission_profile import normalize as integration_bytes
 import rc_pretag_authenticated_two_hop_tests as at
 import rc_pretag_publication_profile as p
 import rc_pretag_publication_adapters as adapters
@@ -482,7 +483,7 @@ class JoinOnceCompositionTests(unittest.TestCase):
         for path in runtime | {p.CONTRACTS, p.CHECKS, 'package.json', 'package-lock.json', 'src-tauri/Cargo.toml',
                               'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json', 'scripts/rc_release_policy.py',
                               'scripts/rc_release_eligibility.py', '.github/workflows/rc-pretag-evidence.yml'}:
-            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path), path)
+            self.assertEqual(integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
         # Reuse the frozen module inventory and its exact old452 digest without executing it here.
         tree = ast.parse(self.frozen(p.TESTS))
         method = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)

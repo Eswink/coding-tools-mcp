@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 import rc_pretag_composition_tests as c
 import rc_pretag_ownership_profile as o
+from rc_pretag_integration_admission_profile import normalize as integration_bytes
 import rc_pretag_publication_profile as p
 import rc_pretag_publication_adapters as adapters
 import rc_pretag_publication_tests as pt
@@ -286,14 +287,14 @@ class AppImageCompositionTests(unittest.TestCase):
         from rc_pretag_linux_package_inverse import normalize
         self.assertEqual(a.BASE_PINS.keys(), {p.PROFILE, p.JOIN_ONCE_HELPER, a.WARNING})
         for path in a.BASE_PINS:
-            current = normalize(path, (c.ROOT / path).read_bytes())
+            current = normalize(path, integration_bytes(path, (c.ROOT / path).read_bytes()))
             frozen = self.frozen(path)
             self.assertEqual(a.inverse_appimage_adapter(path, current), frozen)
             self.assertEqual(a.inverse_appimage_adapter(path, frozen), frozen)
             self.assertEqual(o.pin(frozen), a.BASE_PINS[path])
-        self.assertEqual(adapters.inverse_warning_adapter(p.PROFILE, normalize(p.PROFILE, (c.ROOT / p.PROFILE).read_bytes())),
+        self.assertEqual(adapters.inverse_warning_adapter(p.PROFILE, normalize(p.PROFILE, integration_bytes(p.PROFILE, (c.ROOT / p.PROFILE).read_bytes()))),
                          c._git('show', p.WARNING_B + ':' + p.PROFILE, root=self.repo))
-        self.assertEqual((c.ROOT / p.JOIN_ONCE_TESTS).read_bytes(), self.frozen(p.JOIN_ONCE_TESTS))
+        self.assertEqual(integration_bytes(p.JOIN_ONCE_TESTS, (c.ROOT / p.JOIN_ONCE_TESTS).read_bytes()), self.frozen(p.JOIN_ONCE_TESTS))
 
     def test_adapter_fragments_missing_duplicate_outside_edits_reject(self):
         from rc_pretag_linux_package_inverse import normalize
@@ -315,7 +316,7 @@ class AppImageCompositionTests(unittest.TestCase):
         modules = {name.split('.', 1)[0] for name in inventory}
         for module in modules:
             path = 'scripts/' + module + '.py'
-            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
+            current, frozen = integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
             self.assertEqual(a.inverse_appimage_adapter(path, current), frozen, path)
             methods = lambda data: {node.name: node for node in ast.walk(ast.parse(data)) if isinstance(node, ast.FunctionDef)}
             old, new = methods(frozen), methods(current)
@@ -325,7 +326,7 @@ class AppImageCompositionTests(unittest.TestCase):
             for name in old: self.assertEqual(assertions(old[name]), assertions(new[name]), path + ':' + name)
         for path in ('scripts/rc_pretag_ownership_profile.py', 'scripts/rc_pretag_desktop_profile.py',
                      'scripts/rc_pretag_nginx_profile.py', 'scripts/rc_pretag_two_hop_profile.py', p.authenticated.PROFILE):
-            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path), path)
+            self.assertEqual(integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
         self.assertEqual(p.PROFILE_ID, 'engineering/issue88-publication-core-composition-v1')
 
     def test_selected_content_failure_is_terminal_without_fallback(self):

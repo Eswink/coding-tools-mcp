@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import rc_pretag_composition_tests as c
 import rc_pretag_ownership_profile as o
+from rc_pretag_integration_admission_profile import normalize as integration_bytes
 import rc_pretag_publication_profile as p
 import rc_pretag_publication_tests as pt
 import rc_pretag_linux_package_profile as l
@@ -41,7 +42,7 @@ class YokeRepairCompositionTests(unittest.TestCase):
 
     def setUp(self):
         self.original = c._entries(y.F, self.repo)
-        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in y.CAPS}
+        self.good = self.original | {path: ('100644', 'blob', self.blob(integration_bytes(path, (c.ROOT / path).read_bytes()))) for path in y.CAPS}
         self.pure = self.commit([y.F], self.good)
         self.feature = self.commit([y.F, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -151,7 +152,7 @@ class YokeRepairCompositionTests(unittest.TestCase):
         self.assertEqual((len(self.original), len(self.good), len(y.CAPS), len(y.BASE_PINS)), (1726, 1732, 9, 3))
         self.assertEqual(y.SOURCE_PINS.keys(), y.CAPS.keys() - {y.PROFILE})
         for path, row in y.SOURCE_PINS.items():
-            data = (c.ROOT / path).read_bytes()
+            data = integration_bytes(path, (c.ROOT / path).read_bytes())
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())))
             for index, value in enumerate(('100755', '0' * 40, '0' * 64, row[3] + 1, row[4] + 1)):
                 changed = list(row)
@@ -180,7 +181,7 @@ class YokeRepairCompositionTests(unittest.TestCase):
             'docs/specs/issue85-yoke-derive-repair/design.md': (60, 60),
             'docs/specs/issue85-yoke-derive-repair/tasks.md': (40, 40), '.github/workflows/issue85-yoke-repair.yml': (145, 145),
         })
-        data = {path: (c.ROOT / path).read_bytes() for path in y.CAPS}
+        data = {path: integration_bytes(path, (c.ROOT / path).read_bytes()) for path in y.CAPS}
         def budgets(git=c._git):
             return p.authenticated._budgets(self.pure, y.F, self.repo, git, data, y.CAPS, y.DELTA_LIMIT, 'yoke_delta_budget')
         self.assertEqual((y.DELTA_LIMIT, sum(cap[1] for cap in y.CAPS.values())), (720, 817))
@@ -247,14 +248,14 @@ class YokeRepairCompositionTests(unittest.TestCase):
         for path in ('package.json', 'package-lock.json', 'src-tauri/Cargo.lock', 'services/local-agent/Cargo.lock', p.PROFILE,
                      l.CASES, 'scripts/rc_pretag_linux_package_inverse.py', 'scripts/rc_release_policy.py', 'scripts/rc_release_eligibility.py',
                      '.github/workflows/issue40-current-nginx-include.yml', 'services/local-agent/src/process.rs', 'src-tauri/src/workspace_snapshots/filesystem.rs'):
-            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path), path)
-        self.assertNotIn('cache', (c.ROOT / y.PROFILE).read_text())
+            self.assertEqual(integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
+        self.assertNotIn('cache', integration_bytes(y.PROFILE, (c.ROOT / y.PROFILE).read_bytes()).decode())
 
     def test_original_and_new_test_inventories_are_exact(self):
         old = [item for group in lc.GROUPS for item in lc.inventory(group)]
         pt.inventory_ids(old, 1174, 'a40dee60873940221d23eca3b5e8af13e260f57bcbbbd72c7a77de72c93fa90a')
         for module in {item.split('.', 1)[0] for item in old}:
-            self.assertEqual((c.ROOT / 'scripts' / (module + '.py')).read_bytes(), self.frozen('scripts/' + module + '.py'), module)
+            self.assertEqual(integration_bytes('scripts' + '/' + (module + '.py'), (c.ROOT / 'scripts' / (module + '.py')).read_bytes()), self.frozen('scripts/' + module + '.py'), module)
         strict = [test.id() for test in c._flatten(unittest.defaultTestLoader.discover(str(c.ROOT / 'scripts'), pattern='rc_pretag*_tests.py'))]
         pt.inventory_ids(strict, 303, '0ecc366c2018a6a1e20d3f59ed9ca66645d9334324cd517682894cabde923125')
         loaded = lc.ids(y.CLASS)

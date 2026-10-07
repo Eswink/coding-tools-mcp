@@ -4,6 +4,7 @@ from collections import Counter
 
 import rc_pretag_composition_tests as c
 import rc_pretag_ownership_profile as o
+from rc_pretag_integration_admission_profile import normalize as integration_bytes
 import rc_pretag_authenticated_two_hop_profile as a
 import rc_pretag_authenticated_two_hop_tests as at
 import rc_pretag_publication_profile as p
@@ -136,6 +137,7 @@ PROFILE_DISPATCH = (
 
 def inverse_join_once_adapter(path, current):
     """Exact-once current inventory amendment back to the complete frozen M file."""
+    current = integration_bytes(path, current)
     if path == p.OWNERSHIP_TESTS:
         assert o.pin(current) == p.ANCILLARY_PINS[path]
         return current
@@ -156,6 +158,7 @@ def inverse_join_once_adapter(path, current):
 
 def publication_tests_inverse(current, adapter_source):
     """Recover the exact removed block, four adapted methods and original wrapper."""
+    adapter_source = integration_bytes(p.JOIN_ONCE_HELPER, adapter_source)
     assert o.pin(current) == p.JOIN_ONCE_PINS[p.TESTS][1:3]
     assert o.pin(adapter_source) == p.JOIN_ONCE_PINS[p.JOIN_ONCE_HELPER][1:3]
     try:

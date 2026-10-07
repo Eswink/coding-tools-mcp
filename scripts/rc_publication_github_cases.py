@@ -129,7 +129,7 @@ class GitHubCases(unittest.TestCase):
                 with self.subTest(kind=op.kind, passed=passed):
                     start = len(self.fixture.requests)
                     with patch.object(wire, '_authenticate', side_effect=gates if passed else
-                                      lambda _: (_ for _ in ()).throw(wire.WireFailure('fence_blocked', 'none'))):
+                                      lambda *args, **kwargs: (_ for _ in ()).throw(wire.WireFailure('fence_blocked', 'none'))):
                         with patch.object(wire, '_remote_constraint', side_effect=None if passed > 1 else
                                           lambda _: (_ for _ in ()).throw(wire.WireFailure('fence_blocked', 'none'))):
                             self.error(lambda: self.mutate(op))

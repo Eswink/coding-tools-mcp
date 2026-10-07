@@ -1,4 +1,4 @@
-"""Fixed non-executable evidence requirements; no row has a live verifier yet."""
+"""Fixed evidence requirements; only full_integration has a live read-only verifier."""
 from dataclasses import dataclass
 
 from rc_pretag_types import POLICY_REVISION, PERMISSIONS, require, sequence
@@ -15,6 +15,11 @@ RUN_READS = (ROOT + '/actions/workflows/{fixed_workflow}/runs?head_sha={source_s
              ROOT + '/actions/runs/{run_id}/attempts/{run_attempt}/jobs',
              ROOT + '/actions/runs/{run_id}/artifacts', ROOT + '/actions/artifacts/{artifact_id}',
              ROOT + '/actions/artifacts/{artifact_id}/zip')
+INTEGRATION_READS = (ROOT, ROOT + '/git/ref/{selected_ref}', ROOT + '/git/commits/{source_sha}',
+    ROOT + '/git/trees/{tree_sha}', ROOT + '/actions/workflows/dot-rc-integration.yml',
+    ROOT + '/actions/workflows/{workflow_id}/runs?head_sha={source_sha}', ROOT + '/actions/runs/{run_id}',
+    ROOT + '/actions/runs/{run_id}/attempts/{run_attempt}',
+    ROOT + '/actions/runs/{run_id}/attempts/{run_attempt}/jobs')
 REVIEW_READS = (ROOT + '/pulls/36', ROOT + '/pulls/36/reviews',
                 ROOT + '/pulls/36/reviews/{review_id}', ROOT + '/pulls/36/commits')
 RELEASE_READS = (ROOT + '/releases', ROOT + '/releases/{known_release_id}')
@@ -39,7 +44,8 @@ class GateRequirement:
         for value in (self.ledger_rows, self.endpoints, self.permissions):
             sequence(value, str, 16)
         require(all(p in PERMISSIONS for p in self.permissions), 'invalid_policy_permission')
-        require(self.verifier == 'unimplemented', 'unsupported_policy_verifier')
+        require(self.verifier == ('github_full_integration_v1' if self.gate_id == 'full_integration'
+                                  else 'unimplemented'), 'unsupported_policy_verifier')
 
 
 def requirement(key, scope, ledger, family='engineering', contract='unmapped producer; blocked'):
@@ -48,6 +54,10 @@ def requirement(key, scope, ledger, family='engineering', contract='unmapped pro
     visibility = 'authenticated same-repository run/job/artifact visibility; no label-based proof'
     completeness = 'newest same-source run across all statuses; exact current-attempt jobs; bounded complete lists'
     identity = 'repository ID/name, source SHA/tree, workflow, run/current attempt/job and API ZIP digest/size'
+    if key == 'full_integration':
+        endpoints = INTEGRATION_READS
+        visibility = 'authenticated same-repository source/workflow/run/attempt/job metadata only'
+        identity = 'repository ID/name, source SHA/tree, workflow blob/ref, newest run/current attempt and exact jobs'
     if family == 'source':
         endpoints, permissions = SOURCE_READS, ('contents:read',)
         if key == 'tag_absence':
@@ -68,7 +78,9 @@ def requirement(key, scope, ledger, family='engineering', contract='unmapped pro
         contract = 'real reviewed fixed post-merge integration invocation is unavailable; candidate/main push is insufficient'
     return GateRequirement(key, scope, ledger, endpoints, contract, permissions, visibility, identity,
         completeness, 'missing/denied/truncated/stale/failed/skipped/unknown => blocked; no older-green fallback',
-        'repeat source/run/current attempt/job/artifact/visibility observations at every admission fence; non-atomic')
+        ('repeat complete source/workflow/run/current attempt/job observations; non-atomic' if key == 'full_integration'
+         else 'repeat source/run/current attempt/job/artifact/visibility observations at every admission fence; non-atomic'),
+        verifier='github_full_integration_v1' if key == 'full_integration' else 'unimplemented')
 
 
 # Each original ledger row is explicitly covered. No closure/status text is evidence.

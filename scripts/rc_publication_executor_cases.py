@@ -42,18 +42,23 @@ class ExecutorCases(unittest.TestCase):
         return [row for row in tls.requests if row[0] in ('POST', 'PATCH', 'DELETE')]
 
     def test_live_entry_is_blocked_without_real_verifiers_and_tag_guarantee(self):
-        with HTTPSFixture() as tls, tempfile.TemporaryDirectory() as root:
-            selection = Selection(tls.subject, 41, 1, '1' * 64)
+        from rc_publication_admission_cases import IntegrationTLS
+        with IntegrationTLS() as tls, tempfile.TemporaryDirectory() as root:
+            selection = tls.selection
             for patched in (False, True):
-                with self.subTest(authenticator_only=patched), patch.object(wire, '_connect') as connect:
+                tls.requests.clear(); tls.counts.clear()
+                with self.subTest(authenticator_only=patched), patch.object(executor, 'stage_selected') as stage:
                     session = executor.PublisherSession(root, selection, 'fixture-token', temporary_parent=root)
                     with patch.object(wire, '_authenticate', side_effect=gates if patched else wire._authenticate):
                         with self.assertRaises(wire.WireFailure) as failure:
                             session.run_until_pause()
-                    self.assertEqual(failure.exception.effect, 'none')
+                    self.assertEqual((failure.exception.code, failure.exception.effect), ('fence_blocked', 'none'))
                     self.assertEqual(session.outcome, 'blocked_no_effect')
                     self.assertIsNone(session.transition)
-                    connect.assert_not_called()
+                    stage.assert_not_called()
+                    self.assertEqual([r[1] for r in tls.requests], [] if patched else tls.expected_paths)
+                    self.assertTrue(all(r[0] == 'GET' and r[3] == b'' for r in tls.requests))
+                    self.assertEqual(self.mutations(tls), [])
                     session.close()
             with self.assertRaises(TypeError):
                 executor.PublisherSession(root, selection, 'fixture-token', temporary_parent=root, enable_live=True)
