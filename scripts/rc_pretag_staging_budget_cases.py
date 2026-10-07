@@ -1,13 +1,9 @@
-"""Exact downloader composition; historical proof evidence grants no release authority."""
+"""Exact staging-budget composition; historical proof evidence grants no release authority."""
 import ast
 from collections import Counter
 import copy
-import hashlib
-import io
 import json
 import os
-from pathlib import Path
-from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -17,12 +13,12 @@ import rc_pretag_publication_profile as p
 import rc_pretag_publication_tests as pt
 import rc_pretag_linux_package_cases as lc
 import rc_pretag_yoke_repair_profile as y
-import rc_pretag_final_admission_profile as previous
+import rc_pretag_download_budget_profile as previous
 import rc_pretag_publisher_executor_cases as old_cases
 import rc_pretag_integration_admission_cases as previous_cases
 import rc_pretag_final_admission_cases as final_cases
-import rc_pretag_download_budget_profile as x
-from rc_pretag_staging_budget_profile import normalize as staging_bytes
+import rc_pretag_download_budget_cases as download_cases
+import rc_pretag_staging_budget_profile as x
 
 def inventory():
     expected = [cls + '.' + name for cls, names in x.NEW_CASES.items() for name in names]
@@ -41,7 +37,7 @@ def execution_valid(loaded, result):
             and not result.unexpectedSuccesses and Counter(executed) == Counter(loaded)
             and result.testsRun == len(set(executed)) == 24)
 
-class DownloadBudgetCompositionCases(unittest.TestCase):
+class StagingBudgetCompositionCases(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.fixture = c._profile_fixture()
@@ -54,7 +50,7 @@ class DownloadBudgetCompositionCases(unittest.TestCase):
         cls.fixture.__exit__(None, None, None)
     def setUp(self):
         self.original = c._entries(x.M, self.repo)
-        self.good = self.original | {path: ('100644', 'blob', self.blob(staging_bytes(path, (c.ROOT / path).read_bytes()))) for path in x.CAPS}
+        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in x.CAPS}
         self.pure = self.commit([x.M], self.good)
         self.feature = self.commit([x.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -63,8 +59,8 @@ class DownloadBudgetCompositionCases(unittest.TestCase):
     def verified_baseline(self, ref, *args, **kwargs):
         callbacks = all(actual is expected for actual, expected in zip(args[1:4], self.args[1:4]))
         immutable = (x.M, x.M_TREE, x.M_PARENTS) == (
-            '7de3244adc367fa60463d1e3b64c92f211d2fda8', 'c499ee350af610c142652520c35da994215a6f70',
-            ('08bd1c79d3394321578444a2d2722c2bf9e8eb1d', 'd13ffd7dd6b90f5cfb73d78395a4944df92924c0'))
+            '981d7b23af1c5c8174352c4564aa65b1557cc546', 'c3d7780ce761dac4da71d97a010381ec5074f69f',
+            ('7de3244adc367fa60463d1e3b64c92f211d2fda8', 'd52937c98d441f3ee49eb9decd9101cade654748'))
         if ref != x.M or not immutable or kwargs or not callbacks or args != self.args:
             return self._select(ref, *args, **kwargs)
         key = (ref, *args[:6], tuple(sorted(args[6].items())))
@@ -87,10 +83,10 @@ class DownloadBudgetCompositionCases(unittest.TestCase):
         ref = self.commit([x.M] if parents is None else parents, entries)
         x.topology(ref, self.repo, c._git, p.R)
         with self.assertRaises(AssertionError): self.selected(ref)
-    def test_exact_f_identity_and_fresh_historical_validation(self):
+    def test_exact_m_identity_and_fresh_historical_validation(self):
         self.assertEqual((x.M, x.M_TREE, x.M_PARENTS), (
-            '7de3244adc367fa60463d1e3b64c92f211d2fda8', 'c499ee350af610c142652520c35da994215a6f70',
-            ('08bd1c79d3394321578444a2d2722c2bf9e8eb1d', 'd13ffd7dd6b90f5cfb73d78395a4944df92924c0')))
+            '981d7b23af1c5c8174352c4564aa65b1557cc546', 'c3d7780ce761dac4da71d97a010381ec5074f69f',
+            ('7de3244adc367fa60463d1e3b64c92f211d2fda8', 'd52937c98d441f3ee49eb9decd9101cade654748')))
         self.assertEqual(self.selected(x.M, fresh=True), self.original)
         self.assertIsNone(x.select(x.M, *self.args))
         with patch.object(previous, 'content', wraps=previous.content) as historical:
@@ -145,14 +141,14 @@ class DownloadBudgetCompositionCases(unittest.TestCase):
         with patch.dict(os.environ, hostile):
             self.assertEqual(self.selected('moving', moving, fresh=True), self.good)
         self.assertEqual(sum(any('moving' in arg for arg in args) for args in calls), 1)
-    def test_all_paths_modes_pins_and_entry_counts_are_exact(self):
+    def test_all_thirteen_paths_modes_pins_and_entry_counts_are_exact(self):
         self.assertEqual(self.content(), self.good)
-        self.assertEqual((len(self.original), len(self.good), len(x.CAPS), len(x.BASE_PINS)), (1758, 1764, 14, 8))
+        self.assertEqual((len(self.original), len(self.good), len(x.CAPS), len(x.BASE_PINS)), (1764, 1770, 13, 7))
         self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
         self.assertEqual(x.CAPS[x.PROFILE], (400, 400))
-        self.assertEqual(self.good[x.PROFILE][2], c._blob(staging_bytes(x.PROFILE, (c.ROOT / x.PROFILE).read_bytes())))
+        self.assertEqual(self.good[x.PROFILE][2], c._blob((c.ROOT / x.PROFILE).read_bytes()))
         for path, row in x.SOURCE_PINS.items():
-            data = staging_bytes(path, (c.ROOT / path).read_bytes())
+            data = (c.ROOT / path).read_bytes()
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())))
             for index, value in enumerate(('100755', '0' * 40, '0' * 64, row[3] + 1, row[4] + 1)):
                 changed = list(row)
@@ -172,10 +168,10 @@ class DownloadBudgetCompositionCases(unittest.TestCase):
         self.bad_content(self.changed('unreviewed-extra.py', b'extra\n'))
         self.bad_content(self.changed('services/cloud-agent/src/main.rs', b'changed\n'))
     def test_individual_and_total_budgets_fail_closed(self):
-        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (2000, 1823))
-        data = {path: staging_bytes(path, (c.ROOT / path).read_bytes()) for path in x.CAPS}
+        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (1800, 1734))
+        data = {path: (c.ROOT / path).read_bytes() for path in x.CAPS}
         def budgets(git=c._git):
-            return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'download_delta_budget')
+            return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'staging_delta_budget')
         budgets()
         for path, (_, delta) in x.CAPS.items():
             with patch.dict(x.CAPS, {path: (len(data[path].splitlines()) - 1, delta)}), self.assertRaises(AssertionError):
@@ -186,38 +182,37 @@ class DownloadBudgetCompositionCases(unittest.TestCase):
                     return row if args == ('diff', '--numstat', x.M, self.pure, '--', path) else c._git(*args, root=root)
                 with self.assertRaises(AssertionError):
                     budgets(malformed)
-        with patch.object(x, 'DELTA_LIMIT', 0), self.assertRaisesRegex(AssertionError, 'download_delta_budget'):
+        with patch.object(x, 'DELTA_LIMIT', 0), self.assertRaisesRegex(AssertionError, 'staging_delta_budget'):
             budgets()
-    def test_exact_dispatch_and_seven_inverses_recover_complete_f_bytes(self):
+    def test_exact_dispatch_and_seven_inverses_recover_complete_m_bytes(self):
         self.assertEqual((len(x.DISPATCH.splitlines()), len(x.NORMALIZE.splitlines())), (4, 2))
         self.assertEqual(x.FRAGMENTS.keys(), x.BASE_PINS.keys())
-        self.assertEqual(len(x.FRAGMENTS), 8)
+        self.assertEqual(len(x.FRAGMENTS), 7)
         for path in x.BASE_PINS:
-            current, frozen = staging_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
-            with patch('builtins.open', side_effect=AssertionError('IO forbidden')), patch('subprocess.check_output', side_effect=AssertionError('git forbidden')):
+            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
+            with patch('builtins.open', side_effect=AssertionError('IO forbidden')), patch('io.open', side_effect=AssertionError('IO forbidden')), patch('subprocess.check_output', side_effect=AssertionError('git forbidden')), patch('subprocess.Popen', side_effect=AssertionError('process forbidden')), patch('tempfile.TemporaryDirectory', side_effect=AssertionError('extraction forbidden')):
                 self.assertEqual(x.normalize(path, current), frozen, path)
                 self.assertEqual(x.normalize(path, frozen), frozen, path)
-        current = staging_bytes(x.DISPATCHER, (c.ROOT / x.DISPATCHER).read_bytes())
+        current = (c.ROOT / x.DISPATCHER).read_bytes()
         self.assertEqual((current.count(x.DISPATCH), current.count(x.NORMALIZE)), (1, 1))
         self.assertEqual(current.replace(x.DISPATCH, b'', 1).replace(x.NORMALIZE, b'', 1), self.frozen(x.DISPATCHER))
         self.assertEqual(c._git('diff', '--numstat', x.M, self.pure, '--', x.DISPATCHER, root=self.repo),
                          f'6\t0\t{x.DISPATCHER}\n'.encode())
         self.assertEqual(x.normalize('unmapped', b'unchanged'), b'unchanged')
-        self.assertEqual((len(x.PRIOR_PINS), sum(map(len, x.PRIOR_PINS.values()))), (3, 7))
-        self.assertEqual(x.PRIOR_PINS[p.JOIN_ONCE_TESTS], (
-            ('12d613675c60dc5babbcfa4324691b583896e943', '52e4276c4a25531c62ed34d5715e778dc091be12d91cb84cbae0b229a272ea1b'),
-            ('a82efa478868410d257da54bf5285a6691b0f37b', '40ee7d6123d8dd14ac235923a8e972946b4e88ba51681a6d8d5aa76ed916c26a')))
+        self.assertEqual((len(x.PRIOR_PINS), sum(map(len, x.PRIOR_PINS.values()))), (3, 12))
+        self.assertEqual({path: len(pins) for path, pins in x.PRIOR_PINS.items()}, {
+            'scripts/rc_pretag_composition_tests.py': 8, 'scripts/rc_publication_executor.py': 1, x.WORKFLOW: 3})
         for path, pins in x.PRIOR_PINS.items():
             self.assertEqual(len(pins), len(set(pins)))
             self.assertNotIn(x.BASE_PINS[path][1:3], pins)
             for pin in pins:
                 prior = c._git('cat-file', 'blob', pin[0], root=self.repo)
                 self.assertEqual(o.pin(prior), pin)
-                with patch('builtins.open', side_effect=AssertionError('IO forbidden')), patch('subprocess.check_output', side_effect=AssertionError('git forbidden')):
+                with patch('builtins.open', side_effect=AssertionError('IO forbidden')), patch('io.open', side_effect=AssertionError('IO forbidden')), patch('subprocess.check_output', side_effect=AssertionError('git forbidden')), patch('subprocess.Popen', side_effect=AssertionError('process forbidden')), patch('tempfile.TemporaryDirectory', side_effect=AssertionError('extraction forbidden')):
                     self.assertEqual(x.normalize(path, prior), prior)
     def test_missing_duplicate_outside_and_binary_inverse_edits_reject(self):
         for path, fragments in x.FRAGMENTS.items():
-            current = staging_bytes(path, (c.ROOT / path).read_bytes())
+            current = (c.ROOT / path).read_bytes()
             altered = [current + b'# outside\n', b'\xff']
             for before, _ in fragments:
                 self.assertEqual(current.count(before), 1)
@@ -228,16 +223,20 @@ class DownloadBudgetCompositionCases(unittest.TestCase):
                 row = ('100644', *o.pin(data), len(data), len(data.splitlines()))
                 with patch.dict(x.SOURCE_PINS, {path: row}), self.assertRaises(AssertionError):
                     x.normalize(path, data)
-        path = 'scripts/rc_pretag_publication_adapters.py'
-        prior = c._git('cat-file', 'blob', '5fe498145f77d1f73f8f1142810f2d1441ed0bcd', root=self.repo)
-        for bad, blob in zip((prior + b'# outside\n', prior.replace(b'assert ', b'# assert ', 1)), ('358245cec21ae2da538c3364f7fd65ccc204844d', 'ff1783a101ba60d7e455879e3b2148203e379ea3')):
-            self.assertEqual(o.pin(bad)[0], blob)
-            with self.assertRaises(AssertionError): x.normalize(path, bad)
-        for pin in x.PRIOR_PINS[p.JOIN_ONCE_TESTS]:
-            prior = c._git('cat-file', 'blob', pin[0], root=self.repo)
-            for bad in (prior + b'# outside\n', prior.replace(b'assert ', b'# assert ', 1)):
-                with self.assertRaises(AssertionError):
-                    x.normalize(p.JOIN_ONCE_TESTS, bad)
+        for path, pins in x.PRIOR_PINS.items():
+            for pin in pins:
+                prior = c._git('cat-file', 'blob', pin[0], root=self.repo)
+                weakened = prior.replace(b'self.assertEqual(', b'self.assertNotEqual(', 1)
+                if weakened == prior: weakened = prior.replace(b'assert ', b'assert False and ', 1)
+                for bad in (prior + b'# outside\n', b'\xff' + prior, weakened):
+                    if bad == prior: continue
+                    with self.assertRaises(AssertionError): x.normalize(path, bad)
+        path = 'scripts/rc_pretag_download_budget_cases.py'
+        current = (c.ROOT / path).read_bytes()
+        bad = current.replace(b'self.assertEqual(', b'self.assertNotEqual(', 1)
+        self.assertNotEqual(bad, current)
+        with patch.dict(x.SOURCE_PINS, {path: ('100644', *o.pin(bad), len(bad), len(bad.splitlines()))}), self.assertRaises(AssertionError):
+            x.normalize(path, bad)
         for path, current in ((None, b'x'), (x.DISPATCHER, 'text')):
             with self.assertRaises(AssertionError):
                 x.normalize(path, current)
@@ -251,6 +250,9 @@ class DownloadBudgetCompositionCases(unittest.TestCase):
             fallback.assert_not_called()
             with patch.object(x, 'content', return_value=self.good), patch.object(o, 'release_content', side_effect=error('release terminal')), self.assertRaisesRegex(error, 'release terminal'):
                 self.selected(self.release)
+        for offset, value in ((5, '0' * 40), (6, {})):
+            arguments = list(self.args); arguments[offset] = value
+            with self.assertRaises(AssertionError): x.content(self.pure, *arguments)
         with patch.object(p.authenticated, '_budgets', side_effect=AssertionError('budget terminal')), self.assertRaisesRegex(AssertionError, 'budget terminal'):
             self.content()
     def test_actual_candidate_validation_is_never_cached(self):
@@ -270,11 +272,15 @@ class DownloadBudgetCompositionCases(unittest.TestCase):
             fresh.assert_called_once()
         with patch.object(x, 'M_TREE', '0' * 40), patch.object(self, '_select', side_effect=AssertionError('fresh required')), self.assertRaisesRegex(AssertionError, 'fresh required'):
             self.verified_baseline(x.M, *self.args)
-        runtime = ast.parse(staging_bytes(x.PROFILE, (c.ROOT / x.PROFILE).read_bytes()).decode())
+        runtime = ast.parse((c.ROOT / x.PROFILE).read_text())
         self.assertFalse(any('cache' in (getattr(node, 'id', getattr(node, 'attr', getattr(node, 'name', ''))) or '') for node in ast.walk(runtime)))
-    def test_original1304_strict303_consumer452_ids_and_bodies_are_preserved(self):
-        original = [item for group in lc.GROUPS for item in lc.inventory(group)] + lc.ids(y.CLASS) + old_cases.inventory() + previous_cases.inventory() + final_cases.inventory()
-        pt.inventory_ids(original, 1304, '6ff1b27284b6946f235c81d6631bec9d04e57c502bb114a57ff27dd8b169ba45')
+    def test_original1328_strict303_consumer452_ids_and_bodies_are_preserved(self):
+        original = [item for group in lc.GROUPS for item in lc.inventory(group)] + lc.ids(y.CLASS) + old_cases.inventory() + previous_cases.inventory() + final_cases.inventory() + download_cases.inventory()
+        pt.inventory_ids(original, 1328, '8bc7a8cf4180f8bc4463af2491a6993a883067641b6173382e186cf7c80ce862')
+        pt.inventory_ids(original + inventory(), 1352, 'ea0dc69cba21c7fc078299270b5944372520607cc2b4401b7c3a231dfb17c03d')
+        workflow = old_cases.inventory() + previous_cases.inventory() + final_cases.inventory() + download_cases.inventory()
+        pt.inventory_ids(workflow, 144, '90731b8f23afb0a4d31ff3b280e1b5bdc873b61edc0a2c813817b74116ada8c3')
+        pt.inventory_ids(workflow + inventory(), 168, 'dd810f84cb50ddd5c5dfdc29b1beafdf481a37ce41b7f49cdf96ce7cba027886')
         method = next(node for node in ast.walk(ast.parse(self.frozen(p.TESTS))) if isinstance(node, ast.FunctionDef)
                       and node.name == 'test_protected_source_versions_gates_workflows_and_old_452_are_unchanged')
         modules = ast.literal_eval(method.body[0].value.func.value).split()
@@ -283,21 +289,22 @@ class DownloadBudgetCompositionCases(unittest.TestCase):
             consumer = [item for module in modules for item in lc.ids(module) if item.split('.', 1)[0] == module]
         pt.inventory_ids(strict, 303, '0ecc366c2018a6a1e20d3f59ed9ca66645d9334324cd517682894cabde923125')
         pt.inventory_ids(consumer, 452, 'd01db4e6cd605c6636423e27c8c0409e90aba217cc0e6930474f59a24b57f372')
-        allowed = {'rc_pretag_join_once_tests': {'test_historical_profiles_pins_shapes_and_ownership_bytes_are_immutable'},
-            'rc_pretag_ownership_tests': {'setUp', 'test_exact_m_ownership_overlay_accepts_only_reviewed_delta'},
-            'rc_pretag_final_admission_cases': {'setUp', 'test_all_paths_modes_pins_and_entry_counts_are_exact',
-                'test_individual_and_total_budgets_fail_closed', 'test_exact_dispatch_and_legacy_inverses_recover_complete_m_bytes',
+        allowed = {'rc_pretag_composition_tests': {'test_consumer_inverse_reconstructs_pinned_j',
+                'test_extraction_mutations_do_not_reconstruct_j'},
+            'rc_pretag_download_budget_cases': {'setUp', 'test_all_paths_modes_pins_and_entry_counts_are_exact',
+                'test_individual_and_total_budgets_fail_closed', 'test_exact_dispatch_and_seven_inverses_recover_complete_f_bytes',
                 'test_missing_duplicate_outside_and_binary_inverse_edits_reject', 'test_actual_candidate_validation_is_never_cached',
-                'test_original1268_strict303_ids_and_legacy_assertions_are_preserved', 'test_readonly_workflow_and_held_sources_remain_bounded'}}
+                'test_original1304_strict303_consumer452_ids_and_bodies_are_preserved',
+                'test_historical_consumer_envelope_and_readonly_workflow_remain_bounded'}}
         class SourceOperands(ast.NodeTransformer):
             def visit_Call(self, node):
                 if isinstance(node.func, ast.Attribute) and node.func.attr == 'decode' and isinstance(node.func.value, ast.Call):
                     inner = node.func.value
-                    if isinstance(inner.func, ast.Name) and inner.func.id == 'download_bytes':
+                    if isinstance(inner.func, ast.Name) and inner.func.id == 'staging_bytes':
                         result = copy.deepcopy(inner.args[1]); result.func.attr = 'read_text'
                         return result
                 node = self.generic_visit(node)
-                return node.args[1] if isinstance(node.func, ast.Name) and node.func.id in ('download_bytes', 'integration_bytes') else node
+                return node.args[1] if isinstance(node.func, ast.Name) and node.func.id in ('staging_bytes', 'integration_bytes') else node
         def methods(data):
             found = {}
             def collect(node, scope=()):
@@ -310,7 +317,7 @@ class DownloadBudgetCompositionCases(unittest.TestCase):
         changed = set()
         for module in {item.split('.', 1)[0] for item in original}:
             path = 'scripts/' + module + '.py'
-            current, frozen = staging_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
+            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
             self.assertEqual(x.normalize(path, current), frozen, path)
             before, after = methods(frozen), methods(current)
             self.assertEqual(before.keys(), after.keys(), path)
@@ -322,54 +329,16 @@ class DownloadBudgetCompositionCases(unittest.TestCase):
                 self.assertEqual(ast.dump(before[name]), ast.dump(node), path + ':' + '.'.join(name))
         self.assertEqual(changed, {(module, name) for module, names in allowed.items() for name in names})
         self.assertFalse(set(original) & set(inventory()))
-    def test_historical_consumer_envelope_and_readonly_workflow_remain_bounded(self):
-        import rc_consumer_proof_fixtures as fixture
-        buffers = fixture.read_buffers(c.ROOT)
-        self.assertEqual(tuple(buffers), fixture.NAMES)
-        for name, data in buffers.items():
-            self.assertEqual((len(data), hashlib.sha256(data).hexdigest()), fixture.PINS[name])
-        self.assertEqual(fixture.PINS['rc_consumer_transport'], (10946, '2555906190830843de21c8e54d3fca3f2043bae3330a17109d72bdf7782ca703'))
-        current, old = (c.ROOT / x.TRANSPORT).read_bytes(), self.frozen(x.TRANSPORT)
-        self.assertNotEqual(len(old), len(current))
-        with TemporaryDirectory() as temporary:
-            root = Path(temporary); (root / 'scripts').mkdir()
-            for name, data in buffers.items():
-                (root / 'scripts' / (fixture.FIXTURE if name == fixture.NAMES[0] else name + '.py')).write_bytes(data)
-            path = root / x.TRANSPORT
-            for data in (old, current):
-                path.write_bytes(data)
-                calls, real_open = [], Path.open
-                def opened(file, *args, **kwargs):
-                    if file != path: return real_open(file, *args, **kwargs)
-                    stream = io.BytesIO(data); read = stream.read
-                    stream.read = lambda size: (calls.append(size), read(size))[1]
-                    return stream
-                with patch.object(Path, 'open', opened): self.assertEqual(fixture.read_buffers(root), buffers)
-                self.assertEqual(calls, [len(data) + 1])
-            for data in (current[:-1], current + b'x', b'!' + current[1:], b'!' + old[1:]):
-                path.write_bytes(data); case = unittest.TestCase(); case.h = SimpleNamespace(ROOT=root)
-                with patch.object(fixture, 'TemporaryDirectory') as materialized, patch.object(Path, 'write_bytes') as write:
-                    with self.assertRaises(ValueError) as caught: fixture.install_historical(case)
-                    materialized.assert_not_called(); write.assert_not_called()
-                self.assertEqual(caught.exception.args, ('historical_source_rejected',))
-                self.assertIsNone(caught.exception.__context__); self.assertIsNone(caught.exception.__cause__)
-            path.write_bytes(current); path.unlink(); path.symlink_to(c.ROOT / x.TRANSPORT)
-            with self.assertRaises(ValueError): fixture.read_buffers(root)
-            path.unlink(); path.write_bytes(current)
-            for error in (AssertionError('private'), OSError('read error')):
-                with patch.object(x, 'normalize', side_effect=error), self.assertRaises(ValueError if isinstance(error, AssertionError) else OSError) as caught:
-                    fixture.read_buffers(root)
-                self.assertIsNone(caught.exception.__context__); self.assertIsNone(caught.exception.__cause__)
-        for path in ('scripts/rc_consumer_default_worker_proof.py', 'scripts/rc_consumer_default_worker_proof_tests.py',
-                'scripts/rc_consumer_transport_worker.py', 'scripts/rc_consumer_c_93c2ad95_io.txt'):
-            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path))
-        text = staging_bytes(x.WORKFLOW, (c.ROOT / x.WORKFLOW).read_bytes()).decode()
+    def test_readonly_workflow_and_held_sources_remain_bounded(self):
+        text = (c.ROOT / x.WORKFLOW).read_text()
         for fragment in ("on:\n  push:\n    branches: ['ci/issue88-publisher-executor-*']", 'permissions:\n  contents: read',
                 "os: [ubuntu-22.04, ubuntu-24.04]", "python-version: '3.12'", 'fetch-depth: 0, persist-credentials: false',
                 "sha == os.environ['GITHUB_SHA']", 'parents == [profile.M]', 'before = checked()', 'checked() == before',
                 'x.inventory()', 'x.execution_valid(loaded, result)', 'admission.inventory()', 'admission.execution_valid(loaded, result)',
                 'final_admission.inventory()', 'final_admission.execution_valid(loaded, result)',
-                'download_budget.inventory()', 'download_budget.execution_valid(loaded, result)', 'timeout-minutes: 30',
+                'download_budget.inventory()', 'download_budget.execution_valid(loaded, result)',
+                'staging_budget.inventory()', 'staging_budget.execution_valid(loaded, result)', 'timeout-minutes: 30',
+                'staging-budget-inventory.json', 'staging-budget-cases.log', "'production_ready': False",
                 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262',
                 'actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065',
                 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02'):
@@ -382,9 +351,11 @@ class DownloadBudgetCompositionCases(unittest.TestCase):
         self.assertEqual(len(held), 10)
         self.assertFalse(held & self.good.keys())
         self.assertTrue(all(not (c.ROOT / path).exists() and not (c.ROOT / path).is_symlink() for path in held))
-        for path in ('scripts/rc_release_eligibility.py', 'scripts/rc_publication_contract.py', 'scripts/rc_publication_stage.py',
-                'scripts/rc_consumer_io.py', 'scripts/rc_artifact_consumer.py', 'src-tauri/src/workspace_snapshots/filesystem.rs'):
-            self.assertEqual(staging_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
+        for path in ('scripts/rc_release_eligibility.py', 'scripts/rc_publication_contract.py', 'scripts/rc_publication_admission.py',
+                'scripts/rc_consumer_io.py', 'scripts/rc_consumer_transport.py', 'scripts/rc_consumer_transport_worker.py',
+                'scripts/rc_consumer_proof_fixtures.py', 'scripts/rc_consumer_default_worker_proof.py', 'scripts/rc_consumer_default_worker_proof_tests.py',
+                'scripts/rc_consumer_c_93c2ad95_io.txt', 'src-tauri/src/workspace_snapshots/filesystem.rs'):
+            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path), path)
         self.assertTrue(all(self.good[path] == value for path, value in self.original.items() if path not in x.CAPS))
     def test_new24_inventory_and_exceptional_outcomes_reject(self):
         loaded = inventory()

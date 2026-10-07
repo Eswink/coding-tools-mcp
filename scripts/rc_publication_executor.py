@@ -7,6 +7,7 @@ import time
 
 import rc_publication_contract as core
 import rc_publication_github as wire
+from rc_consumer_io import ConsumerError
 from rc_publication_stage import Selection, stage_selected
 
 OPERATION_SECONDS = 300
@@ -57,14 +58,29 @@ class PublisherSession:
             wire._authenticate(self._selection, self._api, check_active=self._check_active, deadline=self._deadline)
             wire._remote_constraint(self._selection.subject)
             self._stage = stage_selected(self._root, self._selection, self._api,
-                                         temporary_parent=self._temporary_parent)
+                temporary_parent=self._temporary_parent, deadline=self._deadline, check_active=self._check_active)
             self._stage.__enter__()
             self._check_active()
             self._transition = core.start(self._stage.subject, self._stage.plan)
         except BaseException as error:
             self._activation_outcome = 'blocked_no_effect'
-            self._dispose()
+            transport_code = None
+            try:
+                if isinstance(error, ConsumerError):
+                    transport_code = error.code
+            except BaseException:
+                pass
+            if type(transport_code) is not str:
+                transport_code = None
+            if transport_code == 'transport_cleanup_uncertain':
+                self._cleanup_failed = True
+            failed = self._dispose()
             code = error.code if isinstance(error, wire.WireFailure) else 'adapter_error'
+            if transport_code is not None:
+                code = {'transport_deadline_exceeded': 'timeout',
+                        'transport_cancelled': 'cancelled'}.get(transport_code, 'adapter_error')
+            if failed:
+                code = 'adapter_error'
             raise wire.WireFailure(code, 'none') from None
 
     def _check_active(self):
@@ -210,7 +226,7 @@ class PublisherSession:
     def _dispose(self):
         """Retire each owner once; never retry a possibly closed descriptor."""
         self._closed = True
-        failed = self._cleanup_failed
+        failed = self._cleanup_failed or bool(self._stage and self._stage._cleanup_failed)
         stage, self._stage = self._stage, None
         api, self._api = self._api, None
         for owner in (stage, api):
