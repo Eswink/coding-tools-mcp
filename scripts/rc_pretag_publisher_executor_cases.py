@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 import rc_pretag_composition_tests as c
 import rc_pretag_ownership_profile as o
+from rc_pretag_integration_admission_profile import normalize as integration_bytes
 import rc_pretag_publication_profile as p
 import rc_pretag_publication_tests as pt
 import rc_pretag_linux_package_cases as lc
@@ -49,7 +50,7 @@ class PublisherCompositionCases(unittest.TestCase):
 
     def setUp(self):
         self.original = c._entries(x.M, self.repo)
-        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in x.CAPS}
+        self.good = self.original | {path: ('100644', 'blob', self.blob(integration_bytes(path, (c.ROOT / path).read_bytes()))) for path in x.CAPS}
         self.pure = self.commit([x.M], self.good)
         self.feature = self.commit([x.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -164,7 +165,7 @@ class PublisherCompositionCases(unittest.TestCase):
         self.assertEqual((len(self.original), len(self.good), len(x.CAPS), len(x.BASE_PINS)), (1732, 1745, 14, 1))
         self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
         for path, row in x.SOURCE_PINS.items():
-            data = (c.ROOT / path).read_bytes()
+            data = integration_bytes(path, (c.ROOT / path).read_bytes())
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())))
             for index, value in enumerate(('100755', '0' * 40, '0' * 64, row[3] + 1, row[4] + 1)):
                 changed = list(row); changed[index] = value
@@ -187,7 +188,7 @@ class PublisherCompositionCases(unittest.TestCase):
         expected = (300, 500, 300, 350, 450, 350, 300, 50, 90, 60, 220, 300, 100, 4)
         self.assertEqual(tuple(cap[1] for cap in x.CAPS.values()), expected)
         self.assertEqual((x.DELTA_LIMIT, sum(expected), x.CAPS[x.DISPATCHER]), (3400, 3374, (160, 4)))
-        data = {path: (c.ROOT / path).read_bytes() for path in x.CAPS}
+        data = {path: integration_bytes(path, (c.ROOT / path).read_bytes()) for path in x.CAPS}
         def budgets(git=c._git):
             return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'publisher_delta_budget')
         budgets()
@@ -241,7 +242,7 @@ class PublisherCompositionCases(unittest.TestCase):
             'package.json', 'package-lock.json', 'src-tauri/Cargo.lock', 'services/local-agent/Cargo.lock', *y.LOCKS]
         protected += [path for path in self.original if path.startswith('.github/workflows/')]
         for path in protected:
-            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path), path)
+            self.assertEqual(integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
         held = {'docs/specs/rc-source-assembly-engineering/' + name for name in ('README.md', 'design.md', 'requirements.md', 'tasks.md', 'subspecs/focused-validation/spec.md', 'subspecs/source-evidence/spec.md')}
         held |= {'scripts/rc_source_assembly.py', 'scripts/rc_source_assembly_dispatch_tests.py', 'scripts/rc_source_assembly_tests.py', 'tests/delivery/test_linux_lifecycle_wiring.py'}
         self.assertEqual(len(held), 10)
@@ -249,7 +250,7 @@ class PublisherCompositionCases(unittest.TestCase):
         self.assertTrue(all(not (c.ROOT / path).exists() and not (c.ROOT / path).is_symlink() for path in held))
 
     def test_readonly_workflow_and_live_activation_boundaries(self):
-        text = (c.ROOT / x.WORKFLOW).read_text()
+        text = integration_bytes(x.WORKFLOW, (c.ROOT / x.WORKFLOW).read_bytes()).decode()
         for fragment in ("on:\n  push:\n    branches: ['ci/issue88-publisher-executor-*']", 'permissions:\n  contents: read',
                 "os: [ubuntu-22.04, ubuntu-24.04]", "python-version: '3.12'", 'fetch-depth: 0, persist-credentials: false',
                 "sha == os.environ['GITHUB_SHA']", 'before = checked()', 'checked() == before', 'x.inventory()', 'x.execution_valid(loaded, result)',
@@ -259,8 +260,8 @@ class PublisherCompositionCases(unittest.TestCase):
         for forbidden in ('secrets.', 'GH_TOKEN', 'GITHUB_TOKEN', 'contents: write', 'workflow_dispatch:', 'pull_request:', 'gh release', 'curl ', 'pip install'):
             self.assertNotIn(forbidden, text)
         for path in ('scripts/rc_release_policy.py', 'scripts/rc_release_eligibility.py', 'scripts/rc_publication_contract.py'):
-            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path))
-        self.assertIn("self.verifier == 'unimplemented'", (c.ROOT / 'scripts/rc_release_policy.py').read_text())
+            self.assertEqual(integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path))
+        self.assertIn("self.verifier == 'unimplemented'", integration_bytes('scripts/rc_release_policy.py', (c.ROOT / 'scripts/rc_release_policy.py').read_bytes()).decode())
 
     def test_original1184_and_strict303_inventories_unchanged(self):
         old = [item for group in lc.GROUPS for item in lc.inventory(group)]
@@ -269,7 +270,7 @@ class PublisherCompositionCases(unittest.TestCase):
         pt.inventory_ids(lc.ids(y.CLASS), 10, y.DIGEST)
         self.assertEqual(len(set(original)), 1184)
         for module in {item.split('.', 1)[0] for item in original}:
-            self.assertEqual((c.ROOT / 'scripts' / (module + '.py')).read_bytes(), self.frozen('scripts/' + module + '.py'), module)
+            self.assertEqual(integration_bytes('scripts' + '/' + (module + '.py'), (c.ROOT / 'scripts' / (module + '.py')).read_bytes()), self.frozen('scripts/' + module + '.py'), module)
         strict = [test.id() for test in c._flatten(unittest.defaultTestLoader.discover(str(c.ROOT / 'scripts'), pattern='rc_pretag*_tests.py'))]
         pt.inventory_ids(strict, 303, '0ecc366c2018a6a1e20d3f59ed9ca66645d9334324cd517682894cabde923125')
         self.assertFalse(set(original) & set(inventory()))

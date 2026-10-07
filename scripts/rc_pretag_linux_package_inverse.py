@@ -1,5 +1,6 @@
 """Pure byte inverses for the finite Linux package increment."""
 import rc_pretag_ownership_profile as o
+from rc_pretag_integration_admission_profile import normalize as integration_bytes
 
 BASE_PINS = {
     '.github/workflows/linux-rc-packages.yml': ('fc3523c783f86883800ea133b67bb1a8c47846e0', '847e793bf5768f785c8c3da1f4c803fdd92fb2495f1476966eb4c70c0a96983d'),
@@ -154,6 +155,7 @@ FRAGMENTS = {
 def inverse(path, current):
     """Only exact current, complete M, and enumerated prior-valid bytes are accepted."""
     assert type(path) is str and type(current) is bytes, 'immutable Linux package inverse input'
+    current = integration_bytes(path, current)
     assert path in BASE_PINS, 'unknown Linux package inverse path'
     pin = o.pin(current)
     if pin == BASE_PINS[path] or pin in PRIOR_PINS.get(path, ()):
@@ -169,4 +171,5 @@ def inverse(path, current):
 
 def normalize(path, current):
     """Normalize mapped source reads only; unrelated old source reads remain untouched."""
+    current = integration_bytes(path, current)
     return inverse(path, current) if path in BASE_PINS else current

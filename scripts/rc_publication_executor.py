@@ -54,7 +54,7 @@ class PublisherSession:
     def _prepare(self):
         try:
             self._check_active()
-            wire._authenticate(self._selection)
+            wire._authenticate(self._selection, self._api, check_active=self._check_active, deadline=self._deadline)
             wire._remote_constraint(self._selection.subject)
             self._stage = stage_selected(self._root, self._selection, self._api,
                                          temporary_parent=self._temporary_parent)
@@ -90,7 +90,7 @@ class PublisherSession:
     def _execute(self, op):
         fields = {}
         if op.kind in ('ObserveFence', 'ObserveDraft', 'VerifyPublished'):
-            gates, visibility = wire._authenticate(self._selection)
+            gates, visibility = wire._authenticate(self._selection, self._api, check_active=self._check_active, deadline=self._deadline)
             staged = self._stage.revalidate()
             self._check_active()
             fields['observation'] = self._api.observe(self._transition.state,

@@ -30,7 +30,7 @@ def stable_identity(latest=True):
         value, sort_keys=True, separators=(',', ':')).encode()).hexdigest())
 
 
-def gates(selection):
+def gates(selection, *args, **kwargs):
     return tuple((*row, 'passed') for row in core._admission(selection.subject)), 'proven'
 
 

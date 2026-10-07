@@ -12,9 +12,8 @@ from urllib.parse import urlsplit, quote
 
 import rc_publication_contract as core
 from rc_consumer_io import CHUNK, FILE_LIMIT
-from rc_pretag_types import POLICY_REVISION, REPOSITORY
-from rc_release_eligibility import GateResult, ReleaseEligibility
-from rc_release_policy import GATES
+from rc_pretag_types import REPOSITORY
+import rc_publication_admission as admission
 
 API, UPLOAD, STORAGE = 'api.github.com', 'uploads.github.com', 'release-assets.githubusercontent.com'
 ROOT = '/repos/' + REPOSITORY
@@ -49,13 +48,17 @@ def _safe(method):
     return call
 
 
-def _authenticate(selection):
-    rows = tuple(GateResult(g.gate_id, 'missing', 'unknown',
-                           'authenticating_producer_unimplemented') for g in GATES)
-    eligibility = ReleaseEligibility(selection.subject.source, POLICY_REVISION, 'blocked', rows)
-    _need(all(g.verifier == 'unimplemented' for g in GATES)
-          and eligibility.status == 'blocked' and not eligibility.release_approved, 'fence_blocked')
-    raise WireFailure('fence_blocked', 'none')
+def _authenticate(selection, api, *, check_active, deadline):
+    try:
+        report = admission.authenticate_integration(api, selection, check_active=check_active, deadline=deadline)
+    except admission._Interrupted as error:
+        raise WireFailure(error.code, 'none') from None
+    except WireFailure:
+        raise
+    except Exception:
+        raise WireFailure('verification_failed', 'none') from None
+    _need(all(row[3] == 'passed' for row in report.rows) and report.draft_visibility == 'proven', 'fence_blocked')
+    return report.rows, report.draft_visibility
 
 
 def _remote_constraint(subject):
@@ -196,9 +199,11 @@ class GitHub:
                  anonymous=False, binary=False, limit=METADATA, deadline=None):
         sock = None
         possible, confirmed, result, failure = False, False, None, None
-        deadline = deadline or time.monotonic() + DEADLINE
+        deadline = time.monotonic() + DEADLINE if deadline is None else deadline
         try:
             _need(not self._closed, 'cancelled')
+            check_active()
+            _need(time.monotonic() < deadline, 'timeout')
             self._closed_request(method, host, path, body, stream, asset, op)
             _need(op is None or (not anonymous and not binary), 'invalid_request')
             _need(host in (API, UPLOAD, STORAGE) and path.startswith('/') and
@@ -221,7 +226,7 @@ class GitHub:
             reader = _Reader(sock, deadline, check_active)
             reader.check()
             if op is not None:
-                _authenticate(self.selection)
+                _authenticate(self.selection, self, check_active=check_active, deadline=deadline)
                 _remote_constraint(self.selection.subject)
                 _authorize(op, self.selection.subject)
                 reader.check()
@@ -282,9 +287,9 @@ class GitHub:
               json.dumps(expected, separators=(',', ':'), sort_keys=True).encode())
               and stream is None and asset is None, 'invalid_request')
 
-    def _metadata(self, suffix, anonymous=False, deadline=None, absent=False):
+    def _metadata(self, suffix, anonymous=False, deadline=None, absent=False, check_active=lambda: None):
         status, _, body = self._request('GET', API, ROOT + ('' if suffix == '/' else suffix),
-                                       anonymous=anonymous, deadline=deadline)
+                                       anonymous=anonymous, deadline=deadline, check_active=check_active)
         if status == 404 and absent:
             return None
         _need(status == 200)
@@ -295,10 +300,13 @@ class GitHub:
         raise WireFailure('verification_failed', 'none')
 
     @_safe
-    def get(self, suffix):
+    def get(self, suffix, *, deadline=None, check_active=lambda: None):
         _need(type(suffix) is str and re.fullmatch(r'/[A-Za-z0-9_./?=&-]*', suffix)
               and '..' not in suffix and '//' not in suffix, 'invalid_request')
-        return self._metadata(suffix)
+        value = self._metadata(suffix, deadline=deadline, check_active=check_active)
+        check_active()
+        _need(deadline is None or time.monotonic() < deadline, 'timeout')
+        return value
 
     def _pages(self, suffix, anonymous, deadline):
         rows, ids, names = [], set(), set()
@@ -343,11 +351,11 @@ class GitHub:
         latest = self._metadata('/releases/latest', anonymous, deadline, absent=True)
         if latest is None:
             _need(expected[1] == 0)
-            _, visibility = _authenticate(self.selection)
-            _need(visibility == 'proven')
             proof = _authenticated_latest_absence(self.selection)
             _need(type(proof) is _LatestAbsent and proof.repository == REPOSITORY
                   and proof.source_sha == self.selection.subject.source.source_sha)
+            _, visibility = _authenticate(self.selection, self, check_active=lambda: None, deadline=deadline)
+            _need(visibility == 'proven')
             projected = None
         else:
             _need(type(latest) is dict and latest.get('id') == expected[1])
