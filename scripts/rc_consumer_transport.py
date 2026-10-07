@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import ExitStack
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -25,6 +26,7 @@ WORKER = Path(__file__).resolve().with_name('rc_consumer_transport_worker.py')
 NoRedirect = wire.NoRedirect
 SAFE_ERRORS = wire.ERROR_CODES | frozenset({
     'transport_deadline_exceeded', 'download_digest_mismatch',
+    'transport_cancelled', 'invalid_transport_deadline',
     'unsafe_private_io', 'invalid_private_mode', 'unsafe_path', 'unsafe_absolute_path',
     'private_root_closed', 'private_root_replaced', 'unsafe_private_directory',
     'unsafe_private_file', 'unknown_private_directory', 'private_directory_replaced',
@@ -57,12 +59,62 @@ def remaining(deadline, clock):
 
 
 class _Download:
-    def __init__(self, deadline, clock):
+    def __init__(self, deadline, clock, check_active=None, *, shared=False):
         self.deadline, self.clock = deadline, clock
+        self.check_active, self.shared = check_active, shared or check_active is not None
         self.process = None
         self.uncertain = False
         self.escalated = False
         self.disposed = False
+
+    def check(self):
+        wait = remaining(self.deadline, self.clock)
+        if self.check_active is None:
+            return wait
+        code = None
+        try:
+            if self.check_active() is not None:
+                code = 'artifact_transport_failed'
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except BaseException as error:
+            code = 'artifact_transport_failed'
+            try:
+                value = error.code
+                if type(value) is str:
+                    code = {'cancelled': 'transport_cancelled',
+                            'timeout': 'transport_deadline_exceeded'}.get(value, code)
+            except BaseException:
+                pass
+        if code:
+            raise ConsumerError(code)
+        return min(0.05, remaining(self.deadline, self.clock))
+
+    def wait_for_exit(self):
+        if self.check_active is None:
+            try:
+                return self.process.wait(timeout=remaining(self.deadline, self.clock))
+            except subprocess.TimeoutExpired:
+                if self.shared:
+                    self.check()
+                raise
+        # Neither the operation budget nor this EOF phase budget can be renewed.
+        eof_deadline = min(self.deadline, self.clock() + READ_TIMEOUT)
+        while True:
+            wait = self.check()
+            now = self.clock()
+            need(now < self.deadline, 'transport_deadline_exceeded')
+            wait = min(wait, eof_deadline - now)
+            need(wait > 0, 'artifact_transport_failed')
+            try:
+                result = self.process.wait(timeout=wait)
+            except subprocess.TimeoutExpired:
+                continue
+            self.check()
+            now = self.clock()
+            need(now < self.deadline, 'transport_deadline_exceeded')
+            need(now < eof_deadline, 'artifact_transport_failed')
+            return result
 
     def start(self, opener):
         if opener is None:
@@ -74,9 +126,11 @@ class _Download:
             # Library-only test seam. The CLI cannot supply a fixture launcher.
             self.process = opener.start_worker()
         # Take ownership immediately, even if descriptor setup subsequently fails.
-        remaining(self.deadline, self.clock)
+        self.check()
         os.set_blocking(self.process.stdin.fileno(), False)
         os.set_blocking(self.process.stdout.fileno(), False)
+        if self.shared:
+            self.check()
 
     def exchange(self, raw, size, digest, destination):
         process = self.process
@@ -89,10 +143,12 @@ class _Download:
             output = None
             selector.register(process.stdout, selectors.EVENT_READ)
             while not eof:
-                wait = remaining(self.deadline, self.clock)
+                wait = self.check()
                 events = selector.select(wait)
-                remaining(self.deadline, self.clock)
+                self.check()
                 for key, _ in events:
+                    if self.shared:
+                        self.check()
                     if key.fileobj is process.stdin:
                         try:
                             count = os.write(process.stdin.fileno(), outgoing[sent:])
@@ -113,6 +169,8 @@ class _Download:
                             break
                         received.extend(block)
                         while len(received) >= 4:
+                            if self.shared:
+                                self.check()
                             length = struct.unpack('!I', received[:4])[0]
                             need(0 < length <= wire.MAX_FRAME, 'invalid_transport_ipc')
                             if len(received) < length + 4:
@@ -133,10 +191,12 @@ class _Download:
                                     need(total <= size and total <= MAX_ZIP, 'download_size_mismatch')
                                     hasher.update(chunk)
                                     if output is None:
+                                        if self.shared:
+                                            self.check()
                                         output = files.enter_context(destination.open('artifact.zip', 'xb'))
-                                    remaining(self.deadline, self.clock)
+                                    self.check()
                                     need(output.write(chunk) == len(chunk), 'artifact_transport_failed')
-                                    remaining(self.deadline, self.clock)
+                                    self.check()
                                 elif frame == b'D':
                                     done = True
                                 elif frame[:1] == b'E':
@@ -148,11 +208,11 @@ class _Download:
             need(total == size, 'download_size_mismatch')
             need('sha256:' + hasher.hexdigest() == digest, 'download_digest_mismatch')
             # This wait is still inside the one operation deadline.
-            need(process.wait(timeout=remaining(self.deadline, self.clock)) == 0,
+            need(self.wait_for_exit() == 0,
                  'artifact_transport_failed')
-            remaining(self.deadline, self.clock)
+            self.check()
         # PrivateRoot.open flushes, fsyncs and closes on context exit.
-        remaining(self.deadline, self.clock)
+        self.check()
 
     def cleanup(self):
         if self.uncertain:
@@ -208,7 +268,8 @@ class _Download:
         return not failed
 
 
-def download_artifact_zip(api, artifact, destination, *, opener=None, clock=time.monotonic):
+def download_artifact_zip(api, artifact, destination, *, opener=None, clock=time.monotonic,
+                          deadline=None, check_active=None):
     """One supervised download; test-only opener launch adapters never bypass IPC.
 
     Synchronous OS launch/file I/O cannot be interrupted; late completion fails.
@@ -220,13 +281,23 @@ def download_artifact_zip(api, artifact, destination, *, opener=None, clock=time
          'invalid_download_metadata')
     need(type(api.token) is str and bool(api.token), 'missing_actions_read_token')
     need(bool(TRUSTED_STORAGE_HOSTS), 'storage_transport_unverified')
-    owner = _Download(clock() + TOTAL_TIMEOUT, clock)
+    need(deadline is None or type(deadline) is int or
+         (type(deadline) is float and math.isfinite(deadline)), 'invalid_transport_deadline')
+    need(check_active is None or callable(check_active), 'artifact_transport_failed')
+    started = clock()
+    if deadline is not None:
+        # Compare before arithmetic: arbitrarily large built-in integers are valid.
+        need(deadline > started, 'transport_deadline_exceeded')
+    effective = started + TOTAL_TIMEOUT if deadline is None else min(deadline, started + TOTAL_TIMEOUT)
+    owner = _Download(effective, clock, check_active, shared=deadline is not None)
     code, cancellation = None, None
     try:
         need(len(api.token) <= wire.MAX_REQUEST, 'invalid_transport_ipc')
         raw = json.dumps({'id': ident, 'size': size, 'token': api.token},
                          ensure_ascii=True, separators=(',', ':')).encode('ascii')
         need(len(raw) <= wire.MAX_REQUEST, 'invalid_transport_ipc')
+        if owner.shared:
+            owner.check()
         owner.start(opener)
         owner.exchange(raw, size, digest, destination)
     except ConsumerError as error:
@@ -240,6 +311,15 @@ def download_artifact_zip(api, artifact, destination, *, opener=None, clock=time
         failure = ConsumerError('transport_cleanup_uncertain')
         failure.original_error_code = code or ('transport_cancelled' if cancellation else 'artifact_transport_failed')
         raise failure
+    if code is None and cancellation is None and not owner.escalated:
+        try:
+            owner.check()
+        except ConsumerError as error:
+            code = _safe_code(error)
+        except (KeyboardInterrupt, SystemExit) as error:
+            cancellation = type(error)
+        except BaseException:
+            code = 'artifact_transport_failed'
     if cancellation is SystemExit:
         raise SystemExit(1)  # Cancellation must not turn the CLI exit status into success.
     if cancellation:

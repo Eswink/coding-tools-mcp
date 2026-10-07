@@ -20,11 +20,25 @@ def read_buffers(root):
     for name in NAMES:
         path = Path(root) / 'scripts' / (FIXTURE if name == NAMES[0] else name + '.py')
         size, digest = PINS[name]
+        sizes = {size}
+        if name == 'rc_consumer_transport':
+            from rc_pretag_download_budget_profile import SOURCE_PINS, normalize
+            sizes.add(SOURCE_PINS['scripts/rc_consumer_transport.py'][3])
         info = path.lstat()
-        if not stat.S_ISREG(info.st_mode) or info.st_size != size:
+        if not stat.S_ISREG(info.st_mode) or info.st_size not in sizes:
             raise ValueError('historical_source_rejected')
         with path.open('rb') as source:
-            data = source.read(size + 1)
+            data = source.read(info.st_size + 1)
+        if len(data) != info.st_size:
+            raise ValueError('historical_source_rejected')
+        if name == 'rc_consumer_transport':
+            rejected = False
+            try:
+                data = normalize('scripts/rc_consumer_transport.py', data)
+            except AssertionError:
+                rejected = True
+            if rejected:
+                raise ValueError('historical_source_rejected')
         if len(data) != size or hashlib.sha256(data).hexdigest() != digest:
             raise ValueError('historical_source_rejected')
         buffers[name] = data

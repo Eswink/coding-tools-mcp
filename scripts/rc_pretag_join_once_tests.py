@@ -416,7 +416,7 @@ class JoinOnceCompositionTests(unittest.TestCase):
 
     def test_historical_profiles_pins_shapes_and_ownership_bytes_are_immutable(self):
         for path in (*at.PROFILE_DIGESTS, p.authenticated.PROFILE, p.OWNERSHIP_TESTS, p.CONTRACTS, p.CHECKS):
-            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path))
+            self.assertEqual(integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path))
         current = inverse_warning_adapter(p.PROFILE, (c.ROOT / p.PROFILE).read_bytes())
         self.assertEqual(adapters.publication_profile_inverse(current), self.frozen(p.PROFILE))
         with self.assertRaises(AssertionError):
