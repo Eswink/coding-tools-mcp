@@ -9,11 +9,9 @@ from pathlib import Path
 import re
 import stat
 import subprocess
-import tomllib
 
 import exact_build_audit as exact
-import verify_glib_backport as glib
-from rc_version_gate import project_versions
+from desktop_glib_file_census import file_identity, verify_alias_census
 
 need = exact.need
 TARGET = 'x86_64-unknown-linux-gnu'
@@ -34,6 +32,7 @@ SOURCE_INPUTS = (
     'scripts/desktop_glib_build_evidence.py', 'scripts/desktop_glib_build_contract.py',
     'scripts/desktop_glib_deb.py', 'scripts/desktop_glib_link.py',
     'scripts/desktop_glib_probes.py',
+    'scripts/desktop_glib_file_census.py',
     '.github/workflows/' + WORKFLOW)
 
 FILES = {'upstream.crate', 'advisory-clone.stdout', 'advisory-clone.stderr',
@@ -44,6 +43,12 @@ FILES = {'upstream.crate', 'advisory-clone.stdout', 'advisory-clone.stderr',
     'selected-tree.stderr', 'runner-config.json', 'runner-start.json', 'build.jsonl',
     'build.stderr', 'cargo-exit.json', 'desktop.elf', 'glib.rlib', 'compiler-copies.json',
     'tauri.stdout', 'tauri.stderr', 'desktop.deb'}
+
+
+def __getattr__(name):
+    if name != 'glib': raise AttributeError(name)
+    import verify_glib_backport
+    return verify_glib_backport
 
 
 def clean_git_environment():
@@ -74,10 +79,6 @@ def parent_descriptor(path):
         yield fd, path.name
     finally:
         os.close(fd)
-
-
-def file_identity(s):
-    return (s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns, s.st_ctime_ns, s.st_nlink)
 
 
 @contextlib.contextmanager
@@ -124,19 +125,16 @@ def stable_file(path, root, limit=MAX_BINARY, allow_hardlinks=False):
     with regular_descriptor(path, limit, single_link=not allow_hardlinks) as (fd, before):
         need(before.st_uid == os.getuid(), 'wrong_file_owner')
         if before.st_nlink > 1:
-            aliases = 0
-            for base, dirs, files in os.walk(root, followlinks=False):
-                need(all(not (Path(base) / d).is_symlink() for d in dirs), 'linked_target_directory')
-                for name in files:
-                    item = (Path(base) / name).stat(follow_symlinks=False)
-                    if (item.st_dev, item.st_ino) == (before.st_dev, before.st_ino): aliases += 1
-            need(aliases == before.st_nlink, 'hardlink_alias_outside_target')
+            verify_alias_census(fd, before, root)
         h, size = hashlib.sha256(), 0
         while chunk := os.read(fd, 1024**2):
             size += len(chunk)
             need(size <= limit, 'file_resource_limit')
             h.update(chunk)
         need(size == before.st_size, 'file_read_size_changed')
+        with parent_descriptor(path) as (parent, name):
+            need(file_identity(os.stat(name, dir_fd=parent, follow_symlinks=False)) ==
+                 file_identity(before), 'named_target_changed_during_read')
         return {'sha256': h.hexdigest(), 'size': size}
 
 def copy_regular(source, destination, limit=MAX_BINARY):
@@ -194,6 +192,7 @@ exclusive_json = write_json
 
 
 def source_identity(root, sha):
+    from rc_version_gate import project_versions
     need(re.fullmatch('[0-9a-f]{40}', sha or ''), 'invalid_source_sha')
     need(git(root, 'rev-parse', 'HEAD') == sha, 'wrong_source_sha')
     need(not git(root, 'status', '--porcelain', '--untracked-files=all'), 'unclean_source')
@@ -227,6 +226,7 @@ def cargo_arguments():
 
 
 def verify_compiler_events(metadata, selected_text, build_bytes, source_root, target_dir):
+    import verify_glib_backport as glib
     by_id, by_display, _ = exact.package_maps(metadata, {'package': metadata['packages']})
     selected = exact.tree_packages(selected_text, by_display)
     root = metadata.get('resolve', {}).get('root')
@@ -320,6 +320,8 @@ def evidence_inventory(directory):
 
 
 def verify_paired_source(root, directory, envelope):
+    import tomllib
+    import verify_glib_backport as glib
     source = glib.verify_source(root, directory / 'upstream.crate')
     manifests = glib.verify_configuration(root, {})
     lock = tomllib.loads(read_regular(root / 'src-tauri/Cargo.lock').decode())
@@ -359,7 +361,7 @@ def verify_paired_source(root, directory, envelope):
     return {**source, **paired}
 
 
-def verify_runner_receipts(directory, e, events, root_record, glib_record):
+def verify_runner_receipts(directory, e, events, root_record, glib_record, profile=None):
     source, target, evidence = (e[k] for k in ('source_root', 'target_dir', 'evidence_root'))
     paths = [Path(p) for p in (source, target, evidence)]
     need(all(p.is_absolute() and '..' not in p.parts and len(str(p).encode()) <= 1024 for p in paths)
@@ -369,6 +371,9 @@ def verify_runner_receipts(directory, e, events, root_record, glib_record):
         evidence_root=evidence, evidence_dir=evidence + '/traces', real_cargo=e['tools']['cargo']['path'],
         real_cargo_sha256=e['tools']['cargo']['sha256'], real_rustc=e['tools']['rustc']['path'],
         real_rustc_sha256=e['tools']['rustc']['sha256'])
+    if profile is not None:
+        need(profile == 'linux-engineering-packages-v1', 'unknown_runner_profile')
+        config['profile'] = profile
     receipts = {'runner-config.json': config,
         'runner-start.json': {'arguments': cargo_arguments(), 'cwd': source + '/src-tauri'},
         'cargo-exit.json': {'exit': 0},
@@ -437,6 +442,18 @@ def verify(root, directory, sha, expected_producer, trusted_digest):
          acquisition['exit'] == 0 and type(acquisition.get('started_ns')) is int and
          type(acquisition.get('finished_ns')) is int and 0 < acquisition['started_ns'] <= acquisition['finished_ns'],
          'wrong_advisory_acquisition')
+    paired, lineage, package = verify_compiler_payload(root, directory, sha, source, e)
+    return dict(**source, **FLAGS, producer=expected_producer, envelope_sha256=trusted_digest,
+        desktop_compiler_input_to_deb_binding_verified=True, compiler_input_provenance=lineage,
+        deb=package, paired_source=paired,
+        limitations=['native linker consumption and retained GLib code unproven',
+                     'installed/native/system-library/security/release acceptance unproven'])
+
+
+def verify_compiler_payload(root, directory, sha, source, e, profile=None):
+    import tomllib
+    from desktop_glib_deb import verify_deb
+    from desktop_glib_link import verify_link_trace
     paired = verify_paired_source(root, directory, e)
     metadata = decode(read_regular(directory / 'metadata.json'))
     events = verify_compiler_events(metadata,
@@ -444,7 +461,7 @@ def verify(root, directory, sha, expected_producer, trusted_digest):
         e['source_root'], e['target_dir'])
     root_record = file_record(directory / 'desktop.elf')
     glib_record = file_record(directory / 'glib.rlib', 128 * 1024**2)
-    verify_runner_receipts(directory, e, events, root_record, glib_record)
+    verify_runner_receipts(directory, e, events, root_record, glib_record, profile)
     trace_paths = sorted((directory / 'traces').glob('*.json'))
     traces = [decode(read_regular(p, 4 * 1024**2)) for p in trace_paths]
     need(all(p.name == 'rustc-' + str(t.get('id')) + '.json' for p, t in zip(trace_paths, traces)),
@@ -472,8 +489,4 @@ def verify(root, directory, sha, expected_producer, trusted_digest):
             'lock_packages': tomllib.loads(read_regular(root / 'src-tauri/Cargo.lock').decode())['package']}))
     package = verify_deb(read_regular(directory / 'desktop.elf', MAX_BINARY),
                          read_regular(directory / 'desktop.deb', MAX_BINARY), source['version'])
-    return dict(**source, **FLAGS, producer=expected_producer, envelope_sha256=trusted_digest,
-        desktop_compiler_input_to_deb_binding_verified=True, compiler_input_provenance=lineage,
-        deb=package, paired_source=paired,
-        limitations=['native linker consumption and retained GLib code unproven',
-                     'installed/native/system-library/security/release acceptance unproven'])
+    return paired, lineage, package
