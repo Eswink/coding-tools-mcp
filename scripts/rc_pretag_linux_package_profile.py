@@ -166,6 +166,10 @@ def content(ref, root, git, entries, historical, release, release_tree, document
 
 def select(ref, root, git, entries, historical, release, release_tree, documents):
     """Topology mismatch alone may delegate; selected content failure is terminal."""
+    import rc_pretag_yoke_repair_profile as yoke
+    selected = yoke.select(ref, root, git, entries, historical, release, release_tree, documents)
+    if selected is not None:
+        return selected
     try:
         kind, tip, source = topology(ref, root, git, release)
     except o.TopologyError:
