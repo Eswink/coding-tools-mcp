@@ -56,7 +56,7 @@ class ExecutorCases(unittest.TestCase):
                     self.assertEqual(session.outcome, 'blocked_no_effect')
                     self.assertIsNone(session.transition)
                     stage.assert_not_called()
-                    self.assertEqual([r[1] for r in tls.requests], [] if patched else tls.expected_paths)
+                    self.assertEqual([r[1] for r in tls.requests], [] if patched else tls.packaging_paths)
                     self.assertTrue(all(r[0] == 'GET' and r[3] == b'' for r in tls.requests))
                     self.assertEqual(self.mutations(tls), [])
                     session.close()
