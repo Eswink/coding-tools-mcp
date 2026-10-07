@@ -76,6 +76,7 @@ def inverse_adapter(path, current, frozen):
 
 def inverse_ownership(current, frozen):
     assert p.OWNERSHIP_PINS.keys() == {p.OWNERSHIP_TESTS} and (len(frozen), len(frozen.splitlines())) == (22471, 372)
+    current = integration_bytes(p.OWNERSHIP_TESTS, current)
     return inverse_adapter(p.OWNERSHIP_TESTS, current, frozen)
 # END EXACT M PUBLICATION ADAPTERS
 

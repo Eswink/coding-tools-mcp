@@ -17,6 +17,7 @@ import rc_pretag_collect as collect
 import rc_pretag_collection_result as result
 import rc_pretag_collect_fixtures as fixtures
 from rc_consumer_io_ownership_tests import load_current
+from rc_pretag_integration_admission_profile import normalize as integration_bytes
 
 
 class OwnershipCompositionTests(unittest.TestCase):
@@ -26,7 +27,7 @@ class OwnershipCompositionTests(unittest.TestCase):
         frozen = c._entries(c.publication.N, self.repo)
         for path in o.CAPS:
             self.good[path] = frozen[path] if path in (o.CHECKS, c.publication.OWNERSHIP_TESTS) else (
-                '100644', 'blob', self.blob((c.ROOT / path).read_bytes()))
+                '100644', 'blob', self.blob(integration_bytes(path, (c.ROOT / path).read_bytes())))
         self.pure = self.commit([o.M], self.good)
 
     def content(self, ref):
@@ -61,7 +62,7 @@ class OwnershipCompositionTests(unittest.TestCase):
         self.assertEqual((len(c.ALLOWED), len(o.CAPS), len(c.ALLOWED | o.CAPS.keys())), (22, 13, 32))
         with self.assertRaises(o.TopologyError): self.selected(o.M)
         for path, pin in o.NEW_PINS.items():
-            data = (c.ROOT / path).read_bytes()
+            data = integration_bytes(path, (c.ROOT / path).read_bytes())
             if path == o.CHECKS: data = c.publication.timeout_inverse(path, data)
             self.assertEqual(o.pin(data), pin)
 
