@@ -225,14 +225,14 @@ class CompositionTests(unittest.TestCase):
         path = 'scripts/rc_artifact_consumer.py'
         original = _git('show', BASE + ':' + path)
         self.assertEqual((_blob(original), hashlib.sha256(original).hexdigest()), NARROW[path])
-        self.assertEqual(_reconstruct_consumer((ROOT / path).read_bytes().decode('utf-8')).encode(), original)
+        self.assertEqual(_reconstruct_consumer(integration_bytes(path, (ROOT / path).read_bytes()).decode('utf-8')).encode(), original)
 
     def test_extraction_mutations_do_not_reconstruct_j(self):
         text = (ROOT / 'scripts/rc_consumer_snapshot.py').read_bytes().decode('utf-8')
         for statement in PURE_VALIDATION:
             with self.assertRaises(AssertionError):
                 _reconstruct_snapshot(_replace_once(text, SNAPSHOT_EXTRA, SNAPSHOT_EXTRA.replace(statement, '')))
-        text = (ROOT / 'scripts/rc_artifact_consumer.py').read_bytes().decode('utf-8')
+        text = integration_bytes('scripts/rc_artifact_consumer.py', (ROOT / 'scripts/rc_artifact_consumer.py').read_bytes()).decode('utf-8')
         for statement in BYTE_BODY.splitlines(True):
             with self.assertRaises(AssertionError):
                 _reconstruct_consumer(_replace_once(text, BYTE_HELPER, BYTE_HELPER.replace(statement, '')))

@@ -131,6 +131,8 @@ DIGEST = 'e0f978c8fdf0a62c067208a2e49977279c993e421805b5887ac9ef402a3b7252'
 def normalize(path, current):
     """Reverse only sealed new bytes; historical passthrough is a finite pin list."""
     assert type(path) is str and type(current) is bytes, 'download inverse input'
+    from rc_pretag_staging_budget_profile import normalize as staging_bytes
+    current = staging_bytes(path, current)
     if path not in BASE_PINS:
         return current
     identity = o.pin(current)
@@ -200,6 +202,10 @@ def content(ref, root, git, entries, historical, release, release_tree, document
 def select(ref, root, git, entries, historical, release, release_tree, documents):
     """Only topology mismatch delegates; selected and historical content errors escape."""
     ref = o._commit(ref, root, git)
+    import rc_pretag_staging_budget_profile as staging
+    selected = staging.select(ref, root, git, entries, historical, release, release_tree, documents)
+    if selected is not None:
+        return selected
     try:
         kind, tip, source = topology(ref, root, git, release)
     except o.TopologyError:

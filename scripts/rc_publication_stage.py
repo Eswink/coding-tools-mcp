@@ -198,13 +198,15 @@ def _provenance(s, observation, content, value):
 
 
 class StagedAssets:
-    def __init__(self, root, selection, api, temporary_parent):
+    def __init__(self, root, selection, api, temporary_parent, *, deadline=None, check_active=None):
         need(type(selection) is Selection, 'invalid_publication_selection')
         self._selection = deepcopy(selection)
         self._selection.__post_init__()
         self.subject, self._root, self._api = self._selection.subject, Path(root), api
         self._parent, self._stack, self._roots, self._handles = temporary_parent, ExitStack(), [], []
         self._entered = self._closed = False
+        self._deadline, self._check_active = deadline, check_active
+        self._cleanup_failed = False
 
     def __enter__(self):
         need(not self._entered and not self._closed, 'stage_lifetime')
@@ -216,7 +218,9 @@ class StagedAssets:
                 self._roots.append(root)
                 return root
             receipt_download, receipts, download, bundle, cloud, self._output = (fresh() for _ in range(6))
-            path = consumer.transport.download_artifact_zip(self._api, self._observation[3], receipt_download)
+            budget = {} if self._deadline is None and self._check_active is None else dict(
+                deadline=self._deadline, check_active=self._check_active)
+            path = consumer.transport.download_artifact_zip(self._api, self._observation[3], receipt_download, **budget)
             snapshot._call(_receipts, path, receipts)
             self.plan_bytes, self.provenance_bytes = (receipts.read(name) for name in ('rc-asset-plan.json', 'RC_PROVENANCE.json'))
             need(hashlib.sha256(self.plan_bytes).hexdigest() == self.subject.plan_sha256, 'original_plan_digest_mismatch')
@@ -224,7 +228,7 @@ class StagedAssets:
             runs, metadata, _, _ = self._observation
             producer = snapshot.derive_final_producer(dict(source_sha=self.subject.source.source_sha,
                 source_tree=self.subject.source.source_tree, version=self.subject.source.version), runs, metadata)
-            content = consumer._verify_bundle_bytes(self._root, self._api, runs, metadata, producer, download, bundle, cloud)
+            content = consumer._verify_bundle_bytes(self._root, self._api, runs, metadata, producer, download, bundle, cloud, **budget)
             snapshot._call(_provenance, self.subject, self._observation, content, provenance)
             fixed = (*consumer.payloads(producer.version), ('RC_PROVENANCE.json', 'provenance', 'application/json'),
                      (f'SHA256SUMS_{producer.version}.txt', 'checksums', 'text/plain'))
@@ -241,8 +245,20 @@ class StagedAssets:
             self._identities = tuple((os.fstat(h.fileno()).st_dev, os.fstat(h.fileno()).st_ino) for h in self._handles)
             self.revalidate()
             return self
-        except BaseException:
-            self.close()
+        except BaseException as error:
+            uncertain = False
+            try:
+                code = error.code if isinstance(error, ConsumerError) else None
+                uncertain = type(code) is str and code == 'transport_cleanup_uncertain'
+            except BaseException:
+                pass
+            if uncertain:
+                self._cleanup_failed = True
+            try:
+                self.close()
+            except BaseException:
+                if not uncertain:
+                    raise
             raise
 
     def revalidate(self):
@@ -285,11 +301,15 @@ class StagedAssets:
     def close(self):
         if not self._closed:
             self._closed = True
-            self._stack.close()
+            try:
+                self._stack.close()
+            except BaseException:
+                self._cleanup_failed = True
+                raise
 
     def __exit__(self, *_):
         self.close()
 
 
-def stage_selected(root, selection, api, *, temporary_parent):
-    return StagedAssets(root, selection, api, temporary_parent)
+def stage_selected(root, selection, api, *, temporary_parent, deadline=None, check_active=None):
+    return StagedAssets(root, selection, api, temporary_parent, deadline=deadline, check_active=check_active)

@@ -164,8 +164,10 @@ def make_asset_plan(snapshot_value, content, bundle, output, receipts):
     return plan
 
 
-def _verify_bundle_bytes(root, api, selection, metadata, producer, download, bundle, cloud, *, opener=None):
-    path = transport.download_artifact_zip(api, metadata, download, opener=opener)
+def _verify_bundle_bytes(root, api, selection, metadata, producer, download, bundle, cloud, *,
+                         opener=None, deadline=None, check_active=None):
+    budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
+    path = transport.download_artifact_zip(api, metadata, download, opener=opener, **budget)
     snapshot.revalidate_download(api, selection, metadata)
     archive.extract_bounded_zip(path, bundle, [name for name, _, _ in payloads(producer.version)])
     archive.verify_checksum_inventory(bundle)
