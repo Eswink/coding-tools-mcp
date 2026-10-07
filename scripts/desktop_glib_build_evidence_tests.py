@@ -15,6 +15,7 @@ from unittest import mock
 
 import desktop_glib_build_contract as c
 import desktop_glib_build_evidence as producer
+import desktop_glib_file_census_cases as census_cases
 import verify_glib_backport_tests as source_tests
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -158,6 +159,7 @@ class JsonAndOwnershipTests(unittest.TestCase):
         os.link(self.path, self.root / 'second')
         with self.assertRaises(ValueError): c.read_regular(self.path)
         self.assertEqual(c.stable_file(self.path, self.root, 100, allow_hardlinks=True)['size'], 8)
+        census_cases.recovery_cases(self)
 
     def test_hardlink_outside_target_rejects(self):
         target = self.root / 'target'
@@ -166,6 +168,7 @@ class JsonAndOwnershipTests(unittest.TestCase):
         os.link(self.path, inside)
         with self.assertRaisesRegex(ValueError, 'outside_target'):
             c.stable_file(inside, target, 100, allow_hardlinks=True)
+        census_cases.rejection_cases(self)
 
     def test_copy_refuses_existing_destination(self):
         with self.assertRaises(FileExistsError): c.copy_regular(self.path, self.path)
@@ -183,6 +186,7 @@ class JsonAndOwnershipTests(unittest.TestCase):
         self.path.write_bytes(b'other-values')
         self.assertEqual(before['size'], self.path.stat().st_size)
         self.assertNotEqual(before['sha256'], c.file_record(self.path)['sha256'])
+        census_cases.named_replacement_case(self)
 
     def test_file_size_and_root_boundaries(self):
         with self.assertRaises(ValueError): c.read_regular(self.path, 2)
