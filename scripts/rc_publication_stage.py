@@ -18,6 +18,7 @@ import rc_consumer_snapshot as snapshot
 from rc_consumer_io import (CHUNK, FILE_LIMIT, JSON_LIMIT, ConsumerError, PrivateRoot,
                             _check_budget, json_file, need, open_file)
 from rc_publication_contract import Asset, AssetPlanView, PublicationSubject
+from rc_publication_retirement import StageRootOwner, retire_staged
 
 RECEIPT_LIMIT = 64 * 1024**2
 CONSUME_JOB = 'Read-only authenticated FINAL bytes and sanitized plan'
@@ -218,6 +219,7 @@ class StagedAssets:
         self._entered = self._closed = False
         self._deadline, self._check_active = deadline, check_active
         self._cleanup_failed = False
+        self._retirements = []
 
     def __enter__(self):
         need(not self._entered and not self._closed, 'stage_lifetime')
@@ -225,7 +227,11 @@ class StagedAssets:
         try:
             self._observation = snapshot._call(_observe, self._root, self._selection, self._api)
             def fresh():
-                root = self._stack.enter_context(PrivateRoot(self._parent, 'rc-publisher-', source_root=self._root))
+                owned = StageRootOwner()
+                self._retirements.append(owned)
+                root = self._stack.enter_context(PrivateRoot(self._parent, 'rc-publisher-',
+                    source_root=self._root, _stage_owner=owned))
+                owned.registered = True
                 self._roots.append(root)
                 return root
             receipt_download, receipts, download, bundle, cloud, self._output = (fresh() for _ in range(6))
@@ -315,7 +321,7 @@ class StagedAssets:
                  and info.st_uid == os.geteuid() and stat.S_IMODE(info.st_mode) == 0o600
                  and (info.st_dev, info.st_ino) == self._identities[ordinal] == (path.st_dev, path.st_ino), 'staged_handle_changed')
         finally:
-            os.close(root_fd)
+            self._output._retirement_close(root_fd)
 
     def stream(self, ordinal):
         need(type(ordinal) is int and 0 <= ordinal < 6 and self._entered and not self._closed, 'invalid_stage_stream')
@@ -333,6 +339,12 @@ class StagedAssets:
             except BaseException:
                 self._cleanup_failed = True
                 raise
+            finally:
+                try:
+                    retire_staged(self._retirements, retain=self._cleanup_failed)
+                except BaseException:
+                    self._cleanup_failed = True
+                    raise
 
     def __exit__(self, *_):
         self.close()

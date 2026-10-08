@@ -303,6 +303,8 @@ class StageCases(unittest.TestCase):
                 with self.assertRaises(ConsumerError): owner.revalidate()
                 if mode != 'extra':
                     with self.assertRaises(ConsumerError): owner.stream(0)
+                with self.assertRaisesRegex(ConsumerError, '^stage_retirement_failed$'):
+                    owner.close()
 
     def test_inplace_size_and_hash_drift_rejects(self):
         for data in (b'x', None):

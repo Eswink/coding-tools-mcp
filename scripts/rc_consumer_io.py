@@ -190,11 +190,17 @@ class PrivateRoot:
     Payloads stay 0600. The path is exposed solely for unchanged reviewed helpers;
     callers must not run concurrent writers or delegate this private directory.
     """
-    def __init__(self, parent, prefix='rc-consumer-', *, source_root=None):
+    def __init__(self, parent, prefix='rc-consumer-', *, source_root=None, _stage_owner=None):
         self.fd = None
         self.path = None
         self._dirs = {}
         self._files = {}
+        self._stage_owner = owner = _stage_owner
+        if owner is not None:
+            from rc_publication_retirement import StageRootOwner
+            need(type(owner) is StageRootOwner, 'invalid_stage_owner')
+            owner.attach(self)
+        close = self._retirement_close
         parent = _absolute(parent)
         source = _absolute(source_root or Path(__file__).absolute().parents[1])
         need(os.path.commonpath((source, parent)) != source, 'root_inside_source')
@@ -206,23 +212,29 @@ class PrivateRoot:
                 # Nofollow traversal makes lexical and actual ancestry identical.
                 need(os.path.realpath(parent) == parent, 'unsafe_root_parent')
                 name = prefix + secrets.token_hex(16)
+                if owner is not None:
+                    owner.parent(parent_fd, name)
                 os.mkdir(name, 0o700, dir_fd=parent_fd)
                 root_fd = os.open(name, DIR_FLAGS, dir_fd=parent_fd)
                 self.path = Path(parent) / name
                 self._dirs[''] = self._identity(root_fd)
+                if owner is not None:
+                    owner.directory('', root_fd, parent_fd, name)
                 closing, parent_fd = parent_fd, None
-                os.close(closing)
+                close(closing)
                 self.fd, root_fd = root_fd, None
             finally:
                 try:
                     if root_fd is not None:
                         closing, root_fd = root_fd, None
-                        os.close(closing)
+                        close(closing)
                 finally:
                     if parent_fd is not None:
                         closing, parent_fd = parent_fd, None
-                        os.close(closing)
+                        close(closing)
         except OSError:
+            if owner is not None:
+                owner.uncertain = True
             raise ConsumerError('unsafe_root_parent') from None
 
     @staticmethod
@@ -234,15 +246,21 @@ class PrivateRoot:
 
     def _root(self):
         need(self.fd is not None, 'private_root_closed')
-        fd = _directory(self.path)
+        fd = None
         try:
+            fd = _directory(self.path)
             need(self._identity(fd) == self._dirs[''], 'private_root_replaced')
             return fd
         except BaseException:
-            os.close(fd)
+            if fd is not None:
+                self._retirement_close(fd)
+            elif getattr(self, '_stage_owner', None) is not None:
+                self._stage_owner.uncertain = True
             raise
 
     def _parent(self, name, create=False):
+        owner = getattr(self, '_stage_owner', None)
+        close = self._retirement_close
         parts = safe_relative(name).split('/')
         fd = self._root()
         walked = []
@@ -252,13 +270,17 @@ class PrivateRoot:
                 relative = '/'.join(walked)
                 if relative not in self._dirs:
                     need(create, 'unknown_private_directory')
+                    if owner is not None:
+                        owner.reserve(relative, 'directory')
                     os.mkdir(part, 0o700, dir_fd=fd)
                     child = os.open(part, DIR_FLAGS, dir_fd=fd)
                     try:
                         self._dirs[relative] = self._identity(child)
+                        if owner is not None:
+                            owner.directory(relative, child, fd, part)
                     except BaseException:
                         closing, child = child, None
-                        os.close(closing)
+                        close(closing)
                         raise
                 else:
                     child = os.open(part, DIR_FLAGS, dir_fd=fd)
@@ -266,35 +288,41 @@ class PrivateRoot:
                         need(self._identity(child) == self._dirs[relative], 'private_directory_replaced')
                     except BaseException:
                         closing, child = child, None
-                        os.close(closing)
+                        close(closing)
                         raise
                 previous, fd = fd, child
-                os.close(previous)
+                close(previous)
             return fd, parts[-1]
         except BaseException:
             closing, fd = fd, None
-            os.close(closing)
+            close(closing)
             raise
 
     def mkdir(self, relative):
         try:
             fd, _ = self._parent(safe_relative(relative) + '/unused', create=True)
-            os.close(fd)
+            self._retirement_close(fd)
         except OSError:
             raise ConsumerError('unsafe_private_io') from None
 
     @contextmanager
     def open(self, relative, mode='rb'):
         need(mode in {'rb', 'xb'}, 'invalid_private_mode')
+        owner = getattr(self, '_stage_owner', None)
+        close = self._retirement_close
         fd = None
         try:
             parent, name = self._parent(relative, create=mode == 'xb')
             try:
                 flags = os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK
                 flags |= os.O_WRONLY | os.O_CREAT | os.O_EXCL if mode == 'xb' else os.O_RDONLY
+                if owner is not None and mode == 'xb':
+                    owner.reserve(relative, 'file')
                 fd = os.open(name, flags, 0o600, dir_fd=parent)
+                if owner is not None:
+                    owner.file(relative, fd, parent, name, mode)
             finally:
-                os.close(parent)
+                close(parent)
             info = os.fstat(fd)
             need(stat.S_ISREG(info.st_mode) and info.st_nlink == 1 and info.st_uid == os.geteuid()
                  and stat.S_IMODE(info.st_mode) == 0o600, 'unsafe_private_file')
@@ -303,9 +331,16 @@ class PrivateRoot:
                 self._files[relative] = identity
             else:
                 need(self._files.get(relative) == identity, 'private_file_replaced')
-            stream = os.fdopen(fd, mode)
-            fd = None
-            with stream:
+            stream = os.fdopen(fd, mode) if owner is None else os.fdopen(fd, mode, closefd=False)
+            owned, fd = fd, None
+            context = stream
+            if owner is not None:
+                try:
+                    context = owner.stream(stream, owned)
+                except BaseException:
+                    owner.close_stream(stream, owned)
+                    raise
+            with context:
                 yield stream
                 if mode == 'xb':
                     stream.flush()
@@ -314,7 +349,7 @@ class PrivateRoot:
             raise ConsumerError('unsafe_private_io') from None
         finally:
             if fd is not None:
-                os.close(fd)
+                close(fd)
 
     def read(self, relative, limit=JSON_LIMIT):
         need(type(limit) is int and 0 <= limit <= FILE_LIMIT, 'invalid_read_limit')
@@ -362,7 +397,7 @@ class PrivateRoot:
                         need(self._identity(child) == self._dirs.get(relative), 'private_directory_replaced')
                         visit(child, relative + '/')
                     finally:
-                        os.close(child)
+                        self._retirement_close(child)
                 else:
                     with self.open(relative):
                         found.add(relative)
@@ -371,11 +406,15 @@ class PrivateRoot:
             try:
                 visit(fd, '')
             finally:
-                os.close(fd)
+                self._retirement_close(fd)
             need(found == set(self._files), 'private_inventory_changed')
             return tuple(sorted(found))
         except OSError:
             raise ConsumerError('unsafe_private_io') from None
+
+    def _retirement_close(self, fd):
+        owner = getattr(self, '_stage_owner', None)
+        return os.close(fd) if owner is None else owner.close_fd(fd)
 
     def close(self):
         owned, self.fd = self.fd, None

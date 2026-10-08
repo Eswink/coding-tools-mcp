@@ -353,6 +353,7 @@ class StagedBytesCases(unittest.TestCase):
             trace.hook = inventory_changed
             self.failure(lambda: owner.revalidate(**budget.controls), 'private_inventory_changed')
             self.assertEqual(inventory_fault, [budget.polls])
+            self.failure(owner.close, 'stage_retirement_failed')
 
     def test_activation_shares_budget_across_owned_byte_phases(self):
         with self.padded_session() as (session, _, fixture, seen), self.trace_calls() as trace:
@@ -494,7 +495,6 @@ class StagedBytesCases(unittest.TestCase):
                 self.assertTrue(all(handle.closed for handle in seen.stage._handles))
                 with self.assertRaises(wire.WireFailure) as failure: session.close()
                 self.assertEqual((failure.exception.code, failure.exception.effect), ('adapter_error', 'none'))
-
 
 if __name__ == '__main__':
     unittest.main()
