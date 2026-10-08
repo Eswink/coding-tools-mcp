@@ -257,13 +257,24 @@ def execute(command, root, env=None):
     return p.returncode, p.stdout, p.stderr
 
 
-def git(root, *args):
+def git(root, *args, deadline=None, check_active=None):
+    if deadline is not None or check_active is not None:
+        from rc_consumer_fixed_git import Reader
+        with Reader(root, deadline=deadline, check_active=check_active) as reader:
+            value = reader.read(*args)
+            reader.check()
+            return value
     code, out, _ = execute(["git", *args], root)
     need(code == 0, "git_identity_unavailable")
     return out.decode().strip()
 
 
-def source_identity(root, sha, version, target):
+def source_identity(root, sha, version, target, *, deadline=None, check_active=None):
+    if deadline is not None or check_active is not None:
+        need(re.fullmatch(r"[0-9a-f]{40}", sha), "invalid_expected_sha")
+        from rc_consumer_fixed_git import Reader
+        with Reader(root, deadline=deadline, check_active=check_active) as reader:
+            return _controlled_source_identity(root, sha, version, target, reader)
     need(re.fullmatch(r"[0-9a-f]{40}", sha), "invalid_expected_sha")
     need(git(root, "rev-parse", "HEAD") == sha, "wrong_checkout_sha")
     need(not git(root, "status", "--porcelain", "--untracked-files=all"), "unclean_source")
@@ -293,9 +304,34 @@ def database_identity(root):
     return {"commit": git(root, "rev-parse", "HEAD"), "tree": git(root, "rev-parse", "HEAD^{tree}"), "contents_sha256": h.hexdigest(), "origin": origin, "clean": True, "file_count": len(files)}
 
 
-def verify(root, evidence, sha, version, target, trusted_digest, binary_dir=None):
+def _controlled_source_identity(root, sha, version, target, reader):
+    need(re.fullmatch(r"[0-9a-f]{40}", sha), "invalid_expected_sha")
+    need(reader.read("rev-parse", "HEAD") == sha, "wrong_checkout_sha")
+    reader.check()
+    need(not reader.read("status", "--porcelain", "--untracked-files=all"), "unclean_source")
+    reader.check()
+    product = decode(read(root / "package.json"))
+    need(product.get("version") == version, "wrong_product_version")
+    need(target in ("x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"), "unsupported_shipping_target")
+    tree = reader.read("rev-parse", "HEAD^{tree}")
+    reader.check()
+    return {"sha": sha, "tree": tree, "manifest_sha256": digest(read(root / MANIFEST)), "lock_sha256": digest(read(root / LOCK)), "product_version": version, "target": target}
+
+
+def verify(root, evidence, sha, version, target, trusted_digest, binary_dir=None, *,
+           deadline=None, check_active=None):
+    if deadline is None and check_active is None:
+        return _verify(root, evidence, sha, version, target, trusted_digest, binary_dir)
+    need(re.fullmatch(r"[0-9a-f]{40}", sha), "invalid_expected_sha")
+    from rc_consumer_fixed_git import Reader
+    with Reader(root, deadline=deadline, check_active=check_active) as reader:
+        return _verify(root, evidence, sha, version, target, trusted_digest, binary_dir, reader)
+
+
+def _verify(root, evidence, sha, version, target, trusted_digest, binary_dir=None, reader=None):
     import tomllib
-    expected = source_identity(root, sha, version, target)
+    expected = (source_identity(root, sha, version, target) if reader is None else
+                _controlled_source_identity(root, sha, version, target, reader))
     envelope_bytes = read(evidence / "envelope.json")
     need(digest(envelope_bytes) == trusted_digest, "untrusted_envelope_digest")
     envelope = decode(envelope_bytes)
@@ -309,7 +345,9 @@ def verify(root, evidence, sha, version, target, trusted_digest, binary_dir=None
     metadata = decode(streams["metadata.json"])
     by_id, by_display, _ = package_maps(metadata, lock)
     selected = tree_packages(streams["selected-tree.txt"].decode(), by_display)
-    tracked = set(git(root, "ls-files").splitlines())
+    tracked = set((git(root, "ls-files") if reader is None else reader.read("ls-files")).splitlines())
+    if reader is not None:
+        reader.check()
     for pid in selected:
         package = by_id[pid]
         if package.get("source") is not None:

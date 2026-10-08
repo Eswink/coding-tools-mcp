@@ -21,7 +21,7 @@ jobs:
         with: {ref: '${{ github.sha }}', fetch-depth: 0, persist-credentials: false}
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with: {python-version: '3.12'}
-      - name: Admit exact source and execute the frozen three hundred nine cases
+      - name: Admit exact source and execute the frozen three hundred fifty seven cases
         shell: python
         run: |
           import hashlib, json, os, pathlib, platform, subprocess, sys, traceback, unittest
@@ -30,7 +30,8 @@ jobs:
               sys.path.insert(0, 'scripts')
               import rc_pretag_composition_tests as c
               import rc_pretag_publisher_executor_cases as x
-              import rc_pretag_stage_retirement_profile as profile; import rc_pretag_stage_retirement_cases as stage_retirement
+              import rc_pretag_git_budget_profile as profile; import rc_pretag_git_budget_cases as git_budget
+              import rc_pretag_stage_retirement_cases as stage_retirement
               import rc_pretag_integration_admission_cases as admission
               import rc_pretag_final_admission_cases as final_admission
               import rc_pretag_download_budget_cases as download_budget
@@ -149,6 +150,15 @@ jobs:
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'stage-retirement-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
               assert stage_retirement.execution_valid(loaded, result)
+              names = git_budget.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'git-budget-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'git-budget-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert git_budget.execution_valid(loaded, result)
               assert checked() == before and git('rev-parse', 'HEAD') == sha and git('rev-parse', 'HEAD^{tree}') == tree
               (evidence / 'source-after.json').write_text(json.dumps(binding | {'source_unchanged': True}, indent=2) + '\n', encoding='utf-8')
           except BaseException:
