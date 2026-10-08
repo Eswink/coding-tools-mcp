@@ -33,9 +33,11 @@ jobs:
           $sha=(git rev-parse HEAD).Trim(); if ($LASTEXITCODE -ne 0 -or $sha -cne $env:GITHUB_SHA) { throw 'source mismatch' }
           $tree=(git rev-parse 'HEAD^{tree}').Trim(); if ($LASTEXITCODE -ne 0) { throw 'tree read failed' }
           $parents=(git show -s --format=%P HEAD).Trim(); if ($LASTEXITCODE -ne 0) { throw 'parent read failed' }
-          $base='8d56fbc38910df36837e1865b4242d55ca2aa7c6'
+          $base='b9b4e666c8bfe8c52e35fba3974c935f927c4e2e'
           if ($base -cnotmatch '^[0-9a-f]{40}$' -or $parents -cne $base) { throw 'sealed reviewed launcher must be sole parent' }
-          if ((git rev-parse "$($base)^{tree}").Trim() -cne '6a40fb578e807ec8ce58eb309ae62707e1539b04' -or (git show -s --format=%P $base).Trim() -cne '750b11b20651b3f8bfadba69c19cb7eaf0c11e1e') { throw 'launcher correction parent mismatch' }
+          if ((git rev-parse "$($base)^{tree}").Trim() -cne '7faa17400b941a69f366f94e3fcf0272948c65de' -or (git show -s --format=%P $base).Trim() -cne '8d56fbc38910df36837e1865b4242d55ca2aa7c6') { throw 'launcher correction parent mismatch' }
+          $previous='8d56fbc38910df36837e1865b4242d55ca2aa7c6'
+          if ((git rev-parse "$($previous)^{tree}").Trim() -cne '6a40fb578e807ec8ce58eb309ae62707e1539b04' -or (git show -s --format=%P $previous).Trim() -cne '750b11b20651b3f8bfadba69c19cb7eaf0c11e1e') { throw 'launcher previous correction mismatch' }
           $origin='750b11b20651b3f8bfadba69c19cb7eaf0c11e1e'
           if ((git rev-parse "$($origin)^{tree}").Trim() -cne 'fea18888f3560939915d1ff49439cc9b92e5b4d9' -or (git show -s --format=%P $origin).Trim() -cne '13cd343d942b7a68912d42a8f9235c02ed647764') { throw 'launcher correction origin mismatch' }
           & "$env:SystemRoot/System32/cmd.exe" /d /c "git cat-file commit HEAD > `"$evidence/source-commit.txt`""

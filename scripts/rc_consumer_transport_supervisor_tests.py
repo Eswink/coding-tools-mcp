@@ -50,13 +50,16 @@ def fixture_worker(config):
         sys.stdout.buffer.flush()
         return 1
     wire.TRUSTED_STORAGE_HOSTS = frozenset({HOST})
-    wire.READ_TIMEOUT = 0.10
+    # The fixed parent budget owns local slow-phase expiry before per-I/O timeout.
+    wire.READ_TIMEOUT = 1.0 if mode.startswith('local_') else 0.10
     observed = {'requests': [], 'closed': []}
     def record():
         raw = json.dumps(observed).encode()
         assert len(raw) <= 131072
-        with (config.parent / 'observed.json').open('wb') as stream:
+        pending = config.parent / 'observed.pending'
+        with pending.open('wb') as stream:
             assert stream.write(raw) == len(raw)
+        os.replace(pending, config.parent / 'observed.json')
     class ChildOpener:
         def open(self, request, timeout):
             index = len(observed['requests'])
