@@ -4,6 +4,7 @@ import hashlib
 from pathlib import Path
 import tempfile
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -42,11 +43,32 @@ class GitBudgetWiringCases(unittest.TestCase):
                 seen.append((name, kwargs.copy()))
                 return original(*args, **kwargs)
             return call
-        with ExitStack() as stack:
-            for obj, name in ((consumer, '_verify_bundle_bytes'), (contracts, 'verify_consumed_bundle'),
-                    (contracts, 'verify_consumed_cloud'), (dependency, 'verify_build'), (exact, 'verify'),
-                    (fixed.Reader, '__init__')):
-                stack.enter_context(patch.object(obj, name, capture(obj, name)))
+        original = consumer._verify_bundle_bytes
+        def bundle(*args, **kwargs):
+            seen.append(('_verify_bundle_bytes', kwargs.copy()))
+            with ExitStack() as stack:
+                for obj, name in ((contracts, 'verify_consumed_bundle'),
+                        (contracts, 'verify_consumed_cloud'), (dependency, 'verify_build'),
+                        (exact, 'verify'), (fixed.Reader, '__init__')):
+                    stack.enter_context(patch.object(obj, name, capture(obj, name)))
+                return original(*args, **kwargs)
+        with patch.object(consumer, '_verify_bundle_bytes', bundle):
+            yield seen
+
+    @contextmanager
+    def bundle_git(self, script=None, **options):
+        seen = SimpleNamespace(calls=[], children=[], wrappers=[])
+        original = consumer._verify_bundle_bytes
+        def bundle(*args, **kwargs):
+            context = record_git() if script is None else fault_child(script, **options)
+            with context as current:
+                try:
+                    return original(*args, **kwargs)
+                finally:
+                    for name in ('calls', 'children', 'wrappers'):
+                        getattr(seen, name).extend(getattr(current, name, ()))
+                    if script is not None: reaped(self, current.children)
+        with patch.object(consumer, '_verify_bundle_bytes', bundle):
             yield seen
 
     def snapshot(self, roots):
@@ -66,7 +88,7 @@ class GitBudgetWiringCases(unittest.TestCase):
     def test_same_deadline_and_callback_identities_cross_every_runtime_boundary(self):
         with publisher_fixture() as fixture, artifact_worker(fixture):
             deadline, callback = time.monotonic() + 60, lambda: None
-            with self.chain() as seen, record_git() as children:
+            with self.chain() as seen, self.bundle_git() as children:
                 owner = stage.stage_selected(fixture.root, fixture.selection, fixture.api,
                     temporary_parent=fixture.parent, deadline=deadline, check_active=callback)
                 try:
@@ -180,7 +202,7 @@ class GitBudgetWiringCases(unittest.TestCase):
             def cancel(process):
                 session.cancel()
                 return process
-            with fault_child('import time; time.sleep(10)', wrap=cancel) as children:
+            with self.bundle_git('import time; time.sleep(10)', wrap=cancel) as children:
                 self.failed_run(session, 'cancelled')
                 reaped(self, children.children)
             self.assertEqual(session.outcome, 'blocked_no_effect')
@@ -193,7 +215,7 @@ class GitBudgetWiringCases(unittest.TestCase):
 
     def test_real_git_child_timeout_retires_stage_and_keeps_existing_error_mapping(self):
         with self.session(seconds=3) as (session, tls, fixture, seen):
-            with fault_child('import time; time.sleep(10)') as children:
+            with self.bundle_git('import time; time.sleep(10)') as children:
                 self.failed_run(session, 'timeout')
                 reaped(self, children.children)
             self.assertEqual(len(children.children), 1)
@@ -221,7 +243,7 @@ class GitBudgetWiringCases(unittest.TestCase):
                 wrappers.append(wrapper)
                 session.cancel()
                 return wrapper
-            with fault_child('import time; time.sleep(10)', wrap=cancel) as children:
+            with self.bundle_git('import time; time.sleep(10)', wrap=cancel) as children:
                 self.failed_run(session, 'adapter_error')
                 reaped(self, children.children)
             self.assertEqual(session.outcome, 'blocked_no_effect')

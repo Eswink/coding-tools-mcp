@@ -344,8 +344,8 @@ class StagingBudgetCases(unittest.TestCase):
                 clock.monotonic = lambda: session._deadline + 1 if clock.expired else time.monotonic()
                 observe = stage._observe
 
-                def observed(*args):
-                    result = observe(*args)
+                def observed(*args, **kwargs):
+                    result = observe(*args, **kwargs)
                     session.cancel() if cancelled else setattr(clock, 'expired', True)
                     return result
 

@@ -1,5 +1,5 @@
 """Owned, exact selected consumer receipts and FINAL bytes; no publication authority."""
-from contextlib import ExitStack
+from contextlib import ExitStack, nullcontext
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -46,20 +46,33 @@ class Selection:
              and re.fullmatch('[0-9a-f]{64}', self.consumer_artifact_sha256), 'invalid_receipt_digest')
 
 
-def _source(root, subject, api):
+def _source(root, subject, api, *, deadline=None, check_active=None):
     gate, source = snapshot.gate, subject.source
-    gate.rc.verify_source(root, expected_sha=source.source_sha, expected_version=source.version)
-    need(not gate.reviewed.git(root, 'ls-files', '--others', '-z'), 'untracked_source')
-    gate.cloud.versions(root, source.version)
-    reviewed = gate.reviewed.verify(root, source.source_sha)
-    need(reviewed['source_tree'] == source.source_tree, 'source_tree_mismatch')
-    need(gate.reviewed.git(root, 'rev-parse', '--verify', 'refs/tags/' + subject.tag).decode().strip()
-         == subject.tag_object_sha and gate.reviewed.git(root, 'cat-file', '-t', 'refs/tags/' + subject.tag)
-         == b'commit\n', 'lightweight_tag_required')
-    for invocation in subject.runs:
-        blob = gate.reviewed.blob(root, source.source_sha, invocation.workflow_path)
-        need(blob is not None and blob['mode'] == '100644' and blob['blob_sha'] == invocation.workflow_blob,
-             'workflow_blob_mismatch')
+    budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
+    gate.rc.verify_source(root, expected_sha=source.source_sha, expected_version=source.version, **budget)
+    owner = nullcontext()
+    if budget:
+        from rc_consumer_fixed_git import Reader
+        owner = Reader(root, **budget)
+    with owner as reader:
+        untracked = gate.reviewed.git(root, 'ls-files', '--others', '-z') if reader is None else reader.untracked()
+        need(not untracked, 'untracked_source')
+        gate.cloud.versions(root, source.version)
+        reviewed = gate.reviewed.verify(root, source.source_sha, **budget)
+        need(reviewed['source_tree'] == source.source_tree, 'source_tree_mismatch')
+        tag_oid = (gate.reviewed.git(root, 'rev-parse', '--verify', 'refs/tags/' + subject.tag).decode().strip()
+                   if reader is None else reader.tag_oid(subject.tag))
+        need(tag_oid == subject.tag_object_sha, 'lightweight_tag_required')
+        tag_kind = (gate.reviewed.git(root, 'cat-file', '-t', 'refs/tags/' + subject.tag)
+                    if reader is None else reader.tag_kind(subject.tag))
+        need(tag_kind == b'commit\n', 'lightweight_tag_required')
+        for invocation in subject.runs:
+            descriptor = (gate.reviewed.blob(root, source.source_sha, invocation.workflow_path) if reader is None
+                          else gate.reviewed._blob(root, source.source_sha, invocation.workflow_path, reader))
+            need(descriptor is not None and descriptor['mode'] == '100644'
+                 and descriptor['blob_sha'] == invocation.workflow_blob, 'workflow_blob_mismatch')
+    if budget:
+        reader.check()
     snapshot._live_tag(api, subject.tag, source.source_sha)
 
 
@@ -74,9 +87,10 @@ def _bind(evidence, invocation, ids):
     need(tuple(sorted(j['id'] for j in evidence['jobs'])) == tuple(sorted(ids)), 'selected_jobs_mismatch')
 
 
-def _observe(root, selected, api):
+def _observe(root, selected, api, *, deadline=None, check_active=None):
     s, gate = selected.subject, snapshot.gate
-    _source(root, s, api)
+    budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
+    _source(root, s, api, **budget)
     f, i, c = s.runs
     expected = dict(rc_version=s.source.version, release_tag=s.tag, source_sha=s.source.source_sha,
         final_run_id=f.run_id, final_run_attempt=f.run_attempt, integration_run_id=i.run_id,
@@ -225,7 +239,9 @@ class StagedAssets:
         need(not self._entered and not self._closed, 'stage_lifetime')
         self._entered = True
         try:
-            self._observation = snapshot._call(_observe, self._root, self._selection, self._api)
+            budget = {} if self._deadline is None and self._check_active is None else dict(
+                deadline=self._deadline, check_active=self._check_active)
+            self._observation = snapshot._call(_observe, self._root, self._selection, self._api, **budget)
             def fresh():
                 owned = StageRootOwner()
                 self._retirements.append(owned)
@@ -235,8 +251,6 @@ class StagedAssets:
                 self._roots.append(root)
                 return root
             receipt_download, receipts, download, bundle, cloud, self._output = (fresh() for _ in range(6))
-            budget = {} if self._deadline is None and self._check_active is None else dict(
-                deadline=self._deadline, check_active=self._check_active)
             path = consumer.transport.download_artifact_zip(self._api, self._observation[3], receipt_download, **budget)
             snapshot._call(_receipts, path, receipts, **budget)
             self.plan_bytes, self.provenance_bytes = (receipts.read(name) for name in ('rc-asset-plan.json', 'RC_PROVENANCE.json'))
@@ -285,7 +299,18 @@ class StagedAssets:
     def revalidate(self, *, deadline=None, check_active=None):
         need(self._entered and not self._closed, 'stage_lifetime')
         _check_budget(deadline, check_active)
-        need(snapshot._call(_observe, self._root, self._selection, self._api) == self._observation, 'selection_changed')
+        budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
+        try:
+            observed = snapshot._call(_observe, self._root, self._selection, self._api, **budget)
+        except ConsumerError as error:
+            try:
+                code = error.code
+                if type(code) is str and code == 'transport_cleanup_uncertain':
+                    self._cleanup_failed = True
+            except BaseException:
+                pass
+            raise
+        need(observed == self._observation, 'selection_changed')
         _check_budget(deadline, check_active)
         for root in self._roots:
             root.files()

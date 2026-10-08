@@ -24,6 +24,7 @@ import rc_pretag_checksum_budget_cases as checksum
 import rc_pretag_archive_budget_cases as archive
 import rc_pretag_staged_bytes_cases as staged
 import rc_pretag_stage_retirement_profile as x
+from rc_pretag_source_observation_profile import normalize as source_observation_bytes
 from rc_pretag_git_budget_profile import normalize as git_budget_bytes
 
 F_BINDING = ('f0fdfba5cd48b7cad477f1e2cb77bb70153ad657', '84ff6fd8a0936f99d0b1267c78bd50ba52a70fa0', ('69e749736b95b5921b4f6352838f69860c7a0a4e', 'fa2a2931417694a37ab60008a90f1c81aab60159'))
@@ -302,7 +303,7 @@ class StageRetirementCompositionCases(unittest.TestCase):
         changed = set()
         for module in {item.split('.', 1)[0] for item in original}:
             path = 'scripts/' + module + '.py'
-            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
+            current, frozen = source_observation_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
             self.assertEqual(x.normalize(path, current), frozen, path)
             before, after = methods(frozen), methods(current)
             self.assertEqual(before.keys(), after.keys(), path)
