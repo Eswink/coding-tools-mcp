@@ -122,7 +122,7 @@ def fixture_worker(config):
 
 
 @contextmanager
-def trickle(mode, data):
+def trickle(mode, data, *, progress=None):
     server = socket.socket(); server.bind(('127.0.0.1', 0)); server.listen(1); server.settimeout(2)
     stop, seen, errors = threading.Event(), [], []
     def serve():
@@ -143,10 +143,14 @@ def trickle(mode, data):
                         connection.sendall(b'Content-Length: ' + str(len(data)).encode() + b'\r\n\r\n')
                     else:
                         connection.sendall(b'X-Slow: ')
+                if progress is not None:
+                    progress.append(time.monotonic())
                 for _ in range(160):
                     if stop.wait(0.025):
                         break
                     connection.sendall(b'x')
+                    if progress is not None:
+                        progress.append(time.monotonic())
                 if not stop.is_set():
                     if 'body' not in mode:
                         headers = b'\r\nContent-Length: ' + str(len(data)).encode() + b'\r\n'
@@ -174,12 +178,12 @@ class SupervisorTests(unittest.TestCase):
     def opener(self, mode='responses', port=None):
         return Opener(self.redirect(), Response(200, self.data), mode=mode, port=port)
 
-    def failure(self, mode, code=None, opener=None):
+    def failure(self, mode, code=None, opener=None, **kwargs):
         opener = opener or self.opener(mode)
         started = time.monotonic()
         with patch.object(transport, 'TOTAL_TIMEOUT', 0.5), patch.object(transport, 'CLEANUP_TIMEOUT', 0.5):
             with self.assertRaises(ConsumerError) as caught:
-                self.run_download(opener)
+                self.run_download(opener, **kwargs)
         self.assertLess(time.monotonic() - started, 1.5)
         self.assertIsNotNone(opener.process.poll())
         self.assertIsNone(caught.exception.__context__)
@@ -193,9 +197,29 @@ class SupervisorTests(unittest.TestCase):
         self.data = b'x' * 160
         self.artifact.update(size_in_bytes=len(self.data), digest='sha256:' + __import__('hashlib').sha256(self.data).hexdigest())
         for mode in ('local_headers', 'local_body', 'local_api_headers', 'local_api_status', 'local_storage_status'):
-            with self.subTest(mode=mode), trickle(mode, self.data) as (port, seen):
-                error = self.failure(mode, 'transport_deadline_exceeded', self.opener(mode, port))
+            progress = []
+            with self.subTest(mode=mode), trickle(mode, self.data, progress=progress) as (port, seen):
+                # Keep a full real half-second of drip after the selected response phase.
+                # Bound readiness separately; the owned logical deadline remains fixed.
+                ready_by = time.monotonic() + 0.9
+                readiness_failed = False
+                def clock():
+                    nonlocal readiness_failed
+                    phase = progress[0] if progress else None
+                    now = time.monotonic()
+                    if phase is None:
+                        readiness_failed |= now >= ready_by
+                    else:
+                        readiness_failed |= phase >= ready_by
+                    return 0.5 if readiness_failed else (now - phase if phase is not None else 0.0)
+                error = self.failure(mode, 'transport_deadline_exceeded', self.opener(mode, port),
+                                     clock=clock, deadline=0.5, check_active=lambda: None)
                 self.assertTrue(seen)
+                self.assertFalse(readiness_failed)
+                self.assertGreaterEqual(len(progress), 9)
+                self.assertLess(progress[0], ready_by)
+                self.assertGreaterEqual(progress[-1] - progress[0], 0.35)
+                self.assertGreaterEqual(time.monotonic() - progress[0], 0.5)
                 if not mode.startswith('local_api'):
                     self.assertNotIn(b'authorization:', seen[0].lower())
             # Each isolated invocation owns a fresh root/file.
