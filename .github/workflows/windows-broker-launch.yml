@@ -1,0 +1,122 @@
+name: Windows harmless image launch
+on:
+  push:
+    branches: [ci/windows-broker-launch-20261008]
+permissions:
+  contents: read
+jobs:
+  image-authority:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/ci/windows-broker-launch-20261008'
+    runs-on: windows-2025
+    timeout-minutes: 10
+    env:
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Bind exact source and owned evidence root
+        id: source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $baseline = '8bdd5f327b4603c5570dc764e2d62fecbe6e02d2'
+          $sha = (git rev-parse HEAD).Trim(); $tree = (git rev-parse 'HEAD^{tree}').Trim()
+          $parents = ((git rev-list --parents -n 1 HEAD).Trim() -split ' ')
+          if ($sha -ne $env:GITHUB_SHA -or $parents.Count -ne 2 -or $parents[1] -ne $baseline) { throw 'Source/sole-parent mismatch' }
+          if (git status --porcelain) { throw 'Checkout is not clean' }
+          $limits = [ordered]@{
+            'scripts/windows_broker_launch/launch.h'=90; 'scripts/windows_broker_launch/launch.cpp'=420
+            'scripts/windows_broker_launch/cases.cpp'=380; 'scripts/windows_broker_launch/fixture.cpp'=60
+            'scripts/windows_broker_launch/prepare.ps1'=100; '.github/workflows/windows-broker-launch.yml'=130
+            'docs/specs/windows-broker-launch/requirements.md'=200
+            'docs/specs/windows-broker-launch/design.md'=200; 'docs/specs/windows-broker-launch/tasks.md'=200
+          }
+          $changed = @(git diff-tree --no-commit-id --name-status -r HEAD)
+          if ($changed.Count -ne 9) { throw 'Source scope is not nine added files' }
+          foreach ($line in $changed) { $parts = $line -split "`t"; if ($parts.Count -ne 2 -or $parts[0] -ne 'A' -or !$limits.Contains($parts[1])) { throw 'Source scope mismatch' } }
+          $root = Join-Path $env:RUNNER_TEMP ('broker-launch-' + [guid]::NewGuid().ToString('N'))
+          $raw = Join-Path $root 'evidence'; $sources = Join-Path $raw 'source'
+          New-Item -ItemType Directory -Path $root, $raw, $sources | Out-Null
+          $files = @(); $total = 0; $docs = 0
+          foreach ($path in $limits.Keys) {
+            $count = [IO.File]::ReadAllLines((Join-Path $pwd $path)).Count
+            if ($count -gt $limits[$path] -or $count -ge 500) { throw 'Source line cap exceeded' }
+            $total += $count; if ($path.StartsWith('docs/')) { $docs += $count }
+            $files += @{path=$path; lines=$count; sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant()}
+            Copy-Item -LiteralPath $path -Destination (Join-Path $sources ([IO.Path]::GetFileName($path)))
+          }
+          if ($total -gt 1380 -or $docs -gt 200) { throw 'Aggregate source budget exceeded' }
+          @{schema=1; source_sha=$sha; source_tree=$tree; sole_parent=$baseline; files=$files} | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 (Join-Path $raw 'source.json')
+          "root=$root" >> $env:GITHUB_OUTPUT
+      - name: Build installed-tool fixtures and run finite native cases
+        shell: pwsh
+        env:
+          PROBE_ROOT: ${{ steps.source.outputs.root }}
+        run: '& ./scripts/windows_broker_launch/prepare.ps1 -RunRoot $env:PROBE_ROOT'
+      - name: Validate bounded evidence including failures
+        id: evidence
+        if: always() && steps.source.outputs.root != ''
+        shell: pwsh
+        env:
+          PROBE_ROOT: ${{ steps.source.outputs.root }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $raw = Join-Path $env:PROBE_ROOT 'evidence'; $upload = Join-Path $env:PROBE_ROOT 'upload'
+          New-Item -ItemType Directory -Path $upload, (Join-Path $upload 'source') | Out-Null
+          $allowed = @('source.json','build.log','imports-good.txt','imports-bad.txt','imports-probe.txt','build-manifest.json','harness.log','results.jsonl','summary.json','preparation.json')
+          $sourceNames = @('launch.h','launch.cpp','cases.cpp','fixture.cpp','prepare.ps1','windows-broker-launch.yml','requirements.md','design.md','tasks.md')
+          $issues = @(); $total = 0; $bound = $false; $native = $false
+          foreach ($dir in @($raw, (Join-Path $raw 'source'))) {
+            if ((Get-Item -LiteralPath $dir).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Evidence directory is a reparse point' }
+            foreach ($item in Get-ChildItem -LiteralPath $dir -Force) {
+              if ($item.PSIsContainer -and $dir -eq $raw -and $item.Name -eq 'source') { continue }
+              $names = if ($dir -eq $raw) { $allowed } else { $sourceNames }
+              if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $item.Name -notin $names -or $item.Length -gt 2MB) { $issues += 'Unexpected or oversized evidence'; continue }
+              $total += $item.Length
+              if ($total -gt 8MB) { $issues += 'Aggregate evidence cap exceeded'; continue }
+              $destination = if ($dir -eq $raw) { $upload } else { Join-Path $upload 'source' }
+              Copy-Item -LiteralPath $item.FullName -Destination $destination
+            }
+          }
+          try {
+            $source = Get-Content -Raw -LiteralPath (Join-Path $upload 'source.json') | ConvertFrom-Json
+            $finalHead = (git rev-parse HEAD).Trim(); if ($LASTEXITCODE -ne 0) { throw 'Final HEAD query failed' }
+            $finalTree = (git rev-parse 'HEAD^{tree}').Trim(); if ($LASTEXITCODE -ne 0) { throw 'Final tree query failed' }
+            $dirty = @(git status --porcelain); if ($LASTEXITCODE -ne 0 -or $dirty.Count) { throw 'Final source checkout changed' }
+            $bound = $source.source_sha -eq $env:GITHUB_SHA -and $finalHead -eq $env:GITHUB_SHA -and $source.source_tree -eq $finalTree -and $source.sole_parent -eq '8bdd5f327b4603c5570dc764e2d62fecbe6e02d2' -and $source.files.Count -eq 9
+            foreach ($file in $source.files) {
+              $copy = Join-Path $upload ('source/' + [IO.Path]::GetFileName($file.path))
+              $bound = $bound -and (Get-FileHash -Algorithm SHA256 -LiteralPath $copy).Hash.ToLowerInvariant() -eq $file.sha256
+              $bound = $bound -and (Get-FileHash -Algorithm SHA256 -LiteralPath $file.path).Hash.ToLowerInvariant() -eq $file.sha256
+            }
+            if (!$bound) { $issues += 'Source artifact binding failed' }
+          } catch { $bound = $false; $issues += 'Source artifact unavailable or malformed' }
+          try {
+            $expected = 'native_correct_image,native_different_image,native_identical_bytes_new_id,native_ancestor_redirect,native_junction_redirect,native_pin_write_denied,native_pin_delete_denied,native_pin_rename_denied,manifest_rejected,fault_null_image_decision,fault_file_id_query,fault_hash_query,fault_debug_wait,fault_debug_continue,fault_preadmission_timeout,fault_preadmission_cancel,fault_postadmission_timeout,fault_postadmission_cancel' -split ','
+            $lines = @(Get-Content -LiteralPath (Join-Path $upload 'results.jsonl'))
+            if ($lines.Count -ne 18 -or @($lines | Where-Object { $_.Length -gt 8192 }).Count) { throw 'Invalid bounded case census' }
+            $rows = @($lines | ForEach-Object { $_ | ConvertFrom-Json })
+            $summary = Get-Content -Raw -LiteralPath (Join-Path $upload 'summary.json') | ConvertFrom-Json
+            $prep = Get-Content -Raw -LiteralPath (Join-Path $upload 'preparation.json') | ConvertFrom-Json
+            $native = @($rows.id | Sort-Object -Unique).Count -eq 18 -and !(Compare-Object $expected @($rows.id)) -and @($rows | Where-Object { $_.passed -isnot [bool] -or !$_.passed }).Count -eq 0
+            $native = $native -and $summary.schema -eq 1 -and $summary.required_count -eq 18 -and $summary.executed_count -eq 18 -and $summary.passed_count -eq 18 -and $summary.passed -is [bool] -and $summary.passed -eq $true -and $summary.evidence_error -eq 0 -and $prep.built -eq $true -and $prep.ran -eq $true -and $prep.exit_code -eq 0 -and !$prep.error
+            if (!$native) { $issues += 'Native matrix or preparation failed' }
+          } catch { $native = $false; $issues += 'Native evidence missing or malformed' }
+          $passed = $bound -and $native -and !$issues.Count
+          @{schema=1; source_verified=$bound; native_pass=$native; passed=$passed; issues=$issues} | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $upload 'validation.json')
+          "path=$upload" >> $env:GITHUB_OUTPUT
+          "ready=true" >> $env:GITHUB_OUTPUT
+          if (!$passed) { throw 'Experiment failed; bounded failure evidence is ready' }
+      - name: Upload only validated bounded artifact files
+        if: always() && steps.evidence.outputs.ready == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: windows-broker-launch-${{ github.sha }}
+          path: ${{ steps.evidence.outputs.path }}
+          if-no-files-found: error
+          retention-days: 7
