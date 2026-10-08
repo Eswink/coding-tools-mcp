@@ -1,0 +1,92 @@
+name: Windows HCS owned boot experiment
+on:
+  push:
+    branches: ['ci/windows-hcs-owned-boot-20261008']
+    paths:
+      - 'scripts/windows_hcs_boot/**'
+      - '.github/workflows/windows-hcs-boot-prototype.yml'
+      - 'docs/specs/windows-hcs-owned-boot-prototype/**'
+permissions:
+  contents: read
+jobs:
+  owned-boot:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {ref: '${{ github.sha }}', fetch-depth: 2, persist-credentials: false}
+      - name: Bind fresh reviewed source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:CTM_BOOT_ROOT = Join-Path $env:RUNNER_TEMP "ctm-hcs-boot-$env:GITHUB_RUN_ID"
+          $env:CTM_BOOT_EVIDENCE = Join-Path $env:RUNNER_TEMP 'ctm-hcs-boot-evidence'
+          "CTM_BOOT_ROOT=$env:CTM_BOOT_ROOT" | Add-Content -LiteralPath $env:GITHUB_ENV
+          "CTM_BOOT_EVIDENCE=$env:CTM_BOOT_EVIDENCE" | Add-Content -LiteralPath $env:GITHUB_ENV
+          New-Item -ItemType Directory -Path $env:CTM_BOOT_EVIDENCE -ErrorAction Stop | Out-Null
+          $sha = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $sha -cne $env:GITHUB_SHA) { throw 'source mismatch' }
+          $tree = (git rev-parse 'HEAD^{tree}').Trim()
+          if ($LASTEXITCODE -ne 0) { throw 'tree query failed' }
+          $parent = (git show -s --format=%P HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $parent -cne '3481de620b5816a94568652093637b28a305d2c8') { throw 'base mismatch' }
+          $os = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name CurrentBuildNumber,UBR
+          @{sha=$sha; tree=$tree; parent=$parent; run=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT;
+            image_os=$env:ImageOS; image_version=$env:ImageVersion; build=$os.CurrentBuildNumber; ubr=$os.UBR;
+            network_denial_proven=$false; workspace_integration=$false; production_admission=$false} |
+            ConvertTo-Json | Set-Content -LiteralPath "$env:CTM_BOOT_EVIDENCE/source.json"
+      - name: Fixed prerequisite self-tests
+        shell: pwsh
+        run: ./scripts/windows_hcs_capability_probe_tests.ps1 -OutputPath "$env:CTM_BOOT_EVIDENCE/prerequisite-tests.json"
+      - name: Read prerequisites without remediation
+        shell: pwsh
+        run: ./scripts/windows_hcs_capability_probe.ps1 -OutputPath "$env:CTM_BOOT_EVIDENCE/prerequisites.json"
+      - name: Build vendored driver and run pure native tests
+        shell: pwsh
+        run: ./scripts/windows_hcs_boot/prepare.ps1 -Phase build
+      - name: Acquire immutable Microsoft layers and process-scoped import
+        shell: pwsh
+        run: ./scripts/windows_hcs_boot/prepare.ps1 -Phase acquire
+      - name: Attempt one owned UVM and stock runtime cases
+        shell: pwsh
+        run: ./scripts/windows_hcs_boot/prepare.ps1 -Phase boot
+      - name: Bind final source and finite evidence
+        id: evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git diff --exit-code
+          if ($LASTEXITCODE -ne 0) { throw 'tracked source changed' }
+          git diff --cached --exit-code
+          if ($LASTEXITCODE -ne 0) { throw 'index changed' }
+          $before = Get-Content -Raw -LiteralPath "$env:CTM_BOOT_EVIDENCE/source.json" | ConvertFrom-Json
+          if ((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA -or $LASTEXITCODE -ne 0) { throw 'final SHA mismatch' }
+          if ((git rev-parse 'HEAD^{tree}').Trim() -cne $before.tree -or $LASTEXITCODE -ne 0) { throw 'final tree mismatch' }
+          if (@(git ls-files --others --exclude-standard).Count -ne 0 -or $LASTEXITCODE -ne 0) { throw 'unexpected checkout writes' }
+          $allowed = @('source.json','prerequisite-tests.json','prerequisites.json','go-version.txt','tests.txt',
+            'dependency-locks.json','runtime-files.json','runtime.json','image.json','import.json','result.json')
+          $lines = @(Get-ChildItem -LiteralPath $env:CTM_BOOT_EVIDENCE -File | Sort-Object Name | ForEach-Object {
+            if ($_.Name -cnotin $allowed -or $_.Length -gt 1MB) { throw 'evidence outside finite allowlist/bound' }
+            "$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($_.Name)"
+          })
+          $lines | Set-Content -LiteralPath "$env:CTM_BOOT_EVIDENCE/sha256.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && steps.evidence.outcome == 'success'
+        with:
+          name: windows-hcs-owned-boot-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/ctm-hcs-boot-evidence/source.json
+            ${{ runner.temp }}/ctm-hcs-boot-evidence/prerequisite-tests.json
+            ${{ runner.temp }}/ctm-hcs-boot-evidence/prerequisites.json
+            ${{ runner.temp }}/ctm-hcs-boot-evidence/go-version.txt
+            ${{ runner.temp }}/ctm-hcs-boot-evidence/tests.txt
+            ${{ runner.temp }}/ctm-hcs-boot-evidence/dependency-locks.json
+            ${{ runner.temp }}/ctm-hcs-boot-evidence/runtime-files.json
+            ${{ runner.temp }}/ctm-hcs-boot-evidence/runtime.json
+            ${{ runner.temp }}/ctm-hcs-boot-evidence/image.json
+            ${{ runner.temp }}/ctm-hcs-boot-evidence/import.json
+            ${{ runner.temp }}/ctm-hcs-boot-evidence/result.json
+            ${{ runner.temp }}/ctm-hcs-boot-evidence/sha256.txt
+          if-no-files-found: error
+          retention-days: 14
