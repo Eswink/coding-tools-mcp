@@ -3,12 +3,9 @@
 package main
 
 import (
-	"bytes"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -18,7 +15,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"unicode/utf16"
 
 	"github.com/Microsoft/go-winio"
 	"github.com/Microsoft/go-winio/pkg/guid"
@@ -33,10 +29,6 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-const workspace = `C:\Users\ContainerUser\ctm-workspace`
-const powershell = `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`
-const outputLimit = 65536
-
 var imageLayers = []struct {
 	digest string
 	size   int64
@@ -45,13 +37,6 @@ var imageLayers = []struct {
 	{"67f39c55a3f42bc0569099cebb32cef6688837ca694dfacaa00053810cb810d6", 914397517},
 }
 
-type caseResult struct {
-	Name     string `json:"name"`
-	Stdout   string `json:"stdout"`
-	Stderr   string `json:"stderr"`
-	ExitCode int    `json:"exit_code"`
-	Passed   bool   `json:"passed"`
-}
 type report struct {
 	Schema              int             `json:"schema"`
 	Source              string          `json:"source"`
@@ -70,6 +55,7 @@ type report struct {
 	ProductionAdmission bool            `json:"production_admission"`
 	DataRetained        bool            `json:"owned_data_retained"`
 	Surface             *surfaceReceipt `json:"synthetic_surface"`
+	Policy              *policyResult   `json:"hvsocket_policy"`
 }
 
 func (r *report) record(stage string, err error) {
@@ -156,33 +142,6 @@ func buildOptions(id string) *uvm.OptionsWCOW {
 func containerSpec(paths []string) *specs.Spec {
 	return &specs.Spec{Windows: &specs.Windows{LayerFolders: paths}}
 }
-func encodedCommand(script string) string {
-	u := utf16.Encode([]rune(script))
-	b := make([]byte, len(u)*2)
-	for i, v := range u {
-		binary.LittleEndian.PutUint16(b[i*2:], v)
-	}
-	return `"` + powershell + `" -NoLogo -NoProfile -NonInteractive -EncodedCommand ` + base64.StdEncoding.EncodeToString(b)
-}
-
-type boundedOutput struct {
-	buffer   bytes.Buffer // Named field prevents promoted ReadFrom from bypassing Write.
-	overflow bool
-}
-
-func (b *boundedOutput) Len() int       { return b.buffer.Len() }
-func (b *boundedOutput) String() string { return b.buffer.String() }
-
-func (b *boundedOutput) Write(p []byte) (int, error) {
-	n := len(p)
-	room := outputLimit - b.Len()
-	if n > room {
-		b.overflow = true
-		p = p[:room]
-	}
-	b.buffer.Write(p)
-	return n, nil
-}
 func runGuest(ctx context.Context, host cow.ProcessHost, name, command, cwd, marker string, input io.Reader) (result caseResult, err error) {
 	result.Name = name
 	result.ExitCode = -1
@@ -231,16 +190,6 @@ func runGuest(ctx context.Context, host cow.ProcessHost, name, command, cwd, mar
 	}
 	return result, err
 }
-func runtimeCommands() []struct{ name, command, marker string } {
-	ps := `$ErrorActionPreference='Stop';[IO.File]::WriteAllText('roundtrip-ps.txt','CTM_PS');if([IO.File]::ReadAllText('roundtrip-ps.txt') -cne 'CTM_PS'){exit 91};[Console]::WriteLine('CTM_PS_ENTRY '+$PSVersionTable.PSVersion);exit 23`
-	pw := `$ErrorActionPreference='Stop';[IO.File]::WriteAllText('roundtrip-pwsh.txt','CTM_PWSH');if([IO.File]::ReadAllText('roundtrip-pwsh.txt') -cne 'CTM_PWSH'){exit 91};[Console]::WriteLine('CTM_PWSH_ENTRY '+$PSVersionTable.PSVersion);exit 23`
-	return []struct{ name, command, marker string }{
-		{"cmd", `C:\Windows\System32\cmd.exe /d /s /c ">roundtrip-cmd.txt echo CTM_CMD&& C:\Windows\System32\findstr.exe /x CTM_CMD roundtrip-cmd.txt&& echo CTM_CMD_ENTRY&& exit /b 23"`, "CTM_CMD_ENTRY"},
-		{"windows-powershell", encodedCommand(ps), "CTM_PS_ENTRY"},
-		{"node", `"` + workspace + `\node.exe" -e "const f=require('fs');f.writeFileSync('roundtrip-node.txt','CTM_NODE');if(f.readFileSync('roundtrip-node.txt','utf8')!=='CTM_NODE')process.exit(91);console.log('CTM_NODE_ENTRY '+process.version);process.exit(23)"`, "CTM_NODE_ENTRY"},
-		{"pwsh", strings.Replace(encodedCommand(pw), powershell, workspace+`\pwsh\pwsh.exe`, 1), "CTM_PWSH_ENTRY"},
-	}
-}
 func runPrototype(root string, r *report) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
@@ -249,17 +198,17 @@ func runPrototype(root string, r *report) (err error) {
 		return err
 	}
 	r.ID = g.String()
-	fixture, err := newSurfaceFixture(root)
-	if err != nil {
-		return err
-	}
-	defer func() { err = errors.Join(err, fixture.close()) }()
-	r.Surface = fixture.receipt
 	paths := []string{filepath.Join(root, "layer1"), filepath.Join(root, "layer0"), filepath.Join(root, "scratch")}
 	if err = os.Mkdir(paths[2], 0700); err != nil {
 		return err
 	}
 	o := buildOptions(r.ID)
+	policy, err := configurePolicy(o)
+	if err != nil {
+		return err
+	}
+	r.Policy = policy.result
+	defer func() { r.record("owned_endpoint_cleanup", policy.close()) }()
 	o.BootFiles, err = layers.GetWCOWUVMBootFilesFromLayers(ctx, nil, paths)
 	if err != nil {
 		return err
@@ -302,9 +251,7 @@ func runPrototype(root string, r *report) (err error) {
 		e = vm.CloseCtx(closeCtx)
 		r.CloseOK = e == nil
 		r.record("handle_close", e)
-		if err == nil && len(r.Errors) == 0 {
-			r.record("synthetic_quarantine", fixture.finishQuarantine(*r))
-		}
+
 	}()
 	r.Stage = "start_uvm"
 	if err = vm.Start(ctx); err != nil {
@@ -340,28 +287,8 @@ func runPrototype(root string, r *report) (err error) {
 	if err = run("bootstrap", encodedCommand(bootstrap), `C:\`, "CTM_BOOTSTRAP_ENTRY", bundle); err != nil {
 		return err
 	}
-	for _, c := range runtimeCommands() {
-		r.Stage = "runtime_" + c.name
-		if err = run(c.name, c.command, workspace, c.marker, nil); err != nil {
-			return err
-		}
-	}
-	r.Stage = "live_descendant"
-	if err = run("parent", `"`+workspace+`\fixture.exe" parent`, workspace, "CTM_PARENT_ENTRY", nil); err != nil {
-		return err
-	}
-	if err = run("child-live", `"`+workspace+`\fixture.exe" check`, workspace, "CTM_CHILD_LIVE", nil); err != nil {
-		return err
-	}
-	r.Stage = "guest_surface_and_transfer"
-	payload, err := fixture.inputBytes()
-	if err != nil {
-		return err
-	}
-	if err = run("surface", `"`+workspace+`\fixture.exe" surface`, workspace, "CTM_SURFACE_ENTRY", bytes.NewReader(payload)); err != nil {
-		return err
-	}
-	if err = fixture.accept(r.Cases[len(r.Cases)-1].Stdout); err != nil {
+	r.Stage = "hvsocket_policy"
+	if err = policy.run(ctx, vm, container, r); err != nil {
 		return err
 	}
 	stillRunning, cancelCheck := context.WithTimeout(ctx, 100*time.Millisecond)

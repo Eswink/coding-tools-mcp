@@ -1,11 +1,11 @@
-name: Windows HCS guest surface observation
+name: Windows HCS bounded HvSocket policy
 on:
   push:
-    branches: ['ci/windows-hcs-surface-observation-20261008']
+    branches: ['ci/windows-hcs-hvsocket-policy-20261008']
     paths:
       - 'scripts/windows_hcs_boot/**'
       - '.github/workflows/windows-hcs-boot-prototype.yml'
-      - 'docs/specs/windows-hcs-surface-observation/**'
+      - 'docs/specs/windows-hcs-hvsocket-policy/**'
 permissions:
   contents: read
 jobs:
@@ -29,7 +29,7 @@ jobs:
           $tree = (git rev-parse 'HEAD^{tree}').Trim()
           if ($LASTEXITCODE -ne 0) { throw 'tree query failed' }
           $parent = (git show -s --format=%P HEAD).Trim()
-          if ($LASTEXITCODE -ne 0 -or $parent -cne '45ac13ec85c854e25f512f309d362f6be29ddb61') { throw 'base mismatch' }
+          if ($LASTEXITCODE -ne 0 -or $parent -cne 'a67ba38a4dd1f82aa3c6f0d8cfcc376b8d2d4342') { throw 'base mismatch' }
           $os = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name CurrentBuildNumber,UBR
           @{sha=$sha; tree=$tree; parent=$parent; run=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT;
             image_os=$env:ImageOS; image_version=$env:ImageVersion; build=$os.CurrentBuildNumber; ubr=$os.UBR;
@@ -47,7 +47,7 @@ jobs:
       - name: Acquire immutable Microsoft layers and process-scoped import
         shell: pwsh
         run: ./scripts/windows_hcs_boot/prepare.ps1 -Phase acquire
-      - name: Observe guest-only peers and synthetic transfer in one owned UVM
+      - name: Check owned canary policy and persistent channels in one UVM
         shell: pwsh
         run: ./scripts/windows_hcs_boot/prepare.ps1 -Phase boot
       - name: Bind final source and finite evidence
@@ -65,7 +65,7 @@ jobs:
           if ((git rev-parse 'HEAD^{tree}').Trim() -cne $before.tree -or $LASTEXITCODE -ne 0) { throw 'final tree mismatch' }
           if (@(git ls-files --others --exclude-standard).Count -ne 0 -or $LASTEXITCODE -ne 0) { throw 'unexpected checkout writes' }
           $allowed = @('source.json','prerequisite-tests.json','prerequisites.json','go-version.txt','tests.txt',
-            'dependency-locks.json','runtime-files.json','runtime.json','image.json','import.json','result.json')
+            'dependency-locks.json','policy-patch.json','runtime-files.json','runtime.json','image.json','import.json','result.json')
           $lines = @(Get-ChildItem -LiteralPath $env:CTM_BOOT_EVIDENCE -File | Sort-Object Name | ForEach-Object {
             if ($_.Name -cnotin $allowed -or $_.Length -gt 1MB) { throw 'evidence outside finite allowlist/bound' }
             "$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($_.Name)"
@@ -74,7 +74,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always() && steps.evidence.outcome == 'success'
         with:
-          name: windows-hcs-surface-${{ github.sha }}
+          name: windows-hcs-policy-${{ github.sha }}
           path: |
             ${{ runner.temp }}/ctm-hcs-boot-evidence/source.json
             ${{ runner.temp }}/ctm-hcs-boot-evidence/prerequisite-tests.json
@@ -82,6 +82,7 @@ jobs:
             ${{ runner.temp }}/ctm-hcs-boot-evidence/go-version.txt
             ${{ runner.temp }}/ctm-hcs-boot-evidence/tests.txt
             ${{ runner.temp }}/ctm-hcs-boot-evidence/dependency-locks.json
+            ${{ runner.temp }}/ctm-hcs-boot-evidence/policy-patch.json
             ${{ runner.temp }}/ctm-hcs-boot-evidence/runtime-files.json
             ${{ runner.temp }}/ctm-hcs-boot-evidence/runtime.json
             ${{ runner.temp }}/ctm-hcs-boot-evidence/image.json

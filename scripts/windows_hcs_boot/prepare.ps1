@@ -17,7 +17,7 @@ if ($Phase -ceq 'build') {
   New-Item -ItemType Directory -Path $root -ErrorAction Stop | Out-Null
   $env:GOTOOLCHAIN = 'local'; $env:GOPROXY = 'off'; $env:GOSUMDB = 'off'; $env:CGO_ENABLED = '0'
   $env:GOCACHE = Join-Path $root 'go-cache'
-  git clone --depth 1 --single-branch --branch v0.14.1 https://github.com/microsoft/hcsshim.git $upstream
+  git -c core.autocrlf=false clone --depth 1 --single-branch --branch v0.14.1 https://github.com/microsoft/hcsshim.git $upstream
   Assert-NativeExit
   Push-Location $upstream
   try {
@@ -29,11 +29,43 @@ if ($Phase -ceq 'build') {
     foreach ($path in $locks.Keys) {
       if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $locks[$path]) { throw "dependency lock mismatch: $path" }
     }
+    $upstreamFile = 'internal/uvm/create_wcow.go'
+    $preHash = '756d21059132c34baf64cfa1ff2c798f6486c6235514960ab1f4ebf28497cfb4'
+    $postHash = 'b22b6d758ef183b3d40ad11bab62265126ce5f91ff957fb8ecad04be6fe72927'
+    if ((Get-FileHash -LiteralPath $upstreamFile).Hash.ToLowerInvariant() -cne $preHash) { throw 'policy patch preimage mismatch' }
+    $patch = @'
+--- a/internal/uvm/create_wcow.go
++++ b/internal/uvm/create_wcow.go
+@@ -217,7 +217,8 @@
+ \t\t\t\t\tHvSocketConfig: &hcsschema.HvSocketSystemConfig{
+ \t\t\t\t\t\t// Allow administrators and SYSTEM to bind to hyper-v sockets
+ \t\t\t\t\t\t// so that we can communicate to the GCS.
+-\t\t\t\t\t\tDefaultBindSecurityDescriptor: "D:P(A;;FA;;;SY)(A;;FA;;;BA)",
++\t\t\t\t\t\tDefaultBindSecurityDescriptor: "D:P(D;;FA;;;WD)",
++\t\t\t\t\t\tDefaultConnectSecurityDescriptor: "D:P(D;;FA;;;WD)",
+ \t\t\t\t\t\tServiceTable:                  make(map[string]hcsschema.HvSocketServiceConfig),
+ \t\t\t\t\t},
+ \t\t\t\t},
+'@
+    $patchPath = Join-Path $root 'upstream-defaults.patch'
+    [IO.File]::WriteAllText($patchPath, $patch.Replace('\t',"`t").Replace("`r`n","`n")+"`n", [Text.UTF8Encoding]::new($false))
+    git apply --check $patchPath; Assert-NativeExit
+    git apply $patchPath; Assert-NativeExit
+    if ((Get-FileHash -LiteralPath $upstreamFile).Hash.ToLowerInvariant() -cne $postHash) { throw 'policy patch postimage mismatch' }
+    $pinSources = @{
+      'internal/gcs/guestconnection.go'='d605eb5bf62c4b17109d0d7d986017ee831ed805fbb51383c511392c8b39f6f3'
+      'internal/gcs/process.go'='e3e6655b04ee999b9573e2964bb55740fbc84de027bf43a6de353a429a76abbf'
+      'internal/gcs/iochannel.go'='936ecc4616a39dbc984e507be00fd604d2ea3af4d7048798a4a986e68bb661c9'
+      'internal/uvm/start.go'='259ee9063389a1c2a4f714e4e399375f5ff02309365e03c85f84df59209c0833'
+    }
+    foreach ($path in $pinSources.Keys) { if ((Get-FileHash -LiteralPath $path).Hash.ToLowerInvariant() -cne $pinSources[$path]) { throw 'pinned stdio allocation/close implementation changed' } }
+    @{path=$upstreamFile; preimage=$preHash; postimage=$postHash; patch_sha256=(Get-FileHash -LiteralPath $patchPath).Hash.ToLowerInvariant(); source_assumptions=$pinSources} |
+      ConvertTo-Json -Depth 4 | Set-Content -LiteralPath "$evidence/policy-patch.json"
     $cmd = New-Item -ItemType Directory -Path 'cmd/ctm-boot-prototype'
     Copy-Item -LiteralPath "$env:GITHUB_WORKSPACE/scripts/windows_hcs_boot/prototype.go" -Destination "$cmd/main.go"
     Copy-Item -LiteralPath "$env:GITHUB_WORKSPACE/scripts/windows_hcs_boot/prototype_test.go" -Destination "$cmd/main_test.go"
     Copy-Item -LiteralPath "$env:GITHUB_WORKSPACE/scripts/windows_hcs_boot/fixture.go" -Destination "$cmd/fixture.go"
-    foreach ($file in @('surface_guest.go','surface_host.go','surface_test.go')) {
+    foreach ($file in @('surface_guest.go','surface_host.go','surface_test.go','policy_host.go','policy_session.go','policy_shared.go','policy_guest.go','policy_test.go')) {
       Copy-Item -LiteralPath "$env:GITHUB_WORKSPACE/scripts/windows_hcs_boot/$file" -Destination "$cmd/$file"
     }
     go version | Set-Content -LiteralPath "$evidence/go-version.txt"; Assert-NativeExit
@@ -41,13 +73,15 @@ if ($Phase -ceq 'build') {
     $goMatch = [regex]::Match($goVersion, '^go1\.(\d+)\.(\d+)$')
     if (-not $goMatch.Success -or [int]$goMatch.Groups[1].Value -lt 24) { throw 'documented Go1.24+ os.Root required' }
     $testFiles = (go list -mod=vendor -f '{{join .TestGoFiles ","}}' ./cmd/ctm-boot-prototype).Trim(); Assert-NativeExit
-    if ($testFiles -cne 'main_test.go,surface_test.go') { throw 'native test files were omitted or changed' }
+    if ($testFiles -cne 'main_test.go,policy_test.go,surface_test.go') { throw 'native test files were omitted or changed' }
     go test -mod=vendor -count=1 -v ./cmd/ctm-boot-prototype 2>&1 | Tee-Object -FilePath "$evidence/tests.txt"
     Assert-NativeExit
-    if (@(Get-Content -LiteralPath "$evidence/tests.txt" | Where-Object { $_ -match '^--- PASS: Test' }).Count -ne 17) { throw 'native test count mismatch' }
+    if (@(Get-Content -LiteralPath "$evidence/tests.txt" | Where-Object { $_ -match '^--- PASS: Test' }).Count -ne 22) { throw 'native test count mismatch' }
     go build -mod=vendor -trimpath -o "$root/prototype.exe" ./cmd/ctm-boot-prototype; Assert-NativeExit
     go build -mod=vendor -trimpath -tags fixture -o "$root/fixture.exe" ./cmd/ctm-boot-prototype; Assert-NativeExit
-    git diff --exit-code; Assert-NativeExit
+    git diff --check; Assert-NativeExit
+    $modified = @(git diff --name-only); Assert-NativeExit
+    if ($modified.Count -ne 1 -or $modified[0] -cne $upstreamFile -or (Get-FileHash -LiteralPath $upstreamFile).Hash.ToLowerInvariant() -cne $postHash) { throw 'unexpected patched dependency changes' }
     $locks | ConvertTo-Json | Set-Content -LiteralPath "$evidence/dependency-locks.json"
   } finally { Pop-Location }
   $node = (Get-Command node.exe -CommandType Application).Source
