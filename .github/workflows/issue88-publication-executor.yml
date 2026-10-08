@@ -47,7 +47,7 @@ jobs:
               assert git('rev-parse', '--is-shallow-repository') == 'false'
               sha, tree = git('rev-parse', 'HEAD'), git('rev-parse', 'HEAD^{tree}')
               parents = git('show', '-s', '--format=%P', 'HEAD').split()
-              assert sha == os.environ['GITHUB_SHA'] and parents == [profile.M]
+              assert sha == os.environ['GITHUB_SHA'] and parents == [profile.CORRECTION_PARENT]
               expected = c.publication.selected_profile(sha, c.ROOT, c._git, c._entries, c._feature_profile, c.RELEASE, c.RELEASE_TREE, c.RELEASE_DOCS)
               def checked():
                   assert expected == c._entries(sha) == c._index_entries(c._git('ls-files', '--stage', '-z'))

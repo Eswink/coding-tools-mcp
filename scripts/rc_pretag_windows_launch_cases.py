@@ -49,7 +49,8 @@ EXPECTED_CAPS = {
     'docs/specs/windows-vm-session/design.md': (140, 100),
     'docs/specs/windows-vm-session/tasks.md': (170, 110),
     'scripts/rc_pretag_windows_launch_profile.py': (350, 350),
-    'scripts/rc_pretag_windows_launch_cases.py': (450, 450),
+    'scripts/rc_pretag_windows_launch_cases.py': (495, 495),
+    'scripts/rc_pretag_authenticated_two_hop_tests.py': (490, 3),
     'scripts/rc_pretag_source_observation_profile.py': (190, 6),
     'scripts/rc_pretag_source_observation_cases.py': (390, 50),
     'scripts/rc_pretag_windows_vm_cases.py': (351, 6),
@@ -74,6 +75,8 @@ WINDOWS_ADAPTER = 'scripts/rc_pretag_windows_vm_cases.py'
 WINDOWS_METHODS = {'test_twenty_four_exact_paths_modes_pins_and_entry_count': 1,
                    'test_new12_inventory_readonly_workflows_and_exceptional_outcomes': 2}
 WINDOWS_LINES = {149, 323, 330}
+AUTH_ADAPTER = 'scripts/rc_pretag_authenticated_two_hop_tests.py'
+AUTH_METHODS = {'test_native_p_sole_parent_tree_and_thirteen_path_delta': 1}
 
 
 def inventory():
@@ -110,7 +113,7 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
     def setUp(self):
         self.original = c._entries(x.M, self.repo)
         self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in x.CAPS}
-        self.pure = self.commit([x.M], self.good)
+        self.pure = self.commit([x.CORRECTION_PARENT], self.good)
         self.feature = self.commit([x.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
         self.release = self.commit([p.R, self.feature], self.overlay)
@@ -145,7 +148,7 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
         return self.good | {path: ('100644', 'blob', self.blob(data))}
 
     def bad_content(self, entries, parents=None):
-        ref = self.commit([x.M] if parents is None else parents, entries)
+        ref = self.commit([x.CORRECTION_PARENT] if parents is None else parents, entries)
         x.topology(ref, self.repo, c._git, p.R)
         with self.assertRaises(AssertionError):
             self.selected(ref)
@@ -174,6 +177,23 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
         for ref, expected in ((self.pure, self.good), (self.feature, self.good), (self.release, self.overlay)):
             self.assertEqual(self.selected(ref), expected)
         self.assertEqual(x.topology(self.release, self.repo, c._git, p.R), ('release', self.feature, self.pure))
+        self.assertEqual(x.CORRECTION_PARENT, '750b11b20651b3f8bfadba69c19cb7eaf0c11e1e')
+        self.assertEqual(x.CORRECTION_TREE, 'fea18888f3560939915d1ff49439cc9b92e5b4d9')
+        repaired = self.commit([x.CORRECTION_PARENT], self.good)
+        integrated = self.commit([x.M, repaired], self.good)
+        overlay = self.commit([p.R, integrated], self.overlay)
+        for ref, expected in ((repaired, self.good), (integrated, self.good), (overlay, self.overlay)):
+            self.assertEqual(self.selected(ref), expected)
+        for parents in ([x.M], [repaired], [x.CORRECTION_PARENT, x.CORRECTION_PARENT], [x.M, x.CORRECTION_PARENT]):
+            with self.assertRaises((o.TopologyError, AssertionError)):
+                self.selected(self.commit(parents, self.good))
+        for command, replacement in ((('show', '-s', '--format=%P', x.CORRECTION_PARENT), b'\n'),
+                (('rev-parse', x.CORRECTION_PARENT + '^{tree}'), b'0' * 40),
+                (('cat-file', 'commit', x.CORRECTION_PARENT), b'changed commit')):
+            def altered(*args, root):
+                return replacement if args == command else c._git(*args, root=root)
+            with self.assertRaises(AssertionError):
+                self.selected(repaired, altered)
         for entries in (self.original, self.overlay, self.changed(x.CASES, b'changed')):
             self.bad_content(entries, [x.M, self.pure])
         self.assertEqual((p.R, p.R_TREE, len(c.RELEASE_DOCS)), ('e2e011f7f2a3a1df838bbd588106205b999db610', 'c0dfe00fdcc7ebc8e26acaad5d18ff3f94df9ba3', 4))
@@ -206,7 +226,7 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
     def test_nineteen_exact_paths_modes_pins_and_entry_count(self):
         self.assertEqual(self.content(), self.good)
         self.assertEqual((len(self.original), len(self.good)), ENTRY_COUNTS)
-        self.assertEqual((len(x.CAPS), len(x.BASE_PINS), len(self.good.keys() - self.original.keys())), (19, 11, 8))
+        self.assertEqual((len(x.CAPS), len(x.BASE_PINS), len(self.good.keys() - self.original.keys())), (20, 12, 8))
         self.assertEqual(x.CAPS, EXPECTED_CAPS)
         self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
         self.assertEqual(self.good[x.PROFILE][2], c._blob((c.ROOT / x.PROFILE).read_bytes()))
@@ -254,7 +274,7 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
     def test_eleven_full_byte_inverses_and_six_dispatch_lines(self):
         self.assertEqual((len(x.DISPATCH.splitlines()), len(x.NORMALIZE.splitlines())), (4, 2))
         self.assertEqual(x.FRAGMENTS.keys(), x.BASE_PINS.keys())
-        self.assertEqual(len(x.FRAGMENTS), 11)
+        self.assertEqual(len(x.FRAGMENTS), 12)
         for path in x.BASE_PINS:
             current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
             with patch('builtins.open', side_effect=AssertionError('IO')), patch('io.open', side_effect=AssertionError('IO')), patch('subprocess.Popen', side_effect=AssertionError('process')), patch('tempfile.TemporaryDirectory', side_effect=AssertionError('extract')):
@@ -386,7 +406,7 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
                     self.count += 1
                     return node.args[1]
                 return node
-        changed = {x.ADAPTER: {}, WINDOWS_ADAPTER: {}}
+        changed = {x.ADAPTER: {}, WINDOWS_ADAPTER: {}, AUTH_ADAPTER: {}}
         for module in {item.split('.', 1)[0] for item in original}:
             path = 'scripts/' + module + '.py'
             current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
@@ -399,15 +419,16 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
                 self.assertEqual(assertions(method), assertions(adjusted), (path, key))
                 self.assertEqual(ast.dump(method), ast.dump(adjusted), (path, key))
                 if undo.count:
-                    self.assertEqual(key[0], 'WindowsVmCompositionCases' if path == WINDOWS_ADAPTER else 'SourceObservationCompositionCases')
+                    expected_class = {WINDOWS_ADAPTER: 'WindowsVmCompositionCases', x.ADAPTER: 'SourceObservationCompositionCases', AUTH_ADAPTER: 'AuthenticatedTwoHopCompositionTests'}[path]
+                    self.assertEqual(key[0], expected_class)
                     changed[path][key[1]] = undo.count
-        self.assertEqual(changed, {x.ADAPTER: ADAPTER_METHODS, WINDOWS_ADAPTER: WINDOWS_METHODS})
-        self.assertEqual(sum(sum(methods.values()) for methods in changed.values()), 11)
+        self.assertEqual(changed, {x.ADAPTER: ADAPTER_METHODS, WINDOWS_ADAPTER: WINDOWS_METHODS, AUTH_ADAPTER: AUTH_METHODS})
+        self.assertEqual(sum(sum(methods.values()) for methods in changed.values()), 12)
 
     def test_new12_inventory_readonly_workflows_and_exceptional_outcomes(self):
         text = (c.ROOT / x.WORKFLOW).read_text()
         self.assertEqual(x.normalize(x.WORKFLOW, text.encode()), self.frozen(x.WORKFLOW))
-        for fragment in ("branches: ['ci/issue88-publisher-executor-*']", 'permissions:\n  contents: read', 'timeout-minutes: 30', 'frozen four hundred twenty five cases', 'import rc_pretag_windows_launch_profile as profile', 'windows_launch.inventory()', 'windows_launch.execution_valid(loaded, result)', 'windows-launch-cases.log', 'windows-launch-inventory.json', 'parents == [profile.M]', 'checked() == before', "'production_ready': False"):
+        for fragment in ("branches: ['ci/issue88-publisher-executor-*']", 'permissions:\n  contents: read', 'timeout-minutes: 30', 'frozen four hundred twenty five cases', 'import rc_pretag_windows_launch_profile as profile', 'windows_launch.inventory()', 'windows_launch.execution_valid(loaded, result)', 'windows-launch-cases.log', 'windows-launch-inventory.json', 'parents == [profile.CORRECTION_PARENT]', 'checked() == before', "'production_ready': False"):
             self.assertIn(fragment, text)
         for group in ('x', 'admission', 'final_admission', 'download_budget', 'staging_budget', 'checksum_budget', 'archive_budget', 'staged_bytes', 'supervisor_readiness', 'stage_retirement', 'git_budget', 'windows_vm', 'source_observation', 'windows_launch'):
             self.assertEqual(text.count('names = ' + group + '.inventory()'), 1)
@@ -415,7 +436,7 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
         for earlier, later in (('windows_launch', 'source_observation'), ('source_observation', 'git_budget'), ('git_budget', 'staging_budget'), ('staging_budget', 'x')):
             self.assertLess(text.index('names = ' + earlier + '.inventory()'), text.index('names = ' + later + '.inventory()'))
         native = (c.ROOT / x.NATIVE_WORKFLOW).read_text()
-        for fragment in ("$base='" + x.M + "'", "if ($base -cnotmatch '^[0-9a-f]{40}$' -or $parents -cne $base)", '16 passed; 0 failed; 0 ignored', '2 passed; 0 failed; 6 ignored', '6 passed; 0 failed; 0 ignored', '2 passed; 0 failed; 0 ignored', 'exact 38 executed outcomes required', '--test-threads=1', '8MB', '2MB'):
+        for fragment in ("$base='" + x.CORRECTION_PARENT + "'", "if ($base -cnotmatch '^[0-9a-f]{40}$' -or $parents -cne $base)", '16 passed; 0 failed; 0 ignored', '2 passed; 0 failed; 6 ignored', '6 passed; 0 failed; 0 ignored', '2 passed; 0 failed; 0 ignored', 'exact 38 executed outcomes required', '--test-threads=1', '8MB', '2MB'):
             self.assertIn(fragment, native)
         self.assertNotIn('UNSEALED', native)
         self.assertLess(native.index('six actual launch cases required before import'), native.index('-Phase acquire'))
