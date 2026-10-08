@@ -21,7 +21,7 @@ fn bundle() -> CiBundle {
     assert_eq!(manifest["node"], "v22.23.3");
     assert_eq!(manifest["pwsh"], "7.6.6");
     CiBundle {
-        exe: root.join("broker.exe"),
+        exe: root.join("trusted-code/broker.exe"),
         sha256: manifest["broker_sha256"].as_str().unwrap().into(),
         source: manifest["source"].as_str().unwrap().into(),
         root,
@@ -79,6 +79,19 @@ async fn drained(
     assert_ne!(result.outcome, Outcome::Uncertain, "{:?}", result.errors);
     assert_eq!(result.state, State::Retired);
     assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert_eq!(result.ownership, OwnershipStatus::Retired);
+    let launch = result.launch.as_ref().expect("actual Rust launch receipt");
+    assert!(launch.clean_success(), "{launch:?}");
+    assert_eq!(launch.retained, launch.observed);
+    assert!(launch.create_call_entered && launch.create_call_returned && launch.child_created);
+    assert!(launch.create_event && launch.image_hfile_present && launch.image_handle_closed);
+    assert!(launch.identity_match && launch.first_continue_succeeded);
+    assert!(launch.pre_admission_empty && launch.prepare_released && launch.start_attempted);
+    assert!(launch.exit_event_continued && launch.process_signaled);
+    assert_eq!(launch.exit_code, Some(0));
+    assert!(launch.local_handles_retired && launch.pin_retired);
+    assert!(launch.native_errors.is_empty() && launch.errors.is_empty());
+    assert!(launch.host_io.as_ref().expect("actual workers").clean());
     tokio::time::timeout(Duration::from_secs(5), cloud.wait())
         .await
         .unwrap();
@@ -114,9 +127,12 @@ fn evidence(root: &Path, name: &str, source: &str, result: &Completion, lost_wai
         "runtime_id": result.runtime_id, "outcome": format!("{:?}", result.outcome),
         "state": format!("{:?}", result.state), "guest": result.guest, "cleanup": result.cleanup,
         "validated_events": result.trace,
+        "launch": result.launch, "local_ownership": result.ownership,
         "caller_wait_lost": lost_waiter, "paired_fences_held_before_teardown": true,
         "paired_fences_drained": true, "network_denial_proven": false,
         "workspace_integration": false, "production_admission": false,
+        "production_launch_authority": false, "general_dll_authority": false,
+        "descendant_containment_by_debugger": false, "hard_syscall_deadline": false,
     });
     let mut file = std::fs::OpenOptions::new()
         .write(true)
