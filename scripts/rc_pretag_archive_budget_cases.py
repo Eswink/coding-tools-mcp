@@ -1,4 +1,4 @@
-"""Exact checksum-budget composition; historical proof evidence grants no release authority."""
+"""Exact archive-budget composition; historical proof evidence grants no release authority."""
 import ast
 from collections import Counter
 import copy
@@ -13,33 +13,35 @@ import rc_pretag_publication_profile as p
 import rc_pretag_publication_tests as pt
 import rc_pretag_linux_package_cases as lc
 import rc_pretag_yoke_repair_profile as y
-import rc_pretag_staging_budget_profile as previous
+import rc_pretag_checksum_budget_profile as previous
 import rc_pretag_publisher_executor_cases as old_cases
 import rc_pretag_integration_admission_cases as previous_cases
 import rc_pretag_final_admission_cases as final_cases
 import rc_pretag_download_budget_cases as download_cases
 import rc_pretag_staging_budget_cases as staging_cases
-import rc_pretag_checksum_budget_profile as x
-from rc_pretag_archive_budget_profile import normalize as archive_bytes
+import rc_pretag_checksum_budget_cases as checksum_cases
+import rc_pretag_archive_budget_profile as x
+
+F_BINDING = ('e90e15fa8b6d527006b6c62a75eb2fcab6629f0f', '73bf80abd94a0ec8db241453c225b6bf62652b1b', ('39a9ae7e2761f419db5cace712368e5671042b5e', '73e4fdb7ea077392a93105652374eba8bf0a605f'))
 
 def inventory():
     expected = [cls + '.' + name for cls, names in x.NEW_CASES.items() for name in names]
     actual = [item for cls in x.NEW_CASES for item in lc.ids(cls)]
-    pt.inventory_ids(expected, 24, x.DIGEST)
-    pt.inventory_ids(actual, 24, x.DIGEST)
+    pt.inventory_ids(expected, 27, x.DIGEST)
+    pt.inventory_ids(actual, 27, x.DIGEST)
     assert Counter(actual) == Counter(expected)
     return expected
 
 def execution_valid(loaded, result):
-    pt.inventory_ids(loaded, 24, x.DIGEST)
+    pt.inventory_ids(loaded, 27, x.DIGEST)
     assert Counter(loaded) == Counter(inventory())
     executed = getattr(result, 'executed_ids', [])
-    pt.inventory_ids(executed, 24, x.DIGEST)
+    pt.inventory_ids(executed, 27, x.DIGEST)
     return (result.wasSuccessful() and not result.skipped and not result.expectedFailures
             and not result.unexpectedSuccesses and Counter(executed) == Counter(loaded)
-            and result.testsRun == len(set(executed)) == 24)
+            and result.testsRun == len(set(executed)) == 27)
 
-class ChecksumBudgetCompositionCases(unittest.TestCase):
+class ArchiveBudgetCompositionCases(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.fixture = c._profile_fixture()
@@ -52,7 +54,7 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
         cls.fixture.__exit__(None, None, None)
     def setUp(self):
         self.original = c._entries(x.M, self.repo)
-        self.good = self.original | {path: ('100644', 'blob', self.blob(archive_bytes(path, (c.ROOT / path).read_bytes()))) for path in x.CAPS}
+        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in x.CAPS}
         self.pure = self.commit([x.M], self.good)
         self.feature = self.commit([x.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -60,9 +62,7 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
         self.args = (self.repo, c._git, c._entries, c._feature_profile, c.RELEASE, c.RELEASE_TREE, dict(c.RELEASE_DOCS))
     def verified_baseline(self, ref, *args, **kwargs):
         callbacks = all(actual is expected for actual, expected in zip(args[1:4], self.args[1:4]))
-        immutable = (x.M, x.M_TREE, x.M_PARENTS) == (
-            '39a9ae7e2761f419db5cace712368e5671042b5e', 'ecf7792ca9911d969ac223227c819fbb8ef70fe7',
-            ('981d7b23af1c5c8174352c4564aa65b1557cc546', '9d9f5d9ee1bad13b825fd8ac1f114a578122af2a'))
+        immutable = (x.M, x.M_TREE, x.M_PARENTS) == F_BINDING
         if ref != x.M or not immutable or kwargs or not callbacks or args != self.args:
             return self._select(ref, *args, **kwargs)
         key = (ref, *args[:6], tuple(sorted(args[6].items())))
@@ -85,10 +85,8 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
         ref = self.commit([x.M] if parents is None else parents, entries)
         x.topology(ref, self.repo, c._git, p.R)
         with self.assertRaises(AssertionError): self.selected(ref)
-    def test_exact_m_identity_and_fresh_historical_validation(self):
-        self.assertEqual((x.M, x.M_TREE, x.M_PARENTS), (
-            '39a9ae7e2761f419db5cace712368e5671042b5e', 'ecf7792ca9911d969ac223227c819fbb8ef70fe7',
-            ('981d7b23af1c5c8174352c4564aa65b1557cc546', '9d9f5d9ee1bad13b825fd8ac1f114a578122af2a')))
+    def test_exact_f_identity_and_fresh_historical_validation(self):
+        self.assertEqual((x.M, x.M_TREE, x.M_PARENTS), F_BINDING)
         self.assertEqual(self.selected(x.M, fresh=True), self.original)
         self.assertIsNone(x.select(x.M, *self.args))
         with patch.object(previous, 'content', wraps=previous.content) as historical:
@@ -143,14 +141,14 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
         with patch.dict(os.environ, hostile):
             self.assertEqual(self.selected('moving', moving, fresh=True), self.good)
         self.assertEqual(sum(any('moving' in arg for arg in args) for args in calls), 1)
-    def test_all_thirteen_paths_modes_pins_and_entry_counts_are_exact(self):
+    def test_all_twelve_paths_modes_pins_and_entry_counts_are_exact(self):
         self.assertEqual(self.content(), self.good)
-        self.assertEqual((len(self.original), len(self.good), len(x.CAPS), len(x.BASE_PINS)), (1770, 1776, 13, 7))
+        self.assertEqual((len(self.original), len(self.good), len(x.CAPS), len(x.BASE_PINS)), (1776, 1783, 12, 5))
         self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
-        self.assertEqual(x.CAPS[x.PROFILE], (400, 400))
-        self.assertEqual(self.good[x.PROFILE][2], c._blob(archive_bytes(x.PROFILE, (c.ROOT / x.PROFILE).read_bytes())))
+        self.assertEqual(x.CAPS[x.PROFILE], (300, 300))
+        self.assertEqual(self.good[x.PROFILE][2], c._blob((c.ROOT / x.PROFILE).read_bytes()))
         for path, row in x.SOURCE_PINS.items():
-            data = archive_bytes(path, (c.ROOT / path).read_bytes())
+            data = (c.ROOT / path).read_bytes()
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())))
             for index, value in enumerate(('100755', '0' * 40, '0' * 64, row[3] + 1, row[4] + 1)):
                 changed = list(row)
@@ -170,10 +168,10 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
         self.bad_content(self.changed('unreviewed-extra.py', b'extra\n'))
         self.bad_content(self.changed('services/cloud-agent/src/main.rs', b'changed\n'))
     def test_individual_and_total_budgets_fail_closed(self):
-        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (1800, 1701))
-        data = {path: archive_bytes(path, (c.ROOT / path).read_bytes()) for path in x.CAPS}
+        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (1900, 1866))
+        data = {path: (c.ROOT / path).read_bytes() for path in x.CAPS}
         def budgets(git=c._git):
-            return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'checksum_delta_budget')
+            return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'archive_delta_budget')
         budgets()
         for path, (_, delta) in x.CAPS.items():
             with patch.dict(x.CAPS, {path: (len(data[path].splitlines()) - 1, delta)}), self.assertRaises(AssertionError):
@@ -184,12 +182,12 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
                     return row if args == ('diff', '--numstat', x.M, self.pure, '--', path) else c._git(*args, root=root)
                 with self.assertRaises(AssertionError):
                     budgets(malformed)
-        with patch.object(x, 'DELTA_LIMIT', 0), self.assertRaisesRegex(AssertionError, 'checksum_delta_budget'):
+        with patch.object(x, 'DELTA_LIMIT', 0), self.assertRaisesRegex(AssertionError, 'archive_delta_budget'):
             budgets()
-    def test_exact_dispatch_and_seven_inverses_recover_complete_m_bytes(self):
+    def test_exact_dispatch_and_five_inverses_recover_complete_f_bytes(self):
         self.assertEqual((len(x.DISPATCH.splitlines()), len(x.NORMALIZE.splitlines())), (4, 2))
         self.assertEqual(x.FRAGMENTS.keys(), x.BASE_PINS.keys())
-        self.assertEqual(len(x.FRAGMENTS), 7)
+        self.assertEqual(len(x.FRAGMENTS), 5)
         for path in x.BASE_PINS:
             current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
             with patch('builtins.open', side_effect=AssertionError('IO forbidden')), patch('io.open', side_effect=AssertionError('IO forbidden')), patch('subprocess.check_output', side_effect=AssertionError('git forbidden')), patch('subprocess.Popen', side_effect=AssertionError('process forbidden')), patch('tempfile.TemporaryDirectory', side_effect=AssertionError('extraction forbidden')):
@@ -201,9 +199,9 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
         self.assertEqual(c._git('diff', '--numstat', x.M, self.pure, '--', x.DISPATCHER, root=self.repo),
                          f'6\t0\t{x.DISPATCHER}\n'.encode())
         self.assertEqual(x.normalize('unmapped', b'unchanged'), b'unchanged')
-        self.assertEqual((len(x.PRIOR_PINS), sum(map(len, x.PRIOR_PINS.values()))), (3, 6))
+        self.assertEqual((len(x.PRIOR_PINS), sum(map(len, x.PRIOR_PINS.values()))), (3, 8))
         self.assertEqual({path: len(pins) for path, pins in x.PRIOR_PINS.items()}, {
-            'scripts/rc_artifact_consumer.py': 1, 'scripts/rc_pretag_ownership_tests.py': 1, x.WORKFLOW: 4})
+            'scripts/rc_artifact_consumer.py': 2, 'scripts/rc_consumer_archive.py': 1, x.WORKFLOW: 5})
         for path, pins in x.PRIOR_PINS.items():
             self.assertEqual(len(pins), len(set(pins)))
             self.assertNotIn(x.BASE_PINS[path][1:3], pins)
@@ -214,7 +212,7 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
                     self.assertEqual(x.normalize(path, prior), prior)
     def test_missing_duplicate_outside_and_binary_inverse_edits_reject(self):
         for path, fragments in x.FRAGMENTS.items():
-            current = archive_bytes(path, (c.ROOT / path).read_bytes())
+            current = (c.ROOT / path).read_bytes()
             altered = [current + b'# outside\n', b'\xff']
             for before, _ in fragments:
                 self.assertEqual(current.count(before), 1)
@@ -233,7 +231,7 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
                 for bad in (prior + b'# outside\n', b'\xff' + prior, weakened):
                     if bad == prior: continue
                     with self.assertRaises(AssertionError): x.normalize(path, bad)
-        path = 'scripts/rc_pretag_staging_budget_cases.py'
+        path = 'scripts/rc_pretag_checksum_budget_cases.py'
         current = (c.ROOT / path).read_bytes()
         bad = current.replace(b'self.assertEqual(', b'self.assertNotEqual(', 1)
         self.assertNotEqual(bad, current)
@@ -242,6 +240,24 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
         for path, current in ((None, b'x'), (x.DISPATCHER, 'text')):
             with self.assertRaises(AssertionError):
                 x.normalize(path, current)
+        path = 'scripts/rc_artifact_consumer.py'
+        current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
+        self.assertEqual(x.normalize(path, current), frozen)
+        row = ('100644', *o.pin(frozen), len(frozen), len(frozen.splitlines()))
+        self.assertEqual(self.original[path], (row[0], 'blob', row[1]))
+        self.assertEqual(x.BASE_PINS[path], row)
+        self.assertEqual(previous.SOURCE_PINS[path], row)
+        for fragment, _ in previous.FRAGMENTS[path]:
+            self.assertEqual(frozen.count(fragment), 1)
+            for bad in (frozen.replace(fragment, b'', 1), frozen.replace(fragment, fragment * 2, 1)):
+                changed_row = ('100644', *o.pin(bad), len(bad), len(bad.splitlines()))
+                with patch.object(x, 'normalize', side_effect=lambda path, data: data) as delegate, \
+                     patch.dict(previous.SOURCE_PINS, {path: changed_row}):
+                    with self.assertRaisesRegex(AssertionError, '^checksum fragment missing or duplicated$'):
+                        previous.normalize(path, bad)
+                    delegate.assert_called_once_with(path, bad)
+                with self.assertRaises(AssertionError):
+                    x.normalize(path, bad)
     def test_selected_historical_and_release_content_errors_are_terminal(self):
         for error in (AssertionError, o.TopologyError):
             with patch.object(x, 'content', side_effect=error('selected terminal')), patch.object(previous, 'content') as old, self.assertRaisesRegex(error, 'selected terminal'):
@@ -276,13 +292,13 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
             self.verified_baseline(x.M, *self.args)
         runtime = ast.parse((c.ROOT / x.PROFILE).read_text())
         self.assertFalse(any('cache' in (getattr(node, 'id', getattr(node, 'attr', getattr(node, 'name', ''))) or '') for node in ast.walk(runtime)))
-    def test_original1352_strict303_consumer452_ids_and_bodies_are_preserved(self):
-        original = [item for group in lc.GROUPS for item in lc.inventory(group)] + lc.ids(y.CLASS) + old_cases.inventory() + previous_cases.inventory() + final_cases.inventory() + download_cases.inventory() + staging_cases.inventory()
-        pt.inventory_ids(original, 1352, 'ea0dc69cba21c7fc078299270b5944372520607cc2b4401b7c3a231dfb17c03d')
-        pt.inventory_ids(original + inventory(), 1376, '14d9d6021486b61868cd7e7919ba348fe38bf95e0808d5b8315c054eb79e50e2')
-        workflow = old_cases.inventory() + previous_cases.inventory() + final_cases.inventory() + download_cases.inventory() + staging_cases.inventory()
-        pt.inventory_ids(workflow, 168, 'dd810f84cb50ddd5c5dfdc29b1beafdf481a37ce41b7f49cdf96ce7cba027886')
-        pt.inventory_ids(workflow + inventory(), 192, 'fe55a76097c93577d8d83076f219099f7ab14095eec7e2ca4b79fce35791996d')
+    def test_original1376_strict303_consumer452_ids_and_bodies_are_preserved(self):
+        original = [item for group in lc.GROUPS for item in lc.inventory(group)] + lc.ids(y.CLASS) + old_cases.inventory() + previous_cases.inventory() + final_cases.inventory() + download_cases.inventory() + staging_cases.inventory() + checksum_cases.inventory()
+        pt.inventory_ids(original, 1376, '14d9d6021486b61868cd7e7919ba348fe38bf95e0808d5b8315c054eb79e50e2')
+        pt.inventory_ids(original + inventory(), 1403, '4defaef033aa3b5f90f85f9a44f87bfb55bfb0e8e24f6323026a12751993f93d')
+        workflow = old_cases.inventory() + previous_cases.inventory() + final_cases.inventory() + download_cases.inventory() + staging_cases.inventory() + checksum_cases.inventory()
+        pt.inventory_ids(workflow, 192, 'fe55a76097c93577d8d83076f219099f7ab14095eec7e2ca4b79fce35791996d')
+        pt.inventory_ids(workflow + inventory(), 219, '019327fd8da375cfc83e98338c6625f2c7bd5db938aa431baab4eb5d904c3ba5')
         method = next(node for node in ast.walk(ast.parse(self.frozen(p.TESTS))) if isinstance(node, ast.FunctionDef)
                       and node.name == 'test_protected_source_versions_gates_workflows_and_old_452_are_unchanged')
         modules = ast.literal_eval(method.body[0].value.func.value).split()
@@ -291,15 +307,14 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
             consumer = [item for module in modules for item in lc.ids(module) if item.split('.', 1)[0] == module]
         pt.inventory_ids(strict, 303, '0ecc366c2018a6a1e20d3f59ed9ca66645d9334324cd517682894cabde923125')
         pt.inventory_ids(consumer, 452, 'd01db4e6cd605c6636423e27c8c0409e90aba217cc0e6930474f59a24b57f372')
-        allowed = {'rc_pretag_ownership_tests': {'test_ownership_io_drift_and_reverted_handoff_reject'},
-            'rc_pretag_staging_budget_cases': {'setUp', 'test_all_thirteen_paths_modes_pins_and_entry_counts_are_exact',
-                'test_individual_and_total_budgets_fail_closed', 'test_missing_duplicate_outside_and_binary_inverse_edits_reject',
-                'test_original1328_strict303_consumer452_ids_and_bodies_are_preserved',
-                'test_readonly_workflow_and_held_sources_remain_bounded'}}
+        allowed = {'rc_pretag_checksum_budget_cases': {'setUp',
+            'test_all_thirteen_paths_modes_pins_and_entry_counts_are_exact',
+            'test_individual_and_total_budgets_fail_closed',
+            'test_missing_duplicate_outside_and_binary_inverse_edits_reject'}}
         class SourceOperands(ast.NodeTransformer):
             def visit_Call(self, node):
                 node = self.generic_visit(node)
-                return node.args[1] if isinstance(node.func, ast.Name) and node.func.id in ('checksum_bytes', 'integration_bytes') else node
+                return node.args[1] if isinstance(node.func, ast.Name) and node.func.id == 'archive_bytes' else node
         def methods(data):
             found = {}
             def collect(node, scope=()):
@@ -334,6 +349,8 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
                 'download_budget.inventory()', 'download_budget.execution_valid(loaded, result)',
                 'staging_budget.inventory()', 'staging_budget.execution_valid(loaded, result)',
                 'checksum_budget.inventory()', 'checksum_budget.execution_valid(loaded, result)', 'timeout-minutes: 30',
+                'archive_budget.inventory()', 'archive_budget.execution_valid(loaded, result)',
+                'archive-budget-inventory.json', 'archive-budget-cases.log',
                 'checksum-budget-inventory.json', 'checksum-budget-cases.log',
                 'staging-budget-inventory.json', 'staging-budget-cases.log', "'production_ready': False",
                 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262',
@@ -349,19 +366,19 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
         self.assertFalse(held & self.good.keys())
         self.assertTrue(all(not (c.ROOT / path).exists() and not (c.ROOT / path).is_symlink() for path in held))
         for path in ('scripts/rc_release_eligibility.py', 'scripts/rc_publication_contract.py', 'scripts/rc_publication_admission.py',
-                'scripts/rc_publication_executor.py', 'scripts/rc_publication_stage.py',
+                'scripts/rc_publication_executor.py', 'scripts/rc_publication_stage.py', 'scripts/rc_consumer_io.py',
                 'scripts/rc_consumer_transport.py', 'scripts/rc_consumer_transport_worker.py',
                 'scripts/rc_consumer_proof_fixtures.py', 'scripts/rc_consumer_default_worker_proof.py', 'scripts/rc_consumer_default_worker_proof_tests.py',
                 'scripts/rc_consumer_c_93c2ad95_io.txt', 'src-tauri/src/workspace_snapshots/filesystem.rs'):
             self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path), path)
         self.assertTrue(all(self.good[path] == value for path, value in self.original.items() if path not in x.CAPS))
-    def test_new24_inventory_and_exceptional_outcomes_reject(self):
+    def test_new27_inventory_and_exceptional_outcomes_reject(self):
         loaded = inventory()
-        self.assertEqual([len(names) for names in x.NEW_CASES.values()], [12, 12])
-        good = dict(executed_ids=loaded, testsRun=24, skipped=[], expectedFailures=[], unexpectedSuccesses=[], wasSuccessful=lambda: True)
+        self.assertEqual([len(names) for names in x.NEW_CASES.values()], [15, 12])
+        good = dict(executed_ids=loaded, testsRun=27, skipped=[], expectedFailures=[], unexpectedSuccesses=[], wasSuccessful=lambda: True)
         self.assertTrue(execution_valid(loaded, SimpleNamespace(**good)))
         for field, value in (('skipped', [('id', 'reason')]), ('expectedFailures', [('id', 'failure')]),
-                            ('unexpectedSuccesses', ['id']), ('testsRun', 23), ('wasSuccessful', lambda: False)):
+                            ('unexpectedSuccesses', ['id']), ('testsRun', 26), ('wasSuccessful', lambda: False)):
             self.assertFalse(execution_valid(loaded, SimpleNamespace(**(good | {field: value}))))
         for invalid in (loaded[:-1], loaded + loaded[:1], loaded[:-1] + ['unknown']):
             with self.assertRaises(AssertionError):
