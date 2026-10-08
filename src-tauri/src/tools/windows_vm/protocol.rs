@@ -8,7 +8,8 @@ pub(super) const MAX_FRAME: usize = 65_536;
 pub(super) const MAX_TOTAL: usize = 1_048_576;
 pub(super) fn canonical_id(value: &str, v4: bool) -> bool {
     uuid::Uuid::parse_str(value).ok().is_some_and(|u| {
-        !u.is_nil() && u.to_string() == value
+        !u.is_nil()
+            && u.to_string() == value
             && (!v4 || (u.as_bytes()[6] >> 4 == 4 && u.as_bytes()[8] & 0xc0 == 0x80))
     })
 }
@@ -87,13 +88,20 @@ impl GuestResult {
         let names = ["cmd", "windows-powershell", "node", "pwsh"];
         self.input_sha256 == format!("{:x}", Sha256::digest(input.as_bytes()))
             && self.output_sha256 == format!("{:x}", Sha256::digest(output.as_bytes()))
-            && base64::engine::general_purpose::STANDARD.decode(&self.data_base64)
+            && base64::engine::general_purpose::STANDARD
+                .decode(&self.data_base64)
                 .is_ok_and(|bytes| bytes == output.as_bytes() && bytes.len() <= 1024)
-            && if self.child_alive { self.cases.is_empty() } else {
-                self.cases.len() == names.len() && self.cases.iter().zip(names).all(|(case, name)| {
-                    case.name == name && case.passed && case.exit_code == 23
-                        && case.stderr.is_empty() && case.stdout.len() <= MAX_FRAME
-                })
+            && if self.child_alive {
+                self.cases.is_empty()
+            } else {
+                self.cases.len() == names.len()
+                    && self.cases.iter().zip(names).all(|(case, name)| {
+                        case.name == name
+                            && case.passed
+                            && case.exit_code == 23
+                            && case.stderr.is_empty()
+                            && case.stdout.len() <= MAX_FRAME
+                    })
             }
     }
 }
@@ -124,19 +132,36 @@ pub(super) struct Cleanup {
     pub errors: Vec<String>,
 }
 impl Cleanup {
-    pub(super) fn retirable(&self, guest: Option<&GuestResult>, started: bool, cancelled: bool) -> bool {
-        [self.terminate_ok, self.whole_vm_exited, self.exit_ok, self.close_ok, self.guest_io_joined] == [started; 5]
-            && self.errors.is_empty() && !self.network_denial_proven && !self.workspace_integration
-            && !self.production_admission && self.owned_data_retained
+    pub(super) fn retirable(
+        &self,
+        guest: Option<&GuestResult>,
+        started: bool,
+        cancelled: bool,
+    ) -> bool {
+        [
+            self.terminate_ok,
+            self.whole_vm_exited,
+            self.exit_ok,
+            self.close_ok,
+            self.guest_io_joined,
+        ] == [started; 5]
+            && self.errors.is_empty()
+            && !self.network_denial_proven
+            && !self.workspace_integration
+            && !self.production_admission
+            && self.owned_data_retained
             && (self.quarantine == Quarantine::Written || self.output_sha256.is_empty())
             && if !started {
                 cancelled && self.quarantine == Quarantine::NotStarted
             } else if cancelled {
                 self.quarantine == Quarantine::Withheld
             } else {
-                self.quarantine == Quarantine::Written && guest.is_some_and(|g| {
-                    !g.child_alive && self.input_sha256 == g.input_sha256 && self.output_sha256 == g.output_sha256
-                })
+                self.quarantine == Quarantine::Written
+                    && guest.is_some_and(|g| {
+                        !g.child_alive
+                            && self.input_sha256 == g.input_sha256
+                            && self.output_sha256 == g.output_sha256
+                    })
             }
     }
 }
@@ -207,8 +232,14 @@ pub(super) fn write_request(
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum State {
-    RegisteredNoEffects, BrokerPreparedNoHCS, CreatingMayExist, RunningOwnedVM,
-    Terminating, ExitedAndIOJoined, QuarantineHandled, Retired,
+    RegisteredNoEffects,
+    BrokerPreparedNoHCS,
+    CreatingMayExist,
+    RunningOwnedVM,
+    Terminating,
+    ExitedAndIOJoined,
+    QuarantineHandled,
+    Retired,
 }
 pub(super) struct Validator {
     pub(super) source: String,
@@ -226,9 +257,20 @@ pub(super) struct Validator {
 }
 impl Validator {
     pub(super) fn new(source: String, session: String) -> Self {
-        Self { source, session, seq: 0, stage: State::RegisteredNoEffects, failed: false,
-            started: false, creating: false, vm_id: String::new(), runtime_id: String::new(),
-            guest: None, cleanup: None, trace: Vec::new() }
+        Self {
+            source,
+            session,
+            seq: 0,
+            stage: State::RegisteredNoEffects,
+            failed: false,
+            started: false,
+            creating: false,
+            vm_id: String::new(),
+            runtime_id: String::new(),
+            guest: None,
+            cleanup: None,
+            trace: Vec::new(),
+        }
     }
     pub(super) fn start_attempted(&mut self) {
         self.failed |= self.stage != State::BrokerPreparedNoHCS;
@@ -237,46 +279,94 @@ impl Validator {
     }
     pub(super) fn accept(&mut self, e: &Event) -> Result<(), String> {
         let valid = (|| {
-            if self.failed || self.cleanup.is_some() || e.version != 1 || e.source != self.source
-                || e.session != self.session || e.seq != self.seq || !e.error.is_empty()
-                || self.source.len() != 40 || !self.source.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+            if self.failed
+                || self.cleanup.is_some()
+                || e.version != 1
+                || e.source != self.source
+                || e.session != self.session
+                || e.seq != self.seq
+                || !e.error.is_empty()
+                || self.source.len() != 40
+                || !self
+                    .source
+                    .bytes()
+                    .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
                 || !canonical_id(&e.session, true)
                 || (e.kind == Kind::Guest) != e.guest.is_some()
                 || (e.kind == Kind::Cleanup) != e.cleanup.is_some()
-                || e.guest.as_ref().is_some_and(|g| !g.valid_for(&self.session)) { return false; }
+                || e.guest
+                    .as_ref()
+                    .is_some_and(|g| !g.valid_for(&self.session))
+            {
+                return false;
+            }
             if self.vm_id.is_empty() {
-                if e.kind != Kind::Prepared || !canonical_id(&e.vm_id, false) { return false; }
-            } else if e.vm_id != self.vm_id { return false; }
-            if e.kind != Kind::Running && e.runtime_id != self.runtime_id { return false; }
+                if e.kind != Kind::Prepared || !canonical_id(&e.vm_id, false) {
+                    return false;
+                }
+            } else if e.vm_id != self.vm_id {
+                return false;
+            }
+            if e.kind != Kind::Running && e.runtime_id != self.runtime_id {
+                return false;
+            }
             match e.kind {
                 Kind::Prepared if self.stage == State::RegisteredNoEffects => {
-                    self.vm_id = e.vm_id.clone(); self.stage = State::BrokerPreparedNoHCS;
+                    self.vm_id = e.vm_id.clone();
+                    self.stage = State::BrokerPreparedNoHCS;
                 }
-                Kind::Creating if self.started && !self.creating && self.stage == State::CreatingMayExist => {
+                Kind::Creating
+                    if self.started && !self.creating && self.stage == State::CreatingMayExist =>
+                {
                     self.creating = true;
                 }
-                Kind::Running if self.creating && self.stage == State::CreatingMayExist && canonical_id(&e.runtime_id, false) => {
-                    self.runtime_id = e.runtime_id.clone(); self.stage = State::RunningOwnedVM;
+                Kind::Running
+                    if self.creating
+                        && self.stage == State::CreatingMayExist
+                        && canonical_id(&e.runtime_id, false) =>
+                {
+                    self.runtime_id = e.runtime_id.clone();
+                    self.stage = State::RunningOwnedVM;
                 }
-                Kind::Guest if self.stage == State::RunningOwnedVM && self.guest.is_none() => self.guest = e.guest.clone(),
-                Kind::Cleanup => { self.cleanup = e.cleanup.clone(); self.stage = State::Terminating; }
+                Kind::Guest if self.stage == State::RunningOwnedVM && self.guest.is_none() => {
+                    self.guest = e.guest.clone()
+                }
+                Kind::Cleanup => {
+                    self.cleanup = e.cleanup.clone();
+                    self.stage = State::Terminating;
+                }
                 _ => return false,
             }
             self.trace.push((e.seq, e.kind));
             self.seq += 1;
             true
         })();
-        if valid { Ok(()) } else { self.failed = true; Err("invalid/sticky host protocol".into()) }
+        if valid {
+            Ok(())
+        } else {
+            self.failed = true;
+            Err("invalid/sticky host protocol".into())
+        }
     }
     pub(super) fn finish(&mut self, host_joined: bool, helper_ok: bool, cancelled: bool) -> bool {
-        let input_sha256 = format!("{:x}", Sha256::digest(format!("ctm-synthetic:{}", self.session).as_bytes()));
-        let valid = !self.failed && host_joined && helper_ok && self.cleanup.as_ref()
-            .is_some_and(|c| c.input_sha256 == input_sha256 && c.retirable(self.guest.as_ref(), self.started, cancelled));
+        let input_sha256 = format!(
+            "{:x}",
+            Sha256::digest(format!("ctm-synthetic:{}", self.session).as_bytes())
+        );
+        let valid = !self.failed
+            && host_joined
+            && helper_ok
+            && self.cleanup.as_ref().is_some_and(|c| {
+                c.input_sha256 == input_sha256
+                    && c.retirable(self.guest.as_ref(), self.started, cancelled)
+            });
         if valid {
             self.stage = State::ExitedAndIOJoined;
             self.stage = State::QuarantineHandled;
             self.stage = State::Retired;
-        } else { self.failed = true; }
+        } else {
+            self.failed = true;
+        }
         valid
     }
 }

@@ -16,17 +16,26 @@ fn bundle() -> CiBundle {
     assert_eq!(std::env::var("CTM_VM_SESSION_NATIVE").as_deref(), Ok("1"));
     let root = PathBuf::from(std::env::var_os("CTM_VM_SESSION_ROOT").expect("owned CI root"));
     assert!(root.is_absolute());
-    let manifest: Value = serde_json::from_slice(&std::fs::read(root.join("bundle.json")).unwrap()).unwrap();
+    let manifest: Value =
+        serde_json::from_slice(&std::fs::read(root.join("bundle.json")).unwrap()).unwrap();
     assert_eq!(manifest["node"], "v22.23.3");
     assert_eq!(manifest["pwsh"], "7.6.6");
     CiBundle {
         exe: root.join("broker.exe"),
         sha256: manifest["broker_sha256"].as_str().unwrap().into(),
-        source: manifest["source"].as_str().unwrap().into(), root,
+        source: manifest["source"].as_str().unwrap().into(),
+        root,
     }
 }
 
-fn scopes(root: &Path) -> (ToolContext, WorkDrain, WorkGuard, super::super::root_work::RootWorkGuard) {
+fn scopes(
+    root: &Path,
+) -> (
+    ToolContext,
+    WorkDrain,
+    WorkGuard,
+    super::super::root_work::RootWorkGuard,
+) {
     let private = root.join(format!("guards-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir(&private).unwrap();
     let workspace = private.join("synthetic-root");
@@ -46,7 +55,9 @@ fn scopes(root: &Path) -> (ToolContext, WorkDrain, WorkGuard, super::super::root
 
 async fn guest_ready(observer: &CompletionObserver) -> Arc<Completion> {
     tokio::time::timeout(Duration::from_secs(240), observer.wait_for_guest())
-        .await.expect("guest did not become ready").expect("VM failed before guest result")
+        .await
+        .expect("guest did not become ready")
+        .expect("VM failed before guest result")
 }
 
 fn held(ctx: &ToolContext, cloud: &WorkDrain, observer: &CompletionObserver) {
@@ -56,13 +67,21 @@ fn held(ctx: &ToolContext, cloud: &WorkDrain, observer: &CompletionObserver) {
     assert!(ctx.root_work.as_ref().unwrap().restore().is_err());
 }
 
-async fn drained(ctx: &ToolContext, cloud: &WorkDrain, observer: &CompletionObserver) -> Arc<Completion> {
+async fn drained(
+    ctx: &ToolContext,
+    cloud: &WorkDrain,
+    observer: &CompletionObserver,
+) -> Arc<Completion> {
     let result = tokio::time::timeout(Duration::from_secs(180), observer.wait())
-        .await.expect("VM did not finish owned teardown").expect("owner disappeared");
+        .await
+        .expect("VM did not finish owned teardown")
+        .expect("owner disappeared");
     assert_ne!(result.outcome, Outcome::Uncertain, "{:?}", result.errors);
     assert_eq!(result.state, State::Retired);
     assert!(result.errors.is_empty(), "{:?}", result.errors);
-    tokio::time::timeout(Duration::from_secs(5), cloud.wait()).await.unwrap();
+    tokio::time::timeout(Duration::from_secs(5), cloud.wait())
+        .await
+        .unwrap();
     assert_eq!(cloud.status().outstanding, 0);
     assert!(!cloud.status().unconfirmed);
     assert!(ctx.root_work.as_ref().unwrap().restore().is_ok());
@@ -70,9 +89,22 @@ async fn drained(ctx: &ToolContext, cloud: &WorkDrain, observer: &CompletionObse
     assert!(cleanup.terminate_ok && cleanup.whole_vm_exited && cleanup.exit_ok);
     assert!(cleanup.close_ok && cleanup.guest_io_joined && cleanup.owned_data_retained);
     assert!(cleanup.errors.is_empty());
-    assert!(!cleanup.network_denial_proven && !cleanup.workspace_integration && !cleanup.production_admission);
+    assert!(
+        !cleanup.network_denial_proven
+            && !cleanup.workspace_integration
+            && !cleanup.production_admission
+    );
     assert!(!result.vm_id.is_empty() && !result.runtime_id.is_empty());
-    assert_eq!(result.trace, vec![(0, Kind::Prepared), (1, Kind::Creating), (2, Kind::Running), (3, Kind::Guest), (4, Kind::Cleanup)]);
+    assert_eq!(
+        result.trace,
+        vec![
+            (0, Kind::Prepared),
+            (1, Kind::Creating),
+            (2, Kind::Running),
+            (3, Kind::Guest),
+            (4, Kind::Cleanup)
+        ]
+    );
     result
 }
 
@@ -86,9 +118,13 @@ fn evidence(root: &Path, name: &str, source: &str, result: &Completion, lost_wai
         "paired_fences_drained": true, "network_denial_proven": false,
         "workspace_integration": false, "production_admission": false,
     });
-    let mut file = std::fs::OpenOptions::new().write(true).create_new(true)
-        .open(root.join(name)).unwrap();
-    file.write_all(&serde_json::to_vec_pretty(&value).unwrap()).unwrap();
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(root.join(name))
+        .unwrap();
+    file.write_all(&serde_json::to_vec_pretty(&value).unwrap())
+        .unwrap();
     file.sync_all().unwrap();
 }
 
@@ -96,21 +132,32 @@ fn evidence(root: &Path, name: &str, source: &str, result: &Completion, lost_wai
 #[ignore = "requires reviewed owned Windows CI bundle and explicit native opt-in"]
 async fn native_01_stock_runtimes_quarantine() {
     let _serial = SERIAL.lock().unwrap();
-    assert!(!FIRST_DRAINED.load(Ordering::Acquire), "first VM already ran in this process");
+    assert!(
+        !FIRST_DRAINED.load(Ordering::Acquire),
+        "first VM already ran in this process"
+    );
     let bundle = bundle();
     let root = bundle.root.clone();
     let source = bundle.source.clone();
     let (ctx, cloud, cloud_parent, root_parent) = scopes(&root);
     let session = WindowsVmSession::start(&ctx, bundle, Fixture::Runtimes).unwrap();
     let observer = session.observer();
-    assert_eq!(cloud.status().outstanding, 2, "registration must precede returned session");
+    assert_eq!(
+        cloud.status().outstanding,
+        2,
+        "registration must precede returned session"
+    );
     cloud_parent.complete();
     root_parent.complete();
     cloud.seal();
     let ready = guest_ready(&observer).await;
     held(&ctx, &cloud, &observer);
     // Timing out drops the actual waiting future while the controller stays alive.
-    assert!(tokio::time::timeout(Duration::from_millis(50), observer.wait()).await.is_err());
+    assert!(
+        tokio::time::timeout(Duration::from_millis(50), observer.wait())
+            .await
+            .is_err()
+    );
     held(&ctx, &cloud, &observer);
     let guest = ready.guest.as_ref().unwrap();
     let session_root = root.join(format!("session-{}", ready.session));
@@ -123,16 +170,28 @@ async fn native_01_stock_runtimes_quarantine() {
     let mut names: Vec<_> = guest.cases.iter().map(|case| case.name.as_str()).collect();
     names.sort_unstable();
     assert_eq!(names, ["cmd", "node", "pwsh", "windows-powershell"]);
-    assert!(guest.cases.iter().all(|case| case.passed && case.exit_code == 23 && case.stderr.is_empty()));
+    assert!(guest
+        .cases
+        .iter()
+        .all(|case| case.passed && case.exit_code == 23 && case.stderr.is_empty()));
     let cleanup = result.cleanup.as_ref().unwrap();
     assert_eq!(cleanup.quarantine, Quarantine::Written);
     let input = format!("ctm-synthetic:{}", result.session).into_bytes();
     let returned = std::fs::read(session_root.join("quarantine/returned.bin")).unwrap();
-    assert_eq!(std::fs::read(session_root.join("synthetic-source/input.bin")).unwrap(), input);
+    assert_eq!(
+        std::fs::read(session_root.join("synthetic-source/input.bin")).unwrap(),
+        input
+    );
     assert_eq!(returned, input.to_ascii_uppercase());
     assert_eq!(STANDARD.decode(&guest.data_base64).unwrap(), returned);
-    assert_eq!(cleanup.input_sha256, format!("{:x}", Sha256::digest(&input)));
-    assert_eq!(cleanup.output_sha256, format!("{:x}", Sha256::digest(&returned)));
+    assert_eq!(
+        cleanup.input_sha256,
+        format!("{:x}", Sha256::digest(&input))
+    );
+    assert_eq!(
+        cleanup.output_sha256,
+        format!("{:x}", Sha256::digest(&returned))
+    );
     evidence(&root, "native-01.json", &source, &result, true);
     FIRST_DRAINED.store(true, Ordering::Release);
 }
@@ -141,7 +200,10 @@ async fn native_01_stock_runtimes_quarantine() {
 #[ignore = "requires first case drained in same serial test binary and native opt-in"]
 async fn native_02_cancel_live_descendant() {
     let _serial = SERIAL.lock().unwrap();
-    assert!(FIRST_DRAINED.load(Ordering::Acquire), "first VM lacked complete proof; do not boot another");
+    assert!(
+        FIRST_DRAINED.load(Ordering::Acquire),
+        "first VM lacked complete proof; do not boot another"
+    );
     let bundle = bundle();
     let root = bundle.root.clone();
     let source = bundle.source.clone();
@@ -156,14 +218,19 @@ async fn native_02_cancel_live_descendant() {
     held(&ctx, &cloud, &observer);
     drop(session); // Losing the controller requests cancellation; the detached owner remains.
     let result = drained(&ctx, &cloud, &observer).await;
-    assert!(child_was_live, "descendant must be live before cancellation");
+    assert!(
+        child_was_live,
+        "descendant must be live before cancellation"
+    );
     assert_eq!(result.outcome, Outcome::Cancelled);
     let cleanup = result.cleanup.as_ref().unwrap();
     assert_eq!(cleanup.quarantine, Quarantine::Withheld);
     assert!(cleanup.output_sha256.is_empty());
     let session_root = root.join(format!("session-{}", result.session));
     assert!(!session_root.join("quarantine/returned.bin").exists());
-    assert_eq!(std::fs::read(session_root.join("synthetic-source/input.bin")).unwrap(),
-        format!("ctm-synthetic:{}", result.session).into_bytes());
+    assert_eq!(
+        std::fs::read(session_root.join("synthetic-source/input.bin")).unwrap(),
+        format!("ctm-synthetic:{}", result.session).into_bytes()
+    );
     evidence(&root, "native-02.json", &source, &result, false);
 }

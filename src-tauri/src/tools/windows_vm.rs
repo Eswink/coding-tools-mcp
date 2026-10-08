@@ -12,7 +12,13 @@ use tokio::sync::watch;
 mod protocol;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Outcome { Pending, Completed, Cancelled, Uncertain, NotStarted }
+enum Outcome {
+    Pending,
+    Completed,
+    Cancelled,
+    Uncertain,
+    NotStarted,
+}
 struct CiBundle {
     root: PathBuf,
     exe: PathBuf,
@@ -32,28 +38,46 @@ struct Completion {
     errors: Vec<String>,
 }
 #[derive(Clone)]
-struct CompletionObserver { rx: watch::Receiver<Arc<Completion>> }
+struct CompletionObserver {
+    rx: watch::Receiver<Arc<Completion>>,
+}
 impl CompletionObserver {
-    fn snapshot(&self) -> Arc<Completion> { self.rx.borrow().clone() }
+    fn snapshot(&self) -> Arc<Completion> {
+        self.rx.borrow().clone()
+    }
     async fn wait(&self) -> Result<Arc<Completion>, String> {
         let mut rx = self.rx.clone();
         loop {
             let value = rx.borrow().clone();
-            if value.outcome != Outcome::Pending { return Ok(value); }
-            rx.changed().await.map_err(|_| "owner lost; recovery fence retained")?;
+            if value.outcome != Outcome::Pending {
+                return Ok(value);
+            }
+            rx.changed()
+                .await
+                .map_err(|_| "owner lost; recovery fence retained")?;
         }
     }
     async fn wait_for_guest(&self) -> Result<Arc<Completion>, String> {
         let mut rx = self.rx.clone();
         loop {
             let value = rx.borrow().clone();
-            if value.guest.is_some() { return Ok(value); }
-            if value.outcome != Outcome::Pending { return Err(format!("{:?}", value.errors)); }
-            rx.changed().await.map_err(|_| "owner lost; recovery fence retained")?;
+            if value.guest.is_some() {
+                return Ok(value);
+            }
+            if value.outcome != Outcome::Pending {
+                return Err(format!("{:?}", value.errors));
+            }
+            rx.changed()
+                .await
+                .map_err(|_| "owner lost; recovery fence retained")?;
         }
     }
 }
-enum Message { Control(Op), Frame(Event), End(Result<(), String>) }
+enum Message {
+    Control(Op),
+    Frame(Event),
+    End(Result<(), String>),
+}
 pub(crate) struct WindowsVmSession {
     control: mpsc::Sender<Message>,
     completion: CompletionObserver,
@@ -69,47 +93,86 @@ impl WindowsVmSession {
         let (tx, rx) = watch::channel(Arc::new(v.snapshot(Outcome::Pending, Vec::new())));
         let (control, commands) = mpsc::channel();
         let sender = control.clone();
-        std::thread::Builder::new().name("windows-vm-owner".into())
+        std::thread::Builder::new()
+            .name("windows-vm-owner".into())
             .spawn(move || run_owner(guard, bundle, fixture, v, commands, sender, tx))
             .map_err(|e| e.to_string())?;
-        Ok(Self { control, completion: CompletionObserver { rx } })
+        Ok(Self {
+            control,
+            completion: CompletionObserver { rx },
+        })
     }
-    fn observer(&self) -> CompletionObserver { self.completion.clone() }
-    fn cancel(&self) { let _ = self.control.send(Message::Control(Op::Cancel)); }
-    fn finish(&self) { let _ = self.control.send(Message::Control(Op::Finish)); }
+    fn observer(&self) -> CompletionObserver {
+        self.completion.clone()
+    }
+    fn cancel(&self) {
+        let _ = self.control.send(Message::Control(Op::Cancel));
+    }
+    fn finish(&self) {
+        let _ = self.control.send(Message::Control(Op::Finish));
+    }
 }
-impl Drop for WindowsVmSession { fn drop(&mut self) { self.cancel(); } }
+impl Drop for WindowsVmSession {
+    fn drop(&mut self) {
+        self.cancel();
+    }
+}
 
 impl Validator {
     fn snapshot(&self, outcome: Outcome, errors: Vec<String>) -> Completion {
-        Completion { outcome, state: self.stage, session: self.session.clone(), vm_id: self.vm_id.clone(),
-            runtime_id: self.runtime_id.clone(), guest: self.guest.clone(), cleanup: self.cleanup.clone(), trace: self.trace.clone(), errors }
+        Completion {
+            outcome,
+            state: self.stage,
+            session: self.session.clone(),
+            vm_id: self.vm_id.clone(),
+            runtime_id: self.runtime_id.clone(),
+            guest: self.guest.clone(),
+            cleanup: self.cleanup.clone(),
+            trace: self.trace.clone(),
+            errors,
+        }
     }
 }
 fn pin(bundle: &CiBundle) -> Result<std::fs::File, String> {
-    let mut file = std::fs::OpenOptions::new().read(true).share_mode(1).open(&bundle.exe)
+    let mut file = std::fs::OpenOptions::new()
+        .read(true)
+        .share_mode(1)
+        .open(&bundle.exe)
         .map_err(|e| e.to_string())?;
     let mut hasher = Sha256::new();
     let mut bytes = [0u8; 8192];
     loop {
         let n = file.read(&mut bytes).map_err(|e| e.to_string())?;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         hasher.update(&bytes[..n]);
     }
-    if format!("{:x}", hasher.finalize()) != bundle.sha256 { return Err("broker mutation check".into()); }
+    if format!("{:x}", hasher.finalize()) != bundle.sha256 {
+        return Err("broker mutation check".into());
+    }
     Ok(file) // Held through actual helper wait, not a production launch-image proof.
 }
 fn run_owner(
-    mut guard: Option<native_drain::NativeGuard>, bundle: CiBundle, fixture: Fixture,
-    mut v: Validator, commands: mpsc::Receiver<Message>, sender: mpsc::Sender<Message>,
+    mut guard: Option<native_drain::NativeGuard>,
+    bundle: CiBundle,
+    fixture: Fixture,
+    mut v: Validator,
+    commands: mpsc::Receiver<Message>,
+    sender: mpsc::Sender<Message>,
     updates: watch::Sender<Arc<Completion>>,
 ) {
     let prepared = (|| {
         native_drain::begin(&mut guard).map_err(|e| e.to_string())?;
         let pinned = pin(&bundle)?;
-        let child = Command::new(&bundle.exe).arg("--session-root").arg(&bundle.root)
-            .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
-            .spawn().map_err(|e| e.to_string())?;
+        let child = Command::new(&bundle.exe)
+            .arg("--session-root")
+            .arg(&bundle.root)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| e.to_string())?;
         Ok::<_, String>((pinned, child))
     })();
     let (_pinned, mut child) = match prepared {
@@ -127,7 +190,11 @@ fn run_owner(
         let mut total = 0;
         let result = loop {
             match protocol::read_event(&mut stdout, &mut total) {
-                Ok(Some(event)) => { if sender.send(Message::Frame(event)).is_err() { break Err("owner lost".into()); } }
+                Ok(Some(event)) => {
+                    if sender.send(Message::Frame(event)).is_err() {
+                        break Err("owner lost".into());
+                    }
+                }
                 Ok(None) => break Ok(()),
                 Err(error) => break Err(error),
             }
@@ -147,31 +214,81 @@ fn run_owner(
     let (mut seq, mut total) = (0, 0);
     let request_session = v.session.clone();
     let mut send = |op| {
-        let request = Request { version: 1, source: bundle.source.clone(), session: request_session.clone(), seq, op, fixture };
+        let request = Request {
+            version: 1,
+            source: bundle.source.clone(),
+            session: request_session.clone(),
+            seq,
+            op,
+            fixture,
+        };
         seq += 1;
         protocol::write_request(&mut stdin, &request, &mut total)
     };
     let (mut cancelled, mut teardown, mut finishing) = (false, false, false);
     let mut errors = Vec::new();
-    if let Err(error) = send(Op::Prepare) { v.failed = true; errors.push(error); }
+    if let Err(error) = send(Op::Prepare) {
+        v.failed = true;
+        errors.push(error);
+    }
     loop {
         let mut next = None;
         match commands.recv() {
-            Ok(Message::Control(Op::Cancel)) => { cancelled = true; if !teardown && v.cleanup.is_none() { next = Some(Op::Cancel); } }
-            Ok(Message::Control(Op::Finish)) => { if !finishing && !teardown { finishing = true; if v.guest.is_some() { next = Some(Op::Finish); } } }
-            Ok(Message::Control(_)) => { v.failed = true; }
-            Ok(Message::Frame(event)) => {
-                if !event.error.is_empty() { errors.push(format!("host error: {}", event.error)); }
-                if let Err(error) = v.accept(&event) { errors.push(error); if !teardown { next = Some(Op::Cancel); } }
-                else if event.kind == Kind::Prepared && !teardown { v.start_attempted(); next = Some(Op::Start); }
-                else if event.kind == Kind::Guest && finishing && !teardown { next = Some(Op::Finish); }
+            Ok(Message::Control(Op::Cancel)) => {
+                cancelled = true;
+                if !teardown && v.cleanup.is_none() {
+                    next = Some(Op::Cancel);
+                }
             }
-            Ok(Message::End(result)) => { if let Err(error) = result { v.failed = true; errors.push(error); if !teardown { let _ = send(Op::Cancel); } } break; }
-            Err(_) => { v.failed = true; errors.push("owner channel lost".into()); break; }
+            Ok(Message::Control(Op::Finish)) => {
+                if !finishing && !teardown {
+                    finishing = true;
+                    if v.guest.is_some() {
+                        next = Some(Op::Finish);
+                    }
+                }
+            }
+            Ok(Message::Control(_)) => {
+                v.failed = true;
+            }
+            Ok(Message::Frame(event)) => {
+                if !event.error.is_empty() {
+                    errors.push(format!("host error: {}", event.error));
+                }
+                if let Err(error) = v.accept(&event) {
+                    errors.push(error);
+                    if !teardown {
+                        next = Some(Op::Cancel);
+                    }
+                } else if event.kind == Kind::Prepared && !teardown {
+                    v.start_attempted();
+                    next = Some(Op::Start);
+                } else if event.kind == Kind::Guest && finishing && !teardown {
+                    next = Some(Op::Finish);
+                }
+            }
+            Ok(Message::End(result)) => {
+                if let Err(error) = result {
+                    v.failed = true;
+                    errors.push(error);
+                    if !teardown {
+                        let _ = send(Op::Cancel);
+                    }
+                }
+                break;
+            }
+            Err(_) => {
+                v.failed = true;
+                errors.push("owner channel lost".into());
+                break;
+            }
         }
         if let Some(op) = next {
             teardown |= op == Op::Cancel || op == Op::Finish;
-            if let Err(error) = send(op) { v.failed = true; errors.push(error); }
+            if let Err(error) = send(op) {
+                v.failed = true;
+                errors.push(error);
+            }
         }
         updates.send_replace(Arc::new(v.snapshot(Outcome::Pending, errors.clone())));
     }
@@ -182,7 +299,11 @@ fn run_owner(
     let helper_ok = child.wait().is_ok_and(|status| status.success());
     let outcome = if v.finish(host_joined, helper_ok, cancelled) {
         native_drain::complete(guard);
-        if cancelled { Outcome::Cancelled } else { Outcome::Completed }
+        if cancelled {
+            Outcome::Cancelled
+        } else {
+            Outcome::Completed
+        }
     } else {
         errors.push("uncertain cleanup; paired recovery fence retained".into());
         drop(guard);
@@ -191,6 +312,6 @@ fn run_owner(
     updates.send_replace(Arc::new(v.snapshot(outcome, errors)));
 }
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod native_tests;
+#[cfg(test)]
+mod tests;
