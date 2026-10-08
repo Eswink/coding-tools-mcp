@@ -34,16 +34,11 @@ F_BINDING = ('13cd343d942b7a68912d42a8f9235c02ed647764', 'f2be2e09cca27081cccad1
 F_RAW = (1236, '7facd10b0d1d2bd44b1cecd637f99a9360acb404a8be5af86cd1731f36933e13')
 ENTRY_COUNTS = (1840, 1849)
 EXPECTED_CAPS = {
-    'src-tauri/Cargo.toml': (100, 3),
-    'src-tauri/src/tools/windows_vm.rs': (480, 650),
-    'src-tauri/src/tools/windows_vm/launch.rs': (495, 495),
-    'src-tauri/src/tools/windows_vm/image.rs': (285, 285),
-    'src-tauri/src/tools/windows_vm/host_io.rs': (450, 450),
-    'src-tauri/src/tools/windows_vm/launch_tests.rs': (499, 499),
-    'src-tauri/src/tools/windows_vm/native_tests.rs': (291, 120),
-    'scripts/windows_vm_launch_fixture.cpp': (29, 29),
-    'scripts/prepare_windows_vm_launch.ps1': (90, 90),
-    '.github/workflows/windows-vm-session.yml': (190, 140),
+    'src-tauri/Cargo.toml': (100, 3), 'src-tauri/src/tools/windows_vm.rs': (480, 650),
+    'src-tauri/src/tools/windows_vm/launch.rs': (495, 495), 'src-tauri/src/tools/windows_vm/image.rs': (285, 285),
+    'src-tauri/src/tools/windows_vm/host_io.rs': (450, 450), 'src-tauri/src/tools/windows_vm/launch_tests.rs': (499, 499),
+    'src-tauri/src/tools/windows_vm/native_tests.rs': (291, 120), 'scripts/windows_vm_launch_fixture.cpp': (29, 29),
+    'scripts/prepare_windows_vm_launch.ps1': (90, 90), '.github/workflows/windows-vm-session.yml': (190, 140),
     'docs/specs/windows-vm-session/requirements.md': (130, 90),
     'docs/specs/windows-vm-session/design.md': (140, 100),
     'docs/specs/windows-vm-session/tasks.md': (170, 110),
@@ -59,13 +54,14 @@ EXPECTED_CAPS = {
     'scripts/rc_pretag_staging_budget_cases.py': (390, 3),
     'scripts/rc_pretag_checksum_budget_cases.py': (390, 3),
     'scripts/rc_consumer_fixture_readiness.py': (100, 100),
+    'scripts/rc_pretag_archive_budget_cases.py': (399, 3),
 }
 EXPECTED_PRIOR = {
     '.github/workflows/issue88-publication-executor.yml': (('0bcc32d8c8cf8fe7ae1067bbb7b6cb7ea3fa686f', '7c04fe2a37ce4ad1f8e2dee685e71132ee9660b9acdd84beb678a7d35badefac'), ('2e287f38ffc6cbcdc9da82277bce9e1c25bc7a50', '377086ca7c6edb11fbace99c35340bb4147c2102123d96cd00ef3a3e196f0979'), ('6af82d85156eda76f2fd464a7bd72b1e78ea3e53', '451bbeffce17f243a9f3b02f7e91c03c847e92c62caa2c9d40a3062103354dac'), ('a61797b57dcba000d238dbd2c224247ec077cdbc', '28601d9ded709b55ccad36f966a106e2912d67c48ec47833b9b519e1524045dc'), ('a81e9404bae5e4a56599eb0455026c207acbdc27', 'ef64753deb51f2260812bf136ad4bca0d811bc84e61e601e80697fdef314181c'), ('c1deaabd33200ed0d4795f0e5380a9809192f39e', 'f072b9fd591b9990deb80d7f4d7e45750813f2bea62fd73d0d48b8b13c46d9d0'), ('c6cc466d9d2520b668508e6fbd9754f1ac1cc7ef', '850aea3f1d81c00322f8c8ca1adf84a5abddb5c75d916066394f41a521397e4e'), ('d06143c505bf739dfd4336ea97c20b5850d15128', 'ceb14dd7012995f1d3400e1eb7dfc24533b564cd9a039e2592c74b153d036634'), ('e740760c079a8a831342b3f964f7430dd581002f', 'f0952d0a1238feee4d82f27ccdf725ca4e9cba87e6dedfd493fb2ea015234fd6'), ('e89d4431fa1490187c55970c8626d725c064e5f0', '4159a606e279f3e3b77814e0398f3dc36f302aa5d38f8aa5ca82af3dfca657df'), ('f3cf8b1e3f337204f423ae200e667aaf9d34e3f8', '5fedc956307b75e7d59c3f5aeda153b6e3e64dd618700141862149c3fda37d7a'), ('f76a50f14444f1b1c5959fa27097a85d87bfe8b0', '1ba5c751af0b605efc3f6f8165aa9b97f13d3c93d973493b451cc7bca2c53cff')),
-    'scripts/rc_pretag_windows_vm_cases.py': (('5c7f728f2a70ac8e064b270d3960fca41cd21443', 'baf41ff51213f5109cbad49570ec74a50c0784071ff85edcf41c7b0485271e13'),),
-    'scripts/rc_consumer_transport_supervisor_tests.py': (('e45608f7ae523c25ea5d12cd4d24cbd56a3f1c12', '621c544e5c2062756346cbbd3218a8f7a65ae69bf25fff16ea6746025438e2cb'),),
+    'scripts/rc_pretag_windows_vm_cases.py': (('5c7f728f2a70ac8e064b270d3960fca41cd21443', 'baf41ff51213f5109cbad49570ec74a50c0784071ff85edcf41c7b0485271e13'),), 'scripts/rc_consumer_transport_supervisor_tests.py': (('e45608f7ae523c25ea5d12cd4d24cbd56a3f1c12', '621c544e5c2062756346cbbd3218a8f7a65ae69bf25fff16ea6746025438e2cb'),),
     'scripts/rc_pretag_staging_budget_cases.py': (('5f0d773cbf81b2650d2a9538aff654bceb05f717', '163ede10fba1845e31bddcc44b814de309fcff438752c5e10471a7cd3c6fdf54'),),
     'scripts/rc_pretag_checksum_budget_cases.py': (('c968e30aeb68cdb23df55d9d6700b01e6ccbf01a', '23ea5f92e7101cfecb94f859956b8cf48982f4de10de1279b0ba8f75a302b4ac'), ('24db3998460a7789d85e93ad131f2a22fed63e46', '86b10cbca916037385d2bb2b0ab5ead39b74ce73141dcdebec38c4c9c056d836')),
+    'scripts/rc_pretag_archive_budget_cases.py': (('6e06135e604179635ef670fa32e318f67a03fa20', '90d245703019c8c9aaf5e9147a0df6c1381ce38eec7a2fed2ea0b9be19294f99'),),
 }
 ORIGINAL_D = (1597, '446bbd979ff7804da23ad9ec41c137dfd0f73c175e91a19be10e671e06cdfa0a')
 ORIGINAL_FLOW = (413, '9d39697bc9ed6c2b6d4364f7ea4615c5158430f0179f38438e704178a1aede19')
@@ -89,8 +85,8 @@ STAGING_ADAPTER = 'scripts/rc_pretag_staging_budget_cases.py'
 STAGING_METHODS = {'test_readonly_workflow_and_held_sources_remain_bounded': 1}
 CHECKSUM_ADAPTER = 'scripts/rc_pretag_checksum_budget_cases.py'
 CHECKSUM_METHODS = {'test_readonly_workflow_and_held_sources_remain_bounded': 1}
-
-
+ARCHIVE_ADAPTER = 'scripts/rc_pretag_archive_budget_cases.py'
+ARCHIVE_METHODS = {'test_readonly_workflow_and_held_sources_remain_bounded': 1}
 def inventory():
     x.require_sealed()
     expected = [cls + '.' + name for cls, names in x.NEW_CASES.items() for name in names]
@@ -189,10 +185,11 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
         for ref, expected in ((self.pure, self.good), (self.feature, self.good), (self.release, self.overlay)):
             self.assertEqual(self.selected(ref), expected)
         self.assertEqual(x.topology(self.release, self.repo, c._git, p.R), ('release', self.feature, self.pure))
-        self.assertEqual(x.CORRECTION_PARENT, '0def59d1ac429d5dd53bc4b75b626f5e4811d414')
-        self.assertEqual(x.CORRECTION_TREE, 'fa327d8f1b0caaf73c1d2e55bf67eb887bdbc20f')
-        self.assertEqual((x.PREVIOUS_PARENT, x.PREVIOUS_TREE), ('b9b4e666c8bfe8c52e35fba3974c935f927c4e2e', '7faa17400b941a69f366f94e3fcf0272948c65de'))
-        self.assertEqual((x.EARLIER_PARENT, x.EARLIER_TREE), ('8d56fbc38910df36837e1865b4242d55ca2aa7c6', '6a40fb578e807ec8ce58eb309ae62707e1539b04'))
+        self.assertEqual(x.CORRECTION_PARENT, '110b4febbbcdab0138e2d28de2a53e2f2d61d7d6')
+        self.assertEqual(x.CORRECTION_TREE, '485ef3e3a781201b63d92ea0acf958ac89cc5211')
+        self.assertEqual((x.PREVIOUS_PARENT, x.PREVIOUS_TREE), ('0def59d1ac429d5dd53bc4b75b626f5e4811d414', 'fa327d8f1b0caaf73c1d2e55bf67eb887bdbc20f'))
+        self.assertEqual((x.EARLIER_PARENT, x.EARLIER_TREE), ('b9b4e666c8bfe8c52e35fba3974c935f927c4e2e', '7faa17400b941a69f366f94e3fcf0272948c65de'))
+        self.assertEqual((x.OLDER_PARENT, x.OLDER_TREE), ('8d56fbc38910df36837e1865b4242d55ca2aa7c6', '6a40fb578e807ec8ce58eb309ae62707e1539b04'))
         self.assertEqual(x.INITIAL_PARENT, '750b11b20651b3f8bfadba69c19cb7eaf0c11e1e')
         repaired = self.commit([x.CORRECTION_PARENT], self.good)
         integrated = self.commit([x.M, repaired], self.good)
@@ -211,6 +208,9 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
                 (('show', '-s', '--format=%P', x.EARLIER_PARENT), b'\n'),
                 (('rev-parse', x.EARLIER_PARENT + '^{tree}'), b'0' * 40),
                 (('cat-file', 'commit', x.EARLIER_PARENT), b'changed commit'),
+                (('show', '-s', '--format=%P', x.OLDER_PARENT), b'\n'),
+                (('rev-parse', x.OLDER_PARENT + '^{tree}'), b'0' * 40),
+                (('cat-file', 'commit', x.OLDER_PARENT), b'changed commit'),
                 (('show', '-s', '--format=%P', x.INITIAL_PARENT), b'\n'),
                 (('rev-parse', x.INITIAL_PARENT + '^{tree}'), b'0' * 40),
                 (('cat-file', 'commit', x.INITIAL_PARENT), b'changed commit')):
@@ -250,7 +250,7 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
     def test_nineteen_exact_paths_modes_pins_and_entry_count(self):
         self.assertEqual(self.content(), self.good)
         self.assertEqual((len(self.original), len(self.good)), ENTRY_COUNTS)
-        self.assertEqual((len(x.CAPS), len(x.BASE_PINS), len(self.good.keys() - self.original.keys())), (25, 16, 9))
+        self.assertEqual((len(x.CAPS), len(x.BASE_PINS), len(self.good.keys() - self.original.keys())), (26, 17, 9))
         self.assertEqual(x.CAPS, EXPECTED_CAPS)
         self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
         self.assertEqual(self.good[x.PROFILE][2], c._blob((c.ROOT / x.PROFILE).read_bytes()))
@@ -298,7 +298,7 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
     def test_eleven_full_byte_inverses_and_six_dispatch_lines(self):
         self.assertEqual((len(x.DISPATCH.splitlines()), len(x.NORMALIZE.splitlines())), (4, 2))
         self.assertEqual(x.FRAGMENTS.keys(), x.BASE_PINS.keys())
-        self.assertEqual(len(x.FRAGMENTS), 16)
+        self.assertEqual(len(x.FRAGMENTS), 17)
         for path in x.BASE_PINS:
             current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
             with patch('builtins.open', side_effect=AssertionError('IO')), patch('io.open', side_effect=AssertionError('IO')), patch('subprocess.Popen', side_effect=AssertionError('process')), patch('tempfile.TemporaryDirectory', side_effect=AssertionError('extract')):
@@ -430,7 +430,7 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
                     self.count += 1
                     return node.args[1]
                 return node
-        changed = {x.ADAPTER: {}, WINDOWS_ADAPTER: {}, AUTH_ADAPTER: {}, STAGING_ADAPTER: {}, CHECKSUM_ADAPTER: {}}
+        changed = {x.ADAPTER: {}, WINDOWS_ADAPTER: {}, AUTH_ADAPTER: {}, STAGING_ADAPTER: {}, CHECKSUM_ADAPTER: {}, ARCHIVE_ADAPTER: {}}
         for module in {item.split('.', 1)[0] for item in original}:
             path = 'scripts/' + module + '.py'
             current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
@@ -443,11 +443,11 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
                 self.assertEqual(assertions(method), assertions(adjusted), (path, key))
                 self.assertEqual(ast.dump(method), ast.dump(adjusted), (path, key))
                 if undo.count:
-                    expected_class = {WINDOWS_ADAPTER: 'WindowsVmCompositionCases', x.ADAPTER: 'SourceObservationCompositionCases', AUTH_ADAPTER: 'AuthenticatedTwoHopCompositionTests', STAGING_ADAPTER: 'StagingBudgetCompositionCases', CHECKSUM_ADAPTER: 'ChecksumBudgetCompositionCases'}[path]
+                    expected_class = {WINDOWS_ADAPTER: 'WindowsVmCompositionCases', x.ADAPTER: 'SourceObservationCompositionCases', AUTH_ADAPTER: 'AuthenticatedTwoHopCompositionTests', STAGING_ADAPTER: 'StagingBudgetCompositionCases', CHECKSUM_ADAPTER: 'ChecksumBudgetCompositionCases', ARCHIVE_ADAPTER: 'ArchiveBudgetCompositionCases'}[path]
                     self.assertEqual(key[0], expected_class)
                     changed[path][key[1]] = undo.count
-        self.assertEqual(changed, {x.ADAPTER: ADAPTER_METHODS, WINDOWS_ADAPTER: WINDOWS_METHODS, AUTH_ADAPTER: AUTH_METHODS, STAGING_ADAPTER: STAGING_METHODS, CHECKSUM_ADAPTER: CHECKSUM_METHODS})
-        self.assertEqual(sum(sum(methods.values()) for methods in changed.values()), 15)
+        self.assertEqual(changed, {x.ADAPTER: ADAPTER_METHODS, WINDOWS_ADAPTER: WINDOWS_METHODS, AUTH_ADAPTER: AUTH_METHODS, STAGING_ADAPTER: STAGING_METHODS, CHECKSUM_ADAPTER: CHECKSUM_METHODS, ARCHIVE_ADAPTER: ARCHIVE_METHODS})
+        self.assertEqual(sum(sum(methods.values()) for methods in changed.values()), 16)
 
     def test_new12_inventory_readonly_workflows_and_exceptional_outcomes(self):
         text = (c.ROOT / x.WORKFLOW).read_text()
