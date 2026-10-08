@@ -19,7 +19,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import rc_consumer_transport as transport
 import rc_consumer_transport_worker as wire
 from rc_consumer_io import ConsumerError
-from rc_consumer_transport_tests import HOST, URL, Opener, Response
+from rc_consumer_transport_tests import HOST, URL, Response
+from rc_consumer_fixture_readiness import backpressure_opener as Opener, publish_ready, PREPARED_MODES
 import rc_consumer_transport_tests as fixtures
 
 
@@ -30,7 +31,7 @@ def fixture_worker(config):
     value = json.loads(raw)
     mode = value['mode']
     if mode == 'request_backpressure':
-        wire.emit(b'R'); time.sleep(3); return 1
+        wire.emit(b'R'); publish_ready(config, raw); time.sleep(3); return 1
     if mode == 'startup':
         time.sleep(3)
         return 1
@@ -107,6 +108,8 @@ def fixture_worker(config):
         if frame == b'D' and mode == 'missing_done':
             return
         original_emit(frame)
+        if frame == b'R' and mode in PREPARED_MODES:
+            publish_ready(config, raw)
         if frame == b'R' and mode == 'duplicate_ready':
             original_emit(b'R')
         if frame == b'D':
