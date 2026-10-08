@@ -69,6 +69,7 @@ ADAPTER_METHODS = {
     'test_twelve_full_byte_inverses_and_six_dispatch_lines': 1,
     'test_missing_duplicate_outside_and_binary_inverse_changes_reject': 1,
     'test_current_candidate_is_never_cached': 1,
+    'test_original1553_strict303_consumer452_ids_and_assertions_are_preserved': 1,
     'test_new44_inventory_early_runtime_workflow_and_exceptional_outcomes': 1,
 }
 WINDOWS_ADAPTER = 'scripts/rc_pretag_windows_vm_cases.py'
@@ -177,8 +178,9 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
         for ref, expected in ((self.pure, self.good), (self.feature, self.good), (self.release, self.overlay)):
             self.assertEqual(self.selected(ref), expected)
         self.assertEqual(x.topology(self.release, self.repo, c._git, p.R), ('release', self.feature, self.pure))
-        self.assertEqual(x.CORRECTION_PARENT, '750b11b20651b3f8bfadba69c19cb7eaf0c11e1e')
-        self.assertEqual(x.CORRECTION_TREE, 'fea18888f3560939915d1ff49439cc9b92e5b4d9')
+        self.assertEqual(x.CORRECTION_PARENT, '8d56fbc38910df36837e1865b4242d55ca2aa7c6')
+        self.assertEqual(x.CORRECTION_TREE, '6a40fb578e807ec8ce58eb309ae62707e1539b04')
+        self.assertEqual(x.INITIAL_PARENT, '750b11b20651b3f8bfadba69c19cb7eaf0c11e1e')
         repaired = self.commit([x.CORRECTION_PARENT], self.good)
         integrated = self.commit([x.M, repaired], self.good)
         overlay = self.commit([p.R, integrated], self.overlay)
@@ -189,7 +191,10 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
                 self.selected(self.commit(parents, self.good))
         for command, replacement in ((('show', '-s', '--format=%P', x.CORRECTION_PARENT), b'\n'),
                 (('rev-parse', x.CORRECTION_PARENT + '^{tree}'), b'0' * 40),
-                (('cat-file', 'commit', x.CORRECTION_PARENT), b'changed commit')):
+                (('cat-file', 'commit', x.CORRECTION_PARENT), b'changed commit'),
+                (('show', '-s', '--format=%P', x.INITIAL_PARENT), b'\n'),
+                (('rev-parse', x.INITIAL_PARENT + '^{tree}'), b'0' * 40),
+                (('cat-file', 'commit', x.INITIAL_PARENT), b'changed commit')):
             def altered(*args, root):
                 return replacement if args == command else c._git(*args, root=root)
             with self.assertRaises(AssertionError):
@@ -423,7 +428,7 @@ class WindowsLaunchCompositionCases(unittest.TestCase):
                     self.assertEqual(key[0], expected_class)
                     changed[path][key[1]] = undo.count
         self.assertEqual(changed, {x.ADAPTER: ADAPTER_METHODS, WINDOWS_ADAPTER: WINDOWS_METHODS, AUTH_ADAPTER: AUTH_METHODS})
-        self.assertEqual(sum(sum(methods.values()) for methods in changed.values()), 12)
+        self.assertEqual(sum(sum(methods.values()) for methods in changed.values()), 13)
 
     def test_new12_inventory_readonly_workflows_and_exceptional_outcomes(self):
         text = (c.ROOT / x.WORKFLOW).read_text()

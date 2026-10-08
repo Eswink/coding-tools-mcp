@@ -95,7 +95,7 @@ Rust 1.98.1 and existing desktop crates; Go 1.24.13; hcsshim `fb5aa2e9478c8f5dca
 
 ## Verified launch increment
 
-The initial nineteen-path D750 packet passed native38 but failed the historical native Cargo fixture. Its single forward correction adds one sealed fixture operand (twenty total paths, twelve inverses), directly atop pinned D750 only; all original assertion ASTs must survive inverse removal, with fresh D/I/J and native CI. No authority or held snapshot boundary changes.
+The initial nineteen-path D750 packet passed native38 but failed the historical native Cargo fixture. D2 adds one sealed fixture operand; its Ubuntu425 run exposed the old1553 AST guard also needing the exact byte inverse before comparison. The next forward repair accepts only pinned D2 as sole parent, retaining exact D750 origin, twenty paths and twelve inverses. All original assertion ASTs must survive inverse removal; require fresh D/I/J and native CI. No authority or held snapshot boundary changes.
 
 ### FR-9: Admit the actual image before entry
 **优先级:** Must. WHEN CreateProcessW returns an owned child THEN compare its first CREATE_PROCESS hFile volume64/file-ID128/length/SHA256 against the retained manifest-checked image before the first Continue. Reject null/query/hash/identity failures; no Prepare bytes until checked first Continue. Hash at most64MiB, use explicit handles/cwd/environment and no shell.

@@ -293,7 +293,7 @@ class SourceObservationCompositionCases(unittest.TestCase):
         changed = set()
         for module in {item.split('.', 1)[0] for item in original}:
             path = 'scripts/' + module + '.py'
-            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
+            current, frozen = windows_launch_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
             self.assertEqual(x.normalize(path, current), frozen, path)
             before, after = methods(frozen), methods(current)
             self.assertEqual({k for k in before if k[1].startswith('test_')}, {k for k in after if k[1].startswith('test_')}, path)
