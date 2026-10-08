@@ -190,7 +190,7 @@ func runGuest(ctx context.Context, host cow.ProcessHost, name, command, cwd, mar
 	}
 	return result, err
 }
-func runPrototype(root string, r *report) (err error) {
+func runPrototype(root string, r *report, ids []guid.GUID, control bool) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 	g, err := guid.NewV4()
@@ -198,12 +198,16 @@ func runPrototype(root string, r *report) (err error) {
 		return err
 	}
 	r.ID = g.String()
-	paths := []string{filepath.Join(root, "layer1"), filepath.Join(root, "layer0"), filepath.Join(root, "scratch")}
+	profile := "restricted"
+	if control {
+		profile = "control"
+	}
+	paths := []string{filepath.Join(root, "layer1"), filepath.Join(root, "layer0"), filepath.Join(root, "scratch-"+profile)}
 	if err = os.Mkdir(paths[2], 0700); err != nil {
 		return err
 	}
 	o := buildOptions(r.ID)
-	policy, err := configurePolicy(o)
+	policy, err := configurePolicy(o, ids, control)
 	if err != nil {
 		return err
 	}
@@ -296,9 +300,71 @@ func runPrototype(root string, r *report) (err error) {
 	if e := vm.WaitCtx(stillRunning); !errors.Is(e, context.DeadlineExceeded) {
 		return fmt.Errorf("UVM unexpectedly exited before termination: %v", e)
 	}
-	r.RuntimePassed = true
 	r.Stage = "terminate_owned_uvm"
 	return nil
+}
+
+type staticResult struct {
+	Schema              int                  `json:"schema"`
+	Source              string               `json:"source"`
+	Registrations       []*ownedRegistration `json:"registrations"`
+	Profiles            []report             `json:"profiles"`
+	Errors              []string             `json:"errors"`
+	Passed              bool                 `json:"bounded_static_matrix_passed"`
+	NetworkDenied       bool                 `json:"network_denial_proven"`
+	WorkspaceIntegrated bool                 `json:"workspace_integration"`
+	ProductionAdmission bool                 `json:"production_admission"`
+}
+
+func staticProfileComplete(r report) bool {
+	if !r.TerminateOK || !r.WholeVMExited || !r.ExitOK || !r.CloseOK || len(r.Errors) != 0 || r.Policy == nil {
+		return false
+	}
+	p := r.Policy
+	if !p.MatrixPassed || !p.SessionExited || !p.CleanupOK {
+		return false
+	}
+	return p.Profile == "control" || (p.Profile == "restricted" && r.RuntimePassed)
+}
+func runStaticSuite(root string) (s *staticResult) {
+	s = &staticResult{Schema: 2, Source: os.Getenv("GITHUB_SHA")}
+	own, e := newStaticRegistry()
+	if own != nil {
+		s.Registrations = own.items
+	}
+	defer func() {
+		certain := true
+		for _, r := range s.Profiles {
+			if !r.TerminateOK || !r.WholeVMExited || !r.ExitOK || !r.CloseOK {
+				certain = false
+			}
+		}
+		if e := own.close(certain); e != nil {
+			s.Errors = append(s.Errors, "registration cleanup: "+e.Error())
+		}
+		s.Passed = len(s.Profiles) == 2 && len(s.Errors) == 0
+		for _, r := range s.Profiles {
+			s.Passed = s.Passed && staticProfileComplete(r)
+		}
+		for _, k := range s.Registrations {
+			s.Passed = s.Passed && k.Created && k.Verified && k.Deleted && !k.Retained
+		}
+		s.Passed = s.Passed && len(s.Registrations) == 2
+	}()
+	if e != nil {
+		s.Errors = append(s.Errors, "registration setup: "+e.Error())
+		return
+	}
+	for _, control := range []bool{true, false} {
+		r := report{Schema: 2, Source: s.Source, Stage: "prepare", DataRetained: true}
+		r.record("experiment", runPrototype(root, &r, own.ids, control))
+		s.Profiles = append(s.Profiles, r)
+		if !staticProfileComplete(r) {
+			s.Errors = append(s.Errors, "profile incomplete; next VM forbidden")
+			return
+		}
+	}
+	return
 }
 func main() {
 	root := os.Getenv("CTM_BOOT_ROOT")
@@ -320,13 +386,12 @@ func main() {
 		}
 		return
 	}
-	r := report{Schema: 1, Source: os.Getenv("GITHUB_SHA"), Stage: "prepare", DataRetained: true}
-	r.record("experiment", runPrototype(root, &r))
+	r := runStaticSuite(root)
 	if err := writeReport(filepath.Join(evidence, "result.json"), r); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	if !complete(r) {
+	if !r.Passed {
 		fmt.Fprintln(os.Stderr, "prototype incomplete; inspect bounded result.json")
 		os.Exit(1)
 	}

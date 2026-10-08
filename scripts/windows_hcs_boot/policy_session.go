@@ -130,7 +130,7 @@ func (s *policySession) exchange(ctx context.Context, phase, nonce string, ids [
 		return reply, err
 	}
 	if reply.Phase != phase || reply.Nonce != nonce || reply.Error != "" {
-		return reply, errors.New("reply phase/nonce/error")
+		return reply, fmt.Errorf("reply phase/nonce/error: %s", reply.Error)
 	}
 	b, err = s.line(ctx, s.stderr)
 	if err != nil || string(b) != "CTM_POLICY_STDERR_"+phase+" "+nonce {

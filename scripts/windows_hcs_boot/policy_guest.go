@@ -9,9 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -19,44 +21,6 @@ import (
 	"github.com/Microsoft/go-winio/pkg/guid"
 )
 
-func policyDial(id, nonce string) (o dialObservation) {
-	o.Service = id
-	g, e := guid.FromString(id)
-	if e != nil {
-		o.Error = e.Error()
-		return
-	}
-	ctx, stop := context.WithTimeout(context.Background(), 2*time.Second)
-	defer stop()
-	c, e := winio.Dial(ctx, &winio.HvsockAddr{VMID: winio.HvsockGUIDParent(), ServiceID: g})
-	if e != nil {
-		o.Error = e.Error()
-		var n syscall.Errno
-		if errors.As(e, &n) {
-			o.ErrorCode = uint32(n)
-		}
-		return
-	}
-	o.Connected = true
-	defer func() {
-		if e := c.Close(); e != nil {
-			o.CloseError = e.Error()
-		}
-	}()
-	if e = c.SetDeadline(time.Now().Add(2 * time.Second)); e == nil {
-		_, e = io.WriteString(c, nonce)
-	}
-	b := make([]byte, len(nonce))
-	if e == nil {
-		_, e = io.ReadFull(c, b)
-	}
-	if e != nil {
-		o.Error = e.Error()
-		return
-	}
-	o.Echo = string(b) == nonce
-	return
-}
 func runPolicyCommand(name, executable, command, marker string) caseResult {
 	c := caseResult{Name: name, ExitCode: -1}
 	ctx, stop := context.WithTimeout(context.Background(), 25*time.Second)
@@ -105,6 +69,68 @@ func writePolicyReply(r policyReply) error {
 	_, e = fmt.Fprintln(os.Stdout, string(b))
 	return e
 }
+
+type guestCanary struct {
+	l       net.Listener
+	closing atomic.Bool
+	done    chan listenerReceipt
+}
+
+func newGuestCanary(id, nonce string) (*guestCanary, error) {
+	g, e := guid.FromString(id)
+	if e != nil {
+		return nil, e
+	}
+	// A hosted-container Parent listener addresses the UVM; wildcard is required for host connections.
+	l, e := winio.ListenHvsock(&winio.HvsockAddr{VMID: winio.HvsockGUIDWildcard(), ServiceID: g})
+	if e != nil {
+		return nil, e
+	}
+	c := &guestCanary{l: l, done: make(chan listenerReceipt, 1)}
+	go func() {
+		r := listenerReceipt{Ready: true}
+		conn, e := l.Accept()
+		if e != nil {
+			if !c.closing.Load() {
+				r.Error = e.Error()
+			}
+			c.done <- r
+			return
+		}
+		r.Accepted = 1
+		e = conn.SetDeadline(time.Now().Add(2 * time.Second))
+		b := make([]byte, len(nonce))
+		if e == nil {
+			_, e = io.ReadFull(conn, b)
+		}
+		if e == nil && string(b) != nonce {
+			e = errors.New("guest listener nonce mismatch")
+		}
+		if e == nil {
+			_, e = conn.Write(b)
+		}
+		e = errors.Join(e, conn.Close())
+		if e != nil {
+			r.Error = e.Error()
+		}
+		c.done <- r
+	}()
+	return c, nil
+}
+func (c *guestCanary) close() listenerReceipt {
+	c.closing.Store(true)
+	e := c.l.Close()
+	select {
+	case r := <-c.done:
+		if e != nil {
+			r.Error += e.Error()
+		}
+		r.Closed = r.Error == ""
+		return r
+	case <-time.After(5 * time.Second):
+		return listenerReceipt{Ready: true, Error: "guest listener task not joined"}
+	}
+}
 func runPolicyFixture() error {
 	scan := bufio.NewScanner(os.Stdin)
 	scan.Buffer(make([]byte, 4096), policyFrameLimit+1)
@@ -116,7 +142,9 @@ func runPolicyFixture() error {
 	}
 	nonce := ""
 	var ids []string
-	for _, phase := range []string{"positive", "negative", "runtimes", "finish"} {
+	var listener *guestCanary
+	phases := []string{"", "guest-listen", "guest-close", "runtimes", "finish"}
+	for i := 0; i < len(phases); i++ {
 		if !scan.Scan() {
 			return errors.New("missing policy request")
 		}
@@ -124,7 +152,14 @@ func runPolicyFixture() error {
 		if e := decodePolicyFrame(scan.Bytes(), &request); e != nil {
 			return e
 		}
-		if phase == "positive" {
+		if i == 0 {
+			if request.Phase != "control" && request.Phase != "restricted" {
+				return errors.New("invalid static profile")
+			}
+			phases[0] = request.Phase
+			if request.Phase == "control" {
+				phases = []string{"control", "guest-listen", "guest-close", "finish"}
+			}
 			nonce = request.Nonce
 			ids = append([]string(nil), request.Services...)
 			seen := map[string]bool{}
@@ -136,15 +171,28 @@ func runPolicyFixture() error {
 				seen[id] = true
 			}
 		}
+		phase := phases[i]
 		if !validPolicyRequest(request, phase, nonce, ids) {
 			return errors.New("policy request identity/sequence")
 		}
 		reply := policyReply{Phase: phase, Nonce: nonce}
 		switch phase {
-		case "positive", "negative":
-			for _, id := range ids {
-				reply.Dials = append(reply.Dials, policyDial(id, nonce))
+		case "control", "restricted":
+			for _, id := range ids[:4] {
+				reply.Dials = append(reply.Dials, policyDial(id, nonce, winio.HvsockGUIDParent()))
 			}
+		case "guest-listen":
+			var e error
+			listener, e = newGuestCanary(ids[4], nonce)
+			if e != nil {
+				reply.Error = e.Error()
+			} else {
+				reply.Listener = &listenerReceipt{Ready: true}
+			}
+		case "guest-close":
+			r := listener.close()
+			reply.Listener = &r
+			reply.Error = r.Error
 		case "runtimes":
 			reply.Cases = policyRuntimeCases()
 		}
@@ -154,8 +202,10 @@ func runPolicyFixture() error {
 		if e := writePolicyReply(reply); e != nil {
 			return e
 		}
+		if reply.Error != "" {
+			return errors.New(reply.Error)
+		}
 	}
-	// Host half-closes stdin; no extra command or open stream is silently accepted.
 	if scan.Scan() || scan.Err() != nil {
 		return errors.New("extra policy request")
 	}

@@ -76,7 +76,7 @@ if ($Phase -ceq 'build') {
     if ($testFiles -cne 'main_test.go,policy_test.go,surface_test.go') { throw 'native test files were omitted or changed' }
     go test -mod=vendor -count=1 -v ./cmd/ctm-boot-prototype 2>&1 | Tee-Object -FilePath "$evidence/tests.txt"
     Assert-NativeExit
-    if (@(Get-Content -LiteralPath "$evidence/tests.txt" | Where-Object { $_ -match '^--- PASS: Test' }).Count -ne 22) { throw 'native test count mismatch' }
+    if (@(Get-Content -LiteralPath "$evidence/tests.txt" | Where-Object { $_ -match '^--- PASS: Test' }).Count -ne 24) { throw 'native test count mismatch' }
     go build -mod=vendor -trimpath -o "$root/prototype.exe" ./cmd/ctm-boot-prototype; Assert-NativeExit
     go build -mod=vendor -trimpath -tags fixture -o "$root/fixture.exe" ./cmd/ctm-boot-prototype; Assert-NativeExit
     git diff --check; Assert-NativeExit

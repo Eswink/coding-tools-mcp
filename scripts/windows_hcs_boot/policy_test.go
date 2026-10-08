@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Microsoft/go-winio"
+	"github.com/Microsoft/go-winio/pkg/guid"
 	"github.com/Microsoft/hcsshim/internal/gcs/prot"
 )
 
@@ -22,34 +23,60 @@ func TestPolicyServiceInventory(t *testing.T) {
 			t.Fatal("stdio port drift")
 		}
 	}
-	o := buildOptions("test-owned")
-	p, e := configurePolicy(o)
-	if e != nil {
-		t.Fatal(e)
-	}
-	if len(p.services) != 10 || len(o.AdditionalHyperVConfig) != 10 || len(p.result.Nonce) != 32 || !strings.HasPrefix(p.result.BrokerSID, "S-1-") {
-		t.Fatal("policy inventory")
-	}
-	seen := map[string]bool{}
-	for i, g := range p.services {
-		id := g.String()
-		if seen[id] {
-			t.Fatal("duplicate service")
+	ids = make([]guid.GUID, 5)
+	for i := range ids {
+		g, e := guid.NewV4()
+		if e != nil {
+			t.Fatal(e)
 		}
-		seen[id] = true
-		c := o.AdditionalHyperVConfig[id]
-		if c.Disabled || c.BindSecurityDescriptor != "D:P(A;;FA;;;"+p.result.BrokerSID+")" || c.ConnectSecurityDescriptor != denyHv || c.AllowWildcardBinds != (i >= 8) {
-			t.Fatal("unexpected policy authority")
+		ids[i] = g
+	}
+	for _, control := range []bool{true, false} {
+		o := buildOptions("test-owned")
+		p, e := configurePolicy(o, ids, control)
+		if e != nil {
+			t.Fatal(e)
+		}
+		want := 7
+		if control {
+			want = 12
+		}
+		if len(p.services) != 7 || len(o.AdditionalHyperVConfig) != want || len(p.result.Nonce) != 32 || !strings.HasPrefix(p.result.BrokerSID, "S-1-") {
+			t.Fatal("static policy inventory")
+		}
+		allow := "D:P(A;;FA;;;" + p.result.BrokerSID + ")"
+		for _, g := range p.services {
+			c := o.AdditionalHyperVConfig[g.String()]
+			if c.Disabled || c.BindSecurityDescriptor != allow || c.ConnectSecurityDescriptor != denyHv || c.AllowWildcardBinds {
+				t.Fatal("broker policy authority")
+			}
+		}
+		for i, g := range ids {
+			c, found := o.AdditionalHyperVConfig[g.String()]
+			if found != control {
+				t.Fatal("restricted canary entry exists")
+			}
+			if !control {
+				continue
+			}
+			connect := denyHv
+			if i == 4 {
+				connect = allow
+			}
+			if c.Disabled || c.BindSecurityDescriptor != allow || c.ConnectSecurityDescriptor != connect || c.AllowWildcardBinds != (i < 4) {
+				t.Fatal("control permission inventory")
+			}
 		}
 	}
 }
+
 func TestPolicyFramesRejectAmbiguity(t *testing.T) {
 	for _, b := range [][]byte{nil, []byte(`{"phase":"x","unknown":1}`), []byte(`{} {}`), bytes.Repeat([]byte("x"), policyFrameLimit+1)} {
 		if decodePolicyFrame(b, new(policyRequest)) == nil {
 			t.Fatal("accepted malformed/oversized frame")
 		}
 	}
-	r := policyRequest{Phase: "positive", Nonce: strings.Repeat("a", 32), Services: []string{"a", "b", "c"}}
+	r := policyRequest{Phase: "positive", Nonce: strings.Repeat("a", 32), Services: []string{"a", "b", "c", "d", "e"}}
 	b, e := json.Marshal(r)
 	if e != nil {
 		t.Fatal(e)
@@ -77,8 +104,8 @@ func TestPolicyDenialRequiresExplicitError(t *testing.T) {
 	}
 }
 func TestPolicyMatrixRequiresAllControls(t *testing.T) {
-	ids := []string{"a", "b", "c"}
-	good := []dialObservation{{Service: "a", Connected: true, Echo: true}, {Service: "b", Connected: true, Echo: true}, {Service: "c", Connected: true, Echo: true}}
+	ids := []string{"a", "b", "c", "d"}
+	good := []dialObservation{{Service: "a", Connected: true, Echo: true}, {Service: "b", Connected: true, Echo: true}, {Service: "c", Connected: true, Echo: true}, {Service: "d", Connected: true, Echo: true}}
 	if checkDialMatrix(good, ids, true) != nil {
 		t.Fatal("positive matrix")
 	}
@@ -89,7 +116,7 @@ func TestPolicyMatrixRequiresAllControls(t *testing.T) {
 	if checkDialMatrix(good, ids, true) == nil {
 		t.Fatal("close failure erased")
 	}
-	denied := []dialObservation{{Service: "a", ErrorCode: 10013}, {Service: "b", ErrorCode: 10061}, {Service: "c", ErrorCode: 10061}}
+	denied := []dialObservation{{Service: "a", ErrorCode: 10013}, {Service: "b", ErrorCode: 10061}, {Service: "c", ErrorCode: 10061}, {Service: "d", ErrorCode: 10061}}
 	if checkDialMatrix(denied, ids, false) != nil {
 		t.Fatal("explicit negative matrix")
 	}
@@ -103,5 +130,46 @@ func TestPolicyFailureCannotAdmit(t *testing.T) {
 	r.record("policy", checkDialMatrix(nil, []string{"a", "b", "c"}, false))
 	if complete(r) || r.NetworkDenied || r.WorkspaceIntegrated || r.ProductionAdmission {
 		t.Fatal("policy failure overwritten or production enabled")
+	}
+}
+
+func TestRegistrationOwnershipRejectsChanges(t *testing.T) {
+	marker := "ctm-static-hvs:" + strings.Repeat("b", 32)
+	if !registrationMatches(1, 0, 1, marker, marker) {
+		t.Fatal("own marker rejected")
+	}
+	for _, x := range []struct {
+		values, children, kind uint32
+		value                  string
+	}{{0, 0, 1, marker}, {2, 0, 1, marker}, {1, 1, 1, marker}, {1, 0, 2, marker}, {1, 0, 1, marker + "changed"}} {
+		if registrationMatches(x.values, x.children, x.kind, x.value, marker) {
+			t.Fatal("unexpected registry content accepted")
+		}
+	}
+	if registrationMatches(1, 0, 1, "wrong", "wrong") {
+		t.Fatal("unowned marker accepted")
+	}
+}
+func TestStaticSecondVMRequiresCompleteFirst(t *testing.T) {
+	r := report{TerminateOK: true, WholeVMExited: true, ExitOK: true, CloseOK: true, Policy: &policyResult{Profile: "control", MatrixPassed: true, SessionExited: true, CleanupOK: true}}
+	if !staticProfileComplete(r) || r.RuntimePassed {
+		t.Fatal("control completion or runtime classification")
+	}
+	for _, change := range []func(*report){func(r *report) { r.TerminateOK = false }, func(r *report) { r.WholeVMExited = false }, func(r *report) { r.ExitOK = false }, func(r *report) { r.CloseOK = false }, func(r *report) { r.Errors = []string{"failure"} }, func(r *report) { r.Policy.MatrixPassed = false }, func(r *report) { r.Policy.SessionExited = false }, func(r *report) { r.Policy.CleanupOK = false }} {
+		copy := r
+		policy := *r.Policy
+		copy.Policy = &policy
+		change(&copy)
+		if staticProfileComplete(copy) {
+			t.Fatal("incomplete first profile allowed second VM")
+		}
+	}
+	r.Policy.Profile = "restricted"
+	if staticProfileComplete(r) {
+		t.Fatal("unrun stock runtime accepted")
+	}
+	r.RuntimePassed = true
+	if !staticProfileComplete(r) {
+		t.Fatal("complete restricted profile rejected")
 	}
 }

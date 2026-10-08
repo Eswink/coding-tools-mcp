@@ -4,12 +4,17 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"github.com/Microsoft/go-winio"
+	"github.com/Microsoft/go-winio/pkg/guid"
 	"io"
 	"strings"
+	"syscall"
+	"time"
 	"unicode/utf16"
 )
 
@@ -79,12 +84,19 @@ type dialObservation struct {
 	Error      string `json:"error"`
 	CloseError string `json:"close_error"`
 }
+type listenerReceipt struct {
+	Ready    bool   `json:"ready"`
+	Closed   bool   `json:"closed"`
+	Accepted int    `json:"accepted"`
+	Error    string `json:"error"`
+}
 type policyReply struct {
-	Phase string            `json:"phase"`
-	Nonce string            `json:"nonce"`
-	Dials []dialObservation `json:"dials"`
-	Cases []caseResult      `json:"cases"`
-	Error string            `json:"error"`
+	Listener *listenerReceipt  `json:"listener,omitempty"`
+	Phase    string            `json:"phase"`
+	Nonce    string            `json:"nonce"`
+	Dials    []dialObservation `json:"dials"`
+	Cases    []caseResult      `json:"cases"`
+	Error    string            `json:"error"`
 }
 
 func decodePolicyFrame(b []byte, v any) error {
@@ -103,7 +115,7 @@ func decodePolicyFrame(b []byte, v any) error {
 	return nil
 }
 func validPolicyRequest(r policyRequest, phase, nonce string, ids []string) bool {
-	if r.Phase != phase || len(r.Nonce) != policyNonceBytes || r.Nonce != nonce || len(r.Services) != 3 || len(ids) != 3 {
+	if r.Phase != phase || len(r.Nonce) != policyNonceBytes || r.Nonce != nonce || len(r.Services) != 5 || len(ids) != 5 {
 		return false
 	}
 	for i := range ids {
@@ -116,4 +128,46 @@ func validPolicyRequest(r policyRequest, phase, nonce string, ids []string) bool
 func policyDialDenied(o dialObservation) bool {
 	// Timeouts, missing routes and unknown errors are never accepted as policy proof.
 	return !o.Connected && !o.Echo && o.CloseError == "" && (o.ErrorCode == 10013 || o.ErrorCode == 10061)
+}
+
+func registrationMatches(values, subkeys, kind uint32, value, marker string) bool {
+	return values == 1 && subkeys == 0 && kind == 1 && value == marker && len(marker) == 47 && strings.HasPrefix(marker, "ctm-static-hvs:")
+}
+func policyDial(id, nonce string, vmID guid.GUID) (o dialObservation) {
+	o.Service = id
+	g, e := guid.FromString(id)
+	if e != nil {
+		o.Error = e.Error()
+		return
+	}
+	ctx, stop := context.WithTimeout(context.Background(), 2*time.Second)
+	defer stop()
+	c, e := winio.Dial(ctx, &winio.HvsockAddr{VMID: vmID, ServiceID: g})
+	if e != nil {
+		o.Error = e.Error()
+		var n syscall.Errno
+		if errors.As(e, &n) {
+			o.ErrorCode = uint32(n)
+		}
+		return
+	}
+	o.Connected = true
+	defer func() {
+		if e := c.Close(); e != nil {
+			o.CloseError = e.Error()
+		}
+	}()
+	if e = c.SetDeadline(time.Now().Add(2 * time.Second)); e == nil {
+		_, e = io.WriteString(c, nonce)
+	}
+	b := make([]byte, len(nonce))
+	if e == nil {
+		_, e = io.ReadFull(c, b)
+	}
+	if e != nil {
+		o.Error = e.Error()
+		return
+	}
+	o.Echo = string(b) == nonce
+	return
 }
