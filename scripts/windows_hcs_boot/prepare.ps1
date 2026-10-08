@@ -45,11 +45,15 @@ if ($Phase -ceq 'build') {
   $allowedNode = $node.StartsWith('C:\Program Files\nodejs\',[StringComparison]::OrdinalIgnoreCase) -or $node.StartsWith('C:\hostedtoolcache\windows\node\',[StringComparison]::OrdinalIgnoreCase)
   if (-not $allowedNode -or -not $PSHOME.StartsWith('C:\Program Files\PowerShell\',[StringComparison]::OrdinalIgnoreCase)) { throw 'unexpected stock runtime source' }
   Assert-NoReparse $node; Assert-NoReparse $PSHOME
+  $nodeVersion = (& $node --version).Trim(); Assert-NativeExit
+  Write-Output "Observed stock Node: $nodeVersion"
+  if ($nodeVersion -cne 'v22.23.3') { throw 'stock Node version differs from pinned license release' }
   $runtime = New-Item -ItemType Directory -Path "$root/runtime"
   Copy-Item -LiteralPath $node -Destination "$runtime/node.exe"
-  $license = @(Get-ChildItem -LiteralPath (Split-Path $node) -File | Where-Object Name -in @('LICENSE','LICENSE.txt'))
-  if ($license.Count -ne 1) { throw 'Node distribution license unavailable' }
-  Copy-Item -LiteralPath $license[0].FullName -Destination "$runtime/NODE-LICENSE.txt"
+  # The runner MSI does not promise an adjacent license; use the matching immutable official release.
+  Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/nodejs/node/80dc632040e6bada37aac1220dde9c79581c9c22/LICENSE' -OutFile "$runtime/NODE-LICENSE.txt" -TimeoutSec 30
+  if ((Get-Item -LiteralPath "$runtime/NODE-LICENSE.txt").Length -ne 145485 -or
+    (Get-FileHash -LiteralPath "$runtime/NODE-LICENSE.txt" -Algorithm SHA256).Hash.ToLowerInvariant() -cne 'c738ae413cf561f174e34f6961f8ca458aae2369a73640dda6234c629b98bcc4') { throw 'pinned Node license mismatch' }
   foreach ($item in Get-ChildItem -LiteralPath $PSHOME -Recurse -Force) { Assert-NoReparse $item.FullName }
   Copy-Item -LiteralPath $PSHOME -Destination "$runtime/pwsh" -Recurse
   Copy-Item -LiteralPath "$root/fixture.exe" -Destination "$runtime/fixture.exe"
@@ -60,7 +64,7 @@ if ($Phase -ceq 'build') {
   $runtimeFiles | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath "$evidence/runtime-files.json"
   Compress-Archive -LiteralPath @(Get-ChildItem -LiteralPath $runtime -Force | ForEach-Object FullName) -DestinationPath "$root/runtime.zip"
   if ((Get-Item -LiteralPath "$root/runtime.zip").Length -gt 300MB) { throw 'runtime bundle exceeded bound' }
-  @{node=(& $node --version); pwsh=$PSVersionTable.PSVersion.ToString(); bundle_sha256=(Get-FileHash -LiteralPath "$root/runtime.zip").Hash.ToLowerInvariant(); hcsshim=$sha} |
+  @{node=$nodeVersion; pwsh=$PSVersionTable.PSVersion.ToString(); bundle_sha256=(Get-FileHash -LiteralPath "$root/runtime.zip").Hash.ToLowerInvariant(); hcsshim=$sha} |
     ConvertTo-Json | Set-Content -LiteralPath "$evidence/runtime.json"
   Assert-NativeExit
 }

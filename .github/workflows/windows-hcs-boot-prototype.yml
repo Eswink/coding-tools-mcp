@@ -29,7 +29,7 @@ jobs:
           $tree = (git rev-parse 'HEAD^{tree}').Trim()
           if ($LASTEXITCODE -ne 0) { throw 'tree query failed' }
           $parent = (git show -s --format=%P HEAD).Trim()
-          if ($LASTEXITCODE -ne 0 -or $parent -cne '3481de620b5816a94568652093637b28a305d2c8') { throw 'base mismatch' }
+          if ($LASTEXITCODE -ne 0 -or $parent -cne 'f47d1297ee5a0e4a014129c505c05f2ca247b759') { throw 'base mismatch' }
           $os = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name CurrentBuildNumber,UBR
           @{sha=$sha; tree=$tree; parent=$parent; run=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT;
             image_os=$env:ImageOS; image_version=$env:ImageVersion; build=$os.CurrentBuildNumber; ubr=$os.UBR;
