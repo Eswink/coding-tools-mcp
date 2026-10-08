@@ -1,8 +1,8 @@
 name: Windows synthetic VM session owner
 on:
   push:
-    branches: ['ci/issue88-publisher-executor-windows-vm-20261008']
-    paths: ['src-tauri/src/tools/windows_vm*', 'src-tauri/src/tools/windows_vm/**', 'src-tauri/src/tools/mod.rs', 'services/windows-vm-broker/**', 'scripts/prepare_windows_vm_session.ps1', '.github/workflows/windows-vm-session.yml', 'docs/specs/windows-vm-session/**']
+    branches: ['ci/issue88-publisher-executor-windows-launch-20261008']
+    paths: ['src-tauri/Cargo.toml', 'src-tauri/src/tools/windows_vm*', 'src-tauri/src/tools/windows_vm/**', 'src-tauri/src/tools/mod.rs', 'services/windows-vm-broker/**', 'scripts/prepare_windows_vm*.ps1', 'scripts/windows_vm_launch_fixture.cpp', '.github/workflows/windows-vm-session.yml', 'docs/specs/windows-vm-session/**']
 permissions:
   contents: read
 jobs:
@@ -33,10 +33,30 @@ jobs:
           $sha=(git rev-parse HEAD).Trim(); if ($LASTEXITCODE -ne 0 -or $sha -cne $env:GITHUB_SHA) { throw 'source mismatch' }
           $tree=(git rev-parse 'HEAD^{tree}').Trim(); if ($LASTEXITCODE -ne 0) { throw 'tree read failed' }
           $parents=(git show -s --format=%P HEAD).Trim(); if ($LASTEXITCODE -ne 0) { throw 'parent read failed' }
-          if ($parents -cne '7eb98b76a15f91d2ad59ec8fbde4dd4fb17b1116') { throw 'actual F must be sole parent' }
-          @{sha=$sha;tree=$tree;parents=$parents;base='7eb98b76a15f91d2ad59ec8fbde4dd4fb17b1116';run=$env:GITHUB_RUN_ID;attempt=$env:GITHUB_RUN_ATTEMPT;
-            image=$env:ImageVersion;os=$env:ImageOS;production_admission=$false;workspace_integration=$false;network_denial_proven=$false;production_launch_authority=$false} |
+          $base='110b4febbbcdab0138e2d28de2a53e2f2d61d7d6'
+          if ($base -cnotmatch '^[0-9a-f]{40}$' -or $parents -cne $base) { throw 'sealed reviewed launcher must be sole parent' }
+          if ((git rev-parse "$($base)^{tree}").Trim() -cne '485ef3e3a781201b63d92ea0acf958ac89cc5211' -or (git show -s --format=%P $base).Trim() -cne '0def59d1ac429d5dd53bc4b75b626f5e4811d414') { throw 'launcher correction parent mismatch' }
+          $previous='0def59d1ac429d5dd53bc4b75b626f5e4811d414'
+          if ((git rev-parse "$($previous)^{tree}").Trim() -cne 'fa327d8f1b0caaf73c1d2e55bf67eb887bdbc20f' -or (git show -s --format=%P $previous).Trim() -cne 'b9b4e666c8bfe8c52e35fba3974c935f927c4e2e') { throw 'launcher previous correction mismatch' }
+          $earlier='b9b4e666c8bfe8c52e35fba3974c935f927c4e2e'
+          if ((git rev-parse "$($earlier)^{tree}").Trim() -cne '7faa17400b941a69f366f94e3fcf0272948c65de' -or (git show -s --format=%P $earlier).Trim() -cne '8d56fbc38910df36837e1865b4242d55ca2aa7c6') { throw 'launcher earlier correction mismatch' }
+          $older='8d56fbc38910df36837e1865b4242d55ca2aa7c6'
+          if ((git rev-parse "$($older)^{tree}").Trim() -cne '6a40fb578e807ec8ce58eb309ae62707e1539b04' -or (git show -s --format=%P $older).Trim() -cne '750b11b20651b3f8bfadba69c19cb7eaf0c11e1e') { throw 'launcher older correction mismatch' }
+          $origin='750b11b20651b3f8bfadba69c19cb7eaf0c11e1e'
+          if ((git rev-parse "$($origin)^{tree}").Trim() -cne 'fea18888f3560939915d1ff49439cc9b92e5b4d9' -or (git show -s --format=%P $origin).Trim() -cne '13cd343d942b7a68912d42a8f9235c02ed647764') { throw 'launcher correction origin mismatch' }
+          & "$env:SystemRoot/System32/cmd.exe" /d /c "git cat-file commit HEAD > `"$evidence/source-commit.txt`""
+          if ($LASTEXITCODE -ne 0 -or (git hash-object -t commit "$evidence/source-commit.txt").Trim() -cne $sha) { throw 'raw source commit mismatch' }
+          @{sha=$sha;tree=$tree;parents=$parents;base=$base;run=$env:GITHUB_RUN_ID;attempt=$env:GITHUB_RUN_ATTEMPT;
+            image=$env:ImageVersion;os=$env:ImageOS;build=[Environment]::OSVersion.Version.ToString();arch=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();production_admission=$false;workspace_integration=$false;network_denial_proven=$false;production_launch_authority=$false;general_dll_authority=$false;descendant_containment_by_debugger=$false;hard_syscall_deadline=$false} |
             ConvertTo-Json | Set-Content -LiteralPath "$evidence/source.json"
+          $sourcePaths=@('src-tauri/Cargo.toml','src-tauri/Cargo.lock','src-tauri/src/tools/windows_vm.rs','src-tauri/src/tools/mod.rs','src-tauri/src/tools/native_drain.rs',
+            'src-tauri/src/tools/windows_vm/image.rs','src-tauri/src/tools/windows_vm/launch.rs','src-tauri/src/tools/windows_vm/host_io.rs',
+            'src-tauri/src/tools/windows_vm/launch_tests.rs','src-tauri/src/tools/windows_vm/native_tests.rs','src-tauri/src/tools/windows_vm/protocol.rs','src-tauri/src/tools/windows_vm/tests.rs',
+            'scripts/windows_vm_launch_fixture.cpp','scripts/prepare_windows_vm_launch.ps1','scripts/prepare_windows_vm_session.ps1','.github/workflows/windows-vm-session.yml',
+            'docs/specs/windows-vm-session/requirements.md','docs/specs/windows-vm-session/design.md','docs/specs/windows-vm-session/tasks.md')
+          $sourcePaths+=@('inputs.json','channels_windows.go','protocol_windows.go','quarantine_windows.go','owner_windows.go','guest_windows.go','upstream-defaults.patch','owner_windows_test.go','main_windows.go' | ForEach-Object { "services/windows-vm-broker/$_" })
+          @($sourcePaths | ForEach-Object { $file=Get-Item -LiteralPath $_; if ($file.PSIsContainer -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'source reparse/non-file entry' }; @{path=$_;bytes=$file.Length;sha256=(Get-FileHash -LiteralPath $_).Hash.ToLowerInvariant()} }) |
+            ConvertTo-Json | Set-Content -LiteralPath "$evidence/source-files.json"
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with: {toolchain: '1.98.1', components: rustfmt}
       - name: Preserve default formatter output then enforce formatting before import
@@ -54,7 +74,7 @@ jobs:
           }
           cargo fmt --all --check --manifest-path src-tauri/Cargo.toml 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/fmt.txt"
           if ($LASTEXITCODE -ne 0) { throw 'formatting differs; no import or VM started' }
-      - name: Build real Rust library and run sixteen pure tests
+      - name: Build real Rust library and run eighteen pure tests before import
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
@@ -62,15 +82,42 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'native check failed' }
           cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings
           if ($LASTEXITCODE -ne 0) { throw 'production-library warnings gate failed' }
+          $metadata=cargo metadata --locked --format-version 1 --manifest-path src-tauri/Cargo.toml | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'locked dependency inspection failed' }
+          $windows=@($metadata.packages | Where-Object {$_.name -ceq 'windows' -and $_.version -ceq '0.61.3'})
+          if ($windows.Count -ne 1) { throw 'exact windows 0.61.3 package required' }
+          $binding=$windows[0]; $features=@($metadata.resolve.nodes | Where-Object {$_.id -ceq $binding.id} | ForEach-Object features)
+          foreach ($feature in @('Win32_System_Diagnostics_Debug','Win32_System_Pipes','Win32_System_SystemInformation')) { if ($feature -cnotin $features) { throw 'missing required locked binding feature' } }
+          @{package=$binding.id;source=$binding.source;features=$features;lock_sha256=(Get-FileHash src-tauri/Cargo.lock).Hash.ToLowerInvariant();binding_sha256=(Get-FileHash $binding.manifest_path).Hash.ToLowerInvariant()} | ConvertTo-Json -Depth 4 | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/locked-windows.json"
           cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm:: -- --list 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/rust-inventory.txt"
           if ($LASTEXITCODE -ne 0) { throw 'native test inventory compile failed' }
           $list=Get-Content "$env:CTM_VM_SESSION_EVIDENCE/rust-inventory.txt"
-          if (@($list | Where-Object {$_ -match '^tools::windows_vm::tests::.+: test$'}).Count -ne 16 -or @($list | Where-Object {$_ -match '^tools::windows_vm::native_tests::.+: test$'}).Count -ne 2) { throw 'Rust inventory mismatch' }
+          if (@($list | Where-Object {$_ -match '^tools::windows_vm::tests::.+: test$'}).Count -ne 16 -or @($list | Where-Object {$_ -match '^tools::windows_vm::native_tests::.+: test$'}).Count -ne 2 -or @($list | Where-Object {$_ -match '^tools::windows_vm::launch_tests::.+: test$'}).Count -ne 8 -or @($list | Where-Object {$_ -match '^tools::windows_vm::.+: test$'}).Count -ne 26) { throw 'Rust inventory mismatch' }
+          $new='launch_boundary_errors_preserve_owned_effects,blocked_writer_and_cancel_leave_owner_responsive,native_launch_matching_image_retires,native_launch_wrong_image_rejects,native_launch_same_bytes_new_id_rejects,native_launch_junction_redirect_rejects,native_launch_cancel_before_continue,native_launch_wait_fault_preserves_raw_evidence' -split ','
+          foreach ($id in $new) { if (@($list | Where-Object {$_ -ceq "tools::windows_vm::launch_tests::${id}: test"}).Count -ne 1) { throw "missing exact case: $id" } }
           cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::tests:: -- --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/rust-tests.txt"
           if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/rust-tests.txt" -Pattern 'test result: ok\. 16 passed; 0 failed; 0 ignored')) { throw 'sixteen pure tests required' }
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::launch_tests:: -- --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/ownership-tests.txt"
+          if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/ownership-tests.txt" -Pattern 'test result: ok\. 2 passed; 0 failed; 6 ignored')) { throw 'two pure ownership tests required' }
       - name: Verify pinned sources and run twelve native Go tests before import
         shell: pwsh
         run: ./scripts/prepare_windows_vm_session.ps1 -Phase build
+      - name: Build fixed harmless markers and inventory trusted broker copy
+        shell: pwsh
+        run: ./scripts/prepare_windows_vm_launch.ps1
+      - name: Run six real harmless Rust launches before image import
+        shell: pwsh
+        env:
+          CTM_VM_LAUNCH_NATIVE: '1'
+        run: |
+          $ErrorActionPreference='Stop'
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::launch_tests::native_launch_ -- --ignored --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/launch-tests.txt"
+          if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/launch-tests.txt" -Pattern 'test result: ok\. 6 passed; 0 failed; 0 ignored')) { throw 'six actual launch cases required before import' }
+          if ((Get-Item -LiteralPath $env:CTM_VM_SESSION_EVIDENCE).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'launch evidence reparse directory' }
+          $names='matching_image_retires,wrong_image_rejects,same_bytes_new_id_rejects,junction_redirect_rejects,cancel_before_continue,wait_fault_preserves_raw_evidence' -split ','
+          $receipts=@($names | ForEach-Object { $file=Get-Item -LiteralPath "$env:CTM_VM_SESSION_EVIDENCE/native_launch_$_.json"; if ($file.PSIsContainer -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'launch evidence entry rejected' }; $file })
+          if ($receipts.Count -ne 6) { throw 'six raw launch receipts required' }
+          foreach ($file in $receipts) { $r=Get-Content -Raw -LiteralPath $file.FullName | ConvertFrom-Json; if ($r.source -cne $env:GITHUB_SHA -or !$r.retired -or !$r.launch.child_created -or !$r.paired_fences_drained) { throw 'launch receipt mismatch' } }
       - name: Acquire fixed Microsoft blobs and import in isolated privileged process
         shell: pwsh
         run: ./scripts/prepare_windows_vm_session.ps1 -Phase acquire
@@ -82,19 +129,50 @@ jobs:
           $ErrorActionPreference='Stop'
           cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::native_tests:: -- --ignored --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/native-tests.txt"
           if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/native-tests.txt" -Pattern 'test result: ok\. 2 passed; 0 failed; 0 ignored')) { throw 'native VM session gate failed' }
+          $outcomes=@(foreach ($name in @('rust-tests','ownership-tests','launch-tests','native-tests')) { Get-Content "$env:CTM_VM_SESSION_EVIDENCE/$name.txt" | ForEach-Object { if ($_ -match '^test (tools::windows_vm::\S+) \.\.\. ok$') { $Matches[1] } } })
+          $outcomes+=@(Get-Content "$env:CTM_VM_SESSION_EVIDENCE/go-tests.txt" | ForEach-Object { if ($_ -match '^--- PASS: (Test[^/ ]+) ') { "go::$($Matches[1])" } })
+          if ($outcomes.Count -ne 38 -or @($outcomes | Sort-Object -Unique).Count -ne 38) { throw 'exact 38 executed outcomes required' }
+          $outcomes | ConvertTo-Json | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/executed-inventory.json"
       - name: Preserve bounded evidence and unchanged source
         id: evidence
         if: always()
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          foreach ($name in @('native-01.json','native-02.json')) { $p=Join-Path $env:CTM_VM_SESSION_ROOT $name; if (Test-Path -LiteralPath $p) { Copy-Item -LiteralPath $p -Destination $env:CTM_VM_SESSION_EVIDENCE } }
+          foreach ($path in @($env:CTM_VM_SESSION_ROOT,$env:CTM_VM_SESSION_EVIDENCE)) { $item=Get-Item -LiteralPath $path; if (!$item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'evidence source/destination directory rejected' } }
+          foreach ($item in Get-ChildItem -LiteralPath $env:CTM_VM_SESSION_EVIDENCE -Force) { if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'evidence destination reparse entry' } }
+          foreach ($name in @('native-01.json','native-02.json')) {
+            $p=Join-Path $env:CTM_VM_SESSION_ROOT $name; $destination=Join-Path $env:CTM_VM_SESSION_EVIDENCE $name
+            if (Test-Path -LiteralPath $p) { $item=Get-Item -LiteralPath $p; if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or (Test-Path -LiteralPath $destination)) { throw 'native evidence input/destination rejected' }; Copy-Item -LiteralPath $p -Destination $destination }
+          }
           git diff --exit-code; if ($LASTEXITCODE -ne 0) { throw 'source changed' }
           git diff --cached --exit-code; if ($LASTEXITCODE -ne 0) { throw 'index changed' }
+          $allowed=@('source.json','source-commit.txt','source-files.json','rust-version.txt','fmt.txt','rust-check.txt','locked-windows.json','rust-inventory.txt','rust-tests.txt','ownership-tests.txt',
+            'go-version.txt','go-tests.txt','pinned-inputs.json','runtime-files.json','bundle.json','import.txt',
+            'launch-build.txt','msvc-sdk.txt','imports-good.txt','imports-bad.txt','imports-broker.txt','launch-manifest.json',
+            'launch-tests.txt','native-tests.txt','executed-inventory.json','native-01.json','native-02.json','formatted/windows_vm.rs')
+          $allowed+=@('image','launch','host_io','launch_tests','native_tests','protocol','tests' | ForEach-Object { "formatted/windows_vm/$_.rs" })
+          $cases='matching_image_retires,wrong_image_rejects,same_bytes_new_id_rejects,junction_redirect_rejects,cancel_before_continue,wait_fault_preserves_raw_evidence' -split ','
+          $allowed+=@($cases | ForEach-Object { "native_launch_$_.json"; "native_launch_${_}-timeout.json" })
+          $directories=@('','formatted','formatted/windows_vm'); $files=@()
+          foreach ($relative in $directories) {
+            $directory=if ($relative) { Join-Path $env:CTM_VM_SESSION_EVIDENCE $relative } else { $env:CTM_VM_SESSION_EVIDENCE }
+            if (!(Test-Path -LiteralPath $directory)) { continue }
+            $item=Get-Item -LiteralPath $directory; if (!$item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'evidence reparse/non-directory' }
+            foreach ($item in Get-ChildItem -LiteralPath $directory -Force) {
+              $name=[IO.Path]::GetRelativePath($env:CTM_VM_SESSION_EVIDENCE,$item.FullName).Replace('\','/')
+              if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'evidence reparse entry' }
+              if ($item.PSIsContainer) { if ($name -cnotin $directories) { throw 'unexpected evidence directory' }; continue }
+              if ($name -cnotin $allowed) { throw 'unexpected evidence file' }; $files+=,$item
+            }
+          }
+          if (($files | Measure-Object Length -Sum).Sum -gt 8MB) { throw 'aggregate evidence bound' }
+          foreach ($file in $files) { if ($file.Length -gt 2MB) { throw 'individual evidence bound' } }
           $before=Get-Content -Raw "$env:CTM_VM_SESSION_EVIDENCE/source.json" | ConvertFrom-Json
           if ((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA -or (git rev-parse 'HEAD^{tree}').Trim() -cne $before.tree) { throw 'final source identity changed' }
-          $files=@(Get-ChildItem $env:CTM_VM_SESSION_EVIDENCE -Recurse -File)
-          if (($files | Measure-Object Length -Sum).Sum -gt 8MB) { throw 'aggregate evidence bound' }
+          $sourceFiles=@(Get-Content -Raw "$env:CTM_VM_SESSION_EVIDENCE/source-files.json" | ConvertFrom-Json)
+          if ($sourceFiles.Count -ne 28 -or @($sourceFiles.path | Sort-Object -Unique).Count -ne 28) { throw 'exact source census changed' }
+          foreach ($entry in $sourceFiles) { $file=Get-Item -LiteralPath $entry.path; if ($file.PSIsContainer -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $file.Length -ne $entry.bytes -or (Get-FileHash -LiteralPath $entry.path).Hash.ToLowerInvariant() -cne $entry.sha256) { throw 'source bytes changed' } }
           $lines=@($files | Sort-Object FullName | ForEach-Object { if ($_.Length -gt 2MB) { throw 'individual evidence bound' }; "$((Get-FileHash $_.FullName).Hash.ToLowerInvariant())  $([IO.Path]::GetRelativePath($env:CTM_VM_SESSION_EVIDENCE,$_.FullName))" })
           $lines | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/sha256.txt"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

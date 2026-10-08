@@ -25,7 +25,7 @@ _FIXTURE_UNLINK, _FIXTURE_RMDIR = os.unlink, os.rmdir
 
 
 def _remove_fixture(directory):
-    for name in ('fixture.json', 'observed.json'):
+    for name in ('fixture.json', 'observed.json', 'observed.pending'):
         try:
             _FIXTURE_UNLINK(directory / name)
         except FileNotFoundError:

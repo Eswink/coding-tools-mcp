@@ -22,6 +22,7 @@ import rc_pretag_staging_budget_cases as staging_cases
 import rc_pretag_checksum_budget_cases as checksum_cases
 import rc_pretag_archive_budget_profile as x
 from rc_pretag_staged_bytes_profile import normalize as staged_bytes
+from rc_pretag_windows_launch_profile import normalize as windows_launch_bytes
 
 F_BINDING = ('e90e15fa8b6d527006b6c62a75eb2fcab6629f0f', '73bf80abd94a0ec8db241453c225b6bf62652b1b', ('39a9ae7e2761f419db5cace712368e5671042b5e', '73e4fdb7ea077392a93105652374eba8bf0a605f'))
 
@@ -341,7 +342,7 @@ class ArchiveBudgetCompositionCases(unittest.TestCase):
         self.assertEqual(changed, {(module, name) for module, names in allowed.items() for name in names})
         self.assertFalse(set(original) & set(inventory()))
     def test_readonly_workflow_and_held_sources_remain_bounded(self):
-        text = (c.ROOT / x.WORKFLOW).read_text()
+        text = windows_launch_bytes(x.WORKFLOW, (c.ROOT / x.WORKFLOW).read_bytes()).decode()
         for fragment in ("on:\n  push:\n    branches: ['ci/issue88-publisher-executor-*']", 'permissions:\n  contents: read',
                 "os: [ubuntu-22.04, ubuntu-24.04]", "python-version: '3.12'", 'fetch-depth: 0, persist-credentials: false',
                 "sha == os.environ['GITHUB_SHA']", 'parents == [profile.M]', 'before = checked()', 'checked() == before',

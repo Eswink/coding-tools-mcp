@@ -101,6 +101,8 @@ DIGEST = '7dd73a6fd939e3bfae86999ffcf088a6e3679cc4d20e542dc5677599680bc211'
 
 def normalize(path, current):
     """Reverse only sealed new bytes; historical passthrough is a finite pin list."""
+    from rc_pretag_windows_launch_profile import normalize as windows_launch_bytes
+    current = windows_launch_bytes(path, current)
     assert type(path) is str and type(current) is bytes, 'source_observation inverse input'
     if path not in BASE_PINS:
         return current
@@ -171,6 +173,10 @@ def content(ref, root, git, entries, historical, release, release_tree, document
 def select(ref, root, git, entries, historical, release, release_tree, documents):
     """Only topology mismatch delegates; selected and historical content errors escape."""
     ref = o._commit(ref, root, git)
+    import rc_pretag_windows_launch_profile as windows_launch
+    selected = windows_launch.select(ref, root, git, entries, historical, release, release_tree, documents)
+    if selected is not None:
+        return selected
     try:
         kind, tip, source = topology(ref, root, git, release)
     except o.TopologyError:

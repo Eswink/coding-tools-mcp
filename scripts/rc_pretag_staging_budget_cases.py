@@ -20,6 +20,7 @@ import rc_pretag_final_admission_cases as final_cases
 import rc_pretag_download_budget_cases as download_cases
 import rc_pretag_staging_budget_profile as x
 from rc_pretag_checksum_budget_profile import normalize as checksum_bytes
+from rc_pretag_windows_launch_profile import normalize as windows_launch_bytes
 
 def inventory():
     expected = [cls + '.' + name for cls, names in x.NEW_CASES.items() for name in names]
@@ -331,7 +332,7 @@ class StagingBudgetCompositionCases(unittest.TestCase):
         self.assertEqual(changed, {(module, name) for module, names in allowed.items() for name in names})
         self.assertFalse(set(original) & set(inventory()))
     def test_readonly_workflow_and_held_sources_remain_bounded(self):
-        text = (c.ROOT / x.WORKFLOW).read_text()
+        text = windows_launch_bytes(x.WORKFLOW, (c.ROOT / x.WORKFLOW).read_bytes()).decode()
         for fragment in ("on:\n  push:\n    branches: ['ci/issue88-publisher-executor-*']", 'permissions:\n  contents: read',
                 "os: [ubuntu-22.04, ubuntu-24.04]", "python-version: '3.12'", 'fetch-depth: 0, persist-credentials: false',
                 "sha == os.environ['GITHUB_SHA']", 'parents == [profile.M]', 'before = checked()', 'checked() == before',
