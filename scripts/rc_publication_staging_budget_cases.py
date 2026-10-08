@@ -273,8 +273,8 @@ class StagingBudgetCases(unittest.TestCase):
             clock.monotonic = lambda: session._deadline + 1 if clock.expired else time.monotonic()
             parse = stage._receipts
 
-            def parsed(*args):
-                result = parse(*args)
+            def parsed(*args, **kwargs):
+                result = parse(*args, **kwargs)
                 self.children_exited(seen, 1)
                 self.assertEqual(args[1].read('rc-asset-plan.json'), fixture.plan_bytes)
                 self.assertEqual(args[1].read('RC_PROVENANCE.json'), fixture.provenance_bytes)

@@ -330,13 +330,22 @@ class PrivateRoot:
             stream.write(data)
         return self.path / relative
 
-    def copy(self, relative, source_path):
+    def copy(self, relative, source_path, *, deadline=None, check_active=None):
+        _check_budget(deadline, check_active)
         total = 0
         with open_file(source_path) as source, self.open(relative, 'xb') as target:
-            while data := source.read(CHUNK):
-                total += len(data)
-                need(total <= FILE_LIMIT, 'private_copy_limit')
+            while True:
+                _check_budget(deadline, check_active)
+                data = source.read(CHUNK)
+                if data:
+                    total += len(data)
+                    need(total <= FILE_LIMIT, 'private_copy_limit')
+                _check_budget(deadline, check_active)
+                if not data:
+                    break
                 target.write(data)
+                _check_budget(deadline, check_active)
+        _check_budget(deadline, check_active)
         return self.path / relative
 
     def files(self):
