@@ -11,7 +11,7 @@ import zipfile
 import zlib
 
 from rc_consumer_io import (CHUNK, FILE_LIMIT, JSON_LIMIT, PATH_LIMIT, ConsumerError,
-                            PrivateRoot, hash_file, json_file, need, open_file, safe_relative)
+                            PrivateRoot, _check_budget, hash_file, json_file, need, open_file, safe_relative)
 
 ZIP_LIMIT = 2 * 1024**3
 DIRECTORY_LIMIT = 8 * 1024**2
@@ -228,24 +228,32 @@ def extract_bounded_zip(zip_path, destination: PrivateRoot, allowed_root_names):
         raise ConsumerError('invalid_zip') from None
 
 
-def verify_checksum_inventory(root: PrivateRoot):
+def verify_checksum_inventory(root: PrivateRoot, *, deadline=None, check_active=None):
+    budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
+    _check_budget(deadline, check_active)
     files = set(root.files())
+    _check_budget(deadline, check_active)
     need('SHA256SUMS.txt' in files, 'missing_checksum_inventory')
     try:
         text = root.read('SHA256SUMS.txt', JSON_LIMIT).decode('utf-8')
     except UnicodeError:
         raise ConsumerError('invalid_checksum_inventory') from None
+    _check_budget(deadline, check_active)
     need(text.endswith('\n') and '\r' not in text, 'invalid_checksum_inventory')
     entries, names = {}, _Names()
     for line in text[:-1].split('\n'):
+        _check_budget(deadline, check_active)
         match = re.fullmatch(r'([0-9a-f]{64})  (.+)', line)
         need(match is not None, 'invalid_checksum_inventory')
         name = names.add(match[2])
         need(name != 'SHA256SUMS.txt', 'invalid_checksum_inventory')
         entries[name] = match[1]
+    _check_budget(deadline, check_active)
     need(set(entries) == files - {'SHA256SUMS.txt'}, 'checksum_coverage')
     for name, expected in entries.items():
-        need(hash_file(root.path / name) == expected, 'checksum_mismatch')
+        _check_budget(deadline, check_active)
+        need(hash_file(root.path / name, **budget) == expected, 'checksum_mismatch')
+    _check_budget(deadline, check_active)
     return entries
 
 

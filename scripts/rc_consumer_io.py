@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import secrets
 import stat
+import time
 import unicodedata
 
 CHUNK = 64 * 1024
@@ -94,16 +95,63 @@ def open_file(path):
             os.close(fd)
 
 
-def hash_file(path) -> str:
+def _check_budget(deadline, check_active):
+    """Check caller-owned controls without renewing a budget or exposing errors."""
+    if deadline is None and check_active is None:
+        return
+    need(deadline is None or type(deadline) is int or
+         (type(deadline) is float and math.isfinite(deadline)), 'invalid_transport_deadline')
+    need(check_active is None or callable(check_active), 'artifact_transport_failed')
+    if deadline is not None:
+        need(time.monotonic() < deadline, 'transport_deadline_exceeded')
+    if check_active is None:
+        return
+    code, cancellation = None, None
+    try:
+        if check_active() is not None:
+            code = 'artifact_transport_failed'
+    except KeyboardInterrupt:
+        cancellation = KeyboardInterrupt
+    except SystemExit:
+        cancellation = SystemExit
+    except BaseException as error:
+        code = 'artifact_transport_failed'
+        try:
+            value = error.code
+            if type(value) is str:
+                code = {'cancelled': 'transport_cancelled',
+                        'timeout': 'transport_deadline_exceeded'}.get(value, code)
+        except BaseException:
+            pass
+    if cancellation is SystemExit:
+        raise SystemExit(1)
+    if cancellation:
+        raise KeyboardInterrupt()
+    if code:
+        raise ConsumerError(code)
+    if deadline is not None:
+        need(time.monotonic() < deadline, 'transport_deadline_exceeded')
+
+
+def hash_file(path, *, deadline=None, check_active=None) -> str:
+    _check_budget(deadline, check_active)
     with open_file(path) as stream:
         need(os.fstat(stream.fileno()).st_size <= FILE_LIMIT, 'file_size_limit')
         digest = hashlib.sha256()
         total = 0
-        while data := stream.read(CHUNK):
-            total += len(data)
-            need(total <= FILE_LIMIT, 'file_size_limit')
+        while True:
+            _check_budget(deadline, check_active)
+            data = stream.read(CHUNK)
+            if data:
+                total += len(data)
+                need(total <= FILE_LIMIT, 'file_size_limit')
+            _check_budget(deadline, check_active)
+            if not data:
+                break
             digest.update(data)
-        return digest.hexdigest()
+        result = digest.hexdigest()
+    _check_budget(deadline, check_active)
+    return result
 
 
 def _pairs(pairs):
