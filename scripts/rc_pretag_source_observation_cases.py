@@ -27,6 +27,7 @@ import rc_pretag_stage_retirement_cases as retirement
 import rc_pretag_git_budget_cases as git_budget
 import rc_pretag_windows_vm_cases as windows_vm
 import rc_pretag_source_observation_profile as x
+from rc_pretag_windows_launch_profile import normalize as windows_launch_bytes
 
 F_BINDING = ('649dc0fcb0bd299ebf7910e567e09c32b7962a9b', '956807f8c35b6ce12272b3abcfbbd85493e9c9f9', ('7eb98b76a15f91d2ad59ec8fbde4dd4fb17b1116', '970b5aba7b69b3a9d0a86c85e6cbaeac72839e9a'))
 F_RAW = (1231, '41bbff566ee4cf1501ddcfa9b67f9e009cd9f97865716e67b8d6cf27a8b73f61')
@@ -60,7 +61,7 @@ class SourceObservationCompositionCases(unittest.TestCase):
         cls.addClassCleanup(cls._immutable_f.clear)
     def setUp(self):
         self.original = c._entries(x.M, self.repo)
-        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in x.CAPS}
+        self.good = self.original | {path: ('100644', 'blob', self.blob(windows_launch_bytes(path, (c.ROOT / path).read_bytes()))) for path in x.CAPS}
         self.pure = self.commit([x.M], self.good)
         self.feature = self.commit([x.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -145,9 +146,9 @@ class SourceObservationCompositionCases(unittest.TestCase):
         self.assertEqual(sorted(x.CAPS), ['.github/workflows/issue88-publication-executor.yml', 'docs/specs/issue88-source-observation-budget/design.md', 'docs/specs/issue88-source-observation-budget/requirements.md', 'docs/specs/issue88-source-observation-budget/tasks.md', 'scripts/rc_consumer_fixed_git.py', 'scripts/rc_consumer_source_git_cases.py', 'scripts/rc_pretag_git_budget_cases.py', 'scripts/rc_pretag_source_observation_cases.py', 'scripts/rc_pretag_source_observation_profile.py', 'scripts/rc_pretag_stage_retirement_cases.py', 'scripts/rc_pretag_windows_vm_cases.py', 'scripts/rc_pretag_windows_vm_profile.py', 'scripts/rc_publication_git_budget_cases.py', 'scripts/rc_publication_source_budget_cases.py', 'scripts/rc_publication_stage.py', 'scripts/rc_publication_staging_budget_cases.py', 'scripts/rc_version_gate.py', 'scripts/reviewed_source_gate.py', 'scripts/source_provenance_gate.py'])
         self.assertEqual(x.CAPS, {'scripts/rc_consumer_fixed_git.py': (468, 86), 'scripts/rc_consumer_source_git_cases.py': (397, 397), 'scripts/rc_publication_git_budget_cases.py': (260, 40), 'scripts/rc_publication_source_budget_cases.py': (375, 375), 'scripts/rc_publication_stage.py': (379, 65), 'scripts/rc_publication_staging_budget_cases.py': (361, 4), 'scripts/rc_version_gate.py': (123, 18), 'scripts/reviewed_source_gate.py': (166, 47), 'scripts/source_provenance_gate.py': (41, 6), 'scripts/rc_pretag_windows_vm_profile.py': (182, 6), 'scripts/rc_pretag_windows_vm_cases.py': (351, 21), 'scripts/rc_pretag_stage_retirement_cases.py': (364, 3), 'scripts/rc_pretag_git_budget_cases.py': (342, 5), '.github/workflows/issue88-publication-executor.yml': (187, 50), 'docs/specs/issue88-source-observation-budget/requirements.md': (51, 51), 'docs/specs/issue88-source-observation-budget/design.md': (87, 87), 'docs/specs/issue88-source-observation-budget/tasks.md': (49, 49), 'scripts/rc_pretag_source_observation_cases.py': (352, 352), 'scripts/rc_pretag_source_observation_profile.py': (182, 182)})
         self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
-        self.assertEqual(self.good[x.PROFILE][2], c._blob((c.ROOT / x.PROFILE).read_bytes()))
+        self.assertEqual(self.good[x.PROFILE][2], c._blob(windows_launch_bytes(x.PROFILE, (c.ROOT / x.PROFILE).read_bytes())))
         for path, row in x.SOURCE_PINS.items():
-            data = (c.ROOT / path).read_bytes()
+            data = windows_launch_bytes(path, (c.ROOT / path).read_bytes())
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())))
             for index, value in enumerate(('100755', '0' * 40, '0' * 64, row[3] + 1, row[4] + 1)):
                 changed = list(row); changed[index] = value
@@ -165,7 +166,7 @@ class SourceObservationCompositionCases(unittest.TestCase):
 
     def test_individual_and_aggregate_caps_reject(self):
         self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (1844, 1844))
-        data = {path: (c.ROOT / path).read_bytes() for path in x.CAPS}
+        data = {path: windows_launch_bytes(path, (c.ROOT / path).read_bytes()) for path in x.CAPS}
         def budgets(git=c._git):
             return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'source_observation_delta_budget')
         budgets()
@@ -182,7 +183,7 @@ class SourceObservationCompositionCases(unittest.TestCase):
         self.assertEqual(x.FRAGMENTS.keys(), x.BASE_PINS.keys())
         self.assertEqual(len(x.FRAGMENTS), 12)
         for path in x.BASE_PINS:
-            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
+            current, frozen = windows_launch_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
             with patch('builtins.open', side_effect=AssertionError('IO')), patch('io.open', side_effect=AssertionError('IO')), patch('subprocess.Popen', side_effect=AssertionError('process')), patch('tempfile.TemporaryDirectory', side_effect=AssertionError('extract')):
                 self.assertEqual(x.normalize(path, current), frozen, path)
                 self.assertEqual(x.normalize(path, frozen), frozen, path)
@@ -204,7 +205,7 @@ class SourceObservationCompositionCases(unittest.TestCase):
 
     def test_missing_duplicate_outside_and_binary_inverse_changes_reject(self):
         for path, fragments in x.FRAGMENTS.items():
-            current = (c.ROOT / path).read_bytes()
+            current = windows_launch_bytes(path, (c.ROOT / path).read_bytes())
             altered = [current + b'# outside\n', b'\xff']
             weakened = current.replace(b'self.assertEqual(', b'self.assertNotEqual(', 1)
             if weakened == current: weakened = current.replace(b'assert ', b'assert False and ', 1)
@@ -246,7 +247,7 @@ class SourceObservationCompositionCases(unittest.TestCase):
             with patch.object(self, '_select', side_effect=AssertionError('fresh required')) as fresh, self.assertRaisesRegex(AssertionError, 'fresh required'): self.verified_baseline(x.M, *args)
             fresh.assert_called_once()
         with patch.object(x, 'M_TREE', '0' * 40), patch.object(self, '_select', side_effect=AssertionError('fresh required')), self.assertRaisesRegex(AssertionError, 'fresh required'): self.verified_baseline(x.M, *self.args)
-        runtime = ast.parse((c.ROOT / x.PROFILE).read_text())
+        runtime = ast.parse(windows_launch_bytes(x.PROFILE, (c.ROOT / x.PROFILE).read_bytes()).decode())
         self.assertFalse(any('cache' in (getattr(n, 'id', getattr(n, 'attr', getattr(n, 'name', ''))) or '') for n in ast.walk(runtime)))
 
     def test_original1553_strict303_consumer452_ids_and_assertions_are_preserved(self):
@@ -312,7 +313,7 @@ class SourceObservationCompositionCases(unittest.TestCase):
                              c._git('show', group.x.M + ':scripts/rc_publication_stage.py', root=self.repo))
 
     def test_new44_inventory_early_runtime_workflow_and_exceptional_outcomes(self):
-        text = (c.ROOT / x.WORKFLOW).read_text()
+        text = windows_launch_bytes(x.WORKFLOW, (c.ROOT / x.WORKFLOW).read_bytes()).decode()
         frozen = self.frozen(x.WORKFLOW).decode()
         self.assertEqual(x.normalize(x.WORKFLOW, text.encode()).decode(), frozen)
         for fragment in ("branches: ['ci/issue88-publisher-executor-*']", 'permissions:\n  contents: read', 'timeout-minutes: 30', 'frozen four hundred thirteen cases', 'import rc_pretag_source_observation_profile as profile', 'source_observation.inventory()', 'source_observation.execution_valid(loaded, result)', 'source-observation-cases.log', 'source-observation-inventory.json', 'parents == [profile.M]', 'checked() == before', "'production_ready': False"):
