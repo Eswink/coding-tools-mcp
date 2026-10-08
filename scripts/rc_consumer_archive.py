@@ -45,7 +45,8 @@ def _extras(data):
     return result
 
 
-def _directory_guard(stream):
+def _directory_guard(stream, *, deadline=None, check_active=None):
+    _check_budget(deadline, check_active)
     size = os.fstat(stream.fileno()).st_size
     need(22 <= size <= ZIP_LIMIT, 'zip_size_limit')
     end = size - 22
@@ -66,9 +67,11 @@ def _directory_guard(stream):
         cd_size, cd_offset, end = length_cd, start_cd, offset64
     need(0 < count == count_disk <= ENTRY_LIMIT and 0 < cd_size <= DIRECTORY_LIMIT
          and cd_offset + cd_size == end, 'zip_directory_limit')
+    _check_budget(deadline, check_active)
     position = cd_offset
     # Guard actual count and variable metadata before ZipFile allocates ZipInfos.
     for _ in range(count):
+        _check_budget(deadline, check_active)
         need(position + 46 <= end, 'zip_directory_count')
         header = struct.unpack(zipfile.structCentralDir, _at(stream, position, 46))
         need(header[0] == b'PK\x01\x02', 'zip_directory_header')
@@ -77,7 +80,11 @@ def _directory_guard(stream):
              and position + 46 + name_len + extra_len <= end, 'zip_metadata_limit')
         _extras(_at(stream, position + 46 + name_len, extra_len))
         position += 46 + name_len + extra_len
+        if _ + 1 == count:
+            need(position == end, 'zip_directory_count')
+        _check_budget(deadline, check_active)
     need(position == end, 'zip_directory_count')
+    _check_budget(deadline, check_active)
     return {'count': count, 'offset': cd_offset, 'size': cd_size}
 
 
@@ -106,10 +113,13 @@ class _Names:
         return name
 
 
-def _local_records(stream, infos, central_offset):
+def _local_records(stream, infos, central_offset, *, deadline=None, check_active=None):
+    _check_budget(deadline, check_active)
     position = 0
     ordered = sorted(infos, key=lambda item: item.header_offset)
+    _check_budget(deadline, check_active)
     for index, info in enumerate(ordered):
+        _check_budget(deadline, check_active)
         need(info.header_offset == position, 'zip_hidden_data')
         values = struct.unpack('<4s5H3I2H', _at(stream, position, 30))
         sig, version, flags, method, _, _, crc, compressed, expanded, name_len, extra_len = values
@@ -148,13 +158,17 @@ def _local_records(stream, infos, central_offset):
         else:
             need((crc, compressed, expanded) == (info.CRC, info.compress_size, info.file_size), 'zip_local_sizes')
         need(position == next_offset, 'zip_hidden_data')
+        _check_budget(deadline, check_active)
     need(position == central_offset, 'zip_hidden_data')
+    _check_budget(deadline, check_active)
 
 
-def _deflate_integrity(stream, info):
+def _deflate_integrity(stream, info, *, deadline=None, check_active=None):
     """ZipExtFile may stop at output size; independently check compressed EOF."""
+    _check_budget(deadline, check_active)
     if info.compress_type == zipfile.ZIP_STORED:
         need(info.compress_size == info.file_size, 'zip_stored_size')
+        _check_budget(deadline, check_active)
         return
     header = _at(stream, info.header_offset, 30)
     name_len, extra_len = struct.unpack('<HH', header[26:30])
@@ -162,31 +176,43 @@ def _deflate_integrity(stream, info):
     decoder = zlib.decompressobj(-zlib.MAX_WBITS)
     remaining, expanded = info.compress_size, 0
     while remaining:
+        _check_budget(deadline, check_active)
         data = stream.read(min(CHUNK, remaining))
         need(bool(data), 'truncated_zip')
         remaining -= len(data)
+        _check_budget(deadline, check_active)
         while data:
+            _check_budget(deadline, check_active)
             output = decoder.decompress(data, CHUNK)
             data = decoder.unconsumed_tail
             expanded += len(output)
             need(expanded <= info.file_size, 'zip_expansion_limit')
             need(not decoder.unused_data and not (decoder.eof and (data or remaining)), 'zip_hidden_data')
+            if not data and not remaining:
+                need(decoder.eof and expanded == info.file_size, 'zip_deflate_eof')
+            _check_budget(deadline, check_active)
     need(decoder.eof and expanded == info.file_size, 'zip_deflate_eof')
+    _check_budget(deadline, check_active)
 
 
-def extract_bounded_zip(zip_path, destination: PrivateRoot, allowed_root_names):
+def extract_bounded_zip(zip_path, destination: PrivateRoot, allowed_root_names, *, deadline=None, check_active=None):
     """Caller authenticates the entire ZIP against API digest before this call."""
+    budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
+    _check_budget(deadline, check_active)
     need(isinstance(destination, PrivateRoot) and not destination.files(), 'extraction_root_not_empty')
+    _check_budget(deadline, check_active)
     allowed = set(allowed_root_names) | {'packaging-report.json', 'SHA256SUMS.txt'}
     need(all(safe_relative(name) == name and '/' not in name for name in allowed), 'invalid_root_allowlist')
     try:
         with open_file(zip_path) as stream:
-            directory = _directory_guard(stream)
+            directory = _directory_guard(stream, **budget)
             with zipfile.ZipFile(stream, 'r') as archive:
+                _check_budget(deadline, check_active)
                 infos = archive.infolist()
                 need(len(infos) == directory['count'] and archive.start_dir == directory['offset'], 'zip_directory_count')
                 names, records, total = _Names(), [], 0
                 for info in infos:
+                    _check_budget(deadline, check_active)
                     is_dir = info.is_dir()
                     name = names.add(info.orig_filename, is_dir)
                     need((name.startswith('evidence/') or (name == 'evidence' and is_dir)
@@ -204,26 +230,46 @@ def extract_bounded_zip(zip_path, destination: PrivateRoot, allowed_root_names):
                     total += info.file_size
                     need(total <= TOTAL_LIMIT, 'zip_expansion_limit')
                     records.append((info, name, is_dir))
-                _local_records(stream, infos, directory['offset'])
+                _check_budget(deadline, check_active)
+                _local_records(stream, infos, directory['offset'], **budget)
                 for info in infos:
-                    _deflate_integrity(stream, info)
+                    _deflate_integrity(stream, info, **budget)
                 expanded_total = 0
                 for info, name, is_dir in records:
+                    _check_budget(deadline, check_active)
                     with archive.open(info) as source:
+                        _check_budget(deadline, check_active)
                         if is_dir:
                             need(source.read(1) == b'', 'zip_directory_payload')
+                            _check_budget(deadline, check_active)
                             destination.mkdir(name)
-                            continue
-                        with destination.open(name, 'xb') as output:
-                            size = 0
-                            while data := source.read(CHUNK):
-                                size += len(data)
-                                expanded_total += len(data)
-                                need(size <= info.file_size and size <= FILE_LIMIT and expanded_total <= TOTAL_LIMIT,
-                                     'zip_expansion_limit')
-                                output.write(data)
-                            need(size == info.file_size, 'zip_member_size')
-        return destination.files()
+                            _check_budget(deadline, check_active)
+                        else:
+                            with destination.open(name, 'xb') as output:
+                                _check_budget(deadline, check_active)
+                                size = 0
+                                while True:
+                                    _check_budget(deadline, check_active)
+                                    data = source.read(CHUNK)
+                                    if data:
+                                        size += len(data)
+                                        expanded_total += len(data)
+                                        need(size <= info.file_size and size <= FILE_LIMIT
+                                             and expanded_total <= TOTAL_LIMIT, 'zip_expansion_limit')
+                                    else:
+                                        need(size == info.file_size, 'zip_member_size')
+                                    _check_budget(deadline, check_active)
+                                    if not data:
+                                        break
+                                    output.write(data)
+                                    _check_budget(deadline, check_active)
+                            _check_budget(deadline, check_active)
+                    _check_budget(deadline, check_active)
+            _check_budget(deadline, check_active)
+        _check_budget(deadline, check_active)
+        result = destination.files()
+        _check_budget(deadline, check_active)
+        return result
     except (OSError, zipfile.BadZipFile, NotImplementedError, UnicodeError, zlib.error, struct.error):
         raise ConsumerError('invalid_zip') from None
 
@@ -259,7 +305,9 @@ def verify_checksum_inventory(root: PrivateRoot, *, deadline=None, check_active=
 
 class _GzipReader:
     """Single gzip member, zlib-verified CRC/trailer, bounded each allocation."""
-    def __init__(self, raw):
+    def __init__(self, raw, *, deadline=None, check_active=None):
+        _check_budget(deadline, check_active)
+        self._deadline, self._check_active = deadline, check_active
         self.raw = raw
         self.size = os.fstat(raw.fileno()).st_size
         need(0 < self.size <= FILE_LIMIT, 'gzip_size_limit')
@@ -267,23 +315,34 @@ class _GzipReader:
         self.pending = b''
         self.total = 0
         self.finished = False
+        _check_budget(deadline, check_active)
 
     def read(self, size):
+        deadline, check_active = self._deadline, self._check_active
+        _check_budget(deadline, check_active)
         need(type(size) is int and 0 <= size <= CHUNK, 'archive_read_limit')
         output = bytearray()
         while len(output) < size and not self.finished:
+            _check_budget(deadline, check_active)
             if not self.pending:
                 self.pending = self.raw.read(CHUNK)
                 need(bool(self.pending), 'truncated_gzip')
+                _check_budget(deadline, check_active)
             data = self.decoder.decompress(self.pending, size - len(output))
             self.pending = self.decoder.unconsumed_tail
             output.extend(data)
             self.total += len(data)
             need(self.total <= TAR_TOTAL_LIMIT and self.total <= self.size * RATIO_LIMIT, 'tar_expansion_limit')
             if self.decoder.eof:
-                need(not self.decoder.unused_data and not self.pending and not self.raw.read(1), 'gzip_trailing_data')
+                need(not self.decoder.unused_data and not self.pending, 'gzip_trailing_data')
+            _check_budget(deadline, check_active)
+            if self.decoder.eof:
+                need(not self.raw.read(1), 'gzip_trailing_data')
+                _check_budget(deadline, check_active)
                 self.finished = True
-        return bytes(output)
+        result = bytes(output)
+        _check_budget(deadline, check_active)
+        return result
 
 
 class _GuardedTarInfo(tarfile.TarInfo):
@@ -306,47 +365,80 @@ class _GuardedTarInfo(tarfile.TarInfo):
         return super()._proc_member(archive)
 
 
-def extract_bounded_cloud_tar(tar_path, destination: PrivateRoot):
+def extract_bounded_cloud_tar(tar_path, destination: PrivateRoot, *, deadline=None, check_active=None):
+    budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
+    _check_budget(deadline, check_active)
     need(isinstance(destination, PrivateRoot) and not destination.files(), 'extraction_root_not_empty')
+    _check_budget(deadline, check_active)
     try:
         with open_file(tar_path) as raw:
-            gzip = _GzipReader(raw)
+            gzip = _GzipReader(raw, **budget)
             with tarfile.open(fileobj=gzip, mode='r|', tarinfo=_GuardedTarInfo, bufsize=512) as archive:
+                _check_budget(deadline, check_active)
                 names = _Names()
                 found = set()
                 for member in archive:
+                    _check_budget(deadline, check_active)
                     name = names.add(member.name)
                     found.add(name)
                     need(len(found) <= len(CLOUD_MEMBERS), 'tar_member_count')
                     source = archive.extractfile(member)
                     need(source is not None, 'tar_member_missing')
-                    with source, destination.open(name, 'xb') as output:
-                        size = 0
-                        while data := source.read(CHUNK):
-                            size += len(data)
-                            need(size <= member.size, 'tar_member_size')
-                            output.write(data)
-                        need(size == member.size, 'tar_member_size')
+                    with source:
+                        _check_budget(deadline, check_active)
+                        with destination.open(name, 'xb') as output:
+                            _check_budget(deadline, check_active)
+                            size = 0
+                            while True:
+                                _check_budget(deadline, check_active)
+                                data = source.read(CHUNK)
+                                if data:
+                                    size += len(data)
+                                    need(size <= member.size, 'tar_member_size')
+                                else:
+                                    need(size == member.size, 'tar_member_size')
+                                _check_budget(deadline, check_active)
+                                if not data:
+                                    break
+                                output.write(data)
+                                _check_budget(deadline, check_active)
+                        _check_budget(deadline, check_active)
+                    _check_budget(deadline, check_active)
                 need(found == CLOUD_MEMBERS and getattr(archive, 'consumer_zero_header', False), 'tar_member_inventory')
                 padding = 0
-                while data := archive.fileobj.read(CHUNK):
+                while True:
+                    _check_budget(deadline, check_active)
+                    data = archive.fileobj.read(CHUNK)
                     padding += len(data)
                     need(not any(data), 'tar_trailing_data')
+                    if not data:
+                        need(padding >= 512 and padding % 512 == 0 and gzip.finished, 'tar_incomplete_padding')
+                    _check_budget(deadline, check_active)
+                    if not data:
+                        break
                 need(padding >= 512 and padding % 512 == 0 and gzip.finished, 'tar_incomplete_padding')
+            _check_budget(deadline, check_active)
+        _check_budget(deadline, check_active)
         need(set(destination.files()) == CLOUD_MEMBERS, 'tar_member_inventory')
+        _check_budget(deadline, check_active)
         manifest = json_file(destination.path / 'manifest.json')
+        _check_budget(deadline, check_active)
         records = manifest.get('binaries')
         need(type(records) is dict and set(records) == set(BINS), 'cloud_binary_inventory')
         for name in BINS:
+            _check_budget(deadline, check_active)
             record = records[name]
             need(type(record) is dict and type(record.get('size')) is int and record['size'] > 0
                  and type(record.get('sha256')) is str and re.fullmatch('[0-9a-f]{64}', record['sha256']), 'cloud_binary_record')
             with destination.open('bin/' + name) as binary:
+                _check_budget(deadline, check_active)
                 header = binary.read(20)
                 need(os.fstat(binary.fileno()).st_size == record['size'], 'cloud_binary_size')
             need(len(header) == 20 and header[:6] == b'\x7fELF\x02\x01'
                  and int.from_bytes(header[18:20], 'little') == 62, 'cloud_binary_elf')
-            need(hash_file(destination.path / 'bin' / name) == record['sha256'], 'cloud_binary_digest')
+            _check_budget(deadline, check_active)
+            need(hash_file(destination.path / 'bin' / name, **budget) == record['sha256'], 'cloud_binary_digest')
+        _check_budget(deadline, check_active)
         return manifest
     except (OSError, tarfile.TarError, zlib.error, UnicodeError):
         raise ConsumerError('invalid_cloud_archive') from None

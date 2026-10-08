@@ -169,9 +169,9 @@ def _verify_bundle_bytes(root, api, selection, metadata, producer, download, bun
     budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
     path = transport.download_artifact_zip(api, metadata, download, opener=opener, **budget)
     snapshot.revalidate_download(api, selection, metadata)
-    archive.extract_bounded_zip(path, bundle, [name for name, _, _ in payloads(producer.version)])
+    archive.extract_bounded_zip(path, bundle, [name for name, _, _ in payloads(producer.version)], **budget)
     archive.verify_checksum_inventory(bundle, **budget)
-    archive.extract_bounded_cloud_tar(bundle.path / 'cloud-linux-amd64.tar.gz', cloud)
+    archive.extract_bounded_cloud_tar(bundle.path / 'cloud-linux-amd64.tar.gz', cloud, **budget)
     content = contracts.verify_consumed_bundle(root, bundle.path, cloud.path, producer, selection['integration'])
     download.files(); bundle.files(); cloud.files()
     return content
