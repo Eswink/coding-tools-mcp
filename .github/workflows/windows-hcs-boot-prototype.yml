@@ -1,11 +1,11 @@
-name: Windows HCS owned boot experiment
+name: Windows HCS guest surface observation
 on:
   push:
-    branches: ['ci/windows-hcs-owned-boot-20261008']
+    branches: ['ci/windows-hcs-surface-observation-20261008']
     paths:
       - 'scripts/windows_hcs_boot/**'
       - '.github/workflows/windows-hcs-boot-prototype.yml'
-      - 'docs/specs/windows-hcs-owned-boot-prototype/**'
+      - 'docs/specs/windows-hcs-surface-observation/**'
 permissions:
   contents: read
 jobs:
@@ -29,7 +29,7 @@ jobs:
           $tree = (git rev-parse 'HEAD^{tree}').Trim()
           if ($LASTEXITCODE -ne 0) { throw 'tree query failed' }
           $parent = (git show -s --format=%P HEAD).Trim()
-          if ($LASTEXITCODE -ne 0 -or $parent -cne 'f43ee3b7a1277e9643e8e40b6911ecdc4abcf85f') { throw 'base mismatch' }
+          if ($LASTEXITCODE -ne 0 -or $parent -cne '45ac13ec85c854e25f512f309d362f6be29ddb61') { throw 'base mismatch' }
           $os = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name CurrentBuildNumber,UBR
           @{sha=$sha; tree=$tree; parent=$parent; run=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT;
             image_os=$env:ImageOS; image_version=$env:ImageVersion; build=$os.CurrentBuildNumber; ubr=$os.UBR;
@@ -47,7 +47,7 @@ jobs:
       - name: Acquire immutable Microsoft layers and process-scoped import
         shell: pwsh
         run: ./scripts/windows_hcs_boot/prepare.ps1 -Phase acquire
-      - name: Attempt one owned UVM and stock runtime cases
+      - name: Observe guest-only peers and synthetic transfer in one owned UVM
         shell: pwsh
         run: ./scripts/windows_hcs_boot/prepare.ps1 -Phase boot
       - name: Bind final source and finite evidence
@@ -74,7 +74,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always() && steps.evidence.outcome == 'success'
         with:
-          name: windows-hcs-owned-boot-${{ github.sha }}
+          name: windows-hcs-surface-${{ github.sha }}
           path: |
             ${{ runner.temp }}/ctm-hcs-boot-evidence/source.json
             ${{ runner.temp }}/ctm-hcs-boot-evidence/prerequisite-tests.json

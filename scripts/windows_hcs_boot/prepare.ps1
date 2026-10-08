@@ -33,9 +33,18 @@ if ($Phase -ceq 'build') {
     Copy-Item -LiteralPath "$env:GITHUB_WORKSPACE/scripts/windows_hcs_boot/prototype.go" -Destination "$cmd/main.go"
     Copy-Item -LiteralPath "$env:GITHUB_WORKSPACE/scripts/windows_hcs_boot/prototype_test.go" -Destination "$cmd/main_test.go"
     Copy-Item -LiteralPath "$env:GITHUB_WORKSPACE/scripts/windows_hcs_boot/fixture.go" -Destination "$cmd/fixture.go"
+    foreach ($file in @('surface_guest.go','surface_host.go','surface_test.go')) {
+      Copy-Item -LiteralPath "$env:GITHUB_WORKSPACE/scripts/windows_hcs_boot/$file" -Destination "$cmd/$file"
+    }
     go version | Set-Content -LiteralPath "$evidence/go-version.txt"; Assert-NativeExit
+    $goVersion = (go env GOVERSION).Trim(); Assert-NativeExit
+    $goMatch = [regex]::Match($goVersion, '^go1\.(\d+)\.(\d+)$')
+    if (-not $goMatch.Success -or [int]$goMatch.Groups[1].Value -lt 24) { throw 'documented Go1.24+ os.Root required' }
+    $testFiles = (go list -mod=vendor -f '{{join .TestGoFiles ","}}' ./cmd/ctm-boot-prototype).Trim(); Assert-NativeExit
+    if ($testFiles -cne 'main_test.go,surface_test.go') { throw 'native test files were omitted or changed' }
     go test -mod=vendor -count=1 -v ./cmd/ctm-boot-prototype 2>&1 | Tee-Object -FilePath "$evidence/tests.txt"
     Assert-NativeExit
+    if (@(Get-Content -LiteralPath "$evidence/tests.txt" | Where-Object { $_ -match '^--- PASS: Test' }).Count -ne 17) { throw 'native test count mismatch' }
     go build -mod=vendor -trimpath -o "$root/prototype.exe" ./cmd/ctm-boot-prototype; Assert-NativeExit
     go build -mod=vendor -trimpath -tags fixture -o "$root/fixture.exe" ./cmd/ctm-boot-prototype; Assert-NativeExit
     git diff --exit-code; Assert-NativeExit

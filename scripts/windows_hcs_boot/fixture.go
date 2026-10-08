@@ -18,6 +18,12 @@ func main() {
 		os.Exit(90)
 	}
 	switch os.Args[1] {
+	case "surface":
+		if err := runSurfaceFixture(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(90)
+		}
+		os.Exit(23)
 	case "child":
 		if os.WriteFile("child.pid", []byte(strconv.Itoa(os.Getpid())), 0600) != nil {
 			os.Exit(91)

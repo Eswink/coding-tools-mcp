@@ -53,22 +53,23 @@ type caseResult struct {
 	Passed   bool   `json:"passed"`
 }
 type report struct {
-	Schema              int          `json:"schema"`
-	Source              string       `json:"source"`
-	ID                  string       `json:"owned_uvm_id"`
-	RuntimeID           string       `json:"runtime_id"`
-	Stage               string       `json:"stage"`
-	Cases               []caseResult `json:"cases"`
-	Errors              []string     `json:"errors"`
-	TerminateOK         bool         `json:"terminate_ok"`
-	WholeVMExited       bool         `json:"whole_vm_exited"`
-	ExitOK              bool         `json:"exit_reason_ok"`
-	CloseOK             bool         `json:"close_ok"`
-	RuntimePassed       bool         `json:"runtime_passed"`
-	NetworkDenied       bool         `json:"network_denial_proven"`
-	WorkspaceIntegrated bool         `json:"workspace_integration"`
-	ProductionAdmission bool         `json:"production_admission"`
-	DataRetained        bool         `json:"owned_data_retained"`
+	Schema              int             `json:"schema"`
+	Source              string          `json:"source"`
+	ID                  string          `json:"owned_uvm_id"`
+	RuntimeID           string          `json:"runtime_id"`
+	Stage               string          `json:"stage"`
+	Cases               []caseResult    `json:"cases"`
+	Errors              []string        `json:"errors"`
+	TerminateOK         bool            `json:"terminate_ok"`
+	WholeVMExited       bool            `json:"whole_vm_exited"`
+	ExitOK              bool            `json:"exit_reason_ok"`
+	CloseOK             bool            `json:"close_ok"`
+	RuntimePassed       bool            `json:"runtime_passed"`
+	NetworkDenied       bool            `json:"network_denial_proven"`
+	WorkspaceIntegrated bool            `json:"workspace_integration"`
+	ProductionAdmission bool            `json:"production_admission"`
+	DataRetained        bool            `json:"owned_data_retained"`
+	Surface             *surfaceReceipt `json:"synthetic_surface"`
 }
 
 func (r *report) record(stage string, err error) {
@@ -248,6 +249,12 @@ func runPrototype(root string, r *report) (err error) {
 		return err
 	}
 	r.ID = g.String()
+	fixture, err := newSurfaceFixture(root)
+	if err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, fixture.close()) }()
+	r.Surface = fixture.receipt
 	paths := []string{filepath.Join(root, "layer1"), filepath.Join(root, "layer0"), filepath.Join(root, "scratch")}
 	if err = os.Mkdir(paths[2], 0700); err != nil {
 		return err
@@ -295,6 +302,9 @@ func runPrototype(root string, r *report) (err error) {
 		e = vm.CloseCtx(closeCtx)
 		r.CloseOK = e == nil
 		r.record("handle_close", e)
+		if err == nil && len(r.Errors) == 0 {
+			r.record("synthetic_quarantine", fixture.finishQuarantine(*r))
+		}
 	}()
 	r.Stage = "start_uvm"
 	if err = vm.Start(ctx); err != nil {
@@ -341,6 +351,17 @@ func runPrototype(root string, r *report) (err error) {
 		return err
 	}
 	if err = run("child-live", `"`+workspace+`\fixture.exe" check`, workspace, "CTM_CHILD_LIVE", nil); err != nil {
+		return err
+	}
+	r.Stage = "guest_surface_and_transfer"
+	payload, err := fixture.inputBytes()
+	if err != nil {
+		return err
+	}
+	if err = run("surface", `"`+workspace+`\fixture.exe" surface`, workspace, "CTM_SURFACE_ENTRY", bytes.NewReader(payload)); err != nil {
+		return err
+	}
+	if err = fixture.accept(r.Cases[len(r.Cases)-1].Stdout); err != nil {
 		return err
 	}
 	stillRunning, cancelCheck := context.WithTimeout(ctx, 100*time.Millisecond)
