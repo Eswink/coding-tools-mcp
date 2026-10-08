@@ -77,7 +77,9 @@ def integration_receipt(path, producer, snapshot):
          'integration_receipt_job_mismatch')
 
 
-def verify_consumed_cloud(root, bundle_dir, cloud_dir, producer, integration_snapshot):
+def verify_consumed_cloud(root, bundle_dir, cloud_dir, producer, integration_snapshot, *,
+                          deadline=None, check_active=None):
+    budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
     expected = producer_identity(producer)
     nested = bundle_dir / 'evidence/rc-cloud-linux-amd64'
     versions = cloud.versions(root, producer.version)
@@ -124,7 +126,7 @@ def verify_consumed_cloud(root, bundle_dir, cloud_dir, producer, integration_sna
     need(envelope.get('ci') == canonical, 'wrong_cloud_build_producer')
     proof = dependency.verify_build(root, evidence, cloud_dir / 'bin', producer.version,
                                     producer.source_sha, cloud.TARGET, hash_file(evidence / 'envelope.json'),
-                                    canonical)
+                                    canonical, **budget)
     need(proof['tree'] == expected['source_tree'] and proof['binary_sha256'] ==
          {name: binaries[name]['sha256'] for name in cloud.BINS}, 'cloud_build_manifest_mismatch')
     return asset, dict(proof, archive_sha256=asset['sha256'], archive_size=asset['size'],
@@ -234,7 +236,8 @@ def verify_consumed_installers(bundle_dir, producer):
     return [asset, *assets], installed, dict(windows_payload_signature_observed=value['signed'])
 
 
-def verify_consumed_bundle(root, bundle_dir, cloud_dir, producer, integration_snapshot):
+def verify_consumed_bundle(root, bundle_dir, cloud_dir, producer, integration_snapshot, *,
+                           deadline=None, check_active=None):
     """Return only fixed, typed public summaries after recomputing all contracts."""
     expected = producer_identity(producer)
     need(not bundle_dir.resolve().is_relative_to(root.resolve()) and
@@ -252,7 +255,8 @@ def verify_consumed_bundle(root, bundle_dir, cloud_dir, producer, integration_sn
     need(contract_identity.get('evidence_inventory') == final.evidence_inventory(contracts),
          'contract_inventory_mismatch')
     integration_receipt(contracts / 'integration.json', producer, integration_snapshot)
-    cloud_asset, cloud_proof = verify_consumed_cloud(root, bundle_dir, cloud_dir, producer, integration_snapshot)
+    budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
+    cloud_asset, cloud_proof = verify_consumed_cloud(root, bundle_dir, cloud_dir, producer, integration_snapshot, **budget)
     need(read_bytes(contracts / 'rust-audit-cloud-gateway.json') ==
          read_bytes(bundle_dir / 'evidence/rc-cloud-linux-amd64/exact-build/raw-audit.json'),
          'canonical_raw_cloud_audit_mismatch')

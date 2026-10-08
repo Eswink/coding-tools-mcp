@@ -112,13 +112,15 @@ def raw_audit(audit: dict, lock: dict, *, zero: bool) -> dict:
 
 
 def verify_build(root: Path, evidence: Path, binaries: Path, version: str,
-                 sha: str, target: str, envelope_digest: str, expected_producer: dict) -> dict:
+                 sha: str, target: str, envelope_digest: str, expected_producer: dict, *,
+                 deadline=None, check_active=None) -> dict:
     hash_value(envelope_digest)
     exact.need(set(expected_producer) == PRODUCER_FIELDS, 'incomplete_expected_producer')
     canonical = producer(sha, expected_producer['run_id'], expected_producer['run_attempt'],
                          expected_producer['workflow_ref'], expected_producer['job'])
     exact.need(canonical == expected_producer, 'invalid_expected_producer')
-    result = exact.verify(root, evidence, sha, version, target, envelope_digest, binaries)
+    budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
+    result = exact.verify(root, evidence, sha, version, target, envelope_digest, binaries, **budget)
     exact.need(result['ci'] == expected_producer, 'wrong_exact_build_producer')
     audit_bytes = exact.read(evidence / 'raw-audit.json')
     lock = tomllib.loads(exact.read(root / exact.LOCK).decode())

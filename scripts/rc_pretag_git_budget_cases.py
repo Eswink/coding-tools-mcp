@@ -1,4 +1,4 @@
-"""Finite stage retirement admission; modeled source checks confer no release authority."""
+"""Finite shared Git budget admission; modeled source checks confer no release authority."""
 import ast
 from collections import Counter
 import copy
@@ -13,7 +13,7 @@ import rc_pretag_publication_profile as p
 import rc_pretag_publication_tests as pt
 import rc_pretag_linux_package_cases as lc
 import rc_pretag_yoke_repair_profile as y
-import rc_pretag_supervisor_readiness_profile as previous
+import rc_pretag_stage_retirement_profile as previous
 import rc_pretag_supervisor_readiness_cases as readiness
 import rc_pretag_publisher_executor_cases as publisher
 import rc_pretag_integration_admission_cases as admission
@@ -23,12 +23,13 @@ import rc_pretag_staging_budget_cases as staging
 import rc_pretag_checksum_budget_cases as checksum
 import rc_pretag_archive_budget_cases as archive
 import rc_pretag_staged_bytes_cases as staged
-import rc_pretag_stage_retirement_profile as x
-from rc_pretag_git_budget_profile import normalize as git_budget_bytes
+import rc_pretag_stage_retirement_cases as retirement
+import rc_pretag_git_budget_profile as x
 
-F_BINDING = ('f0fdfba5cd48b7cad477f1e2cb77bb70153ad657', '84ff6fd8a0936f99d0b1267c78bd50ba52a70fa0', ('69e749736b95b5921b4f6352838f69860c7a0a4e', 'fa2a2931417694a37ab60008a90f1c81aab60159'))
-IO = 'scripts/rc_consumer_io.py'
-STAGE = 'scripts/rc_publication_stage.py'
+F_BINDING = ('8bdd5f327b4603c5570dc764e2d62fecbe6e02d2', 'b75fdae6b9a2cb9589b51d832d7ba638384cb6b8', ('f0fdfba5cd48b7cad477f1e2cb77bb70153ad657', '33503cc901acc0619ca5658eff187efd7799b040'))
+CONSUMER = 'scripts/rc_artifact_consumer.py'
+EXACT = 'scripts/exact_build_audit.py'
+ADAPTER = 'scripts/rc_pretag_stage_retirement_cases.py'
 
 def inventory():
     expected = [cls + '.' + name for cls, names in x.NEW_CASES.items() for name in names]
@@ -47,7 +48,7 @@ def execution_valid(loaded, result):
             and not result.unexpectedSuccesses and Counter(executed) == Counter(loaded)
             and result.testsRun == len(set(executed)) == 48)
 
-class StageRetirementCompositionCases(unittest.TestCase):
+class GitBudgetCompositionCases(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.fixture = c._profile_fixture()
@@ -58,7 +59,7 @@ class StageRetirementCompositionCases(unittest.TestCase):
         cls.addClassCleanup(cls._immutable_f.clear)
     def setUp(self):
         self.original = c._entries(x.M, self.repo)
-        self.good = self.original | {path: ('100644', 'blob', self.blob(git_budget_bytes(path, (c.ROOT / path).read_bytes()))) for path in x.CAPS}
+        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in x.CAPS}
         self.pure = self.commit([x.M], self.good)
         self.feature = self.commit([x.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -91,7 +92,7 @@ class StageRetirementCompositionCases(unittest.TestCase):
 
     def test_actual_f_identity_and_fresh_historical_validation(self):
         self.assertEqual((x.M, x.M_TREE, x.M_PARENTS), F_BINDING)
-        self.assertEqual(x.M_RAW, (1257, '98d8ec5a92e00342b5b7b40be5b19af2490892f2bcd9b51ad3e42e8ebde3c8a2'))
+        self.assertEqual(x.M_RAW, (1242, 'c77b84ba537d2d7665b2c59882f46123105577f24b6617741abbc5880719a0ae'))
         self.assertEqual(self.selected(x.M, fresh=True), self.original)
         self.assertIsNone(x.select(x.M, *self.args))
         with patch.object(previous, 'content', wraps=previous.content) as historical:
@@ -137,14 +138,14 @@ class StageRetirementCompositionCases(unittest.TestCase):
             self.assertEqual(self.selected('moving', moving, fresh=True), self.good)
         self.assertEqual(sum(any('moving' in arg for arg in args) for args in calls), 1)
 
-    def test_fifteen_exact_paths_modes_pins_and_entry_count(self):
+    def test_seventeen_exact_paths_modes_pins_and_entry_count(self):
         self.assertEqual(self.content(), self.good)
-        self.assertEqual((len(self.original), len(self.good), len(x.CAPS), len(x.BASE_PINS)), (1795, 1803, 15, 7))
+        self.assertEqual((len(self.original), len(self.good), len(x.CAPS), len(x.BASE_PINS)), (1803, 1813, 17, 7))
         self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
-        self.assertEqual(x.CAPS, {'scripts/rc_consumer_io.py': (480, 90), 'scripts/rc_publication_stage.py': (380, 40), 'scripts/rc_publication_stage_cases.py': (360, 6), 'scripts/rc_publication_staged_bytes_cases.py': (500, 4), 'scripts/rc_publication_retirement.py': (260, 260), 'scripts/rc_publication_retirement_cases.py': (470, 470), 'scripts/rc_publication_retirement_lifetime_cases.py': (280, 280), 'scripts/rc_pretag_supervisor_readiness_profile.py': (185, 6), 'scripts/rc_pretag_supervisor_readiness_cases.py': (350, 30), 'scripts/rc_pretag_stage_retirement_profile.py': (350, 350), 'scripts/rc_pretag_stage_retirement_cases.py': (450, 450), '.github/workflows/issue88-publication-executor.yml': (165, 14), 'docs/specs/issue88-stage-retirement/requirements.md': (60, 60), 'docs/specs/issue88-stage-retirement/design.md': (90, 90), 'docs/specs/issue88-stage-retirement/tasks.md': (70, 70)})
-        self.assertEqual(self.good[x.PROFILE][2], c._blob(git_budget_bytes(x.PROFILE, (c.ROOT / x.PROFILE).read_bytes())))
+        self.assertEqual(x.CAPS, {'scripts/rc_artifact_consumer.py': (260, 2), 'scripts/rc_consumer_contracts.py': (300, 12), 'scripts/release_dependency_contract.py': (300, 6), 'scripts/exact_build_audit.py': (480, 48), 'scripts/rc_consumer_fixed_git.py': (420, 420), 'scripts/rc_consumer_git_test_support.py': (120, 120), 'scripts/rc_consumer_fixed_git_cases.py': (225, 225), 'scripts/rc_consumer_git_supervisor_cases.py': (210, 210), 'scripts/rc_publication_git_budget_cases.py': (260, 260), x.DISPATCHER: (220, 6), ADAPTER: (380, 24), x.WORKFLOW: (175, 14), x.PROFILE: (350, 350), x.CASES: (450, 450), **{'docs/specs/issue88-fixed-git-budget/' + name + '.md': (cap, cap) for name, cap in (('requirements', 60), ('design', 90), ('tasks', 70))}})
+        self.assertEqual(self.good[x.PROFILE][2], c._blob((c.ROOT / x.PROFILE).read_bytes()))
         for path, row in x.SOURCE_PINS.items():
-            data = git_budget_bytes(path, (c.ROOT / path).read_bytes())
+            data = (c.ROOT / path).read_bytes()
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())))
             for index, value in enumerate(('100755', '0' * 40, '0' * 64, row[3] + 1, row[4] + 1)):
                 changed = list(row); changed[index] = value
@@ -161,10 +162,10 @@ class StageRetirementCompositionCases(unittest.TestCase):
         self.bad_content(self.changed('services/cloud-agent/src/main.rs', b'changed'))
 
     def test_individual_and_aggregate_caps_reject(self):
-        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (2250, 2220))
-        data = {path: git_budget_bytes(path, (c.ROOT / path).read_bytes()) for path in x.CAPS}
+        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (2400, 2367))
+        data = {path: (c.ROOT / path).read_bytes() for path in x.CAPS}
         def budgets(git=c._git):
-            return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'stage_retirement_delta_budget')
+            return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'git_budget_delta_budget')
         budgets()
         for path, (_, delta) in x.CAPS.items():
             with patch.dict(x.CAPS, {path: (len(data[path].splitlines()) - 1, delta)}), self.assertRaises(AssertionError): budgets()
@@ -172,14 +173,14 @@ class StageRetirementCompositionCases(unittest.TestCase):
                 def malformed(*args, root):
                     return row if args == ('diff', '--numstat', x.M, self.pure, '--', path) else c._git(*args, root=root)
                 with self.assertRaises(AssertionError): budgets(malformed)
-        with patch.object(x, 'DELTA_LIMIT', 0), self.assertRaisesRegex(AssertionError, 'stage_retirement_delta_budget'): budgets()
+        with patch.object(x, 'DELTA_LIMIT', 0), self.assertRaisesRegex(AssertionError, 'git_budget_delta_budget'): budgets()
 
     def test_seven_full_byte_inverses_and_six_dispatch_lines(self):
         self.assertEqual((len(x.DISPATCH.splitlines()), len(x.NORMALIZE.splitlines())), (4, 2))
         self.assertEqual(x.FRAGMENTS.keys(), x.BASE_PINS.keys())
         self.assertEqual(len(x.FRAGMENTS), 7)
         for path in x.BASE_PINS:
-            current, frozen = git_budget_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
+            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
             with patch('builtins.open', side_effect=AssertionError('IO')), patch('io.open', side_effect=AssertionError('IO')), patch('subprocess.Popen', side_effect=AssertionError('process')), patch('tempfile.TemporaryDirectory', side_effect=AssertionError('extract')):
                 self.assertEqual(x.normalize(path, current), frozen, path)
                 self.assertEqual(x.normalize(path, frozen), frozen, path)
@@ -189,11 +190,10 @@ class StageRetirementCompositionCases(unittest.TestCase):
         self.assertEqual(c._git('diff', '--numstat', x.M, self.pure, '--', x.DISPATCHER, root=self.repo), f'6\t0\t{x.DISPATCHER}\n'.encode())
         self.assertEqual(x.normalize('unmapped', b'unchanged'), b'unchanged')
 
-    def test_twelve_historical_identities_are_finite_and_immutable(self):
-        self.assertEqual({path: len(pins) for path, pins in x.PRIOR_PINS.items()}, {IO: 2, STAGE: 2, x.WORKFLOW: 8})
-        import rc_pretag_staged_bytes_profile as staged_profile
-        for path, module in ((IO, staged_profile), (STAGE, staged_profile), (x.WORKFLOW, previous)):
-            self.assertEqual(x.PRIOR_PINS[path], (module.BASE_PINS[path][1:3], *module.PRIOR_PINS.get(path, ())))
+    def test_fourteen_historical_identities_are_finite_and_immutable(self):
+        self.assertEqual({path: len(pins) for path, pins in x.PRIOR_PINS.items()}, {CONSUMER: 4, EXACT: 1, x.WORKFLOW: 9})
+        expected = {'.github/workflows/issue88-publication-executor.yml': (('2e287f38ffc6cbcdc9da82277bce9e1c25bc7a50', '377086ca7c6edb11fbace99c35340bb4147c2102123d96cd00ef3a3e196f0979'), ('6af82d85156eda76f2fd464a7bd72b1e78ea3e53', '451bbeffce17f243a9f3b02f7e91c03c847e92c62caa2c9d40a3062103354dac'), ('a61797b57dcba000d238dbd2c224247ec077cdbc', '28601d9ded709b55ccad36f966a106e2912d67c48ec47833b9b519e1524045dc'), ('a81e9404bae5e4a56599eb0455026c207acbdc27', 'ef64753deb51f2260812bf136ad4bca0d811bc84e61e601e80697fdef314181c'), ('c6cc466d9d2520b668508e6fbd9754f1ac1cc7ef', '850aea3f1d81c00322f8c8ca1adf84a5abddb5c75d916066394f41a521397e4e'), ('d06143c505bf739dfd4336ea97c20b5850d15128', 'ceb14dd7012995f1d3400e1eb7dfc24533b564cd9a039e2592c74b153d036634'), ('e740760c079a8a831342b3f964f7430dd581002f', 'f0952d0a1238feee4d82f27ccdf725ca4e9cba87e6dedfd493fb2ea015234fd6'), ('f3cf8b1e3f337204f423ae200e667aaf9d34e3f8', '5fedc956307b75e7d59c3f5aeda153b6e3e64dd618700141862149c3fda37d7a'), ('f76a50f14444f1b1c5959fa27097a85d87bfe8b0', '1ba5c751af0b605efc3f6f8165aa9b97f13d3c93d973493b451cc7bca2c53cff')), 'scripts/exact_build_audit.py': (('e61555dc20d399ded0fd5b9dee13c8ad73308d4d', 'bd3498ab98998e10ff0690d856444d990338ea009aab3ae77a29d792d7add6ec'),), 'scripts/rc_artifact_consumer.py': (('0dfd9bc7fb13e6504d76a9c9f374b55d3daf1123', '963d36b5f5f3408e84c73482086e258c34f5ff3d5e27e6abed9083a7a51d44ee'), ('1475ffd862c75effb4f4f8f401f37e816ba714ce', '3408807349f305037799025810bd109f4f1e95a0c53a00bd80bf69a2cfc145ec'), ('74ef163b292ff86d902639df5f92ab7f48d596d5', '6fc5ba85f1a1bafbb5688de8aff0787c16f8e7b452de4177e6b75649c6c29bf0'), ('7a68b8d36e685186c5303e4654edf0a3183b1b5d', 'c169efb3645587562e682b5bcfbaee8acfa9d4bf01ac4941f3f9fe0c7ac36b7b'))}
+        self.assertEqual(x.PRIOR_PINS, expected)
         for path, pins in x.PRIOR_PINS.items():
             self.assertEqual(len(pins), len(set(pins))); self.assertNotIn(x.BASE_PINS[path][1:3], pins)
             for pin in pins:
@@ -204,7 +204,7 @@ class StageRetirementCompositionCases(unittest.TestCase):
 
     def test_missing_duplicate_outside_and_binary_inverse_changes_reject(self):
         for path, fragments in x.FRAGMENTS.items():
-            current = git_budget_bytes(path, (c.ROOT / path).read_bytes())
+            current = (c.ROOT / path).read_bytes()
             altered = [current + b'# outside\n', b'\xff']
             weakened = current.replace(b'self.assertEqual(', b'self.assertNotEqual(', 1)
             if weakened == current: weakened = current.replace(b'assert ', b'assert False and ', 1)
@@ -246,17 +246,17 @@ class StageRetirementCompositionCases(unittest.TestCase):
             with patch.object(self, '_select', side_effect=AssertionError('fresh required')) as fresh, self.assertRaisesRegex(AssertionError, 'fresh required'): self.verified_baseline(x.M, *args)
             fresh.assert_called_once()
         with patch.object(x, 'M_TREE', '0' * 40), patch.object(self, '_select', side_effect=AssertionError('fresh required')), self.assertRaisesRegex(AssertionError, 'fresh required'): self.verified_baseline(x.M, *self.args)
-        runtime = ast.parse(git_budget_bytes(x.PROFILE, (c.ROOT / x.PROFILE).read_bytes()).decode())
+        runtime = ast.parse((c.ROOT / x.PROFILE).read_text())
         self.assertFalse(any('cache' in (getattr(n, 'id', getattr(n, 'attr', getattr(n, 'name', ''))) or '') for n in ast.walk(runtime)))
 
-    def test_original1445_strict303_consumer452_ids_and_assertions_are_preserved(self):
+    def test_original1493_strict303_consumer452_ids_and_assertions_are_preserved(self):
         original = [item for group in lc.GROUPS for item in lc.inventory(group)] + lc.ids(y.CLASS)
         groups = (publisher, admission, final, download, staging, checksum, archive, staged)
         original += [item for group in groups for item in group.inventory()]
         pt.inventory_ids(original, 1433, 'bea84742dea5afcad6d7cbcfad99db412aa03e0ac323cda1f29013cd096fc470')
-        original += readiness.inventory()
-        self.assertEqual(len(original), len(set(original))); self.assertEqual(len(original), 1445)
-        self.assertEqual(len(set(original + inventory())), 1493); self.assertFalse(set(original) & set(inventory()))
+        original += readiness.inventory() + retirement.inventory()
+        self.assertEqual(len(original), len(set(original))); self.assertEqual(len(original), 1493)
+        self.assertEqual(len(set(original + inventory())), 1541); self.assertFalse(set(original) & set(inventory()))
         method = next(n for n in ast.walk(ast.parse(self.frozen(p.TESTS))) if isinstance(n, ast.FunctionDef) and n.name == 'test_protected_source_versions_gates_workflows_and_old_452_are_unchanged')
         modules = ast.literal_eval(method.body[0].value.func.value).split()
         with patch('tempfile.TemporaryDirectory', side_effect=AssertionError('discovery materialized')):
@@ -264,16 +264,11 @@ class StageRetirementCompositionCases(unittest.TestCase):
             consumer = [item for module in modules for item in lc.ids(module) if item.split('.', 1)[0] == module]
         pt.inventory_ids(strict, 303, '0ecc366c2018a6a1e20d3f59ed9ca66645d9334324cd517682894cabde923125')
         pt.inventory_ids(consumer, 452, 'd01db4e6cd605c6636423e27c8c0409e90aba217cc0e6930474f59a24b57f372')
-        allowed = {
-            'rc_publication_stage_cases': {'test_file_replacement_link_and_inventory_changes_reject'},
-            'rc_publication_staged_bytes_cases': {'test_revalidation_drift_and_io_errors_precede_polls'},
-            'rc_pretag_supervisor_readiness_cases': {'setUp', 'test_all_ten_paths_modes_pins_and_entry_counts_are_exact',
-                'test_individual_and_total_budgets_fail_closed', 'test_five_inverses_restore_complete_f_bytes',
-                'test_missing_duplicate_outside_binary_and_assertion_edits_reject', 'test_actual_candidate_validation_is_never_cached',
-                'test_original1433_strict303_consumer452_ids_and_assertions_are_preserved',
-                'test_sustained_phase_readiness_and_bounded_failure_contracts_are_preserved',
-                'test_readonly_workflow_inventory_and_exceptional_outcomes_are_exact'},
-        }
+        self.assertEqual(len(set(strict + consumer)), 755)
+        allowed = {'rc_pretag_stage_retirement_cases': {'setUp', 'test_fifteen_exact_paths_modes_pins_and_entry_count',
+            'test_individual_and_aggregate_caps_reject', 'test_seven_full_byte_inverses_and_six_dispatch_lines',
+            'test_missing_duplicate_outside_and_binary_inverse_changes_reject', 'test_current_candidate_is_never_cached',
+            'test_new48_inventory_readonly_workflow_and_exceptional_outcomes'}}
         def methods(data):
             return {(cls.name, n.name): n for cls in ast.parse(data).body if isinstance(cls, ast.ClassDef)
                     for n in cls.body if isinstance(n, ast.FunctionDef)}
@@ -284,7 +279,7 @@ class StageRetirementCompositionCases(unittest.TestCase):
             def visit_Call(self, node):
                 decoded = (isinstance(node.func, ast.Attribute) and node.func.attr == 'decode'
                            and isinstance(node.func.value, ast.Call) and isinstance(node.func.value.func, ast.Name)
-                           and node.func.value.func.id == 'retirement_bytes' and not node.args and not node.keywords)
+                           and node.func.value.func.id == 'git_budget_bytes' and not node.args and not node.keywords)
                 node = self.generic_visit(node)
                 if decoded:
                     source = node.func.value
@@ -292,13 +287,10 @@ class StageRetirementCompositionCases(unittest.TestCase):
                     assert source.func.attr == 'read_bytes' and not source.args and not source.keywords
                     source.func.attr = 'read_text'
                     return source
-                if isinstance(node.func, ast.Name) and node.func.id == 'retirement_bytes':
-                    self.assert_valid(node)
+                if isinstance(node.func, ast.Name) and node.func.id == 'git_budget_bytes':
+                    assert len(node.args) == 2 and not node.keywords
                     return node.args[1]
                 return node
-            @staticmethod
-            def assert_valid(node):
-                assert len(node.args) == 2 and not node.keywords
         changed = set()
         for module in {item.split('.', 1)[0] for item in original}:
             path = 'scripts/' + module + '.py'
@@ -311,32 +303,17 @@ class StageRetirementCompositionCases(unittest.TestCase):
                 self.assertFalse(assertions(method) - assertions(adjusted), (path, key))
                 if ast.dump(method) != ast.dump(after[key]): changed.add((module, key[1]))
                 if key[1] not in allowed.get(module, ()): self.assertEqual(ast.dump(method), ast.dump(after[key]), (path, key))
-                elif module == 'rc_pretag_supervisor_readiness_cases': self.assertEqual(ast.dump(method), ast.dump(adjusted), (path, key))
+                else: self.assertEqual(ast.dump(method), ast.dump(adjusted), (path, key))
         self.assertEqual(changed, {(module, name) for module, names in allowed.items() for name in names})
-        flow = [item for group in groups for item in group.inventory()] + readiness.inventory()
-        self.assertEqual(len(flow), len(set(flow))); self.assertEqual(len(flow), 261)
-        self.assertEqual(len(set(flow + inventory())), 309)
-        io = (c.ROOT / IO).read_text(); baseline = self.frozen(IO).decode()
-        def definition(text, name, cls=None):
-            tree = ast.parse(text)
-            scope = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == cls) if cls else tree
-            node = next(n for n in scope.body if isinstance(n, ast.FunctionDef) and n.name == name)
-            return ast.get_source_segment(text, node)
-        self.assertEqual(definition(io, 'close', 'PrivateRoot'), definition(baseline, 'close', 'PrivateRoot'))
-        self.assertEqual(definition(io, '_directory'), definition(baseline, '_directory'))
-        retirement = (c.ROOT / 'scripts/rc_publication_retirement.py').read_text()
-        close = definition(retirement, 'close_stream', 'StageRootOwner')
-        self.assertIn('if raw.closed and stream.closed:', close)
-        self.assertLess(close.index('if raw.closed and stream.closed:'), close.index('self.close_fd(fd)'))
-        self.assertIn('self.unclosed[fd] = stream', close)
-        for path in ('requirements', 'design'):
-            spec = (c.ROOT / ('docs/specs/issue88-stage-retirement/' + path + '.md')).read_text()
-            for text in ('before destruction', 'remaining entries', 'rollback'):
-                self.assertIn(text, spec)
+        flow = [item for group in groups for item in group.inventory()] + readiness.inventory() + retirement.inventory()
+        self.assertEqual(len(flow), len(set(flow))); self.assertEqual(len(flow), 309)
+        self.assertEqual(len(set(flow + inventory())), 357)
+        self.assertNotIn('scripts/rc_publication_stage.py', x.CAPS)
+        self.assertEqual((c.ROOT / 'scripts/rc_publication_stage.py').read_bytes(), self.frozen('scripts/rc_publication_stage.py'))
 
     def test_new48_inventory_readonly_workflow_and_exceptional_outcomes(self):
-        text = git_budget_bytes(x.WORKFLOW, (c.ROOT / x.WORKFLOW).read_bytes()).decode()
-        for fragment in ("branches: ['ci/issue88-publisher-executor-*']", 'permissions:\n  contents: read', 'timeout-minutes: 30', 'frozen three hundred nine cases', 'import rc_pretag_stage_retirement_profile as profile', 'supervisor_readiness.inventory()', 'supervisor_readiness.execution_valid(loaded, result)', 'supervisor-readiness-cases.log', 'supervisor-readiness-inventory.json', 'stage_retirement.inventory()', 'stage_retirement.execution_valid(loaded, result)', 'stage-retirement-cases.log', 'stage-retirement-inventory.json', 'parents == [profile.M]', 'checked() == before', "'production_ready': False"):
+        text = (c.ROOT / x.WORKFLOW).read_text()
+        for fragment in ("branches: ['ci/issue88-publisher-executor-*']", 'permissions:\n  contents: read', 'timeout-minutes: 30', 'frozen three hundred fifty seven cases', 'import rc_pretag_git_budget_profile as profile', 'supervisor_readiness.inventory()', 'supervisor_readiness.execution_valid(loaded, result)', 'supervisor-readiness-cases.log', 'supervisor-readiness-inventory.json', 'stage_retirement.inventory()', 'stage_retirement.execution_valid(loaded, result)', 'stage-retirement-cases.log', 'stage-retirement-inventory.json', 'git_budget.inventory()', 'git_budget.execution_valid(loaded, result)', 'git-budget-cases.log', 'git-budget-inventory.json', 'parents == [profile.M]', 'checked() == before', "'production_ready': False"):
             self.assertIn(fragment, text)
         for forbidden in ('secrets.', 'GH_TOKEN', 'GITHUB_TOKEN', 'contents: write', 'workflow_dispatch:', 'pull_request:', 'gh release', 'curl ', 'pip install'):
             self.assertNotIn(forbidden, text)

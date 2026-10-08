@@ -172,7 +172,7 @@ def _verify_bundle_bytes(root, api, selection, metadata, producer, download, bun
     archive.extract_bounded_zip(path, bundle, [name for name, _, _ in payloads(producer.version)], **budget)
     archive.verify_checksum_inventory(bundle, **budget)
     archive.extract_bounded_cloud_tar(bundle.path / 'cloud-linux-amd64.tar.gz', cloud, **budget)
-    content = contracts.verify_consumed_bundle(root, bundle.path, cloud.path, producer, selection['integration'])
+    content = contracts.verify_consumed_bundle(root, bundle.path, cloud.path, producer, selection['integration'], **budget)
     download.files(); bundle.files(); cloud.files()
     return content
 
