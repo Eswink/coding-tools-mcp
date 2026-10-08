@@ -1,0 +1,106 @@
+name: Windows synthetic VM session owner
+on:
+  push:
+    branches: ['feat/windows-vm-session-synthetic-20261008']
+    paths: ['src-tauri/src/tools/windows_vm*', 'src-tauri/src/tools/windows_vm/**', 'src-tauri/src/tools/mod.rs', 'services/windows-vm-broker/**', 'scripts/prepare_windows_vm_session.ps1', '.github/workflows/windows-vm-session.yml', 'docs/specs/windows-vm-session/**']
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      CARGO_TERM_COLOR: never
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      CGO_ENABLED: '0'
+      GOTOOLCHAIN: local
+      GOPROXY: 'off'
+      GOSUMDB: 'off'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {ref: '${{ github.sha }}', fetch-depth: 0, persist-credentials: false}
+      - name: Bind source and fresh trusted CI paths
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $root=Join-Path $env:RUNNER_TEMP "ctm-vm-session-$env:GITHUB_RUN_ID"
+          $evidence=Join-Path $env:RUNNER_TEMP 'ctm-vm-session-evidence'
+          New-Item -ItemType Directory -Path $root,$evidence -ErrorAction Stop | Out-Null
+          "CTM_VM_SESSION_ROOT=$root" >> $env:GITHUB_ENV
+          "CTM_VM_SESSION_EVIDENCE=$evidence" >> $env:GITHUB_ENV
+          $sha=(git rev-parse HEAD).Trim(); if ($LASTEXITCODE -ne 0 -or $sha -cne $env:GITHUB_SHA) { throw 'source mismatch' }
+          $tree=(git rev-parse 'HEAD^{tree}').Trim(); if ($LASTEXITCODE -ne 0) { throw 'tree read failed' }
+          $parents=(git show -s --format=%P HEAD).Trim(); if ($LASTEXITCODE -ne 0) { throw 'parent read failed' }
+          git merge-base --is-ancestor 8bdd5f327b4603c5570dc764e2d62fecbe6e02d2 HEAD; if ($LASTEXITCODE -ne 0) { throw 'reviewed base absent' }
+          @{sha=$sha;tree=$tree;parents=$parents;base='8bdd5f327b4603c5570dc764e2d62fecbe6e02d2';run=$env:GITHUB_RUN_ID;attempt=$env:GITHUB_RUN_ATTEMPT;
+            image=$env:ImageVersion;os=$env:ImageOS;production_admission=$false;workspace_integration=$false;network_denial_proven=$false;production_launch_authority=$false} |
+            ConvertTo-Json | Set-Content -LiteralPath "$evidence/source.json"
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with: {toolchain: '1.98.1', components: rustfmt}
+      - name: Preserve default formatter output then enforce formatting before import
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $dir=New-Item -ItemType Directory -Path "$env:CTM_VM_SESSION_EVIDENCE/formatted/windows_vm" -Force
+          Copy-Item src-tauri/src/tools/windows_vm.rs "$env:CTM_VM_SESSION_EVIDENCE/formatted/windows_vm.rs"
+          Copy-Item src-tauri/src/tools/windows_vm/*.rs $dir
+          rustfmt --edition 2021 "$env:CTM_VM_SESSION_EVIDENCE/formatted/windows_vm.rs"
+          if ($LASTEXITCODE -ne 0) { throw 'formatter parse failed' }
+          rustc --version | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/rust-version.txt"
+          foreach ($file in Get-ChildItem "$env:CTM_VM_SESSION_EVIDENCE/formatted" -Recurse -Filter '*.rs') {
+            if (@(Get-Content -LiteralPath $file.FullName).Count -gt 500) { throw "formatted source exceeds500: $($file.Name)" }
+          }
+          cargo fmt --all --check --manifest-path src-tauri/Cargo.toml 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/fmt.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'formatting differs; no import or VM started' }
+      - name: Build real Rust library and run sixteen pure tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/rust-check.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'native check failed' }
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings
+          if ($LASTEXITCODE -ne 0) { throw 'production-library warnings gate failed' }
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm:: -- --list 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/rust-inventory.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'native test inventory compile failed' }
+          $list=Get-Content "$env:CTM_VM_SESSION_EVIDENCE/rust-inventory.txt"
+          if (@($list | Where-Object {$_ -match '^tools::windows_vm::tests::.+: test$'}).Count -ne 16 -or @($list | Where-Object {$_ -match '^tools::windows_vm::native_tests::.+: test$'}).Count -ne 2) { throw 'Rust inventory mismatch' }
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::tests:: -- --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/rust-tests.txt"
+          if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/rust-tests.txt" -Pattern 'test result: ok\. 16 passed; 0 failed; 0 ignored')) { throw 'sixteen pure tests required' }
+      - name: Verify pinned sources and run twelve native Go tests before import
+        shell: pwsh
+        run: ./scripts/prepare_windows_vm_session.ps1 -Phase build
+      - name: Acquire fixed Microsoft blobs and import in isolated privileged process
+        shell: pwsh
+        run: ./scripts/prepare_windows_vm_session.ps1 -Phase acquire
+      - name: Run exactly two serial owned VM cases
+        shell: pwsh
+        env:
+          CTM_VM_SESSION_NATIVE: '1'
+        run: |
+          $ErrorActionPreference='Stop'
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::native_tests:: -- --ignored --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/native-tests.txt"
+          if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/native-tests.txt" -Pattern 'test result: ok\. 2 passed; 0 failed; 0 ignored')) { throw 'native VM session gate failed' }
+      - name: Preserve bounded evidence and unchanged source
+        id: evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          foreach ($name in @('native-01.json','native-02.json')) { $p=Join-Path $env:CTM_VM_SESSION_ROOT $name; if (Test-Path -LiteralPath $p) { Copy-Item -LiteralPath $p -Destination $env:CTM_VM_SESSION_EVIDENCE } }
+          git diff --exit-code; if ($LASTEXITCODE -ne 0) { throw 'source changed' }
+          git diff --cached --exit-code; if ($LASTEXITCODE -ne 0) { throw 'index changed' }
+          $before=Get-Content -Raw "$env:CTM_VM_SESSION_EVIDENCE/source.json" | ConvertFrom-Json
+          if ((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA -or (git rev-parse 'HEAD^{tree}').Trim() -cne $before.tree) { throw 'final source identity changed' }
+          $files=@(Get-ChildItem $env:CTM_VM_SESSION_EVIDENCE -Recurse -File)
+          if (($files | Measure-Object Length -Sum).Sum -gt 8MB) { throw 'aggregate evidence bound' }
+          $lines=@($files | Sort-Object FullName | ForEach-Object { if ($_.Length -gt 2MB) { throw 'individual evidence bound' }; "$((Get-FileHash $_.FullName).Hash.ToLowerInvariant())  $([IO.Path]::GetRelativePath($env:CTM_VM_SESSION_EVIDENCE,$_.FullName))" })
+          $lines | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/sha256.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ always() && steps.evidence.outcome == 'success' }}
+        with:
+          name: windows-vm-session-${{ github.sha }}
+          path: ${{ env.CTM_VM_SESSION_EVIDENCE }}
+          if-no-files-found: error
+          retention-days: 14

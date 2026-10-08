@@ -28,6 +28,9 @@ pub mod registry;
 pub mod session;
 pub mod workspace;
 pub(crate) mod worktree_tools;
+#[cfg(windows)]
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) mod windows_vm;
 
 pub use context::{SharedToolContext, ToolContext};
 /// 唯一工具执行入口；MCP 与 Actions 必须调用此函数，不得分叉执行实现。
