@@ -1,4 +1,4 @@
-"""Six fixed Git reads under caller controls; Linux, no concurrent writers.
+"""Fixed artifact and source Git reads under caller controls; Linux, no concurrent writers.
 
 Controlled artifact validation retains the caller deadline and cancellation.
 This is trusted-native Git containment, not a native-code sandbox.
@@ -20,6 +20,8 @@ INDEX_LIMIT = 64 * 1024 * 1024
 INDEX_OUTPUT_LIMIT = 16 * 1024 * 1024
 STATUS_LIMIT = 16 * 1024 * 1024
 FILES_LIMIT = 16 * 1024 * 1024
+SOURCE_LIST_LIMIT = 16 * 1024 * 1024
+BLOB_LIMIT = 64 * 1024 * 1024
 READ_SIZE = 64 * 1024
 WAIT = 0.025
 CLEANUP_SECONDS = 2.0
@@ -94,6 +96,18 @@ def _index(raw):
         need(match and separator and name and len(name) <= MAX_PATH_BYTES and
              not name.startswith(b'/') and all(p not in (b'', b'.', b'..') for p in name.split(b'/')),
              'unsupported_git_index')
+
+
+def _oid(value):
+    need(type(value) is str and re.fullmatch('[0-9a-f]{40}', value), 'unsupported_git_operation')
+    return value
+
+
+def _tag(value):
+    from rc_version_gate import RC_VERSION
+    need(type(value) is str and value.isascii() and len(value) <= 255 and value.startswith('v') and
+         RC_VERSION.fullmatch(value[1:]), 'unsupported_git_operation')
+    return 'refs/tags/' + value
 
 
 class Reader:
@@ -252,24 +266,33 @@ class Reader:
             self.close()
             raise
 
-    def _argv(self, kind):
+    def _argv(self, kind, *operands):
         if kind == 'config':
             return [BINARY, *PREFIX, 'config', '--null', '--no-includes',
                     f'--file=/proc/self/fd/{self.config_fd}', '--list']
         command = {'head': ('rev-parse', 'HEAD'), 'tree': ('rev-parse', 'HEAD^{tree}'),
                    'index': ('ls-files', '--stage', '-z', '--no-recurse-submodules'),
-                   'status': ('status', '--porcelain', '--untracked-files=all'), 'files': ('ls-files',)}[kind]
+                   'status': ('status', '--porcelain', '--untracked-files=all'), 'files': ('ls-files',),
+                   'commit': ('rev-parse', '--verify', 'HEAD^{commit}'),
+                   'tracked': ('diff', '--quiet', '--no-ext-diff', '--no-textconv', 'HEAD', '--'),
+                   'untracked': ('ls-files', '--others', '-z'),
+                   'ancestor': ('merge-base', '--is-ancestor', *operands),
+                   'entry': ('ls-tree', '-z', *operands[:1], '--', *operands[1:]),
+                   'blob': ('cat-file', 'blob', *operands),
+                   'changes': ('diff', '--name-status', '--no-renames', '--no-ext-diff', '--no-textconv', '-z', *operands),
+                   'tag_oid': ('rev-parse', '--verify', *operands),
+                   'tag_kind': ('cat-file', '-t', *operands)}[kind]
         return [BINARY, *PREFIX, f'--git-dir=/proc/self/fd/{self.git_fd}',
                 f'--work-tree=/proc/self/fd/{self.root_fd}', *OVERRIDES, *command]
 
-    def _run(self, kind, cap):
+    def _run(self, kind, cap, *operands):
         need(not self.closed and not self.uncertain, 'transport_cleanup_uncertain')
         self._recheck()
         self.check()
         payload, eof, failed = bytearray(), False, None
         try:
             inherited = (self.config_fd,) if kind == 'config' else (self.root_fd, self.git_fd)
-            self.process = subprocess.Popen(self._argv(kind), cwd='/', env=dict(ENV),
+            self.process = subprocess.Popen(self._argv(kind, *operands), cwd='/', env=dict(ENV),
                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                 shell=False, close_fds=True, pass_fds=inherited, bufsize=0)
             self.check()
@@ -280,7 +303,7 @@ class Reader:
                 if eof:
                     code = self.process.poll()
                     if code is not None:
-                        _git_available(code == 0)
+                        _git_available(code == 0 or kind in ('tracked', 'ancestor') and code == 1)
                         break
                 self.check()
                 events = self.selector.select(WAIT)
@@ -296,8 +319,9 @@ class Reader:
                     payload.extend(block)
                     need(len(payload) <= cap, 'git_output_limit_exceeded')
                 # EOF+nonzero exit is already a local failure before another poll.
-                if eof and self.process.poll() is not None:
-                    _git_available(self.process.returncode == 0)
+                if eof and (code := self.process.poll()) is not None:
+                    _git_available(self.process.returncode == 0 or
+                                   kind in ('tracked', 'ancestor') and self.process.returncode == 1)
                     break
                 self.check()
         except BaseException as error:
@@ -306,6 +330,9 @@ class Reader:
             self._dispose()
         if failed is not None:
             raise failed
+        if kind in ('tracked', 'ancestor'):
+            _git_available(not payload)
+            return code == 0
         return bytes(payload)
 
     def read(self, *args):
@@ -318,6 +345,49 @@ class Reader:
         if kind in ('head', 'tree'):
             _git_available(re.fullmatch(rb'[0-9a-f]{40}\n', raw))
         return raw.decode().strip()
+
+    def commit(self):
+        raw = self._run('commit', 41)
+        _git_available(re.fullmatch(rb'[0-9a-f]{40}\n', raw))
+        return raw.decode().strip()
+
+    def tracked_clean(self):
+        _index(self._run('index', INDEX_OUTPUT_LIMIT))
+        return self._run('tracked', 0)
+
+    def untracked(self):
+        raw = self._run('untracked', SOURCE_LIST_LIMIT)
+        _git_available(not raw or raw.endswith(b'\0'))
+        return raw
+
+    def ancestor(self, baseline, source):
+        return self._run('ancestor', 0, _oid(baseline), _oid(source))
+
+    def tree_entry(self, revision, path):
+        _oid(revision)
+        need(type(path) is str and 0 < len(os.fsencode(path)) <= MAX_PATH_BYTES and
+             len(path.split('/')) <= MAX_DEPTH and not path.startswith('/') and
+             all(p not in ('', '.', '..') for p in path.split('/')) and
+             not any(ord(c) < 32 or c == '\\' for c in path), 'unsupported_git_operation')
+        raw = self._run('entry', MAX_PATH_BYTES + 128, revision, path)
+        _git_available(not raw or raw.endswith(b'\0') and raw.count(b'\0') == 1)
+        return raw
+
+    def blob_bytes(self, oid):
+        return self._run('blob', BLOB_LIMIT, _oid(oid))
+
+    def changes(self, baseline, source):
+        return self._run('changes', SOURCE_LIST_LIMIT, _oid(baseline), _oid(source))
+
+    def tag_oid(self, tag):
+        raw = self._run('tag_oid', 41, _tag(tag))
+        _git_available(re.fullmatch(rb'[0-9a-f]{40}\n', raw))
+        return raw.decode().strip()
+
+    def tag_kind(self, tag):
+        raw = self._run('tag_kind', 8, _tag(tag))
+        _git_available(raw in (b'commit\n', b'tree\n', b'blob\n', b'tag\n'))
+        return raw
 
     def _dispose(self):
         failed = False

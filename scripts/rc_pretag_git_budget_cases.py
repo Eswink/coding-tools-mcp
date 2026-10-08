@@ -25,6 +25,7 @@ import rc_pretag_archive_budget_cases as archive
 import rc_pretag_staged_bytes_cases as staged
 import rc_pretag_stage_retirement_cases as retirement
 import rc_pretag_git_budget_profile as x
+from rc_pretag_source_observation_profile import normalize as source_observation_bytes
 from rc_pretag_windows_vm_profile import normalize as windows_vm_bytes
 
 F_BINDING = ('8bdd5f327b4603c5570dc764e2d62fecbe6e02d2', 'b75fdae6b9a2cb9589b51d832d7ba638384cb6b8', ('f0fdfba5cd48b7cad477f1e2cb77bb70153ad657', '33503cc901acc0619ca5658eff187efd7799b040'))
@@ -295,7 +296,7 @@ class GitBudgetCompositionCases(unittest.TestCase):
         changed = set()
         for module in {item.split('.', 1)[0] for item in original}:
             path = 'scripts/' + module + '.py'
-            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
+            current, frozen = source_observation_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
             self.assertEqual(x.normalize(path, current), frozen, path)
             before, after = methods(frozen), methods(current)
             self.assertEqual(before.keys(), after.keys(), path)
@@ -310,7 +311,7 @@ class GitBudgetCompositionCases(unittest.TestCase):
         self.assertEqual(len(flow), len(set(flow))); self.assertEqual(len(flow), 309)
         self.assertEqual(len(set(flow + inventory())), 357)
         self.assertNotIn('scripts/rc_publication_stage.py', x.CAPS)
-        self.assertEqual((c.ROOT / 'scripts/rc_publication_stage.py').read_bytes(), self.frozen('scripts/rc_publication_stage.py'))
+        self.assertEqual(source_observation_bytes('scripts/rc_publication_stage.py', (c.ROOT / 'scripts/rc_publication_stage.py').read_bytes()), self.frozen('scripts/rc_publication_stage.py'))
 
     def test_new48_inventory_readonly_workflow_and_exceptional_outcomes(self):
         text = windows_vm_bytes(x.WORKFLOW, (c.ROOT / x.WORKFLOW).read_bytes()).decode()
