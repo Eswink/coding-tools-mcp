@@ -17,7 +17,10 @@ Control additionally admits four private host serviceIDs with wildcardtrue and t
 No dynamic descriptor updates. The source-specific failure is not reclassified or bypassed.
 FR-3: host listener scopes alternate wildcard/children for registered pair and unregistered pair. Only guest Parent routing targets those private IDs.
 Inside a WCOW container, the fifth guest listener uses wildcard VMID, as pinned official guestBindReExecFunc does; it is reachable only at its privateGUID.
-Guest reports actual listener ready before the host dials vm.RuntimeID+fifthGUID. Positive requires nonce echo; negative requires explicitWSAEACCES/refusal and zero accepted guest connections.
+Guest reports actual listener ready before the host dials the retained container SystemGUID plus the fifth private serviceGUID.
+Read only PTSystemGUID from the created container handle after checking its ID matches the owned expected container. Capture valid nonzero GUID distinct from UVMRuntimeID before bootstrap; re-read it before dialing and require equality.
+HCSOCI already retains the container-SystemGUID-to-UVM passthrough mapping; create no new mapping and enumerate no other compute systems. Positive requires nonce echo; negative requires explicitWSAEACCES/refusal and zero accepted guest connections.
+The first static candidate targeted the UVM primary compartment and timed out; this source-supported identity correction is not yet a proven runtime root cause.
 Guest listener closure is acknowledged through the existing supervisor protocol and its task is joined; unexpected output/errors fail.
 Close and join all host canaries before fresh exactVM bind comparisons to avoid false address-in-use results.
 Control requires exactbind success/close; restricted requiresWSAEACCES. Both record all observations without deleting denominator entries.
@@ -53,3 +56,6 @@ https://learn.microsoft.com/en-us/virtualization/api/hcs/schemareference#hvsocke
 https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/make-integration-service
 https://github.com/microsoft/hcsshim/blob/fb5aa2e9478c8f5dcaba00601cc7c7d10e1320cd/test/functional/hvsock_test.go#L951
 https://github.com/Eswink/coding-tools-mcp/issues/81#issuecomment-6053874942
+
+https://github.com/microsoft/hcsshim/blob/fb5aa2e9478c8f5dcaba00601cc7c7d10e1320cd/internal/hcsoci/create.go#L292
+https://github.com/microsoft/hcsshim/blob/fb5aa2e9478c8f5dcaba00601cc7c7d10e1320cd/internal/hvsocket/hvsocket.go#L39

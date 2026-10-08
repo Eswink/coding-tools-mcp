@@ -4,13 +4,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/Microsoft/go-winio"
 	"github.com/Microsoft/go-winio/pkg/guid"
+	"github.com/Microsoft/hcsshim/internal/cow"
 	"github.com/Microsoft/hcsshim/internal/gcs/prot"
+	hcsschema "github.com/Microsoft/hcsshim/internal/hcs/schema2"
 )
 
 func TestPolicyServiceInventory(t *testing.T) {
@@ -171,5 +174,47 @@ func TestStaticSecondVMRequiresCompleteFirst(t *testing.T) {
 	r.RuntimePassed = true
 	if !staticProfileComplete(r) {
 		t.Fatal("complete restricted profile rejected")
+	}
+}
+
+type identityContainer struct {
+	cow.Container
+	id      string
+	props   *hcsschema.Properties
+	queries int
+	types   []hcsschema.PropertyType
+}
+
+func (c *identityContainer) ID() string { return c.id }
+func (c *identityContainer) PropertiesV2(_ context.Context, types ...hcsschema.PropertyType) (*hcsschema.Properties, error) {
+	c.queries++
+	c.types = types
+	return c.props, nil
+}
+func TestOwnedContainerEndpointIdentity(t *testing.T) {
+	ctx := context.Background()
+	vm, _ := guid.FromString("11111111-1111-4111-8111-111111111111")
+	id := "22222222-2222-4222-8222-222222222222"
+	c := &identityContainer{id: "owned", props: &hcsschema.Properties{SystemGUID: id}}
+	got, e := queryOwnedContainerEndpoint(ctx, c, "owned", "", vm)
+	if e != nil || got.String() != id || c.queries != 1 || len(c.types) != 1 || c.types[0] != hcsschema.PTSystemGUID {
+		t.Fatal("fixed owned property query")
+	}
+	if _, e = queryOwnedContainerEndpoint(ctx, c, "owned", id, vm); e != nil {
+		t.Fatal("stable identity rejected")
+	}
+	before := c.queries
+	if _, e = queryOwnedContainerEndpoint(ctx, c, "another", "", vm); e == nil || c.queries != before {
+		t.Fatal("arbitrary container queried")
+	}
+	for _, raw := range []string{"", "bad", guid.GUID{}.String(), vm.String(), "33333333-3333-4333-8333-333333333333"} {
+		c.props.SystemGUID = raw
+		if _, e = queryOwnedContainerEndpoint(ctx, c, "owned", id, vm); e == nil {
+			t.Fatal("invalid/changed/primary-compartment identity accepted")
+		}
+	}
+	c.props = nil
+	if _, e = queryOwnedContainerEndpoint(ctx, c, "owned", "", vm); e == nil {
+		t.Fatal("missing properties accepted")
 	}
 }

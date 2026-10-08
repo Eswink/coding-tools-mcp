@@ -1,7 +1,7 @@
 name: Windows HCS static policy comparison
 on:
   push:
-    branches: ['ci/windows-hcs-static-policy-20261008']
+    branches: ['ci/windows-hcs-static-policy-identity-20261008']
     paths:
       - 'scripts/windows_hcs_boot/**'
       - '.github/workflows/windows-hcs-boot-prototype.yml'
@@ -29,7 +29,7 @@ jobs:
           $tree = (git rev-parse 'HEAD^{tree}').Trim()
           if ($LASTEXITCODE -ne 0) { throw 'tree query failed' }
           $parent = (git show -s --format=%P HEAD).Trim()
-          if ($LASTEXITCODE -ne 0 -or $parent -cne '3d59798040f015f8421849518c32d28842046bad') { throw 'base mismatch' }
+          if ($LASTEXITCODE -ne 0 -or $parent -cne '7130046c7ac76effdbedd1c25c5c26670d0dd71f') { throw 'base mismatch' }
           $os = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name CurrentBuildNumber,UBR
           @{sha=$sha; tree=$tree; parent=$parent; run=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT;
             image_os=$env:ImageOS; image_version=$env:ImageVersion; build=$os.CurrentBuildNumber; ubr=$os.UBR;

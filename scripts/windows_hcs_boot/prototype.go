@@ -38,6 +38,7 @@ var imageLayers = []struct {
 }
 
 type report struct {
+	ContainerSystemGUID string          `json:"owned_container_system_guid"`
 	Schema              int             `json:"schema"`
 	Source              string          `json:"source"`
 	ID                  string          `json:"owned_uvm_id"`
@@ -190,6 +191,23 @@ func runGuest(ctx context.Context, host cow.ProcessHost, name, command, cwd, mar
 	}
 	return result, err
 }
+func queryOwnedContainerEndpoint(ctx context.Context, c cow.Container, owned, expected string, vmID guid.GUID) (guid.GUID, error) {
+	if c == nil || c.ID() != owned {
+		return guid.GUID{}, errors.New("container handle ownership mismatch")
+	}
+	props, e := c.PropertiesV2(ctx, hcsschema.PTSystemGUID)
+	if e != nil {
+		return guid.GUID{}, e
+	}
+	if props == nil {
+		return guid.GUID{}, errors.New("missing owned container properties")
+	}
+	id, e := guid.FromString(props.SystemGUID)
+	if e != nil || id == (guid.GUID{}) || id == vmID || (expected != "" && id.String() != expected) {
+		return guid.GUID{}, errors.New("owned container SystemGUID invalid or changed")
+	}
+	return id, nil
+}
 func runPrototype(root string, r *report, ids []guid.GUID, control bool) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
@@ -274,6 +292,11 @@ func runPrototype(root string, r *report, ids []guid.GUID, control bool) (err er
 	if err = container.Start(ctx); err != nil {
 		return err
 	}
+	endpoint, err := queryOwnedContainerEndpoint(ctx, container, r.ID+"-guest", "", vm.RuntimeID())
+	if err != nil {
+		return err
+	}
+	r.ContainerSystemGUID = endpoint.String()
 	r.Stage = "bootstrap_runtimes"
 	bundle, err := os.Open(filepath.Join(root, "runtime.zip"))
 	if err != nil {

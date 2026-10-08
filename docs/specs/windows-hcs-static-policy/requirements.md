@@ -38,7 +38,7 @@ Only restricted success SHALL invoke fixed stock runtimes and live-descendant ch
 Both profiles SHALL retain independent Terminate/Wait/ExitError/Close and endpoint/I/O checks; any error remains sticky.
 ## 非功能需求
 At most two owned VMs, never concurrent; five private serviceGUIDs; two registrations;32-byte nonces and2-second dial deadlines.
-Up to12 paths. PolicyGo caps495/195/180/230/210(total1310); prototype440 fixture100 prepare160 workflow110; three specs210total.
+Up to12 paths. PolicyGo caps485/190/180/215/240(total1310); prototype440 fixture100 prepare160 workflow110; three specs210total.
 No dependency lock changes. Native pure tests before imports; exact artifact/source/hash binding.
 ## 依赖关系
 Passing this matrix supports its measured host/build/scopes only; registered precedence and alias/general safety need further assessment.

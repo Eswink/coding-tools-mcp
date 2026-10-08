@@ -77,6 +77,7 @@ type policyRequest struct {
 	Services []string `json:"services"`
 }
 type dialObservation struct {
+	Target     string `json:"target_vmid"`
 	Service    string `json:"service"`
 	Connected  bool   `json:"connected"`
 	Echo       bool   `json:"echo"`
@@ -135,6 +136,7 @@ func registrationMatches(values, subkeys, kind uint32, value, marker string) boo
 }
 func policyDial(id, nonce string, vmID guid.GUID) (o dialObservation) {
 	o.Service = id
+	o.Target = vmID.String()
 	g, e := guid.FromString(id)
 	if e != nil {
 		o.Error = e.Error()

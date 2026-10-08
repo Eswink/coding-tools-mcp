@@ -356,7 +356,7 @@ func denyNewBind(vmID, service guid.GUID) (o bindObservation) {
 	return
 }
 
-func (h *hvPolicy) run(ctx context.Context, vm *uvm.UtilityVM, host cow.ProcessHost, r *report) (err error) {
+func (h *hvPolicy) run(ctx context.Context, vm *uvm.UtilityVM, host cow.Container, r *report) (err error) {
 	if err = h.openCanaries(vm); err != nil {
 		return err
 	}
@@ -426,7 +426,11 @@ func (h *hvPolicy) run(ctx context.Context, vm *uvm.UtilityVM, host cow.ProcessH
 	if ready.Listener == nil || !ready.Listener.Ready {
 		return errors.New("guest listener readiness absent")
 	}
-	h.result.HostConnect = policyDial(h.result.Canaries[4], h.result.Nonce, vm.RuntimeID())
+	endpoint, e := queryOwnedContainerEndpoint(ctx, host, r.ID+"-guest", r.ContainerSystemGUID, vm.RuntimeID())
+	if e != nil {
+		return e
+	}
+	h.result.HostConnect = policyDial(h.result.Canaries[4], h.result.Nonce, endpoint)
 	closed, e := h.session.exchange(ctx, "guest-close", h.result.Nonce, h.result.Canaries)
 	h.result.GuestListener = closed.Listener
 	if e != nil {
