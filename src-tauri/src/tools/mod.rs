@@ -26,6 +26,9 @@ pub mod platform_dispatch;
 pub mod policy;
 pub mod registry;
 pub mod session;
+#[cfg(windows)]
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) mod windows_vm;
 pub mod workspace;
 pub(crate) mod worktree_tools;
 
