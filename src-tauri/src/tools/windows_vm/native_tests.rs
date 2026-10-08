@@ -175,7 +175,7 @@ async fn native_01_stock_runtimes_quarantine() {
         .iter()
         .all(|case| case.passed && case.exit_code == 23 && case.stderr.is_empty()));
     let cleanup = result.cleanup.as_ref().unwrap();
-    assert_eq!(cleanup.quarantine, Quarantine::Written);
+    assert_eq!(cleanup.quarantine, super::protocol::Quarantine::Written);
     let input = format!("ctm-synthetic:{}", result.session).into_bytes();
     let returned = std::fs::read(session_root.join("quarantine/returned.bin")).unwrap();
     assert_eq!(
@@ -224,7 +224,7 @@ async fn native_02_cancel_live_descendant() {
     );
     assert_eq!(result.outcome, Outcome::Cancelled);
     let cleanup = result.cleanup.as_ref().unwrap();
-    assert_eq!(cleanup.quarantine, Quarantine::Withheld);
+    assert_eq!(cleanup.quarantine, super::protocol::Quarantine::Withheld);
     assert!(cleanup.output_sha256.is_empty());
     let session_root = root.join(format!("session-{}", result.session));
     assert!(!session_root.join("quarantine/returned.bin").exists());
