@@ -79,3 +79,42 @@ Preserve source-proven79ac13ca Rust/Go/inputs/patch/prepare bytes; add finite en
 
 Additional five paths: scripts/rc_pretag_windows_vm_profile.py(Add350), scripts/rc_pretag_windows_vm_cases.py(Add450), scripts/rc_pretag_git_budget_profile.py(Modify220/diff6), scripts/rc_pretag_git_budget_cases.py(Modify365/diff24), .github/workflows/issue88-publication-executor.yml(Modify185/diff14).
 FR-8 coverage: Finite admission design; tasks4.1–4.5. All source<=500, three specs<=300 combined. D1553, I1214, J1214; strict303/contracts755/consumer452 unchanged. Held snapshot and PR98 untouched. All production/workspace/network/launch authority flags remainfalse.
+
+## Verified launch increment tasks and scope (FR-9–FR-14)
+
+This current increment supersedes the historical24-path scope above:18 paths, <=3800 changed lines, final source files<500 lines. Runtime preparation starts on verified PR144 F649dc0f; final admission waits for actual post-source-budget F. No publication/native execution/import is authorized to runtime authors.
+- [ ] 5.1 Fresh feature/spec/check/impact on exact baseline, frozen interfaces and disjoint authorship. Evidence: windows_vm.rs:87 start,121 snapshot,155 run_owner; native_drain.rs:107 begin. Covers FR-9–FR-14; design Verified launch ownership.
+- [ ] 5.2 Implement retained image, actual-event gate, owner pump/writer and sticky local ownership evidence. Covers FR-9–FR-12; same design.
+- [ ] 5.3 Add exactly two pure and six harmless native Rust cases; strengthen two existing HCS cases; preserve all old test bytes and Go. Covers FR-10–FR-14.
+- [ ] 5.4 Validate default rustfmt/locked all-target check/warnings-as-errors/compiled38 inventory; six fixture cases before import, then two HCS cases. Covers FR-9–FR-14.
+- [ ] 5.5 Bind actual post-budget F, exact inverses/pins and12 admission cases, then independent source review. Covers FR-14; historical D/I/J grammar and release overlays retained.
+
+| Path | Operation | final lines / changed lines |
+|---|---|---|
+| src-tauri/Cargo.toml | Modify |100/3|
+| src-tauri/src/tools/windows_vm.rs | Modify |480/650|
+| src-tauri/src/tools/windows_vm/launch.rs | Add |495/495|
+| src-tauri/src/tools/windows_vm/image.rs | Add |285/285|
+| src-tauri/src/tools/windows_vm/host_io.rs | Add |450/450|
+| src-tauri/src/tools/windows_vm/launch_tests.rs | Add |499/499|
+| src-tauri/src/tools/windows_vm/native_tests.rs | Modify |291/120|
+| scripts/windows_vm_launch_fixture.cpp | Add |29/29|
+| scripts/prepare_windows_vm_launch.ps1 | Add |90/90|
+| .github/workflows/windows-vm-session.yml | Modify |190/140|
+| docs/specs/windows-vm-session/requirements.md | Modify |130/90|
+| docs/specs/windows-vm-session/design.md | Modify |140/100|
+| docs/specs/windows-vm-session/tasks.md | Modify |170/110|
+| scripts/rc_pretag_windows_launch_profile.py | Add |350/350|
+| scripts/rc_pretag_windows_launch_cases.py | Add |450/450|
+| scripts/rc_pretag_windows_vm_profile.py | Modify |190/6|
+| scripts/rc_pretag_windows_vm_cases.py | Modify |390/50|
+| .github/workflows/issue88-publication-executor.yml | Modify |205/40|
+
+| Requirement | Design | Tasks | Status |
+|---|---|---|---|
+| FR-9 | Verified launch ownership |5.1–5.4|Spec|
+| FR-10 | Verified launch ownership |5.1–5.4|Spec|
+| FR-11 | Verified launch ownership |5.1–5.4|Spec|
+| FR-12 | Verified launch ownership |5.1–5.4|Spec|
+| FR-13 | Verified launch ownership |5.1,5.3,5.4|Spec|
+| FR-14 | Verified launch ownership |5.1,5.3–5.5|Spec|

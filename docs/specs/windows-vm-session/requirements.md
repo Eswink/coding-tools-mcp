@@ -2,7 +2,7 @@
 
 ## 功能概述
 
-Add a concrete Rust-owned session backed by the measured Go HCS path, using only synthetic CI inputs and quarantined outputs. Integration baseline: actual merged F `7eb98b76a15f91d2ad59ec8fbde4dd4fb17b1116`. The measured runtime donor baseline remains `8bdd5f327b4603c5570dc764e2d62fecbe6e02d2`; preserved donor source is `79ac13ca4f2236d0a81576200c47d8d240eb02a3`.
+Add a concrete Rust-owned session backed by the measured Go HCS path, using only synthetic CI inputs and quarantined outputs. Historical PR144 admission baseline: merged F `7eb98b76a15f91d2ad59ec8fbde4dd4fb17b1116`. Verified-launch runtime preparation uses PR144 merge `649dc0fcb0bd299ebf7910e567e09c32b7962a9b`; final admission awaits the actual post-source-budget merge. The measured runtime donor baseline remains `8bdd5f327b4603c5570dc764e2d62fecbe6e02d2`; preserved donor source is `79ac13ca4f2236d0a81576200c47d8d240eb02a3`.
 This is latent engineering code, not a Windows execution admission path. Production launch-image authority, workspace authority, network qualification, desktop qualification and packaging remain unresolved gates.
 
 ## 历史经验与坑（来自记忆库）
@@ -70,14 +70,14 @@ This is latent engineering code, not a Windows execution admission path. Product
 
 **优先级:** Must. **用户故事:** As a reviewer, I need native evidence for this source and its explicit limits.
 #### 验收标准（EARS）
-1. BEFORE import/boot SHALL run compiled inventory, 16 Rust and 12 Go pure tests, native broker/guest builds and Rust production-library checks.
+1. BEFORE import/boot SHALL run compiled inventory, 18 Rust and 12 Go pure tests, native broker/guest builds and Rust production-library checks.
 2. WHEN CI executes THEN run exactly two sequential owned VM cases: stock-runtime/quarantine success and cancellation with a live descendant; no new registry entries or existing-service probes.
 3. WHEN reporting THEN bind source/tree/parent, toolchains, runtime/image hashes, protocol/lifetime outcomes and cleanup; all production/network/workspace qualification flags remain false.
 
 ## 非功能需求
 
 - NFR-1: 64KiB/frame, 1MiB/protocol stream aggregate, nesting depth 8, 64KiB guest command output per stream; overflow is sticky failure.
-- NFR-2: Source files below 500 lines; 24-path/4,700-line cap in tasks. Native tests must be nonzero and match the compiled inventory.
+- NFR-2: Source files below 500 lines; current launch increment has18 paths/3,800 changed lines; historical PR144 scope remains recorded in tasks. Native tests must be nonzero and match the compiled inventory.
 - NFR-3: No Cargo/npm/Go dependency lock changes. No automatic feature/service/network remediation or hidden runtime substitution.
 
 ## 依赖关系
@@ -92,3 +92,18 @@ Rust 1.98.1 and existing desktop crates; Go 1.24.13; hcsshim `fb5aa2e9478c8f5dca
 3. IF topology differs THEN delegate; IF selected content, baseline, release overlay or cap fails THEN fail terminally without cache, dynamic whitelist or correction chain.
 4. WHEN verifying THEN preserve all original1541 IDs/assertions, strict303 and consumer452; add exactly12 admission cases and explicit publisher receipts. D1553=1184local+369hosted; I1214=398local+755hosted+61qualifiedD; J1214=1153local+61qualifiedD.
 5. WHEN executing native validation THEN rerun newD16Rust/12Go/two serial HCS cases, preserving old runtime bytes and all false authority flags; previous79ac proof is source-specific only.
+
+## Verified launch increment
+
+### FR-9: Admit the actual image before entry
+**优先级:** Must. WHEN CreateProcessW returns an owned child THEN compare its first CREATE_PROCESS hFile volume64/file-ID128/length/SHA256 against the retained manifest-checked image before the first Continue. Reject null/query/hash/identity failures; no Prepare bytes until checked first Continue. Hash at most64MiB, use explicit handles/cwd/environment and no shell.
+### FR-10: Preserve launch ownership uncertainty
+**优先级:** Must. WHEN creating THEN record call-entry before Windows; distinguish definite no-child from partial/in-flight/created failure. WHEN rejecting a child before Start THEN terminate only that retained process and require exit-event continuation, process signal, joined EOF and checked handles before known local retirement. WHEN Start may escape THEN never kill the broker as a VM-retirement substitute.
+### FR-11: Keep the owner responsive cooperatively
+**优先级:** Must. WHILE native effects exist THEN one owner pumps one debug event then at most8 queued messages, with a capacity-one writer and nonblocking owner enqueue. Record Start before writer access, retain terminal Cancel when full, and poll finished workers before actual joins. IF a deadline expires THEN publish sticky Uncertain/Active and continue ownership; after actual local accounting drop the running guard and publish RecoveryFenced. No hard syscall or host-shutdown deadline is claimed.
+### FR-12: Bind independent local evidence
+**优先级:** Must. WHEN normal completion is reported THEN require admitted image/first Continue, continued exit, independent successful process exit, writer/readers joined with genuine EOF, checked handle/pin retirement and unchanged Validator::finish HCS proof. Completion snapshots default to launch=None/Unobserved; real owners publish actual report and Active/Retired/RecoveryFenced without changing observer/session layout or snapshot signature.
+### FR-13: Preserve eight explicit Rust additions
+**优先级:** Must. BEFORE VM import THEN compile locked windows0.61.3 with exactly Debug/Pipes/SystemInformation additions and pass18 pure Rust/12 Go plus six real harmless launch cases. THEN run the same two serial HCS cases through this launcher:38 outcomes. Six cases cover match, wrong image, equal bytes/new ID, actual junction redirection, cancel before Continue, and raw109 wait-fault zero-output rejection after real retirement. Two pure cases cover launch-boundary ownership and blocked-writer responsiveness. No skip counts as pass.
+### FR-14: Preserve scope and qualification limits
+**优先级:** Must. WHEN integrating THEN preserve protocol.rs, old tests.rs, NativeGuard, Go, lockfiles, production/workspace boundaries and frozen pins. Reuse only exact29-line marker fixture hash4d08b93bc62b301b975c05ec54ce810db7fa4b70047f089c54a4a50153578d95. Seal the finite admission on actual post-source-budget F only. No security setup, named endpoints, DLL/ancestor/account authority, descendant-debugger containment or production qualification is granted.
