@@ -22,6 +22,7 @@ import rc_pretag_staging_budget_cases as staging_cases
 import rc_pretag_checksum_budget_cases as checksum_cases
 import rc_pretag_archive_budget_cases as archive_cases
 import rc_pretag_staged_bytes_profile as x
+from rc_pretag_supervisor_readiness_profile import normalize as readiness_bytes
 
 F_BINDING = ('f9d414b0c85348da79fee80c3b04bf5a06daf1d7', '57903a2751483c8b6e1aaa3879dce8173e77d647', ('e90e15fa8b6d527006b6c62a75eb2fcab6629f0f', '564a68d42463b3e3b526d875970dd631da2e3eec'))
 
@@ -55,7 +56,7 @@ class StagedBytesCompositionCases(unittest.TestCase):
         cls.fixture.__exit__(None, None, None)
     def setUp(self):
         self.original = c._entries(x.M, self.repo)
-        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in x.CAPS}
+        self.good = self.original | {path: ('100644', 'blob', self.blob(readiness_bytes(path, (c.ROOT / path).read_bytes()))) for path in x.CAPS}
         self.pure = self.commit([x.M], self.good)
         self.feature = self.commit([x.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -166,9 +167,9 @@ class StagedBytesCompositionCases(unittest.TestCase):
         self.assertEqual((len(self.original), len(self.good), len(x.CAPS), len(x.BASE_PINS)), (1783, 1790, 15, 8))
         self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
         self.assertEqual(x.CAPS[x.PROFILE], (350, 350))
-        self.assertEqual(self.good[x.PROFILE][2], c._blob((c.ROOT / x.PROFILE).read_bytes()))
+        self.assertEqual(self.good[x.PROFILE][2], c._blob(readiness_bytes(x.PROFILE, (c.ROOT / x.PROFILE).read_bytes())))
         for path, row in x.SOURCE_PINS.items():
-            data = (c.ROOT / path).read_bytes()
+            data = readiness_bytes(path, (c.ROOT / path).read_bytes())
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())))
             for index, value in enumerate(('100755', '0' * 40, '0' * 64, row[3] + 1, row[4] + 1)):
                 changed = list(row)
@@ -189,7 +190,7 @@ class StagedBytesCompositionCases(unittest.TestCase):
         self.bad_content(self.changed('services/cloud-agent/src/main.rs', b'changed\n'))
     def test_individual_and_total_budgets_fail_closed(self):
         self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (1800, 1753))
-        data = {path: (c.ROOT / path).read_bytes() for path in x.CAPS}
+        data = {path: readiness_bytes(path, (c.ROOT / path).read_bytes()) for path in x.CAPS}
         def budgets(git=c._git):
             return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'staged_bytes_delta_budget')
         budgets()
@@ -209,11 +210,11 @@ class StagedBytesCompositionCases(unittest.TestCase):
         self.assertEqual(x.FRAGMENTS.keys(), x.BASE_PINS.keys())
         self.assertEqual(len(x.FRAGMENTS), 8)
         for path in x.BASE_PINS:
-            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
+            current, frozen = readiness_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
             with patch('builtins.open', side_effect=AssertionError('IO forbidden')), patch('io.open', side_effect=AssertionError('IO forbidden')), patch('subprocess.check_output', side_effect=AssertionError('git forbidden')), patch('subprocess.Popen', side_effect=AssertionError('process forbidden')), patch('tempfile.TemporaryDirectory', side_effect=AssertionError('extraction forbidden')):
                 self.assertEqual(x.normalize(path, current), frozen, path)
                 self.assertEqual(x.normalize(path, frozen), frozen, path)
-        current = (c.ROOT / x.DISPATCHER).read_bytes()
+        current = readiness_bytes(x.DISPATCHER, (c.ROOT / x.DISPATCHER).read_bytes())
         self.assertEqual((current.count(x.DISPATCH), current.count(x.NORMALIZE)), (1, 1))
         self.assertEqual(current.replace(x.DISPATCH, b'', 1).replace(x.NORMALIZE, b'', 1), self.frozen(x.DISPATCHER))
         self.assertEqual(c._git('diff', '--numstat', x.M, self.pure, '--', x.DISPATCHER, root=self.repo),
@@ -233,7 +234,7 @@ class StagedBytesCompositionCases(unittest.TestCase):
                     self.assertEqual(x.normalize(path, prior), prior)
     def test_missing_duplicate_outside_and_binary_inverse_edits_reject(self):
         for path, fragments in x.FRAGMENTS.items():
-            current = (c.ROOT / path).read_bytes()
+            current = readiness_bytes(path, (c.ROOT / path).read_bytes())
             altered = [current + b'# outside\n', b'\xff']
             for before, _ in fragments:
                 self.assertEqual(current.count(before), 1)
@@ -253,7 +254,7 @@ class StagedBytesCompositionCases(unittest.TestCase):
                     if bad == prior: continue
                     with self.assertRaises(AssertionError): x.normalize(path, bad)
         path = 'scripts/rc_pretag_checksum_budget_cases.py'
-        current = (c.ROOT / path).read_bytes()
+        current = readiness_bytes(path, (c.ROOT / path).read_bytes())
         bad = current.replace(b'self.assertEqual(', b'self.assertNotEqual(', 1)
         self.assertNotEqual(bad, current)
         with patch.dict(x.SOURCE_PINS, {path: ('100644', *o.pin(bad), len(bad), len(bad.splitlines()))}), self.assertRaises(AssertionError):
@@ -262,7 +263,7 @@ class StagedBytesCompositionCases(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 x.normalize(path, current)
         path = 'scripts/rc_pretag_checksum_budget_cases.py'
-        current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
+        current, frozen = readiness_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
         self.assertEqual(x.normalize(path, current), frozen)
         row = ('100644', *o.pin(frozen), len(frozen), len(frozen.splitlines()))
         self.assertEqual(self.original[path], (row[0], 'blob', row[1]))
@@ -314,7 +315,7 @@ class StagedBytesCompositionCases(unittest.TestCase):
             fresh.assert_called_once()
         with patch.object(x, 'M_TREE', '0' * 40), patch.object(self, '_select', side_effect=AssertionError('fresh required')), self.assertRaisesRegex(AssertionError, 'fresh required'):
             self.verified_baseline(x.M, *self.args)
-        runtime = ast.parse((c.ROOT / x.PROFILE).read_text())
+        runtime = ast.parse(readiness_bytes(x.PROFILE, (c.ROOT / x.PROFILE).read_bytes()).decode())
         self.assertFalse(any('cache' in (getattr(node, 'id', getattr(node, 'attr', getattr(node, 'name', ''))) or '') for node in ast.walk(runtime)))
     def test_original1403_strict303_consumer452_ids_and_bodies_are_preserved(self):
         original = [item for group in lc.GROUPS for item in lc.inventory(group)] + lc.ids(y.CLASS) + old_cases.inventory() + previous_cases.inventory() + final_cases.inventory() + download_cases.inventory() + staging_cases.inventory() + checksum_cases.inventory() + archive_cases.inventory()
@@ -370,7 +371,7 @@ class StagedBytesCompositionCases(unittest.TestCase):
         changed = set()
         for module in {item.split('.', 1)[0] for item in original}:
             path = 'scripts/' + module + '.py'
-            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
+            current, frozen = readiness_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
             self.assertEqual(x.normalize(path, current), frozen, path)
             before, after = methods(frozen), methods(current)
             self.assertEqual(before.keys(), after.keys(), path)
@@ -387,7 +388,7 @@ class StagedBytesCompositionCases(unittest.TestCase):
         self.assertEqual(changed, {(module, name) for module, names in allowed.items() for name in names})
         self.assertFalse(set(original) & set(inventory()))
     def test_readonly_workflow_and_held_sources_remain_bounded(self):
-        text = (c.ROOT / x.WORKFLOW).read_text()
+        text = readiness_bytes(x.WORKFLOW, (c.ROOT / x.WORKFLOW).read_bytes()).decode()
         for fragment in ("on:\n  push:\n    branches: ['ci/issue88-publisher-executor-*']", 'permissions:\n  contents: read',
                 "os: [ubuntu-22.04, ubuntu-24.04]", "python-version: '3.12'", 'fetch-depth: 0, persist-credentials: false',
                 "sha == os.environ['GITHUB_SHA']", 'parents == [profile.M]', 'before = checked()', 'checked() == before',
@@ -419,7 +420,7 @@ class StagedBytesCompositionCases(unittest.TestCase):
                 'scripts/rc_consumer_transport.py', 'scripts/rc_consumer_transport_worker.py',
                 'scripts/rc_consumer_proof_fixtures.py', 'scripts/rc_consumer_default_worker_proof.py', 'scripts/rc_consumer_default_worker_proof_tests.py',
                 'scripts/rc_consumer_c_93c2ad95_io.txt', 'src-tauri/src/workspace_snapshots/filesystem.rs'):
-            self.assertEqual(x.normalize(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
+            self.assertEqual(x.normalize(path, readiness_bytes(path, (c.ROOT / path).read_bytes())), self.frozen(path), path)
         self.assertTrue(all(self.good[path] == value for path, value in self.original.items() if path not in x.CAPS))
     def test_new30_inventory_and_exceptional_outcomes_reject(self):
         loaded = inventory()

@@ -134,6 +134,8 @@ DIGEST = 'd574f4b98732882ad85e3e69a7e1b53ab65b8a3d6ea53e38170aa77a3d5a9825'
 def normalize(path, current):
     """Reverse only sealed new bytes; historical passthrough is a finite pin list."""
     assert type(path) is str and type(current) is bytes, 'staged_bytes inverse input'
+    from rc_pretag_supervisor_readiness_profile import normalize as readiness_bytes
+    current = readiness_bytes(path, current)
     if path not in BASE_PINS:
         return current
     identity = o.pin(current)
@@ -206,6 +208,10 @@ def content(ref, root, git, entries, historical, release, release_tree, document
 def select(ref, root, git, entries, historical, release, release_tree, documents):
     """Only topology mismatch delegates; selected and historical content errors escape."""
     ref = o._commit(ref, root, git)
+    import rc_pretag_supervisor_readiness_profile as readiness
+    selected = readiness.select(ref, root, git, entries, historical, release, release_tree, documents)
+    if selected is not None:
+        return selected
     try:
         kind, tip, source = topology(ref, root, git, release)
     except o.TopologyError:

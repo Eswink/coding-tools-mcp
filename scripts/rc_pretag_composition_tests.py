@@ -244,7 +244,7 @@ class CompositionTests(unittest.TestCase):
         self.assertEqual(len(methods), 12)
         digest = hashlib.sha256('\n'.join(ast.dump(node, include_attributes=False) for node in methods).encode()).hexdigest()
         self.assertEqual(digest, '9a204c5631142c9b2298b3eeaabdeba1e9148b19398984e736c96305a4e744e2')
-        self.assertEqual(_blob((ROOT / 'scripts/rc_consumer_transport_supervisor_tests.py').read_bytes()),
+        self.assertEqual(_blob(integration_bytes('scripts/rc_consumer_transport_supervisor_tests.py', (ROOT / 'scripts/rc_consumer_transport_supervisor_tests.py').read_bytes())),
                          'e45608f7ae523c25ea5d12cd4d24cbd56a3f1c12')
 
     def test_finite_review_budgets(self):
