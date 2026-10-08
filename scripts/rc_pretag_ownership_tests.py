@@ -68,7 +68,7 @@ class OwnershipCompositionTests(unittest.TestCase):
 
     def test_ownership_io_drift_and_reverted_handoff_reject(self):
         old = c._git('show', o.M + ':' + o.IO, root=self.repo)
-        current = (c.ROOT / o.IO).read_bytes()
+        current = integration_bytes(o.IO, (c.ROOT / o.IO).read_bytes())
         mutations = [old, current + b'\n', current.replace(b'CHUNK = 64', b'CHUNK = 63')]
         for name in ('_directory', '_parent', '__init__'):
             def method(data):

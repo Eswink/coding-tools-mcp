@@ -1,4 +1,4 @@
-"""Exact staging-budget composition; historical proof evidence grants no release authority."""
+"""Exact checksum-budget composition; historical proof evidence grants no release authority."""
 import ast
 from collections import Counter
 import copy
@@ -13,13 +13,13 @@ import rc_pretag_publication_profile as p
 import rc_pretag_publication_tests as pt
 import rc_pretag_linux_package_cases as lc
 import rc_pretag_yoke_repair_profile as y
-import rc_pretag_download_budget_profile as previous
+import rc_pretag_staging_budget_profile as previous
 import rc_pretag_publisher_executor_cases as old_cases
 import rc_pretag_integration_admission_cases as previous_cases
 import rc_pretag_final_admission_cases as final_cases
 import rc_pretag_download_budget_cases as download_cases
-import rc_pretag_staging_budget_profile as x
-from rc_pretag_checksum_budget_profile import normalize as checksum_bytes
+import rc_pretag_staging_budget_cases as staging_cases
+import rc_pretag_checksum_budget_profile as x
 
 def inventory():
     expected = [cls + '.' + name for cls, names in x.NEW_CASES.items() for name in names]
@@ -38,7 +38,7 @@ def execution_valid(loaded, result):
             and not result.unexpectedSuccesses and Counter(executed) == Counter(loaded)
             and result.testsRun == len(set(executed)) == 24)
 
-class StagingBudgetCompositionCases(unittest.TestCase):
+class ChecksumBudgetCompositionCases(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.fixture = c._profile_fixture()
@@ -51,7 +51,7 @@ class StagingBudgetCompositionCases(unittest.TestCase):
         cls.fixture.__exit__(None, None, None)
     def setUp(self):
         self.original = c._entries(x.M, self.repo)
-        self.good = self.original | {path: ('100644', 'blob', self.blob(checksum_bytes(path, (c.ROOT / path).read_bytes()))) for path in x.CAPS}
+        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in x.CAPS}
         self.pure = self.commit([x.M], self.good)
         self.feature = self.commit([x.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -60,8 +60,8 @@ class StagingBudgetCompositionCases(unittest.TestCase):
     def verified_baseline(self, ref, *args, **kwargs):
         callbacks = all(actual is expected for actual, expected in zip(args[1:4], self.args[1:4]))
         immutable = (x.M, x.M_TREE, x.M_PARENTS) == (
-            '981d7b23af1c5c8174352c4564aa65b1557cc546', 'c3d7780ce761dac4da71d97a010381ec5074f69f',
-            ('7de3244adc367fa60463d1e3b64c92f211d2fda8', 'd52937c98d441f3ee49eb9decd9101cade654748'))
+            '39a9ae7e2761f419db5cace712368e5671042b5e', 'ecf7792ca9911d969ac223227c819fbb8ef70fe7',
+            ('981d7b23af1c5c8174352c4564aa65b1557cc546', '9d9f5d9ee1bad13b825fd8ac1f114a578122af2a'))
         if ref != x.M or not immutable or kwargs or not callbacks or args != self.args:
             return self._select(ref, *args, **kwargs)
         key = (ref, *args[:6], tuple(sorted(args[6].items())))
@@ -86,8 +86,8 @@ class StagingBudgetCompositionCases(unittest.TestCase):
         with self.assertRaises(AssertionError): self.selected(ref)
     def test_exact_m_identity_and_fresh_historical_validation(self):
         self.assertEqual((x.M, x.M_TREE, x.M_PARENTS), (
-            '981d7b23af1c5c8174352c4564aa65b1557cc546', 'c3d7780ce761dac4da71d97a010381ec5074f69f',
-            ('7de3244adc367fa60463d1e3b64c92f211d2fda8', 'd52937c98d441f3ee49eb9decd9101cade654748')))
+            '39a9ae7e2761f419db5cace712368e5671042b5e', 'ecf7792ca9911d969ac223227c819fbb8ef70fe7',
+            ('981d7b23af1c5c8174352c4564aa65b1557cc546', '9d9f5d9ee1bad13b825fd8ac1f114a578122af2a')))
         self.assertEqual(self.selected(x.M, fresh=True), self.original)
         self.assertIsNone(x.select(x.M, *self.args))
         with patch.object(previous, 'content', wraps=previous.content) as historical:
@@ -144,12 +144,12 @@ class StagingBudgetCompositionCases(unittest.TestCase):
         self.assertEqual(sum(any('moving' in arg for arg in args) for args in calls), 1)
     def test_all_thirteen_paths_modes_pins_and_entry_counts_are_exact(self):
         self.assertEqual(self.content(), self.good)
-        self.assertEqual((len(self.original), len(self.good), len(x.CAPS), len(x.BASE_PINS)), (1764, 1770, 13, 7))
+        self.assertEqual((len(self.original), len(self.good), len(x.CAPS), len(x.BASE_PINS)), (1770, 1776, 13, 7))
         self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
         self.assertEqual(x.CAPS[x.PROFILE], (400, 400))
-        self.assertEqual(self.good[x.PROFILE][2], c._blob(checksum_bytes(x.PROFILE, (c.ROOT / x.PROFILE).read_bytes())))
+        self.assertEqual(self.good[x.PROFILE][2], c._blob((c.ROOT / x.PROFILE).read_bytes()))
         for path, row in x.SOURCE_PINS.items():
-            data = checksum_bytes(path, (c.ROOT / path).read_bytes())
+            data = (c.ROOT / path).read_bytes()
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())))
             for index, value in enumerate(('100755', '0' * 40, '0' * 64, row[3] + 1, row[4] + 1)):
                 changed = list(row)
@@ -169,10 +169,10 @@ class StagingBudgetCompositionCases(unittest.TestCase):
         self.bad_content(self.changed('unreviewed-extra.py', b'extra\n'))
         self.bad_content(self.changed('services/cloud-agent/src/main.rs', b'changed\n'))
     def test_individual_and_total_budgets_fail_closed(self):
-        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (1800, 1734))
-        data = {path: checksum_bytes(path, (c.ROOT / path).read_bytes()) for path in x.CAPS}
+        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (1800, 1701))
+        data = {path: (c.ROOT / path).read_bytes() for path in x.CAPS}
         def budgets(git=c._git):
-            return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'staging_delta_budget')
+            return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'checksum_delta_budget')
         budgets()
         for path, (_, delta) in x.CAPS.items():
             with patch.dict(x.CAPS, {path: (len(data[path].splitlines()) - 1, delta)}), self.assertRaises(AssertionError):
@@ -183,7 +183,7 @@ class StagingBudgetCompositionCases(unittest.TestCase):
                     return row if args == ('diff', '--numstat', x.M, self.pure, '--', path) else c._git(*args, root=root)
                 with self.assertRaises(AssertionError):
                     budgets(malformed)
-        with patch.object(x, 'DELTA_LIMIT', 0), self.assertRaisesRegex(AssertionError, 'staging_delta_budget'):
+        with patch.object(x, 'DELTA_LIMIT', 0), self.assertRaisesRegex(AssertionError, 'checksum_delta_budget'):
             budgets()
     def test_exact_dispatch_and_seven_inverses_recover_complete_m_bytes(self):
         self.assertEqual((len(x.DISPATCH.splitlines()), len(x.NORMALIZE.splitlines())), (4, 2))
@@ -200,9 +200,9 @@ class StagingBudgetCompositionCases(unittest.TestCase):
         self.assertEqual(c._git('diff', '--numstat', x.M, self.pure, '--', x.DISPATCHER, root=self.repo),
                          f'6\t0\t{x.DISPATCHER}\n'.encode())
         self.assertEqual(x.normalize('unmapped', b'unchanged'), b'unchanged')
-        self.assertEqual((len(x.PRIOR_PINS), sum(map(len, x.PRIOR_PINS.values()))), (3, 12))
+        self.assertEqual((len(x.PRIOR_PINS), sum(map(len, x.PRIOR_PINS.values()))), (3, 6))
         self.assertEqual({path: len(pins) for path, pins in x.PRIOR_PINS.items()}, {
-            'scripts/rc_pretag_composition_tests.py': 8, 'scripts/rc_publication_executor.py': 1, x.WORKFLOW: 3})
+            'scripts/rc_artifact_consumer.py': 1, 'scripts/rc_pretag_ownership_tests.py': 1, x.WORKFLOW: 4})
         for path, pins in x.PRIOR_PINS.items():
             self.assertEqual(len(pins), len(set(pins)))
             self.assertNotIn(x.BASE_PINS[path][1:3], pins)
@@ -213,7 +213,7 @@ class StagingBudgetCompositionCases(unittest.TestCase):
                     self.assertEqual(x.normalize(path, prior), prior)
     def test_missing_duplicate_outside_and_binary_inverse_edits_reject(self):
         for path, fragments in x.FRAGMENTS.items():
-            current = checksum_bytes(path, (c.ROOT / path).read_bytes())
+            current = (c.ROOT / path).read_bytes()
             altered = [current + b'# outside\n', b'\xff']
             for before, _ in fragments:
                 self.assertEqual(current.count(before), 1)
@@ -232,7 +232,7 @@ class StagingBudgetCompositionCases(unittest.TestCase):
                 for bad in (prior + b'# outside\n', b'\xff' + prior, weakened):
                     if bad == prior: continue
                     with self.assertRaises(AssertionError): x.normalize(path, bad)
-        path = 'scripts/rc_pretag_download_budget_cases.py'
+        path = 'scripts/rc_pretag_staging_budget_cases.py'
         current = (c.ROOT / path).read_bytes()
         bad = current.replace(b'self.assertEqual(', b'self.assertNotEqual(', 1)
         self.assertNotEqual(bad, current)
@@ -275,13 +275,13 @@ class StagingBudgetCompositionCases(unittest.TestCase):
             self.verified_baseline(x.M, *self.args)
         runtime = ast.parse((c.ROOT / x.PROFILE).read_text())
         self.assertFalse(any('cache' in (getattr(node, 'id', getattr(node, 'attr', getattr(node, 'name', ''))) or '') for node in ast.walk(runtime)))
-    def test_original1328_strict303_consumer452_ids_and_bodies_are_preserved(self):
-        original = [item for group in lc.GROUPS for item in lc.inventory(group)] + lc.ids(y.CLASS) + old_cases.inventory() + previous_cases.inventory() + final_cases.inventory() + download_cases.inventory()
-        pt.inventory_ids(original, 1328, '8bc7a8cf4180f8bc4463af2491a6993a883067641b6173382e186cf7c80ce862')
-        pt.inventory_ids(original + inventory(), 1352, 'ea0dc69cba21c7fc078299270b5944372520607cc2b4401b7c3a231dfb17c03d')
-        workflow = old_cases.inventory() + previous_cases.inventory() + final_cases.inventory() + download_cases.inventory()
-        pt.inventory_ids(workflow, 144, '90731b8f23afb0a4d31ff3b280e1b5bdc873b61edc0a2c813817b74116ada8c3')
-        pt.inventory_ids(workflow + inventory(), 168, 'dd810f84cb50ddd5c5dfdc29b1beafdf481a37ce41b7f49cdf96ce7cba027886')
+    def test_original1352_strict303_consumer452_ids_and_bodies_are_preserved(self):
+        original = [item for group in lc.GROUPS for item in lc.inventory(group)] + lc.ids(y.CLASS) + old_cases.inventory() + previous_cases.inventory() + final_cases.inventory() + download_cases.inventory() + staging_cases.inventory()
+        pt.inventory_ids(original, 1352, 'ea0dc69cba21c7fc078299270b5944372520607cc2b4401b7c3a231dfb17c03d')
+        pt.inventory_ids(original + inventory(), 1376, '14d9d6021486b61868cd7e7919ba348fe38bf95e0808d5b8315c054eb79e50e2')
+        workflow = old_cases.inventory() + previous_cases.inventory() + final_cases.inventory() + download_cases.inventory() + staging_cases.inventory()
+        pt.inventory_ids(workflow, 168, 'dd810f84cb50ddd5c5dfdc29b1beafdf481a37ce41b7f49cdf96ce7cba027886')
+        pt.inventory_ids(workflow + inventory(), 192, 'fe55a76097c93577d8d83076f219099f7ab14095eec7e2ca4b79fce35791996d')
         method = next(node for node in ast.walk(ast.parse(self.frozen(p.TESTS))) if isinstance(node, ast.FunctionDef)
                       and node.name == 'test_protected_source_versions_gates_workflows_and_old_452_are_unchanged')
         modules = ast.literal_eval(method.body[0].value.func.value).split()
@@ -290,22 +290,15 @@ class StagingBudgetCompositionCases(unittest.TestCase):
             consumer = [item for module in modules for item in lc.ids(module) if item.split('.', 1)[0] == module]
         pt.inventory_ids(strict, 303, '0ecc366c2018a6a1e20d3f59ed9ca66645d9334324cd517682894cabde923125')
         pt.inventory_ids(consumer, 452, 'd01db4e6cd605c6636423e27c8c0409e90aba217cc0e6930474f59a24b57f372')
-        allowed = {'rc_pretag_composition_tests': {'test_consumer_inverse_reconstructs_pinned_j',
-                'test_extraction_mutations_do_not_reconstruct_j'},
-            'rc_pretag_download_budget_cases': {'setUp', 'test_all_paths_modes_pins_and_entry_counts_are_exact',
-                'test_individual_and_total_budgets_fail_closed', 'test_exact_dispatch_and_seven_inverses_recover_complete_f_bytes',
-                'test_missing_duplicate_outside_and_binary_inverse_edits_reject', 'test_actual_candidate_validation_is_never_cached',
-                'test_original1304_strict303_consumer452_ids_and_bodies_are_preserved',
-                'test_historical_consumer_envelope_and_readonly_workflow_remain_bounded'}}
+        allowed = {'rc_pretag_ownership_tests': {'test_ownership_io_drift_and_reverted_handoff_reject'},
+            'rc_pretag_staging_budget_cases': {'setUp', 'test_all_thirteen_paths_modes_pins_and_entry_counts_are_exact',
+                'test_individual_and_total_budgets_fail_closed', 'test_missing_duplicate_outside_and_binary_inverse_edits_reject',
+                'test_original1328_strict303_consumer452_ids_and_bodies_are_preserved',
+                'test_readonly_workflow_and_held_sources_remain_bounded'}}
         class SourceOperands(ast.NodeTransformer):
             def visit_Call(self, node):
-                if isinstance(node.func, ast.Attribute) and node.func.attr == 'decode' and isinstance(node.func.value, ast.Call):
-                    inner = node.func.value
-                    if isinstance(inner.func, ast.Name) and inner.func.id == 'staging_bytes':
-                        result = copy.deepcopy(inner.args[1]); result.func.attr = 'read_text'
-                        return result
                 node = self.generic_visit(node)
-                return node.args[1] if isinstance(node.func, ast.Name) and node.func.id in ('staging_bytes', 'integration_bytes') else node
+                return node.args[1] if isinstance(node.func, ast.Name) and node.func.id in ('checksum_bytes', 'integration_bytes') else node
         def methods(data):
             found = {}
             def collect(node, scope=()):
@@ -318,7 +311,7 @@ class StagingBudgetCompositionCases(unittest.TestCase):
         changed = set()
         for module in {item.split('.', 1)[0] for item in original}:
             path = 'scripts/' + module + '.py'
-            current, frozen = checksum_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
+            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
             self.assertEqual(x.normalize(path, current), frozen, path)
             before, after = methods(frozen), methods(current)
             self.assertEqual(before.keys(), after.keys(), path)
@@ -338,7 +331,9 @@ class StagingBudgetCompositionCases(unittest.TestCase):
                 'x.inventory()', 'x.execution_valid(loaded, result)', 'admission.inventory()', 'admission.execution_valid(loaded, result)',
                 'final_admission.inventory()', 'final_admission.execution_valid(loaded, result)',
                 'download_budget.inventory()', 'download_budget.execution_valid(loaded, result)',
-                'staging_budget.inventory()', 'staging_budget.execution_valid(loaded, result)', 'timeout-minutes: 30',
+                'staging_budget.inventory()', 'staging_budget.execution_valid(loaded, result)',
+                'checksum_budget.inventory()', 'checksum_budget.execution_valid(loaded, result)', 'timeout-minutes: 30',
+                'checksum-budget-inventory.json', 'checksum-budget-cases.log',
                 'staging-budget-inventory.json', 'staging-budget-cases.log', "'production_ready': False",
                 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262',
                 'actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065',
@@ -353,10 +348,11 @@ class StagingBudgetCompositionCases(unittest.TestCase):
         self.assertFalse(held & self.good.keys())
         self.assertTrue(all(not (c.ROOT / path).exists() and not (c.ROOT / path).is_symlink() for path in held))
         for path in ('scripts/rc_release_eligibility.py', 'scripts/rc_publication_contract.py', 'scripts/rc_publication_admission.py',
-                'scripts/rc_consumer_io.py', 'scripts/rc_consumer_transport.py', 'scripts/rc_consumer_transport_worker.py',
+                'scripts/rc_publication_executor.py', 'scripts/rc_publication_stage.py',
+                'scripts/rc_consumer_transport.py', 'scripts/rc_consumer_transport_worker.py',
                 'scripts/rc_consumer_proof_fixtures.py', 'scripts/rc_consumer_default_worker_proof.py', 'scripts/rc_consumer_default_worker_proof_tests.py',
                 'scripts/rc_consumer_c_93c2ad95_io.txt', 'src-tauri/src/workspace_snapshots/filesystem.rs'):
-            self.assertEqual(checksum_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
+            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path), path)
         self.assertTrue(all(self.good[path] == value for path, value in self.original.items() if path not in x.CAPS))
     def test_new24_inventory_and_exceptional_outcomes_reject(self):
         loaded = inventory()
