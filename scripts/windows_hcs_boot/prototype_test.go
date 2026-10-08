@@ -7,9 +7,12 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"unicode/utf16"
 )
@@ -129,5 +132,40 @@ func TestHashAndSizeRejectWrongInputs(t *testing.T) {
 	}
 	if verifyFile(p, h, 4) == nil || verifyFile(p, strings.Repeat("0", 64), 3) == nil {
 		t.Fatal("mismatch accepted")
+	}
+}
+
+func TestCopyCannotBypassOutputCap(t *testing.T) {
+	data := bytes.Repeat([]byte("x"), outputLimit+99)
+	for _, src := range []io.Reader{bytes.NewReader(data), struct{ io.Reader }{bytes.NewReader(data)}} {
+		var b boundedOutput
+		n, e := io.Copy(&b, src)
+		if e != nil || n != int64(len(data)) || b.Len() != outputLimit || !b.overflow {
+			t.Fatal("io.Copy bypassed output cap")
+		}
+	}
+}
+
+func TestCmdFixtureOriginalAndCorrected(t *testing.T) {
+	original := `C:\Windows\System32\cmd.exe /d /s /c "echo CTM_CMD>roundtrip-cmd.txt && findstr /x CTM_CMD roundtrip-cmd.txt && echo CTM_CMD_ENTRY && exit /b 23"`
+	for i, command := range []string{original, runtimeCommands()[0].command} {
+		c := exec.Command(`C:\Windows\System32\cmd.exe`)
+		c.Dir = t.TempDir()
+		c.SysProcAttr = &syscall.SysProcAttr{CmdLine: command}
+		output, e := c.CombinedOutput()
+		ee, ok := e.(*exec.ExitError)
+		wantExit := 1
+		wantFile := "CTM_CMD \r\n"
+		if i == 1 {
+			wantExit = 23
+			wantFile = "CTM_CMD\r\n"
+		}
+		b, readErr := os.ReadFile(filepath.Join(c.Dir, "roundtrip-cmd.txt"))
+		if !ok || ee.ExitCode() != wantExit || readErr != nil || string(b) != wantFile {
+			t.Fatalf("case%d: exit=%v data=%q read=%v output=%q", i, e, b, readErr, output)
+		}
+		if i == 1 && !strings.Contains(string(output), "CTM_CMD_ENTRY") {
+			t.Fatal("corrected entry missing")
+		}
 	}
 }

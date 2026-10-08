@@ -29,7 +29,7 @@ jobs:
           $tree = (git rev-parse 'HEAD^{tree}').Trim()
           if ($LASTEXITCODE -ne 0) { throw 'tree query failed' }
           $parent = (git show -s --format=%P HEAD).Trim()
-          if ($LASTEXITCODE -ne 0 -or $parent -cne 'f47d1297ee5a0e4a014129c505c05f2ca247b759') { throw 'base mismatch' }
+          if ($LASTEXITCODE -ne 0 -or $parent -cne 'f43ee3b7a1277e9643e8e40b6911ecdc4abcf85f') { throw 'base mismatch' }
           $os = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name CurrentBuildNumber,UBR
           @{sha=$sha; tree=$tree; parent=$parent; run=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT;
             image_os=$env:ImageOS; image_version=$env:ImageVersion; build=$os.CurrentBuildNumber; ubr=$os.UBR;
@@ -41,7 +41,7 @@ jobs:
       - name: Read prerequisites without remediation
         shell: pwsh
         run: ./scripts/windows_hcs_capability_probe.ps1 -OutputPath "$env:CTM_BOOT_EVIDENCE/prerequisites.json"
-      - name: Build vendored driver and run pure native tests
+      - name: Build vendored driver and run native preboot tests
         shell: pwsh
         run: ./scripts/windows_hcs_boot/prepare.ps1 -Phase build
       - name: Acquire immutable Microsoft layers and process-scoped import

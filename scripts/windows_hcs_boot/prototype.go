@@ -165,9 +165,12 @@ func encodedCommand(script string) string {
 }
 
 type boundedOutput struct {
-	bytes.Buffer
+	buffer   bytes.Buffer // Named field prevents promoted ReadFrom from bypassing Write.
 	overflow bool
 }
+
+func (b *boundedOutput) Len() int       { return b.buffer.Len() }
+func (b *boundedOutput) String() string { return b.buffer.String() }
 
 func (b *boundedOutput) Write(p []byte) (int, error) {
 	n := len(p)
@@ -176,7 +179,7 @@ func (b *boundedOutput) Write(p []byte) (int, error) {
 		b.overflow = true
 		p = p[:room]
 	}
-	b.Buffer.Write(p)
+	b.buffer.Write(p)
 	return n, nil
 }
 func runGuest(ctx context.Context, host cow.ProcessHost, name, command, cwd, marker string, input io.Reader) (result caseResult, err error) {
@@ -231,7 +234,7 @@ func runtimeCommands() []struct{ name, command, marker string } {
 	ps := `$ErrorActionPreference='Stop';[IO.File]::WriteAllText('roundtrip-ps.txt','CTM_PS');if([IO.File]::ReadAllText('roundtrip-ps.txt') -cne 'CTM_PS'){exit 91};[Console]::WriteLine('CTM_PS_ENTRY '+$PSVersionTable.PSVersion);exit 23`
 	pw := `$ErrorActionPreference='Stop';[IO.File]::WriteAllText('roundtrip-pwsh.txt','CTM_PWSH');if([IO.File]::ReadAllText('roundtrip-pwsh.txt') -cne 'CTM_PWSH'){exit 91};[Console]::WriteLine('CTM_PWSH_ENTRY '+$PSVersionTable.PSVersion);exit 23`
 	return []struct{ name, command, marker string }{
-		{"cmd", `C:\Windows\System32\cmd.exe /d /s /c "echo CTM_CMD>roundtrip-cmd.txt && findstr /x CTM_CMD roundtrip-cmd.txt && echo CTM_CMD_ENTRY && exit /b 23"`, "CTM_CMD_ENTRY"},
+		{"cmd", `C:\Windows\System32\cmd.exe /d /s /c ">roundtrip-cmd.txt echo CTM_CMD&& C:\Windows\System32\findstr.exe /x CTM_CMD roundtrip-cmd.txt&& echo CTM_CMD_ENTRY&& exit /b 23"`, "CTM_CMD_ENTRY"},
 		{"windows-powershell", encodedCommand(ps), "CTM_PS_ENTRY"},
 		{"node", `"` + workspace + `\node.exe" -e "const f=require('fs');f.writeFileSync('roundtrip-node.txt','CTM_NODE');if(f.readFileSync('roundtrip-node.txt','utf8')!=='CTM_NODE')process.exit(91);console.log('CTM_NODE_ENTRY '+process.version);process.exit(23)"`, "CTM_NODE_ENTRY"},
 		{"pwsh", strings.Replace(encodedCommand(pw), powershell, workspace+`\pwsh\pwsh.exe`, 1), "CTM_PWSH_ENTRY"},
@@ -316,7 +319,7 @@ func runPrototype(root string, r *report) (err error) {
 		return err
 	}
 	defer bundle.Close()
-	bootstrap := `$ErrorActionPreference='Stop';$w='` + workspace + `';[IO.Directory]::CreateDirectory($w)|Out-Null;$f=[IO.File]::Create($w+'\runtime.zip');try{[Console]::OpenStandardInput().CopyTo($f)}finally{$f.Dispose()};Expand-Archive -LiteralPath ($w+'\runtime.zip') -DestinationPath $w;[Console]::WriteLine('CTM_BOOTSTRAP_ENTRY');exit 23`
+	bootstrap := `$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';$w='` + workspace + `';[IO.Directory]::CreateDirectory($w)|Out-Null;$f=[IO.File]::Create($w+'\runtime.zip');try{[Console]::OpenStandardInput().CopyTo($f)}finally{$f.Dispose()};Expand-Archive -LiteralPath ($w+'\runtime.zip') -DestinationPath $w;[Console]::WriteLine('CTM_BOOTSTRAP_ENTRY');exit 23`
 	run := func(name, command, cwd, marker string, input io.Reader) error {
 		c, stop := context.WithTimeout(ctx, 60*time.Second)
 		defer stop()

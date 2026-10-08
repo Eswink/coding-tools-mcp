@@ -28,7 +28,7 @@ Host inventory is limited to known runner/runtime/prerequisite fields. No enviro
 ## API 设计
 Host command modes are exactly import and run; parameters are private root plus fixed runtime bundle, never shell/URL inputs.
 runGuest accepts only driver-internal commands and bounded stdin/output; deadlines and I/O joins are mandatory.
-buildOptions and completion predicates are pure-testable; no native work occurs from tests.
+buildOptions and completion predicates are pure-testable; a fixed host cmd fixture uses only its fresh test directory, without import/VM/network changes.
 ## 文件结构
 .github/workflows/windows-hcs-boot-prototype.yml (100); scripts/windows_hcs_boot/prepare.ps1 (180).
 scripts/windows_hcs_boot/prototype.go (420), prototype_test.go (180), fixture.go (100).
@@ -38,7 +38,7 @@ Use Microsoft's pinned production APIs directly, not Docker defaults or the upst
 Offline vendored build avoids a new dependency lock or mutable package download during privileged execution.
 Keep lifecycle cleanup errors visible and data retained; shared Job accounting is not a completion authority.
 ## 测试策略
-Pure native tests precede any image download/import/boot; verify fixed options, nil network/mounts, command allowlist, output cap and sticky completion failures.
+Native preboot tests precede image download/import/boot; verify fixed options, nil network/mounts, command allowlist, io.Copy output cap, sticky failures and original/corrected cmd bytes.
 Local static workflow/source review is separate from Windows compilation/tests; never label unrun native tests passed.
 Actual CI checks four stock runtime markers/file roundtrips/exit23, live descendant, and retained whole-UVM termination.
 Verify source unchanged after run and exact artifact members/hashes before interpreting results.
