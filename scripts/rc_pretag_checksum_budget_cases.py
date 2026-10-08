@@ -312,7 +312,7 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
         changed = set()
         for module in {item.split('.', 1)[0] for item in original}:
             path = 'scripts/' + module + '.py'
-            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
+            current, frozen = archive_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
             self.assertEqual(x.normalize(path, current), frozen, path)
             before, after = methods(frozen), methods(current)
             self.assertEqual(before.keys(), after.keys(), path)
@@ -353,7 +353,7 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
                 'scripts/rc_consumer_transport.py', 'scripts/rc_consumer_transport_worker.py',
                 'scripts/rc_consumer_proof_fixtures.py', 'scripts/rc_consumer_default_worker_proof.py', 'scripts/rc_consumer_default_worker_proof_tests.py',
                 'scripts/rc_consumer_c_93c2ad95_io.txt', 'src-tauri/src/workspace_snapshots/filesystem.rs'):
-            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path), path)
+            self.assertEqual(archive_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
         self.assertTrue(all(self.good[path] == value for path, value in self.original.items() if path not in x.CAPS))
     def test_new24_inventory_and_exceptional_outcomes_reject(self):
         loaded = inventory()

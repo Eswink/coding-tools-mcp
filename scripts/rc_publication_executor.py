@@ -106,8 +106,16 @@ class PublisherSession:
     def _execute(self, op):
         fields = {}
         if op.kind in ('ObserveFence', 'ObserveDraft', 'VerifyPublished'):
-            gates, visibility = wire._authenticate(self._selection, self._api, check_active=self._check_active, deadline=self._deadline)
-            staged = self._stage.revalidate()
+            check_active = self._check_active
+            gates, visibility = wire._authenticate(self._selection, self._api, check_active=check_active, deadline=self._deadline)
+            try:
+                staged = self._stage.revalidate(deadline=self._deadline, check_active=check_active)
+            except ConsumerError as error:
+                code = error.code
+                codes = {'transport_deadline_exceeded': 'timeout', 'transport_cancelled': 'cancelled'}
+                if type(code) is str and code in codes:
+                    raise wire.WireFailure(codes[code], 'none') from None
+                raise
             self._check_active()
             fields['observation'] = self._api.observe(self._transition.state,
                 staged=staged, gates=gates, draft_visibility=visibility)

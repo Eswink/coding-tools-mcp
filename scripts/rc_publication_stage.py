@@ -15,7 +15,8 @@ import zipfile
 import rc_artifact_consumer as consumer
 import rc_consumer_archive as archive
 import rc_consumer_snapshot as snapshot
-from rc_consumer_io import CHUNK, FILE_LIMIT, JSON_LIMIT, ConsumerError, PrivateRoot, json_file, need, open_file
+from rc_consumer_io import (CHUNK, FILE_LIMIT, JSON_LIMIT, ConsumerError, PrivateRoot,
+                            _check_budget, json_file, need, open_file)
 from rc_publication_contract import Asset, AssetPlanView, PublicationSubject
 
 RECEIPT_LIMIT = 64 * 1024**2
@@ -124,16 +125,20 @@ def _observe(root, selected, api):
     return runs, artifact, consumed, metadata
 
 
-def _receipts(path, destination):
+def _receipts(path, destination, *, deadline=None, check_active=None):
+    budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
+    _check_budget(deadline, check_active)
     try:
         with open_file(path) as stream:
             need(os.fstat(stream.fileno()).st_size <= RECEIPT_LIMIT, 'receipt_zip_limit')
-            directory = archive._directory_guard(stream)
+            directory = archive._directory_guard(stream, **budget)
             need(directory['count'] in (2, 3), 'receipt_member_count')
             with zipfile.ZipFile(stream) as source:
                 infos, names, prefix, files = source.infolist(), archive._Names(), None, set()
                 need(len(infos) == directory['count'] and source.start_dir == directory['offset'], 'zip_directory_count')
+                _check_budget(deadline, check_active)
                 for info in infos:
+                    _check_budget(deadline, check_active)
                     name = names.add(info.orig_filename, info.is_dir())
                     parts = name.split('/')
                     need(re.fullmatch(r'rc-consumer-receipts-[A-Za-z0-9_-]{1,64}', parts[0])
@@ -152,16 +157,22 @@ def _receipts(path, destination):
                     if not info.is_dir():
                         files.add(parts[1])
                 need(files == NAMES, 'receipt_inventory_mismatch')
-                archive._local_records(stream, infos, directory['offset'])
+                _check_budget(deadline, check_active)
+                archive._local_records(stream, infos, directory['offset'], **budget)
                 for info in infos:
-                    archive._deflate_integrity(stream, info)
+                    archive._deflate_integrity(stream, info, **budget)
                     with source.open(info) as member:
+                        _check_budget(deadline, check_active)
                         data = member.read(JSON_LIMIT + 1)
                         need(len(data) == info.file_size, 'receipt_member_size')
+                        _check_budget(deadline, check_active)
                         if not info.is_dir():
                             destination.write(info.filename.split('/')[1], data)
+                            _check_budget(deadline, check_active)
+                    _check_budget(deadline, check_active)
     except (OSError, zipfile.BadZipFile, NotImplementedError, UnicodeError, zlib.error, struct.error):
         raise ConsumerError('invalid_receipt_zip') from None
+    _check_budget(deadline, check_active)
 
 
 def _provenance(s, observation, content, value):
@@ -221,7 +232,7 @@ class StagedAssets:
             budget = {} if self._deadline is None and self._check_active is None else dict(
                 deadline=self._deadline, check_active=self._check_active)
             path = consumer.transport.download_artifact_zip(self._api, self._observation[3], receipt_download, **budget)
-            snapshot._call(_receipts, path, receipts)
+            snapshot._call(_receipts, path, receipts, **budget)
             self.plan_bytes, self.provenance_bytes = (receipts.read(name) for name in ('rc-asset-plan.json', 'RC_PROVENANCE.json'))
             need(hashlib.sha256(self.plan_bytes).hexdigest() == self.subject.plan_sha256, 'original_plan_digest_mismatch')
             plan, provenance = (json_file(receipts.path / name) for name in ('rc-asset-plan.json', 'RC_PROVENANCE.json'))
@@ -233,17 +244,21 @@ class StagedAssets:
             fixed = (*consumer.payloads(producer.version), ('RC_PROVENANCE.json', 'provenance', 'application/json'),
                      (f'SHA256SUMS_{producer.version}.txt', 'checksums', 'text/plain'))
             for name, _, _ in fixed[:4]:
-                self._output.copy(name, bundle.path / name)
+                self._output.copy(name, bundle.path / name, **budget)
+            _check_budget(self._deadline, self._check_active)
             self._output.write('RC_PROVENANCE.json', self.provenance_bytes)
-            checksums = ''.join(f'{consumer.hash_file(self._output.path / name)}  {name}\n' for name in sorted(self._output.files()))
+            _check_budget(self._deadline, self._check_active)
+            checksums = ''.join(f'{consumer.hash_file(self._output.path / name, **budget)}  {name}\n' for name in sorted(self._output.files()))
+            _check_budget(self._deadline, self._check_active)
             self._output.write(fixed[-1][0], checksums.encode())
+            _check_budget(self._deadline, self._check_active)
             rows = [dict(name=n, family=f, media_type=m, size=(self._output.path / n).stat().st_size,
-                         sha256=consumer.hash_file(self._output.path / n)) for n, f, m in fixed]
+                         sha256=consumer.hash_file(self._output.path / n, **budget)) for n, f, m in fixed]
             need(consumer.encode(plan) == consumer.encode(dict(provenance, assets=rows)), 'original_plan_binding_mismatch')
             self.plan = AssetPlanView(tuple(Asset(**row) for row in rows))
             self._handles = [self._stack.enter_context(self._output.open(row.name)) for row in self.plan.assets]
             self._identities = tuple((os.fstat(h.fileno()).st_dev, os.fstat(h.fileno()).st_ino) for h in self._handles)
-            self.revalidate()
+            self.revalidate(**budget)
             return self
         except BaseException as error:
             uncertain = False
@@ -261,22 +276,34 @@ class StagedAssets:
                     raise
             raise
 
-    def revalidate(self):
+    def revalidate(self, *, deadline=None, check_active=None):
         need(self._entered and not self._closed, 'stage_lifetime')
+        _check_budget(deadline, check_active)
         need(snapshot._call(_observe, self._root, self._selection, self._api) == self._observation, 'selection_changed')
+        _check_budget(deadline, check_active)
         for root in self._roots:
             root.files()
+            _check_budget(deadline, check_active)
         need(set(self._output.files()) == {a.name for a in self.plan.assets}, 'staged_inventory_changed')
+        _check_budget(deadline, check_active)
         for index, (handle, row) in enumerate(zip(self._handles, self.plan.assets)):
             self._check_handle(index)
+            _check_budget(deadline, check_active)
             handle.seek(0)
             digest, total = hashlib.sha256(), 0
-            while data := handle.read(CHUNK):
+            while True:
+                _check_budget(deadline, check_active)
+                data = handle.read(CHUNK)
+                if not data:
+                    need(total == row.size and digest.hexdigest() == row.sha256, 'staged_hash_changed')
+                    _check_budget(deadline, check_active)
+                    break
                 total += len(data)
                 need(total <= row.size, 'staged_size_changed')
                 digest.update(data)
-            need(total == row.size and digest.hexdigest() == row.sha256, 'staged_hash_changed')
+                _check_budget(deadline, check_active)
             handle.seek(0)
+            _check_budget(deadline, check_active)
         return self.plan.assets
 
     def _check_handle(self, ordinal):
