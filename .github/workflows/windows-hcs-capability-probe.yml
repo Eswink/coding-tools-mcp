@@ -1,0 +1,70 @@
+name: Windows HCS read-only capability observation
+on:
+  push:
+    branches: ['ci/windows-hcs-capability-probe-20261008']
+    paths:
+      - 'scripts/windows_hcs_capability_probe.ps1'
+      - 'scripts/windows_hcs_capability_probe_tests.ps1'
+      - '.github/workflows/windows-hcs-capability-probe.yml'
+      - 'docs/specs/windows-hcs-capability-probe/**'
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: windows-2025
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {ref: '${{ github.sha }}', fetch-depth: 2, persist-credentials: false}
+      - name: Bind exact source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:RUNNER_TEMP 'hcs-capability-evidence'
+          New-Item -ItemType Directory -Path $dir -ErrorAction Stop | Out-Null
+          $sha = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $sha -cne $env:GITHUB_SHA) { throw 'source mismatch' }
+          $tree = (git rev-parse 'HEAD^{tree}').Trim()
+          if ($LASTEXITCODE -ne 0) { throw 'tree lookup failed' }
+          $parents = (git show -s --format=%P HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $parents -cne '39a9ae7e2761f419db5cace712368e5671042b5e') { throw 'base mismatch' }
+          $record = @{sha=$sha; tree=$tree; parents=$parents; run=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT;
+            job=$env:GITHUB_JOB; repository=$env:GITHUB_REPOSITORY; workflow_ref=$env:GITHUB_WORKFLOW_REF;
+            image_os=$env:ImageOS; image_version=$env:ImageVersion; execution_tested=$false}
+          $record | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 (Join-Path $dir 'source.json')
+      - name: Eight synthetic tests and native declaration compilation
+        shell: pwsh
+        run: ./scripts/windows_hcs_capability_probe_tests.ps1 -OutputPath "$env:RUNNER_TEMP/hcs-capability-evidence/self-tests.json"
+      - name: Observe existing capabilities without remediation
+        shell: pwsh
+        run: ./scripts/windows_hcs_capability_probe.ps1 -OutputPath "$env:RUNNER_TEMP/hcs-capability-evidence/observations.json"
+      - name: Bind final unchanged source and evidence hashes
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git diff --exit-code
+          if ($LASTEXITCODE -ne 0) { throw 'tracked source changed' }
+          git diff --cached --exit-code
+          if ($LASTEXITCODE -ne 0) { throw 'index changed' }
+          $dir = Join-Path $env:RUNNER_TEMP 'hcs-capability-evidence'
+          $before = Get-Content -Raw -LiteralPath (Join-Path $dir 'source.json') | ConvertFrom-Json
+          $sha = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $sha -cne $env:GITHUB_SHA -or $sha -cne $before.sha) { throw 'final source mismatch' }
+          $tree = (git rev-parse 'HEAD^{tree}').Trim()
+          if ($LASTEXITCODE -ne 0 -or $tree -cne $before.tree) { throw 'final tree mismatch' }
+          $unexpected = @(git ls-files --others --exclude-standard)
+          if ($LASTEXITCODE -ne 0 -or $unexpected.Count -ne 0) { throw 'unexpected checkout files' }
+          $lines = @(Get-ChildItem -LiteralPath $dir -File | Sort-Object Name | ForEach-Object {
+            if ($_.Length -gt 262144) { throw 'evidence exceeds bound' }
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          })
+          $lines | Set-Content -Encoding utf8 (Join-Path $dir 'sha256.txt')
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: windows-hcs-capability-${{ github.sha }}
+          path: ${{ runner.temp }}/hcs-capability-evidence
+          if-no-files-found: error
+          retention-days: 14
