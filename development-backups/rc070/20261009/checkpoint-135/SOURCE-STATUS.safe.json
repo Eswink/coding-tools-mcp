@@ -1,0 +1,16 @@
+{
+  "scope": "INDEPENDENT_READONLY_PREPARATION_TERMINAL_AND_ACTUAL_ELF_ORACLE_ONLY",
+  "rootPrepTool": "fb7c5e",
+  "independentActualReadTools": [
+    "cb69c0",
+    "2d026f"
+  ],
+  "decision": "PREPARATION_ONLY_PASS",
+  "originalFrozenManifest": "76b4828cf751ffabc317e42f71634260feb916aa779579d5377d030d9a0487f9",
+  "originalSourceFreezePendingPreserved": true,
+  "queryStartup": "REQUIRES_SEPARATE_NEW_PACKET_AND_INDEPENDENT_REVIEW",
+  "actualQueryCompilerSUTByReviewer": 0,
+  "nativeFamilyOrSameSourceLoaderBuildQualified": false,
+  "installRCQualified": false,
+  "payload": "Safe original peer files only; no private context/ELF/env/auxv/host-stat/directory content"
+}

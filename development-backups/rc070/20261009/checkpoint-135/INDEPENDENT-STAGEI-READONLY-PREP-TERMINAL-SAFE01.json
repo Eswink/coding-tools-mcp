@@ -1,0 +1,48 @@
+{
+  "schema": "rc070.independent-stagei-readonly-preparation.v1",
+  "scope": "INDEPENDENT_READONLY_ACTUAL_PREPARATION_TERMINAL_NOT_QUERY_STARTUP",
+  "decision": "PREPARATION_ONLY_PASS",
+  "privateContextSHA256": "c584eeef482b5b4086d7c454b46437aa66dfd30b65782f6eefee248ddf18caa9",
+  "privateContextBytes": 366911,
+  "rootOriginalRawTotalBytes": 367139,
+  "rootActualPostWriterElapsedSeconds": 1.0690764989994932,
+  "observationScope": "Read root sealed historical elapsed, not reviewer historical clock",
+  "independentChecks": {
+    "fullPrivateContextRead": true,
+    "all23CurrentFileIdentityFullMatch": true,
+    "all169CurrentSearchFactsFullMatchIncludingPrivateDirectoryContents": true,
+    "all8CandidatesCurrentBytesModesXattrBounds": true,
+    "actualNeededLibraryEdgesCount": 7,
+    "knownLibcFullSHAAndExactOuterNeededLibraryEdge": true,
+    "capabilityFinalMarkerOnlyAfterFullCandidateWalk": true,
+    "bothRecordedAfterFencesTrue": true,
+    "twoWorkingModuleSHAUnchanged": true,
+    "all8OriginalNativeSourceFullCurrentContextMatch": true,
+    "originalBuilderSHA877Unchanged": true,
+    "all1867ProtectedInventoryAndNativeBlobBytesModesMatch": true,
+    "nativeHEADAndTrackedDiffClean": true,
+    "all15FrozenPacketCurrentLiteralBytesModesMatch": true,
+    "privateEnvironmentValuesAuxvHostStatsAndDirectoryContentsNotExported": true
+  },
+  "reviewerQueryPopenGCCBridgeNative14Original488Executions": 0,
+  "qualification": {
+    "actualReadonlyPreparation": true,
+    "sameSourceHostLoaderBuildIdentity": false,
+    "query": false,
+    "compiler": false,
+    "native14": false,
+    "original488": false,
+    "install": false,
+    "RC": false
+  },
+  "nextQueryStartupRequired": [
+    "A distinct new root once startup packet and actual independent startup review; this terminal does not authorize query.",
+    "Fixed actual OUTER -I -B and exact current2 modules, original8 sources/builder877, full1867 identities; no foreign admission object reconstructed from JSON.",
+    "Acquire fresh internal validate_query_admission in same actual process immediately before single ordinary_job; full precreator and afterfences must still match current complete private context.",
+    "Exact fixed loader --list OUTER and replaced3-variable source ENV only; no arbitrary target/flags/PATH shim, plugin context or privileged issuer.",
+    "New owned exclusive empty0700 real output directory plus once marker absent, combined2MiB live dual-stream raw bound and total120seconds including retirement/close/afterfences/writer/postwriter; bounded-prefix overflow FAIL.",
+    "Original strong primary/cancellation errors and all independent cleanup failures retained; terminal/EOF/resource closure is ordinary child proof only, not native family authority.",
+    "Full original stdout/stderr/record private retention and strict parse role closure/current sealed candidates; no public auxv/envvalues/dev/inode/dircontents/PID/raw host stream.",
+    "Success remains query-only; no GCC/native14/488/installation/publication/grant/RC."
+  ]
+}

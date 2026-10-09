@@ -1,0 +1,33 @@
+{
+  "kind": "SAFE_SEPARATE_ARGV_FAILURE_ERRATUM_NOT_BUILD_PASS",
+  "entries": [
+    {
+      "path": "INDEPENDENT-RSA-BUILD04-STARTUP-ARGV-ERRATUM01.json",
+      "bytes": 1306,
+      "sha256": "12b3189c9c2bd3c910fa0cc440ad40115be9cdc2485be40d82c69d4f6177d5ec",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1250,
+      "sha256": "c7d692c43a0bcb967477c3323f0c724aa90c069de95c126f39e4a4e0009d4846",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "READONLY-ACTUAL-FAILURE-SUBSET.safe.json",
+      "bytes": 1187,
+      "sha256": "be0e4cc16feb92a2e5e360ea2595e61e8c73d4aee7f307bc0006b88f5886342d",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "bytes": 486,
+      "sha256": "ddb7bec1872319ae3aa059df588e077456319ac29b0b8435006ce74e42f6d097",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "dual_raw_live_aggregate2MiB_prefix_overflow_FAIL": "FINITE_SOURCE_PASS",
+  "freeze_unchanged": "sourcePeerPENDING retained; this later independent safe appendix separately records finite source PASS",
+  "full_frozen_read": {
+    "all_raw_sha_mode_nlink_and_inventory": "PASS",
+    "bytes": 51069,
+    "files": 13,
+    "gitMode": "100644",
+    "manifest_sha256": "aab928d42f4bf60dfb528b0bdc1114fff2cb6575de0c857a3902906ba148fe38",
+    "ordinary26_safe_equals_full_original_stdout": true,
+    "physicalMode": "0644",
+    "source_bytes_current_identical": true,
+    "source_peer_pending_at_freeze_unchanged": true,
+    "spec3FR_structured_pass_zero_errors_warnings": true
+  },
+  "limitations": [
+    "ordinary26 includes explicitly labelled mocked observers/creator/close/clock, not compiler qualification",
+    "arbitrary blocking file reads/close/callbacks have postcompletion deadline checks but no async interruption; late/unknown cannot PASS; this is not a complete hard480 wall containment proof",
+    "a naturally reaped ordinary child leaves group descendants UNKNOWN; no native family closure or post-reap PID signal",
+    "caller receipt writing/external postwriter tick must share same480 deadline",
+    "separate root exact2033 source/lockf1789/selected compiler support/config/argv/target leases and startup still independently required"
+  ],
+  "no_FSIZEno_native_grant": "FINITE_SOURCE_PASS",
+  "original01_oracle_failure_raw_sha_reread_unchanged": true,
+  "original_reuse_sources_full_SHA_reread_unchanged": true,
+  "poll_cancel_independent_wait_reap": "FINITE_SOURCE_PASS",
+  "previous_exact_source_peer_sha256": "3c642b471f05b597686c92b778fa00af47064cc02d4910b5eda6bf65443252be",
+  "qualified": {
+    "RC": false,
+    "compiler": false,
+    "install": false,
+    "native_family": false,
+    "publisher": false,
+    "release": false,
+    "root_startup": false,
+    "source_only": true
+  },
+  "result": "LIMITED_SOURCE_PASS",
+  "reviewer_execution": {
+    "Cargo_compiler_SUT": 0,
+    "controls_rerun": 0,
+    "source_edits": 0,
+    "sudo_CI_install": 0
+  },
+  "schema": "rc070-independent-collector04-frozen-source-peer-1",
+  "scope": "FULL_FROZEN_SOURCE_SPEC_SAFE_CONTROL_PACKET_WITH_CURRENT_TWO_SOURCE_BYTES",
+  "strong_original_exceptions_UNKNOWN_allclose_afterfence": "FINITE_SOURCE_PASS",
+  "two_pipe_prelinked_and_strong_return_cleanup": "FINITE_SOURCE_PASS"
+}

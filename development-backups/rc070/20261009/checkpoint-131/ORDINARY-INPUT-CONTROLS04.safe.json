@@ -1,0 +1,50 @@
+{
+  "scope": "ORDINARY_ACTUAL_HELPER_TEMP_INPUT_AND_SCHEMA_ONLY",
+  "rootHelperSHA256": "d95985a9d56d8d6dc00855fd2d4a6ea9fa654fb52cba3e7ede253b368d6cf374",
+  "controls": [
+    {
+      "name": "actual_regular_identity",
+      "result": "PASS"
+    },
+    {
+      "name": "byte_or_physical_mutation",
+      "result": "PASS_REJECTED"
+    },
+    {
+      "name": "mode_mutation",
+      "result": "PASS_REJECTED"
+    },
+    {
+      "name": "nlink_mutation",
+      "result": "PASS_REJECTED"
+    },
+    {
+      "name": "exact_symlink_identity",
+      "result": "PASS"
+    },
+    {
+      "name": "literal_link_mutation",
+      "result": "PASS_REJECTED"
+    },
+    {
+      "name": "strict_complete_json",
+      "result": "PASS"
+    },
+    {
+      "name": "duplicate_json_key",
+      "result": "PASS_REJECTED"
+    },
+    {
+      "name": "nan_json",
+      "result": "PASS_REJECTED"
+    },
+    {
+      "name": "overflow_nonfinite_json",
+      "result": "PASS_REJECTED"
+    }
+  ],
+  "actualPassed": 10,
+  "compilerExecutions": 0,
+  "CargoExecutions": 0,
+  "buildFinishedProof": false
+}

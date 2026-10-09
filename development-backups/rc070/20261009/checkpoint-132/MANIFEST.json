@@ -1,0 +1,89 @@
+{
+  "kind": "source_only_notqualification",
+  "entries": [
+    {
+      "path": "FAILURE-FIRST.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 452,
+      "sha256": "fcbd9c0050844acdecb2fd884c291dc4e049e39d14cc059b33f05f451ea5e4c8"
+    },
+    {
+      "path": "IMPACT.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 1546,
+      "sha256": "9edb33973882657c570859952e517d5d3531a6daefaa3c71a7b31cca5d736e11"
+    },
+    {
+      "path": "ORDINARY26.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 4085,
+      "sha256": "e61f9c6d7f858de8d2e38d4f347b4940c429ad7df2b4f8899af5a7ccd76e9080"
+    },
+    {
+      "path": "ORIGINAL-REUSE-BOUNDARY.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 851,
+      "sha256": "e61abebeb4f4bd415db46044672fce8f8bce1e0528cf2553f961b76622ecc5ba"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 961,
+      "sha256": "98afb6340a542f551df4711c299cd0873d53b8f5721361d0ddd9b4943671847e"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 2217,
+      "sha256": "b4665c748fa3e567e8f746946f5a38ac330f165f0fcbf78a6af7fffd23548298"
+    },
+    {
+      "path": "SPEC-CHECK.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 377,
+      "sha256": "96ae7b3c830d314830de6eb0d3947dd998fc9a7791fe7243f746162243483835"
+    },
+    {
+      "path": "source/collector.py",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 17081,
+      "sha256": "3faaab02dda1ad4aed1eac7222b8e55d3428e9e3dc9eafaf8472effeb3a3bbeb"
+    },
+    {
+      "path": "source/ordinary_controls.py",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 14950,
+      "sha256": "8d63bba58884a5ce975023bd3753a033e1a83ea146325cbabe6c2238a8c95a60"
+    },
+    {
+      "path": "spec/design.md",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 1826,
+      "sha256": "08295320dae0cf1e11ddf9bab4aac6359188f090a24efbd250c9dfc993a2e234"
+    },
+    {
+      "path": "spec/requirements.md",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 3050,
+      "sha256": "b6022da1d88d588ff50a9c968e655e4aad8c61f92ad8fcafaf341958189056d3"
+    },
+    {
+      "path": "spec/tasks.md",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 1094,
+      "sha256": "62a56103b2ec4a5deb056b35321ef4add780da71927ff96a9828ec951630bd9f"
+    }
+  ]
+}

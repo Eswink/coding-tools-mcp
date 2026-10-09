@@ -1,0 +1,16 @@
+{
+  "scope": "INDEPENDENT_READONLY_ACTUAL8_ELF_HEADER_PROGRAM_DYNAMIC_STRING_ORACLE_NOT_TARGET_AST",
+  "result": "PASS",
+  "actualCandidates": 8,
+  "allFullSHAAndByteBounds": true,
+  "allActualELFTypeMachineInterpreterDynamicNeededRpathRunpathMatchPrivateContext": true,
+  "actualFileBackedStringsAllTouchingLOADMappingsCompared": true,
+  "sealedPrivateContextSHA256": "c584eeef482b5b4086d7c454b46437aa66dfd30b65782f6eefee248ddf18caa9",
+  "priorIndependentTerminalSHA256": "77271ca1b2dc653ec6c43279a04ddb7d683685a87f729641355bbd24da95a529",
+  "sameSourceHostLoaderBuildIdentity": false,
+  "privateELFBodyHostStatDirectoryEnvAuxvExported": false,
+  "targetModulesImportedOrExecuted": false,
+  "queryCompilerSUTExecutions": 0,
+  "startupPermissionGranted": false,
+  "RCQualified": false
+}

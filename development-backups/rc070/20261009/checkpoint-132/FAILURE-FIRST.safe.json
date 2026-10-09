@@ -1,0 +1,8 @@
+{
+  "actual_exit": 1,
+  "stdout_bytes": 0,
+  "stderr_sha256": "06d5b611099deb4c67a377fcd80dc0af67b9e36034bf37c67cfc1877168eca80",
+  "cause": "ordinary helper expected BaseExceptionGroup among flattened leaves rather than whole error; original grouped SystemExit/KeyboardInterrupt were correctly retained by collector",
+  "scope": "ordinary control oracle error; full controls FAIL incomplete; original source/raw retained",
+  "Cargo_compiler_SUT": 0
+}

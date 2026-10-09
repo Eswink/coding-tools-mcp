@@ -1,0 +1,67 @@
+{
+  "tool": "mcp-probe-kit@4.0.1/check_spec",
+  "structuredContent": {
+    "passed": false,
+    "errorCount": 7,
+    "warningCount": 1,
+    "issues": [
+      {
+        "file": "requirements",
+        "severity": "error",
+        "code": "missing_section",
+        "message": "requirements.md \u7f3a\u5c11\u7ae0\u8282\u300c\u529f\u80fd\u6982\u8ff0\u300d"
+      },
+      {
+        "file": "requirements",
+        "severity": "error",
+        "code": "missing_section",
+        "message": "requirements.md \u7f3a\u5c11\u7ae0\u8282\u300c\u9700\u6c42\u5217\u8868\u300d"
+      },
+      {
+        "file": "requirements",
+        "severity": "error",
+        "code": "missing_section",
+        "message": "requirements.md \u7f3a\u5c11\u7ae0\u8282\u300c\u4f9d\u8d56\u5173\u7cfb\u300d"
+      },
+      {
+        "file": "design",
+        "severity": "error",
+        "code": "missing_section",
+        "message": "design.md \u7f3a\u5c11\u7ae0\u8282\u300c\u6982\u8ff0\u300d"
+      },
+      {
+        "file": "design",
+        "severity": "error",
+        "code": "missing_section",
+        "message": "design.md \u7f3a\u5c11\u7ae0\u8282\u300c\u6280\u672f\u65b9\u6848\u300d"
+      },
+      {
+        "file": "design",
+        "severity": "error",
+        "code": "missing_section",
+        "message": "design.md \u7f3a\u5c11\u7ae0\u8282\u300c\u6587\u4ef6\u7ed3\u6784\u300d"
+      },
+      {
+        "file": "requirements",
+        "severity": "error",
+        "code": "no_acceptance",
+        "message": "requirements.md \u672a\u53d1\u73b0 EARS \u9a8c\u6536\u6807\u51c6\uff08\u5e94\u5305\u542b\u300cSHALL\u300d\uff09"
+      },
+      {
+        "file": "design",
+        "severity": "warning",
+        "code": "no_fr_ref",
+        "message": "design.md \u672a\u5f15\u7528\u4efb\u4f55 FR-id\uff08\u5e94\u5728\u300c\u5bf9\u5e94\u9700\u6c42\u300d\u6807\u6ce8\u672c\u8bbe\u8ba1\u8986\u76d6\u7684\u9700\u6c42\uff09"
+      }
+    ],
+    "frIds": [
+      "FR-1",
+      "FR-2",
+      "FR-3"
+    ],
+    "summary": "\u89c4\u683c\u6821\u9a8c\u672a\u901a\u8fc7\uff1a7 \u4e2a\u5fc5\u987b\u4fee\u590d\u7684\u95ee\u9898\u30011 \u4e2a\u63d0\u9192"
+  },
+  "originalToolResultSHA256": "39f1b1c83203aa09694134da6fb18247e1415ea895a95b27cd450b2f71ab74a6",
+  "assemblerExecutedCheck": false,
+  "qualification": "SPEC_ONLY_NOT_COMPILER_RESULT"
+}

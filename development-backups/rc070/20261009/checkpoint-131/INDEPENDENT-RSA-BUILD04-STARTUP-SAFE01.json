@@ -1,0 +1,50 @@
+{
+  "schema": "rc070.independent-engineering-build-startup.v1",
+  "decision": "ALLOW_ONE_ROOT_OWNED_ENGINEERING_GATEWAY_BUILD_ONLY",
+  "role": "INDEPENDENT_SOURCE_STARTUP_REVIEWER_NOT_COMPILER_EXECUTOR",
+  "slot": "/workspace/work/rc070/rsa-gateway-build-owned04",
+  "packetSHA256": "e7a78763f15ad95915ee7c18273fa00845fd2661cc05ec3da933ce6eae477076",
+  "driverSHA256": "d95985a9d56d8d6dc00855fd2d4a6ea9fa654fb52cba3e7ede253b368d6cf374",
+  "collectorSHA256": "3faaab02dda1ad4aed1eac7222b8e55d3428e9e3dc9eafaf8472effeb3a3bbeb",
+  "inputLeaseSHA256": "3377713c9e36f747909de49e4c6713479b0ab5250e14beaf73ad2663a7302c3a",
+  "actualChecks": {
+    "fullNormalRows": 19190,
+    "directoryRoles": 1,
+    "actualFullNamespaces": 215,
+    "configAbsences": 29,
+    "allCurrentBytesModesFullPhysicalMatch": true,
+    "nativeSourceAndDBRefsMatch": true,
+    "twoExecutorSourceBytesMatch": true,
+    "markerTargetAbsentRawEmpty": true,
+    "exactOfflineLockedReleaseFourBinsTwoPatchArgv": true,
+    "twoJobsNewOwnedTarget": true,
+    "whole480Seconds2MiB": true,
+    "originalPGMacroMigrateUuidFeaturesPreservedInSourceAndRealMetadata": true,
+    "originalOwnedInputAndStrictJSONControls": 10
+  },
+  "sourceReview": "Full driver13199/d959 and collector17081/3faa read, actualpacket e7a/19190input joined independently. Genuine dualstream runtime cap, independent raw hashes/EOF/actual exit0 and full Cargo JSON final success/exact four original root bin events/x64 ELF/real local patch artifacts required. No FSIZE on compiler objects; exactlisted source/runtime/DB/config and executor fences run driverbefore/collectorbefore/collectorafter/driverfinally. Original primary/cancel and independent cleanup failures retained. Same480 deadline includes fence/artifact/writer and real postwriter check. Runtime source inventory is conservative static listing, not observed syscall/full family closure.",
+  "conditions": [
+    "Root sole newslot once executor with unchanged fixed packet/source/runtime/config and empty target/logs.",
+    "External GNU timeout TERM478/kill_after2 maximum480 must be applied as sealed packet describes; signal converted to original TimeoutError cleanup. Strongly blocking callback and incomplete/late cleanup are denied, not wall-containment/family proof.",
+    "Any native compiler nonzero, incomplete or capped stream, artifact mismatch/source-runtime drift/cancellation/cleanup UNKNOWN denies this engineering attempt.",
+    "No install/start/VM/issuer/authorization, no product wiring/final version, no final four-audit or RC qualification."
+  ],
+  "provenanceLimitations": [
+    "Root first newdriver draft impacted main verification first and other specific symbols later; actual fresh unsupported queries are UNKNOWN/manualHIGH disclosed, not retroactively all pre-edit compliant.",
+    "Root described28 absences, actual normalized lease contains29 including /etc/ld.so.preload; all29 were independently checked.",
+    "Original212 .cargo-ok summary lacked versions; actual fresh flat fixes tuple name/version roots after verifying original hash/bytes multiset; no old physical marker identity invented."
+  ],
+  "reviewerCompilerExecutions": 0,
+  "reviewerCargoExecutions": 0,
+  "reviewerAuditExecutions": 0,
+  "qualification": {
+    "startupScopeOnly": true,
+    "engineeringBuildAlreadyPassed": false,
+    "productWired": false,
+    "fourFinalAudits": false,
+    "install": false,
+    "nativeVM": false,
+    "nativeFamily": false,
+    "RC": false
+  }
+}

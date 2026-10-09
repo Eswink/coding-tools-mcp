@@ -1,0 +1,49 @@
+{
+  "risk": "UNKNOWN_manualHIGH_disclosed_before_source",
+  "registered_graph": "rc070-f13-rsa-readonly",
+  "source_is_new_external_unindexed": "not_zero_impact",
+  "queries": [
+    {
+      "target": "collect_build_streams",
+      "actual_result": "TargetNotFound_UNKNOWN",
+      "chunk": "058726"
+    },
+    {
+      "target": "retire_owned_child",
+      "actual_result": "TargetNotFound_UNKNOWN",
+      "chunk": "a85e86"
+    },
+    {
+      "target": "expect",
+      "actual_result": "TargetNotFound_UNKNOWN",
+      "chunk": "750065"
+    },
+    {
+      "target": "close_resources",
+      "actual_result": "TargetNotFound_UNKNOWN",
+      "chunk": "97805d"
+    },
+    {
+      "target": "_write_all",
+      "actual_result": "TargetNotFound_UNKNOWN",
+      "chunk": "a9a02d"
+    },
+    {
+      "target": "run",
+      "actual_result": "ambiguous_UNKNOWN_not_authoritative",
+      "chunk": "260018"
+    },
+    {
+      "target": "Function:ordinary_controls.py:run",
+      "actual_result": "TargetNotFound_UNKNOWN",
+      "chunk": "3fb385"
+    },
+    {
+      "target": "Function:collector.py:collect_build_streams",
+      "actual_result": "TargetNotFound_UNKNOWN_before_pipe_revision",
+      "chunk": "259d69"
+    }
+  ],
+  "first_alias_error": "startup-native-birth-spec-next_unregistered_5753e2_preserved",
+  "note": "Ordinary helper expect correction was applied after queries started but before results were collected; exact source revision impact followed before subsequent edit. This timing exception is not described as prior successful impact."
+}

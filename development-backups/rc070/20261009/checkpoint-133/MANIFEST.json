@@ -1,0 +1,33 @@
+{
+  "kind": "SAFE_SEPARATE_LIMITED_COLLECTOR_SOURCE_PEER_APPENDIX",
+  "entries": [
+    {
+      "path": "COLLECTOR04-INDEPENDENT-FROZEN-SOURCE-PEER-SAFE02.json",
+      "bytes": 2385,
+      "sha256": "c91ac36653ae083baf96f87aab8cb57742d48bfd16c952ffb7d0debb223ff050",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "COLLECTOR04-INDEPENDENT-SOURCE-PEER-SAFE01.json",
+      "bytes": 10075,
+      "sha256": "3c642b471f05b597686c92b778fa00af47064cc02d4910b5eda6bf65443252be",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 944,
+      "sha256": "da1826618e3b08b7f42b5610dc30ff6e86028e6d23798442f3c899d4b4f88ab8",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "bytes": 676,
+      "sha256": "5fff00a5107a5ab2fecec218eb70e142e502d2c0a17c79492eb2e453de4a7498",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ]
+}

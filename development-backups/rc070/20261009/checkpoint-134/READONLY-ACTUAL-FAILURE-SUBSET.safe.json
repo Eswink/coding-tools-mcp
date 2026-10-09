@@ -1,0 +1,31 @@
+{
+  "scope": "INDEPENDENT_READONLY_FAILURE_RECORD_SUBSET_NOT_FULL_NATIVE_BUILD_TERMINAL_REVIEW",
+  "sourceReceiptSHA256": "24dc108f69cacb8931c9547a638e4afbf475cc127952faa052ef1bd1c5d72aae",
+  "sourceReceiptChildExit": null,
+  "driverExceptionTraceCalledProcessError101": true,
+  "actualRawLogInventory": [
+    {
+      "name": "stderr.raw",
+      "bytes": 594,
+      "sha256": "a1e105f16f933fb2cf49512704b3daf8100708bc49604561ba1a654e8ea35782"
+    },
+    {
+      "name": "stdout.raw",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "rawTotalBytes": 594,
+  "beforeWriterElapsedSeconds": 13.406432484000106,
+  "failureTypes": [
+    "CalledProcessError"
+  ],
+  "listedRuntimeSourceAfter": false,
+  "rootExternalPostWriterSeconds": "13.406732375 as root native-tool report, not independently timed historical clock",
+  "originalGenuineRustBuildResult": "NOT_ESTABLISHED; rejected CLI TOML path value before Rust",
+  "all19190InputsIndependentlyReverifiedHere": false,
+  "sourceOnlyCheckpointRunningFreezePreserved": true,
+  "oldSlotReusable": false,
+  "genuineCompilerOrSUTExecutionsByAssembler": 0,
+  "RCQualified": false
+}

@@ -1,0 +1,86 @@
+{
+  "scope": "ACTUAL_FRESH_UNSUPPORTED_IMPACTS_UNKNOWN_NOT_ZERO",
+  "queries": [
+    {
+      "source": "BUILD-GUARD-FRESH-IMPACT01.json",
+      "originalSHA256": "038b020045d844e270e60db7ea7457770ebceca4afff628b3cdb82d6ac0a7cd3",
+      "actualStructuredResult": {
+        "error": "Target 'Function:rsa-gateway-build-owned04/build-root-once04.py:verify_build_lease' not found",
+        "target": {
+          "name": "verify_build_lease"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "source": "BUILD-main-FRESH-IMPACT01.json",
+      "originalSHA256": "261b822bef3b6935bf6e55957f218d8c7dd71cbecea81c0d5742523773c445bd",
+      "actualStructuredResult": {
+        "error": "Target 'Function:rsa-gateway-build-owned04/build-root-once04.py:main' not found",
+        "target": {
+          "name": "main"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "source": "BUILD-digest-FRESH-IMPACT01.json",
+      "originalSHA256": "2a2e775a4c497632d341cd4f4ba0b7ac44e587828729038422794b7ba76a087c",
+      "actualStructuredResult": {
+        "error": "Target 'Function:rsa-gateway-build-owned04/build-root-once04.py:digest' not found",
+        "target": {
+          "name": "digest"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "source": "BUILD-read_json-FRESH-IMPACT01.json",
+      "originalSHA256": "3e6f9c466718feccf4baa9aaad58bf40e37e1ebaaa632be97e3f65a2c194c46d",
+      "actualStructuredResult": {
+        "error": "Target 'Function:rsa-gateway-build-owned04/build-root-once04.py:read_json' not found",
+        "target": {
+          "name": "read_json"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "source": "BUILD-check_row-FRESH-IMPACT01.json",
+      "originalSHA256": "c3113c81044f8df86a10cf9ebd4d527dd3942febcd992df4abd1241a6bb6caa8",
+      "actualStructuredResult": {
+        "error": "Target 'Function:rsa-gateway-build-owned04/build-root-once04.py:check_row' not found",
+        "target": {
+          "name": "check_row"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "source": "BUILD-verify_native_build-FRESH-IMPACT01.json",
+      "originalSHA256": "360df04ff9fc97e75639ae6f206d784fa2fc52ee08467ff1e79cdde2576a710e",
+      "actualStructuredResult": {
+        "error": "Target 'Function:rsa-gateway-build-owned04/build-root-once04.py:verify_native_build' not found",
+        "target": {
+          "name": "verify_native_build"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    }
+  ],
+  "manualRisk": "HIGH_DISCLOSED",
+  "timingBoundary": "Root first new driver draft impacted main/verification first and other specific symbols later. Do not retrospectively claim all6 queries preceded all editing. No changed-symbol graph was available.",
+  "compilerResult": false
+}

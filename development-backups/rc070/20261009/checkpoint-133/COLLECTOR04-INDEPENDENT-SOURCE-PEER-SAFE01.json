@@ -1,0 +1,281 @@
+{
+  "current_source": {
+    "collector.py": {
+      "bytes": 17081,
+      "physicalMode": "0600",
+      "regularNlink1": true,
+      "sha256": "3faaab02dda1ad4aed1eac7222b8e55d3428e9e3dc9eafaf8472effeb3a3bbeb"
+    },
+    "ordinary_controls.py": {
+      "bytes": 14950,
+      "physicalMode": "0600",
+      "regularNlink1": true,
+      "sha256": "8d63bba58884a5ce975023bd3753a033e1a83ea146325cbabe6c2238a8c95a60"
+    }
+  },
+  "existing_ordinary_evidence": {
+    "all_names_correspond_to_actual_controls_source": true,
+    "cases": [
+      {
+        "case": "independent_complete_raw_streams_and_all_owned_closes",
+        "result": "PASS",
+        "scope": "actual_ordinary_child",
+        "stderr_bytes": 8,
+        "stdout_bytes": 16
+      },
+      {
+        "case": "exact_aggregate2MiB_EOF_success_not_false_overflow",
+        "result": "PASS",
+        "retained_bytes": 2097152,
+        "scope": "actual_ordinary_child"
+      },
+      {
+        "case": "aggregate2MiB_overflow_is_partial_FAIL",
+        "exception_types": [
+          "LogLimitExceeded"
+        ],
+        "result": "PASS",
+        "scope": "actual_ordinary_child"
+      },
+      {
+        "case": "overflow_prefix_bounded_not_complete_evidence",
+        "result": "PASS",
+        "retained_bytes": 2097152,
+        "scope": "actual_ordinary_child"
+      },
+      {
+        "case": "native_nonzero_exit_denies_complete_capture",
+        "exception_types": [
+          "CalledProcessError"
+        ],
+        "result": "PASS",
+        "scope": "actual_ordinary_child"
+      },
+      {
+        "case": "nonzero_primary_original_returncode_preserved",
+        "result": "PASS",
+        "scope": "actual_ordinary_child"
+      },
+      {
+        "case": "whole_deadline_reserves_TERM2_KILL2",
+        "exception_types": [
+          "WholeDeadlineExceeded"
+        ],
+        "result": "PASS",
+        "scope": "actual_ordinary_child"
+      },
+      {
+        "case": "real_created_child_KILL_reap_all_closes_within_whole",
+        "result": "PASS",
+        "scope": "actual_ordinary_child"
+      },
+      {
+        "case": "relative_executable",
+        "exception_types": [
+          "ValueError"
+        ],
+        "result": "PASS",
+        "scope": "actual_prelaunch_denial_no_child"
+      },
+      {
+        "case": "wrong_executable_hash",
+        "exception_types": [
+          "RuntimeError"
+        ],
+        "result": "PASS",
+        "scope": "actual_prelaunch_denial_no_child"
+      },
+      {
+        "case": "unsafe_environment",
+        "exception_types": [
+          "ValueError"
+        ],
+        "result": "PASS",
+        "scope": "actual_prelaunch_denial_no_child"
+      },
+      {
+        "case": "oversized_byte_cap",
+        "exception_types": [
+          "ValueError"
+        ],
+        "result": "PASS",
+        "scope": "actual_prelaunch_denial_no_child"
+      },
+      {
+        "case": "oversized_budget",
+        "exception_types": [
+          "ValueError"
+        ],
+        "result": "PASS",
+        "scope": "actual_prelaunch_denial_no_child"
+      },
+      {
+        "case": "preexisting_output",
+        "exception_types": [
+          "RuntimeError"
+        ],
+        "result": "PASS",
+        "scope": "actual_prelaunch_denial_no_child"
+      },
+      {
+        "case": "wrong_directory_mode",
+        "exception_types": [
+          "RuntimeError"
+        ],
+        "result": "PASS",
+        "scope": "actual_prelaunch_denial_no_child"
+      },
+      {
+        "case": "before_cancel_original_object_and_after_guard",
+        "exception_types": [
+          "KeyboardInterrupt"
+        ],
+        "result": "PASS",
+        "scope": "actual_prelaunch_cancel_no_child"
+      },
+      {
+        "case": "after_cancel_denies_native0_and_preserves_object",
+        "exception_types": [
+          "SystemExit"
+        ],
+        "result": "PASS",
+        "scope": "actual_ordinary_child"
+      },
+      {
+        "case": "independent_before_and_after_strong_exception_objects",
+        "exception_types": [
+          "SystemExit",
+          "KeyboardInterrupt"
+        ],
+        "result": "PASS",
+        "scope": "actual_prelaunch_cancel_no_child"
+      },
+      {
+        "case": "poll_cancel_still_independent_actual_child_wait_and_all_closes",
+        "exception_types": [
+          "SystemExit",
+          "KeyboardInterrupt"
+        ],
+        "result": "PASS",
+        "scope": "actual_ordinary_child_with_mock_observers"
+      },
+      {
+        "case": "prelinked_pipe_holder_allocation_cancel_is_0creator",
+        "exception_types": [
+          "KeyboardInterrupt"
+        ],
+        "result": "PASS",
+        "scope": "actual_prelaunch_mock_allocation_no_child"
+      },
+      {
+        "case": "real_Popen_first_stdout_cancel_both_actual_pipes_closed",
+        "exception_types": [
+          "KeyboardInterrupt"
+        ],
+        "result": "PASS",
+        "scope": "actual_ordinary_child_with_mock_pipe_observer"
+      },
+      {
+        "case": "mock_all_close_attempts_UNKNOWN_retention_no_retry",
+        "result": "PASS",
+        "scope": "pure_mock_no_actual_fd_or_child"
+      },
+      {
+        "case": "mock_creator_effect_then_cancel_UNKNOWN",
+        "exception_types": [
+          "KeyboardInterrupt"
+        ],
+        "result": "PASS",
+        "scope": "pure_mock_no_actual_fd_or_child"
+      },
+      {
+        "case": "actual_short_writes_preserve_exact_original_bytes",
+        "result": "PASS",
+        "scope": "actual_owned_file_only"
+      },
+      {
+        "case": "actual_raw_write_then_cancel_retains_original_and_allcloses",
+        "exception_types": [
+          "KeyboardInterrupt"
+        ],
+        "result": "PASS",
+        "scope": "actual_ordinary_child_with_mock_writer_observer"
+      },
+      {
+        "case": "late_after_guard_whole_deadline_denies_native0",
+        "exception_types": [
+          "WholeDeadlineExceeded"
+        ],
+        "result": "PASS",
+        "scope": "actual_ordinary_child_with_mock_clock"
+      }
+    ],
+    "exact_aggregate2MiB_EOF_full_bytes_equal": true,
+    "mixed_mock_scopes_preserved": true,
+    "named_unique_PASS": 26,
+    "native_exit_credit": "root actual exit0/chunk2f46d6; independent reader did not rerun",
+    "ordinary_mock_is_not_compiler_scope": true,
+    "overflow_exact2MiB_prefix_only_FAIL": true,
+    "positive_stdout_stderr_full_bytes_equal": true,
+    "raw_files_full_read": 22,
+    "raw_regular0600_nlink1": true,
+    "raw_vector_sha256": "c63a9136f272d613866911455ce4c69b466f4638e2293960058b6ebd0cdf6e96",
+    "short_positive_write_full_bytes_equal": true,
+    "stderr_bytes": 0,
+    "stdout_bytes": 4085,
+    "stdout_sha256": "e61f9c6d7f858de8d2e38d4f347b4940c429ad7df2b4f8899af5a7ccd76e9080"
+  },
+  "freeze_manifest_read": "PENDING_OTHER_AGENT_PREPARING_SEPARATE_FREEZE",
+  "fresh_impact": {
+    "impactedCount_zero_not_accepted": true,
+    "manualRisk": "HIGH",
+    "reviewer_source_edits": 0,
+    "root_exact_records_read": [
+      "IMPACT-RUN-EXACT01.json",
+      "IMPACT-PIPE-REVISION01.json"
+    ],
+    "structured_status": "UNKNOWN_TARGET_NOT_FOUND"
+  },
+  "next_required": "Seal separate current full source/spec/ordinary-safe freeze; independently read its complete manifest, then root selected runtime/config/source2033/executor/target/argv startup review. Only root may execute actual compiler after that review.",
+  "not_qualified": {
+    "RC": true,
+    "complete_selected_runtime_configs_source2033": true,
+    "installation": true,
+    "native_Cargo_JSON_artifacts": true,
+    "native_family_retirement": true,
+    "publisher": true,
+    "release": true,
+    "root_compiler_startup": true
+  },
+  "old_evidence_preserved": {
+    "intermediate02_03_success": true,
+    "original01_oracle_FAIL": true,
+    "pipe_holder_pre_review_boundary": true
+  },
+  "result": "LIMITED_SOURCE_PASS_EXACT_CURRENT_HASHES",
+  "reviewer_execution": {
+    "CI": 0,
+    "Cargo": 0,
+    "compiler": 0,
+    "ordinary_controls_rerun": 0,
+    "source_edits": 0,
+    "sudo": 0
+  },
+  "schema": "rc070-independent-collector04-source-peer-1",
+  "scope": "READ_ONLY_STANDALONE_COLLECTOR_ORDINARY_SOURCE_AND_EXISTING_LOGS_NOT_ROOT_STARTUP",
+  "source_checks": [
+    "both pipe resource records and dictionary bindings are established before genuine Popen; holder allocation cancellation occurs before child creator",
+    "actual child Popen return is stored strongly in record before subsequent pipe observations",
+    "finally captures still pending stdout and stderr from genuine process separately; one observation failure cannot skip other pipe observation",
+    "close_resources independently attempts every actual resource close exactly once; failure UNKNOWN retains original object and error and no retry",
+    "poll or TERM observer cancellation cannot skip first bounded true-child wait; timeout or wait failure still attempts second bounded wait independently of second poll or KILL failure",
+    "no post-reap integer group signaling; ordinary child group descendants explicitly UNKNOWN and no closed-native-family authority",
+    "separate nonblocking pipe reads calculate shared remaining capacity before original raw writes; overflow retains bounded partial prefix and fails",
+    "whole max480 monotonic budget reserves TERM2/KILL2 within limit; final elapsed check follows independently attempted cleanup, closes and after fence",
+    "callbacks/source reads can block beyond async-enforceable containment; design states this and late or unknown completion cannot PASS",
+    "mandatory after callback attempted after primary/cancel/cleanup failure; primary and all cleanup errors kept strongly and raised with original objects",
+    "no RLIMIT_FSIZE or artifact filesize limit; raw-file bounds do not cap ELF/object/rlib compiler writes",
+    "exact absolute canonical executable, full-byte sealed digest, literal cwd, replaced environment; output directory precreated owned0700 and files O_EXCL/NOFOLLOW0600",
+    "ordinary capture result explicitly requires caller receipt writer and external postwriter clock within same deadline; it is not whole build qualification"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "kind": "SAFE_INDEPENDENT_PREPARATION_TERMINAL_APPENDIX_NOT_QUERY_STARTUP",
+  "entries": [
+    {
+      "path": "INDEPENDENT-STAGEI-READONLY-ELF8-APPENDIX-SAFE01.json",
+      "bytes": 787,
+      "sha256": "8af784c45baff2aa88604671ad511d01bdf6d376f179be9e5132a645d7ae97bc",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "INDEPENDENT-STAGEI-READONLY-PREP-TERMINAL-SAFE01.json",
+      "bytes": 3036,
+      "sha256": "77271ca1b2dc653ec6c43279a04ddb7d683685a87f729641355bbd24da95a529",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1217,
+      "sha256": "0cb1453d81b9058a4ff824d27026842064a7ab407813b376b42a026628537d37",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "bytes": 672,
+      "sha256": "398fb4483f7eca22445ec21c157d461b6bb167f10dc311b88b9711917f15e57a",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ]
+}

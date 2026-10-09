@@ -1,0 +1,86 @@
+{
+  "scope": "SOURCE_ONLY_ROOT_BUILD04_RUNNING_STAGE_CHECKPOINT",
+  "copies": [
+    {
+      "path": "source/build-root-once04.py",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-build-owned04/build-root-once04.py",
+      "bytes": 13199,
+      "sha256": "d95985a9d56d8d6dc00855fd2d4a6ea9fa654fb52cba3e7ede253b368d6cf374",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "source/ordinary-input-controls04.py",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-build-owned04/ordinary-input-controls04.py",
+      "bytes": 2382,
+      "sha256": "fdd22f865e600ce2666019e8f9a8681ebc560372ee9e3d582b2061309bdcefff",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "ORDINARY-INPUT-CONTROLS04.safe.json",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-build-owned04/ORDINARY-INPUT-CONTROLS04.safe.json",
+      "bytes": 1071,
+      "sha256": "1efdbd2be998f6a118f7e6e811431cb7467ef3ad4d2838de53aa2e4374688c2a",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "INDEPENDENT-RSA-BUILD04-STARTUP-SAFE01.json",
+      "sourcePath": "/workspace/work/rc070/rsa-independent-source-peer01/INDEPENDENT-RSA-BUILD04-STARTUP-SAFE01.json",
+      "bytes": 3475,
+      "sha256": "37498e49ad8f4ea9d0eae4197cf9ee499a7622bc09cb136269fb27eebdca7c1f",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "spec/requirements.md",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-build-owned04/docs/specs/rsa-gateway-compiler-once04/requirements.md",
+      "bytes": 2219,
+      "sha256": "f8e635f1d48f4658bd8a0bd43fe5e4881a51f7939c5dec20f14f16e80dd0fef4",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "spec/design.md",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-build-owned04/docs/specs/rsa-gateway-compiler-once04/design.md",
+      "bytes": 1685,
+      "sha256": "7a42465d22b36683820ca6e95a423d05b481554f945e4226a17d6080953b5af5",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "spec/tasks.md",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-build-owned04/docs/specs/rsa-gateway-compiler-once04/tasks.md",
+      "bytes": 1108,
+      "sha256": "2656d111b9847f04ad85a50421f84346720aaa9bad0a587363acbe65685e3955",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    }
+  ],
+  "literalByteAdapter": "NONE",
+  "modeAdapter": "Original copied source0600 and safe reports retain original mode at source; this independent packet0644/Git100644. Each source actual mode listed.",
+  "excluded": [
+    "BUILD-STARTUP-PACKET04.private.json",
+    "12MB immutable input lease and namespace/marker/raw/driver state",
+    "all tool/host/process/stat/environment inventories",
+    "native build receipt/artifacts/ELF/runtime archives",
+    "TLS/key/env fixtures",
+    "Git objects"
+  ],
+  "sourceBytesUnchangedAfterAssembly": true
+}

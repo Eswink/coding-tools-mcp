@@ -1,0 +1,37 @@
+{
+  "kind": "SOURCE_ONLY_COLLECTOR04_NOT_COMPILER_STARTUP",
+  "source_peer": "PENDING_at_freeze",
+  "actual_ordinary04_exit": 0,
+  "actual_ordinary04_tool": "2f46d6",
+  "named_PASS": 26,
+  "ordinary_stdout_bytes": 4085,
+  "ordinary_stdout_sha256": "e61f9c6d7f858de8d2e38d4f347b4940c429ad7df2b4f8899af5a7ccd76e9080",
+  "ordinary_stderr_bytes": 0,
+  "earlier_ordinary01": "FAIL_oracle_group_type_error_preserved_source_and_raw_private",
+  "earlier_ordinary02_22_and03_24": "real_intermediate_PASS_not_current_source_qualification",
+  "mandatory_pipe_fix": "root_source_review_requested_pre-Popen_holders_and_independent_actual_Popen_pipe_fallback; applied_and_actual2controlsPASS",
+  "stream_cap": "aggregate_read_time_at_most2MiB_overflow_partial_FAIL",
+  "deadline": "max480s_whole_insidecollector_4sreserved_TERM2_KILL2; root_receipt_writer_true_posttick_must_still_share_deadline",
+  "RLIMIT_FSIZE": "not_used_no_compiler_artifact_size_constraint",
+  "exact_argv": "literal_absolute_canonical_program_full_SHA_no_PATH_resolution; final_compiler_vector_root_not_yet_frozen",
+  "resources": "prelinked_actual_return_holders; everyclose_independent; original_cancel_and_UNKNOWN_stronglyretained; no_ambiguous_close_retry",
+  "already_reaped_group": "no_postreap_integer_signal; descendants_UNKNOWN_no_native_familyclosure",
+  "actual_Cargo_compiler_SUT_install": 0,
+  "root_runtime_startup_pending": [
+    "exact_compiler_Cargo_vector_selected_roles_and_flags",
+    "current2033_source_lockf1789_fresh_target_leases",
+    "all_official_Cargo_rustc_host_target_std_and_actual_C_GCC_ld_ar_pkgconfig_dynamic_runtime_support_roles",
+    "full_configs_and_loader_roles_replaced_env",
+    "separate_real_audit03_result_and_independent_source_peer",
+    "root_before_after_each_role_fences_and_receipt_postwriter480deadline",
+    "complete_Cargo_JSON_terminal_event_and_artifact_identity_terminal_review"
+  ],
+  "qualification": {
+    "ordinary_capture_controls_only": true,
+    "native_family": false,
+    "compiler": "NOTRUN",
+    "install": "NOTRUN",
+    "RC": false
+  },
+  "public_policy": "safe_source_spec_hash_modes_status_only_no_private_raw_fixtures_runtime_packages_binaries_Gitobjects_host_process_env_TLS_keys"
+}

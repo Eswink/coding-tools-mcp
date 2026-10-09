@@ -1,0 +1,12 @@
+{
+  "scope": "SEPARATE_BUILD04_CLI_TOML_FAILURE_AND_STARTUP_ERRATUM",
+  "decision": "FAIL_CLI_TOML_BEFORE_RUST",
+  "rootActualCargoStatus": 101,
+  "receiptActualChildExit": null,
+  "nativeDriverFailed": true,
+  "wholeInputIndependentTerminalReview": "NOT_PERFORMED_BY_THIS_ASSEMBLER",
+  "rootRunningSourceFreezeUnchanged": true,
+  "oldSlotRerunOrOverwrite": false,
+  "buildInstallRCQualified": false,
+  "newSlot05": "Separate source/startup scope required; no execution granted here"
+}

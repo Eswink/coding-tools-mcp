@@ -1,0 +1,96 @@
+{
+  "kind": "SAFE_SOURCE_ONLY_BUILD_RUNNING_STAGE_NOT_TERMINAL",
+  "entries": [
+    {
+      "path": "FRESH-IMPACTS-AND-TIMING.safe.json",
+      "bytes": 3118,
+      "sha256": "e3bab0c5767c5255f977263f401bf5840ac48304389046ec9191ce6083ef3abf",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "INDEPENDENT-RSA-BUILD04-STARTUP-SAFE01.json",
+      "bytes": 3475,
+      "sha256": "37498e49ad8f4ea9d0eae4197cf9ee499a7622bc09cb136269fb27eebdca7c1f",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "ORDINARY-INPUT-CONTROLS04.safe.json",
+      "bytes": 1071,
+      "sha256": "1efdbd2be998f6a118f7e6e811431cb7467ef3ad4d2838de53aa2e4374688c2a",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "PROVENANCE.safe.json",
+      "bytes": 3440,
+      "sha256": "50ec4ec9412c6ca051b65ae886547a7765df80c4e64b7d98d6c02430e84cd398",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1379,
+      "sha256": "d7ae13aabdb1d8b454da0d8572edfee8bc3fa8d39ad8a84b67f8492646a034b5",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "bytes": 691,
+      "sha256": "263818c17400229c16edc6155fec5158e784126d4f4d67fd7f768722598743d5",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SPEC-CHECK.safe.json",
+      "bytes": 493,
+      "sha256": "6cc0f173738a723405fe14dcdb2cc4cd8187b25295dd6407b28f0c161f48000c",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SPEC-NEGATIVE-PRIOR-LABEL-FAIL.safe.json",
+      "bytes": 2307,
+      "sha256": "f0d5006dddb4338d382fe738542ee7f59a387fc68b02cfbebc3259255f4fe862",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "source/build-root-once04.py",
+      "bytes": 13199,
+      "sha256": "d95985a9d56d8d6dc00855fd2d4a6ea9fa654fb52cba3e7ede253b368d6cf374",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "source/ordinary-input-controls04.py",
+      "bytes": 2382,
+      "sha256": "fdd22f865e600ce2666019e8f9a8681ebc560372ee9e3d582b2061309bdcefff",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "spec/design.md",
+      "bytes": 1685,
+      "sha256": "7a42465d22b36683820ca6e95a423d05b481554f945e4226a17d6080953b5af5",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "spec/requirements.md",
+      "bytes": 2219,
+      "sha256": "f8e635f1d48f4658bd8a0bd43fe5e4881a51f7939c5dec20f14f16e80dd0fef4",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "spec/tasks.md",
+      "bytes": 1108,
+      "sha256": "2656d111b9847f04ad85a50421f84346720aaa9bad0a587363acbe65685e3955",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "scope": "SEPARATE_COLLECTOR04_LIMITED_SOURCE_PEER_APPENDIX",
+  "sourceFreezeFiles": 13,
+  "sourceFreezeBytes": 51069,
+  "sourceFreezeManifest": "aab928d42f4bf60dfb528b0bdc1114fff2cb6575de0c857a3902906ba148fe38",
+  "sourceFreezePendingUnchanged": true,
+  "finiteSourceReview": "PASS_ONLY",
+  "ordinaryControls": "26 prior named PASS includes actual ordinary child and explicit mocks; not native compiler",
+  "nativeCompilerFamilyRuntimeInstallRCQualified": false,
+  "sourceAssemblySUTCargoGitMutations": 0,
+  "actualNewBuild04Failure": "Separate root CLI TOML argument defect reported after source checkpoint; this collector source appendix supplies no compiler result"
+}

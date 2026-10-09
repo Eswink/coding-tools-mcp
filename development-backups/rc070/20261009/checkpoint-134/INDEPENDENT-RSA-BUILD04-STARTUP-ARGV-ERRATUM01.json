@@ -1,0 +1,21 @@
+{
+  "schema": "rc070.independent-build-startup-argv-erratum.v1",
+  "priorStartupSafe": "INDEPENDENT-RSA-BUILD04-STARTUP-SAFE01.json",
+  "priorStartupSHA256": "37498e49ad8f4ea9d0eae4197cf9ee499a7622bc09cb136269fb27eebdca7c1f",
+  "rootPacketSHA256": "e7a78763f15ad95915ee7c18273fa00845fd2661cc05ec3da933ce6eae477076",
+  "observedToolChunk": "002648",
+  "actualReadOnlyPartialObservation": {
+    "markerExists": true,
+    "targetExists": false,
+    "receiptExists": false,
+    "stdoutBytes": 0,
+    "stderrBytes": 594
+  },
+  "actualStderrCause": "Cargo --config patch.crates-io.sqlx.path=/workspace/... rejected: string values must be quoted, expected literal string.",
+  "reviewerMistake": "Compared exact argv spelling but missed TOML string syntax; genuine successful resolver02 two patch values had literal doublequotes while build04 two values omitted them.",
+  "preserveOriginalStartupAndAttempt": true,
+  "compilerSourceResult": "NOT_ESTABLISHED; native attempt final receipt/exit and full after fence still pending at observation.",
+  "nextScopeIfRootAuthorizes": "New independent once slot; two patch config literal quoted strings with unchanged source/features/lock/tools/caps and fresh source/startup review; no old slot rerun.",
+  "reviewerCargoExecutions": 0,
+  "reviewerCompilerExecutions": 0
+}

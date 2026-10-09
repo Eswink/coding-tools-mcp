@@ -1,0 +1,14 @@
+{
+  "scope": "SOURCE_ONLY_BUILD04_CODE_NOT_BUILD_RESULT",
+  "statusAtAuthorizedAssembly": "ROOT_REPORTED_ACTUAL_BUILD_RUNNING_SESSION12888_NOT_TERMINAL",
+  "buildTerminalByAssembler": "NOT_OBSERVED",
+  "ordinaryInputControlsActualPriorPASS": 10,
+  "ordinaryControlsCompilerCargoExecutions": 0,
+  "independentStartup": "Existing3475B startup-only safe review, not terminal proof",
+  "oldSpecLabelFailure": "7errors1warning preserved separately, later structured check true0/0",
+  "sixImpacts": "UNKNOWN_manualHIGH_with_nonretroactive_timing",
+  "assemblerCargoCompilerAuditSUTGitMutations": 0,
+  "buildPASS": false,
+  "installStartRCQualified": false,
+  "priorFrozenPendingUnchanged": true
+}
