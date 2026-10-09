@@ -1,0 +1,284 @@
+{
+  "RC_CI_install_publisher_credit": 0,
+  "actual_method_vectors": {
+    "executed_ids": {
+      "count": 755,
+      "sha256": "f7e12c4f2c5fed790bb0cfc7e3c3becae4af9e13171bb62f97bacffa77573840"
+    },
+    "loaded_ids": {
+      "count": 755,
+      "sha256": "f7e12c4f2c5fed790bb0cfc7e3c3becae4af9e13171bb62f97bacffa77573840"
+    },
+    "success_ids": {
+      "count": 755,
+      "sha256": "f7e12c4f2c5fed790bb0cfc7e3c3becae4af9e13171bb62f97bacffa77573840"
+    }
+  },
+  "aggregate": {
+    "bytes": 1463090,
+    "sha256": "12a12279cb624b8d2e7009f6f80bafd2cc43bf2270d35daaca2dbc9a7ab077ac"
+  },
+  "audit_report_sha256": "28ec56644f1be291c2c4c83156a9a14241c3e1da8bb3ce409ceb5790921a7505",
+  "auditor_source_seal_sha256": "9f5156509945746491b43102fe5ce39048dcf5d17c566489110cfd7a23604468",
+  "baseline_engineering_result": "PASS",
+  "groups": {
+    "consumer": {
+      "executed": 452,
+      "loaded": 452,
+      "merged": {
+        "bytes": 431685,
+        "events": 934,
+        "exact_actual_ordered_concat": true,
+        "exact_original_encoder": true,
+        "results": 15,
+        "sha256": "92aac2782f36dedbc34b27c5bd858bb3171350bffcc15f38fc5201d1dc71d560",
+        "starts": 452,
+        "successes": 452
+      },
+      "stdout": {
+        "bytes": 49435,
+        "sha256": "f08ceb6da6f840e8e66fcf5576e271ebab0467667280c885241f6915f8fed536"
+      },
+      "success": 452
+    },
+    "pretag": {
+      "executed": 303,
+      "loaded": 303,
+      "merged": {
+        "bytes": 518774,
+        "events": 615,
+        "exact_actual_ordered_concat": true,
+        "exact_original_encoder": true,
+        "results": 3,
+        "sha256": "5ae4a08d6d4950a41dae04ecd91289c5c21aacb71fd7889d1f68208a042158b5",
+        "starts": 303,
+        "successes": 303
+      },
+      "stdout": {
+        "bytes": 65444,
+        "sha256": "401f11e54d2c288916726b39e0ac51bfee2350ea598ccbed92099a6a83baf076"
+      },
+      "success": 303
+    }
+  },
+  "independent_terminal_peer": "PASS: actualsame-run fullfield readonly reconstruction equals authorreport",
+  "individual_streams": {
+    "consumer-cloud_release_bundle_tests": {
+      "bytes": 7639,
+      "events": 20,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "abeed60d579ec8d1204e1995826bf0e890f465c47e6ae451da4cfff9929d88ed",
+      "starts": 9,
+      "successes": 9
+    },
+    "consumer-exact_build_audit_tests": {
+      "bytes": 18065,
+      "events": 46,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "8290ea2e7f868dc33dbfaf98dbf68c6ea5900b350a1e347bcbaf3b5645cfc5de",
+      "starts": 22,
+      "successes": 22
+    },
+    "consumer-exclusive_native_contract_tests": {
+      "bytes": 24781,
+      "events": 52,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "476efb9ac1417fa8bf909d03ff7b9eeafbfef2962abaf539fa1652f33bfbe676",
+      "starts": 25,
+      "successes": 25
+    },
+    "consumer-exclusive_release_tests": {
+      "bytes": 14186,
+      "events": 36,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "793eb3f11e240e3b6ea68348f439d6626acc68c3c87d7b1535a837c1ccc3950a",
+      "starts": 17,
+      "successes": 17
+    },
+    "consumer-final_rc_evidence_tests": {
+      "bytes": 12854,
+      "events": 34,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "8976bf270c4a37df24eb998cc66fd7f908b8baaf66ff3c8bc047faaa0400302d",
+      "starts": 16,
+      "successes": 16
+    },
+    "consumer-rc_consumer_test_runner": {
+      "bytes": 246594,
+      "events": 490,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "6a467ba46be422fdb6df0dacfe401402a9d793629787e23935b39c9361d35866",
+      "starts": 244,
+      "successes": 244
+    },
+    "consumer-rc_packages_tests": {
+      "bytes": 2896,
+      "events": 8,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "994a9d97e75d47bec333bd6ea61bc8b6fe974a84bfce6e615ff284cf09cbcb84",
+      "starts": 3,
+      "successes": 3
+    },
+    "consumer-rc_version_gate_tests": {
+      "bytes": 1858,
+      "events": 6,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "c12ce752676924c10de962104eb79882c68faad4fb0e83b88e0bf889c0a88e5c",
+      "starts": 2,
+      "successes": 2
+    },
+    "consumer-rc_windows_install_contract_tests": {
+      "bytes": 3267,
+      "events": 8,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "29e24ee553bb294cc8bb78813b9b311d510cdf6cb5e78ae4da8a66bd9862fac7",
+      "starts": 3,
+      "successes": 3
+    },
+    "consumer-release_dependency_capture_tests": {
+      "bytes": 6013,
+      "events": 14,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "953d55946335ddf05031a3cae1d821a50663e2b3775efe525b86f1d0b88aa6a5",
+      "starts": 6,
+      "successes": 6
+    },
+    "consumer-release_dependency_contract_tests": {
+      "bytes": 28265,
+      "events": 60,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "d5eca501136b8e91aab579884aa92ae9c5f1f0fc7303778eecd7b05f3ed905e4",
+      "starts": 29,
+      "successes": 29
+    },
+    "consumer-release_tag_gate_tests": {
+      "bytes": 31081,
+      "events": 76,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "d925cc570d2b76bc6666123774660e67b06782b65b16ac17e5f6e4955200e4cf",
+      "starts": 37,
+      "successes": 37
+    },
+    "consumer-reviewed_source_gate_tests": {
+      "bytes": 18575,
+      "events": 44,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "ea3209795c0958097c5601ba4358e921567343edb2bbd1d2d37ab09e77c1764c",
+      "starts": 21,
+      "successes": 21
+    },
+    "consumer-source_provenance_gate_tests": {
+      "bytes": 3468,
+      "events": 10,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "3e3bfdc0366b75bd5c819493ecd0c6ac38ad4f0585f7049e1d4254b0e3a87728",
+      "starts": 4,
+      "successes": 4
+    },
+    "consumer-\u53d1\u5e03\u7248\u672c\u56de\u5f52v4": {
+      "bytes": 12143,
+      "events": 30,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "04c3e06d07a92ed80c6b0d6bf1f106d99ba62a3554d0b25a9271498d5ebed850",
+      "starts": 14,
+      "successes": 14
+    },
+    "pretag-fixed-1": {
+      "bytes": 136450,
+      "events": 129,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "7fa9e2c7dcf49b2001fccd771e6d9ae35b5e3bba93511e9897298bf18ad3e063",
+      "starts": 63,
+      "successes": 63
+    },
+    "pretag-fixed-2": {
+      "bytes": 194393,
+      "events": 257,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "41982a279b13503cfcb97b09ed4c9a75367df7592c45daad4cdff7044b0d2693",
+      "starts": 127,
+      "successes": 127
+    },
+    "pretag-fixed-3": {
+      "bytes": 187931,
+      "events": 229,
+      "exact_original_encoder": true,
+      "results": 1,
+      "sha256": "c53bded2be665d2a4bde1a0d51d69ef7380aff3862944a93194322d5c0f32284",
+      "starts": 113,
+      "successes": 113
+    }
+  },
+  "limits": {
+    "FD_write_flush_observer_proof": false,
+    "consumer_independent_per_entry_pidfd_trace": false,
+    "static_physical_mode_snapshots_are_ownership_or_atomic_antirace": false
+  },
+  "native_declarations": 31,
+  "native_roots": 27,
+  "natural_family": true,
+  "ordinary_controls_actual_pass": 18,
+  "original_budgets": {
+    "aggregate_stdout": "Original direct rawFD; no explicit bytecap inoriginal main, not unlimitedstorage authorization",
+    "outer_seconds": [
+      1200,
+      7,
+      2,
+      2
+    ],
+    "owner_cleanup_seconds": [
+      3,
+      2,
+      2
+    ],
+    "per_event_read_bytes": 1048576,
+    "per_group_stdout_bytes": 2097152
+  },
+  "original_outer": {
+    "bytes": 2332,
+    "sha256": "98904998d8033206e7af9c9160c8eaaaff2776d93001269b10b1a4db2f2857a0"
+  },
+  "outer_seconds": 884.9284545829996,
+  "physical_before_after_current_equal": true,
+  "physical_outer": {
+    "bytes": 436336,
+    "sha256": "a3a835dab8507861d9bd72ef585369a335d34e213d5be90b609c394dbdb961ab"
+  },
+  "preserved_failures": {
+    "auditor_v1": "sourceprovenance reviewgap retained",
+    "auditor_v2": "actual readonlyauditFAIL due wrongcompactconsumerprint expectation; originalrun notmodified",
+    "composition03": "STOP immutable; cancellationgap",
+    "first303": "FAIL immutable; physicalmode mismatch",
+    "old755_recovery03": "FAIL immutable; original eventlosscause unresolved"
+  },
+  "raw_stdout": {
+    "bytes": 3403007,
+    "sha256": "4fa545cbb2c92da053d2e45245e00888e05629618d8924576157dd3889fab21b"
+  },
+  "root_actual_tool_provenance": "Parent unique actualsession22967 write_stdin exit_code0/chunka57af8; explicitauditorinput, not OUTER inference",
+  "root_actual_wrapper_exit": 0,
+  "runtime_files": 11,
+  "scope": "This run exact original full755 baseline engineering PASS only, b227 source; not final0.7 candidate qualification",
+  "sole_parent": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "source_paths": 1849,
+  "source_runtime_refs_native_before_after_current_equal": true,
+  "source_seal_count": 14,
+  "source_tree": "b227335c6503c8b9d2575802522758a308684be8"
+}

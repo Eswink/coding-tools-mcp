@@ -1,0 +1,37 @@
+[
+  {
+    "bytes": 12457,
+    "mode": "100644",
+    "origin_native_mode": "0o600",
+    "path": "source/work/full755-audit-v3/audit.py",
+    "sha256": "1a2d70a8a6a51023e6852f2149f2af55d39f41a5d04cac2f364304ac5cf7a7a6"
+  },
+  {
+    "bytes": 5380,
+    "mode": "100644",
+    "origin_native_mode": "0o600",
+    "path": "source/work/full755-audit-v3/control_audit.py",
+    "sha256": "dc86b4f6f03a39175a99d9c1ba393a4916a24a69bb8f9bea3b027e4a442689f0"
+  },
+  {
+    "bytes": 2517,
+    "mode": "100644",
+    "origin_native_mode": "0o600",
+    "path": "source/docs/specs/full755-readonly-terminal-audit-v3/requirements.md",
+    "sha256": "0384fe94b94722fdd9ab041a428ed387afd32826d951de6284f9f48367d8685d"
+  },
+  {
+    "bytes": 1162,
+    "mode": "100644",
+    "origin_native_mode": "0o600",
+    "path": "source/docs/specs/full755-readonly-terminal-audit-v3/design.md",
+    "sha256": "180bb4dd7e265e645343965f7789033fb32a3388d8b4560ee9d1297d0a8962c8"
+  },
+  {
+    "bytes": 797,
+    "mode": "100644",
+    "origin_native_mode": "0o600",
+    "path": "source/docs/specs/full755-readonly-terminal-audit-v3/tasks.md",
+    "sha256": "112638b2cfd458b392ac26e2721943e999998e789d1f2f9211a38fc347e22fae"
+  }
+]

@@ -1,0 +1,197 @@
+//! Concrete claimed input owner plus creation-returned ComputeCore objects.
+//! Engineering creation lifecycle only; Guest IO and output issuer remain absent.
+mod archive_data;
+mod archives;
+mod boundary;
+mod fixture;
+mod fixture_registry;
+mod native;
+mod status;
+use super::{InputLease, InputTransfer, OwnedWorkspaceInput, Retained, WindowsInputAuthority};
+use crate::tools::{ToolContext, cloud_host::windows_workspace::WorkspaceRunGrant};
+use coding_tools_cloud_agent::work::WorkScope;
+pub(crate) use fixture::CreationFixture;
+pub(crate) use fixture_registry::{register_creation_fixture, take_creation_fixture};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
+use tokio::sync::watch;
+
+struct OwnedCreatedHcsWorkspace {
+    input: OwnedWorkspaceInput,
+    fixture: CreationFixture,
+    archives: archives::ImageArchiveLease,
+    system: native::CreatedSystem,
+}
+static RECOVERY: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashMap<uuid::Uuid, Box<OwnedCreatedHcsWorkspace>>>,
+> = std::sync::OnceLock::new();
+
+fn retain_whole_unknown(mut owned: Box<OwnedCreatedHcsWorkspace>) {
+    // Seal the durable fences, but retain the real non-Clone claim/permit, root,
+    // context, source handles/bytes, actual HCS system/operations and allocation.
+    drop(owned.input.cloud.take());
+    drop(owned.input.root.take());
+    let entries = RECOVERY.get_or_init(Default::default);
+    let Ok(mut entries) = entries.lock() else {
+        let _ = Box::leak(owned);
+        return;
+    };
+    let operation = owned.input.grant.operation();
+    if entries.len() >= 256 || entries.contains_key(&operation) {
+        let _ = Box::leak(owned);
+        return;
+    }
+    entries.insert(operation, owned);
+}
+
+/// Diagnostic fields cannot be consumed as native authority or an output seal.
+pub(crate) struct CreationReport {
+    pub(crate) operation: uuid::Uuid,
+    pub(crate) error: &'static str,
+    pub(crate) source_handles_closed: bool,
+    pub(crate) creation_attempted: bool,
+    pub(crate) create_completed: bool,
+    pub(crate) start_completed: bool,
+    pub(crate) whole_exit_observed: bool,
+}
+
+pub(crate) fn run_claimed_creation_fixture(
+    context: Arc<ToolContext>,
+    authority: Arc<WindowsInputAuthority>,
+    grant: WorkspaceRunGrant,
+    work: WorkScope,
+    deadline: Instant,
+    cancellation: watch::Receiver<bool>,
+    fixture: CreationFixture,
+) -> Result<CreationReport, &'static str> {
+    grant.actual_claim()?;
+    if !grant.binding().valid()
+        || grant.binding().source != super::super::native_source()?
+        || fixture.source != grant.binding().source
+        || *cancellation.borrow()
+        || Instant::now() >= deadline
+    {
+        return Err("WINDOWS_HCS_ACTUAL_GRANT_REJECTED");
+    }
+    let root = context
+        .root_work
+        .as_ref()
+        .map_err(|_| "WINDOWS_INPUT_ROOT_UNAVAILABLE")?
+        .register()
+        .map_err(|_| "WINDOWS_INPUT_ROOT_STOPPING")?;
+    let cloud = work.fork().map_err(|_| "WINDOWS_INPUT_CLOUD_STOPPING")?;
+    let operation = grant.operation();
+    let mut owned = Retained::new(
+        OwnedCreatedHcsWorkspace {
+            input: OwnedWorkspaceInput {
+                grant,
+                context,
+                authority,
+                lease: InputLease::new(),
+                transfer: None,
+                cloud: Some(cloud),
+                root: Some(root),
+            },
+            fixture,
+            archives: archives::ImageArchiveLease::new(),
+            system: native::CreatedSystem::empty(),
+        },
+        retain_whole_unknown,
+    );
+    let cancelled = || *cancellation.borrow();
+    let result: Result<(), &'static str> = (|| {
+        let owned = owned.get_mut();
+        owned.input.begin()?;
+        let binding = owned.input.grant.binding().clone();
+        owned.input.lease.prepare(
+            &owned.input.authority,
+            owned.input.grant.host(),
+            &binding.profile,
+            &binding.input_relative,
+            deadline,
+            &cancelled,
+        )?;
+        let transfer: InputTransfer =
+            owned
+                .input
+                .lease
+                .transfer(binding.clone(), deadline, &cancelled)?;
+        if !transfer.matches(&binding) {
+            return Err("WINDOWS_HCS_INPUT_BINDING_REJECTED");
+        }
+        owned.input.transfer = Some(transfer);
+        if let Some(parent) = owned.fixture.archive_parent.as_deref() {
+            let root = owned.input.lease.summary()?.0;
+            owned.archives.prepare(
+                &owned.input.authority,
+                owned.input.grant.host(),
+                &binding.profile,
+                parent,
+                root,
+                deadline,
+                &cancelled,
+            )?;
+            owned.input.lease.revalidate(deadline, &cancelled)?;
+            // Verified fixed archive bytes cannot authorize a later pathname,
+            // imported boot tree, writable scratch, VM or output issuer.
+            return Err("WINDOWS_HCS_BOOT_ASSET_OWNER_UNPROVEN");
+        }
+        // Neither the old raw configuration nor a missing archive selector
+        // owns boot tree/scratch resources. Future creation must consume those
+        // concrete resources alongside this still-held actual grant.
+        Err("WINDOWS_HCS_FIXTURE_ASSET_OWNER_UNPROVEN")
+    })();
+    let (creation_attempted, create_completed, start_completed, _) =
+        owned.get().system.diagnostic();
+    // No Guest process or private IO has been started in this small increment.
+    // Cleanup uses only this creation-returned object; expired execution grants
+    // can stop their already-owned object, never start a replacement workload.
+    let native_retired = if owned.get().system.no_native_object_or_effect() {
+        true
+    } else {
+        let cleanup_deadline = Instant::now() + Duration::from_secs(30);
+        owned
+            .get_mut()
+            .system
+            .retire_created_system(cleanup_deadline)
+            .and_then(|()| {
+                owned
+                    .get_mut()
+                    .system
+                    .close_only_after_confirmed_retirement()
+            })
+            .is_ok()
+    };
+    let (_, _, _, whole_exit_observed) = owned.get().system.diagnostic();
+    let source_handles_closed =
+        native_retired && owned.get_mut().archives.retire() && owned.get_mut().input.lease.retire();
+    let error = if !native_retired {
+        "WINDOWS_HCS_RETIRE_UNCONFIRMED"
+    } else if !source_handles_closed {
+        "WINDOWS_INPUT_CLOSE_UNKNOWN"
+    } else {
+        result
+            .err()
+            .unwrap_or("WINDOWS_HCS_GUEST_IO_AND_OUTPUT_UNAVAILABLE")
+    };
+    if source_handles_closed {
+        if let Some(transfer) = owned.get_mut().input.transfer.as_mut() {
+            transfer.clear_after_checked_close();
+        }
+        owned.get_mut().input.complete_guards();
+        owned.retire_known();
+    } else {
+        drop(owned);
+    }
+    Ok(CreationReport {
+        operation,
+        error,
+        source_handles_closed,
+        creation_attempted,
+        create_completed,
+        start_completed,
+        whole_exit_observed,
+    })
+}

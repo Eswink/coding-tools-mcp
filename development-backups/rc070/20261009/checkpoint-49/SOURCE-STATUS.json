@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "state": "SOURCE_ONLY_FROZEN_INDEPENDENT_PEER_ALLOWED",
+  "actualSource": {
+    "sourceRoot": "/workspace/work/rc070/windows-rust-inference",
+    "sourceHEAD": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+    "baselineTree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+    "targetTree": "6b7e33c45c5e56340b1cfb81a7d304c6c60cf23f",
+    "sourcePaths": 1953,
+    "unchangedOriginalPaths": 1952,
+    "allCurrentBlobRawBytesVerified": true,
+    "allOriginalOther1952ModeBlobBytesVerified": true,
+    "soleChangedPath": "src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs",
+    "inverseWholeFileEqualsOriginal": true,
+    "originalRawSHA": "dd85d23df558c100c0d63c72fc55b72dbc0a2ba158f7a2ee705470916a098cf5",
+    "newRawSHA": "d22b143b6b199e743b19bf931b50358cfac9fcc761704d81139e87a6c07ade00",
+    "nativePatchSHA": "1e8c030e28ce274a258740444e9e4ef7e79c141d2dc198a12f989e273ab5dc1c",
+    "nativePatchBytes": 627,
+    "full1953ManifestSHA": "48c2d6547375b02b738abf11b0e3505fe50c6a1e067d15eb3202a6c6e4ff6764",
+    "protectedPositiveSHA": "c9fcdba432c239cc08a090c6cb4256f51b54368cbefb3afac553c1a6c719b9b8",
+    "newCompiler": "NOTRUN",
+    "qualification": "source-only; materialized recovered index is not a one-line production commit vs D6HEAD"
+  },
+  "originalRealCompiler": "Windows run37923306194attempt1 original19bb ACTUAL_FAILURE101 E0282; new candidate compiler/tests NOTRUN",
+  "original7RustNamedTests": "NOTRUN",
+  "freshImpact": "LOW exactfunction impacted1 directcaller10processhits, ownerboundaryuserdisclosed; no0impactclaim",
+  "physicalMode": "Actual sourceonlybundle POSIX mode declared separately from Git100644; no physical755 admission claim",
+  "protectedDefaultDeny": "No Ok/grant/controlflow/defaultdeny/cleanup/owner change; sole declaration annotation inverse wholebytes equalsoriginal",
+  "independentPeer": {
+    "receiptSHA": "6ba5f9858dbe74e9ee1d4b5fa7237bde797cda01df6449fa0acdcb168f5e6c8e",
+    "scope": "Full1953source/inverseone-line only; no newcompiler/native/RC proof"
+  },
+  "qualification": "No nativeowner/VM/IOclose/install/RC qualification; source-only backup, not production tested change"
+}

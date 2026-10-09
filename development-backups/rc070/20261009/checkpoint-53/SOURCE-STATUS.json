@@ -1,0 +1,9 @@
+{
+  "author_actual_audit_report_sha256": "28ec56644f1be291c2c4c83156a9a14241c3e1da8bb3ce409ceb5790921a7505",
+  "independent_terminal_peer": "PASS aftersourcefreeze",
+  "kind": "Safety status and hash/count evidence only; not source or artifact product",
+  "private_raw_zip_public_upload_forbidden": true,
+  "private_raw_zip_sha256": "d115889cfa04df1c91ca1421e754abd344d847a7bec6ac00b20f0f81e33c814d",
+  "scope": "Baseline engineering only",
+  "source_bundle_MANIFEST_sha256": "73d6afdacd21211295557249cab92e62027683fb9ec0e55f4c1b2e205ee8bb58"
+}

@@ -1,0 +1,18 @@
+# Windows Rust Result inference repair
+
+## 功能概述
+Real Windows run37923306194 failed whole lib compilation with E0282 in pure tree19bb/1953 hcs.rs104. Constrain the deny-only closure Result success type while retaining original rejection behavior.
+
+## 需求列表
+- FR-1 Replace exactly `let result = (|| {` with `let result: Result<(), &'static str> = (|| {` once in hcs.rs; no Ok or control-flow change.
+- FR-2 Preserve all1953 paths/modes, other1952 blobs/raw bytes and protected WSS c9fcd SHA; produce full new1953 candidate manifest and exact single-path native patch from19bb.
+- FR-3 Keep old19bb/oldguard/oldmanifest and failures immutable; source-only backup is separate from later strict carrier and real Windows compiler validation.
+
+## 非功能需求
+No VM/owner/IOclose/native authority, no grant minting, default deny retained. No compiler PASS from static checks, Linux or fake harness. Documentary sidecars stay outside pure SUT.
+
+## 验收标准
+The system SHALL satisfy FR-1 exact remove-annotation inverse equals old whole file. FR-2 all1953 native mode/blob/physical bytes verified, one native delta, protected SHA exact. FR-3 independent source peer, immutable backup, then genuine Windows full compiler must produce real result; current result NOTRUN.
+
+## 依赖关系
+Restored immutable19bb, actual8c7 failed compiler receipt, fresh exact own-index function impact LOW/impacted1, root explicit owner-boundary disclosure/authorization. Strict new candidate carrier is separate bounded scope.

@@ -1,0 +1,13 @@
+diff --git a/src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs b/src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs
+index 40dbcbe..5b2626f 100644
+--- a/src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs
++++ b/src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs
+@@ -101,7 +101,7 @@ pub(crate) fn run_claimed_creation_fixture(
+         retain_whole_unknown,
+     );
+     let cancelled = || *cancellation.borrow();
+-    let result = (|| {
++    let result: Result<(), &'static str> = (|| {
+         let owned = owned.get_mut();
+         owned.input.begin()?;
+         let binding = owned.input.grant.binding().clone();

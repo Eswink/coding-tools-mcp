@@ -1,0 +1,20 @@
+[
+  {
+    "bytes": 907,
+    "mode": "100644",
+    "path": "README.md",
+    "sha256": "899a3a47f5b7c760f844adbd8eb54f3b9b7344550f5f459f218529cbafe56d0d"
+  },
+  {
+    "bytes": 545,
+    "mode": "100644",
+    "path": "SOURCE-STATUS.json",
+    "sha256": "188febec5105d0b990c4ea0abe462d0c2db9838d880824ec31e9828c85718340"
+  },
+  {
+    "bytes": 9109,
+    "mode": "100644",
+    "path": "TERMINAL-SAFE-STATUS.json",
+    "sha256": "e605852136a9657c70ed94583b8799def6dd37f6d0f3e854821822b23864c6f6"
+  }
+]

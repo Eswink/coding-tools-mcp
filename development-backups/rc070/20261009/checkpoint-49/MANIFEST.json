@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "files": [
+    {
+      "path": "CANDIDATE-FULL1953-MANIFEST01.json",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 510045,
+      "sha256": "48c2d6547375b02b738abf11b0e3505fe50c6a1e067d15eb3202a6c6e4ff6764"
+    },
+    {
+      "path": "README.md",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 1156,
+      "sha256": "a9f2973a19b0d983212d6e8ca99aa8ce51386cc53043d3ab559387edbd1ef8af"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 2147,
+      "sha256": "c3aab5b72623d4b6a22082bbdcf0ee08bb51ca6f0dc358dbe410689a446eec4e"
+    },
+    {
+      "path": "design.md.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 1371,
+      "sha256": "e7e86f47885f5f4da32000154236b0fe2534e1a43680da777e55f71fa2be20fe"
+    },
+    {
+      "path": "hcs.rs.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 7163,
+      "sha256": "d22b143b6b199e743b19bf931b50358cfac9fcc761704d81139e87a6c07ade00"
+    },
+    {
+      "path": "pure19bb-to-inference-fix.patch",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 627,
+      "sha256": "1e8c030e28ce274a258740444e9e4ef7e79c141d2dc198a12f989e273ab5dc1c"
+    },
+    {
+      "path": "requirements.md.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 1521,
+      "sha256": "5153035e3c9b2760c9ef1e6d5a1818f334171330fb735b48293561bc730fd10b"
+    },
+    {
+      "path": "tasks.md.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 1433,
+      "sha256": "b7aa519ed4c4c6cc909a5f7d34dfa311b35d08c6a7fcaf33d308b9906fe55abd"
+    }
+  ],
+  "payload_files": 8,
+  "payload_bytes": 525463,
+  "qualification": "SOURCE_ONLY/independent peer allowed/new compiler NOTRUN"
+}

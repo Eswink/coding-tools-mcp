@@ -1,0 +1,13 @@
+{
+  "RC_CI_install_publisher_credit": 0,
+  "independent_source_peer": "ALLOW after sourcefreeze",
+  "new_AST": true,
+  "old755recovery03": "FAIL retained, cause unresolved",
+  "old_v2_auditor": "FAIL: wrong compact expectation for originaldefaultprint; preserved",
+  "ordinary_controls_actual_pass": 18,
+  "source_count": 5,
+  "source_freeze_snapshot_terminal_audit": "NOTRUN",
+  "source_only": true,
+  "source_seal_sha256": "9f5156509945746491b43102fe5ce39048dcf5d17c566489110cfd7a23604468",
+  "subsequent_author_terminal_audit": "PASS, separately\u5c01\u5b58"
+}

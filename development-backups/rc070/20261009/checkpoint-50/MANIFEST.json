@@ -1,0 +1,76 @@
+{
+  "source_only": true,
+  "files": [
+    {
+      "path": "README.md",
+      "git_mode": "100644",
+      "bytes": 6226,
+      "sha256": "708b07e81eed529d9212e9805d05a66bbb719fac5a5b37cf62ce24d140a5a43e",
+      "blob_sha1": "8f4901bf8c2be92c8b8005c249ac30bd14a6518d"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "git_mode": "100644",
+      "bytes": 13379,
+      "sha256": "71cfc92f5f8bfb1886c81bbbd45a66cc30d1996456f0fdc2f681e5ca1009be30",
+      "blob_sha1": "3d5bef6aae3b729c4aaf217dda8707748c3cc5a1"
+    },
+    {
+      "path": "source/diagnostic-launch.py.source",
+      "git_mode": "100644",
+      "bytes": 3686,
+      "sha256": "1dbe69f82a604c77d9497327e110b5e4fda27b3c5036491ff9a58c93a6030f5c",
+      "blob_sha1": "f78b5222f8d3977c0aa1d065bb8ad95203328677"
+    },
+    {
+      "path": "source/diagnostic_owner.py.source",
+      "git_mode": "100644",
+      "bytes": 15193,
+      "sha256": "3c2326880b83a98a6656b5d9206756f1afd3182a005451db54a4da3527c4548d",
+      "blob_sha1": "8a3faae77fbff1afa8dfbe5703e55032c414fabd"
+    },
+    {
+      "path": "source/diagnostic_worker.py.source",
+      "git_mode": "100644",
+      "bytes": 11764,
+      "sha256": "2400b4e949ae3aa210e003238a4d32856793fcdfcb16a3498a369adfdf3624b4",
+      "blob_sha1": "f15399dfdcce44bcbdd35627c7dd7e59d8ed7250"
+    },
+    {
+      "path": "source/docs/specs/publisher-final-fence-diagnostic4/design.md.source",
+      "git_mode": "100644",
+      "bytes": 3883,
+      "sha256": "5f9823da10ada201ed9254d8a667896fc05a2af05bb8a35a68da41f2af45ffe7",
+      "blob_sha1": "fce41ff718a8617e946b43d177b56fb15521d940"
+    },
+    {
+      "path": "source/docs/specs/publisher-final-fence-diagnostic4/requirements.md.source",
+      "git_mode": "100644",
+      "bytes": 6265,
+      "sha256": "ce726fd4f36cb6afb70271263d54e79275702fab2e5577c28098a1253257f7f1",
+      "blob_sha1": "da65194f7123631f5dd94156bb08f51f158c6cfd"
+    },
+    {
+      "path": "source/docs/specs/publisher-final-fence-diagnostic4/tasks.md.source",
+      "git_mode": "100644",
+      "bytes": 2397,
+      "sha256": "1d36e91b7125a02040c9a5168fe3b695e2f973d56568199e8106f60627dbc830",
+      "blob_sha1": "9ff6450a5db21a465edead448634d107921db62a"
+    },
+    {
+      "path": "source/ordinary-mutation-controls.py.source",
+      "git_mode": "100644",
+      "bytes": 22331,
+      "sha256": "11863c85afd0b724d5e8d175917e46455de0fc4453605ccb11f568b8942f786b",
+      "blob_sha1": "215677f58eb9311df19d70ff44bb5ac023add4ed"
+    },
+    {
+      "path": "source/ordinary-native-controls.py.source",
+      "git_mode": "100644",
+      "bytes": 3123,
+      "sha256": "335c2196da44a0d9e151ae8b724dc5563031d3c7485e586eb2deef3affd5ae52",
+      "blob_sha1": "b2264d56530700aa76cc6835b95526a38ebed04a"
+    }
+  ],
+  "manifest_self_bound_by_remote_git_blob": true
+}

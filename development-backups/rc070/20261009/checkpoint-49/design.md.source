@@ -1,0 +1,23 @@
+# Result inference design
+
+## 概述
+The original closure returns only Err and the consumer calls only err(), leaving generic success T unconstrained. Explicit unit T removes inference ambiguity without creating a success path.
+
+## 技术方案
+Only one local declaration annotation Result<(), staticstr>; all native ownership, cleanup and default-deny bytes stay exact.
+
+## Data Flow
+Existing input authority -> unchanged closure deny paths -> same error extraction -> unchanged retire/close/unknown handling. No output authority or new authorization data.
+
+## Error Handling
+Original static error strings and propagated errors remain unchanged. No Ok, no fallback allow, no warning suppression. Preserve actual compiler failure and future error results.
+
+## FR Coverage Matrix
+| Requirement | Design | Verification |
+|---|---|---|
+| FR-1 | Exact one-line annotation | Inverse byte equality |
+| FR-2 | Native1953 tree and full manifest | Every mode/blob/raw byte, protected SHA and one-path patch |
+| FR-3 | Separate immutable source-only package | Independent peer then genuine new Windows CI |
+
+## 文件结构
+Pure SUT changes only src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs. Documentary specs/manifests/patch reside outside SUT as inert sidecars. HEAD D6 and recoveredindex19bb differ already; never misrepresent recovery as a one-line production commit.

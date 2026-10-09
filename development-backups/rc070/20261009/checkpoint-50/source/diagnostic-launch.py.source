@@ -1,0 +1,49 @@
+"""One reviewed original FinalAdmission method diagnostic; no retry85 or300."""
+import json,sys,ssl
+from pathlib import Path
+B=Path('/workspace/work/rc070/publisher-final-fence-diagnostic')
+M=Path('/workspace/work/rc070/publisher-carrier')
+sys.path.insert(0,str(M/'scripts'));sys.path.insert(0,str(B))
+from rc_native_probe_restore import read_regular,sha,write,whole_source,git,RUNNER_SHA,FIXTURE_SHA
+from rc_native_probe_kernel import identity
+from rc_native_probe import FILES
+from diagnostic_owner import diagnostic_run_owned,RUNTIME
+seal=json.loads(read_regular(B/'PRELAUNCH-SEAL.json'))
+assert seal['SUT_runs']==0 and seal['profile']=='diagnostic4' and seal['inventory_count']==1
+for path,row in seal['files'].items():
+ raw=read_regular(path);assert len(raw)==row['bytes'] and sha(raw)==row['sha256']
+assert git(M,'status','--porcelain','--untracked-files=all')==b''
+assert git(M,'rev-parse','HEAD').decode().strip()==seal['carrier_commit']
+assert git(M,'write-tree').decode().strip()==seal['carrier_tree']
+assert {p:identity(p) for p in RUNTIME}==seal['runtime']
+assert identity(ssl.__file__)==seal['stdlib_ssl_source']
+context=json.loads(read_regular(B/'diag-preflight/SOURCE-RESTORATION.json'))
+assert whole_source(context['root'],context['rows'])==context['source']
+fixture=Path('/workspace/work/rc070/publisher-review/glib-0.18.5.crate')
+runner=M/'scripts/rc_native_probe_original_runner.py'
+assert identity(fixture)==seal['fixture'] and sha(fixture.read_bytes())==FIXTURE_SHA and sha(runner.read_bytes())==RUNNER_SHA
+inventory=['rc_publication_final_admission_cases.FinalAdmissionCases.test_entry_and_direct_sinks_remain_effect_free']
+assert inventory==seal['inventory']
+output=B/'diagnostic4-once';assert not output.exists()
+carriers=[M/p for p in FILES]+[B/p for p in ('diagnostic_owner.py','diagnostic_worker.py','diagnostic-launch.py')]
+result=diagnostic_run_owned(context,'diagnostic4',inventory,output,fixture,runner,carriers)
+assert identity(ssl.__file__)==seal['stdlib_ssl_source']
+observation={};observation_available=False;observation_error_type=None;observation_raw=None
+original_raw_seal=read_regular(output/'RAW-EVIDENCE-SEAL.json')
+assert sha(original_raw_seal)==result['seal_sha256']
+try:
+ observation_raw=read_regular(output/'DIAGNOSTIC-OBSERVATION.json')
+ observation=json.loads(observation_raw)
+ observation_available=observation['observation_valid'] is True and bool(observation['events'])
+except Exception as observation_error:
+ observation_error_type=type(observation_error).__name__
+write(output/'OBSERVATION-RAW-SEAL.json',dict(observer_file='DIAGNOSTIC-OBSERVATION.json',
+    observer_status='OBSERVED' if observation_available else 'UNKNOWN',observer_error_type=observation_error_type,
+    observer_bytes=None if observation_raw is None else len(observation_raw),observer_sha256=None if observation_raw is None else sha(observation_raw),
+    original8_raw_seal_bytes=len(original_raw_seal),original8_raw_seal_sha256=sha(original_raw_seal),original8_does_not_include_sidecar=True,
+    whole85_qualification=False,release_authorized=False))
+observer_seal_sha256=sha(read_regular(output/'OBSERVATION-RAW-SEAL.json'))
+write(B/'DIAGNOSTIC4-RESULT.json',dict(diagnostic_observation_available=observation_available,
+    original_method_passed=result['native']['qualified'],native_echild=result['native']['native_echild'],natural_exit_code=result['native']['natural_exit_code'],
+    raw_seal_sha256=result['seal_sha256'],observer_seal_sha256=observer_seal_sha256,whole85='FAIL_83SUCCESS_2FAIL_RETAINED',original300='NOTRUN',CI=False,FINAL=False,release_authorized=False))
+raise SystemExit(0 if result['native']['qualified'] and observation_available else 1)
