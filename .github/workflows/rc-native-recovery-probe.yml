@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publisher-native:
-    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push'
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push' && github.ref == 'refs/heads/test/rc070-native-recovery-probe-20261009'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
