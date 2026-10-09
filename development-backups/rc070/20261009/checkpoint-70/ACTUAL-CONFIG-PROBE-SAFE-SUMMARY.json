@@ -1,0 +1,47 @@
+{
+  "scope": "safe actual stdlib configuration probe summary only",
+  "actual_stdlib_config_probes": 2,
+  "actual_exit_codes": [
+    0,
+    0
+  ],
+  "original_worker_runs": 0,
+  "original_method_runs": 0,
+  "production_edits": 0,
+  "baseline_config": {
+    "closed_authority": false,
+    "flags": {
+      "ignore_environment": 0,
+      "isolated": 0,
+      "no_site": 0,
+      "no_user_site": 0,
+      "safe_path": false
+    },
+    "original_method_executed": false,
+    "original_worker_executed": false,
+    "project_module_discoverable": true,
+    "scope": "stdlib startup configuration probe only; not original worker",
+    "site_loaded": true
+  },
+  "isolated_no_site_config": {
+    "closed_authority": false,
+    "flags": {
+      "ignore_environment": 1,
+      "isolated": 1,
+      "no_site": 1,
+      "no_user_site": 1,
+      "safe_path": true
+    },
+    "original_method_executed": false,
+    "original_worker_executed": false,
+    "project_module_discoverable": false,
+    "scope": "stdlib startup configuration probe only; not original worker",
+    "site_loaded": false
+  },
+  "original_argv_executed": false,
+  "original_timing_or_no_descendant_proven": false,
+  "specific_boot_phase": "UNKNOWN",
+  "no_ack_in_original_worker": true,
+  "stderr_DEVNULL_not_EOF_proof": true,
+  "private_raw_included": false
+}

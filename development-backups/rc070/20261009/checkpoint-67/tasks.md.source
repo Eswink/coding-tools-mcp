@@ -1,0 +1,20 @@
+# 任务
+
+## 交付物清单
+外部观察source、新3FRspec、freshGN、实际普通TLS/socket/process原结果、精确PRELAUNCH-SEAL/EXACTargv、独立startup与terminal审查、安全source-only备份；原method唯一一次由root启动。
+
+## 任务列表
+- [x] FR-1/2 newfinite spec，fresh exact impact并实施前manualCRITICAL披露。
+- [ ] FR-1 新pure/source/AST/native/tools原mode/budget完整封存。
+- [ ] FR-2 external observer9fixedbindings+dynamicauth，普通fail-first controls/原cancel/真实close。
+- [ ] FR-3 actualcontrols/seal/independentstartup/rootunique originalmethod1/原8+sidecar完整terminal audit。
+
+## 需求覆盖矩阵
+| 需求 | 交付 | 状态 |
+| --- | --- | --- |
+| FR-1 | source/native/AST/spec | PENDING |
+| FR-2 | realSocket/fixture/auth observers+controls | PENDING |
+| FR-3 | independentstartup/terminal/raw8+sidecar/safe backup | PENDING |
+
+## 文件变更清单
+只独立external sourcediagnostic_owner.py/diagnostic_worker.py/diagnostic-launch.py及6个本轮ordinary controls Python（native/mutation/auth/rootcause/realTLSchild/ownedTLSsupervisor）及本目录3spec；原production/fixture/runner/testmethod0change，不能覆盖旧失败/冻结/STOP；源码草稿明确source-only/peerPENDING/SUTmethodNOTRUN。

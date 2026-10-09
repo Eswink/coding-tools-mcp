@@ -1,0 +1,46 @@
+{
+  "kind": "StandaloneV3 source-only five native paths",
+  "tree": "5a892df4d10fa4f38facb738e2699285d31cdaf5",
+  "files": [
+    {
+      "path": "owned_debian_msgfmt_prepare.py",
+      "bytes": 37979,
+      "sha256": "382f47e98cb5e782e4080f781ba930a42a265a5d83250507199045b1d28ba0aa",
+      "git_mode": "100644",
+      "source_os_mode": "0o600",
+      "native_blob_oid": "096df1b233a6314e1ff1fa8cc65e92f76134edd7"
+    },
+    {
+      "path": "owned_debian_msgfmt_prepare_tests.py",
+      "bytes": 34203,
+      "sha256": "ce5225b4aa32f2a5744486117a16064575f72aee6c0a521549cfe599520859b4",
+      "git_mode": "100644",
+      "source_os_mode": "0o600",
+      "native_blob_oid": "2fbb1b245879c2617585d1f487ebe29c3e295474"
+    },
+    {
+      "path": "docs/specs/issue88-owned-debian-msgfmt-preparation/requirements.md",
+      "bytes": 12306,
+      "sha256": "c296621c120f6b18d01e8e0e44fd6bee103be99e2fc96c6a0eb7a1809904a0b1",
+      "git_mode": "100644",
+      "source_os_mode": "0o600",
+      "native_blob_oid": "537656f9127de76f5017e77f50599e7a5c81b619"
+    },
+    {
+      "path": "docs/specs/issue88-owned-debian-msgfmt-preparation/design.md",
+      "bytes": 11743,
+      "sha256": "d4b0f6c9fd064a59f99655eea4d8f3d731573334e202714ec43174622c58996a",
+      "git_mode": "100644",
+      "source_os_mode": "0o600",
+      "native_blob_oid": "558564777a54946c2d3beebc9900e45ee7aa7214"
+    },
+    {
+      "path": "docs/specs/issue88-owned-debian-msgfmt-preparation/tasks.md",
+      "bytes": 6341,
+      "sha256": "de3f6d0a90bd82bc604230d8e87348940633a629bd6c8b31c7f505835974cc8d",
+      "git_mode": "100644",
+      "source_os_mode": "0o600",
+      "native_blob_oid": "180a6001cf66f2ab08bc6bbcae29b2ce9f951dd1"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+"""Bounded real owned TLS component child; zero original SUT methods."""
+import ctypes,hashlib,json,os,signal,subprocess,sys,time
+from pathlib import Path
+B=Path('/workspace/work/rc070/publisher-root-cause-diagnostic')
+sys.path.insert(0,'/workspace/work/rc070/publisher-carrier/scripts')
+from rc_native_probe_kernel import kernel,owned_family_close
+assert ctypes.CDLL(None,use_errno=True).prctl(36,1,0,0,0)==0
+try:os.waitid(os.P_ALL,0,os.WEXITED|os.WNOHANG|os.WNOWAIT)
+except ChildProcessError:pass
+else:raise AssertionError('ordinary private supervisor initial closure is not ECHILD')
+def exclusive(name):
+ return os.fdopen(os.open(B/name,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600),'wb')
+def observed_exit(fd,deadline):
+ while time.monotonic()<deadline:
+  result=os.waitid(os.P_PIDFD,fd,os.WEXITED|os.WNOHANG|os.WNOWAIT)
+  if result is not None:return result
+  time.sleep(.01)
+ return None
+started=time.monotonic();primary=None;errors=[];child=fd=created=held=observed=None;family=[];echild=False
+worker_sha=hashlib.sha256((B/'diagnostic_worker.py').read_bytes()).hexdigest()
+try:
+ with exclusive('ordinary-real-tls-owned-v4.stdout.log')as stdout,exclusive('ordinary-real-tls-owned-v4.stderr.log')as stderr:
+  child=subprocess.Popen([sys.executable,str(B/'ordinary-real-tls-child.py')],stdin=subprocess.DEVNULL,
+   stdout=stdout,stderr=stderr,start_new_session=True,
+   env={'PATH':'/usr/bin:/bin','PYTHONDONTWRITEBYTECODE':'1'})
+  fd=os.pidfd_open(child.pid);created=kernel(child.pid,fd)
+  assert created['pid']==child.pid and created['ppid']==os.getpid()and created['pgid']==created['sid']==child.pid
+  observed=observed_exit(fd,started+45)
+  if observed is None:raise TimeoutError('ordinary actual component deadline; qualification FAIL')
+except BaseException as error:primary=error
+finally:
+ if child is not None and fd is not None:
+  try:
+   if observed is None:
+    signal.pidfd_send_signal(fd,signal.SIGTERM)
+    observed=observed_exit(fd,time.monotonic()+7)
+   if observed is None:
+    signal.pidfd_send_signal(fd,signal.SIGKILL)
+    observed=observed_exit(fd,time.monotonic()+2)
+   assert observed is not None and observed.si_pid==child.pid,'owned child exit UNKNOWN'
+   held=kernel(child.pid,fd)
+   assert held['state']=='Z'and held['starttime']==created['starttime']and held['pgid']==held['sid']==child.pid
+   actual_exit=child.wait(timeout=0)
+  except BaseException as error:errors.append(error)
+  finally:os.close(fd)
+ try:echild=owned_family_close(time.monotonic()+2,family)
+ except BaseException as error:errors.append(error)
+stdout=(B/'ordinary-real-tls-owned-v4.stdout.log').read_bytes();stderr=(B/'ordinary-real-tls-owned-v4.stderr.log').read_bytes()
+assert len(stdout)<=2*1024*1024 and len(stderr)<=2*1024*1024
+rows=[json.loads(line)for line in stdout.splitlines()]
+component=rows[-1]if rows else None
+passed=(primary is None and not errors and echild and not family and observed is not None
+ and observed.si_code==os.CLD_EXITED and observed.si_status==0 and not stderr
+ and component is not None and component['passed']and component['controls']==6
+ and component['worker_sha256']==worker_sha and component['original_method_runs']==0)
+report=dict(passed=passed,original_method_runs=0,real_TLS_components_executed=True,issuer_proof=False,
+ component_budgets=dict(component=45,term=7,kill=2,family=2),original_method_budgets_unchanged=True,
+ primary_type=None if primary is None else type(primary).__name__,cleanup_error_types=[type(e).__name__ for e in errors],
+ created=created,held=held,observed=None if observed is None else dict(pid=observed.si_pid,code=observed.si_code,status=observed.si_status),
+ echild=echild,family=family,component=component,elapsed_seconds=time.monotonic()-started,
+ stdout_bytes=len(stdout),stdout_sha256=hashlib.sha256(stdout).hexdigest(),stderr_bytes=len(stderr),stderr_sha256=hashlib.sha256(stderr).hexdigest())
+with(B/'ORDINARY-OWNED-TLS-CONTROLS-v4.json').open('x')as stream:json.dump(report,stream,indent=2);stream.write('\n')
+print(json.dumps(dict(passed=passed,controls=None if component is None else component['controls'],echild=echild,original_method_runs=0)))
+if primary is not None or errors:
+ failures=([primary]if primary is not None else[])+errors
+ if len(failures)==1:raise failures[0]
+ raise BaseExceptionGroup('Original ordinary component and actual cleanup errors',failures)
+assert passed,'actual ordinary component closure failed'

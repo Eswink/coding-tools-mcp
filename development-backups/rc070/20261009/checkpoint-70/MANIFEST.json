@@ -1,0 +1,29 @@
+{
+  "scope": "source-derived bounded graph, read-only analysis and safe status only",
+  "files": [
+    {
+      "path": "ACTUAL-CONFIG-PROBE-SAFE-SUMMARY.json",
+      "bytes": 1319,
+      "sha256": "9834cc97c135ce599f484102433b49504960102e3acbee37d80b8899c2e9a6b4",
+      "mode": "100644"
+    },
+    {
+      "path": "READONLY-FEASIBILITY.md",
+      "bytes": 1834,
+      "sha256": "68d0e09ef3bf6089157abe7e72fccda66cc3da9aa7ae88ffce4275c118c52ae7",
+      "mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 686,
+      "sha256": "33efa6b221c4a17d0c4e43a573e69192e80a98745809942f72b1c02090eb12d4",
+      "mode": "100644"
+    },
+    {
+      "path": "STARTUP-BOUNDED-MODULE-LEVEL-SOURCE-IMPORT-CANDIDATE.json",
+      "bytes": 21646,
+      "sha256": "bfdd14e978eb69a0a6519253c3e3d9e9581de3b57fd7da3b178344d9c78e5e12",
+      "mode": "100644"
+    }
+  ]
+}

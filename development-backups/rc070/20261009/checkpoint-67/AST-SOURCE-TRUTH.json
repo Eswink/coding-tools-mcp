@@ -1,0 +1,109 @@
+{
+  "source": [
+    {
+      "path": "scripts/rc_publication_github.py",
+      "symbol": "_request",
+      "source_sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+      "AST_sha256": "a851cdafed2a3df79b2929ca21291d712644d24fd202ef0d608f7889a7f09de2",
+      "original_body_unchanged": true
+    },
+    {
+      "path": "scripts/rc_publication_github.py",
+      "symbol": "_safe",
+      "source_sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+      "AST_sha256": "e20abcaf2b7006541ea1b6f52e05a01b7c90dbe69a6199622ebf65b5f14e5a66",
+      "original_body_unchanged": true
+    },
+    {
+      "path": "scripts/rc_publication_github.py",
+      "symbol": "response",
+      "source_sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+      "AST_sha256": "8f16dabc0999b941223c965250821d000729dbb3134c94b01ae1fa993bce3b96",
+      "original_body_unchanged": true
+    },
+    {
+      "path": "scripts/rc_publication_github.py",
+      "symbol": "_mutation_result",
+      "source_sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+      "AST_sha256": "1f9cdf580b08ab45365b7341c34bb1e51b7b459725a126f624b14fde9cff5553",
+      "original_body_unchanged": true
+    },
+    {
+      "path": "scripts/rc_publication_github.py",
+      "symbol": "_authenticate",
+      "source_sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+      "AST_sha256": "334ab689635370c5ed07c70a37ea1802734d47bb561d77ba7b7ef78d26cc5239",
+      "original_body_unchanged": true
+    },
+    {
+      "path": "scripts/rc_publication_native_admission_fixture.py",
+      "symbol": "_native_session",
+      "source_sha256": "9df4f687a377efb98ce2bf2e1fe9bee396a2781ba685db641c7f3703ebf299d7",
+      "AST_sha256": "90860c3163e3e29e7c726a96bcef7a162642282760f59a8755adcab4972b6038",
+      "original_body_unchanged": true
+    },
+    {
+      "path": "scripts/rc_publication_native_admission_fixture.py",
+      "symbol": "_pending_fence",
+      "source_sha256": "9df4f687a377efb98ce2bf2e1fe9bee396a2781ba685db641c7f3703ebf299d7",
+      "AST_sha256": "7d65cf1df3a7bf5bc5d164710364b66257303172f7110e19f63d20cc03df6d48",
+      "original_body_unchanged": true
+    },
+    {
+      "path": "scripts/rc_publication_executor.py",
+      "symbol": "_failure",
+      "source_sha256": "499d4ae64c014cab032d3a653e7776f938e2c57cd9d9b5076de36c13e201f9d9",
+      "AST_sha256": "52dfc9c2c59acb951bd184eed6a9dc47dc243bdd83555c25b8ec531196339a78",
+      "original_body_unchanged": true
+    },
+    {
+      "path": "scripts/rc_publication_executor.py",
+      "symbol": "run_until_pause",
+      "source_sha256": "499d4ae64c014cab032d3a653e7776f938e2c57cd9d9b5076de36c13e201f9d9",
+      "AST_sha256": "369807327b54a3d0585da0244b5855d0cad1a8f657942dea7bd282e0ca7101a2",
+      "original_body_unchanged": true
+    },
+    {
+      "path": "scripts/rc_publication_final_admission_cases.py",
+      "symbol": "test_entry_and_direct_sinks_remain_effect_free",
+      "source_sha256": "b779c32c18a59d41353361e42a7c89163c8f7a5edd4ed06689b6bbbff42e857c",
+      "AST_sha256": "89a90657ca5a970d9b2c5c20146ec4b80bbc49548d93123f135fbf4e081cef01",
+      "original_body_unchanged": true
+    },
+    {
+      "path": "scripts/rc_publication_https_fixture.py",
+      "symbol": "connect",
+      "source_sha256": "c7029182579d1602cc29fac7b5921833a1e658ae77133b4862d8145d64b92e61",
+      "AST_sha256": "5d611f903605a093eaf088a648c00380c051abda1ae52f8164508ef478a2504d",
+      "original_body_unchanged": true
+    },
+    {
+      "path": "scripts/rc_publication_https_fixture.py",
+      "symbol": "_handle",
+      "source_sha256": "c7029182579d1602cc29fac7b5921833a1e658ae77133b4862d8145d64b92e61",
+      "AST_sha256": "bf866995be3fd79bf9fec7bd0cb0a8a95cab2e8c51095d3377df0a82f1fe9746",
+      "original_body_unchanged": true
+    }
+  ],
+  "external_controller_exact_four_changes_to_original": true,
+  "controller_whole_run_owned_AST_not_original": true,
+  "original_receipt_gate_AST_equal": true,
+  "temporary_live_bindings": 9,
+  "dynamic_auth_original_callable_identity_per_request": true,
+  "bootstrap_actual_initial_callable_after_runner_cleanup": true,
+  "original_production_catch_and_finally_AST_unchanged": true,
+  "new_observer_AST_not_original": true,
+  "old_observed_request_sendall_finish_AST_changed": true,
+  "old_other_hook_function_AST_not_claimed_wholeowner": true,
+  "original_method_scope": "Only exact original FinalAdmission method1, shared original pendingfence three kinds",
+  "server_correlation_only_after_recv_delegate": true,
+  "client_write_pin_provenance": "actualconnect_thislive_request_sameSSLobject",
+  "postwrite_current_endpoint_UNKNOWN_independent_of_write_timestamps": true,
+  "uncovered": [
+    "stream.read",
+    "inline_expressions",
+    "reader.check/active",
+    "SSLwrap internals",
+    "other close error causes"
+  ]
+}

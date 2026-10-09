@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "kind": "SOURCE_ONLY_UNREVIEWED",
+  "source_baseline_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "carrier_tree": "37109f95d52f7a18ef79b0bf085568666c078fe5",
+  "entries": [
+    {
+      "path": "diagnostic_owner.py.source",
+      "restore_relative": "diagnostic_owner.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 15193,
+      "sha256": "bccd36a30d8faacfae035350ae8bd16cf7ead8ec3ddd5227976c963adc46045d",
+      "kind": "INERT_SOURCE_ONLY"
+    },
+    {
+      "path": "diagnostic_worker.py.source",
+      "restore_relative": "diagnostic_worker.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 31220,
+      "sha256": "703de340fa7966c0b58e802bdb545a6cd888a703fa791268e10e6823e40c815b",
+      "kind": "INERT_SOURCE_ONLY"
+    },
+    {
+      "path": "diagnostic-launch.py.source",
+      "restore_relative": "diagnostic-launch.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 3722,
+      "sha256": "fb1c98787b41b2c202f6dd129bf62401fd3eea5397c98e1a81f26dc74c258bb3",
+      "kind": "INERT_SOURCE_ONLY"
+    },
+    {
+      "path": "ordinary-native-controls.py.source",
+      "restore_relative": "ordinary-native-controls.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 3122,
+      "sha256": "b647737475e4cb412576b2e6fa1e137c78131d910b3012b17e84c91575681bbe",
+      "kind": "INERT_SOURCE_ONLY"
+    },
+    {
+      "path": "ordinary-mutation-controls.py.source",
+      "restore_relative": "ordinary-mutation-controls.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 22926,
+      "sha256": "769d635fa24df7d2f561695e267c6c0d7f920e95f45605d7cb31844e52fa11f7",
+      "kind": "INERT_SOURCE_ONLY"
+    },
+    {
+      "path": "ordinary-auth-controls.py.source",
+      "restore_relative": "ordinary-auth-controls.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 4723,
+      "sha256": "d4c75424a1ea18ee8ac8881980ac8259ffdb8d9d2be4841bd37e06588bc15fdc",
+      "kind": "INERT_SOURCE_ONLY"
+    },
+    {
+      "path": "ordinary-root-cause-controls.py.source",
+      "restore_relative": "ordinary-root-cause-controls.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 10021,
+      "sha256": "b7bd59847aa32e982f414ed63d08622b389562917a24fe2936d02f79640e89b5",
+      "kind": "INERT_SOURCE_ONLY"
+    },
+    {
+      "path": "ordinary-real-tls-child.py.source",
+      "restore_relative": "ordinary-real-tls-child.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 8889,
+      "sha256": "43bb6adbf7056d80c3106f59407173a09f33e23cd240da124224e03ee6cdf68d",
+      "kind": "INERT_SOURCE_ONLY"
+    },
+    {
+      "path": "ordinary-tls-owned-supervisor.py.source",
+      "restore_relative": "ordinary-tls-owned-supervisor.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 4410,
+      "sha256": "c8bb8fd3ea7b0e328b5887b4f89bbb6306869bd4a460c057350340f6e2f24090",
+      "kind": "INERT_SOURCE_ONLY"
+    },
+    {
+      "path": "ordinary-failure-first.py.source",
+      "restore_relative": "ordinary-failure-first.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 2890,
+      "sha256": "f9bf17b59a3c8cb146366921834bdd410236ea70604f8e6b04683641df922c50",
+      "kind": "INERT_SOURCE_ONLY"
+    },
+    {
+      "path": "diagnostic-worker-v1-preserved-source.py.source",
+      "restore_relative": "diagnostic-worker-v1-preserved-source.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 24771,
+      "sha256": "689a6cb54493fae74edfacacd852dd7d6189e0939912f47bb15517bf48717866",
+      "kind": "INERT_SOURCE_ONLY"
+    },
+    {
+      "path": "diagnostic-worker-v2-before-pin-reorder-source.py.source",
+      "restore_relative": "diagnostic-worker-v2-before-pin-reorder-source.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 25303,
+      "sha256": "6e231fa2597f92506aed5e8522a66efc37ebc206cb90d64c204d4deedf4a2117",
+      "kind": "INERT_SOURCE_ONLY"
+    },
+    {
+      "path": "diagnostic-worker-v3-before-owner-pin-source.py.source",
+      "restore_relative": "diagnostic-worker-v3-before-owner-pin-source.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 25586,
+      "sha256": "b5a33f2301c305f61a39453c74cd5e6bbd1ce0a30e693b24275d88454a5d34f6",
+      "kind": "INERT_SOURCE_ONLY"
+    },
+    {
+      "path": "diagnostic-worker-v7-failed-postwrite-endpoint-source.py.source",
+      "restore_relative": "diagnostic-worker-v7-failed-postwrite-endpoint-source.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 29676,
+      "sha256": "bf1189d9a1f4e93ea78a79f42b1ce33579ee5b72cc74102c32f22d198c041da7",
+      "kind": "INERT_SOURCE_ONLY"
+    },
+    {
+      "path": "requirements.md.source",
+      "restore_relative": "docs/specs/publisher-owned-root-cause-diagnostic5/requirements.md",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 5593,
+      "sha256": "7ee33002f0bdc15a11d49fb4e4bcaab22d6f17d497d2960d7793e352d84631ff",
+      "kind": "INERT_SPEC_SOURCE_ONLY"
+    },
+    {
+      "path": "design.md.source",
+      "restore_relative": "docs/specs/publisher-owned-root-cause-diagnostic5/design.md",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 3669,
+      "sha256": "187dee74832b32c6fc29d1e01e4f8cc192c06639a88f13969154efc8e75e0ea8",
+      "kind": "INERT_SPEC_SOURCE_ONLY"
+    },
+    {
+      "path": "tasks.md.source",
+      "restore_relative": "docs/specs/publisher-owned-root-cause-diagnostic5/tasks.md",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 1272,
+      "sha256": "1ac9cdff10407bfe199ff7ebd7885161592c5aef4b8ea3e372e74a8ee2b8158a",
+      "kind": "INERT_SPEC_SOURCE_ONLY"
+    },
+    {
+      "path": "diagnostic5-prelaunch-freeze.py.source",
+      "restore_relative": "separate_review_tools/diagnostic5-prelaunch-freeze.py",
+      "source_mode": 384,
+      "backup_mode": 420,
+      "bytes": 9007,
+      "sha256": "af94e095a1d26416f6fd187f6fe02fa5f2d28d79e0f5e0bc293a30cf1d325b94",
+      "kind": "INERT_SEAL_READER_SOURCE_ONLY"
+    },
+    {
+      "path": "AST-SOURCE-TRUTH.json",
+      "backup_mode": 420,
+      "bytes": 4877,
+      "sha256": "2cf9ededfc791de3c55f0c6e1ffedeb13f3d2a0a44992b35d444beb322c41c10",
+      "kind": "SAFE_AUDIT_SUMMARY_NOT_QUALIFICATION"
+    },
+    {
+      "path": "LOCAL-CONTROLS-SAFE-SUMMARY.json",
+      "backup_mode": 420,
+      "bytes": 1874,
+      "sha256": "9ee84dce3d4209eed597a75d1ac847784d06548c2cee0dc76ab20b2e2522e0dc",
+      "kind": "SAFE_AUDIT_SUMMARY_NOT_QUALIFICATION"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "backup_mode": 420,
+      "bytes": 2279,
+      "sha256": "a7981bb29c1cf545182f1ad8172b13aadbafd8c76d3a02f9668f70d6d1d9f910",
+      "kind": "SAFE_STATE_AT_FREEZE_NOT_QUALIFICATION"
+    },
+    {
+      "path": "README.md",
+      "backup_mode": 420,
+      "bytes": 1343,
+      "sha256": "2b95f2d6942f64712cf20d2b55888683aa371f333f114887f445a4d3d2ed61cb",
+      "kind": "SAFE_STATE_AT_FREEZE_NOT_QUALIFICATION"
+    }
+  ],
+  "total_manifested_files": 22,
+  "total_manifested_bytes": 242366,
+  "original_method_runs": 0,
+  "independent_review": "PENDING_AT_FREEZE"
+}

@@ -1,0 +1,788 @@
+{
+  "scope": "bounded read-only exact Git source module-level import candidates; not execution/dependency closure",
+  "baseline": "50ef4b60830c36d4bc1aafdcec3d9b8489a260aa",
+  "actual_project_modules": 33,
+  "project_modules": {
+    "rc_postpublication_process": {
+      "path": "scripts/rc_postpublication_process.py",
+      "bytes": 21075,
+      "sha256": "99bbc5692b35aecdbdcd46cd86589d0c5a7ef5b4cd5f81f752eb7ac44282f880",
+      "direct_module_level_project_imports": [
+        "rc_consumer_io",
+        "rc_postpublication_source"
+      ],
+      "direct_module_level_external_imports": [
+        "base64",
+        "ctypes",
+        "json",
+        "math",
+        "os",
+        "pathlib",
+        "select",
+        "signal",
+        "subprocess",
+        "sys",
+        "time"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "frozenset"
+      ]
+    },
+    "rc_postpublication_source": {
+      "path": "scripts/rc_postpublication_source.py",
+      "bytes": 7465,
+      "sha256": "219791f34e2b7849f313fe0239d43f3b471e7bedc00f238a5e19223daf7cba05",
+      "direct_module_level_project_imports": [
+        "rc_consumer_fixed_git",
+        "rc_consumer_io",
+        "rc_consumer_snapshot",
+        "rc_postpublication_contract",
+        "rc_publication_github",
+        "rc_publication_stage"
+      ],
+      "direct_module_level_external_imports": [
+        "contextlib",
+        "dataclasses",
+        "math",
+        "os",
+        "pathlib",
+        "re",
+        "threading",
+        "time"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_postpublication_contract": {
+      "path": "scripts/rc_postpublication_contract.py",
+      "bytes": 6495,
+      "sha256": "5cb5b460f48634050045d71e8a73729e6f8019520d46e5f42ffb2c3c633217ad",
+      "direct_module_level_project_imports": [
+        "rc_consumer_io",
+        "rc_pretag_types",
+        "rc_publication_contract",
+        "rc_publication_stage"
+      ],
+      "direct_module_level_external_imports": [
+        "dataclasses",
+        "hashlib",
+        "json",
+        "re"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_publication_stage": {
+      "path": "scripts/rc_publication_stage.py",
+      "bytes": 22823,
+      "sha256": "f31a740de140101d2bf7023de27dbc3dbee9a089ea3dcf2645ee06579f2a303e",
+      "direct_module_level_project_imports": [
+        "rc_artifact_consumer",
+        "rc_consumer_archive",
+        "rc_consumer_io",
+        "rc_consumer_snapshot",
+        "rc_publication_contract",
+        "rc_publication_retirement"
+      ],
+      "direct_module_level_external_imports": [
+        "contextlib",
+        "copy",
+        "dataclasses",
+        "datetime",
+        "hashlib",
+        "os",
+        "pathlib",
+        "re",
+        "stat",
+        "struct",
+        "zipfile",
+        "zlib"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_publication_retirement": {
+      "path": "scripts/rc_publication_retirement.py",
+      "bytes": 10151,
+      "sha256": "174f59ad35893a4afb64c80806e0b81832645d3e7c8a88c59786a700aa6f76e7",
+      "direct_module_level_project_imports": [
+        "rc_consumer_io"
+      ],
+      "direct_module_level_external_imports": [
+        "contextlib",
+        "io",
+        "os",
+        "stat"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_consumer_io": {
+      "path": "scripts/rc_consumer_io.py",
+      "bytes": 17846,
+      "sha256": "d66204f5981abf5d175c1268d4c0a493b8254f08d32473ff447c75437a89e016",
+      "direct_module_level_project_imports": [],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "contextlib",
+        "hashlib",
+        "json",
+        "math",
+        "os",
+        "pathlib",
+        "re",
+        "secrets",
+        "stat",
+        "time",
+        "unicodedata"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_publication_contract": {
+      "path": "scripts/rc_publication_contract.py",
+      "bytes": 23098,
+      "sha256": "dcf9c523c1eadf8b01e872522788587cf0478ffa81cc94b582edc3be597f4e80",
+      "direct_module_level_project_imports": [
+        "rc_artifact_consumer",
+        "rc_pretag_types",
+        "rc_release_policy"
+      ],
+      "direct_module_level_external_imports": [
+        "dataclasses",
+        "hashlib",
+        "json"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_release_policy": {
+      "path": "scripts/rc_release_policy.py",
+      "bytes": 14099,
+      "sha256": "650bc02d8592a9cfdb143945595d39d95c14c1308abf533f2ea6dd61ad85bafa",
+      "direct_module_level_project_imports": [
+        "rc_pretag_types"
+      ],
+      "direct_module_level_external_imports": [
+        "dataclasses"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "frozenset",
+        "tuple",
+        "path.replace",
+        "tuple",
+        "tuple",
+        "requirement",
+        "requirement",
+        "requirement",
+        "requirement",
+        "requirement",
+        "requirement",
+        "requirement",
+        "requirement",
+        "requirement",
+        "requirement",
+        "requirement",
+        "requirement",
+        "requirement",
+        "requirement",
+        "tuple",
+        "require",
+        "len",
+        "len",
+        "set"
+      ]
+    },
+    "rc_pretag_types": {
+      "path": "scripts/rc_pretag_types.py",
+      "bytes": 9197,
+      "sha256": "d79e667808b305f89bae92d5e3df6766d05f3f77380b75098b6dd0f1a65b19d6",
+      "direct_module_level_project_imports": [],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "dataclasses",
+        "datetime",
+        "json",
+        "re",
+        "types",
+        "typing"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_artifact_consumer": {
+      "path": "scripts/rc_artifact_consumer.py",
+      "bytes": 14398,
+      "sha256": "d62c1743c555fb5b8695fd59e7da2a480ed130b3139c038c14ba4d62b843ae3a",
+      "direct_module_level_project_imports": [
+        "rc_consumer_archive",
+        "rc_consumer_contracts",
+        "rc_consumer_finalize",
+        "rc_consumer_io",
+        "rc_consumer_snapshot",
+        "rc_consumer_transport"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "argparse",
+        "contextlib",
+        "datetime",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "tempfile"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_consumer_transport": {
+      "path": "scripts/rc_consumer_transport.py",
+      "bytes": 14205,
+      "sha256": "84e7167e881cf6b2b90071a9f85abd76154524358a8f4f3d8535294558d926e7",
+      "direct_module_level_project_imports": [
+        "rc_consumer_io",
+        "rc_consumer_transport_worker"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "contextlib",
+        "hashlib",
+        "json",
+        "math",
+        "os",
+        "pathlib",
+        "re",
+        "selectors",
+        "struct",
+        "subprocess",
+        "sys",
+        "time"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "frozenset",
+        "Path(__file__).resolve().with_name",
+        "Path(__file__).resolve",
+        "Path",
+        "frozenset"
+      ]
+    },
+    "rc_consumer_transport_worker": {
+      "path": "scripts/rc_consumer_transport_worker.py",
+      "bytes": 6126,
+      "sha256": "0ef142614c4c465ac166e4c4ca796b94474c333ace9db39cdc64e3010946f52b",
+      "direct_module_level_project_imports": [],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "contextlib",
+        "ipaddress",
+        "json",
+        "re",
+        "struct",
+        "sys",
+        "urllib.error",
+        "urllib.parse",
+        "urllib.request"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "frozenset",
+        "frozenset"
+      ]
+    },
+    "rc_consumer_snapshot": {
+      "path": "scripts/rc_consumer_snapshot.py",
+      "bytes": 18232,
+      "sha256": "25ad5cf845efb9f19cd4d4e309702ecd81eba2b7be7c53d849c649eadd910391",
+      "direct_module_level_project_imports": [
+        "rc_consumer_io",
+        "release_tag_gate"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "dataclasses",
+        "datetime",
+        "json",
+        "math",
+        "pathlib",
+        "re",
+        "subprocess"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "re.compile",
+        "re.compile"
+      ]
+    },
+    "release_tag_gate": {
+      "path": "scripts/release_tag_gate.py",
+      "bytes": 14916,
+      "sha256": "d6c9db310cc8b9be62038b7f42e12e2259b189f26d9083b4100f57fee651e2f2",
+      "direct_module_level_project_imports": [
+        "cloud_release_bundle",
+        "final_rc_evidence",
+        "rc_version_gate",
+        "reviewed_source_gate",
+        "source_provenance_gate",
+        "\u53d1\u5e03\u7248\u672c\u6821\u9a8cv4"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "argparse",
+        "datetime",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "urllib.request"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "frozenset"
+      ]
+    },
+    "\u53d1\u5e03\u7248\u672c\u6821\u9a8cv4": {
+      "path": "scripts/\u53d1\u5e03\u7248\u672c\u6821\u9a8cv4.py",
+      "bytes": 6918,
+      "sha256": "129a1765606cabb291dc40612aaceba2ea6b37f7048932267e64652ac5dd56b2",
+      "direct_module_level_project_imports": [],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "argparse",
+        "hashlib",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "subprocess",
+        "sys",
+        "tomllib"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "re.compile",
+        "re.compile"
+      ]
+    },
+    "source_provenance_gate": {
+      "path": "scripts/source_provenance_gate.py",
+      "bytes": 1811,
+      "sha256": "9c0d768f28eadd977a84dd53ce2b55fe642cd43076e4213fe8bf24e40a5077ca",
+      "direct_module_level_project_imports": [
+        "rc_version_gate",
+        "\u53d1\u5e03\u7248\u672c\u6821\u9a8cv4"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "argparse",
+        "json",
+        "pathlib"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_version_gate": {
+      "path": "scripts/rc_version_gate.py",
+      "bytes": 5292,
+      "sha256": "124714e7fc1bbdf5c623707f8fd3be846ab2b2b8c9c8500f7e5a51c5f1126a0d",
+      "direct_module_level_project_imports": [],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "argparse",
+        "json",
+        "pathlib",
+        "re",
+        "subprocess",
+        "sys",
+        "tomllib"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "re.compile",
+        "re.compile"
+      ]
+    },
+    "reviewed_source_gate": {
+      "path": "scripts/reviewed_source_gate.py",
+      "bytes": 8842,
+      "sha256": "c6b2b63f43997a61522b5eb344d14b6656a668610bef8d68b9a9b423659afd7a",
+      "direct_module_level_project_imports": [
+        "source_provenance_gate"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "argparse",
+        "contextlib",
+        "hashlib",
+        "json",
+        "pathlib",
+        "re",
+        "subprocess"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "re.compile"
+      ]
+    },
+    "final_rc_evidence": {
+      "path": "scripts/final_rc_evidence.py",
+      "bytes": 16965,
+      "sha256": "03fa8870482c0d8860f5dae078fba91413c7d91025e439708abf30eb4ed233c2",
+      "direct_module_level_project_imports": [
+        "exclusive_native_gate",
+        "rc_native_gate",
+        "rc_version_gate",
+        "release_dependency_contract"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "argparse",
+        "hashlib",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "shutil",
+        "subprocess",
+        "urllib.request"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "release_dependency_contract": {
+      "path": "scripts/release_dependency_contract.py",
+      "bytes": 16118,
+      "sha256": "a291d6626129a3cd31e353dec864af21e3a1a6ce9f947dbff59fdb821d4a5cc1",
+      "direct_module_level_project_imports": [
+        "exact_build_audit"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "argparse",
+        "hashlib",
+        "importlib.util",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "tarfile",
+        "tomllib"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "exact_build_audit": {
+      "path": "scripts/exact_build_audit.py",
+      "bytes": 28698,
+      "sha256": "990bfde62fb6ceae9d1a0e7f1a78c377a4f48ff761fb56c73c1a51de7fc62063",
+      "direct_module_level_project_imports": [],
+      "direct_module_level_external_imports": [
+        "argparse",
+        "datetime",
+        "hashlib",
+        "json",
+        "math",
+        "os",
+        "pathlib",
+        "re",
+        "subprocess",
+        "sys"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "exclusive_native_gate": {
+      "path": "scripts/exclusive_native_gate.py",
+      "bytes": 4206,
+      "sha256": "40e5066cb50dba72a4bcac316040cf895ed4e98b5973c0767b3cf2647fe0ded0",
+      "direct_module_level_project_imports": [],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "argparse",
+        "hashlib",
+        "importlib.util",
+        "json",
+        "pathlib",
+        "re"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "importlib.util.spec_from_file_location",
+        "Path(__file__).with_name",
+        "Path",
+        "importlib.util.module_from_spec",
+        "_spec.loader.exec_module"
+      ]
+    },
+    "rc_native_gate": {
+      "path": "scripts/rc_native_gate.py",
+      "bytes": 3595,
+      "sha256": "2b95f0afe6709668f90390d7d369b99be0f9e918c3078feccceced4275d7c150",
+      "direct_module_level_project_imports": [
+        "exclusive_native_gate"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "argparse",
+        "hashlib",
+        "json",
+        "pathlib",
+        "re"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "re.compile"
+      ]
+    },
+    "cloud_release_bundle": {
+      "path": "scripts/cloud_release_bundle.py",
+      "bytes": 11661,
+      "sha256": "e6a3d4921d4d6e3fdf9869753896bac931eb2aad3e3049730c02da658be47623",
+      "direct_module_level_project_imports": [
+        "exclusive_native_gate",
+        "final_rc_evidence",
+        "rc_version_gate"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "argparse",
+        "ast",
+        "gzip",
+        "hashlib",
+        "io",
+        "json",
+        "os",
+        "pathlib",
+        "platform",
+        "re",
+        "subprocess",
+        "tarfile",
+        "tomllib"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_consumer_finalize": {
+      "path": "scripts/rc_consumer_finalize.py",
+      "bytes": 5339,
+      "sha256": "6d80751208af3081b2b6b67976e2b9137edcb5366e4fd041f8997231c244d5b5",
+      "direct_module_level_project_imports": [
+        "rc_consumer_io"
+      ],
+      "direct_module_level_external_imports": [
+        "hashlib",
+        "os",
+        "stat"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_consumer_contracts": {
+      "path": "scripts/rc_consumer_contracts.py",
+      "bytes": 17651,
+      "sha256": "04de12ff078fe8c80347b0d62f1f00bbfe960262739510536e2c1f062b48a11f",
+      "direct_module_level_project_imports": [
+        "cloud_release_bundle",
+        "final_rc_evidence",
+        "rc_consumer_io",
+        "rc_consumer_noncloud",
+        "rc_native_gate",
+        "rc_packages",
+        "release_dependency_contract"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "json",
+        "math",
+        "pathlib",
+        "re"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_consumer_noncloud": {
+      "path": "scripts/rc_consumer_noncloud.py",
+      "bytes": 8099,
+      "sha256": "14858e275d2ab28938b3da22dc39a4bbea77b9650147737c79c969c9b885d210",
+      "direct_module_level_project_imports": [
+        "rc_consumer_io",
+        "release_dependency_contract"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "pathlib",
+        "re",
+        "tomllib"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "re.escape"
+      ]
+    },
+    "rc_packages": {
+      "path": "scripts/rc_packages.py",
+      "bytes": 9813,
+      "sha256": "c2fb7603aed0a46f8b12562e628cc3fec6dc4b040296c68676a975eab6287490",
+      "direct_module_level_project_imports": [
+        "exclusive_packages",
+        "rc_version_gate"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "argparse",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "shutil",
+        "subprocess",
+        "tempfile"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "re.compile"
+      ]
+    },
+    "exclusive_packages": {
+      "path": "scripts/exclusive_packages.py",
+      "bytes": 8276,
+      "sha256": "5ed2a449af032653b764cfa40dbb9b7b46661d42766009e109630479c3255708",
+      "direct_module_level_project_imports": [
+        "\u53d1\u5e03\u7248\u672c\u6821\u9a8cv4"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "argparse",
+        "hashlib",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "shutil",
+        "subprocess",
+        "tempfile"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "re.compile"
+      ]
+    },
+    "rc_consumer_archive": {
+      "path": "scripts/rc_consumer_archive.py",
+      "bytes": 23326,
+      "sha256": "d6790f1de61673a9751b2632b6d800f6eeb61fa7247d7a7834b86838b077cdf0",
+      "direct_module_level_project_imports": [
+        "rc_consumer_io"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "hashlib",
+        "os",
+        "re",
+        "stat",
+        "struct",
+        "tarfile",
+        "unicodedata",
+        "zipfile",
+        "zlib"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_publication_github": {
+      "path": "scripts/rc_publication_github.py",
+      "bytes": 23862,
+      "sha256": "c37febe57a6d9944393731bccd03cb09610564ff3f2726c27893b7dd52d8a853",
+      "direct_module_level_project_imports": [
+        "rc_consumer_io",
+        "rc_pretag_types",
+        "rc_publication_admission",
+        "rc_publication_contract"
+      ],
+      "direct_module_level_external_imports": [
+        "__future__",
+        "dataclasses",
+        "functools",
+        "hashlib",
+        "json",
+        "re",
+        "socket",
+        "ssl",
+        "time",
+        "urllib.parse"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_publication_admission": {
+      "path": "scripts/rc_publication_admission.py",
+      "bytes": 11419,
+      "sha256": "8226f363b9b47fc4028504c787206b6a6a862299e58bb42338fa977205c5ecb5",
+      "direct_module_level_project_imports": [
+        "rc_consumer_io",
+        "rc_consumer_snapshot",
+        "rc_publication_contract",
+        "rc_publication_stage",
+        "rc_release_policy"
+      ],
+      "direct_module_level_external_imports": [
+        "dataclasses",
+        "hashlib",
+        "json",
+        "math",
+        "re",
+        "time"
+      ],
+      "direct_module_level_assignment_expression_calls": []
+    },
+    "rc_consumer_fixed_git": {
+      "path": "scripts/rc_consumer_fixed_git.py",
+      "bytes": 21216,
+      "sha256": "40543e220a80e93a399ffdd4b1cfcafc96dc766e674e82d5f697e975c1458033",
+      "direct_module_level_project_imports": [
+        "rc_consumer_io"
+      ],
+      "direct_module_level_external_imports": [
+        "hashlib",
+        "os",
+        "pathlib",
+        "re",
+        "selectors",
+        "stat",
+        "subprocess",
+        "time"
+      ],
+      "direct_module_level_assignment_expression_calls": [
+        "dict",
+        "frozenset",
+        "frozenset"
+      ]
+    }
+  },
+  "external_import_names": [
+    "__future__",
+    "argparse",
+    "ast",
+    "base64",
+    "contextlib",
+    "copy",
+    "ctypes",
+    "dataclasses",
+    "datetime",
+    "functools",
+    "gzip",
+    "hashlib",
+    "importlib.util",
+    "io",
+    "ipaddress",
+    "json",
+    "math",
+    "os",
+    "pathlib",
+    "platform",
+    "re",
+    "secrets",
+    "select",
+    "selectors",
+    "shutil",
+    "signal",
+    "socket",
+    "ssl",
+    "stat",
+    "struct",
+    "subprocess",
+    "sys",
+    "tarfile",
+    "tempfile",
+    "threading",
+    "time",
+    "tomllib",
+    "types",
+    "typing",
+    "unicodedata",
+    "urllib.error",
+    "urllib.parse",
+    "urllib.request",
+    "zipfile",
+    "zlib"
+  ],
+  "source_bytes_actual_native_gitshow_equal": true,
+  "source_executed": false,
+  "stdlib_site_pth_hook_transitive_closure": false,
+  "conditional_class_decorator_default_dynamic_import_analysis": false,
+  "no_descendant_proof": false,
+  "why_READY_missing": "UNKNOWN",
+  "original_methods_executed": 0
+}

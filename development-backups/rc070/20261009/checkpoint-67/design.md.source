@@ -1,0 +1,20 @@
+# 设计
+
+## 概述
+FR-1/FR-2/FR-3只一次原FinalAdmission失败方法根因观察；原source与2s保留，原85/300发布门不受观测改变。
+
+## 技术方案
+原6temporary bindings及已审sticky cancel/install-error/每个reverse restore沿用。增加真实Fixture.connect/_handle/SSLSocket.recv，mainthread实际client/scope/owner/session/三kind筛选。connect原返回后记录实际clientSocket与fixtureselection；_handle仅真实fixture/raw accepted对象/所属server线程context；recv只确证该context内同serverSSLSocket和fixtureSSLContext才观察，配对实际内存native端点。没有配对保持UNKNOWN，无public endpoint/address记录。原_handle本体catch/finally完全不改。
+
+_request进入时临时wrap当时实际authenticate callback，避免fixturemock覆盖固定hook；只有匹配nativeclient/mutation才记录真实调用前后monotonic时间。original callable及mock identity严格恢复；安装/恢复异常sticky invalid原object保留，真实原_request关闭边界不被观测异常跳过。原6completed counters仍aftercall，绝不把pairedenter/exit伪称实时body入口；新timestamps明确在实际delegate前后采样。
+
+所有new observer functions AST是新管理代码，wholeowner准确4inverse非原；originalsource函数method源AST exact。普通typednamespace不能证明issuer，另用真实TLS/private process/socket controls验证actualexception/close并准确报告组件调用，根唯一startup afterpeer。
+
+## 文件结构
+新增外部diagnostic_owner.py/diagnostic_worker.py/diagnostic-launch.py/ordinary-root-cause-controls.py/ordinary-native-controls.py、三spec、私有controls/seal/argv/audit。纯b9cf1878及publiccarrier1860分别checkout，fixture/objects/raw/privateTLS不上传。
+
+终末认证恢复：在进入原runner之前仅保存实际wire._authenticate初始对象；每次request恢复当时原callback，原runner及原fixture真实cleanup完毕后，先逐一逆序尝试全部9固定alias，再独立尝试恢复初始base callback，不复活已退出的fixture Mock。任何原setter/identity错误保持sticky INVALID，最终恢复成功不能抹掉首次失败。原authenticate/server recv的非Exception BaseException实际对象跨原catch由观察器保留到真实cleanup后传播；普通Timeout/OSError仍维持原catch结果。真实client/serverpair仅delegate完成后确证，start时关联UNKNOWN；注册上限128，仅实际owner/session/credential对象原引用可匹配，重绑定拒绝。
+
+SSLSocket.sendall同已披露binding补充真实client write timestamps，仅实际mainthread/原typedmutation/actualrequestrecord+clientSSLsocket+owner/session/credential原对象引用和实时端点相等才关联；delegate调用前后采样，但关联校验是在完成之后，不伪称start时已认证关联。旧sendall外部函数AST因此改变，原production/source函数AST保持精确；没有额外写入或payload记录。匹配未知保持UNKNOWN，观察ordinaryerror不遮原writeerror，cancel原object sticky等真实cleanup后传播。
+
+write时间与当前端点有效性分别声明：同本request真实connect pin、actual同SSL对象strongref未退休及owner/session/credential/scope对象引用仍匹配，可观察真实write start/end/exception；postwrite native endpoint OSError为当前连接状态UNKNOWN，不抹掉真实write时间，绝不宣称连接仍活或effect=none。历史端点pin只用于观察归因，不是授权。pre-observer cancel延后到真实delegate完成并保持原primary/取消对象，原finally仍close；未知/已闭/退休/身份漂移不复活，不建立write关联。

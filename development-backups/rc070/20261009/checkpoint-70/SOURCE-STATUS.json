@@ -1,0 +1,18 @@
+{
+  "scope": "read-only feasibility; no implementation or original worker execution",
+  "baseline": "50ef4b60830c36d4bc1aafdcec3d9b8489a260aa",
+  "baseline_tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+  "production_edits": 0,
+  "actual_module_level_project_source_candidates": 33,
+  "external_import_names": 45,
+  "complete_runtime_import_or_family_proof": false,
+  "spec_implementation": "OPEN_STOP",
+  "original_once488": "FAIL",
+  "original_single_kernel_once02": "FAIL",
+  "new_original_method": "NOTRUN_NO_AUTH",
+  "new_whole488": "NOTRUN_NO_AUTH",
+  "CI": "NOTRUN",
+  "install": "NOTRUN",
+  "release": "NOTRUN",
+  "private_host_proc_TLS_env_nativeobjects_included": false
+}

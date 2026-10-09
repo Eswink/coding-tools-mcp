@@ -1,0 +1,44 @@
+{
+  "original_method_runs": 0,
+  "current_worker_sha256": "703de340fa7966c0b58e802bdb545a6cd888a703fa791268e10e6823e40c815b",
+  "hook_controls": {
+    "ORDINARY-MUTATION-CONTROLS-v4.json": {
+      "controls": 76,
+      "source_sha256": "703de340fa7966c0b58e802bdb545a6cd888a703fa791268e10e6823e40c815b",
+      "passed": true,
+      "component_scope": "ordinary_exact_workerhook_AST_not_whole_SUT_or_owner"
+    },
+    "ORDINARY-AUTH-CONTROLS-v6.json": {
+      "controls": 9,
+      "source_sha256": "703de340fa7966c0b58e802bdb545a6cd888a703fa791268e10e6823e40c815b",
+      "passed": true,
+      "component_scope": "controlled callback/alias objects, not native issuer or SUTmethod proof"
+    },
+    "ORDINARY-ROOT-CAUSE-CONTROLS-v4.json": {
+      "controls": 43,
+      "source_sha256": "703de340fa7966c0b58e802bdb545a6cd888a703fa791268e10e6823e40c815b",
+      "passed": true,
+      "component_scope": "controlled wrapper/catch-composition model; not actual issuer or whole SUT owner"
+    }
+  },
+  "real_owned_TLS_components": 6,
+  "owned_TLS_natural_exit": 0,
+  "owned_TLS_held_created_identity": true,
+  "owned_TLS_native_ECHILD": true,
+  "owned_TLS_family_empty": true,
+  "ordinary_kernel_controls": 7,
+  "real_TLS_namespace": "original HTTPSFixture TLS component plus explicitly controlled issuer-shaped namespace; not original ArtifactTLS issuer proof",
+  "preserved_failures": [
+    "v1 close-cancel primitives",
+    "realTLS closed-client metadata",
+    "realTLS owner-rebound association",
+    "ownedTLSv3 postwrite liveendpoint recheck"
+  ],
+  "final_bootstrap_boundary": "first setter/mismatch/cancel failure remains INVALID even when final initialcallable restore succeeds",
+  "run_owned_automatic_timeout_cancel": "NOTRUN",
+  "original85": "FAIL_83SUCCESS_2FAIL_RETAINED",
+  "original300": "NOTRUN",
+  "CI": false,
+  "FINAL": false,
+  "release_authorized": false
+}

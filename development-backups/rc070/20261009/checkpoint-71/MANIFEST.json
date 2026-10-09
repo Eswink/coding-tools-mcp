@@ -1,0 +1,55 @@
+{
+  "kind": "safe-source-only",
+  "payload_files": 8,
+  "payload_bytes": 106796,
+  "files": [
+    {
+      "path": "README.md",
+      "git_mode": "100644",
+      "bytes": 948,
+      "sha256": "1d606afc8b475313ac31d0c99b63441f55d5e280057cf5645de728afb934c91f"
+    },
+    {
+      "path": "SOURCE-MANIFEST.json",
+      "git_mode": "100644",
+      "bytes": 1710,
+      "sha256": "29ee8840cf5ea2eacc2ac062cc36c447ef676e23ec5a770acf53fe64084e356d"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "git_mode": "100644",
+      "bytes": 1566,
+      "sha256": "9659809b55ddb1b374f2f95af682b2b395e4444265f2ed9234110292667bccc9"
+    },
+    {
+      "path": "docs/specs/issue88-owned-debian-msgfmt-preparation/design.md",
+      "git_mode": "100644",
+      "bytes": 11743,
+      "sha256": "d4b0f6c9fd064a59f99655eea4d8f3d731573334e202714ec43174622c58996a"
+    },
+    {
+      "path": "docs/specs/issue88-owned-debian-msgfmt-preparation/requirements.md",
+      "git_mode": "100644",
+      "bytes": 12306,
+      "sha256": "c296621c120f6b18d01e8e0e44fd6bee103be99e2fc96c6a0eb7a1809904a0b1"
+    },
+    {
+      "path": "docs/specs/issue88-owned-debian-msgfmt-preparation/tasks.md",
+      "git_mode": "100644",
+      "bytes": 6341,
+      "sha256": "de3f6d0a90bd82bc604230d8e87348940633a629bd6c8b31c7f505835974cc8d"
+    },
+    {
+      "path": "owned_debian_msgfmt_prepare.py",
+      "git_mode": "100644",
+      "bytes": 37979,
+      "sha256": "382f47e98cb5e782e4080f781ba930a42a265a5d83250507199045b1d28ba0aa"
+    },
+    {
+      "path": "owned_debian_msgfmt_prepare_tests.py",
+      "git_mode": "100644",
+      "bytes": 34203,
+      "sha256": "ce5225b4aa32f2a5744486117a16064575f72aee6c0a521549cfe599520859b4"
+    }
+  ]
+}
