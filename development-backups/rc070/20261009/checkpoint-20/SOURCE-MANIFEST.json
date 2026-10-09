@@ -1,0 +1,58 @@
+{
+  "files": [
+    {
+      "backup_mode": "100644",
+      "bytes": 1965,
+      "git_blob": "e6112bc3cbb99447749dd8f4a4490d6a38b20b1e",
+      "original_mode": "100644",
+      "original_path": "work/mode-guard/control_current_failed_clone.py",
+      "path": "source/work/mode-guard/control_current_failed_clone.py.source",
+      "sha256": "0747cc6e766fd13ae6c68f65244dbdf96755ec03da043ffd67faef7961312527"
+    },
+    {
+      "backup_mode": "100644",
+      "bytes": 3285,
+      "git_blob": "f94229b00e52489ff1ebb02126e87d1d5717d980",
+      "original_mode": "100644",
+      "original_path": "work/mode-guard/control_modes.py",
+      "path": "source/work/mode-guard/control_modes.py.source",
+      "sha256": "21c1467580ba561cb0493ac38df5db9b0feb18727f5f95fbe3f48505a18d31f0"
+    },
+    {
+      "backup_mode": "100644",
+      "bytes": 2117,
+      "git_blob": "1b94b752f30dab8087ff28d175cbe344a482ffe9",
+      "original_mode": "100644",
+      "original_path": "work/mode-guard/physical_modes.py",
+      "path": "source/work/mode-guard/physical_modes.py.source",
+      "sha256": "3ade6063fd61340bd2789f7496b6b75ca0960495fbbb2c33407a6e91b69caba0"
+    },
+    {
+      "backup_mode": "100644",
+      "bytes": 1727,
+      "git_blob": "723a96b299ceb2dab051d58935f319512c3746a6",
+      "original_mode": "100644",
+      "original_path": "docs/specs/pretag303-exact-posix-mode/design.md",
+      "path": "source/docs/specs/pretag303-exact-posix-mode/design.md.source",
+      "sha256": "1cc084a02ee6759f61c7d40dbe4bfad537f08ea3a271cc875f84394707018303"
+    },
+    {
+      "backup_mode": "100644",
+      "bytes": 3549,
+      "git_blob": "b35ef542949460e6fab0fca72408f3dd1f14aefb",
+      "original_mode": "100644",
+      "original_path": "docs/specs/pretag303-exact-posix-mode/requirements.md",
+      "path": "source/docs/specs/pretag303-exact-posix-mode/requirements.md.source",
+      "sha256": "bc8895e99b2e54b37a3caf13ff9d4ced8ccd4764bd558b1cf37b58a7d85c6e02"
+    },
+    {
+      "backup_mode": "100644",
+      "bytes": 1477,
+      "git_blob": "c15e226525135e7fe3ced32393bab84af59c734f",
+      "original_mode": "100644",
+      "original_path": "docs/specs/pretag303-exact-posix-mode/tasks.md",
+      "path": "source/docs/specs/pretag303-exact-posix-mode/tasks.md.source",
+      "sha256": "5b520dacf71faf5b4c6dba80a3f1a52a38713cb49d80dfc599fd90a127e27eaa"
+    }
+  ]
+}

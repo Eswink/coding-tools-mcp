@@ -1,0 +1,25 @@
+# Limited303 exactPOSIX source mode admission
+
+## 功能概述
+
+Correct the external preflight gap exposed by original303 onceFAIL. Existing source bytes and Git executable classification were fenced, but complete native permission bits were not. The failed clone, original17 sources, sealed preflight, raw receipts and whole75503FAIL remain immutable. This new scope permits zeroSUT work only; any new303 needs later root decision and independent review.
+
+## 需求列表
+
+FR-1: The new mode gate SHALL compare every actual regular source file's full stat.S_IMODE against exactly0644 for native Git100644 and0755 for100755. A boolean execute classification SHALL never satisfy this gate. Special permission bits, unsupported Git modes, symbolic/hard links and invalid/canonical-escaping paths SHALL reject. The gate is POSIX-only and SHALL reject other platforms.
+
+FR-2: The caller SHALL retain original native Git commit/tree/parent/path/mode/blob/length/hash/index/history/fixture/runtime/refs checks without loosening or replacing them. A mode-only dictionary SHALL not confer source identity, ownership, native issuer, production or publication authority. Admission requires both original exact source checks and fresh per-path physical mode checks on the same actual source.
+
+FR-3: The new snapshot SHALL bind path, Git mode, actual full permission mode, dev/inode/type/nlink for all1849 current source entries. A future same-run fence SHALL recompute and compare the exact physical snapshot before/after, in addition to original guards; this phase performs zeroSUT. Source permission normalization is allowed only in a new independent private clone before freezing, with original bytes/Git tree preserved. The old failed clone SHALL remain unchanged.
+
+FR-4: Failure-first controls SHALL prove the original boolean classifier accepts0700 as100755 and0600 as100644 while exact mode admission rejects both. The current actual failed clone with1849 mismatches SHALL be BLOCKED and start zeroSUT. Ordinary owned-file controls SHALL cover exact0644/0755 acceptance, owner-only execute, missing group/other read, missing execute, special permission bits, symlinks, hardlinks, escaping path, unsupported mode and changed snapshots. None is original303 or finalqualification proof.
+
+FR-5: Fresh impact SHALL declare UNKNOWN/manualHIGH where no valid graph covers this new gate and all1849 source entries. check_spec SHALL pass before implementation. Exact source-only new helper/spec/controls shall be frozen separately and independently reviewed before any source/native preflight composition or new diagnostic startup. Existing1200/7/2/2,2MiB, original runner/method AST, consumer exclusion, PR98 and Issue86 boundaries SHALL remain.
+
+## 非功能需求
+
+No privileged effects, production/user-host/VM changes, grant or tag issuance, workflow changes, global chmod, or publication. Explicit per-source-file permissions in a new owned clone are reversible engineering recovery. Private raw dev/inode snapshots never enter public backup. Safe source artifacts record modes/length/hash and honest zeroSUT status.
+
+## 依赖关系
+
+Actual303 first-run original mode assertions and independently joined failed receipts; source treeb227/1849 and soleparentD6; exact original frozen17 source/seal33a018 and preflight99eee47. Existing source() Git-classification result is retained narrowly and its full-native-mode interpretation is retracted. No cleanup/delete/migration of old failures. Rollback is abandoning the new helper scope; old evidence remains.

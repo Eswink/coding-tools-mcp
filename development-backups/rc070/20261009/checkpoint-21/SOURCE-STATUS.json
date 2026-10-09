@@ -1,0 +1,174 @@
+{
+  "source_only": true,
+  "production_source_changes": 0,
+  "management_base_commit": "a935f0d8f81901a0974b5b0d4a59c98d7765b8a1",
+  "management_tree": "37109f95d52f7a18ef79b0bf085568666c078fe5",
+  "pure_SUT_parent": "13cd343d942b7a68912d42a8f9235c02ed647764",
+  "pure_SUT_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "pure_SUT_paths": 1878,
+  "original85": "Actual complete85:83named success/2FAIL/0ERROR/0skip; wholeFAIL retained",
+  "original300": "NOTRUN_not_admitted",
+  "diagnostic1_at_freeze": "ACTUAL_once_original_method1_FAIL_natural1_nativeECHILD_qualifiedfalse_closedfalse",
+  "controls": "15 actual ordinary workerhookAST controls, notwholeowner/nativeSUT qualification",
+  "earlier_control_FAILURE": "New cancel negative control v2 failed from ordinary fixture temporary value shadow; originalsource/raw retained privately; workerASTunchanged. v3 independentfailure_value correction onlytop-level controls then15passed.",
+  "source_ast_truth": {
+    "controller_whole_run_owned_AST_not_original": true,
+    "external_controller_exact_four_changes_inverse_to_original": true,
+    "original_receipt_gate_AST_identical": true,
+    "original_kernel_import_not_modified": true,
+    "original_methods_helpers_delegates": [
+      {
+        "path": "scripts/rc_publication_native_admission_fixture.py",
+        "symbol": "_native_session",
+        "AST_sha256": "90860c3163e3e29e7c726a96bcef7a162642282760f59a8755adcab4972b6038",
+        "source_sha256": "9df4f687a377efb98ce2bf2e1fe9bee396a2781ba685db641c7f3703ebf299d7",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_native_admission_fixture.py",
+        "symbol": "_pending_fence",
+        "AST_sha256": "7d65cf1df3a7bf5bc5d164710364b66257303172f7110e19f63d20cc03df6d48",
+        "source_sha256": "9df4f687a377efb98ce2bf2e1fe9bee396a2781ba685db641c7f3703ebf299d7",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_executor.py",
+        "symbol": "_failure",
+        "AST_sha256": "52dfc9c2c59acb951bd184eed6a9dc47dc243bdd83555c25b8ec531196339a78",
+        "source_sha256": "499d4ae64c014cab032d3a653e7776f938e2c57cd9d9b5076de36c13e201f9d9",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_executor.py",
+        "symbol": "run_until_pause",
+        "AST_sha256": "369807327b54a3d0585da0244b5855d0cad1a8f657942dea7bd282e0ca7101a2",
+        "source_sha256": "499d4ae64c014cab032d3a653e7776f938e2c57cd9d9b5076de36c13e201f9d9",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_artifact_admission_cases.py",
+        "symbol": "test_owned_direct_mutation_sinks_still_block_before_authorize_and_write",
+        "AST_sha256": "0e251094ff25e8b7c5e6682d2536845c62b62918fc70aa603194c0ab2d69dafd",
+        "source_sha256": "c6fa67032d3a159d12a0ea48f26df578c91be8ddab02826f413284d5059055dc",
+        "original_body_unchanged": true
+      }
+    ],
+    "worker_temporary_live_wrappers": 2,
+    "originalrunner_runpy103lines6259bytes_SHA": "687ec2a408507284b557806569d6f5df0ead625b9c282b9c8bbb74782d633f0a"
+  },
+  "preserved_budgets": {
+    "fail_only_seconds": 1800,
+    "term_seconds": 7,
+    "kill_seconds": 2,
+    "family_seconds": 2,
+    "original_test_operation_timers_unchanged": true
+  },
+  "fresh_impact": {
+    "original_failure": "LOW,1directcaller,5affectedsymbols,0registeredflows",
+    "original_pause": "LOW,2directcallers,2affectedsymbols,0registeredflows",
+    "new_observers_controller_entry": "UNKNOWN_not_zero",
+    "manual_review_boundary": "CRITICAL disclosed byroot beforeimplementation"
+  },
+  "spec": "check_spec structured3FRpassed0errors aftersidecarseal requirement",
+  "observer_raw_seal": "Independent nofollow OBSERVATION-RAW-SEAL binds realobserverbytes/SHA and original8rawseal bytes/SHA; original8seal neverclaims sidecar",
+  "privileged_release_grants": false,
+  "CI_qualification": false,
+  "FINAL0_7_qualification": false,
+  "install_qualification": false,
+  "original_failures_immutable": true,
+  "source_files": [
+    {
+      "original_path": "diagnostic_owner.py",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/diagnostic_owner.py.source",
+      "bytes": 15193,
+      "sha256": "c1aec12ee56d4c03f6939c73740a080d5dc7d643706da62bf0d3b3a2b2363d21",
+      "blob_sha1": "6f0abcd2ae6bd38506e3eb16fa6816bffffcd779"
+    },
+    {
+      "original_path": "diagnostic_worker.py",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/diagnostic_worker.py.source",
+      "bytes": 3946,
+      "sha256": "0ef5e05c9576e4cb9d77c2272f80f389efbb7e4dd7a5299bfff135d356802e1f",
+      "blob_sha1": "31b0b421b7295058e7391381ae3690e747c9f8a2"
+    },
+    {
+      "original_path": "diagnostic-launch.py",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/diagnostic-launch.py.source",
+      "bytes": 3587,
+      "sha256": "cd461e1cf5ebf2676dbe94038eef1c5c7a91dc9466832a1816f4cb23bee2d722",
+      "blob_sha1": "09ce7b46d8b66dc87b6f1a2199280c403249649f"
+    },
+    {
+      "original_path": "ordinary-observer-controls.py",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/ordinary-observer-controls.py.source",
+      "bytes": 4683,
+      "sha256": "b03925d87fa3ac390c360afa707870df2d6095c2a2981b892b6bf495194729e8",
+      "blob_sha1": "9a8f631fe6489bc435145a12eac711b53af7c8c8"
+    },
+    {
+      "original_path": "docs/specs/publisher-fence-diagnostic1/design.md",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/docs/specs/publisher-fence-diagnostic1/design.md.source",
+      "bytes": 2545,
+      "sha256": "799fb705b7ee762984c7499fdab04df5ec02393fead379cc953ccf82e0c4bab3",
+      "blob_sha1": "678a96571b99e4552caa2bc2c4e22718a8f3d037"
+    },
+    {
+      "original_path": "docs/specs/publisher-fence-diagnostic1/requirements.md",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/docs/specs/publisher-fence-diagnostic1/requirements.md.source",
+      "bytes": 3587,
+      "sha256": "77cdf5e1ddfbd38373d3d1b0d2210e0017872ed7730af15351fca70b30d4c631",
+      "blob_sha1": "eeed4c6bfc215989b30798a27538956890ad82f8"
+    },
+    {
+      "original_path": "docs/specs/publisher-fence-diagnostic1/tasks.md",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/docs/specs/publisher-fence-diagnostic1/tasks.md.source",
+      "bytes": 2507,
+      "sha256": "eeb10b468361afa0d66b92d69ea85a70ddfe7831d5010ca8305f6205bb4b16b4",
+      "blob_sha1": "1f99fa19dd871b084fc9f14bf6f7cfa47d0049e8"
+    }
+  ],
+  "actual_diagnostic": {
+    "loaded": 1,
+    "executed": 1,
+    "named_success": 0,
+    "failures": 1,
+    "errors": 0,
+    "skips": 0,
+    "elapsed_seconds": 60.37522924099994,
+    "native_elapsed_seconds": 62.24374107799986,
+    "natural_exit_code": 1,
+    "native_echild": true,
+    "native_qualified": false,
+    "native_closed": false,
+    "observer_valid": true,
+    "observation_errors": [],
+    "failing_predecessor": {
+      "kind": "UploadAsset",
+      "operation_id": 11,
+      "exception_type": "WireFailure",
+      "code": "adapter_error",
+      "effect": "unknown"
+    },
+    "terminal_outcome": "uncertain_remote_effect",
+    "underlying_exception_cause": "UNKNOWN_not_observed_inside_original_request_catch",
+    "original8_and_separate_sidecar_actual_nofollow_hash_seals_verified": true,
+    "all1885_prelaunchfiles_current_reread": true,
+    "pure1878_source_index_runtime_carrier_fixture_runner_unchanged": true,
+    "terminal_independent_review": "PENDING_at_freeze"
+  },
+  "audit_erratum": "First external terminal audit omitted PYTHONDONTWRITEBYTECODE and created2untracked helperpyc after SUT exit; strictclean guard STOP, preserved pyc privately outside carrier, second readonlyaudit verified exactclean/currenthashes. No tracked source or SUT changed."
+}

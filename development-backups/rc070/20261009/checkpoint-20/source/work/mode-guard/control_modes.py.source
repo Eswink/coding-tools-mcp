@@ -1,0 +1,48 @@
+"""Ordinary zeroSUT failure-first controls; legacy comparator labelled narrowly."""
+from pathlib import Path
+import os
+import stat
+import tempfile
+import unittest
+try:
+    from physical_modes import require_exact_posix_modes
+except ModuleNotFoundError:
+    def require_exact_posix_modes(root, entries):
+        # Failure-first execution of the old source() Git classification predicate.
+        # This is not a candidate mode receipt or issuer.
+        for path,mode in entries.items():
+            actual=(Path(root)/path).lstat()
+            if mode!=('100755' if actual.st_mode&0o111 else '100644'):raise ValueError('Git classification')
+        return {'legacy_classification_only':True}
+
+class Controls(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name);self.file=self.root/'ordinary.py';self.file.write_bytes(b'ordinary\n');self.file.chmod(0o644)
+    def tearDown(self):self.temp.cleanup()
+    def reject(self,mode='100644'):
+        with self.assertRaises((ValueError,AssertionError)):require_exact_posix_modes(self.root,{'ordinary.py':mode})
+    def test_exact644_accept(self):self.assertTrue(require_exact_posix_modes(self.root,{'ordinary.py':'100644'}))
+    def test_exact755_accept(self):
+        self.file.chmod(0o755);self.assertTrue(require_exact_posix_modes(self.root,{'ordinary.py':'100755'}))
+    def test_owneronly_readwrite600_reject(self):self.file.chmod(0o600);self.reject()
+    def test_owneronly_execute700_reject(self):self.file.chmod(0o700);self.reject('100755')
+    def test_missing_other_execute754_reject(self):self.file.chmod(0o754);self.reject('100755')
+    def test_missing_group_execute745_reject(self):self.file.chmod(0o745);self.reject('100755')
+    def test_added_write666_reject(self):self.file.chmod(0o666);self.reject()
+    def test_special_setuid_reject(self):self.file.chmod(0o4644);self.reject()
+    def test_special_setgid_reject(self):self.file.chmod(0o2644);self.reject()
+    def test_hardlink_reject(self):os.link(self.file,self.root/'alias');self.reject()
+    def test_symlink_reject(self):
+        target=self.root/'target';self.file.rename(target);self.file.symlink_to(target);self.reject()
+    def test_parent_symlink_reject(self):
+        target=self.root/'targetdir';target.mkdir();(target/'leaf').write_bytes(b'x');(target/'leaf').chmod(0o644);(self.root/'parent').symlink_to(target,target_is_directory=True)
+        with self.assertRaises((ValueError,AssertionError)):require_exact_posix_modes(self.root,{'parent/leaf':'100644'})
+    def test_escape_path_reject(self):
+        with self.assertRaises((ValueError,AssertionError)):require_exact_posix_modes(self.root,{'../escape':'100644'})
+    def test_unsupported_gitmode_reject(self):self.reject('120000')
+    def test_directory_reject(self):
+        self.file.unlink();self.file.mkdir(mode=0o644);self.reject()
+    def test_changed_exact_snapshot_reject_by_caller(self):
+        first=require_exact_posix_modes(self.root,{'ordinary.py':'100644'});old=self.root/'old';self.file.rename(old);self.file.write_bytes(b'ordinary\n');self.file.chmod(0o644)
+        second=require_exact_posix_modes(self.root,{'ordinary.py':'100644'});self.assertNotEqual(first,second)
+if __name__=='__main__':unittest.main(verbosity=2)

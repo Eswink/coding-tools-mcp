@@ -1,0 +1,23 @@
+# Publisher fence diagnostic1 design
+
+## 概述
+
+只观察失败原方法，完整原85FAIL保持不可覆盖。设计覆盖FR-1/2/3；只safe因果字段，原1方法不是完整85拓扑。
+
+## 技术方案
+
+FR-1 使用unchangedrestore/precondition新diag-preflight，physicalmode真实0022。原testmethodAST SHA封存，_native_session/_pending_fence原函数AST逐字保留。
+
+FR-2 diagnostic_worker先导入pure originalexecutor，保存原2函数，再用unittest.mock.patch临时delegate。_failure先原执行再记录原result安全fields，run_until_pause先原执行再记原Transition安全fields。若delegate抛异常不替换、不吞；普通observer字段失败记UNKNOWN再返回原identity。runpy执行原runner源103行，外部wrapper不是原runner逐字invocation，准确声明注入过两个live wrappers。原runner本身源码/SHA和tests代码不变。
+
+FR-3 diagnostic_owner由原owner公开源形成外部副本：只BOUNDS名+唯一库存count+argv worker入口+原300deadbranch删除若需则明确AST差异；不宣称整个run_owned AST同原。receipt_gate/nativekernel原AST保持同源。workerwrapperidentity加入carrierfences。原八raw加observerreport单独封存，old85证据从不覆盖。
+
+## 文件结构
+
+外部3规格；diagnostic_owner.py <=400行，原controller有限语义但明示修改；diagnostic_worker.py <=150行两个wrappeddelegate观察；diagnostic-launch.py <=100行top-level仅一次诊断1；ordinary-observer-controls.py <=150行只普通可控delegate原返回/异常/取消/观察失败；outside actualraw/seals。
+
+## 测试策略
+
+FR-1 freshwhole1878/fixture/nativeprefix/sourceAST；FR-2 普通控制delegateexactonce、同对象return、原exceptionidentity、SystemExit/KeyboardInterrupt不吞、observerordinaryexception不得改变return、报告写失败原primary保留；FR-3 原AST细diff、安全字段/no-sensitive、realordinarykernelcontrols当前7已独立证明原语但不借它当完整owner自动cancel路径，独立根启动审查后才一次SUT1。
+
+FR-3新增observer原byte封存：launcher在原owned controller完成后nofollow真实读取DIAGNOSTIC-OBSERVATION.json，独立exclusive OBSERVATION-RAW-SEAL.json记录bytes/SHA/状态及原八文件RAW-EVIDENCE-SEAL原bytes/SHA；原八seal不冒称涵盖sidecar。读取/解析失败保持UNKNOWN，原native/原method结果不改。sealedsummary保存observerseal原SHA便于root逐byte重读。顶层entry无新增symbol，freshimpact diagnostic_launch真实UNKNOWN，manualCRITICAL保持。

@@ -1,0 +1,15 @@
+# External exactmode gate
+
+## 概述
+
+对应需求：FR-1,FR-2,FR-3,FR-4,FR-5. No existing original runner or supervisor source is edited. A new helper takes the caller's independently native-derived Git path/mode mapping and reads actual POSIX metadata. It is a descriptive guard; not a source or operation-authority issuer.
+
+## 技术方案
+
+Require absolute canonical owned source root. Validate canonical relative paths and intermediate real directories, then require leaf regular/nlink1 and full native permissions exactly0644/0755. Record dev/inode/type/nlink and all stat permission bits for each path. Caller combines this with its existing full native source identity, not a synthetic label or dictionary. A future same-run wrapper must preserve both guards and compare fresh before/after physical metadata snapshots; implementation of startup composition is outside this zeroSUT first increment.
+
+The current failed clone is a real failure-first target. Its1847 data files are0600 and two executable files0700. New gate must block this exact directory; no chmod, read receipt rewriting or retry. Ordinary controls use temporary owned files only. A new --no-local clone may be normalized before a new freeze, preserving original Git blob/tree identity and the old failed clone. A hash alone does not prove object liveness or native authority.
+
+## 文件结构
+
+work/mode-guard contains new physical_modes.py, ordinary controls, current-clone readonly control outputs and private snapshots. docs/specs/pretag303-exact-posix-mode contains three specifications. New public backups contain only source/specifications/byte-mode manifests/safe counts. Private snapshots and source/runtime/native host metadata stay private.

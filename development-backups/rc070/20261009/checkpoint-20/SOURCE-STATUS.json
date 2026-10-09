@@ -1,0 +1,55 @@
+{
+  "Git_source_bytes_tree_identity_guards_remain_required": true,
+  "current_actual_failed_clone": {
+    "SUT_methods": 0,
+    "exact_mode_mismatches": 1849,
+    "full_mode_snapshot_before_after_readonly_equal": true,
+    "modified": false,
+    "old_Git_executable_classifier_accepts_all": true,
+    "status": "BLOCKED",
+    "tracked_paths": 1849
+  },
+  "failure_first_old_classifier": {
+    "actual_tests": 16,
+    "errors": 1,
+    "failures": 11,
+    "preserved": true
+  },
+  "freshimpact": "UNKNOWN/manual HIGH disclosed; no valid graph for this independent helper",
+  "independent_mode_gate_review": "PENDING",
+  "native_exact_permissions": {
+    "100644": "0644",
+    "100755": "0755"
+  },
+  "native_issuer_release_install_qualification": false,
+  "new303_invocations": 0,
+  "new_fresh_exact_POSIX_clone": "NOTCREATED pending review",
+  "old17_source_seal_unchanged": "33a018f21a152e7d4dd5cd63414d9436946aac7dca1dad7a4f7fb4b2fd643b82",
+  "old303_first_run": "FAIL retained",
+  "ordinary_controls": {
+    "SUT_methods": 0,
+    "actual_tests": 16,
+    "success": 16
+  },
+  "original75503": "FAIL retained",
+  "qualification_755_runs": 0,
+  "runtime_metadata_raw_snapshots_public_backup": false,
+  "scope": "Newexternal exactPOSIX mode admission helper source-only; no original303 invocations",
+  "snapshot_fields": [
+    "git_mode",
+    "expected_native_mode",
+    "actual_native_mode",
+    "dev",
+    "inode",
+    "type",
+    "nlink"
+  ],
+  "snapshot_is_authority": false,
+  "sources": 6,
+  "spec_check": {
+    "FR": 5,
+    "errors": 0,
+    "passed": true,
+    "warnings": 0
+  }
+}

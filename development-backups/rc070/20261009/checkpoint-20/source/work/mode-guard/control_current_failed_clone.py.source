@@ -1,0 +1,20 @@
+"""Read current actual failed source; original source remains untouched/zeroSUT."""
+from pathlib import Path
+import json
+import os
+import stat
+from physical_modes import exact_mode_snapshot, require_exact_posix_modes
+ROOT=Path('/workspace/work/rc070/diagnostic-native-source')
+BEFORE=Path('/workspace/work/rc070/diagnostic-preflight02/source-before.json')
+OUT=Path(__file__).resolve().parent
+source=json.loads(BEFORE.read_bytes());entries={path:row['mode'] for path,row in source['source'].items()};assert len(entries)==1849
+old_classification_all_passed=all(mode==('100755' if (ROOT/path).lstat().st_mode&0o111 else '100644') for path,mode in entries.items())
+assert old_classification_all_passed
+snapshot=exact_mode_snapshot(ROOT,entries);bad=[path for path,row in snapshot.items() if row['expected_native_mode']!=row['actual_native_mode']];assert len(bad)==1849
+try:require_exact_posix_modes(ROOT,entries)
+except ValueError as error:reason=str(error)
+else:raise AssertionError('current actual failed clone must be BLOCKED')
+assert exact_mode_snapshot(ROOT,entries)==snapshot
+report={'scope':'Currentactual failedclone readonly mode gate control; no source mutation/no303 invocation','status':'BLOCKED','SUT_methods':0,'source_tree':source['tree'],'source_paths':len(entries),'exact_mode_mismatches':len(bad),'old_git_executable_classifier_accepts_all':True,'new_exact_posix_mode_admits':False,'reason':reason,'mode_counts':[{'git_mode':'100644','actual_native':'0600','expected_native':'0644','count':sum(r['git_mode']=='100644' for r in snapshot.values())},{'git_mode':'100755','actual_native':'0700','expected_native':'0755','count':sum(r['git_mode']=='100755' for r in snapshot.values())}],'actual_physical_snapshot_unchanged':True,'old_clone_modified':False,'qualification_755_runs':0}
+with (OUT/'CURRENT-FAILED-CLONE-BLOCKED01.json').open('x') as stream:stream.write(json.dumps(report,sort_keys=True,indent=2)+'\n')
+print(json.dumps(report,sort_keys=True))

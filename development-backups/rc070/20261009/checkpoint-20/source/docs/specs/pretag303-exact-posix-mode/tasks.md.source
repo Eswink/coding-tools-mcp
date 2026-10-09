@@ -1,0 +1,24 @@
+# Exactmode source admission increment
+
+## 交付物清单
+
+Finite spec, external exactmode helper, ordinary failure-first controls, readonly currentclone BLOCKED/0SUT, independent newclone mode/byte/tree snapshot and reviewable source-only freeze.
+
+## 任务列表
+
+- [x] Actual303 mode failure and raw join independently audited; original755FAIL retained.
+- [x] Independent Plan resume and source-only prior frozen bundle preserved.
+- [ ] check_spec and fresh impact UNKNOWN/HIGH disclosure.
+- [ ] Ordinary classifier failure-first/current actualclone BLOCKED0SUT.
+- [ ] External exactmode helper and ordinary controls.
+- [ ] New independent POSIX clone exact0644/0755 normalization before freeze, originaltree/bytes unchanged.
+- [ ] Source-only freeze and independent newgate review.
+- [ ] Future startup composition/new original303 decision remains outside current authorization.
+
+## 需求覆盖矩阵
+
+FR-1 exactmode/link/path/unknown-mode ordinary controls; FR-2 unchanged original17 source SHA and independent native tree/hash binding; FR-3 before/after mode snapshot + newclone identity; FR-4 actual failedclone rejection and scoped ordinary failure-first; FR-5 check_spec/freshimpact/freeze/independentreview.
+
+## 文件变更清单
+
+Only three new specifications and new external helper/control/source-only safe artifacts. No modification of failedclone, original runner, sealed supervisor/preflight, producer/catalog/snapshot/defaultdeny or release version fields.
