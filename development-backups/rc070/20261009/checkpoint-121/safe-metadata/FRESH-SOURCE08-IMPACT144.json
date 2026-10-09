@@ -1,0 +1,989 @@
+{
+  "scope": "own current indexed source identity; UNKNOWN not0; dynamicmanualHIGH",
+  "index139": {
+    "repoPath": "/workspace/work/rc070/windows-nt-output-native-ci-manager",
+    "indexedAt": "2026-10-09T18:55:34.507Z",
+    "four_python_SHA_exact": true,
+    "actual_tool": "write_stdin",
+    "actual_chunk": "1a4add",
+    "actual_exit": 0,
+    "nodes": 28283,
+    "edges": 65513
+  },
+  "observations": [
+    {
+      "phase": "source07 preedit own106",
+      "sourceRoot": "/workspace/work/rc070/windows-nt-output-native-ci-manager",
+      "repo": "windows-nt-output-native-ci-manager",
+      "executions": [
+        {
+          "tool": "context",
+          "result": {
+            "status": "found",
+            "symbol": {
+              "uid": "Function:scripts/windows_nt_output_native_ci.py:bind_source_git_delegate",
+              "name": "bind_source_git_delegate",
+              "kind": "Function",
+              "filePath": "scripts/windows_nt_output_native_ci.py",
+              "startLine": 714,
+              "endLine": 727
+            },
+            "epistemic": "exact",
+            "incoming": {
+              "calls": [
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:execute_native_manager",
+                  "name": "execute_native_manager",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_manager_controls.py:manager_control_entry",
+                  "name": "manager_control_entry",
+                  "filePath": "scripts/windows_nt_output_native_manager_controls.py"
+                }
+              ]
+            },
+            "outgoing": {
+              "calls": [
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_job.py:raise_preserved_native_errors",
+                  "name": "raise_preserved_native_errors",
+                  "filePath": "scripts/windows_nt_output_native_job.py"
+                }
+              ]
+            },
+            "processes": []
+          }
+        },
+        {
+          "tool": "impact",
+          "result": {
+            "target": {
+              "id": "Function:scripts/windows_nt_output_native_ci.py:bind_source_git_delegate",
+              "name": "bind_source_git_delegate",
+              "type": "Function",
+              "filePath": "scripts/windows_nt_output_native_ci.py"
+            },
+            "direction": "upstream",
+            "impactedCount": 5,
+            "risk": "LOW",
+            "epistemic": "exact",
+            "summary": {
+              "direct": 2,
+              "processes_affected": 1,
+              "modules_affected": 1
+            },
+            "byDepthCounts": {
+              "1": 2,
+              "2": 2,
+              "3": 1
+            },
+            "affected_processes": [
+              {
+                "name": "manager_control_entry",
+                "type": "Function",
+                "filePath": "scripts/windows_nt_output_native_manager_controls.py",
+                "affected_process_count": 1,
+                "total_hits": 1,
+                "earliest_broken_step": 1
+              }
+            ],
+            "affected_modules": [
+              {
+                "name": "Scripts",
+                "hits": 3,
+                "impact": "direct"
+              }
+            ],
+            "byDepth": {
+              "1": [
+                {
+                  "depth": 1,
+                  "id": "Function:scripts/windows_nt_output_native_ci.py:execute_native_manager",
+                  "name": "execute_native_manager",
+                  "filePath": "scripts/windows_nt_output_native_ci.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                },
+                {
+                  "depth": 1,
+                  "id": "Function:scripts/windows_nt_output_native_manager_controls.py:manager_control_entry",
+                  "name": "manager_control_entry",
+                  "filePath": "scripts/windows_nt_output_native_manager_controls.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": [
+                    {
+                      "id": "proc_189_manager_control_entr",
+                      "label": "Manager_control_entry \u2192 Strict_native_json",
+                      "processType": "cross_community",
+                      "step": 1
+                    }
+                  ]
+                }
+              ],
+              "2": [
+                {
+                  "depth": 2,
+                  "id": "File:scripts/windows_nt_output_native_manager_controls.py",
+                  "name": "windows_nt_output_native_manager_controls.py",
+                  "filePath": "scripts/windows_nt_output_native_manager_controls.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                },
+                {
+                  "depth": 2,
+                  "id": "Function:scripts/windows_nt_output_native_ci.py:native_ci_main",
+                  "name": "native_ci_main",
+                  "filePath": "scripts/windows_nt_output_native_ci.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                }
+              ],
+              "3": [
+                {
+                  "depth": 3,
+                  "id": "File:scripts/windows_nt_output_native_ci.py",
+                  "name": "windows_nt_output_native_ci.py",
+                  "filePath": "scripts/windows_nt_output_native_ci.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "phase": "source07 preedit own106",
+      "sourceRoot": "/workspace/work/rc070/windows-nt-output-native-ci-manager",
+      "repo": "windows-nt-output-native-ci-manager",
+      "executions": [
+        {
+          "tool": "context",
+          "result": {
+            "status": "found",
+            "symbol": {
+              "uid": "Function:scripts/windows_nt_output_native_manager_controls.py:manager_control_entry",
+              "name": "manager_control_entry",
+              "kind": "Function",
+              "filePath": "scripts/windows_nt_output_native_manager_controls.py",
+              "startLine": 18,
+              "endLine": 406
+            },
+            "epistemic": "exact",
+            "incoming": {
+              "calls": [
+                {
+                  "uid": "File:scripts/windows_nt_output_native_manager_controls.py",
+                  "name": "windows_nt_output_native_manager_controls.py",
+                  "filePath": "scripts/windows_nt_output_native_manager_controls.py"
+                }
+              ]
+            },
+            "outgoing": {
+              "calls": [
+                {
+                  "uid": "Class:scripts/windows_nt_output_native_job.py:NativeRawBudget",
+                  "name": "NativeRawBudget",
+                  "filePath": "scripts/windows_nt_output_native_job.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:load_native_lease",
+                  "name": "load_native_lease",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_tree",
+                  "name": "snapshot_runtime_tree",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_tree",
+                  "name": "snapshot_runtime_tree",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_tree",
+                  "name": "snapshot_runtime_tree",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_tree",
+                  "name": "snapshot_runtime_tree",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_tree",
+                  "name": "snapshot_runtime_tree",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:module_filename_from_api",
+                  "name": "module_filename_from_api",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:module_filename_from_api",
+                  "name": "module_filename_from_api",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:module_filename_from_api",
+                  "name": "module_filename_from_api",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:parse_ordinary_native_records",
+                  "name": "parse_ordinary_native_records",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:parse_ordinary_native_records",
+                  "name": "parse_ordinary_native_records",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:parse_native_discovery",
+                  "name": "parse_native_discovery",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:parse_native_discovery",
+                  "name": "parse_native_discovery",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:read_owned_bounded_file",
+                  "name": "read_owned_bounded_file",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:write_owned_original_payload",
+                  "name": "write_owned_original_payload",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:write_owned_original_payload",
+                  "name": "write_owned_original_payload",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:write_owned_original_payload",
+                  "name": "write_owned_original_payload",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:write_owned_original_payload",
+                  "name": "write_owned_original_payload",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:capture_owned_pool_snapshot",
+                  "name": "capture_owned_pool_snapshot",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:capture_owned_pool_snapshot",
+                  "name": "capture_owned_pool_snapshot",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:capture_owned_pool_snapshot",
+                  "name": "capture_owned_pool_snapshot",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:capture_owned_pool_snapshot",
+                  "name": "capture_owned_pool_snapshot",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:extract_owned_member",
+                  "name": "extract_owned_member",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                }
+              ],
+              "accesses": [
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_file",
+                  "name": "snapshot_runtime_file",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_file",
+                  "name": "snapshot_runtime_file",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_file",
+                  "name": "snapshot_runtime_file",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_file",
+                  "name": "snapshot_runtime_file",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_file",
+                  "name": "snapshot_runtime_file",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_file",
+                  "name": "snapshot_runtime_file",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                }
+              ]
+            },
+            "processes": [
+              {
+                "id": "proc_189_manager_control_entr",
+                "name": "Manager_control_entry \u2192 Strict_native_json",
+                "step_index": 1,
+                "step_count": 3
+              }
+            ]
+          }
+        },
+        {
+          "tool": "impact",
+          "result": {
+            "target": {
+              "id": "Function:scripts/windows_nt_output_native_manager_controls.py:manager_control_entry",
+              "name": "manager_control_entry",
+              "type": "Function",
+              "filePath": "scripts/windows_nt_output_native_manager_controls.py"
+            },
+            "direction": "upstream",
+            "impactedCount": 1,
+            "risk": "LOW",
+            "epistemic": "exact",
+            "summary": {
+              "direct": 1,
+              "processes_affected": 0,
+              "modules_affected": 0
+            },
+            "byDepthCounts": {
+              "1": 1
+            },
+            "affected_processes": [],
+            "affected_modules": [],
+            "byDepth": {
+              "1": [
+                {
+                  "depth": 1,
+                  "id": "File:scripts/windows_nt_output_native_manager_controls.py",
+                  "name": "windows_nt_output_native_manager_controls.py",
+                  "filePath": "scripts/windows_nt_output_native_manager_controls.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "phase": "new ordinary module symbol UNKNOWN",
+      "sourceRoot": "/workspace/work/rc070/windows-nt-output-native-ci-manager",
+      "repo": "windows-nt-output-native-ci-manager",
+      "executions": [
+        {
+          "tool": "context",
+          "result": {
+            "error": "Symbol 'Class:scripts/windows_nt_output_native_manager_controls.py:OrdinaryBindingModule' not found"
+          }
+        },
+        {
+          "tool": "impact",
+          "result": {
+            "error": "Target 'Class:scripts/windows_nt_output_native_manager_controls.py:OrdinaryBindingModule' not found",
+            "target": {
+              "name": "Class:scripts/windows_nt_output_native_manager_controls.py:OrdinaryBindingModule"
+            },
+            "direction": "upstream",
+            "impactedCount": 0,
+            "risk": "UNKNOWN"
+          }
+        }
+      ]
+    },
+    {
+      "phase": "own index stale at request; do NOT claim current graph",
+      "sourceRoot": "/workspace/work/rc070/windows-nt-output-native-ci-manager",
+      "repo": "windows-nt-output-native-ci-manager",
+      "executions": [
+        {
+          "tool": "context",
+          "result": {
+            "status": "found",
+            "symbol": {
+              "uid": "Function:scripts/windows_nt_output_native_ci.py:bind_source_git_delegate",
+              "name": "bind_source_git_delegate",
+              "kind": "Function",
+              "filePath": "scripts/windows_nt_output_native_ci.py",
+              "startLine": 714,
+              "endLine": 727
+            },
+            "epistemic": "exact",
+            "incoming": {
+              "calls": [
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:execute_native_manager",
+                  "name": "execute_native_manager",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_manager_controls.py:manager_control_entry",
+                  "name": "manager_control_entry",
+                  "filePath": "scripts/windows_nt_output_native_manager_controls.py"
+                }
+              ]
+            },
+            "outgoing": {
+              "calls": [
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_job.py:raise_preserved_native_errors",
+                  "name": "raise_preserved_native_errors",
+                  "filePath": "scripts/windows_nt_output_native_job.py"
+                }
+              ]
+            },
+            "processes": []
+          }
+        },
+        {
+          "tool": "impact",
+          "result": {
+            "target": {
+              "id": "Function:scripts/windows_nt_output_native_ci.py:bind_source_git_delegate",
+              "name": "bind_source_git_delegate",
+              "type": "Function",
+              "filePath": "scripts/windows_nt_output_native_ci.py"
+            },
+            "direction": "upstream",
+            "impactedCount": 5,
+            "risk": "LOW",
+            "epistemic": "exact",
+            "summary": {
+              "direct": 2,
+              "processes_affected": 1,
+              "modules_affected": 1
+            },
+            "byDepthCounts": {
+              "1": 2,
+              "2": 2,
+              "3": 1
+            },
+            "affected_processes": [
+              {
+                "name": "manager_control_entry",
+                "type": "Function",
+                "filePath": "scripts/windows_nt_output_native_manager_controls.py",
+                "affected_process_count": 1,
+                "total_hits": 1,
+                "earliest_broken_step": 1
+              }
+            ],
+            "affected_modules": [
+              {
+                "name": "Scripts",
+                "hits": 3,
+                "impact": "direct"
+              }
+            ],
+            "byDepth": {
+              "1": [
+                {
+                  "depth": 1,
+                  "id": "Function:scripts/windows_nt_output_native_ci.py:execute_native_manager",
+                  "name": "execute_native_manager",
+                  "filePath": "scripts/windows_nt_output_native_ci.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                },
+                {
+                  "depth": 1,
+                  "id": "Function:scripts/windows_nt_output_native_manager_controls.py:manager_control_entry",
+                  "name": "manager_control_entry",
+                  "filePath": "scripts/windows_nt_output_native_manager_controls.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": [
+                    {
+                      "id": "proc_189_manager_control_entr",
+                      "label": "Manager_control_entry \u2192 Strict_native_json",
+                      "processType": "cross_community",
+                      "step": 1
+                    }
+                  ]
+                }
+              ],
+              "2": [
+                {
+                  "depth": 2,
+                  "id": "Function:scripts/windows_nt_output_native_ci.py:native_ci_main",
+                  "name": "native_ci_main",
+                  "filePath": "scripts/windows_nt_output_native_ci.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                },
+                {
+                  "depth": 2,
+                  "id": "File:scripts/windows_nt_output_native_manager_controls.py",
+                  "name": "windows_nt_output_native_manager_controls.py",
+                  "filePath": "scripts/windows_nt_output_native_manager_controls.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                }
+              ],
+              "3": [
+                {
+                  "depth": 3,
+                  "id": "File:scripts/windows_nt_output_native_ci.py",
+                  "name": "windows_nt_output_native_ci.py",
+                  "filePath": "scripts/windows_nt_output_native_ci.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "phase": "actual preedit current own133 exact source64",
+      "sourceRoot": "/workspace/work/rc070/windows-nt-output-native-ci-manager",
+      "repo": "windows-nt-output-native-ci-manager",
+      "executions": [
+        {
+          "tool": "context",
+          "result": {
+            "status": "found",
+            "symbol": {
+              "uid": "Function:scripts/windows_nt_output_native_ci.py:bind_source_git_delegate",
+              "name": "bind_source_git_delegate",
+              "kind": "Function",
+              "filePath": "scripts/windows_nt_output_native_ci.py",
+              "startLine": 718,
+              "endLine": 743
+            },
+            "epistemic": "exact",
+            "incoming": {
+              "calls": [
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:execute_native_manager",
+                  "name": "execute_native_manager",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_manager_controls.py:manager_control_entry",
+                  "name": "manager_control_entry",
+                  "filePath": "scripts/windows_nt_output_native_manager_controls.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_manager_controls.py:manager_control_entry",
+                  "name": "manager_control_entry",
+                  "filePath": "scripts/windows_nt_output_native_manager_controls.py"
+                },
+                {
+                  "uid": "File:work/native-nt-ci-prepare/unknown-rebind-failure131.py",
+                  "name": "unknown-rebind-failure131.py",
+                  "filePath": "work/native-nt-ci-prepare/unknown-rebind-failure131.py"
+                },
+                {
+                  "uid": "File:work/native-nt-ci-prepare/unknown-rebind-failure131.py",
+                  "name": "unknown-rebind-failure131.py",
+                  "filePath": "work/native-nt-ci-prepare/unknown-rebind-failure131.py"
+                },
+                {
+                  "uid": "File:work/native-nt-ci-prepare/binding-flag-failure119.py",
+                  "name": "binding-flag-failure119.py",
+                  "filePath": "work/native-nt-ci-prepare/binding-flag-failure119.py"
+                }
+              ]
+            },
+            "outgoing": {
+              "calls": [
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_job.py:raise_preserved_native_errors",
+                  "name": "raise_preserved_native_errors",
+                  "filePath": "scripts/windows_nt_output_native_job.py"
+                }
+              ]
+            },
+            "processes": []
+          }
+        },
+        {
+          "tool": "impact",
+          "result": {
+            "target": {
+              "id": "Function:scripts/windows_nt_output_native_ci.py:bind_source_git_delegate",
+              "name": "bind_source_git_delegate",
+              "type": "Function",
+              "filePath": "scripts/windows_nt_output_native_ci.py"
+            },
+            "direction": "upstream",
+            "impactedCount": 7,
+            "risk": "LOW",
+            "epistemic": "exact",
+            "summary": {
+              "direct": 4,
+              "processes_affected": 1,
+              "modules_affected": 1
+            },
+            "byDepthCounts": {
+              "1": 4,
+              "2": 2,
+              "3": 1
+            },
+            "affected_processes": [
+              {
+                "name": "manager_control_entry",
+                "type": "Function",
+                "filePath": "scripts/windows_nt_output_native_manager_controls.py",
+                "affected_process_count": 1,
+                "total_hits": 1,
+                "earliest_broken_step": 1
+              }
+            ],
+            "affected_modules": [
+              {
+                "name": "Scripts",
+                "hits": 3,
+                "impact": "direct"
+              }
+            ],
+            "byDepth": {
+              "1": [
+                {
+                  "depth": 1,
+                  "id": "Function:scripts/windows_nt_output_native_ci.py:execute_native_manager",
+                  "name": "execute_native_manager",
+                  "filePath": "scripts/windows_nt_output_native_ci.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                },
+                {
+                  "depth": 1,
+                  "id": "Function:scripts/windows_nt_output_native_manager_controls.py:manager_control_entry",
+                  "name": "manager_control_entry",
+                  "filePath": "scripts/windows_nt_output_native_manager_controls.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": [
+                    {
+                      "id": "proc_189_manager_control_entr",
+                      "label": "Manager_control_entry \u2192 Strict_native_json",
+                      "processType": "intra_community",
+                      "step": 1
+                    }
+                  ]
+                },
+                {
+                  "depth": 1,
+                  "id": "File:work/native-nt-ci-prepare/unknown-rebind-failure131.py",
+                  "name": "unknown-rebind-failure131.py",
+                  "filePath": "work/native-nt-ci-prepare/unknown-rebind-failure131.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                },
+                {
+                  "depth": 1,
+                  "id": "File:work/native-nt-ci-prepare/binding-flag-failure119.py",
+                  "name": "binding-flag-failure119.py",
+                  "filePath": "work/native-nt-ci-prepare/binding-flag-failure119.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                }
+              ],
+              "2": [
+                {
+                  "depth": 2,
+                  "id": "File:scripts/windows_nt_output_native_manager_controls.py",
+                  "name": "windows_nt_output_native_manager_controls.py",
+                  "filePath": "scripts/windows_nt_output_native_manager_controls.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                },
+                {
+                  "depth": 2,
+                  "id": "Function:scripts/windows_nt_output_native_ci.py:native_ci_main",
+                  "name": "native_ci_main",
+                  "filePath": "scripts/windows_nt_output_native_ci.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                }
+              ],
+              "3": [
+                {
+                  "depth": 3,
+                  "id": "File:scripts/windows_nt_output_native_ci.py",
+                  "name": "windows_nt_output_native_ci.py",
+                  "filePath": "scripts/windows_nt_output_native_ci.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "phase": "actual preedit current own133 exact source64",
+      "sourceRoot": "/workspace/work/rc070/windows-nt-output-native-ci-manager",
+      "repo": "windows-nt-output-native-ci-manager",
+      "executions": [
+        {
+          "tool": "context",
+          "result": {
+            "status": "found",
+            "symbol": {
+              "uid": "Function:scripts/windows_nt_output_native_manager_controls.py:manager_control_entry",
+              "name": "manager_control_entry",
+              "kind": "Function",
+              "filePath": "scripts/windows_nt_output_native_manager_controls.py",
+              "startLine": 19,
+              "endLine": 444
+            },
+            "epistemic": "exact",
+            "incoming": {
+              "calls": [
+                {
+                  "uid": "File:scripts/windows_nt_output_native_manager_controls.py",
+                  "name": "windows_nt_output_native_manager_controls.py",
+                  "filePath": "scripts/windows_nt_output_native_manager_controls.py"
+                }
+              ]
+            },
+            "outgoing": {
+              "calls": [
+                {
+                  "uid": "Class:scripts/windows_nt_output_native_job.py:NativeRawBudget",
+                  "name": "NativeRawBudget",
+                  "filePath": "scripts/windows_nt_output_native_job.py"
+                },
+                {
+                  "uid": "Class:scripts/windows_nt_output_native_job.py:NativeRawBudget",
+                  "name": "NativeRawBudget",
+                  "filePath": "scripts/windows_nt_output_native_job.py"
+                },
+                {
+                  "uid": "Class:scripts/windows_nt_output_native_job.py:NativeRawBudget",
+                  "name": "NativeRawBudget",
+                  "filePath": "scripts/windows_nt_output_native_job.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:load_native_lease",
+                  "name": "load_native_lease",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_tree",
+                  "name": "snapshot_runtime_tree",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_tree",
+                  "name": "snapshot_runtime_tree",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_tree",
+                  "name": "snapshot_runtime_tree",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_tree",
+                  "name": "snapshot_runtime_tree",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_tree",
+                  "name": "snapshot_runtime_tree",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:module_filename_from_api",
+                  "name": "module_filename_from_api",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:module_filename_from_api",
+                  "name": "module_filename_from_api",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:module_filename_from_api",
+                  "name": "module_filename_from_api",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:parse_ordinary_native_records",
+                  "name": "parse_ordinary_native_records",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:parse_ordinary_native_records",
+                  "name": "parse_ordinary_native_records",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:parse_native_discovery",
+                  "name": "parse_native_discovery",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:parse_native_discovery",
+                  "name": "parse_native_discovery",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:read_owned_bounded_file",
+                  "name": "read_owned_bounded_file",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:write_owned_original_payload",
+                  "name": "write_owned_original_payload",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:write_owned_original_payload",
+                  "name": "write_owned_original_payload",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:write_owned_original_payload",
+                  "name": "write_owned_original_payload",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:write_owned_original_payload",
+                  "name": "write_owned_original_payload",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:capture_owned_pool_snapshot",
+                  "name": "capture_owned_pool_snapshot",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:capture_owned_pool_snapshot",
+                  "name": "capture_owned_pool_snapshot",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:capture_owned_pool_snapshot",
+                  "name": "capture_owned_pool_snapshot",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                }
+              ],
+              "accesses": [
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_file",
+                  "name": "snapshot_runtime_file",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_file",
+                  "name": "snapshot_runtime_file",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_file",
+                  "name": "snapshot_runtime_file",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_file",
+                  "name": "snapshot_runtime_file",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_file",
+                  "name": "snapshot_runtime_file",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                },
+                {
+                  "uid": "Function:scripts/windows_nt_output_native_ci.py:snapshot_runtime_file",
+                  "name": "snapshot_runtime_file",
+                  "filePath": "scripts/windows_nt_output_native_ci.py"
+                }
+              ]
+            },
+            "processes": [
+              {
+                "id": "proc_189_manager_control_entr",
+                "name": "Manager_control_entry \u2192 Strict_native_json",
+                "step_index": 1,
+                "step_count": 3
+              }
+            ]
+          }
+        },
+        {
+          "tool": "impact",
+          "result": {
+            "target": {
+              "id": "Function:scripts/windows_nt_output_native_manager_controls.py:manager_control_entry",
+              "name": "manager_control_entry",
+              "type": "Function",
+              "filePath": "scripts/windows_nt_output_native_manager_controls.py"
+            },
+            "direction": "upstream",
+            "impactedCount": 1,
+            "risk": "LOW",
+            "epistemic": "exact",
+            "summary": {
+              "direct": 1,
+              "processes_affected": 0,
+              "modules_affected": 0
+            },
+            "byDepthCounts": {
+              "1": 1
+            },
+            "affected_processes": [],
+            "affected_modules": [],
+            "byDepth": {
+              "1": [
+                {
+                  "depth": 1,
+                  "id": "File:scripts/windows_nt_output_native_manager_controls.py",
+                  "name": "windows_nt_output_native_manager_controls.py",
+                  "filePath": "scripts/windows_nt_output_native_manager_controls.py",
+                  "relationType": "CALLS",
+                  "confidence": 0.85,
+                  "processes": []
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "index125": "partial log only, no actualtool completion claimed; preserved, not credit"
+}

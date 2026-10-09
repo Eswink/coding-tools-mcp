@@ -1,0 +1,206 @@
+{
+  "scope": "actual ordinary ModuleType binding faults;zeroNT_API/nativeGo",
+  "source07_before": {
+    "actual_Go": 0,
+    "actual_Win_API": 0,
+    "actual_native_processes": 0,
+    "results": [
+      {
+        "actual_known_original_binding": true,
+        "assignments": [
+          [
+            "_nt_bound",
+            true
+          ]
+        ],
+        "bound_after": true,
+        "exact_original_exception_objects_asserted": true,
+        "kind": "flag-effect-cancel"
+      },
+      {
+        "actual_known_original_binding": true,
+        "assignments": [
+          [
+            "_nt_bound",
+            true
+          ],
+          [
+            "run_git",
+            "delegate"
+          ],
+          [
+            "run_git",
+            "original"
+          ]
+        ],
+        "bound_after": true,
+        "exact_original_exception_objects_asserted": true,
+        "kind": "restore-error-clear-not-attempted"
+      }
+    ],
+    "scope": "ORDINARY_ACTUAL_MODULE_BINDING_ONLY"
+  },
+  "source08_fixed": {
+    "actual_Go": 0,
+    "actual_Win_API": 0,
+    "actual_native_processes": 0,
+    "results": [
+      {
+        "actual_known_original_binding": true,
+        "assignments": [
+          [
+            "_nt_bound",
+            true
+          ],
+          [
+            "run_git",
+            "original"
+          ],
+          [
+            "_nt_bound",
+            false
+          ]
+        ],
+        "bound_after": false,
+        "exact_original_exception_objects_asserted": true,
+        "kind": "flag-effect-cancel"
+      },
+      {
+        "actual_known_original_binding": true,
+        "assignments": [
+          [
+            "_nt_bound",
+            true
+          ],
+          [
+            "run_git",
+            "delegate"
+          ],
+          [
+            "run_git",
+            "original"
+          ],
+          [
+            "_nt_bound",
+            false
+          ]
+        ],
+        "bound_after": false,
+        "exact_original_exception_objects_asserted": true,
+        "kind": "restore-error-clear-not-attempted"
+      }
+    ],
+    "scope": "ORDINARY_ACTUAL_MODULE_BINDING_ONLY"
+  },
+  "ordinary64": {
+    "actual_go_processes": 0,
+    "actual_native_api_calls": 0,
+    "actual_original_native_methods": 0,
+    "controls": [
+      "synthetic-complete-vector-not-native",
+      "missing-method",
+      "duplicate-run",
+      "duplicate-terminal",
+      "skip",
+      "foreign-package",
+      "package-only",
+      "invalid-utf8",
+      "malformed-json",
+      "zero-selection",
+      "binding-restored-ValueError",
+      "binding-restored-KeyboardInterrupt",
+      "binding-restored-SystemExit",
+      "exact-primary-cancel-cleanup-group",
+      "single-exact-object",
+      "duplicate-json-key",
+      "false-Test-type",
+      "early-package-terminal",
+      "named-output-before-run",
+      "nonfinite-Elapsed",
+      "boolean-Elapsed",
+      "unknown-field",
+      "owned-local-runtime-file-fence",
+      "local-runtime-change-denied",
+      "local-runtime-hardlink-denied",
+      "ordinary-nonzero-Git-prefix-and-saved-counter",
+      "helper321-predelegate-denied",
+      "ordinary-Git-cancel-exact-object",
+      "saved-failure-byte-overflow-preserves-cancel",
+      "synthetic-module-filename-length",
+      "synthetic-module-truncation-denied",
+      "synthetic-module-zero-denied",
+      "synthetic-discovery-exact-top-vector",
+      "synthetic-discovery-duplicate-denied",
+      "disabled-manager-preIO-no-native",
+      "ordinary-over-transfer-keeps-reservation",
+      "ordinary-UNKNOWN-reservation-not-reissued",
+      "ordinary-actual-count-unused-reservation-released",
+      "ordinary-full-channel-noEOF-no-probe",
+      "ordinary-pending-shared-cap-not-double-reserved",
+      "owned-exclusive-receipt-no-overwrite",
+      "ordinary-receipt-closeUNKNOWN-holder-exactcancel",
+      "synthetic-root-reparse-pre-read-denied",
+      "actual-owned-ZIP-member-not-officialGo",
+      "owned-ZIP-actual-size-metadata-mismatch-denied",
+      "ordinary-ZIP-cannot-be-official-Go",
+      "ordinary-member-and-output-closeUNKNOWN-independent-exactobjects",
+      "negative-only-identity-binding-actual-ZipFile-constructor-primary-inputcloseUNKNOWN",
+      "negative-only-identity-binding-real-BadZipFile-no-extraction",
+      "synthetic-ZIP-and-owned-input-onceclose-exact-three-object-group",
+      "ordinary-nested-unexpected-cancel-never-accepted",
+      "actual-owned-POSIX-exclusive-input-extent-and-onceclose",
+      "actual-owned-input-collision-preserves-canary",
+      "ordinary-actual-partial-writes-only-advance-real-count",
+      "ordinary-owned-input-oncecloseUNKNOWN-exact-cancel-group",
+      "ordinary-bounded-owned-reader-exact-primary-closecancel",
+      "actual-owned-POSIX-pool-full-file-hash-snapshot-not-Git-proof",
+      "ordinary-stricter-pool-cap-rejects-before-file-open",
+      "synthetic-pool-metadata-error-still-attempts-both-native-observers",
+      "synthetic-exact12-vector-not-native-qualification",
+      "synthetic-missing-local-negative12-vector-denied",
+      "ordinary-actual-ModuleType-owned-flag-effectcancel",
+      "ordinary-actual-ModuleType-firstrestore-error-still-clears-flag",
+      "ordinary-actual-ModuleType-bothrestores-exact-primary-cancel-group"
+    ],
+    "count": 64,
+    "native_authority": false,
+    "scope": "ORDINARY_SYNTHETIC_PARSER_BINDING_ONLY"
+  },
+  "terminals": [
+    {
+      "tool": "exec_command",
+      "chunk_id": "f7234b",
+      "actual_exit_code": 0,
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+        "-B",
+        "work/native-nt-ci-prepare/binding-flag-failure119.py",
+        "failure-first"
+      ]
+    },
+    {
+      "tool": "exec_command",
+      "chunk_id": "062f1d",
+      "actual_exit_code": 0,
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+        "-B",
+        "work/native-nt-ci-prepare/binding-flag-failure119.py",
+        "fixed"
+      ]
+    },
+    {
+      "tool": "exec_command",
+      "chunk_id": "36048b",
+      "actual_exit_code": 0,
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+        "-B",
+        "scripts/windows_nt_output_native_manager_controls.py"
+      ]
+    }
+  ],
+  "old_source07_sourcepeer": "STOP sharedbinder gaps; retained immutable,notWindows failure",
+  "runtime_go_ntpositive": "NOTRUN",
+  "native_positive_original_field": "NOTRUN unchanged; new source-only namedfield generated onlyaftertrueoriginalreturn, nevertypedfixture qualification"
+}

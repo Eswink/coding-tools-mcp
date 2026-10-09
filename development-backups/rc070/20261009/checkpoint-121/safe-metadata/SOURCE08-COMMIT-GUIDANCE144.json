@@ -1,0 +1,24 @@
+{
+  "scope": "read-only guidance and changed-symbol mapping, not actualcommit or proof of native",
+  "gencommit": {
+    "mode": "guidance",
+    "status": "ready",
+    "hasChanges": true
+  },
+  "suggested_safe_backup_title": "chore(backup): preserve NT source08 binding safety draft",
+  "detect_changes": {
+    "actual_tool": "write_stdin",
+    "actual_chunk": "796d0a",
+    "actual_exit": 0,
+    "base_ref": "0784765ab44dd703dfbc676166ae86ae1b7815f2",
+    "scope": "compare",
+    "temporary_index": "work/native-nt-ci-prepare/controller-source08-141.index",
+    "files": 2,
+    "hunk_mapped_symbols": 6,
+    "affected_flows": 1,
+    "reported_risk": "MEDIUM",
+    "manual_dynamic_risk": "HIGH already disclosed; not downgraded",
+    "mapped_neighbor_parse_native_vector_AST": "UNCHANGED despite hunk mapping"
+  },
+  "publication": "parentonly sourcebackup; no productioncommit/PR/activation here"
+}

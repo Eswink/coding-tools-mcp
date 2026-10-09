@@ -1,0 +1,61 @@
+{
+  "scope": "SOURCE_ONLY newsource08 sharedbinding deny cleanup; source07STOP",
+  "tree": "9bd61b9a389c7454cb43a6f3233b7e75628f2820",
+  "paths": 1862,
+  "original7_management_tree": "d40a20a26664ab7868332d7dcbde49e30e83f4b7",
+  "delta": [
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "bytes": 26302,
+      "sha256": "80fea658d806a543f3a2f5e84fd7cf846bd33a9bc63d8795c0a1e72f4dd3ae1d",
+      "blob": "d1dff636034072225b5e1959740eb27dbaa13e28",
+      "mode": "100644",
+      "physical_mode": "0o600"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "bytes": 62560,
+      "sha256": "93c03d6900ee16b04c4fc5ab99177c806dee8016204cccb23ba3ca5d71f9acd7",
+      "blob": "8462aaa1e9612a5d631e789dd8495583f1a60c33",
+      "mode": "100644",
+      "physical_mode": "0o600"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_controls.py",
+      "bytes": 14232,
+      "sha256": "b36c029bd02a5fcc9c470c9f6c6a67dca25fcfcaa75a274fca9ae5bdd6c8391c",
+      "blob": "8136273c9bbc396b1543702c19d721e4e3a9c264",
+      "mode": "100644",
+      "physical_mode": "0o600"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_manager_controls.py",
+      "bytes": 32035,
+      "sha256": "0405299b209605f85abc57c81a0f12251c3cf01947bcd597d088ca3f2b5e2dac",
+      "blob": "0cf6d77d2e6a0ae4366535ede8a220affbe0b129",
+      "mode": "100644",
+      "physical_mode": "0o600"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_inputs.json",
+      "bytes": 8057,
+      "sha256": "02d1d6380b8f8e8d47e9360489abbfcd3f9db52ff085117be19caff3c7663765",
+      "blob": "c318c5d5742ffe457c6410cb1e3d9a4e34c7adc1",
+      "mode": "100644",
+      "physical_mode": "0o600"
+    },
+    {
+      "path": ".github/workflows/windows-nt-output-native-controls.yml",
+      "bytes": 1371,
+      "sha256": "6104dd857e99fbe0e2567e437527f031254e1bb1f31427d7d5fc0825b7941e2c",
+      "blob": "5924d34b62693cb948511fb5cb72d88686d888b2",
+      "mode": "100644",
+      "physical_mode": "0o600"
+    }
+  ],
+  "default_head": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "separate_Go_native_SUT_tree": "d86ece313011780ae408092bc2d1e37b05373e75",
+  "custom_index": "work/native-nt-ci-prepare/controller-source08-141.index",
+  "default_index_tree": "d40a20a26664ab7868332d7dcbde49e30e83f4b7",
+  "source07_tree": "0784765ab44dd703dfbc676166ae86ae1b7815f2"
+}

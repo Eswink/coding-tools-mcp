@@ -1,0 +1,166 @@
+{
+  "scope": "SOURCE_ONLY_SHARED_BINDING_DRAFT; peerPENDING; native0",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 465,
+      "sha256": "108b8f1bac762bb35c68fb54df7004dbfc37ddcabc3d21bf4451503964e655ef",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.md",
+      "bytes": 1322,
+      "sha256": "4abbcca738b1ed66098a73319e18444b76c0351872e73eeaa1a772ea2c256134",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/FRESH-SOURCE08-IMPACT144.json",
+      "bytes": 41148,
+      "sha256": "fa5f3e14627bfe8d921a1d6ba861140d2fbe5993f5448d103b61eaa6b83132b6",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/PROSPECTIVE-SOURCE08-DELTA141.json",
+      "bytes": 2362,
+      "sha256": "308265a9ef02b14b1cfd9dc9df53fbd3f535595f8a9b7f554593f089cd22b059",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/SHARED-BINDING-FAILURE-FIRST-AND-FIX126.json",
+      "bytes": 6577,
+      "sha256": "e4c72a1fc31ad4f74a76bdf1b82780d98ffda5f6a32806dbe2a752d5e57ecfa0",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/SOURCE08-COMMIT-GUIDANCE144.json",
+      "bytes": 899,
+      "sha256": "a1d4bc30c40fc6f2fed0000f28ac0155f7c02b63db19443951ebcb1be44a5e71",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/SOURCE08-PROTECTION144.json",
+      "bytes": 10744,
+      "sha256": "51b33163a82194e598a6286c1bf99ed1696a4ccf9703310929cfb9945df97303",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/SOURCE08-RESOURCE-AST-BOUNDARY.md",
+      "bytes": 1463,
+      "sha256": "be101473d9a86156e88e80f4689a16df3345b6d9ad988aaaa32d6971d88ff9e8",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/SOURCE08-UNKNOWN-FAILURE-FIRST144.json",
+      "bytes": 1535,
+      "sha256": "6bd7393e88f36cb98e9889c5bd143f40ba68628c77c3658f02679287c506588a",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/SPEC134-STRUCTURED-CHECK.json",
+      "bytes": 239,
+      "sha256": "7953fd01f476c80eb7747c405004530618fb87ead2322997e71fd37fd1e39eec",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/binding-flag-failure119.py",
+      "bytes": 2439,
+      "sha256": "a32166620784ea301e38f09b505fcba2f9773a55e631b8f8699c1d1b5181925a",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/local-owned-real-fixture95.py",
+      "bytes": 4820,
+      "sha256": "a0974fa78fc8c4f6187d617649f94610151653861fe70d222ca6064ec74b1d37",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/native-ci-before-binder-cancel118.py",
+      "bytes": 61309,
+      "sha256": "b6dba5ccf4cf72e8d244746226f186e5b5d46269053cdf64f395bda8bf7986fe",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/original-local-spec/design.md",
+      "bytes": 11666,
+      "sha256": "fd9e6198ddfbd8fd08d7da900016e621aa2f2ffdeea3d58e4cbb36513dcf1a82",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/original-local-spec/requirements.md",
+      "bytes": 11762,
+      "sha256": "a93652ff3cd1505fa83d2b6d7d05d4e0f62084fc646d00fbd5424a1f5168af5d",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/original-local-spec/tasks.md",
+      "bytes": 3740,
+      "sha256": "3f859dba62520a7e2c0322fe1019bccc5cc401f37aabe5e1a0db6e0d43105463",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/unknown-rebind-failure131.py",
+      "bytes": 2197,
+      "sha256": "e7cf04dcf38c709c3ceda68156f3ffe0879bd756a41319aad092ac7ff3252fcc",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/.github/workflows/windows-nt-output-native-controls.yml",
+      "bytes": 1371,
+      "sha256": "6104dd857e99fbe0e2567e437527f031254e1bb1f31427d7d5fc0825b7941e2c",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_ci.py",
+      "bytes": 62560,
+      "sha256": "93c03d6900ee16b04c4fc5ab99177c806dee8016204cccb23ba3ca5d71f9acd7",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_controls.py",
+      "bytes": 14232,
+      "sha256": "b36c029bd02a5fcc9c470c9f6c6a67dca25fcfcaa75a274fca9ae5bdd6c8391c",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_inputs.json",
+      "bytes": 8057,
+      "sha256": "02d1d6380b8f8e8d47e9360489abbfcd3f9db52ff085117be19caff3c7663765",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_job.py",
+      "bytes": 26302,
+      "sha256": "80fea658d806a543f3a2f5e84fd7cf846bd33a9bc63d8795c0a1e72f4dd3ae1d",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_manager_controls.py",
+      "bytes": 32035,
+      "sha256": "0405299b209605f85abc57c81a0f12251c3cf01947bcd597d088ca3f2b5e2dac",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    }
+  ]
+}

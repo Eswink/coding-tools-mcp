@@ -1,0 +1,45 @@
+{
+  "scope": "Actual ModuleType UNKNOWN sourcebinding; no native handle/grant",
+  "before": {
+    "tool_chunk": "7d2017",
+    "actual_exit": 0,
+    "actual": {
+      "actual_Go": 0,
+      "actual_Windows_API": 0,
+      "actual_guard_frame_strong_retained": true,
+      "actual_native_processes": 0,
+      "delegate_calls_after_UNKNOWN": 1,
+      "entered_after_UNKNOWN": true,
+      "new_binding_assignments_after_UNKNOWN": 4,
+      "scope": "ORDINARY_ACTUAL_UNKNOWN_BINDING_FRAME_NOT_NATIVEHANDLE"
+    }
+  },
+  "fixed": {
+    "tool_chunk": "da54f7",
+    "actual_exit": 0,
+    "actual": {
+      "actual_Go": 0,
+      "actual_Windows_API": 0,
+      "actual_guard_frame_strong_retained": true,
+      "actual_native_processes": 0,
+      "delegate_calls_after_UNKNOWN": 0,
+      "entered_after_UNKNOWN": false,
+      "new_binding_assignments_after_UNKNOWN": 0,
+      "scope": "ORDINARY_ACTUAL_UNKNOWN_BINDING_FRAME_NOT_NATIVEHANDLE"
+    }
+  },
+  "ordinary": {
+    "tool_chunk": "e60220",
+    "actual_exit": 0,
+    "stdout_sha256": "13b1a52fb3df1d6ec54a7841a688d8505e7549c899806edfa3bfff90bf63d6ec",
+    "stderr_bytes": 0,
+    "count": 66
+  },
+  "latest_binding_knownrestore": {
+    "tool_chunk": "313121",
+    "actual_exit": 0
+  },
+  "source07_failure_first": "f7234b actual0; existing119 raw preserved",
+  "interim_source08_source64": "actual48a89a0/raw128 preserved",
+  "wrapper129_failure": "actual2e38e6 exit126 due accidental shellline / workspace after Python; not counted PASS; corrected exact1303131210; no source/native effect"
+}
