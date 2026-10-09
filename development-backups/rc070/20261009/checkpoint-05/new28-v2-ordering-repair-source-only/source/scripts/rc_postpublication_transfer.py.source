@@ -1,0 +1,203 @@
+"""Authenticate newly transferred public bytes; original build is reference only."""
+from contextlib import ExitStack
+from datetime import datetime, timezone
+import os
+
+import rc_consumer_archive as archive
+import rc_consumer_snapshot as snapshot
+import rc_consumer_transport as transport
+from rc_consumer_io import CHUNK, ConsumerError, need
+from rc_postpublication_contract import (CAPTURE_JOB, MANIFEST, PostInvocation,
+    TransferExpectation, WORKFLOW, manifest_bytes, transfer_name)
+from rc_postpublication_io import InputOwner
+from rc_postpublication_reader import PublishedInputs
+from rc_postpublication_source import ReadController, _ReferenceAPI
+from rc_publication_stage import StagedAssets
+
+
+def _stage_owner(stage, controls):
+    need(type(stage) is StagedAssets and stage._entered and not stage._closed
+         and type(controls) is ReadController and type(stage._api) is _ReferenceAPI
+         and stage._api._selection is stage._selection and stage._api._controls is controls,
+         'invalid_post_stage')
+    controls.check()
+
+
+def metadata(stage, invocation, artifact_id, controls, *, complete):
+    """List/direct and actual current capture-job evidence, not caller reports."""
+    _stage_owner(stage, controls)
+    need(type(invocation) is PostInvocation and invocation.source == stage.subject.source,
+         'post_source_mismatch')
+    need(type(artifact_id) is int and 0 < artifact_id < 2**63
+         and artifact_id not in (stage.subject.artifact_id, stage._selection.consumer_artifact_id),
+         'post_transfer_id_reused')
+    api, source = stage._api, invocation.source
+    workflow = api.get('/actions/workflows/' + WORKFLOW.rsplit('/', 1)[1])
+    need(type(workflow) is dict and (workflow.get('id'), workflow.get('path')) ==
+         (invocation.workflow_id, WORKFLOW), 'post_workflow_mismatch')
+    run = api.get(f'/actions/runs/{invocation.run_id}')
+    observed = snapshot._run(run, source.repository_id)
+    need((observed['id'], observed['run_attempt'], observed['head_sha'], observed['workflow_id'],
+          observed['path'], observed['event']) == (invocation.run_id, invocation.run_attempt,
+          source.source_sha, invocation.workflow_id, WORKFLOW, 'workflow_dispatch')
+         and invocation.ref in ('refs/heads/' + observed['head_branch'], 'refs/tags/' + observed['head_branch']),
+         'post_run_mismatch')
+    direct = api.get(f'/actions/runs/{invocation.run_id}/attempts/{invocation.run_attempt}')
+    need(snapshot._run(direct, source.repository_id) == observed, 'post_attempt_changed')
+    jobs = snapshot.gate.paginate(api,
+        f'/actions/runs/{invocation.run_id}/attempts/{invocation.run_attempt}/jobs', 'jobs')
+    matches = [j for j in jobs if type(j) is dict and j.get('name') == CAPTURE_JOB]
+    need(len(matches) == 1, 'post_job_inventory')
+    job = matches[0]
+    need((job.get('id'), job.get('run_id'), job.get('run_attempt'), job.get('head_sha')) ==
+         (invocation.capture_job_id, invocation.run_id, invocation.run_attempt, source.source_sha)
+         and all(type(job.get(k)) is int for k in ('id', 'run_id', 'run_attempt')),
+         'post_job_mismatch')
+    if complete:
+        need(job.get('status') == 'completed' and job.get('conclusion') == 'success',
+             'post_capture_not_successful')
+        end = snapshot._time(job.get('completed_at'))
+    else:
+        need(job.get('status') == 'in_progress' and job.get('conclusion') is None
+             and job.get('completed_at') is None, 'post_capture_not_active')
+        end = datetime.now(timezone.utc)
+    name = transfer_name(invocation)
+    artifacts = snapshot.gate.paginate(api, f'/actions/runs/{invocation.run_id}/artifacts', 'artifacts')
+    listed = [a for a in artifacts if type(a) is dict and a.get('name') == name]
+    need(len(listed) == 1, 'post_transfer_inventory')
+    value = api.get('/actions/artifacts/' + str(artifact_id))
+    need(type(value) is dict and value == listed[0] and type(value.get('id')) is int
+         and value['id'] == artifact_id and value.get('name') == name and value.get('expired') is False,
+         'post_transfer_metadata_changed')
+    owner = dict(id=invocation.run_id, repository_id=source.repository_id,
+        head_repository_id=source.repository_id, head_sha=source.source_sha,
+        head_branch=observed['head_branch'])
+    need(type(value.get('workflow_run')) is dict and all(type(value['workflow_run'].get(k)) is type(v)
+         and value['workflow_run'][k] == v for k, v in owner.items()), 'post_transfer_owner_mismatch')
+    created, updated, expires = (snapshot._time(value.get(k)) for k in ('created_at', 'updated_at', 'expires_at'))
+    need(snapshot._time(job.get('started_at')) <= created <= updated <= end
+         and expires > max(updated, datetime.now(timezone.utc)), 'post_transfer_time_mismatch')
+    need(type(value.get('digest')) is str and snapshot.SHA256.fullmatch(value['digest']),
+         'post_transfer_digest_required')
+    expected = TransferExpectation(artifact_id, value.get('size_in_bytes'), value['digest'][7:])
+    result = {k: value[k] for k in snapshot.ARTIFACT_FIELDS}
+    result['workflow_run'] = owner
+    controls.check()
+    return result, expected
+
+
+class TransferPayload:
+    """Fresh current-CI payload copied from actual verified anonymous files."""
+    def __init__(self, inputs, request, invocation, controls, *, temporary_parent):
+        need(type(inputs) is PublishedInputs and inputs._verified and not inputs._closed,
+             'invalid_post_inputs')
+        inputs.revalidate()
+        self._inputs, self._controls = inputs, controls
+        self._manifest = manifest_bytes(inputs._stage, request, invocation)
+        self._owner = InputOwner(temporary_parent, inputs._stage._root, controls, prefix='rc-post-transfer-')
+        try:
+            for asset in inputs._stage.plan.assets:
+                with inputs._owner._root.open(asset.name) as source, self._owner._root.open(asset.name, 'xb') as target:
+                    while True:
+                        controls.check()
+                        data = source.read(CHUNK)
+                        controls.check()
+                        if not data:
+                            break
+                        need(target.write(data) == len(data), 'post_input_write_failed')
+                self._owner.verify(asset)
+            self._owner._root.write(MANIFEST, self._manifest)
+            self.revalidate()
+        except BaseException:
+            self.close()
+            raise
+
+    def revalidate(self):
+        self._inputs.revalidate()
+        self._owner.check()
+        need(set(self._owner._root.files()) == {MANIFEST, *(a.name for a in self._inputs._stage.plan.assets)}
+             and self._owner._root.read(MANIFEST) == self._manifest, 'post_transfer_members_changed')
+        for asset in self._inputs._stage.plan.assets:
+            self._owner.verify(asset)
+
+    def close(self):
+        self._owner.close()
+
+    def __enter__(self):
+        self.revalidate()
+        return self
+
+    def __exit__(self, *_):
+        self.close()
+
+
+class ReceivedInputs:
+    """Actual authenticated ZIP then new host-local files, never a borrowed FD."""
+    def __init__(self, stage, request, invocation, expected, controls, *, temporary_parent, complete=True):
+        from rc_postpublication_contract import CaptureRequest
+        _stage_owner(stage, controls)
+        need(type(request) is CaptureRequest and request.selection == stage._selection
+             and type(invocation) is PostInvocation and invocation.source is stage.subject.source
+             and type(complete) is bool, 'invalid_post_request')
+        need(type(expected) is TransferExpectation, 'invalid_post_transfer')
+        self._stage, self._controls = stage, controls
+        self._request, self._invocation, self._expected = request, invocation, expected
+        self._complete, self._parent = complete, temporary_parent
+        self._stack, self._owner, self._verified = ExitStack(), None, False
+        self._entered = self._closed = False
+
+    def __enter__(self):
+        need(not self._entered and not self._closed, 'post_received_reused')
+        self._entered = True
+        try:
+            stage, controls = self._stage, self._controls
+            stage.revalidate(**controls.budget)
+            self._metadata, observed = metadata(stage, self._invocation, self._expected.artifact_id,
+                                               controls, complete=self._complete)
+            need(observed == self._expected, 'post_transfer_expectation_changed')
+            download = self._stack.enter_context(InputOwner(self._parent, stage._root, controls,
+                                                             prefix='rc-post-download-'))
+            self._download_owner = download
+            self._owner = self._stack.enter_context(InputOwner(self._parent, stage._root, controls,
+                                                               prefix='rc-post-received-'))
+            try:
+                path = transport.download_artifact_zip(stage._api, self._metadata, download._root, **controls.budget)
+            except ConsumerError as error:
+                if error.code == 'transport_cleanup_uncertain':
+                    download._uncertain = self._owner._uncertain = True
+                raise
+            names = [a.name for a in stage.plan.assets] + [MANIFEST]
+            archive.extract_bounded_zip(path, self._owner._root, names, **controls.budget)
+            need(set(self._owner._root.files()) == set(names), 'post_transfer_member_inventory')
+            need(self._owner._root.read(MANIFEST) == manifest_bytes(stage, self._request, self._invocation),
+                 'post_transfer_manifest_changed')
+            for asset in stage.plan.assets:
+                self._owner.verify(asset)
+            self.revalidate()
+            self._verified = True
+            return self
+        except BaseException:
+            self.close()
+            raise
+
+    def revalidate(self):
+        need(self._entered and not self._closed, 'post_received_lifetime')
+        _stage_owner(self._stage, self._controls)
+        self._owner.check()
+        for asset in self._stage.plan.assets:
+            self._owner.verify(asset)
+        need(self._owner._root.read(MANIFEST) == manifest_bytes(self._stage, self._request, self._invocation),
+             'post_transfer_manifest_changed')
+        value, expected = metadata(self._stage, self._invocation, self._expected.artifact_id,
+                                   self._controls, complete=self._complete)
+        need(value == self._metadata and expected == self._expected, 'post_transfer_metadata_changed')
+        self._stage.revalidate(**self._controls.budget)
+        self._owner.check()
+
+    def close(self):
+        self._closed = True
+        self._verified = False
+        self._stack.close()
+
+    def __exit__(self, *_):
+        self.close()

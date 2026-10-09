@@ -1,0 +1,320 @@
+name: Issue88 postpublication owned source contracts (engineering only)
+on:
+  push:
+    branches: ['ci/issue88-postpublication-owned-*']
+permissions:
+  contents: read
+env:
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  GIT_NO_REPLACE_OBJECTS: '1'
+jobs:
+  source-contracts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ runner.temp }}/glib-0.18.5.crate
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {ref: '${{ github.sha }}', fetch-depth: 0, persist-credentials: false}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12'}
+      - name: Acquire fixed official source fixture as data
+        shell: python
+        run: |
+          import hashlib, os, pathlib, urllib.request
+          url = 'https://static.crates.io/crates/glib/glib-0.18.5.crate'
+          with urllib.request.urlopen(url, timeout=30) as response:
+              assert response.status == 200 and response.geturl() == url
+              data = response.read(1048577)
+          assert len(data) == 267679 and hashlib.sha256(data).hexdigest() == '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5'
+          pathlib.Path(os.environ['RC_CONSUMER_TEST_GLIB_ARCHIVE']).write_bytes(data)
+      - name: Authenticate all current source and execute exact 485 plus version3 and strict755
+        shell: python
+        run: |
+          import ast, hashlib, json, os, pathlib, platform, subprocess, sys, traceback, unittest
+          evidence = pathlib.Path(os.environ['RUNNER_TEMP'], 'postpublication-evidence'); evidence.mkdir()
+          try:
+              sys.path.insert(0, 'scripts')
+              import rc_pretag_composition_tests as c
+              import rc_pretag_postpublication_profile as profile
+              import rc_pretag_postpublication_cases as postpublication
+              import rc_pretag_linux_package_cases as lc
+              import rc_pretag_publication_tests as pt
+              git = lambda *args: c._git(*args).decode().strip()
+              assert sys.version_info[:2] == (3, 12) and platform.python_implementation() == 'CPython'
+              assert git('rev-parse', '--is-shallow-repository') == 'false'
+              sha, tree = git('rev-parse', 'HEAD'), git('rev-parse', 'HEAD^{tree}')
+              parents = git('show', '-s', '--format=%P', 'HEAD').split()
+              assert sha == os.environ['GITHUB_SHA'] and parents == [profile.P]
+              expected = c.publication.selected_profile(sha, c.ROOT, c._git, c._entries, c._feature_profile, c.RELEASE, c.RELEASE_TREE, c.RELEASE_DOCS)
+              def checked():
+                  assert expected == c._entries(sha) == c._index_entries(c._git('ls-files', '--stage', '-z'))
+                  for path, (mode, kind, blob) in expected.items():
+                      file = c.ROOT / path
+                      assert kind == 'blob' and file.is_file() and not file.is_symlink()
+                      assert c._blob(file.read_bytes()) == blob and (mode == '100755') == bool(file.stat().st_mode & 0o111)
+                  assert not subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=all'], env=c.git_environment())
+                  return {path: hashlib.sha256((c.ROOT / path).read_bytes()).hexdigest() for path in expected}
+              before = checked()
+              binding = {'sha': sha, 'tree': tree, 'parents': parents, 'source_sha256': before, 'python': sys.version,
+                         'ci': {k: os.environ[k] for k in ('GITHUB_REPOSITORY', 'GITHUB_WORKFLOW_REF', 'GITHUB_JOB', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT')}, 'production_ready': False}
+              (evidence / 'source-before.json').write_text(json.dumps(binding, indent=2) + '\n', encoding='utf-8')
+              modules = ('windows_launch', 'source_observation', 'git_budget', 'staging_budget', 'publisher_executor', 'integration_admission', 'final_admission', 'download_budget', 'checksum_budget', 'archive_budget', 'staged_bytes', 'supervisor_readiness', 'stage_retirement', 'windows_vm')
+              all_ids = []
+              for name in modules:
+                  group = __import__('rc_pretag_' + name + '_cases')
+                  names = group.inventory(); suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+                  loaded = [test.id() for test in c._flatten(suite)]
+                  with (evidence / (name + '.log')).open('w', encoding='utf-8') as output:
+                      result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+                  receipt = dict(loaded_ids=loaded, executed_ids=result.executed_ids, tests_run=result.testsRun, skipped=result.skipped, expected_failures=result.expectedFailures, unexpected_successes=result.unexpectedSuccesses, successful=result.wasSuccessful())
+                  (evidence / (name + '.json')).write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+                  assert group.execution_valid(loaded, result); all_ids += loaded
+              assert len(all_ids) == len(set(all_ids)) == 425
+              for name, names, count in (('postpublication', postpublication.inventory(), 12), ('post_owned48', [test.id() for cls in postpublication.POST_CLASSES for test in c._flatten(unittest.defaultTestLoader.loadTestsFromName(cls))], 48), ('version3', lc.ids('rc_packages_tests.RcPackageVersionTests'), 3)):
+                  suite = unittest.defaultTestLoader.loadTestsFromNames(names); loaded = [test.id() for test in c._flatten(suite)]
+                  with (evidence / (name + '.log')).open('w', encoding='utf-8') as output:
+                      result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+                  assert result.wasSuccessful() and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses
+                  assert loaded == result.executed_ids and len(loaded) == len(set(loaded)) == result.testsRun == count
+                  if name == 'postpublication': assert postpublication.execution_valid(loaded, result)
+                  (evidence / (name + '.json')).write_text(json.dumps(dict(loaded_ids=loaded, executed_ids=result.executed_ids, tests_run=result.testsRun)), encoding='utf-8')
+                  all_ids += loaded
+              assert len(all_ids) == len(set(all_ids)) == 488
+              strict303 = [test.id() for test in c._flatten(unittest.defaultTestLoader.discover('scripts', pattern='rc_pretag*_tests.py'))]
+              pt.inventory_ids(strict303, 303, '0ecc366c2018a6a1e20d3f59ed9ca66645d9334324cd517682894cabde923125')
+              method = next(n for n in ast.walk(ast.parse(c._git('show', profile.P + ':' + c.publication.TESTS))) if isinstance(n, ast.FunctionDef) and n.name == 'test_protected_source_versions_gates_workflows_and_old_452_are_unchanged')
+              held = ast.literal_eval(method.body[0].value.func.value).split()
+              consumer452 = [name for module in held for name in lc.ids(module) if name.split('.', 1)[0] == module]
+              pt.inventory_ids(consumer452, 452, 'd01db4e6cd605c6636423e27c8c0409e90aba217cc0e6930474f59a24b57f372')
+              names = strict303 + consumer452; assert len(names) == len(set(names)) == 755
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names); loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'strict755.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              assert loaded == result.executed_ids and result.testsRun == 755 and result.wasSuccessful() and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses
+              (evidence / 'strict755.json').write_text(json.dumps(dict(loaded_ids=loaded, executed_ids=result.executed_ids, tests_run=result.testsRun)), encoding='utf-8')
+              assert checked() == before and git('rev-parse', 'HEAD') == sha and git('rev-parse', 'HEAD^{tree}') == tree
+              (evidence / 'source-after.json').write_text(json.dumps(binding | {'source_unchanged': True}, indent=2) + '\n', encoding='utf-8')
+          except BaseException:
+              (evidence / 'failure.txt').write_text(traceback.format_exc(), encoding='utf-8'); raise
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with: {name: 'issue88-postpublication-${{ matrix.os }}-${{ github.sha }}', path: '${{ runner.temp }}/postpublication-evidence/', if-no-files-found: error, retention-days: 30}
+  native38:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      CARGO_TERM_COLOR: never
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      CGO_ENABLED: '0'
+      GOTOOLCHAIN: local
+      GOPROXY: 'off'
+      GOSUMDB: 'off'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {ref: '${{ github.sha }}', fetch-depth: 0, persist-credentials: false}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12'}
+      - name: Bind source and fresh trusted CI paths
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $root=Join-Path $env:RUNNER_TEMP "ctm-vm-session-$env:GITHUB_RUN_ID"
+          $evidence=Join-Path $env:RUNNER_TEMP 'ctm-vm-session-evidence'
+          New-Item -ItemType Directory -Path $root,$evidence -ErrorAction Stop | Out-Null
+          "CTM_VM_SESSION_ROOT=$root" >> $env:GITHUB_ENV
+          "CTM_VM_SESSION_EVIDENCE=$evidence" >> $env:GITHUB_ENV
+          $sha=(git rev-parse HEAD).Trim(); if ($LASTEXITCODE -ne 0 -or $sha -cne $env:GITHUB_SHA) { throw 'source mismatch' }
+          $tree=(git rev-parse 'HEAD^{tree}').Trim(); if ($LASTEXITCODE -ne 0) { throw 'tree read failed' }
+          $parents=(git show -s --format=%P HEAD).Trim(); if ($LASTEXITCODE -ne 0) { throw 'parent read failed' }
+          $base='c60f9667fa8431e27fabbc497c19b4abfef5b965'
+          if ($base -cnotmatch '^[0-9a-f]{40}$' -or $parents -cne $base) { throw 'sealed reviewed launcher must be sole parent' }
+          if ((git rev-parse "$($base)^{tree}").Trim() -cne '064252014dc0ad3c3882fbd5aef1968b083f8bb0' -or (git show -s --format=%P $base).Trim() -cne '110b4febbbcdab0138e2d28de2a53e2f2d61d7d6') { throw 'launcher correction parent mismatch' }
+          $previous='0def59d1ac429d5dd53bc4b75b626f5e4811d414'
+          if ((git rev-parse "$($previous)^{tree}").Trim() -cne 'fa327d8f1b0caaf73c1d2e55bf67eb887bdbc20f' -or (git show -s --format=%P $previous).Trim() -cne 'b9b4e666c8bfe8c52e35fba3974c935f927c4e2e') { throw 'launcher previous correction mismatch' }
+          $earlier='b9b4e666c8bfe8c52e35fba3974c935f927c4e2e'
+          if ((git rev-parse "$($earlier)^{tree}").Trim() -cne '7faa17400b941a69f366f94e3fcf0272948c65de' -or (git show -s --format=%P $earlier).Trim() -cne '8d56fbc38910df36837e1865b4242d55ca2aa7c6') { throw 'launcher earlier correction mismatch' }
+          $older='8d56fbc38910df36837e1865b4242d55ca2aa7c6'
+          if ((git rev-parse "$($older)^{tree}").Trim() -cne '6a40fb578e807ec8ce58eb309ae62707e1539b04' -or (git show -s --format=%P $older).Trim() -cne '750b11b20651b3f8bfadba69c19cb7eaf0c11e1e') { throw 'launcher older correction mismatch' }
+          $origin='750b11b20651b3f8bfadba69c19cb7eaf0c11e1e'
+          if ((git rev-parse "$($origin)^{tree}").Trim() -cne 'fea18888f3560939915d1ff49439cc9b92e5b4d9' -or (git show -s --format=%P $origin).Trim() -cne '13cd343d942b7a68912d42a8f9235c02ed647764') { throw 'launcher correction origin mismatch' }
+          & "$env:SystemRoot/System32/cmd.exe" /d /c "git cat-file commit HEAD > `"$evidence/source-commit.txt`""
+          if ($LASTEXITCODE -ne 0 -or (git hash-object -t commit "$evidence/source-commit.txt").Trim() -cne $sha) { throw 'raw source commit mismatch' }
+          @{sha=$sha;tree=$tree;parents=$parents;base=$base;run=$env:GITHUB_RUN_ID;attempt=$env:GITHUB_RUN_ATTEMPT;
+            image=$env:ImageVersion;os=$env:ImageOS;build=[Environment]::OSVersion.Version.ToString();arch=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();production_admission=$false;workspace_integration=$false;network_denial_proven=$false;production_launch_authority=$false;general_dll_authority=$false;descendant_containment_by_debugger=$false;hard_syscall_deadline=$false} |
+            ConvertTo-Json | Set-Content -LiteralPath "$evidence/source.json"
+          $sourcePaths=@('src-tauri/Cargo.toml','src-tauri/Cargo.lock','src-tauri/src/tools/windows_vm.rs','src-tauri/src/tools/mod.rs','src-tauri/src/tools/native_drain.rs',
+            'src-tauri/src/tools/windows_vm/image.rs','src-tauri/src/tools/windows_vm/launch.rs','src-tauri/src/tools/windows_vm/host_io.rs',
+            'src-tauri/src/tools/windows_vm/launch_tests.rs','src-tauri/src/tools/windows_vm/native_tests.rs','src-tauri/src/tools/windows_vm/protocol.rs','src-tauri/src/tools/windows_vm/tests.rs',
+            'scripts/windows_vm_launch_fixture.cpp','scripts/prepare_windows_vm_launch.ps1','scripts/prepare_windows_vm_session.ps1','.github/workflows/windows-vm-session.yml',
+            'docs/specs/windows-vm-session/requirements.md','docs/specs/windows-vm-session/design.md','docs/specs/windows-vm-session/tasks.md')
+          $sourcePaths+=@('inputs.json','channels_windows.go','protocol_windows.go','quarantine_windows.go','owner_windows.go','guest_windows.go','upstream-defaults.patch','owner_windows_test.go','main_windows.go' | ForEach-Object { "services/windows-vm-broker/$_" })
+          @($sourcePaths | ForEach-Object { $file=Get-Item -LiteralPath $_; if ($file.PSIsContainer -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'source reparse/non-file entry' }; @{path=$_;bytes=$file.Length;sha256=(Get-FileHash -LiteralPath $_).Hash.ToLowerInvariant()} }) |
+            ConvertTo-Json | Set-Content -LiteralPath "$evidence/source-files.json"
+      - name: Authenticate complete current source before any native import
+        shell: python
+        run: |
+          import hashlib, json, os, pathlib, subprocess, sys
+          sys.path.insert(0, 'scripts')
+          import rc_pretag_composition_tests as c
+          import rc_pretag_postpublication_profile as profile
+          sha = c._git('rev-parse', 'HEAD').decode().strip(); assert sha == os.environ['GITHUB_SHA']
+          assert c._git('show', '-s', '--format=%P', sha).decode().split() == [profile.P]
+          expected = c.publication.selected_profile(sha, c.ROOT, c._git, c._entries, c._feature_profile, c.RELEASE, c.RELEASE_TREE, c.RELEASE_DOCS)
+          assert expected == c._entries(sha) == c._index_entries(c._git('ls-files', '--stage', '-z')) and len(expected) == 1867
+          before = {}
+          for path, (mode, kind, blob) in expected.items():
+              file = c.ROOT / path; status = file.stat()
+              assert kind == 'blob' and file.is_file() and not file.is_symlink() and not (status.st_file_attributes & 0x400)
+              raw = file.read_bytes(); assert c._blob(raw) == blob; before[path] = hashlib.sha256(raw).hexdigest()
+          assert not subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=all'], env=c.git_environment())
+          pathlib.Path(os.environ['CTM_VM_SESSION_EVIDENCE'], 'source-full-before.json').write_text(json.dumps(dict(sha=sha, tree=c._git('rev-parse', 'HEAD^{tree}').decode().strip(), paths=expected, sha256=before, production_ready=False)), encoding='utf-8')
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with: {toolchain: '1.98.1', components: rustfmt}
+      - name: Preserve default formatter output then enforce formatting before import
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $dir=New-Item -ItemType Directory -Path "$env:CTM_VM_SESSION_EVIDENCE/formatted/windows_vm" -Force
+          Copy-Item src-tauri/src/tools/windows_vm.rs "$env:CTM_VM_SESSION_EVIDENCE/formatted/windows_vm.rs"
+          Copy-Item src-tauri/src/tools/windows_vm/*.rs $dir
+          rustfmt --edition 2021 "$env:CTM_VM_SESSION_EVIDENCE/formatted/windows_vm.rs"
+          if ($LASTEXITCODE -ne 0) { throw 'formatter parse failed' }
+          rustc --version | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/rust-version.txt"
+          foreach ($file in Get-ChildItem "$env:CTM_VM_SESSION_EVIDENCE/formatted" -Recurse -Filter '*.rs') {
+            if (@(Get-Content -LiteralPath $file.FullName).Count -gt 500) { throw "formatted source exceeds500: $($file.Name)" }
+          }
+          cargo fmt --all --check --manifest-path src-tauri/Cargo.toml 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/fmt.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'formatting differs; no import or VM started' }
+      - name: Build real Rust library and run eighteen pure tests before import
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/rust-check.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'native check failed' }
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings
+          if ($LASTEXITCODE -ne 0) { throw 'production-library warnings gate failed' }
+          $metadata=cargo metadata --locked --format-version 1 --manifest-path src-tauri/Cargo.toml | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'locked dependency inspection failed' }
+          $windows=@($metadata.packages | Where-Object {$_.name -ceq 'windows' -and $_.version -ceq '0.61.3'})
+          if ($windows.Count -ne 1) { throw 'exact windows 0.61.3 package required' }
+          $binding=$windows[0]; $features=@($metadata.resolve.nodes | Where-Object {$_.id -ceq $binding.id} | ForEach-Object features)
+          foreach ($feature in @('Win32_System_Diagnostics_Debug','Win32_System_Pipes','Win32_System_SystemInformation')) { if ($feature -cnotin $features) { throw 'missing required locked binding feature' } }
+          @{package=$binding.id;source=$binding.source;features=$features;lock_sha256=(Get-FileHash src-tauri/Cargo.lock).Hash.ToLowerInvariant();binding_sha256=(Get-FileHash $binding.manifest_path).Hash.ToLowerInvariant()} | ConvertTo-Json -Depth 4 | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/locked-windows.json"
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm:: -- --list 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/rust-inventory.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'native test inventory compile failed' }
+          $list=Get-Content "$env:CTM_VM_SESSION_EVIDENCE/rust-inventory.txt"
+          if (@($list | Where-Object {$_ -match '^tools::windows_vm::tests::.+: test$'}).Count -ne 16 -or @($list | Where-Object {$_ -match '^tools::windows_vm::native_tests::.+: test$'}).Count -ne 2 -or @($list | Where-Object {$_ -match '^tools::windows_vm::launch_tests::.+: test$'}).Count -ne 8 -or @($list | Where-Object {$_ -match '^tools::windows_vm::.+: test$'}).Count -ne 26) { throw 'Rust inventory mismatch' }
+          $new='launch_boundary_errors_preserve_owned_effects,blocked_writer_and_cancel_leave_owner_responsive,native_launch_matching_image_retires,native_launch_wrong_image_rejects,native_launch_same_bytes_new_id_rejects,native_launch_junction_redirect_rejects,native_launch_cancel_before_continue,native_launch_wait_fault_preserves_raw_evidence' -split ','
+          foreach ($id in $new) { if (@($list | Where-Object {$_ -ceq "tools::windows_vm::launch_tests::${id}: test"}).Count -ne 1) { throw "missing exact case: $id" } }
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::tests:: -- --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/rust-tests.txt"
+          if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/rust-tests.txt" -Pattern 'test result: ok\. 16 passed; 0 failed; 0 ignored')) { throw 'sixteen pure tests required' }
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::launch_tests:: -- --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/ownership-tests.txt"
+          if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/ownership-tests.txt" -Pattern 'test result: ok\. 2 passed; 0 failed; 6 ignored')) { throw 'two pure ownership tests required' }
+      - name: Verify pinned sources and run twelve native Go tests before import
+        shell: pwsh
+        run: ./scripts/prepare_windows_vm_session.ps1 -Phase build
+      - name: Build fixed harmless markers and inventory trusted broker copy
+        shell: pwsh
+        run: ./scripts/prepare_windows_vm_launch.ps1
+      - name: Run six real harmless Rust launches before image import
+        shell: pwsh
+        env:
+          CTM_VM_LAUNCH_NATIVE: '1'
+        run: |
+          $ErrorActionPreference='Stop'
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::launch_tests::native_launch_ -- --ignored --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/launch-tests.txt"
+          if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/launch-tests.txt" -Pattern 'test result: ok\. 6 passed; 0 failed; 0 ignored')) { throw 'six actual launch cases required before import' }
+          if ((Get-Item -LiteralPath $env:CTM_VM_SESSION_EVIDENCE).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'launch evidence reparse directory' }
+          $names='matching_image_retires,wrong_image_rejects,same_bytes_new_id_rejects,junction_redirect_rejects,cancel_before_continue,wait_fault_preserves_raw_evidence' -split ','
+          $receipts=@($names | ForEach-Object { $file=Get-Item -LiteralPath "$env:CTM_VM_SESSION_EVIDENCE/native_launch_$_.json"; if ($file.PSIsContainer -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'launch evidence entry rejected' }; $file })
+          if ($receipts.Count -ne 6) { throw 'six raw launch receipts required' }
+          foreach ($file in $receipts) { $r=Get-Content -Raw -LiteralPath $file.FullName | ConvertFrom-Json; if ($r.source -cne $env:GITHUB_SHA -or !$r.retired -or !$r.launch.child_created -or !$r.paired_fences_drained) { throw 'launch receipt mismatch' } }
+      - name: Acquire fixed Microsoft blobs and import in isolated privileged process
+        shell: pwsh
+        run: ./scripts/prepare_windows_vm_session.ps1 -Phase acquire
+      - name: Run exactly two serial owned VM cases
+        shell: pwsh
+        env:
+          CTM_VM_SESSION_NATIVE: '1'
+        run: |
+          $ErrorActionPreference='Stop'
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::native_tests:: -- --ignored --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/native-tests.txt"
+          if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/native-tests.txt" -Pattern 'test result: ok\. 2 passed; 0 failed; 0 ignored')) { throw 'native VM session gate failed' }
+          $outcomes=@(foreach ($name in @('rust-tests','ownership-tests','launch-tests','native-tests')) { Get-Content "$env:CTM_VM_SESSION_EVIDENCE/$name.txt" | ForEach-Object { if ($_ -match '^test (tools::windows_vm::\S+) \.\.\. ok$') { $Matches[1] } } })
+          $outcomes+=@(Get-Content "$env:CTM_VM_SESSION_EVIDENCE/go-tests.txt" | ForEach-Object { if ($_ -match '^--- PASS: (Test[^/ ]+) ') { "go::$($Matches[1])" } })
+          if ($outcomes.Count -ne 38 -or @($outcomes | Sort-Object -Unique).Count -ne 38) { throw 'exact 38 executed outcomes required' }
+          $outcomes | ConvertTo-Json | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/executed-inventory.json"
+      - name: Revalidate complete current source after native38
+        shell: python
+        run: |
+          import hashlib, json, os, pathlib, subprocess, sys
+          sys.path.insert(0, 'scripts')
+          import rc_pretag_composition_tests as c
+          import rc_pretag_postpublication_profile as profile
+          directory = pathlib.Path(os.environ['CTM_VM_SESSION_EVIDENCE']); before = json.loads((directory / 'source-full-before.json').read_text())
+          assert c._git('rev-parse', 'HEAD').decode().strip() == before['sha'] == os.environ['GITHUB_SHA']
+          assert c._git('rev-parse', 'HEAD^{tree}').decode().strip() == before['tree']
+          actual = c.publication.selected_profile(before['sha'], c.ROOT, c._git, c._entries, c._feature_profile, c.RELEASE, c.RELEASE_TREE, c.RELEASE_DOCS)
+          assert actual == c._entries(before['sha']) == c._index_entries(c._git('ls-files', '--stage', '-z')) == {p: tuple(row) for p, row in before['paths'].items()}
+          for path, (mode, kind, blob) in actual.items():
+              file = c.ROOT / path; assert file.is_file() and not file.is_symlink() and not (file.stat().st_file_attributes & 0x400)
+              raw = file.read_bytes(); assert c._blob(raw) == blob and hashlib.sha256(raw).hexdigest() == before['sha256'][path]
+          assert not subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=all'], env=c.git_environment())
+          (directory / 'source-full-after.json').write_text(json.dumps(before | {'source_unchanged': True}), encoding='utf-8')
+      - name: Preserve bounded evidence and unchanged source
+        id: evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          foreach ($path in @($env:CTM_VM_SESSION_ROOT,$env:CTM_VM_SESSION_EVIDENCE)) { $item=Get-Item -LiteralPath $path; if (!$item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'evidence source/destination directory rejected' } }
+          foreach ($item in Get-ChildItem -LiteralPath $env:CTM_VM_SESSION_EVIDENCE -Force) { if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'evidence destination reparse entry' } }
+          foreach ($name in @('native-01.json','native-02.json')) {
+            $p=Join-Path $env:CTM_VM_SESSION_ROOT $name; $destination=Join-Path $env:CTM_VM_SESSION_EVIDENCE $name
+            if (Test-Path -LiteralPath $p) { $item=Get-Item -LiteralPath $p; if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or (Test-Path -LiteralPath $destination)) { throw 'native evidence input/destination rejected' }; Copy-Item -LiteralPath $p -Destination $destination }
+          }
+          git diff --exit-code; if ($LASTEXITCODE -ne 0) { throw 'source changed' }
+          git diff --cached --exit-code; if ($LASTEXITCODE -ne 0) { throw 'index changed' }
+          $allowed=@('source-full-before.json','source-full-after.json','source.json','source-commit.txt','source-files.json','rust-version.txt','fmt.txt','rust-check.txt','locked-windows.json','rust-inventory.txt','rust-tests.txt','ownership-tests.txt',
+            'go-version.txt','go-tests.txt','pinned-inputs.json','runtime-files.json','bundle.json','import.txt',
+            'launch-build.txt','msvc-sdk.txt','imports-good.txt','imports-bad.txt','imports-broker.txt','launch-manifest.json',
+            'launch-tests.txt','native-tests.txt','executed-inventory.json','native-01.json','native-02.json','formatted/windows_vm.rs')
+          $allowed+=@('image','launch','host_io','launch_tests','native_tests','protocol','tests' | ForEach-Object { "formatted/windows_vm/$_.rs" })
+          $cases='matching_image_retires,wrong_image_rejects,same_bytes_new_id_rejects,junction_redirect_rejects,cancel_before_continue,wait_fault_preserves_raw_evidence' -split ','
+          $allowed+=@($cases | ForEach-Object { "native_launch_$_.json"; "native_launch_${_}-timeout.json" })
+          $directories=@('','formatted','formatted/windows_vm'); $files=@()
+          foreach ($relative in $directories) {
+            $directory=if ($relative) { Join-Path $env:CTM_VM_SESSION_EVIDENCE $relative } else { $env:CTM_VM_SESSION_EVIDENCE }
+            if (!(Test-Path -LiteralPath $directory)) { continue }
+            $item=Get-Item -LiteralPath $directory; if (!$item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'evidence reparse/non-directory' }
+            foreach ($item in Get-ChildItem -LiteralPath $directory -Force) {
+              $name=[IO.Path]::GetRelativePath($env:CTM_VM_SESSION_EVIDENCE,$item.FullName).Replace('\','/')
+              if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'evidence reparse entry' }
+              if ($item.PSIsContainer) { if ($name -cnotin $directories) { throw 'unexpected evidence directory' }; continue }
+              if ($name -cnotin $allowed) { throw 'unexpected evidence file' }; $files+=,$item
+            }
+          }
+          if (($files | Measure-Object Length -Sum).Sum -gt 8MB) { throw 'aggregate evidence bound' }
+          foreach ($file in $files) { if ($file.Length -gt 2MB) { throw 'individual evidence bound' } }
+          $before=Get-Content -Raw "$env:CTM_VM_SESSION_EVIDENCE/source.json" | ConvertFrom-Json
+          if ((git rev-parse HEAD).Trim() -cne $env:GITHUB_SHA -or (git rev-parse 'HEAD^{tree}').Trim() -cne $before.tree) { throw 'final source identity changed' }
+          $sourceFiles=@(Get-Content -Raw "$env:CTM_VM_SESSION_EVIDENCE/source-files.json" | ConvertFrom-Json)
+          if ($sourceFiles.Count -ne 28 -or @($sourceFiles.path | Sort-Object -Unique).Count -ne 28) { throw 'exact source census changed' }
+          foreach ($entry in $sourceFiles) { $file=Get-Item -LiteralPath $entry.path; if ($file.PSIsContainer -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $file.Length -ne $entry.bytes -or (Get-FileHash -LiteralPath $entry.path).Hash.ToLowerInvariant() -cne $entry.sha256) { throw 'source bytes changed' } }
+          $lines=@($files | Sort-Object FullName | ForEach-Object { if ($_.Length -gt 2MB) { throw 'individual evidence bound' }; "$((Get-FileHash $_.FullName).Hash.ToLowerInvariant())  $([IO.Path]::GetRelativePath($env:CTM_VM_SESSION_EVIDENCE,$_.FullName))" })
+          $lines | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/sha256.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ always() && steps.evidence.outcome == 'success' }}
+        with:
+          name: windows-vm-session-${{ github.sha }}
+          path: ${{ env.CTM_VM_SESSION_EVIDENCE }}
+          if-no-files-found: error
+          retention-days: 14

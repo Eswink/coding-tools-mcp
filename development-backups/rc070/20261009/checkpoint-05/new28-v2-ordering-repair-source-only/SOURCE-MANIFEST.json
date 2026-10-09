@@ -1,0 +1,215 @@
+{
+  "parent": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+  "source": [
+    {
+      "path": ".github/workflows/issue88-postpublication-owned-checks.yml",
+      "mode": "100644",
+      "blob": "15f17e71cd5a91e9bab50c2185191f47ce9c107a",
+      "bytes": 30969,
+      "sha256": "d9aa210795703399594a468b91e334d434afe31c48c27c64c7e2bf36be1a8403"
+    },
+    {
+      "path": ".github/workflows/rc-postpublication-consumer.yml",
+      "mode": "100644",
+      "blob": "256cf12d3ff45301094abf92bac92fcea99b79de",
+      "bytes": 7985,
+      "sha256": "2d136ab762497d758cd71bf99c6ead19e6e5308ff8cea77bd9b5a6a23e75f5e3"
+    },
+    {
+      "path": "docs/specs/issue88-postpublication-owned-consumer/design.md",
+      "mode": "100644",
+      "blob": "1e809deec171e4392649e6a8788e79e8b8f8e589",
+      "bytes": 11679,
+      "sha256": "6e67ee243b0de46dd73840090beb0420c65ca1c33f7a0ede8c8c542114d61abc"
+    },
+    {
+      "path": "docs/specs/issue88-postpublication-owned-consumer/requirements.md",
+      "mode": "100644",
+      "blob": "706dc9a7343d23a07026aa5b716d95465b1527b9",
+      "bytes": 9840,
+      "sha256": "1aa810f7b2b6899d835de83c89346d5b7025058cd9fc5e2837b462f0dd3c1585"
+    },
+    {
+      "path": "docs/specs/issue88-postpublication-owned-consumer/tasks.md",
+      "mode": "100644",
+      "blob": "3a78078fc2571f0fc74c827b209428028a448d3c",
+      "bytes": 10889,
+      "sha256": "240312c0eda79a658e52d5cd811f8174972f123a37caf80499b8f936a85d8d1a"
+    },
+    {
+      "path": "scripts/rc_packages.py",
+      "mode": "100644",
+      "blob": "997405a619d4ccb5084b3ac139ee917a98331ecc",
+      "bytes": 9813,
+      "sha256": "c2fb7603aed0a46f8b12562e628cc3fec6dc4b040296c68676a975eab6287490"
+    },
+    {
+      "path": "scripts/rc_postpublication_cases.py",
+      "mode": "100644",
+      "blob": "4da256cf667c9dbb2160d440d4a443937f43ed75",
+      "bytes": 15672,
+      "sha256": "ff09d847a77352e2ebdfdcc331a82f96f35c665e14352b52fc5f153a412bf71c"
+    },
+    {
+      "path": "scripts/rc_postpublication_consumer.py",
+      "mode": "100644",
+      "blob": "4ed9199ea133b39703764cfe97f5202d513f6975",
+      "bytes": 8659,
+      "sha256": "cdd1ee03ae19ff76780056f0ff9b1b095fe1644705e259af71697354fcb0ce1a"
+    },
+    {
+      "path": "scripts/rc_postpublication_contract.py",
+      "mode": "100644",
+      "blob": "0cd7ce9cdd93a2b10beaae52188677396849c51a",
+      "bytes": 6495,
+      "sha256": "5cb5b460f48634050045d71e8a73729e6f8019520d46e5f42ffb2c3c633217ad"
+    },
+    {
+      "path": "scripts/rc_postpublication_install.py",
+      "mode": "100644",
+      "blob": "923a6b521675255f867992482198f634acfae41d",
+      "bytes": 18328,
+      "sha256": "4b612d828a05647c5ac9b242cade11a41b3a54050587a1329b6cbce17b2d9590"
+    },
+    {
+      "path": "scripts/rc_postpublication_io.py",
+      "mode": "100644",
+      "blob": "975ca19a8e88674f623d6fd7b485ca9ce4cbed4a",
+      "bytes": 5171,
+      "sha256": "967b696d0c31a133b64228936b7043d2d21b5ddcb33d45d711e070873d93959b"
+    },
+    {
+      "path": "scripts/rc_postpublication_process.py",
+      "mode": "100644",
+      "blob": "775ef7eb4aa1b739012a9b45feb0c7e880021ffe",
+      "bytes": 21075,
+      "sha256": "99bbc5692b35aecdbdcd46cd86589d0c5a7ef5b4cd5f81f752eb7ac44282f880"
+    },
+    {
+      "path": "scripts/rc_postpublication_process_cases.py",
+      "mode": "100644",
+      "blob": "6424352e8da39c2846e923255b17b5a7ea02e0d2",
+      "bytes": 22096,
+      "sha256": "9c8a600fe2e9135a1628df8f2dfc024073de4a2bbaec86d92b2acdc8fc687b0d"
+    },
+    {
+      "path": "scripts/rc_postpublication_reader.py",
+      "mode": "100644",
+      "blob": "9f170d576ac03eff6a1489d85ea88861ae08d055",
+      "bytes": 11536,
+      "sha256": "769629ccdfde266af0f303267b73a5acd79f3580c8688f51a1de0c21c2f51c36"
+    },
+    {
+      "path": "scripts/rc_postpublication_source.py",
+      "mode": "100644",
+      "blob": "b1c56fa5390107ac38b0b105c4189793b5457bfc",
+      "bytes": 7465,
+      "sha256": "219791f34e2b7849f313fe0239d43f3b471e7bedc00f238a5e19223daf7cba05"
+    },
+    {
+      "path": "scripts/rc_postpublication_transfer.py",
+      "mode": "100644",
+      "blob": "7bb5719a885a36a7ca0d5fc7239852f5f9cf1758",
+      "bytes": 10902,
+      "sha256": "4fb1867419242b1c98f6ca6c7d4477ddde9f3d361fcc69d056237729893bb963"
+    },
+    {
+      "path": "scripts/rc_postpublication_transfer_cases.py",
+      "mode": "100644",
+      "blob": "1c459d73cc06719f27a9431eeb079b029d77fd9c",
+      "bytes": 15339,
+      "sha256": "fe2416b9f2e61b5075880aa4ca71026f86f52f052a39fc76e62718bcce572552"
+    },
+    {
+      "path": "scripts/rc_pretag_archive_budget_cases.py",
+      "mode": "100644",
+      "blob": "968b9e456b6bcfa6bcbd6a268f32853b51186018",
+      "bytes": 29131,
+      "sha256": "78ede77bb64fa982a65cbc07ece81bc5dae3330398f6912b208f33cc1ec28185"
+    },
+    {
+      "path": "scripts/rc_pretag_authenticated_two_hop_tests.py",
+      "mode": "100644",
+      "blob": "0bcb797b32c7ab138c3280f58c8faf165046d980",
+      "bytes": 38154,
+      "sha256": "397a326e641d0d092006103a27c25dc4302f1c7a5ccf749f0ef54088b9885417"
+    },
+    {
+      "path": "scripts/rc_pretag_checksum_budget_cases.py",
+      "mode": "100644",
+      "blob": "9e9454ca8f971e7f5adf24e92a211cf10311a1ac",
+      "bytes": 28049,
+      "sha256": "6913746ee3dff40e0a5145ecd2fbcb8fccf6e45c580bcebe74f592934301da0f"
+    },
+    {
+      "path": "scripts/rc_pretag_postpublication_cases.py",
+      "mode": "100644",
+      "blob": "0a97b8291b31389b444fe71429f517b4662444e9",
+      "bytes": 20886,
+      "sha256": "cb8fcd12bee9020c828646792f52338e11096157a75873f94f2c4af01cea1c03"
+    },
+    {
+      "path": "scripts/rc_pretag_postpublication_profile.py",
+      "mode": "100644",
+      "blob": "c8a37eee893e6cbb158c0d78732621c64b4ed5a8",
+      "bytes": 748599,
+      "sha256": "11a292952c6550d55db831431c23c382bbbd734d8baaf2f8871ff4c37338077f"
+    },
+    {
+      "path": "scripts/rc_pretag_source_observation_cases.py",
+      "mode": "100644",
+      "blob": "4ba11f0043445a9ebfc0d0ab4600510e37d84e20",
+      "bytes": 32076,
+      "sha256": "24a268014076a212a300ce5c8019d5b357264dfb2af011d8b3eb743ba37d5ea1"
+    },
+    {
+      "path": "scripts/rc_pretag_source_observation_profile.py",
+      "mode": "100644",
+      "blob": "e29f4eccff6328cb51d36b724980f999091e677b",
+      "bytes": 91616,
+      "sha256": "a9ac75673ce234cbdda5f550f1bcd95dbb6100e6793f36d116eab76c6a491f82"
+    },
+    {
+      "path": "scripts/rc_pretag_staging_budget_cases.py",
+      "mode": "100644",
+      "blob": "8cf01da264e71f3d4e9f2fd30609780077613ee8",
+      "bytes": 28315,
+      "sha256": "f88232a9d8a0e8216a39cf10fcf698732797953706b85ebefb4cf798282a35c0"
+    },
+    {
+      "path": "scripts/rc_pretag_windows_launch_cases.py",
+      "mode": "100644",
+      "blob": "7cf2aca4786e748bf80b055e993701450bc7e053",
+      "bytes": 36559,
+      "sha256": "dc0f3389af06d5db85734a811afb487a9414f957b914bdfa06bff6b7e2e52e42"
+    },
+    {
+      "path": "scripts/rc_publication_github.py",
+      "mode": "100644",
+      "blob": "a995d1adc09f2c239efa98a98f75001758440714",
+      "bytes": 23862,
+      "sha256": "c37febe57a6d9944393731bccd03cb09610564ff3f2726c27893b7dd52d8a853"
+    },
+    {
+      "path": "scripts/rc_publication_stage.py",
+      "mode": "100644",
+      "blob": "0a06084bbbaf7deb160c88aada6ca42c5debfa13",
+      "bytes": 22823,
+      "sha256": "f31a740de140101d2bf7023de27dbc3dbee9a089ea3dcf2645ee06579f2a303e"
+    }
+  ],
+  "immutable_source": true,
+  "scope": "v2 finite ordering repair: fullcurrent before parent admission; v1 known orderingBLOCKED is preserved in checkpoint04",
+  "necessary488": "LOADED_NOT_EXECUTED",
+  "five_install_slots": "NOT_RUN",
+  "native_issuer": "BLOCKED_NO_IMPLEMENTATION",
+  "independent_runtime_or_CI_qualification": false,
+  "source_overlay_and_patch_native_tree_match": true,
+  "patch": {
+    "mode": "100644",
+    "bytes": 1008175,
+    "sha256": "4506e2b1ac2c985956de460620646b12398b63d9c1a844b7f8e32d391e90ee60",
+    "blob": "7d2906bf9f2a70fe3284f7c126c641f0a372beea"
+  }
+}

@@ -1,0 +1,457 @@
+"""Native Linux children only: owned live leader, pidfds, subreaper and IO."""
+import base64
+import ctypes
+import json
+import math
+import os
+from pathlib import Path
+import select
+import signal
+import subprocess
+import sys
+import time
+
+from rc_consumer_io import ConsumerError, need
+from rc_postpublication_source import ReadController
+
+LIMIT = 2 * 1024 * 1024
+_HELD_PROCESS_OWNERS = []  # Actual uncertain native handles and whole input owners.
+KEYS = frozenset(('PATH', 'HOME', 'LANG', 'LC_ALL', 'TZ', 'APPIMAGE_EXTRACT_AND_RUN',
+    'GDK_BACKEND', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_RUNTIME_DIR',
+    'XDG_STATE_HOME', 'GITHUB_SHA', 'GITHUB_WORKFLOW_SHA', 'GITHUB_RUN_ID',
+    'GITHUB_RUN_ATTEMPT', 'GITHUB_REPOSITORY', 'GITHUB_ACTIONS', 'RUNNER_ENVIRONMENT',
+    'GITHUB_WORKSPACE', 'RUNNER_TEMP'))
+
+
+def _request(argv, env, cwd):
+    need(type(argv) in (list, tuple) and 0 < len(argv) <= 64 and all(type(v) is str
+         and 0 < len(v) <= 8192 and '\0' not in v for v in argv)
+         and os.path.isabs(argv[0]), 'post_process_arguments')
+    need(type(env) is dict and set(env) <= KEYS and env.get('PATH') == '/usr/bin:/bin'
+         and all(type(v) is str and len(v) <= 8192 and '\0' not in v for v in env.values()),
+         'post_process_environment')
+    need(cwd is None or type(cwd) is str and os.path.isabs(cwd), 'post_process_directory')
+    value = dict(argv=list(argv), env=dict(env), cwd=cwd)
+    need(len(json.dumps(value, separators=(',', ':')).encode()) <= 32768,
+         'post_process_arguments')
+    return value
+
+
+def _status(path):
+    raw = path.read_text()
+    need(len(raw) <= 65536, 'post_kernel_identity')
+    values = dict(line.split(':', 1) for line in raw.splitlines() if ':' in line)
+    return {k: tuple(int(n) for n in values[k].split()) for k in ('Pid', 'PPid', 'NSpid')}
+
+
+def _children(held, own):
+    """Proc rows are candidates only; waitid(pidfd) proves actual own children."""
+    depth = len(own['NSpid']) - 1
+    need(own['NSpid'][depth] == os.getpid(), 'post_kernel_namespace')
+    candidates = list(Path('/proc').glob('[0-9]*/status'))
+    need(len(candidates) <= 8192, 'post_kernel_inventory')
+    for path in candidates:
+        try:
+            before = _status(path)
+        except (FileNotFoundError, ProcessLookupError, PermissionError):
+            continue
+        if before['PPid'] != own['Pid']:
+            continue
+        need(len(before['NSpid']) > depth, 'post_kernel_namespace')
+        ident = before['NSpid'][depth]
+        if ident in held:
+            continue
+        fd = os.pidfd_open(ident)
+        try:
+            # ECHILD is a refusal, never an adopted authority from PPid/data.
+            os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            after = _status(path)
+            info = dict(line.split(':', 1) for line in Path('/proc/self/fdinfo/' + str(fd)).read_text().splitlines()
+                        if ':' in line)
+            need(after == before and int(info['Pid']) == before['Pid'][0], 'post_kernel_identity')
+            need(len(held) < 128, 'post_kernel_inventory')
+            held[ident] = fd
+            fd = None
+        finally:
+            if fd is not None:
+                os.close(fd)
+
+
+def _event(value):
+    data = (json.dumps(value, separators=(',', ':')) + '\n').encode()
+    while data:
+        sent = os.write(1, data)
+        need(sent > 0, 'post_process_io')
+        data = data[sent:]
+
+
+def _line(limit):
+    data = bytearray()
+    while len(data) < limit:
+        value = os.read(0, 1)
+        need(value, 'post_process_protocol')
+        data.extend(value)
+        if value == b'\n':
+            return bytes(data)
+    raise ConsumerError('post_process_protocol')
+
+
+def _worker():
+    """Fixed worker in the actual newly created leader, never an external ACK."""
+    libc = ctypes.CDLL(None, use_errno=True)
+    state = ctypes.c_int()
+    need(libc.prctl(36, 1, 0, 0, 0) == 0 and libc.prctl(37, ctypes.byref(state), 0, 0, 0) == 0
+         and state.value == 1, 'post_subreaper_unavailable')
+    own = _status(Path('/proc/self/status'))
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    _event(dict(kind='ready', pid=os.getpid(), ppid=os.getppid(), pgid=os.getpgrp()))
+    raw = _line(32769)
+    need(0 < len(raw) <= 32768 and raw.endswith(b'\n'), 'post_process_protocol')
+    value = json.loads(raw)
+    need(type(value) is dict and set(value) == {'argv', 'env', 'cwd'}, 'post_process_protocol')
+    command = _request(value['argv'], value['env'], value['cwd'])
+    need(_line(3) == b'G\n', 'post_process_protocol')
+    reader, writer = os.pipe2(os.O_CLOEXEC)
+    child = os.fork()
+    if child == 0:
+        try:
+            signal.signal(signal.SIGTERM, signal.SIG_DFL)
+            signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+            os.close(reader)
+            os.dup2(writer, 1); os.dup2(writer, 2); os.close(writer)
+            null = os.open('/dev/null', os.O_RDONLY)
+            os.dup2(null, 0); os.close(null)
+            if command['cwd'] is not None:
+                os.chdir(command['cwd'])
+            os.execve(command['argv'][0], command['argv'], command['env'])
+        except BaseException:
+            os._exit(126)
+    os.close(writer)
+    os.set_blocking(reader, False)
+    os.set_blocking(0, False)
+    held, statuses, output = {}, {}, bytearray()
+    commands = bytearray()
+    stopped, stop_at, eof, done, error = False, None, False, False, None
+    try:
+        while True:
+            _children(held, own)
+            for ident, fd in tuple(held.items()):
+                observed = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                if observed is not None:
+                    got, status = os.waitpid(ident, 0)
+                    need(got == ident, 'post_process_reap')
+                    statuses[ident] = os.waitstatus_to_exitcode(status)
+                    os.close(fd); del held[ident]
+                elif stopped:
+                    signal.pidfd_send_signal(fd, signal.SIGKILL if time.monotonic() - stop_at >= .5 else signal.SIGTERM)
+            try:
+                pending = os.waitid(os.P_ALL, 0, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                empty = False
+            except ChildProcessError:
+                empty = True
+            ready, _, _ = select.select([0] + ([] if eof else [reader]), [], [], .02)
+            if reader in ready:
+                data = os.read(reader, 65536)
+                if data:
+                    available = LIMIT - len(output)
+                    output.extend(data[:available])
+                    if len(data) > available:
+                        error, stopped = 'post_process_output_limit', True
+                        stop_at = time.monotonic() if stop_at is None else stop_at
+                else:
+                    eof = True
+            if 0 in ready:
+                incoming = os.read(0, 16)
+                if not incoming:
+                    stopped = True
+                    stop_at = time.monotonic() if stop_at is None else stop_at
+                commands.extend(incoming)
+                need(len(commands) <= 32, 'post_process_protocol')
+                closing = False
+                while b'\n' in commands:
+                    line, _, commands = commands.partition(b'\n')
+                    if line == b'C' and done and empty and eof and not commands:
+                        closing = True
+                        break
+                    need(line == b'S', 'post_process_protocol')
+                    stopped = True
+                    stop_at = time.monotonic() if stop_at is None else stop_at
+                if closing:
+                    break
+            if empty and eof and not done:
+                need(child in statuses and not held, 'post_process_reap')
+                _event(dict(kind='done', status=statuses[child], reaped=len(statuses),
+                            output=base64.b64encode(output).decode('ascii'), stopped=stopped, error=error))
+                done = True
+    finally:
+        os.close(reader)
+        for fd in held.values():
+            os.close(fd)
+    return 0
+
+
+class ProcessOwner:
+    """One actual native execution; no credential/publication grant issuer."""
+    def __init__(self, controls, lifetime=None):
+        need(type(controls) is ReadController, 'post_process_controls')
+        self._controls, self._lifetime = controls, lifetime
+        self._process = self._pidfd = None
+        self._buffer = bytearray()
+        self._last_frame = self._completion = None
+        self._closed = self._family_closed = self._uncertain = False
+        self._witness = {}
+        self._check()
+        if lifetime is not None:
+            lifetime._processes.append(self)
+
+    def _check(self):
+        self._controls.check()
+        if self._lifetime is not None:
+            from rc_postpublication_install import _InstallationOwner
+            need(type(self._lifetime) is _InstallationOwner and self._lifetime._controls is self._controls,
+                 'post_process_lifetime')
+            self._lifetime.check()
+
+    def _retain(self):
+        self._uncertain = True
+        if not self._family_closed and not any(value is self for value in _HELD_PROCESS_OWNERS):
+            _HELD_PROCESS_OWNERS.append(self)
+        if self._lifetime is not None:
+            self._lifetime.retain()
+
+    def _live(self):
+        need(self._process is not None and self._pidfd is not None
+             and self._process.returncode is None, 'post_process_owner')
+        need(os.waitid(os.P_PIDFD, self._pidfd, os.WEXITED | os.WNOHANG | os.WNOWAIT) is None
+             and os.getpgid(self._process.pid) == self._process.pid, 'post_process_owner')
+
+    def _send(self, raw, *, active=True, deadline=None):
+        deadline = self._deadline if deadline is None else deadline
+        while raw:
+            if active:
+                self._check()
+            self._live()
+            need(time.monotonic() < deadline, 'post_process_timeout')
+            if not select.select([], [self._process.stdin], [], .02)[1]:
+                continue
+            try:
+                sent = os.write(self._process.stdin.fileno(), raw)
+            except BlockingIOError:
+                continue
+            need(sent > 0, 'post_process_io')
+            raw = raw[sent:]
+
+    def _frame(self, deadline, *, active=True):
+        while b'\n' not in self._buffer:
+            if active:
+                self._check()
+            need(time.monotonic() < deadline, 'post_process_timeout')
+            ready, _, _ = select.select([self._process.stdout], [], [], .02)
+            if ready:
+                data = os.read(self._process.stdout.fileno(), 65536)
+                need(data, 'post_process_protocol')
+                self._buffer.extend(data)
+                need(len(self._buffer) <= LIMIT * 2, 'post_process_output_limit')
+        line, _, remaining = self._buffer.partition(b'\n')
+        self._buffer = bytearray(remaining)
+        value = json.loads(line)
+        need(type(value) is dict, 'post_process_protocol')
+        self._last_frame = value
+        return value
+
+    def run(self, argv, *, env, cwd=None, seconds=120):
+        self._check()
+        need(not self._closed and self._process is None and type(seconds) in (int, float)
+             and math.isfinite(seconds) and 0 < seconds <= 600, 'post_process_reused')
+        request = _request(argv, env, cwd)
+        deadline = min(self._controls._deadline, time.monotonic() + seconds)
+        self._deadline = deadline
+        need(hasattr(os, 'pidfd_open') and hasattr(os, 'P_PIDFD')
+             and hasattr(signal, 'pidfd_send_signal'), 'post_process_kernel_unavailable')
+        try:
+            self._process = subprocess.Popen(['/usr/bin/python3', str(Path(__file__).absolute()), '--owned-worker'],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, close_fds=True,
+                start_new_session=True, env={'PATH': '/usr/bin:/bin', 'PYTHONDONTWRITEBYTECODE': '1'})
+            self._pidfd = os.pidfd_open(self._process.pid)
+            os.set_blocking(self._process.stdin.fileno(), False)
+            ready = self._frame(deadline)
+            self._live()
+            need(ready == dict(kind='ready', pid=self._process.pid, ppid=os.getpid(), pgid=self._process.pid),
+                 'post_process_owner')
+            self._check()
+            self._send((json.dumps(request, separators=(',', ':')) + '\n').encode())
+            self._check(); self._send(b'G\n')
+            done = self._frame(deadline)
+            raw = self._done(done)
+            need(done['stopped'] is False or done['error'] == 'post_process_output_limit',
+                 'post_process_protocol')
+            self._check(); self._send(b'C\n')
+            self._finish()
+            self._check()
+            need(done['error'] is None, done['error'])
+            need(done['status'] == 0, 'post_install_command_failed')
+            self._witness = dict(native_leader_pidfd=True, live_native_pgid=True,
+                                 actual_child_reaped=done['reaped'], all_pipes_closed=True)
+            return raw
+        except BaseException:
+            self._retain()
+            self._stop()
+            raise
+
+    def _done(self, value):
+        self._live()
+        need(value is self._last_frame and self._completion is None,
+             'post_process_protocol')
+        need(set(value) == {'kind', 'status', 'reaped', 'output', 'stopped', 'error'}
+             and value['kind'] == 'done' and type(value['status']) is int
+             and type(value['reaped']) is int and 0 < value['reaped'] <= 128
+             and type(value['stopped']) is bool and type(value['output']) is str
+             and value['error'] in (None, 'post_process_output_limit'), 'post_process_protocol')
+        raw = base64.b64decode(value['output'], validate=True)
+        need(len(raw) <= LIMIT, 'post_process_output_limit')
+        self._completion = value  # Only the actual owned pipe's validated frame.
+        return raw
+
+    def _finish(self):
+        need(self._process.wait(timeout=2) == 0 and not self._buffer
+             and self._process.stdout.read(1) == b'', 'post_process_retirement')
+        self._process.stdin.close(); self._process.stdout.close()
+        os.close(self._pidfd); self._pidfd = None
+        self._closed = self._family_closed = True
+        _HELD_PROCESS_OWNERS[:] = [value for value in _HELD_PROCESS_OWNERS if value is not self]
+
+    def _stop(self):
+        if self._process is None or self._closed:
+            return
+        try:
+            self._live()
+            deadline = time.monotonic() + 2
+            if self._completion is None:
+                self._send(b'S\n', active=False, deadline=deadline)
+                self._live()
+                # This group remains occupied by our still-live, pidfd-held leader.
+                os.killpg(self._process.pid, signal.SIGTERM)
+                done = self._frame(deadline, active=False)
+                self._done(done)
+            self._send(b'C\n', active=False, deadline=deadline)
+            self._finish()
+        except BaseException:
+            # No group KILL or numeric PID recovery after identity is lost.
+            self._retain()
+
+
+class _PackageChecks:
+    """Fixed original checks, bound to actual entered inputs and controller."""
+    def __init__(self, lifetime, environment, invocation):
+        from rc_postpublication_contract import PostInvocation
+        from rc_postpublication_install import _InstallationOwner
+        import rc_publication_github as wire
+        need(type(lifetime) is _InstallationOwner and type(invocation) is PostInvocation
+             and invocation is lifetime._inputs._invocation
+             and invocation.source is lifetime._stage.subject.source, 'post_package_owner')
+        lifetime.check()
+        _request(['/usr/bin/true'], environment, None)
+        self._lifetime, self._controls, self._env = lifetime, lifetime._controls, dict(environment)
+        self._invocation = invocation
+        original = wire._json(lifetime._stage._bundle.read('evidence/rc-linux-packages/exclusive-package.json', 65536))
+        source = lifetime._stage.subject.source
+        producer = lifetime._stage.subject.runs[0]
+        need(all(original.get(k) == v for k, v in dict(source_sha=source.source_sha,
+             source_tree=source.source_tree, version=source.version, run_id=str(producer.run_id)).items()),
+             'post_producer_package_mismatch')
+        original['run_id'] = str(invocation.run_id)
+        self._data, self._bound = original, False
+
+    def bind(self, data, package, kind):
+        self._lifetime.check()
+        need(not self._bound and data == self._data and kind in ('deb', 'appimage'), 'post_package_binding')
+        asset = next(a for a in self._lifetime._stage.plan.assets if a.family == kind)
+        choices = [self._lifetime._inputs._owner._root.path / asset.name]
+        choices += [e.path for e in self._lifetime._executions if e._asset == asset]
+        need(type(package) is type(Path()) and package in choices
+             and data['packages'][kind]['artifact'] == dict(name=asset.name, size=asset.size, sha256=asset.sha256),
+             'post_package_binding')
+        self._package, self._kind, self._bound = package, kind, True
+
+    def _check(self):
+        self._lifetime.check()
+        need(self._bound, 'post_package_binding')
+
+    def command(self, *args):
+        self._check()
+        need(args and args[0] in ('dpkg-deb', 'dpkg-query', 'desktop-file-validate', 'ldd'),
+             'post_package_command')
+        raw = ProcessOwner(self._controls, self._lifetime).run(['/usr/bin/' + args[0], *args[1:]],
+                                                             env=self._env, seconds=120)
+        self._check()
+        return raw.decode('utf-8', errors='strict').strip()
+
+    def digest(self, path):
+        import hashlib
+        import stat
+        self._check()
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        try:
+            info = os.fstat(fd)
+            need(stat.S_ISREG(info.st_mode) and 0 < info.st_size <= 512 * 1024 * 1024,
+                 'post_package_file')
+            total, value = 0, hashlib.sha256()
+            while True:
+                self._check(); chunk = os.read(fd, 65536); self._check()
+                if not chunk:
+                    break
+                total += len(chunk); value.update(chunk)
+            after = os.fstat(fd)
+            need((info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns) ==
+                 (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)
+                 and total == info.st_size, 'post_package_file')
+            return value.hexdigest()
+        except BaseException:
+            self._lifetime.retain()
+            raise
+        finally:
+            os.close(fd)
+
+    def elf(self, path):
+        self._check()
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        try:
+            header = os.read(fd, 20)
+            self._check()
+            need(len(header) == 20 and header[:6] == b'\x7fELF\x02\x01' and header[18:20] == b'\x3e\x00',
+                 'post_package_elf')
+        finally:
+            os.close(fd)
+
+    def inspect_linux(self, package, kind, version):
+        from rc_postpublication_install import _profile
+        import exclusive_packages as payload
+        self._check()
+        need((package, kind) == (self._package, self._kind), 'post_package_binding')
+        with _profile(self._env['RUNNER_TEMP'], '.post-package-inspection', self._lifetime) as temporary:
+            if kind == 'deb':
+                payload.require(self.command('dpkg-deb', '-f', str(package), 'Version') == version, 'DEB version mismatch')
+                payload.require(self.command('dpkg-deb', '-f', str(package), 'Architecture') == 'amd64', 'DEB architecture mismatch')
+                self.command('dpkg-deb', '-x', str(package), str(temporary))
+                root = temporary
+            else:
+                self.elf(package)
+                env = dict(self._env); env.pop('APPIMAGE_EXTRACT_AND_RUN', None)
+                ProcessOwner(self._controls, self._lifetime).run([str(package.resolve()), '--appimage-extract'],
+                    env=env, cwd=str(temporary), seconds=120)
+                root = temporary / 'squashfs-root'
+            executable = root / 'usr/bin' / payload.BINARY
+            payload.require(executable.is_file() and executable.resolve().is_relative_to(root.resolve()), 'payload missing or escaped')
+            self.elf(executable)
+            return dict(payload_sha256=self.digest(executable), architecture='amd64',
+                        package_id=self.command('dpkg-deb', '-f', str(package), 'Package') if kind == 'deb' else None)
+
+
+if __name__ == '__main__':
+    if sys.argv[1:] != ['--owned-worker']:
+        raise SystemExit(1)
+    try:
+        result = _worker()
+    except BaseException:
+        os._exit(1)
+    raise SystemExit(result)

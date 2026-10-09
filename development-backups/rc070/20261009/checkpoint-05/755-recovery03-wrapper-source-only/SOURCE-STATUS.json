@@ -1,0 +1,59 @@
+{
+  "source": [
+    {
+      "original_name": "prepare-private755-recovery03.py",
+      "backup_path": "prepare-private755-recovery03.py.source",
+      "mode": "100644",
+      "bytes": 10868,
+      "sha256": "9abd5be1f626a6407b095261bcc23ef431c1b4f9748923b301b4613cb894f70d",
+      "blob": "efc8bba7c2002701854c49eeafc61aa03309f266"
+    },
+    {
+      "original_name": "run-private755-recovery03.py",
+      "backup_path": "run-private755-recovery03.py.source",
+      "mode": "100644",
+      "bytes": 14391,
+      "sha256": "0eb2ce455b513a091fc8473f45699608f54e2112ad258dcf375d1168cede7b88",
+      "blob": "ec1a76750ee561fe03de865764522a507ed0d75f"
+    },
+    {
+      "original_name": "verify-native-dependencies03.py",
+      "backup_path": "verify-native-dependencies03.py.source",
+      "mode": "100644",
+      "bytes": 20292,
+      "sha256": "45d38cc36c7d7a2d846a52d9084e1dae810474936f024b654bb612e60061977d",
+      "blob": "2e41398e6c152ba9e67ad7b516e10696db9a0350"
+    },
+    {
+      "original_name": "precheck-actual-object-copy03.py",
+      "backup_path": "precheck-actual-object-copy03.py.source",
+      "mode": "100644",
+      "bytes": 2095,
+      "sha256": "592edff031fa252105a3139efa3c423d013449fde95e761d4bf8ceccc97159d2",
+      "blob": "ed67bc42512e3e00ba02796b012bb65465383cc9"
+    }
+  ],
+  "candidate_source_tree": "b227335c6503c8b9d2575802522758a308684be8",
+  "candidate_source_entries": 1849,
+  "original_budget_seconds": 1200,
+  "base_stage_identity_count": 26,
+  "candidate_stage_identity_count": 27,
+  "run01": "FAIL",
+  "run02": "PRELAUNCH_BLOCKED",
+  "run03_current_root_report": {
+    "status": "FAIL",
+    "owner_exit": 1,
+    "duration_seconds": 446.391855,
+    "all755_named_success": true,
+    "whole755_pass": false,
+    "inner_errors": [
+      "pretag_events_AssertionError"
+    ],
+    "source_and_kernel_closed": true,
+    "attribution": "Current actual closed run03 facts supplied by root before backup ref publication; no independent runtime execution or rawreport reproduction by backup agent."
+  },
+  "source_only": true,
+  "complete_run_packet": false,
+  "excluded": "runtime pins/closure reports/rawruntime/rawcommits/TLS/relocation and active work",
+  "attribution": "Current root-reported run03 failed; this backup agent does not poll root PTY or reproduce raw execution reports."
+}

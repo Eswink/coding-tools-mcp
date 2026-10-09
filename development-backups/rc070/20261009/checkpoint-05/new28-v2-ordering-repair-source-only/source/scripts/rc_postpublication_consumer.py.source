@@ -1,0 +1,177 @@
+"""Two fixed CI-only entrypoints; no publication permission or offline PASS input."""
+import argparse
+from contextlib import ExitStack
+import json
+import os
+from pathlib import Path
+import re
+import signal
+import sys
+import time
+
+
+def _windows_block():
+    # Do not import POSIX consumer IO on Windows, even to produce a fake owner.
+    print(json.dumps(dict(passed=False, status='NOT_RUN', error_code='windows_native_io_unavailable',
+                         release_approved=False, publish_approved=False)))
+    return 1
+
+
+def _number(value):
+    if not re.fullmatch(r'[1-9][0-9]{0,18}', value):
+        raise argparse.ArgumentTypeError('canonical positive decimal required')
+    return int(value)
+
+
+def _output(name, value):
+    from rc_consumer_io import need
+    need(type(name) is str and re.fullmatch('[a-z_]+', name) and type(value) is str
+         and '\r' not in value and '\n' not in value, 'invalid_post_output')
+    path = os.environ.get('GITHUB_OUTPUT', '')
+    need(path and os.path.isabs(path), 'missing_post_output')
+    with open(path, 'a', encoding='utf-8') as stream:
+        stream.write(name + '=' + value + '\n')
+
+
+def _receipt(directory, name, value):
+    from rc_consumer_io import _directory, need
+    parent = _directory(directory)
+    try:
+        pending = name + '.pending'
+        fd = os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+                     0o600, dir_fd=parent)
+        with os.fdopen(fd, 'wb') as output:
+            output.write((json.dumps(value, sort_keys=True, separators=(',', ':')) + '\n').encode())
+            output.flush()
+            os.fsync(output.fileno())
+        os.link(pending, name, src_dir_fd=parent, dst_dir_fd=parent, follow_symlinks=False)
+        os.unlink(pending, dir_fd=parent)
+        os.fsync(parent)
+    finally:
+        os.close(parent)
+
+
+def _host(environment):
+    from rc_consumer_io import need
+    need(environment.get('GITHUB_ACTIONS') == 'true'
+         and environment.get('RUNNER_ENVIRONMENT') == 'github-hosted'
+         and environment.get('GITHUB_REPOSITORY') == 'Eswink/coding-tools-mcp', 'post_host_not_disposable')
+
+
+def capture(root, request, controls, environment, evidence):
+    from dataclasses import asdict
+    from rc_consumer_io import need
+    from rc_postpublication_contract import transfer_name
+    from rc_postpublication_io import InputOwner
+    from rc_postpublication_reader import PublishedInputs
+    from rc_postpublication_source import original_stage, post_invocation
+    from rc_postpublication_transfer import TransferPayload, ReceivedInputs, metadata
+    parent = environment['RUNNER_TEMP']
+    with original_stage(root, request, environment.get('GH_TOKEN', ''), controls,
+                        temporary_parent=parent) as stage:
+        invocation = post_invocation(stage, controls, environment)
+        with PublishedInputs(stage, request, controls, temporary_parent=parent) as inputs:
+            with TransferPayload(inputs, request, invocation, controls, temporary_parent=parent) as payload:
+                with InputOwner(parent, root, controls, prefix='rc-post-control-') as control:
+                    control._root.write('ack', b'')
+                    _output('raw_directory', str(payload._owner._root.path))
+                    _output('ack_path', str(control._root.path / 'ack'))
+                    _output('transfer_name', transfer_name(invocation))
+                    _receipt(evidence, 'ready.json', dict(schema=1, ready=True, run_id=invocation.run_id,
+                             run_attempt=invocation.run_attempt, release_approved=False, publish_approved=False))
+                    while True:
+                        controls.check()
+                        ack = control._root.read('ack', 32)
+                        if ack:
+                            break
+                        time.sleep(0.05)
+                    need(re.fullmatch(rb'[1-9][0-9]{0,18}', ack) is not None, 'invalid_post_ack')
+                    artifact, expected = metadata(stage, invocation, int(ack), controls, complete=False)
+                    with ReceivedInputs(stage, request, invocation, expected, controls,
+                                        temporary_parent=parent, complete=False):
+                        payload.revalidate()
+        # All six public roots, copied upload input, control and ZIP roots have
+        # retired. The original reference stage still fences source and closes.
+        stage.revalidate(**controls.budget)
+    value = dict(schema=1, passed=True, scope='public-bytes-and-transfer-only',
+        post_invocation=asdict(invocation), transfer=asdict(expected), owned_raw_cleanup_confirmed=True,
+        release_approved=False, publish_approved=False,
+        installation_status='NOT_RUN', native_authority_composition='UNKNOWN')
+    _receipt(evidence, 'capture.json', value)
+    return value
+
+
+def receive(root, request, expected, controls, environment, evidence, kind):
+    from rc_postpublication_source import original_stage, post_invocation
+    from rc_postpublication_transfer import ReceivedInputs
+    from rc_postpublication_install import install
+    import platform
+    host = platform.freedesktop_os_release()
+    from rc_consumer_io import need
+    need(host.get('ID') == 'ubuntu' and host.get('VERSION_ID') in ('22.04', '24.04'),
+         'post_linux_host_mismatch')
+    current = 'Postpublication ubuntu-' + host['VERSION_ID'] + ' (' + kind + ')'
+    parent = environment['RUNNER_TEMP']
+    with original_stage(root, request, environment.get('GH_TOKEN', ''), controls,
+                        temporary_parent=parent) as stage:
+        invocation = post_invocation(stage, controls, environment, current_job=current)
+        with ReceivedInputs(stage, request, invocation, expected, controls,
+                            temporary_parent=parent) as inputs:
+            result = install(stage, inputs, controls, environment, evidence, kind, invocation)
+            inputs.revalidate()
+        stage.revalidate(**controls.budget)
+    result['owned_raw_cleanup_confirmed'] = True
+    _receipt(evidence, 'post-install.json', result)
+    return result
+
+
+def main():
+    if os.name == 'nt':
+        return _windows_block()
+    from rc_consumer_io import ConsumerError, need
+    from rc_postpublication_contract import TransferExpectation, request_bytes
+    from rc_postpublication_source import ReadController
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('mode', choices=('capture', 'receive'))
+    parser.add_argument('--evidence-directory', required=True)
+    parser.add_argument('--kind', choices=('deb', 'appimage'))
+    parser.add_argument('--artifact-id', type=_number)
+    parser.add_argument('--artifact-size', type=_number)
+    parser.add_argument('--artifact-sha256')
+    args = parser.parse_args()
+    controls, result = None, None
+    try:
+        environment = os.environ
+        _host(environment)
+        parent = environment.get('RUNNER_TEMP', '')
+        evidence = os.path.abspath(args.evidence_directory)
+        need(parent and os.path.isabs(parent) and os.path.commonpath((parent, evidence)) == parent
+             and evidence != parent, 'invalid_post_evidence_directory')
+        need(os.path.isdir(evidence) and not os.path.islink(evidence), 'invalid_post_evidence_directory')
+        request = request_bytes(sys.stdin.buffer.read(256 * 1024 + 1))
+        controls = ReadController()
+        signal.signal(signal.SIGTERM, lambda *_: controls.cancel())
+        root = Path(__file__).absolute().parents[1]
+        if args.mode == 'capture':
+            need(args.kind is None and args.artifact_id is None and args.artifact_size is None
+                 and args.artifact_sha256 is None, 'invalid_post_cli')
+            result = capture(root, request, controls, environment, evidence)
+        else:
+            need(args.kind is not None, 'invalid_post_cli')
+            expected = TransferExpectation(args.artifact_id, args.artifact_size, args.artifact_sha256)
+            result = receive(root, request, expected, controls, environment, evidence, args.kind)
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    except BaseException as error:
+        code = error.code if isinstance(error, ConsumerError) else 'post_consumer_failed'
+        value = dict(schema=1, passed=False, status='NOT_RUN', error_code=code,
+                     release_approved=False, publish_approved=False)
+        print(json.dumps(value, sort_keys=True))
+        return 1
+    finally:
+        if controls is not None:
+            controls.close()
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

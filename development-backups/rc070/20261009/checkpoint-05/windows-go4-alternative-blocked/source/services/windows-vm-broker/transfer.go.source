@@ -1,0 +1,96 @@
+package main
+
+// Exact bounded transfer data only. No native host grant or closure issuer.
+import (
+    "bytes"
+    "context"
+    "crypto/sha256"
+    "encoding/binary"
+    "errors"
+    "io"
+    "strings"
+    "unicode"
+    "unicode/utf16"
+    "unicode/utf8"
+)
+
+type transferBinding struct {
+    host, profile, caller, source, session, operation string
+    inputRelative, outputParent, outputLeaf string
+}
+func transferUUID(s string) bool {
+    return len(s) == 36 && s[8] == '-' && s[13] == '-' && s[18] == '-' && s[23] == '-' &&
+        guestControlHex(strings.ReplaceAll(s, "-", ""), 32) && strings.ReplaceAll(s, "-", "") != strings.Repeat("0", 32)
+}
+func transferLabel(s string, maximum int) bool {
+    if s == "" || len(s) > maximum || !utf8.ValidString(s) { return false }
+    for _, r := range s { if unicode.IsControl(r) { return false } }
+    return true
+}
+func transferRelative(s string) bool {
+    if !transferLabel(s, 4096) { return false }
+    parts := strings.FieldsFunc(s, func(r rune) bool { return r == '/' || r == '\\' })
+    if len(parts) == 0 || len(parts) > 64 || strings.HasPrefix(s, "/") || strings.HasPrefix(s, "\\") ||
+        strings.HasSuffix(s, "/") || strings.HasSuffix(s, "\\") { return false }
+    // FieldsFunc removes empty components, so explicitly reject separators next to each other.
+    lastSeparator := false
+    for _, r := range s {
+        separator := r == '/' || r == '\\'
+        if separator && lastSeparator { return false }; lastSeparator = separator
+    }
+    for _, part := range parts {
+        if part == "." || part == ".." || len(utf16.Encode([]rune(part))) > 255 ||
+            strings.HasSuffix(part, ".") || strings.HasSuffix(part, " ") || strings.ContainsAny(part, ":<>\"|?*") { return false }
+        base := strings.ToUpper(strings.TrimRight(strings.Split(part, ".")[0], " "))
+        switch base { case "CON", "PRN", "AUX", "NUL", "CLOCK$", "CONIN$", "CONOUT$": return false }
+        for _, prefix := range []string{"COM", "LPT"} {
+            if strings.HasPrefix(base, prefix) && strings.Contains("123456789¹²³", strings.TrimPrefix(base, prefix)) &&
+                len([]rune(strings.TrimPrefix(base, prefix))) == 1 { return false }
+        }
+    }
+    return true
+}
+func (b transferBinding) valid() bool {
+    return transferUUID(b.host) && transferUUID(b.session) && transferUUID(b.operation) &&
+        transferLabel(b.profile, 128) && transferLabel(b.caller, 256) && guestControlHex(b.source, 40) &&
+        transferRelative(b.inputRelative) && transferRelative(b.outputParent) && transferRelative(b.outputLeaf) &&
+        !strings.ContainsAny(b.outputLeaf, "/\\")
+}
+func (b transferBinding) digest() ([32]byte, error) {
+    if !b.valid() { return [32]byte{}, errors.New("transfer binding rejected") }
+    var data bytes.Buffer
+    data.WriteString("CTM-DATA-BINDING-1")
+    for _, field := range []string{b.host, b.profile, b.caller, b.source, b.session, b.operation, b.inputRelative, b.outputParent, b.outputLeaf} {
+        var size [4]byte; binary.LittleEndian.PutUint32(size[:], uint32(len(field)))
+        data.Write(size[:]); data.WriteString(field)
+    }
+    return sha256.Sum256(data.Bytes()), nil
+}
+type detachedTransfer struct {
+    binding transferBinding
+    data []byte
+    digest [32]byte
+    ctx context.Context
+    consumed bool
+}
+func receiveTransfer(ctx context.Context, binding transferBinding, total uint64, digest [32]byte, reader io.Reader) (*detachedTransfer, error) {
+    hash, err := binding.digest()
+    if err != nil { return nil, err }
+    stream, err := newWorkspaceStream(ctx, workspaceStreamManifest{binding: hash, direction: 1, total: total, digest: digest})
+    if err != nil { return nil, err }
+    if err = stream.readAll(reader, nil); err != nil { return nil, err }
+    data, err := stream.dataCopy()
+    if err != nil { return nil, err }
+    return &detachedTransfer{binding: binding, data: data, digest: digest, ctx: ctx}, nil
+}
+func (t *detachedTransfer) take(binding transferBinding) ([]byte, error) {
+    if t == nil || t.ctx == nil || t.ctx.Err() != nil || t.consumed || t.binding != binding ||
+        !binding.valid() || len(t.data) > workspaceMaximum || sha256.Sum256(t.data) != t.digest {
+        return nil, errors.New("detached transfer unavailable")
+    }
+    t.consumed = true
+    data := bytes.Clone(t.data)
+    if t.ctx.Err() != nil { return nil, errors.New("transfer cancelled before handoff") }
+    // The original owner is retained; consuming bytes still gives no native permission.
+    return data, nil
+}

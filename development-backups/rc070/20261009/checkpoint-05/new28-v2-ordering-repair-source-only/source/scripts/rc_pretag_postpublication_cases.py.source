@@ -1,0 +1,323 @@
+"""Twelve finite current-source postpublication composition cases; no installation."""
+import ast
+from collections import Counter
+import copy
+import hashlib
+import json
+import os
+from types import SimpleNamespace
+import unittest
+from unittest.mock import patch
+import rc_pretag_composition_tests as c
+import rc_pretag_ownership_profile as o
+import rc_pretag_publication_profile as p
+import rc_pretag_publication_tests as pt
+import rc_pretag_linux_package_cases as lc
+import rc_pretag_windows_launch_profile as windows
+import rc_pretag_windows_launch_cases as old
+import rc_pretag_postpublication_profile as x
+
+P_BINDING = ('c60f9667fa8431e27fabbc497c19b4abfef5b965', '064252014dc0ad3c3882fbd5aef1968b083f8bb0', ('110b4febbbcdab0138e2d28de2a53e2f2d61d7d6',))
+CLASS = 'rc_pretag_postpublication_cases.PostpublicationCompositionCases'
+TESTS = (
+    'test_actual_d6_parent_identity_and_fresh_source_validation',
+    'test_exact_ordered_candidate_integration_release_views',
+    'test_wrong_same_tree_and_descendant_topologies_reject',
+    'test_all_twenty_eight_paths_modes_pins_and_entry_count',
+    'test_exact_individual_and_total_caps_reject',
+    'test_complete_ten_modified_file_inverses_recover_d6',
+    'test_old_profiles_caps_pins_and_methods_remain_frozen',
+    'test_missing_duplicate_binary_outside_inverse_edits_reject',
+    'test_selected_parent_and_release_errors_are_terminal',
+    'test_current_candidate_validation_has_no_cache',
+    'test_original1609_strict303_consumer452_and_new48_ids_bound',
+    'test_readonly_workflow_named_inventory_and_exceptional_outcomes',
+)
+DIGEST = '29a71d40237db06834656bd3d17924f87a4fbf0776d0f71aafc30dac59c14b8a'
+POST_CLASSES = ('rc_postpublication_cases.PostpublicationCases', 'rc_postpublication_process_cases.PostProcessCases', 'rc_postpublication_process_cases.PostOwnedProcessCases', 'rc_postpublication_transfer_cases.PostTransferCases')
+WORKFLOW = '.github/workflows/issue88-postpublication-owned-checks.yml'
+
+
+def _canonical(names):
+    return json.dumps(sorted(names), separators=(',', ':')).encode()
+
+
+def _digest(names):
+    return hashlib.sha256(_canonical(names)).hexdigest()
+
+
+def inventory():
+    expected = [CLASS + '.' + name for name in TESTS]
+    actual = [test.id() for test in c._flatten(unittest.defaultTestLoader.loadTestsFromName(CLASS))]
+    assert len(expected) == len(set(expected)) == len(actual) == 12 and Counter(actual) == Counter(expected)
+    assert _digest(actual) == DIGEST
+    return expected
+
+
+def execution_valid(loaded, result):
+    expected = inventory()
+    assert Counter(loaded) == Counter(expected) and len(loaded) == 12
+    executed = getattr(result, 'executed_ids', [])
+    assert Counter(executed) == Counter(expected) and len(executed) == 12
+    return (result.wasSuccessful() and result.testsRun == 12 and not result.skipped
+            and not result.expectedFailures and not result.unexpectedSuccesses)
+
+
+def methods(data):
+    return {(cls.name, n.name): n for cls in ast.parse(data).body if isinstance(cls, ast.ClassDef)
+            for n in cls.body if isinstance(n, ast.FunctionDef)}
+
+
+def assertions(node):
+    return Counter(ast.dump(n) for n in ast.walk(node) if isinstance(n, ast.Call)
+                   and isinstance(n.func, ast.Attribute) and (n.func.attr.startswith('assert') or n.func.attr == 'fail'))
+
+
+class PostpublicationCompositionCases(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        x.require_sealed()
+        cls.fixture = c._profile_fixture()
+        cls.repo, _, commit, blob = cls.fixture.__enter__()
+        cls.addClassCleanup(cls.fixture.__exit__, None, None, None)
+        cls.commit, cls.blob = staticmethod(commit), staticmethod(blob)
+
+    def setUp(self):
+        self.original = c._entries(x.P, self.repo)
+        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in x.CAPS}
+        self.pure = self.commit([x.P], self.good)
+        self.feature = self.commit([windows.M, self.pure], self.good)
+        self.overlay = self.good | c.RELEASE_DOCS
+        self.release = self.commit([p.R, self.feature], self.overlay)
+        self.args = (self.repo, c._git, c._entries, c._feature_profile, c.RELEASE, c.RELEASE_TREE, dict(c.RELEASE_DOCS))
+
+    def content(self):
+        return x.content(self.pure, *self.args)
+
+    def frozen(self, path):
+        return c._git('cat-file', 'blob', self.original[path][2], root=self.repo)
+
+    def changed(self, path, data):
+        return self.good | {path: ('100644', 'blob', self.blob(data))}
+
+    def bad_content(self, entries, parents=None):
+        ref = self.commit([x.P] if parents is None else parents, entries)
+        x.topology(ref, self.repo, c._git, p.R)
+        with self.assertRaises(AssertionError):
+            p.selected_profile(ref, *self.args)
+
+    def test_actual_d6_parent_identity_and_fresh_source_validation(self):
+        self.assertEqual((x.P, x.P_TREE, x.P_PARENTS), P_BINDING)
+        self.assertEqual(c._git('cat-file', 'commit', x.P, root=self.repo), x.P_RAW_BYTES)
+        self.assertEqual(windows.select(x.P, *self.args), self.original)
+        self.assertIsNone(x.select(x.P, *self.args))
+        with patch.object(windows, 'content', wraps=windows.content) as parent:
+            self.assertEqual(self.content(), self.good)
+            self.assertEqual(self.content(), self.good)
+            self.assertEqual(parent.call_count, 2)
+        for command, replacement in ((('show', '-s', '--format=%P', x.P), b'\n'),
+                (('rev-parse', x.P + '^{tree}'), b'0' * 40), (('cat-file', 'commit', x.P), b'unbound commit')):
+            def altered(*args, root):
+                return replacement if args == command else c._git(*args, root=root)
+            with self.assertRaises(AssertionError):
+                x.select(self.pure, self.repo, altered, *self.args[2:])
+
+    def test_exact_ordered_candidate_integration_release_views(self):
+        for ref, expected in ((self.pure, self.good), (self.feature, self.good), (self.release, self.overlay)):
+            self.assertEqual(p.selected_profile(ref, *self.args), expected)
+        self.assertEqual(x.topology(self.release, self.repo, c._git, p.R), ('release', self.feature, self.pure))
+        self.assertEqual((windows.M, windows.M_TREE, len(c.RELEASE_DOCS)), ('13cd343d942b7a68912d42a8f9235c02ed647764', 'f2be2e09cca27081cccad11d94ed29858b955df9', 4))
+        self.assertEqual(set(self.overlay) - set(self.good), set())
+        self.bad_content(self.changed('unreviewed.txt', b'extra'), [windows.M, self.pure])
+        for path in c.RELEASE_DOCS:
+            self.bad_content(self.overlay | {path: self.good[path]}, [p.R, self.feature])
+            self.bad_content({k: v for k, v in self.overlay.items() if k != path}, [p.R, self.feature])
+            self.bad_content(self.overlay | {path: ('100755', *self.overlay[path][1:])}, [p.R, self.feature])
+
+    def test_wrong_same_tree_and_descendant_topologies_reject(self):
+        same_tree_parent = self.commit([], self.original)
+        nested = self.commit([self.pure], self.good)
+        for parents in ([], [self.pure], [same_tree_parent], [x.P, x.P], [x.P, self.pure],
+                [self.pure, windows.M], [windows.M, self.pure, p.R], [windows.M, self.feature],
+                [windows.M, nested], [p.R], [p.R, self.pure], [self.feature, p.R], [p.R, self.release]):
+            ref = self.commit(parents, self.good)
+            with self.assertRaises(o.TopologyError):
+                x.topology(ref, self.repo, c._git, p.R)
+            with patch.object(x, 'content') as selected:
+                self.assertIsNone(x.select(ref, *self.args))
+            selected.assert_not_called()
+            with self.assertRaises(AssertionError):
+                p.selected_profile(ref, *self.args)
+
+    def test_all_twenty_eight_paths_modes_pins_and_entry_count(self):
+        self.assertEqual(self.content(), self.good)
+        self.assertEqual((len(self.original), len(self.good), len(x.CAPS), len(x.BASE_PINS), len(x.SOURCE_PINS)), (1849, 1867, 28, 10, 27))
+        self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
+        for path, row in x.SOURCE_PINS.items():
+            data = (c.ROOT / path).read_bytes()
+            self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())))
+            self.bad_content(self.good | {path: ('100755', *self.good[path][1:])})
+            self.bad_content(self.changed(path, data + b'# outside\n'))
+        self.bad_content({k: v for k, v in self.good.items() if k != x.PROFILE})
+        self.bad_content(self.changed('src-tauri/src/tools/native_drain.rs', b'outside'))
+
+    def test_exact_individual_and_total_caps_reject(self):
+        self.assertEqual(x.DELTA_LIMIT, 4600)
+        data = {path: (c.ROOT / path).read_bytes() for path in x.CAPS}
+        def budgets(git=c._git):
+            return p.authenticated._budgets(self.pure, x.P, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'postpublication_delta_budget')
+        budgets()
+        for path, (_, delta) in x.CAPS.items():
+            with patch.dict(x.CAPS, {path: (len(data[path].splitlines()) - 1, delta)}), self.assertRaises(AssertionError):
+                budgets()
+            for row in (f'{delta + 1}\t0\t{path}\n'.encode(), b'', b'-\t-\t' + path.encode(), b'1\t0', f'-1\t0\t{path}\n'.encode()):
+                def malformed(*args, root):
+                    return row if args == ('diff', '--numstat', x.P, self.pure, '--', path) else c._git(*args, root=root)
+                with self.assertRaises(AssertionError):
+                    budgets(malformed)
+        def malformed(*args, root):
+            if len(args) == 6 and args[:4] == ('diff', '--numstat', x.P, self.pure):
+                return f'{x.CAPS[args[5]][1]}\t0\t{args[5]}\n'.encode()
+            return c._git(*args, root=root)
+        self.assertGreater(sum(delta for cap, delta in x.CAPS.values()), x.DELTA_LIMIT)
+        with self.assertRaisesRegex(AssertionError, 'postpublication_delta_budget'):
+            budgets(malformed)
+
+    def test_complete_ten_modified_file_inverses_recover_d6(self):
+        self.assertEqual(x.FRAGMENTS.keys(), x.BASE_PINS.keys())
+        for path in x.BASE_PINS:
+            current, frozen = (c.ROOT / path).read_bytes(), self.frozen(path)
+            with patch('builtins.open', side_effect=AssertionError('IO')), patch('io.open', side_effect=AssertionError('IO')), patch('subprocess.Popen', side_effect=AssertionError('process')):
+                self.assertEqual(x.normalize(path, current), frozen, path)
+                self.assertEqual(x.normalize(path, frozen), frozen, path)
+        self.assertEqual(x.normalize('unmapped', b'unchanged'), b'unchanged')
+        self.assertEqual((len(x.IDENTITY_PINS), sum(row == x.BASE_PINS[path] for path, row, anchor in x.IDENTITY_PINS)), (26, 10))
+        for path, row, anchor in x.IDENTITY_PINS:
+            raw = c._git('cat-file', 'blob', row[1], root=self.repo)
+            self.assertEqual(x.normalize(path, raw), raw)
+            self.assertEqual(c._entries(anchor, self.repo)[path], (row[0], 'blob', row[1]))
+            for dirty in (raw + b'# outside\n', b'\xff' + raw):
+                with self.assertRaises(AssertionError):
+                    x.normalize(path, dirty)
+
+    def test_old_profiles_caps_pins_and_methods_remain_frozen(self):
+        self.assertEqual((len(windows.CAPS), len(windows.SOURCE_PINS), windows.DELTA_LIMIT), (26, 25, 3800))
+        for path in self.original:
+            if path.startswith('scripts/rc_pretag_') and path.endswith('_profile.py'):
+                self.assertEqual(x.normalize(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
+        for path in x.BASE_PINS:
+            current = (c.ROOT / path).read_bytes()
+            self.assertEqual(x.normalize(path, current), self.frozen(path))
+        path = 'scripts/rc_pretag_windows_launch_cases.py'
+        original = methods(self.frozen(path)); restored = methods(x.normalize(path, (c.ROOT / path).read_bytes()))
+        self.assertEqual(len(original), 20)
+        self.assertEqual(sum(sum(assertions(node).values()) for node in original.values()), 105)
+        self.assertEqual(original.keys(), restored.keys())
+        for key in original:
+            self.assertEqual(ast.dump(original[key]), ast.dump(restored[key]), key)
+            self.assertEqual(assertions(original[key]), assertions(restored[key]), key)
+        current_methods = methods((c.ROOT / path).read_bytes())
+        self.assertEqual(current_methods.keys(), original.keys())
+        for key, node in current_methods.items():
+            adjusted = copy.deepcopy(node)
+            for owner in ast.walk(adjusted):
+                for field, value in ast.iter_fields(owner):
+                    values = value if isinstance(value, list) else [value]
+                    for index, child in enumerate(values):
+                        if isinstance(child, ast.Call) and isinstance(child.func, ast.Name) and child.func.id == 'postpublication_bytes':
+                            self.assertEqual((len(child.args), child.keywords), (2, []))
+                            if isinstance(value, list): value[index] = child.args[1]
+                            else: setattr(owner, field, child.args[1])
+                        elif isinstance(child, ast.Call) and isinstance(child.func, ast.Name) and child.func.id == 'postpublication_bytes_then_windows':
+                            child.func = ast.Attribute(value=ast.Name(id='x', ctx=ast.Load()), attr='normalize', ctx=ast.Load())
+            self.assertEqual(ast.dump(adjusted), ast.dump(original[key]), key)
+            self.assertEqual(assertions(adjusted), assertions(original[key]), key)
+        current = (c.ROOT / path).read_text()
+        for negative in ("x.normalize('unmapped', b'unchanged')", 'x.normalize(path, frozen)', 'x.normalize(path, bad)', 'x.normalize(path, data)', "(None, b'x'), (x.DISPATCHER, 'text')"):
+            self.assertIn(negative, current)
+        for path in ('scripts/rc_publication_executor.py', 'scripts/rc_pretag_policy.py', 'scripts/rc_pretag_contract.py'):
+            if path in self.original:
+                self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path))
+
+    def test_missing_duplicate_binary_outside_inverse_edits_reject(self):
+        for path, fragments in x.FRAGMENTS.items():
+            current = (c.ROOT / path).read_bytes()
+            altered = [current + b'# outside\n', b'\xff']
+            for before, _ in fragments:
+                self.assertEqual(current.count(before), 1)
+                altered.extend((current.replace(before, b'', 1), current.replace(before, before + before, 1)))
+            for data in altered:
+                with self.assertRaises(AssertionError):
+                    x.normalize(path, data)
+        with self.assertRaises(AssertionError):
+            x.normalize(None, b'unchanged')
+        with self.assertRaises(AssertionError):
+            x.normalize('unmapped', 'text')
+
+    def test_selected_parent_and_release_errors_are_terminal(self):
+        with patch.object(windows, 'select', side_effect=AssertionError('actual parent failed')), patch.object(p, 'selected_profile', wraps=p.selected_profile), self.assertRaisesRegex(AssertionError, 'actual parent failed'):
+            p.selected_profile(self.pure, *self.args)
+        with patch.object(o, 'release_content', side_effect=AssertionError('release failed')), self.assertRaisesRegex(AssertionError, 'release failed'):
+            p.selected_profile(self.release, *self.args)
+        self.bad_content(self.changed('scripts/rc_packages.py', b'current source failed'))
+        with self.assertRaisesRegex(AssertionError, 'selected release anchor'):
+            x.topology(self.pure, self.repo, c._git, '0' * 40)
+
+    def test_current_candidate_validation_has_no_cache(self):
+        with patch.object(windows, 'content', wraps=windows.content) as parent:
+            self.assertEqual(self.content(), self.good)
+            self.bad_content(self.changed('scripts/rc_postpublication_contract.py', b'changed'))
+            self.assertEqual(parent.call_count, 1)
+        with patch.object(windows, 'select', side_effect=AssertionError('parent cannot consume dirty current')) as parent:
+            self.bad_content(self.changed('scripts/rc_postpublication_contract.py', b'changed'))
+            parent.assert_not_called()
+        runtime = ast.parse((c.ROOT / x.PROFILE).read_bytes())
+        self.assertFalse(any('cache' in (getattr(n, 'id', getattr(n, 'attr', getattr(n, 'name', ''))) or '') for n in ast.walk(runtime)))
+
+    def test_original1609_strict303_consumer452_and_new48_ids_bound(self):
+        original = [item for group in lc.GROUPS for item in lc.inventory(group)] + lc.ids('rc_pretag_yoke_repair_cases.YokeRepairCompositionTests')
+        modules = ('rc_pretag_publisher_executor_cases', 'rc_pretag_integration_admission_cases', 'rc_pretag_final_admission_cases', 'rc_pretag_download_budget_cases', 'rc_pretag_staging_budget_cases', 'rc_pretag_checksum_budget_cases', 'rc_pretag_archive_budget_cases', 'rc_pretag_staged_bytes_cases', 'rc_pretag_supervisor_readiness_cases', 'rc_pretag_stage_retirement_cases', 'rc_pretag_git_budget_cases', 'rc_pretag_windows_vm_cases', 'rc_pretag_source_observation_cases', 'rc_pretag_windows_launch_cases')
+        flow = [name for module in modules for name in __import__(module).inventory()]
+        original += flow
+        self.assertEqual((len(original), len(set(original)), len(flow), len(set(flow))), (1609, 1609, 425, 425))
+        post = [test.id() for cls in POST_CLASSES for test in c._flatten(unittest.defaultTestLoader.loadTestsFromName(cls))]
+        self.assertEqual((len(post), len(set(post))), (48, 48))
+        self.assertFalse(set(post) & set(original + inventory()))
+        self.assertEqual((len(set(original + post + inventory())), len(set(flow + post + inventory()))), (1669, 485))
+        strict = [test.id() for test in c._flatten(unittest.defaultTestLoader.discover(str(c.ROOT / 'scripts'), pattern='rc_pretag*_tests.py'))]
+        pt.inventory_ids(strict, 303, '0ecc366c2018a6a1e20d3f59ed9ca66645d9334324cd517682894cabde923125')
+        method = next(n for n in ast.walk(ast.parse(c._git('show', windows.M + ':' + p.TESTS, root=self.repo))) if isinstance(n, ast.FunctionDef) and n.name == 'test_protected_source_versions_gates_workflows_and_old_452_are_unchanged')
+        modules = ast.literal_eval(method.body[0].value.func.value).split()
+        consumer = [name for module in modules for name in lc.ids(module) if name.split('.', 1)[0] == module]
+        pt.inventory_ids(consumer, 452, 'd01db4e6cd605c6636423e27c8c0409e90aba217cc0e6930474f59a24b57f372')
+        self.assertEqual(len(set(strict + consumer)), 755)
+
+    def test_readonly_workflow_named_inventory_and_exceptional_outcomes(self):
+        text = (c.ROOT / WORKFLOW).read_text()
+        self.assertLessEqual(len(text.splitlines()), 480)
+        for fragment in ("branches: ['ci/issue88-postpublication-owned-*']", 'permissions:\n  contents: read', 'parents == [profile.P]', 'checked() == before', '485', 'strict303', 'consumer452', 'postpublication.inventory()', 'postpublication.execution_valid(loaded, result)', 'exact 38 executed outcomes required', "'production_ready': False"):
+            self.assertIn(fragment, text)
+        for forbidden in ('secrets.', 'GH_TOKEN', 'GITHUB_TOKEN', 'contents: write', 'workflow_dispatch:', 'pull_request:', 'gh release', 'curl ', 'pip install'):
+            self.assertNotIn(forbidden, text)
+        loaded = inventory()
+        good = dict(executed_ids=loaded, testsRun=12, skipped=[], expectedFailures=[], unexpectedSuccesses=[], wasSuccessful=lambda: True)
+        self.assertTrue(execution_valid(loaded, SimpleNamespace(**good)))
+        for field, value in (('skipped', [('id', 'reason')]), ('expectedFailures', [('id', 'failure')]), ('unexpectedSuccesses', ['id']), ('testsRun', 11), ('wasSuccessful', lambda: False)):
+            self.assertFalse(execution_valid(loaded, SimpleNamespace(**(good | {field: value}))))
+        for invalid in (loaded[:-1], loaded + loaded[:1], loaded[:-1] + ['unknown']):
+            with self.assertRaises(AssertionError):
+                execution_valid(invalid, SimpleNamespace(**good))
+            with self.assertRaises(AssertionError):
+                execution_valid(loaded, SimpleNamespace(**(good | {'executed_ids': invalid})))
+
+
+def main():
+    suite = unittest.defaultTestLoader.loadTestsFromNames(inventory())
+    loaded = [test.id() for test in c._flatten(suite)]
+    result = unittest.TextTestRunner(verbosity=2, resultclass=c.InventoryResult).run(suite)
+    print(json.dumps(dict(loaded_ids=loaded, executed_ids=result.executed_ids, loaded=len(loaded), executed=result.testsRun)))
+    return 0 if execution_valid(loaded, result) else 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

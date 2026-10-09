@@ -1,0 +1,156 @@
+"""Owned read-only controls, actual post invocation and the original stage."""
+from contextlib import contextmanager
+from dataclasses import asdict
+import math
+import os
+from pathlib import Path
+import re
+import threading
+import time
+
+from rc_consumer_io import ConsumerError, _check_budget, need
+from rc_consumer_fixed_git import Reader
+import rc_consumer_snapshot as snapshot
+import rc_publication_github as wire
+from rc_publication_stage import Selection, stage_selected
+from rc_postpublication_contract import CAPTURE_JOB, PostInvocation, WORKFLOW
+
+
+class ReadController:
+    """Process-local standalone read lifecycle; cannot issue publisher scopes."""
+    def __init__(self, *, seconds=900):
+        need(type(seconds) in (int, float) and math.isfinite(seconds) and 0 < seconds <= 900,
+             'invalid_post_deadline')
+        self._pid, self._thread = os.getpid(), threading.get_ident()
+        self._deadline = time.monotonic() + seconds
+        self._cancelled, self._closed = threading.Event(), False
+
+    def check(self):
+        if self._closed or self._cancelled.is_set():
+            raise wire.WireFailure('cancelled', 'none')
+        need((os.getpid(), threading.get_ident()) == (self._pid, self._thread), 'post_owner_changed')
+        if time.monotonic() >= self._deadline:
+            raise wire.WireFailure('timeout', 'none')
+
+    def cancel(self):
+        self._cancelled.set()
+
+    def close(self):
+        self._closed = True
+
+    @property
+    def budget(self):
+        self.check()
+        return dict(deadline=self._deadline, check_active=self.check)
+
+
+class _ReferenceAPI:
+    """Fixed unbound native GET; caller cannot replace the permanent controls.
+
+    This is a read budget adapter, not credential permission evidence or a
+    PublisherSession/ReadScope. Future native/StageAPI union must revalidate it.
+    """
+    def __init__(self, api, selection, controls):
+        need(type(api) is wire.GitHub and type(selection) is Selection
+             and api.selection is selection and type(controls) is ReadController,
+             'invalid_post_reference')
+        self._api, self._selection, self._controls = api, selection, controls
+        self._token = api.token
+
+    @property
+    def token(self):
+        # Existing supervised Actions worker consumes the real same-client token.
+        # This read-only bridge is not bearer permission/issuer evidence.
+        self._controls.check()
+        need(type(self._api) is wire.GitHub and not self._api._closed
+             and self._api.selection is self._selection and self._api.token == self._token,
+             'post_reference_changed')
+        return self._token
+
+    def get(self, suffix, *, deadline=None, check_active=None):
+        owned = self._controls
+        owned.check()
+        self.token
+        actual = owned._deadline
+        if deadline is not None:
+            need(type(deadline) in (int, float) and math.isfinite(deadline), 'invalid_post_deadline')
+            actual = min(actual, deadline)
+        def poll():
+            owned.check()
+            self.token
+            _check_budget(actual, check_active)
+            self.token
+        return wire.GitHub.get(self._api, suffix, deadline=actual, check_active=poll)
+
+
+@contextmanager
+def original_stage(root, request, token, controls, *, temporary_parent):
+    """Authenticate original source/runs/ZIP bytes; expectation data is not PASS."""
+    from rc_postpublication_contract import CaptureRequest
+    need(type(request) is CaptureRequest and type(controls) is ReadController,
+         'invalid_post_request')
+    request.__post_init__()
+    # Stage owns its canonical deep-copied selection. Construct the actual
+    # native read client against that exact object before first stage entry.
+    stage = stage_selected(root, request.selection, None, temporary_parent=temporary_parent,
+                           **controls.budget)
+    selected = stage._selection
+    native = wire.GitHub(token, selected)
+    api = _ReferenceAPI(native, selected, controls)
+    stage._api = api
+    try:
+        with stage:
+            yield stage
+    finally:
+        wire.GitHub.close(native)
+
+
+def _decimal(value):
+    need(type(value) is str and re.fullmatch(r'[1-9][0-9]{0,18}', value), 'invalid_post_environment')
+    return int(value)
+
+
+def post_invocation(stage, controls, environment, *, current_job=CAPTURE_JOB):
+    """Authenticate a current live post run; never require its own future success."""
+    controls.check()
+    source, api = stage.subject.source, stage._api
+    ref = environment.get('GITHUB_REF')
+    run_id, attempt = (_decimal(environment.get(k)) for k in ('GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT'))
+    need(run_id not in {r.run_id for r in stage.subject.runs}, 'post_run_reused')
+    need(environment.get('GITHUB_EVENT_NAME') == 'workflow_dispatch'
+         and environment.get('GITHUB_REPOSITORY') == source.repository
+         and _decimal(environment.get('GITHUB_REPOSITORY_ID')) == source.repository_id
+         and environment.get('GITHUB_SHA') == environment.get('GITHUB_WORKFLOW_SHA') == source.source_sha
+         and environment.get('GITHUB_WORKFLOW_REF') == source.repository + '/' + WORKFLOW + '@' + str(ref),
+         'invalid_post_environment')
+    workflow = api.get('/actions/workflows/' + Path(WORKFLOW).name)
+    need(type(workflow) is dict and workflow.get('path') == WORKFLOW
+         and type(workflow.get('id')) is int and workflow['id'] > 0, 'post_workflow_mismatch')
+    run = api.get('/actions/runs/' + str(run_id))
+    observed = snapshot._run(run, source.repository_id)
+    need((observed['id'], observed['run_attempt'], observed['workflow_id'], observed['path'],
+          observed['head_sha'], observed['event']) ==
+         (run_id, attempt, workflow['id'], WORKFLOW, source.source_sha, 'workflow_dispatch')
+         and ref in ('refs/heads/' + observed['head_branch'], 'refs/tags/' + observed['head_branch'])
+         and run.get('status') == 'in_progress' and run.get('conclusion') is None,
+         'post_run_mismatch')
+    direct = api.get(f'/actions/runs/{run_id}/attempts/{attempt}')
+    need(snapshot._run(direct, source.repository_id) == observed, 'post_attempt_changed')
+    jobs = snapshot.gate.paginate(api, f'/actions/runs/{run_id}/attempts/{attempt}/jobs', 'jobs')
+    captures = [j for j in jobs if type(j) is dict and j.get('name') == CAPTURE_JOB]
+    current = [j for j in jobs if type(j) is dict and j.get('name') == current_job]
+    need(len(captures) == len(current) == 1, 'post_job_inventory')
+    for job in (captures[0], current[0]):
+        need(type(job.get('id')) is int and 0 < job['id'] < 2**63
+             and type(job.get('run_id')) is int and job['run_id'] == run_id
+             and type(job.get('run_attempt')) is int and job['run_attempt'] == attempt
+             and job.get('head_sha') == source.source_sha, 'post_job_mismatch')
+    need(current[0].get('status') == 'in_progress' and current[0].get('conclusion') is None,
+         'post_current_job_not_active')
+    with Reader(stage._root, **controls.budget) as git:
+        descriptor = snapshot.gate.reviewed._blob(stage._root, source.source_sha, WORKFLOW, git)
+    need(descriptor is not None and descriptor['mode'] == '100644', 'post_workflow_source_missing')
+    value = PostInvocation(source, run_id, attempt, workflow['id'],
+                           environment['GITHUB_WORKFLOW_REF'], descriptor['blob_sha'], ref, captures[0]['id'])
+    controls.check()
+    return value

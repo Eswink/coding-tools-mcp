@@ -1,0 +1,29 @@
+"""Original fixture helper object-copy admission only; no TestCase runs."""
+from pathlib import Path
+import hashlib, json, os, subprocess, sys
+root = Path(sys.argv[1]).resolve()
+proof = json.loads(Path(sys.argv[2]).read_bytes())
+out = Path(sys.argv[3]).resolve()
+sys.path.insert(0, str(root / 'scripts'))
+import rc_pretag_composition_tests as composition
+assert composition.ROOT == root
+checked = []
+with composition._profile_fixture() as (fixture, candidate, commit, blob):
+    assert not (fixture / '.git/objects/info/alternates').exists()
+    for oid, row in proof['roots'].items():
+        raw = subprocess.check_output(['/usr/bin/git', 'cat-file', 'commit', oid], cwd=fixture, timeout=30)
+        assert hashlib.sha1(b'commit ' + str(len(raw)).encode() + b'\0' + raw).hexdigest() == oid
+        assert hashlib.sha256(raw).hexdigest() == row['raw_sha256']
+        checked.append(oid)
+    for row in proof['release_documents']:
+        raw = subprocess.check_output(['/usr/bin/git', 'cat-file', 'blob', row['blob']], cwd=fixture, timeout=30)
+        assert (len(raw), hashlib.sha256(raw).hexdigest()) == (row['bytes'], row['sha256'])
+    entries = composition._entries(candidate, fixture)
+    entries.update(composition.RELEASE_DOCS)
+    release = commit([composition.RELEASE, candidate], entries)
+    actual = composition._entries(release, fixture)
+    assert all(actual[path] == row for path, row in composition.RELEASE_DOCS.items())
+assert len(checked) == 27
+with out.open('x') as stream:
+    stream.write(json.dumps(dict(scope='Real preserved fixture helper precheck; SUT TestCases0',helper_sha256=hashlib.sha256((root/'scripts/rc_pretag_composition_tests.py').read_bytes()).hexdigest(),objects_transferred_by='original shutil.copytree, no ref additions',actual_27_commit_frames_exact=True,actual_four_release_blobs_exact=True,actual_update_index_write_tree_commit_passed=True,owned_fixture_context_exited=True,source=str(root),SUT_tests_started=0),sort_keys=True,indent=2)+'\n')
+print(json.dumps(dict(commit_roots=27,release_blobs=4,fixture_write_tree_passed=True,SUT_tests_started=0)))

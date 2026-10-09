@@ -1,0 +1,57 @@
+{
+  "source": [
+    {
+      "path": "services/windows-vm-broker/transfer.go",
+      "mode": "100644",
+      "bytes": 4531,
+      "lines": 96,
+      "sha256": "30e4c296fadd4172ba6391230a6092a25ff06c1783615d208a68fa711c9bd166",
+      "blob": "5262b1f5c2f746a26947645d9aba4ce5d5a158e1"
+    },
+    {
+      "path": "services/windows-vm-broker/transfer_identity_windows.go",
+      "mode": "100644",
+      "bytes": 705,
+      "lines": 22,
+      "sha256": "8ab3c7f8b17f1775ae1d03c6b14175bf9ebe787e1fe4712b97e7aa0420ad76ad",
+      "blob": "bdfe6fc26ecbb3beb06be38dd883354c1d1dfc58"
+    },
+    {
+      "path": "services/windows-vm-broker/transfer_identity_linux_test.go",
+      "mode": "100644",
+      "bytes": 381,
+      "lines": 15,
+      "sha256": "934fb0f2708c10ae229202c979945e94bcb4ecae9dc6c6a2588aab6995757bea",
+      "blob": "b8c4331a66c2130709c2d99a49d0b2d278afbf34"
+    },
+    {
+      "path": "services/windows-vm-broker/transfer_test.go",
+      "mode": "100644",
+      "bytes": 3410,
+      "lines": 50,
+      "sha256": "df4da4e54852ce5ef787890897c2175786170a2a90dd412bd1ce41039a08acc8",
+      "blob": "c506e40ccd87b2f175e3a2cc2718952436d619fe"
+    }
+  ],
+  "compiler": false,
+  "tests_executed": false,
+  "permission_issuer": false,
+  "tree_before": "295ee8a8efd6c131dad098e8c7b628f7482e732a",
+  "tree_after": "b0034939620f05f2a08277dec7ca5fdc82634220",
+  "entry_counts": {
+    "before": 1943,
+    "after": 1947
+  },
+  "patch_bytes": 10452,
+  "patch_sha256": "10936d80943be63e56b626af2d5025dc735c0306202cb7d4e4c8c097d713df6d",
+  "patch_apply_exact": true,
+  "qualification": "new Go4 only atop alternative foundation33; not original40 recovered or blockedStage11 composition",
+  "BLOCKED": [
+    "Go compiler/tests NOTRUN",
+    "remaining6 outputRust absent",
+    "boot producer missing",
+    "actualpositive native0",
+    "RC/install gates not complete"
+  ],
+  "immutable_source": true
+}

@@ -1,0 +1,16 @@
+{
+  "source": {
+    "mode": "100644",
+    "bytes": 25198,
+    "sha256": "e97140c08d7b4b7056beafe25ed9a9e8640702c25d8f3eddaef45d23beac96c7",
+    "blob": "abb4f7a4575f1039e0792aafae856d0690fdb537"
+  },
+  "scope": "Readonly newly authored native realm proposal revision4, not lostnative22 code",
+  "code_implementation": 0,
+  "privileged_effects": 0,
+  "trusted_native_issuer": "MISSING_BLOCKED",
+  "hostUID200000_reservation_loader_and_activation_proof": "UNKNOWN",
+  "all_five_native_install_slots": "NOT_RUN",
+  "protocol_size_static_definition": "header32+payload65504 =total65536, recvmsg single65536; no native test credit",
+  "canonical_owner_initialization": "UNDEFINED_BLOCKED: original ReadController binds PID/thread and900s before original_stage/post_invocation/ReceivedInputs identity; cannot transfer or serialize/rebuild this owner into an adopted bootstrap coordinator or renew900s."
+}
