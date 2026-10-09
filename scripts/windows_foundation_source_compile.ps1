@@ -1,4 +1,5 @@
-param([Parameter(Mandatory=$true)][ValidateSet('rust','go')][string]$Mode)
+param([Parameter(Mandatory=$true)][ValidateSet('rust','go')][string]$Mode,
+    [Parameter(Mandatory=$true)][string]$PythonExecutable)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Manager = Split-Path $PSScriptRoot -Parent
@@ -11,16 +12,45 @@ $Receipt = [ordered]@{ mode=$Mode; managerCommit=$env:GITHUB_SHA; runId=$env:GIT
     pureSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
     nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; passed=$false }
 
+function Resolve-FoundationApplication([string]$Executable) {
+    $Requested = $Executable
+    if ($Executable -ceq 'python') {
+        if ([string]::IsNullOrWhiteSpace($PythonExecutable) -or
+            -not [System.IO.Path]::IsPathRooted($PythonExecutable) -or
+            $PythonExecutable -match '[\\/]Microsoft[\\/]WindowsApps[\\/]') {
+            throw 'Python must be the explicit rooted setup-python payload, never a WindowsApps alias.'
+        }
+        $Requested = $PythonExecutable
+    }
+    $Commands = @(Get-Command -Name $Requested -CommandType Application -ErrorAction Stop)
+    if ($Commands.Count -eq 0) { throw "No native application resolved: $Executable" }
+    if ($Executable -ceq 'python' -and $Commands.Count -ne 1) { throw 'Explicit Python payload resolved ambiguously.' }
+    $Path = [string]$Commands[0].Source
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not [System.IO.Path]::IsPathRooted($Path) -or
+        -not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Native application is not one rooted file: $Executable" }
+    if ($Executable -ceq 'python' -and $Path -cne [System.IO.Path]::GetFullPath($PythonExecutable)) {
+        throw 'Python resolution differs from setup-python payload.'
+    }
+    return $Path
+}
+
 function Invoke-CheckedCompiler([string]$Executable, [string[]]$Arguments, [string]$LogName) {
     $LogPath = Join-Path $Output $LogName
-    $Command = Get-Command -Name $Executable -CommandType Application -ErrorAction Stop
+    $CommandPath = Resolve-FoundationApplication $Executable
+    $CommandHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $CommandPath).Hash
     if (-not $Receipt.runtime.ContainsKey($Executable)) {
-        $Receipt.runtime[$Executable] = [ordered]@{ path=$Command.Source;
-            sha256Before=(Get-FileHash -Algorithm SHA256 $Command.Source).Hash; sha256After=$null }
+        $Receipt.runtime[$Executable] = [ordered]@{ path=$CommandPath;
+            sha256Before=$CommandHash; sha256After=$null }
     }
-    $ActualExecutable = $Command.Source
+    if ($Receipt.runtime[$Executable].path -cne $CommandPath -or
+        $Receipt.runtime[$Executable].sha256Before -cne $CommandHash) {
+        throw 'Compiler/runtime selection or bytes changed before invocation.'
+    }
+    $ActualExecutable = $CommandPath
     if ($Receipt.runtime[$Executable].Contains('payloadPath')) {
         $ActualExecutable = $Receipt.runtime[$Executable].payloadPath
+        if ((Get-FileHash -Algorithm SHA256 -LiteralPath $ActualExecutable).Hash -cne
+            $Receipt.runtime[$Executable].payloadSha256Before) { throw 'Actual compiler payload bytes changed before invocation.' }
     }
     $global:LASTEXITCODE = $null
     $OldPreference = $ErrorActionPreference
@@ -46,6 +76,7 @@ function Run-SourceCompile {
         throw 'Native/source authorization flags are forbidden in this compiler-only probe.'
     }
     Invoke-CheckedCompiler 'git' @('--version') 'git-version.log' | Out-Null
+    Invoke-CheckedCompiler 'python' @('-c','import sys; assert sys.version_info[:2] == (3, 12), sys.version') 'python-version.log' | Out-Null
     $ManagerBefore = Join-Path $Output 'management-before.json'
     Invoke-CheckedCompiler 'python' @($Guard,'verify-manager','--manifest',$Manifest,'--manager',$Manager,
         '--receipt',$ManagerBefore) 'management-before.log' | Out-Null
@@ -69,9 +100,9 @@ function Run-SourceCompile {
             foreach ($Tool in @('rustc','cargo')) {
                 $Which = Invoke-CheckedCompiler 'rustup' @('which','--toolchain','1.98.1',$Tool) "rustup-which-before-$Tool.log"
                 $PayloadPath = (Resolve-Path -LiteralPath (Get-Content -Raw $Which).Trim()).Path
-                $Proxy = Get-Command -Name $Tool -CommandType Application -ErrorAction Stop
-                $Receipt.runtime[$Tool] = [ordered]@{ path=$Proxy.Source;
-                    sha256Before=(Get-FileHash -Algorithm SHA256 $Proxy.Source).Hash; sha256After=$null;
+                $ProxyPath = Resolve-FoundationApplication $Tool
+                $Receipt.runtime[$Tool] = [ordered]@{ path=$ProxyPath;
+                    sha256Before=(Get-FileHash -Algorithm SHA256 -LiteralPath $ProxyPath).Hash; sha256After=$null;
                     payloadPath=$PayloadPath; payloadSha256Before=(Get-FileHash -Algorithm SHA256 $PayloadPath).Hash;
                     payloadSha256After=$null }
             }
@@ -140,9 +171,9 @@ try {
     } catch { $Receipt.passed=$false; $Receipt.managementAfterError=$_.Exception.Message }
     foreach ($Executable in $Receipt.runtime.Keys) {
         try {
-            $CurrentCommand = Get-Command -Name $Executable -CommandType Application -ErrorAction Stop
+            $CurrentPath = Resolve-FoundationApplication $Executable
             $Runtime = $Receipt.runtime[$Executable]
-            $Runtime.sha256After = (Get-FileHash -Algorithm SHA256 $CurrentCommand.Source).Hash
+            $Runtime.sha256After = (Get-FileHash -Algorithm SHA256 -LiteralPath $CurrentPath).Hash
             if ($Runtime.Contains('payloadPath')) {
                 $WhichAfter = Invoke-CheckedCompiler 'rustup' @('which','--toolchain','1.98.1',$Executable) "rustup-which-after-$Executable.log"
                 $PayloadAfter = (Resolve-Path -LiteralPath (Get-Content -Raw $WhichAfter).Trim()).Path
@@ -151,7 +182,7 @@ try {
                     throw 'Actual Rust toolchain payload changed during the probe.'
                 }
             }
-            if ($CurrentCommand.Source -cne $Runtime.path -or $Runtime.sha256Before -cne $Runtime.sha256After) {
+            if ($CurrentPath -cne $Runtime.path -or $Runtime.sha256Before -cne $Runtime.sha256After) {
                 throw 'Compiler/runtime source changed during the probe.'
             }
         } catch { $Receipt.passed=$false; $Receipt.runtimeAfterError=$_.Exception.Message }

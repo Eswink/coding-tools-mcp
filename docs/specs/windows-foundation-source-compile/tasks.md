@@ -43,3 +43,11 @@ Workflow, PowerShell runner, Python guard, finite JSON manifest, requirements/de
 ## Frozen02 peer-review corrections
 - [ ] T4 (FR-1, FR-3, FR-4): root/peer-reviewed actual compiler payload+Git closure, seven management HEAD/source beforeafter guards, literal source leases.
 - [ ] Test manager byte/mode/HEAD tampering; preserve01 initial failures and native NOTRUN.
+
+## Bounded runtime-selection repair tasks
+- [ ] FR-1: preserve real run37912328111 attempt1 original receipts, command-empty/restore-NOTRUN failure and raw artifact SHA.
+- [ ] FR-2: reproduce original multiapplication invocation using actual PowerShell; fix scalar selection and check actual git/Python calls.
+- [ ] FR-3: ordinary negative controls missing/alias interpreter, executable-byte drift and selected-path drift; preserve guards, original pins and budgets.
+- [ ] FR-4: fresh checkout-specific impact (UNKNOWN/manualHIGH disclosed), spec, independent source peer, detect_changes/gencommit, small management commit. New real GitHub run remains required after parent push.
+
+This repair delta is exactly six tracked paths: five changes to the existing PS/workflow/three specifications and one new ordinary control script. The new eighth management-associated tracked file is a local control, excluded from the unchanged seven-file verify_manager lease and never called by compiler CI. The existing exact-seven delivery statement describes the initial carrier; this repair does not claim all tracked management files belong to that seven-file lease. Actual compiler payload byte-drift has its own ordinary rejection control with no invocation/log/command side effect.

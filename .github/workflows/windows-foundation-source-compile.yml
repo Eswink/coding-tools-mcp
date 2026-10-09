@@ -25,6 +25,12 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Fixed Python guard interpreter
+        id: foundation-python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+          check-latest: false
       - name: Fixed Windows Rust compiler
         if: matrix.mode == 'rust'
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
@@ -39,7 +45,9 @@ jobs:
           cache: false
       - name: Restore exact frozen source then actual compiler and named data tests
         shell: pwsh
-        run: ./scripts/windows_foundation_source_compile.ps1 -Mode '${{ matrix.mode }}'
+        env:
+          FOUNDATION_PYTHON_EXECUTABLE: ${{ steps.foundation-python.outputs.python-path }}
+        run: ./scripts/windows_foundation_source_compile.ps1 -Mode '${{ matrix.mode }}' -PythonExecutable $env:FOUNDATION_PYTHON_EXECUTABLE
       - name: Preserve actual result and failures
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
