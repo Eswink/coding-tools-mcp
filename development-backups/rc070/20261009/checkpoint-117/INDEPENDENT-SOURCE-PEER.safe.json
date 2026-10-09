@@ -1,0 +1,50 @@
+{
+  "scope": "FINITE_TWO_MODULE_SOURCE_AND_DATA_ONLY_ORDINARY_REVIEW",
+  "source_peer": "PASS_LIMITED",
+  "sources": [
+    {
+      "name": "loader_query_context.py",
+      "sha256": "71885a7b6533477c2c14c5c2bd0226630df614ebf579c4d5fad54f4b9162d125"
+    },
+    {
+      "name": "loader_query_controls.py",
+      "sha256": "2d13873295d8150d33ca65e4f50695e8ed1722ff31208667fc20fe6c5e4c041e"
+    }
+  ],
+  "manifest_sha256": "6370ebecf9f566e1398c073549dbd5d2c85864a789dab6c0f737bae112a5fe3f",
+  "bundle_files_with_manifest": 17,
+  "bundle_total_bytes": 490078,
+  "current_sources_vs_bundle_exact": true,
+  "protected1867_and_original8_current_full_bytes_modes_nlink_native_head_exact": true,
+  "reviewer_actual_readonly_fence_tool_chunk": "b1d0ba",
+  "reviewer_full_source_read_chunks": [
+    "8391b4",
+    "fb6494",
+    "d5037e",
+    "db98b2"
+  ],
+  "ordinary_stdout_sha256": "3ad160c774da364d811423ab07ff2e40311382d7c7f389ef3f565c6483c6d789",
+  "ordinary_stderr_bytes": 0,
+  "ordinary_cases": 41,
+  "ordinary_passed": 41,
+  "ordinary_tool_provenance": "author actual tool bb7b8a exit0; independent read raw/source-bound",
+  "ordinary_scope": "PURE_PARSER_POLICY_MOCK_HELPER_AND_REAL_ELF_BYTES_ONLY;NO_ORDINARY_JOB_INVOCATION",
+  "old_stops_closed_in_source": [
+    "fixed_builder_bytes_verified_before_exec_and_execute_exact_verified_bytes",
+    "failed_query_or_cancel_still_attempts_after_fences_and_preserves_original_objects",
+    "shared120_start_before_admission_and_final_late_check_before_release"
+  ],
+  "old_v1_raw36_not_borrowed": true,
+  "observed_intermediate_writer": "UNKNOWN_PRESERVED;CURRENT_FINAL_DELTA_AUTHOR_ROOT_AUTHORIZED_SOLEWRITER",
+  "fresh7impact": "TARGET_NOT_FOUND_UNKNOWN_MANUALHIGH_NOT_ZERO",
+  "source_build_same_origin_proof": false,
+  "actual_loader_queries": 0,
+  "actual_Popen_jobs": 0,
+  "actual_GCC_compilers": 0,
+  "bridge_imports": 0,
+  "actual_native_birth_controls": 0,
+  "original_SUT": 0,
+  "startup": "NOT_ALLOWED_PENDING_NEW_REAL_QUERY_FENCES_AND_ROOT_UNIQUE_LAUNCH",
+  "wholecompiler_CI_VM_install_RC_or_publisher_authority": false,
+  "original_488_and_deadline_failure": "PRESERVED"
+}

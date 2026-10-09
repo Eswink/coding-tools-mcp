@@ -1,0 +1,254 @@
+--- frozenV1/loader_query_context.py
++++ currentV2/loader_query_context.py
+@@ -17,6 +17,7 @@
+ import struct
+ import subprocess
+ import time
++import types
+ 
+ HERE = Path(__file__).resolve().parent
+ SOURCE = Path('/workspace/work/rc070/startup-native-birth-spec-next/external/rc_native_startup_owner')
+@@ -33,6 +34,7 @@
+ _BUILDER = None
+ _ADMISSIONS = {}
+ _JOB_HOLDERS = []
++_BOOTSTRAP_HOLDERS = []
+ 
+ 
+ class QueryAdmission:
+@@ -43,13 +45,65 @@
+         raise TypeError('ordinary_admission_has_no_public_constructor')
+ 
+ 
++def _read_bootstrap_bytes():
++    if len(_BOOTSTRAP_HOLDERS) >= 4096:
++        raise RuntimeError('bootstrap_unknown_holder_bound')
++    holder = {'object': None, 'state': 'PREALLOCATED', 'close_attempted': False,
++              'factory_attempted': False, 'errors': []}
++    _BOOTSTRAP_HOLDERS.append(holder)  # before the actual file creator
++    primary, failures, data = None, [], None
++    try:
++        holder['factory_attempted'] = True
++        holder['object'] = open(BUILDER, 'rb')
++        holder['state'] = 'OWNED'
++        before = os.fstat(holder['object'].fileno())
++        if not stat.S_ISREG(before.st_mode) or before.st_size > 1024 * 1024:
++            raise RuntimeError('bootstrap_source_not_bounded_regular_file')
++        data = holder['object'].read(1024 * 1024 + 1)
++        after = os.fstat(holder['object'].fileno())
++        if len(data) > 1024 * 1024 or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
++                after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
++            raise RuntimeError('bootstrap_source_changed_during_actual_read')
++    except BaseException as error:
++        primary = error
++        holder['errors'].append(error)
++        holder['state'] = 'UNKNOWN'
++    finally:
++        if holder['object'] is not None:
++            holder['close_attempted'] = True
++            try:
++                holder['object'].close()
++                holder['state'] = 'CLOSED'
++                for index, item in enumerate(_BOOTSTRAP_HOLDERS):
++                    if item is holder:
++                        del _BOOTSTRAP_HOLDERS[index]
++                        break
++                holder['object'] = None  # only after actual successful close
++            except BaseException as error:
++                holder['state'] = 'UNKNOWN'
++                holder['errors'].append(error)
++                failures.append(error)
++        else:
++            holder['state'] = 'UNKNOWN' if holder['factory_attempted'] else 'CLOSED'
++    errors = ([primary] if primary is not None else []) + failures
++    if errors:
++        if len(errors) == 1:
++            raise errors[0]
++        raise BaseExceptionGroup('bootstrap_source_primary_and_close_failures', errors)
++    return data
++
++
+ def load_builder_readonly():
+     global _BUILDER
+     if _BUILDER is None:
+-        # Source import executes no main/compile/bridge/factory entry.
+-        spec = importlib.util.spec_from_file_location('rc_fixed877_ordinary_file_helpers', BUILDER)
+-        module = importlib.util.module_from_spec(spec)
+-        spec.loader.exec_module(module)
++        data = _read_bootstrap_bytes()
++        if hashlib.sha256(data).hexdigest() != BUILDER_SHA:
++            raise RuntimeError('fixed_builder_source_changed_before_execution')
++        # Execute those exact verified bytes, never a second unchecked file read.
++        # No main/compile/bridge/factory entry is invoked by this helper import.
++        module = types.ModuleType('rc_fixed877_ordinary_file_helpers')
++        module.__file__ = str(BUILDER)
++        exec(compile(data, str(BUILDER), 'exec'), module.__dict__)
+         if module.file_identity(BUILDER)['sha256'] != BUILDER_SHA:
+             raise RuntimeError('fixed_builder_source_changed')
+         _BUILDER = module
+@@ -271,6 +325,8 @@
+     sealed = builder.snapshot(files)
+     if sealed[str(OUTER)]['sha256'] != OUTER_SHA or sealed[str(LOADER)]['sha256'] != LOADER_SHA:
+         raise RuntimeError('fixed_outer_or_loader_identity_changed')
++    if sealed[str(LOADER_LITERAL)]['resolved'] != str(LOADER) or sealed[str(LOADER_LITERAL)]['sha256'] != LOADER_SHA:
++        raise RuntimeError('literal_interpreter_alias_not_bound_to_fixed_loader')
+     if sealed[str(BUILDER)]['sha256'] != BUILDER_SHA:
+         raise RuntimeError('fixed_builder_changed')
+     for path in source_files:
+@@ -372,8 +428,27 @@
+     return ordinary_job(admission, out_dir)
+ 
+ 
++def _finish_after_fences(admission, record, start, failures):
++    """Independent afterfence and total-deadline attempts; preserve each object.
++
++    This helper does not release a process holder or qualify any native family.
++    Data controls may replace its observers with explicit pure mocks.
++    """
++    try:
++        record['after_fences'] = verify_after(admission)
++    except BaseException as error:
++        failures.append(error)
++    try:
++        record['elapsed_seconds'] = time.monotonic() - start
++        if record['elapsed_seconds'] >= JOB_SECONDS:
++            raise RuntimeError('query_total_deadline_exhausted_after_retirement_and_fences')
++    except BaseException as error:
++        failures.append(error)
++
++
+ def ordinary_job(admission, out_dir):
+     """Future-only actual ordinary query; separate root startup permission required."""
++    start = time.monotonic()  # shared120 starts before admission/fences/creation
+     registered = authentic_state(admission)
+     verify_after(admission)  # all native/search/callback policy BEFORE creator
+     if registered.get('attempted', False):
+@@ -395,7 +470,6 @@
+     OwnedFile, file_identity = builder.OwnedFile, builder.file_identity
+     _FILE_HOLDERS = builder._FILE_HOLDERS
+     state, label = {'jobs': [], 'log_bytes': 0}, 'ordinary-loader-list'
+-    start = time.monotonic()
+     record = {'argv': list(map(str, argv)), 'label': label, 'limit_seconds': JOB_SECONDS}
+     state['jobs'].append(record)
+     # All reachability/storage exists before Popen or selector creates anything.
+@@ -407,6 +481,8 @@
+     process, streams, primary = None, None, None
+     failures, interrupted, kill_sent = [], False, False
+     try:
++        if time.monotonic() - start >= JOB_SECONDS:
++            raise RuntimeError('query_shared_deadline_exhausted_before_creator')
+         holder['factory_attempted'] = True
+         # FIRST actual Popen-return store is inside this protected region.
+         holder['object'] = subprocess.Popen(
+@@ -538,6 +614,12 @@
+             record['resource_states'] = {name: item['state'] for name, item in resources.items()}
+         except BaseException as cleanup_error:
+             failures.append(cleanup_error)
++        # Failure/cancellation never skips the actual new afterfence attempt;
++        # any failure joins all original primary/cleanup objects below.
++        try:
++            _finish_after_fences(admission, record, start, failures)
++        except BaseException as cleanup_error:
++            failures.append(cleanup_error)
+     errors = ([primary] if primary is not None else []) + failures
+     if errors:
+         holder['state'] = 'UNKNOWN'
+@@ -557,9 +639,12 @@
+         if raw_result['stderr']:
+             raise RuntimeError('unexpected_loader_query_stderr')
+         factual = parse_loader_list(raw_result['stdout'], admission)
+-        after_fences = verify_after(admission)
++        after_fences = record['after_fences']
+         result = {'ordinary_facts': factual, 'job_record': record, 'fences_after': after_fences,
+                   'qualifies_native': False, 'original_sut': 'NOTRUN', 'compiler': 'NOTRUN'}
++        record['elapsed_seconds'] = time.monotonic() - start
++        if record['elapsed_seconds'] >= JOB_SECONDS:
++            raise RuntimeError('query_total_deadline_exhausted_before_result_release')
+         record['loader_query_holder_state'] = 'RELEASED'
+         holder['state'] = 'RELEASED'
+         for index, item in enumerate(_JOB_HOLDERS):
+--- frozenV1/loader_query_controls.py
++++ currentV2/loader_query_controls.py
+@@ -121,8 +121,9 @@
+     rows.append({'case': 'mock_close_cancel_once_unknown_strong_retention', 'result': 'PASS',
+                  'scope': 'ordinary_python_mock_no_fd_no_process'})
+     primary = SystemExit(1)
++    other_object_only = types.SimpleNamespace(close=lambda: (_ for _ in ()).throw(cancel))
+     owned = builder.OwnedFile('/unopened/mock-only', 'rb')
+-    owned.holder['object'], owned.holder['state'] = object_only, 'OWNED'
++    owned.holder['object'], owned.holder['state'] = other_object_only, 'OWNED'
+     owned.holder['factory_attempted'] = True
+     try:
+         owned.__exit__(type(primary), primary, None)
+@@ -131,10 +132,61 @@
+         assert group.exceptions[0] is primary and group.exceptions[1] is cancel
+     else:
+         raise AssertionError('original_primary_and_close_cancel_not_preserved')
+-    assert owned.holder['state'] == 'UNKNOWN' and owned.holder['object'] is object_only
++    assert owned.holder['state'] == 'UNKNOWN' and owned.holder['object'] is other_object_only
+     assert any(item is owned.holder for item in builder._FILE_HOLDERS)
+     rows.append({'case': 'mock_original_systemexit_and_close_keyboardinterrupt_objects',
+                  'result': 'PASS', 'scope': 'ordinary_python_mock_no_fd_no_process'})
++
++
++def run_bootstrap_controls(module, rows):
++    original = (module._BUILDER, module._read_bootstrap_bytes)
++    executed = []
++    had_exec = 'exec' in module.__dict__
++    original_exec = module.__dict__.get('exec')
++    try:
++        module._BUILDER = None
++        module._read_bootstrap_bytes = lambda: b'raise AssertionError("unsafe_source_must_not_execute")\n'
++        module.exec = lambda *args, **kwargs: executed.append('EXECUTED')
++        expect_denied('bootstrap_bad_actual_bytes_SHA_before_any_exec', module.load_builder_readonly, rows)
++        assert executed == [] and module._BUILDER is None
++    finally:
++        module._BUILDER, module._read_bootstrap_bytes = original
++        if had_exec:
++            module.exec = original_exec
++        else:
++            del module.exec
++    expect_denied('admission_has_no_public_constructor', lambda: module.QueryAdmission(), rows)
++    expect_denied('unregistered_exacttype_not_minted_admission',
++                  lambda: module.parse_loader_list(b'', object.__new__(module.QueryAdmission)), rows)
++
++
++def run_failure_fence_controls(module, rows):
++    original = (module.verify_after, module.time.monotonic)
++    attempts, failures, record = [], [], {}
++    primary = SystemExit(1)
++    fence_cancel, clock_cancel = KeyboardInterrupt('mock_afterfence_cancel'), SystemExit(9)
++    try:
++        module.verify_after = lambda unused: (attempts.append('afterfence'),
++                                              (_ for _ in ()).throw(fence_cancel))[1]
++        module.time.monotonic = lambda: (attempts.append('clock'),
++                                         (_ for _ in ()).throw(clock_cancel))[1]
++        failures.append(primary)
++        module._finish_after_fences(None, record, 0.0, failures)
++        assert attempts == ['afterfence', 'clock']
++        assert len(failures) == 3
++        assert failures[0] is primary and failures[1] is fence_cancel and failures[2] is clock_cancel
++        rows.append({'case': 'pure_afterfence_cancel_still_attempts_clock_preserves_all_objects',
++                     'result': 'PASS', 'scope': 'mock_observers_no_process_no_admission'})
++        module.verify_after = lambda unused: {'ordinary_mock': True, 'qualifies_native': False}
++        module.time.monotonic = lambda: 121.0
++        failures, record = [], {}
++        module._finish_after_fences(None, record, 0.0, failures)
++        assert len(failures) == 1 and isinstance(failures[0], RuntimeError)
++        assert record['elapsed_seconds'] == 121.0 and 'after_fences' in record
++        rows.append({'case': 'pure_total_deadline_late_fences_deny_even_after_mock_success',
++                     'result': 'PASS', 'scope': 'mock_observers_no_process_no_admission'})
++    finally:
++        module.verify_after, module.time.monotonic = original
+ 
+ 
+ def run_readonly_controls():
+@@ -156,6 +208,8 @@
+     run_elf_policy_controls(module, rows)
+     run_global_policy_controls(module, rows)
+     run_ownership_controls(builder, rows)
++    run_bootstrap_controls(module, rows)
++    run_failure_fence_controls(module, rows)
+     builder.check_unchanged(before)
+     return {'kind': 'loader_query_data_only_controls', 'cases': rows,
+             'actual_popen_jobs': 0, 'actual_loader_queries': 0, 'actual_gcc_driver_jobs': 0,

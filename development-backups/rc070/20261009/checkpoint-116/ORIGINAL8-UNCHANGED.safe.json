@@ -1,0 +1,71 @@
+{
+  "rows": [
+    {
+      "name": "birth_entry.S",
+      "bytes": 2248,
+      "sha256": "9ddafe9891fe259934eb3101ddf7da202206440388a61ac7c54f523ad783af07",
+      "physical_mode": "0644",
+      "nlink": 1,
+      "source102_byteexact": true
+    },
+    {
+      "name": "birth_module.c",
+      "bytes": 17081,
+      "sha256": "c663f7fa38710b429a43ccdd9691ab7a2b9fb8313fa1f712129c066d9bb88b18",
+      "physical_mode": "0644",
+      "nlink": 1,
+      "source102_byteexact": true
+    },
+    {
+      "name": "build_source_owner.py",
+      "bytes": 40951,
+      "sha256": "877d975b2221e24ecf2d86eddd13499c10b70bc8994b1bc0f6d0cea926e78dab",
+      "physical_mode": "0644",
+      "nlink": 1,
+      "source102_byteexact": true
+    },
+    {
+      "name": "ordinary_controls.py",
+      "bytes": 20221,
+      "sha256": "aa83c83213af415e2d31cebf0455a468e120a9c02973a607afbd34e347a76ace",
+      "physical_mode": "0644",
+      "nlink": 1,
+      "source102_byteexact": true
+    },
+    {
+      "name": "owner_adapter.py",
+      "bytes": 7246,
+      "sha256": "56453edad4d6885642f28995568116f280df40e1dca6508cbf0b539a35d25b22",
+      "physical_mode": "0644",
+      "nlink": 1,
+      "source102_byteexact": true
+    },
+    {
+      "name": "root_collector.c",
+      "bytes": 14269,
+      "sha256": "30d7e4c272d946c73396e1341d7478d2a2dee142b2c4e6263313a1046b57c4ba",
+      "physical_mode": "0644",
+      "nlink": 1,
+      "source102_byteexact": true
+    },
+    {
+      "name": "root_entry.S",
+      "bytes": 308,
+      "sha256": "d075284c844474667fc85c4da5e0cc05eec1432614a20d051629d531b5634840",
+      "physical_mode": "0644",
+      "nlink": 1,
+      "source102_byteexact": true
+    },
+    {
+      "name": "syscall_x86_64.h",
+      "bytes": 3686,
+      "sha256": "df7e4787aa71a622ee7460f888cba1c930cfb61cb0a71e849570bed39666a1bd",
+      "physical_mode": "0644",
+      "nlink": 1,
+      "source102_byteexact": true
+    }
+  ],
+  "actual_loader_query": 0,
+  "actual_compiler": 0,
+  "actual_native": 0
+}

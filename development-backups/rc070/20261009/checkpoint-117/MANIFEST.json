@@ -1,0 +1,26 @@
+{
+  "kind": "safe_source_peer_only_appendix",
+  "entries": [
+    {
+      "path": "INDEPENDENT-SOURCE-PEER.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 2128,
+      "sha256": "7d87d5dda7f2e203132a6b77e1adf4c2238fffb74ba4bc31cf4d85f8eaf4ef03"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 315,
+      "sha256": "89088b1dff911c3a3f9d0cff0681fd22c73fffddcedda4bcf2a81310afad4249"
+    },
+    {
+      "path": "STATUS.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 809,
+      "sha256": "a9f08b1a5f67aa38955e023d4b1a214afda9f14a2445d88080df2aff99a8da51"
+    }
+  ]
+}

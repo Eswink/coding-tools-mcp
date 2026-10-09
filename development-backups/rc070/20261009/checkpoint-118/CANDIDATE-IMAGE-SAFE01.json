@@ -1,0 +1,21 @@
+{
+  "schema": "rc070-candidate-image-readonly-1",
+  "image": "buildpack-deps:trixie",
+  "platform": "linux/amd64",
+  "amd64_digest": "sha256:b9f4efdac77b704371a81c61d9eb5044c00bb5371d6c41aa70b1eff06725fc21",
+  "manifest_digest": "sha256:3e5da0e17f858c9fe67dedfd9414b95df2bc8c31015df5230224637d43ba7e8c",
+  "official_recipe_commit": "fb12875aa41571f6288d524576174843fe738995",
+  "public_reads_only": true,
+  "pull_run_build_install_count": 0,
+  "compatibility": "UNKNOWN_NOT_PREFLIGHTED",
+  "raw_public_metadata_sha256": {
+    "official-debian-trixie-Dockerfile.source": "04cad07dcedc6787821d6c54ea098449cf2261e07b3c26aa269df29956ff953f",
+    "official-debian-trixie-curl-Dockerfile.source": "e56a4d285e9478600701d4ad8d58987b04135b10e76a8d5338b87559c6a814a5",
+    "official-debian-trixie-scm-Dockerfile.source": "44bc728629e95b67d003e25fce84b9442a8b77703ebee126932df065770b2f63",
+    "official-image-recipe-tree01.json": "7cac3cffd19c7c48b07267b184d6e592bf6c8fef11c36314607ed2cff894e62a",
+    "official-image-recipes01.json": "9b7ab0f2bbfcdc7c822f5704e5cbffb954146e7dfcd5ee12e705fe36c261fb37",
+    "official-image-recipes03.json": "af88738d67ec139498f82517ac05cccbbb52ca47163f0ee8b1bbd48fa8798f65",
+    "official-trixie-tag01.json": "e5aa12385c668ac9c8890b09a7f1169ed5be80f70c2892bebd95f05c0730babc",
+    "official-ubuntu-noble-tag01.json": "5f841b517bd99e68209c639c569b5b028f51e9db456130b284c6089b1e9caf7e"
+  }
+}

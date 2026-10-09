@@ -1,0 +1,41 @@
+{
+  "repo": "/workspace/work/rc070/startup-native-birth-spec-next",
+  "risk": "UNKNOWN/manualHIGH rootdisclosed authorized7scope",
+  "rows": [
+    {
+      "symbol": "_finish_after_fences",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    },
+    {
+      "symbol": "_read_bootstrap_bytes",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    },
+    {
+      "symbol": "ordinary_job",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    },
+    {
+      "symbol": "run_bootstrap_controls",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    },
+    {
+      "symbol": "run_failure_fence_controls",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    },
+    {
+      "symbol": "run_ownership_controls",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    },
+    {
+      "symbol": "run_readonly_controls",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    }
+  ]
+}

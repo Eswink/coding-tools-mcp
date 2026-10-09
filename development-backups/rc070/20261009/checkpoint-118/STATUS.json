@@ -1,0 +1,13 @@
+{
+  "stage": "READONLY_DESIGN_SOURCE_TARGETS",
+  "source_implementation": "NOT_IMPLEMENTED",
+  "peer": "PENDING_AT_FREEZE",
+  "setup_runs": 0,
+  "container_runs": 0,
+  "original85_current": "FAIL83success2FAIL",
+  "new85_runs": 0,
+  "original300": "NOT_RUN",
+  "private_raw_durable_channel": "OPEN_UNAVAILABLE",
+  "real_issuer": "UNAVAILABLE_DEFAULT_DENY",
+  "ready_for": "LIMITED_SOURCE_AUTHORIZATION_REVIEW_ONLY"
+}

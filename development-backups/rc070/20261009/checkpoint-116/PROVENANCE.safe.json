@@ -1,0 +1,9 @@
+{
+  "unknown_observed_increment": "UNKNOWN_notattributed_to_root_or_pendingchild",
+  "root_denied_authorship_not_authorization": true,
+  "current_increment_writer": "postpublish_488 actualauthorizedapply_patch",
+  "observed_context_sha256": "1b8bd119406fb69afb47a82785b6547e8372b883c27e1a549e7e2830fbf3545e",
+  "current_context_sha256": "71885a7b6533477c2c14c5c2bd0226630df614ebf579c4d5fad54f4b9162d125",
+  "old_V1_context_sha256": "971400c2ece239ea7306bf55a06db66acf38fe572f6d0f8e2b969228a2596f1f",
+  "scope": "Observedintermediate source diff reviewed, own7UNKNOWN/rootauthorizednarrowhelpers+controls; priorunknown provenance notrewritten"
+}

@@ -1,0 +1,143 @@
+{
+  "schema": "source-only-manifest-1",
+  "files": [
+    {
+      "path": ".mcp-probe-kit/gitnexus-temp/publisher-compatible-ci-spec01-1791568839688-7a41e2/FIRST-PREPARATION-SCOPE01.md",
+      "bytes": 5674,
+      "sha256": "ab8c3cc31a69c8c2752c4f7d35ab4cc0d85f9e96e5e64ccfc688aea1b090179f",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": ".mcp-probe-kit/gitnexus-temp/publisher-compatible-ci-spec01-1791568839688-7a41e2/PUBLIC-SAFE-EXPORT-DESIGN01.md",
+      "bytes": 5404,
+      "sha256": "ba62d6ca725ce272b9eceb8712eaf6ee1e76fd8b9626366e201d9bdbdbe84623",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": ".mcp-probe-kit/gitnexus-temp/publisher-compatible-ci-spec01-1791568839688-7a41e2/docs/specs/issue88-compatible-disposable-publisher-ci/design.md",
+      "bytes": 5708,
+      "sha256": "4929b10469ce7fa827cab8d0db6f6c62c69b52162e116ca9de32ef7e916e85c7",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": ".mcp-probe-kit/gitnexus-temp/publisher-compatible-ci-spec01-1791568839688-7a41e2/docs/specs/issue88-compatible-disposable-publisher-ci/requirements.md",
+      "bytes": 6409,
+      "sha256": "b871549f24770d50b2a8613e6b5675a2a73c681abd586d20ea1178bc1d113472",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": ".mcp-probe-kit/gitnexus-temp/publisher-compatible-ci-spec01-1791568839688-7a41e2/docs/specs/issue88-compatible-disposable-publisher-ci/tasks.md",
+      "bytes": 2086,
+      "sha256": "f99696f3e38770df6eba72f47f16e2fc9eae6ae61e6d4af3854a77b4ad94947b",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "CANDIDATE-IMAGE-SAFE01.json",
+      "bytes": 1413,
+      "sha256": "7876bf3edbf02221d603c74981cef6c7e9309c0c00d36660518a68055c216dfc",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "CHECK-SPEC-SAFE.json",
+      "bytes": 241,
+      "sha256": "bf4f27d9f606cc1a00b44f64c3e154ec91c7a9691a065504ab0817fc7c0ecfa9",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "FIRST-PREPARATION-SCOPE01.md",
+      "bytes": 7502,
+      "sha256": "ff78af25f6ab896bc7da99237a871cbdf0c094f85302475f70916d4df3041b88",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "FRESH-IMPACTS-SAFE01.json",
+      "bytes": 3606,
+      "sha256": "6a34e9f7b536fd4a4f7492fc539efa48e72dc78f4a72f77cd386db114dc6ca4e",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "HOSTED-CANDIDATE-SAFE01.json",
+      "bytes": 940,
+      "sha256": "025f713bb6f001a0add4f146e7fa0bd9f1813b8a0c84cb7d8b2fe1437f6882a4",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "ORDINARY-CONTROLS-SCOPE01.md",
+      "bytes": 3308,
+      "sha256": "6fac5f90fc870aa4567b38289ed822231cd65a4f3c007ceab54c8fd188df00da",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "PUBLIC-SAFE-EXPORT-DESIGN01.md",
+      "bytes": 5404,
+      "sha256": "ba62d6ca725ce272b9eceb8712eaf6ee1e76fd8b9626366e201d9bdbdbe84623",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "README.md",
+      "bytes": 541,
+      "sha256": "875fc4c2a8249a8b074c71659392fb0d9e4b1caaf88312c2f1cf713f5a199568",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "STATUS.json",
+      "bytes": 417,
+      "sha256": "4324a76a9cce043abcb81f0687878abbf2dc09b540afdd52bee72f04cb69021c",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-compatible-disposable-publisher-ci/design.md",
+      "bytes": 5908,
+      "sha256": "ee9ec61c9ec165a8c764114a839f500307f7d835d22e96d111b95459871e24da",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-compatible-disposable-publisher-ci/requirements.md",
+      "bytes": 6409,
+      "sha256": "b871549f24770d50b2a8613e6b5675a2a73c681abd586d20ea1178bc1d113472",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-compatible-disposable-publisher-ci/tasks.md",
+      "bytes": 2086,
+      "sha256": "f99696f3e38770df6eba72f47f16e2fc9eae6ae61e6d4af3854a77b4ad94947b",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    }
+  ],
+  "source_only": true,
+  "peer": "PENDING_AT_FREEZE"
+}

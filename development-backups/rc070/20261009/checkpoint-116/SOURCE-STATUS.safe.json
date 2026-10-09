@@ -1,0 +1,35 @@
+{
+  "kind": "source_only_two_ordinary_modules_v2",
+  "source_peer": "PENDING_frozen",
+  "actual_control_tool_chunk": "bb7b8a",
+  "actual_control_tool_exit": 0,
+  "actual_controls": 41,
+  "actual_success": 41,
+  "rawstdout_bytes": 5442,
+  "rawstdout_sha256": "3ad160c774da364d811423ab07ff2e40311382d7c7f389ef3f565c6483c6d789",
+  "rawstderr_bytes": 0,
+  "spec_structured": {
+    "passed": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": [],
+    "frIds": [
+      "FR-1",
+      "FR-2",
+      "FR-3"
+    ],
+    "summary": "\u89c4\u683c\u6821\u9a8c\u901a\u8fc7\uff083 \u6761\u9700\u6c42\uff09"
+  },
+  "old_v1": "raw36PASS_frozen3SOURCE_STOP_notborrowed",
+  "observed_intermediate_writer": "UNKNOWN_preserved",
+  "current_delta": "actualauthorizedpostpublish488apply_patch",
+  "current_full_source1867": "allbytesphysicalmodesactualunchanged_HEAD50ef_trackedclean",
+  "native8": "source102_byteexact877unchanged",
+  "actual_native_context_admission": "NOTRUN",
+  "loaderquery_Popen_GCC_ROOT_bridge_native14": "NOTRUN_NOTAUTHORIZED",
+  "wholecompiler_originalSUT_CI_install_release": "NOTRUN",
+  "original488qualification": false,
+  "original_deadline": "actualFAIL_UNKNOWNREADYunchanged",
+  "native_and_publisher_authorization": "NOT_MINTED",
+  "scope": "Puremock observer/holder objects and realELFbyte reads; NOT actualquery/family/nativeclosure. Narrow unsupported contexts/pluginhosts BLOCKED. Source guard equality is not binary same-source build qualification."
+}

@@ -1,0 +1,29 @@
+{
+  "schema": "rc070-hosted-candidate-source-readonly-1",
+  "historical_run_id": 37913922195,
+  "historical_head": "e90ed2b7ba521153936e206bdcc013866422ea6b",
+  "runner_label": [
+    "ubuntu-24.04"
+  ],
+  "artifact_sha256": "56afa40daa22d877b27a92f1f6bcf63261c6b559e1446f3c585287ed9d3e62af",
+  "jobs_sha256": "2994f5896c3b03d8f31676cd3997a6a7bfc4261fa9e918265f5edc0c9ed32126",
+  "historical_system_git_version": "2.55.0",
+  "full_original_flags_exit": 0,
+  "original_required_runtime_only_missing": [
+    "/usr/local/bin/git"
+  ],
+  "historically_present_roles": [
+    "system_git",
+    "system_python3_12",
+    "openssl"
+  ],
+  "unknown_roles": [
+    "current_GCC_GXX_Rust_GNUmsgfmt_GPG_libraries",
+    "usrLocal_namespace_new_write_permission",
+    "pidfd_WNOWAIT_subreaper_createdfamily_currentcontrols",
+    "fresh_job_same_runtime_vectors"
+  ],
+  "not_current_runtime_proof": true,
+  "current_setup_runs": 0,
+  "current_SUT_runs": 0
+}

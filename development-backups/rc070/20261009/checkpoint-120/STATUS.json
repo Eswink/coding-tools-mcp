@@ -1,0 +1,12 @@
+{
+  "scope": "NEW_ROOT_AUTHORIZED_NARROW_ROLE_SPEC",
+  "helper_source": "NOT_IMPLEMENTED",
+  "WF": "NOT_IMPLEMENTED",
+  "peer": "PENDING",
+  "sudo_runs": 0,
+  "setup_runs": 0,
+  "SUT_runs": 0,
+  "original85": "FAIL",
+  "original300": "NOT_RUN",
+  "private_raw_channel": "OPEN"
+}

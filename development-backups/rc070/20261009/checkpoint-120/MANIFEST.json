@@ -1,0 +1,87 @@
+{
+  "schema": "source-only-manifest-1",
+  "source_only": true,
+  "peer": "PENDING_AT_FREEZE",
+  "files": [
+    {
+      "path": "CHECK-SPEC-SAFE.json",
+      "bytes": 244,
+      "sha256": "41ec64fac5d43a46d9cb39b2796f39076a5d6a78686075904b3232203ffc333e",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "FRESH-IMPACTS-SAFE01.json",
+      "bytes": 4608,
+      "sha256": "7c9dc383cea204cee67ea8ef941a3b88042e47e5e73cf3512bccbb396a45f4fe",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "HOSTED-CANDIDATE-SAFE01.json",
+      "bytes": 940,
+      "sha256": "025f713bb6f001a0add4f146e7fa0bd9f1813b8a0c84cb7d8b2fe1437f6882a4",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "ORDINARY-CONTROLS-SCOPE01.md",
+      "bytes": 3308,
+      "sha256": "6fac5f90fc870aa4567b38289ed822231cd65a4f3c007ceab54c8fd188df00da",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "PUBLIC-SAFE-EXPORT-DESIGN01.md",
+      "bytes": 7268,
+      "sha256": "944a7c9d37e47cfb6ecae55b58261c3345061a66baf3e9943cffbb26f60d6db2",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "README.md",
+      "bytes": 871,
+      "sha256": "01e2451e3e0475be700c2f70c1c8ce9fc1b6f4ec2a38eba1e6e5c93804ac3bf3",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "STATUS.json",
+      "bytes": 279,
+      "sha256": "efe0f429859598e748a6265cc2f6d270dadb2afd9c0b4a8796456e3ac9d10d33",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-disposable-publisher-git-role/design.md",
+      "bytes": 7044,
+      "sha256": "623bac55b616f2c122660511ee29c3815051ed44cfc3ce432be375e3a53bd67b",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-disposable-publisher-git-role/requirements.md",
+      "bytes": 6217,
+      "sha256": "569e6fd3a1424ea087e993fe8dab9e59db9caf176559aeb924ea67a23c59552e",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-disposable-publisher-git-role/tasks.md",
+      "bytes": 1650,
+      "sha256": "20ba1c94cc0f6e4f35f427b1950e8514ebfecec8316043256f0d3744ffc38295",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    }
+  ]
+}

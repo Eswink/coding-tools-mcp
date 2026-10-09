@@ -1,0 +1,35 @@
+# Hosted setup-only source design02
+
+## 概述
+
+FR-1 genuine fullbuild/install at fresh ownedprefix; FR-2 only one additional literal role, original/usr/binReader preserved; FR-3 noPublisher tests. All source/functions described here are NOT_IMPLEMENTED. Old no-sudo scope stays separately frozen; this new scope alone describes permitted narrow noninteractive elevation. Permissions/actionscontents:read and actual normalpush are fixed by root, not manufactured to claim test proof.
+
+## 技术方案
+
+### Source targets and current leases (FR-1)
+
+New.github/workflows/rc-disposable-publisher-compat.yml chooses freshubuntu-24.04 hosted preparation-only job. New scripts/rc_disposable_git_prepare.py exposes preflight_disposable_realm, prepare_genuine_git, verify_genuine_install andread_current_tool_lease; actual already-installed role manifests are bound and fresh tool versions satisfy actual upstreamrequirements, localV4absoluteconstants are disclosed ASTadaptation not copy-as-exact. Preserve original source/PO/Makefiles/full localization/TCL/Rust targets and exact snapshot/phase semantics. Missingmsgfmt/GPG/compilerrole is STOP, not NO_RUST/NO_GETTEXT or ad hoc dependency install. NoDockerexecution is needed in first candidate.
+
+Do not call oldmain with fakeGITHUB, rewrite its no-install whole-run fields, modify originalowner/kernel/runner/restore/receiptgate or start85. New preparation report truthfully says ownedprefixinstallation and singleusrLocal role creation happened. OriginalsystemGit completePREFIX+OVERRIDES is independently actual before/after, not switched to newELF.
+
+### Fixed privileged helper contract (FR-2)
+
+New scripts/rc_disposable_git_role_install.py and tightly bound launcher are scoped only to literal single destination. Source is actual same-run ownedprefix Git descriptor under pinnedRUNNER_TEMP rooted directories; installer validates complete descriptor digest/bytes/nativeELF/type/permissions and owner, source path-component NOFOLLOW pins, current genuine build receipt and same-runinstall manifest. A merely matchingfilehash or caller-provided version is not provenance by itself. Root creates no other filesystem objects outside owned evidence or the single new child.
+
+sudo invocation must not execute a mutable arbitrary runner script with unrestrictedroot imports. Proposed boundary is a fixed audited inline controller byte literal via absolute trusted /usr/bin/python3 -I -S, env-independent stdlib-only; digest of exact inline program is part of caller and independentseal. Inputs are typed boundeddata, neverPython/shellcode. roothelper itself enforces fixedtarget, verifies every path component and parent tuple against trusted preflight plus root-owned directorypolicy and expected real caller identity. Opening/sourceproof/copy/finalread use retained descriptors, never reopened arbitrarypaths. No shell, cwd imports, envPYTHONPATH, sudoSETENV or permission edits. Whether actualsudo rule accepts this exact absolute fixed invocation is checked as realcomponent separately, not inferred from hosted defaults. If unacceptable, STOP rather than genericsudo-command fallback.
+
+Source is opened read-only before copying with nofollow and pinned parents; sourceFD remains held through sourcebefore/copy/after fullSHA andnativeidentity checks. O_EXCL target withnative0755 creation under explicit022umask; no chmod/chown existingparent/file. Partial write, size limit2MiB does not apply to nativeELF (actualbinarybytes separatemanifestbudget); use reviewed sourcebinarybytebound and all read/write checks. Target fullhash/nlink1/type/mode/rootowner equals policy. Parent device/inode/owner/mode/nlink allsame; knownctime/mtimedir entry updates documented not invariant. Sourcebinary legitimately has installedownedprefixhardlinks; do not falsely require source nlink1; namespace-ownedcounts sealed from thisrun. Role itself is copiedregularELF nlink1, not newhardlink. Roothelper stdout contains only boundedsafe schema result and digest; private fullnative vectors remain owned evidence.
+
+Eachsource/destination/parentFD holder is tracked before operations. close realexactonce, failures retain UNKNOWNnativeholder/noautoretry; primary and eachBaseException cancel object preserved insidecontroller and narrowhelper; across subprocess publicJSON cannot prove sameobject, caller reports bounded originalexit/status plus private nativecauseobjectboundary honestly. Partial role failure leaves artifactunqualified and no delete/retry. Helpers may not grant publisherauthority. Current prefix compiledexecpath ownership/lifetime must stay active before and after roleprobes; subsequent leases include both actualrole and fullownedprefixnamespace. Prefixcleanup cannot occur before finalruntime retirement.
+
+### Controls and stage separation (FR-3)
+
+Additional ordinary directions 17 below supplement previous24, allNOTRUN. Realprivileged execution only in a separately authorized disposableCI guard, while ordinary localcontrolled resources/mockedsudo responses prove narrower seams, not hostedsudo permission. Use actualownedtemporarydirectory FDs/newELF bytecopy for delegate-close tests; pinned literalprivileged target only realCI after independentstartup. No root target write in localcontrols.
+
+17directions: presenttargetcollision; symlinkparent/target; directoryowner/mode/inodedrift; foreign-sourcepath/equaldigest-withoutprovenance; sourcereadmutation; trueownedsourcehardlinkcount; incompletebinary/boundoverflow; syscallpartialwrite; fsyncfailure; targetposthashmismatch; primary+closefailure; precloseobservercancel realclose; firstclosecancel allremainingattempt; sudounavailable/noninteractiverulefailure; malformedtypedinput/arbitrarydestination/codeinjection; expiredownedprefix/compiledexecpathrole mismatch; partialcreatedrole neverunlink/retry/prefixcleanupbeforelease. Each exactprimary/cancel comparison stays at realPythonboundary; no pretend crossprocessobjectidentity.
+
+Fresh sixnewCI functionimpacts already actualUNKNOWN targetnotfound; new rolehelper additionalUNKNOWN/manualCRITICAL query required before sourceedit. NewhelperAST/adaptedV4functionscopes must be accurately declared and ordinarycontrols/sourcecurrentseal reviewed before rootpreparationonce. PublicfourJSON projection updated with typed HOSTED_VM versus CONTAINER identity, no fakeimage digest; all publicconsole tools stdout/stderr/tracebacks are private-captured and only fixedsafe statuses/schema fields emitted. This is not private durable storage. New negativecontrol directions cover each tool/outer-guard consoleleak and hostedversionhashed-as-digest rejection. private8raw durableOPEN forbids85/300. No productionTLS edit in this scope.
+
+## 文件结构
+
+Four newcontroller scripts plus newworkflow and finiteordinary controls/docs, all source-only targets currently NOT_IMPLEMENTED. Existingcarrier/production/V4local tools unchanged. Actualrolebridge helper inline serialization policy remains implementer task subject to sourcepeer; unknownrepresentation STOP, not unsafe shellquoting.

@@ -1,0 +1,25 @@
+{
+  "rows": [
+    {
+      "name": "loader_query_context.py",
+      "bytes": 32237,
+      "sha256": "71885a7b6533477c2c14c5c2bd0226630df614ebf579c4d5fad54f4b9162d125",
+      "mode": "0644",
+      "nlink": 1,
+      "AST_syntax": "PASS"
+    },
+    {
+      "name": "loader_query_controls.py",
+      "bytes": 12727,
+      "sha256": "2d13873295d8150d33ca65e4f50695e8ed1722ff31208667fc20fe6c5e4c041e",
+      "mode": "0644",
+      "nlink": 1,
+      "AST_syntax": "PASS"
+    }
+  ],
+  "Popen": 0,
+  "query": "NOTRUN",
+  "native": "NOTRUN",
+  "source_peer": "PENDING",
+  "current_difference_writer": "postpublish_488 actualapply_patch afterobservedUNKNOWNV2"
+}

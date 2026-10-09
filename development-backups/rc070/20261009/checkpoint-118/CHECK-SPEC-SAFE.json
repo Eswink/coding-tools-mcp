@@ -1,0 +1,11 @@
+{
+  "schema": "rc070-spec-check-safe-1",
+  "passed": true,
+  "fr_ids": [
+    "FR-1",
+    "FR-2",
+    "FR-3"
+  ],
+  "source_check_sha256": "53e29abb0bc42dede12bd03db7f6ccc83f4689ff22c6049f38aca070b6a30c5c",
+  "no_runtime_gate_credit": true
+}

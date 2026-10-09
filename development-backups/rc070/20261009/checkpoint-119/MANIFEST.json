@@ -1,0 +1,63 @@
+{
+  "schema": "source-only-manifest-1",
+  "files": [
+    {
+      "path": "CHECK-SPEC-SAFE.json",
+      "bytes": 241,
+      "sha256": "a3fb0c58ef7740b836096322769ad788751d91f52178f43d7df0dc174e1c47d8",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "FRESH-IMPACTS-SAFE01.json",
+      "bytes": 3955,
+      "sha256": "6be94308fa8f4d5035e070a780bda7078b76f59d70a1e1e5dda061e7244ad843",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "README.md",
+      "bytes": 541,
+      "sha256": "875fc4c2a8249a8b074c71659392fb0d9e4b1caaf88312c2f1cf713f5a199568",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "STATUS.json",
+      "bytes": 385,
+      "sha256": "50b04c95703192752ac30548673cf31e667e40400bcd1dc2d6a0f72b25023f2f",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-publisher-tls-close-order/design.md",
+      "bytes": 8347,
+      "sha256": "63d3892cf3e436fc68359405270189938740e2d1bc3a7bb192671a9ec5176418",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-publisher-tls-close-order/requirements.md",
+      "bytes": 7260,
+      "sha256": "d727976420d08a572bf0472d40e44fee46e808801ee1389b365f340c33c4a41e",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-publisher-tls-close-order/tasks.md",
+      "bytes": 2025,
+      "sha256": "24884020007d6b58812b052b038443e05fa9c9ada21f968f3746342e62a43e21",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    }
+  ],
+  "source_only": true,
+  "peer": "PENDING_AT_FREEZE"
+}

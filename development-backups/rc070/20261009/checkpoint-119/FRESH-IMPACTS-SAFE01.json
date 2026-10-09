@@ -1,0 +1,113 @@
+{
+  "schema": "rc070-readonly-impacts-1",
+  "manual_risk": "CRITICAL",
+  "original_source_edits": 0,
+  "ordinary_28": "NOT_RUN",
+  "public_cancel_identity": "OPEN_NOT_GUARANTEED",
+  "typed_confirmed_operation_association": "SOURCE_STOP_UNTIL_CONTRACT_SELECTED",
+  "all_attempts_preserved": [
+    {
+      "result_sha256": "b3b2d33cd4bc671a7f7b3b74020291c8b52d2dc1c313ff3667b098f09cab6186",
+      "structured_status": "ok",
+      "risk": "LOW",
+      "impactedCount": 15,
+      "target": "Method:scripts/rc_publication_github.py:GitHub._request#14"
+    },
+    {
+      "result_sha256": "16a8a1ec3f2d051b91eef69063fcbd23a114e4b065b4d5c671d96126b82bc3f1",
+      "structured_status": "degraded",
+      "risk": "UNKNOWN"
+    },
+    {
+      "result_sha256": "b758367901ba000e24df6ba328e4b999df55c14e05466b3931c8b300af828494",
+      "structured_status": "ok",
+      "risk": "MEDIUM",
+      "impactedCount": 40,
+      "target": "_safe"
+    },
+    {
+      "result_sha256": "942144a986f10f4ca804fc8bf8ab619081539ecca17f0e43da3e8c25893e4b33",
+      "structured_status": "ok",
+      "risk": "LOW",
+      "impactedCount": 6,
+      "target": "Method:scripts/rc_publication_stage.py:StagedAssets._check_handle#1"
+    },
+    {
+      "result_sha256": "409c97b9fc5c51805faaa32207442e201c89fc7074d8a438cd288b7fb400f83e",
+      "structured_status": "ok",
+      "risk": "MEDIUM",
+      "impactedCount": 35,
+      "target": "Method:scripts/rc_consumer_io.py:PrivateRoot._root#0"
+    },
+    {
+      "result_sha256": "a9284f336eb8e88a21467929660014a321df8d45ea70ec66e629d1013c7f61f7",
+      "structured_status": "degraded",
+      "risk": "UNKNOWN"
+    },
+    {
+      "result_sha256": "5e8dbbb40df686d85d4b43db5c56a7efab93780d3381f445d42c3ab1c3627359",
+      "structured_status": "degraded",
+      "risk": "UNKNOWN"
+    },
+    {
+      "result_sha256": "d2a466bd968e35296a84d720dd638e8cdb2ce69aa883bd724e41a10cc73ce2f4",
+      "structured_status": "degraded",
+      "risk": "UNKNOWN"
+    },
+    {
+      "result_sha256": "cb96e87c6e4638961f8ee00188b9ed02e29b1f065be90d3db270685bb04ac0e1",
+      "structured_status": "ok",
+      "risk": "LOW",
+      "impactedCount": 5,
+      "target": "Method:scripts/rc_publication_executor.py:PublisherSession._failure#2"
+    },
+    {
+      "result_sha256": "24e8fdd1a90f9c2a94e9f15a6005b6690d4235780c4aa443f42eb6b6f54160f0",
+      "structured_status": "ok",
+      "risk": "CRITICAL",
+      "impactedCount": 184,
+      "target": "_publication_failure"
+    },
+    {
+      "result_sha256": "593e3fab091b0f9e134344fcc97c47d00a1aae63141fe97514268d3605570b56",
+      "structured_status": "degraded",
+      "risk": "UNKNOWN"
+    },
+    {
+      "result_sha256": "c9f217b9316c7721454677aa2e361a275be26d7701fe8859c724a094e5ac5c7e",
+      "structured_status": "ok",
+      "risk": "LOW",
+      "impactedCount": 13,
+      "target": "_connect"
+    },
+    {
+      "result_sha256": "fa3c6e65901f59df120cbe99139ff19fe91e5fe8411ed564d0cacb410b99d09a",
+      "structured_status": "ok",
+      "risk": "MEDIUM",
+      "impactedCount": 39,
+      "target": "Method:scripts/rc_consumer_io.py:PrivateRoot._retirement_close#1"
+    },
+    {
+      "result_sha256": "fab084519cf3ac0e439dd0b2be9bda28151ae94b5c2e7ff845a0e359419a2d82",
+      "structured_status": "ok",
+      "risk": "LOW",
+      "impactedCount": 6,
+      "target": "Method:scripts/rc_publication_retirement.py:StageRootOwner.close_fd#1"
+    },
+    {
+      "result_sha256": "20b6ff978a90a754d2c0d1793c90e84bbc336b69a111ea85689c4e7d0411598c",
+      "structured_status": "ok",
+      "risk": "LOW",
+      "impactedCount": 4,
+      "target": "Method:scripts/rc_publication_executor.py:PublisherSession._run#0"
+    },
+    {
+      "result_sha256": "30447f830dbc5a113db6029348c059b601e5f2e2cf356e051b257beca8a07db6",
+      "structured_status": "ok",
+      "risk": "UNKNOWN",
+      "impactedCount": 0,
+      "error": "Target '_checked_stream_after_tls' not found",
+      "target": "_checked_stream_after_tls"
+    }
+  ]
+}

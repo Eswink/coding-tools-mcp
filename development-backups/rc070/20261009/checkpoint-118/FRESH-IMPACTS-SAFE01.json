@@ -1,0 +1,114 @@
+{
+  "schema": "rc070-readonly-impacts-1",
+  "production_edits": 0,
+  "new_source_implemented": false,
+  "manual_risk": "CRITICAL",
+  "new_targets": [
+    {
+      "result_sha256": "49d32f2f418631f70936c761cee2470047b31e460b99d6bec3af278f34c59a9b",
+      "structured_status": "ok",
+      "risk": "UNKNOWN",
+      "impactedCount": 0,
+      "error": "Target 'preflight_disposable_realm' not found",
+      "target": "preflight_disposable_realm",
+      "impact_result": {
+        "error": "Target 'preflight_disposable_realm' not found",
+        "target": {
+          "name": "preflight_disposable_realm"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "result_sha256": "a2ab0ec313780f535eb3145d8f87aa1824d33ba0fda7ba474a904affb17368ca",
+      "structured_status": "ok",
+      "risk": "UNKNOWN",
+      "impactedCount": 0,
+      "error": "Target 'prepare_genuine_git' not found",
+      "target": "prepare_genuine_git",
+      "impact_result": {
+        "error": "Target 'prepare_genuine_git' not found",
+        "target": {
+          "name": "prepare_genuine_git"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "result_sha256": "e6df9808d8846e8dcb2534677848b6abe9bcc898305342727ae29de352cab083",
+      "structured_status": "ok",
+      "risk": "UNKNOWN",
+      "impactedCount": 0,
+      "error": "Target 'verify_genuine_install' not found",
+      "target": "verify_genuine_install",
+      "impact_result": {
+        "error": "Target 'verify_genuine_install' not found",
+        "target": {
+          "name": "verify_genuine_install"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "result_sha256": "45ff625f35b0e97b4231709daf99821495eecd54399aa097af2112c0f1880809",
+      "structured_status": "ok",
+      "risk": "UNKNOWN",
+      "impactedCount": 0,
+      "error": "Target 'read_current_tool_lease' not found",
+      "target": "read_current_tool_lease",
+      "impact_result": {
+        "error": "Target 'read_current_tool_lease' not found",
+        "target": {
+          "name": "read_current_tool_lease"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "result_sha256": "2980c47d734ef57d93ce8cc4bb0da4b32d25332a5edecae68967fcaff442bbec",
+      "structured_status": "ok",
+      "risk": "UNKNOWN",
+      "impactedCount": 0,
+      "error": "Target 'run_disposable_publisher_probe' not found",
+      "target": "run_disposable_publisher_probe",
+      "impact_result": {
+        "error": "Target 'run_disposable_publisher_probe' not found",
+        "target": {
+          "name": "run_disposable_publisher_probe"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "result_sha256": "7ad6e7fffe5ac6340a288903750da1b59463a6c9a2831625724691d9f36d5e9f",
+      "structured_status": "ok",
+      "risk": "UNKNOWN",
+      "impactedCount": 0,
+      "error": "Target 'project_public_evidence' not found",
+      "target": "project_public_evidence",
+      "impact_result": {
+        "error": "Target 'project_public_evidence' not found",
+        "target": {
+          "name": "project_public_evidence"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    }
+  ],
+  "unknown_is_not_zero": true,
+  "ordinary_controls": "NOT_RUN",
+  "original85": "FAIL83success2fail",
+  "original300": "NOT_RUN"
+}
