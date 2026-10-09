@@ -45,3 +45,14 @@ Controls14 actually15methodsPASS37.493s: originalhelper/nativeGit controls, five
 |---|---|---|
 | FR-8 | 2,3 | Exact inverse/unchangedInvoke |
 | FR-9 | 1,3 | Actual ordinary vectors plus newsameheadCI |
+
+## Narrow helper output repair tasks after9bb
+1. Preserve original9bb actualGo4+consumerPASS and Windowswholecompile+original7 butconsumerFAIL/2missinglogs; independentlyverify exactartifacts/source/runtime/case vectors.
+2. Own9bb checkout fresh exactmainimpact and userriskdisclosure/spec before only postreceipt-primary print actualresult. Exactly4existing deltas; allother1868 byteexact, no union integration.
+3. ActualownedGit apply/verify failurefirst thennewprintedreceipt equality, realstdout/receiptfailure and cancellationnonzero, existingtypedprimary controls and unchangedmissinglogdenial; sourcepeer/safecp81/soleparent9bb meaningfulcommit thenrootbackup/readback/newrealCI.
+| FR | Tasks | Evidence |
+|---|---|---|
+| FR-10 | 2,3 | Exacthelper inverse andsourcepeer |
+| FR-11 | 1,3 | Actual strictsource anderrorboundary controls/newCI |
+
+Actual postrepair ordinary original15 methods passed70.290s; two same-Invoke native helper operations produce matching receipts/logs. Four limited negative vectors passed (receipt directory, reader-close, owned unbuffered child SIGINT, original print-cancel object/closed FDs); buffered control01 remains STOP. Strict current consumer actual ownedGo4 accepts complete logs, denies each missing version/source-after log and accepts exact restore. These are component controls, not newWindows/compiler/VM/RC qualification.

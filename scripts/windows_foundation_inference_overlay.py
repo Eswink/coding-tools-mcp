@@ -326,6 +326,7 @@ def main():
         raise
     if primary is not None:
         raise primary
+    print(json.dumps(result, ensure_ascii=False))
 
 
 if __name__ == '__main__':

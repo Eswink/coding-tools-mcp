@@ -40,3 +40,12 @@ Actual1c Go original4/source/manager/runtime checks passed but terminalconsumer 
 |---|---|---|
 | FR-8 | Sole post-assert actual version print | Full PS inverse/Invoke unchanged |
 | FR-9 | Actual nativePython ordinary vectors | Failurefirst/after/wrongpin/missing-log denial and newCI |
+
+## FR-10/FR-11 helper actual verification evidence
+9bb Rust helper apply/verify wrote strict1953 successful receipts but had nostdout; originalTee created neither candidate-source-overlay.log nor source-after.log, so independentconsumer correctlyfailed. Add one print(json.dumps(result, ensure_ascii=False)) after the original primary reraising boundary, after successful originalreceipt write. The result is actual validator output, never reconstructed success. All otherhelper bytes andPS/workflow/consumer/manifest remain exact. Real nativechild pipe closure/receipt-writefailure remain nonzero; parentinvoker already rejects them. No owner/IOclose qualification derives from ordinarystdout or a source receipt.
+| FR | Design | Evidence |
+|---|---|---|
+| FR-10 | Sole postreceipt/no-primary actualresult print | Wholehelper inverse/remainingbytes exact |
+| FR-11 | OwnedGit trueapply/verify and realIO failures | Actual failurefirst/after/stdoutpipe/receipt/cancel controls plus newCI |
+
+Ordinary blocked-stdout control01 used default buffered Python and stopped in exit-flush; its STOP and exact owned cleanup remain preserved. Control02 uses explicit `-u` only for the owned negative native invocation, bounded communicate10s and finally closes/waits exact child/FDs. Native CLI SIGINT exit-2 and original-object print cancellation are distinct controls; neither proves Windows native owner cancellation. Production Python invocation/Invoke, print buffering and budget stay unchanged.
