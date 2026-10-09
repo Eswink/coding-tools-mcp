@@ -1,0 +1,69 @@
+{
+  "source_only": true,
+  "files": [
+    {
+      "path": "README.md",
+      "git_mode": "100644",
+      "bytes": 2741,
+      "sha256": "278101e93a9c38b4fc892aff119fe84803417cec6788e501c8560259036ca2d1",
+      "blob_sha1": "ea39af754194e4b0a644be8a6b56ac45ce0e939b"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "git_mode": "100644",
+      "bytes": 6775,
+      "sha256": "9efabe443a8922183215441f8724ee4481ed919ae032d7d8065b69482f875db3",
+      "blob_sha1": "2bfcd800d3b48b1ad7b0c285798359ddc85e06f2"
+    },
+    {
+      "path": "source/diagnostic-launch.py.source",
+      "git_mode": "100644",
+      "bytes": 3587,
+      "sha256": "cd461e1cf5ebf2676dbe94038eef1c5c7a91dc9466832a1816f4cb23bee2d722",
+      "blob_sha1": "09ce7b46d8b66dc87b6f1a2199280c403249649f"
+    },
+    {
+      "path": "source/diagnostic_owner.py.source",
+      "git_mode": "100644",
+      "bytes": 15193,
+      "sha256": "c1aec12ee56d4c03f6939c73740a080d5dc7d643706da62bf0d3b3a2b2363d21",
+      "blob_sha1": "6f0abcd2ae6bd38506e3eb16fa6816bffffcd779"
+    },
+    {
+      "path": "source/diagnostic_worker.py.source",
+      "git_mode": "100644",
+      "bytes": 3946,
+      "sha256": "0ef5e05c9576e4cb9d77c2272f80f389efbb7e4dd7a5299bfff135d356802e1f",
+      "blob_sha1": "31b0b421b7295058e7391381ae3690e747c9f8a2"
+    },
+    {
+      "path": "source/docs/specs/publisher-fence-diagnostic1/design.md.source",
+      "git_mode": "100644",
+      "bytes": 2545,
+      "sha256": "799fb705b7ee762984c7499fdab04df5ec02393fead379cc953ccf82e0c4bab3",
+      "blob_sha1": "678a96571b99e4552caa2bc2c4e22718a8f3d037"
+    },
+    {
+      "path": "source/docs/specs/publisher-fence-diagnostic1/requirements.md.source",
+      "git_mode": "100644",
+      "bytes": 3587,
+      "sha256": "77cdf5e1ddfbd38373d3d1b0d2210e0017872ed7730af15351fca70b30d4c631",
+      "blob_sha1": "eeed4c6bfc215989b30798a27538956890ad82f8"
+    },
+    {
+      "path": "source/docs/specs/publisher-fence-diagnostic1/tasks.md.source",
+      "git_mode": "100644",
+      "bytes": 2507,
+      "sha256": "eeb10b468361afa0d66b92d69ea85a70ddfe7831d5010ca8305f6205bb4b16b4",
+      "blob_sha1": "1f99fa19dd871b084fc9f14bf6f7cfa47d0049e8"
+    },
+    {
+      "path": "source/ordinary-observer-controls.py.source",
+      "git_mode": "100644",
+      "bytes": 4683,
+      "sha256": "b03925d87fa3ac390c360afa707870df2d6095c2a2981b892b6bf495194729e8",
+      "blob_sha1": "9a8f631fe6489bc435145a12eac711b53af7c8c8"
+    }
+  ],
+  "manifest_self_bound_by_remote_git_blob": true
+}

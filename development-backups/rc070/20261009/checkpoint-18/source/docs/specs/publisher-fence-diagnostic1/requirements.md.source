@@ -1,0 +1,33 @@
+# Publisher pending fence single-method diagnostic
+
+## 功能概述
+
+真实新Git2.47.3下完整原85执行85/83SUCCESS2FAIL，原raw完整source/runtime beforeafter无变化、自然exit1/nativeECHILDtrue；300禁止。两FAIL均在_pending_fence184，PublishPrerelease前run_until_pause返回actionNone。原收据没保存该前驱异常，因果仍UNKNOWN。本次仅诊断一个原artifact method，不是重跑85或修改断言。
+
+## 需求列表
+
+### FR-1: 原1方法及同源
+
+WHEN 准备 THEN 系统 SHALL unchanged originalrestore在独立fresh pure checkout还原b9cf1878/soleparentF13且实际644/755全部mode/blob/bytes/SHA/index验证；原103行6259B runner与originalinventory选定唯一artifact原方法，保留该原method及_native_session/_pending_fence函数完整AST和全部原assert。
+IF 原源/runner/fixture/nativePREFIX不符 THEN 系统 SHALL SUT0 BLOCKED；不改生产hardreject/snapshotpause/源码、Gitbinary/PATH/授权。
+
+### FR-2: 透明观察真正前驱
+
+WHEN 原方法执行 THEN 系统 SHALL 原runner通过runpy执行原6259B，worker仅临时wrap原PublisherSession._failure与run_until_pause；delegate原函数恰好一次，保留原入参、原返回对象身份、原delegate异常传播与取消，原所有test/operation timers不变。
+WHEN 记录 THEN 系统 SHALL 仅收集opkind/operationid、异常type、WireFailure安全code/effect、原OperationResult和Transition安全code/outcome/actiontype；不记录args/消息/token/header/body/credentials；字段观察普通Exception则诊断UNKNOWN且不改变已经获得的delegate返回，BaseException取消不得吞下。原delegate先执行，所有观察在其后，延迟只fail不扩预算。
+WHEN 原runner自然SystemExit或其他异常 THEN 系统 SHALL 保留原primary；observer写入普通失败不得替换它，observer取消与primary同时发生则保留两个异常而非吞取消。日志close必须真实执行，observer失败不能跳过真实close。
+
+### FR-3: 有限自有进程和准确归因
+
+WHEN 启动 THEN 系统 SHALL 复用原native kernel/receipt_gate和run_owned有限控制器语义；仅外部副本BOUNDS literalprofile诊断1=1800、expectedinventory1与argv wrapper替换，明确不是原85owner逐字函数。原TERM7/KILL2/family2、pidfd/WNOWAIT/created-held/nativeECHILD、minimalenv/source/runtime/carrier/fixture/runner fences不变。
+WHEN 原method终止 THEN 系统 SHALL 封存全部原raw和observerbytes、自然exit/native闭包和实际SOURCE前后；任一观察失败不做因果PASS，未知保持UNKNOWN。原1方法FAIL/成功均不授权85/300/CI/FINAL/Release或grant，无自动重试。
+
+## 非功能需求
+
+NFR-1 原1800/7/2/2 strictfail-only；NFR-2 无compiler/install/privilege/foreignprocess/真实服务发布；NFR-3 CPython3.12.14和本地actualGit2.47.3，不冒充CI。
+
+## 依赖关系
+
+原immutable publiccarrier a935/37109、pureb9cf、originalrunner6259B、officialGLib267679/SHA233daaf6、当下freshGN或真实UNKNOWN/manualCRITICAL披露、普通透明observer controls、独立prelaunchreview。
+
+FR-3新增observer原byte封存：launcher在原owned controller完成后nofollow真实读取DIAGNOSTIC-OBSERVATION.json，独立exclusive OBSERVATION-RAW-SEAL.json记录bytes/SHA/状态及原八文件RAW-EVIDENCE-SEAL原bytes/SHA；原八seal不冒称涵盖sidecar。读取/解析失败保持UNKNOWN，原native/原method结果不改。sealedsummary保存observerseal原SHA便于root逐byte重读。顶层entry无新增symbol，freshimpact diagnostic_launch真实UNKNOWN，manualCRITICAL保持。

@@ -1,0 +1,62 @@
+"""Actual worker hook AST ordinary controls; does not exercise whole native owner."""
+import ast,json,sys,traceback
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock
+B=Path('/workspace/work/rc070/publisher-fence-diagnostic');M=Path('/workspace/work/rc070/publisher-carrier')
+sys.path.insert(0,str(M/'scripts'))
+from rc_native_probe_restore import write
+sys.path.insert(0,'/workspace/work/rc070/publisher-review/preflight02/pure-sut/scripts')
+import rc_publication_github as wire
+source=ast.parse((B/'diagnostic_worker.py').read_text())
+nodes=[n for n in source.body if isinstance(n,ast.FunctionDef)]
+assert [n.name for n in nodes]==['observed_failure','observed_pause','finish_observation']
+ns=dict(wire=wire,Path=Path,traceback=traceback,json=json,sys=sys,write=Mock(),_observations=[],_observation_errors=[])
+exec(compile(ast.Module(body=nodes,type_ignores=[]),str(B/'diagnostic_worker.py'), 'exec'),ns)
+rows=[]
+failure_value=SimpleNamespace(code='adapter_error',effect='none')
+op=SimpleNamespace(kind='ObserveDraft',operation_id=22);current=object();original=wire.WireFailure('fence_blocked','none')
+ns['_delegate_failure']=Mock(return_value=failure_value)
+assert ns['observed_failure'](current,op,original) is failure_value
+ns['_delegate_failure'].assert_called_once_with(current,op,original);assert ns['_observations'][-1]['wire_code']=='fence_blocked';rows.append('failure_delegates_once_exact_identity')
+transition=SimpleNamespace(action=None,state=SimpleNamespace(code='adapter_error',outcome='partial_draft',intent_count=22,pending=None))
+ns['_delegate_pause']=Mock(return_value=transition)
+assert ns['observed_pause'](current) is transition
+ns['_delegate_pause'].assert_called_once_with(current);assert ns['_observations'][-1]['action_type'] is None;rows.append('pause_delegates_once_exact_identity')
+for name,arguments in [('observed_failure',(current,op,original)),('observed_pause',(current,))]:
+ delegate='_delegate_failure' if name=='observed_failure' else '_delegate_pause'
+ for error in (RuntimeError('owned ordinary failure'),SystemExit(1),KeyboardInterrupt()):
+  ns[delegate]=Mock(side_effect=error)
+  try:ns[name](*arguments)
+  except BaseException as actual:assert actual is error
+  else:raise AssertionError('originalexception swallowed')
+  ns[delegate].assert_called_once_with(*arguments);rows.append(name+'_'+type(error).__name__+'_original_identity')
+ns['_observations']=SimpleNamespace(append=Mock(side_effect=OSError('owned observer only')))
+for name,arguments,value,delegate in [('observed_failure',(current,op,original),failure_value,'_delegate_failure'),('observed_pause',(current,),transition,'_delegate_pause')]:
+ ns[delegate]=Mock(return_value=value);assert ns[name](*arguments) is value
+ ns[delegate].assert_called_once_with(*arguments);rows.append(name+'_ordinary_observation_failure_preserves_return')
+observer_cancel=KeyboardInterrupt()
+ns['_observations']=SimpleNamespace(append=Mock(side_effect=observer_cancel))
+for name,arguments,value,delegate in [('observed_failure',(current,op,original),failure_value,'_delegate_failure'),('observed_pause',(current,),transition,'_delegate_pause')]:
+ ns[delegate]=Mock(return_value=value)
+ try:ns[name](*arguments)
+ except BaseException as actual:assert actual is observer_cancel
+ else:raise AssertionError('observation cancellation swallowed')
+ ns[delegate].assert_called_once_with(*arguments);rows.append(name+'_observation_cancel_not_swallowed')
+ns['_observations']=[];primary=SystemExit(1);ns['write']=Mock(side_effect=OSError('owned write negative only'))
+try:ns['finish_observation'](B/'unused-never-written.json',primary)
+except BaseException as actual:assert actual is primary
+else:raise AssertionError('primary masked')
+rows.append('observer_writer_failure_preserves_original_primary')
+cancel=KeyboardInterrupt();ns['write']=Mock(side_effect=cancel)
+try:ns['finish_observation'](B/'unused-never-written.json',primary)
+except BaseExceptionGroup as actual:assert actual.exceptions==(primary,cancel)
+else:raise AssertionError('cancel or primary swallowed')
+rows.append('writer_cancel_and_original_primary_both_preserved')
+ns['write']=Mock()
+try:ns['finish_observation'](B/'unused-never-written.json',primary)
+except BaseException as actual:assert actual is primary
+else:raise AssertionError('originalexit lost')
+ns['write'].assert_called_once();rows.append('successful_observation_preserves_original_exit_identity')
+write(B/'ORDINARY-OBSERVER-CONTROLS-v3.json',dict(passed=True,SUT_runs=0,actual_hookAST_compiled=True,original_worker_whole_NOTRUN=True,whole_owner_NOTRUN=True,controls=rows))
+print(json.dumps(dict(passed=True,controls=len(rows),SUT_runs=0)))

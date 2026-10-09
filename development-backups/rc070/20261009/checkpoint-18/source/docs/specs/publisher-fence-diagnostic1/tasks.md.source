@@ -1,0 +1,36 @@
+# Publisher fence diagnostic1 tasks
+
+## 交付物清单
+
+三spec、三个外部runtime/entry、一个必要普通observercontrol脚本、exactsource/AST/impact/ordinaryraw/prelaunchseal。0production/carrier原文件编辑；原1method后不retry85，不300。
+
+## 任务列表
+
+1. FR-1 restore/precondition/sourceAST原字节与当前工具核验。
+2. FR-2 freshimpact针对原_failure/run_until_pause和新observer符号，unknown按manualCRITICAL披露，三规格check_spec通过后才外部代码。
+3. FR-2/3 透明wrapper及有限外部owner副本，原delegate、真实close、异常/取消不吞；普通必要controls。
+4. FR-1/2/3 AST真实差异+bytes/source/native/ordinarycontrol封存，独立prelaunchreview。
+5. FR-3 仅一次原artifactmethod诊断，真实原raw审计+因果报告，0原source补丁。
+
+## 需求覆盖矩阵
+
+| 需求 | 设计 | 任务 |
+|---|---|---|
+| FR-1 | 源和原方法 | 1/4 |
+| FR-2 | 透明原delegate | 2/3/4 |
+| FR-3 | 有限nativeowner | 3/4/5 |
+
+## 文件变更清单
+
+| 文件 | 操作 | 预算 |
+|---|---|---|
+| requirements/design/tasks.md | 三外部新spec | 各150行以内 |
+| diagnostic_owner.py | 外部副本非原整个AST | 400行 |
+| diagnostic_worker.py | 原两个delegate透明wrapper | 150行 |
+| diagnostic-launch.py | top-level一次1method | 100行 |
+| ordinary-observer-controls.py | 普通必要failurefirstcontrols | 150行 |
+| source/AST/impact/prelaunch/原raw | outside证据 | nooverwrite，不公开host/TLS |
+
+新增符号scope精确为 observed_failure、observed_pause、finish_observation 和外部diagnostic_run_owned（复制原run_owned但4处受控修改）；各fresh impact UNKNOWN不当0；原failure实际LOW1direct5symbols、pauseLOW2direct2symbols，但临时接管Publisher故manualCRITICAL，根已向用户披露。原receipt_gate逐字AST复制、kernel从原module导入，不改它们。普通controls以真实worker中3函数AST编译注入普通Mock delegate，不声称wholeworker/wholeowner passed。
+
+FR-3新增observer原byte封存：launcher在原owned controller完成后nofollow真实读取DIAGNOSTIC-OBSERVATION.json，独立exclusive OBSERVATION-RAW-SEAL.json记录bytes/SHA/状态及原八文件RAW-EVIDENCE-SEAL原bytes/SHA；原八seal不冒称涵盖sidecar。读取/解析失败保持UNKNOWN，原native/原method结果不改。sealedsummary保存observerseal原SHA便于root逐byte重读。顶层entry无新增symbol，freshimpact diagnostic_launch真实UNKNOWN，manualCRITICAL保持。
