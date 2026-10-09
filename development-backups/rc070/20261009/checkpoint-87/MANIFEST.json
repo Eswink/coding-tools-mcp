@@ -1,0 +1,55 @@
+{
+  "files": [
+    {
+      "path": "ORDINARY-INPUT-COMPONENT-SAFE.json",
+      "bytes": 919,
+      "sha256": "addea0d8befcc93a66e1973d2e73bfb702fac7fac0f2ebbdb4efd52eae0b8569",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 442,
+      "sha256": "d68163af934248b2e0438d9399710bbd90ab558dbf2ad05979aa282ca9b29134",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 665,
+      "sha256": "304e2a7cfa50a47a63c005545fdf046b731260ccd38ccd553572e63b0e807754",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "design.md.source",
+      "bytes": 1005,
+      "sha256": "1602769e58103fcbaa3df66be34cea5d497d28ff9bfa6378c42bffad6ecc49d2",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "ordinary-input-component.py.source",
+      "bytes": 6143,
+      "sha256": "98bda8decb6532f005749b21e657946c712446b3a7b75fe4308329ee7ace63c2",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "requirements.md.source",
+      "bytes": 2194,
+      "sha256": "428729a78d33bb4ba7dd38600e15ce51c529556a7f92e07dfc2988cef843d9ef",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "tasks.md.source",
+      "bytes": 1052,
+      "sha256": "c36930d4694622102cac6a754f65805658e2d5b39e0ccf7051723ef916b83884",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ],
+  "files_excluding_manifest": 7,
+  "bytes_excluding_manifest": 12420
+}

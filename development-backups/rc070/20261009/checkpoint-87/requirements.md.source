@@ -1,0 +1,14 @@
+# Git V3 root public-key input correction
+## 功能概述
+Root launch01 FAIL before source-auth/build; original five source files unchanged. New rootpacket selects existing complete public key matching original constants. All old failure/raw/freeze retained.
+## 需求列表
+### FR-1: Exact original signed inputs
+WHEN selecting next root input THEN SHALL use existing junio-ubuntu-public-key.asc 68820B SHA fd2809d850e844b614ac60f13ded554c55d9052e5c799a5814abcba2a68a063c matching unchanged helper constants and original source requirements; archive8177180B/457fdb04dc8728e007d4688695e6912e6f680727920f2a40bf11eacc17505357 and sign566B/8673501946204c38ebfed09603c1f3a041ed8d12b31f0aa06a474d41e359e254 unchanged. Original primary96E07AF25771955980DAD10020D04E5A713660A7/subkeyE1F036B1FEE7221FC778ECEFB0B5E88696AFE6CB VALIDSIG mandatory. TRUST_UNDEFINED not publisher trust.
+### FR-2: Genuine ordinary input controls
+WHEN preparing next launch THEN SHALL first use unchanged source/auth delegate with old minimalkey to preserve expected bytepin rejection before auth directory; then authentic completekey signature component only, no source execution/build/install. Actual returned tar and signer status required; original source5/inputs/tools current before-after exact. Fresh authentication impact HIGH9/direct2/process3 disclosed; no constant loosening or old receipts admitted as new run.
+### FR-3: Fresh root-only launch
+WHEN full build next occurs THEN SHALL create fresh current-input/source5/msgfmt/runtime/env/rootlauncher leases before import/auth, exclusive once marker and new evidence path, independent startup ALLOW, final literal check, root unique execution. Retain build480/install60/probes30 and perlog2MiB/fullprefix256MiB. No product/CI/Publisher/RC/allIO/issuer grant claims from tool preparation. launch01 failure immutable; no reuse of its destination/marker or overwrite.
+## 非功能需求
+No public keys, binary artifacts, host/proc/env, TLS/token or native objects uploaded in source-only backup. Product0.6-rc4 and final authority absent unchanged.
+## 依赖关系
+FR-2 depends FR-1; FR-3 depends successful authentic current FR-2 and new independent startup review.

@@ -1,0 +1,47 @@
+{
+  "schema": "independent-limited-startup-review-v1",
+  "decision": "ALLOW_ONE_ROOT_OWNED_GIT_V3_PREPARATION_ONLY",
+  "source_freeze_sha256": "b65b5d91f2d3fd334dba208f43b5008f872fdd08775e44bb13480e2845cdd74b",
+  "source_peer_sha256": "a65abb404b61b77019972179fabd65f8e79581c2b46dac92e31e1f29238d4272",
+  "root_before_sha256": "7661c31c5ef4a024d8dcf8c872ae9485f02119c7090a91c6ca1b17a3dd315b15",
+  "root_launcher_sha256": "48f86daa4dc6c5da302beeafb47fa49b53a0311dbb2b81f55abe2d376088f1d5",
+  "review": {
+    "whole_launcher_and_snapshot_library_read": true,
+    "ten_actual_current_lease_groups_exact": true,
+    "git5_debian5_inputs3_hosts15_ABI4_Rust2_exact": true,
+    "actual_msgfmt_receipt_and19_role16_unique_leases_exact": true,
+    "root_env_python_snapshot_library_exact": true,
+    "current_source5_before_import_auth_bound": true,
+    "all_after_groups_independently_attempted": true,
+    "original_primary_and_all_cancel_error_objects_grouped": true,
+    "once_marker_destination_terminal_raw_absent": true,
+    "exact_env_i_five_vars_system_python_B_argv_checked": true
+  },
+  "limits": {
+    "build_seconds": 480,
+    "conditional_owned_install_seconds": 60,
+    "installed_native_probes_shared_seconds": 30,
+    "managed_phase_log_cap_bytes": 2097152,
+    "expanded_signed_source_bytes": 67108864,
+    "installed_unique_payload_bytes": 268435456,
+    "installed_member_bytes": 67108864,
+    "installed_entries": 10000
+  },
+  "scope": "Root alone may perform exactly one fresh owned tool preparation with this reviewed literal packet; current source5 and leases must be rechecked immediately before launch. No peer execution occurred.",
+  "not_qualification": [
+    "Publisher85/300",
+    "whole755_latest_RC",
+    "GitHubActions",
+    "WindowsVM",
+    "host_or_product_install",
+    "native_family_allIO",
+    "0.7_release_or_issuer"
+  ],
+  "actual_genuine_git_execution": "NOTRUN_AT_REVIEW",
+  "unknowns": [
+    "actual build/install/probe success",
+    "owned process group cleanup is not exact native family proof",
+    "same-user mutation exclusion not guaranteed"
+  ],
+  "old_failures": "preserved"
+}

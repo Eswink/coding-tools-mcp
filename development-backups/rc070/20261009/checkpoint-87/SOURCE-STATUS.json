@@ -1,0 +1,14 @@
+{
+  "scope": "root-input-correction-spec-and-ordinary-source-only",
+  "production_source5_changes": 0,
+  "original_source_tree": "f8e68599b560e1330585baf324269a6d515c853d",
+  "source_freeze_sha256": "b65b5d91f2d3fd334dba208f43b5008f872fdd08775e44bb13480e2845cdd74b",
+  "new3FR_checkspec": "PASS",
+  "first_spec_validation": "FAIL4_missing_task_sections_retained_then02PASS",
+  "fresh_auth_impact": "HIGH9_exact_direct2_process3",
+  "ordinary_actual_tool_terminal": "88728_b7be4e_exit0",
+  "ordinary_source_peer": "PASS_FINITE_IN_ROOT02_REVIEW_1c98",
+  "fullbuild_install": "STARTED_NOT_TERMINAL_AT_FREEZE",
+  "product_CI_install_RC": false,
+  "issuer": "MISSING"
+}

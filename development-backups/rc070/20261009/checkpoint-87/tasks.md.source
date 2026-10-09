@@ -1,0 +1,19 @@
+# 任务
+## 交付物清单
+三份规格、真实普通认证组件收据、新rootonce02封存和独立终态审查。
+## 任务列表
+- [x] Preserve actual launch01 failure before compilation and identify old incorrect input path. 对应 FR-1。
+- [x] Fresh exact verify_git_source impact HIGH9/direct2/process3 and user disclosure. 对应 FR-1。
+- [ ] Genuine oldkey negative and completekey signature component with fresh source/input/runtime guards. 对应 FR-2。
+- [ ] Fresh rootpacket independent startup review and unique actual full build/install/probes. 对应 FR-3。
+- [ ] Independent actual terminal audit, safe source/status backup; no final release qualification. 对应 FR-3。
+
+## 需求覆盖矩阵
+|需求|任务|验证|
+|---|---|---|
+|FR-1|输入和原常量交叉核对|真实byte/SHA/AST|
+|FR-2|原负向和真实完整key认证|实际原GPG返回与新guard|
+|FR-3|新封存和唯一启动|独立startup与真实terminal|
+
+## 文件变更清单
+仅新增三份规格、private普通组件和rootpacket；原source5无修改。

@@ -1,0 +1,25 @@
+{
+  "result": {
+    "status": "PASS_CURRENT_ORIGINAL_SIGNATURE_COMPONENT_ONLY",
+    "wrong_minimal_key_rejected_before_auth": true,
+    "constants_cross_checked": true,
+    "complete_key_bytes": 68820,
+    "complete_key_sha256": "fd2809d850e844b614ac60f13ded554c55d9052e5c799a5814abcba2a68a063c",
+    "gpg_exit": 0,
+    "primary_fingerprint": "96E07AF25771955980DAD10020D04E5A713660A7",
+    "subkey_fingerprint": "E1F036B1FEE7221FC778ECEFB0B5E88696AFE6CB",
+    "tar_bytes": 51916800,
+    "tar_sha256": "28d94a29be1ca2669cf05e0220ac7a07742f50b417484bf4bad56595edb8d160",
+    "build_runs": 0,
+    "install_runs": 0,
+    "SUT_runs": 0,
+    "RC": false,
+    "trust": "Explicit original pinned signing identity; not publisher authority"
+  },
+  "seconds": 1.2803390100016259,
+  "current_lease_checks": 72,
+  "primary_type": null,
+  "post_error_types": [],
+  "source5_unchanged": true,
+  "native_family_closed_claim": false
+}

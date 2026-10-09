@@ -1,0 +1,62 @@
+{
+  "decision": "ACTUAL_FINITE_ORIGINAL_METHOD_FAIL_RETAINED",
+  "root_actual_tool_provenance": {
+    "provided_direct_root_message": true,
+    "session_id": 94688,
+    "terminal_chunk": "61ffa1",
+    "actual_exit_code": 1,
+    "original_method_launches": 1
+  },
+  "prelaunch_seal_sha256": "0c24990aa26eed5a273d32443b6460e83133460b57087e9b569d03c1befa0137",
+  "current2071_frozen_source": true,
+  "current1878_pure_physical_source_index": true,
+  "current1860_carrier_whole_nativeblob_mode_raw": true,
+  "original8_raw_sha_bytes_regular_nlink1_reread": true,
+  "original8_seal_sha256": "2b241f965d406f532a8275cbaa73166435f5e2b5488fd5fcd08b1d4f82d9fa8d",
+  "observer_sha256": "3090767e0dcc4500a8d2cc7e5fb3f6d71de4035530fb065f1572024b12a38443",
+  "observer_bytes": 7979,
+  "runtime_carrier_fixture_runner_realm_beforeafter_join_current_hash": true,
+  "same_created_held_Z_CLD_EXITED1_nativeECHILD": true,
+  "original_scope": {
+    "loaded": 1,
+    "executed": 1,
+    "success": 0,
+    "failures": 1,
+    "errors": 0,
+    "seconds": 25.691671267000856,
+    "owner_seconds": 27.578440688999763,
+    "closed": false,
+    "qualified": false,
+    "sole_native_error": "original_receipt_admission AssertionError"
+  },
+  "actual_safe_observations": {
+    "completed_pairs": 4,
+    "request_pairs": 2,
+    "sendall_pairs": 2,
+    "TLS_events": 0,
+    "TLS_not_executed_claim": false,
+    "authentication_spans_seconds": [
+      2.0039843510003266,
+      2.330020864999824
+    ],
+    "inner_exception": "original SSLSocket.sendall->ssl.send BrokenPipeError",
+    "original_failure_mapping": "CreateDraft2 adapter_error unknown -> uncertain_remote_effect actionNone intent2",
+    "all9_bindings_reported_restored_and_no_observer_install_restore_cancel_error": true
+  },
+  "causality_limits": [
+    "TLS events absent; no same actual server timeout/client write timeline join",
+    "Auth span >2s plus original timer cannot establish server closed cause",
+    "Original fixture defensive selection-copy is a read-only source hypothesis, not captured actual run filter reason",
+    "Prior85/diag failures not blanket-attributed to current BrokenPipe"
+  ],
+  "server_cause": "UNKNOWN",
+  "qualification": {
+    "whole85": "FAIL83SUCCESS2FAIL_RETAINED",
+    "300": "NOTRUN",
+    "CI": false,
+    "final_RC": false,
+    "release_authorized": false,
+    "native_issuer": false
+  },
+  "reviewer_SUT_executions": 0
+}

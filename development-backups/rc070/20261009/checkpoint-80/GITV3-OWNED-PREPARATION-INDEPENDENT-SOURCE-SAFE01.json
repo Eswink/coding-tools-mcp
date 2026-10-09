@@ -1,0 +1,50 @@
+{
+  "decision": "PASS_FINITE_SOURCE_ONLY_STARTUP_PENDING_ROOT_PACKET",
+  "source_freeze_sha256": "b65b5d91f2d3fd334dba208f43b5008f872fdd08775e44bb13480e2845cdd74b",
+  "source_tree": "f8e68599b560e1330585baf324269a6d515c853d",
+  "source_files": 5,
+  "source_bytes": 68462,
+  "helper_sha256": "b60fe397d571ea5118ab0ec6128f8e908944f06ef69ff45c88053220f65040cf",
+  "independent_reads": {
+    "whole_helper29661_tests19719_and_specs": true,
+    "all5_physical0644_regular_nlink1_byte_SHA_native_mode_blob_exact": true,
+    "spec04_actual_nested5FR0errors0warnings": true,
+    "actual29_unique_test_names_current_AST_match_raw4782_SHA40d941": true,
+    "ordinary_real_shell_existingPython_and_child_timeout_logcap_resource_groups": "Limited component evidence; authenticated source/build/install/probe mock fixtures explicitly nonqualification"
+  },
+  "bounded_source_contract": {
+    "official_original_source_signature_key_pins": true,
+    "frozen_Debian_V3_adapter_hash": "382f47e98cb5e782e4080f781ba930a42a265a5d83250507199045b1d28ba0aa",
+    "same_genuine_MSGFMT_loader_owned_library_vector": "--check appended explicitly, make dollar/NUL/newline/whitespace denied",
+    "full_make480_before_install60_before_installed_probes_shared30": true,
+    "source5_checks": "Mandatory root current-source5 input before build and before each managed build/install/installed-probe delegate, again in finally; root startup must fence source before auth/import",
+    "all15_host4ABI2Rust_plus_MSGFMT19_leases_finally_independent": true,
+    "original_signed_source_expected_entries_beforeafter_preserved": true,
+    "install_status_truthful_attempted_until_complete": true,
+    "installed_cap": "256MiB unique payload,64MiB member,10000; hardlink nlink matches all in-prefix directory entries",
+    "newfull_build_git_hash_size_equals_installed_git": true,
+    "actual_installed_flags_version_execpath_init_hash_plumbing_required": true,
+    "prefix_fresh_literal_workspace_only": true,
+    "host_role_shadow_LD_and_shims_denied": true,
+    "primary_cancel_cleanup_final_objects": "Original identity groups; once-close UNKNOWN no retry via reviewed adapter"
+  },
+  "startup_conditions": [
+    "Root fresh exact source5/archive/sign/key/dependency/msgfmt-full-19/15host4ABI2Rust/loader/env leases before import and genuine delegate",
+    "Root fresh exclusive once marker/evidence absent/exact argv env packet independent review",
+    "Root actual tool terminal provenance and complete raw/status/full current manifests after one genuine phase",
+    "No guarantee full make/install/cap will pass; old partial ELF cannot be admitted"
+  ],
+  "qualification": {
+    "genuine_msgfmt": "PASS independently audited earlier root once",
+    "genuine_GitV3_build_install_probes": "NOTRUN",
+    "publisher85": "FAIL retained",
+    "300": "NOTRUN",
+    "CI": false,
+    "product_install": false,
+    "RC": false,
+    "issuer_or_publication": false,
+    "global_native_family_or_allIO": false
+  },
+  "risk": "extract CRITICAL13/new symbols UNKNOWN manualHIGH disclosed; printed graph counts are not gate",
+  "reviewer_genuine_executions": 0
+}

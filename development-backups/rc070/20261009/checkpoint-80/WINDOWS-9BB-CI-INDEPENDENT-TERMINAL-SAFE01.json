@@ -1,0 +1,65 @@
+{
+  "decision": "ACTUAL_COMBINED_CI_FAIL_RETAINED",
+  "actual_GitHub_run": 37941726034,
+  "actual_head": "9bb8d62d478314cb57f6b13f15c4cde922c43437",
+  "provenance": "Fresh actual GitHub jobs/artifact API readbacks plus authenticated connector artifact download, not anonymous Release assets",
+  "artifacts": {
+    "Rust": {
+      "zip_bytes": 55272,
+      "zip_sha256": "d36e13521b0edb1c74ed53db60292d9cc51272824e1679072dce8daaac971af2",
+      "all31_archive_files_current_readback_exact": true
+    },
+    "Go": {
+      "zip_bytes": 14377,
+      "zip_sha256": "6f218f269e00edd48f25d0d5d9962070a629b62acb906b82650c4f73282c9cb6",
+      "all18_archive_files_current_readback_exact": true
+    }
+  },
+  "independent_actual_joins": {
+    "APIartifact_id_run_head_size_digest_expiry": true,
+    "allZIPCRC_bytes_local_regular_nlink1_namespace": true,
+    "producer_run_head_mode_target_tree_1953_source_digest_beforeafter": true,
+    "manager_native_digest_and_byte_observation_beforeafter": true,
+    "reported_runtime_payload_and_wrapper_SHA_beforeafter": true,
+    "Rust24_commands_actual_exit0": true,
+    "Go10_commands_actual_exit0": true,
+    "Rust_whole_lib_test_compile_and_list_real_logs": true,
+    "Rust7_exact_named_unique_listed_and_actual1passed0failed_log_each": true,
+    "Go4_real_unique_start_PASS_named_logs": true
+  },
+  "rust": {
+    "job_id": 113857521783,
+    "job_conclusion": "failure",
+    "producer": "WHOLE_TEST_COMPILE_AND_7_DATA_PASS",
+    "pure_tree": "6b7e33c45c5e56340b1cfb81a7d304c6c60cf23f",
+    "consumer_passed": false,
+    "consumer_error": "consumer bounded regular log absent",
+    "actual_absent_logs": [
+      "candidate-source-overlay.log",
+      "source-after.log"
+    ],
+    "python_version_log_bytes": 84
+  },
+  "go": {
+    "job_id": 113857521612,
+    "job_conclusion": "success",
+    "producer": "DATA_TEST_PASS",
+    "pure_tree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+    "consumer_passed": true,
+    "named_data_count": 4
+  },
+  "qualification": {
+    "combined_gate": false,
+    "native_authority": false,
+    "VM_boot_workspace_IOclose_or_install": false,
+    "RC": false,
+    "release_authorized": false
+  },
+  "limits": [
+    "Only original finite data tests and real Windows whole-lib compilation",
+    "Remote runtime evidence consists of actual recorded before/after leases; reviewer did not access current finished Windows host",
+    "Missing helper stdout logs cannot be synthesized or replaced with receipts; keep strict consumer denial",
+    "Old1c failure and current9bb failed whole gate preserved"
+  ],
+  "reviewer_CI_or_SUT_launches": 0
+}

@@ -1,0 +1,76 @@
+{
+  "files": [
+    {
+      "path": "GITV3-OWNED-PREPARATION-INDEPENDENT-SOURCE-SAFE01.json",
+      "bytes": 3116,
+      "sha256": "a65abb404b61b77019972179fabd65f8e79581c2b46dac92e31e1f29238d4272",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "GITV3-ROOT-ONCE-STARTUP-INDEPENDENT-SAFE01.json",
+      "bytes": 2120,
+      "sha256": "b829c65f5c251f64b2df2e45398951c5055dc906238257d100deaffdb5fffed2",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "GITV3-ROOT-ONCE01-INDEPENDENT-FAILURE-ERRATUM-SAFE01.json",
+      "bytes": 2355,
+      "sha256": "13e4547ee8c978b92c6d38da75d9f0be5d4d23b63b7e787fbddd1607fa0bd6c4",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "GITV3-ROOT-ONCE02-INPUT-CORRECTION-INDEPENDENT-SAFE01.json",
+      "bytes": 2366,
+      "sha256": "1c98e7b3fad01c47ae259c6663338c28f719b3cabfc74558f64995a4d7ce69fd",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "NATIVE-EXTERNAL8-STAGEI-INDEPENDENT-PRECONDITIONS-SAFE01.json",
+      "bytes": 2103,
+      "sha256": "c9da1aa80626ea60f8591f96fd495840ba77c93d109c69d1f5a521a3fcfc512d",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "PUBLISHER-DIAG5-INDEPENDENT-TERMINAL-SAFE01.json",
+      "bytes": 2397,
+      "sha256": "3e4fce537cdd5064b666d65c86baf2e71334cd40f4ca398c70949bd54e339be4",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "PUBLISHER-DIAG6-FACTORY-DESIGN-INDEPENDENT-SAFE01.json",
+      "bytes": 2401,
+      "sha256": "353ac68fc48fa3d9a4299fb4137bab49f99dee83b05eec05e4264ea7ab64afa0",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 492,
+      "sha256": "75af5c78219b94d0ef993a75469650aa268e8abbdc1721abf1759f41d733d6a2",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 401,
+      "sha256": "6b992065a9d0159cff60a866033ba808a27131d1281593145c73fbdbc25f600d",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "WINDOWS-9BB-CI-INDEPENDENT-TERMINAL-SAFE01.json",
+      "bytes": 2603,
+      "sha256": "6d141c2b91c2f890b68179cd5720e695c65d482253fde1fbe90a876ba14efbb6",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ],
+  "files_excluding_manifest": 10,
+  "bytes_excluding_manifest": 20354
+}

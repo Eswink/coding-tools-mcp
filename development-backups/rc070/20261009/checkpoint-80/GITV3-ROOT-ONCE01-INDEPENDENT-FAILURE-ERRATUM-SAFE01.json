@@ -1,0 +1,36 @@
+{
+  "decision": "ACTUAL_FAIL_RETAINED_KEY_INPUT_PIN_MISMATCH_NO_AUTH_BUILD_INSTALL",
+  "external_root_tool_provenance": "Parent root directly reported PTY session87287 chunk aab943 actual exit_code1; not inferred from result JSON",
+  "actual_result_sha256": "eaf44c11b874092815959e42510e57649bf30c2dff7903eec7aa90aba279e918",
+  "actual": {
+    "seconds": 0.8257793029988534,
+    "original_error": "ValueError Official source/sign/key bytes differ at verify_git_source line76",
+    "build_runs": 0,
+    "install_runs": 0,
+    "phases": [],
+    "source_auth_created": false,
+    "all13_external_joins_independently_current_rechecked": true,
+    "result_directory_namespace": "only actual-build-install-result.json",
+    "native_family_closed_claim": false,
+    "SUT_runs": 0
+  },
+  "inputs": {
+    "actual_packet_key": {
+      "name": "junio-public-key.asc",
+      "bytes": 6798,
+      "sha256": "49cbf8231dda72c52f9e4483d056fd264bbfaf6b8c8f523078835fcdc8c5dfb7"
+    },
+    "source_constant_matching_existing_key": {
+      "name": "junio-ubuntu-public-key.asc",
+      "bytes": 68820,
+      "sha256": "fd2809d850e844b614ac60f13ded554c55d9052e5c799a5814abcba2a68a063c"
+    },
+    "archive_and_signature": "original exact bytepins matched"
+  },
+  "independent_review_erratum": "The prior startup review rechecked input leases but omitted crosschecking each actual leased input path bytes/hash against the helper constants. Its ALLOW is preserved and does not override this actual FAIL. Future preflight must cross-bind executable constants to exact native leased inputs before authentication or build.",
+  "readonly_key_evidence": "Read existing original Ubuntu native GPG fingerprint output showing primary96E07AF25771955980DAD10020D04E5A713660A7 and subE1F036B1FEE7221FC778ECEFB0B5E88696AFE6CB; original verify02 good signature retained trust-unknown warning. Current minimal-key import log says no user ID skipped. These are historical research, not this run authentication.",
+  "next_boundary": "Fresh source/spec/impact/actual controls and new root packet independent startup review required. Prefer checking intended existing full key input path before changing production cryptographic pins. No rerun authorized by this receipt.",
+  "reviewer_execution": false,
+  "old_raw_and_source_unchanged": true,
+  "RC_CI_Publisher_install_qualification": false
+}

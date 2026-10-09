@@ -1,0 +1,47 @@
+{
+  "decision": "ALLOW_ONE_FRESH_ROOT_OWNED_GIT_V3_PREPARATION_ONLY",
+  "root_before_sha256": "7bbf4fe1a702ce9f38a454cbfcab8ab0cd0a5dd09918b8610a872153add89e5d",
+  "root_launcher_sha256": "71ca6dbd53d35f95952b352f6ea6571c2f740d99e82853938fd7468dd774b19f",
+  "source5_freeze_unchanged": "b65b5d91f2d3fd334dba208f43b5008f872fdd08775e44bb13480e2845cdd74b",
+  "independent_review": {
+    "whole_launcher6577_and_ordinary6143_and_specs3_read": true,
+    "all12_current_root_groups_exact": true,
+    "all72_current_ordinary_native_file_leases_exact": true,
+    "root_env_python_snapshot_library_current_exact": true,
+    "original_helper_AST_SOURCE_SIGN_KEY_constants_cross_bound_to_actual_kwargs_3_sizes_and_hashes": true,
+    "intended_existing_complete_key": "junio-ubuntu-public-key.asc 68820 fd2809d850e844b614ac60f13ded554c55d9052e5c799a5814abcba2a68a063c",
+    "new_marker_destination04_terminal_raw_absent": true,
+    "exact_env_i5_systemPython_B_argv": true
+  },
+  "actual_authentication_component": {
+    "root_reported_tool_provenance": "session88728 terminal chunkb7be4e actual exit0",
+    "original_helper_delegate": true,
+    "old_minimal_key_rejected_before_auth_directory": true,
+    "current_raw_unique_VALID_SIG_subkey_and_primary_exact": true,
+    "no_bad_expired_revoked_unknown_signer_status": true,
+    "DATA_tar_independent_reconstruction_bytes": 51916800,
+    "DATA_tar_sha256": "28d94a29be1ca2669cf05e0220ac7a07742f50b417484bf4bad56595edb8d160",
+    "build_runs": 0,
+    "install_runs": 0,
+    "SUT_runs": 0,
+    "TRUST_UNDEFINED_not_publisher_grant": true
+  },
+  "bounds": {
+    "build_seconds": 480,
+    "conditional_install_seconds": 60,
+    "shared_installed_probes_seconds": 30,
+    "managed_phase_logs_bytes": 2097152,
+    "installed_unique_payload_bytes": 268435456
+  },
+  "old_once01": "Actual FAIL before authentication build install and independent omitted input/constant crosscheck erratum preserved; not overwritten",
+  "scope": "Root alone final literal recheck then one exact new packet execution. Source five unchanged; no peer execution. Native effects limited to owned tool build/install/probes.",
+  "startup_not_qualification": [
+    "native_family_allIO",
+    "Publisher85/300",
+    "GitHubCI",
+    "product_or_host_install",
+    "WindowsVM",
+    "0.7_RC_issuer_release"
+  ],
+  "current_genuine_fullbuild": "NOTRUN_AT_REVIEW"
+}

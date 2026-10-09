@@ -1,0 +1,106 @@
+import hashlib,importlib.util,json,os,pathlib,stat,sys,time,ast
+ROOT=pathlib.Path('/workspace/work/rc070')
+D=ROOT/'root-evidence/git-v3-input-path-correction'
+FIELDS=('st_dev','st_ino','st_mode','st_size','st_mtime_ns','st_ctime_ns')
+def snapshot(name):
+    path = pathlib.Path(name)
+    lexical = path.lstat()
+    resolved = path.resolve(strict=True)
+    target = resolved.stat()
+    assert stat.S_ISREG(target.st_mode) and target.st_size <= 128*1024*1024
+    fd = None
+    primary = None
+    try:
+        fd = os.open(resolved, os.O_RDONLY|os.O_CLOEXEC)
+        chunks = []
+        total = 0
+        while True:
+            chunk = os.read(fd, min(65536,128*1024*1024+1-total))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+            assert total <= 128*1024*1024
+        raw = b''.join(chunks)
+    except BaseException as error:
+        primary = error
+        raise
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except BaseException as error:
+                if primary is not None:
+                    raise BaseExceptionGroup('Root read primary and actual close',[primary,error])
+                raise
+    assert len(raw) == target.st_size and path.resolve() == resolved
+    assert tuple(getattr(target,k) for k in FIELDS) == tuple(getattr(resolved.stat(),k) for k in FIELDS)
+    assert tuple(getattr(lexical,k) for k in FIELDS) == tuple(getattr(path.lstat(),k) for k in FIELDS)
+    return {'path':str(path),'resolved':str(resolved),'sha256':hashlib.sha256(raw).hexdigest(),
+            'stat':{k:getattr(target,k) for k in FIELDS},'lexical':{k:getattr(lexical,k) for k in FIELDS}}
+
+def write_new(path, value):
+    fd = None
+    primary = None
+    try:
+        fd = os.open(path, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_CLOEXEC, 0o600)
+        data = (json.dumps(value,indent=2)+'\n').encode()
+        while data:
+            count = os.write(fd,data)
+            assert count > 0
+            data = data[count:]
+        os.fsync(fd)
+    except BaseException as error:
+        primary = error
+        raise
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except BaseException as error:
+                if primary is not None:
+                    raise BaseExceptionGroup('Root write primary and actual close',[primary,error])
+                raise
+
+
+def leases(x):
+    if isinstance(x,dict) and 'path' in x and 'sha256' in x:
+        yield x
+    elif isinstance(x,dict):
+        for v in x.values(): yield from leases(v)
+    elif isinstance(x,list):
+        for v in x: yield from leases(v)
+    else: raise ValueError('Unexpected lease shape')
+
+before=json.loads((D/'ORDINARY-EXTERNAL-BEFORE.json').read_bytes())
+assert dict(os.environ)=={'PATH':'/usr/bin:/bin','LANG':'C','LC_ALL':'C','TZ':'UTC','PYTHONDONTWRITEBYTECODE':'1'}
+for lease in leases(before['groups']):assert snapshot(lease['path'])==lease
+src=ROOT/'publisher-supplementary-git-research/v3/owned_git_prepare_v3.py'
+constants={n.targets[0].id:ast.literal_eval(n.value) for n in ast.parse(src.read_text()).body if isinstance(n,ast.Assign) and isinstance(n.targets[0],ast.Name) and n.targets[0].id in ('SOURCE_SHA','SIGN_SHA','KEY_SHA','PRIMARY','SUBKEY')}
+expected={'SOURCE_SHA':'457fdb04dc8728e007d4688695e6912e6f680727920f2a40bf11eacc17505357','SIGN_SHA':'8673501946204c38ebfed09603c1f3a041ed8d12b31f0aa06a474d41e359e254','KEY_SHA':'fd2809d850e844b614ac60f13ded554c55d9052e5c799a5814abcba2a68a063c','PRIMARY':'96E07AF25771955980DAD10020D04E5A713660A7','SUBKEY':'E1F036B1FEE7221FC778ECEFB0B5E88696AFE6CB'}
+assert constants==expected
+root=ROOT/'publisher-supplementary-git-research';v3=root/'v3';neg=v3/'actual-pin-minimal-negative01';pos=v3/'actual-pin-complete-positive01'
+assert not neg.exists() and not pos.exists()
+result=None;start=time.monotonic()
+try:
+    spec=importlib.util.spec_from_file_location('original_git_v3_pin_component',src);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+    try:m.verify_git_source(root/'git-2.55.0.tar.xz',root/'git-2.55.0.tar.sign',root/'junio-public-key.asc',neg)
+    except ValueError as e:assert str(e)=='Official source/sign/key bytes differ'
+    else:raise AssertionError('Original wrong minimalkey not rejected')
+    assert not neg.exists()
+    tar=m.verify_git_source(root/'git-2.55.0.tar.xz',root/'git-2.55.0.tar.sign',root/'junio-ubuntu-public-key.asc',pos)
+    identity=json.loads((pos/'source-identity.json').read_bytes())
+    assert identity['gpg_exit']==0 and identity['primary_fingerprint']==constants['PRIMARY'] and identity['subkey_fingerprint']==constants['SUBKEY']
+    assert identity['tar_bytes']==len(tar) and identity['tar_sha256']==hashlib.sha256(tar).hexdigest()
+    result={'status':'PASS_CURRENT_ORIGINAL_SIGNATURE_COMPONENT_ONLY','wrong_minimal_key_rejected_before_auth':True,'constants_cross_checked':True,'complete_key_bytes':68820,'complete_key_sha256':constants['KEY_SHA'],'gpg_exit':0,'primary_fingerprint':constants['PRIMARY'],'subkey_fingerprint':constants['SUBKEY'],'tar_bytes':len(tar),'tar_sha256':identity['tar_sha256'],'build_runs':0,'install_runs':0,'SUT_runs':0,'RC':False,'trust':'Explicit original pinned signing identity; not publisher authority'}
+finally:
+    primary=sys.exception();errors=[];count=0
+    for lease in leases(before['groups']):
+        try:
+            assert snapshot(lease['path'])==lease;count+=1
+        except BaseException as error:errors.append(error)
+    fence={'result':result,'seconds':time.monotonic()-start,'current_lease_checks':count,'primary_type':type(primary).__name__ if primary else None,'post_error_types':[type(e).__name__ for e in errors],'source5_unchanged':not errors,'native_family_closed_claim':False}
+    try:write_new(D/'ORDINARY-ACTUAL-RESULT.json',fence)
+    except BaseException as error:errors.append(error)
+    if errors:raise BaseExceptionGroup('Primary and all ordinary post errors',([primary] if primary is not None else [])+errors)
+print(json.dumps({'status':result['status'],'gpg_exit':0,'build_runs':0,'install_runs':0,'SUT_runs':0,'RC':False}))

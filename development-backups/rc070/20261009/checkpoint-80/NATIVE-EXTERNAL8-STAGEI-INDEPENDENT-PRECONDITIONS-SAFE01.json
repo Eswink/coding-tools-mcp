@@ -1,0 +1,33 @@
+{
+  "decision": "PASS_FINITE_EIGHT_SOURCE_AND_ROOT_BOUNDED_COMPILE_DIRECTION_ONLY",
+  "preconditions_manifest_sha256": "7d6a9e7fb46b38a9942dc63c5fc34379978053fa97ea51f2a050ccb781f21c57",
+  "source_only_bundle_files": 8,
+  "source_only_bytes": 24782,
+  "manifest_listed7_current_bytes_modes644_nlink1_exact": true,
+  "full_11788_byte_boundary_read": true,
+  "fourteen_future_controls_and_stage_I_II_separation_read": true,
+  "new_code_present_at_review": false,
+  "compiler_kernel_control_execution_at_review": 0,
+  "required_conditions": [
+    "Preallocate and link non-droppable escrow and every FD slot before birth; immediate actual returned FD registration",
+    "Record actual created pidfd in existing escrow before Python result and signal unblocking; allocation failures cannot drop ownership",
+    "No public numeric PID FD or subclass constructor of genuine owner type; UNKNOWN retained through deallocation",
+    "Child complete instruction path direct syscall only with blocked signals; no Python CRT PLT allocator user callbacks",
+    "Bound actual build time output and all cc1 as collect2 linker header tool source inputs beforeafter",
+    "Full same-build embedded root bytes memfd seals and no writable maps; ELF flags not proof",
+    "Stage I no bridge import; audit actual DT_INIT dependency constructor loader paths before StageII import",
+    "EMPTY retires family IO first; keep root parent protocol until EMPTY and final C then actual terminal EOF drain once close",
+    "Partial LAUNCH means effect possible; early dead collector or unknown close never closure; collector lives to family EMPTY",
+    "Stage II separately seals actual source binary build runtime disassembly and argv, independent startup review before unique root C01",
+    "ENOSYS EPERM unsupported exec seals ABI BLOCKED without fallback"
+  ],
+  "not_authorized": [
+    "ROOT ELF execution",
+    "bridge import factory or native effects",
+    "C01 or other controls",
+    "original worker or whole488",
+    "permission grant issuer release"
+  ],
+  "reviewer_execution": false,
+  "reviewer_source_edit": false
+}

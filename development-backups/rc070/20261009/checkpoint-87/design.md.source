@@ -1,0 +1,8 @@
+# 设计
+## 概述
+Correct root input path only, no edit of five frozen source files or source authentication semantics.
+## 技术方案
+对应需求：FR-1、FR-2、FR-3。
+Parse original helper AST constants and literal input sizes, cross-check actual input bytes/SHA before delegate, not merely lease equality. Current existing complete public key already used in original signed-source preparation; minimalkey is an independently retained failure input. Ordinary genuine verify_git_source executes GPG dearmor and signature verification against decompressed tar with the same fixed fingerprint checks, original bounds and owned evidence only. Root source5 and input/tool snapshots before/after guard current component. New rootonce02 captures exact completekey input and unchanged archive/sign source5/runtime/msgfmt; never reuses failed once01.
+## 文件结构
+Three new standalone specs; ordinary private component result and new rootonce02 launcher/fence. All original five source files unchanged.
