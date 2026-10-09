@@ -1,0 +1,19 @@
+# Design
+
+## 概述
+
+Retain original_inline.py byte-for-byte and invoke original pretag_driver/worker in a separately frozen worker facade. A temporary Path.open hook only wraps xb named-events files under one explicitly owned directory. Ordinary files remain untouched. Its original worker event/Recorder and pretag_driver AST remain exact because instrumentation sits outside all original functions. Observation sidecars use saved original Path.open and cannot recurse through the hook.
+
+## 技术方案
+
+A call captures before-observation error, always delegates once, captures after-observation error even on failed delegates and reraises the exact original exception. Ordinary observation exceptions set sticky observer failure and allow the real delegate to finish; BaseException cancellation is rethrown after delegation and cannot be swallowed. close is always delegated even when its before observer fails. The hook is scoped and restored in finally.
+
+The new external supervisor and read-only prepare_preflight are implemented. Startup still requires independent peer review of the exact prepared source/runtime/native/refs packet and current executable seal. The review-only invocation material is not itself startup approval. Deadline1200, retirement7, family2, reader2 and stdout2MiB remain frozen. A live/unstarted reader never receives blocking close. Missing retirement/observer evidence remains UNKNOWN/FAIL.
+
+## 文件结构
+
+work/pretag303 contains original_inline.py, external observer source, ordinary controls and safe status. docs/specs/pretag303-event-diagnostic contains these3 specifications. Source restoration remains exact8 separate from adapter.
+
+对应需求：FR-1、FR-2、FR-3、FR-4、FR-5。Original context body exception/cancellation survives successful real close even when close observations cancel; observer cancellation remains recorded in sticky errors and makes diagnostic facade nonzero, and it is never converted to success; actual real close exceptions retain original precedence. Fresh impact is UNKNOWN/manual HIGH disclosed for this new boundary.
+
+Natural same-run adopted-family admission is a new supervisor predicate: ECHILD is necessary but each saved native wait outcome must be CLD_EXITED/status0. Actual cleanup of an escaped live child via SIGKILL remains cleanup-only and cannot produce natural PASS. This does not change the original owned_family_close AST or budgets.

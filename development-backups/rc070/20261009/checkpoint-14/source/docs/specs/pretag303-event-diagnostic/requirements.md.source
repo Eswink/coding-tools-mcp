@@ -1,0 +1,25 @@
+# Limited original303 event diagnostic
+
+## 功能概述
+
+有限303并发事件诊断准备；执行需要独立启动审查。
+
+## 需求列表
+
+FR-1: SHALL Restore source-only D6+newline8 exact b227335c6503c8b9d2575802522758a308684be8 /1849 paths. Preserve failed recovery03 bytes and receipts; original full755 remains FAIL and this diagnostic grants zero whole755 qualification.
+
+FR-2: SHALL Execute only the original pretag_driver and its original three concurrent fixed-1/2/3 workers,63/127/113 original methods, after independently approved startup seal. Consumer452 is excluded. Outer supervisor and absence of consumer change the full755 topology; never claim full755 reproduction or qualification. Retain1200-second execution and7/2/2-second retirement/closure leases and2MiB stdout limit. No retries, widened budgets, injected events or replacement receipts.
+
+FR-3: SHALL Observe named-events write, flush, close and merged-file effects through a bounded external stream adapter. Before/after observations bind actual FD/path dev/inode/mode/nlink,size,offset and cumulative payload bytes/hash. Real delegate operations run once. Observer failures remain sticky and terminal for diagnosis; they do not mask original delegate exceptions, swallow cancellation, or skip real close. The same exception object must escape when delegate raises. When context body has already raised and real close succeeds, an observer cancellation SHALL preserve the exact original body exception object; a real close error retains original close precedence.
+
+FR-4: SHALL Ordinary failure-first controls must cover observer failures before close/write/flush, original delegate failures and cancellation, write counts and merged context close. No control runs SUT methods or mints native authority. Startup remains NOTRUN until independent review verifies current exact seal, original source/runtime/native inventory and owned-family closure admission.
+
+FR-5: SHALL Full original function AST equality is asserted only for untouched original_inline.py; instrumentation is external. Adapter and future supervisor are new functions and cannot be called original AST. An original helper import has no family ownership proof. A same-run closure that killed any adopted child SHALL remain diagnostic FAIL even if ECHILD follows; every recorded adopted child must have actual CLD_EXITED/status0 for natural diagnostic success. Native observer paths and controls cannot replace same-run pidfd/WNOWAIT/ECHILD source/runtime/refs before/after evidence.
+
+## 非功能需求
+
+No production changes, consumer execution, candidate promotion, tag, release or installation. PR98 cancellation and Issue86 snapshot safety pause remain. Snapshot artifacts, raw host/proc/TLS/token/Git object data never enter public backup.
+
+## 依赖关系
+
+check_spec must pass before implementation. Fresh impact of original/new external symbols is UNKNOWN without call graph; disclose manual HIGH before edits. Controls and source freeze are independently reviewed. Rollback is removal of this private new adapter scope; immutable original evidence is retained. Source-only backup carries modes, bytes, hashes, patch and explicit NOTRUN status.

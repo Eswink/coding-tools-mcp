@@ -1,0 +1,98 @@
+"""Build a new supervisor source from exact04; never runs303."""
+from pathlib import Path
+import ast
+import hashlib
+s=Path(__file__).with_name('original-supervisor04.py.source').read_text()
+def replace(a,b):
+ global s
+ assert s.count(a)==1,a
+ s=s.replace(a,b,1)
+replace("OUT = BASE / 'fixed2-event-diagnostic04'\nROOT = Path('/workspace/scratch/566f6003d85e/contracts755-private-recovery03')\nPYTHON = '/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python'\nPROGRAM = OUT / 'owned-owner/owner.py'", "OUT = ROOT = PYTHON = PROGRAM = TRUSTED = FIXTURE = None")
+replace("str(BASE.parent / 'contracts755-recovery-work')", 'str(TRUSTED)')
+replace("    assert len(rows) == 1849", """    tree_rows = {}
+    for item in git('ls-tree','-rz','HEAD').split(b'\\0'):
+        if not item: continue
+        tree_header, path = item.split(b'\\t',1); mode, kind, blob=tree_header.decode().split()
+        assert kind=='blob'; tree_rows[path.decode()] = (mode,blob)
+    assert len(rows) == 1849 and set(rows)==set(tree_rows)
+    assert all((row['mode'],row['blob'])==tree_rows[path] for path,row in rows.items())
+    assert not git('status','--porcelain','--untracked-files=all')
+    assert (ROOT/'.git').is_dir() and not (ROOT/'.git').is_symlink()
+    assert not (ROOT/'.git/commondir').exists() and not (ROOT/'.git/objects/info/alternates').exists()""")
+replace("    header = raw.split(b'\\nauthor ', 1)[0].decode().splitlines()", """    header = raw.split(b'\\nauthor ', 1)[0].decode().splitlines()
+    assert hashlib.sha1(b'commit '+str(len(raw)).encode()+b'\\0'+raw).hexdigest()==head
+    assert header[0]=='tree b227335c6503c8b9d2575802522758a308684be8'
+    assert header[1:]==['parent c60f9667fa8431e27fabbc497c19b4abfef5b965']""")
+a="""    assert not (OUT / 'LAUNCH.json').exists() and not (OUT / 'OUTER-RECEIPT.json').exists()
+    preflight_raw = (OUT / 'EXECUTION-PREFLIGHT-MANIFEST.json').read_bytes()
+    assert len(sys.argv)==2 and len(sys.argv[1])==64
+    assert sha(preflight_raw)==sys.argv[1]
+    preflight = json.loads(preflight_raw)
+    assert file(PROGRAM)['sha256'] == '31f83b48d9240d773b8ade3a58254b0620fd9e13b23df8d359032e3c08b8d9b5'
+"""
+b="""    global ROOT,OUT,TRUSTED,FIXTURE,PYTHON,PROGRAM
+    assert len(sys.argv)==3 and len(sys.argv[2])==64
+    preflight_raw=Path(sys.argv[1]).read_bytes();assert sha(preflight_raw)==sys.argv[2]
+    preflight=json.loads(preflight_raw)
+    assert preflight['scope']=='limited303-nonpublic-engineering'
+    assert preflight['budgets']==[1200,7,2,2] and preflight['stdout_limit']==2*1024**2
+    assert preflight['consumer_methods_run']==0 and preflight['qualification_755_runs']==0
+    ROOT,OUT,TRUSTED,FIXTURE=map(Path,(preflight['root'],preflight['out'],preflight['trusted'],preflight['fixture']))
+    PYTHON=preflight['python'];PROGRAM=OUT/'owned-owner/owner.py'
+    assert all(p.is_absolute() and p.resolve()==p for p in (ROOT,OUT,TRUSTED,FIXTURE))
+    assert not (OUT/'LAUNCH.json').exists() and not (OUT/'OUTER-RECEIPT.json').exists()
+    assert file(PROGRAM)['sha256']==preflight['runner_sha256']
+    for path,value in preflight['asset_hashes'].items():
+        assert sha((OUT/'assets'/path).read_bytes())==value
+    assert sha(Path(__file__).read_bytes())==preflight['supervisor_sha256']
+    assert sha((BASE/'verify-native-dependencies03.py').read_bytes())==preflight['verifier_sha256']
+    for name,key in [('source-before.json','source_before_sha256'),('runtime-before.json','runtime_before_sha256'),('public-heads-tags-before.txt','refs_before_sha256'),('native-preflight-admission.json','native_before_sha256')]:
+        assert sha((OUT/name).read_bytes())==preflight[key]
+    assert sha(FIXTURE.read_bytes())=='233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5'
+"""
+replace(a,b)
+replace("RC_CONSUMER_TEST_GLIB_ARCHIVE='/workspace/scratch/566f6003d85e/recovery-tools/glib-0.18.5.crate'",'RC_CONSUMER_TEST_GLIB_ARCHIVE=str(FIXTURE)')
+replace("original_method_inventory=127, original_suite_reference=755, qualification_755_runs=0, whole755_pass=False, discovery_inventory=303, selected_class_inventory=127, diagnostic_fresh_interpreters=1, stdout_topology='worker fd1 pipe as original shard; sole external supervisor differs from original full755 hierarchy'", "original_method_inventory=303, original_suite_reference=755, qualification_755_runs=0, whole755_pass=False, discovery_inventory=303, shard_inventories=[63,127,113], diagnostic_fresh_interpreters=3, consumer_methods_run=0, stdout_topology='original pretag driver with3 original concurrent inherited stdout workers; no consumer452 and external supervisor differs from full755'")
+start=s.index("        aggregate = json.loads((PROGRAM.parent / 'diagnostic-method-result.json').read_bytes())")
+end=s.index('    except BaseException: aggregate_error',start)
+s=s[:start]+"""        aggregate=json.loads((PROGRAM.parent/'pretag-receipt.json').read_bytes())
+        module.m.valid('pretag',aggregate)
+        assert len(aggregate['records'])==3
+        for field in ('loaded_ids','executed_ids','success_ids'):
+            names=aggregate[field]
+            assert len(names)==len(set(names))==303
+            assert sha('\\n'.join(names).encode())==module.m.PRETAG_ORDER
+            ids[field]=dict(count=303,sha256=sha('\\n'.join(names).encode()))
+        checker=module.load('actual_observation_checker',OUT/'assets/verify_observation.py')
+        for selector in ['driver',*module.m.SHARDS]:
+            diagnostic=json.loads((PROGRAM.parent/('diagnostic-'+selector+'-result.json')).read_bytes())
+            assert diagnostic['original_exit']==0 and not diagnostic['observer_errors']
+            assert diagnostic['qualification_755_runs']==0 and diagnostic['whole755_pass'] is False
+            assert diagnostic['consumer_methods_run']==0 and all(row['delegate_closed'] for row in diagnostic['streams'])
+            assert checker.verify_observations(PROGRAM.parent,diagnostic)
+        for record in aggregate['records']:
+            expected=[dict(entry=record['entry'],full_loaded_ids=record['full_loaded_ids']),dict(entry=record['entry'],loaded_ids=record['raw_loaded_ids'])]
+            for name in record['raw_executed_ids']: expected.extend([dict(entry=record['entry'],start=name),dict(entry=record['entry'],success=name)])
+            expected.append(dict(result=record))
+            assert (PROGRAM.parent/(record['entry']+'-named-events.jsonl')).read_bytes()==b''.join(module.m.encode(row) for row in expected)
+        merged=b''.join((PROGRAM.parent/('pretag-'+selector+'-named-events.jsonl')).read_bytes() for selector in module.m.SHARDS)
+        assert (PROGRAM.parent/'pretag-named-events.jsonl').read_bytes()==merged
+"""+s[end:]
+s=s.replace('original_method_inventory=127,','original_method_inventory=303,consumer_methods_run=0,')
+s=s.replace("'diagnostic-method-result.json'","'pretag-receipt.json'")
+s=s.replace('Original127fixed2 diagnostic only;', 'Original303 three-shard diagnostic only; consumer452 excluded;')
+s=s.replace('def main():',"""def natural_family_admitted(family):
+    return type(family) is list and all(type(row) is dict and
+        type(row.get('code')) is int and type(row.get('status')) is int and
+        row['code']==os.CLD_EXITED and row['status']==0 for row in family)
+
+def main():""",1)
+s=s.replace('family_closed and unchanged and aggregate_error is None','family_closed and natural_family_admitted(family) and unchanged and aggregate_error is None')
+s=s.replace('outer_kernel_family_closed=family_closed,','outer_kernel_family_closed=family_closed, outer_adopted_family_natural_admitted=natural_family_admitted(family),')
+s=s.replace('return 0 if passed else 1','return 0 if passed and not signals else 1')
+# Exact retention of the already reviewed finite reader helper; all other changed functions declared new.
+a=ast.parse(Path(__file__).with_name('original-supervisor04.py.source').read_bytes());b=ast.parse(s)
+find=lambda tree,name:next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name==name)
+assert ast.dump(find(a,'diagnostic_reader_finish'),include_attributes=False)==ast.dump(find(b,'diagnostic_reader_finish'),include_attributes=False)
+Path(__file__).with_name('supervisor.py').write_text(s)
+print(hashlib.sha256(s.encode()).hexdigest())

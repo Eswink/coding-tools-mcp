@@ -1,0 +1,58 @@
+"""Ordinary stub delegates only; never invokes original driver/worker."""
+from pathlib import Path
+import hashlib
+import importlib.util
+import json
+import shutil
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+BASE=Path(__file__).resolve().parent
+class Controls(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.out=Path(self.temp.name)
+        assets=self.out/'assets';assets.mkdir();self.owned=self.out/'owned-owner';self.owned.mkdir(mode=0o700)
+        for name in ('original_inline.py','event_observer.py'): shutil.copyfile(BASE/name,assets/name)
+        p=self.owned/'owner.py';shutil.copyfile(BASE/'facade.py',p)
+        spec=importlib.util.spec_from_file_location('ordinary_facade_control',p)
+        self.f=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.f)
+        self.args=patch.object(sys,'argv',[str(p),str(self.owned)]);self.args.start()
+    def tearDown(self):self.args.stop();self.temp.cleanup()
+    def stub(self,directory):
+        with (directory/'ordinary-named-events.jsonl').open('xb') as stream:
+            self.assertIsInstance(stream,self.f.o.EventStream)
+            self.assertEqual(stream.write(b'ordinary\n'),9);stream.flush()
+        return 0
+    def test_ordinary_stub_observed_closed_and_original_hook_restored(self):
+        original=Path.open;self.f.m.pretag_driver=self.stub
+        self.assertEqual(self.f.main(),0);self.assertIs(Path.open,original)
+        report=json.loads((self.owned/'diagnostic-driver-result.json').read_bytes())
+        self.assertEqual(report['original_exit'],0);self.assertEqual(report['observer_errors'],[])
+        self.assertEqual(report['streams'][0]['calls'],{'write':1,'flush':1,'close':1})
+        self.assertTrue(report['streams'][0]['delegate_closed'])
+    def test_original_delegate_exception_not_replaced_by_final_receipt_error(self):
+        marker=KeyboardInterrupt('ordinary delegate cancellation')
+        def stub(directory):raise marker
+        def failed_report(*args):raise OSError('ordinary diagnostic report failure')
+        self.f.m.pretag_driver=stub;self.f.m.write_new=failed_report
+        try:self.f.main()
+        except BaseException as error:self.assertIs(error,marker)
+        else:self.fail('cancellation swallowed')
+    def test_sticky_observation_error_nonzero_real_close(self):
+        self.f.m.pretag_driver=self.stub
+        original=self.f.o.EventStream._observe
+        def broken_observe(stream,operation,phase,fields):
+            if operation=='close' and phase=='before':stream.observation_errors.append(OSError('ordinary observe failure'));return None
+            return original(stream,operation,phase,fields)
+        with patch.object(self.f.o.EventStream,'_observe',broken_observe):self.assertEqual(self.f.main(),1)
+        report=json.loads((self.owned/'diagnostic-driver-result.json').read_bytes())
+        self.assertIn('OSError',report['observer_errors']);self.assertTrue(report['streams'][0]['delegate_closed'])
+    def test_delegate_cancellation_with_successful_diagnostic_report_still_raises(self):
+        marker=KeyboardInterrupt('ordinary')
+        def stub(directory):raise marker
+        self.f.m.pretag_driver=stub
+        try:self.f.main()
+        except BaseException as error:self.assertIs(error,marker)
+        else:self.fail('cancellation swallowed')
+if __name__=='__main__':unittest.main(verbosity=2)

@@ -1,0 +1,49 @@
+{
+  "PR98_cancel_and_Issue86_snapshot_pause": "preserved",
+  "consumer452": "EXCLUDED/NOTRUN",
+  "execution_and_cleanup_budgets": [
+    1200,
+    7,
+    2,
+    2
+  ],
+  "observer_sidecar_limit_per_file": 2097152,
+  "ordinary_controls": {
+    "SUT_methods": 0,
+    "actual_native_reader": 4,
+    "delegate": 33,
+    "facade": 4,
+    "same_run_natural_family": 5,
+    "sidecar_validation": 8,
+    "total_success": 54
+  },
+  "original303": "NOTRUN",
+  "original_function_AST_exact": true,
+  "original_inline_sha256": "8fe7478874c3817858dbb2eabed515dbeb78f268393577a66ba0408ee44922ff",
+  "original_recovery03_whole755": "FAIL retained",
+  "preflight_sha256": "99eee47ff2bce0b825544162fd26ebd764a20afd3b89cfd3d005f373147ed6b9",
+  "prior_failure_first_preserved": {
+    "bodycancel_controls": 4,
+    "natural_family_controls": 3
+  },
+  "private_source_head": "c71dabab30f61b00e8448c80640906fb024eae2a",
+  "qualification_755_runs": 0,
+  "readonly_native_admission": {
+    "declarations": 31,
+    "fsck_exit": 0,
+    "passed": true,
+    "release_documents": 4,
+    "roots": 27
+  },
+  "release_native_issuer_install_qualification": false,
+  "runtime_native_refs_raw_evidence_public_backup": false,
+  "scope": "source-only limited303 event diagnostic preparation; not candidate qualification",
+  "sole_parent": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "source_files": 17,
+  "source_paths": 1849,
+  "source_tree": "b227335c6503c8b9d2575802522758a308684be8",
+  "startup_review": "PENDING",
+  "stdout_limit": 2097152,
+  "supervisor_reader_helper_AST_exact": true,
+  "supervisor_sha256": "e74ba8d3de31236590877b53ed8fd70f2342e0a179ab5a365a387250989ee452"
+}

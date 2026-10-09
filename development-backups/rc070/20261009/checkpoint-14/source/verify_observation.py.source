@@ -1,0 +1,47 @@
+"""Read actual bounded sidecars against same-run original event bytes."""
+from pathlib import Path
+import hashlib
+import json
+
+def verify_observations(directory, diagnostic):
+    for stream in diagnostic['streams']:
+        path=Path(directory)/stream['path'];raw=path.read_bytes()
+        assert len(raw)==stream['returned_bytes']
+        assert hashlib.sha256(raw).hexdigest()==stream['payload_sha256']
+        sidecar=Path(directory)/('diagnostic-'+stream['path']);observed=sidecar.read_bytes()
+        assert len(observed)<=2*1024**2 and observed.endswith(b'\n')
+        rows=[json.loads(row) for row in observed.splitlines()]
+        summary=next(row for row in diagnostic['observations'] if row['path']==stream['path'])
+        assert len(rows)==summary['count'] and len(observed)==summary['bytes']
+        assert [row['ordinal'] for row in rows]==list(range(len(rows)))
+        assert len(rows)%2==0
+        offset=0;digest=hashlib.sha256();calls={'write':0,'flush':0,'close':0}
+        identity=None
+        for before,after in zip(rows[::2],rows[1::2]):
+            operation=before['operation'];assert operation==after['operation'] and operation in calls
+            assert before['phase']=='before' and after['phase']=='after'
+            calls[operation]+=1
+            for row in (before,after):
+                state=row['state'];actual=state['path'];bound=(actual['dev'],actual['inode'],actual['mode'],actual['nlink'])
+                if identity is None: identity=bound
+                assert bound==identity
+                if 'held' in state:
+                    held=state['held'];assert (held['dev'],held['inode'],held['mode'],held['nlink'])==bound
+                    assert held['nlink']==1
+            a,b=before['state'],after['state']
+            assert a['returned_bytes']==offset and a['payload_sha256']==digest.hexdigest()
+            if operation=='write':
+                length=a['request_bytes'];returned=b['returned']
+                assert type(returned) is int and returned==length
+                payload=raw[offset:offset+length];assert len(payload)==length
+                assert hashlib.sha256(payload).hexdigest()==a['request_sha256']==b['request_sha256']
+                digest.update(payload);offset+=length
+            elif operation=='flush':
+                assert b['held']['size']==b['held']['offset']==b['path']['size']==offset
+            else:
+                assert a['held']['size']==a['held']['offset']==a['path']['size']==offset
+                assert b['closed'] is True and b['path']['size']==offset
+            assert b['returned_bytes']==offset and b['payload_sha256']==digest.hexdigest()
+        assert offset==len(raw) and calls==stream['calls'] and calls['close']==1
+        actual=path.stat();assert (actual.st_dev,actual.st_ino,actual.st_mode,actual.st_nlink)==identity
+    return True

@@ -1,0 +1,113 @@
+"""External delegate-preserving instrumentation; no test runner or authority."""
+from contextlib import contextmanager
+from pathlib import Path
+import hashlib
+import os
+
+class EventStream:
+    def __init__(self, delegate, path, observe):
+        self.delegate, self.path, self.observe = delegate, Path(path), observe
+        self.observation_errors = []
+        self.bytes_returned = 0
+        self.payload_digest = hashlib.sha256()
+        self.calls = {'write': 0, 'flush': 0, 'close': 0}
+        self.last_delegate_error = None
+
+    def state(self):
+        value = {'closed': self.delegate.closed, 'returned_bytes': self.bytes_returned,
+                 'payload_sha256': self.payload_digest.hexdigest()}
+        if not self.delegate.closed:
+            fd = self.delegate.fileno()
+            held = os.fstat(fd)
+            value['held'] = {'dev': held.st_dev, 'inode': held.st_ino, 'mode': held.st_mode,
+                             'nlink': held.st_nlink, 'size': held.st_size,
+                             'offset': os.lseek(fd, 0, os.SEEK_CUR)}
+        observed = os.lstat(self.path)
+        value['path'] = {'dev': observed.st_dev, 'inode': observed.st_ino, 'mode': observed.st_mode,
+                         'nlink': observed.st_nlink, 'size': observed.st_size}
+        return value
+
+    def _observe(self, operation, phase, fields):
+        try:
+            self.observe(operation, phase, dict(self.state(), **fields))
+        except Exception as error:
+            self.observation_errors.append(error)
+            return None
+        except BaseException as cancellation:
+            self.observation_errors.append(cancellation)
+            return cancellation
+        return None
+
+    def _call(self, operation, *args):
+        self.calls[operation] += 1
+        self.last_delegate_error = None
+        fields = {}
+        if operation == 'write':
+            fields = {'request_bytes': len(args[0]), 'request_sha256': hashlib.sha256(args[0]).hexdigest()}
+        before_cancel = self._observe(operation, 'before', fields)
+        try:
+            result = getattr(self.delegate, operation)(*args)
+        except BaseException as delegate_error:
+            self.last_delegate_error = delegate_error
+            # Observation failure cannot replace the exact original exception/cancellation.
+            self._observe(operation, 'after-delegate-error', fields)
+            raise
+        if operation == 'write' and type(result) is int and 0 <= result <= len(args[0]):
+            self.bytes_returned += result
+            self.payload_digest.update(args[0][:result])
+        after_cancel = self._observe(operation, 'after', dict(fields, returned=result))
+        if before_cancel is not None:
+            raise before_cancel
+        if after_cancel is not None:
+            raise after_cancel
+        return result
+
+    def write(self, raw):
+        return self._call('write', raw)
+
+    def flush(self):
+        return self._call('flush')
+
+    def close(self):
+        return self._call('close')
+
+    def __enter__(self):
+        self.delegate.__enter__()
+        return self
+
+    def __exit__(self, kind, error, trace):
+        # As with the original stream, a real close exception remains visible.
+        try:
+            self.close()
+        except BaseException as close_error:
+            observer_cancellation = self.last_delegate_error is None and any(
+                item is close_error for item in self.observation_errors)
+            if error is not None and observer_cancellation:
+                return False  # Real close succeeded; preserve exact original body exception.
+            raise
+        return False
+
+    def __getattr__(self, name):
+        return getattr(self.delegate, name)
+
+@contextmanager
+def observe_named_events(directory, observer_factory, streams):
+    """Single-threaded worker scope only; saves/restores the exact Path.open object."""
+    original_open = Path.open
+    directory = Path(directory)
+    def opened(path, mode='r', *args, **kwargs):
+        delegate = original_open(path, mode, *args, **kwargs)
+        if mode == 'xb' and path.parent == directory and path.name.endswith('-named-events.jsonl'):
+            try:
+                wrapped = EventStream(delegate, path, observer_factory(path))
+            except BaseException:
+                delegate.close()
+                raise
+            streams.append(wrapped)
+            return wrapped
+        return delegate
+    Path.open = opened
+    try:
+        yield
+    finally:
+        Path.open = original_open

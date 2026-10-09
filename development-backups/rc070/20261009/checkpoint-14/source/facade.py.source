@@ -1,0 +1,71 @@
+"""Original pretag driver +3 original concurrent workers; no consumer452."""
+from pathlib import Path
+import hashlib
+import importlib.util
+import json
+import os
+import stat
+import sys
+
+ASSETS = Path(__file__).resolve().parents[1] / 'assets'
+def load(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+original = ASSETS / 'original_inline.py'
+assert hashlib.sha256(original.read_bytes()).hexdigest() == '8fe7478874c3817858dbb2eabed515dbeb78f268393577a66ba0408ee44922ff'
+m = load('immutable_original_inline', original)
+o = load('external_event_observer', ASSETS / 'event_observer.py')
+m.PROGRAM, m.ROOT = Path(__file__).resolve(), Path.cwd()
+owned_family_close = m.owned_family_close
+
+def main():
+    assert len(sys.argv) in (2,4)
+    directory = Path(sys.argv[1]); info=directory.lstat()
+    assert directory.is_absolute() and directory.resolve()==directory
+    assert stat.S_ISDIR(info.st_mode) and stat.S_IMODE(info.st_mode)==0o700
+    assert info.st_uid==os.geteuid() and Path(__file__).resolve().parent==directory
+    selector = None if len(sys.argv)==2 else sys.argv[3]
+    if selector is not None: assert sys.argv[2]=='pretag' and selector in m.SHARDS
+    original_open = Path.open
+    streams, observations = [], []
+    def observation_factory(path):
+        log = original_open(directory/('diagnostic-'+path.name), 'xb', buffering=0)
+        row = {'log':log,'path':path.name,'bytes':0,'count':0}
+        observations.append(row)
+        def observe(operation, phase, state):
+            data=m.encode(dict(operation=operation,phase=phase,ordinal=row['count'],state=state))
+            assert row['bytes']+len(data)<=2*1024**2,'bounded observation sidecar'
+            assert log.write(data)==len(data)
+            row['bytes']+=len(data);row['count']+=1
+        return observe
+    code, errors, original_error, deferred_cancel = None, [], None, None
+    try:
+        with o.observe_named_events(directory,observation_factory,streams):
+            code=m.pretag_driver(directory) if selector is None else m.worker(directory,'pretag',selector)
+    except BaseException as error:
+        original_error=error
+        raise
+    finally:
+        for row in observations:
+            try: row['log'].close()
+            except BaseException as error:
+                errors.append(type(error).__name__)
+                if not isinstance(error,Exception) and deferred_cancel is None: deferred_cancel=error
+        errors.extend(type(error).__name__ for stream in streams for error in stream.observation_errors)
+        result=dict(scope='diagnostic only; original303 topology excludes consumer452',
+                    original_exit=code,observer_errors=errors,
+                    streams=[dict(path=stream.path.name,calls=stream.calls,returned_bytes=stream.bytes_returned,
+                                  payload_sha256=stream.payload_digest.hexdigest(),delegate_closed=stream.delegate.closed)
+                             for stream in streams],
+                    observations=[dict(path=row['path'],bytes=row['bytes'],count=row['count']) for row in observations],
+                    qualification_755_runs=0,whole755_pass=False,consumer_methods_run=0)
+        try: m.write_new(directory,'diagnostic-'+(selector or 'driver')+'-result.json',result)
+        except BaseException:
+            if original_error is None: raise
+        if original_error is None and deferred_cancel is not None: raise deferred_cancel
+    return 0 if code==0 and not errors and all(s.delegate.closed for s in streams) else 1
+
+if __name__=='__main__':
+    raise SystemExit(main())

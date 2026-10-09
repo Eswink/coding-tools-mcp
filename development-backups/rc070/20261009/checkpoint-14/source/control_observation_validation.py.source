@@ -1,0 +1,37 @@
+"""Actual ordinary sidecar; mutation controls are private, zero original303."""
+from pathlib import Path
+import hashlib
+import json
+import tempfile
+import unittest
+from event_observer import EventStream
+from verify_observation import verify_observations
+class Controls(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name);self.path=self.root/'ordinary-named-events.jsonl'
+        rows=[]
+        def observer(op,phase,state):rows.append({'operation':op,'phase':phase,'ordinal':len(rows),'state':state})
+        w=EventStream(self.path.open('xb'),self.path,observer)
+        w.write(b'ordinary-a\n');w.flush();w.write(b'ordinary-b\n');w.flush();w.close()
+        self.side=self.root/('diagnostic-'+self.path.name)
+        self.rows=rows;self.save()
+        self.report={'streams':[{'path':self.path.name,'calls':w.calls,'returned_bytes':w.bytes_returned,'payload_sha256':w.payload_digest.hexdigest(),'delegate_closed':True}],
+                     'observations':[{'path':self.path.name,'count':len(rows),'bytes':len(self.side.read_bytes())}]}
+    def save(self):self.side.write_bytes(b''.join((json.dumps(r,sort_keys=True,separators=(',',':'))+'\n').encode() for r in self.rows))
+    def tearDown(self):self.temp.cleanup()
+    def test_original_ordinary_bytes_and_states_accept(self):self.assertTrue(verify_observations(self.root,self.report))
+    def mutation(self,change):
+        change();self.save();self.report['observations'][0]['bytes']=len(self.side.read_bytes())
+        with self.assertRaises((AssertionError,KeyError)):verify_observations(self.root,self.report)
+    def test_truncated_raw_reject(self):
+        self.path.write_bytes(b'ordinary-a\n')
+        with self.assertRaises(AssertionError):verify_observations(self.root,self.report)
+    def test_offset_mutation_reject(self):self.mutation(lambda:self.rows[3]['state']['held'].__setitem__('offset',0))
+    def test_identity_mutation_reject(self):self.mutation(lambda:self.rows[2]['state']['path'].__setitem__('inode',0))
+    def test_ordinal_mutation_reject(self):self.mutation(lambda:self.rows[1].__setitem__('ordinal',99))
+    def test_returned_count_mutation_reject(self):self.mutation(lambda:self.rows[1]['state'].__setitem__('returned',1))
+    def test_close_missing_reject(self):
+        self.rows=self.rows[:-2];self.report['observations'][0]['count']=len(self.rows)
+        self.mutation(lambda:None)
+    def test_payload_sha_mutation_reject(self):self.mutation(lambda:self.rows[0]['state'].__setitem__('request_sha256','0'*64))
+if __name__=='__main__':unittest.main(verbosity=2)

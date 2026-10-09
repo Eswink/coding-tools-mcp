@@ -1,0 +1,36 @@
+"""Prepare only read-only source/runtime/native admission; does not launch303."""
+from pathlib import Path
+import hashlib
+import importlib.util
+import json
+import os
+import shutil
+import sys
+
+BASE=Path(__file__).resolve().parent
+
+def main():
+    assert len(sys.argv)==6,'root out trusted fixture python'
+    root,out,trusted,fixture=map(lambda value:Path(value).resolve(),sys.argv[1:5]);python=str(Path(sys.argv[5]).resolve())
+    assert not out.exists() and root!=out and out not in root.parents and root not in out.parents
+    out.mkdir(mode=0o700);assets=out/'assets';assets.mkdir(mode=0o700)
+    for name in ['original_inline.py','event_observer.py','verify_observation.py']:
+        source=BASE/name; (assets/name).write_bytes(source.read_bytes());os.chmod(assets/name,0o600)
+    owned=out/'owned-owner';owned.mkdir(mode=0o700);(owned/'owner.py').write_bytes((BASE/'facade.py').read_bytes());os.chmod(owned/'owner.py',0o600)
+    spec=importlib.util.spec_from_file_location('new_external_supervisor',BASE/'supervisor.py')
+    supervisor=importlib.util.module_from_spec(spec);spec.loader.exec_module(supervisor)
+    supervisor.ROOT,supervisor.OUT,supervisor.TRUSTED,supervisor.FIXTURE,supervisor.PYTHON,supervisor.PROGRAM=root,out,trusted,fixture,python,owned/'owner.py'
+    before=supervisor.source();supervisor.save('source-before.json',before)
+    dependencies=supervisor.dependencies('native-preflight-admission.json')
+    files={'python':Path(python),'git':Path('/usr/bin/git'),'fixture':fixture,'supervisor':BASE/'supervisor.py','facade':owned/'owner.py','verifier':BASE/'verify-native-dependencies03.py'}
+    files.update({'asset-'+name:assets/name for name in ['original_inline.py','event_observer.py','verify_observation.py']})
+    runtime={name:supervisor.file(path) for name,path in files.items()};supervisor.save('runtime-before.json',runtime)
+    with (out/'public-heads-tags-before.txt').open('xb') as stream:
+        raw=supervisor.git('for-each-ref','--format=%(refname) %(objectname)','refs/heads','refs/remotes','refs/tags');assert stream.write(raw)==len(raw)
+    preflight=dict(scope='limited303-nonpublic-engineering',head=before['head'],tree=before['tree'],sole_parent=before['sole_parent'],root=str(root),out=str(out),trusted=str(trusted),fixture=str(fixture),python=python,budgets=[1200,7,2,2],stdout_limit=2*1024**2,consumer_methods_run=0,qualification_755_runs=0,
+        runner_sha256=supervisor.sha((owned/'owner.py').read_bytes()),supervisor_sha256=supervisor.sha((BASE/'supervisor.py').read_bytes()),verifier_sha256=supervisor.sha((BASE/'verify-native-dependencies03.py').read_bytes()),asset_hashes={name:supervisor.sha((assets/name).read_bytes()) for name in ['original_inline.py','event_observer.py','verify_observation.py']},
+        source_before_sha256=supervisor.sha((out/'source-before.json').read_bytes()),runtime_before_sha256=supervisor.sha((out/'runtime-before.json').read_bytes()),refs_before_sha256=supervisor.sha((out/'public-heads-tags-before.txt').read_bytes()),native_before_sha256=supervisor.sha((out/'native-preflight-admission.json').read_bytes()),startup_review_status='PENDING')
+    supervisor.save('EXECUTION-PREFLIGHT-MANIFEST.json',preflight)
+    print(json.dumps(dict(preflight_sha256=supervisor.sha((out/'EXECUTION-PREFLIGHT-MANIFEST.json').read_bytes()),SUT_methods=0,startup_review='PENDING',qualification_755_runs=0)))
+
+if __name__=='__main__':main()

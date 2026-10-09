@@ -1,0 +1,115 @@
+"""Ordinary streams only; zero SUT tests or native ownership claims."""
+from pathlib import Path
+import hashlib
+import tempfile
+import unittest
+from event_observer import EventStream, observe_named_events
+
+class Delegate:
+    def __init__(self, stream, failures=None):
+        self.stream, self.failures = stream, failures or {}
+        self.calls = {'write': 0, 'flush': 0, 'close': 0}
+    def __getattr__(self, name):
+        return getattr(self.stream, name)
+    def write(self, raw):
+        self.calls['write'] += 1
+        if 'write' in self.failures: raise self.failures['write']
+        return self.stream.write(raw)
+    def flush(self):
+        self.calls['flush'] += 1
+        if 'flush' in self.failures: raise self.failures['flush']
+        return self.stream.flush()
+    def close(self):
+        self.calls['close'] += 1
+        self.stream.close()
+        if 'close' in self.failures: raise self.failures['close']
+
+class Controls(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.path = Path(self.temp.name)/'ordinary-named-events.jsonl'
+        self.raw = self.path.open('xb')
+    def tearDown(self):
+        if not self.raw.closed: self.raw.close()
+        self.temp.cleanup()
+    def make(self, operation, phase, observation_error, delegate_error=None):
+        d = Delegate(self.raw, {operation: delegate_error} if delegate_error else {})
+        def observer(op, at, state):
+            if op == operation and at == phase: raise observation_error
+        return EventStream(d, self.path, observer), d
+    def test_real_state_hash_counts_and_close(self):
+        observations=[]
+        d=Delegate(self.raw); w=EventStream(d,self.path,lambda *row:observations.append(row))
+        self.assertEqual(w.write(b'raw\n'),4);w.flush();w.close()
+        self.assertEqual(self.path.read_bytes(),b'raw\n')
+        self.assertEqual(w.bytes_returned,4)
+        self.assertEqual(w.payload_digest.hexdigest(),hashlib.sha256(b'raw\n').hexdigest())
+        self.assertEqual(d.calls,{'write':1,'flush':1,'close':1})
+        self.assertEqual(len(observations),6)
+        self.assertTrue(observations[-1][2]['closed'])
+    def test_hook_scoped_only_named_events_and_restored(self):
+        original=Path.open; wrapped=[]; other=Path(self.temp.name)/'ordinary.bin'
+        with observe_named_events(Path(self.temp.name),lambda p:lambda *row:None,wrapped):
+            with other.open('xb') as stream: self.assertNotIsInstance(stream,EventStream)
+            p=Path(self.temp.name)/'merge-named-events.jsonl'
+            with p.open('xb') as stream: self.assertIsInstance(stream,EventStream);stream.write(b'abc')
+        self.assertIs(Path.open,original);self.assertEqual(len(wrapped),1)
+        self.assertEqual(p.read_bytes(),b'abc');self.assertEqual(wrapped[0].calls['close'],1)
+    def test_body_cancel_with_observation_failure_close_runs(self):
+        marker=KeyboardInterrupt('body')
+        w,d=self.make('close','before',ValueError('observe'))
+        try:
+            with w: raise marker
+        except BaseException as e: self.assertIs(e,marker)
+        self.assertEqual(d.calls['close'],1);self.assertTrue(d.closed)
+    def test_body_exception_with_real_close_exception(self):
+        marker=OSError('real-close'); w,d=self.make('close','before',ValueError('observe'),marker)
+        try:
+            with w: raise ValueError('body')
+        except BaseException as e: self.assertIs(e,marker)
+        self.assertEqual(d.calls['close'],1);self.assertTrue(d.closed)
+    def body_observer_cancel(self, body_kind, phase):
+        marker=body_kind('original body')
+        w,d=self.make('close',phase,KeyboardInterrupt('observation'))
+        try:
+            with w: raise marker
+        except BaseException as error: self.assertIs(error,marker)
+        else:self.fail('body exception swallowed')
+        self.assertEqual(d.calls['close'],1);self.assertTrue(d.closed)
+    def test_body_exception_before_observer_cancel(self):self.body_observer_cancel(ValueError,'before')
+    def test_body_exception_after_observer_cancel(self):self.body_observer_cancel(ValueError,'after')
+    def test_body_cancel_before_observer_cancel(self):self.body_observer_cancel(KeyboardInterrupt,'before')
+    def test_body_cancel_after_observer_cancel(self):self.body_observer_cancel(KeyboardInterrupt,'after')
+    def test_factory_failure_closes_open_delegate_and_restores_hook(self):
+        original=Path.open; captured=[]
+        def factory(path):
+            # Opening stream exists at factory point; failure must still close it.
+            raise ValueError('factory')
+        with self.assertRaises(ValueError):
+            with observe_named_events(Path(self.temp.name),factory,captured):
+                (Path(self.temp.name)/'factory-named-events.jsonl').open('xb')
+        self.assertIs(Path.open,original);self.assertEqual(captured,[])
+
+def method(operation,phase,kind,delegate_fails=False):
+    def check(self):
+        observe_error=kind('observation');delegate_error=OSError('original') if delegate_fails else None
+        w,d=self.make(operation,phase,observe_error,delegate_error)
+        try:
+            result=getattr(w,operation)(b'payload' if operation=='write' else None) if operation=='write' else getattr(w,operation)()
+        except BaseException as e:
+            self.assertIs(e,delegate_error if delegate_fails else observe_error)
+        else:
+            self.assertFalse(delegate_fails)
+            self.assertIs(kind,ValueError)
+        self.assertEqual(d.calls[operation],1)
+        self.assertIn(observe_error,w.observation_errors)
+        if operation=='close': self.assertTrue(d.closed)
+    return check
+for operation in ('write','flush','close'):
+    for phase in ('before','after'):
+        for kind in (ValueError,KeyboardInterrupt):
+            setattr(Controls,f'test_{operation}_{phase}_{kind.__name__}',method(operation,phase,kind))
+    for kind in (ValueError,KeyboardInterrupt):
+        setattr(Controls,f'test_{operation}_delegate_after_error_{kind.__name__}',method(operation,'after-delegate-error',kind,True))
+        setattr(Controls,f'test_{operation}_delegate_error_{kind.__name__}',method(operation,'before',kind,True))
+if __name__=='__main__': unittest.main(verbosity=2)

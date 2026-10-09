@@ -1,0 +1,56 @@
+"""Ordinary same-run child retirement; zero303 invocation or authority."""
+from pathlib import Path
+import ast
+import ctypes
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+import unittest
+
+BASE=Path(__file__).resolve().parent
+class Controls(unittest.TestCase):
+    def setUp(self):
+        tree=ast.parse((BASE/'supervisor.py').read_bytes())
+        nodes=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='natural_family_admitted']
+        if nodes:
+            namespace={'os':os};exec(compile(ast.Module(body=nodes,type_ignores=[]),'new-predicate','exec'),namespace);self.admit=namespace['natural_family_admitted']
+        else:
+            # Actual old gate admission ignored wait outcomes after ECHILD. This is
+            # failure-first classifier execution, never a candidate receipt.
+            self.admit=lambda family:True
+    def test_nonzero_natural_exit_reject(self):self.assertFalse(self.admit([{'code':os.CLD_EXITED,'status':1}]))
+    def test_signal_exit_reject(self):self.assertFalse(self.admit([{'code':os.CLD_KILLED,'status':signal.SIGKILL}]))
+    def test_same_run_zero_exit_accept(self):self.assertTrue(self.admit([{'code':os.CLD_EXITED,'status':0}]))
+    def test_empty_after_actual_echild_accept(self):
+        try:result=os.waitid(os.P_ALL,0,os.WEXITED|os.WNOHANG|os.WNOWAIT)
+        except ChildProcessError:result='ECHILD'
+        self.assertEqual(result,'ECHILD');self.assertTrue(self.admit([]))
+    def test_actual_live_child_cleanup_closed_but_not_natural_admitted(self):
+        original=ast.parse((BASE/'original_inline.py').read_bytes())
+        nodes=[n for n in original.body if isinstance(n,ast.FunctionDef) and n.name in ('proc_fields','owned_family_close')]
+        namespace={'Path':Path,'os':os,'time':time,'signal':signal};exec(compile(ast.Module(body=nodes,type_ignores=[]),'original-closure','exec'),namespace)
+        libc=ctypes.CDLL(None,use_errno=True);flag=ctypes.c_int()
+        self.assertEqual(libc.prctl(36,1,0,0,0),0);self.assertEqual(libc.prctl(37,ctypes.byref(flag),0,0,0),0);self.assertEqual(flag.value,1)
+        process=subprocess.Popen([sys.executable,'-B','-c',"import os,time;os.setsid();print('READY',flush=True);time.sleep(60)"],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
+        fd=os.pidfd_open(process.pid);evidence=[]
+        try:
+            self.assertEqual(process.stdout.readline(),b'READY\n')
+            self.assertTrue(namespace['owned_family_close'](time.monotonic()+2,evidence))
+            self.assertTrue(evidence)
+            self.assertTrue(any(row['code']==os.CLD_KILLED and row['status']==signal.SIGKILL for row in evidence))
+            self.assertFalse(self.admit(evidence))
+            try:result=os.waitid(os.P_ALL,0,os.WEXITED|os.WNOHANG|os.WNOWAIT)
+            except ChildProcessError:result='ECHILD'
+            self.assertEqual(result,'ECHILD')
+        finally:
+            try:
+                observed=os.waitid(os.P_PIDFD,fd,os.WEXITED|os.WNOHANG|os.WNOWAIT)
+                if observed is None:signal.pidfd_send_signal(fd,signal.SIGKILL);os.waitid(os.P_PIDFD,fd,os.WEXITED)
+                elif observed is not None:os.waitid(os.P_PIDFD,fd,os.WEXITED)
+            except ChildProcessError:pass
+            process.stdout.close();os.close(fd)
+        (BASE/'ordinary-natural-family-summary.json').write_text(json.dumps({'SUT_methods':0,'family_closed':True,'same_run_waits':evidence,'natural_admitted':False,'scope':'ordinary child cleanup only; no original303 authority'},sort_keys=True)+'\n')
+if __name__=='__main__':unittest.main(verbosity=2)
