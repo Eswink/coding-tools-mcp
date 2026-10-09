@@ -1,0 +1,42 @@
+{
+  "source_only": true,
+  "actualqualified": false,
+  "management_base": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "management_tree": "37109f95d52f7a18ef79b0bf085568666c078fe5",
+  "management_source_files": 1860,
+  "pure_SUT_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "pure_SUT_source_files": 1878,
+  "source_management_SUT_separate": true,
+  "full_carrier_prelaunch_peer": "CLOSED; root read full independent report ce2856904 and full11/source seal; qualified for management source-only CI submission, not RC/native/install.",
+  "current_CI85": "NOTRUN",
+  "current_CI300": "NOTRUN",
+  "retained_local85": "FAILED;50namedPASS/35non-success",
+  "current_carrier_commit_at_author_freeze": "NOT_COMMITTED",
+  "original_frozen01_carrier": "BLOCKED; retained privately separately",
+  "backup_agent_checks": {
+    "original11bytes_mode_blob_SHA_exact": true,
+    "source_python_AST_parses": 6,
+    "D6patch_apply_native_tree_count_exact": true,
+    "tests_native_runtime_privilege_runs": 0
+  },
+  "author_reported_static_controls": {
+    "necessary_checks": 36,
+    "raw_seal_metadata_only": 13,
+    "owned_lift_fragments_not_whole_owner": 7
+  },
+  "runtime_evidence_included": false,
+  "release_install_native_issuer_grant": false,
+  "secret_scan_negative_fixture": "One deliberate header plus literal owned fake negative only; no key body or END; no actual credential material",
+  "previous_local_management_author_commit_at_report": "e0c458 prefix; soleD6 parent; native37109/1860. Root-authorized normal isolated CI branch/draftPR; push pending at current report.",
+  "current_management_publication": {
+    "actual_remote_commit": "56cbf8d14c92b37fca02e1d3341968e450b0fd6e",
+    "actual_tree": "37109f95d52f7a18ef79b0bf085568666c078fe5",
+    "sole_parent_D6": true,
+    "draft_PR": 148,
+    "all11_original_blobs_API_readback": "root reports actual completed",
+    "CI_runs": 0,
+    "CI85": "NOTRUN",
+    "CI300": "NOTRUN",
+    "RC_qualification": false
+  }
+}

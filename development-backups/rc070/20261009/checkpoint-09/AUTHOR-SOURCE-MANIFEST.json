@@ -1,0 +1,102 @@
+{
+  "source_parent": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "management_native_tree": "37109f95d52f7a18ef79b0bf085568666c078fe5",
+  "management_native_count": 1860,
+  "pure_SUT_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "pure_SUT_count": 1878,
+  "files": [
+    {
+      "path": "docs/specs/issue88-native-runtime-recovery-probe/requirements.md",
+      "mode": "0o644",
+      "size": 6753,
+      "sha256": "8d99888aa1043d3169af02de51c3a7964d793c69162a4c5d466e08304fb24b93",
+      "blob": "583ae3a617b9f9c5dad29bb87015e153b81a6819"
+    },
+    {
+      "path": "docs/specs/issue88-native-runtime-recovery-probe/design.md",
+      "mode": "0o644",
+      "size": 5848,
+      "sha256": "1ee3f9cc152c976808804bf05ae5503dc33fdbe58ea5607e342f6bb0232e96e9",
+      "blob": "051b22b3137d686c2ebbb05d8075b08d88697fbc"
+    },
+    {
+      "path": "docs/specs/issue88-native-runtime-recovery-probe/tasks.md",
+      "mode": "0o644",
+      "size": 4579,
+      "sha256": "85995f0bb208b10e5505f5dde6be31344b8a18fe89bdc5207d1a6462e8c4f09d",
+      "blob": "c80d241f7937858b70aa61ed681047316b25de68"
+    },
+    {
+      "path": ".github/workflows/rc-native-recovery-probe.yml",
+      "mode": "0o644",
+      "size": 2328,
+      "sha256": "b8a0720e80e03ce1f403683b955dd8b60b296e66ffe4dd3e62cb70d0f83f4634",
+      "blob": "6bad115e31986003f6046fdc758100df3b7b7d3f"
+    },
+    {
+      "path": "scripts/rc_native_probe.py",
+      "mode": "0o644",
+      "size": 7312,
+      "sha256": "c5f63fe9cf8be08bf37e708c57878a5416a76d9540f39849228acce300418349",
+      "blob": "151a55b72225a2c3bc08f3e08d87e6358fae4bc7"
+    },
+    {
+      "path": "scripts/rc_native_probe_restore.py",
+      "mode": "0o644",
+      "size": 7607,
+      "sha256": "e076bd1ca9713ba6a857c8cb37b748f20284285b74b1a923a0b6d4ce82942d91",
+      "blob": "d3b26f6b27e4a538140cdfc2eb0d68e178f0a91d"
+    },
+    {
+      "path": "scripts/rc_native_probe_kernel.py",
+      "mode": "0o644",
+      "size": 4288,
+      "sha256": "93b7adb191585db00634e33294e15b857eaf6faf1d4b991678cf3d7dcb771741",
+      "blob": "d7edc94adc761f5957775cf9435703d004ee5e9b"
+    },
+    {
+      "path": "scripts/rc_native_probe_owner.py",
+      "mode": "0o644",
+      "size": 15201,
+      "sha256": "fefa1a0dc88ce8385470c6b252bfc981bf9f256fdef17f3fd1e552ad254f7310",
+      "blob": "fdf7e06f47d02b14569f1cd126cbd99ffb0f6ee0"
+    },
+    {
+      "path": "scripts/rc_native_probe_original_runner.py",
+      "mode": "0o644",
+      "size": 6259,
+      "sha256": "687ec2a408507284b557806569d6f5df0ead625b9c282b9c8bbb74782d633f0a",
+      "blob": "7802355b9bc464417a769d46050bcb1bf26bf3f4"
+    },
+    {
+      "path": "scripts/rc_native_probe_inventory.json",
+      "mode": "0o644",
+      "size": 44969,
+      "sha256": "99496a8f599ce50f31a97a692fd3ee101a1a7059f751e670d3c9de298e654bfb",
+      "blob": "e5c69c13a670b59880d97451a71ae2f9d527c790"
+    },
+    {
+      "path": "scripts/rc_native_probe_checks.py",
+      "mode": "0o644",
+      "size": 6630,
+      "sha256": "eb928102b982cfba69668f2daaa3e1fa60fe91fedc95bb3b0d8954058a4a4b1b",
+      "blob": "06fb51645b960f0b3b88cc5975748034f0a67f12"
+    }
+  ],
+  "patch_bytes": 115760,
+  "patch_sha256": "e277fc74d967ae96906fcf107b8a78a8f7388959779f24825a907f10a3cb109d",
+  "source_frozen02_manifest_sha256": "9dba06b56cc742447ab4ca3b0183a99f678edcf1e37641a5d8c104706c9f830f",
+  "status": "STOP SOURCE_ONLY pending independent full carrier prelaunch review",
+  "current_CI85": "NOT_RUN",
+  "current_CI300": "NOT_RUN",
+  "retained_local85": "FAILED50namedPASS35non_success",
+  "current_CI_runs": 0,
+  "current_carrier_commit": "NOT_COMMITTED",
+  "current_release_authorized": false,
+  "static_controls_only": {
+    "necessary_checks": 36,
+    "raw_seal_metadata_only": 13,
+    "owned_lift_fragments_not_whole_owner": 7
+  },
+  "frozen01_blocked_report_sha256": "22dd721c0c410612c51c70bc1e0e2d8789dd3545eb62bd93d1002c207428a703"
+}

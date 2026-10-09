@@ -1,0 +1,1568 @@
+diff --git a/.github/workflows/rc-native-recovery-probe.yml b/.github/workflows/rc-native-recovery-probe.yml
+new file mode 100644
+index 0000000..6bad115
+--- /dev/null
++++ b/.github/workflows/rc-native-recovery-probe.yml
+@@ -0,0 +1,45 @@
++name: RC native recovery probe (source-backed, no release)
++on:
++  push:
++    branches: ['test/rc070-native-recovery-probe-20261009']
++permissions:
++  contents: read
++concurrency:
++  group: rc070-native-recovery-${{ github.sha }}
++  cancel-in-progress: false
++jobs:
++  publisher-native:
++    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push'
++    runs-on: ubuntu-24.04
++    timeout-minutes: 180
++    steps:
++      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
++        with:
++          ref: ${{ github.sha }}
++          fetch-depth: 0
++          persist-credentials: false
++      - name: Fixed source objects and official existing test data only
++        shell: bash
++        run: |
++          set -euo pipefail
++          /usr/bin/git -c credential.helper= -c core.hooksPath=/dev/null fetch --no-tags origin dab238dc34d5a59f471aff935c728c1ed809cc78
++          /usr/bin/git cat-file -e dab238dc34d5a59f471aff935c728c1ed809cc78^{commit}
++          /usr/bin/git cat-file -e 13cd343d942b7a68912d42a8f9235c02ed647764^{commit}
++          curl --fail --silent --show-error --proto '=https' --max-redirs 0 --connect-timeout 10 --max-time 30 --max-filesize 267679 \
++            --output "$RUNNER_TEMP/glib-0.18.5.crate" https://static.crates.io/crates/glib/glib-0.18.5.crate
++          test "$(stat -c %s "$RUNNER_TEMP/glib-0.18.5.crate")" -eq 267679
++          printf '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5  %s\n' "$RUNNER_TEMP/glib-0.18.5.crate" | sha256sum --check --strict
++      - name: Run exact native publisher85 then admitted publisher300 once
++        shell: bash
++        run: |
++          set -euo pipefail
++          test "$(/usr/bin/python3 -c 'import sys;print(".".join(map(str,sys.version_info[:2])))')" = 3.12
++          PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 scripts/rc_native_probe.py --management "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/rc-native-publisher" --fixture "$RUNNER_TEMP/glib-0.18.5.crate"
++      - name: Upload only scanned original evidence whitelist
++        if: always()
++        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
++        with:
++          name: rc-native-publisher-${{ github.sha }}
++          path: ${{ runner.temp }}/rc-native-publisher/safe-artifacts/
++          if-no-files-found: error
++          retention-days: 7
+diff --git a/docs/specs/issue88-native-runtime-recovery-probe/design.md b/docs/specs/issue88-native-runtime-recovery-probe/design.md
+new file mode 100644
+index 0000000..051b22b
+--- /dev/null
++++ b/docs/specs/issue88-native-runtime-recovery-probe/design.md
+@@ -0,0 +1,83 @@
++# 设计文档：issue88-native-runtime-recovery-probe
++
++## 概述
++
++覆盖FR-1、FR-2、FR-3、FR-4、FR-5与NFR-1/2/3。管理分支从D6创建，Pure SUT从F13还原，两个checkout及artifact目录分离。
++
++## 技术方案
++
++### 技术选型
++
++| 类别 | 选择 | 理由 | 关联需求 |
++|---|---|---|---|
++| Runtime | Ubuntu24原生git与CPython | 实际支持检查，不安装/替换 | FR-2 |
++| Source | 固定git objects、原patch、native Merkle与全manifest | 不信聊天或FETCH_HEAD | FR-1 |
++| Owner | 原V5 namespace-aware pidfd/WNOWAIT/subreaper helper | 实际自有自然退出与失败退休 | FR-4 |
++| Suite | 原103行runner与85/300 names | 保留原所有预算和负向断言 | FR-3 |
++| CI | 只read权限、无持久凭据、扫描白名单 | 不产生Release grant | FR-5 |
++
++### 架构设计
++
++Carrier工作流调用restore helper，从checkout可读的immutable备份对象读取白名单数据；private SUT唯一parent F13，写树b9cf。前置原PREFIX失败即退出。controller在独立进程的私有subreaper中启动immutable runner。85所有完整向量重新核对后同源300一次；每轮ownrealm与自身前后相等，跨轮只比较稳定UID/GID/uname/boot-id，不能要求两个独立namespace相同。当前488未启用，未来新profile必须独立明确树/库存/runner/ref/预算及peer准入。
++
++## 数据模型
++
++| 实体/字段 | 类型 | 约束 | 说明 |
++|---|---|---|---|
++| Profile | literal mapping | publisher85/300 only、无输入任意code/ref | 固定源、SHA、inventory、bounds |
++| WholeSource | path→mode/blob/size/SHA | 全1878、无symlink/hardlink/路径逃逸 | physical与native index相等 |
++| Launch | JSON | actualpidfd/kernel/source/runtime/realm/helper/库存 | fsynced nooverwrite |
++| Closure | JSON | natural0/heldZ/ECHILD/allfences才qualified | failure同样保留 |
++| SafeArtifact | rawbytes+SHA | allowlist且敏感扫描通过 | 不借redactedbytes称原hash |
++
++## API 设计
++
++| 方法/函数 | 路径/签名 | 入参 | 出参 | 关联需求 |
++|---|---|---|---|---|
++| restore | rc_native_probe_restore.py | management root、fresh outside root | pure private commit与manifest | FR-1 |
++| kernel/owned_family_close | rc_native_probe_kernel.py | actual owned pidfd/deadline | native identities/ECHILD | FR-4 |
++| run_owned/receipt_gate | rc_native_probe_owner.py | immutable context+profile | receipt+closurequalified | FR-2/3/4 |
++| main/safe_artifacts | rc_native_probe.py | fresh runner.temp root | original safe raw evidence | FR-5 |
++
++## 文件结构
++
++3个docs/specs/issue88-native-runtime-recovery-probe规格；.github/workflows/rc-native-recovery-probe.yml；scripts/rc_native_probe.py、rc_native_probe_restore.py、rc_native_probe_kernel.py、rc_native_probe_owner.py、rc_native_probe_original_runner.py、rc_native_probe_inventory.json、rc_native_probe_checks.py。共11新增文件，0已有production修改。
++
++## 设计决策
++
++### 决策1: Carrier与Pure SUT分开（FR-1）
++
++问题：新增CI workflow会污染原1878guard。选项：修改guard；或分开管理与pure源码。决策：分开checkout，恢复真实F13+immutable两patch，原全manifest校验再private commit同源证明。理由：复用原源码审查和原计时，不改变候选。
++
++### 决策2: 实际runtime前置支持（FR-2）
++
++问题：本地2.43不支持原参数。选项：松绑参数/装Git；或现成GitHub原生工具实际检查。决策：检查现成runner，失败SUT0。原runner runtime()包含/usr/local/bin/git，若host没有该原路径则失败记录，不创建alias或删路径。
++
++### 决策3: 失败有限controller（FR-3/4）
++
++原历史runner没有whole绝对预算。新1800/7200明确是fail-only恢复supervisor，不冒充原有budget。复用V5kernel与cleanup核心语义；最小workerenv仅PATH、UTF8/locale、PYTHONDONTWRITEBYTECODE、固定GLib路径。取消先检查再Popen、finally保留真实退休与异常链。原始raw hashes、allloaded/executed/namedPASS及naturalexit是300前门。
++
++### 决策4: 原证据安全上传（FR-5）
++
++原85结束后封存LAUNCH、NATIVE-CLOSURE、receipt、cases3logs及controller2logs八个原文件的独立seal，保存seal SHA；300前按nofollow逐级dirFD实际重读seal和全部原文件，比对原byteSHA/size及完整JSON原对象，再运行原完整向量门。
++
++artifact仅allowlist、最多32MB总量、禁止PEM/TLS/privatekey/secret/token值；原报告不含任意环境。扫描失败不上传原报告并FAIL；错误报告只安全类型/静态帧，不含locals或任意异常字符串。
++
++## 测试策略
++
++FR-1实际在当前nativeGit执行固定objects恢复，核全1878和privateparent；negativepatch/hash/path拒绝。FR-2 local原PREFIX129明确SUT0不重跑。FR-3校验原103行6259BSHA、85/300uniqueinventory与receipt负向向量阻断。FR-4 exactV5helper AST对照、ordinary自然退出/取消/TERM7KILL2/escape/lateadopt证据映射；新修改owner由peer重新审。FR-5检查YAML权限、branch、固定action、无setup/install/exporttoken，敏感PEM与secret值负向扫描。freshGitNexus/precommit范围检查和全source peer复核后才实际CI一次。
++
++## 风险评估
++
++| 风险 | 影响 | 缓解措施 |
++|---|---|---|
++| Runner原生路径或参数不支持 | HIGH | 前置failclosed/SUT0，无install |
++| 信号/namespace/adoption失去闭包 | HIGH | heldrealpidfd、finite动态reap、unknown不qual |
++| 备份路径被污染或不是原源 | HIGH | immutableSHA+完整native/physicalmanifest |
++| 原失败被误作CI资格 | HIGH | currentlocalFAIL与freshCI结果分离 |
++| artifact泄露TLS或secret | HIGH | 最小env、白名单scan、原bytes不静默redact |
++
++## 检查清单
++
++- [x] 全FR有具体实现与负向检查；0production edits，pure tree不变。
++- [x] 明确新wholebounds、原runnerpaths和host真实失败边界。
+diff --git a/docs/specs/issue88-native-runtime-recovery-probe/requirements.md b/docs/specs/issue88-native-runtime-recovery-probe/requirements.md
+new file mode 100644
+index 0000000..583ae3a
+--- /dev/null
++++ b/docs/specs/issue88-native-runtime-recovery-probe/requirements.md
+@@ -0,0 +1,94 @@
++# 需求文档：issue88-native-runtime-recovery-probe
++
++## 功能概述
++
++为 RC 恢复维护者提供一次性、同源、原生 GitHub Ubuntu 24.04 发布器测试探针。本地原 Git 2.43 的完整 FixedGitReader.PREFIX 返回 129；本地首次85实测50 named PASS、35 non-success，一直保留，不作为 CI 通过。管理 checkout 只提供 bootstrap；待测源码始终为独立 pure b9cf、1878 files。
++
++## 历史经验与坑（来自记忆库）
++
++- 可复用经验：独立完整源码审查冻结02、原103行 runner、V5实际 pidfd/WNOWAIT/subreaper ordinary controls。
++- 必须规避的坑：本地 Git 参数不支持；跨 invocation PID namespace 不同；children 文件不可用；等待无限、取消后启动新子进程、收据通过但原生 exit 非0、收据后扫描源码遗漏，都不能提供通过资格。
++- 原首85 FAIL、旧有限11 FAIL、诊断原delegate一次和历史未知结果保留各自状态。
++
++## 术语定义
++
++- Pure SUT：从 F13 和两份固定 patch 还原的 b9cfb8a0b58f8e0863c764e50cf3d38920eefeae，1878 tracked files。
++- Carrier：独立 D6 管理分支上的工作流、helpers、原库存与规格，不进入 Pure SUT。
++- Qualified：实际全部 named PASS、原生自然 CLD_EXITED0、收据原文件 hash 和源码/工具/realm/owner 完整向量均通过。
++
++## 范围边界
++
++In Scope：一个固定同仓测试分支、一次 GitHub Ubuntu 24.04 probe；恢复源验证；原85门后原300一次；无敏感数据的证据白名单。
++Out of Scope：生产/defaultReader/signers 更改；编译、安装、特权、主机配置；tag、Release、用户机器；替代原库存或自动重试；当前未审定的488启动。
++
++## 需求列表
++
++### FR-1: 精确恢复独立 Pure SUT
++
++**优先级:** Must
++**用户故事:** 作为恢复维护者，我要从真正公布的不可变备份恢复原源，以便测试实际冻结候选。
++
++#### 验收标准（EARS）
++
++1. WHEN bootstrap 开始 THEN 系统 SHALL 从 immutable dab238dc34d5a59f471aff935c728c1ed809cc78 的 checkpoint01/full52 和 checkpoint02/only8 读取字节并核对 SHA。
++2. WHEN 在真实 F13 13cd343d942b7a68912d42a8f9235c02ed647764 应用 patch THEN 系统 SHALL 原生核对733a/1877中间树与最终b9cf/1878全部 mode/blob/size/SHA，并创建唯一 parent F13 的本地 private commit；不得将 Carrier 文件纳入树。
++3. IF object、patch、任一路径/模式/字节/树不符 THEN 系统 SHALL SUT0/FAIL，不提供推测的备份或历史 runtime 信用。
++
++### FR-2: 原生 runtime 前置门与最小环境
++
++**优先级:** Must
++**用户故事:** 作为恢复维护者，我要核实真实 runner 原生工具，以便解决具体 Git 兼容阻断而不松绑安全参数。
++
++#### 验收标准（EARS）
++
++1. WHEN 启动测试之前 THEN 系统 SHALL 实际执行原完整 PREFIX 与 OVERRIDES 的 --version，原生 /usr/bin/git 失败就 SUT0/FAIL；不得削弱参数、替换二进制、下载 compiler 或安装工具。
++2. WHILE worker 运行 THE 系统 SHALL 使用明确最小 environment allowlist；不得继承/export 实际 token、全部环境或持久凭据；只读取固定 official GLib fixture 267679B/SHA233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5。
++3. WHEN 前后证据完成 THEN 系统 SHALL 核对原 runner 要求的 native tools、源码/index、fixture、helper、每次实际 realm 均未改变。
++
++### FR-3: 原库存同源85到300准入
++
++**优先级:** Must
++**用户故事:** 作为恢复维护者，我要实际原85与300验证，以便区分源码审查和候选通过。
++
++#### 验收标准（EARS）
++
++1. WHEN native runtime 前置门通过 THEN 系统 SHALL 用原103行6259B runner SHA687ec2a408507284b557806569d6f5df0ead625b9c282b9c8bbb74782d633f0a 运行85 exact unique names一次。
++2. IF 原85 qualified 完整向量、封存的seal SHA及实际重读的全部原始receipt/LAUNCH/nativeclosure/8rawfile hashes 或自然 exit0 有任一不满足 THEN 系统 SHALL 不启动300且保留失败，不重跑85。
++3. WHEN 同源85 qualified THEN 系统 SHALL 仅一次运行原300 unique inventory267+13+20；named loaded/executed/passed相等、无skip/xfail/xpass/负向subtest失败、所有source/runtime/native向量均通过才有资格。
++
++### FR-4: 有限原生自有进程与取消
++
++**优先级:** Must
++**用户故事:** 作为恢复维护者，我要私有有限 native owner，以便超时和取消也保留真实退休边界。
++
++#### 验收标准（EARS）
++
++1. WHILE 运行 THE 系统 SHALL 保留所有原 test/operation timers，新增 fail-only whole controller85=1800s、300=7200s；超界仅失败，不延时/重试。
++2. WHEN 取消或异常 THEN 系统 SHALL sticky cancel、取消前不启动child、用真实 pidfd/starttime/native PID与proc namespace绑定的自有 leader、TERM7/KILL2、dynamic adopted children family2 退休至真实 ECHILD；任何未知标FAIL/UNKNOWN。
++3. WHEN 自然通过 THEN 系统 SHALL 证明 CLD_EXITED0、si_pid与created/held identity、heldZ、私有subreaper ECHILD；不得用目录为空、合成 grants 或别的 profile 闭包代替。
++
++### FR-5: 只读工作流和安全原证据
++
++**优先级:** Must
++**用户故事:** 作为恢复维护者，我要可独立审阅的源与安全证据，以便真实 CI 不泄露测试 TLS key 或实际凭据。
++
++#### 验收标准（EARS）
++
++1. WHEN workflow 运行 THEN 系统 SHALL 只contents:read、同repo固定测试分支 push、固定 checkout actionSHA、persist-credentials:false；不得tag/Release/生产授权。
++2. WHEN 上传 artifact THEN 系统 SHALL 只白名单 receipt/log/identity/hash 报告，先敏感值与PEM/privatekey扫描；失败不上传，原字节hash不可静默改写；不上传临时工作区、TLS/cookies/env。
++3. WHEN 提交前 THEN 系统 SHALL fresh impact、check_spec、真实必要静态/source-restoration checks、独立冻结审查、detect_changes、gencommit，非强推 draftPR并检查真实 CI。
++
++## 非功能需求
++
++- NFR-1（性能）：控制器严格有限，Git元数据bootstrap命令30秒，workflow envelope180分钟大于原85+300150分钟及有限cleanup；不改SUT计时。
++- NFR-2（安全）：不读取或修改外国进程；无privilege/compiler/install，token不进入worker，不发布。
++- NFR-3（兼容性）：普通Linux CPython3.12、实际native Git支持全安全参数；不预设 runner image Git版本或 /usr/local/bin/git 实体存在。
++
++## 依赖关系
++
++固定已回读GitHub checkpoint01+02、原库存与原runner、冻结02全源码静态审查、V5六项ordinary controls，native GitHub hostedUbuntu24。
++
++## 检查清单
++
++- [x] 原失败与未知保留、范围固定、五项FR可验收。
++- [x] 全部FR将在design与tasks逐条关联。
+diff --git a/docs/specs/issue88-native-runtime-recovery-probe/tasks.md b/docs/specs/issue88-native-runtime-recovery-probe/tasks.md
+new file mode 100644
+index 0000000..c80d241
+--- /dev/null
++++ b/docs/specs/issue88-native-runtime-recovery-probe/tasks.md
+@@ -0,0 +1,81 @@
++# 任务清单：issue88-native-runtime-recovery-probe
++
++## 概述
++
++先规格和freshimpact，再管理helper与workflow、静态及真实恢复检查、peer冻结、gencommit/nonforce/draftPR/actualCI；本地首85FAIL保留，300NOTRUN。
++
++## 交付物清单（Scope-lock）
++
++预计新建11文件，修改0已有文件；新增22函数、原runner8函数/class逐字复制，不修改生产symbol。全部列在文件变更清单；若拆分/增加文件或函数需更新具体scope、impact和peer review。
++
++## 任务列表
++
++### 阶段1: 准备工作
++
++- [ ] 1.1 固定真实backups、spec/Plan与freshGN，新helperunknown按manualHIGH披露后实现。
++  - 证据块：AGENTS.md:45 `MUST run impact analysis before editing any symbol`；本地diagnostic实际原PREFIX129、workerdelegate1/sourceb9cf未变。
++  - 涉及文件：3规格各250行以内。
++  - _需求: FR-1, FR-2, FR-5_ ｜ _设计: 决策1/2_
++
++### 阶段2: 核心实现
++
++- [ ] 2.1 从F13和dab238两patch完整恢复并核1878/b9cf、唯一privateparent。
++  - 证据块：原run_native_stage_immutable.py:27 `subprocess.check_output(['/usr/bin/git', '-C', str(root), 'ls-files', '-z'])`；source02独立full5984AST仅8差。
++  - 涉及文件：restore<=300行、inventory JSON<=450行；禁止management源进SUT。
++  - _需求: FR-1_ ｜ _设计: 决策1_
++- [ ] 2.2 逐字保留原runner并有限ownnative supervisor、完整85到300原文件seal与nofollow重读门。
++  - 证据块：原103行runner:103 `sys.exit(0 if receipt['passed'] else 1)`；V5owner `assert observed.si_pid == child.pid`；TERM7/KILL2/family2及动态adoption/ECHILD原审查通过。
++  - 涉及文件：kernel<=180行、owner<=400行、immutableoriginalrunner103行；原helpers语义diff必须explicitreview。
++  - _需求: FR-2, FR-3, FR-4_ ｜ _设计: 决策2/3_
++- [ ] 2.3 编写只contentsread fixedtestbranch workflow与最小env、安全原artifact扫描。
++  - 证据块：rc-pretag-contract-checks.yml:23 `runs-on: ubuntu-24.04`、checkout `persist-credentials: false`；原Git2.43unsupported不授权setupGit。
++  - 涉及文件：workflow<=150行、entry<=250行。
++  - _需求: FR-2, FR-5_ ｜ _设计: 决策2/4_
++
++### 阶段3: 集成测试
++
++- [ ] 3.1 对照验收标准实际source-restoration、static/negative checks、peer冻结与precommit检测。
++  - 证据块：原85rawreceipt `passed:false`、nativeCLD_EXITED1/ECHILDtrue；此失败绝不作新CI门。
++  - 涉及文件：checks<=300行；证据全部outside管理与pure源码。
++  - _需求: FR-1, FR-2, FR-3, FR-4, FR-5_ ｜ _设计: 测试策略_
++- [ ] 3.2 gencommit小步非强推testbranch/draftPR，检查actualCI；85全部qualified才300一次。
++  - 证据块：AGENTS.md提交前detect_changes与gencommit；根已明确允许具体testCI路径，无Releasegrant。
++  - 涉及文件：0新增；真实CIrun/PR证据outside。
++  - _需求: FR-3, FR-5_ ｜ _设计: 决策3/4_
++
++## 检查点
++
++- [ ] 规格通过后才代码；HIGH通知先发生。
++- [ ] 所有源码冻结与必要checks和peer闭合后才提交。
++- [ ] 原Gitprecondition/85/300每个实际结果保留，失败无retry。
++
++## 需求覆盖矩阵
++
++| 需求ID | 设计章节 | 任务编号 | 状态 |
++|---|---|---|---|
++| FR-1 | 决策1 | 1.1/2.1/3.1 | pending |
++| FR-2 | 决策2/3 | 1.1/2.2/2.3/3.1 | pending |
++| FR-3 | 决策3 | 2.2/3.1/3.2 | pending |
++| FR-4 | 决策3 | 2.2/3.1 | pending |
++| FR-5 | 决策4 | 1.1/2.3/3.1/3.2 | pending |
++
++## 文件变更清单
++
++| 文件 | 操作 | 行数预算 | 说明 |
++|---|---|---|---|
++| docs/specs/issue88-native-runtime-recovery-probe/requirements.md | 新建 | 250 | fiveFR |
++| docs/specs/issue88-native-runtime-recovery-probe/design.md | 新建 | 250 | boundedsource/native/evidence |
++| docs/specs/issue88-native-runtime-recovery-probe/tasks.md | 新建 | 250 | thisscope |
++| .github/workflows/rc-native-recovery-probe.yml | 新建 | 150 | literaltestbranch |
++| scripts/rc_native_probe_restore.py | 新建 | 300 | immutablefullsource |
++| scripts/rc_native_probe_kernel.py | 新建 | 180 | V5kernel |
++| scripts/rc_native_probe_owner.py | 新建 | 400 | owned85/300gate |
++| scripts/rc_native_probe.py | 新建 | 250 | minimalenv/safeartifact |
++| scripts/rc_native_probe_original_runner.py | 新建 | 103 | exactoriginal |
++| scripts/rc_native_probe_inventory.json | 新建 | 450 | exact85/300 |
++| scripts/rc_native_probe_checks.py | 新建 | 300 | meaningfulstatic/negative/restore |
++
++## 检查清单
++
++- [x] 明确11交付物、0production修改，必要证据和所有FR回链。
++- [ ] 实际实现/测试/peer/CI完成证据未取得。
+diff --git a/scripts/rc_native_probe.py b/scripts/rc_native_probe.py
+new file mode 100644
+index 0000000..151a55b
+--- /dev/null
++++ b/scripts/rc_native_probe.py
+@@ -0,0 +1,122 @@
++"""Source-backed native publisher probe. No release, installation or host setup."""
++import argparse
++import ast
++import json
++import os
++from pathlib import Path
++import shutil
++import subprocess
++import sys
++from rc_native_probe_restore import restore, sha, write, RUNNER_SHA, FIXTURE_SHA, ENV, git, read_regular
++from rc_native_probe_kernel import identity, realm
++from rc_native_probe_owner import run_owned, RUNTIME
++
++BRANCH='test/rc070-native-recovery-probe-20261009'
++FILES=('docs/specs/issue88-native-runtime-recovery-probe/requirements.md',
++       'docs/specs/issue88-native-runtime-recovery-probe/design.md',
++       'docs/specs/issue88-native-runtime-recovery-probe/tasks.md',
++       '.github/workflows/rc-native-recovery-probe.yml',
++       'scripts/rc_native_probe.py','scripts/rc_native_probe_restore.py','scripts/rc_native_probe_kernel.py',
++       'scripts/rc_native_probe_owner.py','scripts/rc_native_probe_original_runner.py',
++       'scripts/rc_native_probe_inventory.json','scripts/rc_native_probe_checks.py')
++
++
++def precondition(context,output):
++    path=Path(context['root'])/'scripts/rc_consumer_fixed_git.py'
++    assignments={n.targets[0].id:ast.literal_eval(n.value) for n in ast.parse(path.read_text()).body
++                 if isinstance(n,ast.Assign) and isinstance(n.targets[0],ast.Name) and n.targets[0].id in ('PREFIX','OVERRIDES')}
++    assert assignments['PREFIX']==('--no-pager','--no-replace-objects','--no-optional-locks','--no-lazy-fetch')
++    assert assignments['OVERRIDES']==('-c','core.hooksPath=/dev/null','-c','core.fsmonitor=false',
++                                    '-c','core.untrackedCache=false','-c','credential.helper=','-c','protocol.allow=never')
++    command=['/usr/bin/git',*assignments['PREFIX'],*assignments['OVERRIDES'],'--version']
++    observed=subprocess.run(command,env=ENV,capture_output=True,timeout=30)
++    missing=[p for p in RUNTIME if not Path(p).is_file()]
++    runtime={p:identity(p) for p in RUNTIME if Path(p).is_file()}
++    passed=observed.returncode==0 and observed.stdout.startswith(b'git version ') and not missing
++    report=dict(passed=passed,SUT_runs=0,command=command,exit_code=observed.returncode,
++                stdout=observed.stdout.decode('ascii',errors='strict'),stderr_sha256=sha(observed.stderr),
++                unsupported_no_lazy_fetch=b'unknown option: --no-lazy-fetch' in observed.stderr,
++                missing_required_original_runtime_paths=missing,runtime=runtime,realm=realm(),
++                native_PATH='/usr/bin:/bin:'+str(Path(sys.executable).parent),
++                actual_native_git_resolved=shutil.which('git',path='/usr/bin:/bin'),
++                no_flags_removed=True,no_install_or_binary_replacement=True)
++    write(output/'NATIVE-PRECONDITION.json',report)
++    assert report['actual_native_git_resolved']=='/usr/bin/git'
++    return passed
++
++
++def safe_artifacts(output):
++    # Only exact original evidence filenames, never certificate/temp/source trees.
++    names=['SOURCE-RESTORATION.json','NATIVE-PRECONDITION.json','CARRIER-IDENTITY.json','PROBE-RESULT.json']
++    for profile in ('necessary85','original300'):
++        names += [profile+'/'+n for n in ('LAUNCH.json','NATIVE-CLOSURE.json','RAW-EVIDENCE-SEAL.json','controller-stdout.log','controller-stderr.log',
++                  'cases/receipt.json','cases/cases.log','cases/session-stdout.log','cases/session-stderr.log')]
++    blobs={name:read_regular(output/name) for name in names if (output/name).is_file()}
++    assert sum(map(len,blobs.values()))<=32*1024*1024
++    assert all(not (output/name).is_symlink() and (output/name).stat().st_nlink==1 for name in blobs)
++    # Values remain solely in this process for comparison; no value/hash exported.
++    secret_values=[v.encode() for k,v in os.environ.items() if len(v)>=8 and any(word in k.upper() for word in ('TOKEN','SECRET','PASSWORD','COOKIE','AUTHORIZATION'))]
++    for raw in blobs.values():
++        assert b'-----BEGIN ' not in raw and b'PRIVATE KEY' not in raw
++        assert not any(value in raw for value in secret_values)
++        assert b'Authorization: Bearer ' not in raw and b'Authorization: Basic ' not in raw
++        assert b'ghp_' not in raw and b'github_pat_' not in raw
++    destination=output/'safe-artifacts'
++    assert not destination.exists()
++    destination.mkdir()
++    rows=[]
++    for name,raw in blobs.items():
++        path=destination/name
++        path.parent.mkdir(parents=True,exist_ok=True)
++        with path.open('xb') as stream:
++            stream.write(raw)
++            stream.flush()
++            os.fsync(stream.fileno())
++        assert path.read_bytes()==raw
++        rows.append(dict(path=name,bytes=len(raw),sha256=sha(raw)))
++    write(destination/'SAFE-ARTIFACT-MANIFEST.json',dict(original_bytes_preserved=True,scanned=True,files=rows))
++
++
++def main():
++    parser=argparse.ArgumentParser()
++    parser.add_argument('--management',required=True)
++    parser.add_argument('--output',required=True)
++    parser.add_argument('--fixture',required=True)
++    args=parser.parse_args()
++    management,output,fixture=Path(args.management).resolve(),Path(args.output).resolve(),Path(args.fixture).resolve()
++    assert not output.exists() and management not in output.parents
++    assert os.environ.get('GITHUB_EVENT_NAME')=='push'
++    assert os.environ.get('GITHUB_REPOSITORY')=='Eswink/coding-tools-mcp'
++    assert os.environ.get('GITHUB_REF')=='refs/heads/'+BRANCH
++    head=git(management,'rev-parse','HEAD').decode().strip()
++    assert head==os.environ.get('GITHUB_SHA')
++    assert git(management,'status','--porcelain','--untracked-files=all')==b''
++    assert len(fixture.read_bytes())==267679 and sha(fixture.read_bytes())==FIXTURE_SHA
++    paths=[management/p for p in FILES]
++    carrier={str(p):identity(p) for p in paths}
++    runner=management/'scripts/rc_native_probe_original_runner.py'
++    assert sha(runner.read_bytes())==RUNNER_SHA and len(runner.read_bytes())==6259
++    context=restore(management,output)
++    write(output/'CARRIER-IDENTITY.json',dict(commit=head,branch=BRANCH,files=carrier,
++          source_tree=context['tree'],pure_source_count=1878,immutable_runner_sha256=RUNNER_SHA,
++          no_release_grant=True,no_compiler_install_or_privilege=True))
++    success=False
++    counts=dict(necessary85='NOT_RUN',original300='NOT_RUN')
++    try:
++        if precondition(context,output):
++            inventories=json.loads((management/'scripts/rc_native_probe_inventory.json').read_text())
++            first=run_owned(context,'necessary85',inventories['necessary85'],output/'necessary85',fixture,runner,paths)
++            counts['necessary85']='QUALIFIED' if first['native']['qualified'] else 'FAIL_UNKNOWN'
++            if first['native']['qualified']:
++                second=run_owned(context,'original300',inventories['original300'],output/'original300',fixture,runner,paths,prior=first)
++                counts['original300']='QUALIFIED' if second['native']['qualified'] else 'FAIL_UNKNOWN'
++                success=second['native']['qualified']
++    finally:
++        write(output/'PROBE-RESULT.json',dict(passed=success,profiles=counts,current_CI_result_only=True,
++              retained_local85='FAILED_50_named_PASS_35_non_success',release_authorized=False))
++        safe_artifacts(output)
++    return 0 if success else 1
++
++
++if __name__=='__main__':
++    raise SystemExit(main())
+diff --git a/scripts/rc_native_probe_checks.py b/scripts/rc_native_probe_checks.py
+new file mode 100644
+index 0000000..06fb516
+--- /dev/null
++++ b/scripts/rc_native_probe_checks.py
+@@ -0,0 +1,104 @@
++"""Necessary carrier checks; never execute the project SUT in this local runtime."""
++import argparse
++import ast
++import copy
++import json
++from pathlib import Path
++import tempfile
++from rc_native_probe_restore import sha,restore,whole_source,TREE,RUNNER_SHA,read_regular
++from rc_native_probe import FILES,precondition,safe_artifacts
++
++
++def check(condition,label,rows):
++    assert condition,label
++    rows.append(dict(check=label,passed=True))
++
++
++def assert_reject(action,label,rows):
++    try:
++        action()
++    except (AssertionError,KeyError,ValueError,OSError):
++        rows.append(dict(check=label,passed=True,expected_reject=True))
++    else:
++        raise AssertionError(label)
++
++
++def main():
++    parser=argparse.ArgumentParser()
++    parser.add_argument('--management',required=True)
++    parser.add_argument('--output',required=True)
++    parser.add_argument('--golden-v5',required=True)
++    parser.add_argument('--golden-inventory',required=True)
++    args=parser.parse_args()
++    management,output=Path(args.management).resolve(),Path(args.output).resolve()
++    assert not output.exists()
++    rows=[]
++    scripts=management/'scripts'
++    inventory=json.loads((scripts/'rc_native_probe_inventory.json').read_text())
++    original=json.loads(Path(args.golden_inventory).read_text())
++    check(inventory=={k:original[k] for k in ('necessary85','original300')},'original85/300 exact ordered names',rows)
++    check(sha((scripts/'rc_native_probe_inventory.json').read_bytes())=='99496a8f599ce50f31a97a692fd3ee101a1a7059f751e670d3c9de298e654bfb','literal inventory SHA',rows)
++    check(all(len(inventory[k])==len(set(inventory[k]))==n for k,n in [('necessary85',85),('original300',300)]),'85/300 retained unique sizes',rows)
++    runner=(scripts/'rc_native_probe_original_runner.py').read_bytes()
++    check(len(runner)==6259 and len(runner.splitlines())==103 and sha(runner)==RUNNER_SHA,'immutable103line runner rawSHA',rows)
++    golden=Path(args.golden_v5).read_bytes()
++    check(sha(golden)=='99f402108d5db499fe0cde4a38f2810e7f11a0083d00aaf961dafaa19e08e87f','actualV5 golden launcher identity',rows)
++    old={n.name:ast.dump(n,include_attributes=False) for n in ast.parse(golden).body if isinstance(n,ast.FunctionDef)}
++    current={n.name:ast.dump(n,include_attributes=False) for n in ast.parse((scripts/'rc_native_probe_kernel.py').read_text()).body if isinstance(n,ast.FunctionDef)}
++    check(all(current[n]==old[n] for n in ('identity','realm','proc_fields','kernel','owned_family_close')),'all5 currentkernel exactV5 AST',rows)
++    for rel in FILES:
++        path=management/rel
++        check(path.is_file() and not path.is_symlink(),rel+' physical regular source',rows)
++    for path in scripts.glob('rc_native_probe*.py'):
++        ast.parse(path.read_text())
++        check(len(path.read_text().splitlines())<=400,path.name+' bounded parsed source',rows)
++    workflow=(management/'.github/workflows/rc-native-recovery-probe.yml').read_text()
++    check("branches: ['test/rc070-native-recovery-probe-20261009']" in workflow and 'contents: read' in workflow and 'persist-credentials: false' in workflow and 'fetch-depth: 0' in workflow,'fixedread-only workflow',rows)
++    check(all(s not in workflow for s in ('setup-python','sudo ','apt-get','cargo ','secrets.','workflow_dispatch','pull_request_target','contents: write','GITHUB_TOKEN:')),'no install/compiler/token/release privileges',rows)
++    context=restore(management,output)
++    check(context['tree']==TREE and context['count']==1878 and whole_source(context['root'],context['rows'])==context['source'],'actualfull source restoration1878/b9cf',rows)
++    changed=copy.deepcopy(context['rows'])
++    changed[0]['sha256']='0'*64
++    assert_reject(lambda:whole_source(context['root'],changed),'one corrupt source SHA blocks',rows)
++    changed=copy.deepcopy(context['rows'])
++    changed[0]['path']='../escape'
++    assert_reject(lambda:whole_source(context['root'],changed),'source path escape blocks',rows)
++    changed=copy.deepcopy(context['rows'])
++    changed[0]['mode']='120000'
++    assert_reject(lambda:whole_source(context['root'],changed),'source symlink mode blocks',rows)
++    prefix_ok=precondition(context,output)
++    pre=json.loads((output/'NATIVE-PRECONDITION.json').read_text())
++    check(pre['SUT_runs']==0 and pre['command'][4]=='--no-lazy-fetch' and pre['no_flags_removed'],'actual original nativeprefix precondition SUT0',rows)
++    with tempfile.TemporaryDirectory(prefix='owned-native-artifact-negative-') as directory:
++        dest=Path(directory)
++        (dest/'PROBE-RESULT.json').write_bytes(b'-----BEGIN PRIVATE KEY-----\nowned fake negative only\n')
++        assert_reject(lambda:safe_artifacts(dest),'privatekey rawartifact blocks beforecopy',rows)
++        check(not (dest/'safe-artifacts').exists(),'scan failure creates no upload directory',rows)
++    with tempfile.TemporaryDirectory(prefix='owned-native-artifact-positive-') as directory:
++        dest=Path(directory)
++        raw=b'{"passed":false,"SUT_runs":0}\n'
++        (dest/'PROBE-RESULT.json').write_bytes(raw)
++        (dest/'not-whitelisted.key').write_bytes(b'not eligible for upload')
++        safe_artifacts(dest)
++        check((dest/'safe-artifacts/PROBE-RESULT.json').read_bytes()==raw and not (dest/'safe-artifacts/not-whitelisted.key').exists(),'safe whitelist original bytes exact',rows)
++    with tempfile.TemporaryDirectory(prefix='owned-native-nofollow-negative-') as directory:
++        dest=Path(directory)
++        (dest/'owned').write_bytes(b'owned negative fixture only')
++        (dest/'filelink').symlink_to(dest/'owned')
++        assert_reject(lambda:read_regular(dest/'filelink'),'symlink leaf rejected nofollow',rows)
++        (dest/'dir').mkdir()
++        (dest/'dir/data').write_bytes(b'owned directory negative only')
++        (dest/'dirlink').symlink_to(dest/'dir',target_is_directory=True)
++        assert_reject(lambda:read_regular(dest/'dirlink/data'),'symlink parent rejected nofollow',rows)
++        import os
++        os.link(dest/'owned',dest/'hardlink')
++        assert_reject(lambda:read_regular(dest/'owned'),'hardlink rejected beforebytes',rows)
++    report=dict(checks_passed=True,checks=rows,total=len(rows),SUT_runs=0,source_tree=TREE,
++                native_prefix_passed=prefix_ok,native_prefix_result=pre['exit_code'],
++                current_local85='FAIL_RETAINED',current300='NOT_RUN',CI='NOT_RUN')
++    (output/'NECESSARY-CARRIER-CHECKS.json').write_text(json.dumps(report,indent=2)+'\n')
++    print(json.dumps({k:report[k] for k in ('checks_passed','total','SUT_runs','source_tree','native_prefix_passed','native_prefix_result')}))
++
++
++if __name__=='__main__':
++    main()
+diff --git a/scripts/rc_native_probe_inventory.json b/scripts/rc_native_probe_inventory.json
+new file mode 100644
+index 0000000..e5c69c1
+--- /dev/null
++++ b/scripts/rc_native_probe_inventory.json
+@@ -0,0 +1,391 @@
++{
++  "necessary85": [
++    "rc_publication_admission_cases.AdmissionCases.test_all_direct_mutation_sinks_authenticate_and_send_no_mutation",
++    "rc_publication_admission_cases.AdmissionCases.test_authenticate_real_reads_and_blocks_remaining_gates",
++    "rc_publication_admission_cases.AdmissionCases.test_caller_claims_and_reports_cannot_bypass_fixed_authentication",
++    "rc_publication_admission_cases.AdmissionCases.test_cancelled_before_connect_sends_no_request",
++    "rc_publication_admission_cases.AdmissionCases.test_cancelled_during_reads_returns_no_partial_result",
++    "rc_publication_admission_cases.AdmissionCases.test_event_ref_and_pr_merge_selection_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_exact_run_attempt_and_selected_job_ids_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_exact_seven_job_names_status_and_times_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_exact_seven_jobs_returns_blocked_partial_evidence",
++    "rc_publication_admission_cases.AdmissionCases.test_frozen_source_tree_and_repository_identity_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_gate_digest_canonical_order_and_binding",
++    "rc_publication_admission_cases.AdmissionCases.test_job_inventory_and_fields_drift_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_late_newer_run_blocks_frozen_selection",
++    "rc_publication_admission_cases.AdmissionCases.test_metadata_denial_absence_redirect_and_nonjson_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_metadata_parser_limits_and_duplicate_fields_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_newer_unsuccessful_run_never_falls_back",
++    "rc_publication_admission_cases.AdmissionCases.test_one_absolute_deadline_covers_all_reads",
++    "rc_publication_admission_cases.AdmissionCases.test_paginated_newest_run_selection_has_exact_inventory",
++    "rc_publication_admission_cases.AdmissionCases.test_pagination_counts_duplicates_truncation_and_cap_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_public_entry_authenticates_then_blocks_before_staging",
++    "rc_publication_admission_cases.AdmissionCases.test_repeat_invocation_reobserves_without_cached_authority",
++    "rc_publication_admission_cases.AdmissionCases.test_run_attempt_and_current_snapshot_drift_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_workflow_path_id_blob_mode_and_tree_completeness_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_workflow_ref_source_tree_reobserve_drift_rejected",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_all_three_frozen_artifact_digest_mismatches_block",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_budget_controls_during_final_owned_read_preserve_codes",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_caller_report_owner_attribute_and_flags_cannot_import_authority",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_corrupt_final_archive_never_registers_owner",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_entered_owner_cancel_and_expiry_cannot_be_replaced_by_caller",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_fixed_reads_ignore_get_override_and_reject_transport_shadows",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_foreign_and_closed_owner_are_unavailable",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_metadata_failure_prevents_any_artifact_staging",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_new_reads_use_one_budget_and_expired_preparation_has_no_get",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_only_bound_session_scope_can_renew_owner_deadline",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_original_plan_and_provenance_copies_cannot_drift",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_owned_direct_mutation_sinks_still_block_before_authorize_and_write",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_raw_findings_producer_assertions_and_blockers_remain_visible",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_raw_npm_rustsec_glib_and_installed_contract_failures_stay_failures",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_read_only_preparation_never_authenticates_artifact_rows",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_real_preparation_stages_and_authenticates_exact_five_rows",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_remote_owner_and_latest_absence_constraints_remain_hard_rejects",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_retained_asset_and_selected_metadata_drift_block",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_session_stages_before_full_gate_block_and_retires_all_owners",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_stage_adapter_real_tls_midread_cancel_and_timeout_preserve_codes",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_both_canonical_digests_and_incidental_metadata",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_caller_deadline_covers_both_gates",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_cancellation_entering_and_during_final_returns_no_report",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_complete_paginated_final_selection",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_current_and_attempt_drift_reject",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_distinct_supported_integration_ref_and_final_branch",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_entry_and_direct_sinks_remain_effect_free",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_exact_selected_final_run_attempt_job_ids_required",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_exact_thirteen_jobs_returns_two_gate_blocked_report",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_final_candidate_push_first_attempt_required",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_final_job_fields_drift_reject",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_final_metadata_denial_absence_redirect_and_nonjson_reject",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_final_metadata_duplicate_and_bounds_reject",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_final_source_ref_workflow_reobserve_drift_reject",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_fixed_active_final_workflow_blob_and_path_required",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_fresh_reobservation_and_caller_claims_confer_no_authority",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_integration_changes_during_final_are_rejected",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_internal_deadline_is_clamped_once",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_late_newer_final_blocks_each_closing_pass",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_legacy_integration_negative_endpoints_are_reached",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_malformed_duplicate_truncated_and_capped_lists_reject",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_newer_unsuccessful_final_never_falls_back",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_repository_source_and_selected_ref_identities_reject",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_thirteen_job_inventory_status_and_times_reject",
++    "rc_publication_request_cases.OwnedRequestCases.test_post_dispatch_stream_drift_is_terminal_unknown_no_retry",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_bad_receipt_metadata_precedes_late_cancel_and_expiry",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_bad_tag_metadata_precedes_cancel_first_observed_after_real_get_return",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_bad_tag_metadata_precedes_expiry_first_observed_after_real_get_return",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_entered_owner_controls_survive_noop_revalidation_and_authentication",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_exact_owned_identity_retains_callback_without_spoofed_scope_or_renewal",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_none_owned_callback_keeps_callable_stage_controls_and_original_deadline",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_owned_local_interruption_never_reclassifies_uncertain_wire_effect",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_paused_bound_session_cannot_reauthenticate_with_caller_scope",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_real_owned_midread_callback_failure_retains_closed_code",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_real_owned_midread_interruptions_have_sanitized_arguments",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_real_shorter_api_deadline_cannot_be_renewed_by_owned_longer_scope",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_real_source_tag_read_preserves_entered_owner_cancellation",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_real_two_adapter_observation_retains_one_owned_deadline",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_valid_last_receipt_still_checks_final_owned_fence",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_valid_tag_still_rejects_late_cancel_and_expiry_without_second_get",
++    "rc_publication_request_cases.OwnedRequestCases.test_native_owned_loopback_exact_bytes_and_one_attempt_each"
++  ],
++  "original300": [
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_archive_cancellation_reaps_both_children",
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_archive_cleanup_failures_remain_sticky",
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_archive_timeout_reaps_both_children",
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_cloud_manifest_header_and_hash_boundaries",
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_default_archive_results_and_omitted_controls",
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_directory_and_local_record_checkpoints",
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_existing_archive_rejections_with_active_controls",
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_gzip_raw_decompress_trailer_and_empty_reads",
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_invalid_controls_stop_before_parser_io",
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_late_close_inventory_and_io_failure_precedence",
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_original_deadline_and_sanitized_callback_errors",
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_real_deflate_input_output_and_stored_boundaries",
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_tar_member_payload_and_padding_boundaries",
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_two_downloads_share_controls_through_real_archives",
++    "rc_consumer_archive_budget_cases.ArchiveBudgetCases.test_zip_read_write_directory_and_eof_boundaries",
++    "rc_consumer_checksum_budget_cases.ChecksumBudgetCases.test_callback_errors_and_interrupts_are_sanitized",
++    "rc_consumer_checksum_budget_cases.ChecksumBudgetCases.test_checksum_cancellation_reaps_both_children",
++    "rc_consumer_checksum_budget_cases.ChecksumBudgetCases.test_checksum_cleanup_failures_remain_sticky",
++    "rc_consumer_checksum_budget_cases.ChecksumBudgetCases.test_checksum_errors_and_root_ownership_are_preserved",
++    "rc_consumer_checksum_budget_cases.ChecksumBudgetCases.test_checksum_timeout_reaps_both_children",
++    "rc_consumer_checksum_budget_cases.ChecksumBudgetCases.test_deadline_boundaries_huge_values_and_callback_only",
++    "rc_consumer_checksum_budget_cases.ChecksumBudgetCases.test_default_hash_inventory_and_bundle_call_shapes",
++    "rc_consumer_checksum_budget_cases.ChecksumBudgetCases.test_invalid_controls_reject_before_io",
++    "rc_consumer_checksum_budget_cases.ChecksumBudgetCases.test_inventory_rows_share_original_controls",
++    "rc_consumer_checksum_budget_cases.ChecksumBudgetCases.test_late_eof_and_close_cannot_return_digest",
++    "rc_consumer_checksum_budget_cases.ChecksumBudgetCases.test_real_multichunk_hash_stops_on_cancel_or_expiry",
++    "rc_consumer_checksum_budget_cases.ChecksumBudgetCases.test_two_downloads_share_controls_through_real_checksum",
++    "rc_consumer_contract_boundaries_tests.PairedStrictCounts.test_upstream_dependency_count_is_an_integer_not_bool_or_float",
++    "rc_consumer_contract_parity_tests.DesktopPairedProof.test_actual_consumer_overrides_and_changed_upstream_proof_fail",
++    "rc_consumer_contract_parity_tests.DesktopPairedProof.test_real_official_source_and_paired_raw_advisory_survive_sanitization",
++    "rc_consumer_contract_parity_tests.DesktopPairedProof.test_upstream_unsound_advisory_and_paired_product_cannot_be_removed",
++    "rc_consumer_download_budget_cases.DownloadBudgetCases.test_callback_mapping_and_legacy_interrupt_sanitization",
++    "rc_consumer_download_budget_cases.DownloadBudgetCases.test_cancelled_or_invalid_activity_prevents_launch",
++    "rc_consumer_download_budget_cases.DownloadBudgetCases.test_child_exit_and_cleanup_cannot_return_late_success",
++    "rc_consumer_download_budget_cases.DownloadBudgetCases.test_cleanup_uncertainty_overrides_cancel_and_stays_sticky",
++    "rc_consumer_download_budget_cases.DownloadBudgetCases.test_defaults_and_shared_deadline_success_and_clamp",
++    "rc_consumer_download_budget_cases.DownloadBudgetCases.test_invalid_expired_boundary_and_huge_deadlines",
++    "rc_consumer_download_budget_cases.DownloadBudgetCases.test_loopback_trickle_cancellation_reaps_worker",
++    "rc_consumer_download_budget_cases.DownloadBudgetCases.test_loopback_trickle_obeys_shared_deadline",
++    "rc_consumer_download_budget_cases.DownloadBudgetCases.test_owned_file_open_write_fsync_close_checkpoints",
++    "rc_consumer_download_budget_cases.DownloadBudgetCases.test_pipe_backpressure_keeps_budget_and_cancellation",
++    "rc_consumer_download_budget_cases.DownloadBudgetCases.test_real_startup_dns_tls_cancellation",
++    "rc_consumer_download_budget_cases.DownloadBudgetCases.test_real_startup_partial_ipc_and_late_launch_deadlines",
++    "rc_consumer_io_tests.PrivateIOTests.test_bounded_reads_and_fixed_error_codes",
++    "rc_consumer_io_tests.PrivateIOTests.test_final_symlink_and_hardlink_rejected",
++    "rc_consumer_io_tests.PrivateIOTests.test_invalid_relative_paths",
++    "rc_consumer_io_tests.PrivateIOTests.test_json_duplicates_nonfinite_overflow_and_syntax",
++    "rc_consumer_io_tests.PrivateIOTests.test_open_parent_race_remains_anchored",
++    "rc_consumer_io_tests.PrivateIOTests.test_parent_replacement_before_open_rejected",
++    "rc_consumer_io_tests.PrivateIOTests.test_positive_private_modes_read_copy_inventory",
++    "rc_consumer_io_tests.PrivateIOTests.test_preexisting_private_entry_and_mode_change_fail",
++    "rc_consumer_io_tests.PrivateIOTests.test_root_replacement_and_injected_file_fail",
++    "rc_consumer_io_tests.PrivateIOTests.test_source_root_and_ancestor_symlink_rejected",
++    "rc_pretag_policy_tests.PreTagPolicyTests.test_policy_rows_have_full_permission_identity_freshness_map",
++    "rc_publication_admission_cases.AdmissionCases.test_all_direct_mutation_sinks_authenticate_and_send_no_mutation",
++    "rc_publication_admission_cases.AdmissionCases.test_authenticate_real_reads_and_blocks_remaining_gates",
++    "rc_publication_admission_cases.AdmissionCases.test_caller_claims_and_reports_cannot_bypass_fixed_authentication",
++    "rc_publication_admission_cases.AdmissionCases.test_cancelled_before_connect_sends_no_request",
++    "rc_publication_admission_cases.AdmissionCases.test_cancelled_during_reads_returns_no_partial_result",
++    "rc_publication_admission_cases.AdmissionCases.test_event_ref_and_pr_merge_selection_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_exact_run_attempt_and_selected_job_ids_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_exact_seven_job_names_status_and_times_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_exact_seven_jobs_returns_blocked_partial_evidence",
++    "rc_publication_admission_cases.AdmissionCases.test_frozen_source_tree_and_repository_identity_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_gate_digest_canonical_order_and_binding",
++    "rc_publication_admission_cases.AdmissionCases.test_job_inventory_and_fields_drift_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_late_newer_run_blocks_frozen_selection",
++    "rc_publication_admission_cases.AdmissionCases.test_metadata_denial_absence_redirect_and_nonjson_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_metadata_parser_limits_and_duplicate_fields_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_newer_unsuccessful_run_never_falls_back",
++    "rc_publication_admission_cases.AdmissionCases.test_one_absolute_deadline_covers_all_reads",
++    "rc_publication_admission_cases.AdmissionCases.test_paginated_newest_run_selection_has_exact_inventory",
++    "rc_publication_admission_cases.AdmissionCases.test_pagination_counts_duplicates_truncation_and_cap_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_public_entry_authenticates_then_blocks_before_staging",
++    "rc_publication_admission_cases.AdmissionCases.test_repeat_invocation_reobserves_without_cached_authority",
++    "rc_publication_admission_cases.AdmissionCases.test_run_attempt_and_current_snapshot_drift_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_workflow_path_id_blob_mode_and_tree_completeness_rejected",
++    "rc_publication_admission_cases.AdmissionCases.test_workflow_ref_source_tree_reobserve_drift_rejected",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_all_source_and_observation_metadata_reads_keep_original_deadline",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_callback_bridge_does_not_override_unknown_wire_effect",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_default_observation_keeps_empty_api_kwargs_and_no_new_clock",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_full_pagination_uses_one_original_deadline",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_invalid_or_expired_controls_prevent_api_calls",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_last_receipt_semantic_failure_precedes_late_cancellation",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_observation_success_checks_after_receipt_semantics",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_only_exact_no_effect_wire_interruptions_are_promoted",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_pagination_deadline_stops_before_next_page_without_partial_success",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_real_tls_callback_failures_preserve_optional_control_contract",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_real_tls_generic_cancellation_is_not_invalid_snapshot",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_real_tls_interrupt_types_have_sanitized_arguments",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_real_tls_trickle_body_uses_original_deadline",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_real_tls_trickle_headers_use_original_deadline",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_returned_bad_tag_precedes_late_cancellation",
++    "rc_publication_api_budget_cases.APIBudgetCases.test_source_success_checks_after_second_tag_read",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_all_three_frozen_artifact_digest_mismatches_block",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_budget_controls_during_final_owned_read_preserve_codes",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_caller_report_owner_attribute_and_flags_cannot_import_authority",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_corrupt_final_archive_never_registers_owner",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_entered_owner_cancel_and_expiry_cannot_be_replaced_by_caller",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_fixed_reads_ignore_get_override_and_reject_transport_shadows",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_foreign_and_closed_owner_are_unavailable",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_metadata_failure_prevents_any_artifact_staging",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_new_reads_use_one_budget_and_expired_preparation_has_no_get",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_only_bound_session_scope_can_renew_owner_deadline",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_original_plan_and_provenance_copies_cannot_drift",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_owned_direct_mutation_sinks_still_block_before_authorize_and_write",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_raw_findings_producer_assertions_and_blockers_remain_visible",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_raw_npm_rustsec_glib_and_installed_contract_failures_stay_failures",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_read_only_preparation_never_authenticates_artifact_rows",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_real_preparation_stages_and_authenticates_exact_five_rows",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_remote_owner_and_latest_absence_constraints_remain_hard_rejects",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_retained_asset_and_selected_metadata_drift_block",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_session_stages_before_full_gate_block_and_retires_all_owners",
++    "rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_stage_adapter_real_tls_midread_cancel_and_timeout_preserve_codes",
++    "rc_publication_executor_cases.ExecutorCases.test_cancellation_after_possible_dispatch_is_sticky_unknown",
++    "rc_publication_executor_cases.ExecutorCases.test_cancellation_before_dispatch_has_no_effect",
++    "rc_publication_executor_cases.ExecutorCases.test_confirmed_mutation_cleanup_failure_retains_known_ids",
++    "rc_publication_executor_cases.ExecutorCases.test_duplicate_reentrant_and_out_of_order_dispatch_reject",
++    "rc_publication_executor_cases.ExecutorCases.test_each_mutation_rechecks_current_owner_scope",
++    "rc_publication_executor_cases.ExecutorCases.test_final_cleanup_failure_prevents_success_report",
++    "rc_publication_executor_cases.ExecutorCases.test_live_entry_is_blocked_without_real_verifiers_and_tag_guarantee",
++    "rc_publication_executor_cases.ExecutorCases.test_lost_response_never_retries_or_clears_uncertainty",
++    "rc_publication_executor_cases.ExecutorCases.test_pause_close_is_local_only_and_cannot_resume",
++    "rc_publication_executor_cases.ExecutorCases.test_publish_request_never_grants_authority",
++    "rc_publication_executor_cases.ExecutorCases.test_read_failure_uses_existing_core_outcomes",
++    "rc_publication_executor_cases.ExecutorCases.test_real_tls_complete_trace_pauses_until_explicit_request",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_both_canonical_digests_and_incidental_metadata",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_caller_deadline_covers_both_gates",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_cancellation_entering_and_during_final_returns_no_report",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_complete_paginated_final_selection",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_current_and_attempt_drift_reject",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_distinct_supported_integration_ref_and_final_branch",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_entry_and_direct_sinks_remain_effect_free",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_exact_selected_final_run_attempt_job_ids_required",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_exact_thirteen_jobs_returns_two_gate_blocked_report",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_final_candidate_push_first_attempt_required",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_final_job_fields_drift_reject",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_final_metadata_denial_absence_redirect_and_nonjson_reject",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_final_metadata_duplicate_and_bounds_reject",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_final_source_ref_workflow_reobserve_drift_reject",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_fixed_active_final_workflow_blob_and_path_required",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_fresh_reobservation_and_caller_claims_confer_no_authority",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_integration_changes_during_final_are_rejected",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_internal_deadline_is_clamped_once",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_late_newer_final_blocks_each_closing_pass",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_legacy_integration_negative_endpoints_are_reached",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_malformed_duplicate_truncated_and_capped_lists_reject",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_newer_unsuccessful_final_never_falls_back",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_repository_source_and_selected_ref_identities_reject",
++    "rc_publication_final_admission_cases.FinalAdmissionCases.test_thirteen_job_inventory_status_and_times_reject",
++    "rc_publication_github_cases.GitHubCases.test_anonymous_verification_and_latest_drift",
++    "rc_publication_github_cases.GitHubCases.test_closed_methods_paths_headers_and_bodies",
++    "rc_publication_github_cases.GitHubCases.test_complete_bounded_pagination_and_collision_rejection",
++    "rc_publication_github_cases.GitHubCases.test_direct_binary_download_rehashes_exact_bytes",
++    "rc_publication_github_cases.GitHubCases.test_disconnect_timeout_and_truncated_mutation_responses",
++    "rc_publication_github_cases.GitHubCases.test_json_types_duplicates_limits_and_status_failures",
++    "rc_publication_github_cases.GitHubCases.test_mismatched_success_retains_uncertain_effect",
++    "rc_publication_github_cases.GitHubCases.test_single_storage_redirect_strips_credentials",
++    "rc_publication_github_cases.GitHubCases.test_six_ordered_descriptor_uploads_match_wire_bytes",
++    "rc_publication_github_cases.GitHubCases.test_tls_validation_and_error_redaction",
++    "rc_publication_github_cases.GitHubCases.test_unsafe_redirect_chain_hosts_and_ports_reject",
++    "rc_publication_github_cases.GitHubCases.test_upload_502_starter_is_uncertain_without_retry",
++    "rc_publication_native_budget_boundary_cases.ConsumerBudgetBridgeCases.test_consumer_without_publication_module_keeps_standalone_sanitization",
++    "rc_publication_native_budget_boundary_cases.ConsumerBudgetBridgeCases.test_exact_non_none_wire_failure_preserves_identity_release_and_asset",
++    "rc_publication_native_budget_boundary_cases.ConsumerBudgetBridgeCases.test_none_wire_failures_keep_original_fixed_consumer_codes",
++    "rc_publication_native_budget_boundary_cases.ConsumerBudgetBridgeCases.test_subclass_or_duck_effect_cannot_claim_wire_failure_passthrough",
++    "rc_publication_native_budget_boundary_cases.NativeBudgetBoundaryCases.test_actual_entered_generic_caller_exception_is_sanitized",
++    "rc_publication_native_budget_boundary_cases.NativeBudgetBoundaryCases.test_actual_entered_invalid_caller_shape_is_rejected_without_callback_or_get",
++    "rc_publication_native_budget_boundary_cases.NativeBudgetBoundaryCases.test_actual_entered_later_none_or_generic_caller_keeps_fixed_code_and_owner_priority",
++    "rc_publication_native_budget_boundary_cases.NativeBudgetBoundaryCases.test_actual_entered_second_budget_poll_preserves_non_none_error_identity",
++    "rc_publication_native_stage_composition_cases.NativeStageCompositionCases.test_actual_entered_callback_non_none_cannot_be_ignored",
++    "rc_publication_native_stage_composition_cases.NativeStageCompositionCases.test_actual_entered_callback_unknown_or_confirmed_effect_is_preserved",
++    "rc_publication_native_stage_composition_cases.NativeStageCompositionCases.test_actual_entered_wrong_thread_rejects_before_caller",
++    "rc_publication_native_stage_composition_cases.NativeStageCompositionCases.test_actual_paused_retired_owner_does_not_poll_caller",
++    "rc_publication_native_stage_composition_cases.NativeStageCompositionCases.test_actual_upload_owner_missing_reciprocal_session_is_rejected",
++    "rc_publication_native_stage_composition_cases.NativeStageCompositionCases.test_entered_native_cancel_with_noop_caller_sends_no_new_get",
++    "rc_publication_native_stage_composition_cases.NativeStageCompositionCases.test_first_native_deadline_stops_retained_provenance_after_last_get",
++    "rc_publication_native_stage_composition_cases.NativeStageCompositionCases.test_foreign_upload_handle_cannot_reach_authorizer",
++    "rc_publication_native_stage_composition_cases.NativeStageCompositionCases.test_native_client_without_held_scope_cannot_claim_owned_budget",
++    "rc_publication_native_stage_composition_cases.NativeStageCompositionCases.test_native_no_held_scope_rejects_before_enter_or_control_caller",
++    "rc_publication_native_stage_composition_cases.NativeStageCompositionCases.test_native_prepare_uses_canonical_owned_stage_and_remains_blocked",
++    "rc_publication_native_stage_composition_cases.NativeStageCompositionCases.test_registered_artifact_stream_reaches_original_authorizer_denial",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_01_observe_tag_cancel_stops_before_next_metadata",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_02_observe_original_deadline_bounds_stalled_tag_tls",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_03_verify_metadata_cancel_stops_before_binary_read",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_04_verify_original_deadline_bounds_stalled_binary_tls",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_05_noop_longer_caller_cannot_replace_native_cancel",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_06_first_native_controller_deadline_cannot_be_renewed_by_caller",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_07_native_cancel_after_json_decode_cannot_return_observation",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_08_anonymous_storage_redirect_keeps_native_cancel",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_09_native_paused_and_retired_read_cannot_fallback_standalone",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_10_native_thread_and_fork_copy_cannot_borrow_read_controller",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_11_native_prepare_noop_caller_cannot_replace_cancel",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_12_read_socket_cleanup_cancel_cannot_start_binary",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_13_raw_get_native_rejection_precedes_external_callback",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_14_native_cancel_polls_while_binary_tls_response_is_stalled",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_15_recv_poll_retries_do_not_refresh_original_idle_deadline",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_16_additional_caller_cancel_can_strengthen_native_read",
++    "rc_publication_owned_read_cases.OwnedReadCases.test_17_fork_copy_cannot_pass_native_mutation_owner_check",
++    "rc_publication_request_cases.OwnedRequestCases.test_01_supported_credential_api_and_selection_substitution_rejects",
++    "rc_publication_request_cases.OwnedRequestCases.test_02_cross_client_session_operation_and_equal_copy_rejects",
++    "rc_publication_request_cases.OwnedRequestCases.test_03_dictionary_callback_and_noop_write_control_cannot_mint",
++    "rc_publication_request_cases.OwnedRequestCases.test_04_snapshot_header_url_body_and_identity_are_not_importable",
++    "rc_publication_request_cases.OwnedRequestCases.test_05_foreign_stream_offset_and_fresh_file_drift_reject_before_upload",
++    "rc_publication_request_cases.OwnedRequestCases.test_06_native_cancel_and_expiry_survive_noop_caller",
++    "rc_publication_request_cases.OwnedRequestCases.test_07_replay_reentrancy_and_duplicate_snapshots_reject",
++    "rc_publication_request_cases.OwnedRequestCases.test_08_pause_dispose_import_and_deadline_renewal_do_not_reuse_scope",
++    "rc_publication_request_cases.OwnedRequestCases.test_09_wrong_tls_and_fresh_missing_grant_never_send_mutation",
++    "rc_publication_request_cases.OwnedRequestCases.test_10_three_production_hard_rejects_and_snapshot_safe_errors_stay_closed",
++    "rc_publication_request_cases.OwnedRequestCases.test_actual_other_thread_cannot_dispatch_or_enter_native_loop",
++    "rc_publication_request_cases.OwnedRequestCases.test_confirmed_native_mutation_cleanup_failure_keeps_release_identity",
++    "rc_publication_request_cases.OwnedRequestCases.test_fresh_authorizer_cannot_replace_credential_client_or_encoded_bytes",
++    "rc_publication_request_cases.OwnedRequestCases.test_mutation_redirect_after_attempt_is_unknown_and_never_followed",
++    "rc_publication_request_cases.OwnedRequestCases.test_native_owned_loopback_exact_bytes_and_one_attempt_each",
++    "rc_publication_request_cases.OwnedRequestCases.test_post_dispatch_stream_drift_is_terminal_unknown_no_retry",
++    "rc_publication_source_budget_cases.SourceBudgetCases.test_activation_reuses_original_pair_for_both_source_passes_and_bundle",
++    "rc_publication_source_budget_cases.SourceBudgetCases.test_callback_only_full_source_does_not_read_an_operation_clock",
++    "rc_publication_source_budget_cases.SourceBudgetCases.test_default_source_has_empty_downstream_kwargs_and_no_reader_or_clock",
++    "rc_publication_source_budget_cases.SourceBudgetCases.test_full_source_observation_has_four_owners_and_exact_87_children",
++    "rc_publication_source_budget_cases.SourceBudgetCases.test_ignored_untracked_file_is_rejected_before_reviewed_manifest_reader",
++    "rc_publication_source_budget_cases.SourceBudgetCases.test_initial_source_cancellation_owns_and_reaps_child_before_cleanup",
++    "rc_publication_source_budget_cases.SourceBudgetCases.test_initial_source_timeout_reaps_before_any_private_stage_root",
++    "rc_publication_source_budget_cases.SourceBudgetCases.test_invalid_or_expired_controls_create_no_child_or_private_root",
++    "rc_publication_source_budget_cases.SourceBudgetCases.test_later_source_cancel_and_timeout_preserve_existing_mutation_effects",
++    "rc_publication_source_budget_cases.SourceBudgetCases.test_local_untracked_tree_tag_and_workflow_failures_precede_late_cancellation",
++    "rc_publication_source_budget_cases.SourceBudgetCases.test_one_absolute_deadline_spans_source_readers_without_renewal",
++    "rc_publication_source_budget_cases.SourceBudgetCases.test_revalidation_uses_fresh_current_pair_after_activation_has_expired",
++    "rc_publication_source_budget_cases.SourceBudgetCases.test_source_cleanup_uncertainty_retains_bytes_and_is_sticky_after_prior_effect",
++    "rc_publication_stage_cases.StageCases.test_closure_on_success_failure_and_cancel",
++    "rc_publication_stage_cases.StageCases.test_exact_final_archive_reuses_existing_validation",
++    "rc_publication_stage_cases.StageCases.test_exact_selected_consumer_run_job_and_receipt_artifact",
++    "rc_publication_stage_cases.StageCases.test_file_replacement_link_and_inventory_changes_reject",
++    "rc_publication_stage_cases.StageCases.test_inplace_size_and_hash_drift_rejects",
++    "rc_publication_stage_cases.StageCases.test_missing_foreign_or_mutated_selection_rejects",
++    "rc_publication_stage_cases.StageCases.test_mutable_selection_and_ambient_invocation_cannot_reselect",
++    "rc_publication_stage_cases.StageCases.test_no_source_path_or_closed_consumer_ownership_transfer",
++    "rc_publication_stage_cases.StageCases.test_original_plan_and_provenance_survive_clock_change",
++    "rc_publication_stage_cases.StageCases.test_owned_handles_survive_pause_and_upload_without_reopen",
++    "rc_publication_stage_cases.StageCases.test_receipt_zip_layout_and_original_bytes_are_bound",
++    "rc_publication_stage_cases.StageCases.test_six_fixed_rows_and_checksum_bytes_match_plan",
++    "rc_publication_staging_budget_cases.StagingBudgetCases.test_cancellation_between_downloads_prevents_second_launch",
++    "rc_publication_staging_budget_cases.StagingBudgetCases.test_deadline_expiring_between_downloads_prevents_second_launch",
++    "rc_publication_staging_budget_cases.StagingBudgetCases.test_default_stage_and_consumer_keep_download_defaults",
++    "rc_publication_staging_budget_cases.StagingBudgetCases.test_failure_mapping_is_closed_and_activation_cleanup_is_one_shot",
++    "rc_publication_staging_budget_cases.StagingBudgetCases.test_final_cancellation_reaps_both_children",
++    "rc_publication_staging_budget_cases.StagingBudgetCases.test_final_timeout_reaps_both_children",
++    "rc_publication_staging_budget_cases.StagingBudgetCases.test_receipt_cancellation_reaps_child_and_never_starts_final",
++    "rc_publication_staging_budget_cases.StagingBudgetCases.test_receipt_timeout_reaps_child_and_never_starts_final",
++    "rc_publication_staging_budget_cases.StagingBudgetCases.test_session_shares_activation_deadline_and_bound_callback",
++    "rc_publication_staging_budget_cases.StagingBudgetCases.test_stage_cleanup_failure_overrides_timeout_and_cancel",
++    "rc_publication_staging_budget_cases.StagingBudgetCases.test_transport_cleanup_uncertainty_stays_sticky_on_both_downloads",
++    "rc_publication_staging_budget_cases.StagingBudgetCases.test_transport_uncertainty_survives_secondary_stage_close_failure",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_bad_receipt_metadata_precedes_late_cancel_and_expiry",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_bad_tag_metadata_precedes_cancel_first_observed_after_real_get_return",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_bad_tag_metadata_precedes_expiry_first_observed_after_real_get_return",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_entered_owner_controls_survive_noop_revalidation_and_authentication",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_exact_owned_identity_retains_callback_without_spoofed_scope_or_renewal",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_none_owned_callback_keeps_callable_stage_controls_and_original_deadline",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_owned_local_interruption_never_reclassifies_uncertain_wire_effect",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_paused_bound_session_cannot_reauthenticate_with_caller_scope",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_real_owned_midread_callback_failure_retains_closed_code",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_real_owned_midread_interruptions_have_sanitized_arguments",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_real_shorter_api_deadline_cannot_be_renewed_by_owned_longer_scope",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_real_source_tag_read_preserves_entered_owner_cancellation",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_real_two_adapter_observation_retains_one_owned_deadline",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_valid_last_receipt_still_checks_final_owned_fence",
++    "rc_publication_unified_owner_api_cases.UnifiedOwnerAPICases.test_valid_tag_still_rejects_late_cancel_and_expiry_without_second_get",
++    "rc_publication_metadata_effect_cases.MetadataEffectCases.test_actual_first_prepare_poll_preserves_original_non_none_and_suppressed_context",
++    "rc_publication_metadata_effect_cases.MetadataEffectCases.test_actual_modified_error_fields_are_safe_and_never_infer_none",
++    "rc_publication_metadata_effect_cases.MetadataEffectCases.test_actual_none_generic_and_later_native_cancel_keep_fixed_priority",
++    "rc_publication_metadata_effect_cases.MetadataEffectCases.test_actual_observed_workflow_get_preserves_public_canonical_non_none_error",
++    "rc_publication_metadata_effect_cases.MetadataEffectCases.test_actual_root_get_preserves_public_canonical_non_none_error",
++    "rc_publication_metadata_effect_cases.SnapshotEffectBoundaryCases.test_actual_non_none_identity_and_other_snapshot_sanitizers",
++    "rc_publication_metadata_effect_cases.SnapshotEffectBoundaryCases.test_standalone_snapshot_does_not_import_publication",
++    "rc_publication_http_effect_cases.HTTPEffectCases.test_actual_confirmed_read_receipt_cannot_issue_mutation_or_server_ownership",
++    "rc_publication_http_effect_cases.HTTPEffectCases.test_actual_header_partial_body_and_postclose_non_none_polling",
++    "rc_publication_http_effect_cases.HTTPEffectCases.test_actual_native_get_missing_code_is_conservative_after_http_progress",
++    "rc_publication_http_effect_cases.HTTPEffectCases.test_actual_written_header_canonical_none_cannot_clear_owned_unknown",
++    "rc_publication_wire_representation_cases.WireRepresentationCases.test_actual_display_only_none_damage_and_invalid_none_are_distinct",
++    "rc_publication_wire_representation_cases.WireRepresentationCases.test_actual_optional_confirmed_and_nested_receipt_validation_without_hooks",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_all_final_reruns_including_retained_deleted_desktop_rejected",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_api_fixed_origin_method_and_auth_headers",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_api_rejects_bad_paths_nonfinite_duplicate_and_raw_errors",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_artifact_digest_size_expiry_name_and_time_mutations",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_artifact_direct_and_list_metadata_must_agree",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_artifact_inventory_missing_duplicate_or_racing",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_artifact_owner_run_source_repository_and_branch",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_complete_first_attempt_and_immutable_producer",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_download_fence_deleted_changed_rerun_or_failed",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_event_and_branch_change_inside_old_helper_rejected",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_expected_identity_and_input_field_mutations",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_expected_ids_reject_bool_float_zero_and_strings",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_job_ids_attempt_status_source_and_timestamps",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_latest_failure_pending_cancelled_never_falls_back",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_missing_duplicate_extra_and_renamed_jobs",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_pagination_overbound_short_count_duplicate_search_cap",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_repository_names_and_numeric_identity_all_bind",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_run_timestamp_missing_wrong_order_or_malformed",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_run_workflow_source_event_branch_and_type_mutations",
++    "rc_consumer_snapshot_tests.SnapshotTests.test_workflow_lookup_must_be_exact"
++  ]
++}
+diff --git a/scripts/rc_native_probe_kernel.py b/scripts/rc_native_probe_kernel.py
+new file mode 100644
+index 0000000..d7edc94
+--- /dev/null
++++ b/scripts/rc_native_probe_kernel.py
+@@ -0,0 +1,87 @@
++"""Native private subreaper children only; exact V5 identity/closure fragments."""
++import hashlib
++import os
++from pathlib import Path
++import signal
++import stat
++import time
++from rc_native_probe_restore import sha
++
++def identity(path):
++    path = Path(path)
++    info = path.stat()
++    return dict(realpath=str(path.resolve()), size=info.st_size, mode=stat.S_IMODE(info.st_mode),
++                uid=info.st_uid, gid=info.st_gid, nlink=info.st_nlink, sha256=sha(path.read_bytes()))
++
++def realm():
++    return dict(uid=os.getuid(), euid=os.geteuid(), gid=os.getgid(), egid=os.getegid(),
++                uname=list(os.uname()), boot_id_sha256=sha(Path('/proc/sys/kernel/random/boot_id').read_bytes()),
++                pid_namespace=os.readlink('/proc/self/ns/pid'))
++
++def proc_fields(path):
++    return {key: value.strip() for key, value in
++            (line.split(':', 1) for line in path.read_text().splitlines() if ':' in line)}
++
++def kernel(pid, fd):
++    # pid is in the caller's native namespace; /proc may expose an ancestor.
++    own = proc_fields(Path('/proc/self/status'))
++    depth = len(own['NSpid'].split())-1
++    assert int(own['NSpid'].split()[depth]) == os.getpid()
++    bound = proc_fields(Path('/proc/self/fdinfo/'+str(fd)))
++    values = bound['NSpid'].split()
++    assert len(values) > depth and int(values[depth]) == pid
++    status = proc_fields(Path('/proc/'+bound['Pid']+'/status'))
++    assert status['Pid'] == bound['Pid'] and status['NSpid'].split() == values
++    raw = Path('/proc/'+bound['Pid']+'/stat').read_text()
++    assert raw.split(' ', 1)[0] == bound['Pid']
++    fields = raw[raw.rfind(')')+2:].split()
++    again = proc_fields(Path('/proc/self/fdinfo/'+str(fd)))
++    assert again['Pid'] == bound['Pid'] and again['NSpid'].split() == values
++    assert int(fields[1]) == int(own['Pid'])
++    return dict(pid=pid, proc_pid=bound['Pid'], NSpid=values, state=fields[0],
++                ppid=os.getpid(), proc_ppid=int(fields[1]), pgid=os.getpgid(pid),
++                sid=os.getsid(pid), starttime=int(fields[19]))
++
++def owned_family_close(deadline, evidence):
++    # Only this private subreaper's kernel children; namespace and pidfd rebound
++    # before signalling. Repeat after reaping: grandchildren can be adopted later.
++    own = proc_fields(Path('/proc/self/status'))
++    depth = len(own['NSpid'].split())-1
++    assert int(own['NSpid'].split()[depth]) == os.getpid()
++    while time.monotonic() < deadline:
++        try:
++            os.waitid(os.P_ALL, 0, os.WEXITED | os.WNOHANG | os.WNOWAIT)
++        except ChildProcessError:
++            return True
++        for path in Path('/proc').glob('[0-9]*/status'):
++            try:
++                fields = proc_fields(path)
++            except (FileNotFoundError, ProcessLookupError):
++                continue
++            if fields['PPid'] != own['Pid']:
++                continue
++            values = fields['NSpid'].split()
++            assert len(values) > depth
++            native = int(values[depth])
++            fd = os.pidfd_open(native)
++            try:
++                bound = proc_fields(Path('/proc/self/fdinfo/'+str(fd)))
++                again = proc_fields(path)
++                assert bound['Pid'] == fields['Pid'] and bound['NSpid'].split() == values
++                assert again['PPid'] == own['Pid'] and again['NSpid'].split() == values and again['Pid'] == fields['Pid']
++                observed = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
++                live = observed is None
++                if live:
++                    signal.pidfd_send_signal(fd, signal.SIGKILL)
++                while observed is None and time.monotonic() < deadline:
++                    time.sleep(.01)
++                    observed = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
++                assert observed is not None, 'owned descendant exit UNKNOWN'
++                reaped = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG)
++                assert reaped == observed
++                evidence.append(dict(native=native, proc_pid=fields['Pid'], NSpid=values,
++                                     code=reaped.si_code, status=reaped.si_status, unexpectedly_live=live))
++            finally:
++                os.close(fd)
++        time.sleep(.01)
++    raise TimeoutError('owned family closure UNKNOWN')
+diff --git a/scripts/rc_native_probe_original_runner.py b/scripts/rc_native_probe_original_runner.py
+new file mode 100644
+index 0000000..7802355
+--- /dev/null
++++ b/scripts/rc_native_probe_original_runner.py
+@@ -0,0 +1,103 @@
++import argparse
++import hashlib
++import json
++from pathlib import Path
++import subprocess
++import sys
++import os
++import shutil
++import stat
++import time
++import unittest
++from contextlib import redirect_stdout, redirect_stderr
++from datetime import datetime, timezone
++
++parser = argparse.ArgumentParser()
++parser.add_argument('--root', required=True)
++parser.add_argument('--output', required=True)
++parser.add_argument('groups', nargs='+')
++args = parser.parse_args()
++root, output = Path(args.root), Path(args.output)
++sys.path.insert(0, str(root / 'scripts'))
++output.mkdir(parents=True, exist_ok=False)
++
++def source():
++    paths = subprocess.check_output(['/usr/bin/git', '-C', str(root), 'ls-files', '-z']).decode().split('\0')
++    paths += ['scripts/rc_publication_artifact_admission.py', 'scripts/rc_publication_artifact_admission_cases.py']
++    paths += [str(p.relative_to(root)) for p in (root / 'docs/specs/issue88-artifact-admission').glob('*.md')]
++    return {p: dict(size=(root/p).stat().st_size, mode=stat.S_IMODE((root/p).stat().st_mode), sha256=hashlib.sha256((root/p).read_bytes()).hexdigest())
++            for p in sorted(set(paths)) if p}
++
++def flatten(suite):
++    for case in suite:
++        if isinstance(case, unittest.TestSuite):
++            yield from flatten(case)
++        else:
++            yield case.id()
++
++class NamedResult(unittest.TextTestResult):
++    def __init__(self, *args, **kwargs):
++        super().__init__(*args, **kwargs)
++        self.executed, self.passed = [], []
++    def startTest(self, test):
++        self.executed.append(test.id())
++        super().startTest(test)
++    def addSuccess(self, test):
++        self.passed.append(test.id())
++        super().addSuccess(test)
++
++def runtime():
++    names = ('/usr/bin/git', '/usr/local/bin/git', '/usr/bin/python3', '/usr/bin/openssl', sys.executable)
++    return {name: dict(realpath=str(Path(name).resolve()), size=Path(name).stat().st_size,
++            mode=stat.S_IMODE(Path(name).stat().st_mode), uid=Path(name).stat().st_uid,
++            gid=Path(name).stat().st_gid, nlink=Path(name).stat().st_nlink,
++            sha256=hashlib.sha256(Path(name).read_bytes()).hexdigest()) for name in sorted(set(names))}
++
++def fixture():
++    name = os.environ.get('RC_CONSUMER_TEST_GLIB_ARCHIVE')
++    if not name:
++        raise RuntimeError('required retained GLib fixture environment missing')
++    path = Path(name)
++    digest = hashlib.sha256(path.read_bytes()).hexdigest()
++    if digest != '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5':
++        raise RuntimeError('retained official GLib fixture hash mismatch')
++    return dict(environment=name, realpath=str(path.resolve()), size=path.stat().st_size,
++                mode=stat.S_IMODE(path.stat().st_mode), sha256=digest)
++
++runner_before = dict(sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), mode=stat.S_IMODE(Path(__file__).stat().st_mode))
++invocation = dict(argv=sys.argv, PATH=os.environ.get('PATH'), resolved_path_git=shutil.which('git'), cwd=os.getcwd())
++fixture_before = fixture()
++started_utc = datetime.now(timezone.utc).isoformat()
++index_before = hashlib.sha256(subprocess.check_output(['/usr/bin/git', '-C', str(root), 'ls-files', '--stage', '-z'])).hexdigest()
++before = source()
++runtime_before = runtime()
++suite = unittest.TestLoader().loadTestsFromNames(args.groups)
++loaded = list(flatten(suite))
++start = time.monotonic()
++with (output / 'cases.log').open('w') as stream, (output / 'session-stdout.log').open('w') as stdout, (output / 'session-stderr.log').open('w') as stderr:
++    with redirect_stdout(stdout), redirect_stderr(stderr):
++        result = unittest.TextTestRunner(stream=stream, verbosity=2, resultclass=NamedResult).run(suite)
++elapsed = time.monotonic()-start
++after = source()
++index_after = hashlib.sha256(subprocess.check_output(['/usr/bin/git', '-C', str(root), 'ls-files', '--stage', '-z'])).hexdigest()
++runtime_after = runtime()
++runner_after = dict(sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), mode=stat.S_IMODE(Path(__file__).stat().st_mode))
++fixture_after = fixture()
++receipt = dict(scope='unsealed-native-stage-admission-composition-draft',
++    source_parent=subprocess.check_output(['/usr/bin/git', '-C', str(root), 'rev-parse', 'HEAD']).decode().strip(),
++    loaded=loaded, executed=result.executed, named_passed=result.passed,
++    test_ids_sha256=hashlib.sha256(('\n'.join(sorted(loaded))+'\n').encode()).hexdigest(),
++    failures=len(result.failures), errors=len(result.errors), skips=len(result.skipped),
++    expected_failures=len(result.expectedFailures), unexpected_successes=len(result.unexpectedSuccesses),
++    elapsed_seconds=elapsed, started_utc=started_utc, ended_utc=datetime.now(timezone.utc).isoformat(), source_before=before, source_after=after,
++    fixture_before=fixture_before, fixture_after=fixture_after, fixture_unchanged=fixture_before == fixture_after,
++    stdout_sha256=hashlib.sha256((output/'session-stdout.log').read_bytes()).hexdigest(), stderr_sha256=hashlib.sha256((output/'session-stderr.log').read_bytes()).hexdigest(),
++    runtime_before=runtime_before, runtime_after=runtime_after, runtime_unchanged=runtime_before == runtime_after,
++    source_unchanged=before == after, runner_before=runner_before, runner_after=runner_after, runner_unchanged=runner_before == runner_after, invocation=invocation, index_before=index_before, index_after=index_after, index_unchanged=index_before == index_after, log_sha256=hashlib.sha256((output/'cases.log').read_bytes()).hexdigest(),
++    python_version=sys.version, git_version=subprocess.check_output(['/usr/bin/git', '--version']).decode().strip())
++receipt['passed'] = (result.wasSuccessful() and fixture_before == fixture_after and runner_before == runner_after and index_before == index_after and before == after and runtime_before == runtime_after and len(loaded) == len(set(loaded))
++    and loaded == result.executed and set(loaded) == set(result.passed) and not result.skipped
++    and not result.expectedFailures and not result.unexpectedSuccesses)
++(output/'receipt.json').write_text(json.dumps(receipt, indent=2)+'\n')
++print(json.dumps({key:receipt[key] for key in ('scope','passed','elapsed_seconds','failures','errors','skips','test_ids_sha256')}))
++sys.exit(0 if receipt['passed'] else 1)
+diff --git a/scripts/rc_native_probe_owner.py b/scripts/rc_native_probe_owner.py
+new file mode 100644
+index 0000000..fdf7e06
+--- /dev/null
++++ b/scripts/rc_native_probe_owner.py
+@@ -0,0 +1,245 @@
++"""Finite owned native test controller; original SUT operation budgets untouched."""
++import ctypes
++import json
++import os
++from pathlib import Path
++import signal
++import subprocess
++import sys
++import time
++import traceback
++from rc_native_probe_restore import sha, write, git, whole_source, read_regular, TREE, RUNNER_SHA, FIXTURE_SHA
++from rc_native_probe_kernel import identity, realm, kernel, owned_family_close
++
++BOUNDS = {'necessary85': 1800, 'original300': 7200}
++TERM_SECONDS, KILL_SECONDS, FAMILY_SECONDS = 7, 2, 2
++RAW_FILES = ('LAUNCH.json','NATIVE-CLOSURE.json','cases/receipt.json','cases/cases.log',
++             'cases/session-stdout.log','cases/session-stderr.log','controller-stdout.log','controller-stderr.log')
++RUNTIME = sorted(set(('/usr/bin/git', '/usr/local/bin/git', '/usr/bin/python3', '/usr/bin/openssl', sys.executable)))
++
++
++def receipt_gate(receipt, native, launch, inventory, context, runtime, carrier, fixture, runner, directory):
++    assert native['closed'] is True
++    assert native['natural_exit_code'] == 0 and native['observed']['si_code'] == os.CLD_EXITED
++    assert native['observed']['si_status'] == 0 and not native['errors'] and not native['cancelled'] and not native['timed_out']
++    assert native['observed']['si_pid'] == launch['kernel']['pid'] == native['held_leader']['pid']
++    assert native['held_leader']['starttime'] == launch['kernel']['starttime']
++    assert native['held_leader']['pgid'] == native['held_leader']['sid'] == launch['kernel']['pgid'] == launch['kernel']['sid'] == launch['kernel']['pid']
++    assert native['held_leader']['state'] == 'Z'
++    assert native['held_leader']['proc_pid'] == launch['kernel']['proc_pid'] and native['held_leader']['NSpid'] == launch['kernel']['NSpid']
++    assert native['source_tree'] == launch['source_tree'] == context['tree'] == TREE
++    assert native['source_manifest_sha256'] == launch['source_manifest_sha256'] == context['source_manifest_sha256']
++    assert native['carrier_before'] == native['carrier_after'] == launch['carrier'] == carrier
++    assert native['runtime_before'] == native['runtime_after'] == launch['runtime'] == runtime
++    assert native['realm_before'] == native['realm_after'] == launch['realm']
++    # Actual namespace is fresh per controller; it is never a constructed grant.
++    assert {k:v for k,v in native['realm_before'].items() if k != 'pid_namespace'} == {k:v for k,v in realm().items() if k != 'pid_namespace'}
++    assert native['fixture_before'] == native['fixture_after'] == launch['fixture'] == fixture
++    assert native['runner_before'] == native['runner_after'] == launch['runner'] == runner
++    assert all(native[k] is True for k in ('source_unchanged','index_unchanged','native_echild'))
++    assert launch['exact_loaded_ids'] == inventory and len(inventory) == len(set(inventory))
++    assert receipt['passed'] is True and receipt['loaded'] == receipt['executed'] == receipt['named_passed'] == inventory
++    assert all(receipt[k] == 0 for k in ('failures','errors','skips','expected_failures','unexpected_successes'))
++    assert receipt['source_parent'] == context['private_commit']
++    assert receipt['source_before'] == receipt['source_after'] == context['source']
++    assert receipt['index_before'] == receipt['index_after'] == context['index_sha256']
++    assert receipt['runtime_before'] == receipt['runtime_after'] == runtime
++    assert receipt['runner_before'] == receipt['runner_after'] == dict(sha256=RUNNER_SHA,mode=runner['mode'])
++    runner_fixture = dict(environment=fixture['realpath'],realpath=fixture['realpath'],size=fixture['size'],mode=fixture['mode'],sha256=FIXTURE_SHA)
++    assert receipt['fixture_before'] == receipt['fixture_after'] == runner_fixture
++    assert all(receipt[k] is True for k in ('source_unchanged','index_unchanged','runtime_unchanged','runner_unchanged','fixture_unchanged'))
++    for name,key in (('cases.log','log_sha256'),('session-stdout.log','stdout_sha256'),('session-stderr.log','stderr_sha256')):
++        assert sha(read_regular(directory/'cases'/name)) == receipt[key]
++
++
++def run_owned(context, name, inventory, output, fixture_path, runner_path, carrier_paths, prior=None):
++    root,output = Path(context['root']),Path(output)
++    assert not output.exists() and name in BOUNDS
++    assert len(inventory) == len(set(inventory)) == (85 if name=='necessary85' else 300)
++    assert whole_source(root,context['rows']) == context['source']
++    assert sha(git(root,'ls-files','--stage','-z')) == context['index_sha256']
++    assert git(root,'rev-parse','HEAD').decode().strip() == context['private_commit']
++    fixture_path,runner_path = Path(fixture_path).resolve(),Path(runner_path).resolve()
++    assert sha(runner_path.read_bytes()) == RUNNER_SHA and sha(fixture_path.read_bytes()) == FIXTURE_SHA
++    before = {p:identity(p) for p in RUNTIME}
++    own_realm = realm()
++    carrier = {str(p):identity(p) for p in carrier_paths}
++    fixture,runner = identity(fixture_path),identity(runner_path)
++    if name=='original300':
++        assert prior is not None
++        # Bind the actual previous raw seal to the original returned SHA, then
++        # reread every original file. No memory-only PASS can authorize 300.
++        raw_seal=read_regular(prior['directory']/'RAW-EVIDENCE-SEAL.json')
++        assert sha(raw_seal)==prior['seal_sha256']
++        seal=json.loads(raw_seal)
++        assert seal['profile']=='necessary85' and seal['source_tree']==TREE
++        assert set(seal['files'])==set(RAW_FILES)
++        for rel,row in seal['files'].items():
++            raw=read_regular(prior['directory']/rel)
++            assert len(raw)==row['bytes'] and sha(raw)==row['sha256']
++        for rel,key in (('LAUNCH.json','launch'),('NATIVE-CLOSURE.json','native'),('cases/receipt.json','receipt')):
++            reread=json.loads(read_regular(prior['directory']/rel))
++            assert reread==prior[key]
++        prior_receipt=json.loads(read_regular(prior['directory']/'cases/receipt.json'))
++        prior_native=json.loads(read_regular(prior['directory']/'NATIVE-CLOSURE.json'))
++        prior_launch=json.loads(read_regular(prior['directory']/'LAUNCH.json'))
++        assert prior_native['qualified'] is True and prior_native['receipt_passed'] is True
++        receipt_gate(prior_receipt,prior_native,prior_launch,prior['inventory'],context,before,carrier,fixture,runner,prior['directory'])
++    libc = ctypes.CDLL(None,use_errno=True)
++    assert libc.prctl(36,1,0,0,0)==0
++    enabled=ctypes.c_int()
++    assert libc.prctl(37,ctypes.byref(enabled),0,0,0)==0 and enabled.value==1
++    try:
++        os.waitid(os.P_ALL,0,os.WEXITED|os.WNOHANG|os.WNOWAIT)
++    except ChildProcessError:
++        pass
++    else:
++        raise AssertionError('fresh supervisor needs actual initial ECHILD')
++    output.mkdir()
++    cancelled,errors,family = [],[],[]
++    finalizing=False
++
++    def cancel(signum,frame):
++        cancelled.append(dict(signal=signum,at=time.monotonic()))
++        if finalizing:
++            raise SystemExit(1)
++
++    old_handlers={s:signal.signal(s,cancel) for s in (signal.SIGTERM,signal.SIGINT)}
++    env={'PATH':'/usr/bin:/bin:'+str(Path(sys.executable).parent),'LANG':'C.UTF-8','LC_ALL':'C.UTF-8',
++         'PYTHONDONTWRITEBYTECODE':'1','PYTHONUTF8':'1','RC_CONSUMER_TEST_GLIB_ARCHIVE':str(fixture_path)}
++    argv=[sys.executable,str(runner_path),'--root',str(root),'--output',str(output/'cases'),*inventory]
++    start,child,fd,created,observed,held,code=time.monotonic(),None,None,None,None,None,None
++    timed_out,echild,natural=False,False,False
++    stdout=stderr=None
++    launch={}
++
++    def primary_observe():
++        return os.waitid(os.P_PID,child.pid,os.WEXITED|os.WNOHANG|os.WNOWAIT)
++
++    def retire_primary():
++        nonlocal observed,held,code,fd,created
++        if child is None:
++            return
++        # Recover a still-held Popen lease if initial pidfd/setup failed.
++        if fd is None:
++            fd=os.pidfd_open(child.pid)
++        current=kernel(child.pid,fd)
++        if created is None:
++            created=current
++        assert current['starttime']==created['starttime']
++        assert current['pgid']==current['sid']==child.pid
++        os.killpg(child.pid,signal.SIGTERM)
++        end=time.monotonic()+TERM_SECONDS
++        while time.monotonic()<end:
++            observed=primary_observe()
++            if observed is not None:
++                break
++            time.sleep(.01)
++        if observed is None:
++            os.killpg(child.pid,signal.SIGKILL)
++            end=time.monotonic()+KILL_SECONDS
++            while time.monotonic()<end and observed is None:
++                time.sleep(.01)
++                observed=primary_observe()
++        assert observed is not None,'primary retirement UNKNOWN'
++        assert observed.si_pid==child.pid
++        held=kernel(child.pid,fd)
++        assert held['starttime']==created['starttime'] and held['state']=='Z'
++        code=child.wait(timeout=0)
++
++    try:
++        stdout,stderr=(output/'controller-stdout.log').open('xb'),(output/'controller-stderr.log').open('xb')
++        assert not cancelled,'sticky cancellation before child launch; no SUT effect'
++        child=subprocess.Popen(argv,cwd=root,env=env,stdin=subprocess.DEVNULL,stdout=stdout,stderr=stderr,start_new_session=True)
++        fd=os.pidfd_open(child.pid)
++        created=kernel(child.pid,fd)
++        assert created['ppid']==os.getpid() and created['pgid']==created['sid']==child.pid
++        launch=dict(source_tree=TREE,source_manifest_sha256=context['source_manifest_sha256'],selected_inventory=name,
++                    exact_loaded_ids=inventory,argv=argv,kernel=created,own_subreaper=True,created_pid_namespace=False,
++                    runtime=before,realm=own_realm,fixture=fixture,runner=runner,carrier=carrier,
++                    fail_only_controller_seconds=BOUNDS[name],historical_whole_budget=None,original_SUT_timers_unchanged=True,
++                    cleanup_seconds=dict(term=7,kill=2,family=2),no_retry=True,worker_environment_keys=sorted(env))
++        write(output/'LAUNCH.json',launch)
++        print(json.dumps(dict(started=True,inventory=name,runner_pid=child.pid)),flush=True)
++        next_progress=start+25
++        while True:
++            observed=os.waitid(os.P_PIDFD,fd,os.WEXITED|os.WNOHANG|os.WNOWAIT)
++            if cancelled:
++                break
++            if observed is not None:
++                assert observed.si_pid==child.pid
++                natural=observed.si_code==os.CLD_EXITED and observed.si_status==0
++                held=kernel(child.pid,fd)
++                assert held['starttime']==created['starttime'] and held['state']=='Z'
++                code=child.wait(timeout=0)
++                break
++            if time.monotonic()-start>=BOUNDS[name]:
++                timed_out=True
++                break
++            if time.monotonic()>=next_progress:
++                print(json.dumps(dict(pending=True,inventory=name,elapsed_seconds=time.monotonic()-start)),flush=True)
++                next_progress=time.monotonic()+25
++            time.sleep(.05)
++    except BaseException as error:
++        errors.append(dict(type=type(error).__name__,frames=[dict(file=Path(f.filename).name,function=f.name,line=f.lineno) for f in traceback.extract_tb(error.__traceback__)]))
++    finally:
++        if child is not None and code is None:
++            try:
++                retire_primary()
++            except BaseException as error:
++                errors.append(dict(phase='primary_retirement',type=type(error).__name__))
++        try:
++            echild=owned_family_close(time.monotonic()+FAMILY_SECONDS,family)
++        except BaseException as error:
++            errors.append(dict(phase='family_closure',type=type(error).__name__))
++        if fd is not None:
++            os.close(fd)
++        for stream in (stdout,stderr):
++            if stream is not None:
++                stream.close()
++    finalizing=True
++    post={}
++    try:
++        post=dict(source_unchanged=whole_source(root,context['rows'])==context['source'],
++                  index_unchanged=sha(git(root,'ls-files','--stage','-z'))==context['index_sha256'] and git(root,'rev-parse','HEAD').decode().strip()==context['private_commit'],
++                  runtime_after={p:identity(p) for p in RUNTIME},realm_after=realm(),
++                  carrier_after={str(p):identity(p) for p in carrier_paths},fixture_after=identity(fixture_path),runner_after=identity(runner_path))
++    except BaseException as error:
++        errors.append(dict(phase='post_fences',type=type(error).__name__))
++    receipt={}
++    try:
++        receipt=json.loads(read_regular(output/'cases/receipt.json'))
++    except BaseException as error:
++        errors.append(dict(phase='receipt_read',type=type(error).__name__))
++    execution_closed=bool(echild and natural and code==0 and not cancelled and not timed_out and not errors
++                          and all(not r['unexpectedly_live'] and r['code']==os.CLD_EXITED and r['status']==0 for r in family))
++    native=dict(qualified=False,closed=execution_closed,natural_exit_code=code,
++                observed=None if observed is None else dict(si_pid=observed.si_pid,si_code=observed.si_code,si_status=observed.si_status),
++                source_tree=TREE,source_manifest_sha256=context['source_manifest_sha256'],held_leader=held,
++                runtime_before=before,realm_before=own_realm,carrier_before=carrier,fixture_before=fixture,runner_before=runner,
++                native_echild=echild,errors=errors,cancelled=cancelled,timed_out=timed_out,receipt_passed=False,**post)
++    receipt_passed=False
++    try:
++        receipt_gate(receipt,native,launch,inventory,context,before,carrier,fixture,runner,output)
++        receipt_passed=True
++    except BaseException as error:
++        errors.append(dict(phase='receipt_admission',type=type(error).__name__))
++    closed=bool(echild and natural and code==0 and not cancelled and not timed_out and not errors
++                and all(not r['unexpectedly_live'] and r['code']==os.CLD_EXITED and r['status']==0 for r in family))
++    qualified=bool(closed and receipt_passed and post.get('source_unchanged') and post.get('index_unchanged')
++                   and post.get('runtime_after')==before and post.get('realm_after')==own_realm
++                   and post.get('carrier_after')==carrier and post.get('fixture_after')==fixture and post.get('runner_after')==runner)
++    native.update(qualified=qualified,closed=closed,receipt_passed=receipt_passed,adopted_descendants=family,
++                  elapsed_seconds=time.monotonic()-start)
++    write(output/'NATIVE-CLOSURE.json',native)
++    sealed={}
++    for rel in RAW_FILES:
++        if (output/rel).exists():
++            raw=read_regular(output/rel)
++            sealed[rel]=dict(bytes=len(raw),sha256=sha(raw))
++    write(output/'RAW-EVIDENCE-SEAL.json',dict(profile=name,source_tree=TREE,files=sealed,qualified=qualified))
++    seal_sha=sha(read_regular(output/'RAW-EVIDENCE-SEAL.json'))
++    for signum,handler in old_handlers.items():
++        signal.signal(signum,handler)
++    print(json.dumps(dict(inventory=name,qualified=qualified,closed=closed,native_echild=echild,natural_exit_code=code)),flush=True)
++    return dict(native=native,launch=launch,receipt=receipt,inventory=inventory,directory=output,seal_sha256=seal_sha)
+diff --git a/scripts/rc_native_probe_restore.py b/scripts/rc_native_probe_restore.py
+new file mode 100644
+index 0000000..d3b26f6
+--- /dev/null
++++ b/scripts/rc_native_probe_restore.py
+@@ -0,0 +1,147 @@
++"""Restore the immutable publisher candidate without carrier contamination."""
++import hashlib
++import json
++import os
++from pathlib import Path
++import stat
++import subprocess
++
++BACKUP = 'dab238dc34d5a59f471aff935c728c1ed809cc78'
++PARENT = '13cd343d942b7a68912d42a8f9235c02ed647764'
++FINITE11 = '733a1d5bd53ae0f3b2c3fe44463ac20566c6c47f'
++TREE = 'b9cfb8a0b58f8e0863c764e50cf3d38920eefeae'
++FAMILY = 'development-backups/rc070/20261009/'
++FULL52 = FAMILY+'checkpoint-01/publisher-historical-finite11/source.patch'
++ONLY8 = FAMILY+'checkpoint-02/publisher-frozen02-source-only/source.patch'
++WHOLE = FAMILY+'checkpoint-02/publisher-frozen02-source-only/SOURCE-TREE.json'
++PAYLOADS = ((FULL52, 402164, 'b0636194b0b5b51430242f1bdfbb72a59940ec46b09240ff4b9e9a6734b5ff35'),
++            (ONLY8, 44498, 'e0ee17cff76799f96dd0aa0af2043495076594ddb96fefd134458fc5288e1128'),
++            (WHOLE, 492335, 'da3719558d66e0556c8c70125461a5b66a96c427192fca7405c373e77daa6b5d'))
++RUNNER_SHA = '687ec2a408507284b557806569d6f5df0ead625b9c282b9c8bbb74782d633f0a'
++FIXTURE_SHA = '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5'
++ENV = {'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8',
++       'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_NO_REPLACE_OBJECTS': '1',
++       'GIT_TERMINAL_PROMPT': '0', 'GIT_AUTHOR_NAME': 'RC native source probe',
++       'GIT_AUTHOR_EMAIL': 'rc-native-source-probe@invalid', 'GIT_COMMITTER_NAME': 'RC native source probe',
++       'GIT_COMMITTER_EMAIL': 'rc-native-source-probe@invalid',
++       'GIT_AUTHOR_DATE': '2026-10-09T00:00:00Z', 'GIT_COMMITTER_DATE': '2026-10-09T00:00:00Z'}
++
++
++def sha(raw):
++    return hashlib.sha256(raw).hexdigest()
++
++
++def write(path, value):
++    with Path(path).open('x', encoding='utf-8') as stream:
++        json.dump(value, stream, indent=2)
++        stream.write('\n')
++        stream.flush()
++        os.fsync(stream.fileno())
++
++
++def read_regular(path):
++    """Read only an owned single-link regular file via nofollow directory FDs."""
++    path = Path(path).absolute()
++    assert path.is_absolute() and '..' not in path.parts
++    directory = os.open('/', os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
++    fd = None
++    try:
++        for part in path.parts[1:-1]:
++            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=directory)
++            os.close(directory)
++            directory = child
++        fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=directory)
++        before = os.fstat(fd)
++        assert stat.S_ISREG(before.st_mode) and before.st_nlink == 1 and before.st_uid == os.geteuid()
++        assert not before.st_mode & 0o022 and 0 <= before.st_size <= 32*1024*1024
++        raw = bytearray()
++        while True:
++            chunk = os.read(fd, min(1024*1024, before.st_size-len(raw)+1))
++            if not chunk:
++                break
++            raw.extend(chunk)
++            assert len(raw) <= before.st_size
++        after = os.fstat(fd)
++        fields = ('st_dev', 'st_ino', 'st_mode', 'st_uid', 'st_gid', 'st_nlink', 'st_size', 'st_mtime_ns', 'st_ctime_ns')
++        assert all(getattr(before, key) == getattr(after, key) for key in fields) and len(raw) == before.st_size
++        return bytes(raw)
++    finally:
++        if fd is not None:
++            os.close(fd)
++        os.close(directory)
++
++
++def git(root, *values, data=None):
++    return subprocess.run(['/usr/bin/git', '-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false',
++                           '-C', str(root), *values], input=data, capture_output=True, check=True,
++                          timeout=30, env=ENV).stdout
++
++
++def whole_source(root, rows):
++    root = Path(root)
++    tracked = git(root, 'ls-files', '-z').decode().split('\0')[:-1]
++    assert len(rows) == len(tracked) == 1878 and len(set(tracked)) == 1878
++    assert set(tracked) == {r['path'] for r in rows}
++    source = {}
++    stages = git(root, 'ls-files', '--stage', '-z').decode().split('\0')[:-1]
++    actual_stages = {}
++    for line in stages:
++        header, path = line.split('\t', 1)
++        mode, blob, stage = header.split()
++        assert stage == '0'
++        actual_stages[path] = (mode, blob)
++    for row in rows:
++        rel = Path(row['path'])
++        assert not rel.is_absolute() and '..' not in rel.parts and row['mode'] in ('100644', '100755')
++        path = root/rel
++        assert all(not q.is_symlink() for q in [path, *path.parents] if q != root.parent)
++        info = path.lstat()
++        raw = path.read_bytes()
++        assert stat.S_ISREG(info.st_mode) and info.st_nlink == 1
++        mode = {'100644': 0o644, '100755': 0o755}[row['mode']]
++        blob = hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()
++        assert (stat.S_IMODE(info.st_mode), len(raw), sha(raw), blob) == (mode, row['bytes'], row['sha256'], row['blob'])
++        assert actual_stages[row['path']] == (row['mode'], row['blob'])
++        source[row['path']] = dict(size=len(raw), mode=mode, sha256=sha(raw))
++    assert git(root, 'write-tree').decode().strip() == TREE
++    assert git(root, 'status', '--porcelain', '--untracked-files=all').decode() == ''
++    return source
++
++
++def restore(management, output):
++    management, output = Path(management).resolve(), Path(output).resolve()
++    assert not output.exists() and output != management and management not in output.parents
++    output.mkdir()
++    raw_payloads = {}
++    for path, size, digest in PAYLOADS:
++        raw = git(management, 'show', BACKUP+':'+path)
++        assert len(raw) == size and sha(raw) == digest
++        raw_payloads[path] = raw
++    manifest = json.loads(raw_payloads[WHOLE])
++    assert manifest['tree'] == TREE and manifest['entries'] == len(manifest['rows']) == 1878
++    root = output/'pure-sut'
++    subprocess.run(['/usr/bin/git', '-c', 'core.hooksPath=/dev/null', 'clone', '--no-hardlinks',
++                    '--no-checkout', '--', str(management), str(root)], capture_output=True, check=True,
++                   timeout=30, env=ENV)
++    git(root, 'checkout', '--detach', PARENT)
++    git(root, 'apply', '--check', '--index', '-', data=raw_payloads[FULL52])
++    git(root, 'apply', '--index', '-', data=raw_payloads[FULL52])
++    assert git(root, 'write-tree').decode().strip() == FINITE11
++    assert len(git(root, 'ls-files', '-z').split(b'\0'))-1 == 1877
++    git(root, 'apply', '--check', '--index', '-', data=raw_payloads[ONLY8])
++    git(root, 'apply', '--index', '-', data=raw_payloads[ONLY8])
++    assert git(root, 'write-tree').decode().strip() == TREE
++    private = git(root, 'commit-tree', TREE, '-p', PARENT, data=b'Sealed native source probe; not a release candidate grant\n').decode().strip()
++    git(root, 'reset', '--hard', private)
++    assert git(root, 'rev-list', '--parents', '-n', '1', private).decode().split() == [private, PARENT]
++    source = whole_source(root, manifest['rows'])
++    index = sha(git(root, 'ls-files', '--stage', '-z'))
++    assert index == 'eb1c0600b9314ac74702a228e852b245f6c57284cc6bed1f9a54014ae7ed945c'
++    context = dict(root=str(root), backup=BACKUP, parent=PARENT, private_commit=private, tree=TREE,
++                   count=1878, rows=manifest['rows'], source=source, index_sha256=index,
++                   source_manifest_sha256=sha(raw_payloads[WHOLE]),
++                   payloads=[dict(path=p, bytes=n, sha256=s) for p,n,s in PAYLOADS],
++                   qualification=False, historical_local85='FAILED_50_named_PASS_35_non_success',
++                   current_CI85='NOT_RUN', current_CI300='NOT_RUN')
++    write(output/'SOURCE-RESTORATION.json', context)
++    return context
