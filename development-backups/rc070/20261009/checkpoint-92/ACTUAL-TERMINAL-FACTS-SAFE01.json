@@ -1,0 +1,53 @@
+{
+  "head": "b0ba7d96b5e5d4879aced264d20f419ea00cbd16",
+  "run": 37947217613,
+  "attempt": 1,
+  "event": "push",
+  "actualRunTerminal": "completed/success",
+  "jobs": [
+    {
+      "mode": "go",
+      "jobId": 113876496305,
+      "producer": "SUCCESS",
+      "strictConsumer": "SUCCESS",
+      "sourceTree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+      "sourcePaths": 1953,
+      "originalNamedDataTests": 4
+    },
+    {
+      "mode": "rust",
+      "jobId": 113876496699,
+      "producer": "SUCCESS",
+      "strictConsumer": "SUCCESS",
+      "sourceTree": "6b7e33c45c5e56340b1cfb81a7d304c6c60cf23f",
+      "sourcePaths": 1953,
+      "wholeLibraryCompileAndActualList": "SUCCESS",
+      "originalNamedDataTests": 7
+    }
+  ],
+  "artifacts": [
+    {
+      "mode": "go",
+      "artifactId": 11624441966,
+      "bytes": 14374,
+      "SHA256": "6e795284226b2c3311a4dc3705166bb88f29aae471dcb80bac8882282964d5be",
+      "files": 18
+    },
+    {
+      "mode": "rust",
+      "artifactId": 11623788783,
+      "bytes": 56709,
+      "SHA256": "df6a4acc02f757454940f87d6ec2b85a01e6a9cf974da836611bf4c92dba66b5",
+      "files": 33
+    }
+  ],
+  "actualSourceIdentity": "Each full1953 digest independently recomputed from immutablefullmanifest matchesactualbeforeafter; protectedWSS SHA c9fcdba432c239cc08a090c6cb4256f51b54368cbefb3afac553c1a6c719b9b8; native manager7 exacthead b0ba; actualproxy/payload runtimebeforeafter equals",
+  "newHelperLogs": "Both Rust stdout808B parsedJSON equals realclosedreceipts; no synthesized emptylog",
+  "sourceQualification": "COMPILER_DATA_ONLY",
+  "nativeAuthority": false,
+  "nativePositive": "NOTRUN",
+  "VM_Workspace_IOclose_Writeback_Install_RC": "NOTQUALIFIED",
+  "fullUnion17Leaves": "NOTMATERIALIZED/NOTRUN",
+  "old1c9bbFAIL": "PRESERVED separatecurrenthead success",
+  "downloads": "Legitimate authenticatedActions connector; not anonymous Release download/install proof"
+}

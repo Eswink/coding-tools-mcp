@@ -1,0 +1,103 @@
+{
+  "controls": 9,
+  "passed": true,
+  "source_sha256": "242f18dc0103862cbae64ae2c3e478f7713833144987da71fb9f0b34f8abc878",
+  "exact_actual_observer_AST": true,
+  "scope": "controlled callback/alias objects, not native issuer or SUTmethod proof",
+  "original_method_runs": 0,
+  "rows": [
+    {
+      "case": "success",
+      "passed": true,
+      "delegate_calls": 1,
+      "original_callback_restored": true,
+      "install_error_types": [],
+      "restore_error_types": [],
+      "actual_exception_or_cancel_identity_preserved": true
+    },
+    {
+      "case": "callback_primary",
+      "passed": true,
+      "delegate_calls": 1,
+      "original_callback_restored": true,
+      "install_error_types": [],
+      "restore_error_types": [],
+      "actual_exception_or_cancel_identity_preserved": true
+    },
+    {
+      "case": "callback_cancel",
+      "passed": true,
+      "delegate_calls": 1,
+      "original_callback_restored": true,
+      "install_error_types": [],
+      "restore_error_types": [],
+      "actual_exception_or_cancel_identity_preserved": true
+    },
+    {
+      "case": "observer_error",
+      "passed": true,
+      "delegate_calls": 1,
+      "original_callback_restored": true,
+      "install_error_types": [],
+      "restore_error_types": [],
+      "actual_exception_or_cancel_identity_preserved": true
+    },
+    {
+      "case": "observer_cancel",
+      "passed": true,
+      "delegate_calls": 1,
+      "original_callback_restored": true,
+      "install_error_types": [],
+      "restore_error_types": [],
+      "actual_exception_or_cancel_identity_preserved": true
+    },
+    {
+      "case": "install_before",
+      "passed": true,
+      "delegate_calls": 0,
+      "original_callback_restored": true,
+      "install_error_types": [
+        "OSError"
+      ],
+      "restore_error_types": [
+        "RuntimeError"
+      ],
+      "actual_exception_or_cancel_identity_preserved": true
+    },
+    {
+      "case": "install_after",
+      "passed": true,
+      "delegate_calls": 0,
+      "original_callback_restored": true,
+      "install_error_types": [
+        "OSError"
+      ],
+      "restore_error_types": [],
+      "actual_exception_or_cancel_identity_preserved": true
+    },
+    {
+      "case": "restore_before",
+      "passed": true,
+      "delegate_calls": 1,
+      "original_callback_restored": true,
+      "install_error_types": [],
+      "restore_error_types": [
+        "OSError",
+        "RuntimeError"
+      ],
+      "actual_exception_or_cancel_identity_preserved": true
+    },
+    {
+      "case": "restore_after",
+      "passed": true,
+      "delegate_calls": 1,
+      "original_callback_restored": true,
+      "install_error_types": [],
+      "restore_error_types": [
+        "OSError"
+      ],
+      "actual_exception_or_cancel_identity_preserved": true
+    }
+  ],
+  "current_restore_before_boundary": "originalfailure retained INVALID; independent finalbootstrap restored initialactualcallback after ordinary cleanup boundary"
+}

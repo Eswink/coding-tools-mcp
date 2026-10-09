@@ -1,0 +1,31 @@
+{
+  "scope": "ONE_ORIGINAL_GNU_MSGFMT_TCL_COMPONENT_ONLY",
+  "component_tool_terminal": "74063_8a0492_exit0_controlled_diagnostic_not_targetPASS",
+  "original_msgfmt_phase_exit": 1,
+  "original_msgfmt_phase_passed": false,
+  "reason": null,
+  "seconds": 0.01367585399930249,
+  "log_bytes": 960,
+  "log_sha256": "846c3c9e3e64929ed3d7446e07cbe72fa99ae73bb301d326e8603d8222e33043",
+  "actual_errors": "GNU msgfmt reported3fatal missingargument1 format specs inoriginalzh_cn.po lines1424/1909/1924",
+  "original_flags": [
+    "--check",
+    "--statistics",
+    "--tcl",
+    "-l",
+    "zh_cn"
+  ],
+  "allowed_relocations": [
+    "-d fresh owned output",
+    "same original PO absolute path"
+  ],
+  "all76_current_external_leases_unchanged": true,
+  "full_original_source4991_unchanged": true,
+  "result_sha256": "c15497d69b818a21b1929835ff0069837c90de75cc340d1539da4cefef0ee150",
+  "original_fullmake": "FAIL_retained",
+  "install_runs": 0,
+  "SUT_runs": 0,
+  "RC": false,
+  "native_family_closed_claim": false,
+  "causal_limit": "Separate relocated-output diagnostic; originalfullmake quietstderr bytes unavailable. Doesnotprove originaldefault upstreamcore-versusGUI MSGFMT flag scope."
+}

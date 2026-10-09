@@ -1,0 +1,14 @@
+# 有限 Git GUI msgfmt 诊断
+## 功能概述
+Git root02 fullmake真实退出2，原git-gui zh_cn.msg1；上游quiet命令隐藏失败时stderr，底层因果UNKNOWN。只诊断原翻译的真实工具效果，保持fullmake失败。
+## 需求列表
+### FR-1: 原源与真实工具
+WHEN diagnostic THEN SHALL use signed Git2.55原zh_cn.po和原GUI Makefile、已真实验证GNU0.21 msgfmt与完整loader/libs当前leases；原frozen source5/12rootgroups/currentoriginalsource4991按原manifest前后重新核。原--check/--statistics/--tcl/-l zh_cn不删除，不替换Git/源码/系统路径，不做shim。freshrun_owned_git_phase影响CRITICAL11/direct4/process5已披露。
+### FR-2: 透明有界组件
+WHEN command executes THEN SHALL capture originalmsgfmt的合并stdout+stderr至新owned诊断路径，30秒/2MiB限制，不复运行make/install/Publisher/originalmethod。唯一允许relocation为PO用同原字节绝对路径、-d改为新owned目录以保护原source；此argv不称原fullmake拓扑复刻。原childenv不加LD_LIBRARY_PATH/LD_PRELOAD。自然返回与原因按真实phase记录；非零仍诊断组件失败，不转PASS/不兜底删除flags。
+### FR-3: 失败与身份守恒
+WHEN complete/error/cancel THEN SHALL 尝试全部source/input/runtime/msgfmt/originalsource前后join，保原primary和所有observer/cancel实际对象；一旦身份漂移无诊断资格。记录实际toolterminal/loghash/bytes/argv，不把新日志当原fullmake隐藏stderr或用猜测断言原因。原partialELF/fullmakeFAIL/安装0/无issuer和RC资格0保持。只安全源码/status可备份，raw/keys/host/proc/env不公开。
+## 非功能需求
+组件不证明nativefamily/allIO/product/install/RC；不扩大480/60/30或原Publisher权限。
+## 依赖关系
+FR-2依赖FR-1，FR-3是本次诊断终态的必要条件。

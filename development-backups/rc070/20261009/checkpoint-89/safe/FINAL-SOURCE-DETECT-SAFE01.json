@@ -1,0 +1,16 @@
+{
+  "version": "1.6.9",
+  "source_only_graph_files": 21,
+  "staged_files": 16,
+  "changed_symbols": 211,
+  "affected_flows": 2,
+  "reported_graph_risk": "MEDIUM",
+  "manual_CRITICAL_unchanged": true,
+  "listed_names": 15,
+  "remaining_not_individually_listed": 196,
+  "CLI_limit100_display15": true,
+  "actual_text": "Changes: 16 files, 211 symbols\nAffected processes: 2\nRisk level: medium\n\nChanged symbols:\n  Symbol B → diagnostic-launch.py\n  Symbol M → diagnostic-launch.py\n  Symbol seal → diagnostic-launch.py\n  Symbol context → diagnostic-launch.py\n  Symbol fixture → diagnostic-launch.py\n  Symbol runner → diagnostic-launch.py\n  Symbol inventory → diagnostic-launch.py\n  Symbol output → diagnostic-launch.py\n  Symbol carriers → diagnostic-launch.py\n  Symbol result → diagnostic-launch.py\n  Symbol observation → diagnostic-launch.py\n  Symbol observation_available → diagnostic-launch.py\n  Symbol observation_error_type → diagnostic-launch.py\n  Symbol observation_raw → diagnostic-launch.py\n  Symbol original_raw_seal → diagnostic-launch.py\n... and 196 more\n\nAffected execution flows:\n  • Observed_request → Mutation_context (3 steps) — changed: owned_fixture_for_context\n  • Observed_request → Credential_provenance_for_fixture (3 steps) — changed: owned_fixture_for_context, credential_provenance_for_fixture\n",
+  "raw_text_sha256": "48a4e073c6d9b4c0382f53bc0852ec2376d07b5d7c48173883bd3b8572421ef3",
+  "generated_tool_scaffolding": "unstaged andignored; environment contents never read orcopied",
+  "original_SUT_scope_not_claimed": true
+}

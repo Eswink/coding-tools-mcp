@@ -1,0 +1,9 @@
+{
+  "kind": "safe readonly terminal evidence source-only backup",
+  "productionHead": "b0ba7d96b5e5d4879aced264d20f419ea00cbd16",
+  "actualCurrentFiniteCompilerDataResult": "PASS",
+  "releaseQualification": "NONE",
+  "oldFailedRuns": "Preserved immutable",
+  "scope": "No source change/no launcher/VM/owner authorization; rawZIP/joblogs/runtimepath/host/token/TLS data excluded",
+  "independentPeerSHA256": "ae186ce8a37ba439400380813947adf1e0cf0d0c2f71f7744a25023a1d86f311"
+}

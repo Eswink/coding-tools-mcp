@@ -1,0 +1,102 @@
+import hashlib,importlib.util,json,os,pathlib,stat,sys,time
+ROOT=pathlib.Path('/workspace/work/rc070')
+D=ROOT/'root-evidence/git-v3-gui-msgfmt-diagnostic'
+FIELDS=('st_dev','st_ino','st_mode','st_size','st_mtime_ns','st_ctime_ns')
+def snapshot(name):
+    path = pathlib.Path(name)
+    lexical = path.lstat()
+    resolved = path.resolve(strict=True)
+    target = resolved.stat()
+    assert stat.S_ISREG(target.st_mode) and target.st_size <= 128*1024*1024
+    fd = None
+    primary = None
+    try:
+        fd = os.open(resolved, os.O_RDONLY|os.O_CLOEXEC)
+        chunks = []
+        total = 0
+        while True:
+            chunk = os.read(fd, min(65536,128*1024*1024+1-total))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+            assert total <= 128*1024*1024
+        raw = b''.join(chunks)
+    except BaseException as error:
+        primary = error
+        raise
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except BaseException as error:
+                if primary is not None:
+                    raise BaseExceptionGroup('Root read primary and actual close',[primary,error])
+                raise
+    assert len(raw) == target.st_size and path.resolve() == resolved
+    assert tuple(getattr(target,k) for k in FIELDS) == tuple(getattr(resolved.stat(),k) for k in FIELDS)
+    assert tuple(getattr(lexical,k) for k in FIELDS) == tuple(getattr(path.lstat(),k) for k in FIELDS)
+    return {'path':str(path),'resolved':str(resolved),'sha256':hashlib.sha256(raw).hexdigest(),
+            'stat':{k:getattr(target,k) for k in FIELDS},'lexical':{k:getattr(lexical,k) for k in FIELDS}}
+
+def write_new(path, value):
+    fd = None
+    primary = None
+    try:
+        fd = os.open(path, os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_CLOEXEC, 0o600)
+        data = (json.dumps(value,indent=2)+'\n').encode()
+        while data:
+            count = os.write(fd,data)
+            assert count > 0
+            data = data[count:]
+        os.fsync(fd)
+    except BaseException as error:
+        primary = error
+        raise
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except BaseException as error:
+                if primary is not None:
+                    raise BaseExceptionGroup('Root write primary and actual close',[primary,error])
+                raise
+
+
+def leases(x):
+    if isinstance(x,dict) and 'path' in x and 'sha256' in x:
+        yield x
+    elif isinstance(x,dict):
+        for v in x.values(): yield from leases(v)
+    elif isinstance(x,list):
+        for v in x: yield from leases(v)
+    else: raise ValueError('Unexpected lease shape')
+
+before=json.loads((D/'CURRENT-EXTERNAL-BEFORE.json').read_bytes())
+assert dict(os.environ)=={'PATH':'/usr/bin:/bin','LANG':'C','LC_ALL':'C','TZ':'UTC','PYTHONDONTWRITEBYTECODE':'1'}
+for lease in leases(before['groups']):assert snapshot(lease['path'])==lease
+module_path=ROOT/'publisher-supplementary-git-research/v3/owned_git_prepare_v3.py'
+spec=importlib.util.spec_from_file_location('original_gui_msgfmt_component',module_path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+failed=ROOT/'publisher-supplementary-git-research/v3/actual-owned-build04'
+source=failed/'source/git-2.55.0';expected=json.loads((failed/'source/SOURCE-MANIFEST.json').read_bytes());assert m.snapshot_original_git_source(source,expected)==expected
+msgfmt=m.validate_msgfmt_assignment(ROOT/'publisher-debian-msgfmt-research/actual-owned-debian-msgfmt01/preparation-result.json')
+dest=ROOT/'publisher-supplementary-git-research/v3/actual-gui-msgfmt-component01';assert not dest.exists() and not dest.is_symlink();dest.mkdir(mode=0o700);output=dest/'output';output.mkdir(mode=0o700)
+vector=[*msgfmt['vector'],'--check','--statistics','--tcl','-l','zh_cn','-d',str(output),str(source/'git-gui/po/zh_cn.po')]
+env=json.loads((failed/'prebuild-tools/tool-predicate.json').read_bytes())['build_env'];assert not any(k in env for k in ('LD_LIBRARY_PATH','LD_PRELOAD'))
+phase=None;start=time.monotonic()
+try:
+    phase=m.run_owned_git_phase(vector,source/'git-gui',env,dest/'actual-original-msgfmt.log',30,source_guard=before['source5'])
+finally:
+    primary=sys.exception();errors=[];count=0
+    for lease in leases(before['groups']):
+        try:assert snapshot(lease['path'])==lease;count+=1
+        except BaseException as error:errors.append(error)
+    try:assert m.snapshot_original_git_source(source,expected)==expected
+    except BaseException as error:errors.append(error)
+    try:assert m.validate_msgfmt_assignment(ROOT/'publisher-debian-msgfmt-research/actual-owned-debian-msgfmt01/preparation-result.json')==msgfmt
+    except BaseException as error:errors.append(error)
+    result={'scope':'ONE_ORIGINAL_GNU_MSGFMT_TCL_COMPONENT_ONLY','phase':phase,'seconds':time.monotonic()-start,'external_lease_checks':count,'source4991_unchanged':not errors,'primary_type':type(primary).__name__ if primary else None,'post_error_types':[type(e).__name__ for e in errors],'relocations':['-d fresh owned output','same original PO absolute path'],'fullmake':'FAIL retained','install_runs':0,'SUT_runs':0,'RC':False,'native_family_closed_claim':False}
+    try:write_new(D/'ACTUAL-MSGFMT-COMPONENT-RESULT.json',result)
+    except BaseException as error:errors.append(error)
+    if errors:raise BaseExceptionGroup('Primary and all component post failures',([primary] if primary is not None else [])+errors)
+print(json.dumps({'scope':result['scope'],'phase_exit':phase['exit'],'phase_passed':phase['passed'],'reason':phase['reason'],'fullmake':'FAIL retained','install_runs':0,'SUT_runs':0,'RC':False}))

@@ -1,0 +1,55 @@
+{
+  "files": [
+    {
+      "path": "ACTUAL-COMPONENT-SAFE.json",
+      "bytes": 1186,
+      "sha256": "54eace319bc9821ed26e259bddc686369e119cfb9a330caae6ca20e3c82bc4ce",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 325,
+      "sha256": "bdfa0078282ac6a347bcb8a694f400d1d4134fd01860f0942fc177cfe8660e7f",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 373,
+      "sha256": "cddb2006460e5710f44241eada6e9a9f9c75d050c1c8e9f400b92abf8b17df06",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "design.md.source",
+      "bytes": 833,
+      "sha256": "e48dcdd428b202164f1ec6bcf9e2e1e9873dd86427cba1f6425e58e3ecd7d2ca",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "ordinary-original-msgfmt-component.py.source",
+      "bytes": 5699,
+      "sha256": "5d6c73bacd2a2ef14a89246261170ab09b684f2bed5fb1c94af1a03c73e1b3ac",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "requirements.md.source",
+      "bytes": 1844,
+      "sha256": "544cbe5e4b8607620492bc78632de6c3d56991835bb20813d8e7749e3ba80d5c",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "tasks.md.source",
+      "bytes": 664,
+      "sha256": "ea993ac58a5c0ca46f844ce72ef10a40e2686bc9801698ae75b05a395689dc3c",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ],
+  "files_excluding_manifest": 7,
+  "bytes_excluding_manifest": 10924
+}

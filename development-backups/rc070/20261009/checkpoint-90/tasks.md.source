@@ -1,0 +1,15 @@
+# 任务
+## 交付物清单
+规格、当前leases、一次原GNU组件、独立原失败与新诊断终态。
+## 任务列表
+- [x] 原fullmake失败/quiet源码只读核验，CRITICAL影响披露。对应 FR-1。
+- [ ] 当前输入/source/runtime封存，原GNU组件30秒。对应 FR-2。
+- [ ] 全部终态join/实际原错误保留/安全备份。对应 FR-3。
+## 需求覆盖矩阵
+|需求|任务|验证|
+|---|---|---|
+|FR-1|身份核|fresh SHA/native modes|
+|FR-2|实际单命令|tool terminal/argv/log|
+|FR-3|终态|全部joins/原错误对象|
+## 文件变更清单
+仅standalone specs/ordinary diagnostic；原source5和原candidate所有源码不改。

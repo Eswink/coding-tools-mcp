@@ -1,0 +1,62 @@
+{
+  "decision": "PASS_ACTUAL_SAME_HEAD_COMPILER_DATA_CI_ONLY",
+  "repository": "Eswink/coding-tools-mcp",
+  "head": "b0ba7d96b5e5d4879aced264d20f419ea00cbd16",
+  "run": 37947217613,
+  "attempt": 1,
+  "event": "push",
+  "actual_saved_API_run_conclusion": "success",
+  "actual_saved_API_two_job_conclusions": "success",
+  "actual_completed_steps": "success or intentionally skipped",
+  "authenticated_GitHub_Actions_artifacts_not_anonymous_Release": true,
+  "artifacts": {
+    "rust": {
+      "id": 11623788783,
+      "ZIP_bytes": 56709,
+      "ZIP_sha256": "df6a4acc02f757454940f87d6ec2b85a01e6a9cf974da836611bf4c92dba66b5",
+      "CRC_all33_member_raw_bytes_regular_nlink1_namespace_exact": true,
+      "actual_commands_typed_exit0": 24,
+      "whole_library_locked_compile_and_list": true,
+      "unique_original_exact_named_passes": 7,
+      "source_tree": "6b7e33c45c5e56340b1cfb81a7d304c6c60cf23f",
+      "source_paths": 1953,
+      "manifest_full1953_digest_before_after": "32e7b0bab948e24daa939cdb097f2578060f7535743a17c9e3b4f119ec385b5f",
+      "strict_terminal_consumer": true,
+      "new_apply_and_verify_stdout": "808 bytes each actual JSON equals closed candidate-source-before/source-after original receipt"
+    },
+    "go": {
+      "id": 11624441966,
+      "ZIP_bytes": 14374,
+      "ZIP_sha256": "6e795284226b2c3311a4dc3705166bb88f29aae471dcb80bac8882282964d5be",
+      "CRC_all18_member_raw_bytes_regular_nlink1_namespace_exact": true,
+      "actual_commands_typed_exit0": 10,
+      "original_five_files_and_four_unique_named_passes": true,
+      "source_tree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+      "source_paths": 1953,
+      "manifest_full1953_digest_before_after": "88b72c443ee41d078546a21bac72981d1b40baead5d2bea4133706464510f329",
+      "strict_terminal_consumer": true
+    }
+  },
+  "independent_joins": {
+    "saved_API_exact_run_head_artifact_ID_size_digest_expiredfalse": true,
+    "every_ZIP_raw_member_matches_extracted_current_regular_singlelink_file": true,
+    "all34_native_command_log_names_unique_nonempty_bounded_2MiB": true,
+    "Rust_list_each_exact_case_once_and_named_test_log_once_onePASS": true,
+    "Go_v_count1_original_files_vector_and_four_PASS_lines": true,
+    "all1953_immutable_manifest_rows_digest_computed_not_summary_trusted": true,
+    "original_protected_positive_SHA": "c9fcdba432c239cc08a090c6cb4256f51b54368cbefb3afac553c1a6c719b9b8",
+    "manager7_beforeafter_raw_digest_native_b0ba_blob_bytes_exact": true,
+    "management_byte_observation_beforeafter_full_equal_rawtrue": true,
+    "runtime_wrappers_and_Rust_selected_payload_hashes_beforeafter_equal_in_recorded_receipts": true,
+    "producer_and_consumer_passed_typed_true": true,
+    "pins": "actual Go1.24.13 linux; Cargo/Rust1.98.1; helper d182c2 current head"
+  },
+  "proof_limits": [
+    "Remote Windows current processes not inspected after job; validation uses authentic saved run artifact receipts and logs",
+    "Separate Go and Rust component jobs are not a whole SUT union",
+    "COMPILER_DATA_ONLY; nativePositive NOTRUN and native_authority false",
+    "No VM boot workspace IO safe writeback allIO installation Release download startup issuer or final0.7 qualification"
+  ],
+  "old_1c_9bb_FAIL_and_all_priorSTOP": "Preserved; no historical success used as this head proof",
+  "reviewer_CI_or_SUT_launch_source_mutation": false
+}

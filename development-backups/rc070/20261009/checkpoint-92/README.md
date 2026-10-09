@@ -1,0 +1,3 @@
+Exact b0ba7d96b5e5d4879aced264d20f419ea00cbd16 first push CI37947217613 attempt1 finished success. Windows Rust whole library compile/list and seven original uniquely named data tests passed; original Linux Go four data tests and each independent strict consumer passed. This safe packet records original artifact hashes and independent read-only peer facts, without publishing raw logs/runtime/host/TLS/token/private data.
+
+Qualification is COMPILER_DATA_ONLY with native authority false and native positive NOTRUN. Windows VM/workspace access/allIO/safe writeback/install/combined1967-source/0.7RC and anonymous release download remain unqualified. Old failing runs and buffered ordinary cancellation STOP remain preserved.

@@ -1,0 +1,144 @@
+"""Current exact hook AST cancellation/filter controls in controlled namespace."""
+import ast,hashlib,json,threading,time,traceback
+from pathlib import Path
+from types import SimpleNamespace
+B=Path('/workspace/work/rc070/publisher-native-clone-diagnostic');source=B/'diagnostic_worker.py'
+nodes={n.name:n for n in ast.parse(source.read_text()).body if isinstance(n,ast.FunctionDef)}
+class Broken(list):
+ def __init__(self,error):self.error=error
+ def append(self,value):raise self.error
+def namespace():
+ ns=dict(time=time,traceback=traceback,Path=Path,json=json,sys=__import__('sys'),
+ _observer_cancels=[],_observer_primary_exceptions=[],_restore_errors=[],_install_errors=[],
+ _auth_binding_outcomes=[],_auth_setup_failures=[],_auth_observations=[],_observation_errors=[],
+ _bootstrap_auth_outcome=None,_installed_complete=True,_activations=[],_observations=[],
+ _tls_observations=[],_live_clients=[],_owned_requests={},_credential_outcomes=[],_credential_registry_retired=False,write=lambda *a:None)
+ exec(compile(ast.Module(body=[nodes[k]for k in ('observed_server_recv','observed_sendall','install_auth_observer','restore_auth_observer','restore_bootstrap_authenticate','install_bindings','restore_bindings','finish_observation')],type_ignores=[]),str(source),'exec'),ns)
+ return ns
+def flatten(error):
+ if isinstance(error,BaseExceptionGroup):return[value for child in error.exceptions for value in flatten(child)]
+ return[error]
+rows=[]
+for boundary in ('server_recv','sendall','authenticate'):
+ for matching in (False,True):
+  for mode in ('success','original_cancel','ordinary_fields_error','observer_cancel','primary_and_cancel'):
+   ns=namespace();op=SimpleNamespace(kind='CreateDraft',operation_id=2);primary=SystemExit(19)if mode=='original_cancel'else ValueError('primary')if mode=='primary_and_cancel'else None
+   cancel=SystemExit(23)if mode in ('observer_cancel','primary_and_cancel')else OSError('fields')if mode=='ordinary_fields_error'else None
+   returned=object();calls=[]
+   def original(*args,**kwargs):
+    calls.append((args,kwargs))
+    if primary is not None:raise primary
+    return returned
+   if boundary in ('server_recv','sendall'):
+    record=dict(op=op,endpoints=('controlled','endpoint'));ns['socket_endpoints']=lambda *a:('controlled','endpoint');ns['_delegate_recv']=original;ns['_delegate_sendall']=original;ns['client_record_for_socket']=lambda *a:record if matching else None;ns['observe_error']=lambda *a:None;ns['record_activation']=lambda *a:None;ns['pin_socket']=lambda *a:record if matching else None
+    ns['_server_context']=SimpleNamespace(current=dict(completed_recv_calls=0))
+    if cancel is not None:ns['_tls_observations']=Broken(cancel)
+    call=lambda:ns['observed_server_recv'if boundary=='server_recv'else'observed_sendall'](object(),1)
+   else:
+    client=SimpleNamespace(selection=object());ns['wire']=SimpleNamespace(_authenticate=original);ns['mutation_context']=lambda:op if matching else None
+    if cancel is not None:ns['_auth_observations']=Broken(cancel)
+    binding=ns['install_auth_observer'](client);call=lambda:ns['wire']._authenticate(client.selection,client)
+   direct=None
+   try:assert call()is returned
+   except BaseException as error:
+    direct=error;leaves=flatten(error)
+    if primary is not None:assert any(e is primary for e in leaves)
+    if cancel is not None and not isinstance(cancel,Exception)and matching:assert any(e is cancel for e in leaves)
+   finally:
+    if boundary=='authenticate':ns['restore_auth_observer'](binding);assert ns['wire']._authenticate is original
+   assert len(calls)==1
+   if not matching:
+    assert not ns['_observer_cancels']and not ns['_observer_primary_exceptions']and not ns['_observation_errors']
+   else:
+    if mode=='original_cancel':assert ns['_observer_primary_exceptions']==[primary]
+    if mode in ('observer_cancel','primary_and_cancel'):assert ns['_observer_cancels']==[cancel]
+    if mode=='ordinary_fields_error':assert len(ns['_observation_errors'])==1 and direct is None
+   outer=SystemExit(1)
+   try:ns['finish_observation'](Path('unused'),outer)
+   except BaseException as error:
+    leaves=flatten(error);assert any(e is outer for e in leaves)
+    if matching and mode=='original_cancel':assert any(e is primary for e in leaves)
+    if matching and mode in ('observer_cancel','primary_and_cancel'):assert any(e is cancel for e in leaves)
+    if matching and mode=='primary_and_cancel':assert any(e is primary for e in leaves)
+   else:raise AssertionError('original outcome lost')
+   rows.append(dict(boundary=boundary,matching=matching,case=mode,passed=True,
+    exact_original_objects_preserved=True,controlled_normalizer_not_original_catch_AST=True))
+for cause in (None,ValueError('original write')):
+ for observer in (OSError('before fields'),SystemExit(29)):
+  ns=namespace();calls=[];queries=[];returned=object()
+  def matcher(*args):
+   queries.append(True)
+   if len(queries)==1:raise observer
+   return None
+  def original(*args):
+   calls.append(True)
+   if cause is not None:raise cause
+   return returned
+  ns.update(client_record_for_socket=matcher,_delegate_sendall=original,observe_error=lambda *a:None,record_activation=lambda *a:None)
+  try:assert ns['observed_sendall'](object(),b'x')is returned
+  except BaseException as error:assert error is cause
+  assert len(calls)==1
+  outer=SystemExit(1)
+  try:ns['finish_observation'](Path('unused'),outer)
+  except BaseException as error:
+   leaves=flatten(error);assert any(e is outer for e in leaves)
+   if not isinstance(observer,Exception):
+    assert any(e is observer for e in leaves)
+    if cause is not None:assert any(e is cause for e in leaves)
+  rows.append(dict(case='prewrite_observer_'+type(observer).__name__+'_primary_'+type(cause).__name__,passed=True,delegate_actual_once=True))
+ns=namespace();cause=BrokenPipeError('native error model');record=dict(op=SimpleNamespace(kind='CreateDraft',operation_id=2),endpoints=('controlled','pair'))
+ns.update(client_record_for_socket=lambda *a:record,observe_error=lambda *a:None,record_activation=lambda *a:None)
+def endpoint(*a):raise OSError('disconnected current endpoint')
+def original(*a):raise cause
+ns.update(socket_endpoints=endpoint,_delegate_sendall=original)
+try:ns['observed_sendall'](object(),b'x')
+except BaseException as error:assert error is cause
+else:raise AssertionError('write primary lost')
+event=ns['_tls_observations'][0];assert event['postwrite_current_endpoint']=='UNKNOWN'and event['postwrite_endpoint_error_type']=='OSError'
+assert event['error_type']=='BrokenPipeError'and event['monotonic_start']<=event['monotonic_finish']and not ns['_observation_errors']
+rows.append(dict(case='postwrite_endpoint_OSError_keeps_actualwrite_time_currentendpointUNKNOWN',passed=True,actualdelegate_exception_identity=True,controlled_model_not_nativeTLS=True))
+class Alias:
+ def __init__(self,name,original,error=None,when=None):
+  object.__setattr__(self,'name',name);object.__setattr__(self,'original',original);object.__setattr__(self,name,original)
+  object.__setattr__(self,'attempts',[]);object.__setattr__(self,'error',error);object.__setattr__(self,'when',when)
+ def __setattr__(self,name,value):
+  if name==self.name:
+   self.attempts.append(value)
+   count=len(self.attempts)
+   if self.when and count==self.when[0]:
+    if self.when[1]=='after':object.__setattr__(self,name,value)
+    raise self.error
+  object.__setattr__(self,name,value)
+for timing in ('before','after'):
+ ns=namespace();originals=[object()for _ in range(9)];wrappers=[object()for _ in range(9)]
+ cancel=SystemExit(31);targets=[Alias('hook',value)for value in originals];targets[-1].error=cancel;targets[-1].when=(2,timing)
+ ns['_bindings']=[(target,'hook',original,wrapper)for target,original,wrapper in zip(targets,originals,wrappers)];ns['_applied']=[]
+ ns['install_bindings']();ns['restore_bindings']();assert all(len(target.attempts)==2 for target in targets)
+ assert all(targets[k].hook is originals[k]for k in range(8))and any(e is cancel for e in ns['_restore_errors'])
+ outer=SystemExit(1)
+ try:ns['finish_observation'](Path('unused'),outer)
+ except BaseException as error:assert any(e is cancel for e in flatten(error))and any(e is outer for e in flatten(error))
+ rows.append(dict(case='first_fixed_restore_cancel_'+timing+'_allnine_attempts',passed=True))
+for stage in ('install','restore','bootstrap'):
+ for timing in ('before','after'):
+  ns=namespace();cancel=SystemExit(37);selection=object();client=SimpleNamespace(selection=selection);op=SimpleNamespace(kind='CreateDraft',operation_id=2);calls=[];returned=object()
+  def original(*a,**k):calls.append(True);return returned
+  when=1 if stage=='install'else 2 if stage=='restore'else 3
+  target=Alias('_authenticate',original,cancel,(when,timing));ns.update(wire=target,_bootstrap_authenticate=original,mutation_context=lambda:op)
+  binding=None
+  try:binding=ns['install_auth_observer'](client)
+  except BaseException as error:assert error is cancel
+  if binding is not None:
+   assert target._authenticate(selection,client)is returned;ns['restore_auth_observer'](binding)
+  ns['restore_bootstrap_authenticate']()
+  assert any(e is cancel for e in ns['_install_errors']+ns['_restore_errors'])
+  assert len(calls)==(0 if stage=='install'else 1)
+  outer=SystemExit(1)
+  try:ns['finish_observation'](Path('unused'),outer)
+  except BaseException as error:assert any(e is cancel for e in flatten(error))and any(e is outer for e in flatten(error))
+  rows.append(dict(case='dynamic_alias_'+stage+'_cancel_'+timing,passed=True,
+   final_actual_callback_identity=target._authenticate is original,error_kept_INVALID=True))
+report=dict(controls=len(rows),passed=True,source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
+ original_method_runs=0,actual_FunctionDef_AST=True,scope='controlled wrapper/catch-composition model; not actual issuer or whole SUT owner',rows=rows)
+with(B/'ORDINARY-ROOT-CAUSE-CONTROLS-v5.json').open('x')as stream:json.dump(report,stream,indent=2);stream.write('\n')
+print(json.dumps(dict(passed=True,controls=len(rows),original_method_runs=0)))

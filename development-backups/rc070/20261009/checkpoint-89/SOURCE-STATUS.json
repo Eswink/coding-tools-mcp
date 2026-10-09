@@ -1,0 +1,19 @@
+{
+  "checkpoint": "SOURCE_ONLY_FINAL_DIAG6_STARTUP_SOURCE",
+  "source_manual_risk": "CRITICAL_DISCLOSED",
+  "fixed_bindings": 10,
+  "current_worker_sha256": "242f18dc0103862cbae64ae2c3e478f7713833144987da71fb9f0b34f8abc878",
+  "current_old9_source_controls": "ACTUALLY_RERUN76_9_43_10_7_6",
+  "nativeclone_controls": "ACTUALLY_RERUN44_V2_ON_NEW_PURE",
+  "original_method_runtime_credit": "NONE_IN_THIS_SOURCE_PACKET",
+  "independent_startup": "ALLOW_ONCE_ROOT_ONLY_FINAL_LITERAL_REQUIRED",
+  "prelaunch_original_PENDING_unchanged": true,
+  "prior_failure_snapshots_preserved": true,
+  "whole85": "FAIL83SUCCESS2FAIL",
+  "original300": "NOTRUN",
+  "automatic_wholeowner_timeoutcancel": "NOTRUN",
+  "CI": false,
+  "FINAL": false,
+  "release_authorized": false,
+  "three_realprivate_authority_hardrejects": "UNAVAILABLE_PRESERVED"
+}

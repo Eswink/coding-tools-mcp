@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "kind": "SOURCE_ONLY_SAFE_TERMINAL_NOT_RC",
+  "sourceHead": "b0ba7d96b5e5d4879aced264d20f419ea00cbd16",
+  "run": 37947217613,
+  "files": [
+    {
+      "path": "ACTUAL-TERMINAL-FACTS-SAFE01.json",
+      "bytes": 1910,
+      "sha256": "d8c64199bab10bfb1bbbf99dd1feb9f08aa455c32fb6839b119f228facfbac90",
+      "blob": "ac1588cf4d063b7ce7fef2b46a1e7cc125271432",
+      "mode": "100644"
+    },
+    {
+      "path": "INDEPENDENT-TERMINAL-SAFE01.json",
+      "bytes": 3365,
+      "sha256": "ae186ce8a37ba439400380813947adf1e0cf0d0c2f71f7744a25023a1d86f311",
+      "blob": "17e9434905ea2f0c89a97934189a1314245e63db",
+      "mode": "100644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 726,
+      "sha256": "ae93cd79dca742b5adb53994c4158d0440c56a849b1421ec53d2157103b10f79",
+      "blob": "57202fa21ae797069387dabeb1cfb51971d7af7e",
+      "mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 476,
+      "sha256": "0791c862ee23b2bfe3eab9b94024fd271f1ac85b19d88f7602d49422d54282ad",
+      "blob": "854d155715a77b67009470cb8ae4db2868ea4642",
+      "mode": "100644"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+# 设计
+## 概述
+Capture one actual original GNU command, independent from failed fullmake. No source helper edits.
+## 技术方案
+对应需求 FR-1、FR-2、FR-3。由根fresh外部lease/source5守门后import原helper。validate_msgfmt_assignment返回原实际GNU loader vector；在原GitGUI cwd下运行vector+--check --statistics --tcl -l zh_cn -d 新ownedoutput 原PO绝对路径。使用原run_owned_git_phase30/2MiB捕获；sourceguard原5。完整source original-manifest检查使用原helper规则，不把新增buildoutputs叫原签名源。finally逐组独立attempt+原source再次核，聚合primary/所有cleanup错误。本次relocation显式，不能复刻原Makefilequietstderr byte identity。
+## 文件结构
+三规格、外部privateguard/组件代码/真实phase日志收据；原five-source完全不改。

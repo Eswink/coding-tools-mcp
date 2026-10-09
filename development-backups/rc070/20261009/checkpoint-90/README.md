@@ -1,0 +1,1 @@
+Source-only bounded original GNU translation diagnosis. Actualmsgfmt target exit1 retained; outer diagnostic0 is not targetPASS. Signedoriginalzh_cn catalogue and frozenfivehelper bytes unchanged. Nofullmake/install success. Preserve raw failures privately. No host/proc/env, archives, keys, binaries or Gitobjects included.

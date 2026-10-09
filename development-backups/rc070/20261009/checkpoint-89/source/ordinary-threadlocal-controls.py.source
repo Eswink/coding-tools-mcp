@@ -1,0 +1,52 @@
+"""Exact observer AST, real accepted TCP sockets, controlled threadlocal failure."""
+import ast,hashlib,json,socket,threading,time,traceback
+from pathlib import Path
+from types import SimpleNamespace
+B=Path('/workspace/work/rc070/publisher-native-clone-diagnostic');source=B/'diagnostic_worker.py'
+hook=next(n for n in ast.parse(source.read_text()).body if isinstance(n,ast.FunctionDef)and n.name=='observed_fixture_handle')
+class Fixture:pass
+class Context:
+ def __init__(self,error,which):object.__setattr__(self,'writes',0);object.__setattr__(self,'error',error);object.__setattr__(self,'which',which);object.__setattr__(self,'current',None)
+ def __getattribute__(self,name):
+  if name=='current'and object.__getattribute__(self,'__dict__').get('fail_getter',False):
+   object.__setattr__(self,'fail_getter',False);raise object.__getattribute__(self,'error')
+  return object.__getattribute__(self,name)
+ def __setattr__(self,name,value):
+  object.__setattr__(self,'writes',self.writes+1)
+  if self.writes==self.which:
+   if getattr(self,'fail_after',False):object.__setattr__(self,name,value)
+   raise self.error
+  object.__setattr__(self,name,value)
+rows=[]
+for phase in ('install','restore','getter','install_after','restore_after'):
+ for error in (OSError('ordinary setter'),SystemExit(43)):
+  listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen(1)
+  client=socket.socket();client.connect(listener.getsockname());raw,_=listener.accept()
+  fixture=Fixture();fixture._threads=[threading.current_thread()];context=Context(error,1 if phase.startswith('install')else 2);object.__setattr__(context,'fail_after',phase.endswith('_after'));object.__setattr__(context,'fail_getter',phase=='getter')
+  original_primary=ValueError('original delegate');calls=[];actual=None
+  def delegate(current,sock):
+   calls.append(True)
+   try:
+    if phase.startswith('restore')or phase=='getter':raise original_primary
+    return None
+   finally:sock.close()
+  ns=dict(_server_context=context,fixture_source=SimpleNamespace(ArtifactTLS=Fixture),threading=threading,
+   _owned_requests={1:dict(fixture=fixture)},socket_endpoints=lambda sock:(sock.getsockname(),sock.getpeername()),
+   _delegate_fixture_handle=delegate,_observer_cancels=[],_observation_errors=[],_tls_observations=[],_restore_errors=[],_observer_primary_exceptions=[])
+  exec(compile(ast.Module(body=[hook],type_ignores=[]),str(source),'exec'),ns)
+  try:ns['observed_fixture_handle'](fixture,raw)
+  except BaseException as raised:actual=raised
+  closed=raw.fileno()<0
+  rows.append(dict(phase=phase,setter_error_type=type(error).__name__,actual_setter_error_identity=actual is error,
+   original_delegate_calls=len(calls),actual_raw_closed_by_delegate=closed,
+   original_primary_identity_preserved=actual is original_primary if not phase.startswith('install')else None,
+   required_boundary_passed=closed and(phase.startswith('install')or actual is original_primary),observer_cancel_preserved=any(e is error for e in ns['_observer_cancels']+ns['_restore_errors'])if not isinstance(error,Exception)else None,source_reports_INVALID=bool(ns['_observation_errors']or ns['_observer_cancels']or ns['_restore_errors'])))
+  raw.close();client.close();listener.close()
+assert len(rows)==10 and all(row['required_boundary_passed']for row in rows)and all(row['source_reports_INVALID']for row in rows)
+assert all(row['observer_cancel_preserved']is not False for row in rows)
+report=dict(passed=True,prior_failure_first_preserved=True,controls=10,actual_accepted_TCP_sockets=True,
+ original_method_runs=0,controlled_fixture_and_threadlocal_not_original_fixture_body_or_issuer=True,
+ actual_observed_fixture_handle_FunctionDef_AST=True,worker_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),rows=rows)
+out=B/'ORDINARY-THREADLOCAL-REPAIR-CONTROLS-v1.json'
+with out.open('x')as stream:json.dump(report,stream,indent=2);stream.write('\n')
+print(json.dumps(report,sort_keys=True))

@@ -1,0 +1,67 @@
+{
+  "passed": true,
+  "original_method_runs": 0,
+  "authority_proof": false,
+  "actual_component": {
+    "actual_worker_FunctionDef_AST_lift": true,
+    "controls": 6,
+    "fixture_component": "original HTTPSFixture connect/handle/realSSLrecv original2s, controlled namespace typealias not actual ArtifactTLS/issuer proof",
+    "issuer_proof": false,
+    "original_method_runs": 0,
+    "passed": true,
+    "payload_or_addresses_logged": false,
+    "real_TLS_components_executed": true,
+    "rows": [
+      {
+        "case": "same_pair_timeout_writefailure",
+        "correlated_after_delegate": true,
+        "genuine_client_write_error": "BrokenPipeError",
+        "genuine_server_error": "TimeoutError",
+        "matched_at_start": false,
+        "original2s_preserved": true,
+        "passed": true,
+        "real_server_and_raw_close_verified": true
+      },
+      {
+        "case": "swapped_live_endpoint_negative",
+        "missing_event_conclusion": "UNKNOWN",
+        "passed": true,
+        "real_distinct_TLS_sockets": 2,
+        "wrong_connection_not_attributed": true
+      },
+      {
+        "actual_closed_client_rejected": true,
+        "case": "closed_client_negative",
+        "missing_event_conclusion": "UNKNOWN",
+        "passed": true
+      },
+      {
+        "case": "owner_rebound_negative",
+        "new_sameclass_pinned_instance_not_attributed": true,
+        "passed": true
+      },
+      {
+        "case": "session_rebound_negative",
+        "new_sameclass_pinned_instance_not_attributed": true,
+        "passed": true
+      },
+      {
+        "case": "credential_rebound_negative",
+        "new_sameclass_pinned_instance_not_attributed": true,
+        "passed": true
+      }
+    ],
+    "worker_sha256": "242f18dc0103862cbae64ae2c3e478f7713833144987da71fb9f0b34f8abc878"
+  },
+  "elapsed_seconds": 14.51181988100143,
+  "actual_natural_exit": 0,
+  "created_child_heldZ_verified": true,
+  "native_ECHILD": true,
+  "empty_family": true,
+  "private_raw_receipt_sha256": "149e3976fe0cb77167e86fea7961e21855841efcf9ec0b978b6ad789018bf136",
+  "private_raw_receipt_bytes": 2863,
+  "stdout_bytes": 1851,
+  "stdout_sha256": "329f0808cb1cb2319002eeeb1545c71d426aedba5439c61737c09128a80614f1",
+  "stderr_bytes": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

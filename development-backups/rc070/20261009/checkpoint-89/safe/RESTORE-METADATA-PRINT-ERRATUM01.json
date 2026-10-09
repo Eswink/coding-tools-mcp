@@ -1,0 +1,10 @@
+{
+  "source_restore_completed": true,
+  "source_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "source_count": 1878,
+  "native_precondition_actual_passed": true,
+  "administrative_stdout_TypeError": "precondition returns bool not reportdict; finalprint tried r[passed] after completed helper writes",
+  "SUT_runs": 0,
+  "no_restore_repeated": true,
+  "qualification": false
+}
