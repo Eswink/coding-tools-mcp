@@ -1,0 +1,16 @@
+# Tasks
+
+## 任务列表
+- [ ] FR-1 Freeze original1method and fullsource/tool manifests.
+- [ ] FR-2 Add transparent append/flush observations without changed original operation/assertion.
+- [ ] FR-3 Freeze original native process ownership and source/runtime/native-object/ref guards.
+- [ ] FR-4 Independent review before one diagnostic invocation; preserve original failure and restrict qualification0.
+
+## 交付物清单
+Pinned diagnostic worker, supervisor and immutable observations/receipt.
+
+## 需求覆盖矩阵
+FR-1 input seal; FR-2 transparent event observations; FR-3 process closure; FR-4 independent review and no suite qualification.
+
+## 文件变更清单
+Only external diagnostic/spec/evidence paths under recovery-tools and755-recovery-evidence; candidate1849 unchanged.

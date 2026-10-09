@@ -1,0 +1,19 @@
+# Design
+
+## 架构设计
+External diagnostic worker imports original fixed Recorder worker definitions from pinned8fe inline and wraps only original event helper/Named callbacks for observations. The original first method executes without any body/fixture edits. External owner holds native created PID and independently closes children before returning. Snapshot source b227 and tools before/after, immutablefailed03 untouched.
+
+## 需求映射
+FR-1 exactsource/method/runtime input seal. FR-2 originalevent operations with separate diagnostic callback sink. FR-3 unchanged original outsideowner lifecycle and deadline guards. FR-4 independent frozen prelaunch review and evidence-only report.
+
+## 关键决策
+Do not rerun755 to diagnose a partial logger. Missing event bytes remain failure until actual cause is proved.
+
+## 概述
+One original method diagnosis, no qualification.
+
+## 技术方案
+Exact original Recorder plus externally observed original event operations and natural native process closure.
+
+## 文件结构
+External diagnostic worker and supervisor; no SUT files changed.

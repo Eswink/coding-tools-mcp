@@ -1,0 +1,79 @@
+"""Freeze transparent originalfixed2 diagnosis without running originalmethods."""
+import ast
+import hashlib
+import json
+from pathlib import Path
+
+B = Path('/workspace/scratch/566f6003d85e/755-recovery-evidence')
+old = B / 'firstmethod-event-diagnostic02/owned-owner/owner.py'
+source = old.read_text()
+assert hashlib.sha256(old.read_bytes()).hexdigest() == 'bf6b2b578c25d79a1d5e9424e5de76b96e1377ef5eee01d7b970be20fe7bc004'
+receipt = json.loads((B / 'private-engineering755-recovery03/owned-owner/pretag-fixed-2-receipt.json').read_text())
+names = receipt['records'][0]['raw_loaded_ids']
+assert len(names) == len(set(names)) == 127
+assert names == receipt['records'][0]['raw_executed_ids'] == receipt['records'][0]['raw_success_ids']
+
+def replace_once(text, before, after):
+    assert text.count(before) == 1, before
+    return text.replace(before, after, 1)
+
+source = replace_once(source, 'METHOD = ', 'SELECTED_IDS = ' + repr(names) + '\nMETHOD = ')
+source = replace_once(source, 'One original method plus transparent event observations', '127 originalfixed2 methods plus transparent event observations')
+source = replace_once(source, '        case = cases[0]\n', '        assert [case.id() for case in cases] == SELECTED_IDS\n')
+source = replace_once(source, "observe('before-original-method', original_method=METHOD)", "observe('before-original-fixed2', actual_selected=127)")
+source = replace_once(source, 'run(unittest.TestSuite([case]))', 'run(selected)')
+source = replace_once(source, "observe('after-original-method-and-cleanup', testsRun=result.testsRun)", "observe('after-original-fixed2-and-cleanup', testsRun=result.testsRun)")
+source = replace_once(source, 'assert result.testsRun == 1 and result.wasSuccessful()', 'assert result.testsRun == 127 and result.wasSuccessful()')
+source = replace_once(source, "assert records[0][field] == [METHOD]", "assert records[0][field] == SELECTED_IDS")
+source = replace_once(source, 'diagnostic_original_method_runs=1, qualification_755_runs=0', 'diagnostic_original_method_runs=127, qualification_755_runs=0')
+assert source.count('whole755_pass=False') == 1
+out = B / 'fixed2-event-diagnostic03'; out.mkdir(mode=0o700)
+owned = out / 'owned-owner'; owned.mkdir(mode=0o700)
+program = owned / 'owner.py'; program.write_text(source)
+original = ast.parse(old.read_text()); modified = ast.parse(source)
+find = lambda t: next(n for n in ast.walk(t) if isinstance(n, ast.ClassDef) and n.name == 'Recorder')
+assert ast.dump(find(original), include_attributes=False) == ast.dump(find(modified), include_attributes=False)
+
+outer = (B / 'run-firstmethod-event-diagnostic02.py').read_text()
+outer = replace_once(outer, "OUT = BASE / 'firstmethod-event-diagnostic02'", "OUT = BASE / 'fixed2-event-diagnostic03'")
+outer = replace_once(outer, 'import ctypes, hashlib, importlib.util, json, os, signal, stat, subprocess, sys, time, traceback', 'import ctypes, hashlib, importlib.util, json, os, signal, stat, subprocess, sys, threading, time, traceback')
+outer = replace_once(outer, 'bf6b2b578c25d79a1d5e9424e5de76b96e1377ef5eee01d7b970be20fe7bc004', hashlib.sha256(program.read_bytes()).hexdigest())
+outer = replace_once(outer, "    try:\n        assert not signals, \"prelaunch cancellation is terminal\"", '''    reader = None
+    def diagnostic_pipe_drain(stream):
+        size = 0
+        try:
+            for block in iter(lambda: stream.readline(65536), b''):
+                size += len(block)
+                assert size <= 2 * 1024**2
+                assert rawlog.write(block) == len(block)
+        except BaseException as error:
+            errors.append('diagnostic_drain_' + type(error).__name__)
+    try:
+        assert not signals, "prelaunch cancellation is terminal"''')
+outer = replace_once(outer, 'stdout=rawlog, stderr=subprocess.STDOUT, start_new_session=True)', 'stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)')
+outer = replace_once(outer, '        fd = os.pidfd_open(process.pid)', '''        fd = os.pidfd_open(process.pid)
+        reader = threading.Thread(target=diagnostic_pipe_drain, args=(process.stdout,), daemon=True)
+        reader.start()''')
+outer = replace_once(outer, "original_method_inventory=1, original_suite_reference=755, qualification_755_runs=0, whole755_pass=False, discovery_inventory=303, selected_class_inventory=127, diagnostic_fresh_interpreters=1, stdout_topology='diagnostic fd1 regular file; original shard fd1 pipe; not identical complete topology'", "original_method_inventory=127, original_suite_reference=755, qualification_755_runs=0, whole755_pass=False, discovery_inventory=303, selected_class_inventory=127, diagnostic_fresh_interpreters=1, stdout_topology='worker fd1 pipe as original shard; sole external supervisor differs from original full755 hierarchy'")
+outer = replace_once(outer, 'if now - started >= 1200 or signals:', 'if now - started >= 1200 or signals or errors:')
+outer = replace_once(outer, '        try: family_closed = module.owned_family_close(time.monotonic() + 2, family)', '        family_deadline = time.monotonic() + 2\n        try: family_closed = module.owned_family_close(family_deadline, family)')
+outer = replace_once(outer, '        try: rawlog.close()', '''        if reader is not None:
+            reader.join(timeout=max(0, family_deadline - time.monotonic()))
+            if reader.is_alive(): errors.append('diagnostic_drain_not_closed_within_original_family_lease')
+        if process is not None and process.stdout is not None:
+            try: process.stdout.close()
+            except BaseException: errors.append(traceback.format_exc())
+        try: rawlog.close()''')
+outer = replace_once(outer, "aggregate['diagnostic_original_method_runs'] == 1", "aggregate['diagnostic_original_method_runs'] == 127")
+outer = replace_once(outer, "assert aggregate['records'][0][field] == [module.METHOD]\n            ids[field] = dict(count=1, sha256=sha(module.METHOD.encode()))", "assert aggregate['records'][0][field] == module.SELECTED_IDS\n            ids[field] = dict(count=127, sha256=sha('\\n'.join(module.SELECTED_IDS).encode()))")
+outer = replace_once(outer, 'actual_named_inventory=ids, original_method_inventory=1,', 'actual_named_inventory=ids, original_method_inventory=127,')
+outer = replace_once(outer, "Single original-method diagnostic; original outside Popen/pidfd/WNOWAIT and ECHILD family closure; zero full755 qualification", "Original127fixed2 diagnostic only; created Popen/pidfd/WNOWAIT and ECHILD closure; zero full755 qualification")
+ast.parse(outer)
+supervisor = B / 'run-fixed2-event-diagnostic03.py'; supervisor.write_text(outer)
+proof = dict(scope='Frozen source only; zero originalmethods executed yet', source_tree='b227335c6503c8b9d2575802522758a308684be8',
+    diagnostic_original_methods=127, original_recorder_AST_exact=True, whole755_pass=False, qualification_755_runs=0,
+    original_stdout_budget=2*1024**2, retained_owner_budget=[1200,7,2,2], observations_expected=773,
+    worker=dict(path=str(program), bytes=program.stat().st_size, sha256=hashlib.sha256(program.read_bytes()).hexdigest()),
+    supervisor=dict(path=str(supervisor), bytes=supervisor.stat().st_size, sha256=hashlib.sha256(supervisor.read_bytes()).hexdigest()))
+(B / 'FIXED2-EVENT-DIAGNOSTIC03-SOURCE-FREEZE.json').write_text(json.dumps(proof, sort_keys=True, indent=2)+'\n')
+print(json.dumps(proof, sort_keys=True))

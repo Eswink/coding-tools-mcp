@@ -1,0 +1,146 @@
+{
+  "scope": "17 exact original source/spec files plus sanitized source-only metadata; snapshots independently labeled",
+  "actualqualified": false,
+  "files": [
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 3465,
+      "sha256": "09297b9b728ea3149fcb4b546ed4e14691a0a637672f7c98fd06f7dd8d52d45b",
+      "blob": "e5ffc0b050bc09a60281921842e6b104138c9555"
+    },
+    {
+      "path": "SOURCE-MANIFEST.json",
+      "mode": "100644",
+      "bytes": 7616,
+      "sha256": "a93c025cb459722d1c03b4df110410d859075677107abbf5e7c78d378f94a624",
+      "blob": "8470b93cff5440a4fbe70332fc47458882f86f50"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "100644",
+      "bytes": 2914,
+      "sha256": "d81d0a4fdd5c74a2f37fe83afbbf98ea6e0c043ace3a0d1ee0b5a3a8510880f5",
+      "blob": "25cd76b02265b3f33ec7fcc2d82e812b195c9327"
+    },
+    {
+      "path": "source/755-recovery-evidence/control-diagnostic-reader-finish04.py.source",
+      "mode": "100644",
+      "bytes": 5244,
+      "sha256": "577ef9c6a7180919af39a0404143735674c0fa1423066454bab13f8c633048de",
+      "blob": "59cc9713881dd2a3ccc857eb98f954c7a7c495d6"
+    },
+    {
+      "path": "source/755-recovery-evidence/control-diagnostic-reader-finish05.py.source",
+      "mode": "100644",
+      "bytes": 5189,
+      "sha256": "0ed373fac04bad8c8a4df7202db06ac140f4795e7a74ebce3c7cc11689ed942d",
+      "blob": "ee4814490542e33fb4c441eb2be7ec0cf04a9bcd"
+    },
+    {
+      "path": "source/755-recovery-evidence/firstmethod-event-diagnostic01/owned-owner/owner.py.source",
+      "mode": "100644",
+      "bytes": 6264,
+      "sha256": "bf6b2b578c25d79a1d5e9424e5de76b96e1377ef5eee01d7b970be20fe7bc004",
+      "blob": "9cc5c609b51cf7c90340034ccf78a06c025ba3f6"
+    },
+    {
+      "path": "source/755-recovery-evidence/firstmethod-event-diagnostic02/owned-owner/owner.py.source",
+      "mode": "100644",
+      "bytes": 6264,
+      "sha256": "bf6b2b578c25d79a1d5e9424e5de76b96e1377ef5eee01d7b970be20fe7bc004",
+      "blob": "9cc5c609b51cf7c90340034ccf78a06c025ba3f6"
+    },
+    {
+      "path": "source/755-recovery-evidence/fixed2-event-diagnostic03/owned-owner/owner.py.source",
+      "mode": "100644",
+      "bytes": 19635,
+      "sha256": "31f83b48d9240d773b8ade3a58254b0620fd9e13b23df8d359032e3c08b8d9b5",
+      "blob": "a93d95f8133252c96377660dd1007ac5276440fc"
+    },
+    {
+      "path": "source/755-recovery-evidence/fixed2-event-diagnostic04/owned-owner/owner.py.source",
+      "mode": "100644",
+      "bytes": 19635,
+      "sha256": "31f83b48d9240d773b8ade3a58254b0620fd9e13b23df8d359032e3c08b8d9b5",
+      "blob": "a93d95f8133252c96377660dd1007ac5276440fc"
+    },
+    {
+      "path": "source/755-recovery-evidence/run-firstmethod-event-diagnostic01.py.source",
+      "mode": "100644",
+      "bytes": 14378,
+      "sha256": "ed2f7a6fddb102b391d41b6f66bd9b0fcfe06773fdb3af8bc84cf7aa308c319e",
+      "blob": "adeb5e56211b3f5c730acda773ebd4b93b2a4d14"
+    },
+    {
+      "path": "source/755-recovery-evidence/run-firstmethod-event-diagnostic02.py.source",
+      "mode": "100644",
+      "bytes": 14563,
+      "sha256": "ec8801021d78f2ef4bab73689731f89bc188456449cbe69d827b6226b6d2f1fe",
+      "blob": "0a02811bb81cc6d1dec80afb91390a105d149119"
+    },
+    {
+      "path": "source/755-recovery-evidence/run-fixed2-event-diagnostic03.py.source",
+      "mode": "100644",
+      "bytes": 15570,
+      "sha256": "60de556bb64d81cea9c43595a9081f6db38df0948c5c4296804462df74f6b5a2",
+      "blob": "19d36cddfc0244861db062704e4808e7adf30e89"
+    },
+    {
+      "path": "source/755-recovery-evidence/run-fixed2-event-diagnostic04.py.source",
+      "mode": "100644",
+      "bytes": 15958,
+      "sha256": "37a37cb520bceb9a92c217ded54f9e1ddd284ad3cfb7cf3edbee8d95b47f139d",
+      "blob": "945fce6dd723077c58ddc44f054f3d0f9fe2997a"
+    },
+    {
+      "path": "source/recovery-tools/755-spec-view/docs/specs/recovered-755-event-diagnostic/design.md.source",
+      "mode": "100644",
+      "bytes": 1094,
+      "sha256": "7b5d91eeb579ae1432cd89cce8bf271389b7f47ecab08154bfcbfa1d08ebe56d",
+      "blob": "278bfd3fdad6ce4ddc7965b9aaad2c0966413cfc"
+    },
+    {
+      "path": "source/recovery-tools/755-spec-view/docs/specs/recovered-755-event-diagnostic/requirements.md.source",
+      "mode": "100644",
+      "bytes": 3191,
+      "sha256": "d3f511dcd29a8723378c614bc2ede8475df6b0c75f0c3024f24e659d5f086b88",
+      "blob": "dbe189ee1e6ec14cc950497c93c53f7b9e6b1eed"
+    },
+    {
+      "path": "source/recovery-tools/755-spec-view/docs/specs/recovered-755-event-diagnostic/tasks.md.source",
+      "mode": "100644",
+      "bytes": 789,
+      "sha256": "2cd18d7c0b15ea0d1c058bf3f8ce8f27d90c88d280210cc79f1504f69364cf09",
+      "blob": "abb90c1e6056d0a51cb3a6e5db873ca5abf83b47"
+    },
+    {
+      "path": "source/recovery-tools/build-firstmethod-event-diagnostic01.py.source",
+      "mode": "100644",
+      "bytes": 8598,
+      "sha256": "eb9db2a7c4a708171fd702565bae252bb3d9e4f66e2bb28e3b4be66823c81bd3",
+      "blob": "5f9e2247ef6fc83ed2e5bbde5674cd7deb908b8e"
+    },
+    {
+      "path": "source/recovery-tools/build-firstmethod-event-diagnostic02.py.source",
+      "mode": "100644",
+      "bytes": 8984,
+      "sha256": "4ac3f745325a0f635c35d19b6569f9989619fe36b079837bd169369f4664e3cc",
+      "blob": "de9e3f2143027b933e164d42313013a4faff90a1"
+    },
+    {
+      "path": "source/recovery-tools/build-fixed2-event-diagnostic03.py.source",
+      "mode": "100644",
+      "bytes": 7377,
+      "sha256": "ea6078b591afb6cca1db65861121f7f09cc288bfc9f02e120d6be9e76a4ba46a",
+      "blob": "9a4eb015b29e680f32a5be1234e129d6afacd881"
+    },
+    {
+      "path": "source/recovery-tools/build-fixed2-event-diagnostic04.py.source",
+      "mode": "100644",
+      "bytes": 8717,
+      "sha256": "bca4c86af9104fdc3f802dce83d68bd11b8ab755ac650a4494b6876934676e64",
+      "blob": "ccd5c03ae01f3e46965f6de8a051bedbd29164e7"
+    }
+  ]
+}

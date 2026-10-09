@@ -1,0 +1,130 @@
+"""Freeze one original-method diagnostic; this builder never executes tests."""
+import ast
+import hashlib
+import json
+from pathlib import Path
+
+BASE = Path('/workspace/scratch/566f6003d85e')
+E = BASE / '755-recovery-evidence'
+original = (E / 'inline-current-newline.py').read_bytes()
+assert hashlib.sha256(original).hexdigest() == '8fe7478874c3817858dbb2eabed515dbeb78f268393577a66ba0408ee44922ff'
+tree = ast.parse(original)
+worker = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'worker')
+recorder = next(n for n in worker.body if isinstance(n, ast.ClassDef) and n.name == 'Recorder')
+lines = original.decode().splitlines(keepends=True)
+recorder_source = ''.join(lines[recorder.lineno-1:recorder.end_lineno])
+prefix = r'''"""One original method plus transparent event observations, never suite qualification."""
+from pathlib import Path
+import ast, ctypes, hashlib, importlib.util, json, os, stat, sys, traceback, unittest
+ROOT, PROGRAM = Path.cwd(), Path(__file__).resolve()
+ORIGINAL = Path('/workspace/scratch/566f6003d85e/755-recovery-evidence/inline-current-newline.py')
+raw = ORIGINAL.read_bytes()
+assert hashlib.sha256(raw).hexdigest() == '8fe7478874c3817858dbb2eabed515dbeb78f268393577a66ba0408ee44922ff'
+spec = importlib.util.spec_from_file_location('original_inline_diagnostic_helpers', ORIGINAL)
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+owned_family_close = m.owned_family_close
+encode, flat, digest = m.encode, m.flat, m.digest
+actual_fstat, actual_lstat, actual_lseek, actual_write = os.fstat, os.lstat, os.lseek, os.write
+actual_json = json.dumps
+METHOD = 'rc_pretag_collection_tests.CollectionTests.test_all_payload_descriptors_close_before_result_factory'
+def diagnostic_worker(directory):
+    sys.path.insert(0, str(ROOT / 'scripts'))
+    records, depth, entry, full_ids, group = [], 0, 'pretag-fixed-2', None, 'pretag'
+    events_path = directory / 'original-named-events.jsonl'
+    events = events_path.open('xb')
+    ordinal = 0
+    def state():
+        value = dict(closed=events.closed)
+        if not events.closed:
+            fd = events.fileno(); info = actual_fstat(fd)
+            value['fd'] = fd
+            value['held'] = dict(dev=info.st_dev, inode=info.st_ino, mode=info.st_mode, nlink=info.st_nlink, size=info.st_size)
+            value['offset'] = actual_lseek(fd, 0, os.SEEK_CUR)
+        info = actual_lstat(events_path)
+        value['path'] = dict(dev=info.st_dev, inode=info.st_ino, mode=info.st_mode, nlink=info.st_nlink, size=info.st_size)
+        return value
+    def observe(stage, **fields):
+        value = dict(diagnostic=stage, ordinal=ordinal, state=state(), **fields)
+        data = (actual_json(value, sort_keys=True, separators=(',', ':'), allow_nan=False) + '\n').encode()
+        assert len(data) <= 8192
+        assert actual_write(1, data) == len(data)
+    def event(value):
+        nonlocal ordinal
+        raw = encode(value); ordinal += 1
+        observe('event-before', payload_bytes=len(raw), payload_sha256=digest(raw), keys=sorted(value))
+        returned = events.write(raw)
+        observe('event-after-write', returned=returned)
+        assert returned == len(raw)
+        events.flush()
+        observe('event-after-flush')
+    original = unittest.TextTestRunner
+'''
+suffix = r'''
+    unittest.TextTestRunner = unittest.runner.TextTestRunner = Recorder
+    outcome = None
+    try:
+        suite = unittest.defaultTestLoader.discover('scripts', pattern='rc_pretag*_tests.py')
+        selected, full_ids = m.selected_pretag(suite, 'fixed-2')
+        cases = flat(selected)
+        assert len(full_ids) == 303 and len(cases) == 127 and cases[0].id() == METHOD
+        case = cases[0]
+        observe('before-original-method', original_method=METHOD)
+        event(dict(entry=entry, full_loaded_ids=full_ids))
+        result = unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite([case]))
+        observe('after-original-method-and-cleanup', testsRun=result.testsRun)
+        assert result.testsRun == 1 and result.wasSuccessful()
+        assert not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses
+        assert len(records) == 1
+        for field in ('raw_loaded_ids', 'raw_executed_ids', 'raw_success_ids'):
+            assert records[0][field] == [METHOD]
+        outcome = dict(diagnostic_original_method_runs=1, qualification_755_runs=0,
+            whole755_pass=False, records=records, event_callbacks=ordinal,
+            final_state=state(), method_success=True)
+    finally:
+        events.close()
+    m.write_new(directory, 'diagnostic-method-result.json', outcome)
+    return 0
+if __name__ == '__main__':
+    assert len(sys.argv) == 2
+    directory = Path(sys.argv[1]); info = directory.lstat()
+    assert directory.is_absolute() and directory.resolve() == directory
+    assert stat.S_ISDIR(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o700
+    assert info.st_uid == os.geteuid() and PROGRAM.parent == directory
+    assert list(directory.iterdir()) == [PROGRAM]
+    raise SystemExit(diagnostic_worker(directory))
+'''
+text = prefix + recorder_source + suffix
+newtree = ast.parse(text)
+newfn = next(n for n in newtree.body if isinstance(n, ast.FunctionDef) and n.name == 'diagnostic_worker')
+newrecorder = next(n for n in newfn.body if isinstance(n, ast.ClassDef) and n.name == 'Recorder')
+assert ast.dump(newrecorder, include_attributes=False) == ast.dump(recorder, include_attributes=False)
+out = E / 'firstmethod-event-diagnostic02'
+out.mkdir(mode=0o700)
+owned = out / 'owned-owner'; owned.mkdir(mode=0o700)
+program = owned / 'owner.py'; program.write_text(text)
+original_outer = (E / 'run-private755-recovery03.py').read_text()
+oldblock = original_outer[original_outer.index("        for group in module.EXPECTED:"):original_outer.index("    except BaseException: aggregate_error", original_outer.index("        for group in module.EXPECTED:"))]
+newblock = '''        assert aggregate['diagnostic_original_method_runs'] == 1 and aggregate['qualification_755_runs'] == 0
+        assert aggregate['whole755_pass'] is False and aggregate['method_success'] is True
+        assert len(aggregate['records']) == 1
+        for field in ('raw_loaded_ids', 'raw_executed_ids', 'raw_success_ids'):
+            assert aggregate['records'][0][field] == [module.METHOD]
+            ids[field] = dict(count=1, sha256=sha(module.METHOD.encode()))
+'''
+outer = original_outer.replace("OUT = BASE / 'private-engineering755-recovery03'", "OUT = BASE / 'firstmethod-event-diagnostic02'", 1)
+outer = outer.replace("assert file(PROGRAM)['sha256'] == '8fe7478874c3817858dbb2eabed515dbeb78f268393577a66ba0408ee44922ff'", "assert file(PROGRAM)['sha256'] == '" + hashlib.sha256(program.read_bytes()).hexdigest() + "'", 1)
+outer = outer.replace("aggregate = json.loads((PROGRAM.parent / 'aggregate.json').read_bytes())", "aggregate = json.loads((PROGRAM.parent / 'diagnostic-method-result.json').read_bytes())", 1)
+assert outer.count(oldblock) == 1
+outer = outer.replace(oldblock, newblock, 1)
+outer = outer.replace("original_inventory=755", "original_method_inventory=1, original_suite_reference=755, qualification_755_runs=0, whole755_pass=False", 2)
+outer = outer.replace("inner_aggregate=file(PROGRAM.parent / 'aggregate.json') if (PROGRAM.parent / 'aggregate.json').exists() else None", "inner_aggregate=file(PROGRAM.parent / 'diagnostic-method-result.json') if (PROGRAM.parent / 'diagnostic-method-result.json').exists() else None", 1)
+outer = outer.replace("macro_groups=[303,452], pretag_fresh_interpreters=3, fixed_complete_class_groups=[63,127,113], consumer_fresh_interpreters=15", "discovery_inventory=303, selected_class_inventory=127, diagnostic_fresh_interpreters=1, stdout_topology='diagnostic fd1 regular file; original shard fd1 pipe; not identical complete topology'", 1)
+outer = outer.replace("per_entry_exit_evidence='3pretag actual driver WNOWAIT-held originalPopen wait exits plus process records; consumer15 unchangedactualPopen.wait0 path+records, not independent per-entry pidfd trace'", "per_entry_exit_evidence='Single original-method diagnostic; original outside Popen/pidfd/WNOWAIT and ECHILD family closure; zero full755 qualification'", 1)
+ast.parse(outer)
+supervisor = E / 'run-firstmethod-event-diagnostic02.py'; supervisor.write_text(outer)
+proof = dict(scope='Source freeze only; actual original method not yet invoked', original_inline_sha256=hashlib.sha256(original).hexdigest(), original_recorder_ast_exact=True,
+    worker=dict(path=str(program), bytes=program.stat().st_size, sha256=hashlib.sha256(program.read_bytes()).hexdigest()),
+    supervisor=dict(path=str(supervisor), bytes=supervisor.stat().st_size, sha256=hashlib.sha256(supervisor.read_bytes()).hexdigest()),
+    qualification_755_runs=0, original_method_runs_so_far=0)
+(E / 'FIRSTMETHOD-EVENT-DIAGNOSTIC02-SOURCE-FREEZE.json').write_text(json.dumps(proof, sort_keys=True, indent=2)+'\n')
+print(json.dumps(proof, sort_keys=True))

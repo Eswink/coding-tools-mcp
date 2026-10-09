@@ -1,0 +1,75 @@
+{
+  "source_only": true,
+  "actualqualified": false,
+  "source_code_files": 14,
+  "source_spec_files": 3,
+  "effects_by_backup_agent": 0,
+  "diagnostic01": {
+    "status": "PRELAUNCH_BLOCKED",
+    "SUT_runs": 0,
+    "cause": "metadata"
+  },
+  "diagnostic02": {
+    "status": "ONE_ORIGINAL_METHOD_PASS",
+    "seconds": 2.010654,
+    "original_method_runs": 1,
+    "events": 5,
+    "observations": 17,
+    "qualification_755_runs": 0,
+    "original03_mechanism_reproduced": false
+  },
+  "diagnostic03": {
+    "status": "PRELAUNCH_BLOCKED",
+    "SUT_runs": 0,
+    "cause": "BufferedReader.close may block while reader thread alive"
+  },
+  "diagnostic04": {
+    "status_at_source_stop_seal": "NOTRUN; awaiting independent prelaunch review",
+    "source_included": true,
+    "worker_identical03": true,
+    "qualification_755_runs": 0,
+    "close_policy": "Started reader gets bounded join only for remaining original2second lease; stillalive retains UNKNOWN/skipsclose. identNone/unstarted gets nojoin/skipsclose. If no reader object exists or started reader retired, attempt original pipe close once.",
+    "current_root_reported_status": "Naturally exited0 and owned family closed; actual127 original diagnostic methods passed. Full755 qualification0; originalfull75503 eventloss not reproduced.",
+    "actual_original_methods": {
+      "loaded": 127,
+      "executed": 127,
+      "success": 127,
+      "three_name_sets_exact_equal": true,
+      "three_name_set_sha256_prefix_reported": "026f",
+      "seconds": 248.372257657
+    },
+    "safe_runtime_summary": {
+      "raw_event_count": 257,
+      "raw_event_bytes": 194377,
+      "raw_event_sha256": "b5512d447529cdaff7e9cd70b72be44a79138a50a442616f02c87aed95fb283a",
+      "outer_receipt_sha256": "f913392fca2e980209e0afd2d31220b614f44e96ab69d77d99174e911e6018a3",
+      "all_source_runtime_native_refs_unchanged": true,
+      "raw_event_receipt_files_uploaded": false,
+      "reported_by": "root; not run by backup agent"
+    }
+  },
+  "original_full755_run03": {
+    "status": "FAILED",
+    "all755_named_success_is_whole_pass": false
+  },
+  "excluded": [
+    "all raw runtime observations and receipts",
+    "TLS/keys/env/cookies/headers",
+    "compiled bytecode/cache",
+    "relocation data/native object database/Git internals",
+    "raw stopseal/runtime/proc observations/host values"
+  ],
+  "first12_specs": "Exact earlier03-blocked snapshot preserved; not latest author specs",
+  "control04": {
+    "status": "ACTUAL_FAILED",
+    "SUT_runs": 0,
+    "cause": "proc namespace/native thread mapping and fileclosed assertion; failure retained"
+  },
+  "control05": {
+    "status": "ACTUAL4_ORDINARY_PIPE_CONTROLS_PASS",
+    "SUT_runs": 0,
+    "same_helper_AST_sha256_prefix": "1cc6d7",
+    "scope": "ordinary pipe nativepidfd/wait/reap/ECHILD; not publisher/nativeinstaller/SUTgate/grant"
+  },
+  "method_cause": "UNKNOWN; original03 mechanism not reproduced"
+}

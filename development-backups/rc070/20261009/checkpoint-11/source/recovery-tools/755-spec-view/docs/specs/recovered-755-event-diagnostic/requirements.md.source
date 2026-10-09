@@ -1,0 +1,30 @@
+# Recovered 755 event diagnostic
+
+## 功能概述
+Diagnose the actual failed03 event boundary on one original test method with transparent external observations. Source b227 and all failed03 receipts are immutable.
+
+## 需求列表
+
+### FR-1 — Exact original input
+The diagnostic SHALL execute exactly the127 original fixed-2 selected methods with their original order, setUp, bodies, tearDown and cleanup. Pin original Recorder AST and b227 full1849 source, original glib fixture and actual runtime. The127-method diagnostic grants zero full755 qualifications.
+
+### FR-2 — Transparent events
+Preserve one original write, original equality assertion and one original flush per event in the same order. Observe callback ordinal, payload length/hash, return and held fd/dev/inode/mode/nlink/offset/file-size versus pathname before/after and original method lifecycle, never locals/token/TLS/exception arbitrary text. Never second-write or synthesize missing events; the same exception propagates.
+
+### FR-3 — Actual ownership
+Use original created Popen/pidfd/WNOWAIT-held PID/session/group identity, ordinary subreaper and complete ECHILD retirement, source/runtime/native/ref before/after. Bound diagnosis1200 seconds with original7/2/2 cleanup, no deadline renewal, no adoption of unrelated processes and no relaxed source/ref/object equality. Actual unavailable state is failed/UNKNOWN.
+
+### FR-4 — Evidence scope
+Keep raw callback observations and original named event file separate from the immutable failed03 evidence. Independent review is mandatory before execution. Report actual original-method runs127 only if all127 actually run and full755 qualification runs0; never fabricate events or promote previous755 named success into wholePASS. Only a diagnosed finite correction may be proposed later.
+
+## 非功能需求
+No projectsource edit, privilege/compiler/global install, user/prod effects, Release/tag/version/authorization/snapshot/PR98 boundary change.
+
+## 依赖关系
+Pinned8fe original inline, pureb227 private fullsource, real native runtime and original glib archive.
+
+## 已完成首方法诊断与下一有限范围
+Diagnostic02 actually ran1 originalmethod and5events intact; original03 mechanism was not reproduced. Preserve02source/raw observations/17callbacks/oneactualsuccess and0qualification. Diagnostic03 next observes only unchanged selectedfixed2 all127 in originalorder, stdout1 pipe with bounded private2MiB drain and same1200/7/2/2 owner lease; 303 are full discovery,127 are selected/executed only if actual. Original17 observed rows were mixed with unitteststderr on one rawline; parse actualJSON frames without inventing observations. Keep5method result evidence andoriginal03FAIL immutable; no whole755 rerun.
+
+## 管道读取线程暂停边界
+Diagnostic03 remains prelaunchBLOCKED0SUT: if the bounded reader has not retired, cross-thread BufferedReader.close may wait forever. Diagnostic04 must skip close while that reader remainsalive, retain output-closure UNKNOWN/failure and original family_deadline2 without renewal; only a retired/notstarted reader permits original close once. No unbounded join/close, no new relay/native permission.

@@ -1,0 +1,104 @@
+"""127 originalfixed2 methods plus transparent event observations, never suite qualification."""
+from pathlib import Path
+import ast, ctypes, hashlib, importlib.util, json, os, stat, sys, traceback, unittest
+ROOT, PROGRAM = Path.cwd(), Path(__file__).resolve()
+ORIGINAL = Path('/workspace/scratch/566f6003d85e/755-recovery-evidence/inline-current-newline.py')
+raw = ORIGINAL.read_bytes()
+assert hashlib.sha256(raw).hexdigest() == '8fe7478874c3817858dbb2eabed515dbeb78f268393577a66ba0408ee44922ff'
+spec = importlib.util.spec_from_file_location('original_inline_diagnostic_helpers', ORIGINAL)
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+owned_family_close = m.owned_family_close
+encode, flat, digest = m.encode, m.flat, m.digest
+actual_fstat, actual_lstat, actual_lseek, actual_write = os.fstat, os.lstat, os.lseek, os.write
+actual_json = json.dumps
+SELECTED_IDS = ['rc_pretag_collection_tests.CollectionTests.test_all_payload_descriptors_close_before_result_factory', 'rc_pretag_collection_tests.CollectionTests.test_corrupt_actual_zip_stops_before_parser', 'rc_pretag_collection_tests.CollectionTests.test_post_content_fences_reject_mutation_without_reselection', 'rc_pretag_collection_tests.CollectionTests.test_real_current_pipeline_yields_only_bounded_blocked_observation', 'rc_pretag_collection_tests.CollectionTests.test_shared_pipeline_failure_edges_stop_in_exact_order', 'rc_pretag_collection_tests.FailureTests.test_closed_failure_schema_and_sticky_cleanup_uncertainty', 'rc_pretag_collection_tests.FailureTests.test_exact_success_and_failure_caps_include_newline', 'rc_pretag_collection_tests.FailureTests.test_interrupt_timeout_and_unknown_codes_never_claim_cleanup', 'rc_pretag_collection_tests.FailureTests.test_saved_receipt_plan_or_success_dictionary_cannot_be_encoded', 'rc_pretag_collection_tests.OutputLifecycleTests.test_anchored_handoff_rejects_symlink_hardlink_outside_missing', 'rc_pretag_collection_tests.OutputLifecycleTests.test_cleanup_uncertainty_survives_later_close_and_report_errors', 'rc_pretag_collection_tests.OutputLifecycleTests.test_cli_failures_and_cancellation_emit_only_sanitized_nonzero', 'rc_pretag_collection_tests.OutputLifecycleTests.test_cli_token_popped_before_every_git_and_child_and_released', 'rc_pretag_collection_tests.OutputLifecycleTests.test_freeform_fields_never_cross_allowlist', 'rc_pretag_collection_tests.OutputLifecycleTests.test_handoff_consumes_close_authority_once_and_bounds_full_line', 'rc_pretag_collection_tests.OutputLifecycleTests.test_handoff_write_flush_fsync_close_failure_is_terminal', 'rc_pretag_collection_tests.OutputLifecycleTests.test_mutated_raw_and_non_record_output_are_rejected', 'rc_pretag_collection_tests.OutputLifecycleTests.test_numeric_boolean_nonfinite_and_content_authority_rejected', 'rc_pretag_collection_tests.OutputLifecycleTests.test_private_single_file_closed_before_handoff', 'rc_pretag_collection_tests.OutputLifecycleTests.test_report_exclusive_nofollow_and_owner_reject', 'rc_pretag_collection_tests.OutputLifecycleTests.test_report_mode_hardlink_inode_and_root_replacement_reject', 'rc_pretag_collection_tests.OutputLifecycleTests.test_report_write_flush_fsync_close_readback_and_root_close_fail', 'rc_pretag_composition_tests.CompositionTests.test_adopted_contracts_are_byte_identical', 'rc_pretag_composition_tests.CompositionTests.test_candidate_requires_j_first_parent_and_pure_profile', 'rc_pretag_composition_tests.CompositionTests.test_consumer_inverse_reconstructs_pinned_j', 'rc_pretag_composition_tests.CompositionTests.test_exact_tracked_tree_modes_and_scope', 'rc_pretag_composition_tests.CompositionTests.test_extraction_mutations_do_not_reconstruct_j', 'rc_pretag_composition_tests.CompositionTests.test_finite_review_budgets', 'rc_pretag_composition_tests.CompositionTests.test_fixture_workflow_triggers_and_no_duplicate_regressions', 'rc_pretag_composition_tests.CompositionTests.test_live_workflow_exact_execution_envelope', 'rc_pretag_composition_tests.CompositionTests.test_no_new_publication_or_alternate_validator', 'rc_pretag_composition_tests.CompositionTests.test_original_transport_asts_and_supervisor', 'rc_pretag_composition_tests.CompositionTests.test_pure_and_exact_pr89_profiles_accept', 'rc_pretag_composition_tests.CompositionTests.test_pure_profile_preserves_exact_j_source_and_docs', 'rc_pretag_composition_tests.CompositionTests.test_snapshot_inverse_reconstructs_pinned_j', 'rc_pretag_composition_tests.CompositionTests.test_source_reader_rejects_ambient_git_redirection', 'rc_pretag_composition_tests.CompositionTests.test_synthetic_overlay_rejects_doc_mode_path_and_deletion_mutations', 'rc_pretag_composition_tests.CompositionTests.test_synthetic_parent_shape_rejects_unknown_reversed_extra_nested', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_amendment_chain_and_wrong_parent_reject_before_content', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_amendment_scope_pins_and_budgets_reject_drift', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_composition_adapter_reconstructs_frozen_x', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_desktop_missing_extra_rename_and_type_mutations_reject', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_each_desktop_blob_and_hash_mutation_rejects', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_each_historical_protected_entry_remains_exact', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_engineering_scope_and_false_claim_boundaries', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_exact_feature_merge_accepts_equal_tree', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_exact_release_overlay_accepts_four_documents', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_exact_source_and_one_amendment_accept', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_exact_x_preserves_legacy_profile_and_pins', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_git_context_isolation_and_topology_only_dispatch', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_immutable_source_prefix_and_thirteen_additions', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_legacy_inventory_and_new_named_inventory_are_exact', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_merge_tree_drift_rejects_after_valid_topology', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_missing_reversed_duplicate_and_extra_parents_reject_before_content', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_nested_merge_release_and_postmerge_descendants_reject_before_content', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_only_pinned_collector_executable_mode_accepts', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_release_overlay_path_mode_byte_and_deletion_drift_rejects', 'rc_pretag_desktop_tests.DesktopCompositionTests.test_wrong_root_and_tree_equal_anchor_reject_before_content', 'rc_pretag_identity_tests.PreTagIdentityTests.test_all_invocation_integer_fields_reject_boolean_float_string', 'rc_pretag_identity_tests.PreTagIdentityTests.test_artifact_source_current_attempt_job_and_outer_digest_binding', 'rc_pretag_identity_tests.PreTagIdentityTests.test_bounded_json_bytes_depth_arrays_strings', 'rc_pretag_identity_tests.PreTagIdentityTests.test_candidate_and_empty_full_receipts_roundtrip', 'rc_pretag_identity_tests.PreTagIdentityTests.test_candidate_does_not_accept_tag_objects_or_bypass_modes', 'rc_pretag_identity_tests.PreTagIdentityTests.test_candidate_invocation_source_tree_version_binding', 'rc_pretag_identity_tests.PreTagIdentityTests.test_clean_six_versions_gateway_and_manifest_fields', 'rc_pretag_identity_tests.PreTagIdentityTests.test_consumer_and_integration_attempt3_remain_supported', 'rc_pretag_identity_tests.PreTagIdentityTests.test_consumer_push_is_not_dispatch', 'rc_pretag_identity_tests.PreTagIdentityTests.test_every_candidate_field_required_no_extra_keys', 'rc_pretag_identity_tests.PreTagIdentityTests.test_every_selected_job_source_attempt_id_and_time_binding', 'rc_pretag_identity_tests.PreTagIdentityTests.test_exact_four_payload_inventory_and_no_paths', 'rc_pretag_identity_tests.PreTagIdentityTests.test_final_attempt1_and_push_candidate_only', 'rc_pretag_identity_tests.PreTagIdentityTests.test_immutable_nested_records', 'rc_pretag_identity_tests.PreTagIdentityTests.test_json_duplicate_keys_nonfinite_and_malformed_utf8', 'rc_pretag_identity_tests.PreTagIdentityTests.test_missing_spoofed_or_foreign_workflow_identity', 'rc_pretag_identity_tests.PreTagIdentityTests.test_nested_unknown_fields_and_non_integer_schema', 'rc_pretag_identity_tests.PreTagIdentityTests.test_only_canonical_numbered_rc_versions', 'rc_pretag_identity_tests.PreTagIdentityTests.test_pretag_branch_binds_version_nonce_and_actual_shape', 'rc_pretag_identity_tests.PreTagIdentityTests.test_raw_audit_findings_retained_and_counts_strict', 'rc_pretag_identity_tests.PreTagIdentityTests.test_receipt_cannot_claim_collection_success_or_finalization', 'rc_pretag_identity_tests.PreTagIdentityTests.test_receipt_selected_source_and_role_bound', 'rc_pretag_identity_tests.PreTagIdentityTests.test_remote_absence_needs_observed_visibility_but_stays_unverified', 'rc_pretag_identity_tests.PreTagIdentityTests.test_selected_runs_current_attempt_newest_job_inventory', 'rc_pretag_identity_tests.PreTagIdentityTests.test_sha_tree_canonical_lowercase_and_length', 'rc_pretag_identity_tests.PreTagIdentityTests.test_source_exact_repository_and_numeric_types', 'rc_pretag_identity_tests.PreTagIdentityTests.test_structural_original_text_and_false_flags_preserved', 'rc_pretag_identity_tests.PreTagReviewIdentityTests.test_actual_integration_pr_ref_and_event_shapes_are_bound', 'rc_pretag_identity_tests.PreTagReviewIdentityTests.test_overlong_json_integer_has_fixed_error_without_raw_parser_text', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_baseline_overlay_preserves_exact_m_production_prefix', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_current_adapter_inverses_recover_complete_m_bytes', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_direct_child_accepts_only_seventeen_reviewed_paths', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_exact_283_plus_20_inventory_loaded_and_executed', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_exact_m_anchor_tree_parents_and_historical_validation', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_four_runtime_blobs_and_shared_regressions_match_reviewed_donor', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_historical_profiles_pins_shapes_and_ownership_bytes_are_immutable', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_individual_and_aggregate_budgets_reject', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_mechanical_supervisor_extraction_preserves_tokens_and_outcomes', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_missing_extra_rename_mode_symlink_gitlink_binary_reject', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_missing_reversed_extra_duplicate_nested_parents_reject', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_mutable_refs_and_ambient_git_cannot_change_identity', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_native_witness_and_candidate_parsers_reject_false_evidence', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_ordered_feature_merge_requires_entire_child_tree', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_protected_scope_versions_runtime_and_old452_are_unchanged', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_publication_helper_extraction_preserves_twenty_tests_and_assertions', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_release_overlay_requires_exact_four_r_documents', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_selected_content_failure_is_terminal_without_fallback', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_unknown_same_tree_anchors_and_correction_chains_reject', 'rc_pretag_join_once_tests.JoinOnceCompositionTests.test_workflow_inverse_allows_only_m_base_tree_and_branch', 'rc_pretag_nginx_tests.NginxCompositionTests.test_amendment_chains_nested_merges_and_postmerge_descendants_reject', 'rc_pretag_nginx_tests.NginxCompositionTests.test_amendment_pins_scope_individual_and_total_budgets_reject', 'rc_pretag_nginx_tests.NginxCompositionTests.test_composition_adapter_inverse_recovers_exact_f', 'rc_pretag_nginx_tests.NginxCompositionTests.test_desktop_fixture_adapter_preserves_historical_assertions', 'rc_pretag_nginx_tests.NginxCompositionTests.test_each_historical_protected_entry_and_version_slot_remains_exact', 'rc_pretag_nginx_tests.NginxCompositionTests.test_each_nine_source_blob_and_sha256_mutation_rejects', 'rc_pretag_nginx_tests.NginxCompositionTests.test_exact_f_anchor_parent_tree_and_legacy_validation', 'rc_pretag_nginx_tests.NginxCompositionTests.test_exact_historical_profiles_and_pins_remain_unchanged', 'rc_pretag_nginx_tests.NginxCompositionTests.test_exact_ordered_feature_merge_equals_source_tree', 'rc_pretag_nginx_tests.NginxCompositionTests.test_exact_p_and_single_reviewed_amendment_accept', 'rc_pretag_nginx_tests.NginxCompositionTests.test_exact_release_overlay_contains_only_four_pinned_documents', 'rc_pretag_nginx_tests.NginxCompositionTests.test_frozen_167_plus_20_inventory_has_exact_loaded_and_executed_ids', 'rc_pretag_nginx_tests.NginxCompositionTests.test_missing_extra_renamed_mode_symlink_and_gitlink_entries_reject', 'rc_pretag_nginx_tests.NginxCompositionTests.test_missing_unknown_and_same_tree_impostor_anchors_reject', 'rc_pretag_nginx_tests.NginxCompositionTests.test_mutable_refs_and_ambient_git_redirection_cannot_change_identity', 'rc_pretag_nginx_tests.NginxCompositionTests.test_p_source_has_only_nine_exact_additions', 'rc_pretag_nginx_tests.NginxCompositionTests.test_release_document_byte_mode_path_and_deletion_drift_rejects', 'rc_pretag_nginx_tests.NginxCompositionTests.test_reversed_duplicate_missing_and_extra_parents_reject_before_content', 'rc_pretag_nginx_tests.NginxCompositionTests.test_topology_only_dispatch_keeps_legacy_content_failures_terminal', 'rc_pretag_nginx_tests.NginxCompositionTests.test_unknown_profile_versions_and_native_release_claims_reject']
+METHOD = 'rc_pretag_collection_tests.CollectionTests.test_all_payload_descriptors_close_before_result_factory'
+def diagnostic_worker(directory):
+    sys.path.insert(0, str(ROOT / 'scripts'))
+    records, depth, entry, full_ids, group = [], 0, 'pretag-fixed-2', None, 'pretag'
+    events_path = directory / 'original-named-events.jsonl'
+    events = events_path.open('xb')
+    ordinal = 0
+    def state():
+        value = dict(closed=events.closed)
+        if not events.closed:
+            fd = events.fileno(); info = actual_fstat(fd)
+            value['fd'] = fd
+            value['held'] = dict(dev=info.st_dev, inode=info.st_ino, mode=info.st_mode, nlink=info.st_nlink, size=info.st_size)
+            value['offset'] = actual_lseek(fd, 0, os.SEEK_CUR)
+        info = actual_lstat(events_path)
+        value['path'] = dict(dev=info.st_dev, inode=info.st_ino, mode=info.st_mode, nlink=info.st_nlink, size=info.st_size)
+        return value
+    def observe(stage, **fields):
+        value = dict(diagnostic=stage, ordinal=ordinal, state=state(), **fields)
+        data = (actual_json(value, sort_keys=True, separators=(',', ':'), allow_nan=False) + '\n').encode()
+        assert len(data) <= 8192
+        assert actual_write(1, data) == len(data)
+    def event(value):
+        nonlocal ordinal
+        raw = encode(value); ordinal += 1
+        observe('event-before', payload_bytes=len(raw), payload_sha256=digest(raw), keys=sorted(value))
+        returned = events.write(raw)
+        observe('event-after-write', returned=returned)
+        assert returned == len(raw)
+        events.flush()
+        observe('event-after-flush')
+    original = unittest.TextTestRunner
+    class Recorder(original):
+        def __init__(self, *args, **kwargs):
+            base = kwargs.get('resultclass') or self.resultclass
+            class Named(base):
+                def __init__(self, *args, **kwargs): super().__init__(*args, **kwargs); self.owned_executed, self.owned_success = [], []
+                def startTest(self, test): self.owned_executed.append(test.id()); event(dict(entry=entry, start=test.id())); super().startTest(test)
+                def addSuccess(self, test): self.owned_success.append(test.id()); event(dict(entry=entry, success=test.id())); super().addSuccess(test)
+            if depth == 0: kwargs['resultclass'] = Named
+            super().__init__(*args, **kwargs)
+        def run(self, suite):
+            nonlocal depth; outer, loaded = depth == 0, [case.id() for case in flat(suite)]
+            if outer: event(dict(entry=entry, loaded_ids=loaded))
+            depth += 1
+            try: result = super().run(suite)
+            finally: depth -= 1
+            if outer:
+                canonical = lambda ids: [entry + value[len('__main__'):] if value.startswith('__main__.') else value for value in ids]
+                record = dict(entry=entry, process=dict(pid=os.getpid(), parent=os.getppid(), pgrp=os.getpgrp()), raw_loaded_ids=loaded, raw_executed_ids=result.owned_executed,
+                    raw_success_ids=result.owned_success, loaded_ids=canonical(loaded),
+                    executed_ids=canonical(result.owned_executed), success_ids=canonical(result.owned_success),
+                    testsRun=result.testsRun, passed=result.wasSuccessful(), exceptional=len(result.skipped) +
+                    len(result.expectedFailures) + len(result.unexpectedSuccesses) + len(result.errors) + len(result.failures))
+                if group == 'pretag': record['full_loaded_ids'] = full_ids
+                records.append(record); event(dict(result=record))
+            return result
+
+    unittest.TextTestRunner = unittest.runner.TextTestRunner = Recorder
+    outcome = None
+    try:
+        suite = unittest.defaultTestLoader.discover('scripts', pattern='rc_pretag*_tests.py')
+        selected, full_ids = m.selected_pretag(suite, 'fixed-2')
+        cases = flat(selected)
+        assert len(full_ids) == 303 and len(cases) == 127 and cases[0].id() == METHOD
+        assert [case.id() for case in cases] == SELECTED_IDS
+        observe('before-original-fixed2', actual_selected=127)
+        event(dict(entry=entry, full_loaded_ids=full_ids))
+        result = unittest.TextTestRunner(verbosity=2).run(selected)
+        observe('after-original-fixed2-and-cleanup', testsRun=result.testsRun)
+        assert result.testsRun == 127 and result.wasSuccessful()
+        assert not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses
+        assert len(records) == 1
+        for field in ('raw_loaded_ids', 'raw_executed_ids', 'raw_success_ids'):
+            assert records[0][field] == SELECTED_IDS
+        outcome = dict(diagnostic_original_method_runs=127, qualification_755_runs=0,
+            whole755_pass=False, records=records, event_callbacks=ordinal,
+            final_state=state(), method_success=True)
+    finally:
+        events.close()
+    m.write_new(directory, 'diagnostic-method-result.json', outcome)
+    return 0
+if __name__ == '__main__':
+    assert len(sys.argv) == 2
+    directory = Path(sys.argv[1]); info = directory.lstat()
+    assert directory.is_absolute() and directory.resolve() == directory
+    assert stat.S_ISDIR(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o700
+    assert info.st_uid == os.geteuid() and PROGRAM.parent == directory
+    assert list(directory.iterdir()) == [PROGRAM]
+    raise SystemExit(diagnostic_worker(directory))

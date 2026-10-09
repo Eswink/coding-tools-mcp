@@ -1,0 +1,92 @@
+"""Real ordinary pipe-lock controls; zero repository test methods imported or run."""
+import ast
+import hashlib
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import threading
+import time
+
+B = Path(__file__).parent
+program = B / 'run-fixed2-event-diagnostic04.py'
+raw = program.read_bytes()
+assert hashlib.sha256(raw).hexdigest() == '37a37cb520bceb9a92c217ded54f9e1ddd284ad3cfb7cf3edbee8d95b47f139d'
+node = next(n for n in ast.parse(raw).body if isinstance(n, ast.FunctionDef) and n.name == 'diagnostic_reader_finish')
+namespace = dict(time=time)
+exec(compile(ast.Module(body=[node], type_ignores=[]), str(program), 'exec'), namespace)
+finish = namespace['diagnostic_reader_finish']
+out = B / 'diagnostic-reader-controls05'; out.mkdir(mode=0o700)
+results = []
+
+# Hold a real BufferedReader lock in readline, then demonstrate the old cross-thread
+# close remains blocked past a short diagnostic lease. No fake reader/close methods.
+actor = "import signal,time;signal.signal(signal.SIGTERM,signal.SIG_IGN);print('READY',flush=True);time.sleep(60)"
+process = subprocess.Popen([sys.executable, '-B', '-c', actor], stdin=subprocess.DEVNULL,
+    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True)
+pidfd = os.pidfd_open(process.pid)
+reader = closer = None
+try:
+    assert process.stdout.readline() == b'READY\n'
+    ready = threading.Event()
+    def actual_read():
+        ready.set()
+        process.stdout.readline()
+    reader = threading.Thread(target=actual_read, daemon=True); reader.start()
+    assert ready.wait(1) and reader.is_alive()
+    closer = threading.Thread(target=process.stdout.close, daemon=True); closer.start(); closer.join(.03)
+    assert closer.is_alive(), 'Actual old cross-thread close did not demonstrate lock hold'
+    errors = []; started = time.monotonic()
+    assert finish(reader, process.stdout, time.monotonic() + .01, errors) is False
+    seconds = time.monotonic() - started
+    assert seconds < .15 and reader.is_alive() and closer.is_alive()
+    assert errors == ['diagnostic_drain_not_closed_within_original_family_lease']
+    results.append(dict(case='actual_live_reader_lock_old_close_blocked_new_unknown_returns',
+        passed=True, seconds=seconds, native_reader_id=reader.native_id, actual_close_thread_blocked=True, no_repository_tests=True))
+finally:
+    observed = os.waitid(os.P_PIDFD, pidfd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+    if observed is None:
+        signal.pidfd_send_signal(pidfd, signal.SIGKILL)
+        end = time.monotonic() + 2
+        while observed is None and time.monotonic() < end:
+            observed = os.waitid(os.P_PIDFD, pidfd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            if observed is None: time.sleep(.001)
+    assert observed is not None and observed.si_pid == process.pid
+    assert os.getpgid(process.pid) == os.getsid(process.pid) == process.pid
+    code = process.wait(timeout=0)
+    assert code == (observed.si_status if observed.si_code == os.CLD_EXITED else -observed.si_status)
+    if reader is not None: reader.join(1); assert not reader.is_alive()
+    if closer is not None: closer.join(1); assert not closer.is_alive()
+    if not process.stdout.closed: process.stdout.close()
+    assert process.stdout.closed
+    os.close(pidfd)
+
+rfd, wfd = os.pipe(); pipe = os.fdopen(rfd, 'rb'); unstarted = threading.Thread(target=pipe.readline)
+try:
+    errors = []; started = time.monotonic()
+    assert finish(unstarted, pipe, time.monotonic(), errors) is False
+    assert not pipe.closed and errors == ['diagnostic_reader_start_not_confirmed_output_closure_unknown']
+    results.append(dict(case='actual_unstarted_reader_is_unknown_and_not_joined_or_closed', passed=True,
+        seconds=time.monotonic()-started, no_repository_tests=True))
+finally:
+    os.close(wfd); pipe.close()
+
+rfd, wfd = os.pipe(); pipe = os.fdopen(rfd, 'rb'); os.close(wfd)
+reader = threading.Thread(target=pipe.readline); reader.start(); reader.join(1)
+assert not reader.is_alive()
+errors = []; assert finish(reader, pipe, time.monotonic(), errors) is True and pipe.closed and not errors
+results.append(dict(case='actual_retired_reader_permits_one_close', passed=True, no_repository_tests=True))
+rfd, wfd = os.pipe(); pipe = os.fdopen(rfd, 'rb'); os.close(wfd)
+errors = []; assert finish(None, pipe, time.monotonic(), errors) is True and pipe.closed and not errors
+results.append(dict(case='no_created_reader_permits_one_close', passed=True, no_repository_tests=True))
+try: remaining = os.waitid(os.P_ALL, 0, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+except ChildProcessError: remaining = 'ECHILD'
+assert remaining == 'ECHILD'
+report = dict(scope='Four actual ordinary native-pipe controls only; original127 methods and755 qualification not run',
+    passed=True, SUT_methods=0, supervisor_sha256=hashlib.sha256(raw).hexdigest(),
+    helper_AST_sha256=hashlib.sha256(ast.dump(node, include_attributes=False).encode()).hexdigest(),
+    actual_child_WNOWAIT=list(observed), actual_child_exit=code, kernel_family='ECHILD', cases=results)
+(out / 'SUMMARY.json').open('x').write(json.dumps(report, sort_keys=True, indent=2)+'\n')
+print(json.dumps(report, sort_keys=True))
