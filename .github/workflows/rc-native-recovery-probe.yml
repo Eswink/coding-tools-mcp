@@ -18,6 +18,12 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Check original native Git flags before source restoration
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/bin/git --no-pager --no-replace-objects --no-optional-locks --no-lazy-fetch -c core.hooksPath=/dev/null -c core.fsmonitor=false -c core.untrackedCache=false -c credential.helper= -c protocol.allow=never --version
       - name: Fixed source objects and official existing test data only
         shell: bash
         run: |
