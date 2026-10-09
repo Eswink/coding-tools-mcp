@@ -1,0 +1,119 @@
+{
+  "files": [
+    {
+      "bytes": 215,
+      "gitMode": "100644",
+      "path": "CHECK-SPEC-SAFE.json",
+      "sha256": "b9a3cc47626d5ea33504d42b1b866453c7e89ffb5caedadfa5a5c9262c7d0e27"
+    },
+    {
+      "bytes": 156,
+      "gitMode": "100644",
+      "path": "DETECT-CHANGES-SAFE.json",
+      "sha256": "9e93e590e6e936ca9c3f54d8cfe274a0b0426bcd212967b85612b293def7c0ce"
+    },
+    {
+      "bytes": 2369,
+      "gitMode": "100644",
+      "path": "FRESH-IMPACTS-SAFE.json",
+      "sha256": "052e34475e19f8720794ad05e9f1c9b0aa5632d24ba43e8a3228e1d4e37bfe6e"
+    },
+    {
+      "bytes": 68,
+      "gitMode": "100644",
+      "path": "GENCOMMIT-SAFE.json",
+      "sha256": "4f9ce8bfa42cf404ec9c8f949af218a76f3565e5be1dd95951e901b740f94184"
+    },
+    {
+      "bytes": 2997,
+      "gitMode": "100644",
+      "path": "ORDINARY-CONTROLS-SAFE.json",
+      "sha256": "5109f4b4994de697e54ae5e4b7116d805b92e7bdfb13531524459c480001b512"
+    },
+    {
+      "bytes": 1059,
+      "gitMode": "100644",
+      "path": "README.md",
+      "sha256": "229910646b6df59834ba83c3ff36db270f94675c2b3e050b7ee821e0e5016d0c"
+    },
+    {
+      "bytes": 495136,
+      "gitMode": "100644",
+      "path": "SOURCE-CURRENT-LEASES-SAFE.json",
+      "sha256": "934f4abcbbbc3848ed266a4e6cc04a74fa9a97e4f4767f69304b88b7ad5d794a"
+    },
+    {
+      "bytes": 703,
+      "gitMode": "100644",
+      "path": "SOURCE-STATUS.json",
+      "sha256": "7fe5b0c47143ecd3ffbb7f7185fce86cad1d09c534f93700ebf894feb5e23e65"
+    },
+    {
+      "bytes": 2230,
+      "gitMode": "100644",
+      "path": "source/.github/workflows/rc-disposable-publisher-compat.yml",
+      "sha256": "31ebdb695924942d09e51339d7b282179f85a247d662ffb7e054f76fb0dc1256"
+    },
+    {
+      "bytes": 7104,
+      "gitMode": "100644",
+      "path": "source/docs/specs/issue88-disposable-publisher-git-role/design.md",
+      "sha256": "2e1304aa713e82296467ad73af192ba9082ba79c9f86032ebd450862533f7a3d"
+    },
+    {
+      "bytes": 6217,
+      "gitMode": "100644",
+      "path": "source/docs/specs/issue88-disposable-publisher-git-role/requirements.md",
+      "sha256": "569e6fd3a1424ea087e993fe8dab9e59db9caf176559aeb924ea67a23c59552e"
+    },
+    {
+      "bytes": 2230,
+      "gitMode": "100644",
+      "path": "source/docs/specs/issue88-disposable-publisher-git-role/tasks.md",
+      "sha256": "f64b5578e5e1ed3e57d8083fe5d1a0bc42c9eabdf088b359cdba1e9c57a6ea74"
+    },
+    {
+      "bytes": 26189,
+      "gitMode": "100644",
+      "path": "source/scripts/rc_disposable_ci_controls.py",
+      "sha256": "ccbe17d2f71a347ea4c58e89c89ea7a71e10a983c484996677f7cb3485871700"
+    },
+    {
+      "bytes": 25263,
+      "gitMode": "100644",
+      "path": "source/scripts/rc_disposable_git_prepare.py",
+      "sha256": "2e32c12224f7641a8f340f0604006fd52fa6ec96f14ad2465313d690032186a4"
+    },
+    {
+      "bytes": 10817,
+      "gitMode": "100644",
+      "path": "source/scripts/rc_disposable_git_role_install.py",
+      "sha256": "2a92ba1366a603dc0139d538b5667ed74120444ea0f824349c0041ff65252c51"
+    },
+    {
+      "bytes": 18322,
+      "gitMode": "100644",
+      "path": "source/scripts/rc_disposable_public_projection.py",
+      "sha256": "296044180d6b0e076781a7caeb85c388613d6a37ce9708f3564d0774f9bbb521"
+    },
+    {
+      "bytes": 15254,
+      "gitMode": "100644",
+      "path": "source/scripts/rc_disposable_publisher_probe.py",
+      "sha256": "a42767619bc2b7fd62b8238ecbcd6658851c56994955137825e38b5a613a0382"
+    },
+    {
+      "bytes": 37979,
+      "gitMode": "100644",
+      "path": "source/scripts/rc_disposable_vendor/owned_debian_msgfmt_prepare.py",
+      "sha256": "382f47e98cb5e782e4080f781ba930a42a265a5d83250507199045b1d28ba0aa"
+    },
+    {
+      "bytes": 40784,
+      "gitMode": "100644",
+      "path": "source/scripts/rc_disposable_vendor/owned_git_prepare_v4.py",
+      "sha256": "a21b053058b1365d5b547c4983a3338ba8f3b4b844d16fc795bcd0c31a1bbe48"
+    }
+  ],
+  "scope": "source only"
+}

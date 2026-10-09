@@ -1,0 +1,9 @@
+{
+  "completeNativeAuditJSON": true,
+  "dependencyCount": 216,
+  "vulnerabilities": 0,
+  "ignore": [],
+  "targetFilters": [],
+  "warnings": {},
+  "scope": "AUDIT_ONLY_NOT_BUILD_INSTALL_RELEASE"
+}

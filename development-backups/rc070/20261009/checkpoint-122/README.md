@@ -1,0 +1,7 @@
+# Cargo02 partial safe source checkpoint
+
+This immutable packet copies the actual repaired 51,833-byte gateway lock, original slot02 guard/launcher and ordinary control source, two modified SQLx manifests, specifications, existing safe resolution results and separate independent startup/terminal reviews. It contains no new execution. The real three Cargo phase exits were zero, with strict 230-to-216 graph admission and original bitflags 2.9.4 retained. This is resolution-only evidence; audit, build, installation, product wiring, native family closure and RC qualification are not established.
+
+The root terminal retains its original PENDING independent-peer field byte-for-byte; the subsequent independent review is a separate file. The 21 controls ran against the pre-repair initial lock and extracted function/predicate AST, rather than the whole guard. Directly rerunning their unchanged source against the repaired current slot does not reproduce that temporal input.
+
+This is deliberately partial recovery. Private leases/startup packet, complete native metadata/raw logs, raw host identities/environment, official runtime/archive payloads, seven upstream TLS/key/env fixture bodies and Git objects are excluded. Full original source requires the separately backed F13 and partial official-vendor source checkpoints; this packet alone is not runnable. Fixed source paths remain literal source/provenance, not host identity records. All copied source and evidence preserve original bytes; physical packet mode is 0644 and intended Git mode 100644.

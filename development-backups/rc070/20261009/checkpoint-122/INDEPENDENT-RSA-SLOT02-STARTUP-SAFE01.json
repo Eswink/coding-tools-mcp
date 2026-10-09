@@ -1,0 +1,52 @@
+{
+  "schema": "rc070.independent-rsa-slot-startup.v1",
+  "reviewerRole": "INDEPENDENT_SOURCE_REVIEWER_NOT_AUTHOR_OR_CARGO_EXECUTOR",
+  "decision": "ALLOW_ONE_ROOT_OWNED_OFFLINE_RESOLUTION_ONLY",
+  "slot": "/workspace/work/rc070/rsa-cargo-resolver-owned02",
+  "packetSHA256": "b6f6a6562a73cf6b797b97bf6d633ba63aac3bc8db7704d11e237c0ffdbf7f8d",
+  "sourcePreparationSHA256": "5a9c8004efbaec3ff78fc6b66b82fd0dbd98bfe866881337ae4969d6d49eb63c",
+  "guardSHA256": "3ecad361b58f39c172a518c2fe60b75f56f41f2ba2efb31af5fb3c00db2c322f",
+  "launcherSHA256": "518b1c155e060e7190465a6eee84c174bf82bda326dde6e76d4acd4445052b68",
+  "ordinaryControlsSHA256": "12a1412d35f50fc76e6ea8ed1111db9ac55783305317157b0e3aa167739dadae",
+  "checks": {
+    "actual2033LiteralSourceRows": 2033,
+    "protected2032RawBytesUnchanged": true,
+    "copiedActualGeneratedInitialLockSHA256": "0d3d8550d9fdd887c50166d2fe8190d44400290f5eb07785e146524f52061bac",
+    "initialLockBytes": 51834,
+    "originalF13230GraphSeparateComparator": true,
+    "officialRuntimeToolsCount": 5,
+    "runtimeSHAAndPhysicalIdentityMatch": true,
+    "configAbsencesMatch": true,
+    "onceMarkerAbsent": true,
+    "targetAbsent": true,
+    "rawSlotEmpty": true,
+    "executorSourceLeasesMatch": true,
+    "exactThreeCommandVectors": true,
+    "whole120SecondsRaw2MiBUnexpanded": true,
+    "exactFunctionDumpASTSHA256": "426e3d8e90f3bd20c16974f9a1c4741d0c8922faf8b74f7688b4e793fe9366b8",
+    "ordinaryUniquePASS": 21,
+    "ordinaryIsSyntheticDataAndPredicatesNotWholeGuard": true
+  },
+  "sourceReview": "Full guard/launcher/packet read: version then offline precise bitflags update; original230-to216 graph permits only14 specified closure removals,5 specified dependency drops,two owned patch source changes; rejects unrelated additions/version/source/checksum/field/order drift; metadata only after accepted after1 and stable repaired lock; source/tool/config/final mandatory guards and prior phase errors retained. No build or product wiring.",
+  "conditions": [
+    "Root sole once executor; all sealed source/tool/config/empty-slot identities must remain unchanged at launch.",
+    "Metadata only after actual repaired full lock graph passes strict gate; no rerun, old slot overwrite, hand-edited lock, generate-lockfile, feature expansion or new deadline.",
+    "Actual native failure, cancellation, partial JSON or guard failure denies this bounded attempt."
+  ],
+  "readerErrata": [
+    "Earlier reader argv oracle expected a different --offline placement; corrected to actual exact packet vector, no source defect.",
+    "Earlier reader AST hash used source text; actual controls seal ast.dump(FunctionDef, include_attributes=False), independently recomputed exact hash. Original reader errors retained in tool results."
+  ],
+  "CargoExecutionsByReviewer": 0,
+  "SUTExecutionsByReviewer": 0,
+  "qualification": {
+    "sourceStartupScopeOnly": true,
+    "actualRepairedLockOrMetadataAlreadyPassed": false,
+    "RustSecAudit": false,
+    "build": false,
+    "install": false,
+    "RC": false,
+    "VMOwner": false
+  },
+  "publicPayloadPolicy": "Safe metadata only; official TLS/key/env fixture bytes remain private."
+}

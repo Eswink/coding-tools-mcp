@@ -1,0 +1,16 @@
+{
+  "scope": "EARLY_SOURCE_POINT_IN_TIME_STOP_APPENDIX_NOT_CURRENT_REPAIR_FREEZE",
+  "decision": "SOURCE_STOP_NOT_STARTUP_READY",
+  "publisher85Runs": 0,
+  "publisher300Runs": 0,
+  "installerWorkflowSudoBuildRCExecutions": 0,
+  "observedThreeLocalOrdinaryControls": "Reported later in schema peer, not executed by assembler; not full required ordinary suite",
+  "source_checkpoint": {
+    "path": "/workspace/work/rc070/publisher-disposable-ci-early-stop-source-only01",
+    "files": 11,
+    "bytes": 134373,
+    "manifestSHA256": "508c0be575a5d5217e6b36350afc63c176d9f55c6f49d18ad326d172c10c18a3"
+  },
+  "source_original_bytes_and_frozen_PENDING_preserved": true,
+  "assemblerNativeOrSUTExecutions": 0
+}

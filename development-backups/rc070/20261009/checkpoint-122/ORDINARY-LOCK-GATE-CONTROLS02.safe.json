@@ -1,0 +1,159 @@
+{
+  "scope": "ORDINARY_DATA_ONLY_EXACT_FUNCTION_AST_NOT_WHOLE_GUARD_OR_CARGO",
+  "sourceSHA256": "3ecad361b58f39c172a518c2fe60b75f56f41f2ba2efb31af5fb3c00db2c322f",
+  "functionASTSHA256": "426e3d8e90f3bd20c16974f9a1c4741d0c8922faf8b74f7688b4e793fe9366b8",
+  "syntheticPositiveNotActualRepairedCargoLock": true,
+  "namedControls": [
+    {
+      "name": "synthetic_in_memory_permitted_graph",
+      "pass": true
+    },
+    {
+      "name": "actual_unadmitted_initial_upgrade",
+      "pass": true,
+      "actualRejectKinds": [
+        "BITFLAGS_EXACT_VERSION",
+        "new_or_upgrade",
+        "unadmitted_removed_identity"
+      ]
+    },
+    {
+      "name": "unrelated_original_package_removed",
+      "pass": true,
+      "actualRejectKinds": [
+        "exact_package_count",
+        "unadmitted_removed_identity"
+      ]
+    },
+    {
+      "name": "new_unrelated_package_added",
+      "pass": true,
+      "actualRejectKinds": [
+        "exact_package_count",
+        "new_or_upgrade"
+      ]
+    },
+    {
+      "name": "duplicate_identity",
+      "pass": true,
+      "actualRejectKinds": [
+        "duplicate_identity",
+        "unadmitted_removed_identity"
+      ]
+    },
+    {
+      "name": "original_checksum_changed",
+      "pass": true,
+      "actualRejectKinds": [
+        "unadmitted_package_fields"
+      ]
+    },
+    {
+      "name": "original_source_changed",
+      "pass": true,
+      "actualRejectKinds": [
+        "unadmitted_package_fields"
+      ]
+    },
+    {
+      "name": "original_version_changed",
+      "pass": true,
+      "actualRejectKinds": [
+        "new_or_upgrade",
+        "unadmitted_removed_identity"
+      ]
+    },
+    {
+      "name": "unrelated_field_added",
+      "pass": true,
+      "actualRejectKinds": [
+        "unadmitted_package_fields"
+      ]
+    },
+    {
+      "name": "dependency_added",
+      "pass": true,
+      "actualRejectKinds": [
+        "dependency_added",
+        "dependency_order_or_multiplicity"
+      ]
+    },
+    {
+      "name": "unrelated_dependency_removed",
+      "pass": true,
+      "actualRejectKinds": [
+        "dependency_removed"
+      ]
+    },
+    {
+      "name": "dependency_reordered",
+      "pass": true,
+      "actualRejectKinds": [
+        "dependency_order_or_multiplicity"
+      ]
+    },
+    {
+      "name": "dependency_duplicated",
+      "pass": true,
+      "actualRejectKinds": [
+        "dependency_added",
+        "dependency_order_or_multiplicity"
+      ]
+    },
+    {
+      "name": "lingering_RSA",
+      "pass": true,
+      "actualRejectKinds": [
+        "RSA_OR_MYSQL_REMAINS",
+        "exact_package_count",
+        "unadmitted_removed_identity"
+      ]
+    },
+    {
+      "name": "lingering_MySQL",
+      "pass": true,
+      "actualRejectKinds": [
+        "RSA_OR_MYSQL_REMAINS",
+        "exact_package_count",
+        "unadmitted_removed_identity"
+      ]
+    },
+    {
+      "name": "owned_patch_source_lost",
+      "pass": true,
+      "actualRejectKinds": [
+        "patch_not_owned_path"
+      ]
+    },
+    {
+      "name": "owned_patch_checksum_lost",
+      "pass": true,
+      "actualRejectKinds": [
+        "patch_not_owned_path"
+      ]
+    },
+    {
+      "name": "malformed_dependency_type",
+      "pass": true,
+      "actualRejectKinds": [
+        "malformed_package_rows"
+      ]
+    },
+    {
+      "name": "exact_AST_initial_source_lease_mismatch",
+      "pass": true
+    },
+    {
+      "name": "exact_AST_initial_lock_SHA_mismatch",
+      "pass": true
+    },
+    {
+      "name": "exact_AST_initial_lock_byte_count_mismatch",
+      "pass": true
+    }
+  ],
+  "controls": 21,
+  "CargoExecutions": 0,
+  "sourceLockWritten": false,
+  "RCQualification": false
+}

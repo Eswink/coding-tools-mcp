@@ -1,0 +1,22 @@
+{
+  "rows": [
+    {
+      "name": "loader_query_context.py",
+      "bytes": 34917,
+      "sha256": "da9df6129031e47a1ed97ccbcedd1bc4363f1e439f6315f533631fd20f3143b7",
+      "physical_mode": "0644",
+      "nlink": 1,
+      "AST_syntax": "PASS"
+    },
+    {
+      "name": "loader_query_controls.py",
+      "bytes": 15724,
+      "sha256": "26b488df6bf4fb115994f913e0137f8b067ba259200ccea416ae009116dca31f",
+      "physical_mode": "0644",
+      "nlink": 1,
+      "AST_syntax": "PASS"
+    }
+  ],
+  "ordinary": "NOTRUN",
+  "query": "NOTRUN_NOAUTH"
+}

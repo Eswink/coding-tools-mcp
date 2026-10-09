@@ -1,0 +1,19 @@
+{
+  "scope": "ACTUAL_REPAIRED_GATEWAY_LOCK_AUDIT_ONLY_SAFE_PARTIAL_SOURCE_PACKET",
+  "realAuditExits": [
+    0,
+    0
+  ],
+  "actualRawBytes": 333,
+  "realAuditVulnerabilities": 0,
+  "realDependencyCount": 216,
+  "actualWarnings": {},
+  "rootTerminalIndependentPendingPreserved": true,
+  "separateIndependentTerminal": "INDEPENDENT-RSA-AUDIT03-TERMINAL-SAFE01.json",
+  "auditDBIdentity": "Separate1315 native file/HEAD checks establish7eeb identity; native audit database.last-commit/date null are not used to infer that identity.",
+  "fullRunnableRecovery": false,
+  "assemblerAuditBuildSUTExecutions": 0,
+  "buildInstallFourFinalCandidateAuditsRCQualified": false,
+  "compilerInSpec": "Future separate480s compiler requirements remain NOTRUN; this packet authorizes no compiler execution.",
+  "sourceModeAdapter": "Literal original bytes; copied source0600 converted only in this packet to0644; intended Git100644. See provenance."
+}

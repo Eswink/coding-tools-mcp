@@ -1,0 +1,18 @@
+{
+  "schema": "rc070.partial-source-safe-progress.v1",
+  "scope": "PARTIAL_SOURCE_ONLY_EXISTING_RESOLUTION_ONLY_PASS",
+  "productWired": false,
+  "nativeCargoExecutionByAssembler": 0,
+  "auditBuildInstallRC": false,
+  "originalTerminalFrozenIndependentPendingUnchanged": true,
+  "independentTerminalSeparate": "INDEPENDENT-RSA-SLOT02-TERMINAL-SAFE01.json",
+  "controls": {
+    "existingUniqueNamedPASS": 21,
+    "exactFunctionASTAndTwoPredicateAST": true,
+    "wholeGuardOrCargoExecutedByControls": false,
+    "temporalInput": "Original controls ran before genuine precise-bitflags repair; they read slot02 initial unadmitted lock. Replaying unchanged source against current repaired lock is not the same control input."
+  },
+  "completeRunnableRecovery": false,
+  "sourceBaseline": "F13 13cd343d942b7a68912d42a8f9235c02ed647764",
+  "qualification": "NOT_AUDIT_BUILD_INSTALL_RC_OR_FAMILY_CLOSURE_PROOF"
+}

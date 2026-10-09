@@ -1,0 +1,65 @@
+{
+  "scope": "ACTUAL_GATEWAY_REPAIRED_LOCK_RAW_AUDIT_ONLY_NOT_BUILD_INSTALL_RC",
+  "actualNativeExits": [
+    0,
+    0
+  ],
+  "originalRawLogs": [
+    {
+      "name": "phase-0.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "phase-0.stdout",
+      "bytes": 19,
+      "sha256": "8748580845bee726903e69bc4543958fb01e2594317e6c68bf80114bff13d541"
+    },
+    {
+      "name": "phase-1.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "phase-1.stdout",
+      "bytes": 314,
+      "sha256": "984d5f8d66d29d2e204a9cb3d4b11b29b1c498e399f5ab71bd94afc696178594"
+    }
+  ],
+  "rawTotalBytes": 333,
+  "completeNativeAuditJSON": true,
+  "sourceFiles": 2033,
+  "databaseFiles": 1315,
+  "dbHead": "7eebec69c352c7191b1f13eb95dd510eeca5d1de",
+  "lockSHA256": "f1789a9a228d7af0b5b321d9e233f77181372d33d3f480056fd2779c7195930c",
+  "lockDependencyCount": 216,
+  "vulnerabilities": {
+    "found": false,
+    "count": 0,
+    "list": []
+  },
+  "settings": {
+    "target_arch": [],
+    "target_os": [],
+    "severity": null,
+    "ignore": [],
+    "informational_warnings": [
+      "unmaintained",
+      "unsound",
+      "notice"
+    ]
+  },
+  "warnings": {},
+  "externalActualPostWriterElapsedSeconds": 9.607292656000936,
+  "externalActualPostWriterDeadlineVerified": true,
+  "proofToolChunk": "cfe4dd",
+  "mandatoryFinalGuardErrors": [],
+  "allAfterGuardsClean": true,
+  "oldRSAFailureEvidenceImmutable": true,
+  "build": "NOTRUN",
+  "installation": "NOTRUN",
+  "fourFinalCandidateAudits": "NOTRUN",
+  "RCQualified": false,
+  "nativeFamilyClosure": false,
+  "independentTerminal": "PENDING"
+}

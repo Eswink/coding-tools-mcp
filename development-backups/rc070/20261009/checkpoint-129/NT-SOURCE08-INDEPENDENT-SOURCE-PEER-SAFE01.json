@@ -1,0 +1,40 @@
+{
+  "scope": "LIMITED_SOURCE_AND_ORDINARY_CONTROLS_ONLY",
+  "result": "PASS",
+  "source_bundle_manifest_sha256": "000eb390df39ac6786417a0e28985758b3d00c7d58c9d3491c5b1568bec2f836",
+  "bundle_files": 24,
+  "bundle_bytes": 314942,
+  "prospective_management_tree": "9bd61b9a389c7454cb43a6f3233b7e75628f2820",
+  "management_paths_verified": 1862,
+  "verification": {
+    "full_native_blob_bytes_and_execution_classes": true,
+    "physical_modes_separately_declared": true,
+    "six_frozen_sources_current_exact": true,
+    "protected_original17_exact": true,
+    "default_HEAD_D6_unchanged": true,
+    "default_index_d40_full1856_vector_exact": true,
+    "custom_index_full1862_vector_exact": true,
+    "AST_delta_only_two_authorized_files": true,
+    "spec_structured_passed": true,
+    "spec_FR_count": 5,
+    "current_ordinary_controls_read": 66,
+    "ordinary_stderr_bytes": 0,
+    "same_guard_UNKNOWN_refuses_before_assignment_and_delegate": true,
+    "binding_restore_and_flag_clear_independent_attempts": true,
+    "source_local_result_cannot_claim_NT_authority": true,
+    "triple_disabled": true
+  },
+  "execution_provenance_boundary": "Author tool-return messages: ordinary138 e60220 exit0; fixed137 da54f7 exit0; failure-first131 7d2017 exit0. Reviewer read original outputs and current control/source bytes; did not execute controls.",
+  "reviewer_actual_readonly_tool_chunks": [
+    "99ab52",
+    "dc6334",
+    "6e8109"
+  ],
+  "limitations": [
+    "SOURCE07 and interim failures remain immutable",
+    "Windows API, Go, official ZIP compatibility, original LOCAL source300 positive, native320 counter and CI NOTRUN",
+    "Public console/private durable raw transport OPEN; activation remains STOP",
+    "No runtime authority, startup permission, VM/installation, publisher grant or RC qualification"
+  ],
+  "frozen_pending_metadata_unchanged": true
+}

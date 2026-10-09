@@ -1,0 +1,46 @@
+{
+  "scope": "READONLY_DESIGN_DIRECTION_NOT_SOURCE_EDIT_OR_QUERY_PERMISSION",
+  "result": "PASS_FINITE_DIRECTION_WITH_MANDATORY_BOUNDARIES",
+  "blocked_packet_manifest_sha256": "a0deab70f92ce536e7a7cde5fe860295ee98c4aa4edae705f55bf68f35396953",
+  "blocked_packet_files": 11,
+  "blocked_packet_bytes": 14983,
+  "actual_current_libc_sha256": "fa430b8f298f817a266046af84a77533185ad6fc4406c7d3787b5a0a0c207826",
+  "actual_current_libc_ELF_type": 3,
+  "actual_current_libc_PT_INTERP": "/lib64/ld-linux-x86-64.so.2",
+  "actual_libc_bytes": 1995216,
+  "current_V2_two_sources_unchanged": true,
+  "original_builder877_unchanged": true,
+  "primary_four_current_sources_match_seal": true,
+  "primary_source_interpretation": {
+    "dl_deps_openaux": "main lt_executable dependency is mapped lt_library",
+    "dl_load_library_program_header_switch": "PT_INTERP not handled in examined library map loop",
+    "rtld_explicit_target": "fixed explicit target maps lt_executable",
+    "dl_object_ORIGIN": "direct loader invocation uses target realname parent"
+  },
+  "source_build_identity_for_current_loader_ELF": false,
+  "mandatory_future_source_rule": [
+    "Only exact current sealed canonical libc path plus full digest plus ET_DYN plus fixed interpreter may be considered",
+    "Admission must prove dependency-library role reached from exact OUTER DT_NEEDED closure; basename/hash equality alone does not grant role",
+    "Main/loader/foreign DSO/unknown alias/context remains deny; do not reinterpret this as permission to execute libc",
+    "Keep nonmain RPATH/RUNPATH, audit/filter/auxiliary/preload/capability/hwcap and dynamic flags denial unchanged",
+    "Record PT_INTERP as ignored data for reviewed library role; do not execute or add it as a new loader selection",
+    "All actual candidate capability/mode/search/context/current source fences must complete before admission; early placeholder capability_true is not qualification",
+    "New two-module rules and data controls need fresh impact, bounded source freeze and independent peer before root new startup review"
+  ],
+  "future_control_directions": [
+    "Actual current libc readonly positive data predicate",
+    "Reject wrong hash/path/needed-name/role/main-target/interpreter/type",
+    "Reject nonmain search paths and existing callback/dynamic-policy violations",
+    "V2 lifecycle/deadline/cancel preserved and rechecked with current source controls"
+  ],
+  "actual_query_compiler_ROOT_bridge_native_SUT_runs_by_reviewer": 0,
+  "execution_boundary": "Author diagnostic04a615 actual exit0 is an external readonly tool-return input; reviewer independently read raw ELF header and full policy/primary sources, not rerun collect_candidates or queries.",
+  "reviewer_readonly_tool_chunks": [
+    "854110",
+    "2220d2",
+    "e075cb",
+    "b6ba08",
+    "aceb9b"
+  ],
+  "old_BLOCKED_and_V2_PASSlifecycle_scope_preserved": true
+}

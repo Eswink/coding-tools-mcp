@@ -1,0 +1,61 @@
+{
+  "schema": "rc070.independent-audit-startup.v1",
+  "decision": "ALLOW_ONE_ROOT_OWNED_RAW_LOCK_AUDIT_ONLY",
+  "role": "INDEPENDENT_SOURCE_REVIEWER_NOT_EXECUTOR",
+  "slot": "/workspace/work/rc070/rsa-gateway-audit-build-owned03",
+  "packetSHA256": "ec74678137d0cd4b8f57c3cf9c0343613ae4b53c8db63cde7206b1af512bd58f",
+  "sourcePreparationSHA256": "1a33fa9c51dbfa850510cef545d72b6cd595e697d551c3e4da5d90caa8784fa9",
+  "dbLeaseSHA256": "cf0002c62004b86fe235f3fc12615fbb8095a631835eb072210818cda53fca81",
+  "executorLeases": {
+    "audit-source-guard01.py": {
+      "bytes": 6431,
+      "sha256": "e7daef4fa2fd4c59614f9955063fcabb3cd8c93dec599a61ae2b8ae341842973",
+      "mode": "0600"
+    },
+    "audit-launcher-source01.js": {
+      "bytes": 7547,
+      "sha256": "303b9c0c441cd4eaca1df9a64de49b80404438b6dd3929b5ee837fa05a813437",
+      "mode": "0600"
+    }
+  },
+  "checks": {
+    "actualSource2033NamespaceRawLiteralNlinkMatch": true,
+    "repairedLock51833F1789Match": true,
+    "actualDB1315NamespaceRawNativeBlobsAndPhysicalMatch": true,
+    "DBHead": "7eebec69c352c7191b1f13eb95dd510eeca5d1de",
+    "DBTree": "60edf907e0c238568a86568335cd8be5745cec4f",
+    "eightOriginalToolsHashFullPhysicalMatch": true,
+    "twoExecutorSourceLeasesMatch": true,
+    "configAbsences": 28,
+    "onceMarkerAbsent": true,
+    "targetAbsent": true,
+    "rawEmpty": true,
+    "exactTwoCommandVectors": true,
+    "originalProvenOuterVersionGrammar": true,
+    "schemaSettingsMatchOriginalActualReportShape": true,
+    "whole60Seconds2MiBUnexpanded": true
+  },
+  "fullSourceReview": "Guard and launcher full source read. Original immutable2033/sourceDB/runtimeconfig/executor checks before/after/final; two native phases version then no-fetch/no-ignore audit; whole raw cap and60s deadline; complete strict UTF8JSON with duplicate/nonfinite denial, exact5topkeys/typed216count/noignore/no targetfilter/severityNone/typed0vulnerabilities/positive DBadvisory count and original warnings preserved. Sourceallowedmutation empty. Primary phase errors plus mandatory cleanup guard errors retained; postwriter external tick required. Audit only; no compiler/object-producing command under fsize.",
+  "conditions": [
+    "Root sole once executor; actual unchanged packet/executors/source/tools/DB/config/empty slot required at launch.",
+    "Any native nonzero, finding, partial/capped/late/invalid JSON, cancellation or mandatory cleanup UNKNOWN denies current audit qualification.",
+    "Compiler needs separate newly reviewed dual-stream collector/source/runtime packet; current audit packet explicitly does not authorize build."
+  ],
+  "errata": [
+    "Earlier prelaunch join overlapped root authorized launcher update from efec36 to303b while reading old packet21fe; original join failure retained. This stable final packetec746 and executor303b were reread and rejoined.",
+    "Nested audit --version guessed output requirement was identified before launch; root changed exact vector to previously genuinely observed outer --version with cargo-audit0.22.2. Old draft source/reader evidence preserved."
+  ],
+  "auditExecutionsByReviewer": 0,
+  "CargoExecutionsByReviewer": 0,
+  "compilerExecutionsByReviewer": 0,
+  "qualification": {
+    "startupScopeOnly": true,
+    "actualAuditPassed": false,
+    "build": false,
+    "install": false,
+    "fourFinalAudits": false,
+    "RC": false,
+    "nativeVM": false
+  },
+  "publicPayloadPolicy": "Safe metadata only; source TLS/key/env fixtures and rawhost/runtime evidence remain private."
+}

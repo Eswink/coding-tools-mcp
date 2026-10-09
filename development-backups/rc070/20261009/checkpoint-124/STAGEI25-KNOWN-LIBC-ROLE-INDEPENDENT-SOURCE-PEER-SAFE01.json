@@ -1,0 +1,45 @@
+{
+  "scope": "LIMITED_SOURCE_AND_DATA_ORDINARY_CONTROLS_ONLY",
+  "result": "PASS",
+  "source_manifest_sha256": "76b4828cf751ffabc317e42f71634260feb916aa779579d5377d030d9a0487f9",
+  "source_bundle_files": 15,
+  "source_bundle_bytes": 486472,
+  "context_sha256": "da9df6129031e47a1ed97ccbcedd1bc4363f1e439f6315f533631fd20f3143b7",
+  "controls_sha256": "26b488df6bf4fb115994f913e0137f8b067ba259200ccea416ae009116dca31f",
+  "verified": {
+    "full_frozen_entries_len_mode_nlink_SHA": true,
+    "current_working_module2_exact": true,
+    "protected_full1867_current_hash_mode_nlink_HEAD_diff": true,
+    "native8_source102_current_bytes_exact": true,
+    "new_rule_requires_canonical_libc_full_hash_type3_fixed_interpreter_no_searchpaths": true,
+    "fixed_OUTER_full_SHA_and_actual_parsed_needed_role_edge": true,
+    "edges_built_in_collect_from_actual_parsed_needed_candidates": true,
+    "PT_INTERP_not_executed_or_added_as_interpreter": true,
+    "nonmain_other_context_denials_remain": true,
+    "preliminary_candidate_caps_None_PENDING_not_qualification": true,
+    "final_caps_marker_after_all_candidate_xattrs_modes_policy_bytes_seals_and_searchwalk": true,
+    "unchanged_V2_lifecycle_deadline_cancel_function_AST": true,
+    "current_structured_spec_passed_3FR_zero_issues": true,
+    "original_controls_stdout7238_SHA_exact_and_stderr0": true,
+    "ordinary_data_controls_count": 55
+  },
+  "ordinary_execution_provenance": "Author actual tool cbee3b exit0; reviewer read raw stdout/stderr and matched frozen projection exactly. Did not execute controls.",
+  "control_boundaries": [
+    "Actual libc and OUTER readonly ELF bytes plus a declared role-edge data fixture; not actual loader runtime selection",
+    "Mock close/cancel and parser policy controls have no actual FD/PID/process ownership proof"
+  ],
+  "actual_query_compiler_Popen_ROOT_bridge_SUT_by_reviewer": 0,
+  "limitations": [
+    "Complete actual capture_native_context and startup admission NOTRUN",
+    "Current host ELF binary same-source build identity false",
+    "No loader query/compile/native14/488/startup/publisher grant/RC permission",
+    "Original blocked actual context and old V2 records remain unchanged",
+    "Frozen SOURCE-STATIC ordinary NOTRUN is the prior static-stage record; actual later raw55 is separately verified"
+  ],
+  "reviewer_actual_readonly_tool_chunks": [
+    "0c1c50",
+    "f05aeb",
+    "e7f65b"
+  ],
+  "frozen_PENDING_unchanged": true
+}

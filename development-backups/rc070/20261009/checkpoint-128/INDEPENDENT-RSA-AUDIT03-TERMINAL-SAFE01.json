@@ -1,0 +1,89 @@
+{
+  "schema": "rc070.independent-audit-terminal.v1",
+  "decision": "RAW_CANDIDATE_GATEWAY_LOCK_AUDIT_ONLY_PASS",
+  "role": "INDEPENDENT_READONLY_NOT_AUTHOR_OR_EXECUTOR",
+  "slot": "/workspace/work/rc070/rsa-gateway-audit-build-owned03",
+  "startupPacketSHA256": "ec74678137d0cd4b8f57c3cf9c0343613ae4b53c8db63cde7206b1af512bd58f",
+  "rootReceiptSHA256": "e06a5afa76a7d39fb08c7980720f1238f7d79315bb607c5504da1561e9b09f8d",
+  "rootTerminalSHA256": "17e7c4088b71a66086a0d2f77c241d4b3378148c9afb7db9c48f20af9a217726",
+  "actualNativeExits": [
+    0,
+    0
+  ],
+  "raw4": [
+    {
+      "name": "phase-0.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "phase-0.stdout",
+      "bytes": 19,
+      "sha256": "8748580845bee726903e69bc4543958fb01e2594317e6c68bf80114bff13d541"
+    },
+    {
+      "name": "phase-1.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "phase-1.stdout",
+      "bytes": 314,
+      "sha256": "984d5f8d66d29d2e204a9cb3d4b11b29b1c498e399f5ab71bd94afc696178594"
+    }
+  ],
+  "wholeRawBytes": 333,
+  "actualFullNativeReport": {
+    "database": {
+      "advisory-count": 1296,
+      "last-commit": null,
+      "last-updated": null
+    },
+    "lockfile": {
+      "dependency-count": 216
+    },
+    "settings": {
+      "target_arch": [],
+      "target_os": [],
+      "severity": null,
+      "ignore": [],
+      "informational_warnings": [
+        "unmaintained",
+        "unsound",
+        "notice"
+      ]
+    },
+    "vulnerabilities": {
+      "found": false,
+      "count": 0,
+      "list": []
+    },
+    "warnings": {}
+  },
+  "sourceRows2033UnchangedLiteralRawAndNamespace": true,
+  "DB1315UnchangedRawNativePhysicalAndNamespace": true,
+  "DBActualHead": "7eebec69c352c7191b1f13eb95dd510eeca5d1de",
+  "DBActualTree": "60edf907e0c238568a86568335cd8be5745cec4f",
+  "DBReportCommitFields": "Original JSON last-commit and last-updated null preserved; database identity proven separately by full sealed native/physical source before-after, not inferred from JSON.",
+  "lockBytes": 51833,
+  "lockSHA256": "f1789a9a228d7af0b5b321d9e233f77181372d33d3f480056fd2779c7195930c",
+  "eightToolsTwoExecutorLeasesAndConfigAbsencesMatch": true,
+  "allMandatoryAfterFinalErrors": [],
+  "rootActualExternalPostWriterElapsedSeconds": 9.607292656000936,
+  "elapsedProofChunk": "cfe4dd",
+  "clockObservationScope": "Read actual root sealed external postwriter measurement; reviewer did not recreate historical tick.",
+  "oldRSAFailureEvidenceUnmodified": true,
+  "reviewerAuditExecutions": 0,
+  "reviewerCargoExecutions": 0,
+  "reviewerCompilerExecutions": 0,
+  "qualification": {
+    "rawCandidateGatewayLockAuditOnly": true,
+    "fourFinalProductAudits": false,
+    "build": false,
+    "productWired": false,
+    "install": false,
+    "VM": false,
+    "familyClosure": false,
+    "RC": false
+  }
+}

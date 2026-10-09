@@ -1,0 +1,33 @@
+{
+  "kind": "SAFE_SEPARATE_SOURCE_PEER_APPENDIX_NOT_STARTUP_OR_RC",
+  "entries": [
+    {
+      "path": "PUBLISHER-DISPOSABLE-CI-EARLY-SOURCE-STOP01.json",
+      "bytes": 1866,
+      "sha256": "bba2183fc329f3a027ce04eb888f82cba30ab005593ab21ea8c43f7dc7d381b8",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "READONLY-SCHEMA-PARTIAL-STOP02.json",
+      "bytes": 3885,
+      "sha256": "d554909df5e5f87ffbbadbb2b5fd947e97924ba3cae9fde864ee5d4292e3db70",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "bytes": 705,
+      "sha256": "a678d5e591e75388b4a2ebaa35f83a925f702f4c2d51664e6728ab0180e30343",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1013,
+      "sha256": "550a41b31398bd87ae70e3c6d4cda212f6fe586001947e92edb40ca13d4d539d",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ]
+}

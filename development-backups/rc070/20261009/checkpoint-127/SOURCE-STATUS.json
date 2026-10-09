@@ -1,0 +1,20 @@
+{
+  "RCQualified": false,
+  "adaptedPrepareAST": "TWO_ROLE_CALLBACK_INJECTIONS_EXPLICIT",
+  "collector": "NEW_DUAL_STREAM_ADAPTER_NOT_V4_AST_IDENTICAL",
+  "designDirectionCoverage": "NOT_PROVEN_COMPLETE_24_PLUS_17",
+  "genuineSetupBuildInstallSudoCI": 0,
+  "limitations": [
+    "52 ordinary named success is not setup or whole 41 direction pass",
+    "runtime/family/privileged startup need independent complete review"
+  ],
+  "oldFailuresPreserved": true,
+  "publisher300": "NOT_RUN",
+  "publisher85": "NOT_RUN",
+  "rawPrivateDurability": "OPEN",
+  "releaseAuthorized": false,
+  "scope": "SOURCE_ONLY_DRAFT",
+  "sourcePeer": "PENDING_AT_FREEZE",
+  "startup": "NOT_APPROVED",
+  "vendorRawExact": true
+}

@@ -1,0 +1,7 @@
+# Audit03 partial safe source checkpoint
+
+This packet preserves actual audit guard/launcher source, the original root safe terminal, audit schema projection, three specifications and their existing structured check, and separate independent startup/terminal reviews. The genuine repaired gateway lock audit had two native zero exits, full native JSON with216 dependencies, no vulnerabilities/ignores/target filters, warnings{},333 raw bytes and actual external postwriter elapsed9.607292656 seconds under60. No audit or SUT is executed by this assembler.
+
+Original root terminal PENDING remains byte-for-byte unchanged; the subsequent independent terminal is a separate file. Native audit DB last-commit/date null values do not identify the DB; independent source1315/HEAD verification supplies the separate current7eeb identity. Old RSA failure evidence remains immutable. This is a repaired-lock audit result, not build, installation, four final candidate audits or RC qualification. Compiler requirements in the specification remain future separate480-second work.
+
+Recovery is deliberately partial: startup packet, source/DB leases, raw host/tool/runtime identities, complete source and DB payloads, private raw streams, runtime archives, TLS/key/env fixtures and Git objects are excluded. Literal source/provenance paths remain source references only. Original bytes are preserved; this packet alone cannot replay the once-only audited slot. Physical copied modes0644 and intended Git100644; original source0600-to-packet0644 changes are declared in provenance.

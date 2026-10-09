@@ -1,0 +1,69 @@
+{
+  "rows": [
+    {
+      "manualRisk": "CRITICAL",
+      "name": "_run_dual_capture",
+      "nativeExit": 1,
+      "nativeRawSha256": "84d245bbd87db5fa2da323be090194f3c20f833fbc58393f65235d45740b8934",
+      "structuredStatus": "UNKNOWN_REPOSITORY_NOT_REGISTERED"
+    },
+    {
+      "manualRisk": "CRITICAL",
+      "name": "_capture",
+      "nativeExit": 1,
+      "nativeRawSha256": "ba75a38829926dc3d7ba0cee3642aec551d192cce8ec558a38ff53d51a376f3f",
+      "structuredStatus": "UNKNOWN_REPOSITORY_NOT_REGISTERED"
+    },
+    {
+      "manualRisk": "CRITICAL",
+      "name": "project_public_evidence",
+      "nativeExit": 1,
+      "nativeRawSha256": "47b053925ddb036e65bec282080b27e0a394054825ab728e67dabe671a1cd512",
+      "structuredStatus": "UNKNOWN_REPOSITORY_NOT_REGISTERED"
+    },
+    {
+      "manualRisk": "CRITICAL",
+      "name": "parse_projection",
+      "nativeExit": 1,
+      "nativeRawSha256": "72f3e06186da5e116cd565b79ff67d1c84418933f9c7aeeba06ddd749c4a21fa",
+      "structuredStatus": "UNKNOWN_REPOSITORY_NOT_REGISTERED"
+    },
+    {
+      "manualRisk": "CRITICAL",
+      "name": "HeldFD",
+      "nativeExit": 1,
+      "nativeRawSha256": "a5014b5975a537e17f21e06a529adb53f2eaaffb1af2a7886d9dd1e45b0a1e98",
+      "structuredStatus": "UNKNOWN_REPOSITORY_NOT_REGISTERED"
+    },
+    {
+      "manualRisk": "CRITICAL",
+      "name": "copy_elf_role_at",
+      "nativeExit": 1,
+      "nativeRawSha256": "130899b77c08da568375f9ffd48d5b88631e0bc61e055eb354424645527c4d38",
+      "structuredStatus": "UNKNOWN_REPOSITORY_NOT_REGISTERED"
+    },
+    {
+      "manualRisk": "CRITICAL",
+      "name": "prepare_genuine_git",
+      "nativeExit": 1,
+      "nativeRawSha256": "f0ca1f7253b2f31fe9ce69e9ef5424e5cfe23cff5a25a614000f8d7e1f8b2e11",
+      "structuredStatus": "UNKNOWN_REPOSITORY_NOT_REGISTERED"
+    },
+    {
+      "manualRisk": "CRITICAL",
+      "name": "_projections",
+      "nativeExit": 1,
+      "nativeRawSha256": "0ee550a858bb24c874ba017f07d4a302caacec3cfaac4005a3f1f77008036be9",
+      "structuredStatus": "UNKNOWN_REPOSITORY_NOT_REGISTERED"
+    },
+    {
+      "manualRisk": "CRITICAL",
+      "name": "main",
+      "nativeExit": 1,
+      "nativeRawSha256": "cd702ccb79f42c5432ab99474a9046bfc7c7a7b0ce73ea51357995f09b82507d",
+      "structuredStatus": "UNKNOWN_REPOSITORY_NOT_REGISTERED"
+    }
+  ],
+  "scope": "new source only",
+  "zeroImpactClaimed": false
+}

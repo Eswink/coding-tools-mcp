@@ -1,0 +1,26 @@
+{
+  "kind": "SAFE_SOURCE_ONLY_PHYSICAL_MODE_ADAPTER",
+  "entries": [
+    {
+      "path": "MODE-ADAPTER.safe.json",
+      "bytes": 4734,
+      "sha256": "98799ba4d877b1dbdaa0e3e31304320d9f351ecb815640d17a57ff7af9669bf9",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 692,
+      "sha256": "a4dfc1abe5b5eec33e5f8466e231e3ab3c2cbcaffea897d45e2257d309e4d92a",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "bytes": 351,
+      "sha256": "0f3d371bc9f972ffa163d19e2c37a0f2f9bbe67bd4b2c179bb3a65ee6ab5daee",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ]
+}

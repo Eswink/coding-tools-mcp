@@ -1,0 +1,26 @@
+{
+  "kind": "SAFE_SEPARATE_LIMITED_SOURCE_PEER_APPENDIX",
+  "entries": [
+    {
+      "path": "NT-SOURCE08-INDEPENDENT-SOURCE-PEER-SAFE01.json",
+      "bytes": 1860,
+      "sha256": "6398d106764ef78ea595596d5b3166520dfb643decd5f3d8d49fb39fb6e6a5bc",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 837,
+      "sha256": "1f2ff42225e96c2d494c70f5ddcd24df89154a1e7137962796d1e1bc5dbd4117",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "bytes": 484,
+      "sha256": "2e0273dfd183807525f92b3aeda8247af5e57b59fad64b9f6668cde06ee56317",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ]
+}

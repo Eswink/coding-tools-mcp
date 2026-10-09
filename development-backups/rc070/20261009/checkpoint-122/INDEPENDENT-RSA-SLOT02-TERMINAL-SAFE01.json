@@ -1,0 +1,114 @@
+{
+  "schema": "rc070.independent-rsa-resolution-terminal.v1",
+  "decision": "RESOLUTION_ONLY_PASS",
+  "role": "INDEPENDENT_READONLY_NOT_AUTHOR_OR_EXECUTOR",
+  "slot": "/workspace/work/rc070/rsa-cargo-resolver-owned02",
+  "packetSHA256": "b6f6a6562a73cf6b797b97bf6d633ba63aac3bc8db7704d11e237c0ffdbf7f8d",
+  "receiptSHA256": "3bf574957fc93e02ad859a21186ac61a27062007a34624fd68204b689d836a69",
+  "actualPhaseExits": [
+    0,
+    0,
+    0
+  ],
+  "originalNative230LockSHA256": "45d52b90b00056cd3e14bb191ea1ea6c6c8fdd8a4ee955ab64d076d857e53023",
+  "newLockBytes": 51833,
+  "newLockSHA256": "f1789a9a228d7af0b5b321d9e233f77181372d33d3f480056fd2779c7195930c",
+  "newGraph216": true,
+  "removed14": [
+    "const-oid",
+    "der",
+    "lazy_static",
+    "libm",
+    "num-bigint-dig",
+    "num-integer",
+    "num-iter",
+    "pem-rfc7468",
+    "pkcs1",
+    "pkcs8",
+    "rsa",
+    "signature",
+    "spki",
+    "sqlx-mysql"
+  ],
+  "dependencyDrops5": [
+    [
+      "bitflags",
+      "serde"
+    ],
+    [
+      "digest",
+      "const-oid"
+    ],
+    [
+      "num-traits",
+      "libm"
+    ],
+    [
+      "sqlx",
+      "sqlx-mysql"
+    ],
+    [
+      "sqlx-macros-core",
+      "sqlx-mysql"
+    ]
+  ],
+  "allOtherPackageFieldsChecksumsVersionsOrderExact": true,
+  "twoOwnedPatchSourceExceptionsOnly": true,
+  "fullMetadataPackages": 216,
+  "fullMetadataNodes": 216,
+  "metadataCompleteJSONAndExactOwnedManifestPaths": true,
+  "RSAAndMySQLAbsent": true,
+  "activeMySQLAllDatabasesDenied": true,
+  "protectedSourceRows2032AndAll2033ModesUnchanged": true,
+  "originalToolAndConfigAndExecutorLeasesUnchanged": true,
+  "raw6": [
+    {
+      "name": "phase-0.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "phase-0.stdout",
+      "bytes": 36,
+      "sha256": "9950bbb2d5c3417b1a068f0e81f6d3cac991a363193bdf2a22d447f5acf8b503"
+    },
+    {
+      "name": "phase-1.stderr",
+      "bytes": 110,
+      "sha256": "6d302c8f6e07bb83f71f675790dc54b1a3e411ab39d41dc8594e6805ccd2850a"
+    },
+    {
+      "name": "phase-1.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "phase-2.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "phase-2.stdout",
+      "bytes": 1035855,
+      "sha256": "c2088c494f89cdd4ffcbedd57ea13bb24ee60775480832536620601e3e4c332b"
+    }
+  ],
+  "wholeRawBytes": 1036001,
+  "finalMandatoryGuardErrors": [],
+  "rootExternalPostWriterElapsedSeconds": 11.307085170999926,
+  "elapsedObservationScope": "Independently read root sealed postwriter observation; reviewer did not take historical postwriter tick.",
+  "oldFailureSlotPreserved": true,
+  "reviewerCargoExecutions": 0,
+  "reviewerSUTExecutions": 0,
+  "qualification": {
+    "dependencyResolutionOnly": true,
+    "build": false,
+    "RustSecAudit": false,
+    "productWired": false,
+    "familyClosure": false,
+    "install": false,
+    "VM": false,
+    "RC": false
+  },
+  "nextAdmissionSuggestion": "Separate new owned audit/build slots bind unchanged F13 source, two genuine patch manifests plus native repaired lock f1789a, original official193 inventory, exact tools and fresh RustSec DB identity. Real locked offline gateway compilation with original migrate macro unchanged and explicit PG features may validate compilation; cargo audit must use real current advisory DB and no RSA blanket ignore. Four final product audit/build/install identities still required; no execution authorized by this peer."
+}

@@ -1,0 +1,22 @@
+{
+  "kind": "current2source_knownlibc_role_capsphase_only",
+  "source_peer": "PENDING_frozen",
+  "prior_direction": "8219_LIMITED_PASS_HONEST_OPEN_notstartup",
+  "actual_tool_control": "cbee3b_exit0",
+  "actual_ordinary_cases": 55,
+  "actual_ordinary_passed": 55,
+  "rawstdout_bytes": 7238,
+  "rawstdout_sha256": "91fe9a4c1fc53c9af6bf01e01e06c72510dcd7d94618ae2e2a8fe7836e6f36b9",
+  "rawstderr": 0,
+  "old_readonly_precheck": "BLOCKED0queries_unchanged",
+  "old_V2_41_and_V1_36": "frozen_notborrowed",
+  "new_actual_full_native_context_admission": "NOTRUN_NOAUTH",
+  "actual_query_Popen_GCC_ROOT_bridge_native14_originalSUT": "NOTRUN_NOAUTH",
+  "capability_preliminary": "None_PENDING_notqualification",
+  "capability_final": "onlyactualfullwalk_hash_search_returnscheckedtrue_withlaterfences",
+  "knownlibc_case": "canonical_exactfullhash_ET_DYN_fixedinterpreter_directactualOUTERneeded_librarydata_only",
+  "main_loader_otherDSO_nonmainsearch_callbacks_caps_hwcaps_unsafeenv": "DENY_retained",
+  "original877_native8_full1867": "UNCHANGED",
+  "original488_deadline": "FAIL_retained",
+  "binary_same_source_build_or_publisher_issuer_serverhold": "not_proven_not_minted"
+}

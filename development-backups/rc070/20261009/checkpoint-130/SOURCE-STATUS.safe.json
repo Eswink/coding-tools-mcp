@@ -1,0 +1,12 @@
+{
+  "scope": "SAFE_SOURCE_FREEZE_TO_PUBLIC_BACKUP_MODE_ADAPTER_ONLY",
+  "sourceManifestUnchanged": true,
+  "bytesUnchanged": true,
+  "physicalSource": "0600",
+  "physicalPublicBackup": "0644",
+  "gitSourceAndBackup": "100644",
+  "files": 11,
+  "bytes": 134373,
+  "requiredIndependentSourceAndStartup": "NOT_GRANTED_BY_ADAPTER",
+  "SUTExecutions": 0
+}

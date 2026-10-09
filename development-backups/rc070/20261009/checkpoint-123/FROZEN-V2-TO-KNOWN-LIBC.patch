@@ -1,0 +1,192 @@
+--- frozenV2/loader_query_context.py
++++ knownLibcCurrent/loader_query_context.py
+@@ -28,6 +28,8 @@
+ LOADER_LITERAL = Path('/lib64/ld-linux-x86-64.so.2')
+ LOADER = Path('/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2')
+ LOADER_SHA = '438c546d8e8cc48496bf3a95f753051afd9db66a629a74e31a9ded71586b56e0'
++KNOWN_LIBC = Path('/usr/lib/x86_64-linux-gnu/libc.so.6')
++KNOWN_LIBC_SHA = 'fa430b8f298f817a266046af84a77533185ad6fc4406c7d3787b5a0a0c207826'
+ ENV = {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C', 'TZ': 'UTC'}
+ DEFAULTS = tuple(map(Path, ('/lib/x86_64-linux-gnu', '/usr/lib/x86_64-linux-gnu', '/lib', '/usr/lib')))
+ LOG_LIMIT, JOB_SECONDS = 2 * 1024 * 1024, 120.0
+@@ -169,14 +171,20 @@
+     return info
+ 
+ 
+-def check_global_policy(policy):
++def check_global_policy(policy, require_candidate_caps=True):
+     if policy['env'] != {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C', 'TZ': 'UTC'}:
+         raise RuntimeError('loader_query_requires_exact_replaced_environment')
+     if policy['inherited_unsafe'] or policy['secure'] is not False:
+         raise RuntimeError('unsafe_or_unknown_loader_execution_context')
+-    if policy['preload_absent'] is not True or policy['capability_absent'] is not True:
+-        raise RuntimeError('preload_or_capability_unknown')
+-    return {'scope': 'ordinary_policy_only', 'qualifies_native': False}
++    if policy['preload_absent'] is not True:
++        raise RuntimeError('preload_unknown_or_present')
++    if require_candidate_caps:
++        if policy['capability_absent'] is not True:
++            raise RuntimeError('candidate_capability_unknown')
++    elif policy['capability_absent'] is not None or policy.get('candidate_capability_stage') != 'PENDING':
++        raise RuntimeError('preliminary_capability_marker_must_be_unknown')
++    return {'scope': 'ordinary_policy_only', 'qualifies_native': False,
++            'candidate_capability_phase': 'final_policy' if require_candidate_caps else 'PENDING_NOT_QUALIFIED'}
+ 
+ 
+ def query_environment_policy(builder):
+@@ -190,8 +198,9 @@
+         raise RuntimeError('secure_execution_not_proven_false')
+     unsafe = sorted(name for name in os.environ if name.startswith('LD_') or name == 'GLIBC_TUNABLES')
+     policy = {'env': dict(ENV), 'inherited_unsafe': unsafe, 'secure': False,
+-              'preload_absent': not os.path.lexists('/etc/ld.so.preload'), 'capability_absent': True}
+-    check_global_policy(policy)
++              'preload_absent': not os.path.lexists('/etc/ld.so.preload'),
++              'capability_absent': None, 'candidate_capability_stage': 'PENDING'}
++    check_global_policy(policy, require_candidate_caps=False)
+     return policy
+ 
+ 
+@@ -226,8 +235,28 @@
+     return {path: path_fact(path) for path in paths}
+ 
+ 
++def validate_known_libc_role(canonical, info, actual_needed_edges, outer_info):
++    """One reviewed library-data exception; not a new interpreter or grant."""
++    if str(canonical) != str(KNOWN_LIBC) or info['kind'] != 3:
++        raise RuntimeError('known_libc_exact_canonical_library_role_required')
++    if info['bytes_sha256'] != KNOWN_LIBC_SHA or info['interpreter'] != str(LOADER_LITERAL):
++        raise RuntimeError('known_libc_exact_bytes_and_interpreter_required')
++    if info['rpath'] or info['runpath']:
++        raise RuntimeError('known_libc_nonmain_search_context_denied')
++    validate_elf_policy(info)
++    if outer_info['bytes_sha256'] != OUTER_SHA or 'libc.so.6' not in outer_info['needed']:
++        raise RuntimeError('actual_fixed_outer_DT_NEEDED_required')
++    expected = (str(OUTER), 'libc.so.6', str(KNOWN_LIBC))
++    if expected not in actual_needed_edges:
++        raise RuntimeError('actual_direct_needed_lt_library_edge_required')
++    return {'role': 'known_needed_library_PT_INTERP_data_only', 'qualifies_native': False,
++            'interpreter_executed_or_added': False}
++
++
+ def collect_candidates(builder):
+     outer = read_elf_policy(builder, OUTER)
++    if outer['bytes_sha256'] != OUTER_SHA:
++        raise RuntimeError('fixed_outer_role_bytes_changed')
+     if outer['interpreter'] != str(LOADER_LITERAL) or outer['runpath']:
+         raise RuntimeError('unsupported_first_outer_interpreter_or_RUNPATH')
+     inherited = list(map(Path, expand_search_paths(outer['rpath'], OUTER.parent)))
+@@ -236,15 +265,18 @@
+     aliases = {str(OUTER): str(OUTER), str(LOADER): str(LOADER), str(LOADER_LITERAL): str(LOADER)}
+     infos, pending = {str(OUTER): outer}, [OUTER, LOADER]
+     facts = set(map(str, roots)) | {'/etc/ld.so.preload', '/etc/ld.so.cache', '/etc/ld.so.conf', '/etc/ld.so.conf.d'}
+-    seen_names = set()
++    seen_names, needed_edges = set(), []
+     while pending:
+         path = pending.pop()
+         canonical = str(path.resolve(strict=True))
+         if canonical not in infos:
+             infos[canonical] = read_elf_policy(builder, path)
+         info = infos[canonical]
+-        if canonical != str(OUTER) and (info['rpath'] or info['runpath'] or info['interpreter']):
+-            raise RuntimeError('nonmain_loader_ancestry_or_search_context_unbounded')
++        if canonical != str(OUTER):
++            if info['kind'] != 3 or info['rpath'] or info['runpath']:
++                raise RuntimeError('nonmain_loader_ancestry_or_search_context_unbounded')
++            if info['interpreter']:
++                validate_known_libc_role(canonical, info, needed_edges, outer)
+         for name in info['needed']:
+             if name in seen_names:
+                 continue
+@@ -284,6 +316,7 @@
+                 aliases[str(candidate)] = canonical_candidate
+                 aliases[canonical_candidate] = canonical_candidate
+                 existing.add(canonical_candidate)
++                needed_edges.append((canonical, name, canonical_candidate))
+                 if canonical_candidate not in infos:
+                     infos[canonical_candidate] = read_elf_policy(builder, candidate)
+                     pending.append(candidate)
+@@ -291,6 +324,7 @@
+                 raise RuntimeError('missing_all_declared_dependency_candidates:' + name)
+     return {'candidate_info': infos, 'candidate_aliases': aliases,
+             'allowed_paths': sorted(infos), 'fact_paths': sorted(facts),
++            'actual_needed_library_edges': sorted(set(needed_edges)),
+             'scope': 'known_outer_only_no_plugin_host', 'plugin_context': 'BLOCKED_UNKNOWN'}
+ 
+ 
+@@ -332,8 +366,17 @@
+     for path in source_files:
+         if stat.S_IMODE(path.stat().st_mode) != 0o644 or path.stat().st_nlink != 1:
+             raise RuntimeError('source_physical_mode_or_link_count_changed')
++    for path, info in candidates['candidate_info'].items():
++        if info['bytes_sha256'] != sealed[path]['sha256']:
++            raise RuntimeError('candidate_policy_not_bound_to_actual_sealed_bytes')
++    search_facts = snapshot_search_facts(candidates['fact_paths'])
++    # No preliminary boolean is qualification: only the complete successful
++    # actual candidate xattr/mode/byte and search walk reaches this final marker.
++    policy['capability_absent'] = True
++    policy['candidate_capability_stage'] = 'FINAL_ALL_CANDIDATES_CHECKED'
++    check_global_policy(policy)
+     return {'policy': policy, 'candidates': candidates, 'files': sealed,
+-            'search_facts': snapshot_search_facts(candidates['fact_paths']),
++            'search_facts': search_facts,
+             'argv': [str(LOADER), '--list', str(OUTER)], 'env': dict(ENV),
+             'source_build_identity_proof': False, 'qualifies_native': False}
+ 
+--- frozenV2/loader_query_controls.py
++++ knownLibcCurrent/loader_query_controls.py
+@@ -104,6 +104,38 @@
+             ('preload_file_present_denied', dict(base, preload_absent=False)),
+             ('capability_unknown_denied', dict(base, capability_absent=None))]:
+         expect_denied(label, lambda changed=changed: module.check_global_policy(changed), rows)
++    pending = dict(base, capability_absent=None, candidate_capability_stage='PENDING')
++    result = module.check_global_policy(pending, require_candidate_caps=False)
++    assert result['qualifies_native'] is False and result['candidate_capability_phase'] == 'PENDING_NOT_QUALIFIED'
++    rows.append({'case': 'preliminary_caps_unknown_is_not_qualification', 'result': 'PASS', 'scope': 'ordinary_data_only'})
++    expect_denied('preliminary_caps_true_must_not_be_prequalified',
++                  lambda: module.check_global_policy(dict(pending, capability_absent=True),
++                                                     require_candidate_caps=False), rows)
++
++
++def run_known_libc_role_controls(module, rows):
++    builder = module.load_builder_readonly()
++    actual = module.read_elf_policy(builder, module.KNOWN_LIBC)
++    outer = module.read_elf_policy(builder, module.OUTER)
++    edges = [(str(module.OUTER), 'libc.so.6', str(module.KNOWN_LIBC))]
++    result = module.validate_known_libc_role(str(module.KNOWN_LIBC), actual, edges, outer)
++    assert result['qualifies_native'] is False and result['interpreter_executed_or_added'] is False
++    rows.append({'case': 'actual_known_libc_ELF_with_data_needed_role_fixture', 'result': 'PASS',
++                 'scope': 'real_ELF_reads_plus_data_role_fixture_not_actual_runtime_selection'})
++    for label, canonical, info, role_edges, outer_info in [
++            ('libc_same_basename_othercanonical_denied', '/other/libc.so.6', actual, edges, outer),
++            ('libc_ET_EXEC_as_library_denied', str(module.KNOWN_LIBC), dict(actual, kind=2), edges, outer),
++            ('libc_changed_bytes_denied', str(module.KNOWN_LIBC), dict(actual, bytes_sha256='0'*64), edges, outer),
++            ('libc_other_interpreter_denied', str(module.KNOWN_LIBC), dict(actual, interpreter='/other/ld.so'), edges, outer),
++            ('libc_no_actual_needed_role_denied', str(module.KNOWN_LIBC), actual, [], outer),
++            ('libc_wrong_actual_needed_owner_denied', str(module.KNOWN_LIBC), actual, [('/other/outer', 'libc.so.6', str(module.KNOWN_LIBC))], outer),
++            ('libc_wrong_actual_needed_name_denied', str(module.KNOWN_LIBC), actual, [(str(module.OUTER), 'other.so', str(module.KNOWN_LIBC))], outer),
++            ('libc_nonmain_RPATH_denied', str(module.KNOWN_LIBC), dict(actual, rpath=['/tmp']), edges, outer),
++            ('libc_audit_callback_tag_denied', str(module.KNOWN_LIBC), dict(actual, dynamic=[(0x6ffffefc, 1)]), edges, outer),
++            ('libc_unsealed_outer_bytes_denied', str(module.KNOWN_LIBC), actual, edges, dict(outer, bytes_sha256='0'*64)),
++            ('libc_outer_missing_DT_NEEDED_denied', str(module.KNOWN_LIBC), actual, edges, dict(outer, needed=[]))]:
++        expect_denied(label, lambda canonical=canonical, info=info, role_edges=role_edges, outer_info=outer_info:
++                      module.validate_known_libc_role(canonical, info, role_edges, outer_info), rows)
+ 
+ 
+ def run_ownership_controls(builder, rows):
+@@ -192,7 +224,7 @@
+ def run_readonly_controls():
+     module = load_query_module()
+     builder = module.load_builder_readonly()
+-    before = builder.snapshot([QUERY, Path(__file__), BUILDER, module.OUTER])
++    before = builder.snapshot([QUERY, Path(__file__), BUILDER, module.OUTER, module.KNOWN_LIBC])
+     assert builder.file_identity(BUILDER)['sha256'] == BUILDER_SHA
+     tree = ast.parse(builder.read_text_owned(Path(__file__)))
+     denied = {'ordinary_job', 'query_loader_context', 'Popen', 'run', 'execv', 'execve',
+@@ -207,6 +239,7 @@
+     run_parser_controls(module, rows)
+     run_elf_policy_controls(module, rows)
+     run_global_policy_controls(module, rows)
++    run_known_libc_role_controls(module, rows)
+     run_ownership_controls(builder, rows)
+     run_bootstrap_controls(module, rows)
+     run_failure_fence_controls(module, rows)

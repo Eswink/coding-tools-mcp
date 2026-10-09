@@ -1,0 +1,86 @@
+{
+  "schema": "source-only-manifest-1",
+  "source_only": true,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 701,
+      "sha256": "a7ac6086eff0af5abee1c6c2c35c4eb3fd84cfa531746ca107fd8b41f26d3618",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "STATUS.json",
+      "bytes": 315,
+      "sha256": "4a114790167937fa6163278dcb75e4dee1ae9c1274bd945812d81d5c145ec8e3",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-disposable-publisher-git-role/design.md",
+      "bytes": 7044,
+      "sha256": "623bac55b616f2c122660511ee29c3815051ed44cfc3ce432be375e3a53bd67b",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-disposable-publisher-git-role/requirements.md",
+      "bytes": 6217,
+      "sha256": "569e6fd3a1424ea087e993fe8dab9e59db9caf176559aeb924ea67a23c59552e",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-disposable-publisher-git-role/tasks.md",
+      "bytes": 1650,
+      "sha256": "20ba1c94cc0f6e4f35f427b1950e8514ebfecec8316043256f0d3744ffc38295",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "scripts/rc_disposable_git_prepare.py",
+      "bytes": 13671,
+      "sha256": "fee66e7f9edb34bc0d085f7de68854b591642809c154df30545d9256171cb43d",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "scripts/rc_disposable_git_role_install.py",
+      "bytes": 9838,
+      "sha256": "1532ed3f9771527c4ed81054c9fc91d773ba3d11e6865e3e1f53e78306dc376b",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "scripts/rc_disposable_public_projection.py",
+      "bytes": 13642,
+      "sha256": "12a44646e185eb7e56f16100511a7dc5c4a463d8933f25587db89238ca853c34",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "scripts/rc_disposable_vendor/owned_debian_msgfmt_prepare.py",
+      "bytes": 37979,
+      "sha256": "382f47e98cb5e782e4080f781ba930a42a265a5d83250507199045b1d28ba0aa",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "scripts/rc_disposable_vendor/owned_git_prepare_v4.py",
+      "bytes": 40784,
+      "sha256": "a21b053058b1365d5b547c4983a3338ba8f3b4b844d16fc795bcd0c31a1bbe48",
+      "mode": "600",
+      "git_mode": "100644",
+      "nlink": 1
+    }
+  ]
+}

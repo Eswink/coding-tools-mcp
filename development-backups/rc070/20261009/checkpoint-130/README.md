@@ -1,0 +1,3 @@
+# Publisher early source-only mode adapter
+
+The separate immutable11-file134373-byte early draft is physically0600, with intended Git100644. Public source backup uses physical0644/Git100644 and copies every byte unchanged. The original embedded manifest mode600 describes the private source freeze, not a claim about public checkout modes. MODE-ADAPTER contains all11 exact literal paths, bytes and SHA256 including original MANIFEST itself. Verify those rows before copying; optional isolated source-freeze reconstruction may set only those11 copied paths to0600. Original source/manifest are not modified. This adapter supplies no ordinary-test, installer, CI, startup or RC qualification.

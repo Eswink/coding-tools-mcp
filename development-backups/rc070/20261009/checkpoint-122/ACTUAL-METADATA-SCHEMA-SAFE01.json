@@ -1,0 +1,9 @@
+{
+  "packages": 216,
+  "nodes": 216,
+  "completeNativeMetadataJSON": true,
+  "twoExactOwnedPatchManifestPaths": true,
+  "RSAAndMySQLAbsent": true,
+  "activeMySQLAllDatabasesDenied": true,
+  "scope": "RESOLUTION_ONLY_NOT_BUILD_AUDIT_OR_RC"
+}

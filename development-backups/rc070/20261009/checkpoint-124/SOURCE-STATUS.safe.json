@@ -1,0 +1,13 @@
+{
+  "scope": "LIMITED_SOURCE_AND_55_ORDINARY_DATA_CONTROLS_PEER_ONLY",
+  "decision": "LIMITED_SOURCE_PASS",
+  "captureNativeContextQueryCompiler488InstallRCQualified": false,
+  "source_checkpoint": {
+    "path": "/workspace/work/rc070/postpublish-recovery-evidence/native-stagei25-known-libc-role-source-only-backup",
+    "files": 15,
+    "bytes": 486472,
+    "manifestSHA256": "76b4828cf751ffabc317e42f71634260feb916aa779579d5377d030d9a0487f9"
+  },
+  "source_original_bytes_and_frozen_PENDING_preserved": true,
+  "assemblerNativeOrSUTExecutions": 0
+}

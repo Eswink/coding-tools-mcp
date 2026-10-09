@@ -1,0 +1,96 @@
+{
+  "kind": "SAFE_PARTIAL_SOURCE_AND_ACTUAL_AUDIT_RESULT_NOT_RC",
+  "entries": [
+    {
+      "path": "ACTUAL-AUDIT-SCHEMA-SAFE03.json",
+      "bytes": 195,
+      "sha256": "1053c21692a5b1f8f9abfcaeb9535b28c6167a43d6fac8d2d1de24319096b654",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "ACTUAL-ROOT-AUDIT-TERMINAL-SAFE03.json",
+      "bytes": 1744,
+      "sha256": "17e7c4088b71a66086a0d2f77c241d4b3378148c9afb7db9c48f20af9a217726",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "INDEPENDENT-RSA-AUDIT03-STARTUP-SAFE01.json",
+      "bytes": 3513,
+      "sha256": "6f6faf5d7e550c57facc3bf5db0277b05dc444470f8321e6d2f739d7942a8390",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "INDEPENDENT-RSA-AUDIT03-TERMINAL-SAFE01.json",
+      "bytes": 2963,
+      "sha256": "28f9d2dd8ea8b66b7492a087ae547522b20318db109901bf8bbe2be9745fd32f",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "PROVENANCE.safe.json",
+      "bytes": 4054,
+      "sha256": "d0a41e0d3053528790253fb7c136c47b3916164bcd6773e016bf4cf0ce6a8fcb",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1567,
+      "sha256": "85313d1b0d72777f870d882e5c90ff2850b05cdf62e50f2e56b29fc7950b58e9",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "bytes": 936,
+      "sha256": "36f290db7697368e216648a2b3bbd78b1db0fb42b92f3cbdb9b764cb412eb541",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SPEC-CHECK.safe.json",
+      "bytes": 433,
+      "sha256": "0e19b820bfb4c04eb2b5e727382a150c45867c4b6338e0864cf0448bf354e109",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "source/audit-launcher-source01.js",
+      "bytes": 7547,
+      "sha256": "303b9c0c441cd4eaca1df9a64de49b80404438b6dd3929b5ee837fa05a813437",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "source/audit-source-guard01.py",
+      "bytes": 6431,
+      "sha256": "e7daef4fa2fd4c59614f9955063fcabb3cd8c93dec599a61ae2b8ae341842973",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "spec/design.md",
+      "bytes": 3808,
+      "sha256": "c2cf4ac4d5816a56b049730ade39c80bb63438d6bd069abb7e70ad5086d7bae4",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "spec/requirements.md",
+      "bytes": 5038,
+      "sha256": "cfd8edf0c3d4268eb95bd51792e526092a592bed4e9f58c5c559de781af61a3f",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "spec/tasks.md",
+      "bytes": 2107,
+      "sha256": "7ce2fc5e7674aeea03f8355b4c78f1f927d078ed6bb0b9d4dcd60eb4a2fb6d01",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ]
+}

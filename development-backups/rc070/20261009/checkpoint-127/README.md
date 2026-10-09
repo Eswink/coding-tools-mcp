@@ -1,0 +1,5 @@
+# Publisher current source-only draft02
+
+11 current staged source files on actual PR148 a935 baseline, original1860 raw bytes unchanged. 52 actual named ordinary controls succeeded. This does not establish all24+17 direction coverage, runtime closure, native family retirement, privileged installer permission or genuine tool setup. Independent source/startup review PENDING; no build/install/sudo/CI/85/300 execution. Both original profiles hard NOT_RUN while private durable raw channel OPEN.
+
+New dual-stream adapter reads stdout and stderr separately with live combined2MiB cap; overflow FAIL retains bounded prefixes. Vendor V4 and DebianV3 full bytes exact; prepare function two callback AST injections disclosed. Output directory mkdir and final file O_EXCL prohibit overwriting existing destination/file; publication is conditional successful complete projection, not atomic four-file replace. Failure/cancel/raw historical files remain local immutable. No raw native inventories/packages/logs/keys/private host/process/environment data are exported.

@@ -1,0 +1,17 @@
+{
+  "sourceTool": "mcp-probe-kit@4.0.1/check_spec",
+  "structuredContent": {
+    "passed": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": [],
+    "frIds": [
+      "FR-1",
+      "FR-2",
+      "FR-3"
+    ],
+    "summary": "\u89c4\u683c\u6821\u9a8c\u901a\u8fc7\uff083 \u6761\u9700\u6c42\uff09"
+  },
+  "sourceRawSHA256": "056e4350742ab3af36e6192aa62106373b0871d18f887777590ec8b2a10c4749",
+  "copyScope": "EXISTING_SPEC_RESULT_NOT_NEW_EXECUTION"
+}

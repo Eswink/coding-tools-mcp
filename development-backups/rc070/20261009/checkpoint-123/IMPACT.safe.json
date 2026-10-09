@@ -1,0 +1,46 @@
+{
+  "repo": "/workspace/work/rc070/startup-native-birth-spec-next",
+  "risk": "UNKNOWN/manualHIGH/rootexplicitfinite2sourceauthorization",
+  "rows": [
+    {
+      "symbol": "validate_known_libc_role",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    },
+    {
+      "symbol": "collect_candidates",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    },
+    {
+      "symbol": "query_environment_policy",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    },
+    {
+      "symbol": "check_global_policy",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    },
+    {
+      "symbol": "capture_native_context",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    },
+    {
+      "symbol": "run_known_libc_role_controls",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    },
+    {
+      "symbol": "run_global_policy_controls",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    },
+    {
+      "symbol": "run_readonly_controls",
+      "actual_exit": 0,
+      "actual_risk": "UNKNOWN"
+    }
+  ]
+}

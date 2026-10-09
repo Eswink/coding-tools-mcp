@@ -1,0 +1,33 @@
+{
+  "scope": "EARLY_READONLY_SOURCE_AT_POINT_IN_TIME_NOT_FREEZE",
+  "result": "STOP_FOR_STARTUP",
+  "read_snapshots": {
+    "role_install_sha256": "1532ed3f9771527c4ed81054c9fc91d773ba3d11e6865e3e1f53e78306dc376b",
+    "prepare_sha256": "fee66e7f9edb34bc0d085f7de68854b591642809c154df30545d9256171cb43d",
+    "public_projection_sha256": "12a44646e185eb7e56f16100511a7dc5c4a463d8933f25587db89238ca853c34"
+  },
+  "specific_issues": [
+    "Native FD returns before holder registration/try may bypass retirement on constructor or registration cancellation",
+    "Prepare exact source reader close failure retains exception but lacks actual UNKNOWN holder",
+    "subprocess.run capture_output has postcompletion size checks rather than bounded collection",
+    "Prepare failure/cancellation bypasses final lease check unless entry all-finally supplies independent attempts",
+    "Setup-only public exporter must reject both necessary85 and original300 execution while private durable raw channel is OPEN",
+    "Setup PASS requires complete phase/role aggregate consistency, not caller label alone",
+    "Rename over existing empty output directory is not exclusive public publication"
+  ],
+  "preserved_vendor_sources": {
+    "v4_raw_exact": true,
+    "debian_v3_raw_exact": true
+  },
+  "author_selected_contract_pending_implementation": {
+    "ELF_max_bytes": 67108864,
+    "request_max_bytes": 8192,
+    "safe_helper_stdout_max_bytes": 4096,
+    "role_create_and_probe_shared_seconds": 30,
+    "public_probe_status_includes_role_creation": true
+  },
+  "actual_helper_workflow_sudo_build_Publisher_runs": 0,
+  "sole_writer_contacted": true,
+  "source_edits_by_reviewer": 0,
+  "followup": "Author may complete already authorized narrow source repairs and current actual ordinary negative controls; fresh source freeze and independent review needed before root startup"
+}

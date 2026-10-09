@@ -1,0 +1,55 @@
+{
+  "scope": "ACTUAL_OFFLINE_CARGO_RESOLUTION_ONLY_NOT_PRODUCT_WIRED",
+  "actualNativeExits": [
+    0,
+    0,
+    0
+  ],
+  "primary": null,
+  "wholeRawBytes": 1036001,
+  "originalPackageCount": 230,
+  "newPackageCount": 216,
+  "removedPackages": [
+    "const-oid",
+    "der",
+    "lazy_static",
+    "libm",
+    "num-bigint-dig",
+    "num-integer",
+    "num-iter",
+    "pem-rfc7468",
+    "pkcs1",
+    "pkcs8",
+    "rsa",
+    "signature",
+    "spki",
+    "sqlx-mysql"
+  ],
+  "changedPackages": [
+    "bitflags",
+    "digest",
+    "num-traits",
+    "sqlx",
+    "sqlx-macros-core"
+  ],
+  "unexpected": [],
+  "actualLockBytes": 51833,
+  "actualLockSHA256": "f1789a9a228d7af0b5b321d9e233f77181372d33d3f480056fd2779c7195930c",
+  "completeMetadata": {
+    "packages": 216,
+    "nodes": 216,
+    "completeNativeMetadataJSON": true,
+    "twoExactOwnedPatchManifestPaths": true,
+    "RSAAndMySQLAbsent": true,
+    "activeMySQLAllDatabasesDenied": true,
+    "scope": "RESOLUTION_ONLY_NOT_BUILD_AUDIT_OR_RC"
+  },
+  "sourceFilesVerified": 2033,
+  "mandatoryFinalErrors": [],
+  "actualPostWriterElapsedSeconds": 11.307085170999926,
+  "postWriterDeadlineVerified": true,
+  "oldFailurePreserved": true,
+  "familyClosureClaim": false,
+  "buildAuditInstallRCQualified": false,
+  "independentTerminalPeer": "PENDING"
+}

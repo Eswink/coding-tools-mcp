@@ -1,0 +1,103 @@
+{
+  "kind": "safe_source-only_notqualification",
+  "entries": [
+    {
+      "path": "FROZEN-V2-TO-KNOWN-LIBC.patch",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 11719,
+      "sha256": "1ee0015bdb304e67c571b4909fee333e617efa66c4a95557eeb3a517b63f1d67"
+    },
+    {
+      "path": "IMPACT.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 1042,
+      "sha256": "351716378cd4c1f3848beb94444971d537d79916302c34e2fff57cb9adb702f3"
+    },
+    {
+      "path": "ORDINARY55-DATA-CONTROLS.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 9080,
+      "sha256": "e81dc45924e6ec20136dbc81e1779105a9b1b76b0916fb9cf767d0b15d8c7e84"
+    },
+    {
+      "path": "PRIOR-INDEPENDENT-DIRECTION.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 2888,
+      "sha256": "8219ca57d5b4209904b1547ea34b11bee4eda0692d9134624615ab9f9e3571e7"
+    },
+    {
+      "path": "PROTECTED-SOURCE1867.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 395815,
+      "sha256": "636b0db10c31f2b0f355b993ba55cd93741fa3a5819637f3cb6f60f517f7d825"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 692,
+      "sha256": "586fac803c96f9ec5c5731da00f0acff43f1fac77b443a9b6c02afe23a79e3b5"
+    },
+    {
+      "path": "SOURCE-STATIC.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 544,
+      "sha256": "f97c3ef794c1b8329d205a81825029eb667a05c9d9559bcdbe11eaf2a13330ae"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 1173,
+      "sha256": "4c10fa7728435efdef0d4b430bcc6218a4b8121758a0a0230b5b4b9cedd2215d"
+    },
+    {
+      "path": "SPEC-CHECK.safe.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 215,
+      "sha256": "0181d6fbe49bcf9611cc89e000a05839014c0bc7efc8d298d050adafadbdad4b"
+    },
+    {
+      "path": "source/loader_query_context.py",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 34917,
+      "sha256": "da9df6129031e47a1ed97ccbcedd1bc4363f1e439f6315f533631fd20f3143b7"
+    },
+    {
+      "path": "source/loader_query_controls.py",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 15724,
+      "sha256": "26b488df6bf4fb115994f913e0137f8b067ba259200ccea416ae009116dca31f"
+    },
+    {
+      "path": "spec/design.md",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 3053,
+      "sha256": "98d0b493012923fb365089f7f7a9b2043589a26217624c24e71407a7b2ccb1f1"
+    },
+    {
+      "path": "spec/requirements.md",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 4243,
+      "sha256": "5787deb5231cf5280cf5a82e9627344666ef0c0f3c6f36ea055ac922c973a89f"
+    },
+    {
+      "path": "spec/tasks.md",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 2307,
+      "sha256": "8035549a7e6502f672f7b2dac08434c0ef1df23e841ad2320cd9361c48ca01ed"
+    }
+  ]
+}

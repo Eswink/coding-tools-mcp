@@ -1,0 +1,26 @@
+{
+  "kind": "SAFE_SEPARATE_SOURCE_PEER_APPENDIX_NOT_STARTUP_OR_RC",
+  "entries": [
+    {
+      "path": "STAGEI25-KNOWN-LIBC-ROLE-INDEPENDENT-SOURCE-PEER-SAFE01.json",
+      "bytes": 2445,
+      "sha256": "fae7f71357e868b8cfd09a8a7ffad55bf8400e671d9fa1368654276b23830872",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "bytes": 552,
+      "sha256": "24ef5915ea68d61190485f6d18c3ff10bd41d1424097dd5efbb3c2497cfba005",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 847,
+      "sha256": "2137b695d663f9336ed39221ed1649689331cbfdbd7282a51616e585d12bfe32",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ]
+}

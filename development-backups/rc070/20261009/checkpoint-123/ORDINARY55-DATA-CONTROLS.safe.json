@@ -1,0 +1,336 @@
+{
+  "actual_gcc_driver_jobs": 0,
+  "actual_loader_queries": 0,
+  "actual_native_birth_controls": 0,
+  "actual_popen_jobs": 0,
+  "actual_root_exec": 0,
+  "bridge_imports": 0,
+  "cases": [
+    {
+      "case": "control_source_has_no_query_or_process_calls",
+      "result": "PASS",
+      "scope": "ordinary_AST_only"
+    },
+    {
+      "case": "arbitrary_dict_not_registered_admission",
+      "denied_type": "TypeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "pure_factual_parser_fixture_no_registered_admission",
+      "result": "PASS",
+      "scope": "ordinary_data_only_no_actual_loader_output"
+    },
+    {
+      "case": "parser_duplicate_dependency",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "parser_not_found",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "parser_unsealed_path",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "parser_unknown_line",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "parser_missing_needed",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "parser_missing_loader",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "parser_duplicate_vdso",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "parser_non_utf8",
+      "denied_type": "UnicodeDecodeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "pure_elf_policy_supported_shape",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "candidate_callback_tag_audit",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "candidate_callback_tag_depaudit",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "candidate_callback_tag_filter",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "candidate_callback_tag_auxiliary",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "candidate_callback_tag_config",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "candidate_ET_REL_not_runtime",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "needed_contains_directory",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "needed_unsupported_token",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "unknown_dynamic_init_flag",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "search_empty_component",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "search_relative",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "search_unknown_token",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "search_cwd_token",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "actual_fixed_outer_ELF_policy_readonly",
+      "result": "PASS",
+      "scope": "real_ELF_byte_reads_only_no_actual_query",
+      "sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7"
+    },
+    {
+      "case": "pure_exact_environment_policy",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "env_EXTRA_LD_PRELOAD_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "env_changed_PATH_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "inherited_unsafe_context_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "secure_exec_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "secure_exec_unknown_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "preload_file_present_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "capability_unknown_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "preliminary_caps_unknown_is_not_qualification",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "preliminary_caps_true_must_not_be_prequalified",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "actual_known_libc_ELF_with_data_needed_role_fixture",
+      "result": "PASS",
+      "scope": "real_ELF_reads_plus_data_role_fixture_not_actual_runtime_selection"
+    },
+    {
+      "case": "libc_same_basename_othercanonical_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "libc_ET_EXEC_as_library_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "libc_changed_bytes_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "libc_other_interpreter_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "libc_no_actual_needed_role_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "libc_wrong_actual_needed_owner_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "libc_wrong_actual_needed_name_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "libc_nonmain_RPATH_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "libc_audit_callback_tag_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "libc_unsealed_outer_bytes_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "libc_outer_missing_DT_NEEDED_denied",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "mock_close_cancel_once_unknown_strong_retention",
+      "result": "PASS",
+      "scope": "ordinary_python_mock_no_fd_no_process"
+    },
+    {
+      "case": "mock_original_systemexit_and_close_keyboardinterrupt_objects",
+      "result": "PASS",
+      "scope": "ordinary_python_mock_no_fd_no_process"
+    },
+    {
+      "case": "bootstrap_bad_actual_bytes_SHA_before_any_exec",
+      "denied_type": "RuntimeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "admission_has_no_public_constructor",
+      "denied_type": "TypeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "unregistered_exacttype_not_minted_admission",
+      "denied_type": "TypeError",
+      "result": "PASS",
+      "scope": "ordinary_data_only"
+    },
+    {
+      "case": "pure_afterfence_cancel_still_attempts_clock_preserves_all_objects",
+      "result": "PASS",
+      "scope": "mock_observers_no_process_no_admission"
+    },
+    {
+      "case": "pure_total_deadline_late_fences_deny_even_after_mock_success",
+      "result": "PASS",
+      "scope": "mock_observers_no_process_no_admission"
+    }
+  ],
+  "kind": "loader_query_data_only_controls",
+  "note": "Mocks deliberately retain UNKNOWN original objects; no actual FD/PID/process.",
+  "original488_qualification": false,
+  "original_sut": "NOTRUN",
+  "qualifies_native": false,
+  "wholecompiler": "NOTRUN"
+}

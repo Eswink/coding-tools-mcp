@@ -1,0 +1,5 @@
+# Separate Publisher early source STOP appendix
+
+This packet copies two independent, finite, point-in-time STOP reports for the separately frozen 11-file early disposable-CI draft. The frozen source and its original NOTRUN/PENDING fields stay unchanged. The reports identify resource retirement, collection, final verification, public projection, aggregate setup and exclusive output issues; mutable subsequent repairs require their own freeze and review. Three later ordinary control outcomes mentioned in one report are not full ordinary-suite or startup qualification.
+
+No installer, sudo, build, workflow, Publisher85/300 or RC execution occurs here. Private durable raw custody remains open, so the original test admission and release refusal boundaries remain. These safe reports contain source digests, declared source limits and review findings, without raw host identities/environment, runtime archives, private raw streams, TLS/key payloads or Git objects. Intended Git mode 100644; physical mode 0644.

@@ -1,0 +1,107 @@
+{
+  "scope": "PARTIAL_SOURCE_AND_SAFE_ACTUAL_AUDIT_ONLY",
+  "copies": [
+    {
+      "path": "source/audit-source-guard01.py",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-audit-build-owned03/audit-source-guard01.py",
+      "bytes": 6431,
+      "sha256": "e7daef4fa2fd4c59614f9955063fcabb3cd8c93dec599a61ae2b8ae341842973",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "source/audit-launcher-source01.js",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-audit-build-owned03/audit-launcher-source01.js",
+      "bytes": 7547,
+      "sha256": "303b9c0c441cd4eaca1df9a64de49b80404438b6dd3929b5ee837fa05a813437",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "ACTUAL-ROOT-AUDIT-TERMINAL-SAFE03.json",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-audit-build-owned03/ACTUAL-ROOT-AUDIT-TERMINAL-SAFE03.json",
+      "bytes": 1744,
+      "sha256": "17e7c4088b71a66086a0d2f77c241d4b3378148c9afb7db9c48f20af9a217726",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "ACTUAL-AUDIT-SCHEMA-SAFE03.json",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-audit-build-owned03/ACTUAL-AUDIT-SCHEMA-SAFE03.json",
+      "bytes": 195,
+      "sha256": "1053c21692a5b1f8f9abfcaeb9535b28c6167a43d6fac8d2d1de24319096b654",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "INDEPENDENT-RSA-AUDIT03-STARTUP-SAFE01.json",
+      "sourcePath": "/workspace/work/rc070/rsa-independent-source-peer01/INDEPENDENT-RSA-AUDIT03-STARTUP-SAFE01.json",
+      "bytes": 3513,
+      "sha256": "6f6faf5d7e550c57facc3bf5db0277b05dc444470f8321e6d2f739d7942a8390",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "INDEPENDENT-RSA-AUDIT03-TERMINAL-SAFE01.json",
+      "sourcePath": "/workspace/work/rc070/rsa-independent-source-peer01/INDEPENDENT-RSA-AUDIT03-TERMINAL-SAFE01.json",
+      "bytes": 2963,
+      "sha256": "28f9d2dd8ea8b66b7492a087ae547522b20318db109901bf8bbe2be9745fd32f",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "spec/requirements.md",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-audit-build-readonly03/spec/requirements.md",
+      "bytes": 5038,
+      "sha256": "cfd8edf0c3d4268eb95bd51792e526092a592bed4e9f58c5c559de781af61a3f",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "spec/design.md",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-audit-build-readonly03/spec/design.md",
+      "bytes": 3808,
+      "sha256": "c2cf4ac4d5816a56b049730ade39c80bb63438d6bd069abb7e70ad5086d7bae4",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "spec/tasks.md",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-audit-build-readonly03/spec/tasks.md",
+      "bytes": 2107,
+      "sha256": "7ce2fc5e7674aeea03f8355b4c78f1f927d078ed6bb0b9d4dcd60eb4a2fb6d01",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    }
+  ],
+  "originalSourceBytesUnchangedAfterAssembly": true,
+  "excluded": [
+    "audit startup packet",
+    "private source/DB leases",
+    "tool and runtime stat inventories",
+    "native raw audit streams",
+    "full2033 source and all7 TLS/key/env fixture bodies",
+    "DB1315 file bodies",
+    "runtime binaries/archives",
+    "host/proc/environment payloads",
+    "Git object pools"
+  ]
+}

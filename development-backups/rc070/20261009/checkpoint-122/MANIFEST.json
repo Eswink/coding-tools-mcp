@@ -1,0 +1,138 @@
+{
+  "kind": "SAFE_PARTIAL_SOURCE_ONLY_NOT_RC_QUALIFICATION",
+  "entries": [
+    {
+      "path": "ACTUAL-CARGO-GENERATED-LOCK-DIFF01.safe.json",
+      "bytes": 72608,
+      "sha256": "f077df124a173a64ba69450b40bdb01f91d65659303c94771400d4aef10cbbe6",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "ACTUAL-METADATA-SCHEMA-SAFE01.json",
+      "bytes": 240,
+      "sha256": "af6f0f9592526c65f633623fbd4a184e69f91d244a591707d1672c874389d5fb",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "ACTUAL-ROOT-CARGO-TERMINAL-SAFE01.json",
+      "bytes": 1298,
+      "sha256": "273e79a1c46cdc4de1a11badeb17d24798fba25e84de9730c0f7d3e53b3f8b85",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "INDEPENDENT-RSA-SLOT02-STARTUP-SAFE01.json",
+      "bytes": 3166,
+      "sha256": "f842d7943d45455ccd00b2007ee7342d6e7c1e8961c67a865f58ece524a7f125",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "INDEPENDENT-RSA-SLOT02-TERMINAL-SAFE01.json",
+      "bytes": 3618,
+      "sha256": "6968572b2b004f8a7897caa84bf73c1dceb77f16712044f0a4f16fc53fcc7a27",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "ORDINARY-LOCK-GATE-CONTROLS02.safe.json",
+      "bytes": 3649,
+      "sha256": "12a1412d35f50fc76e6ea8ed1111db9ac55783305317157b0e3aa167739dadae",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "PROVENANCE.safe.json",
+      "bytes": 4984,
+      "sha256": "a627ee1b9da95f1fde5f365ab32f1d880ff7750904f6c077a5e67471ed9c2c82",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1558,
+      "sha256": "f9e9178f80afc6b1b802d7bf53905c391045fbf6bc9101708f036a89912f2edd",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "bytes": 905,
+      "sha256": "bab5b491a17ac0858624a37369114831e1d376c5e5b2ed2c1acb5333ede22c67",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SPEC-CHECK.safe.json",
+      "bytes": 460,
+      "sha256": "1cbd6583b095991195bc153e63efd683bfe600b0a922f794c049bf796675e6ad",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "source/ACTUAL-CARGO-REPAIRED-gateway-Cargo.lock",
+      "bytes": 51833,
+      "sha256": "f1789a9a228d7af0b5b321d9e233f77181372d33d3f480056fd2779c7195930c",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "source/cargo-source-guard01.py",
+      "bytes": 9195,
+      "sha256": "3ecad361b58f39c172a518c2fe60b75f56f41f2ba2efb31af5fb3c00db2c322f",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "source/launcher-source01.js",
+      "bytes": 7642,
+      "sha256": "518b1c155e060e7190465a6eee84c174bf82bda326dde6e76d4acd4445052b68",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "source/ordinary-lock-gate-controls02.py",
+      "bytes": 5486,
+      "sha256": "91cda720f4429a671ae469849112fc9bc72316f453641a6f10db81bd3e6df626",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "source/vendor/sqlx/Cargo.toml",
+      "bytes": 9617,
+      "sha256": "749b0149483ba694aeee87729bded5e3df13c4703f1d07f4e9578027e35004f4",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "source/vendor/sqlx-macros-core/Cargo.toml",
+      "bytes": 3617,
+      "sha256": "cc6f7de8b22fc50b81864193d4573f527d4a3dc28a035d9b84af83c3921ff527",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "spec/design.md",
+      "bytes": 3770,
+      "sha256": "d99d4383da0852eee9315a0ee220be9b86fc0216259bf2717de9cb62e53347b9",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "spec/requirements.md",
+      "bytes": 4960,
+      "sha256": "9b6ebd2bae6662af765c52de8bfd2f2a12a78c61f096ef60ed7c6ddd7b984b3c",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "spec/tasks.md",
+      "bytes": 1872,
+      "sha256": "910173f216bcd67b693286981e58c10ff73493112bcb860fd088afc939b6507a",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "author_ordinary_provenance": {
+    "credit": "three finite controls only, not full source or startup",
+    "source": "author message, not independently rerun",
+    "three_early_failure_first": "actual exit1/chunk639e9f",
+    "three_local_fix_controls": "actual exit0/chunka1d14b"
+  },
+  "early_source_sha256": "12a44646e185eb7e56f16100511a7dc5c4a463d8933f25587db89238ca853c34",
+  "execution_by_reviewer": {
+    "SUT": 0,
+    "installer": 0,
+    "native_build": 0,
+    "projection_exporter": 0,
+    "sudo": 0,
+    "workflow": 0
+  },
+  "own_graph": {
+    "actual_graph": "unavailable",
+    "borrowed_other_checkout_index": false,
+    "local_fallback": "file/declaration only, not impact/callgraph",
+    "repository_alias": "publisher-disposable-ci-source-work",
+    "structured_status": "degraded"
+  },
+  "positive_static_checks": [
+    "all four file roots and nested fixed objects reject unknown keys via exact dict keys",
+    "string domains fixed ASCII enums/digests or bounded hosted numeric image version",
+    "integer and boolean exact types refuse bool as int",
+    "release_authorized false and product_install_runs zero fixed",
+    "private raw VERIFIED explicitly rejected without durable channel",
+    "whole four-buffer serialized sum checked before export IO at 2MiB"
+  ],
+  "preservation": "old early source failure and all existing raw evidence remain untouched; no GitHub mutation",
+  "preserved_previous_safe_report_sha256": "2892693824b5aca2eb62b497c5bec6309ed4586b1e90d1817ac40fa567e3c45f",
+  "qualification": {
+    "RC": false,
+    "native_install": false,
+    "publisher300": "NOT_RUN",
+    "publisher85": "NOT_RUN",
+    "release": false,
+    "source_full_pass": false
+  },
+  "schema": "rc070-finite-public-projection-source-review-1",
+  "scope": "readonly projection/schema only",
+  "source": {
+    "bytes": 14838,
+    "path": "scripts/rc_disposable_public_projection.py",
+    "sha256": "3e83d262f3c0598b2ed8082f001f6d9a852642e839aff7871629ca4149c70fa0",
+    "stage": "mutable partial observed snapshot; author has not frozen full revision"
+  },
+  "static_findings": [
+    {
+      "boundary": "exact bytes strict UTF8; no BOM, duplicate keys and nonfinite reject",
+      "id": "P1",
+      "status": "partial fix observed"
+    },
+    {
+      "boundary": "both necessary85 and original300 restricted NOT_RUN zero; setup PASS all four phases PASS with real0 and elapsed; cross-file configs2/three true bools/nonnull installed and log hashes",
+      "id": "P2",
+      "status": "partial fix observed"
+    },
+    {
+      "boundary": "RAW-SEAL profiles currently allow eight files and nonnull seal although both profiles are always NOT_RUN; contract requires empty files/null seal",
+      "id": "P3",
+      "status": "OPEN sent to author"
+    },
+    {
+      "boundary": "parse_projection decodes/parses before any input byte bound; exporter total four serialized buffers has 2MiB bound but parser needs separate pre-decode bound and consumer combined bound",
+      "id": "P4",
+      "status": "OPEN sent to author"
+    },
+    {
+      "boundary": "no actual entry/workflow provided: cannot verify full prefix plus single ELF role aggregate closure or public console raw/traceback capture",
+      "id": "P5",
+      "status": "OPEN implementation absent"
+    },
+    {
+      "boundary": "projection directory/file prelinked resource retention and exclusive no-replace public commit not yet closed; independent reviewer owns IO checks",
+      "id": "P6",
+      "status": "separate peer STOP remains"
+    },
+    {
+      "boundary": "parse_constant rejects literal NaN/Infinity but default JSON parse_float can yield infinity from 1e999; typed schema subsequently rejects floats, but parser nonfinite rejection claim is incomplete. No target helper was executed.",
+      "id": "P7",
+      "status": "OPEN sent to author"
+    }
+  ],
+  "status": "SOURCE_STOP_INCOMPLETE"
+}

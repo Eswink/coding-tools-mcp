@@ -1,0 +1,3 @@
+# Early CI source draft — actual independent SOURCE STOP
+
+Original base a935f0d8f81901a0974b5b0d4a59c98d7765b8a1. Partial newsource only: WF/entry not yet implemented, ordinary controls not yet executed atfreeze. Preserve as source-onlyfailurefirst; no sudo/CI/build/install/probe/SUT launch. Review found actualFD registration/UNKNOWN holder/stream output cap/final leases/publicprofile/weakPASS/nonexclusive rename gaps. Current SOURCE STOP, noqualification. Exact V4 and Debian resource sources copied unchanged; original repo files unchanged. Private rawdurability OPEN; original85FAIL/300NOTRUN/realissuer unavailable. No sensitive runtime package/raw/TLS/privatekey/hostproc/objects included.

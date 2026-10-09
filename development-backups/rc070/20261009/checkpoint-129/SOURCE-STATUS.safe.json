@@ -1,0 +1,13 @@
+{
+  "scope": "LIMITED_SOURCE_AND_EXISTING_ORDINARY66_PEER_ONLY",
+  "sourceFreezeManifestSHA256": "000eb390df39ac6786417a0e28985758b3d00c7d58c9d3491c5b1568bec2f836",
+  "sourceFreezeFiles": 24,
+  "sourceFreezeBytes": 314942,
+  "frozenPendingAndSource121Unchanged": true,
+  "nativeWindowsGoZIP320CIStartupInstallRCQualified": false,
+  "assemblerExecutedSUT": 0,
+  "sourcePeerPhysicalMode": "0600",
+  "packetPhysicalMode": "0644",
+  "intendedGitMode": "100644",
+  "byteAdapter": "NONE"
+}

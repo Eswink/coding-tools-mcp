@@ -1,0 +1,13 @@
+{
+  "schema": "source-only-early-stop-1",
+  "source": "PARTIAL_IMPLEMENTATION_SOURCE_STOP",
+  "peer": "ACTUAL_EARLY_SOURCE_STOP",
+  "ordinary": "NOT_RUN_AT_FREEZE",
+  "WF": "NOT_IMPLEMENTED",
+  "sudo_runs": 0,
+  "CI_runs": 0,
+  "build_runs": 0,
+  "SUT_runs": 0,
+  "original85": "FAIL",
+  "original300": "NOT_RUN"
+}
