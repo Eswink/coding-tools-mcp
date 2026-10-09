@@ -1,0 +1,43 @@
+# 设计文档：issue88-native-git-preflight
+
+## 概述
+
+FR-1/2：新增Check original native Git flags before source restoration step，在checkout后、原Fixed source objects and official existing test data only前。其它steps顺序/条件不变。
+
+## 技术方案
+
+### 架构设计
+
+固定repo/push/refguard→原immutablecheckout→newreadonlynativeGitfullflags--version→原fetch/fixture→原restoreb9cf→原完整precondition→原85→原seal/向量门→原300→原scannedartifact。预门成功不替代后续任一门。
+
+### 技术选型
+
+原bashset-euo pipefail与/usr/bin/git。命令固定--no-pager --no-replace-objects --no-optional-locks --no-lazy-fetch -c core.hooksPath=/dev/null -c core.fsmonitor=false -c core.untrackedCache=false -c credential.helper= -c protocol.allow=never --version。新step timeout-minutes1，未安装工具。
+
+## 文件结构
+
+onlyworkflow新增8行以内；独立spec/Plan/sourcecontrols/patch在publisher-preflight-review，不进carrier/SUT。
+
+## 设计决策
+
+### 决策1：直接兼容检查早于bootstrap（FR-1）
+
+--version只读，固定nativepath；完整FLAGS/OVERRIDES与原sourceprecondition比对。原脚本precondition/工具hash/source/realmowner维持，Git新版本不存在预设PASS。
+
+### 决策2：真实可审forwardcommit（FR-2）
+
+只有具体内容检查不用于空事件制造。rootpeer后normalnativepush，启用是新外部条件，实际CIrun才提供运行证明。0仍NOTRUN；无grant/main/permissions/dispatch/rerun。
+
+## 测试策略
+
+raw原bytes由单一插入生成；YAML移除新增step后完全等于父；新step位置1、字段name/shell/timeout/run固定；解析run shlex向量逐一比对原sourcePrefix/Overrides；原helpers/1859paths模式/blob/字节保持；nativegitdiffcheck；freshGNstageddetect/gencommit；所有检查SUT0，CI另行query。
+
+## 风险评估
+
+- 新预门可能真实失败并无artifact目录；GitHubstep原日志保存失败，不能补造SUTreceipt。
+- 调度原因此前UNKNOWN，外部enable新事实不等于预设下一run成功。
+- 图谱不覆盖YAML调度语义，0symbols非0风险，manualHIGH保持。
+
+## 检查清单
+
+- [x] 对应FR-1/2与NFR-1/2，预门失败source0，不改原安全门。

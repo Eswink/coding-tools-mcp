@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "source_head": "e90ed2b7ba521153936e206bdcc013866422ea6b",
+  "carrier_parent": "2205716ae5506a6c5423c2967355b4b54ed32f8d",
+  "carrier_tree": "dac91884330215e6f291c97f9cfd9692641c04c8",
+  "source": [
+    {
+      "kind": "carrier-source",
+      "original_path": ".github/workflows/rc-native-recovery-probe.yml",
+      "source_path": "source/.github/workflows/rc-native-recovery-probe.yml.source",
+      "git_mode": "100644",
+      "physical_posix_mode": "0644",
+      "bytes": 2790,
+      "sha256": "20f64c3698336bb993358865a14d652bfee228ead596cfeeface4e1229c3e1e0",
+      "blob": "cabc8b7f61770f60fc3d5495210750224055e46e"
+    },
+    {
+      "kind": "ancillary-review-spec-not-in-carrier",
+      "original_path": "docs/specs/issue88-native-git-preflight/requirements.md",
+      "source_path": "source/docs/specs/issue88-native-git-preflight/requirements.md.source",
+      "git_mode": "100644",
+      "physical_posix_mode": "0644",
+      "bytes": 2935,
+      "sha256": "0617848fc765e5484ecd85aab49d61baf442ab8a3c8a9a51587a6b595e396274",
+      "blob": "eb399e58a1219f72e64794d5ccb71af2fe6db444"
+    },
+    {
+      "kind": "ancillary-review-spec-not-in-carrier",
+      "original_path": "docs/specs/issue88-native-git-preflight/design.md",
+      "source_path": "source/docs/specs/issue88-native-git-preflight/design.md.source",
+      "git_mode": "100644",
+      "physical_posix_mode": "0644",
+      "bytes": 2247,
+      "sha256": "ed886a83908dd2a52cc2e8c049388d9e72b5162164000c0031ff646975ac1e57",
+      "blob": "be34c2be422ffce90f92376f4da95d98ed7b8d8d"
+    },
+    {
+      "kind": "ancillary-review-spec-not-in-carrier",
+      "original_path": "docs/specs/issue88-native-git-preflight/tasks.md",
+      "source_path": "source/docs/specs/issue88-native-git-preflight/tasks.md.source",
+      "git_mode": "100644",
+      "physical_posix_mode": "0644",
+      "bytes": 1582,
+      "sha256": "c22ab0a7fdf7d9e054da9c69cd9f75719cf2209930c606caedc63c552fdddcad",
+      "blob": "3825770ca1d6aa6a06accf03c9b5dd2bb0ddc916"
+    }
+  ],
+  "patch": {
+    "path": "WORKFLOW6-FROM-2205716.patch",
+    "bytes": 874,
+    "sha256": "e9578ffe267ae084ce80d3531ff2234f499f207b815207ccf64b626d609aca3e",
+    "native_independent_index_reconstruction_tree": "dac91884330215e6f291c97f9cfd9692641c04c8"
+  },
+  "safe_projection": "source/patch/spec/finite-safe-status only; no Git objects, raw runtime/host, private artifacts/logs, env or credentials",
+  "qualification": false
+}

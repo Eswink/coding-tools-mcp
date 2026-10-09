@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "excludes_self": true,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1147,
+      "physical_posix_mode": "0644",
+      "sha256": "17304e294b15e9a7aebb05ef12826ac1a87111b3554e78c35a1dce448e715eeb"
+    },
+    {
+      "path": "SOURCE-MANIFEST.json",
+      "bytes": 2464,
+      "physical_posix_mode": "0644",
+      "sha256": "b51a995ab3400827caf71ba7122ba596a72cae4d8030645d719c25087a7c1dfb"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 1588,
+      "physical_posix_mode": "0644",
+      "sha256": "ab3514ba479c00baed77ef9a7bfd45879a51df1382ddc72c0a1f47724aa68e2a"
+    },
+    {
+      "path": "WORKFLOW6-FROM-2205716.patch",
+      "bytes": 874,
+      "physical_posix_mode": "0644",
+      "sha256": "e9578ffe267ae084ce80d3531ff2234f499f207b815207ccf64b626d609aca3e"
+    },
+    {
+      "path": "source/.github/workflows/rc-native-recovery-probe.yml.source",
+      "bytes": 2790,
+      "physical_posix_mode": "0644",
+      "sha256": "20f64c3698336bb993358865a14d652bfee228ead596cfeeface4e1229c3e1e0"
+    },
+    {
+      "path": "source/docs/specs/issue88-native-git-preflight/design.md.source",
+      "bytes": 2247,
+      "physical_posix_mode": "0644",
+      "sha256": "ed886a83908dd2a52cc2e8c049388d9e72b5162164000c0031ff646975ac1e57"
+    },
+    {
+      "path": "source/docs/specs/issue88-native-git-preflight/requirements.md.source",
+      "bytes": 2935,
+      "physical_posix_mode": "0644",
+      "sha256": "0617848fc765e5484ecd85aab49d61baf442ab8a3c8a9a51587a6b595e396274"
+    },
+    {
+      "path": "source/docs/specs/issue88-native-git-preflight/tasks.md.source",
+      "bytes": 1582,
+      "physical_posix_mode": "0644",
+      "sha256": "c22ab0a7fdf7d9e054da9c69cd9f75719cf2209930c606caedc63c552fdddcad"
+    }
+  ],
+  "total_files_without_manifest": 8,
+  "total_bytes_without_manifest": 15627
+}

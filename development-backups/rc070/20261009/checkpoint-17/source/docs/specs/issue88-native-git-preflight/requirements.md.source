@@ -1,0 +1,47 @@
+# 需求文档：issue88-native-git-preflight
+
+## 功能概述
+
+用户明确重新启用repositoryworkflows后，尚未观察旧Publisher220head首次Actions。增加实际有用的原nativeGitflags只读compat检查，早于fetch/fixture与源恢复，避免在实际Git不支持安全flag时先bootstrap。不是cosmetic/空提交；不保证调度。正常push由root审核后执行。
+
+## 范围边界
+
+In Scope：父2205716ae5506a6c5423c2967355b4b54ed32f8d的only .github/workflows/rc-native-recovery-probe.yml 新增一个bounded只读step。
+Out of Scope：其余1859trackedpaths/10carrier文件、pureSUTb9cf/1878、脚本originalprecondition/85→seal重读→300、原预算、权限、toolchain/Git/PATH、main、D6base、tag/Release、grant；无dispatch/rerun或APImetadatachild。
+
+## 需求列表
+
+### FR-1: 原安全flags真实只读兼容前置门
+
+**优先级:** Must
+**用户故事:** 作为维护者，我要在fetch/fixture前检查原nativeGit命令，以便具体flag不兼容直接source0拒绝。
+
+#### 验收标准（EARS）
+
+1. WHEN checkout结束 THEN 系统 SHALL 在任何bootstrapfetch/fixture或恢复前用/usr/bin/git原完整PREFIX/OVERRIDES执行--version；无二进制替换、PATH修改、flag移除。
+2. IF 命令失败 THEN 系统 SHALL GitHubstep保存真实exit/log且后续普通steps不启动；不得称85或300失败，因为SUT0。
+3. WHILE 命令成功 THE 系统 SHALL 继续原所有steps，原脚本precondition实际再独立执行，85qualified才300；不得用新step替换原原生向量。
+
+### FR-2: 同源安全有限提交
+
+**优先级:** Must
+**用户故事:** 作为维护者，我要完整守界的小步forwardcommit，以便root正常push观察启用后的真实CI。
+
+#### 验收标准（EARS）
+
+1. WHEN 提交前 THEN 系统 SHALL 独立spec/check_spec通过、全部旧workflow字段除新增step外相等、源flags逐项比对、所有其他1859pathmode/blob/字节不变、freshGNstageddetect/gencommit/rootpeer审查。
+2. WHEN 创建commit THEN 系统 SHALL 唯一父2205716、only1path；root最后实读远端parent后normalnativepush。
+3. WHEN push后 THEN 系统 SHALL query实际newheadruns与run/attempt/jobs/source身份；0NOTRUN，原因UNKNOWN，不重metadata/emptycommit/旧rerun。
+
+## 非功能需求
+
+- NFR-1：新step单独timeout-minutes1，有限readonlyversion检查；原workflow180min和SUToperation/controller1800/7200预算不变。
+- NFR-2：step不上传任意env/rawhost或凭据。预检查失败时原safe-artifact目录尚未产生，原upload可能报缺目录；只有原nativeGitsteplog提供该检查事实，不补造receipt/ownerqualification。
+
+## 依赖关系
+
+用户明确启用workflow、root已正常pushsource-only220，原FLAGS+OVERRIDESlocal2.43兼容阻断，read-onlyactionpins与源恢复/owner审查。
+
+## 检查清单
+
+- [x] 具体兼容检查有实际目的，原flags与准入不变，最终RC未完成。

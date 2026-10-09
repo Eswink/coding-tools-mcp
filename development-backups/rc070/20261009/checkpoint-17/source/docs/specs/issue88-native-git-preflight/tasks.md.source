@@ -1,0 +1,33 @@
+# 任务清单：issue88-native-git-preflight
+
+## 概述
+
+独立spec→check_spec→only1path新增readonlystep→source/flags/YAMLcontrols→freshdetect/gencommit→rootpeer/localcommit→rootnormalpush/actualCI。
+
+## 交付物清单（Scope-lock）
+
+workflow一个新step<=8行；0symbol编辑，其他1859trackedfiles不变；source/SUT/原预算/权限不变。规格与证据checkout外。
+
+## 任务列表
+
+- [ ] 1.1 核父220/sourceFLAGS和readonly范围，spec通过。证据块：原precondition PREFIX含--no-lazy-fetch与完整OVERRIDES；_需求: FR-1,FR-2_；_设计: 决策1_
+- [ ] 2.1 新step固定cmd/1min，早于fetchfixture，无env/rawhostupload。证据块：原Fixedsourceobjectstep先fetch；_需求: FR-1_；_设计: 决策1_
+- [ ] 3.1 原steps语义等价/完整flags/1859paths守界/freshGN/gencommit/rootpeer。证据块：原85qualified完整原文件重读门；_需求: FR-1,FR-2_；_设计: 测试策略_
+- [ ] 4.1 唯一父forwardcommit与rootnormalpush/newheadrunidentity。证据块：用户已重新enable但220仍0runs；_需求: FR-2_；_设计: 决策2_
+
+## 需求覆盖矩阵
+
+| 需求ID | 设计章节 | 任务编号 | 状态 |
+|---|---|---|---|
+| FR-1 | 决策1/测试策略 | 1.1/2.1/3.1 | pending |
+| FR-2 | 决策2/测试策略 | 1.1/3.1/4.1 | pending |
+
+## 文件变更清单
+
+| 文件 | 操作 | 行数预算 | 说明 |
+|---|---|---|---|
+| .github/workflows/rc-native-recovery-probe.yml | 修改 | 8新增 | newreadonlypreflightstep |
+
+## 检查清单
+
+- [ ] 源审与precommit后才rootpush；真实85/300/最终RC不得预设PASS。

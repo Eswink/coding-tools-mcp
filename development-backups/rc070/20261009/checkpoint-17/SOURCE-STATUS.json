@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "kind": "source-only-meaningful-readonly-nativeGit-preflight",
+  "head": "e90ed2b7ba521153936e206bdcc013866422ea6b",
+  "parent": "2205716ae5506a6c5423c2967355b4b54ed32f8d",
+  "carrier_tree": "dac91884330215e6f291c97f9cfd9692641c04c8",
+  "carrier_path_count": 1860,
+  "changed_carrier_paths": 1,
+  "protected_other_tracked_paths": 1859,
+  "unchanged_pure_SUT_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "scope": "one new6line readonlyGitstep; 3ancillaryreview-specs notpartofcarrier",
+  "source_controls": {
+    "total": 20,
+    "passed": true,
+    "meaning": "limitedsource/YAML/flags/tree only"
+  },
+  "spec_check": "structuredPASS0error0warning",
+  "GitNexus": "fresh66.9s indexed; stageddetect exit0; YAMLgraphcoverageUNKNOWN manualHIGH, not0schedulingrisk",
+  "gencommit": "structuredready; actualrootreviewedchorecommit",
+  "original85local": "FAIL_RETAINED",
+  "actual_CI": {
+    "run_id": 37913922195,
+    "run_attempt": 1,
+    "head": "e90ed2b7ba521153936e206bdcc013866422ea6b",
+    "event": "push",
+    "status": "completed",
+    "conclusion": "failure",
+    "preflight": "SUCCESS_fullflags_nativegit2.55.0",
+    "source_restoration": "b9cf1878_RESTORED_NOTQUALIFIED",
+    "SUT_runs": 0,
+    "necessary85": "NOT_RUN",
+    "original300": "NOT_RUN",
+    "failure": "Originalrequiredruntimepath /usr/local/bin/git missing; no deletion/alias/install/guardrelaxation"
+  },
+  "native_windows": "NOT_QUALIFIED",
+  "install": "NOTRUN",
+  "release": "NOTRUN",
+  "production_qualification": false,
+  "raw_joblogs_artifacts_runtime_env_objects_excluded": true
+}
