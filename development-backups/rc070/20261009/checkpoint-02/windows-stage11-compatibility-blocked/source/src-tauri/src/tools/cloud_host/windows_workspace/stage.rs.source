@@ -1,0 +1,190 @@
+//! Actual fourth local admission, limited to the owned engineering caller.
+//! This owns a real permit, not a pathname, wire field or boot resource seal.
+use super::WorkspaceRunGrant;
+use crate::{
+    auth::{
+        chat::{ChatAuthorizer, RemoteRequest},
+        cloud_context::{CloudPeer, CloudTransport},
+        LocalAdmissionPermit, LocalAdmissionTicket, LocalAuthorityPhase,
+        LocalExecutionState,
+    },
+    tools::{
+        cloud_host::{now, NativeAuthority, NativeToolHost, MAX_DEADLINE_SECONDS},
+        windows_vm::input::WindowsInputAuthority,
+        ToolContext,
+    },
+};
+use coding_tools_cloud_agent::{agent::host::ClaimedDispatch, execution::ExecutionRequest};
+use std::{sync::Arc, time::Instant};
+use tokio::sync::watch;
+const STAGE_SCOPE: [&str; 1] = ["vm.assets.stage"];
+
+/// Created only by the actual native issuer before the durable Claim.
+pub(crate) struct StageAdmission {
+    host: uuid::Uuid,
+    context: Arc<ToolContext>,
+    root: Arc<WindowsInputAuthority>,
+    authority: NativeAuthority,
+    remote: RemoteRequest,
+    request: ExecutionRequest,
+    ticket: LocalAdmissionTicket,
+    deadline: Instant,
+    deadline_epoch: u64,
+}
+
+/// Kept in the whole HCS owner. No Clone/Deserialize/public mint exists.
+pub(crate) struct NativeAssetStagePolicy {
+    host: uuid::Uuid,
+    context: Arc<ToolContext>,
+    root: Arc<WindowsInputAuthority>,
+    authority: NativeAuthority,
+    remote: RemoteRequest,
+    request: ExecutionRequest,
+    authorizer: Arc<ChatAuthorizer>,
+    link: CloudTransport,
+    _permit: LocalAdmissionPermit,
+    deadline: Instant,
+    deadline_epoch: u64,
+    cancellation: watch::Receiver<bool>,
+}
+
+fn stage_peer(request: &ExecutionRequest) -> Result<CloudPeer, &'static str> {
+    let p = &request.binding.peer;
+    Ok(CloudPeer {
+        connector: p.connector,
+        device: p.device,
+        device_epoch: u64::try_from(p.device_epoch).map_err(|_| "CLOUD_HOST_CONTEXT_REJECTED")?,
+        gateway_boot: p.gateway_boot,
+        session: p.channel_session,
+        generation: u64::try_from(p.channel_generation)
+            .map_err(|_| "CLOUD_HOST_CONTEXT_REJECTED")?,
+    })
+}
+
+impl NativeToolHost {
+    pub(crate) fn prepare_stage(
+        &self,
+        authority: &NativeAuthority,
+        request: &ExecutionRequest,
+        deadline: Instant,
+        deadline_epoch: u64,
+    ) -> Result<StageAdmission, &'static str> {
+        self.current(authority)?;
+        let timestamp = now()?;
+        let remote = self.request(&authority.conversation)?;
+        let root = self.windows_input.as_ref().map_err(|code| *code)?.clone();
+        if request.binding.conversation != authority.conversation
+            || remote.profile != self.profile
+            || remote.identity()? != request.binding.conversation
+            || !self.link.matches(&stage_peer(request)?)
+            || request.binding.tool != "exec_command"
+            || request.binding.scope != "exec.run"
+            || u64::try_from(request.binding.deadline).ok() != Some(deadline_epoch)
+            || deadline_epoch <= timestamp
+            || deadline_epoch - timestamp > MAX_DEADLINE_SECONDS
+            || deadline_epoch > authority.view.deadline()
+            || Instant::now() >= deadline
+            || !authority.view.scopes().contains(STAGE_SCOPE[0])
+        {
+            return Err("WINDOWS_HCS_STAGE_ADMISSION_REJECTED");
+        }
+        request.validate_at(&request.binding.peer,
+            i64::try_from(timestamp).map_err(|_| "CLOUD_DEADLINE_REJECTED")?)
+            .map_err(|_| "CLOUD_ARGUMENTS_REJECTED")?;
+        let ticket = self.authorizer.issue_local_admission_ticket(
+            &remote, &STAGE_SCOPE, &self.context.execution_gate,
+        )?;
+        Ok(StageAdmission {
+            host: self.id, context: self.context.clone(), root,
+            authority: authority.clone(), remote, request: request.clone(), ticket,
+            deadline, deadline_epoch,
+        })
+    }
+
+    pub(crate) fn consume_stage(
+        &self,
+        admission: StageAdmission,
+        request: &ExecutionRequest,
+        claimed: &ClaimedDispatch,
+        cancellation: &watch::Receiver<bool>,
+    ) -> Result<NativeAssetStagePolicy, &'static str> {
+        self.current(&admission.authority)?;
+        let timestamp = now()?;
+        let root = self.windows_input.as_ref().map_err(|code| *code)?;
+        claimed.verify_request(request,
+            i64::try_from(timestamp).map_err(|_| "CLOUD_DEADLINE_REJECTED")?)
+            .map_err(|_| "CLOUD_WORKSPACE_CLAIM_REJECTED")?;
+        if admission.host != self.id
+            || !Arc::ptr_eq(&admission.context, &self.context)
+            || !Arc::ptr_eq(&admission.root, root)
+            || admission.remote.profile != self.profile
+            || admission.remote.identity()? != request.binding.conversation
+            || admission.request.binding != request.binding
+            || admission.request.arguments != request.arguments
+            || !self.link.matches(&stage_peer(request)?)
+            || Instant::now() >= admission.deadline
+            || timestamp >= admission.deadline_epoch
+            || *cancellation.borrow()
+        {
+            return Err("WINDOWS_HCS_STAGE_ADMISSION_REJECTED");
+        }
+        let permit = self.authorizer.commit_local_admission(
+            &admission.remote, &self.context.execution_gate, admission.ticket,
+        )?;
+        self.current(&admission.authority)?;
+        if Instant::now() >= admission.deadline
+            || now()? >= admission.deadline_epoch || *cancellation.borrow()
+            || !self.link.matches(&stage_peer(request)?)
+        {
+            return Err("WINDOWS_HCS_STAGE_ADMISSION_REJECTED");
+        }
+        Ok(NativeAssetStagePolicy {
+            host: self.id, context: admission.context, root: admission.root,
+            authority: admission.authority, remote: admission.remote,
+            request: admission.request, authorizer: self.authorizer.clone(),
+            link: self.link.clone(), _permit: permit,
+            deadline: admission.deadline, deadline_epoch: admission.deadline_epoch,
+            cancellation: cancellation.clone(),
+        })
+    }
+}
+
+impl NativeAssetStagePolicy {
+    /// Only gates NEW effects. An expired policy never prevents owned cleanup.
+    pub(crate) fn check(
+        &self,
+        context: &Arc<ToolContext>,
+        authority: &Arc<WindowsInputAuthority>,
+        grant: &WorkspaceRunGrant,
+        deadline: Instant,
+        cancellation: &watch::Receiver<bool>,
+    ) -> Result<(), &'static str> {
+        let timestamp = now()?;
+        grant.actual_claim()?.verify_request(&self.request,
+            i64::try_from(timestamp).map_err(|_| "CLOUD_DEADLINE_REJECTED")?)
+            .map_err(|_| "CLOUD_WORKSPACE_CLAIM_REJECTED")?;
+        let current = self.authorizer.local_authority_snapshot(
+            &self.remote, &self.context.execution_gate,
+        )?;
+        if !Arc::ptr_eq(&self.context, context)
+            || !Arc::ptr_eq(&self.root, authority)
+            || grant.host() != self.host
+            || grant.operation() != self.request.binding.request_id
+            || grant.binding().profile != self.remote.profile
+            || grant.binding().caller != self.remote.identity()?
+            || !self.authority.view.same_authority(&current)
+            || current.phase() != LocalAuthorityPhase::Active
+            || current.execution_state() != LocalExecutionState::Online
+            || !current.scopes().contains(STAGE_SCOPE[0])
+            || current.deadline() <= timestamp
+            || self.authority.view.deadline() <= timestamp
+            || !self.link.matches(&stage_peer(&self.request)?)
+            || deadline != self.deadline || Instant::now() >= self.deadline
+            || timestamp >= self.deadline_epoch
+            || *self.cancellation.borrow() || *cancellation.borrow()
+        {
+            return Err("WINDOWS_HCS_STAGE_POLICY_REJECTED");
+        }
+        Ok(())
+    }
+}

@@ -1,0 +1,101 @@
+# Windows 私有资产准备准入设计
+
+## 概述
+
+对应需求 FR-1、FR-2、FR-3、FR-4、FR-5 与 NFR-1 至 NFR-3。本次从公开 D6 建立独立、无 hardlink、非 shallow 的 full-history clone。恢复包与新 Stage11 候选分开，不用数据准入替代原生资产创建。
+
+## 技术方案
+
+### 技术选型
+
+| 类别 | 选择 | 理由 | 关联需求 |
+|---|---|---|---|
+| 恢复 | 原 SHA/blob/size/mode，精确 patch replay | 原实现与新写字节可区分 | FR-1 |
+| 准入 | 实际 LocalAdmissionTicket → LocalAdmissionPermit | 跟随现有串行本机授权消费 | FR-2 |
+| 所有权 | 不可复制私有类型，整体 Retained owner | 取消与未知关闭不丢弃权限和原生资源 | FR-3 |
+| 作用域 | 显式登记合法词，不增加默认项 | 请求不是授权 | FR-4 |
+
+### 架构设计
+
+在 `prepare_claimed_windows_workspace` 中，先验证原调用，工程夹具存在时才准备 StageAdmission。它保存实际 remote request、ticket、host/context/root、authority/link 与原 request 精确绑定。准备失败在进入 Claim 前返回错误；注册夹具本身仅为选择器。
+
+在 `execute_claimed_windows_workspace` 的工程分支，在取得真实 Claim 且验证所有原约束后消费 StageAdmission。原三作用域 ticket 与 Stage ticket 分别消费；两次提交不能绕过 authority_epoch、revision、execution_generation 或真实待处理的 Claim。新 policy 进入 HCS whole owner 必须在输入句柄前。正常生产分支保持无新增资产能力。
+
+StagePolicy 的检查只控制新的资产副作用，不能成为已拥有资源关闭操作的先决条件。取消/超时阻止新操作；关闭未知保留整体。StagePolicy 不持有 caller 提供的路径授权，也不据 preexisting pathname 认领 boot 或 scratch。
+
+### 当前兼容审查阻断
+
+第一份 source-only 原型在 `creation_fixture.is_some()` 时无条件准备第四 ticket，因此覆盖了旧三作用域工程生命周期。原 positive 文件只请求 exec.run/files.read/files.write；该请求没有 vm.assets.stage 权限。这份原型严格拒绝其 stage 准入，不能宣称兼容或让 positive 通过。这个静态发现标记为 COMPATIBILITY BLOCKED，保留初稿供审查，不能提交开发分支作为测试通过候选。
+
+下一有限增量必须把新 stage 准入与真正创建私有资产的操作分开；旧三作用域 read/start 的资产仍必须由真实创建所得 owner 提供，不能据 preexisting path、注册夹具、默认加 scope 或 wire 字段补造。具体 producer/owner 与 effect selector 尚缺，不能默许一个 bool 即授予资产。原 positive 十六断言、三个 scope 与整文件字节保持原样。
+
+## 数据模型
+
+| 实体 | 字段 | 约束 |
+|---|---|---|
+| StageAdmission | host、remote、ticket、context/root、authority、request、deadline | 私有、非 Clone/Deserialize，实际 ticket 单次移动 |
+| StagePolicy | actual permit、context/root、host/request binding、deadline/cancel | 构造仅在实际 native issuer；不是 wire grant |
+| WorkspaceRunGrant | 原 binding、host、operation、三作用域 permit、actual Claim | 原结构与三项 SCOPES 语义保留 |
+
+## API 设计
+
+新 API 为 NativeToolHost 内部方法：
+
+- `prepare_stage(&self, authority: &NativeAuthority, request: &ExecutionRequest, deadline: Instant, deadline_epoch: u64) -> Result<StageAdmission, &'static str>`。
+- `consume_stage(&self, admission: StageAdmission, request: &ExecutionRequest, claimed: &ClaimedDispatch, cancellation: &watch::Receiver<bool>) -> Result<NativeAssetStagePolicy, &'static str>`。
+- `NativeAssetStagePolicy::check(&self, context: &Arc<ToolContext>, authority: &Arc<WindowsInputAuthority>, grant: &WorkspaceRunGrant, deadline: Instant, cancellation: &watch::Receiver<bool>) -> Result<(), &'static str>`。
+
+prepare 检查 self.current、exact conversation/profile/peer/request、Arc context/root 及两类 deadline，并 issue 单项 ticket。consume 重查实际 Claim 与所有绑定，消耗 ticket 后再检查 current；policy 保存实际 authorizer/transport、remote、NativeAuthority、原 request、root/context 与 permit。check 检查 Arc::ptr_eq、host/request_id、实际 Claim.verify_request、当前本机 snapshot.same_authority、transport.matches 和 cancellation/deadline；它不能报虚拟资源已回收。新 stage 类型不对远程 catalog 暴露。
+
+## 文件结构
+
+Stage11 恰好十一项，八项代码与三项本规格：
+
+| 文件 | 操作 |
+|---|---|
+| `src-tauri/src/auth/聊天授权v1.rs` | 增加一个合法 scope 字面量 |
+| `services/cloud-agent/src/lib.rs` | 增加一个合法 scope 字面量 |
+| `services/cloud-agent/src/approval.rs` | 增加两个数据绑定测试，原函数与旧测试不动 |
+| `src/lib/chat-authorization.ts` | 增加一个 scope 显示词 |
+| `src-tauri/src/tools/cloud_host/windows_workspace.rs` | 工程模块声明/私有 reexport |
+| `src-tauri/src/tools/cloud_host/windows_workspace/stage.rs` | 新建实际 ticket/policy 边界 |
+| `src-tauri/src/tools/cloud_host/windows_workspace/claimed.rs` | 工程准入持有、实际 Claim 后消费 |
+| `src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs` | whole owner 在输入前持有新 policy |
+| `docs/specs/windows-recovery-stage-admission/requirements.md` | 新建 |
+| `docs/specs/windows-recovery-stage-admission/design.md` | 新建 |
+| `docs/specs/windows-recovery-stage-admission/tasks.md` | 新建 |
+
+旧 108 与 Archive8 恢复不是本十一项的新实现范围；所有旧源码变化作为独立恢复清单逐字记录。未保存的四十项不得隐式补造。
+
+## 设计决策
+
+### 决策 1：保留新授权与旧三作用域的分离（FR-2、FR-4）
+
+扩大原三项 SCOPES 会改变普通诊断行为，因此仅工程分支持有第四 ticket。显示或 wire allowlist 只是合法请求词，不能产生已授权状态。
+
+### 决策 2：保持清理可执行（FR-3）
+
+在每次 close 前拒绝 expired StagePolicy 会遗弃资源，因此关闭继续使用已拥有整体 owner；检查失败仅阻止新资产副作用。
+
+### 决策 3：原正向测试保持原字节（FR-5）
+
+测试不是用来证明缺少资产时能拒绝。创建 producer 未完成应如实失败并阻断，不修改原 `.unwrap()` 或十六条断言。
+
+## 测试策略
+
+FR-1 使用原 manifest 与本轮实际 source proof；FR-2/FR-3 需完整 native owner 类型与实际绑定正反用例，leaf metadata 不计通过；FR-4 跑原 approval tests 加两个新数据绑定用例，四项真实默认/catalog/原九项 prompt byte fence；FR-5 冻结原 positive source 并由 source-qualified Windows CI 执行所有原生项目。必要数据测试可以在现有 disposable 工具链执行；不得为此在宿主安装编译器或执行 HCS。本轮实际 shell 无 rustc/cargo，数据测试尚无本机执行通道，不能借历史十项或十二项结果补记。
+
+## 风险评估
+
+| 风险 | 影响 | 缓解措施 |
+|---|---|---|
+| 原 foundation 四十项未保存 | 完整类型与生命周期无法闭合 | 明确缺口，新恢复/重实现独立锁定后才能接入 |
+| 第一原型对旧所有工程夹具强制第四 scope | 旧三 scope 正向测试无法获得 stage 授权 | COMPATIBILITY BLOCKED；绑定真实新增资产 effect 的有限设计先于修复；不修改原 positive 或默认 |
+| 两次 ticket 提交使绑定失效 | 权限误用或正确调用拒绝 | 检查真实授权 epoch/revision/generation 与串行提交，不更改授权算法 |
+| 取消/未知关闭遗漏 owner | 丢失 Claim 与资源 | policy 随 whole owner，关闭不据 policy 状态提前停止 |
+
+## 检查清单
+
+- [x] FR-1 至 FR-5 均有设计与验证边界。
+- [x] 新实现十一项、旧恢复清单、foundation 缺口分别记录。
+- [ ] 实际 API 签名、impact 和完整 owner 类型证据闭合。

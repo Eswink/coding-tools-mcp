@@ -1,0 +1,29 @@
+# Finite eleven design
+
+## 对应需求
+
+FR-1 eight strict reseals; FR-2 original Foreign early negatives and forged-data rejection; FR-3 terminal UNKNOWN header/no-retry proof; FR-4 strict positive and all-source guards; FR-5 fresh evidence.
+
+## 概述
+
+The exact actual constructor deliberately copies and owns its canonical Selection. The former setter statements fail before the intended metadata/digest negative assertion. Trusted fixture reseal obtains a new actual client rather than restoring a setter. Foreign client subclasses fail at the actual credential exact-type check before authentication runs. These are bounded test contract adaptations, not authorization changes.
+
+## 技术方案
+
+Integration tests replace setter statements with the existing adopt_selection helper, or remove redundant setters after seal/seal_final already adopts the fresh canonical client. ArtifactAdmissionCases.fixture owns an explicit list of its actual transport clients; a private test helper requires the passed original client to be one of those exact held clients and f.selection to be its canonical selection, constructs a fresh actual GitHub with the changed synthetic selection, closes the old client, adopts new.selection and records the new actual client for the existing finally cleanup. It never reads the BudgetAPI as an authority or mutates it into a native client.
+
+The two Foreign expressions stay syntactically real constructor/authentication attempts. Explicit before/after request counters and actual credential session-owner absence accompany invalid_request/none. The later forged report remains the same object and fixture selection input; the actual client's selection remains unchanged and the existing verification_failed/none plus zero-GET assertions still reject it.
+
+The POST method retains exact successful native request headers and server header identity, actual operation/scope bindings and all original terminal/no-retry/count checks. Only the additional complete-body equality hard assertion from the prior failed finite increment is removed from this negative UNKNOWN contract. Diagnostic rows expose complete_body_matches and a bounded body_delivery state (matched or UNPROVEN). They cannot be used as UploadAsset or publication completion proof. Existing cleanup and joins are unchanged. The separate positive exact loopback method still requires all original complete payloads and hashes.
+
+All 1874 original source entries are compared by SHA/size/mode; only the four named test modules can differ. The mechanical full Python inventory must show exactly eleven existing method AST differences and preserve all other lexical unique methods, including the strict positive method. New docs are additional source entries. Necessary validation retains the original actual84 IDs and explicitly adds the positive method once; the final whole300 requirement remains unresolved until a later same-source complete run.
+
+## 文件结构
+
+scripts/rc_publication_admission_cases.py, scripts/rc_publication_final_admission_cases.py, scripts/rc_publication_artifact_admission_cases.py, scripts/rc_publication_request_cases.py, and this spec triplet. No production module, old frozen checkout, profile, workflow, version, tag or Release changes.
+
+## Recovery continuation design
+
+Finite11 source restoration uses full52 patch against its genuine F13 parent and verifies every1877 SHA/size before new work. This is a historical draft restoration, not D6 integration credit. Eight authorized tests are rebuilt after fresh graph/spec checks with one at-most300-line native test helper. The helper creates ordinary owned loopback fixtures and a genuine PublisherSession; records raw entered callbacks/scopes after original enter; calls unchanged original _execute for all native predecessor operations; and closes the session before checking owner registry, stream handles and private output cleanup. Saved production authenticators/authorizer are restored only at actual matching pending native targets. Target snapshot/body/header identities remain in private process memory and are never printed as credentials or authority evidence.
+
+Paused method deliberately avoids fixture clock. After native22 operations reach the genuine pause, it captures preparation scope's saved deadline and retains caller+120 as a stronger attempted renewal. Actual owner-control retirement denies before caller callback/GET regardless of elapsed time. Renewal tests may use independent executor-only fixture clock to demonstrate first deadline=end and next deadline=end+120 through actual _run calls; no native request/TLS time is altered. Source snapshots and lexical AST correspondence enforce only named8 edits; all historical11, positive strict full six-byte-body tests and production files are byte-identical. Every current test run has its own immutable output, bounded real native controller and source/runtime pre/post fence. Existing unknown runs are never repeated under their name.

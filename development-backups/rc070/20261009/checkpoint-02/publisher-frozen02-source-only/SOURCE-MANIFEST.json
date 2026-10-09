@@ -1,0 +1,88 @@
+{
+  "source_manifest_origin_sha256": "bad006a8d5edd01a50cc4a04c47f1403920ede360abb1eb874df067a9627dbb8",
+  "source_parent": "13cd343d942b7a68912d42a8f9235c02ed647764",
+  "finite11_base_tree": "733a1d5bd53ae0f3b2c3fe44463ac20566c6c47f",
+  "frozen02_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "physical_source_count": 1878,
+  "patch_sha256": "e0ee17cff76799f96dd0aa0af2043495076594ddb96fefd134458fc5288e1128",
+  "patch_applies_after_checkpoint01_historical_finite11": true,
+  "status": "STOP/SOURCEONLY/current85NOTRUN/current300NOTRUN; source-static-prerequisites-only",
+  "current85": "NOT_RUN",
+  "current300": "NOT_RUN",
+  "current_SUT_runs": 0,
+  "qualification": false,
+  "source": [
+    {
+      "family": "publisher-frozen02-source-only",
+      "original_path": "scripts/rc_publication_admission_cases.py",
+      "original_mode": "100644",
+      "original_blob": "2b49656a36b663f12443dd34f75e32bdab3c5a88",
+      "bytes": 25372,
+      "sha256": "e9669d17a1b108d31f9967a5f48b48b448c17861c8c8a0d34017d68e20654c45",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/scripts/rc_publication_admission_cases.py.source"
+    },
+    {
+      "family": "publisher-frozen02-source-only",
+      "original_path": "scripts/rc_publication_artifact_admission_cases.py",
+      "original_mode": "100644",
+      "original_blob": "fe53464fdd5a35935857526736081072327205ee",
+      "bytes": 30736,
+      "sha256": "c6fa67032d3a159d12a0ea48f26df578c91be8ddab02826f413284d5059055dc",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/scripts/rc_publication_artifact_admission_cases.py.source"
+    },
+    {
+      "family": "publisher-frozen02-source-only",
+      "original_path": "scripts/rc_publication_final_admission_cases.py",
+      "original_mode": "100644",
+      "original_blob": "e4a7f1570b024de5f24209159b2acedf26093893",
+      "bytes": 25358,
+      "sha256": "b779c32c18a59d41353361e42a7c89163c8f7a5edd4ed06689b6bbbff42e857c",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/scripts/rc_publication_final_admission_cases.py.source"
+    },
+    {
+      "family": "publisher-frozen02-source-only",
+      "original_path": "scripts/rc_publication_unified_owner_api_cases.py",
+      "original_mode": "100644",
+      "original_blob": "daac51d9dc1b797c654bf4f2ae44e0e4cd31a451",
+      "bytes": 19840,
+      "sha256": "104ecdd5a907ff09e5955496807558633b3c83067c5d555dc4d19518aebd1e48",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/scripts/rc_publication_unified_owner_api_cases.py.source"
+    },
+    {
+      "family": "publisher-frozen02-source-only",
+      "original_path": "scripts/rc_publication_native_admission_fixture.py",
+      "original_mode": "100644",
+      "original_blob": "f182df85606f1e9011522e832e006ee0ee2681a2",
+      "bytes": 13966,
+      "sha256": "9df4f687a377efb98ce2bf2e1fe9bee396a2781ba685db641c7f3703ebf299d7",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/scripts/rc_publication_native_admission_fixture.py.source"
+    },
+    {
+      "family": "publisher-frozen02-source-only",
+      "original_path": "docs/specs/issue88-finite11-canonical-fixture-repair/requirements.md",
+      "original_mode": "100644",
+      "original_blob": "9256472700be9853dea3ee0a15c4dcffe558bbcf",
+      "bytes": 9932,
+      "sha256": "46ac1a529f2e6a3f79b3a1c95c408a9c0b3614a2c3dfd04659d23496cc42184e",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/docs/specs/issue88-finite11-canonical-fixture-repair/requirements.md.source"
+    },
+    {
+      "family": "publisher-frozen02-source-only",
+      "original_path": "docs/specs/issue88-finite11-canonical-fixture-repair/design.md",
+      "original_mode": "100644",
+      "original_blob": "f600d3d41ef82f089857e870ea6da6f39828a1d9",
+      "bytes": 4988,
+      "sha256": "3cce40e10dfa1672ed7e0d39bc32ecad36ed6754fddb6efa33da772fd9e7c7c1",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/docs/specs/issue88-finite11-canonical-fixture-repair/design.md.source"
+    },
+    {
+      "family": "publisher-frozen02-source-only",
+      "original_path": "docs/specs/issue88-finite11-canonical-fixture-repair/tasks.md",
+      "original_mode": "100644",
+      "original_blob": "e3f436eca79cfd9762e019795f5144b0aca2ccd0",
+      "bytes": 2967,
+      "sha256": "719ba5d3d777fcb4a9fb36d97e0d3841641e5ffdbed6d0dff7d2d2e7f8082f41",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/docs/specs/issue88-finite11-canonical-fixture-repair/tasks.md.source"
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+{
+  "source_manifest_origin_sha256": "16906a8aea6f72a9823a87602616f9724b741503897c4f5896a37c1bb86d214b",
+  "public_base": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "before_tree_D6_plus_exact73_partial": "d4bd2d9813176afd83270ba39971d3204e350105",
+  "after_tree_D6_plus73_plus_new11_partial": "4ca1bab8cda941caf11ea9a7c98cafca7ba4ec90",
+  "native_before_entries": 1913,
+  "native_after_entries": 1917,
+  "candidate_status": "SOURCE_ONLY_COMPATIBILITY_BLOCKED_NOT_TESTED",
+  "known_blockers": [
+    "40 originalfoundation sources missing",
+    "firstprototype preparesstage for alllegacyfixtures although originalpositive authorizesonlythree",
+    "no localrustc/cargo; new2testsNOTRUN/fullNativeHosttypesNOTRUN/nativeVM0",
+    "no actualownedboot/scratch producer/GuestIO/outputissuer"
+  ],
+  "compiler_and_tests_run": 0,
+  "full_types_F2_positive_lifecycle_install_credit": false,
+  "missing_foundation_paths": 40,
+  "writer_status": "immutable STOP frozen packet",
+  "source": [
+    {
+      "family": "windows-stage11-compatibility-blocked",
+      "original_path": "src-tauri/src/auth/聊天授权v1.rs",
+      "original_mode": "100644",
+      "original_blob": "e6f7305bca01e195b1263aea17c64c6c6c6f6437",
+      "bytes": 37032,
+      "sha256": "ab46705f58d6c73bf2650284a4ab683b52b343f7e5257c6a8b28744d4f40418b",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/src-tauri/src/auth/聊天授权v1.rs.source"
+    },
+    {
+      "family": "windows-stage11-compatibility-blocked",
+      "original_path": "services/cloud-agent/src/lib.rs",
+      "original_mode": "100644",
+      "original_blob": "735ac0e99979ae090c57198627615e2ac079deae",
+      "bytes": 1573,
+      "sha256": "0acd689e2b87a4526da7ab662f3ac130e45515586e933c1cf736c72b477c6ba7",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/services/cloud-agent/src/lib.rs.source"
+    },
+    {
+      "family": "windows-stage11-compatibility-blocked",
+      "original_path": "services/cloud-agent/src/approval.rs",
+      "original_mode": "100644",
+      "original_blob": "8507ff59e9314fc2a267b585a9956d18499a02a8",
+      "bytes": 8915,
+      "sha256": "16070f5b710db347acf48bb91faeb4257687172c0787aaf2cba98c3e1892107b",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/services/cloud-agent/src/approval.rs.source"
+    },
+    {
+      "family": "windows-stage11-compatibility-blocked",
+      "original_path": "src/lib/chat-authorization.ts",
+      "original_mode": "100644",
+      "original_blob": "a81aa6b1ad475e7739bb3813907ec5a51ed2c84f",
+      "bytes": 2021,
+      "sha256": "ac429dcaeab78a7296288de2b1c9a42c03cb9072e50294f57deb57df5bfb8f7a",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/src/lib/chat-authorization.ts.source"
+    },
+    {
+      "family": "windows-stage11-compatibility-blocked",
+      "original_path": "src-tauri/src/tools/cloud_host/windows_workspace.rs",
+      "original_mode": "100644",
+      "original_blob": "33b3473f49dd8a4dc06c39172c6fa8358ca90fd0",
+      "bytes": 6016,
+      "sha256": "317a96df4b115f50e5aff7fcca4fad182890995440abf2692cdcce72bfc8343f",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/src-tauri/src/tools/cloud_host/windows_workspace.rs.source"
+    },
+    {
+      "family": "windows-stage11-compatibility-blocked",
+      "original_path": "src-tauri/src/tools/cloud_host/windows_workspace/stage.rs",
+      "original_mode": "100644",
+      "original_blob": "5c46d75c4fca1c12b50f7bcc7048ff8d8ac2f2dc",
+      "bytes": 7936,
+      "sha256": "71bf43fa469c3d03e0f11f2ebefa7b20493f94562b01e0b26530c76ba0a8b2de",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/src-tauri/src/tools/cloud_host/windows_workspace/stage.rs.source"
+    },
+    {
+      "family": "windows-stage11-compatibility-blocked",
+      "original_path": "src-tauri/src/tools/cloud_host/windows_workspace/claimed.rs",
+      "original_mode": "100644",
+      "original_blob": "7523c26e0ce6b591f38879fb7b6378cba5c135be",
+      "bytes": 10840,
+      "sha256": "cd44d5c594fc7ff5a1427f0cd986b0b46f598d72145533b19216d83bf468b5a8",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/src-tauri/src/tools/cloud_host/windows_workspace/claimed.rs.source"
+    },
+    {
+      "family": "windows-stage11-compatibility-blocked",
+      "original_path": "src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs",
+      "original_mode": "100644",
+      "original_blob": "6c03734937675752a1c17c6f64bda658ab8a4b6d",
+      "bytes": 7383,
+      "sha256": "dbee93087f74d26f4e2ba7dbe3aef99297fc872e44a55e88fb727f79b877dab0",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs.source"
+    },
+    {
+      "family": "windows-stage11-compatibility-blocked",
+      "original_path": "docs/specs/windows-recovery-stage-admission/requirements.md",
+      "original_mode": "100644",
+      "original_blob": "9d0433208fddb436c43045f13330fc1f4c6d2449",
+      "bytes": 5800,
+      "sha256": "654215eabe55c8d5d7500aa8f21a6faae50818cfb7ec0a8c4dac08d195f187b6",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/docs/specs/windows-recovery-stage-admission/requirements.md.source"
+    },
+    {
+      "family": "windows-stage11-compatibility-blocked",
+      "original_path": "docs/specs/windows-recovery-stage-admission/design.md",
+      "original_mode": "100644",
+      "original_blob": "31653d6851d0edb0ca484c304e97c398f5b7a695",
+      "bytes": 7932,
+      "sha256": "0aec1717abe802cded82ff23f3fb16b4d388e26928a8651437cf768d5b290a14",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/docs/specs/windows-recovery-stage-admission/design.md.source"
+    },
+    {
+      "family": "windows-stage11-compatibility-blocked",
+      "original_path": "docs/specs/windows-recovery-stage-admission/tasks.md",
+      "original_mode": "100644",
+      "original_blob": "6b5e494611147370a7a66d446b58e4f18db88d85",
+      "bytes": 6506,
+      "sha256": "e045977d63591fe04661ae61d7cccfd6c36458c469667ab7af4b3a095c9ea869",
+      "backup_path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/docs/specs/windows-recovery-stage-admission/tasks.md.source"
+    }
+  ]
+}

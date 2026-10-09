@@ -1,0 +1,605 @@
+diff --git a/docs/specs/issue88-finite11-canonical-fixture-repair/design.md b/docs/specs/issue88-finite11-canonical-fixture-repair/design.md
+index 3976bf2..f600d3d 100644
+--- a/docs/specs/issue88-finite11-canonical-fixture-repair/design.md
++++ b/docs/specs/issue88-finite11-canonical-fixture-repair/design.md
+@@ -21,3 +21,9 @@ All 1874 original source entries are compared by SHA/size/mode; only the four na
+ ## 文件结构
+ 
+ scripts/rc_publication_admission_cases.py, scripts/rc_publication_final_admission_cases.py, scripts/rc_publication_artifact_admission_cases.py, scripts/rc_publication_request_cases.py, and this spec triplet. No production module, old frozen checkout, profile, workflow, version, tag or Release changes.
++
++## Recovery continuation design
++
++Finite11 source restoration uses full52 patch against its genuine F13 parent and verifies every1877 SHA/size before new work. This is a historical draft restoration, not D6 integration credit. Eight authorized tests are rebuilt after fresh graph/spec checks with one at-most300-line native test helper. The helper creates ordinary owned loopback fixtures and a genuine PublisherSession; records raw entered callbacks/scopes after original enter; calls unchanged original _execute for all native predecessor operations; and closes the session before checking owner registry, stream handles and private output cleanup. Saved production authenticators/authorizer are restored only at actual matching pending native targets. Target snapshot/body/header identities remain in private process memory and are never printed as credentials or authority evidence.
++
++Paused method deliberately avoids fixture clock. After native22 operations reach the genuine pause, it captures preparation scope's saved deadline and retains caller+120 as a stronger attempted renewal. Actual owner-control retirement denies before caller callback/GET regardless of elapsed time. Renewal tests may use independent executor-only fixture clock to demonstrate first deadline=end and next deadline=end+120 through actual _run calls; no native request/TLS time is altered. Source snapshots and lexical AST correspondence enforce only named8 edits; all historical11, positive strict full six-byte-body tests and production files are byte-identical. Every current test run has its own immutable output, bounded real native controller and source/runtime pre/post fence. Existing unknown runs are never repeated under their name.
+diff --git a/docs/specs/issue88-finite11-canonical-fixture-repair/requirements.md b/docs/specs/issue88-finite11-canonical-fixture-repair/requirements.md
+index 4c4a329..9256472 100644
+--- a/docs/specs/issue88-finite11-canonical-fixture-repair/requirements.md
++++ b/docs/specs/issue88-finite11-canonical-fixture-repair/requirements.md
+@@ -39,3 +39,19 @@ Only trusted test helpers, the eleven listed test methods and this spec triplet
+ ## 依赖关系
+ 
+ AGENTS, probe 4.0.1, exact 493bc upstream graph and actual84 raw traces; actual immutable GitHub credential/canonical Selection, original HTTPSFixture and original native session loop. Prior source-specific failures are diagnosis inputs, never new-source PASS evidence.
++
++## FR-6 — Recovered finite native eight-method fixture increment
++
++Exactly the eight method IDs in the durable NEXT-FINITE8-ROOT-SCOPE-DECISION and the test-only scripts/rc_publication_native_admission_fixture.py (at most300 lines) SHALL change together with this existing spec triplet. The helper exposes only _native_session(case, *, clock=None, after_enter=None), _pending_fence(case, kind, production_authenticate), and _authorizer_denial(case, production_authorize). It SHALL delegate actual PublisherSession._run, original _ArtifactOwner.enter and actual fixed controls unchanged. No fabricated scopes, manual session activation/deadline assignment, native issuer invocation, shared-clock patches, remote grants or production edits are allowed. Capture all actual phase/scope/request/callback identities and prove actual cleanup after closure.
++
++The three old direct-sink methods SHALL preserve unsupported operations, options and BytesIO as early invalid_request/none, zero new GET, zero target mutation and zero authorizer calls. Each SHALL separately run genuine native CreateDraft/UploadAsset/PublishPrerelease targets, save production authentication before modeled fixture patches and delegate it at the selected native target. Five actual staged/full-gate rows may pass;58 unknown rows remain blocked. The native target SHALL have zero header/consume/attempt, a retired actual scope and unchanged fixed metadata endpoint obligations. Actual predecessor modeled headers SHALL be counted separately, never described as zero total mutations. The authorizer-negative SHALL receive actual _request-created request/scope kwargs and delegate captured production _authorize to denied/none while retaining original standalone remote/latest hard rejects.
++
++Foreign original-selection/client SHALL reject verification_failed/none with zero new GET. A separate foreign-own-canonical read SHALL remain fence_blocked/none without importing the original registered owner. Preserve original owner-close, lifetime and all actual client cleanup negatives.
++
++Native renewal and callback tests SHALL use actual enter argument identity and actual next _run-issued scope after prior retirement. Only executor module time may reference an independent fixture clock for two renewal tests; all consumer/request/TLS/source clocks remain real. Original end-1 input is retained as a future tighter min when real time is below it; a distinct actual expired0 retains the original timeout/noGET assertion. An ordinary spoofed callback and its original raw identity/unbound-owner assertions SHALL use an independent genuinely unbound client, never rebind the actual native owner. Cancellation/noop/shorter-caller/noGET and actual wrapped callback correspondence SHALL remain explicit.
++
++## FR-7 — Native paused-clock correction and fresh qualification
++
++The paused method SHALL use ordinary real executor clock for actual canonical per-phase300-second operation budgets. Its real run_until_pause SHALL return AwaitPublishRequest before pause assertions. Preserve original caller deadline=end+120 and noop input, but set end to the captured actual prior preparation ReadScope._deadline after asserting that ReadScope._retired. Assert end+120 is greater than that actual issued bound. This is a retired preparation-scope bound only, not a claim about later or future scopes. At the actual pause session._deadline and _read_scope SHALL be None; real registered owner remains bound. Reauthentication SHALL fail artifact_scope_unavailable before GET/report, and all real closure assertions SHALL run. No assertion relaxation, timer widening, deadline mutation, observer retry or60-second artificial common budget is allowed.
++
++Scratch loss means later reported finite8=84PASS/1FAIL and transparent diagnosticERROR have no recovered raw/source evidence. Record CHAT_REPORTED_LOST; neither supplies current verification credit. Preserve all durable finite11 failures. Complete source (1878 tracked paths),373 Python lexical inventories2311 test methods, old11 and strict full-body positive AST/production bytes SHALL be frozen and reviewed. Necessary original85 SHALL run once with real native family retirement and complete before/after source/runtime evidence; only all85 PASS permits the original unique300 inventory (267+13+20) once on precisely the same frozen source. No filtering, skips, retries, borrowed component results or release qualification.
+diff --git a/docs/specs/issue88-finite11-canonical-fixture-repair/tasks.md b/docs/specs/issue88-finite11-canonical-fixture-repair/tasks.md
+index 9605568..e3f436e 100644
+--- a/docs/specs/issue88-finite11-canonical-fixture-repair/tasks.md
++++ b/docs/specs/issue88-finite11-canonical-fixture-repair/tasks.md
+@@ -28,3 +28,17 @@ Finite seven-path patch, eleven exact method assertion correspondence, full lexi
+ ## 文件变更清单
+ 
+ Only the four named test modules and this three-file spec. Every other original file, production hard rejection and owner/grant boundary remains byte/size/mode identical.
++
++## Recovery continuation tasks
++
++- [x] Restore all1877 finite11 source hashes from durable full52 patch; preserve historical failed85.
++- [ ] Fresh exact upstream impacts and HIGH disclosure; check current FR-6/7 specification.
++- [ ] Implement exactly eight named methods plus bounded native fixture helper; preserve old11/positive/all production AST and bytes.
++- [ ] Freeze1878/373/2311 source/runtime, unique original85 loader and source-specific closure runner; independent source review.
++- [ ] Execute original85 once and retain every failure plus actual complete source/runtime/cleanup evidence.
++- [ ] Only all85 PASS: original300 once same source and full raw outcome, independent review, detect_changes/gencommit.
++
++| Requirement | Recovery verification |
++|---|---|
++| FR-6 | Eight-method AST correspondence; original unsupported early negatives plus native full-auth/authorizer scopes and all original controls/cleanup |
++| FR-7 | Real-clock native pause; actual retired preparation deadline+120; noGET/report; immutable lost-result labels; unique85 then same-source300 |
+diff --git a/scripts/rc_publication_admission_cases.py b/scripts/rc_publication_admission_cases.py
+index eb1634d..2b49656 100644
+--- a/scripts/rc_publication_admission_cases.py
++++ b/scripts/rc_publication_admission_cases.py
+@@ -362,6 +362,8 @@ class AdmissionCases(unittest.TestCase):
+             self.assertTrue(all(r[0] == 'GET' and not r[3] for r in f.requests))
+ 
+     def test_all_direct_mutation_sinks_authenticate_and_send_no_mutation(self):
++        from rc_publication_native_admission_fixture import _pending_fence
++        production_authenticate = wire._authenticate
+         with IntegrationTLS() as f:
+             create = core.Operation('CreateDraft', 2, 'a'*64, tag=f.subject.tag, draft=True, prerelease=True)
+             upload = core.Operation('UploadAsset', 5, 'a'*64, release_id=100, asset_ordinal=0, asset=f.plan.assets[0])
+@@ -374,10 +376,12 @@ class AdmissionCases(unittest.TestCase):
+                         if operation.kind == 'CreateDraft': f.api.create_draft(operation, **options)
+                         elif operation.kind == 'UploadAsset': f.api.upload_asset(operation, io.BytesIO(f.payloads[operation.asset.name]), **options)
+                         else: f.api.publish_prerelease(operation, **options)
+-                    self.assertEqual((error.exception.code, error.exception.effect), ('fence_blocked', 'none'))
++                    self.assertEqual((error.exception.code, error.exception.effect), ('invalid_request', 'none'))
+                     authorize.assert_not_called()
+-                self.assertEqual([r[1] for r in f.requests[before:]], f.packaging_paths)
++                self.assertEqual([r[1] for r in f.requests[before:]], [])
+                 self.assertTrue(all(r[0] == 'GET' and not r[3] for r in f.requests))
++        for kind in ('CreateDraft', 'UploadAsset', 'PublishPrerelease'):
++            _pending_fence(self, kind, production_authenticate)
+ 
+     def test_caller_claims_and_reports_cannot_bypass_fixed_authentication(self):
+         import rc_publication_artifact_admission as artifacts
+diff --git a/scripts/rc_publication_artifact_admission_cases.py b/scripts/rc_publication_artifact_admission_cases.py
+index ce5bef7..fe53464 100644
+--- a/scripts/rc_publication_artifact_admission_cases.py
++++ b/scripts/rc_publication_artifact_admission_cases.py
+@@ -186,9 +186,19 @@ class ArtifactAdmissionCases(unittest.TestCase):
+                 wire._authenticate(f.selection, api, deadline=time.monotonic()+60, check_active=lambda: None, approved=True)
+ 
+     def test_foreign_and_closed_owner_are_unavailable(self):
+-        with self.fixture() as (f, _, api), self.owner(f, api) as owner:
++        with self.fixture() as (f, tls, api), self.owner(f, api) as owner:
+             foreign = wire.GitHub('fixture-token', f.selection)
+-            try: self.blocked(f, foreign)
++            try:
++                before = len(tls.requests)
++                self.blocked(f, foreign, code='verification_failed')
++                self.assertEqual(len(tls.requests), before)
++                with self.assertRaises(wire.WireFailure) as error:
++                    wire._authenticate(foreign.selection, foreign, deadline=time.monotonic()+60, check_active=lambda: None)
++                self.assertEqual((error.exception.code, error.exception.effect), ('fence_blocked', 'none'))
++                self.assertEqual(len(tls.requests)-before, 52)
++                self.assertNotIn(foreign, artifacts._OWNERS)
++                self.assertIsNone(foreign._credential._session_owner)
++                self.assertIs(artifacts._OWNERS.get(api), owner)
+             finally: foreign.close()
+             owner.close()
+             self.blocked(f, api)
+@@ -364,26 +374,34 @@ class ArtifactAdmissionCases(unittest.TestCase):
+             finally: owner.close(); owner.stage.close()
+ 
+     def test_remote_owner_and_latest_absence_constraints_remain_hard_rejects(self):
++        from rc_publication_native_admission_fixture import _authorizer_denial
++        production_authorize = wire._authorize
+         with self.fixture() as (f, _, api), self.owner(f, api):
+             for fn, args, code in ((wire._remote_constraint, (f.selection.subject,), 'fence_blocked'),
+-                    (wire._authorize, (core.Operation('CreateDraft', 2, 'a'*64, tag=f.selection.subject.tag, draft=True, prerelease=True), f.selection.subject), 'denied'),
+                     (wire._authenticated_latest_absence, (f.selection,), 'fence_blocked')):
+                 with self.assertRaises(wire.WireFailure) as error: fn(*args)
+                 self.assertEqual((error.exception.code, error.exception.effect), (code, 'none'))
++        _authorizer_denial(self, production_authorize)
+ 
+     def test_owned_direct_mutation_sinks_still_block_before_authorize_and_write(self):
+-        with self.fixture() as (f, _, api), self.owner(f, api):
++        from rc_publication_native_admission_fixture import _pending_fence
++        production_authenticate = wire._authenticate
++        with self.fixture() as (f, tls, api), self.owner(f, api):
+             operations = (core.Operation('CreateDraft', 2, 'a'*64, tag=f.selection.subject.tag, draft=True, prerelease=True),
+                 core.Operation('UploadAsset', 5, 'a'*64, release_id=100, asset_ordinal=0, asset=f.plan.assets[0]),
+                 core.Operation('PublishPrerelease', 24, 'a'*64, release_id=100, request_id='once', draft=False, prerelease=True))
+             for op in operations:
++                before = len(tls.requests)
+                 options = dict(before_write=lambda: self.fail('mutation write attempted'), check_active=lambda: None)
+                 with patch.object(wire, '_authorize') as authorize, self.assertRaises(wire.WireFailure) as error:
+                     if op.kind == 'CreateDraft': api.create_draft(op, **options)
+                     elif op.kind == 'UploadAsset': api.upload_asset(op, io.BytesIO(f.payloads[op.asset.name]), **options)
+                     else: api.publish_prerelease(op, **options)
+-                self.assertEqual((error.exception.code, error.exception.effect), ('fence_blocked', 'none'))
++                self.assertEqual((error.exception.code, error.exception.effect), ('invalid_request', 'none'))
+                 authorize.assert_not_called()
++                self.assertEqual(len(tls.requests), before)
++        for kind in ('CreateDraft', 'UploadAsset', 'PublishPrerelease'):
++            _pending_fence(self, kind, production_authenticate)
+ 
+     def test_stage_adapter_real_tls_midread_cancel_and_timeout_preserve_codes(self):
+         for cancelled in (False, True):
+@@ -436,25 +454,37 @@ class ArtifactAdmissionCases(unittest.TestCase):
+                 finally: owner.close(); owner.stage.close()
+ 
+     def test_only_bound_session_scope_can_renew_owner_deadline(self):
+-        with self.fixture() as (f, tls, _), executor.PublisherSession(f.root,
+-                f.selection, 'fixture-token', temporary_parent=f.parent) as session:
+-            owner = artifacts._ArtifactOwner(f.root, f.selection, session._api, temporary_parent=f.parent)
+-            session._artifact_owner = owner; session._stage = owner.stage
+-            end = time.monotonic()+60; session._deadline = end
+-            owner.enter(deadline=end, check_active=session._check_active)
++        from types import SimpleNamespace
++        from rc_publication_native_admission_fixture import _native_session
++        end, next_phase = time.monotonic()+60, []
++        clock = SimpleNamespace(monotonic=lambda: end+(120 if next_phase else 0)-executor.OPERATION_SECONDS)
++        def entered(owner, session, tls, trace):
+             self.assertIs(owner._session, session)
+-            session._deadline = end+120
+-            before = len(tls.requests)
+-            with patch('rc_consumer_io.time.monotonic', return_value=end+1):
++            scoped, _ = owner._controls(end+240, lambda: None)
++            self.assertEqual(scoped, end)
++            next_phase.append(True)
++        with _native_session(self, clock=clock, after_enter=entered) as (session, tls, _, trace):
++            def renewed(current, op):
++                owner, _, previous, _ = trace.entered[0]
++                self.assertTrue(previous._retired)
++                self.assertIsNot(current._read_scope, previous)
++                self.assertEqual(current._deadline, end+120)
++                before = len(tls.requests)
+                 scoped, active = owner._controls(end+240, lambda: None)
+                 self.assertEqual(scoped, session._deadline); self.assertIsNone(active())
++                self.assertIs(active, trace.controls[-1][1])
++                scoped, active = owner._controls(end-1, lambda: None)
++                self.assertEqual(scoped, end-1); self.assertIsNone(active())
+                 with self.assertRaisesRegex(ConsumerError, '^transport_deadline_exceeded$'):
+-                    owner._controls(end-1, lambda: None)
+-            self.assertEqual(len(tls.requests), before)
+-            session._cancelled.set()
+-            with self.assertRaisesRegex(ConsumerError, '^transport_cancelled$'):
+-                owner.authenticate(deadline=end+240, check_active=lambda: None)
+-            self.assertEqual(len(tls.requests), before)
++                    owner._controls(0, lambda: None)
++                self.assertEqual(len(tls.requests), before)
++                session._cancelled.set()
++                with self.assertRaisesRegex(ConsumerError, '^transport_cancelled$'):
++                    owner.authenticate(deadline=end+240, check_active=lambda: None)
++                self.assertEqual(len(tls.requests), before)
++            trace.before_execute = renewed
++            result = session.run_until_pause()
++            self.assertEqual((result.state.code, result.state.outcome), ('cancelled', 'blocked_no_effect'))
+ 
+ 
+ if __name__ == '__main__':
+diff --git a/scripts/rc_publication_final_admission_cases.py b/scripts/rc_publication_final_admission_cases.py
+index 0726ca5..e4a7f15 100644
+--- a/scripts/rc_publication_final_admission_cases.py
++++ b/scripts/rc_publication_final_admission_cases.py
+@@ -294,6 +294,8 @@ class FinalAdmissionCases(unittest.TestCase):
+             self.assertEqual(f.counts[f.final_runs], 3)
+ 
+     def test_entry_and_direct_sinks_remain_effect_free(self):
++        from rc_publication_native_admission_fixture import _pending_fence
++        production_authenticate = wire._authenticate
+         import rc_publication_artifact_admission as artifacts
+         with IntegrationTLS() as f, tempfile.TemporaryDirectory() as root, patch.object(artifacts, 'stage_selected',
+                 side_effect=wire.WireFailure('fence_blocked', 'none')) as stage:
+@@ -312,10 +314,12 @@ class FinalAdmissionCases(unittest.TestCase):
+                     if operation.kind == 'CreateDraft': f.api.create_draft(operation, **options)
+                     elif operation.kind == 'UploadAsset': f.api.upload_asset(operation, io.BytesIO(f.payloads[operation.asset.name]), **options)
+                     else: f.api.publish_prerelease(operation, **options)
+-                self.assertEqual((error.exception.code, error.exception.effect), ('fence_blocked', 'none'))
++                self.assertEqual((error.exception.code, error.exception.effect), ('invalid_request', 'none'))
+                 authorize.assert_not_called()
+-                self.assertEqual([r[1] for r in f.requests[before:]], f.packaging_paths)
++                self.assertEqual([r[1] for r in f.requests[before:]], [])
+             self.assertTrue(all(r[0] == 'GET' and not r[3] for r in f.requests))
++        for kind in ('CreateDraft', 'UploadAsset', 'PublishPrerelease'):
++            _pending_fence(self, kind, production_authenticate)
+ 
+     def test_legacy_integration_negative_endpoints_are_reached(self):
+         for endpoint in ('workflow', 'runs', 'current', 'attempt', 'job_path'):
+diff --git a/scripts/rc_publication_native_admission_fixture.py b/scripts/rc_publication_native_admission_fixture.py
+new file mode 100644
+index 0000000..f182df8
+--- /dev/null
++++ b/scripts/rc_publication_native_admission_fixture.py
+@@ -0,0 +1,230 @@
++"""Genuine local native scopes with modeled predecessors; grants no authority."""
++from contextlib import ExitStack, contextmanager
++from pathlib import Path
++from types import SimpleNamespace, MethodType
++from unittest.mock import patch
++
++import rc_publication_artifact_admission as artifacts
++from rc_publication_artifact_admission_cases import ArtifactTLS
++import rc_publication_contract as core
++import rc_publication_executor as executor
++import rc_publication_github as wire
++from rc_publication_https_fixture import authorities, gates
++import rc_publication_request as owned
++from rc_publication_stage_cases import publisher_fixture, artifact_worker
++
++
++@contextmanager
++def _native_session(case, *, clock=None, after_enter=None):
++    """Observe unchanged real issuers; no handwritten scope or session fields."""
++    with publisher_fixture() as fixture, ArtifactTLS(fixture) as tls, \
++            patch.object(wire, '_connect', side_effect=tls.connect), \
++            authorities(), artifact_worker(fixture, tls), ExitStack() as stack:
++        session = executor.PublisherSession(fixture.root, fixture.selection, 'fixture-token',
++                                           temporary_parent=fixture.parent)
++        trace = SimpleNamespace(entered=[], controls=[], executions=[], before_execute=None)
++        enter, controls, execute = artifacts._ArtifactOwner.enter, owned._read_controls, executor.PublisherSession._execute
++        def entered(owner, *args, **kwargs):
++            value = enter(owner, *args, **kwargs)
++            if owner.api is session._api:
++                raw, scope = kwargs['check_active'], session._read_scope
++                case.assertIs(type(raw), MethodType)
++                case.assertIs(raw.__self__, session)
++                case.assertIs(raw.__func__, executor.PublisherSession._check_active)
++                case.assertIs(owner._owner_active, raw)
++                case.assertIs(owner._session, session)
++                case.assertIs(owner.selection, session._api.selection)
++                case.assertIs(artifacts._OWNERS.get(owner.api), owner)
++                case.assertIs(scope._owner, session._owner)
++                case.assertFalse(scope._retired)
++                trace.entered.append((owner, raw, scope, tuple(owner.stage._handles)))
++                if after_enter is not None:
++                    after_enter(owner, session, tls, trace)
++            return value
++        def controlled(api, *args, **kwargs):
++            result = controls(api, *args, **kwargs)
++            if api is session._api:
++                trace.controls.append(result)
++            return result
++        def executing(current, op):
++            if current is session:
++                trace.executions.append((op, current._read_scope, current._request_scope))
++                if trace.before_execute is not None:
++                    trace.before_execute(current, op)
++            return execute(current, op)
++        def current_phase(selection, api, *, deadline, check_active):
++            owner = artifacts._OWNERS.get(api)
++            if owner is not None:
++                case.assertIs(owner, session._artifact_owner)
++                case.assertIs(owner.stage, session._stage)
++                case.assertIs(owner.selection, api.selection)
++                case.assertTrue(owner.entered and not owner.closed)
++                failure = None
++                try:
++                    owner._capture(deadline=deadline, check_active=check_active)
++                except artifacts.ConsumerError as error:
++                    if error.code not in ('transport_cancelled', 'transport_deadline_exceeded', 'artifact_transport_failed'):
++                        raise
++                    failure = artifacts._wire_failure(error)
++                if failure is not None:
++                    raise failure from None
++            return gates(selection, api, deadline=deadline, check_active=check_active)
++        if clock is not None:
++            stack.enter_context(patch.object(executor, 'time', clock))
++        stack.enter_context(patch.object(artifacts._ArtifactOwner, 'enter', entered))
++        stack.enter_context(patch.object(owned, '_read_controls', controlled))
++        stack.enter_context(patch.object(executor.PublisherSession, '_execute', executing))
++        stack.enter_context(patch.object(wire, '_authenticate', side_effect=current_phase))
++        failures, trace.cleanup_checks = [], []
++        try:
++            yield session, tls, fixture, trace
++        except BaseException as error:
++            failures.append(error)
++        try:
++            session.close()
++        except BaseException as error:
++            failures.append(error)
++        checks = [('retired_client', lambda: case.assertIsNone(session._api))]
++        for owner, _, previous, handles in trace.entered:
++            checks.extend([('retired_owner', lambda o=owner, p=previous: case.assertTrue(o.closed and p._retired)),
++                           ('owner_registry', lambda o=owner: case.assertNotIn(o.api, artifacts._OWNERS)),
++                           ('closed_handles', lambda h=handles: case.assertTrue(all(x.closed for x in h)))])
++        checks.extend([('retired_scopes', lambda: case.assertTrue(all(read._retired and (scope is None or scope._retired)
++                       for _, read, scope in trace.executions))),
++                       ('removed_output', lambda: case.assertEqual(list(Path(fixture.parent).glob('rc-publisher-*')), [])),
++                       ('tls_errors', lambda: case.assertEqual(tls.errors, []))])
++        for name, check in checks:
++            try:
++                check()
++                trace.cleanup_checks.append((name, True))
++            except BaseException as error:
++                trace.cleanup_checks.append((name, False))
++                failures.append(error)
++        if len(failures) == 1:
++            raise failures[0]
++        if failures:
++            raise BaseExceptionGroup('Native fixture body, close and cleanup failures', failures)
++
++
++def _pending_fence(case, kind, production_authenticate):
++    """Reach the actual target, then restore the unchanged production gate."""
++    with _native_session(case) as (session, tls, fixture, trace):
++        native_execute = executor.PublisherSession._execute
++        captured = []
++        def target(current, op):
++            if current is not session or op.kind != kind:
++                return native_execute(current, op)
++            before, scope, read = len(tls.requests), current._request_scope, current._read_scope
++            case.assertEqual(captured, [])
++            predecessors = [row for row in tls.requests if row[0] in ('POST', 'PATCH', 'DELETE')]
++            def authenticate(selection, api, **kwargs):
++                snapshot = scope._snapshot
++                owner = artifacts._OWNERS.get(api)
++                case.assertIs(api, session._api)
++                case.assertIs(selection, api.selection)
++                case.assertIs(owner, session._artifact_owner)
++                case.assertIs(owner._session, session)
++                case.assertIs(scope._owner, session._owner)
++                case.assertIs(scope._owner._credential, api._credential)
++                case.assertIs(snapshot._client, api)
++                case.assertIs(snapshot._credential, api._credential)
++                case.assertIs(snapshot._scope, scope)
++                case.assertIsNone(snapshot._read_scope)
++                case.assertIs(read._owner, session._owner)
++                case.assertFalse(read._retired)
++                case.assertIs(snapshot._op, op)
++                case.assertIs(session._transition.action, op)
++                case.assertIs(session._transition.state.pending, op)
++                case.assertIs(session._inflight, op)
++                case.assertFalse(scope._used)
++                case.assertNotIn(op.operation_id, session._attempted)
++                case.assertEqual(snapshot._deadline, min(scope._deadline, read._deadline, session._deadline))
++                case.assertEqual(snapshot._method, 'PATCH' if kind == 'PublishPrerelease' else 'POST')
++                case.assertTrue(snapshot._header.startswith((snapshot._method+' '+snapshot._path+' HTTP/1.1\r\n').encode()))
++                return production_authenticate(selection, api, **kwargs)
++            with patch.object(wire, '_authenticate', side_effect=authenticate), patch.object(wire, '_authorize') as authorize:
++                with case.assertRaises(wire.WireFailure) as error:
++                    native_execute(current, op)
++                case.assertEqual((error.exception.code, error.exception.effect), ('fence_blocked', 'none'))
++                authorize.assert_not_called()
++            rows = tls.requests[before:]
++            subject = session._selection.subject
++            trees = [subject.source.source_tree]
++            for name in ('.github', 'workflows'):
++                trees.append(next(r['sha'] for r in fixture.api.data['/git/trees/'+trees[-1]]['tree'] if r['path']==name))
++            sources, evidence, closing = [], [], []
++            for index in (1, 0):
++                run = subject.runs[index]
++                source = ['/', '/git/ref/'+run.ref[5:], '/git/commits/'+subject.source.source_sha]
++                source += ['/git/trees/'+sha for sha in trees]
++                prefix = '/actions/runs/'+str(run.run_id)
++                runs = '/actions/workflows/'+str(run.workflow_id)+'/runs?head_sha='+subject.source.source_sha+'&per_page=100&page=1'
++                phase = ['/actions/workflows/'+Path(run.workflow_path).name, runs, prefix,
++                         prefix+'/attempts/'+str(run.run_attempt)+'/jobs?per_page=100&page=1', prefix,
++                         prefix+'/attempts/'+str(run.run_attempt)]
++                sources.extend(source); evidence.extend(phase); closing.extend((runs, prefix))
++            expected = [wire.ROOT+(p if p!='/' else '') for p in sources+evidence+evidence+closing+sources]
++            case.assertEqual(len(expected), 52)
++            case.assertEqual([r[1] for r in rows[:52]], expected)
++            case.assertTrue(all(r[0]=='GET' and not r[3] for r in rows))
++            report = session._artifact_owner._report
++            case.assertEqual([r[0] for r in report.rows if r[3]=='passed'],
++                             ['raw_cloud_audit', 'raw_noncloud_audits', 'full_integration', 'final_packaging', 'bundle_bytes'])
++            case.assertEqual(sum(r[3]=='unknown' for r in report.rows), 58)
++            case.assertEqual((report.status, report.draft_visibility), ('blocked', 'unknown'))
++            case.assertFalse(report.release_approved or report.publish_approved or report.snapshot_atomic)
++            case.assertFalse(scope._used)
++            case.assertNotIn(op.operation_id, session._attempted)
++            case.assertEqual([r for r in tls.requests if r[0] in ('POST','PATCH','DELETE')], predecessors)
++            captured.append((scope, read, len(predecessors)))
++            raise error.exception
++        with patch.object(executor.PublisherSession, '_execute', target):
++            result = session.run_until_pause()
++            if kind == 'PublishPrerelease':
++                case.assertIsInstance(result.action, core.AwaitPublishRequest)
++                pause = result.action
++                result = session.request_publish(core.PublicationRequest('publish-once', 'owner-request-reference',
++                                                  pause.release_id, pause.subject_digest))
++        case.assertEqual(len(captured), 1)
++        scope, read, count = captured[0]
++        case.assertTrue(scope._retired and read._retired)
++        case.assertEqual(count, {'CreateDraft':0, 'UploadAsset':1, 'PublishPrerelease':7}[kind])
++        case.assertEqual(result.state.code, 'fence_blocked')
++        case.assertEqual(result.state.outcome, 'blocked_no_effect' if kind=='CreateDraft' else 'partial_draft')
++
++
++def _authorizer_denial(case, production_authorize):
++    """Capture only the request and scope delivered by genuine native _request."""
++    with _native_session(case) as (session, tls, _, trace):
++        captured = []
++        def authorize(op, subject, *, request, scope):
++            case.assertEqual(captured, [])
++            case.assertIs(op, session._transition.action)
++            case.assertIs(op, session._transition.state.pending)
++            case.assertIs(op, session._inflight)
++            case.assertIs(subject, session._selection.subject)
++            case.assertIs(scope, session._request_scope)
++            case.assertIs(request, scope._snapshot)
++            case.assertIs(request._scope, scope)
++            case.assertIs(request._client, session._api)
++            case.assertIs(request._credential, session._api._credential)
++            case.assertIsNone(request._read_scope)
++            case.assertIs(session._read_scope._owner, session._owner)
++            case.assertFalse(session._read_scope._retired)
++            case.assertIs(scope._owner, session._owner)
++            case.assertFalse(scope._used)
++            case.assertNotIn(op.operation_id, session._attempted)
++            case.assertEqual((request._method, request._host, request._path),
++                             ('POST', wire.API, wire.ROOT+'/releases'))
++            case.assertEqual(request._deadline, min(scope._deadline, session._read_scope._deadline, session._deadline))
++            captured.append((scope, session._read_scope, len(tls.requests)))
++            return production_authorize(op, subject, request=request, scope=scope)
++        with patch.object(wire, '_authorize', side_effect=authorize):
++            result = session.run_until_pause()
++        case.assertEqual((result.state.code, result.state.outcome), ('denied','blocked_no_effect'))
++        case.assertEqual(len(captured), 1)
++        scope, read, before = captured[0]
++        case.assertTrue(scope._retired and read._retired)
++        case.assertFalse(scope._used)
++        case.assertEqual(len(tls.requests), before)
++        case.assertEqual([r for r in tls.requests if r[0] in ('POST','PATCH','DELETE')], [])
+diff --git a/scripts/rc_publication_unified_owner_api_cases.py b/scripts/rc_publication_unified_owner_api_cases.py
+index 097bd1a..daac51d 100644
+--- a/scripts/rc_publication_unified_owner_api_cases.py
++++ b/scripts/rc_publication_unified_owner_api_cases.py
+@@ -68,43 +68,63 @@ class UnifiedOwnerAPICases(unittest.TestCase):
+             self.assertTrue(all(r[0] == 'GET' and r[3] == b'' for r in tls.requests))
+ 
+     def test_exact_owned_identity_retains_callback_without_spoofed_scope_or_renewal(self):
+-        for spoofed in (False, True):
+-            with self.subTest(spoofed=spoofed), self.fixture() as (f, tls, _):
+-                with executor.PublisherSession(f.root, f.selection, 'fixture-token',
+-                        temporary_parent=f.parent) as session:
+-                    owner = artifacts._ArtifactOwner(f.root, f.selection, session._api,
+-                                                     temporary_parent=f.parent)
+-                    session._artifact_owner, session._stage = owner, owner.stage
+-                    end = time.monotonic()+60
+-                    session._deadline, stopped = end, []
+-                    original = session._check_active
+-                    if spoofed:
+-                        def original():
+-                            if stopped:
+-                                raise wire.WireFailure('cancelled', 'none')
+-                        original.__self__, original.__func__ = session, executor.PublisherSession._check_active
+-                    owner.enter(deadline=end, check_active=original)
+-                    self.assertIs(owner.stage._check_active, original)
+-                    self.assertIs(owner._session, None if spoofed else session)
+-                    before = len(tls.requests)
+-                    if spoofed:
+-                        session._deadline = end+120
+-                    scoped, active = owner._controls(end+120, original)
+-                    self.assertEqual(scoped, end)
+-                    self.assertIs(active, original)
+-                    self.failure(lambda: owner._controls(0, original), 'transport_deadline_exceeded')
+-                    if not spoofed:
+-                        session._deadline = None
+-                        self.failure(lambda: owner._controls(end+120, original), 'artifact_scope_unavailable')
+-                        session._deadline = end
+-                    scoped, later = owner._controls(end+120, lambda: None)
+-                    self.assertEqual(scoped, end)
+-                    self.assertIsNot(later, original)
+-                    stopped.append(True) if spoofed else session._cancelled.set()
+-                    self.failure(lambda: owner._controls(end+120, lambda: None), 'transport_cancelled')
+-                    self.failure(lambda: owner.stage.revalidate(deadline=end+120,
+-                                 check_active=lambda: None), 'transport_cancelled')
+-                    self.assertEqual(len(tls.requests), before)
++        from rc_publication_native_admission_fixture import _native_session
++        end = time.monotonic()+60
++        clock = SimpleNamespace(monotonic=lambda: end-executor.OPERATION_SECONDS)
++        def native_enter(owner, session, tls, trace):
++            original = trace.entered[0][1]
++            self.assertIs(owner._owner_active, original)
++            self.assertIs(owner._session, session)
++            before = len(tls.requests)
++            scoped, active = owner._controls(end+120, original)
++            self.assertEqual(scoped, end)
++            self.assertIs(active, trace.controls[-1][1])
++            self.assertIs(trace.controls[-1][2], session._read_scope)
++            self.failure(lambda: owner._controls(0, original), 'transport_deadline_exceeded')
++            scoped, later = owner._controls(end+120, lambda: None)
++            self.assertEqual(scoped, end); self.assertIsNot(later, original)
++            self.assertEqual(len(tls.requests), before)
++            session._cancelled.set()
++            self.failure(lambda: owner._controls(end+120, lambda: None), 'transport_cancelled')
++            self.failure(lambda: owner.stage.revalidate(deadline=end+120,
++                         check_active=lambda: None), 'transport_cancelled')
++            self.assertEqual(len(tls.requests), before)
++        with _native_session(self, clock=clock, after_enter=native_enter) as (session, _, _, _):
++            with self.assertRaises(wire.WireFailure) as error:
++                session.run_until_pause()
++            self.assertEqual((error.exception.code, error.exception.effect), ('cancelled', 'none'))
++        # Actual pause replaces the old handwritten session deadline=None.
++        with _native_session(self) as (session, tls, _, trace):
++            self.assertIsInstance(session.run_until_pause().action, core.AwaitPublishRequest)
++            owner, original, previous, _ = trace.entered[0]
++            self.assertTrue(previous._retired)
++            self.assertIsNone(session._deadline)
++            before = len(tls.requests)
++            self.failure(lambda: owner._controls(previous._deadline+120, original), 'artifact_scope_unavailable')
++            self.assertEqual(len(tls.requests), before)
++        # Ordinary spoofed attributes belong only to a real standalone client.
++        with self.fixture() as (f, tls, api), executor.PublisherSession(f.root,
++                f.selection, 'fixture-token', temporary_parent=f.parent) as session:
++            stopped = []
++            def original():
++                if stopped:
++                    raise wire.WireFailure('cancelled', 'none')
++            original.__self__, original.__func__ = session, executor.PublisherSession._check_active
++            with self.entered(f, api, original) as (owner, end):
++                self.assertIs(owner.stage._check_active, original)
++                self.assertIsNone(owner._session)
++                self.assertIsNone(api._credential._session_owner)
++                before = len(tls.requests)
++                scoped, active = owner._controls(end+120, original)
++                self.assertEqual(scoped, end); self.assertIs(active, original)
++                self.failure(lambda: owner._controls(0, original), 'transport_deadline_exceeded')
++                scoped, later = owner._controls(end+120, lambda: None)
++                self.assertEqual(scoped, end); self.assertIsNot(later, original)
++                stopped.append(True)
++                self.failure(lambda: owner._controls(end+120, lambda: None), 'transport_cancelled')
++                self.failure(lambda: owner.stage.revalidate(deadline=end+120,
++                             check_active=lambda: None), 'transport_cancelled')
++                self.assertEqual(len(tls.requests), before)
+ 
+     def test_none_owned_callback_keeps_callable_stage_controls_and_original_deadline(self):
+         with self.fixture() as (f, tls, api), self.entered(f, api, None) as (owner, end):
+@@ -315,18 +335,21 @@ class UnifiedOwnerAPICases(unittest.TestCase):
+                 self.priority(receipt=True, bad=False, cancel=cancel)
+ 
+     def test_paused_bound_session_cannot_reauthenticate_with_caller_scope(self):
+-        with self.fixture() as (f, tls, _), executor.PublisherSession(f.root,
+-                f.selection, 'fixture-token', temporary_parent=f.parent) as session:
+-            owner = artifacts._ArtifactOwner(f.root, f.selection, session._api, temporary_parent=f.parent)
+-            session._artifact_owner, session._stage = owner, owner.stage
+-            end = time.monotonic()+60
+-            session._deadline = end
+-            owner.enter(deadline=end, check_active=session._check_active)
++        from rc_publication_native_admission_fixture import _native_session
++        end = time.monotonic()+60
++        with _native_session(self) as (session, tls, _, trace):
++            result = session.run_until_pause()
++            self.assertIsInstance(result.action, core.AwaitPublishRequest)
++            owner, _, previous, _ = trace.entered[0]
+             self.assertIs(owner._session, session)
+-            session._deadline = None
++            self.assertIsNone(session._deadline)
++            self.assertIsNone(session._read_scope)
++            self.assertTrue(previous._retired)
++            end = previous._deadline
++            self.assertGreater(end+120, previous._deadline)
+             before = len(tls.requests)
+             with self.assertRaisesRegex(safe.ConsumerError, '^artifact_scope_unavailable$'):
+-                artifacts.authenticate_artifacts(session._api, f.selection,
++                artifacts.authenticate_artifacts(session._api, session._api.selection,
+                     deadline=end+120, check_active=lambda: None)
+             self.assertEqual(len(tls.requests), before)
+             self.assertIsNone(owner._report)

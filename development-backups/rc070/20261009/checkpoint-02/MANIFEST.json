@@ -1,0 +1,191 @@
+{
+  "schema": 1,
+  "at": "2026-10-09T06:17:57.028307+00:00",
+  "repository": "Eswink/coding-tools-mcp",
+  "backup_branch": "backup/rc070-workspace-checkpoints-20261009",
+  "backup_parent": "47adc2a11135e692b8de15534debacf9a1cc1948",
+  "directory": "development-backups/rc070/20261009/checkpoint-02",
+  "files": [
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/README.md",
+      "mode": "100644",
+      "blob": "e4d99d30b0d51441e080048aabcf7855253ad807",
+      "bytes": 3381,
+      "sha256": "5302870288a742597032c9e5d80338fc3239c9f0b50bd740a081ac3d7c1df6fa"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/SOURCE-MANIFEST.json",
+      "mode": "100644",
+      "blob": "39eaa660eab46ba7195f6134d79d074dc34be8b6",
+      "bytes": 4868,
+      "sha256": "a944dee5027679b6a78e2c727cf1eec05725dbbb7a120c5a4ecee4b2e98c0434"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/SOURCE-TREE.json",
+      "mode": "100644",
+      "blob": "9c03d28c87ed0076ff198e397cabb984c2b0f75e",
+      "bytes": 492335,
+      "sha256": "da3719558d66e0556c8c70125461a5b66a96c427192fca7405c373e77daa6b5d"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/docs/specs/issue88-finite11-canonical-fixture-repair/design.md.source",
+      "mode": "100644",
+      "blob": "f600d3d41ef82f089857e870ea6da6f39828a1d9",
+      "bytes": 4988,
+      "sha256": "3cce40e10dfa1672ed7e0d39bc32ecad36ed6754fddb6efa33da772fd9e7c7c1"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/docs/specs/issue88-finite11-canonical-fixture-repair/requirements.md.source",
+      "mode": "100644",
+      "blob": "9256472700be9853dea3ee0a15c4dcffe558bbcf",
+      "bytes": 9932,
+      "sha256": "46ac1a529f2e6a3f79b3a1c95c408a9c0b3614a2c3dfd04659d23496cc42184e"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/docs/specs/issue88-finite11-canonical-fixture-repair/tasks.md.source",
+      "mode": "100644",
+      "blob": "e3f436eca79cfd9762e019795f5144b0aca2ccd0",
+      "bytes": 2967,
+      "sha256": "719ba5d3d777fcb4a9fb36d97e0d3841641e5ffdbed6d0dff7d2d2e7f8082f41"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/scripts/rc_publication_admission_cases.py.source",
+      "mode": "100644",
+      "blob": "2b49656a36b663f12443dd34f75e32bdab3c5a88",
+      "bytes": 25372,
+      "sha256": "e9669d17a1b108d31f9967a5f48b48b448c17861c8c8a0d34017d68e20654c45"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/scripts/rc_publication_artifact_admission_cases.py.source",
+      "mode": "100644",
+      "blob": "fe53464fdd5a35935857526736081072327205ee",
+      "bytes": 30736,
+      "sha256": "c6fa67032d3a159d12a0ea48f26df578c91be8ddab02826f413284d5059055dc"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/scripts/rc_publication_final_admission_cases.py.source",
+      "mode": "100644",
+      "blob": "e4a7f1570b024de5f24209159b2acedf26093893",
+      "bytes": 25358,
+      "sha256": "b779c32c18a59d41353361e42a7c89163c8f7a5edd4ed06689b6bbbff42e857c"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/scripts/rc_publication_native_admission_fixture.py.source",
+      "mode": "100644",
+      "blob": "f182df85606f1e9011522e832e006ee0ee2681a2",
+      "bytes": 13966,
+      "sha256": "9df4f687a377efb98ce2bf2e1fe9bee396a2781ba685db641c7f3703ebf299d7"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source/scripts/rc_publication_unified_owner_api_cases.py.source",
+      "mode": "100644",
+      "blob": "daac51d9dc1b797c654bf4f2ae44e0e4cd31a451",
+      "bytes": 19840,
+      "sha256": "104ecdd5a907ff09e5955496807558633b3c83067c5d555dc4d19518aebd1e48"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/publisher-frozen02-source-only/source.patch",
+      "mode": "100644",
+      "blob": "83440dada5680d121c54b625bc43ad9a11b32312",
+      "bytes": 44498,
+      "sha256": "e0ee17cff76799f96dd0aa0af2043495076594ddb96fefd134458fc5288e1128"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/PARTIAL-PHYSICAL-SOURCE-TREE.json",
+      "mode": "100644",
+      "blob": "de0bc058c47de445214c75e5feb8f47cf39c6ce4",
+      "bytes": 503177,
+      "sha256": "b08b42461b734b4126dccb482dc9631f80bfa76eea4339ec9cea6500a6b9f70e"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/SOURCE-MANIFEST.json",
+      "mode": "100644",
+      "blob": "1ea50f11656907cbfc5f4470a976d94b7a9fefc4",
+      "bytes": 6720,
+      "sha256": "05443b29caa6af759c4e2fc713f65b07276c7e580b6e3044619fabca6a7e6060"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/docs/specs/windows-recovery-stage-admission/design.md.source",
+      "mode": "100644",
+      "blob": "31653d6851d0edb0ca484c304e97c398f5b7a695",
+      "bytes": 7932,
+      "sha256": "0aec1717abe802cded82ff23f3fb16b4d388e26928a8651437cf768d5b290a14"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/docs/specs/windows-recovery-stage-admission/requirements.md.source",
+      "mode": "100644",
+      "blob": "9d0433208fddb436c43045f13330fc1f4c6d2449",
+      "bytes": 5800,
+      "sha256": "654215eabe55c8d5d7500aa8f21a6faae50818cfb7ec0a8c4dac08d195f187b6"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/docs/specs/windows-recovery-stage-admission/tasks.md.source",
+      "mode": "100644",
+      "blob": "6b5e494611147370a7a66d446b58e4f18db88d85",
+      "bytes": 6506,
+      "sha256": "e045977d63591fe04661ae61d7cccfd6c36458c469667ab7af4b3a095c9ea869"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/services/cloud-agent/src/approval.rs.source",
+      "mode": "100644",
+      "blob": "8507ff59e9314fc2a267b585a9956d18499a02a8",
+      "bytes": 8915,
+      "sha256": "16070f5b710db347acf48bb91faeb4257687172c0787aaf2cba98c3e1892107b"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/services/cloud-agent/src/lib.rs.source",
+      "mode": "100644",
+      "blob": "735ac0e99979ae090c57198627615e2ac079deae",
+      "bytes": 1573,
+      "sha256": "0acd689e2b87a4526da7ab662f3ac130e45515586e933c1cf736c72b477c6ba7"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/src/lib/chat-authorization.ts.source",
+      "mode": "100644",
+      "blob": "a81aa6b1ad475e7739bb3813907ec5a51ed2c84f",
+      "bytes": 2021,
+      "sha256": "ac429dcaeab78a7296288de2b1c9a42c03cb9072e50294f57deb57df5bfb8f7a"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/src-tauri/src/auth/聊天授权v1.rs.source",
+      "mode": "100644",
+      "blob": "e6f7305bca01e195b1263aea17c64c6c6c6f6437",
+      "bytes": 37032,
+      "sha256": "ab46705f58d6c73bf2650284a4ab683b52b343f7e5257c6a8b28744d4f40418b"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/src-tauri/src/tools/cloud_host/windows_workspace/claimed.rs.source",
+      "mode": "100644",
+      "blob": "7523c26e0ce6b591f38879fb7b6378cba5c135be",
+      "bytes": 10840,
+      "sha256": "cd44d5c594fc7ff5a1427f0cd986b0b46f598d72145533b19216d83bf468b5a8"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/src-tauri/src/tools/cloud_host/windows_workspace/stage.rs.source",
+      "mode": "100644",
+      "blob": "5c46d75c4fca1c12b50f7bcc7048ff8d8ac2f2dc",
+      "bytes": 7936,
+      "sha256": "71bf43fa469c3d03e0f11f2ebefa7b20493f94562b01e0b26530c76ba0a8b2de"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/src-tauri/src/tools/cloud_host/windows_workspace.rs.source",
+      "mode": "100644",
+      "blob": "33b3473f49dd8a4dc06c39172c6fa8358ca90fd0",
+      "bytes": 6016,
+      "sha256": "317a96df4b115f50e5aff7fcca4fad182890995440abf2692cdcce72bfc8343f"
+    },
+    {
+      "path": "development-backups/rc070/20261009/checkpoint-02/windows-stage11-compatibility-blocked/source/src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs.source",
+      "mode": "100644",
+      "blob": "6c03734937675752a1c17c6f64bda658ab8a4b6d",
+      "bytes": 7383,
+      "sha256": "dbee93087f74d26f4e2ba7dbe3aef99297fc872e44a55e88fb727f79b877dab0"
+    }
+  ],
+  "file_count_excluding_manifest": 25,
+  "total_files": 26,
+  "literal_secret_findings": 0,
+  "status": "source_only; Windows compatibility BLOCKED, publisher current85/current300 NOT_RUN",
+  "whole_final_version_security_release_install_qualification": false,
+  "windows_missing_foundation_paths": 40
+}

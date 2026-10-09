@@ -1,0 +1,57 @@
+# Finite eleven fixture adaptations
+
+## 功能概述
+
+This isolated increment starts from exact tree 493bc21d041a96cd9d3a8037e72f6c6454e1df7b (1874 tracked files). Its actual84 strict failure and the earlier fd367 whole300 failure remain immutable. This spec supersedes only the prior finite-fixture-canonical-repair FR-3 complete-body requirement for the terminal-UNKNOWN negative POST case; it does not revise either historical result or any positive body requirement.
+
+## 需求列表
+
+## FR-1 — Eight exact readonly reseal adaptations
+
+Only the following existing methods SHALL replace obsolete actual-client selection setters with trusted fresh-actual-client resealing. Original changed inputs, metadata endpoints and request counts, deadlines, error/effect assertions and owner cleanup SHALL remain. IntegrationTLS SHALL use its existing adopt_selection/seal helpers. ArtifactTLS tests SHALL close the previous actual third-tuple client, adopt a fresh actual client's canonical selection and close every newly held actual client in fixture cleanup. The f.api BudgetAPI object SHALL remain data; neither value equality nor data SHALL become a credential, owner or grant.
+
+| Class | Exact methods |
+|---|---|
+| AdmissionCases | test_event_ref_and_pr_merge_selection_rejected; test_gate_digest_canonical_order_and_binding; test_paginated_newest_run_selection_has_exact_inventory |
+| ArtifactAdmissionCases | test_all_three_frozen_artifact_digest_mismatches_block; test_raw_npm_rustsec_glib_and_installed_contract_failures_stay_failures |
+| FinalAdmissionCases | test_both_canonical_digests_and_incidental_metadata; test_complete_paginated_final_selection; test_distinct_supported_integration_ref_and_final_branch |
+
+## FR-2 — Two exact Foreign constructor negatives
+
+AdmissionCases.test_caller_claims_and_reports_cannot_bypass_fixed_authentication and FinalAdmissionCases.test_fresh_reobservation_and_caller_claims_confer_no_authority SHALL retain the original Foreign subclass input and attempted authentication expression. The actual credential constructor SHALL reject it with invalid_request/none before new requests or owner creation. The tests SHALL explicitly observe zero additional requests and no session owner on the unchanged actual client. Remaining caller GET override, forged report/selection, extraneous approval/roles/report kwargs and fresh reobservation negatives SHALL remain. Forged report data SHALL be passed as fixture selection input to the unchanged actual client without assigning its readonly production selection. No __new__, fake credential or fallback SHALL be introduced.
+
+## FR-3 — Terminal UNKNOWN POST contract
+
+OwnedRequestCases.test_post_dispatch_stream_drift_is_terminal_unknown_no_retry SHALL retain its original altered stream and uncertain_remote_effect, rerun hard rejection, both original exact server count-equals-two assertions, actual operation IDs 2/5 and kinds CreateDraft/UploadAsset, immutable snapshot/session/client/credential/scope bindings, consumed/attempted and retired scopes, zero additional successful request headers after rerun, and actual server thread death after the existing close/join(3). Both complete server header records SHALL match the actual native snapshot method/path/header dictionaries in private memory. No wait, deadline or retry SHALL be added. Complete-body differences SHALL be separately printed as bounded diagnostic UNPROVEN; successful sendall or saved header rows SHALL confer no complete-body, asset or release completion evidence.
+
+## FR-4 — Positive and finite-source invariants
+
+OwnedRequestCases.test_native_owned_loopback_exact_bytes_and_one_attempt_each SHALL keep its original AST and strict full six-payload/hash/body/cleanup assertions and SHALL execute on the new frozen source. The complete tracked Python test inventory SHALL use full path, lexical scope and occurrence identifiers, and permit exactly the eleven named existing method AST changes relative to 493bc. All other existing methods, all production bytes, three hard rejects, PR98 cancellation, snapshot suspension, unknown gates and native issuers SHALL remain unchanged. The other eight methods in NEXT-FINITE18-SOURCE-TRACE-MAPPING remain outside authorization.
+
+## FR-5 — Fresh bounded qualification
+
+Fresh exact-source upstream impacts SHALL precede edits, including ArtifactAdmissionCases.fixture HIGH21 direct/1flow. The new delegated Plan, complete source/index/runtime/runner/retained fixture freeze, explicit unique loader inventory and raw receipt SHALL remain auditable. Necessary tests SHALL include the positive exact-bytes method and the prior actual84 inventory without filtering its remaining failures. A new final whole300 is still required after all necessary corrections; no 18/267/300/84 component result may be borrowed or relabeled.
+
+## 非功能需求
+
+Only trusted test helpers, the eleven listed test methods and this spec triplet change. No production setters, manual scopes, foreign-owner absorption, grants, retry, time-budget enlargement, arbitrary wait or remote write. Bounded diagnostics contain no raw headers/body/tokens or credential hashes. A saved empty body row does not prove zero socket bytes received.
+
+## 依赖关系
+
+AGENTS, probe 4.0.1, exact 493bc upstream graph and actual84 raw traces; actual immutable GitHub credential/canonical Selection, original HTTPSFixture and original native session loop. Prior source-specific failures are diagnosis inputs, never new-source PASS evidence.
+
+## FR-6 — Recovered finite native eight-method fixture increment
+
+Exactly the eight method IDs in the durable NEXT-FINITE8-ROOT-SCOPE-DECISION and the test-only scripts/rc_publication_native_admission_fixture.py (at most300 lines) SHALL change together with this existing spec triplet. The helper exposes only _native_session(case, *, clock=None, after_enter=None), _pending_fence(case, kind, production_authenticate), and _authorizer_denial(case, production_authorize). It SHALL delegate actual PublisherSession._run, original _ArtifactOwner.enter and actual fixed controls unchanged. No fabricated scopes, manual session activation/deadline assignment, native issuer invocation, shared-clock patches, remote grants or production edits are allowed. Capture all actual phase/scope/request/callback identities and prove actual cleanup after closure.
+
+The three old direct-sink methods SHALL preserve unsupported operations, options and BytesIO as early invalid_request/none, zero new GET, zero target mutation and zero authorizer calls. Each SHALL separately run genuine native CreateDraft/UploadAsset/PublishPrerelease targets, save production authentication before modeled fixture patches and delegate it at the selected native target. Five actual staged/full-gate rows may pass;58 unknown rows remain blocked. The native target SHALL have zero header/consume/attempt, a retired actual scope and unchanged fixed metadata endpoint obligations. Actual predecessor modeled headers SHALL be counted separately, never described as zero total mutations. The authorizer-negative SHALL receive actual _request-created request/scope kwargs and delegate captured production _authorize to denied/none while retaining original standalone remote/latest hard rejects.
+
+Foreign original-selection/client SHALL reject verification_failed/none with zero new GET. A separate foreign-own-canonical read SHALL remain fence_blocked/none without importing the original registered owner. Preserve original owner-close, lifetime and all actual client cleanup negatives.
+
+Native renewal and callback tests SHALL use actual enter argument identity and actual next _run-issued scope after prior retirement. Only executor module time may reference an independent fixture clock for two renewal tests; all consumer/request/TLS/source clocks remain real. Original end-1 input is retained as a future tighter min when real time is below it; a distinct actual expired0 retains the original timeout/noGET assertion. An ordinary spoofed callback and its original raw identity/unbound-owner assertions SHALL use an independent genuinely unbound client, never rebind the actual native owner. Cancellation/noop/shorter-caller/noGET and actual wrapped callback correspondence SHALL remain explicit.
+
+## FR-7 — Native paused-clock correction and fresh qualification
+
+The paused method SHALL use ordinary real executor clock for actual canonical per-phase300-second operation budgets. Its real run_until_pause SHALL return AwaitPublishRequest before pause assertions. Preserve original caller deadline=end+120 and noop input, but set end to the captured actual prior preparation ReadScope._deadline after asserting that ReadScope._retired. Assert end+120 is greater than that actual issued bound. This is a retired preparation-scope bound only, not a claim about later or future scopes. At the actual pause session._deadline and _read_scope SHALL be None; real registered owner remains bound. Reauthentication SHALL fail artifact_scope_unavailable before GET/report, and all real closure assertions SHALL run. No assertion relaxation, timer widening, deadline mutation, observer retry or60-second artificial common budget is allowed.
+
+Scratch loss means later reported finite8=84PASS/1FAIL and transparent diagnosticERROR have no recovered raw/source evidence. Record CHAT_REPORTED_LOST; neither supplies current verification credit. Preserve all durable finite11 failures. Complete source (1878 tracked paths),373 Python lexical inventories2311 test methods, old11 and strict full-body positive AST/production bytes SHALL be frozen and reviewed. Necessary original85 SHALL run once with real native family retirement and complete before/after source/runtime evidence; only all85 PASS permits the original unique300 inventory (267+13+20) once on precisely the same frozen source. No filtering, skips, retries, borrowed component results or release qualification.

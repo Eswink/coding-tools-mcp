@@ -1,0 +1,82 @@
+# Windows 私有资产准备准入任务
+
+## 概述
+
+本轮 Plan 独立于根 RC Plan。Stage11 恰好十一项 source-only 候选已写，尚未完整类型或运行验证；任何历史 portable/metadata PASS 不升级为本轮或最终发布通过。
+
+第一原型 COMPATIBILITY BLOCKED：prepare 对所有工程夹具强制第四 scope；原 positive 只请求原三项，不得改其请求/断言或默认项补授权。初稿仅冻结审查/纯源码备份；真实新增 asset effect selector/producer 与旧 read/start 兼容需下一有限范围。
+
+## 交付物清单（Scope-lock）
+
+- 预计新建文件数：四个，包括 stage.rs 与三项规格。
+- 预计修改文件数：七个，合计十一项。
+- 预计新增/修改函数数：stage 内不超过十二项、claimed 两个原方法、HCS run 入口一个；三个 allowlist/display 仅字面量，approval 两个新测试。具体新增函数名及 impact 在实施前追加审核记录。
+- 八项代码路径与三项规格见 design.md 文件结构表，数量必须逐项核对。
+
+## 任务列表
+
+### 阶段 1：恢复准备
+
+- [x] 1.1 审计 D6 全历史与 108 项原字节，不误报源码已恢复。
+  - 证据块：原 `D6-ACTUAL-BASE-OVERLAY-RECEIPT-v2.json` 的 `union_paths`，本轮 exact recovery audit 为 68 项 matched、40 项 missing；`ARCHIVE8-SOURCE-MANIFEST.json` 八项源复制可用。
+  - 涉及文件：恢复证据清单，不新增源函数；本规格 requirements/design/tasks 各最多 180 行。
+  - 需求：FR-1 ｜设计：恢复、文件结构。
+- [x] 1.2 为新增 stage 与原 claimed/HCS 方法运行新鲜 GitNexus impact，先报告 HIGH/CRITICAL。
+  - 证据块：恢复 `claimed.rs:172` 实际 `commit_local_admission(... call.ticket)`；真实 auth `聊天授权v1.rs:848` 的 commit 方法；新签名需要真实原类型与读者审查。
+  - 涉及文件：stage 350、claimed 300、HCS 300；auth 994 仅增加一项词，不增加函数。缺失 foundation 不隐式新写。
+  - 需求：FR-1、FR-2、FR-3 ｜设计：API、风险评估。
+  - 实际证据：本轮 D6 与 exact73 fresh graph 完成；current HIGH5direct/1process/3modules；validate_arguments CRITICAL3direct/5modules；新增两测试与 stage_peer/prepare_stage/consume_stage/check 都在编辑前查询为 UNKNOWN。根在新源前披露 HIGH 并审阅签名，unknown/变量0/ticket0保持手工 HIGH 下界。
+
+### 阶段 2：核心实现
+
+- [x] 2.1 登记合法 `vm.assets.stage` 请求词并保留四项实际默认及原九项提示与校验。
+  - 证据块：`approval.rs:111` 使用 LOCAL_SCOPES 验证合法词；`approval.rs:167` 旧形状测试拒绝额外字段、重复与未知词。
+  - 涉及文件：auth 995、cloud-agent/lib 60、chat-authorization.ts 60、approval 300；原生产验证方法与四项旧测试保持字节或 AST 精确不变，scopes=None 保持 L503 的四项原文字面量。
+  - 需求：FR-4 ｜设计：决策 1。
+- [x] 2.2 编写真实 ticket 准备/消费与 HCS owner 在首输入前持有 policy 的源码候选。
+  - 证据块：恢复 `claimed.rs:87` 原三作用域 `issue_local_admission_ticket`；`claimed.rs:198` 创建 WorkspaceRunGrant 后进入工程 HCS fixture；原 HCS owner 在输入前 box 持有 grant。
+  - 涉及文件：parent windows_workspace 200、stage 350、claimed 300、HCS 300。
+  - 需求：FR-2、FR-3 ｜设计：架构、数据模型、决策 2。
+  - 实际证据：stage190/350、claimed256/300、HCS202/300；policy 移入 whole Retained owner 后才检查并开始输入，owned cleanup 不以 policy.check 为条件。完整 Rust 类型、两个真实 tickets 运行仍未证明。
+
+### 阶段 3：必要验证与正式边界
+
+- [ ] 3.1 执行真实 approval 数据测试并封存默认/catalog/prompt/positive byte fence。
+  - 证据块：现有 ApprovalRequest.validate_at 绑定 peer/deadline/canonical arguments；原 `actual_claimed_creation_owned_hcs_lifecycle_keeps_output_denied` 保留实际 `.unwrap()` 与十六断言。
+  - 涉及文件：approval 内两个新测试，无其他旧测试更改；原 positive 文件仅只读。
+  - 需求：FR-3、FR-4、FR-5 ｜设计：测试策略。
+- [ ] 3.2 审查完整真实 source diff，detect_changes 与 gencommit 后小步提交。
+  - 证据块：AGENTS 要求提交前 detect_changes，MCP skill 要求 gencommit；完整父源码缺口未闭合时不能宣称 native 类型通过。
+  - 涉及文件：十一项 source scope、单独恢复清单及必要日志；新派生 cache 不计源码。
+  - 需求：FR-1、FR-5 ｜设计：恢复、风险评估。
+- [ ] 3.3 在完整 source-qualified Windows CI 执行实际 NativeHost/HCS 与原完整正向测试。
+  - 证据块：原 positive 是真实创建成功用例，Archive8 historical qualification `actualHCSowner_NativeHost_types=false`。
+  - 涉及文件：CI 接入另需有限规格，本十一项不修改 workflow；全部旧 63 项未完成保持未证明。
+  - 需求：FR-2、FR-3、FR-5 ｜设计：测试策略。
+
+## 检查点
+
+- [x] 恢复审计：D6 raw852B、fsck exit0、shallow=false、index1849，原字节缺口记录。
+- [x] check_spec passed5FR、estimate、精确签名/impact/HIGH warning、十一项 scope 根审查先于实施。
+- [ ] 当前必要测试 PASS 只记其真实范围。
+- [ ] 完整 Windows/producer/VM/GuestIO/输出 issuer/native source CI/五实际安装槽未完成。
+
+## 需求覆盖矩阵
+
+| 需求 | 设计章节 | 任务 | 状态 |
+|---|---|---|---|
+| FR-1 | 恢复与文件结构 | 1.1、1.2、3.2 | 部分恢复，有四十项缺口 |
+| FR-2 | 架构/API | 1.2、2.2、3.3 | 原型已写；旧三 scope 兼容静态阻断，类型/运行未证明 |
+| FR-3 | 整体所有权/决策 2 | 1.2、2.2、3.1、3.3 | 源码候选已写，类型与运行未验证 |
+| FR-4 | 作用域/决策 1 | 2.1、3.1 | 字节逆变换通过；新两测试未运行 |
+| FR-5 | 原正向测试/最终验证 | 3.1、3.2、3.3 | 未验证 |
+
+## 文件变更清单
+
+十一项八代码三规格逐项见 design 文件表。单文件预算见任务；超过 500 的原 auth 994 行保持原函数和文件组织，只增加一个字面量，不进行无关拆分。新增 stage 不超过 350 行；任何 foundation 新实现必须独立明确范围。
+
+## 检查清单
+
+- [x] 交付数量、证据块、预算与 FR 回链已记录。
+- [x] 旧原生成功与新当前必要测试分开。
+- [ ] 所有真实实现、验证、审查与 source-qualified CI 闭合。

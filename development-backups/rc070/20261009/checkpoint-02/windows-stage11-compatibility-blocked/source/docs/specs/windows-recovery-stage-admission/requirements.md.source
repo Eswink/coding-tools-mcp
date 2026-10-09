@@ -1,0 +1,84 @@
+# Windows 私有资产准备准入需求
+
+## 功能概述
+
+为真实已 Claim 的 Windows 工程生命周期增加独立 `vm.assets.stage` 本机授权消费，建立后续创建所得私有 boot/scratch 资产的准入边界。当前公开基线为 D6 `c60f9667fa8431e27fabbc497c19b4abfef5b965`；检查点中的 108 项父增量目前只有 68 项恢复为原 SHA/blob/size 相同字节，另有 40 项基础源码缺口。Archive8 八项字节已恢复。后续 Stage11 源码未保存，本次实现必须作为新候选重新审查与测试。
+
+## 历史经验与坑
+
+暂无可用长期记忆。已保存历史证据仅用于定位，不计为当前候选通过。单独 Windows 叶模块 metadata check 不证明完整 NativeToolHost；JSON、路径、注册夹具与带权限字段的描述均不产生实际授权。
+
+## 术语定义
+
+- StageAdmission：私有、不可 Clone/Deserialize 的实际本机 admission ticket 持有者，尚非消费后的授权。
+- StagePolicy：在实际 claimed callback 内消费 ticket 后持有真实 LocalAdmissionPermit、上下文、opened root 及精确绑定的私有所有者。
+- 整体保留：未知关闭或 panic 时保持真实 Claim、原三作用域 permit、第四 permit、上下文、根句柄、输入、archives 与 HCS 原生句柄同一所有者存活。
+
+## 范围边界
+
+In Scope：审核实际恢复字节、缺口与保护项；实现 Stage11 的十一项有限增量及其必要数据测试；为完整 Windows CI 记录严格未完成门禁。
+
+Out of Scope：在宿主安装编译器、启用 HCS/Hyper-V、导入镜像、修改 ACL/特权或执行 VM；改动用户机器、PR98 cancelled 操作或 snapshot 暂停；放行 production NativeHost、GuestIO、输出 issuer；把本增量视为发布或安装验证完成。
+
+## 需求列表
+
+### FR-1: 精确恢复与缺口保留
+
+**优先级:** Must
+**用户故事:** 作为 RC 接手开发者，我需要每项恢复绑定实际字节与来源，以继续已有实现。
+
+1. WHEN 复制旧候选源码 THEN 系统 SHALL 核对原 manifest 的 SHA256、Git blob、size 与 mode，并记录真实副本或精确 patch replay。
+2. IF 原字节未保存 THEN 系统 SHALL 列为缺口；重写后的字节不得宣称恢复原实现。
+3. WHILE 当前完整父源码未闭合 THE 系统 SHALL 保持完整类型、原生生命周期、F2 与发布门禁未通过。
+
+### FR-2: 第四授权必须实际消费
+
+**优先级:** Must
+**用户故事:** 作为本机授权人，我需要资产准备单独授权并绑定实际操作，以控制新的本机副作用。
+
+1. WHEN 实际 NativeToolHost 在 Claim 前准备工程调用 THEN 系统 SHALL 只签发并持有真实 `vm.assets.stage` ticket。
+2. WHEN 实际 claimed callback 消费该调用 THEN 系统 SHALL 复核真实 Claim、host/profile、conversation、peer/link、request binding、authority、deadline 与 cancellation 后消费一次 ticket。
+3. IF 任一绑定不符或授权消费失败 THEN 系统 SHALL 在第一个资产/输入副作用前拒绝。
+4. WHEN 旧三作用域调用只读输入或启动已经真实拥有的资产 THEN 系统 SHALL 不仅因存在工程夹具强制新增第四作用域；第四授权 SHALL 绑定真正新增的资产准备副作用。
+
+### FR-3: 保持旧授权与关闭边界
+
+**优先级:** Must
+**用户故事:** 作为工作区所有者，我需要取消和未知关闭仍保护整个所有者。
+
+1. WHEN 新授权进入 HCS 工程分支 THEN 系统 SHALL 在第一个输入句柄前持有 StagePolicy 与实际三作用域 WorkspaceRunGrant。
+2. IF 取消、超时或 stage 状态失效 THEN 系统 SHALL 阻止新副作用，但 SHALL 继续已经拥有的关闭操作。
+3. IF 关闭未知或 panic THEN 系统 SHALL 整体保留所有者，不据 JSON、void close 或路径观察报已清理。
+
+### FR-4: 作用域登记不自动授权
+
+**优先级:** Must
+**用户故事:** 作为授权人，我需要明确选择新作用域。
+
+1. WHEN 登记 `vm.assets.stage` 为合法请求词 THEN 系统 SHALL 保持 scopes=None 的四项默认、原九项授权提示、exec catalog 与既有请求内容字节不变。
+2. WHEN wire 请求含重复、新权限字段、未知 scope 或修改绑定 THEN 系统 SHALL 沿用原严格拒绝。
+
+### FR-5: 原正向生命周期与最终验证
+
+**优先级:** Must
+**用户故事:** 作为发布审核人，我需要原正向测试被真实执行。
+
+1. WHEN 测试工程 HCS 生命周期 THEN 系统 SHALL 原样保留 `actual_claimed_creation_owned_hcs_lifecycle_keeps_output_denied` 的十六条断言与真实创建 `.unwrap()`。
+2. IF 没有真实完整 NativeHost 类型与原生 HCS 执行证据 THEN 系统 SHALL 标记未证明，而非改为 deny/skip/xfail。
+3. WHEN 最终候选有真实版本、安全、产物、标签和安装证据 THEN 系统 SHALL 由最终 RC 门禁重新验证；本规格不批准发布。
+
+## 非功能需求
+
+- NFR-1：新 stage 文件最多 350 行、claimed 最多 300、HCS owner 最多 300；已有 auth 994 行只增加一个字面量，不新增函数。
+- NFR-2：ticket/permit/policy 不可 Clone、Deserialize 或公开 mint；原三作用域保持三项。
+- NFR-3：保留非 Windows 与 production deny；测试结果绑定实际源码、输入、工具链和原始日志。
+
+## 依赖关系
+
+实际 D6 全历史 clone、原始 108 manifest 与 finite patches、Archive8 eight-byte packet；尚缺 40 项 foundation 与完整 Windows source-qualified CI。boot/scratch producer、实际 GuestIO、输出 issuer、VM retirement 另需有限规格与实际证据，未被 StagePolicy 字段替代。
+
+## 检查清单
+
+- [x] 每项 FR 有稳定 ID 和 EARS 验收。
+- [x] 历史结果不计本轮通过，缺口已明确。
+- [x] 本机操作与 final RC 权限边界明确。
