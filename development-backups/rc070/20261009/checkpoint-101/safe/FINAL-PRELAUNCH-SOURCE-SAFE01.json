@@ -1,0 +1,22 @@
+{
+  "source_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "count": 1878,
+  "source_parent": "13cd343d942b7a68912d42a8f9235c02ed647764",
+  "private_component_commit": "f8a9fb06c5cfb8a5d43adad90fb0d3e3ac91f79e",
+  "index_sha256": "eb1c0600b9314ac74702a228e852b245f6c57284cc6bed1f9a54014ae7ed945c",
+  "native_original_FULL_PREFIX_passed": true,
+  "original_flags_removed": false,
+  "systemgit_replaced": false,
+  "prelaunchseal_sha256": "c1f72e1d6ff7af59d49ca72b4ac8c2a044ceabe7158227e163b1245cc6ec144c",
+  "prelaunch_actualfiles": 1982,
+  "prelaunch_peer_pending_field_original_immutable": "PENDING",
+  "subsequent_peer_decision": "ALLOW_ONE_ROOT_FINITE_ORIGINAL_FINAL_METHOD_ONLY",
+  "launcher_sha256": "2f34ba0de6cdc92a18129a83596231c446c297a900a73d15e652f1df1020dca2",
+  "source_method_runtime_credit": "NONE_IN_SOURCE_PACKET",
+  "automaticwholeownercanceltimeout": "NOTRUN",
+  "original85": "FAIL83SUCCESS2FAIL",
+  "original300": "NOTRUN",
+  "CI": false,
+  "FINAL": false,
+  "release_authorized": false
+}

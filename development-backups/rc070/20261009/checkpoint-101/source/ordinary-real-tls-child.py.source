@@ -1,0 +1,121 @@
+"""Real private TLS/socket components with explicitly controlled issuer-shaped data."""
+import ast,hashlib,json,ssl,socket,threading,time,traceback,sys
+from pathlib import Path
+from types import SimpleNamespace,MethodType
+from unittest.mock import patch
+B=Path('/workspace/work/rc070/publisher-native-clone-diagnostic');P=B/'diag-preflight/pure-sut';sys.path.insert(0,str(P/'scripts'))
+from rc_publication_https_fixture import HTTPSFixture
+source=B/'diagnostic_worker.py';functions=[n for n in ast.parse(source.read_text()).body if isinstance(n,ast.FunctionDef)]
+original_sendall=ssl.SSLSocket.sendall
+original_connect,original_handle,original_recv=HTTPSFixture.connect,HTTPSFixture._handle,ssl.SSLSocket.recv
+class API:pass
+class Operation:pass
+class Scope:pass
+class Owner:pass
+class Session:pass
+class Credential:pass
+
+def namespace():
+ ns=dict(time=time,ssl=ssl,socket=socket,threading=threading,traceback=traceback,Path=Path,MethodType=MethodType,
+   fixture_source=SimpleNamespace(ArtifactTLS=HTTPSFixture),
+   wire=SimpleNamespace(WireFailure=type("WireFailure",(ValueError,),{}),GitHub=API,core=SimpleNamespace(Operation=Operation),owned=SimpleNamespace(_OperationScope=Scope,_SessionOwner=Owner)),
+   executor=SimpleNamespace(PublisherSession=Session),_delegate_fixture_connect=original_connect,
+   _credential_records=[],_credential_outcomes=[],_credential_registry_retired=False,
+   _delegate_sendall=original_sendall,_delegate_fixture_handle=original_handle,_delegate_recv=original_recv,_worker_thread=threading.get_ident(),
+   _request_context=None,_server_context=threading.local(),_owned_requests={},_live_clients=[],
+   _activations=[],_observations=[],_tls_observations=[],_auth_observations=[],_auth_binding_outcomes=[],_auth_setup_failures=[],
+   _observer_cancels=[],_observer_primary_exceptions=[],_observation_errors=[],_install_errors=[],_restore_errors=[])
+ exec(compile(ast.Module(body=functions,type_ignores=[]),str(source),'exec'),ns)
+ return ns
+
+def context(ns,fixture,number):
+ api,op,scope,owner,session,credential=API(),Operation(),Scope(),Owner(),Session(),Credential()
+ api.selection=fixture.selection;api._credential=credential;api._closed=False;op.kind='CreateDraft';op.operation_id=number
+ credential._client=api;credential._selection=api.selection;session._selection=api.selection;session._closed=False
+ scope._owner=owner;scope._op=op;scope._thread=threading.get_ident();scope._retired=False
+ owner._client=api;owner._credential=credential;owner._session=session;credential._session_owner=owner
+ session._api=api;session._owner=owner;session._request_scope=scope;session._inflight=op
+ ns['_request_context']=(api,op,scope);ns['wire']._connect=SimpleNamespace(side_effect=fixture.connect)
+ record=dict(client=api,op=op,scope=scope,fixture=fixture,thread=threading.get_ident(),owner=owner,session=session,credential=credential)
+ ns['_owned_requests'][id(op)]=record
+ ns['_credential_records'].append(dict(input_selection=fixture.selection,client=api,credential=credential,clone=api.selection,state='PENDING',fixture=None))
+ return record
+
+def wait_event(predicate,seconds=5):
+ until=time.monotonic()+seconds
+ while time.monotonic()<until:
+  if predicate():return
+  time.sleep(.01)
+ raise AssertionError('bounded actual TLS event absent')
+
+rows=[]
+# Pair identity is genuine native TLS; owner/session shapes are controlled data,
+# and no authenticate/issuer/grant or original test method is invoked.
+for mode in ('same_pair_timeout_writefailure','swapped_live_endpoint_negative','closed_client_negative','owner_rebound_negative','session_rebound_negative','credential_rebound_negative'):
+ ns=namespace()
+ with patch.object(HTTPSFixture,'connect',ns['observed_fixture_connect']),patch.object(HTTPSFixture,'_handle',ns['observed_fixture_handle']),patch.object(ssl.SSLSocket,'recv',ns['observed_server_recv']),patch.object(ssl.SSLSocket,'sendall',ns['observed_sendall']):
+  with HTTPSFixture() as fixture:
+   first=context(ns,fixture,2);client=fixture.connect('api.github.com',3)
+   sockets=[client]
+   try:
+    if mode=='same_pair_timeout_writefailure':
+     wait_event(lambda:any(e['event']=='original_server_recv_exception'for e in ns['_tls_observations']))
+     wait_event(lambda:any(e['event']=='original_fixture_handle_completed'for e in ns['_tls_observations']))
+     errors=[e for e in ns['_tls_observations']if e['event']=='original_server_recv_exception']
+     assert len(errors)==1 and errors[0]['error_type']=='TimeoutError' and errors[0]['operation_id']==2
+     assert errors[0]['elapsed_seconds']>=1.8 and errors[0]['client_correlation_at_call_start']is False
+     assert errors[0]['actual_server_socket_instance_matched']and errors[0]['actual_client_socket_instance_matched']
+     completion=[e for e in ns['_tls_observations']if e['event']=='original_fixture_handle_completed'][0]
+     assert completion['real_raw_socket_closed']and completion['real_server_socket_closed']
+     write_errors=[]
+     for unused in range(3):
+      try:client.sendall(b'x')
+      except OSError as error:write_errors.append(type(error).__name__);break
+     assert write_errors, 'actual client write failure absent; component control FAIL/UNKNOWN'
+     writes=[e for e in ns['_tls_observations']if e['event']=='original_matched_client_sendall_completed'and e['error_type']]
+     assert writes and writes[-1]['error_type']==write_errors[0]and writes[-1]['monotonic_start']>=errors[0]['monotonic_finish']
+     rows.append(dict(case=mode,passed=True,genuine_server_error='TimeoutError',genuine_client_write_error=write_errors[0],
+       original2s_preserved=True,real_server_and_raw_close_verified=True,matched_at_start=False,correlated_after_delegate=True))
+    elif mode=='swapped_live_endpoint_negative':
+     second=context(ns,fixture,11);other=fixture.connect('api.github.com',3);sockets.append(other)
+     # Real distinct sockets; intentionally wrong saved endpoint association.
+     # No observer is allowed to attribute that closed/foreign connection.
+     first['endpoints']=second['endpoints']
+     wait_event(lambda:any(e['event']=='original_server_recv_exception'and e['operation_id']==11 for e in ns['_tls_observations']))
+     time.sleep(.15)
+     errors=[e for e in ns['_tls_observations']if e['event']=='original_server_recv_exception']
+     assert errors and all(e['operation_id']!=2 for e in errors)
+     assert all(e['operation_id']==11 for e in errors)
+     rows.append(dict(case=mode,passed=True,real_distinct_TLS_sockets=2,wrong_connection_not_attributed=True,missing_event_conclusion='UNKNOWN'))
+    elif mode in ('owner_rebound_negative','session_rebound_negative','credential_rebound_negative'):
+     if mode=='owner_rebound_negative':
+      replacement=Owner();old=first['scope']._owner
+      replacement._client=old._client;replacement._credential=old._credential;replacement._session=old._session
+      first['scope']._owner=replacement;replacement._session._owner=replacement;replacement._credential._session_owner=replacement
+     elif mode=='session_rebound_negative':
+      replacement=Session();old=first['owner']._session;replacement.__dict__.update(old.__dict__);first['owner']._session=replacement
+     else:
+      replacement=Credential();replacement._session_owner=first['owner'];first['client']._credential=replacement;first['owner']._credential=replacement
+     time.sleep(2.3)
+     errors=[e for e in ns['_tls_observations']if e['event']=='original_server_recv_exception']
+     print(json.dumps(dict(case=mode,actual_genuine_TLS=True,foreign_model_instance_observation_count=len(errors),expected_rejection=len(errors)==0,issuer_proof=False),sort_keys=True))
+     assert not errors, 'foreign replacement pinned instance was attributed as pinned owner'
+     rows.append(dict(case=mode,passed=True,new_sameclass_pinned_instance_not_attributed=True))
+    else:
+     client.close()
+     wait_event(lambda:all(not t.is_alive() for t in fixture._threads))
+     assert not any(e['event'].startswith('original_server_recv')for e in ns['_tls_observations'])
+     rows.append(dict(case=mode,passed=True,actual_closed_client_rejected=True,missing_event_conclusion='UNKNOWN'))
+   finally:
+    for value in sockets:value.close()
+    ns['_live_clients'].clear();ns['_owned_requests'].clear();ns['_request_context']=None
+  assert all(not t.is_alive()for t in fixture._threads)
+  if ns['_observation_errors'] or ns['_observer_cancels']:
+   print(json.dumps(dict(component_control_FAILURE=True,mode=mode,observations_safe_errors=ns['_observation_errors'],cancel_types=[type(e).__name__ for e in ns['_observer_cancels']],partial_rows=rows),sort_keys=True))
+  assert not ns['_observation_errors']and not ns['_observer_cancels']
+ assert HTTPSFixture.connect is original_connect and HTTPSFixture._handle is original_handle and ssl.SSLSocket.recv is original_recv
+report=dict(worker_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),actual_worker_FunctionDef_AST_lift=True,
+ controls=len(rows),passed=True,original_method_runs=0,real_TLS_components_executed=True,
+ fixture_component='original HTTPSFixture connect/handle/realSSLrecv original2s, controlled namespace typealias not actual ArtifactTLS/issuer proof',
+ issuer_proof=False,payload_or_addresses_logged=False,rows=rows)
+print(json.dumps(report,sort_keys=True))

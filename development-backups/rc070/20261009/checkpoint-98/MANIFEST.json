@@ -1,0 +1,20 @@
+{
+  "files": [
+    {
+      "bytes": 526,
+      "mode": "100644",
+      "path": "README.md",
+      "physical_mode": "0644",
+      "sha256": "19357ed20a127bbbcccddb4f51b520b025e9b01ea624493ef0d39f443006acc7"
+    },
+    {
+      "bytes": 2614,
+      "mode": "100644",
+      "path": "SAFE-TERMINAL-STATUS.json",
+      "physical_mode": "0644",
+      "sha256": "c5ac7ad83bf17aa1dcb30ff501c1ded8ba5b871d2ad919e58c19ab5375c80c33"
+    }
+  ],
+  "production_qualification": false,
+  "scope": "safe ordinaryterminal metadata only"
+}

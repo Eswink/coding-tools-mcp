@@ -1,0 +1,13 @@
+{
+  "status": "SOURCE_ONLY",
+  "builder": {
+    "bytes": 40951,
+    "sha256": "877d975b2221e24ecf2d86eddd13499c10b70bc8994b1bc0f6d0cea926e78dab"
+  },
+  "scope": "Singlefunction strict DT_STRTAB fullfile-backed uniquegaplessLOADmapping; noDTNEEDED/ETREL/ROOTguard relaxation",
+  "controls6": "Actualouterpositive/old36b2failurefirst/4ownedmalformedinputs are sourceONLY NOTRUN",
+  "readonly_context": "Fullcompiler toolclosure bytes beforeafter mayfail; no childcreation/query/compilation",
+  "original_once488_original1": "FAIL immutable qualification0",
+  "wholecompiler_ROOT_bridge_factory_native14_CI_install_release": "NOTRUN",
+  "independent_source_scope_review": "PENDING"
+}

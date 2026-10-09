@@ -1,0 +1,85 @@
+{
+  "scope": "STATIC FROZEN CODE request envelope, not actual native request/child counts or raw proof",
+  "functions_sha256": {
+    "scripts/windows_nt_output_native_job.py": "80fea658d806a543f3a2f5e84fd7cf846bd33a9bc63d8795c0a1e72f4dd3ae1d",
+    "scripts/windows_nt_output_native_ci.py": "ddb6c30128324d8f6574a52bb83356dd8560e28e38762173b4e05417aa7a3608",
+    "scripts/windows_nt_output_native_controls.py": "a3a369e47d655f0e4968cb97d604961ff09736d81f423830d2fa43c3e776a5e4",
+    "scripts/windows_nt_output_native_manager_controls.py": "b6c4e2218be02af35349516bec307439f6b7a80ed81a1c17ab7bc4dd5b112d88"
+  },
+  "fixed_guard_sha256": "71aaba07443ba0ace608f8a73e0996df839f6c189e866ee949eb4dd21e4a4073",
+  "pathvectors": [
+    {
+      "stage": "management_before",
+      "early_error_lower": 0,
+      "normal_no_error_exact_and_stage_upper": 23
+    },
+    {
+      "stage": "original_restore_remote",
+      "early_error_lower": 0,
+      "normal_no_error_exact_and_stage_upper": 236
+    },
+    {
+      "stage": "overlay_plus_augmented",
+      "early_error_lower": 0,
+      "normal_no_error_exact_and_stage_upper": 9
+    },
+    {
+      "stage": "existing_after",
+      "early_error_lower": 0,
+      "normal_no_error_exact_and_stage_upper": 27
+    },
+    {
+      "stage": "new_owned_clone_setup",
+      "early_error_lower": 0,
+      "normal_no_error_exact_and_stage_upper": 4
+    },
+    {
+      "stage": "new_original_positive_before",
+      "early_error_lower": 0,
+      "normal_no_error_exact_and_stage_upper": 4
+    },
+    {
+      "stage": "new_badbyte_original_negative",
+      "early_error_lower": 0,
+      "normal_no_error_exact_and_stage_upper": 3
+    },
+    {
+      "stage": "new_extra_original_negative",
+      "early_error_lower": 0,
+      "normal_no_error_exact_and_stage_upper": 4
+    },
+    {
+      "stage": "new_strict_link_and_preexist_negative",
+      "early_error_lower": 0,
+      "normal_no_error_exact_and_stage_upper": 0
+    },
+    {
+      "stage": "new_original_final_positive",
+      "early_error_lower": 0,
+      "normal_no_error_exact_and_stage_upper": 4
+    },
+    {
+      "stage": "new_source_pool_refs_before",
+      "early_error_lower": 0,
+      "normal_no_error_exact_and_stage_upper": 2
+    },
+    {
+      "stage": "new_source_pool_refs_after",
+      "early_error_lower": 0,
+      "normal_no_error_exact_and_stage_upper": 2
+    }
+  ],
+  "current_normal_no_error_requests": 295,
+  "new_path_upper": 23,
+  "combined_static_path_upper": 318,
+  "actual_global_limit": 320,
+  "static_slots_left_not_runtime_grant": 2,
+  "channel_bytes_limit": 2097152,
+  "actual_combined_bytes_limit": 16777216,
+  "static318_perhelper_max_out_err_bytes": 1333788672,
+  "aggregate_headroom": "UNKNOWN until current actual raw bytes/pending reservations; do not assume bounded-passed",
+  "request_budget_headroom": "Must reserve mandatory after requests, native currentstage accounting, deny extras; no real child starts inferred",
+  "original_FR6_local_payload_restore_positive": "NOT proved by this new materialization proposal",
+  "native_count320_realchildren": "NOT proposed/NOT proved; cannot add320children beside295 parent within same320 budget",
+  "caps_retries": "No increases/retries"
+}

@@ -1,0 +1,34 @@
+{
+  "NEVER_BUILT_ROOT_absent": true,
+  "RC_or_native_authority": false,
+  "R_controls": {
+    "executed": 10,
+    "passed": 10
+  },
+  "UNKNOWN_compiler_holders": 0,
+  "UNKNOWN_file_holders": 0,
+  "actual_GCC_query_jobs": 0,
+  "actual_raw_files": 11,
+  "actual_tool_provenance": "author actualexec c3f37a exit1; not inferred from result JSON",
+  "all_raw_bytes_sha_mode_nlink_rejoined": true,
+  "decision": "BLOCKED_BEFORE_ALL_DRIVER_QUERIES",
+  "failure": "dynamic_strings_out_of_bounds; original raw stack confirms tool_closure failed before snapshot/drivers",
+  "finite_one_function_repair_direction": "all requested VA bytes gaplessly covered with unique consistent file offsets; reject conflicts/holes/BSS-only/out-file; all string/NUL/DT_NEEDED/ET_REL/ROOTtype2 guards retained; fresh impact/disclosure before edit and new peer before rerun",
+  "full_dependency_snapshot": "NOT_REACHED",
+  "independent_raw_ELF_finding": {
+    "DT_STRSZ": 42266,
+    "DT_STRTAB": 4191704,
+    "actual_outer_sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7",
+    "coverage": "two adjacent actual file-backed LOADs with same VA-minus-file-offset4190208; not single LOAD",
+    "file_interval": [
+      1496,
+      43762
+    ]
+  },
+  "original_freeze_and_once01_FAIL": "preserved immutable",
+  "result_sha256": "3a80bc61498037a9f6449e1a7fba1a6b7b4663e4bbb3ece87ed147b1ec753a6b",
+  "scope": "ONCE01_FINITE_READ_AND_DRIVER_QUERY_ATTEMPT",
+  "source8_controller_outer_gcc_all_actual_preview_hash_mode_nlink_exact": true,
+  "source_direction_only_no_rerun_permission": true,
+  "wholecompile_ROOT_bridge_factory_native14_originalSUT_CI_install_release": "NOTRUN"
+}

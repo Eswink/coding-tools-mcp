@@ -1,0 +1,73 @@
+{
+  "kind": "independent_finite_design_review_git_v4",
+  "status": "PASS_DESIGN_ONLY",
+  "specs": [
+    {
+      "path": "/workspace/work/rc070/publisher-supplementary-git-research/v4/docs/specs/issue88-owned-native-git-build-v4/requirements.md",
+      "bytes": 7557,
+      "sha256": "41542ed615121c0ea9cde3c3f512c9727033cbe965eed737c328be8ba69232a1",
+      "physical_mode": "0o600"
+    },
+    {
+      "path": "/workspace/work/rc070/publisher-supplementary-git-research/v4/docs/specs/issue88-owned-native-git-build-v4/design.md",
+      "bytes": 4606,
+      "sha256": "5b73cd5531c5a08d347f395b7dc7aabcf88bf3734ca50ea1b1d1cac4bce7d9e0",
+      "physical_mode": "0o600"
+    },
+    {
+      "path": "/workspace/work/rc070/publisher-supplementary-git-research/v4/docs/specs/issue88-owned-native-git-build-v4/tasks.md",
+      "bytes": 2339,
+      "sha256": "66a109fa6e4be02b14cb40f80bc6d57cce84029c37b38d8edddafb9c9d178b9d",
+      "physical_mode": "0o600"
+    }
+  ],
+  "structured_spec": {
+    "sha256": "d0cd6feedb599615713ac0960a021198d0f5a9817a103e783873a9aa1fb28b9f",
+    "passed": true,
+    "fr_count": 3,
+    "errors": 0,
+    "warnings": 0
+  },
+  "fresh_original_impacts": {
+    "prepare_owned_git_v3": [
+      "HIGH",
+      7
+    ],
+    "validate_msgfmt_assignment": [
+      "HIGH",
+      12
+    ],
+    "snapshot_original_git_source": [
+      "CRITICAL",
+      17
+    ],
+    "run_owned_git_phase": [
+      "CRITICAL",
+      11
+    ]
+  },
+  "actual_original_source_reads": [
+    "core Makefile MSGFMT default/include config.mak/original +=--check/recursive coreGUI/gitk recipes",
+    "GUI Makefile include config.mak/original GNU selftest/original statistics+tcl recipe",
+    "gitk original no config include and original discovery/fallback remains unchanged"
+  ],
+  "conditions": [
+    "Separate root source authorization; no build/install from design",
+    "Admitted genuine base only; finite Make and shell grammar rejects #,$,backslash,newline,NUL and operators before exact-argv GNUmake controls",
+    "Exactly two fresh O_EXCL/no-follow files <=4096 bytes each, regular mode644/nlink1 with parent and full native leases; unknown close retained once and never retried",
+    "Original primary, cancellation and each cleanup exception object preserved; second-file partial failure does not skip independent first-file and final observations",
+    "Original signed4991 paths/modes/bytes/native identities and protected snapshot/runphase AST unchanged; two extra config leases separately before/after phases and no additional policy configuration",
+    "FILE origin applies only core and GUI; gitk actual upstream discovery/fallback is not covered by these two files",
+    "Original480/60/30/2MiB and original phase AST unchanged; failed fullbuild never admits install"
+  ],
+  "claims": {
+    "helper_implemented": false,
+    "configs_created": false,
+    "ordinary_controls_run": false,
+    "fullbuild_run": false,
+    "installation_run": false,
+    "native_family_or_rc_qualification": false,
+    "publisher_authorization": false
+  },
+  "old_failed_git_v3_and_publisher85": "preserved; no qualifications upgraded"
+}

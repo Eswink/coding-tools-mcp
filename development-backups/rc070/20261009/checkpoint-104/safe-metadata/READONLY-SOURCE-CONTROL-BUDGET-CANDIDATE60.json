@@ -1,0 +1,16 @@
+{
+  "scope": "read-only finite source-delegate research, no production edit or native execution",
+  "original_full_restore_local_native_helper_lower_bound": 146,
+  "reason": "each original exact73 path requires native hash-object and update-index, before clone/config/checkout/read-tree/apply/checkout-index/fullguard additional helpers",
+  "existing_limits": {
+    "helper_requests": 320,
+    "helper_raw_bytes": 16777216,
+    "channel_bytes": 2097152,
+    "native_ordinary_seconds": 120
+  },
+  "second_full_original_local_restore": "UNPROVED_WITHIN_REMAINING_LIMITS; do not enlarge caps",
+  "smaller_proposal": "Native owned no-hardlinks/no-checkout clone of already prepared source-pool; detach D6; custom read-tree original19bb; checkout-index; original verify_materialized guarded complete1953. Separate actualnegative mutation canaries and preexisting destination denial. Supply actualremaining helpers/bytes in child argv and exact typed consumption to parent, count failure paths, reject any unknown.",
+  "AST_statement": "New clone/materialization setup is not original restore_source exact73/43 replay; original verify_materialized body retained under explicitly new bounded run_git binding, original run_git retained NOTEXEC. New setup needs finite spec/impact/source-review before code.",
+  "authority": "No VMboot/issuer/owner/RC/install/release grants; no launchpermission",
+  "root_decision": "PENDING; source04 peer pending independently"
+}

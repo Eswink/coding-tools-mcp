@@ -1,0 +1,1 @@
+DESIGN-ONLY finite owned native source materialization proposal. No implementation/native execution/startup/Go/CI permission. Static budgets are NOT actual native child counts or raw success evidence. Original full local73/43 restore positive remains unresolved by this proposal. Source04/old failed freezes untouched.

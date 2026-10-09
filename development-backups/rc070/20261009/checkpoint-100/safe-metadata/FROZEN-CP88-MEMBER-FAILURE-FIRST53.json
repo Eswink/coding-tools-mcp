@@ -1,0 +1,10 @@
+{
+  "scope": "ordinary owned regularZIP + synthetic member/read/closefault only, noWinAPI/Go",
+  "frozen_source_sha256": "1cab949f637c69b75a1993a34c944b1dc3bab08070b7a42db7505733867140d9",
+  "actual_exception_type": "SystemExit",
+  "original_primary_object_preserved": false,
+  "actual_close_cancel_object_preserved": true,
+  "actual_unknown_member_holder_retained": false,
+  "newFixedGoQualification": false,
+  "native_calls": 0
+}

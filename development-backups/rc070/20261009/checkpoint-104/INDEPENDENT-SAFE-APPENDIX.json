@@ -1,0 +1,32 @@
+{
+  "RC_or_native_authority": false,
+  "actual_bytes": 28906,
+  "actual_files": 10,
+  "all_manifest_regular_single_link_hash_mode_rows_exact": true,
+  "budget": "320 helpers/16MiB actual aggregate/2MiB per channel unchanged; 2 static slots are not grant; actual pending raw and deadlines UNKNOWN; must reserve after requests before controls, no static bytes success proof",
+  "decision": "LIMITED_PASS_HONEST_OPEN",
+  "implementation": "NOT_AUTHORIZED_BY_THIS_REVIEW",
+  "independent_actual_source_callsite_arithmetic": {
+    "combined_static": 318,
+    "current_static_no_error": 295,
+    "existing_after": 27,
+    "management": 23,
+    "mandatory_after_requests": 33,
+    "new_badbyte_negative": 3,
+    "new_clone_setup": 4,
+    "new_extra_negative": 4,
+    "new_final_positive": 4,
+    "new_positive_before": 4,
+    "new_static": 23,
+    "overlay_plus_verify": 9,
+    "pool_ref_before_after": 4,
+    "remote_original_restore": 236,
+    "strict_metadata_only_negatives": 0
+  },
+  "manifest_sha256": "236acdb5a13a530b59152efb16873f6c70e98c9e4f7929ebe9416c9cb5eb2ee7",
+  "missing_original_FR6": "new1953 clone materialization is not original local73/full43 restore positive",
+  "native320count": "not proved; 320 additional children cannot share this318 path",
+  "native_Go_CI_startup": "STOP",
+  "scope": "READONLY_SPEC_DIRECTION_ONLY",
+  "source04_tripleDisabled": "unchanged"
+}

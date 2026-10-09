@@ -1,0 +1,46 @@
+{
+  "decision": "ALLOW_ONE_ROOT_FINITE_ORIGINAL_FINAL_METHOD_ONLY",
+  "prelaunch_seal_sha256": "c1f72e1d6ff7af59d49ca72b4ac8c2a044ceabe7158227e163b1245cc6ec144c",
+  "launcher_sha256": "2f34ba0de6cdc92a18129a83596231c446c297a900a73d15e652f1df1020dca2",
+  "worker_sha256": "242f18dc0103862cbae64ae2c3e478f7713833144987da71fb9f0b34f8abc878",
+  "independent_current_checks": {
+    "full1982_bytes_mode_regular_nlink1_exact": true,
+    "pure1878_fullphysical644755_indexprivateHEADtreeclean_exact": true,
+    "carrier1860_nativeblob_current_clean_HEADtree_exact": true,
+    "runtime5_ssl_fixture_original_runner_exact": true,
+    "original15_function_AST_raw_hash_actual_rebuilt": true,
+    "owner_exact_four_text_changes_inverse_original_receiptgate": true,
+    "ten_binding_delegate_primary_cancel_afterassignment_close_restore_scope_reviewed": true,
+    "exact_env_i5_python3_alias_cwd_and_absent_output_ownerlogs_result": true
+  },
+  "original_inventory": [
+    "rc_publication_final_admission_cases.FinalAdmissionCases.test_entry_and_direct_sinks_remain_effect_free"
+  ],
+  "bounds": {
+    "original_method_seconds": 1800,
+    "term_seconds": 7,
+    "kill_seconds": 2,
+    "family_seconds": 2,
+    "each_original_log_bytes": 2097152
+  },
+  "necessary_actual_controls": {
+    "current_worker76_hookchecks": true,
+    "current9_authalias": true,
+    "current43_catch_composition": true,
+    "current10_acceptedTCP_threadlocal": true,
+    "new44_v2_actual_clone_TLS_and_namespace_faults_fullraw_current_identity": true,
+    "six_real_ownedTLS_full_four_stdout_lines_preserved_and_terminalcomponent_exact": true,
+    "seven_ordinary_nativekernel_rows": true,
+    "automatic_whole_run_owned_timeout_cancel": "NOTRUN"
+  },
+  "qualification_limits": [
+    "Controlled namespace and catch composition do not prove original issuer permission or actual operation scope",
+    "Real native constructor/TLS path is not original method proof",
+    "Original85 FAIL83/2 and300NOTRUN retained",
+    "Native VM install CI final0.7 realpublisher sameclient issuer remain unqualified"
+  ],
+  "old_v1_selfstdout_seal_administrative_failure": "preserved; v2 stdout moved outside sealed source without owner worker change",
+  "independent_checker_errata": "First extra ordinary report checker assumed all rows dict; corrected actual row formats. Then assumed all TLS stdout one JSON; corrected four actual lines and exact terminal component. No reviewed source or SUT changed.",
+  "reviewer_SUT_execution_or_source_edit": false,
+  "root_boundary": "Root alone final literal hash/currentvector check then exactly once this finite original method. No retry or automatic85/300 admission."
+}

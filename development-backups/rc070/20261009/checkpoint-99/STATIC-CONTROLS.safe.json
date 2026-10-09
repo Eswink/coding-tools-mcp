@@ -1,0 +1,11 @@
+{
+  "profile": "syntax-and-source-only",
+  "static20_stdout_sha256": "5d7a885af2dc91ef59c61a0ebd232ac0bae84525421e9d54e5269e2713cba27f",
+  "static20_native_original_import_compile_operations": 0,
+  "delta_summary": "Only elf_dependencies/tool_closure changed vs resource-freeze1bc",
+  "GN_actual_scoped": {
+    "tool_closure": "LOW3",
+    "elf_dependencies": "LOW4"
+  },
+  "native_runtime_manual_risk": "HIGH; graph coverage incomplete"
+}

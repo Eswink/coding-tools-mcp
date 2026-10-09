@@ -1,0 +1,1 @@
+Source-only narrow Stage I builder revision. Prior freezes and readonly BLOCKED evidence remain immutable. No binaries, private raw process data, tokens, environment package, host/proc data or Git objects included. Parser and graph results do not qualify native lifecycle, installation or release.

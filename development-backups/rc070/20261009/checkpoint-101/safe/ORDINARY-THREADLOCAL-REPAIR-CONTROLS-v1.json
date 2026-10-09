@@ -1,0 +1,122 @@
+{
+  "passed": true,
+  "prior_failure_first_preserved": true,
+  "controls": 10,
+  "actual_accepted_TCP_sockets": true,
+  "original_method_runs": 0,
+  "controlled_fixture_and_threadlocal_not_original_fixture_body_or_issuer": true,
+  "actual_observed_fixture_handle_FunctionDef_AST": true,
+  "worker_sha256": "242f18dc0103862cbae64ae2c3e478f7713833144987da71fb9f0b34f8abc878",
+  "rows": [
+    {
+      "phase": "install",
+      "setter_error_type": "OSError",
+      "actual_setter_error_identity": false,
+      "original_delegate_calls": 1,
+      "actual_raw_closed_by_delegate": true,
+      "original_primary_identity_preserved": null,
+      "required_boundary_passed": true,
+      "observer_cancel_preserved": null,
+      "source_reports_INVALID": true
+    },
+    {
+      "phase": "install",
+      "setter_error_type": "SystemExit",
+      "actual_setter_error_identity": false,
+      "original_delegate_calls": 1,
+      "actual_raw_closed_by_delegate": true,
+      "original_primary_identity_preserved": null,
+      "required_boundary_passed": true,
+      "observer_cancel_preserved": true,
+      "source_reports_INVALID": true
+    },
+    {
+      "phase": "restore",
+      "setter_error_type": "OSError",
+      "actual_setter_error_identity": false,
+      "original_delegate_calls": 1,
+      "actual_raw_closed_by_delegate": true,
+      "original_primary_identity_preserved": true,
+      "required_boundary_passed": true,
+      "observer_cancel_preserved": null,
+      "source_reports_INVALID": true
+    },
+    {
+      "phase": "restore",
+      "setter_error_type": "SystemExit",
+      "actual_setter_error_identity": false,
+      "original_delegate_calls": 1,
+      "actual_raw_closed_by_delegate": true,
+      "original_primary_identity_preserved": true,
+      "required_boundary_passed": true,
+      "observer_cancel_preserved": true,
+      "source_reports_INVALID": true
+    },
+    {
+      "phase": "getter",
+      "setter_error_type": "OSError",
+      "actual_setter_error_identity": false,
+      "original_delegate_calls": 1,
+      "actual_raw_closed_by_delegate": true,
+      "original_primary_identity_preserved": true,
+      "required_boundary_passed": true,
+      "observer_cancel_preserved": null,
+      "source_reports_INVALID": true
+    },
+    {
+      "phase": "getter",
+      "setter_error_type": "SystemExit",
+      "actual_setter_error_identity": false,
+      "original_delegate_calls": 1,
+      "actual_raw_closed_by_delegate": true,
+      "original_primary_identity_preserved": true,
+      "required_boundary_passed": true,
+      "observer_cancel_preserved": true,
+      "source_reports_INVALID": true
+    },
+    {
+      "phase": "install_after",
+      "setter_error_type": "OSError",
+      "actual_setter_error_identity": false,
+      "original_delegate_calls": 1,
+      "actual_raw_closed_by_delegate": true,
+      "original_primary_identity_preserved": null,
+      "required_boundary_passed": true,
+      "observer_cancel_preserved": null,
+      "source_reports_INVALID": true
+    },
+    {
+      "phase": "install_after",
+      "setter_error_type": "SystemExit",
+      "actual_setter_error_identity": false,
+      "original_delegate_calls": 1,
+      "actual_raw_closed_by_delegate": true,
+      "original_primary_identity_preserved": null,
+      "required_boundary_passed": true,
+      "observer_cancel_preserved": true,
+      "source_reports_INVALID": true
+    },
+    {
+      "phase": "restore_after",
+      "setter_error_type": "OSError",
+      "actual_setter_error_identity": false,
+      "original_delegate_calls": 1,
+      "actual_raw_closed_by_delegate": true,
+      "original_primary_identity_preserved": true,
+      "required_boundary_passed": true,
+      "observer_cancel_preserved": null,
+      "source_reports_INVALID": true
+    },
+    {
+      "phase": "restore_after",
+      "setter_error_type": "SystemExit",
+      "actual_setter_error_identity": false,
+      "original_delegate_calls": 1,
+      "actual_raw_closed_by_delegate": true,
+      "original_primary_identity_preserved": true,
+      "required_boundary_passed": true,
+      "observer_cancel_preserved": true,
+      "source_reports_INVALID": true
+    }
+  ]
+}

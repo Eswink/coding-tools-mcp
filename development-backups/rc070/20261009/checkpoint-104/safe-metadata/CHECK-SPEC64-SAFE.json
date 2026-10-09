@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "errorCount": 0,
+  "warningCount": 0,
+  "issues": [],
+  "frIds": [
+    "FR-1",
+    "FR-2",
+    "FR-3",
+    "FR-4",
+    "FR-5"
+  ],
+  "summary": "\u89c4\u683c\u6821\u9a8c\u901a\u8fc7\uff085 \u6761\u9700\u6c42\uff09"
+}

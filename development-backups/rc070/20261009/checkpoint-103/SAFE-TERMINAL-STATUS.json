@@ -1,0 +1,19 @@
+{
+  "status": "BLOCKED_ACTUAL_EXIT1",
+  "ordinary_parser_actual": {
+    "passed": 10,
+    "failed": 0,
+    "real_ET_REL_read": true,
+    "old_actual_parser_failure_first": true,
+    "malformed_owned_files": 8
+  },
+  "driver_queries": "NOTRUN all5; toolclosure failed first",
+  "actual_GCC_jobs": 0,
+  "unknown_ordinary_holders": 0,
+  "current_source8_outer_GCC_controller_after_exact": true,
+  "complete_dependency_snapshot": "NOT_REACHED",
+  "precise_raw_ELF_finding": "Actual outerPython DT_STRTAB spans two contiguous file-backed PT_LOADs with equal vaddr-offset mapping; singleLOAD guard rejects. New fix not authorized/executed yet.",
+  "wholecompiler_native14_ROOT_bridge_factory_original_CI_install_release": "NOTRUN",
+  "whole488_originalFAIL": "immutable qualification0",
+  "independent_terminal_review": "PENDING"
+}

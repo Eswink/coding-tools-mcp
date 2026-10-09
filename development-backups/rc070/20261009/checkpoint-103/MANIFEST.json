@@ -1,0 +1,16 @@
+{
+  "files": [
+    {
+      "path": "SAFE-TERMINAL-STATUS.json",
+      "mode": "0644",
+      "bytes": 826,
+      "sha256": "e139c819eab3a008632e6f839114c4c8e696cbaa08447c079cd63d13a29a5b30"
+    },
+    {
+      "path": "README.md",
+      "mode": "0644",
+      "bytes": 224,
+      "sha256": "8e9f8b2525222f4f629fd13c400f2497823db773dbbbe122ab621d725ab117db"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "kind": "independent_same_run_builder_K01_K07_ordinary_terminal_review",
+  "status": "PASS_ORDINARY_NEGATIVE_CONTRACTS_ONLY",
+  "author_actual_tool_provenance": "unique 6a3b18 exit0 reported by authorized author; reviewer did not execute compiler or controls",
+  "actual_readonly_rejoins": {
+    "run_regular15_files_bytes_sha_mode600_nlink1": true,
+    "stdout6887_sha256": "9488235289cb007c5762a160704b99391cfc6568d573aa5d2395b3bc54bb344d",
+    "stderr0": true,
+    "stdout_json_equals_original_raw_result": true,
+    "original_job_log_native_stat_rows": true,
+    "current_source8_equals_reviewed_before_freeze": true,
+    "actual_GCC_current_hash_equals_reviewed_before": true
+  },
+  "author_v2_audit_sha256": "81330d49a0ad8e93d6e419521c37e3e98e2d81ea9edd15e930b330fcd436c6f8",
+  "cases_passed": 7,
+  "actual_jobs": [
+    [
+      "K01",
+      "--version",
+      -9,
+      "pipeclose observed, EOF UNKNOWN"
+    ],
+    [
+      "K02",
+      "--version",
+      0,
+      "EOF observed"
+    ],
+    [
+      "K06",
+      "-M on owned empty.c",
+      0,
+      "EOF observed"
+    ],
+    [
+      "K07",
+      "--version",
+      0,
+      "EOF observed; 252 bytes discarded by labelled after-read observer"
+    ]
+  ],
+  "counter_erratum": "original raw spy counter3 only instrumented --version instances; actual four distinct retained job objects including uninstrumented K06. Raw/V1 unchanged, V2 corrected without execution or qualification upgrade",
+  "unknown_object_observations": "raw ordinary contracts report9 file and3 compiler holders retained during actual process, supported by frozen assertion source and raw outcomes; reviewer does not claim dead-process object inspection",
+  "all_old_failures_and_frozen_source": "preserved immutable",
+  "whole_candidate_compile": "NOTRUN; separate root source/runtime/compilerclosure/argv startup review required",
+  "ROOT_bridge_nativefactory_originalSUT": 0,
+  "native14": "NOTRUN",
+  "native_family_RC_publisher_qualification": false
+}

@@ -1,0 +1,1 @@
+Safe terminal metadata only; actual raw log/private malformed ELF fixture bytes stay private. No host/proc material, keys, tokens, environment packages, binaries or Git objects. Source revision and failed raw are immutable.

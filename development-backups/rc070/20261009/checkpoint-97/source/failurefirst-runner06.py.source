@@ -1,0 +1,18 @@
+import sys,os,json,time,hashlib,unittest
+from pathlib import Path
+sys.dont_write_bytecode=True
+B=Path('/workspace/work/rc070/publisher-supplementary-git-research/v4')
+sys.path.insert(0,str(B))
+import owned_git_prepare_v4 as g
+import owned_git_prepare_v4_tests as tests
+before={name:hashlib.sha256((B/name).read_bytes()).hexdigest() for name in g.SOURCE5}
+class Result(unittest.TextTestResult):
+ def __init__(self,*a,**kw):super().__init__(*a,**kw);self.rows=[]
+ def addSuccess(self,test):super().addSuccess(test);self.rows.append({'id':test.id(),'outcome':'PASS'})
+ def addFailure(self,test,err):super().addFailure(test,err);self.rows.append({'id':test.id(),'outcome':'FAIL','exception_type':err[0].__name__})
+ def addError(self,test,err):super().addError(test,err);self.rows.append({'id':test.id(),'outcome':'ERROR','exception_type':err[0].__name__})
+start=time.monotonic();result=unittest.TextTestRunner(verbosity=2,resultclass=Result).run(unittest.defaultTestLoader.loadTestsFromTestCase(tests.OwnedGitV4Controls))
+after={name:hashlib.sha256((B/name).read_bytes()).hexdigest() for name in g.SOURCE5}
+out={'scope':'finite ordinary config IO + real GNU make models + genuine msgfmt originalGUI translation component','loaded':result.testsRun,'rows':result.rows,'success':sum(x['outcome']=='PASS'for x in result.rows),'failures':len(result.failures),'errors':len(result.errors),'elapsed':time.monotonic()-start,'source_before':before,'source_after':after,'source_unchanged':before==after,'observations':tests.OBSERVATIONS,'fullbuild':False,'install':False,'original_method':0,'original85':'FAIL83success2FAIL retained','original300':'NOTRUN','issuer':False,'wholeowner_automatic_cancel_timeout':'NOTRUN'}
+with open('/workspace/work/rc070/publisher-review/gitv4-ordinary-result06-failurefirst.json','x')as f:json.dump(out,f,indent=2);f.write('\n')
+sys.exit(0 if result.wasSuccessful()and before==after else 1)

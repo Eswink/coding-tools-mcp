@@ -1,0 +1,10 @@
+{
+  "status": "SOURCE_ONLY",
+  "builder_sha256": "36b2db316848e0e653566522c1a26f2422fc7d9bfafbd7e4b9078857d2384dd6",
+  "readonly_precondition01": "BLOCKED before subprocess; nonexistent manually guessed cross-bin alias",
+  "repair": "Two builder functions only; realTOOLS and strict runtime/ROOT guards retained; ET_REL full-byte sealed data",
+  "ordinaryK01K07": "actual7pass/4GCCjobs/3instrumented; originalraw and V1 preserved",
+  "whole_compile_root_bridge_factory_native14_original_CI_install_release": "NOTRUN",
+  "independent_revision_review": "PENDING",
+  "whole488_qualification": false
+}

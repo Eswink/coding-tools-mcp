@@ -1,0 +1,40 @@
+{
+  "RC_or_native_authority": false,
+  "actual_ordinary07": {
+    "elapsed_seconds": 9.366355317,
+    "errors": 0,
+    "failures": 0,
+    "methods": 25,
+    "passed": 25,
+    "raw_stderr_bytes": 4322,
+    "raw_stdout_bytes": 0,
+    "receipt_sha256": "6d033b4778b3092463c314a7751051ae66afddb1d2e9fba604cf8f9b073be3a3",
+    "stderr_sha256": "22ffacceccca4bffb130e1c1eede3905236640c7d149886815666c08c0bee078",
+    "tool_provenance": "author direct tool session81894 start30bc44 terminal272a4b exit0; not inferred from JSON"
+  },
+  "current_msgfmt_role_leases_rejoined": 19,
+  "current_runtime_leases_rejoined": 21,
+  "current_source5_actual_mode": "0600; Git100644 separately",
+  "current_source5_bytes": 78791,
+  "decision": "LIMITED_PASS",
+  "fullmake": "NOTRUN",
+  "helper_sha256": "a21b053058b1365d5b547c4983a3338ba8f3b4b844d16fc795bcd0c31a1bbe48",
+  "inert_graph6_nativeblob_index_tree_rejoined": "473e813a7fe2c7e5692cb5bdeb28350e53c3e6f6",
+  "install": "NOTRUN",
+  "old_failurefirst06": "25 executed/23pass/2FAIL preserved",
+  "originalPublisherMethods": 0,
+  "protected_original_snapshot_and_runphase_function_bytes_and_AST_exact": true,
+  "repair": "only per-item attempted-path and policy-path observation capture; original primary and cancellation objects retained; all remaining checks attempted",
+  "reviewer_admin_erratum": "stdout initially attempted JSON parse although actual runner stdout is empty; corrected by original runner and raw stderr; no candidate modification",
+  "safe_bundle": {
+    "all_actual_regular_single_link_bytes_hashes_checked": true,
+    "bytes": 250681,
+    "files_including_manifest": 29,
+    "manifest_sha256": "ac5a2f1616abe261bba07ebe3ebc81a08112a403447fdc9f9b3e6ca5b9bf9e3d"
+  },
+  "scope": "SOURCE_AND_ORDINARY_ONLY",
+  "scope_truth": "two owned FILE-origin configs preserve original core +=--check and GUI GNU --tcl; gitk original fallback remains; actual make components plus declared mock prepare controls are not full signature/build evidence",
+  "source_freeze_sha256": "e62169af39c623f9c9205739bc6a1a7d011b655ebb2e046e4d09a66b73d985f1",
+  "startup_permission": "NOT_GRANTED; separate fresh root packet review required",
+  "tests_sha256": "56d2645a7f0efa739710bc7b9502b7224f64eeb748fb0ef6573891aa4c821dc7"
+}

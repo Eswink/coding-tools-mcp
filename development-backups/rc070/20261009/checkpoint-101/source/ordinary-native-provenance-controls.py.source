@@ -1,0 +1,210 @@
+"""Exact external hook AST plus unchanged native constructors; no original method."""
+import ast,hashlib,json,sys,threading,traceback,time,tempfile
+from dataclasses import replace
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+B=Path('/workspace/work/rc070/publisher-native-clone-diagnostic')
+P=B/'diag-preflight/pure-sut'
+sys.path.insert(0,str(P/'scripts'))
+import rc_publication_github as wire
+import rc_publication_executor as executor
+import rc_publication_request as owned
+import rc_publication_artifact_admission_cases as fixture_source
+from rc_publication_stage_cases import publisher_fixture
+nodes={n.name:n for n in ast.parse((B/'diagnostic_worker.py').read_text()).body if isinstance(n,ast.FunctionDef)}
+functions=('record_pending_credential','observed_credential','credential_provenance_for_fixture',
+ 'retire_credential_provenance','install_bindings','restore_bindings','finish_observation')
+original=owned._credential;rows=[]
+def namespace():
+ ns=dict(threading=threading,wire=wire,executor=executor,fixture_source=fixture_source,
+  _worker_thread=threading.get_ident(),_delegate_credential=original,_credential_records=[],
+  _credential_outcomes=[],_credential_registry_retired=False,_observer_cancels=[],
+  _observer_primary_exceptions=[],_observation_errors=[],_restore_errors=[],_install_errors=[],
+  _installed_complete=False,_applied=[],_bindings=[],_auth_setup_failures=[],_activations=[],
+  _observations=[],_tls_observations=[],_auth_observations=[],_auth_binding_outcomes=[],
+  _bootstrap_auth_outcome=None,_live_clients=[],_owned_requests={},json=json,sys=sys,
+  write=lambda *a:None)
+ exec(compile(ast.Module(body=[nodes[n] for n in functions],type_ignores=[]),str(B/'diagnostic_worker.py'),'exec'),ns)
+ return ns
+class Broken(list):
+ def __init__(self,error):self.error=error
+ def append(self,value):raise self.error
+class PendingObserve:
+ def __init__(self,error):self.error=error
+ def __call__(self,*args):raise self.error
+
+def create(ns,fixture):
+ calls=[]
+ def delegate(*args):
+  calls.append(args)
+  return original(*args)
+ ns['_delegate_credential']=delegate
+ with patch.object(owned,'_credential',ns['observed_credential']):
+  session=executor.PublisherSession(fixture.root,fixture.selection,'fixture-token',temporary_parent=fixture.parent)
+ assert len(calls)==1 and session._api._credential._client is session._api
+ return session
+
+def emit(name):rows.append(dict(name=name,passed=True))
+with publisher_fixture() as fixture:
+ with fixture_source.ArtifactTLS(fixture) as tls:
+  sessions=[];socks=[]
+  try:
+   ns=namespace();session=create(ns,fixture);sessions.append(session);api=session._api;credential=api._credential
+   row=ns['_credential_records'][0]
+   assert row['state']=='PENDING' and row['client'] is api and row['credential'] is credential
+   assert row['input_selection'] is fixture.selection and row['clone'] is api.selection
+   assert row['clone'] is not fixture.selection and row['clone'].subject is not fixture.selection.subject
+   assert ns['credential_provenance_for_fixture'](api,tls,session._owner,session) is row
+   assert row['state']=='PROMOTED_AFTER_CALLER_ASSIGNMENT';emit('original_factory_once_same_return_true_native_assignment_and_complete_chain')
+   clone=api.selection;input_selection=tls.selection
+   second_ns=namespace();second=create(second_ns,fixture);sessions.append(second)
+   for label,other_owner,other_session in [('foreign_owner',second._owner,session._owner._session),('foreign_session',session._owner,second)]:
+    assert ns['credential_provenance_for_fixture'](api,tls,other_owner,other_session) is None
+    emit('actual_native_'+label+'_chain_unknown')
+   for key,foreign in [('credential',second._api._credential),('clone',second._api.selection),('input_selection',replace(input_selection))]:
+    previous=row[key];row[key]=foreign
+    try:assert ns['credential_provenance_for_fixture'](api,tls,session._owner,session) is None
+    finally:row[key]=previous
+    emit('strongref_'+key+'_foreign_native_identity_unknown')
+   tls.selection=replace(input_selection)
+   assert tls.selection==input_selection and tls.selection is not input_selection
+   assert ns['credential_provenance_for_fixture'](api,tls,session._owner,session) is None
+   tls.selection=input_selection;emit('foreign_value_equal_input_not_provenance')
+   for label,target,name,value in [('client_credential',api,'_credential',object()),('session_selection',session,'_selection',replace(clone)),('session_owner',session,'_owner',object()),('session_client',session,'_transport',None)]:
+    previous=getattr(target,name);setattr(target,name,value)
+    try:assert ns['credential_provenance_for_fixture'](api,tls,session._owner if label!='session_owner' else row['credential']._session_owner,session) is None
+    finally:setattr(target,name,previous)
+    emit('actual_native_'+label+'_rebound_unknown')
+   del api._credential
+   try:assert ns['credential_provenance_for_fixture'](api,tls,session._owner,session) is None
+   finally:api._credential=credential
+   emit('missing_actual_assignment_unknown')
+   ns['_credential_records'].append(dict(row))
+   assert ns['credential_provenance_for_fixture'](api,tls,session._owner,session) is None
+   ns['_credential_records'].pop();emit('duplicate_actualclient_pending_record_ambiguous_unknown')
+   previous=ns['_worker_thread'];ns['_worker_thread']=-1
+   assert ns['credential_provenance_for_fixture'](api,tls,session._owner,session) is None
+   ns['_worker_thread']=previous;emit('foreign_thread_unknown')
+   api._closed=True
+   assert ns['credential_provenance_for_fixture'](api,tls,session._owner,session) is None
+   api._closed=False;emit('closed_actualclient_unknown')
+   session._closed=True
+   assert ns['credential_provenance_for_fixture'](api,tls,session._owner,session) is None
+   session._closed=False;emit('retired_actualsession_unknown')
+   # Reuse real original credential strongly, without minting another issuer.
+   capped=namespace();capped['_credential_records']=[dict(row) for _ in range(128)]
+   capped['_delegate_credential']=lambda *args:credential
+   assert capped['observed_credential']('fixture-token',input_selection,api) is credential
+   assert len(capped['_credential_records'])==128 and capped['_observation_errors'][0]['phase']=='credential_return_fields'
+   emit('128_cap_no_append_same_return_invalid')
+   for mode,error in [('ordinary',OSError('ordinary observer')),('cancel',SystemExit(41)),('keyboard',KeyboardInterrupt())]:
+    current=namespace();current['record_pending_credential']=PendingObserve(error)
+    actual=create(current,fixture);sessions.append(actual)
+    assert actual._api._credential._client is actual._api and actual._owner._credential is actual._api._credential
+    if isinstance(error,Exception):assert current['_observation_errors'] and not current['_observer_cancels']
+    else:assert current['_observer_cancels']==[error]
+    emit('postsuccess_'+mode+'_same_return_actual_constructor_assignment_completed')
+    sock=tls.connect('api.github.com',3);socks.append(sock)
+    sock.close();actual.close();assert sock.fileno()==-1 and actual._api is None
+    emit('postsuccess_'+mode+'_real_TLS_and_native_session_close')
+    if not isinstance(error,Exception):
+     current['_installed_complete']=True;current['retire_credential_provenance']()
+     try:current['finish_observation'](B/'NOTWRITTEN',None)
+     except BaseException as result:assert result is error
+     else:raise AssertionError('sticky factory observation cancel lost after true cleanup')
+     emit('postsuccess_'+mode+'_sticky_same_cancel_after_true_cleanup_terminal')
+   for primary in (ValueError('original primary'),SystemExit(42),KeyboardInterrupt()):
+    current=namespace();calls=[]
+    def failure(*args):calls.append(args);raise primary
+    current['_delegate_credential']=failure
+    try:current['observed_credential']('fixture-token',input_selection,api)
+    except BaseException as error:assert error is primary
+    else:raise AssertionError('original factory primary lost')
+    assert len(calls)==1 and not current['_credential_records']
+    if not isinstance(primary,Exception):assert current['_observer_primary_exceptions']==[primary]
+    emit('original_delegate_'+type(primary).__name__+'_once_same_error_object')
+   ns['retire_credential_provenance']();assert not ns['_credential_records'] and ns['_credential_registry_retired'];emit('strongref_registry_actual_retirement')
+  finally:
+   errors=[]
+   for sock in reversed(socks):
+    try:sock.close()
+    except BaseException as error:errors.append(error)
+   for session in reversed(sessions):
+    try:session.close()
+    except BaseException as error:errors.append(error)
+   if errors:raise BaseExceptionGroup('Actual component independent cleanup errors',errors)
+  assert tls.requests==[] and tls.errors==[]
+ assert not tls.thread.is_alive() and all(not t.is_alive() for t in tls._threads)
+ assert not tls.root.exists();emit('real_original_fixture_cleanup_after_all_independent_close_attempts')
+# Controlled actual alias setters exercise all-ten reverse attempts; no grants.
+class Alias:
+ def __init__(self,number,mode,primary):
+  object.__setattr__(self,'value',original);object.__setattr__(self,'number',number)
+  object.__setattr__(self,'mode',mode);object.__setattr__(self,'primary',primary)
+  object.__setattr__(self,'writes',0)
+ def __setattr__(self,name,value):
+  if name=='value':
+   object.__setattr__(self,'writes',self.writes+1)
+   if self.mode=='install_before' and self.writes==1:raise self.primary
+   if self.mode=='restore_before' and self.writes==2:raise self.primary
+   object.__setattr__(self,name,value)
+   if self.mode=='install_after' and self.writes==1:raise self.primary
+   if self.mode=='restore_after' and self.writes==2:raise self.primary
+   return
+  object.__setattr__(self,name,value)
+for mode in ('success','install_before','install_after','restore_before','restore_after'):
+ for primary in (OSError('ordinary alias'),SystemExit(71)):
+  ns=namespace();wrapper=ns['observed_credential'];targets=[Alias(i,mode if (i==4 if mode.startswith('install') else i==9) else 'success',primary) for i in range(10)]
+  ns['_bindings']=[(x,'value',original,wrapper) for x in targets]
+  install_primary=None
+  try:ns['install_bindings']()
+  except BaseException as e:install_primary=e;assert e is primary
+  restored=ns['restore_bindings']()
+  attempted=len(ns['_applied']);assert attempted==(5 if mode.startswith('install') else 10)
+  assert all(x.writes==2 for x in targets[:attempted])
+  if mode.startswith('restore'):assert any(e is primary for e in ns['_restore_errors']) and not restored
+  if mode=='restore_before':assert targets[-1].value is wrapper
+  else:assert all(x.value is original for x in targets)
+  if mode.startswith('install'):assert ns['_install_errors']==[primary]
+  emit('ten_alias_'+mode+'_'+type(primary).__name__+'_all_applied_reverse_attempts')
+terminal=namespace();terminal['_installed_complete']=True
+runner_primary=SystemExit(1);original_cancel=KeyboardInterrupt();restore_cancel=SystemExit(77)
+terminal['_observer_primary_exceptions']=[original_cancel];terminal['_restore_errors']=[restore_cancel]
+try:terminal['finish_observation'](B/'NOTWRITTEN',runner_primary)
+except BaseExceptionGroup as result:
+ assert result.exceptions[0] is runner_primary and result.exceptions[1] is restore_cancel and result.exceptions[2] is original_cancel
+else:raise AssertionError('terminal primary/cancel identities lost')
+emit('terminal_original_runner_factory_cancel_restore_cancel_same_objects')
+# Real socket closes despite controlled pre-close observer faults; each subsequent
+# native session close is independently attempted and actual primary retained.
+with publisher_fixture() as fixture:
+ with fixture_source.ArtifactTLS(fixture) as tls:
+  for observer in (OSError('ordinary close observe'),SystemExit(73)):
+   ns=namespace();session=create(ns,fixture);sock=tls.connect('api.github.com',3)
+   primary=ValueError('ordinary body primary');failures=[primary];attempts=[]
+   try:
+    try:
+     try:raise observer
+     finally:
+      attempts.append('actual_socket_close');sock.close()
+    except BaseException as e:failures.append(e)
+    try:
+     attempts.append('actual_session_close');session.close()
+    except BaseException as e:failures.append(e)
+   finally:
+    # Independent attempts remain mandatory even if the first close had failed.
+    final_errors=[]
+    for label,close in [('socket',sock.close),('session',session.close)]:
+     try:close()
+     except BaseException as e:final_errors.append(e)
+    failures.extend(final_errors)
+   assert sock.fileno()==-1 and session._api is None
+   assert attempts==['actual_socket_close','actual_session_close'] and failures[0] is primary and failures[1] is observer
+   group=BaseExceptionGroup('Preserved actual ordinary body and close observation faults',failures)
+   assert group.exceptions[0] is primary and group.exceptions[1] is observer
+   emit('real_owned_close_preobserver_'+type(observer).__name__+'_delegate_and_following_session_close_attempted')
+ assert not tls.thread.is_alive() and all(not t.is_alive() for t in tls._threads) and not tls.root.exists()
+ emit('actual_negative_close_fixture_cleanup')
+assert owned._credential is original
+print(json.dumps(dict(passed=True,controls=len(rows),rows=rows,worker_sha256=hashlib.sha256((B/'diagnostic_worker.py').read_bytes()).hexdigest(),original_method_runs=0,actual_native_credential_clone_path=True,actual_TLS_components_executed=True,authority_proof=False,negative_scope='actual native constructors with controlled observer faults; no operation scope minted or original method')))

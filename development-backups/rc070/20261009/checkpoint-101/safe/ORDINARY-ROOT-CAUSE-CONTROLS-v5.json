@@ -1,0 +1,320 @@
+{
+  "controls": 43,
+  "passed": true,
+  "source_sha256": "242f18dc0103862cbae64ae2c3e478f7713833144987da71fb9f0b34f8abc878",
+  "original_method_runs": 0,
+  "actual_FunctionDef_AST": true,
+  "scope": "controlled wrapper/catch-composition model; not actual issuer or whole SUT owner",
+  "rows": [
+    {
+      "boundary": "server_recv",
+      "matching": false,
+      "case": "success",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "server_recv",
+      "matching": false,
+      "case": "original_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "server_recv",
+      "matching": false,
+      "case": "ordinary_fields_error",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "server_recv",
+      "matching": false,
+      "case": "observer_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "server_recv",
+      "matching": false,
+      "case": "primary_and_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "server_recv",
+      "matching": true,
+      "case": "success",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "server_recv",
+      "matching": true,
+      "case": "original_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "server_recv",
+      "matching": true,
+      "case": "ordinary_fields_error",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "server_recv",
+      "matching": true,
+      "case": "observer_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "server_recv",
+      "matching": true,
+      "case": "primary_and_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "sendall",
+      "matching": false,
+      "case": "success",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "sendall",
+      "matching": false,
+      "case": "original_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "sendall",
+      "matching": false,
+      "case": "ordinary_fields_error",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "sendall",
+      "matching": false,
+      "case": "observer_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "sendall",
+      "matching": false,
+      "case": "primary_and_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "sendall",
+      "matching": true,
+      "case": "success",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "sendall",
+      "matching": true,
+      "case": "original_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "sendall",
+      "matching": true,
+      "case": "ordinary_fields_error",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "sendall",
+      "matching": true,
+      "case": "observer_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "sendall",
+      "matching": true,
+      "case": "primary_and_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "authenticate",
+      "matching": false,
+      "case": "success",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "authenticate",
+      "matching": false,
+      "case": "original_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "authenticate",
+      "matching": false,
+      "case": "ordinary_fields_error",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "authenticate",
+      "matching": false,
+      "case": "observer_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "authenticate",
+      "matching": false,
+      "case": "primary_and_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "authenticate",
+      "matching": true,
+      "case": "success",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "authenticate",
+      "matching": true,
+      "case": "original_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "authenticate",
+      "matching": true,
+      "case": "ordinary_fields_error",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "authenticate",
+      "matching": true,
+      "case": "observer_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "boundary": "authenticate",
+      "matching": true,
+      "case": "primary_and_cancel",
+      "passed": true,
+      "exact_original_objects_preserved": true,
+      "controlled_normalizer_not_original_catch_AST": true
+    },
+    {
+      "case": "prewrite_observer_OSError_primary_NoneType",
+      "passed": true,
+      "delegate_actual_once": true
+    },
+    {
+      "case": "prewrite_observer_SystemExit_primary_NoneType",
+      "passed": true,
+      "delegate_actual_once": true
+    },
+    {
+      "case": "prewrite_observer_OSError_primary_ValueError",
+      "passed": true,
+      "delegate_actual_once": true
+    },
+    {
+      "case": "prewrite_observer_SystemExit_primary_ValueError",
+      "passed": true,
+      "delegate_actual_once": true
+    },
+    {
+      "case": "postwrite_endpoint_OSError_keeps_actualwrite_time_currentendpointUNKNOWN",
+      "passed": true,
+      "actualdelegate_exception_identity": true,
+      "controlled_model_not_nativeTLS": true
+    },
+    {
+      "case": "first_fixed_restore_cancel_before_allnine_attempts",
+      "passed": true
+    },
+    {
+      "case": "first_fixed_restore_cancel_after_allnine_attempts",
+      "passed": true
+    },
+    {
+      "case": "dynamic_alias_install_cancel_before",
+      "passed": true,
+      "final_actual_callback_identity": true,
+      "error_kept_INVALID": true
+    },
+    {
+      "case": "dynamic_alias_install_cancel_after",
+      "passed": true,
+      "final_actual_callback_identity": true,
+      "error_kept_INVALID": true
+    },
+    {
+      "case": "dynamic_alias_restore_cancel_before",
+      "passed": true,
+      "final_actual_callback_identity": true,
+      "error_kept_INVALID": true
+    },
+    {
+      "case": "dynamic_alias_restore_cancel_after",
+      "passed": true,
+      "final_actual_callback_identity": true,
+      "error_kept_INVALID": true
+    },
+    {
+      "case": "dynamic_alias_bootstrap_cancel_before",
+      "passed": true,
+      "final_actual_callback_identity": true,
+      "error_kept_INVALID": true
+    },
+    {
+      "case": "dynamic_alias_bootstrap_cancel_after",
+      "passed": true,
+      "final_actual_callback_identity": true,
+      "error_kept_INVALID": true
+    }
+  ]
+}

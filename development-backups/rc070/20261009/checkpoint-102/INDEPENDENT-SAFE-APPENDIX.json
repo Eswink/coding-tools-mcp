@@ -1,0 +1,36 @@
+{
+  "GCC_driver_or_Popen_or_wholecompile_or_ROOT_or_bridge_or_factory_or_native14_or_SUT": "NOT_AUTHORIZED",
+  "RC_or_native_authority": false,
+  "actual_module_AST_delta": "only elf_dependencies; every other Function literal source unchanged from36b2",
+  "builder_sha256": "877d975b2221e24ecf2d86eddd13499c10b70bc8994b1bc0f6d0cea926e78dab",
+  "controller_sha256": "660e99726987d4588c9b5e8eb059ccc65e95d1b383d3a397d7003294694d6183",
+  "decision": "ALLOW_FINITE_ONCE_UNDER_ROOT_PRIOR_ORDINARY_AUTHORIZATION",
+  "exact_argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+    "-I",
+    "-B",
+    "/workspace/work/rc070/native-stagei-toolquery-work/finite_dynamic_mapping.py"
+  ],
+  "full_context": "bounded readonly tool_closure plus snapshot beforeafter may BLOCKED; no automatic rerun",
+  "old_once01_FAIL": "immutable retained",
+  "output_absent_at_peer": true,
+  "preview_sha256": "034e5a0dd17c2a8f46ed8bcc78e2db648d11690d19abe14a780a1f162988b682",
+  "reviewed_mechanism": "complete requested virtual interval file-backed with gapless consistent offsets; uint64/file budget; touching BSS/invalidmapping/conflicts/holes/out-file rejected; original strings/NUL/DT_NEEDED/ET_REL/ROOTtype2 unchanged",
+  "reviewer_executed_candidate_or_control": false,
+  "scope": "SOURCE_AND_SIX_ORDINARY_ELF_READS_PLUS_READONLY_CONTEXT_ONLY",
+  "scope_cases": [
+    "actual outer positive",
+    "old36b2 sameouter failure-first",
+    "owned gap",
+    "owned offset conflict",
+    "owned file-backed EOF violation",
+    "owned STRSZ budget violation"
+  ],
+  "source8_controller_outer_GCC_current_modes_hashes_singlelink_checked": true,
+  "source_bundle": {
+    "all_regular_single_link_bytes_hashes_checked": true,
+    "bytes": 150941,
+    "files": 17,
+    "manifest_sha256": "ed7884edff0fc388a8b7aed3a28acafae86fe83696ecf0050dd9720f18969d06"
+  }
+}

@@ -1,0 +1,265 @@
+"""Finite ordinary config/make/GNU msgfmt components; no full Git build/install.
+
+Reduced make parent-child fixture is declared. Original GUI Makefile/PO copied
+byte-identically for only po/zh_cn.msg; genuine msgfmt, not production issuer.
+Controlled native IO faults preserve actual exception object/close identity.
+"""
+import ast
+import copy
+import hashlib
+import json
+import os
+from pathlib import Path
+import shlex
+import stat
+import subprocess
+import tempfile
+import unittest
+import types
+from unittest.mock import patch
+import owned_git_prepare_v4 as g
+
+ACTUAL_MSGFMT=Path('/workspace/work/rc070/publisher-debian-msgfmt-research/actual-owned-debian-msgfmt01/preparation-result.json')
+OLD_SOURCE=Path('/workspace/work/rc070/publisher-supplementary-git-research/v3/actual-owned-build04/source/git-2.55.0')
+OBSERVATIONS=[]
+
+def leaves(error):
+    if isinstance(error,BaseExceptionGroup):return [x for e in error.exceptions for x in leaves(e)]
+    return [error]
+
+class OwnedGitV4Controls(unittest.TestCase):
+ def setUp(self):
+  self.tmp=tempfile.TemporaryDirectory(dir=g.OWNED_ROOT,prefix='ordinary-git-v4-');self.root=Path(self.tmp.name)
+  self.oldholders=g._CONFIG_IO_UNKNOWN_HOLDERS;g._CONFIG_IO_UNKNOWN_HOLDERS=[]
+ def tearDown(self):
+  # Controlled failure-after-realclose holders are never retried; saved in evidence.
+  g._CONFIG_IO_UNKNOWN_HOLDERS=self.oldholders;self.tmp.cleanup()
+ def source(self):
+  p=self.root/'source';p.mkdir();(p/'git-gui').mkdir();(p/'gitk-git').mkdir();return p
+ def base(self):return g.validate_msgfmt_assignment(ACTUAL_MSGFMT)['vector']
+ def test_current_genuine_base_config_without_check(self):
+  r=g.validate_msgfmt_assignment(ACTUAL_MSGFMT);self.assertNotIn('--check',r['vector']);self.assertNotIn('assignment',r)
+  self.assertEqual(shlex.split(r['config_bytes'][9:]),r['vector']);self.assertTrue(r['config_bytes'].startswith('MSGFMT = '))
+  OBSERVATIONS.append({'component':'current genuine msgfmt readonly leases','base_sha256':hashlib.sha256(g.serialize_msgfmt_config(r['vector'])).hexdigest(),'no_check':True})
+ def test_finite_grammar_negative_and_colon_literal_quotes(self):
+  base=['/owned/loader','--library-path','/owned/lib:/owned/lib2','/owned/program']
+  for bad in ('$','#','\\','\n','\r','\x00','`',';','|','&','>','<','(',')','*','?','[',']','!','\t'):
+   v=base.copy();v[2]+=bad
+   with self.assertRaises(ValueError):g.serialize_msgfmt_config(v)
+  v=base.copy();v[2]="/owned/space quote'and\"double:/owned/lib"
+  self.assertEqual(shlex.split(g.serialize_msgfmt_config(v).decode()[9:]),v)
+  with self.assertRaises(ValueError):g.serialize_msgfmt_config(['x','--library-path','a','b'*5000])
+ def test_two_exclusive_files_native_pins_mode644_nlink1(self):
+  s=self.source();record={};g.prepare_owned_msgfmt_configs(s,self.base(),record)
+  self.assertTrue(record['complete']);self.assertFalse(record['close_unknown']);self.assertEqual(record['close_states'],['CLOSED']*4)
+  self.assertEqual(set(record['rows']),set(g._CONFIG_NAMES));g.verify_owned_msgfmt_configs(s,record,g.serialize_msgfmt_config(self.base()))
+  for n in g._CONFIG_NAMES:self.assertEqual(stat.S_IMODE((s/n).stat().st_mode),0o644);self.assertEqual((s/n).stat().st_nlink,1)
+ def test_existing_second_target_denies_before_first_creation(self):
+  s=self.source();(s/'git-gui/config.mak').write_bytes(b'canary');r={}
+  with self.assertRaises(FileExistsError):g.prepare_owned_msgfmt_configs(s,self.base(),r)
+  self.assertFalse((s/'config.mak').exists());self.assertEqual((s/'git-gui/config.mak').read_bytes(),b'canary');self.assertEqual(r['created'],[])
+ def test_symlink_hardlink_and_extra_policy_denied(self):
+  s=self.source();r={};g.prepare_owned_msgfmt_configs(s,self.base(),r);raw=g.serialize_msgfmt_config(self.base())
+  os.link(s/'config.mak',self.root/'outside-link')
+  with self.assertRaises(BaseExceptionGroup):g.verify_owned_msgfmt_configs(s,r,raw)
+  (self.root/'outside-link').unlink();(s/'gitk-git/config.mak').write_bytes(b'unknown')
+  with self.assertRaises(BaseExceptionGroup):g.verify_owned_msgfmt_configs(s,r,raw)
+ def test_original_uname_policy_whitelist_not_added_policy(self):
+  s=self.source();(s/'config.mak.uname').write_bytes(b'original ordinary fixture uname');original=g.snapshot_original_git_source(s);r={}
+  g.prepare_owned_msgfmt_configs(s,self.base(),r,original);self.assertEqual(r['original_policy_names'],['config.mak.uname']);self.assertEqual(g.snapshot_original_git_source(s,original),original)
+  (s/'git-gui/config.mak.autogen').write_bytes(b'newbad')
+  with self.assertRaises(BaseExceptionGroup):g.verify_owned_msgfmt_configs(s,r,g.serialize_msgfmt_config(self.base()))
+ def test_write_primary_cancel_actualclose_not_skipped(self):
+  for i,primary in enumerate((OSError('write'),KeyboardInterrupt('write-cancel'),SystemExit('write-exit'))):
+   s=self.root/f'source{i}';s.mkdir();(s/'git-gui').mkdir();r={};base=self.base();actualclose=g._OwnedConfigDescriptor.close;attempts=[]
+   def closed(obj):attempts.append(obj);return actualclose(obj)
+   with patch.object(g.os,'write',side_effect=primary),patch.object(g._OwnedConfigDescriptor,'close',closed):
+    with self.assertRaises(BaseException)as e:g.prepare_owned_msgfmt_configs(s,base,r)
+   self.assertIn(primary,leaves(e.exception));self.assertEqual(len(attempts),3);self.assertTrue(all(x=='CLOSED'for x in r['close_states']));self.assertIn('config.mak',r['created']);self.assertFalse(r['complete'])
+ def test_close_unknown_strongholder_no_retry_primary_sameobject(self):
+  s=self.source();r={};base=self.base();actual=g.os.close;original=g._OwnedConfigDescriptor.close;attempts=[];cleanup=SystemExit('post-real-close-model')
+  def closed(obj):
+   attempts.append(obj)
+   def native(fd):
+    actual(fd)
+    if len(attempts)==1:raise cleanup
+   with patch.object(g.os,'close',side_effect=native):return original(obj)
+  with patch.object(g._OwnedConfigDescriptor,'close',closed):
+   with self.assertRaises(BaseException)as e:g.prepare_owned_msgfmt_configs(s,base,r)
+  self.assertIn(cleanup,leaves(e.exception));self.assertEqual(len(attempts),3);self.assertTrue(r['close_unknown']);self.assertEqual(len(g._CONFIG_IO_UNKNOWN_HOLDERS),1);self.assertEqual(g._CONFIG_IO_UNKNOWN_HOLDERS[0].state,'UNKNOWN')
+  with self.assertRaises(ValueError):g.prepare_owned_msgfmt_configs(s,self.base(),{})
+ def test_write_and_close_cancels_both_objects_and_remaining_pins_closed(self):
+  s=self.source();r={};base=self.base();primary=KeyboardInterrupt('write');cleanup=SystemExit('close');actual=g.os.close;original=g._OwnedConfigDescriptor.close;calls=[]
+  def closed(obj):
+   calls.append(obj)
+   def native(fd):
+    actual(fd)
+    if len(calls)==1:raise cleanup
+   with patch.object(g.os,'close',side_effect=native):return original(obj)
+  with patch.object(g.os,'write',side_effect=primary),patch.object(g._OwnedConfigDescriptor,'close',closed):
+   with self.assertRaises(BaseException)as e:g.prepare_owned_msgfmt_configs(s,base,r)
+  self.assertIn(primary,leaves(e.exception));self.assertIn(cleanup,leaves(e.exception));self.assertEqual(len(calls),3)
+ def test_partial_second_open_failure_first_lease_still_observed(self):
+  s=self.source();r={};primary=OSError('second-create');actual=g.os.open;creates=[]
+  def opened(path,flags,*args,**kw):
+   if flags&os.O_CREAT:
+    creates.append(path)
+    if len(creates)==2:raise primary
+   return actual(path,flags,*args,**kw)
+  with patch.object(g.os,'open',side_effect=opened):
+   with self.assertRaises(OSError)as e:g.prepare_owned_msgfmt_configs(s,self.base(),r)
+  self.assertIs(e.exception,primary);self.assertEqual(r['created'],['config.mak']);self.assertEqual(set(r['final_observation']),{'config.mak'});self.assertEqual(r['close_states'],['CLOSED','CLOSED','CLOSED','UNOPENED'])
+ def test_final_observation_failure_does_not_skip_second_observation(self):
+  s=self.source();r={};primary=KeyboardInterrupt('final-row');actual=g._config_row;calls=[]
+  def row(path,*args):
+   calls.append(str(path));result=actual(path,*args)
+   if len(calls)==5:raise primary
+   return result
+  with patch.object(g,'_config_row',side_effect=row):
+   with self.assertRaises(BaseException)as e:g.prepare_owned_msgfmt_configs(s,self.base(),r)
+  self.assertIn(primary,leaves(e.exception));self.assertEqual(len(calls),6);self.assertIn('git-gui/config.mak',r['final_observation'])
+ def test_constructor_fchmod_and_close_cancel_retained(self):
+  s=self.source();r={};base=self.base();primary=KeyboardInterrupt('fchmod');cleanup=SystemExit('ctor-close');actual=g.os.close;original=g._OwnedConfigDescriptor.close;calls=[]
+  def closed(obj):
+   calls.append(obj)
+   def native(fd):
+    actual(fd)
+    if len(calls)==1:raise cleanup
+   with patch.object(g.os,'close',side_effect=native):return original(obj)
+  with patch.object(g.os,'fchmod',side_effect=primary),patch.object(g._OwnedConfigDescriptor,'close',closed):
+   with self.assertRaises(BaseException)as e:g.prepare_owned_msgfmt_configs(s,base,r)
+  self.assertIn(primary,leaves(e.exception));self.assertIn(cleanup,leaves(e.exception));self.assertEqual(len(calls),3);self.assertEqual(len(g._CONFIG_IO_UNKNOWN_HOLDERS),1);self.assertEqual(r['created'],['config.mak']);self.assertTrue((s/'config.mak').exists())
+ def test_protected_functions_original_ast_and_bytes(self):
+  old=Path('/workspace/work/rc070/publisher-supplementary-git-research/v3/owned_git_prepare_v3.py').read_text();new=Path(g.__file__).read_text();a=ast.parse(old);b=ast.parse(new)
+  for name in ('snapshot_original_git_source','run_owned_git_phase'):
+   x=next(n for n in a.body if isinstance(n,ast.FunctionDef)and n.name==name);y=next(n for n in b.body if isinstance(n,ast.FunctionDef)and n.name==name)
+   self.assertEqual(ast.dump(x,include_attributes=False),ast.dump(y,include_attributes=False));self.assertEqual(ast.get_source_segment(old,x),ast.get_source_segment(new,y))
+ def test_real_gnu_make_parentchild_origin_exactargv_and_quotes(self):
+  for i,base in enumerate((self.base(),['/owned/loader','--library-path',"/owned/quoted 'path\":/owned/lib",'/owned/gnu-msgfmt'])):
+   s=self.root/f'make{i}';s.mkdir();(s/'git-gui').mkdir();r={};g.prepare_owned_msgfmt_configs(s,base,r)
+   recorder="import json,sys;open(sys.argv[1],'x').write(json.dumps({'origin':sys.argv[2],'vector':sys.argv[3:]}))\n"
+   (s/'argv.py').write_text(recorder)
+   (s/'Makefile').write_text("-include config.mak\nMSGFMT += --check\n.PHONY: inspect\ninspect:\n\t/usr/bin/python3 argv.py root.json '$(origin MSGFMT)' $(MSGFMT)\n\t$(MAKE) -C git-gui inspect\n")
+   (s/'git-gui/Makefile').write_text("-include config.mak\nMSGFMT ?= msgfmt\n.PHONY: inspect\ninspect:\n\t/usr/bin/python3 ../argv.py ../gui.json '$(origin MSGFMT)' $(MSGFMT)\n")
+   x=subprocess.run(['/usr/bin/make','--no-print-directory','inspect'],cwd=s,env={'PATH':'/usr/bin:/bin','LANG':'C','LC_ALL':'C'},capture_output=True,timeout=10)
+   self.assertEqual(x.returncode,0,x.stderr);root=json.loads((s/'root.json').read_text());gui=json.loads((s/'gui.json').read_text());self.assertEqual(root,{'origin':'file','vector':[*base,'--check']});self.assertEqual(gui,{'origin':'file','vector':base})
+   self.assertLess(len(x.stdout)+len(x.stderr),2*1024*1024);OBSERVATIONS.append({'component':'GNUmake reduced parentchild actual','real_genuine_base':i==0,'root_origin':root['origin'],'root_check_count':root['vector'].count('--check'),'GUI_origin':gui['origin'],'GUI_check_count':gui['vector'].count('--check'),'literal_colon_quotes_proven':i==1,'exit':x.returncode})
+ def test_bounded_config_oversize_denied_before_actualread(self):
+  p=self.root/'oversize';p.write_bytes(b'x'*4097);p.chmod(0o644);m=g.load_reviewed_git_dependencies()
+  with patch.object(g,'load_reviewed_git_dependencies',return_value=m),patch.object(m._OwnedDebianFile,'read')as read:
+   with self.assertRaises(ValueError):g._config_row(p,b'x'*4096,{})
+   read.assert_not_called()
+ def test_reader_close_unknown_original_cancel_and_holder(self):
+  s=self.source();base=self.base();r={};m=g.load_reviewed_git_dependencies();original=m._OwnedDebianFile.close;native=g.os.close;cancel=KeyboardInterrupt('actual-config-reader-close');calls=[]
+  def closed(obj):
+   calls.append(obj)
+   def closefd(fd):native(fd);raise cancel
+   with patch.object(g.os,'close',side_effect=closefd):return original(obj)
+  with patch.object(g,'load_reviewed_git_dependencies',return_value=m),patch.object(m._OwnedDebianFile,'close',closed):
+   with self.assertRaises(BaseException)as e:g.prepare_owned_msgfmt_configs(s,base,r)
+  self.assertIn(cancel,leaves(e.exception));self.assertTrue(r['close_unknown']);self.assertFalse(r['complete']);self.assertGreaterEqual(len(g._CONFIG_IO_UNKNOWN_HOLDERS),1);self.assertTrue(all(obj.state=='UNKNOWN'for obj in g._CONFIG_IO_UNKNOWN_HOLDERS))
+ def test_two_parent_close_cancels_both_actualobjects_attempted(self):
+  s=self.source();base=self.base();r={};original=g._OwnedConfigDescriptor.close;actual=g.os.close;first=SystemExit('GUIparentclose');second=KeyboardInterrupt('rootparentclose');calls=[]
+  def closed(obj):
+   calls.append(obj)
+   def native(fd):
+    actual(fd)
+    if len(calls)==3:raise first
+    if len(calls)==4:raise second
+   with patch.object(g.os,'close',side_effect=native):return original(obj)
+  with patch.object(g._OwnedConfigDescriptor,'close',closed):
+   with self.assertRaises(BaseException)as e:g.prepare_owned_msgfmt_configs(s,base,r)
+  self.assertIn(first,leaves(e.exception));self.assertIn(second,leaves(e.exception));self.assertEqual(len(calls),4);self.assertEqual(set(r['final_observation']),set(g._CONFIG_NAMES));self.assertTrue(r['close_unknown']);self.assertFalse(r['complete'])
+ def test_native_open_throw_after_controller_effect_not_knownowned_fd(self):
+  s=self.source();base=self.base();r={};actual=g.os.open;nativeclose=g.os.close;primary=OSError('open-post-effect-controlled');calls=[]
+  def opened(path,flags,*a,**kw):
+   fd=actual(path,flags,*a,**kw)
+   if flags&os.O_CREAT:
+    # Controller owns its actual returned FD, closes it then raises to delegate.
+    # Production receives no FD and must not infer an owner from path existence.
+    calls.append(fd);nativeclose(fd);raise primary
+   return fd
+  with patch.object(g.os,'open',side_effect=opened):
+   with self.assertRaises(BaseException)as e:g.prepare_owned_msgfmt_configs(s,base,r)
+  self.assertIn(primary,leaves(e.exception));self.assertEqual(len(calls),1);self.assertEqual(r['attempted'],['config.mak']);self.assertEqual(r['created'],[]);self.assertFalse(r['complete']);self.assertEqual(r['close_states'],['CLOSED','CLOSED','UNOPENED']);self.assertEqual((s/'config.mak').stat().st_size,0)
+ def test_native_config_read_drift_original_close_still_attempted(self):
+  s=self.source();base=self.base();r={};g.prepare_owned_msgfmt_configs(s,base,r);m=g.load_reviewed_git_dependencies();actual=m._OwnedDebianFile.read;closed=m._OwnedDebianFile.close;calls=[]
+  def read(obj,count):
+   result=actual(obj,count);(s/'config.mak').write_bytes(b'drift');return result
+  def close(obj):calls.append(obj);return closed(obj)
+  with patch.object(g,'load_reviewed_git_dependencies',return_value=m),patch.object(m._OwnedDebianFile,'read',read),patch.object(m._OwnedDebianFile,'close',close):
+   with self.assertRaises(ValueError):g._config_row(s/'config.mak',g.serialize_msgfmt_config(base),r['parents'][''])
+  self.assertEqual(len(calls),1);self.assertEqual(calls[0].state,'CLOSED')
+ def test_late_presence_cancel_preserves_open_primary_and_all_parents(self):
+  s=self.source();base=self.base();r={};primary=OSError('first-open-no-return');cancel=KeyboardInterrupt('late-presence');opened=g.os.open;exists=Path.exists;lstat=Path.lstat;presence=[];parents=[];fault=[False]
+  def opening(path,flags,*a,**kw):
+   if flags&os.O_CREAT:fault[0]=True;raise primary
+   return opened(path,flags,*a,**kw)
+  def observed(path):
+   if path==s/'config.mak':
+    presence.append(path)
+    if fault[0]:raise cancel
+   return exists(path)
+  def statted(path,*a,**kw):
+   if fault[0]and path in (s,s/'git-gui'):parents.append(path)
+   return lstat(path,*a,**kw)
+  with patch.object(g.os,'open',side_effect=opening),patch.object(Path,'exists',observed),patch.object(Path,'lstat',statted):
+   with self.assertRaises(BaseException)as e:g.prepare_owned_msgfmt_configs(s,base,r)
+  self.assertIn(primary,leaves(e.exception));self.assertIn(cancel,leaves(e.exception));self.assertEqual(parents,[s,s/'git-gui']);self.assertFalse(r['complete'])
+ def test_policy_observer_cancel_all_seven_independent_paths(self):
+  s=self.source();base=self.base();r={};g.prepare_owned_msgfmt_configs(s,base,r);exists=Path.exists;cancel=SystemExit('first-policy-observation');seen=[]
+  def observed(path):
+   if path.name in g._CONFIG_POLICY_NAMES:
+    seen.append(path)
+    if len(seen)==1:raise cancel
+   return exists(path)
+  with patch.object(Path,'exists',observed):
+   with self.assertRaises(BaseException)as e:g.verify_owned_msgfmt_configs(s,r,g.serialize_msgfmt_config(base))
+  self.assertIn(cancel,leaves(e.exception));self.assertIsInstance(e.exception,BaseExceptionGroup);self.assertEqual(len(seen),7)
+ def preparation_fixture(self):
+  # Explicitly synthetic source fixture, not signature/original4991 proof.
+  def extracted(_tar,destination):
+   destination=Path(destination);destination.mkdir();source=destination/'git-2.55.0';source.mkdir();(source/'git-gui').mkdir();(source/'gitk-git').mkdir()
+   (source/'Makefile').write_bytes((OLD_SOURCE/'Makefile').read_bytes());return source
+  tools={'passed':True,'runtime':{},'build_env':{'PATH':'/usr/bin:/bin','LANG':'C','LC_ALL':'C'}}
+  guard={n:g.load_reviewed_git_dependencies().snapshot_debian_tool(g.OWNED_ROOT/n)for n in g.SOURCE5}
+  return extracted,tools,guard
+ def test_controlled_prepare_false_no_config_make_or_install(self):
+  extract,tools,guard=self.preparation_fixture()
+  with patch.object(g,'verify_git_source',return_value=b'controlled unsignedfixture'),patch.object(g,'extract_owned_git_source',side_effect=extract),patch.object(g,'run_owned_git_phase')as run:
+   r=g.prepare_owned_git_v4(None,None,None,self.root/'prepared',ACTUAL_MSGFMT,execute=False)
+  self.assertEqual(r['status'],'PREPARED_NOT_EXECUTED');self.assertEqual(r['build_runs'],0);self.assertEqual(r['INSTALL'],'NOTRUN');run.assert_not_called();self.assertFalse((self.root/'prepared/source/git-2.55.0/config.mak').exists())
+ def test_controlled_build_failure_exact_no_MSGFMT_CLI_install_zero(self):
+  extract,tools,guard=self.preparation_fixture();calls=[]
+  def phase(vector,*a,**k):calls.append(vector);return {'command':vector,'passed':False,'exit':2,'reason':None}
+  with patch.object(g,'verify_git_source',return_value=b'controlled unsignedfixture'),patch.object(g,'extract_owned_git_source',side_effect=extract),patch.object(g,'verify_native_build_toolchain',return_value=tools),patch.object(g,'run_owned_git_phase',side_effect=phase):
+   with self.assertRaises(ValueError):g.prepare_owned_git_v4(None,None,None,self.root/'buildfail',ACTUAL_MSGFMT,execute=True,current_source5=guard)
+  self.assertEqual(len(calls),1);self.assertEqual(calls[0][:6],['/usr/bin/timeout','--signal=TERM','--kill-after=2s','480s','/usr/bin/make','-j2']);self.assertEqual(calls[0][-1],'all');self.assertFalse(any(x.startswith('MSGFMT=')for x in calls[0]));r=json.loads((self.root/'buildfail/actual-build-install-result.json').read_text());self.assertEqual(r['INSTALL'],'NOTRUN');self.assertEqual(r['install_runs'],0);self.assertTrue(r['owned_config_extras']['complete'])
+ def test_controlled_config_drift_stops_install_and_preserves_cancel(self):
+  extract,tools,guard=self.preparation_fixture();primary=KeyboardInterrupt('controlled-build-cancel');calls=[]
+  def phase(vector,source,*a,**k):calls.append(vector);(source/'config.mak').unlink();raise primary
+  with patch.object(g,'verify_git_source',return_value=b'controlled unsignedfixture'),patch.object(g,'extract_owned_git_source',side_effect=extract),patch.object(g,'verify_native_build_toolchain',return_value=tools),patch.object(g,'run_owned_git_phase',side_effect=phase):
+   with self.assertRaises(BaseException)as e:g.prepare_owned_git_v4(None,None,None,self.root/'cancelfail',ACTUAL_MSGFMT,execute=True,current_source5=guard)
+  self.assertIn(primary,leaves(e.exception));self.assertIsInstance(e.exception,BaseExceptionGroup);self.assertEqual(len(calls),1);r=json.loads((self.root/'cancelfail/actual-build-install-result.json').read_text());self.assertEqual(r['INSTALL'],'NOTRUN');self.assertEqual(r['install_runs'],0);self.assertEqual(r['status'],'FAIL_FINAL_LEASE')
+ def test_genuine_malformed_core_reject_and_original_GUI_target(self):
+  oldmod=types.ModuleType('ordinary_readonly_original_git_v3_source_guard')
+  oldpath=OLD_SOURCE.parents[2]/'owned_git_prepare_v3.py'
+  exec(compile(oldpath.read_bytes(),str(oldpath),'exec'),oldmod.__dict__)
+  original4991=json.loads((OLD_SOURCE.parent/'SOURCE-MANIFEST.json').read_text());self.assertEqual(len(original4991),4991)
+  self.assertEqual(oldmod.snapshot_original_git_source(OLD_SOURCE,original4991),original4991)
+  msg=g.validate_msgfmt_assignment(ACTUAL_MSGFMT);base=msg['vector'];m=g.load_reviewed_git_dependencies();source_files=(OLD_SOURCE/'git-gui/Makefile',OLD_SOURCE/'git-gui/po/zh_cn.po');before={str(p):m.snapshot_debian_tool(p)for p in source_files}
+  bad=self.root/'malformed.po';bad.write_bytes(b'msgid "unterminated\n')
+  x=subprocess.run([*base,'--check','-o',str(self.root/'malformed.mo'),str(bad)],cwd=self.root,env={'PATH':'/usr/bin:/bin','LANG':'C','LC_ALL':'C'},capture_output=True,timeout=10);self.assertNotEqual(x.returncode,0)
+  s=self.source();(s/'git-gui/po').mkdir();r={};g.prepare_owned_msgfmt_configs(s,base,r)
+  for p in source_files:
+   q=s/'git-gui'/p.relative_to(OLD_SOURCE/'git-gui');q.write_bytes(m.owned_debian_file_io(p,read_limit=8*1024*1024+1));self.assertEqual(q.read_bytes(),p.read_bytes())
+  # Sole original translation target; no all/install target or original source edits.
+  selftest=subprocess.run([*base,'--tcl','-l','C','-d','.','/dev/null'],cwd=s/'git-gui',env={'PATH':'/usr/bin:/bin','LANG':'C','LC_ALL':'C'},capture_output=True,timeout=10);self.assertEqual(selftest.returncode,0)
+  x2=subprocess.run(['/usr/bin/make','--no-print-directory','V=1','-C',str(s/'git-gui'),'po/zh_cn.msg'],cwd=s,env={'PATH':'/usr/bin:/bin','LANG':'C','LC_ALL':'C'},capture_output=True,timeout=30)
+  self.assertEqual(x2.returncode,0,x2.stderr);self.assertTrue((s/'git-gui/po/zh_cn.msg').is_file());self.assertNotIn(b'po2msg',x2.stdout+x2.stderr);self.assertEqual(shlex.split(x2.stdout.decode().splitlines()[0]),[*base,'--statistics','--tcl','-l','zh_cn','-d','po/','po/zh_cn.po'])
+  self.assertEqual(g.validate_msgfmt_assignment(ACTUAL_MSGFMT),msg);self.assertEqual({str(p):m.snapshot_debian_tool(p)for p in source_files},before);g.verify_owned_msgfmt_configs(s,r,g.serialize_msgfmt_config(base))
+  self.assertEqual(oldmod.snapshot_original_git_source(OLD_SOURCE,original4991),original4991)
+  OBSERVATIONS.append({'GUI_original_selftest_exit':selftest.returncode,'original4991_full_before_after_exact':True,'component':'genuineGNUmsgfmt core malformed and originalGUI translation only','malformed_exit':x.returncode,'original_GUI_target_exit':x2.returncode,'original_GUI_makefile_sha256':before[str(source_files[0])]['sha256'],'original_GUI_PO_sha256':before[str(source_files[1])]['sha256'],'original_source_inputs_unchanged':True,'fullbuild':False,'install':False,'component_stdout_sha256':hashlib.sha256(x2.stdout).hexdigest(),'component_stderr_sha256':hashlib.sha256(x2.stderr).hexdigest()})
+
+if __name__=='__main__':
+ unittest.main(verbosity=2)

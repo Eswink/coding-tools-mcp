@@ -1,0 +1,68 @@
+{
+  "scope": "DESIGN_ONLY; no source implementation/native/startup qualification",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 319,
+      "sha256": "8d216844aae93b8743dc0ef75283c93a6ebcef0efa557448626a663fa901aefe",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.md",
+      "bytes": 1243,
+      "sha256": "73ce84fb1b8795f9d41a6133a833e872ad80fd7d124d2b5edbdddce3466f9bd2",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/CHECK-SPEC64-SAFE.json",
+      "bytes": 239,
+      "sha256": "7953fd01f476c80eb7747c405004530618fb87ead2322997e71fd37fd1e39eec",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/FRESH-SOURCE-OWNED-IMPACT68.json",
+      "bytes": 6798,
+      "sha256": "e1c9ebc8796e67a23b34b1b93592fe7704ab35d42658bc690bc4fa8d1af6b03a",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/READONLY-SOURCE-CONTROL-BUDGET-CANDIDATE60.json",
+      "bytes": 1457,
+      "sha256": "ad55e3c414b603c5f9a2074de26b0ee0f7ce5f6ec6198c50eae3de29ebb39ce1",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/STATIC-SOURCE-OWNED-REQUEST-VECTOR69.json",
+      "bytes": 3198,
+      "sha256": "acbc547f568e611c7604241e3b3c19c231db5bd14c62e011b862250287188683",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "spec/design.md",
+      "bytes": 5058,
+      "sha256": "dd97092e5c1bec1952400f2b9efc5c466c24f613ba8e437241170ac9f21eb00b",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "spec/requirements.md",
+      "bytes": 6339,
+      "sha256": "52b33995e73ef860c643457db7671dfbd17900e588535524b10abf48e0328c22",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "spec/tasks.md",
+      "bytes": 2095,
+      "sha256": "f0ed48f90786b86d85e96ff52ac4b847ca613b28eda5b3fd0c5857e2b5a3787b",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    }
+  ]
+}

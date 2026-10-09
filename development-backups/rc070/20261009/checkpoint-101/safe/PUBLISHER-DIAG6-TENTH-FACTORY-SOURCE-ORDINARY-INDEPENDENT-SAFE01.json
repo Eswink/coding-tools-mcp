@@ -1,0 +1,48 @@
+{
+  "decision": "PASS_FINITE_TENTH_FACTORY_SOURCE_AND_ORDINARY_COMPONENT_SCOPE_ONLY",
+  "worker_sha256": "242f18dc0103862cbae64ae2c3e478f7713833144987da71fb9f0b34f8abc878",
+  "actual_source_ast_delta": {
+    "new_functions": [
+      "record_pending_credential",
+      "observed_credential",
+      "credential_provenance_for_fixture",
+      "retire_credential_provenance"
+    ],
+    "existing_changed_functions": [
+      "owned_fixture_for_context",
+      "finish_observation"
+    ],
+    "original_nine_wrapper_install_restore_bootstrap_functions": "exact AST unchanged"
+  },
+  "review": {
+    "original_delegate_once_same_return_exception": true,
+    "postsuccess_observer_cancel_sticky_same_return_before_real_constructor_assignment": true,
+    "original_delegate_cancel_identity_bare_raise_sticky_terminal": true,
+    "bounded128_pending_strong_native_refs_after_assignment_complete_chain_promotion": true,
+    "no_numeric_or_value_equal_authority": true,
+    "foreign_ambiguous_missing_assignment_closed_or_wrongthread_unknown": true,
+    "post_runpy_original_cleanup_reverse_all_bindings_then_registry_retirement_and_primary_all_cancels": true,
+    "three_preexec_files_current_bytes_modes_exact": true,
+    "whole_ordinary_source_and_new_hook_functions_read": true
+  },
+  "actual_ordinary": {
+    "unique_named_checks": 44,
+    "stdout_bytes": 4099,
+    "stdout_sha256": "0724fc16f57a7550126b43e4e5195b6fbb1ac16d175fb0d888b91b6415792c6a",
+    "stderr_bytes": 0,
+    "elapsed_seconds": 3.379034490997583,
+    "created_heldZ_natural0_ECHILD_empty_family": true,
+    "real_original_native_constructor_and_TLS": true,
+    "observer_and_alias_faults": "controlled ordinary exact FunctionDef namespace; no issuer or operation scope fabricated",
+    "original_method_runs": 0,
+    "automatic_wholeowner_timeout_cancel": "NOTRUN"
+  },
+  "limitations": [
+    "Ordinary provenance helper called with real native objects directly is not a genuine original mutation context qualification",
+    "Existing 9 wrapper controls are not subsumed by this limited44 unless rerun separately on final source",
+    "All final source/runtime/launcher/vector seals and independent startup review still required",
+    "No release issuer or product native IO authority"
+  ],
+  "original_method_startup": "NOTAUTHORIZED",
+  "reviewer_source_edit_or_execution": false
+}

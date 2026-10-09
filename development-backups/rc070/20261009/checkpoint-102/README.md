@@ -1,0 +1,1 @@
+Independent external Stage I one-function ELF mapping repair plus finite ordinary-read controller. All old source/queryFAIL freezes remain immutable. Source/ordinary controls do not establish executable, native family, publisher or release qualification. No raw host/proc/PID data, tokens, environment packages, binaries or Git objects included.

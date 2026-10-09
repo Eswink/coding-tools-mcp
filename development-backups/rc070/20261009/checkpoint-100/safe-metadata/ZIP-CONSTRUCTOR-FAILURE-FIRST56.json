@@ -1,0 +1,10 @@
+{
+  "scope": "actual stdlib ZipFile(path) constructor with owned malformed regular ZIP and controlled actual input close cancellation",
+  "actual_primary_type": "BadZipFile",
+  "primary_object_preserved": false,
+  "close_cancel_object_preserved": true,
+  "underlying_actual_file_closed": true,
+  "actual_native_api_calls": 0,
+  "official_zip_downloads": 0,
+  "go_processes": 0
+}

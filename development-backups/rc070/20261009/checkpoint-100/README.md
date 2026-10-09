@@ -1,0 +1,1 @@
+SOURCE-ONLY ARCHIVE INPUT RESOURCE DRAFT. Source peer PENDING; native startup STOP. Six authorized management files plus safe specifications/error evidence. No private runtime, host/proc data, credentials, raw native logs or Git object stores. Old cp88/source03 freezes and failed controls preserved separately.

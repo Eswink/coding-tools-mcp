@@ -1,0 +1,18 @@
+{
+  "schema": "V4-final-source-only01",
+  "helper_sha256": "a21b053058b1365d5b547c4983a3338ba8f3b4b844d16fc795bcd0c31a1bbe48",
+  "tests_sha256": "56d2645a7f0efa739710bc7b9502b7224f64eeb748fb0ef6573891aa4c821dc7",
+  "source_peer": "LIMITED_SOURCE_ORDINARY_PASS_REVIEWER_REPORT",
+  "final_source_freeze_peer": "PENDING_AT_FREEZE",
+  "ordinary07": "ACTUAL25PASS",
+  "ordinary06": "ACTUAL23PASS2FAIL_RETAINED",
+  "whole_nativeowner_automatic_cancel": "NOTRUN",
+  "full_Git_makeall": "NOTRUN",
+  "tool_install": "NOTRUN",
+  "SUT_original_methods": 0,
+  "publisher85": "FAIL83success2FAIL",
+  "publisher300": "NOTRUN",
+  "issuer_sameclient_serverheldtag": "UNAVAILABLE",
+  "release_qualification": false,
+  "GitHub_backup": "LOCAL_READY_NOT_CONFIRMED"
+}

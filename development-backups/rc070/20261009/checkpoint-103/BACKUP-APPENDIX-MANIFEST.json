@@ -1,0 +1,14 @@
+{
+  "scope": "SOURCE_ONLY independent safe appendix; original MANIFEST covers only unchanged original source packet. No candidate/build/native/install/RC qualification. Original PENDING and failure statuses preserved.",
+  "originalManifestSha256": "f79fb183e38617a62244d4a08cdbd761f7d876482224faa15f9c21a51d946755",
+  "originalFilesUnmodified": true,
+  "appendixFiles": [
+    {
+      "path": "INDEPENDENT-SAFE-APPENDIX.json",
+      "bytes": 1670,
+      "sha256": "59ac973db56f99c7208829668bbc9c656cfa2029d4c6c0a68d8aa14dd1b896d4",
+      "gitMode": "100644",
+      "physicalMode": "0644"
+    }
+  ]
+}

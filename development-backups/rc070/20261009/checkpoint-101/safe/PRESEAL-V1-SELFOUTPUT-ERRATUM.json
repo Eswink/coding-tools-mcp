@@ -1,0 +1,13 @@
+{
+  "SUT_runs": 0,
+  "old_seal_sha256": "c9328a907df2ea49975131883a69a2114646a44b21e5517e0c0ce1fc67816679",
+  "actual_mismatch_count": 1,
+  "cause": "freeze output stdout included before finalprint; postprint bytes differ",
+  "old_expected_bytes": 0,
+  "actual_bytes": 286,
+  "actual_sha256": "98ca344f65eac7d48156ccbabdf40b6251ed9dbce1f9fec04b5847f2accd681b",
+  "launcher_worker_owner_budget_unchanged": true,
+  "correction": "freeze output logs outside source B; new seal with all stable current bytes",
+  "old_seal_preserved": true,
+  "gate_pass": false
+}

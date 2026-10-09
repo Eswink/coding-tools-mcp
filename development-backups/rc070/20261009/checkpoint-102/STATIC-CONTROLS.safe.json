@@ -1,0 +1,12 @@
+{
+  "actual_static_source_parser20": {
+    "exit": 0,
+    "tool_chunk": "721f47",
+    "stdout_sha256": "5d7a885af2dc91ef59c61a0ebd232ac0bae84525421e9d54e5269e2713cba27f"
+  },
+  "exact_graph_elf_dependencies": "LOW4 onmatching36b2beforeedit;2callers/0processes/1module notruntime0",
+  "runtime_manual_risk": "HIGH disclosed byroot beforeedit",
+  "currentASTdelta": "Onlyelf_dependencies; source8byte delta onlybuilder",
+  "dynamiccontrols6": "NOTRUN; pendingindependentfinite source/scope review",
+  "compiler_ROOT_bridge_factory_original": "NOTRUN"
+}

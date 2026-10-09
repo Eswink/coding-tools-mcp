@@ -1,0 +1,11 @@
+{
+  "scope": "Independent safe terminal supplement to immutable original three-file source package; original MANIFEST.json bytes unchanged and covers original two rows only. No native or wholecompiler qualification.",
+  "files": [
+    {
+      "path": "INDEPENDENT-TERMINAL-SAFE.json",
+      "mode": "100644",
+      "bytes": 1985,
+      "sha256": "bdbcdc89fd90fd31708a344513c28ba3d9e90b739ba6759ee3eefebe8118bbb9"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "schema": "diag6-source-terminal-safe",
+  "frozen02_manifest_sha256": "9fc7cfffb767b0ec32f8dfaed216d00eb6b4eae9eb7c9f96d28346759676daff",
+  "source_base": "Publisher b9cf pure1878 / PR148a935f carrier1860",
+  "SUT_finite_methods": 1,
+  "finite_result": "FAIL",
+  "original85": "FAIL83success2FAIL",
+  "original300": "NOTRUN",
+  "independent_terminal": "authentic same-run audit PASS, not qualification",
+  "publisher_issuer_sameclient_serverheldtag": "UNAVAILABLE",
+  "release_qualification": false,
+  "backup": "LOCAL_READY_GITHUB_NOT_YET_CONFIRMED"
+}

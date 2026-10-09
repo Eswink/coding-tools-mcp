@@ -1,0 +1,5 @@
+fixed: 🐛 分离核心与 GUI 的原生 msgfmt 配置
+
+使用两个独立封存的 owned config.mak 保留核心 --check 与 GUI --tcl 原参数，移除 MSGFMT CLI 传播。保留配置关闭 UNKNOWN、原异常和取消对象，逐项完成失败后的独立观察。
+
+本轮 25 项有限控制实际通过；保留首轮失败和独立 STOP。此包仅源码与安全摘要，完整 Git 构建、安装、Publisher 门禁尚未完成。

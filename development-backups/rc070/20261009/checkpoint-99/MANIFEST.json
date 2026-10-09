@@ -1,0 +1,94 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "mode": "0644",
+      "bytes": 298,
+      "sha256": "d40bc50cedab753d1e9458579443d9e73cc653950ee8021c44d60ac64fb27a09"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "mode": "0644",
+      "bytes": 598,
+      "sha256": "69137bbf34786763beda1e75517465febe69d0a647b53b2560ace8d0325805fd"
+    },
+    {
+      "path": "STATIC-CONTROLS.safe.json",
+      "mode": "0644",
+      "bytes": 439,
+      "sha256": "513fd0b644338ccd874397f1a3ee45607c633b118504727c598a0b7b22d2eed8"
+    },
+    {
+      "path": "source/birth_entry.S",
+      "mode": "0644",
+      "bytes": 2248,
+      "sha256": "9ddafe9891fe259934eb3101ddf7da202206440388a61ac7c54f523ad783af07"
+    },
+    {
+      "path": "source/birth_module.c",
+      "mode": "0644",
+      "bytes": 17081,
+      "sha256": "c663f7fa38710b429a43ccdd9691ab7a2b9fb8313fa1f712129c066d9bb88b18"
+    },
+    {
+      "path": "source/build_source_owner.py",
+      "mode": "0644",
+      "bytes": 39233,
+      "sha256": "36b2db316848e0e653566522c1a26f2422fc7d9bfafbd7e4b9078857d2384dd6"
+    },
+    {
+      "path": "source/ordinary_controls.py",
+      "mode": "0644",
+      "bytes": 20221,
+      "sha256": "aa83c83213af415e2d31cebf0455a468e120a9c02973a607afbd34e347a76ace"
+    },
+    {
+      "path": "source/owner_adapter.py",
+      "mode": "0644",
+      "bytes": 7246,
+      "sha256": "56453edad4d6885642f28995568116f280df40e1dca6508cbf0b539a35d25b22"
+    },
+    {
+      "path": "source/root_collector.c",
+      "mode": "0644",
+      "bytes": 14269,
+      "sha256": "30d7e4c272d946c73396e1341d7478d2a2dee142b2c4e6263313a1046b57c4ba"
+    },
+    {
+      "path": "source/root_entry.S",
+      "mode": "0644",
+      "bytes": 308,
+      "sha256": "d075284c844474667fc85c4da5e0cc05eec1432614a20d051629d531b5634840"
+    },
+    {
+      "path": "source/syscall_x86_64.h",
+      "mode": "0644",
+      "bytes": 3686,
+      "sha256": "df7e4787aa71a622ee7460f888cba1c930cfb61cb0a71e849570bed39666a1bd"
+    },
+    {
+      "path": "spec/design.md",
+      "mode": "0644",
+      "bytes": 10233,
+      "sha256": "4f6e4e2549f290c90a75788a1f7114e35483cdf31acccf843a62673cade8203f"
+    },
+    {
+      "path": "spec/implementation-boundary.md",
+      "mode": "0644",
+      "bytes": 13221,
+      "sha256": "7bc7bdd0eb694ff41934caa3421ae2cb7d4c1581c63b36014ee72b34344daba8"
+    },
+    {
+      "path": "spec/requirements.md",
+      "mode": "0644",
+      "bytes": 5947,
+      "sha256": "0a1d9c5e2ab965b704407c80d13a300110367b622b9c05db1e2ca7a0f2c0637c"
+    },
+    {
+      "path": "spec/tasks.md",
+      "mode": "0644",
+      "bytes": 3334,
+      "sha256": "9b2efc26aa16be68a622c81b70ed4ac884775a1285e9ebb0206756755aca12e3"
+    }
+  ]
+}

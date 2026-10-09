@@ -1,0 +1,245 @@
+{
+  "schema": "diag6-actual-terminal-source-only01",
+  "files": [
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 1103,
+      "sha256": "2e3aa0fc89e398c15768ebbb2af3b3ad75c3b3c19fa6f8ce089d231b364b1e96"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "100644",
+      "bytes": 557,
+      "sha256": "05ebf7d217796f5db9ab977bfb078c1b094bc41b278224cb270b680efd390fdd"
+    },
+    {
+      "path": "safe/AST-SOURCE-TRUTH.json",
+      "mode": "100644",
+      "bytes": 6092,
+      "sha256": "67b0488f4f4c9e8fef35f8aafacfa2a3318e2a20ccad9af2cde0b2cdb50bf281"
+    },
+    {
+      "path": "safe/DIAGNOSTIC6-INDEPENDENT-TERMINAL-SAFE01.json",
+      "mode": "100644",
+      "bytes": 2845,
+      "sha256": "8c5dcabb06a5c4c5dc49208e30536f7af0800978c9c8a4de8ecda3e946cdd54f"
+    },
+    {
+      "path": "safe/DIAGNOSTIC6-TERMINAL-SAFE01.json",
+      "mode": "100644",
+      "bytes": 2437,
+      "sha256": "5b59339a35c827311830c70a08685d11492efaca1683dd0cb810f211edaaad67"
+    },
+    {
+      "path": "safe/FINAL-PRELAUNCH-SOURCE-SAFE01.json",
+      "mode": "100644",
+      "bytes": 1014,
+      "sha256": "60bb3492204369a4c35de522bc2f6e132225d505f2500655751c5a30732d9023"
+    },
+    {
+      "path": "safe/FINAL-SOURCE-DETECT-SAFE01.json",
+      "mode": "100644",
+      "bytes": 1613,
+      "sha256": "61158d2222a2441ace516818ecf5af23d2602769becc39328a563aa94e2d2df1"
+    },
+    {
+      "path": "safe/FROZEN-MANIFEST.json",
+      "mode": "100644",
+      "bytes": 7063,
+      "sha256": "9fc7cfffb767b0ec32f8dfaed216d00eb6b4eae9eb7c9f96d28346759676daff"
+    },
+    {
+      "path": "safe/FROZEN-README.md",
+      "mode": "100644",
+      "bytes": 2605,
+      "sha256": "09e88eea4421ef8ca8a1730da211e2c2940adc266d76034fc5c3a005da33a8ec"
+    },
+    {
+      "path": "safe/FROZEN-SOURCE-STATUS.json",
+      "mode": "100644",
+      "bytes": 830,
+      "sha256": "3ae6bbff28c33aa21eae00b96bd3f1bff96f3569d27958854c9187b8b9ff796e"
+    },
+    {
+      "path": "safe/LOCAL-CONTROLS-SAFE-SUMMARY.json",
+      "mode": "100644",
+      "bytes": 2192,
+      "sha256": "7de8a70ebe1e2d0b50878c187d6e1b2168bfd47c80b18953cc3e824673ba611a"
+    },
+    {
+      "path": "safe/NATIVE-PROVENANCE-ORDINARY-CONTROLS-v2-SAFE.json",
+      "mode": "100644",
+      "bytes": 6079,
+      "sha256": "459a845af550e3cd32cbfc34abf2423cc440543bddf1ef5af8066e1e9f3aace5"
+    },
+    {
+      "path": "safe/ORDINARY-AUTH-CONTROLS-v7.json",
+      "mode": "100644",
+      "bytes": 2964,
+      "sha256": "06c755f5bee784f4d7a4eaccaf7744b4e987cba184a0413d999e4890fb448230"
+    },
+    {
+      "path": "safe/ORDINARY-MUTATION-CONTROLS-v5.json",
+      "mode": "100644",
+      "bytes": 5309,
+      "sha256": "6fc54ad350621ca9dd3769d375721c9e069bb1e90d0257e4925884d079e6f0d1"
+    },
+    {
+      "path": "safe/ORDINARY-NATIVE-CONTROLS-SAFE.json",
+      "mode": "100644",
+      "bytes": 283,
+      "sha256": "4ff46876e5f7f3c7bba5fd29905438867d4ac5d061ef905cc191af4005a290b1"
+    },
+    {
+      "path": "safe/ORDINARY-OWNED-TLS-CONTROLS-v1-SAFE.json",
+      "mode": "100644",
+      "bytes": 2317,
+      "sha256": "24a158d41ef5c4077f934f312b8ebfc36523d26062afcd1a0600adeab82b31a9"
+    },
+    {
+      "path": "safe/ORDINARY-ROOT-CAUSE-CONTROLS-v5.json",
+      "mode": "100644",
+      "bytes": 9206,
+      "sha256": "99115e1816939a247ce09da6eb87c44b31d87b313cf5dd1bbe3cf65c39d9b702"
+    },
+    {
+      "path": "safe/ORDINARY-THREADLOCAL-REPAIR-CONTROLS-v1.json",
+      "mode": "100644",
+      "bytes": 4148,
+      "sha256": "601d37d8c2c2d10954bcfd5b47e566edbec7143f66f7148fc07c04d5617128e5"
+    },
+    {
+      "path": "safe/PRESEAL-V1-SELFOUTPUT-ERRATUM.json",
+      "mode": "100644",
+      "bytes": 559,
+      "sha256": "6ffff36d301a3b3310314ef740e0881ec825afc3a18d99dfeae430fd23a38756"
+    },
+    {
+      "path": "safe/PUBLISHER-DIAG6-TENTH-FACTORY-SOURCE-ORDINARY-INDEPENDENT-SAFE01.json",
+      "mode": "100644",
+      "bytes": 2346,
+      "sha256": "5be94c4fbed5d74d827c1364b89ee91fb11adbc9357aa53e1029b498d70f579d"
+    },
+    {
+      "path": "safe/PUBLISHER-DIAG6-V2-INDEPENDENT-STARTUP-SAFE01.json",
+      "mode": "100644",
+      "bytes": 2666,
+      "sha256": "019d890ba90cbdd9cd877333ceebc1e0cbaa646ba66faa105b3112e9c80f664b"
+    },
+    {
+      "path": "safe/RESTORE-METADATA-PRINT-ERRATUM01.json",
+      "mode": "100644",
+      "bytes": 382,
+      "sha256": "34461e71f9df686460e7516acd3c45100a70654e45bbbf618d99fa5d19780586"
+    },
+    {
+      "path": "safe/SOURCE-ONLY-COMMIT-MESSAGE.txt",
+      "mode": "100644",
+      "bytes": 536,
+      "sha256": "5da4a15bd7b720ca659408f77eb85a7322fe9db8570c61561e23e0cadb3892e4"
+    },
+    {
+      "path": "source/diagnostic-launch.py.source",
+      "mode": "100644",
+      "bytes": 3724,
+      "sha256": "2f34ba0de6cdc92a18129a83596231c446c297a900a73d15e652f1df1020dca2"
+    },
+    {
+      "path": "source/diagnostic6-prelaunch-freeze.py.source",
+      "mode": "100644",
+      "bytes": 11146,
+      "sha256": "4020d9c992011b1b4262c22d7cde4f190c32ee35df14ed3851b2734bc3cc1cd2"
+    },
+    {
+      "path": "source/diagnostic_owner.py.source",
+      "mode": "100644",
+      "bytes": 15193,
+      "sha256": "d6226f6dcd8d9cfa7159b360602b7b6e00c9ce79d7507ade3694aeebda5d23a4"
+    },
+    {
+      "path": "source/diagnostic_worker.py.source",
+      "mode": "100644",
+      "bytes": 36242,
+      "sha256": "242f18dc0103862cbae64ae2c3e478f7713833144987da71fb9f0b34f8abc878"
+    },
+    {
+      "path": "source/native-provenance-owned-supervisor.py.source",
+      "mode": "100644",
+      "bytes": 4456,
+      "sha256": "5780e78ef7cec755720d6cafd07d214821d0f62dd878e8a3b61c7ee9effee731"
+    },
+    {
+      "path": "source/ordinary-auth-controls.py.source",
+      "mode": "100644",
+      "bytes": 4725,
+      "sha256": "d9eff35825a3cb0436d0c6b09bddc41a48f2c5643bb5c99a7b96d328eb02e15e"
+    },
+    {
+      "path": "source/ordinary-mutation-controls.py.source",
+      "mode": "100644",
+      "bytes": 23028,
+      "sha256": "66819fc1123308db9808f9c200f92dd57bcfda9ddcfd37d8e1ef82658f7b72a0"
+    },
+    {
+      "path": "source/ordinary-native-controls.py.source",
+      "mode": "100644",
+      "bytes": 3124,
+      "sha256": "c7092ba98e46863d9303a8b8cc679a3f040b2074c7e48ac9236f42cb1f3f9238"
+    },
+    {
+      "path": "source/ordinary-native-provenance-controls-v1-oldpure-preserved-source.py.source",
+      "mode": "100644",
+      "bytes": 13695,
+      "sha256": "dd8c9fcaa4a088534bdcda40bcef0270bc524d123a92490b02ba9f41789d2b4a"
+    },
+    {
+      "path": "source/ordinary-native-provenance-controls.py.source",
+      "mode": "100644",
+      "bytes": 13637,
+      "sha256": "5af8855652b5313e15442baed2394fcc75335e8960764ed058fc65f5f995d62d"
+    },
+    {
+      "path": "source/ordinary-real-tls-child.py.source",
+      "mode": "100644",
+      "bytes": 9267,
+      "sha256": "7e49e39d414d3d2814fd937f628e93f0d28ce8cdfc6cdea965d7c4234914867e"
+    },
+    {
+      "path": "source/ordinary-root-cause-controls.py.source",
+      "mode": "100644",
+      "bytes": 10082,
+      "sha256": "edaff82d061ce14821d906ac91c7163329d33cf673806dd8f27e1dbdbcae8d53"
+    },
+    {
+      "path": "source/ordinary-threadlocal-controls.py.source",
+      "mode": "100644",
+      "bytes": 3941,
+      "sha256": "a13f1298b2ba561c666c1f9b9c05b415a9e4765d36f8ccc03ad949c3d32b50d8"
+    },
+    {
+      "path": "source/ordinary-tls-owned-supervisor.py.source",
+      "mode": "100644",
+      "bytes": 4412,
+      "sha256": "19272ee14f0c4e23b996297824c0ea10b2af06ab15d3f840be21448c2397a0d5"
+    },
+    {
+      "path": "spec/design.md",
+      "mode": "100644",
+      "bytes": 3313,
+      "sha256": "b43327db4a41aee78d6de7478299151ba1519a7b4becf47862cc8bfe10c930c8"
+    },
+    {
+      "path": "spec/requirements.md",
+      "mode": "100644",
+      "bytes": 4012,
+      "sha256": "8cb24b1355e63ac9d7a900e0c364abae63bd300a1bd3e933ae3f6db28c337c1e"
+    },
+    {
+      "path": "spec/tasks.md",
+      "mode": "100644",
+      "bytes": 1553,
+      "sha256": "d5afb6c0a3e4467b447c7104bbcc97363719cb2ae77ce14762530b692cc7e418"
+    }
+  ]
+}

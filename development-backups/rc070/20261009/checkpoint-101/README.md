@@ -1,0 +1,5 @@
+# Diagnostic6 actual finite terminal source-only backup
+
+Original one FinalAdmission method actually FAIL (0 ERROR), natural exit1/ECHILD true; original gate strictly rejected closed/qualified=false. Original85 remains83success/2FAIL and300 NOTRUN. Existing frozen02 inert sources, specifications and original frozen status are preserved byte-identically under source paths and safe/FROZEN-* metadata; this new packet appends safe real terminal author+independent summaries. TLS6 with native clone provenance reports actual same-request ordering only, not exact close time or previous85 cause. Credential provenance permission=false; real publisher issuer/same-client/server-held-tag still unavailable. No Release/CI/final qualification.
+
+Includes source/spec/mode/hash/safe status only. Original raw8+sidecar/runtime/proc/host/credential/TLS/key/env/object archives stay private and immutable. Original author audit administrative O_EXCL failure retained; v2 audit completed independently without overwriting it. This packet is not an original SUT receipt substitute. No production source has changed.

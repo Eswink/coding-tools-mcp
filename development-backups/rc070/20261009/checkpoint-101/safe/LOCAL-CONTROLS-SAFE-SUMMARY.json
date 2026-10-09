@@ -1,0 +1,48 @@
+{
+  "original_method_runs": 0,
+  "current_worker_sha256": "242f18dc0103862cbae64ae2c3e478f7713833144987da71fb9f0b34f8abc878",
+  "hook_controls": {
+    "ORDINARY-MUTATION-CONTROLS-v5.json": {
+      "controls": 76,
+      "source_sha256": "242f18dc0103862cbae64ae2c3e478f7713833144987da71fb9f0b34f8abc878",
+      "passed": true,
+      "component_scope": "ordinary_exact_workerhook_AST_not_whole_SUT_or_owner"
+    },
+    "ORDINARY-AUTH-CONTROLS-v7.json": {
+      "controls": 9,
+      "source_sha256": "242f18dc0103862cbae64ae2c3e478f7713833144987da71fb9f0b34f8abc878",
+      "passed": true,
+      "component_scope": "controlled callback/alias objects, not native issuer or SUTmethod proof"
+    },
+    "ORDINARY-ROOT-CAUSE-CONTROLS-v5.json": {
+      "controls": 43,
+      "source_sha256": "242f18dc0103862cbae64ae2c3e478f7713833144987da71fb9f0b34f8abc878",
+      "passed": true,
+      "component_scope": "controlled wrapper/catch-composition model; not actual issuer or whole SUT owner"
+    }
+  },
+  "new_nativecredential_clone_and_controlled_alias_cancel_close_components": 44,
+  "new_nativecredential_natural0_ECHILD": true,
+  "real_owned_TLS_components": 6,
+  "owned_TLS_natural_exit": 0,
+  "owned_TLS_held_created_identity": true,
+  "owned_TLS_native_ECHILD": true,
+  "owned_TLS_family_empty": true,
+  "ordinary_kernel_controls": 7,
+  "ordinary_threadlocal_getset_close_checks": 10,
+  "old_c2ec_preseal_independent_STOP_preserved": true,
+  "real_TLS_namespace": "six original HTTPSFixture TLS components plus controlled owner/credential provenance namespace; new44 uses actual original credential clone and ArtifactTLS but no operation scope or private authorization proof",
+  "preserved_failures": [
+    "v1 close-cancel primitives",
+    "realTLS closed-client metadata",
+    "realTLS owner-rebound association",
+    "ownedTLSv3 postwrite liveendpoint recheck"
+  ],
+  "final_bootstrap_boundary": "first setter/mismatch/cancel failure remains INVALID even when final initialcallable restore succeeds",
+  "run_owned_automatic_timeout_cancel": "NOTRUN",
+  "original85": "FAIL_83SUCCESS_2FAIL_RETAINED",
+  "original300": "NOTRUN",
+  "CI": false,
+  "FINAL": false,
+  "release_authorized": false
+}

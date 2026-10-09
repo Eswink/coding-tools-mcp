@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "controls": 7,
+  "original_method_runs": 0,
+  "scope": "current actualkernel primitives only; auto whole run_owned cancel timeout NOTRUN",
+  "raw_receipt_sha256": "c3b140748bf5f297700cdc3014abe638c543578428f9819e0138020ca4e2f905",
+  "raw_receipt_bytes": 7003
+}
