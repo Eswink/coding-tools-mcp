@@ -1,0 +1,197 @@
+name: Issue88 bounded publication executor (engineering only)
+on:
+  push:
+    branches: ['ci/issue88-publisher-executor-*']
+permissions:
+  contents: read
+env:
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  GIT_NO_REPLACE_OBJECTS: '1'
+jobs:
+  publication-contract:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {ref: '${{ github.sha }}', fetch-depth: 0, persist-credentials: false}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12'}
+      - name: Admit exact source and execute the frozen four hundred twenty five cases
+        shell: python
+        run: |
+          import hashlib, json, os, pathlib, platform, subprocess, sys, traceback, unittest
+          evidence = pathlib.Path(os.environ['RUNNER_TEMP'], 'publisher-evidence'); evidence.mkdir()
+          try:
+              sys.path.insert(0, 'scripts')
+              import rc_pretag_composition_tests as c
+              import rc_pretag_publisher_executor_cases as x
+              import rc_pretag_windows_launch_profile as profile; import rc_pretag_git_budget_cases as git_budget; import rc_pretag_windows_vm_cases as windows_vm
+              import rc_pretag_stage_retirement_cases as stage_retirement
+              import rc_pretag_source_observation_cases as source_observation
+              import rc_pretag_windows_launch_cases as windows_launch
+              import rc_pretag_integration_admission_cases as admission
+              import rc_pretag_final_admission_cases as final_admission
+              import rc_pretag_download_budget_cases as download_budget
+              import rc_pretag_staging_budget_cases as staging_budget
+              import rc_pretag_checksum_budget_cases as checksum_budget
+              import rc_pretag_archive_budget_cases as archive_budget
+              import rc_pretag_staged_bytes_cases as staged_bytes
+              import rc_pretag_supervisor_readiness_cases as supervisor_readiness
+              git = lambda *args: c._git(*args).decode().strip()
+              assert sys.version_info[:2] == (3, 12) and platform.python_implementation() == 'CPython'
+              assert git('rev-parse', '--is-shallow-repository') == 'false'
+              sha, tree = git('rev-parse', 'HEAD'), git('rev-parse', 'HEAD^{tree}')
+              parents = git('show', '-s', '--format=%P', 'HEAD').split()
+              assert sha == os.environ['GITHUB_SHA'] and parents == [profile.CURRENT_PARENT]
+              expected = c.publication.selected_profile(sha, c.ROOT, c._git, c._entries, c._feature_profile, c.RELEASE, c.RELEASE_TREE, c.RELEASE_DOCS)
+              def checked():
+                  assert expected == c._entries(sha) == c._index_entries(c._git('ls-files', '--stage', '-z'))
+                  for path, (mode, kind, blob) in expected.items():
+                      file = c.ROOT / path
+                      assert kind == 'blob' and file.is_file() and not file.is_symlink()
+                      assert c._blob(file.read_bytes()) == blob and (mode == '100755') == bool(file.stat().st_mode & 0o111)
+                  assert not subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=all'], env=c.git_environment())
+                  return {path: hashlib.sha256((c.ROOT / path).read_bytes()).hexdigest() for path in expected}
+              before = checked()
+              binding = {'sha': sha, 'tree': tree, 'parents': parents, 'source_sha256': before, 'python': sys.version,
+                         'ci': {k: os.environ[k] for k in ('GITHUB_REPOSITORY', 'GITHUB_WORKFLOW_REF', 'GITHUB_JOB', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT')}, 'production_ready': False}
+              (evidence / 'source-before.json').write_text(json.dumps(binding, indent=2) + '\n', encoding='utf-8')
+              names = windows_launch.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'windows-launch-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'windows-launch-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert windows_launch.execution_valid(loaded, result)
+              names = source_observation.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'source-observation-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'source-observation-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert source_observation.execution_valid(loaded, result)
+              names = git_budget.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'git-budget-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'git-budget-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert git_budget.execution_valid(loaded, result)
+              names = staging_budget.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'staging-budget-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'staging-budget-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert staging_budget.execution_valid(loaded, result)
+              names = x.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              (evidence / 'inventory-loaded.json').write_text(json.dumps(loaded), encoding='utf-8')
+              with (evidence / 'forty-eight-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'inventory-executed.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert x.execution_valid(loaded, result)
+              names = admission.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'admission-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'admission-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert admission.execution_valid(loaded, result)
+              names = final_admission.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'final-admission-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'final-admission-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert final_admission.execution_valid(loaded, result)
+              names = download_budget.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'download-budget-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'download-budget-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert download_budget.execution_valid(loaded, result)
+              names = checksum_budget.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'checksum-budget-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'checksum-budget-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert checksum_budget.execution_valid(loaded, result)
+              names = archive_budget.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'archive-budget-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'archive-budget-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert archive_budget.execution_valid(loaded, result)
+              names = staged_bytes.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'staged-bytes-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'staged-bytes-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert staged_bytes.execution_valid(loaded, result)
+              names = supervisor_readiness.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'supervisor-readiness-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'supervisor-readiness-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert supervisor_readiness.execution_valid(loaded, result)
+              names = stage_retirement.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'stage-retirement-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'stage-retirement-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert stage_retirement.execution_valid(loaded, result)
+              names = windows_vm.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'windows-vm-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'windows-vm-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert windows_vm.execution_valid(loaded, result)
+              assert checked() == before and git('rev-parse', 'HEAD') == sha and git('rev-parse', 'HEAD^{tree}') == tree
+              (evidence / 'source-after.json').write_text(json.dumps(binding | {'source_unchanged': True}, indent=2) + '\n', encoding='utf-8')
+          except BaseException:
+              (evidence / 'failure.txt').write_text(traceback.format_exc(), encoding='utf-8'); raise
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with: {name: 'issue88-publisher-${{ matrix.os }}-${{ github.sha }}', path: '${{ runner.temp }}/publisher-evidence/', if-no-files-found: error, retention-days: 30}

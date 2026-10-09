@@ -1,0 +1,90 @@
+{
+  "name": "contracts755-fixed3-frozen8",
+  "base": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "tree": "7fc8df465d177137111fc2dda1b23cbae062e0b4",
+  "source_paths": 8,
+  "full_tree_entries": 1849,
+  "qualification": "historical source only; no recovered whole-run receipt; not current final PASS",
+  "files": [
+    {
+      "family": "contracts755-fixed3-frozen8",
+      "path": "development-backups/rc070/20261009/checkpoint-01/contracts755-fixed3-frozen8/source/.github/workflows/issue88-publication-executor.yml.source",
+      "original_path": ".github/workflows/issue88-publication-executor.yml",
+      "original_mode": "100644",
+      "original_blob": "f76bed222e9388b532c491d7ceea01c48a15607f",
+      "sha256": "06463b6b226bd0743f986e9c0b51b7023ca0cc7d1852dc19ebf2ddf9540bbd69",
+      "bytes": 17347,
+      "backup_mode": "100644"
+    },
+    {
+      "family": "contracts755-fixed3-frozen8",
+      "path": "development-backups/rc070/20261009/checkpoint-01/contracts755-fixed3-frozen8/source/.github/workflows/rc-pretag-contract-checks.yml.source",
+      "original_path": ".github/workflows/rc-pretag-contract-checks.yml",
+      "original_mode": "100644",
+      "original_blob": "091fc645d393b321de0289ab83446c271a7829a5",
+      "sha256": "df12cbc161ed1cf340906ef0f9c4b95810c178875064ac23b3f194a67e6df58e",
+      "bytes": 35016,
+      "backup_mode": "100644"
+    },
+    {
+      "family": "contracts755-fixed3-frozen8",
+      "path": "development-backups/rc070/20261009/checkpoint-01/contracts755-fixed3-frozen8/source/.github/workflows/windows-vm-session.yml.source",
+      "original_path": ".github/workflows/windows-vm-session.yml",
+      "original_mode": "100644",
+      "original_blob": "5d5e39f7b7ba5ceeb3d9d2d93a2bbed394c704bb",
+      "sha256": "d590bae8f9093b30301646f5b914e798d8515dd76a013af3bfbb9d5ffac6741e",
+      "bytes": 20169,
+      "backup_mode": "100644"
+    },
+    {
+      "family": "contracts755-fixed3-frozen8",
+      "path": "development-backups/rc070/20261009/checkpoint-01/contracts755-fixed3-frozen8/source/docs/specs/windows-vm-session/requirements.md.source",
+      "original_path": "docs/specs/windows-vm-session/requirements.md",
+      "original_mode": "100644",
+      "original_blob": "cd784edf7a328e7b05fb91240a35435ad78765a8",
+      "sha256": "3671f9437bbe7123ced59ba0744c49a7e89b8c2adf8855b66a5786c44d14c8d8",
+      "bytes": 20164,
+      "backup_mode": "100644"
+    },
+    {
+      "family": "contracts755-fixed3-frozen8",
+      "path": "development-backups/rc070/20261009/checkpoint-01/contracts755-fixed3-frozen8/source/scripts/rc_pretag_publication_adapters.py.source",
+      "original_path": "scripts/rc_pretag_publication_adapters.py",
+      "original_mode": "100644",
+      "original_blob": "5e2a0b6bf830d7ac7870fef5407ad5e3f6e80a22",
+      "sha256": "4d9c03a955ab8cd6a11b33c80d0938364c51cbd53f3faba40314495d735f96bd",
+      "bytes": 24992,
+      "backup_mode": "100644"
+    },
+    {
+      "family": "contracts755-fixed3-frozen8",
+      "path": "development-backups/rc070/20261009/checkpoint-01/contracts755-fixed3-frozen8/source/scripts/rc_pretag_publication_tests.py.source",
+      "original_path": "scripts/rc_pretag_publication_tests.py",
+      "original_mode": "100644",
+      "original_blob": "7e177d344771a85957b8aa2a7e76e54a1a07eb3b",
+      "sha256": "f6ac815c9598c791d762dce02189e20766468eef6ca4c281c7c9d52eea035746",
+      "bytes": 29882,
+      "backup_mode": "100644"
+    },
+    {
+      "family": "contracts755-fixed3-frozen8",
+      "path": "development-backups/rc070/20261009/checkpoint-01/contracts755-fixed3-frozen8/source/scripts/rc_pretag_windows_launch_cases.py.source",
+      "original_path": "scripts/rc_pretag_windows_launch_cases.py",
+      "original_mode": "100644",
+      "original_blob": "f0b15c08dea8181a18f3b6df3678ea258416692d",
+      "sha256": "f454c50377661c0e12ae7ba8458edd87391299998aa0421b916a3f0179205fba",
+      "bytes": 37780,
+      "backup_mode": "100644"
+    },
+    {
+      "family": "contracts755-fixed3-frozen8",
+      "path": "development-backups/rc070/20261009/checkpoint-01/contracts755-fixed3-frozen8/source/scripts/rc_pretag_windows_launch_profile.py.source",
+      "original_path": "scripts/rc_pretag_windows_launch_profile.py",
+      "original_mode": "100644",
+      "original_blob": "0568eaa1b2dd1ef92237ab3259bd2ceccb48dd82",
+      "sha256": "223e950a03b829ea386a7a08491912b56fe264ed7130986965fa9767940f7d16",
+      "bytes": 518070,
+      "backup_mode": "100644"
+    }
+  ]
+}

@@ -1,0 +1,304 @@
+name: Pre-tag data contracts (no live evidence)
+
+on:
+  push:
+    branches: ['feat/rc-pretag-contract-*', 'release/dot-rc-reconciliation-*']
+    paths:
+      - 'scripts/rc_pretag*'
+      - 'scripts/rc_release_policy.py'
+      - 'scripts/rc_release_eligibility.py'
+      - 'docs/specs/issue-88-narrow/**'
+      - '.github/workflows/rc-pretag-contract-checks.yml'
+  pull_request:
+    paths:
+      - 'scripts/rc_pretag*'
+      - 'scripts/rc_release_policy.py'
+      - 'scripts/rc_release_eligibility.py'
+      - 'docs/specs/issue-88-narrow/**'
+      - '.github/workflows/rc-pretag-contract-checks.yml'
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  fixtures:
+    name: Schema-only adversarial fixtures and unchanged regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Acquire existing checksum-pinned regression source fixture only
+        env:
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ runner.temp }}/glib-0.18.5.crate
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --proto '=https' --max-redirs 0 \
+            --connect-timeout 10 --max-time 30 --max-filesize 1048576 \
+            --output "$RC_CONSUMER_TEST_GLIB_ARCHIVE" \
+            https://static.crates.io/crates/glib/glib-0.18.5.crate
+          test "$(stat -c %s "$RC_CONSUMER_TEST_GLIB_ARCHIVE")" -le 1048576
+          printf '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5  %s\n' \
+            "$RC_CONSUMER_TEST_GLIB_ARCHIVE" | sha256sum --check --strict
+      - name: Validate unverified schemas and unchanged release contracts
+        env:
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ runner.temp }}/glib-0.18.5.crate
+        shell: bash
+        run: |
+          set -euo pipefail
+          owned=$(mktemp -d "$RUNNER_TEMP/rc-contracts755.XXXXXXXX")
+          chmod 700 "$owned"
+          cat > "$owned/owner.py" <<'PY'
+          """Fixed local755 owner; the original20min Actions job remains the deadline."""; from pathlib import Path; import ctypes, hashlib, json, math, os, runpy, shutil, signal, stat, subprocess, sys, threading, time, traceback, unittest; ROOT, PROGRAM = Path.cwd(), Path(__file__).resolve(); REGRESSIONS = 'release_tag_gate rc_version_gate reviewed_source_gate cloud_release_bundle final_rc_evidence release_dependency_capture release_dependency_contract exact_build_audit rc_packages rc_windows_install_contract exclusive_native_contract exclusive_release source_provenance_gate'.split(); EXPECTED = {'pretag': (303, '0ecc366c2018a6a1e20d3f59ed9ca66645d9334324cd517682894cabde923125'), 'consumer': (452, 'd01db4e6cd605c6636423e27c8c0409e90aba217cc0e6930474f59a24b57f372')}; ENTRY_EXPECTED = {'pretag': (303, '0ecc366c2018a6a1e20d3f59ed9ca66645d9334324cd517682894cabde923125'), 'rc_consumer_test_runner': (244, '840800ccbcc80f23f3236e05ce464c3cbedec8d4a7e0ac0b437e6586da54da07'), 'release_tag_gate_tests': (37, '45d0a6633c051e7c58a559929f0054696b4d16ba69010c897c0ce0037ea4925b'), 'rc_version_gate_tests': (2, '87238b21f996eb1858ba7df0e94824f4765a0f80c89bc6b2ec05750d9bf95b8a'), 'reviewed_source_gate_tests': (21, '2d403404e1596224f82866483fb3eb702f2400170161e68d42f21cb367b3abf9'), 'cloud_release_bundle_tests': (9, '64d89b9ecd5c7dcfa46e5d96ea949ccf5f0c59c26a9e11f5cb155d63aad24d16'), 'final_rc_evidence_tests': (16, '9b71fe3526fd82c7b9c3b799bcdb04b1ff5b510ba8b25539ae2fa995a65bb2a4'), 'release_dependency_capture_tests': (6, '5e8ed3c1a26f74bf64733b1e1579e2f705a921c327e43aa4c356815e21e33428'), 'release_dependency_contract_tests': (29, 'c669d2367508f577d9da86db3c4ec591bb37565a8b53858835c08ee509d3a3fb'), 'exact_build_audit_tests': (22, '0249ddad7e1b33e4436fd4bce1ed3e240e9ea3ffd950cb8db47fd5cec64d5799'), 'rc_packages_tests': (3, '34b67c67f39db40b6f45dd1100a5501ccd9607c481855772a370b88507e951b4'), 'rc_windows_install_contract_tests': (3, '6ffd2eef36f57ac26e81996968b620b1fc97530fca446aa93c05c77bb3f63f58'), 'exclusive_native_contract_tests': (25, 'e9147b8ffea7dee0dce59947fa9eb0894a9c57a19e55ee85af520a303e92e352'), 'exclusive_release_tests': (17, 'e7907b9569b5e69ae1b70c5bbf1d50d046ccc898bbc04af5e65629b4527895bf'), 'source_provenance_gate_tests': (4, '5243ecec0982458c6281a6713be9dbe35d4abb8174131378ce7df48f0411a879'), '发布版本回归v4': (14, '67c536bb2e3043fd293acd1f113c366510eef7f7401dfdca352abd45ccd3a555')}; PRETAG_ORDER = '0ecc366c2018a6a1e20d3f59ed9ca66645d9334324cd517682894cabde923125'; SHARDS = {'fixed-1': (('rc_pretag_admission_tests.AdmissionTests', 'rc_pretag_admission_tests.FixtureGitIsolationTests', 'rc_pretag_authenticated_two_hop_tests.AuthenticatedTwoHopCompositionTests'), 63, 'd3f26c96258421916ab95aa9f973d87a1081d31180284055ff5791f7c48ae992'), 'fixed-2': (('rc_pretag_collection_tests.CollectionTests', 'rc_pretag_collection_tests.FailureTests', 'rc_pretag_collection_tests.OutputLifecycleTests', 'rc_pretag_composition_tests.CompositionTests', 'rc_pretag_desktop_tests.DesktopCompositionTests', 'rc_pretag_identity_tests.PreTagIdentityTests', 'rc_pretag_identity_tests.PreTagReviewIdentityTests', 'rc_pretag_join_once_tests.JoinOnceCompositionTests', 'rc_pretag_nginx_tests.NginxCompositionTests'), 127, '026f4f69d02f44d6954e83a519ce728a0a8e50863b33ee507c450561964559ca'), 'fixed-3': (('rc_pretag_ownership_tests.FixtureMetadataTests', 'rc_pretag_ownership_tests.OwnershipCompositionTests', 'rc_pretag_ownership_tests.OwnershipFailureBoundaryTests', 'rc_pretag_policy_tests.PreTagPolicyTests', 'rc_pretag_policy_tests.PreTagRefinementTests', 'rc_pretag_policy_tests.PreTagReviewCorrectionTests', 'rc_pretag_publication_contract_tests.PublicationContractTests', 'rc_pretag_publication_tests.PublicationCompositionTests', 'rc_pretag_two_hop_tests.TwoHopCompositionTests'), 113, '67571b5623066ac259bebe1884b39341c4d9db95afa496b84d85fdb9e53f41f4')}
+          def digest(raw): return hashlib.sha256(raw).hexdigest()
+          def encode(value): return (json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False) + '\n').encode()
+          def write_new(directory, name, value):
+              pending, final = directory / (name + '.pending'), directory / name; raw = encode(value)
+              with pending.open('xb') as stream: assert stream.write(raw) == len(raw); stream.flush(); os.fsync(stream.fileno())
+              os.link(pending, final)  # Closed bytes, atomic no-replace, private single writer; not directory durability.
+              pending.unlink()  # Every failure propagates; pending/partial evidence is never a final receipt.
+          def checked():
+              git = shutil.which('git'); assert git and (ROOT / '.git').is_dir() and not (ROOT / '.git').is_symlink(); assert not (ROOT / '.git/commondir').exists() and not (ROOT / '.git/objects/info/alternates').exists(); env = dict(os.environ, GIT_NO_REPLACE_OBJECTS='1', GIT_OPTIONAL_LOCKS='0'); call = lambda *args: subprocess.check_output([git, '--no-replace-objects', *args], cwd=ROOT, env=env, timeout=30); head = call('rev-parse', 'HEAD').decode().strip(); raw = call('cat-file', 'commit', head); assert hashlib.sha1(b'commit ' + str(len(raw)).encode() + b'\0' + raw).hexdigest() == head
+              if os.environ.get('GITHUB_ACTIONS') == 'true': assert head == os.environ['GITHUB_SHA']
+              assert not call('status', '--porcelain', '--untracked-files=all'); tree = call('ls-tree', '-rz', 'HEAD'); index = call('ls-files', '--stage', '-z'); rows, entries = {}, {}
+              for item in tree.split(b'\0'):
+                  if item: header, path = item.split(b'\t', 1); mode, kind, blob = header.decode().split(); assert kind == 'blob'; entries[path.decode()] = (mode, blob)
+              for item in index.split(b'\0'):
+                  if not item: continue
+                  header, path = item.split(b'\t', 1); mode, blob, stage = header.decode().split(); path = path.decode(); data = (ROOT / path).read_bytes(); info = (ROOT / path).lstat(); assert stage == '0' and path not in rows and stat.S_ISREG(info.st_mode) and info.st_nlink == 1; assert mode == ('100755' if info.st_mode & 0o111 else '100644') and entries[path] == (mode, blob); assert hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest() == blob; rows[path] = (mode, blob, len(data), digest(data))
+              assert rows.keys() == entries.keys() and len(rows) == 1849; fixture = Path(os.environ['RC_CONSUMER_TEST_GLIB_ARCHIVE']).read_bytes(); assert digest(fixture) == '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5'; runtime = {str(Path(path).resolve()): digest(Path(path).read_bytes()) for path in (git, sys.executable, PROGRAM)}
+              return dict(head=head, raw_commit_sha256=digest(raw), raw_tree_parents=raw.split(b'\nauthor ', 1)[0].decode(),
+                  source=rows, index_sha256=digest(index), runtime=runtime, fixture_sha256=digest(fixture))
+          def flat(suite): return [case for row in suite for case in (flat(row) if isinstance(row, unittest.TestSuite) else [row])]
+          def valid(group, receipt, entry=None):
+              keys = {'group', 'records', 'loaded_ids', 'executed_ids', 'success_ids', 'passed', 'seconds'}
+              if group == 'pretag' and entry is None: keys.add('child_kernel_waits')
+              assert type(receipt) is dict and set(receipt) == keys and group in EXPECTED
+              if entry is not None:
+                  assert type(entry) is str and (group == 'pretag' and entry in ['pretag-' + name for name in SHARDS] or
+                      group == 'consumer' and entry in ENTRY_EXPECTED and entry != 'pretag')
+              count, expected_digest = EXPECTED[group] if entry is None else SHARDS[entry[len('pretag-'):]][1:] if group == 'pretag' else ENTRY_EXPECTED[entry]
+              expected_entries = [entry] if entry else ['pretag-' + name for name in SHARDS] if group == 'pretag' else [
+                  'rc_consumer_test_runner', *[name + '_tests' for name in REGRESSIONS], '发布版本回归v4']
+              records = receipt['records']; assert type(records) is list; assert receipt['group'] == group and [record['entry'] for record in records] == expected_entries
+              for record in records:
+                  record_keys = {'entry', 'raw_loaded_ids', 'raw_executed_ids', 'raw_success_ids', 'loaded_ids', 'executed_ids', 'success_ids', 'testsRun', 'passed', 'exceptional', 'process'}
+                  if group == 'pretag': record_keys.add('full_loaded_ids')
+                  assert type(record) is dict and set(record) == record_keys; assert type(record['entry']) is str and type(record['process']) is dict and set(record['process']) == {'pid', 'parent', 'pgrp'}; assert all(type(value) is int and value > 0 for value in record['process'].values()); canonical = lambda ids: [record['entry'] + value[len('__main__'):] if value.startswith('__main__.') else value for value in ids]
+                  for field in ('loaded_ids', 'executed_ids', 'success_ids'): assert type(record[field]) is type(record['raw_' + field]) is list; assert all(type(value) is str for value in record[field] + record['raw_' + field]); assert record[field] == canonical(record['raw_' + field])
+                  assert record['passed'] is True and type(record['exceptional']) is int and record['exceptional'] == 0; assert type(record['testsRun']) is int and record['testsRun'] == len(record['loaded_ids']) and record['loaded_ids'] == record['executed_ids'] == record['success_ids']; entry_count, entry_digest = SHARDS[record['entry'][len('pretag-'):]][1:] if group == 'pretag' else ENTRY_EXPECTED[record['entry']]; assert len(record['loaded_ids']) == entry_count and digest('\n'.join(sorted(record['loaded_ids'])).encode()) == entry_digest
+                  if group == 'pretag': full_pretag(record['full_loaded_ids']); classes = SHARDS[record['entry'][len('pretag-'):]][0]; assert record['loaded_ids'] == [value for value in record['full_loaded_ids'] if value.rsplit('.', 1)[0] in classes]
+              for field in ('loaded_ids', 'executed_ids', 'success_ids'): assert type(receipt[field]) is list and receipt[field] == [item for record in records for item in record[field]]; assert all(type(item) is str for item in receipt[field]) and len(receipt[field]) == len(set(receipt[field])) == count; assert digest('\n'.join(sorted(receipt[field])).encode()) == expected_digest
+              if group == 'pretag' and entry is None:
+                  assert digest('\n'.join(receipt['loaded_ids']).encode()) == PRETAG_ORDER; leases = receipt['child_kernel_waits']; assert type(leases) is list and len(leases) == 3
+                  for lease, record in zip(leases, records): assert type(lease) is dict and set(lease) == {'pid', 'parent', 'pgrp', 'sid', 'WNOWAIT', 'exit'}; assert all(type(lease[key]) is int for key in ('pid', 'parent', 'pgrp', 'sid', 'exit')); assert lease['exit'] == 0 and lease['sid'] == lease['pgrp'] and lease['parent'] == lease['pgrp'] > 0; assert record['process'] == {key: lease[key] for key in ('pid', 'parent', 'pgrp')}; assert type(lease['WNOWAIT']) is list and all(type(value) is int for value in lease['WNOWAIT']); assert lease['WNOWAIT'] == [lease['pid'], os.getuid(), signal.SIGCHLD, 0, os.CLD_EXITED]
+              assert receipt['passed'] is True and type(receipt['seconds']) in (int, float) and math.isfinite(receipt['seconds']) and receipt['seconds'] >= 0; return True
+          def kernel_wait(process): return os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+          def proc_fields(path): return {key: value.strip() for key, value in (line.split(':', 1) for line in path.read_text().splitlines() if ':' in line)}
+          def owned_family_close(deadline, evidence):
+              own = proc_fields(Path('/proc/self/status')); depth = len(own['NSpid'].split()) - 1; assert int(own['NSpid'].split()[depth]) == os.getpid()
+              while time.monotonic() < deadline:
+                  try: os.waitid(os.P_ALL, 0, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                  except ChildProcessError: return True  # Kernel ECHILD, never a JSON acknowledgement.
+                  for path in Path('/proc').glob('[0-9]*/status'):
+                      try: fields = proc_fields(path)
+                      except (FileNotFoundError, ProcessLookupError): continue
+                      if fields['PPid'] != own['Pid']: continue
+                      values = fields['NSpid'].split(); assert len(values) > depth; native = int(values[depth]); fd = os.pidfd_open(native)
+                      try:
+                          bound = proc_fields(Path('/proc/self/fdinfo/' + str(fd))); again = proc_fields(path); assert bound['Pid'] == fields['Pid'] and bound['NSpid'].split() == values; assert again['PPid'] == own['Pid'] and again['NSpid'].split() == values and again['Pid'] == fields['Pid']; observed = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                          if observed is None: signal.pidfd_send_signal(fd, signal.SIGKILL)
+                          while observed is None and time.monotonic() < deadline: time.sleep(.01); observed = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                          assert observed is not None, 'owned descendant exit unknown'; reaped = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG); assert reaped == observed; evidence.append(dict(native=native, proc_pid=fields['Pid'], NSpid=values, code=reaped.si_code, status=reaped.si_status))
+                      finally: os.close(fd)
+                  time.sleep(.01)
+              raise TimeoutError('owned family closure unknown')
+          def full_pretag(ids):
+              assert type(ids) is list and all(type(value) is str for value in ids); assert len(ids) == len(set(ids)) == EXPECTED['pretag'][0]; assert digest('\n'.join(sorted(ids)).encode()) == EXPECTED['pretag'][1]; assert digest('\n'.join(ids).encode()) == PRETAG_ORDER; assert tuple(SHARDS) == ('fixed-1', 'fixed-2', 'fixed-3'); expected_classes = []
+              for selector, (classes, count, expected_digest) in SHARDS.items(): assert type(classes) is tuple and all(type(value) is str for value in classes); assert type(count) is int and count >= 53 and type(expected_digest) is str; expected_classes.extend(classes)
+              assert list(dict.fromkeys(value.rsplit('.', 1)[0] for value in ids)) == expected_classes; assert len(expected_classes) == len(set(expected_classes)) == 21; return True
+          def selected_pretag(suite, selector): cases = flat(suite); full_ids = [case.id() for case in cases]; full_pretag(full_ids); assert type(selector) is str and selector in SHARDS; classes, count, expected_digest = SHARDS[selector]; selected = [case for case in cases if case.id().rsplit('.', 1)[0] in classes]; ids = [case.id() for case in selected]; assert len(ids) == len(set(ids)) == count and digest('\n'.join(sorted(ids)).encode()) == expected_digest; assert list(dict.fromkeys(value.rsplit('.', 1)[0] for value in ids)) == list(classes); return unittest.TestSuite(selected), full_ids
+          def pretag_driver(directory):
+              children, leases, failed, records, started = {}, {}, False, [], time.monotonic()
+              try:
+                  for selector in SHARDS: children[selector] = subprocess.Popen([sys.executable, '-B', str(PROGRAM), str(directory), 'pretag', selector], cwd=ROOT)
+                  remaining = dict(children)
+                  while remaining and not failed:
+                      for selector, process in list(remaining.items()):
+                          observed = kernel_wait(process)
+                          if observed is None: continue
+                          assert observed.si_pid == process.pid and os.getpgid(process.pid) == os.getsid(process.pid) == os.getpgrp(); code = process.wait(timeout=0); assert code == (observed.si_status if observed.si_code == os.CLD_EXITED else -observed.si_status); leases[selector] = dict(pid=process.pid, parent=os.getpid(), pgrp=os.getpgrp(), sid=os.getsid(0), WNOWAIT=list(observed), exit=code); del remaining[selector]
+                          if code != 0: failed = True; break
+                      if remaining and not failed: time.sleep(.01)
+              except BaseException: traceback.print_exc(); failed = True
+              with (directory / 'pretag-named-events.jsonl').open('xb') as events:
+                  for selector in SHARDS:
+                      prefix = 'pretag-' + selector; path = directory / (prefix + '-named-events.jsonl')
+                      if path.is_file() and not path.is_symlink(): raw = path.read_bytes(); assert len(raw) <= 1024**2 and events.write(raw) == len(raw); events.flush()
+                      try: receipt = json.loads((directory / (prefix + '-receipt.json')).read_bytes()); valid('pretag', receipt, prefix); assert leases[selector]['exit'] == 0; assert all(record['process'] == {key: leases[selector][key] for key in ('pid', 'parent', 'pgrp')} for record in receipt['records']); records.extend(receipt['records'])
+                      except BaseException: traceback.print_exc(); failed = True
+              receipt = dict(group='pretag', records=records, passed=not failed, seconds=time.monotonic() - started,
+                  child_kernel_waits=[leases[selector] for selector in SHARDS if selector in leases])
+              for field in ('loaded_ids', 'executed_ids', 'success_ids'): receipt[field] = [item for record in records for item in record[field]]
+              try: valid('pretag', receipt)
+              except BaseException: receipt['passed'] = False; traceback.print_exc()
+              write_new(directory, 'pretag-receipt.json', receipt); return 0 if receipt['passed'] else 1
+          def consumer_driver(directory):
+              records, started, failed = [], time.monotonic(), False
+              with (directory / 'consumer-named-events.jsonl').open('xb') as events:
+                  for filename in ['rc_consumer_test_runner.py', *[name + '_tests.py' for name in REGRESSIONS], '发布版本回归v4.py']:
+                      process, prefix = None, 'consumer-' + Path(filename).stem
+                      try: process = subprocess.Popen([sys.executable, '-B', str(PROGRAM), str(directory), 'consumer', filename], cwd=ROOT); code = process.wait()
+                      except BaseException: traceback.print_exc(); failed = True; code = None
+                      finally:
+                          if process is not None and process.poll() is None:
+                              process.terminate()
+                              try: process.wait(timeout=3)
+                              except subprocess.TimeoutExpired:
+                                  process.kill()
+                                  try: process.wait(timeout=2)
+                                  except subprocess.TimeoutExpired: failed = True
+                      path = directory / (prefix + '-named-events.jsonl')
+                      if path.is_file() and not path.is_symlink(): raw = path.read_bytes(); assert len(raw) <= 1024**2 and events.write(raw) == len(raw); events.flush()
+                      if code != 0 or failed: failed = True; break
+                      receipt = json.loads((directory / (prefix + '-receipt.json')).read_bytes()); valid('consumer', receipt, Path(filename).stem); assert all(record['process']['parent'] == os.getpid() and record['process']['pgrp'] == os.getpgrp() for record in receipt['records']); records.extend(receipt['records'])
+              receipt = dict(group='consumer', records=records, passed=not failed, seconds=time.monotonic() - started)
+              for field in ('loaded_ids', 'executed_ids', 'success_ids'): receipt[field] = [item for record in records for item in record[field]]
+              try: valid('consumer', receipt)
+              except BaseException: receipt['passed'] = False; traceback.print_exc()
+              write_new(directory, 'consumer-receipt.json', receipt); return 0 if receipt['passed'] else 1
+          def worker(directory, group, filename=None):
+              assert group in EXPECTED
+              if filename is None: return pretag_driver(directory) if group == 'pretag' else consumer_driver(directory)
+              assert type(filename) is str and (filename in SHARDS if group == 'pretag' else Path(filename).name == filename and Path(filename).stem in ENTRY_EXPECTED and Path(filename).stem != 'pretag'); prefix = group if filename is None else group + '-' + Path(filename).stem; sys.path.insert(0, str(ROOT / 'scripts')); records, depth, entry, full_ids = [], 0, 'pretag-' + filename if group == 'pretag' else Path(filename).stem, None; events = (directory / (prefix + '-named-events.jsonl')).open('xb')
+              def event(value): raw = encode(value); assert events.write(raw) == len(raw); events.flush()
+              original = unittest.TextTestRunner
+              class Recorder(original):
+                  def __init__(self, *args, **kwargs):
+                      base = kwargs.get('resultclass') or self.resultclass
+                      class Named(base):
+                          def __init__(self, *args, **kwargs): super().__init__(*args, **kwargs); self.owned_executed, self.owned_success = [], []
+                          def startTest(self, test): self.owned_executed.append(test.id()); event(dict(entry=entry, start=test.id())); super().startTest(test)
+                          def addSuccess(self, test): self.owned_success.append(test.id()); event(dict(entry=entry, success=test.id())); super().addSuccess(test)
+                      if depth == 0: kwargs['resultclass'] = Named
+                      super().__init__(*args, **kwargs)
+                  def run(self, suite):
+                      nonlocal depth; outer, loaded = depth == 0, [case.id() for case in flat(suite)]
+                      if outer: event(dict(entry=entry, loaded_ids=loaded))
+                      depth += 1
+                      try: result = super().run(suite)
+                      finally: depth -= 1
+                      if outer:
+                          canonical = lambda ids: [entry + value[len('__main__'):] if value.startswith('__main__.') else value for value in ids]
+                          record = dict(entry=entry, process=dict(pid=os.getpid(), parent=os.getppid(), pgrp=os.getpgrp()), raw_loaded_ids=loaded, raw_executed_ids=result.owned_executed,
+                              raw_success_ids=result.owned_success, loaded_ids=canonical(loaded),
+                              executed_ids=canonical(result.owned_executed), success_ids=canonical(result.owned_success),
+                              testsRun=result.testsRun, passed=result.wasSuccessful(), exceptional=len(result.skipped) +
+                              len(result.expectedFailures) + len(result.unexpectedSuccesses) + len(result.errors) + len(result.failures))
+                          if group == 'pretag': record['full_loaded_ids'] = full_ids
+                          records.append(record); event(dict(result=record))
+                      return result
+              unittest.TextTestRunner = unittest.runner.TextTestRunner = Recorder; started, code = time.monotonic(), 0
+              try:
+                  if group == 'pretag': suite = unittest.defaultTestLoader.discover('scripts', pattern='rc_pretag*_tests.py'); suite, full_ids = selected_pretag(suite, filename); event(dict(entry=entry, full_loaded_ids=full_ids)); result = unittest.TextTestRunner(verbosity=2).run(suite); raise SystemExit(0 if result.wasSuccessful() and not result.skipped and result.testsRun >= 53 else 1)
+                  sys.argv = [str(ROOT / 'scripts' / filename)]; runpy.run_path(sys.argv[0], run_name='__main__')
+              except SystemExit as error: code = 0 if error.code in (None, 0) else 1
+              except BaseException: traceback.print_exc(); code = 1
+              finally: events.close()
+              receipt = dict(group=group, records=records, passed=code == 0, seconds=time.monotonic() - started)
+              for field in ('loaded_ids', 'executed_ids', 'success_ids'): receipt[field] = [item for record in records for item in record[field]]
+              try: valid(group, receipt, entry)
+              except BaseException: receipt['passed'] = False; traceback.print_exc()
+              write_new(directory, prefix + '-receipt.json', receipt); return 0 if receipt['passed'] else 1
+          def owner(directory):
+              libc, flag = ctypes.CDLL(None, use_errno=True), ctypes.c_int(); assert libc.prctl(36, 1, 0, 0, 0) == 0 and libc.prctl(37, ctypes.byref(flag), 0, 0, 0) == 0 and flag.value == 1; before = checked(); write_new(directory, 'source-before.json', before); children, readers, cancelled, errors, outcomes, receipts, after = {}, [], [], [], {}, {}, None; finalizing, family, family_closed = [False], [], False
+              def cancel(signum, frame):
+                  cancelled.append(signum)
+                  if finalizing[0]: raise SystemExit(1)  # A late signal can never return the required owner exit0.
+              signal.signal(signal.SIGINT, cancel); signal.signal(signal.SIGTERM, cancel); lock = threading.Lock()
+              def drain(group, process):
+                  try:
+                      with (directory / (group + '-stdout.log')).open('xb') as log:
+                          size = 0
+                          for line in iter(lambda: process.stdout.readline(65536), b''):
+                              size += len(line)
+                              if size > 2 * 1024**2:
+                                  write_new(directory, group + '-stdout-overflow.json', dict(observed=size, last_chunk_bytes=len(line), last_chunk_sha256=digest(line))); raise RuntimeError('owned stdout limit')
+                              assert log.write(line) == len(line); log.flush()
+                              with lock: print('[' + group + '] ' + line.decode('utf-8', errors='replace'), end='', flush=True)
+                  except BaseException as error: errors.append('drain_' + type(error).__name__)
+                  finally:
+                      try: process.stdout.close()
+                      except BaseException as error: errors.append('pipe_close_' + type(error).__name__)
+              try:
+                  for group in EXPECTED:
+                      if cancelled: break
+                      children[group] = subprocess.Popen([sys.executable, '-B', str(PROGRAM), str(directory), group],
+                          cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
+                      thread = threading.Thread(target=drain, args=(group, children[group]), daemon=True); thread.start(); readers.append(thread)
+                  while not (cancelled or errors):
+                      observed = [kernel_wait(process) for process in children.values()]
+                      if any(value is not None and (value.si_code != os.CLD_EXITED or value.si_status != 0) for value in observed): errors.append('macro_nonzero'); break
+                      if all(value is not None for value in observed): break
+                      time.sleep(.1)
+              except BaseException as error: errors.append('owner_' + type(error).__name__); traceback.print_exc()
+              finally:
+                  for signum, seconds in ((signal.SIGTERM, 3), (signal.SIGKILL, 2)):
+                      deadline = time.monotonic() + seconds
+                      for group, process in children.items():
+                          try:
+                              kernel_wait(process)  # Held actual child, including exited-unreaped leader; no poll/wait before signals.
+                              assert os.getpgid(process.pid) == os.getsid(process.pid) == process.pid; os.killpg(process.pid, signum)
+                          except BaseException as error: errors.append('group_' + group + '_' + type(error).__name__)
+                      try:
+                          while any(kernel_wait(process) is None for process in children.values()) and time.monotonic() < deadline: time.sleep(.01)
+                      except BaseException as error: errors.append('kernel_wait_' + type(error).__name__)
+                  for group, process in children.items():
+                      try: outcomes[group] = process.wait(timeout=max(0, deadline - time.monotonic()))
+                      except BaseException as error: outcomes[group] = None; errors.append('reap_' + group + '_' + type(error).__name__)
+                  try: family_closed = owned_family_close(deadline, family)
+                  except BaseException as error: errors.append('family_' + type(error).__name__)
+                  for thread in readers: thread.join(timeout=2)
+                  if any(thread.is_alive() for thread in readers): errors.append('unjoined_reader_unknown')
+                  try: after = checked(); write_new(directory, 'source-after.json', after)
+                  except BaseException as error: errors.append('source_after_' + type(error).__name__)
+              for group in EXPECTED:
+                  try: path = directory / (group + '-receipt.json'); assert path.is_file() and not path.is_symlink(); receipts[group] = json.loads(path.read_bytes()); valid(group, receipts[group])
+                  except BaseException as error: errors.append(group + '_receipt_' + type(error).__name__)
+                  try:
+                      path = directory / (group + '-named-events.jsonl'); assert path.is_file() and not path.is_symlink(); raw = path.read_bytes(); assert len(raw) <= 1024**2
+                      try: text = raw.decode()
+                      except UnicodeDecodeError: print(json.dumps(dict(group=group, invalid_raw_hex=raw.hex(), bytes=len(raw), sha256=digest(raw))), flush=True); raise
+                      print('[' + group + ' named-events] ' + text, flush=True); assert raw.endswith(b'\n'); expected = []
+                      for record in receipts[group]['records']:
+                          if group == 'pretag': expected.append(dict(entry=record['entry'], full_loaded_ids=record['full_loaded_ids']))
+                          expected.append(dict(entry=record['entry'], loaded_ids=record['raw_loaded_ids']))
+                          for value in record['raw_executed_ids']: expected.extend((dict(entry=record['entry'], start=value), dict(entry=record['entry'], success=value)))
+                          expected.append(dict(result=record))
+                      assert raw == b''.join(encode(event) for event in expected); observed = [record['process'] for record in receipts[group]['records']]; assert all(item['pgrp'] == children[group].pid for item in observed); assert len({item['pid'] for item in observed}) == (3 if group == 'pretag' else 15) and all(item['parent'] == children[group].pid for item in observed)
+                  except BaseException as error: errors.append(group + '_events_' + type(error).__name__)
+              for entry in ENTRY_EXPECTED.keys() - {'pretag'}:
+                  path = directory / ('consumer-' + entry + '-named-events.jsonl')
+                  if path.is_file() and not path.is_symlink(): raw = path.read_bytes(); assert len(raw) <= 1024**2; print(json.dumps(dict(entry=entry, raw_events_hex=raw.hex(), bytes=len(raw), sha256=digest(raw))), flush=True)
+              finalizing[0] = True; success = [item for receipt in receipts.values() for item in receipt.get('success_ids', [])]
+              passed = (family_closed and not cancelled and not errors and outcomes == dict.fromkeys(EXPECTED, 0) and
+                  len(success) == len(set(success)) == 755 and after == before)
+              result = dict(passed=passed, outcomes=outcomes, cancelled=cancelled, errors=errors, group_receipts=receipts, source_before=before, source_after=after, owned_family_kernel_closed=family_closed, adopted_child_kernel_outcomes=family, original_total=755, actual_success=len(success), owner_exit_required=0, production_ready=False); write_new(directory, 'aggregate.json', result); print(json.dumps(result, sort_keys=True, separators=(',', ':')), flush=True); return 0 if passed and not cancelled else 1
+          if __name__ == '__main__':
+              assert len(sys.argv) in (2, 3, 4); directory = Path(sys.argv[1]); info = directory.lstat(); assert directory.is_absolute() and directory.resolve() == directory and stat.S_ISDIR(info.st_mode); assert info.st_uid == os.geteuid() and stat.S_IMODE(info.st_mode) == 0o700 and PROGRAM.parent == directory
+              if len(sys.argv) == 2: assert list(directory.iterdir()) == [PROGRAM]
+              raise SystemExit(owner(directory) if len(sys.argv) == 2 else worker(directory, sys.argv[2], sys.argv[3] if len(sys.argv) == 4 else None))
+          PY
+          python -B "$owned/owner.py" "$owned"
+          git diff --exit-code

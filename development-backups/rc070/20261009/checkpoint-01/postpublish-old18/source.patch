@@ -1,0 +1,3436 @@
+diff --git a/.github/workflows/rc-postpublication-consumer.yml b/.github/workflows/rc-postpublication-consumer.yml
+new file mode 100644
+index 0000000..256cf12
+--- /dev/null
++++ b/.github/workflows/rc-postpublication-consumer.yml
+@@ -0,0 +1,191 @@
++name: Exact-source postpublication public-byte consumer (nonpublishing)
++
++on:
++  workflow_dispatch:
++    inputs:
++      request_json:
++        description: Exact immutable Selection plus confirmed public Release ID and six numeric asset IDs; expectations only
++        required: true
++        type: string
++
++permissions:
++  contents: read
++  actions: read
++
++concurrency:
++  group: rc-postpublication-${{ github.run_id }}
++  cancel-in-progress: false
++
++env:
++  PYTHONDONTWRITEBYTECODE: '1'
++  PYTHONUTF8: '1'
++
++jobs:
++  capture:
++    name: Anonymous six assets and exact public-byte transfer
++    runs-on: ubuntu-24.04
++    timeout-minutes: 20
++    outputs:
++      artifact_id: ${{ steps.finish.outputs.artifact_id }}
++      artifact_size: ${{ steps.finish.outputs.artifact_size }}
++      artifact_sha256: ${{ steps.finish.outputs.artifact_sha256 }}
++    steps:
++      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
++        with:
++          ref: ${{ github.sha }}
++          fetch-depth: 0
++          persist-credentials: false
++      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
++        with:
++          python-version: '3.12'
++      - name: Hold actual raw owner through the transfer
++        id: owner
++        env:
++          GH_TOKEN: ${{ github.token }}
++          REQUEST_JSON: ${{ inputs.request_json }}
++        shell: bash
++        run: |
++          set -euo pipefail
++          evidence="$RUNNER_TEMP/post-capture-evidence"
++          mkdir -m 700 "$evidence"
++          printf '%s' "$REQUEST_JSON" | python scripts/rc_postpublication_consumer.py capture \
++            --evidence-directory "$evidence" > "$evidence/owner.log" 2>&1 &
++          owner_pid=$!
++          printf '%s' "$owner_pid" > "$evidence/owner-pid"
++          deadline=$((SECONDS+900))
++          until test -f "$evidence/ready.json"; do
++            test "$SECONDS" -lt "$deadline"
++            kill -0 "$owner_pid"
++            sleep 1
++          done
++      - name: Transfer only freshly verified anonymous public bytes
++        id: transfer
++        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
++        with:
++          name: ${{ steps.owner.outputs.transfer_name }}
++          path: ${{ steps.owner.outputs.raw_directory }}/*
++          if-no-files-found: error
++          overwrite: false
++          compression-level: 0
++          retention-days: 7
++      - name: Verify actual new artifact and retire the held inputs
++        id: finish
++        env:
++          ACK_PATH: ${{ steps.owner.outputs.ack_path }}
++          ARTIFACT_ID: ${{ steps.transfer.outputs.artifact-id }}
++          ACTION_DIGEST: ${{ steps.transfer.outputs.artifact-digest }}
++        shell: bash
++        run: |
++          set -euo pipefail
++          python - <<'PY'
++          import os,re
++          value=os.environ['ARTIFACT_ID']
++          assert re.fullmatch('[1-9][0-9]{0,18}',value)
++          with open(os.environ['ACK_PATH'],'r+b') as stream:
++              stream.write(value.encode('ascii'));stream.truncate();stream.flush();os.fsync(stream.fileno())
++          PY
++          evidence="$RUNNER_TEMP/post-capture-evidence"
++          deadline=$((SECONDS+900))
++          until test -f "$evidence/capture.json"; do
++            test "$SECONDS" -lt "$deadline"
++            kill -0 "$(cat "$evidence/owner-pid")"
++            sleep 1
++          done
++          python - <<'PY'
++          import json,os
++          from pathlib import Path
++          value=json.loads((Path(os.environ['RUNNER_TEMP'])/'post-capture-evidence/capture.json').read_text())
++          assert value['passed'] is True and value['owned_raw_cleanup_confirmed'] is True
++          item=value['transfer']
++          assert str(item['artifact_id']) == os.environ['ARTIFACT_ID']
++          assert item['sha256'] == os.environ['ACTION_DIGEST']
++          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
++              for name,key in (('artifact_id','artifact_id'),('artifact_size','size'),('artifact_sha256','sha256')):
++                  output.write(name+'='+str(item[key])+'\n')
++          PY
++      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
++        if: always()
++        with:
++          name: rc-postpublication-capture-evidence-${{ github.run_id }}-${{ github.run_attempt }}
++          path: ${{ runner.temp }}/post-capture-evidence/
++          if-no-files-found: error
++          retention-days: 7
++
++  linux:
++    name: Postpublication ${{ matrix.os }} (${{ matrix.kind }})
++    needs: capture
++    runs-on: ${{ matrix.os }}
++    timeout-minutes: 40
++    strategy:
++      fail-fast: false
++      matrix:
++        os: [ubuntu-22.04, ubuntu-24.04]
++        kind: [deb, appimage]
++    steps:
++      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
++        with:
++          ref: ${{ github.sha }}
++          fetch-depth: 0
++          persist-credentials: false
++      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
++        with:
++          python-version: '3.12'
++      - name: Original FINAL startup and WebDriver prerequisites
++        shell: bash
++        run: |
++          set -euo pipefail
++          sudo apt-get update
++          sudo apt-get install -y xvfb xauth x11-utils fonts-noto-cjk desktop-file-utils gnome-keyring dbus-x11 xdg-desktop-portal xdg-desktop-portal-gtk libayatana-appindicator3-1 libsecret-1-0 libxdo3 libfuse2 webkit2gtk-driver
++      - name: Reauthenticate original producer and install newly transferred public bytes
++        env:
++          GH_TOKEN: ${{ github.token }}
++          REQUEST_JSON: ${{ inputs.request_json }}
++          PACKAGE_KIND: ${{ matrix.kind }}
++          ARTIFACT_ID: ${{ needs.capture.outputs.artifact_id }}
++          ARTIFACT_SIZE: ${{ needs.capture.outputs.artifact_size }}
++          ARTIFACT_SHA256: ${{ needs.capture.outputs.artifact_sha256 }}
++        shell: bash
++        run: |
++          set -euo pipefail
++          evidence="$RUNNER_TEMP/post-installed-evidence"
++          mkdir -m 700 "$evidence"
++          printf '%s' "$REQUEST_JSON" | python scripts/rc_postpublication_consumer.py receive \
++            --kind "$PACKAGE_KIND" --artifact-id "$ARTIFACT_ID" --artifact-size "$ARTIFACT_SIZE" \
++            --artifact-sha256 "$ARTIFACT_SHA256" --evidence-directory "$evidence" | tee "$evidence/consumer.json"
++      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
++        if: always()
++        with:
++          name: rc-postpublication-installed-${{ matrix.os }}-${{ matrix.kind }}-${{ github.run_id }}-${{ github.run_attempt }}
++          path: ${{ runner.temp }}/post-installed-evidence/
++          if-no-files-found: error
++          retention-days: 7
++
++  windows:
++    name: Postpublication windows-2025 (nsis)
++    needs: capture
++    runs-on: windows-2025
++    timeout-minutes: 5
++    steps:
++      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
++        with:
++          ref: ${{ github.sha }}
++          fetch-depth: 0
++          persist-credentials: false
++      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
++        with:
++          python-version: '3.12'
++      - name: Refuse until actual Windows input and installation-root ownership exists
++        shell: pwsh
++        run: |
++          $evidence=Join-Path $env:RUNNER_TEMP 'post-windows-evidence'
++          New-Item -ItemType Directory -Path $evidence | Out-Null
++          python scripts/rc_postpublication_consumer.py receive --kind nsis 2>&1 | Set-Content -LiteralPath (Join-Path $evidence 'consumer.json')
++          if ($LASTEXITCODE -ne 0) { throw 'Windows public-input/native-root lifetime is UNKNOWN; NSIS installation NOT_RUN' }
++          throw 'Windows native ownership cannot be inferred from a path or JSON report'
++      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
++        if: always()
++        with:
++          name: rc-postpublication-windows-blocked-${{ github.run_id }}-${{ github.run_attempt }}
++          path: ${{ runner.temp }}/post-windows-evidence/
++          if-no-files-found: error
++          retention-days: 7
+diff --git a/docs/specs/issue88-postpublication-owned-consumer/design.md b/docs/specs/issue88-postpublication-owned-consumer/design.md
+new file mode 100644
+index 0000000..279bb0b
+--- /dev/null
++++ b/docs/specs/issue88-postpublication-owned-consumer/design.md
+@@ -0,0 +1,86 @@
++# 设计文档：issue88-postpublication-owned-consumer
++
++## 概述
++
++**对应需求:** FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, NFR-1, NFR-2。此source组件不是真实post-release运行或发布批准。
++
++## 技术方案
++
++### 技术选型
++
++| 类别 | 选择 | 理由 | 关联需求 |
++| --- | --- | --- | --- |
++| 原来源 | actual entered StagedAssets与其私有canonical Selection/原bundle | 复用实际API/ZIP/source/package/security链，不接收PASS | FR-1 |
++| 公共读取 | 固定无token client与原_Reader/_connect/framing/projection | 保留既有origin/TLS/redirect政策 | FR-2 |
++| raw IO | 独立私有_InputOwner/_RawSink、原PrivateRoot+StageRootOwner | 无外部sink或path authority，原budget+creation ownership | FR-2 |
++| transfer | 原实际Actions transport+bounded ZIP、封闭manifest/独立数字身份 | 新post bytes而非原build | FR-3 |
++| CI入口 | 固定post workflow、capture/receive CLI | 当前run/env/rawbytes到四Linux与Windowsblocked槽 | FR-4 |
++
++### 架构设计
++
++capture以严格期待JSON创建原Selection，固定native GitHub仅用于Actions原证据读取；永久read controller绑定实际api/selection/PID/thread/总deadline，caller只能缩短。Actual entered Stage保留原bundle+plan/provenance。公共client不含token且只有固定GET，先验Release/tag/inventory/latest，再六下载/公共checksums/finalfence。capture持有raw roots跨pinned upload-artifact一步。ACK只有限正整数；server list/direct元数据与actualZIP/readback确认后退休原raw/control/stage，写safe证据。receive新建自身read controller和实际stage，确认新post/current capture job/artifact再下载七成员ZIP；新输入owner分别验证，不把manifest或env算grant。
++
++原Stage/authority source尚未统一，当前wrapper是固定读取预算适配，不是PublisherSession/ReadScope/credential grant。保留snapshot._call逻辑和三个hardreject全部body。未来exactF2移植需同一native controller/API/selection与StageAPI源重审及重跑，不能借本packet PASS。
++
++## 数据模型
++
++CaptureRequest仅selection/release_id/六asset_ids。PostInvocation数据保留source、actualrun/attempt/workflowid/path/ref/blob/jobid，与三历史invocation并存且runid不同。TransferExpectation仅positive numeric artifact ID+API ZIP size+sha256，原两个artifactID不得复用。RawManifest封闭包含source、subject/plan digest、post identity、original producer/consumer完整选定身份、ReleaseID、六remote IDs与原assets，approval false/五slot NOT_RUN。所有caller records是expected data；只有actual source/API/ZIP/bytes校验产生观察，不mint发布权限。
++
++## API 设计
++
++| 方法/函数 | 路径/签名 | 入参/出参 | 关联需求 |
++| --- | --- | --- | --- |
++| internal sink | _Reader.response(limit,binary=False,*,sink=None) | 默认原样；exact _RawSink仅200binary | FR-2 |
++| anonymous owner | PublishedInputs(actualstage,releaseid,assetids,controller) | actual六raw handles、原metadata fences | FR-1, FR-2 |
++| capture CLI | rc_postpublication_consumer.py capture | stdin封闭期待JSON、真实env；有限ready/ACK协议 | FR-1, FR-3, FR-4 |
++| receive CLI | rc_postpublication_consumer.py receive --kind --artifact-id/size/sha256 | stdin同期待值＋actualAPI/ZIP新输入→platformrunner | FR-3, FR-4 |
++| original installed checks | rc_packages._installed_checked(data,package,kind,output) | private verifiedreference；current new run separately built | FR-4 |
++
++## 文件结构
++
++精确18文件与各<=500预算见tasks Scope-lock。无旧seal/profile/版本/授权stubs/原workflow编辑。
++
++## 设计决策
++
++### 决策 1: 输入owner持续活到transfer核验（关联需求: FR-2, FR-3）
++
++**问题**: CLI退出后单一路径或serialized bool不能证明原handle lifetime/安全退休。
++**选项**: 留path供其他进程推断owner；或原capture进程持有实际roots至上传ACK。
++**决策**: 同capture原进程持有owner和budget；control与raw根分开、ACK数字是期待值；actualAPI+ZIP+字节核验后才retire，unknown不重试。
++
++### 决策 2: immutable三身份与新安装receipt（关联需求: FR-1, FR-4）
++
++**问题**: 原Linuxmanifest把producer与currentrun合并；原Windowswrapper固定built路径。
++**选项**: spoof原env/overwrite旧manifest；或原认证bundle引用与当前结果分开。
++**决策**: 不改原manifest和身份；复用安装checks的private已验证数据入口，当前run/job/source重新附加。Windows仍需真实native输入/root接口；仅明确blocked，不退化path-only能力。
++
++### 决策 3: read-only产物不是授权（关联需求: FR-5）
++
++**问题**: connector能力、callerreport、componentPASS不证明真实bearer/CAS/最终候选。
++**选项**: 借旧结果解除hardreject；或保留原生产拒绝。
++**决策**: 三hardreject字节/AST保护，snapshot暂停保持；真实安装未运行便NOT_RUN，组件source-specific。
++
++## 风险评估
++
++| 风险 | 影响 | 缓解措施 |
++| --- | --- | --- |
++| Reader共用mutation路径 | 高 | default语义exact、sink只私有readonly、旧wire49与额外Stage回归，hardreject不变 |
++| dynamic Python索引不完整/FTS unavailable | 中 | local never/indexonly实际index＋逐symbolimpact与人工caller补读，不报UNKNOWN为LOW0 |
++| 当前Stage/native组合未最终合源 | 高 | 明确组件，不借19/118或165；未来exactbase freshintegration |
++| Windows owner未知 | 高 | hosted槽blocked/NOT_RUN，importPOSIX前固定拒绝，等待实际native IO |
++| 上传或cleanup response/effect未知 | 高 | 原owner保留证据/失败，无retry/delete/adopt/clobber |
++| CLI可在用户机器被误运行 | 高 | install只有真实固定API/env/job+github-hosted/nonrootUbuntu，未证拒绝 |
++
++## 决策4：固定PackageChecks与native ProcessOwner
++
++在原16冻结之外的新隔离D6视图，新增rc_postpublication_process.py与rc_postpublication_process_cases.py，准确18路径；不改exclusive_packages默认helper。rc_packages._installed_checked的optional private checks只接受实际entered stage/current verified inputs所构造exact PackageChecks。新类复用同inspect_linux/ELF/hash/installed结构，在固定command/digest/elf边界执行原检查；默认旧command/inspect_linux/digest/elf不变。
++
++ProcessOwner父端实际Popen专用new-session leader→retain pidfd→核验nativePGID/父关系/alive→nativepipe GO。Leader设置actualsubreaper，只创建一次目标子进程，同group；标准输出走bounded private pipe，leader一直持有group直至父核验完所有nativechildren的reap/pipe EOF后CLOSE。groupTERM仅在该leader仍live/同nativePGID且pidfd所指同ownedchild时执行，leader忽略TERM保持group-ID占用，后代恢复默认TERM。逃逸的实际kernel-adopted自有后代由leader在未reap前捕捉pidfd并核对真实parent，再个别终止；身份/来源/EOF/close/retirement不确定保留全部输入与profile。没有裸numericPID/group恢复/adoption。
++
++所有内部child环境闭合allowlist，argv仅固定原package工具或原FINAL startup/native命令；实际stdout限2MiB，deadline由原controls剩余min每命令期限，不增加原数值。所有caller callbacks不构造authority。摘要读取每chunk原controls前后check。原112-v2缺最终receipt永久INTERRUPTED/UNKNOWN；新同源v3完整112PASS仅冻结16readonly组件，已独立staticBLOCK，不能借给新18。
++
++持久Stage/input cleanup flags在actual InstallationOwner构造和每次check永拒；保留的实际对象进入私有strong registry，不凭serialized bool复原。Execution固定constructor先分配并保存exact原InputOwner，再实际调用原constructor创建/登记根，使失败前已有whole-owner引用；未初始化实例不能通过任何check。整个installation context包住execution创建/check/ExitStack退出，异常提升whole-retain；各profile上下文只登记/持有，所有nativeprocess已证明family/IO关闭且终局成功后才统一creation-owned退休。
++
++PackageChecks和install都要求invocation is actual ReceivedInputs._invocation。父端只缓存真实ownedpipe读出并严格校验的DONE；原取消仍优先失败，但cleanup可使用已证明ECHILD/EOF的那次固定worker completion，发送C并验证实际leader退出/pipe EOF/FD关闭。超限先停止/回收/drain，再送error数据，不能让worker直接异常退出。sudo root后代的权限另属真实host能力：普通同UID子进程不证明特权安装cancel，实际DEB资格仍UNKNOWN/NOT_RUN，需独立review实际privileged helper/launcher，而非数字PID恢复。
++
++控制管道不使用会预读的文本buffer；bounded原生FD逐行解析允许同次读到S/C而不丢帧。父写端nonblocking，每次部分写入前检查原controls、当前deadline与实际live leader；cleanup只有限2秒且不能恢复operation成功。actual InstallationOwner自持ExitStack，终局Inputs.revalidate和全部nativefamily/IO证明先于任何execution/profile退休；临时marker实际FD在os.open后永久登记，close不确定只保留而不重试未知数字FD。外部DONE字典不能替代来自本次实际pipe的固定frame身份。
+diff --git a/docs/specs/issue88-postpublication-owned-consumer/requirements.md b/docs/specs/issue88-postpublication-owned-consumer/requirements.md
+new file mode 100644
+index 0000000..289f7db
+--- /dev/null
++++ b/docs/specs/issue88-postpublication-owned-consumer/requirements.md
+@@ -0,0 +1,87 @@
++# 需求文档：issue88-postpublication-owned-consumer
++
++## 功能概述
++
++在真实D6 c60f9667fa8431e27fabbc497c19b4abfef5b965/tree064252014dc0ad3c3882fbd5aef1968b083f8bb0的独立checkout接线发布后匿名六资产与新CI安装。组件源码可以测试；当前无F2、无真实Release、五槽均NOT_RUN。输入仅expectations，任何report/布尔值不授予publication/owner权限。
++
++## 历史经验与坑（来自记忆库）
++
++暂无记忆注入。本次依据封存只读postpublish审查：原Reader(binary=True)丢弃payload；原installed manifest依赖当前run_id，不能伪造旧GITHUB_RUN_ID；PrivateRoot.close不删除；Windows不能POSIX替代；公共checksum不是bundle checksum。旧authority审查与19/118组件seal不变。
++
++## 范围边界
++
++- **In Scope**: 实际entered StagedAssets/canonical Selection原始bytes；固定无凭据GET六公共资产、自有文件保留；原FINAL/原consumer/新post三身份；当前CI新transfer的numeric ID/digest/owner/job/source/ZIP校验；两个固定CLI和只读CI；Linux原安装/四startup/native12命令的显式两身份适配；必要本地组件测试。
++- **Out of Scope**: 实际安装/GUI/driver运行、remote任何写或dispatch、Release/tag/用户机器/production、凭据探测/登录、版本/F2更新、grant/CAS/三hardreject解锁、PR98取消与Issue86/snapshot暂停替换、历史profile投影、Windows path/bool/POSIX owner替代。
++
++## 需求列表
++
++### FR-1: 原producer与新运行严格分离
++
++**优先级:** Must
++**用户故事:** 作为发布验收维护者，我要保留原身份与新真实运行，防止历史安装被新运行冒领。
++
++#### 验收标准（EARS）
++
++1. WHEN capture或receive进入 THEN 系统 SHALL 以封闭schema读取Selection/Release/六asset期待值，真实原StagedAssets认证原FINAL/integration/consumer和原plan/provenance，并以当前env+固定API元数据构造新post运行与job；三原run ID不得等于新run ID。
++2. IF 来源/仓库/源码tree/version/workflowblob/ref/当前attempt/job不符或paused THEN 系统 SHALL 在安装前固定拒绝，保留UNKNOWN，不改旧manifest/当前GITHUB_RUN_ID。
++
++### FR-2: 匿名六资产保留实际字节
++
++**优先级:** Must
++**用户故事:** 作为消费者，我要实际已验证公共文件进入安装，而不是只有digest或Actions旧build输入。
++
++#### 验收标准（EARS）
++
++1. WHEN 公开Release在精确tag/commit且六numeric assets/media/state/size/digest吻合 THEN 系统 SHALL 仅无Authorization/Cookie固定API GET及至多一次exact storage302，使用原Reader framing在原owned预算中将successful200 body写入新独占0600文件并fsync/readback。
++2. IF 非200/重复redirect/host/截断/chunk/size/hash/取消/期限/close/替换/hardlink错误 THEN 系统 SHALL 不给installable success，按实际creation ownership退休或不确定保留；新sink不可由外部callback/path mint。
++3. WHEN 六文件已验证 THEN 系统 SHALL 比较原provenance字节和五行公共checksum原字节，并重新观察公共metadata/tag/stable/latest以及原stage final fence。
++
++### FR-3: 新transfer独立认证
++
++**优先级:** Must
++**用户故事:** 作为跨平台CI消费者，我要公共来源字节通过明确新artifact传输保持可审计来源。
++
++#### 验收标准（EARS）
++
++1. WHEN pinned当前CI上传六raw+封闭manifest THEN 系统 SHALL 保持原owner直至限定ACK中numeric artifact期待值经真实list/direct API、run/attempt/job时间、非expiry、size/digest及实际ZIP再次验证；ACK不授予capability。
++2. WHEN receive处理新artifact THEN 系统 SHALL 要求同post run/current attempt和已成功capture job，实际bounded ZIP严格七flat成员、原selection/plan/publicasset IDs/每文件bytes一致，并分别新建当前host输入owner；跨host文件不是原FD。
++3. IF transfer与原FINAL/原consumer artifact ID相同，列表/直接查询分歧、任一成员/manifest/expiry/owner错误 THEN 系统 SHALL 拒绝且不fallback原build、不重试/覆盖/采用foreign文件。
++
++### FR-4: 两固定CLI与五平台CI
++
++**优先级:** Must
++**用户故事:** 作为维护者，我要可在真实候选发布后直接执行的入口，明确每个实际平台结果。
++
++#### 验收标准（EARS）
++
++1. WHEN 手动固定源码post workflow运行 THEN 系统 SHALL 以capture和receive/install两个入口接线中央六raw及新transfer，保留contents/actions-read与原FINAL原命令/180sNSIS等待、四20sstartup、native12/100foreign/90s门禁，所有新receipt使用实际当前run。
++2. IF 当前不是本仓库github-hosted disposable runner，或Windows真实native输入/root/child退休未实现 THEN 系统 SHALL 固定blocked并输出NOT_RUN，不执行用户机器安装、不把POSIX作Windows、不报告passed安装。
++3. WHEN Linux AppImage/driver执行copy需要权限 THEN 系统 SHALL 只在自有新byte-identical文件做显式权限阶段；不弱化Generic PrivateRoot0600，child完成及完整性复核后恢复与退休。
++
++### FR-5: 不借组件解除发布门禁
++
++**优先级:** Must
++**用户故事:** 作为发布owner，我要失败和未知持续阻止最终发布。
++
++#### 验收标准（EARS）
++
++1. WHEN 本地组件验证成功 THEN 系统 SHALL 只记录named/component/source/runtime结果，真实GitHub-origin downloads/五实际安装仍NOT_RUN，Release/publish_approved始终false。
++2. IF native authority/StageAPI整合、Windows lifecycle、snapshot、标签lifetime/CAS、真实授权或finalcandidate未核 THEN 系统 SHALL 保持mandatory UNKNOWN及三个生产无条件hardreject、PR98/Issue86边界，不借旧118/165/141或CI历史。
++
++## 非功能需求
++
++- **NFR-1**: 单asset<=512MiB、metadata<=2MiB、header<=32768、socket idle<=15s、同固定总预算不续期、单源码文件<=500行；异常只固定safe code，不持久化token/header/signedURL/credential-derived hash。
++- **NFR-2**: POSIX roots0700/files0600、真实PID/thread身份、nofollow/singlelink/inode/membership/creation-owned退休；作用域只sameUID无并发不可信writer，control ACK单独允许固定trusted upload子步骤写numeric期待值。
++
++## 依赖关系
++
++原rc_publication_stage/rc_consumer_snapshot/archive/fixedGit/transport；原FINAL安装命令和nativegate；实际D6而非F2；未整合native11与StageAPI源码必须在未来同源重审，不把当前wrapper算publisher authority；Windows genuine native IO未知。
++
++### FR-6：真实Linux全部命令与摘要的永久原控制
++
++- [ ] actual entered StagedAssets/verified ReceivedInputs/canonical Selection/current ReadController与内部exact PackageChecks相互绑定；PackageChecks及install入口必须使用ReceivedInputs实际已验证的同一PostInvocation对象，same-source复制不能替代。默认旧rc_packages路径保留。
++- [ ] 包检查和原startup/native所有子进程explicit闭合allowlist环境，无GH_TOKEN/Actions runtime secret/LD_PRELOAD等；原inspection/version/ELF/desktop/ldd/payload检查原语义与commands/断言不降低。
++- [ ] subprocess只能剩余原ReadController期限min原命令120s/既有scenario期限，原取消在运行中poll；标准输出有界、所有自有pipes/handles关闭并实际reap。
++- [ ] 父实际创建session leader，保留native pidfd，nativePGID/parent关系与group-leader存活双核验；leader自身保持live且subreaper，终止只能自身创建仍核证的group/nativechild pidfd，不对回收numericPGID或推测进程组发信号。
++- [ ] 原生kernel/IO握手和所有后代closure都核证才允许成功；JSON ACK仅数据。超期/取消/IPC/close/reap/逃逸等不确定性强持whole actual Stage/receiver/download/execution/profile资源；持久uncertain不得用新wrapper恢复。全部profile到整个installation明确成功才退休，不把退出leader当全family退出。
++- [ ] 用普通临时native child/fork/pipe负例failure-first及同源必要测试；五真实安装全部NOT_RUN、Windows actualnativeroot/StageAPI authority/F2未知，三hardreject/PR98/snapshot不变。
+diff --git a/docs/specs/issue88-postpublication-owned-consumer/tasks.md b/docs/specs/issue88-postpublication-owned-consumer/tasks.md
+new file mode 100644
+index 0000000..2022d10
+--- /dev/null
++++ b/docs/specs/issue88-postpublication-owned-consumer/tasks.md
+@@ -0,0 +1,114 @@
++# 任务清单：issue88-postpublication-owned-consumer
++
++## 概述
++
++真实D6独立增量，组件测试与真实发布后验收分开。全部生产修改先spec/check_spec/逐symbolimpact。
++
++## 交付物清单（Scope-lock）
++
++- 预计文件数: 18
++- 预计任务数: 6
++- 根checkout、旧authority/postpublish seal、finite19/118、原版本/profile/授权stubs/PR98/snapshot不变。
++
++## 任务列表
++
++### 阶段 1: 准备工作
++
++- [x] 1.1 固定本地GitNexus fresh actualD6 index/impact并核验16路径预算
++  - 证据块: scripts/rc_publication_github.py:143；scripts/rc_publication_stage.py:222；scripts/rc_consumer_io.py:187；scripts/rc_packages.py:103
++  - 文件: docs/specs/issue88-postpublication-owned-consumer三文档（各≤200行）
++  - _需求: FR-1, FR-2, FR-3, FR-4, FR-5_ · _设计: 技术方案、风险评估_
++
++### 阶段 2: 核心实现
++
++- [x] 2.1 新建封闭三身份与actualsource固定readcontroller，≤300行/文件
++  - 证据块: scripts/rc_pretag_types.py:150；scripts/rc_publication_stage.py:90；scripts/rc_consumer_snapshot.py:180
++  - 文件: rc_postpublication_contract.py、rc_postpublication_source.py
++  - _需求: FR-1, FR-5_ · _设计: 数据模型、决策2/3_
++- [x] 2.2 接入原Reader私有owned200sink与六匿名文件/原checksum/finalfence，≤350行/新文件
++  - 证据块: scripts/rc_publication_github.py:143、377、456；scripts/rc_publication_retirement.py:203
++  - 文件: rc_publication_github.py、rc_postpublication_io.py、rc_postpublication_reader.py
++  - _需求: FR-2_ · _设计: 技术方案、决策1_
++- [x] 2.3 接入实际新transfer API/ZIP与持续owner ACK协议，≤350行/文件
++  - 证据块: scripts/rc_consumer_transport.py:130；scripts/rc_consumer_archive.py:199；scripts/rc_publication_stage.py:114
++  - 文件: rc_postpublication_transfer.py、rc_postpublication_consumer.py
++  - _需求: FR-1, FR-3_ · _设计: API设计、决策1_
++- [x] 2.4 新建五槽readonlyworkflow与原Linux命令两身份适配，Windows固定blocked，≤400行/文件
++  - 证据块: .github/workflows/final-rc-packages.yml:317；scripts/rc_packages.py:123；scripts/rc_windows_install.ps1:22；scripts/rc_native_gate.py:18
++  - 文件: rc_publication_stage.py、rc_packages.py、rc_postpublication_install.py、.github/workflows/rc-postpublication-consumer.yml
++  - _需求: FR-4, FR-5_ · _设计: API设计、决策2/3_
++
++### 阶段 3: 集成测试
++
++- [ ] 3.1 运行failure-first、same-source真实TLS/ZIP/CLI拒绝与原受影响wire/Stage回归并freeze独立审查
++  - 证据块: scripts/rc_publication_https_fixture.py:33；scripts/rc_publication_stage_cases.py:88；scripts/rc_publication_github_cases.py:1
++  - 文件: rc_postpublication_cases.py、rc_postpublication_transfer_cases.py（各≤450行）
++  - 验收点: FR-1全部、FR-2全部、FR-3全部；FR-4实际安装/五真实host保持NOT_RUN并记录依赖；FR-5全部
++  - _需求: FR-1, FR-2, FR-3, FR-4, FR-5_ · _设计: 风险评估_
++
++## 检查点
++
++- [x] 阶段1：check_spec真实非空PASS、estimate、freshimpact风险告root。
++- [x] 阶段2：actualsource范围/默认旧行为/三reject/sourcebudget/secretfree日志核验。
++- [ ] 阶段3：精确named/source/runtime/runner/log、完整失败保留、detect_changes/code_review、不可借wholefinal。
++
++## 需求覆盖矩阵
++
++| 需求 ID | 设计章节 | 任务编号 | 状态 |
++| --- | --- | --- | --- |
++| FR-1 | 数据模型/决策2 | 2.1, 2.3, 3.1 | 源组件已实现；必要同源回归/独立审查待完成 |
++| FR-2 | 技术方案/决策1 | 2.2, 3.1 | 源组件已实现；必要同源回归/独立审查待完成 |
++| FR-3 | API设计/决策1 | 2.3, 3.1 | 源组件已实现；必要同源回归/独立审查待完成 |
++| FR-4 | API设计/决策2 | 2.4, 3.1 | 源组件已实现；必要同源回归/独立审查待完成 |
++| FR-5 | 决策3/风险评估 | 2.1, 2.4, 3.1 | 源组件已实现；必要同源回归/独立审查待完成 |
++| FR-6 | 决策4/nativeprocess与PackageChecks | 4.1, 4.2, 4.3, 4.4 | 23项实际kernel/entered-owner聚焦PASS；完整同源组合/独立审查待完成，sudo权限UNKNOWN |
++
++## 文件变更清单
++
++| 文件 | 操作 | 行数预算 | 说明 |
++| --- | --- | --- | --- |
++| scripts/rc_publication_github.py | 修改 | ≤499 | 默认解析器契约不变，successful binary200仅内部自有sink |
++| scripts/rc_publication_stage.py | 修改 | ≤400 | 保存既已验证的原bundle引用，不添加授权 |
++| scripts/rc_packages.py | 修改 | ≤240 | 分离已验证manifest后的原installed检查供新运行复用 |
++| scripts/rc_postpublication_contract.py | 新建 | ≤300 | 封闭expectation/三运行身份/transferschema，数据不是grant |
++| scripts/rc_postpublication_io.py | 新建 | ≤350 | 新建真实POSIXraw/control根、原解析预算sink及精确retirement |
++| scripts/rc_postpublication_reader.py | 新建 | ≤350 | 无credential固定GET、六asset与公共checksum/finalfence |
++| scripts/rc_postpublication_source.py | 新建 | ≤300 | actualnativeGET绑定、真实post-run/job/env、进入原StagedAssets |
++| scripts/rc_postpublication_transfer.py | 新建 | ≤350 | 实际APIartifact+有界ZIP与七成员严格绑定 |
++| scripts/rc_postpublication_consumer.py | 新建 | ≤350 | capture/receive两个固定CLI，原owner跨upload持有、有限ACK不grant |
++| scripts/rc_postpublication_install.py | 新建 | ≤400 | 两身份Linux原commands adapter、owned执行copy；Windows明确block |
++| scripts/rc_postpublication_cases.py | 新建 | ≤450 | 真实TLS/ownedraw与来源/取消/错误负例 |
++| scripts/rc_postpublication_transfer_cases.py | 新建 | ≤450 | 真实transferZIP/ID/三身份/CLI有限协议负例 |
++| .github/workflows/rc-postpublication-consumer.yml | 新建 | ≤350 | 中央六rawcapture/新transfer、四Linux与Windows固定槽，不dispatch |
++| docs/specs/issue88-postpublication-owned-consumer/requirements.md | 新建 | ≤150 | 需求 |
++| docs/specs/issue88-postpublication-owned-consumer/design.md | 新建 | ≤200 | 设计及未知依赖 |
++| docs/specs/issue88-postpublication-owned-consumer/tasks.md | 新建 | ≤200 | 有限scope和门禁 |
++
++## 交付前自检
++
++- [ ] 无占位符或省略实现。
++- [ ] 交付物精确18路径、全部≤500行；必要scope增补须先更新spec并新check。
++- [ ] 不运行真实installer/remote/browser/credentials；五host安装NOT_RUN、Windowsunknownblocked。
++- [ ] 不改旧source/seal，失败/未运行/原runtime证据不拼借。
++
++## 实际状态限制
++
++原20预检真实19PASS/1ERROR，源码pins仅开始后抓取，不资格化；原4聚焦PASS不拼借最终源。新独立D6视图精确恢复两修正前SHA，先fresh never/index-only/drop索引与新symbol impact后重施同字节修正，原流程缺口erratum永久保留。冻结16 v3实际112完整PASS仅readonly组件并staticBLOCK；v2中断永久UNKNOWN。新18必须新source/runner/runtime完整回归；五真实安装/Windows native IO/native authority+StageAPI/F2均NOT_RUN或UNKNOWN。
++
++## 新增量：安装命令owned生命周期
++
++- [x] 4.1 fresh local NEVER/index/drop逐installed_checked/install/_run/installed/private helpers精确impact，动态HIGH保留；check_spec6FR真实通过后才改symbol。
++- [x] 4.2 新ProcessOwner/PackageChecks封闭nativechild/wholefamily/allowlist/deadline/stdout/digest，optional旧检查默认行为不变。
++- [x] 4.3 普通临时child actualfailure-first：继承假fixture credential、过期/noop、取消中途、fork后代/escaped session、pipe/close/reap/leader所有权；禁止installer/nativecandidate/remote运行。
++- [ ] 4.4 新18冻结source/runtime/runner精确inventory和旧112必要同源回归＋新child组合，原中断/失败全部保存，root独立review。
++
++| 文件 | 操作 | 行数预算 | 说明 |
++| --- | --- | --- | --- |
++| scripts/rc_postpublication_process.py | 新建 | ≤499 | fixed PackageChecks/nativepidfd+actualsubreaper owned wholefamily |
++| scripts/rc_postpublication_process_cases.py | 新建 | ≤450 | ordinary actual kernel child only，否定和清理语义，不installer |
++
++五真实host安装仍NOT_RUN；原16/tree79c45a永久冻结不变。
++
++FR-6 task4.2必须实际持全部enteredStage/ReceivedInputs/execution/profile所有权，未知sticky标记whole owner，DEB空executions不能提前retire任何根；持久uncertain不能freshwrapper恢复。独立review的四负例实际4FAIL保存后修正，必须fresh必要组合。PackageChecks与install upfront同一actualinvocation，profile到终局成功退休，sudo特权后代能力不借普通child PASS。
++
++第二轮真实3负例为1FAIL/2ERROR：排队DONE取消时S/C合包解析错误、marker close不确定FD未留存、终局输入检查尚无actual owned Stack。原日志永久保存。先fresh逐symbolimpact后修正控制管道逐行解析/nonblocking剩余期限写入、actual ExitStack与最终输入fence先于copy退休、marker FD强持；最新23loaded/executed/named PASS且source/runtime before-after一致仅聚焦组件。原112+新23=135是计划inventory，完整当前源回归完成前不宣称整体通过。
+diff --git a/scripts/rc_packages.py b/scripts/rc_packages.py
+index ea2dde3..997405a 100644
+--- a/scripts/rc_packages.py
++++ b/scripts/rc_packages.py
+@@ -125,6 +125,20 @@ def installed(directory: Path, root: Path, source: str, kind: str, output: Path)
+     data = load_manifest(directory, root, source)
+     entry = data["packages"][kind]
+     package = verify_record(directory, entry["artifact"])
++    return _installed_checked(data, package, kind, output)
++
++
++def _installed_checked(data: dict, package: Path, kind: str, output: Path, *, checks=None) -> dict:
++    """Reuse checks only after the caller authenticated its exact package data."""
++    require(os.geteuid() != 0, "installed GUI acceptance must not run as root")
++    import exclusive_packages as payload
++    command, inspect_linux, digest, elf = payload.command, payload.inspect_linux, payload.digest, payload.elf
++    if checks is not None:
++        from rc_postpublication_install import _PackageChecks
++        require(type(checks) is _PackageChecks, "invalid owned package checks")
++        checks.bind(data, package, kind)
++        command, inspect_linux, digest, elf = checks.command, checks.inspect_linux, checks.digest, checks.elf
++    entry = data["packages"][kind]
+     package_version = entry["package_version"]
+     actual = inspect_linux(package, kind, package_version)
+     require(actual == {key: entry[key] for key in ("payload_sha256", "architecture", "package_id")},
+diff --git a/scripts/rc_postpublication_cases.py b/scripts/rc_postpublication_cases.py
+new file mode 100644
+index 0000000..4da256c
+--- /dev/null
++++ b/scripts/rc_postpublication_cases.py
+@@ -0,0 +1,290 @@
++"""Real loopback TLS / owned bytes only; no publication or installation grant."""
++from contextlib import ExitStack, contextmanager
++from dataclasses import replace
++import hashlib
++import json
++import os
++from pathlib import Path
++import stat
++import tempfile
++import threading
++import time
++import unittest
++from unittest.mock import patch
++import rc_publication_github as wire
++from rc_publication_https_fixture import HTTPSFixture
++import rc_publication_stage_cases as fixtures
++from rc_consumer_io import ConsumerError
++from rc_postpublication_contract import CaptureRequest, WORKFLOW, MANIFEST
++from rc_postpublication_source import ReadController, original_stage, _ReferenceAPI
++from rc_postpublication_reader import PublishedInputs
++from rc_postpublication_io import InputOwner
++
++
++class PostSourceFixture(fixtures.SourceFixture):
++    def commit_source(self):
++        target = self.root / WORKFLOW
++        target.parent.mkdir(parents=True, exist_ok=True)
++        target.write_bytes((fixtures.ROOT / WORKFLOW).read_bytes())
++        super().commit_source()
++
++
++@contextmanager
++def public_fixture():
++    """Synthetic GitHub shapes; real committed source, TLS, worker IPC and IO."""
++    with patch.object(fixtures, 'SourceFixture', PostSourceFixture), fixtures.publisher_fixture() as f:
++        request = CaptureRequest(f.selection, 100, tuple(range(300, 306)))
++        with HTTPSFixture(f.selection.subject, f.plan, f.payloads) as tls:
++            tls.release = dict(id=100, tag_name=f.selection.subject.tag,
++                target_commitish=f.source.sha, draft=False, prerelease=True, published_at='2026-10-01T01:00:00Z')
++            for ident, asset in zip(request.asset_ids, f.plan.assets):
++                row = dict(id=ident, name=asset.name, content_type=asset.media_type,
++                    size=asset.size, digest='sha256:' + asset.sha256, state='uploaded')
++                tls.assets[ident] = row, f.payloads[asset.name]
++            tls.route = lambda *args: fixtures.artifact_route(f, *args)
++            with patch.object(wire, '_connect', side_effect=tls.connect), fixtures.artifact_worker(f, tls):
++                controls = ReadController()
++                try:
++                    with original_stage(f.root, request, 'fixture-actions-read-token', controls,
++                                        temporary_parent=f.parent) as stage:
++                        yield f, tls, request, controls, stage
++                finally:
++                    controls.close()
++
++
++class PostpublicationCases(unittest.TestCase):
++    def test_external_sink_rejected_before_body_retention(self):
++        with HTTPSFixture() as tls, patch.object(wire, '_connect', side_effect=tls.connect):
++            with wire._connect(wire.API, 3) as sock:
++                sock.sendall(('GET ' + wire.ROOT + '/releases/latest HTTP/1.1\r\nHost: ' +
++                              wire.API + '\r\nConnection: close\r\n\r\n').encode())
++                import time
++                reader = wire._Reader(sock, time.monotonic() + 3, lambda: None)
++                with self.assertRaises(wire.WireFailure) as found:
++                    reader.response(1024, binary=True, sink=object())
++                self.assertEqual((found.exception.code, found.exception.effect), ('invalid_request', 'none'))
++
++    def test_six_actual_anonymous_files_and_retirement(self):
++        with public_fixture() as (f, tls, request, controls, stage):
++            self.assertIs(stage._api._selection, stage._selection)
++            self.assertIs(stage._api._api.selection, stage._selection)
++            start = len(tls.requests)
++            with PublishedInputs(stage, request, controls, temporary_parent=f.parent) as inputs:
++                path = inputs._owner._root.path
++                self.assertEqual(set(inputs._owner._root.files()), set(f.payloads))
++                for asset in stage.plan.assets:
++                    self.assertEqual(inputs._owner._root.read(asset.name), f.payloads[asset.name])
++                    self.assertEqual(stat.S_IMODE((path / asset.name).stat().st_mode), 0o600)
++                inputs.revalidate()
++            self.assertFalse(path.exists())
++            public = [r for r in tls.requests[start:] if r[1].startswith(wire.ROOT + '/releases')
++                      or r[1].startswith(wire.ROOT + '/git/ref/')]
++            # Stage's authenticated source checks are audited separately. All
++            # numeric public asset requests, including metadata, are anonymous.
++            downloads = [r for r in public if r[1].startswith(wire.ROOT + '/releases/assets/')]
++            self.assertEqual({int(r[1].rsplit('/',1)[1]) for r in downloads}, set(request.asset_ids))
++            self.assertTrue(all('authorization' not in r[2] and 'cookie' not in r[2] and r[0]=='GET'
++                                and r[3]==b'' for r in downloads))
++
++    def test_one_storage_redirect_retains_only_public_body(self):
++        with public_fixture() as (f, tls, request, controls, stage):
++            tls.redirects[300] = 'https://' + wire.STORAGE + '/asset/300?fixture=public'
++            with PublishedInputs(stage, request, controls, temporary_parent=f.parent) as inputs:
++                self.assertEqual(inputs._owner._root.read(stage.plan.assets[0].name), f.payloads[stage.plan.assets[0].name])
++            storage = [r for r in tls.requests if r[2].get('host') == wire.STORAGE]
++            self.assertEqual(len(storage), 1)
++            self.assertNotIn('authorization', storage[0][2])
++            self.assertNotIn('cookie', storage[0][2])
++
++    def test_redirect_and_error_bodies_never_create_installable_input(self):
++        for status in (302, 404):
++            with self.subTest(status=status), tempfile.TemporaryDirectory() as parent, HTTPSFixture() as tls:
++                controls = ReadController()
++                owner = InputOwner(parent, Path(__file__).parents[1], controls)
++                asset = next(iter(tls.plan.assets))
++                tls.routes[('GET', wire.ROOT + '/releases/latest')] = status, {}, b'error-not-installer'
++                with owner.sink(asset) as sink, tls.connect(wire.API, 3) as sock:
++                    sock.sendall(('GET '+wire.ROOT+'/releases/latest HTTP/1.1\r\nHost: '+wire.API+'\r\n\r\n').encode())
++                    measured = wire._Reader(sock, controls._deadline, controls.check).response(1024, True, sink=sink)
++                    self.assertEqual(measured[0], status)
++                self.assertEqual(owner._root.files(), ())
++                path = owner._root.path
++                owner.close(); controls.close()
++                self.assertFalse(path.exists())
++
++    def test_corrupt_public_asset_fails_and_owned_partial_retires(self):
++        with public_fixture() as (f, tls, request, controls, stage):
++            row, body = tls.assets[300]
++            tls.assets[300] = row, bytes([body[0] ^ 1]) + body[1:]
++            inputs = PublishedInputs(stage, request, controls, temporary_parent=f.parent)
++            path = inputs._owner._root.path
++            with self.assertRaises(ConsumerError) as found:
++                inputs.__enter__()
++            self.assertEqual(found.exception.code, 'post_input_digest_changed')
++            self.assertFalse(inputs._verified)
++            self.assertFalse(path.exists())
++
++    def test_foreign_storage_and_second_redirect_denied(self):
++        for location in ('https://example.invalid/asset/300', 'https://' + wire.STORAGE + '/asset/300'):
++            with self.subTest(location=location), public_fixture() as (f, tls, request, controls, stage):
++                tls.redirects[300] = location
++                if wire.STORAGE in location:
++                    tls.routes[('GET','/asset/300')] = 302, {'Location':location}, b''
++                inputs = PublishedInputs(stage, request, controls, temporary_parent=f.parent)
++                path = inputs._owner._root.path
++                with self.assertRaises(ConsumerError) as found:
++                    inputs.__enter__()
++                self.assertIn(found.exception.code, ('post_storage_denied','post_second_redirect'))
++                self.assertFalse(path.exists())
++
++    def test_owned_cancel_and_expiry_reject_noop_caller_before_get(self):
++        with public_fixture() as (f, tls, request, controls, stage):
++            start = len(tls.requests)
++            controls.cancel()
++            called = []
++            with self.assertRaises(wire.WireFailure) as found:
++                stage._api.get('/', deadline=time.monotonic()+900, check_active=lambda: called.append(True))
++            self.assertEqual((found.exception.code, found.exception.effect), ('cancelled','none'))
++            self.assertEqual(called, [])
++            self.assertEqual(len(tls.requests), start)
++        controls = ReadController(seconds=0.01)
++        time.sleep(0.02)
++        with self.assertRaises(wire.WireFailure) as found:
++            controls.check()
++        self.assertEqual(found.exception.code, 'timeout')
++        controls.close()
++
++    def test_mutated_reference_token_or_selection_is_denied(self):
++        with public_fixture() as (f, tls, request, controls, stage):
++            start = len(tls.requests)
++            native = stage._api._api
++            original = native.token
++            native.token = 'different-fixture-read-token'
++            with self.assertRaises(ConsumerError) as found:
++                stage._api.get('/')
++            self.assertEqual(found.exception.code, 'post_reference_changed')
++            native.token = original
++            selected = native.selection
++            native.selection = request.selection
++            self.assertIsNot(native.selection, stage._selection)
++            with self.assertRaises(ConsumerError):
++                stage._api.get('/')
++            native.selection = selected
++            self.assertEqual(len(tls.requests), start)
++
++    def test_caller_mutation_cannot_change_native_encoded_get_credential(self):
++        with public_fixture() as (f, tls, request, controls, stage):
++            native, before = stage._api._api, len(tls.requests)
++            original = native.token
++            called = []
++            def change():
++                called.append(True)
++                native.token = 'different-fixture-read-token'
++            try:
++                with self.assertRaises(wire.WireFailure) as found:
++                    stage._api.get('/', check_active=change)
++                self.assertEqual((found.exception.code,found.exception.effect),('adapter_error','none'))
++                self.assertEqual(called,[True])
++                self.assertEqual(len(tls.requests),before)
++            finally:
++                native.token = original
++
++    def test_actual_binary_tls_cancel_is_owned_and_partial_retires(self):
++        with public_fixture() as (f,tls,request,controls,stage):
++            original_route=tls.route
++            triggered=[]
++            def route(method,path,headers,body):
++                if path==wire.ROOT+'/releases/assets/300' and headers.get('accept')=='application/octet-stream':
++                    triggered.append(True)
++                    controls.cancel()
++                return original_route(method,path,headers,body)
++            tls.route=route
++            inputs=PublishedInputs(stage,request,controls,temporary_parent=f.parent)
++            path=inputs._owner._root.path
++            with self.assertRaises(ConsumerError) as found:
++                inputs.__enter__()
++            self.assertEqual(found.exception.code,'post_cancelled')
++            self.assertEqual(triggered,[True])
++            self.assertFalse(path.exists())
++            self.assertFalse(inputs._verified)
++
++    def test_actual_binary_tls_callee_expiry_does_not_renew_owned_budget(self):
++        with public_fixture() as (f,tls,request,controls,stage):
++            inputs=PublishedInputs(stage,request,controls,temporary_parent=f.parent)
++            api=inputs._api
++            remote=api.inventory()[0]
++            send=wire.ssl.SSLSocket.sendall
++            trigger=[]
++            target=f.payloads[remote.asset.name]
++            def delayed(sock,data,*args,**kwargs):
++                if sock.context is tls.context and data.endswith(target) and data.startswith(b'HTTP/1.1 200'):
++                    header,body=data.split(b'\r\n\r\n',1)
++                    send(sock,header+b'\r\n\r\n'+body[:1],*args,**kwargs)
++                    trigger.append(True)
++                    time.sleep(0.1)
++                    return send(sock,body[1:],*args,**kwargs)
++                return send(sock,data,*args,**kwargs)
++            before=controls._deadline
++            try:
++                with inputs._owner.sink(remote.asset) as sink, patch.object(wire.ssl.SSLSocket,'sendall',delayed):
++                    with self.assertRaises(ConsumerError):
++                        api._request('GET',wire.API,wire.ROOT+'/releases/assets/'+str(remote.asset_id),
++                            anonymous=True,binary=True,limit=remote.asset.size,
++                            deadline=time.monotonic()+0.03,sink=sink)
++                self.assertEqual(trigger,[True])
++                self.assertEqual(controls._deadline,before)
++                self.assertFalse(inputs._verified)
++            finally:
++                path=inputs._owner._root.path
++                inputs.close()
++            self.assertFalse(path.exists())
++
++    def test_late_release_change_after_six_bodies_withdraws_input_success(self):
++        with public_fixture() as (f,tls,request,controls,stage):
++            original_route=tls.route
++            bodies=[]
++            def route(method,path,headers,body):
++                if path.startswith(wire.ROOT+'/releases/assets/') and headers.get('accept')=='application/octet-stream':
++                    bodies.append(path)
++                if len(bodies)==6 and path==wire.ROOT+'/releases/100':
++                    tls.release['draft']=True
++                return original_route(method,path,headers,body)
++            tls.route=route
++            inputs=PublishedInputs(stage,request,controls,temporary_parent=f.parent)
++            path=inputs._owner._root.path
++            with self.assertRaises(ConsumerError) as found:
++                inputs.__enter__()
++            self.assertEqual(found.exception.code,'post_release_not_public')
++            self.assertEqual(len(bodies),6)
++            self.assertFalse(inputs._verified)
++            self.assertFalse(path.exists())
++
++    def test_wrong_thread_controller_and_canonical_source_rejected(self):
++        controls = ReadController()
++        errors = []
++        thread = threading.Thread(target=lambda: self._thread_check(controls, errors))
++        thread.start(); thread.join(3)
++        self.assertFalse(thread.is_alive())
++        self.assertEqual(errors, ['post_owner_changed'])
++        controls.close()
++
++    @staticmethod
++    def _thread_check(controls, errors):
++        try:
++            controls.check()
++        except ConsumerError as error:
++            errors.append(error.code)
++
++    def test_unentered_stage_and_foreign_controller_never_create_authority(self):
++        from rc_publication_stage import stage_selected
++        with public_fixture() as (f, tls, request, controls, stage):
++            unentered = stage_selected(f.root, request.selection, f.api, temporary_parent=f.parent)
++            with self.assertRaises(ConsumerError):
++                PublishedInputs(unentered, request, controls, temporary_parent=f.parent)
++            foreign = ReadController()
++            before = len(tls.requests)
++            with self.assertRaises(ConsumerError) as found:
++                PublishedInputs(stage, request, foreign, temporary_parent=f.parent)
++            self.assertEqual(found.exception.code, 'invalid_post_reference')
++            self.assertEqual(len(tls.requests), before)
++            foreign.close()
+diff --git a/scripts/rc_postpublication_consumer.py b/scripts/rc_postpublication_consumer.py
+new file mode 100644
+index 0000000..4ed9199
+--- /dev/null
++++ b/scripts/rc_postpublication_consumer.py
+@@ -0,0 +1,177 @@
++"""Two fixed CI-only entrypoints; no publication permission or offline PASS input."""
++import argparse
++from contextlib import ExitStack
++import json
++import os
++from pathlib import Path
++import re
++import signal
++import sys
++import time
++
++
++def _windows_block():
++    # Do not import POSIX consumer IO on Windows, even to produce a fake owner.
++    print(json.dumps(dict(passed=False, status='NOT_RUN', error_code='windows_native_io_unavailable',
++                         release_approved=False, publish_approved=False)))
++    return 1
++
++
++def _number(value):
++    if not re.fullmatch(r'[1-9][0-9]{0,18}', value):
++        raise argparse.ArgumentTypeError('canonical positive decimal required')
++    return int(value)
++
++
++def _output(name, value):
++    from rc_consumer_io import need
++    need(type(name) is str and re.fullmatch('[a-z_]+', name) and type(value) is str
++         and '\r' not in value and '\n' not in value, 'invalid_post_output')
++    path = os.environ.get('GITHUB_OUTPUT', '')
++    need(path and os.path.isabs(path), 'missing_post_output')
++    with open(path, 'a', encoding='utf-8') as stream:
++        stream.write(name + '=' + value + '\n')
++
++
++def _receipt(directory, name, value):
++    from rc_consumer_io import _directory, need
++    parent = _directory(directory)
++    try:
++        pending = name + '.pending'
++        fd = os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
++                     0o600, dir_fd=parent)
++        with os.fdopen(fd, 'wb') as output:
++            output.write((json.dumps(value, sort_keys=True, separators=(',', ':')) + '\n').encode())
++            output.flush()
++            os.fsync(output.fileno())
++        os.link(pending, name, src_dir_fd=parent, dst_dir_fd=parent, follow_symlinks=False)
++        os.unlink(pending, dir_fd=parent)
++        os.fsync(parent)
++    finally:
++        os.close(parent)
++
++
++def _host(environment):
++    from rc_consumer_io import need
++    need(environment.get('GITHUB_ACTIONS') == 'true'
++         and environment.get('RUNNER_ENVIRONMENT') == 'github-hosted'
++         and environment.get('GITHUB_REPOSITORY') == 'Eswink/coding-tools-mcp', 'post_host_not_disposable')
++
++
++def capture(root, request, controls, environment, evidence):
++    from dataclasses import asdict
++    from rc_consumer_io import need
++    from rc_postpublication_contract import transfer_name
++    from rc_postpublication_io import InputOwner
++    from rc_postpublication_reader import PublishedInputs
++    from rc_postpublication_source import original_stage, post_invocation
++    from rc_postpublication_transfer import TransferPayload, ReceivedInputs, metadata
++    parent = environment['RUNNER_TEMP']
++    with original_stage(root, request, environment.get('GH_TOKEN', ''), controls,
++                        temporary_parent=parent) as stage:
++        invocation = post_invocation(stage, controls, environment)
++        with PublishedInputs(stage, request, controls, temporary_parent=parent) as inputs:
++            with TransferPayload(inputs, request, invocation, controls, temporary_parent=parent) as payload:
++                with InputOwner(parent, root, controls, prefix='rc-post-control-') as control:
++                    control._root.write('ack', b'')
++                    _output('raw_directory', str(payload._owner._root.path))
++                    _output('ack_path', str(control._root.path / 'ack'))
++                    _output('transfer_name', transfer_name(invocation))
++                    _receipt(evidence, 'ready.json', dict(schema=1, ready=True, run_id=invocation.run_id,
++                             run_attempt=invocation.run_attempt, release_approved=False, publish_approved=False))
++                    while True:
++                        controls.check()
++                        ack = control._root.read('ack', 32)
++                        if ack:
++                            break
++                        time.sleep(0.05)
++                    need(re.fullmatch(rb'[1-9][0-9]{0,18}', ack) is not None, 'invalid_post_ack')
++                    artifact, expected = metadata(stage, invocation, int(ack), controls, complete=False)
++                    with ReceivedInputs(stage, request, invocation, expected, controls,
++                                        temporary_parent=parent, complete=False):
++                        payload.revalidate()
++        # All six public roots, copied upload input, control and ZIP roots have
++        # retired. The original reference stage still fences source and closes.
++        stage.revalidate(**controls.budget)
++    value = dict(schema=1, passed=True, scope='public-bytes-and-transfer-only',
++        post_invocation=asdict(invocation), transfer=asdict(expected), owned_raw_cleanup_confirmed=True,
++        release_approved=False, publish_approved=False,
++        installation_status='NOT_RUN', native_authority_composition='UNKNOWN')
++    _receipt(evidence, 'capture.json', value)
++    return value
++
++
++def receive(root, request, expected, controls, environment, evidence, kind):
++    from rc_postpublication_source import original_stage, post_invocation
++    from rc_postpublication_transfer import ReceivedInputs
++    from rc_postpublication_install import install
++    import platform
++    host = platform.freedesktop_os_release()
++    from rc_consumer_io import need
++    need(host.get('ID') == 'ubuntu' and host.get('VERSION_ID') in ('22.04', '24.04'),
++         'post_linux_host_mismatch')
++    current = 'Postpublication ubuntu-' + host['VERSION_ID'] + ' (' + kind + ')'
++    parent = environment['RUNNER_TEMP']
++    with original_stage(root, request, environment.get('GH_TOKEN', ''), controls,
++                        temporary_parent=parent) as stage:
++        invocation = post_invocation(stage, controls, environment, current_job=current)
++        with ReceivedInputs(stage, request, invocation, expected, controls,
++                            temporary_parent=parent) as inputs:
++            result = install(stage, inputs, controls, environment, evidence, kind, invocation)
++            inputs.revalidate()
++        stage.revalidate(**controls.budget)
++    result['owned_raw_cleanup_confirmed'] = True
++    _receipt(evidence, 'post-install.json', result)
++    return result
++
++
++def main():
++    if os.name == 'nt':
++        return _windows_block()
++    from rc_consumer_io import ConsumerError, need
++    from rc_postpublication_contract import TransferExpectation, request_bytes
++    from rc_postpublication_source import ReadController
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('mode', choices=('capture', 'receive'))
++    parser.add_argument('--evidence-directory', required=True)
++    parser.add_argument('--kind', choices=('deb', 'appimage'))
++    parser.add_argument('--artifact-id', type=_number)
++    parser.add_argument('--artifact-size', type=_number)
++    parser.add_argument('--artifact-sha256')
++    args = parser.parse_args()
++    controls, result = None, None
++    try:
++        environment = os.environ
++        _host(environment)
++        parent = environment.get('RUNNER_TEMP', '')
++        evidence = os.path.abspath(args.evidence_directory)
++        need(parent and os.path.isabs(parent) and os.path.commonpath((parent, evidence)) == parent
++             and evidence != parent, 'invalid_post_evidence_directory')
++        need(os.path.isdir(evidence) and not os.path.islink(evidence), 'invalid_post_evidence_directory')
++        request = request_bytes(sys.stdin.buffer.read(256 * 1024 + 1))
++        controls = ReadController()
++        signal.signal(signal.SIGTERM, lambda *_: controls.cancel())
++        root = Path(__file__).absolute().parents[1]
++        if args.mode == 'capture':
++            need(args.kind is None and args.artifact_id is None and args.artifact_size is None
++                 and args.artifact_sha256 is None, 'invalid_post_cli')
++            result = capture(root, request, controls, environment, evidence)
++        else:
++            need(args.kind is not None, 'invalid_post_cli')
++            expected = TransferExpectation(args.artifact_id, args.artifact_size, args.artifact_sha256)
++            result = receive(root, request, expected, controls, environment, evidence, args.kind)
++        print(json.dumps(result, sort_keys=True))
++        return 0
++    except BaseException as error:
++        code = error.code if isinstance(error, ConsumerError) else 'post_consumer_failed'
++        value = dict(schema=1, passed=False, status='NOT_RUN', error_code=code,
++                     release_approved=False, publish_approved=False)
++        print(json.dumps(value, sort_keys=True))
++        return 1
++    finally:
++        if controls is not None:
++            controls.close()
++
++
++if __name__ == '__main__':
++    raise SystemExit(main())
+diff --git a/scripts/rc_postpublication_contract.py b/scripts/rc_postpublication_contract.py
+new file mode 100644
+index 0000000..0cd7ce9
+--- /dev/null
++++ b/scripts/rc_postpublication_contract.py
+@@ -0,0 +1,138 @@
++"""Post-release expectations and observations are data, never release authority."""
++from dataclasses import asdict, dataclass
++import hashlib
++import json
++import re
++
++from rc_consumer_io import ConsumerError, FILE_LIMIT, need
++from rc_pretag_types import SourceIdentity, InvocationIdentity, decode, REPOSITORY
++from rc_publication_contract import PublicationSubject, _ids
++from rc_publication_stage import Selection
++
++WORKFLOW = '.github/workflows/rc-postpublication-consumer.yml'
++CAPTURE_JOB = 'Anonymous six assets and exact public-byte transfer'
++MANIFEST = 'post-publication-inputs.json'
++SLOTS = (('windows-2025', 'nsis'), ('ubuntu-22.04', 'deb'),
++         ('ubuntu-24.04', 'deb'), ('ubuntu-22.04', 'appimage'),
++         ('ubuntu-24.04', 'appimage'))
++
++
++def encode(value):
++    return (json.dumps(value, sort_keys=True, separators=(',', ':'),
++                       allow_nan=False) + '\n').encode('utf-8')
++
++
++def digest(raw):
++    need(type(raw) is bytes, 'invalid_post_bytes')
++    return hashlib.sha256(raw).hexdigest()
++
++
++@dataclass(frozen=True)
++class CaptureRequest:
++    selection: Selection
++    release_id: int
++    asset_ids: tuple[int, ...]
++
++    def __post_init__(self):
++        need(type(self.selection) is Selection, 'invalid_post_selection')
++        self.selection.__post_init__()
++        need(type(self.release_id) is int and 0 < self.release_id < 2**63, 'invalid_post_release')
++        _ids(self.asset_ids)
++        need(len(self.asset_ids) == 6, 'invalid_post_assets')
++
++
++def request_bytes(raw):
++    """Exact heterogeneous tuple schema; the generic homogeneous decoder cannot."""
++    def exact(value, names):
++        need(type(value) is dict and set(value) == set(names), 'invalid_post_request')
++        return value
++    def array(value):
++        need(type(value) is list and len(value) <= 128, 'invalid_post_request')
++        return value
++    try:
++        import rc_publication_github as wire
++        need(type(raw) is bytes and 0 < len(raw) <= 256 * 1024, 'invalid_post_request')
++        value = exact(wire._json(raw), ('selection', 'release_id', 'asset_ids'))
++        selected = exact(value['selection'], ('subject', 'consumer_artifact_id',
++            'consumer_artifact_size', 'consumer_artifact_sha256'))
++        subject = dict(exact(selected['subject'], PublicationSubject.__dataclass_fields__))
++        subject['source'] = decode(SourceIdentity, subject['source'])
++        subject['runs'] = tuple(decode(InvocationIdentity, r) for r in array(subject['runs']))
++        subject['job_ids'] = tuple(tuple(array(ids)) for ids in array(subject['job_ids']))
++        subject['gate_evidence'] = tuple(array(subject['gate_evidence']))
++        subject['stable_latest_identity'] = tuple(array(subject['stable_latest_identity']))
++        selection = Selection(PublicationSubject(**subject), selected['consumer_artifact_id'],
++            selected['consumer_artifact_size'], selected['consumer_artifact_sha256'])
++        return CaptureRequest(selection, value['release_id'], tuple(array(value['asset_ids'])))
++    except (ValueError, TypeError, KeyError, RecursionError):
++        raise ConsumerError('invalid_post_request') from None
++
++
++@dataclass(frozen=True)
++class PostInvocation:
++    source: SourceIdentity
++    run_id: int
++    run_attempt: int
++    workflow_id: int
++    workflow_ref: str
++    workflow_blob: str
++    ref: str
++    capture_job_id: int
++
++    def __post_init__(self):
++        need(type(self.source) is SourceIdentity, 'invalid_post_source')
++        self.source.__post_init__()
++        need(all(type(n) is int and 0 < n < 2**63 for n in
++                 (self.run_id, self.run_attempt, self.workflow_id, self.capture_job_id)),
++             'invalid_post_invocation')
++        need(type(self.ref) is str and re.fullmatch(r'refs/(heads|tags)/[A-Za-z0-9][A-Za-z0-9/._-]*', self.ref)
++             and '..' not in self.ref and '//' not in self.ref and not self.ref.endswith(('/', '.')),
++             'invalid_post_ref')
++        need(self.workflow_ref == REPOSITORY + '/' + WORKFLOW + '@' + self.ref
++             and type(self.workflow_blob) is str and re.fullmatch('[a-f0-9]{40}', self.workflow_blob),
++             'invalid_post_workflow')
++
++
++@dataclass(frozen=True)
++class TransferExpectation:
++    artifact_id: int
++    size: int
++    sha256: str
++
++    def __post_init__(self):
++        need(type(self.artifact_id) is int and 0 < self.artifact_id < 2**63
++             and type(self.size) is int and 0 < self.size <= 2 * 1024**3
++             and type(self.sha256) is str and re.fullmatch('[a-f0-9]{64}', self.sha256),
++             'invalid_post_transfer')
++
++
++def transfer_name(invocation):
++    need(type(invocation) is PostInvocation, 'invalid_post_invocation')
++    invocation.__post_init__()
++    return f'rc-postpublication-raw-{invocation.run_id}-{invocation.run_attempt}'
++
++
++def manifest_bytes(stage, request, invocation):
++    """Expected exact contents, constructed from retained original stage bytes."""
++    from rc_publication_stage import StagedAssets
++    need(type(stage) is StagedAssets and stage._entered and not stage._closed,
++         'invalid_post_stage')
++    need(type(request) is CaptureRequest and request.selection == stage._selection
++         and type(invocation) is PostInvocation and invocation.source == stage.subject.source,
++         'post_source_mismatch')
++    need(invocation.run_id not in {r.run_id for r in stage.subject.runs}, 'post_run_reused')
++    need(len(stage.plan.assets) == 6 and all(a.size <= FILE_LIMIT for a in stage.plan.assets),
++         'post_asset_limit')
++    subject, selected = stage.subject, stage._selection
++    return encode(dict(schema=1, scope='verified-public-bytes-only',
++        release_approved=False, publish_approved=False, source=asdict(subject.source),
++        original_invocations=[asdict(r) for r in subject.runs],
++        original_artifact=dict(id=subject.artifact_id, size=subject.artifact_size,
++                               sha256=subject.artifact_sha256),
++        original_consumer_artifact=dict(id=selected.consumer_artifact_id,
++            size=selected.consumer_artifact_size, sha256=selected.consumer_artifact_sha256),
++        selection_sha256=digest(encode(asdict(selected))),
++        plan_sha256=digest(stage.plan_bytes), provenance_sha256=digest(stage.provenance_bytes),
++        post_invocation=asdict(invocation), release_id=request.release_id,
++        remote_asset_ids=list(request.asset_ids), assets=[asdict(a) for a in stage.plan.assets],
++        installation_slots=[dict(platform=p, kind=k, status='NOT_RUN') for p, k in SLOTS]))
+diff --git a/scripts/rc_postpublication_install.py b/scripts/rc_postpublication_install.py
+new file mode 100644
+index 0000000..923a6b5
+--- /dev/null
++++ b/scripts/rc_postpublication_install.py
+@@ -0,0 +1,374 @@
++"""Hosted Linux public-origin acceptance; Windows native lifetime stays blocked."""
++from contextlib import ExitStack, contextmanager
++import copy
++import hashlib
++import os
++from pathlib import Path
++import shutil
++import secrets
++import signal
++import stat
++import subprocess
++import tempfile
++import time
++
++from rc_consumer_io import CHUNK, ConsumerError, _directory, need
++import rc_native_gate as native
++import rc_packages as packages
++import rc_publication_github as wire
++from rc_publication_contract import Asset
++from rc_publication_stage import StagedAssets
++from rc_postpublication_io import InputOwner
++from rc_postpublication_transfer import ReceivedInputs
++from rc_postpublication_process import _PackageChecks
++
++_HELD_INSTALLATION_OWNERS = []  # Actual uncertain roots, leases and native handles.
++
++
++class _ExecutableInput:
++    """Explicit private byte-identical execution copy, never chmod the raw input."""
++    def __init__(self, source, asset, root, parent, controls, *, lifetime=None):
++        self._asset, self._controls, self._stack = asset, controls, ExitStack()
++        self._lifetime = lifetime
++        if lifetime is not None:
++            need(type(lifetime) is _InstallationOwner and lifetime._controls is controls
++                 and lifetime._stage._root == root, 'post_install_lifetime')
++            lifetime.check()
++        # Save the actual allocation before its fixed native constructor creates resources.
++        self._owner = InputOwner.__new__(InputOwner)
++        if lifetime is not None:
++            lifetime._executions.append(self)
++        self._stream, self._executable = None, False
++        try:
++            InputOwner.__init__(self._owner, parent, root, controls, prefix='rc-post-execution-')
++            with self._owner._root.open(asset.name, 'xb') as output:
++                total, digest = 0, hashlib.sha256()
++                while True:
++                    controls.check()
++                    data = source.read(CHUNK)
++                    controls.check()
++                    if not data:
++                        break
++                    total += len(data)
++                    need(total <= asset.size and output.write(data) == len(data), 'post_execution_copy_failed')
++                    digest.update(data)
++                need((total, digest.hexdigest()) == (asset.size, asset.sha256), 'post_execution_copy_failed')
++            self._owner.verify(asset)
++            self._stream = self._stack.enter_context(self._owner._root.open(asset.name))
++            self._identity = self._owner._root._files[asset.name]
++            os.fchmod(self._stream.fileno(), 0o700)
++            self._executable = True
++            self.check()
++        except BaseException:
++            if lifetime is not None:
++                lifetime.retain()
++            self.close()
++            raise
++
++    @property
++    def path(self):
++        self.check()
++        return self._owner._root.path / self._asset.name
++
++    def check(self):
++        self._owner.check()
++        stream = self._stream
++        need(stream is not None and not stream.closed and self._executable, 'post_execution_lifetime')
++        fd = self._owner._root._root()
++        try:
++            info = os.fstat(stream.fileno())
++            current = os.stat(self._asset.name, dir_fd=fd, follow_symlinks=False)
++            need(stat.S_ISREG(info.st_mode) and info.st_nlink == 1 and info.st_uid == os.geteuid()
++                 and stat.S_IMODE(info.st_mode) == 0o700 and info.st_size == self._asset.size
++                 and (info.st_dev, info.st_ino) == self._identity == (current.st_dev, current.st_ino),
++                 'post_execution_changed')
++            stream.seek(0)
++            total, digest = 0, hashlib.sha256()
++            while True:
++                self._controls.check()
++                data = stream.read(CHUNK)
++                self._controls.check()
++                if not data:
++                    break
++                total += len(data)
++                need(total <= self._asset.size, 'post_execution_changed')
++                digest.update(data)
++            need((total, digest.hexdigest()) == (self._asset.size, self._asset.sha256), 'post_execution_changed')
++            stream.seek(0)
++        finally:
++            self._owner._root._retirement_close(fd)
++
++    def close(self):
++        error = None
++        if self._executable and not self._owner._uncertain:
++            try:
++                self.check()
++                os.fchmod(self._stream.fileno(), 0o600)
++                self._executable = False
++            except BaseException as failure:
++                self._owner._uncertain, error = True, failure
++        try:
++            self._stack.close()
++        except BaseException as failure:
++            self._owner._uncertain, error = True, failure
++        try:
++            if hasattr(self._owner, '_closed'):
++                self._owner.close()
++        except BaseException as failure:
++            error = failure
++        if error is not None:
++            if self._lifetime is not None:
++                self._lifetime.retain()
++            raise ConsumerError('post_execution_cleanup_uncertain') from None
++
++    def __enter__(self):
++        return self
++
++    def __exit__(self, *_):
++        self.close()
++
++
++class _InstallationOwner:
++    """Actual whole input lifetime, including DEB with no execution copies."""
++    def __init__(self, stage, inputs, controls):
++        from rc_postpublication_transfer import _stage_owner
++        _stage_owner(stage, controls)
++        need(type(inputs) is ReceivedInputs and inputs._verified and not inputs._closed
++             and inputs._stage is stage and inputs._controls is controls
++             and not stage._cleanup_failed and not inputs._owner._uncertain
++             and not inputs._download_owner._uncertain, 'post_install_lifetime')
++        self._stage, self._inputs, self._controls = stage, inputs, controls
++        self._executions, self._profiles, self._processes, self._uncertain = [], [], [], False
++        self._stack = ExitStack()
++        self.check()
++
++    def check(self):
++        from rc_postpublication_transfer import _stage_owner
++        _stage_owner(self._stage, self._controls)
++        need(not self._uncertain and self._inputs._verified and not self._inputs._closed,
++             'post_install_lifetime')
++        need(not self._stage._cleanup_failed and not self._inputs._owner._uncertain
++             and not self._inputs._download_owner._uncertain, 'post_install_lifetime')
++        self._stage._api.token
++        self._inputs._owner.check()
++        self._inputs._download_owner.check()
++        for value in self._executions:
++            need(not value._owner._uncertain and not value._owner._retirement.uncertain,
++                 'post_install_lifetime')
++            if not value._owner._closed:
++                value.check()
++        for value in self._profiles:
++            if not value._closed:
++                value.check()
++
++    def retain(self):
++        self._uncertain = True
++        if not any(value is self for value in _HELD_INSTALLATION_OWNERS):
++            _HELD_INSTALLATION_OWNERS.append(self)
++        self._stage._cleanup_failed = True
++        for value in (self._inputs._owner, self._inputs._download_owner):
++            value._uncertain = True
++        for value in self._executions:
++            value._owner._uncertain = True
++        for value in self._profiles:
++            value._retain = True
++
++    def execution(self, value):
++        need(type(value) is _ExecutableInput and value._controls is self._controls
++             and value._lifetime is self and sum(item is value for item in self._executions) == 1,
++             'post_install_lifetime')
++        value.check()
++
++    def __enter__(self):
++        self.check()
++        return self._stack
++
++    def __exit__(self, error_type, *_):
++        if error_type is not None:
++            self.retain()
++            self._stack.close()
++            return
++        try:
++            from rc_postpublication_process import ProcessOwner
++            self.check()
++            need(all(type(value) is ProcessOwner and value._lifetime is self
++                     and value._controls is self._controls and value._closed and value._family_closed
++                     and not value._uncertain and value._pidfd is None
++                     and value._process.returncode == 0 and value._process.stdin.closed
++                     and value._process.stdout.closed for value in self._processes), 'post_install_lifetime')
++            self._inputs.revalidate()
++            self._stack.close()
++            for value in self._profiles:
++                value.retire()
++        except BaseException:
++            self.retain()
++            self._stack.close()
++            raise
++
++
++def _run(argv, controls, lifetime, *, env, seconds=120, cwd=None):
++    from rc_postpublication_process import ProcessOwner
++    need(type(lifetime) is _InstallationOwner and lifetime._controls is controls,
++         'post_install_lifetime')
++    return ProcessOwner(controls, lifetime).run(argv, env=env, seconds=seconds, cwd=cwd)
++
++
++class _ProfileLease:
++    def check(self):
++        need(not self._closed, 'post_profile_changed')
++        info = os.fstat(self._root_fd)
++        current = os.stat(self.path.name, dir_fd=self._parent_fd, follow_symlinks=False)
++        need(stat.S_ISDIR(info.st_mode) and stat.S_ISDIR(current.st_mode)
++             and info.st_uid == os.geteuid() and stat.S_IMODE(info.st_mode) == 0o700
++             and (info.st_dev, info.st_ino) == self._identity == (current.st_dev, current.st_ino),
++             'post_profile_changed')
++
++    def retire(self):
++        self._lifetime.check()
++        self.check()
++        # A root-FD close fault occurs before any deletion; never retry that number.
++        os.close(self._root_fd)
++        self._root_fd = None
++        current = os.stat(self.path.name, dir_fd=self._parent_fd, follow_symlinks=False)
++        need(stat.S_ISDIR(current.st_mode) and current.st_uid == os.geteuid()
++             and stat.S_IMODE(current.st_mode) == 0o700
++             and (current.st_dev, current.st_ino) == self._identity, 'post_profile_changed')
++        shutil.rmtree(self.path.name, dir_fd=self._parent_fd)
++        os.close(self._parent_fd)
++        self._parent_fd, self._closed = None, True
++
++
++@contextmanager
++def _profile(parent, marker, lifetime):
++    """Actual new anchored profile, retained with its whole family if uncertain."""
++    need(type(lifetime) is _InstallationOwner and shutil.rmtree.avoids_symlink_attacks,
++         'post_profile_retirement_unavailable')
++    lifetime.check()
++    lease = _ProfileLease()
++    lease._parent_fd, lease._root_fd = _directory(parent), None
++    lease._lifetime = lifetime
++    lease._marker_fd = None
++    lease._closed = lease._retain = False
++    name = 'rc-post-profile-' + secrets.token_hex(16)
++    lease.path = Path(parent) / name
++    lifetime._profiles.append(lease)
++    try:
++        os.mkdir(name, 0o700, dir_fd=lease._parent_fd)
++        lease._root_fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
++                                 dir_fd=lease._parent_fd)
++        info = os.fstat(lease._root_fd)
++        lease._identity = info.st_dev, info.st_ino
++        lease._marker_fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600,
++                     dir_fd=lease._root_fd)
++        os.close(lease._marker_fd)
++        lease._marker_fd = None
++        lease.check()
++        yield lease.path
++        lifetime.check()
++    except BaseException:
++        lease._retain = True
++        lifetime.retain()
++        raise
++
++
++def _environment(environment, home, source, invocation):
++    # Credential values never enter installer, GUI, OAuth/native test children.
++    value = {k: environment[k] for k in ('LANG', 'LC_ALL', 'TZ') if k in environment}
++    value.update(PATH='/usr/bin:/bin', HOME=str(home), APPIMAGE_EXTRACT_AND_RUN='1', GDK_BACKEND='x11',
++        GITHUB_SHA=source.source_sha, GITHUB_WORKFLOW_SHA=source.source_sha,
++        GITHUB_RUN_ID=str(invocation.run_id), GITHUB_RUN_ATTEMPT=str(invocation.run_attempt),
++        GITHUB_REPOSITORY=source.repository, GITHUB_ACTIONS='true', RUNNER_ENVIRONMENT='github-hosted',
++        GITHUB_WORKSPACE=environment['GITHUB_WORKSPACE'], RUNNER_TEMP=environment['RUNNER_TEMP'])
++    for key, suffix in (('XDG_CONFIG_HOME', 'config'), ('XDG_DATA_HOME', 'data'),
++                        ('XDG_CACHE_HOME', 'cache'), ('XDG_RUNTIME_DIR', 'run')):
++        directory = home / suffix
++        directory.mkdir(mode=0o700)
++        value[key] = str(directory)
++    return value
++
++
++def install(stage, inputs, controls, environment, evidence, kind, invocation):
++    need(type(stage) is StagedAssets and type(inputs) is ReceivedInputs and inputs._verified
++         and inputs._stage is stage and inputs._controls is controls and kind in ('deb', 'appimage')
++         and invocation is inputs._invocation and invocation.source is stage.subject.source
++         and os.geteuid() != 0 and environment.get('GITHUB_ACTIONS') == 'true'
++         and environment.get('RUNNER_ENVIRONMENT') == 'github-hosted', 'post_install_not_admitted')
++    inputs.revalidate()
++    source, root = stage.subject.source, stage._root
++    original = wire._json(stage._bundle.read('evidence/rc-linux-packages/exclusive-package.json', 65536))
++    producer = stage.subject.runs[0]
++    need(all(original.get(k) == v for k, v in dict(source_sha=source.source_sha,
++         source_tree=source.source_tree, version=source.version, run_id=str(producer.run_id)).items()),
++         'post_producer_package_mismatch')
++    need(original.get('passed') is True and original.get('build_kind') == 'release-candidate'
++         and set(original.get('packages', {})) == {'deb', 'appimage'}, 'post_producer_package_mismatch')
++    entry = original['packages'][kind]
++    asset = next(a for a in stage.plan.assets if a.family == kind)
++    need(entry.get('artifact') == dict(name=asset.name, size=asset.size, sha256=asset.sha256),
++         'post_producer_package_mismatch')
++    current = copy.deepcopy(original)
++    current['run_id'] = str(invocation.run_id)  # New result identity, not an overwritten producer manifest.
++    parent = environment['RUNNER_TEMP']
++    output = Path(evidence)
++    lifetime = _InstallationOwner(stage, inputs, controls)
++    with lifetime as stack:
++        executions = []
++        package = inputs._owner._root.path / asset.name
++        if kind == 'appimage':
++            with inputs._owner._root.open(asset.name) as stream:
++                executable = stack.enter_context(_ExecutableInput(stream, asset, root, parent, controls, lifetime=lifetime))
++            executions.append(executable)
++            lifetime.execution(executable)
++            package = executable.path
++        with _profile(parent, '.linux-startup-disposable', lifetime) as home:
++            env = _environment(environment, home, source, invocation)
++            if kind == 'deb':
++                _run(['/usr/bin/sudo', '/usr/bin/apt-get', 'install', '-y', str(package)], controls,
++                     lifetime, env=env)
++            checks = _PackageChecks(lifetime, env, invocation)
++            package_result = packages._installed_checked(current, package, kind, output / 'rc-package.json', checks=checks)
++            app = package_result['executable']
++            for scenario in ('missing-bus', 'unlocked-keyring', 'split-session-bus', 'safe-mode'):
++                state = home / ('state-' + scenario)
++                state.mkdir(mode=0o700)
++                env['XDG_STATE_HOME'] = str(state)
++                _run(['/usr/bin/xvfb-run', '-a', '-s', '-screen 0 1280x800x24',
++                    '/usr/bin/dbus-run-session', '--', '/usr/bin/python3', str(root / 'scripts/linux_startup_candidate.py'),
++                    '--app', app, '--case', scenario, '--seconds', '20', '--output',
++                    str(output / ('startup-' + scenario))], controls, lifetime, env=env, seconds=60)
++                stderr = (output / ('startup-' + scenario) / 'stderr.txt').read_bytes()
++                need(b'failed to load app state' not in stderr and b'panic' not in stderr, 'post_raw_startup_failed')
++        with stage._bundle.open('evidence/rc-linux-driver/tauri-driver') as stream:
++            total, hasher = 0, hashlib.sha256()
++            while True:
++                controls.check()
++                data = stream.read(CHUNK)
++                controls.check()
++                if not data:
++                    break
++                total += len(data); hasher.update(data)
++            stream.seek(0)
++            driver_asset = Asset('tauri-driver', 'driver', 'application/octet-stream', total, hasher.hexdigest())
++            driver = stack.enter_context(_ExecutableInput(stream, driver_asset, root, parent, controls, lifetime=lifetime))
++        executions.append(driver)
++        lifetime.execution(driver)
++        with _profile(parent, '.ubuntu-ci-fixture-v1', lifetime) as home:
++            env = _environment(environment, home, source, invocation)
++            _run(['/usr/bin/xvfb-run', '-a', '-s', '-screen 0 1920x1080x24',
++                  '/usr/bin/dbus-run-session', '--', '/bin/bash', str(root / 'scripts/Ubuntu图形会话v2.sh'),
++                  str(root / 'scripts/exclusive_native_acceptance.py'), app, str(driver.path), kind,
++                  str(output)], controls, lifetime, env=env, seconds=600)
++            from rc_consumer_io import json_file
++            proof = json_file(output / 'exclusive-native.json')
++            native.verify(proof, source=source.source_sha, run_id=str(invocation.run_id),
++                          version=source.version, kind=kind, binary_sha256=package_result['native_executable_sha256'])
++        for owned in executions:
++            owned.check()
++    return dict(schema=1, passed=True, scope='actual-postpublication-native-twelve-only',
++        source_sha=source.source_sha, source_tree=source.source_tree, version=source.version,
++        run_id=invocation.run_id, run_attempt=invocation.run_attempt,
++        producer_run_id=producer.run_id, producer_run_attempt=producer.run_attempt,
++        transfer_artifact_id=inputs._expected.artifact_id, transfer_sha256=inputs._expected.sha256,
++        package=entry['artifact'], package_kind=kind, native_stages=12,
++        execution_cleanup_confirmed=True, release_approved=False, publish_approved=False,
++        real_chatgpt_verified=False, synthetic_conversation_metadata=True)
+diff --git a/scripts/rc_postpublication_io.py b/scripts/rc_postpublication_io.py
+new file mode 100644
+index 0000000..975ca19
+--- /dev/null
++++ b/scripts/rc_postpublication_io.py
+@@ -0,0 +1,135 @@
++"""Actual private raw files and creation-owned retirement; POSIX only."""
++from contextlib import ExitStack
++import hashlib
++import os
++import stat
++import threading
++
++from rc_consumer_io import CHUNK, FILE_LIMIT, ConsumerError, PrivateRoot, need
++from rc_publication_retirement import StageRootOwner, retire_staged
++from rc_postpublication_source import ReadController
++
++
++class InputOwner:
++    """No incoming path/stream/callback constitutes a retained input owner."""
++    def __init__(self, parent, source_root, controls, *, prefix='rc-post-raw-'):
++        need(type(controls) is ReadController and os.name == 'posix', 'post_native_io_unavailable')
++        controls.check()
++        self._controls, self._pid, self._thread = controls, os.getpid(), threading.get_ident()
++        self._retirement, self._stack = StageRootOwner(), ExitStack()
++        self._closed = self._uncertain = False
++        self._root = None
++        try:
++            self._root = self._stack.enter_context(PrivateRoot(parent, prefix, source_root=source_root,
++                                               _stage_owner=self._retirement))
++            self._retirement.registered = True
++        except BaseException:
++            self.close()
++            raise
++
++    def check(self):
++        self._controls.check()
++        need(not self._closed and (os.getpid(), threading.get_ident()) == (self._pid, self._thread)
++             and self._root is not None and not self._retirement.uncertain, 'post_input_lifetime')
++
++    def sink(self, asset):
++        from rc_publication_contract import Asset
++        self.check()
++        need(type(asset) is Asset and asset.size <= FILE_LIMIT, 'invalid_post_asset')
++        return _RawSink(self, asset)
++
++    def verify(self, asset):
++        self.check()
++        with self._root.open(asset.name) as stream:
++            info = os.fstat(stream.fileno())
++            need(info.st_size == asset.size, 'post_input_size_changed')
++            total, digest = 0, hashlib.sha256()
++            while True:
++                self.check()
++                data = stream.read(CHUNK)
++                self.check()
++                if not data:
++                    break
++                total += len(data)
++                need(total <= asset.size, 'post_input_size_changed')
++                digest.update(data)
++            need((total, digest.hexdigest()) == (asset.size, asset.sha256), 'post_input_digest_changed')
++        self.check()
++
++    def close(self):
++        if self._closed:
++            return
++        self._closed = True
++        error = None
++        try:
++            self._stack.close()
++        except BaseException as failure:
++            self._uncertain, error = True, failure
++        try:
++            retire_staged([self._retirement], retain=self._uncertain)
++        except BaseException as failure:
++            self._uncertain, error = True, failure
++        if error is not None:
++            raise ConsumerError('post_cleanup_uncertain') from None
++
++    def __enter__(self):
++        self.check()
++        return self
++
++    def __exit__(self, *_):
++        self.close()
++
++
++class _RawSink:
++    """Parser-private, single successful response; never an external callback."""
++    def __init__(self, owner, asset):
++        need(type(owner) is InputOwner, 'invalid_post_owner')
++        owner.check()
++        self._owner, self._asset = owner, asset
++        self._context = self._stream = None
++        self._started = self._finished = False
++        self._total, self._digest = 0, hashlib.sha256()
++
++    def _begin(self, status, binary):
++        self._owner.check()
++        need(not self._started and not self._finished and binary is True, 'post_sink_reused')
++        self._started = True
++        if status == 200:
++            self._context = self._owner._root.open(self._asset.name, 'xb')
++            self._stream = self._context.__enter__()
++
++    def _write(self, data):
++        self._owner.check()
++        need(self._started and not self._finished and type(data) is bytes, 'post_sink_lifetime')
++        if self._stream is not None:
++            need(self._total + len(data) <= self._asset.size, 'post_input_size_changed')
++            need(self._stream.write(data) == len(data), 'post_input_write_failed')
++            self._digest.update(data)
++            self._total += len(data)
++        self._owner.check()
++
++    def finish(self, measured):
++        self._owner.check()
++        need(self._started and not self._finished and self._stream is not None,
++             'post_sink_not_successful')
++        need(measured == (self._asset.size, self._asset.sha256) ==
++             (self._total, self._digest.hexdigest()), 'post_input_digest_changed')
++        self.close()
++        self._owner.verify(self._asset)
++        self._finished = True
++
++    def close(self):
++        context, self._context, self._stream = self._context, None, None
++        if context is not None:
++            try:
++                context.__exit__(None, None, None)
++            except BaseException:
++                self._owner._uncertain = True
++                raise ConsumerError('post_cleanup_uncertain') from None
++
++    def __enter__(self):
++        self._owner.check()
++        return self
++
++    def __exit__(self, *_):
++        self.close()
+diff --git a/scripts/rc_postpublication_process.py b/scripts/rc_postpublication_process.py
+new file mode 100644
+index 0000000..775ef7e
+--- /dev/null
++++ b/scripts/rc_postpublication_process.py
+@@ -0,0 +1,457 @@
++"""Native Linux children only: owned live leader, pidfds, subreaper and IO."""
++import base64
++import ctypes
++import json
++import math
++import os
++from pathlib import Path
++import select
++import signal
++import subprocess
++import sys
++import time
++
++from rc_consumer_io import ConsumerError, need
++from rc_postpublication_source import ReadController
++
++LIMIT = 2 * 1024 * 1024
++_HELD_PROCESS_OWNERS = []  # Actual uncertain native handles and whole input owners.
++KEYS = frozenset(('PATH', 'HOME', 'LANG', 'LC_ALL', 'TZ', 'APPIMAGE_EXTRACT_AND_RUN',
++    'GDK_BACKEND', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_RUNTIME_DIR',
++    'XDG_STATE_HOME', 'GITHUB_SHA', 'GITHUB_WORKFLOW_SHA', 'GITHUB_RUN_ID',
++    'GITHUB_RUN_ATTEMPT', 'GITHUB_REPOSITORY', 'GITHUB_ACTIONS', 'RUNNER_ENVIRONMENT',
++    'GITHUB_WORKSPACE', 'RUNNER_TEMP'))
++
++
++def _request(argv, env, cwd):
++    need(type(argv) in (list, tuple) and 0 < len(argv) <= 64 and all(type(v) is str
++         and 0 < len(v) <= 8192 and '\0' not in v for v in argv)
++         and os.path.isabs(argv[0]), 'post_process_arguments')
++    need(type(env) is dict and set(env) <= KEYS and env.get('PATH') == '/usr/bin:/bin'
++         and all(type(v) is str and len(v) <= 8192 and '\0' not in v for v in env.values()),
++         'post_process_environment')
++    need(cwd is None or type(cwd) is str and os.path.isabs(cwd), 'post_process_directory')
++    value = dict(argv=list(argv), env=dict(env), cwd=cwd)
++    need(len(json.dumps(value, separators=(',', ':')).encode()) <= 32768,
++         'post_process_arguments')
++    return value
++
++
++def _status(path):
++    raw = path.read_text()
++    need(len(raw) <= 65536, 'post_kernel_identity')
++    values = dict(line.split(':', 1) for line in raw.splitlines() if ':' in line)
++    return {k: tuple(int(n) for n in values[k].split()) for k in ('Pid', 'PPid', 'NSpid')}
++
++
++def _children(held, own):
++    """Proc rows are candidates only; waitid(pidfd) proves actual own children."""
++    depth = len(own['NSpid']) - 1
++    need(own['NSpid'][depth] == os.getpid(), 'post_kernel_namespace')
++    candidates = list(Path('/proc').glob('[0-9]*/status'))
++    need(len(candidates) <= 8192, 'post_kernel_inventory')
++    for path in candidates:
++        try:
++            before = _status(path)
++        except (FileNotFoundError, ProcessLookupError, PermissionError):
++            continue
++        if before['PPid'] != own['Pid']:
++            continue
++        need(len(before['NSpid']) > depth, 'post_kernel_namespace')
++        ident = before['NSpid'][depth]
++        if ident in held:
++            continue
++        fd = os.pidfd_open(ident)
++        try:
++            # ECHILD is a refusal, never an adopted authority from PPid/data.
++            os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
++            after = _status(path)
++            info = dict(line.split(':', 1) for line in Path('/proc/self/fdinfo/' + str(fd)).read_text().splitlines()
++                        if ':' in line)
++            need(after == before and int(info['Pid']) == before['Pid'][0], 'post_kernel_identity')
++            need(len(held) < 128, 'post_kernel_inventory')
++            held[ident] = fd
++            fd = None
++        finally:
++            if fd is not None:
++                os.close(fd)
++
++
++def _event(value):
++    data = (json.dumps(value, separators=(',', ':')) + '\n').encode()
++    while data:
++        sent = os.write(1, data)
++        need(sent > 0, 'post_process_io')
++        data = data[sent:]
++
++
++def _line(limit):
++    data = bytearray()
++    while len(data) < limit:
++        value = os.read(0, 1)
++        need(value, 'post_process_protocol')
++        data.extend(value)
++        if value == b'\n':
++            return bytes(data)
++    raise ConsumerError('post_process_protocol')
++
++
++def _worker():
++    """Fixed worker in the actual newly created leader, never an external ACK."""
++    libc = ctypes.CDLL(None, use_errno=True)
++    state = ctypes.c_int()
++    need(libc.prctl(36, 1, 0, 0, 0) == 0 and libc.prctl(37, ctypes.byref(state), 0, 0, 0) == 0
++         and state.value == 1, 'post_subreaper_unavailable')
++    own = _status(Path('/proc/self/status'))
++    signal.signal(signal.SIGTERM, signal.SIG_IGN)
++    _event(dict(kind='ready', pid=os.getpid(), ppid=os.getppid(), pgid=os.getpgrp()))
++    raw = _line(32769)
++    need(0 < len(raw) <= 32768 and raw.endswith(b'\n'), 'post_process_protocol')
++    value = json.loads(raw)
++    need(type(value) is dict and set(value) == {'argv', 'env', 'cwd'}, 'post_process_protocol')
++    command = _request(value['argv'], value['env'], value['cwd'])
++    need(_line(3) == b'G\n', 'post_process_protocol')
++    reader, writer = os.pipe2(os.O_CLOEXEC)
++    child = os.fork()
++    if child == 0:
++        try:
++            signal.signal(signal.SIGTERM, signal.SIG_DFL)
++            signal.signal(signal.SIGPIPE, signal.SIG_DFL)
++            os.close(reader)
++            os.dup2(writer, 1); os.dup2(writer, 2); os.close(writer)
++            null = os.open('/dev/null', os.O_RDONLY)
++            os.dup2(null, 0); os.close(null)
++            if command['cwd'] is not None:
++                os.chdir(command['cwd'])
++            os.execve(command['argv'][0], command['argv'], command['env'])
++        except BaseException:
++            os._exit(126)
++    os.close(writer)
++    os.set_blocking(reader, False)
++    os.set_blocking(0, False)
++    held, statuses, output = {}, {}, bytearray()
++    commands = bytearray()
++    stopped, stop_at, eof, done, error = False, None, False, False, None
++    try:
++        while True:
++            _children(held, own)
++            for ident, fd in tuple(held.items()):
++                observed = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
++                if observed is not None:
++                    got, status = os.waitpid(ident, 0)
++                    need(got == ident, 'post_process_reap')
++                    statuses[ident] = os.waitstatus_to_exitcode(status)
++                    os.close(fd); del held[ident]
++                elif stopped:
++                    signal.pidfd_send_signal(fd, signal.SIGKILL if time.monotonic() - stop_at >= .5 else signal.SIGTERM)
++            try:
++                pending = os.waitid(os.P_ALL, 0, os.WEXITED | os.WNOHANG | os.WNOWAIT)
++                empty = False
++            except ChildProcessError:
++                empty = True
++            ready, _, _ = select.select([0] + ([] if eof else [reader]), [], [], .02)
++            if reader in ready:
++                data = os.read(reader, 65536)
++                if data:
++                    available = LIMIT - len(output)
++                    output.extend(data[:available])
++                    if len(data) > available:
++                        error, stopped = 'post_process_output_limit', True
++                        stop_at = time.monotonic() if stop_at is None else stop_at
++                else:
++                    eof = True
++            if 0 in ready:
++                incoming = os.read(0, 16)
++                if not incoming:
++                    stopped = True
++                    stop_at = time.monotonic() if stop_at is None else stop_at
++                commands.extend(incoming)
++                need(len(commands) <= 32, 'post_process_protocol')
++                closing = False
++                while b'\n' in commands:
++                    line, _, commands = commands.partition(b'\n')
++                    if line == b'C' and done and empty and eof and not commands:
++                        closing = True
++                        break
++                    need(line == b'S', 'post_process_protocol')
++                    stopped = True
++                    stop_at = time.monotonic() if stop_at is None else stop_at
++                if closing:
++                    break
++            if empty and eof and not done:
++                need(child in statuses and not held, 'post_process_reap')
++                _event(dict(kind='done', status=statuses[child], reaped=len(statuses),
++                            output=base64.b64encode(output).decode('ascii'), stopped=stopped, error=error))
++                done = True
++    finally:
++        os.close(reader)
++        for fd in held.values():
++            os.close(fd)
++    return 0
++
++
++class ProcessOwner:
++    """One actual native execution; no credential/publication grant issuer."""
++    def __init__(self, controls, lifetime=None):
++        need(type(controls) is ReadController, 'post_process_controls')
++        self._controls, self._lifetime = controls, lifetime
++        self._process = self._pidfd = None
++        self._buffer = bytearray()
++        self._last_frame = self._completion = None
++        self._closed = self._family_closed = self._uncertain = False
++        self._witness = {}
++        self._check()
++        if lifetime is not None:
++            lifetime._processes.append(self)
++
++    def _check(self):
++        self._controls.check()
++        if self._lifetime is not None:
++            from rc_postpublication_install import _InstallationOwner
++            need(type(self._lifetime) is _InstallationOwner and self._lifetime._controls is self._controls,
++                 'post_process_lifetime')
++            self._lifetime.check()
++
++    def _retain(self):
++        self._uncertain = True
++        if not self._family_closed and not any(value is self for value in _HELD_PROCESS_OWNERS):
++            _HELD_PROCESS_OWNERS.append(self)
++        if self._lifetime is not None:
++            self._lifetime.retain()
++
++    def _live(self):
++        need(self._process is not None and self._pidfd is not None
++             and self._process.returncode is None, 'post_process_owner')
++        need(os.waitid(os.P_PIDFD, self._pidfd, os.WEXITED | os.WNOHANG | os.WNOWAIT) is None
++             and os.getpgid(self._process.pid) == self._process.pid, 'post_process_owner')
++
++    def _send(self, raw, *, active=True, deadline=None):
++        deadline = self._deadline if deadline is None else deadline
++        while raw:
++            if active:
++                self._check()
++            self._live()
++            need(time.monotonic() < deadline, 'post_process_timeout')
++            if not select.select([], [self._process.stdin], [], .02)[1]:
++                continue
++            try:
++                sent = os.write(self._process.stdin.fileno(), raw)
++            except BlockingIOError:
++                continue
++            need(sent > 0, 'post_process_io')
++            raw = raw[sent:]
++
++    def _frame(self, deadline, *, active=True):
++        while b'\n' not in self._buffer:
++            if active:
++                self._check()
++            need(time.monotonic() < deadline, 'post_process_timeout')
++            ready, _, _ = select.select([self._process.stdout], [], [], .02)
++            if ready:
++                data = os.read(self._process.stdout.fileno(), 65536)
++                need(data, 'post_process_protocol')
++                self._buffer.extend(data)
++                need(len(self._buffer) <= LIMIT * 2, 'post_process_output_limit')
++        line, _, remaining = self._buffer.partition(b'\n')
++        self._buffer = bytearray(remaining)
++        value = json.loads(line)
++        need(type(value) is dict, 'post_process_protocol')
++        self._last_frame = value
++        return value
++
++    def run(self, argv, *, env, cwd=None, seconds=120):
++        self._check()
++        need(not self._closed and self._process is None and type(seconds) in (int, float)
++             and math.isfinite(seconds) and 0 < seconds <= 600, 'post_process_reused')
++        request = _request(argv, env, cwd)
++        deadline = min(self._controls._deadline, time.monotonic() + seconds)
++        self._deadline = deadline
++        need(hasattr(os, 'pidfd_open') and hasattr(os, 'P_PIDFD')
++             and hasattr(signal, 'pidfd_send_signal'), 'post_process_kernel_unavailable')
++        try:
++            self._process = subprocess.Popen(['/usr/bin/python3', str(Path(__file__).absolute()), '--owned-worker'],
++                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, close_fds=True,
++                start_new_session=True, env={'PATH': '/usr/bin:/bin', 'PYTHONDONTWRITEBYTECODE': '1'})
++            self._pidfd = os.pidfd_open(self._process.pid)
++            os.set_blocking(self._process.stdin.fileno(), False)
++            ready = self._frame(deadline)
++            self._live()
++            need(ready == dict(kind='ready', pid=self._process.pid, ppid=os.getpid(), pgid=self._process.pid),
++                 'post_process_owner')
++            self._check()
++            self._send((json.dumps(request, separators=(',', ':')) + '\n').encode())
++            self._check(); self._send(b'G\n')
++            done = self._frame(deadline)
++            raw = self._done(done)
++            need(done['stopped'] is False or done['error'] == 'post_process_output_limit',
++                 'post_process_protocol')
++            self._check(); self._send(b'C\n')
++            self._finish()
++            self._check()
++            need(done['error'] is None, done['error'])
++            need(done['status'] == 0, 'post_install_command_failed')
++            self._witness = dict(native_leader_pidfd=True, live_native_pgid=True,
++                                 actual_child_reaped=done['reaped'], all_pipes_closed=True)
++            return raw
++        except BaseException:
++            self._retain()
++            self._stop()
++            raise
++
++    def _done(self, value):
++        self._live()
++        need(value is self._last_frame and self._completion is None,
++             'post_process_protocol')
++        need(set(value) == {'kind', 'status', 'reaped', 'output', 'stopped', 'error'}
++             and value['kind'] == 'done' and type(value['status']) is int
++             and type(value['reaped']) is int and 0 < value['reaped'] <= 128
++             and type(value['stopped']) is bool and type(value['output']) is str
++             and value['error'] in (None, 'post_process_output_limit'), 'post_process_protocol')
++        raw = base64.b64decode(value['output'], validate=True)
++        need(len(raw) <= LIMIT, 'post_process_output_limit')
++        self._completion = value  # Only the actual owned pipe's validated frame.
++        return raw
++
++    def _finish(self):
++        need(self._process.wait(timeout=2) == 0 and not self._buffer
++             and self._process.stdout.read(1) == b'', 'post_process_retirement')
++        self._process.stdin.close(); self._process.stdout.close()
++        os.close(self._pidfd); self._pidfd = None
++        self._closed = self._family_closed = True
++        _HELD_PROCESS_OWNERS[:] = [value for value in _HELD_PROCESS_OWNERS if value is not self]
++
++    def _stop(self):
++        if self._process is None or self._closed:
++            return
++        try:
++            self._live()
++            deadline = time.monotonic() + 2
++            if self._completion is None:
++                self._send(b'S\n', active=False, deadline=deadline)
++                self._live()
++                # This group remains occupied by our still-live, pidfd-held leader.
++                os.killpg(self._process.pid, signal.SIGTERM)
++                done = self._frame(deadline, active=False)
++                self._done(done)
++            self._send(b'C\n', active=False, deadline=deadline)
++            self._finish()
++        except BaseException:
++            # No group KILL or numeric PID recovery after identity is lost.
++            self._retain()
++
++
++class _PackageChecks:
++    """Fixed original checks, bound to actual entered inputs and controller."""
++    def __init__(self, lifetime, environment, invocation):
++        from rc_postpublication_contract import PostInvocation
++        from rc_postpublication_install import _InstallationOwner
++        import rc_publication_github as wire
++        need(type(lifetime) is _InstallationOwner and type(invocation) is PostInvocation
++             and invocation is lifetime._inputs._invocation
++             and invocation.source is lifetime._stage.subject.source, 'post_package_owner')
++        lifetime.check()
++        _request(['/usr/bin/true'], environment, None)
++        self._lifetime, self._controls, self._env = lifetime, lifetime._controls, dict(environment)
++        self._invocation = invocation
++        original = wire._json(lifetime._stage._bundle.read('evidence/rc-linux-packages/exclusive-package.json', 65536))
++        source = lifetime._stage.subject.source
++        producer = lifetime._stage.subject.runs[0]
++        need(all(original.get(k) == v for k, v in dict(source_sha=source.source_sha,
++             source_tree=source.source_tree, version=source.version, run_id=str(producer.run_id)).items()),
++             'post_producer_package_mismatch')
++        original['run_id'] = str(invocation.run_id)
++        self._data, self._bound = original, False
++
++    def bind(self, data, package, kind):
++        self._lifetime.check()
++        need(not self._bound and data == self._data and kind in ('deb', 'appimage'), 'post_package_binding')
++        asset = next(a for a in self._lifetime._stage.plan.assets if a.family == kind)
++        choices = [self._lifetime._inputs._owner._root.path / asset.name]
++        choices += [e.path for e in self._lifetime._executions if e._asset == asset]
++        need(type(package) is type(Path()) and package in choices
++             and data['packages'][kind]['artifact'] == dict(name=asset.name, size=asset.size, sha256=asset.sha256),
++             'post_package_binding')
++        self._package, self._kind, self._bound = package, kind, True
++
++    def _check(self):
++        self._lifetime.check()
++        need(self._bound, 'post_package_binding')
++
++    def command(self, *args):
++        self._check()
++        need(args and args[0] in ('dpkg-deb', 'dpkg-query', 'desktop-file-validate', 'ldd'),
++             'post_package_command')
++        raw = ProcessOwner(self._controls, self._lifetime).run(['/usr/bin/' + args[0], *args[1:]],
++                                                             env=self._env, seconds=120)
++        self._check()
++        return raw.decode('utf-8', errors='strict').strip()
++
++    def digest(self, path):
++        import hashlib
++        import stat
++        self._check()
++        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
++        try:
++            info = os.fstat(fd)
++            need(stat.S_ISREG(info.st_mode) and 0 < info.st_size <= 512 * 1024 * 1024,
++                 'post_package_file')
++            total, value = 0, hashlib.sha256()
++            while True:
++                self._check(); chunk = os.read(fd, 65536); self._check()
++                if not chunk:
++                    break
++                total += len(chunk); value.update(chunk)
++            after = os.fstat(fd)
++            need((info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns) ==
++                 (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)
++                 and total == info.st_size, 'post_package_file')
++            return value.hexdigest()
++        except BaseException:
++            self._lifetime.retain()
++            raise
++        finally:
++            os.close(fd)
++
++    def elf(self, path):
++        self._check()
++        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
++        try:
++            header = os.read(fd, 20)
++            self._check()
++            need(len(header) == 20 and header[:6] == b'\x7fELF\x02\x01' and header[18:20] == b'\x3e\x00',
++                 'post_package_elf')
++        finally:
++            os.close(fd)
++
++    def inspect_linux(self, package, kind, version):
++        from rc_postpublication_install import _profile
++        import exclusive_packages as payload
++        self._check()
++        need((package, kind) == (self._package, self._kind), 'post_package_binding')
++        with _profile(self._env['RUNNER_TEMP'], '.post-package-inspection', self._lifetime) as temporary:
++            if kind == 'deb':
++                payload.require(self.command('dpkg-deb', '-f', str(package), 'Version') == version, 'DEB version mismatch')
++                payload.require(self.command('dpkg-deb', '-f', str(package), 'Architecture') == 'amd64', 'DEB architecture mismatch')
++                self.command('dpkg-deb', '-x', str(package), str(temporary))
++                root = temporary
++            else:
++                self.elf(package)
++                env = dict(self._env); env.pop('APPIMAGE_EXTRACT_AND_RUN', None)
++                ProcessOwner(self._controls, self._lifetime).run([str(package.resolve()), '--appimage-extract'],
++                    env=env, cwd=str(temporary), seconds=120)
++                root = temporary / 'squashfs-root'
++            executable = root / 'usr/bin' / payload.BINARY
++            payload.require(executable.is_file() and executable.resolve().is_relative_to(root.resolve()), 'payload missing or escaped')
++            self.elf(executable)
++            return dict(payload_sha256=self.digest(executable), architecture='amd64',
++                        package_id=self.command('dpkg-deb', '-f', str(package), 'Package') if kind == 'deb' else None)
++
++
++if __name__ == '__main__':
++    if sys.argv[1:] != ['--owned-worker']:
++        raise SystemExit(1)
++    try:
++        result = _worker()
++    except BaseException:
++        os._exit(1)
++    raise SystemExit(result)
+diff --git a/scripts/rc_postpublication_process_cases.py b/scripts/rc_postpublication_process_cases.py
+new file mode 100644
+index 0000000..6424352
+--- /dev/null
++++ b/scripts/rc_postpublication_process_cases.py
+@@ -0,0 +1,409 @@
++"""Ordinary disposable native children, never package installers or grants."""
++import json
++import os
++from pathlib import Path
++import shutil
++import tempfile
++import threading
++import time
++import unittest
++from unittest.mock import patch
++
++from rc_consumer_io import ConsumerError
++from rc_postpublication_source import ReadController
++from rc_postpublication_process import ProcessOwner, _PackageChecks
++from rc_postpublication_install import _InstallationOwner
++import rc_postpublication_process as native
++import rc_publication_github as wire
++
++ENV = {'PATH': '/usr/bin:/bin'}
++
++
++class PostProcessCases(unittest.TestCase):
++    def test_actual_native_stdout_env_and_closed_family(self):
++        controls = ReadController(seconds=5)
++        owner = ProcessOwner(controls)
++        raw = owner.run(['/usr/bin/python3', '-c', 'import os;print(int("GH_TOKEN" in os.environ))'], env=ENV)
++        self.assertEqual(raw, b'0\n')
++        self.assertTrue(owner._family_closed)
++        self.assertFalse(owner._uncertain)
++        self.assertIsNone(owner._pidfd)
++        self.assertTrue(owner._process.stdin.closed and owner._process.stdout.closed)
++        self.assertEqual(owner._process.returncode, 0)
++        self.assertEqual(owner._witness['actual_child_reaped'], 1)
++        controls.close()
++
++    def test_external_environment_rejected_before_child_creation(self):
++        controls = ReadController()
++        owner = ProcessOwner(controls)
++        with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(ConsumerError) as found:
++            owner.run(['/usr/bin/true'], env={**ENV, 'GH_TOKEN': 'fixture-not-a-real-credential'})
++        self.assertEqual(found.exception.code, 'post_process_environment')
++        spawn.assert_not_called()
++        controls.close()
++
++    def test_cancelled_original_controller_cannot_create_native_child(self):
++        controls = ReadController()
++        controls.cancel()
++        with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(wire.WireFailure) as found:
++            ProcessOwner(controls).run(['/usr/bin/true'], env=ENV)
++        self.assertEqual((found.exception.code, found.exception.effect), ('cancelled', 'none'))
++        spawn.assert_not_called()
++        controls.close()
++
++    def test_foreign_lifetime_and_package_dictionary_are_not_owners(self):
++        controls = ReadController()
++        with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(ConsumerError):
++            ProcessOwner(controls, {'verified': True}).run(['/usr/bin/true'], env=ENV)
++        spawn.assert_not_called()
++        with self.assertRaises(ConsumerError):
++            _PackageChecks({'verified': True}, ENV, None)
++        with self.assertRaises(ConsumerError):
++            _InstallationOwner({'entered': True}, {'verified': True}, controls)
++        controls.close()
++
++    def _forest(self, *, escaped=False):
++        directory = Path(tempfile.mkdtemp(prefix='post-native-family-'))
++        marker = directory / 'child-finished'
++        controls = ReadController(seconds=5)
++        owner = ProcessOwner(controls)
++        code = ('import os,time;from pathlib import Path;pid=os.fork();'
++            '(os.setsid(),' if escaped else 'import os,time;from pathlib import Path;pid=os.fork();(')
++        code += 'time.sleep(.15),Path(' + repr(str(marker)) + ').write_text("done"),os._exit(0)) if pid==0 else os._exit(0)'
++        try:
++            self.assertEqual(owner.run(['/usr/bin/python3', '-c', code], env=ENV), b'')
++            self.assertTrue(marker.exists())
++            self.assertTrue(owner._family_closed)
++            self.assertEqual(owner._witness['actual_child_reaped'], 2)
++        finally:
++            controls.close()
++            if owner._family_closed:
++                shutil.rmtree(directory)
++
++    def test_native_forked_descendant_finishes_before_return(self):
++        self._forest()
++
++    def test_escaped_session_descendant_is_actual_subreaper_child(self):
++        self._forest(escaped=True)
++
++    def test_cancellation_in_actual_child_reaps_family_and_is_sticky(self):
++        directory = Path(tempfile.mkdtemp(prefix='post-native-cancel-'))
++        marker = directory / 'entered'
++        controls = ReadController(seconds=5)
++        owner = ProcessOwner(controls)
++        code = 'import time;from pathlib import Path;Path(' + repr(str(marker)) + ').write_text("entered");time.sleep(5)'
++        def cancel():
++            until = time.monotonic() + 2
++            while not marker.exists() and time.monotonic() < until:
++                time.sleep(.005)
++            if marker.exists():
++                controls.cancel()
++        thread = threading.Thread(target=cancel)
++        thread.start()
++        try:
++            with self.assertRaises(wire.WireFailure) as found:
++                owner.run(['/usr/bin/python3', '-c', code], env=ENV)
++            self.assertEqual((found.exception.code, found.exception.effect), ('cancelled', 'none'))
++            self.assertTrue(marker.exists())
++            self.assertTrue(owner._family_closed)
++            self.assertTrue(owner._uncertain)
++            with self.assertRaises(wire.WireFailure):
++                owner.run(['/usr/bin/true'], env=ENV)
++        finally:
++            thread.join(timeout=2)
++            controls.close()
++            if owner._family_closed:
++                shutil.rmtree(directory)
++
++    def test_actual_child_command_deadline_is_not_extended(self):
++        controls = ReadController(seconds=5)
++        first = controls._deadline
++        owner = ProcessOwner(controls)
++        try:
++            with self.assertRaises(ConsumerError) as found:
++                owner.run(['/usr/bin/python3', '-c', 'import time;time.sleep(5)'], env=ENV, seconds=.2)
++            self.assertEqual(found.exception.code, 'post_process_timeout')
++            self.assertEqual(controls._deadline, first)
++            self.assertTrue(owner._family_closed)
++            self.assertTrue(owner._uncertain)
++        finally:
++            controls.close()
++
++    def test_output_over_limit_never_claims_child_success(self):
++        controls = ReadController(seconds=5)
++        owner = ProcessOwner(controls)
++        try:
++            with self.assertRaises(ConsumerError) as found:
++                owner.run(['/usr/bin/python3', '-c', 'import os;os.write(1,b"x"*(2*1024*1024+1))'], env=ENV)
++            self.assertEqual(found.exception.code, 'post_process_output_limit')
++            self.assertTrue(owner._uncertain)
++            self.assertFalse(owner._witness)
++            self.assertTrue(owner._family_closed)
++            self.assertIsNone(owner._pidfd)
++            self.assertTrue(owner._process.stdin.closed and owner._process.stdout.closed)
++        finally:
++            controls.close()
++
++    def test_original_cancel_after_owned_done_still_closes_actual_family(self):
++        controls = ReadController(seconds=5)
++        owner = ProcessOwner(controls)
++        observed = []
++        original = owner._done
++        def cancel_after_done(value):
++            raw = original(value)
++            observed.append(value)
++            controls.cancel()
++            return raw
++        try:
++            with patch.object(owner, '_done', side_effect=cancel_after_done), self.assertRaises(wire.WireFailure) as found:
++                owner.run(['/usr/bin/true'], env=ENV)
++            self.assertEqual((found.exception.code, found.exception.effect), ('cancelled', 'none'))
++            self.assertEqual(len(observed), 1)
++            self.assertTrue(owner._uncertain)
++            self.assertTrue(owner._family_closed)
++            self.assertIsNone(owner._pidfd)
++            self.assertTrue(owner._process.stdin.closed and owner._process.stdout.closed)
++        finally:
++            # Fault-first cleanup uses the same already validated owned DONE.
++            if observed and not owner._family_closed:
++                owner._send(b'C\n'); owner._finish()
++            controls.close()
++
++    def test_original_cancel_with_unread_terminal_done_closes_actual_family(self):
++        import select
++        controls = ReadController(seconds=5)
++        owner = ProcessOwner(controls)
++        original, calls = owner._frame, []
++        def cancel_before_read(deadline, **kwargs):
++            calls.append(kwargs.get('active', True))
++            if len(calls) == 2:
++                self.assertTrue(select.select([owner._process.stdout], [], [], 1)[0])
++                controls.cancel()
++            return original(deadline, **kwargs)
++        try:
++            with patch.object(owner, '_frame', side_effect=cancel_before_read), self.assertRaises(wire.WireFailure) as found:
++                owner.run(['/usr/bin/true'], env=ENV)
++            self.assertEqual((found.exception.code, found.exception.effect), ('cancelled', 'none'))
++            self.assertTrue(owner._family_closed)
++            self.assertTrue(owner._uncertain)
++            self.assertIsNone(owner._pidfd)
++            self.assertTrue(owner._process.stdin.closed and owner._process.stdout.closed)
++        finally:
++            if owner._completion is not None and not owner._family_closed:
++                owner._send(b'C\n'); owner._finish()
++            controls.close()
++
++    def test_external_done_dictionary_has_no_native_completion_ownership(self):
++        controls = ReadController()
++        owner = ProcessOwner(controls)
++        try:
++            with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(ConsumerError) as found:
++                owner._done(dict(kind='done', status=0, reaped=1, output='', stopped=False, error=None))
++            self.assertEqual(found.exception.code, 'post_process_owner')
++            spawn.assert_not_called()
++            self.assertIsNone(owner._completion)
++            self.assertFalse(owner._family_closed)
++        finally:
++            controls.close()
++
++
++class PostOwnedProcessCases(unittest.TestCase):
++    def _inputs(self):
++        from contextlib import contextmanager
++        from rc_postpublication_cases import public_fixture
++        from rc_postpublication_transfer_cases import post_metadata, artifact_bytes, set_transfer
++        from rc_postpublication_source import post_invocation
++        from rc_postpublication_reader import PublishedInputs
++        from rc_postpublication_transfer import TransferPayload, ReceivedInputs
++        @contextmanager
++        def entered():
++            with public_fixture() as (f, tls, request, controls, stage):
++                environment = post_metadata(f)
++                invocation = post_invocation(stage, controls, environment)
++                with PublishedInputs(stage, request, controls, temporary_parent=f.parent) as public:
++                    with TransferPayload(public, request, invocation, controls, temporary_parent=f.parent) as payload:
++                        expected = set_transfer(f, invocation, artifact_bytes(payload._owner._root))
++                    with ReceivedInputs(stage, request, invocation, expected, controls,
++                                        temporary_parent=f.parent, complete=False) as inputs:
++                        yield f, stage, inputs, controls, invocation
++        return entered()
++
++    def test_actual_entered_package_owner_binds_original_bytes_and_new_run(self):
++        import copy
++        with self._inputs() as (f, stage, inputs, controls, invocation):
++            lifetime = _InstallationOwner(stage, inputs, controls)
++            checks = _PackageChecks(lifetime, {**ENV, 'RUNNER_TEMP': str(f.parent)}, invocation)
++            data = copy.deepcopy(checks._data)
++            asset = next(a for a in stage.plan.assets if a.family == 'deb')
++            path = inputs._owner._root.path / asset.name
++            checks.bind(data, path, 'deb')
++            self.assertEqual(checks.digest(path), asset.sha256)
++            self.assertEqual(data['run_id'], str(invocation.run_id))
++            self.assertNotEqual(data['run_id'], str(stage.subject.runs[0].run_id))
++            self.assertIs(checks._lifetime._stage, stage)
++            self.assertIs(checks._controls, controls)
++            self.assertEqual(lifetime._executions, [])
++            with self.assertRaises(ConsumerError):
++                checks.bind(data, path, 'deb')
++
++    def test_original_run_or_foreign_path_cannot_bind_owned_package_checks(self):
++        import copy
++        with self._inputs() as (f, stage, inputs, controls, invocation):
++            lifetime = _InstallationOwner(stage, inputs, controls)
++            for forged in ('old-run', 'foreign-path'):
++                with self.subTest(forged=forged):
++                    checks = _PackageChecks(lifetime, {**ENV, 'RUNNER_TEMP': str(f.parent)}, invocation)
++                    data = copy.deepcopy(checks._data)
++                    path = inputs._owner._root.path / next(a.name for a in stage.plan.assets if a.family == 'deb')
++                    if forged == 'old-run':
++                        data['run_id'] = str(stage.subject.runs[0].run_id)
++                    else:
++                        path = Path('/tmp/unowned-package-fixture.deb')
++                    with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(ConsumerError):
++                        checks.bind(data, path, 'deb')
++                    spawn.assert_not_called()
++
++    def test_actual_deb_empty_execution_sticky_failure_retains_whole_input(self):
++        from rc_postpublication_install import _profile
++        with self._inputs() as (f, stage, inputs, controls, invocation):
++            lifetime = _InstallationOwner(stage, inputs, controls)
++            roots = [r.path for r in stage._roots] + [inputs._owner._root.path, inputs._download_owner._root.path]
++            self.assertEqual(lifetime._executions, [])
++            owner = ProcessOwner(controls, lifetime)
++            with self.assertRaises(ConsumerError) as found:
++                with _profile(f.parent, '.ordinary-child-fixture', lifetime) as profile:
++                    roots.append(profile)
++                    owner.run(['/usr/bin/python3', '-c', 'import sys;sys.exit(7)'], env=ENV)
++            self.assertEqual(found.exception.code, 'post_install_command_failed')
++            self.assertTrue(owner._family_closed)
++            self.assertTrue(lifetime._uncertain and stage._cleanup_failed)
++            self.assertTrue(inputs._owner._uncertain and inputs._download_owner._uncertain)
++            self.assertTrue(all(path.exists() for path in roots))
++            inputs.close(); stage.close()
++            self.assertTrue(all(path.exists() for path in roots))
++
++    def test_actual_bound_owner_credential_environment_is_rejected_without_child(self):
++        with self._inputs() as (f, stage, inputs, controls, invocation):
++            lifetime = _InstallationOwner(stage, inputs, controls)
++            with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(ConsumerError) as found:
++                _PackageChecks(lifetime, {**ENV, 'GH_TOKEN': 'fixture-not-a-real-credential'}, invocation)
++            self.assertEqual(found.exception.code, 'post_process_environment')
++            spawn.assert_not_called()
++
++    def test_same_source_different_post_invocation_is_not_the_received_owner(self):
++        from dataclasses import replace
++        with self._inputs() as (f, stage, inputs, controls, invocation):
++            lifetime = _InstallationOwner(stage, inputs, controls)
++            forged = replace(invocation, run_id=invocation.run_id + 1, capture_job_id=invocation.capture_job_id + 1)
++            with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(ConsumerError) as found:
++                _PackageChecks(lifetime, {**ENV, 'RUNNER_TEMP': str(f.parent)}, forged)
++            self.assertEqual(found.exception.code, 'post_package_owner')
++            spawn.assert_not_called()
++
++    def test_failed_actual_inputs_cannot_be_rewrapped_by_a_fresh_lifetime(self):
++        with self._inputs() as (f, stage, inputs, controls, invocation):
++            lifetime = _InstallationOwner(stage, inputs, controls)
++            owner = ProcessOwner(controls, lifetime)
++            with self.assertRaises(ConsumerError):
++                owner.run(['/usr/bin/python3', '-c', 'import sys;sys.exit(7)'], env=ENV)
++            self.assertTrue(owner._family_closed)
++            self.assertTrue(stage._cleanup_failed and inputs._owner._uncertain and inputs._download_owner._uncertain)
++            with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(ConsumerError) as found:
++                _InstallationOwner(stage, inputs, controls)
++            self.assertEqual(found.exception.code, 'post_install_lifetime')
++            spawn.assert_not_called()
++
++    def test_earlier_actual_profile_is_held_until_whole_installation_outcome(self):
++        from rc_postpublication_install import _profile
++        with self._inputs() as (f, stage, inputs, controls, invocation):
++            lifetime = _InstallationOwner(stage, inputs, controls)
++            with _profile(f.parent, '.ordinary-profile-fixture', lifetime) as profile:
++                self.assertTrue(profile.exists())
++            self.assertTrue(profile.exists())
++            lifetime.retain()
++            self.assertTrue(profile.exists())
++            self.assertTrue(all(value._retain for value in lifetime._profiles))
++
++    def test_marker_close_unknown_retains_actual_descriptor_and_whole_inputs(self):
++        import errno
++        import stat
++        from rc_postpublication_install import _profile
++        with self._inputs() as (f, stage, inputs, controls, invocation):
++            lifetime = _InstallationOwner(stage, inputs, controls)
++            closed, original = [], os.close
++            def fault(fd):
++                info = os.fstat(fd)
++                if not closed and stat.S_ISREG(info.st_mode) and info.st_size == 0:
++                    closed.append(fd); original(fd)
++                    raise OSError(errno.EIO, 'fixture-close-after-native-close')
++                return original(fd)
++            with patch.object(os, 'close', side_effect=fault), self.assertRaises(OSError):
++                with _profile(f.parent, '.ordinary-marker-fixture', lifetime):
++                    self.fail('unknown marker close cannot enter profile')
++            self.assertEqual(len(closed), 1)
++            self.assertEqual(lifetime._profiles[0]._marker_fd, closed[0])
++            self.assertTrue(lifetime._uncertain and stage._cleanup_failed)
++            self.assertTrue(inputs._owner._uncertain and inputs._download_owner._uncertain)
++            self.assertTrue(lifetime._profiles[0].path.exists())
++
++    def test_actual_lifetime_fences_inputs_before_execution_retirement(self):
++        from contextlib import ExitStack
++        from rc_postpublication_install import _ExecutableInput
++        with self._inputs() as (f, stage, inputs, controls, invocation):
++            lifetime = _InstallationOwner(stage, inputs, controls)
++            asset = next(a for a in stage.plan.assets if a.family == 'appimage')
++            observed, paths = [], []
++            def final_failure():
++                observed.append(paths[0].exists())
++                raise ConsumerError('fixture_final_input_fence')
++            with patch.object(inputs, 'revalidate', side_effect=final_failure), self.assertRaises(ConsumerError) as found:
++                with lifetime as stack:
++                    self.assertIs(type(stack), ExitStack)
++                    with inputs._owner._root.open(asset.name) as stream:
++                        owned = stack.enter_context(_ExecutableInput(stream, asset, stage._root, f.parent,
++                            controls, lifetime=lifetime))
++                    paths.append(owned._owner._root.path)
++            self.assertEqual(found.exception.code, 'fixture_final_input_fence')
++            self.assertEqual(observed, [True])
++            self.assertTrue(paths[0].exists())
++            self.assertTrue(stage._cleanup_failed and inputs._owner._uncertain)
++
++    def test_actual_execution_constructor_failure_promotes_whole_owner(self):
++        from rc_postpublication_install import _ExecutableInput
++        with self._inputs() as (f, stage, inputs, controls, invocation):
++            lifetime = _InstallationOwner(stage, inputs, controls)
++            asset = next(a for a in stage.plan.assets if a.family == 'appimage')
++            with inputs._owner._root.open(asset.name) as stream:
++                with patch.object(_ExecutableInput, 'check', side_effect=ConsumerError('fixture_execution_check')):
++                    with self.assertRaises(ConsumerError):
++                        _ExecutableInput(stream, asset, stage._root, f.parent, controls, lifetime=lifetime)
++            self.assertTrue(lifetime._uncertain and stage._cleanup_failed)
++            self.assertTrue(inputs._owner._uncertain and inputs._download_owner._uncertain)
++            self.assertEqual(len(lifetime._executions), 1)
++            self.assertTrue(lifetime._executions[0]._owner._uncertain)
++            self.assertTrue(lifetime._executions[0]._owner._root.path.exists())
++
++    def test_successful_actual_family_retires_profiles_after_final_inputs_fence(self):
++        from contextlib import ExitStack
++        from rc_postpublication_install import _profile
++        with self._inputs() as (f, stage, inputs, controls, invocation):
++            lifetime = _InstallationOwner(stage, inputs, controls)
++            observed, original = [], inputs.revalidate
++            with lifetime as stack:
++                self.assertIs(type(stack), ExitStack)
++                with _profile(f.parent, '.ordinary-success-fixture', lifetime) as profile:
++                    owner = ProcessOwner(controls, lifetime)
++                    self.assertEqual(owner.run(['/usr/bin/true'], env=ENV), b'')
++                self.assertTrue(profile.exists())
++                def final_fence():
++                    observed.append(profile.exists() and owner._family_closed)
++                    original()
++                inputs.revalidate = final_fence
++            self.assertEqual(observed, [True])
++            self.assertFalse(profile.exists())
++            self.assertTrue(all(value._closed for value in lifetime._profiles))
++            self.assertFalse(lifetime._uncertain)
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/scripts/rc_postpublication_reader.py b/scripts/rc_postpublication_reader.py
+new file mode 100644
+index 0000000..9f170d5
+--- /dev/null
++++ b/scripts/rc_postpublication_reader.py
+@@ -0,0 +1,225 @@
++"""Credential-free fixed public GETs retain real six-asset bytes, not authority."""
++import hashlib
++import re
++import ssl
++import time
++from urllib.parse import urlsplit
++
++from rc_consumer_io import ConsumerError, FILE_LIMIT, need
++import rc_publication_github as wire
++from rc_publication_stage import StagedAssets
++from rc_postpublication_contract import CaptureRequest
++from rc_postpublication_io import InputOwner
++from rc_postpublication_source import ReadController, _ReferenceAPI
++
++
++class _Anonymous:
++    """No token, mutation method, input transport factory or arbitrary origin."""
++    _metadata = wire.GitHub._metadata
++    _pages = wire.GitHub._pages
++    _tag = wire.GitHub._tag
++    _projection = wire.GitHub._projection
++    _latest = wire.GitHub._latest
++    _remote_asset = wire.GitHub._remote_asset
++
++    def __init__(self, stage, request, controls, owner):
++        need(type(stage) is StagedAssets and stage._entered and not stage._closed
++             and type(request) is CaptureRequest and request.selection == stage._selection
++             and type(controls) is ReadController and type(owner) is InputOwner,
++             'invalid_post_stage')
++        need(type(stage._api) is _ReferenceAPI and stage._api._selection is stage._selection
++             and stage._api._controls is controls, 'invalid_post_reference')
++        self.selection, self._stage, self._request_view = stage._selection, stage, request
++        self._controls, self._owner = controls, owner
++        self._storage_path, self._cleanup_failed = None, False
++
++    def _allowed(self, host, path, binary):
++        request = self._request_view
++        if host == wire.STORAGE:
++            return binary and path == self._storage_path
++        if host != wire.API or type(path) is not str:
++            return False
++        suffix = path.removeprefix(wire.ROOT)
++        if wire.ROOT + suffix != path:
++            return False
++        if binary:
++            return suffix in {'/releases/assets/' + str(i) for i in request.asset_ids}
++        fixed = {'', '/releases/latest', '/releases/' + str(request.release_id),
++                 '/releases/' + str(self.selection.subject.stable_latest_identity[0])}
++        if suffix in fixed or suffix in {'/releases/assets/' + str(i) for i in request.asset_ids}:
++            return True
++        if re.fullmatch(r'/git/ref/tags/[A-Za-z0-9][A-Za-z0-9_.-]{0,159}', suffix):
++            return True
++        for stem in ('/releases', '/releases/' + str(request.release_id) + '/assets'):
++            match = re.fullmatch(re.escape(stem) + r'\?per_page=100&page=([1-9][0-9]{0,2})', suffix)
++            if match and int(match[1]) <= wire.PAGES:
++                return True
++        return False
++
++    def _request(self, method, host, path, *, anonymous=False, binary=False,
++                 limit=wire.METADATA, deadline=None, check_active=None, sink=None):
++        controls, sock, result, failure = self._controls, None, None, None
++        controls.check()
++        need(method == 'GET' and anonymous is True and type(binary) is bool
++             and type(limit) is int and 0 <= limit <= (FILE_LIMIT if binary else wire.METADATA)
++             and self._allowed(host, path, binary) and type(path) is str
++             and path.startswith('/') and all(33 <= ord(c) < 127 for c in path), 'invalid_post_endpoint')
++        actual = controls._deadline if deadline is None else min(controls._deadline, deadline)
++        def poll():
++            controls.check()
++            from rc_consumer_io import _check_budget
++            _check_budget(actual, check_active)
++        try:
++            poll()
++            sock = wire._connect(host, min(wire.TIMEOUT, max(0.001, actual - time.monotonic())))
++            need(isinstance(sock, ssl.SSLSocket) and sock.context.check_hostname
++                 and sock.context.verify_mode == ssl.CERT_REQUIRED and sock.server_hostname == host
++                 and sock.getpeercert(), 'post_tls_denied')
++            reader = wire._Reader(sock, actual, poll)
++            reader.check()
++            accept = 'application/octet-stream' if binary else 'application/vnd.github+json'
++            header = ('GET ' + path + ' HTTP/1.1\r\nHost: ' + host + '\r\nConnection: close\r\n'
++                      'Accept: ' + accept + '\r\nX-GitHub-Api-Version: 2022-11-28\r\n'
++                      'User-Agent: bounded-rc-public-consumer\r\n\r\n').encode('ascii')
++            sock.sendall(header)
++            result = reader.response(limit, binary, sink=sink)
++            poll()
++        except BaseException as error:
++            if isinstance(error, (KeyboardInterrupt, SystemExit)):
++                failure = type(error)()
++            elif isinstance(error, ConsumerError):
++                failure = ConsumerError(error.code)
++            elif isinstance(error, wire.WireFailure):
++                failure = ConsumerError('post_' + error.code)
++            else:
++                failure = ConsumerError('post_transport_failed')
++        finally:
++            if sock is not None:
++                try:
++                    sock.close()
++                except BaseException:
++                    self._cleanup_failed = self._owner._uncertain = True
++                    failure = ConsumerError('post_cleanup_uncertain')
++        if failure is not None:
++            raise failure
++        return result
++
++    def inventory(self):
++        controls, subject, request = self._controls, self.selection.subject, self._request_view
++        controls.check()
++        deadline = controls._deadline
++        repository = self._metadata('/', True, deadline)
++        need(type(repository) is dict and type(repository.get('id')) is int
++             and repository['id'] == subject.source.repository_id
++             and repository.get('full_name') == subject.source.repository, 'post_repository_mismatch')
++        tag = self._tag(subject.tag, True, deadline)
++        need(tag == {'type': 'commit', 'sha': subject.source.source_sha}, 'post_tag_changed')
++        releases = self._pages('/releases', True, deadline)
++        matching = [r for r in releases if r.get('tag_name') == subject.tag]
++        need(len(matching) == 1 and matching[0].get('id') == request.release_id, 'post_release_inventory')
++        direct = self._metadata('/releases/' + str(request.release_id), True, deadline)
++        need(direct == matching[0] and direct.get('draft') is False and direct.get('prerelease') is True,
++             'post_release_not_public')
++        rows = self._pages('/releases/' + str(request.release_id) + '/assets', True, deadline)
++        need(len(rows) == 6 and {r['id'] for r in rows} == set(request.asset_ids), 'post_asset_inventory')
++        by_id = {r['id']: r for r in rows}
++        assets = []
++        for ident, expected in zip(request.asset_ids, self._stage.plan.assets):
++            metadata = self._metadata('/releases/assets/' + str(ident), True, deadline)
++            need(metadata == by_id[ident], 'post_asset_metadata_changed')
++            assets.append(self._remote_asset(metadata, expected, ident))
++        need(self._latest(True, deadline) == subject.stable_latest_identity, 'post_latest_changed')
++        controls.check()
++        return tuple(assets)
++
++    def download(self, remote):
++        owner, controls = self._owner, self._controls
++        with owner.sink(remote.asset) as sink:
++            status, headers, measured = self._request('GET', wire.API,
++                wire.ROOT + '/releases/assets/' + str(remote.asset_id), anonymous=True,
++                binary=True, limit=remote.asset.size, deadline=controls._deadline, sink=sink)
++            if status == 200:
++                sink.finish(measured)
++                return
++            need(status == 302, 'post_asset_not_public')
++        location = headers.get('location', '')
++        need(type(location) is str and len(location) <= 8192
++             and all(33 <= ord(c) < 127 for c in location), 'post_storage_denied')
++        try:
++            parsed = urlsplit(location)
++            allowed = (parsed.scheme == 'https' and parsed.hostname == wire.STORAGE
++                       and parsed.port in (None, 443) and parsed.username is None
++                       and parsed.password is None and not parsed.fragment
++                       and parsed.path.startswith('/') and not parsed.path.startswith('//'))
++        except ValueError:
++            allowed = False
++        need(allowed, 'post_storage_denied')
++        self._storage_path = parsed.path + ('?' + parsed.query if parsed.query else '')
++        try:
++            with owner.sink(remote.asset) as sink:
++                status, _, measured = self._request('GET', wire.STORAGE, self._storage_path,
++                    anonymous=True, binary=True, limit=remote.asset.size,
++                    deadline=controls._deadline, sink=sink)
++                need(status == 200, 'post_second_redirect')
++                sink.finish(measured)
++        finally:
++            self._storage_path = None
++
++
++class PublishedInputs:
++    """An actual entered stage and fixed anonymous reads own six real files."""
++    def __init__(self, stage, request, controls, *, temporary_parent):
++        need(type(stage) is StagedAssets and stage._entered and not stage._closed
++             and type(request) is CaptureRequest and request.selection == stage._selection
++             and type(controls) is ReadController, 'invalid_post_stage')
++        need(type(stage._api) is _ReferenceAPI and stage._api._selection is stage._selection
++             and stage._api._controls is controls, 'invalid_post_reference')
++        self._stage, self._request, self._controls = stage, request, controls
++        self._owner = InputOwner(temporary_parent, stage._root, controls)
++        self._api = _Anonymous(stage, request, controls, self._owner)
++        self._entered = self._verified = self._closed = False
++
++    def __enter__(self):
++        need(not self._entered and not self._closed, 'post_inputs_reused')
++        self._entered = True
++        try:
++            self._stage.revalidate(**self._controls.budget)
++            self._inventory = self._api.inventory()
++            for asset in self._inventory:
++                self._api.download(asset)
++            self._check_bytes()
++            self.revalidate()
++            self._verified = True
++            return self
++        except BaseException:
++            self.close()
++            raise
++
++    def _check_bytes(self):
++        self._owner.check()
++        plan, raw = self._stage.plan, self._owner._root
++        need(set(raw.files()) == {a.name for a in plan.assets}, 'post_raw_inventory_changed')
++        for asset in plan.assets:
++            self._owner.verify(asset)
++        need(raw.read('RC_PROVENANCE.json') == self._stage.provenance_bytes, 'post_provenance_changed')
++        checksums = ''.join(a.sha256 + '  ' + a.name + '\n'
++                            for a in sorted(plan.assets[:-1], key=lambda a: a.name)).encode('ascii')
++        need(raw.read(plan.assets[-1].name) == checksums, 'post_checksums_changed')
++        need(hashlib.sha256(self._stage.plan_bytes).hexdigest() == self._stage.subject.plan_sha256,
++             'post_plan_changed')
++
++    def revalidate(self):
++        need(self._entered and not self._closed, 'post_input_lifetime')
++        self._owner.check()
++        self._check_bytes()
++        need(self._api.inventory() == self._inventory, 'post_public_inventory_changed')
++        self._stage.revalidate(**self._controls.budget)
++        self._owner.check()
++
++    def close(self):
++        if not self._closed:
++            self._closed = True
++            self._owner.close()
++
++    def __exit__(self, *_):
++        self.close()
+diff --git a/scripts/rc_postpublication_source.py b/scripts/rc_postpublication_source.py
+new file mode 100644
+index 0000000..b1c56fa
+--- /dev/null
++++ b/scripts/rc_postpublication_source.py
+@@ -0,0 +1,156 @@
++"""Owned read-only controls, actual post invocation and the original stage."""
++from contextlib import contextmanager
++from dataclasses import asdict
++import math
++import os
++from pathlib import Path
++import re
++import threading
++import time
++
++from rc_consumer_io import ConsumerError, _check_budget, need
++from rc_consumer_fixed_git import Reader
++import rc_consumer_snapshot as snapshot
++import rc_publication_github as wire
++from rc_publication_stage import Selection, stage_selected
++from rc_postpublication_contract import CAPTURE_JOB, PostInvocation, WORKFLOW
++
++
++class ReadController:
++    """Process-local standalone read lifecycle; cannot issue publisher scopes."""
++    def __init__(self, *, seconds=900):
++        need(type(seconds) in (int, float) and math.isfinite(seconds) and 0 < seconds <= 900,
++             'invalid_post_deadline')
++        self._pid, self._thread = os.getpid(), threading.get_ident()
++        self._deadline = time.monotonic() + seconds
++        self._cancelled, self._closed = threading.Event(), False
++
++    def check(self):
++        if self._closed or self._cancelled.is_set():
++            raise wire.WireFailure('cancelled', 'none')
++        need((os.getpid(), threading.get_ident()) == (self._pid, self._thread), 'post_owner_changed')
++        if time.monotonic() >= self._deadline:
++            raise wire.WireFailure('timeout', 'none')
++
++    def cancel(self):
++        self._cancelled.set()
++
++    def close(self):
++        self._closed = True
++
++    @property
++    def budget(self):
++        self.check()
++        return dict(deadline=self._deadline, check_active=self.check)
++
++
++class _ReferenceAPI:
++    """Fixed unbound native GET; caller cannot replace the permanent controls.
++
++    This is a read budget adapter, not credential permission evidence or a
++    PublisherSession/ReadScope. Future native/StageAPI union must revalidate it.
++    """
++    def __init__(self, api, selection, controls):
++        need(type(api) is wire.GitHub and type(selection) is Selection
++             and api.selection is selection and type(controls) is ReadController,
++             'invalid_post_reference')
++        self._api, self._selection, self._controls = api, selection, controls
++        self._token = api.token
++
++    @property
++    def token(self):
++        # Existing supervised Actions worker consumes the real same-client token.
++        # This read-only bridge is not bearer permission/issuer evidence.
++        self._controls.check()
++        need(type(self._api) is wire.GitHub and not self._api._closed
++             and self._api.selection is self._selection and self._api.token == self._token,
++             'post_reference_changed')
++        return self._token
++
++    def get(self, suffix, *, deadline=None, check_active=None):
++        owned = self._controls
++        owned.check()
++        self.token
++        actual = owned._deadline
++        if deadline is not None:
++            need(type(deadline) in (int, float) and math.isfinite(deadline), 'invalid_post_deadline')
++            actual = min(actual, deadline)
++        def poll():
++            owned.check()
++            self.token
++            _check_budget(actual, check_active)
++            self.token
++        return wire.GitHub.get(self._api, suffix, deadline=actual, check_active=poll)
++
++
++@contextmanager
++def original_stage(root, request, token, controls, *, temporary_parent):
++    """Authenticate original source/runs/ZIP bytes; expectation data is not PASS."""
++    from rc_postpublication_contract import CaptureRequest
++    need(type(request) is CaptureRequest and type(controls) is ReadController,
++         'invalid_post_request')
++    request.__post_init__()
++    # Stage owns its canonical deep-copied selection. Construct the actual
++    # native read client against that exact object before first stage entry.
++    stage = stage_selected(root, request.selection, None, temporary_parent=temporary_parent,
++                           **controls.budget)
++    selected = stage._selection
++    native = wire.GitHub(token, selected)
++    api = _ReferenceAPI(native, selected, controls)
++    stage._api = api
++    try:
++        with stage:
++            yield stage
++    finally:
++        wire.GitHub.close(native)
++
++
++def _decimal(value):
++    need(type(value) is str and re.fullmatch(r'[1-9][0-9]{0,18}', value), 'invalid_post_environment')
++    return int(value)
++
++
++def post_invocation(stage, controls, environment, *, current_job=CAPTURE_JOB):
++    """Authenticate a current live post run; never require its own future success."""
++    controls.check()
++    source, api = stage.subject.source, stage._api
++    ref = environment.get('GITHUB_REF')
++    run_id, attempt = (_decimal(environment.get(k)) for k in ('GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT'))
++    need(run_id not in {r.run_id for r in stage.subject.runs}, 'post_run_reused')
++    need(environment.get('GITHUB_EVENT_NAME') == 'workflow_dispatch'
++         and environment.get('GITHUB_REPOSITORY') == source.repository
++         and _decimal(environment.get('GITHUB_REPOSITORY_ID')) == source.repository_id
++         and environment.get('GITHUB_SHA') == environment.get('GITHUB_WORKFLOW_SHA') == source.source_sha
++         and environment.get('GITHUB_WORKFLOW_REF') == source.repository + '/' + WORKFLOW + '@' + str(ref),
++         'invalid_post_environment')
++    workflow = api.get('/actions/workflows/' + Path(WORKFLOW).name)
++    need(type(workflow) is dict and workflow.get('path') == WORKFLOW
++         and type(workflow.get('id')) is int and workflow['id'] > 0, 'post_workflow_mismatch')
++    run = api.get('/actions/runs/' + str(run_id))
++    observed = snapshot._run(run, source.repository_id)
++    need((observed['id'], observed['run_attempt'], observed['workflow_id'], observed['path'],
++          observed['head_sha'], observed['event']) ==
++         (run_id, attempt, workflow['id'], WORKFLOW, source.source_sha, 'workflow_dispatch')
++         and ref in ('refs/heads/' + observed['head_branch'], 'refs/tags/' + observed['head_branch'])
++         and run.get('status') == 'in_progress' and run.get('conclusion') is None,
++         'post_run_mismatch')
++    direct = api.get(f'/actions/runs/{run_id}/attempts/{attempt}')
++    need(snapshot._run(direct, source.repository_id) == observed, 'post_attempt_changed')
++    jobs = snapshot.gate.paginate(api, f'/actions/runs/{run_id}/attempts/{attempt}/jobs', 'jobs')
++    captures = [j for j in jobs if type(j) is dict and j.get('name') == CAPTURE_JOB]
++    current = [j for j in jobs if type(j) is dict and j.get('name') == current_job]
++    need(len(captures) == len(current) == 1, 'post_job_inventory')
++    for job in (captures[0], current[0]):
++        need(type(job.get('id')) is int and 0 < job['id'] < 2**63
++             and type(job.get('run_id')) is int and job['run_id'] == run_id
++             and type(job.get('run_attempt')) is int and job['run_attempt'] == attempt
++             and job.get('head_sha') == source.source_sha, 'post_job_mismatch')
++    need(current[0].get('status') == 'in_progress' and current[0].get('conclusion') is None,
++         'post_current_job_not_active')
++    with Reader(stage._root, **controls.budget) as git:
++        descriptor = snapshot.gate.reviewed._blob(stage._root, source.source_sha, WORKFLOW, git)
++    need(descriptor is not None and descriptor['mode'] == '100644', 'post_workflow_source_missing')
++    value = PostInvocation(source, run_id, attempt, workflow['id'],
++                           environment['GITHUB_WORKFLOW_REF'], descriptor['blob_sha'], ref, captures[0]['id'])
++    controls.check()
++    return value
+diff --git a/scripts/rc_postpublication_transfer.py b/scripts/rc_postpublication_transfer.py
+new file mode 100644
+index 0000000..7bb5719
+--- /dev/null
++++ b/scripts/rc_postpublication_transfer.py
+@@ -0,0 +1,203 @@
++"""Authenticate newly transferred public bytes; original build is reference only."""
++from contextlib import ExitStack
++from datetime import datetime, timezone
++import os
++
++import rc_consumer_archive as archive
++import rc_consumer_snapshot as snapshot
++import rc_consumer_transport as transport
++from rc_consumer_io import CHUNK, ConsumerError, need
++from rc_postpublication_contract import (CAPTURE_JOB, MANIFEST, PostInvocation,
++    TransferExpectation, WORKFLOW, manifest_bytes, transfer_name)
++from rc_postpublication_io import InputOwner
++from rc_postpublication_reader import PublishedInputs
++from rc_postpublication_source import ReadController, _ReferenceAPI
++from rc_publication_stage import StagedAssets
++
++
++def _stage_owner(stage, controls):
++    need(type(stage) is StagedAssets and stage._entered and not stage._closed
++         and type(controls) is ReadController and type(stage._api) is _ReferenceAPI
++         and stage._api._selection is stage._selection and stage._api._controls is controls,
++         'invalid_post_stage')
++    controls.check()
++
++
++def metadata(stage, invocation, artifact_id, controls, *, complete):
++    """List/direct and actual current capture-job evidence, not caller reports."""
++    _stage_owner(stage, controls)
++    need(type(invocation) is PostInvocation and invocation.source == stage.subject.source,
++         'post_source_mismatch')
++    need(type(artifact_id) is int and 0 < artifact_id < 2**63
++         and artifact_id not in (stage.subject.artifact_id, stage._selection.consumer_artifact_id),
++         'post_transfer_id_reused')
++    api, source = stage._api, invocation.source
++    workflow = api.get('/actions/workflows/' + WORKFLOW.rsplit('/', 1)[1])
++    need(type(workflow) is dict and (workflow.get('id'), workflow.get('path')) ==
++         (invocation.workflow_id, WORKFLOW), 'post_workflow_mismatch')
++    run = api.get(f'/actions/runs/{invocation.run_id}')
++    observed = snapshot._run(run, source.repository_id)
++    need((observed['id'], observed['run_attempt'], observed['head_sha'], observed['workflow_id'],
++          observed['path'], observed['event']) == (invocation.run_id, invocation.run_attempt,
++          source.source_sha, invocation.workflow_id, WORKFLOW, 'workflow_dispatch')
++         and invocation.ref in ('refs/heads/' + observed['head_branch'], 'refs/tags/' + observed['head_branch']),
++         'post_run_mismatch')
++    direct = api.get(f'/actions/runs/{invocation.run_id}/attempts/{invocation.run_attempt}')
++    need(snapshot._run(direct, source.repository_id) == observed, 'post_attempt_changed')
++    jobs = snapshot.gate.paginate(api,
++        f'/actions/runs/{invocation.run_id}/attempts/{invocation.run_attempt}/jobs', 'jobs')
++    matches = [j for j in jobs if type(j) is dict and j.get('name') == CAPTURE_JOB]
++    need(len(matches) == 1, 'post_job_inventory')
++    job = matches[0]
++    need((job.get('id'), job.get('run_id'), job.get('run_attempt'), job.get('head_sha')) ==
++         (invocation.capture_job_id, invocation.run_id, invocation.run_attempt, source.source_sha)
++         and all(type(job.get(k)) is int for k in ('id', 'run_id', 'run_attempt')),
++         'post_job_mismatch')
++    if complete:
++        need(job.get('status') == 'completed' and job.get('conclusion') == 'success',
++             'post_capture_not_successful')
++        end = snapshot._time(job.get('completed_at'))
++    else:
++        need(job.get('status') == 'in_progress' and job.get('conclusion') is None
++             and job.get('completed_at') is None, 'post_capture_not_active')
++        end = datetime.now(timezone.utc)
++    name = transfer_name(invocation)
++    artifacts = snapshot.gate.paginate(api, f'/actions/runs/{invocation.run_id}/artifacts', 'artifacts')
++    listed = [a for a in artifacts if type(a) is dict and a.get('name') == name]
++    need(len(listed) == 1, 'post_transfer_inventory')
++    value = api.get('/actions/artifacts/' + str(artifact_id))
++    need(type(value) is dict and value == listed[0] and type(value.get('id')) is int
++         and value['id'] == artifact_id and value.get('name') == name and value.get('expired') is False,
++         'post_transfer_metadata_changed')
++    owner = dict(id=invocation.run_id, repository_id=source.repository_id,
++        head_repository_id=source.repository_id, head_sha=source.source_sha,
++        head_branch=observed['head_branch'])
++    need(type(value.get('workflow_run')) is dict and all(type(value['workflow_run'].get(k)) is type(v)
++         and value['workflow_run'][k] == v for k, v in owner.items()), 'post_transfer_owner_mismatch')
++    created, updated, expires = (snapshot._time(value.get(k)) for k in ('created_at', 'updated_at', 'expires_at'))
++    need(snapshot._time(job.get('started_at')) <= created <= updated <= end
++         and expires > max(updated, datetime.now(timezone.utc)), 'post_transfer_time_mismatch')
++    need(type(value.get('digest')) is str and snapshot.SHA256.fullmatch(value['digest']),
++         'post_transfer_digest_required')
++    expected = TransferExpectation(artifact_id, value.get('size_in_bytes'), value['digest'][7:])
++    result = {k: value[k] for k in snapshot.ARTIFACT_FIELDS}
++    result['workflow_run'] = owner
++    controls.check()
++    return result, expected
++
++
++class TransferPayload:
++    """Fresh current-CI payload copied from actual verified anonymous files."""
++    def __init__(self, inputs, request, invocation, controls, *, temporary_parent):
++        need(type(inputs) is PublishedInputs and inputs._verified and not inputs._closed,
++             'invalid_post_inputs')
++        inputs.revalidate()
++        self._inputs, self._controls = inputs, controls
++        self._manifest = manifest_bytes(inputs._stage, request, invocation)
++        self._owner = InputOwner(temporary_parent, inputs._stage._root, controls, prefix='rc-post-transfer-')
++        try:
++            for asset in inputs._stage.plan.assets:
++                with inputs._owner._root.open(asset.name) as source, self._owner._root.open(asset.name, 'xb') as target:
++                    while True:
++                        controls.check()
++                        data = source.read(CHUNK)
++                        controls.check()
++                        if not data:
++                            break
++                        need(target.write(data) == len(data), 'post_input_write_failed')
++                self._owner.verify(asset)
++            self._owner._root.write(MANIFEST, self._manifest)
++            self.revalidate()
++        except BaseException:
++            self.close()
++            raise
++
++    def revalidate(self):
++        self._inputs.revalidate()
++        self._owner.check()
++        need(set(self._owner._root.files()) == {MANIFEST, *(a.name for a in self._inputs._stage.plan.assets)}
++             and self._owner._root.read(MANIFEST) == self._manifest, 'post_transfer_members_changed')
++        for asset in self._inputs._stage.plan.assets:
++            self._owner.verify(asset)
++
++    def close(self):
++        self._owner.close()
++
++    def __enter__(self):
++        self.revalidate()
++        return self
++
++    def __exit__(self, *_):
++        self.close()
++
++
++class ReceivedInputs:
++    """Actual authenticated ZIP then new host-local files, never a borrowed FD."""
++    def __init__(self, stage, request, invocation, expected, controls, *, temporary_parent, complete=True):
++        from rc_postpublication_contract import CaptureRequest
++        _stage_owner(stage, controls)
++        need(type(request) is CaptureRequest and request.selection == stage._selection
++             and type(invocation) is PostInvocation and invocation.source is stage.subject.source
++             and type(complete) is bool, 'invalid_post_request')
++        need(type(expected) is TransferExpectation, 'invalid_post_transfer')
++        self._stage, self._controls = stage, controls
++        self._request, self._invocation, self._expected = request, invocation, expected
++        self._complete, self._parent = complete, temporary_parent
++        self._stack, self._owner, self._verified = ExitStack(), None, False
++        self._entered = self._closed = False
++
++    def __enter__(self):
++        need(not self._entered and not self._closed, 'post_received_reused')
++        self._entered = True
++        try:
++            stage, controls = self._stage, self._controls
++            stage.revalidate(**controls.budget)
++            self._metadata, observed = metadata(stage, self._invocation, self._expected.artifact_id,
++                                               controls, complete=self._complete)
++            need(observed == self._expected, 'post_transfer_expectation_changed')
++            download = self._stack.enter_context(InputOwner(self._parent, stage._root, controls,
++                                                             prefix='rc-post-download-'))
++            self._download_owner = download
++            self._owner = self._stack.enter_context(InputOwner(self._parent, stage._root, controls,
++                                                               prefix='rc-post-received-'))
++            try:
++                path = transport.download_artifact_zip(stage._api, self._metadata, download._root, **controls.budget)
++            except ConsumerError as error:
++                if error.code == 'transport_cleanup_uncertain':
++                    download._uncertain = self._owner._uncertain = True
++                raise
++            names = [a.name for a in stage.plan.assets] + [MANIFEST]
++            archive.extract_bounded_zip(path, self._owner._root, names, **controls.budget)
++            need(set(self._owner._root.files()) == set(names), 'post_transfer_member_inventory')
++            need(self._owner._root.read(MANIFEST) == manifest_bytes(stage, self._request, self._invocation),
++                 'post_transfer_manifest_changed')
++            for asset in stage.plan.assets:
++                self._owner.verify(asset)
++            self.revalidate()
++            self._verified = True
++            return self
++        except BaseException:
++            self.close()
++            raise
++
++    def revalidate(self):
++        need(self._entered and not self._closed, 'post_received_lifetime')
++        _stage_owner(self._stage, self._controls)
++        self._owner.check()
++        for asset in self._stage.plan.assets:
++            self._owner.verify(asset)
++        need(self._owner._root.read(MANIFEST) == manifest_bytes(self._stage, self._request, self._invocation),
++             'post_transfer_manifest_changed')
++        value, expected = metadata(self._stage, self._invocation, self._expected.artifact_id,
++                                   self._controls, complete=self._complete)
++        need(value == self._metadata and expected == self._expected, 'post_transfer_metadata_changed')
++        self._stage.revalidate(**self._controls.budget)
++        self._owner.check()
++
++    def close(self):
++        self._closed = True
++        self._verified = False
++        self._stack.close()
++
++    def __exit__(self, *_):
++        self.close()
+diff --git a/scripts/rc_postpublication_transfer_cases.py b/scripts/rc_postpublication_transfer_cases.py
+new file mode 100644
+index 0000000..1c459d7
+--- /dev/null
++++ b/scripts/rc_postpublication_transfer_cases.py
+@@ -0,0 +1,233 @@
++"""Real TLS/worker ZIP and process-local contracts; no actual CI/installer run."""
++from contextlib import contextmanager
++import copy
++from dataclasses import asdict, replace
++import hashlib
++import io
++import json
++import os
++from pathlib import Path
++import subprocess
++import sys
++import tempfile
++import unittest
++from unittest.mock import patch
++import zipfile
++
++from rc_consumer_io import ConsumerError
++import rc_publication_github as wire
++from rc_postpublication_cases import public_fixture
++from rc_postpublication_contract import (CAPTURE_JOB, MANIFEST, WORKFLOW, CaptureRequest,
++    TransferExpectation, encode, manifest_bytes, request_bytes, transfer_name)
++from rc_postpublication_source import post_invocation
++from rc_postpublication_reader import PublishedInputs
++from rc_postpublication_transfer import TransferPayload, ReceivedInputs, metadata
++
++
++def post_metadata(f, *, complete=False):
++    run = copy.deepcopy(f.api.data['/actions/runs/999'])
++    run.update(id=5001, workflow_id=44, path=WORKFLOW, status='in_progress', conclusion=None,
++        event='workflow_dispatch', created_at='2026-10-01T00:11:00Z',
++        run_started_at='2026-10-01T00:11:01Z', updated_at='2026-10-01T00:16:00Z')
++    job = dict(id=50011, run_id=5001, run_attempt=1, name=CAPTURE_JOB, head_sha=f.source.sha,
++        status='completed' if complete else 'in_progress', conclusion='success' if complete else None,
++        started_at='2026-10-01T00:11:02Z', completed_at='2026-10-01T00:15:00Z' if complete else None)
++    f.api.data.update({'/actions/workflows/' + Path(WORKFLOW).name: dict(id=44, path=WORKFLOW),
++        '/actions/runs/5001': run, '/actions/runs/5001/attempts/1': copy.deepcopy(run),
++        '/actions/runs/5001/attempts/1/jobs?per_page=100&page=1': dict(total_count=1, jobs=[job])})
++    return dict(GITHUB_EVENT_NAME='workflow_dispatch', GITHUB_REPOSITORY=f.selection.subject.source.repository,
++        GITHUB_REPOSITORY_ID=str(f.selection.subject.source.repository_id), GITHUB_RUN_ID='5001',
++        GITHUB_RUN_ATTEMPT='1', GITHUB_SHA=f.source.sha, GITHUB_WORKFLOW_SHA=f.source.sha,
++        GITHUB_REF='refs/heads/' + run['head_branch'],
++        GITHUB_WORKFLOW_REF=f.selection.subject.source.repository + '/' + WORKFLOW + '@refs/heads/' + run['head_branch'])
++
++
++def artifact_bytes(root, replacements=None, extra=None):
++    replacements, extra = replacements or {}, extra or {}
++    output = io.BytesIO()
++    with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_STORED) as archive:
++        for name in root.files():
++            archive.writestr(name, replacements.get(name, root.read(name)))
++        for name, data in extra.items():
++            archive.writestr(name, data)
++    return output.getvalue()
++
++
++def set_transfer(f, invocation, data, ident=51):
++    f.archives[ident] = data
++    item = dict(id=ident, name=transfer_name(invocation), size_in_bytes=len(data),
++        digest='sha256:' + hashlib.sha256(data).hexdigest(), expired=False,
++        created_at='2026-10-01T00:14:00Z', updated_at='2026-10-01T00:14:01Z', expires_at='2080-01-01T00:00:00Z',
++        workflow_run=dict(id=invocation.run_id, repository_id=invocation.source.repository_id,
++            head_repository_id=invocation.source.repository_id, head_sha=invocation.source.source_sha,
++            head_branch=invocation.ref.removeprefix('refs/heads/')))
++    f.api.data['/actions/artifacts/' + str(ident)] = copy.deepcopy(item)
++    f.api.data[f'/actions/runs/{invocation.run_id}/artifacts?per_page=100&page=1'] = dict(total_count=1, artifacts=[copy.deepcopy(item)])
++    return TransferExpectation(ident, len(data), hashlib.sha256(data).hexdigest())
++
++
++class PostTransferCases(unittest.TestCase):
++    def test_external_stage_dictionary_and_reentry_cannot_mint_received_owner(self):
++        from rc_postpublication_source import ReadController
++        controls=ReadController()
++        try:
++            with self.assertRaises(ConsumerError) as found:
++                ReceivedInputs(object(),object(),object(),TransferExpectation(51,1,'1'*64),controls,
++                               temporary_parent='/tmp')
++            self.assertEqual(found.exception.code,'invalid_post_stage')
++        finally:
++            controls.close()
++    def test_strict_request_rejects_extensions_duplicates_and_bool_ids(self):
++        with public_fixture() as (f, tls, request, controls, stage):
++            raw = encode(asdict(request))
++            self.assertEqual(request_bytes(raw), request)
++            for bad in (encode(dict(asdict(request), passed=True)), raw.replace(b'"release_id":100',b'"release_id":true'),
++                        raw.replace(b'"release_id":100',b'"release_id":100,"release_id":100'), raw+b'{}'):
++                with self.subTest(length=len(bad)), self.assertRaises(ConsumerError):
++                    request_bytes(bad)
++
++    def test_actual_new_post_run_metadata_and_original_id_separation(self):
++        with public_fixture() as (f, tls, request, controls, stage):
++            environment = post_metadata(f)
++            invocation = post_invocation(stage, controls, environment)
++            self.assertEqual(invocation.run_id, 5001)
++            self.assertIs(invocation.source, stage.subject.source)
++            self.assertNotIn(invocation.run_id, {r.run_id for r in stage.subject.runs})
++            self.assertEqual(invocation.capture_job_id, 50011)
++            self.assertEqual(invocation.workflow_blob,
++                wire.hashlib.sha1(b'blob ' + str(len((f.root/WORKFLOW).read_bytes())).encode()+b'\0'+(f.root/WORKFLOW).read_bytes()).hexdigest())
++            for key, value in (('GITHUB_RUN_ID','123'), ('GITHUB_WORKFLOW_SHA','0'*40),
++                               ('GITHUB_RUN_ATTEMPT','2'), ('GITHUB_EVENT_NAME','push')):
++                bad = dict(environment, **{key:value})
++                with self.subTest(field=key), self.assertRaises((ConsumerError,wire.WireFailure)):
++                    post_invocation(stage, controls, bad)
++
++    def test_actual_transfer_zip_bytes_and_source_manifest(self):
++        with public_fixture() as (f, tls, request, controls, stage):
++            environment = post_metadata(f)
++            invocation = post_invocation(stage, controls, environment)
++            with PublishedInputs(stage, request, controls, temporary_parent=f.parent) as inputs:
++                with TransferPayload(inputs, request, invocation, controls, temporary_parent=f.parent) as payload:
++                    expected = set_transfer(f, invocation, artifact_bytes(payload._owner._root))
++                    post_metadata(f, complete=True)
++                    with ReceivedInputs(stage, request, invocation, expected, controls,
++                                        temporary_parent=f.parent) as received:
++                        path = received._owner._root.path
++                        self.assertEqual(received._owner._root.read(MANIFEST), manifest_bytes(stage, request, invocation))
++                        self.assertNotEqual(path, inputs._owner._root.path)
++                        for asset in stage.plan.assets:
++                            self.assertEqual(received._owner._root.read(asset.name), f.payloads[asset.name])
++                            self.assertNotEqual(received._owner._root._files[asset.name], inputs._owner._root._files[asset.name])
++                    self.assertFalse(path.exists())
++                    with self.assertRaises(ConsumerError) as found:
++                        received.__enter__()
++                    self.assertEqual(found.exception.code,'post_received_reused')
++            self.assertTrue(all(r[0]=='GET' for r in tls.requests))
++
++    def test_transfer_id_digest_and_foreign_owner_denials(self):
++        with public_fixture() as (f, tls, request, controls, stage):
++            invocation = post_invocation(stage, controls, post_metadata(f))
++            with PublishedInputs(stage, request, controls, temporary_parent=f.parent) as inputs:
++                with TransferPayload(inputs, request, invocation, controls, temporary_parent=f.parent) as payload:
++                    data = artifact_bytes(payload._owner._root)
++                    expected = set_transfer(f, invocation, data)
++                    for ident in (stage.subject.artifact_id, stage._selection.consumer_artifact_id):
++                        with self.subTest(ident=ident), self.assertRaises(ConsumerError) as found:
++                            metadata(stage, invocation, ident, controls, complete=False)
++                        self.assertEqual(found.exception.code, 'post_transfer_id_reused')
++                    wrong = replace(expected, sha256='0'*64)
++                    with self.assertRaises(ConsumerError) as found:
++                        ReceivedInputs(stage, request, invocation, wrong, controls,
++                                       temporary_parent=f.parent, complete=False).__enter__()
++                    self.assertEqual(found.exception.code, 'post_transfer_expectation_changed')
++                    f.api.data['/actions/artifacts/51']['workflow_run']['head_sha'] = '0'*40
++                    with self.assertRaises(ConsumerError) as found:
++                        metadata(stage, invocation, 51, controls, complete=False)
++                    self.assertEqual(found.exception.code, 'post_transfer_metadata_changed')
++
++    def test_transfer_manifest_payload_and_extra_member_rejected(self):
++        with public_fixture() as (f, tls, request, controls, stage):
++            invocation = post_invocation(stage, controls, post_metadata(f))
++            with PublishedInputs(stage, request, controls, temporary_parent=f.parent) as inputs:
++                with TransferPayload(inputs, request, invocation, controls, temporary_parent=f.parent) as payload:
++                    for replacements, extra, code in (({MANIFEST:b'{"passed":true}'},{},'post_transfer_manifest_changed'),
++                        ({stage.plan.assets[0].name:b'foreign bytes'},{},'post_input_size_changed'),
++                        ({},{'packaging-report.json':b'{}'},'post_transfer_member_inventory')):
++                        expected = set_transfer(f, invocation, artifact_bytes(payload._owner._root,replacements,extra))
++                        with self.subTest(code=code), self.assertRaises(ConsumerError) as found:
++                            ReceivedInputs(stage, request, invocation, expected, controls,
++                                           temporary_parent=f.parent, complete=False).__enter__()
++                        self.assertEqual(found.exception.code, code)
++
++    def test_current_attempt_capture_completion_expiry_and_job_type_required(self):
++        with public_fixture() as (f, tls, request, controls, stage):
++            invocation = post_invocation(stage, controls, post_metadata(f))
++            with PublishedInputs(stage, request, controls, temporary_parent=f.parent) as inputs:
++                with TransferPayload(inputs, request, invocation, controls, temporary_parent=f.parent) as payload:
++                    data = artifact_bytes(payload._owner._root)
++                    set_transfer(f, invocation, data)
++                    with self.assertRaises(ConsumerError) as found:
++                        metadata(stage, invocation, 51, controls, complete=True)
++                    self.assertEqual(found.exception.code, 'post_capture_not_successful')
++                    post_metadata(f, complete=True)
++                    item = f.api.data['/actions/artifacts/51']
++                    listed = f.api.data['/actions/runs/5001/artifacts?per_page=100&page=1']['artifacts'][0]
++                    item['expires_at']=listed['expires_at']='2026-01-01T00:00:00Z'
++                    with self.assertRaises(ConsumerError) as found:
++                        metadata(stage, invocation, 51, controls, complete=True)
++                    self.assertEqual(found.exception.code, 'post_transfer_time_mismatch')
++                    set_transfer(f,invocation,data)
++                    job=f.api.data['/actions/runs/5001/attempts/1/jobs?per_page=100&page=1']['jobs'][0]
++                    job['run_attempt']=True
++                    with self.assertRaises(ConsumerError) as found:
++                        metadata(stage, invocation, 51, controls, complete=True)
++                    self.assertEqual(found.exception.code, 'post_job_mismatch')
++
++    def test_owned_execution_copy_preserves_raw_and_retires_without_launch(self):
++        from rc_postpublication_install import _ExecutableInput
++        with public_fixture() as (f, tls, request, controls, stage):
++            with PublishedInputs(stage, request, controls, temporary_parent=f.parent) as inputs:
++                asset=next(a for a in stage.plan.assets if a.family=='appimage')
++                raw=inputs._owner._root.path/asset.name
++                with inputs._owner._root.open(asset.name) as source:
++                    with _ExecutableInput(source,asset,stage._root,f.parent,controls) as execution:
++                        path=execution.path
++                        self.assertEqual(path.read_bytes(),raw.read_bytes())
++                        self.assertEqual(path.stat().st_mode & 0o777,0o700)
++                        self.assertEqual(raw.stat().st_mode & 0o777,0o600)
++                self.assertFalse(path.exists())
++                inputs.revalidate()
++
++    def test_cli_on_unowned_host_and_windows_placeholder_are_failures(self):
++        command=[sys.executable,'-B',str(Path(__file__).with_name('rc_postpublication_consumer.py')),
++                 'capture','--evidence-directory','/tmp']
++        result=subprocess.run(command,input=b'{}',stdout=subprocess.PIPE,stderr=subprocess.PIPE,
++            env={'PATH':'/usr/bin:/bin','LC_ALL':'C','PYTHONDONTWRITEBYTECODE':'1'},timeout=5)
++        self.assertEqual(result.returncode,1)
++        value=json.loads(result.stdout)
++        self.assertEqual(value['error_code'],'post_host_not_disposable')
++        self.assertFalse(value['passed'])
++        import rc_postpublication_consumer as cli
++        output=io.StringIO()
++        from contextlib import redirect_stdout
++        with redirect_stdout(output):
++            self.assertEqual(cli._windows_block(),1)
++        self.assertEqual(json.loads(output.getvalue())['status'],'NOT_RUN')
++
++    def test_ack_receipt_is_atomic_create_only_and_never_approval(self):
++        from rc_postpublication_consumer import _receipt
++        with tempfile.TemporaryDirectory() as parent:
++            value=dict(schema=1,passed=False,status='NOT_RUN',release_approved=False,publish_approved=False)
++            _receipt(parent,'fixture.json',value)
++            self.assertEqual(json.loads((Path(parent)/'fixture.json').read_bytes()),value)
++            with self.assertRaises(FileExistsError):
++                _receipt(parent,'fixture.json',dict(passed=True))
++            self.assertEqual(json.loads((Path(parent)/'fixture.json').read_bytes()),value)
++
++    def test_three_production_hard_rejections_remain_unconditional(self):
++        for function,args,code in ((wire._remote_constraint,(object(),),'fence_blocked'),
++                                   (wire._authorize,(object(),object()),'denied'),
++                                   (wire._authenticated_latest_absence,(object(),),'fence_blocked')):
++            with self.subTest(name=function.__name__), self.assertRaises(wire.WireFailure) as found:
++                function(*args)
++            self.assertEqual((found.exception.code,found.exception.effect),(code,'none'))
+diff --git a/scripts/rc_publication_github.py b/scripts/rc_publication_github.py
+index fdc12ec..a995d1a 100644
+--- a/scripts/rc_publication_github.py
++++ b/scripts/rc_publication_github.py
+@@ -140,7 +140,10 @@ class _Reader:
+             _need(len(result) < limit)
+             result.extend(self.take(1))
+         return bytes(result)
+-    def response(self, limit, binary=False):
++    def response(self, limit, binary=False, *, sink=None):
++        if sink is not None:
++            from rc_postpublication_io import _RawSink
++            _need(type(sink) is _RawSink and binary is True, 'invalid_request')
+         first = self.line(HEADERS)
+         _need(re.fullmatch(rb'HTTP/1\.[01] [1-5][0-9]{2} [^\r\n]*\r\n', first) is not None)
+         status, used, headers = int(first[9:12]), len(first), {}
+@@ -157,6 +160,8 @@ class _Reader:
+             headers[name] = value
+         _need(headers.get('content-encoding', 'identity') == 'identity')
+         _need(not ('content-length' in headers and 'transfer-encoding' in headers))
++        if sink is not None:
++            _RawSink._begin(sink, status, binary)
+         raw, digest, total = bytearray(), hashlib.sha256(), 0
+         def consume(size):
+             nonlocal total
+@@ -166,6 +171,8 @@ class _Reader:
+                 digest.update(chunk)
+                 if not binary:
+                     raw.extend(chunk)
++                if sink is not None:
++                    _RawSink._write(sink, chunk)
+                 total += len(chunk)
+                 size -= len(chunk)
+         if 'transfer-encoding' in headers:
+diff --git a/scripts/rc_publication_stage.py b/scripts/rc_publication_stage.py
+index 5647efb..0a06084 100644
+--- a/scripts/rc_publication_stage.py
++++ b/scripts/rc_publication_stage.py
+@@ -251,6 +251,7 @@ class StagedAssets:
+                 self._roots.append(root)
+                 return root
+             receipt_download, receipts, download, bundle, cloud, self._output = (fresh() for _ in range(6))
++            self._bundle = bundle
+             path = consumer.transport.download_artifact_zip(self._api, self._observation[3], receipt_download, **budget)
+             snapshot._call(_receipts, path, receipts, **budget)
+             self.plan_bytes, self.provenance_bytes = (receipts.read(name) for name in ('rc-asset-plan.json', 'RC_PROVENANCE.json'))
