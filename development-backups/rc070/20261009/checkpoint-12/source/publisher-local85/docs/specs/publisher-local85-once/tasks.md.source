@@ -1,0 +1,41 @@
+# Publisher local85 once tasks
+
+| 任务 | 需求 | 设计 | 证据和scope |
+|---|---|---|---|
+| 1. native独立恢复全部1878+b9cf，原carrier fetchedclean及nativeprefix | FR-1 | 源身份 | 原restore/precondition/runner/inventory不改；actualbytes/hash完整核验 |
+| 2. nofollow/sourcecorrupt/static及ordinary原kernel实际controls | FR-1/2 | 源身份/owner调用 | outside脚本仅top-level，无function/class edits；controls只ordinary component |
+| 3. 封存source/spec/runtime/fixture/entry，根独立启动review | FR-1/2/3 | owner调用/evidence门 | 根实读完整源码和原预算；无review则SUT0 |
+| 4. once85真实调用与原证据封存/heartbeat | FR-2/3 | owner调用/evidence门 | 原run_owned必要85，1800/7/2/2，失败保留、不自动重试 |
+| 5. raw85全向量根独立审查，才考虑独立once300 | FR-3 | evidence门 | 当前entry不实现/调用300，CI/FINAL/release/install不qualified |
+
+交付物：requirements/design/tasks三外部规格，local85-launch.py一个仅top-level脚本，source/precondition/ordinarycontrols/prelaunchseal原证据；生产源码和carrier0编辑。无symbol edits，不需借UNKNOWN当0影响。所有测试控制不修改原method/assertion。
+
+## 交付物清单
+
+三规格+一个外部entry+真实controls和封存。生产及carrier0修改。
+
+## 任务列表
+
+1. 完成FR-1native恢复和precondition。
+2. 完成FR-1/2controls并根审查。
+3. 完成FR-2/3once85原执行及raw证据。
+4. FR-3的300启动保持根独立raw审查之后。
+
+## 需求覆盖矩阵
+
+| 需求 | 设计 | 任务 |
+|---|---|---|
+| FR-1 | 源身份 | 1/2 |
+| FR-2 | owner调用 | 2/3 |
+| FR-3 | evidence门 | 2/3/4 |
+
+## 文件变更清单
+
+| 文件 | 操作 | 预算 |
+|---|---|---|
+| requirements.md | 新建外部规格 | 100行 |
+| design.md | 新建外部规格 | 80行 |
+| tasks.md | 新建外部规格 | 100行 |
+| local85-launch.py | 新建外部top-level入口 | 60行，无function/class |
+| ordinary-controls.py | 新建外部top-level有限控制 | 150行，无function/class |
+| preflight.json/PRELAUNCH-SEAL.json | 外部原证据 | nooverwrite |

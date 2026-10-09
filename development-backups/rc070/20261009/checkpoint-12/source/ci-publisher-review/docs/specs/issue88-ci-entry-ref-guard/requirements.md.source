@@ -1,0 +1,48 @@
+# 需求文档：issue88-ci-entry-ref-guard
+
+## 功能概述
+
+PR148 首次运行仍未出现。为固定管理分支 push 的 job 增加精确 ref 条件，避免复用、触发面扩展或未来事件变化启动错误管理来源。用有实际安全意义的源码变更与真实 Git transport 正常 push 观察首次 CI；不保证 GitHub 会调度。
+
+## 范围边界
+
+In Scope：父提交 a935f0d8f81901a0974b5b0d4a59c98d7765b8a1 上仅 .github/workflows/rc-native-recovery-probe.yml 一行 job if 收窄；独立规格与审查在 checkout 外。
+Out of Scope：修改 SUT b9cf/1878、其余十个 carrier 文件、事件类型、helper、inventory、源 hash、权限、计时、main、PR base D6、tag/Release、issuer。GitHub 未调度根因 UNKNOWN。既有0 runs不能称CI失败或禁用。
+
+## 需求列表
+
+### FR-1: 固定 job 来源
+
+**优先级:** Must
+**用户故事:** 作为恢复维护者，我要在调度层再次核实固定分支，以便不在其他ref启动原生测试。
+
+#### 验收标准（EARS）
+
+1. WHEN job 被评估 THEN 系统 SHALL 同时要求 repository 精确 Eswink/coding-tools-mcp、event_name push、ref refs/heads/test/rc070-native-recovery-probe-20261009。
+2. IF 任一条件不符 THEN 系统 SHALL 不启动该 job。
+3. WHILE 条件满足 THE 系统 SHALL 保留原全部步骤、只读权限、action SHA、immutable checkout、预算、扫描与85到300准入。
+
+### FR-2: 同源封存与真实观察
+
+**优先级:** Must
+**用户故事:** 作为恢复维护者，我要精确有限的小步提交，以便观察合法 Git push 通道而不补造验证。
+
+#### 验收标准（EARS）
+
+1. WHEN 提交前 THEN 系统 SHALL check_spec 通过、必要静态检查、GitNexus detect_changes、gencommit并核所有其他tracked path mode/blob不变。
+2. WHEN 创建提交 THEN 系统 SHALL 唯一父a935、仅一path、无空提交、非强推；root独立review后才正常native Git push。
+3. WHEN push 后 THEN 系统 SHALL 按新head查询真实Actions runs；0仍NOTRUN，不借历史rerun；有新run才分别报告85/300真实状态。
+
+## 非功能需求
+
+- NFR-1（安全）：0生产symbol编辑；job guard仅收窄，不删Python push/ref断言，不重解释GitHub权限为publisher授权。
+- NFR-2（兼容性）：不引入workflow_dispatch，因为Python明确只接收push，且注册/default-branch条件未知。
+
+## 依赖关系
+
+root恢复的main Plan、PR148原source guard、同tree独立冻结审查与GitHub首次0 runs事实。
+
+## 检查清单
+
+- [x] 不改源恢复、原库存、操作/owner预算和准入。
+- [x] 不承诺调度或任何最终RC资格。

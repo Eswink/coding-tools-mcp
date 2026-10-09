@@ -1,0 +1,21 @@
+{
+  "scope": "fresh recovery private local source and narrow CI guard ONLY",
+  "original_checkpoint10": "MISSING_NOT_UPLOADED_NOT_RECOVERED",
+  "existing_groups": "01..09 plus11=10groups",
+  "publisher_pure_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "publisher_carrier_original_commit": "a935f0d8f81901a0974b5b0d4a59c98d7765b8a1",
+  "ci_guard_commit": "2205716ae5506a6c5423c2967355b4b54ed32f8d",
+  "ci_guard_tree": "f6bfa114de00781d24973e0dbd0ff1a0a45bc760",
+  "current_local85": "RUNNING_AT_SOURCE_FREEZE_NOT_QUALIFIED",
+  "original300": "NOTRUN_AT_SOURCE_FREEZE",
+  "GitHubActions_guard_head_runs": 0,
+  "root_cause_CI": "UNKNOWN",
+  "earlier_source_mode_restore": "BLOCKED_before_SUT_preserved",
+  "new_physical_source_restore": "EXACT_644_755_not_guard_relaxed",
+  "necessary_controls": "actual7kernel_only_not_owner_automatic_timeout_cancel",
+  "source_only": true,
+  "candidate_qualified": false,
+  "release_authorized": false,
+  "published": false,
+  "postrelease_install_start": "NOTRUN"
+}

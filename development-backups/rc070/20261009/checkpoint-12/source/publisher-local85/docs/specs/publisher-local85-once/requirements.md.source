@@ -1,0 +1,33 @@
+# Publisher local native85 once
+
+## 功能概述
+
+现真实 /usr/bin/git2.47.3 支持原安全PREFIX。独立已恢复pure b9cf/1878，在当前现成CPython3.12.14运行原85一次以取得新component结果。系统/usr/bin/python3=3.13.5仍作为原runner工具身份被记录。不是GitHubCI或FINAL0.7资格。原2.43下85FAIL50/35、300NOTRUN不可覆盖。旧Golden V5外部脚本字节未保存，不能借旧ordinary PASS作为本次owner证明。
+
+## FR-1: 同源源码和预算
+
+WHEN 启动之前 THEN 系统 SHALL 用immutable PR148 carrier37109/1860上的原restore恢复F13+dab238 full52+only8成pure b9cf/1878，核全部bytes/mode/blob/SHA、index、唯一parentF13 privatecommit、fixture267679/SHA233daaf6，原runner6259B/103行/SHA687ec。
+IF 任一source/fixture/tool/prefix不匹配 THEN 系统 SHALL SUT0失败，不修shim/删flag/替换binary。原85inventory85exactunique与1800/7/2/2预算保持；所有原test timers不变。
+
+## FR-2: 原nativeowner和安全
+
+WHEN 允许启动 THEN 系统 SHALL 直接调用不可变原run_owned(necessary85)，保留private subreaper、kernel pidfd/starttime/namespace、WNOWAIT heldZ、naturalCLD0、dynamic adopted family真实ECHILD、sticky cancel和原minimalenv，无实际token/生产凭据/export环境。新entry仅top-level读取固定源身份并调用原helper，不改原functions/classes/AST。
+IF 取消/timeout/异常/cleanupUNKNOWN THEN 系统 SHALL 保留原raw文件、失败和闭包状态；不得声称PASS、自动重跑、跳过close。普通kernel controls只证明具体原kernel执行，不冒充wholeowner成功。
+
+## FR-3: 原raw准入与边界
+
+WHEN 85退出 THEN 系统 SHALL 记录LAUNCH/nativeclosure/receipt/三case日志/二controller日志共八原文件SHA/size和RAW-EVIDENCE-SEAL，实际重读all vectors/unique/zero failures/errors/skips/native0/source/runtime/index/realm/fixture/carrierbeforeafter。
+IF 85任一门不通过 THEN 系统 SHALL 不运行300。
+WHEN 85全向量通过并获根独立raw审查 THEN 系统 SHALL 仅以原run_owned(original300,prior=实际85原封存)再核seal与八原file并执行原300一次。当前entry仅85，不含300自动执行。无tag/Release/安装/特权/用户主机/权限更改；PR98cancel和Issue86snapshot暂停不动。
+
+## 需求列表
+
+FR-1同源源码和预算、FR-2原nativeowner和安全、FR-3原raw准入与边界均由上面EARS条款定义。
+
+## 非功能需求
+
+NFR-1 严格有限1800秒和7/2/2退休，无预算扩张；NFR-2 最小env，不触真实credential或生产；NFR-3 普通Linux现成CPython3.12及原完整git安全参数真实支持。
+
+## 依赖关系
+
+真实PR148 carrier源码37109、immutable backupdab238、pure b9cf全1878、originalrunner103行6259B、原85库存、officialGLib固定267679B和根独立启动审查。

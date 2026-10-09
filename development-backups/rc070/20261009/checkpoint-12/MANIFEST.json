@@ -1,0 +1,108 @@
+{
+  "scope": "source-only checkpoint12",
+  "files": [
+    {
+      "source_path": "publisher-local85/docs/specs/publisher-local85-once/design.md",
+      "backup_path": "source/publisher-local85/docs/specs/publisher-local85-once/design.md.source",
+      "bytes": 1956,
+      "sha256": "dbbc789cfae2b6d76d1421ec53dc60749a7c2436e299479342d28fbc24d5a34e",
+      "git_mode": "100644",
+      "source_physical_mode": "0o600"
+    },
+    {
+      "source_path": "publisher-local85/docs/specs/publisher-local85-once/requirements.md",
+      "backup_path": "source/publisher-local85/docs/specs/publisher-local85-once/requirements.md.source",
+      "bytes": 2813,
+      "sha256": "3c1259b45d25b94cfb12d9c7830816d9e36789afd42774b82a50d2230a39182d",
+      "git_mode": "100644",
+      "source_physical_mode": "0o600"
+    },
+    {
+      "source_path": "publisher-local85/docs/specs/publisher-local85-once/tasks.md",
+      "backup_path": "source/publisher-local85/docs/specs/publisher-local85-once/tasks.md.source",
+      "bytes": 2134,
+      "sha256": "8ab1c3ea6a9d4829bf3d905c23e3d178f09be8d35e5a29a85217bd6bcf12486f",
+      "git_mode": "100644",
+      "source_physical_mode": "0o600"
+    },
+    {
+      "source_path": "publisher-local85/local85-launch.py",
+      "backup_path": "source/publisher-local85/local85-launch.py.source",
+      "bytes": 2143,
+      "sha256": "9a872cba7c7aaf2106a85ca59692d7bc398ebe4dc0f1741df0a8d6555ae5279a",
+      "git_mode": "100644",
+      "source_physical_mode": "0o600"
+    },
+    {
+      "source_path": "publisher-local85/ordinary-controls.py",
+      "backup_path": "source/publisher-local85/ordinary-controls.py.source",
+      "bytes": 3100,
+      "sha256": "520046f8cf83c6eae82dbf781097224c974fc0ea96e7f268de25eae7f8820e75",
+      "git_mode": "100644",
+      "source_physical_mode": "0o600"
+    },
+    {
+      "source_path": "publisher-local85/STAGE-READONLY-REVIEW.md",
+      "backup_path": "source/publisher-local85/STAGE-READONLY-REVIEW.md.source",
+      "bytes": 2431,
+      "sha256": "708023e9dae6d4075095c3c557777b87f8253e6c5d6e253278bafc496eacbcfa",
+      "git_mode": "100644",
+      "source_physical_mode": "0o600"
+    },
+    {
+      "source_path": "publisher-local85/RECOVERY-PHYSICAL-MODE-ERRATUM.md",
+      "backup_path": "source/publisher-local85/RECOVERY-PHYSICAL-MODE-ERRATUM.md.source",
+      "bytes": 1473,
+      "sha256": "991099bb9f3ff91520d0c96a4ff446a41ade2a171b5d8fcf50af55e85ee74eca",
+      "git_mode": "100644",
+      "source_physical_mode": "0o600"
+    },
+    {
+      "source_path": "ci-publisher/.github/workflows/rc-native-recovery-probe.yml",
+      "backup_path": "source/ci-publisher/.github/workflows/rc-native-recovery-probe.yml.source",
+      "bytes": 2400,
+      "sha256": "21da44cc486e49791d99cb9e3de04310ddddfa3fbefaa65254cdb09c94e98e4d",
+      "git_mode": "100644",
+      "source_physical_mode": "0o600"
+    },
+    {
+      "source_path": "ci-publisher-review/docs/specs/issue88-ci-entry-ref-guard/design.md",
+      "backup_path": "source/ci-publisher-review/docs/specs/issue88-ci-entry-ref-guard/design.md.source",
+      "bytes": 2148,
+      "sha256": "9191a9900a290ce688b4664d536ee01054b293b787adb02362fc7dab8cd5f7af",
+      "git_mode": "100644",
+      "source_physical_mode": "0o600"
+    },
+    {
+      "source_path": "ci-publisher-review/docs/specs/issue88-ci-entry-ref-guard/requirements.md",
+      "backup_path": "source/ci-publisher-review/docs/specs/issue88-ci-entry-ref-guard/requirements.md.source",
+      "bytes": 2643,
+      "sha256": "d1289572eb8cd1e95557d88f4271ce6bf59e97bc6d4aaf52d337539dde3a0bab",
+      "git_mode": "100644",
+      "source_physical_mode": "0o600"
+    },
+    {
+      "source_path": "ci-publisher-review/docs/specs/issue88-ci-entry-ref-guard/tasks.md",
+      "backup_path": "source/ci-publisher-review/docs/specs/issue88-ci-entry-ref-guard/tasks.md.source",
+      "bytes": 1542,
+      "sha256": "8357acce09cc0820bd8c83808abd634a93d045a80b188dcbc287e9ce7f87a0cc",
+      "git_mode": "100644",
+      "source_physical_mode": "0o600"
+    },
+    {
+      "backup_path": "README.md",
+      "bytes": 1192,
+      "sha256": "b8eadb3636161afeaaf4d1b3c2a2b6b0eb9dee6c06c9bf9d9ec620bd8a8d6fdc",
+      "git_mode": "100644"
+    },
+    {
+      "backup_path": "SOURCE-STATUS.json",
+      "bytes": 1008,
+      "sha256": "b069ee2af35910ce2b360b2a9435ecf0b3780651a62f29961f9c50ab117e4239",
+      "git_mode": "100644"
+    }
+  ],
+  "file_count_excluding_manifest": 13,
+  "bytes_excluding_manifest": 26983,
+  "actualqualified": false
+}

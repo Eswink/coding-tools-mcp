@@ -1,0 +1,7 @@
+# Source recovery physical mode correction
+
+Initial RECOVERY-VERIFY.json checked native Git100644/100755 via executable-bit mapping, plus allbytes/hash/blob. That comparison did not establish full physical POSIX644/755: shellumask0077 caused privateclone mode600/700. Original rc_native_probe_restore.whole_source correctly rejected first preflight on actual POSIX mismatch; SUT0 and failed fresh output remain unchanged. Do not treat initial full_physical_source_manifest_verified:true as proof of exact physical644/755. It establishes the original bytes, native mode/blob/tree and executable bit only.
+
+New preflight02 was restored from the exact same immutable payloads by the unchanged original restore function under explicitly declaredumask0022. Original whole_source compared every1878 actual POSIXmode/byte/blob/hash/index, checked exactb9cf tree and cleanprivatef8a9 soleparentF13. This is the actual current exactphysical recovery evidence, still not SUT pass or nativeCI/FINALqualification. Carrier1860 physical600/700 is explicitly sealed and stable, nativeGitmode/blob fullmatch; carrier is separate from pureSUT and no exact644 claim applies to its physicalmode.
+
+Contexttool generated localprobe launchers/config and one cursor rule in the carrier; they were relocated outside into private probe-generated-quarantine before finalnativecleanguard. No trackedcarrier bytes changed. Do not publish privateconfig/quarantine. All old failures are kept immutable.

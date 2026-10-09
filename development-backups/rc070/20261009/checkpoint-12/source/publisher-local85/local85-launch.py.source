@@ -1,0 +1,29 @@
+"""Explicit local component entry only; no GitHub event impersonation or Release."""
+import json,sys,os
+from pathlib import Path
+BASE=Path('/workspace/work/rc070/publisher-review')
+MANAGEMENT=Path('/workspace/work/rc070/publisher-carrier')
+sys.path.insert(0,str(MANAGEMENT/'scripts'))
+from rc_native_probe_restore import read_regular,sha,write,git,whole_source,RUNNER_SHA,FIXTURE_SHA
+from rc_native_probe_kernel import identity
+from rc_native_probe_owner import run_owned,RUNTIME
+from rc_native_probe import FILES
+seal=json.loads(read_regular(BASE/'PRELAUNCH-SEAL.json'))
+assert seal['SUT_runs']==0 and seal['local_only_component'] is True
+for filename,row in seal['files'].items():
+ raw=read_regular(Path(filename));assert len(raw)==row['bytes'] and sha(raw)==row['sha256']
+assert git(MANAGEMENT,'rev-parse','HEAD').decode().strip()==seal['carrier_commit']
+assert git(MANAGEMENT,'write-tree').decode().strip()==seal['carrier_tree']
+assert git(MANAGEMENT,'status','--porcelain','--untracked-files=all')==b''
+assert {p:identity(p) for p in RUNTIME}==seal['runtime']
+context=json.loads(read_regular(BASE/'preflight02/SOURCE-RESTORATION.json'))
+assert whole_source(context['root'],context['rows'])==context['source']
+inventory=json.loads(read_regular(MANAGEMENT/'scripts/rc_native_probe_inventory.json'))
+fixture=BASE/'glib-0.18.5.crate';runner=MANAGEMENT/'scripts/rc_native_probe_original_runner.py'
+assert identity(fixture)==seal['fixture'] and sha(fixture.read_bytes())==FIXTURE_SHA
+assert sha(runner.read_bytes())==RUNNER_SHA
+assert 'necessary85' in inventory and len(inventory['necessary85'])==len(set(inventory['necessary85']))==85
+output=BASE/'local85-once';assert not output.exists()
+result=run_owned(context,'necessary85',inventory['necessary85'],output,fixture,runner,[MANAGEMENT/p for p in FILES])
+write(BASE/'LOCAL85-RESULT.json',dict(local_only_component=True,GitHubCI=False,final0_7_qualified=False,release_authorized=False,original300='NOTRUN',necessary85_qualified=result['native']['qualified'],raw_seal_sha256=result['seal_sha256'],directory=str(result['directory'])))
+raise SystemExit(0 if result['native']['qualified'] else 1)

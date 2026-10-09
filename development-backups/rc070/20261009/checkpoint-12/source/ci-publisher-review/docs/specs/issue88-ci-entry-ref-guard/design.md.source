@@ -1,0 +1,43 @@
+# 设计文档：issue88-ci-entry-ref-guard
+
+## 概述
+
+FR-1/2：只在job级if追加固定ref等式。push branch filter与Pythonmain原refassert保留；三层验证来源。Carrier tree将变化，不等于纯SUTtree。
+
+## 技术方案
+
+### 架构设计
+
+GitHub事件→push固定branchfilter→job精确repository/event/ref条件→原checkoutgithub.sha→原Pythonpush/ref/SHA/sourceguard→原恢复b9cf→原nativeprecondition→原85→原向量门→原300。
+
+### 技术选型
+
+GitHubActions原表达式与已有YAML；无需新依赖或工具安装。正常gitpush使用已配置凭据，不读取、打印或改写凭据。
+
+## 文件结构
+
+唯一carrier修改 .github/workflows/rc-native-recovery-probe.yml。独立三份规格、diff/control/hash/review材料保存在work/rc070/ci-entry-review，不能进入管理checkout或SUT。
+
+## 设计决策
+
+### 决策1：只收窄job条件（FR-1）
+
+保留原push事件。workflow_dispatch需要改Pythonmain及checks（checks禁止dispatch），且未注册的workflow还有默认分支限制，故本次不声称可运行dispatch。未知根因保持未知。
+
+### 决策2：一次真实内容变更的nativepush（FR-2）
+
+正常transport不同于旧APImetadata child，但不保证事件产生或调度。独立父/树/path比较和原始byteshash封存。rootreview通过后push，观察新head；不空提交、不权限修改、不main、不旧rerun。
+
+## 测试策略
+
+解析原/新YAML，规范jobif后确认除ref条件外结构完全相等；匹配原Pythonrefassert；完整八种boolean组合中只有三个true能准入；nativegitdiff-check；全tracked树比较只有一path改变。所有helpers SHA按父提交逐文件比对。0 SUT，不跑本地85/300。
+
+## 风险评估
+
+- 调度根因仍UNKNOWN，gitpush可能成功而仍0runs；保留NOTRUN。
+- GitNexus未有fresh索引时返回UNKNOWN，不当0；本次0symbol编辑，manualHIGH调度路径披露。
+- workflowsource身份因一行变化变新，冻结结果仅允许检查受保护helper不变，不升级测试资格。
+
+## 检查清单
+
+- [x] 覆盖FR-1/2与NFR-1/2，真实观察是root后续步骤。

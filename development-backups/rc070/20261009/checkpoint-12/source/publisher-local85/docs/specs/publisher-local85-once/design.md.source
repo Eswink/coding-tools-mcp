@@ -1,0 +1,25 @@
+# Publisher local native85 once design
+
+## FR-1: 源身份
+
+管理 /workspace/work/rc070/publisher-carrier nativefetch a935/37109 clean。restore原函数从固定dab238对象读三payload，privateSUT独立创建输出preflight目录。COPY未碰生产符号。原precondition实际全PREFIX+OVERRIDES --version，无install/PATHshadow，现存两Git及两Python工具都按原runtime身份读。
+
+## FR-2: owner调用
+
+外部top-level local85-launch.py直接导入原run_owned及原kernel，不改或替换functions/AST，不调用有GitHubpush断言的main，也不造GITHUB_*环境。明确这是local-only复用entry替换，不冒充原CIentry。同进程private subreaper启动immutable original runner，原7TERM/2KILL/2family，原1800fail-only wholebudget。前后工具/源/管理identity固定。普通owned controls覆盖naturalCLD0、SIGTERM退出、exactheldpid、adoptedzombie与live child fail flag、ECHILD，不能证明完整run_owned自动路径。
+
+## FR-3: evidence门
+
+只fresh outside目录、写原receipt和所有日志不覆盖。entry只调用85并写LOCAL85-RESULT；无auto300、无raw敏感公开。根读取原seal八file和全部receipt/native/launch向量后才能单独批准原300，300的原run_owned自带sealSHA/八file/nofollow读取门。旧失败保持私有不可覆盖。本地onlycomponent，CI仍另需合法首次通道。
+
+## 概述
+
+本次取得兼容新环境的85实测component；当前原CI0Actions不因此变成CI通过。FR-1/2/3映射上述设计，旧FAIL保留。
+
+## 技术方案
+
+全源码literalrestore和nativeMerkle，原fixedPREFIX，原immutable kernel/run_owned/receipt_gate，外部top-level仅入口，不伪造CI环境或授权。
+
+## 文件结构
+
+outside publisher-review/docs/specs/publisher-local85-once三规格，outside local85-launch.py，preflight原restore输出，ordinary-controls.json，PRELAUNCH-SEAL.json与local85-once原证据；carrier及pureSUT没有文件增删。
