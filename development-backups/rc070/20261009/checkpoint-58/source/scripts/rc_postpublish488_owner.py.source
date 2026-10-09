@@ -1,0 +1,259 @@
+"""New bounded488 data-only controller. Historical management source remains MISSING."""
+import argparse
+import ctypes
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import time
+import traceback
+from rc_postpublish488_support import sha,write,read_regular,git,whole_source488,fences488,prepare_context488,TREE,RUNNER_SHA,FIXTURE_SHA,ENV
+from rc_postpublish488_kernel import identity,realm,kernel,owned_family_close
+
+TERM_SECONDS,KILL_SECONDS,FAMILY_SECONDS=7,2,2
+RUNTIME=sorted(set(['/usr/bin/git','/usr/bin/openssl',sys.executable]))
+RAW_FILES=('LAUNCH.json','NATIVE-CLOSURE.json','controller-stdout.log','controller-stderr.log','cases/receipt.json','cases/source-before.json','cases/source-after.json','cases/runtime-before.json','cases/runtime-after.json','cases/inventory.json','cases/progress.jsonl','cases/process-start.json','cases/native-tls-evidence.json','cases/cases.log')
+
+
+def receipt_gate488(receipt,native,launch,context,directory):
+    inventory=context['inventory'];assert native['closed'] is True and native['natural_exit_code']==0
+    assert native['observed']['si_pid']==launch['kernel']['pid']==native['held_leader']['pid']
+    assert native['observed']['si_code']==os.CLD_EXITED and native['observed']['si_status']==0
+    assert native['held_leader']['state']=='Z' and native['held_leader']['starttime']==launch['kernel']['starttime']
+    assert native['held_leader']['proc_pid']==launch['kernel']['proc_pid'] and native['held_leader']['NSpid']==launch['kernel']['NSpid']
+    assert native['held_leader']['pgid']==native['held_leader']['sid']==launch['kernel']['pid']
+    assert native['native_echild'] is True and not native['errors'] and not native['cancelled'] and not native['timed_out']
+    assert receipt['scope']=='local-source28-v2-necessary488-only' and receipt['successful'] is True
+    assert receipt['loaded']==receipt['executed']==receipt['named_passed']==inventory and receipt['tests_run']==488
+    assert not any(receipt[k] for k in ('failures','errors','subtest_failures','skipped','expected_failures','unexpected_successes'))
+    assert receipt['source_stable'] is True and receipt['runtime_stable'] is True and receipt['source_tree']==TREE
+    assert receipt['source_parent']==context['source']['head']
+    assert all(receipt[k] is False for k in ('github_authority_proven','tag_cas_proven','final_candidate_proven','profile_admitted','windows_native_owner_proven'))
+    assert receipt['actual_install_slots']=='NOT_RUN'
+    before=json.loads(read_regular(directory/'cases/source-before.json'));after=json.loads(read_regular(directory/'cases/source-after.json'))
+    assert before==after==context['source'] and sha(json.dumps(before,sort_keys=True).encode())==receipt['source_sha256']
+    rb=json.loads(read_regular(directory/'cases/runtime-before.json'));ra=json.loads(read_regular(directory/'cases/runtime-after.json'))
+    assert rb==ra and sha(json.dumps(rb,sort_keys=True).encode())==receipt['runtime_sha256']
+    assert rb['runner_sha256']==RUNNER_SHA
+    for field in ('git','openssl','python_binary','fixed_git','fixture_owned_scope_git','fixture_git_environment_git'):
+        val=rb[field];assert val['path'] in context['fence']['programs']
+        assert val['sha256']==context['fence']['programs'][val['path']]['sha256'] and val['bytes']==context['fence']['programs'][val['path']]['size']
+    assert rb['tls']['openssl_version']==context['fence']['ssl_version']
+    for name in ('_ssl','_hashlib'):
+        val=rb[name];reviewed=context['fence']['extensions'][name]
+        if reviewed['origin']=='built-in':
+            assert val['origin']=='built-in' and val['owned_by_python_binary_sha256']==reviewed['python_binary_sha256']
+        else:
+            assert val['path']==reviewed['path'] and val['sha256']==context['fence']['programs'][val['path']]['sha256'] and val['bytes']==context['fence']['programs'][val['path']]['size']
+    assert json.loads(read_regular(directory/'cases/inventory.json'))==dict(scope='loaded_only',loaded=inventory)
+    journal=[json.loads(line) for line in read_regular(directory/'cases/progress.jsonl').splitlines()]
+    assert len(journal)==976
+    for i,name in enumerate(inventory):
+        first,last=journal[2*i:2*i+2];assert first['event']=='start' and last['event']=='stop' and first['id']==last['id']==name and last['passed'] is True
+    process=json.loads(read_regular(directory/'cases/process-start.json'))
+    assert process['pid']==launch['kernel']['pid'] and process['ppid']==os.getpid() and process['pid_namespace']==launch['realm']['pid_namespace']
+    fields=process['proc_stat'][process['proc_stat'].rfind(')')+2:].split();assert int(fields[19])==launch['kernel']['starttime']
+    for path,key in [('cases.log','log'),('native-tls-evidence.json','native_tls_evidence')]:
+        raw=read_regular(directory/'cases'/path);assert len(raw)==receipt[key]['bytes'] and sha(raw)==receipt[key]['sha256']
+    assert fences488(context)==context['fence']
+
+
+def run_owned488(context,output):
+    root,output=Path(context['root']),Path(output);name='original488';inventory=context['inventory']
+    assert not output.exists() and not output.is_relative_to(root) and len(inventory)==len(set(inventory))==488
+    assert fences488(context)==context['fence']
+    fixture_path,runner_path=Path(context['fixture_path']),Path(context['runner_path'])
+    carrier_paths=context['carrier_paths']
+    before={p:identity(p) for p in RUNTIME};own_realm=realm();carrier={str(p):identity(p) for p in carrier_paths}
+    fixture,runner=identity(fixture_path),identity(runner_path)
+    libc = ctypes.CDLL(None,use_errno=True)
+    assert libc.prctl(36,1,0,0,0)==0
+    enabled=ctypes.c_int()
+    assert libc.prctl(37,ctypes.byref(enabled),0,0,0)==0 and enabled.value==1
+    try:
+        os.waitid(os.P_ALL,0,os.WEXITED|os.WNOHANG|os.WNOWAIT)
+    except ChildProcessError:
+        pass
+    else:
+        raise AssertionError('fresh supervisor needs actual initial ECHILD')
+    output.mkdir()
+    cancelled,errors,family = [],[],[]
+    finalizing=False
+
+    def cancel(signum,frame):
+        cancelled.append(dict(signal=signum,at=time.monotonic()))
+        if finalizing:
+            raise SystemExit(1)
+
+    old_handlers={s:signal.signal(s,cancel) for s in (signal.SIGTERM,signal.SIGINT)}
+    env={**ENV,'PATH':'/usr/bin:/bin:'+str(Path(sys.executable).parent),'PYTHONUTF8':'1','RC_CONSUMER_TEST_GLIB_ARCHIVE':str(fixture_path)}
+    argv=[sys.executable,str(runner_path),'--root',str(root),'--output',str(output/'cases'),*inventory]
+    start,child,fd,created,observed,held,code=time.monotonic(),None,None,None,None,None,None
+    timed_out,echild,natural=False,False,False
+    stdout=stderr=None
+    launch={}
+
+    def primary_observe():
+        return os.waitid(os.P_PID,child.pid,os.WEXITED|os.WNOHANG|os.WNOWAIT)
+
+    def retire_primary():
+        nonlocal observed,held,code,fd,created
+        if child is None:
+            return
+        # Recover a still-held Popen lease if initial pidfd/setup failed.
+        if fd is None:
+            fd=os.pidfd_open(child.pid)
+        current=kernel(child.pid,fd)
+        if created is None:
+            created=current
+        assert current['starttime']==created['starttime']
+        assert current['pgid']==current['sid']==child.pid
+        os.killpg(child.pid,signal.SIGTERM)
+        end=time.monotonic()+TERM_SECONDS
+        while time.monotonic()<end:
+            observed=primary_observe()
+            if observed is not None:
+                break
+            time.sleep(.01)
+        if observed is None:
+            os.killpg(child.pid,signal.SIGKILL)
+            end=time.monotonic()+KILL_SECONDS
+            while time.monotonic()<end and observed is None:
+                time.sleep(.01)
+                observed=primary_observe()
+        assert observed is not None,'primary retirement UNKNOWN'
+        assert observed.si_pid==child.pid
+        held=kernel(child.pid,fd)
+        assert held['starttime']==created['starttime'] and held['state']=='Z'
+        code=child.wait(timeout=0)
+
+    try:
+        stdout,stderr=(output/'controller-stdout.log').open('xb'),(output/'controller-stderr.log').open('xb')
+        assert not cancelled,'sticky cancellation before child launch; no SUT effect'
+        child=subprocess.Popen(argv,cwd=root,env=env,stdin=subprocess.DEVNULL,stdout=stdout,stderr=stderr,start_new_session=True)
+        fd=os.pidfd_open(child.pid)
+        created=kernel(child.pid,fd)
+        assert created['ppid']==os.getpid() and created['pgid']==created['sid']==child.pid
+        launch=dict(source_tree=TREE,source_manifest_sha256=context['source_manifest_sha256'],selected_inventory=name,
+                    exact_loaded_ids=inventory,argv=argv,kernel=created,own_subreaper=True,created_pid_namespace=False,
+                    runtime=before,realm=own_realm,fixture=fixture,runner=runner,carrier=carrier,
+                    fail_only_controller_seconds=2700,historical_whole_budget=None,original_SUT_timers_unchanged=True,
+                    cleanup_seconds=dict(term=7,kill=2,family=2),no_retry=True,worker_environment_keys=sorted(env))
+        write(output/'LAUNCH.json',launch)
+        print(json.dumps(dict(started=True,inventory=name,runner_pid=child.pid)),flush=True)
+        next_progress=start+25
+        while True:
+            observed=os.waitid(os.P_PIDFD,fd,os.WEXITED|os.WNOHANG|os.WNOWAIT)
+            if cancelled:
+                break
+            if observed is not None:
+                assert observed.si_pid==child.pid
+                natural=observed.si_code==os.CLD_EXITED and observed.si_status==0
+                held=kernel(child.pid,fd)
+                assert held['starttime']==created['starttime'] and held['state']=='Z'
+                code=child.wait(timeout=0)
+                break
+            if time.monotonic()-start>=2700:
+                timed_out=True
+                break
+            if time.monotonic()>=next_progress:
+                print(json.dumps(dict(pending=True,inventory=name,elapsed_seconds=time.monotonic()-start)),flush=True)
+                next_progress=time.monotonic()+25
+            for rel in ('controller-stdout.log','controller-stderr.log','cases/cases.log'):
+                p=output/rel
+                if p.exists():
+                    assert p.stat().st_size<=2*1024*1024,'log bound exceeded'
+            time.sleep(.05)
+    except BaseException as error:
+        errors.append(dict(type=type(error).__name__,frames=[dict(file=Path(f.filename).name,function=f.name,line=f.lineno) for f in traceback.extract_tb(error.__traceback__)]))
+    finally:
+        if child is not None and code is None:
+            try:
+                retire_primary()
+            except BaseException as error:
+                errors.append(dict(phase='primary_retirement',type=type(error).__name__))
+        try:
+            echild=owned_family_close(time.monotonic()+FAMILY_SECONDS,family)
+        except BaseException as error:
+            errors.append(dict(phase='family_closure',type=type(error).__name__))
+        if fd is not None:
+            try:
+                os.close(fd)
+            except BaseException as error:
+                errors.append(dict(phase='pidfd_close',type=type(error).__name__))
+        for stream in (stdout,stderr):
+            if stream is not None:
+                try:
+                    stream.close()
+                    assert stream.closed
+                except BaseException as error:
+                    errors.append(dict(phase='stream_close',type=type(error).__name__))
+    finalizing=True
+    post={}
+    try:
+        post['fence_after']=fences488(context)
+        post['source_unchanged']=post['fence_after']['source']==context['source']
+        post['index_unchanged']=post['fence_after']['index_sha256']==context['fence']['index_sha256']
+    except BaseException as error:
+        errors.append(dict(phase='post_fences',type=type(error).__name__))
+    for rel in ('controller-stdout.log','controller-stderr.log','cases/cases.log'):
+        try:
+            if (output/rel).exists():
+                assert (output/rel).stat().st_size<=2*1024*1024,'final log bound exceeded'
+        except BaseException as error:
+            errors.append(dict(phase='final_log_bound',type=type(error).__name__))
+    receipt={}
+    try:
+        receipt=json.loads(read_regular(output/'cases/receipt.json'))
+    except BaseException as error:
+        errors.append(dict(phase='receipt_read',type=type(error).__name__))
+    closed=bool(echild and natural and code==0 and not cancelled and not timed_out and not errors and all(not r['unexpectedly_live'] and r['code']==os.CLD_EXITED and r['status']==0 for r in family))
+    native=dict(qualified=False,closed=closed,natural_exit_code=code,observed=None if observed is None else dict(si_pid=observed.si_pid,si_code=observed.si_code,si_status=observed.si_status),held_leader=held,native_echild=echild,errors=errors,cancelled=cancelled,timed_out=timed_out,adopted_descendants=family,fence_before=context['fence'],**post)
+    receipt_passed=False
+    try:
+        receipt_gate488(receipt,native,launch,context,output)
+        receipt_passed=True
+    except BaseException as error:
+        errors.append(dict(phase='receipt_admission',type=type(error).__name__))
+    qualified=bool(closed and receipt_passed and not errors and post.get('fence_after')==context['fence'])
+    native.update(qualified=qualified,closed=bool(closed and not errors),receipt_passed=receipt_passed,elapsed_seconds=time.monotonic()-start)
+    write(output/'NATIVE-CLOSURE.json',native)
+    sealed={}
+    for rel in RAW_FILES:
+        if (output/rel).exists():
+            raw=read_regular(output/rel);sealed[rel]=dict(bytes=len(raw),sha256=sha(raw))
+    write(output/'RAW-EVIDENCE-SEAL.json',dict(profile=name,source_tree=TREE,files=sealed,qualified=qualified,public=False,actual_installs='NOTRUN',CI_proven=False))
+    for signum,handler in old_handlers.items():
+        signal.signal(signum,handler)
+    print(json.dumps(dict(profile=name,qualified=qualified,closed=native['closed'],native_echild=echild,natural_exit_code=code)),flush=True)
+    return dict(native=native,launch=launch,receipt=receipt,directory=str(output))
+
+
+def main488():
+    parser=argparse.ArgumentParser();parser.add_argument('--root',required=True);parser.add_argument('--fixture',required=True);parser.add_argument('--output',required=True);parser.add_argument('--packet',required=True)
+    args=parser.parse_args();management=Path(__file__).resolve().parent.parent;packet=json.loads(read_regular(args.packet))
+    assert packet['kind']=='NEW488_NATIVE_LAYOUT_SOURCE_SEAL_ONLY' and packet['source_tree']==TREE
+    # Source seal data never grants installation or publication authority.
+    expected={'docs/specs/issue88-postpublish488-native-layout-precheck/'+name for name in ('requirements.md','design.md','tasks.md')}
+    expected|={'scripts/rc_postpublish488_'+name for name in ('support.py','kernel.py','owner.py','controls.py','original_runner.py','inventory.json','source_manifest.json','layout.py','layout_controls.py','ref_fds.py')}
+    assert set(packet['carrier_files'])==expected and packet['root']==str(Path(args.root).resolve()) and packet['fixture']==str(Path(args.fixture).resolve()) and packet['output']==str(Path(args.output).resolve())
+    assert not Path(args.output).resolve().exists() and not Path(args.output).resolve().is_relative_to(management)
+    paths=[management/p for p in sorted(packet['carrier_files'])]
+    for path in paths:
+        row=packet['carrier_files'][str(path.relative_to(management))];raw=read_regular(path)
+        assert len(raw)==row['bytes'] and sha(raw)==row['sha256'] and (path.stat().st_mode&0o777)==row['mode']
+    context=prepare_context488(args.root,management/'scripts/rc_postpublish488_source_manifest.json',management/'scripts/rc_postpublish488_original_runner.py',management/'scripts/rc_postpublish488_inventory.json',args.fixture,paths)
+    context['tree']=TREE;context['source_manifest_sha256']=sha(read_regular(context['manifest_path']))
+    assert str(Path(sys.executable).resolve())==packet['outer_interpreter']['path']
+    assert identity(Path(sys.executable).resolve())==packet['outer_interpreter']['identity']
+    frozen_raw=read_regular(packet['expected_fence_file'])
+    assert len(frozen_raw)==packet['expected_fence_bytes'] and sha(frozen_raw)==packet['expected_fence_sha256']
+    assert context['fence']==json.loads(frozen_raw)
+    result=run_owned488(context,args.output)
+    return 0 if result['native']['qualified'] else 1
+
+
+if __name__=='__main__':
+    raise SystemExit(main488())

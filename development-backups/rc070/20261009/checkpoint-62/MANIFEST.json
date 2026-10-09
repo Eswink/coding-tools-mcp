@@ -1,0 +1,23 @@
+{
+  "scope": "safe status and tool provenance only; no private raw data",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1121,
+      "sha256": "99f27eccccfaa19f7803d84347a1407c9715463b92276df415ddae7c4c107022",
+      "mode": "100644"
+    },
+    {
+      "path": "ROOT-TOOL-EXIT-SAFE-SUMMARY.json",
+      "bytes": 572,
+      "sha256": "81476f5821972e9286293a832d44d24e0b09a43821ce89b0d67905b225e2249d",
+      "mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 767,
+      "sha256": "9dadebb27ab3b971dafd9edf18563393eef6f353a80cc5bc59b18ef2e50ebea6",
+      "mode": "100644"
+    }
+  ]
+}

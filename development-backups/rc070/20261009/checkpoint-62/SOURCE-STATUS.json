@@ -1,0 +1,29 @@
+{
+  "scope": "single original deadline held-pidfd diagnostic; safe terminal status, no host/proc raw",
+  "loaded": 1,
+  "executed": 1,
+  "named_passed": 0,
+  "failures": 1,
+  "overall": "FAIL",
+  "natural_exit": 1,
+  "native_ECHILD": true,
+  "closed": false,
+  "qualified": false,
+  "held_pidfd_data": {
+    "initial_ready_timeout_exit_observed": false,
+    "cleanup_protocol_refusal_exit_observed": true,
+    "si_code": 2,
+    "si_status": 15,
+    "WNOWAIT": true,
+    "reaped": false,
+    "closed_authority": false
+  },
+  "command_start": "NOT_DEMONSTRATED",
+  "specific_boot_phase": "UNKNOWN",
+  "source_runtime_native_fences": "MATCH",
+  "original_once488": "FAIL",
+  "CI": "NOTRUN",
+  "install": "NOTRUN",
+  "release": "NOTRUN",
+  "raw_evidence_public": false
+}

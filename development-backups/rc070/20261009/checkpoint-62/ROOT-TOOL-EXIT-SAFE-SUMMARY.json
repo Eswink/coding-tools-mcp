@@ -1,0 +1,13 @@
+{
+  "scope": "safe tool exit provenance; not inferred from run JSON",
+  "root_actual_exec_count": 1,
+  "root_tool_session_id": 58684,
+  "root_tool_terminal_chunk": "fbb5b6",
+  "root_actual_tool_exit_code": 1,
+  "root_reported_poll_wall_seconds": 2.8216e-05,
+  "provenance": "executing root agent actual tool result reported in collaboration; independent terminal reviewer read saved root tool result and confirmed",
+  "child_agent_launched": false,
+  "child_agent_polled_PTY": false,
+  "child_agent_read_raw_terminal": true,
+  "private_raw_or_host_proc_included": false
+}

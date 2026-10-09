@@ -1,0 +1,21 @@
+{
+  "scope": "analysis-only startup abort closure proof; no product changes",
+  "baseline_commit": "50ef4b60830c36d4bc1aafdcec3d9b8489a260aa",
+  "pure_baseline_tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+  "source_spec_files": 3,
+  "production_edits": 0,
+  "worker_AST_SHA256": "795316970d14388e9c205b80045cd928a5efeb39c997ea7043a43cb8a59e2b46",
+  "original_once488": "FAIL",
+  "original_single_deadline_once01": "FAIL",
+  "original_single_deadline_kernel_once02": "FAIL",
+  "specific_boot_phase": "UNKNOWN",
+  "startup_ACK": "DOES_NOT_EXIST_in_original_worker",
+  "native_family_source_owner_boundary": "OPEN_independent_spec_review",
+  "new_ordinary_controls": "NOTRUN",
+  "new_SUT": "NOTRUN",
+  "CI": "NOTRUN",
+  "install": "NOTRUN",
+  "release": "NOTRUN",
+  "implementation_authorized": false,
+  "raw_private_evidence_included": false
+}

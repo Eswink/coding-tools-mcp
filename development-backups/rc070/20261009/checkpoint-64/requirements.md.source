@@ -1,0 +1,24 @@
+# Owned startup-abort closure proof — SPEC ONLY
+
+## 功能概述
+
+This scope designs safe startup abort only. Product implementation and original SUT launch remain unauthorized until independent proof review.
+
+## 需求列表
+
+### FR-1 — Exact source and owned lifecycle phase
+A finite future startup-abort branch must establish the actual newly-created native Popen child/pidfd and bound original worker bytes/control flow. It may run only before any request bytes or G dispatch, recorded by this exact owner internal lifecycle; external booleans, JSON/PID or a test adapter cannot grant this branch. Original worker AST/bytes and all original positive methods remain unchanged. Current worker has NO startup ACK: first S is invalid JSON and exits1. A nonzero exit is not successful command execution. Why READY was not delivered remains UNKNOWN. Any partial request/dispatch, phase/source/handle uncertainty retains owner and refuses closure.
+
+### FR-2 — Native family and real IO terminal evidence
+A future branch must distinguish safe abort before command dispatch from command success, using same actual created child/pidfd native terminal proof, source-bound no-descendant control flow, actual input/output EOF/drain and real close results. Foreign/reused PID/FD, unexpected stdout/protocol, external child/fork, source changes, close effects UNKNOWN or cancellation must not mint closed/family_closed. Establish all required native evidence before setting private closure state; preserve original primary/cancel objects and attempt every actual owned IO close independently. No fake ACK, issuer, installation authorization or changing original _done semantics. Precise feasible native family proof and source-owner integration remain OPEN for independent specification review; no implementation authorization yet.
+
+### FR-3 — Fixed budgets, meaningful ordinary controls and unique launch
+Retain original READY .2s test, ReadController5s, stop2s, finish2s, outer2700/7/2/2, 2MiB and original fixed /usr/bin/python3 argv. Do not spend separate repeated 2s phases. Ordinary owned-child controls must cover actual bootstrap failure, late READY/no G, command already dispatched, cancel, deliberately forked child, unexpected stdout and close UNKNOWN. Keep original worker/tests/8338runner/58132IDs bytes; ordinary controls cannot qualify original method/full488/install/CI. New candidate source tree must be honestly distinct from pure3084 if product code changes; source identity and downstream frozen runner context cannot borrow old manifests. Only root may run one original method after finite independent startup approval; no original whole488 rerun currently authorized.
+
+## 非功能需求
+
+The owner SHALL retain the existing .2/5/2/2 and outer2700/7/2/2 budgets and 2MiB bound. WHEN native closure or source ownership is unknown, the owner SHALL preserve UNKNOWN and original primary/cancel.
+
+## 依赖关系
+
+Exact original worker/process source, actual created native child/pidfd and real IO; independently reviewed finite source-owner and family proof. No private issuer grant, install or release is created.

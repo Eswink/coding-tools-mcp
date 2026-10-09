@@ -1,0 +1,21 @@
+# Threat and phase boundary — analysis only
+
+## 概述
+
+对应需求: FR-1, FR-2, FR-3
+
+## 技术方案
+
+Actual once02 establishes READY timeout while actual held child had no exit; cleanup sends S, original live leader gets group TERM, then protocol EOF and actual WNOWAIT reports CLD_KILLED2/SIGTERM15. This proves a real cleanup termination, not a specific bootstrap cause or command start.
+
+The original _worker before G performs imports, prctl, status, SIGTERM IGN, READY write, request JSON parsing and G read. The only fork follows G. There is no startup-abort ACK; request-free S naturally violates JSON and exits1. Thus merely delaying TERM and waiting for done cannot work without changing worker bytes or inventing frames. Both are forbidden in this scope.
+
+Potential private phases: created/source-bound; valid actual READY; request-write begun; G-write begun; command-active; completing; IO closing; closure unknown. Closure cannot rely on externally supplied phase flags. Real owner capture/source verification and partial-send transitions must be unambiguous and conservatively deny any request/G begun. Exact owned worker terminal proof must bind same native pidfd and actual created identity, and real IO completion must not be inferred from data EOF alone. No product code is written until native family evidence feasibility and owner/source binding are independently reviewed.
+
+OPEN: native source-owner anchoring for this exact executed worker; whether no-descendant claim is provable without unsafe global ECHILD assumptions in a process with unrelated children; stdout acceptance/EOF bounded drainage for pre-READY or actual READY followed natural abort; classification of nonzero abort without weakening _finish or command success; primary/cancel preservation and UNKNOWN handle retention.
+
+## 文件结构
+
+Current analysis-only docs/specs/issue88-postpublish-process-startup-abort-close/*.md. Proposed future product change scripts/rc_postpublication_process.py private lifecycle and startup-abort branch only, exact worker AST/bytes and original tests preserved; current edits to product source 0. Ordinary owned controls will require a separate finite file and review; original carrier/runner/inventory unchanged.
+
+Additional IO boundary: original Popen uses stdin/stdout PIPE but stderr DEVNULL, so Popen.stderr is None and there is no observable stderr EOF. The future design must explicitly describe each actual owned descriptor; it cannot invent stderr EOF. Changing stderr to a bounded actual pipe would change product run source and require fresh impact/independent scope review, while original fixed worker argv/bytes stay unchanged. Trusted interpreter startup/site/import side effects must be part of the source/runtime threat boundary: original _worker AST alone cannot prove that unbound interpreter startup hooks never fork. A global ECHILD claim in a process with unrelated children is forbidden as a substitute for exact family ownership.

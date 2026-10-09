@@ -1,0 +1,40 @@
+# 设计文档：issue88-postpublish488-native-layout-precheck
+
+## 概述
+对应FR-1至3，在新的管理checkout实现guard；冻结V2与once01不修改。
+
+## 技术方案
+### 技术选型
+Python标准库nofollowFD和固定/usr/bin/git；真实--no-local clone物理自持objects。
+### 架构设计
+layout_guard先于import/wholeprepare返回privateidentity；失败无SUT；通过时新prepare继续原V2source/native/runtime封存。owner进入和退出真实核layout对象poolmanifest。尽量复用V2框架，delta仅layoutgate和两个有限调用位置，新helper纳入packet。
+
+## 数据模型
+layoutseal含relativepath、realmode/type/linkcount/owner/bytes/SHA，git-dir/common-dir，boundedobjects/pack清单；私有inode/host字段不得source-only上传。目录范围固定.git和objects，所有symboliclinks/specialfiles/hardlinkedfiles拒绝；physicalseal最多4096目录/文件条目、单文件32MiB、总64MiB；物理mutablelock/temp未知则BLOCK。
+
+## API 设计
+verify_native_layout(root)不launch，seal_native_objects(root)不授予权限；新context/owner前后调用点明确，不改原SUTfixture。
+
+## 文件结构
+新3规格、1layouthelper+1necessarycontrols，复用V2的7 scripts；共12文件=3spec+9scripts/data；有限support/owner/necessarycontrols入口接点单独说明。纯SUT生产0修改。
+
+## 设计决策
+真实git-dir解析和objects物理隔离同时验证；.git目录不是授予owner的依据；objects hash完整性不同于commit/blobs逻辑完整，二者都核。新clone单独记录，不把旧worktree重标通过。
+
+## 测试策略
+failurefirst当前worktree0SUT；ordinaryownedemptydir、.gitFILE、symlinkdir、alternates、objectschange、packchange及正确真实clone必要controls；全source1867/native15/26复核后review，无原488现在运行。
+
+## 风险评估
+新增guard未知impact人工HIGH，owned-process和sourcegate风险继续HIGH；nativeclone网络/对象缺失如实BLOCK，原deadline失败尚UNKNOWN。
+
+## 检查清单
+当前FAIL原文件不变；全byte/mode/newargv封存；review独立；预算不扩。
+
+## 新有限运行时与容量补封
+旧 A source/packet 启动STOP保留且不覆盖。本新checkout只补原固定/usr/bin/python3 literal alias(lstat/fullmetadata/linktarget/resolvedpath)与真实resolvedbinary bytes/SHA/fullidentity beforeafter，和对象最终files+dirs<=4096断言。新增entrypoint两种负向(runtimebinary/alias)都须0SUT拒绝；普通owned4096实际通过、4097实际拒绝。原12carrier路径数量不变，原runner8338/IDs58132/SUT/15commits26blob/预算完全不改。
+
+## 新独立有限增量
+全 live refs 以完整native枚举及物理refs/packed-refs绑定独立字段封存；fixed15锚点语义不变，refs容量/原输出预算有界，拒绝不支持backend/warnings/brokenrefs；不混旧freeze。
+
+## 新有限真实FD清理修复
+独立peer真实普通owned fixture已复现capture_ref_storage directory open后fstat/assert至stack登记前泄漏FD，旧16842冻保留STOP。FR-1：任何新open返回FD在其它fstat/assert/cancel前必须归入实际owned清理账本，禁止打开后未登记空窗。FR-2：真实close逐项执行，任一close故障不得阻断其他ownedFD；失败close保持UNKNOWN不危险retry。原primary和全部close错误/cancel原对象在全部真实close后一起传播，不能互遮或由假FD/JSON授予closed。FR-3：metadata mismatch、cancel、firstclose失败后remaining全部close及primary+closecancel原对象普通真实FD controls，新增13source有限freeze/review/安全backup；原SUT/worker/原whole488不运行。

@@ -1,0 +1,114 @@
+{
+  "scope": "only inert source, finite patch, safe status",
+  "files": [
+    {
+      "path": "source/docs/specs/issue88-postpublish488-native-layout-precheck/design.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-native-layout-precheck/design.md",
+      "mode": "100644",
+      "bytes": 3629,
+      "sha256": "7397dfe7a0e149d95acc900d9d87e4ef736edc68c99dd8d4d8f94996a705ca45"
+    },
+    {
+      "path": "source/docs/specs/issue88-postpublish488-native-layout-precheck/requirements.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-native-layout-precheck/requirements.md",
+      "mode": "100644",
+      "bytes": 5282,
+      "sha256": "77f3c54115bee2296880af5ec7049e610667bdcd547bc9e8e3a5a4dec60bfd28"
+    },
+    {
+      "path": "source/docs/specs/issue88-postpublish488-native-layout-precheck/tasks.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-native-layout-precheck/tasks.md",
+      "mode": "100644",
+      "bytes": 2561,
+      "sha256": "65a7e8f65664044448c94cf3e8da6ed4af36e38ebe8d36071ad0283792b548a3"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_controls.py.source",
+      "original_path": "scripts/rc_postpublish488_controls.py",
+      "mode": "100644",
+      "bytes": 13168,
+      "sha256": "b07838f54f362e0c17d92ecfdb02810893a40c7645cdb3fedd1502408f527671"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_inventory.json.source",
+      "original_path": "scripts/rc_postpublish488_inventory.json",
+      "mode": "100644",
+      "bytes": 58132,
+      "sha256": "3274554750e538929b34a91cb124d66fe2372ac8737ee768ccb81b0aa7691094"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_kernel.py.source",
+      "original_path": "scripts/rc_postpublish488_kernel.py",
+      "mode": "100644",
+      "bytes": 4290,
+      "sha256": "b3c90896d1284732190bda5d1d118da7ad9b738cc3347bd9c9f477ad021aaac5"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_layout.py.source",
+      "original_path": "scripts/rc_postpublish488_layout.py",
+      "mode": "100644",
+      "bytes": 13208,
+      "sha256": "2c3fa9482fe49e88c3e38434268c86e0b00e90f1df286615090caa0141442ce2"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_layout_controls.py.source",
+      "original_path": "scripts/rc_postpublish488_layout_controls.py",
+      "mode": "100644",
+      "bytes": 14913,
+      "sha256": "7b8502471bfa10519bd8db315df65725c7b5cd8552e2b298c96771e2c1e1a8e0"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_original_runner.py.source",
+      "original_path": "scripts/rc_postpublish488_original_runner.py",
+      "mode": "100644",
+      "bytes": 8338,
+      "sha256": "0344311a0640e64b46875ed3cdb4e61ed41d87e4274e4a44c76e944323e8186e"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_owner.py.source",
+      "original_path": "scripts/rc_postpublish488_owner.py",
+      "mode": "100644",
+      "bytes": 16610,
+      "sha256": "1afe967daa3a959f6af47004c18a9e5cba049940468ea54c8eb0dd715a161352"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_ref_fds.py.source",
+      "original_path": "scripts/rc_postpublish488_ref_fds.py",
+      "mode": "100644",
+      "bytes": 1631,
+      "sha256": "b9acd2833f81f89c74d4de2096dc792af19175115a922868325ce8903601476c"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_source_manifest.json.source",
+      "original_path": "scripts/rc_postpublish488_source_manifest.json",
+      "mode": "100644",
+      "bytes": 496326,
+      "sha256": "bd0d893b0fb2b3790ac7fc8a68aaa489f87e22310a84dd5140e5bf5b35e1f649"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_support.py.source",
+      "original_path": "scripts/rc_postpublish488_support.py",
+      "mode": "100644",
+      "bytes": 9379,
+      "sha256": "eb0a1faa5cd8793fd487c100af7d7e35c76725b58038818bad8982d259c9ac7e"
+    },
+    {
+      "path": "source.patch",
+      "mode": "100644",
+      "bytes": 666602,
+      "sha256": "2fbce0655b11c617dab88849da98a851486c1013d3337e15512ea83ba8b3568b"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 610,
+      "sha256": "5ea562352e4f19ce1e92dda52e39f39d057b21e218802ebf782aec2ac34b1934"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "100644",
+      "bytes": 687,
+      "sha256": "416412335f01b3979bee40e4e20d8a1f0a49e6928fde2f1e451919c122b5a49b"
+    }
+  ]
+}

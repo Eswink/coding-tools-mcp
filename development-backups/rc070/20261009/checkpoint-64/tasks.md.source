@@ -1,0 +1,27 @@
+# Finite scope tasks
+
+## 交付物清单
+
+Three analysis specifications, exact original source identity, fresh checkout impact results, and unresolved native proof review. No product implementation or SUT receipt.
+
+## 任务列表
+
+- [x] Read original actual worker/run/_stop/_done/_finish, preserve bytes and exact AST identity.
+- [x] Record no startup ACK and no original worker child fork before G.
+- [ ] Fresh exact checkout GitNexus impact for proposed lifecycle/abort symbols and existing init/run/_stop/_finish/_retain/_worker; manual HIGH or CRITICAL disclosure before product changes.
+- [ ] Independent threat/phase/source/native family/FD specification review, resolve OPEN proof boundaries before implementation authorization.
+- [ ] Meaningful ordinary actual-owned-child controls at fixed budgets and original worker bytes.
+- [ ] New distinct candidate/source/runtime/native seals and independent startup review before root unique original1.
+- [ ] Full488/CI/install/release remain pending and require their own real evidence.
+
+## 需求覆盖矩阵
+
+| Requirement | Task | Status |
+| --- | --- | --- |
+| FR-1 | Exact source/lifecycle and fresh impact review | In progress |
+| FR-2 | Native family/terminal IO proof independent review | OPEN/BLOCKED implementation |
+| FR-3 | Fixed-budget actual-owned controls and independent unique launch | NOTRUN |
+
+## 文件变更清单
+
+Analysis only: requirements.md, design.md, tasks.md in this feature directory. Future product/ordinary control files require explicit scope authorization after independent review.

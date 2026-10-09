@@ -1,0 +1,52 @@
+# 需求文档：issue88-postpublish488-native-layout-precheck
+
+## 功能概述
+修复新carrier恢复布局遗漏，不改SUT：once01真实loaded488/executed308/success307/failure1/classerrors15/unexecuted180，整体FAIL。原composition fixture直接copytree ROOT/.git/objects，Git worktree的.git文件不能满足。对新独立真实nativeclone增加前置布局门；当前失败worktree不可变。
+
+## 历史经验与坑
+源码1867/hash/644755/native15commits26blobs均通过仍不能证明fixture物理布局。独立deadline family_closed失败不归因布局。原缺失carrier1e43/checkpoint10保持MISSING。
+
+## 术语定义
+layout为真实独立.git目录和自持objects；source tree仍3084/1867；necessary precheck为0SUT检查，不是488资格。
+
+## 范围边界
+In Scope：新独立管理checkout有限布局guard、固定systemPython literal alias与真实resolvedbinary封存、普通owned目录负向controls、新--no-local真实nativeclone、原封存规则。
+Out of Scope：改原fixture、runner8338、IDs58132、positive/installer/issuer、修改旧worktree/run、软链接模拟.git、API对象替代、扩大operation预算、现在重跑。
+
+## 需求列表
+### FR-1: 失败优先真实布局门
+**优先级:** Must
+**用户故事:** 作为验证者，我需要原fixture在启动前具备真实物理输入。
+#### 验收标准（EARS）
+1. WHEN 仅布局prepare被调用 THEN 系统 SHALL 使用逐级nofollow directory FD验证root/.git与objects为owned真实目录，git-dir/common-dir实际root/.git，拒绝symlink、worktree .gitFILE、alternates、共享外部objects。
+2. IF 输入为当前失败worktree THEN 系统 SHALL BLOCKED0SUT，不创建输出、不import原test、不写旧SUT、无retry。
+3. WHEN guard通过 THEN 系统 SHALL 记录objects/pack目录有限真实物理文件身份和hash，首次与退出后相等；最终文件与目录combined count SHALL 不超过4096，实际owned4096通过/4097拒绝；不能以JSON/路径作为安装授权。
+
+### FR-2: 新独立nativeclone精确原输入
+**优先级:** Must
+**用户故事:** 作为验证者，我需要独立完整对象和原源码。
+#### 验收标准（EARS）
+1. WHEN 恢复新源 THEN 系统 SHALL 用真实git clone --no-local和必要exactSHA nativefetch从真实对象池获得private50ef/soleD6/tree3084，normalumask0022；不改旧50ef worktree、不拷贝对象库公开、不假fetch。
+2. WHEN 原suite可考虑启动 THEN 系统 SHALL fresh核全1867真实644755/bytes/SHA/blob/index/clean、15nativecommit和26gitshow+blobID、fixture/runtime/carrier和原prefix全部beforeafter完整封存。原worker的字面/usr/bin/python3 SHALL 同时绑定真实lstat/link target/解析结果及resolvedbinary fullidentity/bytes/SHA，不以outer3.12替代真实system3.13，不改argv/PATH/系统binary。
+
+### FR-3: 新封存与独立审查
+**优先级:** Must
+**用户故事:** 作为验证者，我需要新once资格来自当轮真实结果。
+#### 验收标准（EARS）
+1. WHEN precheck及必要controls完成 THEN 系统 SHALL fresh每符号impact、source-onlyfreeze、literal source/runtime/fence/argv、独立launchreview；仅root可决定一次新launch，不在本实现阶段执行488。
+2. IF 后续真实488不是全部有序488/namedpass488/journal976/naturalexit0/nativeECHILD THEN 系统 SHALL 保持整体FAIL；不得借33controls、旧301进度或本布局通过充资格。
+
+## 非功能需求
+原2700failonly/7/2/2和各log2MiB保持；原operation/installer900不变；无token/shim/权限修改；备份只source/patch/modes/hash/safeSTATUS。
+
+## 依赖关系
+原V2carrier10文件与纯SUT3084，native固定R与历史objects，当前immutable once01FAIL。
+
+## 检查清单
+仅有限管理delta；所有UNKNOWN人工HIGH先披露；前置gate实际0SUT；新review前不launch。
+
+## 新有限全 live refs 边界
+FR-1：所有实际refnames、targets、symbolic targets、peeled targets及HEAD按native Git语义完整清单；固定15commit锚点单独保留，不称allrefs。采用files refbackend、物理refs/packed-refs受控读取和输出有限count/byte上限，拒绝warning/brokenref/超过容量/不支持backend。FR-2：全实际清单与物理refs身份首次/退出后精确相等，原1867/source/native15/26/wholeobjects/systemalias仍完整。FR-3：普通owned实际新增/删除/retarget refs、warning/ref读失败和入口篡改清单负控均0SUT；新freeze独立review前禁止全488launch。旧runtime12 packet不改。
+
+## 新有限真实FD清理修复
+独立peer真实普通owned fixture已复现capture_ref_storage directory open后fstat/assert至stack登记前泄漏FD，旧16842冻保留STOP。FR-1：任何新open返回FD在其它fstat/assert/cancel前必须归入实际owned清理账本，禁止打开后未登记空窗。FR-2：真实close逐项执行，任一close故障不得阻断其他ownedFD；失败close保持UNKNOWN不危险retry。原primary和全部close错误/cancel原对象在全部真实close后一起传播，不能互遮或由假FD/JSON授予closed。FR-3：metadata mismatch、cancel、firstclose失败后remaining全部close及primary+closecancel原对象普通真实FD controls，新增13source有限freeze/review/安全backup；原SUT/worker/原whole488不运行。

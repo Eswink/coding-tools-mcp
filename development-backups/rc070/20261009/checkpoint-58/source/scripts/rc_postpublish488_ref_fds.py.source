@@ -1,0 +1,53 @@
+"""Close actual refs-observation FDs; never process or installation authority."""
+import os
+
+
+def raise_ref_fd_errors(errors):
+    if len(errors) == 1:
+        raise errors[0]
+    if errors:
+        raise BaseExceptionGroup('refs observation primary and close errors', errors)
+
+
+class RefFDSet:
+    def __init__(self):
+        self.owned = []
+        self.errors = []
+        self.unknown = []
+
+    def __enter__(self):
+        return self
+
+    def open_ref_fd(self, *args, **kwargs):
+        fd = os.open(*args, **kwargs)
+        # Claim the actual returned FD before fstat, assertion or traversal.
+        try:
+            self.owned.append(fd)
+        except BaseException as primary:
+            if fd in self.owned:
+                self.owned.remove(fd)
+            failures = [primary]
+            try:
+                os.close(fd)
+            except BaseException as close_error:
+                self.unknown.append(fd)
+                failures.append(close_error)
+            raise_ref_fd_errors(failures)
+        return fd
+
+    def close_ref_fd(self, fd):
+        assert fd in self.owned
+        # Do not retry a close with unknown effect; the FD may be reused.
+        self.owned.remove(fd)
+        try:
+            os.close(fd)
+        except BaseException as close_error:
+            self.unknown.append(fd)
+            self.errors.append(close_error)
+
+    def __exit__(self, kind, primary, traceback):
+        for fd in tuple(reversed(self.owned)):
+            self.close_ref_fd(fd)
+        if self.errors:
+            raise_ref_fd_errors(([primary] if primary is not None else []) + self.errors)
+        return False

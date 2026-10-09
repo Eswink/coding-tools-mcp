@@ -1,0 +1,32 @@
+{
+  "scope": "only three inert specification sources and safe status",
+  "files": [
+    {
+      "path": "design.md.source",
+      "original_path": "docs/specs/issue88-postpublish-process-startup-abort-close/design.md",
+      "bytes": 2982,
+      "sha256": "8c1fb23979fb5f7ab70a6df40c627301204b9f42e53b46c39069ac01ae0dc9c0",
+      "mode": "100644"
+    },
+    {
+      "path": "requirements.md.source",
+      "original_path": "docs/specs/issue88-postpublish-process-startup-abort-close/requirements.md",
+      "bytes": 3131,
+      "sha256": "f887b940c2444b52ccc27ae0c36768d39393e5585f830a93dfc649b796cf2d7f",
+      "mode": "100644"
+    },
+    {
+      "path": "tasks.md.source",
+      "original_path": "docs/specs/issue88-postpublish-process-startup-abort-close/tasks.md",
+      "bytes": 1568,
+      "sha256": "b3ea304fc3f5ae8e9fc99d83f1c673b96f33b199015701a2c4d8155bec86239a",
+      "mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 848,
+      "sha256": "4bb26493f84a06f7afe853576604c784e7a22daa74910cbdb76efee3d3516bc3",
+      "mode": "100644"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+Safe terminal summary for the sole original deadline method kernel observation once02. Actual original loaded/executed1, named success0, failure1, journal2. Original whole488 remains FAIL; no original new whole488, CI, installation or release qualification.
+
+Held pidfd waitid WNOWAIT first observed no exit at the unchanged .2 second READY-frame timeout. On cleanup protocol refusal and original _stop return it observed the same actual created child CLD_KILLED (si_code2) / SIGTERM (si_status15). Observation never reaped or granted closed. No actual request/G/done/finish observed; why READY was not delivered and the specific bootstrap phase remain UNKNOWN. Original family_closed remains false.
+
+All17 private raw evidence files and original source/runtime/default JSON identities, actual native15 commits/26 historical blobs/full1867 source/programs/16 helpers/system Python alias+binary, original9 AST and7 alias restoration were audited and independently reviewed. No raw host/proc, TLS, environment, native object bytes or actual child PID is included here. Old FAIL records and source freezes remain immutable.

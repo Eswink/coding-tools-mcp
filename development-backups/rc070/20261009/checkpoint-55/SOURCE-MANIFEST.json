@@ -1,0 +1,45 @@
+{
+  "source_files": [
+    {
+      "path": "owned_debian_msgfmt_prepare.py",
+      "bytes": 33587,
+      "sha256": "a8b6429480e76439b5fb6a7639ff29aba28b981639f5a2e56a321b8ff60f3d0d",
+      "git_mode": "100644",
+      "source_os_mode": "0o600",
+      "native_blob_oid": "8faf602baaa870efcaeddf7b6ab0110645b04c2f"
+    },
+    {
+      "path": "owned_debian_msgfmt_prepare_tests.py",
+      "bytes": 19370,
+      "sha256": "ed9b6d863ecd70c9e93983bebe115d86c30b213c7d4208dead61e83c9dd1093c",
+      "git_mode": "100644",
+      "source_os_mode": "0o600",
+      "native_blob_oid": "1333213bf2dd467267aed11a9aa419c7d4674a00"
+    },
+    {
+      "path": "docs/specs/issue88-owned-debian-msgfmt-preparation/requirements.md",
+      "bytes": 10168,
+      "sha256": "6fbcd00a6fdce0f9dfbaba8c03985fddee7186246cfeebba48e482f422c77b9a",
+      "git_mode": "100644",
+      "source_os_mode": "0o600",
+      "native_blob_oid": "20a7b97b1167b5cc9ce994ca5806623242d56c56"
+    },
+    {
+      "path": "docs/specs/issue88-owned-debian-msgfmt-preparation/design.md",
+      "bytes": 8010,
+      "sha256": "ecebcdab69ab32ddc80a4028b89722b2789ec7e39f3935c51e4c703d84eb1466",
+      "git_mode": "100644",
+      "source_os_mode": "0o600",
+      "native_blob_oid": "570192adb79ab4c9ba522720da7618ca13a2f0df"
+    },
+    {
+      "path": "docs/specs/issue88-owned-debian-msgfmt-preparation/tasks.md",
+      "bytes": 3813,
+      "sha256": "59a609c5909643640d790837e007aaca056b6b0b988144a42a7e8a06aa882b49",
+      "git_mode": "100644",
+      "source_os_mode": "0o600",
+      "native_blob_oid": "58f74c09afca02d68f32147b19017ed1f06eb5a5"
+    }
+  ],
+  "scope": "ActualsourceOSmodes shown; Gitexport modes100644 (non-executable). Not entire candidate tree/physical targetOS mode proof"
+}
