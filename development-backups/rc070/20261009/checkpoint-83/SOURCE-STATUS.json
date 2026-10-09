@@ -1,0 +1,22 @@
+{
+  "checkpoint_type": "SOURCE_ONLY_PREIMPLEMENTATION",
+  "baseline_pure_sut_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "baseline_pure_sut_paths": 1878,
+  "carrier_head": "a935f0d8f81901a0974b5b0d4a59c98d7765b8a1",
+  "carrier_tree": "37109f95d52f7a18ef79b0bf085568666c078fe5",
+  "carrier_paths": 1860,
+  "component_checks_actual": 8,
+  "component_natural_exit": 0,
+  "original_method_runs": 0,
+  "observer_bindings_added": 0,
+  "new_factory_observer_implementation": "NOTIMPLEMENTED_NOTAUTHORIZED",
+  "original_source_or_assertions_changed": false,
+  "old_selection_condition_actual_negative": true,
+  "diag5_filter_cause": "UNKNOWN_NOT_MEASURED",
+  "server_2s_cause": "UNKNOWN",
+  "independent_component_review": "PENDING_AT_FREEZE",
+  "original85": "FAIL_83SUCCESS_2FAIL",
+  "original300": "NOTRUN",
+  "github_ci_or_release_credit": false,
+  "actual_private_issuer_sameclient_serverheld_tag": "UNAVAILABLE_HARDREJECT_PRESERVED"
+}

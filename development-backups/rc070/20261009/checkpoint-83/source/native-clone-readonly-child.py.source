@@ -1,0 +1,52 @@
+"""Original constructor and TLS components only; no hook, gate, method or authority."""
+import hashlib,json,ssl,sys
+from pathlib import Path
+B=Path('/workspace/work/rc070/publisher-native-clone-diagnostic')
+P=Path('/workspace/work/rc070/publisher-root-cause-diagnostic/diag-preflight/pure-sut')
+sys.path.insert(0,str(P/'scripts'))
+from rc_publication_stage_cases import publisher_fixture
+from rc_publication_artifact_admission_cases import ArtifactTLS
+from rc_publication_executor import PublisherSession
+import rc_publication_request as owned
+import rc_publication_github as wire
+files=('rc_publication_request.py','rc_publication_github.py','rc_publication_executor.py',
+       'rc_publication_artifact_admission_cases.py','rc_publication_https_fixture.py','rc_publication_stage_cases.py')
+def hashes():return {n:hashlib.sha256((P/'scripts'/n).read_bytes()).hexdigest() for n in files}
+before=hashes();initial_factory=owned._credential;initial_connect=wire._connect;rows=[];expected_failure=None
+with publisher_fixture() as fixture:
+ with ArtifactTLS(fixture) as tls:
+  original_input=fixture.selection
+  session=PublisherSession(fixture.root,original_input,'fixture-token',temporary_parent=fixture.parent)
+  client=session._api;credential=client._credential;sock=None
+  try:
+   assert type(client) is wire.GitHub and type(credential) is owned._CredentialOwner
+   assert credential._client is client and client._credential is credential
+   rows.append(dict(name='native_factory_actual_return_assignment',passed=True))
+   assert client.selection is credential._selection is session._selection
+   assert client.selection is not original_input and client.selection.subject is not original_input.subject
+   rows.append(dict(name='original_constructor_actual_defensive_clone',passed=True))
+   assert session._owner._client is client and session._owner._credential is credential
+   assert credential._session_owner is session._owner and session._owner._session is session
+   rows.append(dict(name='native_session_owner_actual_reference_chain',passed=True))
+   assert tls.selection is original_input is fixture.selection
+   try:assert tls.selection is client.selection,'old_same_selection_condition_rejects_actual_clone'
+   except AssertionError as failure:expected_failure=dict(type=type(failure).__name__,condition='fixture.selection is client.selection',outcome=False,expected=True)
+   else:raise AssertionError('native defensive clone negative did not occur')
+   rows.append(dict(name='old_selection_condition_actual_negative',passed=True,expected_failure=expected_failure))
+   sock=tls.connect('api.github.com',3)
+   assert type(sock) is ssl.SSLSocket and not sock.server_side and sock.fileno()>=0
+   rows.append(dict(name='original_ArtifactTLS_actual_connect_handshake',passed=True))
+  finally:
+   if sock is not None:sock.close()
+   session.close()
+  assert session._api is None and client._closed and session._closed and sock.fileno()==-1
+  rows.append(dict(name='real_client_socket_session_close',passed=True))
+ assert not tls.thread.is_alive() and all(not t.is_alive() for t in tls._threads)
+ assert tls.listener.fileno()==-1 and not tls.root.exists() and tls.errors==[] and tls.requests==[]
+ rows.append(dict(name='original_fixture_threads_files_listener_retired',passed=True))
+assert before==hashes() and owned._credential is initial_factory and wire._connect is initial_connect
+rows.append(dict(name='original_source_and_callables_unchanged',passed=True))
+print(json.dumps(dict(passed=True,controls=len(rows),rows=rows,source_before=before,source_after=hashes(),
+ original_method_runs=0,new_observer_bindings_installed=0,real_original_constructors_executed=True,
+ real_TLS_components_executed=True,mutation_requests=0,authority_proof=False,
+ old_diag5_filter_cause='UNKNOWN_NOT_MEASURED',server_2s_cause='UNKNOWN'),sort_keys=True))

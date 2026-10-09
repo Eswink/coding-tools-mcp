@@ -1,0 +1,54 @@
+{
+  "kind": "source-only-no-implementation-no-qualification",
+  "files": [
+    {
+      "path": "ACTUAL-CHECKSPEC-STRUCTURED.json",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 215,
+      "sha256": "0181d6fbe49bcf9611cc89e000a05839014c0bc7efc8d298d050adafadbdad4b"
+    },
+    {
+      "path": "EXACT-FUTURE-SYMBOL-IMPACT.json",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 5039,
+      "sha256": "8f0911f999a187cefd57a60f68aea1ad67d6532e26d8a373de7c8c6e63dc87ff"
+    },
+    {
+      "path": "ORIGINAL-SOURCE-STATUS.json",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 718,
+      "sha256": "e6fa9847cd5fa67e31fde9f520b2ec13f9192832c2f583deaf10ecda45007a40"
+    },
+    {
+      "path": "README.md",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 696,
+      "sha256": "085fcf71b5164b5b25e67ce77fb48bfae5218bd9da0bcfb3c25868652d7ad418"
+    },
+    {
+      "path": "SAFE-STATUS.json",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 1393,
+      "sha256": "ca102ce734b98a77512c53e0cf68238a4110c278d0b33077fadd615612c5bd60"
+    },
+    {
+      "path": "TOOL-IDENTITY-READONLY.json",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 3455,
+      "sha256": "3c0f35f2ac82cc7a639883ccbd8bf1f3496f4644f79873ae64ce4d9efc93fe16"
+    },
+    {
+      "path": "implementation-boundary.md.source",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 11788,
+      "sha256": "dee3bfc01a4d3ca0ea0f991da1f20c8e604b0bc808064f56094f88d5c8c38081"
+    }
+  ]
+}

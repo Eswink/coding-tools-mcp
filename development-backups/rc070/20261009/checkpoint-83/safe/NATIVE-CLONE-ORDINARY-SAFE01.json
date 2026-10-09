@@ -1,0 +1,106 @@
+{
+  "scope": "READONLY_NATIVE_CLONE_ORIGINAL_CONSTRUCTOR_TLS_COMPONENTS",
+  "passed": true,
+  "checks": 8,
+  "elapsed_seconds": 3.3015514459984843,
+  "original_method_runs": 0,
+  "new_observer_bindings_installed": 0,
+  "real_original_constructors_executed": true,
+  "real_TLS_components_executed": true,
+  "mutation_requests": 0,
+  "authority_proof": false,
+  "actual_natural_exit": 0,
+  "native_created_child_held_z_exit_verified": true,
+  "native_echild": true,
+  "empty_family": true,
+  "private_raw_receipt_bytes": 3980,
+  "private_raw_receipt_sha256": "645d4506bf1d46cb1d466342b1766141d6c4795fcc9160efa63df556306350ab",
+  "stdout_bytes": 2280,
+  "stdout_sha256": "5bfd45d8fca9b39021838cf72e80ed5dd50d971b5394e1b6460d0985de14ca39",
+  "stderr_bytes": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "component_budgets": {
+    "component": 45,
+    "term": 7,
+    "kill": 2,
+    "family": 2
+  },
+  "ordinary_preexec_seal_all13_files_current_match": true,
+  "pure_sut_current_native_blobs_modes_nlink1_clean_verified": 1878,
+  "pure_sut_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "component": {
+    "authority_proof": false,
+    "controls": 8,
+    "mutation_requests": 0,
+    "new_observer_bindings_installed": 0,
+    "old_diag5_filter_cause": "UNKNOWN_NOT_MEASURED",
+    "original_method_runs": 0,
+    "passed": true,
+    "real_TLS_components_executed": true,
+    "real_original_constructors_executed": true,
+    "rows": [
+      {
+        "name": "native_factory_actual_return_assignment",
+        "passed": true
+      },
+      {
+        "name": "original_constructor_actual_defensive_clone",
+        "passed": true
+      },
+      {
+        "name": "native_session_owner_actual_reference_chain",
+        "passed": true
+      },
+      {
+        "expected_failure": {
+          "condition": "fixture.selection is client.selection",
+          "expected": true,
+          "outcome": false,
+          "type": "AssertionError"
+        },
+        "name": "old_selection_condition_actual_negative",
+        "passed": true
+      },
+      {
+        "name": "original_ArtifactTLS_actual_connect_handshake",
+        "passed": true
+      },
+      {
+        "name": "real_client_socket_session_close",
+        "passed": true
+      },
+      {
+        "name": "original_fixture_threads_files_listener_retired",
+        "passed": true
+      },
+      {
+        "name": "original_source_and_callables_unchanged",
+        "passed": true
+      }
+    ],
+    "server_2s_cause": "UNKNOWN",
+    "source_after": {
+      "rc_publication_artifact_admission_cases.py": "c6fa67032d3a159d12a0ea48f26df578c91be8ddab02826f413284d5059055dc",
+      "rc_publication_executor.py": "499d4ae64c014cab032d3a653e7776f938e2c57cd9d9b5076de36c13e201f9d9",
+      "rc_publication_github.py": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+      "rc_publication_https_fixture.py": "c7029182579d1602cc29fac7b5921833a1e658ae77133b4862d8145d64b92e61",
+      "rc_publication_request.py": "60c335f0e348e6949dc0dd38bb3590a3c623c63c215986891cd886f171d644e0",
+      "rc_publication_stage_cases.py": "d15c4fc339252d084d1797277673e4d342f382d90cf18db10c0160d1bbb0186d"
+    },
+    "source_before": {
+      "rc_publication_artifact_admission_cases.py": "c6fa67032d3a159d12a0ea48f26df578c91be8ddab02826f413284d5059055dc",
+      "rc_publication_executor.py": "499d4ae64c014cab032d3a653e7776f938e2c57cd9d9b5076de36c13e201f9d9",
+      "rc_publication_github.py": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+      "rc_publication_https_fixture.py": "c7029182579d1602cc29fac7b5921833a1e658ae77133b4862d8145d64b92e61",
+      "rc_publication_request.py": "60c335f0e348e6949dc0dd38bb3590a3c623c63c215986891cd886f171d644e0",
+      "rc_publication_stage_cases.py": "d15c4fc339252d084d1797277673e4d342f382d90cf18db10c0160d1bbb0186d"
+    }
+  },
+  "limitations": [
+    "Oldselectioncondition actualnegative is not diag5 recordedfiltercause",
+    "TLS handshake is actualcomponent not originalmethod/privateissuer proof",
+    "No server2s causation established",
+    "Factoryhook implementation not authorized or implemented",
+    "Original85 FAIL83success2FAIL; original300 NOTRUN"
+  ]
+}

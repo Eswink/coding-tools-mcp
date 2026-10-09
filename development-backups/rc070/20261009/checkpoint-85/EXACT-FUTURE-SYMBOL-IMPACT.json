@@ -1,0 +1,171 @@
+{
+  "head": "50ef4b60830c36d4bc1aafdcec3d9b8489a260aa",
+  "indexedAt": "2026-10-09T13:31:27.630Z",
+  "indexed_original_source_exact": true,
+  "symbols": [
+    {
+      "symbol": "NativeBirthEscrow",
+      "file": "external/rc_native_startup_owner/birth_module.c",
+      "source_present_before_implementation": false,
+      "actual_exit": 0,
+      "actual_result": {
+        "error": "Target 'NativeBirthEscrow' not found",
+        "target": {
+          "name": "NativeBirthEscrow"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_not_zero": true
+    },
+    {
+      "symbol": "rc_clone_exec_root",
+      "file": "external/rc_native_startup_owner/birth_entry.S",
+      "source_present_before_implementation": false,
+      "actual_exit": 0,
+      "actual_result": {
+        "error": "Target 'rc_clone_exec_root' not found",
+        "target": {
+          "name": "rc_clone_exec_root"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_not_zero": true
+    },
+    {
+      "symbol": "rc_seal_embedded_image",
+      "file": "external/rc_native_startup_owner/birth_module.c",
+      "source_present_before_implementation": false,
+      "actual_exit": 0,
+      "actual_result": {
+        "error": "Target 'rc_seal_embedded_image' not found",
+        "target": {
+          "name": "rc_seal_embedded_image"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_not_zero": true
+    },
+    {
+      "symbol": "rc_close_once",
+      "file": "external/rc_native_startup_owner/birth_module.c",
+      "source_present_before_implementation": false,
+      "actual_exit": 0,
+      "actual_result": {
+        "error": "Target 'rc_close_once' not found",
+        "target": {
+          "name": "rc_close_once"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_not_zero": true
+    },
+    {
+      "symbol": "NativeRootCollector",
+      "file": "external/rc_native_startup_owner/root_collector.c",
+      "source_present_before_implementation": false,
+      "actual_exit": 0,
+      "actual_result": {
+        "error": "Target 'NativeRootCollector' not found",
+        "target": {
+          "name": "NativeRootCollector"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_not_zero": true
+    },
+    {
+      "symbol": "rc_wait_owned_children",
+      "file": "external/rc_native_startup_owner/root_collector.c",
+      "source_present_before_implementation": false,
+      "actual_exit": 0,
+      "actual_result": {
+        "error": "Target 'rc_wait_owned_children' not found",
+        "target": {
+          "name": "rc_wait_owned_children"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_not_zero": true
+    },
+    {
+      "symbol": "rc_retire_owned_io",
+      "file": "external/rc_native_startup_owner/root_collector.c",
+      "source_present_before_implementation": false,
+      "actual_exit": 0,
+      "actual_result": {
+        "error": "Target 'rc_retire_owned_io' not found",
+        "target": {
+          "name": "rc_retire_owned_io"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_not_zero": true
+    },
+    {
+      "symbol": "NativeOwnerAdapter",
+      "file": "external/rc_native_startup_owner/owner_adapter.py",
+      "source_present_before_implementation": false,
+      "actual_exit": 0,
+      "actual_result": {
+        "error": "Target 'NativeOwnerAdapter' not found",
+        "target": {
+          "name": "NativeOwnerAdapter"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_not_zero": true
+    },
+    {
+      "symbol": "run_owned_controls",
+      "file": "external/rc_native_startup_owner/ordinary_controls.py",
+      "source_present_before_implementation": false,
+      "actual_exit": 0,
+      "actual_result": {
+        "error": "Target 'run_owned_controls' not found",
+        "target": {
+          "name": "run_owned_controls"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_not_zero": true
+    },
+    {
+      "symbol": "build_native_owner",
+      "file": "external/rc_native_startup_owner/build_source_owner.py",
+      "source_present_before_implementation": false,
+      "actual_exit": 0,
+      "actual_result": {
+        "error": "Target 'build_native_owner' not found",
+        "target": {
+          "name": "build_native_owner"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_not_zero": true
+    }
+  ],
+  "manual_risk": "HIGH",
+  "production_edits": 0,
+  "new_external_implementation_files": 0,
+  "kernel_controls_run": 0
+}

@@ -1,0 +1,112 @@
+{
+  "readonly_tool_file_identity": [
+    {
+      "tool": "cc",
+      "present": true,
+      "literal": "/usr/bin/cc",
+      "resolved": "/usr/bin/x86_64-linux-gnu-gcc-14",
+      "bytes": 1162264,
+      "sha256": "a23ecab8ff08f09ad8c80602c2c5df7f49e09c25905cb8975902e101bf72635f"
+    },
+    {
+      "tool": "gcc",
+      "present": true,
+      "literal": "/usr/bin/gcc",
+      "resolved": "/usr/bin/x86_64-linux-gnu-gcc-14",
+      "bytes": 1162264,
+      "sha256": "a23ecab8ff08f09ad8c80602c2c5df7f49e09c25905cb8975902e101bf72635f"
+    },
+    {
+      "tool": "clang",
+      "present": false
+    },
+    {
+      "tool": "ld",
+      "present": true,
+      "literal": "/usr/bin/ld",
+      "resolved": "/usr/bin/x86_64-linux-gnu-ld.bfd",
+      "bytes": 1861256,
+      "sha256": "d2766988b6a1b1d1518cdc09242e726d1f24e151e16410ada3092b11ffd9081b"
+    },
+    {
+      "tool": "readelf",
+      "present": true,
+      "literal": "/usr/bin/readelf",
+      "resolved": "/usr/bin/x86_64-linux-gnu-readelf",
+      "bytes": 777864,
+      "sha256": "4a387d80a70e6e97ef940a666fab59d5c38e7cf19ff907192fa983cb8505a7de"
+    },
+    {
+      "tool": "objdump",
+      "present": true,
+      "literal": "/usr/bin/objdump",
+      "resolved": "/usr/bin/x86_64-linux-gnu-objdump",
+      "bytes": 396336,
+      "sha256": "96afb8521834982d0e711b5d6e9785252bf82129fb0106b93a6bd54d83fae11f"
+    },
+    {
+      "tool": "objcopy",
+      "present": true,
+      "literal": "/usr/bin/objcopy",
+      "resolved": "/usr/bin/x86_64-linux-gnu-objcopy",
+      "bytes": 159568,
+      "sha256": "403f90bbd5d26c8ab9a2ad51f56255b812e8858a83aa8740ee71791071ddb580"
+    },
+    {
+      "tool": "python3-config",
+      "present": true,
+      "literal": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3-config",
+      "resolved": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12-config",
+      "bytes": 3218,
+      "sha256": "9610731c65d43ab25272666c3caaf37288202f6ca248de0075006824cc318fd5"
+    },
+    {
+      "tool": "python3.13-config",
+      "present": false
+    }
+  ],
+  "headers": [
+    {
+      "path": "/usr/include/python3.13/Python.h",
+      "present": false
+    },
+    {
+      "path": "/usr/include/python3.13/pyconfig.h",
+      "present": false
+    },
+    {
+      "path": "/usr/include/python3.12/Python.h",
+      "present": false
+    },
+    {
+      "path": "/usr/include/linux/sched.h",
+      "present": true
+    }
+  ],
+  "compiler_executed": false,
+  "compile_attempted": false,
+  "native_support_probe_executed": false,
+  "identity_not_build_or_kernel_qualification": true,
+  "outer_headers": [
+    {
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/include/python3.12/Python.h",
+      "present": true,
+      "bytes": 2854,
+      "sha256": "729ef157f6026e6e1b3104593f87dddc597c3b83b60c7c2965878c62a56c6f7d"
+    },
+    {
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/include/python3.12/pyconfig.h",
+      "present": true,
+      "bytes": 55933,
+      "sha256": "3a9546822f3c1b28caaedabf93cc862215f4cbff25a8d209edc08a21b908beba"
+    },
+    {
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/include/python3.12/patchlevel.h",
+      "present": true,
+      "bytes": 1301,
+      "sha256": "66ff726e200a2eba15cfedee752bf6a59e20d6741a7c45f7a2c424dea649f473"
+    }
+  ],
+  "outer_headers_not_system_worker_replacement": true,
+  "source_outer_version": "3.12.14"
+}

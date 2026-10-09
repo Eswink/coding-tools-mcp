@@ -1,0 +1,40 @@
+{
+  "status": "SOURCE_ONLY_PEER_AND_ROOT_STARTUP_PENDING",
+  "ordinary_controls": {
+    "methods": 29,
+    "seconds": 9.644,
+    "actual_exit": 0,
+    "sha256": "40d941ab6678f5b5f69beae7d46e8ff86113436311d9fb64a0886ac4ae0d0589",
+    "not_genuine_Git": true
+  },
+  "spec": {
+    "passed": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": [],
+    "frIds": [
+      "FR-1",
+      "FR-2",
+      "FR-3",
+      "FR-4",
+      "FR-5"
+    ],
+    "summary": "\u89c4\u683c\u6821\u9a8c\u901a\u8fc7\uff085 \u6761\u9700\u6c42\uff09"
+  },
+  "genuine_make": "NOTRUN",
+  "genuine_install": "NOTRUN",
+  "system_install": false,
+  "product_install": "NOTRUN",
+  "original85_300": "NOTRUN_BY_THIS_SCOPE",
+  "RC_qualification": false,
+  "original_source_V1_V2_failed_immutable": true,
+  "separate_genuine_msgfmt": "Root once natural0, two read-only finite audits PASS_OWNED_MSGFMT_ONLY; does not mint Git authorization",
+  "budgets": {
+    "make_all_seconds": 480,
+    "owned_install_seconds": 60,
+    "validation_seconds": 30,
+    "phase_log_bytes": 2097152,
+    "installed_unique_payload_bytes": 268435456
+  },
+  "graph_risk": "Before-code original extraction CRITICAL13 and new symbols UNKNOWN disclosed manualHIGH; not graphzero."
+}

@@ -1,0 +1,67 @@
+{
+  "schema": "source-only-preimplementation-v1",
+  "files": [
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 1522,
+      "sha256": "32ebbc0ca733816f9909518895d72f1cb43515211e7727563378a98ef4edcead"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "100644",
+      "bytes": 942,
+      "sha256": "0bb73a880eac0b75aa8427318047231d5dda2dadd433b04adcee49ddab62d4fa"
+    },
+    {
+      "path": "safe/CHECK-SPEC-SAFE01.json",
+      "mode": "100644",
+      "bytes": 182,
+      "sha256": "9868a0d8caadcb337defc655ef488ff0f0fa16803a75fa655dd41309a338a6ac"
+    },
+    {
+      "path": "safe/FRESH-IMPACT-SAFE01.json",
+      "mode": "100644",
+      "bytes": 3281,
+      "sha256": "269354c88692ce59986fef9a4059c54cad9c488f9b3c2c9d473b18f4504ff63f"
+    },
+    {
+      "path": "safe/NATIVE-CLONE-ORDINARY-SAFE01.json",
+      "mode": "100644",
+      "bytes": 4214,
+      "sha256": "c35cbdb8878ef54ed58e556ba06f3a113807d63a5934b3fd892e30abf316d552"
+    },
+    {
+      "path": "source/native-clone-owned-supervisor.py.source",
+      "mode": "100644",
+      "bytes": 4414,
+      "sha256": "5c444be355de86af7578ed2ba175fc87b5214386f1d4592d88791b21bcaa437f"
+    },
+    {
+      "path": "source/native-clone-readonly-child.py.source",
+      "mode": "100644",
+      "bytes": 3840,
+      "sha256": "73eaca67ec54fd428e97cf5eddc0c171f26babeec203501f9120d450224f320e"
+    },
+    {
+      "path": "spec/design.md",
+      "mode": "100644",
+      "bytes": 2315,
+      "sha256": "186939c5527a3054c07d901bbbda3c2f06bd04fd52da01fdb70bacc2d5cdd7fb"
+    },
+    {
+      "path": "spec/requirements.md",
+      "mode": "100644",
+      "bytes": 3450,
+      "sha256": "08c68e4c3182b0c5a0d701ed9ae68fb9ccc5bca9ca7f90ba448923e9e94745c6"
+    },
+    {
+      "path": "spec/tasks.md",
+      "mode": "100644",
+      "bytes": 1260,
+      "sha256": "12eaca8f1a085da953fa26f84906e559a57ce10623160620a3dbfd88176098f8"
+    }
+  ],
+  "file_count": 10,
+  "bytes": 25420
+}
