@@ -1,0 +1,97 @@
+# 设计文档：issue88-postpublication-owned-consumer
+
+## 概述
+
+**对应需求:** FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, NFR-1, NFR-2。此source组件不是真实post-release运行或发布批准。
+
+## 技术方案
+
+### 技术选型
+
+| 类别 | 选择 | 理由 | 关联需求 |
+| --- | --- | --- | --- |
+| 原来源 | actual entered StagedAssets与其私有canonical Selection/原bundle | 复用实际API/ZIP/source/package/security链，不接收PASS | FR-1 |
+| 公共读取 | 固定无token client与原_Reader/_connect/framing/projection | 保留既有origin/TLS/redirect政策 | FR-2 |
+| raw IO | 独立私有_InputOwner/_RawSink、原PrivateRoot+StageRootOwner | 无外部sink或path authority，原budget+creation ownership | FR-2 |
+| transfer | 原实际Actions transport+bounded ZIP、封闭manifest/独立数字身份 | 新post bytes而非原build | FR-3 |
+| CI入口 | 固定post workflow、capture/receive CLI | 当前run/env/rawbytes到四Linux与Windowsblocked槽 | FR-4 |
+
+### 架构设计
+
+capture以严格期待JSON创建原Selection，固定native GitHub仅用于Actions原证据读取；永久read controller绑定实际api/selection/PID/thread/总deadline，caller只能缩短。Actual entered Stage保留原bundle+plan/provenance。公共client不含token且只有固定GET，先验Release/tag/inventory/latest，再六下载/公共checksums/finalfence。capture持有raw roots跨pinned upload-artifact一步。ACK只有限正整数；server list/direct元数据与actualZIP/readback确认后退休原raw/control/stage，写safe证据。receive新建自身read controller和实际stage，确认新post/current capture job/artifact再下载七成员ZIP；新输入owner分别验证，不把manifest或env算grant。
+
+原Stage/authority source尚未统一，当前wrapper是固定读取预算适配，不是PublisherSession/ReadScope/credential grant。保留snapshot._call逻辑和三个hardreject全部body。未来exactF2移植需同一native controller/API/selection与StageAPI源重审及重跑，不能借本packet PASS。
+
+## 数据模型
+
+CaptureRequest仅selection/release_id/六asset_ids。PostInvocation数据保留source、actualrun/attempt/workflowid/path/ref/blob/jobid，与三历史invocation并存且runid不同。TransferExpectation仅positive numeric artifact ID+API ZIP size+sha256，原两个artifactID不得复用。RawManifest封闭包含source、subject/plan digest、post identity、original producer/consumer完整选定身份、ReleaseID、六remote IDs与原assets，approval false/五slot NOT_RUN。所有caller records是expected data；只有actual source/API/ZIP/bytes校验产生观察，不mint发布权限。
+
+## API 设计
+
+| 方法/函数 | 路径/签名 | 入参/出参 | 关联需求 |
+| --- | --- | --- | --- |
+| internal sink | _Reader.response(limit,binary=False,*,sink=None) | 默认原样；exact _RawSink仅200binary | FR-2 |
+| anonymous owner | PublishedInputs(actualstage,releaseid,assetids,controller) | actual六raw handles、原metadata fences | FR-1, FR-2 |
+| capture CLI | rc_postpublication_consumer.py capture | stdin封闭期待JSON、真实env；有限ready/ACK协议 | FR-1, FR-3, FR-4 |
+| receive CLI | rc_postpublication_consumer.py receive --kind --artifact-id/size/sha256 | stdin同期待值＋actualAPI/ZIP新输入→platformrunner | FR-3, FR-4 |
+| original installed checks | rc_packages._installed_checked(data,package,kind,output) | private verifiedreference；current new run separately built | FR-4 |
+
+## 文件结构
+
+精确18文件与各<=500预算见tasks Scope-lock。无旧seal/profile/版本/授权stubs/原workflow编辑。
+
+## 设计决策
+
+### 决策 1: 输入owner持续活到transfer核验（关联需求: FR-2, FR-3）
+
+**问题**: CLI退出后单一路径或serialized bool不能证明原handle lifetime/安全退休。
+**选项**: 留path供其他进程推断owner；或原capture进程持有实际roots至上传ACK。
+**决策**: 同capture原进程持有owner和budget；control与raw根分开、ACK数字是期待值；actualAPI+ZIP+字节核验后才retire，unknown不重试。
+
+### 决策 2: immutable三身份与新安装receipt（关联需求: FR-1, FR-4）
+
+**问题**: 原Linuxmanifest把producer与currentrun合并；原Windowswrapper固定built路径。
+**选项**: spoof原env/overwrite旧manifest；或原认证bundle引用与当前结果分开。
+**决策**: 不改原manifest和身份；复用安装checks的private已验证数据入口，当前run/job/source重新附加。Windows仍需真实native输入/root接口；仅明确blocked，不退化path-only能力。
+
+### 决策 3: read-only产物不是授权（关联需求: FR-5）
+
+**问题**: connector能力、callerreport、componentPASS不证明真实bearer/CAS/最终候选。
+**选项**: 借旧结果解除hardreject；或保留原生产拒绝。
+**决策**: 三hardreject字节/AST保护，snapshot暂停保持；真实安装未运行便NOT_RUN，组件source-specific。
+
+## 风险评估
+
+| 风险 | 影响 | 缓解措施 |
+| --- | --- | --- |
+| Reader共用mutation路径 | 高 | default语义exact、sink只私有readonly、旧wire49与额外Stage回归，hardreject不变 |
+| dynamic Python索引不完整/FTS unavailable | 中 | local never/indexonly实际index＋逐symbolimpact与人工caller补读，不报UNKNOWN为LOW0 |
+| 当前Stage/native组合未最终合源 | 高 | 明确组件，不借19/118或165；未来exactbase freshintegration |
+| Windows owner未知 | 高 | hosted槽blocked/NOT_RUN，importPOSIX前固定拒绝，等待实际native IO |
+| 上传或cleanup response/effect未知 | 高 | 原owner保留证据/失败，无retry/delete/adopt/clobber |
+| CLI可在用户机器被误运行 | 高 | install只有真实固定API/env/job+github-hosted/nonrootUbuntu，未证拒绝 |
+
+## 决策4：固定PackageChecks与native ProcessOwner
+
+在原16冻结之外的新隔离D6视图，新增rc_postpublication_process.py与rc_postpublication_process_cases.py，准确18路径；不改exclusive_packages默认helper。rc_packages._installed_checked的optional private checks只接受实际entered stage/current verified inputs所构造exact PackageChecks。新类复用同inspect_linux/ELF/hash/installed结构，在固定command/digest/elf边界执行原检查；默认旧command/inspect_linux/digest/elf不变。
+
+ProcessOwner父端实际Popen专用new-session leader→retain pidfd→核验nativePGID/父关系/alive→nativepipe GO。Leader设置actualsubreaper，只创建一次目标子进程，同group；标准输出走bounded private pipe，leader一直持有group直至父核验完所有nativechildren的reap/pipe EOF后CLOSE。groupTERM仅在该leader仍live/同nativePGID且pidfd所指同ownedchild时执行，leader忽略TERM保持group-ID占用，后代恢复默认TERM。逃逸的实际kernel-adopted自有后代由leader在未reap前捕捉pidfd并核对真实parent，再个别终止；身份/来源/EOF/close/retirement不确定保留全部输入与profile。没有裸numericPID/group恢复/adoption。
+
+所有内部child环境闭合allowlist，argv仅固定原package工具或原FINAL startup/native命令；实际stdout限2MiB，deadline由原controls剩余min每命令期限，不增加原数值。所有caller callbacks不构造authority。摘要读取每chunk原controls前后check。原112-v2缺最终receipt永久INTERRUPTED/UNKNOWN；新同源v3完整112PASS仅冻结16readonly组件，已独立staticBLOCK，不能借给新18。
+
+持久Stage/input cleanup flags在actual InstallationOwner构造和每次check永拒；保留的实际对象进入私有strong registry，不凭serialized bool复原。Execution固定constructor先分配并保存exact原InputOwner，再实际调用原constructor创建/登记根，使失败前已有whole-owner引用；未初始化实例不能通过任何check。整个installation context包住execution创建/check/ExitStack退出，异常提升whole-retain；各profile上下文只登记/持有，所有nativeprocess已证明family/IO关闭且终局成功后才统一creation-owned退休。
+
+PackageChecks和install都要求invocation is actual ReceivedInputs._invocation。父端只缓存真实ownedpipe读出并严格校验的DONE；原取消仍优先失败，但cleanup可使用已证明ECHILD/EOF的那次固定worker completion，发送C并验证实际leader退出/pipe EOF/FD关闭。超限先停止/回收/drain，再送error数据，不能让worker直接异常退出。sudo root后代的权限另属真实host能力：普通同UID子进程不证明特权安装cancel，实际DEB资格仍UNKNOWN/NOT_RUN，需独立review实际privileged helper/launcher，而非数字PID恢复。
+
+控制管道不使用会预读的文本buffer；bounded原生FD逐行解析允许同次读到S/C而不丢帧。父写端nonblocking，每次部分写入前检查原controls、当前deadline与实际live leader；cleanup只有限2秒且不能恢复operation成功。actual InstallationOwner自持ExitStack，终局Inputs.revalidate和全部nativefamily/IO证明先于任何execution/profile退休；临时marker实际FD在os.open后永久登记，close不确定只保留而不重试未知数字FD。外部DONE字典不能替代来自本次实际pipe的固定frame身份。
+
+## 决策5：独立postpublication finite source（FR-7）
+本新增source层保持旧18组件字节，只有原三spec更新；新增3文件并改7旧source-operand路径，总D6delta28/1867。profile独立P=actualD6，F/R/四docs使用原immutable来源；禁止猜D7或放宽旧Windows-family。
+require_sealed校验literal closed declarations/native rawcommit framing、28caps/27nonselfpins/10base+fragments及26identity schema；content重新认证P和oldselector结果、每个unchanged/currentblob、完整逆向/预算，再返回全部current。
+select只在新topology genuine mismatch返回None；D[actualP]、I[F13,D]、J[R,I]ordered grammar，选中后错误terminal。normalize是纯byte inverse，无IO/authority/callback/candidate map；windows_legacy_bytes是固定newinverse再原Windows inverse。
+26identity rows来自actualexistingBASE/SOURCE/PRIOR与nativecommitpath/mode/blob/raw证明，分10D6parent/16older；lost22不是来源/指标。全字节完整pin，不任意history/ancestor/cache，scope变化由真实恢复证据记录。
+source-observation select前加newfamily route，normalize前加newlocalinverse；5旧import aliases改固定helper。Windows setUp/4历史raw operands及有限positive normalize call适配，invalid/frozen/unmapped仍原x.normalize，不借早期新pin失败宣称oldassert完成。
+所有10modified path有exact counted fullbyte reversal；newprofile自bytes由external frozen tree/patch/review绑定，不嵌入自身fullhash，不形成cases↔profile selfhash循环。
+新_cases.py保留strict303 discover；12newcases含currentcache拒绝、topology/parent/26metadata/完整scope/inverse/budget/旧modulesAST+asserts以及exceptional outcome。必要488当前源一次，由old135+原source family/flow union12+sourceversion3精确enumerate，旧135不能借当前PASS。
+新readonlyworkflow独立工程分支+PR开发target；Ubuntu22/24跑原425+48+12=485，新candidate admission先于测试；nativeWindows保持原38的真实commands/bounds，变更source-family only。旧WF/303452755字节和authority不改，真实CI之后root决定commit/push/PR。
+当前nativeinstall0、installer/grant/tag/publication0；native realm是另22source-only proposal，不混本28family，PR98取消/Issue86snapshot暂停原样。

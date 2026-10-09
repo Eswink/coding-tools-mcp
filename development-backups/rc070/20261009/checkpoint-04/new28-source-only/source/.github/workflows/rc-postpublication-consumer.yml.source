@@ -1,0 +1,191 @@
+name: Exact-source postpublication public-byte consumer (nonpublishing)
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_json:
+        description: Exact immutable Selection plus confirmed public Release ID and six numeric asset IDs; expectations only
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: rc-postpublication-${{ github.run_id }}
+  cancel-in-progress: false
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  capture:
+    name: Anonymous six assets and exact public-byte transfer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      artifact_id: ${{ steps.finish.outputs.artifact_id }}
+      artifact_size: ${{ steps.finish.outputs.artifact_size }}
+      artifact_sha256: ${{ steps.finish.outputs.artifact_sha256 }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Hold actual raw owner through the transfer
+        id: owner
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUEST_JSON: ${{ inputs.request_json }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/post-capture-evidence"
+          mkdir -m 700 "$evidence"
+          printf '%s' "$REQUEST_JSON" | python scripts/rc_postpublication_consumer.py capture \
+            --evidence-directory "$evidence" > "$evidence/owner.log" 2>&1 &
+          owner_pid=$!
+          printf '%s' "$owner_pid" > "$evidence/owner-pid"
+          deadline=$((SECONDS+900))
+          until test -f "$evidence/ready.json"; do
+            test "$SECONDS" -lt "$deadline"
+            kill -0 "$owner_pid"
+            sleep 1
+          done
+      - name: Transfer only freshly verified anonymous public bytes
+        id: transfer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ steps.owner.outputs.transfer_name }}
+          path: ${{ steps.owner.outputs.raw_directory }}/*
+          if-no-files-found: error
+          overwrite: false
+          compression-level: 0
+          retention-days: 7
+      - name: Verify actual new artifact and retire the held inputs
+        id: finish
+        env:
+          ACK_PATH: ${{ steps.owner.outputs.ack_path }}
+          ARTIFACT_ID: ${{ steps.transfer.outputs.artifact-id }}
+          ACTION_DIGEST: ${{ steps.transfer.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os,re
+          value=os.environ['ARTIFACT_ID']
+          assert re.fullmatch('[1-9][0-9]{0,18}',value)
+          with open(os.environ['ACK_PATH'],'r+b') as stream:
+              stream.write(value.encode('ascii'));stream.truncate();stream.flush();os.fsync(stream.fileno())
+          PY
+          evidence="$RUNNER_TEMP/post-capture-evidence"
+          deadline=$((SECONDS+900))
+          until test -f "$evidence/capture.json"; do
+            test "$SECONDS" -lt "$deadline"
+            kill -0 "$(cat "$evidence/owner-pid")"
+            sleep 1
+          done
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          value=json.loads((Path(os.environ['RUNNER_TEMP'])/'post-capture-evidence/capture.json').read_text())
+          assert value['passed'] is True and value['owned_raw_cleanup_confirmed'] is True
+          item=value['transfer']
+          assert str(item['artifact_id']) == os.environ['ARTIFACT_ID']
+          assert item['sha256'] == os.environ['ACTION_DIGEST']
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+              for name,key in (('artifact_id','artifact_id'),('artifact_size','size'),('artifact_sha256','sha256')):
+                  output.write(name+'='+str(item[key])+'\n')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-postpublication-capture-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/post-capture-evidence/
+          if-no-files-found: error
+          retention-days: 7
+
+  linux:
+    name: Postpublication ${{ matrix.os }} (${{ matrix.kind }})
+    needs: capture
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+        kind: [deb, appimage]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Original FINAL startup and WebDriver prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y xvfb xauth x11-utils fonts-noto-cjk desktop-file-utils gnome-keyring dbus-x11 xdg-desktop-portal xdg-desktop-portal-gtk libayatana-appindicator3-1 libsecret-1-0 libxdo3 libfuse2 webkit2gtk-driver
+      - name: Reauthenticate original producer and install newly transferred public bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUEST_JSON: ${{ inputs.request_json }}
+          PACKAGE_KIND: ${{ matrix.kind }}
+          ARTIFACT_ID: ${{ needs.capture.outputs.artifact_id }}
+          ARTIFACT_SIZE: ${{ needs.capture.outputs.artifact_size }}
+          ARTIFACT_SHA256: ${{ needs.capture.outputs.artifact_sha256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/post-installed-evidence"
+          mkdir -m 700 "$evidence"
+          printf '%s' "$REQUEST_JSON" | python scripts/rc_postpublication_consumer.py receive \
+            --kind "$PACKAGE_KIND" --artifact-id "$ARTIFACT_ID" --artifact-size "$ARTIFACT_SIZE" \
+            --artifact-sha256 "$ARTIFACT_SHA256" --evidence-directory "$evidence" | tee "$evidence/consumer.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-postpublication-installed-${{ matrix.os }}-${{ matrix.kind }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/post-installed-evidence/
+          if-no-files-found: error
+          retention-days: 7
+
+  windows:
+    name: Postpublication windows-2025 (nsis)
+    needs: capture
+    runs-on: windows-2025
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Refuse until actual Windows input and installation-root ownership exists
+        shell: pwsh
+        run: |
+          $evidence=Join-Path $env:RUNNER_TEMP 'post-windows-evidence'
+          New-Item -ItemType Directory -Path $evidence | Out-Null
+          python scripts/rc_postpublication_consumer.py receive --kind nsis 2>&1 | Set-Content -LiteralPath (Join-Path $evidence 'consumer.json')
+          if ($LASTEXITCODE -ne 0) { throw 'Windows public-input/native-root lifetime is UNKNOWN; NSIS installation NOT_RUN' }
+          throw 'Windows native ownership cannot be inferred from a path or JSON report'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-postpublication-windows-blocked-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/post-windows-evidence/
+          if-no-files-found: error
+          retention-days: 7

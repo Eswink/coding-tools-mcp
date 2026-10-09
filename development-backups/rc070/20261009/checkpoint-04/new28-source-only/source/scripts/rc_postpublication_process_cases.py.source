@@ -1,0 +1,409 @@
+"""Ordinary disposable native children, never package installers or grants."""
+import json
+import os
+from pathlib import Path
+import shutil
+import tempfile
+import threading
+import time
+import unittest
+from unittest.mock import patch
+
+from rc_consumer_io import ConsumerError
+from rc_postpublication_source import ReadController
+from rc_postpublication_process import ProcessOwner, _PackageChecks
+from rc_postpublication_install import _InstallationOwner
+import rc_postpublication_process as native
+import rc_publication_github as wire
+
+ENV = {'PATH': '/usr/bin:/bin'}
+
+
+class PostProcessCases(unittest.TestCase):
+    def test_actual_native_stdout_env_and_closed_family(self):
+        controls = ReadController(seconds=5)
+        owner = ProcessOwner(controls)
+        raw = owner.run(['/usr/bin/python3', '-c', 'import os;print(int("GH_TOKEN" in os.environ))'], env=ENV)
+        self.assertEqual(raw, b'0\n')
+        self.assertTrue(owner._family_closed)
+        self.assertFalse(owner._uncertain)
+        self.assertIsNone(owner._pidfd)
+        self.assertTrue(owner._process.stdin.closed and owner._process.stdout.closed)
+        self.assertEqual(owner._process.returncode, 0)
+        self.assertEqual(owner._witness['actual_child_reaped'], 1)
+        controls.close()
+
+    def test_external_environment_rejected_before_child_creation(self):
+        controls = ReadController()
+        owner = ProcessOwner(controls)
+        with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(ConsumerError) as found:
+            owner.run(['/usr/bin/true'], env={**ENV, 'GH_TOKEN': 'fixture-not-a-real-credential'})
+        self.assertEqual(found.exception.code, 'post_process_environment')
+        spawn.assert_not_called()
+        controls.close()
+
+    def test_cancelled_original_controller_cannot_create_native_child(self):
+        controls = ReadController()
+        controls.cancel()
+        with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(wire.WireFailure) as found:
+            ProcessOwner(controls).run(['/usr/bin/true'], env=ENV)
+        self.assertEqual((found.exception.code, found.exception.effect), ('cancelled', 'none'))
+        spawn.assert_not_called()
+        controls.close()
+
+    def test_foreign_lifetime_and_package_dictionary_are_not_owners(self):
+        controls = ReadController()
+        with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(ConsumerError):
+            ProcessOwner(controls, {'verified': True}).run(['/usr/bin/true'], env=ENV)
+        spawn.assert_not_called()
+        with self.assertRaises(ConsumerError):
+            _PackageChecks({'verified': True}, ENV, None)
+        with self.assertRaises(ConsumerError):
+            _InstallationOwner({'entered': True}, {'verified': True}, controls)
+        controls.close()
+
+    def _forest(self, *, escaped=False):
+        directory = Path(tempfile.mkdtemp(prefix='post-native-family-'))
+        marker = directory / 'child-finished'
+        controls = ReadController(seconds=5)
+        owner = ProcessOwner(controls)
+        code = ('import os,time;from pathlib import Path;pid=os.fork();'
+            '(os.setsid(),' if escaped else 'import os,time;from pathlib import Path;pid=os.fork();(')
+        code += 'time.sleep(.15),Path(' + repr(str(marker)) + ').write_text("done"),os._exit(0)) if pid==0 else os._exit(0)'
+        try:
+            self.assertEqual(owner.run(['/usr/bin/python3', '-c', code], env=ENV), b'')
+            self.assertTrue(marker.exists())
+            self.assertTrue(owner._family_closed)
+            self.assertEqual(owner._witness['actual_child_reaped'], 2)
+        finally:
+            controls.close()
+            if owner._family_closed:
+                shutil.rmtree(directory)
+
+    def test_native_forked_descendant_finishes_before_return(self):
+        self._forest()
+
+    def test_escaped_session_descendant_is_actual_subreaper_child(self):
+        self._forest(escaped=True)
+
+    def test_cancellation_in_actual_child_reaps_family_and_is_sticky(self):
+        directory = Path(tempfile.mkdtemp(prefix='post-native-cancel-'))
+        marker = directory / 'entered'
+        controls = ReadController(seconds=5)
+        owner = ProcessOwner(controls)
+        code = 'import time;from pathlib import Path;Path(' + repr(str(marker)) + ').write_text("entered");time.sleep(5)'
+        def cancel():
+            until = time.monotonic() + 2
+            while not marker.exists() and time.monotonic() < until:
+                time.sleep(.005)
+            if marker.exists():
+                controls.cancel()
+        thread = threading.Thread(target=cancel)
+        thread.start()
+        try:
+            with self.assertRaises(wire.WireFailure) as found:
+                owner.run(['/usr/bin/python3', '-c', code], env=ENV)
+            self.assertEqual((found.exception.code, found.exception.effect), ('cancelled', 'none'))
+            self.assertTrue(marker.exists())
+            self.assertTrue(owner._family_closed)
+            self.assertTrue(owner._uncertain)
+            with self.assertRaises(wire.WireFailure):
+                owner.run(['/usr/bin/true'], env=ENV)
+        finally:
+            thread.join(timeout=2)
+            controls.close()
+            if owner._family_closed:
+                shutil.rmtree(directory)
+
+    def test_actual_child_command_deadline_is_not_extended(self):
+        controls = ReadController(seconds=5)
+        first = controls._deadline
+        owner = ProcessOwner(controls)
+        try:
+            with self.assertRaises(ConsumerError) as found:
+                owner.run(['/usr/bin/python3', '-c', 'import time;time.sleep(5)'], env=ENV, seconds=.2)
+            self.assertEqual(found.exception.code, 'post_process_timeout')
+            self.assertEqual(controls._deadline, first)
+            self.assertTrue(owner._family_closed)
+            self.assertTrue(owner._uncertain)
+        finally:
+            controls.close()
+
+    def test_output_over_limit_never_claims_child_success(self):
+        controls = ReadController(seconds=5)
+        owner = ProcessOwner(controls)
+        try:
+            with self.assertRaises(ConsumerError) as found:
+                owner.run(['/usr/bin/python3', '-c', 'import os;os.write(1,b"x"*(2*1024*1024+1))'], env=ENV)
+            self.assertEqual(found.exception.code, 'post_process_output_limit')
+            self.assertTrue(owner._uncertain)
+            self.assertFalse(owner._witness)
+            self.assertTrue(owner._family_closed)
+            self.assertIsNone(owner._pidfd)
+            self.assertTrue(owner._process.stdin.closed and owner._process.stdout.closed)
+        finally:
+            controls.close()
+
+    def test_original_cancel_after_owned_done_still_closes_actual_family(self):
+        controls = ReadController(seconds=5)
+        owner = ProcessOwner(controls)
+        observed = []
+        original = owner._done
+        def cancel_after_done(value):
+            raw = original(value)
+            observed.append(value)
+            controls.cancel()
+            return raw
+        try:
+            with patch.object(owner, '_done', side_effect=cancel_after_done), self.assertRaises(wire.WireFailure) as found:
+                owner.run(['/usr/bin/true'], env=ENV)
+            self.assertEqual((found.exception.code, found.exception.effect), ('cancelled', 'none'))
+            self.assertEqual(len(observed), 1)
+            self.assertTrue(owner._uncertain)
+            self.assertTrue(owner._family_closed)
+            self.assertIsNone(owner._pidfd)
+            self.assertTrue(owner._process.stdin.closed and owner._process.stdout.closed)
+        finally:
+            # Fault-first cleanup uses the same already validated owned DONE.
+            if observed and not owner._family_closed:
+                owner._send(b'C\n'); owner._finish()
+            controls.close()
+
+    def test_original_cancel_with_unread_terminal_done_closes_actual_family(self):
+        import select
+        controls = ReadController(seconds=5)
+        owner = ProcessOwner(controls)
+        original, calls = owner._frame, []
+        def cancel_before_read(deadline, **kwargs):
+            calls.append(kwargs.get('active', True))
+            if len(calls) == 2:
+                self.assertTrue(select.select([owner._process.stdout], [], [], 1)[0])
+                controls.cancel()
+            return original(deadline, **kwargs)
+        try:
+            with patch.object(owner, '_frame', side_effect=cancel_before_read), self.assertRaises(wire.WireFailure) as found:
+                owner.run(['/usr/bin/true'], env=ENV)
+            self.assertEqual((found.exception.code, found.exception.effect), ('cancelled', 'none'))
+            self.assertTrue(owner._family_closed)
+            self.assertTrue(owner._uncertain)
+            self.assertIsNone(owner._pidfd)
+            self.assertTrue(owner._process.stdin.closed and owner._process.stdout.closed)
+        finally:
+            if owner._completion is not None and not owner._family_closed:
+                owner._send(b'C\n'); owner._finish()
+            controls.close()
+
+    def test_external_done_dictionary_has_no_native_completion_ownership(self):
+        controls = ReadController()
+        owner = ProcessOwner(controls)
+        try:
+            with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(ConsumerError) as found:
+                owner._done(dict(kind='done', status=0, reaped=1, output='', stopped=False, error=None))
+            self.assertEqual(found.exception.code, 'post_process_owner')
+            spawn.assert_not_called()
+            self.assertIsNone(owner._completion)
+            self.assertFalse(owner._family_closed)
+        finally:
+            controls.close()
+
+
+class PostOwnedProcessCases(unittest.TestCase):
+    def _inputs(self):
+        from contextlib import contextmanager
+        from rc_postpublication_cases import public_fixture
+        from rc_postpublication_transfer_cases import post_metadata, artifact_bytes, set_transfer
+        from rc_postpublication_source import post_invocation
+        from rc_postpublication_reader import PublishedInputs
+        from rc_postpublication_transfer import TransferPayload, ReceivedInputs
+        @contextmanager
+        def entered():
+            with public_fixture() as (f, tls, request, controls, stage):
+                environment = post_metadata(f)
+                invocation = post_invocation(stage, controls, environment)
+                with PublishedInputs(stage, request, controls, temporary_parent=f.parent) as public:
+                    with TransferPayload(public, request, invocation, controls, temporary_parent=f.parent) as payload:
+                        expected = set_transfer(f, invocation, artifact_bytes(payload._owner._root))
+                    with ReceivedInputs(stage, request, invocation, expected, controls,
+                                        temporary_parent=f.parent, complete=False) as inputs:
+                        yield f, stage, inputs, controls, invocation
+        return entered()
+
+    def test_actual_entered_package_owner_binds_original_bytes_and_new_run(self):
+        import copy
+        with self._inputs() as (f, stage, inputs, controls, invocation):
+            lifetime = _InstallationOwner(stage, inputs, controls)
+            checks = _PackageChecks(lifetime, {**ENV, 'RUNNER_TEMP': str(f.parent)}, invocation)
+            data = copy.deepcopy(checks._data)
+            asset = next(a for a in stage.plan.assets if a.family == 'deb')
+            path = inputs._owner._root.path / asset.name
+            checks.bind(data, path, 'deb')
+            self.assertEqual(checks.digest(path), asset.sha256)
+            self.assertEqual(data['run_id'], str(invocation.run_id))
+            self.assertNotEqual(data['run_id'], str(stage.subject.runs[0].run_id))
+            self.assertIs(checks._lifetime._stage, stage)
+            self.assertIs(checks._controls, controls)
+            self.assertEqual(lifetime._executions, [])
+            with self.assertRaises(ConsumerError):
+                checks.bind(data, path, 'deb')
+
+    def test_original_run_or_foreign_path_cannot_bind_owned_package_checks(self):
+        import copy
+        with self._inputs() as (f, stage, inputs, controls, invocation):
+            lifetime = _InstallationOwner(stage, inputs, controls)
+            for forged in ('old-run', 'foreign-path'):
+                with self.subTest(forged=forged):
+                    checks = _PackageChecks(lifetime, {**ENV, 'RUNNER_TEMP': str(f.parent)}, invocation)
+                    data = copy.deepcopy(checks._data)
+                    path = inputs._owner._root.path / next(a.name for a in stage.plan.assets if a.family == 'deb')
+                    if forged == 'old-run':
+                        data['run_id'] = str(stage.subject.runs[0].run_id)
+                    else:
+                        path = Path('/tmp/unowned-package-fixture.deb')
+                    with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(ConsumerError):
+                        checks.bind(data, path, 'deb')
+                    spawn.assert_not_called()
+
+    def test_actual_deb_empty_execution_sticky_failure_retains_whole_input(self):
+        from rc_postpublication_install import _profile
+        with self._inputs() as (f, stage, inputs, controls, invocation):
+            lifetime = _InstallationOwner(stage, inputs, controls)
+            roots = [r.path for r in stage._roots] + [inputs._owner._root.path, inputs._download_owner._root.path]
+            self.assertEqual(lifetime._executions, [])
+            owner = ProcessOwner(controls, lifetime)
+            with self.assertRaises(ConsumerError) as found:
+                with _profile(f.parent, '.ordinary-child-fixture', lifetime) as profile:
+                    roots.append(profile)
+                    owner.run(['/usr/bin/python3', '-c', 'import sys;sys.exit(7)'], env=ENV)
+            self.assertEqual(found.exception.code, 'post_install_command_failed')
+            self.assertTrue(owner._family_closed)
+            self.assertTrue(lifetime._uncertain and stage._cleanup_failed)
+            self.assertTrue(inputs._owner._uncertain and inputs._download_owner._uncertain)
+            self.assertTrue(all(path.exists() for path in roots))
+            inputs.close(); stage.close()
+            self.assertTrue(all(path.exists() for path in roots))
+
+    def test_actual_bound_owner_credential_environment_is_rejected_without_child(self):
+        with self._inputs() as (f, stage, inputs, controls, invocation):
+            lifetime = _InstallationOwner(stage, inputs, controls)
+            with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(ConsumerError) as found:
+                _PackageChecks(lifetime, {**ENV, 'GH_TOKEN': 'fixture-not-a-real-credential'}, invocation)
+            self.assertEqual(found.exception.code, 'post_process_environment')
+            spawn.assert_not_called()
+
+    def test_same_source_different_post_invocation_is_not_the_received_owner(self):
+        from dataclasses import replace
+        with self._inputs() as (f, stage, inputs, controls, invocation):
+            lifetime = _InstallationOwner(stage, inputs, controls)
+            forged = replace(invocation, run_id=invocation.run_id + 1, capture_job_id=invocation.capture_job_id + 1)
+            with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(ConsumerError) as found:
+                _PackageChecks(lifetime, {**ENV, 'RUNNER_TEMP': str(f.parent)}, forged)
+            self.assertEqual(found.exception.code, 'post_package_owner')
+            spawn.assert_not_called()
+
+    def test_failed_actual_inputs_cannot_be_rewrapped_by_a_fresh_lifetime(self):
+        with self._inputs() as (f, stage, inputs, controls, invocation):
+            lifetime = _InstallationOwner(stage, inputs, controls)
+            owner = ProcessOwner(controls, lifetime)
+            with self.assertRaises(ConsumerError):
+                owner.run(['/usr/bin/python3', '-c', 'import sys;sys.exit(7)'], env=ENV)
+            self.assertTrue(owner._family_closed)
+            self.assertTrue(stage._cleanup_failed and inputs._owner._uncertain and inputs._download_owner._uncertain)
+            with patch.object(native.subprocess, 'Popen') as spawn, self.assertRaises(ConsumerError) as found:
+                _InstallationOwner(stage, inputs, controls)
+            self.assertEqual(found.exception.code, 'post_install_lifetime')
+            spawn.assert_not_called()
+
+    def test_earlier_actual_profile_is_held_until_whole_installation_outcome(self):
+        from rc_postpublication_install import _profile
+        with self._inputs() as (f, stage, inputs, controls, invocation):
+            lifetime = _InstallationOwner(stage, inputs, controls)
+            with _profile(f.parent, '.ordinary-profile-fixture', lifetime) as profile:
+                self.assertTrue(profile.exists())
+            self.assertTrue(profile.exists())
+            lifetime.retain()
+            self.assertTrue(profile.exists())
+            self.assertTrue(all(value._retain for value in lifetime._profiles))
+
+    def test_marker_close_unknown_retains_actual_descriptor_and_whole_inputs(self):
+        import errno
+        import stat
+        from rc_postpublication_install import _profile
+        with self._inputs() as (f, stage, inputs, controls, invocation):
+            lifetime = _InstallationOwner(stage, inputs, controls)
+            closed, original = [], os.close
+            def fault(fd):
+                info = os.fstat(fd)
+                if not closed and stat.S_ISREG(info.st_mode) and info.st_size == 0:
+                    closed.append(fd); original(fd)
+                    raise OSError(errno.EIO, 'fixture-close-after-native-close')
+                return original(fd)
+            with patch.object(os, 'close', side_effect=fault), self.assertRaises(OSError):
+                with _profile(f.parent, '.ordinary-marker-fixture', lifetime):
+                    self.fail('unknown marker close cannot enter profile')
+            self.assertEqual(len(closed), 1)
+            self.assertEqual(lifetime._profiles[0]._marker_fd, closed[0])
+            self.assertTrue(lifetime._uncertain and stage._cleanup_failed)
+            self.assertTrue(inputs._owner._uncertain and inputs._download_owner._uncertain)
+            self.assertTrue(lifetime._profiles[0].path.exists())
+
+    def test_actual_lifetime_fences_inputs_before_execution_retirement(self):
+        from contextlib import ExitStack
+        from rc_postpublication_install import _ExecutableInput
+        with self._inputs() as (f, stage, inputs, controls, invocation):
+            lifetime = _InstallationOwner(stage, inputs, controls)
+            asset = next(a for a in stage.plan.assets if a.family == 'appimage')
+            observed, paths = [], []
+            def final_failure():
+                observed.append(paths[0].exists())
+                raise ConsumerError('fixture_final_input_fence')
+            with patch.object(inputs, 'revalidate', side_effect=final_failure), self.assertRaises(ConsumerError) as found:
+                with lifetime as stack:
+                    self.assertIs(type(stack), ExitStack)
+                    with inputs._owner._root.open(asset.name) as stream:
+                        owned = stack.enter_context(_ExecutableInput(stream, asset, stage._root, f.parent,
+                            controls, lifetime=lifetime))
+                    paths.append(owned._owner._root.path)
+            self.assertEqual(found.exception.code, 'fixture_final_input_fence')
+            self.assertEqual(observed, [True])
+            self.assertTrue(paths[0].exists())
+            self.assertTrue(stage._cleanup_failed and inputs._owner._uncertain)
+
+    def test_actual_execution_constructor_failure_promotes_whole_owner(self):
+        from rc_postpublication_install import _ExecutableInput
+        with self._inputs() as (f, stage, inputs, controls, invocation):
+            lifetime = _InstallationOwner(stage, inputs, controls)
+            asset = next(a for a in stage.plan.assets if a.family == 'appimage')
+            with inputs._owner._root.open(asset.name) as stream:
+                with patch.object(_ExecutableInput, 'check', side_effect=ConsumerError('fixture_execution_check')):
+                    with self.assertRaises(ConsumerError):
+                        _ExecutableInput(stream, asset, stage._root, f.parent, controls, lifetime=lifetime)
+            self.assertTrue(lifetime._uncertain and stage._cleanup_failed)
+            self.assertTrue(inputs._owner._uncertain and inputs._download_owner._uncertain)
+            self.assertEqual(len(lifetime._executions), 1)
+            self.assertTrue(lifetime._executions[0]._owner._uncertain)
+            self.assertTrue(lifetime._executions[0]._owner._root.path.exists())
+
+    def test_successful_actual_family_retires_profiles_after_final_inputs_fence(self):
+        from contextlib import ExitStack
+        from rc_postpublication_install import _profile
+        with self._inputs() as (f, stage, inputs, controls, invocation):
+            lifetime = _InstallationOwner(stage, inputs, controls)
+            observed, original = [], inputs.revalidate
+            with lifetime as stack:
+                self.assertIs(type(stack), ExitStack)
+                with _profile(f.parent, '.ordinary-success-fixture', lifetime) as profile:
+                    owner = ProcessOwner(controls, lifetime)
+                    self.assertEqual(owner.run(['/usr/bin/true'], env=ENV), b'')
+                self.assertTrue(profile.exists())
+                def final_fence():
+                    observed.append(profile.exists() and owner._family_closed)
+                    original()
+                inputs.revalidate = final_fence
+            self.assertEqual(observed, [True])
+            self.assertFalse(profile.exists())
+            self.assertTrue(all(value._closed for value in lifetime._profiles))
+            self.assertFalse(lifetime._uncertain)
+
+
+if __name__ == '__main__':
+    unittest.main()

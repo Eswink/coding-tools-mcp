@@ -1,0 +1,374 @@
+"""Hosted Linux public-origin acceptance; Windows native lifetime stays blocked."""
+from contextlib import ExitStack, contextmanager
+import copy
+import hashlib
+import os
+from pathlib import Path
+import shutil
+import secrets
+import signal
+import stat
+import subprocess
+import tempfile
+import time
+
+from rc_consumer_io import CHUNK, ConsumerError, _directory, need
+import rc_native_gate as native
+import rc_packages as packages
+import rc_publication_github as wire
+from rc_publication_contract import Asset
+from rc_publication_stage import StagedAssets
+from rc_postpublication_io import InputOwner
+from rc_postpublication_transfer import ReceivedInputs
+from rc_postpublication_process import _PackageChecks
+
+_HELD_INSTALLATION_OWNERS = []  # Actual uncertain roots, leases and native handles.
+
+
+class _ExecutableInput:
+    """Explicit private byte-identical execution copy, never chmod the raw input."""
+    def __init__(self, source, asset, root, parent, controls, *, lifetime=None):
+        self._asset, self._controls, self._stack = asset, controls, ExitStack()
+        self._lifetime = lifetime
+        if lifetime is not None:
+            need(type(lifetime) is _InstallationOwner and lifetime._controls is controls
+                 and lifetime._stage._root == root, 'post_install_lifetime')
+            lifetime.check()
+        # Save the actual allocation before its fixed native constructor creates resources.
+        self._owner = InputOwner.__new__(InputOwner)
+        if lifetime is not None:
+            lifetime._executions.append(self)
+        self._stream, self._executable = None, False
+        try:
+            InputOwner.__init__(self._owner, parent, root, controls, prefix='rc-post-execution-')
+            with self._owner._root.open(asset.name, 'xb') as output:
+                total, digest = 0, hashlib.sha256()
+                while True:
+                    controls.check()
+                    data = source.read(CHUNK)
+                    controls.check()
+                    if not data:
+                        break
+                    total += len(data)
+                    need(total <= asset.size and output.write(data) == len(data), 'post_execution_copy_failed')
+                    digest.update(data)
+                need((total, digest.hexdigest()) == (asset.size, asset.sha256), 'post_execution_copy_failed')
+            self._owner.verify(asset)
+            self._stream = self._stack.enter_context(self._owner._root.open(asset.name))
+            self._identity = self._owner._root._files[asset.name]
+            os.fchmod(self._stream.fileno(), 0o700)
+            self._executable = True
+            self.check()
+        except BaseException:
+            if lifetime is not None:
+                lifetime.retain()
+            self.close()
+            raise
+
+    @property
+    def path(self):
+        self.check()
+        return self._owner._root.path / self._asset.name
+
+    def check(self):
+        self._owner.check()
+        stream = self._stream
+        need(stream is not None and not stream.closed and self._executable, 'post_execution_lifetime')
+        fd = self._owner._root._root()
+        try:
+            info = os.fstat(stream.fileno())
+            current = os.stat(self._asset.name, dir_fd=fd, follow_symlinks=False)
+            need(stat.S_ISREG(info.st_mode) and info.st_nlink == 1 and info.st_uid == os.geteuid()
+                 and stat.S_IMODE(info.st_mode) == 0o700 and info.st_size == self._asset.size
+                 and (info.st_dev, info.st_ino) == self._identity == (current.st_dev, current.st_ino),
+                 'post_execution_changed')
+            stream.seek(0)
+            total, digest = 0, hashlib.sha256()
+            while True:
+                self._controls.check()
+                data = stream.read(CHUNK)
+                self._controls.check()
+                if not data:
+                    break
+                total += len(data)
+                need(total <= self._asset.size, 'post_execution_changed')
+                digest.update(data)
+            need((total, digest.hexdigest()) == (self._asset.size, self._asset.sha256), 'post_execution_changed')
+            stream.seek(0)
+        finally:
+            self._owner._root._retirement_close(fd)
+
+    def close(self):
+        error = None
+        if self._executable and not self._owner._uncertain:
+            try:
+                self.check()
+                os.fchmod(self._stream.fileno(), 0o600)
+                self._executable = False
+            except BaseException as failure:
+                self._owner._uncertain, error = True, failure
+        try:
+            self._stack.close()
+        except BaseException as failure:
+            self._owner._uncertain, error = True, failure
+        try:
+            if hasattr(self._owner, '_closed'):
+                self._owner.close()
+        except BaseException as failure:
+            error = failure
+        if error is not None:
+            if self._lifetime is not None:
+                self._lifetime.retain()
+            raise ConsumerError('post_execution_cleanup_uncertain') from None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.close()
+
+
+class _InstallationOwner:
+    """Actual whole input lifetime, including DEB with no execution copies."""
+    def __init__(self, stage, inputs, controls):
+        from rc_postpublication_transfer import _stage_owner
+        _stage_owner(stage, controls)
+        need(type(inputs) is ReceivedInputs and inputs._verified and not inputs._closed
+             and inputs._stage is stage and inputs._controls is controls
+             and not stage._cleanup_failed and not inputs._owner._uncertain
+             and not inputs._download_owner._uncertain, 'post_install_lifetime')
+        self._stage, self._inputs, self._controls = stage, inputs, controls
+        self._executions, self._profiles, self._processes, self._uncertain = [], [], [], False
+        self._stack = ExitStack()
+        self.check()
+
+    def check(self):
+        from rc_postpublication_transfer import _stage_owner
+        _stage_owner(self._stage, self._controls)
+        need(not self._uncertain and self._inputs._verified and not self._inputs._closed,
+             'post_install_lifetime')
+        need(not self._stage._cleanup_failed and not self._inputs._owner._uncertain
+             and not self._inputs._download_owner._uncertain, 'post_install_lifetime')
+        self._stage._api.token
+        self._inputs._owner.check()
+        self._inputs._download_owner.check()
+        for value in self._executions:
+            need(not value._owner._uncertain and not value._owner._retirement.uncertain,
+                 'post_install_lifetime')
+            if not value._owner._closed:
+                value.check()
+        for value in self._profiles:
+            if not value._closed:
+                value.check()
+
+    def retain(self):
+        self._uncertain = True
+        if not any(value is self for value in _HELD_INSTALLATION_OWNERS):
+            _HELD_INSTALLATION_OWNERS.append(self)
+        self._stage._cleanup_failed = True
+        for value in (self._inputs._owner, self._inputs._download_owner):
+            value._uncertain = True
+        for value in self._executions:
+            value._owner._uncertain = True
+        for value in self._profiles:
+            value._retain = True
+
+    def execution(self, value):
+        need(type(value) is _ExecutableInput and value._controls is self._controls
+             and value._lifetime is self and sum(item is value for item in self._executions) == 1,
+             'post_install_lifetime')
+        value.check()
+
+    def __enter__(self):
+        self.check()
+        return self._stack
+
+    def __exit__(self, error_type, *_):
+        if error_type is not None:
+            self.retain()
+            self._stack.close()
+            return
+        try:
+            from rc_postpublication_process import ProcessOwner
+            self.check()
+            need(all(type(value) is ProcessOwner and value._lifetime is self
+                     and value._controls is self._controls and value._closed and value._family_closed
+                     and not value._uncertain and value._pidfd is None
+                     and value._process.returncode == 0 and value._process.stdin.closed
+                     and value._process.stdout.closed for value in self._processes), 'post_install_lifetime')
+            self._inputs.revalidate()
+            self._stack.close()
+            for value in self._profiles:
+                value.retire()
+        except BaseException:
+            self.retain()
+            self._stack.close()
+            raise
+
+
+def _run(argv, controls, lifetime, *, env, seconds=120, cwd=None):
+    from rc_postpublication_process import ProcessOwner
+    need(type(lifetime) is _InstallationOwner and lifetime._controls is controls,
+         'post_install_lifetime')
+    return ProcessOwner(controls, lifetime).run(argv, env=env, seconds=seconds, cwd=cwd)
+
+
+class _ProfileLease:
+    def check(self):
+        need(not self._closed, 'post_profile_changed')
+        info = os.fstat(self._root_fd)
+        current = os.stat(self.path.name, dir_fd=self._parent_fd, follow_symlinks=False)
+        need(stat.S_ISDIR(info.st_mode) and stat.S_ISDIR(current.st_mode)
+             and info.st_uid == os.geteuid() and stat.S_IMODE(info.st_mode) == 0o700
+             and (info.st_dev, info.st_ino) == self._identity == (current.st_dev, current.st_ino),
+             'post_profile_changed')
+
+    def retire(self):
+        self._lifetime.check()
+        self.check()
+        # A root-FD close fault occurs before any deletion; never retry that number.
+        os.close(self._root_fd)
+        self._root_fd = None
+        current = os.stat(self.path.name, dir_fd=self._parent_fd, follow_symlinks=False)
+        need(stat.S_ISDIR(current.st_mode) and current.st_uid == os.geteuid()
+             and stat.S_IMODE(current.st_mode) == 0o700
+             and (current.st_dev, current.st_ino) == self._identity, 'post_profile_changed')
+        shutil.rmtree(self.path.name, dir_fd=self._parent_fd)
+        os.close(self._parent_fd)
+        self._parent_fd, self._closed = None, True
+
+
+@contextmanager
+def _profile(parent, marker, lifetime):
+    """Actual new anchored profile, retained with its whole family if uncertain."""
+    need(type(lifetime) is _InstallationOwner and shutil.rmtree.avoids_symlink_attacks,
+         'post_profile_retirement_unavailable')
+    lifetime.check()
+    lease = _ProfileLease()
+    lease._parent_fd, lease._root_fd = _directory(parent), None
+    lease._lifetime = lifetime
+    lease._marker_fd = None
+    lease._closed = lease._retain = False
+    name = 'rc-post-profile-' + secrets.token_hex(16)
+    lease.path = Path(parent) / name
+    lifetime._profiles.append(lease)
+    try:
+        os.mkdir(name, 0o700, dir_fd=lease._parent_fd)
+        lease._root_fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                                 dir_fd=lease._parent_fd)
+        info = os.fstat(lease._root_fd)
+        lease._identity = info.st_dev, info.st_ino
+        lease._marker_fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600,
+                     dir_fd=lease._root_fd)
+        os.close(lease._marker_fd)
+        lease._marker_fd = None
+        lease.check()
+        yield lease.path
+        lifetime.check()
+    except BaseException:
+        lease._retain = True
+        lifetime.retain()
+        raise
+
+
+def _environment(environment, home, source, invocation):
+    # Credential values never enter installer, GUI, OAuth/native test children.
+    value = {k: environment[k] for k in ('LANG', 'LC_ALL', 'TZ') if k in environment}
+    value.update(PATH='/usr/bin:/bin', HOME=str(home), APPIMAGE_EXTRACT_AND_RUN='1', GDK_BACKEND='x11',
+        GITHUB_SHA=source.source_sha, GITHUB_WORKFLOW_SHA=source.source_sha,
+        GITHUB_RUN_ID=str(invocation.run_id), GITHUB_RUN_ATTEMPT=str(invocation.run_attempt),
+        GITHUB_REPOSITORY=source.repository, GITHUB_ACTIONS='true', RUNNER_ENVIRONMENT='github-hosted',
+        GITHUB_WORKSPACE=environment['GITHUB_WORKSPACE'], RUNNER_TEMP=environment['RUNNER_TEMP'])
+    for key, suffix in (('XDG_CONFIG_HOME', 'config'), ('XDG_DATA_HOME', 'data'),
+                        ('XDG_CACHE_HOME', 'cache'), ('XDG_RUNTIME_DIR', 'run')):
+        directory = home / suffix
+        directory.mkdir(mode=0o700)
+        value[key] = str(directory)
+    return value
+
+
+def install(stage, inputs, controls, environment, evidence, kind, invocation):
+    need(type(stage) is StagedAssets and type(inputs) is ReceivedInputs and inputs._verified
+         and inputs._stage is stage and inputs._controls is controls and kind in ('deb', 'appimage')
+         and invocation is inputs._invocation and invocation.source is stage.subject.source
+         and os.geteuid() != 0 and environment.get('GITHUB_ACTIONS') == 'true'
+         and environment.get('RUNNER_ENVIRONMENT') == 'github-hosted', 'post_install_not_admitted')
+    inputs.revalidate()
+    source, root = stage.subject.source, stage._root
+    original = wire._json(stage._bundle.read('evidence/rc-linux-packages/exclusive-package.json', 65536))
+    producer = stage.subject.runs[0]
+    need(all(original.get(k) == v for k, v in dict(source_sha=source.source_sha,
+         source_tree=source.source_tree, version=source.version, run_id=str(producer.run_id)).items()),
+         'post_producer_package_mismatch')
+    need(original.get('passed') is True and original.get('build_kind') == 'release-candidate'
+         and set(original.get('packages', {})) == {'deb', 'appimage'}, 'post_producer_package_mismatch')
+    entry = original['packages'][kind]
+    asset = next(a for a in stage.plan.assets if a.family == kind)
+    need(entry.get('artifact') == dict(name=asset.name, size=asset.size, sha256=asset.sha256),
+         'post_producer_package_mismatch')
+    current = copy.deepcopy(original)
+    current['run_id'] = str(invocation.run_id)  # New result identity, not an overwritten producer manifest.
+    parent = environment['RUNNER_TEMP']
+    output = Path(evidence)
+    lifetime = _InstallationOwner(stage, inputs, controls)
+    with lifetime as stack:
+        executions = []
+        package = inputs._owner._root.path / asset.name
+        if kind == 'appimage':
+            with inputs._owner._root.open(asset.name) as stream:
+                executable = stack.enter_context(_ExecutableInput(stream, asset, root, parent, controls, lifetime=lifetime))
+            executions.append(executable)
+            lifetime.execution(executable)
+            package = executable.path
+        with _profile(parent, '.linux-startup-disposable', lifetime) as home:
+            env = _environment(environment, home, source, invocation)
+            if kind == 'deb':
+                _run(['/usr/bin/sudo', '/usr/bin/apt-get', 'install', '-y', str(package)], controls,
+                     lifetime, env=env)
+            checks = _PackageChecks(lifetime, env, invocation)
+            package_result = packages._installed_checked(current, package, kind, output / 'rc-package.json', checks=checks)
+            app = package_result['executable']
+            for scenario in ('missing-bus', 'unlocked-keyring', 'split-session-bus', 'safe-mode'):
+                state = home / ('state-' + scenario)
+                state.mkdir(mode=0o700)
+                env['XDG_STATE_HOME'] = str(state)
+                _run(['/usr/bin/xvfb-run', '-a', '-s', '-screen 0 1280x800x24',
+                    '/usr/bin/dbus-run-session', '--', '/usr/bin/python3', str(root / 'scripts/linux_startup_candidate.py'),
+                    '--app', app, '--case', scenario, '--seconds', '20', '--output',
+                    str(output / ('startup-' + scenario))], controls, lifetime, env=env, seconds=60)
+                stderr = (output / ('startup-' + scenario) / 'stderr.txt').read_bytes()
+                need(b'failed to load app state' not in stderr and b'panic' not in stderr, 'post_raw_startup_failed')
+        with stage._bundle.open('evidence/rc-linux-driver/tauri-driver') as stream:
+            total, hasher = 0, hashlib.sha256()
+            while True:
+                controls.check()
+                data = stream.read(CHUNK)
+                controls.check()
+                if not data:
+                    break
+                total += len(data); hasher.update(data)
+            stream.seek(0)
+            driver_asset = Asset('tauri-driver', 'driver', 'application/octet-stream', total, hasher.hexdigest())
+            driver = stack.enter_context(_ExecutableInput(stream, driver_asset, root, parent, controls, lifetime=lifetime))
+        executions.append(driver)
+        lifetime.execution(driver)
+        with _profile(parent, '.ubuntu-ci-fixture-v1', lifetime) as home:
+            env = _environment(environment, home, source, invocation)
+            _run(['/usr/bin/xvfb-run', '-a', '-s', '-screen 0 1920x1080x24',
+                  '/usr/bin/dbus-run-session', '--', '/bin/bash', str(root / 'scripts/Ubuntu图形会话v2.sh'),
+                  str(root / 'scripts/exclusive_native_acceptance.py'), app, str(driver.path), kind,
+                  str(output)], controls, lifetime, env=env, seconds=600)
+            from rc_consumer_io import json_file
+            proof = json_file(output / 'exclusive-native.json')
+            native.verify(proof, source=source.source_sha, run_id=str(invocation.run_id),
+                          version=source.version, kind=kind, binary_sha256=package_result['native_executable_sha256'])
+        for owned in executions:
+            owned.check()
+    return dict(schema=1, passed=True, scope='actual-postpublication-native-twelve-only',
+        source_sha=source.source_sha, source_tree=source.source_tree, version=source.version,
+        run_id=invocation.run_id, run_attempt=invocation.run_attempt,
+        producer_run_id=producer.run_id, producer_run_attempt=producer.run_attempt,
+        transfer_artifact_id=inputs._expected.artifact_id, transfer_sha256=inputs._expected.sha256,
+        package=entry['artifact'], package_kind=kind, native_stages=12,
+        execution_cleanup_confirmed=True, release_approved=False, publish_approved=False,
+        real_chatgpt_verified=False, synthetic_conversation_metadata=True)

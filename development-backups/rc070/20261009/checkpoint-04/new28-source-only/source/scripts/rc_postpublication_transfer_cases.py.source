@@ -1,0 +1,233 @@
+"""Real TLS/worker ZIP and process-local contracts; no actual CI/installer run."""
+from contextlib import contextmanager
+import copy
+from dataclasses import asdict, replace
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+import zipfile
+
+from rc_consumer_io import ConsumerError
+import rc_publication_github as wire
+from rc_postpublication_cases import public_fixture
+from rc_postpublication_contract import (CAPTURE_JOB, MANIFEST, WORKFLOW, CaptureRequest,
+    TransferExpectation, encode, manifest_bytes, request_bytes, transfer_name)
+from rc_postpublication_source import post_invocation
+from rc_postpublication_reader import PublishedInputs
+from rc_postpublication_transfer import TransferPayload, ReceivedInputs, metadata
+
+
+def post_metadata(f, *, complete=False):
+    run = copy.deepcopy(f.api.data['/actions/runs/999'])
+    run.update(id=5001, workflow_id=44, path=WORKFLOW, status='in_progress', conclusion=None,
+        event='workflow_dispatch', created_at='2026-10-01T00:11:00Z',
+        run_started_at='2026-10-01T00:11:01Z', updated_at='2026-10-01T00:16:00Z')
+    job = dict(id=50011, run_id=5001, run_attempt=1, name=CAPTURE_JOB, head_sha=f.source.sha,
+        status='completed' if complete else 'in_progress', conclusion='success' if complete else None,
+        started_at='2026-10-01T00:11:02Z', completed_at='2026-10-01T00:15:00Z' if complete else None)
+    f.api.data.update({'/actions/workflows/' + Path(WORKFLOW).name: dict(id=44, path=WORKFLOW),
+        '/actions/runs/5001': run, '/actions/runs/5001/attempts/1': copy.deepcopy(run),
+        '/actions/runs/5001/attempts/1/jobs?per_page=100&page=1': dict(total_count=1, jobs=[job])})
+    return dict(GITHUB_EVENT_NAME='workflow_dispatch', GITHUB_REPOSITORY=f.selection.subject.source.repository,
+        GITHUB_REPOSITORY_ID=str(f.selection.subject.source.repository_id), GITHUB_RUN_ID='5001',
+        GITHUB_RUN_ATTEMPT='1', GITHUB_SHA=f.source.sha, GITHUB_WORKFLOW_SHA=f.source.sha,
+        GITHUB_REF='refs/heads/' + run['head_branch'],
+        GITHUB_WORKFLOW_REF=f.selection.subject.source.repository + '/' + WORKFLOW + '@refs/heads/' + run['head_branch'])
+
+
+def artifact_bytes(root, replacements=None, extra=None):
+    replacements, extra = replacements or {}, extra or {}
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_STORED) as archive:
+        for name in root.files():
+            archive.writestr(name, replacements.get(name, root.read(name)))
+        for name, data in extra.items():
+            archive.writestr(name, data)
+    return output.getvalue()
+
+
+def set_transfer(f, invocation, data, ident=51):
+    f.archives[ident] = data
+    item = dict(id=ident, name=transfer_name(invocation), size_in_bytes=len(data),
+        digest='sha256:' + hashlib.sha256(data).hexdigest(), expired=False,
+        created_at='2026-10-01T00:14:00Z', updated_at='2026-10-01T00:14:01Z', expires_at='2080-01-01T00:00:00Z',
+        workflow_run=dict(id=invocation.run_id, repository_id=invocation.source.repository_id,
+            head_repository_id=invocation.source.repository_id, head_sha=invocation.source.source_sha,
+            head_branch=invocation.ref.removeprefix('refs/heads/')))
+    f.api.data['/actions/artifacts/' + str(ident)] = copy.deepcopy(item)
+    f.api.data[f'/actions/runs/{invocation.run_id}/artifacts?per_page=100&page=1'] = dict(total_count=1, artifacts=[copy.deepcopy(item)])
+    return TransferExpectation(ident, len(data), hashlib.sha256(data).hexdigest())
+
+
+class PostTransferCases(unittest.TestCase):
+    def test_external_stage_dictionary_and_reentry_cannot_mint_received_owner(self):
+        from rc_postpublication_source import ReadController
+        controls=ReadController()
+        try:
+            with self.assertRaises(ConsumerError) as found:
+                ReceivedInputs(object(),object(),object(),TransferExpectation(51,1,'1'*64),controls,
+                               temporary_parent='/tmp')
+            self.assertEqual(found.exception.code,'invalid_post_stage')
+        finally:
+            controls.close()
+    def test_strict_request_rejects_extensions_duplicates_and_bool_ids(self):
+        with public_fixture() as (f, tls, request, controls, stage):
+            raw = encode(asdict(request))
+            self.assertEqual(request_bytes(raw), request)
+            for bad in (encode(dict(asdict(request), passed=True)), raw.replace(b'"release_id":100',b'"release_id":true'),
+                        raw.replace(b'"release_id":100',b'"release_id":100,"release_id":100'), raw+b'{}'):
+                with self.subTest(length=len(bad)), self.assertRaises(ConsumerError):
+                    request_bytes(bad)
+
+    def test_actual_new_post_run_metadata_and_original_id_separation(self):
+        with public_fixture() as (f, tls, request, controls, stage):
+            environment = post_metadata(f)
+            invocation = post_invocation(stage, controls, environment)
+            self.assertEqual(invocation.run_id, 5001)
+            self.assertIs(invocation.source, stage.subject.source)
+            self.assertNotIn(invocation.run_id, {r.run_id for r in stage.subject.runs})
+            self.assertEqual(invocation.capture_job_id, 50011)
+            self.assertEqual(invocation.workflow_blob,
+                wire.hashlib.sha1(b'blob ' + str(len((f.root/WORKFLOW).read_bytes())).encode()+b'\0'+(f.root/WORKFLOW).read_bytes()).hexdigest())
+            for key, value in (('GITHUB_RUN_ID','123'), ('GITHUB_WORKFLOW_SHA','0'*40),
+                               ('GITHUB_RUN_ATTEMPT','2'), ('GITHUB_EVENT_NAME','push')):
+                bad = dict(environment, **{key:value})
+                with self.subTest(field=key), self.assertRaises((ConsumerError,wire.WireFailure)):
+                    post_invocation(stage, controls, bad)
+
+    def test_actual_transfer_zip_bytes_and_source_manifest(self):
+        with public_fixture() as (f, tls, request, controls, stage):
+            environment = post_metadata(f)
+            invocation = post_invocation(stage, controls, environment)
+            with PublishedInputs(stage, request, controls, temporary_parent=f.parent) as inputs:
+                with TransferPayload(inputs, request, invocation, controls, temporary_parent=f.parent) as payload:
+                    expected = set_transfer(f, invocation, artifact_bytes(payload._owner._root))
+                    post_metadata(f, complete=True)
+                    with ReceivedInputs(stage, request, invocation, expected, controls,
+                                        temporary_parent=f.parent) as received:
+                        path = received._owner._root.path
+                        self.assertEqual(received._owner._root.read(MANIFEST), manifest_bytes(stage, request, invocation))
+                        self.assertNotEqual(path, inputs._owner._root.path)
+                        for asset in stage.plan.assets:
+                            self.assertEqual(received._owner._root.read(asset.name), f.payloads[asset.name])
+                            self.assertNotEqual(received._owner._root._files[asset.name], inputs._owner._root._files[asset.name])
+                    self.assertFalse(path.exists())
+                    with self.assertRaises(ConsumerError) as found:
+                        received.__enter__()
+                    self.assertEqual(found.exception.code,'post_received_reused')
+            self.assertTrue(all(r[0]=='GET' for r in tls.requests))
+
+    def test_transfer_id_digest_and_foreign_owner_denials(self):
+        with public_fixture() as (f, tls, request, controls, stage):
+            invocation = post_invocation(stage, controls, post_metadata(f))
+            with PublishedInputs(stage, request, controls, temporary_parent=f.parent) as inputs:
+                with TransferPayload(inputs, request, invocation, controls, temporary_parent=f.parent) as payload:
+                    data = artifact_bytes(payload._owner._root)
+                    expected = set_transfer(f, invocation, data)
+                    for ident in (stage.subject.artifact_id, stage._selection.consumer_artifact_id):
+                        with self.subTest(ident=ident), self.assertRaises(ConsumerError) as found:
+                            metadata(stage, invocation, ident, controls, complete=False)
+                        self.assertEqual(found.exception.code, 'post_transfer_id_reused')
+                    wrong = replace(expected, sha256='0'*64)
+                    with self.assertRaises(ConsumerError) as found:
+                        ReceivedInputs(stage, request, invocation, wrong, controls,
+                                       temporary_parent=f.parent, complete=False).__enter__()
+                    self.assertEqual(found.exception.code, 'post_transfer_expectation_changed')
+                    f.api.data['/actions/artifacts/51']['workflow_run']['head_sha'] = '0'*40
+                    with self.assertRaises(ConsumerError) as found:
+                        metadata(stage, invocation, 51, controls, complete=False)
+                    self.assertEqual(found.exception.code, 'post_transfer_metadata_changed')
+
+    def test_transfer_manifest_payload_and_extra_member_rejected(self):
+        with public_fixture() as (f, tls, request, controls, stage):
+            invocation = post_invocation(stage, controls, post_metadata(f))
+            with PublishedInputs(stage, request, controls, temporary_parent=f.parent) as inputs:
+                with TransferPayload(inputs, request, invocation, controls, temporary_parent=f.parent) as payload:
+                    for replacements, extra, code in (({MANIFEST:b'{"passed":true}'},{},'post_transfer_manifest_changed'),
+                        ({stage.plan.assets[0].name:b'foreign bytes'},{},'post_input_size_changed'),
+                        ({},{'packaging-report.json':b'{}'},'post_transfer_member_inventory')):
+                        expected = set_transfer(f, invocation, artifact_bytes(payload._owner._root,replacements,extra))
+                        with self.subTest(code=code), self.assertRaises(ConsumerError) as found:
+                            ReceivedInputs(stage, request, invocation, expected, controls,
+                                           temporary_parent=f.parent, complete=False).__enter__()
+                        self.assertEqual(found.exception.code, code)
+
+    def test_current_attempt_capture_completion_expiry_and_job_type_required(self):
+        with public_fixture() as (f, tls, request, controls, stage):
+            invocation = post_invocation(stage, controls, post_metadata(f))
+            with PublishedInputs(stage, request, controls, temporary_parent=f.parent) as inputs:
+                with TransferPayload(inputs, request, invocation, controls, temporary_parent=f.parent) as payload:
+                    data = artifact_bytes(payload._owner._root)
+                    set_transfer(f, invocation, data)
+                    with self.assertRaises(ConsumerError) as found:
+                        metadata(stage, invocation, 51, controls, complete=True)
+                    self.assertEqual(found.exception.code, 'post_capture_not_successful')
+                    post_metadata(f, complete=True)
+                    item = f.api.data['/actions/artifacts/51']
+                    listed = f.api.data['/actions/runs/5001/artifacts?per_page=100&page=1']['artifacts'][0]
+                    item['expires_at']=listed['expires_at']='2026-01-01T00:00:00Z'
+                    with self.assertRaises(ConsumerError) as found:
+                        metadata(stage, invocation, 51, controls, complete=True)
+                    self.assertEqual(found.exception.code, 'post_transfer_time_mismatch')
+                    set_transfer(f,invocation,data)
+                    job=f.api.data['/actions/runs/5001/attempts/1/jobs?per_page=100&page=1']['jobs'][0]
+                    job['run_attempt']=True
+                    with self.assertRaises(ConsumerError) as found:
+                        metadata(stage, invocation, 51, controls, complete=True)
+                    self.assertEqual(found.exception.code, 'post_job_mismatch')
+
+    def test_owned_execution_copy_preserves_raw_and_retires_without_launch(self):
+        from rc_postpublication_install import _ExecutableInput
+        with public_fixture() as (f, tls, request, controls, stage):
+            with PublishedInputs(stage, request, controls, temporary_parent=f.parent) as inputs:
+                asset=next(a for a in stage.plan.assets if a.family=='appimage')
+                raw=inputs._owner._root.path/asset.name
+                with inputs._owner._root.open(asset.name) as source:
+                    with _ExecutableInput(source,asset,stage._root,f.parent,controls) as execution:
+                        path=execution.path
+                        self.assertEqual(path.read_bytes(),raw.read_bytes())
+                        self.assertEqual(path.stat().st_mode & 0o777,0o700)
+                        self.assertEqual(raw.stat().st_mode & 0o777,0o600)
+                self.assertFalse(path.exists())
+                inputs.revalidate()
+
+    def test_cli_on_unowned_host_and_windows_placeholder_are_failures(self):
+        command=[sys.executable,'-B',str(Path(__file__).with_name('rc_postpublication_consumer.py')),
+                 'capture','--evidence-directory','/tmp']
+        result=subprocess.run(command,input=b'{}',stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+            env={'PATH':'/usr/bin:/bin','LC_ALL':'C','PYTHONDONTWRITEBYTECODE':'1'},timeout=5)
+        self.assertEqual(result.returncode,1)
+        value=json.loads(result.stdout)
+        self.assertEqual(value['error_code'],'post_host_not_disposable')
+        self.assertFalse(value['passed'])
+        import rc_postpublication_consumer as cli
+        output=io.StringIO()
+        from contextlib import redirect_stdout
+        with redirect_stdout(output):
+            self.assertEqual(cli._windows_block(),1)
+        self.assertEqual(json.loads(output.getvalue())['status'],'NOT_RUN')
+
+    def test_ack_receipt_is_atomic_create_only_and_never_approval(self):
+        from rc_postpublication_consumer import _receipt
+        with tempfile.TemporaryDirectory() as parent:
+            value=dict(schema=1,passed=False,status='NOT_RUN',release_approved=False,publish_approved=False)
+            _receipt(parent,'fixture.json',value)
+            self.assertEqual(json.loads((Path(parent)/'fixture.json').read_bytes()),value)
+            with self.assertRaises(FileExistsError):
+                _receipt(parent,'fixture.json',dict(passed=True))
+            self.assertEqual(json.loads((Path(parent)/'fixture.json').read_bytes()),value)
+
+    def test_three_production_hard_rejections_remain_unconditional(self):
+        for function,args,code in ((wire._remote_constraint,(object(),),'fence_blocked'),
+                                   (wire._authorize,(object(),object()),'denied'),
+                                   (wire._authenticated_latest_absence,(object(),),'fence_blocked')):
+            with self.subTest(name=function.__name__), self.assertRaises(wire.WireFailure) as found:
+                function(*args)
+            self.assertEqual((found.exception.code,found.exception.effect),(code,'none'))

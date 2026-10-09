@@ -1,0 +1,225 @@
+"""Credential-free fixed public GETs retain real six-asset bytes, not authority."""
+import hashlib
+import re
+import ssl
+import time
+from urllib.parse import urlsplit
+
+from rc_consumer_io import ConsumerError, FILE_LIMIT, need
+import rc_publication_github as wire
+from rc_publication_stage import StagedAssets
+from rc_postpublication_contract import CaptureRequest
+from rc_postpublication_io import InputOwner
+from rc_postpublication_source import ReadController, _ReferenceAPI
+
+
+class _Anonymous:
+    """No token, mutation method, input transport factory or arbitrary origin."""
+    _metadata = wire.GitHub._metadata
+    _pages = wire.GitHub._pages
+    _tag = wire.GitHub._tag
+    _projection = wire.GitHub._projection
+    _latest = wire.GitHub._latest
+    _remote_asset = wire.GitHub._remote_asset
+
+    def __init__(self, stage, request, controls, owner):
+        need(type(stage) is StagedAssets and stage._entered and not stage._closed
+             and type(request) is CaptureRequest and request.selection == stage._selection
+             and type(controls) is ReadController and type(owner) is InputOwner,
+             'invalid_post_stage')
+        need(type(stage._api) is _ReferenceAPI and stage._api._selection is stage._selection
+             and stage._api._controls is controls, 'invalid_post_reference')
+        self.selection, self._stage, self._request_view = stage._selection, stage, request
+        self._controls, self._owner = controls, owner
+        self._storage_path, self._cleanup_failed = None, False
+
+    def _allowed(self, host, path, binary):
+        request = self._request_view
+        if host == wire.STORAGE:
+            return binary and path == self._storage_path
+        if host != wire.API or type(path) is not str:
+            return False
+        suffix = path.removeprefix(wire.ROOT)
+        if wire.ROOT + suffix != path:
+            return False
+        if binary:
+            return suffix in {'/releases/assets/' + str(i) for i in request.asset_ids}
+        fixed = {'', '/releases/latest', '/releases/' + str(request.release_id),
+                 '/releases/' + str(self.selection.subject.stable_latest_identity[0])}
+        if suffix in fixed or suffix in {'/releases/assets/' + str(i) for i in request.asset_ids}:
+            return True
+        if re.fullmatch(r'/git/ref/tags/[A-Za-z0-9][A-Za-z0-9_.-]{0,159}', suffix):
+            return True
+        for stem in ('/releases', '/releases/' + str(request.release_id) + '/assets'):
+            match = re.fullmatch(re.escape(stem) + r'\?per_page=100&page=([1-9][0-9]{0,2})', suffix)
+            if match and int(match[1]) <= wire.PAGES:
+                return True
+        return False
+
+    def _request(self, method, host, path, *, anonymous=False, binary=False,
+                 limit=wire.METADATA, deadline=None, check_active=None, sink=None):
+        controls, sock, result, failure = self._controls, None, None, None
+        controls.check()
+        need(method == 'GET' and anonymous is True and type(binary) is bool
+             and type(limit) is int and 0 <= limit <= (FILE_LIMIT if binary else wire.METADATA)
+             and self._allowed(host, path, binary) and type(path) is str
+             and path.startswith('/') and all(33 <= ord(c) < 127 for c in path), 'invalid_post_endpoint')
+        actual = controls._deadline if deadline is None else min(controls._deadline, deadline)
+        def poll():
+            controls.check()
+            from rc_consumer_io import _check_budget
+            _check_budget(actual, check_active)
+        try:
+            poll()
+            sock = wire._connect(host, min(wire.TIMEOUT, max(0.001, actual - time.monotonic())))
+            need(isinstance(sock, ssl.SSLSocket) and sock.context.check_hostname
+                 and sock.context.verify_mode == ssl.CERT_REQUIRED and sock.server_hostname == host
+                 and sock.getpeercert(), 'post_tls_denied')
+            reader = wire._Reader(sock, actual, poll)
+            reader.check()
+            accept = 'application/octet-stream' if binary else 'application/vnd.github+json'
+            header = ('GET ' + path + ' HTTP/1.1\r\nHost: ' + host + '\r\nConnection: close\r\n'
+                      'Accept: ' + accept + '\r\nX-GitHub-Api-Version: 2022-11-28\r\n'
+                      'User-Agent: bounded-rc-public-consumer\r\n\r\n').encode('ascii')
+            sock.sendall(header)
+            result = reader.response(limit, binary, sink=sink)
+            poll()
+        except BaseException as error:
+            if isinstance(error, (KeyboardInterrupt, SystemExit)):
+                failure = type(error)()
+            elif isinstance(error, ConsumerError):
+                failure = ConsumerError(error.code)
+            elif isinstance(error, wire.WireFailure):
+                failure = ConsumerError('post_' + error.code)
+            else:
+                failure = ConsumerError('post_transport_failed')
+        finally:
+            if sock is not None:
+                try:
+                    sock.close()
+                except BaseException:
+                    self._cleanup_failed = self._owner._uncertain = True
+                    failure = ConsumerError('post_cleanup_uncertain')
+        if failure is not None:
+            raise failure
+        return result
+
+    def inventory(self):
+        controls, subject, request = self._controls, self.selection.subject, self._request_view
+        controls.check()
+        deadline = controls._deadline
+        repository = self._metadata('/', True, deadline)
+        need(type(repository) is dict and type(repository.get('id')) is int
+             and repository['id'] == subject.source.repository_id
+             and repository.get('full_name') == subject.source.repository, 'post_repository_mismatch')
+        tag = self._tag(subject.tag, True, deadline)
+        need(tag == {'type': 'commit', 'sha': subject.source.source_sha}, 'post_tag_changed')
+        releases = self._pages('/releases', True, deadline)
+        matching = [r for r in releases if r.get('tag_name') == subject.tag]
+        need(len(matching) == 1 and matching[0].get('id') == request.release_id, 'post_release_inventory')
+        direct = self._metadata('/releases/' + str(request.release_id), True, deadline)
+        need(direct == matching[0] and direct.get('draft') is False and direct.get('prerelease') is True,
+             'post_release_not_public')
+        rows = self._pages('/releases/' + str(request.release_id) + '/assets', True, deadline)
+        need(len(rows) == 6 and {r['id'] for r in rows} == set(request.asset_ids), 'post_asset_inventory')
+        by_id = {r['id']: r for r in rows}
+        assets = []
+        for ident, expected in zip(request.asset_ids, self._stage.plan.assets):
+            metadata = self._metadata('/releases/assets/' + str(ident), True, deadline)
+            need(metadata == by_id[ident], 'post_asset_metadata_changed')
+            assets.append(self._remote_asset(metadata, expected, ident))
+        need(self._latest(True, deadline) == subject.stable_latest_identity, 'post_latest_changed')
+        controls.check()
+        return tuple(assets)
+
+    def download(self, remote):
+        owner, controls = self._owner, self._controls
+        with owner.sink(remote.asset) as sink:
+            status, headers, measured = self._request('GET', wire.API,
+                wire.ROOT + '/releases/assets/' + str(remote.asset_id), anonymous=True,
+                binary=True, limit=remote.asset.size, deadline=controls._deadline, sink=sink)
+            if status == 200:
+                sink.finish(measured)
+                return
+            need(status == 302, 'post_asset_not_public')
+        location = headers.get('location', '')
+        need(type(location) is str and len(location) <= 8192
+             and all(33 <= ord(c) < 127 for c in location), 'post_storage_denied')
+        try:
+            parsed = urlsplit(location)
+            allowed = (parsed.scheme == 'https' and parsed.hostname == wire.STORAGE
+                       and parsed.port in (None, 443) and parsed.username is None
+                       and parsed.password is None and not parsed.fragment
+                       and parsed.path.startswith('/') and not parsed.path.startswith('//'))
+        except ValueError:
+            allowed = False
+        need(allowed, 'post_storage_denied')
+        self._storage_path = parsed.path + ('?' + parsed.query if parsed.query else '')
+        try:
+            with owner.sink(remote.asset) as sink:
+                status, _, measured = self._request('GET', wire.STORAGE, self._storage_path,
+                    anonymous=True, binary=True, limit=remote.asset.size,
+                    deadline=controls._deadline, sink=sink)
+                need(status == 200, 'post_second_redirect')
+                sink.finish(measured)
+        finally:
+            self._storage_path = None
+
+
+class PublishedInputs:
+    """An actual entered stage and fixed anonymous reads own six real files."""
+    def __init__(self, stage, request, controls, *, temporary_parent):
+        need(type(stage) is StagedAssets and stage._entered and not stage._closed
+             and type(request) is CaptureRequest and request.selection == stage._selection
+             and type(controls) is ReadController, 'invalid_post_stage')
+        need(type(stage._api) is _ReferenceAPI and stage._api._selection is stage._selection
+             and stage._api._controls is controls, 'invalid_post_reference')
+        self._stage, self._request, self._controls = stage, request, controls
+        self._owner = InputOwner(temporary_parent, stage._root, controls)
+        self._api = _Anonymous(stage, request, controls, self._owner)
+        self._entered = self._verified = self._closed = False
+
+    def __enter__(self):
+        need(not self._entered and not self._closed, 'post_inputs_reused')
+        self._entered = True
+        try:
+            self._stage.revalidate(**self._controls.budget)
+            self._inventory = self._api.inventory()
+            for asset in self._inventory:
+                self._api.download(asset)
+            self._check_bytes()
+            self.revalidate()
+            self._verified = True
+            return self
+        except BaseException:
+            self.close()
+            raise
+
+    def _check_bytes(self):
+        self._owner.check()
+        plan, raw = self._stage.plan, self._owner._root
+        need(set(raw.files()) == {a.name for a in plan.assets}, 'post_raw_inventory_changed')
+        for asset in plan.assets:
+            self._owner.verify(asset)
+        need(raw.read('RC_PROVENANCE.json') == self._stage.provenance_bytes, 'post_provenance_changed')
+        checksums = ''.join(a.sha256 + '  ' + a.name + '\n'
+                            for a in sorted(plan.assets[:-1], key=lambda a: a.name)).encode('ascii')
+        need(raw.read(plan.assets[-1].name) == checksums, 'post_checksums_changed')
+        need(hashlib.sha256(self._stage.plan_bytes).hexdigest() == self._stage.subject.plan_sha256,
+             'post_plan_changed')
+
+    def revalidate(self):
+        need(self._entered and not self._closed, 'post_input_lifetime')
+        self._owner.check()
+        self._check_bytes()
+        need(self._api.inventory() == self._inventory, 'post_public_inventory_changed')
+        self._stage.revalidate(**self._controls.budget)
+        self._owner.check()
+
+    def close(self):
+        if not self._closed:
+            self._closed = True
+            self._owner.close()
+
+    def __exit__(self, *_):
+        self.close()

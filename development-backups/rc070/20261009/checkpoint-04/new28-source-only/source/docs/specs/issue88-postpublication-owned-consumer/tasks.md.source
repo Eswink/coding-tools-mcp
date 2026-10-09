@@ -1,0 +1,129 @@
+# 任务清单：issue88-postpublication-owned-consumer
+
+## 概述
+
+真实D6独立增量，组件测试与真实发布后验收分开。全部生产修改先spec/check_spec/逐symbolimpact。
+
+## 交付物清单（Scope-lock）
+
+- 预计文件数: 历史18；当前候选28
+- 预计任务数: 6
+- 根checkout、旧authority/postpublish seal、finite19/118、原版本/profile/授权stubs/PR98/snapshot不变。
+
+## 任务列表
+
+### 阶段 1: 准备工作
+
+- [x] 1.1 固定本地GitNexus fresh actualD6 index/impact并核验16路径预算
+  - 证据块: scripts/rc_publication_github.py:143；scripts/rc_publication_stage.py:222；scripts/rc_consumer_io.py:187；scripts/rc_packages.py:103
+  - 文件: docs/specs/issue88-postpublication-owned-consumer三文档（各≤200行）
+  - _需求: FR-1, FR-2, FR-3, FR-4, FR-5_ · _设计: 技术方案、风险评估_
+
+### 阶段 2: 核心实现
+
+- [x] 2.1 新建封闭三身份与actualsource固定readcontroller，≤300行/文件
+  - 证据块: scripts/rc_pretag_types.py:150；scripts/rc_publication_stage.py:90；scripts/rc_consumer_snapshot.py:180
+  - 文件: rc_postpublication_contract.py、rc_postpublication_source.py
+  - _需求: FR-1, FR-5_ · _设计: 数据模型、决策2/3_
+- [x] 2.2 接入原Reader私有owned200sink与六匿名文件/原checksum/finalfence，≤350行/新文件
+  - 证据块: scripts/rc_publication_github.py:143、377、456；scripts/rc_publication_retirement.py:203
+  - 文件: rc_publication_github.py、rc_postpublication_io.py、rc_postpublication_reader.py
+  - _需求: FR-2_ · _设计: 技术方案、决策1_
+- [x] 2.3 接入实际新transfer API/ZIP与持续owner ACK协议，≤350行/文件
+  - 证据块: scripts/rc_consumer_transport.py:130；scripts/rc_consumer_archive.py:199；scripts/rc_publication_stage.py:114
+  - 文件: rc_postpublication_transfer.py、rc_postpublication_consumer.py
+  - _需求: FR-1, FR-3_ · _设计: API设计、决策1_
+- [x] 2.4 新建五槽readonlyworkflow与原Linux命令两身份适配，Windows固定blocked，≤400行/文件
+  - 证据块: .github/workflows/final-rc-packages.yml:317；scripts/rc_packages.py:123；scripts/rc_windows_install.ps1:22；scripts/rc_native_gate.py:18
+  - 文件: rc_publication_stage.py、rc_packages.py、rc_postpublication_install.py、.github/workflows/rc-postpublication-consumer.yml
+  - _需求: FR-4, FR-5_ · _设计: API设计、决策2/3_
+
+### 阶段 3: 集成测试
+
+- [ ] 3.1 运行failure-first、same-source真实TLS/ZIP/CLI拒绝与原受影响wire/Stage回归并freeze独立审查
+  - 证据块: scripts/rc_publication_https_fixture.py:33；scripts/rc_publication_stage_cases.py:88；scripts/rc_publication_github_cases.py:1
+  - 文件: rc_postpublication_cases.py、rc_postpublication_transfer_cases.py（各≤450行）
+  - 验收点: FR-1全部、FR-2全部、FR-3全部；FR-4实际安装/五真实host保持NOT_RUN并记录依赖；FR-5全部
+  - _需求: FR-1, FR-2, FR-3, FR-4, FR-5_ · _设计: 风险评估_
+
+## 检查点
+
+- [x] 阶段1：check_spec真实非空PASS、estimate、freshimpact风险告root。
+- [x] 阶段2：actualsource范围/默认旧行为/三reject/sourcebudget/secretfree日志核验。
+- [ ] 阶段3：精确named/source/runtime/runner/log、完整失败保留、detect_changes/code_review、不可借wholefinal。
+
+## 需求覆盖矩阵
+
+| 需求 ID | 设计章节 | 任务编号 | 状态 |
+| --- | --- | --- | --- |
+| FR-1 | 数据模型/决策2 | 2.1, 2.3, 3.1 | 源组件已实现；必要同源回归/独立审查待完成 |
+| FR-2 | 技术方案/决策1 | 2.2, 3.1 | 源组件已实现；必要同源回归/独立审查待完成 |
+| FR-3 | API设计/决策1 | 2.3, 3.1 | 源组件已实现；必要同源回归/独立审查待完成 |
+| FR-4 | API设计/决策2 | 2.4, 3.1 | 源组件已实现；必要同源回归/独立审查待完成 |
+| FR-5 | 决策3/风险评估 | 2.1, 2.4, 3.1 | 源组件已实现；必要同源回归/独立审查待完成 |
+| FR-6 | 决策4/nativeprocess与PackageChecks | 4.1, 4.2, 4.3, 4.4 | 23项实际kernel/entered-owner聚焦PASS；完整同源组合/独立审查待完成，sudo权限UNKNOWN |
+
+## 文件变更清单
+
+| 文件 | 操作 | 行数预算 | 说明 |
+| --- | --- | --- | --- |
+| scripts/rc_publication_github.py | 修改 | ≤499 | 默认解析器契约不变，successful binary200仅内部自有sink |
+| scripts/rc_publication_stage.py | 修改 | ≤400 | 保存既已验证的原bundle引用，不添加授权 |
+| scripts/rc_packages.py | 修改 | ≤240 | 分离已验证manifest后的原installed检查供新运行复用 |
+| scripts/rc_postpublication_contract.py | 新建 | ≤300 | 封闭expectation/三运行身份/transferschema，数据不是grant |
+| scripts/rc_postpublication_io.py | 新建 | ≤350 | 新建真实POSIXraw/control根、原解析预算sink及精确retirement |
+| scripts/rc_postpublication_reader.py | 新建 | ≤350 | 无credential固定GET、六asset与公共checksum/finalfence |
+| scripts/rc_postpublication_source.py | 新建 | ≤300 | actualnativeGET绑定、真实post-run/job/env、进入原StagedAssets |
+| scripts/rc_postpublication_transfer.py | 新建 | ≤350 | 实际APIartifact+有界ZIP与七成员严格绑定 |
+| scripts/rc_postpublication_consumer.py | 新建 | ≤350 | capture/receive两个固定CLI，原owner跨upload持有、有限ACK不grant |
+| scripts/rc_postpublication_install.py | 新建 | ≤400 | 两身份Linux原commands adapter、owned执行copy；Windows明确block |
+| scripts/rc_postpublication_cases.py | 新建 | ≤450 | 真实TLS/ownedraw与来源/取消/错误负例 |
+| scripts/rc_postpublication_transfer_cases.py | 新建 | ≤450 | 真实transferZIP/ID/三身份/CLI有限协议负例 |
+| .github/workflows/rc-postpublication-consumer.yml | 新建 | ≤350 | 中央六rawcapture/新transfer、四Linux与Windows固定槽，不dispatch |
+| docs/specs/issue88-postpublication-owned-consumer/requirements.md | 新建 | ≤150 | 需求 |
+| docs/specs/issue88-postpublication-owned-consumer/design.md | 新建 | ≤200 | 设计及未知依赖 |
+| docs/specs/issue88-postpublication-owned-consumer/tasks.md | 新建 | ≤200 | 有限scope和门禁 |
+
+## 交付前自检
+
+- [ ] 无占位符或省略实现。
+- [ ] 历史组件精确18路径；新当前层精确28路径、全部≤500行；必要scope增补须先更新spec并新check。
+- [ ] 不运行真实installer/remote/browser/credentials；五host安装NOT_RUN、Windowsunknownblocked。
+- [ ] 不改旧source/seal，失败/未运行/原runtime证据不拼借。
+
+## 实际状态限制
+
+原20预检真实19PASS/1ERROR，源码pins仅开始后抓取，不资格化；原4聚焦PASS不拼借最终源。新独立D6视图精确恢复两修正前SHA，先fresh never/index-only/drop索引与新symbol impact后重施同字节修正，原流程缺口erratum永久保留。冻结16 v3实际112完整PASS仅readonly组件并staticBLOCK；v2中断永久UNKNOWN。新18必须新source/runner/runtime完整回归；五真实安装/Windows native IO/native authority+StageAPI/F2均NOT_RUN或UNKNOWN。
+
+## 新增量：安装命令owned生命周期
+
+- [x] 4.1 fresh local NEVER/index/drop逐installed_checked/install/_run/installed/private helpers精确impact，动态HIGH保留；check_spec6FR真实通过后才改symbol。
+- [x] 4.2 新ProcessOwner/PackageChecks封闭nativechild/wholefamily/allowlist/deadline/stdout/digest，optional旧检查默认行为不变。
+- [x] 4.3 普通临时child actualfailure-first：继承假fixture credential、过期/noop、取消中途、fork后代/escaped session、pipe/close/reap/leader所有权；禁止installer/nativecandidate/remote运行。
+- [ ] 4.4 新18冻结source/runtime/runner精确inventory和旧112必要同源回归＋新child组合，原中断/失败全部保存，root独立review。
+
+| 文件 | 操作 | 行数预算 | 说明 |
+| --- | --- | --- | --- |
+| scripts/rc_postpublication_process.py | 新建 | ≤499 | fixed PackageChecks/nativepidfd+actualsubreaper owned wholefamily |
+| scripts/rc_postpublication_process_cases.py | 新建 | ≤450 | ordinary actual kernel child only，否定和清理语义，不installer |
+
+五真实host安装仍NOT_RUN；原16/tree79c45a永久冻结不变。
+
+FR-6 task4.2必须实际持全部enteredStage/ReceivedInputs/execution/profile所有权，未知sticky标记whole owner，DEB空executions不能提前retire任何根；持久uncertain不能freshwrapper恢复。独立review的四负例实际4FAIL保存后修正，必须fresh必要组合。PackageChecks与install upfront同一actualinvocation，profile到终局成功退休，sudo特权后代能力不借普通child PASS。
+
+第二轮真实3负例为1FAIL/2ERROR：排队DONE取消时S/C合包解析错误、marker close不确定FD未留存、终局输入检查尚无actual owned Stack。原日志永久保存。先fresh逐symbolimpact后修正控制管道逐行解析/nonblocking剩余期限写入、actual ExitStack与最终输入fence先于copy退休、marker FD强持；最新23loaded/executed/named PASS且source/runtime before-after一致仅聚焦组件。原112+新23=135是计划inventory，完整当前源回归完成前不宣称整体通过。
+
+## 新增独立源码准入（FR-7，当前候选28；旧18是历史组件）
+- [ ] 5.1 固定actualD6/F/R nativeframes、完整1864输入和26identity闭合scope，并先freshimpact/HIGH披露/check_spec/peer；预算28/1867/27pins/4600。
+  - 证据块: originalWindows profile content返回complete actual；旧_cases.py495行20methods105assert；native26pair actualpath/mode/hash证明全匹配。
+  - 文件: 原3spec（requirements≤117/design≤116/tasks≤144）；_postpublication_profile.py≤500与_cases.py≤500；新owned-checks.yml≤480。
+  - _需求: FR-7_ · _设计: 决策5_
+- [ ] 5.2 实现2sourceobs hooks、5固定alias与Windows有限operand/fullinverse；所有原caps/pins/方法/断言/negative-layer保持。
+  - 证据块: sourceobs.select先旧Windows；normalize先旧Windows；原invalid/frozen/unmapped用x.normalize，不能新pin提前拒绝替代原assert。
+  - 文件: sourceobs_profile≤200/delta12；sourceobs_cases≤353/delta2、archive≤399/delta2、auth_tests≤486/delta2、checksum≤381/delta2、staging≤384/delta2；Windowscases≤495/delta22。
+  - _需求: FR-7_ · _设计: 决策5_
+- [ ] 5.3 当前全source封闭27pin/26identity/10fragments，peer审查后实际必要488一次、detect_changes/gencommit、小commit与root协调真实CI。
+  - 证据块: old135源码tree3637/1864是历史组件；NEW28lost31ec不能复用；readonly21ref proposal原tests0；真实CI old425+48+12=485。
+  - 文件: 原15nonSpec组件字节不动，3spec更新+3新增source/WF+7旧operand=28；原sourceversion3不删。
+  - _需求: FR-7_ · _设计: 决策5_
+| FR-7 | 决策5 | 5.1,5.2,5.3 | 规格/impact/peer准备中，当前488/CI/五安装NOT_RUN |

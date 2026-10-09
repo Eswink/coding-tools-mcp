@@ -1,0 +1,135 @@
+"""Actual private raw files and creation-owned retirement; POSIX only."""
+from contextlib import ExitStack
+import hashlib
+import os
+import stat
+import threading
+
+from rc_consumer_io import CHUNK, FILE_LIMIT, ConsumerError, PrivateRoot, need
+from rc_publication_retirement import StageRootOwner, retire_staged
+from rc_postpublication_source import ReadController
+
+
+class InputOwner:
+    """No incoming path/stream/callback constitutes a retained input owner."""
+    def __init__(self, parent, source_root, controls, *, prefix='rc-post-raw-'):
+        need(type(controls) is ReadController and os.name == 'posix', 'post_native_io_unavailable')
+        controls.check()
+        self._controls, self._pid, self._thread = controls, os.getpid(), threading.get_ident()
+        self._retirement, self._stack = StageRootOwner(), ExitStack()
+        self._closed = self._uncertain = False
+        self._root = None
+        try:
+            self._root = self._stack.enter_context(PrivateRoot(parent, prefix, source_root=source_root,
+                                               _stage_owner=self._retirement))
+            self._retirement.registered = True
+        except BaseException:
+            self.close()
+            raise
+
+    def check(self):
+        self._controls.check()
+        need(not self._closed and (os.getpid(), threading.get_ident()) == (self._pid, self._thread)
+             and self._root is not None and not self._retirement.uncertain, 'post_input_lifetime')
+
+    def sink(self, asset):
+        from rc_publication_contract import Asset
+        self.check()
+        need(type(asset) is Asset and asset.size <= FILE_LIMIT, 'invalid_post_asset')
+        return _RawSink(self, asset)
+
+    def verify(self, asset):
+        self.check()
+        with self._root.open(asset.name) as stream:
+            info = os.fstat(stream.fileno())
+            need(info.st_size == asset.size, 'post_input_size_changed')
+            total, digest = 0, hashlib.sha256()
+            while True:
+                self.check()
+                data = stream.read(CHUNK)
+                self.check()
+                if not data:
+                    break
+                total += len(data)
+                need(total <= asset.size, 'post_input_size_changed')
+                digest.update(data)
+            need((total, digest.hexdigest()) == (asset.size, asset.sha256), 'post_input_digest_changed')
+        self.check()
+
+    def close(self):
+        if self._closed:
+            return
+        self._closed = True
+        error = None
+        try:
+            self._stack.close()
+        except BaseException as failure:
+            self._uncertain, error = True, failure
+        try:
+            retire_staged([self._retirement], retain=self._uncertain)
+        except BaseException as failure:
+            self._uncertain, error = True, failure
+        if error is not None:
+            raise ConsumerError('post_cleanup_uncertain') from None
+
+    def __enter__(self):
+        self.check()
+        return self
+
+    def __exit__(self, *_):
+        self.close()
+
+
+class _RawSink:
+    """Parser-private, single successful response; never an external callback."""
+    def __init__(self, owner, asset):
+        need(type(owner) is InputOwner, 'invalid_post_owner')
+        owner.check()
+        self._owner, self._asset = owner, asset
+        self._context = self._stream = None
+        self._started = self._finished = False
+        self._total, self._digest = 0, hashlib.sha256()
+
+    def _begin(self, status, binary):
+        self._owner.check()
+        need(not self._started and not self._finished and binary is True, 'post_sink_reused')
+        self._started = True
+        if status == 200:
+            self._context = self._owner._root.open(self._asset.name, 'xb')
+            self._stream = self._context.__enter__()
+
+    def _write(self, data):
+        self._owner.check()
+        need(self._started and not self._finished and type(data) is bytes, 'post_sink_lifetime')
+        if self._stream is not None:
+            need(self._total + len(data) <= self._asset.size, 'post_input_size_changed')
+            need(self._stream.write(data) == len(data), 'post_input_write_failed')
+            self._digest.update(data)
+            self._total += len(data)
+        self._owner.check()
+
+    def finish(self, measured):
+        self._owner.check()
+        need(self._started and not self._finished and self._stream is not None,
+             'post_sink_not_successful')
+        need(measured == (self._asset.size, self._asset.sha256) ==
+             (self._total, self._digest.hexdigest()), 'post_input_digest_changed')
+        self.close()
+        self._owner.verify(self._asset)
+        self._finished = True
+
+    def close(self):
+        context, self._context, self._stream = self._context, None, None
+        if context is not None:
+            try:
+                context.__exit__(None, None, None)
+            except BaseException:
+                self._owner._uncertain = True
+                raise ConsumerError('post_cleanup_uncertain') from None
+
+    def __enter__(self):
+        self._owner.check()
+        return self
+
+    def __exit__(self, *_):
+        self.close()

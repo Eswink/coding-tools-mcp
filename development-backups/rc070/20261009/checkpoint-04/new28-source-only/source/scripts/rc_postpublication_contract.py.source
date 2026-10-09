@@ -1,0 +1,138 @@
+"""Post-release expectations and observations are data, never release authority."""
+from dataclasses import asdict, dataclass
+import hashlib
+import json
+import re
+
+from rc_consumer_io import ConsumerError, FILE_LIMIT, need
+from rc_pretag_types import SourceIdentity, InvocationIdentity, decode, REPOSITORY
+from rc_publication_contract import PublicationSubject, _ids
+from rc_publication_stage import Selection
+
+WORKFLOW = '.github/workflows/rc-postpublication-consumer.yml'
+CAPTURE_JOB = 'Anonymous six assets and exact public-byte transfer'
+MANIFEST = 'post-publication-inputs.json'
+SLOTS = (('windows-2025', 'nsis'), ('ubuntu-22.04', 'deb'),
+         ('ubuntu-24.04', 'deb'), ('ubuntu-22.04', 'appimage'),
+         ('ubuntu-24.04', 'appimage'))
+
+
+def encode(value):
+    return (json.dumps(value, sort_keys=True, separators=(',', ':'),
+                       allow_nan=False) + '\n').encode('utf-8')
+
+
+def digest(raw):
+    need(type(raw) is bytes, 'invalid_post_bytes')
+    return hashlib.sha256(raw).hexdigest()
+
+
+@dataclass(frozen=True)
+class CaptureRequest:
+    selection: Selection
+    release_id: int
+    asset_ids: tuple[int, ...]
+
+    def __post_init__(self):
+        need(type(self.selection) is Selection, 'invalid_post_selection')
+        self.selection.__post_init__()
+        need(type(self.release_id) is int and 0 < self.release_id < 2**63, 'invalid_post_release')
+        _ids(self.asset_ids)
+        need(len(self.asset_ids) == 6, 'invalid_post_assets')
+
+
+def request_bytes(raw):
+    """Exact heterogeneous tuple schema; the generic homogeneous decoder cannot."""
+    def exact(value, names):
+        need(type(value) is dict and set(value) == set(names), 'invalid_post_request')
+        return value
+    def array(value):
+        need(type(value) is list and len(value) <= 128, 'invalid_post_request')
+        return value
+    try:
+        import rc_publication_github as wire
+        need(type(raw) is bytes and 0 < len(raw) <= 256 * 1024, 'invalid_post_request')
+        value = exact(wire._json(raw), ('selection', 'release_id', 'asset_ids'))
+        selected = exact(value['selection'], ('subject', 'consumer_artifact_id',
+            'consumer_artifact_size', 'consumer_artifact_sha256'))
+        subject = dict(exact(selected['subject'], PublicationSubject.__dataclass_fields__))
+        subject['source'] = decode(SourceIdentity, subject['source'])
+        subject['runs'] = tuple(decode(InvocationIdentity, r) for r in array(subject['runs']))
+        subject['job_ids'] = tuple(tuple(array(ids)) for ids in array(subject['job_ids']))
+        subject['gate_evidence'] = tuple(array(subject['gate_evidence']))
+        subject['stable_latest_identity'] = tuple(array(subject['stable_latest_identity']))
+        selection = Selection(PublicationSubject(**subject), selected['consumer_artifact_id'],
+            selected['consumer_artifact_size'], selected['consumer_artifact_sha256'])
+        return CaptureRequest(selection, value['release_id'], tuple(array(value['asset_ids'])))
+    except (ValueError, TypeError, KeyError, RecursionError):
+        raise ConsumerError('invalid_post_request') from None
+
+
+@dataclass(frozen=True)
+class PostInvocation:
+    source: SourceIdentity
+    run_id: int
+    run_attempt: int
+    workflow_id: int
+    workflow_ref: str
+    workflow_blob: str
+    ref: str
+    capture_job_id: int
+
+    def __post_init__(self):
+        need(type(self.source) is SourceIdentity, 'invalid_post_source')
+        self.source.__post_init__()
+        need(all(type(n) is int and 0 < n < 2**63 for n in
+                 (self.run_id, self.run_attempt, self.workflow_id, self.capture_job_id)),
+             'invalid_post_invocation')
+        need(type(self.ref) is str and re.fullmatch(r'refs/(heads|tags)/[A-Za-z0-9][A-Za-z0-9/._-]*', self.ref)
+             and '..' not in self.ref and '//' not in self.ref and not self.ref.endswith(('/', '.')),
+             'invalid_post_ref')
+        need(self.workflow_ref == REPOSITORY + '/' + WORKFLOW + '@' + self.ref
+             and type(self.workflow_blob) is str and re.fullmatch('[a-f0-9]{40}', self.workflow_blob),
+             'invalid_post_workflow')
+
+
+@dataclass(frozen=True)
+class TransferExpectation:
+    artifact_id: int
+    size: int
+    sha256: str
+
+    def __post_init__(self):
+        need(type(self.artifact_id) is int and 0 < self.artifact_id < 2**63
+             and type(self.size) is int and 0 < self.size <= 2 * 1024**3
+             and type(self.sha256) is str and re.fullmatch('[a-f0-9]{64}', self.sha256),
+             'invalid_post_transfer')
+
+
+def transfer_name(invocation):
+    need(type(invocation) is PostInvocation, 'invalid_post_invocation')
+    invocation.__post_init__()
+    return f'rc-postpublication-raw-{invocation.run_id}-{invocation.run_attempt}'
+
+
+def manifest_bytes(stage, request, invocation):
+    """Expected exact contents, constructed from retained original stage bytes."""
+    from rc_publication_stage import StagedAssets
+    need(type(stage) is StagedAssets and stage._entered and not stage._closed,
+         'invalid_post_stage')
+    need(type(request) is CaptureRequest and request.selection == stage._selection
+         and type(invocation) is PostInvocation and invocation.source == stage.subject.source,
+         'post_source_mismatch')
+    need(invocation.run_id not in {r.run_id for r in stage.subject.runs}, 'post_run_reused')
+    need(len(stage.plan.assets) == 6 and all(a.size <= FILE_LIMIT for a in stage.plan.assets),
+         'post_asset_limit')
+    subject, selected = stage.subject, stage._selection
+    return encode(dict(schema=1, scope='verified-public-bytes-only',
+        release_approved=False, publish_approved=False, source=asdict(subject.source),
+        original_invocations=[asdict(r) for r in subject.runs],
+        original_artifact=dict(id=subject.artifact_id, size=subject.artifact_size,
+                               sha256=subject.artifact_sha256),
+        original_consumer_artifact=dict(id=selected.consumer_artifact_id,
+            size=selected.consumer_artifact_size, sha256=selected.consumer_artifact_sha256),
+        selection_sha256=digest(encode(asdict(selected))),
+        plan_sha256=digest(stage.plan_bytes), provenance_sha256=digest(stage.provenance_bytes),
+        post_invocation=asdict(invocation), release_id=request.release_id,
+        remote_asset_ids=list(request.asset_ids), assets=[asdict(a) for a in stage.plan.assets],
+        installation_slots=[dict(platform=p, kind=k, status='NOT_RUN') for p, k in SLOTS]))

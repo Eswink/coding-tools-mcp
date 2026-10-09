@@ -1,0 +1,302 @@
+{
+  "base": "D6+exact73 before blockedStage11",
+  "source": [
+    {
+      "path": "docs/specs/independent-unqualified-windows/design.md",
+      "mode": "100644",
+      "bytes": 7957,
+      "lines": 122,
+      "sha256": "edbee7c2193f04618a6b324ebf5d681f69d4e716a0443b4496f9e7a0b25c96e0",
+      "blob": "ba5d0abce80fbbec185d5c4c91f8b1966a151664"
+    },
+    {
+      "path": "docs/specs/independent-unqualified-windows/requirements.md",
+      "mode": "100644",
+      "bytes": 5819,
+      "lines": 94,
+      "sha256": "0f7e1a6c6fcb34bf12dbf4d1b4d0deae55bdeaaee0a312997da3cca19e8051d4",
+      "blob": "b9a8915a50cc98178700c25d0311ed6aabdf063a"
+    },
+    {
+      "path": "docs/specs/independent-unqualified-windows/tasks.md",
+      "mode": "100644",
+      "bytes": 4616,
+      "lines": 92,
+      "sha256": "be8d792ddb5e33a31a80dfd61da000e828020ea331aa3c6d8de5660a2df63c9b",
+      "blob": "ab8a583b3419d6333ab05b3eea90c1521aba8b9c"
+    },
+    {
+      "path": "docs/specs/windows-execution-opened-root/design.md",
+      "mode": "100644",
+      "bytes": 7949,
+      "lines": 122,
+      "sha256": "68a237a1e2a0d750833c6d3308010b5c49e7c18858430d0cfbae87e03bab2e2c",
+      "blob": "72b2315c6e936bd3f93dc2f6493c469bc45894d1"
+    },
+    {
+      "path": "docs/specs/windows-execution-opened-root/requirements.md",
+      "mode": "100644",
+      "bytes": 5811,
+      "lines": 94,
+      "sha256": "d41aa5c48259a87f3783d3bcc2af5c7ae6909c1c74f87db98a47cdfd4cf7e95b",
+      "blob": "b05e69ccfb3774335fd653069f7750a5450c7617"
+    },
+    {
+      "path": "docs/specs/windows-execution-opened-root/tasks.md",
+      "mode": "100644",
+      "bytes": 4608,
+      "lines": 92,
+      "sha256": "407f6b1b173374f2bea91dcc6d379f5fb571a690df2160cd7fe8483ff9b1f010",
+      "blob": "4436812f23d287a479ef5b70bf15e6e55f2860b6"
+    },
+    {
+      "path": "docs/specs/windows-execution-transfer/design.md",
+      "mode": "100644",
+      "bytes": 7946,
+      "lines": 122,
+      "sha256": "13e61633cb5e99120a1f9ccc73a148c97396a7137a6fcafe954a7034b7800489",
+      "blob": "6082e54bbc50560fbbb6ffefc28bad266b3be8ce"
+    },
+    {
+      "path": "docs/specs/windows-execution-transfer/requirements.md",
+      "mode": "100644",
+      "bytes": 5808,
+      "lines": 94,
+      "sha256": "b56c511908c06730de18302e9f76e461336e9fb4bdac49787d9ac29bd7f6bed7",
+      "blob": "d69bcd43626f7d5d68e01bdfa0774ca53d6dfe8a"
+    },
+    {
+      "path": "docs/specs/windows-execution-transfer/tasks.md",
+      "mode": "100644",
+      "bytes": 4605,
+      "lines": 92,
+      "sha256": "8535e3f631aa5ef5f0070052828fb2ce021485efb752a4e588c59b5dc7814783",
+      "blob": "0d6690c9fb401e661aa204253a3e8c2bde86f252"
+    },
+    {
+      "path": "docs/specs/windows-owned-workspace-run/design.md",
+      "mode": "100644",
+      "bytes": 7947,
+      "lines": 122,
+      "sha256": "1ea9b555ea11a6013210762c87fafb12840db8d1205dbfd52a19f85268fe3450",
+      "blob": "613467a1346d09d43f13dcc191f884f8fe2d1514"
+    },
+    {
+      "path": "docs/specs/windows-owned-workspace-run/requirements.md",
+      "mode": "100644",
+      "bytes": 5809,
+      "lines": 94,
+      "sha256": "48a450f39c0a966de65f3f35828a600517211303d94329220e82179143429587",
+      "blob": "4e353455e6d29bf2043482ee8879faf6b2575ec2"
+    },
+    {
+      "path": "docs/specs/windows-owned-workspace-run/tasks.md",
+      "mode": "100644",
+      "bytes": 4606,
+      "lines": 92,
+      "sha256": "d04d498e76df1a72df05df4c35074fb74eb6d734c132574852279033471b4003",
+      "blob": "acae1c08ea1d1162a256f0d388879decc0801131"
+    },
+    {
+      "path": "docs/specs/windows-private-workspace-stream/design.md",
+      "mode": "100644",
+      "bytes": 7952,
+      "lines": 122,
+      "sha256": "b6a6967bfe662daa201eceaaab168d16e1e6c0cfb6a3a8b49a7a385935506552",
+      "blob": "9221b816f09a3f3c89ec523f4b92dc8cd1114bd3"
+    },
+    {
+      "path": "docs/specs/windows-private-workspace-stream/requirements.md",
+      "mode": "100644",
+      "bytes": 5814,
+      "lines": 94,
+      "sha256": "99a6672fa6a1c54e6967071fdf06dc9ff9f86755ae036443ecf2ccdf396fd4e4",
+      "blob": "7980a9fde87ce17ba2fd0eceb8d158774f6c4866"
+    },
+    {
+      "path": "docs/specs/windows-private-workspace-stream/tasks.md",
+      "mode": "100644",
+      "bytes": 4611,
+      "lines": 92,
+      "sha256": "5ea3cced20a68b1f87320692043aa7ecefbc2c7ec7e8f4a3d3d6db9d72072320",
+      "blob": "b2e6da1da66f754ecf911c9c0d7d1638c20e0c82"
+    },
+    {
+      "path": "src-tauri/src/tools/cloud_host.rs",
+      "mode": "100644",
+      "bytes": 12569,
+      "lines": 325,
+      "sha256": "d8f47588376ff0debb4d0200b85d3d17c276fcbadd9f41623a2e99c9d2ada857",
+      "blob": "2e51bdb58f11bd55876b95e66e70b7b910cef33a"
+    },
+    {
+      "path": "src-tauri/src/tools/cloud_host/tests.rs",
+      "mode": "100644",
+      "bytes": 13248,
+      "lines": 398,
+      "sha256": "694c260624a9ad1eb13a974645f3db7e2d6ccad5fc7abe39ca6d70cb6a8bd599",
+      "blob": "081afb66c59c4fe0064a401adc757e9c8a82b557"
+    },
+    {
+      "path": "src-tauri/src/tools/cloud_host/windows_input.rs",
+      "mode": "100644",
+      "bytes": 405,
+      "lines": 8,
+      "sha256": "80bcb81d962f33e3b8f7bf1c3f91fef0fc7b807c0650b2aef9dacbe026891885",
+      "blob": "9b1a9d88b145261d47d859204ee9623912002db9"
+    },
+    {
+      "path": "src-tauri/src/tools/cloud_host/windows_input_tests.rs",
+      "mode": "100644",
+      "bytes": 1705,
+      "lines": 28,
+      "sha256": "c7a87885de6609522b6422c250a7c65cf6db6c7a9b1213a972a7c5608b904aad",
+      "blob": "fb711aff566560f8120cd03475c15388a25a49be"
+    },
+    {
+      "path": "src-tauri/src/tools/cloud_host/windows_workspace_tests.rs",
+      "mode": "100644",
+      "bytes": 655,
+      "lines": 11,
+      "sha256": "febfefa2901a2a41d9cd0b6350ff534a60ca0c2d0e4f5728b5802af83b3cfdc8",
+      "blob": "af07a811e4fb9048d4bf560d3451a1299af708a1"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm.rs",
+      "mode": "100644",
+      "bytes": 16719,
+      "lines": 479,
+      "sha256": "46e7750585c0dbcf6da554ec9b7fb72487e58dbfa0106b039634b2c49485af35",
+      "blob": "c2d1fa539712ffc9bab5e042db3e9da8393a4dfc"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/input/chunk_tests.rs",
+      "mode": "100644",
+      "bytes": 1138,
+      "lines": 26,
+      "sha256": "c41cbc8eecbfd010fda165f9c85d48ced6241e8702b384d3b256ccdbfdc55bed",
+      "blob": "685f1f942c381f1d84806af8fdbc061d577f37a5"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/input/chunks.rs",
+      "mode": "100644",
+      "bytes": 1850,
+      "lines": 45,
+      "sha256": "d4702bf3f32e4be0955f93711c4eddcb2a0fccd4547701b7cf2dca56de48ffbd",
+      "blob": "67600f410c5f2bfa760f9dc50b90fe4301dc35f2"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/input/lease.rs",
+      "mode": "100644",
+      "bytes": 4262,
+      "lines": 89,
+      "sha256": "e33f43935e13bee1efb15d5c72c441020bc5a6bd3d1a195e558de16ffd15ea9c",
+      "blob": "b44ec26253a92e75dd282051d9705a3f77a3cc2a"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/input/mod.rs",
+      "mode": "100644",
+      "bytes": 970,
+      "lines": 28,
+      "sha256": "89f79adbd7f08230fdefce058629ecc04b0c963c61189a956f95a1db1f5ee93a",
+      "blob": "343db27b7153bce3f795dfaf8bad7d2e2a6cb104"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/input/owner.rs",
+      "mode": "100644",
+      "bytes": 4772,
+      "lines": 102,
+      "sha256": "fda473d7e2bc0c52192bb17ea436cb6e84f134f071b37f8a87abcdb354d20ac2",
+      "blob": "5cdf0dba120f5df723432b7ecceae89813d06fc2"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/input/publication_tests.rs",
+      "mode": "100644",
+      "bytes": 504,
+      "lines": 9,
+      "sha256": "5b49fe549517b4c8c6ff66f60c97b8367653eef47b69c65cdbe36d55fa15c91a",
+      "blob": "0cdf63fe17880041a71b7ba8632c808646bcc568"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/input/tests.rs",
+      "mode": "100644",
+      "bytes": 3323,
+      "lines": 57,
+      "sha256": "5994eceab6b1da4adf688a3700fcf27b7293029654e7d65ff70b4ff19be491c2",
+      "blob": "067bbfb8572ae678ac48c67b222c889c85a0cb39"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/input/transfer.rs",
+      "mode": "100644",
+      "bytes": 2082,
+      "lines": 53,
+      "sha256": "6c3fe14a0b2e42418d6ba2294c9430e2173a845176dff644b5d0c7a67972017d",
+      "blob": "2e79808273b7f77a531dc711c57c147465831454"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/input/transfer_tests.rs",
+      "mode": "100644",
+      "bytes": 2309,
+      "lines": 33,
+      "sha256": "671678da68618116b872a12eec7b0966f3771b3d11639ca75a52c2b653b59dc4",
+      "blob": "b9d2e31b8a219e9d1d93b89f8c04841f9834f53f"
+    },
+    {
+      "path": "docs/specs/windows-foundation-new/requirements.md",
+      "mode": "100644",
+      "bytes": 5566,
+      "lines": 90,
+      "sha256": "d1f7c0b176e027601e13954fda557831d7808437950f51a65f694d78c8f5bb0f",
+      "blob": "5eb88fbd835674f46fc22bc29e997e9e4dff611f"
+    },
+    {
+      "path": "docs/specs/windows-foundation-new/design.md",
+      "mode": "100644",
+      "bytes": 7710,
+      "lines": 118,
+      "sha256": "0d9065be3343cdd8cb5313de4492f768c7f1dc4dc2828d6fd21d079542ca9496",
+      "blob": "1d3547441a38593248fd0057f31cab61df79a462"
+    },
+    {
+      "path": "docs/specs/windows-foundation-new/tasks.md",
+      "mode": "100644",
+      "bytes": 4370,
+      "lines": 88,
+      "sha256": "156266f88bec96f1fb0124bd59d63bbd92b73a091f5a1f19d8e0c2045ebb64bd",
+      "blob": "3585720aa8bb8e2453b5deefc856d0a5b652fffb"
+    }
+  ],
+  "remaining10_absent": [
+    "services/windows-vm-broker/transfer.go",
+    "services/windows-vm-broker/transfer_identity_linux_test.go",
+    "services/windows-vm-broker/transfer_identity_windows.go",
+    "services/windows-vm-broker/transfer_test.go",
+    "src-tauri/src/tools/windows_vm/output_stage/gate.rs",
+    "src-tauri/src/tools/windows_vm/output_stage/mod.rs",
+    "src-tauri/src/tools/windows_vm/output_stage/native_tests.rs",
+    "src-tauri/src/tools/windows_vm/output_stage/nt.rs",
+    "src-tauri/src/tools/windows_vm/output_stage/owner.rs",
+    "src-tauri/src/tools/windows_vm/output_stage/tests.rs"
+  ],
+  "typecheck": false,
+  "tests_executed": false,
+  "qualification": "written source-only finite input family; not complete40/producer/nativepass/release",
+  "tree_before": "d4bd2d9813176afd83270ba39971d3204e350105",
+  "tree_after": "295ee8a8efd6c131dad098e8c7b628f7482e732a",
+  "entry_counts": {
+    "before": 1913,
+    "after": 1943
+  },
+  "patch_bytes": 148232,
+  "patch_sha256": "d4c0807dc3b2d0187b4ecdaa601062cac6cb4f154995b98e3e20e197b1758346",
+  "BLOCKED": [
+    "compiler/types/tests NOTRUN",
+    "remaining10 source families absent",
+    "actual boot provisioning producer missing",
+    "originalpositive16assert native NOTRUN",
+    "productionVM/GuestIO/output issuer NOTQUALIFIED",
+    "RC release/install gates unresolved"
+  ],
+  "Stage11_frozen_not_applied": true,
+  "immutable_source": true
+}

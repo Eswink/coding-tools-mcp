@@ -1,0 +1,95 @@
+# 需求文档：issue88-postpublication-owned-consumer
+
+## 功能概述
+
+在真实D6 c60f9667fa8431e27fabbc497c19b4abfef5b965/tree064252014dc0ad3c3882fbd5aef1968b083f8bb0的独立checkout接线发布后匿名六资产与新CI安装。组件源码可以测试；当前无F2、无真实Release、五槽均NOT_RUN。输入仅expectations，任何report/布尔值不授予publication/owner权限。
+
+## 历史经验与坑（来自记忆库）
+
+暂无记忆注入。本次依据封存只读postpublish审查：原Reader(binary=True)丢弃payload；原installed manifest依赖当前run_id，不能伪造旧GITHUB_RUN_ID；PrivateRoot.close不删除；Windows不能POSIX替代；公共checksum不是bundle checksum。旧authority审查与19/118组件seal不变。
+
+## 范围边界
+
+- **In Scope**: 实际entered StagedAssets/canonical Selection原始bytes；固定无凭据GET六公共资产、自有文件保留；原FINAL/原consumer/新post三身份；当前CI新transfer的numeric ID/digest/owner/job/source/ZIP校验；两个固定CLI和只读CI；Linux原安装/四startup/native12命令的显式两身份适配；必要本地组件测试。
+- **Out of Scope**: 实际安装/GUI/driver运行、remote任何写或dispatch、Release/tag/用户机器/production、凭据探测/登录、版本/F2更新、grant/CAS/三hardreject解锁、PR98取消与Issue86/snapshot暂停替换、历史profile投影、Windows path/bool/POSIX owner替代。
+
+## 需求列表
+
+### FR-1: 原producer与新运行严格分离
+
+**优先级:** Must
+**用户故事:** 作为发布验收维护者，我要保留原身份与新真实运行，防止历史安装被新运行冒领。
+
+#### 验收标准（EARS）
+
+1. WHEN capture或receive进入 THEN 系统 SHALL 以封闭schema读取Selection/Release/六asset期待值，真实原StagedAssets认证原FINAL/integration/consumer和原plan/provenance，并以当前env+固定API元数据构造新post运行与job；三原run ID不得等于新run ID。
+2. IF 来源/仓库/源码tree/version/workflowblob/ref/当前attempt/job不符或paused THEN 系统 SHALL 在安装前固定拒绝，保留UNKNOWN，不改旧manifest/当前GITHUB_RUN_ID。
+
+### FR-2: 匿名六资产保留实际字节
+
+**优先级:** Must
+**用户故事:** 作为消费者，我要实际已验证公共文件进入安装，而不是只有digest或Actions旧build输入。
+
+#### 验收标准（EARS）
+
+1. WHEN 公开Release在精确tag/commit且六numeric assets/media/state/size/digest吻合 THEN 系统 SHALL 仅无Authorization/Cookie固定API GET及至多一次exact storage302，使用原Reader framing在原owned预算中将successful200 body写入新独占0600文件并fsync/readback。
+2. IF 非200/重复redirect/host/截断/chunk/size/hash/取消/期限/close/替换/hardlink错误 THEN 系统 SHALL 不给installable success，按实际creation ownership退休或不确定保留；新sink不可由外部callback/path mint。
+3. WHEN 六文件已验证 THEN 系统 SHALL 比较原provenance字节和五行公共checksum原字节，并重新观察公共metadata/tag/stable/latest以及原stage final fence。
+
+### FR-3: 新transfer独立认证
+
+**优先级:** Must
+**用户故事:** 作为跨平台CI消费者，我要公共来源字节通过明确新artifact传输保持可审计来源。
+
+#### 验收标准（EARS）
+
+1. WHEN pinned当前CI上传六raw+封闭manifest THEN 系统 SHALL 保持原owner直至限定ACK中numeric artifact期待值经真实list/direct API、run/attempt/job时间、非expiry、size/digest及实际ZIP再次验证；ACK不授予capability。
+2. WHEN receive处理新artifact THEN 系统 SHALL 要求同post run/current attempt和已成功capture job，实际bounded ZIP严格七flat成员、原selection/plan/publicasset IDs/每文件bytes一致，并分别新建当前host输入owner；跨host文件不是原FD。
+3. IF transfer与原FINAL/原consumer artifact ID相同，列表/直接查询分歧、任一成员/manifest/expiry/owner错误 THEN 系统 SHALL 拒绝且不fallback原build、不重试/覆盖/采用foreign文件。
+
+### FR-4: 两固定CLI与五平台CI
+
+**优先级:** Must
+**用户故事:** 作为维护者，我要可在真实候选发布后直接执行的入口，明确每个实际平台结果。
+
+#### 验收标准（EARS）
+
+1. WHEN 手动固定源码post workflow运行 THEN 系统 SHALL 以capture和receive/install两个入口接线中央六raw及新transfer，保留contents/actions-read与原FINAL原命令/180sNSIS等待、四20sstartup、native12/100foreign/90s门禁，所有新receipt使用实际当前run。
+2. IF 当前不是本仓库github-hosted disposable runner，或Windows真实native输入/root/child退休未实现 THEN 系统 SHALL 固定blocked并输出NOT_RUN，不执行用户机器安装、不把POSIX作Windows、不报告passed安装。
+3. WHEN Linux AppImage/driver执行copy需要权限 THEN 系统 SHALL 只在自有新byte-identical文件做显式权限阶段；不弱化Generic PrivateRoot0600，child完成及完整性复核后恢复与退休。
+
+### FR-5: 不借组件解除发布门禁
+
+**优先级:** Must
+**用户故事:** 作为发布owner，我要失败和未知持续阻止最终发布。
+
+#### 验收标准（EARS）
+
+1. WHEN 本地组件验证成功 THEN 系统 SHALL 只记录named/component/source/runtime结果，真实GitHub-origin downloads/五实际安装仍NOT_RUN，Release/publish_approved始终false。
+2. IF native authority/StageAPI整合、Windows lifecycle、snapshot、标签lifetime/CAS、真实授权或finalcandidate未核 THEN 系统 SHALL 保持mandatory UNKNOWN及三个生产无条件hardreject、PR98/Issue86边界，不借旧118/165/141或CI历史。
+
+## 非功能需求
+
+- **NFR-1**: 单asset<=512MiB、metadata<=2MiB、header<=32768、socket idle<=15s、同固定总预算不续期、单源码文件<=500行；异常只固定safe code，不持久化token/header/signedURL/credential-derived hash。
+- **NFR-2**: POSIX roots0700/files0600、真实PID/thread身份、nofollow/singlelink/inode/membership/creation-owned退休；作用域只sameUID无并发不可信writer，control ACK单独允许固定trusted upload子步骤写numeric期待值。
+
+## 依赖关系
+
+原rc_publication_stage/rc_consumer_snapshot/archive/fixedGit/transport；原FINAL安装命令和nativegate；实际D6而非F2；未整合native11与StageAPI源码必须在未来同源重审，不把当前wrapper算publisher authority；Windows genuine native IO未知。
+
+### FR-6：真实Linux全部命令与摘要的永久原控制
+
+- [ ] actual entered StagedAssets/verified ReceivedInputs/canonical Selection/current ReadController与内部exact PackageChecks相互绑定；PackageChecks及install入口必须使用ReceivedInputs实际已验证的同一PostInvocation对象，same-source复制不能替代。默认旧rc_packages路径保留。
+- [ ] 包检查和原startup/native所有子进程explicit闭合allowlist环境，无GH_TOKEN/Actions runtime secret/LD_PRELOAD等；原inspection/version/ELF/desktop/ldd/payload检查原语义与commands/断言不降低。
+- [ ] subprocess只能剩余原ReadController期限min原命令120s/既有scenario期限，原取消在运行中poll；标准输出有界、所有自有pipes/handles关闭并实际reap。
+- [ ] 父实际创建session leader，保留native pidfd，nativePGID/parent关系与group-leader存活双核验；leader自身保持live且subreaper，终止只能自身创建仍核证的group/nativechild pidfd，不对回收numericPGID或推测进程组发信号。
+- [ ] 原生kernel/IO握手和所有后代closure都核证才允许成功；JSON ACK仅数据。超期/取消/IPC/close/reap/逃逸等不确定性强持whole actual Stage/receiver/download/execution/profile资源；持久uncertain不得用新wrapper恢复。全部profile到整个installation明确成功才退休，不把退出leader当全family退出。
+- [ ] 用普通临时native child/fork/pipe负例failure-first及同源必要测试；五真实安装全部NOT_RUN、Windows actualnativeroot/StageAPI authority/F2未知，三hardreject/PR98/snapshot不变。
+
+### FR-7：独立28路径当前源码准入（新增source层）
+1. WHEN 当前新候选进入 THEN 系统 SHALL 先认证actualD6 raw/tree/soleparent、1849父与完整1867当前entries、28路径/27非selfpins/10完整逆向/4600总cap，再返回完整当前map；不得把parent投影作current。
+2. WHEN D[P]、I[F13,D]、J[R,I]被选择 THEN 系统 SHALL 校验精确有序parents及原四document overlay；仅真正TopologyError可交旧selector，selected parent/content/source/inverse错误终止且无PASS缓存。
+3. WHEN 历史byte operand进入 THEN 系统 SHALL 仅接受26immutable native identity rows（10D6parent、16older），每项完整path/mode/blob/SHA/size/lines及actualnativecommit/tree绑定；不是26项都older，也不复用lost22。dirty/unknown/missing/duplicate/type必须拒绝。
+4. WHEN 新alias/旧Windows operand适配 THEN 系统 SHALL 保留原26CAPS/25pins/3800、20methods105asserts、303/452原ID和五readonlydefaults；invalid/frozen/unmapped的原x.normalize失败层保持，当前sourcegate不能被历史inverse代替。
+5. WHEN 新readonlyCI进入 THEN 系统 SHALL 以实际checkoutSHA/tree/sourcebeforeafter及Linux22/24原425+48新owner+12family精确485 IDs，nativeWindows原38、303/452/755原命令和异常counts验证；loaded/executed唯一且无fail/error/subtest/skip/xfail/xpass。必要当前源488还包含原packageversion3。
+6. IF 实际新sourcepin/scope/fixture或kernel未知 THEN 系统 SHALL 保留旧135/oldFAIL/lost31ec/B/native22证据且不批准发布/安装；27非selfpin待全sourcefix后由实际nativebytes封闭，自身由externalwholemanifest/realSHA审查。
