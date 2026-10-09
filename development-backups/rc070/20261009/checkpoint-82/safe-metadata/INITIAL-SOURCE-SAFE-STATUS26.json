@@ -1,0 +1,30 @@
+{
+  "state": "SOURCE_ONLY_INITIAL_DRAFT_NOTSTARTUPQUALIFIED",
+  "source_new_files": 6,
+  "source_new_bytes": 58640,
+  "source_peer": "PENDING",
+  "ordinary_parser_binding_controls": {
+    "actual_exit": 0,
+    "actual_tool_chunk": "c14fc6",
+    "count": 15,
+    "scope": "syntheticdata/parser/binding/erroridentity ONLY",
+    "native_api_calls": 0,
+    "Go_processes": 0,
+    "original_native_methods": 0
+  },
+  "syntax": "4Pythoncompile+JSON PASS; notWinABI/runtimeproof",
+  "known_unclosed": [
+    "native_ci_main composed orchestration explicitblockedstub",
+    "workflowif:false andinputsDISABLED; noeventactivation",
+    "currentWindows ordinary7casesNOTRUN andGo21top4subNOTRUN",
+    "fullPythonGitWindowsdependency/runtime beforeafter integration incomplete",
+    "nativeGitnonzero compatibility/strictJSON duplicatekeys/typeguards needfurthercontrols",
+    "remainingneeded source/control/sourcefreeze/composedstartupreview NOTPASS"
+  ],
+  "native_api": "NOTRUN",
+  "publication_vm_owner_issuer_grant": false,
+  "original7_v12": "nativeGitbytesexact",
+  "original9specs": "sealedbytesunchanged",
+  "old_first_fail_and_sourcefreezes": "immutable",
+  "firstlegitimateActionschannel": "UNKNOWN"
+}

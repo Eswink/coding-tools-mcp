@@ -1,0 +1,111 @@
+{
+  "scope": "SOURCE_ONLY_INITIAL_DRAFT; sourcepeerPENDING; mainincomplete; nativeNOTRUN",
+  "files": [
+    {
+      "path": "source/scripts/windows_nt_output_native_job.py",
+      "source_path": "scripts/windows_nt_output_native_job.py",
+      "bytes": 23485,
+      "sha256": "3419704c44f86bdfa319cfb61c89016118bb9eb2b20e29a18e749fe9599bd22b",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_ci.py",
+      "source_path": "scripts/windows_nt_output_native_ci.py",
+      "bytes": 14630,
+      "sha256": "4939cdc4e5adcd7eeaeaf6c0f73b2b8fb910dbe673b582a71e994fc414c0c9ba",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_controls.py",
+      "source_path": "scripts/windows_nt_output_native_controls.py",
+      "bytes": 7095,
+      "sha256": "2c5461ec889c4305e1c942a3d2a82ac08dc9a76e61d701dd627ab0a7fb29d6ef",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_manager_controls.py",
+      "source_path": "scripts/windows_nt_output_native_manager_controls.py",
+      "bytes": 4664,
+      "sha256": "226a9c9c22bc45515cca6a25cd25946524b1ef2d967b51031c1378a06dbab78b",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_inputs.json",
+      "source_path": "scripts/windows_nt_output_native_inputs.json",
+      "bytes": 7395,
+      "sha256": "4d3e81185d81a712816e5c42ee148853d6708945523b007f9effee29a3376ba4",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/.github/workflows/windows-nt-output-native-controls.yml",
+      "source_path": ".github/workflows/windows-nt-output-native-controls.yml",
+      "bytes": 1371,
+      "sha256": "6104dd857e99fbe0e2567e437527f031254e1bb1f31427d7d5fc0825b7941e2c",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/MINIMAL-IMPLEMENTATION-BOUNDARY20.md",
+      "source_path": "work/native-nt-ci-prepare/MINIMAL-IMPLEMENTATION-BOUNDARY20.md",
+      "bytes": 4314,
+      "sha256": "22c8ae4dbbabb94668dd07d05a35c159c4e1092ec2ce34eeba4c2cb4d1934f3b",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/NEW-SYMBOL-IMPLEMENTATION-INVENTORY21.json",
+      "source_path": "work/native-nt-ci-prepare/NEW-SYMBOL-IMPLEMENTATION-INVENTORY21.json",
+      "bytes": 8287,
+      "sha256": "8250da00629125c0559d568e7199b14141d3b2011ab4072d4149d01162b648be",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/INITIAL-SOURCE-SYNTAX-PROTECTION25.json",
+      "source_path": "work/native-nt-ci-prepare/INITIAL-SOURCE-SYNTAX-PROTECTION25.json",
+      "bytes": 1873,
+      "sha256": "d561ea0673ee482ebaa0698a69b05f8629548e5ad341cd43fc9420831b59fd37",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/INITIAL-SOURCE-SAFE-STATUS26.json",
+      "source_path": "work/native-nt-ci-prepare/INITIAL-SOURCE-SAFE-STATUS26.json",
+      "bytes": 1202,
+      "sha256": "65a1eaaf8a3caeca62ca7c30b8bcba1c3a313ad0e0b941742b543cadf43f2533",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/INITIAL-IMPACT-SAFE-SUMMARY26.json",
+      "source_path": "work/native-nt-ci-prepare/INITIAL-IMPACT-SAFE-SUMMARY26.json",
+      "bytes": 664,
+      "sha256": "1351a7e09b320cb263eb49e1420f90c7e12c269b192f8d7df001323c75e49592",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "README.md",
+      "source_path": null,
+      "bytes": 648,
+      "sha256": "4d7e5aad3d1cf627fbc92e32827cbd75b432fd239851afff288ba9c17cd403b8",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "SOURCE-STATUS.md",
+      "source_path": null,
+      "bytes": 412,
+      "sha256": "6a2956afeef8b9bdfe4f5c67d6c51e50bb6720abe7234c3bec6dbcccbfa2ac46",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    }
+  ],
+  "file_count_excluding_manifest": 13,
+  "total_bytes_excluding_manifest": 76040
+}

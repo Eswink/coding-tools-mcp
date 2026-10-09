@@ -1,0 +1,54 @@
+{
+  "new_source": [
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "bytes": 23485,
+      "sha256": "3419704c44f86bdfa319cfb61c89016118bb9eb2b20e29a18e749fe9599bd22b",
+      "mode": "0o600"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "bytes": 14630,
+      "sha256": "4939cdc4e5adcd7eeaeaf6c0f73b2b8fb910dbe673b582a71e994fc414c0c9ba",
+      "mode": "0o600"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_controls.py",
+      "bytes": 7095,
+      "sha256": "2c5461ec889c4305e1c942a3d2a82ac08dc9a76e61d701dd627ab0a7fb29d6ef",
+      "mode": "0o600"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_manager_controls.py",
+      "bytes": 4664,
+      "sha256": "226a9c9c22bc45515cca6a25cd25946524b1ef2d967b51031c1378a06dbab78b",
+      "mode": "0o600"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_inputs.json",
+      "bytes": 7395,
+      "sha256": "4d3e81185d81a712816e5c42ee148853d6708945523b007f9effee29a3376ba4",
+      "mode": "0o600"
+    },
+    {
+      "path": ".github/workflows/windows-nt-output-native-controls.yml",
+      "bytes": 1371,
+      "sha256": "6104dd857e99fbe0e2567e437527f031254e1bb1f31427d7d5fc0825b7941e2c",
+      "mode": "0o600"
+    }
+  ],
+  "python_syntax": "actual4 compile()PASS no pycache",
+  "json_syntax": "actualPASS",
+  "workflow": "if:false actualsource; notactivated",
+  "protected_original7_andv12": "nativeGitbyteexact",
+  "protected9specs": "exact3sealsunchanged",
+  "native_API_Go_CI_processes": 0,
+  "main": "DISABLED_INCOMPLETE_FAIL_ONLY",
+  "known_unclosed": [
+    "composed orchestration notimplemented",
+    "native ordinary7casesNOTRUN",
+    "originalGitnonzeroCompatibleError/memorycounters needactualexecutionreview",
+    "fullPythonGitWindowsruntime beforeafter inventory integration missing",
+    "no currentnative startupqualification"
+  ]
+}

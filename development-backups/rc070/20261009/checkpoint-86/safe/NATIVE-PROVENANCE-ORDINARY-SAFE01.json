@@ -1,0 +1,233 @@
+{
+  "scope": "FINITE10THFACTORY_SOURCE_ORDINARY_NOT_ORIGINAL_METHOD",
+  "passed": true,
+  "controls": 44,
+  "elapsed_seconds": 3.379034490997583,
+  "component": {
+    "passed": true,
+    "controls": 44,
+    "rows": [
+      {
+        "name": "original_factory_once_same_return_true_native_assignment_and_complete_chain",
+        "passed": true
+      },
+      {
+        "name": "actual_native_foreign_owner_chain_unknown",
+        "passed": true
+      },
+      {
+        "name": "actual_native_foreign_session_chain_unknown",
+        "passed": true
+      },
+      {
+        "name": "strongref_credential_foreign_native_identity_unknown",
+        "passed": true
+      },
+      {
+        "name": "strongref_clone_foreign_native_identity_unknown",
+        "passed": true
+      },
+      {
+        "name": "strongref_input_selection_foreign_native_identity_unknown",
+        "passed": true
+      },
+      {
+        "name": "foreign_value_equal_input_not_provenance",
+        "passed": true
+      },
+      {
+        "name": "actual_native_client_credential_rebound_unknown",
+        "passed": true
+      },
+      {
+        "name": "actual_native_session_selection_rebound_unknown",
+        "passed": true
+      },
+      {
+        "name": "actual_native_session_owner_rebound_unknown",
+        "passed": true
+      },
+      {
+        "name": "actual_native_session_client_rebound_unknown",
+        "passed": true
+      },
+      {
+        "name": "missing_actual_assignment_unknown",
+        "passed": true
+      },
+      {
+        "name": "duplicate_actualclient_pending_record_ambiguous_unknown",
+        "passed": true
+      },
+      {
+        "name": "foreign_thread_unknown",
+        "passed": true
+      },
+      {
+        "name": "closed_actualclient_unknown",
+        "passed": true
+      },
+      {
+        "name": "retired_actualsession_unknown",
+        "passed": true
+      },
+      {
+        "name": "128_cap_no_append_same_return_invalid",
+        "passed": true
+      },
+      {
+        "name": "postsuccess_ordinary_same_return_actual_constructor_assignment_completed",
+        "passed": true
+      },
+      {
+        "name": "postsuccess_ordinary_real_TLS_and_native_session_close",
+        "passed": true
+      },
+      {
+        "name": "postsuccess_cancel_same_return_actual_constructor_assignment_completed",
+        "passed": true
+      },
+      {
+        "name": "postsuccess_cancel_real_TLS_and_native_session_close",
+        "passed": true
+      },
+      {
+        "name": "postsuccess_cancel_sticky_same_cancel_after_true_cleanup_terminal",
+        "passed": true
+      },
+      {
+        "name": "postsuccess_keyboard_same_return_actual_constructor_assignment_completed",
+        "passed": true
+      },
+      {
+        "name": "postsuccess_keyboard_real_TLS_and_native_session_close",
+        "passed": true
+      },
+      {
+        "name": "postsuccess_keyboard_sticky_same_cancel_after_true_cleanup_terminal",
+        "passed": true
+      },
+      {
+        "name": "original_delegate_ValueError_once_same_error_object",
+        "passed": true
+      },
+      {
+        "name": "original_delegate_SystemExit_once_same_error_object",
+        "passed": true
+      },
+      {
+        "name": "original_delegate_KeyboardInterrupt_once_same_error_object",
+        "passed": true
+      },
+      {
+        "name": "strongref_registry_actual_retirement",
+        "passed": true
+      },
+      {
+        "name": "real_original_fixture_cleanup_after_all_independent_close_attempts",
+        "passed": true
+      },
+      {
+        "name": "ten_alias_success_OSError_all_applied_reverse_attempts",
+        "passed": true
+      },
+      {
+        "name": "ten_alias_success_SystemExit_all_applied_reverse_attempts",
+        "passed": true
+      },
+      {
+        "name": "ten_alias_install_before_OSError_all_applied_reverse_attempts",
+        "passed": true
+      },
+      {
+        "name": "ten_alias_install_before_SystemExit_all_applied_reverse_attempts",
+        "passed": true
+      },
+      {
+        "name": "ten_alias_install_after_OSError_all_applied_reverse_attempts",
+        "passed": true
+      },
+      {
+        "name": "ten_alias_install_after_SystemExit_all_applied_reverse_attempts",
+        "passed": true
+      },
+      {
+        "name": "ten_alias_restore_before_OSError_all_applied_reverse_attempts",
+        "passed": true
+      },
+      {
+        "name": "ten_alias_restore_before_SystemExit_all_applied_reverse_attempts",
+        "passed": true
+      },
+      {
+        "name": "ten_alias_restore_after_OSError_all_applied_reverse_attempts",
+        "passed": true
+      },
+      {
+        "name": "ten_alias_restore_after_SystemExit_all_applied_reverse_attempts",
+        "passed": true
+      },
+      {
+        "name": "terminal_original_runner_factory_cancel_restore_cancel_same_objects",
+        "passed": true
+      },
+      {
+        "name": "real_owned_close_preobserver_OSError_delegate_and_following_session_close_attempted",
+        "passed": true
+      },
+      {
+        "name": "real_owned_close_preobserver_SystemExit_delegate_and_following_session_close_attempted",
+        "passed": true
+      },
+      {
+        "name": "actual_negative_close_fixture_cleanup",
+        "passed": true
+      }
+    ],
+    "worker_sha256": "242f18dc0103862cbae64ae2c3e478f7713833144987da71fb9f0b34f8abc878",
+    "original_method_runs": 0,
+    "actual_native_credential_clone_path": true,
+    "actual_TLS_components_executed": true,
+    "authority_proof": false,
+    "negative_scope": "actual native constructors with controlled observer faults; no operation scope minted or original method"
+  },
+  "actual_natural_exit": 0,
+  "actual_created_child_held_z_cld_exited0": true,
+  "native_echild": true,
+  "family_empty": true,
+  "original_method_runs": 0,
+  "whole85": "FAIL83SUCCESS2FAIL",
+  "original300": "NOTRUN",
+  "authority_proof": false,
+  "source_external_worker_sha256": "242f18dc0103862cbae64ae2c3e478f7713833144987da71fb9f0b34f8abc878",
+  "worker_physical_mode": "0o600",
+  "old9worker_sha256": "da78e5380f70d80ada6e84547d67d122288669dcb856c32b50a46f33197bee24",
+  "old_function_ast_changed": [
+    "owned_fixture_for_context",
+    "finish_observation"
+  ],
+  "new_function_ast": [
+    "record_pending_credential",
+    "observed_credential",
+    "credential_provenance_for_fixture",
+    "retire_credential_provenance"
+  ],
+  "other_old_functions_ast_exact": true,
+  "whole_worker_ast_original": false,
+  "whole_source_SUT_original_unchanged": true,
+  "ordinary_preexec_all3_source_identity_match": true,
+  "private_raw_receipt_bytes": 6720,
+  "private_raw_receipt_sha256": "c505fd292dab7ea1d936c91cd6820abdb370440cbb18caaa70042d361702a82a",
+  "stdout_bytes": 4099,
+  "stdout_sha256": "0724fc16f57a7550126b43e4e5195b6fbb1ac16d175fb0d888b91b6415792c6a",
+  "stderr_bytes": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source_review": "PENDING",
+  "startup_review": "NOTREQUESTED_NOTAUTHORIZED",
+  "limits": [
+    "Actual native constructor/owner plus ArtifactTLS original socket components; alias faults are explicitly controlled targets",
+    "Close preobserver faults exercised ordinary external independent cleanup; not originalwholeowner automaticcancel/timeout closure proof",
+    "No operation scope or private authorization minted",
+    "No diagnosis of diag5 recordedfiltercause or server2s causation"
+  ]
+}

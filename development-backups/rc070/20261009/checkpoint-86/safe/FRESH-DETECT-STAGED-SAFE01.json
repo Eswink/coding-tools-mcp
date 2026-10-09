@@ -1,0 +1,17 @@
+{
+  "gitnexus_version": "1.6.9",
+  "isolated_actual_source_carrier_files": 12,
+  "original_SUT_subset_paths": 6,
+  "staged_files": 6,
+  "changed_symbols": 69,
+  "affected_flows": 2,
+  "cli_risk": "MEDIUM",
+  "manual_CRITICAL_unchanged": true,
+  "cli_requested_limit": 100,
+  "cli_displayed_changed_names_only": 15,
+  "remaining_changed_names_not_individually_displayed": 54,
+  "actual_output_sha256": "a1566c263ab902cde40ae998dcaf4d30cb45c2a4c8b7bc261c5069928bb3bbf7",
+  "actual_output": "Changes: 6 files, 69 symbols\nAffected processes: 2\nRisk level: medium\n\nChanged symbols:\n  Symbol record_pending_credential → diagnostic_worker.py\n  Symbol observed_credential → diagnostic_worker.py\n  Symbol credential_provenance_for_fixture → diagnostic_worker.py\n  Symbol retire_credential_provenance → diagnostic_worker.py\n  Symbol owned_fixture_for_context → diagnostic_worker.py\n  Symbol finish_observation → diagnostic_worker.py\n  Symbol _credential_records → diagnostic_worker.py\n  Symbol _credential_outcomes → diagnostic_worker.py\n  Symbol _credential_registry_retired → diagnostic_worker.py\n  Symbol _bootstrap_authenticate → diagnostic_worker.py\n  Symbol _bindings → diagnostic_worker.py\n  Symbol exclusive → native-provenance-owned-supervisor.py\n  Symbol observed_exit → native-provenance-owned-supervisor.py\n  Symbol B → native-provenance-owned-supervisor.py\n  Symbol started → native-provenance-owned-supervisor.py\n... and 54 more\n\nAffected execution flows:\n  • Observed_request → Mutation_context (3 steps) — changed: owned_fixture_for_context\n  • Observed_request → Credential_provenance_for_fixture (3 steps) — changed: owned_fixture_for_context, credential_provenance_for_fixture\n",
+  "new4helper_preedit_impacts": "UNKNOWN_NOT0",
+  "whole_original_SUT_diff_not_claimed": true
+}

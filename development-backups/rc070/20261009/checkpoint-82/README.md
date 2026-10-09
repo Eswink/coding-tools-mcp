@@ -1,0 +1,3 @@
+# NT native CI manager initial six-source draft
+
+Reversible source-only checkpoint, not tested production or startup qualification. Actual ordinary synthetic parser/binding15 controls and source syntax passed; Windows/Go/native methods remain0. Real native adapter and seven current-source ordinary Windows cases are authored, not executed. Controller still fails explicitly before composed orchestration; workflowfalse and inputactivationdisabled. Original7/v12/9spec/core1953+Go1954 are unchanged. No host/process/IO/runtime/binary/Gitobject evidence is included. Continue source implementation and independent review before any root activation.

@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "errorCount": 0,
+  "warningCount": 0,
+  "issues": [],
+  "frIds": [
+    "FR-1",
+    "FR-2",
+    "FR-3"
+  ],
+  "summary": "规格校验通过（3 条需求）"
+}

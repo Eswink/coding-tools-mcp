@@ -1,0 +1,35 @@
+{
+  "schema": "finite-source-design-review-v1",
+  "decision": "PASS_FINITE_TENTH_FACTORY_OBSERVER_DESIGN_STARTUP_NOT_AUTHORIZED",
+  "actual_ordinary": {
+    "original_constructor_and_TLS_checks": 8,
+    "original_method_runs": 0,
+    "observer_binding_count": 0,
+    "source6_current_raw_hash_exact": true,
+    "preexec13_current_bytes_modes_exact": true,
+    "runtime_python_hash_exact": true,
+    "raw_stdout_sha256": "5bfd45d8fca9b39021838cf72e80ed5dd50d971b5394e1b6460d0985de14ca39",
+    "raw_stderr_bytes": 0,
+    "actual_created_held_identity_exit0_ECHILD_empty_family": true,
+    "old_fixture_selection_is_client_selection": false
+  },
+  "implementation_conditions": [
+    "Call original factory exactly once and preserve original return or delegate exception identity",
+    "Record bounded128 actual input/client/returned credential/clone strong references PENDING without observing token",
+    "Observer cancellation following successful delegate must remain sticky and return original object so real constructor assignment and cleanup occur",
+    "Promote only after actual client credential assignment and complete actual client credential clone session owner original fixture input reference chain checks",
+    "Ambiguous overflow retired source or assignment unknown remain UNKNOWN, never grant",
+    "After runpy and real fixture/session cleanup independently restore every binding then propagate original primary and every sticky cancel object",
+    "Preserve original delegate cancellation unchanged; observer cannot create successful return after delegate failure",
+    "Fresh source identities impacts real negative controls freeze and independent root startup review required"
+  ],
+  "limitations": [
+    "Eight components demonstrate positive constructor/deepcopy/TLS path only",
+    "Existing ordinary sock.close then session.close and nested context close do not establish all abnormal close exception preservation",
+    "Static defensive copy and observed ordinary old predicate failure do not establish diag5 actual filter cause",
+    "Native issuer publisher permission wholeowner automatic cancellation and original85/300 qualification absent"
+  ],
+  "root_authorization_boundary": "Finite hook source preparation and new meaningful ordinary controls only; no original method runtime launch or release",
+  "source_edit_by_reviewer": false,
+  "execution_by_reviewer": false
+}

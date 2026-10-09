@@ -1,0 +1,94 @@
+{
+  "results": [
+    {
+      "original_evidence_file": "diag6-native-clone-readonly-impact0.json",
+      "original_sha256": "b6c0ef3149929098c4c80811911d91f887ba356a18085de611b533fbf58c95f2",
+      "target": {
+        "id": "Function:scripts/rc_publication_request.py:_credential",
+        "name": "_credential",
+        "type": "Function",
+        "filePath": "scripts/rc_publication_request.py"
+      },
+      "risk": "LOW",
+      "impactedCount": 1,
+      "epistemic": "exact",
+      "boundaries": [],
+      "error": null,
+      "summary": {
+        "direct": 1,
+        "processes_affected": 0,
+        "modules_affected": 0
+      }
+    },
+    {
+      "original_evidence_file": "diag6-native-clone-readonly-impact1.json",
+      "original_sha256": "dfacb9077d0eabc60624ccbaf6d3ee89e029e9af8c12568a91db1ba0dac34fee",
+      "target": {
+        "id": "Class:scripts/rc_publication_request.py:_CredentialOwner",
+        "name": "_CredentialOwner",
+        "type": "Class",
+        "filePath": "scripts/rc_publication_request.py"
+      },
+      "risk": "MEDIUM",
+      "impactedCount": 31,
+      "epistemic": "lower-bound",
+      "boundaries": [
+        "_Opaque is an interface with 5 implementations; callers that bind via the interface (e.g. a DI container or dynamic dispatch) are not traced to the concrete symbol \u2014 actual impact may be higher."
+      ],
+      "error": null,
+      "summary": {
+        "direct": 11,
+        "processes_affected": 0,
+        "modules_affected": 1
+      }
+    },
+    {
+      "original_evidence_file": "diag6-native-clone-readonly-impact2.json",
+      "original_sha256": "410b2dbbfd67236cd0983171a3ef911fb77793a16f2fe6fae9a0dff007e3368c",
+      "target": {
+        "name": "Method:scripts/rc_publication_request.py:_CredentialOwner.__init__#1"
+      },
+      "risk": "UNKNOWN",
+      "impactedCount": 0,
+      "epistemic": null,
+      "boundaries": [],
+      "error": "Target 'Method:scripts/rc_publication_request.py:_CredentialOwner.__init__#1' not found",
+      "summary": null
+    },
+    {
+      "original_evidence_file": "diag6-native-clone-readonly-impact-constructor-exact.json",
+      "original_sha256": "f615cdeec2b7ff24c9759e78cce5a66bc1512a2b3591e384476fb849e1ad5c92",
+      "target": {
+        "id": "Method:scripts/rc_publication_request.py:_CredentialOwner.__init__#4",
+        "name": "__init__",
+        "type": "Method",
+        "filePath": "scripts/rc_publication_request.py"
+      },
+      "risk": "LOW",
+      "impactedCount": 0,
+      "epistemic": "exact",
+      "boundaries": [],
+      "error": null,
+      "summary": {
+        "direct": 0,
+        "processes_affected": 0,
+        "modules_affected": 0
+      }
+    },
+    {
+      "original_evidence_file": "diag6-native-clone-readonly-impact3.json",
+      "original_sha256": "ba1d59f51a6cd471bb333f9e24019004a3eca189bbbb88d54776d69d7bf966b2",
+      "target": {
+        "name": "owned_fixture_for_context"
+      },
+      "risk": "UNKNOWN",
+      "impactedCount": 0,
+      "epistemic": null,
+      "boundaries": [],
+      "error": "Target 'owned_fixture_for_context' not found",
+      "summary": null
+    }
+  ],
+  "manual_risk": "CRITICAL proposed new credential factory observation alias; LOW graph not authority or securityrisk0",
+  "new_observer_implemented": false
+}

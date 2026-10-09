@@ -1,0 +1,176 @@
+{
+  "scope": "finite6newfiles,27planned code definitions; additionsrequire fresh impact beforeedit",
+  "files": [
+    "scripts/windows_nt_output_native_job.py",
+    "scripts/windows_nt_output_native_ci.py",
+    "scripts/windows_nt_output_native_controls.py",
+    "scripts/windows_nt_output_native_manager_controls.py",
+    "scripts/windows_nt_output_native_inputs.json",
+    ".github/workflows/windows-nt-output-native-controls.yml"
+  ],
+  "symbols": [
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "name": "NativeFrame",
+      "target_uid": "Class:scripts/windows_nt_output_native_job.py:NativeFrame",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "name": "NativeOperation",
+      "target_uid": "Class:scripts/windows_nt_output_native_job.py:NativeOperation",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "name": "load_original_native_api",
+      "target_uid": "Function:scripts/windows_nt_output_native_job.py:load_original_native_api",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "name": "extend_required_native_bindings",
+      "target_uid": "Function:scripts/windows_nt_output_native_job.py:extend_required_native_bindings",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "name": "retain_native_result",
+      "target_uid": "Function:scripts/windows_nt_output_native_job.py:retain_native_result",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "name": "native_checked_close",
+      "target_uid": "Function:scripts/windows_nt_output_native_job.py:native_checked_close",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "name": "native_issue_connect",
+      "target_uid": "Function:scripts/windows_nt_output_native_job.py:native_issue_connect",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "name": "native_issue_read",
+      "target_uid": "Function:scripts/windows_nt_output_native_job.py:native_issue_read",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "name": "native_issue_write",
+      "target_uid": "Function:scripts/windows_nt_output_native_job.py:native_issue_write",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "name": "native_observe_completion",
+      "target_uid": "Function:scripts/windows_nt_output_native_job.py:native_observe_completion",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "name": "native_cancel_retire",
+      "target_uid": "Function:scripts/windows_nt_output_native_job.py:native_cancel_retire",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "name": "create_job_bound_suspended",
+      "target_uid": "Function:scripts/windows_nt_output_native_job.py:create_job_bound_suspended",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "name": "native_collect_stage",
+      "target_uid": "Function:scripts/windows_nt_output_native_job.py:native_collect_stage",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "name": "raise_preserved_native_errors",
+      "target_uid": "Function:scripts/windows_nt_output_native_job.py:raise_preserved_native_errors",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "name": "load_native_lease",
+      "target_uid": "Function:scripts/windows_nt_output_native_ci.py:load_native_lease",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "name": "verify_augmented_source",
+      "target_uid": "Function:scripts/windows_nt_output_native_ci.py:verify_augmented_source",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "name": "verify_go_runtime",
+      "target_uid": "Function:scripts/windows_nt_output_native_ci.py:verify_go_runtime",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "name": "acquire_fixed_go_zip",
+      "target_uid": "Function:scripts/windows_nt_output_native_ci.py:acquire_fixed_go_zip",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "name": "extract_verified_go_zip",
+      "target_uid": "Function:scripts/windows_nt_output_native_ci.py:extract_verified_go_zip",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "name": "bounded_run_git_delegate",
+      "target_uid": "Function:scripts/windows_nt_output_native_ci.py:bounded_run_git_delegate",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "name": "bind_source_git_delegate",
+      "target_uid": "Function:scripts/windows_nt_output_native_ci.py:bind_source_git_delegate",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "name": "parse_native_vector",
+      "target_uid": "Function:scripts/windows_nt_output_native_ci.py:parse_native_vector",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "name": "invoke_native_controls",
+      "target_uid": "Function:scripts/windows_nt_output_native_ci.py:invoke_native_controls",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "name": "write_native_receipt",
+      "target_uid": "Function:scripts/windows_nt_output_native_ci.py:write_native_receipt",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "name": "native_ci_main",
+      "target_uid": "Function:scripts/windows_nt_output_native_ci.py:native_ci_main",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_controls.py",
+      "name": "native_control_entry",
+      "target_uid": "Function:scripts/windows_nt_output_native_controls.py:native_control_entry",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_manager_controls.py",
+      "name": "manager_control_entry",
+      "target_uid": "Function:scripts/windows_nt_output_native_manager_controls.py:manager_control_entry",
+      "state": "newNOTAUTHORED; beforeeditimpact required; absenceUNKNOWN notrisk0"
+    }
+  ],
+  "manual_risk": "HIGH rootdisclosed source/job/IO/cancel/newAPI; no VM/issuergrant"
+}
