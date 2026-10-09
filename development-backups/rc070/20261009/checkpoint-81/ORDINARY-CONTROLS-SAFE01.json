@@ -1,0 +1,90 @@
+{
+  "qualification": "SOURCE_ONLY_NOT_RC",
+  "actualOld9bbCI": "FAIL Rustconsumer2missinghelperlogs; Go4consumerPASS/Rustwholecompile7PASS finite only",
+  "actualOrdinaryAfter": "realownedGit apply/verify native0 actualproductionInvoke control0 actualJSONmatchesclosedsourceReceipt6b1953",
+  "original15": {
+    "methods": 15,
+    "result": "PASS",
+    "seconds": 70.29
+  },
+  "negative02": {
+    "passed": true,
+    "scope": "ordinary-ownedGit-nativeCLI-and-printboundary-only",
+    "vectors": [
+      {
+        "case": "real-receipt-directory-failure",
+        "nativeExit": 1,
+        "stdoutBytes": 0,
+        "noSuccessOutput": true
+      },
+      {
+        "case": "real-owned-reader-close",
+        "nativeExit": 1,
+        "sourceReceiptTrueOnly": true,
+        "callerDenied": true,
+        "ownedParentFDclosed": true
+      },
+      {
+        "case": "real-owned-blocked-stdout-exact-child-SIGINT",
+        "nativeExit": -2,
+        "sourceReceiptTrueOnly": true,
+        "callerDenied": true,
+        "ownedParentFDclosed": true,
+        "nativeOwnerCancellation": "NOTPROVEN"
+      },
+      {
+        "case": "ordinary-original-print-cancel-object",
+        "sameOriginalObject": true,
+        "actualReceiptClosed": true,
+        "allActualOpenedFDclosed": true,
+        "sourceReceiptTrueOnly": true,
+        "callerDenied": true,
+        "nativeOwnerCancellation": "NOTPROVEN"
+      }
+    ],
+    "compiler": "NOTRUN",
+    "VM": "NOTRUN",
+    "RC": "NOTQUALIFIED"
+  },
+  "negative01": "STOP bufferedfullpipe stdoutcancel fixture; exactownedcleanup anderratum preserved noPASS",
+  "strictMissingLog": "Actual ownedGo4 completePASS, eachversion/source-aftermissingDENY, restoredPASS",
+  "hashes": [
+    {
+      "file": "ORDINARY-HELPER-RESULT-FAILUREFIRST01.log",
+      "bytes": 727,
+      "sha256": "f223bb798fc354baddfb599a1bf16c3419220972ac43d72f78b2ae80c030759b"
+    },
+    {
+      "file": "ORDINARY-HELPER-RESULT-AFTER01.log",
+      "bytes": 725,
+      "sha256": "76b7b9beda8b5e57ce3cde9f85e436e86f640e520f03fdf9ef34a27428ca4ada"
+    },
+    {
+      "file": "ORDINARY-HELPER-RESULT-NEGATIVE01.log",
+      "bytes": 378,
+      "sha256": "9b429ac0f675fcbca040e1d01dd4ea90e83b0c56b23e9309ca406b312aba5d87"
+    },
+    {
+      "file": "ORDINARY-HELPER-RESULT-NEGATIVE02.log",
+      "bytes": 825,
+      "sha256": "c2e237cc3fa9ac46ffae72b3e0cbc8b3a923887a05b1ddf67b453613f264b965"
+    },
+    {
+      "file": "ORDINARY-HELPER-BLOCKED-PIPE-STOP-ERRATUM01.json",
+      "bytes": 689,
+      "sha256": "67d8c18eede2452d494c9ac01ac9e8d2a96ddcfd25309fa1c60a23e8611720d9"
+    },
+    {
+      "file": "ORDINARY-HELPER-FULL15-AFTER01.log",
+      "bytes": 2268,
+      "sha256": "8df50b5d252492a730ce41585481c289180da1094675067b098330dc1c804782"
+    },
+    {
+      "file": "ORDINARY-HELPER-STRICT-MISSINGLOG01.json",
+      "bytes": 465,
+      "sha256": "1680e2c3de0fd3cd6ff7cb59e7d94b56adc777ec0d7a91c26cc2ff9e1017c934"
+    }
+  ],
+  "nativeOwner_VM_IOclose_install_RC": "NOTQUALIFIED",
+  "controlTimeoutScope": "Only actual blocked-pipe SIGINT communicate10 bounded; earlier reader-close stderr.read has no independent timeout. This run actually exited1; no general bounded-all-fixtures claim."
+}

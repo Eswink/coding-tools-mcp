@@ -1,0 +1,55 @@
+{
+  "baselineCommit": "9bb8d62d478314cb57f6b13f15c4cde922c43437",
+  "candidateTree": "e3e6e3bb7adc6de36995f759d596430d77a45d1e",
+  "candidatePaths": 1872,
+  "deltaPaths": [
+    {
+      "path": "docs/specs/windows-rust-inference-carrier/design.md",
+      "mode": "100644",
+      "blob": "8b5e82987bdbc2f669b30331f667073b413a9dfb",
+      "bytes": 6749,
+      "sha256": "2a5a575faabf3bdc113056daa807cbc96f77a5ed4bff090e258372aa394fe5e5",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "docs/specs/windows-rust-inference-carrier/requirements.md",
+      "mode": "100644",
+      "blob": "4be0c3ac70a4abd74d1b9c78b92e2116225f13cd",
+      "bytes": 6600,
+      "sha256": "708e311dce9062de3608a987e27313df921e3bef8e1914fc431f51345cb72b2a",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "docs/specs/windows-rust-inference-carrier/tasks.md",
+      "mode": "100644",
+      "blob": "6c5ae34c07896a842cba153771df67ed12e8349b",
+      "bytes": 6221,
+      "sha256": "864589ca44f9f0185bfde4952b04ab5dc90a21a39bfba8c97802b8f5d0466a52",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "scripts/windows_foundation_inference_overlay.py",
+      "mode": "100644",
+      "blob": "45430f04200ff4fcd413dfe47b4d471378c35bcc",
+      "bytes": 21029,
+      "sha256": "d182c2cc5ffbabfb6368caa878024ed1416415eb893be99d77f9f8121de07eca",
+      "actualPOSIXMode": "0600"
+    }
+  ],
+  "unchangedBaselinePaths": 1868,
+  "all1872RawNativeBlobsPhysicalBytesVerified": true,
+  "soleCodeDelta": "postreceipt and primaryNone print(json.dumps(actualresult, ensure_ascii=False))",
+  "wholeHelperInverseExact": true,
+  "originalPSInvokeWorkflowConsumerGuardManifestTests": "all native mode/blob/physical bytes unchanged",
+  "ownFreshImpact": "exactPythonmain LOW3/direct2; PSCLIworkflow UNKNOWNmanualHIGH userdisclosed beforeedit",
+  "failurefirst": "apply/verify realnative0 true1953sourceReceipt yet productionInvoke logmissing/control1",
+  "postrepair": "apply/verify realnative0/logexists/control0; emittedJSON equals actual closedreceipt",
+  "ordinaryNegative02": "4 actualvectors PASS; directoryreceipt1/readerclose1/nativePython-u childSIGINT-2/originalprintcancel object&actualclosedFDs",
+  "ordinaryNegative01": "STOP blockeddefaultbufferedflush; preserved erratum; never PASS",
+  "original15ActualResult": "PASS15 in70.290seconds, component scope only",
+  "strictMissingRegularLog": "unchangedconsumer actualownedGo4 completePASS -> eachmissingversion/sourceafter DENY -> exactrestorePASS",
+  "newWindowsCI": "NOTRUN",
+  "old9bbCI": "actualGo4andconsumerPASS; actualRustwholecompiler+original7PASS butconsumerFAIL2missinglogs/wholeFAIL",
+  "independentPeer": "PENDING",
+  "nativeOwner_VM_IOclose_install_RC": "NOTQUALIFIED"
+}

@@ -1,0 +1,34 @@
+{
+  "decision": "PASS_FINITE_FOUR_PATH_SOURCE_FIX_BACKUP_AND_MEANINGFUL_NORMAL_PUSH_SCOPE",
+  "baseline_commit": "9bb8d62d478314cb57f6b13f15c4cde922c43437",
+  "candidate_tree": "e3e6e3bb7adc6de36995f759d596430d77a45d1e",
+  "source_freeze_sha256": "8d6d25ddcc7ec1810d7edff2f4006aaa2ed46553eb419c285c86102cf888aa58",
+  "physical_native_blobs_all1872_exact": true,
+  "unchanged_paths": 1868,
+  "delta_paths": "helper plus three existing specs only",
+  "sole_code_delta": "print(json.dumps(result, ensure_ascii=False)) after successful original receipt write and original primary propagation",
+  "whole_helper_inverse_exact": true,
+  "original_PS_resolver_Invoke_guard_manifest_workflow_consumer_tests_byte_unchanged": true,
+  "actual_evidence": {
+    "spec_structured_passed": true,
+    "functional_requirements": 11,
+    "exact_main_graph_risk": "LOW3 direct2 with uncovered PS CLI workflow UNKNOWN manualHIGH",
+    "failure_first_nativeGit_apply_verify_exit0_true1953_but_missing_log_control1": true,
+    "after_nativeGit_apply_verify_exit0_current1953_actual_printed_result_matches_receipt": true,
+    "negative02_four_real_or_exact_function_controls": "receipt directory failure1/no stdout; actual reader close BrokenPipe1; explicit ordinary -u child SIGINT -2; original print KBI same object actual file FDs closed",
+    "old_default_buffered_negative01": "STOP and erratum retained, not PASS",
+    "original_source15_suite": "actual15 PASS70.290s component only",
+    "consumer_original_missing_log_reject": "actual owned Go4 PASS then version and sourceafter absent DENY then restore PASS",
+    "seven_raw_control_seals_exact": true
+  },
+  "limits": [
+    "Owned fixture GITHUB_SHA is fixture context not actual CI proof",
+    "Explicit -u cancellation fixture does not qualify buffered production native cancellation",
+    "Current negative script stderr.read before wait has no independent bound in one success-observed path; no universal fixture liveness claim",
+    "Stdout result follows source receipt and cannot grant native owner or IO close",
+    "New samehead actual CI required; 9bb whole FAIL preserved"
+  ],
+  "peer_source_edit_or_execution": false,
+  "new_CI": "NOTRUN_AT_REVIEW",
+  "VM_IO_install_RC_issuer": "NOTQUALIFIED"
+}

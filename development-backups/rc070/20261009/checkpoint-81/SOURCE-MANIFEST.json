@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "baseline": "9bb8d62d478314cb57f6b13f15c4cde922c43437",
+  "tree": "e3e6e3bb7adc6de36995f759d596430d77a45d1e",
+  "files": [
+    {
+      "path": "docs/specs/windows-rust-inference-carrier/design.md",
+      "mode": "100644",
+      "blob": "8b5e82987bdbc2f669b30331f667073b413a9dfb",
+      "bytes": 6749,
+      "sha256": "2a5a575faabf3bdc113056daa807cbc96f77a5ed4bff090e258372aa394fe5e5",
+      "actualPOSIXMode": "0600",
+      "backupPath": "design.md.source"
+    },
+    {
+      "path": "docs/specs/windows-rust-inference-carrier/requirements.md",
+      "mode": "100644",
+      "blob": "4be0c3ac70a4abd74d1b9c78b92e2116225f13cd",
+      "bytes": 6600,
+      "sha256": "708e311dce9062de3608a987e27313df921e3bef8e1914fc431f51345cb72b2a",
+      "actualPOSIXMode": "0600",
+      "backupPath": "requirements.md.source"
+    },
+    {
+      "path": "docs/specs/windows-rust-inference-carrier/tasks.md",
+      "mode": "100644",
+      "blob": "6c5ae34c07896a842cba153771df67ed12e8349b",
+      "bytes": 6221,
+      "sha256": "864589ca44f9f0185bfde4952b04ab5dc90a21a39bfba8c97802b8f5d0466a52",
+      "actualPOSIXMode": "0600",
+      "backupPath": "tasks.md.source"
+    },
+    {
+      "path": "scripts/windows_foundation_inference_overlay.py",
+      "mode": "100644",
+      "blob": "45430f04200ff4fcd413dfe47b4d471378c35bcc",
+      "bytes": 21029,
+      "sha256": "d182c2cc5ffbabfb6368caa878024ed1416415eb893be99d77f9f8121de07eca",
+      "actualPOSIXMode": "0600",
+      "backupPath": "windows_foundation_inference_overlay.py.source"
+    }
+  ],
+  "patchSHA256": "a24be782c39d18f4cee90852c708e149c11015ad143fb17b1bbba7379c452fba"
+}

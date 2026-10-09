@@ -1,0 +1,15 @@
+{
+  "localCommit": "b0ba7d96b5e5d4879aced264d20f419ea00cbd16",
+  "soleParent": "9bb8d62d478314cb57f6b13f15c4cde922c43437",
+  "tree": "e3e6e3bb7adc6de36995f759d596430d77a45d1e",
+  "sourcePaths": 1872,
+  "deltaPaths": 4,
+  "sourceStatusBytes": 0,
+  "normalCommit": true,
+  "sourcePeerSHA256": "5069539747ea25939daae4f89251222375d2a6ed49d080bc7221ed7d7c2ece52",
+  "gencommit": "actualguidance fixed\ud83d\udc1b mapping used once",
+  "GitHubPush": "NOTPUSHED",
+  "newCI": "NOTRUN",
+  "old9bbCI": "FAIL preserved",
+  "owner_VM_IOclose_install_RC": "NOTQUALIFIED"
+}

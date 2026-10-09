@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "scope": "SOURCE_ONLY_NOTQUALIFIED",
+  "sourceCommit": "b0ba7d96b5e5d4879aced264d20f419ea00cbd16",
+  "sourceParent": "9bb8d62d478314cb57f6b13f15c4cde922c43437",
+  "sourceTree": "e3e6e3bb7adc6de36995f759d596430d77a45d1e",
+  "sourceFiles": 1872,
+  "sourceDelta": 4,
+  "files": [
+    {
+      "path": "INDEPENDENT-SOURCE-PEER-SAFE01.json",
+      "bytes": 2245,
+      "sha256": "5069539747ea25939daae4f89251222375d2a6ed49d080bc7221ed7d7c2ece52",
+      "gitBlob": "b7069c98cdabcf722780aa3d6f57d6b0709689f5",
+      "gitMode": "100644",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "LOCAL-COMMIT-SAFE01.json",
+      "bytes": 560,
+      "sha256": "37b39deb9344b67f9eb594cc13a03ff10a75c3ca4cf42b7376ceb301cdf3859f",
+      "gitBlob": "e1f747de90c0fb97b828021c8d5040d34643209e",
+      "gitMode": "100644",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "ORDINARY-CONTROLS-SAFE01.json",
+      "bytes": 3191,
+      "sha256": "36d920b2594fc542bb764d2c3ab23f5512eecf0cfbc20504c45099ce01544b00",
+      "gitBlob": "14041a639c0797d9763600f0af46d9e4e2559b14",
+      "gitMode": "100644",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "README.md",
+      "bytes": 860,
+      "sha256": "53b389e48a89d834f5a2e5b385cd7938008e30c3cf7c77d0e9d1d8e121f70554",
+      "gitBlob": "31a4b31dded6653cc3a1a46688d4e09f5aae30ae",
+      "gitMode": "100644",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "SOURCE-FREEZE01.json",
+      "bytes": 2727,
+      "sha256": "4a8bcd87734ca7a15b7ee1d1bd302cdecc75cd64dc2244689e3e42eb3a3b48ad",
+      "gitBlob": "7af5d4c8aca584faeec8d6645a2fafcd4bfe865a",
+      "gitMode": "100644",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "SOURCE-MANIFEST.json",
+      "bytes": 1633,
+      "sha256": "8875ac5d702a0e25126e670ce69c7dea40923db434837d121397592debe2884a",
+      "gitBlob": "89747bbdf3c3783141aa7afb8f258a8d5eb1e249",
+      "gitMode": "100644",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 737,
+      "sha256": "a8e57889c26a9ebfd53dfd25130b28d104abfa8d6703d58d80b2ca009baae4ef",
+      "gitBlob": "7b16077c4057881e70c81dbba3b5a5ecb6068ba1",
+      "gitMode": "100644",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "WORKFLOW-GUIDANCE-SAFE01.json",
+      "bytes": 438,
+      "sha256": "89c242528242c46d9a37db9322844d7961d23dccfe55d4ea4f3d515a7aa4cf8c",
+      "gitBlob": "7006799c2a8056c806df9d111e2eb1800811dd76",
+      "gitMode": "100644",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "design.md.source",
+      "bytes": 6749,
+      "sha256": "2a5a575faabf3bdc113056daa807cbc96f77a5ed4bff090e258372aa394fe5e5",
+      "gitBlob": "8b5e82987bdbc2f669b30331f667073b413a9dfb",
+      "gitMode": "100644",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "requirements.md.source",
+      "bytes": 6600,
+      "sha256": "708e311dce9062de3608a987e27313df921e3bef8e1914fc431f51345cb72b2a",
+      "gitBlob": "4be0c3ac70a4abd74d1b9c78b92e2116225f13cd",
+      "gitMode": "100644",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "soleparent9bb-helper-result.patch",
+      "bytes": 6652,
+      "sha256": "a24be782c39d18f4cee90852c708e149c11015ad143fb17b1bbba7379c452fba",
+      "gitBlob": "cdf0ec51eff900c23d43622dba2cc6eeee20874c",
+      "gitMode": "100644",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "tasks.md.source",
+      "bytes": 6221,
+      "sha256": "864589ca44f9f0185bfde4952b04ab5dc90a21a39bfba8c97802b8f5d0466a52",
+      "gitBlob": "6c5ae34c07896a842cba153771df67ed12e8349b",
+      "gitMode": "100644",
+      "actualPOSIXMode": "0600"
+    },
+    {
+      "path": "windows_foundation_inference_overlay.py.source",
+      "bytes": 21029,
+      "sha256": "d182c2cc5ffbabfb6368caa878024ed1416415eb893be99d77f9f8121de07eca",
+      "gitBlob": "45430f04200ff4fcd413dfe47b4d471378c35bcc",
+      "gitMode": "100644",
+      "actualPOSIXMode": "0600"
+    }
+  ],
+  "payloadFilesExcludingManifest": 13,
+  "payloadBytesExcludingManifest": 59642,
+  "restoreMap": "Use SOURCE-MANIFEST originalpath/source backupPath and soleparent patch ONLY against exact9bb; no other fullsourcepatch stack",
+  "newActualCI": "NOTRUN"
+}

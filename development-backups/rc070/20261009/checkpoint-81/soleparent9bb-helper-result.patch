@@ -1,0 +1,60 @@
+diff --git a/docs/specs/windows-rust-inference-carrier/design.md b/docs/specs/windows-rust-inference-carrier/design.md
+index 1f3c307..8b5e829 100644
+--- a/docs/specs/windows-rust-inference-carrier/design.md
++++ b/docs/specs/windows-rust-inference-carrier/design.md
+@@ -40,3 +40,12 @@ Actual1c Go original4/source/manager/runtime checks passed but terminalconsumer
+ |---|---|---|
+ | FR-8 | Sole post-assert actual version print | Full PS inverse/Invoke unchanged |
+ | FR-9 | Actual nativePython ordinary vectors | Failurefirst/after/wrongpin/missing-log denial and newCI |
++
++## FR-10/FR-11 helper actual verification evidence
++9bb Rust helper apply/verify wrote strict1953 successful receipts but had nostdout; originalTee created neither candidate-source-overlay.log nor source-after.log, so independentconsumer correctlyfailed. Add one print(json.dumps(result, ensure_ascii=False)) after the original primary reraising boundary, after successful originalreceipt write. The result is actual validator output, never reconstructed success. All otherhelper bytes andPS/workflow/consumer/manifest remain exact. Real nativechild pipe closure/receipt-writefailure remain nonzero; parentinvoker already rejects them. No owner/IOclose qualification derives from ordinarystdout or a source receipt.
++| FR | Design | Evidence |
++|---|---|---|
++| FR-10 | Sole postreceipt/no-primary actualresult print | Wholehelper inverse/remainingbytes exact |
++| FR-11 | OwnedGit trueapply/verify and realIO failures | Actual failurefirst/after/stdoutpipe/receipt/cancel controls plus newCI |
++
++Ordinary blocked-stdout control01 used default buffered Python and stopped in exit-flush; its STOP and exact owned cleanup remain preserved. Control02 uses explicit `-u` only for the owned negative native invocation, bounded communicate10s and finally closes/waits exact child/FDs. Native CLI SIGINT exit-2 and original-object print cancellation are distinct controls; neither proves Windows native owner cancellation. Production Python invocation/Invoke, print buffering and budget stay unchanged.
+diff --git a/docs/specs/windows-rust-inference-carrier/requirements.md b/docs/specs/windows-rust-inference-carrier/requirements.md
+index 9883877..4be0c3a 100644
+--- a/docs/specs/windows-rust-inference-carrier/requirements.md
++++ b/docs/specs/windows-rust-inference-carrier/requirements.md
+@@ -31,3 +31,7 @@ The original timeout is45minutes. An earlier Plan estimate said20 erroneously; i
+ ## Narrow actual Python version log repair from1c
+ - FR-8 The original Python3.12 assertion SHALL remain exact and only append print(sys.version) after success. Invoke-CheckedCompiler, resolver, native exit/cancel semantics, all pins/source identities and missing-log consumer rejection SHALL remain byteexact. No synthetic empty log, FD primitive, budget expansion, owner or union integration is allowed.
+ - FR-9 Actual owned process controls SHALL preserve failure-first for empty successful native stdout, prove actual version output after repair, reject a real existing wrong Python pin and retain consumer missing-log denial. The new four-path delta SHALL use soleparent1c, own fresh impact/spec/sourcepeer, safe immutable backup and meaningful normalpush. New samehead CI SHALL be required; old producerGo4 success and new ordinary controls SHALL NOT qualify finalCI.
++
++## Strict helper actual result stdout repair from9bb
++- FR-10 After the original write_receipt succeeds and original primary is None, helper main SHALL print only json.dumps(actual result). All prior validation, receipt/error/cancellation code SHALL remain exact; originalexceptions and real stdout/receipt/close/cancel failure SHALL propagate. No synthetic outputfile/metadata, no consumer missinglog relaxation, no scope/45min/pin/source/test change.
++- FR-11 Actual owned nativeGit helper apply and verify SHALL demonstrate pre-fix strictsuccess/nativeexit0 yet silentstdout/missinglog controlsFAIL; post-fix actualprintedJSON SHALL match the actualclosed receipt and source6b1953. Genuine owned stdout pipe failure and receipt write failure SHALL remain nonzero with no qualifiedsuccess, and owned cancellation SHALL not become success. Four existing paths only: helper plus these3spec. New exacthead realCI SHALL decide overall compiler gate; old9bbGo4 green and Rustproducer7 success SHALL not qualify newCI.
+diff --git a/docs/specs/windows-rust-inference-carrier/tasks.md b/docs/specs/windows-rust-inference-carrier/tasks.md
+index 29488e9..6c5ae34 100644
+--- a/docs/specs/windows-rust-inference-carrier/tasks.md
++++ b/docs/specs/windows-rust-inference-carrier/tasks.md
+@@ -45,3 +45,14 @@ Controls14 actually15methodsPASS37.493s: originalhelper/nativeGit controls, five
+ |---|---|---|
+ | FR-8 | 2,3 | Exact inverse/unchangedInvoke |
+ | FR-9 | 1,3 | Actual ordinary vectors plus newsameheadCI |
++
++## Narrow helper output repair tasks after9bb
++1. Preserve original9bb actualGo4+consumerPASS and Windowswholecompile+original7 butconsumerFAIL/2missinglogs; independentlyverify exactartifacts/source/runtime/case vectors.
++2. Own9bb checkout fresh exactmainimpact and userriskdisclosure/spec before only postreceipt-primary print actualresult. Exactly4existing deltas; allother1868 byteexact, no union integration.
++3. ActualownedGit apply/verify failurefirst thennewprintedreceipt equality, realstdout/receiptfailure and cancellationnonzero, existingtypedprimary controls and unchangedmissinglogdenial; sourcepeer/safecp81/soleparent9bb meaningfulcommit thenrootbackup/readback/newrealCI.
++| FR | Tasks | Evidence |
++|---|---|---|
++| FR-10 | 2,3 | Exacthelper inverse andsourcepeer |
++| FR-11 | 1,3 | Actual strictsource anderrorboundary controls/newCI |
++
++Actual postrepair ordinary original15 methods passed70.290s; two same-Invoke native helper operations produce matching receipts/logs. Four limited negative vectors passed (receipt directory, reader-close, owned unbuffered child SIGINT, original print-cancel object/closed FDs); buffered control01 remains STOP. Strict current consumer actual ownedGo4 accepts complete logs, denies each missing version/source-after log and accepts exact restore. These are component controls, not newWindows/compiler/VM/RC qualification.
+diff --git a/scripts/windows_foundation_inference_overlay.py b/scripts/windows_foundation_inference_overlay.py
+index 2e1d69d..45430f0 100644
+--- a/scripts/windows_foundation_inference_overlay.py
++++ b/scripts/windows_foundation_inference_overlay.py
+@@ -326,6 +326,7 @@ def main():
+         raise
+     if primary is not None:
+         raise primary
++    print(json.dumps(result, ensure_ascii=False))
+ 
+ 
+ if __name__ == '__main__':

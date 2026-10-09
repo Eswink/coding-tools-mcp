@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "purpose": "inert source-only backup",
+  "baseline": "9bb8d62d478314cb57f6b13f15c4cde922c43437",
+  "candidateTree": "e3e6e3bb7adc6de36995f759d596430d77a45d1e",
+  "sourcePaths": 1872,
+  "deltaPaths": 4,
+  "unchangedPaths": 1868,
+  "wholeHelperInverseExact": true,
+  "sourcePeers": "Independent limited sourcepeer PASS safeSHA506953; frozen earlierPending not rewritten",
+  "localCommit": "b0ba7d96b5e5d4879aced264d20f419ea00cbd16",
+  "GitHubPush": "NOTPUSHED",
+  "actualNewCI": "NOTRUN",
+  "risk": "exactmainLOW3/direct2; unsupportedPSCLIworkflowUNKNOWNmanualHIGH userdisclosed beforeedit",
+  "backupPOSIX": "copied source files may0600; native Git100644 proof separate",
+  "authority": "none",
+  "sourceClean": true
+}
