@@ -1,0 +1,30 @@
+{
+  "checkpoint": 94,
+  "scope": "SOURCE_ONLY_SAFE_ACTUAL_FAILED_TERMINAL",
+  "files": [
+    {
+      "path": "DIAGNOSTIC6-RESULT.json",
+      "mode": "100644",
+      "bytes": 453,
+      "sha256": "6dfbb91502daf5004fb6a7e59646e38a3ff6c2b430749d2ebc6155e5cfb956cb"
+    },
+    {
+      "path": "INDEPENDENT-TERMINAL-SAFE.json",
+      "mode": "100644",
+      "bytes": 2845,
+      "sha256": "8c5dcabb06a5c4c5dc49208e30536f7af0800978c9c8a4de8ecda3e946cdd54f"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 925,
+      "sha256": "34875451b943b96cdec40cc01e42e2a10d77e9c752d2c9a3500c465a18f6861c"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "100644",
+      "bytes": 583,
+      "sha256": "6c3aed9df77c7a65feb24c0ce4a08cc57e3e0424d3af10eb038e0b1d4da708be"
+    }
+  ]
+}

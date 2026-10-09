@@ -1,0 +1,244 @@
+{
+  "status": "SOURCE_ONLY_FROZEN_NOT_QUALIFICATION",
+  "files": [
+    {
+      "path": "CANDIDATE-FULL1967-MANIFEST01.json",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 516400,
+      "sha256": "57bcdfae55407031c00a2b96cca9472880823ac48ab3a4e24b7a57a2d4fe07f6",
+      "blob": "165b66b64866f9bb9083a96ed036b3b7f8c804bf"
+    },
+    {
+      "path": "FRESH-IMPACT-DETECT-SPEC-SAFE01.json",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 1169,
+      "sha256": "0d22f23ef68d82bc8e9e5577d29c9095ddfcf63f7b0830067bb01e1b6e271b5f",
+      "blob": "ed409ef9f7d4016d320f6ad534c85ac30f308f0c"
+    },
+    {
+      "path": "FRESH-ORDINARY-CONTROLS-SAFE01.json",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 3157,
+      "sha256": "f5fc9c8e2da53dc65934d01992d4ec836a0b6927d6123427fee870c58877994a",
+      "blob": "f97d8b622d5c84e3984d0b83c2c77abe29064727"
+    },
+    {
+      "path": "INDEPENDENT-SOURCE-ORDINARY-SAFE01.json",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 2476,
+      "sha256": "c38f0b8750829fa2a74c968a45169af50e975d7d6843c9e81950df6299723436",
+      "blob": "cd245216f67a9093bf33b0fc52f66bb1a6bc3ebc"
+    },
+    {
+      "path": "PRIVATE-SOURCE-COMMIT-SAFE01.json",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 864,
+      "sha256": "90fc5796a87ef847a51a606eecbb3d4b9d19e5cb3b2e3118d36cfbc8db7a6e98",
+      "blob": "98433de67937fa108a2682899196161f8faca27f"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 1116,
+      "sha256": "6d7a1422b8e980588afa85fb374969a06ebb2a2cb25afb6e69317923fffb22ae",
+      "blob": "0fda462f729ab2f9b70704bcddb11d7bdd04fd70"
+    },
+    {
+      "path": "RESTORE-MAP-SAFE01.json",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 7146,
+      "sha256": "b1902e26840a0d89e1988f6f5737e8dc05d5e72b200fb8968da59a7c1cc13d6e",
+      "blob": "7bfadd652158adb68856b8091992ab5c48cd0b89"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 1183,
+      "sha256": "ad78483cae4c6ddfb2b8204493597ed238e3cf9b5e17d5ad18cb2ed795e40cb7",
+      "blob": "d4a811cfd4ccb4065f1bcda83f7765077a4b1502"
+    },
+    {
+      "path": "pure19bb-to-union17.patch",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 63338,
+      "sha256": "baefc3aacbfba3bcb54826cc2f9d6fc89174699aeb5fbe56d95a916a89de2a02",
+      "blob": "a9b24fa7465fb560d1fc6c278b11b19a065f6a24"
+    },
+    {
+      "path": "source/docs/specs/windows-input-data-once/design.md.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 1239,
+      "sha256": "7f2a307c937769879e5c4bc7c3aac877bd138a0adf5a88f2d76ded401d986133",
+      "blob": "99cc424d29e570fc678f853ed51cecc4ca581f44"
+    },
+    {
+      "path": "source/docs/specs/windows-input-data-once/requirements.md.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 2299,
+      "sha256": "7763a7a17d5bdfc0ab58314d677f909807db7c9eeeb6f5eb7be193fee4c54fe2",
+      "blob": "42815a43d421fa025f27a2539d0d1b0319483449"
+    },
+    {
+      "path": "source/docs/specs/windows-input-data-once/tasks.md.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 1132,
+      "sha256": "f438795076e9418426502380c627ae50a9ba8d9bd6834bc83f275b7a98923906",
+      "blob": "06756a3582c2c930889080cd956ec36de10f0129"
+    },
+    {
+      "path": "source/docs/specs/windows-output-data-recreated/design.md.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 2066,
+      "sha256": "31798a40eaf6135003be95025f935b3b1c5b77e9db3f6e174acc6c554c412a6e",
+      "blob": "f67e22c0613a6ba711fba29c8e39ff049a0ef4fb"
+    },
+    {
+      "path": "source/docs/specs/windows-output-data-recreated/requirements.md.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 1998,
+      "sha256": "b05007f10f40d58ae72063fc36508e4721ba6e63b8a0017ed5cd0c29ab6f7fe1",
+      "blob": "dc90f748fcf469f5a6a64eda002d0b9b0960f1bc"
+    },
+    {
+      "path": "source/docs/specs/windows-output-data-recreated/tasks.md.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 1409,
+      "sha256": "224af77267befbb8c0cd907e25c3b82c11deb247a6dfe897badba40b08a357a5",
+      "blob": "9cbda30b654e2184a7077c393d380359de301e79"
+    },
+    {
+      "path": "source/docs/specs/windows-rust-output-data-recreated/design.md.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 3546,
+      "sha256": "47740c9fc39c49de153edc4c74a68d6b3f690ddd187cabfe898e0f8f3a82781a",
+      "blob": "27d72a19eec566664efd38d585c2464d7d88f90a"
+    },
+    {
+      "path": "source/docs/specs/windows-rust-output-data-recreated/requirements.md.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 4614,
+      "sha256": "2d6fe7dfdfd29aa826ee762ad9faeaed03d0e3e55303f85f9aaa980adb8213d6",
+      "blob": "227ad410272e0bf8ebd232563e8f54b7193a5da2"
+    },
+    {
+      "path": "source/docs/specs/windows-rust-output-data-recreated/tasks.md.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 2601,
+      "sha256": "917ee254794cca021620de1b90d773c3438b644c983714cf53f4cce31266fb00",
+      "blob": "7cf00dad695a2a5d3fdb69ec7f4a7ab56708c7e1"
+    },
+    {
+      "path": "source/services/windows-vm-broker/output_transfer.go.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 2137,
+      "sha256": "e52bb1feb1724a03b1ca352b024ab3f3e93cd5c72bd7ca7595e1f69129e18997",
+      "blob": "537fe795ab4b8ea21c80c15eae7bd27dab32d7b0"
+    },
+    {
+      "path": "source/services/windows-vm-broker/output_transfer_test.go.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 8432,
+      "sha256": "76a4a8db6b5afe6d85dd985228e7b70e6dc8af7199ece876ea95c5a824af155b",
+      "blob": "9396417698bf0556166a5addde83cac71e6aa25a"
+    },
+    {
+      "path": "source/services/windows-vm-broker/transfer.go.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 5494,
+      "sha256": "a29d443756e783584f42ef2aad9b8bb2f25cf17fe82b72c132475b22ec9236e3",
+      "blob": "1f4432acbe6b44d6bf6969584a69f68d5fca5afa"
+    },
+    {
+      "path": "source/services/windows-vm-broker/transfer_owner_test.go.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 4065,
+      "sha256": "e691fae89dd8223b0dae56a79c8b45a68d84a609a32d7948dfd5c2d03b8dc160",
+      "blob": "26b087d8e93446e13bead8d5d3b6ac3dd4987681"
+    },
+    {
+      "path": "source/src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 7163,
+      "sha256": "d22b143b6b199e743b19bf931b50358cfac9fcc761704d81139e87a6c07ade00",
+      "blob": "5b2626f0dde7cd96b4af77ff6715a7bd9ec55ef5"
+    },
+    {
+      "path": "source/src-tauri/src/tools/windows_vm/output_stage/data.rs.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 6670,
+      "sha256": "9c03dc93a7223975877096a0ca280d558f9af62ff48d7a048be664c85f938c90",
+      "blob": "2823d75b38960fff503215ae528db89d32b89f51"
+    },
+    {
+      "path": "source/src-tauri/src/tools/windows_vm/output_stage/data_tests.rs.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 12329,
+      "sha256": "d469e670979abe5395fae1b07fbb640182df7390c7b296e0a3febf8e4ed784e6",
+      "blob": "9d6eada4016d146fff7d754a8ccc70effab79332"
+    },
+    {
+      "path": "source/src-tauri/src/tools/windows_vm/output_stage/mod.rs.source",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 504,
+      "sha256": "16157e26bf2a659a967b3d4b65f304ca209f947483dc6fc90a0e265fa49f593b",
+      "blob": "52292b3ab93e7b5c21c51e5605284698c474f800"
+    },
+    {
+      "path": "union-spec/design.md",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 2630,
+      "sha256": "0a306e3b7b8edc699ab50455c0c81918d2cec377654c69775e3efc44209349f5",
+      "blob": "c7b227c84f597fa63465fbc5dc45329c2e8ccd2d"
+    },
+    {
+      "path": "union-spec/requirements.md",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 4512,
+      "sha256": "128db0b3e0c5ff5c11f10b131f417e68cab730dfba9deb86433c7022ca6879b9",
+      "blob": "4c44c5e9b5cc4b5f6d6d87d4f719ab67a541afaf"
+    },
+    {
+      "path": "union-spec/tasks.md",
+      "mode": "100644",
+      "physicalMode": "0644",
+      "bytes": 6011,
+      "sha256": "abe54d969ccadd2453f70a86676b43177a18731bde14e22b90be22db286c77fc",
+      "blob": "7d2d71f421b9aba2ed76096447e1fb5ef8631305"
+    }
+  ],
+  "payloadFilesExcludingManifest": 29,
+  "payloadBytesExcludingManifest": 677700,
+  "candidateTree": "4d42a21057b867e6163e6bbe3ce9edca24da5716",
+  "candidatePaths": 1967,
+  "exactLeafSources": 17,
+  "privateLocalCommit": "b26ace6f28e5a6323c69d706e29169b6b56f4d91",
+  "frozen": "Do not modify; future statuses use new packets."
+}

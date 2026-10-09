@@ -1,0 +1,21 @@
+{
+  "qualification": "ACTUAL_ORIGINAL_METHOD_FAIL_NOT_RC",
+  "source_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "carrier_head": "a935f0d8f81901a0974b5b0d4a59c98d7765b8a1",
+  "source_checkpoint": 89,
+  "original_method": {
+    "loaded": 1,
+    "executed": 1,
+    "FAIL": 1,
+    "ERROR": 0,
+    "natural_exit": 1,
+    "native_echild": true,
+    "closed": false,
+    "qualified": false
+  },
+  "original85": "FAIL83SUCCESS2FAIL_RETAINED",
+  "original300": "NOTRUN",
+  "release_authorized": false,
+  "source_only_safe_metadata": true,
+  "original_raw_private_preserved": true
+}

@@ -1,0 +1,19 @@
+{
+  "status": "SOURCE_ONLY_FROZEN_NO_NATIVE_STARTUP",
+  "privateLocalCommit": "b26ace6f28e5a6323c69d706e29169b6b56f4d91",
+  "solePrivateParent": "bf1885cb8f22355b5a9c4075ebd44d91d58a58c6",
+  "sourceTree": "4d42a21057b867e6163e6bbe3ce9edca24da5716",
+  "sourcePaths": 1967,
+  "exact17": true,
+  "sourceIndependentPeer": "SOURCE_ONLY_LIMITED_PASS_NO_NATIVE_STARTUP/c38f0b8750829fa2a74c968a45169af50e975d7d6843c9e81950df6299723436",
+  "currentSourceCopied17": "COMPLETE (historical pre-edit mapping zero-copy statements not current state)",
+  "LinuxDataOnly": "Go23PASS/RustFacade14PASS",
+  "WindowsWhole1967Compiler": "NOTRUN",
+  "CI_Source_RuntimeLeaseForUnion1967": "PENDING",
+  "nativeOwnerVMIOcloseWorkspaceWritebackInstallRC": "NOTQUALIFIED",
+  "protectedWSSSHA256": "c9fcdba432c239cc08a090c6cb4256f51b54368cbefb3afac553c1a6c719b9b8",
+  "b0baLimitedCompilerDataOnlyPASS": "Not borrowed for newunion qualification",
+  "oldFailedReceiptsLogsAndSpecErrata": "PRESERVED, original freezes unchanged",
+  "publicBundle": "inert source leaves/exactpatch/full source hash-manifest/safe metadata only; no raw logs/runtime/host/env/TLS/token/Gitobjects/ZIP",
+  "backup91Uploaded": "NOTYET"
+}

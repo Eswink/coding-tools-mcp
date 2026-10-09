@@ -1,0 +1,25 @@
+# 任务
+
+## 任务列表
+- [ ] T1 FR-1 FR-2: actual immutablefailurefirst controls onoriginalinputDATA.
+- [ ] T2 FR-1 FR-2 FR-3: freshisolatedupstreamimpact andmanualHIGH ifUNKNOWN;check_spec.
+- [ ] T3 FR-1 FR-2 FR-3: implement sharedpointeridentity onlyintransfer.go;originaltest unchanged.
+- [ ] T4 FR-1 FR-2 FR-3 FR-4: actualGo race testsvectors,peer,wholebaselinehashguard,detect_changes/gencommit andsourcebackupfreeze.
+
+## 交付物清单
+5source paths,safehash/mode/sourcepatchmanifest,actualfailure/pass receipts andindependentpeer. No nativepermission orRCqualification.
+
+## 需求覆盖矩阵
+| Requirement | Task | Evidence |
+|---|---|---|
+| FR-1 | T1,T3,T4 | valuecopy before/after |
+| FR-2 | T1,T3,T4 | 32callers race tests |
+| FR-3 | T2,T3,T4 | originalforeignretry andanchoredmetadata/cancel |
+| FR-4 | T4 | unchanged1952baseline +originalprotectedSHA |
+
+## 文件变更清单
+- services/windows-vm-broker/transfer.go
+- services/windows-vm-broker/transfer_owner_test.go
+- docs/specs/windows-input-data-once/requirements.md
+- docs/specs/windows-input-data-once/design.md
+- docs/specs/windows-input-data-once/tasks.md

@@ -1,0 +1,77 @@
+{
+  "scope": "FRESH_LINUX_ORDINARY_DATA_ONLY_NOT_WINDOWS_COMPILER",
+  "sourceTree": "4d42a21057b867e6163e6bbe3ce9edca24da5716",
+  "Go": {
+    "pin": "1.24.13/linux-amd64",
+    "selectedFiles": 9,
+    "baseline11": true,
+    "newOutput7": true,
+    "newInput5": true,
+    "actualRun23": true,
+    "actualPass23": true,
+    "nativeExit": 0,
+    "race": true,
+    "seconds": 17.670072726999933,
+    "full1967BeforeAfterRawNativePhysical": true,
+    "actualNames": [
+      "TestTransferAllBindingFieldsChangeDigest",
+      "TestTransferBoundEOFHashCancellationAndSingleConsumption",
+      "TestTransferRelativeAndMalformedIdentityReject",
+      "TestLinuxTransferCannotIssueNativeFileIdentity",
+      "TestWorkspaceRustGoCanonicalVector",
+      "TestWorkspaceExactZeroAndOneMiBBudgets",
+      "TestWorkspaceEveryHeaderDimensionPermanentlyPoisons",
+      "TestWorkspaceTruncationTrailingReplayAndFinalDigestReject",
+      "TestWorkspaceAllocationBoundCancellationAndChunkFailure",
+      "TestWorkspaceInputOutputDirectionAndMissingTrustedManifestReject",
+      "TestWorkspaceConcurrentCancellationWhileDecoderCallbackIsBlocked",
+      "TestOutputTransferExactDirectionBudgetsAndDetachedBytes",
+      "TestOutputTransferEveryBindingFieldRejectsForeignWire",
+      "TestOutputTransferPhysicalEOFHashAndReplayReject",
+      "TestOutputTransferCancelledNilAndCorruptOwnersAreTerminal",
+      "TestOutputTransferConcurrentConsumersHaveOnlyOneSuccess",
+      "TestOutputTransferValueCopiesShareTerminalConsumption",
+      "TestOutputTransferConcurrentValueCopiesHaveOnlyOneSuccess",
+      "TestInputDataValueCopyCannotConsumeTwice",
+      "TestInputDataConcurrentConsumptionIsOnce",
+      "TestInputDataCopiesCannotRedirectBindingOrPayload",
+      "TestInputDataCopiedContextCannotReviveCancellation",
+      "TestInputDataConcurrentValueCopiesHaveOneSuccess"
+    ],
+    "rawLogSeal": {
+      "name": "ACTUAL-UNION-GO23-OWNED01.log",
+      "bytes": 6462,
+      "sha256": "917c599b1fa0fa513bd4809cfe33510810ad03e666dc110d4aedcaee54515160"
+    }
+  },
+  "Rust": {
+    "pin": "1.98.1/linux-amd64",
+    "actualFacadePass14": true,
+    "originalPureInput7": "2chunk+3path+2transfer (different from Windows CI original7)",
+    "newOutput7": true,
+    "cargoNativeExit": 0,
+    "docTests": 0,
+    "source7BeforeAfterEqual": true,
+    "omitted": "whole original owned_run/input/outputgate/nt/owner/Tauri/fullcrate",
+    "originalActualTransferRunBindingUsed": true,
+    "rawLogSeal": {
+      "name": "ACTUAL-UNION-RUST-DATA-FACADE03.log",
+      "bytes": 11515,
+      "sha256": "74fe5650e264f497861bba0169a45cf2726205efb32f7417150110ec326a0b5c"
+    },
+    "firstFailuresPreserved": [
+      {
+        "name": "ACTUAL-UNION-RUST-DATA-FACADE01.log",
+        "bytes": 387,
+        "sha256": "f8aff3fa6b45cc489ed454c8a45218cbe2e10c5f3e19007e940a89fe9c91a128"
+      },
+      {
+        "name": "ACTUAL-UNION-RUST-DATA-FACADE02.log",
+        "bytes": 12489,
+        "sha256": "62f8d5e63326628a703bf4c4f4e967b3e795af76b694e827bc6ebf475210d144"
+      }
+    ]
+  },
+  "newWindowsWholeCompilerListOriginalCI7PlusNew7": "NOTRUN",
+  "nativeOwnerVMWorkspaceWritebackInstallRC": "NOTQUALIFIED"
+}

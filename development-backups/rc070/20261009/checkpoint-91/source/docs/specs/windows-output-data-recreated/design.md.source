@@ -1,0 +1,19 @@
+# 设计
+
+## 概述
+对应需求：FR-1, FR-2, FR-3, FR-4.
+
+## 技术方案
+
+Add output_transfer.go and output_transfer_test.go in the existing windows-vm-broker package. The new receiveOutputTransfer calls transferBinding.digest, constructs workspaceStreamManifest(direction2) and uses existing readAll/dataCopy. No existing input decoder or binding symbol changes.
+
+A detachedOutputTransfer retains original binding,hash,context,immutable bytes and pointer-shared mutex-protected consumed flag. The internal consumption state pointer is allocated once by the receiver; normal whole-struct value copies share this same state rather than duplicate the mutex or consumed flag. A missing state denies. take locks that shared state, rejects replay, consumes the one attempt before any binding/cancellation/hash validation, and only returns a fresh bytes.Clone after validation. Context cancellation before and after cloning denies. Consumers cannot reopen poisoned transfer by presenting a corrected binding later.
+
+The scope is only Go output data at this checkpoint. Rust/Go canonical output vectors and Rust source registration require a later reviewed increment when actual project compilation can run. Physical EOF is protocol validation only. No native objects,FileId handles,paths-to-authority,VM/PID/JSON grants,publication calls or owner disposal occur.
+
+Impact UNKNOWN is manual HIGH until the fresh isolated GitNexus index returns usable results. No parent tree is claimed to pass Windows native/install/RC gates.
+
+## 文件结构
+services/windows-vm-broker/output_transfer.go holds the data owner; output_transfer_test.go verifies its genuine repository behavior. Three docs/specs/windows-output-data-recreated documents bind the scope.
+
+Foreign binding and caller mistakes consume availability permanently. This fail-closed terminal choice means a mistaken or hostile caller can discard this data owner; no later corrected binding reopens it. This deliberate local denial-of-service tradeoff is scoped to detached bytes and does not dispose native owners.

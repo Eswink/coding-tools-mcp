@@ -1,0 +1,21 @@
+{
+  "scope": "PRIVATE_SOURCE_ONLY_UNION17_NOT_PRODUCTION_COMMIT",
+  "commit": "b26ace6f28e5a6323c69d706e29169b6b56f4d91",
+  "soleParent": "bf1885cb8f22355b5a9c4075ebd44d91d58a58c6",
+  "parentTree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+  "tree": "4d42a21057b867e6163e6bbe3ce9edca24da5716",
+  "paths": 1967,
+  "exactChangedPaths": 17,
+  "existing3new14": true,
+  "unchanged1950": true,
+  "normalCommitNativeExit": 0,
+  "statusBytes": 0,
+  "all1967RawPhysicalNativeBeforeAfter": true,
+  "precommitPatchMatchesPure19bbDelta": true,
+  "normalPrivateBaselineHistorical116Commit": "bf1885cb8f22355b5a9c4075ebd44d91d58a58c6",
+  "sourcePeer": "finitec38fPASS",
+  "oldGuardD6HEADRequirement": "UNCHANGED; privatecheckoutnotauthorizedruntime",
+  "WindowsUnionCompiler": "NOTRUN",
+  "remotePushed": false,
+  "NativeOwnerVMWorkspaceWritebackInstallRC": "NOTQUALIFIED"
+}

@@ -1,0 +1,155 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"sync"
+	"testing"
+)
+
+func inputDataTestOwner(t *testing.T) (*detachedTransfer, transferBinding, []byte) {
+	t.Helper()
+	binding := transferTestBinding()
+	data := []byte("input data once canary")
+	hash, e := binding.digest()
+	if e != nil {
+		t.Fatal(e)
+	}
+	digest := sha256.Sum256(data)
+	wire, e := workspaceEncode(workspaceStreamManifest{binding: hash, direction: 1, total: uint64(len(data)), digest: digest}, data)
+	if e != nil {
+		t.Fatal(e)
+	}
+	owner, e := receiveTransfer(context.Background(), binding, uint64(len(data)), digest, bytes.NewReader(wire))
+	if e != nil {
+		t.Fatal(e)
+	}
+	return owner, binding, data
+}
+func TestInputDataValueCopyCannotConsumeTwice(t *testing.T) {
+	owner, binding, _ := inputDataTestOwner(t)
+	copied := *owner
+	if _, e := owner.take(binding); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := copied.take(binding); e == nil {
+		t.Fatal("ordinary input data valuecopy consumed twice")
+	}
+}
+func TestInputDataConcurrentConsumptionIsOnce(t *testing.T) {
+	owner, binding, data := inputDataTestOwner(t)
+	start := make(chan struct{})
+	results := make(chan bool, 32)
+	var group sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			<-start
+			got, e := owner.take(binding)
+			results <- e == nil && bytes.Equal(got, data)
+		}()
+	}
+	close(start)
+	group.Wait()
+	close(results)
+	success := 0
+	for passed := range results {
+		if passed {
+			success++
+		}
+	}
+	if success != 1 {
+		t.Fatal("input concurrent successcount", success)
+	}
+}
+
+func TestInputDataCopiesCannotRedirectBindingOrPayload(t *testing.T) {
+	owner, binding, data := inputDataTestOwner(t)
+	copyOwner := *owner
+	foreign := binding
+	foreign.caller += "foreign"
+	copyOwner.binding = foreign
+	if _, e := copyOwner.take(foreign); e == nil {
+		t.Fatal("valuecopy changed originalbinding")
+	}
+	if _, e := owner.take(binding); e != nil {
+		t.Fatal("foreignfailedattemptconsumedoriginal", e)
+	}
+	owner, binding, _ = inputDataTestOwner(t)
+	copyOwner = *owner
+	copyOwner.data = []byte("foreignpayload")
+	copyOwner.digest = sha256.Sum256(copyOwner.data)
+	if _, e := copyOwner.take(binding); e == nil {
+		t.Fatal("valuecopy changed anchoredpayload")
+	}
+	got, e := owner.take(binding)
+	if e != nil || !bytes.Equal(got, data) {
+		t.Fatal("corruptcopy affectedvalidoriginal", e)
+	}
+}
+func TestInputDataCopiedContextCannotReviveCancellation(t *testing.T) {
+	binding := transferTestBinding()
+	data := []byte("cancelcanary")
+	hash, _ := binding.digest()
+	digest := sha256.Sum256(data)
+	wire, e := workspaceEncode(workspaceStreamManifest{binding: hash, direction: 1, total: uint64(len(data)), digest: digest}, data)
+	if e != nil {
+		t.Fatal(e)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	owner, e := receiveTransfer(ctx, binding, uint64(len(data)), digest, bytes.NewReader(wire))
+	if e != nil {
+		t.Fatal(e)
+	}
+	copied := *owner
+	cancel()
+	copied.ctx = context.Background()
+	if _, e := copied.take(binding); e == nil {
+		t.Fatal("copiedcontext revivedcancelledowner")
+	}
+	if _, e := owner.take(binding); e == nil {
+		t.Fatal("cancelledoriginalrevived")
+	}
+	var absent *detachedTransfer
+	if _, e := absent.take(binding); e == nil {
+		t.Fatal("nilinputowneraccepted")
+	}
+	missing := &detachedTransfer{}
+	if _, e := missing.take(binding); e == nil {
+		t.Fatal("missingsharedstateaccepted")
+	}
+}
+func TestInputDataConcurrentValueCopiesHaveOneSuccess(t *testing.T) {
+	owner, binding, data := inputDataTestOwner(t)
+	copied := *owner
+	start := make(chan struct{})
+	results := make(chan bool, 32)
+	var group sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		target := owner
+		if i%2 == 1 {
+			target = &copied
+		}
+		group.Add(1)
+		go func(target *detachedTransfer) {
+			defer group.Done()
+			<-start
+			got, e := target.take(binding)
+			results <- e == nil && bytes.Equal(got, data)
+		}(target)
+	}
+	close(start)
+	group.Wait()
+	close(results)
+	success := 0
+	for passed := range results {
+		if passed {
+			success++
+		}
+	}
+	if success != 1 {
+		t.Fatal("inputconcurrentvaluecopy successcount", success)
+	}
+}

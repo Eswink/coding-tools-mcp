@@ -1,0 +1,13 @@
+{
+  "diagnostic_observation_available": true,
+  "original_method_passed": false,
+  "native_echild": true,
+  "natural_exit_code": 1,
+  "raw_seal_sha256": "5d7e0c27c99c1c99d6c70bf1756542fc4723958eadbc52bd5de997dd04b34d41",
+  "observer_seal_sha256": "e5a8cec243297c61a60d73a37f3031240546da3058e9687c84c2c30407b6913f",
+  "whole85": "FAIL_83SUCCESS_2FAIL_RETAINED",
+  "original300": "NOTRUN",
+  "CI": false,
+  "FINAL": false,
+  "release_authorized": false
+}

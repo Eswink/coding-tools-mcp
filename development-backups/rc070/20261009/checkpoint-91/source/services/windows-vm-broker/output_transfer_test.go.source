@@ -1,0 +1,254 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"strings"
+	"sync"
+	"testing"
+)
+
+func outputTestWire(t *testing.T, binding transferBinding, data []byte, direction byte) []byte {
+	t.Helper()
+	hash, err := binding.digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire, err := workspaceEncode(workspaceStreamManifest{binding: hash, direction: direction, total: uint64(len(data)), digest: sha256.Sum256(data)}, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return wire
+}
+
+func TestOutputTransferExactDirectionBudgetsAndDetachedBytes(t *testing.T) {
+	binding := transferTestBinding()
+	for _, size := range []int{0, 1, workspaceChunk - 1, workspaceChunk, workspaceChunk + 1, workspaceMaximum} {
+		data := bytes.Repeat([]byte{7}, size)
+		wire := outputTestWire(t, binding, data, 2)
+		transfer, err := receiveOutputTransfer(context.Background(), binding, uint64(size), sha256.Sum256(data), bytes.NewReader(wire))
+		if err != nil {
+			t.Fatal(size, err)
+		}
+		got, err := transfer.take(binding)
+		if err != nil || !bytes.Equal(got, data) {
+			t.Fatal("exact output bytes unavailable", size, err)
+		}
+		if len(got) > 0 {
+			got[0] ^= 0xff
+			if !bytes.Equal(transfer.data, data) {
+				t.Fatal("consumer mutated retained bytes")
+			}
+		}
+		if _, err := transfer.take(binding); err == nil {
+			t.Fatal("output replay accepted")
+		}
+	}
+	data := []byte("output data canary")
+	inputWire := outputTestWire(t, binding, data, 1)
+	if _, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), sha256.Sum256(data), bytes.NewReader(inputWire)); err == nil {
+		t.Fatal("input direction accepted as output")
+	}
+	if _, err := receiveOutputTransfer(context.Background(), binding, workspaceMaximum+1, sha256.Sum256(data), bytes.NewReader(inputWire)); err == nil {
+		t.Fatal("output over capacity accepted")
+	}
+}
+
+func TestOutputTransferEveryBindingFieldRejectsForeignWire(t *testing.T) {
+	binding := transferTestBinding()
+	data := []byte("bound output canary")
+	wire := outputTestWire(t, binding, data, 2)
+	changes := []func(*transferBinding){
+		func(b *transferBinding) { b.host = "22222222-2222-4222-8222-222222222222" },
+		func(b *transferBinding) { b.profile += "x" },
+		func(b *transferBinding) { b.caller += "x" },
+		func(b *transferBinding) { b.source = strings.Repeat("2", 40) },
+		func(b *transferBinding) { b.session = "22222222-2222-4222-8222-222222222222" },
+		func(b *transferBinding) { b.operation = "22222222-2222-4222-8222-222222222222" },
+		func(b *transferBinding) { b.inputRelative = "other.txt" },
+		func(b *transferBinding) { b.outputParent = "other" },
+		func(b *transferBinding) { b.outputLeaf = "other.txt" },
+	}
+	for i, change := range changes {
+		foreign := binding
+		change(&foreign)
+		if _, err := receiveOutputTransfer(context.Background(), foreign, uint64(len(data)), sha256.Sum256(data), bytes.NewReader(wire)); err == nil {
+			t.Fatal("foreign wire binding accepted", i)
+		}
+		transfer, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), sha256.Sum256(data), bytes.NewReader(wire))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := transfer.take(foreign); err == nil {
+			t.Fatal("foreign consumption binding accepted", i)
+		}
+		if _, err := transfer.take(binding); err == nil {
+			t.Fatal("failed consumption attempt reopened", i)
+		}
+	}
+}
+
+func TestOutputTransferPhysicalEOFHashAndReplayReject(t *testing.T) {
+	binding := transferTestBinding()
+	data := []byte("output canary")
+	wire := outputTestWire(t, binding, data, 2)
+	corrupt := bytes.Clone(wire)
+	corrupt[workspaceHeader] ^= 1
+	badSequence := bytes.Clone(wire)
+	badSequence[12] ^= 1
+	badOffset := bytes.Clone(wire)
+	badOffset[16] ^= 1
+	for _, bad := range [][]byte{nil, wire[:7], wire[:len(wire)-workspaceHeader], wire[:len(wire)-1], append(bytes.Clone(wire), 0), append(bytes.Clone(wire), wire...), corrupt, badSequence, badOffset} {
+		if _, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), sha256.Sum256(data), bytes.NewReader(bad)); err == nil {
+			t.Fatal("bad output framing accepted")
+		}
+	}
+	wrongHash := sha256.Sum256([]byte("foreign data"))
+	if _, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), wrongHash, bytes.NewReader(wire)); err == nil {
+		t.Fatal("wrong output digest accepted")
+	}
+}
+
+func TestOutputTransferCancelledNilAndCorruptOwnersAreTerminal(t *testing.T) {
+	binding := transferTestBinding()
+	data := []byte("output canary")
+	wire := outputTestWire(t, binding, data, 2)
+	digest := sha256.Sum256(data)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	for _, context := range []context.Context{nil, ctx} {
+		if _, err := receiveOutputTransfer(context, binding, uint64(len(data)), digest, bytes.NewReader(wire)); err == nil {
+			t.Fatal("invalid context accepted")
+		}
+	}
+	if _, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), digest, nil); err == nil {
+		t.Fatal("nil output reader accepted")
+	}
+	var absent *detachedOutputTransfer
+	if _, err := absent.take(binding); err == nil {
+		t.Fatal("nil output owner accepted")
+	}
+	for _, corrupt := range []bool{false, true} {
+		ctx, cancel := context.WithCancel(context.Background())
+		transfer, err := receiveOutputTransfer(ctx, binding, uint64(len(data)), digest, bytes.NewReader(wire))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if corrupt {
+			transfer.data[0] ^= 1
+		} else {
+			cancel()
+		}
+		if _, err := transfer.take(binding); err == nil {
+			t.Fatal("cancelled/corrupt output accepted")
+		}
+		if _, err := transfer.take(binding); err == nil {
+			t.Fatal("terminal output reopened")
+		}
+		cancel()
+	}
+}
+
+func TestOutputTransferConcurrentConsumersHaveOnlyOneSuccess(t *testing.T) {
+	binding := transferTestBinding()
+	data := []byte("concurrent output canary")
+	wire := outputTestWire(t, binding, data, 2)
+	transfer, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), sha256.Sum256(data), bytes.NewReader(wire))
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := make(chan struct{})
+	results := make(chan bool, 32)
+	var group sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			<-start
+			got, err := transfer.take(binding)
+			results <- err == nil && bytes.Equal(got, data)
+		}()
+	}
+	close(start)
+	group.Wait()
+	close(results)
+	success := 0
+	for passed := range results {
+		if passed {
+			success++
+		}
+	}
+	if success != 1 {
+		t.Fatal("concurrent consumption success count", success)
+	}
+}
+
+func TestOutputTransferValueCopiesShareTerminalConsumption(t *testing.T) {
+	binding := transferTestBinding()
+	data := []byte("value copy canary")
+	wire := outputTestWire(t, binding, data, 2)
+	for _, foreignAttempt := range []bool{false, true} {
+		owner, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), sha256.Sum256(data), bytes.NewReader(wire))
+		if err != nil {
+			t.Fatal(err)
+		}
+		copied := *owner
+		attempt := binding
+		if foreignAttempt {
+			attempt.caller += "foreign"
+		}
+		_, err = copied.take(attempt)
+		if (err == nil) == foreignAttempt {
+			t.Fatal("first copied consumption outcome changed", foreignAttempt, err)
+		}
+		if _, err = owner.take(binding); err == nil {
+			t.Fatal("value copy reopened original output")
+		}
+		if _, err = copied.take(binding); err == nil {
+			t.Fatal("copied owner reopened terminal output")
+		}
+	}
+	missing := &detachedOutputTransfer{}
+	if _, err := missing.take(binding); err == nil {
+		t.Fatal("missing shared once state accepted")
+	}
+}
+func TestOutputTransferConcurrentValueCopiesHaveOnlyOneSuccess(t *testing.T) {
+	binding := transferTestBinding()
+	data := []byte("concurrent value copy canary")
+	wire := outputTestWire(t, binding, data, 2)
+	owner, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), sha256.Sum256(data), bytes.NewReader(wire))
+	if err != nil {
+		t.Fatal(err)
+	}
+	copied := *owner
+	start := make(chan struct{})
+	results := make(chan bool, 32)
+	var group sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		target := owner
+		if i%2 == 1 {
+			target = &copied
+		}
+		group.Add(1)
+		go func(target *detachedOutputTransfer) {
+			defer group.Done()
+			<-start
+			got, e := target.take(binding)
+			results <- e == nil && bytes.Equal(got, data)
+		}(target)
+	}
+	close(start)
+	group.Wait()
+	close(results)
+	success := 0
+	for passed := range results {
+		if passed {
+			success++
+		}
+	}
+	if success != 1 {
+		t.Fatal("copied concurrent output success count", success)
+	}
+}

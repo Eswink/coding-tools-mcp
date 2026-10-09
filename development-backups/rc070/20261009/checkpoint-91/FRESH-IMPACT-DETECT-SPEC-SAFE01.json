@@ -1,0 +1,42 @@
+{
+  "preEditOwnRepo": "rc070-windows-union-pure19bb-pre01",
+  "actualFreshQueries": 50,
+  "existingExactLOW": 5,
+  "newSymbolUNKNOWN": 44,
+  "oneWrongTakeLookupPreservedCorrectedByExactFreshUID": true,
+  "unknownIsNotZero": true,
+  "userRiskDisclosedBeforeLiteralCopy": "manualHIGH",
+  "finalOwnRepo": "rc070-windows-union-final01",
+  "finalIndexExit": 0,
+  "finalIndexSeconds": 135.6,
+  "indexedCommit": "bf1885cb8f22355b5a9c4075ebd44d91d58a58c6",
+  "sourceTree": "4d42a21057b867e6163e6bbe3ce9edca24da5716",
+  "actualStagedDetect": {
+    "exit": 0,
+    "files": 17,
+    "symbols": 146,
+    "processes": 0,
+    "risk": "LOW",
+    "preEditUNKNOWNManualHIGHRetained": true
+  },
+  "detectorTextNotJSONParserFailureErratumRetained": true,
+  "structuredFinalSpec": {
+    "passed": true,
+    "FR": 7,
+    "errorCount": 0,
+    "warningCount": 0
+  },
+  "gencommit": {
+    "structuredMode": "guidance",
+    "status": "ready",
+    "fixedMappingUsed": "feat\ud83c\udfb8",
+    "once": true
+  },
+  "privateBaselineHistorical116Detection": {
+    "risk": "HIGH",
+    "symbols": 1401,
+    "flows": 10,
+    "userDisclosedBeforePrivateCommit": true
+  },
+  "nativeQualification": false
+}

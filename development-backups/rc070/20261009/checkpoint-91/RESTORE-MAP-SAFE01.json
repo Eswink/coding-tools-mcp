@@ -1,0 +1,151 @@
+{
+  "base": "pure19bb292004e0fd4ed02374b35bcd2f22469779f0/1953",
+  "individualLeaves": [
+    {
+      "path": "services/windows-vm-broker/output_transfer.go",
+      "mode": "100644",
+      "sha256": "e52bb1feb1724a03b1ca352b024ab3f3e93cd5c72bd7ca7595e1f69129e18997",
+      "blob": "537fe795ab4b8ea21c80c15eae7bd27dab32d7b0",
+      "bytes": 2137,
+      "backupPath": "source/services/windows-vm-broker/output_transfer.go.source"
+    },
+    {
+      "path": "services/windows-vm-broker/output_transfer_test.go",
+      "mode": "100644",
+      "sha256": "76a4a8db6b5afe6d85dd985228e7b70e6dc8af7199ece876ea95c5a824af155b",
+      "blob": "9396417698bf0556166a5addde83cac71e6aa25a",
+      "bytes": 8432,
+      "backupPath": "source/services/windows-vm-broker/output_transfer_test.go.source"
+    },
+    {
+      "path": "docs/specs/windows-output-data-recreated/requirements.md",
+      "mode": "100644",
+      "sha256": "b05007f10f40d58ae72063fc36508e4721ba6e63b8a0017ed5cd0c29ab6f7fe1",
+      "blob": "dc90f748fcf469f5a6a64eda002d0b9b0960f1bc",
+      "bytes": 1998,
+      "backupPath": "source/docs/specs/windows-output-data-recreated/requirements.md.source"
+    },
+    {
+      "path": "docs/specs/windows-output-data-recreated/design.md",
+      "mode": "100644",
+      "sha256": "31798a40eaf6135003be95025f935b3b1c5b77e9db3f6e174acc6c554c412a6e",
+      "blob": "f67e22c0613a6ba711fba29c8e39ff049a0ef4fb",
+      "bytes": 2066,
+      "backupPath": "source/docs/specs/windows-output-data-recreated/design.md.source"
+    },
+    {
+      "path": "docs/specs/windows-output-data-recreated/tasks.md",
+      "mode": "100644",
+      "sha256": "224af77267befbb8c0cd907e25c3b82c11deb247a6dfe897badba40b08a357a5",
+      "blob": "9cbda30b654e2184a7077c393d380359de301e79",
+      "bytes": 1409,
+      "backupPath": "source/docs/specs/windows-output-data-recreated/tasks.md.source"
+    },
+    {
+      "path": "services/windows-vm-broker/transfer.go",
+      "mode": "100644",
+      "sha256": "a29d443756e783584f42ef2aad9b8bb2f25cf17fe82b72c132475b22ec9236e3",
+      "blob": "1f4432acbe6b44d6bf6969584a69f68d5fca5afa",
+      "bytes": 5494,
+      "backupPath": "source/services/windows-vm-broker/transfer.go.source"
+    },
+    {
+      "path": "services/windows-vm-broker/transfer_owner_test.go",
+      "mode": "100644",
+      "sha256": "e691fae89dd8223b0dae56a79c8b45a68d84a609a32d7948dfd5c2d03b8dc160",
+      "blob": "26b087d8e93446e13bead8d5d3b6ac3dd4987681",
+      "bytes": 4065,
+      "backupPath": "source/services/windows-vm-broker/transfer_owner_test.go.source"
+    },
+    {
+      "path": "docs/specs/windows-input-data-once/requirements.md",
+      "mode": "100644",
+      "sha256": "7763a7a17d5bdfc0ab58314d677f909807db7c9eeeb6f5eb7be193fee4c54fe2",
+      "blob": "42815a43d421fa025f27a2539d0d1b0319483449",
+      "bytes": 2299,
+      "backupPath": "source/docs/specs/windows-input-data-once/requirements.md.source"
+    },
+    {
+      "path": "docs/specs/windows-input-data-once/design.md",
+      "mode": "100644",
+      "sha256": "7f2a307c937769879e5c4bc7c3aac877bd138a0adf5a88f2d76ded401d986133",
+      "blob": "99cc424d29e570fc678f853ed51cecc4ca581f44",
+      "bytes": 1239,
+      "backupPath": "source/docs/specs/windows-input-data-once/design.md.source"
+    },
+    {
+      "path": "docs/specs/windows-input-data-once/tasks.md",
+      "mode": "100644",
+      "sha256": "f438795076e9418426502380c627ae50a9ba8d9bd6834bc83f275b7a98923906",
+      "blob": "06756a3582c2c930889080cd956ec36de10f0129",
+      "bytes": 1132,
+      "backupPath": "source/docs/specs/windows-input-data-once/tasks.md.source"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/output_stage/data.rs",
+      "mode": "100644",
+      "sha256": "9c03dc93a7223975877096a0ca280d558f9af62ff48d7a048be664c85f938c90",
+      "blob": "2823d75b38960fff503215ae528db89d32b89f51",
+      "bytes": 6670,
+      "backupPath": "source/src-tauri/src/tools/windows_vm/output_stage/data.rs.source"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/output_stage/data_tests.rs",
+      "mode": "100644",
+      "sha256": "d469e670979abe5395fae1b07fbb640182df7390c7b296e0a3febf8e4ed784e6",
+      "blob": "9d6eada4016d146fff7d754a8ccc70effab79332",
+      "bytes": 12329,
+      "backupPath": "source/src-tauri/src/tools/windows_vm/output_stage/data_tests.rs.source"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/output_stage/mod.rs",
+      "mode": "100644",
+      "sha256": "16157e26bf2a659a967b3d4b65f304ca209f947483dc6fc90a0e265fa49f593b",
+      "blob": "52292b3ab93e7b5c21c51e5605284698c474f800",
+      "bytes": 504,
+      "backupPath": "source/src-tauri/src/tools/windows_vm/output_stage/mod.rs.source"
+    },
+    {
+      "path": "docs/specs/windows-rust-output-data-recreated/requirements.md",
+      "mode": "100644",
+      "sha256": "2d6fe7dfdfd29aa826ee762ad9faeaed03d0e3e55303f85f9aaa980adb8213d6",
+      "blob": "227ad410272e0bf8ebd232563e8f54b7193a5da2",
+      "bytes": 4614,
+      "backupPath": "source/docs/specs/windows-rust-output-data-recreated/requirements.md.source"
+    },
+    {
+      "path": "docs/specs/windows-rust-output-data-recreated/design.md",
+      "mode": "100644",
+      "sha256": "47740c9fc39c49de153edc4c74a68d6b3f690ddd187cabfe898e0f8f3a82781a",
+      "blob": "27d72a19eec566664efd38d585c2464d7d88f90a",
+      "bytes": 3546,
+      "backupPath": "source/docs/specs/windows-rust-output-data-recreated/design.md.source"
+    },
+    {
+      "path": "docs/specs/windows-rust-output-data-recreated/tasks.md",
+      "mode": "100644",
+      "sha256": "917ee254794cca021620de1b90d773c3438b644c983714cf53f4cce31266fb00",
+      "blob": "7cf00dad695a2a5d3fdb69ec7f4a7ab56708c7e1",
+      "bytes": 2601,
+      "backupPath": "source/docs/specs/windows-rust-output-data-recreated/tasks.md.source"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs",
+      "mode": "100644",
+      "sha256": "d22b143b6b199e743b19bf931b50358cfac9fcc761704d81139e87a6c07ade00",
+      "blob": "5b2626f0dde7cd96b4af77ff6715a7bd9ec55ef5",
+      "bytes": 7163,
+      "backupPath": "source/src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs.source"
+    }
+  ],
+  "sourceTree": "4d42a21057b867e6163e6bbe3ce9edca24da5716",
+  "sourcePaths": 1967,
+  "existing3new14": true,
+  "unchanged1950": true,
+  "nativeLocalImmutableSourceCommit": "28b275c2b8a78f1efb87d3c733194d34bdca8dc8",
+  "leafOrigins": "cp13Gooutput/cp16Goinput/cp47Rustoutput/cp49HCS one-line",
+  "newRemoteNativeFetchProof": "NOTCLAIMED",
+  "restoreInstruction": "Independent checkout restore pure19bb strict all1953; overlay ONLY17 individual mode/hash checked leaves, or apply only this one pure19bb-to-union17 patch on exactpurebase. Do not combine historical complete patches. Verify new full1967 raw/native modes and source tree. Old guard D6HEAD is unchanged; do not retarget it to private anchor.",
+  "privateSourceCommits": "bf1885 historical116restore and b26ace6 union17 child are local/source-only, NOT production commits and NOT remotely pushed.",
+  "futureRuntimeCarrier": "originalD6HEAD+strictoriginal19bb+newfull1967guard/newimmutablemanifest/runtime/sourceafter; not yet authorized or run"
+}

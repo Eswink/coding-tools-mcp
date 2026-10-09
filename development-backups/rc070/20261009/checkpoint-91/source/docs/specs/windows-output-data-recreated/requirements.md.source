@@ -1,0 +1,20 @@
+# Windows output pure data recreated 20261009
+
+## 功能概述
+
+New source increment over verified alternative tree19bb292004e0fd4ed02374b35bcd2f22469779f0; the unuploaded historical draft is missing, not restored. No native authorization is created.
+
+## 需求列表
+- FR-1: Reuse the existing Go transferBinding digest covering all nine fields and existing workspaceStream; decode output with direction exactly2. Input direction1 cannot be accepted.
+- FR-2: Preserve the original1MiB data,32KiB chunks,72B header,sequence,offset,binding,hash and physical EOF boundaries. Reject truncation, trailing bytes and replay.
+- FR-3: Detached output data has one consumption attempt, including failed binding attempts; pointer-shared once identity serializes concurrent consumers and ordinary value copies. Cancellation and nil/invalid inputs deny; returned bytes cannot mutate retained bytes.
+- FR-4: Data EOF and successful byte consumption cannot establish handle close, allIO retirement, native ownership, writeback or publication permission. Do not edit gate/nt/owner, production wiring or protected original positive tests.
+
+## 验收标准
+Official pinned Go1.24.13 compiles the actual repository files and runs positive,negative,budget and concurrent-consumption tests with count1; race detector is separate if CGO genuinely available. Read all original baseline manifests again before freeze. Peer review,impact,detect_changes and gencommit remain required before a production commit. Rust output module is deferred until legal whole-project compiler support is available; do not fabricate a harness or claim native PASS.
+
+## 非功能需求
+The system SHALL retain the1MiB and32KiB limits and never treat EOF as native close. Concurrent consumers SHALL receive at most one successful byte result.
+
+## 依赖关系
+Existing transferBinding.digest and workspaceStream.readAll/dataCopy from verified19bb tree; official Go1.24.13. Linux Rust and Windows native compiler dependencies remain blocked.
