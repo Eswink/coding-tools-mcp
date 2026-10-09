@@ -1,0 +1,27 @@
+# 任务
+
+## 任务列表
+- [ ] T1 FR-1: fresh isolated GitNexus index and upstream impacts; report HIGH/UNKNOWN before symbol edits; check_spec.
+- [ ] T2 FR-1 FR-2 FR-3: implement only new Go output data owner using unchanged baseline symbols.
+- [ ] T3 FR-1 FR-2 FR-3: real Go1.24.13 named tests for nine binding fields,direction,truncation,hash,capacity,cancellation,single and concurrent consumption,replay.
+- [ ] T4 FR-4: independent peer,original bytes/source modes guard,detect_changes/gencommit and safe source-only backup.
+
+Changed paths: these three specs plus services/windows-vm-broker/output_transfer.go and output_transfer_test.go. Rust output data,NT handles,gate,owner,publication,VM/native/install are excluded from this5-path Go increment.
+
+## 交付物清单
+Two exact Go source files,three specifications,original test logs and safe source manifest.
+
+## 需求覆盖矩阵
+| Requirement | Task | Evidence |
+|---|---|---|
+| FR-1 | T1,T2,T3 | binding and direction tests |
+| FR-2 | T2,T3 | EOF,hash,budget tests |
+| FR-3 | T2,T3 | single/concurrent consumption |
+| FR-4 | T4 | unchanged guard and peer |
+
+## 文件变更清单
+- services/windows-vm-broker/output_transfer.go
+- services/windows-vm-broker/output_transfer_test.go
+- docs/specs/windows-output-data-recreated/requirements.md
+- docs/specs/windows-output-data-recreated/design.md
+- docs/specs/windows-output-data-recreated/tasks.md

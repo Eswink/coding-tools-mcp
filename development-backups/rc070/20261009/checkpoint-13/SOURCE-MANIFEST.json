@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "kind": "newGo5-outputdata-sourceonly",
+  "baseline_commit": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "baseline_tree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+  "source_tree": "41251cb28ccbedced9cb6fef294560b76339d122",
+  "paths": 1958,
+  "source": [
+    {
+      "original_path": "services/windows-vm-broker/output_transfer.go",
+      "source_path": "source/services/windows-vm-broker/output_transfer.go.source",
+      "git_mode": "100644",
+      "physical_posix_mode": "0644",
+      "blob": "537fe795ab4b8ea21c80c15eae7bd27dab32d7b0",
+      "bytes": 2137,
+      "sha256": "e52bb1feb1724a03b1ca352b024ab3f3e93cd5c72bd7ca7595e1f69129e18997"
+    },
+    {
+      "original_path": "services/windows-vm-broker/output_transfer_test.go",
+      "source_path": "source/services/windows-vm-broker/output_transfer_test.go.source",
+      "git_mode": "100644",
+      "physical_posix_mode": "0644",
+      "blob": "9396417698bf0556166a5addde83cac71e6aa25a",
+      "bytes": 8432,
+      "sha256": "76a4a8db6b5afe6d85dd985228e7b70e6dc8af7199ece876ea95c5a824af155b"
+    },
+    {
+      "original_path": "docs/specs/windows-output-data-recreated/requirements.md",
+      "source_path": "source/docs/specs/windows-output-data-recreated/requirements.md.source",
+      "git_mode": "100644",
+      "physical_posix_mode": "0644",
+      "blob": "dc90f748fcf469f5a6a64eda002d0b9b0960f1bc",
+      "bytes": 1998,
+      "sha256": "b05007f10f40d58ae72063fc36508e4721ba6e63b8a0017ed5cd0c29ab6f7fe1"
+    },
+    {
+      "original_path": "docs/specs/windows-output-data-recreated/design.md",
+      "source_path": "source/docs/specs/windows-output-data-recreated/design.md.source",
+      "git_mode": "100644",
+      "physical_posix_mode": "0644",
+      "blob": "f67e22c0613a6ba711fba29c8e39ff049a0ef4fb",
+      "bytes": 2066,
+      "sha256": "31798a40eaf6135003be95025f935b3b1c5b77e9db3f6e174acc6c554c412a6e"
+    },
+    {
+      "original_path": "docs/specs/windows-output-data-recreated/tasks.md",
+      "source_path": "source/docs/specs/windows-output-data-recreated/tasks.md.source",
+      "git_mode": "100644",
+      "physical_posix_mode": "0644",
+      "blob": "9cbda30b654e2184a7077c393d380359de301e79",
+      "bytes": 1409,
+      "sha256": "224af77267befbb8c0cd907e25c3b82c11deb247a6dfe897badba40b08a357a5"
+    }
+  ],
+  "native_patch_reconstruction_matches": true,
+  "baseline1953_hashes_unchanged": true,
+  "protected_IO_SHA256": "c9fcdba432c239cc08a090c6cb4256f51b54368cbefb3afac553c1a6c719b9b8",
+  "spec_check": "PASS4FR0error0warning",
+  "data_tests": "Go1.24.13 realracecount1 PASS18top-level original11 new7",
+  "prior_freeze3c9a": "WITHDRAWNpeeridentified valuecopy replay and actualfailurefirst",
+  "peer": "Independent SOURCE-PEER-V2.json no blocker withinGooutputDATAonly;didnotreruntests",
+  "impact": "Pre-edit UNKNOWN/manualHIGHdisclosed;post-freeze own uniqueindex receivesymbolOK andtake upstreamLOW2testcallers0flows. Graphcounts not nativeauthority or completecaller proof.",
+  "detect_changes": "Actual unique rc070-windows-data-recreated compare19bb:5files36symbols0affectedprocessesriskLOW;sourceindex physicalhash verifiedfrozen41251",
+  "gencommit": "guidance ready; proposed feat: \ud83c\udfb8 \u4fdd\u5b58 Go \u8f93\u51fa\u6570\u636e\u4f20\u8f93\u6e90\u7801\u589e\u91cf\uff08\u975e\u539f\u751f\u6388\u6743\uff09",
+  "Rustwhole": "FAILmissingglib",
+  "WindowsGNUpurecheck": "FAILmissingcrossC",
+  "Windowsnative": "NOTRUN",
+  "install": "NOTRUN",
+  "release": "NOTRUN",
+  "production_qualification": false,
+  "seal": "FINAL sourceonly v2 metadata 20261009;5source and41251tree unchanged"
+}

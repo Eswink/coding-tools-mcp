@@ -1,0 +1,71 @@
+package main
+
+// Output bytes are DATA only. EOF and consumption are not native IO retirement,
+// handle closure, writeback authorization, or a publication seal.
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"errors"
+	"io"
+	"sync"
+)
+
+type outputConsumptionState struct {
+	mu       sync.Mutex
+	consumed bool
+}
+
+type detachedOutputTransfer struct {
+	state   *outputConsumptionState
+	binding transferBinding
+	data    []byte
+	digest  [32]byte
+	ctx     context.Context
+}
+
+func receiveOutputTransfer(ctx context.Context, binding transferBinding, total uint64, digest [32]byte, reader io.Reader) (*detachedOutputTransfer, error) {
+	hash, err := binding.digest()
+	if err != nil {
+		return nil, err
+	}
+	stream, err := newWorkspaceStream(ctx, workspaceStreamManifest{binding: hash, direction: 2, total: total, digest: digest})
+	if err != nil {
+		return nil, err
+	}
+	if reader == nil {
+		return nil, errors.New("output reader unavailable")
+	}
+	if err = stream.readAll(reader, nil); err != nil {
+		return nil, err
+	}
+	data, err := stream.dataCopy()
+	if err != nil {
+		return nil, err
+	}
+	return &detachedOutputTransfer{binding: binding, data: data, digest: digest, ctx: ctx, state: &outputConsumptionState{}}, nil
+}
+
+func (t *detachedOutputTransfer) take(binding transferBinding) ([]byte, error) {
+	if t == nil || t.state == nil {
+		return nil, errors.New("output transfer unavailable")
+	}
+	t.state.mu.Lock()
+	defer t.state.mu.Unlock()
+	if t.state.consumed {
+		return nil, errors.New("output transfer already consumed")
+	}
+	// A value copy retains the same state pointer; it cannot duplicate consumption.
+	// Every attempt is terminal, including caller mistakes or foreign bindings.
+	// This fail-closed data policy can discard availability; it creates no grant.
+	t.state.consumed = true
+	if t.ctx == nil || t.ctx.Err() != nil || t.binding != binding || !binding.valid() ||
+		len(t.data) > workspaceMaximum || sha256.Sum256(t.data) != t.digest {
+		return nil, errors.New("output transfer rejected")
+	}
+	data := bytes.Clone(t.data)
+	if t.ctx.Err() != nil {
+		return nil, errors.New("output transfer cancelled before handoff")
+	}
+	return data, nil
+}

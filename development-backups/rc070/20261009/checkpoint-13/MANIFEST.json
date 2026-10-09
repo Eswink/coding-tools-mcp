@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "files": [
+    {
+      "path": "GO5-FROM-ALTERNATIVE19BB.patch",
+      "git_mode": "100644",
+      "bytes": 17679,
+      "sha256": "64d05bf9392152787d8984866f7c2e52b95ebbc2a0db56d809bec2ae1215a79c",
+      "blob": "b70ecc880576db4b4a9173014c3ef5a0600e1780"
+    },
+    {
+      "path": "README.md",
+      "git_mode": "100644",
+      "bytes": 2161,
+      "sha256": "4c38f505f79d170a8b379dd34fbe77c9ab4edc57576befbb526a32cd4e98835f",
+      "blob": "b917ec24bf77e18969b77d50611aac1660867107"
+    },
+    {
+      "path": "SOURCE-MANIFEST.json",
+      "git_mode": "100644",
+      "bytes": 3608,
+      "sha256": "ecf4cfa38a6826691945da8291494d945d36ee03530c43852fa69f81a5025b7e",
+      "blob": "778e99ea40621e98d43049f4c025943479995475"
+    },
+    {
+      "path": "source/docs/specs/windows-output-data-recreated/design.md.source",
+      "git_mode": "100644",
+      "bytes": 2066,
+      "sha256": "31798a40eaf6135003be95025f935b3b1c5b77e9db3f6e174acc6c554c412a6e",
+      "blob": "f67e22c0613a6ba711fba29c8e39ff049a0ef4fb"
+    },
+    {
+      "path": "source/docs/specs/windows-output-data-recreated/requirements.md.source",
+      "git_mode": "100644",
+      "bytes": 1998,
+      "sha256": "b05007f10f40d58ae72063fc36508e4721ba6e63b8a0017ed5cd0c29ab6f7fe1",
+      "blob": "dc90f748fcf469f5a6a64eda002d0b9b0960f1bc"
+    },
+    {
+      "path": "source/docs/specs/windows-output-data-recreated/tasks.md.source",
+      "git_mode": "100644",
+      "bytes": 1409,
+      "sha256": "224af77267befbb8c0cd907e25c3b82c11deb247a6dfe897badba40b08a357a5",
+      "blob": "9cbda30b654e2184a7077c393d380359de301e79"
+    },
+    {
+      "path": "source/services/windows-vm-broker/output_transfer.go.source",
+      "git_mode": "100644",
+      "bytes": 2137,
+      "sha256": "e52bb1feb1724a03b1ca352b024ab3f3e93cd5c72bd7ca7595e1f69129e18997",
+      "blob": "537fe795ab4b8ea21c80c15eae7bd27dab32d7b0"
+    },
+    {
+      "path": "source/services/windows-vm-broker/output_transfer_test.go.source",
+      "git_mode": "100644",
+      "bytes": 8432,
+      "sha256": "76a4a8db6b5afe6d85dd985228e7b70e6dc8af7199ece876ea95c5a824af155b",
+      "blob": "9396417698bf0556166a5addde83cac71e6aa25a"
+    }
+  ],
+  "source_only": true,
+  "qualification": false
+}

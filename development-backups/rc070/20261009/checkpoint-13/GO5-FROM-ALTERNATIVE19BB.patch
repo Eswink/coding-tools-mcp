@@ -1,0 +1,421 @@
+diff --git a/docs/specs/windows-output-data-recreated/design.md b/docs/specs/windows-output-data-recreated/design.md
+new file mode 100644
+index 0000000..f67e22c
+--- /dev/null
++++ b/docs/specs/windows-output-data-recreated/design.md
+@@ -0,0 +1,19 @@
++# 设计
++
++## 概述
++对应需求：FR-1, FR-2, FR-3, FR-4.
++
++## 技术方案
++
++Add output_transfer.go and output_transfer_test.go in the existing windows-vm-broker package. The new receiveOutputTransfer calls transferBinding.digest, constructs workspaceStreamManifest(direction2) and uses existing readAll/dataCopy. No existing input decoder or binding symbol changes.
++
++A detachedOutputTransfer retains original binding,hash,context,immutable bytes and pointer-shared mutex-protected consumed flag. The internal consumption state pointer is allocated once by the receiver; normal whole-struct value copies share this same state rather than duplicate the mutex or consumed flag. A missing state denies. take locks that shared state, rejects replay, consumes the one attempt before any binding/cancellation/hash validation, and only returns a fresh bytes.Clone after validation. Context cancellation before and after cloning denies. Consumers cannot reopen poisoned transfer by presenting a corrected binding later.
++
++The scope is only Go output data at this checkpoint. Rust/Go canonical output vectors and Rust source registration require a later reviewed increment when actual project compilation can run. Physical EOF is protocol validation only. No native objects,FileId handles,paths-to-authority,VM/PID/JSON grants,publication calls or owner disposal occur.
++
++Impact UNKNOWN is manual HIGH until the fresh isolated GitNexus index returns usable results. No parent tree is claimed to pass Windows native/install/RC gates.
++
++## 文件结构
++services/windows-vm-broker/output_transfer.go holds the data owner; output_transfer_test.go verifies its genuine repository behavior. Three docs/specs/windows-output-data-recreated documents bind the scope.
++
++Foreign binding and caller mistakes consume availability permanently. This fail-closed terminal choice means a mistaken or hostile caller can discard this data owner; no later corrected binding reopens it. This deliberate local denial-of-service tradeoff is scoped to detached bytes and does not dispose native owners.
+diff --git a/docs/specs/windows-output-data-recreated/requirements.md b/docs/specs/windows-output-data-recreated/requirements.md
+new file mode 100644
+index 0000000..dc90f74
+--- /dev/null
++++ b/docs/specs/windows-output-data-recreated/requirements.md
+@@ -0,0 +1,20 @@
++# Windows output pure data recreated 20261009
++
++## 功能概述
++
++New source increment over verified alternative tree19bb292004e0fd4ed02374b35bcd2f22469779f0; the unuploaded historical draft is missing, not restored. No native authorization is created.
++
++## 需求列表
++- FR-1: Reuse the existing Go transferBinding digest covering all nine fields and existing workspaceStream; decode output with direction exactly2. Input direction1 cannot be accepted.
++- FR-2: Preserve the original1MiB data,32KiB chunks,72B header,sequence,offset,binding,hash and physical EOF boundaries. Reject truncation, trailing bytes and replay.
++- FR-3: Detached output data has one consumption attempt, including failed binding attempts; pointer-shared once identity serializes concurrent consumers and ordinary value copies. Cancellation and nil/invalid inputs deny; returned bytes cannot mutate retained bytes.
++- FR-4: Data EOF and successful byte consumption cannot establish handle close, allIO retirement, native ownership, writeback or publication permission. Do not edit gate/nt/owner, production wiring or protected original positive tests.
++
++## 验收标准
++Official pinned Go1.24.13 compiles the actual repository files and runs positive,negative,budget and concurrent-consumption tests with count1; race detector is separate if CGO genuinely available. Read all original baseline manifests again before freeze. Peer review,impact,detect_changes and gencommit remain required before a production commit. Rust output module is deferred until legal whole-project compiler support is available; do not fabricate a harness or claim native PASS.
++
++## 非功能需求
++The system SHALL retain the1MiB and32KiB limits and never treat EOF as native close. Concurrent consumers SHALL receive at most one successful byte result.
++
++## 依赖关系
++Existing transferBinding.digest and workspaceStream.readAll/dataCopy from verified19bb tree; official Go1.24.13. Linux Rust and Windows native compiler dependencies remain blocked.
+diff --git a/docs/specs/windows-output-data-recreated/tasks.md b/docs/specs/windows-output-data-recreated/tasks.md
+new file mode 100644
+index 0000000..9cbda30
+--- /dev/null
++++ b/docs/specs/windows-output-data-recreated/tasks.md
+@@ -0,0 +1,27 @@
++# 任务
++
++## 任务列表
++- [ ] T1 FR-1: fresh isolated GitNexus index and upstream impacts; report HIGH/UNKNOWN before symbol edits; check_spec.
++- [ ] T2 FR-1 FR-2 FR-3: implement only new Go output data owner using unchanged baseline symbols.
++- [ ] T3 FR-1 FR-2 FR-3: real Go1.24.13 named tests for nine binding fields,direction,truncation,hash,capacity,cancellation,single and concurrent consumption,replay.
++- [ ] T4 FR-4: independent peer,original bytes/source modes guard,detect_changes/gencommit and safe source-only backup.
++
++Changed paths: these three specs plus services/windows-vm-broker/output_transfer.go and output_transfer_test.go. Rust output data,NT handles,gate,owner,publication,VM/native/install are excluded from this5-path Go increment.
++
++## 交付物清单
++Two exact Go source files,three specifications,original test logs and safe source manifest.
++
++## 需求覆盖矩阵
++| Requirement | Task | Evidence |
++|---|---|---|
++| FR-1 | T1,T2,T3 | binding and direction tests |
++| FR-2 | T2,T3 | EOF,hash,budget tests |
++| FR-3 | T2,T3 | single/concurrent consumption |
++| FR-4 | T4 | unchanged guard and peer |
++
++## 文件变更清单
++- services/windows-vm-broker/output_transfer.go
++- services/windows-vm-broker/output_transfer_test.go
++- docs/specs/windows-output-data-recreated/requirements.md
++- docs/specs/windows-output-data-recreated/design.md
++- docs/specs/windows-output-data-recreated/tasks.md
+diff --git a/services/windows-vm-broker/output_transfer.go b/services/windows-vm-broker/output_transfer.go
+new file mode 100644
+index 0000000..537fe79
+--- /dev/null
++++ b/services/windows-vm-broker/output_transfer.go
+@@ -0,0 +1,71 @@
++package main
++
++// Output bytes are DATA only. EOF and consumption are not native IO retirement,
++// handle closure, writeback authorization, or a publication seal.
++import (
++	"bytes"
++	"context"
++	"crypto/sha256"
++	"errors"
++	"io"
++	"sync"
++)
++
++type outputConsumptionState struct {
++	mu       sync.Mutex
++	consumed bool
++}
++
++type detachedOutputTransfer struct {
++	state   *outputConsumptionState
++	binding transferBinding
++	data    []byte
++	digest  [32]byte
++	ctx     context.Context
++}
++
++func receiveOutputTransfer(ctx context.Context, binding transferBinding, total uint64, digest [32]byte, reader io.Reader) (*detachedOutputTransfer, error) {
++	hash, err := binding.digest()
++	if err != nil {
++		return nil, err
++	}
++	stream, err := newWorkspaceStream(ctx, workspaceStreamManifest{binding: hash, direction: 2, total: total, digest: digest})
++	if err != nil {
++		return nil, err
++	}
++	if reader == nil {
++		return nil, errors.New("output reader unavailable")
++	}
++	if err = stream.readAll(reader, nil); err != nil {
++		return nil, err
++	}
++	data, err := stream.dataCopy()
++	if err != nil {
++		return nil, err
++	}
++	return &detachedOutputTransfer{binding: binding, data: data, digest: digest, ctx: ctx, state: &outputConsumptionState{}}, nil
++}
++
++func (t *detachedOutputTransfer) take(binding transferBinding) ([]byte, error) {
++	if t == nil || t.state == nil {
++		return nil, errors.New("output transfer unavailable")
++	}
++	t.state.mu.Lock()
++	defer t.state.mu.Unlock()
++	if t.state.consumed {
++		return nil, errors.New("output transfer already consumed")
++	}
++	// A value copy retains the same state pointer; it cannot duplicate consumption.
++	// Every attempt is terminal, including caller mistakes or foreign bindings.
++	// This fail-closed data policy can discard availability; it creates no grant.
++	t.state.consumed = true
++	if t.ctx == nil || t.ctx.Err() != nil || t.binding != binding || !binding.valid() ||
++		len(t.data) > workspaceMaximum || sha256.Sum256(t.data) != t.digest {
++		return nil, errors.New("output transfer rejected")
++	}
++	data := bytes.Clone(t.data)
++	if t.ctx.Err() != nil {
++		return nil, errors.New("output transfer cancelled before handoff")
++	}
++	return data, nil
++}
+diff --git a/services/windows-vm-broker/output_transfer_test.go b/services/windows-vm-broker/output_transfer_test.go
+new file mode 100644
+index 0000000..9396417
+--- /dev/null
++++ b/services/windows-vm-broker/output_transfer_test.go
+@@ -0,0 +1,254 @@
++package main
++
++import (
++	"bytes"
++	"context"
++	"crypto/sha256"
++	"strings"
++	"sync"
++	"testing"
++)
++
++func outputTestWire(t *testing.T, binding transferBinding, data []byte, direction byte) []byte {
++	t.Helper()
++	hash, err := binding.digest()
++	if err != nil {
++		t.Fatal(err)
++	}
++	wire, err := workspaceEncode(workspaceStreamManifest{binding: hash, direction: direction, total: uint64(len(data)), digest: sha256.Sum256(data)}, data)
++	if err != nil {
++		t.Fatal(err)
++	}
++	return wire
++}
++
++func TestOutputTransferExactDirectionBudgetsAndDetachedBytes(t *testing.T) {
++	binding := transferTestBinding()
++	for _, size := range []int{0, 1, workspaceChunk - 1, workspaceChunk, workspaceChunk + 1, workspaceMaximum} {
++		data := bytes.Repeat([]byte{7}, size)
++		wire := outputTestWire(t, binding, data, 2)
++		transfer, err := receiveOutputTransfer(context.Background(), binding, uint64(size), sha256.Sum256(data), bytes.NewReader(wire))
++		if err != nil {
++			t.Fatal(size, err)
++		}
++		got, err := transfer.take(binding)
++		if err != nil || !bytes.Equal(got, data) {
++			t.Fatal("exact output bytes unavailable", size, err)
++		}
++		if len(got) > 0 {
++			got[0] ^= 0xff
++			if !bytes.Equal(transfer.data, data) {
++				t.Fatal("consumer mutated retained bytes")
++			}
++		}
++		if _, err := transfer.take(binding); err == nil {
++			t.Fatal("output replay accepted")
++		}
++	}
++	data := []byte("output data canary")
++	inputWire := outputTestWire(t, binding, data, 1)
++	if _, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), sha256.Sum256(data), bytes.NewReader(inputWire)); err == nil {
++		t.Fatal("input direction accepted as output")
++	}
++	if _, err := receiveOutputTransfer(context.Background(), binding, workspaceMaximum+1, sha256.Sum256(data), bytes.NewReader(inputWire)); err == nil {
++		t.Fatal("output over capacity accepted")
++	}
++}
++
++func TestOutputTransferEveryBindingFieldRejectsForeignWire(t *testing.T) {
++	binding := transferTestBinding()
++	data := []byte("bound output canary")
++	wire := outputTestWire(t, binding, data, 2)
++	changes := []func(*transferBinding){
++		func(b *transferBinding) { b.host = "22222222-2222-4222-8222-222222222222" },
++		func(b *transferBinding) { b.profile += "x" },
++		func(b *transferBinding) { b.caller += "x" },
++		func(b *transferBinding) { b.source = strings.Repeat("2", 40) },
++		func(b *transferBinding) { b.session = "22222222-2222-4222-8222-222222222222" },
++		func(b *transferBinding) { b.operation = "22222222-2222-4222-8222-222222222222" },
++		func(b *transferBinding) { b.inputRelative = "other.txt" },
++		func(b *transferBinding) { b.outputParent = "other" },
++		func(b *transferBinding) { b.outputLeaf = "other.txt" },
++	}
++	for i, change := range changes {
++		foreign := binding
++		change(&foreign)
++		if _, err := receiveOutputTransfer(context.Background(), foreign, uint64(len(data)), sha256.Sum256(data), bytes.NewReader(wire)); err == nil {
++			t.Fatal("foreign wire binding accepted", i)
++		}
++		transfer, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), sha256.Sum256(data), bytes.NewReader(wire))
++		if err != nil {
++			t.Fatal(err)
++		}
++		if _, err := transfer.take(foreign); err == nil {
++			t.Fatal("foreign consumption binding accepted", i)
++		}
++		if _, err := transfer.take(binding); err == nil {
++			t.Fatal("failed consumption attempt reopened", i)
++		}
++	}
++}
++
++func TestOutputTransferPhysicalEOFHashAndReplayReject(t *testing.T) {
++	binding := transferTestBinding()
++	data := []byte("output canary")
++	wire := outputTestWire(t, binding, data, 2)
++	corrupt := bytes.Clone(wire)
++	corrupt[workspaceHeader] ^= 1
++	badSequence := bytes.Clone(wire)
++	badSequence[12] ^= 1
++	badOffset := bytes.Clone(wire)
++	badOffset[16] ^= 1
++	for _, bad := range [][]byte{nil, wire[:7], wire[:len(wire)-workspaceHeader], wire[:len(wire)-1], append(bytes.Clone(wire), 0), append(bytes.Clone(wire), wire...), corrupt, badSequence, badOffset} {
++		if _, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), sha256.Sum256(data), bytes.NewReader(bad)); err == nil {
++			t.Fatal("bad output framing accepted")
++		}
++	}
++	wrongHash := sha256.Sum256([]byte("foreign data"))
++	if _, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), wrongHash, bytes.NewReader(wire)); err == nil {
++		t.Fatal("wrong output digest accepted")
++	}
++}
++
++func TestOutputTransferCancelledNilAndCorruptOwnersAreTerminal(t *testing.T) {
++	binding := transferTestBinding()
++	data := []byte("output canary")
++	wire := outputTestWire(t, binding, data, 2)
++	digest := sha256.Sum256(data)
++	ctx, cancel := context.WithCancel(context.Background())
++	cancel()
++	for _, context := range []context.Context{nil, ctx} {
++		if _, err := receiveOutputTransfer(context, binding, uint64(len(data)), digest, bytes.NewReader(wire)); err == nil {
++			t.Fatal("invalid context accepted")
++		}
++	}
++	if _, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), digest, nil); err == nil {
++		t.Fatal("nil output reader accepted")
++	}
++	var absent *detachedOutputTransfer
++	if _, err := absent.take(binding); err == nil {
++		t.Fatal("nil output owner accepted")
++	}
++	for _, corrupt := range []bool{false, true} {
++		ctx, cancel := context.WithCancel(context.Background())
++		transfer, err := receiveOutputTransfer(ctx, binding, uint64(len(data)), digest, bytes.NewReader(wire))
++		if err != nil {
++			t.Fatal(err)
++		}
++		if corrupt {
++			transfer.data[0] ^= 1
++		} else {
++			cancel()
++		}
++		if _, err := transfer.take(binding); err == nil {
++			t.Fatal("cancelled/corrupt output accepted")
++		}
++		if _, err := transfer.take(binding); err == nil {
++			t.Fatal("terminal output reopened")
++		}
++		cancel()
++	}
++}
++
++func TestOutputTransferConcurrentConsumersHaveOnlyOneSuccess(t *testing.T) {
++	binding := transferTestBinding()
++	data := []byte("concurrent output canary")
++	wire := outputTestWire(t, binding, data, 2)
++	transfer, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), sha256.Sum256(data), bytes.NewReader(wire))
++	if err != nil {
++		t.Fatal(err)
++	}
++	start := make(chan struct{})
++	results := make(chan bool, 32)
++	var group sync.WaitGroup
++	for i := 0; i < 32; i++ {
++		group.Add(1)
++		go func() {
++			defer group.Done()
++			<-start
++			got, err := transfer.take(binding)
++			results <- err == nil && bytes.Equal(got, data)
++		}()
++	}
++	close(start)
++	group.Wait()
++	close(results)
++	success := 0
++	for passed := range results {
++		if passed {
++			success++
++		}
++	}
++	if success != 1 {
++		t.Fatal("concurrent consumption success count", success)
++	}
++}
++
++func TestOutputTransferValueCopiesShareTerminalConsumption(t *testing.T) {
++	binding := transferTestBinding()
++	data := []byte("value copy canary")
++	wire := outputTestWire(t, binding, data, 2)
++	for _, foreignAttempt := range []bool{false, true} {
++		owner, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), sha256.Sum256(data), bytes.NewReader(wire))
++		if err != nil {
++			t.Fatal(err)
++		}
++		copied := *owner
++		attempt := binding
++		if foreignAttempt {
++			attempt.caller += "foreign"
++		}
++		_, err = copied.take(attempt)
++		if (err == nil) == foreignAttempt {
++			t.Fatal("first copied consumption outcome changed", foreignAttempt, err)
++		}
++		if _, err = owner.take(binding); err == nil {
++			t.Fatal("value copy reopened original output")
++		}
++		if _, err = copied.take(binding); err == nil {
++			t.Fatal("copied owner reopened terminal output")
++		}
++	}
++	missing := &detachedOutputTransfer{}
++	if _, err := missing.take(binding); err == nil {
++		t.Fatal("missing shared once state accepted")
++	}
++}
++func TestOutputTransferConcurrentValueCopiesHaveOnlyOneSuccess(t *testing.T) {
++	binding := transferTestBinding()
++	data := []byte("concurrent value copy canary")
++	wire := outputTestWire(t, binding, data, 2)
++	owner, err := receiveOutputTransfer(context.Background(), binding, uint64(len(data)), sha256.Sum256(data), bytes.NewReader(wire))
++	if err != nil {
++		t.Fatal(err)
++	}
++	copied := *owner
++	start := make(chan struct{})
++	results := make(chan bool, 32)
++	var group sync.WaitGroup
++	for i := 0; i < 32; i++ {
++		target := owner
++		if i%2 == 1 {
++			target = &copied
++		}
++		group.Add(1)
++		go func(target *detachedOutputTransfer) {
++			defer group.Done()
++			<-start
++			got, e := target.take(binding)
++			results <- e == nil && bytes.Equal(got, data)
++		}(target)
++	}
++	close(start)
++	group.Wait()
++	close(results)
++	success := 0
++	for passed := range results {
++		if passed {
++			success++
++		}
++	}
++	if success != 1 {
++		t.Fatal("copied concurrent output success count", success)
++	}
++}
