@@ -1,0 +1,214 @@
+{
+  "all_native_and_original_runs": "NOTRUN_this_freeze",
+  "base_initial_manifest_sha256": "2650633d1e7e24c41e75123896394576b64ba496821b8a41a0eceb143265028a",
+  "base_zero_terminal_manifest_sha256": "12a08d309a768254e25852231b65ec280c4ed6717f893c650207f507c3c55294",
+  "builder_ordinary": "NOTRUN",
+  "files": [
+    {
+      "bytes": 1668,
+      "mode": "100644",
+      "path": "README.md",
+      "physical_mode": "0644",
+      "sha256": "19d4e99f753704296aa4827cb8e79bb12fd07ab750f7fc49bc8223b02fe0d6e0"
+    },
+    {
+      "bytes": 2013,
+      "mode": "100644",
+      "path": "SOURCE-STATUS.safe.json",
+      "physical_mode": "0644",
+      "sha256": "91188ceb025e8390cd14b054499c6b916093386452ba7196b86037cfbfb4e34b"
+    },
+    {
+      "bytes": 386,
+      "mode": "100644",
+      "path": "STATIC-CONTROLS.safe.json",
+      "physical_mode": "0644",
+      "sha256": "fd2e7a648216e0172991ed1807cf8e5d3804a5096c00a836846d88ba7ed0a671"
+    },
+    {
+      "bytes": 2248,
+      "mode": "100644",
+      "path": "source/birth_entry.S",
+      "physical_mode": "0644",
+      "sha256": "9ddafe9891fe259934eb3101ddf7da202206440388a61ac7c54f523ad783af07"
+    },
+    {
+      "bytes": 17081,
+      "mode": "100644",
+      "path": "source/birth_module.c",
+      "physical_mode": "0644",
+      "sha256": "c663f7fa38710b429a43ccdd9691ab7a2b9fb8313fa1f712129c066d9bb88b18"
+    },
+    {
+      "bytes": 37116,
+      "mode": "100644",
+      "path": "source/build_source_owner.py",
+      "physical_mode": "0644",
+      "sha256": "1bc7eee1c9b5c7d9a2984a62e67e3cdfdd3f1a872ec31e9556880c0b2a8d0422"
+    },
+    {
+      "bytes": 20221,
+      "mode": "100644",
+      "path": "source/ordinary_controls.py",
+      "physical_mode": "0644",
+      "sha256": "aa83c83213af415e2d31cebf0455a468e120a9c02973a607afbd34e347a76ace"
+    },
+    {
+      "bytes": 7246,
+      "mode": "100644",
+      "path": "source/owner_adapter.py",
+      "physical_mode": "0644",
+      "sha256": "56453edad4d6885642f28995568116f280df40e1dca6508cbf0b539a35d25b22"
+    },
+    {
+      "bytes": 14269,
+      "mode": "100644",
+      "path": "source/root_collector.c",
+      "physical_mode": "0644",
+      "sha256": "30d7e4c272d946c73396e1341d7478d2a2dee142b2c4e6263313a1046b57c4ba"
+    },
+    {
+      "bytes": 308,
+      "mode": "100644",
+      "path": "source/root_entry.S",
+      "physical_mode": "0644",
+      "sha256": "d075284c844474667fc85c4da5e0cc05eec1432614a20d051629d531b5634840"
+    },
+    {
+      "bytes": 3686,
+      "mode": "100644",
+      "path": "source/syscall_x86_64.h",
+      "physical_mode": "0644",
+      "sha256": "df7e4787aa71a622ee7460f888cba1c930cfb61cb0a71e849570bed39666a1bd"
+    },
+    {
+      "bytes": 9228,
+      "mode": "100644",
+      "path": "spec/design.md",
+      "physical_mode": "0644",
+      "sha256": "447fa6819c9016e51db65f7e16ee2b32cc8ffadf5cd2ba99c85565d829581dbe"
+    },
+    {
+      "bytes": 13221,
+      "mode": "100644",
+      "path": "spec/implementation-boundary.md",
+      "physical_mode": "0644",
+      "sha256": "7bc7bdd0eb694ff41934caa3421ae2cb7d4c1581c63b36014ee72b34344daba8"
+    },
+    {
+      "bytes": 4813,
+      "mode": "100644",
+      "path": "spec/requirements.md",
+      "physical_mode": "0644",
+      "sha256": "fa52367049ecea80ed3006c5177daa38a4142c4e70c2fe1980c924bb1935eed7"
+    },
+    {
+      "bytes": 2312,
+      "mode": "100644",
+      "path": "spec/tasks.md",
+      "physical_mode": "0644",
+      "sha256": "66956c876de3783638ed7cbbc6b6df937405f26d3675b959bcc0b6962817b282"
+    }
+  ],
+  "frozen_source_peer": "PENDING",
+  "schema": "source-only-safe-freeze-v1",
+  "scope_peer": "PENDING",
+  "source8": [
+    {
+      "bytes": 3686,
+      "mode": "100644",
+      "path": "source/syscall_x86_64.h",
+      "physical_mode": "0644",
+      "sha256": "df7e4787aa71a622ee7460f888cba1c930cfb61cb0a71e849570bed39666a1bd",
+      "source_worktree_relative": "external/rc_native_startup_owner/syscall_x86_64.h"
+    },
+    {
+      "bytes": 2248,
+      "mode": "100644",
+      "path": "source/birth_entry.S",
+      "physical_mode": "0644",
+      "sha256": "9ddafe9891fe259934eb3101ddf7da202206440388a61ac7c54f523ad783af07",
+      "source_worktree_relative": "external/rc_native_startup_owner/birth_entry.S"
+    },
+    {
+      "bytes": 17081,
+      "mode": "100644",
+      "path": "source/birth_module.c",
+      "physical_mode": "0644",
+      "sha256": "c663f7fa38710b429a43ccdd9691ab7a2b9fb8313fa1f712129c066d9bb88b18",
+      "source_worktree_relative": "external/rc_native_startup_owner/birth_module.c"
+    },
+    {
+      "bytes": 308,
+      "mode": "100644",
+      "path": "source/root_entry.S",
+      "physical_mode": "0644",
+      "sha256": "d075284c844474667fc85c4da5e0cc05eec1432614a20d051629d531b5634840",
+      "source_worktree_relative": "external/rc_native_startup_owner/root_entry.S"
+    },
+    {
+      "bytes": 14269,
+      "mode": "100644",
+      "path": "source/root_collector.c",
+      "physical_mode": "0644",
+      "sha256": "30d7e4c272d946c73396e1341d7478d2a2dee142b2c4e6263313a1046b57c4ba",
+      "source_worktree_relative": "external/rc_native_startup_owner/root_collector.c"
+    },
+    {
+      "bytes": 7246,
+      "mode": "100644",
+      "path": "source/owner_adapter.py",
+      "physical_mode": "0644",
+      "sha256": "56453edad4d6885642f28995568116f280df40e1dca6508cbf0b539a35d25b22",
+      "source_worktree_relative": "external/rc_native_startup_owner/owner_adapter.py"
+    },
+    {
+      "bytes": 20221,
+      "mode": "100644",
+      "path": "source/ordinary_controls.py",
+      "physical_mode": "0644",
+      "sha256": "aa83c83213af415e2d31cebf0455a468e120a9c02973a607afbd34e347a76ace",
+      "source_worktree_relative": "external/rc_native_startup_owner/ordinary_controls.py"
+    },
+    {
+      "bytes": 37116,
+      "mode": "100644",
+      "path": "source/build_source_owner.py",
+      "physical_mode": "0644",
+      "sha256": "1bc7eee1c9b5c7d9a2984a62e67e3cdfdd3f1a872ec31e9556880c0b2a8d0422",
+      "source_worktree_relative": "external/rc_native_startup_owner/build_source_owner.py"
+    },
+    {
+      "bytes": 4813,
+      "mode": "100644",
+      "path": "spec/requirements.md",
+      "physical_mode": "0644",
+      "sha256": "fa52367049ecea80ed3006c5177daa38a4142c4e70c2fe1980c924bb1935eed7",
+      "source_worktree_relative": "docs/specs/issue88-native-birth-exec-contract/requirements.md"
+    },
+    {
+      "bytes": 9228,
+      "mode": "100644",
+      "path": "spec/design.md",
+      "physical_mode": "0644",
+      "sha256": "447fa6819c9016e51db65f7e16ee2b32cc8ffadf5cd2ba99c85565d829581dbe",
+      "source_worktree_relative": "docs/specs/issue88-native-birth-exec-contract/design.md"
+    },
+    {
+      "bytes": 2312,
+      "mode": "100644",
+      "path": "spec/tasks.md",
+      "physical_mode": "0644",
+      "sha256": "66956c876de3783638ed7cbbc6b6df937405f26d3675b959bcc0b6962817b282",
+      "source_worktree_relative": "docs/specs/issue88-native-birth-exec-contract/tasks.md"
+    },
+    {
+      "bytes": 13221,
+      "mode": "100644",
+      "path": "spec/implementation-boundary.md",
+      "physical_mode": "0644",
+      "sha256": "7bc7bdd0eb694ff41934caa3421ae2cb7d4c1581c63b36014ee72b34344daba8",
+      "source_worktree_relative": "docs/specs/issue88-native-birth-exec-contract/implementation-boundary.md"
+    }
+  ]
+}

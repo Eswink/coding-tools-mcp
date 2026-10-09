@@ -1,0 +1,11 @@
+{
+  "scope": "ordinary synthetic metadata/close delegates + owned POSIX receipt only; nativeAPI0",
+  "source_sha256": "1cab949f637c69b75a1993a34c944b1dc3bab08070b7a42db7505733867140d9",
+  "root_reparse_rejected": false,
+  "receipt_modes": [
+    "w"
+  ],
+  "exclusive_create_observed": false,
+  "unknown_close_holder_retained": false,
+  "original_close_cancel_object_preserved": true
+}

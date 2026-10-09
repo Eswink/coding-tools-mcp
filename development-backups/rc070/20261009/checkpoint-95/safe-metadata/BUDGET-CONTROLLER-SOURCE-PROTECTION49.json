@@ -1,0 +1,63 @@
+{
+  "scope": "SOURCE_ONLY/new5FR budget/IO fixes, not WinAPI execution",
+  "source": [
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "bytes": 26302,
+      "sha256": "80fea658d806a543f3a2f5e84fd7cf846bd33a9bc63d8795c0a1e72f4dd3ae1d",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "bytes": 39001,
+      "sha256": "065c7b3126f4a4ee55537f4d1d540b462938b302dddf0c61b073ecee344eb721",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_controls.py",
+      "bytes": 8922,
+      "sha256": "a3a369e47d655f0e4968cb97d604961ff09736d81f423830d2fa43c3e776a5e4",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_manager_controls.py",
+      "bytes": 18199,
+      "sha256": "8e03bb1b80c68f54a43beb8d8176c830e839eb0690b2daf4b15b5b1837abff4a",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_inputs.json",
+      "bytes": 7395,
+      "sha256": "4d3e81185d81a712816e5c42ee148853d6708945523b007f9effee29a3376ba4",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": ".github/workflows/windows-nt-output-native-controls.yml",
+      "bytes": 1371,
+      "sha256": "6104dd857e99fbe0e2567e437527f031254e1bb1f31427d7d5fc0825b7941e2c",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    }
+  ],
+  "original17protectedbytes_match_prior34": true,
+  "syntax4andJSON": true,
+  "ordinary_actual_tool_chunk": "f5698b",
+  "ordinary_actual_exit": 0,
+  "ordinary_count": 48,
+  "native_API_calls": 0,
+  "Go_processes": 0,
+  "native_ordinary_cases_authored": 9,
+  "native_ordinary_cases_executed": 0,
+  "actualOfficialZIPNewCapsSatisfaction": "UNVERIFIED",
+  "new_stricter_ZIP_caps": {
+    "entries": 32768,
+    "expanded_bytes": 536870912,
+    "member_bytes": 67108864
+  },
+  "triple_disabled": true
+}
