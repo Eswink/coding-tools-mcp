@@ -1,0 +1,1023 @@
+diff --git a/.gitattributes b/.gitattributes
+index 5cfd639..a136065 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -6,3 +6,4 @@ scripts/windows_foundation_source_manifest.json -text
+ docs/specs/windows-foundation-source-compile/requirements.md -text
+ docs/specs/windows-foundation-source-compile/design.md -text
+ docs/specs/windows-foundation-source-compile/tasks.md -text
++scripts/windows_foundation_inference_overlay.py -text
+diff --git a/.github/workflows/windows-foundation-source-compile.yml b/.github/workflows/windows-foundation-source-compile.yml
+index 5a247f0..601d790 100644
+--- a/.github/workflows/windows-foundation-source-compile.yml
++++ b/.github/workflows/windows-foundation-source-compile.yml
+@@ -48,6 +48,20 @@ jobs:
+         env:
+           FOUNDATION_PYTHON_EXECUTABLE: ${{ steps.foundation-python.outputs.python-path }}
+         run: ./scripts/windows_foundation_source_compile.ps1 -Mode '${{ matrix.mode }}' -PythonExecutable $env:FOUNDATION_PYTHON_EXECUTABLE
++      - name: Independently deny incomplete or false compiler receipts
++        if: always()
++        shell: pwsh
++        env:
++          FOUNDATION_PYTHON_EXECUTABLE: ${{ steps.foundation-python.outputs.python-path }}
++        run: |
++          $ErrorActionPreference = 'Stop'
++          $Python = $env:FOUNDATION_PYTHON_EXECUTABLE
++          if ([string]::IsNullOrWhiteSpace($Python) -or -not [System.IO.Path]::IsPathRooted($Python) -or
++              $Python -match '[\\/]Microsoft[\\/]WindowsApps[\\/]' -or
++              -not (Test-Path -LiteralPath $Python -PathType Leaf)) { throw 'Pinned setup-python payload absent; no PATH fallback.' }
++          $Output = Join-Path $env:RUNNER_TEMP 'windows-foundation-probe'
++          & $Python ./scripts/windows_foundation_inference_overlay.py verify-result --mode '${{ matrix.mode }}' --compiler-result (Join-Path $Output 'compiler-result.json') --manifest ./scripts/windows_foundation_source_manifest.json --manager $env:GITHUB_WORKSPACE --destination (Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-19bb2920') --receipt (Join-Path $Output 'terminal-consumer-result.json')
++          if ($LASTEXITCODE -ne 0) { throw 'Independent actual compiler receipt consumer denied.' }
+       - name: Preserve actual result and failures
+         if: always()
+         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+diff --git a/docs/specs/windows-rust-inference-carrier/design.md b/docs/specs/windows-rust-inference-carrier/design.md
+new file mode 100644
+index 0000000..b5d01a4
+--- /dev/null
++++ b/docs/specs/windows-rust-inference-carrier/design.md
+@@ -0,0 +1,35 @@
++# Strict candidate overlay design
++
++## 概述
++Reuse original source recovery to establish19bb first; overlay exactly one authorized declaration as a separately pinned source stage, then verify the full new candidate around the existing compiler invocation.
++
++## 技术方案
++Original guard/manifest functions remain unchanged. New helper uses original safe nativeGit execution/check_blob/tree_rows primitives without overriding TARGET or patching modules. Immutable public source+fullmanifest hashes and backup commit are literal leases. Native hash-object/update-index/checkout-index only change hcs in the owned disposable SUT customindex; compare new write-tree exactly6b7e.
++
++## Data Flow
++Original manager7 rawHEAD verify -> originalrestore19bb+fullverify -> pinnedbackup nativefetch/show -> validate manifest/source/inverse -> nativecustomindex overlay -> newfull1953before -> original wholecompiler+7tests -> newfull1953after -> originalmanagerAfter -> observerAfter -> original runtimeAfter -> receipt/originalexception.
++
++## Error Handling
++No compiler launch until strict fullcandidate before passes. Once overlay starts, any partial index/file/fetch failure makes newafter fail and final passed=false. Exceptions/cancellation from overlay delegate remain primary; existing finally source/manager/runtime guards and receipt still execute. No nativeIOclose qualification from managedfile or EOF. All new source helper reads use normal contextmanager close and original errors propagate; no diagnostic suppression.
++
++## FR Coverage Matrix
++| FR | Design | Evidence |
++|---|---|---|
++| FR-1 | Unchanged oldguard/manifest, originalbaseline gate | Full byte and AST identity |
++| FR-2 | Literal backup/hash/path lease, onepath customindex | OwnedGit true6b7e and negatives |
++| FR-3 | New whole1953 strict checker | Wrong source/index/path and partial failure denial |
++| FR-4 | Existingcompiler/runtime/manager ordering, newhelper own lease | Sourcepeer plus real exacthead CI |
++
++## 文件结构
++Modify scripts/windows_foundation_source_compile.ps1, .github/workflows/windows-foundation-source-compile.yml and .gitattributes (one new literal helper -text line). Add scripts/windows_foundation_inference_overlay.py, scripts/windows_foundation_inference_overlay_tests.py, these3docs. Existing original7 manager lease list unchanged; PS intentional integration rawHEAD change is verified against newHEAD, not falsely oldrawbyte identical. Newhelper extra sourcelease never substitutes originalmanager7 verification.
++
++## Actual cancellation implementation boundary
++The original source-after block is inside try/finally; required original managerAfter/observer-selection/runtimeAfter/receipt run in that finally even if PipelineStopped bypasses catch. Unfinished sourceAfter is UNKNOWN/denied, never a newtarget after-admission. Catchable source cancellation uses sticky same-object defer/aggregate after receipt; original observer dispatch remains. Original host PipelineStopped propagates rather than being mapped to a fabricated catch result. Sourceguard/manifest remain byteexact, manager7 verifier list/AST unchanged, intentionalPS integration is verified against newmanagementHEAD.
++
++## Independent consumer and mode contract
++Rust flow alone admits original19bb then literal cp49 overlay/full6b7e. Go keeps original19bb before and after with unchanged original guard. After producer, separate always step invokes exact setupPython path and readonly verify-result. Consumer checks typed values, fullsource digests/protected hash, actual managerHEAD/raw7+helper, runtime hashes, native exit records, and fixed regular non-symlink logs<=2MiB; parses exact unique original7Rust/4Go names and commands. It cannot turn producer failure or host-stop false/UNKNOWN into compiler PASS. Main completion marker joins SourceAfter outerfinally marker; both skip new observer on unknown while original cleanup executes.
++| FR | Design | Evidence |
++|---|---|---|
++| FR-5 | Mode-specific source mapping | Real owned baseline/overlay and new CI |
++| FR-6 | Separate always read-only receipt consumer | ActualGo4 component positive plus typed/identity/command/case negatives |
++| FR-7 | Main/sourceAfter completion finally | Five actualPS ordinary cases and immutable failure-first |
+diff --git a/docs/specs/windows-rust-inference-carrier/requirements.md b/docs/specs/windows-rust-inference-carrier/requirements.md
+new file mode 100644
+index 0000000..f8b4149
+--- /dev/null
++++ b/docs/specs/windows-rust-inference-carrier/requirements.md
+@@ -0,0 +1,29 @@
++# Strict inference candidate compiler carrier
++
++## 功能概述
++Real Windows8c7 whole Rust compile failed E0282 on immutable19bb. One annotation candidate6b7e/1953 requires real full compiler validation under exact source identity, retaining prior source and runtime gates.
++
++## 需求列表
++- FR-1 Original guard and original source manifest SHALL remain byteexact. Original restore and verify19bb1953 SHALL execute before any overlay.
++- FR-2 A separate bounded helper SHALL native-fetch the exact approved immutable backup commit, read only fixed public source/manifest names, verify pinned size/SHA before use, validate full1953 identity and one sole declaration inverse, then use native Git customindex materialization to new6b7e.
++- FR-3 New source-before and source-after SHALL strictly verify D6HEAD,6b7e1953 native modes/blobs/all physical bytes, protectedc9fcd, no symlink/missing/untracked/blockedStage. Partial failure SHALL deny compilation or final PASS; no rollback-derived success.
++- FR-4 Existing realRust1.98.1 whole --lib --no-run and original7named tests, pins, runner/branch checks, runtime proxy/payload equality, originalmanager7 verifier and cancellation/receipt ordering SHALL retain original behavior. New helper own rawHEAD lease SHALL be verified before and after within final runtime guard.
++
++## 非功能需求
++Eight bounded delta paths: existingPS+literalattrs+workflow,newhelper+ordinarytest+three specs. No wildcardattributes, no sourceguard constant override, no oldmanifest mutation, no fake harness/nativeowner/grant/defaultdeny relaxation. Native customindex operations are compiler source management only, not user workspace native authorization.
++
++## 验收标准
++Actual ownednativeGit controls SHALL demonstrate originalbaseline admissibility, exact6b7e overlay/new fullidentity, wrongmanifest/source/index/physicalbytes denial, partial failure/cancellation failclosed without obscuring original failure or claiming nativeIOclose. Sourcepeer and safeimmutable backup precede normalpush; only actualsamehead WindowsCI/compiler/original7tests can determine compiled result.
++
++## 依赖关系
++Parent supplies APIreadbackverified immutablecp49 backupcommit/fixedpaths/hashes. Actualoriginal8c7FAIL and sourcepeer/inverse/full1953manifest are prerequisites. FreshactualownGitNexus PS/helper impact and user manualHIGH disclosure precede implementation.
++
++## 有界宿主取消与旧属性控制
++For catchable OperationCanceledException, new source-before/after preserves original objects through required cleanup and final dispatch. PipelineStoppedException may bypass PowerShell catch and terminate the current pipeline with hostexit0; an outer source-after finally SHALL execute original manager/runtime/receipt cleanup, mark unfinished newsourceafter UNKNOWN and passed=false, and skip new observer child. It SHALL preserve host propagation and SHALL NOT fabricate captured cancellation type/object. Only ordinary LinuxPS7.6.6 host/source cleanup is established; native cancellation/VM/IOclose remains unqualified.
++Original exact-seven attribute8method suite remains unchanged and actuallyFAIL1 at8!=7;7othermethodsPASS. This intentional new8literal context has separately executed real nativecheckouttrue/false all8 rawblob identities/unmatchedsame-directory/nestedbasename conversions/changed-helper-blob denial; no oldsuite currentPASS claim.
++
++## 独立终态消费者与模式身份
++- FR-5 Rust SHALL overlay and verify6b7e1953; Go SHALL retain original19bb1953 without overlay. Both SHALL run the original fullsource before/after and manager/runtime identities; actualRust7 and Go4 named vectors remain unchanged.
++- FR-6 A separate always workflow step SHALL use only rooted explicit setup-python payload (missing/alias/invalid SHALL fail, no PATH fallback) to consume actual compiler-result. It SHALL reject absent/malformed receipt, nonboolean passed, interrupted/unknown/error status, incomplete source/manager/runtime identity, wrong native command exits, missing/duplicate/wrong named cases and malformed bounded logs. PipelineStopped hostexit0 SHALL never qualify failed or UNKNOWN receipt.
++- FR-7 Main delegate and sourceAfter completion markers SHALL fail closed when real host PipelineStopped bypasses catch, preserve original manager/runtime/receipt cleanup and skip new observer child; original catchable typed objects SHALL be dispatched after cleanup. Ordinary component controls SHALL not claim native cancellation or compiler qualification.
++The original timeout is45minutes. An earlier Plan estimate said20 erroneously; it is preserved as an erratum, never a workflow budget change. New consumer does no compiler/native-owner launch and cannot authorize release.
+diff --git a/docs/specs/windows-rust-inference-carrier/tasks.md b/docs/specs/windows-rust-inference-carrier/tasks.md
+new file mode 100644
+index 0000000..4968cd0
+--- /dev/null
++++ b/docs/specs/windows-rust-inference-carrier/tasks.md
+@@ -0,0 +1,38 @@
++# Strict overlay tasks
++
++## 任务列表
++1. Establish newPlan/fresh actual impact/spec and immutablecp49lease beforecode.
++2. Implement only8bounded paths; preserve originalguard/manifest/pins/7tests/budgets/positive/defaultdeny.
++3. Execute necessary actual ownedGit source/index controls and exceptions/partialfailure denial, no compiler/runtime harness.
++4. Freshdetect/gencommit/fullbaseline identity, independent sourcepeer, safebackup then normalsoleparent8c7 push and read realCI.
++
++## 交付物清单
++Exact8delta source/patch/specs/safe manifests. Private originalfail logs remainimmutable and excluded from publicbackup. Complete1953 newcandidate identity remains exactpin.
++
++## 需求覆盖矩阵
++| FR | Tasks | Evidence |
++|---|---|---|
++| FR-1 | 2,4 | Oldguard/manifest exact |
++| FR-2 | 1,2,3 | Immutable sourcelease/actualnativecustomindex tree |
++| FR-3 | 2,3,4 | Complete source checks/negatives/partial failure |
++| FR-4 | 2,4 | Existingcommand/vector/order plus realCI |
++
++## 文件变更清单
++Exactly3existing+5new paths as declareddesign. No oldguard/oldmanifest/oldoriginal3spec mutation, no new attributes wildcard. Newordinarytest outside original7manager lease, never called as CI/compiler proof.
++
++## Validation and qualification
++Actual whole Windowscompiler/original7namedtests NOTRUN until newhead CI. OwnedGit/checks/sourcepeer establish management scope only. No complete Windowsowner/VM/IOclose/isolation/install/RustSec/publisher/RC PASS.
++
++## Actual finite verification record
++Formal implementation was reapplied after originaldraft timing deviation: withdrawn11filebundle preserved, clean8c7 all1867 nativeblobbytes/status0B verified,21exactsymbolplusclass actualqueries UNKNOWN/manualHIGH before formal implementation. Olddraft cannot be retrospectivelyqualified. Initialordinary11PASS coveredhelper; subsequentactualPS sourcecancel controls02–05 FAIL were preserved and did not prove cleanup. Controls06 actual13methodsPASS include fourPS cases, with catchable three cases same-object/delegate/cleanup checks; hostPipelineStop case externalfalseUNKNOWN receipt+realmanager/runtime cleanup without caughtobject claim. OwnedGit8literal checkout verifies actualrawbytes and unmatched behavior, originalexact7suiteactualFAIL retained. These are management-only checks, not WindowsCI/compiler/native qualification.
++
++## Final bounded correction tasks
++Implement Rust-only overlay, Go original19bb source contract, separate always consumer with pinned Python failure denial, and main-host completion flag; preserve original45min. Five actual PS cases include beforePipelineStop full originalTryAST with controlled0SUT delegate, not manually fabricated catch. Run ordinary nativeGit controls plus actual ownedGo4 positive and consumer typed/missingruntime/unknown/command/case-negative cases, preserve originalexact7suiteFAIL and priorSTOP freezes. Final eight-path source peer/freeze/safe backup before meaningful normalpush; actual Windows compiler and original7 still NOTRUN until genuine samehead CI.
++| FR | Tasks | Evidence |
++|---|---|---|
++| FR-5 | Final mode correction | Exact source mapping/CI |
++| FR-6 | Terminal consumer | Real ownedGo4 and negative controls |
++| FR-7 | Main/source completion | Five realPS host/source cases |
++
++## Current finite component result
++Controls14 actually15methodsPASS37.493s: originalhelper/nativeGit controls, five actualPS cases (beforePipeline executes actualwholeTryAST with controlled0SUT delegate), actualownedGo1.24.13 original5files/4namedPASS, terminal parser typed/identity/runtime/command/case negatives, fullCLI missing/local-provenance rejection, actual separateworkflow block missing/invalid/WindowsApps pinnedPython rejects. LocalGo record explicitlyLOCAL_OWNED_COMPONENT; no fakeGitHub/Windows/native environment and no realRust positive synthesized. Original exact7 suite FAIL1/8 and initialconsumer symlink extra-rejection FAIL controls12 preserved. Full CLI alone requires actual remoteCI provenance plus actual managementHEAD/source leases. Compiler6b7e actualWindows NOTRUN pending sameheadCI.
+diff --git a/scripts/windows_foundation_inference_overlay.py b/scripts/windows_foundation_inference_overlay.py
+new file mode 100644
+index 0000000..2e1d69d
+--- /dev/null
++++ b/scripts/windows_foundation_inference_overlay.py
+@@ -0,0 +1,332 @@
++#!/usr/bin/env python3
++"""Strict compiler-only overlay; retains original source guard and never issues authority."""
++import argparse
++import hashlib
++import json
++import os
++from pathlib import Path
++import re
++import sys
++import windows_foundation_source_guard as guard
++
++TARGET = '6b7e33c45c5e56340b1cfb81a7d304c6c60cf23f'
++BACKUP = '4385cf1d47f32eda705ccb34d2f06ff388ebb685'
++PREFIX = 'development-backups/rc070/20261009/checkpoint-49/'
++SOURCE_NAME = 'hcs.rs.source'
++MANIFEST_NAME = 'CANDIDATE-FULL1953-MANIFEST01.json'
++SOURCE_SHA = 'd22b143b6b199e743b19bf931b50358cfac9fcc761704d81139e87a6c07ade00'
++MANIFEST_SHA = '48c2d6547375b02b738abf11b0e3505fe50c6a1e067d15eb3202a6c6e4ff6764'
++PATH = 'src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs'
++OLD_SHA = 'dd85d23df558c100c0d63c72fc55b72dbc0a2ba158f7a2ee705470916a098cf5'
++NEW_BLOB = '5b2626f0dde7cd96b4af77ff6715a7bd9ec55ef5'
++OLD_DECLARATION = b'let result = (|| {'
++NEW_DECLARATION = b"let result: Result<(), &'static str> = (|| {"
++HELPER = 'scripts/windows_foundation_inference_overlay.py'
++
++
++def verify_helper_lease(manager):
++    expected = os.environ.get('GITHUB_SHA', '')
++    if not re.fullmatch('[0-9a-f]{40}', expected) or guard.run_git(manager, 'rev-parse', 'HEAD').decode().strip() != expected:
++        raise ValueError('overlay manager HEAD differs from actual GitHub source')
++    entries = guard.tree_rows(manager, expected)
++    rows = [r for r in entries if r['path'] == HELPER]
++    if len(rows) != 1 or rows[0]['mode'] != '100644':
++        raise ValueError('overlay helper native mode/path absent')
++    file = manager / HELPER
++    if file.is_symlink() or not file.is_file():
++        raise ValueError('overlay helper missing or symlink')
++    data = file.read_bytes()
++    row = dict(rows[0], bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
++    guard.check_blob(data, row)
++    if os.name != 'nt' and file.stat().st_mode & 0o111:
++        raise ValueError('overlay helper physical executable mode changed')
++    return {'manager_commit': expected, 'helper_source': row, 'native_authority': False}
++
++
++def fetch_inference_payload(repo):
++    guard.run_git(repo, 'fetch', '--no-tags', guard.REPOSITORY, BACKUP)
++    if guard.run_git(repo, 'cat-file', '-t', BACKUP).strip() != b'commit':
++        raise ValueError('immutable overlay lease is not a native commit')
++    payload = []
++    for name, size, sha in [(MANIFEST_NAME, 510045, MANIFEST_SHA), (SOURCE_NAME, 7163, SOURCE_SHA)]:
++        entries = [r for r in guard.tree_rows(repo, BACKUP) if r['path'] == PREFIX + name]
++        if len(entries) != 1 or entries[0]['mode'] != '100644':
++            raise ValueError('immutable overlay payload path/mode differs')
++        data = guard.run_git(repo, 'show', BACKUP + ':' + PREFIX + name)
++        row = dict(entries[0], bytes=size, sha256=sha)
++        guard.check_blob(data, row)
++        payload.append(data)
++    return payload[0], payload[1]
++
++
++def load_candidate(manifest_raw, source, baseline):
++    if len(manifest_raw) != 510045 or hashlib.sha256(manifest_raw).hexdigest() != MANIFEST_SHA:
++        raise ValueError('candidate manifest literal size/SHA differs')
++    if len(source) != 7163 or hashlib.sha256(source).hexdigest() != SOURCE_SHA:
++        raise ValueError('candidate source literal size/SHA differs')
++    m = json.loads(manifest_raw.decode('utf-8'))
++    if (m['schema'], m['repository'], m['baseline_target_tree'], m['target_tree'], m['target_tree_files'],
++            m['base_commit'], m['allowed_changed_path'], m['protected_positive_path'], m['protected_positive_sha256']) != (
++            1, 'Eswink/coding-tools-mcp', guard.TARGET, TARGET, 1953, guard.BASE, PATH, guard.PROTECTED, guard.PROTECTED_SHA):
++        raise ValueError('candidate identity differs from fixed approved inference source')
++    if m['old_source'] != next(row for row in baseline['whole_source'] if row['path'] == PATH):
++        raise ValueError('candidate old row differs from admitted baseline')
++    rows = m['whole_source']
++    if len(rows) != 1953 or len({row['path'] for row in rows}) != 1953:
++        raise ValueError('candidate missing or duplicate source rows')
++    expected = []
++    for old in baseline['whole_source']:
++        expected.append(m['new_source'] if old['path'] == PATH else old)
++    if rows != expected or m['new_source']['path'] != PATH or m['new_source']['mode'] != '100644' or m['new_source']['blob'] != NEW_BLOB:
++        raise ValueError('candidate is not the exact one-path original1953 source')
++    guard.check_blob(source, m['new_source'])
++    return m
++
++
++def verify_inference_candidate(repo, m):
++    if guard.run_git(repo, 'rev-parse', 'HEAD').decode().strip() != guard.BASE:
++        raise ValueError('candidate SUT HEAD is not original D6')
++    actual = guard.run_git(repo, 'write-tree', index=True).decode().strip()
++    if actual != TARGET:
++        raise ValueError('new candidate custom index tree differs')
++    native = guard.tree_rows(repo, TARGET)
++    if native != [{k: row[k] for k in ('path', 'mode', 'blob')} for row in m['whole_source']]:
++        raise ValueError('new candidate full native1953 differs')
++    digest = hashlib.sha256()
++    for row in m['whole_source']:
++        guard.safe_path(row['path'])
++        file = repo / row['path']
++        if file.is_symlink() or not file.is_file():
++            raise ValueError('candidate missing or symlink source: ' + row['path'])
++        data = file.read_bytes()
++        guard.check_blob(data, row)
++        if os.name != 'nt' and bool(file.stat().st_mode & 0o111) != (row['mode'] == '100755'):
++            raise ValueError('candidate executable mode mismatch: ' + row['path'])
++        digest.update(row['path'].encode() + b'\0' + row['mode'].encode() + b'\0' + row['sha256'].encode() + b'\n')
++    if hashlib.sha256((repo / guard.PROTECTED).read_bytes()).hexdigest() != guard.PROTECTED_SHA:
++        raise ValueError('candidate protected positive changed')
++    if (repo / 'src-tauri/src/tools/cloud_host/windows_workspace/stage.rs').exists():
++        raise ValueError('blocked Stage11 source present')
++    if any(guard.run_git(repo, 'ls-files', '--others', '--exclude-standard', '-z', index=True).split(b'\0')):
++        raise ValueError('untracked candidate source outside ignored build output')
++    return {'tree': actual, 'files': 1953, 'source_digest': digest.hexdigest(),
++            'protected_positive_sha256': guard.PROTECTED_SHA, 'native_positive': 'NOTRUN', 'native_authority': False}
++
++
++def apply_inference_overlay(repo, baseline, manifest_raw, source):
++    # Original verifier admits the entire baseline before any write, unchanged.
++    guard.verify_materialized(repo, baseline)
++    m = load_candidate(manifest_raw, source, baseline)
++    old = (repo / PATH).read_bytes()
++    if hashlib.sha256(old).hexdigest() != OLD_SHA or old.count(OLD_DECLARATION) != 1 or NEW_DECLARATION in old:
++        raise ValueError('overlay old declaration/bytes differ')
++    if source.replace(NEW_DECLARATION, OLD_DECLARATION) != old or source.count(NEW_DECLARATION) != 1:
++        raise ValueError('overlay changes more than the sole type annotation')
++    blob = guard.run_git(repo, 'hash-object', '-w', '--stdin', data=source).decode().strip()
++    if blob != NEW_BLOB:
++        raise ValueError('native overlay source blob differs')
++    guard.run_git(repo, 'update-index', '--cacheinfo', '100644,' + blob + ',' + PATH, index=True)
++    guard.run_git(repo, 'checkout-index', '--force', '--', PATH, index=True)
++    return verify_inference_candidate(repo, m)
++
++
++
++RUST_CASES = ('sealed_chunks_keep_original_and_detached_owners_independent',
++              'chunk_cap_and_cancel_do_not_publish_partial_copy',
++              'exact_transfer_binding_rejects_each_field_mismatch',
++              'invalid_wire_names_and_nil_binding_never_make_native_authority',
++              'checked_close_consumes_data_only_transfer',
++              'relative_names_remain_data_not_native_permission',
++              'diagnostic_metadata_cannot_authorize_output')
++GO_CASES = ('TestTransferAllBindingFieldsChangeDigest',
++            'TestTransferBoundEOFHashCancellationAndSingleConsumption',
++            'TestTransferRelativeAndMalformedIdentityReject',
++            'TestLinuxTransferCannotIssueNativeFileIdentity')
++GO_FILES = ('services/windows-vm-broker/transfer.go', 'services/windows-vm-broker/transfer_test.go',
++            'services/windows-vm-broker/transfer_identity_linux_test.go',
++            'services/windows-vm-broker/workspace_stream.go', 'services/windows-vm-broker/guest_workspace_control.go')
++CARGO_VECTOR = ('test', '--locked', '--manifest-path', 'src-tauri/Cargo.toml', '--lib',
++                '--config', 'build.rustc-wrapper=""', '--config', 'build.rustc-workspace-wrapper=""')
++
++
++def read_result_log(directory, name):
++    # Literal basenames selected by this consumer, never receipt-supplied authority paths.
++    if not re.fullmatch(r'[A-Za-z0-9_.-]+\.log', name):
++        raise ValueError('consumer log name differs')
++    file = directory / name
++    if file.is_symlink() or not file.is_file() or file.stat().st_size > 2 * 1024 * 1024:
++        raise ValueError('consumer bounded regular log absent')
++    return file.read_text(encoding='utf-8-sig', errors='strict')
++
++
++def verify_compiler_result(record, mode, directory, current_source, current_manager, current_commit):
++    target = TARGET if mode == 'rust' else guard.TARGET
++    compiler = 'WHOLE_TEST_COMPILE_AND_7_DATA_PASS' if mode == 'rust' else 'DATA_TEST_PASS'
++    if mode not in ('rust', 'go') or record.get('passed') is not True or record.get('mode') != mode:
++        raise ValueError('consumer requires exact mode and boolean passed')
++    if (record.get('compiler') != compiler or record.get('pureSutTree') != target or
++            record.get('baselineSutTree') != guard.TARGET or record.get('managerCommit') != current_commit or
++            record.get('nativePositive') != 'NOTRUN' or record.get('qualification') != 'SOURCE_ONLY_BLOCKED' or
++            record.get('managerObservationFailed') is not False):
++        raise ValueError('consumer terminal/compiler identity differs')
++    if any(re.search('error|cancel|unknown|skipped', key, re.I) for key in record):
++        raise ValueError('consumer interrupted/unknown/error receipt denied')
++    if mode == 'rust' and record.get('sourceOverlayStarted') is not True:
++        raise ValueError('Rust overlay was not admitted')
++    if mode == 'go' and 'sourceOverlayStarted' in record:
++        raise ValueError('Go must retain original baseline without overlay')
++    baseline = record.get('sourceBaseline', {})
++    if (baseline.get('passed') is not True or baseline.get('tree') != guard.TARGET or
++            type(baseline.get('files')) is not int or baseline['files'] != 1953 or
++            baseline.get('native_authority') is not False or
++            baseline.get('protected_positive_sha256') != guard.PROTECTED_SHA):
++        raise ValueError('consumer original full baseline absent')
++    for key in ('sourceBefore', 'sourceAfter'):
++        source = record.get(key, {})
++        if (source.get('passed') is not True or source.get('tree') != target or
++                type(source.get('files')) is not int or source['files'] != 1953 or
++                source.get('native_authority') is not False or source.get('native_positive') != 'NOTRUN' or
++                source.get('source_digest') != current_source['source_digest'] or
++                source.get('protected_positive_sha256') != guard.PROTECTED_SHA):
++            raise ValueError('consumer whole source before/after differs')
++    for key in ('managerSourceBefore', 'managerSourceAfter'):
++        manager = record.get(key, {})
++        if (manager.get('passed') is not True or type(manager.get('manager_files')) is not int or
++                manager['manager_files'] != 7 or manager.get('native_authority') is not False or
++                manager.get('manager_commit') != current_commit or
++                manager.get('management_digest') != current_manager['management_digest'] or
++                manager.get('management_source') != current_manager['management_source']):
++            raise ValueError('consumer original manager seven before/after differs')
++    runtime = record.get('runtime', {})
++    expected = {'git', 'python', 'rustup', 'rustc', 'cargo'} if mode == 'rust' else {'git', 'python', 'go'}
++    if not isinstance(runtime, dict) or set(runtime) != expected:
++        raise ValueError('consumer complete fixed runtime vector absent')
++    for tool, row in runtime.items():
++        path = Path(row.get('path', ''))
++        before, after = row.get('sha256Before'), row.get('sha256After')
++        if (not path.is_absolute() or not path.is_file() or
++                not isinstance(before, str) or not re.fullmatch('[0-9a-fA-F]{64}', before) or
++                not isinstance(after, str) or before != after or
++                hashlib.sha256(path.read_bytes()).hexdigest() != before.lower()):
++            raise ValueError('consumer actual runtime before/after bytes differ')
++        if tool == 'python' and not path.samefile(sys.executable):
++            raise ValueError('consumer interpreter differs from producer pinned payload')
++        if mode == 'rust' and tool in ('rustc', 'cargo'):
++            payload = Path(row.get('payloadPath', ''))
++            sha = row.get('payloadSha256Before')
++            if (not payload.is_absolute() or not payload.is_file() or
++                    not isinstance(sha, str) or not re.fullmatch('[0-9a-fA-F]{64}', sha) or
++                    sha != row.get('payloadSha256After') or hashlib.sha256(payload.read_bytes()).hexdigest() != sha.lower()):
++                raise ValueError('consumer actual Rust payload differs')
++    commands = record.get('commands')
++    if not isinstance(commands, list) or not commands:
++        raise ValueError('consumer native command records absent')
++    by_log = {}
++    for command in commands:
++        tool = command.get('executable')
++        if tool not in runtime or type(command.get('exitCode')) is not int or command['exitCode'] != 0:
++            raise ValueError('consumer native command exit differs')
++        expected_path = runtime[tool].get('payloadPath', runtime[tool]['path'])
++        if command.get('resolvedExecutable') != expected_path or not isinstance(command.get('arguments'), list):
++            raise ValueError('consumer native command selection differs')
++        name = command.get('log')
++        if not isinstance(name, str) or name in by_log:
++            raise ValueError('consumer duplicate/missing command log identity')
++        read_result_log(directory, name)
++        by_log[name] = command
++    required_logs = {'git-version.log', 'python-version.log', 'management-byte-observation-Before.log',
++                     'management-before.log', 'source-restore.log', 'source-after.log',
++                     'management-after.log', 'management-byte-observation-After.log'}
++    if not required_logs <= set(by_log):
++        raise ValueError('consumer management/source command vector incomplete')
++    if mode == 'go':
++        if [c['log'] for c in commands if c['executable'] == 'go'] != ['go-version.log', 'go5-data-test.log']:
++            raise ValueError('consumer original Go command vector differs')
++        if by_log['go-version.log']['arguments'] != ['version'] or not read_result_log(directory, 'go-version.log').startswith('go version go1.24.13 linux/amd64'):
++            raise ValueError('consumer pinned Go version differs')
++        if by_log['go5-data-test.log']['arguments'] != ['test', '-v', '-count=1', *GO_FILES]:
++            raise ValueError('consumer original Go five-source vector differs')
++        log = read_result_log(directory, 'go5-data-test.log')
++        names = re.findall(r'^--- PASS: ([A-Za-z0-9_]+) \(', log, re.M)
++        if len(names) != 4 or set(names) != set(GO_CASES) or not re.search(r'^PASS\r?$', log, re.M):
++            raise ValueError('consumer original Go four unique success identities absent')
++    else:
++        needed = ['cargo-whole-test-compile.log', 'cargo-whole-test-list.log', *['data-' + case + '.log' for case in RUST_CASES]]
++        cargo = [c for c in commands if c['executable'] == 'cargo' and c['log'] != 'cargo-version.log']
++        if [c['log'] for c in cargo] != needed:
++            raise ValueError('consumer original Rust command order/vector differs')
++        if cargo[0]['arguments'] != [*CARGO_VECTOR, '--no-run'] or cargo[1]['arguments'] != [*CARGO_VECTOR, '--', '--list']:
++            raise ValueError('consumer whole library compile/list command differs')
++        listed = read_result_log(directory, needed[1]).splitlines()
++        for case, command in zip(RUST_CASES, cargo[2:]):
++            matches = [line[:-6] for line in listed if line.endswith('::' + case + ': test')]
++            if len(matches) != 1 or not re.fullmatch(r'tools::windows_vm::(?:input|output_stage)::[A-Za-z0-9_:]+', matches[0]):
++                raise ValueError('consumer original Rust case absent/ambiguous/wrong namespace')
++            full = matches[0]
++            if command['arguments'] != [*CARGO_VECTOR, full, '--', '--exact', '--nocapture', '--test-threads=1']:
++                raise ValueError('consumer original Rust unique exact command differs')
++            log = read_result_log(directory, command['log'])
++            if len(re.findall(r'^test ' + re.escape(full) + r' \.\.\. ok\r?$', log, re.M)) != 1 or not re.search(r'test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; [0-9]+ filtered out', log):
++                raise ValueError('consumer actual exact Rust success log absent')
++    return {'passed': True, 'mode': mode, 'tree': target, 'files': 1953,
++            'named_data_count': 7 if mode == 'rust' else 4, 'native_authority': False,
++            'native_positive': 'NOTRUN', 'qualification': 'COMPILER_DATA_ONLY'}
++
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument('operation', choices=('apply', 'verify', 'verify-result'))
++    parser.add_argument('--manifest', type=Path, required=True)
++    parser.add_argument('--manager', type=Path, required=True)
++    parser.add_argument('--destination', type=Path, required=True)
++    parser.add_argument('--receipt', type=Path, required=True)
++    parser.add_argument('--mode', choices=('rust', 'go'))
++    parser.add_argument('--compiler-result', type=Path)
++    args = parser.parse_args()
++    result = {'passed': False, 'native_authority': False, 'native_positive': 'NOTRUN',
++              'baseline_tree': guard.TARGET, 'target_tree': TARGET if args.operation != 'verify-result' or args.mode == 'rust' else guard.TARGET, 'backup_commit': BACKUP}
++    primary = None
++    try:
++        helper = verify_helper_lease(args.manager.resolve())
++        baseline = guard.load_manifest(args.manifest.resolve())
++        if args.operation == 'verify-result':
++            if args.mode is None or args.compiler_result is None:
++                raise ValueError('terminal consumer requires mode and actual receipt')
++            file = args.compiler_result
++            if file.is_symlink() or not file.is_file() or file.stat().st_size > 2 * 1024 * 1024:
++                raise ValueError('terminal producer receipt missing or unbounded')
++            record = json.loads(file.read_text(encoding='utf-8-sig'))
++            if record.get('sourceBaseline', {}).get('payload_mode') != 'IMMUTABLE_REMOTE_CI':
++                raise ValueError('terminal requires actual immutable remote CI baseline provenance')
++            manager = guard.verify_manager(args.manager.resolve())
++            if args.mode == 'rust':
++                manifest_raw, source = fetch_inference_payload(args.destination.resolve())
++                candidate = load_candidate(manifest_raw, source, baseline)
++                current = verify_inference_candidate(args.destination.resolve(), candidate)
++            else:
++                current = guard.verify_materialized(args.destination.resolve(), baseline)
++            result.update(verify_compiler_result(record, args.mode, file.parent, current, manager, helper['manager_commit']))
++        else:
++            manifest_raw, source = fetch_inference_payload(args.destination.resolve())
++            candidate = load_candidate(manifest_raw, source, baseline)
++            if args.operation == 'apply':
++                result.update(apply_inference_overlay(args.destination.resolve(), baseline, manifest_raw, source))
++            else:
++                result.update(verify_inference_candidate(args.destination.resolve(), candidate))
++        result.update(helper)
++        result['passed'] = True
++    except BaseException as error:
++        result['error_type'] = type(error).__name__
++        result['error'] = str(error)
++        primary = error
++    try:
++        guard.write_receipt(args.receipt, result)
++    except BaseException as receipt_error:
++        if primary is not None:
++            raise BaseExceptionGroup('Original overlay failure and receipt failure both preserved.', [primary, receipt_error])
++        raise
++    if primary is not None:
++        raise primary
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/scripts/windows_foundation_inference_overlay_tests.py b/scripts/windows_foundation_inference_overlay_tests.py
+new file mode 100644
+index 0000000..186294a
+--- /dev/null
++++ b/scripts/windows_foundation_inference_overlay_tests.py
+@@ -0,0 +1,377 @@
++#!/usr/bin/env python3
++"""Ordinary owned Git/source controls, never a compiler/native-owner qualification."""
++import copy
++import hashlib
++import json
++import os
++from pathlib import Path
++import shutil
++import subprocess
++import sys
++import tempfile
++import unittest
++from unittest.mock import patch
++import windows_foundation_source_guard as guard
++import windows_foundation_inference_overlay as overlay
++import windows_foundation_manager_checkout_tests as legacy_checkout
++
++POOL = Path(sys.argv[1]).resolve()
++PWSH = sys.argv[2] if len(sys.argv) > 2 else None
++CONTROL_EVIDENCE = Path(sys.argv[3]).resolve() if len(sys.argv) > 3 else None
++PS_SOURCE_CANCEL_CONTROL = 'param($Source,$PythonExecutable,$Manager,$Guard,$Manifest,$Observer,$InferenceOverlay,$Destination,$Output,$BeforeJSON,$SourceBeforeJSON,$Case)\n$ErrorActionPreference=\'Stop\';Set-StrictMode -Version Latest\n$Tokens=$null;$Errors=$null\n$Ast=[System.Management.Automation.Language.Parser]::ParseFile($Source,[ref]$Tokens,[ref]$Errors)\nif($Errors.Count){throw \'Actual source parse error\'}\nforeach($Name in @(\'Resolve-FoundationApplication\',\'Invoke-CheckedCompiler\',\'Invoke-ManagerSourceObservation\')) {\n $F=@($Ast.FindAll({param($N)$N -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $N.Name -ceq $Name},$true))\n if($F.Count -ne 1){throw \'Actual source function missing\'};.([scriptblock]::Create($F[0].Extent.Text))\n}\n$RealInvoke=(Get-Item Function:\\Invoke-CheckedCompiler).ScriptBlock\n$NativeLogNames=[System.Collections.Generic.List[string]]::new()\n$OwnedCancellation=if($Case -in @(\'after-pipeline\',\'before-pipeline\')){[System.Management.Automation.PipelineStoppedException]::new(\'ordinary pipeline cancellation\')}else{[System.OperationCanceledException]::new(\'ordinary source cancellation\')}\nfunction Invoke-CheckedCompiler([string]$Executable,[string[]]$Arguments,[string]$LogName) {\n $NativeLogNames.Add($LogName)\n if($Case -cne \'before\' -and $LogName -ceq \'source-after.log\'){throw $OwnedCancellation}\n & $RealInvoke -Executable $Executable -Arguments $Arguments -LogName $LogName\n}\n$T=@($Ast.EndBlock.Statements | Where-Object { $_ -is [System.Management.Automation.Language.TryStatementAst] -and $_.Body.Extent.Text -match \'^\\{\\s*Run-SourceCompile\\s\'})\nif($T.Count -ne 1){throw \'Actual top-level catch/finally missing\'}\n$CatchText=$T[0].CatchClauses[0].Body.Extent.Text;$Catch=[scriptblock]::Create($CatchText.Substring(1,$CatchText.Length-2))\n$FinallyText=$T[0].Finally.Extent.Text;$Finally=[scriptblock]::Create($FinallyText.Substring(1,$FinallyText.Length-2))\n$TailText=(@($Ast.EndBlock.Statements | Where-Object {$_.Extent.StartOffset -gt $T[0].Extent.EndOffset} | ForEach-Object {$_.Extent.Text}) -join "`n")\n$Tail=[scriptblock]::Create($TailText)\n$Mode=\'rust\'\n$ObservationCancellation=$null;$SourceCancellation=$null;$PrimaryFailure=$null;$DelegateHandled=$true\n$Receipt=[ordered]@{runtime=@{};commands=@();passed=$true;compiler=\'NOTRUN\';sourceOverlayStarted=$true;\n sourceBefore=(Get-Content -Raw $SourceBeforeJSON | ConvertFrom-Json);sourceAfter=$null;\n managerSourceBefore=(Get-Content -Raw $BeforeJSON | ConvertFrom-Json);managerSourceAfter=$null;managerObservationFailed=$false}\nif($Case -ceq \'before-pipeline\') {\n # Actual main AST with a controlled delegate before any SUT source restoration; no fake CI env.\n $Destination=Join-Path $Output \'no-sut-was-restored\'\n $Receipt.sourceBefore=$null\n $DelegateHandled=$false\n function Run-SourceCompile {throw $OwnedCancellation}\n .([scriptblock]::Create($T[0].Extent.Text))\n throw \'Original main host stop did not propagate\'\n}\nif($Case -ceq \'before\') {try {throw $OwnedCancellation}catch {. $Catch}}\nelseif($Case -ceq \'after-primary\') {try {throw [System.InvalidOperationException]::new(\'ordinary primary before cleanup\')}catch {. $Catch}}\n$OriginalPrimary=$PrimaryFailure\n. $Finally\nif(-not $NativeLogNames.Contains(\'management-after.log\') -or $null -eq $Receipt.managerSourceAfter){throw \'Original manager cleanup skipped\'}\nif($NativeLogNames.Contains(\'management-byte-observation-After.log\')){throw \'New observation child launched after source cancellation\'}\nif($Receipt.runtime.python.sha256Before -cne $Receipt.runtime.python.sha256After){throw \'Original runtime-after skipped\'}\nif(-not (Test-Path -LiteralPath (Join-Path $Output \'compiler-result.json\')) -or $Receipt.passed){throw \'Original receipt/finaldeny skipped\'}\nif($Case -ceq \'after-pipeline\') {\n if(-not [Object]::ReferenceEquals($SourceCancellation,$OwnedCancellation)){throw \'Original sourcecancel object absent before dispatch\'}\n [ordered]@{same_original_object=$true;type=$SourceCancellation.GetType().FullName;passed=$Receipt.passed;\n manager_cleanup=($null -ne $Receipt.managerSourceAfter);runtime_guard=($Receipt.runtime.python.sha256Before -ceq $Receipt.runtime.python.sha256After)} |\n ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $Output \'pre-dispatch-object-proof.json\')\n}\ntry {. $Tail;throw \'Typed source cancellation dispatch swallowed\'}\ncatch {\n if($Case -ceq \'after-primary\') {\n  if($_.Exception -isnot [System.AggregateException] -or $_.Exception.InnerExceptions.Count -ne 2 -or\n    -not [Object]::ReferenceEquals($_.Exception.InnerExceptions[0],$OriginalPrimary) -or\n    -not [Object]::ReferenceEquals($_.Exception.InnerExceptions[1],$OwnedCancellation)){throw \'Original primary/sourcecancel objects obscured\'}\n } elseif(-not [Object]::ReferenceEquals($_.Exception,$OwnedCancellation)){throw \'Original typed source cancellation object obscured\'}\n}\nWrite-Output (\'PASS actual PS source catch/finally/tail \'+$Case+\'; manager/runtime/receipt preserved; no compiler/VM/nativecancel proof\')\n'
++
++
++class WindowsInferenceOverlayControls(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.owned = tempfile.TemporaryDirectory(prefix='ordinary-inference-', dir=POOL.parent)
++        cls.root = Path(cls.owned.name)
++        cls.repo = cls.root / 'sut'
++        subprocess.run(['git', 'clone', '--no-hardlinks', '--no-checkout', str(POOL), str(cls.repo)], check=True, capture_output=True)
++        cls.baseline = guard.load_manifest(Path(__file__).with_name('windows_foundation_source_manifest.json'))
++        cls.manifest_raw, cls.source = overlay.fetch_inference_payload(cls.repo)
++        cls.candidate = overlay.load_candidate(cls.manifest_raw, cls.source, cls.baseline)
++        cls.manager = cls.root / 'manager'
++        cls.manager.mkdir()
++        guard.run_git(cls.manager, 'init', '-q')
++        helper = cls.manager / overlay.HELPER
++        helper.parent.mkdir()
++        shutil.copyfile(Path(overlay.__file__), helper)
++        for name in legacy_checkout.MANAGER_PATHS:
++            dest = cls.manager / name
++            dest.parent.mkdir(parents=True, exist_ok=True)
++            dest.write_bytes((Path(__file__).resolve().parent.parent / name).read_bytes())
++        guard.run_git(cls.manager, 'add', '--', '.')
++        guard.run_git(cls.manager, '-c', 'user.name=Owned Source Control', '-c', 'user.email=owned-source@example.invalid',
++                      'commit', '-q', '-m', 'Owned ordinary source fixture')
++        cls.manager_head = guard.run_git(cls.manager, 'rev-parse', 'HEAD').decode().strip()
++
++    @classmethod
++    def tearDownClass(cls):
++        cls.owned.cleanup()
++
++    def setUp(self):
++        canary = self.repo / 'ordinary-untracked-canary.txt'
++        if canary.exists():
++            canary.unlink()
++        guard.run_git(self.repo, 'read-tree', guard.TARGET, index=True)
++        guard.run_git(self.repo, 'checkout-index', '--all', '--force', index=True)
++        self.assertEqual(guard.verify_materialized(self.repo, self.baseline)['tree'], guard.TARGET)
++
++    def test_original_baseline_and_new_full_identity(self):
++        with self.assertRaisesRegex(ValueError, 'custom index'):
++            overlay.verify_inference_candidate(self.repo, self.candidate)
++        admitted = overlay.apply_inference_overlay(self.repo, self.baseline, self.manifest_raw, self.source)
++        self.assertEqual((admitted['tree'], admitted['files'], admitted['native_authority']), (overlay.TARGET, 1953, False))
++        self.assertEqual(admitted, overlay.verify_inference_candidate(self.repo, self.candidate))
++        self.assertEqual(guard.run_git(self.repo, 'diff', '--name-only', guard.TARGET, overlay.TARGET).decode().splitlines(), [overlay.PATH])
++
++    def test_native_immutable_fetch_exact_payload(self):
++        manifest, source = overlay.fetch_inference_payload(self.repo)
++        self.assertEqual(manifest, self.manifest_raw)
++        self.assertEqual(source, self.source)
++        self.assertEqual(guard.run_git(self.repo, 'cat-file', '-t', overlay.BACKUP).strip(), b'commit')
++
++    def test_wrong_manifest_denied_before_write(self):
++        with self.assertRaisesRegex(ValueError, 'manifest literal'):
++            overlay.apply_inference_overlay(self.repo, self.baseline, self.manifest_raw + b' ', self.source)
++        self.assertEqual(guard.verify_materialized(self.repo, self.baseline)['tree'], guard.TARGET)
++
++    def test_wrong_source_denied_before_write(self):
++        with self.assertRaisesRegex(ValueError, 'source literal'):
++            overlay.apply_inference_overlay(self.repo, self.baseline, self.manifest_raw, self.source.replace(b'Result<()>', b'Result<()>x') + b' ')
++        self.assertEqual(guard.verify_materialized(self.repo, self.baseline)['tree'], guard.TARGET)
++
++    def test_wrong_baseline_denied_before_write(self):
++        file = self.repo / overlay.PATH
++        file.write_bytes(file.read_bytes() + b'\n')
++        with self.assertRaisesRegex(ValueError, 'source SHA/size'):
++            overlay.apply_inference_overlay(self.repo, self.baseline, self.manifest_raw, self.source)
++        self.assertEqual(guard.run_git(self.repo, 'write-tree', index=True).decode().strip(), guard.TARGET)
++
++    def test_new_custom_index_drift_denied(self):
++        overlay.apply_inference_overlay(self.repo, self.baseline, self.manifest_raw, self.source)
++        guard.run_git(self.repo, 'read-tree', guard.TARGET, index=True)
++        with self.assertRaisesRegex(ValueError, 'custom index'):
++            overlay.verify_inference_candidate(self.repo, self.candidate)
++
++    def test_new_physical_source_drift_denied(self):
++        overlay.apply_inference_overlay(self.repo, self.baseline, self.manifest_raw, self.source)
++        file = self.repo / overlay.PATH
++        file.write_bytes(file.read_bytes() + b'\n')
++        with self.assertRaisesRegex(ValueError, 'source SHA/size'):
++            overlay.verify_inference_candidate(self.repo, self.candidate)
++
++    def test_protected_and_untracked_denied(self):
++        overlay.apply_inference_overlay(self.repo, self.baseline, self.manifest_raw, self.source)
++        protected = self.repo / guard.PROTECTED
++        protected.write_bytes(protected.read_bytes() + b'\n')
++        with self.assertRaisesRegex(ValueError, 'source SHA/size'):
++            overlay.verify_inference_candidate(self.repo, self.candidate)
++        guard.run_git(self.repo, 'checkout-index', '--force', '--', guard.PROTECTED, index=True)
++        (self.repo / 'ordinary-untracked-canary.txt').write_bytes(b'Owned control; no source admission.')
++        with self.assertRaisesRegex(ValueError, 'untracked'):
++            overlay.verify_inference_candidate(self.repo, self.candidate)
++
++    def test_partial_native_index_failure_denied(self):
++        native = guard.run_git
++        original = RuntimeError('ordinary owned checkout interruption')
++        with patch.object(guard, 'run_git', side_effect=lambda repo, *args, **kw:
++                          (_ for _ in ()).throw(original) if args[0] == 'checkout-index' else native(repo, *args, **kw)):
++            with self.assertRaises(RuntimeError) as caught:
++                overlay.apply_inference_overlay(self.repo, self.baseline, self.manifest_raw, self.source)
++        self.assertIs(caught.exception, original)
++        self.assertEqual(native(self.repo, 'write-tree', index=True).decode().strip(), overlay.TARGET)
++        with self.assertRaisesRegex(ValueError, 'source SHA/size'):
++            overlay.verify_inference_candidate(self.repo, self.candidate)
++
++    def test_typed_cancel_preserved_and_after_denies(self):
++        native = guard.run_git
++        cancellation = KeyboardInterrupt('ordinary owned interruption, no nativecancel claim')
++        receipt = self.root / 'cancel-receipt.json'
++        argv = ['overlay', 'apply', '--manifest', str(Path(__file__).with_name('windows_foundation_source_manifest.json')),
++                '--manager', str(self.manager), '--destination', str(self.repo), '--receipt', str(receipt)]
++        opened = []
++        actual_open = Path.open
++        with patch.object(sys, 'argv', argv), patch.dict(os.environ, {'GITHUB_SHA': self.manager_head}), \
++             patch.object(Path, 'open', side_effect=lambda file, *a, **kw: opened.append(actual_open(file, *a, **kw)) or opened[-1], autospec=True), \
++             patch.object(guard, 'run_git', side_effect=lambda repo, *args, **kw:
++                          (_ for _ in ()).throw(cancellation) if args[0] == 'checkout-index' else native(repo, *args, **kw)):
++            with self.assertRaises(KeyboardInterrupt) as caught:
++                overlay.main()
++        self.assertIs(caught.exception, cancellation)
++        self.assertTrue(opened)
++        self.assertTrue(all(file.closed for file in opened))
++        result = json.loads(receipt.read_text())
++        self.assertFalse(result['passed'])
++        self.assertEqual(result['error_type'], 'KeyboardInterrupt')
++        with self.assertRaisesRegex(ValueError, 'source SHA/size'):
++            overlay.verify_inference_candidate(self.repo, self.candidate)
++        # Preserve both original typed failure and an actual owned receipt-path failure.
++        self.setUp()
++        receipt.mkdir(exist_ok=False) if not receipt.exists() else None
++        bad_receipt = self.root / 'owned-directory-receipt'
++        bad_receipt.mkdir(exist_ok=True)
++        argv[-1] = str(bad_receipt)
++        with patch.object(sys, 'argv', argv), patch.dict(os.environ, {'GITHUB_SHA': self.manager_head}), \
++             patch.object(guard, 'run_git', side_effect=lambda repo, *args, **kw:
++                          (_ for _ in ()).throw(cancellation) if args[0] == 'checkout-index' else native(repo, *args, **kw)):
++            with self.assertRaises(BaseExceptionGroup) as both:
++                overlay.main()
++        self.assertIs(both.exception.exceptions[0], cancellation)
++        self.assertIsInstance(both.exception.exceptions[1], IsADirectoryError)
++
++    def test_actual_ps_overlay_cancellation_cleanup(self):
++        self.assertIsNotNone(PWSH, 'Official explicit pwsh payload required, no silent skip')
++        admitted = overlay.apply_inference_overlay(self.repo, self.baseline, self.manifest_raw, self.source)
++        source_before = self.root / 'actual-owned-source-before.json'
++        source_before.write_text(json.dumps(admitted))
++        script = self.root / 'actual-ordinary-source-cancel.ps1'
++        script.write_text(PS_SOURCE_CANCEL_CONTROL)
++        before = self.root / 'actual-manager-before.json'
++        with patch.dict(os.environ, {'GITHUB_SHA': self.manager_head}):
++            before.write_text(json.dumps(guard.verify_manager(self.manager)))
++            for case in ['before', 'after', 'after-primary', 'after-pipeline', 'before-pipeline']:
++                output = self.root / ('actual-source-ps-' + case)
++                output.mkdir(exist_ok=True)
++                args = [PWSH, '-NoLogo', '-NoProfile', '-File', str(script),
++                        str(Path(__file__).with_name('windows_foundation_source_compile.ps1')), sys.executable,
++                        str(self.manager), str(Path(guard.__file__)),
++                        str(Path(__file__).with_name('windows_foundation_source_manifest.json')),
++                        str(Path(__file__).with_name('windows_foundation_manager_observation.py')),
++                        str(Path(overlay.__file__)), str(self.repo), str(output), str(before), str(source_before), case]
++                result = subprocess.run(args, capture_output=True)
++                self.assertIsNotNone(CONTROL_EVIDENCE, 'Explicit outside private evidence destination required')
++                evidence = CONTROL_EVIDENCE / case
++                evidence.mkdir(parents=True, exist_ok=True)
++                (evidence / 'actual-stdout.raw').write_bytes(result.stdout)
++                (evidence / 'actual-stderr.raw').write_bytes(result.stderr)
++                files = []
++                for file in output.iterdir():
++                    if file.is_file():
++                        raw = file.read_bytes()
++                        (evidence / file.name).write_bytes(raw)
++                        files.append({'name': file.name, 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()})
++                (evidence / 'actual-process-result.json').write_text(json.dumps({'exit': result.returncode, 'output_files': files}))
++                self.assertEqual(result.returncode, 0, result.stdout.decode(errors='replace') + result.stderr.decode(errors='replace'))
++                if case in ['after-pipeline', 'before-pipeline']:
++                    receipt = json.loads((evidence / 'compiler-result.json').read_text(encoding='utf-8-sig'))
++                    self.assertFalse(receipt['passed'])
++                    if case == 'after-pipeline':
++                        self.assertTrue(receipt['sourceAfterInterruptedUnknown'])
++                    else:
++                        self.assertTrue(receipt['delegateInterruptedUnknown'])
++                    self.assertEqual(receipt['managerSourceAfter']['management_digest'], receipt['managerSourceBefore']['management_digest'])
++                    self.assertEqual(receipt['runtime']['python']['sha256Before'], receipt['runtime']['python']['sha256After'])
++                    self.assertEqual(receipt['compiler'], 'NOTRUN')
++                    self.assertIn('no new diagnostic child', receipt['managerObservationAfterSkipped'])
++                    self.assertNotIn('sourceAfterCancellation', receipt, 'Host signal is not catchable; do not fabricate a captured cancellation type or object')
++                else:
++                    self.assertIn(('PASS actual PS source catch/finally/tail ' + case).encode(), result.stdout)
++
++    def test_eight_literal_raw_checkout_true_false_unmatched_and_mutation(self):
++        scripts = Path(__file__).resolve().parent
++        all_paths = list(legacy_checkout.MANAGER_PATHS) + [overlay.HELPER]
++        seed = self.root / 'eight-checkout-seed'
++        seed.mkdir(exist_ok=True)
++        for name in all_paths:
++            dest = seed / name
++            dest.parent.mkdir(parents=True, exist_ok=True)
++            dest.write_bytes((scripts.parent / name).read_bytes())
++        (seed / '.gitattributes').write_bytes((scripts.parent / '.gitattributes').read_bytes())
++        unmatched = ['scripts/ordinary-not-helper.py', 'nested/' + overlay.HELPER]
++        for name in unmatched:
++            dest = seed / name
++            dest.parent.mkdir(parents=True, exist_ok=True)
++            dest.write_bytes(b'Owned unleased text\nsecond line\n')
++        guard.run_git(seed, 'init', '-q')
++        guard.run_git(seed, 'add', '--', '.')
++        guard.run_git(seed, '-c', 'user.name=Owned Source Control', '-c', 'user.email=owned-source@example.invalid', 'commit', '-qm', 'Owned eight source checkout')
++        for mode in ['true', 'false']:
++            clone = self.root / ('eight-checkout-' + mode)
++            subprocess.run(['git', '-c', 'core.hooksPath=' + os.devnull, '-c', 'core.autocrlf=' + mode,
++                            'clone', '--no-hardlinks', str(seed), str(clone)], check=True, capture_output=True)
++            with patch.dict(os.environ, {'GITHUB_SHA': guard.run_git(clone, 'rev-parse', 'HEAD').decode().strip()}):
++                for name in all_paths:
++                    expected = guard.run_git(clone, 'show', 'HEAD:' + name)
++                    self.assertEqual((clone / name).read_bytes(), expected)
++                    self.assertEqual(guard.run_git(clone, 'hash-object', '--no-filters', '--', name).strip(), guard.run_git(clone, 'rev-parse', 'HEAD:' + name).strip())
++                self.assertEqual(guard.verify_manager(clone)['manager_files'], 7)
++                self.assertFalse(overlay.verify_helper_lease(clone)['native_authority'])
++                for name in unmatched:
++                    expected = guard.run_git(clone, 'show', 'HEAD:' + name)
++                    self.assertEqual((clone / name).read_bytes(), expected.replace(b'\n', b'\r\n') if mode == 'true' else expected)
++                    self.assertEqual(guard.run_git(clone, 'check-attr', '-z', 'text', '--', name).split(b'\0')[2], b'unspecified')
++                file = clone / overlay.HELPER
++                file.write_bytes(file.read_bytes() + b'\n')
++                with self.assertRaisesRegex(ValueError, 'blob mismatch'):
++                    overlay.verify_helper_lease(clone)
++
++    def test_result_consumer_actual_owned_go4_positive_and_incomplete_case_denial(self):
++        # Explicit owned component, not GitHub/Windows/VM and no forged CI environment.
++        output = self.root / 'owned-go-consumer'
++        output.mkdir()
++        tools = {'git': shutil.which('git'), 'python': sys.executable,
++                 'go': '/workspace/work/rc070/windows-tools/go/bin/go'}
++        runtime = {}
++        commands = []
++        for name, path in tools.items():
++            raw = Path(path).read_bytes()
++            runtime[name] = {'path': path, 'sha256Before': hashlib.sha256(raw).hexdigest(), 'sha256After': None}
++        with patch.dict(os.environ, {'GITHUB_SHA': self.manager_head}):
++            for tool, args, log in [
++                    ('git', ['--version'], 'git-version.log'),
++                    ('python', ['-c', 'import sys; print(sys.version)'], 'python-version.log'),
++                    ('python', [str(Path(overlay.__file__).with_name('windows_foundation_manager_observation.py')), '--manager', str(self.manager), '--receipt', str(output/'obs-before.json')], 'management-byte-observation-Before.log'),
++                    ('python', [str(Path(guard.__file__)), 'verify-manager', '--manifest', str(Path(guard.__file__).with_name('windows_foundation_source_manifest.json')), '--manager', str(self.manager), '--receipt', str(output/'manager-before.json')], 'management-before.log'),
++                    ('git', ['checkout-index', '--all', '--force'], 'source-restore.log'),
++                    ('go', ['version'], 'go-version.log'),
++                    ('go', ['test', '-v', '-count=1', *overlay.GO_FILES], 'go5-data-test.log'),
++                    ('python', [str(Path(guard.__file__)), 'verify', '--manifest', str(Path(guard.__file__).with_name('windows_foundation_source_manifest.json')), '--manager', str(self.manager), '--destination', str(self.repo), '--receipt', str(output/'source-after.json')], 'source-after.log'),
++                    ('python', [str(Path(guard.__file__)), 'verify-manager', '--manifest', str(Path(guard.__file__).with_name('windows_foundation_source_manifest.json')), '--manager', str(self.manager), '--receipt', str(output/'manager-after.json')], 'management-after.log'),
++                    ('python', [str(Path(overlay.__file__).with_name('windows_foundation_manager_observation.py')), '--manager', str(self.manager), '--receipt', str(output/'obs-after.json')], 'management-byte-observation-After.log')]:
++                # Actual owned checkout-index uses original custom index, never changes authority.
++                env = os.environ.copy()
++                if log == 'source-restore.log':
++                    env['GIT_INDEX_FILE'] = str(self.repo/'.git/foundation-candidate.index')
++                result = subprocess.run([tools[tool], *args], cwd=self.repo, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
++                (output/log).write_bytes(result.stdout)
++                self.assertEqual(result.returncode, 0, result.stdout.decode(errors='replace'))
++                commands.append({'executable': tool, 'resolvedExecutable': tools[tool], 'arguments': args, 'exitCode': result.returncode, 'log': log})
++            source = guard.verify_materialized(self.repo, self.baseline)
++            manager = guard.verify_manager(self.manager)
++        for name, row in runtime.items():
++            row['sha256After'] = hashlib.sha256(Path(row['path']).read_bytes()).hexdigest()
++        baseline = dict(source, passed=True, payload_mode='LOCAL_OWNED_COMPONENT')
++        record = {'passed': True, 'mode': 'go', 'compiler': 'DATA_TEST_PASS', 'pureSutTree': guard.TARGET,
++                  'baselineSutTree': guard.TARGET, 'managerCommit': self.manager_head, 'nativePositive': 'NOTRUN',
++                  'qualification': 'SOURCE_ONLY_BLOCKED', 'managerObservationFailed': False,
++                  'sourceBaseline': baseline, 'sourceBefore': dict(source, passed=True), 'sourceAfter': dict(source, passed=True),
++                  'managerSourceBefore': dict(manager, passed=True), 'managerSourceAfter': dict(manager, passed=True),
++                  'runtime': runtime, 'commands': commands, 'componentContext': 'ACTUAL_OWNED_GO_NOT_CI'}
++        admitted = overlay.verify_compiler_result(record, 'go', output, source, manager, self.manager_head)
++        self.assertEqual(admitted['named_data_count'], 4)
++        self.assertFalse(admitted['native_authority'])
++        actual = (output/'go5-data-test.log').read_bytes()
++        for altered in [actual.replace(('--- PASS: '+overlay.GO_CASES[0]).encode(), b'--- ABSENT:', 1),
++                        actual + ('\n--- PASS: '+overlay.GO_CASES[0]+' (0.00s)\n').encode()]:
++            (output/'go5-data-test.log').write_bytes(altered)
++            with self.assertRaisesRegex(ValueError, 'four unique'):
++                overlay.verify_compiler_result(record, 'go', output, source, manager, self.manager_head)
++        (output/'go5-data-test.log').write_bytes(actual)
++        type(self).consumer_fixture = (record, output, source, manager)
++        self.assertIsNotNone(CONTROL_EVIDENCE)
++        evidence = CONTROL_EVIDENCE/'actual-owned-go-consumer'
++        evidence.mkdir()
++        for file in output.iterdir():
++            if file.is_file():
++                shutil.copyfile(file, evidence/file.name)
++        (evidence/'LOCAL-COMPONENT-RECORD.json').write_text(json.dumps(record, indent=2)+'\n')
++        (evidence/'COMPONENT-ONLY-RESULT.json').write_text(json.dumps(admitted, indent=2)+'\n')
++
++    def test_result_consumer_rejects_false_typed_unknown_missing_runtime_wrong_commands(self):
++        self.assertTrue(hasattr(type(self), 'consumer_fixture'), 'Actual original Go positive must run first')
++        record, output, source, manager = type(self).consumer_fixture
++        corruptions = []
++        for value in [False, 1, 'true', None]:
++            item = copy.deepcopy(record); item['passed'] = value; corruptions.append(item)
++        for flag in ['delegateInterruptedUnknown', 'sourceAfterInterruptedUnknown', 'sourceCancellation', 'runtimeAfterError']:
++            item = copy.deepcopy(record); item[flag] = False; corruptions.append(item)
++        item = copy.deepcopy(record); del item['runtime']['git']; corruptions.append(item)
++        item = copy.deepcopy(record); item['runtime']['go']['sha256After']=None; corruptions.append(item)
++        item = copy.deepcopy(record); item['sourceBefore']['tree']=overlay.TARGET; corruptions.append(item)
++        item = copy.deepcopy(record); item['commands'][0]['exitCode']=False; corruptions.append(item)
++        item = copy.deepcopy(record); item['commands'][0]['exitCode']=1; corruptions.append(item)
++        item = copy.deepcopy(record); item['commands'][-1]['log']='source-after.log'; corruptions.append(item)
++        item = copy.deepcopy(record); item['commands'][6]['arguments'][-1]='wrong.go'; corruptions.append(item)
++        item = copy.deepcopy(record); item['sourceOverlayStarted']=True; corruptions.append(item)
++        for item in corruptions:
++            with self.assertRaises(ValueError):
++                overlay.verify_compiler_result(item, 'go', output, source, manager, self.manager_head)
++        with self.assertRaises(ValueError):
++            overlay.verify_compiler_result(record, 'rust', output, source, manager, self.manager_head)
++        # Full CLI is exercised only for denial; local component provenance is not native CI authority.
++        result_file = output/'local-component-receipt.json'; result_file.write_text(json.dumps(record))
++        with patch.dict(os.environ, {'GITHUB_SHA': self.manager_head}):
++            for file in [result_file, output/'missing-receipt.json']:
++                receipt = output/('terminal-denied-'+file.stem+'.json')
++                child = subprocess.run([sys.executable, str(Path(overlay.__file__)), 'verify-result', '--mode', 'go',
++                    '--compiler-result', str(file), '--manifest', str(Path(guard.__file__).with_name('windows_foundation_source_manifest.json')),
++                    '--manager', str(self.manager), '--destination', str(self.repo), '--receipt', str(receipt)], capture_output=True)
++                self.assertNotEqual(child.returncode, 0)
++                self.assertIs(json.loads(receipt.read_text())['passed'], False)
++        # Actual separate workflow run block must fail even when pinned setupPython is absent.
++        workflow = Path(__file__).resolve().parent.parent/'.github/workflows/windows-foundation-source-compile.yml'
++        text = workflow.read_text()
++        section = text.split('      - name: Independently deny incomplete or false compiler receipts\n', 1)[1].split('      - name: Preserve actual result and failures', 1)[0]
++        run = section.split('        run: |\n', 1)[1]
++        run = '\n'.join(line[10:] for line in run.splitlines()).replace("${{ matrix.mode }}", 'go')
++        for value in ['', '/missing/pinned-python-payload', '/ordinary/Microsoft/WindowsApps/python.exe']:
++            script = output/'actual-workflow-consumer-negative.ps1'; script.write_text(run)
++            env = os.environ.copy(); env['FOUNDATION_PYTHON_EXECUTABLE']=value
++            child = subprocess.run([PWSH, '-NoLogo', '-NoProfile', '-File', str(script)], env=env, capture_output=True)
++            self.assertNotEqual(child.returncode, 0)
++            self.assertIn(b'no PATH fallback', child.stderr)
++        # Real zero-exit host-stop receipts still deny in parser before any native compiler conclusion.
++        for case in ['before-pipeline', 'after-pipeline']:
++            file = CONTROL_EVIDENCE/case/'compiler-result.json'
++            actual = json.loads(file.read_text(encoding='utf-8-sig'))
++            self.assertIs(actual['passed'], False)
++            with self.assertRaises(ValueError):
++                overlay.verify_compiler_result(actual, 'rust', file.parent, source, manager, self.manager_head)
++
++    def test_helper_raw_source_lease_denies_mutation(self):
++        with patch.dict(os.environ, {'GITHUB_SHA': self.manager_head}):
++            self.assertFalse(overlay.verify_helper_lease(self.manager)['native_authority'])
++            file = self.manager / overlay.HELPER
++            old = file.read_bytes()
++            file.write_bytes(old + b'\n')
++            try:
++                with self.assertRaisesRegex(ValueError, 'blob mismatch'):
++                    overlay.verify_helper_lease(self.manager)
++            finally:
++                file.write_bytes(old)
++
++
++if __name__ == '__main__':
++    unittest.main(argv=[sys.argv[0], '-v'])
+diff --git a/scripts/windows_foundation_source_compile.ps1 b/scripts/windows_foundation_source_compile.ps1
+index b8b07f5..abfae32 100644
+--- a/scripts/windows_foundation_source_compile.ps1
++++ b/scripts/windows_foundation_source_compile.ps1
+@@ -9,12 +9,15 @@ New-Item -ItemType Directory -Force $Output | Out-Null
+ $Guard = Join-Path $PSScriptRoot 'windows_foundation_source_guard.py'
+ $Manifest = Join-Path $PSScriptRoot 'windows_foundation_source_manifest.json'
+ $Observer = Join-Path $PSScriptRoot 'windows_foundation_manager_observation.py'
++$InferenceOverlay = Join-Path $PSScriptRoot 'windows_foundation_inference_overlay.py'
+ $Receipt = [ordered]@{ mode=$Mode; managerCommit=$env:GITHUB_SHA; runId=$env:GITHUB_RUN_ID;
+-    pureSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
+-    nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; managerObservationFailed=$false; passed=$false }
++    pureSutTree=$(if ($Mode -ceq 'rust') {'6b7e33c45c5e56340b1cfb81a7d304c6c60cf23f'} else {'19bb292004e0fd4ed02374b35bcd2f22469779f0'}); baselineSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
++    nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBaseline=$null; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; managerObservationFailed=$false; passed=$false }
+ 
+ $ObservationCancellation = $null
++$SourceCancellation = $null
+ $PrimaryFailure = $null
++$DelegateHandled = $false
+ 
+ function Resolve-FoundationApplication([string]$Executable) {
+     $Requested = $Executable
+@@ -113,7 +116,14 @@ function Run-SourceCompile {
+     $Before = Join-Path $Output 'source-before.json'
+     Invoke-CheckedCompiler 'python' @($Guard,'restore','--manifest',$Manifest,'--manager',$Manager,
+         '--destination',$Destination,'--receipt',$Before) 'source-restore.log' | Out-Null
+-    $Receipt.sourceBefore = Get-Content -Raw $Before | ConvertFrom-Json
++    $Receipt.sourceBaseline = Get-Content -Raw $Before | ConvertFrom-Json
++    if ($Mode -ceq 'rust') {
++        $Receipt.sourceOverlayStarted = $true
++        $CandidateBefore = Join-Path $Output 'candidate-source-before.json'
++        Invoke-CheckedCompiler 'python' @($InferenceOverlay,'apply','--manifest',$Manifest,'--manager',$Manager,
++            '--destination',$Destination,'--receipt',$CandidateBefore) 'candidate-source-overlay.log' | Out-Null
++        $Receipt.sourceBefore = Get-Content -Raw $CandidateBefore | ConvertFrom-Json
++    } else { $Receipt.sourceBefore = $Receipt.sourceBaseline }
+     Push-Location $Destination
+     try {
+         if ($Mode -eq 'go') {
+@@ -172,23 +182,60 @@ function Run-SourceCompile {
+ try {
+     Run-SourceCompile
+     $Receipt.passed = $true
++    $DelegateHandled = $true
+ } catch {
+     $PrimaryFailure = $_.Exception
+     $Receipt.error = $_.Exception.Message
++    if ($Receipt.Contains('sourceOverlayStarted') -and
++        ($_.Exception -is [System.Management.Automation.PipelineStoppedException] -or
++         $_.Exception -is [System.OperationCanceledException])) {
++        $SourceCancellation = $_.Exception
++        $Receipt.passed = $false
++        $Receipt.sourceCancellation = $_.Exception.GetType().FullName
++    }
+     if ($Receipt.compiler -eq 'RUNNING') { $Receipt.compiler = 'ACTUAL_FAILURE' }
++    $DelegateHandled = $true
+ } finally {
+-    if (Test-Path (Join-Path $Destination '.git/foundation-candidate.index')) {
+-        try {
+-            $After = Join-Path $Output 'source-after.json'
+-            Invoke-CheckedCompiler 'python' @($Guard,'verify','--manifest',$Manifest,'--destination',$Destination,
+-                '--receipt',$After) 'source-after.log' | Out-Null
+-            $Receipt.sourceAfter = Get-Content -Raw $After | ConvertFrom-Json
+-            if ($null -eq $Receipt.sourceBefore -or
+-                $Receipt.sourceAfter.source_digest -cne $Receipt.sourceBefore.source_digest) {
+-                throw 'Source before/after digest differs or before was not admitted.'
++    $DelegateInterrupted = -not $DelegateHandled
++    if ($DelegateInterrupted) {
++        $Receipt.passed = $false
++        $Receipt.delegateInterruptedUnknown = $true
++    }
++    $SourceAfterHandled = $false
++    $SourceGuardInterrupted = $DelegateInterrupted
++    try {
++        if (Test-Path (Join-Path $Destination '.git/foundation-candidate.index')) {
++            try {
++                $After = Join-Path $Output 'source-after.json'
++                if ($Mode -ceq 'rust') {
++                    Invoke-CheckedCompiler 'python' @($InferenceOverlay,'verify','--manifest',$Manifest,'--manager',$Manager,'--destination',$Destination,
++                        '--receipt',$After) 'source-after.log' | Out-Null
++                } else {
++                    Invoke-CheckedCompiler 'python' @($Guard,'verify','--manifest',$Manifest,'--manager',$Manager,'--destination',$Destination,
++                        '--receipt',$After) 'source-after.log' | Out-Null
++                }
++                $Receipt.sourceAfter = Get-Content -Raw $After | ConvertFrom-Json
++                if ($null -eq $Receipt.sourceBefore -or
++                    $Receipt.sourceAfter.source_digest -cne $Receipt.sourceBefore.source_digest) {
++                    throw 'Candidate source before/after digest differs or before was not admitted.'
++                }
++            } catch {
++                $Receipt.passed=$false; $Receipt.sourceAfterError=$_.Exception.Message
++                if ($_.Exception -is [System.Management.Automation.PipelineStoppedException] -or
++                    $_.Exception -is [System.OperationCanceledException]) {
++                    $SourceCancellation = $_.Exception
++                    $Receipt.sourceAfterCancellation = $_.Exception.GetType().FullName
++                }
+             }
+-        } catch { $Receipt.passed=$false; $Receipt.sourceAfterError=$_.Exception.Message }
+-    } else { $Receipt.passed=$false; $Receipt.sourceAfterError='No admitted source existed; compiler NOTRUN.' }
++        } else { $Receipt.passed=$false; $Receipt.sourceAfterError='No admitted source existed; compiler NOTRUN.' }
++        $SourceAfterHandled = $true
++    } finally {
++        if (-not $SourceAfterHandled) {
++            $Receipt.passed = $false
++            $SourceGuardInterrupted = $true
++            $Receipt.sourceAfterInterruptedUnknown = $true
++            $Receipt.sourceAfterError = 'Required source-after did not finish; original native host signal propagates and completion is UNKNOWN.'
++        }
+     try {
+         $ManagerAfter = Join-Path $Output 'management-after.json'
+         Invoke-CheckedCompiler 'python' @($Guard,'verify-manager','--manifest',$Manifest,'--manager',$Manager,
+@@ -199,10 +246,10 @@ try {
+             throw 'Management seven source bytes/modes changed or before was not admitted.'
+         }
+     } catch { $Receipt.passed=$false; $Receipt.managementAfterError=$_.Exception.Message }
+-    if ($null -eq $ObservationCancellation) {
++    if ($null -eq $ObservationCancellation -and $null -eq $SourceCancellation -and -not $SourceGuardInterrupted) {
+         Invoke-ManagerSourceObservation 'After'
+     } else {
+-        $Receipt.managerObservationAfterSkipped = 'Before observation cancelled; no new diagnostic child.'
++        $Receipt.managerObservationAfterSkipped = 'Before observation or source guard cancelled/interrupted; no new diagnostic child.'
+     }
+     foreach ($Executable in $Receipt.runtime.Keys) {
+         try {
+@@ -224,6 +271,24 @@ try {
+     }
+     if ($Receipt.managerObservationFailed) { $Receipt.passed = $false }
+     $Receipt | ConvertTo-Json -Depth 12 | Set-Content -Encoding utf8 (Join-Path $Output 'compiler-result.json')
++    }
++}
++if ($null -ne $SourceCancellation) {
++    $Failures = [System.Collections.Generic.List[System.Exception]]::new()
++    foreach ($Failure in @($PrimaryFailure, $SourceCancellation, $ObservationCancellation)) {
++        if ($null -ne $Failure) {
++            $AlreadyPresent = $false
++            foreach ($ExistingFailure in $Failures) {
++                if ([Object]::ReferenceEquals($ExistingFailure, $Failure)) { $AlreadyPresent = $true }
++            }
++            if (-not $AlreadyPresent) { $Failures.Add($Failure) }
++        }
++    }
++    if ($Failures.Count -gt 1) {
++        throw [System.AggregateException]::new('Original primary and source/observation cancellations were all preserved.',
++            [System.Exception[]]$Failures.ToArray())
++    }
++    throw $SourceCancellation
+ }
+ if ($null -ne $ObservationCancellation) {
+     if ($null -ne $PrimaryFailure -and -not [Object]::ReferenceEquals($PrimaryFailure, $ObservationCancellation)) {

@@ -1,0 +1,126 @@
+{
+  "baselineCommit": "8c7b7ef262320893142d0a4f47d2a583691b0dd7",
+  "baselinePaths": 1867,
+  "candidateTree": "abaae5f51ca9b4e56db6698c009894799f5f13a2",
+  "candidatePaths": 1872,
+  "deltaPaths": [
+    {
+      "path": ".gitattributes",
+      "mode": "100644",
+      "blob": "a1360656c39cb9e8355fc8bb95e7799b0b7dfc56",
+      "bytes": 538,
+      "sha256": "8e0e4c20992c884dc6632e618c55ae8cd2fc0d026f13bae7114d564c55892d1b"
+    },
+    {
+      "path": ".github/workflows/windows-foundation-source-compile.yml",
+      "mode": "100644",
+      "blob": "601d7909abb02f9b59d927fdd9f33b48a579c845",
+      "bytes": 3439,
+      "sha256": "da8efe2b933bebc8c81e0eec04b30c88b2e388b2d09667c0b89a8312e73fad11"
+    },
+    {
+      "path": "docs/specs/windows-rust-inference-carrier/design.md",
+      "mode": "100644",
+      "blob": "b5d01a4fc3b7bc94e603925cf98064bf5c7a5d63",
+      "bytes": 4255,
+      "sha256": "158768ea2f05b203135fc9417c1ecba8ed47d568f3f93d1bcbfd72e215555802"
+    },
+    {
+      "path": "docs/specs/windows-rust-inference-carrier/requirements.md",
+      "mode": "100644",
+      "blob": "f8b41497340a31ce80956417091e5ea097f052c2",
+      "bytes": 4713,
+      "sha256": "fbbfecdf0508371f99555d0f34ea225fd7bc58bcdfc625dffd11b20485dd4209"
+    },
+    {
+      "path": "docs/specs/windows-rust-inference-carrier/tasks.md",
+      "mode": "100644",
+      "blob": "4968cd0338113f593a9e73e850c946f7ba8d20f6",
+      "bytes": 4068,
+      "sha256": "6795110e28a82e497aa5272598ebe1b52ff5f8fcd25ca292f8c7f40398158bb5"
+    },
+    {
+      "path": "scripts/windows_foundation_inference_overlay.py",
+      "mode": "100644",
+      "blob": "2e1d69d4a0fdacf6b69d9104a5817af6d27a6cc5",
+      "bytes": 20979,
+      "sha256": "c04487d56f049ca1cef81b67344948ab0791b1723a233677fb65631a543f064e"
+    },
+    {
+      "path": "scripts/windows_foundation_inference_overlay_tests.py",
+      "mode": "100644",
+      "blob": "186294adea7a223956a683b83a9f1a84515edfa8",
+      "bytes": 31543,
+      "sha256": "1555ee00ea9a7880b94578b7bc5dce58f62811c4718ced2e571f05f14e7827bc"
+    },
+    {
+      "path": "scripts/windows_foundation_source_compile.ps1",
+      "mode": "100644",
+      "blob": "abfae323e9578ab02204625036b42dba755536ae",
+      "bytes": 18596,
+      "sha256": "d2e4b94fcd4a7d6a799fa26860a987a7dd42eca85f971039d624950b424a162e"
+    }
+  ],
+  "unchangedBaselinePaths": 1864,
+  "all1872RawNativeBlobsVerified": true,
+  "physicalModeScope": "Native modes and physical executable bit; not every POSIX644/755",
+  "unchangedAnchors": {
+    "scripts/windows_foundation_source_guard.py": "71aaba07443ba0ace608f8a73e0996df839f6c189e866ee949eb4dd21e4a4073",
+    "scripts/windows_foundation_source_manifest.json": "45cc3e94fd4eceb78184230740d293b24f576650927168b5855c947689e999ec",
+    "scripts/windows_foundation_manager_checkout_tests.py": "952d83b3855c01372f955181e089ed12dfd9fcec630262e2ad412b0c42346094"
+  },
+  "originalManager7VerifierAST": "183f30416658ab6cc9edad3cbcb58a66b69a799858052f9d7b31138309362198",
+  "protectedOriginalPureSutSha256": "c9fcdba432c239cc08a090c6cb4256f51b54368cbefb3afac553c1a6c719b9b8",
+  "intentionalOriginal7RawChange": "PS and workflow; original manager7 guard/list AST unchanged; verify against newactualHEAD",
+  "ordinaryControls": {
+    "actualExit": 0,
+    "methods": 15,
+    "rawLogBytes": 2268,
+    "rawLogSHA": "82f737f7c20ff9bb4ef04f7360e4dd7c04cc8a4a56ed31d2deb584d6a1348a89",
+    "scope": "OwnedGit/LinuxPS7.6.6 fivecancel cases/actualownedLinuxGo4/readonlyconsumer negatives. NotWindows/newRust/nativeIOclose/RC."
+  },
+  "legacyExact7Suite": {
+    "actualProcessExit": 1,
+    "rawBytes": 2003,
+    "rawSHA": "76e383b7ec475752db327b7f322438341f8aae85febc973ce32f182a4d2d981f",
+    "actualMethods": 8,
+    "actualFailures": 1,
+    "qualification": "Legacy exact7 context fails against newintentional8literal attributes; originaltestunchanged/notignored/no currentallPASSclaim",
+    "firstWrapperErratum": "Firstshellwrapper appended Python report so combinedexit0 did not capture suiteexit; firstFAILED raw preserved. This explicit subprocessreceipt corrects capture; no source/test change."
+  },
+  "payloadCommit": "4385cf1d47f32eda705ccb34d2f06ff388ebb685",
+  "SUTModeMapping": {
+    "rust": {
+      "tree": "6b7e33c45c5e56340b1cfb81a7d304c6c60cf23f",
+      "files": 1953,
+      "requiredNamedTests": 7
+    },
+    "go": {
+      "tree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+      "files": 1953,
+      "requiredNamedTests": 4
+    }
+  },
+  "newWindowsRustCompiler": "NOTRUN",
+  "nativeAuthority": false,
+  "timeoutMinutes": 45,
+  "priorBudget20ErratumPreserved": true,
+  "priorWithdrawnDraftAndFreeze01And02STOPPreserved": true,
+  "specStructured": {
+    "passed": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": [],
+    "frIds": [
+      "FR-1",
+      "FR-2",
+      "FR-3",
+      "FR-4",
+      "FR-5",
+      "FR-6",
+      "FR-7"
+    ],
+    "summary": "\u89c4\u683c\u6821\u9a8c\u901a\u8fc7\uff087 \u6761\u9700\u6c42\uff09"
+  },
+  "sourceOnly": true
+}

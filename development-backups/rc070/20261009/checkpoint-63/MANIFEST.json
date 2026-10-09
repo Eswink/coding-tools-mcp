@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "files": [
+    {
+      "path": "8c7-to-inference-carrier.patch",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 78831,
+      "sha256": "9fcacf41211b39dbef53fd4add3ae030c740c8720e1ba50ca246b9e796755a03"
+    },
+    {
+      "path": "INDEPENDENT-SOURCE-PEER-SAFE.json",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 2289,
+      "sha256": "e12e51aefe243b5a093c8041cba67b634fabbcd23ea2d7bf0074d103dd879cc8"
+    },
+    {
+      "path": "LIMITED-CONTROLS-SAFE.json",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 1367,
+      "sha256": "8a847b6459c9fb0864e5ad6183dbb902cbc72c491eb6edd0efba8ee79b3ea3d5"
+    },
+    {
+      "path": "README.md",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 1291,
+      "sha256": "789c6fad2d8a02bae04061c7d9f14b01809b1f460e863ef4fbcc4491abf22b19"
+    },
+    {
+      "path": "SOURCE-FREEZE-SAFE.json",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 4977,
+      "sha256": "7a847ad16ed6632784b268671c0343f24a858fcf9e0c1cbfbd969e18a9b4870d"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 4474,
+      "sha256": "4b0f030c080e79f63d90c27bef9ff22ab91668c20672f283c67f682a754a7d2a"
+    },
+    {
+      "path": "design.md.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 4255,
+      "sha256": "158768ea2f05b203135fc9417c1ecba8ed47d568f3f93d1bcbfd72e215555802"
+    },
+    {
+      "path": "gitattributes.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 538,
+      "sha256": "8e0e4c20992c884dc6632e618c55ae8cd2fc0d026f13bae7114d564c55892d1b"
+    },
+    {
+      "path": "requirements.md.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 4713,
+      "sha256": "fbbfecdf0508371f99555d0f34ea225fd7bc58bcdfc625dffd11b20485dd4209"
+    },
+    {
+      "path": "tasks.md.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 4068,
+      "sha256": "6795110e28a82e497aa5272598ebe1b52ff5f8fcd25ca292f8c7f40398158bb5"
+    },
+    {
+      "path": "windows-foundation-source-compile.yml.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 3439,
+      "sha256": "da8efe2b933bebc8c81e0eec04b30c88b2e388b2d09667c0b89a8312e73fad11"
+    },
+    {
+      "path": "windows_foundation_inference_overlay.py.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 20979,
+      "sha256": "c04487d56f049ca1cef81b67344948ab0791b1723a233677fb65631a543f064e"
+    },
+    {
+      "path": "windows_foundation_inference_overlay_tests.py.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 31543,
+      "sha256": "1555ee00ea9a7880b94578b7bc5dce58f62811c4718ced2e571f05f14e7827bc"
+    },
+    {
+      "path": "windows_foundation_source_compile.ps1.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 18596,
+      "sha256": "d2e4b94fcd4a7d6a799fa26860a987a7dd42eca85f971039d624950b424a162e"
+    }
+  ],
+  "fileCountExcludingManifest": 14,
+  "bytesExcludingManifest": 181360,
+  "scope": "source-only no runtime/host/rawlogs/env/proc/TLS/token/Gitobjects",
+  "baselineCommit": "8c7b7ef262320893142d0a4f47d2a583691b0dd7",
+  "candidateManagementTree": "abaae5f51ca9b4e56db6698c009894799f5f13a2"
+}

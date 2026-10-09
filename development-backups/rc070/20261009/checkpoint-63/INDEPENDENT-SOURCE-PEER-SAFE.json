@@ -1,0 +1,34 @@
+{
+  "kind": "INDEPENDENT_FINAL8_SOURCE_AND_COMMIT_SCOPE_PEER",
+  "result": "PASS_FINITE_SOURCE_ALLOW_SAFE_BACKUP_AND_MEANINGFUL_NORMAL_FORWARD_PUSH",
+  "freeze_sha256": "280d809890b19d5ddb9c9f909f4e5a43018a9f88feacc0a6e5908a64f3ca31c8",
+  "baseline_parent": "8c7b7ef262320893142d0a4f47d2a583691b0dd7",
+  "management_tree": "abaae5f51ca9b4e56db6698c009894799f5f13a2",
+  "actual_independent_readbacks": {
+    "all1872_current_physical_bytes_and_native_blobs": true,
+    "physical_modes": "executable class only, not blanket0644/0755",
+    "delta8_only3existing5new_unchanged1864": true,
+    "oldguard_manifest_legacytest_fullbytes_exact": true,
+    "originalManager7_AST_unchanged_but_PS_and_workflow_intentionally_newraw": true,
+    "sole_hcs_typing_overlay_inverse_source_and_old19bb_baseline_gate_preserved": true,
+    "Rust_new6b7e1953_Go_original19bb1953_mode_mapping": true,
+    "newmain_completion_and_SourceAfter_finally_skip_observer_on_unknown": true,
+    "current15methods_raw2268B_SHA": "82f737f7c20ff9bb4ef04f7360e4dd7c04cc8a4a56ed31d2deb584d6a1348a89",
+    "actual_five_LinuxPS_ordinary_receipts_and_rawhashes": true,
+    "actual_saved_LinuxGo_original4_named_success_and_component_provenance": true,
+    "always_consumer_exactPython_noPATHfallback_negatives_and_source_runtime_named_command_checks": true,
+    "fresh_detect_human_actual8files75symbols_printedLOW": "UnsupportedPS/YAML coverage remains UNKNOWN/manualHIGH, not zero risk"
+  },
+  "commit_push_boundary": "Root must finish actual finalindex/detect/gencommit, native soleparent/exact8patch/clean and safe immutable backup before normal forward push to the already fixed compiler branch. No forcepush/main/PRbase/permission change. Real same-head CI outcome must be re-read.",
+  "qualification": {
+    "new_Windows_Rust_6b7e_wholecompile_and_original7": "NOTRUN",
+    "LinuxPS_controls_not_native_cancel_or_VM_IOclose": true,
+    "Go_component_not_Windows_or_CI_qualification": true,
+    "old_exact7_suite8methods_actualFAIL1_preserved": true,
+    "oldcontrols12_synthetic_alias_rejectionFAIL_preserved": true,
+    "oldfreeze02_beforehostSTOP_preserved": true,
+    "Windows_owner_install_publish_RC070": "NOTQUALIFIED"
+  },
+  "source_modified_by_peer": false,
+  "compiler_SUT_or_workflow_launched_by_peer": false
+}

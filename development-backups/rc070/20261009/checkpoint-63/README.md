@@ -1,0 +1,6 @@
+# Frozen inference compiler management source only
+Eight exact delta source files and single-parent patch restore this management carrier from8c7. They do not restore or merge different full SUT recoveries. Rust uses approved immutablecp49 pure6b7e1953 after original19bb baseline admission; Go keeps original19bb1953. Original guard/manifest and original7 rawHEAD verifier logic/list stay byteexact; PS and workflow are intentional original7 source changes verified against the new actual managementHEAD. All1872 candidate blobs and1864 unchanged baseline paths were independently identity-checked before source review.
+
+The retained tests are finite ordinary ownedGit/LinuxPowerShell/actualLinuxGo components. New Windows wholecompiler and original7Rust data tests have not run for this source. No VM owner, IO closure, installation, publisher, RustSec or RC qualification is implied. Original failing CI, originalexact7-suite failure, draft timing deviation and old STOP freezes remain immutable private evidence.
+
+Backup .source files are inert. MANIFEST distinguishes actual POSIX file modes from intended Git100644. No runtime/host/env/proc/log/TLS/token/privateGitobjects are included. Sources/specs themselves may contain literal owned test paths; these are code, not host evidence.

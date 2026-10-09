@@ -1,0 +1,23 @@
+{
+  "qualification": "MANAGEMENT_COMPONENT_ONLY_NOT_WINDOWS_COMPILER_NATIVE_RC",
+  "actualMethods": 15,
+  "actualExit": 0,
+  "actualSeconds": 37.493,
+  "rawLogSHA": "82f737f7c20ff9bb4ef04f7360e4dd7c04cc8a4a56ed31d2deb584d6a1348a89",
+  "fivePSCases": "BeforeOCE/AfterOCE/primary+AfterOCE/AfterPipelineStop/BeforePipelineStop actualwholemainTryAST controlleddelegate0SUT",
+  "actualOwnedGo": "Official1.24.13 actualoriginal5source/4named; LOCAL_OWNED_COMPONENT, nofakeCI flags",
+  "strictConsumerNegatives": "nonbooltrue/false/missing/runtime/unknown/interrupted/wrongnativeexit/source/vector/uniquecase; CLI missing/localprovenance; realworkflowmissing/invalid/WindowsAppsPython",
+  "priorFailuresPreserved": [
+    "originalWindows8c7 realcompilerE0282 exit101",
+    "withdrawndrafttimingdeviation",
+    "freeze01 and02 startupSTOP",
+    "ordinarycontrols11 incorrectpool15errors",
+    "ordinarycontrols12 newconsumerPythonSymlink extra-denial13PASS1ERR1FAIL",
+    "originalexact7 attribute8methods1FAIL actualexit1"
+  ],
+  "freshImpact": "Actual preeditUNKNOWN/manualHIGH disclosed; finalnativeindexexit0/detect8files75symbolsLOW doesnotcoverunsupportedPS/YAML",
+  "budgetErratum": "Original45minutes unchanged; earlierheartbeat20estimate incorrect; preserved",
+  "newWindowsRust6bCompiler": "NOTRUN",
+  "original7RustMethods": "NOTRUN",
+  "nativeAuthority": false
+}
