@@ -1,0 +1,13 @@
+{
+  "scope": "PUBLIC_PARTIAL_SOURCE_ONLY_AND_SAFE_FAILED_ATTEMPT_DERIVATIVES",
+  "base": "13cd343d942b7a68912d42a8f9235c02ed647764",
+  "strictCargoAdmission": "BLOCKED_UNADMITTED_BITFLAGS_UPGRADE",
+  "metadata": "NOTRUN",
+  "privateRawNotPublished": true,
+  "upstreamTLSKeyEnvFixtureBytesNotPublished": true,
+  "completePrivateLeaseRecovery": false,
+  "originalProductUnchanged": true,
+  "noBuildAuditInstallRCQualification": true,
+  "noNativeFamilyAuthority": true,
+  "oldStopsAndOnceMarkerPreserved": true
+}

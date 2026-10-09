@@ -1,0 +1,8 @@
+{
+  "scope": "INDEPENDENT_SAFE_FAILED_ATTEMPT_APPENDIX_ONLY",
+  "overall": "FAIL_LOCK_GRAPH",
+  "metadata": "NOTRUN",
+  "noSourceOrRuntimeChange": true,
+  "noNewRCQualification": true,
+  "oldFrozenStatusesPreserved": true
+}

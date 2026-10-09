@@ -1,0 +1,70 @@
+{
+  "schema": "rc070-rsa-manifest-source-independent-peer-v1",
+  "status": "FINITE_PRIVATE_SOURCE_PASS_PUBLIC_FULLBUNDLE_DENY",
+  "role": "INDEPENDENT_SOURCE_REVIEWER_NOT_AUTHOR",
+  "head": "13cd343d942b7a68912d42a8f9235c02ed647764",
+  "baselineTree": "f2be2e09cca27081cccad11d94ed29858b955df9",
+  "full1840NativeBlobRawLiteralModesNlink1Exact": true,
+  "completeOfficialArchiveChecksumsMatchOriginalGatewayLock": true,
+  "officialSqlxPackageCount": 7,
+  "candidate193AllActualBytesModesAndOriginal193ArchiveMembersVerified": true,
+  "onlyChangedOfficialPaths": [
+    "services/cloud-gateway/vendor/sqlx-macros-core/Cargo.toml",
+    "services/cloud-gateway/vendor/sqlx/Cargo.toml"
+  ],
+  "other191WholeFileBytesExactIncludingAllRustSources": true,
+  "onlyAuthorizedMysqlOptionalTablesAndFeatureRefsRemoved": true,
+  "thirdSqlxMacrosManifestOriginalOfficialBytesExact": true,
+  "postgresOriginalSelectedInternalSqlxFeatureGraphAndSymbolicExternalTokensEqual": true,
+  "postgresClosureQualification": "REVIEWER_TOML_FIXEDPOINT_ONLY_NOT_CARGO",
+  "product4LocksAndAllCargoManifestsExactF13": true,
+  "protected4LockHashes": [
+    {
+      "path": "services/cloud-agent/Cargo.lock",
+      "bytes": 28481,
+      "sha256": "c564eb65afd4e45896fcacc66e690dec74ba142bef287383de5a98cf77679a3b"
+    },
+    {
+      "path": "services/cloud-gateway/Cargo.lock",
+      "bytes": 56017,
+      "sha256": "45d52b90b00056cd3e14bb191ea1ea6c6c8fdd8a4ee955ab64d076d857e53023"
+    },
+    {
+      "path": "services/local-agent/Cargo.lock",
+      "bytes": 10373,
+      "sha256": "eb408e883d4026568782eff1ccb6ca24771d31a7a9476b60e4bb6a3c28930348"
+    },
+    {
+      "path": "src-tauri/Cargo.lock",
+      "bytes": 155405,
+      "sha256": "95d96ca74f44d077f64c81d6e57e40c46ff98b49355a7f590732d7bf72f7d870"
+    }
+  ],
+  "twoMigrateInvocationSourceAndAllMigrationsExactNativeF13": true,
+  "current16OrdinaryRawNamedSuccessesVerifiedNoRerun": true,
+  "original15Success1UuidModelErrorPreserved": true,
+  "sourceFreeze02Sha256": "4d5a25c62e98e4ed9fe7eff3e150ebf20c999c4253c8b8809a1a05da99bce403",
+  "safe02ManifestSha256": "2cc776004b67a61f17ac481eb32d6a2bbfe8df33dbf1424a0567f41fc1b45593",
+  "privateBundleCount": 212,
+  "privateBundleBytes": 1696103,
+  "publicFullBundleDeniedPaths": [
+    "candidate/services/cloud-gateway/vendor/sqlx/tests/.env",
+    "candidate/services/cloud-gateway/vendor/sqlx/tests/certs/ca.crt",
+    "candidate/services/cloud-gateway/vendor/sqlx/tests/certs/client.crt",
+    "candidate/services/cloud-gateway/vendor/sqlx/tests/certs/server.crt",
+    "candidate/services/cloud-gateway/vendor/sqlx/tests/keys/ca.key",
+    "candidate/services/cloud-gateway/vendor/sqlx/tests/keys/client.key",
+    "candidate/services/cloud-gateway/vendor/sqlx/tests/keys/server.key"
+  ],
+  "publicBackupRequirement": "Separate projection must omit seven upstream TLS/key/env raw fixture files and preserve full193 provenance/inventory plus original and patched manifests. Existing private bundle/freeze not rewritten.",
+  "productWiring": false,
+  "cargoRunsByReviewer": 0,
+  "buildAuditInstall": "NOTRUN",
+  "originalRSAFinding": "FAIL_UNCHANGED",
+  "releaseQualification": false,
+  "findings": [
+    "No blocking private source-scope finding; package and feature declarations intentionally do not implement unsupported MySQL/all-databases.",
+    "Future normal Cargo resolution, target/dev/build dependency graph, regenerated lock, new four audits, PostgreSQL migration behavior and artifact/install correspondence remain required.",
+    "Public backup permission is distinct from complete private source review; seven official test fixtures are not host secrets but user forbids publishing TLS/key/env bytes."
+  ]
+}

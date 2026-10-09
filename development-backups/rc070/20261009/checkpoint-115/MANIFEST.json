@@ -1,0 +1,24 @@
+{
+  "scope": "SAFE_INDEPENDENT_APPENDIX_NOT_QUALIFICATION",
+  "files": [
+    {
+      "path": "RSA-CARGO-ONCE01-INDEPENDENT-TERMINAL-SAFE01.json",
+      "bytes": 1624,
+      "sha256": "259717e5e059ff496794ec48bf1ff3f5545d516ae37af90b99d6bdb984968bc9",
+      "mode": "100644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 431,
+      "sha256": "c123a2fcad49d21227b2569b3ecd2feb535788c8ca14be24b902563325006b41",
+      "mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 223,
+      "sha256": "ad166bcc9c3975e8a6179e6d3f7d99412cb0d0a15d8f6f1986d4e141a6e4ec6d",
+      "mode": "100644"
+    }
+  ],
+  "manifestSelfExcluded": true
+}

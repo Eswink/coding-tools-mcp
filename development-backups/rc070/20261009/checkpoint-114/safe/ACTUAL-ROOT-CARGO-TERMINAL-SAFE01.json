@@ -1,0 +1,27 @@
+{
+  "status": "BLOCKED_UNADMITTED_LOCK_GRAPH_CHANGE",
+  "actualNativeExits": [
+    0,
+    0
+  ],
+  "metadataExecuted": false,
+  "oldPackages": 230,
+  "newPackages": 216,
+  "unexpectedUpgrade": {
+    "name": "bitflags",
+    "old": "2.9.4",
+    "new": "2.13.0"
+  },
+  "rawTotalBytes": 647,
+  "postWriterActualElapsedSeconds": 7.856696254995768,
+  "postWriterDeadlineVerified": true,
+  "wholeDeadlineSeconds": 120,
+  "wholeRawCapBytes": 2097152,
+  "sourceFilesVerifiedAfter": 2033,
+  "mandatoryFinalErrors": [],
+  "sourceScope": "ISOLATED_PRIVATE_CARGO_RESOLUTION",
+  "productWired": false,
+  "actualAuditBuildInstallRCQualified": false,
+  "nativeFamilyClosureClaim": false,
+  "oldFailurePreserved": true
+}

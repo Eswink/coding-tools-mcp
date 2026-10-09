@@ -1,0 +1,96 @@
+{
+  "scope": "PARTIAL_SOURCE_ONLY_FAILED_REAL_CARGO_ATTEMPT_NOT_QUALIFICATION",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 829,
+      "sha256": "be78609f88bfabaad960d6a77754ecd5533b76a37fcdb73e76951181bbcd216c",
+      "mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 509,
+      "sha256": "d3da701623b0a01d5717c0df1bb07038353d629d7796a6981c53a12a48da422e",
+      "mode": "100644"
+    },
+    {
+      "path": "safe/ACTUAL-CARGO-GENERATED-LOCK-DIFF01.json",
+      "bytes": 72490,
+      "sha256": "8c5a709bf582b5b83ef83d8b302a74937689b224ef834a1e1414fa8877c4c083",
+      "mode": "100644"
+    },
+    {
+      "path": "safe/ACTUAL-ROOT-CARGO-TERMINAL-SAFE01.json",
+      "bytes": 703,
+      "sha256": "29f44a9c79eb4ecec435b3355d16916e1735eabc27cf563dfc76e3f82f369981",
+      "mode": "100644"
+    },
+    {
+      "path": "safe/F13-RSA-TWO-MANIFEST-INDEPENDENT-SOURCE-PEER-SAFE01.json",
+      "bytes": 3691,
+      "sha256": "30458e1b478960e922d207ff51bf1f5cef394b6d36e1a63ea273796d13b7e562",
+      "mode": "100644"
+    },
+    {
+      "path": "safe/RSA-CARGO-STARTUP04-INDEPENDENT-ALLOW-SAFE01.json",
+      "bytes": 2241,
+      "sha256": "34f28459651eb2ef16da21e55347d03508773db89e3cffb3c9df7740e8adebae",
+      "mode": "100644"
+    },
+    {
+      "path": "source/actual-generated-gateway-Cargo.lock",
+      "bytes": 51834,
+      "sha256": "0d3d8550d9fdd887c50166d2fe8190d44400290f5eb07785e146524f52061bac",
+      "mode": "100644"
+    },
+    {
+      "path": "source/cargo-source-guard01.py",
+      "bytes": 4084,
+      "sha256": "01cdb9986fbb38cf6848ffc98bfac86469f583ae874b7d2b22ae0c31e9d019c1",
+      "mode": "100644"
+    },
+    {
+      "path": "source/cargo-source-guard02.py",
+      "bytes": 6087,
+      "sha256": "85e9e4fecb04770d29f5ff880e05e8e1860bd83d4dff47f854d3d7a74b46280e",
+      "mode": "100644"
+    },
+    {
+      "path": "source/cargo-source-guard03.py",
+      "bytes": 6089,
+      "sha256": "1754893674e69f8a6ae2c4a68e89223982e39b111764ddb71755ccd6b9e5b3d0",
+      "mode": "100644"
+    },
+    {
+      "path": "source/launcher-source01.js",
+      "bytes": 3327,
+      "sha256": "9b4a5a309baf4d37227a1b968c3b49310ffb38eceadbb7a1641bdc74ca0f4527",
+      "mode": "100644"
+    },
+    {
+      "path": "source/launcher-source02.js",
+      "bytes": 5874,
+      "sha256": "5b3ae893a3321ee069d0fa85d1559cc779103b29c105da50848387e83421fbe5",
+      "mode": "100644"
+    },
+    {
+      "path": "source/launcher-source03.js",
+      "bytes": 6369,
+      "sha256": "d58547a25f7438d5dbbdcf122a51cc89e7939b61fa508e19cc15b552bdb49870",
+      "mode": "100644"
+    },
+    {
+      "path": "source/launcher-source04.js",
+      "bytes": 7642,
+      "sha256": "8694f80fddf6aec992ecc37ee56d8200bcfa8b9f2e67618a6173eff3af02dde4",
+      "mode": "100644"
+    },
+    {
+      "path": "source/original-gateway-Cargo.lock",
+      "bytes": 56017,
+      "sha256": "45d52b90b00056cd3e14bb191ea1ea6c6c8fdd8a4ee955ab64d076d857e53023",
+      "mode": "100644"
+    }
+  ],
+  "manifestSelfExcluded": true
+}
