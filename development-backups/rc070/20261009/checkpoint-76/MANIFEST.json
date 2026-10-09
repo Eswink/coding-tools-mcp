@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "files": [
+    {
+      "path": "1c-to-python-version-log.patch",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 6988,
+      "sha256": "f474b14815acc261007b1791f54984609dddc9bd82b86ab6318c3c28d1566995"
+    },
+    {
+      "path": "INDEPENDENT-SOURCE-PEER-SAFE.json",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 2244,
+      "sha256": "e3ae2ac6113cf2b5b5701959ccca69cb9215f53182f1ee9a66386764b8dddffc"
+    },
+    {
+      "path": "LIMITED-CONTROLS-SAFE.json",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 1635,
+      "sha256": "0ef4b60211f4b194b7c30da19a7b9a9c2499d46155e999dffa0a8b13d9e025ba"
+    },
+    {
+      "path": "README.md",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 1083,
+      "sha256": "6d11cf60bf207574776c45b1dd8b2125560bcaf583d84b5b0e85b765335b8496"
+    },
+    {
+      "path": "SOURCE-FREEZE-SAFE.json",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 2379,
+      "sha256": "0773d83309adf43c713ab203a404daa8b3fd45cd18241f6c549b78fb7b7bb3e3"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 2089,
+      "sha256": "75cae50ddff9a5fa901bdc5b15128cfe96c867e63ccb54ad69f0e54801fa1127"
+    },
+    {
+      "path": "design.md.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 5258,
+      "sha256": "16daf3682eff4c84484eade462e1d6ac65e09119e45ef197703eb7b328a961b7"
+    },
+    {
+      "path": "requirements.md.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 5586,
+      "sha256": "82f7e7aedcf6f5c2ea1a2964166bdb82ad09c91834dd19b99a3ffc911f06d849"
+    },
+    {
+      "path": "tasks.md.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 4849,
+      "sha256": "e2b3c7d9464671a7f687b3cff88c1c74b415cd576988d2ed20ce2a53a3f82776"
+    },
+    {
+      "path": "windows_foundation_source_compile.ps1.source",
+      "mode": "0o600",
+      "git_mode": "100644",
+      "bytes": 18616,
+      "sha256": "2f61c95f9ce113ba7380f1b92a00e164f48374f3332c4f90be1d07ce8dd77d20"
+    }
+  ],
+  "fileCountExcludingManifest": 10,
+  "bytesExcludingManifest": 50727,
+  "baselineCommit": "1c0767a4e4a1920c3dae53f3d7a59c46191fd897",
+  "candidateTree": "c376753da4f5be04bf101a69fb0d26726f5a2888",
+  "sourceOnly": true
+}

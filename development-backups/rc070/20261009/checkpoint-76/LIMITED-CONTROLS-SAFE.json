@@ -1,0 +1,43 @@
+{
+  "kind": "FINITE0SUT0VM_COMPONENT_ONLY",
+  "actualOwnedControls": [
+    {
+      "case": "ordinary-version-before01",
+      "actualControlExit": 1,
+      "actualNativeExit": 0,
+      "logExists": false,
+      "logBytes": null,
+      "passed": false,
+      "privateReceiptSHA256": "0fdf57f7c64ae2e7e1d22ba85d1909c420bed7aed0245d50345351abda1e17f7"
+    },
+    {
+      "case": "ordinary-version-after02",
+      "actualControlExit": 0,
+      "actualNativeExit": 0,
+      "logExists": true,
+      "logBytes": 54,
+      "passed": true,
+      "privateReceiptSHA256": "1edefd92b51699f09021a2702dea37a3c6078ba0acc401a80a9dd8ebedecaf07"
+    },
+    {
+      "case": "ordinary-version-wrongpin02",
+      "actualControlExit": 1,
+      "actualNativeExit": 1,
+      "logExists": true,
+      "logBytes": 283,
+      "passed": false,
+      "privateReceiptSHA256": "07e5b8ed3ac3c499cd9a168d4b4b2eea593e82485f4bda2bdf4f3fa96d5534a9"
+    }
+  ],
+  "consumerMissingLog": "StillactualValueErrordeny/helperbyteexact",
+  "old1cActualRun": 37936352484,
+  "old1cActualConclusion": "failure",
+  "old1cActualCompilerFacts": "Windowswholelib--no-run andoriginal7 realexit0/logs; LinuxGo4 realPASS; bothconsumerFAILED missingPythonversionlog",
+  "old1cRustZIPBytes": 55063,
+  "old1cRustZIPSHA256": "2eb608066ffbf91deeb43793480c165df82f707cf4262edb5a7ddfa9bfbbaa30",
+  "old1cGoZIPBytes": 13955,
+  "old1cGoZIPSHA256": "ff3326c724850b7ca261788197a6021f6a81462948bd0c9f2a73c1d791174373",
+  "scope": "Onlypostassertactualversionprint; noemptylog/FD/owner/union/hardreject relaxation",
+  "newHeadCI": "NOTRUN",
+  "priorFailureAndControl02MetadataErratumPreserved": true
+}

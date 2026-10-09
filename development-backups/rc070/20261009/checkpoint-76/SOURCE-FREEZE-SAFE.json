@@ -1,0 +1,55 @@
+{
+  "baselineCommit": "1c0767a4e4a1920c3dae53f3d7a59c46191fd897",
+  "candidateTree": "c376753da4f5be04bf101a69fb0d26726f5a2888",
+  "candidatePaths": 1872,
+  "deltaPaths": [
+    {
+      "path": "docs/specs/windows-rust-inference-carrier/design.md",
+      "mode": "100644",
+      "blob": "1f3c3077842b5e3ee13452e0d4a19ddafa20d2d4",
+      "bytes": 5258,
+      "sha256": "16daf3682eff4c84484eade462e1d6ac65e09119e45ef197703eb7b328a961b7"
+    },
+    {
+      "path": "docs/specs/windows-rust-inference-carrier/requirements.md",
+      "mode": "100644",
+      "blob": "98838777ac3335fd8e2ca454405e7c429201b5ae",
+      "bytes": 5586,
+      "sha256": "82f7e7aedcf6f5c2ea1a2964166bdb82ad09c91834dd19b99a3ffc911f06d849"
+    },
+    {
+      "path": "docs/specs/windows-rust-inference-carrier/tasks.md",
+      "mode": "100644",
+      "blob": "29488e977ebdda50c537d6326713ac35f3329f7f",
+      "bytes": 4849,
+      "sha256": "e2b3c7d9464671a7f687b3cff88c1c74b415cd576988d2ed20ce2a53a3f82776"
+    },
+    {
+      "path": "scripts/windows_foundation_source_compile.ps1",
+      "mode": "100644",
+      "blob": "87a5dcab236e8b11aff269259a719ee33a6d871d",
+      "bytes": 18616,
+      "sha256": "2f61c95f9ce113ba7380f1b92a00e164f48374f3332c4f90be1d07ce8dd77d20"
+    }
+  ],
+  "unchangedBaselinePaths": 1868,
+  "all1872RawNativeBlobsVerified": true,
+  "soleCodeDelta": "Only ; print(sys.version) after originalPython3.12assert",
+  "wholePSInverseExact": true,
+  "InvokeAndResolverAndExitSemantics": "Unchanged allotherPSbytes exact",
+  "helperWorkflowGuardManifestAndOriginalTests": "Native modes/blobs/physicalbytes unchanged",
+  "actualBeforeControlExit": 1,
+  "actualBeforeNativeExit": 0,
+  "actualBeforeLogExists": false,
+  "actualAfterControlExit": 0,
+  "actualAfterNativeExit": 0,
+  "actualAfterVersionLogExists": true,
+  "realWrongPinVersion": "3.13.5",
+  "actualWrongPinNativeAndControlExit": 1,
+  "missingRegularLogConsumer": "UNCHANGED_DENY",
+  "ownFreshImpact": "actualUNKNOWN/manualHIGH userdisclosed beforeedit",
+  "newWindowsCI": "NOTRUN",
+  "old1cCI": "actualRustwholecompile+original7PASS andGo4PASS; bothconsumerFAIL missingversionlog; wholeFAIL",
+  "nativeOwner_VM_IOclose_install_RC": "NOTQUALIFIED",
+  "ordinaryControlPassedFieldErratum": "Control02 after actualnativepass wroteinitialpassedfalse; oldresults preserved; newcontrol03 computesrealpredicate andafter02actualpassedtrue"
+}

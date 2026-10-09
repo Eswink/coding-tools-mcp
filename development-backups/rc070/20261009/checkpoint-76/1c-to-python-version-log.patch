@@ -1,0 +1,57 @@
+diff --git a/docs/specs/windows-rust-inference-carrier/design.md b/docs/specs/windows-rust-inference-carrier/design.md
+index b5d01a4..1f3c307 100644
+--- a/docs/specs/windows-rust-inference-carrier/design.md
++++ b/docs/specs/windows-rust-inference-carrier/design.md
+@@ -33,3 +33,10 @@ Rust flow alone admits original19bb then literal cp49 overlay/full6b7e. Go keeps
+ | FR-5 | Mode-specific source mapping | Real owned baseline/overlay and new CI |
+ | FR-6 | Separate always read-only receipt consumer | ActualGo4 component positive plus typed/identity/command/case negatives |
+ | FR-7 | Main/sourceAfter completion finally | Five actualPS ordinary cases and immutable failure-first |
++
++## FR-8/FR-9 finite version evidence
++Actual1c Go original4/source/manager/runtime checks passed but terminalconsumer failed because successful Python assertion produced no stdout and Tee created no file. Change only the original Python-c string to retain originalassert followed by print(sys.version), producing real version bytes. The entire Invoke function remains exact; consumer still denies missing regular logs. Four existing deltas: PS one command-string append and these3spec additive sections. No outputfile creation/FD behavior, runtime/root source change or combinedSUT patch. Actual version CommandAST ordinary fixture invokes the original function, records nativeexit/log existence, then verifies real wrong-pin fails; it is0SUT/0VM and not nativeCI proof.
++| FR | Design | Evidence |
++|---|---|---|
++| FR-8 | Sole post-assert actual version print | Full PS inverse/Invoke unchanged |
++| FR-9 | Actual nativePython ordinary vectors | Failurefirst/after/wrongpin/missing-log denial and newCI |
+diff --git a/docs/specs/windows-rust-inference-carrier/requirements.md b/docs/specs/windows-rust-inference-carrier/requirements.md
+index f8b4149..9883877 100644
+--- a/docs/specs/windows-rust-inference-carrier/requirements.md
++++ b/docs/specs/windows-rust-inference-carrier/requirements.md
+@@ -27,3 +27,7 @@ Original exact-seven attribute8method suite remains unchanged and actuallyFAIL1
+ - FR-6 A separate always workflow step SHALL use only rooted explicit setup-python payload (missing/alias/invalid SHALL fail, no PATH fallback) to consume actual compiler-result. It SHALL reject absent/malformed receipt, nonboolean passed, interrupted/unknown/error status, incomplete source/manager/runtime identity, wrong native command exits, missing/duplicate/wrong named cases and malformed bounded logs. PipelineStopped hostexit0 SHALL never qualify failed or UNKNOWN receipt.
+ - FR-7 Main delegate and sourceAfter completion markers SHALL fail closed when real host PipelineStopped bypasses catch, preserve original manager/runtime/receipt cleanup and skip new observer child; original catchable typed objects SHALL be dispatched after cleanup. Ordinary component controls SHALL not claim native cancellation or compiler qualification.
+ The original timeout is45minutes. An earlier Plan estimate said20 erroneously; it is preserved as an erratum, never a workflow budget change. New consumer does no compiler/native-owner launch and cannot authorize release.
++
++## Narrow actual Python version log repair from1c
++- FR-8 The original Python3.12 assertion SHALL remain exact and only append print(sys.version) after success. Invoke-CheckedCompiler, resolver, native exit/cancel semantics, all pins/source identities and missing-log consumer rejection SHALL remain byteexact. No synthetic empty log, FD primitive, budget expansion, owner or union integration is allowed.
++- FR-9 Actual owned process controls SHALL preserve failure-first for empty successful native stdout, prove actual version output after repair, reject a real existing wrong Python pin and retain consumer missing-log denial. The new four-path delta SHALL use soleparent1c, own fresh impact/spec/sourcepeer, safe immutable backup and meaningful normalpush. New samehead CI SHALL be required; old producerGo4 success and new ordinary controls SHALL NOT qualify finalCI.
+diff --git a/docs/specs/windows-rust-inference-carrier/tasks.md b/docs/specs/windows-rust-inference-carrier/tasks.md
+index 4968cd0..29488e9 100644
+--- a/docs/specs/windows-rust-inference-carrier/tasks.md
++++ b/docs/specs/windows-rust-inference-carrier/tasks.md
+@@ -36,3 +36,12 @@ Implement Rust-only overlay, Go original19bb source contract, separate always co
+ 
+ ## Current finite component result
+ Controls14 actually15methodsPASS37.493s: originalhelper/nativeGit controls, five actualPS cases (beforePipeline executes actualwholeTryAST with controlled0SUT delegate), actualownedGo1.24.13 original5files/4namedPASS, terminal parser typed/identity/runtime/command/case negatives, fullCLI missing/local-provenance rejection, actual separateworkflow block missing/invalid/WindowsApps pinnedPython rejects. LocalGo record explicitlyLOCAL_OWNED_COMPONENT; no fakeGitHub/Windows/native environment and no realRust positive synthesized. Original exact7 suite FAIL1/8 and initialconsumer symlink extra-rejection FAIL controls12 preserved. Full CLI alone requires actual remoteCI provenance plus actual managementHEAD/source leases. Compiler6b7e actualWindows NOTRUN pending sameheadCI.
++
++## Narrow repair tasks afteractual1c
++1. Preserve actual1cGo producerPASS/consumerFAIL and rawZIP/log; actual owned productionCommandAST failurefirst exit1 despite nativeexit0/logmissing.
++2. New separate exact1ccheckout ownfreshGNimpact/spec before onlyprint(sys.version) after originalassert; fourexistingpaths delta, originalInvoke/resolver/helper/workflow/guard/manifest/other1868 byteexact.
++3. Actual owned3.12 outputPASS, existing3.13 pinFAIL, consumer missinglogstillDENY; peer/seal/cp76/soleparent1c localnormalcommit; root safeimmutablebackup/readback thennormalpush newCI. Native/RC remainsunqualified; no union integration.
++| FR | Tasks | Evidence |
++|---|---|---|
++| FR-8 | 2,3 | Exact inverse/unchangedInvoke |
++| FR-9 | 1,3 | Actual ordinary vectors plus newsameheadCI |
+diff --git a/scripts/windows_foundation_source_compile.ps1 b/scripts/windows_foundation_source_compile.ps1
+index abfae32..87a5dca 100644
+--- a/scripts/windows_foundation_source_compile.ps1
++++ b/scripts/windows_foundation_source_compile.ps1
+@@ -107,7 +107,7 @@ function Run-SourceCompile {
+         throw 'Native/source authorization flags are forbidden in this compiler-only probe.'
+     }
+     Invoke-CheckedCompiler 'git' @('--version') 'git-version.log' | Out-Null
+-    Invoke-CheckedCompiler 'python' @('-c','import sys; assert sys.version_info[:2] == (3, 12), sys.version') 'python-version.log' | Out-Null
++    Invoke-CheckedCompiler 'python' @('-c','import sys; assert sys.version_info[:2] == (3, 12), sys.version; print(sys.version)') 'python-version.log' | Out-Null
+     Invoke-ManagerSourceObservation 'Before'
+     $ManagerBefore = Join-Path $Output 'management-before.json'
+     Invoke-CheckedCompiler 'python' @($Guard,'verify-manager','--manifest',$Manifest,'--manager',$Manager,

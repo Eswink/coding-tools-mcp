@@ -1,0 +1,37 @@
+{
+  "decision": "PASS_FINITE_SOURCE_AND_SAFE_NORMAL_FORWARD_PUSH_SCOPE",
+  "source_freeze_sha256": "b4b796795df8ba04266404eaadfbc34aece1683b3d22ca6ecc3b36f0ca8923a4",
+  "sole_baseline_parent": "1c0767a4e4a1920c3dae53f3d7a59c46191fd897",
+  "management_tree": "c376753da4f5be04bf101a69fb0d26726f5a2888",
+  "management_paths": 1872,
+  "independent_reads": {
+    "whole1872_current_regular_nlink1_native_blob_and_modeclass_exact": true,
+    "only_four_delta_paths": true,
+    "unchanged1868_native_modes_blobs": true,
+    "sole_PS_code_edit": "After original Python3.12 assert only append ; print(sys.version)",
+    "whole_PS_inverse_bytes_exact": true,
+    "original_Invoke_Resolver_cleanup_pins_and_receipt_semantics": "allotherPSbytes exact",
+    "original_guard_manifest_helper_workflow_consumer_tests": "unchanged nativeblob/bytes",
+    "actual_CommandAST_Control03_source_read": true,
+    "before_actual_native_exit0_logmissing_controlFAIL": true,
+    "after_actual_native_exit0_log54B_3_12_14_PASS": true,
+    "wrong_existing_3_13_5_native_exit1_log283B_FAIL": true,
+    "raw_failurefirst_after_wrongpin_logs_read": true,
+    "spec9_FR_actual_structured_pass_0_errors_0_warnings": true,
+    "fresh_own_impact": "Run-SourceCompile actualtargetnotfound UNKNOWN/manualHIGH already disclosed"
+  },
+  "conditions": [
+    "Root finish current fresh detect/gencommit required checks and verify actual same source/index",
+    "Safe immutable GitHub source backup/readback before meaningful normalforwardpush",
+    "Commit soleparent1c and exact4diff; no forcepush/main/PRbase/permission change",
+    "Requery real Actions on actual new head; absence/running/failure never becomes PASS"
+  ],
+  "qualification": {
+    "ordinary_control_source_scope": "actual selected production version CommandAST and original Invoke; no SUT/VM",
+    "new_samehead_CI": "NOTRUN at peer",
+    "old1c_gate": "wholeFAIL missing-version-log consumer; producer success not borrowed as finalgate",
+    "native_owner_workspace_IOclose_install_RC": false,
+    "release_authorized": false
+  },
+  "history": "Actual before-failure and initial control metadata passed=false erratum preserved. Current after02 predicate uses actual native exit/log; wrongpin denial preserved."
+}
