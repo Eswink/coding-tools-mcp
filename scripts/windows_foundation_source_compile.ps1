@@ -4,14 +4,14 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $Manager = Split-Path $PSScriptRoot -Parent
 $Output = Join-Path $env:RUNNER_TEMP 'windows-foundation-probe'
-$Destination = Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-19bb2920'
+$Destination = Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-union1967'
 New-Item -ItemType Directory -Force $Output | Out-Null
 $Guard = Join-Path $PSScriptRoot 'windows_foundation_source_guard.py'
 $Manifest = Join-Path $PSScriptRoot 'windows_foundation_source_manifest.json'
 $Observer = Join-Path $PSScriptRoot 'windows_foundation_manager_observation.py'
-$InferenceOverlay = Join-Path $PSScriptRoot 'windows_foundation_inference_overlay.py'
+$UnionOverlay = Join-Path $PSScriptRoot 'windows_foundation_union_overlay.py'
 $Receipt = [ordered]@{ mode=$Mode; managerCommit=$env:GITHUB_SHA; runId=$env:GITHUB_RUN_ID;
-    pureSutTree=$(if ($Mode -ceq 'rust') {'6b7e33c45c5e56340b1cfb81a7d304c6c60cf23f'} else {'19bb292004e0fd4ed02374b35bcd2f22469779f0'}); baselineSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
+    pureSutTree='4d42a21057b867e6163e6bbe3ce9edca24da5716'; baselineSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
     nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBaseline=$null; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; managerObservationFailed=$false; passed=$false }
 
 $ObservationCancellation = $null
@@ -117,24 +117,28 @@ function Run-SourceCompile {
     Invoke-CheckedCompiler 'python' @($Guard,'restore','--manifest',$Manifest,'--manager',$Manager,
         '--destination',$Destination,'--receipt',$Before) 'source-restore.log' | Out-Null
     $Receipt.sourceBaseline = Get-Content -Raw $Before | ConvertFrom-Json
-    if ($Mode -ceq 'rust') {
-        $Receipt.sourceOverlayStarted = $true
-        $CandidateBefore = Join-Path $Output 'candidate-source-before.json'
-        Invoke-CheckedCompiler 'python' @($InferenceOverlay,'apply','--manifest',$Manifest,'--manager',$Manager,
-            '--destination',$Destination,'--receipt',$CandidateBefore) 'candidate-source-overlay.log' | Out-Null
-        $Receipt.sourceBefore = Get-Content -Raw $CandidateBefore | ConvertFrom-Json
-    } else { $Receipt.sourceBefore = $Receipt.sourceBaseline }
+    $Receipt.sourceOverlayStarted = $true
+    $CandidateBefore = Join-Path $Output 'candidate-source-before.json'
+    Invoke-CheckedCompiler 'python' @($UnionOverlay,'apply','--manifest',$Manifest,'--manager',$Manager,
+        '--destination',$Destination,'--receipt',$CandidateBefore) 'candidate-source-overlay.log' | Out-Null
+    $Receipt.sourceBefore = Get-Content -Raw $CandidateBefore | ConvertFrom-Json
     Push-Location $Destination
     try {
         if ($Mode -eq 'go') {
             $Version = Invoke-CheckedCompiler 'go' @('version') 'go-version.log'
             if ((Get-Content -Raw $Version) -notmatch '^go version go1\.24\.13 linux/amd64') { throw 'Unexpected Go runtime.' }
-            $Files = @('services/windows-vm-broker/transfer.go','services/windows-vm-broker/transfer_test.go',
+            $Files = @('services/windows-vm-broker/transfer.go',
+                'services/windows-vm-broker/transfer_test.go',
                 'services/windows-vm-broker/transfer_identity_linux_test.go',
-                'services/windows-vm-broker/workspace_stream.go','services/windows-vm-broker/guest_workspace_control.go')
+                'services/windows-vm-broker/workspace_stream.go',
+                'services/windows-vm-broker/workspace_stream_test.go',
+                'services/windows-vm-broker/guest_workspace_control.go',
+                'services/windows-vm-broker/output_transfer.go',
+                'services/windows-vm-broker/output_transfer_test.go',
+                'services/windows-vm-broker/transfer_owner_test.go')
             $Receipt.compiler = 'RUNNING'
-            Invoke-CheckedCompiler 'go' (@('test','-v','-count=1') + $Files) 'go5-data-test.log' | Out-Null
-            $Receipt.compiler = 'DATA_TEST_PASS'
+            Invoke-CheckedCompiler 'go' (@('test','-race','-v','-count=1') + $Files) 'go9-data-race-test.log' | Out-Null
+            $Receipt.compiler = 'DATA_23_RACE_TEST_PASS'
         } else {
             foreach ($Tool in @('rustc','cargo')) {
                 $Which = Invoke-CheckedCompiler 'rustup' @('which','--toolchain','1.98.1',$Tool) "rustup-which-before-$Tool.log"
@@ -159,22 +163,29 @@ function Run-SourceCompile {
             Invoke-CheckedCompiler 'cargo' ($Cargo + @('--no-run')) 'cargo-whole-test-compile.log' | Out-Null
             $Receipt.compiler = 'WHOLE_TEST_COMPILE_PASS'
             $List = Invoke-CheckedCompiler 'cargo' ($Cargo + @('--','--list')) 'cargo-whole-test-list.log'
-            $Allowed = @('sealed_chunks_keep_original_and_detached_owners_independent',
-                'chunk_cap_and_cancel_do_not_publish_partial_copy',
-                'exact_transfer_binding_rejects_each_field_mismatch',
-                'invalid_wire_names_and_nil_binding_never_make_native_authority',
-                'checked_close_consumes_data_only_transfer','relative_names_remain_data_not_native_permission',
-                'diagnostic_metadata_cannot_authorize_output')
+            $Allowed = @('tools::windows_vm::input::chunk_tests::sealed_chunks_keep_original_and_detached_owners_independent',
+                'tools::windows_vm::input::chunk_tests::chunk_cap_and_cancel_do_not_publish_partial_copy',
+                'tools::windows_vm::input::transfer_tests::exact_transfer_binding_rejects_each_field_mismatch',
+                'tools::windows_vm::input::transfer_tests::invalid_wire_names_and_nil_binding_never_make_native_authority',
+                'tools::windows_vm::input::publication_tests::checked_close_consumes_data_only_transfer',
+                'tools::windows_vm::input::tests::relative_names_remain_data_not_native_permission',
+                'tools::windows_vm::output_stage::tests::diagnostic_metadata_cannot_authorize_output',
+                'tools::windows_vm::output_stage::data::data_tests::output_direction_capacity_and_roundtrip',
+                'tools::windows_vm::output_stage::data::data_tests::output_binding_fields_and_terminal_foreign_attempt',
+                'tools::windows_vm::output_stage::data::data_tests::output_header_sequence_offset_digest_and_EOF_reject',
+                'tools::windows_vm::output_stage::data::data_tests::output_cancel_reader_error_and_blocked_reader_boundary',
+                'tools::windows_vm::output_stage::data::data_tests::output_clone_and_concurrent_once',
+                'tools::windows_vm::output_stage::data::data_tests::output_mutex_poison_remains_denied',
+                'tools::windows_vm::output_stage::data::data_tests::output_go_golden_vector_is_exact')
             $Lines = Get-Content $List
-            foreach ($Case in $Allowed) {
-                $MatchingLines = @($Lines | Where-Object { $_ -match ('::' + [regex]::Escape($Case) + ': test$') })
-                if ($MatchingLines.Count -ne 1) { throw "Named data test absent/ambiguous: $Case" }
-                $FullName = $MatchingLines[0] -replace ': test$', ''
-                if ($FullName -cnotmatch '^tools::windows_vm::(input|output_stage)::') { throw 'Unexpected data test namespace.' }
+            foreach ($FullName in $Allowed) {
+                $MatchingLines = @($Lines | Where-Object { $_ -ceq ($FullName + ': test') })
+                if ($MatchingLines.Count -ne 1) { throw "Fixed fully-qualified data test absent/duplicate: $FullName" }
+                $Case = $FullName.Split('::')[-1]
                 $TestLog = Invoke-CheckedCompiler 'cargo' ($Cargo + @($FullName,'--','--exact','--nocapture','--test-threads=1')) "data-$Case.log"
-                if ((Get-Content -Raw $TestLog) -notmatch '1 passed; 0 failed; 0 ignored') { throw "Exact test count differs: $Case" }
+                if ((Get-Content -Raw $TestLog) -notmatch '1 passed; 0 failed; 0 ignored') { throw "Exact test count differs: $FullName" }
             }
-            $Receipt.compiler = 'WHOLE_TEST_COMPILE_AND_7_DATA_PASS'
+            $Receipt.compiler = 'WHOLE_TEST_COMPILE_AND_14_DATA_PASS'
         }
     } finally { Pop-Location }
 }
@@ -207,13 +218,8 @@ try {
         if (Test-Path (Join-Path $Destination '.git/foundation-candidate.index')) {
             try {
                 $After = Join-Path $Output 'source-after.json'
-                if ($Mode -ceq 'rust') {
-                    Invoke-CheckedCompiler 'python' @($InferenceOverlay,'verify','--manifest',$Manifest,'--manager',$Manager,'--destination',$Destination,
-                        '--receipt',$After) 'source-after.log' | Out-Null
-                } else {
-                    Invoke-CheckedCompiler 'python' @($Guard,'verify','--manifest',$Manifest,'--manager',$Manager,'--destination',$Destination,
-                        '--receipt',$After) 'source-after.log' | Out-Null
-                }
+                Invoke-CheckedCompiler 'python' @($UnionOverlay,'verify','--manifest',$Manifest,'--manager',$Manager,'--destination',$Destination,
+                    '--receipt',$After) 'source-after.log' | Out-Null
                 $Receipt.sourceAfter = Get-Content -Raw $After | ConvertFrom-Json
                 if ($null -eq $Receipt.sourceBefore -or
                     $Receipt.sourceAfter.source_digest -cne $Receipt.sourceBefore.source_digest) {

@@ -60,7 +60,7 @@ jobs:
               $Python -match '[\\/]Microsoft[\\/]WindowsApps[\\/]' -or
               -not (Test-Path -LiteralPath $Python -PathType Leaf)) { throw 'Pinned setup-python payload absent; no PATH fallback.' }
           $Output = Join-Path $env:RUNNER_TEMP 'windows-foundation-probe'
-          & $Python ./scripts/windows_foundation_inference_overlay.py verify-result --mode '${{ matrix.mode }}' --compiler-result (Join-Path $Output 'compiler-result.json') --manifest ./scripts/windows_foundation_source_manifest.json --manager $env:GITHUB_WORKSPACE --destination (Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-19bb2920') --receipt (Join-Path $Output 'terminal-consumer-result.json')
+          & $Python ./scripts/windows_foundation_union_overlay.py verify-result --mode '${{ matrix.mode }}' --compiler-result (Join-Path $Output 'compiler-result.json') --manifest ./scripts/windows_foundation_source_manifest.json --manager $env:GITHUB_WORKSPACE --destination (Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-union1967') --receipt (Join-Path $Output 'terminal-consumer-result.json')
           if ($LASTEXITCODE -ne 0) { throw 'Independent actual compiler receipt consumer denied.' }
       - name: Preserve actual result and failures
         if: always()
