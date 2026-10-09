@@ -1,0 +1,3 @@
+# Source-only Debian msgfmt proposal checkpoint
+
+Three new finite specs and safe status only; no helper implementation, executable download/extraction/launch or installation. Preserves previous real GNUconfigure120 timeout and GitV1/V2 failures; does not qualify original85/300/fullRust/Windows/install/release/RC. Official signed metadata authenticated privately; missing Valid-Until explicitly limits freshness claim. Newgraph impacts actually failedIO/UNKNOWN manualHIGH, not0. Independent sourcepeer/root launch pending. No public binaries/packages/keys/rawhost/runtime/env/logs/Gitobjects. This immutable proposal snapshot is separate from subsequent source implementation freezes.

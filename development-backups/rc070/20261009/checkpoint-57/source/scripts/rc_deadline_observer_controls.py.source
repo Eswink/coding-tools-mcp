@@ -1,0 +1,201 @@
+"""Ordinary real-FD delegate transparency controls; no original SUT imports."""
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+import select
+import signal
+from types import SimpleNamespace
+
+from rc_deadline_observer import observe_delegate, finish_observation, record_observation, observe_pidfd_exit
+from rc_deadline_binding import raise_combined
+
+
+def run_pidfd_controls():
+    """Actual native children, never original SUT or a fabricated owner."""
+    rows=[]
+    for scenario in ('live_none','natural_repeat_WNOWAIT','actual_TERM_exit','actual_ECHILD_after_owned_reap','wrong_identity_sticky_close','actual_closed_fd_sticky_close','observer_cancel_sticky_close','primary_exit_observer_cancel'):
+        sleeping=scenario in ('live_none','actual_TERM_exit','wrong_identity_sticky_close')
+        code='import os,time;os.write(1,b"R");time.sleep(5)' if sleeping else 'import os;os.write(1,b"R")'
+        child=subprocess.Popen(['/usr/bin/python3','-c',code],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,env={'PATH':'/usr/bin:/bin'},start_new_session=True)
+        fd=os.pidfd_open(child.pid);fd_open=True;actual_calls=[];failures=[]
+        primary=SystemExit(1);cancel=KeyboardInterrupt('ordinary observed cancellation')
+        try:
+            assert select.select([child.stdout],[],[],2)[0] and os.read(child.stdout.fileno(),1)==b'R'
+            if scenario=='live_none':
+                value=observe_pidfd_exit(fd,child.pid);assert value['exit_observed'] is False and child.returncode is None
+                signal.pidfd_send_signal(fd,signal.SIGTERM)
+            elif scenario=='actual_TERM_exit':signal.pidfd_send_signal(fd,signal.SIGTERM)
+            if scenario in ('natural_repeat_WNOWAIT','actual_TERM_exit'):
+                end=time.monotonic()+2
+                while True:
+                    value=observe_pidfd_exit(fd,child.pid)
+                    if value['exit_observed']:break
+                    assert time.monotonic()<end;time.sleep(.005)
+                again=observe_pidfd_exit(fd,child.pid)
+                assert value==again and child.returncode is None and value['WNOWAIT'] is True and value['reaped'] is False
+                expected=(os.CLD_KILLED,signal.SIGTERM) if scenario=='actual_TERM_exit' else (os.CLD_EXITED,0)
+                assert (value['si_code'],value['si_status'])==expected
+            if scenario=='actual_ECHILD_after_owned_reap':
+                assert child.wait(timeout=2)==0
+                try:os.waitid(os.P_PIDFD,fd,os.WEXITED|os.WNOHANG|os.WNOWAIT)
+                except ChildProcessError:pass
+                else:raise AssertionError('actual reaped child did not reject ECHILD')
+                try:observe_pidfd_exit(fd,child.pid)
+                except AssertionError:pass
+                else:raise AssertionError('reaped pidfd identity admitted')
+            if scenario=='actual_closed_fd_sticky_close':os.close(fd);fd_open=False
+            def pidfd_close_delegate():
+                nonlocal fd_open
+                actual_calls.append('actual_owned_native_cleanup')
+                if sleeping and child.returncode is None:signal.pidfd_send_signal(fd,signal.SIGTERM)
+                child.wait(timeout=2)
+                assert select.select([child.stdout],[],[],2)[0] and os.read(child.stdout.fileno(),1)==b''
+                child.stdin.close();child.stdout.close()
+                if fd_open:os.close(fd);fd_open=False
+                if scenario=='primary_exit_observer_cancel':raise primary
+                return b'ordinary original result'
+            def pidfd_record(phase,args,result,error):
+                if phase!='before':return
+                value=observe_pidfd_exit(fd,child.pid+1 if scenario=='wrong_identity_sticky_close' else child.pid)
+                assert value['closed_authority'] is False
+                if scenario in ('observer_cancel_sticky_close','primary_exit_observer_cancel'):raise cancel
+            if scenario in ('wrong_identity_sticky_close','actual_closed_fd_sticky_close','observer_cancel_sticky_close','primary_exit_observer_cancel'):
+                terminal=None
+                try:
+                    result=observe_delegate(pidfd_close_delegate,pidfd_record,failures)()
+                    assert result==b'ordinary original result' and scenario!='primary_exit_observer_cancel'
+                except BaseException as error:
+                    assert scenario=='primary_exit_observer_cancel' and error is primary;terminal=error
+                assert actual_calls==['actual_owned_native_cleanup'] and child.stdin.closed and child.stdout.closed and not fd_open and child.returncode is not None
+                errors=([terminal] if terminal is not None else [])+[r['error'] for r in failures]
+                assert len(errors)==(2 if terminal is not None else 1)
+                try:raise_combined(errors)
+                except BaseException as caught:
+                    if len(errors)==1:assert caught is errors[0]
+                    else:assert isinstance(caught,BaseExceptionGroup) and all(a is b for a,b in zip(caught.exceptions,errors))
+                else:raise AssertionError('original objects dropped')
+            else:
+                pidfd_close_delegate();assert child.stdin.closed and child.stdout.closed and not fd_open
+            rows.append(dict(name=scenario,passed=True,actual_native_exit=child.returncode,actual_pipe_EOF=True,actual_native_handles_closed=True,original_SUT_runs=0))
+        finally:
+            if child.returncode is None:
+                if fd_open:signal.pidfd_send_signal(fd,signal.SIGKILL)
+                child.wait(timeout=2)
+            if not child.stdin.closed:child.stdin.close()
+            if not child.stdout.closed:child.stdout.close()
+            if fd_open:os.close(fd)
+    assert len(rows)==8
+    return dict(scope='ordinary owned held pidfd WNOWAIT and cleanup controls only',passed=True,actual_control_count=8,actual_cases=rows,original_SUT_runs=0,single_original_method='NOTRUN',original_B_once01='FAIL',original488='FAIL',CI='NOTRUN',install='NOTRUN')
+
+
+def run_observer_controls():
+    rows = []
+    for scenario in ('return', 'original_error', 'original_cancel', 'before_error', 'after_error', 'double_error', 'before_cancel', 'after_cancel'):
+        reader, writer = os.pipe2(os.O_CLOEXEC)
+        called = []
+        failures = []
+        original_error = KeyboardInterrupt('ordinary original cancellation') if scenario == 'original_cancel' else RuntimeError('ordinary original failure')
+        observation_error = KeyboardInterrupt('ordinary observer cancellation') if scenario in ('before_cancel', 'after_cancel') else ValueError('ordinary observer failure')
+        def close_delegate():
+            called.append('actual_close')
+            os.close(writer)
+            if scenario in ('original_error', 'original_cancel', 'double_error'):
+                raise original_error
+            return b'original actual delegate result'
+        def record(phase, args, result, error):
+            if phase == 'before' and scenario in ('before_error', 'before_cancel', 'double_error'):
+                raise observation_error
+            if phase == 'return' and scenario in ('after_error', 'after_cancel'):
+                raise observation_error
+            if phase == 'raise' and scenario == 'double_error':
+                raise observation_error
+        wrapped = observe_delegate(close_delegate, record, failures)
+        try:
+            try:
+                result = wrapped()
+            except BaseException as caught:
+                assert caught is original_error and scenario in ('original_error', 'original_cancel', 'double_error')
+            else:
+                assert scenario not in ('original_error', 'original_cancel', 'double_error') and result == b'original actual delegate result'
+            assert called == ['actual_close'] and os.read(reader, 1) == b''
+            if scenario in ('before_cancel', 'after_cancel'):
+                try:
+                    finish_observation(failures)
+                except KeyboardInterrupt as caught:
+                    assert caught is observation_error
+                else:
+                    raise AssertionError('observer cancellation swallowed')
+            elif failures:
+                try:
+                    finish_observation(failures)
+                except BaseException as caught:
+                    expected = [entry['error'] for entry in failures]
+                    if len(expected) == 1:
+                        assert caught is expected[0]
+                    else:
+                        assert isinstance(caught, BaseExceptionGroup) and len(caught.exceptions) == len(expected) and all(a is b for a,b in zip(caught.exceptions, expected))
+                else:
+                    raise AssertionError('observer failure not sticky')
+            else:
+                finish_observation(failures)
+            rows.append(dict(name=scenario, passed=True, actual_close_calls=len(called), actual_pipe_EOF=True, original_SUT_runs=0))
+        finally:
+            os.close(reader)
+            if not called:
+                os.close(writer)
+    # Observation data below never authorizes an installation or process owner.
+    actual_child = subprocess.Popen(['/usr/bin/python3', '-c', 'import time;time.sleep(.1)'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env={'PATH':'/usr/bin:/bin'}, start_new_session=True)
+    pidfd = os.pidfd_open(actual_child.pid)
+    try:
+        journal = []
+        data = SimpleNamespace(_deadline=time.monotonic() + 5, _closed=False, _family_closed=False, _uncertain=False, _process=actual_child, _pidfd=pidfd, _completion=None)
+        record_observation(journal, 'before', 'ordinary_actual_child', data)
+        assert len(journal) == 1 and journal[0]['state']['leader_data']['pid'] == actual_child.pid and journal[0]['state']['stdin']['closed'] is False
+        assert actual_child.wait(timeout=2) == 0
+        actual_child.stdin.close(); actual_child.stdout.close()
+        data._closed = data._family_closed = True
+        record_observation(journal, 'return', 'ordinary_actual_child', data, result={'kind':'done','status':0,'reaped':1,'output':'deliberately excluded'})
+        assert len(journal) == 2 and journal[-1]['state']['stdin']['closed'] is True and 'output' not in journal[-1]['result_data']
+        bounded = [None] * 4096
+        try:
+            record_observation(bounded, 'before', 'ordinary_actual_child', data)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError('bounded journal accepted an extra entry')
+        rows.append(dict(name='actual_owned_child_state_and_bounded_journal', passed=True, original_SUT_runs=0, native_child_exit=0, sensitive_output_excluded=True))
+    finally:
+        if actual_child.returncode is None:
+            import signal
+            signal.pidfd_send_signal(pidfd, signal.SIGKILL)
+            actual_child.wait(timeout=2)
+        if not actual_child.stdin.closed:
+            actual_child.stdin.close()
+        if not actual_child.stdout.closed:
+            actual_child.stdout.close()
+        os.close(pidfd)
+    # Ordinary real kernel leases execute in separate owned control processes.
+    original_controls = '/workspace/work/rc070/postpublish/scripts/rc_postpublish488_controls.py'
+    for scenario in ('natural', 'term', 'kill', 'escape', 'lateadopt', 'fdsetupfailure', 'cancel'):
+        actual = subprocess.run([sys.executable, '-B', original_controls, '--case', scenario], env={'PATH':'/usr/bin:/bin','LANG':'C.UTF-8','LC_ALL':'C.UTF-8','PYTHONDONTWRITEBYTECODE':'1'}, capture_output=True, timeout=25)
+        assert actual.returncode == 0
+        value = json.loads(actual.stdout)
+        assert value['passed'] and value['SUT_runs'] == 0
+        rows.append(value)
+    assert len(rows) == 16
+    return dict(scope='necessary observer controls only', passed=True, actual_cases=rows, actual_control_count=16, original_SUT_runs=0, single_original_method='NOTRUN', original488='FAIL_ONCE01_NO_RETRY', CI='NOTRUN', install='NOTRUN')
+
+
+if __name__ == '__main__':
+    assert len(sys.argv) in (2,3)
+    if len(sys.argv)==3:
+        assert sys.argv[1]=='--pidfd';result=run_pidfd_controls();path=Path(sys.argv[2])
+    else:result=run_observer_controls();path=Path(sys.argv[1])
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, 'w') as stream:
+        json.dump(result, stream, indent=2)
+        stream.write('\n'); stream.flush(); os.fsync(stream.fileno())
+    print(json.dumps(dict(passed=result['passed'], actual_control_count=result['actual_control_count'], original_SUT_runs=0)))

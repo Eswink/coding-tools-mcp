@@ -1,0 +1,1 @@
+Source-only kernel16 draft. Original once01 overall FAIL retained. Single deadline observation, CI, installation and release NOTRUN. New16source packet requires independent startup review. No raw host/proc, runtime/TLS, environment or Git object data included.

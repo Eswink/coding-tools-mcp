@@ -1,0 +1,21 @@
+{
+  "scope": "SOURCE_ONLY_kernel16_unlaunched",
+  "source_files": 16,
+  "baseline": "50ef4b60830c36d4bc1aafdcec3d9b8489a260aa",
+  "pure_tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+  "original_production_edits": 0,
+  "single_original_method": "NOTRUN",
+  "original488": "FAIL_ONCE01",
+  "CI": "NOTRUN",
+  "install": "NOTRUN",
+  "release": "NOTRUN",
+  "review": "PENDING independent startup review",
+  "necessary_controls": {
+    "pidfd_owned": 8,
+    "binding": 7,
+    "observer": 16,
+    "entry_prepare_only": 12,
+    "original_SUT_runs": 0
+  },
+  "private_raw_runtime_proc_TLS_env_objects_included": false
+}

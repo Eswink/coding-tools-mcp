@@ -1,0 +1,40 @@
+# 设计文档：issue88-postpublish488-deadline-observation
+
+## 概述
+对应FR-1至3，B与A完全分离：B仅观察唯一原失败方法的真实nativeowner，A布局影响15类不作为B原因。
+
+## 技术方案
+### 技术选型
+Python标准库、有界内存observerjournal，无采样线程、无每event磁盘IO，原V2实际owned外层kernel。新observer和runner单独目录，pureSUT只读未改。
+### 架构设计
+先精确读取原失败方法AST及原ProcessOwner7个delegate及原_worker，保存identity。透明wrapper只包原bound函数，finally-observe不改变调用数/args/result/exception；所有观察异常sticky，观察产生的取消在原delegate和原method finally/close之后以原实例传播，不能在innerwrapper中提前截断真实close。新bootstrap先绑定透明observer，再runpy实际执行原8338 runner原字节，只选择exact1 ID；原runner receipt scope文字不改，外层严格single1 gate，不能称full488。原function/runner AST不改；bootstrap和newouter AST改变。外层实际created child封存/nativeclosure架构同V2，可复用7普通controls。原worker保持原源字节；如须深入worker观测仅新限定spec后再处理，不直接改原worker。
+
+## 数据模型
+event含调用阶段、monotonic、原delegate名、真实返回/exception类型、deadline、familyclosed/uncertain、实际heldFD不敏感状态、累积字节/序号。observer异常单独sticky failures；raw host/proc完全私有。异常不含commandenv/body/token。
+
+## API 设计
+observe_delegate(original,record)返回透明wrapper；record_failure只诊断，不授予或撤回owner；finish_observation在真实原finally/close之后传播sticky取消原实例或观察失败；finish_observation在真实原finally/close之后传播sticky取消原实例或观察失败，不在原delegate中截断close；once_single_original_method(context,out)现在禁止launch，获独立review后才由root一次执行。
+
+## 文件结构
+3规格、observer必要controls、新有限singlemethodrunner、privateoncepacket与sourceonlymanifest；新增符号逐项fresh impact，不按文件数推断符号数，原production/positive文件改动0。
+
+## 设计决策
+原exception优先，观察失败不得中断真实close；wrapper AST精确声明为新函数；原delegate AST不变但binding有wrapper，不能泛称整体函数AST原样执行；不主动修正_family_closed。正确物理退出仍须原owner真实closure，不借outer98reap替代。
+
+## 测试策略
+普通owned controls：原delegate return/raise/cancel、before/after观察失败仍delegate一次、close前观察失败仍close、双重异常原优先、stop取消透明、日志上限失败，全部0原SUT；原1方法只独立启动review后一次。
+
+## 风险评估
+闭包时序可能受observer影响，UNKNOWN/manualHIGH；单诊断未复现不能定因。禁止记录扩大预算或阻塞close，record实现必须bounded及时return。
+
+## 检查清单
+原方法/预算/核心语义保持；同轮封存；真实关闭不从路径/JSON补造；现在no launch。
+
+## 有限启动前增量边界
+原固定worker及真实command的/usr/bin/python3 literal alias需实际lstat/linktarget/解析绑定和resolvedbinary fullidentity/bytes/SHA beforeafter；不能以outer3.12替代真实system3.13。复用layoutguard的combined4096files+dirs边界要实际owned4096/4097成功/拒绝controls；旧A packet/source不改不启动。新增仅external封存与必要controls，不改原argv/source/core期限。
+
+## 异常与绑定闭包
+新增generic binding/普通controls两文件。先全ordered捕获并validate源码function路径，再每项install前登记attempt；rollback/restore所有ownedalias各自try并保存全部错误原object与aliasUNKNOWN。所有primary/observer/restore原BaseException在原真实close结束后按序聚合，单个直接原raise，多个BaseExceptionGroup保各对象；没有仅KBI/SystemExit名单。serializer失败与原primary group共同传播，原SystemExit0且无其它故障保持0。controls是普通owned类/FD及真实delegate fault，不冒充SUT owner。
+
+## 新独立有限增量
+新增 held pidfd nonblocking WNOWAIT 数据观察函数和普通真实owned controls。wrapper仅在stop清理关键边界调用，结果不授权owner；partialbinding/每alias恢复及全部BaseException同对象聚合复用最新16source。原.worker.stderr/argv/environment/核心函数不改。

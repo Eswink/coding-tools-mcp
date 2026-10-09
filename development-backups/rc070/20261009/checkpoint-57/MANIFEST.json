@@ -1,0 +1,135 @@
+{
+  "scope": "only inert source, finite patch, safe status",
+  "files": [
+    {
+      "path": "source/docs/specs/issue88-postpublish488-deadline-observation/design.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-deadline-observation/design.md",
+      "mode": "100644",
+      "bytes": 4467,
+      "sha256": "6a061573b4dd8bbf4053cc429dcce20f53b55338e1b935f012541972797420ad"
+    },
+    {
+      "path": "source/docs/specs/issue88-postpublish488-deadline-observation/requirements.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-deadline-observation/requirements.md",
+      "mode": "100644",
+      "bytes": 5274,
+      "sha256": "655e24ac46b9e555831a3527bf37f13a3bc6905f3e78a70e3928f234277be1bd"
+    },
+    {
+      "path": "source/docs/specs/issue88-postpublish488-deadline-observation/tasks.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-deadline-observation/tasks.md",
+      "mode": "100644",
+      "bytes": 1555,
+      "sha256": "2b8cab4b2b47fe2830e4afb3bd42653e6f776a156a9a8fde4b5cafa70bb26b9e"
+    },
+    {
+      "path": "source/scripts/rc_deadline_binding.py.source",
+      "original_path": "scripts/rc_deadline_binding.py",
+      "mode": "100644",
+      "bytes": 2666,
+      "sha256": "b3cd7bd8462e157f69bed863916e8dbd648b747db388952acc5f4948c4074abb"
+    },
+    {
+      "path": "source/scripts/rc_deadline_binding_controls.py.source",
+      "original_path": "scripts/rc_deadline_binding_controls.py",
+      "mode": "100644",
+      "bytes": 4748,
+      "sha256": "9321cf62d91fcb4191fedacad79d89248f6d471883d3b3bf624952934a5ce548"
+    },
+    {
+      "path": "source/scripts/rc_deadline_bootstrap.py.source",
+      "original_path": "scripts/rc_deadline_bootstrap.py",
+      "mode": "100644",
+      "bytes": 7673,
+      "sha256": "c9324b261de7ff014dad2f61d92692707ff8c09cc4cff5dcc5f61b3bdd8ef10a"
+    },
+    {
+      "path": "source/scripts/rc_deadline_entry_controls.py.source",
+      "original_path": "scripts/rc_deadline_entry_controls.py",
+      "mode": "100644",
+      "bytes": 5800,
+      "sha256": "5bdba8629924b305b7071ba9f038c000913e0d6e6e53f93f6d6182dc59a784ee"
+    },
+    {
+      "path": "source/scripts/rc_deadline_observer.py.source",
+      "original_path": "scripts/rc_deadline_observer.py",
+      "mode": "100644",
+      "bytes": 4489,
+      "sha256": "5f2121c112d6a539576e5d157857cdf32b3a325e71a878c013cb86f390e9d397"
+    },
+    {
+      "path": "source/scripts/rc_deadline_observer_controls.py.source",
+      "original_path": "scripts/rc_deadline_observer_controls.py",
+      "mode": "100644",
+      "bytes": 12735,
+      "sha256": "83a1efc4a5ecaedd71d3bb98e37c954627f5a336a4cbdb54695b3c8c1d76fc45"
+    },
+    {
+      "path": "source/scripts/rc_deadline_owner.py.source",
+      "original_path": "scripts/rc_deadline_owner.py",
+      "mode": "100644",
+      "bytes": 18872,
+      "sha256": "f4a2e5dc4b31276643cfc3814b15676f6fb926a371d35de0d5107043df746a04"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_inventory.json.source",
+      "original_path": "scripts/rc_postpublish488_inventory.json",
+      "mode": "100644",
+      "bytes": 58132,
+      "sha256": "3274554750e538929b34a91cb124d66fe2372ac8737ee768ccb81b0aa7691094"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_kernel.py.source",
+      "original_path": "scripts/rc_postpublish488_kernel.py",
+      "mode": "100644",
+      "bytes": 4290,
+      "sha256": "b3c90896d1284732190bda5d1d118da7ad9b738cc3347bd9c9f477ad021aaac5"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_layout.py.source",
+      "original_path": "scripts/rc_postpublish488_layout.py",
+      "mode": "100644",
+      "bytes": 6116,
+      "sha256": "c809a02ce37c6cba8769137a52d255b27354e6adb2ae6d10ec84a9f46aaafff9"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_original_runner.py.source",
+      "original_path": "scripts/rc_postpublish488_original_runner.py",
+      "mode": "100644",
+      "bytes": 8338,
+      "sha256": "0344311a0640e64b46875ed3cdb4e61ed41d87e4274e4a44c76e944323e8186e"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_source_manifest.json.source",
+      "original_path": "scripts/rc_postpublish488_source_manifest.json",
+      "mode": "100644",
+      "bytes": 496326,
+      "sha256": "bd0d893b0fb2b3790ac7fc8a68aaa489f87e22310a84dd5140e5bf5b35e1f649"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_support.py.source",
+      "original_path": "scripts/rc_postpublish488_support.py",
+      "mode": "100644",
+      "bytes": 9290,
+      "sha256": "1cb89b4582a4d68a7ed460192b523f1853d6275e89140b1084caa90c5e568f30"
+    },
+    {
+      "path": "source.patch",
+      "mode": "100644",
+      "bytes": 670711,
+      "sha256": "c2721035eb2de91e87cd0ebccc37613fab2d0069dbde79e91902a093ab6b4de9"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 261,
+      "sha256": "ca11ee8efb3b39e2c5dc7a3ad836c8acb79fb95910e0f05bb43d46c88d182dbe"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "100644",
+      "bytes": 616,
+      "sha256": "9c39378f9f04f7bffdfce2d52c3148d9efe47f40fb4eab0a5fb4843c5b059a67"
+    }
+  ]
+}

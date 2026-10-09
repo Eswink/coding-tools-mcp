@@ -1,0 +1,61 @@
+"""Owned ordered Python alias transaction; ordinary controls are not SUT authority."""
+from pathlib import Path
+from types import FunctionType
+
+
+def raise_combined(errors):
+    assert all(isinstance(error, BaseException) for error in errors)
+    if len(errors) == 1:
+        raise errors[0]
+    if errors:
+        raise BaseExceptionGroup('original execution and observation failures', errors)
+
+
+def capture_bindings(cls, names, expected_path, setter=setattr):
+    assert 0 < len(names) <= 32 and len(set(names)) == len(names)
+    entries = [(name, getattr(cls, name)) for name in names]
+    for name, original in entries:
+        assert isinstance(original, FunctionType) and Path(original.__code__.co_filename).resolve() == Path(expected_path).resolve()
+        assert getattr(cls, name) is original
+    return dict(cls=cls, entries=entries, setter=setter, attempted=[], installed=[], restoration_attempted=False, restore_errors=[], unknown_aliases=[], restored_aliases=[], installation_error=None)
+
+
+def restore_bindings(lease):
+    assert lease['restoration_attempted'] is False
+    lease['restoration_attempted'] = True
+    for name, original in lease['entries']:
+        if name not in lease['attempted']:
+            continue
+        try:
+            lease['setter'](lease['cls'], name, original)
+        except BaseException as error:
+            lease['restore_errors'].append(dict(alias=name, phase='restore', error=error))
+        try:
+            actual = getattr(lease['cls'], name)
+        except BaseException as error:
+            lease['restore_errors'].append(dict(alias=name, phase='readback', error=error))
+            lease['unknown_aliases'].append(name)
+        else:
+            if actual is original:
+                lease['restored_aliases'].append(name)
+            else:
+                lease['unknown_aliases'].append(name)
+                lease['restore_errors'].append(dict(alias=name, phase='identity_readback', error=AssertionError('original alias not restored')))
+
+
+def install_bindings(lease, factory):
+    try:
+        for name, original in lease['entries']:
+            assert getattr(lease['cls'], name) is original
+            wrapper = factory(name, original)
+            assert callable(wrapper)
+            # Own the uncertain assignment before invoking the actual setter.
+            lease['attempted'].append(name)
+            lease['setter'](lease['cls'], name, wrapper)
+            assert getattr(lease['cls'], name) is wrapper
+            lease['installed'].append(name)
+    except BaseException as error:
+        lease['installation_error'] = error
+        restore_bindings(lease)
+        return False
+    return True

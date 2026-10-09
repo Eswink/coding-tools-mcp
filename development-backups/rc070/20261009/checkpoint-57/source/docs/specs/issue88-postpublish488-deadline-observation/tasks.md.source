@@ -1,0 +1,28 @@
+# 任务清单：issue88-postpublish488-deadline-observation
+
+## 概述
+先有限透明观察规格和freshimpact；当前阶段prepare-only。
+
+## 交付物清单
+3规格、透明observer与普通delegatecontrols、原AST身份表、finite singlemethodrunner和privateonce封存启动材料。
+
+## 任务列表
+1. FR-1：read-only核原方法/ProcessOwner与native源/runtime身份，check_spec通过、freshimpact及manualHIGH披露。
+2. FR-2：实现transparentobserver，同一delegate异常/取消优先，真实close必达，bounded日志。
+3. FR-3：普通delegate控制与7真实ownedkernel controls，全部0原SUT，封存前fresh检测。
+4. FR-1和FR-3：独立review新singlemethodargv/identity/预算/AST声明；root之后决定once诊断，当前不launch。
+
+## 验收标准
+原positive/worker/owner无源码改动；必要controls证明observer透明不代表原方法通过；原familyclose失效原因仍UNKNOWN直到真实观测。
+
+## 风险和依赖
+影响未知manualHIGH；不能用A布局修复当成B成功，也不能用outerECHILD替代内层closed。
+
+## 需求覆盖矩阵
+FR-1任务1/4；FR-2任务2；FR-3任务3/4。
+
+## 文件变更清单
+新独立管理16files=3spec+observer/controls+bootstrap/owner/entrycontrols+binding/bindingcontrols+6封存helper/data，pureSUT改动0。
+
+## 新有限任务
+规格3FR检查、本checkout fresh每符号impact（新符号UNKNOWN人工HIGH）、普通真实owned controls、完整physical/source/native封存、source-onlybackup、新独立启动review，当前0原SUT/NOTRUN。
