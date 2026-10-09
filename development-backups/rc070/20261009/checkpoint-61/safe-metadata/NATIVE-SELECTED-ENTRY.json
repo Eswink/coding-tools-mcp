@@ -1,0 +1,54 @@
+{
+  "state": "SOURCE_SELECTED; actualGoWindowsInventory/nativeCI NOTRUN",
+  "go": "go1.24.13",
+  "top_level_count": 21,
+  "top_level_names": [
+    "TestGuestNativeInputChunksActualFullFIDAndCheckedClose",
+    "TestGuestNativeCreateOnlyExistingInputNeverOverwrites",
+    "TestGuestNativeWrongParentFullIDRejectsBeforeCreate",
+    "TestGuestNativeCancellationAndMalformedStreamNeverProduceEvidence",
+    "TestGuestNativeActualCursorTamperPoisonsReadback",
+    "TestGuestNativeControlledUnknownCloseKeepsRawHandleParentAndImmutableBytes",
+    "TestGuestNativeClosingCallerParentLeavesActualOwnedDuplicateLive",
+    "TestGuestNativeOutputFullFIDHashDirectionAndCheckedAllClose",
+    "TestGuestNativeOutputExistingTargetNeverReplaces",
+    "TestGuestNativeOutputSurvivingWriterRejectsStrictFreeze",
+    "TestGuestNativeOutputActualParentPinAndTargetDenyRename",
+    "TestGuestNativeOutputWrongInputFullIDRejectsBeforeCreate",
+    "TestGuestNativeOutputBoundsAndActualCursorTamperRejectData",
+    "TestGuestNativeOutputCancellationRejectsEvidenceAndPreservesEffect",
+    "TestGuestNativeOutputActualFailedCloseRetainsPinsBytesAndRawValue",
+    "TestGuestNativeOutputPanicRetainsRegistryAndRejectsData",
+    "TestGuestNativeOutputBoundaryParentPinExactSharing",
+    "TestGuestNativeOutputBoundaryExclusiveHardlinkCanary",
+    "TestGuestNativeOutputBoundaryReparseCanary",
+    "TestGuestNativeOutputBoundaryKnownCloseCanary",
+    "TestGuestNativeOutputBoundaryFailedCloseQuarantine"
+  ],
+  "required_subtests": [
+    "TestGuestNativeOutputBoundsAndActualCursorTamperRejectData/oversized",
+    "TestGuestNativeOutputBoundsAndActualCursorTamperRejectData/cursor",
+    "TestGuestNativeOutputBoundaryExclusiveHardlinkCanary/regular",
+    "TestGuestNativeOutputBoundaryExclusiveHardlinkCanary/genuine-hardlink"
+  ],
+  "run_regex": "^(TestGuestNativeInputChunksActualFullFIDAndCheckedClose|TestGuestNativeCreateOnlyExistingInputNeverOverwrites|TestGuestNativeWrongParentFullIDRejectsBeforeCreate|TestGuestNativeCancellationAndMalformedStreamNeverProduceEvidence|TestGuestNativeActualCursorTamperPoisonsReadback|TestGuestNativeControlledUnknownCloseKeepsRawHandleParentAndImmutableBytes|TestGuestNativeClosingCallerParentLeavesActualOwnedDuplicateLive|TestGuestNativeOutputFullFIDHashDirectionAndCheckedAllClose|TestGuestNativeOutputExistingTargetNeverReplaces|TestGuestNativeOutputSurvivingWriterRejectsStrictFreeze|TestGuestNativeOutputActualParentPinAndTargetDenyRename|TestGuestNativeOutputWrongInputFullIDRejectsBeforeCreate|TestGuestNativeOutputBoundsAndActualCursorTamperRejectData|TestGuestNativeOutputCancellationRejectsEvidenceAndPreservesEffect|TestGuestNativeOutputActualFailedCloseRetainsPinsBytesAndRawValue|TestGuestNativeOutputPanicRetainsRegistryAndRejectsData|TestGuestNativeOutputBoundaryParentPinExactSharing|TestGuestNativeOutputBoundaryExclusiveHardlinkCanary|TestGuestNativeOutputBoundaryReparseCanary|TestGuestNativeOutputBoundaryKnownCloseCanary|TestGuestNativeOutputBoundaryFailedCloseQuarantine)$",
+  "cwd": "services/windows-vm-broker",
+  "environment": {
+    "GO111MODULE": "off",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "CGO_ENABLED": "0"
+  },
+  "argv": [
+    "go",
+    "test",
+    "-json",
+    "-count=1",
+    "-tags=guest",
+    "-run",
+    "^(TestGuestNativeInputChunksActualFullFIDAndCheckedClose|TestGuestNativeCreateOnlyExistingInputNeverOverwrites|TestGuestNativeWrongParentFullIDRejectsBeforeCreate|TestGuestNativeCancellationAndMalformedStreamNeverProduceEvidence|TestGuestNativeActualCursorTamperPoisonsReadback|TestGuestNativeControlledUnknownCloseKeepsRawHandleParentAndImmutableBytes|TestGuestNativeClosingCallerParentLeavesActualOwnedDuplicateLive|TestGuestNativeOutputFullFIDHashDirectionAndCheckedAllClose|TestGuestNativeOutputExistingTargetNeverReplaces|TestGuestNativeOutputSurvivingWriterRejectsStrictFreeze|TestGuestNativeOutputActualParentPinAndTargetDenyRename|TestGuestNativeOutputWrongInputFullIDRejectsBeforeCreate|TestGuestNativeOutputBoundsAndActualCursorTamperRejectData|TestGuestNativeOutputCancellationRejectsEvidenceAndPreservesEffect|TestGuestNativeOutputActualFailedCloseRetainsPinsBytesAndRawValue|TestGuestNativeOutputPanicRetainsRegistryAndRejectsData|TestGuestNativeOutputBoundaryParentPinExactSharing|TestGuestNativeOutputBoundaryExclusiveHardlinkCanary|TestGuestNativeOutputBoundaryReparseCanary|TestGuestNativeOutputBoundaryKnownCloseCanary|TestGuestNativeOutputBoundaryFailedCloseQuarantine)$",
+    "."
+  ],
+  "provenance": "source-selected literal IDs; no compiler/test execution; nativeactualIDs/events/closure/source/runtime/commit/readback mandatory before admission"
+}

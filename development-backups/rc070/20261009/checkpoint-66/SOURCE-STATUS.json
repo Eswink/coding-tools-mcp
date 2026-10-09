@@ -1,0 +1,10 @@
+{
+  "kind": "safe-status-only",
+  "source": "13cd343d942b7a68912d42a8f9235c02ed647764",
+  "cli_native_invocations": 8,
+  "actual_component_version": "0.1.0",
+  "product_version": "0.6.0-rc.4",
+  "final_0_7_qualification": false,
+  "release_download_install_start": false,
+  "peer_results_preserved": true
+}

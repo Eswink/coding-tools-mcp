@@ -1,0 +1,57 @@
+{
+  "source_tree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+  "paths": 1953,
+  "qualification": "source-only; Windows compile/native/VM NOTRUN",
+  "files": [
+    {
+      "path": "services/windows-vm-broker/guest_workspace_output_windows.go",
+      "bytes": 7530,
+      "sha256": "bd01deeb188bf387ff5a7506667374fee3878c62b380936cde120f595a903b9b"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_output_io_windows.go",
+      "bytes": 5684,
+      "sha256": "a7e104955993112f108822fd87daea85e2fa70cabd26d84aabdc12e68ae4c9e1"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_file_windows.go",
+      "bytes": 9251,
+      "sha256": "9ecac3994ea47a77501f1ca48492964534dbd7af46d46056b0a9d00c0b06fc15"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_output_native_test.go",
+      "bytes": 10304,
+      "sha256": "34c6dbe154df0a6ffe503bbfb6b5d593d1f8d3f019c3306bb2ffd751bcf5a698"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_native_test.go",
+      "bytes": 6074,
+      "sha256": "f55006a5e8421b9cb129c016b3ee71233ccc4eadfc5fca64c6c43327d76d8a01"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/output_stage/nt.rs",
+      "bytes": 496,
+      "sha256": "7dc1dc05ac410cd4ad4b6bcdc6226625611b4e7e1879a07c74ba5a33ffe7b084"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/output_stage/gate.rs",
+      "bytes": 1456,
+      "sha256": "9ead0949e92e45ea187922a858e50eebe77055bc38c4fc9b535183308350122d"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/output_stage/owner.rs",
+      "bytes": 467,
+      "sha256": "9d378c11a7ea84733aa5ae18d401d30c961d942106102f622e0a65dd2617b5a8"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/output_stage/mod.rs",
+      "bytes": 483,
+      "sha256": "562704eb631b8d4d6c287261ccbf0441c6a759cbaad793db3f434b2b04d57cb3"
+    },
+    {
+      "path": "src-tauri/src/tools/cloud_host/live/wss_workspace_io_tests.rs",
+      "bytes": 7541,
+      "sha256": "c9fcdba432c239cc08a090c6cb4256f51b54368cbefb3afac553c1a6c719b9b8"
+    }
+  ]
+}

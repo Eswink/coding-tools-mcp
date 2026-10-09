@@ -1,0 +1,101 @@
+{
+  "kind": "actual-current-F13-CLI-components",
+  "source": "13cd343d942b7a68912d42a8f9235c02ed647764",
+  "product_source_version": "0.6.0-rc.4",
+  "observations": [
+    {
+      "binary": "coding-tools-agent",
+      "argument": "--help",
+      "actual_exit": 0,
+      "seconds": 0.004250492998835398,
+      "stdout_bytes": 652,
+      "stdout_sha256": "7d63ec98d83890253547c2b5b6783214ecf74701d8f437e427fc938f8b7ac8c6",
+      "stderr_bytes": 0,
+      "version_text": null,
+      "minimal_cli_pass": true
+    },
+    {
+      "binary": "coding-tools-agent",
+      "argument": "--version",
+      "actual_exit": 0,
+      "seconds": 0.0036560819989972515,
+      "stdout_bytes": 39,
+      "stdout_sha256": "f6fcde6efe87e679f7ce8ad661b2401bb62587d8f7f5ad0a3d85e9061fe2e4cd",
+      "stderr_bytes": 0,
+      "version_text": "coding-tools-agent 0.1.0 recovery-only",
+      "minimal_cli_pass": true
+    },
+    {
+      "binary": "coding-tools-control-gateway",
+      "argument": "--help",
+      "actual_exit": 0,
+      "seconds": 0.0028200110009493073,
+      "stdout_bytes": 371,
+      "stdout_sha256": "fc9e519a822af7035da111519afd455b28f56d6223d262ee2cf72a1a2ef8ab5e",
+      "stderr_bytes": 0,
+      "version_text": null,
+      "minimal_cli_pass": true
+    },
+    {
+      "binary": "coding-tools-control-gateway",
+      "argument": "--version",
+      "actual_exit": 0,
+      "seconds": 0.002328643999135238,
+      "stdout_bytes": 48,
+      "stdout_sha256": "246b551935f8fa7a34dc7aa34fdff6151e96dc6404e8b6b9e5e874f541197334",
+      "stderr_bytes": 0,
+      "version_text": "coding-tools-control-gateway 0.1.0 control-only",
+      "minimal_cli_pass": true
+    },
+    {
+      "binary": "coding-tools-gateway",
+      "argument": "--help",
+      "actual_exit": 0,
+      "seconds": 0.010461990001203958,
+      "stdout_bytes": 770,
+      "stdout_sha256": "b4cb430f5575ecab319b67c2af043a9696d2edd6135f0795b2fdf53e929910a6",
+      "stderr_bytes": 0,
+      "version_text": null,
+      "minimal_cli_pass": true
+    },
+    {
+      "binary": "coding-tools-gateway",
+      "argument": "--version",
+      "actual_exit": 0,
+      "seconds": 0.012271110999790835,
+      "stdout_bytes": 41,
+      "stdout_sha256": "418590dd8d013a485001a84a5e23bddef415bc455e3a7a3f0e259ba83432eeb2",
+      "stderr_bytes": 0,
+      "version_text": "coding-tools-gateway 0.1.0 identity-only",
+      "minimal_cli_pass": true
+    },
+    {
+      "binary": "coding-tools-mcp-gateway",
+      "argument": "--help",
+      "actual_exit": 0,
+      "seconds": 0.0029610889996547485,
+      "stdout_bytes": 301,
+      "stdout_sha256": "32baa4b776d91340639a53ba24d2ce105f79dd369ff28581bd2ab67adfac3e9a",
+      "stderr_bytes": 0,
+      "version_text": null,
+      "minimal_cli_pass": true
+    },
+    {
+      "binary": "coding-tools-mcp-gateway",
+      "argument": "--version",
+      "actual_exit": 0,
+      "seconds": 0.004155906999585568,
+      "stdout_bytes": 45,
+      "stdout_sha256": "d8af4d1f79be0acffa2e24f0bec7d735dd750da1c50e1f6af7a728e133e1512f",
+      "stderr_bytes": 0,
+      "version_text": "coding-tools-mcp-gateway 0.1.0 control-plane",
+      "minimal_cli_pass": true
+    }
+  ],
+  "all8_minimal_cli_pass": true,
+  "external_product_version_matches": false,
+  "native_component_invocations": 8,
+  "archive_download_install_or_service_start": false,
+  "final_0_7_qualified": false,
+  "binary_beforeafter_bytes_and_inode_unchanged": true
+}

@@ -1,0 +1,16 @@
+{
+  "baseline_tree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+  "baseline_paths": 1953,
+  "new_source_tree": "595cb182c44f4dc9a2c0bf834e305f0913bdc2a0",
+  "new_source_paths": 1957,
+  "new_paths": [
+    "services/windows-vm-broker/guest_workspace_output_nt_boundary_native_test.go",
+    "docs/specs/windows-nt-output-boundary-native-controls/requirements.md",
+    "docs/specs/windows-nt-output-boundary-native-controls/design.md",
+    "docs/specs/windows-nt-output-boundary-native-controls/tasks.md"
+  ],
+  "original_production_modified_paths": [],
+  "not_a_commit": true,
+  "not_qualification": true,
+  "authority": "source-only tree; HEAD/ref untouched; noCI/native/owner/issuer/publication evidence"
+}

@@ -1,0 +1,28 @@
+{
+  "scope": "finite source and PS ordinary-control peer only",
+  "result": "STOP_BEFORE_PIPELINESTOP_WINDOW_UNCLOSED",
+  "freeze_sha256": "93e6eff2bdbd63441facc18a4cacf1b6d00b549e68cfcbdecd34ae33e9417173",
+  "management_candidate_tree": "10dc5a41bc4d0f1bafcc8e2859044f1e4265257b",
+  "management_paths": 1872,
+  "SUT_candidate_tree": "6b7e33c45c5e56340b1cfb81a7d304c6c60cf23f",
+  "SUT_paths": 1953,
+  "ordinary_controls06_named_methods": 13,
+  "specific_STOP": [
+    "main Run-SourceCompile try/catch lacks completion marker for a host PipelineStoppedException bypassing catch",
+    "SourceAfter completion alone does not retain before interruption; SourceCancellation may remain null and after diagnostic observer can start",
+    "current before ordinary control manually executes extracted Catch and Finally rather than original top-level TryAST; it cannot prove host bypass handling"
+  ],
+  "necessary_followup": [
+    "preserve current freeze and failure-first",
+    "fresh impacted limited main completion/interruption guard",
+    "actual original main TryAST ordinary before PipelineStopped control with external receipt and manager/runtime/observer-log oracle",
+    "new freeze and independent review before startup"
+  ],
+  "after_PipelineStop_boundary": "new SourceAfter try/finally addresses after interruption cleanup only; host cancellation identity is not directly postmortem observable",
+  "original_manager7_list_and_original_guard_manifest": "retained; intentional PS integration source changes must use exact new native management lease",
+  "SUT_compiler": "NOTRUN",
+  "Windows_native_cancel_or_IO_close": "NOTPROVEN",
+  "launch_by_reviewer": false,
+  "release": "NOTQUALIFIED",
+  "public_safe": true
+}

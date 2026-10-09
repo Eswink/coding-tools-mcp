@@ -1,0 +1,134 @@
+{
+  "scope": "SOURCE_ONLY; WindowsnativeNOTRUN; changedsourcepeerPENDING; no startupgrant",
+  "files": [
+    {
+      "path": "source/services/windows-vm-broker/guest_workspace_output_nt_boundary_native_test.go",
+      "source_path": "services/windows-vm-broker/guest_workspace_output_nt_boundary_native_test.go",
+      "bytes": 13563,
+      "sha256": "048c82289482e11ece77c8dd6c74f9df33ad897785a140cb0fe0692ad5c38200",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/docs/specs/windows-nt-output-boundary-native-controls/requirements.md",
+      "source_path": "docs/specs/windows-nt-output-boundary-native-controls/requirements.md",
+      "bytes": 4092,
+      "sha256": "12bbf3ed005af40147575ceb5f267a074e75087b9d27ba9c15e9c467721b6666",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/docs/specs/windows-nt-output-boundary-native-controls/design.md",
+      "source_path": "docs/specs/windows-nt-output-boundary-native-controls/design.md",
+      "bytes": 2137,
+      "sha256": "f00bbc0eb611db171ab9a0d8b008ce08985bcbbabd79fd50c4f1ebd7577108b8",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/docs/specs/windows-nt-output-boundary-native-controls/tasks.md",
+      "source_path": "docs/specs/windows-nt-output-boundary-native-controls/tasks.md",
+      "bytes": 1012,
+      "sha256": "80a55e0dc812eee53cebad11873ac752e2fed0bb83a7a596d39d20f4b501fbdb",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/ORIGINAL-PROTECTION-SOURCES.json",
+      "source_path": "work/nt-output-handle-research/ORIGINAL-PROTECTION-SOURCES.json",
+      "bytes": 2079,
+      "sha256": "4c26336877dc15f1aeb2b7941b7c55d2a293246e8e53dc5973329de1e4d12cd0",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/OFFICIAL-API-NOTES.md",
+      "source_path": "work/nt-output-handle-research/OFFICIAL-API-NOTES.md",
+      "bytes": 3592,
+      "sha256": "eed061fdb4d6e06254540b251e61ccc7523ccc53af402aadb8eb23688c513c57",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/NATIVE-CI-PROPOSAL.md",
+      "source_path": "work/nt-output-handle-research/NATIVE-CI-PROPOSAL.md",
+      "bytes": 4410,
+      "sha256": "e31d8a594f01be3f1814e49612e6b4c2f2202f4d9bbfa9a1eaa58f7166c5299e",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/PROPOSAL-SOURCE-SEAL01.json",
+      "source_path": "work/nt-output-handle-research/PROPOSAL-SOURCE-SEAL01.json",
+      "bytes": 1507,
+      "sha256": "05f3ca2b0503ce8424a209d9a2d24699b277e8105e90e548d61687f168e52dbd",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/NATIVE-CI-PROPOSAL-V2.md",
+      "source_path": "work/nt-output-handle-research/NATIVE-CI-PROPOSAL-V2.md",
+      "bytes": 4747,
+      "sha256": "f8028898f22929a77ff1a61885cf49c58267699492c5e78d10157e46494fee3d",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/NATIVE-SELECTED-ENTRY.json",
+      "source_path": "work/nt-output-handle-research/NATIVE-SELECTED-ENTRY.json",
+      "bytes": 4665,
+      "sha256": "40ccfcf928dc093f2e35543aeb918a73f71061b6ca5ebf804b59e1237c5fc59c",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/IMPLEMENTATION-STATUS.md",
+      "source_path": "work/nt-output-handle-research/IMPLEMENTATION-STATUS.md",
+      "bytes": 2492,
+      "sha256": "49b696a80f4a7e5ee476442b762cc9f10762ef79c306267c33462dcf908acc8c",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/CROSS-COMPILE-SAFE-STATUS02.json",
+      "source_path": "work/nt-output-handle-research/CROSS-COMPILE-SAFE-STATUS02.json",
+      "bytes": 5796,
+      "sha256": "9476d1fa747e9d910bb67066657036ce5371bc3f60961833c13692dd4d3cfa28",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/COMPILED-SOURCE-INVENTORY02.json",
+      "source_path": "work/nt-output-handle-research/COMPILED-SOURCE-INVENTORY02.json",
+      "bytes": 4309,
+      "sha256": "54b412027d6745133f5baa9cf79d4cd35ba22a2ddc6c6fb15fdeebaefa3856a4",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/FRESH-IMPACT-SAFE-SUMMARY03.json",
+      "source_path": "work/nt-output-handle-research/FRESH-IMPACT-SAFE-SUMMARY03.json",
+      "bytes": 1236,
+      "sha256": "df0b665b312416d10f5d80d59cb105c1224638dbbc9b0e8d812dd9fc36ba9548",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/SOURCE-DELTA02.json",
+      "source_path": "work/nt-output-handle-research/SOURCE-DELTA02.json",
+      "bytes": 707,
+      "sha256": "f088e4813765b3a9754c37b9fd0f2b914d80acc127f660b645f7bcf343d4c520",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1902,
+      "sha256": "b2264dc9df3034aee0cb953b2a2e3c1c8ffc0d89c9987478034866a1851f4589",
+      "source_posix_mode": "new-safe-metadata",
+      "git_mode": "metadata-not-git-source"
+    }
+  ],
+  "file_count_excluding_manifest": 16,
+  "bytes_excluding_manifest": 58246
+}

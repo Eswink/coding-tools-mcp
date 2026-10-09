@@ -1,0 +1,157 @@
+{
+  "scope": "crosscompile-only; zeroWindowsnativeexecution",
+  "compiler": "go1.24.13 linux/amd64",
+  "compiler_sha256": "84a0e87421e4cc48036b48ee32374de17479b7f8592822dcc57c93aa3ff337a7",
+  "gofmt_sha256": "a59ea679748488c066579f525672abc840cc387d27eabc7100e30aba9e55218c",
+  "target": {
+    "GOOS": "windows",
+    "GOARCH": "amd64",
+    "tags": "guest"
+  },
+  "result": "crosscompileEXIT0",
+  "GoFiles": [
+    "guest_windows.go",
+    "guest_workspace_control.go",
+    "guest_workspace_file_windows.go",
+    "guest_workspace_input_readonly_windows.go",
+    "guest_workspace_io_windows.go",
+    "guest_workspace_output_io_windows.go",
+    "guest_workspace_output_windows.go",
+    "guest_workspace_retention.go",
+    "guest_workspace_run_root_windows.go",
+    "guest_workspace_run_windows.go",
+    "protocol_windows.go",
+    "transfer.go",
+    "transfer_identity_windows.go",
+    "workspace_stream.go"
+  ],
+  "TestGoFiles": [
+    "guest_workspace_control_test.go",
+    "guest_workspace_native_test.go",
+    "guest_workspace_output_native_test.go",
+    "guest_workspace_output_nt_boundary_native_test.go",
+    "guest_workspace_retention_test.go",
+    "guest_workspace_run_native_test.go",
+    "transfer_test.go",
+    "workspace_stream_test.go"
+  ],
+  "compiled_source_files": [
+    {
+      "path": "services/windows-vm-broker/guest_windows.go",
+      "bytes": 4981,
+      "sha256": "4443f69f5bec1552f42d89311bd10fd7ac9081bd43b877f9384ca5a37f0cab0d"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_control.go",
+      "bytes": 6240,
+      "sha256": "142e65a1cabcbd9d7e37d62e411bc6851e6bba9ab16e119d631959869efe1f9e"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_file_windows.go",
+      "bytes": 9251,
+      "sha256": "9ecac3994ea47a77501f1ca48492964534dbd7af46d46056b0a9d00c0b06fc15"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_input_readonly_windows.go",
+      "bytes": 3209,
+      "sha256": "d5f7339e5962af46fc8b6702f6359a1442f95566d50773a45a522ce73633fd2d"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_io_windows.go",
+      "bytes": 3629,
+      "sha256": "01f31eb5ae8c44d0f23d99a473ab651681fe4b652327b5f1d4efe00788d01348"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_output_io_windows.go",
+      "bytes": 5684,
+      "sha256": "a7e104955993112f108822fd87daea85e2fa70cabd26d84aabdc12e68ae4c9e1"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_output_windows.go",
+      "bytes": 7530,
+      "sha256": "bd01deeb188bf387ff5a7506667374fee3878c62b380936cde120f595a903b9b"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_retention.go",
+      "bytes": 468,
+      "sha256": "cb938db63ee7bf5b9ff96ef6e0185c4564612ab3a5bcd31688663bb38d495d3e"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_run_root_windows.go",
+      "bytes": 3828,
+      "sha256": "d08c5638d94700ba980ed9ccc804fbdca8e67f28f6c7cbdf081bae79b2ec9010"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_run_windows.go",
+      "bytes": 9856,
+      "sha256": "aa479b25dddfa0ea8770f110150b276b1b57a77d8c52f99469eaebb14791af55"
+    },
+    {
+      "path": "services/windows-vm-broker/protocol_windows.go",
+      "bytes": 6969,
+      "sha256": "a03ae3062d397c3e9b1079077e3ed33904c684642798e003055ef01e5aafcdd1"
+    },
+    {
+      "path": "services/windows-vm-broker/transfer.go",
+      "bytes": 4531,
+      "sha256": "30e4c296fadd4172ba6391230a6092a25ff06c1783615d208a68fa711c9bd166"
+    },
+    {
+      "path": "services/windows-vm-broker/transfer_identity_windows.go",
+      "bytes": 705,
+      "sha256": "8ab3c7f8b17f1775ae1d03c6b14175bf9ebe787e1fe4712b97e7aa0420ad76ad"
+    },
+    {
+      "path": "services/windows-vm-broker/workspace_stream.go",
+      "bytes": 5786,
+      "sha256": "3586cb332a0628b6f796ae4a85320cfa07c12a47814f68d176b2c598b39b8b69"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_control_test.go",
+      "bytes": 7183,
+      "sha256": "3560770c8bec19d89c28095dd893004d0b936773cdbce2231d775965670720f4"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_native_test.go",
+      "bytes": 6074,
+      "sha256": "f55006a5e8421b9cb129c016b3ee71233ccc4eadfc5fca64c6c43327d76d8a01"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_output_native_test.go",
+      "bytes": 10304,
+      "sha256": "34c6dbe154df0a6ffe503bbfb6b5d593d1f8d3f019c3306bb2ffd751bcf5a698"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_output_nt_boundary_native_test.go",
+      "bytes": 13563,
+      "sha256": "048c82289482e11ece77c8dd6c74f9df33ad897785a140cb0fe0692ad5c38200"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_retention_test.go",
+      "bytes": 635,
+      "sha256": "174d01069617353973fcbbb7a67351b39931735a3070674bd38e074f380fa68e"
+    },
+    {
+      "path": "services/windows-vm-broker/guest_workspace_run_native_test.go",
+      "bytes": 12264,
+      "sha256": "1f5d277ded8683b46e3625cf13cc1536b4f02d7d0a4df3268242832f63a6d5a9"
+    },
+    {
+      "path": "services/windows-vm-broker/transfer_test.go",
+      "bytes": 3410,
+      "sha256": "df4da4e54852ce5ef787890897c2175786170a2a90dd412bd1ce41039a08acc8"
+    },
+    {
+      "path": "services/windows-vm-broker/workspace_stream_test.go",
+      "bytes": 6159,
+      "sha256": "a07e1a269c99ed67c7b76cc366249066c7339b350642ba88daa502ba037c24ce"
+    }
+  ],
+  "test_executable_sha256": "dbc7b7d17aa46e43323856a865a0f1b02109111525f09b4c58fe8827e4228399",
+  "test_executable_bytes": 5433344,
+  "stdout_bytes": 0,
+  "stderr_bytes": 0,
+  "native_test_discovery": "NOTRUN",
+  "Winapi_controls": "NOTRUN",
+  "authority": "NONE; crosscompile is grammar/type compatibility only"
+}

@@ -1,0 +1,39 @@
+{
+  "kind": "limited_independent_refs_source_and_FD_peer",
+  "result": "PASS_REFS_ONLY_STOP_WHOLE_NATIVE_FENCE_AND_488",
+  "packet_sha256": "310ee109800c8de1adfdbb26813e4b8a1af524c29423c6123b3ea349f936e1f8",
+  "fence_sha256": "811144dd51057a30814d9bcc51bed6587f0ec4dc7b219b73643bf1040c6c3ac3",
+  "carrier_files_verified": 13,
+  "actual_control_raw_receipt_sha256": "6127a0584c6271486f9c6b8819e8a60d91a6c26141d2b254e1a795e85ef3e19a",
+  "actual_raw_files_verified": 9,
+  "actual_ordinary_control_counts": [
+    7,
+    23,
+    42
+  ],
+  "actual_ordinary_exit_codes": [
+    0,
+    0,
+    0
+  ],
+  "original_SUT_runs_by_reviewer": 0,
+  "refs_FD_boundary": [
+    "actual returned FD registered before fstat/traversal assertions",
+    "each owned close attempted; UNKNOWN removed from active ledger without retry",
+    "primary and all close-cancellation objects retained"
+  ],
+  "remaining_STOP": [
+    "seal_native_objects child directory FD is registered after fstat/identity assertion; earlier exception can leak it",
+    "verify_native_layout replacement old-FD close exception can leak new FD and retry old FD in finally",
+    "refs controls do not establish entire native observer cleanup",
+    "whole488 new run not authorized; output remains absent"
+  ],
+  "original_runner_bytes": 8338,
+  "original_inventory_bytes": 58132,
+  "original488_once01": "FAIL unchanged",
+  "deadline_failure_cause": "UNKNOWN",
+  "CI": "NOTRUN",
+  "install": "NOTRUN",
+  "release": "NOTRUN",
+  "public_safe": true
+}

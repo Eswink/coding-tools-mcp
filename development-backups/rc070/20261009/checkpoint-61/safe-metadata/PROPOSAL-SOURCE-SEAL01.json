@@ -1,0 +1,43 @@
+{
+  "scope": "test-only proposal; no newtest yet; WindowsNOTRUN",
+  "original_source_tree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+  "files": [
+    {
+      "path": "docs/specs/windows-nt-output-boundary-native-controls/design.md",
+      "bytes": 2137,
+      "sha256": "f00bbc0eb611db171ab9a0d8b008ce08985bcbbabd79fd50c4f1ebd7577108b8",
+      "mode": "0o600"
+    },
+    {
+      "path": "docs/specs/windows-nt-output-boundary-native-controls/requirements.md",
+      "bytes": 4092,
+      "sha256": "12bbf3ed005af40147575ceb5f267a074e75087b9d27ba9c15e9c467721b6666",
+      "mode": "0o600"
+    },
+    {
+      "path": "docs/specs/windows-nt-output-boundary-native-controls/tasks.md",
+      "bytes": 1012,
+      "sha256": "80a55e0dc812eee53cebad11873ac752e2fed0bb83a7a596d39d20f4b501fbdb",
+      "mode": "0o600"
+    },
+    {
+      "path": "work/nt-output-handle-research/OFFICIAL-API-NOTES.md",
+      "bytes": 3592,
+      "sha256": "eed061fdb4d6e06254540b251e61ccc7523ccc53af402aadb8eb23688c513c57",
+      "mode": "0o600"
+    },
+    {
+      "path": "work/nt-output-handle-research/NATIVE-CI-PROPOSAL.md",
+      "bytes": 4410,
+      "sha256": "e31d8a594f01be3f1814e49612e6b4c2f2202f4d9bbfa9a1eaa58f7166c5299e",
+      "mode": "0o600"
+    },
+    {
+      "path": "work/nt-output-handle-research/ORIGINAL-PROTECTION-SOURCES.json",
+      "bytes": 2079,
+      "sha256": "4c26336877dc15f1aeb2b7941b7c55d2a293246e8e53dc5973329de1e4d12cd0",
+      "mode": "0o600"
+    }
+  ],
+  "production_protected_bytes_exact": true
+}

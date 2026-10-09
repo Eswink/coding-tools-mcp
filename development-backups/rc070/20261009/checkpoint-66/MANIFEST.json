@@ -1,0 +1,41 @@
+{
+  "scope": "safe component CLI and independent peer result summaries only",
+  "files": [
+    {
+      "path": "ACTUAL-F13-CLI-RECEIPT.json",
+      "bytes": 3389,
+      "sha256": "caf6c8d3be77415ae8c193cbde8f22a394ef8115ee73778eff7c230aafeee1c5",
+      "mode": "100644"
+    },
+    {
+      "path": "ALLREFS-CLOSE13-INDEPENDENT-SAFE-STATUS01.json",
+      "bytes": 1496,
+      "sha256": "e524390889131fab38673010c061f5a9cf890cf034f5820b8237f2acbcc2f4d2",
+      "mode": "100644"
+    },
+    {
+      "path": "DEBIAN-MSGFMT-FROZEN5-INDEPENDENT-STOP-SAFE-STATUS01.json",
+      "bytes": 2095,
+      "sha256": "4865517714e217b7949ddc08544f8f39cc1e91688a9f298b44ae7c6fe24113f1",
+      "mode": "100644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 663,
+      "sha256": "5d3da24eb94ff2ce10427bbb5f8b82f8d2a67c11dccc276add190cf31d9e6ac1",
+      "mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 307,
+      "sha256": "d3a4211627f9d3fe9178fa6c3408d1da49d0d8b1a57eab85e192ad1e93295d47",
+      "mode": "100644"
+    },
+    {
+      "path": "WINDOWS-INFERENCE-CARRIER-FREEZE02-INDEPENDENT-STOP-SAFE-STATUS01.json",
+      "bytes": 1719,
+      "sha256": "11c3d04801cb9da303003ad9e42c618531a2b38da0fb28b7a9fe28a9f71d4a8e",
+      "mode": "100644"
+    }
+  ]
+}

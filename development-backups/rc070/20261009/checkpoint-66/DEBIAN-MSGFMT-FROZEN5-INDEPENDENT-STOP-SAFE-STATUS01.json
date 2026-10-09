@@ -1,0 +1,49 @@
+{
+  "scope": "standalone Debian owned preparation source/startup peer; no helper execution",
+  "result": "STOP",
+  "freeze_sha256": "d696aff13c8c9b90b9130376bc474c5bf9df5ba44ef86af19af8b33bd7c411b6",
+  "actual_frozen_source_files_verified": 5,
+  "actual_ordinary_log_sha256": "0c6605cb5c326b821a856bdadcbb2afe0a8abb51371f052d27ea7c001b798de2",
+  "actual_ordinary_named_successes": 23,
+  "structured_spec": {
+    "passed": true,
+    "FRs": 4,
+    "errors": 0,
+    "warnings": 0
+  },
+  "actual_signed_input_readonly_checks": {
+    "InRelease_bytes": 151075,
+    "Packages_xz_bytes": 8790396,
+    "Packages_decoded_bytes": 50060337,
+    "bookworm_archive_and_stable_primary_status_matched": true,
+    "public_keyring_byte_pin_matched": true,
+    "real_debs": 8,
+    "real_deb_bytes": 12370000,
+    "real_data_headers": 495,
+    "real_regular_payload_bytes": 47707775,
+    "filesystem_extraction_by_reviewer": false,
+    "downloaded_executable_launches_by_reviewer": 0,
+    "strict_freshness_or_anti_replay_proof": false
+  },
+  "specific_STOP": [
+    "run_debian_phase log output context-manager close can replace original delegate/cancel or grouped cleanup errors; output close absent from cleanup ledger",
+    "extract_owned_debian_data fdopen allocation failure can leave the real opened FD unowned; write plus context close failure can replace original write/cancel",
+    "snapshot/metadata/MO input context-manager close also lacks explicit preservation of read-primary plus close-cancellation objects",
+    "existing 23 ordinary controls cover reader-selector close and final observations, not these output/input stream-close boundaries"
+  ],
+  "boundaries": {
+    "host_tools": 15,
+    "host_ABI_libraries": 4,
+    "extraction_seconds": 60,
+    "shared_inspection_seconds": 30,
+    "shared_usability_seconds": 30,
+    "each_process_log_bytes": 2097152,
+    "OS_sandbox_or_native_family_proof": false,
+    "system_package_install": false,
+    "GitV3": "NOTRUN",
+    "RC": "NOTQUALIFIED",
+    "release": "NOTRUN"
+  },
+  "old_frozen_source_and_failures_unchanged": true,
+  "public_safe": true
+}

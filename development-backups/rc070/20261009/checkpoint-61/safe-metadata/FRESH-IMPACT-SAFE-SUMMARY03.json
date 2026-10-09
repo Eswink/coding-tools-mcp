@@ -1,0 +1,31 @@
+{
+  "repo_alias": "windows-nt-output-handles-reconstructed",
+  "indexedCommit": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "indexedAt": "2026-10-09T12:33:25.330Z",
+  "actual_index_tool_exit": 0,
+  "nodes": 28891,
+  "edges": 67807,
+  "clusters": 1116,
+  "flows": 236,
+  "parsed_files": 1651,
+  "source_new_sha256": "048c82289482e11ece77c8dd6c74f9df33ad897785a140cb0fe0692ad5c38200",
+  "indexed_current_formatted_source": true,
+  "fresh_before_edit_new_symbols": "actualqueryexecuted no definitions; UNKNOWN/manualHIGH",
+  "actual_close_helper_impact": {
+    "target": "Function:services/windows-vm-broker/guest_workspace_output_nt_boundary_native_test.go:guestOutputBoundaryClose",
+    "impacted_count": 6,
+    "graph_risk": "LOW",
+    "direct": 1,
+    "processes": 0
+  },
+  "limitations": [
+    "productioncloseSources anonymous closure edge absent in earlier freshcontext",
+    "field accesses are not all native call edges",
+    "zero matched processes is not zero risk",
+    "real nativehandle lifetime/flag/pin/close remains manualHIGH untilactualWindowscontrols"
+  ],
+  "native_execution": 0,
+  "max_file_size_cli_value": 32768,
+  "max_file_size_effective": "32768KB (CLI actuallog)",
+  "indexed_file_hash_equals_final": true
+}
