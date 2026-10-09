@@ -1,0 +1,11 @@
+{
+  "first_actual_exit": 1,
+  "loaded": 16,
+  "success15_error1": true,
+  "test_model_error": "Cargo implicit optional feature sqlx-core/uuid was not modeled; actual candidate manifest was unchanged. Added implicitoptionalfeature handling with dep suppression.",
+  "source_old_preserved": "rsa-source-controls-failurefirst01.py",
+  "second_actual_exit": 0,
+  "loaded16_pass16": true,
+  "cargo_execution": "NOTRUN",
+  "not_product_failure": true
+}

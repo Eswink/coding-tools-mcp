@@ -1,0 +1,40 @@
+{
+  "qualification": "COMPILER_DATA_ONLY",
+  "run": 37968139323,
+  "attempt": 1,
+  "event": "push",
+  "actualGitHubStatus": "completed",
+  "actualConclusion": "success",
+  "head": "4371a7c699555cf3eee18b58fbb4bf689621e7a7",
+  "parent": "b0ba7d96b5e5d4879aced264d20f419ea00cbd16",
+  "managerTree": "047d5780e0157debaa05930cf4ea0c32881055c8",
+  "managementPaths": 1878,
+  "pureSourceTree": "4d42a21057b867e6163e6bbe3ce9edca24da5716",
+  "pureSourcePaths": 1967,
+  "rust": {
+    "wholeLibraryCompile": "PASS",
+    "wholeLibraryList": "PASS",
+    "discoveredTests": 685,
+    "exactNamedTests": 14,
+    "actualPhases": 31,
+    "zipBytes": 74734,
+    "zipSha256": "30242c0c2a487ac95d6e8e945e51ae1a15e842cd61c2c2642df88b7c072c9258",
+    "privateMembers": 40
+  },
+  "go": {
+    "exactNamedTests": 23,
+    "subtests": 24,
+    "actualPhases": 11,
+    "zipBytes": 17426,
+    "zipSha256": "7d077b98e5fa1926953f7b65c753ddd4d99af6e1714b67177b61025e98d572f6",
+    "privateMembers": 20
+  },
+  "bothActualProductionStrictConsumers": "closed COMPILER_DATA_ONLY; ordinary_profile=False",
+  "independentPeerSHA256": "6bf1389156c554239b610959f2e0f539d58911ad5ccf1c3735c0b0b29e32b7de",
+  "VMHandleOwnerAllIOWritebackProductInstallRCReleaseDownloadStartup": "NOTQUALIFIED",
+  "newRawPrivateLibraryPersistence": "NOTDONE",
+  "allRawZipAndLogs": "LOCAL_PRIVATE_ONLY; do not publish raw/runtime/proc/packages/TLS/objects",
+  "historyFailures": "preserved unchanged; not replaced",
+  "finalVersion": "still0.6.0-rc.4",
+  "issuer": "unavailable; deny remains"
+}

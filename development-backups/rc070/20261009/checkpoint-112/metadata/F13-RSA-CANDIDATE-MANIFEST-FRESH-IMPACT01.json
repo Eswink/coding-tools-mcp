@@ -1,0 +1,9 @@
+{
+  "error": "Target 'sqlx' not found",
+  "target": {
+    "name": "sqlx"
+  },
+  "direction": "upstream",
+  "impactedCount": 0,
+  "risk": "UNKNOWN"
+}

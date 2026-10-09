@@ -1,0 +1,7 @@
+{
+  "old_safe01_kept_immutable": true,
+  "old_count_field_inaccurate": "full_Rust_source191_paths_unchanged incorrectly called191otherfiles Rustfiles.191counts all non-manifest packagedfiles, includes licenses/docs/etc. AllRust unchanged but Rust-specificcount not asserted.",
+  "candidate_source_change": false,
+  "new_field": "all191_non_manifest_package_files_including_all_Rust_unchanged",
+  "qualification": "SOURCE_ONLY_NOT_WIRED/PENDING"
+}

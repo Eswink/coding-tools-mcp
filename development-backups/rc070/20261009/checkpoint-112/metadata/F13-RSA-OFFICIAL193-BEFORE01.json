@@ -1,0 +1,3116 @@
+{
+  "packages": [
+    {
+      "name": "sqlx",
+      "version": "0.8.6",
+      "archive_bytes": 190134,
+      "archive_sha256": "1fefb893899429669dcdd979aff487bd78f4064e5e7907e4269081e0ef7d97dc",
+      "file_count": 171,
+      "files": [
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/.cargo_vcs_info.json",
+          "package": "sqlx",
+          "bytes": 94,
+          "sha256": "dddcb526fa1185e61cdcd768642e40a9a0ba8fb7ab8a7a850064219515ebd5ab",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/.editorconfig",
+          "package": "sqlx",
+          "bytes": 140,
+          "sha256": "f2de501a1a5762fd0a212e245a84b595f7bcbc882f8991c9eeb81d9e6892115a",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/.gitattributes",
+          "package": "sqlx",
+          "bytes": 19,
+          "sha256": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/.github/ISSUE_TEMPLATE/bug_report.yml",
+          "package": "sqlx",
+          "bytes": 1693,
+          "sha256": "8482553855552e0b1257031aa9697ff4805cb1b51cdfb767c3fa3bebe6e989e0",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/.github/ISSUE_TEMPLATE/config.yml",
+          "package": "sqlx",
+          "bytes": 651,
+          "sha256": "061b748e29b7da3ee4095ad5105d667e1c0df541bedb78a527ab2fab92322ca2",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/.github/ISSUE_TEMPLATE/feature_request.yml",
+          "package": "sqlx",
+          "bytes": 1031,
+          "sha256": "15854a166224d7ccec51ecae53188fa94d145362b7158ed15fb40eda6734a82a",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/.github/pull_request_template.md",
+          "package": "sqlx",
+          "bytes": 2789,
+          "sha256": "7bf189302d220a23b814ea0d1a5dddbf9bbe0984c1821133eb1f7743283e4f73",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/.github/workflows/examples.yml",
+          "package": "sqlx",
+          "bytes": 6544,
+          "sha256": "d45b84b96f9b44326121fff48d8a3b3cecafa782e6757ed4f7020ed15660310d",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/.github/workflows/sqlx-cli.yml",
+          "package": "sqlx",
+          "bytes": 9369,
+          "sha256": "14ff2f316301dfd2d248e7a8f72ca3b967f914b4f8325bfb6c31387c89b95d1a",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/.github/workflows/sqlx.yml",
+          "package": "sqlx",
+          "bytes": 18468,
+          "sha256": "789d0ed9106d3c58a4f2f6f4c016e2dc587286e1599d52c8a5b9e23e5f33bfdb",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/.gitignore",
+          "package": "sqlx",
+          "bytes": 326,
+          "sha256": "1d1e25d57058d3e0a71f7f6f9548e07fc6330d46a3dc5fca97d6aa400c71e2dc",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/CHANGELOG.md",
+          "package": "sqlx",
+          "bytes": 145428,
+          "sha256": "1361b23dbc787e2ef1577d641cd243a966038f6ba2d67821d7924aece32d7d58",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/CONTRIBUTING.md",
+          "package": "sqlx",
+          "bytes": 1775,
+          "sha256": "d3e3dee3bd94e1bf7e189f9261520afa1ef60f39a0aacafaeda6c7f8b3d7d0e2",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/Cargo.toml",
+          "package": "sqlx",
+          "bytes": 9907,
+          "sha256": "6394fd5590c2c7288127c7d695222b313ff068116bda20f662256f589d8f0a87",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/Cargo.toml.orig",
+          "package": "sqlx",
+          "bytes": 11460,
+          "sha256": "928eb3d80dd10b41fb3d2bbc1ac074a8f8c91b5314d13b9b6b22365d55fb3d3e",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/FAQ.md",
+          "package": "sqlx",
+          "bytes": 29624,
+          "sha256": "ae3207f28753d2b40418ced76076b8ee588ece5b6d800df4c6e13683329035cc",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/LICENSE-APACHE",
+          "package": "sqlx",
+          "bytes": 10243,
+          "sha256": "9be39331309bc958aab10457c1a8459c038ae95662f26dfcf6c9088e2b3d653f",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/LICENSE-MIT",
+          "package": "sqlx",
+          "bytes": 1060,
+          "sha256": "44b1600a26039a75b28e1ce154a5dd163b16549f50e34fa577d9efe9c1bae179",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/README.md",
+          "package": "sqlx",
+          "bytes": 18808,
+          "sha256": "a2b33db488ed61b9821a3bfc8d44917a895dd3d3f73a46e12cf3160aad036dd1",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/benches/sqlite/describe.rs",
+          "package": "sqlx",
+          "bytes": 5101,
+          "sha256": "a4998daa5e88f6ccebd1efe78d0ee81c873a98e9fd8b7b22160026d3ef487052",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/clippy.toml",
+          "package": "sqlx",
+          "bytes": 427,
+          "sha256": "4af1c85c6f43c13c0762aec497123b81529bc367eaf9e05d744dcdbfdafef056",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/contrib/ide/vscode/settings.json",
+          "package": "sqlx",
+          "bytes": 60,
+          "sha256": "af1e5804fd68126c54f709b71aee3c7dd4dca964f509257c2dd331006dda66ad",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/examples/.gitignore",
+          "package": "sqlx",
+          "bytes": 22,
+          "sha256": "fc1398417f77731d79df1afa89fe92c469a770dfe33a869574f233796b1dff5a",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/examples/x.py",
+          "package": "sqlx",
+          "bytes": 2065,
+          "sha256": "84fea3ef254058f98c3b28f3e2a6b35707af2be902baafd0107859f2fd5bda32",
+          "mode": "100755",
+          "archive_mode": "0o755"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/gen-changelog.sh",
+          "package": "sqlx",
+          "bytes": 3170,
+          "sha256": "be0292a711d7a7bb03b57b9b3534dbb34d084189ed85d32c528d0a39e2e156a7",
+          "mode": "100755",
+          "archive_mode": "0o755"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/rust-toolchain.toml",
+          "package": "sqlx",
+          "bytes": 112,
+          "sha256": "8352d3ae004cfbc6884de351f2f1fbda1af8d02ef61df520fa1dfce7263f87c8",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/src/any/install_drivers_note.md",
+          "package": "sqlx",
+          "bytes": 425,
+          "sha256": "227ad6700bf9cabe527afca93db36618448ba3d52ecd15cabe0284d4ff6e9cf3",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/src/any/mod.rs",
+          "package": "sqlx",
+          "bytes": 1624,
+          "sha256": "e53b168a20595b4471bfc42745bf108ac494065957e1669820beb0e24a974bbb",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/src/lib.md",
+          "package": "sqlx",
+          "bytes": 3710,
+          "sha256": "8c1cff00c7cfe568466197f12c658b9b7c542b31bc63b4cf4eea48407d02d168",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/src/lib.rs",
+          "package": "sqlx",
+          "bytes": 4908,
+          "sha256": "3e1c881fefb728ce4f3492163377424011031cb8f2a33de7f98536fa604e2437",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/src/macros/mod.rs",
+          "package": "sqlx",
+          "bytes": 37068,
+          "sha256": "39f480aacdbd9c5bda524b7f91f01514a860dfb87f2279da7d49c5217e36f746",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/src/macros/test.md",
+          "package": "sqlx",
+          "bytes": 8541,
+          "sha256": "a918b0af491837d1400c572f8667c5d2b6aa1adf7e52b99d0d4680ff9351b5f1",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/src/spec_error.rs",
+          "package": "sqlx",
+          "bytes": 2390,
+          "sha256": "9c3227deff1fcade9579ed80b9ba923ed3dd9ea2ca2f3d55dfec37be1e59ecbd",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/src/ty_match.rs",
+          "package": "sqlx",
+          "bytes": 4562,
+          "sha256": "c13ac10c040f96fdeb05b6632b97355d994c5c357045ddba46f79c62f42d86c9",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/.dockerignore",
+          "package": "sqlx",
+          "bytes": 76,
+          "sha256": "ef75b3cbcf74309eb43558e39b5af71361c8b3959ab236ce16f010f04d298376",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/.env",
+          "package": "sqlx",
+          "bytes": 66,
+          "sha256": "289dd9de9ee8b647418f283c05215696464861d6231a7ff721a67912277bc74b",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/.gitignore",
+          "package": "sqlx",
+          "bytes": 18,
+          "sha256": "ab215b61d6faf5d4ff2fd0737f9a9639eecfe54ea28021c78cf3fc9a0b8b4c7d",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/README.md",
+          "package": "sqlx",
+          "bytes": 775,
+          "sha256": "71a627050d3ccde5403a8f55f0f9d9499f39cc0b9702ba13055ce27f4b3dbce3",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/any/any.rs",
+          "package": "sqlx",
+          "bytes": 3296,
+          "sha256": "31151cfee81a77be1b490cb78f1f3382dbfe6597b795f8ee3197ad0efecf972d",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/any/pool.rs",
+          "package": "sqlx",
+          "bytes": 8216,
+          "sha256": "afaaac1b0b2868927889fa4cee4cbad2d70e1151dfa8bad9028acca71de41e7c",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/certs/ca.crt",
+          "package": "sqlx",
+          "bytes": 1724,
+          "sha256": "c1b3e6604ccdbdf75359ee1c4bb9981a09ef1d0fb2f27cc7058d3785c30b7232",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/certs/ca.srl",
+          "package": "sqlx",
+          "bytes": 17,
+          "sha256": "31ddd8bb9c75df3a9b1856598a209c42a2601f344fd24711bb185bfbd26c9293",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/certs/client.crt",
+          "package": "sqlx",
+          "bytes": 2972,
+          "sha256": "391cf64e3b67efb926789b2596e72469e4920bbb7bdaf7e9e80ca237bfba088c",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/certs/client.csr",
+          "package": "sqlx",
+          "bytes": 3317,
+          "sha256": "dbd4779ebbc09fce28e9b52307ebf81e4675c24f2bf8a1722ec06328c5f30d83",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/certs/server.crt",
+          "package": "sqlx",
+          "bytes": 1545,
+          "sha256": "2317922471ab370e536cf3992f7b6d749c68f8d856a63d99de1e81196acb3317",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/docker-compose.yml",
+          "package": "sqlx",
+          "bytes": 12684,
+          "sha256": "a502fe2a1adc638403132ac4c978d77a6c8fac2df9207c54fd340625c8c3d109",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/docker.py",
+          "package": "sqlx",
+          "bytes": 2481,
+          "sha256": "a98cbdea7c287d45296c2e11e5241bb7e454a594b6fa91d7928efa969dd0ea16",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/fixtures/mysql/posts.sql",
+          "package": "sqlx",
+          "bytes": 259,
+          "sha256": "041e395a6d5cb7a0c106af5d05cf72538adf265e0820fb9d4ea93410ba24bea9",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/fixtures/mysql/users.sql",
+          "package": "sqlx",
+          "bytes": 69,
+          "sha256": "d27e6ac6bc175df843dfa16cf0ece16187270b174ab7a77405f56ad077745e5d",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/fixtures/postgres/posts.sql",
+          "package": "sqlx",
+          "bytes": 458,
+          "sha256": "11839248c9b9797f4767c4fc3251bcdb25d975e160937257cdf1fe4928530346",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/fixtures/postgres/users.sql",
+          "package": "sqlx",
+          "bytes": 145,
+          "sha256": "2e3c11ce7d263a5c88ed5c831b879f31d01cb393f87ab41984bd88f7d061c5f3",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/keys/ca.key",
+          "package": "sqlx",
+          "bytes": 2484,
+          "sha256": "1b056e6457068db10dab16897319172835bf4121d9cf0da7af11c25a47a671be",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/keys/client.key",
+          "package": "sqlx",
+          "bytes": 1704,
+          "sha256": "f98c4e2056e6e7f8a6f15ed8c0e25dd11c5d672eece85e2d582c224e84e4098a",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/keys/server.key",
+          "package": "sqlx",
+          "bytes": 1704,
+          "sha256": "96f81956f751204eebfc0c2d61797011c65d4848fc053e950f58ee080ef76aa8",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/macro.rs",
+          "package": "sqlx",
+          "bytes": 1299,
+          "sha256": "cf686a1b11a9a422bdc69b3976c82efb1560869dce3f4fbf939c960c05ecc954",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_reversible/20220721124650_add_table.down.sql",
+          "package": "sqlx",
+          "bytes": 39,
+          "sha256": "bcf360c228476062bb8fb7338195ae33fe092c7f7cc06277bb6b6c5430c35aa6",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_reversible/20220721124650_add_table.up.sql",
+          "package": "sqlx",
+          "bytes": 200,
+          "sha256": "2f9c6d5ae6aa61d47524686e033ab18b589086bf5c1b8dfb6afd306c6802be59",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_reversible/20220721125033_modify_column.down.sql",
+          "package": "sqlx",
+          "bytes": 71,
+          "sha256": "4d74cd01038ffaaaa949a807ba78aeb80b3befbde47b5a466b8c6e55c097a849",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_reversible/20220721125033_modify_column.up.sql",
+          "package": "sqlx",
+          "bytes": 71,
+          "sha256": "7c3d6700bc0d1100c489a6615314255837076f2891b33526963b8105cda57b4a",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_simple/20220721115250_add_test_table.sql",
+          "package": "sqlx",
+          "bytes": 192,
+          "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_simple/20220721115524_convert_type.sql",
+          "package": "sqlx",
+          "bytes": 1060,
+          "sha256": "c9cc2272fd7e7da1467eaa5f688010b8bb464c3821252de3092e87c35b2ab24d",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_symlink/20220721115250_add_test_table.sql",
+          "package": "sqlx",
+          "bytes": 192,
+          "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_symlink/20220721115524_convert_type.sql",
+          "package": "sqlx",
+          "bytes": 1060,
+          "sha256": "c9cc2272fd7e7da1467eaa5f688010b8bb464c3821252de3092e87c35b2ab24d",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/Dockerfile",
+          "package": "sqlx",
+          "bytes": 592,
+          "sha256": "9c999331e4bbc814fd3b6507464e70d5366faafd26892bbee2c9d4c0ddcf07cc",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/configure-db.sh",
+          "package": "sqlx",
+          "bytes": 227,
+          "sha256": "b8d8ca52d3891000d2a6034c777ad3c711e08d8da95760399100c3cb1aa79cb4",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/describe.rs",
+          "package": "sqlx",
+          "bytes": 1217,
+          "sha256": "199a37ab4b38d8584a0259c056f5e5eb0adc8dec527a14e4d8696704292eeb42",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/entrypoint.sh",
+          "package": "sqlx",
+          "bytes": 140,
+          "sha256": "b43489374e7b82e831a551fc9ce29af225e86cdbd0617a06f4f113cf5fcf0a60",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/macros.rs",
+          "package": "sqlx",
+          "bytes": 552,
+          "sha256": "60f2c5f525889ca77f65a5b2ec6b0e6b5c953ef8cad49b5bcac3175e44e5b733",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/mssql-2017.dockerfile",
+          "package": "sqlx",
+          "bytes": 521,
+          "sha256": "55a89c0f9500ebb5dd21e4f42417bd9e589f3e73c603ec5eac8fe6e7318408b2",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/mssql.rs",
+          "package": "sqlx",
+          "bytes": 12521,
+          "sha256": "2b056499f652e0c3b88a3228b6b6bcd3d584a47e4ca071744a981c738e54d480",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/setup.sql",
+          "package": "sqlx",
+          "bytes": 383,
+          "sha256": "411dbe700db768a0ba9646eff22c7d733f5c49b708ed45932a0f864f724b33c3",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/types.rs",
+          "package": "sqlx",
+          "bytes": 1044,
+          "sha256": "db3db6376eef747a699fbad982603570de4de0c96466904a2eebdb72f5516b07",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/Dockerfile",
+          "package": "sqlx",
+          "bytes": 458,
+          "sha256": "aac9e27b5d03f8f60cf3347b47fc31be2029ee7ae7d63da6335edea6aa0cab58",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/derives.rs",
+          "package": "sqlx",
+          "bytes": 7413,
+          "sha256": "ddebac61387b1190a29cc98f3875e4debf3b6a21412947a46eadc4be9467c615",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/describe.rs",
+          "package": "sqlx",
+          "bytes": 1976,
+          "sha256": "fa10d61f80622c1efa7884bc0c94afbdd0cb7d1e467924c2501b89475e315ee3",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/error.rs",
+          "package": "sqlx",
+          "bytes": 2826,
+          "sha256": "8252a2fe1be31c5c13ba40e0bdc59f3c89cd8a817f224164faca89f8a7cbc8e1",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/fixtures/comments.sql",
+          "package": "sqlx",
+          "bytes": 394,
+          "sha256": "af1aac00c743c44289db4818b682ac787a45059b8d76a74a846b4d63746e651e",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/fixtures/posts.sql",
+          "package": "sqlx",
+          "bytes": 259,
+          "sha256": "041e395a6d5cb7a0c106af5d05cf72538adf265e0820fb9d4ea93410ba24bea9",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/fixtures/users.sql",
+          "package": "sqlx",
+          "bytes": 69,
+          "sha256": "d27e6ac6bc175df843dfa16cf0ece16187270b174ab7a77405f56ad077745e5d",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/macros.rs",
+          "package": "sqlx",
+          "bytes": 13467,
+          "sha256": "23986fda02c47022b6a2f639a6fa143283aee959066a401d047d80cae78a348c",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrate.rs",
+          "package": "sqlx",
+          "bytes": 2095,
+          "sha256": "a02bc4ebf3096c5669a52464be4f67b1e572e7bb2ff6af5539180e30304670f3",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations/1_user.sql",
+          "package": "sqlx",
+          "bytes": 227,
+          "sha256": "b67c1e4888e144548b1b5dc86c6510d75ab45e3cbf088e22dd2455cc463a4da8",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations/2_post.sql",
+          "package": "sqlx",
+          "bytes": 323,
+          "sha256": "887848d7f70c359975c7a8b26f3276d1892098f52cdcac28f2d42ec37a03228c",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations/3_comment.sql",
+          "package": "sqlx",
+          "bytes": 326,
+          "sha256": "dae1438bd59a26296677b3dee31d609906214ecc156372a19e55cdba31878642",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations_reversible/20220721124650_add_table.down.sql",
+          "package": "sqlx",
+          "bytes": 39,
+          "sha256": "bcf360c228476062bb8fb7338195ae33fe092c7f7cc06277bb6b6c5430c35aa6",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations_reversible/20220721124650_add_table.up.sql",
+          "package": "sqlx",
+          "bytes": 200,
+          "sha256": "2f9c6d5ae6aa61d47524686e033ab18b589086bf5c1b8dfb6afd306c6802be59",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations_reversible/20220721125033_modify_column.down.sql",
+          "package": "sqlx",
+          "bytes": 71,
+          "sha256": "4d74cd01038ffaaaa949a807ba78aeb80b3befbde47b5a466b8c6e55c097a849",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations_reversible/20220721125033_modify_column.up.sql",
+          "package": "sqlx",
+          "bytes": 71,
+          "sha256": "7c3d6700bc0d1100c489a6615314255837076f2891b33526963b8105cda57b4a",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations_simple/20220721115250_add_test_table.sql",
+          "package": "sqlx",
+          "bytes": 192,
+          "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations_simple/20220721115524_convert_type.sql",
+          "package": "sqlx",
+          "bytes": 1058,
+          "sha256": "29b5e27840bfb3883bb3494b122b14ffb59aa71fe99a4e5b1561a0e938db48e9",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/my.cnf",
+          "package": "sqlx",
+          "bytes": 107,
+          "sha256": "3266e1efb9c2eaaf98dd494afe7b994ac3bfdd2092e54d3bc66276c3b0543aa8",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/mysql.rs",
+          "package": "sqlx",
+          "bytes": 15644,
+          "sha256": "adf3b0596b8eac28e89c6ac4bbf6f96ff6f847d685760ced7668e5e1d48ef7ab",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/rustsec.rs",
+          "package": "sqlx",
+          "bytes": 2353,
+          "sha256": "57c9ad9b46b9137b752f6bb882d837ed2583dacae823ef3e3fdd6d159014414b",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/setup.sql",
+          "package": "sqlx",
+          "bytes": 1056,
+          "sha256": "ba1a54201c95b5e99b008b1a056d29330c487070c56cf54ce24ea3df4592f286",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/test-attr.rs",
+          "package": "sqlx",
+          "bytes": 4779,
+          "sha256": "6ed554dd472188d8bccea4cf143f54fcbcb992b35cd149fe71ed0a55d353f55b",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/types.rs",
+          "package": "sqlx",
+          "bytes": 12544,
+          "sha256": "11452bba89fd85c9ff7aae3322d6f04993e57b8ef1ee590d5037822a4b1cc322",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/Dockerfile",
+          "package": "sqlx",
+          "bytes": 460,
+          "sha256": "3fc8d87ed7c913e8c31208b5f2bb23c7d15466dfc47c065f3a7bdc4a97301c47",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/derives.rs",
+          "package": "sqlx",
+          "bytes": 21024,
+          "sha256": "55a032b674345fd03edd6ec87dd53cdbf6b076475472428ab566ad046edc0215",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/describe.rs",
+          "package": "sqlx",
+          "bytes": 2659,
+          "sha256": "c26c5436d5cb9e09516a052f68ee515594e7ad1207c03af3e6fa63414bb54dda",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/error.rs",
+          "package": "sqlx",
+          "bytes": 2851,
+          "sha256": "e73d3147c0064d6b69d8ac4c5088dd9c0ccf2103510e6ff3bccd80923910aec0",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/fixtures/comments.sql",
+          "package": "sqlx",
+          "bytes": 745,
+          "sha256": "76b25706677c891527e041347c28c99dd4ab60e4df2a3d50ec049c4d2471803f",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/fixtures/posts.sql",
+          "package": "sqlx",
+          "bytes": 458,
+          "sha256": "11839248c9b9797f4767c4fc3251bcdb25d975e160937257cdf1fe4928530346",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/fixtures/rustsec/2024_0363.sql",
+          "package": "sqlx",
+          "bytes": 244,
+          "sha256": "b26ab0f42a6daf8289e8ae9d01fd10060aa5e9d8458587793bf55903588fb290",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/fixtures/users.sql",
+          "package": "sqlx",
+          "bytes": 145,
+          "sha256": "2e3c11ce7d263a5c88ed5c831b879f31d01cb393f87ab41984bd88f7d061c5f3",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/macros.rs",
+          "package": "sqlx",
+          "bytes": 17069,
+          "sha256": "43d061399921e1f68bd8fe557d6156656303feba4da8023755d42c3bdc9c3c5e",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrate.rs",
+          "package": "sqlx",
+          "bytes": 2667,
+          "sha256": "b96f53622e2ceb06f652ec59e04255103e6a4d4562ed2e842a20a2ec44e34d82",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations/0_setup.sql",
+          "package": "sqlx",
+          "bytes": 98,
+          "sha256": "2e9a106cf03e8ed50e6800686abeefef21fe5684d5128f3383696c03fcaf4db6",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations/1_user.sql",
+          "package": "sqlx",
+          "bytes": 119,
+          "sha256": "902f7e1106e6b172b2771193e5c6c304fe497246f7bb7cdea95a3cba15122ef7",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations/2_post.sql",
+          "package": "sqlx",
+          "bytes": 244,
+          "sha256": "c991509bae4b2e2f9be0ab2b9cb5ea2a6fb18f2ec1fe72005f9e23809c58b46b",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations/3_comment.sql",
+          "package": "sqlx",
+          "bytes": 314,
+          "sha256": "b788227008e72478ec20b0177162b5cd83693b2941749c6397d50e4239b835f2",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations_no_tx/0_create_db.sql",
+          "package": "sqlx",
+          "bytes": 44,
+          "sha256": "cd1f9e4a572dd4b209a6ec566ff6b4bc3d5414e3d29dba22c06fb827b2c17ab1",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations_reversible/20220721124650_add_table.down.sql",
+          "package": "sqlx",
+          "bytes": 39,
+          "sha256": "bcf360c228476062bb8fb7338195ae33fe092c7f7cc06277bb6b6c5430c35aa6",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations_reversible/20220721124650_add_table.up.sql",
+          "package": "sqlx",
+          "bytes": 200,
+          "sha256": "2f9c6d5ae6aa61d47524686e033ab18b589086bf5c1b8dfb6afd306c6802be59",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations_reversible/20220721125033_modify_column.down.sql",
+          "package": "sqlx",
+          "bytes": 71,
+          "sha256": "4d74cd01038ffaaaa949a807ba78aeb80b3befbde47b5a466b8c6e55c097a849",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations_reversible/20220721125033_modify_column.up.sql",
+          "package": "sqlx",
+          "bytes": 71,
+          "sha256": "7c3d6700bc0d1100c489a6615314255837076f2891b33526963b8105cda57b4a",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations_simple/20220721115250_add_test_table.sql",
+          "package": "sqlx",
+          "bytes": 192,
+          "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations_simple/20220721115524_convert_type.sql",
+          "package": "sqlx",
+          "bytes": 1060,
+          "sha256": "c9cc2272fd7e7da1467eaa5f688010b8bb464c3821252de3092e87c35b2ab24d",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/pg_hba.conf",
+          "package": "sqlx",
+          "bytes": 168,
+          "sha256": "84df219c91129eae001eba69548364887827df6bdc46839c9fa3501991a84366",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/postgres.rs",
+          "package": "sqlx",
+          "bytes": 61924,
+          "sha256": "9b8b4c5239d2555b6181e521e17ec125aaad9137f75c861689a55e5497acc8e6",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/query_builder.rs",
+          "package": "sqlx",
+          "bytes": 4087,
+          "sha256": "f2993bade3d2fe7b602bd973b717c11ebb49e9bef9eb13962c2cb895fd176372",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/rustsec.rs",
+          "package": "sqlx",
+          "bytes": 5484,
+          "sha256": "a9ecf7ae02337494bfbfe5beaa550ed71483c9aef81260aaa9ac21b635a7d952",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/setup.sql",
+          "package": "sqlx",
+          "bytes": 1665,
+          "sha256": "35675db102cfe6340f1c19b7c92f4b2221687f66c455e5280910758e0a9e7028",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/test-attr.rs",
+          "package": "sqlx",
+          "bytes": 5907,
+          "sha256": "60b9125ef62364dd7ed604a9ecba99112ad250a6ca255ab46e0cdd6d1e318168",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/test-query.sql",
+          "package": "sqlx",
+          "bytes": 65,
+          "sha256": "93bb1679d291e628b8881cfafc6dc372b052d00993f4aad5566c033e6a8e404c",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/types.rs",
+          "package": "sqlx",
+          "bytes": 29235,
+          "sha256": "b6818bafbf7d3a5ea3cf4edda00b2c6608403937f30edd9f094d13601b1e7abf",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/.gitignore",
+          "package": "sqlx",
+          "bytes": 16,
+          "sha256": "50f3b3e16d7b04a685551e7a92dee20ad28208d459b7641b4e63eced2eb7839d",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/any.rs",
+          "package": "sqlx",
+          "bytes": 913,
+          "sha256": "1b00df7614c4e1db8c71bb9c1c3b27cb683b1f528adde5e9b9239c58dee47f76",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/derives.rs",
+          "package": "sqlx",
+          "bytes": 232,
+          "sha256": "166cc5ed0da43ee2b8c88a72a870c8b16673515f0d250563229c72ee76e65c81",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/describe.rs",
+          "package": "sqlx",
+          "bytes": 32937,
+          "sha256": "68479b223809f9aa1540debd44140bc8e42f8d05828e484ac441ca478f4479a9",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/error.rs",
+          "package": "sqlx",
+          "bytes": 2727,
+          "sha256": "9c8569e519d76cbf8b10abf2538d57afc0791820d7947bb6530bb2ba3de02745",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/fixtures/comments.sql",
+          "package": "sqlx",
+          "bytes": 400,
+          "sha256": "c329cdc81e4ac2a9b5ae3f536d128adf1955e4a57bcaeedfef6d2f361ff53a60",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/fixtures/posts.sql",
+          "package": "sqlx",
+          "bytes": 259,
+          "sha256": "c7615cce4f9f4d8ad084c4c29be767d6015c9288381440b5aed65c4624c50fb1",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/fixtures/users.sql",
+          "package": "sqlx",
+          "bytes": 71,
+          "sha256": "fa286e73fbc2a740a6f019ac069af64e9688567065a6ea9effe47e614b7581f8",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/macros.rs",
+          "package": "sqlx",
+          "bytes": 8438,
+          "sha256": "20b33f2dddc97bfaf90876865a6489c6b514ca35ee47cda45c055650e1f032ce",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrate.rs",
+          "package": "sqlx",
+          "bytes": 2103,
+          "sha256": "1b8948114ce18ea034f3143300e4d0098b82038181c39aa84e700e94bd34ee21",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations/1_user.sql",
+          "package": "sqlx",
+          "bytes": 152,
+          "sha256": "554f3699379adac1162a251f70c4f2a0c75fbb4059e9317ea5526b8d20650974",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations/2_post.sql",
+          "package": "sqlx",
+          "bytes": 308,
+          "sha256": "6a21693d3488820a7c6e90deedac6c4705b69aba7a5a3104ead565d8593cdf22",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations/3_comment.sql",
+          "package": "sqlx",
+          "bytes": 328,
+          "sha256": "ea619f0b4b851f9c01dcb2874182a84ef20d82bb44d1cc7a93a7428989cb6798",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations_reversible/20220721124650_add_table.down.sql",
+          "package": "sqlx",
+          "bytes": 39,
+          "sha256": "bcf360c228476062bb8fb7338195ae33fe092c7f7cc06277bb6b6c5430c35aa6",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations_reversible/20220721124650_add_table.up.sql",
+          "package": "sqlx",
+          "bytes": 200,
+          "sha256": "2f9c6d5ae6aa61d47524686e033ab18b589086bf5c1b8dfb6afd306c6802be59",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations_reversible/20220721125033_modify_column.down.sql",
+          "package": "sqlx",
+          "bytes": 71,
+          "sha256": "4d74cd01038ffaaaa949a807ba78aeb80b3befbde47b5a466b8c6e55c097a849",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations_reversible/20220721125033_modify_column.up.sql",
+          "package": "sqlx",
+          "bytes": 71,
+          "sha256": "7c3d6700bc0d1100c489a6615314255837076f2891b33526963b8105cda57b4a",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations_simple/20220721115250_add_test_table.sql",
+          "package": "sqlx",
+          "bytes": 192,
+          "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations_simple/20220721115524_convert_type.sql",
+          "package": "sqlx",
+          "bytes": 959,
+          "sha256": "9e147a27bda345604e7870e5f96aa802f8e4f2ec8b03f52db260ea8051700d92",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/rustsec.rs",
+          "package": "sqlx",
+          "bytes": 2791,
+          "sha256": "994383eacd33240cd4d3e64f6b7a75adcbe9dc87b26121d7a15cf306ce2ae7e2",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/setup.sql",
+          "package": "sqlx",
+          "bytes": 1039,
+          "sha256": "0143afda08b05e4adc5876bb3b3fca93e41fd559d9ae60d653e6286a75b2b374",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/sqlcipher.rs",
+          "package": "sqlx",
+          "bytes": 5699,
+          "sha256": "fc9670fc2701b36e71c015f4ad1e201ced4717528a2ad4f8a3ff67d80152c1a3",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/sqlite.db",
+          "package": "sqlx",
+          "bytes": 36864,
+          "sha256": "b2d21ebdabfef366991a5e7756c33424ec44154af04402fa42af9e62ad83545a",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/sqlite.rs",
+          "package": "sqlx",
+          "bytes": 40223,
+          "sha256": "ae7360a15da3eddc615dd93358646a8f83640ecc34882904b4cde43a4ce3a1f4",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/test-attr.rs",
+          "package": "sqlx",
+          "bytes": 3024,
+          "sha256": "d4afd5dc68d32430afd384eac73a18524f884cd6e329b08b06130ace312c4c7b",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/types.rs",
+          "package": "sqlx",
+          "bytes": 8586,
+          "sha256": "3fb2d85d629237ba0cc345af26fb26ac409017eed4f5b77115a6649c36fa033c",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/mysql/gated/chrono.rs",
+          "package": "sqlx",
+          "bytes": 210,
+          "sha256": "a2967ca2a27d047d706c2ca85b77084e86fb8f9a608a11fd77e2209897806fe0",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/mysql/gated/chrono.stderr",
+          "package": "sqlx",
+          "bytes": 1085,
+          "sha256": "1ea322938525416e9b3fd054a7673a85989e26530d4b10f8873e78ac719bdd00",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/deprecated_rename.rs",
+          "package": "sqlx",
+          "bytes": 174,
+          "sha256": "cca434b354e41848df53ca89e8d2c5b2869111a5a967fab012f23731369647a6",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/deprecated_rename.stderr",
+          "package": "sqlx",
+          "bytes": 499,
+          "sha256": "f2a53b7d1f9f6c09b260883d1b2ee17219e99f73789ed4b7c97a44dfe1ec8189",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/gated/chrono.rs",
+          "package": "sqlx",
+          "bytes": 433,
+          "sha256": "b3e6cb1336d5866ec372a7f4b8603205316a05b7f0cb2a74fe69be420d45de20",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/gated/chrono.stderr",
+          "package": "sqlx",
+          "bytes": 2655,
+          "sha256": "b9c1744362a2164d6d9588dee6ebfe5acc0ea8bba114afc0844dd62de27baec0",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/gated/ipnetwork.rs",
+          "package": "sqlx",
+          "bytes": 232,
+          "sha256": "f23b05659eb43fc95c7a97d577a2dd2a3030312ac215252c9e869fc4629bcdba",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/gated/ipnetwork.stderr",
+          "package": "sqlx",
+          "bytes": 1353,
+          "sha256": "b691afa0fbee85843303b7400c3711bb75ade4391d04fb78b78ede0219d60e9e",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/gated/uuid.rs",
+          "package": "sqlx",
+          "bytes": 144,
+          "sha256": "f01c322b252c6b1f04aa1140611a83bbd3e33d3f0dda94ce157d640d22f611fb",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/gated/uuid.stderr",
+          "package": "sqlx",
+          "bytes": 701,
+          "sha256": "4fa17fcf9de5e4c87e5074a30b54a272e75c08c189c6d4797aa6719bb8514339",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/issue_30.rs",
+          "package": "sqlx",
+          "bytes": 66,
+          "sha256": "59a771bd34877b08728db477f6b9f57d4899d87b4b963da5638830853b9f9096",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/issue_30.stderr",
+          "package": "sqlx",
+          "bytes": 326,
+          "sha256": "d765785be439c1580e075731b8f89fc0092d1185868ef54ea6b1f77ec11f4acd",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/unsupported-type.rs",
+          "package": "sqlx",
+          "bytes": 202,
+          "sha256": "3c16a91b27cda97f90db733c48b51161730242d1c79ac3918724435f9f06d207",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/unsupported-type.stderr",
+          "package": "sqlx",
+          "bytes": 624,
+          "sha256": "de4076e6c0999760e2dfce850aeed37f088da1674b8d276937675af94843f692",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/wrong_param_type.rs",
+          "package": "sqlx",
+          "bytes": 413,
+          "sha256": "e44734ada6f112e9fb9472747eda2ec449673f4a0783002391e00837717ea1de",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/wrong_param_type.stderr",
+          "package": "sqlx",
+          "bytes": 1648,
+          "sha256": "ef311ad816c2bb98ff77406a69861096848bcef397f6bfd0f850509f4f261e53",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/sqlite/expression-column-type.rs",
+          "package": "sqlx",
+          "bytes": 58,
+          "sha256": "373e6e9747a1ba405ec0c7a5509754a9204ad5543d5dddec79d61698a4ef4297",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui/sqlite/expression-column-type.stderr",
+          "package": "sqlx",
+          "bytes": 378,
+          "sha256": "e969c488ee466bcd31441d83b4721e161d5f50fdd04104e6d4eb6ec502f54824",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/ui-tests.rs",
+          "package": "sqlx",
+          "bytes": 1462,
+          "sha256": "0c02796a0bdf3733f6c0fe3a4ee8984180cd0a2b9189e5349c799e7af6525fef",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx/tests/x.py",
+          "package": "sqlx",
+          "bytes": 9365,
+          "sha256": "93fee486830959fcd27b12f97f7328e68ef3cc16793e440d52380e6c8a03f746",
+          "mode": "100755",
+          "archive_mode": "0o755"
+        }
+      ]
+    },
+    {
+      "name": "sqlx-macros-core",
+      "version": "0.8.6",
+      "archive_bytes": 30587,
+      "archive_sha256": "19a9c1841124ac5a61741f96e1d9e2ec77424bf323962dd894bdb93f37d5219b",
+      "file_count": 22,
+      "files": [
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/.cargo_vcs_info.json",
+          "package": "sqlx-macros-core",
+          "bytes": 110,
+          "sha256": "3bac3f4641bbbef9f18aca91f238f3a58170f1b9016c013179036989d01dd576",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/Cargo.toml",
+          "package": "sqlx-macros-core",
+          "bytes": 3896,
+          "sha256": "a05c4a05c581cf6f6e85c52c1ce3fe5a6f67cf7545159b16d93160ce02c1c7c5",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/Cargo.toml.orig",
+          "package": "sqlx-macros-core",
+          "bytes": 2853,
+          "sha256": "2cd9879d4699c3c2d71437ff50fc4214e8200dacd8f57cc13389e2522656f97a",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/LICENSE-APACHE",
+          "package": "sqlx-macros-core",
+          "bytes": 10243,
+          "sha256": "9be39331309bc958aab10457c1a8459c038ae95662f26dfcf6c9088e2b3d653f",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/LICENSE-MIT",
+          "package": "sqlx-macros-core",
+          "bytes": 1060,
+          "sha256": "44b1600a26039a75b28e1ce154a5dd163b16549f50e34fa577d9efe9c1bae179",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/common.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 1073,
+          "sha256": "e0baf2a52a1e90f5ce6c47c0c9fb9aa5fe7cd85ef3cd1511e90a6f6d9ceca8bc",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/database/impls.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 2198,
+          "sha256": "ddf04d8248a7c0272e0d16068af1cba81ca54a3e2af92c6ef1e8a310eccb0585",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/database/mod.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 1853,
+          "sha256": "d6ad0c00aae5898a1c35858190011a311496ad2626d88630d8beb993163aa970",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/derives/attributes.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 8882,
+          "sha256": "77ec6155e2c9f6f4b658b95045420f09c2c7946e1af631951a1ca1224c69c085",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/derives/decode.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 10672,
+          "sha256": "65ffa5332295293c0a1a60151eb2b7bd4564189da7429c6540aac28131c6f7e5",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/derives/encode.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 8906,
+          "sha256": "7a0d35ea88e91ebc43d45248ae88a42edad21de4f301e6a74ee4a3bf90114e2a",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/derives/mod.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 1232,
+          "sha256": "26c75643943c95316b47b65324fa8864dedb8150f0e35f2b2514df90acb1624a",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/derives/row.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 11697,
+          "sha256": "7bc0fd43bee7a81f51c10732381cf4e055dc725897c760c7328d6835747fe7b7",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/derives/type.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 9002,
+          "sha256": "9576ea9d8e559172b793fc8db6596d42d6278e3f9f50f4b6f3638b01c20641ca",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/lib.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 2373,
+          "sha256": "d1d66fc1f2b8037eed2ee1a9408ac872a6fa7acb3116e8ac48c3020f750da24d",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/migrate.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 3869,
+          "sha256": "e425c282ff84c8c3cc891395c119942b8df6e4833775ffb7e4ba2bf38acee26d",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/query/args.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 6004,
+          "sha256": "f7b49b73871f765d5733059ffdd96b3505f3f2fd1f8d85374b49a77db4050c27",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/query/data.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 6264,
+          "sha256": "16d8eae9e134d91cc46a264be2d35045045c1e3269888bfcdc61897962d1caab",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/query/input.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 4880,
+          "sha256": "86e5aa8584847949834c14257da2e465b442b7e7bc58a2a9d20f3d0eb1d26ee4",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/query/mod.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 13872,
+          "sha256": "14f859d9e3c3b8c56d5feb67edfedebf31c997d8e5cbb2788e5da9db73b7f626",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/query/output.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 10809,
+          "sha256": "fe61cf08489924b31ef019a9aad47474d6a66052dbd9d9108a2b64bc53649229",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        },
+        {
+          "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/test_attr.rs",
+          "package": "sqlx-macros-core",
+          "bytes": 14017,
+          "sha256": "59bfc9dceb1ff5aff40abd82b45e7fec5a426d793462a2861a16a439da108127",
+          "mode": "100644",
+          "archive_mode": "0o644"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/.cargo_vcs_info.json",
+      "package": "sqlx",
+      "bytes": 94,
+      "sha256": "dddcb526fa1185e61cdcd768642e40a9a0ba8fb7ab8a7a850064219515ebd5ab",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/.editorconfig",
+      "package": "sqlx",
+      "bytes": 140,
+      "sha256": "f2de501a1a5762fd0a212e245a84b595f7bcbc882f8991c9eeb81d9e6892115a",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/.gitattributes",
+      "package": "sqlx",
+      "bytes": 19,
+      "sha256": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/.github/ISSUE_TEMPLATE/bug_report.yml",
+      "package": "sqlx",
+      "bytes": 1693,
+      "sha256": "8482553855552e0b1257031aa9697ff4805cb1b51cdfb767c3fa3bebe6e989e0",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/.github/ISSUE_TEMPLATE/config.yml",
+      "package": "sqlx",
+      "bytes": 651,
+      "sha256": "061b748e29b7da3ee4095ad5105d667e1c0df541bedb78a527ab2fab92322ca2",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/.github/ISSUE_TEMPLATE/feature_request.yml",
+      "package": "sqlx",
+      "bytes": 1031,
+      "sha256": "15854a166224d7ccec51ecae53188fa94d145362b7158ed15fb40eda6734a82a",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/.github/pull_request_template.md",
+      "package": "sqlx",
+      "bytes": 2789,
+      "sha256": "7bf189302d220a23b814ea0d1a5dddbf9bbe0984c1821133eb1f7743283e4f73",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/.github/workflows/examples.yml",
+      "package": "sqlx",
+      "bytes": 6544,
+      "sha256": "d45b84b96f9b44326121fff48d8a3b3cecafa782e6757ed4f7020ed15660310d",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/.github/workflows/sqlx-cli.yml",
+      "package": "sqlx",
+      "bytes": 9369,
+      "sha256": "14ff2f316301dfd2d248e7a8f72ca3b967f914b4f8325bfb6c31387c89b95d1a",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/.github/workflows/sqlx.yml",
+      "package": "sqlx",
+      "bytes": 18468,
+      "sha256": "789d0ed9106d3c58a4f2f6f4c016e2dc587286e1599d52c8a5b9e23e5f33bfdb",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/.gitignore",
+      "package": "sqlx",
+      "bytes": 326,
+      "sha256": "1d1e25d57058d3e0a71f7f6f9548e07fc6330d46a3dc5fca97d6aa400c71e2dc",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/CHANGELOG.md",
+      "package": "sqlx",
+      "bytes": 145428,
+      "sha256": "1361b23dbc787e2ef1577d641cd243a966038f6ba2d67821d7924aece32d7d58",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/CONTRIBUTING.md",
+      "package": "sqlx",
+      "bytes": 1775,
+      "sha256": "d3e3dee3bd94e1bf7e189f9261520afa1ef60f39a0aacafaeda6c7f8b3d7d0e2",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/Cargo.toml",
+      "package": "sqlx",
+      "bytes": 9907,
+      "sha256": "6394fd5590c2c7288127c7d695222b313ff068116bda20f662256f589d8f0a87",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/Cargo.toml.orig",
+      "package": "sqlx",
+      "bytes": 11460,
+      "sha256": "928eb3d80dd10b41fb3d2bbc1ac074a8f8c91b5314d13b9b6b22365d55fb3d3e",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/FAQ.md",
+      "package": "sqlx",
+      "bytes": 29624,
+      "sha256": "ae3207f28753d2b40418ced76076b8ee588ece5b6d800df4c6e13683329035cc",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/LICENSE-APACHE",
+      "package": "sqlx",
+      "bytes": 10243,
+      "sha256": "9be39331309bc958aab10457c1a8459c038ae95662f26dfcf6c9088e2b3d653f",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/LICENSE-MIT",
+      "package": "sqlx",
+      "bytes": 1060,
+      "sha256": "44b1600a26039a75b28e1ce154a5dd163b16549f50e34fa577d9efe9c1bae179",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/README.md",
+      "package": "sqlx",
+      "bytes": 18808,
+      "sha256": "a2b33db488ed61b9821a3bfc8d44917a895dd3d3f73a46e12cf3160aad036dd1",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/benches/sqlite/describe.rs",
+      "package": "sqlx",
+      "bytes": 5101,
+      "sha256": "a4998daa5e88f6ccebd1efe78d0ee81c873a98e9fd8b7b22160026d3ef487052",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/clippy.toml",
+      "package": "sqlx",
+      "bytes": 427,
+      "sha256": "4af1c85c6f43c13c0762aec497123b81529bc367eaf9e05d744dcdbfdafef056",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/contrib/ide/vscode/settings.json",
+      "package": "sqlx",
+      "bytes": 60,
+      "sha256": "af1e5804fd68126c54f709b71aee3c7dd4dca964f509257c2dd331006dda66ad",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/examples/.gitignore",
+      "package": "sqlx",
+      "bytes": 22,
+      "sha256": "fc1398417f77731d79df1afa89fe92c469a770dfe33a869574f233796b1dff5a",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/examples/x.py",
+      "package": "sqlx",
+      "bytes": 2065,
+      "sha256": "84fea3ef254058f98c3b28f3e2a6b35707af2be902baafd0107859f2fd5bda32",
+      "mode": "100755",
+      "archive_mode": "0o755"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/gen-changelog.sh",
+      "package": "sqlx",
+      "bytes": 3170,
+      "sha256": "be0292a711d7a7bb03b57b9b3534dbb34d084189ed85d32c528d0a39e2e156a7",
+      "mode": "100755",
+      "archive_mode": "0o755"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/rust-toolchain.toml",
+      "package": "sqlx",
+      "bytes": 112,
+      "sha256": "8352d3ae004cfbc6884de351f2f1fbda1af8d02ef61df520fa1dfce7263f87c8",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/src/any/install_drivers_note.md",
+      "package": "sqlx",
+      "bytes": 425,
+      "sha256": "227ad6700bf9cabe527afca93db36618448ba3d52ecd15cabe0284d4ff6e9cf3",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/src/any/mod.rs",
+      "package": "sqlx",
+      "bytes": 1624,
+      "sha256": "e53b168a20595b4471bfc42745bf108ac494065957e1669820beb0e24a974bbb",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/src/lib.md",
+      "package": "sqlx",
+      "bytes": 3710,
+      "sha256": "8c1cff00c7cfe568466197f12c658b9b7c542b31bc63b4cf4eea48407d02d168",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/src/lib.rs",
+      "package": "sqlx",
+      "bytes": 4908,
+      "sha256": "3e1c881fefb728ce4f3492163377424011031cb8f2a33de7f98536fa604e2437",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/src/macros/mod.rs",
+      "package": "sqlx",
+      "bytes": 37068,
+      "sha256": "39f480aacdbd9c5bda524b7f91f01514a860dfb87f2279da7d49c5217e36f746",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/src/macros/test.md",
+      "package": "sqlx",
+      "bytes": 8541,
+      "sha256": "a918b0af491837d1400c572f8667c5d2b6aa1adf7e52b99d0d4680ff9351b5f1",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/src/spec_error.rs",
+      "package": "sqlx",
+      "bytes": 2390,
+      "sha256": "9c3227deff1fcade9579ed80b9ba923ed3dd9ea2ca2f3d55dfec37be1e59ecbd",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/src/ty_match.rs",
+      "package": "sqlx",
+      "bytes": 4562,
+      "sha256": "c13ac10c040f96fdeb05b6632b97355d994c5c357045ddba46f79c62f42d86c9",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/.dockerignore",
+      "package": "sqlx",
+      "bytes": 76,
+      "sha256": "ef75b3cbcf74309eb43558e39b5af71361c8b3959ab236ce16f010f04d298376",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/.env",
+      "package": "sqlx",
+      "bytes": 66,
+      "sha256": "289dd9de9ee8b647418f283c05215696464861d6231a7ff721a67912277bc74b",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/.gitignore",
+      "package": "sqlx",
+      "bytes": 18,
+      "sha256": "ab215b61d6faf5d4ff2fd0737f9a9639eecfe54ea28021c78cf3fc9a0b8b4c7d",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/README.md",
+      "package": "sqlx",
+      "bytes": 775,
+      "sha256": "71a627050d3ccde5403a8f55f0f9d9499f39cc0b9702ba13055ce27f4b3dbce3",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/any/any.rs",
+      "package": "sqlx",
+      "bytes": 3296,
+      "sha256": "31151cfee81a77be1b490cb78f1f3382dbfe6597b795f8ee3197ad0efecf972d",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/any/pool.rs",
+      "package": "sqlx",
+      "bytes": 8216,
+      "sha256": "afaaac1b0b2868927889fa4cee4cbad2d70e1151dfa8bad9028acca71de41e7c",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/certs/ca.crt",
+      "package": "sqlx",
+      "bytes": 1724,
+      "sha256": "c1b3e6604ccdbdf75359ee1c4bb9981a09ef1d0fb2f27cc7058d3785c30b7232",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/certs/ca.srl",
+      "package": "sqlx",
+      "bytes": 17,
+      "sha256": "31ddd8bb9c75df3a9b1856598a209c42a2601f344fd24711bb185bfbd26c9293",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/certs/client.crt",
+      "package": "sqlx",
+      "bytes": 2972,
+      "sha256": "391cf64e3b67efb926789b2596e72469e4920bbb7bdaf7e9e80ca237bfba088c",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/certs/client.csr",
+      "package": "sqlx",
+      "bytes": 3317,
+      "sha256": "dbd4779ebbc09fce28e9b52307ebf81e4675c24f2bf8a1722ec06328c5f30d83",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/certs/server.crt",
+      "package": "sqlx",
+      "bytes": 1545,
+      "sha256": "2317922471ab370e536cf3992f7b6d749c68f8d856a63d99de1e81196acb3317",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/docker-compose.yml",
+      "package": "sqlx",
+      "bytes": 12684,
+      "sha256": "a502fe2a1adc638403132ac4c978d77a6c8fac2df9207c54fd340625c8c3d109",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/docker.py",
+      "package": "sqlx",
+      "bytes": 2481,
+      "sha256": "a98cbdea7c287d45296c2e11e5241bb7e454a594b6fa91d7928efa969dd0ea16",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/fixtures/mysql/posts.sql",
+      "package": "sqlx",
+      "bytes": 259,
+      "sha256": "041e395a6d5cb7a0c106af5d05cf72538adf265e0820fb9d4ea93410ba24bea9",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/fixtures/mysql/users.sql",
+      "package": "sqlx",
+      "bytes": 69,
+      "sha256": "d27e6ac6bc175df843dfa16cf0ece16187270b174ab7a77405f56ad077745e5d",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/fixtures/postgres/posts.sql",
+      "package": "sqlx",
+      "bytes": 458,
+      "sha256": "11839248c9b9797f4767c4fc3251bcdb25d975e160937257cdf1fe4928530346",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/fixtures/postgres/users.sql",
+      "package": "sqlx",
+      "bytes": 145,
+      "sha256": "2e3c11ce7d263a5c88ed5c831b879f31d01cb393f87ab41984bd88f7d061c5f3",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/keys/ca.key",
+      "package": "sqlx",
+      "bytes": 2484,
+      "sha256": "1b056e6457068db10dab16897319172835bf4121d9cf0da7af11c25a47a671be",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/keys/client.key",
+      "package": "sqlx",
+      "bytes": 1704,
+      "sha256": "f98c4e2056e6e7f8a6f15ed8c0e25dd11c5d672eece85e2d582c224e84e4098a",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/keys/server.key",
+      "package": "sqlx",
+      "bytes": 1704,
+      "sha256": "96f81956f751204eebfc0c2d61797011c65d4848fc053e950f58ee080ef76aa8",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/macro.rs",
+      "package": "sqlx",
+      "bytes": 1299,
+      "sha256": "cf686a1b11a9a422bdc69b3976c82efb1560869dce3f4fbf939c960c05ecc954",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_reversible/20220721124650_add_table.down.sql",
+      "package": "sqlx",
+      "bytes": 39,
+      "sha256": "bcf360c228476062bb8fb7338195ae33fe092c7f7cc06277bb6b6c5430c35aa6",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_reversible/20220721124650_add_table.up.sql",
+      "package": "sqlx",
+      "bytes": 200,
+      "sha256": "2f9c6d5ae6aa61d47524686e033ab18b589086bf5c1b8dfb6afd306c6802be59",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_reversible/20220721125033_modify_column.down.sql",
+      "package": "sqlx",
+      "bytes": 71,
+      "sha256": "4d74cd01038ffaaaa949a807ba78aeb80b3befbde47b5a466b8c6e55c097a849",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_reversible/20220721125033_modify_column.up.sql",
+      "package": "sqlx",
+      "bytes": 71,
+      "sha256": "7c3d6700bc0d1100c489a6615314255837076f2891b33526963b8105cda57b4a",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_simple/20220721115250_add_test_table.sql",
+      "package": "sqlx",
+      "bytes": 192,
+      "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_simple/20220721115524_convert_type.sql",
+      "package": "sqlx",
+      "bytes": 1060,
+      "sha256": "c9cc2272fd7e7da1467eaa5f688010b8bb464c3821252de3092e87c35b2ab24d",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_symlink/20220721115250_add_test_table.sql",
+      "package": "sqlx",
+      "bytes": 192,
+      "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/migrate/migrations_symlink/20220721115524_convert_type.sql",
+      "package": "sqlx",
+      "bytes": 1060,
+      "sha256": "c9cc2272fd7e7da1467eaa5f688010b8bb464c3821252de3092e87c35b2ab24d",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/Dockerfile",
+      "package": "sqlx",
+      "bytes": 592,
+      "sha256": "9c999331e4bbc814fd3b6507464e70d5366faafd26892bbee2c9d4c0ddcf07cc",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/configure-db.sh",
+      "package": "sqlx",
+      "bytes": 227,
+      "sha256": "b8d8ca52d3891000d2a6034c777ad3c711e08d8da95760399100c3cb1aa79cb4",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/describe.rs",
+      "package": "sqlx",
+      "bytes": 1217,
+      "sha256": "199a37ab4b38d8584a0259c056f5e5eb0adc8dec527a14e4d8696704292eeb42",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/entrypoint.sh",
+      "package": "sqlx",
+      "bytes": 140,
+      "sha256": "b43489374e7b82e831a551fc9ce29af225e86cdbd0617a06f4f113cf5fcf0a60",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/macros.rs",
+      "package": "sqlx",
+      "bytes": 552,
+      "sha256": "60f2c5f525889ca77f65a5b2ec6b0e6b5c953ef8cad49b5bcac3175e44e5b733",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/mssql-2017.dockerfile",
+      "package": "sqlx",
+      "bytes": 521,
+      "sha256": "55a89c0f9500ebb5dd21e4f42417bd9e589f3e73c603ec5eac8fe6e7318408b2",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/mssql.rs",
+      "package": "sqlx",
+      "bytes": 12521,
+      "sha256": "2b056499f652e0c3b88a3228b6b6bcd3d584a47e4ca071744a981c738e54d480",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/setup.sql",
+      "package": "sqlx",
+      "bytes": 383,
+      "sha256": "411dbe700db768a0ba9646eff22c7d733f5c49b708ed45932a0f864f724b33c3",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mssql/types.rs",
+      "package": "sqlx",
+      "bytes": 1044,
+      "sha256": "db3db6376eef747a699fbad982603570de4de0c96466904a2eebdb72f5516b07",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/Dockerfile",
+      "package": "sqlx",
+      "bytes": 458,
+      "sha256": "aac9e27b5d03f8f60cf3347b47fc31be2029ee7ae7d63da6335edea6aa0cab58",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/derives.rs",
+      "package": "sqlx",
+      "bytes": 7413,
+      "sha256": "ddebac61387b1190a29cc98f3875e4debf3b6a21412947a46eadc4be9467c615",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/describe.rs",
+      "package": "sqlx",
+      "bytes": 1976,
+      "sha256": "fa10d61f80622c1efa7884bc0c94afbdd0cb7d1e467924c2501b89475e315ee3",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/error.rs",
+      "package": "sqlx",
+      "bytes": 2826,
+      "sha256": "8252a2fe1be31c5c13ba40e0bdc59f3c89cd8a817f224164faca89f8a7cbc8e1",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/fixtures/comments.sql",
+      "package": "sqlx",
+      "bytes": 394,
+      "sha256": "af1aac00c743c44289db4818b682ac787a45059b8d76a74a846b4d63746e651e",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/fixtures/posts.sql",
+      "package": "sqlx",
+      "bytes": 259,
+      "sha256": "041e395a6d5cb7a0c106af5d05cf72538adf265e0820fb9d4ea93410ba24bea9",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/fixtures/users.sql",
+      "package": "sqlx",
+      "bytes": 69,
+      "sha256": "d27e6ac6bc175df843dfa16cf0ece16187270b174ab7a77405f56ad077745e5d",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/macros.rs",
+      "package": "sqlx",
+      "bytes": 13467,
+      "sha256": "23986fda02c47022b6a2f639a6fa143283aee959066a401d047d80cae78a348c",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrate.rs",
+      "package": "sqlx",
+      "bytes": 2095,
+      "sha256": "a02bc4ebf3096c5669a52464be4f67b1e572e7bb2ff6af5539180e30304670f3",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations/1_user.sql",
+      "package": "sqlx",
+      "bytes": 227,
+      "sha256": "b67c1e4888e144548b1b5dc86c6510d75ab45e3cbf088e22dd2455cc463a4da8",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations/2_post.sql",
+      "package": "sqlx",
+      "bytes": 323,
+      "sha256": "887848d7f70c359975c7a8b26f3276d1892098f52cdcac28f2d42ec37a03228c",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations/3_comment.sql",
+      "package": "sqlx",
+      "bytes": 326,
+      "sha256": "dae1438bd59a26296677b3dee31d609906214ecc156372a19e55cdba31878642",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations_reversible/20220721124650_add_table.down.sql",
+      "package": "sqlx",
+      "bytes": 39,
+      "sha256": "bcf360c228476062bb8fb7338195ae33fe092c7f7cc06277bb6b6c5430c35aa6",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations_reversible/20220721124650_add_table.up.sql",
+      "package": "sqlx",
+      "bytes": 200,
+      "sha256": "2f9c6d5ae6aa61d47524686e033ab18b589086bf5c1b8dfb6afd306c6802be59",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations_reversible/20220721125033_modify_column.down.sql",
+      "package": "sqlx",
+      "bytes": 71,
+      "sha256": "4d74cd01038ffaaaa949a807ba78aeb80b3befbde47b5a466b8c6e55c097a849",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations_reversible/20220721125033_modify_column.up.sql",
+      "package": "sqlx",
+      "bytes": 71,
+      "sha256": "7c3d6700bc0d1100c489a6615314255837076f2891b33526963b8105cda57b4a",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations_simple/20220721115250_add_test_table.sql",
+      "package": "sqlx",
+      "bytes": 192,
+      "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/migrations_simple/20220721115524_convert_type.sql",
+      "package": "sqlx",
+      "bytes": 1058,
+      "sha256": "29b5e27840bfb3883bb3494b122b14ffb59aa71fe99a4e5b1561a0e938db48e9",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/my.cnf",
+      "package": "sqlx",
+      "bytes": 107,
+      "sha256": "3266e1efb9c2eaaf98dd494afe7b994ac3bfdd2092e54d3bc66276c3b0543aa8",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/mysql.rs",
+      "package": "sqlx",
+      "bytes": 15644,
+      "sha256": "adf3b0596b8eac28e89c6ac4bbf6f96ff6f847d685760ced7668e5e1d48ef7ab",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/rustsec.rs",
+      "package": "sqlx",
+      "bytes": 2353,
+      "sha256": "57c9ad9b46b9137b752f6bb882d837ed2583dacae823ef3e3fdd6d159014414b",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/setup.sql",
+      "package": "sqlx",
+      "bytes": 1056,
+      "sha256": "ba1a54201c95b5e99b008b1a056d29330c487070c56cf54ce24ea3df4592f286",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/test-attr.rs",
+      "package": "sqlx",
+      "bytes": 4779,
+      "sha256": "6ed554dd472188d8bccea4cf143f54fcbcb992b35cd149fe71ed0a55d353f55b",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/mysql/types.rs",
+      "package": "sqlx",
+      "bytes": 12544,
+      "sha256": "11452bba89fd85c9ff7aae3322d6f04993e57b8ef1ee590d5037822a4b1cc322",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/Dockerfile",
+      "package": "sqlx",
+      "bytes": 460,
+      "sha256": "3fc8d87ed7c913e8c31208b5f2bb23c7d15466dfc47c065f3a7bdc4a97301c47",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/derives.rs",
+      "package": "sqlx",
+      "bytes": 21024,
+      "sha256": "55a032b674345fd03edd6ec87dd53cdbf6b076475472428ab566ad046edc0215",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/describe.rs",
+      "package": "sqlx",
+      "bytes": 2659,
+      "sha256": "c26c5436d5cb9e09516a052f68ee515594e7ad1207c03af3e6fa63414bb54dda",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/error.rs",
+      "package": "sqlx",
+      "bytes": 2851,
+      "sha256": "e73d3147c0064d6b69d8ac4c5088dd9c0ccf2103510e6ff3bccd80923910aec0",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/fixtures/comments.sql",
+      "package": "sqlx",
+      "bytes": 745,
+      "sha256": "76b25706677c891527e041347c28c99dd4ab60e4df2a3d50ec049c4d2471803f",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/fixtures/posts.sql",
+      "package": "sqlx",
+      "bytes": 458,
+      "sha256": "11839248c9b9797f4767c4fc3251bcdb25d975e160937257cdf1fe4928530346",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/fixtures/rustsec/2024_0363.sql",
+      "package": "sqlx",
+      "bytes": 244,
+      "sha256": "b26ab0f42a6daf8289e8ae9d01fd10060aa5e9d8458587793bf55903588fb290",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/fixtures/users.sql",
+      "package": "sqlx",
+      "bytes": 145,
+      "sha256": "2e3c11ce7d263a5c88ed5c831b879f31d01cb393f87ab41984bd88f7d061c5f3",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/macros.rs",
+      "package": "sqlx",
+      "bytes": 17069,
+      "sha256": "43d061399921e1f68bd8fe557d6156656303feba4da8023755d42c3bdc9c3c5e",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrate.rs",
+      "package": "sqlx",
+      "bytes": 2667,
+      "sha256": "b96f53622e2ceb06f652ec59e04255103e6a4d4562ed2e842a20a2ec44e34d82",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations/0_setup.sql",
+      "package": "sqlx",
+      "bytes": 98,
+      "sha256": "2e9a106cf03e8ed50e6800686abeefef21fe5684d5128f3383696c03fcaf4db6",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations/1_user.sql",
+      "package": "sqlx",
+      "bytes": 119,
+      "sha256": "902f7e1106e6b172b2771193e5c6c304fe497246f7bb7cdea95a3cba15122ef7",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations/2_post.sql",
+      "package": "sqlx",
+      "bytes": 244,
+      "sha256": "c991509bae4b2e2f9be0ab2b9cb5ea2a6fb18f2ec1fe72005f9e23809c58b46b",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations/3_comment.sql",
+      "package": "sqlx",
+      "bytes": 314,
+      "sha256": "b788227008e72478ec20b0177162b5cd83693b2941749c6397d50e4239b835f2",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations_no_tx/0_create_db.sql",
+      "package": "sqlx",
+      "bytes": 44,
+      "sha256": "cd1f9e4a572dd4b209a6ec566ff6b4bc3d5414e3d29dba22c06fb827b2c17ab1",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations_reversible/20220721124650_add_table.down.sql",
+      "package": "sqlx",
+      "bytes": 39,
+      "sha256": "bcf360c228476062bb8fb7338195ae33fe092c7f7cc06277bb6b6c5430c35aa6",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations_reversible/20220721124650_add_table.up.sql",
+      "package": "sqlx",
+      "bytes": 200,
+      "sha256": "2f9c6d5ae6aa61d47524686e033ab18b589086bf5c1b8dfb6afd306c6802be59",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations_reversible/20220721125033_modify_column.down.sql",
+      "package": "sqlx",
+      "bytes": 71,
+      "sha256": "4d74cd01038ffaaaa949a807ba78aeb80b3befbde47b5a466b8c6e55c097a849",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations_reversible/20220721125033_modify_column.up.sql",
+      "package": "sqlx",
+      "bytes": 71,
+      "sha256": "7c3d6700bc0d1100c489a6615314255837076f2891b33526963b8105cda57b4a",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations_simple/20220721115250_add_test_table.sql",
+      "package": "sqlx",
+      "bytes": 192,
+      "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/migrations_simple/20220721115524_convert_type.sql",
+      "package": "sqlx",
+      "bytes": 1060,
+      "sha256": "c9cc2272fd7e7da1467eaa5f688010b8bb464c3821252de3092e87c35b2ab24d",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/pg_hba.conf",
+      "package": "sqlx",
+      "bytes": 168,
+      "sha256": "84df219c91129eae001eba69548364887827df6bdc46839c9fa3501991a84366",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/postgres.rs",
+      "package": "sqlx",
+      "bytes": 61924,
+      "sha256": "9b8b4c5239d2555b6181e521e17ec125aaad9137f75c861689a55e5497acc8e6",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/query_builder.rs",
+      "package": "sqlx",
+      "bytes": 4087,
+      "sha256": "f2993bade3d2fe7b602bd973b717c11ebb49e9bef9eb13962c2cb895fd176372",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/rustsec.rs",
+      "package": "sqlx",
+      "bytes": 5484,
+      "sha256": "a9ecf7ae02337494bfbfe5beaa550ed71483c9aef81260aaa9ac21b635a7d952",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/setup.sql",
+      "package": "sqlx",
+      "bytes": 1665,
+      "sha256": "35675db102cfe6340f1c19b7c92f4b2221687f66c455e5280910758e0a9e7028",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/test-attr.rs",
+      "package": "sqlx",
+      "bytes": 5907,
+      "sha256": "60b9125ef62364dd7ed604a9ecba99112ad250a6ca255ab46e0cdd6d1e318168",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/test-query.sql",
+      "package": "sqlx",
+      "bytes": 65,
+      "sha256": "93bb1679d291e628b8881cfafc6dc372b052d00993f4aad5566c033e6a8e404c",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/postgres/types.rs",
+      "package": "sqlx",
+      "bytes": 29235,
+      "sha256": "b6818bafbf7d3a5ea3cf4edda00b2c6608403937f30edd9f094d13601b1e7abf",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/.gitignore",
+      "package": "sqlx",
+      "bytes": 16,
+      "sha256": "50f3b3e16d7b04a685551e7a92dee20ad28208d459b7641b4e63eced2eb7839d",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/any.rs",
+      "package": "sqlx",
+      "bytes": 913,
+      "sha256": "1b00df7614c4e1db8c71bb9c1c3b27cb683b1f528adde5e9b9239c58dee47f76",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/derives.rs",
+      "package": "sqlx",
+      "bytes": 232,
+      "sha256": "166cc5ed0da43ee2b8c88a72a870c8b16673515f0d250563229c72ee76e65c81",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/describe.rs",
+      "package": "sqlx",
+      "bytes": 32937,
+      "sha256": "68479b223809f9aa1540debd44140bc8e42f8d05828e484ac441ca478f4479a9",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/error.rs",
+      "package": "sqlx",
+      "bytes": 2727,
+      "sha256": "9c8569e519d76cbf8b10abf2538d57afc0791820d7947bb6530bb2ba3de02745",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/fixtures/comments.sql",
+      "package": "sqlx",
+      "bytes": 400,
+      "sha256": "c329cdc81e4ac2a9b5ae3f536d128adf1955e4a57bcaeedfef6d2f361ff53a60",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/fixtures/posts.sql",
+      "package": "sqlx",
+      "bytes": 259,
+      "sha256": "c7615cce4f9f4d8ad084c4c29be767d6015c9288381440b5aed65c4624c50fb1",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/fixtures/users.sql",
+      "package": "sqlx",
+      "bytes": 71,
+      "sha256": "fa286e73fbc2a740a6f019ac069af64e9688567065a6ea9effe47e614b7581f8",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/macros.rs",
+      "package": "sqlx",
+      "bytes": 8438,
+      "sha256": "20b33f2dddc97bfaf90876865a6489c6b514ca35ee47cda45c055650e1f032ce",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrate.rs",
+      "package": "sqlx",
+      "bytes": 2103,
+      "sha256": "1b8948114ce18ea034f3143300e4d0098b82038181c39aa84e700e94bd34ee21",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations/1_user.sql",
+      "package": "sqlx",
+      "bytes": 152,
+      "sha256": "554f3699379adac1162a251f70c4f2a0c75fbb4059e9317ea5526b8d20650974",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations/2_post.sql",
+      "package": "sqlx",
+      "bytes": 308,
+      "sha256": "6a21693d3488820a7c6e90deedac6c4705b69aba7a5a3104ead565d8593cdf22",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations/3_comment.sql",
+      "package": "sqlx",
+      "bytes": 328,
+      "sha256": "ea619f0b4b851f9c01dcb2874182a84ef20d82bb44d1cc7a93a7428989cb6798",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations_reversible/20220721124650_add_table.down.sql",
+      "package": "sqlx",
+      "bytes": 39,
+      "sha256": "bcf360c228476062bb8fb7338195ae33fe092c7f7cc06277bb6b6c5430c35aa6",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations_reversible/20220721124650_add_table.up.sql",
+      "package": "sqlx",
+      "bytes": 200,
+      "sha256": "2f9c6d5ae6aa61d47524686e033ab18b589086bf5c1b8dfb6afd306c6802be59",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations_reversible/20220721125033_modify_column.down.sql",
+      "package": "sqlx",
+      "bytes": 71,
+      "sha256": "4d74cd01038ffaaaa949a807ba78aeb80b3befbde47b5a466b8c6e55c097a849",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations_reversible/20220721125033_modify_column.up.sql",
+      "package": "sqlx",
+      "bytes": 71,
+      "sha256": "7c3d6700bc0d1100c489a6615314255837076f2891b33526963b8105cda57b4a",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations_simple/20220721115250_add_test_table.sql",
+      "package": "sqlx",
+      "bytes": 192,
+      "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/migrations_simple/20220721115524_convert_type.sql",
+      "package": "sqlx",
+      "bytes": 959,
+      "sha256": "9e147a27bda345604e7870e5f96aa802f8e4f2ec8b03f52db260ea8051700d92",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/rustsec.rs",
+      "package": "sqlx",
+      "bytes": 2791,
+      "sha256": "994383eacd33240cd4d3e64f6b7a75adcbe9dc87b26121d7a15cf306ce2ae7e2",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/setup.sql",
+      "package": "sqlx",
+      "bytes": 1039,
+      "sha256": "0143afda08b05e4adc5876bb3b3fca93e41fd559d9ae60d653e6286a75b2b374",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/sqlcipher.rs",
+      "package": "sqlx",
+      "bytes": 5699,
+      "sha256": "fc9670fc2701b36e71c015f4ad1e201ced4717528a2ad4f8a3ff67d80152c1a3",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/sqlite.db",
+      "package": "sqlx",
+      "bytes": 36864,
+      "sha256": "b2d21ebdabfef366991a5e7756c33424ec44154af04402fa42af9e62ad83545a",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/sqlite.rs",
+      "package": "sqlx",
+      "bytes": 40223,
+      "sha256": "ae7360a15da3eddc615dd93358646a8f83640ecc34882904b4cde43a4ce3a1f4",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/test-attr.rs",
+      "package": "sqlx",
+      "bytes": 3024,
+      "sha256": "d4afd5dc68d32430afd384eac73a18524f884cd6e329b08b06130ace312c4c7b",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/sqlite/types.rs",
+      "package": "sqlx",
+      "bytes": 8586,
+      "sha256": "3fb2d85d629237ba0cc345af26fb26ac409017eed4f5b77115a6649c36fa033c",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/mysql/gated/chrono.rs",
+      "package": "sqlx",
+      "bytes": 210,
+      "sha256": "a2967ca2a27d047d706c2ca85b77084e86fb8f9a608a11fd77e2209897806fe0",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/mysql/gated/chrono.stderr",
+      "package": "sqlx",
+      "bytes": 1085,
+      "sha256": "1ea322938525416e9b3fd054a7673a85989e26530d4b10f8873e78ac719bdd00",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/deprecated_rename.rs",
+      "package": "sqlx",
+      "bytes": 174,
+      "sha256": "cca434b354e41848df53ca89e8d2c5b2869111a5a967fab012f23731369647a6",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/deprecated_rename.stderr",
+      "package": "sqlx",
+      "bytes": 499,
+      "sha256": "f2a53b7d1f9f6c09b260883d1b2ee17219e99f73789ed4b7c97a44dfe1ec8189",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/gated/chrono.rs",
+      "package": "sqlx",
+      "bytes": 433,
+      "sha256": "b3e6cb1336d5866ec372a7f4b8603205316a05b7f0cb2a74fe69be420d45de20",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/gated/chrono.stderr",
+      "package": "sqlx",
+      "bytes": 2655,
+      "sha256": "b9c1744362a2164d6d9588dee6ebfe5acc0ea8bba114afc0844dd62de27baec0",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/gated/ipnetwork.rs",
+      "package": "sqlx",
+      "bytes": 232,
+      "sha256": "f23b05659eb43fc95c7a97d577a2dd2a3030312ac215252c9e869fc4629bcdba",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/gated/ipnetwork.stderr",
+      "package": "sqlx",
+      "bytes": 1353,
+      "sha256": "b691afa0fbee85843303b7400c3711bb75ade4391d04fb78b78ede0219d60e9e",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/gated/uuid.rs",
+      "package": "sqlx",
+      "bytes": 144,
+      "sha256": "f01c322b252c6b1f04aa1140611a83bbd3e33d3f0dda94ce157d640d22f611fb",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/gated/uuid.stderr",
+      "package": "sqlx",
+      "bytes": 701,
+      "sha256": "4fa17fcf9de5e4c87e5074a30b54a272e75c08c189c6d4797aa6719bb8514339",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/issue_30.rs",
+      "package": "sqlx",
+      "bytes": 66,
+      "sha256": "59a771bd34877b08728db477f6b9f57d4899d87b4b963da5638830853b9f9096",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/issue_30.stderr",
+      "package": "sqlx",
+      "bytes": 326,
+      "sha256": "d765785be439c1580e075731b8f89fc0092d1185868ef54ea6b1f77ec11f4acd",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/unsupported-type.rs",
+      "package": "sqlx",
+      "bytes": 202,
+      "sha256": "3c16a91b27cda97f90db733c48b51161730242d1c79ac3918724435f9f06d207",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/unsupported-type.stderr",
+      "package": "sqlx",
+      "bytes": 624,
+      "sha256": "de4076e6c0999760e2dfce850aeed37f088da1674b8d276937675af94843f692",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/wrong_param_type.rs",
+      "package": "sqlx",
+      "bytes": 413,
+      "sha256": "e44734ada6f112e9fb9472747eda2ec449673f4a0783002391e00837717ea1de",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/postgres/wrong_param_type.stderr",
+      "package": "sqlx",
+      "bytes": 1648,
+      "sha256": "ef311ad816c2bb98ff77406a69861096848bcef397f6bfd0f850509f4f261e53",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/sqlite/expression-column-type.rs",
+      "package": "sqlx",
+      "bytes": 58,
+      "sha256": "373e6e9747a1ba405ec0c7a5509754a9204ad5543d5dddec79d61698a4ef4297",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui/sqlite/expression-column-type.stderr",
+      "package": "sqlx",
+      "bytes": 378,
+      "sha256": "e969c488ee466bcd31441d83b4721e161d5f50fdd04104e6d4eb6ec502f54824",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/ui-tests.rs",
+      "package": "sqlx",
+      "bytes": 1462,
+      "sha256": "0c02796a0bdf3733f6c0fe3a4ee8984180cd0a2b9189e5349c799e7af6525fef",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx/tests/x.py",
+      "package": "sqlx",
+      "bytes": 9365,
+      "sha256": "93fee486830959fcd27b12f97f7328e68ef3cc16793e440d52380e6c8a03f746",
+      "mode": "100755",
+      "archive_mode": "0o755"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/.cargo_vcs_info.json",
+      "package": "sqlx-macros-core",
+      "bytes": 110,
+      "sha256": "3bac3f4641bbbef9f18aca91f238f3a58170f1b9016c013179036989d01dd576",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/Cargo.toml",
+      "package": "sqlx-macros-core",
+      "bytes": 3896,
+      "sha256": "a05c4a05c581cf6f6e85c52c1ce3fe5a6f67cf7545159b16d93160ce02c1c7c5",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/Cargo.toml.orig",
+      "package": "sqlx-macros-core",
+      "bytes": 2853,
+      "sha256": "2cd9879d4699c3c2d71437ff50fc4214e8200dacd8f57cc13389e2522656f97a",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/LICENSE-APACHE",
+      "package": "sqlx-macros-core",
+      "bytes": 10243,
+      "sha256": "9be39331309bc958aab10457c1a8459c038ae95662f26dfcf6c9088e2b3d653f",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/LICENSE-MIT",
+      "package": "sqlx-macros-core",
+      "bytes": 1060,
+      "sha256": "44b1600a26039a75b28e1ce154a5dd163b16549f50e34fa577d9efe9c1bae179",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/common.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 1073,
+      "sha256": "e0baf2a52a1e90f5ce6c47c0c9fb9aa5fe7cd85ef3cd1511e90a6f6d9ceca8bc",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/database/impls.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 2198,
+      "sha256": "ddf04d8248a7c0272e0d16068af1cba81ca54a3e2af92c6ef1e8a310eccb0585",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/database/mod.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 1853,
+      "sha256": "d6ad0c00aae5898a1c35858190011a311496ad2626d88630d8beb993163aa970",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/derives/attributes.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 8882,
+      "sha256": "77ec6155e2c9f6f4b658b95045420f09c2c7946e1af631951a1ca1224c69c085",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/derives/decode.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 10672,
+      "sha256": "65ffa5332295293c0a1a60151eb2b7bd4564189da7429c6540aac28131c6f7e5",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/derives/encode.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 8906,
+      "sha256": "7a0d35ea88e91ebc43d45248ae88a42edad21de4f301e6a74ee4a3bf90114e2a",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/derives/mod.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 1232,
+      "sha256": "26c75643943c95316b47b65324fa8864dedb8150f0e35f2b2514df90acb1624a",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/derives/row.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 11697,
+      "sha256": "7bc0fd43bee7a81f51c10732381cf4e055dc725897c760c7328d6835747fe7b7",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/derives/type.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 9002,
+      "sha256": "9576ea9d8e559172b793fc8db6596d42d6278e3f9f50f4b6f3638b01c20641ca",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/lib.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 2373,
+      "sha256": "d1d66fc1f2b8037eed2ee1a9408ac872a6fa7acb3116e8ac48c3020f750da24d",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/migrate.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 3869,
+      "sha256": "e425c282ff84c8c3cc891395c119942b8df6e4833775ffb7e4ba2bf38acee26d",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/query/args.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 6004,
+      "sha256": "f7b49b73871f765d5733059ffdd96b3505f3f2fd1f8d85374b49a77db4050c27",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/query/data.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 6264,
+      "sha256": "16d8eae9e134d91cc46a264be2d35045045c1e3269888bfcdc61897962d1caab",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/query/input.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 4880,
+      "sha256": "86e5aa8584847949834c14257da2e465b442b7e7bc58a2a9d20f3d0eb1d26ee4",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/query/mod.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 13872,
+      "sha256": "14f859d9e3c3b8c56d5feb67edfedebf31c997d8e5cbb2788e5da9db73b7f626",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/query/output.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 10809,
+      "sha256": "fe61cf08489924b31ef019a9aad47474d6a66052dbd9d9108a2b64bc53649229",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    },
+    {
+      "path": "services/cloud-gateway/vendor/sqlx-macros-core/src/test_attr.rs",
+      "package": "sqlx-macros-core",
+      "bytes": 14017,
+      "sha256": "59bfc9dceb1ff5aff40abd82b45e7fec5a426d793462a2861a16a439da108127",
+      "mode": "100644",
+      "archive_mode": "0o644"
+    }
+  ],
+  "file_count": 193,
+  "total_bytes": 942696,
+  "crate_SHA_equals_product_lock": true,
+  "restored_before_any_manifest_edit": true
+}

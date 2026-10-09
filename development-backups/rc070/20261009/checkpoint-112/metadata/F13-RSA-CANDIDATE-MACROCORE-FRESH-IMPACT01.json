@@ -1,0 +1,9 @@
+{
+  "error": "Target 'sqlx-macros-core' not found",
+  "target": {
+    "name": "sqlx-macros-core"
+  },
+  "direction": "upstream",
+  "impactedCount": 0,
+  "risk": "UNKNOWN"
+}

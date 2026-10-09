@@ -1,0 +1,54 @@
+{
+  "decision": "PASS_SAME_HEAD_COMPILER_DATA_ONLY",
+  "run": 37968139323,
+  "attempt": 1,
+  "head": "4371a7c699555cf3eee18b58fbb4bf689621e7a7",
+  "manager_tree": "047d5780e0157debaa05930cf4ea0c32881055c8",
+  "current_local_manager1878_native_and_physical_exact": true,
+  "current_local_union1967_native_and_physical_exact": true,
+  "producer_CI_source_beforeafter_reconstructed_digest_same": true,
+  "CLI_production_ordinary_profile_false": true,
+  "results": [
+    {
+      "mode": "go",
+      "archive_sha256": "7d077b98e5fa1926953f7b65c753ddd4d99af6e1714b67177b61025e98d572f6",
+      "members": 20,
+      "logs_and_JSON_all_zip_bytes_exact": true,
+      "commands": 11,
+      "all_exact_command_exit0": true,
+      "named_count": 23,
+      "subtest_count": 24,
+      "current_production_consumer": true,
+      "source1967_beforeafter_digest": "3dcf1f6cd1e23b8116f4d4c42af702c0eafc84845201f62d3555678c2e196223",
+      "runtime_reported_beforeafter_equal_and_actual_consumer_reads": true,
+      "independent_remote_runtime_reread": false,
+      "native_authority": false,
+      "qualification": "COMPILER_DATA_ONLY"
+    },
+    {
+      "mode": "rust",
+      "archive_sha256": "30242c0c2a487ac95d6e8e945e51ae1a15e842cd61c2c2642df88b7c072c9258",
+      "members": 40,
+      "logs_and_JSON_all_zip_bytes_exact": true,
+      "commands": 31,
+      "all_exact_command_exit0": true,
+      "named_count": 14,
+      "subtest_count": null,
+      "current_production_consumer": true,
+      "source1967_beforeafter_digest": "3dcf1f6cd1e23b8116f4d4c42af702c0eafc84845201f62d3555678c2e196223",
+      "runtime_reported_beforeafter_equal_and_actual_consumer_reads": true,
+      "independent_remote_runtime_reread": false,
+      "native_authority": false,
+      "qualification": "COMPILER_DATA_ONLY"
+    }
+  ],
+  "runtime_limit": "Remote executable paths/bytes were actually checked by the same-head original producer and strict consumer; independent audit reads their raw artifact/runtime vector and pinned source. No local reread of absent runner executables claimed.",
+  "excluded": [
+    "VM boot/handle/owner/nativepositive",
+    "whole755/currentcandidate qualification",
+    "installation",
+    "RC release/download/startup"
+  ],
+  "extra_SUT_or_helper_execution": false,
+  "terminal_API_external_provenance": "root actual approved GET supplied terminal metadata; audit did not infer GitHub status from receipt alone"
+}

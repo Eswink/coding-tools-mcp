@@ -1,0 +1,59 @@
+{
+  "scope": "PUBLIC_PARTIAL_SOURCE_PROJECTION_ONLY",
+  "localBundleFiles": 212,
+  "localManifestSHA256": "2cc776004b67a61f17ac481eb32d6a2bbfe8df33dbf1424a0567f41fc1b45593",
+  "onlyChangedSourceManifests": 2,
+  "all193OriginalSourceAndCurrentCandidatesVerifiedLocally": true,
+  "publicFull193SourceRecoveryClaim": false,
+  "publicTLSOrKeyBytes": false,
+  "omittedByteFiles": [
+    {
+      "path": "candidate/services/cloud-gateway/vendor/sqlx/tests/certs/ca.crt",
+      "bytes": 1724,
+      "sha256": "c1b3e6604ccdbdf75359ee1c4bb9981a09ef1d0fb2f27cc7058d3785c30b7232",
+      "reason": "TLS certificate/key fixture bytes excluded from public backup"
+    },
+    {
+      "path": "candidate/services/cloud-gateway/vendor/sqlx/tests/certs/client.crt",
+      "bytes": 2972,
+      "sha256": "391cf64e3b67efb926789b2596e72469e4920bbb7bdaf7e9e80ca237bfba088c",
+      "reason": "TLS certificate/key fixture bytes excluded from public backup"
+    },
+    {
+      "path": "candidate/services/cloud-gateway/vendor/sqlx/tests/certs/server.crt",
+      "bytes": 1545,
+      "sha256": "2317922471ab370e536cf3992f7b6d749c68f8d856a63d99de1e81196acb3317",
+      "reason": "TLS certificate/key fixture bytes excluded from public backup"
+    },
+    {
+      "path": "candidate/services/cloud-gateway/vendor/sqlx/tests/keys/ca.key",
+      "bytes": 2484,
+      "sha256": "1b056e6457068db10dab16897319172835bf4121d9cf0da7af11c25a47a671be",
+      "reason": "TLS certificate/key fixture bytes excluded from public backup"
+    },
+    {
+      "path": "candidate/services/cloud-gateway/vendor/sqlx/tests/keys/client.key",
+      "bytes": 1704,
+      "sha256": "f98c4e2056e6e7f8a6f15ed8c0e25dd11c5d672eece85e2d582c224e84e4098a",
+      "reason": "TLS certificate/key fixture bytes excluded from public backup"
+    },
+    {
+      "path": "candidate/services/cloud-gateway/vendor/sqlx/tests/keys/server.key",
+      "bytes": 1704,
+      "sha256": "96f81956f751204eebfc0c2d61797011c65d4848fc053e950f58ee080ef76aa8",
+      "reason": "TLS certificate/key fixture bytes excluded from public backup"
+    },
+    {
+      "path": "candidate/services/cloud-gateway/vendor/sqlx/tests/.env",
+      "bytes": 66,
+      "sha256": "289dd9de9ee8b647418f283c05215696464861d6231a7ff721a67912277bc74b",
+      "reason": "upstream environment fixture bytes excluded from public backup"
+    }
+  ],
+  "originalSourceStatusUnmodified": true,
+  "externalSourcePeer": "PENDING",
+  "CargoLockBuildAuditsProductInstall": "NOTRUN",
+  "originalRSAAudit": "FAIL_UNCHANGED",
+  "newRCQualification": false,
+  "all7TLSKeyEnvironmentFixtureBytesExcluded": true
+}

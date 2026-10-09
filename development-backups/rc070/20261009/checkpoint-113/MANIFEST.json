@@ -1,0 +1,30 @@
+{
+  "scope": "CURRENT_REAL_COMPILER_DATA_SAFE_ONLY; no finalRC qualification",
+  "files": [
+    {
+      "path": "ACTUAL-RUN-TERMINAL-SAFE01.json",
+      "bytes": 373,
+      "sha256": "6e4a325eebe54bec2cd0fdf035ff83f73056a06c1dc03def8c03dbf854010b4f",
+      "mode": "100644"
+    },
+    {
+      "path": "INDEPENDENT-TERMINAL-SAFE01.json",
+      "bytes": 2409,
+      "sha256": "6bf1389156c554239b610959f2e0f539d58911ad5ccf1c3735c0b0b29e32b7de",
+      "mode": "100644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 650,
+      "sha256": "3f784c6fd4ea9e60dfcdf3056910691eccdfa250c43c2392f980f5b585b86629",
+      "mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 1533,
+      "sha256": "2a58f72e444425ee7f42a826f714c8fd1efefb89d3f9942de8df686e0b923e2b",
+      "mode": "100644"
+    }
+  ],
+  "selfExcluded": true
+}

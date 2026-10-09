@@ -1,0 +1,138 @@
+{
+  "scope": "PUBLIC_PARTIAL_SOURCE_PROJECTION_ONLY; all7 TLS/key/environment fixture bytes excluded",
+  "files": [
+    {
+      "path": "COUNT-ERRATUM.json",
+      "bytes": 447,
+      "sha256": "c1ca03807cc1862b01e6a6ead9460f588b9a6c2f84633d419b6d2351f7df4549",
+      "mode": "100644"
+    },
+    {
+      "path": "PUBLIC-PROJECTION-STATUS.json",
+      "bytes": 2590,
+      "sha256": "3ea3902ad8a9d52bceaac2710ab116bd6d32d52d476141f8d5c13415c977299c",
+      "mode": "100644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1009,
+      "sha256": "a7192dc237da3234e4656bcd7fd7039643e7e7ab34247dc6b23781070fa0cfd2",
+      "mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 1344,
+      "sha256": "edf9f904eb0be4b6ccbb1195b814d8b01aeb88a117d7425d9bff78d084712940",
+      "mode": "100644"
+    },
+    {
+      "path": "candidate/services/cloud-gateway/vendor/sqlx/Cargo.toml",
+      "bytes": 9617,
+      "sha256": "749b0149483ba694aeee87729bded5e3df13c4703f1d07f4e9578027e35004f4",
+      "mode": "100644"
+    },
+    {
+      "path": "candidate/services/cloud-gateway/vendor/sqlx-macros-core/Cargo.toml",
+      "bytes": 3617,
+      "sha256": "cc6f7de8b22fc50b81864193d4573f527d4a3dc28a035d9b84af83c3921ff527",
+      "mode": "100644"
+    },
+    {
+      "path": "metadata/F13-RSA-CANDIDATE-MACROCORE-FRESH-IMPACT01.json",
+      "bytes": 173,
+      "sha256": "e34470142e0de169a9db117d904c40f3d5a148cadda0aba7bb93ee41e44d7882",
+      "mode": "100644"
+    },
+    {
+      "path": "metadata/F13-RSA-CANDIDATE-MANIFEST-FRESH-IMPACT01.json",
+      "bytes": 149,
+      "sha256": "5c0c35bb5ee476a8acaef1c77231ce2cb7b90910caa8573b0c0e29969a7f5afa",
+      "mode": "100644"
+    },
+    {
+      "path": "metadata/F13-RSA-CANDIDATE-ORIGINAL1840-BEFORE01.json",
+      "bytes": 482018,
+      "sha256": "c03f616e34e9319e714e984d0993f577e0738fa5f547cb5876a3e071a476f97e",
+      "mode": "100644"
+    },
+    {
+      "path": "metadata/F13-RSA-CANDIDATE193-AFTER01.json",
+      "bytes": 54927,
+      "sha256": "f25da35b53af57553d5a4424d3e5f6391c8b5d563d3f1f684a21267ae359aa65",
+      "mode": "100644"
+    },
+    {
+      "path": "metadata/F13-RSA-OFFICIAL193-BEFORE01.json",
+      "bytes": 115744,
+      "sha256": "d490bf408b1cd8ed234eb7047578e5d079654a4d81b5a5663f5a1812aa71645e",
+      "mode": "100644"
+    },
+    {
+      "path": "metadata/F13-RSA-ORDINARY-CONTROLS02.json",
+      "bytes": 6728,
+      "sha256": "ef21a286ecda8d339d1aea27870ac33545ab769b9307b4e77d16604339909faa",
+      "mode": "100644"
+    },
+    {
+      "path": "metadata/F13-RSA-ORDINARY-MODEL-ERRATUM01.json",
+      "bytes": 447,
+      "sha256": "3bd45b8971f907fc06cf85885ff4b0483238024f19bdbe82b869a0ad1fb70b9c",
+      "mode": "100644"
+    },
+    {
+      "path": "metadata/F13-RSA-SOURCE-ROOTCAUSE-WORKSHEET01.json",
+      "bytes": 860,
+      "sha256": "8214be72de326e88e764cdf3138f48a3597544c7761727e2b7b109a294b4ac8c",
+      "mode": "100644"
+    },
+    {
+      "path": "metadata/F13-RSA-TWO-MANIFEST-ONLY.patch",
+      "bytes": 3048,
+      "sha256": "d2a461f98e9629cbe250fa2a0a23a2662209cb8b2bee2444bf24e37631b47d80",
+      "mode": "100644"
+    },
+    {
+      "path": "metadata/rsa-source-controls-failurefirst01.py",
+      "bytes": 7428,
+      "sha256": "3964cc4ce4648330601fa70db64b2e4f2738a7e8e1b6e69493ce82e7206828f7",
+      "mode": "100644"
+    },
+    {
+      "path": "metadata/rsa-source-controls.py",
+      "bytes": 7641,
+      "sha256": "bfc5f2bb8adaad4955f9f69a25dc0a3979613fbb8c3149b9da16fb48e5725b74",
+      "mode": "100644"
+    },
+    {
+      "path": "original-manifests/sqlx/Cargo.toml",
+      "bytes": 9907,
+      "sha256": "6394fd5590c2c7288127c7d695222b313ff068116bda20f662256f589d8f0a87",
+      "mode": "100644"
+    },
+    {
+      "path": "original-manifests/sqlx-macros-core/Cargo.toml",
+      "bytes": 3896,
+      "sha256": "a05c4a05c581cf6f6e85c52c1ce3fe5a6f67cf7545159b16d93160ce02c1c7c5",
+      "mode": "100644"
+    },
+    {
+      "path": "spec/design.md",
+      "bytes": 4227,
+      "sha256": "9cd96835ac5d399c79fef865b3357d30b424d8ad41e5bacd780dd0be77c118f0",
+      "mode": "100644"
+    },
+    {
+      "path": "spec/requirements.md",
+      "bytes": 4604,
+      "sha256": "3f56af58ec76bbb679d017865d7b66c1c73f355157903dc542487a02e53a0646",
+      "mode": "100644"
+    },
+    {
+      "path": "spec/tasks.md",
+      "bytes": 1698,
+      "sha256": "dc73643860b4fca480032b93beade583698b561aaae16394f507c9067df53772",
+      "mode": "100644"
+    }
+  ],
+  "manifestSelfExcluded": true
+}

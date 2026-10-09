@@ -1,0 +1,33 @@
+{
+  "state": "SOURCE_ONLY_NOT_WIRED",
+  "head": "13cd343d942b7a68912d42a8f9235c02ed647764",
+  "baseline_tree": "f2be2e09cca27081cccad11d94ed29858b955df9",
+  "original_F13_paths1840_same": true,
+  "official_package193_paths": true,
+  "only_two_normalized_manifests_changed": [
+    "services/cloud-gateway/vendor/sqlx/Cargo.toml",
+    "services/cloud-gateway/vendor/sqlx-macros-core/Cargo.toml"
+  ],
+  "third": {
+    "sha256": "4fd4eeb9ddd700a179aaeacf1c122c48896d7e6d7f15bd865baa7f249e243b4c",
+    "bytes": 2493,
+    "third_manifest_not_modified": true,
+    "mysql_target_remains_declared": true
+  },
+  "product_Cargo_manifests_and_locks_unchanged": true,
+  "ordinary_TOML_model16_pass": true,
+  "ordinary_model_first_failure_preserved": true,
+  "fresh_manifest_impact": "UNKNOWN manualHIGH disclosed",
+  "independent_source_peer": "PENDING",
+  "Cargo_metadata_lock_build_audit_install": "NOTRUN",
+  "unsupported_requests": [
+    "mysql",
+    "all-databases",
+    "default-features",
+    "all-features"
+  ],
+  "original_RSA_audit": "FAIL_UNCHANGED",
+  "no_new_RC_qualification": true,
+  "candidate_usage": "Later root-only Cargo may supply explicit external patch.crates-io paths after separate launch/source admission. No product patch entry or Cargo invocation now.",
+  "all191_non_manifest_package_files_including_all_Rust_unchanged": true
+}

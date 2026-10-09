@@ -1,0 +1,12 @@
+{
+  "phenomenon": "Gateway lock includes RSA0.9.10; actual audit1 despite selected build no active RSA",
+  "rootCause": "Two SQLx optional MySQL manifest dependency paths are present in Cargo.lock. This explains locked reachability; genuine resolution elimination remains a future untested hypothesis.",
+  "ruledOut": [
+    "default-features=false is already present",
+    "inactive selected build does not qualify lock audit",
+    "patched RSA upgrade not established"
+  ],
+  "limitedFix": "Remove two optional sqlx-mysql dependency tables and weak refs, retain compatibility feature labels, preserve all PG source/features",
+  "testContract": "Only TOML model/source provenance/parity and admission-negative controls; no Cargo evidence",
+  "authorization": "root limited source-only; unsupported MySQL/all-databases reject; third manifest needs new scope"
+}
