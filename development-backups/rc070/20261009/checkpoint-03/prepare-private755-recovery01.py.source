@@ -1,0 +1,101 @@
+"""Create one NONPUBLIC engineering object in its independent full public clone."""
+from pathlib import Path
+import hashlib, json, os, stat, subprocess, sys, traceback
+BASE=Path(__file__).parent
+HISTORICAL=Path('/workspace/scratch/566f6003d85e/recovered-evidence/contracts755-sharded-pretag-evidence')
+OUT=BASE/'private-engineering755-recovery01'; OUT.mkdir(mode=0o700)
+ROOT=Path('/workspace/scratch/566f6003d85e/contracts755-private-recovery01')
+FROZEN=HISTORICAL/'frozen-eight-handoff01'
+CURRENT=BASE/'frozen-newline-eight02'
+PARENT='c60f9667fa8431e27fabbc497c19b4abfef5b965'
+TREE='b227335c6503c8b9d2575802522758a308684be8'
+sha=lambda raw:hashlib.sha256(raw).hexdigest()
+def save(name,value):
+    with (OUT/name).open('x') as stream:stream.write(json.dumps(value,ensure_ascii=False,sort_keys=True,indent=2)+'\n')
+def file(path):
+    path=Path(path);info=path.stat();return dict(path=str(path),realpath=str(path.resolve()),bytes=info.st_size,sha256=sha(path.read_bytes()),mode=oct(stat.S_IMODE(info.st_mode)),uid=info.st_uid,nlink=info.st_nlink)
+def git(*args,data=None):
+    return subprocess.check_output(['/usr/bin/git','--no-replace-objects',*args],input=data,cwd=ROOT,env=dict(os.environ,GIT_NO_REPLACE_OBJECTS='1',GIT_OPTIONAL_LOCKS='0'),timeout=30)
+try:
+    assert len(sys.argv)==3
+    review=Path(sys.argv[1]);assert review.is_absolute()
+    review_sha=sys.argv[2];assert len(review_sha)==64
+    assert sha(review.read_bytes())==review_sha
+    manifest=json.loads((FROZEN/'HANDOFF-MANIFEST.json').read_bytes())
+    assert sha((FROZEN/'HANDOFF-MANIFEST.json').read_bytes())=='b08a9cffc4bce8259f90935a88212b0c38fd287c615b8973e2b702bfdc01311f'
+    for path,row in manifest['files'].items():
+        data=(FROZEN/path).read_bytes();assert len(data)==row['bytes'] and sha(data)==row['sha256']
+    # Only the one finite author selflogger row is corrected, using finished bytes.
+    correction=HISTORICAL/'selflog-erratum01/SELFLOGGER-ERRATUM-READBACK.json'
+    assert sha(correction.read_bytes())=='d338e2cefc2975fc267229372592e255c70fece9dee4a00fa35dd1ea9537f6d0'
+    corrected=json.loads(correction.read_bytes())
+    relocated_raw=(BASE/'HISTORICAL428-RELOCATION.json').read_bytes()
+    assert sha(relocated_raw)=='cafbf29da6df621df357cad772f63b92186f2d9097afdd8f1f21eeb6dad03296'
+    relocated=json.loads(relocated_raw)['entries']
+    originals=[*corrected['all_other427_external_rows'],corrected['actual_finished_selflog']]
+    assert len(relocated)==len(originals)==428
+    for original,row in zip(originals,relocated):
+        assert (row['original_path'],row['bytes'],row['sha256'])==(original['path'],original['bytes'],original['sha256'])
+        data=Path(row['relocated_path']).read_bytes();assert (len(data),sha(data))==(row['bytes'],row['sha256'])
+    index_correction=HISTORICAL/'selflog-index-readback01/INDEX-READBACK-ADDENDUM.json'
+    assert sha(index_correction.read_bytes())=='ce23e28bc905f01324d3633c7e24503e7ba8cc3e24c4cca3919e43a322360999'
+    assert ROOT.is_dir() and (ROOT/'.git').is_dir() and not (ROOT/'.git').is_symlink()
+    assert not (ROOT/'.git/commondir').exists() and not (ROOT/'.git/objects/info/alternates').exists()
+    assert git('rev-parse','--is-shallow-repository').strip()==b'false'
+    assert git('remote','get-url','public').strip()==b'https://github.com/Eswink/coding-tools-mcp.git'
+    assert not git('status','--porcelain','--untracked-files=all')
+    refs_before=git('for-each-ref','--format=%(refname) %(objectname)','refs/heads','refs/remotes','refs/tags')
+    (OUT/'public-heads-tags-before.txt').write_bytes(refs_before)
+    parent_raw=git('cat-file','commit',PARENT)
+    assert parent_raw==(BASE/'D6-native-parent-raw.bin').read_bytes()
+    assert parent_raw.startswith(b'tree 064252014dc0ad3c3882fbd5aef1968b083f8bb0\nparent 110b4febbbcdab0138e2d28de2a53e2f2d61d7d6\n')
+    git('checkout','--detach',PARENT)
+    current_raw=(CURRENT/'SOURCE-STATIC-PREFLIGHT.json').read_bytes()
+    assert sha(current_raw)=='c809e7903b06af02863a32ebf1b968b56fa2fcb949eb78988c55be446b077e65'
+    expected=json.loads(current_raw)
+    controls_raw=(BASE/'CURRENT-ORDINARY-CONTROLS-CLOSED01.json').read_bytes()
+    assert sha(controls_raw)=='d20e218f65ca648e79b2f5ee5258a70d25e601fe75ac48819aed1b4808eaed31'
+    for row in json.loads(controls_raw)['summaries']:
+        assert sha(Path(row['path']).read_bytes())==row['sha256']
+        actual=json.loads(Path(row['path']).read_bytes());assert len(actual['controls'])==row['controls'] and all(v['passed_control'] for v in actual['controls'])
+    for path in expected['changed_paths']:
+        data=(CURRENT/'source'/path).read_bytes();target=ROOT/path
+        assert target.is_file() and not target.is_symlink() and target.stat().st_nlink==1
+        target.write_bytes(data)
+    git('add','--',*expected['changed_paths']);assert git('write-tree').strip().decode()==TREE
+    oid=git('-c','user.name=Local Engineering Validation','-c','user.email=engineering-validation@example.invalid','commit-tree',TREE,'-p',PARENT,
+        data=b'NONPUBLIC local engineering validation only: exact frozen eight-path 755 source; no branch/ref/public/RC authority.\n').strip().decode()
+    raw=git('cat-file','commit',oid)
+    assert hashlib.sha1(b'commit '+str(len(raw)).encode()+b'\0'+raw).hexdigest()==oid
+    assert raw.split(b'\nauthor ',1)[0]==('tree '+TREE+'\nparent '+PARENT).encode()
+    (OUT/'NONPUBLIC-private-raw-commit.bin').write_bytes(raw)
+    git('checkout','--detach',oid)
+    assert git('for-each-ref','--format=%(refname) %(objectname)','refs/heads','refs/remotes','refs/tags')==refs_before
+    assert not git('status','--porcelain','--untracked-files=all')
+    rows={};index=git('ls-files','--stage','-z')
+    for item in index.split(b'\0'):
+        if not item:continue
+        header,path=item.split(b'\t');mode,blob,stage=header.decode().split();path=path.decode();data=(ROOT/path).read_bytes();info=(ROOT/path).lstat()
+        assert stage=='0' and stat.S_ISREG(info.st_mode) and info.st_nlink==1 and mode==('100755' if info.st_mode&0o111 else '100644')
+        assert hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()==blob
+        rows[path]=dict(mode=mode,blob=blob,bytes=len(data),sha256=sha(data))
+    assert len(rows)==1849 and rows==expected['source']
+    owned=OUT/'owned-owner';owned.mkdir(mode=0o700)
+    program=owned/'owner.py';program.write_bytes((BASE/'inline-current-newline.py').read_bytes())
+    assert sha(program.read_bytes())=='8fe7478874c3817858dbb2eabed515dbeb78f268393577a66ba0408ee44922ff'
+    paths=dict(native_git='/usr/bin/git',shadow_git='/usr/local/bin/git',python='/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python',openssl='/usr/bin/openssl',glib='/workspace/scratch/566f6003d85e/recovery-tools/glib-0.18.5.crate',runner=str(program),outer_runner=str(BASE/'run-private755-recovery01.py'))
+    runtime={name:file(path) for name,path in paths.items()}
+    fresh_raw=(BASE/'FRESH-RECOVERY-RUNTIME-PINS01.json').read_bytes()
+    assert sha(fresh_raw)=='4077a874237fb5674b14179282e2cdcb0f350729e88aed66c3db1c118381abee'
+    fresh=json.loads(fresh_raw)['runtime']
+    assert {name:runtime[name] for name in fresh if name!='inline'}=={name:fresh[name] for name in fresh if name!='inline'}
+    assert runtime['runner']['sha256']==fresh['inline']['sha256']
+    save('source-before.json',dict(head=oid,tree=TREE,sole_parent=PARENT,raw_commit_sha256=sha(raw),source=rows,index_sha256=sha(index),clean=True))
+    save('runtime-before.json',runtime)
+    save('EXECUTION-PREFLIGHT-MANIFEST.json',dict(scope='NONPUBLIC local engineering only; not actual GitHub candidate or PR preview',head=oid,tree=TREE,sole_parent=PARENT,source_entries=1849,
+        detached_HEAD_no_branch_remote_ref_changes=True,true_full_public_git_no_hardlinks_alternates_shallow=True,source_before=file(OUT/'source-before.json'),runtime_before=file(OUT/'runtime-before.json'),
+        raw_private_commit=file(OUT/'NONPUBLIC-private-raw-commit.bin'),audited_frozen=file(FROZEN/'HANDOFF-MANIFEST.json'),current_static=file(CURRENT/'SOURCE-STATIC-PREFLIGHT.json'),relocated428=file(BASE/'HISTORICAL428-RELOCATION.json'),current_controls=file(BASE/'CURRENT-ORDINARY-CONTROLS-CLOSED01.json'),fresh_runtime_pins=file(BASE/'FRESH-RECOVERY-RUNTIME-PINS01.json'),independent_review=file(review),program=file(program),
+        original_inventory=755,original_groups=[303,452],fixed_complete_class_groups=[63,127,113],pretag_fresh_interpreters=3,fresh_consumer_entries=15,wall_budget_seconds=1200,SUT_tests_started=0,matrix4149=0,public_qualification=False))
+    print(json.dumps(dict(preflight_sha256=sha((OUT/'EXECUTION-PREFLIGHT-MANIFEST.json').read_bytes()),private_head=oid,tree=TREE,parent=PARENT,source_entries=1849,tests_started=0)))
+except BaseException as error:
+    save('PREPARE-FAIL01.json',dict(scope='private engineering preparation failure; no retry',error=type(error).__name__,traceback=traceback.format_exc(),tests_started=0));raise

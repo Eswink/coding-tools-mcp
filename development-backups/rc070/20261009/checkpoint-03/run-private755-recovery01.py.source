@@ -1,0 +1,184 @@
+"""Single foreground NONPUBLIC engineering owner; no retries or qualification borrowing."""
+from pathlib import Path
+import ctypes, hashlib, importlib.util, json, os, signal, stat, subprocess, sys, time, traceback
+
+BASE = Path(__file__).parent
+OUT = BASE / 'private-engineering755-recovery01'
+ROOT = Path('/workspace/scratch/566f6003d85e/contracts755-private-recovery01')
+PYTHON = '/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python'
+PROGRAM = OUT / 'owned-owner/owner.py'
+sha = lambda raw: hashlib.sha256(raw).hexdigest()
+
+def save(name, value):
+    raw = (json.dumps(value, sort_keys=True, indent=2, allow_nan=False) + '\n').encode()
+    pending, final = OUT / (name + '.pending'), OUT / name
+    with pending.open('xb') as stream:
+        assert stream.write(raw) == len(raw)
+        stream.flush(); os.fsync(stream.fileno())
+    os.link(pending, final); pending.unlink()
+
+def file(path):
+    path = Path(path); info = path.stat()
+    return dict(path=str(path), realpath=str(path.resolve()), bytes=info.st_size,
+        sha256=sha(path.read_bytes()), mode=oct(stat.S_IMODE(info.st_mode)), uid=info.st_uid, nlink=info.st_nlink)
+
+def git(*args):
+    return subprocess.check_output(['/usr/bin/git', '--no-replace-objects', *args], cwd=ROOT,
+        env=dict(os.environ, GIT_NO_REPLACE_OBJECTS='1', GIT_OPTIONAL_LOCKS='0'), timeout=30)
+
+def source():
+    head = git('rev-parse', 'HEAD').strip().decode(); raw = git('cat-file', 'commit', head)
+    rows, index = {}, git('ls-files', '--stage', '-z')
+    for item in index.split(b'\0'):
+        if not item: continue
+        header, path = item.split(b'\t'); mode, blob, stage = header.decode().split(); path = path.decode()
+        data, info = (ROOT / path).read_bytes(), (ROOT / path).lstat()
+        assert stage == '0' and stat.S_ISREG(info.st_mode) and info.st_nlink == 1
+        assert mode == ('100755' if info.st_mode & 0o111 else '100644')
+        assert hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest() == blob
+        rows[path] = dict(mode=mode, blob=blob, bytes=len(data), sha256=sha(data))
+    assert len(rows) == 1849
+    header = raw.split(b'\nauthor ', 1)[0].decode().splitlines()
+    return dict(head=head, tree=header[0][5:], sole_parent=header[1][7:], raw_commit_sha256=sha(raw),
+        source=rows, index_sha256=sha(index), clean=not git('status', '--porcelain', '--untracked-files=all'))
+
+def progress():
+    result = {}
+    for group, files in [('pretag', [OUT / 'owned-owner/pretag-named-events.jsonl', *sorted((OUT / 'owned-owner').glob('pretag-fixed-*-named-events.jsonl'))]),
+                         ('consumer', list((OUT / 'owned-owner').glob('consumer-*-named-events.jsonl')))]:
+        loaded, started, successes, incomplete = set(), set(), set(), 0
+        for path in files:
+            if not path.is_file() or path.is_symlink(): continue
+            for raw in path.read_bytes().splitlines():
+                try: event = json.loads(raw)
+                except (ValueError, UnicodeError): incomplete += 1; continue
+                entry = event.get('entry', '')
+                canonical = lambda value: entry + value[len('__main__'):] if value.startswith('__main__.') else value
+                loaded.update(canonical(value) for value in event.get('loaded_ids', []))
+                if 'start' in event: started.add(canonical(event['start']))
+                if 'success' in event: successes.add(canonical(event['success']))
+        result[group] = dict(loaded=len(loaded), started=len(started), success=len(successes), incomplete_event_lines=incomplete)
+    return result
+
+def main():
+    assert not (OUT / 'LAUNCH.json').exists() and not (OUT / 'OUTER-RECEIPT.json').exists()
+    preflight_raw = (OUT / 'EXECUTION-PREFLIGHT-MANIFEST.json').read_bytes()
+    assert len(sys.argv)==2 and len(sys.argv[1])==64
+    assert sha(preflight_raw)==sys.argv[1]
+    preflight = json.loads(preflight_raw)
+    assert file(PROGRAM)['sha256'] == '8fe7478874c3817858dbb2eabed515dbeb78f268393577a66ba0408ee44922ff'
+    assert source() == json.loads((OUT / 'source-before.json').read_bytes())
+    before_runtime = json.loads((OUT / 'runtime-before.json').read_bytes())
+    assert {name: file(row['path']) for name, row in before_runtime.items()} == before_runtime
+    assert git('for-each-ref', '--format=%(refname) %(objectname)', 'refs/heads', 'refs/remotes', 'refs/tags') == (OUT / 'public-heads-tags-before.txt').read_bytes()
+    assert list(PROGRAM.parent.iterdir()) == [PROGRAM]
+    libc, flag = ctypes.CDLL(None, use_errno=True), ctypes.c_int()
+    assert libc.prctl(36, 1, 0, 0, 0) == 0 and libc.prctl(37, ctypes.byref(flag), 0, 0, 0) == 0 and flag.value == 1
+    spec = importlib.util.spec_from_file_location('audited_owner_closure', PROGRAM)
+    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+    signals, errors, process, fd, code, observed, timed_out, family, family_closed = [], [], None, None, None, None, False, [], False
+    def cancel(signum, frame): signals.append(signum)
+    signal.signal(signal.SIGTERM, cancel); signal.signal(signal.SIGINT, cancel)
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', GITHUB_ACTIONS='false',
+        PATH='/usr/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/usr/local/bin:/bin',
+        RC_CONSUMER_TEST_GLIB_ARCHIVE='/workspace/scratch/566f6003d85e/recovery-tools/glib-0.18.5.crate')
+    try:
+        unexpected = os.waitid(os.P_ALL, 0, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+    except ChildProcessError:
+        unexpected = "ECHILD"
+    assert unexpected == "ECHILD", "existing kernel child prevents exclusive owned-family admission"
+    started = time.monotonic(); rawlog = (OUT / 'OWNER-STDOUT.raw.log').open('xb', buffering=0)
+    try:
+        assert not signals, "prelaunch cancellation is terminal"
+        process = subprocess.Popen([PYTHON, '-B', str(PROGRAM), str(PROGRAM.parent)], cwd=ROOT, env=env,
+            stdout=rawlog, stderr=subprocess.STDOUT, start_new_session=True)
+        fd = os.pidfd_open(process.pid)
+        save('LAUNCH.json', dict(scope='NONPUBLIC engineering; no public/RC/matrix credit', private_head=preflight['head'],
+            tree=preflight['tree'], sole_parent=preflight['sole_parent'], owner_native_pid=process.pid, owner_pidfd=fd,
+            wall_budget_seconds=1200, original_inventory=755, macro_groups=[303,452], pretag_fresh_interpreters=3, fixed_complete_class_groups=[63,127,113], consumer_fresh_interpreters=15,
+            runner=file(PROGRAM), outer_runner=file(__file__), execution_preflight_sha256=sha(preflight_raw),
+            started_monotonic=started, started_wall_utc=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+            source_paths_never_sent_to_external_execution=True))
+        print(json.dumps(dict(event='ACTUAL_LAUNCH', pid=process.pid, head=preflight['head'], tree=preflight['tree'], budget_seconds=1200)), flush=True)
+        next_progress = 0
+        while True:
+            observed = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            if observed is not None: break
+            now = time.monotonic()
+            if now >= next_progress:
+                print(json.dumps(dict(event='PROVISIONAL_PROGRESS', seconds=round(now-started,3), actual_named_events=progress(), qualification=False)), flush=True)
+                next_progress = now + 25
+            if now - started >= 1200 or signals:
+                timed_out = now - started >= 1200
+                signal.pidfd_send_signal(fd, signal.SIGTERM)
+                grace = time.monotonic() + 7
+                while observed is None and time.monotonic() < grace:
+                    time.sleep(.05); observed = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                if observed is None:
+                    signal.pidfd_send_signal(fd, signal.SIGKILL)
+                    grace = time.monotonic() + 2
+                    while observed is None and time.monotonic() < grace:
+                        time.sleep(.01); observed = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                if observed is None: errors.append('outer_owner_kernel_exit_unknown')
+                break
+            time.sleep(.1)
+        if observed is not None:
+            code = process.wait(timeout=0)
+            assert code == (observed.si_status if observed.si_code == os.CLD_EXITED else -observed.si_status)
+    except BaseException:
+        errors.append(traceback.format_exc())
+        if fd is not None:
+            try:
+                observed = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                if observed is None: signal.pidfd_send_signal(fd, signal.SIGTERM)
+                deadline = time.monotonic() + 7
+                while observed is None and time.monotonic() < deadline:
+                    time.sleep(.05); observed = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                if observed is None: signal.pidfd_send_signal(fd, signal.SIGKILL)
+                deadline = time.monotonic() + 2
+                while observed is None and time.monotonic() < deadline:
+                    time.sleep(.01); observed = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                if observed is not None: code = process.wait(timeout=0)
+            except BaseException: errors.append(traceback.format_exc())
+    finally:
+        try: family_closed = module.owned_family_close(time.monotonic() + 2, family)
+        except BaseException: errors.append(traceback.format_exc())
+        if fd is not None:
+            try: os.close(fd)
+            except BaseException: errors.append(traceback.format_exc())
+        try: rawlog.close()
+        except BaseException: errors.append(traceback.format_exc())
+    try:
+        after_source = source(); save('source-after.json', after_source)
+        after_runtime = {name: file(row['path']) for name, row in before_runtime.items()}; save('runtime-after.json', after_runtime)
+        refs_after = git('for-each-ref', '--format=%(refname) %(objectname)', 'refs/heads', 'refs/remotes', 'refs/tags')
+        with (OUT / 'public-heads-tags-after.txt').open('xb') as stream: assert stream.write(refs_after) == len(refs_after)
+        unchanged = after_source == json.loads((OUT / 'source-before.json').read_bytes()) and after_runtime == before_runtime and refs_after == (OUT / 'public-heads-tags-before.txt').read_bytes()
+    except BaseException:
+        errors.append(traceback.format_exc()); unchanged = False
+    aggregate, ids, aggregate_error = None, {}, None
+    try:
+        aggregate = json.loads((PROGRAM.parent / 'aggregate.json').read_bytes())
+        for group in module.EXPECTED:
+            module.valid(group, aggregate['group_receipts'][group])
+        for field in ('loaded_ids', 'executed_ids', 'success_ids'):
+            values = [value for receipt in aggregate['group_receipts'].values() for value in receipt[field]]
+            assert len(values) == len(set(values)) == 755
+            ids[field] = dict(count=755, sha256=sha('\n'.join(sorted(values)).encode()))
+        assert aggregate['passed'] is True and aggregate['owned_family_kernel_closed'] is True
+    except BaseException: aggregate_error = traceback.format_exc()
+    passed = code == 0 and observed is not None and observed.si_code == os.CLD_EXITED and not errors and not signals and not timed_out and family_closed and unchanged and aggregate_error is None
+    receipt = dict(scope='NONPUBLIC local engineering only; never actual GitHub/RC/matrix qualification', passed=passed,
+        owner_native_pid=process.pid if process else None, actual_owner_exit=code, owner_WNOWAIT=list(observed) if observed is not None else None,
+        signals=signals, deadline_exceeded=timed_out, seconds=time.monotonic()-started, errors=errors,
+        outer_kernel_family_closed=family_closed, outer_adopted_child_kernel_outcomes=family, source_runtime_refs_unchanged=unchanged,
+        actual_named_inventory=ids, original_inventory=755, original_wall_budget_seconds=1200,
+        raw_stdout=file(OUT / 'OWNER-STDOUT.raw.log'), inner_aggregate=file(PROGRAM.parent / 'aggregate.json') if (PROGRAM.parent / 'aggregate.json').exists() else None,
+        aggregate_error=aggregate_error, provisional_events=progress(), public_qualification=False, matrix4149=0,
+        per_entry_exit_evidence='3pretag actual driver WNOWAIT-held originalPopen wait exits plus process records; consumer15 unchangedactualPopen.wait0 path+records, not independent per-entry pidfd trace')
+    save('OUTER-RECEIPT.json', receipt)
+    print(json.dumps(dict(event='ACTUAL_OUTER_RESULT', passed=passed, owner_exit=code, seconds=receipt['seconds'], receipt_sha256=sha((OUT / 'OUTER-RECEIPT.json').read_bytes()), named_ids=ids)), flush=True)
+    return 0 if passed else 1
+
+if __name__ == '__main__':
+    raise SystemExit(main())

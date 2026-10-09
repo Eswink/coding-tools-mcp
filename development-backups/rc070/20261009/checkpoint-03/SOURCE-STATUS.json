@@ -1,0 +1,71 @@
+{
+  "scope": "Outside-candidate immutable preparation/outer/inline source only. Runtime evidence is excluded.",
+  "base_commit": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "candidate_source_tree": "b227335c6503c8b9d2575802522758a308684be8",
+  "candidate_source_entries": 1849,
+  "candidate_source_backup": "../checkpoint-01/recovered-newline8",
+  "source_status": "SOURCE_ONLY_BACKUP_NOT_RC_QUALIFICATION",
+  "prelaunch_historical_seal": {
+    "SUT_tests_started": 0,
+    "original_deadline_seconds": 1200,
+    "outer_TERM_KILL_family_seconds": [
+      7,
+      2,
+      2
+    ],
+    "status_at_that_freeze": "NOT_LAUNCHED"
+  },
+  "current_result_as_reported_by_root": {
+    "status": "FAIL",
+    "duration_seconds": 39.894,
+    "natural_owner_exit": 1,
+    "consumer_success": 452,
+    "pretag_loaded": 303,
+    "pretag_started": 287,
+    "pretag_success": 171,
+    "blockers": [
+      "Actual missing native R4 documentation blob",
+      "Actual missing ORIGIN70aa anchor"
+    ],
+    "source_runtime_refs_unchanged": true,
+    "inner_outer_family_closed": true,
+    "qualification": false,
+    "attribution": "Root supplied current closed run01 facts; this backup does not copy or independently re-execute raw runtime reports."
+  },
+  "files": [
+    {
+      "original_name": "prepare-private755-recovery01.py",
+      "backup_path": "prepare-private755-recovery01.py.source",
+      "bytes": 8965,
+      "sha256": "f9102c70dd830f46bc56053285bbb5c7acc9ca71275b9d4c848d4675c948f023",
+      "blob": "c35eba6484d981c74f887ac78a67ad4f0c0eb6c7",
+      "mode": "100644"
+    },
+    {
+      "original_name": "run-private755-recovery01.py",
+      "backup_path": "run-private755-recovery01.py.source",
+      "bytes": 12906,
+      "sha256": "990d4d9b7e7a0622e572d07e5320aa1c79e4d4caef0be38909f14a04e5e02be3",
+      "blob": "fbd0dfdead1e33ceb42b8e7eca74521012a5d55c",
+      "mode": "100644"
+    },
+    {
+      "original_name": "inline-current-newline.py",
+      "backup_path": "inline-current-newline.py.source",
+      "bytes": 30318,
+      "sha256": "8fe7478874c3817858dbb2eabed515dbeb78f268393577a66ba0408ee44922ff",
+      "blob": "82ec1cde54ef775e8cb544f4e0feb34dac8b20ac",
+      "mode": "100644"
+    }
+  ],
+  "excluded": [
+    "raw runtime reports",
+    "raw commit bytes",
+    "TLS keys/headers/cookies/requests",
+    "runtime pins",
+    "relocation reports",
+    "environment files",
+    "Git internals",
+    "active new02 wrappers"
+  ]
+}

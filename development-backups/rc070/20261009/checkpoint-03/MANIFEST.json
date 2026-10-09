@@ -1,0 +1,41 @@
+{
+  "scope": "Public source-only backup checkpoint03; root explicitly authorized three frozen source files and sanitized status/README.",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1990,
+      "sha256": "764d4d9c1e174998bb6f356c7688fdb99e9933e8cf65209614520062fb64b595",
+      "blob": "23697c7f8ed15b1af736f061efe73bb6e80d09a8",
+      "mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 2435,
+      "sha256": "1868812ed384ec03bc2d1c21ad1d0c02eb31605bd35c4b7a3268e5e080a7ca7c",
+      "blob": "53f42794ac9f5ed06404b2e01c7173e6a3a9f966",
+      "mode": "100644"
+    },
+    {
+      "path": "inline-current-newline.py.source",
+      "bytes": 30318,
+      "sha256": "8fe7478874c3817858dbb2eabed515dbeb78f268393577a66ba0408ee44922ff",
+      "blob": "82ec1cde54ef775e8cb544f4e0feb34dac8b20ac",
+      "mode": "100644"
+    },
+    {
+      "path": "prepare-private755-recovery01.py.source",
+      "bytes": 8965,
+      "sha256": "f9102c70dd830f46bc56053285bbb5c7acc9ca71275b9d4c848d4675c948f023",
+      "blob": "c35eba6484d981c74f887ac78a67ad4f0c0eb6c7",
+      "mode": "100644"
+    },
+    {
+      "path": "run-private755-recovery01.py.source",
+      "bytes": 12906,
+      "sha256": "990d4d9b7e7a0622e572d07e5320aa1c79e4d4caef0be38909f14a04e5e02be3",
+      "blob": "fbd0dfdead1e33ceb42b8e7eca74521012a5d55c",
+      "mode": "100644"
+    }
+  ],
+  "source_status": "SOURCE_ONLY_CURRENT_RUN01_FAIL_NOT_RC_QUALIFICATION"
+}
