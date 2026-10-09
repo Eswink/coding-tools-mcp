@@ -1,0 +1,82 @@
+{
+  "actualqualified": false,
+  "files": [
+    {
+      "path": "AUTHOR-SOURCE-MANIFEST.json",
+      "mode": "100644",
+      "bytes": 2125,
+      "sha256": "d065a7839938f3e2ee3b5c7683f7668cda0e3f4ab015715586ec536923541f1d",
+      "blob": "566669046a420ab8fb28048494c8f1a57dcd8d7d"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 2241,
+      "sha256": "d3fcc4b9cc22561226b10e455456e8b6920b160008a917aaa38d2b2bf602383c",
+      "blob": "0d8842b650c0129711236f6a27086fb34aa9882b"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "100644",
+      "bytes": 984,
+      "sha256": "4fe24381a4d78b907a082861262cdcfc7d28fc9867e22813d7fc8346d66078c7",
+      "blob": "ceb563a86e3fb96ad77482719de4f36ed35976f5"
+    },
+    {
+      "path": "source/.github/workflows/windows-foundation-source-compile.yml.source",
+      "mode": "100644",
+      "bytes": 1727,
+      "sha256": "8ae7075cddfd0a69a3f6cef0ddf48f1eb5b0cb1fc3c1845cffa9a50f2998d7e8",
+      "blob": "e226cdd8dd35de4153a4b71bdae795bdaed7a6a3"
+    },
+    {
+      "path": "source/docs/specs/windows-foundation-source-compile/design.md.source",
+      "mode": "100644",
+      "bytes": 3462,
+      "sha256": "f34ae280792155ec0570f67622a0b1f21dbcd5d29194648b8f6d5b0e4e6ae3df",
+      "blob": "2429fc5514212a05f2b0d673805dcf9509920639"
+    },
+    {
+      "path": "source/docs/specs/windows-foundation-source-compile/requirements.md.source",
+      "mode": "100644",
+      "bytes": 2863,
+      "sha256": "3c5dd574f8f31923a452587fce88fa7c8607f4867f3925ef0b7e3b4a4b7b1973",
+      "blob": "0030f258b0871d7494383cf0da387f32627c1fa2"
+    },
+    {
+      "path": "source/docs/specs/windows-foundation-source-compile/tasks.md.source",
+      "mode": "100644",
+      "bytes": 1931,
+      "sha256": "50cee5c0c95040aaa75263c80b5d0189169b99db2a41fb16ea22bde83daf5e9c",
+      "blob": "bcea6d8984ee545e8e23f34acb8807ea55ce8749"
+    },
+    {
+      "path": "source/scripts/windows_foundation_source_compile.ps1.source",
+      "mode": "100644",
+      "bytes": 10898,
+      "sha256": "3bc30d14cbf835af39861da0cb171b5f7b58cc4b67deee370af7dd2ac89f4f44",
+      "blob": "21aab0761bff0ed5d4bac896b65135a40f2f0f67"
+    },
+    {
+      "path": "source/scripts/windows_foundation_source_guard.py.source",
+      "mode": "100644",
+      "bytes": 14618,
+      "sha256": "71aaba07443ba0ace608f8a73e0996df839f6c189e866ee949eb4dd21e4a4073",
+      "blob": "381faae370952d079a6454d8de4172ddb3de2c15"
+    },
+    {
+      "path": "source/scripts/windows_foundation_source_manifest.json.source",
+      "mode": "100644",
+      "bytes": 529597,
+      "sha256": "45cc3e94fd4eceb78184230740d293b24f576650927168b5855c947689e999ec",
+      "blob": "424a9b1794ee11c6b6933522cacbd2a51157bb1b"
+    },
+    {
+      "path": "source.patch",
+      "mode": "100644",
+      "bytes": 582123,
+      "sha256": "fabe3f30efb954d50b0bf29e077fe84294babd2adb1037b04ae484172bc1c857",
+      "blob": "093135c98ebc5ad9110f486a37b76af6ff5eef42"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+# Windows compiler carrier frozen02: source-only backup
+
+Seven management files are preserved with an inert `.source` suffix, plus their exact D6-based patch and original safe source inventory. Original source manifest SHA256 d065a7839938f3e2ee3b5c7683f7668cda0e3f4ab015715586ec536923541f1d. Patch SHA256 fabe3f30efb954d50b0bf29e077fe84294babd2adb1037b04ae484172bc1c857.
+
+Frozen01 remains unchanged and prelaunch BLOCKED. Frozen02 implements the finite peer corrections: exact47adc/155e backup ref/prefix literals; empty global/system Git configuration and disabled hooks/replacements; actual Rust toolchain payload paths/hashes alongside proxy hashes; seven management files verified against actual HEAD==GITHUB_SHA before and after compilation. These are source integrity and compiler provenance checks. They grant no native authority.
+
+The backup agent checked every frozen original source size/SHA256/framed Git blob, parsed the Python AST without execution, and applied the exact patch to a private D6 native index. The result is d40a20a26664ab7868332d7dcbde49e30e83f4b7 /1856. The author reports actual source guard/negative checks; raw runtime results are excluded here. PowerShell, Rust, Go and real GitHub compiler execution remain NOTRUN at this freeze. Genuine CI results may fail and must be preserved separately. No parser result is a compiler or native pass.
+
+Restore management into a separate clone at D6 c60f9667fa8431e27fabbc497c19b4abfef5b965 and apply source.patch after independently verifying its digest. The seven source files belong to that management checkout. The guard independently restores pure SUT19bb292004e0fd4ed02374b35bcd2f22469779f0 /1953 from fixed backup01 exact73 and backup06 full43. Do not copy management files into the SUT or combine blocked Stage11. Historical missing40 bytes remain missing; new foundation source is an alternative implementation.
+
+Only frozen code/specification/workflow/helper/finite source inventory and safe status are included. Active source, local proof logs, raw runtime/TLS/token/env data, Git internals, compiler caches and credentials are excluded. RC release, installation, native positive, boot producer, safe writer and privileged issuer qualifications remain false.

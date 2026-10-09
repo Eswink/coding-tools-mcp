@@ -1,0 +1,161 @@
+param([Parameter(Mandatory=$true)][ValidateSet('rust','go')][string]$Mode)
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+$Manager = Split-Path $PSScriptRoot -Parent
+$Output = Join-Path $env:RUNNER_TEMP 'windows-foundation-probe'
+$Destination = Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-19bb2920'
+New-Item -ItemType Directory -Force $Output | Out-Null
+$Guard = Join-Path $PSScriptRoot 'windows_foundation_source_guard.py'
+$Manifest = Join-Path $PSScriptRoot 'windows_foundation_source_manifest.json'
+$Receipt = [ordered]@{ mode=$Mode; managerCommit=$env:GITHUB_SHA; runId=$env:GITHUB_RUN_ID;
+    pureSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
+    nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; passed=$false }
+
+function Invoke-CheckedCompiler([string]$Executable, [string[]]$Arguments, [string]$LogName) {
+    $LogPath = Join-Path $Output $LogName
+    $Command = Get-Command -Name $Executable -CommandType Application -ErrorAction Stop
+    if (-not $Receipt.runtime.ContainsKey($Executable)) {
+        $Receipt.runtime[$Executable] = [ordered]@{ path=$Command.Source;
+            sha256Before=(Get-FileHash -Algorithm SHA256 $Command.Source).Hash; sha256After=$null }
+    }
+    $ActualExecutable = $Command.Source
+    if ($Receipt.runtime[$Executable].Contains('payloadPath')) {
+        $ActualExecutable = $Receipt.runtime[$Executable].payloadPath
+    }
+    $global:LASTEXITCODE = $null
+    $OldPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $ActualExecutable @Arguments 2>&1 | Tee-Object -FilePath $LogPath | Out-Host
+        $Code = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $OldPreference }
+    if ($null -eq $Code) { throw "$Executable returned no native exit code." }
+    $Receipt.commands += [ordered]@{ executable=$Executable; resolvedExecutable=$ActualExecutable; arguments=$Arguments; exitCode=$Code; log=$LogName }
+    if ($Code -ne 0) { throw "$Executable failed with actual exit $Code; see $LogName" }
+    return $LogPath
+}
+
+function Run-SourceCompile {
+    if ($env:GITHUB_ACTIONS -cne 'true' -or $env:GITHUB_REPOSITORY -cne 'Eswink/coding-tools-mcp' -or
+        $env:GITHUB_REF -cne 'refs/heads/probe/windows-foundation-compile-20261009-19bb2920') {
+        throw 'This fixed compiler probe only runs in the named temporary GitHub branch.'
+    }
+    if (($Mode -eq 'rust' -and $env:RUNNER_OS -cne 'Windows') -or
+        ($Mode -eq 'go' -and $env:RUNNER_OS -cne 'Linux')) { throw 'Wrong disposable runner OS.' }
+    if (Get-ChildItem Env: | Where-Object { $_.Name.StartsWith('CTM_') }) {
+        throw 'Native/source authorization flags are forbidden in this compiler-only probe.'
+    }
+    Invoke-CheckedCompiler 'git' @('--version') 'git-version.log' | Out-Null
+    $ManagerBefore = Join-Path $Output 'management-before.json'
+    Invoke-CheckedCompiler 'python' @($Guard,'verify-manager','--manifest',$Manifest,'--manager',$Manager,
+        '--receipt',$ManagerBefore) 'management-before.log' | Out-Null
+    $Receipt.managerSourceBefore = Get-Content -Raw $ManagerBefore | ConvertFrom-Json
+    $Before = Join-Path $Output 'source-before.json'
+    Invoke-CheckedCompiler 'python' @($Guard,'restore','--manifest',$Manifest,'--manager',$Manager,
+        '--destination',$Destination,'--receipt',$Before) 'source-restore.log' | Out-Null
+    $Receipt.sourceBefore = Get-Content -Raw $Before | ConvertFrom-Json
+    Push-Location $Destination
+    try {
+        if ($Mode -eq 'go') {
+            $Version = Invoke-CheckedCompiler 'go' @('version') 'go-version.log'
+            if ((Get-Content -Raw $Version) -notmatch '^go version go1\.24\.13 linux/amd64') { throw 'Unexpected Go runtime.' }
+            $Files = @('services/windows-vm-broker/transfer.go','services/windows-vm-broker/transfer_test.go',
+                'services/windows-vm-broker/transfer_identity_linux_test.go',
+                'services/windows-vm-broker/workspace_stream.go','services/windows-vm-broker/guest_workspace_control.go')
+            $Receipt.compiler = 'RUNNING'
+            Invoke-CheckedCompiler 'go' (@('test','-v','-count=1') + $Files) 'go5-data-test.log' | Out-Null
+            $Receipt.compiler = 'DATA_TEST_PASS'
+        } else {
+            foreach ($Tool in @('rustc','cargo')) {
+                $Which = Invoke-CheckedCompiler 'rustup' @('which','--toolchain','1.98.1',$Tool) "rustup-which-before-$Tool.log"
+                $PayloadPath = (Resolve-Path -LiteralPath (Get-Content -Raw $Which).Trim()).Path
+                $Proxy = Get-Command -Name $Tool -CommandType Application -ErrorAction Stop
+                $Receipt.runtime[$Tool] = [ordered]@{ path=$Proxy.Source;
+                    sha256Before=(Get-FileHash -Algorithm SHA256 $Proxy.Source).Hash; sha256After=$null;
+                    payloadPath=$PayloadPath; payloadSha256Before=(Get-FileHash -Algorithm SHA256 $PayloadPath).Hash;
+                    payloadSha256After=$null }
+            }
+            if (Get-ChildItem Env: | Where-Object { $_.Name -match '^(RUSTC(_WRAPPER|_WORKSPACE_WRAPPER)?|CARGO_BUILD_RUSTC.*)$' }) {
+                throw 'Inherited compiler or wrapper override is forbidden.'
+            }
+            $env:RUSTC = $Receipt.runtime['rustc'].payloadPath
+            $env:CARGO_INCREMENTAL = '0'
+            $Version = Invoke-CheckedCompiler 'rustc' @('--version','--verbose') 'rustc-version.log'
+            if ((Get-Content -Raw $Version) -notmatch 'rustc 1\.98\.1\b') { throw 'Unexpected Rust runtime.' }
+            Invoke-CheckedCompiler 'cargo' @('--version','--verbose') 'cargo-version.log' | Out-Null
+            $Cargo = @('test','--locked','--manifest-path','src-tauri/Cargo.toml','--lib',
+                '--config','build.rustc-wrapper=""','--config','build.rustc-workspace-wrapper=""')
+            $Receipt.compiler = 'RUNNING'
+            Invoke-CheckedCompiler 'cargo' ($Cargo + @('--no-run')) 'cargo-whole-test-compile.log' | Out-Null
+            $Receipt.compiler = 'WHOLE_TEST_COMPILE_PASS'
+            $List = Invoke-CheckedCompiler 'cargo' ($Cargo + @('--','--list')) 'cargo-whole-test-list.log'
+            $Allowed = @('sealed_chunks_keep_original_and_detached_owners_independent',
+                'chunk_cap_and_cancel_do_not_publish_partial_copy',
+                'exact_transfer_binding_rejects_each_field_mismatch',
+                'invalid_wire_names_and_nil_binding_never_make_native_authority',
+                'checked_close_consumes_data_only_transfer','relative_names_remain_data_not_native_permission',
+                'diagnostic_metadata_cannot_authorize_output')
+            $Lines = Get-Content $List
+            foreach ($Case in $Allowed) {
+                $MatchingLines = @($Lines | Where-Object { $_ -match ('::' + [regex]::Escape($Case) + ': test$') })
+                if ($MatchingLines.Count -ne 1) { throw "Named data test absent/ambiguous: $Case" }
+                $FullName = $MatchingLines[0] -replace ': test$', ''
+                if ($FullName -cnotmatch '^tools::windows_vm::(input|output_stage)::') { throw 'Unexpected data test namespace.' }
+                $TestLog = Invoke-CheckedCompiler 'cargo' ($Cargo + @($FullName,'--','--exact','--nocapture','--test-threads=1')) "data-$Case.log"
+                if ((Get-Content -Raw $TestLog) -notmatch '1 passed; 0 failed; 0 ignored') { throw "Exact test count differs: $Case" }
+            }
+            $Receipt.compiler = 'WHOLE_TEST_COMPILE_AND_7_DATA_PASS'
+        }
+    } finally { Pop-Location }
+}
+
+try {
+    Run-SourceCompile
+    $Receipt.passed = $true
+} catch {
+    $Receipt.error = $_.Exception.Message
+    if ($Receipt.compiler -eq 'RUNNING') { $Receipt.compiler = 'ACTUAL_FAILURE' }
+} finally {
+    if (Test-Path (Join-Path $Destination '.git/foundation-candidate.index')) {
+        try {
+            $After = Join-Path $Output 'source-after.json'
+            Invoke-CheckedCompiler 'python' @($Guard,'verify','--manifest',$Manifest,'--destination',$Destination,
+                '--receipt',$After) 'source-after.log' | Out-Null
+            $Receipt.sourceAfter = Get-Content -Raw $After | ConvertFrom-Json
+            if ($null -eq $Receipt.sourceBefore -or
+                $Receipt.sourceAfter.source_digest -cne $Receipt.sourceBefore.source_digest) {
+                throw 'Source before/after digest differs or before was not admitted.'
+            }
+        } catch { $Receipt.passed=$false; $Receipt.sourceAfterError=$_.Exception.Message }
+    } else { $Receipt.passed=$false; $Receipt.sourceAfterError='No admitted source existed; compiler NOTRUN.' }
+    try {
+        $ManagerAfter = Join-Path $Output 'management-after.json'
+        Invoke-CheckedCompiler 'python' @($Guard,'verify-manager','--manifest',$Manifest,'--manager',$Manager,
+            '--receipt',$ManagerAfter) 'management-after.log' | Out-Null
+        $Receipt.managerSourceAfter = Get-Content -Raw $ManagerAfter | ConvertFrom-Json
+        if ($null -eq $Receipt.managerSourceBefore -or
+            $Receipt.managerSourceAfter.management_digest -cne $Receipt.managerSourceBefore.management_digest) {
+            throw 'Management seven source bytes/modes changed or before was not admitted.'
+        }
+    } catch { $Receipt.passed=$false; $Receipt.managementAfterError=$_.Exception.Message }
+    foreach ($Executable in $Receipt.runtime.Keys) {
+        try {
+            $CurrentCommand = Get-Command -Name $Executable -CommandType Application -ErrorAction Stop
+            $Runtime = $Receipt.runtime[$Executable]
+            $Runtime.sha256After = (Get-FileHash -Algorithm SHA256 $CurrentCommand.Source).Hash
+            if ($Runtime.Contains('payloadPath')) {
+                $WhichAfter = Invoke-CheckedCompiler 'rustup' @('which','--toolchain','1.98.1',$Executable) "rustup-which-after-$Executable.log"
+                $PayloadAfter = (Resolve-Path -LiteralPath (Get-Content -Raw $WhichAfter).Trim()).Path
+                $Runtime.payloadSha256After = (Get-FileHash -Algorithm SHA256 $PayloadAfter).Hash
+                if ($PayloadAfter -cne $Runtime.payloadPath -or $Runtime.payloadSha256Before -cne $Runtime.payloadSha256After) {
+                    throw 'Actual Rust toolchain payload changed during the probe.'
+                }
+            }
+            if ($CurrentCommand.Source -cne $Runtime.path -or $Runtime.sha256Before -cne $Runtime.sha256After) {
+                throw 'Compiler/runtime source changed during the probe.'
+            }
+        } catch { $Receipt.passed=$false; $Receipt.runtimeAfterError=$_.Exception.Message }
+    }
+    $Receipt | ConvertTo-Json -Depth 12 | Set-Content -Encoding utf8 (Join-Path $Output 'compiler-result.json')
+}
+if (-not $Receipt.passed) { throw "Actual source/compiler/data probe failed. See compiler-result.json." }

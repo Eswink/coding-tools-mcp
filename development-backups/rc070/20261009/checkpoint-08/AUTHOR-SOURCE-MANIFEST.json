@@ -1,0 +1,56 @@
+{
+  "base_commit": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "source": [
+    {
+      "path": ".github/workflows/windows-foundation-source-compile.yml",
+      "mode": "100644",
+      "bytes": 1727,
+      "sha256": "8ae7075cddfd0a69a3f6cef0ddf48f1eb5b0cb1fc3c1845cffa9a50f2998d7e8",
+      "blob": "e226cdd8dd35de4153a4b71bdae795bdaed7a6a3"
+    },
+    {
+      "path": "docs/specs/windows-foundation-source-compile/design.md",
+      "mode": "100644",
+      "bytes": 3462,
+      "sha256": "f34ae280792155ec0570f67622a0b1f21dbcd5d29194648b8f6d5b0e4e6ae3df",
+      "blob": "2429fc5514212a05f2b0d673805dcf9509920639"
+    },
+    {
+      "path": "docs/specs/windows-foundation-source-compile/requirements.md",
+      "mode": "100644",
+      "bytes": 2863,
+      "sha256": "3c5dd574f8f31923a452587fce88fa7c8607f4867f3925ef0b7e3b4a4b7b1973",
+      "blob": "0030f258b0871d7494383cf0da387f32627c1fa2"
+    },
+    {
+      "path": "docs/specs/windows-foundation-source-compile/tasks.md",
+      "mode": "100644",
+      "bytes": 1931,
+      "sha256": "50cee5c0c95040aaa75263c80b5d0189169b99db2a41fb16ea22bde83daf5e9c",
+      "blob": "bcea6d8984ee545e8e23f34acb8807ea55ce8749"
+    },
+    {
+      "path": "scripts/windows_foundation_source_compile.ps1",
+      "mode": "100644",
+      "bytes": 10898,
+      "sha256": "3bc30d14cbf835af39861da0cb171b5f7b58cc4b67deee370af7dd2ac89f4f44",
+      "blob": "21aab0761bff0ed5d4bac896b65135a40f2f0f67"
+    },
+    {
+      "path": "scripts/windows_foundation_source_guard.py",
+      "mode": "100644",
+      "bytes": 14618,
+      "sha256": "71aaba07443ba0ace608f8a73e0996df839f6c189e866ee949eb4dd21e4a4073",
+      "blob": "381faae370952d079a6454d8de4172ddb3de2c15"
+    },
+    {
+      "path": "scripts/windows_foundation_source_manifest.json",
+      "mode": "100644",
+      "bytes": 529597,
+      "sha256": "45cc3e94fd4eceb78184230740d293b24f576650927168b5855c947689e999ec",
+      "blob": "424a9b1794ee11c6b6933522cacbd2a51157bb1b"
+    }
+  ],
+  "pure_sut_tree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+  "qualification": "MANAGEMENT_ONLY_SOURCE_PROTOTYPE; actual compiler pending; no native authority"
+}

@@ -1,0 +1,21 @@
+{
+  "management_source_tree": "d40a20a26664ab7868332d7dcbde49e30e83f4b7",
+  "management_files": 1856,
+  "base_D6": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "pure_SUT_tree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+  "pure_SUT_files": 1953,
+  "management_and_SUT_separate": true,
+  "frozen01": "PRELAUNCH_BLOCKED; unchanged",
+  "frozen02": "SOURCE_ONLY; four finite peer repairs authored; compiler/PowerShell/native NOTRUN",
+  "backup_agent_source_checks": {
+    "all7_original_bytes_SHA_blob_exact": true,
+    "Python_AST_parses": true,
+    "native_D6_patch_apply_tree_exact": true,
+    "compiler_PowerShell_native_runs": 0
+  },
+  "author_reported_guard_checks": "Exact1953 restoration + currentmanagement7 guard + 8new negative/tamper guards; not independently executed by backup agent",
+  "original_historical_windows40_recovered": false,
+  "real_boot_producer_issuer_safe_writer": "NOTIMPLEMENTED/BLOCKED",
+  "actualqualified": false,
+  "runtime_reports_included": false
+}
