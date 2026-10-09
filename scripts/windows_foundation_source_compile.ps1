@@ -8,9 +8,13 @@ $Destination = Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-19bb2920'
 New-Item -ItemType Directory -Force $Output | Out-Null
 $Guard = Join-Path $PSScriptRoot 'windows_foundation_source_guard.py'
 $Manifest = Join-Path $PSScriptRoot 'windows_foundation_source_manifest.json'
+$Observer = Join-Path $PSScriptRoot 'windows_foundation_manager_observation.py'
 $Receipt = [ordered]@{ mode=$Mode; managerCommit=$env:GITHUB_SHA; runId=$env:GITHUB_RUN_ID;
     pureSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
-    nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; passed=$false }
+    nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; managerObservationFailed=$false; passed=$false }
+
+$ObservationCancellation = $null
+$PrimaryFailure = $null
 
 function Resolve-FoundationApplication([string]$Executable) {
     $Requested = $Executable
@@ -65,6 +69,30 @@ function Invoke-CheckedCompiler([string]$Executable, [string[]]$Arguments, [stri
     return $LogPath
 }
 
+function Invoke-ManagerSourceObservation([ValidateSet('Before','After')][string]$Phase) {
+    try {
+        $ObservationPath = Join-Path $Output "management-byte-observation-$Phase.json"
+        Invoke-CheckedCompiler 'python' @($Observer,'--manager',$Manager,'--receipt',$ObservationPath) "management-byte-observation-$Phase.log" | Out-Null
+        $Observed = Get-Content -Raw $ObservationPath | ConvertFrom-Json
+        if (-not $Observed.diagnostic_only -or $Observed.admission -or $Observed.native_authority -or
+            $Observed.transport -cne 'SUCCESS' -or $Observed.fixed_source_count -ne 7) {
+            throw 'Fixed public source observation did not complete its diagnostic-only contract.'
+        }
+        $Receipt["managerObservation$Phase"] = $Observed
+    } catch {
+        if ($_.Exception -is [System.Management.Automation.PipelineStoppedException] -or
+            $_.Exception -is [System.OperationCanceledException]) {
+            $script:ObservationCancellation = $_.Exception
+            $Receipt["managerObservation${Phase}Cancellation"] = $_.Exception.GetType().FullName
+            $Receipt.managerObservationFailed = $true
+            if ($Phase -ceq 'Before') { throw }
+            return
+        }
+        $Receipt["managerObservation${Phase}Error"] = $_.Exception.Message
+        $Receipt.managerObservationFailed = $true
+    }
+}
+
 function Run-SourceCompile {
     if ($env:GITHUB_ACTIONS -cne 'true' -or $env:GITHUB_REPOSITORY -cne 'Eswink/coding-tools-mcp' -or
         $env:GITHUB_REF -cne 'refs/heads/probe/windows-foundation-compile-20261009-19bb2920') {
@@ -77,6 +105,7 @@ function Run-SourceCompile {
     }
     Invoke-CheckedCompiler 'git' @('--version') 'git-version.log' | Out-Null
     Invoke-CheckedCompiler 'python' @('-c','import sys; assert sys.version_info[:2] == (3, 12), sys.version') 'python-version.log' | Out-Null
+    Invoke-ManagerSourceObservation 'Before'
     $ManagerBefore = Join-Path $Output 'management-before.json'
     Invoke-CheckedCompiler 'python' @($Guard,'verify-manager','--manifest',$Manifest,'--manager',$Manager,
         '--receipt',$ManagerBefore) 'management-before.log' | Out-Null
@@ -144,6 +173,7 @@ try {
     Run-SourceCompile
     $Receipt.passed = $true
 } catch {
+    $PrimaryFailure = $_.Exception
     $Receipt.error = $_.Exception.Message
     if ($Receipt.compiler -eq 'RUNNING') { $Receipt.compiler = 'ACTUAL_FAILURE' }
 } finally {
@@ -169,6 +199,11 @@ try {
             throw 'Management seven source bytes/modes changed or before was not admitted.'
         }
     } catch { $Receipt.passed=$false; $Receipt.managementAfterError=$_.Exception.Message }
+    if ($null -eq $ObservationCancellation) {
+        Invoke-ManagerSourceObservation 'After'
+    } else {
+        $Receipt.managerObservationAfterSkipped = 'Before observation cancelled; no new diagnostic child.'
+    }
     foreach ($Executable in $Receipt.runtime.Keys) {
         try {
             $CurrentPath = Resolve-FoundationApplication $Executable
@@ -187,6 +222,14 @@ try {
             }
         } catch { $Receipt.passed=$false; $Receipt.runtimeAfterError=$_.Exception.Message }
     }
+    if ($Receipt.managerObservationFailed) { $Receipt.passed = $false }
     $Receipt | ConvertTo-Json -Depth 12 | Set-Content -Encoding utf8 (Join-Path $Output 'compiler-result.json')
+}
+if ($null -ne $ObservationCancellation) {
+    if ($null -ne $PrimaryFailure -and -not [Object]::ReferenceEquals($PrimaryFailure, $ObservationCancellation)) {
+        throw [System.AggregateException]::new('Original delegate failure and observation cancellation were both preserved.',
+            [System.Exception[]]@($PrimaryFailure, $ObservationCancellation))
+    }
+    throw $ObservationCancellation
 }
 if (-not $Receipt.passed) { throw "Actual source/compiler/data probe failed. See compiler-result.json." }
