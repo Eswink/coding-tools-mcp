@@ -1,0 +1,131 @@
+{
+  "files": [
+    {
+      "bytes": 215,
+      "gitMode": "100644",
+      "path": "CHECK-SPEC-SAFE.json",
+      "sha256": "b9a3cc47626d5ea33504d42b1b866453c7e89ffb5caedadfa5a5c9262c7d0e27"
+    },
+    {
+      "bytes": 156,
+      "gitMode": "100644",
+      "path": "DETECT-CHANGES-SAFE.json",
+      "sha256": "9e93e590e6e936ca9c3f54d8cfe274a0b0426bcd212967b85612b293def7c0ce"
+    },
+    {
+      "bytes": 850,
+      "gitMode": "100644",
+      "path": "FAILURE-HISTORY-SAFE.json",
+      "sha256": "f8f6775b85af77d27bbc680482ef29de8fe4cbd7ceb5b448ececb5a82b0a0deb"
+    },
+    {
+      "bytes": 1548,
+      "gitMode": "100644",
+      "path": "FRESH-IMPACTS-SAFE.json",
+      "sha256": "652449bded231b326bd9e7bd64e54d99711f58c72c496f81904d13b7ddb3c557"
+    },
+    {
+      "bytes": 68,
+      "gitMode": "100644",
+      "path": "GENCOMMIT-SAFE.json",
+      "sha256": "4f9ce8bfa42cf404ec9c8f949af218a76f3565e5be1dd95951e901b740f94184"
+    },
+    {
+      "bytes": 3582,
+      "gitMode": "100644",
+      "path": "ORDINARY-CONTROLS-SAFE.json",
+      "sha256": "1a0f1690fbcf5e1ead36a2265508ee87e06b59f02ef24e4f3f45ea5a0e6b2450"
+    },
+    {
+      "bytes": 7074,
+      "gitMode": "100644",
+      "path": "PUBLISHER-CURRENT02-INDEPENDENT-SOURCE-STOP-SAFE01.json",
+      "sha256": "a38f3a0cc9704de10c8887c0bea4f8138808163d32cbb3e34e2a59fcc987d44d"
+    },
+    {
+      "bytes": 1762,
+      "gitMode": "100644",
+      "path": "README.md",
+      "sha256": "6ee4b1e629970db1326a474d65f7ab421f1c64c690688abbde60ada0484754a7"
+    },
+    {
+      "bytes": 495818,
+      "gitMode": "100644",
+      "path": "SOURCE-CURRENT-LEASES-SAFE.json",
+      "sha256": "27cc999e532728a09f05f54e3e7a12a2d4a2e2f10628d3fe2e1883aa06353b6e"
+    },
+    {
+      "bytes": 856,
+      "gitMode": "100644",
+      "path": "SOURCE-STATUS.json",
+      "sha256": "afeebdc361471795c74682d2964b2f5d1b96eb2fae5ccfb1df04c49a0acdd68f"
+    },
+    {
+      "bytes": 2230,
+      "gitMode": "100644",
+      "path": "source/.github/workflows/rc-disposable-publisher-compat.yml",
+      "sha256": "31ebdb695924942d09e51339d7b282179f85a247d662ffb7e054f76fb0dc1256"
+    },
+    {
+      "bytes": 7946,
+      "gitMode": "100644",
+      "path": "source/docs/specs/issue88-disposable-publisher-git-role/design.md",
+      "sha256": "5a655f1b8db655bb4aaf9f6dcc44c995dd0ce64aacea4405a797cb3d7af6eee9"
+    },
+    {
+      "bytes": 7185,
+      "gitMode": "100644",
+      "path": "source/docs/specs/issue88-disposable-publisher-git-role/requirements.md",
+      "sha256": "4009672cdd2e511630bd65e8177ec527883a039ec2b6e9fadf01d598c41ac792"
+    },
+    {
+      "bytes": 3497,
+      "gitMode": "100644",
+      "path": "source/docs/specs/issue88-disposable-publisher-git-role/tasks.md",
+      "sha256": "29043a8dfde8467ea3a623d28755930039d6cf195797221eaead0199c7920f2f"
+    },
+    {
+      "bytes": 34739,
+      "gitMode": "100644",
+      "path": "source/scripts/rc_disposable_ci_controls.py",
+      "sha256": "f2a16c42d879bbbab20fbbe086aec13089a9094cde43f2698e67ff588ea81533"
+    },
+    {
+      "bytes": 26010,
+      "gitMode": "100644",
+      "path": "source/scripts/rc_disposable_git_prepare.py",
+      "sha256": "b32c52d95e9af82857895a23e064a7542fb489045562c2c7bde0e60177136e59"
+    },
+    {
+      "bytes": 10817,
+      "gitMode": "100644",
+      "path": "source/scripts/rc_disposable_git_role_install.py",
+      "sha256": "2a92ba1366a603dc0139d538b5667ed74120444ea0f824349c0041ff65252c51"
+    },
+    {
+      "bytes": 18322,
+      "gitMode": "100644",
+      "path": "source/scripts/rc_disposable_public_projection.py",
+      "sha256": "296044180d6b0e076781a7caeb85c388613d6a37ce9708f3564d0774f9bbb521"
+    },
+    {
+      "bytes": 18915,
+      "gitMode": "100644",
+      "path": "source/scripts/rc_disposable_publisher_probe.py",
+      "sha256": "4bbfae1860229f95e2b975336ab407767329d7a4d1b4fa28958735597002a344"
+    },
+    {
+      "bytes": 37979,
+      "gitMode": "100644",
+      "path": "source/scripts/rc_disposable_vendor/owned_debian_msgfmt_prepare.py",
+      "sha256": "382f47e98cb5e782e4080f781ba930a42a265a5d83250507199045b1d28ba0aa"
+    },
+    {
+      "bytes": 40784,
+      "gitMode": "100644",
+      "path": "source/scripts/rc_disposable_vendor/owned_git_prepare_v4.py",
+      "sha256": "a21b053058b1365d5b547c4983a3338ba8f3b4b844d16fc795bcd0c31a1bbe48"
+    }
+  ],
+  "scope": "source only"
+}

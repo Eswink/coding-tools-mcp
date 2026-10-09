@@ -1,0 +1,26 @@
+{
+  "kind": "SAFE_SEPARATE_LIMITED_SOURCE_REPAIR_PEER_NOT_STARTUP",
+  "entries": [
+    {
+      "path": "PUBLISHER-CURRENT03-INDEPENDENT-LIMITED-SOURCE-PEER-SAFE01.json",
+      "bytes": 6643,
+      "sha256": "e2e3c9b66115fe5e2aad8befe97a094a35bde652db290e3628672a5df74be053",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1256,
+      "sha256": "914a2edad3fbe06eeb65f9a279d05935ea29f6eb0cf9bae79698512152d52188",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "bytes": 1012,
+      "sha256": "0dc70a567bf45a650bb21864fe6b2156dc72f6eaae228526c5530b19d5499634",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ]
+}

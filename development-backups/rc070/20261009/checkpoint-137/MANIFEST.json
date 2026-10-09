@@ -1,0 +1,40 @@
+{
+  "kind": "SAFE_TERMINAL_FAILURE_APPENDIX_NOT_ENGINEERING_QUALIFICATION",
+  "entries": [
+    {
+      "path": "INDEPENDENT-BUILD05-TERMINAL-FILTERED.safe.json",
+      "bytes": 3631,
+      "sha256": "a8221430a8899d4f97473f5a385ba402232cda899889f114dd9b2f1364580278",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "INDEPENDENT-RSA-BUILD04-STARTUP-ARGV-ERRATUM01.json",
+      "bytes": 1306,
+      "sha256": "12b3189c9c2bd3c910fa0cc440ad40115be9cdc2485be40d82c69d4f6177d5ec",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "INDEPENDENT-RSA-BUILD04-TERMINAL-SAFE01.json",
+      "bytes": 3040,
+      "sha256": "16635d372f6f8c8d0bfaee31fe777e65d29c052edbff9a0ad184271164324df2",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1242,
+      "sha256": "04428b5e5f2debd641b87a5bea4d5a789e023788674686da59d6e2544ddaf92e",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.safe.json",
+      "bytes": 1314,
+      "sha256": "3eff7c2b3020335589ffe1b33ae054391941c0e02b80ab99dcbf6c0e1b2643c3",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ]
+}

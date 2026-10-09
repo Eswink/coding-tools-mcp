@@ -1,0 +1,34 @@
+{
+  "scope": "SAFE_SEPARATE05_WHOLEGATEFAIL_AND04_NATIVE_CLI_FAIL_TERMINALS",
+  "actual05NativeCargoExit": 0,
+  "actual05WholeEngineeringGate": false,
+  "actual05RootProof": null,
+  "actual05Failure": "Artifact singlelink guard rejects2-link layout",
+  "actual04NativeCargoExit": 101,
+  "actual04ReceiptChildExit": null,
+  "actual04RustCompiler": "NOTRUN",
+  "copyModes": [
+    {
+      "path": "INDEPENDENT-RSA-BUILD04-TERMINAL-SAFE01.json",
+      "literalOriginalSHA256": "16635d372f6f8c8d0bfaee31fe777e65d29c052edbff9a0ad184271164324df2",
+      "bytes": 3040,
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "INDEPENDENT-RSA-BUILD04-STARTUP-ARGV-ERRATUM01.json",
+      "literalOriginalSHA256": "12b3189c9c2bd3c910fa0cc440ad40115be9cdc2485be40d82c69d4f6177d5ec",
+      "bytes": 1306,
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    }
+  ],
+  "buildInstallStartupRCQualified": false,
+  "oldFreezesAndOriginalTerminalRecordsUnchanged": true,
+  "assemblerCargoCompilerSUTGitMutations": 0,
+  "projections": "05 per-artifact native physical table omitted; original0dff/4071 hash retained;04/erratum original safe bytes literal"
+}

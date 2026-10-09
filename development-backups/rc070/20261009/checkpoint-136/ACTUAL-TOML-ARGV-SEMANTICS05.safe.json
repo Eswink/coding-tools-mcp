@@ -1,0 +1,17 @@
+{
+  "actualParser": "stdlib_tomllib",
+  "exact2Values": [
+    {
+      "argument": "patch.crates-io.sqlx.path=\"/workspace/work/rc070/rsa-gateway-audit-build-owned03/f13-candidate/services/cloud-gateway/vendor/sqlx\"",
+      "actualTomlPath": "/workspace/work/rc070/rsa-gateway-audit-build-owned03/f13-candidate/services/cloud-gateway/vendor/sqlx"
+    },
+    {
+      "argument": "patch.crates-io.sqlx-macros-core.path=\"/workspace/work/rc070/rsa-gateway-audit-build-owned03/f13-candidate/services/cloud-gateway/vendor/sqlx-macros-core\"",
+      "actualTomlPath": "/workspace/work/rc070/rsa-gateway-audit-build-owned03/f13-candidate/services/cloud-gateway/vendor/sqlx-macros-core"
+    }
+  ],
+  "actualParsedPathsMatchExactOwnedAuditedSource": true,
+  "newSourceAdapterSHA": "80f2433f3199cc3135e81f1c7470c7b0d52c06433854abcdfba78f35232b9a9c",
+  "original04Immutable": true,
+  "compileExecutions": 0
+}

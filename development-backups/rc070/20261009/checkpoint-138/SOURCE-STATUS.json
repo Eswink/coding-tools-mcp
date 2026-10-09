@@ -1,0 +1,20 @@
+{
+  "RCQualified": false,
+  "adaptedPrepareAST": "TWO_ROLE_CALLBACK_INJECTIONS_DISCLOSED",
+  "cleanup": "independent final KILL plus bounded wait under same absolute4 deadline",
+  "collector": "NEW_ADAPTER_NOT_VENDOR_FUNCTION_AST_IDENTICAL",
+  "designCoverage24Plus17": "NOT_PROVEN_COMPLETE",
+  "entryAfterFences": "each acquired original/native/compiler/rustup/controllerSource/wholeprefix/singleRole independently attempted",
+  "nativeFamilyRuntimeClosure": "NOT_QUALIFIED",
+  "oldFailures": "IMMUTABLE_RETAINED",
+  "privateRawDurability": "OPEN",
+  "publisher300": "NOT_RUN",
+  "publisher85": "NOT_RUN",
+  "releaseAuthorized": false,
+  "scope": "SOURCE_ONLY_TWO_FINITE_REVIEW_REPAIRS",
+  "setupBuildInstallSudoCI": 0,
+  "source02FrozenAnd52Logs": "UNCHANGED",
+  "sourcePeer": "PENDING_AT_FREEZE",
+  "startup": "NOT_APPROVED",
+  "vendorRawExact": true
+}

@@ -1,0 +1,17 @@
+{
+  "tool": "mcp-probe-kit@4.0.1/check_spec",
+  "structuredContent": {
+    "passed": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": [],
+    "frIds": [
+      "FR-1",
+      "FR-2",
+      "FR-3"
+    ],
+    "summary": "\u89c4\u683c\u6821\u9a8c\u901a\u8fc7\uff083 \u6761\u9700\u6c42\uff09"
+  },
+  "originalToolResultSHA256": "5cd2ea461cda539256ff12a79ac1e4c46eb303e1b683e098df5b441ab1bc7fa2",
+  "assemblerExecutedCheck": false
+}

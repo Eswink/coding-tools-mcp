@@ -1,0 +1,45 @@
+{
+  "rows": [
+    {
+      "manualRisk": "CRITICAL",
+      "nativeExit": 1,
+      "rawSha256": "84d245bbd87db5fa2da323be090194f3c20f833fbc58393f65235d45740b8934",
+      "structuredStatus": "UNKNOWN_REPOSITORY_NOT_REGISTERED",
+      "target": "_run_dual_capture",
+      "zeroImpactClaimed": false
+    },
+    {
+      "manualRisk": "CRITICAL",
+      "nativeExit": 1,
+      "rawSha256": "cd702ccb79f42c5432ab99474a9046bfc7c7a7b0ce73ea51357995f09b82507d",
+      "structuredStatus": "UNKNOWN_REPOSITORY_NOT_REGISTERED",
+      "target": "main",
+      "zeroImpactClaimed": false
+    },
+    {
+      "manualRisk": "CRITICAL",
+      "nativeExit": 1,
+      "rawSha256": "8d8afe03b43264dff001ae9b6fa9de5b529ea2115b92d62b42ef0252b552fa64",
+      "structuredStatus": "UNKNOWN_REPOSITORY_NOT_REGISTERED",
+      "target": "_final_obtained_lease_fences",
+      "zeroImpactClaimed": false
+    },
+    {
+      "manualRisk": "CRITICAL",
+      "nativeExit": 1,
+      "rawSha256": "67b5292912ccf91e6add22ad5fb1f55d4cd0565cd3da5a90f8d4c7eb95f7017e",
+      "structuredStatus": "UNKNOWN_REPOSITORY_NOT_REGISTERED",
+      "target": "_role_callbacks",
+      "zeroImpactClaimed": false
+    },
+    {
+      "manualRisk": "CRITICAL",
+      "nativeExit": 1,
+      "rawSha256": "60777d0eb8322f18a93665ce62f2fa8958551655e0a5ab4f617539648b536407",
+      "structuredStatus": "UNKNOWN_REPOSITORY_NOT_REGISTERED",
+      "target": "_prepare_genuine_git_delegate",
+      "zeroImpactClaimed": false
+    }
+  ],
+  "scope": "two explicitly authorised source cleanup/final-observer seams only"
+}

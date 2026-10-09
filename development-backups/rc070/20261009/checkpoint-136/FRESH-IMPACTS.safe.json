@@ -1,0 +1,85 @@
+{
+  "scope": "SIX_FRESH_ACTUAL_UNSUPPORTED_UNKNOWN_NOT_ZERO",
+  "manualRisk": "HIGH",
+  "queries": [
+    {
+      "source": "FRESH-verify_build_lease-IMPACT05.json",
+      "originalSHA256": "e94ab3950affa8736be2f1e40b2c51bafa4eb9fdd72db114ebaea5f3fcc9d7d8",
+      "actualStructuredResult": {
+        "error": "Target 'Function:rsa-gateway-build-owned05/build-root-once05.py:verify_build_lease' not found",
+        "target": {
+          "name": "verify_build_lease"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "source": "FRESH-main-IMPACT05.json",
+      "originalSHA256": "3e017675e8a2f26379b20ec6c13000a7c947620019d28a9b43a34461b629b8d8",
+      "actualStructuredResult": {
+        "error": "Target 'Function:rsa-gateway-build-owned05/build-root-once05.py:main' not found",
+        "target": {
+          "name": "main"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "source": "FRESH-digest-IMPACT05.json",
+      "originalSHA256": "95d08c75b7f291821e2e358af3d310bc9267cba94a26caddc7f736b616a7fc6d",
+      "actualStructuredResult": {
+        "error": "Target 'Function:rsa-gateway-build-owned05/build-root-once05.py:digest' not found",
+        "target": {
+          "name": "digest"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "source": "FRESH-read_json-IMPACT05.json",
+      "originalSHA256": "6c6125a513ea9beae6a34e46bdb01444c00527f8db04d7ab147d17476442eede",
+      "actualStructuredResult": {
+        "error": "Target 'Function:rsa-gateway-build-owned05/build-root-once05.py:read_json' not found",
+        "target": {
+          "name": "read_json"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "source": "FRESH-check_row-IMPACT05.json",
+      "originalSHA256": "1e199525c7f26b9a1b871a326ca55353887489f3e381d81637700fc30158939f",
+      "actualStructuredResult": {
+        "error": "Target 'Function:rsa-gateway-build-owned05/build-root-once05.py:check_row' not found",
+        "target": {
+          "name": "check_row"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "source": "FRESH-verify_native_build-IMPACT05.json",
+      "originalSHA256": "f09ca44abfad6c8d4e1f87500855c92547f6b718ff5ddf4e67ef295112de281c",
+      "actualStructuredResult": {
+        "error": "Target 'Function:rsa-gateway-build-owned05/build-root-once05.py:verify_native_build' not found",
+        "target": {
+          "name": "verify_native_build"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    }
+  ],
+  "preEditTimingClaim": "No retroactive timing proof supplied by backup assembler"
+}

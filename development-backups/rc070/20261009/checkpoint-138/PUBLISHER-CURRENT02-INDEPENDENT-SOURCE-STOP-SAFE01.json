@@ -1,0 +1,110 @@
+{
+  "blocking_findings": [
+    {
+      "file": "scripts/rc_disposable_git_prepare.py",
+      "finding": "If created child remains alive at LOG_LIMIT/TIMEOUT or collector primary and process.poll raises BaseException, the first cleanup try skips TERM and both wait calls. Independent final killpg at line171 sends KILL but is not followed by independent wait/reap. Both pipe closes are attempted, but actual created child retirement is not closed. This is a source branch analysis, not an observed host leak.",
+      "id": "S1",
+      "kind": "FAILED_RETIREMENT_CLEANUP_BOUNDARY",
+      "line": 153,
+      "native_run_by_reviewer": 0,
+      "necessary_control": "Failure-first owned subprocess or controlled boundary where poll fails before child retirement; independently attempt bounded reap while keeping original poll/cancel and all cleanup objects. The current test prints and normally waits for its child before poll cancellation, and only checks closed pipes, so it does not prove this seam."
+    },
+    {
+      "file": "scripts/rc_disposable_publisher_probe.py",
+      "finding": "After preflight returns leases, main has no overall try/finally covering native source restoration, official input fetch, preparing, final installed-prefix checks, projections and public writer. Failure/cancel in source restoration/fetch skips all final known role checks; failure/cancel during projection skips subsequent full prefix, single role, controller-source and runtime after-fences. prepare_genuine_git finally protects only its delegate scope. The outer __main__ fixed status handler changes exit behavior without supplying those fences.",
+      "id": "S2",
+      "kind": "MISSING_ENTRY_ALL_FINAL_FENCES",
+      "line": 256,
+      "native_run_by_reviewer": 0,
+      "necessary_control": "Finite failure-first entry controls at source restore, fetch, setup and public projection plus multiple final-fence failures; retain original primary/cancel and independently attempt each already acquired lease. No synthetic native runtime grant, original Publisher tests or sudo is needed to test these seams."
+    }
+  ],
+  "execution_by_reviewer": {
+    "CI": 0,
+    "compiler_build": 0,
+    "ordinary_tests_rerun": 0,
+    "publisher300": 0,
+    "publisher85": 0,
+    "source_edits": 0,
+    "sudo": 0
+  },
+  "finite_source_repairs_observed": [
+    "FD holder construction and resource-list linkage occur before native opens; close UNKNOWN retains actual returned holder and errors preserve primary objects within Python boundary",
+    "exact source reader uses an actual HeldFD and primary plus independent close aggregation",
+    "new dual-stream reader limits combined live stdout/stderr to 2MiB and overflow is FAIL with bounded prefixes, not qualification",
+    "prepare_genuine_git independently attempts all known original and compiler roles plus rustup after delegate failure/cancel",
+    "both original Publisher85 and 300 always NOT_RUN/zero; private persistence VERIFIED prohibited; original raw profiles null seal and empty files",
+    "public byte cap applies before strict UTF8 decode; duplicate keys, BOM, nonfinite constants and all floats including exponent overflow rejected",
+    "setup PASS needs every phase actual zero plus elapsed and cross-file signature/systemGit/prefix/config2/non-null native hashes; entry needs same-run fullprefix plus single-role state",
+    "public destination mkdir and files O_EXCL/NOFOLLOW do not replace existing destinations/files; publication is non-atomic and only successful entry may upload",
+    "workflow captures Python stdout/stderr before imports/argparse and uploads only four explicit safe JSON paths on preparation success",
+    "vendor V4 and DebianV3 raw hashes exact; protected snapshot_original_git_source/run_owned_git_phase source stays exact; candidate prepare has disclosed two callback AST injections"
+  ],
+  "followup": "Preserve frozen02/source STOP/raw history; sole source author may repair only newly bounded seams with fresh impact/spec/ordinary controls. Require a new source freeze and independent source and genuine disposable-CI startup review before root setup execution.",
+  "identity_read": {
+    "currentNewStagedFiles": 11,
+    "frozenBytes": 699005,
+    "frozenFiles": 20,
+    "head": "a935f0d8f81901a0974b5b0d4a59c98d7765b8a1",
+    "manifestSha256": "bab675c576e8a44304747c14814218dcc24650c7f8237adc38417828930e0893",
+    "modeNlinkChecks": "PASS_WITH_NEW_SOURCE_PHYSICAL_600_FROZEN_PUBLIC644_GIT100644_ADAPTER",
+    "nativeRawByteJoin": "PASS",
+    "newNativeSetupBuildInstallSudoCI85_300": 0,
+    "ordinaryDeclarations": 52,
+    "ordinaryExistingLogNamedSuccess": 52,
+    "ordinaryLogSha256": "62cd5490ded282ee047289907bd53f7245475600bc5198bf123fea85fb166a2d",
+    "ordinaryNotRerun": true,
+    "originalNativeBlobsChecked": 1860,
+    "scope": "INDEPENDENT_READ_ONLY_SOURCE_AND_EXISTING_LOG_VALIDATION",
+    "sourcePeerStatus": "PENDING_FINDINGS"
+  },
+  "ordinary_52_evidence_limits": {
+    "actual_log_read": true,
+    "coverage_missing_examples": [
+      "poll-fails-before-reap actual owned retirement",
+      "entry-wide failure and simultaneous final-fence attempts",
+      "true root-only installer ancestry/sudo rule with exact inline hash",
+      "source mutation during copy and copied target posthash failure",
+      "all real runtime/dynamic/config/selected child closure"
+    ],
+    "full_design_24_plus_17": "NOT_PROVEN",
+    "log_terminal": "Ran 52 tests / OK",
+    "matching_source_test_declarations": 52,
+    "native_exit_credit": "author sealed nativeExit0 only; this independent pass did not rerun controls",
+    "scope": "owned temp FD/schema/mock seam and short controlled subprocess; synthetic ELF-header payload copy is not native signed executable build/install",
+    "stderr_bytes": 6343,
+    "stderr_sha256": "62cd5490ded282ee047289907bd53f7245475600bc5198bf123fea85fb166a2d",
+    "stdout_bytes": 0,
+    "unique_named_success": 52
+  },
+  "own_graph": {
+    "current_source_manual_risk": "CRITICAL",
+    "first_query_native_exit": 1,
+    "first_repository_alias": "publisher-disposable-ci-source-graph01",
+    "first_status": "REPOSITORY_NOT_REGISTERED",
+    "impact": "UNKNOWN_NOT_ZERO",
+    "no_other_checkout_graph_qualification": true,
+    "second_native_exit": 0,
+    "second_repository_alias": "rc070-publisher-disposable-ci-draft01",
+    "second_structured_status": "SYMBOL_NOT_FOUND"
+  },
+  "previous_reports": {
+    "early_safe_sha256": "bba2183fc329f3a027ce04eb888f82cba30ab005593ab21ea8c43f7dc7d381b8",
+    "immutable_preserved": true,
+    "schema_safe_sha256": "d554909df5e5f87ffbbadbb2b5fd947e97924ba3cae9fde864ee5d4292e3db70"
+  },
+  "qualified": {
+    "RC": false,
+    "build": false,
+    "install": false,
+    "native_family": false,
+    "publisher300": false,
+    "publisher85": false,
+    "release": false,
+    "startup": false,
+    "sudo": false
+  },
+  "result": "SOURCE_STOP_NOT_STARTUP_APPROVED",
+  "schema": "rc070-independent-publisher-disposable-source-review-1",
+  "scope": "READ_ONLY_FROZEN_SOURCE02_CURRENT_SOURCE_AND_EXISTING_ORDINARY_LOG"
+}

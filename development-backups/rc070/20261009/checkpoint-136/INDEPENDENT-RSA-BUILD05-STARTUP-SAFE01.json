@@ -1,0 +1,53 @@
+{
+  "schema": "rc070.independent-engineering-build-startup.v1",
+  "decision": "ALLOW_ONE_ROOT_DISTINCT_SLOT05_ENGINEERING_BUILD_ONLY",
+  "role": "INDEPENDENT_READONLY_SOURCE_STARTUP_NOT_COMPILER_EXECUTOR",
+  "packetSHA256": "0a58b73a69630caa24170b2b6ec62a00c2af12cb972613a6306230e347c2e6b4",
+  "driverSHA256": "80f2433f3199cc3135e81f1c7470c7b0d52c06433854abcdfba78f35232b9a9c",
+  "inputLeaseSHA256": "3377713c9e36f747909de49e4c6713479b0ab5250e14beaf73ad2663a7302c3a",
+  "collectorSHA256": "3faaab02dda1ad4aed1eac7222b8e55d3428e9e3dc9eafaf8472effeb3a3bbeb",
+  "actualChecks": {
+    "literalDriverInverseExactlyFourSlotNames": true,
+    "twoActualTomllibExactOwnedMappings": [
+      {
+        "package": "sqlx",
+        "sameAuditedOwnedPath": true
+      },
+      {
+        "package": "sqlx-macros-core",
+        "sameAuditedOwnedPath": true
+      }
+    ],
+    "allOtherPacketArgvEnvironmentInputsBudgetsUnchanged": true,
+    "inputRows": 19190,
+    "directoryRoles": 1,
+    "fullNamespaces": 215,
+    "configAbsences": 29,
+    "allCurrentBytesModesPhysicalNativeRefsExecutorsMatch": true,
+    "newMarkerTargetReceiptAbsentRawTmp0700Empty": true,
+    "old04PacketDriverReceiptRawExactPreserved": true,
+    "structuredSpecPassed": true,
+    "structuredSpecErrors": 0,
+    "structuredSpecWarnings": 0
+  },
+  "conditions": [
+    "Root sole executor of distinct once05 under actual GNUtimeout TERM478 kill_after2, total480s and runtime combined2MiB; no RLIMIT_FSIZE compiler limit.",
+    "Any native nonzero, incomplete/capped Cargo JSON, missing four original bins/local patch compile features, input drift, cancellation, cleanup UNKNOWN or late postwriter denies attempt.",
+    "Full current listed input/namespace fences before,collector beforeafter,driver finally; static runtime listing is not observed syscall/nativefamily grant."
+  ],
+  "priorReviewErratum": "Original04 startup missed TOML path quoting; old ALLOW/raw Cargo101 parseFAIL/Rust0 and review erratum preserved. New05 independently parses both actual TOML strings.",
+  "specHistoricalTextLimit": "New05 appended section binds freshslot; inherited04 design paragraph names are historical, actual05 packet/source crossbind independently exact.",
+  "reviewerCargoExecutions": 0,
+  "reviewerCompilerExecutions": 0,
+  "reviewerAuditExecutions": 0,
+  "qualification": {
+    "startupScopeOnly": true,
+    "engineeringBuildAlreadyPassed": false,
+    "productWiring": false,
+    "fourFinalAudits": false,
+    "install": false,
+    "nativeFamily": false,
+    "nativeVM": false,
+    "RC": false
+  }
+}

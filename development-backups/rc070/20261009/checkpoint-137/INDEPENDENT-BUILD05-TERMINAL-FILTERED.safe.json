@@ -1,0 +1,97 @@
+{
+  "schema": "rc070.independent-build-terminal.v1",
+  "decision": "FAIL_ARTIFACT_SINGLELINK_GUARD_NATIVE_CARGO_SUCCEEDED",
+  "role": "INDEPENDENT_READONLY_NOT_BUILD_EXECUTOR",
+  "slot": "/workspace/work/rc070/rsa-gateway-build-owned05",
+  "packetSHA256": "0a58b73a69630caa24170b2b6ec62a00c2af12cb972613a6306230e347c2e6b4",
+  "driverSHA256": "80f2433f3199cc3135e81f1c7470c7b0d52c06433854abcdfba78f35232b9a9c",
+  "rootReceiptSHA256": "a8663697e23f38f23f6266c8ebae7ac9ae86c302b9777d4f4bc8265d9dc8bc69",
+  "nativeCargoExit": 0,
+  "rootReceiptProof": null,
+  "wholeEngineeringGatePassed": false,
+  "originalCargoJSON": {
+    "completeUniqueKeyLines": 344,
+    "counts": {
+      "compiler-artifact": 301,
+      "build-script-executed": 31,
+      "compiler-message": 11,
+      "build-finished": 1
+    },
+    "lastUniqueBuildFinishedSuccess": true,
+    "twoActualPatchedFeatures": {
+      "sqlx": [
+        "_rt-tokio",
+        "derive",
+        "macros",
+        "migrate",
+        "postgres",
+        "runtime-tokio",
+        "runtime-tokio-rustls",
+        "sqlx-macros",
+        "sqlx-postgres",
+        "tls-rustls-ring",
+        "tls-rustls-ring-webpki",
+        "uuid"
+      ],
+      "sqlx-macros-core": [
+        "_rt-tokio",
+        "_tls-rustls-ring-webpki",
+        "default",
+        "derive",
+        "macros",
+        "migrate",
+        "postgres",
+        "sqlx-postgres",
+        "tokio",
+        "uuid"
+      ]
+    }
+  },
+  "raw": [
+    {
+      "name": "stdout.raw",
+      "bytes": 316330,
+      "sha256": "3bdcbaf7ffff6b6e04f711d0aab67e8998c52c9e04deed6e233db0d4c3b71bf1"
+    },
+    {
+      "name": "stderr.raw",
+      "bytes": 5784,
+      "sha256": "a88c461dbd36d46ae535dd888c3ed72552f6748a20563ce9181f00fb160d3510"
+    }
+  ],
+  "exactCause": "All four real Cargo root executables are regular executable x64 ELF with nlink2 and each one same-inode file in ownedrelease/deps. Original guard required nlink1 and correctly denied its declared contract; no unlink, relaxed guard, backfilled proof or rerun.",
+  "rootActualPostWriterElapsedSeconds": 298.6064430389961,
+  "clockScope": "Read exact root original driver stdout; not recreate execution clock.",
+  "independentAfterFence": {
+    "rows": 19190,
+    "directoryRoles": 1,
+    "namespaces": 215,
+    "configAbsences": 29,
+    "rawModeFullPhysicalNativeRefsExecutorsUnchanged": true
+  },
+  "receiptLimit": "sourceAndListedRuntimeInputsAfter=false denotes overall failure; own full immutable inputjoin independently unchanged. Capture returnednative0 but artifactproof aborted.",
+  "prior04ConfigParseFailPreserved": true,
+  "qualification": {
+    "realNativeCompilerAndFourBinsObserved": true,
+    "engineeringWholeGate": false,
+    "RSAResolutionAndAuditPriorFactsUnaffected": true,
+    "productWiring": false,
+    "install": false,
+    "nativeFamily": false,
+    "fourFinalAudits": false,
+    "RC": false
+  },
+  "reviewerCargoExecutions": 0,
+  "reviewerCompilerExecutions": 0,
+  "reviewerAuditExecutions": 0,
+  "projectionPolicy": {
+    "sourceTerminalBytes": 4071,
+    "sourceTerminalSHA256": "0dff3ce3d8ece84ab9736e4d13930f48faf76f2535ae7ad4d64c6899a58bb8ce",
+    "copyType": "DERIVED_SAFE_PROJECTION_NOT_LITERAL4071_COPY",
+    "excludedOriginalField": "actualFourArtifactObservations with per-artifact physical mode/nlink/same-inode and binary observations",
+    "keptFailureMeaning": "Wholegate rejects declared single-link contract: all4 compiler-produced binaries observed in two-link layout. No link deletion or guard relaxation.",
+    "actualFourBinsObservedCount": 4,
+    "nativePhysicalStatRowsExported": false,
+    "original4071FileChanged": false
+  }
+}

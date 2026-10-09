@@ -1,0 +1,18 @@
+{
+  "scope": "SEPARATE_PUBLISHER_SOURCE03_FINITE_SOURCE_REPAIR_PEER_ONLY",
+  "sourceFreezePath": "/workspace/work/rc070/publisher-disposable-ci-current-source-only03",
+  "sourceFreezeFiles": 22,
+  "sourceFreezeBytes": 724669,
+  "sourceFreezeManifestSHA256": "100fe8a9a320a4e1090f0abb9eea7aa6562c6f462c256c8909ad48899ba1c9e5",
+  "sourceFrozenPhysicalMode": "0644",
+  "sourceFrozenGitMode": "100644",
+  "modeAdapter": "No adapter required from frozen22 itself; copied source is already0644/Git100644. The peer records prefreeze new working source0600 to frozen0644 separately.",
+  "sourcePeerPendingMarkersAndOriginalFrozenBytesUnchanged": true,
+  "decision": "LIMITED_SOURCE_PASS_TWO_OLD_STOP_REPAIRS",
+  "postReapIntegerKillpgBoundary": "OPEN_BEFORE_ANY_REAL_STARTUP",
+  "startupNativeSetupBuildInstallSudoCI85_300Qualified": false,
+  "direction24Plus17": "NOT_PROVEN",
+  "privateRawDurableChannel": "OPEN_DENY_85_300",
+  "realIssuer": "UNAVAILABLE_DENY_RELEASE",
+  "assemblerNativeSUTControlsGitMutations": 0
+}

@@ -1,0 +1,114 @@
+{
+  "closed_old_findings": [
+    {
+      "evidence": "After final KILL, independent process.wait shares same absolute cleanup4 deadline even if first poll raises. New failure-first control uses genuine created sleeping Python child, actual register SystemExit primary and poll KeyboardInterrupt, asserts original group (same objects), delegate waited[-9], returncode known and two actual pipes closed. Its separate emergency wait occurs after those assertions and does not supply delegate proof.",
+      "id": "S1",
+      "status": "FINITE_SOURCE_PASS"
+    },
+    {
+      "evidence": "Entry main surrounds all acquired-phase work with primary retention and finally calls obtained-lease checks. Original roles, compiler proxy and native roles, rustup and each controller source are independently observed; prefix errors do not skip single-role observation. Prefix lease is retained in context during role callback so prepared-return absence cannot erase an already obtained prefix. Necessary controls inject restore/fetch/prepare/public primary SystemExit and simultaneous after KeyboardInterrupt/SystemExit; actual ordinary mock boundary asserts original objects and every subsequent known lease attempt.",
+      "id": "S2",
+      "status": "FINITE_SOURCE_PASS"
+    }
+  ],
+  "freeze_sourcePeer_PENDING_not_rewritten": true,
+  "fresh_impact_scope": "5 exact new queries UNKNOWN/manualCRITICAL; detect UNKNOWN not0; source-only gencommit guide not real commit",
+  "identity_read": {
+    "currentNewStagedFiles": 11,
+    "frozenBytes": 724669,
+    "frozenFiles": 22,
+    "head": "a935f0d8f81901a0974b5b0d4a59c98d7765b8a1",
+    "manifestSha256": "100fe8a9a320a4e1090f0abb9eea7aa6562c6f462c256c8909ad48899ba1c9e5",
+    "modeNlinkChecks": "PASS_WITH_NEW_SOURCE_PHYSICAL_600_FROZEN_PUBLIC644_GIT100644_ADAPTER",
+    "nativeRawByteJoin": "PASS",
+    "newNativeSetupBuildInstallSudoCI85_300": 0,
+    "ordinaryDeclarations": 60,
+    "ordinaryExistingLogNamedSuccess": 60,
+    "ordinaryLogSha256": "5ceb1e4a7c4b14fb57d7b6837526a7a47f61922c7ec8de8572517ae15b145440",
+    "ordinaryNotRerun": true,
+    "originalNativeBlobsChecked": 1860,
+    "scope": "INDEPENDENT_READ_ONLY_SOURCE_AND_EXISTING_LOG_VALIDATION",
+    "sourcePeerStatus": "PENDING_FINDINGS"
+  },
+  "next": "Keep source02/03 frozen and old failures immutable; use this separate appendix for only bounded source repair credit. Root independent true disposable-preparation startup review must still close remaining safety and runtime boundaries before any CI/sudo/setup.",
+  "old_failures_reread": {
+    "first6": {
+      "errors": 1,
+      "failures": 5,
+      "raw_sha256": "3e889300de19ab5fe4dfbadf9d08c023f8c2df0243d3c5bd7050bc457e79ade0"
+    },
+    "immutable_preserved": true,
+    "intermediate58": {
+      "errors": 1,
+      "raw_sha256": "c8e33bdcd250e2e00dc86bf327b26b62cb8a79860318ef8d0e361d85ea8a1bb8"
+    }
+  },
+  "old_original52_raw_log_reread": "PASS_UNCHANGED",
+  "old_source02_full20_manifest_reread": "PASS_UNCHANGED",
+  "ordinary60": {
+    "entryControls": "original-object identity at Python mocks; no true hosted role/config/prefix/provenance simulation credited",
+    "native_exit_credit": "author sealed actual exit0; independent reviewer did not rerun",
+    "original_raw_stderr_bytes": 7575,
+    "original_raw_stderr_sha256": "5ceb1e4a7c4b14fb57d7b6837526a7a47f61922c7ec8de8572517ae15b145440",
+    "realOwnedChildControl": "native wait -9 plus both returned pipe close assertions",
+    "source_test_declarations": 60,
+    "stdout_bytes": 0,
+    "terminal": "Ran60/OK",
+    "unique_named_ok": 60
+  },
+  "qualified": {
+    "RC": false,
+    "native_family": false,
+    "publisher300": false,
+    "publisher85": false,
+    "release": false,
+    "startup": false,
+    "two_finite_source_repairs": true,
+    "whole_privileged_source": false
+  },
+  "remaining_before_true_preparation_startup": [
+    "Full necessary24+17 direction coverage remains NOT_PROVEN;60 named success only credits actual narrow seams",
+    "Complete privileged inline program/hosted sudo rule/directory/selected runtime/config/source and fullprefix startup review remains separate",
+    "New adapter still performs unconditional integer killpg after natural reap; current finite S1 wait repair does not prove safe closed descendant/group lifecycle or no post-reap PID/group reuse. Independent setup startup must explicitly resolve or refuse that boundary; this review grants no such safety proof.",
+    "Arbitrary blocking fence/read/close timing is not asynchronous wall-time containment; strict deadlines and UNKNOWN behavior must be assessed in actual startup wrapper",
+    "No native family/runtime closure; actual setup/build/install/sudo/CI remain0 at freeze",
+    "Private durable raw channel OPEN hard-blocks original85 and300; real issuer unavailable and release gates remain deny"
+  ],
+  "result": "LIMITED_SOURCE_PASS_TWO_OLD_STOP_REPAIRS",
+  "reviewer_execution": {
+    "build_install": 0,
+    "controls_rerun": 0,
+    "publisher300": 0,
+    "publisher85": 0,
+    "setup_CI": 0,
+    "source_edits": 0,
+    "sudo": 0
+  },
+  "schema": "rc070-independent-publisher-source03-limited-peer-1",
+  "scope": "FROZEN_SOURCE03_NATIVE_BASELINE_CURRENT11_AND_EXISTING60_ORDINARY_LOG_ONLY",
+  "source03_vs_source02": {
+    "added8_test_methods": [
+      "test_controller_after_cancel_still_checks_prefix_and_role",
+      "test_fetch_cancel_total_runtime_final_fences",
+      "test_partial_preparation_wholeprefix_cancel_still_checks_single_role",
+      "test_prepare_cancel_total_runtime_final_fences",
+      "test_primary_and_two_after_cancel_all_other_observations_attempt",
+      "test_public_cancel_total_prefix_role_runtime_final_fences",
+      "test_register_primary_poll_cancel_independent_real_wait_reap",
+      "test_restore_cancel_total_runtime_final_fences"
+    ],
+    "changed_source_paths": [
+      "docs/specs/issue88-disposable-publisher-git-role/design.md",
+      "docs/specs/issue88-disposable-publisher-git-role/requirements.md",
+      "docs/specs/issue88-disposable-publisher-git-role/tasks.md",
+      "scripts/rc_disposable_ci_controls.py",
+      "scripts/rc_disposable_git_prepare.py",
+      "scripts/rc_disposable_publisher_probe.py"
+    ],
+    "delta_count": 6,
+    "new_prepare_wrapper_change": "prefix_snapshot_module actual module retention plus independent final bounded wait",
+    "new_probe_wrapper_change": "installed_prefix_lease retention before role operation and entry all-finally after each obtained lease; no original restore/owner/Reader changes",
+    "old52_test_FunctionDef_AST_exact_unchanged": true,
+    "protected_role_schema_workflow_vendor_raw_same": true
+  }
+}

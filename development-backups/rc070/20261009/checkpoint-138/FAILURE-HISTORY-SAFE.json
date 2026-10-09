@@ -1,0 +1,21 @@
+{
+  "failureFirst": {
+    "errors": 1,
+    "failures": 5,
+    "loaded": 6,
+    "meaning": "SOURCE02 source seams fail; delegate nativeWait0 after poll cancel; control separately performed administrative reap, no qualification",
+    "nativeExit": 1,
+    "rawStderrBytes": 6837,
+    "rawStderrSha256": "3e889300de19ab5fe4dfbadf9d08c023f8c2df0243d3c5bd7050bc457e79ade0"
+  },
+  "intermediateRegression": {
+    "errors": 1,
+    "loaded": 58,
+    "meaning": "Source author prefix lease before expired-budget rejection gave TypeError; fixed original deadline ordering, old raw unchanged",
+    "nativeExit": 1,
+    "rawStderrBytes": 8623,
+    "rawStderrSha256": "c8e33bdcd250e2e00dc86bf327b26b62cb8a79860318ef8d0e361d85ea8a1bb8"
+  },
+  "rawPublished": false,
+  "source02Original52Sha256": "62cd5490ded282ee047289907bd53f7245475600bc5198bf123fea85fb166a2d"
+}

@@ -1,0 +1,56 @@
+{
+  "schema": "rc070.independent-build-terminal.v1",
+  "decision": "FAIL_CARGO_CONFIG_PARSE_RUST_COMPILER_NOTRUN",
+  "role": "INDEPENDENT_READONLY_NOT_COMPILER_EXECUTOR",
+  "slot": "/workspace/work/rc070/rsa-gateway-build-owned04",
+  "packetSHA256": "e7a78763f15ad95915ee7c18273fa00845fd2661cc05ec3da933ce6eae477076",
+  "driverSHA256": "d95985a9d56d8d6dc00855fd2d4a6ea9fa654fb52cba3e7ede253b368d6cf374",
+  "rootReceiptSHA256": "24dc108f69cacb8931c9547a638e4afbf475cc127952faa052ef1bd1c5d72aae",
+  "rootOuterToolChunk": "7ff808",
+  "rootOuterExit": 1,
+  "realNativeCargoExit": 101,
+  "nativeExitEvidence": "Original private.driver.stderr CalledProcessError traceback, not outer exit or null capture receipt.",
+  "receiptActualChildExit": null,
+  "receiptCaptureLimit": "Collector raised original error so capture never returned; null preserved, not upgraded0. sourceAndListedRuntimeInputsAfter=false is overall result field; independent fullcurrent fence separately proved unchanged.",
+  "rootActualPostWriterElapsedSeconds": 13.406732375005959,
+  "clockObservationScope": "Read original root actual stdout measurement, not recreate historical tick.",
+  "raw": [
+    {
+      "name": "stdout.raw",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "stderr.raw",
+      "bytes": 594,
+      "sha256": "a1e105f16f933fb2cf49512704b3daf8100708bc49604561ba1a654e8ea35782"
+    }
+  ],
+  "actualCause": "Both --config local patch path values lacked literal TOML doublequotes; nativeCargo parser rejected before any target directory or Rust artifact.",
+  "targetAbsent": true,
+  "wholeCargoJSONArtifactProof": false,
+  "independentAfterFence": {
+    "rows": 19190,
+    "directoryRoles": 1,
+    "namespaces": 215,
+    "configAbsences": 29,
+    "fullRawModePhysicalNativeRefAndExecutorUnchanged": true,
+    "fullVerificationToolChunk": "052658",
+    "verificationBoundary": "All source/runtime/raw/traceback checks passed before last clock literal oracle assertion; actual parsed clock then independently verified in this save."
+  },
+  "startupReviewErratumSHA256": "12b3189c9c2bd3c910fa0cc440ad40115be9cdc2485be40d82c69d4f6177d5ec",
+  "originalStartupAndAttemptImmutable": true,
+  "readerClockErratum": "First terminal reader guessed exact float tail13.406732375001244; actual original JSON is13.406732375005959. Failed reader052658 preserved, no source/runtime drift or manufactured clock.",
+  "reviewerCargoExecutions": 0,
+  "reviewerCompilerExecutions": 0,
+  "qualification": {
+    "engineeringBuild": false,
+    "RustSourceCompilerResult": false,
+    "RSAResolutionAndAuditPriorFactsUnaffected": true,
+    "productWiring": false,
+    "fourFinalAudits": false,
+    "install": false,
+    "RC": false
+  },
+  "nextBoundedDirection": "New distinct root once05 with exactly two quoted TOML literal config strings, same source19190 beforeafter/flags/jobs/budgets; parse each config via tomllib and bind exact two owned paths before new independent startup. No repeat/rerun04."
+}

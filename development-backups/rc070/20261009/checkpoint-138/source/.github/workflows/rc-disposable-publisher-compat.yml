@@ -1,0 +1,51 @@
+name: Genuine publisher tool preparation (SUT zero, no release)
+on:
+  push:
+    branches: ['ci/rc070-publisher-genuine-tool-prep-20261009']
+permissions:
+  contents: read
+concurrency:
+  group: rc070-genuine-tool-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  prepare-only:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Genuine bounded preparation only; original tests remain blocked
+        id: preparation
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 0022
+          # No set-x or raw cat. Shell redirects before Python imports/argparse.
+          # Private capture files are never uploaded or printed to Actions console.
+          status=0
+          PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -B scripts/rc_disposable_publisher_probe.py \
+            --management "$GITHUB_WORKSPACE" --runner-temp "$RUNNER_TEMP" --mode preparation-only \
+            > "$RUNNER_TEMP/rc070-preparation-private.stdout" \
+            2> "$RUNNER_TEMP/rc070-preparation-private.stderr" || status=$?
+          if test "$status" -eq 0; then
+            printf '%s\n' 'PASS_GENUINE_TOOL_PREPARATION_ONLY_SUT0'
+          else
+            printf '%s\n' 'FAIL_OR_BLOCKED_GENUINE_TOOL_PREPARATION_SUT0'
+            exit 1
+          fi
+      - name: Upload only fully validated four public JSON projections
+        if: success() && steps.preparation.outcome == 'success'
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        with:
+          name: rc070-genuine-tool-safe-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/rc070-public-artifacts/PUBLIC-SAFE-RESULT.json
+            ${{ runner.temp }}/rc070-public-artifacts/SOURCE-BINDING-SAFE.json
+            ${{ runner.temp }}/rc070-public-artifacts/TOOL-PROVENANCE-SAFE.json
+            ${{ runner.temp }}/rc070-public-artifacts/RAW-SEAL-DIGESTS-SAFE.json
+          if-no-files-found: error
+          retention-days: 7

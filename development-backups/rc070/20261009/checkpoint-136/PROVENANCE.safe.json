@@ -1,0 +1,75 @@
+{
+  "scope": "PARTIAL_SOURCE_ONLY_BUILD05",
+  "copies": [
+    {
+      "path": "source/build-root-once05.py",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-build-owned05/build-root-once05.py",
+      "bytes": 13199,
+      "sha256": "80f2433f3199cc3135e81f1c7470c7b0d52c06433854abcdfba78f35232b9a9c",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "ACTUAL-TOML-ARGV-SEMANTICS05.safe.json",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-build-owned05/ACTUAL-TOML-ARGV-SEMANTICS05.safe.json",
+      "bytes": 898,
+      "sha256": "7134a37d51d7f490230d43b60bcd38875d8a133cc85028311209ecd355c7b400",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "INDEPENDENT-RSA-BUILD05-STARTUP-SAFE01.json",
+      "sourcePath": "/workspace/work/rc070/rsa-independent-source-peer01/INDEPENDENT-RSA-BUILD05-STARTUP-SAFE01.json",
+      "bytes": 2553,
+      "sha256": "bba48b937429ecc7cc29c89a4321fdba3e3ea61c5f6366930d34520d926cb6ac",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "spec/requirements.md",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-build-owned05/docs/specs/rsa-gateway-compiler-once05/requirements.md",
+      "bytes": 2627,
+      "sha256": "7680466bff2a0d4579c18a5cf382b189d5adff32f6f55e8a2d95a5b1615e54aa",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "spec/design.md",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-build-owned05/docs/specs/rsa-gateway-compiler-once05/design.md",
+      "bytes": 2093,
+      "sha256": "967a4aeaaa9af20cc50d525dc9ec7b00fd2f3f0289353ad116cdf5340b56e251",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    },
+    {
+      "path": "spec/tasks.md",
+      "sourcePath": "/workspace/work/rc070/rsa-gateway-build-owned05/docs/specs/rsa-gateway-compiler-once05/tasks.md",
+      "bytes": 1516,
+      "sha256": "434681b8d314d5207b4bb83cc0384c0aa31152e6d646abb3f64d5c306a29700b",
+      "sourcePhysicalMode": "0600",
+      "packetPhysicalMode": "0644",
+      "gitMode": "100644",
+      "byteAdapter": "NONE"
+    }
+  ],
+  "literalBytesUnchanged": true,
+  "modeAdapter": "Each source physical mode recorded; packet0644/Git100644 only, no byte adapter",
+  "excluded": [
+    "private startup packet and19190 input/namespace/host/tool/stat inventory",
+    "raw/driver streams/receipt/marker",
+    "target binaries and build artifacts/runtime archives",
+    "TLS/key/environment fixtures",
+    "Git objects"
+  ],
+  "completeRunnableRecovery": false
+}
