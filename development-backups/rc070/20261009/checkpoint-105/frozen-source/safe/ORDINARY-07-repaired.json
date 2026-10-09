@@ -1,0 +1,173 @@
+{
+  "scope": "finite ordinary config IO + real GNU make models + genuine msgfmt originalGUI translation component",
+  "loaded": 25,
+  "rows": [
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_bounded_config_oversize_denied_before_actualread",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_close_unknown_strongholder_no_retry_primary_sameobject",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_constructor_fchmod_and_close_cancel_retained",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_controlled_build_failure_exact_no_MSGFMT_CLI_install_zero",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_controlled_config_drift_stops_install_and_preserves_cancel",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_controlled_prepare_false_no_config_make_or_install",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_current_genuine_base_config_without_check",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_existing_second_target_denies_before_first_creation",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_final_observation_failure_does_not_skip_second_observation",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_finite_grammar_negative_and_colon_literal_quotes",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_genuine_malformed_core_reject_and_original_GUI_target",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_late_presence_cancel_preserves_open_primary_and_all_parents",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_native_config_read_drift_original_close_still_attempted",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_native_open_throw_after_controller_effect_not_knownowned_fd",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_original_uname_policy_whitelist_not_added_policy",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_partial_second_open_failure_first_lease_still_observed",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_policy_observer_cancel_all_seven_independent_paths",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_protected_functions_original_ast_and_bytes",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_reader_close_unknown_original_cancel_and_holder",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_real_gnu_make_parentchild_origin_exactargv_and_quotes",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_symlink_hardlink_and_extra_policy_denied",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_two_exclusive_files_native_pins_mode644_nlink1",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_two_parent_close_cancels_both_actualobjects_attempted",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_write_and_close_cancels_both_objects_and_remaining_pins_closed",
+      "outcome": "PASS"
+    },
+    {
+      "id": "owned_git_prepare_v4_tests.OwnedGitV4Controls.test_write_primary_cancel_actualclose_not_skipped",
+      "outcome": "PASS"
+    }
+  ],
+  "success": 25,
+  "failures": 0,
+  "errors": 0,
+  "elapsed": 9.366355317000853,
+  "source_before": {
+    "owned_git_prepare_v4.py": "a21b053058b1365d5b547c4983a3338ba8f3b4b844d16fc795bcd0c31a1bbe48",
+    "owned_git_prepare_v4_tests.py": "56d2645a7f0efa739710bc7b9502b7224f64eeb748fb0ef6573891aa4c821dc7",
+    "docs/specs/issue88-owned-native-git-build-v4/requirements.md": "41542ed615121c0ea9cde3c3f512c9727033cbe965eed737c328be8ba69232a1",
+    "docs/specs/issue88-owned-native-git-build-v4/design.md": "5b73cd5531c5a08d347f395b7dc7aabcf88bf3734ca50ea1b1d1cac4bce7d9e0",
+    "docs/specs/issue88-owned-native-git-build-v4/tasks.md": "66a109fa6e4be02b14cb40f80bc6d57cce84029c37b38d8edddafb9c9d178b9d"
+  },
+  "source_after": {
+    "owned_git_prepare_v4.py": "a21b053058b1365d5b547c4983a3338ba8f3b4b844d16fc795bcd0c31a1bbe48",
+    "owned_git_prepare_v4_tests.py": "56d2645a7f0efa739710bc7b9502b7224f64eeb748fb0ef6573891aa4c821dc7",
+    "docs/specs/issue88-owned-native-git-build-v4/requirements.md": "41542ed615121c0ea9cde3c3f512c9727033cbe965eed737c328be8ba69232a1",
+    "docs/specs/issue88-owned-native-git-build-v4/design.md": "5b73cd5531c5a08d347f395b7dc7aabcf88bf3734ca50ea1b1d1cac4bce7d9e0",
+    "docs/specs/issue88-owned-native-git-build-v4/tasks.md": "66a109fa6e4be02b14cb40f80bc6d57cce84029c37b38d8edddafb9c9d178b9d"
+  },
+  "source_unchanged": true,
+  "observations": [
+    {
+      "component": "current genuine msgfmt readonly leases",
+      "base_sha256": "677bc68eb8ce5f2c8481028a37e8ee37cd3f2cfee2fbc261bf8da2bcc9b5f6ec",
+      "no_check": true
+    },
+    {
+      "GUI_original_selftest_exit": 0,
+      "original4991_full_before_after_exact": true,
+      "component": "genuineGNUmsgfmt core malformed and originalGUI translation only",
+      "malformed_exit": 1,
+      "original_GUI_target_exit": 0,
+      "original_GUI_makefile_sha256": "a1d8b198966f327b750e722ad6fb197d0d681ff99b41c9304297fa953a76642f",
+      "original_GUI_PO_sha256": "7f4f9396af006d86a91118f86541e7980de0a27aba86f8c42654b083787107dc",
+      "original_source_inputs_unchanged": true,
+      "fullbuild": false,
+      "install": false,
+      "component_stdout_sha256": "ecfee8c2fe74407c72b1db58f2c2dfc89f91302285d36684c024b60baaf00f3a",
+      "component_stderr_sha256": "6c817cbc12ee9a61c34f7f17051e03180d9ff5626bb455eee60122f1dda50b7e"
+    },
+    {
+      "component": "GNUmake reduced parentchild actual",
+      "real_genuine_base": true,
+      "root_origin": "file",
+      "root_check_count": 1,
+      "GUI_origin": "file",
+      "GUI_check_count": 0,
+      "literal_colon_quotes_proven": false,
+      "exit": 0
+    },
+    {
+      "component": "GNUmake reduced parentchild actual",
+      "real_genuine_base": false,
+      "root_origin": "file",
+      "root_check_count": 1,
+      "GUI_origin": "file",
+      "GUI_check_count": 0,
+      "literal_colon_quotes_proven": true,
+      "exit": 0
+    }
+  ],
+  "fullbuild": false,
+  "install": false,
+  "original_method": 0,
+  "original85": "FAIL83success2FAIL retained",
+  "original300": "NOTRUN",
+  "issuer": false,
+  "wholeowner_automatic_cancel_timeout": "NOTRUN"
+}

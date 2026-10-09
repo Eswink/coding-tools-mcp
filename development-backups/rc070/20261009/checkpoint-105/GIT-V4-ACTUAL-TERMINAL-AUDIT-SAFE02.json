@@ -1,0 +1,107 @@
+{
+  "schema": "same-run-genuine-owned-git-v4-author-terminal-audit02",
+  "decision": "PASS_OWNED_GIT_TOOL_BUILD_INSTALL_ONLY",
+  "actual_root_tool_provenance_external_parent": {
+    "unique_session": 68051,
+    "start_chunk": "596a5b",
+    "terminal_chunk": "822290",
+    "tool_exit": 0
+  },
+  "root_seconds": 185.81184487200153,
+  "root_raw_stdout": {
+    "bytes": 145,
+    "sha256": "27a461ce352c20ce7f32750bdaa786735926abdd82ee04ca3ce13d6087ceda02"
+  },
+  "root_raw_stderr_bytes": 0,
+  "root_fence14_joins_exact": true,
+  "same_current69_leases_beforeafter_exact": true,
+  "phases_actual_log_joins": [
+    {
+      "name": "actual-build.log",
+      "exit": 0,
+      "reason": null,
+      "seconds": 163.3521805579985,
+      "log_bytes": 26040,
+      "log_sha256": "26637a6a99deaec42ad455829fe9b63633419703606c6cf505853b62baa635db"
+    },
+    {
+      "name": "actual-install.log",
+      "exit": 0,
+      "reason": null,
+      "seconds": 2.080266033000953,
+      "log_bytes": 13221,
+      "log_sha256": "0b1d3246768962e0062629e62f94ef1124d71a3bfde90631c8806f58fffee22b"
+    },
+    {
+      "name": "installed-0.log",
+      "exit": 0,
+      "reason": null,
+      "seconds": 0.002699172000575345,
+      "log_bytes": 19,
+      "log_sha256": "e928567de6f903039a669b7647bf037309d50e4f7916bb5c06f7b05d3bf966fe"
+    },
+    {
+      "name": "installed-1.log",
+      "exit": 0,
+      "reason": null,
+      "seconds": 0.001996179998968728,
+      "log_bytes": 113,
+      "log_sha256": "d3f202cd482f7d46eb358c9a4f074c328481ab71360676d77966b0915260b51b"
+    },
+    {
+      "name": "installed-2.log",
+      "exit": 0,
+      "reason": null,
+      "seconds": 0.007060171999910381,
+      "log_bytes": 739,
+      "log_sha256": "9e17e5bbd1e8c101d53a700c2aec260b7eb43af84e5a38c50c55d51d442e7024"
+    },
+    {
+      "name": "installed-3.log",
+      "exit": 0,
+      "reason": null,
+      "seconds": 0.0022512730029120576,
+      "log_bytes": 41,
+      "log_sha256": "9ca990ad213db6735ea35d90b25433efd2e35300a1a42469eeed91c2d62ae235"
+    }
+  ],
+  "source_original4991_native_and_bytes_exact": true,
+  "owned_config_exact2_bytes1069_each": true,
+  "configs_actual4_onceclose_states": [
+    "CLOSED",
+    "CLOSED",
+    "CLOSED",
+    "CLOSED"
+  ],
+  "config_close_UNKNOWN": false,
+  "configs_parent_pin_mode644_nlink1_and_final_observed": true,
+  "core_GUI_origin": "FILE assignments proven by exact config literal/original signed Makefiles/nativeMake CLI no MSGFMT; no new origin argv tracing execution",
+  "core_original_appended_check": true,
+  "GUI_original_TCL": true,
+  "gitk_actual_upstream_tcl_fallback_commands": 15,
+  "gitk_allGNU_claim": false,
+  "original_source_archive_sign_key_pin_current": true,
+  "actual_same_run_GPG0_valid_primary_subkey": true,
+  "source_tar_bytes": 51916800,
+  "installed_full_namespace416_exact": true,
+  "installed_source_correspondence234_allbytes_exact": true,
+  "native_ELF_build_and_installed_bytes": 20493200,
+  "native_ELF_sha256": "38bd6ef20b8816a529d0cc4fff5e3364d424af7914df3cf40fcd1ebdb83df09f",
+  "installed_native_fullflags_4probes_exit0": true,
+  "shared_probe30_code_original_budget_preserved": "actual4successfulphases/source remainingdeadline check, no independent full start/end trace",
+  "native_index_canonical_vector_sha256": "31cac5028d0453a440f061d6eb776f75a576a99a8e119e355c2d5a3f37a7683e",
+  "native_raw_index_current_sha256": "ff000de77138c2e3cc4097260410fb725450ca552c80112425b86cb9193481e1",
+  "native_raw_index_historical_pre_e621": "UNKNOWN not sealed; representations separate",
+  "native6_blobs_current_exact": true,
+  "root_marker_literal_and_fence_primaryNone_errorsEmpty": true,
+  "actual_resources_scope": "config4close CLOSED; existing phase/dependency resource primitives retained, no new global allIO or ECHILD family evidence claim",
+  "root_global_native_family_closed": false,
+  "audit_tool_SUT_build_install_executions": 0,
+  "HOST_INSTALL": false,
+  "PRODUCT_INSTALL": "NOTRUN",
+  "CI": false,
+  "publisher85": "FAIL83success2FAIL",
+  "publisher300": "NOTRUN",
+  "realissuer_sameclient_serverheldtag": "UNAVAILABLE",
+  "RC_qualification": false
+}

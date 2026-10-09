@@ -1,0 +1,184 @@
+{
+  "schema": "readonly-per-symbol-impacts",
+  "results": [
+    {
+      "source_result_sha256": "ad7197ad98372136895a070836738f20338a761eb1adaec8b01dcb93247690e6",
+      "structured_status": "ok",
+      "symbol_result": [
+        {
+          "target": {
+            "id": "Method:scripts/rc_publication_github.py:GitHub._request#14",
+            "name": "_request",
+            "type": "Method",
+            "filePath": "scripts/rc_publication_github.py"
+          },
+          "risk": "LOW",
+          "impactedCount": 15,
+          "summary": {
+            "direct": 4,
+            "processes_affected": 1,
+            "modules_affected": 1
+          }
+        }
+      ],
+      "execution_ok": true
+    },
+    {
+      "source_result_sha256": "80e5ec73bb6018c8bdb9c77e7b81590b7f22907ac4343a9a7f22715ed65c99bd",
+      "structured_status": "ok",
+      "symbol_result": [
+        {
+          "target": {
+            "id": "Function:scripts/rc_publication_github.py:_authenticate",
+            "name": "_authenticate",
+            "type": "Function",
+            "filePath": "scripts/rc_publication_github.py"
+          },
+          "risk": "HIGH",
+          "impactedCount": 110,
+          "summary": {
+            "direct": 14,
+            "processes_affected": 2,
+            "modules_affected": 1
+          }
+        }
+      ],
+      "execution_ok": true
+    },
+    {
+      "source_result_sha256": "3f8f549a732a69cd493a56a007bf423ec6ac34cddf401b6174f23c005ac22099",
+      "structured_status": "ok",
+      "symbol_result": [
+        {
+          "target": {
+            "id": "Function:scripts/rc_publication_github.py:_authorize",
+            "name": "_authorize",
+            "type": "Function",
+            "filePath": "scripts/rc_publication_github.py"
+          },
+          "risk": "LOW",
+          "impactedCount": 14,
+          "summary": {
+            "direct": 2,
+            "processes_affected": 1,
+            "modules_affected": 1
+          }
+        }
+      ],
+      "execution_ok": true
+    },
+    {
+      "source_result_sha256": "d77ba52edc4f8afa4cf5b5aacf254a55bc0a14c33967216c3046a1bf95d85e4c",
+      "structured_status": "ok",
+      "symbol_result": [
+        {
+          "target": {
+            "id": "Function:scripts/rc_publication_github.py:_remote_constraint",
+            "name": "_remote_constraint",
+            "type": "Function",
+            "filePath": "scripts/rc_publication_github.py"
+          },
+          "risk": "LOW",
+          "impactedCount": 19,
+          "summary": {
+            "direct": 4,
+            "processes_affected": 1,
+            "modules_affected": 1
+          }
+        }
+      ],
+      "execution_ok": true
+    },
+    {
+      "source_result_sha256": "8f94dbc4aabf5f30eef09ace2d02a7466c61c5bfdcbe8b341358f0f9c4271eff",
+      "structured_status": "ok",
+      "symbol_result": [
+        {
+          "target": {
+            "id": "Function:scripts/rc_publication_github.py:_connect",
+            "name": "_connect",
+            "type": "Function",
+            "filePath": "scripts/rc_publication_github.py"
+          },
+          "risk": "LOW",
+          "impactedCount": 13,
+          "summary": {
+            "direct": 1,
+            "processes_affected": 1,
+            "modules_affected": 1
+          }
+        }
+      ],
+      "execution_ok": true
+    },
+    {
+      "source_result_sha256": "122c9d9d053a0d982461d7efdfae664da0aa2b3b0b417b7eb79327ff87582653",
+      "structured_status": "ok",
+      "symbol_result": [
+        {
+          "target": {
+            "id": "Method:scripts/rc_publication_request.py:_RequestSnapshot._prepare_stream#1",
+            "name": "_prepare_stream",
+            "type": "Method",
+            "filePath": "scripts/rc_publication_request.py"
+          },
+          "risk": "LOW",
+          "impactedCount": 0,
+          "summary": {
+            "direct": 0,
+            "processes_affected": 0,
+            "modules_affected": 0
+          }
+        }
+      ],
+      "execution_ok": true
+    },
+    {
+      "source_result_sha256": "6d20d2fe4366bf9424072886fbf0be803cdc3cc6373caae4bc6675d0f60c164f",
+      "structured_status": "ok",
+      "symbol_result": [
+        {
+          "target": {
+            "id": "Method:scripts/rc_publication_request.py:_OperationScope._consume#1",
+            "name": "_consume",
+            "type": "Method",
+            "filePath": "scripts/rc_publication_request.py"
+          },
+          "risk": "LOW",
+          "impactedCount": 0,
+          "summary": {
+            "direct": 0,
+            "processes_affected": 0,
+            "modules_affected": 0
+          }
+        }
+      ],
+      "execution_ok": true
+    },
+    {
+      "source_result_sha256": "b2997c27df21634f85afe644e13c70c46e2596c90f81fd0c78684b4395584f8a",
+      "structured_status": "ok",
+      "symbol_result": [
+        {
+          "target": {
+            "id": "Method:scripts/rc_publication_request.py:_RequestSnapshot._check#2",
+            "name": "_check",
+            "type": "Method",
+            "filePath": "scripts/rc_publication_request.py"
+          },
+          "risk": "LOW",
+          "impactedCount": 1,
+          "summary": {
+            "direct": 1,
+            "processes_affected": 0,
+            "modules_affected": 1
+          }
+        }
+      ],
+      "execution_ok": true
+    }
+  ],
+  "manual_risk": "CRITICAL",
+  "dynamic_prepare_stream_consume_graph0": "NOT_ZERO_SAFETY: exact source calls present, graph coverage UNKNOWN",
+  "implementation": false
+}

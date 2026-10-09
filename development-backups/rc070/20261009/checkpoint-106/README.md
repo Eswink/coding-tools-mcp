@@ -1,0 +1,1 @@
+Safe append-only terminal evidence. Source102 PENDING freeze and all prior failures remain unchanged. Raw binary mutations, runtime native identities and private logs remain private. No host/proc, credentials, binaries, environment package or Git objects included.

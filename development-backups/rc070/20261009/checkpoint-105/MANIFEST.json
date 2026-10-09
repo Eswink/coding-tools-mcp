@@ -1,0 +1,266 @@
+{
+  "schema": "source-only-actualtool-terminal-not-RC",
+  "original_frozen29_byteidentical": true,
+  "terminal_independent_peer": "PENDING_AT_FREEZE",
+  "files": [
+    {
+      "path": "GIT-V4-ACTUAL-TERMINAL-AUDIT-SAFE02.json",
+      "bytes": 4102,
+      "sha256": "dcbb8ef4f8d6597ca42a59a97e2da26b673940197fea521eb886d72aa6981dbe",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "GIT-V4-LAUNCH02-INDEPENDENT-STARTUP-SAFE01.json",
+      "bytes": 2466,
+      "sha256": "17041680cc6eb00ef9417fe086e1b0a842e0db9d34f1b92b554edf68a6f2d309",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "README.md",
+      "bytes": 1629,
+      "sha256": "fc09f9c82691125da7b7f37556866b30c36031fc3901890e65db9644ac22314b",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/MANIFEST.json",
+      "bytes": 5334,
+      "sha256": "ac5a2f1616abe261bba07ebe3ebc81a08112a403447fdc9f9b3e6ca5b9bf9e3d",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/README.md",
+      "bytes": 2469,
+      "sha256": "805d2d3148e8dfe2efdef626143c1edd097a84e3a9e29215ead4d112b1e63cba",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/SOURCE-STATUS.json",
+      "bytes": 748,
+      "sha256": "ff52749228809be48e0398029b9aa3564c9d14f16f30db7994412b4af7c7abd8",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/safe/FINAL-CURRENT-IDENTITY-SAFE.json",
+      "bytes": 2116,
+      "sha256": "7a2ba50c642c6b49c4fa13dd6c110bda6752b07c550451f923bee9f32cf92942",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/safe/GENERATED-COMMIT-MESSAGE.txt",
+      "bytes": 442,
+      "sha256": "6e9cf0c4f7c994439c1a85a03a81f0b7640de05105c246a2ae6832a30622efc9",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/safe/GITNEXUS-FINAL-DETECT-SAFE.json",
+      "bytes": 775,
+      "sha256": "8881b95a16a1d2a5caf49867ba86c2ab0815b134ff146771087d6e1119e1a48b",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/safe/INDEPENDENT-DESIGN-SAFE01.json",
+      "bytes": 3116,
+      "sha256": "deaf292658deb9dd4f6b41ac6a57aff006663b531afaa992fe7ff021e3455410",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/safe/ORDINARY-01.json",
+      "bytes": 5613,
+      "sha256": "26bc44b8464e112fd681091531f1d20413d125989e6fb865f6f296e155e25d6c",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/safe/ORDINARY-02.json",
+      "bytes": 5445,
+      "sha256": "47a3795bb3d0223f0dad408a5f89477b988bec8ebc3fba52bc7a1acebd562599",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/safe/ORDINARY-03.json",
+      "bytes": 5537,
+      "sha256": "fb6e1d91b7f255f53fdd2268dbc40331cb80f879a659f5072a2705aa10f2c95b",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/safe/ORDINARY-04.json",
+      "bytes": 6015,
+      "sha256": "4b029105e41c215217c79d838c9d5608e05afaf86f8a6d3223d6af39d5487f1d",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/safe/ORDINARY-05.json",
+      "bytes": 6796,
+      "sha256": "9dcfa285de32b0a52f6a750ab5eb895b09038d48725053477d64d3d0d6c040ba",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/safe/ORDINARY-06-failurefirst.json",
+      "bytes": 7197,
+      "sha256": "47f1294243120066fc7ae9ed5630914775a4203dde99c7d64d2284e758d944b5",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/safe/ORDINARY-07-repaired.json",
+      "bytes": 7113,
+      "sha256": "6d033b4778b3092463c314a7751051ae66afddb1d2e9fba604cf8f9b073be3a3",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/safe/SOURCE-MODE-ADAPTERS.json",
+      "bytes": 3751,
+      "sha256": "845b1cf6cda41a14ce84f62e8684b5a5e85b891c94b944247fcc9bc04c06e49e",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/safe/SOURCE-TRUTH.json",
+      "bytes": 2010,
+      "sha256": "0c17b69bb87bdd37a3d58d32cd7fb56da5fec61da65ed1cafcde868c67d78daa",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/safe/STOPPED-SOURCE-STATUS.json",
+      "bytes": 1077,
+      "sha256": "eb7e4819668e4e1892b75cb8fbe261e5c34c87be69af5e55e188e8be40cfd8ba",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/source/current-freeze-reader.py.source",
+      "bytes": 3591,
+      "sha256": "1efed9c37eb413b7b69e3e6e11cb0bdfc05756730a825c1317a7c837622bbc63",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/source/failed-global-injection-tests01.py.source",
+      "bytes": 12910,
+      "sha256": "40f250658df5ffb2468b27fe2715e98c12cf6af7060d5b889be4c71b248d438f",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/source/failurefirst-controls25.py.source",
+      "bytes": 23505,
+      "sha256": "56d2645a7f0efa739710bc7b9502b7224f64eeb748fb0ef6573891aa4c821dc7",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/source/failurefirst-runner06.py.source",
+      "bytes": 1909,
+      "sha256": "902bb2cb11c6f24e7807e137f503657287400b97696386c13a5b5963a8cf6843",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/source/ordinary-runner07.py.source",
+      "bytes": 1905,
+      "sha256": "82d63cd53f904556ea003205805a38702cf364ee2d6d45aecef53d26b41d43fd",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/source/owned_git_prepare_v4.py.source",
+      "bytes": 40784,
+      "sha256": "a21b053058b1365d5b547c4983a3338ba8f3b4b844d16fc795bcd0c31a1bbe48",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/source/owned_git_prepare_v4_tests.py.source",
+      "bytes": 23505,
+      "sha256": "56d2645a7f0efa739710bc7b9502b7224f64eeb748fb0ef6573891aa4c821dc7",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/source/stopped-controls23.py.source",
+      "bytes": 21820,
+      "sha256": "b81707924571eca0d1bb75858e76faf11fce97baa0703259b40a6743ff0bc19d",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/source/stopped-helper23.py.source",
+      "bytes": 40696,
+      "sha256": "38a220ec397ee6fc4e3464d8e69caddc1a7d9da6e5220706ca32ec7331add220",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/specs/design.md",
+      "bytes": 4606,
+      "sha256": "5b73cd5531c5a08d347f395b7dc7aabcf88bf3734ca50ea1b1d1cac4bce7d9e0",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/specs/requirements.md",
+      "bytes": 7557,
+      "sha256": "41542ed615121c0ea9cde3c3f512c9727033cbe965eed737c328be8ba69232a1",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "frozen-source/specs/tasks.md",
+      "bytes": 2339,
+      "sha256": "66a109fa6e4be02b14cb40f80bc6d57cce84029c37b38d8edddafb9c9d178b9d",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    }
+  ],
+  "payload_files": 32,
+  "payload_bytes": 258878,
+  "qualification": false
+}

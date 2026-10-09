@@ -1,0 +1,1 @@
+Source-only finite genuine loader-context query proposal and safe primary research notes. No query implementation or loader process exists. No ELF binaries, downloaded archives, raw host/proc/PID/ASLR material, environment package, keys, tokens or Git objects included. Original source102 and actual failures remain immutable.

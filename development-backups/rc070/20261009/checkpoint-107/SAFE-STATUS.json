@@ -1,0 +1,10 @@
+{
+  "status": "SPEC_ONLY_OPEN",
+  "check_spec_actual": "3FRpassedtrue/0errors/0warnings",
+  "matching_current877_existing_GN": "LOW3/LOW3/LOW4 scoped, notruntime0",
+  "new_query_symbols": "actualUNKNOWN/notfound; runtime manualHIGH requiresrootdisclosurebeforecode",
+  "implementation_query_processes": "NOTRUN; no new modules created",
+  "independent_direction": "PENDING",
+  "source102_originalFAILs": "immutable/unchanged",
+  "wholecompiler_ROOT_bridge_factory_native14_original_CI_install_release": "NOTRUN"
+}

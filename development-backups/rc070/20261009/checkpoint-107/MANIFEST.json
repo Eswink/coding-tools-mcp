@@ -1,0 +1,46 @@
+{
+  "files": [
+    {
+      "path": "ACTUAL-READONLY-FINDINGS.safe.json",
+      "mode": "0644",
+      "bytes": 960,
+      "sha256": "07fee460953d47abdfa13e126055e8e2244854a3b2a12ce1bf5ad3823b668021"
+    },
+    {
+      "path": "PRIMARY-SOURCE-NOTES.safe.json",
+      "mode": "0644",
+      "bytes": 1603,
+      "sha256": "16c4a4ad590b0dc04e18a8ef17b48c7a4246dfd9b84d86d4d4230c2885deb43d"
+    },
+    {
+      "path": "README.md",
+      "mode": "0644",
+      "bytes": 327,
+      "sha256": "4edf73472307a9c224d2a61ac4d04bca63b4fe86c1644ec65380fae6651ed988"
+    },
+    {
+      "path": "SAFE-STATUS.json",
+      "mode": "0644",
+      "bytes": 514,
+      "sha256": "0cbe6f03af04426234871e5d04b60d0055642b706ff900d96f81789322b2cce8"
+    },
+    {
+      "path": "spec/design.md",
+      "mode": "0644",
+      "bytes": 4151,
+      "sha256": "554f45d11c5f4347a6d1293752b37c316c79aa3b195b0e4b69a649214f53ec1a"
+    },
+    {
+      "path": "spec/requirements.md",
+      "mode": "0644",
+      "bytes": 4839,
+      "sha256": "1c155fe2ca3f5bf5e84fe7eadf7911c2d57c978987e6a006acf94a2acff7b742"
+    },
+    {
+      "path": "spec/tasks.md",
+      "mode": "0644",
+      "bytes": 2037,
+      "sha256": "1a9ea80d33f2b70e56ee9907aaa87d3025f82f0ede8348688d5ca4095fe6988e"
+    }
+  ]
+}

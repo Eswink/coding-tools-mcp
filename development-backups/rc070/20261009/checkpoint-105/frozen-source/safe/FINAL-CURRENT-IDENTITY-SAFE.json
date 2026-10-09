@@ -1,0 +1,59 @@
+{
+  "schema": "V4-current-source-native-graph-safe",
+  "source_five_current": [
+    {
+      "path": "owned_git_prepare_v4.py",
+      "sha256": "a21b053058b1365d5b547c4983a3338ba8f3b4b844d16fc795bcd0c31a1bbe48",
+      "bytes": 40784,
+      "source_physical_mode": "0600",
+      "nlink": 1
+    },
+    {
+      "path": "owned_git_prepare_v4_tests.py",
+      "sha256": "56d2645a7f0efa739710bc7b9502b7224f64eeb748fb0ef6573891aa4c821dc7",
+      "bytes": 23505,
+      "source_physical_mode": "0600",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v4/requirements.md",
+      "sha256": "41542ed615121c0ea9cde3c3f512c9727033cbe965eed737c328be8ba69232a1",
+      "bytes": 7557,
+      "source_physical_mode": "0600",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v4/design.md",
+      "sha256": "5b73cd5531c5a08d347f395b7dc7aabcf88bf3734ca50ea1b1d1cac4bce7d9e0",
+      "bytes": 4606,
+      "source_physical_mode": "0600",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v4/tasks.md",
+      "sha256": "66a109fa6e4be02b14cb40f80bc6d57cce84029c37b38d8edddafb9c9d178b9d",
+      "bytes": 2339,
+      "source_physical_mode": "0600",
+      "nlink": 1
+    }
+  ],
+  "private_full_freeze_sha256": "e62169af39c623f9c9205739bc6a1a7d011b655ebb2e046e4d09a66b73d985f1",
+  "current_runtime_count": 21,
+  "current_runtime_and_msgfmt_leases_before_after_exact": true,
+  "graph_native_HEAD": "908ac054f25cc0b6c5535219a968e056d95afe1d",
+  "graph_native_tree": "473e813a7fe2c7e5692cb5bdeb28350e53c3e6f6",
+  "graph_native_index_vector_sha256": "31cac5028d0453a440f061d6eb776f75a576a99a8e119e355c2d5a3f37a7683e",
+  "graph_native_files": 6,
+  "ordinary25_actual_tool_provenance": {
+    "session": 81894,
+    "start_chunk": "30bc44",
+    "terminal_chunk": "272a4b",
+    "tool_exit_code": 0
+  },
+  "protected_two_function_AST_and_bytes_exact": true,
+  "original4991_component_before_after": true,
+  "fullbuild": "NOTRUN",
+  "install": "NOTRUN",
+  "SUT_originalmethods": 0,
+  "final_independent_source_freeze_peer": "PENDING_AT_FREEZE"
+}

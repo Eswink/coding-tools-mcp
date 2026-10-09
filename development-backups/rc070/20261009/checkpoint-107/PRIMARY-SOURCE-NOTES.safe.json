@@ -1,0 +1,37 @@
+{
+  "source_package": "Debian glibc2.41-12+deb13u3",
+  "official_sources": [
+    "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.41-12+deb13u3.dsc",
+    "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.41.orig.tar.xz",
+    "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.41-12+deb13u3.debian.tar.xz",
+    "https://man7.org/linux/man-pages/man8/ld.so.8.html"
+  ],
+  "official_archive_SHA256_checked": {
+    "orig": "f24aa441021121a79266f0d75242706cab8843a47901fefe74527491807f1998",
+    "debian": "de7d715bf7e559b78baebac4115122641842f65faf0a5080a55954877a55cebe"
+  },
+  "selected_primary_files": [
+    {
+      "path": "elf/dl-deps.c",
+      "bytes": 17592,
+      "sha256": "2f23f25c68bdde0ca3c30a3186861be716d7790b17c4b99681bc8c5d9e554f8b"
+    },
+    {
+      "path": "elf/dl-load.c",
+      "bytes": 68566,
+      "sha256": "9569f7343a86b0851404bb0ad839b8c7787d73aeaa19e06dc2e62d77b3e05d36"
+    },
+    {
+      "path": "elf/dl-object.c",
+      "bytes": 7929,
+      "sha256": "4caa416489b0db5103f2a1e88e0eabf7e433f92e7d4fcf231ff6567062fd0f66"
+    },
+    {
+      "path": "elf/rtld.c",
+      "bytes": 87900,
+      "sha256": "e6f5a773bff5eb4d2312ce456992d8d3db849dcc4761adfe210e0fbcdc226b6f"
+    }
+  ],
+  "semantics": "CorrespondingDebianpatchedselectedprimarysources, not actualloader same-source buildidentity. Auditinit beforelisting mustbe guarded. --list owntrustedplatformcode still executes.",
+  "key_research_scope": "First-loader/SONAME reuse beforepathsearch; requesterRUNPATHpresence suppressesancestorRPATH; mainvsDSOORIGINdifferent; unsupportedhost/namespace rejects."
+}

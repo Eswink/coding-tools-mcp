@@ -1,0 +1,5 @@
+# Independent V4 actual tool terminal safe appendix
+
+Appends independent95349 terminal to frozen33/267497 source packet without rewriting its PENDING_AT_FREEZE metadata. Reviewer actual read-only verified source4991/currentnative/files/modes/links, full ownedprefix416/hardlinkcounts, sourcecorrespondences234, config2/4CLOSED,6originalphase logs and fullflags nativeprobes4, actual same-run GPG VALID,69currentleases/native6/stagevector31cac/rawff000/root14 joins. Unique root68051 terminal822290 real tool0.
+
+Only genuine supplementary ownedGit tool build/install. CoreGUI FILE configs derived, no fullargv trace; gitk15upstreamTCLfallback separate. No globalfamily/allIO proof/CI/productinstall/RC/publisher authority; original85FAIL/300NOTRUN/issuer unavailable. No actualprobe/helper/build/install executed by auditor/reviewer. Safe summaries/modes/hash only; no rawlogs/TLS/keys/env/hostproc/runtimevectors/objects/binaries. Physical600 to ownedGit100644 copy adapter preserves exact bytes with separate mode receipt.

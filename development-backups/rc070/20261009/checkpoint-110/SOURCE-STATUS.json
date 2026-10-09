@@ -1,0 +1,137 @@
+{
+  "head": "b0ba7d96b5e5d4879aced264d20f419ea00cbd16",
+  "tree": "047d5780e0157debaa05930cf4ea0c32881055c8",
+  "deltaPaths": 9,
+  "delta9": [
+    ".gitattributes",
+    "scripts/.gitattributes",
+    ".github/workflows/windows-foundation-source-compile.yml",
+    "scripts/windows_foundation_source_compile.ps1",
+    "scripts/windows_foundation_union_overlay.py",
+    "scripts/windows_foundation_union_overlay_tests.py",
+    "docs/specs/windows-pure-data-union-ci/requirements.md",
+    "docs/specs/windows-pure-data-union-ci/design.md",
+    "docs/specs/windows-pure-data-union-ci/tasks.md"
+  ],
+  "wholeManifestSHA": "a94e06218cc1c71a6464dc784bb47c7daf37b078869089aab60cb2c9dd3cf969",
+  "rows9": [
+    {
+      "path": ".gitattributes",
+      "mode": "100644",
+      "blob": "5cfd639a238ef02716b726895d707e4e4e509b5c",
+      "bytes": 484,
+      "sha256": "e71eff1d357a5e428d8323d3f8d328e25c3aa57f522dae766fd44f4aa1e1e1bd",
+      "actualPhysicalMode": "0o644",
+      "nlink": 1
+    },
+    {
+      "path": ".github/workflows/windows-foundation-source-compile.yml",
+      "mode": "100644",
+      "blob": "290b8fea9894bf74452fc207d64a6a590c198a4f",
+      "bytes": 3436,
+      "sha256": "9510464157ee423ec55a98e75aa3fdcdff7d066479ef6895d6ac3ab3bb164714",
+      "actualPhysicalMode": "0o644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/windows-pure-data-union-ci/design.md",
+      "mode": "100644",
+      "blob": "da653324dceaa615b11a63e39001397c46bfb880",
+      "bytes": 12144,
+      "sha256": "b32f15c7c73168dcc1117b6385f83ae6f44b995f5cd9c28a6226beeef37f5c96",
+      "actualPhysicalMode": "0o644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/windows-pure-data-union-ci/requirements.md",
+      "mode": "100644",
+      "blob": "a531adfba357621e0e814d6097638c4602ea2a9c",
+      "bytes": 11455,
+      "sha256": "2d0951eb14ef17ab50aee33ce5fd204dc9c641a4cb2a4d2e3a46579fb87853ca",
+      "actualPhysicalMode": "0o644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/windows-pure-data-union-ci/tasks.md",
+      "mode": "100644",
+      "blob": "34dd82ec5f2b9a1cf59d14f86836ff4369d5ef67",
+      "bytes": 11960,
+      "sha256": "91893f9b221893317089692564586529def8c6f47d16ea6af24e64bb38b6d398",
+      "actualPhysicalMode": "0o644",
+      "nlink": 1
+    },
+    {
+      "path": "scripts/.gitattributes",
+      "mode": "100644",
+      "blob": "1d12839f2f69d4e6a0977cb71b10dfeeb987b159",
+      "bytes": 139,
+      "sha256": "2c5833a8137359b67254ee2ba4439021c7b3257c3cd0a65abe8924185b2e6c6b",
+      "actualPhysicalMode": "0o644",
+      "nlink": 1
+    },
+    {
+      "path": "scripts/windows_foundation_source_compile.ps1",
+      "mode": "100644",
+      "blob": "096624e1d6e850645c807fc519bc4de12a7b3a20",
+      "bytes": 19373,
+      "sha256": "bffb4d978d9b57febcf68d990f740c7507a371ece2ffaf352df8fb461b3e62d3",
+      "actualPhysicalMode": "0o644",
+      "nlink": 1
+    },
+    {
+      "path": "scripts/windows_foundation_union_overlay.py",
+      "mode": "100644",
+      "blob": "1f6235a46a9fc3f498964a456d0740a00bbaf2f1",
+      "bytes": 32093,
+      "sha256": "55a7d9bf5b798493ced4603287493dea884a502c8156e85cd7445361abbb9d53",
+      "actualPhysicalMode": "0o644",
+      "nlink": 1
+    },
+    {
+      "path": "scripts/windows_foundation_union_overlay_tests.py",
+      "mode": "100644",
+      "blob": "89dd1f4e0856e71424df1d41d434a47424155e71",
+      "bytes": 35895,
+      "sha256": "81481b973503d0f871c9a20346bf263f061e86aae7d8089c1d60be51551fbaf0",
+      "actualPhysicalMode": "0o644",
+      "nlink": 1
+    }
+  ],
+  "current11": {
+    "nativeExit": 0,
+    "methods": 11,
+    "rawSHA": "3c23b2e5889bc97a9c56603735f8fb158fa69c9314222675b5137b44245af4f2"
+  },
+  "current8": {
+    "nativeExit": 0,
+    "elapsedSeconds": 1.2356269789997896,
+    "testSourceSHAUnchanged": "952d83b3855c01372f955181e089ed12dfd9fcec630262e2ad412b0c42346094",
+    "rawSHA": "cc867b561d6e76119c90a4e2431ebac3b0e9e571fba81feb550f034b2f0cc701",
+    "qualification": "OWNED_MANAGER7_ONLY"
+  },
+  "currentOrdinaryProfile": {
+    "passed": true,
+    "mode": "go",
+    "tree": "4d42a21057b867e6163e6bbe3ce9edca24da5716",
+    "files": 1967,
+    "named_data_count": 23,
+    "native_authority": false,
+    "native_positive": "NOTRUN",
+    "qualification": "OWNED_COMPONENT_ONLY",
+    "ci": false,
+    "qualified": false
+  },
+  "goActual23": "OWNED_COMPONENT_ONLY",
+  "rustTrueProfile": "DENIED_BEFORE_FULLNAME_NO_COVERAGE_UPGRADE",
+  "newWindows1967Rust14": "NOTRUN",
+  "actualNewCI": "NOTSTARTED",
+  "oldSourceSTOPPreserved": "attrs9-exact-vector-STOP-frozen01",
+  "priorAstSyntaxSTOP": "VECTOR9-FIRST-SYNTAX-STOP01.json",
+  "scope": "SOURCE_ONLY; current ordinary component controls only; no nativeCI/VM/productinstall/RC/publication",
+  "backup": "PENDING",
+  "commit": "NOTDONE",
+  "realNewCI": "NOTSTARTED",
+  "patchBytes": 118004,
+  "patchSHA256": "e0e48c482d93531710184b39218dd5b29cde6835b1a20356d2867d880d5bd04a",
+  "independentPeerSHA256": "879675b1b28620b64a58a72b2266d9093e61a1756829036df8ac8560a3154ddf"
+}

@@ -1,0 +1,36 @@
+{
+  "scope": "SPEC_ONLY_READONLY_NO_IMPLEMENTATION",
+  "production_base": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "original_source_reads": [
+    {
+      "path": "scripts/rc_publication_github.py",
+      "sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+      "bytes": 26908,
+      "AST_parsed": true,
+      "edited": false
+    },
+    {
+      "path": "scripts/rc_publication_request.py",
+      "sha256": "60c335f0e348e6949dc0dd38bb3590a3c623c63c215986891cd886f171d644e0",
+      "bytes": 16188,
+      "AST_parsed": true,
+      "edited": false
+    },
+    {
+      "path": "scripts/rc_publication_executor.py",
+      "sha256": "499d4ae64c014cab032d3a653e7776f938e2c57cd9d9b5076de36c13e201f9d9",
+      "bytes": 12867,
+      "AST_parsed": true,
+      "edited": false
+    }
+  ],
+  "specs3": true,
+  "ordinary_controls": "NOTRUN",
+  "method": "NOTRUN_NEW_LAYOUT",
+  "publisher85": "FAIL83success2FAIL",
+  "publisher300": "NOTRUN",
+  "issuer_sameclient_serverheldtag": "UNAVAILABLE",
+  "defaultdeny": "UNCHANGED",
+  "root_authorization": "READONLY_SPEC_ONLY",
+  "independent_design": "PENDING"
+}

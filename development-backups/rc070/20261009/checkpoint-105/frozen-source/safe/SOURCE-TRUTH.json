@@ -1,0 +1,52 @@
+{
+  "schema": "V4-source-truth",
+  "same_protected_functions": [
+    {
+      "symbol": "snapshot_original_git_source",
+      "original_function_byte_sha256": "1ceb243d28527e7f7a924a1f3b558aea0ff75b065bbeb634f8b71307d0fbf012",
+      "same_function_bytes": true,
+      "same_AST": true
+    },
+    {
+      "symbol": "run_owned_git_phase",
+      "original_function_byte_sha256": "ea21b4ad709abde36d7351d5e014382ad455ca4288f670ccb7d2673718ed9208",
+      "same_function_bytes": true,
+      "same_AST": true
+    }
+  ],
+  "changed_existing": [
+    "validate_msgfmt_assignment",
+    "prepare_owned_git_v3 renamed prepare_owned_git_v4"
+  ],
+  "new_external_config_IO": "_OwnedConfigDescriptor + config serialization/pin/close/bounded-read/two-extra prepare/verify helpers",
+  "latest_limited_repair": "Only two funcs latepresence and policyextras conditions moved within independent per-item try; originalGNUargs/protectedfunctions unchanged",
+  "original4991_full_source_read_before_after_component_control": true,
+  "ordinary_latest": "07 25PASS finite only; not actualGitbuild/install or issuer",
+  "source_five": [
+    {
+      "path": "owned_git_prepare_v4.py",
+      "bytes": 40784,
+      "sha256": "a21b053058b1365d5b547c4983a3338ba8f3b4b844d16fc795bcd0c31a1bbe48"
+    },
+    {
+      "path": "owned_git_prepare_v4_tests.py",
+      "bytes": 23505,
+      "sha256": "56d2645a7f0efa739710bc7b9502b7224f64eeb748fb0ef6573891aa4c821dc7"
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v4/requirements.md",
+      "bytes": 7557,
+      "sha256": "41542ed615121c0ea9cde3c3f512c9727033cbe965eed737c328be8ba69232a1"
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v4/design.md",
+      "bytes": 4606,
+      "sha256": "5b73cd5531c5a08d347f395b7dc7aabcf88bf3734ca50ea1b1d1cac4bce7d9e0"
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v4/tasks.md",
+      "bytes": 2339,
+      "sha256": "66a109fa6e4be02b14cb40f80bc6d57cce84029c37b38d8edddafb9c9d178b9d"
+    }
+  ]
+}

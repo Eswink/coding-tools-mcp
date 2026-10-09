@@ -1,0 +1,16 @@
+{
+  "message": "chore: 🤖 校验 Windows 组合源码与完整编译数据收据",
+  "nativeGencommitResultSHA256": "ad55c53dbb8eb06774c96cd62889852a33dfedff3637388c7898c3098ae6f4b5",
+  "structuredContent": {
+    "mode": "guidance",
+    "status": "ready",
+    "hasChanges": true
+  },
+  "detectRawSHA256": "49dd69682187717ffc73fa2e5d29315f9b800be791a08768846d86334a265e4f",
+  "detectActualFiles": 9,
+  "detectActualSymbols": 72,
+  "detectFlows": 0,
+  "graphRisk": "LOW does not remove UNKNOWN/manual HIGH",
+  "backup": "source-only",
+  "productQualification": false
+}

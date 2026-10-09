@@ -1,0 +1,22 @@
+{
+  "files": [
+    {
+      "path": "SAFE-TERMINAL-STATUS.json",
+      "mode": "0644",
+      "bytes": 924,
+      "sha256": "05aaee9afc9884129143c02dbcd35ed7a228db807c3b3a7012f5d4d6cc22b3a1"
+    },
+    {
+      "path": "INDEPENDENT-TERMINAL.safe.json",
+      "mode": "0644",
+      "bytes": 1628,
+      "sha256": "79a9dd1849135fbc5deb05a890d8a566a5df85638205cb4394f5815f8fabdd08"
+    },
+    {
+      "path": "README.md",
+      "mode": "0644",
+      "bytes": 265,
+      "sha256": "eadf5f81385e86e2f5f41b1ab4e771430c050fd81d193b9d0f149801dce943ca"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "same-genuine-V4-full-archive4991-crossjoin-readonly",
+  "source_crosscheck_SHA": "8c9cc4295440e396f0ef4fe037275cbffd4f3740fc5407ca850219724bdd973d",
+  "new_initial_source_manifest_SHA": "fb119849c9d9d07ba3f70405f42c7014c5d51f1e9ec67c7e3d1b83ce55b765ce",
+  "exact4991keys_archive_vs_new_initial_manifest_and_currentnative": true,
+  "rows": {
+    "file": 4764,
+    "directory": 224,
+    "symlink": 3
+  },
+  "file4764_completecurrentbytes_hash_archive_mode_and_original_manifest_equal": true,
+  "symlink3_actual_target_archive_equal": true,
+  "new_directory224_native0755": true,
+  "old_native_directory0700_preserved": "oldreadonlysource different native checkout; no chmod done",
+  "root_umask0022": "actualrootonce explicit ownprocess; not old source metadata equivalence",
+  "SUT_or_build_reexecution": 0,
+  "qualification": false
+}

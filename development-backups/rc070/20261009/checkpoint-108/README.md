@@ -1,0 +1,3 @@
+# Read-only Publisher TLS-order proposal
+
+Source/spec-only frozen proposal, independent design pending. Production source unchanged; ordinary controls and original method NOTRUN. Original85 FAIL;300 NOTRUN; real issuer/same-client grant/server-held-tag unavailable and default hardreject unchanged. Safe impacts use source symbol references, not runtime identities. No rawTLS, keys, tokens, environment, host/process logs, binaries, Git objects or identity vectors included. Original failure evidence remains private and immutable. Physical source copies may be600; owned Git source-backup644 adapter must record exact bytes/SHA and separate modes.

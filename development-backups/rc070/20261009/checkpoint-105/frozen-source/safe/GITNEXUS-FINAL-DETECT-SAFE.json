@@ -1,0 +1,20 @@
+{
+  "schema": "fixedGN1.6.9-finite-V4source",
+  "indexed_actual_files": 5,
+  "nodes": 147,
+  "edges": 374,
+  "clusters": 9,
+  "flows": 20,
+  "staged_native_files": 6,
+  "baseline": "isolated empty-tree local source-graph; not production or SUT commit",
+  "changed_symbols": 110,
+  "affected_processes": 20,
+  "risk": "critical",
+  "CLI_limit": 100,
+  "CLI_symbols_displayed": 15,
+  "additional_symbols_not_individually_displayed": 95,
+  "manual_CRITICAL": true,
+  "initial_old_graph_prepare_HIGH7_validate_HIGH12_protected_snapshot_CRITICAL17_runphase_CRITICAL11": "root disclosed before source implementation",
+  "repair_fresh_current_graph_prepareconfig_CRITICAL20_direct17_verifyconfig_CRITICAL21_direct6": "root disclosed before repair",
+  "source_only_not_gate": true
+}

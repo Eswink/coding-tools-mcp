@@ -1,0 +1,19 @@
+{
+  "check_spec": {
+    "passed": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": [],
+    "frIds": [
+      "FR-1",
+      "FR-2",
+      "FR-3"
+    ],
+    "summary": "\u89c4\u683c\u6821\u9a8c\u901a\u8fc7\uff083 \u6761\u9700\u6c42\uff09"
+  },
+  "prior_administrative_check01_missing_feature_name": "PRESERVED_PRIVATE",
+  "prior_check02_no_SHALL": "PRESERVED_PRIVATE",
+  "production_source_changed": false,
+  "ordinary_controls": "NOTRUN",
+  "method": "NOTRUN"
+}

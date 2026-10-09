@@ -1,0 +1,64 @@
+{
+  "schema": "source-only-not-production-tested",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 649,
+      "sha256": "b0ab92fd494a5fdc9827bc8755b827409903c54d13af6b114983a80c178ac191",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "SAFE-IMPACTS.json",
+      "bytes": 5471,
+      "sha256": "146c9ede35c0859357352d3beede74a823a24a2c8fe0c27c9274c7930566d89c",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "SPEC-CHECK-SAFE.json",
+      "bytes": 475,
+      "sha256": "89de092a2379208c9f9c7a9e2864b443726d4718e0f606d8fd5699413e4133fa",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "STATUS.json",
+      "bytes": 1120,
+      "sha256": "25a66b9565c7342455a0fe638e39dfa783c0fb135a8a7e5fc6b2b1484b15b35a",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-publisher-mutation-tls-order/design.md",
+      "bytes": 6288,
+      "sha256": "ed7cf037819a9e4e2ef6e2a8ba208d7f8d2b2ba75aa25de3eaa8c6696b419025",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-publisher-mutation-tls-order/requirements.md",
+      "bytes": 5798,
+      "sha256": "563e4c36e4df2dddedec33c4728c38265a6236910a3bf9b3eaa6fa069cbf95d6",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "docs/specs/issue88-publisher-mutation-tls-order/tasks.md",
+      "bytes": 1936,
+      "sha256": "af2cf10d992411eb21369ba9b37e18f1c8d9b261b3cf9d20ab167945ef92b93b",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    }
+  ],
+  "payload_files": 7,
+  "payload_bytes": 21737,
+  "qualification": false
+}

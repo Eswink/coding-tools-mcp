@@ -1,0 +1,20 @@
+{
+  "status": "ACTUAL_EXIT1_CONTEXT_BLOCKED",
+  "parser_controls_actual": {
+    "passed": 6,
+    "failed": 0,
+    "actualouterpositive": true,
+    "old36b2_actualfailurefirst": true,
+    "ownedmalformedinputs": 4
+  },
+  "actual_source8_controller_outer_GCC_after_exact": true,
+  "actual_source_runtime_inmemory_before_after_guards": "success",
+  "complete_toolclosure_before_after": "NOT_REACHED",
+  "blocker": "Actualprototypeouter3.12 DT_RPATH=$ORIGIN/../lib; inheritedsearch semantics notimplemented. Guardretained.",
+  "actual_compiler_driver_jobs_queries": 0,
+  "native_ROOT_bridge_factory_original_CI_install_release": "NOTRUN",
+  "original_worker": "/usr/bin/python3.13 distinct/unmodified; outer3.12 prototypeABI notoriginalworker qualification",
+  "original488_qualification": false,
+  "unknown_ordinary_holders": 0,
+  "independent_terminal": "verified6PASS/contextBLOCKED; notwholecompileorqueryrerunpermission"
+}

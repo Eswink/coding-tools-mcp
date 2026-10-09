@@ -1,0 +1,98 @@
+{
+  "scope": "SOURCE_ONLY",
+  "head": "b0ba7d96b5e5d4879aced264d20f419ea00cbd16",
+  "tree": "047d5780e0157debaa05930cf4ea0c32881055c8",
+  "files": [
+    {
+      "path": "COMMIT-GUIDANCE-SAFE.json",
+      "bytes": 569,
+      "sha256": "7a9789f686021592d9498e4e197617098b7c43ab5e51c0c73ccc6c49d33b3413",
+      "mode": "100644"
+    },
+    {
+      "path": "FULL1878-SOURCE-MANIFEST.json",
+      "bytes": 595428,
+      "sha256": "a94e06218cc1c71a6464dc784bb47c7daf37b078869089aab60cb2c9dd3cf969",
+      "mode": "100644"
+    },
+    {
+      "path": "INDEPENDENT-SOURCE-SAFE01.json",
+      "bytes": 2485,
+      "sha256": "879675b1b28620b64a58a72b2266d9093e61a1756829036df8ac8560a3154ddf",
+      "mode": "100644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 669,
+      "sha256": "5c6a06ea273351e4f120e277844bb07043169a1bb44c4d0fe852f0461cf1a13c",
+      "mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 4994,
+      "sha256": "fa4efa1e60f9842ee4de9d06ab7b299fff97e24b42410d382b1f647cc7ab80ee",
+      "mode": "100644"
+    },
+    {
+      "path": "SOURCE9.patch",
+      "bytes": 118004,
+      "sha256": "e0e48c482d93531710184b39218dd5b29cde6835b1a20356d2867d880d5bd04a",
+      "mode": "100644"
+    },
+    {
+      "path": "sources/.gitattributes.source",
+      "bytes": 484,
+      "sha256": "e71eff1d357a5e428d8323d3f8d328e25c3aa57f522dae766fd44f4aa1e1e1bd",
+      "mode": "100644"
+    },
+    {
+      "path": "sources/.github/workflows/windows-foundation-source-compile.yml.source",
+      "bytes": 3436,
+      "sha256": "9510464157ee423ec55a98e75aa3fdcdff7d066479ef6895d6ac3ab3bb164714",
+      "mode": "100644"
+    },
+    {
+      "path": "sources/docs/specs/windows-pure-data-union-ci/design.md.source",
+      "bytes": 12144,
+      "sha256": "b32f15c7c73168dcc1117b6385f83ae6f44b995f5cd9c28a6226beeef37f5c96",
+      "mode": "100644"
+    },
+    {
+      "path": "sources/docs/specs/windows-pure-data-union-ci/requirements.md.source",
+      "bytes": 11455,
+      "sha256": "2d0951eb14ef17ab50aee33ce5fd204dc9c641a4cb2a4d2e3a46579fb87853ca",
+      "mode": "100644"
+    },
+    {
+      "path": "sources/docs/specs/windows-pure-data-union-ci/tasks.md.source",
+      "bytes": 11960,
+      "sha256": "91893f9b221893317089692564586529def8c6f47d16ea6af24e64bb38b6d398",
+      "mode": "100644"
+    },
+    {
+      "path": "sources/scripts/.gitattributes.source",
+      "bytes": 139,
+      "sha256": "2c5833a8137359b67254ee2ba4439021c7b3257c3cd0a65abe8924185b2e6c6b",
+      "mode": "100644"
+    },
+    {
+      "path": "sources/scripts/windows_foundation_source_compile.ps1.source",
+      "bytes": 19373,
+      "sha256": "bffb4d978d9b57febcf68d990f740c7507a371ece2ffaf352df8fb461b3e62d3",
+      "mode": "100644"
+    },
+    {
+      "path": "sources/scripts/windows_foundation_union_overlay.py.source",
+      "bytes": 32093,
+      "sha256": "55a7d9bf5b798493ced4603287493dea884a502c8156e85cd7445361abbb9d53",
+      "mode": "100644"
+    },
+    {
+      "path": "sources/scripts/windows_foundation_union_overlay_tests.py.source",
+      "bytes": 35895,
+      "sha256": "81481b973503d0f871c9a20346bf263f061e86aae7d8089c1d60be51551fbaf0",
+      "mode": "100644"
+    }
+  ],
+  "manifestSelfExcluded": true
+}

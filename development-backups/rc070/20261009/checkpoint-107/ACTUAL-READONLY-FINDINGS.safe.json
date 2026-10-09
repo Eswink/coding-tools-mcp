@@ -1,0 +1,23 @@
+{
+  "actual_loader": {
+    "canonical": "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+    "bytes": 225672,
+    "sha256": "438c546d8e8cc48496bf3a95f753051afd9db66a629a74e31a9ded71586b56e0"
+  },
+  "current_outer": "explicit3.12.14/fa674/full3.12ABI, originalsystem3.13 unmodified",
+  "readonly_catalogue": {
+    "ELFs": 63,
+    "RPATHobjects": 1,
+    "onlyRPATH": "outer3.12:$ORIGIN/../lib",
+    "RUNPATHobjects": 0,
+    "outer_candidate_DAG_objects": 8,
+    "outer_candidate_edges": 13,
+    "prefixlib_candidate_overrides_now": 0,
+    "actual_RTLD_selection_qualification": false
+  },
+  "specific_research_LD_env": "examined variablesabsent; priorrunENVnotretroactivelysealed",
+  "future_GCC_ENV": "PATH=/usr/bin:/bin,LC_ALL=C,TZ=UTC only",
+  "preload_file_current": "absent; futureabsencefence mandatory",
+  "unsafe_dynamic_audit_filter_tags_in_catalogue": "notobserved; futurequeryguard mandatory",
+  "all_realquery_driver_compiler_native_processes": 0
+}

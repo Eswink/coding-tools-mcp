@@ -1,0 +1,1284 @@
+diff --git a/.gitattributes b/.gitattributes
+index a136065..5cfd639 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -6,4 +6,3 @@ scripts/windows_foundation_source_manifest.json -text
+ docs/specs/windows-foundation-source-compile/requirements.md -text
+ docs/specs/windows-foundation-source-compile/design.md -text
+ docs/specs/windows-foundation-source-compile/tasks.md -text
+-scripts/windows_foundation_inference_overlay.py -text
+diff --git a/.github/workflows/windows-foundation-source-compile.yml b/.github/workflows/windows-foundation-source-compile.yml
+index 601d790..290b8fe 100644
+--- a/.github/workflows/windows-foundation-source-compile.yml
++++ b/.github/workflows/windows-foundation-source-compile.yml
+@@ -60,7 +60,7 @@ jobs:
+               $Python -match '[\\/]Microsoft[\\/]WindowsApps[\\/]' -or
+               -not (Test-Path -LiteralPath $Python -PathType Leaf)) { throw 'Pinned setup-python payload absent; no PATH fallback.' }
+           $Output = Join-Path $env:RUNNER_TEMP 'windows-foundation-probe'
+-          & $Python ./scripts/windows_foundation_inference_overlay.py verify-result --mode '${{ matrix.mode }}' --compiler-result (Join-Path $Output 'compiler-result.json') --manifest ./scripts/windows_foundation_source_manifest.json --manager $env:GITHUB_WORKSPACE --destination (Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-19bb2920') --receipt (Join-Path $Output 'terminal-consumer-result.json')
++          & $Python ./scripts/windows_foundation_union_overlay.py verify-result --mode '${{ matrix.mode }}' --compiler-result (Join-Path $Output 'compiler-result.json') --manifest ./scripts/windows_foundation_source_manifest.json --manager $env:GITHUB_WORKSPACE --destination (Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-union1967') --receipt (Join-Path $Output 'terminal-consumer-result.json')
+           if ($LASTEXITCODE -ne 0) { throw 'Independent actual compiler receipt consumer denied.' }
+       - name: Preserve actual result and failures
+         if: always()
+diff --git a/docs/specs/windows-pure-data-union-ci/design.md b/docs/specs/windows-pure-data-union-ci/design.md
+new file mode 100644
+index 0000000..da65332
+--- /dev/null
++++ b/docs/specs/windows-pure-data-union-ci/design.md
+@@ -0,0 +1,53 @@
++# Windows1967 union compiler/data carrier design
++
++## 概述
++
++Use an independent management checkout at genuine b0ba, preserving old protected guard/manifest/helper and old failed/public CI identities. Do not modify the pure union source checkout or production development branch. Current phase is external spec/design only; code changes, startup and scope counts are not yet approved.
++
++## 技术方案
++
++A dedicated union helper delegates existing guard native Git/source/receipt primitives and existing bounded log reader as appropriate, while keeping explicit new1967 identity and exact14/23 consumer separate from the older6b7e1953/7/4 consumer. Old helper byte preservation is preferred; any actual necessary existing symbol edits need fresh exact impact and finite declared scope. New helper and imported dependencies require supplemental actualHEAD native source leases. Fixed literal manager attributes must cover each newly introduced executable source without wildcard weakening; original7 raw blob guard logic stays unchanged.
++
++The helper loads checkpoint91 manifest and exactly17 leaf sources using native fetch/show at the fixed immutable remote backup commit, then validates the full original baseline and the union's exact3existing14new difference. Source payload hash identities are hard pins, not receipt-provided paths. Original D6 destinationHEAD and original controlled index are retained. Full1967 final verification reads every actual file and native index row, not just inverse HCS annotation or17named files. Build outputs remain only originally ignored output; new untracked source is rejected.
++
++Both Rust and Go now use the same completeunion4d42/1967 source lease. Go fixed9 source files/race23 are different from previous5file/4method selection. Rust complete --lib compilation/list discovers14 unique originalCI7+newoutput7 namespaces and runs each exact existing/new test with real native command logs. Compiler-related control source code is not inserted into pure SUT. No test list may be inferred from previous facade or source parsing alone.
++
++Producer and independent always consumer bind complete source/runtime/currentmanager before/after and actual commands, preserving sticky interruption false/UNKNOWN and real final cleanup. Keep primary/cancel object semantics, original source/runtime final checks and original closedreceipt-before-realstdout. Unknown native close remains denied. New observer/helper calls occur before final runtime checks. Existing native runtime proxy/payload pin verification covers every newly used process.
++
++New strict consumer rejects missing/wrongtyped success, wrongrun/head, wrong14/23 vector, duplicatecase, wrongarguments/nonzero native exit, missing/boundedregular logs, source digest drift, managerlease drift, runtime missing/mismatch, unknown/interrupted flags, overlay partial failure and scope/nativeauthority claims. Pin actual setup-python path; no PATH alias fallback.
++
++## 文件结构
++
++External3specs now. Planned source paths only (not authorization/finalscope): new scripts/windows_foundation_union_overlay.py and owned controls; finite changes to existing scripts/windows_foundation_source_compile.ps1, .github/workflows/windows-foundation-source-compile.yml and literal .gitattributes to route new helper/vectors/terminalconsumer; supplemental union external spec publication. All7 original guarded paths still checked as raw currentmanagementHEAD; PS/workflow bytes intentionally changed must be re-pinned rather than claimed unchanged. Original guard/manifest/older overlay byte preservation required. New exactdelta count and symbol vector must be frozen before implementation.
++
++## 对应需求
++
++FR-1 immutable17payload pins; FR-2 fullbaseline/full1967 leases; FR-3 true14/23 vectors; FR-4 finalcleanup and originalexception semantics; FR-5 strictcurrentmanager/source/runtime/command consumer; FR-6 ownfreshimpact and independentstartup review; FR-7 original45minute budget and safe actualevidence.
++
++## 原始 baseline verifier 和新 final lease 的实际边界（FR-2、FR-4、FR-5）
++
++Original guard restore/verifyMaterialized admit1953 baseline before any17overlay. After overlay they are not a full1967 verifier and must not be reused by temporarily undoing17, checking old source, then reapplying and claiming a new wholelease. Newhelper must verify actual1967 raw/nativeindex/tree in place before and after real compilation, without restoring or replacing the observed source. Protected original AST bytes need not preserve every old caller position; finite PS call positions intentionally route current1967 sourceAfter before final runtime checks/receipt. Actual extra calls and interruption paths must be reviewed as the new candidate.
++
++Both supplemental helpers (newunionhelper and imported originalolderoverlay) must have exact current managementHEAD nativeblob/physical source lease; oldhelper API/bytes are preserved but not blindly trusted because it imported successfully. Current fresh graph is for the independent b0ba management baseline, not the unionSUT graph. Native immutable backup91 pin remains pending root forwardpush/APIreadback; no privatechild, branchhead or APIbytesadapter substitution.
++
++## Fresh-impact candidate symbol vector (FR-6; proposed declarations, code0)
++
++Existing actual PS boundaries: Resolve-FoundationApplication, Invoke-CheckedCompiler, Invoke-ManagerSourceObservation, Run-SourceCompile and top-level source-finally; workflow always-consumer call and literal .gitattributes routing are unsupported/new graph boundaries and remain UNKNOWN until actual ownquery. They are not declared low because staged symbols are low elsewhere. Original Python guard primitives are delegated unchanged, not rewritten. Older overlay read_result_log API is imported unchanged with supplemental lease.
++
++New unionhelper proposed exact declarations: verify_union_helper_leases, fetch_union_payload, load_union_candidate, verify_union_candidate, apply_union_overlay, verify_union_compiler_result and main. New functions do not yet exist in current source; exact symbol queries will accurately return UNKNOWN rather than zero risk. Concrete new ordinary control declarations and any further helper declarations must be fixed and fresh queried before codeedit; this proposed vector is not a claim of exhaustive implemented symbols.
++
++## Nine-path attribute correction and preserved failure boundary
++
++Baseline b0ba root attributes already have8 rules; unchanged legacy ManagerRawCheckoutControls.test_rules_are_exact_seven_literal_paths expects7 and actually fails8 !=7. Draft8 has9 root rules and actually fails9 !=7. Both original raw failures and old8 draft/full1877 capture remain immutable; neither is attributed solely to new source rules or upgraded to whole PASS. Original legacy8 source/assertions SHALL remain byte exact.
++
++The revised management delta is existing3 plus new6 =9 paths, predicted whole1878: existing .gitattributes, workflow and PowerShell; new scripts/.gitattributes, scripts/windows_foundation_union_overlay.py, scripts/windows_foundation_union_overlay_tests.py, and three union specifications. Root .gitattributes SHALL equal native8c7b7ef262320893142d0a4f47d2a583691b0dd7:.gitattributes exactly (original675ff has no such path), preserving all7 literal original manager routes. scripts/.gitattributes SHALL contain only three exact direct-child anchored patterns /windows_foundation_inference_overlay.py, /windows_foundation_union_overlay.py, /windows_foundation_union_overlay_tests.py with -text, no wildcard or unanchored recursive basename. This gives7 original guarded paths plus3 supplemental source paths, not expansion of the original verify_manager7 lease. Production imported guard is one of original7; older/newer overlay imports are the two native supplementary leased helpers. Ordinary test module is source-only and not called by CI; its Python fixture imports do not mint a production helper lease.
++
++Real owned native Git autocrlf true and false checkout SHALL prove all10 exact source bytes/SHA/native OID and check-attr text unset, full original7 admission and actual two production helper leases; direct unmatched scripts source, scripts/nested copies of every three supplemental basenames, and outside nested/scripts basename remain unspecified and convert under true. New helpers changed raw bytes SHALL remain rejected by native helper lease. Original unchanged legacy8 SHALL actually rerun, preserving its genuine result; do not modify/skip its fixed7 assertion. New11 ordinary suite SHALL genuinely rerun with bounded original fixture/deadline and retain before/after source identity. Real Windows1967 binary14 and Go23 same-head CI remain NOTRUN; no source-only/component result upgrades native authority/IOclose/VM/install/RC.
++
++## FR-8 — Complete exact command transcript (bounded consumer correction)
++
++The consumer SHALL bind explicit trusted caller manager_root, destination, and actual output directory paths; it SHALL NOT infer any expected path from unchecked command arguments. Production successful Go transcript is exactly11 commands: git version, pinned Python version assertion, observerBefore, managerBefore, originalguard restore, union apply, Go version, Go9 race23, union verifyAfter, managerAfter, observerAfter. Production Rust transcript is exactly31: same6 prefix; rustup which before rustc then cargo; rustc verbose version then cargo verbose version; wholelib no-run, wholelib list, fixedfullyqualified14 cases in declared order; union verifyAfter, managerAfter, observerAfter; originalruntime loop rustup which after rustc/cargo each once. Only the last two Rust commands allow either actual Hashtable iteration permutation; all prior commands require one fixed order and exactlyone occurrence. Each transcript entry SHALL match exacttool, selected current executable, argv including original manifests/currentmanager/native source destination and phase receipt paths, log name, and native0. Extra unrelated tools/commands, missing/duplicate/reordered/nonstring args and changed source/receipt paths SHALL deny. The old actual Go23 copied receipt failure-first accepted10 negatives; this sourceSTOP/freeze/raw and peerSTOP remain immutable.
++
++The pure consumer ordinary_profile SHALL be a strict bool function parameter defaultFalse; no CLI flag/env/recordfield may select it, and main SHALL call the production profile with constantFalse. Production requires genuine IMMUTABLE_REMOTE_CI baseline and rejects LOCAL in both function and CLI. Only true ordinary profile accepts actual owned Go23 LOCAL_OWNED_COMPONENT with explicit ACTUAL_OWNED_GO23_NOT_CI context and falseCI; its exact11 transcript substitutes only the genuine guard verify(local baseline) invocation for production restore, with ordinary actual phase paths explicitly bound, never relabels verify as restore. It SHALL return OWNED_COMPONENT_ONLY, ci=false, qualified=false, native_authority=false rather than production COMPILER_DATA_ONLY. No synthetic Rust positive is admitted under this profile. New full source1967/currentmanager7/supplemental2/runtime/log/case checks remain required for both. Both profiles are data validation and mint no owner/native/publication authorization.
++
++The narrow repair remains9paths/1878: edit existing newhelper function/main call and newownedtests/3spec; original PS/workflow routing, originalguard/manifest/oldhelper and all legacy positive/assert/source bytes remain exact. Fresh existingexact consumerLOW9/mainLOW5 impacts and prior unsupportedboundarymanualHIGH remain actual, not substituted with stagedLOW. Necessary controls SHALL use actual owned Go23 process outputs, prove strict pureordinary success then each original10 specific negative denied, every actual command argv/tool/order/count/path negative, false/nonbool profile deny, defaultproductionLOCALdeny, same original exception/cancel/receipt-close boundaries and originallegacy8/new11 rerun. No mutation of old receipts to claim source restore/Windows execution. Production Go11/Rust31 raw audit must be genuine new same-head CI later; ordinary parser tests are not native Rust31 proof.
+diff --git a/docs/specs/windows-pure-data-union-ci/requirements.md b/docs/specs/windows-pure-data-union-ci/requirements.md
+new file mode 100644
+index 0000000..a531adf
+--- /dev/null
++++ b/docs/specs/windows-pure-data-union-ci/requirements.md
+@@ -0,0 +1,52 @@
++# Windows1967 union compiler/data carrier requirements
++
++## 功能概述
++
++Prepare a separate management-only carrier for actual pure union4d42a21057b867e6163e6bbe3ce9edca24da5716/1967 source. Current b0ba full1953 COMPILER_DATA_ONLY PASS and union Linux Go23/Rust facade14 do not qualify this new Windows source. This specification authorizes no launch, VM, workspace/writeback, native issuer/grant, installation or release.
++
++## 需求列表
++
++### FR-1 — Immutable union payload
++The carrier SHALL fetch the exact immutable checkpoint91 backup commit only after root backup/API readback; that commit is immutable833e7b4401ffb15b3ce042a6fb56e6a9ced48ba6 after root actual API readback and MUST NOT be substituted with a branch head, API byte adapter or private b26ace6 commit. It SHALL read only17 literal .source leaves and complete1967 manifest at fixed native paths, enforcing each size/SHA/native mode/blob and total unique identity. No full historical patch stacking or extra source paths.
++
++### FR-2 — Whole baseline and new source lease
++Original windows_foundation_source_guard.py, manifest and original verify_manager/verify_materialized/restore AST bodies SHALL remain byte exact. Actual destination HEAD SHALL be original D6c60, original full19bb1953 SHALL pass before overlay, then only17 exact source leaves SHALL form4d42/1967 in the original controlled custom index. All1950 unchanged baseline mode/blob/raw paths, protectedWSS c9fcd and original positives/defaultdeny SHALL remain exact. Private bf1885 historical116restore and b26ace6 source child are not authorized runtime heads.
++
++### FR-3 — Actual compile and exact data vectors
++Rust Windows2025 SHALL run original official1.98.1 whole src-tauri --lib --locked --no-run, actual complete --list, then14 distinct exact named cases: original CI7 plus newoutput7. LinuxGo1.24.13 SHALL run selected9literal actual source files with -race -v -count=1 and actual23 unique tests, preserving11 baseline plus7output+5input. Each native exit, real output log and case identity SHALL be read; absent/ambiguous/duplicated/missing test must deny. Rust facade14 is7different original pureinput+7newoutput, not these14 Windows cases.
++
++### FR-4 — Existing cleanup and terminal truth
++The original completed-main marker, sourceAfter outer finally, sticky UNKNOWN/false PipelineStop behavior, primary/cancel original objects, original managerAfter then observerAfter then runtimeAfter then receipt ordering SHALL be retained. New full1967 source-after check SHALL complete before final runtime checks. Diagnostic/source observation error SHALL not hide delegate error/cancel or skip original cleanup. Typed host interruption may exit0; independent always consumer SHALL deny false/missing/UNKNOWN receipts regardless of shell status. No new diagnostic child after source/delegate interruption.
++
++### FR-5 — Strict consumer and runtime identity
++A separately reviewed union consumer SHALL bind exact current managementHEAD/run/mode, full source1967 before/after/native tree/digest/protectedSHA, original7 manager native raw blobs and supplementary helper native leases, pinnedPython plus nativecompiler proxy/payload before/after, exact command vectors/logs and case outputs. Only typed true, native exit0, complete logs and exact14/23 vectors admit COMPILER_DATA_ONLY; native_authority=false and nativePositive=NOTRUN remain mandatory. Missing helper logs must deny; real CLI stdout only after actual receipt close/primaryNone. Inherited wrappers/auth flags or wrong explicit Python must deny, no PATH fallback.
++
++### FR-6 — Finite ordinary controls and review
++Before management code edit, actual own current-source GitNexus exact-symbol impacts SHALL be run and HIGH/CRITICAL/UNKNOWN disclosed. Owned Git controls SHALL prove old wholebaseline admission, native exact17 overlay/new1967 index, full before/after, corrupted/missing/extra/wrongmode/blob data rejection and cancellation/cleanup/close boundaries; partial overlay cannot yield successful terminal result. Literal .gitattributes expansion SHALL be bounded to actual management source paths and verified with actual autocrlf true/false and unmatched path controls, preserving previous actual context failures. Necessary PS actual main host interruption and strict consumer exact14/23/unknown negatives SHALL be observed, not borrowed from b0ba. Independent frozen source/startup peer required before meaningful forwardpush and first actual CI.
++
++### FR-7 — Budget and evidence
++Original workflow45 minutes, source guarded deadlines and per-log2MiB cap SHALL remain. Contents read only, pinned action versions/compiler pins, no permissions/settings/issuer changes, rerun or empty metadata push. Actual newhead jobs/artifacts/wholelib/list/cases/source/runtime/strictconsumer SHALL be audited independently and failures preserved. Safe source-only backup/readback precedes root normal forwardpush. Never declare RC, VM, IOclose, workspace/writeback or install completion from this result.
++
++## 非功能需求
++
++No native owner launch, granting, fakeRunBinding or test modification. No replacement of original positives, source manifests, guard AST or known failure evidence. Public backups contain source/hash/mode/patch/safe status only; private raw artifacts/runtime/host/environment/TLS/token remain private.
++
++## 依赖关系
++
++Root checkpoint91 immutable remote commit +17literal source native payload pins and full1967 manifest; original strict19bb recovery; frozen b0ba management behaviors reused without borrowing its receipts; own fresh graph and independent source/startup review. All new actual Windows1967 execution remains NOTRUN.
++
++## Nine-path attribute correction and preserved failure boundary
++
++Baseline b0ba root attributes already have8 rules; unchanged legacy ManagerRawCheckoutControls.test_rules_are_exact_seven_literal_paths expects7 and actually fails8 !=7. Draft8 has9 root rules and actually fails9 !=7. Both original raw failures and old8 draft/full1877 capture remain immutable; neither is attributed solely to new source rules or upgraded to whole PASS. Original legacy8 source/assertions SHALL remain byte exact.
++
++The revised management delta is existing3 plus new6 =9 paths, predicted whole1878: existing .gitattributes, workflow and PowerShell; new scripts/.gitattributes, scripts/windows_foundation_union_overlay.py, scripts/windows_foundation_union_overlay_tests.py, and three union specifications. Root .gitattributes SHALL equal native8c7b7ef262320893142d0a4f47d2a583691b0dd7:.gitattributes exactly (original675ff has no such path), preserving all7 literal original manager routes. scripts/.gitattributes SHALL contain only three exact direct-child anchored patterns /windows_foundation_inference_overlay.py, /windows_foundation_union_overlay.py, /windows_foundation_union_overlay_tests.py with -text, no wildcard or unanchored recursive basename. This gives7 original guarded paths plus3 supplemental source paths, not expansion of the original verify_manager7 lease. Production imported guard is one of original7; older/newer overlay imports are the two native supplementary leased helpers. Ordinary test module is source-only and not called by CI; its Python fixture imports do not mint a production helper lease.
++
++Real owned native Git autocrlf true and false checkout SHALL prove all10 exact source bytes/SHA/native OID and check-attr text unset, full original7 admission and actual two production helper leases; direct unmatched scripts source, scripts/nested copies of every three supplemental basenames, and outside nested/scripts basename remain unspecified and convert under true. New helpers changed raw bytes SHALL remain rejected by native helper lease. Original unchanged legacy8 SHALL actually rerun, preserving its genuine result; do not modify/skip its fixed7 assertion. New11 ordinary suite SHALL genuinely rerun with bounded original fixture/deadline and retain before/after source identity. Real Windows1967 binary14 and Go23 same-head CI remain NOTRUN; no source-only/component result upgrades native authority/IOclose/VM/install/RC.
++
++## FR-8 — Complete exact command transcript (bounded consumer correction)
++
++The consumer SHALL bind explicit trusted caller manager_root, destination, and actual output directory paths; it SHALL NOT infer any expected path from unchecked command arguments. Production successful Go transcript is exactly11 commands: git version, pinned Python version assertion, observerBefore, managerBefore, originalguard restore, union apply, Go version, Go9 race23, union verifyAfter, managerAfter, observerAfter. Production Rust transcript is exactly31: same6 prefix; rustup which before rustc then cargo; rustc verbose version then cargo verbose version; wholelib no-run, wholelib list, fixedfullyqualified14 cases in declared order; union verifyAfter, managerAfter, observerAfter; originalruntime loop rustup which after rustc/cargo each once. Only the last two Rust commands allow either actual Hashtable iteration permutation; all prior commands require one fixed order and exactlyone occurrence. Each transcript entry SHALL match exacttool, selected current executable, argv including original manifests/currentmanager/native source destination and phase receipt paths, log name, and native0. Extra unrelated tools/commands, missing/duplicate/reordered/nonstring args and changed source/receipt paths SHALL deny. The old actual Go23 copied receipt failure-first accepted10 negatives; this sourceSTOP/freeze/raw and peerSTOP remain immutable.
++
++The pure consumer ordinary_profile SHALL be a strict bool function parameter defaultFalse; no CLI flag/env/recordfield may select it, and main SHALL call the production profile with constantFalse. Production requires genuine IMMUTABLE_REMOTE_CI baseline and rejects LOCAL in both function and CLI. Only true ordinary profile accepts actual owned Go23 LOCAL_OWNED_COMPONENT with explicit ACTUAL_OWNED_GO23_NOT_CI context and falseCI; its exact11 transcript substitutes only the genuine guard verify(local baseline) invocation for production restore, with ordinary actual phase paths explicitly bound, never relabels verify as restore. It SHALL return OWNED_COMPONENT_ONLY, ci=false, qualified=false, native_authority=false rather than production COMPILER_DATA_ONLY. No synthetic Rust positive is admitted under this profile. New full source1967/currentmanager7/supplemental2/runtime/log/case checks remain required for both. Both profiles are data validation and mint no owner/native/publication authorization.
++
++The narrow repair remains9paths/1878: edit existing newhelper function/main call and newownedtests/3spec; original PS/workflow routing, originalguard/manifest/oldhelper and all legacy positive/assert/source bytes remain exact. Fresh existingexact consumerLOW9/mainLOW5 impacts and prior unsupportedboundarymanualHIGH remain actual, not substituted with stagedLOW. Necessary controls SHALL use actual owned Go23 process outputs, prove strict pureordinary success then each original10 specific negative denied, every actual command argv/tool/order/count/path negative, false/nonbool profile deny, defaultproductionLOCALdeny, same original exception/cancel/receipt-close boundaries and originallegacy8/new11 rerun. No mutation of old receipts to claim source restore/Windows execution. Production Go11/Rust31 raw audit must be genuine new same-head CI later; ordinary parser tests are not native Rust31 proof.
+diff --git a/docs/specs/windows-pure-data-union-ci/tasks.md b/docs/specs/windows-pure-data-union-ci/tasks.md
+new file mode 100644
+index 0000000..34dd82e
+--- /dev/null
++++ b/docs/specs/windows-pure-data-union-ci/tasks.md
+@@ -0,0 +1,104 @@
++# Windows1967 union compiler/data carrier tasks
++
++## 交付物清单
++
++External7FR3specs, future bounded management delta, own actual impacts, immutable17leaf pin table, actual ordinary receipts, independent source/startup peer, safe source backup, root meaningful normalforwardpush and newhead actualCI audit. Current authorized8draft implemented and preserved outside as old8-draft-frozen01; its new11 ordinary PASS and unchangedlegacy8 FAIL are not final qualification. New9path attribute design remains READONLY/PENDING risk disclosure and edit authorization. Native startup0; checkpoint91 remote pin833e actual root readback completed.
++
++## 任务列表
++
++1. Root immutable backup91/API readback and exact nativepayload commit/path/hash read; baseline originals raw/AST/1953 lease record.
++2. Fresh own b0ba management index and every exact existing/new symbol impact. Freeze bounded newdelta/spec; disclose UNKNOWN/HIGH before codeedit.
++3. Implement only finite union helper/integration/case/consumer changes after authorization, preserving original guard/manifest/helper, all protected SUT bytes, pins and45minutes.
++4. Run necessary owned native Git overlay/fullsource drift/partial failure/cancelclose, literal attribute real checkout and actual PS main host interruption/independentconsumer negatives. Preserve all old and new failures.
++5. Exact final source/native/physical join, own stageddetect/gencommit, independent source/startup frozen peer, safe backup/readback. Root normal meaningful forwardpush on existing temporary compiler branch; no rerun/emptycommit/nativeVM.
++6. Actual newhead Rustwholecompile/list/14unique +Go23 +strictconsumer/full1967/source/runtime currentidentity audit; anonymousRelease/install/start separate and unqualified.
++
++## 需求覆盖矩阵
++
++| FR | Tasks | Evidence |
++|---|---|---|
++| FR-1 | 1,3 | fixed immutable remote nativepayload17/manifest |
++| FR-2 | 1,3,4,6 | original baseline and full1967 actual beforeafter |
++| FR-3 | 3,4,6 | original/full binarylist and actual14/23 vectors |
++| FR-4 | 3,4,6 | actual main interruption/cleanup/closed receipts |
++| FR-5 | 3,4,6 | strict actualsource/currentmanager/runtime/command consumer |
++| FR-6 | 2,4,5 | own impact/ordinarycontrols/frozenpeer |
++| FR-7 | 5,6 | safe backup/normal meaningfulpush/new actualCI |
++
++## 文件变更清单
++
++No manager or pure SUT changes in this spec-only phase. Proposed union management paths in design remain unapproved until exact bounded vector/fresh impact and root riskdisclosure. Pure4d42/1967 source already privately frozen17 leaves; it must not be altered by carrier code or fixtures.
++
++## Exact declaration vectors (new actual binary/runtime stillrequired)
++
++Go selected9files
++- `services/windows-vm-broker/transfer.go`
++- `services/windows-vm-broker/transfer_test.go`
++- `services/windows-vm-broker/transfer_identity_linux_test.go`
++- `services/windows-vm-broker/workspace_stream.go`
++- `services/windows-vm-broker/workspace_stream_test.go`
++- `services/windows-vm-broker/guest_workspace_control.go`
++- `services/windows-vm-broker/output_transfer.go`
++- `services/windows-vm-broker/output_transfer_test.go`
++- `services/windows-vm-broker/transfer_owner_test.go`
++
++Go23names
++- `TestTransferAllBindingFieldsChangeDigest`
++- `TestTransferBoundEOFHashCancellationAndSingleConsumption`
++- `TestTransferRelativeAndMalformedIdentityReject`
++- `TestLinuxTransferCannotIssueNativeFileIdentity`
++- `TestWorkspaceRustGoCanonicalVector`
++- `TestWorkspaceExactZeroAndOneMiBBudgets`
++- `TestWorkspaceEveryHeaderDimensionPermanentlyPoisons`
++- `TestWorkspaceTruncationTrailingReplayAndFinalDigestReject`
++- `TestWorkspaceAllocationBoundCancellationAndChunkFailure`
++- `TestWorkspaceInputOutputDirectionAndMissingTrustedManifestReject`
++- `TestWorkspaceConcurrentCancellationWhileDecoderCallbackIsBlocked`
++- `TestOutputTransferExactDirectionBudgetsAndDetachedBytes`
++- `TestOutputTransferEveryBindingFieldRejectsForeignWire`
++- `TestOutputTransferPhysicalEOFHashAndReplayReject`
++- `TestOutputTransferCancelledNilAndCorruptOwnersAreTerminal`
++- `TestOutputTransferConcurrentConsumersHaveOnlyOneSuccess`
++- `TestOutputTransferValueCopiesShareTerminalConsumption`
++- `TestOutputTransferConcurrentValueCopiesHaveOnlyOneSuccess`
++- `TestInputDataValueCopyCannotConsumeTwice`
++- `TestInputDataConcurrentConsumptionIsOnce`
++- `TestInputDataCopiesCannotRedirectBindingOrPayload`
++- `TestInputDataCopiedContextCannotReviveCancellation`
++- `TestInputDataConcurrentValueCopiesHaveOneSuccess`
++
++Rust fixed14 fully-qualified command/list names (not suffix admission):
++- `tools::windows_vm::input::chunk_tests::sealed_chunks_keep_original_and_detached_owners_independent`
++- `tools::windows_vm::input::chunk_tests::chunk_cap_and_cancel_do_not_publish_partial_copy`
++- `tools::windows_vm::input::transfer_tests::exact_transfer_binding_rejects_each_field_mismatch`
++- `tools::windows_vm::input::transfer_tests::invalid_wire_names_and_nil_binding_never_make_native_authority`
++- `tools::windows_vm::input::publication_tests::checked_close_consumes_data_only_transfer`
++- `tools::windows_vm::input::tests::relative_names_remain_data_not_native_permission`
++- `tools::windows_vm::output_stage::tests::diagnostic_metadata_cannot_authorize_output`
++- `tools::windows_vm::output_stage::data::data_tests::output_direction_capacity_and_roundtrip`
++- `tools::windows_vm::output_stage::data::data_tests::output_binding_fields_and_terminal_foreign_attempt`
++- `tools::windows_vm::output_stage::data::data_tests::output_header_sequence_offset_digest_and_EOF_reject`
++- `tools::windows_vm::output_stage::data::data_tests::output_cancel_reader_error_and_blocked_reader_boundary`
++- `tools::windows_vm::output_stage::data::data_tests::output_clone_and_concurrent_once`
++- `tools::windows_vm::output_stage::data::data_tests::output_mutex_poison_remains_denied`
++- `tools::windows_vm::output_stage::data::data_tests::output_go_golden_vector_is_exact`
++
++This14nativeWindows vector is not historical facade14 (7differentoriginalpureinput+7newoutput). All new1967 actualWindows compiler/list/14tests remain NOTRUN.
++
++## Nine-path attribute correction and preserved failure boundary
++
++Baseline b0ba root attributes already have8 rules; unchanged legacy ManagerRawCheckoutControls.test_rules_are_exact_seven_literal_paths expects7 and actually fails8 !=7. Draft8 has9 root rules and actually fails9 !=7. Both original raw failures and old8 draft/full1877 capture remain immutable; neither is attributed solely to new source rules or upgraded to whole PASS. Original legacy8 source/assertions SHALL remain byte exact.
++
++The revised management delta is existing3 plus new6 =9 paths, predicted whole1878: existing .gitattributes, workflow and PowerShell; new scripts/.gitattributes, scripts/windows_foundation_union_overlay.py, scripts/windows_foundation_union_overlay_tests.py, and three union specifications. Root .gitattributes SHALL equal native8c7b7ef262320893142d0a4f47d2a583691b0dd7:.gitattributes exactly (original675ff has no such path), preserving all7 literal original manager routes. scripts/.gitattributes SHALL contain only three exact direct-child anchored patterns /windows_foundation_inference_overlay.py, /windows_foundation_union_overlay.py, /windows_foundation_union_overlay_tests.py with -text, no wildcard or unanchored recursive basename. This gives7 original guarded paths plus3 supplemental source paths, not expansion of the original verify_manager7 lease. Production imported guard is one of original7; older/newer overlay imports are the two native supplementary leased helpers. Ordinary test module is source-only and not called by CI; its Python fixture imports do not mint a production helper lease.
++
++Real owned native Git autocrlf true and false checkout SHALL prove all10 exact source bytes/SHA/native OID and check-attr text unset, full original7 admission and actual two production helper leases; direct unmatched scripts source, scripts/nested copies of every three supplemental basenames, and outside nested/scripts basename remain unspecified and convert under true. New helpers changed raw bytes SHALL remain rejected by native helper lease. Original unchanged legacy8 SHALL actually rerun, preserving its genuine result; do not modify/skip its fixed7 assertion. New11 ordinary suite SHALL genuinely rerun with bounded original fixture/deadline and retain before/after source identity. Real Windows1967 binary14 and Go23 same-head CI remain NOTRUN; no source-only/component result upgrades native authority/IOclose/VM/install/RC.
++
++## FR-8 — Complete exact command transcript (bounded consumer correction)
++
++The consumer SHALL bind explicit trusted caller manager_root, destination, and actual output directory paths; it SHALL NOT infer any expected path from unchecked command arguments. Production successful Go transcript is exactly11 commands: git version, pinned Python version assertion, observerBefore, managerBefore, originalguard restore, union apply, Go version, Go9 race23, union verifyAfter, managerAfter, observerAfter. Production Rust transcript is exactly31: same6 prefix; rustup which before rustc then cargo; rustc verbose version then cargo verbose version; wholelib no-run, wholelib list, fixedfullyqualified14 cases in declared order; union verifyAfter, managerAfter, observerAfter; originalruntime loop rustup which after rustc/cargo each once. Only the last two Rust commands allow either actual Hashtable iteration permutation; all prior commands require one fixed order and exactlyone occurrence. Each transcript entry SHALL match exacttool, selected current executable, argv including original manifests/currentmanager/native source destination and phase receipt paths, log name, and native0. Extra unrelated tools/commands, missing/duplicate/reordered/nonstring args and changed source/receipt paths SHALL deny. The old actual Go23 copied receipt failure-first accepted10 negatives; this sourceSTOP/freeze/raw and peerSTOP remain immutable.
++
++The pure consumer ordinary_profile SHALL be a strict bool function parameter defaultFalse; no CLI flag/env/recordfield may select it, and main SHALL call the production profile with constantFalse. Production requires genuine IMMUTABLE_REMOTE_CI baseline and rejects LOCAL in both function and CLI. Only true ordinary profile accepts actual owned Go23 LOCAL_OWNED_COMPONENT with explicit ACTUAL_OWNED_GO23_NOT_CI context and falseCI; its exact11 transcript substitutes only the genuine guard verify(local baseline) invocation for production restore, with ordinary actual phase paths explicitly bound, never relabels verify as restore. It SHALL return OWNED_COMPONENT_ONLY, ci=false, qualified=false, native_authority=false rather than production COMPILER_DATA_ONLY. No synthetic Rust positive is admitted under this profile. New full source1967/currentmanager7/supplemental2/runtime/log/case checks remain required for both. Both profiles are data validation and mint no owner/native/publication authorization.
++
++The narrow repair remains9paths/1878: edit existing newhelper function/main call and newownedtests/3spec; original PS/workflow routing, originalguard/manifest/oldhelper and all legacy positive/assert/source bytes remain exact. Fresh existingexact consumerLOW9/mainLOW5 impacts and prior unsupportedboundarymanualHIGH remain actual, not substituted with stagedLOW. Necessary controls SHALL use actual owned Go23 process outputs, prove strict pureordinary success then each original10 specific negative denied, every actual command argv/tool/order/count/path negative, false/nonbool profile deny, defaultproductionLOCALdeny, same original exception/cancel/receipt-close boundaries and originallegacy8/new11 rerun. No mutation of old receipts to claim source restore/Windows execution. Production Go11/Rust31 raw audit must be genuine new same-head CI later; ordinary parser tests are not native Rust31 proof.
++
++| FR-8 | 3,4,5,6 | actualcomplete11/31 transcript controls, falseCIordinaryreturn, strict production samehead audit |
+diff --git a/scripts/.gitattributes b/scripts/.gitattributes
+new file mode 100644
+index 0000000..1d12839
+--- /dev/null
++++ b/scripts/.gitattributes
+@@ -0,0 +1,3 @@
++/windows_foundation_inference_overlay.py -text
++/windows_foundation_union_overlay.py -text
++/windows_foundation_union_overlay_tests.py -text
+diff --git a/scripts/windows_foundation_source_compile.ps1 b/scripts/windows_foundation_source_compile.ps1
+index 87a5dca..096624e 100644
+--- a/scripts/windows_foundation_source_compile.ps1
++++ b/scripts/windows_foundation_source_compile.ps1
+@@ -4,14 +4,14 @@ $ErrorActionPreference = 'Stop'
+ Set-StrictMode -Version Latest
+ $Manager = Split-Path $PSScriptRoot -Parent
+ $Output = Join-Path $env:RUNNER_TEMP 'windows-foundation-probe'
+-$Destination = Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-19bb2920'
++$Destination = Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-union1967'
+ New-Item -ItemType Directory -Force $Output | Out-Null
+ $Guard = Join-Path $PSScriptRoot 'windows_foundation_source_guard.py'
+ $Manifest = Join-Path $PSScriptRoot 'windows_foundation_source_manifest.json'
+ $Observer = Join-Path $PSScriptRoot 'windows_foundation_manager_observation.py'
+-$InferenceOverlay = Join-Path $PSScriptRoot 'windows_foundation_inference_overlay.py'
++$UnionOverlay = Join-Path $PSScriptRoot 'windows_foundation_union_overlay.py'
+ $Receipt = [ordered]@{ mode=$Mode; managerCommit=$env:GITHUB_SHA; runId=$env:GITHUB_RUN_ID;
+-    pureSutTree=$(if ($Mode -ceq 'rust') {'6b7e33c45c5e56340b1cfb81a7d304c6c60cf23f'} else {'19bb292004e0fd4ed02374b35bcd2f22469779f0'}); baselineSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
++    pureSutTree='4d42a21057b867e6163e6bbe3ce9edca24da5716'; baselineSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
+     nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBaseline=$null; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; managerObservationFailed=$false; passed=$false }
+ 
+ $ObservationCancellation = $null
+@@ -117,24 +117,28 @@ function Run-SourceCompile {
+     Invoke-CheckedCompiler 'python' @($Guard,'restore','--manifest',$Manifest,'--manager',$Manager,
+         '--destination',$Destination,'--receipt',$Before) 'source-restore.log' | Out-Null
+     $Receipt.sourceBaseline = Get-Content -Raw $Before | ConvertFrom-Json
+-    if ($Mode -ceq 'rust') {
+-        $Receipt.sourceOverlayStarted = $true
+-        $CandidateBefore = Join-Path $Output 'candidate-source-before.json'
+-        Invoke-CheckedCompiler 'python' @($InferenceOverlay,'apply','--manifest',$Manifest,'--manager',$Manager,
+-            '--destination',$Destination,'--receipt',$CandidateBefore) 'candidate-source-overlay.log' | Out-Null
+-        $Receipt.sourceBefore = Get-Content -Raw $CandidateBefore | ConvertFrom-Json
+-    } else { $Receipt.sourceBefore = $Receipt.sourceBaseline }
++    $Receipt.sourceOverlayStarted = $true
++    $CandidateBefore = Join-Path $Output 'candidate-source-before.json'
++    Invoke-CheckedCompiler 'python' @($UnionOverlay,'apply','--manifest',$Manifest,'--manager',$Manager,
++        '--destination',$Destination,'--receipt',$CandidateBefore) 'candidate-source-overlay.log' | Out-Null
++    $Receipt.sourceBefore = Get-Content -Raw $CandidateBefore | ConvertFrom-Json
+     Push-Location $Destination
+     try {
+         if ($Mode -eq 'go') {
+             $Version = Invoke-CheckedCompiler 'go' @('version') 'go-version.log'
+             if ((Get-Content -Raw $Version) -notmatch '^go version go1\.24\.13 linux/amd64') { throw 'Unexpected Go runtime.' }
+-            $Files = @('services/windows-vm-broker/transfer.go','services/windows-vm-broker/transfer_test.go',
++            $Files = @('services/windows-vm-broker/transfer.go',
++                'services/windows-vm-broker/transfer_test.go',
+                 'services/windows-vm-broker/transfer_identity_linux_test.go',
+-                'services/windows-vm-broker/workspace_stream.go','services/windows-vm-broker/guest_workspace_control.go')
++                'services/windows-vm-broker/workspace_stream.go',
++                'services/windows-vm-broker/workspace_stream_test.go',
++                'services/windows-vm-broker/guest_workspace_control.go',
++                'services/windows-vm-broker/output_transfer.go',
++                'services/windows-vm-broker/output_transfer_test.go',
++                'services/windows-vm-broker/transfer_owner_test.go')
+             $Receipt.compiler = 'RUNNING'
+-            Invoke-CheckedCompiler 'go' (@('test','-v','-count=1') + $Files) 'go5-data-test.log' | Out-Null
+-            $Receipt.compiler = 'DATA_TEST_PASS'
++            Invoke-CheckedCompiler 'go' (@('test','-race','-v','-count=1') + $Files) 'go9-data-race-test.log' | Out-Null
++            $Receipt.compiler = 'DATA_23_RACE_TEST_PASS'
+         } else {
+             foreach ($Tool in @('rustc','cargo')) {
+                 $Which = Invoke-CheckedCompiler 'rustup' @('which','--toolchain','1.98.1',$Tool) "rustup-which-before-$Tool.log"
+@@ -159,22 +163,29 @@ function Run-SourceCompile {
+             Invoke-CheckedCompiler 'cargo' ($Cargo + @('--no-run')) 'cargo-whole-test-compile.log' | Out-Null
+             $Receipt.compiler = 'WHOLE_TEST_COMPILE_PASS'
+             $List = Invoke-CheckedCompiler 'cargo' ($Cargo + @('--','--list')) 'cargo-whole-test-list.log'
+-            $Allowed = @('sealed_chunks_keep_original_and_detached_owners_independent',
+-                'chunk_cap_and_cancel_do_not_publish_partial_copy',
+-                'exact_transfer_binding_rejects_each_field_mismatch',
+-                'invalid_wire_names_and_nil_binding_never_make_native_authority',
+-                'checked_close_consumes_data_only_transfer','relative_names_remain_data_not_native_permission',
+-                'diagnostic_metadata_cannot_authorize_output')
++            $Allowed = @('tools::windows_vm::input::chunk_tests::sealed_chunks_keep_original_and_detached_owners_independent',
++                'tools::windows_vm::input::chunk_tests::chunk_cap_and_cancel_do_not_publish_partial_copy',
++                'tools::windows_vm::input::transfer_tests::exact_transfer_binding_rejects_each_field_mismatch',
++                'tools::windows_vm::input::transfer_tests::invalid_wire_names_and_nil_binding_never_make_native_authority',
++                'tools::windows_vm::input::publication_tests::checked_close_consumes_data_only_transfer',
++                'tools::windows_vm::input::tests::relative_names_remain_data_not_native_permission',
++                'tools::windows_vm::output_stage::tests::diagnostic_metadata_cannot_authorize_output',
++                'tools::windows_vm::output_stage::data::data_tests::output_direction_capacity_and_roundtrip',
++                'tools::windows_vm::output_stage::data::data_tests::output_binding_fields_and_terminal_foreign_attempt',
++                'tools::windows_vm::output_stage::data::data_tests::output_header_sequence_offset_digest_and_EOF_reject',
++                'tools::windows_vm::output_stage::data::data_tests::output_cancel_reader_error_and_blocked_reader_boundary',
++                'tools::windows_vm::output_stage::data::data_tests::output_clone_and_concurrent_once',
++                'tools::windows_vm::output_stage::data::data_tests::output_mutex_poison_remains_denied',
++                'tools::windows_vm::output_stage::data::data_tests::output_go_golden_vector_is_exact')
+             $Lines = Get-Content $List
+-            foreach ($Case in $Allowed) {
+-                $MatchingLines = @($Lines | Where-Object { $_ -match ('::' + [regex]::Escape($Case) + ': test$') })
+-                if ($MatchingLines.Count -ne 1) { throw "Named data test absent/ambiguous: $Case" }
+-                $FullName = $MatchingLines[0] -replace ': test$', ''
+-                if ($FullName -cnotmatch '^tools::windows_vm::(input|output_stage)::') { throw 'Unexpected data test namespace.' }
++            foreach ($FullName in $Allowed) {
++                $MatchingLines = @($Lines | Where-Object { $_ -ceq ($FullName + ': test') })
++                if ($MatchingLines.Count -ne 1) { throw "Fixed fully-qualified data test absent/duplicate: $FullName" }
++                $Case = $FullName.Split('::')[-1]
+                 $TestLog = Invoke-CheckedCompiler 'cargo' ($Cargo + @($FullName,'--','--exact','--nocapture','--test-threads=1')) "data-$Case.log"
+-                if ((Get-Content -Raw $TestLog) -notmatch '1 passed; 0 failed; 0 ignored') { throw "Exact test count differs: $Case" }
++                if ((Get-Content -Raw $TestLog) -notmatch '1 passed; 0 failed; 0 ignored') { throw "Exact test count differs: $FullName" }
+             }
+-            $Receipt.compiler = 'WHOLE_TEST_COMPILE_AND_7_DATA_PASS'
++            $Receipt.compiler = 'WHOLE_TEST_COMPILE_AND_14_DATA_PASS'
+         }
+     } finally { Pop-Location }
+ }
+@@ -207,13 +218,8 @@ try {
+         if (Test-Path (Join-Path $Destination '.git/foundation-candidate.index')) {
+             try {
+                 $After = Join-Path $Output 'source-after.json'
+-                if ($Mode -ceq 'rust') {
+-                    Invoke-CheckedCompiler 'python' @($InferenceOverlay,'verify','--manifest',$Manifest,'--manager',$Manager,'--destination',$Destination,
+-                        '--receipt',$After) 'source-after.log' | Out-Null
+-                } else {
+-                    Invoke-CheckedCompiler 'python' @($Guard,'verify','--manifest',$Manifest,'--manager',$Manager,'--destination',$Destination,
+-                        '--receipt',$After) 'source-after.log' | Out-Null
+-                }
++                Invoke-CheckedCompiler 'python' @($UnionOverlay,'verify','--manifest',$Manifest,'--manager',$Manager,'--destination',$Destination,
++                    '--receipt',$After) 'source-after.log' | Out-Null
+                 $Receipt.sourceAfter = Get-Content -Raw $After | ConvertFrom-Json
+                 if ($null -eq $Receipt.sourceBefore -or
+                     $Receipt.sourceAfter.source_digest -cne $Receipt.sourceBefore.source_digest) {
+diff --git a/scripts/windows_foundation_union_overlay.py b/scripts/windows_foundation_union_overlay.py
+new file mode 100644
+index 0000000..1f6235a
+--- /dev/null
++++ b/scripts/windows_foundation_union_overlay.py
+@@ -0,0 +1,386 @@
++#!/usr/bin/env python3
++"""Fixed17 native-source union; compiler/data only, never native authority."""
++import argparse
++import hashlib
++import json
++import os
++from pathlib import Path
++import re
++import sys
++import windows_foundation_source_guard as guard
++import windows_foundation_inference_overlay as original_overlay
++
++TARGET = '4d42a21057b867e6163e6bbe3ce9edca24da5716'
++BACKUP = '833e7b4401ffb15b3ce042a6fb56e6a9ced48ba6'
++PREFIX = 'development-backups/rc070/20261009/checkpoint-91/'
++MANIFEST_NAME = 'CANDIDATE-FULL1967-MANIFEST01.json'
++MANIFEST_SHA = '57bcdfae55407031c00a2b96cca9472880823ac48ab3a4e24b7a57a2d4fe07f6'
++MANIFEST_BYTES = 516400
++TARGET_FILES = 1967
++HELPER = 'scripts/windows_foundation_union_overlay.py'
++LEAF_TABLE = ({'path': 'services/windows-vm-broker/output_transfer.go', 'mode': '100644', 'sha256': 'e52bb1feb1724a03b1ca352b024ab3f3e93cd5c72bd7ca7595e1f69129e18997', 'blob': '537fe795ab4b8ea21c80c15eae7bd27dab32d7b0', 'bytes': 2137}, {'path': 'services/windows-vm-broker/output_transfer_test.go', 'mode': '100644', 'sha256': '76a4a8db6b5afe6d85dd985228e7b70e6dc8af7199ece876ea95c5a824af155b', 'blob': '9396417698bf0556166a5addde83cac71e6aa25a', 'bytes': 8432}, {'path': 'docs/specs/windows-output-data-recreated/requirements.md', 'mode': '100644', 'sha256': 'b05007f10f40d58ae72063fc36508e4721ba6e63b8a0017ed5cd0c29ab6f7fe1', 'blob': 'dc90f748fcf469f5a6a64eda002d0b9b0960f1bc', 'bytes': 1998}, {'path': 'docs/specs/windows-output-data-recreated/design.md', 'mode': '100644', 'sha256': '31798a40eaf6135003be95025f935b3b1c5b77e9db3f6e174acc6c554c412a6e', 'blob': 'f67e22c0613a6ba711fba29c8e39ff049a0ef4fb', 'bytes': 2066}, {'path': 'docs/specs/windows-output-data-recreated/tasks.md', 'mode': '100644', 'sha256': '224af77267befbb8c0cd907e25c3b82c11deb247a6dfe897badba40b08a357a5', 'blob': '9cbda30b654e2184a7077c393d380359de301e79', 'bytes': 1409}, {'path': 'services/windows-vm-broker/transfer.go', 'mode': '100644', 'sha256': 'a29d443756e783584f42ef2aad9b8bb2f25cf17fe82b72c132475b22ec9236e3', 'blob': '1f4432acbe6b44d6bf6969584a69f68d5fca5afa', 'bytes': 5494}, {'path': 'services/windows-vm-broker/transfer_owner_test.go', 'mode': '100644', 'sha256': 'e691fae89dd8223b0dae56a79c8b45a68d84a609a32d7948dfd5c2d03b8dc160', 'blob': '26b087d8e93446e13bead8d5d3b6ac3dd4987681', 'bytes': 4065}, {'path': 'docs/specs/windows-input-data-once/requirements.md', 'mode': '100644', 'sha256': '7763a7a17d5bdfc0ab58314d677f909807db7c9eeeb6f5eb7be193fee4c54fe2', 'blob': '42815a43d421fa025f27a2539d0d1b0319483449', 'bytes': 2299}, {'path': 'docs/specs/windows-input-data-once/design.md', 'mode': '100644', 'sha256': '7f2a307c937769879e5c4bc7c3aac877bd138a0adf5a88f2d76ded401d986133', 'blob': '99cc424d29e570fc678f853ed51cecc4ca581f44', 'bytes': 1239}, {'path': 'docs/specs/windows-input-data-once/tasks.md', 'mode': '100644', 'sha256': 'f438795076e9418426502380c627ae50a9ba8d9bd6834bc83f275b7a98923906', 'blob': '06756a3582c2c930889080cd956ec36de10f0129', 'bytes': 1132}, {'path': 'src-tauri/src/tools/windows_vm/output_stage/data.rs', 'mode': '100644', 'sha256': '9c03dc93a7223975877096a0ca280d558f9af62ff48d7a048be664c85f938c90', 'blob': '2823d75b38960fff503215ae528db89d32b89f51', 'bytes': 6670}, {'path': 'src-tauri/src/tools/windows_vm/output_stage/data_tests.rs', 'mode': '100644', 'sha256': 'd469e670979abe5395fae1b07fbb640182df7390c7b296e0a3febf8e4ed784e6', 'blob': '9d6eada4016d146fff7d754a8ccc70effab79332', 'bytes': 12329}, {'path': 'src-tauri/src/tools/windows_vm/output_stage/mod.rs', 'mode': '100644', 'sha256': '16157e26bf2a659a967b3d4b65f304ca209f947483dc6fc90a0e265fa49f593b', 'blob': '52292b3ab93e7b5c21c51e5605284698c474f800', 'bytes': 504}, {'path': 'docs/specs/windows-rust-output-data-recreated/requirements.md', 'mode': '100644', 'sha256': '2d6fe7dfdfd29aa826ee762ad9faeaed03d0e3e55303f85f9aaa980adb8213d6', 'blob': '227ad410272e0bf8ebd232563e8f54b7193a5da2', 'bytes': 4614}, {'path': 'docs/specs/windows-rust-output-data-recreated/design.md', 'mode': '100644', 'sha256': '47740c9fc39c49de153edc4c74a68d6b3f690ddd187cabfe898e0f8f3a82781a', 'blob': '27d72a19eec566664efd38d585c2464d7d88f90a', 'bytes': 3546}, {'path': 'docs/specs/windows-rust-output-data-recreated/tasks.md', 'mode': '100644', 'sha256': '917ee254794cca021620de1b90d773c3438b644c983714cf53f4cce31266fb00', 'blob': '7cf00dad695a2a5d3fdb69ec7f4a7ab56708c7e1', 'bytes': 2601}, {'path': 'src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs', 'mode': '100644', 'sha256': 'd22b143b6b199e743b19bf931b50358cfac9fcc761704d81139e87a6c07ade00', 'blob': '5b2626f0dde7cd96b4af77ff6715a7bd9ec55ef5', 'bytes': 7163})
++RUST_CASES = ('tools::windows_vm::input::chunk_tests::sealed_chunks_keep_original_and_detached_owners_independent', 'tools::windows_vm::input::chunk_tests::chunk_cap_and_cancel_do_not_publish_partial_copy', 'tools::windows_vm::input::transfer_tests::exact_transfer_binding_rejects_each_field_mismatch', 'tools::windows_vm::input::transfer_tests::invalid_wire_names_and_nil_binding_never_make_native_authority', 'tools::windows_vm::input::publication_tests::checked_close_consumes_data_only_transfer', 'tools::windows_vm::input::tests::relative_names_remain_data_not_native_permission', 'tools::windows_vm::output_stage::tests::diagnostic_metadata_cannot_authorize_output', 'tools::windows_vm::output_stage::data::data_tests::output_direction_capacity_and_roundtrip', 'tools::windows_vm::output_stage::data::data_tests::output_binding_fields_and_terminal_foreign_attempt', 'tools::windows_vm::output_stage::data::data_tests::output_header_sequence_offset_digest_and_EOF_reject', 'tools::windows_vm::output_stage::data::data_tests::output_cancel_reader_error_and_blocked_reader_boundary', 'tools::windows_vm::output_stage::data::data_tests::output_clone_and_concurrent_once', 'tools::windows_vm::output_stage::data::data_tests::output_mutex_poison_remains_denied', 'tools::windows_vm::output_stage::data::data_tests::output_go_golden_vector_is_exact')
++GO_FILES = ('services/windows-vm-broker/transfer.go', 'services/windows-vm-broker/transfer_test.go', 'services/windows-vm-broker/transfer_identity_linux_test.go', 'services/windows-vm-broker/workspace_stream.go', 'services/windows-vm-broker/workspace_stream_test.go', 'services/windows-vm-broker/guest_workspace_control.go', 'services/windows-vm-broker/output_transfer.go', 'services/windows-vm-broker/output_transfer_test.go', 'services/windows-vm-broker/transfer_owner_test.go')
++GO_CASES = ('TestTransferAllBindingFieldsChangeDigest', 'TestTransferBoundEOFHashCancellationAndSingleConsumption', 'TestTransferRelativeAndMalformedIdentityReject', 'TestLinuxTransferCannotIssueNativeFileIdentity', 'TestWorkspaceRustGoCanonicalVector', 'TestWorkspaceExactZeroAndOneMiBBudgets', 'TestWorkspaceEveryHeaderDimensionPermanentlyPoisons', 'TestWorkspaceTruncationTrailingReplayAndFinalDigestReject', 'TestWorkspaceAllocationBoundCancellationAndChunkFailure', 'TestWorkspaceInputOutputDirectionAndMissingTrustedManifestReject', 'TestWorkspaceConcurrentCancellationWhileDecoderCallbackIsBlocked', 'TestOutputTransferExactDirectionBudgetsAndDetachedBytes', 'TestOutputTransferEveryBindingFieldRejectsForeignWire', 'TestOutputTransferPhysicalEOFHashAndReplayReject', 'TestOutputTransferCancelledNilAndCorruptOwnersAreTerminal', 'TestOutputTransferConcurrentConsumersHaveOnlyOneSuccess', 'TestOutputTransferValueCopiesShareTerminalConsumption', 'TestOutputTransferConcurrentValueCopiesHaveOnlyOneSuccess', 'TestInputDataValueCopyCannotConsumeTwice', 'TestInputDataConcurrentConsumptionIsOnce', 'TestInputDataCopiesCannotRedirectBindingOrPayload', 'TestInputDataCopiedContextCannotReviveCancellation', 'TestInputDataConcurrentValueCopiesHaveOneSuccess')
++
++def verify_union_helper_leases(manager):
++    older = original_overlay.verify_helper_lease(manager)
++    expected = older['manager_commit']
++    rows = [row for row in guard.tree_rows(manager, expected) if row['path'] == HELPER]
++    if len(rows) != 1 or rows[0]['mode'] != '100644':
++        raise ValueError('union helper current native source mode/path missing')
++    file = manager / HELPER
++    if file.is_symlink() or not file.is_file():
++        raise ValueError('union helper absent or symlink')
++    data = file.read_bytes()
++    row = dict(rows[0], bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
++    guard.check_blob(data, row)
++    if os.name != 'nt' and file.stat().st_mode & 0o111:
++        raise ValueError('union helper physical executable mode changed')
++    sources = sorted([older['helper_source'], row], key=lambda value: value['path'])
++    digest = hashlib.sha256(json.dumps(sources, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
++    return {'manager_commit': expected, 'helper_sources': sources, 'helper_digest': digest,
++            'native_authority': False}
++
++
++def fetch_union_payload(repo):
++    guard.run_git(repo, 'fetch', '--no-tags', guard.REPOSITORY, BACKUP)
++    if guard.run_git(repo, 'cat-file', '-t', BACKUP).strip() != b'commit':
++        raise ValueError('union payload is not the fixed native immutable commit')
++    native = {row['path']: row for row in guard.tree_rows(repo, BACKUP)}
++    path = PREFIX + MANIFEST_NAME
++    if path not in native or native[path]['mode'] != '100644':
++        raise ValueError('union manifest immutable native path/mode differs')
++    raw = guard.run_git(repo, 'show', BACKUP + ':' + path)
++    guard.check_blob(raw, dict(native[path], bytes=MANIFEST_BYTES, sha256=MANIFEST_SHA))
++    sources = {}
++    for row in LEAF_TABLE:
++        name = PREFIX + 'source/' + row['path'] + '.source'
++        entry = native.get(name)
++        if entry is None or entry['mode'] != '100644' or entry['blob'] != row['blob']:
++            raise ValueError('union literal payload native path/mode/blob differs')
++        data = guard.run_git(repo, 'show', BACKUP + ':' + name)
++        guard.check_blob(data, row)
++        sources[row['path']] = data
++    return raw, sources
++
++
++def load_union_candidate(manifest_raw, sources, baseline):
++    if len(manifest_raw) != MANIFEST_BYTES or hashlib.sha256(manifest_raw).hexdigest() != MANIFEST_SHA:
++        raise ValueError('union manifest literal SHA/size differs')
++    m = json.loads(manifest_raw.decode('utf-8'))
++    if set(m) != {'baselineTree', 'tree', 'files'} or m['baselineTree'] != guard.TARGET or m['tree'] != TARGET:
++        raise ValueError('union manifest source identity differs')
++    rows = m['files']
++    if not isinstance(rows, list) or len(rows) != TARGET_FILES or len({row['path'] for row in rows}) != TARGET_FILES:
++        raise ValueError('union whole1967 rows missing or duplicate')
++    old = {row['path']: row for row in baseline['whole_source']}
++    if len(old) != 1953:
++        raise ValueError('original baseline missing1953 unique rows')
++    leaves = {row['path']: row for row in LEAF_TABLE}
++    if len(leaves) != 17 or set(sources) != set(leaves):
++        raise ValueError('union literal17 source payload vector differs')
++    expected = dict(old)
++    expected.update(leaves)
++    if len(expected) != TARGET_FILES or rows != [expected[path] for path in sorted(expected)]:
++        raise ValueError('union full source is not exact17 change preserving1950')
++    if sum(path in old for path in leaves) != 3 or sum(old.get(path) != row for path, row in leaves.items()) != 17:
++        raise ValueError('union expected3 changed/14new identity differs')
++    for row in rows:
++        guard.safe_path(row['path'])
++        if set(row) != {'path', 'mode', 'blob', 'bytes', 'sha256'} or row['mode'] not in ('100644', '100755'):
++            raise ValueError('union row shape/mode differs')
++        if type(row['bytes']) is not int or row['bytes'] < 0 or not re.fullmatch('[0-9a-f]{40}', row['blob']) or not re.fullmatch('[0-9a-f]{64}', row['sha256']):
++            raise ValueError('union row size/hash malformed')
++    for row in LEAF_TABLE:
++        guard.check_blob(sources[row['path']], row)
++    return m
++
++
++def verify_union_candidate(repo, m):
++    if guard.run_git(repo, 'rev-parse', 'HEAD').decode().strip() != guard.BASE:
++        raise ValueError('union source HEAD is not original D6')
++    actual = guard.run_git(repo, 'write-tree', index=True).decode().strip()
++    if actual != TARGET:
++        raise ValueError('union actual custom native index tree differs')
++    rows = m['files']
++    if guard.tree_rows(repo, actual) != [{key: row[key] for key in ('path', 'mode', 'blob')} for row in rows]:
++        raise ValueError('union actual full native1967 source differs')
++    digest = hashlib.sha256()
++    for row in rows:
++        guard.safe_path(row['path'])
++        file = repo / row['path']
++        if file.is_symlink() or not file.is_file():
++            raise ValueError('union actual source absent or symlink')
++        data = file.read_bytes()
++        guard.check_blob(data, row)
++        if os.name != 'nt' and bool(file.stat().st_mode & 0o111) != (row['mode'] == '100755'):
++            raise ValueError('union physical executable classification differs')
++        digest.update(row['path'].encode() + b'\0' + row['mode'].encode() + b'\0' + row['sha256'].encode() + b'\n')
++    if hashlib.sha256((repo / guard.PROTECTED).read_bytes()).hexdigest() != guard.PROTECTED_SHA:
++        raise ValueError('union protected original positive changed')
++    if (repo / 'src-tauri/src/tools/cloud_host/windows_workspace/stage.rs').exists():
++        raise ValueError('blocked Stage11 source present')
++    if any(guard.run_git(repo, 'ls-files', '--others', '--exclude-standard', '-z', index=True).split(b'\0')):
++        raise ValueError('union untracked source outside original ignored build output')
++    return {'tree': actual, 'files': TARGET_FILES, 'source_digest': digest.hexdigest(),
++            'protected_positive_sha256': guard.PROTECTED_SHA, 'native_positive': 'NOTRUN', 'native_authority': False}
++
++
++def apply_union_overlay(repo, baseline, manifest_raw, sources):
++    # The original1953 verifier runs only on the actual baseline, before any17write.
++    guard.verify_materialized(repo, baseline)
++    m = load_union_candidate(manifest_raw, sources, baseline)
++    for row in LEAF_TABLE:
++        data = sources[row['path']]
++        blob = guard.run_git(repo, 'hash-object', '-w', '--stdin', data=data).decode().strip()
++        if blob != row['blob']:
++            raise ValueError('union native written source blob differs')
++        guard.run_git(repo, 'update-index', '--add', '--cacheinfo', row['mode'] + ',' + blob + ',' + row['path'], index=True)
++    if guard.run_git(repo, 'write-tree', index=True).decode().strip() != TARGET:
++        raise ValueError('union native17 overlay tree differs before materialization')
++    guard.run_git(repo, 'checkout-index', '--force', '--', *[row['path'] for row in LEAF_TABLE], index=True)
++    return verify_union_candidate(repo, m)
++
++
++def verify_union_compiler_result(record, mode, directory, current_source, current_manager, current_commit, current_helpers, manager_root, destination, ordinary_profile=False):
++    if type(ordinary_profile) is not bool:
++        raise ValueError('consumer ordinary profile must be an exact boolean')
++    if not all(isinstance(path, Path) and path.is_absolute() for path in (directory, manager_root, destination)):
++        raise ValueError('consumer requires explicit absolute caller paths')
++    baseline_profile = record.get('sourceBaseline', {}).get('payload_mode')
++    if ordinary_profile:
++        if (mode != 'go' or baseline_profile != 'LOCAL_OWNED_COMPONENT' or
++                record.get('componentContext') != 'ACTUAL_OWNED_GO23_NOT_CI' or
++                os.environ.get('GITHUB_ACTIONS') != 'false'):
++            raise ValueError('consumer ordinary profile requires actual non-CI owned Go local source')
++    elif baseline_profile != 'IMMUTABLE_REMOTE_CI' or record.get('componentContext') is not None:
++        raise ValueError('consumer production profile denies local/component provenance')
++    target = TARGET
++    compiler = 'WHOLE_TEST_COMPILE_AND_14_DATA_PASS' if mode == 'rust' else 'DATA_23_RACE_TEST_PASS'
++    if mode not in ('rust', 'go') or record.get('passed') is not True or record.get('mode') != mode:
++        raise ValueError('consumer requires exact mode and boolean passed')
++    if (record.get('compiler') != compiler or record.get('pureSutTree') != target or
++            record.get('baselineSutTree') != guard.TARGET or record.get('managerCommit') != current_commit or
++            record.get('nativePositive') != 'NOTRUN' or record.get('qualification') != 'SOURCE_ONLY_BLOCKED' or
++            record.get('managerObservationFailed') is not False):
++        raise ValueError('consumer terminal/compiler identity differs')
++    if any(re.search('error|cancel|unknown|skipped', key, re.I) for key in record):
++        raise ValueError('consumer interrupted/unknown/error receipt denied')
++    if record.get('sourceOverlayStarted') is not True:
++        raise ValueError('union overlay was not admitted for exact current mode')
++    if record.get('runId') != os.environ.get('GITHUB_RUN_ID', '') or not re.fullmatch('[0-9]+', str(record.get('runId', ''))):
++        raise ValueError('consumer actual current run identity differs')
++    baseline = record.get('sourceBaseline', {})
++    if (baseline.get('passed') is not True or baseline.get('tree') != guard.TARGET or
++            type(baseline.get('files')) is not int or baseline['files'] != 1953 or
++            baseline.get('native_authority') is not False or
++            baseline.get('protected_positive_sha256') != guard.PROTECTED_SHA):
++        raise ValueError('consumer original full baseline absent')
++    for key in ('sourceBefore', 'sourceAfter'):
++        source = record.get(key, {})
++        if (source.get('passed') is not True or source.get('tree') != target or
++                type(source.get('files')) is not int or source['files'] != TARGET_FILES or
++                source.get('native_authority') is not False or source.get('native_positive') != 'NOTRUN' or
++                source.get('source_digest') != current_source['source_digest'] or
++                source.get('protected_positive_sha256') != guard.PROTECTED_SHA):
++            raise ValueError('consumer whole source before/after differs')
++        if (source.get('helper_sources') != current_helpers['helper_sources'] or
++                source.get('helper_digest') != current_helpers['helper_digest'] or
++                source.get('manager_commit') != current_commit):
++            raise ValueError('consumer current original/new helper leases differ')
++    for key in ('managerSourceBefore', 'managerSourceAfter'):
++        manager = record.get(key, {})
++        if (manager.get('passed') is not True or type(manager.get('manager_files')) is not int or
++                manager['manager_files'] != 7 or manager.get('native_authority') is not False or
++                manager.get('manager_commit') != current_commit or
++                manager.get('management_digest') != current_manager['management_digest'] or
++                manager.get('management_source') != current_manager['management_source']):
++            raise ValueError('consumer original manager seven before/after differs')
++    runtime = record.get('runtime', {})
++    expected = {'git', 'python', 'rustup', 'rustc', 'cargo'} if mode == 'rust' else {'git', 'python', 'go'}
++    if not isinstance(runtime, dict) or set(runtime) != expected:
++        raise ValueError('consumer complete fixed runtime vector absent')
++    for tool, row in runtime.items():
++        path = Path(row.get('path', ''))
++        before, after = row.get('sha256Before'), row.get('sha256After')
++        if (not path.is_absolute() or not path.is_file() or
++                not isinstance(before, str) or not re.fullmatch('[0-9a-fA-F]{64}', before) or
++                not isinstance(after, str) or before != after or
++                hashlib.sha256(path.read_bytes()).hexdigest() != before.lower()):
++            raise ValueError('consumer actual runtime before/after bytes differ')
++        if tool == 'python' and not path.samefile(sys.executable):
++            raise ValueError('consumer interpreter differs from producer pinned payload')
++        if mode == 'rust' and tool in ('rustc', 'cargo'):
++            payload = Path(row.get('payloadPath', ''))
++            sha = row.get('payloadSha256Before')
++            if (not payload.is_absolute() or not payload.is_file() or
++                    not isinstance(sha, str) or not re.fullmatch('[0-9a-fA-F]{64}', sha) or
++                    sha != row.get('payloadSha256After') or hashlib.sha256(payload.read_bytes()).hexdigest() != sha.lower()):
++                raise ValueError('consumer actual Rust payload differs')
++    commands = record.get('commands')
++    if not isinstance(commands, list) or not commands:
++        raise ValueError('consumer native command records absent')
++    by_log = {}
++    for command in commands:
++        tool = command.get('executable')
++        if tool not in runtime or type(command.get('exitCode')) is not int or command['exitCode'] != 0:
++            raise ValueError('consumer native command exit differs')
++        expected_path = runtime[tool].get('payloadPath', runtime[tool]['path'])
++        if command.get('resolvedExecutable') != expected_path or not isinstance(command.get('arguments'), list):
++            raise ValueError('consumer native command selection differs')
++        name = command.get('log')
++        if not isinstance(name, str) or name in by_log:
++            raise ValueError('consumer duplicate/missing command log identity')
++        original_overlay.read_result_log(directory, name)
++        by_log[name] = command
++    guard_path = str(manager_root / 'scripts/windows_foundation_source_guard.py')
++    manifest_path = str(manager_root / 'scripts/windows_foundation_source_manifest.json')
++    observer_path = str(manager_root / 'scripts/windows_foundation_manager_observation.py')
++    union_path = str(manager_root / HELPER)
++    root = str(manager_root)
++    sut = str(destination)
++    baseline_args = ([guard_path, 'verify', '--manifest', manifest_path, '--destination', sut,
++                      '--receipt', str(directory / 'source-before.json')] if ordinary_profile else
++                     [guard_path, 'restore', '--manifest', manifest_path, '--manager', root,
++                      '--destination', sut, '--receipt', str(directory / 'source-before.json')])
++    expected_commands = [
++        ('git', 'git-version.log', ['--version']),
++        ('python', 'python-version.log', ['-c',
++         'import sys; assert sys.version_info[:2] == (3, 12), sys.version; print(sys.version)']),
++        ('python', 'management-byte-observation-Before.log',
++         [observer_path, '--manager', root, '--receipt', str(directory / 'management-byte-observation-Before.json')]),
++        ('python', 'management-before.log', [guard_path, 'verify-manager', '--manifest', manifest_path,
++         '--manager', root, '--receipt', str(directory / 'management-before.json')]),
++        ('python', 'source-restore.log', baseline_args),
++        ('python', 'candidate-source-overlay.log', [union_path, 'apply', '--manifest', manifest_path,
++         '--manager', root, '--destination', sut, '--receipt', str(directory / 'candidate-source-before.json')]),
++    ]
++    if mode == 'go':
++        expected_commands += [('go', 'go-version.log', ['version']),
++                              ('go', 'go9-data-race-test.log', ['test', '-race', '-v', '-count=1', *GO_FILES])]
++    else:
++        expected_commands += [('rustup', 'rustup-which-before-' + tool + '.log',
++                               ['which', '--toolchain', '1.98.1', tool]) for tool in ('rustc', 'cargo')]
++        expected_commands += [
++            ('rustc', 'rustc-version.log', ['--version', '--verbose']),
++            ('cargo', 'cargo-version.log', ['--version', '--verbose']),
++            ('cargo', 'cargo-whole-test-compile.log', [*original_overlay.CARGO_VECTOR, '--no-run']),
++            ('cargo', 'cargo-whole-test-list.log', [*original_overlay.CARGO_VECTOR, '--', '--list']),
++        ]
++        expected_commands += [('cargo', 'data-' + case.rsplit('::', 1)[1] + '.log',
++                               [*original_overlay.CARGO_VECTOR, case, '--', '--exact', '--nocapture', '--test-threads=1'])
++                              for case in RUST_CASES]
++    expected_commands += [
++        ('python', 'source-after.log', [union_path, 'verify', '--manifest', manifest_path, '--manager', root,
++         '--destination', sut, '--receipt', str(directory / 'source-after.json')]),
++        ('python', 'management-after.log', [guard_path, 'verify-manager', '--manifest', manifest_path,
++         '--manager', root, '--receipt', str(directory / 'management-after.json')]),
++        ('python', 'management-byte-observation-After.log',
++         [observer_path, '--manager', root, '--receipt', str(directory / 'management-byte-observation-After.json')]),
++    ]
++    actual_commands = [(command['executable'], command['log'], command['arguments']) for command in commands]
++    if any(any(type(argument) is not str for argument in arguments) for _, _, arguments in actual_commands):
++        raise ValueError('consumer exact command argv requires strings')
++    if mode == 'go':
++        if actual_commands != expected_commands:
++            raise ValueError('consumer complete exact command transcript differs')
++    else:
++        after_rustc = ('rustup', 'rustup-which-after-rustc.log', ['which', '--toolchain', '1.98.1', 'rustc'])
++        after_cargo = ('rustup', 'rustup-which-after-cargo.log', ['which', '--toolchain', '1.98.1', 'cargo'])
++        # The original Hashtable runtime loop allows only these two final permutations.
++        if actual_commands not in (expected_commands + [after_rustc, after_cargo],
++                                   expected_commands + [after_cargo, after_rustc]):
++            raise ValueError('consumer complete exact command transcript differs')
++    if mode == 'go':
++        if [c['log'] for c in commands if c['executable'] == 'go'] != ['go-version.log', 'go9-data-race-test.log']:
++            raise ValueError('consumer original Go command vector differs')
++        if by_log['go-version.log']['arguments'] != ['version'] or not original_overlay.read_result_log(directory, 'go-version.log').startswith('go version go1.24.13 linux/amd64'):
++            raise ValueError('consumer pinned Go version differs')
++        if by_log['go9-data-race-test.log']['arguments'] != ['test', '-race', '-v', '-count=1', *GO_FILES]:
++            raise ValueError('consumer original Go five-source vector differs')
++        log = original_overlay.read_result_log(directory, 'go9-data-race-test.log')
++        names = re.findall(r'^--- PASS: ([A-Za-z0-9_]+) \(', log, re.M)
++        runs = re.findall(r'^=== RUN   ([A-Za-z0-9_]+)\r?$', log, re.M)
++        if len(names) != 23 or len(runs) != 23 or set(names) != set(GO_CASES) or set(runs) != set(GO_CASES) or 'DATA RACE' in log or not re.search(r'^PASS\r?$', log, re.M):
++            raise ValueError('consumer original Go four unique success identities absent')
++    else:
++        needed = ['cargo-whole-test-compile.log', 'cargo-whole-test-list.log', *['data-' + case.rsplit('::', 1)[1] + '.log' for case in RUST_CASES]]
++        cargo = [c for c in commands if c['executable'] == 'cargo' and c['log'] != 'cargo-version.log']
++        if [c['log'] for c in cargo] != needed:
++            raise ValueError('consumer original Rust command order/vector differs')
++        if cargo[0]['arguments'] != [*original_overlay.CARGO_VECTOR, '--no-run'] or cargo[1]['arguments'] != [*original_overlay.CARGO_VECTOR, '--', '--list']:
++            raise ValueError('consumer whole library compile/list command differs')
++        listed = original_overlay.read_result_log(directory, needed[1]).splitlines()
++        for full, command in zip(RUST_CASES, cargo[2:]):
++            if listed.count(full + ': test') != 1:
++                raise ValueError('consumer exact fullyqualified Rust case absent/duplicate')
++            if command['arguments'] != [*original_overlay.CARGO_VECTOR, full, '--', '--exact', '--nocapture', '--test-threads=1']:
++                raise ValueError('consumer original Rust unique exact command differs')
++            log = original_overlay.read_result_log(directory, command['log'])
++            if len(re.findall(r'^test ' + re.escape(full) + r' \.\.\. ok\r?$', log, re.M)) != 1 or not re.search(r'test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; [0-9]+ filtered out', log):
++                raise ValueError('consumer actual exact Rust success log absent')
++    result = {'passed': True, 'mode': mode, 'tree': target, 'files': TARGET_FILES,
++              'named_data_count': 14 if mode == 'rust' else 23, 'native_authority': False,
++              'native_positive': 'NOTRUN', 'qualification': 'COMPILER_DATA_ONLY'}
++    if ordinary_profile:
++        result.update(qualification='OWNED_COMPONENT_ONLY', ci=False, qualified=False)
++    return result
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument('operation', choices=('apply', 'verify', 'verify-result'))
++    parser.add_argument('--manifest', type=Path, required=True)
++    parser.add_argument('--manager', type=Path, required=True)
++    parser.add_argument('--destination', type=Path, required=True)
++    parser.add_argument('--receipt', type=Path, required=True)
++    parser.add_argument('--mode', choices=('rust', 'go'))
++    parser.add_argument('--compiler-result', type=Path)
++    args = parser.parse_args()
++    result = {'passed': False, 'native_authority': False, 'native_positive': 'NOTRUN',
++              'baseline_tree': guard.TARGET, 'target_tree': TARGET, 'backup_commit': BACKUP}
++    primary = None
++    try:
++        helper = verify_union_helper_leases(args.manager.resolve())
++        baseline = guard.load_manifest(args.manifest.resolve())
++        manifest_raw, sources = fetch_union_payload(args.destination.resolve())
++        candidate = load_union_candidate(manifest_raw, sources, baseline)
++        if args.operation == 'verify-result':
++            if args.mode is None or args.compiler_result is None:
++                raise ValueError('union terminal consumer requires mode and actual receipt')
++            file = args.compiler_result
++            if file.is_symlink() or not file.is_file() or file.stat().st_size > 2 * 1024 * 1024:
++                raise ValueError('union terminal producer receipt missing or unbounded')
++            record = json.loads(file.read_text(encoding='utf-8-sig'))
++            if record.get('sourceBaseline', {}).get('payload_mode') != 'IMMUTABLE_REMOTE_CI':
++                raise ValueError('union terminal requires actual immutable remote baseline provenance')
++            manager = guard.verify_manager(args.manager.resolve())
++            current = verify_union_candidate(args.destination.resolve(), candidate)
++            result.update(verify_union_compiler_result(record, args.mode, file.parent, current, manager,
++                                                       helper['manager_commit'], helper, args.manager.resolve(), args.destination.resolve(),
++                                                       ordinary_profile=False))
++        elif args.operation == 'apply':
++            result.update(apply_union_overlay(args.destination.resolve(), baseline, manifest_raw, sources))
++        else:
++            result.update(verify_union_candidate(args.destination.resolve(), candidate))
++        after_helper = verify_union_helper_leases(args.manager.resolve())
++        if after_helper != helper:
++            raise ValueError('union original/new helper native source changed during invocation')
++        result.update(helper)
++        result['passed'] = True
++    except BaseException as error:
++        result['error_type'] = type(error).__name__
++        result['error'] = str(error)
++        primary = error
++    try:
++        guard.write_receipt(args.receipt, result)
++    except BaseException as receipt_error:
++        if primary is not None:
++            raise BaseExceptionGroup('Original union failure and receipt failure both preserved.', [primary, receipt_error])
++        raise
++    if primary is not None:
++        raise primary
++    print(json.dumps(result, ensure_ascii=False))
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/scripts/windows_foundation_union_overlay_tests.py b/scripts/windows_foundation_union_overlay_tests.py
+new file mode 100644
+index 0000000..89dd1f4
+--- /dev/null
++++ b/scripts/windows_foundation_union_overlay_tests.py
+@@ -0,0 +1,507 @@
++#!/usr/bin/env python3
++"""Owned Git/data/parser controls only; no GitHub/native-owner/compiler qualification."""
++import atexit
++import copy
++import hashlib
++import io
++import json
++import os
++from pathlib import Path
++import shutil
++import subprocess
++import sys
++import tempfile
++import unittest
++from unittest.mock import patch
++sys.dont_write_bytecode = True
++import windows_foundation_source_guard as guard
++import windows_foundation_union_overlay as overlay
++import windows_foundation_inference_overlay as original_overlay
++import windows_foundation_inference_overlay_tests as original_controls
++import windows_foundation_manager_checkout_tests as legacy_checkout
++
++POOL = Path(sys.argv[1]).resolve()
++PWSH = sys.argv[2] if len(sys.argv) > 2 else None
++CONTROL_EVIDENCE = Path(sys.argv[3]).resolve() if len(sys.argv) > 3 else None
++
++
++class UnionOverlayOwnedControls(unittest.TestCase):
++    def setUp(self):
++        cls = type(self)
++        if not hasattr(cls, 'owned'):
++            cls.owned = tempfile.TemporaryDirectory(prefix='ordinary-union1967-', dir=POOL.parent)
++            atexit.register(cls.owned.cleanup)
++            cls.root = Path(cls.owned.name)
++            cls.repo = cls.root / 'sut'
++            subprocess.run(['git', 'clone', '--no-hardlinks', '--no-checkout', str(POOL), str(cls.repo)],
++                           capture_output=True, check=True, timeout=30)
++            guard.run_git(cls.repo, 'checkout', '--detach', guard.BASE)
++            cls.baseline = guard.load_manifest(Path(guard.__file__).with_name('windows_foundation_source_manifest.json'))
++            # This is real native remote fetch/show of the immutable833e payload, not an API adapter.
++            cls.manifest_raw, cls.sources = overlay.fetch_union_payload(cls.repo)
++            cls.candidate = overlay.load_union_candidate(cls.manifest_raw, cls.sources, cls.baseline)
++            cls.manager = cls.root / 'manager'
++            cls.manager.mkdir()
++            paths = [*legacy_checkout.MANAGER_PATHS, original_overlay.HELPER, overlay.HELPER,
++                     'scripts/windows_foundation_manager_observation.py']
++            for name in paths:
++                dest = cls.manager / name
++                dest.parent.mkdir(parents=True, exist_ok=True)
++                dest.write_bytes((Path(__file__).resolve().parent.parent / name).read_bytes())
++            guard.run_git(cls.manager, 'init', '-q')
++            guard.run_git(cls.manager, 'add', '--', '.')
++            guard.run_git(cls.manager, '-c', 'user.name=Owned Source Control',
++                          '-c', 'user.email=owned-control@example.invalid', 'commit', '-qm',
++                          'Owned ordinary union fixture; not CI or a production candidate')
++            cls.manager_head = guard.run_git(cls.manager, 'rev-parse', 'HEAD').decode().strip()
++        self.write_owned_baseline()
++
++    def tearDown(self):
++        self.write_owned_baseline()
++
++    def write_owned_baseline(self):
++        # Remove only14 known new files inside this exclusively created ordinary fixture.
++        originals = {row['path'] for row in self.baseline['whole_source']}
++        for row in overlay.LEAF_TABLE:
++            file = self.repo / row['path']
++            if row['path'] not in originals and (file.exists() or file.is_symlink()):
++                file.unlink()
++        canary = self.repo / 'ordinary-untracked-canary.txt'
++        if canary.exists():
++            canary.unlink()
++        guard.run_git(self.repo, 'read-tree', guard.TARGET, index=True)
++        guard.run_git(self.repo, 'checkout-index', '--all', '--force', index=True)
++        self.assertEqual(guard.verify_materialized(self.repo, self.baseline)['tree'], guard.TARGET)
++
++    def owned_env(self):
++        # Source-lease context only: explicitly false CI; this never grants native authority.
++        return patch.dict(os.environ, {'GITHUB_SHA': self.manager_head, 'GITHUB_RUN_ID': '1',
++                                       'GITHUB_ACTIONS': 'false'})
++
++    def invoke_production_main(self, operation, receipt, **patches):
++        argv = ['union', operation, '--manifest', str(Path(guard.__file__).with_name('windows_foundation_source_manifest.json')),
++                '--manager', str(self.manager), '--destination', str(self.repo), '--receipt', str(receipt)]
++        with patch.object(sys, 'argv', argv), self.owned_env():
++            return overlay.main()
++
++    def run_owned_powershell(self, case):
++        self.assertIsNotNone(PWSH)
++        self.assertIsNotNone(CONTROL_EVIDENCE)
++        source = overlay.apply_union_overlay(self.repo, self.baseline, self.manifest_raw, self.sources)
++        source_before = self.root / ('before-' + case + '.json')
++        source_before.write_text(json.dumps(dict(source, passed=True)))
++        before = self.root / ('manager-before-' + case + '.json')
++        with self.owned_env():
++            before.write_text(json.dumps(guard.verify_manager(self.manager)))
++        script = self.root / 'actual-source-host-control.ps1'
++        # Only the controlled fixture parameter name changes; production TryAST/functions are read exact.
++        script.write_text(original_controls.PS_SOURCE_CANCEL_CONTROL.replace('$InferenceOverlay', '$UnionOverlay'))
++        output = self.root / ('actual-ps-' + case)
++        output.mkdir(exist_ok=True)
++        args = [PWSH, '-NoLogo', '-NoProfile', '-File', str(script),
++                str(Path(__file__).with_name('windows_foundation_source_compile.ps1')), sys.executable,
++                str(self.manager), str(self.manager / 'scripts/windows_foundation_source_guard.py'),
++                str(self.manager / 'scripts/windows_foundation_source_manifest.json'),
++                str(self.manager / 'scripts/windows_foundation_manager_observation.py'),
++                str(self.manager / overlay.HELPER), str(self.repo), str(output), str(before), str(source_before), case]
++        with self.owned_env():
++            result = subprocess.run(args, capture_output=True, timeout=30)
++        evidence = CONTROL_EVIDENCE / ('actual-ps-' + case)
++        evidence.mkdir(parents=True, exist_ok=True)
++        (evidence / 'stdout.raw').write_bytes(result.stdout)
++        (evidence / 'stderr.raw').write_bytes(result.stderr)
++        for file in output.iterdir():
++            if file.is_file():
++                shutil.copyfile(file, evidence / file.name)
++        (evidence / 'native-result.json').write_text(json.dumps({'nativeExit': result.returncode,
++                                                               'compilerSUTExecuted': 0}))
++        self.assertEqual(result.returncode, 0, result.stdout.decode(errors='replace') + result.stderr.decode(errors='replace'))
++        receipt = json.loads((output / 'compiler-result.json').read_text(encoding='utf-8-sig'))
++        self.assertIs(receipt['passed'], False)
++        self.assertEqual(receipt['compiler'], 'NOTRUN')
++        self.assertEqual(receipt['managerSourceBefore']['management_digest'], receipt['managerSourceAfter']['management_digest'])
++        self.assertEqual(receipt['runtime']['python']['sha256Before'], receipt['runtime']['python']['sha256After'])
++        self.assertIn('no new diagnostic child', receipt['managerObservationAfterSkipped'])
++        if case == 'before-pipeline':
++            self.assertIs(receipt['delegateInterruptedUnknown'], True)
++        if case == 'after-pipeline':
++            self.assertIs(receipt['sourceAfterInterruptedUnknown'], True)
++        return receipt
++
++    def owned_true_record(self):
++        if hasattr(type(self), 'consumer_fixture'):
++            overlay.apply_union_overlay(self.repo, self.baseline, self.manifest_raw, self.sources)
++            return type(self).consumer_fixture
++        output = self.root / 'actual-owned-go23'
++        output.mkdir()
++        tools = {'git': shutil.which('git'), 'python': sys.executable,
++                 'go': '/workspace/work/rc070/windows-tools/go/bin/go'}
++        runtime = {name: {'path': path, 'sha256Before': hashlib.sha256(Path(path).read_bytes()).hexdigest(),
++                          'sha256After': None} for name, path in tools.items()}
++        commands = []
++        manifest = self.manager / 'scripts/windows_foundation_source_manifest.json'
++        native_guard = self.manager / 'scripts/windows_foundation_source_guard.py'
++        native_helper = self.manager / overlay.HELPER
++        observer = self.manager / 'scripts/windows_foundation_manager_observation.py'
++        calls = [('git', ['--version'], 'git-version.log'),
++                 ('python', ['-c', 'import sys; assert sys.version_info[:2] == (3, 12), sys.version; print(sys.version)'], 'python-version.log'),
++                 ('python', [str(observer), '--manager', str(self.manager), '--receipt', str(output / 'management-byte-observation-Before.json')], 'management-byte-observation-Before.log'),
++                 ('python', [str(native_guard), 'verify-manager', '--manifest', str(manifest), '--manager', str(self.manager), '--receipt', str(output / 'management-before.json')], 'management-before.log'),
++                 # Actual baseline verification, explicitly LOCAL_OWNED_COMPONENT; not remote CI restoration.
++                 ('python', [str(native_guard), 'verify', '--manifest', str(manifest), '--destination', str(self.repo), '--receipt', str(output / 'source-before.json')], 'source-restore.log'),
++                 ('python', [str(native_helper), 'apply', '--manifest', str(manifest), '--manager', str(self.manager), '--destination', str(self.repo), '--receipt', str(output / 'candidate-source-before.json')], 'candidate-source-overlay.log'),
++                 ('go', ['version'], 'go-version.log'),
++                 ('go', ['test', '-race', '-v', '-count=1', *overlay.GO_FILES], 'go9-data-race-test.log'),
++                 ('python', [str(native_helper), 'verify', '--manifest', str(manifest), '--manager', str(self.manager), '--destination', str(self.repo), '--receipt', str(output / 'source-after.json')], 'source-after.log'),
++                 ('python', [str(native_guard), 'verify-manager', '--manifest', str(manifest), '--manager', str(self.manager), '--receipt', str(output / 'management-after.json')], 'management-after.log'),
++                 ('python', [str(observer), '--manager', str(self.manager), '--receipt', str(output / 'management-byte-observation-After.json')], 'management-byte-observation-After.log')]
++        with self.owned_env():
++            for tool, arguments, name in calls:
++                env = os.environ.copy()
++                env['GOCACHE'] = str(CONTROL_EVIDENCE / 'go-cache')
++                child = subprocess.run([tools[tool], *arguments], cwd=self.repo, env=env,
++                                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
++                (output / name).write_bytes(child.stdout)
++                self.assertEqual(child.returncode, 0, child.stdout.decode(errors='replace'))
++                commands.append({'executable': tool, 'resolvedExecutable': tools[tool], 'arguments': arguments,
++                                 'log': name, 'exitCode': child.returncode})
++            source = overlay.verify_union_candidate(self.repo, self.candidate)
++            manager = guard.verify_manager(self.manager)
++            helpers = overlay.verify_union_helper_leases(self.manager)
++        for row in runtime.values():
++            row['sha256After'] = hashlib.sha256(Path(row['path']).read_bytes()).hexdigest()
++        baseline = json.loads((output / 'source-before.json').read_text())
++        baseline['payload_mode'] = 'LOCAL_OWNED_COMPONENT'
++        record = {'passed': True, 'mode': 'go', 'runId': '1', 'compiler': 'DATA_23_RACE_TEST_PASS',
++                  'pureSutTree': overlay.TARGET, 'baselineSutTree': guard.TARGET, 'managerCommit': self.manager_head,
++                  'sourceOverlayStarted': True, 'nativePositive': 'NOTRUN', 'qualification': 'SOURCE_ONLY_BLOCKED',
++                  'managerObservationFailed': False, 'sourceBaseline': baseline,
++                  'sourceBefore': json.loads((output / 'candidate-source-before.json').read_text()),
++                  'sourceAfter': json.loads((output / 'source-after.json').read_text()),
++                  'managerSourceBefore': json.loads((output / 'management-before.json').read_text()),
++                  'managerSourceAfter': json.loads((output / 'management-after.json').read_text()),
++                  'runtime': runtime, 'commands': commands, 'componentContext': 'ACTUAL_OWNED_GO23_NOT_CI'}
++        with self.owned_env():
++            admitted = overlay.verify_union_compiler_result(record, 'go', output, source, manager, self.manager_head, helpers, self.manager, self.repo, ordinary_profile=True)
++        self.assertEqual(admitted['named_data_count'], 23)
++        self.assertIs(admitted['native_authority'], False)
++        self.assertEqual(admitted['qualification'], 'OWNED_COMPONENT_ONLY')
++        self.assertIs(admitted['ci'], False)
++        self.assertIs(admitted['qualified'], False)
++        type(self).consumer_fixture = (record, output, source, manager, helpers)
++        evidence = CONTROL_EVIDENCE / 'actual-owned-go23'
++        evidence.mkdir(parents=True, exist_ok=True)
++        for file in output.iterdir():
++            if file.is_file():
++                shutil.copyfile(file, evidence / file.name)
++        (evidence / 'LOCAL-ORDINARY-RECORD.json').write_text(json.dumps(record, indent=2) + '\n')
++        (evidence / 'COMPONENT-ONLY-RESULT.json').write_text(json.dumps(admitted, indent=2) + '\n')
++        return type(self).consumer_fixture
++
++    def test_full_baseline_then_exact_native_1967_overlay_and_verify(self):
++        with self.assertRaisesRegex(ValueError, 'index tree'):
++            overlay.verify_union_candidate(self.repo, self.candidate)
++        admitted = overlay.apply_union_overlay(self.repo, self.baseline, self.manifest_raw, self.sources)
++        self.assertEqual((admitted['tree'], admitted['files'], admitted['native_authority']), (overlay.TARGET, 1967, False))
++        self.assertEqual(admitted, overlay.verify_union_candidate(self.repo, self.candidate))
++        self.assertEqual(set(guard.run_git(self.repo, 'diff', '--name-only', guard.TARGET, overlay.TARGET).decode().splitlines()), set(self.sources))
++        self.assertEqual(guard.run_git(self.repo, 'cat-file', '-t', overlay.BACKUP).strip(), b'commit')
++
++    def test_candidate_manifest_exact_rows_modes_and_leaf_allowlist(self):
++        for raw in [self.manifest_raw + b' ', self.manifest_raw.replace(b'100644', b'100755', 1)]:
++            with self.assertRaisesRegex(ValueError, 'manifest literal'):
++                overlay.apply_union_overlay(self.repo, self.baseline, raw, self.sources)
++            self.assertEqual(guard.verify_materialized(self.repo, self.baseline)['tree'], guard.TARGET)
++        changed = dict(self.sources)
++        changed['ordinary-new-source.py'] = b'data only'
++        with self.assertRaisesRegex(ValueError, 'payload vector'):
++            overlay.load_union_candidate(self.manifest_raw, changed, self.baseline)
++
++    def test_missing_corrupt_extra_or_wrong_mode_payload_deny(self):
++        missing = dict(self.sources); del missing[next(iter(missing))]
++        corrupt = dict(self.sources); name = next(iter(corrupt)); corrupt[name] += b'\n'
++        for sources in [missing, corrupt]:
++            with self.assertRaises(ValueError):
++                overlay.apply_union_overlay(self.repo, self.baseline, self.manifest_raw, sources)
++            self.assertEqual(guard.verify_materialized(self.repo, self.baseline)['tree'], guard.TARGET)
++        mode_path = self.repo / 'Cargo.toml'
++        if not mode_path.exists():
++            mode_path = self.repo / 'src-tauri/Cargo.toml'
++        old = mode_path.stat().st_mode
++        mode_path.chmod(old | 0o100)
++        try:
++            with self.assertRaisesRegex(ValueError, 'executable mode'):
++                overlay.apply_union_overlay(self.repo, self.baseline, self.manifest_raw, self.sources)
++        finally:
++            mode_path.chmod(old)
++
++    def test_full_source_after_drift_and_index_mismatch_deny(self):
++        overlay.apply_union_overlay(self.repo, self.baseline, self.manifest_raw, self.sources)
++        file = self.repo / 'src-tauri/Cargo.toml'
++        original = file.read_bytes(); file.write_bytes(original + b'\n')
++        with self.assertRaisesRegex(ValueError, 'SHA/size'):
++            overlay.verify_union_candidate(self.repo, self.candidate)
++        file.write_bytes(original)
++        self.assertEqual(overlay.verify_union_candidate(self.repo, self.candidate)['files'], 1967)
++        guard.run_git(self.repo, 'read-tree', guard.TARGET, index=True)
++        with self.assertRaisesRegex(ValueError, 'index tree'):
++            overlay.verify_union_candidate(self.repo, self.candidate)
++
++    def test_partial_apply_and_receipt_failure_deny(self):
++        native = guard.run_git
++        primary = RuntimeError('ordinary partial native materialization interruption')
++        receipt = self.root / 'partial-apply.json'
++        with patch.object(guard, 'run_git', side_effect=lambda repo, *args, **kw:
++                          (_ for _ in ()).throw(primary) if args[0] == 'checkout-index' else native(repo, *args, **kw)):
++            with self.assertRaises(RuntimeError) as caught:
++                self.invoke_production_main('apply', receipt)
++        self.assertIs(caught.exception, primary)
++        self.assertIs(json.loads(receipt.read_text())['passed'], False)
++        with self.assertRaises(ValueError):
++            overlay.verify_union_candidate(self.repo, self.candidate)
++        self.write_owned_baseline()
++        bad = self.root / 'owned-receipt-directory'; bad.mkdir(exist_ok=True)
++        with patch.object(guard, 'run_git', side_effect=lambda repo, *args, **kw:
++                          (_ for _ in ()).throw(primary) if args[0] == 'checkout-index' else native(repo, *args, **kw)):
++            with self.assertRaises(BaseExceptionGroup) as caught:
++                self.invoke_production_main('apply', bad)
++        self.assertIs(caught.exception.exceptions[0], primary)
++        self.assertIsInstance(caught.exception.exceptions[1], IsADirectoryError)
++
++    def test_original_exception_cancel_and_close_preserved(self):
++        native = guard.run_git
++        cancellation = KeyboardInterrupt('owned ordinary cancellation, no nativecancel claim')
++        receipt = self.root / 'cancel-closed.json'
++        opened = []; actual = Path.open
++        with patch.object(Path, 'open', side_effect=lambda file, *a, **kw:
++                          opened.append(actual(file, *a, **kw)) or opened[-1], autospec=True), \
++             patch.object(guard, 'run_git', side_effect=lambda repo, *args, **kw:
++                          (_ for _ in ()).throw(cancellation) if args[0] == 'checkout-index' else native(repo, *args, **kw)):
++            with self.assertRaises(KeyboardInterrupt) as caught:
++                self.invoke_production_main('apply', receipt)
++        self.assertIs(caught.exception, cancellation)
++        self.assertTrue(opened)
++        self.assertTrue(all(file.closed for file in opened))
++        self.assertIs(json.loads(receipt.read_text())['passed'], False)
++        self.write_owned_baseline()
++        overlay.apply_union_overlay(self.repo, self.baseline, self.manifest_raw, self.sources)
++        # Controlled print/receipt error injections are component negatives, not native close/cancel evidence.
++        original_print = KeyboardInterrupt('owned printing cancellation')
++        with patch('builtins.print', side_effect=original_print):
++            with self.assertRaises(KeyboardInterrupt) as caught:
++                self.invoke_production_main('verify', self.root / 'printed-after-close.json')
++        self.assertIs(caught.exception, original_print)
++        self.assertIs(json.loads((self.root / 'printed-after-close.json').read_text())['passed'], True)
++        unknown = OSError('owned injected receipt close UNKNOWN; not a native close proof')
++        with patch.object(guard, 'write_receipt', side_effect=unknown):
++            with self.assertRaises(OSError) as caught:
++                self.invoke_production_main('verify', self.root / 'unknown-receipt.json')
++        self.assertIs(caught.exception, unknown)
++
++    def test_current_manager_and_both_helper_lease_drift_deny(self):
++        with self.owned_env():
++            self.assertEqual(len(overlay.verify_union_helper_leases(self.manager)['helper_sources']), 2)
++            for name in [original_overlay.HELPER, overlay.HELPER]:
++                file = self.manager / name; raw = file.read_bytes(); file.write_bytes(raw + b'\n')
++                try:
++                    with self.assertRaisesRegex(ValueError, 'blob mismatch'):
++                        overlay.verify_union_helper_leases(self.manager)
++                finally:
++                    file.write_bytes(raw)
++            with patch.dict(os.environ, {'GITHUB_SHA': guard.BASE}):
++                with self.assertRaises(ValueError):
++                    overlay.verify_union_helper_leases(self.manager)
++
++    def test_consumer_rust14_and_go23_vector_integrity(self):
++        record, output, source, manager, helpers = self.owned_true_record()
++        raw = (output / 'go9-data-race-test.log').read_bytes()
++        changed = [raw.replace(('--- PASS: ' + overlay.GO_CASES[0]).encode(), b'--- ABSENT:', 1),
++                   raw + ('\n--- PASS: ' + overlay.GO_CASES[0] + ' (0.00s)\n').encode()]
++        with self.owned_env():
++            for value in changed:
++                (output / 'go9-data-race-test.log').write_bytes(value)
++                with self.assertRaisesRegex(ValueError, 'unique'):
++                    overlay.verify_union_compiler_result(record, 'go', output, source, manager, self.manager_head, helpers, self.manager, self.repo, ordinary_profile=True)
++            (output / 'go9-data-race-test.log').write_bytes(raw)
++            # Negative-only Rust input: strict ordinary profile rejects Rust before fullname checks.
++            # This proves profile denial, not fullname-validation coverage or Windows execution.
++            rust = copy.deepcopy(record); rust['mode'] = 'rust'; rust['compiler'] = 'WHOLE_TEST_COMPILE_AND_14_DATA_PASS'
++            rust['componentContext'] = 'SYNTHETIC_NEGATIVE_PARSER_INPUT_NOT_WINDOWS_EXECUTION'
++            for tool in ['rustup', 'rustc', 'cargo']:
++                rust['runtime'][tool] = dict(record['runtime']['go'])
++                if tool != 'rustup':
++                    rust['runtime'][tool].update(payloadPath=record['runtime']['go']['path'],
++                        payloadSha256Before=record['runtime']['go']['sha256Before'],
++                        payloadSha256After=record['runtime']['go']['sha256After'])
++            del rust['runtime']['go']
++            rust['commands'] = [cmd for cmd in rust['commands'] if cmd['executable'] != 'go']
++            for arguments, name in [([*original_overlay.CARGO_VECTOR, '--no-run'], 'cargo-whole-test-compile.log'),
++                                    ([*original_overlay.CARGO_VECTOR, '--', '--list'], 'cargo-whole-test-list.log')]:
++                rust['commands'].append({'executable': 'cargo', 'resolvedExecutable': record['runtime']['go']['path'],
++                                        'arguments': arguments, 'exitCode': 0, 'log': name})
++                (output / name).write_text('synthetic negative parser input only\n')
++            for full in overlay.RUST_CASES:
++                name = 'data-' + full.rsplit('::', 1)[1] + '.log'
++                rust['commands'].append({'executable': 'cargo', 'resolvedExecutable': record['runtime']['go']['path'],
++                                        'arguments': [*original_overlay.CARGO_VECTOR, full, '--', '--exact', '--nocapture', '--test-threads=1'],
++                                        'exitCode': 0, 'log': name})
++                (output / name).write_text('test ' + full + ' ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n')
++            actual_list = '\n'.join(name + ': test' for name in overlay.RUST_CASES) + '\n'
++            for value in [actual_list.replace(overlay.RUST_CASES[-1], 'different_namespace::' + overlay.RUST_CASES[-1].rsplit('::', 1)[1]),
++                          actual_list + overlay.RUST_CASES[0] + ': test\n']:
++                (output / 'cargo-whole-test-list.log').write_text(value)
++                with self.assertRaisesRegex(ValueError, 'ordinary profile'):
++                    overlay.verify_union_compiler_result(rust, 'rust', output, source, manager, self.manager_head, helpers, self.manager, self.repo, ordinary_profile=True)
++            # There is intentionally no positive call for a synthetic Rust14 receipt.
++
++    def test_consumer_typed_false_unknown_runtime_and_missing_log_deny(self):
++        record, output, source, manager, helpers = self.owned_true_record()
++        with self.owned_env():
++            # Profile comes from the actual caller, never producer data, environment or a CLI flag.
++            with self.assertRaisesRegex(ValueError, 'production profile'):
++                overlay.verify_union_compiler_result(record, 'go', output, source, manager,
++                    self.manager_head, helpers, self.manager, self.repo)
++            for profile in [None, 0, 1, 'true', 'false']:
++                with self.assertRaisesRegex(ValueError, 'exact boolean'):
++                    overlay.verify_union_compiler_result(record, 'go', output, source, manager,
++                        self.manager_head, helpers, self.manager, self.repo, ordinary_profile=profile)
++            for command_index, original_command in enumerate(record['commands']):
++                wrong_argv = copy.deepcopy(record)
++                wrong_argv['commands'][command_index]['arguments'] = ['-c', 'owned negative, not executed']
++                wrong_tool = copy.deepcopy(record)
++                wrong_tool['commands'][command_index]['executable'] = 'git' if original_command['executable'] != 'git' else 'python'
++                wrong_tool['commands'][command_index]['resolvedExecutable'] = record['runtime'][wrong_tool['commands'][command_index]['executable']]['path']
++                wrong_path = copy.deepcopy(record)
++                wrong_path['commands'][command_index]['resolvedExecutable'] += '.owned-wrong'
++                nonstring = copy.deepcopy(record)
++                nonstring['commands'][command_index]['arguments'] = [None]
++                for item in [wrong_argv, wrong_tool, wrong_path, nonstring]:
++                    with self.assertRaises(ValueError):
++                        overlay.verify_union_compiler_result(item, 'go', output, source, manager,
++                            self.manager_head, helpers, self.manager, self.repo, ordinary_profile=True)
++            extra = copy.deepcopy(record)
++            command = copy.deepcopy(extra['commands'][0]); command['log'] = 'ordinary-extra-command.log'
++            (output / command['log']).write_bytes((output / 'git-version.log').read_bytes())
++            extra['commands'].append(command)
++            reordered = copy.deepcopy(record)
++            reordered['commands'][3], reordered['commands'][4] = reordered['commands'][4], reordered['commands'][3]
++            missing = copy.deepcopy(record); del missing['commands'][0]
++            duplicate = copy.deepcopy(record); duplicate['commands'].append(copy.deepcopy(duplicate['commands'][0]))
++            for item in [extra, reordered, missing, duplicate]:
++                with self.assertRaises(ValueError):
++                    overlay.verify_union_compiler_result(item, 'go', output, source, manager,
++                        self.manager_head, helpers, self.manager, self.repo, ordinary_profile=True)
++            for manager_root, destination, directory in [(self.manager / 'wrong', self.repo, output),
++                                                        (self.manager, self.repo / 'wrong', output),
++                                                        (self.manager, self.repo, output / 'wrong')]:
++                with self.assertRaises(ValueError):
++                    overlay.verify_union_compiler_result(record, 'go', directory, source, manager,
++                        self.manager_head, helpers, manager_root, destination, ordinary_profile=True)
++            for context in ['SYNTHETIC', None]:
++                item = copy.deepcopy(record); item['componentContext'] = context
++                with self.assertRaisesRegex(ValueError, 'ordinary profile'):
++                    overlay.verify_union_compiler_result(item, 'go', output, source, manager,
++                        self.manager_head, helpers, self.manager, self.repo, ordinary_profile=True)
++            with patch.dict(os.environ, {'GITHUB_ACTIONS': 'true'}):
++                with self.assertRaisesRegex(ValueError, 'ordinary profile'):
++                    overlay.verify_union_compiler_result(record, 'go', output, source, manager,
++                        self.manager_head, helpers, self.manager, self.repo, ordinary_profile=True)
++        items = []
++        for value in [False, 1, 'true', None]:
++            item = copy.deepcopy(record); item['passed'] = value; items.append(item)
++        for key in ['delegateInterruptedUnknown', 'sourceAfterInterruptedUnknown', 'sourceCancellation', 'runtimeAfterError']:
++            item = copy.deepcopy(record); item[key] = False; items.append(item)
++        item = copy.deepcopy(record); del item['runtime']['git']; items.append(item)
++        item = copy.deepcopy(record); item['sourceAfter']['tree'] = guard.TARGET; items.append(item)
++        item = copy.deepcopy(record); item['runId'] = 'different'; items.append(item)
++        item = copy.deepcopy(record); item['commands'][0]['exitCode'] = False; items.append(item)
++        item = copy.deepcopy(record); item['sourceAfter']['helper_digest'] = '0' * 64; items.append(item)
++        with self.owned_env():
++            for item in items:
++                with self.assertRaises(ValueError):
++                    overlay.verify_union_compiler_result(item, 'go', output, source, manager, self.manager_head, helpers, self.manager, self.repo, ordinary_profile=True)
++            file = output / 'source-after.log'; raw = file.read_bytes(); file.unlink()
++            try:
++                with self.assertRaises(ValueError):
++                    overlay.verify_union_compiler_result(record, 'go', output, source, manager, self.manager_head, helpers, self.manager, self.repo, ordinary_profile=True)
++            finally:
++                file.write_bytes(raw)
++            producer = output / 'local-component.json'; producer.write_text(json.dumps(record))
++            denied = output / 'terminal-denied.json'
++            child = subprocess.run([sys.executable, str(self.manager / overlay.HELPER), 'verify-result', '--mode', 'go',
++                '--compiler-result', str(producer), '--manifest', str(self.manager / 'scripts/windows_foundation_source_manifest.json'),
++                '--manager', str(self.manager), '--destination', str(self.repo), '--receipt', str(denied)], capture_output=True, timeout=60)
++            self.assertNotEqual(child.returncode, 0)
++            self.assertIs(json.loads(denied.read_text())['passed'], False)
++            self.assertIn(b'immutable remote baseline', child.stderr)
++
++    def test_actual_main_pipeline_stop_keeps_final_receipt_and_skips_observer(self):
++        for case in ['before', 'after', 'after-primary', 'after-pipeline', 'before-pipeline']:
++            self.write_owned_baseline()
++            self.run_owned_powershell(case)
++
++    def test_literal_raw_checkout_true_false_and_unmatched_paths(self):
++        supplemental = [original_overlay.HELPER, overlay.HELPER,
++                        'scripts/windows_foundation_union_overlay_tests.py']
++        all_paths = [*legacy_checkout.MANAGER_PATHS, *supplemental]
++        manager_root = Path(__file__).resolve().parent.parent
++        root_raw = (manager_root / '.gitattributes').read_bytes()
++        nested_raw = (manager_root / 'scripts/.gitattributes').read_bytes()
++        self.assertEqual(hashlib.sha256(root_raw).hexdigest(),
++                         'e71eff1d357a5e428d8323d3f8d328e25c3aa57f522dae766fd44f4aa1e1e1bd')
++        root_lines = [line.split() for line in root_raw.decode().splitlines()
++                      if line.strip() and not line.startswith('#')]
++        self.assertEqual(len(root_lines), 7)
++        self.assertEqual({line[0] for line in root_lines}, set(legacy_checkout.MANAGER_PATHS))
++        nested_lines = [line.split() for line in nested_raw.decode().splitlines()
++                        if line.strip() and not line.startswith('#')]
++        self.assertEqual(len(nested_lines), 3)
++        self.assertEqual({line[0] for line in nested_lines},
++                         {'/' + Path(name).name for name in supplemental})
++        self.assertTrue(all(len(row) == 2 and row[1] == '-text' and
++                            not any(c in row[0] for c in '*?[')
++                            for row in [*root_lines, *nested_lines]))
++        seed = self.root / 'literal-ten-seed'; seed.mkdir(exist_ok=True)
++        for name in all_paths:
++            dest = seed / name; dest.parent.mkdir(parents=True, exist_ok=True)
++            dest.write_bytes((manager_root / name).read_bytes())
++        (seed / '.gitattributes').write_bytes(root_raw)
++        (seed / 'scripts/.gitattributes').write_bytes(nested_raw)
++        unmatched = ['scripts/ordinary-unmatched.py',
++                     *['scripts/nested/' + Path(name).name for name in supplemental],
++                     *['nested/' + name for name in supplemental]]
++        for name in unmatched:
++            file = seed / name; file.parent.mkdir(parents=True, exist_ok=True)
++            file.write_bytes(b'owned unmatched\nsecond line\n')
++        guard.run_git(seed, 'init', '-q'); guard.run_git(seed, 'add', '--', '.')
++        guard.run_git(seed, '-c', 'user.name=Owned Source Control', '-c', 'user.email=owned@example.invalid',
++                      'commit', '-qm', 'Owned literal ten checkout control; not CI')
++        for mode in ['true', 'false']:
++            clone = self.root / ('ten-checkout-' + mode)
++            subprocess.run(['git', '-c', 'core.hooksPath=' + os.devnull, '-c', 'core.autocrlf=' + mode,
++                            'clone', '--no-hardlinks', str(seed), str(clone)], check=True, capture_output=True, timeout=30)
++            with patch.dict(os.environ, {'GITHUB_SHA': guard.run_git(clone, 'rev-parse', 'HEAD').decode().strip()}):
++                for name in all_paths:
++                    self.assertEqual((clone / name).read_bytes(), guard.run_git(clone, 'show', 'HEAD:' + name))
++                    self.assertEqual(guard.run_git(clone, 'hash-object', '--no-filters', '--', name).strip(),
++                                     guard.run_git(clone, 'rev-parse', 'HEAD:' + name).strip())
++                    self.assertEqual(guard.run_git(clone, 'check-attr', '-z', 'text', '--', name).split(b'\0')[2], b'unset')
++                self.assertEqual(guard.verify_manager(clone)['manager_files'], 7)
++                self.assertEqual(len(overlay.verify_union_helper_leases(clone)['helper_sources']), 2)
++                for name in unmatched:
++                    source_raw = guard.run_git(clone, 'show', 'HEAD:' + name)
++                    self.assertEqual((clone / name).read_bytes(),
++                                     source_raw.replace(b'\n', b'\r\n') if mode == 'true' else source_raw)
++                    self.assertEqual(guard.run_git(clone, 'check-attr', '-z', 'text', '--', name).split(b'\0')[2], b'unspecified')
++                for name in supplemental[:2]:
++                    file = clone / name; source_raw = file.read_bytes()
++                    file.write_bytes(source_raw + b'owned changed helper\n')
++                    try:
++                        with self.assertRaisesRegex(ValueError, 'blob mismatch'):
++                            overlay.verify_union_helper_leases(clone)
++                    finally:
++                        file.write_bytes(source_raw)
++
++
++if __name__ == '__main__':
++    unittest.main(argv=[sys.argv[0], '-v'])

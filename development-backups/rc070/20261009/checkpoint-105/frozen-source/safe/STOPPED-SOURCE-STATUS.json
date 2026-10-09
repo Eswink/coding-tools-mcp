@@ -1,0 +1,31 @@
+{
+  "source_peer": "STOP external late presence observer outside try can mask primary, no fullbuild",
+  "ordinary05": "23PASS does not cover identified boundary",
+  "files": [
+    {
+      "path": "owned_git_prepare_v4.py",
+      "bytes": 40696,
+      "sha256": "38a220ec397ee6fc4e3464d8e69caddc1a7d9da6e5220706ca32ec7331add220"
+    },
+    {
+      "path": "owned_git_prepare_v4_tests.py",
+      "bytes": 21820,
+      "sha256": "b81707924571eca0d1bb75858e76faf11fce97baa0703259b40a6743ff0bc19d"
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v4/requirements.md",
+      "bytes": 7557,
+      "sha256": "41542ed615121c0ea9cde3c3f512c9727033cbe965eed737c328be8ba69232a1"
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v4/design.md",
+      "bytes": 4606,
+      "sha256": "5b73cd5531c5a08d347f395b7dc7aabcf88bf3734ca50ea1b1d1cac4bce7d9e0"
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v4/tasks.md",
+      "bytes": 2339,
+      "sha256": "66a109fa6e4be02b14cb40f80bc6d57cce84029c37b38d8edddafb9c9d178b9d"
+    }
+  ]
+}

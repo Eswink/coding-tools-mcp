@@ -1,0 +1,32 @@
+{
+  "schema": "safeindependentterminalappendix-notRC",
+  "payload_files": 3,
+  "payload_bytes": 4178,
+  "files": [
+    {
+      "path": "GIT-V4-ACTUAL-ARCHIVE4991-CROSSJOIN-SAFE01.json",
+      "bytes": 849,
+      "sha256": "ccab53e8e76407bd2a315b0a77b1cbeaaca64633f0365c3925f94cae47c9ef0a",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "GIT-V4-INDEPENDENT-ACTUAL-TERMINAL-SAFE01.json",
+      "bytes": 2305,
+      "sha256": "95349e0870a2ad5c933c44d3ac5fab3174bb985b0dd78ea57b380511f4950876",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    },
+    {
+      "path": "README.md",
+      "bytes": 1024,
+      "sha256": "3e04a88b043e6f866e595f08438cfaf0269e222d2c4b21f3dedc713a07b02491",
+      "physical_mode": "0o600",
+      "git_backup_mode": "100644",
+      "nlink": 1
+    }
+  ],
+  "qualification": false
+}
