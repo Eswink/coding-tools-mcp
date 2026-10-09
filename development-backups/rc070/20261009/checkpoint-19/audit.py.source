@@ -1,0 +1,92 @@
+"""Read original same-run bytes and observations; never constructs test events."""
+from pathlib import Path
+import hashlib
+import importlib.util
+import json
+import os
+import stat
+
+OUT=Path('/workspace/work/rc070/diagnostic-preflight02');OWNED=OUT/'owned-owner';BASE=Path(__file__).resolve().parent
+sha=lambda raw:hashlib.sha256(raw).hexdigest()
+load=lambda path:json.loads(path.read_bytes())
+def audit_stream(path, allow_no_close):
+    raw=path.read_bytes();assert raw.endswith(b'\n')
+    obs_path=path.with_name('diagnostic-'+path.name);obsraw=obs_path.read_bytes();assert obsraw.endswith(b'\n') and len(obsraw)<=2*1024**2
+    rows=[json.loads(row) for row in obsraw.splitlines()]
+    assert [row['ordinal'] for row in rows]==list(range(len(rows))) and len(rows)%2==0
+    digest=hashlib.sha256();offset=0;identity=None;calls={'write':0,'flush':0,'close':0}
+    for before,after in zip(rows[::2],rows[1::2]):
+        op=before['operation'];assert op==after['operation'] and op in calls
+        assert before['phase']=='before' and after['phase']=='after';calls[op]+=1
+        a,b=before['state'],after['state'];assert a['returned_bytes']==offset and a['payload_sha256']==digest.hexdigest()
+        for state in (a,b):
+            observed=state['path'];current=(observed['dev'],observed['inode'],observed['mode'],observed['nlink'])
+            if identity is None:identity=current
+            assert current==identity
+            if 'held' in state:
+                held=state['held'];assert (held['dev'],held['inode'],held['mode'],held['nlink'])==current and held['nlink']==1
+        if op=='write':
+            n=a['request_bytes'];assert type(b['returned']) is int and b['returned']==n
+            payload=raw[offset:offset+n];assert len(payload)==n and sha(payload)==a['request_sha256']==b['request_sha256']
+            digest.update(payload);offset+=n
+        elif op=='flush':assert b['held']['size']==b['held']['offset']==b['path']['size']==offset
+        else:assert a['held']['size']==a['held']['offset']==a['path']['size']==offset and b['closed'] and b['path']['size']==offset
+        assert b['returned_bytes']==offset and b['payload_sha256']==digest.hexdigest()
+    assert offset==len(raw)
+    actual=path.lstat();assert (actual.st_dev,actual.st_ino,actual.st_mode,actual.st_nlink)==identity
+    assert calls['close']==0 if allow_no_close else calls['close']==1
+    return dict(bytes=len(raw),sha256=sha(raw),observations=len(rows),observation_bytes=len(obsraw),observation_sha256=sha(obsraw),calls=calls,
+                last_observed_closed=rows[-1]['state']['closed'],actual_saved_bytes_write_flush_bound=True,
+                source_level_real_close_confirmed=calls['close']==1)
+
+outer=load(OUT/'OUTER-RECEIPT.json');assert sha((OUT/'OUTER-RECEIPT.json').read_bytes())=='e727e8f81f1da78be1012a6e53e2d00ab478dd9c722ecb3354ef5cef5229c492'
+assert outer['passed'] is False and outer['actual_owner_exit']==1 and not outer['deadline_exceeded'] and not outer['signals'] and not outer['errors']
+assert outer['outer_kernel_family_closed'] is True and outer['outer_adopted_family_natural_admitted'] is False
+before=load(OUT/'source-before.json');after=load(OUT/'source-after.json');assert before==after
+assert load(OUT/'runtime-before.json')==load(OUT/'runtime-after.json')
+assert (OUT/'public-heads-tags-before.txt').read_bytes()==(OUT/'public-heads-tags-after.txt').read_bytes()
+pool=load(OUT/'native-object-pool-before-after.json');assert pool['before']==pool['after']
+assert load(OUT/'native-dependencies-before.json')['roots']==load(OUT/'native-dependencies-after.json')['roots']
+assert before['tree']=='b227335c6503c8b9d2575802522758a308684be8' and len(before['source'])==1849
+shards=[];loaded_all=[];started_all=[];success_all=[];allraw=[]
+for selector in ('fixed-1','fixed-2','fixed-3'):
+    path=OWNED/('pretag-'+selector+'-named-events.jsonl');raw=path.read_bytes();allraw.append(raw)
+    events=[json.loads(row) for row in raw.splitlines()]
+    loaded=next(row['loaded_ids'] for row in events if 'loaded_ids' in row);started=[row['start'] for row in events if 'start' in row];success=[row['success'] for row in events if 'success' in row];results=[row['result'] for row in events if 'result' in row]
+    assert len(loaded)==len(set(loaded)) and len(started)==len(set(started)) and len(success)==len(set(success))
+    assert set(success)<=set(started)<=set(loaded)
+    stream=audit_stream(path,selector!='fixed-2')
+    if selector=='fixed-2':
+        assert len(results)==1;record=results[0];receipt=load(OWNED/'pretag-fixed-2-receipt.json')
+        assert record==receipt['records'][0] and record['testsRun']==127 and record['exceptional']==2 and not record['passed'] and not receipt['passed']
+        assert (record['raw_loaded_ids'],record['raw_executed_ids'],record['raw_success_ids'])==(loaded,started,success)
+        diagnostic=load(OWNED/'diagnostic-fixed-2-result.json');assert diagnostic['original_exit']==1 and not diagnostic['observer_errors']
+    else:
+        assert not results and not (OWNED/('pretag-'+selector+'-receipt.json')).exists()
+        assert not (OWNED/('diagnostic-'+selector+'-result.json')).exists()
+    shards.append(dict(selector=selector,event_count=len(events),loaded=len(loaded),loaded_order_sha256=sha('\n'.join(loaded).encode()),executed_start_callbacks=len(started),named_success=len(success),nonsuccess_ids=sorted(set(started)-set(success)),not_started=len(set(loaded)-set(started)),result_records=len(results),**stream))
+    loaded_all+=loaded;started_all+=started;success_all+=success
+assert len(loaded_all)==len(set(loaded_all))==303 and sha('\n'.join(loaded_all).encode())=='0ecc366c2018a6a1e20d3f59ed9ca66645d9334324cd517682894cabde923125'
+assert len(started_all)==len(set(started_all))==271 and len(success_all)==len(set(success_all))==268
+merged=OWNED/'pretag-named-events.jsonl';assert merged.read_bytes()==b''.join(allraw);mergeproof=audit_stream(merged,False)
+diag=load(OWNED/'diagnostic-driver-result.json');assert diag['original_exit']==1 and not diag['observer_errors']
+fixed2_nonpass='rc_pretag_composition_tests.CompositionTests.test_exact_tracked_tree_modes_and_scope'
+assert fixed2_nonpass in set(started_all)-set(success_all)
+actual_modes={}
+root=Path('/workspace/work/rc070/diagnostic-native-source')
+for path in ('scripts/appimage_relro_guard.py','scripts/desktop_glib_build_evidence.py'):
+    actual=root/path;actual_modes[path]=dict(native_mode=oct(stat.S_IMODE(actual.lstat().st_mode)),actual_execute_bits=actual.stat().st_mode&0o111,original_expected_execute_bits=0o111,tracked_mode=before['source'][path]['mode'])
+    assert actual_modes[path]['actual_execute_bits']==0o100
+report=dict(scope='Independent author raw-join audit of actual limited303 once; not full755 or RC qualification',passed_diagnostic=False,
+    loaded=303,execution_start_callbacks=271,named_success=268,failed_methods=1,failed_subcase_events=2,unfinished_started_methods=2,not_started=32,consumer_methods_run=0,
+    original_failure_method=fixed2_nonpass,original_assertion='actual.stat().st_mode & 0o111 == int(mode,8) & 0o111; observed64 !=73',actual_modes_after=actual_modes,
+    source_physical_mode_admission_erratum='Previous preflight checked Git execute classification only; it did not satisfy exact physical execute-bit requirement. Full physical permission before/after was not sealed; source bytes/Git-mode classification/index/runtime/refs/native object pool were unchanged.',
+    no_timeout_or_external_cancel=True,original_driver_exit=1,seconds=outer['seconds'],outer_receipt_sha256=sha((OUT/'OUTER-RECEIPT.json').read_bytes()),raw_stdout_sha256=sha((OUT/'OWNER-STDOUT.raw.log').read_bytes()),raw_stdout_bytes=(OUT/'OWNER-STDOUT.raw.log').stat().st_size,
+    actual_shards=shards,actual_merge=mergeproof,merged_exact_actual_final_concat=True,
+    fixed2_original_event_loss_reproduced=False,event_loss_conclusion='Fixed2 saved256actualevents/127starts126success and original2FAIL; actual written/flush/path/FD/cumulative bytes complete. Other2 killed unfinished; absence of their original close/result receipt remains UNKNOWN. No complete original303 or full755 topology success.',
+    observer_delegate_errors_observed=0,outer_ECHILD_closed=True,outer_adopted_natural_exit_admitted=False,outer_adopted_waits=outer['outer_adopted_child_kernel_outcomes'],
+    source_bytes_git_mode_index_runtime_refs_native_pool_unchanged=True,source_full_physical_permission_fence_complete=False,
+    qualification_755_runs=0,original_recovery03_whole755='FAIL retained',immutable_startup_seal='33a018f21a152e7d4dd5cd63414d9436946aac7dca1dad7a4f7fb4b2fd643b82')
+path=BASE/'RAW-JOIN-AUDIT01.json'
+with path.open('x') as stream:stream.write(json.dumps(report,sort_keys=True,indent=2)+'\n')
+print(json.dumps(dict(audit_sha256=sha(path.read_bytes()),loaded=303,started=271,success=268,failed_method=1,unfinished=2,not_started=32,saved_events=[r['event_count'] for r in shards],merge_exact=True,full755_qualification=0)))

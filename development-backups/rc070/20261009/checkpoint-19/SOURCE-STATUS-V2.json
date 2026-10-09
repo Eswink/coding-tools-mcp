@@ -1,0 +1,141 @@
+{
+  "actual_after_mode_counts": [
+    {
+      "actual_native_mode": "0600",
+      "count": 1847,
+      "expected_exact_mode": "0644",
+      "git_mode": "100644"
+    },
+    {
+      "actual_native_mode": "0700",
+      "count": 2,
+      "expected_exact_mode": "0755",
+      "git_mode": "100755"
+    }
+  ],
+  "actual_failure_execute_bits": 64,
+  "actual_observer_errors_observed": 0,
+  "actual_original_assertion": "actual.stat().st_mode & 0o111 == int(mode,8) & 0o111; observed64 !=73",
+  "actual_original_failure_method": "rc_pretag_composition_tests.CompositionTests.test_exact_tracked_tree_modes_and_scope",
+  "actual_shards": [
+    {
+      "actual_saved_bytes_write_flush_bound": true,
+      "bytes": 56832,
+      "calls": {
+        "close": 0,
+        "flush": 113,
+        "write": 113
+      },
+      "event_count": 113,
+      "executed_start_callbacks": 56,
+      "last_observed_closed": false,
+      "loaded": 63,
+      "loaded_order_sha256": "d3f26c96258421916ab95aa9f973d87a1081d31180284055ff5791f7c48ae992",
+      "named_success": 55,
+      "nonsuccess_ids": [
+        "rc_pretag_authenticated_two_hop_tests.AuthenticatedTwoHopCompositionTests.test_release_document_byte_mode_path_and_deletion_drift_rejects"
+      ],
+      "not_started": 7,
+      "observation_bytes": 179440,
+      "observation_sha256": "f4c22e9d4e13ba873827da55e79d5e075e992a1ebd484d0b62f16b3481eee227",
+      "observations": 452,
+      "result_records": 0,
+      "selector": "fixed-1",
+      "sha256": "b7b08f2a2b0cb0fcf308505c96fd1f15355aa635913fa700580c97138892566b",
+      "source_level_real_close_confirmed": false
+    },
+    {
+      "actual_saved_bytes_write_flush_bound": true,
+      "bytes": 194090,
+      "calls": {
+        "close": 1,
+        "flush": 256,
+        "write": 256
+      },
+      "event_count": 256,
+      "executed_start_callbacks": 127,
+      "last_observed_closed": true,
+      "loaded": 127,
+      "loaded_order_sha256": "026f4f69d02f44d6954e83a519ce728a0a8e50863b33ee507c450561964559ca",
+      "named_success": 126,
+      "nonsuccess_ids": [
+        "rc_pretag_composition_tests.CompositionTests.test_exact_tracked_tree_modes_and_scope"
+      ],
+      "not_started": 0,
+      "observation_bytes": 407329,
+      "observation_sha256": "3e7c775bdb8dcf730615ffb02a7e04a3acce4d7c072cc569e05f4b4dee745b99",
+      "observations": 1026,
+      "result_records": 1,
+      "selector": "fixed-2",
+      "sha256": "4ba36f3b9a77fbbb21eaca5d76782a4bbbdaf907c650761f5c3de639eedb4e94",
+      "source_level_real_close_confirmed": true
+    },
+    {
+      "actual_saved_bytes_write_flush_bound": true,
+      "bytes": 71516,
+      "calls": {
+        "close": 0,
+        "flush": 177,
+        "write": 177
+      },
+      "event_count": 177,
+      "executed_start_callbacks": 88,
+      "last_observed_closed": false,
+      "loaded": 113,
+      "loaded_order_sha256": "67571b5623066ac259bebe1884b39341c4d9db95afa496b84d85fdb9e53f41f4",
+      "named_success": 87,
+      "nonsuccess_ids": [
+        "rc_pretag_publication_tests.PublicationCompositionTests.test_source_blob_digest_size_lines_and_modes_are_pinned"
+      ],
+      "not_started": 25,
+      "observation_bytes": 281139,
+      "observation_sha256": "9478810aec63afb673b40e1108e346f73e62395dd7ee2c8bcbfc9f0532da978a",
+      "observations": 708,
+      "result_records": 0,
+      "selector": "fixed-3",
+      "sha256": "9f513b2074166cc80a2f9ea7e020a5eaf56b3bfa116653d818131b0b39e7daf9",
+      "source_level_real_close_confirmed": false
+    }
+  ],
+  "adopted_killed_children": 2,
+  "adopted_zero_exit_children": 2,
+  "author_rawjoin_sha256": "2ff83e069fe5a739f9c78b31f7ebefad25c8fcc9b62025c6da4a5907d59365c8",
+  "consumer_methods_run": 0,
+  "deadline_exceeded": false,
+  "diagnostic_passed": false,
+  "elapsed_seconds": 583.7248682980003,
+  "failed_clone_or_frozen17_sources_modified": false,
+  "failed_methods": 1,
+  "failed_subcase_events": 2,
+  "failure_subcase_source_paths": [
+    "scripts/appimage_relro_guard.py",
+    "scripts/desktop_glib_build_evidence.py"
+  ],
+  "final_RC_release_install_qualification": false,
+  "full_source_physical_permission_fence_complete": false,
+  "independent_peer_rawjoin_verified": true,
+  "merged_bytes": 322438,
+  "merged_exact_actual_final_concat": true,
+  "merged_sha256": "43f964c2341cbadd1165d30da07b6be69a990450d34fee1e761e5d5eed38581b",
+  "newSUT_runs_after_this_result": 0,
+  "not_started": 32,
+  "original_driver_exit": 1,
+  "original_expected_execute_bits": 73,
+  "original_fixed2_event_loss_reproduced": false,
+  "original_methods_loaded": 303,
+  "original_named_success": 268,
+  "original_recovery03_whole755": "FAIL retained",
+  "original_start_callbacks": 271,
+  "outer_adopted_natural_exit_admitted": false,
+  "outer_exit": 1,
+  "outer_kernel_ECHILD_closed": true,
+  "outer_receipt_sha256": "e727e8f81f1da78be1012a6e53e2d00ab478dd9c722ecb3354ef5cef5229c492",
+  "qualification_755_runs": 0,
+  "raw_stdout_bytes": 61411,
+  "raw_stdout_sha256": "48995cb5f31ab9414cfa4e37f6a72ef1cb8af16fa05a16415b9535c67c0eb90a",
+  "scope": "Sanitized closed limited303 firstactual result; does not overwrite frozenstartupsource status",
+  "signals_observed": false,
+  "source_bytes_git_mode_index_runtime_refs_native_pool_unchanged": true,
+  "source_mode_admission_erratum": "Preflight checked Git executable classification only. It did not prove exact native permissions; all1849 actual paths mismatch exact0644/0755. Complete source physical permission before/after was NOTSEALED. The source bytes/Git-mode/index/runtime/refs/native pool were unchanged.",
+  "unfinished_started": 2
+}
