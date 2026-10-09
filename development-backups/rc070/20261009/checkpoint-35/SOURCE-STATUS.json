@@ -1,0 +1,75 @@
+{
+  "scope": "actual four preliminary F13 raw audits, NOT final 0.7 or build applicability",
+  "source_head": "13cd343d942b7a68912d42a8f9235c02ed647764",
+  "source_tree": "f2be2e09cca27081cccad11d94ed29858b955df9",
+  "database_head": "7eebec69c352c7191b1f13eb95dd510eeca5d1de",
+  "source_files": 1840,
+  "source_runtime_database_before_after_equal": true,
+  "reports": {
+    "desktop": {
+      "raw_bytes": 7219,
+      "raw_sha256": "f1a63f905cd94b179a9a9471bb8795ce10d5454a7ebd6db1a7710dcac4646162",
+      "vulnerability_count": 0,
+      "advisories": [],
+      "warning_counts": {
+        "unmaintained": 6
+      },
+      "stderr_bytes": 0
+    },
+    "local-agent": {
+      "raw_bytes": 313,
+      "raw_sha256": "9158dd50670a7376970f8bf370dfab5b3b96387b4f72a6068b6f46dc64902627",
+      "vulnerability_count": 0,
+      "advisories": [],
+      "warning_counts": {},
+      "stderr_bytes": 0
+    },
+    "cloud-agent": {
+      "raw_bytes": 314,
+      "raw_sha256": "51007e4c5282e12de4620292ea8dcda5749bdcec915b900688db9b0dd5f85850",
+      "vulnerability_count": 0,
+      "advisories": [],
+      "warning_counts": {},
+      "stderr_bytes": 0
+    },
+    "cloud-gateway": {
+      "raw_bytes": 3894,
+      "raw_sha256": "e95aa11b9f30e42022c8040d31c8a40515b42da2bba6f0de1ff315aff2661edd",
+      "vulnerability_count": 1,
+      "advisories": [
+        {
+          "id": "RUSTSEC-2023-0071",
+          "package": "rsa",
+          "version": "0.9.10"
+        }
+      ],
+      "warning_counts": {},
+      "stderr_bytes": 0
+    }
+  },
+  "raw_exit_codes": {
+    "desktop": 0,
+    "local-agent": 0,
+    "cloud-agent": 0,
+    "cloud-gateway": 1
+  },
+  "ignore_flags_used": false,
+  "release_approved": false,
+  "publish_approved": false,
+  "final_qualification": false,
+  "tool_version": "cargo-audit 0.22.2",
+  "official_asset_sha256": "ab28a1bdb54db4d5d8ad5981cf1f959410370b3d28250dbd35f6a44248620e39",
+  "glib_source_only": {
+    "verifier_actual_exit": 0,
+    "official_archive_sha256": "233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5",
+    "source_files": 121,
+    "metadata_packages": 598,
+    "product_raw_sha256": "f1a63f905cd94b179a9a9471bb8795ce10d5454a7ebd6db1a7710dcac4646162",
+    "upstream_identity_raw_sha256": "eff7f16584e426037b1c554d30f18efad5141aed855d3f9fe49d7570cd6491e7",
+    "paired_raw_reports_retained": true,
+    "installed_desktop_bytes_verified": false,
+    "build_performed": false,
+    "independent_review": "PENDING"
+  },
+  "final_source_audits_still_required": true
+}

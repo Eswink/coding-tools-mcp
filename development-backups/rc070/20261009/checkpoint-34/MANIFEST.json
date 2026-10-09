@@ -1,0 +1,51 @@
+[
+  {
+    "bytes": 583,
+    "git_blob": "2e15220f84059ab999b5f8d5d3bfd73c6e4785f7",
+    "mode": "100644",
+    "path": "README.md",
+    "sha256": "ac882ffc88fb5c49b19d8a0048afa2525a385d845e7ff4dcd79f340aeb74e559"
+  },
+  {
+    "bytes": 1681,
+    "git_blob": "6ce8482f308f65ff5f87cff62109f2a77a01a08b",
+    "mode": "100644",
+    "path": "SOURCE-MANIFEST.json",
+    "sha256": "2c6197985e0e851fa9e0e8dce8884d939e47e01ee7d9e19a605b3beaccc7a76e"
+  },
+  {
+    "bytes": 4245,
+    "git_blob": "482a7fda01e82183f79d0de14ab5a590c0255077",
+    "mode": "100644",
+    "path": "SOURCE-STATUS-V3.json",
+    "sha256": "93cc4db15f90fe07082b74eeedf57d561a970f0764b6a16867f2df9e1c9df705"
+  },
+  {
+    "bytes": 1113,
+    "git_blob": "3f3e9d1171aaa82dc9cb6a2369b97c9c2e6af0a4",
+    "mode": "100644",
+    "path": "source/docs/specs/pretag303-v2-same-run-audit/design.md.source",
+    "sha256": "ec4229830eaf8241c9a6abb981dca984ab7ed3b5a2f2415aca4b844e8c667ed1"
+  },
+  {
+    "bytes": 1688,
+    "git_blob": "c492c62c25b0d5103ed946a92430c0361e800206",
+    "mode": "100644",
+    "path": "source/docs/specs/pretag303-v2-same-run-audit/requirements.md.source",
+    "sha256": "a0161c13633d9b15cbe6bcbc36abd743456ac0be41d16e5491a102288e1ace06"
+  },
+  {
+    "bytes": 739,
+    "git_blob": "1d93ca1d3481bb192e8fcc1eb3ab90f0a1861ace",
+    "mode": "100644",
+    "path": "source/docs/specs/pretag303-v2-same-run-audit/tasks.md.source",
+    "sha256": "d3b054e1c885b48a2327f9751657bcce5f091153290c970c20476d7368baf6ae"
+  },
+  {
+    "bytes": 10838,
+    "git_blob": "07a1cb19168e470699215be42279b4c2bde2b8df",
+    "mode": "100644",
+    "path": "source/work/closed-audit04/audit.py.source",
+    "sha256": "b05b05a434536c8060d861b82c4775fc9db519da2d3f9489fd451bebddc2a52b"
+  }
+]

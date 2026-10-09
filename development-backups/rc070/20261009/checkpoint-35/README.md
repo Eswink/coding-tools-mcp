@@ -1,0 +1,3 @@
+# Preliminary F13 audit status only
+
+Actual four original-lock cargo-audit 0.22.2 invocations were performed against a freshly cloned fixed official RustSec database, with no ignored advisory. Three exited zero; Gateway exited one on RSA 0.9.10 / RUSTSEC-2023-0071. Desktop still has six maintenance warnings. Existing GLib source verifier actually completed with the original official crate, precise backport and paired raw reports. All 1840 F13 source files remained unchanged. These are preliminary source observations, not final-source, build, installed-desktop or release qualification. Raw reports, source/runtime metadata and package archives stay private; this checkpoint contains safe status only.

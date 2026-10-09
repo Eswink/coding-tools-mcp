@@ -1,0 +1,190 @@
+{
+  "source_only": true,
+  "production_source_changes": 0,
+  "management_base_commit": "a935f0d8f81901a0974b5b0d4a59c98d7765b8a1",
+  "management_tree": "37109f95d52f7a18ef79b0bf085568666c078fe5",
+  "pure_SUT_parent": "13cd343d942b7a68912d42a8f9235c02ed647764",
+  "pure_SUT_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "pure_SUT_paths": 1878,
+  "original85": "Actual85_wholeFAIL83SUCCESS2FAIL_retained",
+  "original300": "NOTRUN_notadmitted",
+  "diagnostic1": "ActualoneoriginalmethodFAIL60.375s_thirdscopeUploadAsset11_wireadaptererrorunknown",
+  "diagnostic2": "ActualoneoriginalmethodFAIL56.883843s_thirdscopeEarlierCreateDraft2_wireadaptererrorunknown_op11NOTREACHED_inner0UNKNOWN_independentterminalreviewfencesverified",
+  "diagnostic3_at_freeze": "SOURCE_ONLY_NOTRUN_independent_startup_review_PENDING",
+  "ordinary_controls": "76actualexactworkerhookASTcontrollednamespacechecks_v5PASS_notactualissuer/SUT/fullownerautomaticcancel_timeout",
+  "baseline_negative": "Actualoldop11hookASTCreateDraft2exceptionreturned0events/activations_expectedoldlimitedscope; preserved",
+  "ordinary_fixture_FAILURES": "v1oldgenericcurrentobject/noscopefilterfixtureFAIL correctedonlyordinarytypednamespace;v4Pythonexcept-targetclearedNameErrorFAIL correctedonlyordinarycomparisonwithactualstickyobject. Sources/rawprivatelyretained; workerASTunchanged afterimplementation.",
+  "scope": "Same6livebindings;mainthread originalclient/OperationScope/SessionOwner/sessionobjectidentity filter; actualmutationkind3 whitelist; actualidnohardcode",
+  "activation": "Onlycompleted originaldelegate aftercall pairedenter1/exit1; not realtimeoriginalbodyentryhook; nofakeunfinishedcounts",
+  "cancel_install_restore": "Reuseactualstickyoriginalcancels old2hooksandinnerhooks; installerror/completion invalid; independentreverseallattempts andpartialmutatedrollback; primary/cancel/restoreerror preserved, realclose unchanged",
+  "new_connect_bindings": 0,
+  "connection_AST_reason": "nativeconnectionbeforepossibleTrue; currentunknowneffectnotconnectcauseevidence",
+  "uncovered": [
+    "stream.read",
+    "inline expressions",
+    "reader.check/active",
+    "close exceptions"
+  ],
+  "fresh_impact": "originalrequestLOW15/4direct1flow;responseUIDLOW13/1direct1flow;mutationresultLOW13/1direct1flow;stdlib/newhelpersUNKNOWN_not0;manualCRITICALdisclosed beforeimplementation",
+  "AST_truth": {
+    "source": [
+      {
+        "path": "scripts/rc_publication_github.py",
+        "symbol": "_request",
+        "source_sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+        "AST_sha256": "a851cdafed2a3df79b2929ca21291d712644d24fd202ef0d608f7889a7f09de2",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_github.py",
+        "symbol": "_safe",
+        "source_sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+        "AST_sha256": "e20abcaf2b7006541ea1b6f52e05a01b7c90dbe69a6199622ebf65b5f14e5a66",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_github.py",
+        "symbol": "response",
+        "source_sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+        "AST_sha256": "8f16dabc0999b941223c965250821d000729dbb3134c94b01ae1fa993bce3b96",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_github.py",
+        "symbol": "_mutation_result",
+        "source_sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+        "AST_sha256": "1f9cdf580b08ab45365b7341c34bb1e51b7b459725a126f624b14fde9cff5553",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_native_admission_fixture.py",
+        "symbol": "_native_session",
+        "source_sha256": "9df4f687a377efb98ce2bf2e1fe9bee396a2781ba685db641c7f3703ebf299d7",
+        "AST_sha256": "90860c3163e3e29e7c726a96bcef7a162642282760f59a8755adcab4972b6038",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_native_admission_fixture.py",
+        "symbol": "_pending_fence",
+        "source_sha256": "9df4f687a377efb98ce2bf2e1fe9bee396a2781ba685db641c7f3703ebf299d7",
+        "AST_sha256": "7d65cf1df3a7bf5bc5d164710364b66257303172f7110e19f63d20cc03df6d48",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_executor.py",
+        "symbol": "_failure",
+        "source_sha256": "499d4ae64c014cab032d3a653e7776f938e2c57cd9d9b5076de36c13e201f9d9",
+        "AST_sha256": "52dfc9c2c59acb951bd184eed6a9dc47dc243bdd83555c25b8ec531196339a78",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_executor.py",
+        "symbol": "run_until_pause",
+        "source_sha256": "499d4ae64c014cab032d3a653e7776f938e2c57cd9d9b5076de36c13e201f9d9",
+        "AST_sha256": "369807327b54a3d0585da0244b5855d0cad1a8f657942dea7bd282e0ca7101a2",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_artifact_admission_cases.py",
+        "symbol": "test_owned_direct_mutation_sinks_still_block_before_authorize_and_write",
+        "source_sha256": "c6fa67032d3a159d12a0ea48f26df578c91be8ddab02826f413284d5059055dc",
+        "AST_sha256": "0e251094ff25e8b7c5e6682d2536845c62b62918fc70aa603194c0ab2d69dafd",
+        "original_body_unchanged": true
+      }
+    ],
+    "external_controller_exact_four_changes_to_original": true,
+    "controller_whole_run_owned_AST_not_original": true,
+    "original_receipt_gate_AST_equal": true,
+    "live_wrappers": 6,
+    "stdlib_live_binding": "ssl.SSLSocket.sendall",
+    "request_catch_original_AST": true,
+    "context_filter": "Read-only originalclient/scope/session/owner identity filter, noissuer mint/check/consume",
+    "activation_counter": "pairedentryexit of actualcompleted originaldelegate recordedaftercall; no realtimebodyentry claim",
+    "uncovered": [
+      "stream.read",
+      "inline_expressions",
+      "reader.check/active",
+      "socket.close exceptions"
+    ],
+    "new_connect_bindings": 0
+  },
+  "preserved_budgets": {
+    "fail_only_seconds": 1800,
+    "TERM": 7,
+    "KILL": 2,
+    "family": 2,
+    "original_test_operation_timers_unchanged": true
+  },
+  "spec": "check_spec03 structured3FRpassed0err afterinitialmissingdependencysectionFAIL retained",
+  "source_files": [
+    {
+      "original_path": "diagnostic_owner.py",
+      "original_git_mode": "100644",
+      "original_posix_mode": 420,
+      "backup_path": "source/diagnostic_owner.py.source",
+      "bytes": 15193,
+      "sha256": "8a7ec6446614c676c76677d04ef5d8164dd2c306170ffef11ea496edea539280",
+      "blob_sha1": "98c95a2d7418f1f547bcc4baee4eae02b6a28718"
+    },
+    {
+      "original_path": "diagnostic_worker.py",
+      "original_git_mode": "100644",
+      "original_posix_mode": 420,
+      "backup_path": "source/diagnostic_worker.py.source",
+      "bytes": 11795,
+      "sha256": "0e26e6153717cc554ffa678e615dd9180d1ddf1fbfd9cf5c481f6163a0a1198a",
+      "blob_sha1": "38a17761dc5b3ee91f9ca4d5f7903a5b61dbf04c"
+    },
+    {
+      "original_path": "diagnostic-launch.py",
+      "original_git_mode": "100644",
+      "original_posix_mode": 420,
+      "backup_path": "source/diagnostic-launch.py.source",
+      "bytes": 3708,
+      "sha256": "8384be609787af223145a78bf495a0efe4ae4bde7e98230f6e1b8d2b5357d243",
+      "blob_sha1": "1c710946d99fd2680a1bd5cd27e0b13b5c6e892b"
+    },
+    {
+      "original_path": "ordinary-mutation-controls.py",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/ordinary-mutation-controls.py.source",
+      "bytes": 22328,
+      "sha256": "6fb5756c15f888488ae5c6ddc98f451429162b767375921cc55500e4303b4d18",
+      "blob_sha1": "850b27fd63e9854b318b70668b66af017977181a"
+    },
+    {
+      "original_path": "docs/specs/publisher-owned-mutation-diagnostic3/design.md",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/docs/specs/publisher-owned-mutation-diagnostic3/design.md.source",
+      "bytes": 3107,
+      "sha256": "be57fcd58c886e5ca25d02937cbe9a6e9e7476b9810a8a85bfc1c8894fbdb44e",
+      "blob_sha1": "6b0c99094d0e3d23b7a23bdea941550d586d7d86"
+    },
+    {
+      "original_path": "docs/specs/publisher-owned-mutation-diagnostic3/requirements.md",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/docs/specs/publisher-owned-mutation-diagnostic3/requirements.md.source",
+      "bytes": 5574,
+      "sha256": "97528d02ac91ec0868afc98b688b627bcd537176bb1f60704411a135002e6111",
+      "blob_sha1": "697b28ddfc92c777290a478174341252873960a4"
+    },
+    {
+      "original_path": "docs/specs/publisher-owned-mutation-diagnostic3/tasks.md",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/docs/specs/publisher-owned-mutation-diagnostic3/tasks.md.source",
+      "bytes": 1726,
+      "sha256": "4e08ea6f54c6687a3654fccf55d77ac67bf9cfd3947a48484f2f43286df3e559",
+      "blob_sha1": "b21e4f08fbf0cefc410daf739a156166bbca8ac8"
+    }
+  ],
+  "original_failures_immutable": true,
+  "CI_qualification": false,
+  "FINAL0_7_qualification": false,
+  "install_qualification": false,
+  "release_authorized": false,
+  "raw_sensitive_payloads_included": false
+}

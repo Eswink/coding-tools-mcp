@@ -1,0 +1,42 @@
+[
+  {
+    "backup_mode": "100644",
+    "bytes": 10838,
+    "git_blob": "07a1cb19168e470699215be42279b4c2bde2b8df",
+    "original_git_mode_class": "100644",
+    "original_native_mode": "0o600",
+    "original_path": "work/closed-audit04/audit.py",
+    "path": "source/work/closed-audit04/audit.py.source",
+    "sha256": "b05b05a434536c8060d861b82c4775fc9db519da2d3f9489fd451bebddc2a52b"
+  },
+  {
+    "backup_mode": "100644",
+    "bytes": 1113,
+    "git_blob": "3f3e9d1171aaa82dc9cb6a2369b97c9c2e6af0a4",
+    "original_git_mode_class": "100644",
+    "original_native_mode": "0o600",
+    "original_path": "docs/specs/pretag303-v2-same-run-audit/design.md",
+    "path": "source/docs/specs/pretag303-v2-same-run-audit/design.md.source",
+    "sha256": "ec4229830eaf8241c9a6abb981dca984ab7ed3b5a2f2415aca4b844e8c667ed1"
+  },
+  {
+    "backup_mode": "100644",
+    "bytes": 1688,
+    "git_blob": "c492c62c25b0d5103ed946a92430c0361e800206",
+    "original_git_mode_class": "100644",
+    "original_native_mode": "0o600",
+    "original_path": "docs/specs/pretag303-v2-same-run-audit/requirements.md",
+    "path": "source/docs/specs/pretag303-v2-same-run-audit/requirements.md.source",
+    "sha256": "a0161c13633d9b15cbe6bcbc36abd743456ac0be41d16e5491a102288e1ace06"
+  },
+  {
+    "backup_mode": "100644",
+    "bytes": 739,
+    "git_blob": "1d93ca1d3481bb192e8fcc1eb3ab90f0a1861ace",
+    "original_git_mode_class": "100644",
+    "original_native_mode": "0o600",
+    "original_path": "docs/specs/pretag303-v2-same-run-audit/tasks.md",
+    "path": "source/docs/specs/pretag303-v2-same-run-audit/tasks.md.source",
+    "sha256": "d3b054e1c885b48a2327f9751657bcce5f091153290c970c20476d7368baf6ae"
+  }
+]

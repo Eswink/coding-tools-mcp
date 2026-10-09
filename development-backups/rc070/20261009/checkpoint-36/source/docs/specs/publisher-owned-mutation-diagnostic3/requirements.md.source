@@ -1,0 +1,37 @@
+# Publisher owned mutation context diagnostic3
+
+## 功能概述
+
+原85wholeFAIL83SUCCESS2FAIL、300NOTRUN。diag1原method1FAIL，第三scopeUploadAsset11 adapter_errorunknown；diag2原method1FAIL56.883843s，第三scope更早CreateDraft2 adapter_errorunknown，op11NOTREACHED故限定op11的inner3events0无因果信用。原_request catch/源码未变化，根因仍UNKNOWN。本规格仅一次同原artifact method的mainthread实际owned mutation观察，复用已修外部worker/owner；不依赖操作id稳定，不重试85/300。
+
+## 需求列表
+
+### FR-1: 原单方法与有限同源
+
+WHEN 准备 THEN 系统 SHALL unchangedrestore在新独立pure checkout核完整b9cf1878/soleparentF13/mode/blob/bytes/SHA/index/clean/nativefullPREFIX，原103行6259B runner和同一个原artifact method唯一库存1；原method/helpers/_request/_safe/_Reader.response/_mutation_result原AST及assert保持原字节。原85/diag1/diag2所有FAIL、审查STOP和原raw不覆盖。
+IF 任一身份/原门不符 THEN 系统 SHALL SUT0BLOCKED；不改productionhardreject/core/授权/预算/原catch、Git/PATH、tag/Release，也不新增socket/streamIO。
+
+### FR-2: 真实owned mutation范围与实际activation
+
+WHEN actualmainthread原GitHub._request调用 THEN 系统 SHALL 外部contextwrapper只保存当前真实current/op/scope对象引用与nestedprevious，原delegate恰好一次，原returns/primaryidentity、finally真实恢复context。观察filter SHALL 要求typecurrent原GitHub/typeop原Operation且kind严格CreateDraft/UploadAsset/PublishPrerelease，typescope原OperationScope/typeowner原SessionOwner、scope._op is op、owner._client/current/session._api等原对象一致、session._owner is owner及session._request_scope is scope、scope主线程一致且未retired；不construct/mint/check/消费任何owner/scope/grant，不读取token、实际scope对象或PID/thread值到报告。该filter仅限制观察，不替代原授权门。
+WHEN 原request与既有三个innerdelegate sendall/response/mutation_result真正返回或抛出后 THEN 系统 SHALL 记录实际completed originalinvocation的enter=1/exit=1计数、固定boundary、实际kind/id、returned/raised及安全异常type/仅WireFailurecodeeffect/tracebackbasename函数行；这些配对计数在原delegate结束后记录，不伪称实时原函数入口hook或计算未完成调用。原delegate异常观察后bare-reraise同对象；成功路径返回同对象而不记录payload/返回数据。内层未完成/计数失败必须UNKNOWN，不能造entry或exit。
+WHEN field/counter观察普通Exception失败 THEN 系统 SHALL original返回或异常保留、观察invalidUNKNOWN；WHEN observerBaseException THEN 系统 SHALL sticky保留实际原cancel对象、已有primary同时则group保二者，原catch即使再归一化也在runpy/真实cleanup后重新传播原cancel。旧failure/pause两hooks同样sticky。任何观察失败不跳过真实close、不触发额外delegate调用、不吞原取消。不得记录args/消息/bytes/headers/body/URL/TLS/secret。
+WHEN 第三scope不稳定 THEN 系统 SHALL 仅记录真实发生的mutationkind/id及actualactivation，不硬编码op11/假定原失败再次同层；missing/zero activation无因果证明，无自动扩scope或retry。
+
+### FR-3: 六bindings、有限原生与独立准入
+
+WHEN install/restore THEN 系统 SHALL 复用6已修bindings和installerror/completion状态、每项逆序restore独立尝试、partialmutation rollback、首alias拒绝invalid/不伪称allrestored，保primary/取消/restoreerrors。只六temporarylivebindings：failure/pause/requestcontext/sendall/response/mutationresult；不新增connect/wrap_socket/close/stream代理。
+WHEN 启动 THEN 系统 SHALL 原kernel/receiptgate和外部准确4inverse adaptedowner保持，固定profile诊断3=1800/TERM7/KILL2/family2、原testoperationtimers/minimalenv/createdheldZ/starttime/pidfd/nativeECHILD/source/runtime/carrier/fixture/runner/stdSSL身份；ordinary真实hookAST controls、freshseal/exactargv、独立启动review后root唯一launch，我不启动。
+WHEN 终态 THEN 系统 SHALL 原8raw与独立sidecar原bytes/SHA/no-follow/原8seal绑定，complete当前source/native向量核验；qualified/closed依原门。不得以activation、普通controls、单method或备份升级85/300/CI/FINAL/install/Release资格。
+
+## 非功能需求
+
+NFR-1 原1800/7/2/2fail-only不扩大，原操作/测试timer不改；NFR-2 无install/privilege/foreignprocess/真服务发布；NFR-3 本地actualCPython3.12与compatibleGit，非CI。所有旧失败保存。
+
+## 未覆盖区域与连接边界
+
+原_request AST真实顺序为_connect（fixture真实create_connection/wrap_socket）在nativeauthorize/prepare_stream/consume/possible=True之前；原catch effectunknown只在possibleTrue。当前unknown因此不能归因连接握手，未加入2新nativeconnectbindings。sendall前inline属性、reader.check/active、stream.read及其它inline/cleanup异常仍可能未被3inner覆盖；没有因果事件就UNKNOWN。未来若不同effect/具体证据支持连接观察，只能另新有限规格、impact、controls/review后决定，不自动扩大。
+
+## 依赖关系
+
+Publiccarrier a935/tree37109、pureb9cf1878/F13parent、原runner6259B/103line与固定officialGLib267679B/hash；已修diag2 external6binding cancel/install/restore机制；freshGN exactgraph与UNKNOWN披露、actualordinaryhookcontrols、独立prelaunchreview、root唯一literal启动。diag2独立terminalreview并行，不借其1FAIL作新许可。

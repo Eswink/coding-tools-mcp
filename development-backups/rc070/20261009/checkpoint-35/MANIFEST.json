@@ -1,0 +1,18 @@
+{
+  "source_only_safe_status": true,
+  "files": [
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 707,
+      "sha256": "fd6da68256ff30f65d28dc6ffca0858d3a0dd5d58b34f5794974c85dbdf22895"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "100644",
+      "bytes": 2502,
+      "sha256": "93805865ea8d47c1969bea1a390687bef33d2812a7ace3cb6cf4b6eaa2b8378d"
+    }
+  ],
+  "manifest_self_excluded": true
+}

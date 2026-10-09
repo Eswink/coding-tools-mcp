@@ -1,0 +1,24 @@
+# Tasks
+
+## 任务列表
+
+- [ ] FR-1 FR-5: check_spec and freshimpact; noSUT/retry.
+- [ ] FR-1 FR-2: copy exact audit_stream; join actual event/obs/raw receipts after root terminal.
+- [ ] FR-3 FR-4: fullphysical/source/native/runtime/refs + realwrapperexit terminal gate.
+- [ ] FR-5: source/status safe freeze and independent read-only review; original full755FAIL retained.
+
+## 交付物清单
+
+New external audit source and actual same-run result, independentreview material.
+
+## 需求覆盖矩阵
+
+| Task | Requirement |
+| --- | --- |
+| raw join | FR-1 FR-2 |
+| full native physical and exit | FR-3 FR-4 |
+| safe freeze | FR-5 |
+
+## 文件变更清单
+
+Only new work/closed-audit04 source and spec files; no original source/raw edits.

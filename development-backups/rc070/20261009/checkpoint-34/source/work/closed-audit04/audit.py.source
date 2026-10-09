@@ -1,0 +1,94 @@
+"""Readonly author same-run join; root provides actual wrapper exit provenance."""
+from pathlib import Path
+import hashlib
+import json
+import ast
+import sys
+import os
+sha=lambda raw:hashlib.sha256(raw).hexdigest()
+load=lambda path:json.loads(path.read_bytes())
+
+def audit_stream(path, allow_no_close):
+    raw=path.read_bytes();assert raw.endswith(b'\n')
+    obs_path=path.with_name('diagnostic-'+path.name);obsraw=obs_path.read_bytes();assert obsraw.endswith(b'\n') and len(obsraw)<=2*1024**2
+    rows=[json.loads(row) for row in obsraw.splitlines()]
+    assert [row['ordinal'] for row in rows]==list(range(len(rows))) and len(rows)%2==0
+    digest=hashlib.sha256();offset=0;identity=None;calls={'write':0,'flush':0,'close':0}
+    for before,after in zip(rows[::2],rows[1::2]):
+        op=before['operation'];assert op==after['operation'] and op in calls
+        assert before['phase']=='before' and after['phase']=='after';calls[op]+=1
+        a,b=before['state'],after['state'];assert a['returned_bytes']==offset and a['payload_sha256']==digest.hexdigest()
+        for state in (a,b):
+            observed=state['path'];current=(observed['dev'],observed['inode'],observed['mode'],observed['nlink'])
+            if identity is None:identity=current
+            assert current==identity
+            if 'held' in state:
+                held=state['held'];assert (held['dev'],held['inode'],held['mode'],held['nlink'])==current and held['nlink']==1
+        if op=='write':
+            n=a['request_bytes'];assert type(b['returned']) is int and b['returned']==n
+            payload=raw[offset:offset+n];assert len(payload)==n and sha(payload)==a['request_sha256']==b['request_sha256']
+            digest.update(payload);offset+=n
+        elif op=='flush':assert b['held']['size']==b['held']['offset']==b['path']['size']==offset
+        else:assert a['held']['size']==a['held']['offset']==a['path']['size']==offset and b['closed'] and b['path']['size']==offset
+        assert b['returned_bytes']==offset and b['payload_sha256']==digest.hexdigest()
+    assert offset==len(raw)
+    actual=path.lstat();assert (actual.st_dev,actual.st_ino,actual.st_mode,actual.st_nlink)==identity
+    assert calls['close']==0 if allow_no_close else calls['close']==1
+    return dict(bytes=len(raw),sha256=sha(raw),observations=len(rows),observation_bytes=len(obsraw),observation_sha256=sha(obsraw),calls=calls,
+                last_observed_closed=rows[-1]['state']['closed'],actual_saved_bytes_write_flush_bound=True,
+                source_level_real_close_confirmed=calls['close']==1)
+
+def audit_actual_run(out, wrapper_exit):
+    owned=out/'owned-owner';packet=load(out/'EXECUTION-PREFLIGHT-MANIFEST.json');outer=load(out/'OUTER-RECEIPT.json');physical=load(out/'PHYSICAL-MODE-OUTER-RECEIPT.json')
+    assert packet['budgets']==[1200,7,2,2] and packet['stdout_limit']==2*1024**2
+    assert packet['consumer_methods_run']==0 and packet['qualification_755_runs']==0
+    assert physical['consumer_methods_run']==0 and physical['qualification_755_runs']==0
+    before=load(out/'source-before.json');source_same=before==load(out/'source-after.json')
+    runtime_same=load(out/'runtime-before.json')==load(out/'runtime-after.json')
+    refs_same=(out/'public-heads-tags-before.txt').read_bytes()==(out/'public-heads-tags-after.txt').read_bytes()
+    pool=load(out/'native-object-pool-before-after.json');native_before=load(out/'native-dependencies-before.json');native_after=load(out/'native-dependencies-after.json')
+    native_same=native_before==native_after and pool['before']==pool['after']
+    expected=load(out/'physical-source-before.json');assert len(expected)==len(before['source'])==1849
+    physical_same=physical['physical_after']==expected
+    assert before['tree']=='b227335c6503c8b9d2575802522758a308684be8' and before['sole_parent']=='c60f9667fa8431e27fabbc497c19b4abfef5b965'
+    full_modes=all(row['actual_native_mode']==row['expected_native_mode'] and row['actual_native_mode'] in (0o644,0o755) and row['nlink']==1 for row in expected.values())
+    shards=[];allraw=[];loaded_all=[];start_all=[];success_all=[];nonpass=0;unfinished=0
+    for selector in ('fixed-1','fixed-2','fixed-3'):
+        path=owned/('pretag-'+selector+'-named-events.jsonl');raw=path.read_bytes();assert len(raw)<=2*1024**2;allraw.append(raw)
+        events=[json.loads(row) for row in raw.splitlines()];loaded=next(row['loaded_ids'] for row in events if 'loaded_ids' in row);started=[row['start'] for row in events if 'start' in row];success=[row['success'] for row in events if 'success' in row];records=[row['result'] for row in events if 'result' in row]
+        for values in (loaded,started,success):assert len(values)==len(set(values))
+        assert set(success)<=set(started)<=set(loaded)
+        diagnostic_path=owned/('diagnostic-'+selector+'-result.json');diagnostic=load(diagnostic_path) if diagnostic_path.exists() else None
+        if records:
+            assert len(records)==1;receipt=load(owned/('pretag-'+selector+'-receipt.json'));record=records[0]
+            assert record==receipt['records'][0] and (record['raw_loaded_ids'],record['raw_executed_ids'],record['raw_success_ids'])==(loaded,started,success)
+            nonpass+=len(set(started)-set(success))
+        else:unfinished+=len(set(started)-set(success))
+        obsrows=[json.loads(row) for row in path.with_name('diagnostic-'+path.name).read_bytes().splitlines()]
+        closed=sum(row['phase']=='after' and row['operation']=='close' for row in obsrows)==1
+        try:proof=audit_stream(path,not closed)
+        except Exception as error:proof={'observation_join_failure':type(error).__name__+': '+str(error),'source_level_real_close_confirmed':False}
+        shards.append({'selector':selector,'loaded':len(loaded),'started':len(started),'success':len(success),'nonsuccess_ids':sorted(set(started)-set(success)),'not_started':len(set(loaded)-set(started)),'result_records':len(records),'result_testsRun':records[0]['testsRun'] if records else None,'exceptional_subcase_events':records[0]['exceptional'] if records else None,'diagnostic_original_exit':diagnostic['original_exit'] if diagnostic else None,'observer_errors':diagnostic['observer_errors'] if diagnostic else None,'events':len(events),**proof})
+        loaded_all+=loaded;start_all+=started;success_all+=success
+    assert len(loaded_all)==len(set(loaded_all))==303 and sha('\n'.join(loaded_all).encode())=='0ecc366c2018a6a1e20d3f59ed9ca66645d9334324cd517682894cabde923125'
+    for values in (start_all,success_all):
+        assert len(values)==len(set(values))
+        if len(values)==303:assert values==loaded_all
+    merged=owned/'pretag-named-events.jsonl';assert merged.read_bytes()==b''.join(allraw)
+    try:mergeproof=audit_stream(merged,False)
+    except Exception as error:mergeproof={'observation_join_failure':type(error).__name__+': '+str(error),'source_level_real_close_confirmed':False}
+    driver=load(owned/'diagnostic-driver-result.json')
+    observations_clean='observation_join_failure' not in mergeproof and all('observation_join_failure' not in row for row in shards) and driver['original_exit']==0 and not driver['observer_errors'] and all(row['diagnostic_original_exit']==0 and row['observer_errors']==[] and row['source_level_real_close_confirmed'] for row in shards)
+    owner_wait=outer['owner_WNOWAIT'];owner_natural=type(owner_wait) is list and len(owner_wait)==5 and owner_wait[0]==outer['owner_native_pid'] and owner_wait[3]==0 and owner_wait[4]==os.CLD_EXITED
+    natural=owner_natural and outer['outer_kernel_family_closed'] and outer['outer_adopted_family_natural_admitted'] and all(row['code']==os.CLD_EXITED and row['status']==0 for row in outer['outer_adopted_child_kernel_outcomes'])
+    counts_complete=len(start_all)==len(success_all)==303 and nonpass==unfinished==0 and all(row['result_records']==1 and row['exceptional_subcase_events']==0 for row in shards)
+    passed=wrapper_exit==0 and outer['passed'] and outer['actual_owner_exit']==0 and not outer['errors'] and not outer['signals'] and not outer['deadline_exceeded'] and natural and source_same and runtime_same and refs_same and native_same and full_modes and physical_same and physical['physical_before_after_equal'] and not physical['failures'] and physical['original_supervisor_exit']==0 and observations_clean and counts_complete
+    return {'scope':'Author readonly actual finite303 v2 rawjoin; independently peer-reviewed separately; no full755/RC qualification','passed_limited303':bool(passed),'wrapper_exit_root_observed':wrapper_exit,'wrapper_exit_provenance':'Root actual exec session30618 toolterminal; cross-check root toolrecord, not standalone JSON authority','loaded':303,'started':len(start_all),'success':len(success_all),'nonpass_methods_finished':nonpass,'unfinished_started':unfinished,'not_started':len(set(loaded_all)-set(start_all)),'shards':shards,'actual_merge':mergeproof,'merge_exact':True,'original_outer_passed':outer['passed'],'original_owner_exit':outer['actual_owner_exit'],'seconds':outer['seconds'],'owner_WNOWAIT_natural0_bound':owner_natural,'natural_family_closed':bool(natural),'source_runtime_refs_native_same':[source_same,runtime_same,refs_same,native_same],'full_physical_modes_exact_before':full_modes,'full_physical_before_after_equal':physical_same,'physical_after_failures':physical['failures'],'raw_stdout_bytes':(out/'OWNER-STDOUT.raw.log').stat().st_size,'raw_stdout_sha256':sha((out/'OWNER-STDOUT.raw.log').read_bytes()),'original_outer_sha256':sha((out/'OUTER-RECEIPT.json').read_bytes()),'physical_after_receipt_sha256':sha((out/'PHYSICAL-MODE-OUTER-RECEIPT.json').read_bytes()),'preflight_sha256':sha((out/'EXECUTION-PREFLIGHT-MANIFEST.json').read_bytes()),'consumer_methods_run':0,'qualification_755_runs':0,'whole755_status':'FAIL original03 preserved','old_first303_status':'FAIL preserved','old_composition03_status':'STOP preserved','eventloss_scope':'Only original three-shard303 concurrency; consumer452 absent. No complete755 topology proof. Actual savedpayload/FD/path/cumulative/write/flush/close verified for this run only.','physical_limitations':'Static path metadata; not UIDownership/dirFDpin/atomicanti-race/source authority'}
+
+def main():
+    assert len(sys.argv)==4,'actualrunprefix rootobservedwrapperexit newreportpath'
+    out=Path(sys.argv[1]);assert str(out)=='/workspace/work/rc070/diagnostic-preflight04-exact-posix-v2'
+    report=audit_actual_run(out,int(sys.argv[2]));target=Path(sys.argv[3])
+    with target.open('x') as stream:stream.write(json.dumps(report,sort_keys=True,indent=2)+'\n')
+    print(json.dumps({'audit_sha256':sha(target.read_bytes()),'passed_limited303':report['passed_limited303'],'loaded':report['loaded'],'started':report['started'],'success':report['success'],'full755_qualification':0}))
+if __name__=='__main__':main()

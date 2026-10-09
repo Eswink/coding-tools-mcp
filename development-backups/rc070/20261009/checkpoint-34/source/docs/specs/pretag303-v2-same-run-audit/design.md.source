@@ -1,0 +1,13 @@
+# Readonly same-run join
+
+## 概述
+
+对应需求 FR-1 FR-2 FR-3 FR-4 FR-5。Only new external audit source and new report. Reuse immutable actual audit_stream function bytes/AST from author firstfailed303 audit, change only newrun path outside function. Rest joins root terminal process exit evidence with actual saved raw bytes/observations and receipts. A future peer independently reruns readonly joins.
+
+## 技术方案
+
+No SUT invoked; never edit original17/helper6/v2sixsource, raw receipts or finalsource seals. Each report includes loaded/start/success uniqueness and method hashes; actual observation identity/fullnative fences remain private. Source-only safe report omits PID/dev/inode/host/runtime/objectpool material while retaining byte identities and safe results. Root actual wrapper exit is explicit externally observed provenance, not standalone JSON authorization.
+
+## 文件结构
+
+work/closed-audit04 contains audit source, readonly source controls and immutable report; docs/specs/pretag303-v2-same-run-audit describes limited scope. Independent review cannot upgrade finite303 to full755.

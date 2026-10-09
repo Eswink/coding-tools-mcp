@@ -1,0 +1,116 @@
+{
+  "actual_merge": {
+    "actual_saved_bytes_write_flush_bound": true,
+    "bytes": 518765,
+    "calls": {
+      "close": 1,
+      "flush": 3,
+      "write": 3
+    },
+    "last_observed_closed": true,
+    "observation_bytes": 5410,
+    "observation_sha256": "4e432497f3a4d77149a5dccc430a301e52e26117e1c75106a16c241202d35dcf",
+    "observations": 14,
+    "sha256": "b583b6d64549220fdf8182ce20522ff6c579097477390a7ab2c57bc1e015c06f",
+    "source_level_real_close_confirmed": true
+  },
+  "actual_streams": [
+    {
+      "bytes": 136447,
+      "calls": {
+        "close": 1,
+        "flush": 129,
+        "write": 129
+      },
+      "events": 129,
+      "loaded": 63,
+      "observation_bytes": 205494,
+      "observation_sha256": "5c969d7c46413447f5f96a37731617dd22f6c52dbc93cbaaf43f72ed6acfc84b",
+      "observations": 518,
+      "selector": "fixed-1",
+      "sha256": "0908568cd0e56c92c6bc02860c17f737663cfcd95a8b41e2a7dc21a79b81149c",
+      "source_level_real_close_confirmed": true,
+      "started": 63,
+      "success": 63
+    },
+    {
+      "bytes": 194390,
+      "calls": {
+        "close": 1,
+        "flush": 257,
+        "write": 257
+      },
+      "events": 257,
+      "loaded": 127,
+      "observation_bytes": 408922,
+      "observation_sha256": "336b0d36df68f00c96bf42cbac341103861ba2818db197d4b4823eaba1e4b903",
+      "observations": 1030,
+      "selector": "fixed-2",
+      "sha256": "728ec04737732c5384059b36a6a7b3249ba42398839080ac179534f94918f6cb",
+      "source_level_real_close_confirmed": true,
+      "started": 127,
+      "success": 127
+    },
+    {
+      "bytes": 187928,
+      "calls": {
+        "close": 1,
+        "flush": 229,
+        "write": 229
+      },
+      "events": 229,
+      "loaded": 113,
+      "observation_bytes": 364400,
+      "observation_sha256": "92af6fd7e4ef061351a504a0fa056039577637dad60c8cce5a12e656c9aa337e",
+      "observations": 918,
+      "selector": "fixed-3",
+      "sha256": "6972332488f814edcb3126f65cc0d0d45774c508dc09482fd515a863104c5005",
+      "source_level_real_close_confirmed": true,
+      "started": 113,
+      "success": 113
+    }
+  ],
+  "audit_function_AST": "audit_stream exactoldauthorfunction AST only; otherreadonlyaudit newAST",
+  "author_audit_sha256": "f6f6d0780aa69f0a78952a1902d5d7f776e641dce404c3ae6ac08587bf05671c",
+  "authority": "No public release, issuer, CI, install or full755 credit. Root toolterminal exit provenance and separate peer required; safe status is not standalone authority.",
+  "consumer_methods_run": 0,
+  "eventloss_scope": "Only original three-shard303 concurrency; consumer452 absent. No complete755 topology proof. Actual savedpayload/FD/path/cumulative/write/flush/close verified for this run only.",
+  "full_physical_before_after_equal": true,
+  "full_physical_modes_exact_before": true,
+  "impact": "UNKNOWN degraded unregisteredrepo; manualHIGH disclosed",
+  "independent_terminal_audit": "PENDING",
+  "loaded": 303,
+  "natural_family_closed": true,
+  "necessary_static_spec": "5FR structuredpassed0/0;9initial templateerrors corrected, retained",
+  "nonpass_methods_finished": 0,
+  "not_started": 0,
+  "old_composition03_status": "STOP preserved",
+  "old_first303_status": "FAIL preserved",
+  "original_outer_sha256": "657981fb9fc59df9affb0d77d4e143dfa45c5d8028ec2b0c64b0a90994da302b",
+  "owner_WNOWAIT_natural0_bound": true,
+  "passed_limited303": true,
+  "physical_after_failures": [],
+  "physical_after_receipt_sha256": "efabf699919f87ef59ea875abc39fcc2898572ee830dd298d545997f7853baa7",
+  "physical_limitations": "Static path metadata; not UIDownership/dirFDpin/atomicanti-race/source authority",
+  "postcheck": {
+    "actual1849physical_still_exact": true,
+    "sealed29source_still_exact": true
+  },
+  "preflight_sha256": "a71272467decdf963ef03e3c99e543b8ec7b0e61c2f83c2a4beee37e489cb7fe",
+  "qualification_755_runs": 0,
+  "raw_stdout_bytes": 65445,
+  "raw_stdout_sha256": "9e6c6551ef3b2365b9edfafcb853e4f46375c25bdaaaa1b4049aea42c0491396",
+  "seconds": 1143.2670240259995,
+  "source_only_backup": true,
+  "source_runtime_refs_native_same": [
+    true,
+    true,
+    true,
+    true
+  ],
+  "started": 303,
+  "success": 303,
+  "unfinished_started": 0,
+  "whole755_status": "FAIL original03 preserved",
+  "wrapper_exit_root_observed": 0
+}

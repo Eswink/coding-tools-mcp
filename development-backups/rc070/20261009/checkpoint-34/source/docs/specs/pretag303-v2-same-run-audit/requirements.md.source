@@ -1,0 +1,35 @@
+# Readonly same-run v2 audit
+
+## 功能概述
+
+Read-only same-run raw join; no SUT or retry.
+
+## 需求列表
+
+## FR-1 — 原始证据完整性
+
+WHEN root实际wrapper结束 THEN audit SHALL读取同run四actual event/observation文件、收据和原stdout，逐payload/FD/path/cumulativeoffset/flush/close核对，仅复用原audit_stream AST；不得写入或修补原raw。
+
+## FR-2 — 原方法计数
+
+WHEN actual events complete THEN audit SHALL计算三原分片63/127/113的loaded/started/success/failure/unfinished/notstarted，核实际methodname顺序303身份与原receipt；named_ids空不得写0执行。原merge须等实际三file拼接。
+
+## FR-3 — 原生与全物理边界
+
+WHEN terminal THEN audit SHALL复核实际native dependencies/objectpool、source/index/runtime/refs、1849精确physicalbefore/after、afterreceipt，prep快照不得当actualrun证明。
+
+## FR-4 — 真实退出与取消
+
+WHEN report THEN audit SHALL只以root观察的真实wrapperexit加独立peer复核作整轮准入。原OUTER passed不得覆盖aftercancel/restorefailure；missing evidence必须FAIL/BLOCKED，不推断成功。保存driver/worker真实异常，不观察覆盖。
+
+## FR-5 — 范围和封存
+
+WHEN完成 THEN audit SHALL保留旧first303FAIL/old03STOP/原full755FAIL，consumer0/full755资格0，source-only安全报告另封，不复制private rawhost/proc/TLS/runtime对象；不launch/retry，1200/7/2/2+2MiB不扩。
+
+## 非功能需求
+
+Private read-only raw access; original1200/7/2/2+2MiB unchanged; source-only safe public backup.
+
+## 依赖关系
+
+Actual root v2 wrapper terminal exit; same-run sealed packet/raw receipts; independent peer readonly review.
