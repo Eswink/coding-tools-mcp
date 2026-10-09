@@ -1,0 +1,208 @@
+{
+  "source_only": true,
+  "production_source_changes": 0,
+  "management_base_commit": "a935f0d8f81901a0974b5b0d4a59c98d7765b8a1",
+  "management_tree": "37109f95d52f7a18ef79b0bf085568666c078fe5",
+  "pure_SUT_parent": "13cd343d942b7a68912d42a8f9235c02ed647764",
+  "pure_SUT_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "pure_SUT_paths": 1878,
+  "original85": "Actual85_wholeFAIL83SUCCESS2FAIL_retained",
+  "original300": "NOTRUN_notadmitted",
+  "diagnostic1": "ActualoneoriginalmethodFAIL60.375s_thirdscopeUploadAsset11_wireadaptererrorunknown",
+  "diagnostic2": "ActualoneoriginalmethodFAIL56.883843s_thirdscopeEarlierCreateDraft2_wireadaptererrorunknown_op11NOTREACHED_inner0UNKNOWN_independentterminalreviewfencesverified",
+  "ordinary_controls": "76actualexactcurrentworkerFunctionDefASTcontrollednamespacechecks rerunnewdiag4directory_originalscriptv5filename_notborrowed;7actualnativekernelcontrols rerunnewdiag4directory;notissuer/SUT/fullownerautomaticcancel_timeout",
+  "baseline_negative": "Historicaldiag3oldop11scope negative andv1/v4fixturefailures preserved inprevious family; no newdiag4controlledfixtureFAIL",
+  "ordinary_fixture_FAILURES": "No newdiag4 ordinaryfixtureFAIL; previousfamilyFAIL raws preserved not overwritten",
+  "scope": "Same6livebindings;mainthread originalclient/OperationScope/SessionOwner/sessionobjectidentity filter; actualmutationkind3 whitelist; actualidnohardcode",
+  "activation": "Onlycompleted originaldelegate aftercall pairedenter1/exit1; not realtimeoriginalbodyentryhook; nofakeunfinishedcounts",
+  "cancel_install_restore": "Reuseactualstickyoriginalcancels old2hooksandinnerhooks; installerror/completion invalid; independentreverseallattempts andpartialmutatedrollback; primary/cancel/restoreerror preserved, realclose unchanged",
+  "new_connect_bindings": 0,
+  "connection_AST_reason": "nativeconnectionbeforepossibleTrue; currentunknowneffectnotconnectcauseevidence",
+  "uncovered": [
+    "stream.read",
+    "inline expressions",
+    "reader.check/active",
+    "close exceptions"
+  ],
+  "fresh_impact": "FinalmethodexactLOW0upstream notgrant;originalrequestLOW15/responseUIDLOW13/mutationLOW13;newhelpers/profilemetadataUNKNOWN_not0_manualCRITICALprotection;firstrequest bridge_unavailable preserved thenserialfreshexact",
+  "AST_truth": {
+    "source": [
+      {
+        "path": "scripts/rc_publication_github.py",
+        "symbol": "_request",
+        "source_sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+        "AST_sha256": "a851cdafed2a3df79b2929ca21291d712644d24fd202ef0d608f7889a7f09de2",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_github.py",
+        "symbol": "_safe",
+        "source_sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+        "AST_sha256": "e20abcaf2b7006541ea1b6f52e05a01b7c90dbe69a6199622ebf65b5f14e5a66",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_github.py",
+        "symbol": "response",
+        "source_sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+        "AST_sha256": "8f16dabc0999b941223c965250821d000729dbb3134c94b01ae1fa993bce3b96",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_github.py",
+        "symbol": "_mutation_result",
+        "source_sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa",
+        "AST_sha256": "1f9cdf580b08ab45365b7341c34bb1e51b7b459725a126f624b14fde9cff5553",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_native_admission_fixture.py",
+        "symbol": "_native_session",
+        "source_sha256": "9df4f687a377efb98ce2bf2e1fe9bee396a2781ba685db641c7f3703ebf299d7",
+        "AST_sha256": "90860c3163e3e29e7c726a96bcef7a162642282760f59a8755adcab4972b6038",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_native_admission_fixture.py",
+        "symbol": "_pending_fence",
+        "source_sha256": "9df4f687a377efb98ce2bf2e1fe9bee396a2781ba685db641c7f3703ebf299d7",
+        "AST_sha256": "7d65cf1df3a7bf5bc5d164710364b66257303172f7110e19f63d20cc03df6d48",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_executor.py",
+        "symbol": "_failure",
+        "source_sha256": "499d4ae64c014cab032d3a653e7776f938e2c57cd9d9b5076de36c13e201f9d9",
+        "AST_sha256": "52dfc9c2c59acb951bd184eed6a9dc47dc243bdd83555c25b8ec531196339a78",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_executor.py",
+        "symbol": "run_until_pause",
+        "source_sha256": "499d4ae64c014cab032d3a653e7776f938e2c57cd9d9b5076de36c13e201f9d9",
+        "AST_sha256": "369807327b54a3d0585da0244b5855d0cad1a8f657942dea7bd282e0ca7101a2",
+        "original_body_unchanged": true
+      },
+      {
+        "path": "scripts/rc_publication_final_admission_cases.py",
+        "symbol": "test_entry_and_direct_sinks_remain_effect_free",
+        "source_sha256": "b779c32c18a59d41353361e42a7c89163c8f7a5edd4ed06689b6bbbff42e857c",
+        "AST_sha256": "89a90657ca5a970d9b2c5c20146ec4b80bbc49548d93123f135fbf4e081cef01",
+        "original_body_unchanged": true
+      }
+    ],
+    "external_controller_exact_four_changes_to_original": true,
+    "controller_whole_run_owned_AST_not_original": true,
+    "original_receipt_gate_AST_equal": true,
+    "live_wrappers": 6,
+    "stdlib_live_binding": "ssl.SSLSocket.sendall",
+    "request_catch_original_AST": true,
+    "context_filter": "Read-only originalclient/scope/session/owner identity filter, noissuer mint/check/consume",
+    "activation_counter": "pairedentryexit of actualcompleted originaldelegate recordedaftercall; no realtimebodyentry claim",
+    "uncovered": [
+      "stream.read",
+      "inline_expressions",
+      "reader.check/active",
+      "socket.close exceptions"
+    ],
+    "new_connect_bindings": 0,
+    "diag4_metadata": "newpaths/profile/finalmethodinventory/sidecar diagnostic keyword key only; original6hookfunctionASTequal correcteddiag3, finish key metadata differs accurately",
+    "original_method_scope": "Secondoriginal85FAILmethod; sharedoriginal_pending_fence; firstartifactmethodPASSnotrepairproof",
+    "all_worker_FunctionDef_AST_equal_diag3_after_only_report_keyword_inverse": true
+  },
+  "preserved_budgets": {
+    "fail_only_seconds": 1800,
+    "TERM": 7,
+    "KILL": 2,
+    "family": 2,
+    "original_test_operation_timers_unchanged": true
+  },
+  "spec": "check_spec02 structured3FRpassed0errors0warnings",
+  "source_files": [
+    {
+      "original_path": "diagnostic_owner.py",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/diagnostic_owner.py.source",
+      "bytes": 15193,
+      "sha256": "3c2326880b83a98a6656b5d9206756f1afd3182a005451db54a4da3527c4548d",
+      "blob_sha1": "8a3faae77fbff1afa8dfbe5703e55032c414fabd"
+    },
+    {
+      "original_path": "diagnostic_worker.py",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/diagnostic_worker.py.source",
+      "bytes": 11764,
+      "sha256": "2400b4e949ae3aa210e003238a4d32856793fcdfcb16a3498a369adfdf3624b4",
+      "blob_sha1": "f15399dfdcce44bcbdd35627c7dd7e59d8ed7250"
+    },
+    {
+      "original_path": "diagnostic-launch.py",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/diagnostic-launch.py.source",
+      "bytes": 3680,
+      "sha256": "1873f3ad43f8152f1d1b0f4660334b2b13f0c8632f6882f1e6a08cf8916eb539",
+      "blob_sha1": "4ff4fdf718b0fb1ef0ecff5d83d98c6ce1dd749b"
+    },
+    {
+      "original_path": "ordinary-mutation-controls.py",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/ordinary-mutation-controls.py.source",
+      "bytes": 22331,
+      "sha256": "11863c85afd0b724d5e8d175917e46455de0fc4453605ccb11f568b8942f786b",
+      "blob_sha1": "215677f58eb9311df19d70ff44bb5ac023add4ed"
+    },
+    {
+      "original_path": "ordinary-native-controls.py",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/ordinary-native-controls.py.source",
+      "bytes": 3123,
+      "sha256": "335c2196da44a0d9e151ae8b724dc5563031d3c7485e586eb2deef3affd5ae52",
+      "blob_sha1": "b2264d56530700aa76cc6835b95526a38ebed04a"
+    },
+    {
+      "original_path": "docs/specs/publisher-final-fence-diagnostic4/design.md",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/docs/specs/publisher-final-fence-diagnostic4/design.md.source",
+      "bytes": 3883,
+      "sha256": "5f9823da10ada201ed9254d8a667896fc05a2af05bb8a35a68da41f2af45ffe7",
+      "blob_sha1": "fce41ff718a8617e946b43d177b56fb15521d940"
+    },
+    {
+      "original_path": "docs/specs/publisher-final-fence-diagnostic4/requirements.md",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/docs/specs/publisher-final-fence-diagnostic4/requirements.md.source",
+      "bytes": 6265,
+      "sha256": "6079f927019b88b79a29c46fe9f7b1d607b76bd034b4e614f82d097f95226f3f",
+      "blob_sha1": "8b44c8d364b4eddc65ebf37edf93d20373d8c696"
+    },
+    {
+      "original_path": "docs/specs/publisher-final-fence-diagnostic4/tasks.md",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "backup_path": "source/docs/specs/publisher-final-fence-diagnostic4/tasks.md.source",
+      "bytes": 2397,
+      "sha256": "1d36e91b7125a02040c9a5168fe3b695e2f973d56568199e8106f60627dbc830",
+      "blob_sha1": "9ff6450a5db21a465edead448634d107921db62a"
+    }
+  ],
+  "original_failures_immutable": true,
+  "CI_qualification": false,
+  "FINAL0_7_qualification": false,
+  "install_qualification": false,
+  "release_authorized": false,
+  "raw_sensitive_payloads_included": false,
+  "diagnostic3": "Actual_originalmethod1PASS63.018003s_independentterminalreviewverified_oldFAILNOTREPRODUCED_no85credit",
+  "diagnostic4_at_freeze": "SOURCE_ONLY_NOTRUN_independent_startup_review_PENDING_after_spec_scope_correction",
+  "original_method": "rc_publication_final_admission_cases.FinalAdmissionCases.test_entry_and_direct_sinks_remain_effect_free",
+  "shared_fixture": "Sameoriginal_pending_fence for3kind afteroriginalIntegrationTLS stage/directsink assertions; no method/assert edits",
+  "new_scope_authorized_by_root": "Secondoriginal85FAILmethod1 only,6hooks same, rootsolelaunch afterindependentreview, no85/300automatic",
+  "audit_erratum": "FirstexternalASTcomparison forgotast.keyword.arg reportmetadata inverse; fixedaudit only, worker/SUT unchanged",
+  "spec_scope_erratum": "First5037freeze copiedoldspec artifactmethod mainbody conflictedwith appendedsecondFinalmethod scope; originalspec/seal andoldsourcebundle preserved; only3spec bodytext corrected toexplicitsecondFinalmethod; sourcehooks/SUT/budgets0changes"
+}

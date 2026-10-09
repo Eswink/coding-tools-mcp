@@ -1,0 +1,39 @@
+"""POSIX physical-source metadata guard only; no authority or test execution."""
+from pathlib import Path, PurePosixPath
+import os
+import stat
+
+EXPECTED={'100644':0o644,'100755':0o755}
+
+def validate_source_path(root, path):
+    if type(path) is not str or '\x00' in path or '\\' in path:
+        raise ValueError('invalid source path')
+    parsed=PurePosixPath(path)
+    if parsed.is_absolute() or str(parsed)!=path or not parsed.parts or any(part in ('.','..') for part in parsed.parts):
+        raise ValueError('source path is not canonical relative')
+    current=root
+    for part in parsed.parts[:-1]:
+        current=current/part;info=current.lstat()
+        if not stat.S_ISDIR(info.st_mode):raise ValueError('source parent is not real directory')
+    return root/path
+
+def exact_mode_snapshot(root, entries):
+    if os.name!='posix':raise ValueError('exact POSIX source mode guard unavailable')
+    root=Path(root)
+    if not root.is_absolute() or root.resolve(strict=True)!=root or not stat.S_ISDIR(root.lstat().st_mode):
+        raise ValueError('source root is not absolute canonical real directory')
+    if type(entries) is not dict or not entries:raise ValueError('empty or unsupported source mapping')
+    rows={}
+    for path,mode in sorted(entries.items()):
+        if type(mode) is not str or mode not in EXPECTED:raise ValueError('unsupported native Git source mode')
+        actual=validate_source_path(root,path);info=actual.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1:raise ValueError('source is not one regular file')
+        rows[path]={'git_mode':mode,'expected_native_mode':EXPECTED[mode],'actual_native_mode':stat.S_IMODE(info.st_mode),
+                    'dev':info.st_dev,'inode':info.st_ino,'type':stat.S_IFMT(info.st_mode),'nlink':info.st_nlink}
+    return rows
+
+def require_exact_posix_modes(root, entries):
+    rows=exact_mode_snapshot(root,entries)
+    bad=[path for path,row in rows.items() if row['actual_native_mode']!=row['expected_native_mode']]
+    if bad:raise ValueError('exact native source mode mismatch: '+str(len(bad))+' paths')
+    return rows

@@ -1,0 +1,63 @@
+"""New external fences around exact original755 functions; root alone launches."""
+from pathlib import Path
+import hashlib
+import importlib.util
+import json
+import os
+import stat
+import sys
+import types
+BASE=Path(__file__).resolve().parent
+ORIGINAL=BASE/'original'
+ORIGINAL_WRAPPER_SHA='0eb2ce455b513a091fc8473f45699608f54e2112ad258dcf375d1168cede7b88'
+ORIGINAL_OWNER_SHA='8fe7478874c3817858dbb2eabed515dbeb78f268393577a66ba0408ee44922ff'
+FIXTURE=Path('/workspace/scratch/566f6003d85e/recovery-tools/glib-0.18.5.crate')
+sha=lambda raw:hashlib.sha256(raw).hexdigest()
+def load(name,path):
+    spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
+
+def full_identity(path):
+    path=Path(path);info=path.lstat()
+    if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1:raise ValueError('runtime identity is not one regular file')
+    return {'path':str(path),'realpath':str(path.resolve()),'mode':stat.S_IMODE(info.st_mode),'uid':info.st_uid,'dev':info.st_dev,'inode':info.st_ino,'nlink':info.st_nlink,'bytes':info.st_size,'mtime_ns':info.st_mtime_ns,'sha256':sha(path.read_bytes())}
+
+def natural_original_family(out):
+    outer=json.loads((out/'OUTER-RECEIPT.json').read_bytes());aggregate=json.loads((out/'owned-owner/aggregate.json').read_bytes())
+    wait=outer['owner_WNOWAIT']
+    held=type(wait) is list and len(wait)==5 and all(type(item) is int for item in wait) and type(outer['owner_native_pid']) is int and outer['owner_native_pid']>0 and wait[0]==outer['owner_native_pid'] and wait[3]==0 and wait[4]==os.CLD_EXITED
+    def natural(rows):return type(rows) is list and all(type(row) is dict and type(row.get('code')) is int and type(row.get('status')) is int and row['code']==os.CLD_EXITED and row['status']==0 for row in rows)
+    return held and outer['outer_kernel_family_closed'] is True and aggregate['owned_family_kernel_closed'] is True and natural(outer['outer_adopted_child_kernel_outcomes']) and natural(aggregate['adopted_child_kernel_outcomes'])
+
+def configure_original(packet):
+    original=load('exact_original_full755_wrapper',ORIGINAL/'run-private755-recovery03.py')
+    original.BASE=ORIGINAL;original.ROOT=Path(packet['root']);original.OUT=Path(packet['out']);original.PYTHON=packet['python'];original.PROGRAM=original.OUT/'owned-owner/owner.py'
+    return original
+
+def main():
+    assert len(sys.argv)==3 and len(sys.argv[2])==64
+    packet_path=Path(sys.argv[1]);raw=packet_path.read_bytes();assert sha(raw)==sys.argv[2];packet=json.loads(raw)
+    assert str(Path(sys.executable).resolve())==packet['python'] and packet['scope']=='independent-original755-baseline-engineering'
+    assert sha((ORIGINAL/'run-private755-recovery03.py').read_bytes())==ORIGINAL_WRAPPER_SHA and sha((Path(packet['out'])/'owned-owner/owner.py').read_bytes())==ORIGINAL_OWNER_SHA
+    for row in packet['external_source_hashes']:
+        assert sha(Path(row['path']).read_bytes())==row['sha256']
+    out=Path(packet['out']);root=Path(packet['root'])
+    for name,key in [('physical-source-before.json','physical_before_sha256'),('extra-runtime-before.json','extra_runtime_before_sha256')]:assert sha((out/name).read_bytes())==packet[key]
+    before=json.loads((out/'source-before.json').read_bytes());entries={path:row['mode'] for path,row in before['source'].items()};expected=json.loads((out/'physical-source-before.json').read_bytes());runtime=json.loads((out/'extra-runtime-before.json').read_bytes())
+    assert len(expected)==len(entries)==1849 and {name:full_identity(row['path']) for name,row in runtime.items()}==runtime
+    core=load('exact_v2_fence_core',ORIGINAL/'composed-core-original-v2.py');core.HELPER=ORIGINAL/'physical_modes.py'
+    original=configure_original(packet);codes=[value for value in original.main.__code__.co_consts if isinstance(value,types.CodeType) and value.co_name=='cancel'];assert len(codes)==1
+    phase=core.AfterSignalScope(codes[0]);errors=[];extra={}
+    def delegate():
+        prior=sys.argv;sys.argv=[str(ORIGINAL/'run-private755-recovery03.py'),sha(raw)]
+        try:code=original.main()
+        finally:sys.argv=prior
+        extra['natural_original_family_admitted']=natural_original_family(out)
+        return code if code!=0 else (0 if extra['natural_original_family_admitted'] else 1)
+    def after_receipt(after,failures,code):
+        current={name:full_identity(row['path']) for name,row in runtime.items()};same=current==runtime
+        with (out/'extra-runtime-after.json').open('x') as stream:stream.write(json.dumps(current,sort_keys=True,indent=2)+'\n')
+        if not same:raise ValueError('extra runtime metadata identity changed')
+        receipt={'scope':'Independent original full755 baseline engineering only','physical_after':after,'physical_before_after_equal':after==expected,'extra_runtime_before_after_equal':same,'fence_failures':list(failures),'delegate_exit_after_natural_gate':code,**extra,'root_wrapper_actual_exit_required':0,'public_RC_CI_install_credit':False}
+        with (out/'PHYSICAL-FULL755-OUTER-RECEIPT.json').open('x') as stream:stream.write(json.dumps(receipt,sort_keys=True,indent=2)+'\n')
+    return core.run_fenced(delegate,root,entries,expected,errors,after_receipt,phase)
+if __name__=='__main__':raise SystemExit(main())

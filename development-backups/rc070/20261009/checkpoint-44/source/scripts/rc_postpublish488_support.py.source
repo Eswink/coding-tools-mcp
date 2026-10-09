@@ -1,0 +1,142 @@
+"""New488 data-only source fences; copied FD reader AST unchanged from checkpoint09."""
+import ast
+import hashlib
+import json
+import os
+from pathlib import Path
+import stat
+import subprocess
+import sys
+
+TREE='3084a7ea3dafac6e0a32088757dfd2256c21ee35'
+PARENT='c60f9667fa8431e27fabbc497c19b4abfef5b965'
+RUNNER_SHA='0344311a0640e64b46875ed3cdb4e61ed41d87e4274e4a44c76e944323e8186e'
+INVENTORY_SHA='3274554750e538929b34a91cb124d66fe2372ac8737ee768ccb81b0aa7691094'
+FIXTURE_SHA='233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5'
+ENV={'PATH':'/usr/bin:/bin','LANG':'C.UTF-8','LC_ALL':'C.UTF-8','GIT_CONFIG_NOSYSTEM':'1','GIT_CONFIG_GLOBAL':'/dev/null','GIT_NO_REPLACE_OBJECTS':'1','GIT_TERMINAL_PROMPT':'0','PYTHONDONTWRITEBYTECODE':'1'}
+PREFIX=('--no-pager','--no-replace-objects','--no-optional-locks','--no-lazy-fetch')
+OVERRIDES=('-c','core.hooksPath=/dev/null','-c','core.fsmonitor=false','-c','core.untrackedCache=false','-c','credential.helper=','-c','protocol.allow=never')
+def sha(raw):
+    return hashlib.sha256(raw).hexdigest()
+
+def write(path, value):
+    with Path(path).open('x', encoding='utf-8') as stream:
+        json.dump(value, stream, indent=2)
+        stream.write('\n')
+        stream.flush()
+        os.fsync(stream.fileno())
+
+def read_regular(path):
+    """Read only an owned single-link regular file via nofollow directory FDs."""
+    path = Path(path).absolute()
+    assert path.is_absolute() and '..' not in path.parts
+    directory = os.open('/', os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+    fd = None
+    try:
+        for part in path.parts[1:-1]:
+            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=directory)
+            os.close(directory)
+            directory = child
+        fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=directory)
+        before = os.fstat(fd)
+        assert stat.S_ISREG(before.st_mode) and before.st_nlink == 1 and before.st_uid == os.geteuid()
+        assert not before.st_mode & 0o022 and 0 <= before.st_size <= 32*1024*1024
+        raw = bytearray()
+        while True:
+            chunk = os.read(fd, min(1024*1024, before.st_size-len(raw)+1))
+            if not chunk:
+                break
+            raw.extend(chunk)
+            assert len(raw) <= before.st_size
+        after = os.fstat(fd)
+        fields = ('st_dev', 'st_ino', 'st_mode', 'st_uid', 'st_gid', 'st_nlink', 'st_size', 'st_mtime_ns', 'st_ctime_ns')
+        assert all(getattr(before, key) == getattr(after, key) for key in fields) and len(raw) == before.st_size
+        return bytes(raw)
+    finally:
+        if fd is not None:
+            os.close(fd)
+        os.close(directory)
+
+def git(root,*args,data=None):
+    return subprocess.run(['/usr/bin/git',*PREFIX,*OVERRIDES,'-C',str(root),*args],input=data,capture_output=True,check=True,timeout=30,env=ENV).stdout
+
+
+def whole_source488(root,manifest):
+    root=Path(root).resolve()
+    rows=manifest['source']; source={}; actual={}
+    for entry in git(root,'ls-files','--stage','-z').split(b'\0'):
+        if entry:
+            meta,rel=entry.split(b'\t',1);mode,blob,stage=meta.decode().split();assert stage=='0'
+            actual[rel.decode()]=(mode,blob)
+    assert len(actual)==len(rows)==1867 and set(actual)=={r['path'] for r in rows}
+    for row in rows:
+        rel=Path(row['path']);assert not rel.is_absolute() and '..' not in rel.parts
+        p=root/rel;raw=read_regular(p);info=p.stat();mode={'100644':0o644,'100755':0o755}[row['mode']]
+        blob=hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()
+        assert (stat.S_IMODE(info.st_mode),len(raw),sha(raw),blob)==(mode,row['bytes'],row['sha256'],row['blob']),str(rel)
+        assert actual[str(rel)]==(row['mode'],row['blob'])
+        source[str(rel)]=dict(bytes=len(raw),sha256=sha(raw),mode=mode)
+    assert git(root,'write-tree').decode().strip()==TREE==manifest['tree']
+    return dict(files=source,head=git(root,'rev-parse','HEAD').decode().strip(),status=git(root,'status','--porcelain','--untracked-files=all').decode())
+
+
+def prefix488(root):
+    text=read_regular(Path(root)/'scripts/rc_consumer_fixed_git.py').decode()
+    values={n.targets[0].id:ast.literal_eval(n.value) for n in ast.parse(text).body if isinstance(n,ast.Assign) and isinstance(n.targets[0],ast.Name) and n.targets[0].id in ('PREFIX','OVERRIDES')}
+    assert values==dict(PREFIX=PREFIX,OVERRIDES=OVERRIDES)
+    r=subprocess.run(['/usr/bin/git',*PREFIX,*OVERRIDES,'--version'],capture_output=True,env=ENV,timeout=30)
+    assert r.returncode==0 and r.stdout.startswith(b'git version ') and not r.stderr
+    return dict(argv=['/usr/bin/git',*PREFIX,*OVERRIDES,'--version'],stdout=r.stdout.decode(),exit_code=r.returncode)
+
+
+def prepare_context488(root,manifest_path,runner_path,inventory_path,fixture_path,carrier_paths):
+    from rc_postpublish488_layout import seal_native_objects
+    native_layout = seal_native_objects(root)
+    root=Path(root).resolve();manifest=json.loads(read_regular(manifest_path));assert manifest['tree']==TREE and manifest['parent']==PARENT
+    assert sha(read_regular(runner_path))==RUNNER_SHA and len(read_regular(runner_path))==8338
+    raw=read_regular(inventory_path);assert len(raw)==58132 and sha(raw)==INVENTORY_SHA
+    inventory=json.loads(raw)['loaded'];assert len(inventory)==len(set(inventory))==488 and all(isinstance(n,str) and n for n in inventory)
+    fixture=read_regular(fixture_path);assert len(fixture)==267679 and sha(fixture)==FIXTURE_SHA
+    prefix=prefix488(root);source=whole_source488(root,manifest)
+    refs={}
+    for anchor in sorted({row['anchor'] for row in manifest['identity26_anchors']}|{PARENT,'e2e011f7f2a3a1df838bbd588106205b999db610'}):
+        assert git(root,'cat-file','-t',anchor)==b'commit\n'
+        raw=git(root,'cat-file','commit',anchor);assert hashlib.sha1(b'commit '+str(len(raw)).encode()+b'\0'+raw).hexdigest()==anchor
+        refs[anchor]=dict(bytes=len(raw),sha256=sha(raw))
+    assert git(root,'rev-parse',PARENT+'^{tree}').decode().strip()=='064252014dc0ad3c3882fbd5aef1968b083f8bb0'
+    assert git(root,'rev-parse','e2e011f7f2a3a1df838bbd588106205b999db610^{tree}').decode().strip()=='c0dfe00fdcc7ebc8e26acaad5d18ff3f94df9ba3'
+    for row in manifest['identity26_anchors']:
+        raw=git(root,'show',row['anchor']+':'+row['path']);assert sha(raw)==row['sha256']
+        assert git(root,'rev-parse',row['anchor']+':'+row['path']).decode().strip()==row['blob']
+    context=dict(root=str(root),manifest=manifest,manifest_path=str(manifest_path),runner_path=str(runner_path),inventory_path=str(inventory_path),fixture_path=str(fixture_path),carrier_paths=[str(p) for p in carrier_paths],inventory=inventory,source=source,refs=refs,prefix=prefix,native_layout=native_layout)
+    context['fence']=fences488(context)
+    return context
+
+
+def fences488(context):
+    from rc_postpublish488_kernel import identity,realm
+    from rc_postpublish488_layout import seal_native_objects
+    root=Path(context['root'])
+    native_layout = seal_native_objects(root)
+    assert native_layout == context['native_layout']
+    programs={str(Path(p).resolve()):identity(Path(p).resolve()) for p in ['/usr/bin/git','/usr/bin/openssl',sys.executable,'/usr/bin/python3']}
+    system_python = Path('/usr/bin/python3')
+    literal = system_python.lstat()
+    assert literal.st_uid == 0 and (stat.S_ISLNK(literal.st_mode) or stat.S_ISREG(literal.st_mode))
+    system_binding = dict(literal_path=str(system_python),resolved_path=str(system_python.resolve()),dev=literal.st_dev,ino=literal.st_ino,mode=stat.S_IMODE(literal.st_mode),uid=literal.st_uid,gid=literal.st_gid,nlink=literal.st_nlink,mtime_ns=literal.st_mtime_ns,ctime_ns=literal.st_ctime_ns,link_target=os.readlink(system_python) if stat.S_ISLNK(literal.st_mode) else None)
+    import _ssl,_hashlib,ssl
+    extensions={}
+    for name,module in (('_ssl',_ssl),('_hashlib',_hashlib)):
+        path=getattr(module,'__file__',None)
+        if path is not None:
+            resolved=str(Path(path).resolve());programs[resolved]=identity(Path(path).resolve());extensions[name]=dict(origin='file',path=resolved)
+        else:
+            assert module.__spec__.origin=='built-in';extensions[name]=dict(origin='built-in',python_binary_sha256=programs[str(Path(sys.executable).resolve())]['sha256'])
+    blobs={}
+    for row in context['manifest']['identity26_anchors']:
+        key=row['anchor']+':'+row['path'];raw=git(root,'show',key);blob=git(root,'rev-parse',key).decode().strip()
+        assert sha(raw)==row['sha256'] and blob==row['blob']
+        blobs[key]=dict(bytes=len(raw),sha256=sha(raw),blob=blob)
+    refs={name:sha(git(root,'cat-file','commit',name)) for name in context['refs']}
+    assert refs=={name:row['sha256'] for name,row in context['refs'].items()}
+    return dict(source=whole_source488(root,context['manifest']),index_sha256=sha(git(root,'ls-files','--stage','-z')),refs=refs,historical_blobs=blobs,programs=programs,extensions=extensions,realm=realm(),helpers={str(p):identity(p) for p in context['carrier_paths']},fixture=identity(context['fixture_path']),runner=identity(context['runner_path']),ssl_version=ssl.OPENSSL_VERSION,native_layout=native_layout,system_worker_python_binding=system_binding)

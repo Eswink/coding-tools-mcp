@@ -1,0 +1,68 @@
+{
+  "status": "FINAL_IMMUTABLE_SOURCE_ONLY",
+  "source_commit": "8c7b7ef262320893142d0a4f47d2a583691b0dd7",
+  "source_tree": "d6ba702a25dc03b0267e8bef8cff043985c584fb",
+  "files": [
+    {
+      "path": "DELTA-FROM-40c4.patch.source",
+      "bytes": 16033,
+      "sha256": "4802fbcae0d261a122b2179e56b40c453c636e55d8baec420b18513947084952",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1924,
+      "sha256": "3288dd1011122f5ec43c11e9db6040001ddbfd211a1aaed4c6e8b24e5daacfa1",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "SAFE-ORDINARY-CONTROLS.json",
+      "bytes": 1613,
+      "sha256": "bc1c51e4be6ba1ac51b187a7bb19772830106c96894adacddd4785350422bb8e",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "SOURCE-MANIFEST.json",
+      "bytes": 2862,
+      "sha256": "e645d6f557c95e3b158b7f29dad43e4398730a5462157445c953b540f1aefb27",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 1518,
+      "sha256": "fe16e321559ddf006fc0d812fd2e6a037fc329e09c3670bd6a3f9bb22d6b44ad",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "source/.gitattributes.source",
+      "bytes": 484,
+      "sha256": "e71eff1d357a5e428d8323d3f8d328e25c3aa57f522dae766fd44f4aa1e1e1bd",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "source/docs/specs/windows-manager-raw-checkout/design.md.source",
+      "bytes": 1797,
+      "sha256": "838323b380b0adf24e24e8cce5dddb327030ab66c7c353e1d390dd5bf28e9550",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "source/docs/specs/windows-manager-raw-checkout/requirements.md.source",
+      "bytes": 2921,
+      "sha256": "7af478dd567865204e06dfc8d7ab661597e9576e66fc7935e3994b2b9b8a3d75",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "source/docs/specs/windows-manager-raw-checkout/tasks.md.source",
+      "bytes": 2170,
+      "sha256": "2ea7476b9791f5c3336fee9699720ad3d6439e0b9cb7446b1ce457e3663d702b",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "source/scripts/windows_foundation_manager_checkout_tests.py.source",
+      "bytes": 7283,
+      "sha256": "952d83b3855c01372f955181e089ed12dfd9fcec630262e2ad412b0c42346094",
+      "backup_mode": "0644"
+    }
+  ],
+  "note": "Manifestexcludes itself; externalSHA seals it. Notnativequalification."
+}

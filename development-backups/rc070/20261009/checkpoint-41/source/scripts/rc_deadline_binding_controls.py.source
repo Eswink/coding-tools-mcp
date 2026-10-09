@@ -1,0 +1,91 @@
+"""Failure-first ordinary alias/FD/cancellation controls, no original SUT."""
+import functools
+import json
+import os
+from pathlib import Path
+import sys
+
+from rc_deadline_binding import capture_bindings, install_bindings, restore_bindings, raise_combined
+from rc_deadline_observer import observe_delegate
+
+
+def run_binding_controls():
+    rows = []
+    names = tuple('abcdefg')
+    for scenario in ('partial_install', 'first_restore', 'postwrite_install'):
+        def delegate(self):
+            return 'ordinary delegate'
+        cls = type('OrdinaryOwnedAliases', (), dict.fromkeys(names, delegate))
+        calls = []
+        fault = KeyboardInterrupt('ordinary alias setter cancellation')
+        def setter(owned, name, value):
+            restoring = value is delegate
+            calls.append((name, restoring))
+            if scenario == 'partial_install' and name == 'c' and not restoring:
+                raise fault
+            if scenario == 'first_restore' and name == 'a' and restoring:
+                raise fault
+            setattr(owned, name, value)
+            if scenario == 'postwrite_install' and name == 'c' and not restoring:
+                raise fault
+        def factory(name, original):
+            return functools.partial(original)
+        lease = capture_bindings(cls, names, __file__, setter=setter)
+        installed = install_bindings(lease, factory)
+        if scenario == 'first_restore':
+            assert installed
+            restore_bindings(lease)
+            assert [name for name, restore in calls if restore] == list(names)
+            assert lease['unknown_aliases'] == ['a'] and lease['restored_aliases'] == list(names[1:])
+            assert lease['restore_errors'][0]['error'] is fault
+        else:
+            assert not installed and lease['installation_error'] is fault
+            assert [name for name, restore in calls if restore] == list('abc')
+            assert not lease['unknown_aliases'] and all(getattr(cls,n) is delegate for n in names)
+        rows.append(dict(name=scenario, passed=True, aliases_attempted=lease['attempted'], aliases_restored=lease['restored_aliases'], aliases_unknown=lease['unknown_aliases'], original_SUT_runs=0))
+    for scenario in ('primary_exit1_writer_KBI', 'primary_KBI_new_exit', 'multiple_cancel', 'other_nonexception_base'):
+        reader, writer = os.pipe2(os.O_CLOEXEC)
+        failures = []
+        primary = SystemExit(1) if scenario == 'primary_exit1_writer_KBI' else KeyboardInterrupt('ordinary primary')
+        secondary = KeyboardInterrupt('ordinary writer') if scenario == 'primary_exit1_writer_KBI' else SystemExit(2)
+        third = BaseException('ordinary non-Exception base')
+        expected = []
+        def delegate():
+            os.close(writer)
+            raise primary
+        def factory(phase, args, result, error):
+            if phase == 'before' and scenario in ('multiple_cancel','other_nonexception_base'):
+                raise third
+            if phase == 'raise':
+                raise secondary
+        try:
+            try:
+                observe_delegate(delegate, factory, failures)()
+            except BaseException as actual_primary:
+                assert actual_primary is primary
+                expected = [actual_primary] + [entry['error'] for entry in failures]
+            else:
+                raise AssertionError('ordinary primary lost')
+            assert os.read(reader,1) == b''
+            try:
+                raise_combined(expected)
+            except BaseExceptionGroup as group:
+                assert len(group.exceptions) == len(expected) and all(a is b for a,b in zip(group.exceptions,expected))
+            else:
+                raise AssertionError('original objects not preserved')
+            if scenario in ('multiple_cancel','other_nonexception_base'):
+                assert any(error is third for error in expected)
+            rows.append(dict(name=scenario, passed=True, original_close_EOF=True, original_objects_preserved=len(expected), original_SUT_runs=0))
+        finally:
+            os.close(reader)
+    assert len(rows) == 7
+    return dict(scope='ordinary binding and BaseException identity controls only', passed=True, actual_control_count=7, actual_cases=rows, original_SUT_runs=0, single_original_method='NOTRUN', original488='FAIL_ONCE01', CI='NOTRUN', install='NOTRUN')
+
+
+if __name__ == '__main__':
+    assert len(sys.argv) == 2
+    result = run_binding_controls()
+    fd = os.open(Path(sys.argv[1]),os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+    with os.fdopen(fd,'w') as stream:
+        json.dump(result,stream,indent=2);stream.write('\n');stream.flush();os.fsync(stream.fileno())
+    print(json.dumps(dict(passed=True,actual_control_count=7,original_SUT_runs=0)))

@@ -1,0 +1,39 @@
+{
+  "source_files": [
+    {
+      "path": "owned_gettext_prepare.py",
+      "bytes": 20699,
+      "sha256": "712b3fa1e7f97905bf17d27e0fa50fc8cc760dcb4332e75b7356eb43f48d6222",
+      "git_mode": "100644",
+      "physical_source_mode": "0o600"
+    },
+    {
+      "path": "owned_gettext_prepare_tests.py",
+      "bytes": 11290,
+      "sha256": "299df1c9c83db57549e9d267d06fe2d8df75e2d3606a69b5e66ef60c32dd1af1",
+      "git_mode": "100644",
+      "physical_source_mode": "0o600"
+    },
+    {
+      "path": "docs/specs/issue88-owned-gettext-v3-preparation/requirements.md",
+      "bytes": 7831,
+      "sha256": "afada44c6311f4fe71dafbd83b064bd84e62a4bb9199e4aae7d08ad873c33535",
+      "git_mode": "100644",
+      "physical_source_mode": "0o600"
+    },
+    {
+      "path": "docs/specs/issue88-owned-gettext-v3-preparation/design.md",
+      "bytes": 6167,
+      "sha256": "94a8e93d5734597fa5a1ecb28e600c1ec37640797e93fec0a5d7692a50bbcc5c",
+      "git_mode": "100644",
+      "physical_source_mode": "0o600"
+    },
+    {
+      "path": "docs/specs/issue88-owned-gettext-v3-preparation/tasks.md",
+      "bytes": 2429,
+      "sha256": "76ae736ae587cd9c11b4506c6930d52f4b56c0fb2e1eb13527a2598f9e949c08",
+      "git_mode": "100644",
+      "physical_source_mode": "0o600"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "scope": "SOURCE_ONLY_OWNED_GETTEXT_PREPARATION_PROPOSAL",
+  "source_only": true,
+  "original_V1_V2_Git_builds": "FAIL retained immutable",
+  "original_publisher_e90": "0SUT/85NOTRUN/300NOTRUN runtime /usr/local/bin/git missing",
+  "source_crypto": "Current official GNU1.0 authenticated by exact registry signer, TRUST_UNDEFINED retained; expired historical key rejected",
+  "ordinary_controls": {
+    "methods": 18,
+    "actual_exit": 0,
+    "status": "PASS_COMPONENT_SCOPE_ONLY",
+    "raw_log_SHA256": "915856801d1904bdacd47baa8cd2a506b2fdf218a24ea62caaa456c8101c52bb",
+    "raw_log_not_public": true
+  },
+  "GNU_source_execution": "NOTRUN",
+  "OWNED_INSTALL": false,
+  "HOST_INSTALL": false,
+  "genuine_msgfmt": "NOTRUN",
+  "GitV3": "NOTRUN",
+  "sourcepeer": "PENDING",
+  "RC_qualification": false,
+  "manual_risk": "HIGH; fresh graph UNKNOWN/timeout is not zero",
+  "earlier_local_states": [
+    "controls02CANCELLED143",
+    "controls03FAIL1"
+  ],
+  "safe_payload": "Source/spec/hash/mode/status only; excludes keys/nativepayloads/dependencies/rawhost/runtime/log/env/Gitobjects"
+}

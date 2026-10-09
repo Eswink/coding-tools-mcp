@@ -1,0 +1,259 @@
+diff --git a/.gitattributes b/.gitattributes
+new file mode 100644
+index 0000000..5cfd639
+--- /dev/null
++++ b/.gitattributes
+@@ -0,0 +1,8 @@
++# Preserve exact raw Git blobs for the existing seven-file manager lease only.
++.github/workflows/windows-foundation-source-compile.yml -text
++scripts/windows_foundation_source_compile.ps1 -text
++scripts/windows_foundation_source_guard.py -text
++scripts/windows_foundation_source_manifest.json -text
++docs/specs/windows-foundation-source-compile/requirements.md -text
++docs/specs/windows-foundation-source-compile/design.md -text
++docs/specs/windows-foundation-source-compile/tasks.md -text
+diff --git a/docs/specs/windows-manager-raw-checkout/design.md b/docs/specs/windows-manager-raw-checkout/design.md
+new file mode 100644
+index 0000000..f10f09d
+--- /dev/null
++++ b/docs/specs/windows-manager-raw-checkout/design.md
+@@ -0,0 +1,24 @@
++# Design: fixed manager raw checkout
++
++## 概述
++Versioned seven literal `-text` attributes suppress EOL conversion for existing raw manager source identity. Full strict verifier stays exact. Git configuration origin is UNKNOWN; actualLFtoCRLF physical pattern is established by realCI diagnostic hashes, counts and IDs.
++
++## 技术方案
++Root `.gitattributes` lists only the seven existing manager lease source names from originalguard. It changes no source body or global config. Existing original SUTrestore already uses command-scoped `core.autocrlf=false`, separate --no-checkout clone, localfalse, BASEcheckout and customindex checkout-index; this remains unmodified and requires WindowsCI.
++
++## Data Flow
++Native Git HEAD raw blobs -> ordinary Git checkout with true/false EOL setting -> seven literal -text attributes preserve raw bytes -> actual unchanged verify_manager. Mutation follows existing failure branch. An unmatched ordinary fixture proves broader checkout policy is unchanged.
++
++## Error Handling
++Absent/invalid/mutated source remains original raw verification failure. Attribute/check-out control failure is a source-only failure, never an owner or compiler proof. No post-checkout normalization is used.
++
++## FR Coverage Matrix
++| Requirement | Source | Evidence |
++| --- | --- | --- |
++| FR-1 | .gitattributes | exactliteral7 parse and nativecheck-attr |
++| FR-2 | originalguard unchanged | actualfullguard rawPASS andmutationFAIL |
++| FR-3 | ordinaryownedGitcontrols | actualclone true/false/noattrs/counterexample |
++| FR-4 | independentidentity andpeer | baseline1862 unchanged/new5 sourceonly |
++
++## 文件结构
++Five new paths only: .gitattributes; scripts/windows_foundation_manager_checkout_tests.py; requirements/design/tasks in this spec directory. No existing source changes.
+diff --git a/docs/specs/windows-manager-raw-checkout/requirements.md b/docs/specs/windows-manager-raw-checkout/requirements.md
+new file mode 100644
+index 0000000..ba1f43b
+--- /dev/null
++++ b/docs/specs/windows-manager-raw-checkout/requirements.md
+@@ -0,0 +1,26 @@
++# Requirements: fixed manager raw checkout
++
++## 功能概述
++The actual40c4 Windows run37921157624/attempt1 stops at original raw manager verification before SUTrestore/compiler. Allseven actualsource hashes and GitIDs exactly match expectedLFtoCRLF; configuration origin remainsUNKNOWN. Preserve committed raw bytes with fixed path checkout attributes.
++
++## 需求列表
++### FR-1 Seven literal manager attributes
++WHEN Git checks out the management repository, exactly the existing seven public manager lease paths SHALL have versioned `-text` rules. No wildcard, broad subtree, SUT-source change, worktree rewriting, renormalization, shared/global Git configuration or runtime replacement SHALL be introduced.
++### FR-2 Strict original raw admission
++WHEN attributes preserve a manager checkout, actualbytes SHALL equal native Git HEAD blobs and the unchanged original verify_manager SHALL admit those seven raw sources. WHEN a source is deliberately mutated, the original raw verifier SHALL reject; no newline normalization or metadata comparison SHALL authorize it.
++### FR-3 Necessary real owned Git controls
++WHEN validating this fix, real owned native Git clone with command-scoped autocrlf=true SHALL first reproduce original raw-contract FAIL without attributes, then preserve allseven blobs with attributes. autocrlf=false SHALL also preserve them; an unmatched ordinary text path SHALL still convert under true to prove no broad policy. No Run-SourceCompile, WindowsnativeVM, owner, compiler, IOclose or publisher SHALL run in these controls.
++### FR-4 Immutable source and native boundary
++WHEN committing, all1862 existing paths including complete originalguard/AST, manifest, workflow, manager7, runtimeguards/settings, pins, permissions and45minute budget SHALL remain unchanged. Original SUTrestore command-scoped autocrlf=false/localfalse/customindex checkout remains exact; real Windowsrestore/compiler results remain futureCI evidence. Fresh source-specific impact UNKNOWN/manualHIGH, independent peer, stageddetect/gencommit and source-only backup precede root-only forwardpush.
++
++## 非功能需求
++Backup only inert source, singleparentpatch and safe mode/hash metadata; no private logs/runtime/env/host/TLS/credentials/objectlibrary. Originalfailedruns remain immutable.
++
++## 验收标准
++- FR-1 exact seven literal -text rules and no wildcard verified.
++- FR-2 original raw verifier admits untouched checkout and rejects mutation.
++- FR-3 actual owned nativeGit failurefirst plus positive/negative/counterexample controls execute.
++- FR-4 baseline identity, source-specific graph limits, peer and smallsoleparent40c4 commit recorded; nativequalification not inferred.
++
++## 依赖关系
++Native Git checkout attributes, original fixed seven-source raw manager verifier and disposable compiler carrier. Existing original SUTrestore falseEOL/customindex methods remain unchanged; actual WindowsCI is still required.
+diff --git a/docs/specs/windows-manager-raw-checkout/tasks.md b/docs/specs/windows-manager-raw-checkout/tasks.md
+new file mode 100644
+index 0000000..c4cf8d9
+--- /dev/null
++++ b/docs/specs/windows-manager-raw-checkout/tasks.md
+@@ -0,0 +1,33 @@
++# Tasks: fixed manager raw checkout
++
++## 实施计划
++- [ ] FR-1 fresh source-specific impact and exactliteral7attribute source.
++- [ ] FR-2 verify complete originalguard/AST unchanged and rawmutation retainsdeny.
++- [ ] FR-3 actualownednativeGit failurefirst and positive/negative/counterexample controls.
++- [ ] FR-4 finalspec, ownindex/stageddetect/gencommit, independentpeer, soleparent40c4 source-onlycommit/backup androot-only forwardpush.
++
++## 验证计划
++ActualCI40c4 seven CRLFconverted hashes/OIDs, beforeafterequal; configcauseUNKNOWN. Preserve original run37921157624/attempt1 failure ZIP/logs and allolderfailures. Ordinary noattributes/autocrlftrue contract first FAILS. Withliteralattributes true/false sevenrawblobs match andunchangedoriginalguard PASS; mutationreject andunmatchedtext conversion are necessarycontrols. Do not run Run-SourceCompile/VM/owner/compiler/IOclose/install/publisher locally.
++
++## 交付物
++Exactly5newpaths over1862baseline; no existingmanager7/rawguard/AST/manifest/workflow/runtime/settings/pins/budget modifications. Inertsource/singleparentpatch safe backup is not nativequalification. Future realWindowscheckout+restore/compiler outcomes remain independent gates.
++
++## 任务列表
++1. FR-1 exactsevenliteral -text rules afterfailurefirst/specpass.
++2. FR-2 actual original rawguard admission/rejection controls.
++3. FR-3 ownedGit true/false checkout and unmatchedcounterexample.
++4. FR-4 finalsourcepeer/index/detect/gencommit/source-onlycommit/rootpush.
++
++## 交付物清单
++Five new tracked paths only; inert sourcebackup and singleparentpatch outsidecandidate.
++
++## 需求覆盖矩阵
++| Requirement | Task | Validation |
++| --- | --- | --- |
++| FR-1 | literal7 attributes | exactparse/nativecheck-attr |
++| FR-2 | originalguard unchanged | nativeclone rawPASS/mutationFAIL |
++| FR-3 | ownedGit ordinarycontrols | noattrsFAIL/truefalsePASS/unmatchedCRLF |
++| FR-4 | frozenpeer andnormalcommit | exact1862baseline unchanged/futureCIseparate |
++
++## 文件变更清单
++.gitattributes; scripts/windows_foundation_manager_checkout_tests.py; requirements.md, design.md and tasks.md in this spec directory. All existing sources stay unchanged.
+diff --git a/scripts/windows_foundation_manager_checkout_tests.py b/scripts/windows_foundation_manager_checkout_tests.py
+new file mode 100644
+index 0000000..1d09d90
+--- /dev/null
++++ b/scripts/windows_foundation_manager_checkout_tests.py
+@@ -0,0 +1,138 @@
++#!/usr/bin/env python3
++"""Real owned native Git checkout controls; no Run-SourceCompile/native owner/CI."""
++import ast
++import hashlib
++import os
++from pathlib import Path
++import subprocess
++import sys
++import tempfile
++import unittest
++
++sys.dont_write_bytecode = True
++SCRIPTS = Path(__file__).resolve().parent
++sys.path.insert(0, str(SCRIPTS))
++import windows_foundation_source_guard as guard
++
++MANAGER_PATHS = (
++    '.github/workflows/windows-foundation-source-compile.yml',
++    'scripts/windows_foundation_source_compile.ps1',
++    'scripts/windows_foundation_source_guard.py',
++    'scripts/windows_foundation_source_manifest.json',
++    'docs/specs/windows-foundation-source-compile/requirements.md',
++    'docs/specs/windows-foundation-source-compile/design.md',
++    'docs/specs/windows-foundation-source-compile/tasks.md',
++)
++UNLEASED = 'docs/specs/windows-foundation-source-compile/ordinary-not-manager.md'
++NESTED = 'nested/.github/workflows/windows-foundation-source-compile.yml'
++
++
++class ManagerRawCheckoutControls(unittest.TestCase):
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory(prefix='ordinary-fixed-manager-checkout-')
++        self.work = Path(self.temp.name)
++        self.old_sha = os.environ.get('GITHUB_SHA')
++
++    def tearDown(self):
++        if self.old_sha is None:
++            os.environ.pop('GITHUB_SHA', None)
++        else:
++            os.environ['GITHUB_SHA'] = self.old_sha
++        self.temp.cleanup()
++
++    def git(self, repo, *args, autocrlf='false'):
++        return subprocess.check_output(['git', '-c', 'core.hooksPath=' + os.devnull,
++            '-c', 'core.autocrlf=' + autocrlf, '-C', str(repo), *args], stderr=subprocess.DEVNULL)
++
++    def clone_fixture(self, attributes, autocrlf):
++        # Literal public manager source bytes; no private host/runtime/env files or fake authorizers.
++        seed = self.work / 'seed'; seed.mkdir()
++        for name in MANAGER_PATHS:
++            dest = seed / name; dest.parent.mkdir(parents=True, exist_ok=True)
++            dest.write_bytes((SCRIPTS.parent / name).read_bytes()); dest.chmod(0o644)
++        for name in (UNLEASED, NESTED):
++            dest = seed / name; dest.parent.mkdir(parents=True, exist_ok=True)
++            dest.write_bytes(b'ordinary unleased source\nsecond line\n')
++        if attributes:
++            (seed / '.gitattributes').write_bytes((SCRIPTS.parent / '.gitattributes').read_bytes())
++        self.git(seed, 'init', '-q'); self.git(seed, 'add', '--', '.')
++        self.git(seed, '-c', 'user.name=Owned ordinary source', '-c', 'user.email=ordinary@invalid',
++            'commit', '-qm', 'Owned public source checkout control; not candidate or CI')
++        checkout = self.work / 'checkout'
++        self.git(seed, 'clone', '--no-hardlinks', str(seed), str(checkout), autocrlf=autocrlf)
++        os.environ['GITHUB_SHA'] = self.git(checkout, 'rev-parse', 'HEAD').decode().strip()
++        return seed, checkout
++
++    def assert_raw_manager(self, checkout):
++        for name in MANAGER_PATHS:
++            expected = self.git(checkout, 'show', 'HEAD:' + name)
++            actual = (checkout / name).read_bytes()
++            self.assertTrue(actual == expected, 'Fixed manager path differs from raw HEAD blob: ' + name)
++            actual_oid = self.git(checkout, 'hash-object', '--no-filters', '--', name).decode().strip()
++            expected_oid = self.git(checkout, 'rev-parse', 'HEAD:' + name).decode().strip()
++            self.assertEqual(actual_oid, expected_oid)
++        result = guard.verify_manager(checkout)
++        self.assertEqual(result['manager_files'], 7)
++        self.assertFalse(result['native_authority'])
++        self.assertEqual(result['native_positive'], 'NOTRUN')
++
++    def test_rules_are_exact_seven_literal_paths(self):
++        lines = [line.split() for line in (SCRIPTS.parent / '.gitattributes').read_text().splitlines()
++            if line.strip() and not line.startswith('#')]
++        self.assertEqual(len(lines), 7)
++        self.assertEqual({line[0] for line in lines}, set(MANAGER_PATHS))
++        self.assertTrue(all(len(line) == 2 and line[1] == '-text' for line in lines))
++        self.assertTrue(all(not any(char in line[0] for char in '*?[') for line in lines))
++
++    def test_without_attributes_true_checkout_reproduces_original_raw_rejection(self):
++        seed, checkout = self.clone_fixture(False, 'true')
++        for name in MANAGER_PATHS:
++            expected = self.git(seed, 'show', 'HEAD:' + name)
++            actual = (checkout / name).read_bytes()
++            self.assertTrue(actual == expected.replace(b'\n', b'\r\n'))
++            self.assertFalse(actual == expected)
++        with self.assertRaisesRegex(ValueError, 'blob mismatch'):
++            guard.verify_manager(checkout)
++
++    def test_attributes_true_checkout_preserves_raw_seven_and_original_admission(self):
++        _, checkout = self.clone_fixture(True, 'true')
++        self.assert_raw_manager(checkout)
++        response = self.git(checkout, 'check-attr', '-z', 'text', '--', *MANAGER_PATHS).split(b'\0')
++        self.assertEqual(response[:-1:3], [name.encode() for name in MANAGER_PATHS])
++        self.assertEqual(response[2:-1:3], [b'unset'] * 7)
++
++    def test_attributes_false_checkout_preserves_raw_seven_and_original_admission(self):
++        _, checkout = self.clone_fixture(True, 'false')
++        self.assert_raw_manager(checkout)
++
++    def test_unmatched_same_directory_text_still_converts_under_true(self):
++        seed, checkout = self.clone_fixture(True, 'true')
++        self.assert_raw_manager(checkout)
++        expected = self.git(seed, 'show', 'HEAD:' + UNLEASED)
++        self.assertEqual((checkout / UNLEASED).read_bytes(), expected.replace(b'\n', b'\r\n'))
++        self.assertEqual(self.git(checkout, 'check-attr', '-z', 'text', '--', UNLEASED).split(b'\0')[2], b'unspecified')
++
++    def test_nested_same_name_is_not_accidentally_covered(self):
++        seed, checkout = self.clone_fixture(True, 'true')
++        self.assert_raw_manager(checkout)
++        expected = self.git(seed, 'show', 'HEAD:' + NESTED)
++        self.assertEqual((checkout / NESTED).read_bytes(), expected.replace(b'\n', b'\r\n'))
++        self.assertEqual(self.git(checkout, 'check-attr', '-z', 'text', '--', NESTED).split(b'\0')[2], b'unspecified')
++
++    def test_actual_mutation_retains_original_strict_rejection(self):
++        _, checkout = self.clone_fixture(True, 'true')
++        self.assert_raw_manager(checkout)
++        path = checkout / MANAGER_PATHS[0]; path.write_bytes(path.read_bytes() + b'ordinary mutation\n')
++        with self.assertRaisesRegex(ValueError, 'blob mismatch'):
++            guard.verify_manager(checkout)
++
++    def test_complete_original_guard_bytes_and_verify_manager_ast_remain_exact(self):
++        data = (SCRIPTS / 'windows_foundation_source_guard.py').read_bytes()
++        self.assertEqual(hashlib.sha256(data).hexdigest(), '71aaba07443ba0ace608f8a73e0996df839f6c189e866ee949eb4dd21e4a4073')
++        node = next(node for node in ast.parse(data).body if isinstance(node, ast.FunctionDef) and node.name == 'verify_manager')
++        actual = hashlib.sha256(ast.dump(node, include_attributes=False).encode()).hexdigest()
++        self.assertEqual(actual, '183f30416658ab6cc9edad3cbcb58a66b69a799858052f9d7b31138309362198')
++
++
++if __name__ == '__main__':
++    unittest.main(verbosity=2)

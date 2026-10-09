@@ -1,0 +1,121 @@
+[
+  {
+    "bytes": 590,
+    "git_blob": "f19d602d6c9699e5081ca6b7dcb4f1cb73c1ecbe",
+    "mode": "100644",
+    "path": "README.md",
+    "sha256": "ef05b636b6a5537ae6852371deb5eef59f3d56a3275c5e23907859315dd94d16"
+  },
+  {
+    "bytes": 5420,
+    "git_blob": "97406247c9c5dcdfd60a10f214609c357acf7fa5",
+    "mode": "100644",
+    "path": "SOURCE-MANIFEST.json",
+    "sha256": "022b25de250beb48c9b476263a56d7f43241dd2e78b32621cfae96940202305a"
+  },
+  {
+    "bytes": 1764,
+    "git_blob": "d8a00d6cad34edf2459597dd81efaec09a69ad49",
+    "mode": "100644",
+    "path": "SOURCE-STATUS.json",
+    "sha256": "ca65c23f63d7bbe1334fa5cfcf2227e8a91000540d87eb5e2d4036aad827c47d"
+  },
+  {
+    "bytes": 1671,
+    "git_blob": "88182ec1c35585422b655c99a2252a94cb87d322",
+    "mode": "100644",
+    "path": "source/docs/specs/full755-exact-physical-baseline/design.md.source",
+    "sha256": "3361901b29727ab0e86843930606ecab579e270d47f3d9626a4bf723f52f7020"
+  },
+  {
+    "bytes": 3549,
+    "git_blob": "0bb154f3ae19399b3cc981d7f1e48214d5cc5623",
+    "mode": "100644",
+    "path": "source/docs/specs/full755-exact-physical-baseline/requirements.md.source",
+    "sha256": "a1a6b89b9f5955c095206533f453102457dc5a405dc9175802a0696dea0bdf29"
+  },
+  {
+    "bytes": 1239,
+    "git_blob": "85f0a288b7280dfba7b2b2e01488eebf4aecb492",
+    "mode": "100644",
+    "path": "source/docs/specs/full755-exact-physical-baseline/tasks.md.source",
+    "sha256": "6a8697bec2b179aa6a42cc0eb18ad3d5f7cac94c3d1d1f64175eed94bcdf1b83"
+  },
+  {
+    "bytes": 9988,
+    "git_blob": "2f988ec2b56b112ffeaaf6ddfffac202b08c459f",
+    "mode": "100644",
+    "path": "source/work/full755-prepare/control_fence.py.source",
+    "sha256": "7f5021caa652b6d0f577fe7d79fd894cc1dedf8ed7871e00fc8fc88c9a351c2a"
+  },
+  {
+    "bytes": 2876,
+    "git_blob": "3184e4523878a95f1b21f0280a911081e3dacabd",
+    "mode": "100644",
+    "path": "source/work/full755-prepare/control_fixed_fixture.py.source",
+    "sha256": "24e0c13ba46356441954546f62c979bfac90322605f0648e9b9b6e907da84c07"
+  },
+  {
+    "bytes": 3603,
+    "git_blob": "ac252997342d0adca38f8acb400b3cc80cbe77a5",
+    "mode": "100644",
+    "path": "source/work/full755-prepare/control_natural_runtime.py.source",
+    "sha256": "2d37fe770e79e11da21c4a7c3d69fec78692a40bebe795d3a07629f060210dc7"
+  },
+  {
+    "bytes": 3813,
+    "git_blob": "c2e76f3ddc1dc69b6d1ec77361236016db927bb6",
+    "mode": "100644",
+    "path": "source/work/full755-prepare/fixed_fixture.py.source",
+    "sha256": "7264798041abe0c8437a8a3df88937a1ee041e7d6427dc064bed61d7a26e5577"
+  },
+  {
+    "bytes": 5299,
+    "git_blob": "b45f6013d9878dda236b91329d66cbe6686c4c2f",
+    "mode": "100644",
+    "path": "source/work/full755-prepare/full755_external.py.source",
+    "sha256": "63a1dd8f753a899b734afd8fa58075e806e54f322e445db1c5ef7ec494a3f4ac"
+  },
+  {
+    "bytes": 6324,
+    "git_blob": "1ae365ace9e1a7e4260d0fcfbbd8650f865231f3",
+    "mode": "100644",
+    "path": "source/work/full755-prepare/original/composed-core-original-v2.py.source",
+    "sha256": "b2e3cbc42db602eb65cebcce4ba0cbadff82fcf6c61065c1b66ba4c48bf71214"
+  },
+  {
+    "bytes": 30318,
+    "git_blob": "82ec1cde54ef775e8cb544f4e0feb34dac8b20ac",
+    "mode": "100644",
+    "path": "source/work/full755-prepare/original/owner-original.py.source",
+    "sha256": "8fe7478874c3817858dbb2eabed515dbeb78f268393577a66ba0408ee44922ff"
+  },
+  {
+    "bytes": 2117,
+    "git_blob": "1b94b752f30dab8087ff28d175cbe344a482ffe9",
+    "mode": "100644",
+    "path": "source/work/full755-prepare/original/physical_modes.py.source",
+    "sha256": "3ade6063fd61340bd2789f7496b6b75ca0960495fbbb2c33407a6e91b69caba0"
+  },
+  {
+    "bytes": 14391,
+    "git_blob": "ec1a76750ee561fe03de865764522a507ed0d75f",
+    "mode": "100644",
+    "path": "source/work/full755-prepare/original/run-private755-recovery03.py.source",
+    "sha256": "0eb2ce455b513a091fc8473f45699608f54e2112ad258dcf375d1168cede7b88"
+  },
+  {
+    "bytes": 20292,
+    "git_blob": "2e41398e6c152ba9e67ad7b516e10696db9a0350",
+    "mode": "100644",
+    "path": "source/work/full755-prepare/original/verify-native-dependencies03.py.source",
+    "sha256": "45d38cc36c7d7a2d846a52d9084e1dae810474936f024b654bb612e60061977d"
+  },
+  {
+    "bytes": 4325,
+    "git_blob": "d9d22175e3f5dadcfe1a6f2878acbbbc50bfe6d6",
+    "mode": "100644",
+    "path": "source/work/full755-prepare/prepare_full755.py.source",
+    "sha256": "3f55c0bb71a301228190c51538ee31ccde35b874a96d8bc18fd5aa2457e04c29"
+  }
+]

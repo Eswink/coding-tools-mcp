@@ -1,0 +1,50 @@
+"""Actual ordinary owned nativechild/runtime controls, not755 family evidence."""
+from pathlib import Path
+import json
+import os
+import signal
+import subprocess
+import sys
+import tempfile
+import unittest
+import full755_external as f
+
+class NaturalRuntimeControls(unittest.TestCase):
+    def setUp(self):self.tmp=tempfile.TemporaryDirectory();self.out=Path(self.tmp.name);(self.out/'owned-owner').mkdir()
+    def tearDown(self):self.tmp.cleanup()
+    def actual_child(self,kill=False):
+        p=subprocess.Popen([sys.executable,'-B','-c','import time;time.sleep(60)' if kill else 'pass'],start_new_session=True);fd=os.pidfd_open(p.pid)
+        try:
+            if kill:signal.pidfd_send_signal(fd,signal.SIGKILL)
+            wait=os.waitid(os.P_PIDFD,fd,os.WEXITED|os.WNOWAIT);code=p.wait();self.assertEqual(code,-signal.SIGKILL if kill else 0)
+            with self.assertRaises(ChildProcessError):os.waitid(os.P_PIDFD,fd,os.WEXITED|os.WNOHANG)
+        finally:os.close(fd)
+        return p.pid,list(wait),{'code':wait.si_code,'status':wait.si_status}
+    def packet(self,kill=False):
+        pid,wait,child=self.actual_child(kill)
+        outer={'owner_native_pid':pid,'owner_WNOWAIT':wait,'outer_kernel_family_closed':True,'outer_adopted_child_kernel_outcomes':[]}
+        aggregate={'owned_family_kernel_closed':True,'adopted_child_kernel_outcomes':[child]}
+        return outer,aggregate
+    def write(self,outer,aggregate):
+        (self.out/'OUTER-RECEIPT.json').write_text(json.dumps(outer));(self.out/'owned-owner/aggregate.json').write_text(json.dumps(aggregate))
+    def test_real_positive_wait0_ECHILD(self):self.write(*self.packet());self.assertTrue(f.natural_original_family(self.out))
+    def test_actual_killed9_ECHILD_rejected(self):self.write(*self.packet(True));self.assertFalse(f.natural_original_family(self.out))
+    def test_mismatched_actual_created_pid_rejected(self):
+        outer,inner=self.packet();outer['owner_native_pid']+=1;self.write(outer,inner);self.assertFalse(f.natural_original_family(self.out))
+    def test_unclosed_rejected(self):
+        outer,inner=self.packet();inner['owned_family_kernel_closed']=False;self.write(outer,inner);self.assertFalse(f.natural_original_family(self.out))
+    def test_bool_kernel_fields_rejected(self):
+        outer,inner=self.packet();inner['adopted_child_kernel_outcomes'][0]['code']=True;self.write(outer,inner);self.assertFalse(f.natural_original_family(self.out))
+    def test_truthy_closure_rejected(self):
+        outer,inner=self.packet();outer['outer_kernel_family_closed']=1;self.write(outer,inner);self.assertFalse(f.natural_original_family(self.out))
+    def test_real_runtime_fullmetadata_identity(self):
+        p=self.out/'runtime';p.write_bytes(b'ordinary ownedruntime');os.chmod(p,0o600);row=f.full_identity(p);self.assertEqual(row,f.full_identity(p));os.chmod(p,0o644);self.assertNotEqual(row,f.full_identity(p))
+    def test_runtime_hardlink_rejected(self):
+        p=self.out/'runtime';p.write_bytes(b'ordinary');os.link(p,self.out/'alias')
+        with self.assertRaises(ValueError):f.full_identity(p)
+    def test_runtime_symlink_rejected(self):
+        p=self.out/'runtime';p.write_bytes(b'ordinary');link=self.out/'alias';link.symlink_to(p)
+        with self.assertRaises(ValueError):f.full_identity(link)
+    def test_replaced_inode_even_same_bytes_rejected(self):
+        p=self.out/'runtime';p.write_bytes(b'ordinary');row=f.full_identity(p);new=self.out/'new';new.write_bytes(b'ordinary');os.replace(new,p);self.assertNotEqual(row,f.full_identity(p))
+if __name__=='__main__':unittest.main(verbosity=2)

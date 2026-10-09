@@ -1,0 +1,1 @@
+Source-only new runtime12 draft. Older A startup STOP and original once01 overall FAIL retained. Original488 newrun, CI, installation and release NOTRUN. Fixed system Python and combined4096 guards are necessary controls only. Independent startup review pending. No private raw runtime, host/proc, TLS, environment or Git object payload included.

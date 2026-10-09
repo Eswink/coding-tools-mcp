@@ -1,0 +1,15 @@
+# Original755 baseline preparation
+
+## 概述
+
+对应需求 FR-1 FR-2 FR-3 FR-4 FR-5. Only readonly specs/provenance at this stage. Originalowner functions are not changed; baseline requires both concurrent originaldrivers and allconsumer452, distinct from previous303diagnostic.
+
+## 技术方案
+
+Originalwrapper can retain exact bytes/AST while external configuration binds ROOT/OUT/PYTHON/PROGRAM/BASE to new private owned locations. Its dependencies uses BASE.parent/contracts755-recovery-work; its main env contains a hardcoded oldfixture literal. Preparation must verify actualfixture path, regular/singlelink/hash/nativeidentity and safely restore only an absent exactfixture copy if authorized, or explicitly declare a limited reviewed literal relocation. No PATHshim/sysGitreplacement/monkeypatch delegate/subprocess behavior.
+
+Full newsource/runtime/nativepool/refs and1849fullstat beforeafter fences, inspected actualsignal handler state and naturalfamily gates are new external source, never old755receipt credit. The future external layer must preserve original exceptions/cancellation and bothafterattempts. Originalouter has no PIPE reader/rawbytecap: stdout is directly the realrawFD, while originalowner2group readers retain their own2MiB checks. Driver/event/source output and original1200/7/2/2 are not weakened or changed.
+
+## 文件结构
+
+Independent carrier checkout full755-exact-mode remains D6. Future standalone nativepureb227 checkout/output/trusted realm stays isolated. work/full755-prepare holds readonly originalbudget/provenance and newfinitecontrols/preparer only after freshimpact and roottechnical review. No SUTlaunch in preparation.

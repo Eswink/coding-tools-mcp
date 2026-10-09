@@ -1,0 +1,269 @@
+"""Execute exact new worker hook AST in ordinary controlled callers; no SUT."""
+import ast,json,threading,traceback,tempfile
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock
+B=Path('/workspace/work/rc070/publisher-final-fence-diagnostic')
+source=(B/'diagnostic_worker.py').read_text()
+functions=[n for n in ast.parse(source).body if isinstance(n,ast.FunctionDef)]
+ns=dict(Path=Path,threading=threading,traceback=traceback,json=json,sys=__import__('sys'),BaseExceptionGroup=BaseExceptionGroup)
+exec(compile(ast.Module(body=functions,type_ignores=[]),str(B/'diagnostic_worker.py'),'exec'),ns)
+ns['wire']=SimpleNamespace(GitHub=type('GitHub',(),{}),owned=SimpleNamespace(_OperationScope=type('OperationScope',(),{}),_SessionOwner=type('SessionOwner',(),{})),core=SimpleNamespace(Operation=type('Operation',(),{})),WireFailure=type('WireFailure',(Exception,),{}))
+ns['executor']=SimpleNamespace(PublisherSession=type('PublisherSession',(),{}))
+ns['_install_errors']=[];ns['_installed_complete']=True
+ns['_worker_thread']=threading.get_ident();op=ns['wire'].core.Operation();op.kind='UploadAsset';op.operation_id=11
+ns['_request_context']=None;ns['_activations']=[];ns['_observations']=[];ns['_observation_errors']=[];ns['_observer_cancels']=[];ns['_restore_errors']=[];ns['_applied']=[]
+def make_context(operation):
+ current=ns['wire'].GitHub();scope=ns['wire'].owned._OperationScope();owner=ns['wire'].owned._SessionOwner();session=ns['executor'].PublisherSession();credential=SimpleNamespace(_session_owner=owner)
+ current._credential=credential;scope._owner=owner;scope._op=operation;scope._thread=ns['_worker_thread'];scope._retired=False;owner._session=session;owner._client=current;owner._credential=credential;session._api=current;session._owner=owner;session._request_scope=scope;session._inflight=operation
+ return (current,operation,scope)
+valid_context=make_context(op);ns['_request_context']=valid_context
+rows=[]
+for wrapper,delegate in [('observed_response','_delegate_response'),('observed_mutation_result','_delegate_mutation_result'),('observed_sendall','_delegate_sendall')]:
+ value=object();args=(object(),object());kwargs={'owned':object()};m=Mock(return_value=value);ns[delegate]=m
+ assert ns[wrapper](*args,**kwargs) is value and m.call_count==1 and m.call_args.args==args and m.call_args.kwargs==kwargs
+ rows.append(wrapper+'_exact_once_args_return_identity')
+ for exc in (RuntimeError('ordinary'),SystemExit(7),KeyboardInterrupt()):
+  ns['_observations']=[];m=Mock(side_effect=exc);ns[delegate]=m
+  try:ns[wrapper](*args,**kwargs)
+  except BaseException as e:assert e is exc
+  else:raise AssertionError('exception lost')
+  assert m.call_count==1 and len(ns['_observations'])==1 and ns['_observations'][0]['error_type']==type(exc).__name__
+  rows.append(wrapper+'_original_'+type(exc).__name__+'_identity')
+class Broken(list):
+ def append(self,value):raise OSError('ordinary observation fixture')
+class Cancelled(list):
+ def append(self,value):raise KeyboardInterrupt()
+for wrapper,delegate in [('observed_response','_delegate_response'),('observed_mutation_result','_delegate_mutation_result'),('observed_sendall','_delegate_sendall')]:
+ exc=RuntimeError('primary');ns[delegate]=Mock(side_effect=exc);ns['_observations']=Broken();ns['_observation_errors']=[]
+ try:ns[wrapper](object())
+ except BaseException as e:assert e is exc
+ else:raise AssertionError('primary lost')
+ assert len(ns['_observation_errors'])==1;rows.append(wrapper+'_ordinary_observation_error_preserves_primary')
+ ns['_observations']=Cancelled();ns['_observer_cancels']=[]
+ try:ns[wrapper](object())
+ except BaseExceptionGroup as e:assert e.exceptions[0] is exc and e.exceptions[1] is ns['_observer_cancels'][0] and type(e.exceptions[1]) is KeyboardInterrupt
+ else:raise AssertionError('cancel lost')
+ rows.append(wrapper+'_observer_cancel_group_and_sticky_identity')
+ns['_observations']=[];ns['_observation_errors']=[];ns['_observer_cancels']=[]
+for context in (None,SimpleNamespace(kind='UploadAsset',operation_id=11)):
+ ns['_request_context']=context;ns['observe_error']('ordinary',RuntimeError());assert ns['_observations']==[]
+ rows.append('nonmatching_context_type_no_event')
+ns['_request_context']=valid_context;before=ns['_worker_thread'];ns['_worker_thread']=-1;ns['observe_error']('ordinary',RuntimeError());assert ns['_observations']==[];ns['_worker_thread']=before;rows.append('other_thread_no_event')
+other=ns['wire'].core.Operation();other.kind='CreateDraft';other.operation_id=11;ns['_request_context']=other;ns['observe_error']('ordinary',RuntimeError());assert ns['_observations']==[];rows.append('other_operation_no_event')
+ns['_request_context']=valid_context
+for outcome in (object(),RuntimeError('request'),KeyboardInterrupt()):
+ previous=object();ns['_request_context']=previous;seen=[]
+ def delegated(*args,**kwargs):
+  seen.append(ns['_request_context']);assert kwargs['op'] is op
+  if isinstance(outcome,BaseException):raise outcome
+  return outcome
+ ns['_delegate_request']=delegated
+ try:value=ns['observed_request'](object(),'POST',op=op)
+ except BaseException as e:assert e is outcome
+ else:assert value is outcome
+ assert len(seen)==1 and seen[0][1] is op and ns['_request_context'] is previous;rows.append('request_context_restore_'+type(outcome).__name__)
+previous=object();ns['_request_context']=previous;ns['_worker_thread']=-1;ns['_delegate_request']=Mock(return_value=previous);assert ns['observed_request'](valid_context[0],op=op,scope=valid_context[2]) is previous and ns['_request_context'] is previous;ns['_worker_thread']=before;rows.append('other_thread_request_passthrough_once')
+orig1=object();wrap1=object();orig2=object();wrap2=object();t1=SimpleNamespace(hook=orig1);t2=SimpleNamespace(hook=orig2)
+ns['_bindings']=[(t1,'hook',orig1,wrap1),(t2,'hook',orig2,wrap2)];ns['_applied']=[];ns['_restore_errors']=[];ns['_install_errors']=[]
+ns['install_bindings']();assert t1.hook is wrap1 and t2.hook is wrap2
+assert ns['restore_bindings']() and t1.hook is orig1 and t2.hook is orig2;rows.append('ordered_install_reverse_restore_actual_alias_identity')
+ns['_applied']=[];ns['_restore_errors']=[];ns['_install_errors']=[];t2.hook=object()
+try:ns['install_bindings']()
+except RuntimeError:pass
+else:raise AssertionError('alias precondition accepted')
+assert ns['restore_bindings']() and t1.hook is orig1;rows.append('partial_install_prior_entry_rollback')
+t2.hook=orig2;ns['_applied']=[];ns['_restore_errors']=[];ns['_install_errors']=[];ns['install_bindings']();t2.hook=object();assert not ns['restore_bindings']() and t1.hook is orig1 and t2.hook is orig2;rows.append('restore_alias_mismatch_marks_unknown_attempts_all')
+ns['_install_errors']=[];ns['_installed_complete']=True;ns['_restore_errors']=[];ns['_observer_cancels']=[KeyboardInterrupt()];ns['_observations']=[];ns['_observation_errors']=[];ns['write']=Mock();primary=SystemExit(1)
+try:ns['finish_observation'](Path('unused'),primary)
+except BaseExceptionGroup as e:assert e.exceptions[0] is primary and e.exceptions[1] is ns['_observer_cancels'][0]
+else:raise AssertionError('sticky observer cancellation lost after normalized original request')
+assert ns['write'].call_args.args[1]['observation_valid'] is False;rows.append('sticky_cancel_repropagated_after_original_runner')
+ns['_observer_cancels']=[];ns['_restore_errors']=[OSError('restore')];ns['write']=Mock()
+try:ns['finish_observation'](Path('unused'),primary)
+except BaseExceptionGroup as e:assert e.exceptions[0] is primary and e.exceptions[1] is ns['_restore_errors'][0]
+else:raise AssertionError('restoreprimary lost')
+rows.append('restore_error_and_primary_both_preserved')
+ns['_restore_errors']=[];ns['write']=Mock(side_effect=OSError('observerwrite'))
+try:ns['finish_observation'](Path('unused'),primary)
+except BaseException as e:assert e is primary
+else:raise AssertionError('writeprimary lost')
+rows.append('observer_write_exception_original_primary_identity')
+with tempfile.TemporaryDirectory() as directory:
+ file=Path(directory)/'owned';closed=[]
+ def actual_write(path,report):
+  with path.open('x') as f:
+   f.write(json.dumps(report));closed.append(f)
+ ns['write']=actual_write
+ try:ns['finish_observation'](file,primary)
+ except BaseException as e:assert e is primary
+ else:raise AssertionError('finishprimary lost')
+ assert len(closed)==1 and closed[0].closed and file.is_file();rows.append('ordinary_actual_owned_write_close_then_primary')
+
+class ControlledBinding:
+ def __init__(self,original):
+  object.__setattr__(self,'original',original);object.__setattr__(self,'hook',original);object.__setattr__(self,'mode',None);object.__setattr__(self,'attempts',[])
+ def __setattr__(self,name,value):
+  if name=='hook':
+   self.attempts.append(value)
+   if self.mode=='restorefail' and value is self.original:
+    raise OSError('ordinary restore fixture')
+   if self.mode=='installafter' and value is not self.original:
+    object.__setattr__(self,name,value)
+    raise OSError('ordinary install fixture after mutation')
+  object.__setattr__(self,name,value)
+originals=[object() for _ in range(6)];wrappers=[object() for _ in range(6)];targets=[ControlledBinding(x) for x in originals]
+ns['_bindings']=[(t,'hook',o,w) for t,o,w in zip(targets,originals,wrappers)];ns['_applied']=[];ns['_restore_errors']=[];ns['_install_errors']=[]
+ns['install_bindings']();targets[-1].mode='restorefail';assert not ns['restore_bindings']()
+assert all(targets[k].hook is originals[k] for k in range(5)) and all(targets[k].attempts[-1] is originals[k] for k in range(6));rows.append('first_reverse_restore_failure_other_five_real_attempts_complete')
+ns['_observer_cancels']=[];ns['write']=Mock()
+try:ns['finish_observation'](Path('unused'),primary)
+except BaseExceptionGroup as e:assert e.exceptions[0] is primary and e.exceptions[1] is ns['_restore_errors'][0]
+else:raise AssertionError('restorefail masked primary')
+rows.append('first_restore_failure_and_runner_primary_group_identity')
+targets=[ControlledBinding(x) for x in originals];targets[2].mode='installafter';ns['_bindings']=[(t,'hook',o,w) for t,o,w in zip(targets,originals,wrappers)];ns['_applied']=[];ns['_restore_errors']=[];ns['_install_errors']=[]
+try:ns['install_bindings']()
+except OSError:pass
+else:raise AssertionError('partial install error absent')
+assert len(ns['_applied'])==3 and ns['restore_bindings']() and all(t.hook is o for t,o in zip(targets,originals));rows.append('mutated_then_install_error_all_three_rollback_including_failing_entry')
+ns['_install_errors']=[];ns['_installed_complete']=True;ns['_restore_errors']=[];ns['_observer_cancels']=[];ns['write']=Mock(side_effect=KeyboardInterrupt())
+try:ns['finish_observation'](Path('unused'),primary)
+except BaseExceptionGroup as e:assert e.exceptions[0] is primary and type(e.exceptions[1]) is KeyboardInterrupt
+else:raise AssertionError('write cancel lost')
+rows.append('sidecar_write_cancel_and_primary_group')
+ns['_observer_cancels']=[];ns['_restore_errors']=[];ns['_request_context']=valid_context;ns['_observations']=Broken();ns['_observation_errors']=[]
+exc=RuntimeError('inner');ns['_delegate_response']=Mock(side_effect=exc)
+with tempfile.TemporaryDirectory() as directory:
+ file=Path(directory)/'owned';owned=file.open('x')
+ def delegated(current,*args,**kwargs):
+  try:return ns['observed_response'](object())
+  finally:owned.close()
+ ns['_delegate_request']=delegated
+ try:ns['observed_request'](valid_context[0],op=op,scope=valid_context[2])
+ except BaseException as e:assert e is exc
+ else:raise AssertionError('original exception lost')
+ assert owned.closed and len(ns['_observation_errors'])==1;rows.append('ordinary_original_request_finally_real_close_despite_observer_error')
+ns['_observations']=Cancelled();ns['_observer_cancels']=[]
+with tempfile.TemporaryDirectory() as directory:
+ file=Path(directory)/'owned';owned=file.open('x')
+ def delegated(current,*args,**kwargs):
+  try:return ns['observed_response'](object())
+  finally:owned.close()
+ ns['_delegate_request']=delegated
+ try:ns['observed_request'](valid_context[0],op=op,scope=valid_context[2])
+ except BaseExceptionGroup as e:assert e.exceptions[0] is exc and e.exceptions[1] is ns['_observer_cancels'][0]
+ else:raise AssertionError('observer cancel lost')
+ assert owned.closed;rows.append('ordinary_original_request_finally_real_close_despite_observer_cancel')
+ns['_observations']=[];ns['_observer_cancels']=[];ns['_request_context']=valid_context;ns['_observation_errors']=[]
+ns['_delegate_response']=Mock(side_effect=KeyboardInterrupt())
+try:ns['observed_response'](object())
+except KeyboardInterrupt as e:assert ns['_delegate_response'].side_effect is e
+else:raise AssertionError('original cause cancel lost')
+assert ns['_observer_cancels']==[];rows.append('original_cause_cancel_not_mislabeled_as_observer_cancel')
+
+for wrapper in ('observed_failure','observed_pause'):
+ for cancellation in (SystemExit(7),KeyboardInterrupt()):
+  class CancelOldHook(list):
+   def append(self,value):raise cancellation
+  ns['_observations']=CancelOldHook();ns['_observer_cancels']=[];ns['_observation_errors']=[];ns['_restore_errors']=[];ns['_install_errors']=[];ns['_installed_complete']=True
+  if wrapper=='observed_pause':
+   value=SimpleNamespace(action=None,state=SimpleNamespace(code='adapter_error',outcome='unknown',intent_count=1,pending=None));ns['_delegate_pause']=Mock(return_value=value);args=(object(),)
+  else:
+   value=SimpleNamespace(code='adapter_error',effect='unknown');ns['_delegate_failure']=Mock(return_value=value);args=(object(),op,RuntimeError('original'))
+  try:ns[wrapper](*args)
+  except BaseException as e:assert e is cancellation
+  else:raise AssertionError('hookcancel lost')
+  assert ns['_observer_cancels']==[cancellation]
+  ns['write']=Mock();outer=SystemExit(1)
+  try:ns['finish_observation'](Path('unused'),outer)
+  except BaseExceptionGroup as e:assert e.exceptions[0] is outer and e.exceptions[1] is cancellation
+  else:raise AssertionError('sticky oldhook cancellation lost after originalrunner')
+  assert ns['write'].call_args.args[1]['observation_valid'] is False;rows.append(wrapper+'_sticky_'+type(cancellation).__name__+'_after_runner_outcome')
+ns['_observations']=[];ns['_observer_cancels']=[];ns['_observation_errors']=[];ns['_restore_errors']=[];ns['_install_errors']=[];ns['_applied']=[];orig=object();target=SimpleNamespace(hook=object());ns['_bindings']=[(target,'hook',orig,object())]
+try:ns['install_bindings']()
+except RuntimeError as e:primary=e
+else:raise AssertionError('first alias guard missing')
+assert ns['_applied']==[] and ns['_installed_complete'] is False and ns['_install_errors']==[primary] and ns['restore_bindings']()
+ns['write']=Mock()
+try:ns['finish_observation'](Path('unused'),primary)
+except BaseException as e:assert e is primary
+else:raise AssertionError('install primary lost')
+actual=ns['write'].call_args.args[1];assert actual['observation_valid'] is False and actual['all_bindings_restored'] is False and actual['installed_complete'] is False and actual['install_error_types']==['RuntimeError'];rows.append('first_install_alias_refusal_reportinvalid_unknown_restoration_primaryidentity')
+
+for kind in ('CreateDraft','UploadAsset','PublishPrerelease'):
+ for ident in (2,11,1009):
+  actual=ns['wire'].core.Operation();actual.kind=kind;actual.operation_id=ident;context=make_context(actual);ns['_request_context']=context;ns['_activations']=[];ns['_observations']=[];ns['_observation_errors']=[];ns['_observer_cancels']=[]
+  for wrapper,delegate in [('observed_response','_delegate_response'),('observed_sendall','_delegate_sendall'),('observed_mutation_result','_delegate_mutation_result')]:
+   original_return=object();ns[delegate]=Mock(return_value=original_return);assert ns[wrapper](object()) is original_return and ns[delegate].call_count==1
+  ns['_delegate_request']=Mock(return_value=original_return);previous=object();ns['_request_context']=previous
+  assert ns['observed_request'](context[0],op=actual,scope=context[2]) is original_return and ns['_delegate_request'].call_count==1 and ns['_request_context'] is previous
+  assert len(ns['_activations'])==4 and all(a['operation_kind']==kind and a['operation_id']==ident and a['enter']==a['exit']==1 and a['original_delegate_completed'] is True for a in ns['_activations'])
+  rows.append('owned_ordinary_'+kind+'_actualid_'+str(ident)+'_completedpaired_fourboundaries')
+for mismatch in ('client','scope_op','scope_thread','scope_retired','session_api','owner_credential'):
+ context=make_context(op);current,actual,scope=context
+ if mismatch=='client':context=(ns['wire'].GitHub(),actual,scope)
+ elif mismatch=='scope_op':scope._op=ns['wire'].core.Operation()
+ elif mismatch=='scope_thread':scope._thread=-1
+ elif mismatch=='scope_retired':scope._retired=True
+ elif mismatch=='session_api':scope._owner._session._api=object()
+ else:scope._owner._credential=object()
+ ns['_request_context']=context;ns['_activations']=[];ns['_observations']=[];ns['_delegate_response']=Mock(return_value=original_return)
+ assert ns['observed_response'](object()) is original_return and ns['_delegate_response'].call_count==1 and ns['_activations']==ns['_observations']==[];rows.append('foreign_ordinary_'+mismatch+'_noactivation_sameoriginaldelegate')
+context=make_context(op);previous=object();seen=[];ns['_request_context']=previous;ns['_activations']=[]
+def nested_delegate(current,*args,**kwargs):
+ seen.append(ns['_request_context'])
+ if kwargs.get('op') is None:return original_return
+ assert ns['observed_request'](current,op=None,scope=None) is original_return
+ assert ns['_request_context']==context
+ return original_return
+ns['_delegate_request']=Mock(side_effect=nested_delegate)
+assert ns['observed_request'](context[0],op=op,scope=context[2]) is original_return and ns['_request_context'] is previous
+assert ns['_delegate_request'].call_count==2 and seen[0]==context and seen[1]==(context[0],None,None) and len(ns['_activations'])==1;rows.append('nested_nonmutation_GET_context_restored_only_outerpairedactivation')
+class CounterBroken(list):
+ def append(self,value):raise OSError('ordinary counter fixture')
+class CounterCancelled(list):
+ def append(self,value):raise KeyboardInterrupt()
+for wrapper,delegate in [('observed_response','_delegate_response'),('observed_sendall','_delegate_sendall'),('observed_mutation_result','_delegate_mutation_result')]:
+ ns['_request_context']=make_context(op);ns['_activations']=CounterBroken();ns['_observations']=[];ns['_observation_errors']=[];ns['_observer_cancels']=[];ns[delegate]=Mock(return_value=original_return)
+ assert ns[wrapper](object()) is original_return and ns[delegate].call_count==1 and len(ns['_observation_errors'])==1;rows.append(wrapper+'_counter_error_preserves_original_success_identity')
+ primary=RuntimeError('original');ns[delegate]=Mock(side_effect=primary);ns['_observation_errors']=[]
+ try:ns[wrapper](object())
+ except BaseException as e:assert e is primary
+ else:raise AssertionError('counterprimary lost')
+ assert ns[delegate].call_count==1 and len(ns['_observation_errors'])==1;rows.append(wrapper+'_counter_error_preserves_original_primary_identity')
+ ns['_activations']=CounterCancelled();ns['_observer_cancels']=[];ns[delegate]=Mock(side_effect=primary)
+ try:ns[wrapper](object())
+ except BaseExceptionGroup as e:assert e.exceptions[0] is primary and e.exceptions[1] is ns['_observer_cancels'][0]
+ else:raise AssertionError('countercancel lost')
+ rows.append(wrapper+'_counter_cancel_originalprimary_and_stickygroup')
+ns['_request_context']=make_context(op);ns['_activations']=[];ns['_observer_cancels']=[];ns['_observation_errors']=[];ns['_observations']=[];ns['_install_errors']=[];ns['_restore_errors']=[];ns['_installed_complete']=True
+primary=RuntimeError('ordinarycause');ns['_delegate_response']=Mock(side_effect=primary)
+try:ns['observed_response'](object())
+except BaseException as e:assert e is primary
+else:raise AssertionError('original exception lost')
+assert len(ns['_activations'])==1 and ns['_activations'][0]['outcome']=='raised' and len(ns['_observations'])==1
+ns['write']=Mock()
+try:ns['finish_observation'](Path('unused'),SystemExit(1))
+except SystemExit:pass
+else:raise AssertionError('runneroutcome lost')
+recorded=ns['write'].call_args.args[1];assert recorded['activation_enter_count']==recorded['activation_exit_count']==1 and recorded['activations'][0]['original_delegate_completed'] is True;rows.append('completed_counter_sum_after_actualdelegate_not_livebodyentry')
+ns['_activations']=[];ns['write']=Mock()
+try:ns['finish_observation'](Path('unused'),SystemExit(1))
+except SystemExit:pass
+recorded=ns['write'].call_args.args[1];assert recorded['activation_enter_count']==recorded['activation_exit_count']==0;rows.append('no_fake_counter_for_uncompleted_unobserved_call')
+
+for wrapper,delegate in [('observed_response','_delegate_response'),('observed_sendall','_delegate_sendall'),('observed_mutation_result','_delegate_mutation_result'),('observed_request','_delegate_request')]:
+ context=make_context(op);ns['_request_context']=context;ns['_activations']=CounterCancelled();ns['_observer_cancels']=[];ns['_observation_errors']=[];ns['_observations']=[];ns['_install_errors']=[];ns['_restore_errors']=[];ns['_installed_complete']=True;ns[delegate]=Mock(return_value=original_return)
+ try:
+  if wrapper=='observed_request':ns[wrapper](context[0],op=op,scope=context[2])
+  else:ns[wrapper](object())
+ except KeyboardInterrupt as cancellation:assert ns['_observer_cancels']==[cancellation]
+ else:raise AssertionError('cancel_after_success lost')
+ assert ns[delegate].call_count==1
+ ns['write']=Mock();outer=SystemExit(1)
+ try:ns['finish_observation'](Path('unused'),outer)
+ except BaseExceptionGroup as e:assert e.exceptions[0] is outer and e.exceptions[1] is ns['_observer_cancels'][0]
+ else:raise AssertionError('sticky_success_counter_cancel lostafterrunner')
+ assert ns['write'].call_args.args[1]['observation_valid'] is False;rows.append(wrapper+'_completed_success_countercancel_originalonce_stickyafterrunner')
+report={'scope':'ordinary_exact_workerhook_AST_not_whole_SUT_or_owner','controls':len(rows),'passed':True,'rows':rows,'original85':'FAIL_retained','300':'NOTRUN','diagnostic4_SUT_runs':0}
+(B/'ORDINARY-MUTATION-CONTROLS-v5.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))

@@ -1,0 +1,56 @@
+"""Restore only a new owned fixed input; never restores old scratch or authority."""
+from pathlib import Path
+import hashlib
+import os
+import stat
+
+def restore_owned_fixture(parent, components, raw, expected_sha):
+    parent=Path(parent)
+    if type(raw) is not bytes or hashlib.sha256(raw).hexdigest()!=expected_sha:raise ValueError('fixed input hash mismatch')
+    if type(components) is not tuple or len(components)<2 or any(type(s) is not str or not s or s in ('.','..') or '/' in s or '\\' in s for s in components):raise ValueError('invalid fixed input path')
+    if not parent.is_absolute() or parent.resolve(strict=True)!=parent:raise ValueError('parent must be canonical absolute')
+    for path in [*reversed(parent.parents),parent]:
+        info=path.lstat()
+        if not stat.S_ISDIR(info.st_mode):raise ValueError('ancestor is not real directory')
+    if parent.lstat().st_uid!=os.geteuid():raise ValueError('parent is not owned real directory')
+    descriptors=[];primary=None;result=None
+    try:
+        flags=os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW
+        held=os.open(parent,flags);descriptors.append(held);before=parent.lstat();native=os.fstat(held)
+        if (before.st_dev,before.st_ino)!=(native.st_dev,native.st_ino):raise ValueError('parent identity changed')
+        for component in components[:-1]:
+            os.mkdir(component,mode=0o700,dir_fd=held)
+            child=os.open(component,flags,dir_fd=held);descriptors.append(child);info=os.fstat(child)
+            if not stat.S_ISDIR(info.st_mode) or info.st_uid!=os.geteuid() or stat.S_IMODE(info.st_mode)!=0o700:raise ValueError('new directory identity or mode mismatch')
+            held=child
+        fd=os.open(components[-1],os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600,dir_fd=held);descriptors.append(fd)
+        at=0
+        while at<len(raw):
+            written=os.write(fd,raw[at:]);assert type(written) is int and written>0;at+=written
+        os.fsync(fd);written_info=os.fstat(fd)
+        if not stat.S_ISREG(written_info.st_mode) or written_info.st_uid!=os.geteuid() or written_info.st_nlink!=1 or stat.S_IMODE(written_info.st_mode)!=0o600:raise ValueError('new file identity or mode mismatch')
+        descriptors.remove(fd);os.close(fd)
+        check=os.open(components[-1],os.O_RDONLY|os.O_NOFOLLOW,dir_fd=held);descriptors.append(check);read_info=os.fstat(check)
+        if (read_info.st_dev,read_info.st_ino)!=(written_info.st_dev,written_info.st_ino):raise ValueError('fixed input readback identity changed')
+        observed=bytearray()
+        while True:
+            chunk=os.read(check,65536)
+            if not chunk:break
+            observed.extend(chunk)
+            if len(observed)>len(raw):raise ValueError('fixed input readback grew')
+        if bytes(observed)!=raw:raise ValueError('fixed input byte readback mismatch')
+        final=parent.joinpath(*components).lstat()
+        if (final.st_dev,final.st_ino,final.st_mode,final.st_uid,final.st_nlink,final.st_size)!=(read_info.st_dev,read_info.st_ino,read_info.st_mode,read_info.st_uid,read_info.st_nlink,read_info.st_size):raise ValueError('fixed input final path identity changed')
+        result={'bytes':len(raw),'sha256':expected_sha,'native_mode':'0o600','nlink':1,'new_owned_fixed_input':True,'old_scratch_drafts_restored':False}
+    except BaseException as error:primary=error
+    failures=[]
+    for fd in reversed(descriptors):
+        try:os.close(fd)
+        except BaseException as error:failures.append(error)
+    if primary is not None:
+        if failures:raise BaseExceptionGroup('fixed input primary and close failures',[primary,*failures])
+        raise primary
+    if failures:
+        if len(failures)==1:raise failures[0]
+        raise BaseExceptionGroup('fixed input close failures',failures)
+    return result

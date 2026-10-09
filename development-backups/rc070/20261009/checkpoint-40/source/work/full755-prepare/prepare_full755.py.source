@@ -1,0 +1,34 @@
+"""Read-only complete755 admission prepare; all SUT methods remain0."""
+from pathlib import Path
+import json
+import os
+import shutil
+import sys
+from full755_external import BASE,ORIGINAL,FIXTURE,ORIGINAL_OWNER_SHA,ORIGINAL_WRAPPER_SHA,load,sha,full_identity,configure_original
+
+def save(path,value):
+    with path.open('x') as stream:stream.write(json.dumps(value,sort_keys=True,indent=2)+'\n')
+
+def main():
+    assert len(sys.argv)==3
+    root=Path(sys.argv[1]).resolve();out=Path(sys.argv[2]).resolve();python=str(Path(sys.executable).resolve())
+    assert not out.exists() and root!=out and out not in root.parents and root not in out.parents
+    assert FIXTURE.resolve()==FIXTURE
+    for path in [FIXTURE.parent.parent,FIXTURE.parent]:
+        info=path.lstat();assert info.st_uid==os.geteuid() and info.st_mode&0o7777==0o700 and path.resolve()==path
+    info=FIXTURE.lstat();assert info.st_uid==os.geteuid() and info.st_mode&0o7777==0o600 and info.st_nlink==1
+    assert sha(FIXTURE.read_bytes())=='233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5'
+    assert sha((ORIGINAL/'run-private755-recovery03.py').read_bytes())==ORIGINAL_WRAPPER_SHA and sha((ORIGINAL/'owner-original.py').read_bytes())==ORIGINAL_OWNER_SHA
+    out.mkdir(mode=0o700);owned=out/'owned-owner';owned.mkdir(mode=0o700);shutil.copyfile(ORIGINAL/'owner-original.py',owned/'owner.py');os.chmod(owned/'owner.py',0o600)
+    packet={'scope':'independent-original755-baseline-engineering','root':str(root),'out':str(out),'python':python}
+    original=configure_original(packet);before=original.source();assert before['tree']=='b227335c6503c8b9d2575802522758a308684be8' and before['sole_parent']=='c60f9667fa8431e27fabbc497c19b4abfef5b965' and before['clean']
+    modes=load('independent_modes',ORIGINAL/'physical_modes.py').require_exact_posix_modes(root,{p:v['mode'] for p,v in before['source'].items()})
+    original.save('source-before.json',before);native=original.dependencies('native-preflight-admission.json')
+    files={'python':Path(python),'git':Path('/usr/bin/git'),'fixture':FIXTURE,'owner':owned/'owner.py','wrapper':ORIGINAL/'run-private755-recovery03.py','native-verifier':ORIGINAL/'verify-native-dependencies03.py','external':BASE/'full755_external.py','preparer':Path(__file__),'fixed-input-restorer':BASE/'fixed_fixture.py','physical-helper':ORIGINAL/'physical_modes.py','fence-core':ORIGINAL/'composed-core-original-v2.py'}
+    original.save('runtime-before.json',{name:original.file(path) for name,path in files.items()});save(out/'extra-runtime-before.json',{name:full_identity(path) for name,path in files.items()})
+    with (out/'public-heads-tags-before.txt').open('xb') as stream:stream.write(original.git('for-each-ref','--format=%(refname) %(objectname)','refs/heads','refs/remotes','refs/tags'))
+    save(out/'physical-source-before.json',modes)
+    after=load('independent_modes_afterprep',ORIGINAL/'physical_modes.py').require_exact_posix_modes(root,{p:v['mode'] for p,v in before['source'].items()});assert after==modes;save(out/'physical-source-after-preparation.json',after)
+    packet.update(head=before['head'],tree=before['tree'],sole_parent=before['sole_parent'],SUT_methods=0,startup_review='PENDING',original_inventory=755,macro_groups=[303,452],pretag_fresh_interpreters=3,consumer_fresh_interpreters=15,original_outer_budgets=[1200,7,2,2],original_owner_cleanup_budgets=[3,2,2],original_group_stdout_limit=2*1024**2,original_event_read_limit=1024**2,original_aggregate_stdout='Original directrawFD; no explicit bytecap inoriginalmain',physical_before_sha256=sha((out/'physical-source-before.json').read_bytes()),extra_runtime_before_sha256=sha((out/'extra-runtime-before.json').read_bytes()),external_source_hashes=[{'path':str(path),'sha256':sha(path.read_bytes())} for name,path in files.items()],binding_differences='External ROOT/OUT/PYTHON/PROGRAM/BASE only; originalowner/wrapper bytes andfunction AST unchanged; fixed officialinput newlyrestored, not olddrafts',qualification='Independent baseline engineering only; no RC/CI/install or publisherauthority')
+    original.save('EXECUTION-PREFLIGHT-MANIFEST.json',packet);print(json.dumps({'SUT_methods':0,'preflight_sha256':sha((out/'EXECUTION-PREFLIGHT-MANIFEST.json').read_bytes()),'startup_review':'PENDING'}))
+if __name__=='__main__':main()

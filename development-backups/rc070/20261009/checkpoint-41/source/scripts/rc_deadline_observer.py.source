@@ -1,0 +1,70 @@
+"""Transparent bounded in-memory observation; original delegates remain original."""
+import os
+import stat
+import time
+
+
+def observe_state(owner):
+    value = {name: getattr(owner, name, None) for name in ('_deadline', '_closed', '_family_closed', '_uncertain')}
+    process = getattr(owner, '_process', None)
+    if process is not None:
+        # Reading Popen data never polls/reaps or grants process authority.
+        value['leader_data'] = dict(pid=process.pid, returncode=process.returncode)
+        for name in ('stdin', 'stdout'):
+            stream = getattr(process, name, None)
+            if stream is not None:
+                value[name] = dict(closed=stream.closed)
+                if not stream.closed:
+                    info = os.fstat(stream.fileno())
+                    value[name].update(mode=stat.S_IFMT(info.st_mode), dev=info.st_dev, ino=info.st_ino)
+    value['pidfd_present'] = getattr(owner, '_pidfd', None) is not None
+    value['completion_present'] = getattr(owner, '_completion', None) is not None
+    value['buffer_bytes'] = len(getattr(owner, '_buffer', b''))
+    last = getattr(owner, '_last_frame', None)
+    value['last_frame_kind'] = last.get('kind') if isinstance(last, dict) else None
+    controls = getattr(owner, '_controls', None)
+    value['original_controls_deadline'] = getattr(controls, '_deadline', None)
+    return value
+
+
+def record_observation(journal, phase, name, owner, result=None, error=None):
+    assert len(journal) < 4096
+    entry = dict(sequence=len(journal), monotonic=time.monotonic(), phase=phase, delegate=name, state=observe_state(owner))
+    if error is not None:
+        entry['error'] = dict(type=type(error).__name__, code=getattr(error, 'code', None), effect=getattr(error, 'effect', None))
+    if phase == 'return':
+        entry['result_type'] = type(result).__name__
+        if isinstance(result, dict):
+            entry['result_data'] = {key: result[key] for key in ('kind', 'status', 'reaped', 'stopped', 'error') if key in result}
+    journal.append(entry)
+
+
+def observe_delegate(original, record, failures):
+    def wrapped(*args, **kwargs):
+        try:
+            record('before', args, None, None)
+        except BaseException as observation_error:
+            failures.append(dict(phase='before', error=observation_error))
+        try:
+            result = original(*args, **kwargs)
+        except BaseException as delegate_error:
+            try:
+                record('raise', args, None, delegate_error)
+            except BaseException as observation_error:
+                failures.append(dict(phase='raise', error=observation_error))
+            # A logging failure must never replace the same original exception.
+            raise
+        else:
+            try:
+                record('return', args, result, None)
+            except BaseException as observation_error:
+                failures.append(dict(phase='return', error=observation_error))
+            # Observation faults are admitted only after real delegate cleanup.
+            return result
+    return wrapped
+
+
+def finish_observation(failures):
+    # Call only after original method finally/close has completed.
+    from rc_deadline_binding import raise_combined
+    raise_combined([entry['error'] for entry in failures])

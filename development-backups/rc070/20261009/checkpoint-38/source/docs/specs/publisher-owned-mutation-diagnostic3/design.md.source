@@ -1,0 +1,21 @@
+# Publisher diagnostic3 design
+
+## 概述
+
+对应需求：FR-1、FR-2、FR-3。同唯一originalartifactmethod，独立freshb9cf纯源，复用已修diag2外部worker与nativeowner。diag2终态CreateDraft2提前FAIL/op11NOTREACHED保持，不借旧op11失败作为新同层证明。
+
+## 技术方案
+
+FR-1：原source/runtime/precondition/runner/inventory/AST完整核验，全源码不改。外部adaptedowner仍准确四变更inverse，wholeowner函数AST不原；kernel/receiptgate相同。
+
+FR-2：mainthreadrequestwrapper在原delegate前只设置真实输入对象tuple，不检查/改owner权限，也不记录activation。mutation_context是只读filter，依据原类型与originalclient/scope/session对象相同、scope原主线程/未retired和kind3白名单；inner观察实际delegate结束后才取安全metadata，无call额外_check/consume。request和inner3成功/异常后record_activation记录实际completed invocation配对enter1/exit1、kind/id/boundary/outcome，仅typename/WireFailurecodeeffect/frames异常；这些不是实时entry时间或原函数bodyhook。计数失败invalidUNKNOWN；primary先发生再记录，同返回/异常身份；普通观察Exception不改变原结果，observercancelsticky并在原cleanup后保原object传播。nestedGET context暂替opNone，原finally恢复真正外层mutation；otherthread/foreignclient/scope/noop无观察。
+
+FR-2：除6原temporarybindings，不新增原_connect/fixture.connect/socket.create_connection/SSLContext.wrap_socket绑定。原AST顺序证明连接握手在possibleTrue前，unknown当前不是连接证明。stream.read/inline/check/close等未全覆盖，inner缺event不作causePASS。实际mutationactivation字段帮助区分观察predicate未到与实际delegate完成，完全不当作授权token/identityissuer。
+
+FR-3：原diag2stickyfailure/pause、install_errors与installed_complete、reverse-allrestore/partialrollback机制完整复用，逐新增context/counterordinary失败先复现或negative，再PASS。保6wrapper真实AST声明、原9sourceAST，native5runtime+ssl身份，全1800/7/2/2，原8与observer独立封存。Root固定literal/exactargv afterindependentreview solelaunch；无auto85/300/retry。
+
+Ordinarycontrols真实lift新hookAST：scope同一对象/foreignclient与foreignscope拒绝/nofakeissuer；kind白名单/不同actualids允许；nestedcontext正常/primary/cancelfinally；afterdelegate completed counters/genuineoriginalcallonce/sameargs/samereturn/sameexception；field/counter普通failure originalidentity保留/invalid；observercancel+primary/stickycancel afterrunner；所有原45repaircontrols不重复累计；firstalias/firstrestorefail剩余5/partialmutatedrollback/真实close安全；精确解释ordinarynamespace不是原nativeowner/真正授权成功。
+
+## 文件结构
+
+独立external目录4Python（worker/owner/entry/ordinarycontrols）+3spec+AST/actualordinary证据；freshpure checkout/私有rawsource/runtime/native封存隔离。source-only备份仅7inertsource+README/安全STATUS/MANIFEST，不公开rawhost/proc/TLS/fixture/objects。

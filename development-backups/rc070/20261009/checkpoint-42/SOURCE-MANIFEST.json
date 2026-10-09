@@ -1,0 +1,63 @@
+{
+  "source_commit": "8c7b7ef262320893142d0a4f47d2a583691b0dd7",
+  "sole_parent": "40c4b293f7682104dc7de78cafe74b2b72c0953e",
+  "tree": "d6ba702a25dc03b0267e8bef8cff043985c584fb",
+  "candidate_paths": 1867,
+  "delta_new_paths": 5,
+  "unchanged_baseline_paths_native_modes_blobs_actual_bytes": 1862,
+  "all1867_actual_bytes_match_native_blob": true,
+  "sources": [
+    {
+      "path": ".gitattributes",
+      "bytes": 484,
+      "sha256": "e71eff1d357a5e428d8323d3f8d328e25c3aa57f522dae766fd44f4aa1e1e1bd",
+      "git_mode": "100644",
+      "git_blob": "5cfd639a238ef02716b726895d707e4e4e509b5c",
+      "physical_mode": "0600"
+    },
+    {
+      "path": "scripts/windows_foundation_manager_checkout_tests.py",
+      "bytes": 7283,
+      "sha256": "952d83b3855c01372f955181e089ed12dfd9fcec630262e2ad412b0c42346094",
+      "git_mode": "100644",
+      "git_blob": "1d09d9031b3dd71b522edc76545f23c70bc538f4",
+      "physical_mode": "0600"
+    },
+    {
+      "path": "docs/specs/windows-manager-raw-checkout/requirements.md",
+      "bytes": 2921,
+      "sha256": "7af478dd567865204e06dfc8d7ab661597e9576e66fc7935e3994b2b9b8a3d75",
+      "git_mode": "100644",
+      "git_blob": "ba1f43b9214825bf34135627ced9661e906682ed",
+      "physical_mode": "0600"
+    },
+    {
+      "path": "docs/specs/windows-manager-raw-checkout/design.md",
+      "bytes": 1797,
+      "sha256": "838323b380b0adf24e24e8cce5dddb327030ab66c7c353e1d390dd5bf28e9550",
+      "git_mode": "100644",
+      "git_blob": "f10f09dda8d6cd5b95155440c7f7d40d30ba61db",
+      "physical_mode": "0600"
+    },
+    {
+      "path": "docs/specs/windows-manager-raw-checkout/tasks.md",
+      "bytes": 2170,
+      "sha256": "2ea7476b9791f5c3336fee9699720ad3d6439e0b9cb7446b1ce457e3663d702b",
+      "git_mode": "100644",
+      "git_blob": "c4cf8d9276b55f1fe2ebb23ed404ce793b9072df",
+      "physical_mode": "0600"
+    }
+  ],
+  "guard_complete_SHA256": "71aaba07443ba0ace608f8a73e0996df839f6c189e866ee949eb4dd21e4a4073",
+  "original_function_AST_SHA256": {
+    "run_git": "3c9b37437ac714d6a783cdad7da549abdc9c7e0bf636813972550b5dd575932f",
+    "verify_manager": "183f30416658ab6cc9edad3cbcb58a66b69a799858052f9d7b31138309362198",
+    "restore_source": "3e63a82f974cc7fbe1873e871dffe132a6347e3805548d54d1d7934f30dd3321"
+  },
+  "peer_receipt_sha256": "924c11a2522ed4ace2d202c2e608670091df1b6c2302b22a80212811370eeaee",
+  "peer_status": "LIMITED_RAW_CHECKOUT_SOURCE_PEER_NO_BLOCKING_CURRENT_SCOPE",
+  "freeze_receipt_sha256": "b166c5c20227daba44ea34a222257c0b6830452cc37f3a5723347059783cfe5b",
+  "scope": "literal7managerpaths -text only; full1862 existing originalsource/settings remain exact; no broadwildcard/worktree rewrite/renormalize/globalconfig/runtime/guardbudgetchange",
+  "physical_mode_note": "Source physical modes listed distinctfromGit100644; inertbackup files arephysical0644.",
+  "native_authority": false
+}

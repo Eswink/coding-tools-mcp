@@ -1,0 +1,32 @@
+# Publisher diagnostic4 tasks
+
+## 交付物清单
+
+四externalPython、3spec、freshimpact、actualordinarycontrols、source/AST/native/prelaunch/terminal封存、安全source-onlyGitHub备份。原全部FAIL与旧metadata冻结不覆盖。
+
+## 任务列表
+
+- [x] FR-1 actualdiag2 earlierCreateDraft2/op11NOTREACHED、原85/diag1FAIL保存，300NOTRUN。
+- [x] FR-2 原_request/fixture.connect只读AST：nativeconnect beforepossibleTrue，不加无因果连接binding；未覆盖区域UNKNOWN。
+- [x] FR-1 FR-2 freshsymbolimpact concrete6binding/context/counter scope manualCRITICAL实施前根线披露。
+- [x] FR-1 FR-2 FR-3 structuredcheck_spec通过，历史fail保留。
+- [x] FR-2 外部复用已修worker，actualclient/scope对象filter，completeddelegate配对entryexit counters，同delegate/returns/exception。
+- [x] FR-2 FR-3 actualordinary hookAST negative/positive/identity/cancel/context/counter/restore/realclose controls；不borrow原45qualification。
+- [x] FR-1 freshpure1878/AST9/carrier1860/index/native/runtime/ssl完整sourceidentity。
+- [ ] FR-3 exclusivepreseal/exactargv、source-onlybackup；独立review后rootsolelaunch。
+- [ ] FR-3 actual原method/native/raw8/observer/activation/currentsource全面终态审计；无causalevent保持UNKNOWN，不auto85/300。
+
+## 需求覆盖矩阵
+
+| 需求 | 工作与证据 |
+| --- | --- |
+| FR-1 | freshwhole源/原AST/runner/unique库存 |
+| FR-2 | actualscope/context/completedcounts/exacthookcontrols |
+| FR-3 | native有限owner/6aliasrestore/封存/独立review/原门 |
+
+## 文件变更清单
+
+只新独立external目录，原SUT/core/默认deny/_requestcatch/预算/原testassert保持不动；无workflow/install/Grant/Tag/Release变更。
+
+
+本轮范围增补：root 明确授权 diag4 第二个原85实际FAIL方法1；不是重复第一方法，也不由diag3PASS推出原因已修或完整85合格。原method前半包含IntegrationTLS stage/directsink hardreject，末尾调用与artifact相同的原_pending_fence三kind。仅外部profile/path/inventory/sidecar diagnostic metadata变化；6hook函数 AST、原receipt_gate/原assert/core/catch/2s以及1800/7/2/2保持。新完整owner_AST非原：逆向4项适配后严格匹配原owner。实际普通76controls须在本轮新worker真实重核后再封存，不借历史PASS。独立启动审查后仅root唯一launch，85/300均禁止自动运行。

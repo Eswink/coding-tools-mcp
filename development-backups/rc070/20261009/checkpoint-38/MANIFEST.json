@@ -1,0 +1,69 @@
+{
+  "source_only": true,
+  "files": [
+    {
+      "path": "README.md",
+      "git_mode": "100644",
+      "bytes": 4435,
+      "sha256": "ba436517be893d82dbd5239a3969e68105e10285f5099184f5233debf9b1c331",
+      "blob_sha1": "e40da31d4109a6e2fe3b18e9100e889ee34a6b21"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "git_mode": "100644",
+      "bytes": 11325,
+      "sha256": "22e712f2de797389e1c6b729d65e5ff7d381c8da4aedfd760208d33236765f14",
+      "blob_sha1": "fea7f7297b42f95d0a7fb4888cff54da0af0bc8d"
+    },
+    {
+      "path": "source/diagnostic-launch.py.source",
+      "git_mode": "100644",
+      "bytes": 3708,
+      "sha256": "8384be609787af223145a78bf495a0efe4ae4bde7e98230f6e1b8d2b5357d243",
+      "blob_sha1": "1c710946d99fd2680a1bd5cd27e0b13b5c6e892b"
+    },
+    {
+      "path": "source/diagnostic_owner.py.source",
+      "git_mode": "100644",
+      "bytes": 15193,
+      "sha256": "8a7ec6446614c676c76677d04ef5d8164dd2c306170ffef11ea496edea539280",
+      "blob_sha1": "98c95a2d7418f1f547bcc4baee4eae02b6a28718"
+    },
+    {
+      "path": "source/diagnostic_worker.py.source",
+      "git_mode": "100644",
+      "bytes": 11795,
+      "sha256": "0e26e6153717cc554ffa678e615dd9180d1ddf1fbfd9cf5c481f6163a0a1198a",
+      "blob_sha1": "38a17761dc5b3ee91f9ca4d5f7903a5b61dbf04c"
+    },
+    {
+      "path": "source/docs/specs/publisher-owned-mutation-diagnostic3/design.md.source",
+      "git_mode": "100644",
+      "bytes": 3107,
+      "sha256": "be57fcd58c886e5ca25d02937cbe9a6e9e7476b9810a8a85bfc1c8894fbdb44e",
+      "blob_sha1": "6b0c99094d0e3d23b7a23bdea941550d586d7d86"
+    },
+    {
+      "path": "source/docs/specs/publisher-owned-mutation-diagnostic3/requirements.md.source",
+      "git_mode": "100644",
+      "bytes": 5574,
+      "sha256": "97528d02ac91ec0868afc98b688b627bcd537176bb1f60704411a135002e6111",
+      "blob_sha1": "697b28ddfc92c777290a478174341252873960a4"
+    },
+    {
+      "path": "source/docs/specs/publisher-owned-mutation-diagnostic3/tasks.md.source",
+      "git_mode": "100644",
+      "bytes": 1726,
+      "sha256": "4e08ea6f54c6687a3654fccf55d77ac67bf9cfd3947a48484f2f43286df3e559",
+      "blob_sha1": "b21e4f08fbf0cefc410daf739a156166bbca8ac8"
+    },
+    {
+      "path": "source/ordinary-mutation-controls.py.source",
+      "git_mode": "100644",
+      "bytes": 22328,
+      "sha256": "6fb5756c15f888488ae5c6ddc98f451429162b767375921cc55500e4303b4d18",
+      "blob_sha1": "850b27fd63e9854b318b70668b66af017977181a"
+    }
+  ],
+  "manifest_self_bound_by_remote_git_blob": true
+}

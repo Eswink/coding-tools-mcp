@@ -1,0 +1,24 @@
+{
+  "status": "PASS_REAL_8_ORDINARY_COMPONENT_METHODS_NO_NATIVE_QUALIFICATION",
+  "methods": 8,
+  "log_bytes": 1452,
+  "log_sha256": "306508c45dde1fb7dd98809b5376d5e78f1f597d89d88bbf9a83e650eaf6045f",
+  "actual_native_git": "2.52.0",
+  "positive": "OwnednativeGitclone true/false EOLsetting keepssevenHEADrawblobs; completeunchangedoriginalguard admits. Nativecheckattr returnsunset sevenfixedpaths.",
+  "negative": "Withoutattributesownedtrueclone convertsLFtoCRLFand originalguardrejects; actualmutation stillrejects; unmatchedsame-directory andnested samename stillCRLF/attributesunspecified.",
+  "failure_first": {
+    "methods": 1,
+    "actual_exit": 1,
+    "result": "ORIGINAL_RAW_CONTRACT_FAIL",
+    "log_bytes": 1258,
+    "log_sha256": "02243e4a02a6110fe8b8939d4f6ce2fc8ab7cb512a61ae9015814f1051fa4a0a"
+  },
+  "spec_initial_actual": "FAIL5requiredsections",
+  "spec_corrected_actual": "PASS4FR0errors0warnings beforeattributes/controlcode",
+  "erratum": "Firstheartbeat mistakenlydescribedspec01asPASSbeforeactualread; preservedwrongheartbeat, failedspecandexpliciterratum; correctedblockedcheckpointthenactualspec02PASSactivecheckpoint.",
+  "gentest": "Actualstructuredguidance forunittest; actual8methodruntime result is separate verification.",
+  "gencommit": "Initialmissingchanges outsidenonGitroot realSystemError retained; schema-correctedchangesdescription actualstructuredreadyguidance/fixed\ud83d\udc1b; no repeatedreadyguidance.",
+  "source_peer": "LIMITED_RAW_CHECKOUT_SOURCE_PEER_NO_BLOCKING_CURRENT_SCOPE",
+  "new_actualCI_at_seal": "NOTRUN_ROOT_PUSH_PENDING",
+  "native_authority": false
+}

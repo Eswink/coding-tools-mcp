@@ -1,0 +1,251 @@
+"""Temporary transparent safe observers around exact original delegates; diagnostic3."""
+import json,runpy,sys,traceback,ssl,threading
+from pathlib import Path
+
+assert len(sys.argv)==6 and sys.argv[1]=='--root' and sys.argv[3]=='--output'
+root,output=Path(sys.argv[2]).resolve(),Path(sys.argv[4]).resolve()
+assert sys.argv[5]=='rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_owned_direct_mutation_sinks_still_block_before_authorize_and_write'
+management=Path('/workspace/work/rc070/publisher-carrier')
+sys.path.insert(0,str(management/'scripts'))
+from rc_native_probe_restore import sha,write,RUNNER_SHA
+runner=management/'scripts/rc_native_probe_original_runner.py'
+assert sha(runner.read_bytes())==RUNNER_SHA and len(runner.read_bytes())==6259
+sys.path.insert(0,str(root/'scripts'))
+import rc_publication_executor as executor
+import rc_publication_github as wire
+_delegate_failure=executor.PublisherSession._failure
+_delegate_pause=executor.PublisherSession.run_until_pause
+_delegate_request=wire.GitHub._request
+_delegate_response=wire._Reader.response
+_delegate_mutation_result=wire.GitHub._mutation_result
+_delegate_sendall=ssl.SSLSocket.sendall
+_worker_thread=threading.get_ident()
+_request_context=None
+_observer_cancels=[]
+_restore_errors=[]
+_install_errors=[]
+_installed_complete=False
+_applied=[]
+_activations=[]
+_observations=[]
+_observation_errors=[]
+
+
+def observed_failure(current,op,error):
+    value=_delegate_failure(current,op,error)
+    try:
+        _observations.append(dict(event='original_failure',operation_kind=op.kind,operation_id=op.operation_id,
+            error_type=type(error).__name__,wire_code=error.code if type(error) is wire.WireFailure else None,
+            wire_effect=error.effect if type(error) is wire.WireFailure else None,
+            result_type=type(value).__name__,result_code=value.code,result_effect=value.effect,
+            frames=[dict(file=Path(f.filename).name,function=f.name,line=f.lineno) for f in traceback.extract_tb(error.__traceback__)]))
+    except Exception as observation_error:
+        _observation_errors.append(dict(phase='failure_fields',type=type(observation_error).__name__))
+    except BaseException as observation_cancel:
+        _observer_cancels.append(observation_cancel)
+        raise
+    return value
+
+
+def observed_pause(current):
+    value=_delegate_pause(current)
+    try:
+        _observations.append(dict(event='original_run_until_pause',result_type=type(value).__name__,
+            action_type=None if value.action is None else type(value.action).__name__,
+            code=value.state.code,outcome=value.state.outcome,intent_count=value.state.intent_count,
+            pending_kind=None if value.state.pending is None else value.state.pending.kind))
+    except Exception as observation_error:
+        _observation_errors.append(dict(phase='pause_fields',type=type(observation_error).__name__))
+    except BaseException as observation_cancel:
+        _observer_cancels.append(observation_cancel)
+        raise
+    return value
+
+
+def mutation_context():
+    if threading.get_ident()!=_worker_thread or type(_request_context) is not tuple or len(_request_context)!=3:
+        return None
+    current,op,scope=_request_context
+    if type(current) is not wire.GitHub or type(op) is not wire.core.Operation:
+        return None
+    if op.kind not in ('CreateDraft','UploadAsset','PublishPrerelease') or type(scope) is not wire.owned._OperationScope:
+        return None
+    owner=scope._owner
+    if type(owner) is not wire.owned._SessionOwner or type(owner._session) is not executor.PublisherSession:
+        return None
+    session=owner._session
+    if not (scope._op is op and scope._thread==_worker_thread and not scope._retired
+            and owner._client is current and session._api is current and session._owner is owner
+            and session._request_scope is scope and session._inflight is op
+            and owner._credential is current._credential
+            and current._credential._session_owner is owner):
+        return None
+    return op
+
+
+def record_activation(boundary,primary=None):
+    try:
+        op=mutation_context()
+        if op is None:
+            return
+        _activations.append(dict(boundary=boundary,operation_kind=op.kind,operation_id=op.operation_id,
+            original_delegate_completed=True,enter=1,exit=1,
+            outcome='returned' if primary is None else 'raised',
+            error_type=None if primary is None else type(primary).__name__,
+            wire_code=primary.code if type(primary) is wire.WireFailure else None,
+            wire_effect=primary.effect if type(primary) is wire.WireFailure else None,
+            frames=[] if primary is None else [dict(file=Path(f.filename).name,function=f.name,line=f.lineno)
+                for f in traceback.extract_tb(primary.__traceback__)]))
+    except Exception as observation_error:
+        _observation_errors.append(dict(phase='activation_fields',type=type(observation_error).__name__))
+    except BaseException as observation_cancel:
+        _observer_cancels.append(observation_cancel)
+        if primary is not None:
+            raise BaseExceptionGroup('Original delegate exception and activation cancellation',[primary,observation_cancel])
+        raise
+
+
+def observed_request(current,*args,**kwargs):
+    global _request_context
+    if threading.get_ident()!=_worker_thread:
+        return _delegate_request(current,*args,**kwargs)
+    previous=_request_context
+    _request_context=(current,kwargs.get('op'),kwargs.get('scope'))
+    try:
+        try:
+            value=_delegate_request(current,*args,**kwargs)
+        except BaseException as primary:
+            record_activation('original_GitHub._request',primary)
+            raise
+        record_activation('original_GitHub._request')
+        return value
+    finally:
+        _request_context=previous
+
+
+def observe_error(boundary,primary):
+    record_activation(boundary,primary)
+    try:
+        op=mutation_context()
+        if op is None:
+            return
+        _observations.append(dict(event='inner_delegate_exception',boundary=boundary,
+            operation_kind=op.kind,operation_id=op.operation_id,error_type=type(primary).__name__,
+            wire_code=primary.code if type(primary) is wire.WireFailure else None,
+            wire_effect=primary.effect if type(primary) is wire.WireFailure else None,
+            frames=[dict(file=Path(f.filename).name,function=f.name,line=f.lineno)
+                for f in traceback.extract_tb(primary.__traceback__)]))
+    except Exception as observation_error:
+        _observation_errors.append(dict(phase='inner_fields',type=type(observation_error).__name__))
+    except BaseException as observation_cancel:
+        _observer_cancels.append(observation_cancel)
+        raise BaseExceptionGroup('Original delegate exception and observation cancellation',[primary,observation_cancel])
+
+
+def observed_response(current,*args,**kwargs):
+    try:
+        value=_delegate_response(current,*args,**kwargs)
+    except BaseException as primary:
+        observe_error('original_Reader.response',primary)
+        raise
+    record_activation('original_Reader.response')
+    return value
+
+
+def observed_mutation_result(current,*args,**kwargs):
+    try:
+        value=_delegate_mutation_result(current,*args,**kwargs)
+    except BaseException as primary:
+        observe_error('original_GitHub._mutation_result',primary)
+        raise
+    record_activation('original_GitHub._mutation_result')
+    return value
+
+
+def observed_sendall(current,*args,**kwargs):
+    try:
+        value=_delegate_sendall(current,*args,**kwargs)
+    except BaseException as primary:
+        observe_error('original_SSLSocket.sendall',primary)
+        raise
+    record_activation('original_SSLSocket.sendall')
+    return value
+
+
+def install_bindings():
+    global _installed_complete
+    _installed_complete=False
+    try:
+        for target,name,original,wrapper in _bindings:
+            if getattr(target,name) is not original:
+                raise RuntimeError('Original owned binding identity mismatch')
+            _applied.append((target,name,original,wrapper))
+            setattr(target,name,wrapper)
+        _installed_complete=True
+    except BaseException as install_error:
+        _install_errors.append(install_error)
+        raise
+
+
+def restore_bindings():
+    for target,name,original,wrapper in reversed(_applied):
+        try:
+            if getattr(target,name) is not wrapper:
+                _restore_errors.append(RuntimeError('Temporary owned binding identity mismatch'))
+        except BaseException as restore_error:
+            _restore_errors.append(restore_error)
+        try:
+            setattr(target,name,original)
+            if getattr(target,name) is not original:
+                raise RuntimeError('Restored owned binding identity mismatch')
+        except BaseException as restore_error:
+            _restore_errors.append(restore_error)
+    return not _restore_errors
+
+
+def finish_observation(path,primary):
+    failures=[]
+    for value in ([primary] if primary is not None else [])+_install_errors+_restore_errors+_observer_cancels:
+        if not any(value is old for old in failures):
+            failures.append(value)
+    report=dict(diagnostic3=True,whole85_qualification=False,temporary_live_wrappers=6,
+        original_delegate_first_exact_once=True,original_method_assertions_unchanged=True,
+        original_runner_primary_type=None if primary is None else type(primary).__name__,
+        original_runner_exit_code=primary.code if type(primary) is SystemExit and primary.code in (0,1) else None,
+        observation_valid=(_installed_complete and not (_observation_errors or _install_errors or _restore_errors or _observer_cancels)),
+        observation_errors=_observation_errors,installed_complete=_installed_complete,
+        install_error_types=[type(e).__name__ for e in _install_errors],restore_error_types=[type(e).__name__ for e in _restore_errors],
+        observer_cancel_types=[type(e).__name__ for e in _observer_cancels],
+        all_bindings_restored=(_installed_complete and not (_install_errors or _restore_errors)),inner_boundaries=3,uncovered_stream_read_and_inline=True,
+        activation_counter_semantics="completed originaldelegate pairedenterexit recordedaftercall, not realtimebodyentryhook",
+        activation_enter_count=sum(a['enter'] for a in _activations),activation_exit_count=sum(a['exit'] for a in _activations),
+        activations=_activations,events=_observations)
+    try:
+        write(path,report)
+    except Exception as observer_write_error:
+        print(json.dumps(dict(observation_write_failed=True,safe_type=type(observer_write_error).__name__)),file=sys.stderr)
+        if not failures:
+            raise
+    except BaseException as observation_cancel:
+        failures.append(observation_cancel)
+    if len(failures)==1:
+        raise failures[0]
+    if failures:
+        raise BaseExceptionGroup('Preserved original runner, restore and observer outcomes',failures)
+
+
+_bindings=[(executor.PublisherSession,'_failure',_delegate_failure,observed_failure),
+    (executor.PublisherSession,'run_until_pause',_delegate_pause,observed_pause),
+    (wire.GitHub,'_request',_delegate_request,observed_request),
+    (wire._Reader,'response',_delegate_response,observed_response),
+    (wire.GitHub,'_mutation_result',_delegate_mutation_result,observed_mutation_result),
+    (ssl.SSLSocket,'sendall',_delegate_sendall,observed_sendall)]
+primary=None
+try:
+    install_bindings()
+    runpy.run_path(str(runner),run_name='__main__')
+except BaseException as original_runner_outcome:
+    primary=original_runner_outcome
+finally:
+    restore_bindings()
+finish_observation(output.parent/'DIAGNOSTIC-OBSERVATION.json',primary)

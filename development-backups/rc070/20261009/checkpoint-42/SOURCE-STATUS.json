@@ -1,0 +1,23 @@
+{
+  "seal": "FINAL_IMMUTABLE_SOURCE_ONLY",
+  "commit": "8c7b7ef262320893142d0a4f47d2a583691b0dd7",
+  "sole_parent": "40c4b293f7682104dc7de78cafe74b2b72c0953e",
+  "tree": "d6ba702a25dc03b0267e8bef8cff043985c584fb",
+  "full_source_status_bytes_at_local_commit": 0,
+  "newCI_at_seal": "NOTRUN_ROOT_PUSH_PENDING",
+  "latest_real_prior_head_CI": {
+    "head": "40c4b293f7682104dc7de78cafe74b2b72c0953e",
+    "run_id": 37921157624,
+    "attempt": 1,
+    "conclusion": "FAIL",
+    "Go": "4originalmethodsPASS/pure19bb1953beforeafterequal/protectedSHAunchanged",
+    "Windows": "7publicmanagerphysicalsource hash/GitOID exactexpectedLFtoCRLF bothphases; originalrawguardFAIL; SUTrestore/compilerNOTRUN",
+    "conversion_configuration_origin": "UNKNOWN"
+  },
+  "existing_originalguard_AST_manifest_workflow_runtime_restore_pins_permissions_budget": "UNCHANGED",
+  "original_SUTrestore_setting": "commandscopedautocrlffalse plusownnocheckoutclone/localfalse/BASEcheckout/customindex checkout-index unchanged; actualWindowsrestore notyetproven",
+  "freshimpact": "attributesunsupportedUNKNOWN/manualHIGH disclosed; parsed5files43symbols/0flowslow doesnotresolveactualrisk",
+  "qualification": "SOURCE_ONLY; nativeWindowsowner/VM/IOclose/install/RC/publisherUNQUALIFIED",
+  "boundaries": "PR98cancellation andIssue86snapshotpause remain; no permissions orauthwidened",
+  "backup_contents": "Onlyinert5source, soleparentpatch, modes/hashes/safecomponentstatuses; no logs/runtime/env/quarantine/host/proc/TLS/token/objectlibrary"
+}

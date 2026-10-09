@@ -1,0 +1,167 @@
+"""Fresh source28-v2 finite-family execution receipt; no release or native installation authority."""
+import argparse
+from datetime import datetime, timezone
+import hashlib
+import importlib
+import json
+import os
+from pathlib import Path
+import platform
+import shutil
+import subprocess
+import sys
+import time
+import unittest
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--root', type=Path, required=True)
+parser.add_argument('--output', type=Path, required=True)
+parser.add_argument('names', nargs='*')
+parser.add_argument('--inventory', type=Path)
+args = parser.parse_args()
+if args.inventory:
+    args.names = json.loads(args.inventory.read_text())['loaded']
+assert args.names
+root, output = args.root.resolve(), args.output.resolve()
+assert not output.is_relative_to(root)
+output.mkdir(parents=True, exist_ok=False)
+os.chdir(root)
+sys.path.insert(0, str(root / 'scripts'))
+sys.dont_write_bytecode = True
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def write(name, value):
+    (output / name).write_text(json.dumps(value, indent=2, sort_keys=True) + '\n')
+
+
+def files():
+    tracked = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')[:-1]
+    result = {}
+    for name in sorted(set(tracked)):
+        path = root / name
+        assert path.is_file() and not path.is_symlink(), name
+        data = path.read_bytes()
+        result[name] = {'bytes': len(data), 'sha256': sha(data), 'mode': path.stat().st_mode & 0o777}
+    return {'files': result, 'head': subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip(),
+            'status': subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=all']).decode()}
+
+
+def runtime():
+    result = {'python': sys.version, 'platform': platform.platform(), 'runner_sha256': sha(Path(__file__).read_bytes())}
+    for tool in ('git', 'openssl'):
+        path = Path(shutil.which(tool)).resolve()
+        data = path.read_bytes()
+        result[tool] = {'path': str(path), 'sha256': sha(data), 'bytes': len(data),
+                        'version': subprocess.check_output([str(path), '--version' if tool == 'git' else 'version']).decode().strip()}
+    import rc_pretag_collect_fixtures as git_fixture
+    paths = {'fixed_git': Path('/usr/bin/git').resolve(),
+             'fixture_owned_scope_git': Path(shutil.which('git', path=os.defpath)).resolve(),
+             'fixture_git_environment_git': Path(shutil.which('git', path=git_fixture.git_environment().get('PATH', os.defpath))).resolve()}
+    for name, path in paths.items():
+        data = path.read_bytes()
+        result[name] = {'path': str(path), 'sha256': sha(data), 'bytes': len(data),
+                        'version': subprocess.check_output([str(path), '--version']).decode().strip()}
+    path = Path(sys.executable).resolve()
+    data = path.read_bytes()
+    result['python_binary'] = {'path': str(path), 'sha256': sha(data), 'bytes': len(data)}
+    import ssl, _ssl, _hashlib
+    result['tls'] = {'openssl_version': ssl.OPENSSL_VERSION, 'default_verify_paths': ssl.get_default_verify_paths()._asdict()}
+    for name, module in (('_ssl', _ssl), ('_hashlib', _hashlib)):
+        origin = getattr(module, '__file__', None)
+        if origin is None:
+            assert module.__spec__.origin == 'built-in'
+            result[name] = {'origin': 'built-in', 'owned_by_python_binary_sha256': result['python_binary']['sha256']}
+        else:
+            path = Path(origin).resolve(); data = path.read_bytes()
+            result[name] = {'path': str(path), 'sha256': sha(data), 'bytes': len(data)}
+    return result
+
+
+def flatten(suite):
+    for item in suite:
+        if isinstance(item, unittest.TestSuite):
+            yield from flatten(item)
+        else:
+            yield item
+
+
+before, runtime_before = files(), runtime()
+write('source-before.json', before)
+write('runtime-before.json', runtime_before)
+suite = unittest.defaultTestLoader.loadTestsFromNames(args.names)
+loaded = [test.id() for test in flatten(suite)]
+assert len(loaded) == len(set(loaded))
+write('inventory.json', {'scope': 'loaded_only', 'loaded': loaded})
+
+
+class NamedResult(unittest.TextTestResult):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.executed, self.passed, self.subtest_failures = [], [], []
+        self.native_tls_evidence = {}
+
+    def startTest(self, test):
+        with (output / 'progress.jsonl').open('a') as journal:
+            journal.write(json.dumps({'event': 'start', 'id': test.id(), 'at': datetime.now(timezone.utc).isoformat()}) + '\n'); journal.flush(); os.fsync(journal.fileno())
+        self.executed.append(test.id())
+        super().startTest(test)
+
+    def stopTest(self, test):
+        with (output / 'progress.jsonl').open('a') as journal:
+            journal.write(json.dumps({'event': 'stop', 'id': test.id(), 'passed': test.id() in self.passed, 'at': datetime.now(timezone.utc).isoformat()}) + '\n'); journal.flush(); os.fsync(journal.fileno())
+        if hasattr(test, '_native_evidence'):
+            self.native_tls_evidence[test.id()] = test._native_evidence
+        super().stopTest(test)
+
+    def addSuccess(self, test):
+        self.passed.append(test.id())
+        super().addSuccess(test)
+
+    def addSubTest(self, test, subtest, error):
+        if error:
+            self.subtest_failures.append(subtest.id())
+        super().addSubTest(test, subtest, error)
+
+
+write('process-start.json', {'pid': os.getpid(), 'ppid': os.getppid(), 'pid_namespace': os.readlink('/proc/self/ns/pid'), 'proc_stat': Path('/proc/self/stat').read_text(), 'boot_id': Path('/proc/sys/kernel/random/boot_id').read_text().strip(), 'at': datetime.now(timezone.utc).isoformat()})
+started = datetime.now(timezone.utc).isoformat()
+clock = time.monotonic()
+with (output / 'cases.log').open('w') as stream:
+    result = unittest.TextTestRunner(stream=stream, verbosity=2, resultclass=NamedResult).run(suite)
+elapsed = time.monotonic() - clock
+write('native-tls-evidence.json', result.native_tls_evidence)
+after, runtime_after = files(), runtime()
+write('source-after.json', after)
+write('runtime-after.json', runtime_after)
+log = (output / 'cases.log').read_bytes()
+stable = before == after and runtime_before == runtime_after
+passed = (result.wasSuccessful() and stable and result.executed == loaded
+          and result.passed == loaded and not result.skipped and not result.expectedFailures
+          and not result.unexpectedSuccesses and not result.subtest_failures)
+receipt = {'scope': 'local-source28-v2-necessary488-only', 'successful': passed,
+           'source_parent': before['head'], 'source_stable': before == after,
+           'runtime_stable': runtime_before == runtime_after,
+           'source_sha256': sha(json.dumps(before, sort_keys=True).encode()),
+           'runtime_sha256': sha(json.dumps(runtime_before, sort_keys=True).encode()),
+           'loaded': loaded, 'executed': result.executed, 'named_passed': result.passed,
+           'failures': [test.id() for test, _ in result.failures],
+           'errors': [test.id() for test, _ in result.errors], 'subtest_failures': result.subtest_failures,
+           'skipped': result.skipped, 'expected_failures': len(result.expectedFailures),
+           'unexpected_successes': len(result.unexpectedSuccesses),
+           'tests_run': result.testsRun, 'started_utc': started,
+           'finished_utc': datetime.now(timezone.utc).isoformat(), 'seconds': elapsed,
+           'log': {'bytes': len(log), 'sha256': sha(log)},
+           'native_tls_evidence': {'bytes': (output / 'native-tls-evidence.json').stat().st_size, 'sha256': sha((output / 'native-tls-evidence.json').read_bytes())},
+           'github_authority_proven': False, 'tag_cas_proven': False,
+           'final_candidate_proven': False, 'profile_admitted': False,
+           'actual_install_slots': 'NOT_RUN', 'windows_native_owner_proven': False,
+           'source_tree': subprocess.check_output(['git', 'write-tree']).decode().strip()}
+write('receipt.json', receipt)
+print(json.dumps({'output': str(output), 'successful': passed, 'loaded': len(loaded),
+                  'executed': len(result.executed), 'named_passed': len(result.passed),
+                  'failures': receipt['failures'], 'errors': receipt['errors'], 'seconds': elapsed}))
+sys.exit(0 if passed else 1)
