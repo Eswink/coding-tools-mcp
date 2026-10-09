@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "files": [
+    {
+      "path": "01-.gitattributes.source",
+      "bytes": 538,
+      "sha256": "8e0e4c20992c884dc6632e618c55ae8cd2fc0d026f13bae7114d564c55892d1b",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "02-windows_foundation_source_compile.ps1.source",
+      "bytes": 15681,
+      "sha256": "6754a4898b8e63462194e8ca118466cd1b136c3042685faa1d35b6e2c456943b",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "03-windows_foundation_inference_overlay.py.source",
+      "bytes": 9183,
+      "sha256": "962619d18eb717c2a27779e159398750324ddcca00872a18b9bbeb03ca0122f0",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "04-requirements.md.source",
+      "bytes": 2372,
+      "sha256": "2db7a2926047fc6b4267d3bf6b21cec6fb6668645e7842754a89660af39dbc0f",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "05-design.md.source",
+      "bytes": 2449,
+      "sha256": "faf1150446b123f97cebaee6febb9a89fd676dd33a3a79d41ef397cd17082b39",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "06-tasks.md.source",
+      "bytes": 1467,
+      "sha256": "51d427a509525242d99fb979e6ed5e538432d2fa274df54560c0bff7925e0590",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 528,
+      "sha256": "e06f1e8e37c286453219c402f96c0c2daa6aed51aae14db5e3fd9d06cb1a170c",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 2147,
+      "sha256": "0b6f6b392a6d7f0f398ee1ddef3325db80fa92016113ee73fd5f0f8b71ae95ba",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "SUPPORT-SYMBOL-IMPACT-ERRATUM01.json",
+      "bytes": 3749,
+      "sha256": "6fa227c10d3ad4f5da60d0f9ee3e6febb41c83d5eeb091e7b3b008f566f87af2",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "WITHDRAWN-DRAFT.patch",
+      "bytes": 20735,
+      "sha256": "d95d2f796f10bc20c040fe0a614fe7b218c4a1ca823df2943943e4cb3c5aaff5",
+      "physical_mode": "0o600",
+      "git_mode": "100644"
+    }
+  ],
+  "qualification": "WITHDRAWN_SOURCE_ONLY"
+}

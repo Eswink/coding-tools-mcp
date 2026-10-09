@@ -1,0 +1,9 @@
+# Preserve exact raw Git blobs for the existing seven-file manager lease only.
+.github/workflows/windows-foundation-source-compile.yml -text
+scripts/windows_foundation_source_compile.ps1 -text
+scripts/windows_foundation_source_guard.py -text
+scripts/windows_foundation_source_manifest.json -text
+docs/specs/windows-foundation-source-compile/requirements.md -text
+docs/specs/windows-foundation-source-compile/design.md -text
+docs/specs/windows-foundation-source-compile/tasks.md -text
+scripts/windows_foundation_inference_overlay.py -text

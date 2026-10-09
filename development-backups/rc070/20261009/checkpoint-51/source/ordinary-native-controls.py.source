@@ -1,0 +1,38 @@
+"""Ordinary kernel primitive controls only; never run the Publisher SUT."""
+import ctypes,json,os,signal,subprocess,sys,time
+from pathlib import Path
+sys.path.insert(0,'/workspace/work/rc070/publisher-carrier/scripts')
+from rc_native_probe_kernel import kernel,owned_family_close,realm
+from rc_native_probe_restore import write
+assert ctypes.CDLL(None,use_errno=True).prctl(36,1,0,0,0)==0
+try:os.waitid(os.P_ALL,0,os.WEXITED|os.WNOHANG|os.WNOWAIT)
+except ChildProcessError:pass
+else:raise AssertionError('ordinary private supervisor must start ECHILD')
+programs=[
+ ('natural0','pass',None,0),
+ ('natural7','raise SystemExit(7)',None,7),
+ ('term','import time;time.sleep(30)',signal.SIGTERM,None),
+ ('kill','import time;time.sleep(30)',signal.SIGKILL,None),
+ ('adopted_zombie','import os,time;p=os.fork();\nif p==0:os._exit(0)\ntime.sleep(.1)',None,0),
+ ('adopted_live_escape','import os,time;p=os.fork();\nif p==0:os.setsid();time.sleep(30)\ntime.sleep(.1)',None,0),
+ ('adopted_late_grandchild','import os,time;p=os.fork();\nif p==0:\n q=os.fork()\n if q==0:time.sleep(.05);os._exit(0)\n os._exit(0)\ntime.sleep(.1)',None,0)]
+rows=[]
+for name,program,kill_signal,exit_status in programs:
+ child=subprocess.Popen([sys.executable,'-c',program],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True,env={'PATH':'/usr/bin:/bin','PYTHONDONTWRITEBYTECODE':'1'})
+ fd=os.pidfd_open(child.pid);created=kernel(child.pid,fd)
+ assert created['pid']==child.pid and created['ppid']==os.getpid() and created['pgid']==created['sid']==child.pid
+ if kill_signal is not None:signal.pidfd_send_signal(fd,kill_signal)
+ end=time.monotonic()+3;observed=None
+ while observed is None and time.monotonic()<end:
+  observed=os.waitid(os.P_PIDFD,fd,os.WEXITED|os.WNOHANG|os.WNOWAIT);time.sleep(.01)
+ assert observed is not None and observed.si_pid==child.pid
+ held=kernel(child.pid,fd);assert held['state']=='Z' and held['starttime']==created['starttime']
+ if kill_signal is None:assert observed.si_code==os.CLD_EXITED and observed.si_status==exit_status
+ else:assert observed.si_code==os.CLD_KILLED and observed.si_status==kill_signal
+ actual_exit=child.wait(timeout=0);os.close(fd)
+ family=[];echild=owned_family_close(time.monotonic()+2,family);assert echild
+ if name=='adopted_live_escape':assert len(family)==1 and family[0]['unexpectedly_live'] and family[0]['code']==os.CLD_KILLED
+ if name in ('adopted_zombie','adopted_late_grandchild'):assert family and all(not r['unexpectedly_live'] and r['code']==os.CLD_EXITED and r['status']==0 for r in family)
+ rows.append(dict(name=name,passed=True,created=created,held=held,observed=dict(pid=observed.si_pid,code=observed.si_code,status=observed.si_status),actual_exit=actual_exit,family=family,echild=echild))
+ print(json.dumps(dict(control=name,passed=True,echild=echild)),flush=True)
+write(Path('/workspace/work/rc070/publisher-root-cause-diagnostic/ORDINARY-NATIVE-CONTROLS.json'),dict(SUT_runs=0,ordinary_kernel_only=True,full_run_owned_timeout_cancel_automatic_paths='NOTRUN',historical7_not_borrowed=True,realm=realm(),controls=rows,passed=True))

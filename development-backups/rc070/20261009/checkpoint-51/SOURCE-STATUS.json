@@ -1,0 +1,141 @@
+{
+  "source_only": true,
+  "DRAFT_UNREVIEWED": true,
+  "freeze_stage": "pre_realTLS_controls_startupPENDING_SUTmethod0",
+  "management_base_commit": "a935f0d8f81901a0974b5b0d4a59c98d7765b8a1",
+  "management_tree": "37109f95d52f7a18ef79b0bf085568666c078fe5",
+  "pure_SUT_parent": "13cd343d942b7a68912d42a8f9235c02ed647764",
+  "pure_SUT_tree": "b9cfb8a0b58f8e0863c764e50cf3d38920eefeae",
+  "pure_SUT_paths": 1878,
+  "production_source_changes": 0,
+  "diag5_fresh_pure_restore": "NOTRUN_thisfreeze_notborrowingdiag4precondition",
+  "original_method": "rc_publication_final_admission_cases.FinalAdmissionCases.test_entry_and_direct_sinks_remain_effect_free",
+  "original_method_runs": 0,
+  "original85": "FAIL83SUCCESS2FAIL_RETAINED",
+  "original300": "NOTRUN_notadmitted",
+  "diagnostic1": "FAIL_RETAINED",
+  "diagnostic2": "FAIL_RETAINED",
+  "diagnostic3": "PASS_FINITE1ONLY_oldcause_NOTREPRODUCED",
+  "diagnostic4": "ActualFinalmethod1FAIL_only_this_run_BrokenPipeError_createDraft2_clientSSLsendall_sourcegateREJECTED_server2s_UNKNOWN",
+  "spec": "check_spec02 structured3FRPASS firstmissing功能概述FAILretained",
+  "fresh_original_impact": "authHIGH110direct14flows2/requestLOW15/exacthandleLOW1/exactconnectLOW0; usermanualCRITICAL disclosed beforeimplementation",
+  "fresh_new_helper_impact": "UNKNOWN_not0; some actualbridge_unavailable retained no graphproof",
+  "source_python_syntax": "draftworkerASTparsePASS_only_noimport_test",
+  "fixed_live_bindings": 9,
+  "dynamic_auth": "matching_request wraps当时实际callable noextraauth, restoresoriginalobject",
+  "timing": "realbeforeafter monotonic; serverclientrelationonly establishedafterrecvdelegate, no retrospectivematchatstartclaim",
+  "sockets": "distinctrealclient/serverSSLSocketinstances eachpin originalfixture/context/nativeendpoints liveonlyinmemory notlogged",
+  "current_controls": "2actualfailure-firstexpectednegative socket/SSLsocket controllednamespace components, noTLS handshake; truecontrolfinalclose executed",
+  "found_negative_boundaries": [
+    "originaldraft servermetadata observercancel skippedacceptedraw delegateclose",
+    "originaldraft clientpostconnect observercancel leftsocket nottransferredtooriginalrequest"
+  ],
+  "current_draft_repair": "new2hooksdeferactualobservercancelsticky untiltrueoriginalcleanup; freshpositivecontrolsPENDING",
+  "real_TLS_process_socket_controls": "NOTRUN_required_before_startup",
+  "alias_partial_restore_cancel_race_closed_identity_controls": "PENDING_required_before_startup",
+  "independent_startup_review": "PENDING_notallowed",
+  "SUT0_components_claim": false,
+  "component_truth": "native socketpair andSSLsocketwithout handshake actuallyexecuted; originalmethod0; notissuerproof",
+  "whole_owner_AST_original": false,
+  "owner_adaptation": "samefour managementchanges profile/name/inventory1/workerargv, no originalreceiptgate/kernel change intended",
+  "original_catch_asserts_defaultdeny_unchanged": true,
+  "server2s_cause": "UNKNOWN_NO_FIX_NO_TIMER_CHANGE",
+  "uncovered": "wrap/check/inline/otherclose remainUNKNOWN",
+  "preserved_budgets": {
+    "fixture2s": true,
+    "fail_only1800": true,
+    "TERM7": true,
+    "KILL2": true,
+    "family2": true,
+    "all_original_SUT_operation_timers_unchanged": true
+  },
+  "sources": [
+    {
+      "original_path": "diagnostic_owner.py",
+      "backup_path": "source/diagnostic_owner.py.source",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "bytes": 15193,
+      "sha256": "bccd36a30d8faacfae035350ae8bd16cf7ead8ec3ddd5227976c963adc46045d",
+      "blob_sha1": "d5a09001b8fb7b161b7eedd10292c5573a9b14c4"
+    },
+    {
+      "original_path": "diagnostic_worker.py",
+      "backup_path": "source/diagnostic_worker.py.source",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "bytes": 25303,
+      "sha256": "6e231fa2597f92506aed5e8522a66efc37ebc206cb90d64c204d4deedf4a2117",
+      "blob_sha1": "fd01a84c4e2bed0a5738752a872ce600c1aab63c"
+    },
+    {
+      "original_path": "diagnostic-launch.py",
+      "backup_path": "source/diagnostic-launch.py.source",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "bytes": 3722,
+      "sha256": "fb1c98787b41b2c202f6dd129bf62401fd3eea5397c98e1a81f26dc74c258bb3",
+      "blob_sha1": "47357ebcefd77400ed0d899599baa72a1441cb59"
+    },
+    {
+      "original_path": "ordinary-native-controls.py",
+      "backup_path": "source/ordinary-native-controls.py.source",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "bytes": 3122,
+      "sha256": "b647737475e4cb412576b2e6fa1e137c78131d910b3012b17e84c91575681bbe",
+      "blob_sha1": "242f7be2c430e6700839e14c4d07898b560d19ce"
+    },
+    {
+      "original_path": "ordinary-failure-first.py",
+      "backup_path": "source/ordinary-failure-first.py.source",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "bytes": 2890,
+      "sha256": "f9bf17b59a3c8cb146366921834bdd410236ea70604f8e6b04683641df922c50",
+      "blob_sha1": "9d0c26ee675f46d057b9f7acbc4c5cb7fdd79a31"
+    },
+    {
+      "original_path": "diagnostic-worker-v1-preserved-source.py",
+      "backup_path": "source/diagnostic-worker-v1-preserved-source.py.source",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "bytes": 24771,
+      "sha256": "689a6cb54493fae74edfacacd852dd7d6189e0939912f47bb15517bf48717866",
+      "blob_sha1": "d77987f2c3ffd2e724c94bbf87cd23f417015365"
+    },
+    {
+      "original_path": "docs/specs/publisher-owned-root-cause-diagnostic5/design.md",
+      "backup_path": "source/docs/specs/publisher-owned-root-cause-diagnostic5/design.md.source",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "bytes": 1783,
+      "sha256": "15f147684d32f14674422f4e900e4f72c13c9b213a189bac326c40660440aa7f",
+      "blob_sha1": "c043da70decdd176fd340ae2afd33b0cd719a441"
+    },
+    {
+      "original_path": "docs/specs/publisher-owned-root-cause-diagnostic5/requirements.md",
+      "backup_path": "source/docs/specs/publisher-owned-root-cause-diagnostic5/requirements.md.source",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "bytes": 5593,
+      "sha256": "7ee33002f0bdc15a11d49fb4e4bcaab22d6f17d497d2960d7793e352d84631ff",
+      "blob_sha1": "5f3fbe7cc0e22058fe9e88b163de5001877a2938"
+    },
+    {
+      "original_path": "docs/specs/publisher-owned-root-cause-diagnostic5/tasks.md",
+      "backup_path": "source/docs/specs/publisher-owned-root-cause-diagnostic5/tasks.md.source",
+      "original_git_mode": "100644",
+      "original_posix_mode": 384,
+      "bytes": 1119,
+      "sha256": "76b46adff8f5382d6ab405c466807841326fdb40c9a6a45bb96c8682a909f564",
+      "blob_sha1": "8e9da2d556704042b874f454ce4e49194300a80f"
+    }
+  ],
+  "raw_host_TLS_socket_env_fixture_objectpool_credentials_included": false,
+  "CI": false,
+  "FINAL": false,
+  "install": false,
+  "release_authorized": false,
+  "original_FAIL_STOP_freezes_immutable": true
+}

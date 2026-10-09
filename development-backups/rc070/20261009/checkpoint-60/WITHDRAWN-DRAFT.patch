@@ -1,0 +1,316 @@
+diff --git a/.gitattributes b/.gitattributes
+index 5cfd639..a136065 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -6,3 +6,4 @@ scripts/windows_foundation_source_manifest.json -text
+ docs/specs/windows-foundation-source-compile/requirements.md -text
+ docs/specs/windows-foundation-source-compile/design.md -text
+ docs/specs/windows-foundation-source-compile/tasks.md -text
++scripts/windows_foundation_inference_overlay.py -text
+diff --git a/docs/specs/windows-rust-inference-carrier/design.md b/docs/specs/windows-rust-inference-carrier/design.md
+new file mode 100644
+index 0000000..65e4a4f
+--- /dev/null
++++ b/docs/specs/windows-rust-inference-carrier/design.md
+@@ -0,0 +1,24 @@
++# Strict candidate overlay design
++
++## 概述
++Reuse original source recovery to establish19bb first; overlay exactly one authorized declaration as a separately pinned source stage, then verify the full new candidate around the existing compiler invocation.
++
++## 技术方案
++Original guard/manifest functions remain unchanged. New helper uses original safe nativeGit execution/check_blob/tree_rows primitives without overriding TARGET or patching modules. Immutable public source+fullmanifest hashes and backup commit are literal leases. Native hash-object/update-index/checkout-index only change hcs in the owned disposable SUT customindex; compare new write-tree exactly6b7e.
++
++## Data Flow
++Original manager7 rawHEAD verify -> originalrestore19bb+fullverify -> pinnedbackup nativefetch/show -> validate manifest/source/inverse -> nativecustomindex overlay -> newfull1953before -> original wholecompiler+7tests -> newfull1953after -> originalmanagerAfter -> observerAfter -> original runtimeAfter -> receipt/originalexception.
++
++## Error Handling
++No compiler launch until strict fullcandidate before passes. Once overlay starts, any partial index/file/fetch failure makes newafter fail and final passed=false. Exceptions/cancellation from overlay delegate remain primary; existing finally source/manager/runtime guards and receipt still execute. No nativeIOclose qualification from managedfile or EOF. All new source helper reads use normal contextmanager close and original errors propagate; no diagnostic suppression.
++
++## FR Coverage Matrix
++| FR | Design | Evidence |
++|---|---|---|
++| FR-1 | Unchanged oldguard/manifest, originalbaseline gate | Full byte and AST identity |
++| FR-2 | Literal backup/hash/path lease, onepath customindex | OwnedGit true6b7e and negatives |
++| FR-3 | New whole1953 strict checker | Wrong source/index/path and partial failure denial |
++| FR-4 | Existingcompiler/runtime/manager ordering, newhelper own lease | Sourcepeer plus real exacthead CI |
++
++## 文件结构
++Modify scripts/windows_foundation_source_compile.ps1 and .gitattributes (one new literal helper -text line). Add scripts/windows_foundation_inference_overlay.py, scripts/windows_foundation_inference_overlay_tests.py, these3docs. Existing original7 manager lease list unchanged; PS intentional integration rawHEAD change is verified against newHEAD, not falsely oldrawbyte identical. Newhelper extra sourcelease never substitutes originalmanager7 verification.
+diff --git a/docs/specs/windows-rust-inference-carrier/requirements.md b/docs/specs/windows-rust-inference-carrier/requirements.md
+new file mode 100644
+index 0000000..2840ecd
+--- /dev/null
++++ b/docs/specs/windows-rust-inference-carrier/requirements.md
+@@ -0,0 +1,19 @@
++# Strict inference candidate compiler carrier
++
++## 功能概述
++Real Windows8c7 whole Rust compile failed E0282 on immutable19bb. One annotation candidate6b7e/1953 requires real full compiler validation under exact source identity, retaining prior source and runtime gates.
++
++## 需求列表
++- FR-1 Original guard and original source manifest SHALL remain byteexact. Original restore and verify19bb1953 SHALL execute before any overlay.
++- FR-2 A separate bounded helper SHALL native-fetch the exact approved immutable backup commit, read only fixed public source/manifest names, verify pinned size/SHA before use, validate full1953 identity and one sole declaration inverse, then use native Git customindex materialization to new6b7e.
++- FR-3 New source-before and source-after SHALL strictly verify D6HEAD,6b7e1953 native modes/blobs/all physical bytes, protectedc9fcd, no symlink/missing/untracked/blockedStage. Partial failure SHALL deny compilation or final PASS; no rollback-derived success.
++- FR-4 Existing realRust1.98.1 whole --lib --no-run and original7named tests, pins, runner/branch checks, runtime proxy/payload equality, originalmanager7 verifier and cancellation/receipt ordering SHALL retain original behavior. New helper own rawHEAD lease SHALL be verified before and after within final runtime guard.
++
++## 非功能需求
++Seven bounded delta paths: existingPS+literalattrs,newhelper+ordinarytest+three specs. No wildcardattributes, no sourceguard constant override, no oldmanifest mutation, no fake harness/nativeowner/grant/defaultdeny relaxation. Native customindex operations are compiler source management only, not user workspace native authorization.
++
++## 验收标准
++Actual ownednativeGit controls SHALL demonstrate originalbaseline admissibility, exact6b7e overlay/new fullidentity, wrongmanifest/source/index/physicalbytes denial, partial failure/cancellation failclosed without obscuring original failure or claiming nativeIOclose. Sourcepeer and safeimmutable backup precede normalpush; only actualsamehead WindowsCI/compiler/original7tests can determine compiled result.
++
++## 依赖关系
++Parent supplies APIreadbackverified immutablecp49 backupcommit/fixedpaths/hashes. Actualoriginal8c7FAIL and sourcepeer/inverse/full1953manifest are prerequisites. FreshactualownGitNexus PS/helper impact and user manualHIGH disclosure precede implementation.
+diff --git a/docs/specs/windows-rust-inference-carrier/tasks.md b/docs/specs/windows-rust-inference-carrier/tasks.md
+new file mode 100644
+index 0000000..5f57d47
+--- /dev/null
++++ b/docs/specs/windows-rust-inference-carrier/tasks.md
+@@ -0,0 +1,24 @@
++# Strict overlay tasks
++
++## 任务列表
++1. Establish newPlan/fresh actual impact/spec and immutablecp49lease beforecode.
++2. Implement only7bounded paths; preserve originalguard/manifest/pins/7tests/budgets/positive/defaultdeny.
++3. Execute necessary actual ownedGit source/index controls and exceptions/partialfailure denial, no compiler/runtime harness.
++4. Freshdetect/gencommit/fullbaseline identity, independent sourcepeer, safebackup then normalsoleparent8c7 push and read realCI.
++
++## 交付物清单
++Exact7delta source/patch/specs/safe manifests. Private originalfail logs remainimmutable and excluded from publicbackup. Complete1953 newcandidate identity remains exactpin.
++
++## 需求覆盖矩阵
++| FR | Tasks | Evidence |
++|---|---|---|
++| FR-1 | 2,4 | Oldguard/manifest exact |
++| FR-2 | 1,2,3 | Immutable sourcelease/actualnativecustomindex tree |
++| FR-3 | 2,3,4 | Complete source checks/negatives/partial failure |
++| FR-4 | 2,4 | Existingcommand/vector/order plus realCI |
++
++## 文件变更清单
++Exactly2existing+5new paths as declareddesign. No workflow/oldguard/oldmanifest/oldoriginal3spec mutation, no new attributes wildcard. Newordinarytest outside original7manager lease, never called as CI/compiler proof.
++
++## Validation and qualification
++Actual whole Windowscompiler/original7namedtests NOTRUN until newhead CI. OwnedGit/checks/sourcepeer establish management scope only. No complete Windowsowner/VM/IOclose/isolation/install/RustSec/publisher/RC PASS.
+diff --git a/scripts/windows_foundation_inference_overlay.py b/scripts/windows_foundation_inference_overlay.py
+new file mode 100644
+index 0000000..7afd92b
+--- /dev/null
++++ b/scripts/windows_foundation_inference_overlay.py
+@@ -0,0 +1,170 @@
++#!/usr/bin/env python3
++"""Strict compiler-only overlay; retains original source guard and never issues authority."""
++import argparse
++import hashlib
++import json
++import os
++from pathlib import Path
++import re
++import sys
++import windows_foundation_source_guard as guard
++
++TARGET = '6b7e33c45c5e56340b1cfb81a7d304c6c60cf23f'
++BACKUP = '4385cf1d47f32eda705ccb34d2f06ff388ebb685'
++PREFIX = 'development-backups/rc070/20261009/checkpoint-49/'
++SOURCE_NAME = 'hcs.rs.source'
++MANIFEST_NAME = 'CANDIDATE-FULL1953-MANIFEST01.json'
++SOURCE_SHA = 'd22b143b6b199e743b19bf931b50358cfac9fcc761704d81139e87a6c07ade00'
++MANIFEST_SHA = '48c2d6547375b02b738abf11b0e3505fe50c6a1e067d15eb3202a6c6e4ff6764'
++PATH = 'src-tauri/src/tools/windows_vm/input/owned_run/hcs.rs'
++OLD_SHA = 'dd85d23df558c100c0d63c72fc55b72dbc0a2ba158f7a2ee705470916a098cf5'
++NEW_BLOB = '5b2626f0dde7cd96b4af77ff6715a7bd9ec55ef5'
++OLD_DECLARATION = b'let result = (|| {'
++NEW_DECLARATION = b"let result: Result<(), &'static str> = (|| {"
++HELPER = 'scripts/windows_foundation_inference_overlay.py'
++
++
++def verify_helper_lease(manager):
++    expected = os.environ.get('GITHUB_SHA', '')
++    if not re.fullmatch('[0-9a-f]{40}', expected) or guard.run_git(manager, 'rev-parse', 'HEAD').decode().strip() != expected:
++        raise ValueError('overlay manager HEAD differs from actual GitHub source')
++    entries = guard.tree_rows(manager, expected)
++    rows = [r for r in entries if r['path'] == HELPER]
++    if len(rows) != 1 or rows[0]['mode'] != '100644':
++        raise ValueError('overlay helper native mode/path absent')
++    file = manager / HELPER
++    if file.is_symlink() or not file.is_file():
++        raise ValueError('overlay helper missing or symlink')
++    data = file.read_bytes()
++    row = dict(rows[0], bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
++    guard.check_blob(data, row)
++    if os.name != 'nt' and file.stat().st_mode & 0o111:
++        raise ValueError('overlay helper physical executable mode changed')
++    return {'manager_commit': expected, 'helper_source': row, 'native_authority': False}
++
++
++def fetch_inference_payload(repo):
++    guard.run_git(repo, 'fetch', '--no-tags', guard.REPOSITORY, BACKUP)
++    if guard.run_git(repo, 'cat-file', '-t', BACKUP).strip() != b'commit':
++        raise ValueError('immutable overlay lease is not a native commit')
++    payload = []
++    for name, size, sha in [(MANIFEST_NAME, 510045, MANIFEST_SHA), (SOURCE_NAME, 7163, SOURCE_SHA)]:
++        entries = [r for r in guard.tree_rows(repo, BACKUP) if r['path'] == PREFIX + name]
++        if len(entries) != 1 or entries[0]['mode'] != '100644':
++            raise ValueError('immutable overlay payload path/mode differs')
++        data = guard.run_git(repo, 'show', BACKUP + ':' + PREFIX + name)
++        row = dict(entries[0], bytes=size, sha256=sha)
++        guard.check_blob(data, row)
++        payload.append(data)
++    return payload[0], payload[1]
++
++
++def load_candidate(manifest_raw, source, baseline):
++    if len(manifest_raw) != 510045 or hashlib.sha256(manifest_raw).hexdigest() != MANIFEST_SHA:
++        raise ValueError('candidate manifest literal size/SHA differs')
++    if len(source) != 7163 or hashlib.sha256(source).hexdigest() != SOURCE_SHA:
++        raise ValueError('candidate source literal size/SHA differs')
++    m = json.loads(manifest_raw.decode('utf-8'))
++    if (m['schema'], m['repository'], m['baseline_target_tree'], m['target_tree'], m['target_tree_files'],
++            m['base_commit'], m['allowed_changed_path'], m['protected_positive_path'], m['protected_positive_sha256']) != (
++            1, 'Eswink/coding-tools-mcp', guard.TARGET, TARGET, 1953, guard.BASE, PATH, guard.PROTECTED, guard.PROTECTED_SHA):
++        raise ValueError('candidate identity differs from fixed approved inference source')
++    if m['old_source'] != next(row for row in baseline['whole_source'] if row['path'] == PATH):
++        raise ValueError('candidate old row differs from admitted baseline')
++    rows = m['whole_source']
++    if len(rows) != 1953 or len({row['path'] for row in rows}) != 1953:
++        raise ValueError('candidate missing or duplicate source rows')
++    expected = []
++    for old in baseline['whole_source']:
++        expected.append(m['new_source'] if old['path'] == PATH else old)
++    if rows != expected or m['new_source']['path'] != PATH or m['new_source']['mode'] != '100644' or m['new_source']['blob'] != NEW_BLOB:
++        raise ValueError('candidate is not the exact one-path original1953 source')
++    guard.check_blob(source, m['new_source'])
++    return m
++
++
++def verify_inference_candidate(repo, m):
++    if guard.run_git(repo, 'rev-parse', 'HEAD').decode().strip() != guard.BASE:
++        raise ValueError('candidate SUT HEAD is not original D6')
++    actual = guard.run_git(repo, 'write-tree', index=True).decode().strip()
++    if actual != TARGET:
++        raise ValueError('new candidate custom index tree differs')
++    native = guard.tree_rows(repo, TARGET)
++    if native != [{k: row[k] for k in ('path', 'mode', 'blob')} for row in m['whole_source']]:
++        raise ValueError('new candidate full native1953 differs')
++    digest = hashlib.sha256()
++    for row in m['whole_source']:
++        guard.safe_path(row['path'])
++        file = repo / row['path']
++        if file.is_symlink() or not file.is_file():
++            raise ValueError('candidate missing or symlink source: ' + row['path'])
++        data = file.read_bytes()
++        guard.check_blob(data, row)
++        if os.name != 'nt' and bool(file.stat().st_mode & 0o111) != (row['mode'] == '100755'):
++            raise ValueError('candidate executable mode mismatch: ' + row['path'])
++        digest.update(row['path'].encode() + b'\0' + row['mode'].encode() + b'\0' + row['sha256'].encode() + b'\n')
++    if hashlib.sha256((repo / guard.PROTECTED).read_bytes()).hexdigest() != guard.PROTECTED_SHA:
++        raise ValueError('candidate protected positive changed')
++    if (repo / 'src-tauri/src/tools/cloud_host/windows_workspace/stage.rs').exists():
++        raise ValueError('blocked Stage11 source present')
++    if any(guard.run_git(repo, 'ls-files', '--others', '--exclude-standard', '-z', index=True).split(b'\0')):
++        raise ValueError('untracked candidate source outside ignored build output')
++    return {'tree': actual, 'files': 1953, 'source_digest': digest.hexdigest(),
++            'protected_positive_sha256': guard.PROTECTED_SHA, 'native_positive': 'NOTRUN', 'native_authority': False}
++
++
++def apply_inference_overlay(repo, baseline, manifest_raw, source):
++    # Original verifier admits the entire baseline before any write, unchanged.
++    guard.verify_materialized(repo, baseline)
++    m = load_candidate(manifest_raw, source, baseline)
++    old = (repo / PATH).read_bytes()
++    if hashlib.sha256(old).hexdigest() != OLD_SHA or old.count(OLD_DECLARATION) != 1 or NEW_DECLARATION in old:
++        raise ValueError('overlay old declaration/bytes differ')
++    if source.replace(NEW_DECLARATION, OLD_DECLARATION) != old or source.count(NEW_DECLARATION) != 1:
++        raise ValueError('overlay changes more than the sole type annotation')
++    blob = guard.run_git(repo, 'hash-object', '-w', '--stdin', data=source).decode().strip()
++    if blob != NEW_BLOB:
++        raise ValueError('native overlay source blob differs')
++    guard.run_git(repo, 'update-index', '--cacheinfo', '100644,' + blob + ',' + PATH, index=True)
++    guard.run_git(repo, 'checkout-index', '--force', '--', PATH, index=True)
++    return verify_inference_candidate(repo, m)
++
++
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument('operation', choices=('apply', 'verify'))
++    parser.add_argument('--manifest', type=Path, required=True)
++    parser.add_argument('--manager', type=Path, required=True)
++    parser.add_argument('--destination', type=Path, required=True)
++    parser.add_argument('--receipt', type=Path, required=True)
++    args = parser.parse_args()
++    result = {'passed': False, 'native_authority': False, 'native_positive': 'NOTRUN',
++              'baseline_tree': guard.TARGET, 'target_tree': TARGET, 'backup_commit': BACKUP}
++    primary = None
++    try:
++        helper = verify_helper_lease(args.manager.resolve())
++        baseline = guard.load_manifest(args.manifest.resolve())
++        manifest_raw, source = fetch_inference_payload(args.destination.resolve())
++        candidate = load_candidate(manifest_raw, source, baseline)
++        if args.operation == 'apply':
++            result.update(apply_inference_overlay(args.destination.resolve(), baseline, manifest_raw, source))
++        else:
++            result.update(verify_inference_candidate(args.destination.resolve(), candidate))
++        result.update(helper)
++        result['passed'] = True
++    except BaseException as error:
++        result['error_type'] = type(error).__name__
++        result['error'] = str(error)
++        primary = error
++    try:
++        guard.write_receipt(args.receipt, result)
++    except BaseException as receipt_error:
++        if primary is not None:
++            raise BaseExceptionGroup('Original overlay failure and receipt failure both preserved.', [primary, receipt_error])
++        raise
++    if primary is not None:
++        raise primary
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/scripts/windows_foundation_source_compile.ps1 b/scripts/windows_foundation_source_compile.ps1
+index b8b07f5..be193b5 100644
+--- a/scripts/windows_foundation_source_compile.ps1
++++ b/scripts/windows_foundation_source_compile.ps1
+@@ -9,9 +9,10 @@ New-Item -ItemType Directory -Force $Output | Out-Null
+ $Guard = Join-Path $PSScriptRoot 'windows_foundation_source_guard.py'
+ $Manifest = Join-Path $PSScriptRoot 'windows_foundation_source_manifest.json'
+ $Observer = Join-Path $PSScriptRoot 'windows_foundation_manager_observation.py'
++$InferenceOverlay = Join-Path $PSScriptRoot 'windows_foundation_inference_overlay.py'
+ $Receipt = [ordered]@{ mode=$Mode; managerCommit=$env:GITHUB_SHA; runId=$env:GITHUB_RUN_ID;
+-    pureSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
+-    nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; managerObservationFailed=$false; passed=$false }
++    pureSutTree='6b7e33c45c5e56340b1cfb81a7d304c6c60cf23f'; baselineSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
++    nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBaseline=$null; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; managerObservationFailed=$false; passed=$false }
+ 
+ $ObservationCancellation = $null
+ $PrimaryFailure = $null
+@@ -113,7 +114,12 @@ function Run-SourceCompile {
+     $Before = Join-Path $Output 'source-before.json'
+     Invoke-CheckedCompiler 'python' @($Guard,'restore','--manifest',$Manifest,'--manager',$Manager,
+         '--destination',$Destination,'--receipt',$Before) 'source-restore.log' | Out-Null
+-    $Receipt.sourceBefore = Get-Content -Raw $Before | ConvertFrom-Json
++    $Receipt.sourceBaseline = Get-Content -Raw $Before | ConvertFrom-Json
++    $Receipt.sourceOverlayStarted = $true
++    $CandidateBefore = Join-Path $Output 'candidate-source-before.json'
++    Invoke-CheckedCompiler 'python' @($InferenceOverlay,'apply','--manifest',$Manifest,'--manager',$Manager,
++        '--destination',$Destination,'--receipt',$CandidateBefore) 'candidate-source-overlay.log' | Out-Null
++    $Receipt.sourceBefore = Get-Content -Raw $CandidateBefore | ConvertFrom-Json
+     Push-Location $Destination
+     try {
+         if ($Mode -eq 'go') {
+@@ -180,12 +186,12 @@ try {
+     if (Test-Path (Join-Path $Destination '.git/foundation-candidate.index')) {
+         try {
+             $After = Join-Path $Output 'source-after.json'
+-            Invoke-CheckedCompiler 'python' @($Guard,'verify','--manifest',$Manifest,'--destination',$Destination,
++            Invoke-CheckedCompiler 'python' @($InferenceOverlay,'verify','--manifest',$Manifest,'--manager',$Manager,'--destination',$Destination,
+                 '--receipt',$After) 'source-after.log' | Out-Null
+             $Receipt.sourceAfter = Get-Content -Raw $After | ConvertFrom-Json
+             if ($null -eq $Receipt.sourceBefore -or
+                 $Receipt.sourceAfter.source_digest -cne $Receipt.sourceBefore.source_digest) {
+-                throw 'Source before/after digest differs or before was not admitted.'
++                throw 'Candidate source before/after digest differs or before was not admitted.'
+             }
+         } catch { $Receipt.passed=$false; $Receipt.sourceAfterError=$_.Exception.Message }
+     } else { $Receipt.passed=$false; $Receipt.sourceAfterError='No admitted source existed; compiler NOTRUN.' }

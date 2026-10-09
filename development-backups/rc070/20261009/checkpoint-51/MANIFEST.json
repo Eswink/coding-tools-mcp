@@ -1,0 +1,83 @@
+{
+  "source_only": true,
+  "files": [
+    {
+      "path": "README.md",
+      "git_mode": "100644",
+      "bytes": 3433,
+      "sha256": "f17a5019be1ebc86addf229f0c8b5630e7201b834907f38ba68924b2c468db26",
+      "blob_sha1": "c5d9c261d4323118a9f10ce938bfbbdf1bb89b62"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "git_mode": "100644",
+      "bytes": 7006,
+      "sha256": "c33eb694c342730a7d27f4ad75d7dc89893c09b2f33b9b4e4f67183dffbda459",
+      "blob_sha1": "a115fb2337c8d4c8a8c555a37c0a04a1230efe2e"
+    },
+    {
+      "path": "source/diagnostic-launch.py.source",
+      "git_mode": "100644",
+      "bytes": 3722,
+      "sha256": "fb1c98787b41b2c202f6dd129bf62401fd3eea5397c98e1a81f26dc74c258bb3",
+      "blob_sha1": "47357ebcefd77400ed0d899599baa72a1441cb59"
+    },
+    {
+      "path": "source/diagnostic-worker-v1-preserved-source.py.source",
+      "git_mode": "100644",
+      "bytes": 24771,
+      "sha256": "689a6cb54493fae74edfacacd852dd7d6189e0939912f47bb15517bf48717866",
+      "blob_sha1": "d77987f2c3ffd2e724c94bbf87cd23f417015365"
+    },
+    {
+      "path": "source/diagnostic_owner.py.source",
+      "git_mode": "100644",
+      "bytes": 15193,
+      "sha256": "bccd36a30d8faacfae035350ae8bd16cf7ead8ec3ddd5227976c963adc46045d",
+      "blob_sha1": "d5a09001b8fb7b161b7eedd10292c5573a9b14c4"
+    },
+    {
+      "path": "source/diagnostic_worker.py.source",
+      "git_mode": "100644",
+      "bytes": 25303,
+      "sha256": "6e231fa2597f92506aed5e8522a66efc37ebc206cb90d64c204d4deedf4a2117",
+      "blob_sha1": "fd01a84c4e2bed0a5738752a872ce600c1aab63c"
+    },
+    {
+      "path": "source/docs/specs/publisher-owned-root-cause-diagnostic5/design.md.source",
+      "git_mode": "100644",
+      "bytes": 1783,
+      "sha256": "15f147684d32f14674422f4e900e4f72c13c9b213a189bac326c40660440aa7f",
+      "blob_sha1": "c043da70decdd176fd340ae2afd33b0cd719a441"
+    },
+    {
+      "path": "source/docs/specs/publisher-owned-root-cause-diagnostic5/requirements.md.source",
+      "git_mode": "100644",
+      "bytes": 5593,
+      "sha256": "7ee33002f0bdc15a11d49fb4e4bcaab22d6f17d497d2960d7793e352d84631ff",
+      "blob_sha1": "5f3fbe7cc0e22058fe9e88b163de5001877a2938"
+    },
+    {
+      "path": "source/docs/specs/publisher-owned-root-cause-diagnostic5/tasks.md.source",
+      "git_mode": "100644",
+      "bytes": 1119,
+      "sha256": "76b46adff8f5382d6ab405c466807841326fdb40c9a6a45bb96c8682a909f564",
+      "blob_sha1": "8e9da2d556704042b874f454ce4e49194300a80f"
+    },
+    {
+      "path": "source/ordinary-failure-first.py.source",
+      "git_mode": "100644",
+      "bytes": 2890,
+      "sha256": "f9bf17b59a3c8cb146366921834bdd410236ea70604f8e6b04683641df922c50",
+      "blob_sha1": "9d0c26ee675f46d057b9f7acbc4c5cb7fdd79a31"
+    },
+    {
+      "path": "source/ordinary-native-controls.py.source",
+      "git_mode": "100644",
+      "bytes": 3122,
+      "sha256": "b647737475e4cb412576b2e6fa1e137c78131d910b3012b17e84c91575681bbe",
+      "blob_sha1": "242f7be2c430e6700839e14c4d07898b560d19ce"
+    }
+  ],
+  "manifest_self_bound_by_remote_git_blob": true
+}

@@ -1,0 +1,52 @@
+{
+  "state": "WITHDRAWN_TIMING_DEVIATION_SOURCE_ONLY",
+  "baseline": "8c7b7ef262320893142d0a4f47d2a583691b0dd7",
+  "draftTree": "46e7ee43ed5d20fed94af8e3118ac55258468915",
+  "paths": [
+    {
+      "original_path": ".gitattributes",
+      "inert_path": "01-.gitattributes.source",
+      "bytes": 538,
+      "sha256": "8e0e4c20992c884dc6632e618c55ae8cd2fc0d026f13bae7114d564c55892d1b",
+      "git_mode": "100644"
+    },
+    {
+      "original_path": "scripts/windows_foundation_source_compile.ps1",
+      "inert_path": "02-windows_foundation_source_compile.ps1.source",
+      "bytes": 15681,
+      "sha256": "6754a4898b8e63462194e8ca118466cd1b136c3042685faa1d35b6e2c456943b",
+      "git_mode": "100644"
+    },
+    {
+      "original_path": "scripts/windows_foundation_inference_overlay.py",
+      "inert_path": "03-windows_foundation_inference_overlay.py.source",
+      "bytes": 9183,
+      "sha256": "962619d18eb717c2a27779e159398750324ddcca00872a18b9bbeb03ca0122f0",
+      "git_mode": "100644"
+    },
+    {
+      "original_path": "docs/specs/windows-rust-inference-carrier/requirements.md",
+      "inert_path": "04-requirements.md.source",
+      "bytes": 2372,
+      "sha256": "2db7a2926047fc6b4267d3bf6b21cec6fb6668645e7842754a89660af39dbc0f",
+      "git_mode": "100644"
+    },
+    {
+      "original_path": "docs/specs/windows-rust-inference-carrier/design.md",
+      "inert_path": "05-design.md.source",
+      "bytes": 2449,
+      "sha256": "faf1150446b123f97cebaee6febb9a89fd676dd33a3a79d41ef397cd17082b39",
+      "git_mode": "100644"
+    },
+    {
+      "original_path": "docs/specs/windows-rust-inference-carrier/tasks.md",
+      "inert_path": "06-tasks.md.source",
+      "bytes": 1467,
+      "sha256": "51d427a509525242d99fb979e6ed5e538432d2fa274df54560c0bff7925e0590",
+      "git_mode": "100644"
+    }
+  ],
+  "ordinaryControlFile": "NOTCREATED/NOTRUN",
+  "reason": "First draft3support symbols lacked explicitpreeditquery; laterquerycannot retroactivelypass. Preserve these exact bytes; restoreclean8c7 and complete exact allsymbolfreshquery before reimplementation.",
+  "qualification": "Not implementation/peer/CI/compiler/native/RC PASS"
+}

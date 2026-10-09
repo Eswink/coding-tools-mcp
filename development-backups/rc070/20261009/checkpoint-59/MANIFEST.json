@@ -1,0 +1,17 @@
+{
+  "excludes_self": true,
+  "files": [
+    {
+      "path": "README.md",
+      "git_mode": "100644",
+      "bytes": 665,
+      "sha256": "1fee6ca500f5c789cdeecfe282bee2a13a10a87d3b062d260011fc3f6a2cdf58"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "git_mode": "100644",
+      "bytes": 3268,
+      "sha256": "87ffa2fc91bea776302056b3fd1f747c4e8b887000cc43280d0d7a763a873472"
+    }
+  ]
+}

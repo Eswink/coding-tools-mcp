@@ -1,0 +1,61 @@
+{
+  "scope": "ACTUAL_F13_LINUX_PRELIMINARY_EXACT_BUILD_ONLY",
+  "source_head": "13cd343d942b7a68912d42a8f9235c02ed647764",
+  "source_tree": "f2be2e09cca27081cccad11d94ed29858b955df9",
+  "version": "0.6.0-rc.4",
+  "target": "x86_64-unknown-linux-gnu",
+  "actual_root_tool_exit": 0,
+  "tool_session": 85222,
+  "tool_chunk": "6df92e",
+  "build_exit": 0,
+  "raw_audit_exit": 1,
+  "raw_lock_audit": "findings_present",
+  "raw_vulnerability_count": 1,
+  "raw_zero_claim": false,
+  "active_vulnerability_count": 0,
+  "classified_raw_findings": [
+    {
+      "classification": "absent_from_verified_build_and_conservative_graph",
+      "id": "RUSTSEC-2023-0071",
+      "package": "rsa",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.9.10"
+    }
+  ],
+  "no_advisory_ignored": true,
+  "selected_package_count": 170,
+  "compiler_artifact_events": 301,
+  "binary_sha256": {
+    "coding-tools-agent": "7954640fa24ccba188cf842b09f963a8f77068a15b412c30e1b9020589cb17f4",
+    "coding-tools-control-gateway": "624304896e1734580db6373404c22d2c4fce4c2b03bd6c0dbe9a1d70dfe5e96d",
+    "coding-tools-gateway": "8f56a2496df6c01e0186959f6798712450a99700911544c257fe04a9a3044c03",
+    "coding-tools-mcp-gateway": "999c227469f092763444768a9e8f0f537b2a9af14fe9e58246d3055bcfbd4b6e"
+  },
+  "binary_source_nlink": 2,
+  "independent_retained_copy_nlink": 1,
+  "original_compiler_binary_bytes_unmodified": true,
+  "envelope_sha256": "aca1af8d646e38d9001c0441a766a4a7d5c8810861f325cc9a3752215a45c432",
+  "streams": {
+    "build.jsonl": "ab3e180e05b0ccbb54e4d5c878fac19409371c0a6d4ce238ac01ccb1a5dd87fd",
+    "conservative-tree.txt": "e8102877a7fc664cfa3c2f7135c3eea929413f342fcf3c85a98957de231b2e4e",
+    "metadata.json": "a485c492d8d12cf9fe052f41c1344863132df54c24187577bd72b298ba18fd6d",
+    "raw-audit.json": "e95aa11b9f30e42022c8040d31c8a40515b42da2bba6f0de1ff315aff2661edd",
+    "selected-tree.txt": "04b0908f694dd2cde74b13037402f583c342e9240d6aed0eaab484c627edb3db"
+  },
+  "database": {
+    "commit": "7eebec69c352c7191b1f13eb95dd510eeca5d1de",
+    "tree": "60edf907e0c238568a86568335cd8be5745cec4f",
+    "file_count": 1315,
+    "contents_sha256": "d3007bbeee7ffd81656b2dcd021b3b471d44f9048a9fe431a000449a211da1ca",
+    "acquisition": "existing_local_snapshot; no fresh-upstream claim"
+  },
+  "source1840_current_native_blobs_and_saved_dev_inode_mtime_ctime_equal_before": true,
+  "current_source_physical_modes": "1838 files0600 +2 files0700; before explicitphysicalmode notcaptured, no644755baselinequalification claimed",
+  "tool_actual_beforeafter_bytes_hash_equal": true,
+  "tool_before_inode_lease": "NOT_CAPTURED; no retroactive claim",
+  "independent_full_terminal_peer": "PASS limited exactbuild applicability; zero newbuild/audit/SUT",
+  "independent_peer_safe_sha256": "51819757eabb75cbdabdbb9ea826619f45d0c951b6c939792779a86965e248d5",
+  "root_first_expectation_error": "Expected Cargo outputs nlink1; actual ownedtarget nlink2; preserved failure/erratum and independently retained matchingexclusivecopies",
+  "reviewer_first_expectation_error": "Misread nativeGitmode100644 as physical0644; preserved failure/erratum, correctly verified actual beforefields",
+  "final_0_7_CI_archive_install_startup_issuer_publish_qualified": false
+}

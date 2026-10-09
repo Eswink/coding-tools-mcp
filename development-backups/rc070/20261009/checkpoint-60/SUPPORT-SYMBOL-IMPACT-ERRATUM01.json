@@ -1,0 +1,118 @@
+{
+  "timing": "Firsthelperdraft alreadywritten beforethese3supportsymbol explicitqueries; do not claim pre-edit fresh for these3. Ownpreedit8c7index unchanged; no tests/commits/CI/PASSclaims; allnewhelper manualHIGH alreadyuserdisclosed. Requiredfullsymbolquerytiming deviation preserved.",
+  "queries": [
+    {
+      "symbol": "verify_helper_lease",
+      "exit": 0,
+      "actual": {
+        "error": "Target 'verify_helper_lease' not found",
+        "target": {
+          "name": "verify_helper_lease"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "symbol": "load_candidate",
+      "exit": 0,
+      "actual": {
+        "error": "Target 'load_candidate' not found",
+        "target": {
+          "name": "load_candidate"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      }
+    },
+    {
+      "symbol": "main",
+      "exit": 0,
+      "actual": {
+        "status": "ambiguous",
+        "message": "Found 20 symbols matching 'main' (showing 6 of 20). Blast radius differs per candidate (max 57 impacted at risk MEDIUM). Disambiguate with target_uid (or file_path/kind) for a single authoritative result.",
+        "target": {
+          "name": "main"
+        },
+        "direction": "upstream",
+        "totalCandidates": 20,
+        "impactedCount": 0,
+        "risk": "UNKNOWN",
+        "maxImpactedCount": 57,
+        "maxRisk": "MEDIUM",
+        "candidatesTruncated": true,
+        "candidates": [
+          {
+            "uid": "Function:scripts/exact_build_audit.py:main",
+            "name": "main",
+            "kind": "Function",
+            "filePath": "scripts/exact_build_audit.py",
+            "line": 435,
+            "score": 0.56,
+            "impactedCount": 57,
+            "risk": "MEDIUM",
+            "direct": 1
+          },
+          {
+            "uid": "Function:scripts/appimage_tools.py:main",
+            "name": "main",
+            "kind": "Function",
+            "filePath": "scripts/appimage_tools.py",
+            "line": 274,
+            "score": 0.56,
+            "impactedCount": 10,
+            "risk": "LOW",
+            "direct": 1
+          },
+          {
+            "uid": "Function:scripts/Ubuntu\u5b89\u88c5\u9a8c\u6536v1.py:main",
+            "name": "main",
+            "kind": "Function",
+            "filePath": "scripts/Ubuntu\u5b89\u88c5\u9a8c\u6536v1.py",
+            "line": 110,
+            "score": 0.56,
+            "impactedCount": 8,
+            "risk": "LOW",
+            "direct": 1
+          },
+          {
+            "uid": "Function:scripts/exclusive_release.py:main",
+            "name": "main",
+            "kind": "Function",
+            "filePath": "scripts/exclusive_release.py",
+            "line": 178,
+            "score": 0.56,
+            "impactedCount": 5,
+            "risk": "LOW",
+            "direct": 1
+          },
+          {
+            "uid": "Function:scripts/cloud_image_gate.py:main",
+            "name": "main",
+            "kind": "Function",
+            "filePath": "scripts/cloud_image_gate.py",
+            "line": 106,
+            "score": 0.56,
+            "impactedCount": 2,
+            "risk": "LOW",
+            "direct": 1
+          },
+          {
+            "uid": "Function:scripts/Windows\u6807\u51c6\u7528\u6237\u9a8c\u6536v22.py:main",
+            "name": "main",
+            "kind": "Function",
+            "filePath": "scripts/Windows\u6807\u51c6\u7528\u6237\u9a8c\u6536v22.py",
+            "line": 362,
+            "score": 0.56,
+            "impactedCount": 1,
+            "risk": "LOW",
+            "direct": 1
+          }
+        ]
+      }
+    }
+  ],
+  "qualification": "UNKNOWN not0/no source gatePASS"
+}
