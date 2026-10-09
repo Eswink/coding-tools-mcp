@@ -1,0 +1,45 @@
+"""Exact observer AST, real accepted TCP sockets, controlled threadlocal failure."""
+import ast,hashlib,json,socket,threading,time,traceback
+from pathlib import Path
+from types import SimpleNamespace
+B=Path('/workspace/work/rc070/publisher-root-cause-diagnostic');source=B/'diagnostic_worker.py'
+hook=next(n for n in ast.parse(source.read_text()).body if isinstance(n,ast.FunctionDef)and n.name=='observed_fixture_handle')
+class Fixture:pass
+class Context:
+ def __init__(self,error,which):object.__setattr__(self,'writes',0);object.__setattr__(self,'error',error);object.__setattr__(self,'which',which);object.__setattr__(self,'current',None)
+ def __setattr__(self,name,value):
+  object.__setattr__(self,'writes',self.writes+1)
+  if self.writes==self.which:raise self.error
+  object.__setattr__(self,name,value)
+rows=[]
+for phase in ('install','restore'):
+ for error in (OSError('ordinary setter'),SystemExit(43)):
+  listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen(1)
+  client=socket.socket();client.connect(listener.getsockname());raw,_=listener.accept()
+  fixture=Fixture();fixture._threads=[threading.current_thread()];context=Context(error,1 if phase=='install'else 2)
+  original_primary=ValueError('original delegate');calls=[];actual=None
+  def delegate(current,sock):
+   calls.append(True)
+   try:
+    if phase=='restore':raise original_primary
+    return None
+   finally:sock.close()
+  ns=dict(_server_context=context,fixture_source=SimpleNamespace(ArtifactTLS=Fixture),threading=threading,
+   _owned_requests={1:dict(fixture=fixture)},socket_endpoints=lambda sock:(sock.getsockname(),sock.getpeername()),
+   _delegate_fixture_handle=delegate,_observer_cancels=[],_observation_errors=[],_tls_observations=[])
+  exec(compile(ast.Module(body=[hook],type_ignores=[]),str(source),'exec'),ns)
+  try:ns['observed_fixture_handle'](fixture,raw)
+  except BaseException as raised:actual=raised
+  closed=raw.fileno()<0
+  rows.append(dict(phase=phase,setter_error_type=type(error).__name__,actual_setter_error_identity=actual is error,
+   original_delegate_calls=len(calls),actual_raw_closed_by_delegate=closed,
+   original_primary_identity_preserved=actual is original_primary if phase=='restore'else None,
+   required_boundary_passed=closed and(phase!='restore'or actual is original_primary)))
+  raw.close();client.close();listener.close()
+assert len(rows)==4 and all(not row['required_boundary_passed']for row in rows)
+report=dict(passed=False,expected_failure_first_reproduced=True,controls=4,actual_accepted_TCP_sockets=True,
+ original_method_runs=0,controlled_fixture_and_threadlocal_not_original_fixture_body_or_issuer=True,
+ actual_observed_fixture_handle_FunctionDef_AST=True,worker_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),rows=rows)
+out=Path('/workspace/work/rc070/publisher-review/DIAG5-THREADLOCAL-FAILURE-FIRST.json')
+with out.open('x')as stream:json.dump(report,stream,indent=2);stream.write('\n')
+print(json.dumps(report,sort_keys=True))

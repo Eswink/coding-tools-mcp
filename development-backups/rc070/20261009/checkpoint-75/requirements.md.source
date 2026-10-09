@@ -1,0 +1,27 @@
+# Publisher owned TLS root-cause diagnostic5
+
+## 需求背景
+原85 wholeFAIL83SUCCESS2FAIL/300NOTRUN。diag1/2原artifact方法FAIL归一adapter_errorunknown；diag3同方法有限1PASS未复现。diag4唯一原FinalAdmission方法FAIL44.719053s，本run第三scope CreateDraft2实际SSLSocket.sendall/send抛BrokenPipeError，再原_request归一adapter_errorunknown/uncertain_remote_effect；服务器2s timeout仅假设，不能归全部历史失败。Root授权同原FinalAdmission方法有限diag5根因观察，不修源码、不重85或自动300。
+
+## 功能概述
+仅原FinalAdmission失败方法1的真实TLS recv/write/auth时间透明观察；新3livebindings与matching_request动态auth，不改原assert/defaultdeny/catch/2s，不提供85/300或发布资格。
+
+## 需求列表
+### FR-1: 精确原源与透明调用
+WHEN 准备 THEN SHALL 新独立checkout恢复b9cf1878/soleF13 parent，逐mode/bytes/blob/SHA/index/nativeGit fullPREFIX/clean/runtime5+ssl/fixture/runner核验。唯一库存 rc_publication_final_admission_cases.FinalAdmissionCases.test_entry_and_direct_sinks_remain_effect_free。该method、_pending_fence、_native_session、_request/_authenticate/_handle/connect/原6hook对应原源函数AST不改；原assert/hardreject/defaultdeny/授权模型均不改。外部owner仍准确4管理适配inverse，wholeowner AST非原，receipt_gate/kernel exact。保原fixture2s、所有testoperationtimers和1800/TERM7/KILL2/family2。
+
+### FR-2: 实例绑定真实TLS观察
+WHEN 原mainthread匹配真实ownedclient/OperationScope/SessionOwner/session和3种mutationkind THEN SHALL 保经审6hooks，新增HTTPSFixture.connect、HTTPSFixture._handle、ssl.SSLSocket.recv临时livebinding，实际每个delegate最多一次且同result/原exception对象。真实ArtifactTLS fixture selection/context与同client绑定，真实connect返回clientSSLSocket在原完成后pin；真实_handle线程和raw accepted socket建立context；真正recv参数的同serverSSLSocket、原fixture.context及live内存端点一致才pin。客户端与服务器是不同真实对象，仅实际内存对端比对，不伪称同实例。地址/ports/fd/socket/线程对象/credential永不写report，无法匹配保持UNKNOWN。仅kind/id、safe exception typename/code/effect/basenameframes、monotonic start/finish/elapsed和完成状态可写。
+WHEN 匹配原_request THEN SHALL 临时包装当时真实wire._authenticate callable，因为原fixture动态patch会替换固定模块hook；同mainthread/client/selection/mutation context才观察，真实delegate一次，实际调用前monotonic start和调用后finish，成功同返回对象、失败同primary对象。不得额外authenticate/prepare/consume或制造issuer。每个动态alias独立安装/restore，原mock/callable object identity必须恢复。
+WHEN server recv报原TimeoutError/OSError/其他异常 THEN SHALL 原exception原样交回原_handle catch，原catch及finally真实close保持；observe普通Exception仅invalid/UNKNOWN不遮原primary；BaseException实际cancel sticky保存并在原runner+真正cleanup后传播。安装部分失败/alias不符必须invalid并attempt真实restore，任何observer/restore/cancel错误不伪称valid、qualified或已完成delegate；取消/原异常同时保identity group。无法实证服务器事件与同client对端关联不得声称cause。
+
+### FR-3: 实际控制、封存及唯一启动
+WHEN 普通controls THEN SHALL 本轮实际执行真实ownedTLS/process/socket controls（匹配双方、server原2s timeout及真实close、客户端真实writefailure或严格UNKNOWN、alias/partialset/restore-all/cancel/observerclose-negative先fail后必要修复），原6hook ordinary controls仅各本轮真实结果可计，不借历史issuer证明。控制器模拟fixture不证明issuer；controls SUT originalmethod0，实际TLS/socket组件调用须准确声明，不假称0组件。
+WHEN 启动 THEN SHALL freshGN _authenticate HIGH110/requestLOW15/handle exactLOW1/connect exactLOW0，stdlib/newhelpers UNKNOWN非0，manualCRITICAL由root实施前披露；完整spec/checkstructured、实际controls源及raw私有、精确source/runtime seal、unique output/EXACTargv env5/Python3alias、独立startupreview后root唯一launch原method1，child不launch/不PTYpoll。新九个固定binding加每匹配request动态authbinding如实声明，所有新函数AST不冒称原body。
+WHEN 终态 THEN SHALL 原8raw与独立observer实际nofollow bytes/SHA封存，完整当前source/nativeclosure vectors审计及独立terminalreview；METHOD结果与nativequalified/closed分开，保持原hardreject。原85/diag1/2/4所有FAIL、diag3有限PASS、STOP/取消/errata原证据不可覆盖。原2s cause没有实际同对端servertimeout/时间先后证据仍UNKNOWN，不以计数或BrokenPipe blanket归因。
+
+## 非功能需求
+仅外部独立观察源码；不改production/fixture原AST，不读取用户会话/token，不hostinstall/权限改变/PATHshim/Gitreplacement，不发tag/Release/privategrant，不缩放原预算。仅临时owned native端点读取用于内存真实性匹配，是新透明identity-read观察，绝不记录rawhost/socket/TLS材料、header/body/payload/URL/args/message/environment。保持PR98cancel和Issue86snapshotpause。source-only备份只 inertsource/spec、安全metadata/mode/bytes/hash。
+
+## 依赖关系
+FR-2依赖FR-1精确source与真正ownedcontext；FR-3依赖FR-1+FR-2实际controls/封存和独立许可。任何identity/alias/cleanup异常默认诊断INVALID/UNKNOWN，不扩大发布授权。

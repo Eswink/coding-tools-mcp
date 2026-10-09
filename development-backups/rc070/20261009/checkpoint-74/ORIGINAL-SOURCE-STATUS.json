@@ -1,0 +1,37 @@
+{
+  "baseline": [
+    {
+      "proposal": "ISOLATED",
+      "head": "50ef4b60830c36d4bc1aafdcec3d9b8489a260aa",
+      "tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+      "tracked_paths": 1867,
+      "tracked_actual_native_bytes_and_modes_match_HEAD": true,
+      "source_manifest_sha256": "13d63070a4bf0364d2c1eef96f65e983400c21a32a242642001a5ca732d9d624",
+      "gitnexus": {
+        "lastCommit": "50ef4b60830c36d4bc1aafdcec3d9b8489a260aa",
+        "indexedAt": "2026-10-09T13:19:54.600Z",
+        "indexed_process_source_sha256": "99bbc5692b35aecdbdcd46cd86589d0c5a7ef5b4cd5f81f752eb7ac44282f880",
+        "actual_process_source_sha256": "99bbc5692b35aecdbdcd46cd86589d0c5a7ef5b4cd5f81f752eb7ac44282f880",
+        "source_match": true
+      },
+      "new_docs_not_original_HEAD": true
+    },
+    {
+      "proposal": "NATIVE",
+      "head": "50ef4b60830c36d4bc1aafdcec3d9b8489a260aa",
+      "tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+      "tracked_paths": 1867,
+      "tracked_actual_native_bytes_and_modes_match_HEAD": true,
+      "source_manifest_sha256": "13d63070a4bf0364d2c1eef96f65e983400c21a32a242642001a5ca732d9d624",
+      "gitnexus": {
+        "lastCommit": "50ef4b60830c36d4bc1aafdcec3d9b8489a260aa",
+        "indexedAt": "2026-10-09T13:17:04.158Z",
+        "indexed_process_source_sha256": "99bbc5692b35aecdbdcd46cd86589d0c5a7ef5b4cd5f81f752eb7ac44282f880",
+        "actual_process_source_sha256": "99bbc5692b35aecdbdcd46cd86589d0c5a7ef5b4cd5f81f752eb7ac44282f880",
+        "source_match": true
+      },
+      "new_docs_not_original_HEAD": true
+    }
+  ],
+  "analysis_checkouts_are_git_worktrees_not_original_native_install_fixtures": true
+}

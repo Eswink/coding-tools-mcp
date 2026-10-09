@@ -1,0 +1,27 @@
+# Design
+
+## 概述
+
+Implement a small separate management adapter, not a new VM issuer or a new general PInvoke framework. Keep original source restoration helpers, existing native API definitions, production Go/Rust gates and PR147 untouched. The fixed native SUT1954 source is separate from the management checkout and from the earlier whole-source1957 documentation tree.
+
+## 技术方案
+
+FR-1: First call the original immutable source restore on the pure1953 baseline. Then native-fetch/show the cp61 single Go blob and update the explicitly named native candidate index; verify prospective d86ece313011780ae408092bc2d1e37b05373e75 and full1954 physical files. After launch use a new exact1954 verifier; never remove the overlay temporarily to satisfy the original1953 verifier. Default HEAD remains management code, not the candidate tree.
+
+FR-2: Original setup-go action40f1582b2485089dde7abd97c1529aa768e1baff is a managed installation reference, but its inspected installer accepts cache/mutable go-versions manifests and does not itself establish the pinned official ZIP SHA. Use one fixed bounded official acquisition as the explicit identity path, preserving the existing45-minute upper bound. No second download and no increased budget is assumed. Derive the complete expected extracted file inventory from the digest-checked archive, reject ZIP traversal/Windows aliases/symlink/reparse/hardlink ambiguity, and verify every actual tool/runtime file before and after. Requirements now bind concrete stage deadlines/caps under2700s; independent review remains required. No acquisition code or Windows download has run.
+
+FR-3: Reuse Api/Startup/ProcessInfo/Limits/environment_block from original Windows非提升进程v12.py, with a small separately named adapter for required Job accounting and bounded raw IO. Do not call its launch/token/logon path or borrow terminate_tree as natural closure: it kills through Job close and ignores one process CloseHandle result. Create the actual child suspended, retain its returned process/thread and exact Job/IO handles immediately, assign before ResumeThread, and check actual kernel closure. A small STARTUPINFOEX adapter must initialize/update the real PROC_THREAD_ATTRIBUTE_HANDLE_LIST to whitelist exactly the child stdin/stdout/stderr handles; bInheritHandles alone is insufficient. Read back/verify inheritance flags, close parent copies of child pipe ends before ResumeThread only after confirmed success, and retain unknown values without retry. The actual Job sets no BREAKAWAY_OK or SILENT_BREAKAWAY_OK; nested incoming host Job incompatibility is BLOCKED, never bypassed with token/account changes or breakaway flags. Job ActiveProcesses0 proves the actual kernel group is empty; it does not imply per-descendant exit-code0, which remains separately UNKNOWN if not observed. No fake VM owner, PID authority or environment-issued capability exists. If the small adapter cannot prove Job/group or self IO closure, it must report UNKNOWN/FAIL rather than enlarge this scope or fabricate evidence.
+
+FR-4: A strong private frame retains every real handle and IO/attribute buffer from the first acquisition until checked release. Before/after observations and cleanup are independent attempts. Primary errors and typed cancellation preserve identity, including simultaneous failures; ordinary diagnostics cannot hide the real delegate result. Unknown native close does not erase the number or re-close it. Retained fault frames survive until the exact manager process exits and never grant permissions.
+
+FR-5: Bind actual Go test -list discovery and actual Go -json events to the frozen21 top-level/four subtest entries. Join raw events, actual process results, source/runtime checks and closure facts. Package PASS is only one field. All exact events are preserved; over-budget/incomplete output is failure, never truncated into a successful vector. Preserve old Linux/source/failed controls as historical evidence with their original scope.
+
+FR-6: First run source/runtime/JSON ordinary negative controls and genuine Windows Job/IO/cancel controls in a pre-SUT stage. Local POSIX controls may validate parser/spec behavior only. Root owns the legitimate first workflow channel and the final literal once-only launch after independent review; this source proposal invokes nothing.
+
+## 文件结构
+
+Prospective new management source only: scripts/windows_nt_output_native_ci.py, a small separately named adapter if required, a finite manifest/controls file, a dedicated workflow and these three specifications. Existing original helper files remain byte-exact. Public backup includes only source/spec/modes/hash/safe state; raw host/process/IO evidence, runtimes, binary ZIP/PE files and Git pools remain private.
+
+## 分层期限与 IO
+
+Use the requirements' explicit2700s overall deadline,300/300/120/600/120/60/600/60 stage deadlines, at most20 stage children and two independent2097152-byte raw channels per stage. IO retirement uses the7/2/2 bounds inside the same total limit. A reader must finish or retire within that limit before its native read handle may be checked closed; no BufferedReader.close on a live reader. If kernel Job closure is known but a self writer/reader/handle remains UNKNOWN, the whole frame is retained and admission is false. Go output overflow/malformed/missing IDs is failure even if direct Go exit is0. Control-stage native results must be current-run and pass before the original named NT methods are launched.

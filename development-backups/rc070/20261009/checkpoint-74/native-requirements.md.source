@@ -1,0 +1,24 @@
+# Native startup root and safe abort — formal SPEC ONLY
+
+## 功能概述
+
+A new source-bound native startup root, created before any Python runtime code, could keep family attribution while Python startup is aborted. This is a conditional architecture proposal; no native program, immutable executable binding or product implementation exists in this scope.
+
+## 需求列表
+
+### FR-1 — Trusted actual root before Python
+WHEN this design creates a startup root, the owner SHALL bind its actual Popen child/pidfd to a reviewed immutable executable image and private protocol pipes. The native root SHALL install and verify subreaper before creating any Python child and SHALL not load project/Python code before its native launch barrier. It SHALL not fork or exec any child before a valid LAUNCH is parsed. The actual root birth path and native CRT/init are included in this source boundary; child Python/preexec/atfork callbacks are prohibited, and unknown spawn/exec attribution refuses sole-child closure. BOOTREADY is a new native protocol event, not the original worker ACK or a closure grant. This changes original Popen argv and roles and requires a new source/build/installation identity.
+
+### FR-2 — Kernel family plus real IO proof
+WHEN no LAUNCH write has been attempted, a source-bound no-fork bootstrap and same created root/pidfd terminal plus actual bounded stdout EOF/drain and independent owned IO retirements MAY distinguish safe startup abort from command success. WHEN any LAUNCH byte write is attempted, the owner SHALL retain the launch-possible phase before the attempt, and only the live private native subreaper may collect its actual created/adopted children. Numeric PID/JSON/proc candidates/global parent ECHILD SHALL NOT establish ownership. An EMPTY event is valid only when that actual source-bound native root has obtained its own kernel ECHILD after all actual family children and descendant IO retirement; it never grants publisher authority. Unknown native ancestry, close, cancellation or deadline SHALL retain uncertainty.
+
+### FR-3 — Honest outcomes and finite review
+The design SHALL preserve original command success/failed result rules and preserve original primary/all cancellation objects. Nonzero startup abort SHALL NOT become command success or satisfy original command DONE artificially. All .2/5/2/2 and outer2700/7/2/2/2MiB bounds SHALL stay fixed; one cleanup deadline is shared without extra phases. Original worker/tests/runner/inventory remain unchanged here; any proposed runtime/argv/parent-role changes SHALL be declared new semantics. Only independent formal review followed by separately authorized implementation, actual-owned controls and startup review could permit a root-only original-method run.
+
+## 非功能需求
+
+Every real open/dup/pipe/pidfd must enter an owned ledger immediately; UNKNOWN close is never retried by FD number. Attempt remaining closes independently and preserve primary plus all close/cancel objects. No fake ACK/stderr EOF, implicit process-group authority, fake owner or installation grant.
+
+## 依赖关系
+
+A new native root implementation, bounded trusted build and immutable executable source binding, genuine created/adopted pidfd mechanisms and actual EOF/drain retirement. These do not exist as reviewed artifacts yet. Publisher issuer/same-client/server-held-tag service remains separately MISSING.

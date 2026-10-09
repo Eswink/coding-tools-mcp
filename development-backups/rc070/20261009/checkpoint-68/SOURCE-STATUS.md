@@ -1,0 +1,1 @@
+SOURCE_ONLY_DESIGN_PROPOSAL. NT manager code NOTAUTHORED. Windows Zip/Job/IO/nativeGo NOTRUN. New finite IO review PENDING and original inner Git stderr bounding UNKNOWN; do not launch or convert backup/hash/spec PASS into native/API/owner/RC/release qualification. Parent original budget design partly reviewed only.

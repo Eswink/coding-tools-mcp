@@ -1,0 +1,11 @@
+{
+  "own_repo": "windows-nt-output-native-ci-manager",
+  "index_head": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "nodes": 27296,
+  "edges": 64129,
+  "source_index": "original1856 managementsource tree d40a20a26664ab7868332d7dcbde49e30e83f4b7",
+  "restore_source_actualimpact": "LOW2/1direct",
+  "future_exactsymbols": "absentUNKNOWN; impactTargetNotFound despite tooltopstatusok, neverrisk0",
+  "manual_risk": "HIGH disclosedbyroot beforeimplementation",
+  "runtime_native_authority": false
+}

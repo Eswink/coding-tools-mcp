@@ -1,0 +1,64 @@
+"""Actual observer AST alias/callback controls, explicitly controlled namespace."""
+import ast,json,time,traceback,hashlib
+from pathlib import Path
+from types import SimpleNamespace
+B=Path('/workspace/work/rc070/publisher-root-cause-diagnostic');source=B/'diagnostic_worker.py';nodes={n.name:n for n in ast.parse(source.read_text()).body if isinstance(n,ast.FunctionDef)}
+class Target:
+ def __init__(self,original,mode):
+  object.__setattr__(self,'writes',0);object.__setattr__(self,'mode',mode);object.__setattr__(self,'original',original);object.__setattr__(self,'_authenticate',original)
+  object.__setattr__(self,'failure',OSError('ordinary alias fault'))
+ def __setattr__(self,name,value):
+  if name=='_authenticate':
+   object.__setattr__(self,'writes',self.writes+1)
+   if self.mode=='install_before'and self.writes==1:raise self.failure
+   if self.mode=='install_after'and self.writes==1:
+    object.__setattr__(self,name,value);raise self.failure
+   if self.mode=='restore_before'and self.writes==2:raise self.failure
+   if self.mode=='restore_after'and self.writes==2:
+    object.__setattr__(self,name,value);raise self.failure
+  object.__setattr__(self,name,value)
+class Fields(list):
+ def __init__(self,error):self.error=error
+ def append(self,value):raise self.error
+rows=[]
+for mode in ['success','callback_primary','callback_cancel','observer_error','observer_cancel','install_before','install_after','restore_before','restore_after']:
+ selection=object();client=SimpleNamespace(selection=selection);op=SimpleNamespace(kind='CreateDraft',operation_id=2)
+ returned=object();primary=ValueError('ordinary primary')if mode=='callback_primary'else SystemExit(13)if mode=='callback_cancel'else None
+ observer=SystemExit(17)if mode=='observer_cancel'else OSError('ordinary fields')if mode=='observer_error'else None;calls=[]
+ def original(*args,**kwargs):
+  calls.append((args,kwargs))
+  if primary is not None:raise primary
+  return returned
+ target=Target(original,mode)
+ ns=dict(wire=target,time=time,traceback=traceback,Path=Path,mutation_context=lambda:op,_observer_cancels=[],_observer_primary_exceptions=[],
+  _auth_observations=Fields(observer)if observer is not None else[],_auth_binding_outcomes=[],_auth_setup_failures=[],
+  _observation_errors=[],_install_errors=[],_restore_errors=[],_bootstrap_authenticate=original,_bootstrap_auth_outcome=None)
+ exec(compile(ast.Module(body=[nodes['install_auth_observer'],nodes['restore_auth_observer'],nodes['restore_bootstrap_authenticate']],type_ignores=[]),str(source),'exec'),ns)
+ binding=None;raised=None
+ try:binding=ns['install_auth_observer'](client)
+ except BaseException as error:raised=error;assert error is target.failure
+ if binding is not None:
+  try:value=target._authenticate(selection,client);assert value is returned
+  except BaseException as error:
+   raised=error
+   if primary is not None:assert error is primary
+   else:assert error is observer
+  ns['restore_auth_observer'](binding)
+ ns['restore_bootstrap_authenticate']()
+ assert target._authenticate is original
+ if mode=='callback_cancel':assert ns['_observer_primary_exceptions']==[primary]
+ if mode in ('install_before','install_after'):assert ns['_install_errors']==[target.failure]and target._authenticate is original and not calls
+ elif mode in ('restore_before','restore_after'):assert any(e is target.failure for e in ns['_restore_errors'])and len(calls)==1
+ else:assert target._authenticate is original and len(calls)==1
+ if mode=='observer_cancel':assert ns['_observer_cancels']==[observer]
+ if mode=='observer_error':assert ns['_observation_errors'][0]['phase']=='auth_fields'
+ if mode=='success':
+  span=ns['_auth_observations'][0];assert span['monotonic_start']<=span['monotonic_finish'] and span['elapsed_seconds']>=0
+ rows.append(dict(case=mode,passed=True,delegate_calls=len(calls),original_callback_restored=target._authenticate is original,
+  install_error_types=[type(e).__name__ for e in ns['_install_errors']],restore_error_types=[type(e).__name__ for e in ns['_restore_errors']],
+  actual_exception_or_cancel_identity_preserved=raised is None or raised is primary or raised is observer or raised is target.failure))
+report=dict(controls=len(rows),passed=True,source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),exact_actual_observer_AST=True,
+ scope='controlled callback/alias objects, not native issuer or SUTmethod proof',original_method_runs=0,rows=rows,
+ current_restore_before_boundary='originalfailure retained INVALID; independent finalbootstrap restored initialactualcallback after ordinary cleanup boundary')
+with(B/'ORDINARY-AUTH-CONTROLS-v7.json').open('x')as f:json.dump(report,f,indent=2);f.write('\n')
+print(json.dumps(report,sort_keys=True))

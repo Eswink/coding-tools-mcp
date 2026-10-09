@@ -1,0 +1,24 @@
+# Isolated Python startup and explicit project loader — formal SPEC ONLY
+
+## 功能概述
+
+Reduce uncontrolled Python startup imports before evaluating a startup-abort owner. This is a new argv/loader proposal, not the original worker execution, implementation or proven family closure. Production edits and original-method runs are unauthorized.
+
+## 需求列表
+
+### FR-1 — Explicit isolation and source loading
+WHEN evaluating this proposal, the design SHALL use a formally changed `/usr/bin/python3 -I -S` argv with an explicitly bound project source loader. It SHALL declare that the original samefile default-site startup semantics changed. Original readonly config probes show `-I -S -c` suppresses site and script-directory project discovery; those probes did not execute the original worker. All project loader/source and executed runtime dependencies must be identified before implementation eligibility; a script path or sys.path entry alone is not immutable source binding.
+
+### FR-2 — Honest family and IO boundary
+WHEN startup abort is considered, the owner SHALL use its actual created child/pidfd and internal before-first-request-write lifecycle, retaining a sticky partial-write/dispatch state before each write attempt. NoG event absence, JSON, PID or `_worker` AST alone SHALL NOT establish a no-descendant branch. Actual stdin closure and stdout bounded drain/EOF/closure are required; stderr DEVNULL has no observable EOF. Nonzero aborted startup is not command success. Until all pre-dispatch execution capable of creating descendants is trusted or a real native family collector exists, family closure SHALL remain UNKNOWN.
+
+### FR-3 — Fixed budgets and implementation STOP
+The proposal SHALL retain .2 READY, 5 read, 2 stop, 2 finish and outer2700/7/2/2 with 2MiB; no repeated cleanup budget. Ordinary controls, any later product candidate and unique original-method launch SHALL require distinct source seals and independent approvals. The original worker/tests/8338-byte runner/58132-byte inventory remain unchanged in this analysis checkout. Current direct-isolated-Python family-closure implementation eligibility is STOP.
+
+## 非功能需求
+
+Preserve original primary and every cancel object. Each actual owned IO close must be independently attempted and its uncertainty retained; unknown close must not be retried by an FD number. No generated ACK, fake stderr EOF or caller-global ECHILD is a closure proof.
+
+## 依赖关系
+
+Exact source50ef/tree3084, independently sealed literal/resolved Python and all executed startup dependencies, explicit loader design; optional native root proposal is a separate changed architecture. No publisher issuer/same-client/server-held-tag service is created.

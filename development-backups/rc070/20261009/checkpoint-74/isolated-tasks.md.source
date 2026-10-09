@@ -1,0 +1,24 @@
+# Isolated-loader scope tasks
+
+## 交付物清单
+
+Three formal specifications, source baseline/mode/hash seal, fresh analysis and independent semantic decision. No implementation, ordinary family controls, original method run or release authority.
+
+## 任务列表
+
+- [x] Read original process startup/worker/stop semantics and actual readonly isolated config evidence.
+- [x] Specify changed argv, explicit loader needs and concrete no-descendant gap.
+- [ ] Independently review direct-Python STOP and native-root dependency.
+- [ ] If later authorized, seal full executed startup closure and implement actual-owned meaningful controls before product edits/original launch eligibility.
+
+## 需求覆盖矩阵
+
+| Requirement | Delivery | Status |
+| --- | --- | --- |
+| FR-1 | argv/source-loader formal contract | SPEC ONLY |
+| FR-2 | actual phase/IO and no-family-proof decision | STOP direct-Python implementation |
+| FR-3 | budgets and separate approvals | no SUT authorized |
+
+## 文件变更清单
+
+Only docs/specs/issue88-startup-isolated-source-loader/{requirements,design,tasks}.md. Proposed loader and ProcessOwner edits are absent.

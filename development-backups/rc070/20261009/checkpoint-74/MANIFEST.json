@@ -1,0 +1,82 @@
+{
+  "kind": "source-only-no-candidate-qualification",
+  "files": [
+    {
+      "path": "ACTUAL-CHECKSPEC-STRUCTURED.json",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 505,
+      "sha256": "22c8257cbcdbcf667fefaadf9cc0db5b4c44e85095b24b23d9a9b90a594cd913"
+    },
+    {
+      "path": "ACTUAL-IMPACT-SAFE-SUMMARY.json",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 10071,
+      "sha256": "be6d6e8dca1042eeac771dcdcff2f6291a9000ea3455e75f41959200cdb36c4c"
+    },
+    {
+      "path": "ORIGINAL-SOURCE-STATUS.json",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 1672,
+      "sha256": "ce24702bb9b830d8a24dcd0a0896e3f27e184974a3df5fcf937e340653a7a816"
+    },
+    {
+      "path": "README.md",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 628,
+      "sha256": "ca2d0e11b425b71c47b512e3e0f0188bccbaf43450d9c166fc62b856165b8e7b"
+    },
+    {
+      "path": "SAFE-STATUS.json",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 1095,
+      "sha256": "4dba737b13fce2dfdef22d54ebf0aea1c4545a37d7b2702cd6cb643a058a6871"
+    },
+    {
+      "path": "isolated-design.md.source",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 3239,
+      "sha256": "8cc76770608e0da030439eea1e1165219e1fc995260e22c9589e15b6ff80ec58"
+    },
+    {
+      "path": "isolated-requirements.md.source",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 2737,
+      "sha256": "38231b35098e72e6d9dab36b3623fc2e653aeb8e4a7a6049195f01b2d0562e18"
+    },
+    {
+      "path": "isolated-tasks.md.source",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 1140,
+      "sha256": "0fe8078aea5ce5c995a60bf0959fcb5b27e2ebe088ecaf04b2c55e6f7a302f8c"
+    },
+    {
+      "path": "native-design.md.source",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 10199,
+      "sha256": "d9066e151c27fd2ea124fc6a166b2df78ac4e932c6e845497a46bb0f8dc5dd9d"
+    },
+    {
+      "path": "native-requirements.md.source",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 3404,
+      "sha256": "5c036d7ce19aa590b6a1db9e9df428982a65ef506408e07642f08042f76c137e"
+    },
+    {
+      "path": "native-tasks.md.source",
+      "mode": "0644",
+      "nlink": 1,
+      "bytes": 1663,
+      "sha256": "6ec199c92fa3b920ccdf81feb5bcb1ee4affcf3bd50aca1088fc15dd5f0c30d9"
+    }
+  ]
+}

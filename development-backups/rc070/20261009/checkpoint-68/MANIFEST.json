@@ -1,0 +1,143 @@
+{
+  "scope": "SOURCE_ONLY_DESIGN_PROPOSAL; nativeNOTRUN; implementation/startupnotpermitted",
+  "files": [
+    {
+      "path": "source/docs/specs/windows-nt-native-output-ci-manager/requirements.md",
+      "source_path": "docs/specs/windows-nt-native-output-ci-manager/requirements.md",
+      "bytes": 7825,
+      "sha256": "f17a9c33cdeeca3454c0eb7271fc38a727d20468c594ffd457e8d78f1ac1136d",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/docs/specs/windows-nt-native-output-ci-manager/design.md",
+      "source_path": "docs/specs/windows-nt-native-output-ci-manager/design.md",
+      "bytes": 5510,
+      "sha256": "31977aaef89588593d862632bb48a6dc7aa6d9d3e59c7e2596cc0b893a2d9926",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/docs/specs/windows-nt-native-output-ci-manager/tasks.md",
+      "source_path": "docs/specs/windows-nt-native-output-ci-manager/tasks.md",
+      "bytes": 1596,
+      "sha256": "9c97962462e4d734b00127b739c049a1d965d6d6ac2913f0f003987a74c786b5",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/docs/specs/windows-nt-native-ci-overlapped-io/requirements.md",
+      "source_path": "docs/specs/windows-nt-native-ci-overlapped-io/requirements.md",
+      "bytes": 5118,
+      "sha256": "b7957891f611b8b4d3263364895f23a26ecf611dca7f942e6b6910de11f78eba",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/docs/specs/windows-nt-native-ci-overlapped-io/design.md",
+      "source_path": "docs/specs/windows-nt-native-ci-overlapped-io/design.md",
+      "bytes": 6982,
+      "sha256": "343951dffeebcf98e011372f61f41d53101dbaefc1e28fc01e1f9772237fba34",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/docs/specs/windows-nt-native-ci-overlapped-io/tasks.md",
+      "source_path": "docs/specs/windows-nt-native-ci-overlapped-io/tasks.md",
+      "bytes": 1897,
+      "sha256": "dfc84e96b41d8a91716f687a0b5e6b657e811a537722b7f920531ad15ba555bf",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/DESIGN-BUDGET-SEAL03.json",
+      "source_path": "work/native-nt-ci-prepare/DESIGN-BUDGET-SEAL03.json",
+      "bytes": 877,
+      "sha256": "1d0faa1973cda6ff01d90ae55d75c65b31ee78a1911ecbcbd767ed6059a6f419",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/OVERLAPPED-IO-DESIGN-SEAL09.json",
+      "source_path": "work/native-nt-ci-prepare/OVERLAPPED-IO-DESIGN-SEAL09.json",
+      "bytes": 879,
+      "sha256": "d019ba138e6b2e923666249d222556ed013e75a17b69c96c0efb0bb822b465fa",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/FIXED-NATIVE-SUT-LEASE.json",
+      "source_path": "work/native-nt-ci-prepare/FIXED-NATIVE-SUT-LEASE.json",
+      "bytes": 875,
+      "sha256": "8c78861a4dcef351779d90f7b62a74ec1243fa041b206f727457e4de90f65994",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/GO-WINDOWS-OFFICIAL-CATALOG.json",
+      "source_path": "work/native-nt-ci-prepare/GO-WINDOWS-OFFICIAL-CATALOG.json",
+      "bytes": 548,
+      "sha256": "9bb5ead2360d0bcf9f206c74f931ed0b43d03b1dfae87f6a034507e1513b66de",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/check-spec-budget03.json.safe.json",
+      "source_path": "work/native-nt-ci-prepare/check-spec-budget03.json.safe.json",
+      "bytes": 526,
+      "sha256": "6594e98c7418970d50dd863afed669900bc15d9b6439b2a18c720da26a022b00",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/check-spec-overlapped09.json.safe.json",
+      "source_path": "work/native-nt-ci-prepare/check-spec-overlapped09.json.safe.json",
+      "bytes": 512,
+      "sha256": "9d1c4445509e49d428663a11f72ad739bb7aa1bac7a7108cd8c74e192b48bb6d",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/SAFE-PROPOSAL-STATUS01.json",
+      "source_path": "work/native-nt-ci-prepare/SAFE-PROPOSAL-STATUS01.json",
+      "bytes": 759,
+      "sha256": "7e34ae11f800a7f4b87dd0491df961e51895fc45f5d80f82c3bd7e47eb07a878",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/SAFE-GRAPH-SUMMARY01.json",
+      "source_path": "work/native-nt-ci-prepare/SAFE-GRAPH-SUMMARY01.json",
+      "bytes": 497,
+      "sha256": "38cf7da5d41c98aa906ca48081d0a5714c1d19b026ce19a340edfa63a2818828",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/SAFE-ORIGINAL-SOURCE-BINDINGS01.json",
+      "source_path": "work/native-nt-ci-prepare/SAFE-ORIGINAL-SOURCE-BINDINGS01.json",
+      "bytes": 838,
+      "sha256": "2e4ef907432b93cc3639b94f10366cf4d57119263842140a91147ae47c4e055a",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "README.md",
+      "source_path": null,
+      "bytes": 613,
+      "sha256": "fefcda1e2296d82063466d0e0d6a332ad331b5c0299a6ecb760f20f6837bdef2",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "SOURCE-STATUS.md",
+      "source_path": null,
+      "bytes": 318,
+      "sha256": "aaa3173d99100b6153093c4297aed22f82211e5a1547d5bbfed05a43df88f9f6",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    }
+  ],
+  "file_count_excluding_manifest": 17,
+  "total_bytes_excluding_manifest": 36170
+}

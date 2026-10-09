@@ -1,0 +1,14 @@
+{
+  "pure_original_tree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+  "pure_original_count": 1953,
+  "prospective_native_sut_tree": "d86ece313011780ae408092bc2d1e37b05373e75",
+  "prospective_native_sut_count": 1954,
+  "overlay_source_commit": "8625c6117b3840db9f67565cac1bc3ef1fff4464",
+  "overlay_backup_path": "development-backups/rc070/20261009/checkpoint-61/source/services/windows-vm-broker/guest_workspace_output_nt_boundary_native_test.go",
+  "overlay_sut_path": "services/windows-vm-broker/guest_workspace_output_nt_boundary_native_test.go",
+  "overlay_mode": "100644",
+  "overlay_bytes": 13563,
+  "overlay_sha256": "048c82289482e11ece77c8dd6c74f9df33ad897785a140cb0fe0692ad5c38200",
+  "overlay_blob": "766f5ae7a6c34fb287382f79893428227ecf9190",
+  "state": "prospective source-only nativeGit tempindex tree; not WindowsCI build/nativeexecution/commit/ref/issuer"
+}

@@ -1,0 +1,38 @@
+import ast,json,socket,ssl,threading,time
+from pathlib import Path
+from types import SimpleNamespace
+B=Path('/workspace/work/rc070/publisher-root-cause-diagnostic')
+source=B/'diagnostic-worker-v1-preserved-source.py';nodes={n.name:n for n in ast.parse(source.read_text()).body if isinstance(n,ast.FunctionDef)}
+def lift(name,namespace):
+ exec(compile(ast.Module(body=[nodes[name]],type_ignores=[]),str(source),'exec'),namespace)
+ return namespace[name]
+rows=[]
+# This is a controlled namespace with genuine owned sockets; no issuer or SUT method.
+class CancelFixture:
+ @property
+ def _threads(self):raise SystemExit(7)
+server,peer=socket.socketpair();calls=[]
+def close_delegate(current,raw):calls.append(raw);raw.close()
+namespace=dict(fixture_source=SimpleNamespace(ArtifactTLS=CancelFixture),threading=threading,socket=socket,ssl=ssl,
+ _server_context=threading.local(),_owned_requests={},_observer_cancels=[],_observation_errors=[],
+ _delegate_fixture_handle=close_delegate,_tls_observations=[],socket_endpoints=lambda raw:(raw.getsockname(),raw.getpeername()))
+fn=lift('observed_fixture_handle',namespace)
+try:
+ fn(CancelFixture(),server)
+except SystemExit as error:
+ rows.append(dict(case='pre_context_observer_cancel_before_real_close',actual_cancel_object_preserved=namespace['_observer_cancels'][0] is error,delegate_calls=len(calls),actual_socket_still_open=server.fileno()>=0,expected_boundary_FAIL=(len(calls)==0 and server.fileno()>=0)))
+finally:server.close();peer.close()
+plain,peer=socket.socketpair();context=ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT);context.check_hostname=False;context.verify_mode=ssl.CERT_NONE
+client=context.wrap_socket(plain,do_handshake_on_connect=False);cancel=SystemExit(8);calls=[]
+def connect_delegate(current,*args,**kwargs):calls.append(current);return client
+def pin_cancel(*args,**kwargs):raise cancel
+namespace=dict(time=time,_delegate_fixture_connect=connect_delegate,pin_socket=pin_cancel,_observation_errors=[],_observer_cancels=[])
+fn=lift('observed_fixture_connect',namespace)
+try:
+ fn(object())
+except SystemExit as error:
+ rows.append(dict(case='post_connect_observer_cancel_before_transfer',actual_cancel_object_preserved=namespace['_observer_cancels'][0] is error,delegate_calls=len(calls),actual_SSL_socket_still_open=client.fileno()>=0,expected_boundary_FAIL=(client.fileno()>=0)))
+finally:client.close();peer.close()
+report=dict(source_v1_exact_hook_AST=True,controls=len(rows),failure_first_expected_boundary_FAIL=all(r['expected_boundary_FAIL'] for r in rows),original_method_runs=0,genuine_components='native socketpair/SSLsocket wrap no handshake, controlled metadata cancellation; not actual TLS handshake or issuer proof',rows=rows,negative_resources_true_closed_in_control_finally=True)
+with (B/'ORDINARY-FAILURE-FIRST.json').open('x')as f:json.dump(report,f,indent=2);f.write('\n')
+print(json.dumps(report,sort_keys=True))

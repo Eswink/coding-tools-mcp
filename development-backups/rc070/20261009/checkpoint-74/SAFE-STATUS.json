@@ -1,0 +1,30 @@
+{
+  "format": "source-only-formal-proposal-v2",
+  "scope": "two finite formal specs only",
+  "implementation": "ABSENT",
+  "independent_semantic_review": "firstread SPEC_ONLY conditional direction; actual birth-path mandatory gap made explicit; final review pending",
+  "isolated_direct_python_family": "STOP",
+  "native_root_family": "conditional OPEN; birth/immutableexec/CRT/collector/IO absent",
+  "production_edits": 0,
+  "original_methods_run": 0,
+  "new_ordinary_family_controls": 0,
+  "original_worker_argv_executed": false,
+  "new_native_bootstrap_or_source_loader_executed": false,
+  "old_original488": "FAIL qualification0 immutable",
+  "kernel_original1": "FAIL; sameheldcreatedchild CLD_KILLED/status15; READYcause UNKNOWN",
+  "publisher_issuer_sameclient_serverhold_service": "MISSING separate scope",
+  "install_ci_release_rc": "NOT QUALIFIED",
+  "freeze_fields_immutable": true,
+  "private_content_excluded": [
+    "rawhost",
+    "proc",
+    "PID",
+    "TLS",
+    "keys",
+    "tokens",
+    "environment",
+    "runtimepackage",
+    "nativeobjectpool",
+    "private_rawlogs"
+  ]
+}

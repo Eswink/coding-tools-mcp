@@ -1,0 +1,531 @@
+"""Temporary transparent safe observers around exact original delegates; diagnostic5."""
+import json,runpy,sys,traceback,ssl,threading,socket,time
+from types import MethodType
+from pathlib import Path
+
+assert len(sys.argv)==6 and sys.argv[1]=='--root' and sys.argv[3]=='--output'
+root,output=Path(sys.argv[2]).resolve(),Path(sys.argv[4]).resolve()
+assert sys.argv[5]=='rc_publication_final_admission_cases.FinalAdmissionCases.test_entry_and_direct_sinks_remain_effect_free'
+management=Path('/workspace/work/rc070/publisher-carrier')
+sys.path.insert(0,str(management/'scripts'))
+from rc_native_probe_restore import sha,write,RUNNER_SHA
+runner=management/'scripts/rc_native_probe_original_runner.py'
+assert sha(runner.read_bytes())==RUNNER_SHA and len(runner.read_bytes())==6259
+sys.path.insert(0,str(root/'scripts'))
+import rc_publication_executor as executor
+import rc_publication_github as wire
+import rc_publication_artifact_admission_cases as fixture_source
+from rc_publication_https_fixture import HTTPSFixture
+_delegate_failure=executor.PublisherSession._failure
+_delegate_pause=executor.PublisherSession.run_until_pause
+_delegate_request=wire.GitHub._request
+_delegate_response=wire._Reader.response
+_delegate_mutation_result=wire.GitHub._mutation_result
+_delegate_sendall=ssl.SSLSocket.sendall
+_delegate_fixture_connect=HTTPSFixture.connect
+_delegate_fixture_handle=HTTPSFixture._handle
+_delegate_recv=ssl.SSLSocket.recv
+_worker_thread=threading.get_ident()
+_request_context=None
+_observer_cancels=[]
+_restore_errors=[]
+_install_errors=[]
+_installed_complete=False
+_applied=[]
+_activations=[]
+_observations=[]
+_observation_errors=[]
+_observer_primary_exceptions=[]
+_server_context=threading.local()
+_owned_requests={}
+_live_clients=[]
+_tls_observations=[]
+_auth_observations=[]
+_auth_binding_outcomes=[]
+_auth_setup_failures=[]
+
+
+def observed_failure(current,op,error):
+    value=_delegate_failure(current,op,error)
+    try:
+        _observations.append(dict(event='original_failure',operation_kind=op.kind,operation_id=op.operation_id,
+            error_type=type(error).__name__,wire_code=error.code if type(error) is wire.WireFailure else None,
+            wire_effect=error.effect if type(error) is wire.WireFailure else None,
+            result_type=type(value).__name__,result_code=value.code,result_effect=value.effect,
+            frames=[dict(file=Path(f.filename).name,function=f.name,line=f.lineno) for f in traceback.extract_tb(error.__traceback__)]))
+    except Exception as observation_error:
+        _observation_errors.append(dict(phase='failure_fields',type=type(observation_error).__name__))
+    except BaseException as observation_cancel:
+        _observer_cancels.append(observation_cancel)
+        raise
+    return value
+
+
+def observed_pause(current):
+    value=_delegate_pause(current)
+    try:
+        _observations.append(dict(event='original_run_until_pause',result_type=type(value).__name__,
+            action_type=None if value.action is None else type(value.action).__name__,
+            code=value.state.code,outcome=value.state.outcome,intent_count=value.state.intent_count,
+            pending_kind=None if value.state.pending is None else value.state.pending.kind))
+    except Exception as observation_error:
+        _observation_errors.append(dict(phase='pause_fields',type=type(observation_error).__name__))
+    except BaseException as observation_cancel:
+        _observer_cancels.append(observation_cancel)
+        raise
+    return value
+
+
+def mutation_context():
+    if threading.get_ident()!=_worker_thread or type(_request_context) is not tuple or len(_request_context)!=3:
+        return None
+    current,op,scope=_request_context
+    if type(current) is not wire.GitHub or type(op) is not wire.core.Operation:
+        return None
+    if op.kind not in ('CreateDraft','UploadAsset','PublishPrerelease') or type(scope) is not wire.owned._OperationScope:
+        return None
+    owner=scope._owner
+    if type(owner) is not wire.owned._SessionOwner or type(owner._session) is not executor.PublisherSession:
+        return None
+    session=owner._session
+    if not (scope._op is op and scope._thread==_worker_thread and not scope._retired
+            and owner._client is current and session._api is current and session._owner is owner
+            and session._request_scope is scope and session._inflight is op
+            and owner._credential is current._credential
+            and current._credential._session_owner is owner):
+        return None
+    return op
+
+
+def record_activation(boundary,primary=None):
+    try:
+        op=mutation_context()
+        if op is None:
+            return
+        _activations.append(dict(boundary=boundary,operation_kind=op.kind,operation_id=op.operation_id,
+            original_delegate_completed=True,enter=1,exit=1,
+            outcome='returned' if primary is None else 'raised',
+            error_type=None if primary is None else type(primary).__name__,
+            wire_code=primary.code if type(primary) is wire.WireFailure else None,
+            wire_effect=primary.effect if type(primary) is wire.WireFailure else None,
+            frames=[] if primary is None else [dict(file=Path(f.filename).name,function=f.name,line=f.lineno)
+                for f in traceback.extract_tb(primary.__traceback__)]))
+    except Exception as observation_error:
+        _observation_errors.append(dict(phase='activation_fields',type=type(observation_error).__name__))
+    except BaseException as observation_cancel:
+        _observer_cancels.append(observation_cancel)
+        if primary is not None:
+            raise BaseExceptionGroup('Original delegate exception and activation cancellation',[primary,observation_cancel])
+        raise
+
+
+def owned_fixture_for_context():
+    op=mutation_context()
+    if op is None:
+        return None
+    current,actual_op,scope=_request_context
+    callback=getattr(wire._connect,'side_effect',None)
+    if type(callback) is not MethodType or callback.__func__ is not observed_fixture_connect:
+        return None
+    fixture=callback.__self__
+    if type(fixture) is not fixture_source.ArtifactTLS or fixture.selection is not current.selection:
+        return None
+    return fixture
+
+
+def socket_endpoints(sock):
+    if type(sock) not in (socket.socket,ssl.SSLSocket) or sock.fileno()<0:
+        return None
+    return sock.getsockname(),sock.getpeername()
+
+
+def pin_socket(mode,current,sock,started=None,finished=None):
+    if mode=='client':
+        fixture=owned_fixture_for_context()
+        if fixture is None or fixture is not current or type(sock) is not ssl.SSLSocket or sock.server_side:
+            return None
+        record=_owned_requests.get(id(_request_context[1]))
+        if record is None or record['fixture'] is not fixture or record['client'] is not _request_context[0]:
+            return None
+        endpoints=socket_endpoints(sock)
+        if endpoints is None:
+            return None
+        if len(_live_clients)>=128:
+            raise RuntimeError('Bounded observation socket registry full')
+        record['socket']=sock
+        record['endpoints']=endpoints
+        _live_clients.append(record)
+        _tls_observations.append(dict(event='original_fixture_connect_completed',operation_kind=record['op'].kind,
+            operation_id=record['op'].operation_id,monotonic_start=started,monotonic_finish=finished,
+            elapsed_seconds=finished-started,actual_client_socket_created=True,correlation_after_delegate=True))
+        return record
+    context=getattr(_server_context,'current',None)
+    if context is None or type(sock) is not ssl.SSLSocket or not sock.server_side:
+        return None
+    fixture=context['fixture']
+    if sock.context is not fixture.context or threading.current_thread() is not context['thread']:
+        return None
+    for record in tuple(_live_clients):
+        if record['fixture'] is not fixture or record.get('socket') is None:
+            continue
+        if _owned_requests.get(id(record['op'])) is not record or record['thread']!=_worker_thread:
+            continue
+        client=record['socket']
+        # The accepted socket's pair is only a coarse in-memory candidate hint.
+        # It never establishes authority or a trusted client/server match.
+        accepted=context['raw_endpoints']
+        if record['endpoints']!=(accepted[1],accepted[0]):
+            continue
+        if socket_endpoints(client)!=record['endpoints']:
+            continue
+        endpoints=socket_endpoints(sock)
+        if endpoints is None or endpoints!=accepted:
+            continue
+        if record['endpoints']!=(endpoints[1],endpoints[0]):
+            continue
+        if context['socket'] is None:
+            context['socket']=sock
+        if context['socket'] is not sock:
+            continue
+        owner=record['scope']._owner
+        session=owner._session
+        if (scope:=record['scope'])._retired or scope._op is not record['op'] or scope._thread!=_worker_thread:
+            continue
+        if owner._client is not record['client'] or session._api is not record['client']:
+            continue
+        if session._owner is not owner or session._request_scope is not scope or session._inflight is not record['op']:
+            continue
+        if owner._credential is not record['client']._credential or owner._credential._session_owner is not owner:
+            continue
+        context['record']=record
+        return record
+    return None
+
+
+def observed_fixture_connect(current,*args,**kwargs):
+    started=time.monotonic()
+    try:
+        value=_delegate_fixture_connect(current,*args,**kwargs)
+    except BaseException:
+        raise
+    finished=time.monotonic()
+    try:
+        pin_socket('client',current,value,started,finished)
+    except Exception as observation_error:
+        _observation_errors.append(dict(phase='client_socket_pin',type=type(observation_error).__name__))
+    except BaseException as observation_cancel:
+        _observer_cancels.append(observation_cancel)
+        # The original request must receive its real socket and close it;
+        # propagate this actual observer cancellation after runner cleanup.
+    return value
+
+
+def observed_fixture_handle(current,raw):
+    previous=getattr(_server_context,'current',None)
+    context=None
+    try:
+        if type(current) is fixture_source.ArtifactTLS and threading.current_thread() in current._threads:
+            if any(record['fixture'] is current for record in tuple(_owned_requests.values())):
+                endpoints=socket_endpoints(raw)
+                if endpoints is not None:
+                    context=dict(fixture=current,raw=raw,raw_endpoints=endpoints,thread=threading.current_thread(),
+                        socket=None,record=None,completed_recv_calls=0)
+    except Exception as observation_error:
+        _observation_errors.append(dict(phase='server_context',type=type(observation_error).__name__))
+    except BaseException as observation_cancel:
+        _observer_cancels.append(observation_cancel)
+        # A socket has already been accepted. Always delegate its real close.
+    _server_context.current=context
+    try:
+        value=_delegate_fixture_handle(current,raw)
+        try:
+            if context is not None and context['record'] is not None:
+                record=context['record']
+                _tls_observations.append(dict(event='original_fixture_handle_completed',operation_kind=record['op'].kind,
+                    operation_id=record['op'].operation_id,completed_matched_recv_calls=context['completed_recv_calls'],
+                    real_raw_socket_closed=raw.fileno()<0,
+                    real_server_socket_closed=context['socket'] is not None and context['socket'].fileno()<0,
+                    correlation_only_established_after_recv_delegate=True))
+        except Exception as observation_error:
+            _observation_errors.append(dict(phase='server_completion',type=type(observation_error).__name__))
+        except BaseException as observation_cancel:
+            _observer_cancels.append(observation_cancel)
+            raise
+        return value
+    finally:
+        _server_context.current=previous
+
+
+def observed_server_recv(current,*args,**kwargs):
+    started=time.monotonic()
+    primary=None
+    try:
+        value=_delegate_recv(current,*args,**kwargs)
+    except BaseException as original_error:
+        primary=original_error
+    finished=time.monotonic()
+    try:
+        record=pin_socket('server',None,current)
+        if record is not None:
+            context=_server_context.current
+            context['completed_recv_calls']+=1
+            if primary is not None or context['completed_recv_calls']==1:
+                _tls_observations.append(dict(event='original_server_recv_exception' if primary is not None else 'original_server_recv_completed',
+                    operation_kind=record['op'].kind,operation_id=record['op'].operation_id,
+                    monotonic_start=started,monotonic_finish=finished,elapsed_seconds=finished-started,
+                    client_correlation_established_after_delegate=True,client_correlation_at_call_start=False,
+                    actual_server_socket_instance_matched=True,actual_client_socket_instance_matched=True,
+                    endpoints_recorded=False,error_type=None if primary is None else type(primary).__name__,
+                    frames=[] if primary is None else [dict(file=Path(f.filename).name,function=f.name,line=f.lineno)
+                        for f in traceback.extract_tb(primary.__traceback__)]))
+    except Exception as observation_error:
+        _observation_errors.append(dict(phase='server_recv_fields',type=type(observation_error).__name__))
+    except BaseException as observation_cancel:
+        _observer_cancels.append(observation_cancel)
+        if primary is not None:
+            _observer_primary_exceptions.append(primary)
+            raise BaseExceptionGroup('Original server receive and observer cancellation',[primary,observation_cancel])
+        raise
+    if primary is not None:
+        raise primary.with_traceback(primary.__traceback__)
+    return value
+
+
+def install_auth_observer(client):
+    original=wire._authenticate
+    binding=dict(original=original,wrapper=None,attempted=False)
+    def authenticate_call(*args,**kwargs):
+        started=time.monotonic()
+        primary=None
+        try:
+            value=original(*args,**kwargs)
+        except BaseException as original_error:
+            primary=original_error
+        finished=time.monotonic()
+        try:
+            op=mutation_context()
+            if op is not None and len(args)>=2 and args[0] is client.selection and args[1] is client:
+                _auth_observations.append(dict(event='actual_authenticate_delegate_completed',operation_kind=op.kind,
+                    operation_id=op.operation_id,monotonic_start=started,monotonic_finish=finished,
+                    elapsed_seconds=finished-started,outcome='returned' if primary is None else 'raised',
+                    error_type=None if primary is None else type(primary).__name__,
+                    frames=[] if primary is None else [dict(file=Path(f.filename).name,function=f.name,line=f.lineno)
+                        for f in traceback.extract_tb(primary.__traceback__)]))
+        except Exception as observation_error:
+            _observation_errors.append(dict(phase='auth_fields',type=type(observation_error).__name__))
+        except BaseException as observation_cancel:
+            _observer_cancels.append(observation_cancel)
+            if primary is not None:
+                _observer_primary_exceptions.append(primary)
+                raise BaseExceptionGroup('Original authentication and observer cancellation',[primary,observation_cancel])
+            raise
+        if primary is not None:
+            raise primary.with_traceback(primary.__traceback__)
+        return value
+    binding['wrapper']=authenticate_call
+    try:
+        if wire._authenticate is not original:
+            raise RuntimeError('Dynamic auth binding identity mismatch')
+        binding['attempted']=True
+        wire._authenticate=authenticate_call
+        if wire._authenticate is not authenticate_call:
+            raise RuntimeError('Dynamic auth installation identity mismatch')
+    except BaseException as install_error:
+        _install_errors.append(install_error)
+        _auth_setup_failures.append(install_error)
+        restore_auth_observer(binding)
+        raise
+    return binding
+
+
+def restore_auth_observer(binding):
+    if binding is None or not binding['attempted']:
+        return
+    errors=[]
+    try:
+        if wire._authenticate is not binding['wrapper']:
+            errors.append(RuntimeError('Dynamic auth temporary identity mismatch'))
+    except BaseException as restore_error:
+        errors.append(restore_error)
+    try:
+        wire._authenticate=binding['original']
+        if wire._authenticate is not binding['original']:
+            raise RuntimeError('Dynamic auth restored identity mismatch')
+    except BaseException as restore_error:
+        errors.append(restore_error)
+    _restore_errors.extend(errors)
+    _auth_binding_outcomes.append(dict(attempted=True,restored_original_object=not errors,
+        error_types=[type(e).__name__ for e in errors]))
+
+
+def observed_request(current,*args,**kwargs):
+    global _request_context
+    if threading.get_ident()!=_worker_thread:
+        return _delegate_request(current,*args,**kwargs)
+    previous=_request_context
+    _request_context=(current,kwargs.get('op'),kwargs.get('scope'))
+    record=binding=None
+    try:
+        op=mutation_context()
+        if op is not None:
+            fixture=None
+            try:
+                fixture=owned_fixture_for_context()
+            except Exception as observation_error:
+                _observation_errors.append(dict(phase='owned_fixture_context',type=type(observation_error).__name__))
+            except BaseException as observation_cancel:
+                _observer_cancels.append(observation_cancel)
+            if fixture is not None:
+                record=dict(client=current,op=op,scope=_request_context[2],fixture=fixture,thread=_worker_thread)
+                _owned_requests[id(op)]=record
+            binding=install_auth_observer(current)
+        try:
+            value=_delegate_request(current,*args,**kwargs)
+        except BaseException as primary:
+            record_activation('original_GitHub._request',primary)
+            raise
+        record_activation('original_GitHub._request')
+        return value
+    finally:
+        restore_auth_observer(binding)
+        if record is not None:
+            if _owned_requests.get(id(record['op'])) is record:
+                del _owned_requests[id(record['op'])]
+            _live_clients[:]=[value for value in _live_clients if value is not record]
+        _request_context=previous
+
+
+def observe_error(boundary,primary):
+    record_activation(boundary,primary)
+    try:
+        op=mutation_context()
+        if op is None:
+            return
+        _observations.append(dict(event='inner_delegate_exception',boundary=boundary,
+            operation_kind=op.kind,operation_id=op.operation_id,error_type=type(primary).__name__,
+            wire_code=primary.code if type(primary) is wire.WireFailure else None,
+            wire_effect=primary.effect if type(primary) is wire.WireFailure else None,
+            frames=[dict(file=Path(f.filename).name,function=f.name,line=f.lineno)
+                for f in traceback.extract_tb(primary.__traceback__)]))
+    except Exception as observation_error:
+        _observation_errors.append(dict(phase='inner_fields',type=type(observation_error).__name__))
+    except BaseException as observation_cancel:
+        _observer_cancels.append(observation_cancel)
+        raise BaseExceptionGroup('Original delegate exception and observation cancellation',[primary,observation_cancel])
+
+
+def observed_response(current,*args,**kwargs):
+    try:
+        value=_delegate_response(current,*args,**kwargs)
+    except BaseException as primary:
+        observe_error('original_Reader.response',primary)
+        raise
+    record_activation('original_Reader.response')
+    return value
+
+
+def observed_mutation_result(current,*args,**kwargs):
+    try:
+        value=_delegate_mutation_result(current,*args,**kwargs)
+    except BaseException as primary:
+        observe_error('original_GitHub._mutation_result',primary)
+        raise
+    record_activation('original_GitHub._mutation_result')
+    return value
+
+
+def observed_sendall(current,*args,**kwargs):
+    try:
+        value=_delegate_sendall(current,*args,**kwargs)
+    except BaseException as primary:
+        observe_error('original_SSLSocket.sendall',primary)
+        raise
+    record_activation('original_SSLSocket.sendall')
+    return value
+
+
+def install_bindings():
+    global _installed_complete
+    _installed_complete=False
+    try:
+        for target,name,original,wrapper in _bindings:
+            if getattr(target,name) is not original:
+                raise RuntimeError('Original owned binding identity mismatch')
+            _applied.append((target,name,original,wrapper))
+            setattr(target,name,wrapper)
+        _installed_complete=True
+    except BaseException as install_error:
+        _install_errors.append(install_error)
+        raise
+
+
+def restore_bindings():
+    for target,name,original,wrapper in reversed(_applied):
+        try:
+            if getattr(target,name) is not wrapper:
+                _restore_errors.append(RuntimeError('Temporary owned binding identity mismatch'))
+        except BaseException as restore_error:
+            _restore_errors.append(restore_error)
+        try:
+            setattr(target,name,original)
+            if getattr(target,name) is not original:
+                raise RuntimeError('Restored owned binding identity mismatch')
+        except BaseException as restore_error:
+            _restore_errors.append(restore_error)
+    return not _restore_errors
+
+
+def finish_observation(path,primary):
+    failures=[]
+    for value in ([primary] if primary is not None else [])+_install_errors+_restore_errors+_observer_cancels+_observer_primary_exceptions:
+        if not any(value is old for old in failures):
+            failures.append(value)
+    report=dict(diagnostic5=True,whole85_qualification=False,temporary_live_wrappers=9,
+        original_delegate_first_exact_once=not _auth_setup_failures,original_method_assertions_unchanged=True,
+        original_runner_primary_type=None if primary is None else type(primary).__name__,
+        original_runner_exit_code=primary.code if type(primary) is SystemExit and primary.code in (0,1) else None,
+        observation_valid=(_installed_complete and not (_observation_errors or _install_errors or _restore_errors or _observer_cancels)),
+        observation_errors=_observation_errors,installed_complete=_installed_complete,
+        install_error_types=[type(e).__name__ for e in _install_errors],restore_error_types=[type(e).__name__ for e in _restore_errors],
+        observer_cancel_types=[type(e).__name__ for e in _observer_cancels],
+        all_bindings_restored=(_installed_complete and not (_install_errors or _restore_errors)),inner_boundaries=3,uncovered_stream_read_and_inline=True,
+        activation_counter_semantics="completed originaldelegate pairedenterexit recordedaftercall, not realtimebodyentryhook",
+        activation_enter_count=sum(a['enter'] for a in _activations),activation_exit_count=sum(a['exit'] for a in _activations),
+        activations=_activations,events=_observations,
+        tls_observations=_tls_observations,auth_observations=_auth_observations,
+        auth_binding_outcomes=_auth_binding_outcomes,auth_setup_failure_types=[type(e).__name__ for e in _auth_setup_failures],
+        server_client_instances_are_different=True,endpoint_values_recorded=False,
+        timestamp_semantics="actual monotonic sampled before and after each delegate; serverclient correlation only after delegate",
+        matching_client_socket_registry_retired=not(_live_clients or _owned_requests))
+    try:
+        write(path,report)
+    except Exception as observer_write_error:
+        print(json.dumps(dict(observation_write_failed=True,safe_type=type(observer_write_error).__name__)),file=sys.stderr)
+        if not failures:
+            raise
+    except BaseException as observation_cancel:
+        failures.append(observation_cancel)
+    if len(failures)==1:
+        raise failures[0]
+    if failures:
+        raise BaseExceptionGroup('Preserved original runner, restore and observer outcomes',failures)
+
+
+_bindings=[(executor.PublisherSession,'_failure',_delegate_failure,observed_failure),
+    (executor.PublisherSession,'run_until_pause',_delegate_pause,observed_pause),
+    (wire.GitHub,'_request',_delegate_request,observed_request),
+    (wire._Reader,'response',_delegate_response,observed_response),
+    (wire.GitHub,'_mutation_result',_delegate_mutation_result,observed_mutation_result),
+    (ssl.SSLSocket,'sendall',_delegate_sendall,observed_sendall),
+    (HTTPSFixture,'connect',_delegate_fixture_connect,observed_fixture_connect),
+    (HTTPSFixture,'_handle',_delegate_fixture_handle,observed_fixture_handle),
+    (ssl.SSLSocket,'recv',_delegate_recv,observed_server_recv)]
+primary=None
+try:
+    install_bindings()
+    runpy.run_path(str(runner),run_name='__main__')
+except BaseException as original_runner_outcome:
+    primary=original_runner_outcome
+finally:
+    restore_bindings()
+finish_observation(output.parent/'DIAGNOSTIC-OBSERVATION.json',primary)

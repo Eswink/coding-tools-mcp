@@ -1,0 +1,31 @@
+{
+  "protected_originals": [
+    {
+      "path": "scripts/windows_foundation_source_guard.py",
+      "bytes": 14618,
+      "sha256": "71aaba07443ba0ace608f8a73e0996df839f6c189e866ee949eb4dd21e4a4073"
+    },
+    {
+      "path": "scripts/windows_foundation_source_manifest.json",
+      "bytes": 529597,
+      "sha256": "45cc3e94fd4eceb78184230740d293b24f576650927168b5855c947689e999ec"
+    },
+    {
+      "path": "scripts/Windows\u975e\u63d0\u5347\u8fdb\u7a0bv12.py",
+      "bytes": 11451,
+      "sha256": "5f46773d1b67d931532144cb077d8d792a9a3f0e3cc0feb3daa91280ec8bfe9f"
+    }
+  ],
+  "unchanged_api_reuse_only": [
+    "Api",
+    "Startup",
+    "ProcessInfo",
+    "Limits",
+    "environment_block"
+  ],
+  "forbidden_legacy_paths": [
+    "launch",
+    "token/logon/accountfunctions",
+    "OwnedProcess.terminate_tree as naturalproof"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "boundary": "Design-only review; manager code notauthored, Windows Job/native API NOTRUN; noauthority grant",
+  "files": [
+    {
+      "path": "docs/specs/windows-nt-native-output-ci-manager/requirements.md",
+      "bytes": 7825,
+      "mode": "0o600",
+      "sha256": "f17a9c33cdeeca3454c0eb7271fc38a727d20468c594ffd457e8d78f1ac1136d"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-output-ci-manager/design.md",
+      "bytes": 5510,
+      "mode": "0o600",
+      "sha256": "31977aaef89588593d862632bb48a6dc7aa6d9d3e59c7e2596cc0b893a2d9926"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-output-ci-manager/tasks.md",
+      "bytes": 1596,
+      "mode": "0o600",
+      "sha256": "9c97962462e4d734b00127b739c049a1d965d6d6ac2913f0f003987a74c786b5"
+    }
+  ],
+  "check_spec_raw": "work/native-nt-ci-prepare/check-spec-budget03.json",
+  "total_bytes": 14931
+}

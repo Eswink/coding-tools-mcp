@@ -1,0 +1,377 @@
+{
+  "results": [
+    {
+      "record": "STARTUP-FORMAL-ISOLATED-IMPACT-ExplicitProjectLoader17.txt",
+      "actual_result": {
+        "error": "Target 'ExplicitProjectLoader' not found",
+        "target": {
+          "name": "ExplicitProjectLoader"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_is_not_zero": true
+    },
+    {
+      "record": "STARTUP-FORMAL-ISOLATED-IMPACT-ImmutableModuleSource17.txt",
+      "actual_result": {
+        "error": "Target 'ImmutableModuleSource' not found",
+        "target": {
+          "name": "ImmutableModuleSource"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_is_not_zero": true
+    },
+    {
+      "record": "STARTUP-FORMAL-ISOLATED-IMPACT-run17.txt",
+      "actual_result": {
+        "target": {
+          "id": "Method:scripts/rc_postpublication_process.py:ProcessOwner.run#4",
+          "name": "run",
+          "type": "Method",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 13,
+        "risk": "MEDIUM",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 11,
+          "processes_affected": 0,
+          "modules_affected": 1
+        },
+        "byDepthCounts": {
+          "1": 11,
+          "2": 2
+        },
+        "affected_processes": [],
+        "affected_modules": [
+          {
+            "name": "Scripts",
+            "hits": 11,
+            "impact": "direct"
+          }
+        ]
+      },
+      "unknown_is_not_zero": false
+    },
+    {
+      "record": "STARTUP-FORMAL-NATIVE-IMPACT-ImmutableExecSource17.txt",
+      "actual_result": {
+        "error": "Target 'ImmutableExecSource' not found",
+        "target": {
+          "name": "ImmutableExecSource"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_is_not_zero": true
+    },
+    {
+      "record": "STARTUP-FORMAL-NATIVE-IMPACT-NativeBirthExecutor17.txt",
+      "actual_result": {
+        "error": "Target 'NativeBirthExecutor' not found",
+        "target": {
+          "name": "NativeBirthExecutor"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_is_not_zero": true
+    },
+    {
+      "record": "STARTUP-FORMAL-NATIVE-IMPACT-NativeStartupRoot17.txt",
+      "actual_result": {
+        "error": "Target 'NativeStartupRoot' not found",
+        "target": {
+          "name": "NativeStartupRoot"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_is_not_zero": true
+    },
+    {
+      "record": "STARTUP-FORMAL-NATIVE-IMPACT-ProcessOwner17.txt",
+      "actual_result": {
+        "target": {
+          "id": "Class:scripts/rc_postpublication_process.py:ProcessOwner",
+          "name": "ProcessOwner",
+          "type": "Class",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 9,
+        "risk": "LOW",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 2,
+          "processes_affected": 0,
+          "modules_affected": 0
+        },
+        "byDepthCounts": {
+          "1": 2,
+          "2": 3,
+          "3": 4
+        },
+        "affected_processes": [],
+        "affected_modules": []
+      },
+      "unknown_is_not_zero": false
+    },
+    {
+      "record": "STARTUP-FORMAL-NATIVE-IMPACT-_done17.txt",
+      "actual_result": {
+        "target": {
+          "id": "Method:scripts/rc_postpublication_process.py:ProcessOwner._done#1",
+          "name": "_done",
+          "type": "Method",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 16,
+        "risk": "LOW",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 3,
+          "processes_affected": 0,
+          "modules_affected": 1
+        },
+        "byDepthCounts": {
+          "1": 3,
+          "2": 11,
+          "3": 2
+        },
+        "affected_processes": [],
+        "affected_modules": [
+          {
+            "name": "Scripts",
+            "hits": 14,
+            "impact": "direct"
+          }
+        ]
+      },
+      "unknown_is_not_zero": false
+    },
+    {
+      "record": "STARTUP-FORMAL-NATIVE-IMPACT-_finish17.txt",
+      "actual_result": {
+        "target": {
+          "id": "Method:scripts/rc_postpublication_process.py:ProcessOwner._finish#0",
+          "name": "_finish",
+          "type": "Method",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 15,
+        "risk": "LOW",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 4,
+          "processes_affected": 0,
+          "modules_affected": 1
+        },
+        "byDepthCounts": {
+          "1": 4,
+          "2": 9,
+          "3": 2
+        },
+        "affected_processes": [],
+        "affected_modules": [
+          {
+            "name": "Scripts",
+            "hits": 13,
+            "impact": "direct"
+          }
+        ]
+      },
+      "unknown_is_not_zero": false
+    },
+    {
+      "record": "STARTUP-FORMAL-NATIVE-IMPACT-_launch_write_phase17.txt",
+      "actual_result": {
+        "error": "Target '_launch_write_phase' not found",
+        "target": {
+          "name": "_launch_write_phase"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_is_not_zero": true
+    },
+    {
+      "record": "STARTUP-FORMAL-NATIVE-IMPACT-_retain17.txt",
+      "actual_result": {
+        "target": {
+          "id": "Method:scripts/rc_postpublication_process.py:ProcessOwner._retain#0",
+          "name": "_retain",
+          "type": "Method",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 15,
+        "risk": "LOW",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 2,
+          "processes_affected": 0,
+          "modules_affected": 1
+        },
+        "byDepthCounts": {
+          "1": 2,
+          "2": 11,
+          "3": 2
+        },
+        "affected_processes": [],
+        "affected_modules": [
+          {
+            "name": "Scripts",
+            "hits": 13,
+            "impact": "direct"
+          }
+        ]
+      },
+      "unknown_is_not_zero": false
+    },
+    {
+      "record": "STARTUP-FORMAL-NATIVE-IMPACT-_send17.txt",
+      "actual_result": {
+        "target": {
+          "id": "Method:scripts/rc_postpublication_process.py:ProcessOwner._send#3",
+          "name": "_send",
+          "type": "Method",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 15,
+        "risk": "LOW",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 4,
+          "processes_affected": 0,
+          "modules_affected": 1
+        },
+        "byDepthCounts": {
+          "1": 4,
+          "2": 9,
+          "3": 2
+        },
+        "affected_processes": [],
+        "affected_modules": [
+          {
+            "name": "Scripts",
+            "hits": 13,
+            "impact": "direct"
+          }
+        ]
+      },
+      "unknown_is_not_zero": false
+    },
+    {
+      "record": "STARTUP-FORMAL-NATIVE-IMPACT-_stop17.txt",
+      "actual_result": {
+        "target": {
+          "id": "Method:scripts/rc_postpublication_process.py:ProcessOwner._stop#0",
+          "name": "_stop",
+          "type": "Method",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 14,
+        "risk": "LOW",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 1,
+          "processes_affected": 0,
+          "modules_affected": 1
+        },
+        "byDepthCounts": {
+          "1": 1,
+          "2": 11,
+          "3": 2
+        },
+        "affected_processes": [],
+        "affected_modules": [
+          {
+            "name": "Scripts",
+            "hits": 12,
+            "impact": "direct"
+          }
+        ]
+      },
+      "unknown_is_not_zero": false
+    },
+    {
+      "record": "STARTUP-FORMAL-NATIVE-IMPACT-_worker17.txt",
+      "actual_result": {
+        "target": {
+          "id": "Function:scripts/rc_postpublication_process.py:_worker",
+          "name": "_worker",
+          "type": "Function",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 6,
+        "risk": "LOW",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 1,
+          "processes_affected": 0,
+          "modules_affected": 0
+        },
+        "byDepthCounts": {
+          "1": 1,
+          "2": 2,
+          "3": 3
+        },
+        "affected_processes": [],
+        "affected_modules": []
+      },
+      "unknown_is_not_zero": false
+    },
+    {
+      "record": "STARTUP-FORMAL-NATIVE-IMPACT-run17.txt",
+      "actual_result": {
+        "target": {
+          "id": "Method:scripts/rc_postpublication_process.py:ProcessOwner.run#4",
+          "name": "run",
+          "type": "Method",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 13,
+        "risk": "MEDIUM",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 11,
+          "processes_affected": 0,
+          "modules_affected": 1
+        },
+        "byDepthCounts": {
+          "1": 11,
+          "2": 2
+        },
+        "affected_processes": [],
+        "affected_modules": [
+          {
+            "name": "Scripts",
+            "hits": 11,
+            "impact": "direct"
+          }
+        ]
+      },
+      "unknown_is_not_zero": false
+    }
+  ],
+  "manual_risk": "HIGH",
+  "production_edits": 0,
+  "impact_is_not_permission": true
+}

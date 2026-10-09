@@ -1,0 +1,25 @@
+# Isolated-loader bounded feasibility
+
+## 概述
+
+Original samefile imports project modules before `_worker` installs subreaper/SIGTERM-ignore/READY. Site/.pth/native runtime can run before this body. `_worker` has no startup ACK: S before the first JSON request is invalid JSON and exits1. Actual once02 same held pidfd proved CLD_KILLED/SIGTERM15 during cleanup, not why READY was missing.
+
+## 对应需求
+
+FR-1 identifies changed argv and explicit loader. FR-2 refuses unproved startup ancestry/IO closure. FR-3 keeps budgets and implementation STOP.
+
+## 技术方案
+
+Candidate argv shape is the fixed system interpreter, `-I`, `-S`, then a separately sealed minimal loader plus `--owned-worker`. This is proposed, not an invocation made here. The loader would receive immutable/source-verified module payloads through owned descriptors; it would avoid adding mutable directories to sys.path and explicitly load only declared project modules. It would bind literal/resolved interpreter, encodings/stdlib paths, dynamic loader/ELF libraries and any other executed module before effects are authorized. Existing bounded AST import graph is only 33 module-level project imports/45 external names; it excludes class bodies, decorators, defaults, conditions, dynamic imports and native initialization and is not an execution closure.
+
+`-I -S` reduces user/environment/site/.pth hooks. It does not remove CPython initialization, stdlib/extension loading, project source effects or source races. Changing signal installation earlier does not retroactively cover these phases. A reviewed loader alone cannot establish that no descendant escaped before subreaper installation. There is no reliable direct-Python startup-abort family proof in the current source.
+
+Internal phases would distinguish created, request-write-not-attempted, request-write-attempted (sticky even on partial/exception), G-write-attempted, and terminal-IO-retired. Owner phase is actual private lifecycle state established before native writes; external booleans/observations may not grant it. Even request-write-not-attempted excludes command dispatch only, not startup import forks. DEVNULL stderr is declared unobservable; it may only have actual descriptor retirement status, never an invented EOF.
+
+## 文件结构
+
+Current delivery is requirements.md/design.md/tasks.md only. Future loader/source-caps module names are proposals with UNKNOWN graph impact; no new executable file is present. Any argv or ProcessOwner changes create a new candidate distinct from original50ef/tree3084.
+
+## Threat and decision boundary
+
+Trusted kernel/actual-owned Popen pidfd and source/runtime byte identity are necessary. Mutable loader paths, injected imports, early fork/setsid, partial writes, cancellation, unexpected stdout or unknown close retain UNKNOWN. To remove the startup-family uncertainty, either prove the entire executed interpreter startup/import closure cannot create descendants before dispatch, or install a trustworthy native root before Python startup. Current evidence does neither. STOP is concrete, not a demand to prove every Python asynchronous signal bytecode window. The native-root alternative is reviewed separately and is not claimed implemented.

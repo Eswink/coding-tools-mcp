@@ -1,0 +1,16 @@
+{
+  "url": "https://go.dev/dl/?mode=json&include=all",
+  "http_status": 200,
+  "catalog_sha256": "e69a2c3effdcfb9f41c15305b1d959524f1ff5f8e8500bac4548e6e355bda0dc",
+  "version": "go1.24.13",
+  "file": {
+    "filename": "go1.24.13.windows-amd64.zip",
+    "os": "windows",
+    "arch": "amd64",
+    "version": "go1.24.13",
+    "sha256": "40b16bc8f00540a2cb02dff4de72b73e966fdd8d65f95e33d8e4080b48a2459a",
+    "size": 87295983,
+    "kind": "archive"
+  },
+  "qualification": "publicofficialcatalog only; Windowsarchive/runtime/nativeexecution NOTRUN"
+}

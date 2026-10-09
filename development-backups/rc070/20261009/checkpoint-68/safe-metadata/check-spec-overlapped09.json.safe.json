@@ -1,0 +1,20 @@
+{
+  "tool": "check_spec",
+  "version": "4.0.1",
+  "raw_sha256": "20bdf3b5e97e97a76a0d7018982d2239d7441b2287dee1ea439122ecd35c5400",
+  "actual_structured_content": {
+    "passed": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": [],
+    "frIds": [
+      "FR-1",
+      "FR-2",
+      "FR-3",
+      "FR-4",
+      "FR-5"
+    ],
+    "summary": "\u89c4\u683c\u6821\u9a8c\u901a\u8fc7\uff085 \u6761\u9700\u6c42\uff09"
+  },
+  "boundary": "Spec completeness only; notimplementation/native/CIqualification"
+}

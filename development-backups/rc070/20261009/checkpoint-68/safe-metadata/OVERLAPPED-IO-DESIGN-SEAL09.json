@@ -1,0 +1,25 @@
+{
+  "scope": "Finite design-only: code0/native0; descendant raw bounding STOP; old08failed3source snapshot preserved",
+  "files": [
+    {
+      "path": "docs/specs/windows-nt-native-ci-overlapped-io/requirements.md",
+      "bytes": 5118,
+      "mode": "0o600",
+      "sha256": "b7957891f611b8b4d3263364895f23a26ecf611dca7f942e6b6910de11f78eba"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-ci-overlapped-io/design.md",
+      "bytes": 6982,
+      "mode": "0o600",
+      "sha256": "343951dffeebcf98e011372f61f41d53101dbaefc1e28fc01e1f9772237fba34"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-ci-overlapped-io/tasks.md",
+      "bytes": 1897,
+      "mode": "0o600",
+      "sha256": "dfc84e96b41d8a91716f687a0b5e6b657e811a537722b7f920531ad15ba555bf"
+    }
+  ],
+  "total_bytes": 13997,
+  "check_spec": "work/native-nt-ci-prepare/check-spec-overlapped09.json"
+}
