@@ -1,0 +1,73 @@
+"""Ordinary owned temporary-file/realchild controls; no SUT methods."""
+from pathlib import Path
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+import composed_supervisor as c
+
+class ComposedControls(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);(self.root/'sub').mkdir()
+        for name,mode in [('plain',0o644),('exec',0o755),('sub/leaf',0o644)]:
+            (self.root/name).write_text('ordinary owned data');os.chmod(self.root/name,mode)
+        self.entries={'plain':'100644','exec':'100755','sub/leaf':'100644'}
+        self.expected=c.validate_physical_fence(self.root,self.entries,c.load('control_helper',c.HELPER).require_exact_posix_modes(self.root,self.entries));self.created=0
+    def tearDown(self):self.tmp.cleanup()
+    def real_child(self):
+        self.created+=1;p=subprocess.Popen([sys.executable,'-B','-c','pass']);fd=os.pidfd_open(p.pid)
+        try:
+            outcome=os.waitid(os.P_PIDFD,fd,os.WEXITED|os.WNOWAIT)
+            self.assertEqual((outcome.si_code,outcome.si_status),(os.CLD_EXITED,0));self.assertEqual(p.wait(),0)
+            with self.assertRaises(ChildProcessError):os.waitid(os.P_PIDFD,fd,os.WEXITED|os.WNOHANG)
+        finally:os.close(fd)
+        return 0
+    def admit(self):return c.run_fenced(self.real_child,self.root,self.entries,self.expected,[],lambda *args:None)
+    def reject(self,mutation):
+        mutation()
+        with self.assertRaises((ValueError,FileNotFoundError)):self.admit()
+        self.assertEqual(self.created,0)
+    def test_exact_positive_owned_real_child_closed(self):self.assertEqual(self.admit(),0);self.assertEqual(self.created,1)
+    def test_plain600(self):self.reject(lambda:os.chmod(self.root/'plain',0o600))
+    def test_exec700(self):self.reject(lambda:os.chmod(self.root/'exec',0o700))
+    def test_exec754(self):self.reject(lambda:os.chmod(self.root/'exec',0o754))
+    def test_exec745(self):self.reject(lambda:os.chmod(self.root/'exec',0o745))
+    def test_setuid(self):self.reject(lambda:os.chmod(self.root/'exec',0o4755))
+    def test_setgid(self):self.reject(lambda:os.chmod(self.root/'exec',0o2755))
+    def test_hardlink(self):self.reject(lambda:os.link(self.root/'plain',self.root/'alias'))
+    def test_leaf_symlink(self):
+        def mutation():(self.root/'plain').unlink();(self.root/'plain').symlink_to('exec')
+        self.reject(mutation)
+    def test_parent_symlink(self):
+        def mutation():(self.root/'sub').rename(self.root/'real');(self.root/'sub').symlink_to('real',target_is_directory=True)
+        self.reject(mutation)
+    def test_replaced_inode_exact_mode(self):
+        def mutation():
+            replacement=self.root/'replacement';replacement.write_text('ordinary owned data');os.chmod(replacement,0o644);os.replace(replacement,self.root/'plain')
+        self.reject(mutation)
+    def test_afterfailure_no_success(self):
+        errors=[]
+        def delegate():code=self.real_child();os.chmod(self.root/'plain',0o600);return code
+        self.assertEqual(c.run_fenced(delegate,self.root,self.entries,self.expected,errors,lambda *a:None),1);self.assertEqual(len(errors),1)
+    def test_afterfailure_preserves_original_nonzero(self):
+        def delegate():os.chmod(self.root/'plain',0o600);return 7
+        self.assertEqual(c.run_fenced(delegate,self.root,self.entries,self.expected,[],lambda *a:None),7)
+    def preserve_marker(self,marker):
+        errors=[]
+        def delegate():os.chmod(self.root/'plain',0o600);raise marker
+        def writer(*args):raise KeyboardInterrupt('observer receipt cancellation')
+        try:c.run_fenced(delegate,self.root,self.entries,self.expected,errors,writer)
+        except BaseException as actual:self.assertIs(actual,marker)
+        else:self.fail('original delegate exception missing')
+        self.assertEqual([row['stage'] for row in errors],['after-fence','after-receipt'])
+    def test_body_exception_preserved(self):self.preserve_marker(RuntimeError('original marker'))
+    def test_body_cancellation_preserved(self):self.preserve_marker(KeyboardInterrupt('original cancellation marker'))
+    def test_receipt_cancel_no_success(self):
+        errors=[]
+        def writer(*a):raise KeyboardInterrupt('observation cancel')
+        self.assertEqual(c.run_fenced(self.real_child,self.root,self.entries,self.expected,errors,writer),1);self.assertEqual(errors[0]['stage'],'after-receipt')
+
+if __name__=='__main__':
+    if os.environ.get('CONTROL_OLD_NO_PHYSICAL_FENCE')=='1':c.validate_physical_fence=lambda root,entries,expected:expected
+    unittest.main(verbosity=2)

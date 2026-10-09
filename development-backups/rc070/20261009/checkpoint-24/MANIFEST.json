@@ -1,0 +1,69 @@
+{
+  "source_only": true,
+  "files": [
+    {
+      "path": "README.md",
+      "git_mode": "100644",
+      "bytes": 3085,
+      "sha256": "1d420261114343ec54a38ec266b0acbbfadce26dcd5e3a78f524c5b7abd4cf00",
+      "blob_sha1": "4eb64fca406a926f483ed92b1c25540042316b60"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "git_mode": "100644",
+      "bytes": 8182,
+      "sha256": "516ea564df31f88aa16683da54f3d988d7cbecfb50bf0ee8750646e5e85149e6",
+      "blob_sha1": "6b2be778f7d307e258493376d1d5824cd8bfd622"
+    },
+    {
+      "path": "source/diagnostic-launch.py.source",
+      "git_mode": "100644",
+      "bytes": 3705,
+      "sha256": "7754a3a99d86f7a74665a3da7b38e391fae0f71337609deb26af2071fed722d6",
+      "blob_sha1": "c406d4f7dcaa6530896197fffe73ce61f4d72aa2"
+    },
+    {
+      "path": "source/diagnostic_owner.py.source",
+      "git_mode": "100644",
+      "bytes": 15193,
+      "sha256": "2a24df4057e0717786a3eed21057df70dc80e0e4dc4a1aeace4361ef27ad7ce1",
+      "blob_sha1": "533f8c8f67042c399a8ddd4e0bd79f8371aef4fd"
+    },
+    {
+      "path": "source/diagnostic_worker.py.source",
+      "git_mode": "100644",
+      "bytes": 8177,
+      "sha256": "ff444a3e98f638f06343a46fe181de26623e5c31fe175574f70a58c76bf674f0",
+      "blob_sha1": "243dc97d650a919b49b44c2f176275fbe75b5ba0"
+    },
+    {
+      "path": "source/docs/specs/publisher-inner-boundary-diagnostic2/design.md.source",
+      "git_mode": "100644",
+      "bytes": 3867,
+      "sha256": "cd412341774a7530e7b91aa0eec4f7cb6244f8fbff73e05933cbc7f8b4b6f0da",
+      "blob_sha1": "e013ec9258e395d8abd10afaf754c21e3f7dc47e"
+    },
+    {
+      "path": "source/docs/specs/publisher-inner-boundary-diagnostic2/requirements.md.source",
+      "git_mode": "100644",
+      "bytes": 4604,
+      "sha256": "34888647a2e2752c3c3b1df432e5e82f775f7b0141ed40f6de42f49edaa5d178",
+      "blob_sha1": "2d8bd6cbf52d7171bbc3354c4d1e799f0e85d667"
+    },
+    {
+      "path": "source/docs/specs/publisher-inner-boundary-diagnostic2/tasks.md.source",
+      "git_mode": "100644",
+      "bytes": 1589,
+      "sha256": "eba0dd62c2c9197e7b6d9882ac6a6243fb7ecdb7238b4b899808283e43a9384b",
+      "blob_sha1": "42c26df2f105ee01cf60bfc356c441b718d6797a"
+    },
+    {
+      "path": "source/ordinary-inner-controls.py.source",
+      "git_mode": "100644",
+      "bytes": 11781,
+      "sha256": "cfd8f58d7b87ed0f3a6eaa443f007278d14405a508592df08688d1c789686f90",
+      "blob_sha1": "2b9cb367324f53efc9cec1d7f9754e7308642cca"
+    }
+  ],
+  "manifest_self_bound_by_remote_git_blob": true
+}

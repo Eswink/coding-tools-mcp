@@ -1,0 +1,31 @@
+# Finite diagnostic2 tasks
+
+## 交付物清单
+
+外部4source、3spec、ordinarycontrols、私有原byte封存及safe source-only状态。
+
+## 任务列表
+
+- [x] FR-1 retain original85 anddiagnostic1 FAIL; scope fixedoneartifactmethod.
+- [x] FR-2 read actual_request catch/possibleflag/sendall/response/mutationresult; underlying exception UNKNOWN, streamread uncovered.
+- [ ] FR-1/FR-2 fresh exactsymbol GitNexus impacts and disclose new/stdlib UNKNOWN manualCRITICAL beforeimplementation.
+- [ ] FR-1/FR-2/FR-3 structured check_spec must pass; preserve failedcontrols/spec.
+- [ ] FR-2 write6temporarywrapper worker, originalbodyAST unchanged; accurate source/context declaration.
+- [ ] FR-2 actualordinary exacthookAST controls for once/identity/primary/cancel/context/nonmatching/no-close-skipping.
+- [ ] FR-1 freshrestore/native/source/AST/runner identities; FR-3 externalfinitecontroller noauto85/300.
+- [ ] FR-3 immutable prelaunchseal andexactargv; independentreview thenrootliteral authorizeonce.
+- [ ] FR-3 actualrun finite1 raw8+separatesidecar/naturalexit/native/source/current seals andindependentreview; UNKNOWN orFAIL truthful.
+- [ ] FR-3 safety-filtered source-onlyGitHub backup, no rawruntime/proc/TLS/fixture/objects.
+
+
+## 需求覆盖矩阵
+
+| 需求 | 设计与验证 |
+| --- | --- |
+| FR-1 | freshsource/原AST/唯一method |
+| FR-2 | 6livehooks/ordinarycontrols/UNKNOWN边界 |
+| FR-3 | native有限owner/seal/独立review/terminal |
+
+## 文件变更清单
+
+只有独立external目录新增worker、owner、entry、controls与3spec；originalSUT与carrier无修改。

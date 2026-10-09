@@ -1,0 +1,56 @@
+"""New external physical metadata fence; immutable original17 supervisor delegates."""
+from pathlib import Path
+import hashlib
+import importlib.util
+import json
+import sys
+
+ORIGINAL=Path('/workspace/work/rc070/diagnostic/work/pretag303')
+HELPER=Path('/workspace/work/rc070/diagnostic-mode-guard/work/mode-guard/physical_modes.py')
+
+def load(name,path):
+    spec=importlib.util.spec_from_file_location(name,path)
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
+
+def sha(raw):return hashlib.sha256(raw).hexdigest()
+
+def validate_physical_fence(root,entries,expected):
+    actual=load('exact_physical_helper',HELPER).require_exact_posix_modes(root,entries)
+    if actual!=expected:raise ValueError('physical source metadata identity changed')
+    return actual
+
+def run_fenced(delegate,root,entries,expected,errors,save_after):
+    validate_physical_fence(root,entries,expected)
+    original_error=None;code=None;after=None
+    try:code=delegate()
+    except BaseException as error:original_error=error
+    try:after=validate_physical_fence(root,entries,expected)
+    except BaseException as error:errors.append({'stage':'after-fence','type':type(error).__name__,'message':str(error)})
+    try:save_after(after,errors,code)
+    except BaseException as error:errors.append({'stage':'after-receipt','type':type(error).__name__,'message':str(error)})
+    if original_error is not None:raise original_error
+    if type(code) is not int:raise TypeError('original supervisor must return integer exit')
+    return code if code!=0 else (1 if errors else 0)
+
+def main():
+    assert len(sys.argv)==3 and len(sys.argv[2])==64
+    raw=Path(sys.argv[1]).read_bytes();assert sha(raw)==sys.argv[2];packet=json.loads(raw)
+    assert packet['physical_mode_scope']=='full1849-exact-posix-metadata-beforeafter'
+    assert sha(Path(__file__).read_bytes())==packet['composed_supervisor_sha256']
+    assert sha(HELPER.read_bytes())==packet['physical_helper_sha256']
+    assert sha((ORIGINAL/'supervisor.py').read_bytes())==packet['supervisor_sha256']
+    assert str(Path(sys.executable).resolve())==packet['python']
+    out=Path(packet['out']);root=Path(packet['root'])
+    for filename,key in [('physical-source-before.json','physical_before_sha256'),('physical-source-after-preparation.json','physical_after_preparation_sha256')]:
+        assert sha((out/filename).read_bytes())==packet[key]
+    expected=json.loads((out/'physical-source-before.json').read_bytes())
+    assert expected==json.loads((out/'physical-source-after-preparation.json').read_bytes()) and len(expected)==1849
+    before=json.loads((out/'source-before.json').read_bytes());entries={path:row['mode'] for path,row in before['source'].items()}
+    errors=[]
+    def save_after(after,failures,code):
+        report={'scope':'limited303 physical metadata fence; no full755 credit','physical_after':after,'physical_before_after_equal':after==expected,'failures':list(failures),'original_supervisor_exit':code,'consumer_methods_run':0,'qualification_755_runs':0}
+        with (out/'PHYSICAL-MODE-OUTER-RECEIPT.json').open('xb') as stream:
+            stream.write((json.dumps(report,sort_keys=True,indent=2)+'\n').encode())
+    return run_fenced(load('immutable_original17_supervisor',ORIGINAL/'supervisor.py').main,root,entries,expected,errors,save_after)
+
+if __name__=='__main__':raise SystemExit(main())

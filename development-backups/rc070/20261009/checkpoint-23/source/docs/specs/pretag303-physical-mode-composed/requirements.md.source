@@ -1,0 +1,25 @@
+# Exactmode composed external preflight
+
+## 功能概述
+
+Compose the peer-reviewed external exact0644/0755 helper with immutable original17 diagnostics/native guards. Only readonly preparation and ordinary owned-file/process controls are allowed; original303 invocation remains unauthorized pending a new independent exact startup review and root decision. The old failedclone/17sources/preflight and all previousFAILs remain immutable.
+
+## 需求列表
+
+FR-1: A new --no-local native clone SHALL be created under explicit umask0022, preserve exactsource b227/1849/soleparentD6 and all raw Git/native history guards, and satisfy every full actual permission0644/0755. The oldclone SHALL never be chmodded. Before/after preparation snapshots SHALL contain all1849 actual metadata rows and be equal. Preparation is0SUT, not actualrun fencing proof.
+
+FR-2: A new external composed supervisor SHALL validate sealed full metadata before delegating to the unchanged original supervisor and after its owned closure returns. It SHALL retain all originalsource/native/runtime/refs/hash/fixture gates and1200/7/2/2+2MiB. New helper/wrapper/preparer identities and physical metadata snapshot SHALL be bound into a new preflight/runtime seal. The original17 source files SHALL retain exact bytes/AST; new wrapper functions are new AST and SHALL never be called original functions.
+
+FR-3: Physical snapshot is static path metadata and SHALL never be called an owned UID, directoryFD pin, atomic adversarial concurrency guarantee, issuer or source authority. Existing fullnative guards remain required. On failed original delegate/cancellation, after-observation or receipt errors SHALL not replace the exact original exception object; they remain sticky diagnostic errors. An after-mode-fence failure SHALL never turn a nonzero delegate into success.
+
+FR-4: At least eight negative admission controls SHALL exercise actual owned regular source objects, mutate modes/path/inode/link properties, and verify the ordinary real-child delegate is never started. Positive control SHALL verify the child genuinely started/returned0 with held pidfd/WNOWAIT and ECHILD. Ordinary controls SHALL also verify original exception/cancellation identity and after-fence failure. No control invokes original303 or claims nativeoperation authority.
+
+FR-5: Fresh new symbols impact SHALL remain UNKNOWN/manualHIGH where no valid graph exists. check_spec must pass; exact newsource/snapshot/preflight plus originalsource/native/runtime/refs packet SHALL be frozen and independently reviewed. Root alone may later authorize one new finite303. Until then all original303 status isNOTRUN for this newclone and whole755qualification0; prior first303FAIL and75503FAIL remain.
+
+## 非功能需求
+
+Read-only preparation and ordinaryowned controls only; source-only public backup excludes raw dev/inode/host/proc/runtime/environment/TLS/credential/Gitobject data. Normal Git sourcefile recovery under0022 is allowed only in a new private clone. No production/VM/userhost/permission issuer/release/version/workflow changes. PR98 cancellation/Issue86 pause remain.
+
+## 依赖关系
+
+Unchanged originalseal33a018/supervisor e74ba8 and peer-reviewed helper seal895ad2; newpure sourceclone c71/b227 and original27 nativeanchors. Old preflight99eee47 is not reissued or overwritten. Newpreflight fields are an engineering seal, not a production authorization grant. Rollback abandons this isolated newscope; previous evidence remains.

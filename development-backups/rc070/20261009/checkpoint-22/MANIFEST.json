@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "classification": "SOURCE_ONLY_NOT_QUALIFICATION",
+  "files": [
+    {
+      "path": "A20-SINGLE-PARENT35DAFF.patch",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 21364,
+      "sha256": "aa2ef334f4b28592f1a99d71db9c9ea0d3d314722ab25c2da59815bc46e8002b"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 1407,
+      "sha256": "ba1053a6f0bcd1ac6c3627deee2bb3c4e28c27fd6fe0fef0aa274749e79f4867"
+    },
+    {
+      "path": "SAFE-PS-CONTROLS.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 1012,
+      "sha256": "eb5e359ba86e7ba2316ef4db5223cc38eb5a6dafcf6afb7adb5ba5462a1961af"
+    },
+    {
+      "path": "SOURCE-MANIFEST.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 2884,
+      "sha256": "7655cf4ac5be085c555c979fa1d6417df2caad0b8239be1a22e1476a4b82c6d7"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 3411,
+      "sha256": "b025dd1e1611d53ff354e2f5a6d1490a0f6f63ba07108e9e57271a47ba00e843"
+    },
+    {
+      "path": "source/.github/workflows/windows-foundation-source-compile.yml.source",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 2223,
+      "sha256": "49e5ab848d8fffa61272851bd3a141315fd0743c17265d28003efe52a79217a1"
+    },
+    {
+      "path": "source/docs/specs/windows-foundation-source-compile/design.md.source",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 4370,
+      "sha256": "77ebbe0ece659cd093040331f4f64d06f50b1f5ae0d83dacdc8a5f451881d440"
+    },
+    {
+      "path": "source/docs/specs/windows-foundation-source-compile/requirements.md.source",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 3834,
+      "sha256": "3441bf3ca6bc644a3f6df280e2221175b8fc5d265b265e496a37dda528940aa4"
+    },
+    {
+      "path": "source/docs/specs/windows-foundation-source-compile/tasks.md.source",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 3205,
+      "sha256": "2b56a2c1c860587cc85f8dfacda3cf937699a07f5fdf0cab76ff95b819470249"
+    },
+    {
+      "path": "source/scripts/windows_foundation_source_compile.ps1.source",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 12744,
+      "sha256": "1571f234e244dea0cf01df4060dc56f3610dff09f626d74e470de24d7155c15b"
+    },
+    {
+      "path": "source/scripts/windows_foundation_toolpath_tests.ps1.source",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 6143,
+      "sha256": "94e1c2f1ea5e7f7fdee04ea04d1548bae467224c81d7898fe932268170dccf6d"
+    }
+  ]
+}

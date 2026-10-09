@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "source_commit": "a20a4ec4ad85128b87a2b8eeae6e9f35fb770849",
+  "source_tree": "1b296bc869718d078a80cc10b0e9952c7ec54beb",
+  "parent": "35daff40838b8d9d4f00e853a5e2f49e1e0e5e1a",
+  "single_parent_patch": {
+    "path": "A20-SINGLE-PARENT35DAFF.patch",
+    "bytes": 21364,
+    "sha256": "aa2ef334f4b28592f1a99d71db9c9ea0d3d314722ab25c2da59815bc46e8002b"
+  },
+  "files": [
+    {
+      "original_path": ".github/workflows/windows-foundation-source-compile.yml",
+      "backup_path": "source/.github/workflows/windows-foundation-source-compile.yml.source",
+      "git_mode": "100644",
+      "backup_physical_mode": "0644",
+      "bytes": 2223,
+      "sha256": "49e5ab848d8fffa61272851bd3a141315fd0743c17265d28003efe52a79217a1",
+      "git_blob": "5a247f0e91a79d0f5c2d594a018af16a6b862a61"
+    },
+    {
+      "original_path": "scripts/windows_foundation_source_compile.ps1",
+      "backup_path": "source/scripts/windows_foundation_source_compile.ps1.source",
+      "git_mode": "100644",
+      "backup_physical_mode": "0644",
+      "bytes": 12744,
+      "sha256": "1571f234e244dea0cf01df4060dc56f3610dff09f626d74e470de24d7155c15b",
+      "git_blob": "bc02f660bd194da5c9a5f41aba42a65832a153c0"
+    },
+    {
+      "original_path": "scripts/windows_foundation_toolpath_tests.ps1",
+      "backup_path": "source/scripts/windows_foundation_toolpath_tests.ps1.source",
+      "git_mode": "100644",
+      "backup_physical_mode": "0644",
+      "bytes": 6143,
+      "sha256": "94e1c2f1ea5e7f7fdee04ea04d1548bae467224c81d7898fe932268170dccf6d",
+      "git_blob": "6e1a7df563138c40973c56a71da87c89bcefcbbe"
+    },
+    {
+      "original_path": "docs/specs/windows-foundation-source-compile/requirements.md",
+      "backup_path": "source/docs/specs/windows-foundation-source-compile/requirements.md.source",
+      "git_mode": "100644",
+      "backup_physical_mode": "0644",
+      "bytes": 3834,
+      "sha256": "3441bf3ca6bc644a3f6df280e2221175b8fc5d265b265e496a37dda528940aa4",
+      "git_blob": "bccd420f3db65a9e09d4ab44879e02c21368547d"
+    },
+    {
+      "original_path": "docs/specs/windows-foundation-source-compile/design.md",
+      "backup_path": "source/docs/specs/windows-foundation-source-compile/design.md.source",
+      "git_mode": "100644",
+      "backup_physical_mode": "0644",
+      "bytes": 4370,
+      "sha256": "77ebbe0ece659cd093040331f4f64d06f50b1f5ae0d83dacdc8a5f451881d440",
+      "git_blob": "e27f8862e3b45046d2a1d105b0697e3c2afee56c"
+    },
+    {
+      "original_path": "docs/specs/windows-foundation-source-compile/tasks.md",
+      "backup_path": "source/docs/specs/windows-foundation-source-compile/tasks.md.source",
+      "git_mode": "100644",
+      "backup_physical_mode": "0644",
+      "bytes": 3205,
+      "sha256": "2b56a2c1c860587cc85f8dfacda3cf937699a07f5fdf0cab76ff95b819470249",
+      "git_blob": "e07a07a3dc2b2926753cbfe743a21995eaa20f5f"
+    }
+  ]
+}

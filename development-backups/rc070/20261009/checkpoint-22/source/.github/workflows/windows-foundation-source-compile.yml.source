@@ -1,0 +1,58 @@
+name: Windows foundation source-only compiler probe
+on:
+  push:
+    branches: [probe/windows-foundation-compile-20261009-19bb2920]
+permissions:
+  contents: read
+concurrency:
+  group: windows-foundation-source-compile-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  compiler:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push' && github.ref == 'refs/heads/probe/windows-foundation-compile-20261009-19bb2920'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            mode: rust
+          - os: ubuntu-24.04
+            mode: go
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fixed Python guard interpreter
+        id: foundation-python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+          check-latest: false
+      - name: Fixed Windows Rust compiler
+        if: matrix.mode == 'rust'
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - name: Fixed Linux Go compiler
+        if: matrix.mode == 'go'
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version: '1.24.13'
+          check-latest: false
+          cache: false
+      - name: Restore exact frozen source then actual compiler and named data tests
+        shell: pwsh
+        env:
+          FOUNDATION_PYTHON_EXECUTABLE: ${{ steps.foundation-python.outputs.python-path }}
+        run: ./scripts/windows_foundation_source_compile.ps1 -Mode '${{ matrix.mode }}' -PythonExecutable $env:FOUNDATION_PYTHON_EXECUTABLE
+      - name: Preserve actual result and failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: windows-foundation-source-compile-${{ matrix.mode }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/windows-foundation-probe
+          if-no-files-found: error
+          retention-days: 7

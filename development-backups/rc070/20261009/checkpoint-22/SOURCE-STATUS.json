@@ -1,0 +1,58 @@
+{
+  "classification": "SOURCE_ONLY_MANAGEMENT_REPAIR; RC_BLOCKED",
+  "scope": "6delta/5modified+1newordinarycontrol; noSUT/owner/native/publication change",
+  "commit": "a20a4ec4ad85128b87a2b8eeae6e9f35fb770849",
+  "single_parent": "35daff40838b8d9d4f00e853a5e2f49e1e0e5e1a",
+  "parent_tree": "f80116347d04dc82e764d340deb9cfd343161a3d",
+  "management_tree": "1b296bc869718d078a80cc10b0e9952c7ec54beb",
+  "management_paths": 1857,
+  "unchanged_baseline_mode_blob_and_actual_bytes": 1851,
+  "pureSUT_manifest_tree_unchanged": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+  "pureSUT_paths": 1953,
+  "protected_positive_sha256": "c9fcdba432c239cc08a090c6cb4256f51b54368cbefb3afac553c1a6c719b9b8",
+  "preserved_original_firstCI": {
+    "manager": "35daff40838b8d9d4f00e853a5e2f49e1e0e5e1a",
+    "run": 37912328111,
+    "attempt": 1,
+    "overall": "FAIL; both pre-restoration/ compilerNOTRUN"
+  },
+  "currentCI": {
+    "manager": "a20a4ec4ad85128b87a2b8eeae6e9f35fb770849",
+    "run": 37916193914,
+    "attempt": 1,
+    "head_tree": "1b296bc869718d078a80cc10b0e9952c7ec54beb",
+    "overall": "FAIL",
+    "ubuntu_original_go5": "ACTUAL_4_DATA_METHODS_PASS",
+    "go_method_names": [
+      "TestTransferAllBindingFieldsChangeDigest",
+      "TestTransferBoundEOFHashCancellationAndSingleConsumption",
+      "TestTransferRelativeAndMalformedIdentityReject",
+      "TestLinuxTransferCannotIssueNativeFileIdentity"
+    ],
+    "pure_source_tree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+    "pure_source_paths": 1953,
+    "source_before_after_digest": "88b72c443ee41d078546a21bac72981d1b40baead5d2bea4133706464510f329",
+    "manager_7_before_after_digest": "f6b10bff8c951c5fda68e5adcb0ce6661ae18a49bcbebc095688b973dbdbeb06",
+    "protected_positive_sha256": "c9fcdba432c239cc08a090c6cb4256f51b54368cbefb3afac553c1a6c719b9b8",
+    "all_3_runtime_scalar_identity_hashes_equal": true,
+    "go_artifact_sha256": "04bbfcbda86afba18ba65673de2a86d52e9a326118c8bf4ab0619443506c2345",
+    "go_data_log_sha256": "e243a45e2ec804716374d901422462a6d7e54f6ea7ef90abaef89aa9f8e1b993",
+    "go_receipt_sha256": "8e8b56bbcbe8e4653da25750f785bdbbf593a1654f55b7622cbb8e8fa5a22387",
+    "windows_rust": "NOTRUN; manager-before/after source blob mismatch at workflow, source restoration NOTRUN",
+    "windows_failure_cause": "Exact mismatch observed; original physical workflow bytes notcaptured so CRLF/autocrlf cause UNKNOWN",
+    "native_VM_owner_IO_install_RC": "NOTRUN/BLOCKED; this is originaldata-only pure19bb, not newinput/output increments"
+  },
+  "source_peer": "ALLOW limitedmanagement6paths; notWindowsnative/RCqualification",
+  "spec": "check_spec02 actualstructuredpassedtrue/error0warning0/4FR",
+  "impact": "freshGitNexus unknown PSsymbol targetnotfound; manualHIGH disclosedbeforechange. Do not infer approval from topstatusok or docgraphLOW/zeroPSflows.",
+  "strict_clean_erratum": "Initial root prepush STOP was correct: tracked-only empty missed two generated untracked directories. Only known generated directories moved intact outside; full gitstatus --untracked-filesall then zero bytes; no source changes.",
+  "publication_install_native_owner": "NOTRUN; no authorization minted/no release/tag/VM/owner action",
+  "safe_backup_excludes": [
+    "generated quarantine/environment/runtime files",
+    "rawlogs",
+    "host/proc data",
+    "TLS/credentials/tokens",
+    "Gitobjectpool",
+    "artifact ZIP binaries"
+  ]
+}

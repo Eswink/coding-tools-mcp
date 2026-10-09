@@ -1,0 +1,177 @@
+"""Temporary transparent safe observers around exact original delegates; diagnostic1."""
+import json,runpy,sys,traceback,ssl,threading
+from pathlib import Path
+
+assert len(sys.argv)==6 and sys.argv[1]=='--root' and sys.argv[3]=='--output'
+root,output=Path(sys.argv[2]).resolve(),Path(sys.argv[4]).resolve()
+assert sys.argv[5]=='rc_publication_artifact_admission_cases.ArtifactAdmissionCases.test_owned_direct_mutation_sinks_still_block_before_authorize_and_write'
+management=Path('/workspace/work/rc070/publisher-carrier')
+sys.path.insert(0,str(management/'scripts'))
+from rc_native_probe_restore import sha,write,RUNNER_SHA
+runner=management/'scripts/rc_native_probe_original_runner.py'
+assert sha(runner.read_bytes())==RUNNER_SHA and len(runner.read_bytes())==6259
+sys.path.insert(0,str(root/'scripts'))
+import rc_publication_executor as executor
+import rc_publication_github as wire
+_delegate_failure=executor.PublisherSession._failure
+_delegate_pause=executor.PublisherSession.run_until_pause
+_delegate_request=wire.GitHub._request
+_delegate_response=wire._Reader.response
+_delegate_mutation_result=wire.GitHub._mutation_result
+_delegate_sendall=ssl.SSLSocket.sendall
+_worker_thread=threading.get_ident()
+_request_context=None
+_observer_cancels=[]
+_restore_errors=[]
+_applied=[]
+_observations=[]
+_observation_errors=[]
+
+
+def observed_failure(current,op,error):
+    value=_delegate_failure(current,op,error)
+    try:
+        _observations.append(dict(event='original_failure',operation_kind=op.kind,operation_id=op.operation_id,
+            error_type=type(error).__name__,wire_code=error.code if type(error) is wire.WireFailure else None,
+            wire_effect=error.effect if type(error) is wire.WireFailure else None,
+            result_type=type(value).__name__,result_code=value.code,result_effect=value.effect,
+            frames=[dict(file=Path(f.filename).name,function=f.name,line=f.lineno) for f in traceback.extract_tb(error.__traceback__)]))
+    except Exception as observation_error:
+        _observation_errors.append(dict(phase='failure_fields',type=type(observation_error).__name__))
+    return value
+
+
+def observed_pause(current):
+    value=_delegate_pause(current)
+    try:
+        _observations.append(dict(event='original_run_until_pause',result_type=type(value).__name__,
+            action_type=None if value.action is None else type(value.action).__name__,
+            code=value.state.code,outcome=value.state.outcome,intent_count=value.state.intent_count,
+            pending_kind=None if value.state.pending is None else value.state.pending.kind))
+    except Exception as observation_error:
+        _observation_errors.append(dict(phase='pause_fields',type=type(observation_error).__name__))
+    return value
+
+
+def observed_request(current,*args,**kwargs):
+    global _request_context
+    if threading.get_ident()!=_worker_thread:
+        return _delegate_request(current,*args,**kwargs)
+    previous=_request_context
+    _request_context=kwargs.get('op')
+    try:
+        return _delegate_request(current,*args,**kwargs)
+    finally:
+        _request_context=previous
+
+
+def observe_error(boundary,primary):
+    try:
+        op=_request_context
+        if threading.get_ident()!=_worker_thread or type(op) is not wire.core.Operation:
+            return
+        if (op.kind,op.operation_id)!=('UploadAsset',11):
+            return
+        _observations.append(dict(event='inner_delegate_exception',boundary=boundary,
+            operation_kind=op.kind,operation_id=op.operation_id,error_type=type(primary).__name__,
+            wire_code=primary.code if type(primary) is wire.WireFailure else None,
+            wire_effect=primary.effect if type(primary) is wire.WireFailure else None,
+            frames=[dict(file=Path(f.filename).name,function=f.name,line=f.lineno)
+                for f in traceback.extract_tb(primary.__traceback__)]))
+    except Exception as observation_error:
+        _observation_errors.append(dict(phase='inner_fields',type=type(observation_error).__name__))
+    except BaseException as observation_cancel:
+        _observer_cancels.append(observation_cancel)
+        raise BaseExceptionGroup('Original delegate exception and observation cancellation',[primary,observation_cancel])
+
+
+def observed_response(current,*args,**kwargs):
+    try:
+        return _delegate_response(current,*args,**kwargs)
+    except BaseException as primary:
+        observe_error('original_Reader.response',primary)
+        raise
+
+
+def observed_mutation_result(current,*args,**kwargs):
+    try:
+        return _delegate_mutation_result(current,*args,**kwargs)
+    except BaseException as primary:
+        observe_error('original_GitHub._mutation_result',primary)
+        raise
+
+
+def observed_sendall(current,*args,**kwargs):
+    try:
+        return _delegate_sendall(current,*args,**kwargs)
+    except BaseException as primary:
+        observe_error('original_SSLSocket.sendall',primary)
+        raise
+
+
+def install_bindings():
+    for target,name,original,wrapper in _bindings:
+        if getattr(target,name) is not original:
+            raise RuntimeError('Original owned binding identity mismatch')
+        _applied.append((target,name,original,wrapper))
+        setattr(target,name,wrapper)
+
+
+def restore_bindings():
+    for target,name,original,wrapper in reversed(_applied):
+        try:
+            if getattr(target,name) is not wrapper:
+                _restore_errors.append(RuntimeError('Temporary owned binding identity mismatch'))
+        except BaseException as restore_error:
+            _restore_errors.append(restore_error)
+        try:
+            setattr(target,name,original)
+            if getattr(target,name) is not original:
+                raise RuntimeError('Restored owned binding identity mismatch')
+        except BaseException as restore_error:
+            _restore_errors.append(restore_error)
+    return not _restore_errors
+
+
+def finish_observation(path,primary):
+    failures=[]
+    for value in ([primary] if primary is not None else [])+_restore_errors+_observer_cancels:
+        if not any(value is old for old in failures):
+            failures.append(value)
+    report=dict(diagnostic2=True,whole85_qualification=False,temporary_live_wrappers=6,
+        original_delegate_first_exact_once=True,original_method_assertions_unchanged=True,
+        original_runner_primary_type=None if primary is None else type(primary).__name__,
+        original_runner_exit_code=primary.code if type(primary) is SystemExit and primary.code in (0,1) else None,
+        observation_valid=not (_observation_errors or _restore_errors or _observer_cancels),
+        observation_errors=_observation_errors,restore_error_types=[type(e).__name__ for e in _restore_errors],
+        observer_cancel_types=[type(e).__name__ for e in _observer_cancels],
+        all_bindings_restored=not _restore_errors,inner_boundaries=3,uncovered_stream_read_and_inline=True,events=_observations)
+    try:
+        write(path,report)
+    except Exception as observer_write_error:
+        print(json.dumps(dict(observation_write_failed=True,safe_type=type(observer_write_error).__name__)),file=sys.stderr)
+        if not failures:
+            raise
+    except BaseException as observation_cancel:
+        failures.append(observation_cancel)
+    if len(failures)==1:
+        raise failures[0]
+    if failures:
+        raise BaseExceptionGroup('Preserved original runner, restore and observer outcomes',failures)
+
+
+_bindings=[(executor.PublisherSession,'_failure',_delegate_failure,observed_failure),
+    (executor.PublisherSession,'run_until_pause',_delegate_pause,observed_pause),
+    (wire.GitHub,'_request',_delegate_request,observed_request),
+    (wire._Reader,'response',_delegate_response,observed_response),
+    (wire.GitHub,'_mutation_result',_delegate_mutation_result,observed_mutation_result),
+    (ssl.SSLSocket,'sendall',_delegate_sendall,observed_sendall)]
+primary=None
+try:
+    install_bindings()
+    runpy.run_path(str(runner),run_name='__main__')
+except BaseException as original_runner_outcome:
+    primary=original_runner_outcome
+finally:
+    restore_bindings()
+finish_observation(output.parent/'DIAGNOSTIC-OBSERVATION.json',primary)

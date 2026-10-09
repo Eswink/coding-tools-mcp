@@ -1,0 +1,56 @@
+[
+  {
+    "backup_mode": "100644",
+    "bytes": 3397,
+    "git_blob": "aa134a64cef749153e7e9a3a10a0e865924ea3b3",
+    "original_mode": "100644",
+    "original_path": "work/mode-composed/composed_supervisor.py",
+    "path": "source/work/mode-composed/composed_supervisor.py.source",
+    "sha256": "f0df1672eab301c018e788616e408b7bf5e440be1058e6c056a4c4e36855282e"
+  },
+  {
+    "backup_mode": "100644",
+    "bytes": 3358,
+    "git_blob": "1e9d863e6f2aee90d75ab9947da542b1db25664b",
+    "original_mode": "100644",
+    "original_path": "work/mode-composed/prepare_composed.py",
+    "path": "source/work/mode-composed/prepare_composed.py.source",
+    "sha256": "82a764d56879a57721286bd6d41f98e8bae866b47a722530beaf1608e2b2ad6e"
+  },
+  {
+    "backup_mode": "100644",
+    "bytes": 4625,
+    "git_blob": "f3378ca983a23185019ac030f159bab1bf94c071",
+    "original_mode": "100644",
+    "original_path": "work/mode-composed/control_composed.py",
+    "path": "source/work/mode-composed/control_composed.py.source",
+    "sha256": "03f3cf4a6c38cfa5d3fd98746200d3ed2d036307189f26d0950274d505f87552"
+  },
+  {
+    "backup_mode": "100644",
+    "bytes": 1654,
+    "git_blob": "281a2bf1074693561ae5e32a7c922b2019dbb2b2",
+    "original_mode": "100644",
+    "original_path": "docs/specs/pretag303-physical-mode-composed/design.md",
+    "path": "source/docs/specs/pretag303-physical-mode-composed/design.md.source",
+    "sha256": "a91fa499e998a8f28ac936fc081b063de76c5e262ff5e85c24919dbfa47e87ac"
+  },
+  {
+    "backup_mode": "100644",
+    "bytes": 3489,
+    "git_blob": "07a378f109f2fc75576c48ca1424f0d62e8d8679",
+    "original_mode": "100644",
+    "original_path": "docs/specs/pretag303-physical-mode-composed/requirements.md",
+    "path": "source/docs/specs/pretag303-physical-mode-composed/requirements.md.source",
+    "sha256": "962d4a6bfbdc394754154a7da8189e2528cc9f136d495abdc27d330ce34af759"
+  },
+  {
+    "backup_mode": "100644",
+    "bytes": 1330,
+    "git_blob": "225c1291219747bd64d992dc6178bc0791d21ec2",
+    "original_mode": "100644",
+    "original_path": "docs/specs/pretag303-physical-mode-composed/tasks.md",
+    "path": "source/docs/specs/pretag303-physical-mode-composed/tasks.md.source",
+    "sha256": "0384d809eda6ecf4a3fa986b77ae40a7b1517b0da25e9a26a601d7960759d24f"
+  }
+]

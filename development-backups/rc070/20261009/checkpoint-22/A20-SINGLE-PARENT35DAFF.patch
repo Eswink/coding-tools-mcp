@@ -1,0 +1,251 @@
+diff --git a/.github/workflows/windows-foundation-source-compile.yml b/.github/workflows/windows-foundation-source-compile.yml
+index 4ac2ab7111e047ad21ce006179017fe4a362e2a8..5a247f0e91a79d0f5c2d594a018af16a6b862a61 100644
+--- a/.github/workflows/windows-foundation-source-compile.yml
++++ b/.github/workflows/windows-foundation-source-compile.yml
+@@ -25,6 +25,12 @@ jobs:
+         with:
+           fetch-depth: 0
+           persist-credentials: false
++      - name: Fixed Python guard interpreter
++        id: foundation-python
++        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
++        with:
++          python-version: '3.12'
++          check-latest: false
+       - name: Fixed Windows Rust compiler
+         if: matrix.mode == 'rust'
+         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+@@ -39,7 +45,9 @@ jobs:
+           cache: false
+       - name: Restore exact frozen source then actual compiler and named data tests
+         shell: pwsh
+-        run: ./scripts/windows_foundation_source_compile.ps1 -Mode '${{ matrix.mode }}'
++        env:
++          FOUNDATION_PYTHON_EXECUTABLE: ${{ steps.foundation-python.outputs.python-path }}
++        run: ./scripts/windows_foundation_source_compile.ps1 -Mode '${{ matrix.mode }}' -PythonExecutable $env:FOUNDATION_PYTHON_EXECUTABLE
+       - name: Preserve actual result and failures
+         if: always()
+         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+diff --git a/docs/specs/windows-foundation-source-compile/design.md b/docs/specs/windows-foundation-source-compile/design.md
+index 2429fc5514212a05f2b0d673805dcf9509920639..e27f8862e3b45046d2a1d105b0697e3c2afee56c 100644
+--- a/docs/specs/windows-foundation-source-compile/design.md
++++ b/docs/specs/windows-foundation-source-compile/design.md
+@@ -33,3 +33,6 @@ contents read, persist-credentials false, no secrets/native fixture flags. Origi
+ PS calls the resolved executable source rather than searching PATH again, records Git before any Python restoration, resolves Rust1.98.1 actual rustc/cargo payload through rustup which, invokes their canonical payload paths and confirms both paths and hashes after. Python manager verifier compares HEAD==GITHUB_SHA and seven native HEAD blob/mode identities with actual file bytes. It runs before and after compiler, separately from1953SUT checks. Git child environment clears caller GIT_* options, uses empty global/system configs, disabled hooks and object replacement; approved backup commits/prefixes are literals.
+ 
+ Cargo uses the actual resolved RUSTC payload explicitly; inherited compiler/wrapper overrides are refused and both wrapper config fields explicitly empty. CARGO_INCREMENTAL=0 excludes incremental reuse. Primary Cargo environment documentation explicitly defines RUSTC and wrapper behavior; this is compiler provenance, not permission.
++
++## Bounded runtime-selection repair
++Keep the existing seven management paths, whole1953 manifest and pure19bb restore untouched. Resolve-FoundationApplication returns one rooted literal file path; application list order is native Get-Command order. Explicit PythonExecutable is supplied by setup-python output and rejects WindowsApps aliases. Invoke-CheckedCompiler records and enforces selected-file hash before all invocations. Rust proxy and payload identities remain separate. The finally loop compares the same scalar resolution and hashes and retains all old guard failures. Workflow adds existing-repository pinned setup-python a26af69be951a213d495a4c3e4e4022e16d87065 with Python3.12; it passes output through environment to a mandatory script parameter without string interpolation into executable code. No permissions, trigger, timeout, compiler pins, source manifest or native test list changes.
+diff --git a/docs/specs/windows-foundation-source-compile/requirements.md b/docs/specs/windows-foundation-source-compile/requirements.md
+index 0030f258b0871d7494383cf0da387f32627c1fa2..bccd420f3db65a9e09d4ab44879e02c21368547d 100644
+--- a/docs/specs/windows-foundation-source-compile/requirements.md
++++ b/docs/specs/windows-foundation-source-compile/requirements.md
+@@ -28,3 +28,6 @@ Immutable exact73 and full43 backups, native Git, pinned compiler Actions. WHEN
+ 
+ ## Frozen01 peer-review delta (FR-1, FR-3, FR-4)
+ WHEN a probe runs, it SHALL verify all seven management source blobs/modes against actual HEAD equal to GITHUB_SHA before and after compilation. WHEN Rust proxies resolve payloads, it SHALL bind actual rustup which --toolchain1.98.1 rustc/cargo payload paths/SHA before and after alongside proxy hashes. Git SHALL have empty system/global configuration, disabled hooks/replacements, and its executable pinned before first restoration. Immutable backup commits/prefixes SHALL match literal approved47adc/155e leases. Frozen01 is prelaunch blocked; these fixes need fresh source-only02 and necessary guard tests before actual CI.
++
++## Bounded runtime-selection repair (FR-1, FR-2, FR-3, FR-4)
++WHEN native command discovery returns several applications, the carrier SHALL select exactly the first resolved application as one rooted file path, bind its bytes before first invocation, and recheck its selection and bytes before subsequent invocation and after completion. Arrays SHALL never become an invocation term or identity field. WHEN Python is required, it SHALL use the explicit executable output from the pinned setup-python action, require Python 3.12, and reject missing, ambiguous, inaccessible or WindowsApps alias paths before guard restoration. The action is pinned by commit; the resolved Python payload is bound by path and SHA before/after. No interpreter PATH fallback is allowed. A failure SHALL retain compiler NOTRUN if restoration never occurred. Ordinary PowerShell controls are only management checks, not GitHub compiler, native Windows, candidate or installation qualification.
+diff --git a/docs/specs/windows-foundation-source-compile/tasks.md b/docs/specs/windows-foundation-source-compile/tasks.md
+index bcea6d8984ee545e8e23f34acb8807ea55ce8749..e07a07a3dc2b2926753cbfe743a21995eaa20f5f 100644
+--- a/docs/specs/windows-foundation-source-compile/tasks.md
++++ b/docs/specs/windows-foundation-source-compile/tasks.md
+@@ -43,3 +43,11 @@ Workflow, PowerShell runner, Python guard, finite JSON manifest, requirements/de
+ ## Frozen02 peer-review corrections
+ - [ ] T4 (FR-1, FR-3, FR-4): root/peer-reviewed actual compiler payload+Git closure, seven management HEAD/source beforeafter guards, literal source leases.
+ - [ ] Test manager byte/mode/HEAD tampering; preserve01 initial failures and native NOTRUN.
++
++## Bounded runtime-selection repair tasks
++- [ ] FR-1: preserve real run37912328111 attempt1 original receipts, command-empty/restore-NOTRUN failure and raw artifact SHA.
++- [ ] FR-2: reproduce original multiapplication invocation using actual PowerShell; fix scalar selection and check actual git/Python calls.
++- [ ] FR-3: ordinary negative controls missing/alias interpreter, executable-byte drift and selected-path drift; preserve guards, original pins and budgets.
++- [ ] FR-4: fresh checkout-specific impact (UNKNOWN/manualHIGH disclosed), spec, independent source peer, detect_changes/gencommit, small management commit. New real GitHub run remains required after parent push.
++
++This repair delta is exactly six tracked paths: five changes to the existing PS/workflow/three specifications and one new ordinary control script. The new eighth management-associated tracked file is a local control, excluded from the unchanged seven-file verify_manager lease and never called by compiler CI. The existing exact-seven delivery statement describes the initial carrier; this repair does not claim all tracked management files belong to that seven-file lease. Actual compiler payload byte-drift has its own ordinary rejection control with no invocation/log/command side effect.
+diff --git a/scripts/windows_foundation_source_compile.ps1 b/scripts/windows_foundation_source_compile.ps1
+index 21aab0761bff0ed5d4bac896b65135a40f2f0f67..bc02f660bd194da5c9a5f41aba42a65832a153c0 100644
+--- a/scripts/windows_foundation_source_compile.ps1
++++ b/scripts/windows_foundation_source_compile.ps1
+@@ -1,4 +1,5 @@
+-param([Parameter(Mandatory=$true)][ValidateSet('rust','go')][string]$Mode)
++param([Parameter(Mandatory=$true)][ValidateSet('rust','go')][string]$Mode,
++    [Parameter(Mandatory=$true)][string]$PythonExecutable)
+ $ErrorActionPreference = 'Stop'
+ Set-StrictMode -Version Latest
+ $Manager = Split-Path $PSScriptRoot -Parent
+@@ -11,16 +12,45 @@ $Receipt = [ordered]@{ mode=$Mode; managerCommit=$env:GITHUB_SHA; runId=$env:GIT
+     pureSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
+     nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; passed=$false }
+ 
++function Resolve-FoundationApplication([string]$Executable) {
++    $Requested = $Executable
++    if ($Executable -ceq 'python') {
++        if ([string]::IsNullOrWhiteSpace($PythonExecutable) -or
++            -not [System.IO.Path]::IsPathRooted($PythonExecutable) -or
++            $PythonExecutable -match '[\\/]Microsoft[\\/]WindowsApps[\\/]') {
++            throw 'Python must be the explicit rooted setup-python payload, never a WindowsApps alias.'
++        }
++        $Requested = $PythonExecutable
++    }
++    $Commands = @(Get-Command -Name $Requested -CommandType Application -ErrorAction Stop)
++    if ($Commands.Count -eq 0) { throw "No native application resolved: $Executable" }
++    if ($Executable -ceq 'python' -and $Commands.Count -ne 1) { throw 'Explicit Python payload resolved ambiguously.' }
++    $Path = [string]$Commands[0].Source
++    if ([string]::IsNullOrWhiteSpace($Path) -or -not [System.IO.Path]::IsPathRooted($Path) -or
++        -not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Native application is not one rooted file: $Executable" }
++    if ($Executable -ceq 'python' -and $Path -cne [System.IO.Path]::GetFullPath($PythonExecutable)) {
++        throw 'Python resolution differs from setup-python payload.'
++    }
++    return $Path
++}
++
+ function Invoke-CheckedCompiler([string]$Executable, [string[]]$Arguments, [string]$LogName) {
+     $LogPath = Join-Path $Output $LogName
+-    $Command = Get-Command -Name $Executable -CommandType Application -ErrorAction Stop
++    $CommandPath = Resolve-FoundationApplication $Executable
++    $CommandHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $CommandPath).Hash
+     if (-not $Receipt.runtime.ContainsKey($Executable)) {
+-        $Receipt.runtime[$Executable] = [ordered]@{ path=$Command.Source;
+-            sha256Before=(Get-FileHash -Algorithm SHA256 $Command.Source).Hash; sha256After=$null }
++        $Receipt.runtime[$Executable] = [ordered]@{ path=$CommandPath;
++            sha256Before=$CommandHash; sha256After=$null }
++    }
++    if ($Receipt.runtime[$Executable].path -cne $CommandPath -or
++        $Receipt.runtime[$Executable].sha256Before -cne $CommandHash) {
++        throw 'Compiler/runtime selection or bytes changed before invocation.'
+     }
+-    $ActualExecutable = $Command.Source
++    $ActualExecutable = $CommandPath
+     if ($Receipt.runtime[$Executable].Contains('payloadPath')) {
+         $ActualExecutable = $Receipt.runtime[$Executable].payloadPath
++        if ((Get-FileHash -Algorithm SHA256 -LiteralPath $ActualExecutable).Hash -cne
++            $Receipt.runtime[$Executable].payloadSha256Before) { throw 'Actual compiler payload bytes changed before invocation.' }
+     }
+     $global:LASTEXITCODE = $null
+     $OldPreference = $ErrorActionPreference
+@@ -46,6 +76,7 @@ function Run-SourceCompile {
+         throw 'Native/source authorization flags are forbidden in this compiler-only probe.'
+     }
+     Invoke-CheckedCompiler 'git' @('--version') 'git-version.log' | Out-Null
++    Invoke-CheckedCompiler 'python' @('-c','import sys; assert sys.version_info[:2] == (3, 12), sys.version') 'python-version.log' | Out-Null
+     $ManagerBefore = Join-Path $Output 'management-before.json'
+     Invoke-CheckedCompiler 'python' @($Guard,'verify-manager','--manifest',$Manifest,'--manager',$Manager,
+         '--receipt',$ManagerBefore) 'management-before.log' | Out-Null
+@@ -69,9 +100,9 @@ function Run-SourceCompile {
+             foreach ($Tool in @('rustc','cargo')) {
+                 $Which = Invoke-CheckedCompiler 'rustup' @('which','--toolchain','1.98.1',$Tool) "rustup-which-before-$Tool.log"
+                 $PayloadPath = (Resolve-Path -LiteralPath (Get-Content -Raw $Which).Trim()).Path
+-                $Proxy = Get-Command -Name $Tool -CommandType Application -ErrorAction Stop
+-                $Receipt.runtime[$Tool] = [ordered]@{ path=$Proxy.Source;
+-                    sha256Before=(Get-FileHash -Algorithm SHA256 $Proxy.Source).Hash; sha256After=$null;
++                $ProxyPath = Resolve-FoundationApplication $Tool
++                $Receipt.runtime[$Tool] = [ordered]@{ path=$ProxyPath;
++                    sha256Before=(Get-FileHash -Algorithm SHA256 -LiteralPath $ProxyPath).Hash; sha256After=$null;
+                     payloadPath=$PayloadPath; payloadSha256Before=(Get-FileHash -Algorithm SHA256 $PayloadPath).Hash;
+                     payloadSha256After=$null }
+             }
+@@ -140,9 +171,9 @@ try {
+     } catch { $Receipt.passed=$false; $Receipt.managementAfterError=$_.Exception.Message }
+     foreach ($Executable in $Receipt.runtime.Keys) {
+         try {
+-            $CurrentCommand = Get-Command -Name $Executable -CommandType Application -ErrorAction Stop
++            $CurrentPath = Resolve-FoundationApplication $Executable
+             $Runtime = $Receipt.runtime[$Executable]
+-            $Runtime.sha256After = (Get-FileHash -Algorithm SHA256 $CurrentCommand.Source).Hash
++            $Runtime.sha256After = (Get-FileHash -Algorithm SHA256 -LiteralPath $CurrentPath).Hash
+             if ($Runtime.Contains('payloadPath')) {
+                 $WhichAfter = Invoke-CheckedCompiler 'rustup' @('which','--toolchain','1.98.1',$Executable) "rustup-which-after-$Executable.log"
+                 $PayloadAfter = (Resolve-Path -LiteralPath (Get-Content -Raw $WhichAfter).Trim()).Path
+@@ -151,7 +182,7 @@ try {
+                     throw 'Actual Rust toolchain payload changed during the probe.'
+                 }
+             }
+-            if ($CurrentCommand.Source -cne $Runtime.path -or $Runtime.sha256Before -cne $Runtime.sha256After) {
++            if ($CurrentPath -cne $Runtime.path -or $Runtime.sha256Before -cne $Runtime.sha256After) {
+                 throw 'Compiler/runtime source changed during the probe.'
+             }
+         } catch { $Receipt.passed=$false; $Receipt.runtimeAfterError=$_.Exception.Message }
+diff --git a/scripts/windows_foundation_toolpath_tests.ps1 b/scripts/windows_foundation_toolpath_tests.ps1
+new file mode 100644
+index 0000000000000000000000000000000000000000..6e1a7df563138c40973c56a71da87c89bcefcbbe
+--- /dev/null
++++ b/scripts/windows_foundation_toolpath_tests.ps1
+@@ -0,0 +1,76 @@
++# Ordinary management controls only: no Run-SourceCompile, fake CI identity, SUT restoration, owner or VM.
++param([Parameter(Mandatory=$true)][string]$PythonExecutable,
++    [Parameter(Mandatory=$true)][string]$ControlDirectory)
++$ErrorActionPreference='Stop'
++Set-StrictMode -Version Latest
++$Source = Join-Path $PSScriptRoot 'windows_foundation_source_compile.ps1'
++$Tokens=$null; $Errors=$null
++$Ast=[System.Management.Automation.Language.Parser]::ParseFile($Source,[ref]$Tokens,[ref]$Errors)
++if ($Errors.Count -ne 0) { throw 'Actual production PowerShell has parse errors.' }
++$Names=@('Resolve-FoundationApplication','Invoke-CheckedCompiler')
++foreach ($Name in $Names) {
++    $Functions=@($Ast.FindAll({ param($Node) $Node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $Node.Name -ceq $Name },$true))
++    if ($Functions.Count -ne 1) { throw "Actual production function missing/ambiguous: $Name" }
++    . ([scriptblock]::Create($Functions[0].Extent.Text))
++}
++if (Test-Path -LiteralPath $ControlDirectory) { throw 'Controls need an owned fresh directory.' }
++$Output=New-Item -ItemType Directory -Path $ControlDirectory
++$Receipt=[ordered]@{runtime=@{}; commands=@()}
++$ActualPython=$PythonExecutable
++$Rows=[System.Collections.Generic.List[string]]::new()
++function Expect-Rejection([string]$Name,[scriptblock]$Action,[string]$Expected) {
++    try { & $Action; throw "Control unexpectedly accepted: $Name" }
++    catch { if ($_.Exception.Message -notmatch $Expected) { throw }; $Rows.Add("PASS $Name") }
++}
++$Commands=@(Get-Command -Name git -CommandType Application -ErrorAction Stop)
++if ($Commands.Count -lt 2) { throw 'Scalar control needs actual multiple native Git applications.' }
++$Selected=Resolve-FoundationApplication 'git'
++if ($Selected -isnot [string] -or $Selected -cne $Commands[0].Source) { throw 'First actual Git application scalar mismatch.' }
++$Rows.Add('PASS actual-multiple-git-scalar-selection')
++Invoke-CheckedCompiler 'git' @('--version') 'git-one.log' | Out-Null
++Invoke-CheckedCompiler 'git' @('--version') 'git-two.log' | Out-Null
++if ($Receipt.commands.Count -ne 2 -or $Receipt.runtime.git.path -isnot [string] -or
++    $Receipt.runtime.git.sha256Before -isnot [string]) { throw 'Native invocation/receipt was not scalar.' }
++$Rows.Add('PASS repeated-actual-git-and-scalar-identity')
++$ResolvedPython=Resolve-FoundationApplication 'python'
++if ($ResolvedPython -cne [System.IO.Path]::GetFullPath($ActualPython)) { throw 'Explicit actual interpreter differs.' }
++Invoke-CheckedCompiler 'python' @('-c','print("ordinary-management-python")') 'python-real.log' | Out-Null
++$Rows.Add('PASS explicit-real-python-payload')
++$PythonExecutable=Join-Path $ControlDirectory 'missing-python'
++Expect-Rejection 'missing-interpreter-no-path-fallback' { Resolve-FoundationApplication 'python' } 'not recognized|could not be found|does not exist'
++$PythonExecutable='python'
++Expect-Rejection 'relative-interpreter-no-path-fallback' { Resolve-FoundationApplication 'python' } 'explicit rooted'
++$PythonExecutable=Join-Path $ControlDirectory 'Microsoft/WindowsApps/python.exe'
++Expect-Rejection 'windowsapps-alias-denied' { Resolve-FoundationApplication 'python' } 'WindowsApps alias'
++$PythonExecutable=$ActualPython
++Expect-Rejection 'actual-nonzero-exit-preserved' { Invoke-CheckedCompiler 'python' @('-c','import sys; sys.exit(34)') 'python-exit34.log' } 'actual exit 34'
++if ($Receipt.commands[-1].exitCode -ne 34) { throw 'Actual exit was lost.' }
++$Rows.Add('PASS nonzero-receipt-preserved')
++# Owned copies exercise hash/path checks before invoking altered bytes; never replace PATH/system tools.
++$NativeSuffix=if ($IsWindows) { '.exe' } else { '' }
++$CopyA=Join-Path $ControlDirectory ('python-copy-a'+$NativeSuffix); $CopyB=Join-Path $ControlDirectory ('python-copy-b'+$NativeSuffix)
++Copy-Item -LiteralPath $ActualPython -Destination $CopyA; Copy-Item -LiteralPath $ActualPython -Destination $CopyB
++if (-not $IsWindows) { & /bin/chmod 'u+x' $CopyA $CopyB; if ($LASTEXITCODE -ne 0) { throw 'Owned control mode setup failed.' } }
++$PythonExecutable=$CopyA
++$Receipt.runtime.python=[ordered]@{path=(Resolve-FoundationApplication 'python'); sha256Before=(Get-FileHash -LiteralPath $CopyA -Algorithm SHA256).Hash; sha256After=$null}
++$PythonExecutable=$CopyB
++Expect-Rejection 'selected-payload-path-drift-denied' { Invoke-CheckedCompiler 'python' @('-c','print("must-not-run")') 'path-drift.log' } 'changed before invocation'
++$PythonExecutable=$CopyA
++$Stream=[System.IO.File]::Open($CopyA,[System.IO.FileMode]::Append,[System.IO.FileAccess]::Write)
++try { $Stream.WriteByte(0) } finally { $Stream.Dispose() }
++Expect-Rejection 'selected-payload-byte-drift-denied' { Invoke-CheckedCompiler 'python' @('-c','print("must-not-run")') 'byte-drift.log' } 'changed before invocation'
++if (Test-Path (Join-Path $ControlDirectory 'path-drift.log')) { throw 'Changed path invoked.' }
++if (Test-Path (Join-Path $ControlDirectory 'byte-drift.log')) { throw 'Changed bytes invoked.' }
++$Rows.Add('PASS drift-rejected-before-native-invocation')
++$PythonExecutable=$ActualPython
++$Receipt.runtime.python=[ordered]@{path=(Resolve-FoundationApplication 'python');
++    sha256Before=(Get-FileHash -LiteralPath $ActualPython -Algorithm SHA256).Hash; sha256After=$null;
++    payloadPath=$CopyB; payloadSha256Before=(Get-FileHash -LiteralPath $CopyB -Algorithm SHA256).Hash; payloadSha256After=$null}
++$CommandCountBefore=$Receipt.commands.Count
++$Stream=[System.IO.File]::Open($CopyB,[System.IO.FileMode]::Append,[System.IO.FileAccess]::Write)
++try { $Stream.WriteByte(0) } finally { $Stream.Dispose() }
++Expect-Rejection 'owned-native-payload-byte-drift-denied' { Invoke-CheckedCompiler 'python' @('-c','print("must-not-run")') 'actual-payload-drift.log' } 'Actual compiler payload bytes changed before invocation'
++if ($Receipt.commands.Count -ne $CommandCountBefore -or
++    (Test-Path (Join-Path $ControlDirectory 'actual-payload-drift.log'))) { throw 'Changed actual payload invoked or gained command/log receipt.' }
++$Rows | ForEach-Object { Write-Output $_ }
++Write-Output ('ORDINARY-CONTROLS ' + $Rows.Count + ' PASS; GitHub/compiler/native/install qualification NOTRUN')

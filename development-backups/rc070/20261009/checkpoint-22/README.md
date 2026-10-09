@@ -1,0 +1,7 @@
+# Windows carrier tool-path source-only backup
+
+This frozen backup contains exactly the six-path delta from parent35daff to committed a20a4ec, plus its single-parent binary patch and safe status/manifests. The management tree is 1b296bc/1857; it is not pureSUT19bb/1953 or a qualified RC. Existing guard/manifest/source pins and permissions remain unchanged. Restore only in an independent checkout of the exact parent after verifying every source byte/mode/hash. Do not stack this full patch with unrelated recovery patches.
+
+The exact-head genuine push run37916193914 attempt1 overall failed: Ubuntu restored remote pure19bb and passed the four original Go data methods; Windows refused the workflow source blob at manager admission, so Rust restoration/compiler never ran. Physical Windows workflow bytes were not captured; CRLF remains a hypothesis, not an established cause. Prior run37912328111 failure is retained. Twelve ordinary PowerShell management checks and independent source review are limited evidence. Windows VM/owner/allIO/install and RC/release remain blocked.
+
+Inert .source copies and backup metadata have physical0644; original Git modes are recorded separately. The ordinary control source is not invoked by compiler CI and is outside the unchanged seven-file manager lease. No generated environment/quarantine/runtime, raw host/log/ZIP/TLS/token or Git object material is included.

@@ -1,0 +1,14 @@
+{
+  "scope": "Ordinarymanagementcontrols using2exactproductionASTfunctionbodies; SUTreadonly/noRunSourceCompile/nofakeCI/noVM/owner",
+  "source_compile_sha256": "1571f234e244dea0cf01df4060dc56f3610dff09f626d74e470de24d7155c15b",
+  "source_control_sha256": "94e1c2f1ea5e7f7fdee04ea04d1548bae467224c81d7898fe932268170dccf6d",
+  "ordinary_official_PowerShell_version": "7.6.6 Linux",
+  "actual_check_count": 12,
+  "result": "PASS limitedordinarychecks",
+  "raw_log_bytes": 615,
+  "raw_log_sha256": "c9757ec46b3bb7736858b4e36dd6e5184046ae7be43969884662d5009e29715f",
+  "test_owned_effects": "Ownedtemporarybinarycopies exercisebyte/path drift; actualgit--version and Python-c run withoutSUTrestore/nativeauthority",
+  "actual_payload_drift_denial": "Beforeinvocation; noaddedcommand/logsideeffect",
+  "independent_peer": "Final_SOURCE_PEER02 limitedmanagementallow; originalrawlogandall6hashes independentlychecked",
+  "qualification": "NotGitHubcompiler/native/install proof; exactheadrun37916193914 overallFAIL"
+}
