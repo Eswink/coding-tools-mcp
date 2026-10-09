@@ -1,0 +1,361 @@
+"""Necessary native-layout controls, zero original SUT tests."""
+import argparse
+import json
+import os
+from pathlib import Path
+import tempfile
+
+from rc_postpublish488_layout import verify_native_layout, seal_native_objects, seal_native_refs
+from rc_postpublish488_support import git, write
+
+
+def run_layout_controls(real_root, failed_worktree):
+    cases = []
+    # Failure-first check of the exact failed worktree; no test module imports.
+    try:
+        seal_native_objects(failed_worktree)
+    except (AssertionError, OSError) as error:
+        cases.append(dict(name='original_worktree_refused_failure_first', passed=True, error=type(error).__name__, SUT_runs=0))
+    else:
+        raise AssertionError('failed worktree admitted')
+    first = seal_native_objects(real_root)
+    assert first == seal_native_objects(real_root) and first['object_files']
+    cases.append(dict(name='actual_standalone_native_objects_stable', passed=True, object_files=len(first['object_files']), SUT_runs=0))
+    with tempfile.TemporaryDirectory(prefix='rc-layout-owned-') as temporary:
+        directory = Path(temporary)
+        for scenario in ('git_file', 'git_symlink', 'objects_symlink', 'alternates', 'object_symlink', 'object_hardlink', 'object_fifo', 'object_group_writable', 'changed_loose_bytes', 'changed_pack_bytes'):
+            root = directory / scenario
+            root.mkdir(mode=0o700)
+            git(root, 'init', '-q')
+            objects = root / '.git/objects'
+            path = objects / 'pack/owned.pack'
+            path.write_bytes(b'owned original control')
+            path.chmod(0o600)
+            before = seal_native_objects(root)
+            if scenario == 'git_file':
+                (root / '.git').rename(root / '.git-owned')
+                (root / '.git').write_text('gitdir: .git-owned\n')
+            elif scenario == 'git_symlink':
+                (root / '.git').rename(root / '.git-owned')
+                (root / '.git').symlink_to('.git-owned', target_is_directory=True)
+            elif scenario == 'objects_symlink':
+                objects.rename(root / '.git/objects-owned')
+                objects.symlink_to('objects-owned', target_is_directory=True)
+            elif scenario == 'alternates':
+                (objects / 'info/alternates').write_text(str(directory) + '\n')
+            elif scenario == 'object_symlink':
+                (objects / 'pack/link.pack').symlink_to(path.name)
+            elif scenario == 'object_hardlink':
+                os.link(path, objects / 'pack/link.pack')
+            elif scenario == 'object_fifo':
+                os.mkfifo(objects / 'pack/pipe.pack', 0o600)
+            elif scenario == 'object_group_writable':
+                path.chmod(0o660)
+            elif scenario == 'changed_loose_bytes':
+                leaf = objects / 'ab'
+                leaf.mkdir(mode=0o700)
+                (leaf / ('c' * 38)).write_bytes(b'owned loose')
+            elif scenario == 'changed_pack_bytes':
+                path.write_bytes(b'changed owned control')
+            try:
+                actual = seal_native_objects(root)
+            except (AssertionError, OSError) as caught:
+                error = type(caught).__name__
+            else:
+                assert actual != before, scenario + ' did not alter the sealed physical input'
+                error = 'actual_physical_seal_mismatch'
+            cases.append(dict(name=scenario + '_refused_or_changed_seal', passed=True, error=error, SUT_runs=0))
+    with tempfile.TemporaryDirectory(prefix='rc-layout-owned-boundary-') as temporary:
+        root = Path(temporary)
+        git(root, 'init', '-q')
+        objects = root / '.git/objects'
+        for index in range(4093):
+            (objects / ('owned-' + str(index))).write_bytes(b'')
+        allowed = seal_native_objects(root)
+        assert len(allowed['object_files']) + len(allowed['object_directories']) == 4096
+        cases.append(dict(name='actual_combined4096_owned_boundary_admitted', passed=True, SUT_runs=0))
+        (objects / 'owned-extra').write_bytes(b'')
+        try:
+            seal_native_objects(root)
+        except AssertionError:
+            cases.append(dict(name='actual_combined4097_owned_boundary_refused', passed=True, SUT_runs=0))
+        else:
+            raise AssertionError('combined object bound exceeded')
+    with tempfile.TemporaryDirectory(prefix='rc-layout-owned-live-refs-') as temporary:
+        root=Path(temporary);git(root,'init','-q')
+        first=git(root,'hash-object','-w','--stdin',data=b'ordinary actual first object').decode().strip()
+        second=git(root,'hash-object','-w','--stdin',data=b'ordinary actual second object').decode().strip()
+        before=seal_native_refs(root);assert before['count']==0
+        git(root,'update-ref','refs/tags/owned',first)
+        added=seal_native_refs(root);assert added['count']==1 and added!=before and added['records'][0]['target']==first
+        cases.append(dict(name='actual_owned_ref_addition_changes_full_seal',passed=True,SUT_runs=0))
+        git(root,'update-ref','refs/tags/owned',second,first)
+        changed=seal_native_refs(root);assert changed!=added and changed['records'][0]['target']==second
+        cases.append(dict(name='actual_owned_ref_retarget_changes_full_seal',passed=True,SUT_runs=0))
+        git(root,'update-ref','-d','refs/tags/owned',second)
+        deleted=seal_native_refs(root);assert deleted['count']==0 and deleted!=changed
+        cases.append(dict(name='actual_owned_ref_deletion_changes_full_seal',passed=True,SUT_runs=0))
+        (root/'.git/refs/tags/broken').write_text('not a valid ref\n')
+        try:seal_native_refs(root)
+        except (AssertionError, __import__('subprocess').CalledProcessError):
+            cases.append(dict(name='actual_owned_broken_ref_or_warning_refused',passed=True,SUT_runs=0))
+        else:raise AssertionError('broken ref accepted as full list')
+    with tempfile.TemporaryDirectory(prefix='rc-layout-owned-ref-bounds-') as temporary:
+        root=Path(temporary);git(root,'init','-q')
+        blob=git(root,'hash-object','-w','--stdin',data=b'ordinary actual ref capacity object').decode().strip()
+        for index in range(4096):(root/'.git/refs/tags'/('owned-'+str(index))).write_text(blob+'\n')
+        allowed=seal_native_refs(root);assert allowed['count']==4096
+        cases.append(dict(name='actual_owned4096_live_refs_complete_admitted',passed=True,SUT_runs=0))
+        (root/'.git/refs/tags/owned-extra').write_text(blob+'\n')
+        try:seal_native_refs(root)
+        except AssertionError:cases.append(dict(name='actual_owned4097_live_refs_sentinel_refused',passed=True,SUT_runs=0))
+        else:raise AssertionError('truncated ref list accepted')
+    with tempfile.TemporaryDirectory(prefix='rc-layout-owned-ref-physical-') as temporary:
+        root=Path(temporary);git(root,'init','-q')
+        (root/'.git/packed-refs').write_bytes(b'#'*(2*1024*1024+1))
+        try:seal_native_refs(root)
+        except AssertionError:cases.append(dict(name='actual_owned_oversized_packed_refs_refused',passed=True,SUT_runs=0))
+        else:raise AssertionError('unbounded packed refs accepted')
+        (root/'.git/packed-refs').unlink()
+        (root/'.git/refs').rename(root/'.git/refs-owned');(root/'.git/refs').symlink_to('refs-owned',target_is_directory=True)
+        try:seal_native_refs(root)
+        except (AssertionError,OSError):cases.append(dict(name='actual_owned_symlink_refs_directory_refused',passed=True,SUT_runs=0))
+        else:raise AssertionError('symlink refs accepted')
+    with tempfile.TemporaryDirectory(prefix='rc-layout-owned-ref-backend-') as temporary:
+        root=Path(temporary);git(root,'init','-q')
+        git(root,'config','core.repositoryFormatVersion','1');git(root,'config','extensions.refStorage','reftable')
+        try:seal_native_refs(root)
+        except (AssertionError,__import__('subprocess').CalledProcessError):cases.append(dict(name='actual_owned_unsupported_refbackend_refused',passed=True,SUT_runs=0))
+        else:raise AssertionError('unsupported ref backend accepted')
+    assert len(cases) == 23
+    return dict(scope='necessary_layout_controls_only', passed=True, actual_cases=cases, actual_control_count=len(cases), original_SUT_runs=0, original488='NOTRUN', CI='NOTRUN', install='NOTRUN', release='NOTRUN')
+
+
+def run_ref_fd_controls():
+    """Owned native FD fault/cancel controls; zero original test imports."""
+    import errno
+    from rc_postpublish488_layout import capture_ref_storage
+    from rc_postpublish488_ref_fds import RefFDSet
+    cases = []
+    real_open, real_stat, real_close = os.open, os.fstat, os.close
+
+    def ref_fd_flatten(error):
+        if isinstance(error, BaseExceptionGroup):
+            return [part for child in error.exceptions for part in ref_fd_flatten(child)]
+        return [error]
+
+    def ref_fd_assert_closed(fd):
+        try:
+            real_stat(fd)
+        except OSError as error:
+            assert error.errno == errno.EBADF
+        else:
+            raise AssertionError('actual owned FD remains open')
+
+    for case in ('mismatch', 'cancel', 'mismatch_close_cancel', 'normal'):
+        with tempfile.TemporaryDirectory(prefix='rc-ref-fd-owned-') as temporary:
+            root = Path(temporary); git(root, 'init', '-q')
+            (root/'.git/refs/heads').chmod(0o755)
+            captured, attempted, target, target_attempt_start = [], [], [], []
+            primary_cancel, close_cancel = KeyboardInterrupt('owned stat cancel'), SystemExit(73)
+            observed = None
+
+            def ref_fd_open_adapter(*args, **kwargs):
+                fd = real_open(*args, **kwargs)
+                captured.append(fd)
+                if args[0] == 'heads':
+                    target.append(fd)
+                    target_attempt_start.append(len(attempted))
+                    if case in ('mismatch', 'mismatch_close_cancel'):
+                        (root/'.git/refs/heads').chmod(0o700)
+                return fd
+
+            def ref_fd_stat_adapter(fd):
+                actual = real_stat(fd)
+                if case == 'cancel' and target and fd == target[0]:
+                    raise primary_cancel
+                return actual
+
+            def ref_fd_close_adapter(fd):
+                attempted.append(fd)
+                real_close(fd)
+                if case == 'mismatch_close_cancel' and target and fd == target[0]:
+                    raise close_cancel
+
+            os.open, os.fstat, os.close = ref_fd_open_adapter, ref_fd_stat_adapter, ref_fd_close_adapter
+            try:
+                capture_ref_storage(root)
+            except BaseException as error:
+                observed = error
+            finally:
+                os.open, os.fstat, os.close = real_open, real_stat, real_close
+            assert len(target) == 1
+            for fd in captured: ref_fd_assert_closed(fd)
+            if case != 'normal': assert attempted[target_attempt_start[0]:].count(target[0]) == 1, (case, attempted, target, target_attempt_start)
+            if case == 'mismatch': assert type(observed) is AssertionError
+            elif case == 'cancel': assert observed is primary_cancel
+            elif case == 'mismatch_close_cancel':
+                parts = ref_fd_flatten(observed)
+                assert len(parts) == 2 and type(parts[0]) is AssertionError and parts[1] is close_cancel
+            else: assert observed is None
+            cases.append(dict(name='actual_ref_directory_'+case+'_all_FDs_closed', passed=True, SUT_runs=0))
+
+    fds = RefFDSet()
+    opened = [fds.open_ref_fd('/dev/null', os.O_RDONLY|os.O_CLOEXEC) for _ in range(3)]
+    attempted = []
+    fault = OSError('owned close effect UNKNOWN')
+    target = opened[-1]
+
+    def ref_fd_unknown_close_adapter(fd):
+        attempted.append(fd)
+        if fd == target: raise fault
+        real_close(fd)
+
+    os.close = ref_fd_unknown_close_adapter
+    # The context is exited below while the adapter remains installed.
+    try:
+        try:
+            fds.__exit__(None, None, None)
+        except BaseException as error:
+            assert error is fault
+        else: raise AssertionError('unknown close silently accepted')
+    finally:
+        os.close = real_close
+    assert attempted == list(reversed(opened)) and fds.owned == [] and fds.unknown == [target]
+    for fd in opened[:-1]: ref_fd_assert_closed(fd)
+    real_stat(target)  # Actual close was not performed; sole fixture owner retains UNKNOWN.
+    real_close(target)  # Fixture-only final disposal after the observer finished; no observer retry.
+    ref_fd_assert_closed(target)
+    cases.append(dict(name='actual_unknown_close_no_retry_remaining_FDs_attempted', passed=True, SUT_runs=0))
+
+    for primary in (None, KeyboardInterrupt('owned primary cancel')):
+        fds = RefFDSet()
+        opened = [fds.open_ref_fd('/dev/null', os.O_RDONLY|os.O_CLOEXEC) for _ in range(3)]
+        attempted = []
+        first_cancel, second_cancel = SystemExit(81), KeyboardInterrupt('owned close cancel')
+
+        def ref_fd_cancel_close_adapter(fd):
+            attempted.append(fd); real_close(fd)
+            if fd == opened[-1]: raise first_cancel
+            if primary is not None and fd == opened[-2]: raise second_cancel
+
+        os.close = ref_fd_cancel_close_adapter
+        observed = None
+        try:
+            fds.__exit__(type(primary) if primary is not None else None, primary, None)
+        except BaseException as error:
+            observed = error
+        finally:
+            os.close = real_close
+        assert attempted == list(reversed(opened)) and fds.owned == []
+        for fd in opened: ref_fd_assert_closed(fd)
+        if primary is None: assert observed is first_cancel
+        else:
+            parts = ref_fd_flatten(observed)
+            assert len(parts) == 3 and parts[0] is primary and parts[1] is first_cancel and parts[2] is second_cancel
+        cases.append(dict(name='actual_ref_FD_'+('single_close_cancel' if primary is None else 'primary_and_multiple_close_cancels')+'_objects_preserved', passed=True, SUT_runs=0))
+    assert len(cases) == 7
+    return dict(scope='necessary_actual_owned_ref_FD_controls_only', passed=True, actual_cases=cases, actual_control_count=len(cases), original_SUT_runs=0, original488='NOTRUN', CI='NOTRUN', install='NOTRUN', release='NOTRUN')
+
+
+def run_native_fd_controls():
+    """Real owned objects/pathpin lookup, close and cancel controls only."""
+    import errno
+    cases = []
+    real_open, real_dup, real_stat, real_close = os.open, os.dup, os.fstat, os.close
+
+    def native_fd_flatten(error):
+        if isinstance(error, BaseExceptionGroup):
+            return [part for child in error.exceptions for part in native_fd_flatten(child)]
+        return [error]
+
+    def native_fd_closed(fd):
+        try: real_stat(fd)
+        except OSError as error: assert error.errno == errno.EBADF
+        else: raise AssertionError('actual native observation FD remains open')
+
+    names = ('objects_mismatch', 'objects_cancel', 'objects_mismatch_close_cancel',
+             'path_close_after_error', 'path_close_before_unknown',
+             'path_close_after_multiplecancel', 'path_dup_following_open_cancel')
+    for case in names:
+        with tempfile.TemporaryDirectory(prefix='rc-native-fd-owned-') as temporary:
+            root = Path(temporary); git(root, 'init', '-q')
+            (root/'.git/objects/owned_dir').mkdir(mode=0o755)
+            captured, active, attempted, target, dup_seen, unknown = [], {}, [], [], [], []
+            close_fault = OSError('owned actual close fault')
+            primary_cancel, first_cancel, second_cancel = KeyboardInterrupt('owned syscall cancel'), SystemExit(82), KeyboardInterrupt('owned second close cancel')
+            object_case = case.startswith('objects_')
+
+            def native_fd_open_adapter(*args, **kwargs):
+                if case == 'path_dup_following_open_cancel' and dup_seen and args[0] == '.git':
+                    raise primary_cancel
+                if object_case and args[0] == 'owned_dir' and case != 'objects_cancel':
+                    os.rename('owned_dir', 'old_owned_dir', src_dir_fd=kwargs['dir_fd'], dst_dir_fd=kwargs['dir_fd'])
+                    os.mkdir('owned_dir', mode=0o755, dir_fd=kwargs['dir_fd'])
+                fd = real_open(*args, **kwargs)
+                captured.append(fd); active[fd] = len(captured)
+                if object_case and args[0] == 'owned_dir': target.append((fd, active[fd]))
+                return fd
+
+            def native_fd_dup_adapter(original):
+                fd = real_dup(original); captured.append(fd); active[fd] = len(captured); dup_seen.append(fd)
+                return fd
+
+            def native_fd_stat_adapter(fd):
+                actual = real_stat(fd)
+                if case == 'objects_cancel' and target and fd == target[0][0]: raise primary_cancel
+                return actual
+
+            def native_fd_close_adapter(fd):
+                if fd not in active:
+                    return real_close(fd)  # Passthrough unrelated native subprocess IO; not this fixture ledger.
+                acquisition = active[fd]; attempted.append(acquisition)
+                if case == 'path_close_before_unknown' and acquisition == 1:
+                    unknown.append(fd); raise close_fault
+                real_close(fd); del active[fd]
+                if case == 'objects_mismatch_close_cancel' and target and acquisition == target[0][1]: raise first_cancel
+                if case == 'path_close_after_error' and acquisition == 1: raise close_fault
+                if case == 'path_close_after_multiplecancel':
+                    if acquisition == 1: raise first_cancel
+                    if acquisition == 2: raise second_cancel
+
+            os.open, os.dup, os.fstat, os.close = native_fd_open_adapter, native_fd_dup_adapter, native_fd_stat_adapter, native_fd_close_adapter
+            observed = None
+            try:
+                (seal_native_objects if object_case else verify_native_layout)(root)
+            except BaseException as error: observed = error
+            finally: os.open, os.dup, os.fstat, os.close = real_open, real_dup, real_stat, real_close
+            assert observed is not None
+            assert sorted(attempted) == list(range(1, len(captured)+1)) and len(attempted) == len(set(attempted))
+            for fd in set(captured)-set(unknown): native_fd_closed(fd)
+            if case == 'objects_mismatch': assert type(observed) is AssertionError
+            elif case in ('objects_cancel', 'path_dup_following_open_cancel'): assert observed is primary_cancel
+            elif case == 'objects_mismatch_close_cancel':
+                parts = native_fd_flatten(observed)
+                assert len(parts) == 2 and type(parts[0]) is AssertionError and parts[1] is first_cancel
+            elif case == 'path_close_after_multiplecancel':
+                parts = native_fd_flatten(observed)
+                assert len(parts) == 2 and parts[0] is first_cancel and parts[1] is second_cancel
+            else: assert observed is close_fault
+            if unknown:
+                assert len(unknown) == len(active) == 1 and attempted.count(1) == 1
+                real_stat(unknown[0])
+                real_close(unknown[0]); native_fd_closed(unknown[0])
+            else: assert not active
+            cases.append(dict(name='actual_native_FD_'+case, passed=True, actual_open_or_dup_count=len(captured), every_real_owned_close_attempt_once=True, unknown_fixture_final_disposal=bool(unknown), SUT_runs=0))
+    assert len(cases) == 7
+    return dict(scope='necessary_real_owned_native_object_and_pathpin_FD_controls_only', passed=True, actual_cases=cases, actual_control_count=len(cases), original_SUT_runs=0, original488='NOTRUN', CI='NOTRUN', install='NOTRUN', release='NOTRUN')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--root', required=True)
+    parser.add_argument('--failed-worktree', required=True)
+    parser.add_argument('--output', required=True)
+    parser.add_argument('--fd-close-only', action='store_true')
+    parser.add_argument('--native-fd-only', action='store_true')
+    args = parser.parse_args()
+    assert not (args.fd_close_only and args.native_fd_only)
+    result = run_native_fd_controls() if args.native_fd_only else run_ref_fd_controls() if args.fd_close_only else run_layout_controls(args.root, args.failed_worktree)
+    write(args.output, result)
+    print(json.dumps(dict(passed=result['passed'], actual_control_count=result['actual_control_count'], original_SUT_runs=0)))

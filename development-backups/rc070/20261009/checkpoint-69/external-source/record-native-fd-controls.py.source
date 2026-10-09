@@ -1,0 +1,29 @@
+import hashlib,json,os,subprocess,time,stat
+from pathlib import Path
+E=Path('/workspace/work/rc070/postpublish-recovery-evidence');M=Path('/workspace/work/rc070/postpublish-layout-native-fds-next')
+paths=sorted(list((M/'docs/specs/issue88-postpublish488-native-layout-precheck').glob('*.md'))+list((M/'scripts').glob('rc_postpublish488_*')))
+assert len(paths)==13
+sealed={str(p.relative_to(M)):dict(bytes=len(p.read_bytes()),sha256=hashlib.sha256(p.read_bytes()).hexdigest(),mode=stat.S_IMODE(p.stat().st_mode)) for p in paths}
+assert all(r['mode']==0o644 for r in sealed.values())
+out=E/'NATIVE-FD-CONTROL-RAW01';out.mkdir(mode=0o700)
+python='/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12';root='/workspace/work/rc070/postpublish-pure-sut-standalone03';bad='/workspace/work/rc070/postpublish-pure-sut-posix02'
+jobs=[('native_fd7',7,'rc_postpublish488_layout_controls.py',['--root',root,'--failed-worktree',bad,'--native-fd-only'],'actual_control_count'),('owned_fd7',7,'rc_postpublish488_layout_controls.py',['--root',root,'--failed-worktree',bad,'--fd-close-only'],'actual_control_count'),('layout23',23,'rc_postpublish488_layout_controls.py',['--root',root,'--failed-worktree',bad],'actual_control_count'),('kernel42',42,'rc_postpublish488_controls.py',['--root',root,'--fixture',str(E/'glib-0.18.5.crate')],'total')]
+rows=[]
+for name,count,script,args,key in jobs:
+    report=out/(name+'.result.json');argv=[python,'-B',str(M/'scripts'/script),*args,'--output',str(report)]
+    stdout=out/(name+'.stdout.log');stderr=out/(name+'.stderr.log');started=time.monotonic()
+    with stdout.open('xb') as so,stderr.open('xb') as se:
+        actual=subprocess.run(argv,cwd=M,stdout=so,stderr=se,timeout=120)
+        so.flush();se.flush();os.fsync(so.fileno());os.fsync(se.fileno())
+    result=json.loads(report.read_text());assert actual.returncode==0 and result['passed'] is True and result[key]==count
+    assert result.get('original_SUT_runs',result.get('SUT_runs'))==0
+    files={}
+    for p in (stdout,stderr,report):
+        raw=p.read_bytes();assert len(raw)<=2*1024*1024;p.chmod(0o600);files[p.name]=dict(bytes=len(raw),sha256=hashlib.sha256(raw).hexdigest(),mode=0o600)
+    rows.append(dict(name=name,actual_argv=argv,actual_cwd=str(M),actual_exit_code=actual.returncode,elapsed_seconds=time.monotonic()-started,actual_control_count=count,actual_SUT_runs=0,files=files))
+for name,r in sealed.items():
+    p=M/name;assert len(p.read_bytes())==r['bytes'] and hashlib.sha256(p.read_bytes()).hexdigest()==r['sha256'] and stat.S_IMODE(p.stat().st_mode)==r['mode']
+receipt=out/'ACTUAL-EXEC-RECEIPT.json';fd=os.open(receipt,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+with os.fdopen(fd,'w') as stream:
+    json.dump(dict(scope='actual ordinary native object/pathpin/ref/layout/kernel controls; no original SUT',jobs=rows,all_passed=True,source_bytes_modes_unchanged=True,source_before_after=sealed,original_SUT_runs=0,private_raw_logs=True),stream,indent=2);stream.write('\n');stream.flush();os.fsync(stream.fileno())
+print(json.dumps(dict(recorded_jobs=3,actual_counts=[r['actual_control_count'] for r in rows],all_exit0=True,original_SUT_runs=0,receipt=str(receipt))))

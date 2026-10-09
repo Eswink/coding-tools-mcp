@@ -1,0 +1,20 @@
+{
+  "scope": "safe recorder metadata erratum; no raw change",
+  "actual_recorded_jobs": 4,
+  "actual_control_counts": [
+    7,
+    7,
+    23,
+    42
+  ],
+  "recorder_stdout_reported_jobs": 3,
+  "error": "copied stdout metadata literal3; actual receipt and four distinct executed argv/output/result groups establish4",
+  "actual_exit_codes": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "source13_bytes_modes_unchanged": true,
+  "original_SUT_runs": 0
+}

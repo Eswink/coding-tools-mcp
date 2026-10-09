@@ -1,0 +1,42 @@
+import sys,os,tempfile,json,hashlib
+from pathlib import Path
+M=Path('/workspace/work/rc070/postpublish-layout-allrefs-close-next');E=Path('/workspace/work/rc070/postpublish-recovery-evidence')
+sys.path.insert(0,str(M/'scripts'))
+from rc_postpublish488_layout import seal_native_objects,verify_native_layout
+from rc_postpublish488_support import git,write
+packet=json.loads((E/'LAYOUT-ALLREFS-CLOSE13-LAUNCH-PACKET-SOURCE-SEAL.json').read_text())
+assert all(hashlib.sha256((M/n).read_bytes()).hexdigest()==r['sha256'] for n,r in packet['carrier_files'].items())
+def native_fd_failurefirst(case):
+    real_open,real_stat,real_close=os.open,os.fstat,os.close
+    captured=[];target=[];armed=[];unknown=[];primary=OSError('owned old path close after actual close')
+    with tempfile.TemporaryDirectory(prefix='rc-native-fd-original-owned-') as temp:
+        root=Path(temp);git(root,'init','-q');(root/'.git/objects/owned_dir').mkdir(mode=0o755)
+        def native_fd_open_adapter(*args,**kwargs):
+            if case=='objects' and args[0]=='owned_dir':
+                os.rename('owned_dir','old_owned_dir',src_dir_fd=kwargs['dir_fd'],dst_dir_fd=kwargs['dir_fd']);os.mkdir('owned_dir',mode=0o755,dir_fd=kwargs['dir_fd'])
+            fd=real_open(*args,**kwargs);captured.append(fd)
+            if case=='objects' and args[0]=='owned_dir':target.append(fd)
+            if case=='path' and len(captured)==2:target.append(fd);armed.append(captured[0])
+            return fd
+        def native_fd_close_adapter(fd):
+            real_close(fd)
+            if case=='path' and armed and fd==armed[0]:armed.clear();raise primary
+        os.open,os.close=native_fd_open_adapter,native_fd_close_adapter
+        observed=None
+        try:
+            (seal_native_objects if case=='objects' else verify_native_layout)(root)
+        except BaseException as error:observed=error
+        finally:os.open,os.fstat,os.close=real_open,real_stat,real_close
+        assert len(target)==1 and observed is not None
+        real_stat(target[0]) # Independently proves actual opened child is still live, no forged FD.
+        if case=='objects':assert type(observed) is AssertionError
+        else:assert isinstance(observed,OSError) and observed.errno==9 and observed is not primary
+        for fd in set(captured):
+            try:real_stat(fd)
+            except OSError:continue
+            real_close(fd)
+        return dict(case=case,actual_owned_child_FD_leaked=True,original_error=type(observed).__name__,old_path_original_close_fault_masked=case=='path',real_fixture_final_disposal=True,SUT_runs=0)
+rows=[native_fd_failurefirst(case) for case in ('objects','path')]
+assert all(hashlib.sha256((M/n).read_bytes()).hexdigest()==r['sha256'] for n,r in packet['carrier_files'].items())
+write(E/'NATIVE-FD-FAILUREFIRST-OLD13-RAW01/result.json',dict(scope='actual old frozen13 management guards, two real owned fixtures; not original SUT',actual_count=2,actual_cases=rows,old13_source_bytes_unchanged=True,original_SUT_runs=0,whole488='NOTRUN'))
+print(json.dumps(dict(actual_count=2,real_fd_leaks=2,old_source_unchanged=True,original_SUT_runs=0)))

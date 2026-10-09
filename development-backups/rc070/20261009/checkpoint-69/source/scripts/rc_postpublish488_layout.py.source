@@ -1,0 +1,203 @@
+"""Preparation-only native Git layout guard; never installation authority."""
+import hashlib
+import os
+from pathlib import Path
+import stat
+import subprocess
+
+from rc_postpublish488_support import git, PREFIX, OVERRIDES, ENV
+from rc_postpublish488_ref_fds import RefFDSet
+
+
+def capture_ref_storage(root):
+    """Bound the complete files-backend physical inputs through owned FDs."""
+    layout = verify_native_layout(root)
+    root = Path(root).absolute()
+    stack = []
+    fields = ('st_dev','st_ino','st_mode','st_uid','st_gid','st_nlink','st_size','st_mtime_ns','st_ctime_ns')
+    with RefFDSet() as fds:
+        directory = fds.open_ref_fd('/', os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+        for part in (*root.parts[1:], '.git'):
+            child = fds.open_ref_fd(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=directory)
+            fds.close_ref_fd(directory); directory = child
+        assert 'reftable' not in os.listdir(directory) and 'worktrees' not in os.listdir(directory)
+        files, dirs, total = {}, {}, 0
+        # HEAD is included even for a detached checkout. Packed refs are optional.
+        for name, limit in (('HEAD',8192),('packed-refs',2*1024*1024)):
+            try:
+                info = os.stat(name,dir_fd=directory,follow_symlinks=False)
+            except FileNotFoundError:
+                assert name == 'packed-refs'; files[name] = None; continue
+            assert stat.S_ISREG(info.st_mode) and info.st_uid == os.geteuid() and info.st_nlink == 1 and not info.st_mode & 0o022 and 0 <= info.st_size <= limit
+            child = fds.open_ref_fd(name,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK|os.O_CLOEXEC,dir_fd=directory)
+            try:
+                first=os.fstat(child);assert all(getattr(first,k)==getattr(info,k) for k in fields)
+                raw=bytearray()
+                while True:
+                    data=os.read(child,min(65536,first.st_size-len(raw)+1))
+                    if not data:break
+                    raw.extend(data);assert len(raw)<=first.st_size
+                last=os.fstat(child);assert len(raw)==first.st_size and all(getattr(first,k)==getattr(last,k) for k in fields)
+                total+=len(raw)+len(name);assert total<=2*1024*1024
+                files[name]=dict(identity={k:getattr(first,k) for k in fields},bytes=len(raw),sha256=hashlib.sha256(raw).hexdigest(),head_raw_hex=raw.hex() if name=='HEAD' else None)
+            finally:fds.close_ref_fd(child)
+        refs=fds.open_ref_fd('refs',os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW|os.O_CLOEXEC,dir_fd=directory)
+        stack.append((refs,'refs'))
+        while stack:
+            fd,relative=stack.pop()
+            try:
+                before=os.fstat(fd);assert stat.S_ISDIR(before.st_mode) and before.st_uid==os.geteuid() and not before.st_mode&0o022
+                names=sorted(os.listdir(fd));assert len(names)<=8192 and len(files)+len(dirs)+len(stack)<=8192
+                total+=len(os.fsencode(relative));assert total<=2*1024*1024 and len(os.fsencode(relative))<=8192
+                dirs[os.fsencode(relative).hex()]={k:getattr(before,k) for k in fields}
+                for name in names:
+                    assert name not in ('.','..') and '/' not in name
+                    path=relative+'/'+name;info=os.stat(name,dir_fd=fd,follow_symlinks=False)
+                    assert info.st_uid==os.geteuid() and not info.st_mode&0o022 and not stat.S_ISLNK(info.st_mode)
+                    if stat.S_ISDIR(info.st_mode):
+                        child=fds.open_ref_fd(name,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW|os.O_CLOEXEC,dir_fd=fd)
+                        actual=os.fstat(child);assert all(getattr(actual,k)==getattr(info,k) for k in fields)
+                        stack.append((child,path))
+                    else:
+                        assert stat.S_ISREG(info.st_mode) and info.st_nlink==1 and 0<=info.st_size<=8192
+                        total+=info.st_size+len(os.fsencode(path));assert total<=2*1024*1024 and len(os.fsencode(path))<=8192
+                        child=fds.open_ref_fd(name,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK|os.O_CLOEXEC,dir_fd=fd)
+                        try:
+                            first=os.fstat(child);assert all(getattr(first,k)==getattr(info,k) for k in fields)
+                            raw=bytearray()
+                            while True:
+                                data=os.read(child,min(8192,first.st_size-len(raw)+1))
+                                if not data:break
+                                raw.extend(data);assert len(raw)<=first.st_size
+                            last=os.fstat(child);assert len(raw)==first.st_size and all(getattr(first,k)==getattr(last,k) for k in fields)
+                            files[os.fsencode(path).hex()]=dict(identity={k:getattr(first,k) for k in fields},bytes=len(raw),sha256=hashlib.sha256(raw).hexdigest())
+                        finally:fds.close_ref_fd(child)
+                after=os.fstat(fd);assert all(getattr(before,k)==getattr(after,k) for k in fields) and names==sorted(os.listdir(fd))
+            finally:fds.close_ref_fd(fd)
+        assert len(files)+len(dirs)<=8192 and layout==verify_native_layout(root)
+        return dict(files=files,directories=dirs,total_bytes_and_names=total)
+
+
+
+def seal_native_refs(root):
+    """Full live ref names and targets; fixed commit anchors are separate."""
+    root=Path(root).absolute()
+    actual=subprocess.run(['/usr/bin/git',*PREFIX,*OVERRIDES,'-C',str(root),'rev-parse','--show-ref-format'],capture_output=True,check=True,timeout=30,env=ENV)
+    assert actual.stdout==b'files\n' and not actual.stderr
+    before=capture_ref_storage(root)
+    format='%(refname)%00%(objectname)%00%(objecttype)%00%(symref)%00%(*objectname)%00%(*objecttype)'
+    actual=subprocess.run(['/usr/bin/git',*PREFIX,*OVERRIDES,'-C',str(root),'for-each-ref','--sort=refname','--count=4097','--format='+format],capture_output=True,check=True,timeout=30,env=ENV)
+    assert not actual.stderr and len(actual.stdout)<=2*1024*1024
+    rows=actual.stdout.splitlines();assert len(rows)<=4096
+    records=[];names=[]
+    for row in rows:
+        parts=row.split(b'\0');assert len(parts)==6
+        name,target,kind,symbolic,peeled,peeled_kind=parts
+        assert name.startswith(b'refs/') and 0<len(name)<=8192 and kind in (b'commit',b'tree',b'blob',b'tag')
+        assert len(target)==40 and all(c in b'0123456789abcdef' for c in target)
+        assert not symbolic or symbolic.startswith(b'refs/')
+        assert not peeled or len(peeled)==40 and all(c in b'0123456789abcdef' for c in peeled)
+        assert peeled_kind in (b'',b'commit',b'tree',b'blob',b'tag')
+        names.append(name);records.append(dict(refname_hex=name.hex(),target=target.decode(),object_type=kind.decode(),symbolic_target_hex=symbolic.hex(),peeled_target=peeled.decode(),peeled_type=peeled_kind.decode()))
+    assert names==sorted(set(names)) and before==capture_ref_storage(root)
+    # 4097 is a refusal sentinel, so every admitted list is complete.
+    return dict(scope='all actual live refs, no publication authority',backend='files',count=len(records),records=records,native_bytes=len(actual.stdout),native_sha256=hashlib.sha256(actual.stdout).hexdigest(),physical_storage=before)
+
+
+def verify_native_layout(root):
+    root = Path(root).absolute()
+    assert '..' not in root.parts
+    with RefFDSet() as fds:
+        current = fds.open_ref_fd('/', os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+        for part in root.parts[1:]:
+            child = fds.open_ref_fd(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=current)
+            fds.close_ref_fd(current)
+            current = child
+        result = {}
+        for relative in ('.git', '.git/objects'):
+            fd = fds.dup_ref_fd(current)
+            try:
+                for part in relative.split('/'):
+                    child = fds.open_ref_fd(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=fd)
+                    fds.close_ref_fd(fd)
+                    fd = child
+                info = os.fstat(fd)
+                assert stat.S_ISDIR(info.st_mode) and info.st_uid == os.geteuid() and not info.st_mode & 0o022
+                result[relative] = dict(dev=info.st_dev, ino=info.st_ino, mode=stat.S_IMODE(info.st_mode), uid=info.st_uid, gid=info.st_gid)
+            finally:
+                fds.close_ref_fd(fd)
+        expected = str(root / '.git')
+        assert git(root, 'rev-parse', '--absolute-git-dir').decode().strip() == expected
+        assert git(root, 'rev-parse', '--path-format=absolute', '--git-common-dir').decode().strip() == expected
+        # Do not permit a self-looking directory with external object storage.
+        for relative in ('.git/objects/info/alternates', '.git/objects/info/http-alternates', '.git/commondir'):
+            try:
+                os.stat(relative, dir_fd=current, follow_symlinks=False)
+            except FileNotFoundError:
+                continue
+            raise AssertionError('external object storage refused')
+        assert git(root, 'rev-parse', '--is-shallow-repository') == b'false\n'
+        return result
+
+
+
+def seal_native_objects(root):
+    layout = verify_native_layout(root)
+    root = Path(root).absolute()
+    stack = []
+    with RefFDSet() as fds:
+        directory = fds.open_ref_fd('/', os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+        for part in (*root.parts[1:], '.git', 'objects'):
+            child = fds.open_ref_fd(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=directory)
+            fds.close_ref_fd(directory)
+            directory = child
+        stack.append((fds.dup_ref_fd(directory), ''))
+        files, dirs, total = {}, {}, 0
+        while stack:
+            fd, relative = stack.pop()
+            try:
+                before = os.fstat(fd)
+                assert stat.S_ISDIR(before.st_mode) and before.st_uid == os.geteuid() and not before.st_mode & 0o022
+                names = sorted(os.listdir(fd))
+                assert len(names) <= 4096 and len(files) + len(dirs) + len(stack) <= 4096
+                dirs[relative] = dict(dev=before.st_dev, ino=before.st_ino, mode=stat.S_IMODE(before.st_mode), uid=before.st_uid, gid=before.st_gid)
+                for name in names:
+                    assert name not in ('.', '..') and '/' not in name
+                    path = relative + '/' + name if relative else name
+                    info = os.stat(name, dir_fd=fd, follow_symlinks=False)
+                    assert info.st_uid == os.geteuid() and not info.st_mode & 0o022 and not stat.S_ISLNK(info.st_mode)
+                    if stat.S_ISDIR(info.st_mode):
+                        child = fds.open_ref_fd(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=fd)
+                        actual = os.fstat(child)
+                        assert (actual.st_dev, actual.st_ino) == (info.st_dev, info.st_ino)
+                        stack.append((child, path))
+                    else:
+                        assert stat.S_ISREG(info.st_mode) and info.st_nlink == 1 and 0 <= info.st_size <= 32 * 1024 * 1024
+                        total += info.st_size
+                        assert total <= 64 * 1024 * 1024 and len(files) < 4096
+                        child = fds.open_ref_fd(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=fd)
+                        try:
+                            first = os.fstat(child)
+                            assert (first.st_dev, first.st_ino, first.st_size, first.st_mode, first.st_nlink, first.st_uid, first.st_gid) == (info.st_dev, info.st_ino, info.st_size, info.st_mode, 1, info.st_uid, info.st_gid)
+                            digest = hashlib.sha256(); count = 0
+                            while True:
+                                raw = os.read(child, 1024 * 1024)
+                                if not raw:
+                                    break
+                                count += len(raw); assert count <= first.st_size
+                                digest.update(raw)
+                            last = os.fstat(child)
+                            fields = ('st_dev', 'st_ino', 'st_mode', 'st_uid', 'st_gid', 'st_nlink', 'st_size', 'st_mtime_ns', 'st_ctime_ns')
+                            assert count == first.st_size and all(getattr(first, key) == getattr(last, key) for key in fields)
+                            files[path] = dict(dev=first.st_dev, ino=first.st_ino, mode=stat.S_IMODE(first.st_mode), uid=first.st_uid, gid=first.st_gid, nlink=first.st_nlink, bytes=count, sha256=digest.hexdigest())
+                        finally:
+                            fds.close_ref_fd(child)
+                after = os.fstat(fd)
+                assert (before.st_dev, before.st_ino, before.st_mtime_ns, before.st_ctime_ns) == (after.st_dev, after.st_ino, after.st_mtime_ns, after.st_ctime_ns)
+                assert names == sorted(os.listdir(fd))
+            finally:
+                fds.close_ref_fd(fd)
+        assert layout == verify_native_layout(root)
+        assert len(files) + len(dirs) <= 4096
+        return dict(layout=layout, object_directories=dirs, object_files=files, total_bytes=total)
+

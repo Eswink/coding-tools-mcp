@@ -1,0 +1,38 @@
+# 任务清单：issue88-postpublish488-native-layout-precheck
+
+## 概述
+先规格/impact，有限管理实现与必要controls；新真实suite须另经独立review。
+
+## 交付物清单
+3规格、新layouthelper/controls及有限V2管理接点、私有精确nativeclone/source/layout封存、新source-onlybundle。
+
+## 任务列表
+1. FR-1：check_spec通过、freshsymbolsimpact并披露manualHIGH；旧worktreefailurefirstBLOCK0SUT。
+2. FR-1：nofollowFD物理layout/objectsseal，普通owned负向controls保持无SUT。
+3. FR-2：真实--no-local独立clone，exact50ef和nativehistoricalfetch，正常644755、whole/native前后核验。
+4. FR-3：source-onlyfreeze、detect_changes/gencommit、独立once启动review，当前不launch。
+
+## 验收标准
+当前worktree真实0SUT拒绝；新独立clone自持.git/objects验证；原positive/runner/IDs无变化；whole488资格仍0直到真实完整执行。
+
+## 风险和依赖
+UNKNOWN不能0；.git对象physicalseal成本有限预算不能扩大；deadline另一规格处理。
+
+## 需求覆盖矩阵
+FR-1任务1/2；FR-2任务3；FR-3任务4。
+
+## 文件变更清单
+仅新独立管理规格/layouthelper/controls与有限sourcegate调用位置；原SUT/旧carrier/run修改0。
+
+## 新有限补封任务
+先本checkout fresh impact；FR-1实际owned combined4096/4097 controls；FR-2固定systemPython alias+resolvedbinary actual beforeafter fence，两种真实entrypoint负向；FR-3新12source freeze/必要controls/独立启动review，旧A packet仍STOP，当前不launch。
+
+## 新有限任务
+规格3FR检查、本checkout fresh每符号impact（新符号UNKNOWN人工HIGH）、普通真实owned controls、完整physical/source/native封存、source-onlybackup、新独立启动review，当前0原SUT/NOTRUN。
+
+## 新有限真实FD清理修复
+独立peer真实普通owned fixture已复现capture_ref_storage directory open后fstat/assert至stack登记前泄漏FD，旧16842冻保留STOP。FR-1：任何新open返回FD在其它fstat/assert/cancel前必须归入实际owned清理账本，禁止打开后未登记空窗。FR-2：真实close逐项执行，任一close故障不得阻断其他ownedFD；失败close保持UNKNOWN不危险retry。原primary和全部close错误/cancel原对象在全部真实close后一起传播，不能互遮或由假FD/JSON授予closed。FR-3：metadata mismatch、cancel、firstclose失败后remaining全部close及primary+closecancel原对象普通真实FD controls，新增13source有限freeze/review/安全backup；原SUT/worker/原whole488不运行。
+
+## 新有限native对象与路径pin FD清理
+
+对应需求: FR-1, FR-2, FR-3。Old refs-close13 limited peer PASS does not close the remaining native objects/path guard FD exception paths. Fresh specification SHALL require immediate cleanup ledger ownership after every actual open or dup in verify_native_layout and seal_native_objects, before fstat/assert/cancel. Old FD failed close is UNKNOWN and must not be retried even if its number is reused; every other actual owned FD SHALL receive an independent real close attempt, preserving all primary/cancel/close exception objects. Existing refs capture, actual whole1867/pure native clone/15 fixed anchors/26 blobs/all-live refs/systemliteral+resolvedruntime/4096 bounds and original8338runner/58132IDs/all original SUT/2700+7/2/2/2MiB budgets remain unchanged. New ordinary owned controls must reproduce actual object-directory mismatch and fstat cancel, pathpin firstclose faults and unknown-effect no retry with remaining true FDs retired. This is external observer/source-guard code only, no original SUT edit, no whole488 launch authorization. Prior310ee refs13 PASS/nativeFDSTOP frozen bytes and prior16842 trueleak STOP unchanged.

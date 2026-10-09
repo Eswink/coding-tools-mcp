@@ -1,0 +1,141 @@
+{
+  "scope": "only inert source, finite patch, safe status",
+  "files": [
+    {
+      "path": "source/docs/specs/issue88-postpublish488-native-layout-precheck/design.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-native-layout-precheck/design.md",
+      "mode": "100644",
+      "bytes": 4821,
+      "sha256": "888a2885b0868b4659b9b0caed1eb20a23264d256cb6ab92922453c0658c1aa3"
+    },
+    {
+      "path": "source/docs/specs/issue88-postpublish488-native-layout-precheck/requirements.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-native-layout-precheck/requirements.md",
+      "mode": "100644",
+      "bytes": 6474,
+      "sha256": "39eb96fdaf9f0f3061c23550e3a0e95730668e8db670943679cc6132697303f0"
+    },
+    {
+      "path": "source/docs/specs/issue88-postpublish488-native-layout-precheck/tasks.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-native-layout-precheck/tasks.md",
+      "mode": "100644",
+      "bytes": 3753,
+      "sha256": "a389806767bef86878102d29a03280c3857ee7a9d32dbc414e67586f602f7f31"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_controls.py.source",
+      "original_path": "scripts/rc_postpublish488_controls.py",
+      "mode": "100644",
+      "bytes": 13168,
+      "sha256": "b07838f54f362e0c17d92ecfdb02810893a40c7645cdb3fedd1502408f527671"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_inventory.json.source",
+      "original_path": "scripts/rc_postpublish488_inventory.json",
+      "mode": "100644",
+      "bytes": 58132,
+      "sha256": "3274554750e538929b34a91cb124d66fe2372ac8737ee768ccb81b0aa7691094"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_kernel.py.source",
+      "original_path": "scripts/rc_postpublish488_kernel.py",
+      "mode": "100644",
+      "bytes": 4290,
+      "sha256": "b3c90896d1284732190bda5d1d118da7ad9b738cc3347bd9c9f477ad021aaac5"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_layout.py.source",
+      "original_path": "scripts/rc_postpublish488_layout.py",
+      "mode": "100644",
+      "bytes": 13243,
+      "sha256": "d47eaf24d652fad282f50f19947ec6566d694daad2d8ab437bbb5b531f73374a"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_layout_controls.py.source",
+      "original_path": "scripts/rc_postpublish488_layout_controls.py",
+      "mode": "100644",
+      "bytes": 20590,
+      "sha256": "99e4a2a4670f9d918ef3784abaf67bb6fde211cdc70e956494bd70fa99fdbb6c"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_original_runner.py.source",
+      "original_path": "scripts/rc_postpublish488_original_runner.py",
+      "mode": "100644",
+      "bytes": 8338,
+      "sha256": "0344311a0640e64b46875ed3cdb4e61ed41d87e4274e4a44c76e944323e8186e"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_owner.py.source",
+      "original_path": "scripts/rc_postpublish488_owner.py",
+      "mode": "100644",
+      "bytes": 16610,
+      "sha256": "1afe967daa3a959f6af47004c18a9e5cba049940468ea54c8eb0dd715a161352"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_ref_fds.py.source",
+      "original_path": "scripts/rc_postpublish488_ref_fds.py",
+      "mode": "100644",
+      "bytes": 2130,
+      "sha256": "51ac003395c757f84c3d956ecb08e9d16aa0292a89e015ba0f335d5b9a5f9db5"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_source_manifest.json.source",
+      "original_path": "scripts/rc_postpublish488_source_manifest.json",
+      "mode": "100644",
+      "bytes": 496326,
+      "sha256": "bd0d893b0fb2b3790ac7fc8a68aaa489f87e22310a84dd5140e5bf5b35e1f649"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_support.py.source",
+      "original_path": "scripts/rc_postpublish488_support.py",
+      "mode": "100644",
+      "bytes": 9379,
+      "sha256": "eb0a1faa5cd8793fd487c100af7d7e35c76725b58038818bad8982d259c9ac7e"
+    },
+    {
+      "path": "external-source/native-fd-failure-first-old13.py.source",
+      "original_path": "external-evidence-control-source/native-fd-failure-first-old13.py",
+      "mode": "100644",
+      "bytes": 3113,
+      "sha256": "07af431cc6587bcbf417374ba800632fb7a1896724597b211c5e5706bf008bad"
+    },
+    {
+      "path": "external-source/native-fd-failure-first-old13-raw01.py.source",
+      "original_path": "external-evidence-control-source/native-fd-failure-first-old13-raw01.py",
+      "mode": "100644",
+      "bytes": 3126,
+      "sha256": "b4b70a491996c238d64bd840847e89ccd6bd89aac6dcd3d2a4e2233138d61575"
+    },
+    {
+      "path": "external-source/record-native-fd-controls.py.source",
+      "original_path": "external-evidence-control-source/record-native-fd-controls.py",
+      "mode": "100644",
+      "bytes": 3195,
+      "sha256": "f0c6c42a6a0cbc9bd030d642a637c5cce80325598ad7ef1014d58b541c39e29d"
+    },
+    {
+      "path": "CONTROL-RECORDER-SAFE-METADATA-ERRATUM.json",
+      "mode": "100644",
+      "bytes": 444,
+      "sha256": "0fee2dbe336d173d9d5a6d9f6854796f01d052ddf5b99e6bd09991b957e43fe3"
+    },
+    {
+      "path": "source.patch",
+      "mode": "100644",
+      "bytes": 676504,
+      "sha256": "ae1cf9d20f28996caffe204c52821d3ba09d7fc620468a73a85015856b8213d4"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 845,
+      "sha256": "f51e70826b16a907b377bb59f1882d08f87e304edc30536ef8db3781f8eaf192"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "100644",
+      "bytes": 854,
+      "sha256": "6af4dbb1a3c9a5215a948c422cc5fa1f4bca961b73b03b94624fc99cda17ff37"
+    }
+  ]
+}

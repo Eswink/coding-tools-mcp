@@ -1,0 +1,27 @@
+{
+  "scope": "SOURCE_ONLY_native_fd13_unlaunched",
+  "source_files": 13,
+  "baseline": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "pure_tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+  "original_production_edits": 0,
+  "older_A": "STOP",
+  "original_once01": "FAIL",
+  "original488_newrun": "NOTRUN",
+  "CI": "NOTRUN",
+  "install": "NOTRUN",
+  "release": "NOTRUN",
+  "review": "PENDING independent startup review",
+  "necessary_controls": {
+    "native_FD": 7,
+    "ref_FD": 7,
+    "layout": 23,
+    "same_carrier": 42,
+    "SUT_runs": 0
+  },
+  "external_ordinary_source_files": 3,
+  "old13_two_actual_FD_leaks": true,
+  "prior_refs_close13": "limited_refs_PASS_overall_native_STOP_immutable",
+  "prior_allrefs12": "STOP_actual_FD_leak_preserved",
+  "new_whole488_authorized": false,
+  "private_raw_runtime_proc_TLS_env_objects_included": false
+}
