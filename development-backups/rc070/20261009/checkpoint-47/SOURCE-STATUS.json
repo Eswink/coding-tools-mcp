@@ -1,0 +1,44 @@
+{
+  "scope": "NEW_DATA_SOURCE_RECREATION_OLD_RUST_DRAFT_MISSING",
+  "base_tree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+  "data_source_tree": "7ba6d2a4cec1a2acc011385984236360479aef94",
+  "paths": 1958,
+  "baseline_unchanged": 1952,
+  "sixpath_delta": [
+    "src-tauri/src/tools/windows_vm/output_stage/data.rs",
+    "src-tauri/src/tools/windows_vm/output_stage/data_tests.rs",
+    "src-tauri/src/tools/windows_vm/output_stage/mod.rs",
+    "docs/specs/windows-rust-output-data-recreated/requirements.md",
+    "docs/specs/windows-rust-output-data-recreated/design.md",
+    "docs/specs/windows-rust-output-data-recreated/tasks.md"
+  ],
+  "protected_wss_SHA256": "c9fcdba432c239cc08a090c6cb4256f51b54368cbefb3afac553c1a6c719b9b8",
+  "actual_Rust": {
+    "exit_code": 0,
+    "methods": 14,
+    "original_pure_methods": 7,
+    "new_output_methods": 7,
+    "actual_tool_version": "1.98.1",
+    "cargo_SHA256": "da77c8b33849312255ccde3179198ada4c8deb370488d050286146b1d1b27e14",
+    "rustc_SHA256": "859254978c0a0402c32f949f6de0d99aee73be8d15f45aac00ae1448aac51e74",
+    "rawlog_SHA256": "ae46f0eb3a1f1cca7bd1f42b6008967679f3cab8d19106dfe292adccd0668f0f",
+    "same_source_runtime_bytes_beforeafter": true,
+    "facade_only": true
+  },
+  "actual_Go": {
+    "exit_code": 0,
+    "vectors": 7,
+    "tool_version": "1.24.13",
+    "tool_SHA256": "84a0e87421e4cc48036b48ee32374de17479b7f8592822dcc57c93aa3ff337a7",
+    "output_SHA256": "8889d9f9dd43c1da491a7b3372a20ddcf216d124e9dfc8473bfe95fa1bb70aa4",
+    "same_original_source_runtime_bytes_beforeafter": true
+  },
+  "spec": "ActualstructuredPASS4FR0/0",
+  "fresh_GitNexus": "OriginalRunBindingHIGH9/direct4/process1/modules3 reusedunchanged;23newtargetsUNKNOWN/manualHIGH disclosed",
+  "source_peer": "PENDING",
+  "whole_project_compile": "NOTRUN",
+  "Windowsnative_VM_IOclose_owner_install_RC_pass": false,
+  "old_Rust_draft": "MISSING; newrecreated source, no olddraft recovery claimed",
+  "source_only": true,
+  "physical_POSIX_mode_claim": false
+}

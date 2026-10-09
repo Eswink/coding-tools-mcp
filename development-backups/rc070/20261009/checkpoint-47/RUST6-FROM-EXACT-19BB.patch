@@ -1,0 +1,473 @@
+diff --git a/docs/specs/windows-rust-output-data-recreated/design.md b/docs/specs/windows-rust-output-data-recreated/design.md
+new file mode 100644
+index 0000000..27d72a1
+--- /dev/null
++++ b/docs/specs/windows-rust-output-data-recreated/design.md
+@@ -0,0 +1,30 @@
++# Design: windows-rust-output-data-recreated
++
++## 概述
++FR1 output parser strictly validates bounded raw frames; FR2 Reader EOF and monotonic cancellation are data boundaries; FR3 ArcMutex owns once-consumable private data; FR4 source-specific graph and true isolated tools preserve honest evidence.
++
++## 技术方案
++OutputDataCancellation wraps private ArcAtomicBool; cancel_output_data only stores true, Default starts false. receive_output_data validates original RunBinding via input::owned_run existing alias, derives lengthprefix SHA, then reads bounded72byteheaders/body with checks around each read. Sequence0..32/body/nonempty/final/offsettotal/reserved/hash/binding are exact. No data escapes before zero-body final plus actual ReaderEOF; detached OutputDataTransfer shares all private state via ArcMutex. take_output_data locks sharedstate, marks consumed before every validation, checks cancel/binding/hash, clones≤1MiB then rechecks cancel. Poisonedmutex remainsdeny.
++
++## Data Flow
++Original same nominalRunBinding → digest/rawdirection2 input → boundedframe/hash/finalReaderEOF → private ArcMutex detacheddata → one terminal take returnsVec. No native proof/authorization object or connection to request_publication.
++
++## Error Handling
++Any parser/cancel/read/header/hash/EOF failure returns explicit data error and no owner. Any consumption attempt becomes terminal. No panic/unwrap in production code. Reader may synchronously block; token records stop but can't unblock IO, and test releases its own controlledordinaryreader. No timeoutgoroutine, fakeEOF, nativeclose or cancelledreaderabandonment claim.
++
++## 文件结构
++Only3Rust+3spec. data.rs≤250lines, data_tests.rs≤400lines, mod.rs only module registration. Minimalcratefacade lives outside sourcecheckout, path/includes point to unchanged actual originals; accurately reproduces only data needed aliases and no native owner functions. Original gate/nt/owner/input files remain exact. Existing output defaultdeny remains intact.
++
++## FR Coverage Matrix
++| Requirement | Source | Evidence |
++| --- | --- | --- |
++| FR-1 | data parser/digest | trueGo vectors/headers/binding/capacity/hash tests |
++| FR-2 | cancellation/Read helpers | realReaderEOF/readfailure/controlledblock test |
++| FR-3 | sharedstate/take | clone/32concurrent/foreignterminal/poison/mutation tests |
++| FR-4 | moduleonly/sourcefreeze | actualpinnedRust tool leases/declaredfacade/allbaseblobidentity/peer |
++
++## 测试策略
++Generate actual Go golden cases with unchanged original transfer.go/workspace_stream.go/guest_workspace_control.go and current frozen output_transfer.go copied byte-exact into owned toolproject; actualGo outputsource hashes beforeafter. Rust uses exact original inputtransfer/path/chunks with literal facade for existing owned_run alias; dependencies from original lock sha2 0.10.9/uuid1.23.4. Actual runtimepayloadhash/version beforeafter and source allnativeblobs maintained. Tests target realbehavior, not mirrored implementation-only static checks. Golden small UTF8rawwire plus boundarywire SHA/computeddata hashes; real pure Go outputtake verified. No wholeWindowsnative proof.
++
++## 风险评估
++Original RunBinding freshownGN HIGH9/direct4/process1/modules3; no originalbodyedit. New symbols UNKNOWN, manualHIGH disclosed. Actual Read implementation can block; atomiccancel checks do not promise native cancellation or allIO retirement. Claimedfacade compile excludes productionnative owner/Tauri; exact sourceproject fullcompilation remains a later realWindows gate.
+diff --git a/docs/specs/windows-rust-output-data-recreated/requirements.md b/docs/specs/windows-rust-output-data-recreated/requirements.md
+new file mode 100644
+index 0000000..227ad41
+--- /dev/null
++++ b/docs/specs/windows-rust-output-data-recreated/requirements.md
+@@ -0,0 +1,29 @@
++# Requirements: windows-rust-output-data-recreated
++
++## 功能概述
++Rebuild missing old Rust output DATA draft on exact19bb/1953, not restored old8path source. Existing pure Go direction2 output semantics are the reference. Exactly3Rust source paths and3spec paths; no native permission, handle/IOclose or publication bridge.
++
++## 历史经验与坑（来自记忆库）
++Old Rustdraft MISSING; Go value copies originally allowed repeated consumption and actual failure-first led to shared pointer once-state. Here ArcMutex shares entire private output state. Existing RunBinding is nominally reused via original public input::owned_run re-export; original validator/path/chunks byte exact. Source recovery or isolated compiler success is not RC or wholeWindows/native owner proof.
++
++## 范围边界
++Only output_stage/data.rs,data_tests.rs,mod.rs plus thisspec3files. No gate/nt/owner/input validator/body or protectedoriginalwsspositive change. No native boot grant/IO-close/writeback/publisher/snapshot/authorization; default request_publication denial preserved.
++
++## 需求列表
++### FR-1 Exact output framing and binding
++WHEN receiving output data THEN consumer SHALL use CTMWIO02 direction2 and original valid ninefield RunBinding digest: CTM-DATA-BINDING-1 + each UTF8 byte length uint32LE + bytes in host/profile/caller/source/session/operation/input_relative/output_parent/output_leaf order. Header72 bytes, reserved10/11/36..39 zero, exact binding32, sequence uint32LE starting0, offset/total uint64LE and bodylength uint32LE must match. Body≤32768, total≤1048576, atmost32nonemptydataframes+onefinalemptyframe, framed≤1048576+33*72. All malformed/foreign/mutated/incomplete/replayed/trailing data SHALL reject, no data hash interpreted as authority.
++### FR-2 Actual Reader EOF and finite cancellation boundary
++WHEN finalzero-length frame arrives THEN offset SHALL equal manifesttotal and actual SHA256 data match before an actual Reader read returns Ok(0) EOF. Missing EOF/trailingbyte/readerror denies. Cancellation SHALL be checked before/after each physical read, after finalEOF and around detach/take. Cancellation token is shared monotonic stop-only privateAtomicBool, cannot reset through API. Synchronous Read cannot interrupt a blocking native pipe; controlled blocked-reader test SHALL declare that limitation and release its own ordinary reader, never spawn abandonedwaiters or claim native IOclosure/timeout.
++### FR-3 Shared terminal single consumption
++WHEN data owner is cloned THEN all clones SHALL share same ArcMutex private binding/data/hash/cancellation/consumedstate. Each take attempt SHALL set consumed before validating caller binding/cancel/hash and never reopen, including foreignattempt, cancellation, corruptdata or poisonedmutex. Correct concurrent32consumers yield exactlyone success; returned Vec is detached, modifications do not alter retained bytes. This data owner SHALL mint no resource/owner/retirement/publication capability.
++### FR-4 Actual isolated tools, source identity and review
++WHEN verifying THEN actual originalGo encoder/digest and direction2 consumer SHALL emit current crosslanguage golden vectors, while exact actual Rust1.98.1 compiler uses minimalcrate with original byte-exact transfer.rs/path.rs/chunks.rs. Facade reproduces only original owned_run RunBinding re-export; omits native gate/nt/owner/root/Tauri and must be named accurately. Wholecrate/Windowscompile/nativeVM/install remains NOTRUN. Freshsource-specific graphimpact, manualHIGH disclosure, necessary actualtests, independentpeer/freeze/safebackup precede rootonlypush; original1953base paths except mod.rs preserved and originalwss SHA c9fcdba432c239cc08a090c6cb4256f51b54368cbefb3afac553c1a6c719b9b8 remains16assert/9unwrap/3scope.
++
++## 非功能需求
++Each data file≤500lines; bounded parser allocation1MiB; immutable safe sourcebackup only—no keys/rawruntime/host/env/binaries/Gitobjects. Rustdata compile invocation bounded480s; each ordinary blockedread case has controlled3second channel boundary, no existing RCgate budgets expanded. ManualHIGH: existingbinding9impacts, new UNKNOWN not0.
++
++## 验收标准
++FR1 originalGo golden interoperability and max/boundary/empty/error vectors; FR2 EOF/cancellation/readfail/declaredblockedRead; FR3 clone/concurrent/terminal/mutation/poison; FR4 exactnative tool/source leases and limitedfacade/sourcepeer qualification.
++
++## 依赖关系
++Original pub(crate) input::owned_run::RunBinding and sha2/uuid; true existing pinnedRust/Go; rootisolated19bb source/index and currentGo output frozen source; no old missingRust draft restoration.
+diff --git a/docs/specs/windows-rust-output-data-recreated/tasks.md b/docs/specs/windows-rust-output-data-recreated/tasks.md
+new file mode 100644
+index 0000000..7cf00da
+--- /dev/null
++++ b/docs/specs/windows-rust-output-data-recreated/tasks.md
+@@ -0,0 +1,30 @@
++# Tasks: windows-rust-output-data-recreated
++
++## 实施计划
++1. Capture exact19bb/1953 baseline, existing nominalRunBinding alias, original validation/protectedpositive identity, ownindex freshimpact andmanualHIGH before sourcechanges (FR4).
++2. Write/check fourFR spec then bounded data parser/sharedonce state/stop-only cancellation; mod.rs adds only data module (FR1,FR2,FR3).
++3. Execute realGo encoder/outputdecoder golden cases and exactexisting Rust compiler isolatedfacade native tests (FR1..FR4).
++4. Independent sourcepeer, source seal all1953 baseline exceptmod unchanged; safe sourcebackup via root, native wholecrate/Windows gates remain NOTRUN (FR4).
++
++## 验证计划
++Empty/1/chunk-1/chunk/chunk+1/max+overmax; exactallninebindingmismatches; direction/reserved/length/sequence/offset/total/truncation/final/hash/trailing/replay; actualReader EOF and returnedErr/Ok0only; pre/during/postEOF cancellation, monotonicstopAPI, owned blockedreader3s release with limitation; Arcclone/32concurrent/foreignattempt/cancel/poison all terminal; detachedVec mutation no retained change. Original unchangedpath tests compiledaspartof minimalcrate. True Go smallrawgolden/framehash vectors cross Rust interpreter. No nativeVM/IOclose/bootowner/permission.
++
++## 交付物清单
++Exactly6paths: output_stage/data.rs(new), data_tests.rs(new), mod.rs(only registration); thisspec requirements/design/tasks(new). External facade/control/evidence excluded fromsourcecandidate. Old8pathRustdraft remainsMISSING; this is new source recreation.
++
++## 任务列表
++- [ ] T1(FR4) exactsource+impact+spec gates.
++- [ ] T2(FR1,FR2,FR3) bounded data parser/monotoniccancellation/sharedonce implementation≤500lines perfile.
++- [ ] T3(FR1..FR4) actualGo crossvectors/Rustexactminimalfacade tests and runtime/sourcelease final checks.
++- [ ] T4(FR4) independentpeer/freeze/continuous safeGitHub backup; nativefullcrateNOTRUN.
++
++## 需求覆盖矩阵
++| Requirement | Tasks | Evidence |
++| --- | --- | --- |
++| FR-1 | T2,T3 | framing/digest/realGo crossvectors |
++| FR-2 | T2,T3 | actualEOF/cancel/controlledblockedRead |
++| FR-3 | T2,T3 | clones/concurrent/terminal/poison/detach |
++| FR-4 | T1,T3,T4 | actualownGN/verifiednativecompiler/exactsources/peer |
++
++## 文件变更清单
++src-tauri/src/tools/windows_vm/output_stage/{data.rs,data_tests.rs,mod.rs}; docs/specs/windows-rust-output-data-recreated/{requirements.md,design.md,tasks.md}. Baseline1953actualnative modes/blobs preserved exceptmod declaration, originalprotectedwss16assert/9unwrap/3scope andhashunchanged. No source Probe/GN bootstrap or objectlibrary publicbackup.
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/data.rs b/src-tauri/src/tools/windows_vm/output_stage/data.rs
+new file mode 100644
+index 0000000..2823d75
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/output_stage/data.rs
+@@ -0,0 +1,144 @@
++//! Output bytes are DATA. Reader EOF/consumption confer no native IO retirement,
++//! handle ownership, workspace writeback, publication or authorization proof.
++use crate::tools::windows_vm::input::owned_run::RunBinding;
++use sha2::{Digest, Sha256};
++use std::io::Read;
++use std::sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex};
++
++const OUTPUT_CHUNK: usize = 32_768;
++const OUTPUT_MAXIMUM: usize = 1_048_576;
++const OUTPUT_HEADER: usize = 72;
++const OUTPUT_FRAMED_MAXIMUM: usize = OUTPUT_MAXIMUM + 33 * OUTPUT_HEADER;
++
++/// Stop-only shared DATA cancellation. No reset API or native close capability.
++#[derive(Clone, Default)]
++pub(crate) struct OutputDataCancellation(Arc<AtomicBool>);
++impl OutputDataCancellation {
++    pub(crate) fn cancel_output_data(&self) { self.0.store(true, Ordering::Release); }
++}
++
++struct OutputDataState {
++    binding: RunBinding,
++    data: Vec<u8>,
++    total: usize,
++    digest: [u8; 32],
++    cancellation: OutputDataCancellation,
++    consumed: bool,
++}
++
++/// Every clone shares all private state, including terminal failed attempts.
++#[derive(Clone)]
++pub(crate) struct OutputDataTransfer(Arc<Mutex<OutputDataState>>);
++impl OutputDataTransfer {
++    pub(crate) fn take_output_data(&self, binding: &RunBinding) -> Result<Vec<u8>, &'static str> {
++        let mut state = self.0.lock().map_err(|_| "WINDOWS_OUTPUT_DATA_POISONED")?;
++        if state.consumed { return Err("WINDOWS_OUTPUT_DATA_ALREADY_CONSUMED"); }
++        // Terminal before checking even a foreign/cancelled/invalid attempt.
++        state.consumed = true;
++        if state.cancellation.0.load(Ordering::Acquire) || !binding.valid()
++            || &state.binding != binding || state.data.len() != state.total
++            || state.total > OUTPUT_MAXIMUM
++            || <[u8; 32]>::from(Sha256::digest(&state.data)) != state.digest
++        { return Err("WINDOWS_OUTPUT_DATA_TAKE_REJECTED"); }
++        let detached = state.data.clone();
++        if state.cancellation.0.load(Ordering::Acquire) {
++            return Err("WINDOWS_OUTPUT_DATA_CANCELLED");
++        }
++        Ok(detached)
++    }
++}
++
++fn output_binding_digest(binding: &RunBinding) -> Result<[u8; 32], &'static str> {
++    if !binding.valid() { return Err("WINDOWS_OUTPUT_DATA_BINDING_REJECTED"); }
++    let mut hash = Sha256::new();
++    hash.update(b"CTM-DATA-BINDING-1");
++    for field in [&binding.host, &binding.profile, &binding.caller, &binding.source,
++        &binding.session, &binding.operation, &binding.input_relative,
++        &binding.output_parent, &binding.output_leaf]
++    {
++        // The unchanged validator bounds each UTF8 byte length below u32::MAX.
++        hash.update((field.len() as u32).to_le_bytes());
++        hash.update(field.as_bytes());
++    }
++    Ok(hash.finalize().into())
++}
++
++fn read_output_exact<R: Read>(reader: &mut R, bytes: &mut [u8],
++    cancellation: &OutputDataCancellation) -> Result<(), &'static str>
++{
++    let mut position = 0;
++    while position < bytes.len() {
++        if cancellation.0.load(Ordering::Acquire) { return Err("WINDOWS_OUTPUT_DATA_CANCELLED"); }
++        // A synchronous blocking Read cannot be interrupted by a DATA token.
++        let count = reader.read(&mut bytes[position..]).map_err(|_| "WINDOWS_OUTPUT_DATA_READ_FAILED")?;
++        if cancellation.0.load(Ordering::Acquire) { return Err("WINDOWS_OUTPUT_DATA_CANCELLED"); }
++        if count == 0 || count > bytes.len() - position {
++            return Err("WINDOWS_OUTPUT_DATA_TRUNCATED");
++        }
++        position += count;
++    }
++    Ok(())
++}
++
++fn finish_output_eof<R: Read>(reader: &mut R,
++    cancellation: &OutputDataCancellation) -> Result<(), &'static str>
++{
++    if cancellation.0.load(Ordering::Acquire) { return Err("WINDOWS_OUTPUT_DATA_CANCELLED"); }
++    let mut extra = [0u8; 1];
++    let count = reader.read(&mut extra).map_err(|_| "WINDOWS_OUTPUT_DATA_EOF_FAILED")?;
++    if cancellation.0.load(Ordering::Acquire) { return Err("WINDOWS_OUTPUT_DATA_CANCELLED"); }
++    if count != 0 { return Err("WINDOWS_OUTPUT_DATA_TRAILING_BYTES"); }
++    Ok(())
++}
++
++pub(crate) fn receive_output_data<R: Read>(binding: RunBinding, total: u64,
++    digest: [u8; 32], reader: &mut R, cancellation: OutputDataCancellation)
++    -> Result<OutputDataTransfer, &'static str>
++{
++    if total > OUTPUT_MAXIMUM as u64 || cancellation.0.load(Ordering::Acquire) {
++        return Err("WINDOWS_OUTPUT_DATA_MANIFEST_REJECTED");
++    }
++    let binding_hash = output_binding_digest(&binding)?;
++    let total = total as usize;
++    let mut data = Vec::with_capacity(total);
++    let mut sequence = 0u32;
++    let mut framed = 0usize;
++    loop {
++        let mut header = [0u8; OUTPUT_HEADER];
++        read_output_exact(reader, &mut header, &cancellation)?;
++        if &header[..8] != b"CTMWIO02" || header[8] != 2 || header[9] > 1
++            || header[10..12] != [0, 0] || header[36..40] != [0, 0, 0, 0]
++            || header[40..72] != binding_hash
++        { return Err("WINDOWS_OUTPUT_DATA_HEADER_REJECTED"); }
++        let observed_sequence = u32::from_le_bytes([header[12], header[13], header[14], header[15]]);
++        let offset = u64::from_le_bytes([header[16],header[17],header[18],header[19],header[20],header[21],header[22],header[23]]);
++        let observed_total = u64::from_le_bytes([header[24],header[25],header[26],header[27],header[28],header[29],header[30],header[31]]);
++        let count = u32::from_le_bytes([header[32],header[33],header[34],header[35]]) as usize;
++        if count > OUTPUT_CHUNK || sequence > 32 || observed_sequence != sequence
++            || offset != data.len() as u64 || observed_total != total as u64
++            || framed + OUTPUT_HEADER + count > OUTPUT_FRAMED_MAXIMUM
++        { return Err("WINDOWS_OUTPUT_DATA_SEQUENCE_OR_BOUND_REJECTED"); }
++        framed += OUTPUT_HEADER + count;
++        if header[9] == 1 {
++            if count != 0 || data.len() != total || <[u8; 32]>::from(Sha256::digest(&data)) != digest {
++                return Err("WINDOWS_OUTPUT_DATA_FINAL_HASH_REJECTED");
++            }
++            finish_output_eof(reader, &cancellation)?;
++            if cancellation.0.load(Ordering::Acquire) { return Err("WINDOWS_OUTPUT_DATA_CANCELLED"); }
++            return Ok(OutputDataTransfer(Arc::new(Mutex::new(OutputDataState {
++                binding, data, total, digest, cancellation, consumed: false,
++            }))));
++        }
++        if count == 0 || sequence == 32 || data.len() + count > total {
++            return Err("WINDOWS_OUTPUT_DATA_BODY_BOUND_REJECTED");
++        }
++        let old = data.len();
++        data.resize(old + count, 0);
++        read_output_exact(reader, &mut data[old..], &cancellation)?;
++        sequence += 1;
++    }
++}
++
++#[cfg(test)]
++#[path = "data_tests.rs"]
++mod data_tests;
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/data_tests.rs b/src-tauri/src/tools/windows_vm/output_stage/data_tests.rs
+new file mode 100644
+index 0000000..9d6eada
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/output_stage/data_tests.rs
+@@ -0,0 +1,198 @@
++use super::*;
++use std::io::{self, Cursor};
++use std::sync::{mpsc, Barrier};
++use std::thread;
++use std::time::Duration;
++
++fn output_test_binding() -> RunBinding {
++    let id = "11111111-1111-4111-8111-111111111111";
++    RunBinding { host: id.into(), profile: "data-only".into(), caller: "caller".into(),
++        source: "1".repeat(40), session: id.into(), operation: id.into(),
++        input_relative: "input.txt".into(), output_parent: "results".into(), output_leaf: "new.txt".into() }
++}
++fn output_test_wire(binding: &RunBinding, data: &[u8], direction: u8) -> Vec<u8> {
++    let binding_hash = output_binding_digest(binding).unwrap();
++    let mut wire = Vec::new();
++    let mut offset = 0usize; let mut sequence = 0u32;
++    loop {
++        let count = (data.len() - offset).min(OUTPUT_CHUNK);
++        let mut header = [0u8; OUTPUT_HEADER];
++        header[..8].copy_from_slice(b"CTMWIO02"); header[8] = direction;
++        if offset == data.len() { header[9] = 1; }
++        header[12..16].copy_from_slice(&sequence.to_le_bytes());
++        header[16..24].copy_from_slice(&(offset as u64).to_le_bytes());
++        header[24..32].copy_from_slice(&(data.len() as u64).to_le_bytes());
++        header[32..36].copy_from_slice(&(count as u32).to_le_bytes());
++        header[40..72].copy_from_slice(&binding_hash);
++        wire.extend_from_slice(&header); wire.extend_from_slice(&data[offset..offset+count]);
++        if offset == data.len() { break; }
++        offset += count; sequence += 1;
++    }
++    wire
++}
++fn output_test_receive(binding: &RunBinding, data: &[u8]) -> OutputDataTransfer {
++    receive_output_data(binding.clone(), data.len() as u64, Sha256::digest(data).into(),
++        &mut Cursor::new(output_test_wire(binding,data,2)), OutputDataCancellation::default()).unwrap()
++}
++
++#[test]
++fn output_direction_capacity_and_roundtrip() {
++    let binding = output_test_binding();
++    for size in [0,1,OUTPUT_CHUNK-1,OUTPUT_CHUNK,OUTPUT_CHUNK+1,OUTPUT_MAXIMUM] {
++        let data = vec![7;size]; let owner = output_test_receive(&binding,&data);
++        let mut got = owner.take_output_data(&binding).unwrap(); assert_eq!(got,data);
++        if !got.is_empty() { got[0]^=1; assert_eq!(owner.0.lock().unwrap().data,data); }
++        assert!(owner.take_output_data(&binding).is_err());
++    }
++    let data = b"direction canary"; let digest = Sha256::digest(data).into();
++    assert!(receive_output_data(binding.clone(),data.len() as u64,digest,
++        &mut Cursor::new(output_test_wire(&binding,data,1)),OutputDataCancellation::default()).is_err());
++    assert!(receive_output_data(binding,OUTPUT_MAXIMUM as u64+1,digest,
++        &mut Cursor::new(Vec::<u8>::new()),OutputDataCancellation::default()).is_err());
++}
++
++#[test]
++fn output_binding_fields_and_terminal_foreign_attempt() {
++    let original = output_test_binding(); let data=b"all nine fields";
++    for i in 0..9 {
++        let mut foreign = original.clone();
++        match i {
++            0=>foreign.host="22222222-2222-4222-8222-222222222222".into(),
++            1=>foreign.profile.push('x'),2=>foreign.caller.push('x'),3=>foreign.source="2".repeat(40),
++            4=>foreign.session="22222222-2222-4222-8222-222222222222".into(),
++            5=>foreign.operation="22222222-2222-4222-8222-222222222222".into(),
++            6=>foreign.input_relative="other.txt".into(),7=>foreign.output_parent="other".into(),
++            _=>foreign.output_leaf="other.txt".into(),
++        }
++        assert!(foreign.valid()); assert_ne!(output_binding_digest(&foreign),output_binding_digest(&original));
++        assert!(receive_output_data(foreign.clone(),data.len() as u64,Sha256::digest(data).into(),
++            &mut Cursor::new(output_test_wire(&original,data,2)),OutputDataCancellation::default()).is_err());
++        let owner = output_test_receive(&original,data); let copy=owner.clone();
++        assert!(copy.take_output_data(&foreign).is_err()); assert!(owner.take_output_data(&original).is_err());
++    }
++    for bad in ["../escape","a:stream","NUL.txt"] {
++        let mut binding=original.clone();binding.input_relative=bad.into();
++        assert!(output_binding_digest(&binding).is_err());
++    }
++}
++
++#[test]
++fn output_header_sequence_offset_digest_and_EOF_reject() {
++    let binding=output_test_binding();let data=b"bound output";let wire=output_test_wire(&binding,data,2);
++    let mut rejected=vec![Vec::new(),wire[..7].to_vec(),wire[..wire.len()-72].to_vec(),wire[..wire.len()-1].to_vec()];
++    let mut trailing=wire.clone();trailing.push(0);rejected.push(trailing);
++    let mut replay=wire.clone();replay.extend_from_slice(&wire);rejected.push(replay);
++    for index in [0,8,9,10,11,12,16,24,32,36,39,40,72] {
++        let mut mutated=wire.clone();mutated[index]^=1;rejected.push(mutated);
++    }
++    let mut invalid_length=wire.clone();invalid_length[32..36].copy_from_slice(&32769u32.to_le_bytes());rejected.push(invalid_length);
++    let mut premature=wire.clone();premature[9]=1;rejected.push(premature);
++    let mut zero_data=wire.clone();zero_data[32..36].copy_from_slice(&0u32.to_le_bytes());rejected.push(zero_data);
++    for bad in rejected {
++        assert!(receive_output_data(binding.clone(),data.len() as u64,Sha256::digest(data).into(),
++            &mut Cursor::new(bad),OutputDataCancellation::default()).is_err());
++    }
++    assert!(receive_output_data(binding,data.len() as u64,Sha256::digest(b"foreign").into(),
++        &mut Cursor::new(wire),OutputDataCancellation::default()).is_err());
++}
++
++struct OutputReadFailure;
++impl Read for OutputReadFailure {
++    fn read(&mut self,_: &mut [u8]) -> io::Result<usize> { Err(io::Error::other("ordinary read failure")) }
++}
++struct OutputReadWithoutEOF { cursor: Cursor<Vec<u8>>, cancel: Option<OutputDataCancellation> }
++impl Read for OutputReadWithoutEOF {
++    fn read(&mut self,bytes: &mut [u8]) -> io::Result<usize> {
++        let count=self.cursor.read(bytes)?;
++        if count==0 {
++            if let Some(stop)=&self.cancel { stop.cancel_output_data(); return Ok(0); }
++            return Err(io::Error::other("ordinary missing EOF"));
++        }
++        Ok(count)
++    }
++}
++struct OutputControlledBlock { cursor: Cursor<Vec<u8>>, entered: Option<mpsc::Sender<()>>, release: mpsc::Receiver<()> }
++impl Read for OutputControlledBlock {
++    fn read(&mut self,bytes: &mut [u8]) -> io::Result<usize> {
++        if let Some(entered)=self.entered.take() {
++            entered.send(()).map_err(io::Error::other)?;
++            self.release.recv_timeout(Duration::from_secs(3)).map_err(io::Error::other)?;
++        }
++        self.cursor.read(bytes)
++    }
++}
++
++#[test]
++fn output_cancel_reader_error_and_blocked_reader_boundary() {
++    let binding=output_test_binding();let data=b"cancel canary";let digest: [u8;32]=Sha256::digest(data).into();
++    let stop=OutputDataCancellation::default();let copy=stop.clone();stop.cancel_output_data();
++    assert!(copy.0.load(Ordering::Acquire));copy.cancel_output_data();assert!(stop.0.load(Ordering::Acquire));
++    assert!(receive_output_data(binding.clone(),data.len() as u64,digest,&mut OutputReadFailure,stop).is_err());
++    assert!(receive_output_data(binding.clone(),data.len() as u64,digest,&mut OutputReadFailure,OutputDataCancellation::default()).is_err());
++    for cancel_eof in [false,true] {
++        let stop=OutputDataCancellation::default();
++        let mut reader=OutputReadWithoutEOF{cursor:Cursor::new(output_test_wire(&binding,data,2)),cancel:cancel_eof.then(||stop.clone())};
++        assert!(receive_output_data(binding.clone(),data.len() as u64,digest,&mut reader,stop).is_err());
++    }
++    let stop=OutputDataCancellation::default();
++    let owner=receive_output_data(binding.clone(),data.len() as u64,digest,
++        &mut Cursor::new(output_test_wire(&binding,data,2)),stop.clone()).unwrap();
++    stop.cancel_output_data();assert!(owner.take_output_data(&binding).is_err());assert!(owner.clone().take_output_data(&binding).is_err());
++    let stop=OutputDataCancellation::default();let worker_stop=stop.clone();let worker_binding=binding.clone();
++    let wire=output_test_wire(&binding,data,2);let (entered_tx,entered_rx)=mpsc::channel();
++    let (release_tx,release_rx)=mpsc::channel();let (done_tx,done_rx)=mpsc::channel();
++    let worker=thread::spawn(move||{
++        let mut reader=OutputControlledBlock{cursor:Cursor::new(wire),entered:Some(entered_tx),release:release_rx};
++        let result=receive_output_data(worker_binding,data.len() as u64,digest,&mut reader,worker_stop);
++        done_tx.send(result.is_err()).unwrap();
++    });
++    entered_rx.recv_timeout(Duration::from_secs(3)).unwrap();stop.cancel_output_data();
++    // DATA cancellation alone cannot unblock synchronous Read; release our own reader.
++    assert!(matches!(done_rx.try_recv(),Err(mpsc::TryRecvError::Empty)));
++    release_tx.send(()).unwrap();assert!(done_rx.recv_timeout(Duration::from_secs(3)).unwrap());worker.join().unwrap();
++}
++
++#[test]
++fn output_clone_and_concurrent_once() {
++    let binding=output_test_binding();let data=b"copy canary";let owner=output_test_receive(&binding,data);let clone=owner.clone();
++    assert_eq!(clone.take_output_data(&binding).unwrap(),data);assert!(owner.take_output_data(&binding).is_err());
++    let owner=output_test_receive(&binding,data);let start=Arc::new(Barrier::new(33));let mut workers=Vec::new();
++    for _ in 0..32 {
++        let owner=owner.clone();let binding=binding.clone();let start=start.clone();
++        workers.push(thread::spawn(move||{start.wait();owner.take_output_data(&binding).is_ok()}));
++    }
++    start.wait();assert_eq!(workers.into_iter().map(|worker|worker.join().unwrap()).filter(|passed|*passed).count(),1);
++    assert!(owner.take_output_data(&binding).is_err());
++    let corrupt=output_test_receive(&binding,data);corrupt.0.lock().unwrap().data[0]^=1;
++    assert!(corrupt.take_output_data(&binding).is_err());assert!(corrupt.take_output_data(&binding).is_err());
++}
++
++#[test]
++fn output_mutex_poison_remains_denied() {
++    let binding=output_test_binding();let owner=output_test_receive(&binding,b"poison canary");let clone=owner.clone();
++    let worker=thread::spawn(move||{let _locked=clone.0.lock().unwrap();panic!("ordinary controlled state poison")});
++    assert!(worker.join().is_err());assert!(owner.take_output_data(&binding).is_err());assert!(owner.clone().take_output_data(&binding).is_err());
++}
++
++#[test]
++fn output_go_golden_vector_is_exact() {
++    // Produced by actual Go1.24.13 unchanged original encoder/digest + frozen output consumer;
++    // current 7vector receipt/output SHA8889d9f9… is private evidence, no borrowed old run.
++    let binding=output_test_binding();assert_eq!(format!("{:x}",Sha256::digest(b"")),"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
++    assert_eq!(output_binding_digest(&binding).unwrap(),[
++        0x88,0x13,0xb4,0xd6,0x37,0x84,0x11,0x00,0x33,0x78,0xfa,0xcb,0x2d,0xec,0x85,0x0d,
++        0x69,0xed,0x7b,0xf2,0xb8,0x62,0x0e,0x21,0xdc,0xfc,0xfd,0xc3,0xf4,0x50,0xd0,0xfd]);
++    for (size,want) in [(0,"d798a4eaf9079948d80f1299cfd37eebb37a93739954af09d5ae8a9dbe53e45c"),
++        (1,"bfc5fff94a8898d6fe4a54ae62ed8b9bd2aa968d81737a0ed0583f0308fc91bd"),
++        (32767,"90cda40d148339ce09491a2fbf1477910882b6e1034f67768da86599570ba3db"),
++        (32768,"1b0210d4fc366e05856ec3cd78d0ab9e4ab12ff64791a98235d23947be5f4d96"),
++        (32769,"d22adfceee3dc7242ef2dbe6bce1b70d4c0c3cb45dd008b5de420e6b9439b872"),
++        (1048576,"f27d4f940bf301afe101cd37afa03c458e447ead1b83f4e8c8fb8e2545b5a0fe")] {
++        assert_eq!(format!("{:x}",Sha256::digest(output_test_wire(&binding,&vec![7;size],2))),want);
++    }
++    let raw="43544d57494f3032020000000000000000000000000000000d000000000000000d000000000000008813b4d6378411003378facb2dec850d69ed7bf2b8620e21dcfcfdc3f450d0fde4bda0e5a5bd206f757470757443544d57494f303202010000010000000d000000000000000d0000000000000000000000000000008813b4d6378411003378facb2dec850d69ed7bf2b8620e21dcfcfdc3f450d0fd";
++    let wire:Vec<u8>=raw.as_bytes().chunks_exact(2).map(|pair|u8::from_str_radix(std::str::from_utf8(pair).unwrap(),16).unwrap()).collect();
++    let data="你好 output".as_bytes();assert_eq!(wire,output_test_wire(&binding,data,2));
++    let owner=receive_output_data(binding.clone(),data.len() as u64,Sha256::digest(data).into(),&mut Cursor::new(wire),OutputDataCancellation::default()).unwrap();
++    assert_eq!(owner.take_output_data(&binding).unwrap(),data);
++}
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/mod.rs b/src-tauri/src/tools/windows_vm/output_stage/mod.rs
+index a8c7f64..52292b3 100644
+--- a/src-tauri/src/tools/windows_vm/output_stage/mod.rs
++++ b/src-tauri/src/tools/windows_vm/output_stage/mod.rs
+@@ -2,6 +2,7 @@
+ mod gate;
+ mod nt;
+ mod owner;
++pub(crate) mod data;
+ #[cfg(test)] mod tests;
+ #[cfg(test)] mod native_tests;
+ pub(crate) fn request_publication(raw_data: &str) -> Result<(), &'static str> {

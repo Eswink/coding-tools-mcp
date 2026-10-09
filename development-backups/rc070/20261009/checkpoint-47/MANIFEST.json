@@ -1,0 +1,65 @@
+{
+  "excludes_self": true,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1243,
+      "sha256": "8675a12534776fe5230451eaf8acd11762bda7894040e70789631a34384ef8a5",
+      "git_mode": "100644"
+    },
+    {
+      "path": "RUST6-FROM-EXACT-19BB.patch",
+      "bytes": 31991,
+      "sha256": "516a3994b0ecc8cc3b92ad96f0fa28994406c8440e5524c7c20aaf12d1976ab8",
+      "git_mode": "100644"
+    },
+    {
+      "path": "SOURCE-MANIFEST.json",
+      "bytes": 1825,
+      "sha256": "fc7013d103d56da5d377044ce158be5c045645c1e9adecf944b4da2e8bff023c",
+      "git_mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 1998,
+      "sha256": "8894f7129de56b64100cf22f238e8a9df170c8f15eb25dc4f64ffa0588c89e3c",
+      "git_mode": "100644"
+    },
+    {
+      "path": "docs/specs/windows-rust-output-data-recreated/design.md",
+      "bytes": 3546,
+      "sha256": "47740c9fc39c49de153edc4c74a68d6b3f690ddd187cabfe898e0f8f3a82781a",
+      "git_mode": "100644"
+    },
+    {
+      "path": "docs/specs/windows-rust-output-data-recreated/requirements.md",
+      "bytes": 4614,
+      "sha256": "2d6fe7dfdfd29aa826ee762ad9faeaed03d0e3e55303f85f9aaa980adb8213d6",
+      "git_mode": "100644"
+    },
+    {
+      "path": "docs/specs/windows-rust-output-data-recreated/tasks.md",
+      "bytes": 2601,
+      "sha256": "917ee254794cca021620de1b90d773c3438b644c983714cf53f4cce31266fb00",
+      "git_mode": "100644"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/output_stage/data.rs",
+      "bytes": 6670,
+      "sha256": "9c03dc93a7223975877096a0ca280d558f9af62ff48d7a048be664c85f938c90",
+      "git_mode": "100644"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/output_stage/data_tests.rs",
+      "bytes": 12329,
+      "sha256": "d469e670979abe5395fae1b07fbb640182df7390c7b296e0a3febf8e4ed784e6",
+      "git_mode": "100644"
+    },
+    {
+      "path": "src-tauri/src/tools/windows_vm/output_stage/mod.rs",
+      "bytes": 504,
+      "sha256": "16157e26bf2a659a967b3d4b65f304ca209f947483dc6fc90a0e265fa49f593b",
+      "git_mode": "100644"
+    }
+  ]
+}

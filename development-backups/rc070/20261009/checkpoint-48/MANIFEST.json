@@ -1,0 +1,18 @@
+{
+  "status": "FINAL_IMMUTABLE_SAFE_FAILURE_SUMMARY",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 909,
+      "SHA256": "4a260bcd462228cbc577d880c504478d059bcae8ca5c5dd5f55d0af11797ea81",
+      "mode": "0644"
+    },
+    {
+      "path": "SAFE-TERMINAL-FAILURE.json",
+      "bytes": 3384,
+      "SHA256": "396aa5d86394ace30aafa9be93e3efd773c4a164b6d917d3cb8d95e7569c332d",
+      "mode": "0644"
+    }
+  ],
+  "note": "Manifestexcludes itself; no code or nativequalification."
+}
