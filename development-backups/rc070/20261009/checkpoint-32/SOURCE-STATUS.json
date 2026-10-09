@@ -1,0 +1,30 @@
+{
+  "seal_status": "FINAL_IMMUTABLE_SOURCE_ONLY",
+  "source_commit": "40c4b293f7682104dc7de78cafe74b2b72c0953e",
+  "sole_parent": "a20a4ec4ad85128b87a2b8eeae6e9f35fb770849",
+  "source_tree": "ac03c9dd2e80b00b0aaf4274957d3a9c4b3d3ecf",
+  "source_paths": 1862,
+  "delta_paths": 6,
+  "full_source_gitstatus_bytes_at_local_commit": 0,
+  "component_tests": "13REAL_ORDINARY_METHODS_PASS_NOT_NATIVE_QUALIFICATION",
+  "spec": "Structuredpassed true4FR/0errors0warnings from byteidentical outside mirror",
+  "GitNexus": "Own unique final forced index nativeexit0; all6indexedphysicalhash match; stageddetect nativeexit0. Parsedgraphlow/0flows does not resolve PSUNKNOWN/manualHIGH risk.",
+  "gencommit": "Structuredready guidance, fixed chore\ud83e\udd16 mapping used once; no repeat generator call.",
+  "peer": "LIMITED_DIAGNOSTIC_SOURCE_PEER_NO_BLOCKING_CURRENT_SCOPE",
+  "new_GitHub_CI_at_source_seal": "NOTRUN_PARENT_PUSH_PENDING",
+  "latest_actual_prior_head_CI": {
+    "head": "a20a4ec4ad85128b87a2b8eeae6e9f35fb770849",
+    "run_id": 37916193914,
+    "attempt": 1,
+    "overall": "FAIL",
+    "LinuxGo": "4originaldata methodsPASS pure19bb restored/no nativeIOauthority",
+    "WindowsRust": "originalmanagerRAWblobguardFAIL compilerNOTRUN restoreNOTRUN",
+    "CRLF_configuration_cause": "UNKNOWN actualphysicalWindowsbytesnotcaptured"
+  },
+  "old_source_failures": "V1typedAftercancel andV2finalruntimecoverage blockers preserved outsidepublicbundle; actualoldV2failurefirst1methodFAIL retained unchanged.",
+  "original_guard_AST_manifest_workflow_pins_budget_unchanged": true,
+  "source_publication_default_deny_preserved": true,
+  "native_owner_IOclose_VM_install_RC_publication": "UNQUALIFIED_NOTRUN",
+  "PR98_cancel_Issue86_snapshot_pause": "Remain in force; no owner/publisher authorization widened",
+  "contents": "Only source .source, singleparentpatch, mode/hash metadata and bounded safe test/review summaries. No logs/runtime/env/quarantine/host/proc/TLS/token/Git object library."
+}

@@ -1,0 +1,16 @@
+{
+  "scope": "SOURCE_ONLY_failed_pre_review_draft",
+  "source_files": 14,
+  "baseline": "50ef4b60830c36d4bc1aafdcec3d9b8489a260aa",
+  "pure_tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+  "original_production_edits": 0,
+  "single_original_method": "NOTRUN",
+  "original488": "FAIL_ONCE01",
+  "CI": "NOTRUN",
+  "install": "NOTRUN",
+  "review": "STOP: exception/cancellation group preservation and partial binding rollback missing",
+  "system_python": "external alias/resolvedbinary fence added; not SUT proof",
+  "combined_object_bound": "final combined4096 assertion added; original control outputs retained separately",
+  "next": "new finite spec/impact/ordinarynegativecontrols then reseal/review; no launch",
+  "private_raw_runtime_proc_TLS_env_objects_included": false
+}

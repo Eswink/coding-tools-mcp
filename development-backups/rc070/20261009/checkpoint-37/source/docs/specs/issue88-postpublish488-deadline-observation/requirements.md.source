@@ -1,0 +1,46 @@
+# 需求文档：issue88-postpublish488-deadline-observation
+
+## 功能概述
+once01唯一原方法failure为PostProcessCases.test_actual_child_command_deadline_is_not_extended，在code==post_process_timeout及controls._deadline相等之后，原assert owner._family_closed为False。真实原因UNKNOWN，不能归因Git布局、不能用outerECHILD升级内层closed。
+
+## 历史经验与坑
+原ProcessOwner._stop捕获BaseException并retain，原trace只有assert失败；需要透明诊断区别worker/pipe/deadline/identity/finish，不猜测或重写原逻辑。
+
+## 术语定义
+透明observer为原delegate真实调用前后有限数据记录；必要controls不是原方法运行；单原方法诊断不等同family/full488。
+
+## 范围边界
+In Scope：独立有限observer，对真实原run/_stop/_live/_send/_frame/_done/_finish与worker涉及原pipe的受控阶段只读观察；7普通ownedclose controls可复用。
+Out of Scope：改ProcessOwner核心closure、原positive、原timeout/stop/finish期限、包装成假owner、mute原exception/cancel、现在launch诊断、尝试loop/retry、真实安装授权。
+
+## 需求列表
+### FR-1: 精确原输入与单方法身份
+**优先级:** Must
+**用户故事:** 作为诊断者，我需要失败方法和原源码可审计。
+#### 验收标准（EARS）
+1. WHEN 诊断被准备 THEN 系统 SHALL 验证puretree3084/1867、失败方法精确原AST/源码SHA、runtime含固定systemPython literalalias/真实resolvedbinary与outer分别beforeafter绑定、fixture/native15commits26blobpairs、原8338runner/58132IDs不改变。
+2. IF 单方法独立诊断随后获review THEN 系统 SHALL loaded/executed原exact1唯一ID，无其他test、无retry；声明原8338 runner实际原字节执行仅选1，非完整488/非复刻488并发。
+
+### FR-2: 透明delegate观察
+**优先级:** Must
+**用户故事:** 作为诊断者，我需要真实关闭异常保留下来。
+#### 验收标准（EARS）
+1. WHEN observed originaldelegate调用 THEN 系统 SHALL 调用真实原函数一次，保留args/返回值/同一BaseException/取消；before-observation失败不得跳过delegate或真实close，after-observation失败不得遮蔽原delegate异常。
+2. WHEN wrapper记录异常 THEN 系统 SHALL 原raise继续，不改变_stop原retain逻辑；outer观察失败最终FAIL，但不吞取消、不给core补造成功证据。
+3. WHEN 记录pipe/child/leader状态 THEN 系统 SHALL 只读实际ownedFD/真实createdpidfd identity，有限大小和2MiB日志，不numericPIDmint授权，不读取token/env包。
+
+### FR-3: 封存和有限真实验证
+**优先级:** Must
+**用户故事:** 作为诊断者，我需要当轮有限事实而非推测。
+#### 验收标准（EARS）
+1. WHEN 必要controls运行 THEN 系统 SHALL 真实普通delegate异常、取消、observation-before/after-failure、close必达及异常优先级controls通过，0原SUT；freshimpact/manualHIGH、seal、独立launchreview先于单方法。
+2. IF 后续单方法结果成功或失败 THEN 系统 SHALL 保存原assert/真实异常/nativefamilyclosed/source/runtimebeforeafter完整结果；不升级full488/CI/install/release，不扩大原预算。
+
+## 非功能需求
+原controls5秒、command .2秒、_stop2秒、_finish wait2秒不改；复用outer2700failonly/7/2/2、每log2MiB，2700为外层唯一fail上限不扩；最小环境。原owner/source.functionAST和原8338 runner AST精确unchanged、原runner实际经runpy执行仅选1；runtimewrapper绑定改变必须明说；observer新函数AST不得宣称原函数。
+
+## 依赖关系
+immutable once01fail和原源3084，V2真实kernelclosure架构，普通ownedprocesscontrols，准确原AST封存。
+
+## 检查清单
+UNKNOWN不是0；先necessary0SUT后seal/review；当前不launch单方法；failures不可覆盖。

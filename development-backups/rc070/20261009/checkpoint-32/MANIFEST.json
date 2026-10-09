@@ -1,0 +1,74 @@
+{
+  "status": "FINAL_IMMUTABLE_SOURCE_ONLY",
+  "source_commit": "40c4b293f7682104dc7de78cafe74b2b72c0953e",
+  "source_tree": "ac03c9dd2e80b00b0aaf4274957d3a9c4b3d3ecf",
+  "files": [
+    {
+      "path": "DELTA-FROM-A20.patch.source",
+      "bytes": 43274,
+      "sha256": "ec0d46065495647bcf4905246b58a92397f914f0f3095bc0f0f434382987bc31",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2253,
+      "sha256": "de8f507feda68e46b3d504235e6368dfd00abe651aa0ee7fdbbabe3992af7a04",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "SAFE-ORDINARY-CONTROLS.json",
+      "bytes": 1469,
+      "sha256": "e1c72e4c80e111ca4d32399c1978e773b0103213e56d8d45e70076e5d31db812",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "SOURCE-MANIFEST.json",
+      "bytes": 2754,
+      "sha256": "2243d3cf45c4d2ff67cf976a4c1f944aa2c7741db5b4fd8fe171977bd9e17496",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 1992,
+      "sha256": "d3ce96a6944afb83232c3a5a2a9f76134290bbf69e22adff06355740d894704b",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "source/docs/specs/windows-manager-byte-observation/design.md.source",
+      "bytes": 2949,
+      "sha256": "51ce3d5c2210927c73ab32bb5b1d2f152e24f894359d2a366bdd4b7bc5bc7abf",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "source/docs/specs/windows-manager-byte-observation/requirements.md.source",
+      "bytes": 3880,
+      "sha256": "52327adc295ee393e920fd094cdcdbebc5c0daa259e61727d3dfe12476639390",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "source/docs/specs/windows-manager-byte-observation/tasks.md.source",
+      "bytes": 3309,
+      "sha256": "29deaf4dfad12bb34406d3654cf082a7410334136c91ed02f619d4703573994a",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "source/scripts/windows_foundation_manager_observation.py.source",
+      "bytes": 5836,
+      "sha256": "b45fbedf72665709e1b30286964459e2faaa0cf5fc3c5499798dedb1c4bb612d",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "source/scripts/windows_foundation_manager_observation_tests.py.source",
+      "bytes": 20201,
+      "sha256": "cdca56d8baed937aa60b96f95d5313274a85efb9d0e243dc843915a71426393b",
+      "backup_mode": "0644"
+    },
+    {
+      "path": "source/scripts/windows_foundation_source_compile.ps1.source",
+      "bytes": 15056,
+      "sha256": "73a5852234f32978cab375342061430e767400b227331c183d16d5ec45ad50cb",
+      "backup_mode": "0644"
+    }
+  ],
+  "note": "MANIFEST excludes itself; external seal gives its SHA256. Safe metadata and inert source only; not native candidate/gate evidence."
+}

@@ -1,0 +1,540 @@
+diff --git a/docs/specs/windows-manager-byte-observation/design.md b/docs/specs/windows-manager-byte-observation/design.md
+new file mode 100644
+index 0000000..16dab82
+--- /dev/null
++++ b/docs/specs/windows-manager-byte-observation/design.md
+@@ -0,0 +1,27 @@
++# Design: finite manager source-byte observation
++
++## 概述
++Add a separate external diagnostic helper beside the existing Python source guard. Retain the complete original guard bytes and verify_manager function AST without rewriting them. The observer independently uses the same seven literal public paths, native Git HEAD/blob bytes and raw worktree file bytes. Record bounded metadata, never bytes. It does not call restore, compile, authorize or update Git/source.
++
++## 技术方案
++- observe_manager_sources: fixed-path expected/raw hashes, lengths, framed OIDs and LF/CRLF counts with2MiB input/32KiB receipt bounds.
++- External helper CLI: real HEAD checks, diagnostic classification and admission=false; import only original run_git function from unchanged guard.
++- PS before/after observer calls: errors recorded separately; original verify-manager calls always remain; final passed=false on any observer failure.
++- Ordinary tests: actual full Python source import and native owned repository controls, not fake production owners or replacement harnesses.
++
++## Data Flow
++Expected public bytes from native Git HEAD; actual public bytes from regular raw files. Raw equality and comparison-only CRLF transforms become JSON. The original verifier subsequently reads unchanged raw bytes and refuses any blob mismatch.
++
++## Error Handling
++Missing/symlink/oversize or identity failure yields bounded diagnostic failure, without changing files or suppressing the original admission error. Before non-cancellation failure is retained after Run-SourceCompile success logic; final error flag prevents carrier PASS. Before typed cancellation stops new work while retaining the original prescribed finally cleanup, skips a new After observer child, and is propagated after receipt. After observation moves after the original manager-after check but before the existing runtime-after loop; typed cancellation is deferred through receipt writing. The final dispatch rethrows its original typed exception or an aggregate of distinct original primary failure and cancellation objects, never overwriting the original error receipt. Original error has its original field and failed native command entry.
++
++## FR Coverage Matrix
++| Requirement | Component | Validation |
++|---|---|---|
++| FR-1 | fixed-path observer | exact/invalid owned files, bound/count/OID controls |
++| FR-2 | comparison-only metadata | native LF/CRLF/mutation controls plus strict verifier |
++| FR-3 | original AST + PS independent handling | original AST hash, ordinary failure-delegate control |
++| FR-4 | independent source review | exact freeze, fresh impact, actual tests, parent push only |
++
++## 文件结构
++Existing guarded scripts/windows_foundation_source_compile.ps1; new scripts/windows_foundation_manager_observation.py and scripts/windows_foundation_manager_observation_tests.py and three docs/specs/windows-manager-byte-observation specification files. No other source files change.
+diff --git a/docs/specs/windows-manager-byte-observation/requirements.md b/docs/specs/windows-manager-byte-observation/requirements.md
+new file mode 100644
+index 0000000..4ed66ad
+--- /dev/null
++++ b/docs/specs/windows-manager-byte-observation/requirements.md
+@@ -0,0 +1,26 @@
++# Requirements: finite manager source-byte observation
++
++## 功能概述
++Observe the seven original public management source files without changing or authorizing them. Actual run37916193914 failed Windows manager admission before restoration. Its artifact contains no actual workflow bytes/hash/counts, so CRLF cause is UNKNOWN.
++
++## 需求列表
++### FR-1 Fixed public source identity
++WHEN an observation runs, it SHALL require the real management HEAD equal to GITHUB_SHA and read only the seven literal existing verify_manager source names. It SHALL record expected native Git blob, byte length, SHA256, LF/CRLF counts and actual raw byte length, SHA256, framed Git blob OID, LF/CRLF counts. It SHALL reject symlink, nonregular/missing files and files over2MiB without reading arbitrary contents; diagnostic JSON stays below32KiB. No source bytes or environment/config/host data are serialized.
++### FR-2 Explicit diagnostic comparison
++WHEN raw bytes differ, the diagnostic SHALL record raw equality and whether CRLF-to-LF transformation alone equals expected Git bytes, plus exact expected-LF-to-CRLF equality. These observations SHALL NOT change admission; inferred Git config remains UNKNOWN even if byte transformation matches. Byte normalization SHALL be comparison-only.
++### FR-3 Preserve delegate and failure evidence
++WHEN a non-cancellation before/after observation fails, its error SHALL be recorded without skipping or replacing original verify_manager admission/rejection. WHEN Before observation is cancelled, new admission/restoration/compilation SHALL stop; only the original required finally cleanup SHALL run, with no new After observer child. WHEN After observation is cancelled, it SHALL occur after the original manager-after check and before the original runtime-after loop, preserve its typed cancellation until the original receipt is written, then propagate it. WHEN both an original primary failure and an observation cancellation exist, an AggregateException SHALL retain both original exception objects; cancellation SHALL not replace the original error receipt. Existing strict raw blob verifier function SHALL remain exact original AST. Existing whole1953 manifest, source restores, original data vectors, tool/action pins, permissions and45minute budget SHALL remain unchanged. A failed observation SHALL prevent carrier final PASS, while the original delegate error remains separately preserved.
++### FR-4 Necessary ordinary controls and independent review
++WHEN validating this increment, it SHALL run real owned-file/native-Git controls for exact LF, CRLF, arbitrary mutation, missing/symlink/oversize, wrong HEAD and observation failure versus original raw admission; no fake CI, native VM, source compiler or owner launches. Fresh checkout-specific impact and independent source peer precede committing and parent-only push. Original a20 FAIL and35daff FAIL receipts remain immutable. Diagnostic success is never compiler or RC qualification.
++
++## 非功能需求
++Read only fixed public paths. No source rewrite, budget expansion, private values, token or runtime-package collection. Only bounded hash/count metadata is retained.
++
++## Acceptance Criteria
++- [ ] FR-1 seven-source raw metadata correct with fixed Git identity and bounded public JSON.
++- [ ] FR-2 CRLF-specific observations do not admit changed raw source.
++- [ ] FR-3 original verify_manager AST and strict failure semantics remain intact.
++- [ ] FR-4 ordinary controls, isolated impact, independent peer and source-only frozen backup recorded; real CI observation remains separate.
++
++## 依赖关系
++Existing exact Git management commit, pinned Python action and original source guard. WHEN the Git identity or fixed public input is invalid, the observation SHALL fail without granting admission. WHEN observation fails, the original delegate SHALL still run and determine its own error.
+diff --git a/docs/specs/windows-manager-byte-observation/tasks.md b/docs/specs/windows-manager-byte-observation/tasks.md
+new file mode 100644
+index 0000000..24da3f0
+--- /dev/null
++++ b/docs/specs/windows-manager-byte-observation/tasks.md
+@@ -0,0 +1,38 @@
++# Tasks: finite manager source-byte observation
++
++## 任务列表
++- [ ] FR-1 read original artifact and freeze UNKNOWN cause; fixed seven public files and bounded metadata.
++- [ ] FR-2 native owned LF/CRLF/mutation byte comparison while preserving strict raw rejection.
++- [ ] FR-3 add separate before/after observation handling; preserve original verifier AST, manifest, action/tool pins and budgets.
++- [ ] FR-4 fresh unique-index impact, ordinary actual fullsource controls, independent source peer and small source-only commit/backup.
++
++## Test Tasks
++Exact LF passes original guard. CRLF and arbitrary mutation still fail original guard while diagnostic explains only actual bytes. Missing/symlink/oversize/wrong HEAD never read private values or grant admission. Observer failure must not skip original delegate or overwrite its error. Validate fixed seven rows, raw JSON bounds and immutable before/after source hashes. Actual Windows behavior remains new CI's result, not these controls.
++
++## Validation
++No Run-SourceCompile/VM/owner during local controls. Parent alone pushes reviewed ordinary functional source; no empty commit or old rerun. Preserve run37912328111 and37916193914 original failures unchanged.
++
++## 交付物清单
++Exactly6delta: one existing guarded PowerShell production file and one new external observer, three new specifications and one ordinary owned-Git/Python/PS control script. Safe source-only backup and private original logs remain distinct.
++
++## 需求覆盖矩阵
++| Requirement | Task |
++|---|---|
++| FR-1 | fixed seven source hash/count observer |
++| FR-2 | LF/CRLF/rawmutation controls with original rejection |
++| FR-3 | original AST and observation/delegate failure control |
++| FR-4 | freshimpact, independentpeer and separate realCI |
++
++## 文件变更清单
++- scripts/windows_foundation_manager_observation.py: new external diagnostic helper; complete original source_guard.py and verifier AST unchanged.
++- scripts/windows_foundation_source_compile.ps1: separate before/after diagnostic handling only.
++- scripts/windows_foundation_manager_observation_tests.py: ordinary exactfullsource/nativeownedGit and PS failure controls.
++- docs/specs/windows-manager-byte-observation/requirements.md
++- docs/specs/windows-manager-byte-observation/design.md
++- docs/specs/windows-manager-byte-observation/tasks.md
++
++## V2 independent-peer blocker controls
++The first frozen source186a387/ordinary11PASS is withheld: After cancellation could skip original cleanup/receipt. V2 must demonstrate actual PS After ordering, cleanup completion before cancellation, original receipt writing and finaldeny, Beforecancel no new admission or Afterchild, and aggregate retention of original primary failure plus typed cancellation. Ordinary typed cancellation is not native process retirement or IOclose proof. Preserve the withdrawn source/patch and original peer blocker.
++
++## V3 final runtime lease coverage
++The second source1f4d345/12ordinaryPASS is withheld: After observer ran after final runtime checks. Move only the After block between original managerAfter and original runtime-after loop, retaining deferred cancellation and original receipt. Add an actual final-runtime path drift control during the observer; it must fail final runtime lease and finaldeny. Preserve oldV2 source/patch/blocker.
+diff --git a/scripts/windows_foundation_manager_observation.py b/scripts/windows_foundation_manager_observation.py
+new file mode 100644
+index 0000000..ec71bbf
+--- /dev/null
++++ b/scripts/windows_foundation_manager_observation.py
+@@ -0,0 +1,111 @@
++#!/usr/bin/env python3
++"""Bounded fixed-public-source metadata only; never change or admit raw source."""
++import argparse
++import hashlib
++import json
++import os
++from pathlib import Path
++import re
++import stat
++import sys
++sys.dont_write_bytecode = True
++from windows_foundation_source_guard import run_git
++
++MANAGER_PATHS = ('.github/workflows/windows-foundation-source-compile.yml',
++    'scripts/windows_foundation_source_compile.ps1', 'scripts/windows_foundation_source_guard.py',
++    'scripts/windows_foundation_source_manifest.json',
++    'docs/specs/windows-foundation-source-compile/requirements.md',
++    'docs/specs/windows-foundation-source-compile/design.md',
++    'docs/specs/windows-foundation-source-compile/tasks.md')
++MAX_SOURCE_BYTES = 2 * 1024 * 1024
++MAX_RECEIPT_BYTES = 32 * 1024
++
++
++def byte_metadata(data):
++    return {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest(),
++        'git_blob': hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest(),
++        'LF': data.count(b'\n'), 'CRLF': data.count(b'\r\n'),
++        'lone_LF': data.count(b'\n') - data.count(b'\r\n')}
++
++
++def read_fixed_public_file(manager, name):
++    file = manager / name
++    # Diagnostic containment checks are not native parent-handle pins or IO authority.
++    for parent in [file] + list(file.parents):
++        if parent == manager:
++            break
++        if parent.is_symlink() or (hasattr(parent, 'is_junction') and parent.is_junction()):
++            raise ValueError('fixed public source link rejected: ' + name)
++    before = file.lstat()
++    if not stat.S_ISREG(before.st_mode) or before.st_size > MAX_SOURCE_BYTES:
++        raise ValueError('fixed public source kind/size rejected: ' + name)
++    with file.open('rb') as reader:
++        opened = os.fstat(reader.fileno())
++        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
++            raise ValueError('fixed public source changed before read: ' + name)
++        data = reader.read(MAX_SOURCE_BYTES + 1)
++        after = os.fstat(reader.fileno())
++        if len(data) > MAX_SOURCE_BYTES or (after.st_size, after.st_mtime_ns) != (opened.st_size, opened.st_mtime_ns):
++            raise ValueError('fixed public source size/change rejected: ' + name)
++    return data
++
++
++def observe_manager_sources(manager):
++    expected_head = os.environ.get('GITHUB_SHA', '')
++    actual_head = run_git(manager, 'rev-parse', 'HEAD').decode().strip()
++    if not re.fullmatch('[0-9a-f]{40}', expected_head) or actual_head != expected_head:
++        raise ValueError('diagnostic actual HEAD differs from GITHUB_SHA')
++    rows = []
++    for name in sorted(MANAGER_PATHS):
++        entries = [x for x in run_git(manager, 'ls-tree', '-z', 'HEAD', '--', name).split(b'\0') if x]
++        if len(entries) != 1:
++            raise ValueError('fixed public source absent from HEAD: ' + name)
++        header, path = entries[0].split(b'\t', 1)
++        mode, kind, blob = header.decode().split()
++        if mode != '100644' or kind != 'blob' or path.decode() != name or not re.fullmatch('[0-9a-f]{40}', blob):
++            raise ValueError('fixed public source HEAD entry rejected: ' + name)
++        size = run_git(manager, 'cat-file', '-s', blob).decode().strip()
++        if not size.isdecimal() or int(size) > MAX_SOURCE_BYTES:
++            raise ValueError('fixed public expected source size rejected: ' + name)
++        expected = run_git(manager, 'cat-file', 'blob', blob)
++        if len(expected) > MAX_SOURCE_BYTES:
++            raise ValueError('fixed public expected source oversized: ' + name)
++        actual = read_fixed_public_file(manager, name)
++        row = {'path': name, 'git_mode': mode, 'expected': byte_metadata(expected),
++            'actual': byte_metadata(actual), 'raw_equal': actual == expected,
++            'comparison_only_CRLF_to_LF_equals_expected': actual.replace(b'\r\n', b'\n') == expected,
++            'comparison_only_expected_LF_to_CRLF_equals_actual': b'\r\n' not in expected and expected.replace(b'\n', b'\r\n') == actual}
++        if row['expected']['git_blob'] != blob:
++            raise ValueError('fixed public expected Git payload mismatch: ' + name)
++        rows.append(row)
++    return {'diagnostic_only': True, 'admission': False, 'native_authority': False,
++        'compiler': 'NOTRUN_BY_OBSERVER', 'qualification': 'SOURCE_ONLY_BLOCKED',
++        'manager_commit': actual_head, 'fixed_source_count': len(rows),
++        'all_raw_equal': all(row['raw_equal'] for row in rows),
++        'Git_configuration_cause': 'UNKNOWN; byte comparison does not prove checkout configuration', 'rows': rows}
++
++
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument('--manager', type=Path, required=True)
++    parser.add_argument('--receipt', type=Path, required=True)
++    args = parser.parse_args()
++    result = {'diagnostic_only': True, 'admission': False, 'native_authority': False,
++        'transport': 'FAIL', 'qualification': 'SOURCE_ONLY_BLOCKED'}
++    try:
++        result.update(observe_manager_sources(args.manager.resolve()))
++        result['transport'] = 'SUCCESS'
++    except (OSError, ValueError, RuntimeError):
++        # Preserve cancellation/KeyboardInterrupt/SystemExit; never serialize host paths/errors.
++        result['error'] = 'fixed-public-source observation failed; no admission or normalization applied'
++    data = (json.dumps(result, ensure_ascii=False, indent=2) + '\n').encode()
++    if len(data) > MAX_RECEIPT_BYTES:
++        raise ValueError('bounded diagnostic receipt oversized')
++    args.receipt.parent.mkdir(parents=True, exist_ok=True)
++    args.receipt.write_bytes(data)
++    print('fixed-public-source observation transport=' + result['transport'] + '; admission=false')
++    return 0 if result['transport'] == 'SUCCESS' else 1
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+diff --git a/scripts/windows_foundation_manager_observation_tests.py b/scripts/windows_foundation_manager_observation_tests.py
+new file mode 100644
+index 0000000..66447ac
+--- /dev/null
++++ b/scripts/windows_foundation_manager_observation_tests.py
+@@ -0,0 +1,215 @@
++#!/usr/bin/env python3
++"""Ordinary owned-native-Git controls; no Run-SourceCompile, VM or fake CI."""
++import argparse
++import ast
++import hashlib
++import importlib.util
++import json
++import os
++import shutil
++from pathlib import Path
++import subprocess
++import sys
++import tempfile
++import unittest
++from unittest import mock
++
++sys.dont_write_bytecode = True
++SCRIPTS = Path(__file__).resolve().parent
++sys.path.insert(0, str(SCRIPTS))
++import windows_foundation_manager_observation as observer
++import windows_foundation_source_guard as guard
++PWSH = None
++
++
++AFTER_CANCELLATION_CONTROL_PS = "param($Source,$PythonExecutable,$Manager,$Guard,$Manifest,$Observer,$OwnedOutput,$BeforeJSON,$Case,$OwnedPythonCopy)\n$ErrorActionPreference='Stop';Set-StrictMode -Version Latest\n$Tokens=$null;$Errors=$null\n$Ast=[System.Management.Automation.Language.Parser]::ParseFile($Source,[ref]$Tokens,[ref]$Errors)\nif($Errors.Count){throw 'Actual source parse error'}\nforeach($Name in @('Resolve-FoundationApplication','Invoke-CheckedCompiler','Invoke-ManagerSourceObservation')) {\n $F=@($Ast.FindAll({param($N)$N -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $N.Name -ceq $Name},$true))\n if($F.Count -ne 1){throw 'Actual function missing'};.([scriptblock]::Create($F[0].Extent.Text))\n}\n$RealInvoke=(Get-Item Function:\\Invoke-CheckedCompiler).ScriptBlock\n$NativeLogNames=[System.Collections.Generic.List[string]]::new()\nfunction Invoke-CheckedCompiler([string]$Executable,[string[]]$Arguments,[string]$LogName) {\n $NativeLogNames.Add($LogName)\n if(($Case -ceq 'before' -and $LogName -ceq 'management-byte-observation-Before.log') -or\n    ($Case -cne 'before' -and $Case -cne 'runtime-drift' -and $LogName -ceq 'management-byte-observation-After.log')) {\n  throw [System.OperationCanceledException]::new('ordinary observer cancellation')\n }\n $ActualResult = & $RealInvoke -Executable $Executable -Arguments $Arguments -LogName $LogName\n if($Case -ceq 'runtime-drift' -and $LogName -ceq 'management-byte-observation-After.log') {\n  $script:PythonExecutable=$OwnedPythonCopy\n }\n $ActualResult\n}\n$T=@($Ast.FindAll({param($N)$N -is [System.Management.Automation.Language.TryStatementAst] -and $N.Body.Extent.Text -match '^\\{\\s*Run-SourceCompile\\s'},$true))\nif($T.Count -ne 1){throw 'Actual top-level try/catch/finally missing'}\n$CatchText=$T[0].CatchClauses[0].Body.Extent.Text;$Catch=[scriptblock]::Create($CatchText.Substring(1,$CatchText.Length-2))\n$FinallyText=$T[0].Finally.Extent.Text;$Finally=[scriptblock]::Create($FinallyText.Substring(1,$FinallyText.Length-2))\n$Dispatch=@($Ast.FindAll({param($N)$N -is [System.Management.Automation.Language.IfStatementAst] -and $N.Extent.Text.StartsWith('if ($null -ne $ObservationCancellation) {')},$true))\nif($Dispatch.Count -ne 1){throw 'Actual cancellation dispatch missing'}\n$Output=New-Item -ItemType Directory -Path $OwnedOutput\n$Destination=Join-Path $OwnedOutput 'no-sut-was-restored'\n$ObservationCancellation=$null;$PrimaryFailure=$null\n$Receipt=[ordered]@{runtime=@{};commands=@();passed=$true;compiler='NOTRUN';sourceBefore=$null;sourceAfter=$null;\n managerSourceBefore=(Get-Content -Raw $BeforeJSON | ConvertFrom-Json);managerSourceAfter=$null;managerObservationFailed=$false}\nif($Case -ceq 'before') {\n try {Invoke-ManagerSourceObservation 'Before';throw 'Before cancellation swallowed'}catch {. $Catch}\n} elseif($Case -ceq 'after-primary') {\n try {throw [System.InvalidOperationException]::new('ordinary original primary delegate failure')}catch {. $Catch}\n}\n$OriginalPrimary=$PrimaryFailure\n. $Finally\nif(-not $NativeLogNames.Contains('management-after.log') -or $null -eq $Receipt.managerSourceAfter){throw 'Required original manager cleanup skipped'}\nif($Receipt.runtime.python.sha256Before -cne $Receipt.runtime.python.sha256After){throw 'Required original runtime-after verification skipped'}\nif(-not (Test-Path (Join-Path $Output 'compiler-result.json')) -or $Receipt.passed){throw 'Actual receipt/finaldeny skipped'}\nif($Case -ceq 'before' -and $NativeLogNames.Contains('management-byte-observation-After.log')){throw 'New After diagnostic child started after Before cancellation'}\nif($Case -cne 'before' -and $NativeLogNames.IndexOf('management-after.log') -gt $NativeLogNames.IndexOf('management-byte-observation-After.log')){throw 'After observation occurred before original cleanup'}\nif($Case -ceq 'runtime-drift') {\n if(-not $Receipt.Contains('runtimeAfterError') -or $Receipt.runtimeAfterError -cne 'Compiler/runtime source changed during the probe.') {throw 'Final original runtime guard did not reject path drift after actual observation'}\n if($null -ne $ObservationCancellation){throw 'Runtime drift invented cancellation'}\n .([scriptblock]::Create($Dispatch[0].Extent.Text))\n Write-Output 'PASS actual observer then final original runtime guard rejects owned-path drift; no compiler/native CI'\n return\n}\ntry {.([scriptblock]::Create($Dispatch[0].Extent.Text));throw 'Cancellation dispatch swallowed'}\ncatch {\n if($Case -ceq 'after-primary') {\n  if($_.Exception -isnot [System.AggregateException] -or $_.Exception.InnerExceptions.Count -ne 2 -or\n   -not [Object]::ReferenceEquals($_.Exception.InnerExceptions[0],$OriginalPrimary) -or\n   -not [Object]::ReferenceEquals($_.Exception.InnerExceptions[1],$ObservationCancellation) -or\n   $Receipt.error -cne 'ordinary original primary delegate failure'){throw 'Original failure/cancellation objects not retained'}\n } elseif($_.Exception -isnot [System.OperationCanceledException] -or\n   -not [Object]::ReferenceEquals($_.Exception,$ObservationCancellation)){throw 'Original typed cancellation not retained'}\n}\nWrite-Output ('PASS actual finally/catch/dispatch AST case '+$Case+'; original cleanup/receipt preserved; no compiler/native CI')\n"
++
++
++class ObservationControls(unittest.TestCase):
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory(prefix='manager-public-ordinary-')
++        self.root = Path(self.temp.name) / 'manager'; self.root.mkdir()
++        self.payload = {}
++        for name in observer.MANAGER_PATHS:
++            data = (SCRIPTS.parent / name).read_bytes(); self.payload[name] = data
++            p = self.root / name; p.parent.mkdir(parents=True, exist_ok=True); p.write_bytes(data); p.chmod(0o644)
++        self.git('init', '-q'); self.git('add', '--', *observer.MANAGER_PATHS)
++        self.git('-c', 'user.name=Ordinary public source control', '-c', 'user.email=ordinary@invalid',
++            'commit', '-qm', 'Owned public-source control, not candidate or CI')
++        self.head = self.git('rev-parse', 'HEAD').decode().strip()
++        self.old = os.environ.get('GITHUB_SHA'); os.environ['GITHUB_SHA'] = self.head
++        self.name = '.github/workflows/windows-foundation-source-compile.yml'
++        self.file = self.root / self.name
++
++    def tearDown(self):
++        if self.old is None: os.environ.pop('GITHUB_SHA', None)
++        else: os.environ['GITHUB_SHA'] = self.old
++        self.temp.cleanup()
++
++    def git(self, *args):
++        return subprocess.check_output(['git', '-c', 'core.autocrlf=false', '-C', str(self.root), *args], stderr=subprocess.DEVNULL)
++
++    def test_exact_public_source_and_original_guard(self):
++        result = observer.observe_manager_sources(self.root)
++        self.assertEqual(result['fixed_source_count'], 7); self.assertFalse(result['admission'])
++        self.assertFalse(result['native_authority']); self.assertTrue(result['all_raw_equal'])
++        for row in result['rows']:
++            self.assertEqual(row['expected'], row['actual'])
++            self.assertEqual(row['actual']['git_blob'], self.git('hash-object', '--no-filters', '--', row['path']).decode().strip())
++        self.assertLess(len(json.dumps(result).encode()), observer.MAX_RECEIPT_BYTES)
++        self.assertEqual(guard.verify_manager(self.root)['manager_files'], 7)
++
++    def test_crlf_metadata_does_not_admit_or_normalize_raw_source(self):
++        changed = self.payload[self.name].replace(b'\n', b'\r\n'); self.file.write_bytes(changed)
++        result = observer.observe_manager_sources(self.root)
++        row = next(v for v in result['rows'] if v['path'] == self.name)
++        self.assertFalse(row['raw_equal']); self.assertTrue(row['comparison_only_CRLF_to_LF_equals_expected'])
++        self.assertTrue(row['comparison_only_expected_LF_to_CRLF_equals_actual'])
++        self.assertGreater(row['actual']['CRLF'], 0)
++        with self.assertRaisesRegex(ValueError, 'source blob mismatch'): guard.verify_manager(self.root)
++        self.assertEqual(self.file.read_bytes(), changed)
++        self.file.write_bytes(self.payload[self.name])
++        self.assertEqual(guard.verify_manager(self.root)['manager_files'], 7)
++        self.assertTrue(observer.observe_manager_sources(self.root)['all_raw_equal'])
++
++    def test_arbitrary_mutation_is_not_crlf_explanation(self):
++        changed = self.payload[self.name] + b'# owned raw mutation\n'; self.file.write_bytes(changed)
++        row = next(v for v in observer.observe_manager_sources(self.root)['rows'] if v['path'] == self.name)
++        self.assertFalse(row['raw_equal']); self.assertFalse(row['comparison_only_CRLF_to_LF_equals_expected'])
++        with self.assertRaisesRegex(ValueError, 'source blob mismatch'): guard.verify_manager(self.root)
++        self.assertEqual(self.file.read_bytes(), changed)
++
++    def test_missing_public_file_preserves_original_rejection(self):
++        self.file.unlink()
++        with self.assertRaises(FileNotFoundError): observer.observe_manager_sources(self.root)
++        with self.assertRaises(FileNotFoundError): guard.verify_manager(self.root)
++
++    def test_symlink_never_reads_target(self):
++        target = Path(self.temp.name) / 'owned-excluded-canary'; target.write_bytes(b'ordinary excluded canary')
++        self.file.unlink(); self.file.symlink_to(target)
++        with self.assertRaisesRegex(ValueError, 'link rejected'): observer.observe_manager_sources(self.root)
++        with self.assertRaises(ValueError): guard.verify_manager(self.root)
++        self.assertEqual(target.read_bytes(), b'ordinary excluded canary')
++
++    def test_actual_oversize_rejected_before_open(self):
++        self.file.write_bytes(b'x' * (observer.MAX_SOURCE_BYTES + 1))
++        with mock.patch.object(Path, 'open', side_effect=AssertionError('oversize file must not open')):
++            with self.assertRaisesRegex(ValueError, 'kind/size rejected'): observer.observe_manager_sources(self.root)
++
++    def test_expected_git_oversize_rejected_before_payload_read(self):
++        self.file.write_bytes(b'x' * (observer.MAX_SOURCE_BYTES + 1)); self.git('add', '--', self.name)
++        self.git('-c', 'user.name=Ordinary control', '-c', 'user.email=ordinary@invalid', 'commit', '-qm', 'Owned oversize negative')
++        os.environ['GITHUB_SHA'] = self.git('rev-parse', 'HEAD').decode().strip()
++        with mock.patch.object(observer, 'run_git', wraps=observer.run_git) as native:
++            with self.assertRaisesRegex(ValueError, 'expected source size rejected'): observer.observe_manager_sources(self.root)
++            self.assertFalse(any(c.args[1:3] == ('cat-file', 'blob') for c in native.call_args_list))
++
++    def test_wrong_real_head_denies(self):
++        os.environ['GITHUB_SHA'] = '0' * 40
++        with self.assertRaisesRegex(ValueError, 'actual HEAD differs'): observer.observe_manager_sources(self.root)
++        with self.assertRaisesRegex(ValueError, 'actual HEAD differs'): guard.verify_manager(self.root)
++
++    def test_cli_cancellation_propagates_without_receipt(self):
++        receipt = Path(self.temp.name) / 'cancel.json'
++        argv = ['observer', '--manager', str(self.root), '--receipt', str(receipt)]
++        with mock.patch.object(sys, 'argv', argv), mock.patch.object(observer, 'observe_manager_sources', side_effect=KeyboardInterrupt):
++            with self.assertRaises(KeyboardInterrupt): observer.main()
++        self.assertFalse(receipt.exists())
++
++    def test_reader_close_occurs_even_on_read_exception(self):
++        class Reader:
++            closed = False
++            def __enter__(inner): return inner
++            def __exit__(inner, *args): inner.closed = True
++            def fileno(inner): return 7
++            def read(inner, limit): raise RuntimeError('ordinary reader failure')
++        reader = Reader(); info = self.file.stat()
++        with mock.patch.object(Path, 'open', return_value=reader), mock.patch.object(observer.os, 'fstat', return_value=info):
++            with self.assertRaisesRegex(RuntimeError, 'ordinary reader failure'): observer.read_fixed_public_file(self.root, self.name)
++        self.assertTrue(reader.closed)
++
++    def test_actual_ps_observation_failure_then_original_delegate_and_final_deny(self):
++        # Full actual PS function ASTs; local owned Git identity only, never Run-SourceCompile or GITHUB_ACTIONS.
++        script = Path(self.temp.name) / 'ordinary-delegate.ps1'; output = Path(self.temp.name) / 'output'
++        output.mkdir(); self.file.unlink()
++        script.write_text(r'''param($Source,$PythonExecutable,$Manager,$Guard,$Manifest,$Observer,$Output)
++$ErrorActionPreference='Stop'; Set-StrictMode -Version Latest
++$Tokens=$null;$Errors=$null
++$Ast=[System.Management.Automation.Language.Parser]::ParseFile($Source,[ref]$Tokens,[ref]$Errors)
++if($Errors.Count){throw 'Actual source parse error'}
++foreach($Name in @('Resolve-FoundationApplication','Invoke-CheckedCompiler','Invoke-ManagerSourceObservation')) {
++ $F=@($Ast.FindAll({param($N)$N -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $N.Name -ceq $Name},$true))
++ if($F.Count -ne 1){throw 'Actual function missing'};.([scriptblock]::Create($F[0].Extent.Text))
++}
++$Receipt=[ordered]@{runtime=@{};commands=@();passed=$true;managerObservationFailed=$false}
++Invoke-ManagerSourceObservation 'Before'
++if(-not $Receipt.managerObservationFailed){throw 'Actual observation failure lost'}
++try {Invoke-CheckedCompiler 'python' @($Guard,'verify-manager','--manifest',$Manifest,'--manager',$Manager,'--receipt',(Join-Path $Output 'original-rejection.json')) 'original-rejection.log' | Out-Null;throw 'Original delegate unexpectedly admitted'}
++catch {if($_.Exception.Message -notmatch 'actual exit 1'){throw};$Receipt.error=$_.Exception.Message}
++Invoke-ManagerSourceObservation 'After'
++$D=@($Ast.FindAll({param($N)$N -is [System.Management.Automation.Language.IfStatementAst] -and $N.Extent.Text -ceq 'if ($Receipt.managerObservationFailed) { $Receipt.passed = $false }'},$true))
++if($D.Count -ne 1){throw 'Actual final deny AST missing'};.([scriptblock]::Create($D[0].Extent.Text))
++if($Receipt.passed -or $Receipt.error -notmatch 'actual exit 1' -or $Receipt.commands.Count -ne 3){throw 'Original rejection/finaldeny/commands changed'}
++# Controlled ordinary delegate cancellation: wrapper must rethrow the typed signal, not fabricate native failure.
++function Invoke-CheckedCompiler {throw [System.OperationCanceledException]::new('ordinary cancellation')}
++try {Invoke-ManagerSourceObservation 'Before';throw 'Cancellation swallowed'}
++catch {if($_.Exception -isnot [System.OperationCanceledException]){throw}}
++Write-Output 'PASS actual PS observer failures preserve actual raw delegate rejection and finaldeny; ordinary cancellation propagated'
++''')
++        result = subprocess.run([PWSH, '-NoLogo', '-NoProfile', '-File', str(script), str(SCRIPTS/'windows_foundation_source_compile.ps1'),
++            sys.executable, str(self.root), str(SCRIPTS/'windows_foundation_source_guard.py'),
++            str(SCRIPTS/'windows_foundation_source_manifest.json'), str(SCRIPTS/'windows_foundation_manager_observation.py'), str(output)], capture_output=True)
++        self.assertEqual(result.returncode, 0, result.stdout.decode(errors='replace') + result.stderr.decode(errors='replace'))
++        self.assertIn(b'PASS actual PS observer failures', result.stdout)
++        raw = json.loads((output/'original-rejection.json').read_text(encoding='utf-8-sig'))
++        self.assertFalse(raw['passed']); self.assertEqual(raw['operation'], 'verify-manager')
++
++
++    def test_actual_after_cancellation_cleanup_receipt_and_original_failure_objects(self):
++        # Actual source finally/catch/dispatch AST portions; no Run-SourceCompile/CI gate/compiler execution.
++        script = Path(self.temp.name) / 'ordinary-after-cancellation.ps1'
++        script.write_text(AFTER_CANCELLATION_CONTROL_PS)
++        before = Path(self.temp.name) / 'actual-before.json'
++        before.write_text(json.dumps(guard.verify_manager(self.root)))
++        for case in ('after', 'after-primary', 'before'):
++            output = Path(self.temp.name) / ('actual-after-' + case)
++            result = subprocess.run([PWSH, '-NoLogo', '-NoProfile', '-File', str(script),
++                str(SCRIPTS/'windows_foundation_source_compile.ps1'), sys.executable, str(self.root),
++                str(SCRIPTS/'windows_foundation_source_guard.py'), str(SCRIPTS/'windows_foundation_source_manifest.json'),
++                str(SCRIPTS/'windows_foundation_manager_observation.py'), str(output), str(before), case], capture_output=True)
++            self.assertEqual(result.returncode, 0, result.stdout.decode(errors='replace') + result.stderr.decode(errors='replace'))
++            self.assertIn(('PASS actual finally/catch/dispatch AST case '+case).encode(), result.stdout)
++            receipt = json.loads((output/'compiler-result.json').read_text(encoding='utf-8-sig'))
++            self.assertFalse(receipt['passed']); self.assertEqual(receipt['compiler'], 'NOTRUN')
++            self.assertEqual(receipt['managerSourceAfter']['manager_commit'], self.head)
++            if case == 'after-primary': self.assertEqual(receipt['error'], 'ordinary original primary delegate failure')
++
++
++    def test_actual_after_observer_runtime_drift_is_rejected_by_final_original_guard(self):
++        # Real helper/native Git executes first; only a test-owned byte-identical Python copy becomes the selected path.
++        # The copied binary is never executed and no shared system/runtime bytes are changed.
++        owned_python = Path(self.temp.name) / ('owned-python.exe' if os.name == 'nt' else 'owned-python')
++        shutil.copy2(sys.executable, owned_python)
++        self.assertEqual(hashlib.sha256(owned_python.read_bytes()).digest(), hashlib.sha256(Path(sys.executable).read_bytes()).digest())
++        script = Path(self.temp.name) / 'ordinary-final-runtime.ps1'; script.write_text(AFTER_CANCELLATION_CONTROL_PS)
++        before = Path(self.temp.name) / 'actual-before.json'; before.write_text(json.dumps(guard.verify_manager(self.root)))
++        output = Path(self.temp.name) / 'actual-after-runtime-drift'
++        result = subprocess.run([PWSH, '-NoLogo', '-NoProfile', '-File', str(script),
++            str(SCRIPTS/'windows_foundation_source_compile.ps1'), sys.executable, str(self.root),
++            str(SCRIPTS/'windows_foundation_source_guard.py'), str(SCRIPTS/'windows_foundation_source_manifest.json'),
++            str(SCRIPTS/'windows_foundation_manager_observation.py'), str(output), str(before), 'runtime-drift', str(owned_python)], capture_output=True)
++        self.assertEqual(result.returncode, 0, result.stdout.decode(errors='replace') + result.stderr.decode(errors='replace'))
++        self.assertIn(b'PASS actual observer then final original runtime guard', result.stdout)
++        receipt = json.loads((output/'compiler-result.json').read_text(encoding='utf-8-sig'))
++        self.assertFalse(receipt['passed']); self.assertEqual(receipt['compiler'], 'NOTRUN')
++        self.assertEqual(receipt['runtimeAfterError'], 'Compiler/runtime source changed during the probe.')
++        self.assertTrue(receipt['managerObservationAfter']['all_raw_equal'])
++        self.assertFalse(receipt['managerObservationAfter']['admission'])
++        self.assertEqual(receipt['managerSourceAfter']['manager_commit'], self.head)
++        self.assertEqual(receipt['runtime']['python']['sha256Before'], receipt['runtime']['python']['sha256After'])
++
++
++if __name__ == '__main__':
++    parser = argparse.ArgumentParser(); parser.add_argument('--pwsh', required=True)
++    args, remaining = parser.parse_known_args(); PWSH = args.pwsh
++    unittest.main(argv=[sys.argv[0]] + remaining, verbosity=2)
+diff --git a/scripts/windows_foundation_source_compile.ps1 b/scripts/windows_foundation_source_compile.ps1
+index bc02f66..b8b07f5 100644
+--- a/scripts/windows_foundation_source_compile.ps1
++++ b/scripts/windows_foundation_source_compile.ps1
+@@ -8,9 +8,13 @@ $Destination = Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-19bb2920'
+ New-Item -ItemType Directory -Force $Output | Out-Null
+ $Guard = Join-Path $PSScriptRoot 'windows_foundation_source_guard.py'
+ $Manifest = Join-Path $PSScriptRoot 'windows_foundation_source_manifest.json'
++$Observer = Join-Path $PSScriptRoot 'windows_foundation_manager_observation.py'
+ $Receipt = [ordered]@{ mode=$Mode; managerCommit=$env:GITHUB_SHA; runId=$env:GITHUB_RUN_ID;
+     pureSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
+-    nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; passed=$false }
++    nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; managerObservationFailed=$false; passed=$false }
++
++$ObservationCancellation = $null
++$PrimaryFailure = $null
+ 
+ function Resolve-FoundationApplication([string]$Executable) {
+     $Requested = $Executable
+@@ -65,6 +69,30 @@ function Invoke-CheckedCompiler([string]$Executable, [string[]]$Arguments, [stri
+     return $LogPath
+ }
+ 
++function Invoke-ManagerSourceObservation([ValidateSet('Before','After')][string]$Phase) {
++    try {
++        $ObservationPath = Join-Path $Output "management-byte-observation-$Phase.json"
++        Invoke-CheckedCompiler 'python' @($Observer,'--manager',$Manager,'--receipt',$ObservationPath) "management-byte-observation-$Phase.log" | Out-Null
++        $Observed = Get-Content -Raw $ObservationPath | ConvertFrom-Json
++        if (-not $Observed.diagnostic_only -or $Observed.admission -or $Observed.native_authority -or
++            $Observed.transport -cne 'SUCCESS' -or $Observed.fixed_source_count -ne 7) {
++            throw 'Fixed public source observation did not complete its diagnostic-only contract.'
++        }
++        $Receipt["managerObservation$Phase"] = $Observed
++    } catch {
++        if ($_.Exception -is [System.Management.Automation.PipelineStoppedException] -or
++            $_.Exception -is [System.OperationCanceledException]) {
++            $script:ObservationCancellation = $_.Exception
++            $Receipt["managerObservation${Phase}Cancellation"] = $_.Exception.GetType().FullName
++            $Receipt.managerObservationFailed = $true
++            if ($Phase -ceq 'Before') { throw }
++            return
++        }
++        $Receipt["managerObservation${Phase}Error"] = $_.Exception.Message
++        $Receipt.managerObservationFailed = $true
++    }
++}
++
+ function Run-SourceCompile {
+     if ($env:GITHUB_ACTIONS -cne 'true' -or $env:GITHUB_REPOSITORY -cne 'Eswink/coding-tools-mcp' -or
+         $env:GITHUB_REF -cne 'refs/heads/probe/windows-foundation-compile-20261009-19bb2920') {
+@@ -77,6 +105,7 @@ function Run-SourceCompile {
+     }
+     Invoke-CheckedCompiler 'git' @('--version') 'git-version.log' | Out-Null
+     Invoke-CheckedCompiler 'python' @('-c','import sys; assert sys.version_info[:2] == (3, 12), sys.version') 'python-version.log' | Out-Null
++    Invoke-ManagerSourceObservation 'Before'
+     $ManagerBefore = Join-Path $Output 'management-before.json'
+     Invoke-CheckedCompiler 'python' @($Guard,'verify-manager','--manifest',$Manifest,'--manager',$Manager,
+         '--receipt',$ManagerBefore) 'management-before.log' | Out-Null
+@@ -144,6 +173,7 @@ try {
+     Run-SourceCompile
+     $Receipt.passed = $true
+ } catch {
++    $PrimaryFailure = $_.Exception
+     $Receipt.error = $_.Exception.Message
+     if ($Receipt.compiler -eq 'RUNNING') { $Receipt.compiler = 'ACTUAL_FAILURE' }
+ } finally {
+@@ -169,6 +199,11 @@ try {
+             throw 'Management seven source bytes/modes changed or before was not admitted.'
+         }
+     } catch { $Receipt.passed=$false; $Receipt.managementAfterError=$_.Exception.Message }
++    if ($null -eq $ObservationCancellation) {
++        Invoke-ManagerSourceObservation 'After'
++    } else {
++        $Receipt.managerObservationAfterSkipped = 'Before observation cancelled; no new diagnostic child.'
++    }
+     foreach ($Executable in $Receipt.runtime.Keys) {
+         try {
+             $CurrentPath = Resolve-FoundationApplication $Executable
+@@ -187,6 +222,14 @@ try {
+             }
+         } catch { $Receipt.passed=$false; $Receipt.runtimeAfterError=$_.Exception.Message }
+     }
++    if ($Receipt.managerObservationFailed) { $Receipt.passed = $false }
+     $Receipt | ConvertTo-Json -Depth 12 | Set-Content -Encoding utf8 (Join-Path $Output 'compiler-result.json')
+ }
++if ($null -ne $ObservationCancellation) {
++    if ($null -ne $PrimaryFailure -and -not [Object]::ReferenceEquals($PrimaryFailure, $ObservationCancellation)) {
++        throw [System.AggregateException]::new('Original delegate failure and observation cancellation were both preserved.',
++            [System.Exception[]]@($PrimaryFailure, $ObservationCancellation))
++    }
++    throw $ObservationCancellation
++}
+ if (-not $Receipt.passed) { throw "Actual source/compiler/data probe failed. See compiler-result.json." }

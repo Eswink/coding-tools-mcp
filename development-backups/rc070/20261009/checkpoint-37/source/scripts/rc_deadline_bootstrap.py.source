@@ -1,0 +1,114 @@
+"""One selected original method through the unchanged original runner bytes."""
+import argparse
+import ast
+import functools
+import hashlib
+import importlib
+import json
+import os
+from pathlib import Path
+import runpy
+import sys
+
+from rc_deadline_observer import observe_delegate, record_observation, finish_observation, observe_state
+from rc_postpublish488_support import read_regular, write, sha, RUNNER_SHA
+
+METHOD = 'rc_postpublication_process_cases.PostProcessCases.test_actual_child_command_deadline_is_not_extended'
+DELEGATES = ('run', '_stop', '_live', '_send', '_frame', '_done', '_finish')
+
+
+def source_snapshot(root):
+    root = Path(root)
+    source = ast.parse(read_regular(root / 'scripts/rc_postpublication_process.py'))
+    cls = next(n for n in source.body if isinstance(n, ast.ClassDef) and n.name == 'ProcessOwner')
+    table = {n.name: ast.dump(n, include_attributes=False) for n in cls.body if isinstance(n, ast.FunctionDef) and n.name in DELEGATES}
+    assert set(table) == set(DELEGATES)
+    table['_worker'] = ast.dump(next(n for n in source.body if isinstance(n, ast.FunctionDef) and n.name == '_worker'), include_attributes=False)
+    tests = ast.parse(read_regular(root / 'scripts/rc_postpublication_process_cases.py'))
+    cls = next(n for n in tests.body if isinstance(n, ast.ClassDef) and n.name == 'PostProcessCases')
+    node = next(n for n in cls.body if isinstance(n, ast.FunctionDef) and n.name == METHOD.rsplit('.', 1)[1])
+    table[METHOD] = ast.dump(node, include_attributes=False)
+    return table
+
+
+def record_bound(journal, owners, name, phase, args, result, error):
+    owner = args[0]
+    if not any(value is owner for value in owners):
+        owners.append(owner)
+    record_observation(journal, phase, name, owner, result=result, error=error)
+    # Only finite protocol/deadline data; never raw request/argv/environment.
+    if name == '_send' and len(args) > 1 and isinstance(args[1], bytes):
+        raw = args[1]
+        journal[-1]['send_kind'] = raw.decode() if raw in (b'S\n', b'C\n', b'G\n') else 'request_frame'
+        journal[-1]['send_bytes'] = len(raw)
+    if name == '_frame' and len(args) > 1 and type(args[1]) in (int, float):
+        journal[-1]['frame_deadline'] = args[1]
+
+
+def bind_observers(root, journal, failures, owners):
+    module = importlib.import_module('rc_postpublication_process')
+    assert Path(module.__file__).resolve() == (Path(root) / 'scripts/rc_postpublication_process.py').resolve()
+    cls = module.ProcessOwner
+    originals = {name: getattr(cls, name) for name in DELEGATES}
+    for name, original in originals.items():
+        assert Path(original.__code__.co_filename).resolve() == Path(module.__file__).resolve()
+        record = functools.partial(record_bound, journal, owners, name)
+        setattr(cls, name, observe_delegate(original, record, failures))
+    return cls, originals
+
+
+def single_original_method(root, output):
+    root, output = Path(root).resolve(), Path(output).resolve()
+    assert not output.exists() and not output.is_relative_to(root)
+    original_runner = Path(__file__).with_name('rc_postpublish488_original_runner.py')
+    runner = read_regular(original_runner)
+    assert len(runner) == 8338 and sha(runner) == RUNNER_SHA
+    before = source_snapshot(root)
+    sys.dont_write_bytecode = True
+    sys.path.insert(0, str(root / 'scripts'))
+    journal, failures, owners = [], [], []
+    cls, originals = bind_observers(root, journal, failures, owners)
+    old_argv = sys.argv
+    terminal = None
+    try:
+        sys.argv = [str(original_runner), '--root', str(root), '--output', str(output), METHOD]
+        try:
+            runpy.run_path(str(original_runner), run_name='__main__')
+        except BaseException as error:
+            terminal = error
+    finally:
+        sys.argv = old_argv
+        for name, original in originals.items():
+            setattr(cls, name, original)
+    # All observations are serialized only after the original method finally.
+    try:
+        after = source_snapshot(root)
+        observation_errors = [{'phase': row['phase'], 'type': type(row['error']).__name__} for row in failures]
+        events = (json.dumps(journal, indent=2) + '\n').encode()
+        assert len(events) <= 2 * 1024 * 1024
+        output.mkdir(parents=True, exist_ok=True)
+        fd = os.open(output / 'observer-events.json', os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, 'wb') as stream:
+            stream.write(events); stream.flush(); os.fsync(stream.fileno())
+        write(output / 'observer-state.json', dict(original_source_AST_before=before, original_source_AST_after=after, actual_owners=[observe_state(owner) for owner in owners], original_delegate_bindings_restored=all(getattr(cls, name) is original for name, original in originals.items())))
+        write(output / 'observer-receipt.json', dict(scope='single_original_deadline_method_observation_only', method=METHOD, original_runner_sha256=RUNNER_SHA, original_runner_bytes_executed=True, original_source_AST_unchanged=before == after, runtime_original_class_bindings_wrapped=True, new_bootstrap_AST=True, events_bytes=len(events), events_sha256=sha(events), observation_errors=observation_errors, observation_cancelled=any(isinstance(row['error'], (KeyboardInterrupt, SystemExit)) for row in failures), source_AST_sha256=sha(json.dumps(before, sort_keys=True).encode()), successful=not failures and before == after, original_terminal_type=type(terminal).__name__ if terminal is not None else None, full488_proven=False, CI=False, install='NOTRUN', release='NOTRUN'))
+    except BaseException:
+        if terminal is not None and not isinstance(terminal, SystemExit):
+            raise terminal
+        raise
+    # Preserve an actual delegate/runner cancellation; logging never masks it.
+    if terminal is not None and not isinstance(terminal, SystemExit):
+        raise terminal
+    finish_observation(failures)
+    if terminal is not None:
+        raise terminal
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--root', required=True)
+    parser.add_argument('--output', required=True)
+    parser.add_argument('method')
+    args = parser.parse_args()
+    assert args.method == METHOD
+    single_original_method(args.root, args.output)

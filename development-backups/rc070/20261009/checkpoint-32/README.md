@@ -1,0 +1,11 @@
+# Windows fixed manager byte observation V3 — source-only checkpoint
+
+This immutable source-only backup contains six exact reviewed delta files for commit `40c4b293f7682104dc7de78cafe74b2b72c0953e`, solely based on `a20a4ec4ad85128b87a2b8eeae6e9f35fb770849`. Its Git tree is `ac03c9dd2e80b00b0aaf4274957d3a9c4b3d3ecf` (1862 paths). Five files are new and one existing PowerShell management file changes; 1856 baseline paths remain exact native Git modes/blobs and actual bytes.
+
+`.source` files are inert copies. Restore only into an independent checkout at the stated parent, using the single-parent binary patch or the six exact source mappings in SOURCE-MANIFEST.json; do not stack complete patches from unrelated historical sources. Original raw verifier/AST, full pure19bb SUT manifest, workflow, tool/action pins, permissions and45minute budget remain unchanged. The helper records bounded lengths/hashes/Git IDs/LF/CRLF counts for seven fixed public manager source paths, with comparison-only normalization; it cannot admit or rewrite raw source.
+
+The thirteen real ordinary methods and independent source peer cover this finite diagnostic component and actual source AST cleanup portions, not Run-SourceCompile, native cancellation, IOclose, VM, Windows compiler, installation or RC qualification. The copied ordinary Python binary is never executed and no shared runtime bytes change. After diagnostics precede the original final runtime guard; required cleanup/receipt and original typed cancellation plus primary error objects remain preserved.
+
+The source seal precedes parent-only GitHub push/new CI. The last actual prior-head CI passed four original Linux Go methods but rejected Windows at the unchanged raw manager guard before Rust compilation; its byte/configuration cause is UNKNOWN. Source backup is not final gate evidence. Old negative logs and both withdrawn source freezes stay immutable in private evidence and are not included here.
+
+Every backup file except MANIFEST.json is listed with byte length, SHA-256 and physical backup mode. Git modes in SOURCE-MANIFEST.json are a distinct source identity. No private logs, runtime package, credentials, environment, quarantine, host/proc data or Git object database is included.

@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "scope": "DIAGNOSTIC_ONLY_RAW_PUBLIC_MANAGER_SOURCES_NO_ADMISSION",
+  "baseline": "a20a4ec4ad85128b87a2b8eeae6e9f35fb770849",
+  "source_tree": "ac03c9dd2e80b00b0aaf4274957d3a9c4b3d3ecf",
+  "source_paths": 1862,
+  "exact_delta_paths": 6,
+  "baseline_paths_unchanged": 1856,
+  "all1862_actual_blob_bytes_verified": true,
+  "original_guard_manifest_workflow_raw_bytes_unchanged": true,
+  "verify_manager_AST_sha256": "183f30416658ab6cc9edad3cbcb58a66b69a799858052f9d7b31138309362198",
+  "sources": [
+    {
+      "path": "scripts/windows_foundation_source_compile.ps1",
+      "bytes": 15056,
+      "sha256": "73a5852234f32978cab375342061430e767400b227331c183d16d5ec45ad50cb",
+      "git_mode": "100644",
+      "git_blob": "b8b07f5b95d22844a90d8881366e1e5729564efc"
+    },
+    {
+      "path": "scripts/windows_foundation_manager_observation.py",
+      "bytes": 5836,
+      "sha256": "b45fbedf72665709e1b30286964459e2faaa0cf5fc3c5499798dedb1c4bb612d",
+      "git_mode": "100644",
+      "git_blob": "ec71bbfecd69b2b8be462ab1fd91ce4fe45528b0"
+    },
+    {
+      "path": "scripts/windows_foundation_manager_observation_tests.py",
+      "bytes": 20201,
+      "sha256": "cdca56d8baed937aa60b96f95d5313274a85efb9d0e243dc843915a71426393b",
+      "git_mode": "100644",
+      "git_blob": "66447ac68ae9da705afa0e49c1f8663cc9d67472"
+    },
+    {
+      "path": "docs/specs/windows-manager-byte-observation/requirements.md",
+      "bytes": 3880,
+      "sha256": "52327adc295ee393e920fd094cdcdbebc5c0daa259e61727d3dfe12476639390",
+      "git_mode": "100644",
+      "git_blob": "4ed66ad71c7e06907efc709b63ae44f792200b5e"
+    },
+    {
+      "path": "docs/specs/windows-manager-byte-observation/design.md",
+      "bytes": 2949,
+      "sha256": "51ce3d5c2210927c73ab32bb5b1d2f152e24f894359d2a366bdd4b7bc5bc7abf",
+      "git_mode": "100644",
+      "git_blob": "16dab82488a498535900a3f54f6ebae6e1be3adc"
+    },
+    {
+      "path": "docs/specs/windows-manager-byte-observation/tasks.md",
+      "bytes": 3309,
+      "sha256": "29deaf4dfad12bb34406d3654cf082a7410334136c91ed02f619d4703573994a",
+      "git_mode": "100644",
+      "git_blob": "24da3f0940f3d6bb8b7d6552731169c53203caa5"
+    }
+  ],
+  "native_authority": false,
+  "Git_modes_note": "Listed Git100644 blob modes are distinct from original workspace POSIX physical permissions; inert backup copies use0644.",
+  "source_commit": "40c4b293f7682104dc7de78cafe74b2b72c0953e",
+  "sole_parent": "a20a4ec4ad85128b87a2b8eeae6e9f35fb770849",
+  "peer_status": "LIMITED_DIAGNOSTIC_SOURCE_PEER_NO_BLOCKING_CURRENT_SCOPE",
+  "peer_safe_receipt_sha256": "0b9add966bacdb5936c3b0338e36e0fc5e06c3e33c52e053b55a467b81936a2d",
+  "freeze_receipt_sha256": "fa8f11133d0137ee6afeab891efb59a4a1b0be886bdd7fcfbd2781392d62987b"
+}

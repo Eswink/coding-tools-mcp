@@ -1,0 +1,79 @@
+"""Actual single-method controller prepare-only admission controls, zero SUT."""
+import copy
+import json
+from pathlib import Path
+import stat
+import subprocess
+import sys
+import tempfile
+
+from rc_deadline_bootstrap import source_snapshot
+from rc_postpublish488_support import prepare_context488, read_regular, sha, write, ENV, git
+from rc_postpublish488_layout import seal_native_objects
+from rc_postpublish488_kernel import identity
+
+
+def run_deadline_entry_controls(root, fixture):
+    management = Path(__file__).resolve().parent.parent
+    scripts = management / 'scripts'
+    paths = sorted(list((management / 'docs/specs/issue88-postpublish488-deadline-observation').glob('*.md')) + list(scripts.glob('rc_deadline_*.py')) + [scripts / ('rc_postpublish488_' + name) for name in ('support.py','kernel.py','original_runner.py','inventory.json','source_manifest.json','layout.py')])
+    assert len(paths) == 14
+    context = prepare_context488(root, scripts/'rc_postpublish488_source_manifest.json', scripts/'rc_postpublish488_original_runner.py', scripts/'rc_postpublish488_inventory.json', fixture, paths)
+    source_AST_sha256 = sha(json.dumps(source_snapshot(root), sort_keys=True).encode())
+    cases = []
+    for mutation in ('none', 'source_AST', 'runtime', 'index', 'historical_blob', 'physical_object', 'outer_interpreter', 'carrier_sha', 'system_python_binary', 'system_python_alias'):
+        with tempfile.TemporaryDirectory(prefix='deadline-prepare-only-') as temporary:
+            directory = Path(temporary)
+            output = directory / 'never-launched'
+            fence = copy.deepcopy(context['fence'])
+            outer = dict(path=str(Path(sys.executable).resolve()), identity=identity(Path(sys.executable).resolve()))
+            source_AST = source_AST_sha256
+            if mutation == 'source_AST': source_AST = '0' * 64
+            if mutation == 'runtime': fence['programs'][str(Path(sys.executable).resolve())]['sha256'] = '0' * 64
+            if mutation == 'index': fence['index_sha256'] = '0' * 64
+            if mutation == 'historical_blob': fence['historical_blobs'][next(iter(fence['historical_blobs']))]['sha256'] = '0' * 64
+            if mutation == 'physical_object': fence['native_layout']['object_files'][next(iter(fence['native_layout']['object_files']))]['sha256'] = '0' * 64
+            if mutation == 'outer_interpreter': outer['identity']['sha256'] = '0' * 64
+            if mutation == 'system_python_binary': fence['programs'][fence['system_worker_python_binding']['resolved_path']]['sha256'] = '0' * 64
+            if mutation == 'system_python_alias': fence['system_worker_python_binding']['link_target'] = 'different-python'
+            carrier = {str(p.relative_to(management)):dict(bytes=len(read_regular(p)), sha256=sha(read_regular(p)), mode=stat.S_IMODE(p.stat().st_mode)) for p in paths}
+            if mutation == 'carrier_sha': carrier[next(iter(carrier))]['sha256'] = '0' * 64
+            frozen = directory / 'FENCE.json'; write(frozen, fence); frozen.chmod(0o644)
+            raw = read_regular(frozen)
+            packet = directory / 'PACKET.json'
+            write(packet, dict(kind='NEW_SINGLE_DEADLINE_OBSERVER_SOURCE_SEAL_ONLY', source_tree=context['manifest']['tree'], root=str(Path(root).resolve()), fixture=str(Path(fixture).resolve()), output=str(output), carrier_files=carrier, outer_interpreter=outer, expected_fence_file=str(frozen), expected_fence_bytes=len(raw), expected_fence_sha256=sha(raw), source_AST_sha256=source_AST))
+            packet.chmod(0o644)
+            argv = [sys.executable,'-B',str(scripts/'rc_deadline_owner.py'),'--root',str(Path(root).resolve()),'--fixture',str(Path(fixture).resolve()),'--output',str(output),'--packet',str(packet),'--prepare-only']
+            actual = subprocess.run(argv, env=ENV, capture_output=True, timeout=30)
+            assert not output.exists()
+            if mutation == 'none':
+                data = json.loads(actual.stdout)
+                assert actual.returncode == 0 and data['original_SUT_runs'] == 0 and data['no_launch'] is True
+            else:
+                assert actual.returncode != 0 and b'AssertionError' in actual.stderr and b'"started": true' not in actual.stdout
+            cases.append(dict(name=mutation, passed=True, actual_entrypoint_exit=actual.returncode, original_SUT_runs=0, output_created=False))
+    with tempfile.TemporaryDirectory(prefix='deadline-owned-object-boundary-') as temporary:
+        root = Path(temporary)
+        git(root, 'init', '-q')
+        objects = root / '.git/objects'
+        for index in range(4093):
+            (objects / ('owned-' + str(index))).write_bytes(b'')
+        allowed = seal_native_objects(root)
+        assert len(allowed['object_files']) + len(allowed['object_directories']) == 4096
+        cases.append(dict(name='actual_combined4096_owned_object_boundary_admitted', passed=True, original_SUT_runs=0))
+        (objects / 'owned-extra').write_bytes(b'')
+        try:
+            seal_native_objects(root)
+        except AssertionError:
+            cases.append(dict(name='actual_combined4097_owned_object_boundary_refused', passed=True, original_SUT_runs=0))
+        else:
+            raise AssertionError('combined object bound exceeded')
+    assert len(cases) == 12
+    return dict(scope='actual entrypoint prepare-only controls', passed=True, actual_control_count=len(cases), actual_cases=cases, original_SUT_runs=0, single_original_method='NOTRUN', full488=False, CI='NOTRUN', install='NOTRUN')
+
+
+if __name__ == '__main__':
+    assert len(sys.argv) == 4
+    result = run_deadline_entry_controls(sys.argv[1], sys.argv[2])
+    write(sys.argv[3], result)
+    print(json.dumps(dict(passed=result['passed'], actual_control_count=result['actual_control_count'], original_SUT_runs=0)))

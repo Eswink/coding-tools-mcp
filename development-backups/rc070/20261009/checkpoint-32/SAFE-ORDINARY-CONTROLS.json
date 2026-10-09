@@ -1,0 +1,30 @@
+{
+  "scope": "REAL_ORDINARY_COMPONENT_CONTROLS_NOT_NATIVE_CI",
+  "methods": 13,
+  "result": "PASS",
+  "original_log_bytes": 1963,
+  "original_log_sha256": "e548cfd7c267bf733d1115b414197480e749756582f90e1482c60804a36632a3",
+  "ordinary_AST_cases": [
+    "after",
+    "after-primary",
+    "before",
+    "runtime-drift"
+  ],
+  "failure_first": {
+    "actual_exit": 1,
+    "methods": 1,
+    "oldV2_result": "FAIL runtime selected-path drift was uncovered",
+    "original_log_sha256": "bd688126c83784e4a37ffae79b4f9e89a0acb8260305319a1b3a00934835250b"
+  },
+  "actual_source_functions": "Complete actual Python modules and exactsourcePSfunction/finally/catch/dispatch AST portions; Run-SourceCompile never invoked.",
+  "controls_limit": "Typed exceptions/ownedcopy drift are ordinary controlled-delegate behavior; not native cancellation, IOclose, lease ownership or nativecompiler proof. The byte-identical owned Python copy is never executed; no shared runtime bytes are changed.",
+  "new_realCI": "NOTRUN",
+  "native_authority": false,
+  "independent_peer": {
+    "status": "LIMITED_DIAGNOSTIC_SOURCE_PEER_NO_BLOCKING_CURRENT_SCOPE",
+    "peer_receipt_sha256": "0b9add966bacdb5936c3b0338e36e0fc5e06c3e33c52e053b55a467b81936a2d",
+    "both_identified_source_blockers_resolved": true,
+    "last_runtime_order": "managerAfter -> observerAfter -> runtimeAfter -> receipt -> original typed exception/aggregate",
+    "peer_did_not_run_original_controls_or_nativeCI": true
+  }
+}
