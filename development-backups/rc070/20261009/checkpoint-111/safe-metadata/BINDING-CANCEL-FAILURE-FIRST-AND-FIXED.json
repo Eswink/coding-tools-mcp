@@ -1,0 +1,51 @@
+{
+  "scope": "actual ModuleType assignment; mocked platform/loader;0Windows API/Go/Git",
+  "before": {
+    "tool_chunk": "55cf9e",
+    "actual_exit": 0,
+    "actual_result": {
+      "actual_Go_processes": 0,
+      "actual_native_API_calls": 0,
+      "actual_native_Git_processes": 0,
+      "assignments": [
+        "bind"
+      ],
+      "bind_then_cancel": true,
+      "restored_exact_original": false,
+      "scope": "ORDINARY_ACTUAL_MODULE_ASSIGNMENT_WITH_MOCKED_PLATFORM_AND_LOADER"
+    }
+  },
+  "fixed": {
+    "tool_chunk": "0a049a",
+    "actual_exit": 0,
+    "actual_result": {
+      "actual_Go_processes": 0,
+      "actual_native_API_calls": 0,
+      "actual_native_Git_processes": 0,
+      "assignments": [
+        "bind",
+        "restore"
+      ],
+      "bind_then_cancel": false,
+      "restored_exact_original": true,
+      "scope": "ORDINARY_ACTUAL_MODULE_ASSIGNMENT_WITH_MOCKED_PLATFORM_AND_LOADER"
+    }
+  },
+  "primary_plus_restore_cancel": {
+    "tool_chunk": "17bedc",
+    "actual_exit": 0,
+    "actual_result": {
+      "actual_Go_processes": 0,
+      "actual_native_API_calls": 0,
+      "actual_native_Git_processes": 0,
+      "assignments": [
+        "bind",
+        "restore"
+      ],
+      "bind_then_cancel": false,
+      "restored_exact_original": true,
+      "scope": "ORDINARY_ACTUAL_MODULE_ASSIGNMENT_WITH_MOCKED_PLATFORM_AND_LOADER"
+    },
+    "exact_original_objects_asserted": true
+  }
+}

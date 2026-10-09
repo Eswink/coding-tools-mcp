@@ -1,0 +1,76 @@
+{
+  "status": "ok",
+  "provider": "gitnexus",
+  "mode": {
+    "requested": "impact",
+    "resolved": "impact"
+  },
+  "summary": "GitNexus \u56fe\u8c31\u589e\u5f3a\u5df2\u542f\u7528\uff082/2 \u6210\u529f\uff09: context: { \"status\": \"found\", \"symbol\": { \"uid\": \"Function:scripts/windows_nt_output_native_controls.py:native_origi... | impact: { \"target\": { \"id\": \"Function:scripts/windows_nt_output_native_controls.py:native_original_local_payload_co...",
+  "warnings": [],
+  "executions": [
+    {
+      "tool": "context",
+      "args": {
+        "name": "Function:scripts/windows_nt_output_native_controls.py:native_original_local_payload_controls",
+        "repo": "windows-nt-output-native-ci-manager"
+      },
+      "ok": true,
+      "durationMs": 1034,
+      "text": "{\n  \"status\": \"found\",\n  \"symbol\": {\n    \"uid\": \"Function:scripts/windows_nt_output_native_controls.py:native_original_local_payload_controls\",\n    \"name\": \"native_original_local_payload_controls\",\n    \"kind\": \"Function\",\n    \"filePath\": \"scripts/windows_nt_output_native_controls.py\",\n    \"startLine\": 26,\n    \"endLine\": 97\n  },\n  \"epistemic\": \"exact\",\n  \"incoming\": {\n    \"calls\": [\n      {\n        \"uid\": \"Function:scripts/windows_nt_output_native_controls.py:native_control_entry\",\n        \"name\": \"native_control_entry\",\n        \"filePath\": \"scripts/windows_nt_output_native_controls.py\"\n      }\n    ]\n  },\n  \"outgoing\": {\n    \"calls\": [\n      {\n        \"uid\": \"Function:scripts/windows_nt_output_native_ci.py:load_native_lease\",\n        \"name\": \"load_native_lease\",\n        \"filePath\": \"scripts/windows_nt_output_native_ci.py\"\n      },\n      {\n        \"uid\": \"Function:scripts/windows_nt_output_native_ci.py:read_owned_bounded_file\",\n        \"name\": \"read_owned_bounded_file\",\n        \"filePath\": \"scripts/windows_nt_output_native_ci.py\"\n      },\n      {\n        \"uid\": \"Function:scripts/windows_nt_output_native_ci.py:write_owned_original_payload\",\n        \"name\": \"write_owned_original_payload\",\n        \"filePath\": \"scripts/windows_nt_output_native_ci.py\"\n      },\n      {\n        \"uid\": \"Function:scripts/windows_nt_output_native_ci.py:verify_owned_original_payloads\",\n        \"name\": \"verify_owned_original_payloads\",\n        \"filePath\": \"scripts/windows_nt_output_native_ci.py\"\n      },\n      {\n        \"uid\": \"Function:scripts/windows_nt_output_native_ci.py:verify_owned_original_payloads\",\n        \"name\": \"verify_owned_original_payloads\",\n        \"filePath\": \"scripts/windows_nt_output_native_ci.py\"\n      },\n      {\n        \"uid\": \"Function:scripts/windows_nt_output_native_ci.py:verify_owned_original_payloads\",\n        \"name\": \"verify_owned_original_payloads\",\n        \"filePath\": \"scripts/windows_nt_output_native_ci.py\"\n      },\n      {\n        \"uid\": \"Function:scripts/windows_nt_output_native_job.py:raise_preserved_native_errors\",\n        \"name\": \"raise_preserved_native_errors\",\n        \"filePath\": \"scripts/windows_nt_output_native_job.py\"\n      },\n      {\n        \"uid\": \"Function:scripts/windows_nt_output_native_job.py:raise_preserved_native_errors\",\n        \"name\": \"raise_preserved_native_errors\",\n        \"filePath\": \"scripts/windows_nt_output_native_job.py\"\n      }\n    ]\n  },\n  \"processes\": []\n}\n\n---\n**Next:** If planning changes, use impact({target: \"Function:scripts/windows_nt_output_native_controls.py:native_original_local_payload_controls\", direction: \"upstream\", repo: \"windows-nt-output-native-ci-manager\"}) to check blast radius. To see execution flows, READ gitnexus://repo/windows-nt-output-native-ci-manager/processes."
+    },
+    {
+      "tool": "impact",
+      "args": {
+        "target": "Function:scripts/windows_nt_output_native_controls.py:native_original_local_payload_controls",
+        "direction": "upstream",
+        "maxDepth": 3,
+        "includeTests": true,
+        "repo": "windows-nt-output-native-ci-manager"
+      },
+      "ok": true,
+      "durationMs": 163,
+      "text": "{\n  \"target\": {\n    \"id\": \"Function:scripts/windows_nt_output_native_controls.py:native_original_local_payload_controls\",\n    \"name\": \"native_original_local_payload_controls\",\n    \"type\": \"Function\",\n    \"filePath\": \"scripts/windows_nt_output_native_controls.py\"\n  },\n  \"direction\": \"upstream\",\n  \"impactedCount\": 3,\n  \"risk\": \"LOW\",\n  \"epistemic\": \"exact\",\n  \"summary\": {\n    \"direct\": 1,\n    \"processes_affected\": 0,\n    \"modules_affected\": 1\n  },\n  \"byDepthCounts\": {\n    \"1\": 1,\n    \"2\": 1,\n    \"3\": 1\n  },\n  \"affected_processes\": [],\n  \"affected_modules\": [\n    {\n      \"name\": \"Scripts\",\n      \"hits\": 1,\n      \"impact\": \"direct\"\n    }\n  ],\n  \"byDepth\": {\n    \"1\": [\n      {\n        \"depth\": 1,\n        \"id\": \"Function:scripts/windows_nt_output_native_controls.py:native_control_entry\",\n        \"name\": \"native_control_entry\",\n        \"filePath\": \"scripts/windows_nt_output_native_controls.py\",\n        \"relationType\": \"CALLS\",\n        \"confidence\": 0.85,\n        \"processes\": []\n      }\n    ],\n    \"2\": [\n      {\n        \"depth\": 2,\n        \"id\": \"File:scripts/windows_nt_output_native_controls.py\",\n        \"name\": \"windows_nt_output_native_controls.py\",\n        \"filePath\": \"scripts/windows_nt_output_native_controls.py\",\n        \"relationType\": \"CALLS\",\n        \"confidence\": 0.85,\n        \"processes\": []\n      }\n    ],\n    \"3\": [\n      {\n        \"depth\": 3,\n        \"id\": \"File:scripts/windows_nt_output_native_manager_controls.py\",\n        \"name\": \"windows_nt_output_native_manager_controls.py\",\n        \"filePath\": \"scripts/windows_nt_output_native_manager_controls.py\",\n        \"relationType\": \"IMPORTS\",\n        \"confidence\": 1,\n        \"processes\": []\n      }\n    ]\n  }\n}\n\n---\n**Next:** Review d=1 items first (WILL BREAK). To check affected execution flows, READ gitnexus://repo/windows-nt-output-native-ci-manager/processes."
+    }
+  ],
+  "repo": "windows-nt-output-native-ci-manager",
+  "launcherStrategy": "managed",
+  "ambiguities": [],
+  "workspaceMode": "direct",
+  "sourceRoot": "/workspace/work/rc070/windows-nt-output-native-ci-manager",
+  "analysisRoot": "/workspace/work/rc070/windows-nt-output-native-ci-manager",
+  "pathMapped": false,
+  "localFallback": null,
+  "projectDocs": {
+    "docsDir": "docs",
+    "projectContextFilePath": "/workspace/work/rc070/windows-nt-output-native-ci-manager/AGENTS.md",
+    "latestMarkdownFilePath": "docs/graph-insights/latest.md",
+    "latestJsonFilePath": "docs/graph-insights/latest.json",
+    "archiveMarkdownFilePath": "/workspace/work/rc070/windows-nt-output-native-ci-manager/docs/graph-insights/2026-10-09T17-42-12-873Z-impact-gitnexus-2-2-context-status-found-symbol-uid-fun.md",
+    "archiveJsonFilePath": "/workspace/work/rc070/windows-nt-output-native-ci-manager/docs/graph-insights/2026-10-09T17-42-12-873Z-impact-gitnexus-2-2-context-status-found-symbol-uid-fun.json",
+    "navigationSnippet": "### [\u4ee3\u7801\u56fe\u8c31\u6d1e\u5bdf](./graph-insights/latest.md)\n\u6700\u8fd1\u4e00\u6b21 code_insight \u5206\u6790\u7ed3\u679c\uff0c\u5305\u542b\u8c03\u7528\u94fe\u3001\u4e0a\u4e0b\u6587\u4e0e\u5f71\u54cd\u9762\u6458\u8981\n",
+    "devGuideSnippet": "- **\u4ee3\u7801\u56fe\u8c31\u6d1e\u5bdf**: [graph-insights/latest.md](./graph-insights/latest.md) - \u9700\u8981\u7406\u89e3\u6a21\u5757\u4f9d\u8d56\u3001\u8c03\u7528\u94fe\u548c\u5f71\u54cd\u9762\u65f6\u4f18\u5148\u67e5\u770b\n"
+  },
+  "plan": {
+    "mode": "delegated",
+    "kind": "docs",
+    "steps": [
+      {
+        "id": "consume-result",
+        "action": "\u5148\u6d88\u8d39\u672c\u6b21\u5206\u6790\u7ed3\u679c\uff08processes/symbols/impact\uff09\uff0c\u786e\u8ba4\u662f\u5426\u6ee1\u8db3\u5f53\u524d\u95ee\u9898"
+      },
+      {
+        "id": "optional-save",
+        "action": "\u5982\u9700\u4fdd\u5b58\uff0c\u518d\u5199\u5165 docs/graph-insights/latest.md\uff08\u6587\u672c\uff09\u548c docs/graph-insights/latest.json\uff08\u7ed3\u6784\u5316\uff09",
+        "outputs": [
+          "docs/graph-insights/latest.md",
+          "docs/graph-insights/latest.json"
+        ],
+        "note": "\u53ef\u9009\u540c\u6b65\u66f4\u65b0 /workspace/work/rc070/windows-nt-output-native-ci-manager/AGENTS.md \u7684\u56fe\u8c31\u5165\u53e3"
+      }
+    ]
+  },
+  "nextAction": "\u8bf7\u6309 delegated plan \u7531 Agent \u843d\u76d8\u56fe\u8c31\u6587\u6863\uff0c\u5e76\u66f4\u65b0 /workspace/work/rc070/windows-nt-output-native-ci-manager/AGENTS.md \u7684\u7d22\u5f15\u5165\u53e3",
+  "handles": {
+    "graph_resource": "probe://graph/latest"
+  }
+}

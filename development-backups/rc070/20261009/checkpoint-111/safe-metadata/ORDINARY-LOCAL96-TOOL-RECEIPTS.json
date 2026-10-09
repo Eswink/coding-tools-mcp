@@ -1,0 +1,33 @@
+{
+  "scope": "OWNED_POSIX_AND_MOCKED_TYPING_ONLY",
+  "actual_native_API_calls": 0,
+  "actual_Go_processes": 0,
+  "actual_original_local_restore_positive": "NOTRUN",
+  "terminals": [
+    {
+      "tool": "exec_command",
+      "chunk_id": "69acab",
+      "actual_exit_code": 0,
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+        "-B",
+        "work/native-nt-ci-prepare/local-owned-real-fixture95.py",
+        "/workspace/work/rc070/backup"
+      ],
+      "stdout": "work/native-nt-ci-prepare/ordinary-fixed-input95.stdout",
+      "stderr": "work/native-nt-ci-prepare/ordinary-fixed-input95.stderr"
+    },
+    {
+      "tool": "exec_command",
+      "chunk_id": "739415",
+      "actual_exit_code": 0,
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+        "-B",
+        "scripts/windows_nt_output_native_manager_controls.py"
+      ],
+      "stdout": "work/native-nt-ci-prepare/ordinary-local96.stdout",
+      "stderr": "work/native-nt-ci-prepare/ordinary-local96.stderr"
+    }
+  ]
+}

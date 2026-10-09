@@ -1,0 +1,173 @@
+{
+  "scope": "SOURCE_ONLY_ORIGINAL_LOCAL_DRAFT; peerPENDING; native0/Go0/CI0",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 478,
+      "sha256": "58d5ee4ea8a4b9a2c35ee63f89ba208d58b70e880b355ff11cbbb7dc3a60b9fb",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.md",
+      "bytes": 1248,
+      "sha256": "8c9f92b111a9d52fdec52efb60948733b2e5798758d613165550ceef4ea8d3d4",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/AST-BINDING-IMPACT102.json",
+      "bytes": 8826,
+      "sha256": "d9a4353529fa92de8d40329fa171501dfe76d617521952d8db0d13fb4392c711",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/AST-BUDGET-RESOURCE-BOUNDARY.md",
+      "bytes": 1613,
+      "sha256": "b55bb608c0d1639e91a12b0fba457abb7949c432a4152e7e89bdedc690027a7a",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/BINDING-CANCEL-FAILURE-FIRST-AND-FIXED.json",
+      "bytes": 1417,
+      "sha256": "a3a3db55b83659b68c78b8eba6fff1b4accca9450cdeedf113d8a48d77fd15f8",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/FRESH-ORIGINAL-LOCAL-IMPACT109.json",
+      "bytes": 53004,
+      "sha256": "c121d8e7e2a7a3cf598062f0ecb5c478122d897c4389229bd160f0790b8e2f2b",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/ORDINARY-LOCAL96-TOOL-RECEIPTS.json",
+      "bytes": 1096,
+      "sha256": "83fc5a983e70c59adbf7587dd396749103a6aa3f0635aa9bb256f8990287474e",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/ORIGINAL-LOCAL-FAILURE-ERRATUM109.json",
+      "bytes": 1024,
+      "sha256": "cc34538d1e40b433162fa87b14e1d7df0b58dbdfa4cb535539150910dffacfc5",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/ORIGINAL-LOCAL-SOURCE-PROTECTION109.json",
+      "bytes": 10633,
+      "sha256": "6f7de36cb9b425f6983bde047fe23090841dbf9e836901c88146583cc5a40a37",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/PROSPECTIVE-ORIGINAL-LOCAL-SOURCE-DELTA109.json",
+      "bytes": 2318,
+      "sha256": "6c826ad4f961a0bdd7b0b0bc8bb89369261345c61c49eaeb67f271e781d6e1f8",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/SPEC104-STRUCTURED-CHECK.json",
+      "bytes": 239,
+      "sha256": "7953fd01f476c80eb7747c405004530618fb87ead2322997e71fd37fd1e39eec",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/local-binding-cancel-failure103.py",
+      "bytes": 4149,
+      "sha256": "95d329369f0579f062be7440f40748c1655d48abe10cccc07cc60785d3d8a00d",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/local-binding-cancel-group107.py",
+      "bytes": 4394,
+      "sha256": "f945271e0022c4eb9f83584175a501b07baabcc45035c3a2f533e4c999cd71de",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/native-controls-before-binding-cancel102.py",
+      "bytes": 14228,
+      "sha256": "226f8fa543813893e59522abd1f8783372ed1e705fc2f4c985aa314461df281b",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/ordinary-owned-fixed-input-controls.py",
+      "bytes": 4820,
+      "sha256": "a0974fa78fc8c4f6187d617649f94610151653861fe70d222ca6064ec74b1d37",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/original-local-spec/design.md",
+      "bytes": 9873,
+      "sha256": "1868faf0a3dda36318cca4da27a1dfb1a7717faeedd428320b6bd782087f714c",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/original-local-spec/requirements.md",
+      "bytes": 9890,
+      "sha256": "7c44978fedbfa38fe0d5250196bbc3f3222b51cd930b7cb1c0ee431d95406fab",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/original-local-spec/tasks.md",
+      "bytes": 2389,
+      "sha256": "de02f36ae5bb2b6d768adae8f886d2c2fb91e38d94eee949bd8937e0470b9a85",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/.github/workflows/windows-nt-output-native-controls.yml",
+      "bytes": 1371,
+      "sha256": "6104dd857e99fbe0e2567e437527f031254e1bb1f31427d7d5fc0825b7941e2c",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_ci.py",
+      "bytes": 61309,
+      "sha256": "b6dba5ccf4cf72e8d244746226f186e5b5d46269053cdf64f395bda8bf7986fe",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_controls.py",
+      "bytes": 14232,
+      "sha256": "b36c029bd02a5fcc9c470c9f6c6a67dca25fcfcaa75a274fca9ae5bdd6c8391c",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_inputs.json",
+      "bytes": 8057,
+      "sha256": "02d1d6380b8f8e8d47e9360489abbfcd3f9db52ff085117be19caff3c7663765",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_job.py",
+      "bytes": 26302,
+      "sha256": "80fea658d806a543f3a2f5e84fd7cf846bd33a9bc63d8795c0a1e72f4dd3ae1d",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_manager_controls.py",
+      "bytes": 28635,
+      "sha256": "2a499e20aa0c713722297cbf7184e7d6352a492a4910daf5909b6cb982fa4d75",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    }
+  ]
+}

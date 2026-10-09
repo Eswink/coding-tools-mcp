@@ -1,0 +1,26 @@
+{
+  "scope": "failed actual ordinary cases; no native failure",
+  "failures": [
+    {
+      "case": "ordinary-local89",
+      "cause": "ordinary partial writer proxy a[0] argument bug; raw preserved",
+      "stderr_bytes": 1108,
+      "stderr_sha256": "cea05f253bfba5add3e543a76f1a1cc9f27e8acd6aa9b1e8401ac6f6923ed76a",
+      "retained_original": true
+    },
+    {
+      "case": "ordinary-local90",
+      "cause": "inner and outer errors list shared; duplicate same exact ValueError; fixed file_errors preserves one primary",
+      "stderr_bytes": 2879,
+      "stderr_sha256": "7079e2a32b2106c6ca3d576888a8c79a96c6c3d8963647b85419d290ff3d2d2a",
+      "retained_original": true
+    },
+    {
+      "case": "ordinary-fixed-input94",
+      "cause": "test expected payloadSHA but original actual exception string is sourceSHA/size; corrected expected literal only",
+      "stderr_bytes": 1172,
+      "stderr_sha256": "85e433882cddaaf842fc6d691e694cbb937fee3b27addcbb797a1a071bbc2b2e",
+      "retained_original": true
+    }
+  ]
+}

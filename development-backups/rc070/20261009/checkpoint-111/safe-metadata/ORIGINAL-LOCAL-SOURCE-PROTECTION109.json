@@ -1,0 +1,275 @@
+{
+  "scope": "FINITE SOURCE ONLY originalLOCAL input delegate; no originalpositive/native/Go/CI",
+  "source": [
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "bytes": 26302,
+      "sha256": "80fea658d806a543f3a2f5e84fd7cf846bd33a9bc63d8795c0a1e72f4dd3ae1d",
+      "mode": "100644",
+      "physical_mode": "0o600",
+      "blob": "d1dff636034072225b5e1959740eb27dbaa13e28"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "bytes": 61309,
+      "sha256": "b6dba5ccf4cf72e8d244746226f186e5b5d46269053cdf64f395bda8bf7986fe",
+      "mode": "100644",
+      "physical_mode": "0o600",
+      "blob": "2eee197e5bf69015d15ae7f7614a458b7a515e70"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_controls.py",
+      "bytes": 14232,
+      "sha256": "b36c029bd02a5fcc9c470c9f6c6a67dca25fcfcaa75a274fca9ae5bdd6c8391c",
+      "mode": "100644",
+      "physical_mode": "0o600",
+      "blob": "8136273c9bbc396b1543702c19d721e4e3a9c264"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_manager_controls.py",
+      "bytes": 28635,
+      "sha256": "2a499e20aa0c713722297cbf7184e7d6352a492a4910daf5909b6cb982fa4d75",
+      "mode": "100644",
+      "physical_mode": "0o600",
+      "blob": "5c506176317e4947761121860d250ada444a0ec9"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_inputs.json",
+      "bytes": 8057,
+      "sha256": "02d1d6380b8f8e8d47e9360489abbfcd3f9db52ff085117be19caff3c7663765",
+      "mode": "100644",
+      "physical_mode": "0o600",
+      "blob": "c318c5d5742ffe457c6410cb1e3d9a4e34c7adc1"
+    },
+    {
+      "path": ".github/workflows/windows-nt-output-native-controls.yml",
+      "bytes": 1371,
+      "sha256": "6104dd857e99fbe0e2567e437527f031254e1bb1f31427d7d5fc0825b7941e2c",
+      "mode": "100644",
+      "physical_mode": "0o600",
+      "blob": "5924d34b62693cb948511fb5cb72d88686d888b2"
+    }
+  ],
+  "protected": [
+    {
+      "path": ".github/workflows/windows-foundation-source-compile.yml",
+      "bytes": 1727,
+      "sha256": "8ae7075cddfd0a69a3f6cef0ddf48f1eb5b0cb1fc3c1845cffa9a50f2998d7e8"
+    },
+    {
+      "path": "scripts/windows_foundation_source_compile.ps1",
+      "bytes": 10898,
+      "sha256": "3bc30d14cbf835af39861da0cb171b5f7b58cc4b67deee370af7dd2ac89f4f44"
+    },
+    {
+      "path": "scripts/windows_foundation_source_guard.py",
+      "bytes": 14618,
+      "sha256": "71aaba07443ba0ace608f8a73e0996df839f6c189e866ee949eb4dd21e4a4073"
+    },
+    {
+      "path": "scripts/windows_foundation_source_manifest.json",
+      "bytes": 529597,
+      "sha256": "45cc3e94fd4eceb78184230740d293b24f576650927168b5855c947689e999ec"
+    },
+    {
+      "path": "docs/specs/windows-foundation-source-compile/requirements.md",
+      "bytes": 2863,
+      "sha256": "3c5dd574f8f31923a452587fce88fa7c8607f4867f3925ef0b7e3b4a4b7b1973"
+    },
+    {
+      "path": "docs/specs/windows-foundation-source-compile/design.md",
+      "bytes": 3462,
+      "sha256": "f34ae280792155ec0570f67622a0b1f21dbcd5d29194648b8f6d5b0e4e6ae3df"
+    },
+    {
+      "path": "docs/specs/windows-foundation-source-compile/tasks.md",
+      "bytes": 1931,
+      "sha256": "50cee5c0c95040aaa75263c80b5d0189169b99db2a41fb16ea22bde83daf5e9c"
+    },
+    {
+      "path": "scripts/Windows\u975e\u63d0\u5347\u8fdb\u7a0bv12.py",
+      "bytes": 11451,
+      "sha256": "5f46773d1b67d931532144cb077d8d792a9a3f0e3cc0feb3daa91280ec8bfe9f"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-output-ci-manager/requirements.md",
+      "bytes": 7825,
+      "sha256": "f17a9c33cdeeca3454c0eb7271fc38a727d20468c594ffd457e8d78f1ac1136d"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-output-ci-manager/design.md",
+      "bytes": 5510,
+      "sha256": "31977aaef89588593d862632bb48a6dc7aa6d9d3e59c7e2596cc0b893a2d9926"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-output-ci-manager/tasks.md",
+      "bytes": 1596,
+      "sha256": "9c97962462e4d734b00127b739c049a1d965d6d6ac2913f0f003987a74c786b5"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-ci-overlapped-io/requirements.md",
+      "bytes": 5118,
+      "sha256": "b7957891f611b8b4d3263364895f23a26ecf611dca7f942e6b6910de11f78eba"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-ci-overlapped-io/design.md",
+      "bytes": 6982,
+      "sha256": "343951dffeebcf98e011372f61f41d53101dbaefc1e28fc01e1f9772237fba34"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-ci-overlapped-io/tasks.md",
+      "bytes": 1897,
+      "sha256": "dfc84e96b41d8a91716f687a0b5e6b657e811a537722b7f920531ad15ba555bf"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-ci-source-delegate/requirements.md",
+      "bytes": 6377,
+      "sha256": "84f63816f04c28b30c390b770aa19859a06986301761cc7590d08b237ad21271"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-ci-source-delegate/design.md",
+      "bytes": 6579,
+      "sha256": "053acd8421daf72ca0166d9e09d5adbc70722ccaf4bf3315e01071a970ca5dfb"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-ci-source-delegate/tasks.md",
+      "bytes": 1612,
+      "sha256": "b6068bdea6518fd76daa95b5c1de297333cc9cc60123a01c1ab37211b3d786ce"
+    }
+  ],
+  "syntax4JSON": true,
+  "ordinary": {
+    "actual_go_processes": 0,
+    "actual_native_api_calls": 0,
+    "actual_original_native_methods": 0,
+    "controls": [
+      "synthetic-complete-vector-not-native",
+      "missing-method",
+      "duplicate-run",
+      "duplicate-terminal",
+      "skip",
+      "foreign-package",
+      "package-only",
+      "invalid-utf8",
+      "malformed-json",
+      "zero-selection",
+      "binding-restored-ValueError",
+      "binding-restored-KeyboardInterrupt",
+      "binding-restored-SystemExit",
+      "exact-primary-cancel-cleanup-group",
+      "single-exact-object",
+      "duplicate-json-key",
+      "false-Test-type",
+      "early-package-terminal",
+      "named-output-before-run",
+      "nonfinite-Elapsed",
+      "boolean-Elapsed",
+      "unknown-field",
+      "owned-local-runtime-file-fence",
+      "local-runtime-change-denied",
+      "local-runtime-hardlink-denied",
+      "ordinary-nonzero-Git-prefix-and-saved-counter",
+      "helper321-predelegate-denied",
+      "ordinary-Git-cancel-exact-object",
+      "saved-failure-byte-overflow-preserves-cancel",
+      "synthetic-module-filename-length",
+      "synthetic-module-truncation-denied",
+      "synthetic-module-zero-denied",
+      "synthetic-discovery-exact-top-vector",
+      "synthetic-discovery-duplicate-denied",
+      "disabled-manager-preIO-no-native",
+      "ordinary-over-transfer-keeps-reservation",
+      "ordinary-UNKNOWN-reservation-not-reissued",
+      "ordinary-actual-count-unused-reservation-released",
+      "ordinary-full-channel-noEOF-no-probe",
+      "ordinary-pending-shared-cap-not-double-reserved",
+      "owned-exclusive-receipt-no-overwrite",
+      "ordinary-receipt-closeUNKNOWN-holder-exactcancel",
+      "synthetic-root-reparse-pre-read-denied",
+      "actual-owned-ZIP-member-not-officialGo",
+      "owned-ZIP-actual-size-metadata-mismatch-denied",
+      "ordinary-ZIP-cannot-be-official-Go",
+      "ordinary-member-and-output-closeUNKNOWN-independent-exactobjects",
+      "negative-only-identity-binding-actual-ZipFile-constructor-primary-inputcloseUNKNOWN",
+      "negative-only-identity-binding-real-BadZipFile-no-extraction",
+      "synthetic-ZIP-and-owned-input-onceclose-exact-three-object-group",
+      "ordinary-nested-unexpected-cancel-never-accepted",
+      "actual-owned-POSIX-exclusive-input-extent-and-onceclose",
+      "actual-owned-input-collision-preserves-canary",
+      "ordinary-actual-partial-writes-only-advance-real-count",
+      "ordinary-owned-input-oncecloseUNKNOWN-exact-cancel-group",
+      "ordinary-bounded-owned-reader-exact-primary-closecancel",
+      "actual-owned-POSIX-pool-full-file-hash-snapshot-not-Git-proof",
+      "ordinary-stricter-pool-cap-rejects-before-file-open",
+      "synthetic-pool-metadata-error-still-attempts-both-native-observers",
+      "synthetic-exact12-vector-not-native-qualification",
+      "synthetic-missing-local-negative12-vector-denied"
+    ],
+    "count": 61,
+    "native_authority": false,
+    "scope": "ORDINARY_SYNTHETIC_PARSER_BINDING_ONLY"
+  },
+  "fixed_owned_POSIX": {
+    "actual_Go_processes": 0,
+    "actual_Windows_API_calls": 0,
+    "actual_native_processes": 0,
+    "actual_official_Go_ZIP": "NOTRUN",
+    "all_four_fixture_bytes": 2371676,
+    "controls": [
+      "actual-owned-POSIX-fixed74-layout-bytes-modes-and76-mocked-native-vectors",
+      "actual-POSIX-original-local-source-preclone-rejection-zero-native",
+      "actual-POSIX-original-local-patch-preclone-rejection-zero-native",
+      "actual-POSIX-original-local-destination-preclone-rejection-zero-native",
+      "actual-owned-input-extra-file-rejected-not-original-positive"
+    ],
+    "count": 5,
+    "directory_roles": 31,
+    "mocked_stage_requests": 76,
+    "original_local_positive": "NOTRUN",
+    "payload_bytes": 592919,
+    "scope": "OWNED_POSIX_FIXED_INPUT_AND_MOCKED_NATIVE_ARGV_ONLY",
+    "source_roles": 74
+  },
+  "actual_tool_terminals": {
+    "scope": "OWNED_POSIX_AND_MOCKED_TYPING_ONLY",
+    "actual_native_API_calls": 0,
+    "actual_Go_processes": 0,
+    "actual_original_local_restore_positive": "NOTRUN",
+    "terminals": [
+      {
+        "tool": "exec_command",
+        "chunk_id": "69acab",
+        "actual_exit_code": 0,
+        "argv": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+          "-B",
+          "work/native-nt-ci-prepare/local-owned-real-fixture95.py",
+          "/workspace/work/rc070/backup"
+        ],
+        "stdout": "work/native-nt-ci-prepare/ordinary-fixed-input95.stdout",
+        "stderr": "work/native-nt-ci-prepare/ordinary-fixed-input95.stderr"
+      },
+      {
+        "tool": "exec_command",
+        "chunk_id": "739415",
+        "actual_exit_code": 0,
+        "argv": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+          "-B",
+          "scripts/windows_nt_output_native_manager_controls.py"
+        ],
+        "stdout": "work/native-nt-ci-prepare/ordinary-local96.stdout",
+        "stderr": "work/native-nt-ci-prepare/ordinary-local96.stderr"
+      }
+    ]
+  },
+  "source_peer": "PENDING",
+  "triple_disabled": true,
+  "artifact_activation": "STOP whole RUNNER_TEMP contains runtime/Gitobjects; source04 peer cannot authorize activation",
+  "actual_original_local_positive": "NOTRUN",
+  "actual_Windows_API_calls": 0,
+  "actual_Go_processes": 0,
+  "actual_320_native_child_control": "NOTRUN",
+  "real_official_ZIP_caps": "UNVERIFIED",
+  "transitive_OS_runtime": "UNVERIFIED"
+}
