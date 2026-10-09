@@ -1,0 +1,25 @@
+# Finite diagnostic2 design
+
+## 概述
+
+对应需求：FR-1、FR-2、FR-3。
+
+FR-1: new external management directory, fresh exact restore and original artifact-method inventory1. Original method, fixturehelper, request and decorator sources stay untouched. Read full hashes/modes/AST before and after. Keep frozen diag1 and all original85 evidence separately.
+
+## 技术方案
+
+FR-2: capture originalrequest/response/mutationresult/stdlibsendall once at worker setup. Requestcontextwrapper uses worker thread identity and a scoped context stack of the genuine op passed to originalrequest; its finally always restores the previous context. It does not mint owner/session/scope. Inner wrappers call each originaldelegate exactlyonce and return originalidentity; on actual BaseException, observe only safe type/WireFailure/code/effect/basename function line when original context is UploadAsset operation11. `except Exception` during observation preserves original by bare raise after observation handler; an observer BaseException becomes a group containing originalprimary andobservercancel, preserving cancellation; external sticky list additionally retains that actual cancellation object because unchanged originalcatch may normalize the group. After runpy and actual cleanup, worker rethrows the cancellation with originalrunnerprimary in a group and declares observationinvalid. It never suppresses socketclose because original_request still has its unchanged catch/close logic. The method is an external runtime observation, not original whole-function AST execution alone. It adds three inner delegate hooks and one context hook to the existing two executor hooks, totaling6.
+
+No per-byte recording, args/kwargs/exception message/body/header/token, proxy stream/socket, replacement host, fakeoriginalgrant, request normalization changes or errorcode translation. If none of these three boundaries emits an exception, the narrower diagnostic reports causeUNKNOWN and stops; it does not promise full originalrequest exception visibility. A stream.read exception or inline expression failure remains uncovered.
+
+FR-3: adaptedowner finite profile/count/workerargv remains a truthful external copy whose original receiptgate is equal and inverse four management changes reproduce originalowner. Original kernel imports unchanged. Fresh minimalenv and actualpythonalias in native runtime/preseal. Keep original1800/7/2/2 and all SUTtimers. Independently seal all source/controls/AST/native input identities, then root executes once afterliteralchecks. At terminal reread original8seal+allraw and separate observer rawbytes/SHA, originalqualifiedclosed and actualECHILD never conflated. Fail1 does not become85/300 qualification.
+
+Ordinary controls use exactworkerhookAST in controlled callers, not wholeSUT: originalreturn identity/exactargs/once; originalException/SystemExit/KeyboardInterrupt identity; observationException preservesprimary; observercancel+primarygroup; nestedcontext restore fornormal/exception/cancel; nonmatchingop/thread causes noevents; observed matching3delegates append safe fields; failed sidecar write/actualclose andprimarypreserved. Fullowner automatic timeout/cancel remainsNOTRUN unless explicitly performed, and oldcontrols not borrowed.
+
+
+## 文件结构
+
+External directory contains worker/controller/entry/ordinary controls and these3specs. Runtime pure checkout and private raw evidence stay separate; no original SUT file change.
+
+
+Bindings use captured original object identities and ordered6 ownedattribute changes; restorealways attempts all reverseorder entries even after one error/aliasmismatch. Partialinstall rollback uses the same restore. Restorefailures and primary/cancellation are combined without masking; no success claim for uncertainrestore. Original fixture/socket cleanup remains originalfunction execution.

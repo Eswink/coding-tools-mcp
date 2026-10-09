@@ -1,0 +1,16 @@
+{
+  "SUT_methods": 0,
+  "consumer_methods_run": 0,
+  "controls": "23 owned ordinary PASS incl10negative0child,realpositivepidfdWNOWAIT/ECHILD,exactcancelobject/group,bothafterattempt,realSIGINT/stickyoldstate,restorecontinue/originalobjects; oldcancel3FAIL1ERROR preserved",
+  "first303_status": "FAIL preserved",
+  "impact": "UNKNOWN degraded repo unregistered; manual HIGH disclosed",
+  "limitations": "Static POSIX path metadata, no UID ownership/directoryFDpin/atomicanti-race/source authority. Original17/helper6 and old03sourcefreeze immutable; new v2 wrapper binds actual old cancel code/freevar/list state and restores fresh entry defaults. 1200/7/2/2+2MiB unchanged.",
+  "native_clone_paths": 1849,
+  "new303_status": "NOTRUN",
+  "old_composition03_status": "STOP observer cancellation/signals boundary; frozen historical controls narrow only",
+  "physical_modes": "1847 exact0644 + 2 exact0755; before/after preparation equal",
+  "qualification_755_runs": 0,
+  "source_only": true,
+  "startup_review": "PENDING",
+  "whole755_status": "FAIL original03 preserved"
+}

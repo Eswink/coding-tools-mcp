@@ -1,0 +1,30 @@
+# Composed guard preparation
+
+## 交付物清单
+
+Newwrapper/preparer and ordinary admission controls; exactnewPOSIXclone1849 metadata fence; read-only newsource/native/runtime/refs/preflight freeze; independent startup review material.
+
+## 任务列表
+
+- [x] Peer accepted exactmode helper and currentoldcloneBLOCKED0SUT.
+- [x] Explicit0022/no-local newsourceclone with exact644/755 and originalbyte/tree identity.
+- [ ] check_spec/freshimpact before newcode.
+- [ ] Eight actual owned negative admissions + ordinarychildpositive + exception controls.
+- [ ] readonlycomposedprepare/1849 before-after-preparation snapshot equality.
+- [ ] Freeze original/new AST boundaries, runtime/native/refs and newpreflight.
+- [ ] Independent exact startupreview; rootlaterdecision; NO original303launch here.
+
+## 需求覆盖矩阵
+
+FR-1 exactnewclone actualmode/bytes/tree validation; FR-2 composed preflight/hash/runtime closure boundaries; FR-3 exceptions/cancellation controls and explicit ownershiplimits; FR-4 actualownedobject admission/process controls; FR-5 freshimpact/spec/freeze/independentreview.
+
+## 文件变更清单
+
+Only newexternal composition/control files and three specifications. No old17source, helper01source, oldclone, receipts, budgets, originalmethods/assertions/consumer/source gates, version or release changes.
+
+
+## 取消边界补正 FR-3 FR-4 FR-5
+
+New v2 only; old03 source/preflight/controls remain immutable history. After-fence and receipt cancellation must propagate original cancellation object; when originaldelegate exception and observer cancellation both occur, BaseExceptionGroup retains both exact objects. Both readonly after attempts still execute. Ordinary after errors remain sticky FAIL and never cover original delegate error/nonzero. After originalsupervisor returns, a bounded new signal bridge captures original installed SIGINT/TERM handlers and their inspected cancellation state, records afterphase signals, forwards originals, and restores originals; unexpected handler shape rejects. Any afterphase signal prohibits success and propagates cancellation. Include realSIGINT afterphase owned controls and failurefirst oldcancel-to1 behavior. This uses inspected cancel state as cancellation evidence only, never authority, and claims no atomic source ownership. Original17 AST/budgets remain unchanged.
+
+Signal restoration clarification FR-3 FR-4: fresh entry handlers must be default_int_handler/SIG_DFL before delegate starts. Afterphase chains actual inspected delegate cancel closure, then restores those fresh entry defaults, independently attempting both restores. Restoration errors retain original objects in group with primary/cancel. This avoids restoring an ignore-like delegate closure at process exit; no atomic source snapshot claim.

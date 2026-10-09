@@ -1,0 +1,25 @@
+{
+  "classification": "SOURCE_ONLY_HOST_PROPOSAL_NOT_INSTALLER",
+  "baseline_existing_carrier": "e90ed2b7ba521153936e206bdcc013866422ea6b",
+  "existing_carrier_and_pureSUT_unmodified": true,
+  "spec_structured_pass": true,
+  "spec_errors": 0,
+  "spec_warnings": 0,
+  "fresh_impacts": "Actual new preedit nested target-not-found UNKNOWN and current bounded8000ms timeout/degraded; manualHIGH disclosed",
+  "ordinary_source_controls": 14,
+  "original_failures_retained": [
+    "ordinary-controls01/02 actual GPG socket path failures",
+    "ordinary-controls03 missing gpgv",
+    "real e90CI missing /usr/local/bin/git SUT0"
+  ],
+  "workspace_owned_build": "ACTUAL_FAIL exit2; default upstream2.55 Cargo notfound/error127; all4764 regularsourcebytes unchanged, noGitELF; INSTALL=false,SUT0",
+  "host_setup": "NOT_IMPLEMENTED_NOT_RUN",
+  "future_setup_receipt_required": "INSTALL=true; truthful explicit probe-phase no-install markers only afterwards",
+  "original85_currentCI": "NOTRUN",
+  "original300": "NOTRUN",
+  "prior_local83_success2_fail": "RETAINED_FAIL",
+  "publication_install_verification": "NOTRUN",
+  "peer": "PENDING proposal review; not production pass",
+  "trust": "Actual tar signature VALIDSIG matches primary/subkey and official primaryfingerprint; GPG TRUST_UNDEFINED preserved; no publisher grant",
+  "build_compiler_install_or_bypass": false
+}

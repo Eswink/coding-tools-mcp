@@ -1,0 +1,22 @@
+# Composed mode fence
+
+## 概述
+
+对应需求：FR-1 FR-2 FR-3 FR-4 FR-5. A new wrapper validates sealed actual physical metadata, invokes unchanged originalsupervisor.main with its original sealedargv, then revalidates full metadata after its native owned closure. Oldmain remains entirely unmodified; its exact own hash and native/source/runtime/refs checks remain.
+
+## 技术方案
+
+A readonly preparer calls the immutable preparation code in a new output prefix, validates all1849 modes against immutable originalGit mappings, writes physical-before and physical-after-preparation snapshot plus helper/wrapper code hashes into a new sealed preflight and runtime-before. Existing before documents remain actualnewclone-specific source/native/refs snapshots. Future wrapper activation is outside this preparation scope and must use the precise pinned interpreter/argv/external hash chain.
+
+The mode layer provides no opened-directory ownership or atomicanti-race authority. It rejects actual mismatched metadata before starting a delegate. After delegate exceptions/cancellation, it still attempts readonly after-fence observation; any new diagnostic errors cannot replace original exception. A returnednonzero originalcode remains nonzero. New snapshot mode failures are terminal0SUT at startup or FAIL after an actualrun.
+
+## 文件结构
+
+work/mode-composed holds new composed_supervisor.py, prepare_composed.py, ordinarycontrols and private prepare outputs. Old17source and first helper sixsource remain untouched. Three newspec files describe this composition. Backup contains inertsource/specs/byte identities and sanitized zeroSUT status only.
+
+
+## 取消边界补正 FR-3 FR-4 FR-5
+
+New v2 only; old03 source/preflight/controls remain immutable history. After-fence and receipt cancellation must propagate original cancellation object; when originaldelegate exception and observer cancellation both occur, BaseExceptionGroup retains both exact objects. Both readonly after attempts still execute. Ordinary after errors remain sticky FAIL and never cover original delegate error/nonzero. After originalsupervisor returns, a bounded new signal bridge captures original installed SIGINT/TERM handlers and their inspected cancellation state, records afterphase signals, forwards originals, and restores originals; unexpected handler shape rejects. Any afterphase signal prohibits success and propagates cancellation. Include realSIGINT afterphase owned controls and failurefirst oldcancel-to1 behavior. This uses inspected cancel state as cancellation evidence only, never authority, and claims no atomic source ownership. Original17 AST/budgets remain unchanged.
+
+Signal restoration clarification FR-3 FR-4: fresh entry handlers must be default_int_handler/SIG_DFL before delegate starts. Afterphase chains actual inspected delegate cancel closure, then restores those fresh entry defaults, independently attempting both restores. Restoration errors retain original objects in group with primary/cancel. This avoids restoring an ignore-like delegate closure at process exit; no atomic source snapshot claim.

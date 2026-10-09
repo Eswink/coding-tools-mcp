@@ -1,0 +1,103 @@
+"""New external physical metadata fence; immutable original17 supervisor delegates."""
+from pathlib import Path
+import hashlib
+import importlib.util
+import json
+import sys
+import signal
+import types
+
+ORIGINAL=Path('/workspace/work/rc070/diagnostic/work/pretag303')
+HELPER=Path('/workspace/work/rc070/diagnostic-mode-guard/work/mode-guard/physical_modes.py')
+
+def load(name,path):
+    spec=importlib.util.spec_from_file_location(name,path)
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
+
+def sha(raw):return hashlib.sha256(raw).hexdigest()
+
+def validate_physical_fence(root,entries,expected):
+    actual=load('exact_physical_helper',HELPER).require_exact_posix_modes(root,entries)
+    if actual!=expected:raise ValueError('physical source metadata identity changed')
+    return actual
+
+class SignalCancellation(BaseException):
+    def __init__(self,signum):self.signum=signum;super().__init__('afterphase signal '+str(signum))
+
+class AfterSignalScope:
+    """Fresh entry defaults -> inspected real delegate handler -> entry defaults."""
+    def __init__(self,expected_code):
+        self.signals=(signal.SIGINT,signal.SIGTERM);self.entry={n:signal.getsignal(n) for n in self.signals}
+        if self.entry[signal.SIGINT] is not signal.default_int_handler or self.entry[signal.SIGTERM]!=signal.SIG_DFL:
+            raise ValueError('fresh entry signal handlers are not defaults')
+        self.expected_code=expected_code;self.original=None;self.actual_signals=None
+    def enter(self):
+        handlers={n:signal.getsignal(n) for n in self.signals};handler=handlers[signal.SIGINT]
+        if handlers[signal.SIGTERM] is not handler or not isinstance(handler,types.FunctionType) or handler.__code__ is not self.expected_code or handler.__code__.co_freevars!=('signals',) or handler.__closure__ is None or len(handler.__closure__)!=1:
+            raise ValueError('unexpected actual delegate cancellation handler')
+        signals=handler.__closure__[0].cell_contents
+        if type(signals) is not list or any(type(n) is not int or n not in self.signals for n in signals):
+            raise ValueError('unexpected actual delegate cancellation state')
+        self.original=handler;self.actual_signals=signals
+        def bridge(signum,frame):self.original(signum,frame)
+        for signum in self.signals:signal.signal(signum,bridge)
+    def leave(self):
+        failures=[]
+        for signum in self.signals:
+            try:signal.signal(signum,self.entry[signum])
+            except BaseException as error:failures.append(error)
+        cancellations=[] if self.actual_signals is None else [SignalCancellation(n) for n in list(self.actual_signals)]
+        if failures:raise BaseExceptionGroup('signal restoration failures and observed cancellations',failures+cancellations)
+        return cancellations
+
+def run_fenced(delegate,root,entries,expected,errors,save_after,phase=None):
+    validate_physical_fence(root,entries,expected)
+    original_error=None;code=None;after=None;cancellations=[]
+    def observe(stage,action):
+        try:return action()
+        except BaseException as error:
+            errors.append({'stage':stage,'type':type(error).__name__,'message':str(error)})
+            if not isinstance(error,Exception) or stage=='signal-restore':cancellations.append(error)
+    try:code=delegate()
+    except BaseException as error:original_error=error
+    if phase is not None:observe('signal-entry',phase.enter)
+    after=observe('after-fence',lambda:validate_physical_fence(root,entries,expected))
+    observe('after-receipt',lambda:save_after(after,errors,code))
+    if phase is not None:
+        seen=observe('signal-restore',phase.leave)
+        if seen:cancellations.extend(seen)
+    if original_error is not None:
+        if cancellations:raise BaseExceptionGroup('original delegate and observation cancellation',[original_error,*cancellations])
+        raise original_error
+    if cancellations:
+        if len(cancellations)==1:raise cancellations[0]
+        raise BaseExceptionGroup('observation cancellations',cancellations)
+    if type(code) is not int:raise TypeError('original supervisor must return integer exit')
+    return code if code!=0 else (1 if errors else 0)
+
+def main():
+    assert len(sys.argv)==3 and len(sys.argv[2])==64
+    raw=Path(sys.argv[1]).read_bytes();assert sha(raw)==sys.argv[2];packet=json.loads(raw)
+    assert packet['physical_mode_scope']=='full1849-exact-posix-metadata-beforeafter'
+    assert sha(Path(__file__).read_bytes())==packet['composed_supervisor_sha256']
+    assert sha(HELPER.read_bytes())==packet['physical_helper_sha256']
+    assert sha((ORIGINAL/'supervisor.py').read_bytes())==packet['supervisor_sha256']
+    assert str(Path(sys.executable).resolve())==packet['python']
+    out=Path(packet['out']);root=Path(packet['root'])
+    for filename,key in [('physical-source-before.json','physical_before_sha256'),('physical-source-after-preparation.json','physical_after_preparation_sha256')]:
+        assert sha((out/filename).read_bytes())==packet[key]
+    expected=json.loads((out/'physical-source-before.json').read_bytes())
+    assert expected==json.loads((out/'physical-source-after-preparation.json').read_bytes()) and len(expected)==1849
+    before=json.loads((out/'source-before.json').read_bytes());entries={path:row['mode'] for path,row in before['source'].items()}
+    errors=[]
+    def save_after(after,failures,code):
+        report={'scope':'limited303 physical metadata fence; no full755 credit','physical_after':after,'physical_before_after_equal':after==expected,'failures':list(failures),'original_supervisor_exit':code,'consumer_methods_run':0,'qualification_755_runs':0}
+        with (out/'PHYSICAL-MODE-OUTER-RECEIPT.json').open('xb') as stream:
+            stream.write((json.dumps(report,sort_keys=True,indent=2)+'\n').encode())
+    original=load('immutable_original17_supervisor',ORIGINAL/'supervisor.py')
+    codes=[value for value in original.main.__code__.co_consts if isinstance(value,types.CodeType) and value.co_name=='cancel']
+    assert len(codes)==1 and codes[0].co_filename==str(ORIGINAL/'supervisor.py')
+    phase=AfterSignalScope(codes[0])
+    return run_fenced(original.main,root,entries,expected,errors,save_after,phase)
+
+if __name__=='__main__':raise SystemExit(main())

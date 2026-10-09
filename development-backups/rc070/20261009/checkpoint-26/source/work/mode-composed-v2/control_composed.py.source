@@ -1,0 +1,147 @@
+"""Ordinary owned temporary-file/realchild controls; no SUT methods."""
+from pathlib import Path
+import os
+import subprocess
+import sys
+import signal
+import importlib.util
+import tempfile
+import unittest
+import composed_supervisor as c
+
+class ComposedControls(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);(self.root/'sub').mkdir()
+        for name,mode in [('plain',0o644),('exec',0o755),('sub/leaf',0o644)]:
+            (self.root/name).write_text('ordinary owned data');os.chmod(self.root/name,mode)
+        self.entries={'plain':'100644','exec':'100755','sub/leaf':'100644'}
+        self.expected=c.validate_physical_fence(self.root,self.entries,c.load('control_helper',c.HELPER).require_exact_posix_modes(self.root,self.entries));self.created=0
+    def tearDown(self):self.tmp.cleanup()
+    def real_child(self):
+        self.created+=1;p=subprocess.Popen([sys.executable,'-B','-c','pass']);fd=os.pidfd_open(p.pid)
+        try:
+            outcome=os.waitid(os.P_PIDFD,fd,os.WEXITED|os.WNOWAIT)
+            self.assertEqual((outcome.si_code,outcome.si_status),(os.CLD_EXITED,0));self.assertEqual(p.wait(),0)
+            with self.assertRaises(ChildProcessError):os.waitid(os.P_PIDFD,fd,os.WEXITED|os.WNOHANG)
+        finally:os.close(fd)
+        return 0
+    def admit(self):return c.run_fenced(self.real_child,self.root,self.entries,self.expected,[],lambda *args:None)
+    def reject(self,mutation):
+        mutation()
+        with self.assertRaises((ValueError,FileNotFoundError)):self.admit()
+        self.assertEqual(self.created,0)
+    def test_exact_positive_owned_real_child_closed(self):self.assertEqual(self.admit(),0);self.assertEqual(self.created,1)
+    def test_plain600(self):self.reject(lambda:os.chmod(self.root/'plain',0o600))
+    def test_exec700(self):self.reject(lambda:os.chmod(self.root/'exec',0o700))
+    def test_exec754(self):self.reject(lambda:os.chmod(self.root/'exec',0o754))
+    def test_exec745(self):self.reject(lambda:os.chmod(self.root/'exec',0o745))
+    def test_setuid(self):self.reject(lambda:os.chmod(self.root/'exec',0o4755))
+    def test_setgid(self):self.reject(lambda:os.chmod(self.root/'exec',0o2755))
+    def test_hardlink(self):self.reject(lambda:os.link(self.root/'plain',self.root/'alias'))
+    def test_leaf_symlink(self):
+        def mutation():(self.root/'plain').unlink();(self.root/'plain').symlink_to('exec')
+        self.reject(mutation)
+    def test_parent_symlink(self):
+        def mutation():(self.root/'sub').rename(self.root/'real');(self.root/'sub').symlink_to('real',target_is_directory=True)
+        self.reject(mutation)
+    def test_replaced_inode_exact_mode(self):
+        def mutation():
+            replacement=self.root/'replacement';replacement.write_text('ordinary owned data');os.chmod(replacement,0o644);os.replace(replacement,self.root/'plain')
+        self.reject(mutation)
+    def test_afterfailure_no_success(self):
+        errors=[]
+        def delegate():code=self.real_child();os.chmod(self.root/'plain',0o600);return code
+        self.assertEqual(c.run_fenced(delegate,self.root,self.entries,self.expected,errors,lambda *a:None),1);self.assertEqual(len(errors),1)
+    def test_afterfailure_preserves_original_nonzero(self):
+        def delegate():os.chmod(self.root/'plain',0o600);return 7
+        self.assertEqual(c.run_fenced(delegate,self.root,self.entries,self.expected,[],lambda *a:None),7)
+    def test_normal_aftererror_preserves_primary(self):
+        marker=RuntimeError('original marker')
+        def delegate():os.chmod(self.root/'plain',0o600);raise marker
+        try:c.run_fenced(delegate,self.root,self.entries,self.expected,[],lambda *a:None)
+        except BaseException as actual:self.assertIs(actual,marker)
+        else:self.fail('original delegate missing')
+    def preserve_marker(self,marker):
+        observer=KeyboardInterrupt('observer cancellation marker');attempts=[]
+        def delegate():os.chmod(self.root/'plain',0o600);raise marker
+        def writer(*args):attempts.append('receipt');raise observer
+        try:c.run_fenced(delegate,self.root,self.entries,self.expected,[],writer)
+        except BaseExceptionGroup as actual:self.assertIs(actual.exceptions[0],marker);self.assertIs(actual.exceptions[1],observer)
+        else:self.fail('original and observer cancellation group missing')
+        self.assertEqual(attempts,['receipt'])
+    def test_body_exception_and_observer_cancel(self):self.preserve_marker(RuntimeError('original marker'))
+    def test_body_cancel_and_observer_cancel(self):self.preserve_marker(KeyboardInterrupt('original cancellation marker'))
+    def test_receipt_cancel_original_object_propagates(self):
+        observer=KeyboardInterrupt('observation cancel')
+        def writer(*a):raise observer
+        try:c.run_fenced(self.real_child,self.root,self.entries,self.expected,[],writer)
+        except BaseException as actual:self.assertIs(actual,observer)
+        else:self.fail('observer cancel swallowed')
+    def test_two_after_cancellations_both_attempt(self):
+        original=c.validate_physical_fence;first=KeyboardInterrupt('fence cancel');second=SystemExit(44);attempts=[]
+        def validator(*args):
+            attempts.append('fence')
+            if len(attempts)>1:raise first
+            return original(*args)
+        def writer(*args):attempts.append('receipt');raise second
+        c.validate_physical_fence=validator
+        try:
+            with self.assertRaises(BaseExceptionGroup) as seen:c.run_fenced(lambda:0,self.root,self.entries,self.expected,[],writer)
+            self.assertIs(seen.exception.exceptions[0],first);self.assertIs(seen.exception.exceptions[1],second);self.assertEqual(attempts,['fence','fence','receipt'])
+        finally:c.validate_physical_fence=original
+    def signal_control(self,marker=None,initial=False):
+        saved={n:signal.getsignal(n) for n in (signal.SIGINT,signal.SIGTERM)};signals=[]
+        def cancel(signum,frame):signals.append(signum)
+        phase=c.AfterSignalScope(cancel.__code__);attempts=[]
+        def delegate():
+            signal.signal(signal.SIGINT,cancel);signal.signal(signal.SIGTERM,cancel)
+            if initial:cancel(int(signal.SIGINT),None)
+            if marker is not None:raise marker
+            return 0
+        def writer(*args):
+            attempts.append('receipt');os.kill(os.getpid(),signal.SIGINT)
+        try:
+            try:c.run_fenced(delegate,self.root,self.entries,self.expected,[],writer,phase)
+            except BaseExceptionGroup as actual:
+                if marker is not None:self.assertIs(actual.exceptions[0],marker);self.assertTrue(all(isinstance(item,c.SignalCancellation) for item in actual.exceptions[1:]))
+                else:self.assertTrue(all(isinstance(item,c.SignalCancellation) for item in actual.exceptions))
+            except c.SignalCancellation as actual:self.assertIsNone(marker);self.assertEqual(actual.signum,signal.SIGINT)
+            else:self.fail('real afterSIGINT swallowed')
+            self.assertEqual(attempts,['receipt']);self.assertEqual(len(signals),2 if initial else 1)
+            self.assertIs(signal.getsignal(signal.SIGINT),signal.default_int_handler);self.assertEqual(signal.getsignal(signal.SIGTERM),signal.SIG_DFL)
+        finally:
+            for signum,handler in saved.items():signal.signal(signum,handler)
+    def test_actual_sigint_after(self):self.signal_control()
+    def test_actual_sigint_plus_original_exception(self):self.signal_control(RuntimeError('primary signal case'))
+    def test_delegate_return_signal_window_sticky(self):self.signal_control(initial=True)
+    def test_unexpected_after_handler_rejects(self):
+        signals=[]
+        def expected(signum,frame):signals.append(signum)
+        phase=c.AfterSignalScope(expected.__code__)
+        self.assertEqual(c.run_fenced(lambda:0,self.root,self.entries,self.expected,[],lambda *a:None,phase),1)
+    def test_restorefailure_remaining_attempt_and_primary_cancel_kept(self):
+        saved={n:signal.getsignal(n) for n in (signal.SIGINT,signal.SIGTERM)};real_signal=signal.signal;signals=[];restore=ValueError('restore marker');primary=RuntimeError('original marker');attempts=[]
+        def cancel(signum,frame):signals.append(signum)
+        phase=c.AfterSignalScope(cancel.__code__)
+        def delegate():real_signal(signal.SIGINT,cancel);real_signal(signal.SIGTERM,cancel);raise primary
+        def writer(*args):
+            os.kill(os.getpid(),signal.SIGINT)
+            def wrapper(signum,handler):
+                attempts.append(signum)
+                if signum==signal.SIGINT and handler is signal.default_int_handler:raise restore
+                return real_signal(signum,handler)
+            signal.signal=wrapper
+        try:
+            with self.assertRaises(BaseExceptionGroup) as seen:c.run_fenced(delegate,self.root,self.entries,self.expected,[],writer,phase)
+            self.assertIs(seen.exception.exceptions[0],primary);nested=seen.exception.exceptions[1]
+            self.assertIs(nested.exceptions[0],restore);self.assertIsInstance(nested.exceptions[1],c.SignalCancellation);self.assertEqual(attempts,[signal.SIGINT,signal.SIGTERM])
+        finally:
+            signal.signal=real_signal
+            for signum,handler in saved.items():real_signal(signum,handler)
+
+if __name__=='__main__':
+    if os.environ.get('CONTROL_OLD_CANCEL_TO_EXIT1')=='1':
+        spec=importlib.util.spec_from_file_location('oldcancel',Path('/workspace/work/rc070/diagnostic-mode-guard/work/mode-composed/composed_supervisor.py'));old=importlib.util.module_from_spec(spec);spec.loader.exec_module(old)
+        def adapter(delegate,root,entries,expected,errors,writer,phase=None):return old.run_fenced(delegate,root,entries,expected,errors,writer)
+        c.run_fenced=adapter
+    unittest.main(verbosity=2)

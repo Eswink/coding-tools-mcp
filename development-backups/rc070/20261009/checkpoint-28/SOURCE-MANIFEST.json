@@ -1,0 +1,41 @@
+{
+  "files": [
+    {
+      "path": "owned_git_prepare.py",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 8654,
+      "sha256": "40b7098037d01d3f96442673a727f8ca2db4ae84c918e487d01e9fdafbb98ead"
+    },
+    {
+      "path": "owned_git_prepare_tests.py",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 4713,
+      "sha256": "216a5d886a9a6ed8cb371fab8f527eb90211c0ff972728ce5b27b733b798eb74"
+    },
+    {
+      "path": "docs/specs/issue88-supplementary-native-git-host/requirements.md",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 8334,
+      "sha256": "3cb961d80aa4f3ff9535dfadcfcc28bd435dc49f76f04a3665eb02a5edf13774"
+    },
+    {
+      "path": "docs/specs/issue88-supplementary-native-git-host/design.md",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 5825,
+      "sha256": "984200d893b8812c4d49f05c69b090d8e38e0ad25785991f7d10082c1f09682b"
+    },
+    {
+      "path": "docs/specs/issue88-supplementary-native-git-host/tasks.md",
+      "mode": "100644",
+      "physical_mode": "0644",
+      "bytes": 3958,
+      "sha256": "a48e3fc6a70d6fdba02f50f3996754fac8652fa0a40c1286b626780424579941"
+    }
+  ],
+  "source_files": 5,
+  "existing_repository_mutations": 0
+}

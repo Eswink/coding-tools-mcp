@@ -1,0 +1,39 @@
+"""Read-only native+physical composition prepare; never invokes303 main."""
+from pathlib import Path
+import json
+import os
+import subprocess
+import sys
+from composed_supervisor import ORIGINAL,HELPER,load,sha,validate_physical_fence
+BASE=Path(__file__).resolve().parent
+
+def save(path,value):
+    with path.open('xb') as stream:stream.write((json.dumps(value,sort_keys=True,indent=2)+'\n').encode())
+
+def main():
+    assert len(sys.argv)==6
+    root,out,trusted,fixture=map(lambda x:Path(x).resolve(),sys.argv[1:5]);python=str(Path(sys.argv[5]).resolve())
+    assert not out.exists();assert str(Path(sys.executable).resolve())==python
+    raw=subprocess.check_output(['/usr/bin/git','--no-replace-objects','ls-files','--stage','-z'],cwd=root)
+    entries={}
+    for record in raw.split(b'\0'):
+        if not record:continue
+        metadata,path=record.split(b'\t',1);mode,blob,stage=metadata.split();assert stage==b'0';entries[path.decode()]=mode.decode()
+    assert len(entries)==1849
+    before=load('exact_helper_preparation',HELPER).require_exact_posix_modes(root,entries)
+    result=subprocess.run([python,'-B',str(ORIGINAL/'prepare_preflight.py'),str(root),str(out),str(trusted),str(fixture),python],check=True,capture_output=True)
+    assert not (out/'LAUNCH.json').exists() and not (out/'OUTER-RECEIPT.json').exists()
+    after=validate_physical_fence(root,entries,before)
+    save(out/'physical-source-before.json',before);save(out/'physical-source-after-preparation.json',after)
+    oldpreflight=out/'EXECUTION-PREFLIGHT-MANIFEST.json';oldruntime=out/'runtime-before.json'
+    packet=json.loads(oldpreflight.read_bytes());runtime=json.loads(oldruntime.read_bytes())
+    assert packet['tree']=='b227335c6503c8b9d2575802522758a308684be8' and packet['sole_parent']=='c60f9667fa8431e27fabbc497c19b4abfef5b965'
+    assert {path:row['mode'] for path,row in json.loads((out/'source-before.json').read_bytes())['source'].items()}==entries
+    file=load('original_file_metadata',ORIGINAL/'supervisor.py').file
+    runtime.update({'physical-helper':file(HELPER),'composed-supervisor':file(BASE/'composed_supervisor.py'),'composed-preparer':file(Path(__file__))})
+    os.rename(oldpreflight,out/'ORIGINAL17-PREPARE-PREFLIGHT.json');os.rename(oldruntime,out/'runtime-before-original17-preparation.json')
+    save(out/'runtime-before.json',runtime)
+    packet.update(physical_mode_scope='full1849-exact-posix-metadata-beforeafter',physical_helper_sha256=sha(HELPER.read_bytes()),composed_supervisor_sha256=sha((BASE/'composed_supervisor.py').read_bytes()),composed_preparer_sha256=sha(Path(__file__).read_bytes()),physical_before_sha256=sha((out/'physical-source-before.json').read_bytes()),physical_after_preparation_sha256=sha((out/'physical-source-after-preparation.json').read_bytes()),runtime_before_sha256=sha((out/'runtime-before.json').read_bytes()),original17_prepare_preflight_sha256=sha((out/'ORIGINAL17-PREPARE-PREFLIGHT.json').read_bytes()),SUT_methods=0,physical_metadata_limitations='Path metadata snapshot; no UID ownership, directory FD pin, atomic anti-race or source authority')
+    save(out/'EXECUTION-PREFLIGHT-MANIFEST.json',packet)
+    print(json.dumps({'SUT_methods':0,'startup_review':'PENDING','exact_paths':len(before),'preflight_sha256':sha((out/'EXECUTION-PREFLIGHT-MANIFEST.json').read_bytes())}))
+if __name__=='__main__':main()

@@ -1,0 +1,65 @@
+[
+  {
+    "bytes": 385,
+    "git_blob": "c6954a8a8d55eca1d99a12bb1c95ba3ed9573a85",
+    "mode": "100644",
+    "path": "README.md",
+    "sha256": "b627781ae88ceeb1085bd5e5d859b1a6d828c0a585b6da36d256f96e59fc4cee"
+  },
+  {
+    "bytes": 2305,
+    "git_blob": "7d02db0f68412fe0fef598cbc8695ac5a43b2313",
+    "mode": "100644",
+    "path": "SOURCE-MANIFEST.json",
+    "sha256": "0a5205aa49c2efc35f150ec9d7e251b64f547fe5bc6ec491927dc62df5b4ede4"
+  },
+  {
+    "bytes": 1074,
+    "git_blob": "8fca2319953ee25e8672810666bb32bb84f1a05b",
+    "mode": "100644",
+    "path": "SOURCE-STATUS.json",
+    "sha256": "fe2b5c50303416a9cf78692cbd3200d8608bc1b6c214775ef381255fcf799df0"
+  },
+  {
+    "bytes": 3116,
+    "git_blob": "160bbaf11499243e7a341c5a17735586ce252720",
+    "mode": "100644",
+    "path": "source/docs/specs/pretag303-physical-mode-composed-v2/design.md.source",
+    "sha256": "12fedb59ec0fba77aef27dafff4e31c8921444fa0110a67d1a7bc1f5b77a54cd"
+  },
+  {
+    "bytes": 4951,
+    "git_blob": "79015b8dcc12ef3529683d7fd7da1810373ac075",
+    "mode": "100644",
+    "path": "source/docs/specs/pretag303-physical-mode-composed-v2/requirements.md.source",
+    "sha256": "96d2339c27f6d1f2f7db5599df1157560f327e09fbe818f3fcc3fc2f6ce26df9"
+  },
+  {
+    "bytes": 2792,
+    "git_blob": "3bb28f63aa08ed1b7e34fef4f6782090fa2f9fb3",
+    "mode": "100644",
+    "path": "source/docs/specs/pretag303-physical-mode-composed-v2/tasks.md.source",
+    "sha256": "62d77de5d9cd635f66e46a86e1939372e1f6fc2a59971d364ab6a71bc203ca34"
+  },
+  {
+    "bytes": 6324,
+    "git_blob": "1ae365ace9e1a7e4260d0fcfbbd8650f865231f3",
+    "mode": "100644",
+    "path": "source/work/mode-composed-v2/composed_supervisor.py.source",
+    "sha256": "b2e3cbc42db602eb65cebcce4ba0cbadff82fcf6c61065c1b66ba4c48bf71214"
+  },
+  {
+    "bytes": 9854,
+    "git_blob": "59b11a3fe5f533b7c0fc565143c8c23fdfff4610",
+    "mode": "100644",
+    "path": "source/work/mode-composed-v2/control_composed.py.source",
+    "sha256": "f55b8f5cab37cb460e8e1c9da0afd2d76b2b24a75d37a16b3bc95c115867c213"
+  },
+  {
+    "bytes": 3358,
+    "git_blob": "1e9d863e6f2aee90d75ab9947da542b1db25664b",
+    "mode": "100644",
+    "path": "source/work/mode-composed-v2/prepare_composed.py.source",
+    "sha256": "82a764d56879a57721286bd6d41f98e8bae866b47a722530beaf1608e2b2ad6e"
+  }
+]
