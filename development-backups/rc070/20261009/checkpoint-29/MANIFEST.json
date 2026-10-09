@@ -1,0 +1,107 @@
+{
+  "scope": "only source, finite patch, modes/hash and safe status",
+  "files": [
+    {
+      "path": "source/docs/specs/issue88-postpublish488-native-layout-precheck/design.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-native-layout-precheck/design.md",
+      "mode": "100644",
+      "bytes": 2107,
+      "sha256": "9b45b1c0eac794f788b5d46b594031fc0ff96e5462eb43ed42afe87643da3b12"
+    },
+    {
+      "path": "source/docs/specs/issue88-postpublish488-native-layout-precheck/requirements.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-native-layout-precheck/requirements.md",
+      "mode": "100644",
+      "bytes": 3480,
+      "sha256": "6e018437d39522393590e7352923546ac78ae31da7d1f46bedb8f120d079176c"
+    },
+    {
+      "path": "source/docs/specs/issue88-postpublish488-native-layout-precheck/tasks.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-native-layout-precheck/tasks.md",
+      "mode": "100644",
+      "bytes": 1246,
+      "sha256": "ae262df0d766a2a458d9668843f51873bc2919b1a65384374de6066b9f12287d"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_controls.py.source",
+      "original_path": "scripts/rc_postpublish488_controls.py",
+      "mode": "100644",
+      "bytes": 12501,
+      "sha256": "b9c5c7c75029ddce2a81b6631c487bff3c76affbe9cac5925c46280e629050ff"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_inventory.json.source",
+      "original_path": "scripts/rc_postpublish488_inventory.json",
+      "mode": "100644",
+      "bytes": 58132,
+      "sha256": "3274554750e538929b34a91cb124d66fe2372ac8737ee768ccb81b0aa7691094"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_kernel.py.source",
+      "original_path": "scripts/rc_postpublish488_kernel.py",
+      "mode": "100644",
+      "bytes": 4290,
+      "sha256": "b3c90896d1284732190bda5d1d118da7ad9b738cc3347bd9c9f477ad021aaac5"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_layout.py.source",
+      "original_path": "scripts/rc_postpublish488_layout.py",
+      "mode": "100644",
+      "bytes": 6070,
+      "sha256": "49a5a459b8464a8c4bf120c6b9fc56c385551691973ecbee33808f775af744f9"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_layout_controls.py.source",
+      "original_path": "scripts/rc_postpublish488_layout_controls.py",
+      "mode": "100644",
+      "bytes": 4188,
+      "sha256": "0a9409c8ccd06c5520375b9ed41addaf5dc031dc727d4c805801877b8c6a3c9e"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_original_runner.py.source",
+      "original_path": "scripts/rc_postpublish488_original_runner.py",
+      "mode": "100644",
+      "bytes": 8338,
+      "sha256": "0344311a0640e64b46875ed3cdb4e61ed41d87e4274e4a44c76e944323e8186e"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_owner.py.source",
+      "original_path": "scripts/rc_postpublish488_owner.py",
+      "mode": "100644",
+      "bytes": 16597,
+      "sha256": "58f9c1bf763d9d7eef68f9237f12de51d2fd688996c9a9fe508ce154627d98a1"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_source_manifest.json.source",
+      "original_path": "scripts/rc_postpublish488_source_manifest.json",
+      "mode": "100644",
+      "bytes": 496326,
+      "sha256": "bd0d893b0fb2b3790ac7fc8a68aaa489f87e22310a84dd5140e5bf5b35e1f649"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_support.py.source",
+      "original_path": "scripts/rc_postpublish488_support.py",
+      "mode": "100644",
+      "bytes": 8670,
+      "sha256": "db92356b1700793f45eaade5cd5d52cc0a3c2fb6ee58e077cb58659d4be18445"
+    },
+    {
+      "path": "source.patch",
+      "mode": "100644",
+      "bytes": 639639,
+      "sha256": "b42cbf2c85ef72cfbc2b9bb39a30fe714ee2424888d7821a80ecd642091c1ff4"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "100644",
+      "bytes": 1087,
+      "sha256": "c8cbbdd2e78e93895e704531ad382f142dca1c14704c7f30eab6778a4d83233f"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 419,
+      "sha256": "b2303d17e67e2df7bdcd5e167b4edeb0071b43557c1f7af3360a9f82f12e4401"
+    }
+  ]
+}

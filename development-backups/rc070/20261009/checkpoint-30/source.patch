@@ -1,0 +1,315 @@
+diff --git a/docs/specs/issue88-postpublish488-deadline-observation/design.md b/docs/specs/issue88-postpublish488-deadline-observation/design.md
+new file mode 100644
+index 0000000..b0ab04e
+--- /dev/null
++++ b/docs/specs/issue88-postpublish488-deadline-observation/design.md
+@@ -0,0 +1,31 @@
++# 设计文档：issue88-postpublish488-deadline-observation
++
++## 概述
++对应FR-1至3，B与A完全分离：B仅观察唯一原失败方法的真实nativeowner，A布局影响15类不作为B原因。
++
++## 技术方案
++### 技术选型
++Python标准库、有界内存observerjournal，无采样线程、无每event磁盘IO，原V2实际owned外层kernel。新observer和runner单独目录，pureSUT只读未改。
++### 架构设计
++先精确读取原失败方法AST及原ProcessOwner8个delegate，保存identity。透明wrapper只包原bound函数，finally-observe不改变调用数/args/result/exception；所有观察异常sticky，观察产生的取消在原delegate和原method finally/close之后以原实例传播，不能在innerwrapper中提前截断真实close。单方法suite是原method对象，明确runnerAST为新函数，原8338 runner不更改/不冒称执行。外层实际created child封存/nativeclosure架构同V2，可复用7普通controls。原worker保持原源字节；如须深入worker观测仅新限定spec后再处理，不直接改原worker。
++
++## 数据模型
++event含调用阶段、monotonic、原delegate名、真实返回/exception类型、deadline、familyclosed/uncertain、实际heldFD不敏感状态、累积字节/序号。observer异常单独sticky failures；raw host/proc完全私有。异常不含commandenv/body/token。
++
++## API 设计
++observe_delegate(original,record)返回透明wrapper；record_failure只诊断，不授予或撤回owner；finish_observation在真实原finally/close之后传播sticky取消原实例或观察失败，不在原delegate中截断close；once_single_original_method(context,out)现在禁止launch，获独立review后才由root一次执行。
++
++## 文件结构
++3规格、observer必要controls、新有限singlemethodrunner、privateoncepacket与sourceonlymanifest；预计不超过16新符号，原production/positive文件改动0。
++
++## 设计决策
++原exception优先，观察失败不得中断真实close；wrapper AST精确声明为新函数；原delegate AST不变但binding有wrapper，不能泛称整体函数AST原样执行；不主动修正_family_closed。正确物理退出仍须原owner真实closure，不借outer98reap替代。
++
++## 测试策略
++普通owned controls：原delegate return/raise/cancel、before/after观察失败仍delegate一次、close前观察失败仍close、双重异常原优先、stop取消透明、日志上限失败，全部0原SUT；原1方法只独立启动review后一次。
++
++## 风险评估
++闭包时序可能受observer影响，UNKNOWN/manualHIGH；单诊断未复现不能定因。禁止记录扩大预算或阻塞close，record实现必须bounded及时return。
++
++## 检查清单
++原方法/预算/核心语义保持；同轮封存；真实关闭不从路径/JSON补造；现在no launch。
+diff --git a/docs/specs/issue88-postpublish488-deadline-observation/requirements.md b/docs/specs/issue88-postpublish488-deadline-observation/requirements.md
+new file mode 100644
+index 0000000..a17bc76
+--- /dev/null
++++ b/docs/specs/issue88-postpublish488-deadline-observation/requirements.md
+@@ -0,0 +1,46 @@
++# 需求文档：issue88-postpublish488-deadline-observation
++
++## 功能概述
++once01唯一原方法failure为PostProcessCases.test_actual_child_command_deadline_is_not_extended，在code==post_process_timeout及controls._deadline相等之后，原assert owner._family_closed为False。真实原因UNKNOWN，不能归因Git布局、不能用outerECHILD升级内层closed。
++
++## 历史经验与坑
++原ProcessOwner._stop捕获BaseException并retain，原trace只有assert失败；需要透明诊断区别worker/pipe/deadline/identity/finish，不猜测或重写原逻辑。
++
++## 术语定义
++透明observer为原delegate真实调用前后有限数据记录；必要controls不是原方法运行；单原方法诊断不等同family/full488。
++
++## 范围边界
++In Scope：独立有限observer，对真实原run/_stop/_live/_send/_frame/_done/_finish与worker涉及原pipe的受控阶段只读观察；7普通ownedclose controls可复用。
++Out of Scope：改ProcessOwner核心closure、原positive、原timeout/stop/finish期限、包装成假owner、mute原exception/cancel、现在launch诊断、尝试loop/retry、真实安装授权。
++
++## 需求列表
++### FR-1: 精确原输入与单方法身份
++**优先级:** Must
++**用户故事:** 作为诊断者，我需要失败方法和原源码可审计。
++#### 验收标准（EARS）
++1. WHEN 诊断被准备 THEN 系统 SHALL 验证puretree3084/1867、失败方法精确原AST/源码SHA、runtime/fixture/native15commits26blobpairs、原8338runner/58132IDs不改变。
++2. IF 单方法独立诊断随后获review THEN 系统 SHALL loaded/executed原exact1唯一ID，无其他test、无retry；声明非原488runner执行、非复刻488并发。
++
++### FR-2: 透明delegate观察
++**优先级:** Must
++**用户故事:** 作为诊断者，我需要真实关闭异常保留下来。
++#### 验收标准（EARS）
++1. WHEN observed originaldelegate调用 THEN 系统 SHALL 调用真实原函数一次，保留args/返回值/同一BaseException/取消；before-observation失败不得跳过delegate或真实close，after-observation失败不得遮蔽原delegate异常。
++2. WHEN wrapper记录异常 THEN 系统 SHALL 原raise继续，不改变_stop原retain逻辑；outer观察失败最终FAIL，但不吞取消、不给core补造成功证据。
++3. WHEN 记录pipe/child/leader状态 THEN 系统 SHALL 只读实际ownedFD/真实createdpidfd identity，有限大小和2MiB日志，不numericPIDmint授权，不读取token/env包。
++
++### FR-3: 封存和有限真实验证
++**优先级:** Must
++**用户故事:** 作为诊断者，我需要当轮有限事实而非推测。
++#### 验收标准（EARS）
++1. WHEN 必要controls运行 THEN 系统 SHALL 真实普通delegate异常、取消、observation-before/after-failure、close必达及异常优先级controls通过，0原SUT；freshimpact/manualHIGH、seal、独立launchreview先于单方法。
++2. IF 后续单方法结果成功或失败 THEN 系统 SHALL 保存原assert/真实异常/nativefamilyclosed/source/runtimebeforeafter完整结果；不升级full488/CI/install/release，不扩大原预算。
++
++## 非功能需求
++原controls5秒、command .2秒、_stop2秒、_finish wait2秒不改；复用outer2700failonly/7/2/2、每log2MiB，2700为外层唯一fail上限不扩；最小环境。原owner.functionAST精确unchanged，runtimewrapper绑定改变必须明说；observer新函数AST不得宣称原函数。
++
++## 依赖关系
++immutable once01fail和原源3084，V2真实kernelclosure架构，普通ownedprocesscontrols，准确原AST封存。
++
++## 检查清单
++UNKNOWN不是0；先necessary0SUT后seal/review；当前不launch单方法；failures不可覆盖。
+diff --git a/docs/specs/issue88-postpublish488-deadline-observation/tasks.md b/docs/specs/issue88-postpublish488-deadline-observation/tasks.md
+new file mode 100644
+index 0000000..9ece5d1
+--- /dev/null
++++ b/docs/specs/issue88-postpublish488-deadline-observation/tasks.md
+@@ -0,0 +1,25 @@
++# 任务清单：issue88-postpublish488-deadline-observation
++
++## 概述
++先有限透明观察规格和freshimpact；当前阶段prepare-only。
++
++## 交付物清单
++3规格、透明observer与普通delegatecontrols、原AST身份表、finite singlemethodrunner和privateonce封存启动材料。
++
++## 任务列表
++1. FR-1：read-only核原方法/ProcessOwner与native源/runtime身份，check_spec通过、freshimpact及manualHIGH披露。
++2. FR-2：实现transparentobserver，同一delegate异常/取消优先，真实close必达，bounded日志。
++3. FR-3：普通delegate控制与7真实ownedkernel controls，全部0原SUT，封存前fresh检测。
++4. FR-1和FR-3：独立review新singlemethodargv/identity/预算/AST声明；root之后决定once诊断，当前不launch。
++
++## 验收标准
++原positive/worker/owner无源码改动；必要controls证明observer透明不代表原方法通过；原familyclose失效原因仍UNKNOWN直到真实观测。
++
++## 风险和依赖
++影响未知manualHIGH；不能用A布局修复当成B成功，也不能用outerECHILD替代内层closed。
++
++## 需求覆盖矩阵
++FR-1任务1/4；FR-2任务2；FR-3任务3/4。
++
++## 文件变更清单
++新独立管理3spec+observer/controls/有限runner，pureSUT改动0。
+diff --git a/scripts/rc_deadline_observer.py b/scripts/rc_deadline_observer.py
+new file mode 100644
+index 0000000..5bcb5b3
+--- /dev/null
++++ b/scripts/rc_deadline_observer.py
+@@ -0,0 +1,68 @@
++"""Transparent bounded in-memory observation; original delegates remain original."""
++import os
++import stat
++import time
++
++
++def observe_state(owner):
++    value = {name: getattr(owner, name, None) for name in ('_deadline', '_closed', '_family_closed', '_uncertain')}
++    process = getattr(owner, '_process', None)
++    if process is not None:
++        # Reading Popen data never polls/reaps or grants process authority.
++        value['leader_data'] = dict(pid=process.pid, returncode=process.returncode)
++        for name in ('stdin', 'stdout'):
++            stream = getattr(process, name, None)
++            if stream is not None:
++                value[name] = dict(closed=stream.closed)
++                if not stream.closed:
++                    info = os.fstat(stream.fileno())
++                    value[name].update(mode=stat.S_IFMT(info.st_mode), dev=info.st_dev, ino=info.st_ino)
++    value['pidfd_present'] = getattr(owner, '_pidfd', None) is not None
++    value['completion_present'] = getattr(owner, '_completion', None) is not None
++    return value
++
++
++def record_observation(journal, phase, name, owner, result=None, error=None):
++    assert len(journal) < 4096
++    entry = dict(sequence=len(journal), monotonic=time.monotonic(), phase=phase, delegate=name, state=observe_state(owner))
++    if error is not None:
++        entry['error'] = dict(type=type(error).__name__, code=getattr(error, 'code', None), effect=getattr(error, 'effect', None))
++    if phase == 'return':
++        entry['result_type'] = type(result).__name__
++        if isinstance(result, dict):
++            entry['result_data'] = {key: result[key] for key in ('kind', 'status', 'reaped', 'stopped', 'error') if key in result}
++    journal.append(entry)
++
++
++def observe_delegate(original, record, failures):
++    def wrapped(*args, **kwargs):
++        try:
++            record('before', args, None, None)
++        except BaseException as observation_error:
++            failures.append(dict(phase='before', error=observation_error))
++        try:
++            result = original(*args, **kwargs)
++        except BaseException as delegate_error:
++            try:
++                record('raise', args, None, delegate_error)
++            except BaseException as observation_error:
++                failures.append(dict(phase='raise', error=observation_error))
++            # A logging failure must never replace the same original exception.
++            raise
++        else:
++            try:
++                record('return', args, result, None)
++            except BaseException as observation_error:
++                failures.append(dict(phase='return', error=observation_error))
++            # Observation faults are admitted only after real delegate cleanup.
++            return result
++    return wrapped
++
++
++def finish_observation(failures):
++    # Call only after original method finally/close has completed.
++    for entry in failures:
++        error = entry['error']
++        if isinstance(error, (KeyboardInterrupt, SystemExit)):
++            raise error
++    assert not failures, 'sticky observation failures'
+diff --git a/scripts/rc_deadline_observer_controls.py b/scripts/rc_deadline_observer_controls.py
+new file mode 100644
+index 0000000..d0f0b30
+--- /dev/null
++++ b/scripts/rc_deadline_observer_controls.py
+@@ -0,0 +1,115 @@
++"""Ordinary real-FD delegate transparency controls; no original SUT imports."""
++import json
++import os
++from pathlib import Path
++import subprocess
++import sys
++import time
++from types import SimpleNamespace
++
++from rc_deadline_observer import observe_delegate, finish_observation, record_observation
++
++
++def run_observer_controls():
++    rows = []
++    for scenario in ('return', 'original_error', 'original_cancel', 'before_error', 'after_error', 'double_error', 'before_cancel', 'after_cancel'):
++        reader, writer = os.pipe2(os.O_CLOEXEC)
++        called = []
++        failures = []
++        original_error = KeyboardInterrupt('ordinary original cancellation') if scenario == 'original_cancel' else RuntimeError('ordinary original failure')
++        observation_error = KeyboardInterrupt('ordinary observer cancellation') if scenario in ('before_cancel', 'after_cancel') else ValueError('ordinary observer failure')
++        def close_delegate():
++            called.append('actual_close')
++            os.close(writer)
++            if scenario in ('original_error', 'original_cancel', 'double_error'):
++                raise original_error
++            return b'original actual delegate result'
++        def record(phase, args, result, error):
++            if phase == 'before' and scenario in ('before_error', 'before_cancel', 'double_error'):
++                raise observation_error
++            if phase == 'return' and scenario in ('after_error', 'after_cancel'):
++                raise observation_error
++            if phase == 'raise' and scenario == 'double_error':
++                raise observation_error
++        wrapped = observe_delegate(close_delegate, record, failures)
++        try:
++            try:
++                result = wrapped()
++            except BaseException as caught:
++                assert caught is original_error and scenario in ('original_error', 'original_cancel', 'double_error')
++            else:
++                assert scenario not in ('original_error', 'original_cancel', 'double_error') and result == b'original actual delegate result'
++            assert called == ['actual_close'] and os.read(reader, 1) == b''
++            if scenario in ('before_cancel', 'after_cancel'):
++                try:
++                    finish_observation(failures)
++                except KeyboardInterrupt as caught:
++                    assert caught is observation_error
++                else:
++                    raise AssertionError('observer cancellation swallowed')
++            elif failures:
++                try:
++                    finish_observation(failures)
++                except AssertionError:
++                    pass
++                else:
++                    raise AssertionError('observer failure not sticky')
++            else:
++                finish_observation(failures)
++            rows.append(dict(name=scenario, passed=True, actual_close_calls=len(called), actual_pipe_EOF=True, original_SUT_runs=0))
++        finally:
++            os.close(reader)
++            if not called:
++                os.close(writer)
++    # Observation data below never authorizes an installation or process owner.
++    actual_child = subprocess.Popen(['/usr/bin/python3', '-c', 'import time;time.sleep(.1)'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env={'PATH':'/usr/bin:/bin'}, start_new_session=True)
++    pidfd = os.pidfd_open(actual_child.pid)
++    try:
++        journal = []
++        data = SimpleNamespace(_deadline=time.monotonic() + 5, _closed=False, _family_closed=False, _uncertain=False, _process=actual_child, _pidfd=pidfd, _completion=None)
++        record_observation(journal, 'before', 'ordinary_actual_child', data)
++        assert len(journal) == 1 and journal[0]['state']['leader_data']['pid'] == actual_child.pid and journal[0]['state']['stdin']['closed'] is False
++        assert actual_child.wait(timeout=2) == 0
++        actual_child.stdin.close(); actual_child.stdout.close()
++        data._closed = data._family_closed = True
++        record_observation(journal, 'return', 'ordinary_actual_child', data, result={'kind':'done','status':0,'reaped':1,'output':'deliberately excluded'})
++        assert len(journal) == 2 and journal[-1]['state']['stdin']['closed'] is True and 'output' not in journal[-1]['result_data']
++        bounded = [None] * 4096
++        try:
++            record_observation(bounded, 'before', 'ordinary_actual_child', data)
++        except AssertionError:
++            pass
++        else:
++            raise AssertionError('bounded journal accepted an extra entry')
++        rows.append(dict(name='actual_owned_child_state_and_bounded_journal', passed=True, original_SUT_runs=0, native_child_exit=0, sensitive_output_excluded=True))
++    finally:
++        if actual_child.returncode is None:
++            import signal
++            signal.pidfd_send_signal(pidfd, signal.SIGKILL)
++            actual_child.wait(timeout=2)
++        if not actual_child.stdin.closed:
++            actual_child.stdin.close()
++        if not actual_child.stdout.closed:
++            actual_child.stdout.close()
++        os.close(pidfd)
++    # Ordinary real kernel leases execute in separate owned control processes.
++    original_controls = '/workspace/work/rc070/postpublish/scripts/rc_postpublish488_controls.py'
++    for scenario in ('natural', 'term', 'kill', 'escape', 'lateadopt', 'fdsetupfailure', 'cancel'):
++        actual = subprocess.run([sys.executable, '-B', original_controls, '--case', scenario], env={'PATH':'/usr/bin:/bin','LANG':'C.UTF-8','LC_ALL':'C.UTF-8','PYTHONDONTWRITEBYTECODE':'1'}, capture_output=True, timeout=25)
++        assert actual.returncode == 0
++        value = json.loads(actual.stdout)
++        assert value['passed'] and value['SUT_runs'] == 0
++        rows.append(value)
++    assert len(rows) == 16
++    return dict(scope='necessary observer controls only', passed=True, actual_cases=rows, actual_control_count=16, original_SUT_runs=0, single_original_method='NOTRUN', original488='FAIL_ONCE01_NO_RETRY', CI='NOTRUN', install='NOTRUN')
++
++
++if __name__ == '__main__':
++    assert len(sys.argv) == 2
++    result = run_observer_controls()
++    path = Path(sys.argv[1])
++    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
++    with os.fdopen(fd, 'w') as stream:
++        json.dump(result, stream, indent=2)
++        stream.write('\n'); stream.flush(); os.fsync(stream.fileno())
++    print(json.dumps(dict(passed=result['passed'], actual_control_count=result['actual_control_count'], original_SUT_runs=0)))

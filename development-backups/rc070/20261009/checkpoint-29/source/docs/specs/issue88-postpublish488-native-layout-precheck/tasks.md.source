@@ -1,0 +1,25 @@
+# 任务清单：issue88-postpublish488-native-layout-precheck
+
+## 概述
+先规格/impact，有限管理实现与必要controls；新真实suite须另经独立review。
+
+## 交付物清单
+3规格、新layouthelper/controls及有限V2管理接点、私有精确nativeclone/source/layout封存、新source-onlybundle。
+
+## 任务列表
+1. FR-1：check_spec通过、freshsymbolsimpact并披露manualHIGH；旧worktreefailurefirstBLOCK0SUT。
+2. FR-1：nofollowFD物理layout/objectsseal，普通owned负向controls保持无SUT。
+3. FR-2：真实--no-local独立clone，exact50ef和nativehistoricalfetch，正常644755、whole/native前后核验。
+4. FR-3：source-onlyfreeze、detect_changes/gencommit、独立once启动review，当前不launch。
+
+## 验收标准
+当前worktree真实0SUT拒绝；新独立clone自持.git/objects验证；原positive/runner/IDs无变化；whole488资格仍0直到真实完整执行。
+
+## 风险和依赖
+UNKNOWN不能0；.git对象physicalseal成本有限预算不能扩大；deadline另一规格处理。
+
+## 需求覆盖矩阵
+FR-1任务1/2；FR-2任务3；FR-3任务4。
+
+## 文件变更清单
+仅新独立管理规格/layouthelper/controls与有限sourcegate调用位置；原SUT/旧carrier/run修改0。

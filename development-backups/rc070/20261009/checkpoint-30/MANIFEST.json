@@ -1,0 +1,58 @@
+{
+  "scope": "only source, finite patch, modes/hash and safe status",
+  "files": [
+    {
+      "path": "source/docs/specs/issue88-postpublish488-deadline-observation/design.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-deadline-observation/design.md",
+      "mode": "100644",
+      "bytes": 2809,
+      "sha256": "f04fe99ad7453a1e506352575ef4aa4967ab7f96c019944a37a6ab08d71a96af"
+    },
+    {
+      "path": "source/docs/specs/issue88-postpublish488-deadline-observation/requirements.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-deadline-observation/requirements.md",
+      "mode": "100644",
+      "bytes": 3643,
+      "sha256": "7cc212f61c3aafdee71d4e212842dd073d8ca10b2fc35a18a1f8c0fd67daa953"
+    },
+    {
+      "path": "source/docs/specs/issue88-postpublish488-deadline-observation/tasks.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-deadline-observation/tasks.md",
+      "mode": "100644",
+      "bytes": 1248,
+      "sha256": "2b77d4271dae202d48c68eb117b500b5db857efc0329ce5784c3d349090e2cc7"
+    },
+    {
+      "path": "source/scripts/rc_deadline_observer.py.source",
+      "original_path": "scripts/rc_deadline_observer.py",
+      "mode": "100644",
+      "bytes": 3047,
+      "sha256": "b27f5df3a0cc8a4e864183d1f80eddfbf3a05c5eb9f7bc9d868311bf4f6a148f"
+    },
+    {
+      "path": "source/scripts/rc_deadline_observer_controls.py.source",
+      "original_path": "scripts/rc_deadline_observer_controls.py",
+      "mode": "100644",
+      "bytes": 6454,
+      "sha256": "1e0946adc444ca1d869de8d9cc639909fe48e4ccc658aa74928a1122f55f4f1c"
+    },
+    {
+      "path": "source.patch",
+      "mode": "100644",
+      "bytes": 18786,
+      "sha256": "008e8c76a47bf2073284329e4277faee7aa6e3912993dac70404890eaea1534e"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "100644",
+      "bytes": 1088,
+      "sha256": "caa377118850855f2f1d76a90bf12d691292cf48bd3fa3bffcabe16548c37915"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 402,
+      "sha256": "034c929fd033c57e9b34399e6244a6ef39963c5e16c165ff9e10773643bc6d8f"
+    }
+  ]
+}

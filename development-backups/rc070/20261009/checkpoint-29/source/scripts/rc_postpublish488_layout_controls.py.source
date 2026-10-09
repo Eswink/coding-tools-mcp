@@ -1,0 +1,80 @@
+"""Necessary native-layout controls, zero original SUT tests."""
+import argparse
+import json
+import os
+from pathlib import Path
+import tempfile
+
+from rc_postpublish488_layout import verify_native_layout, seal_native_objects
+from rc_postpublish488_support import git, write
+
+
+def run_layout_controls(real_root, failed_worktree):
+    cases = []
+    # Failure-first check of the exact failed worktree; no test module imports.
+    try:
+        seal_native_objects(failed_worktree)
+    except (AssertionError, OSError) as error:
+        cases.append(dict(name='original_worktree_refused_failure_first', passed=True, error=type(error).__name__, SUT_runs=0))
+    else:
+        raise AssertionError('failed worktree admitted')
+    first = seal_native_objects(real_root)
+    assert first == seal_native_objects(real_root) and first['object_files']
+    cases.append(dict(name='actual_standalone_native_objects_stable', passed=True, object_files=len(first['object_files']), SUT_runs=0))
+    with tempfile.TemporaryDirectory(prefix='rc-layout-owned-') as temporary:
+        directory = Path(temporary)
+        for scenario in ('git_file', 'git_symlink', 'objects_symlink', 'alternates', 'object_symlink', 'object_hardlink', 'object_fifo', 'object_group_writable', 'changed_loose_bytes', 'changed_pack_bytes'):
+            root = directory / scenario
+            root.mkdir(mode=0o700)
+            git(root, 'init', '-q')
+            objects = root / '.git/objects'
+            path = objects / 'pack/owned.pack'
+            path.write_bytes(b'owned original control')
+            path.chmod(0o600)
+            before = seal_native_objects(root)
+            if scenario == 'git_file':
+                (root / '.git').rename(root / '.git-owned')
+                (root / '.git').write_text('gitdir: .git-owned\n')
+            elif scenario == 'git_symlink':
+                (root / '.git').rename(root / '.git-owned')
+                (root / '.git').symlink_to('.git-owned', target_is_directory=True)
+            elif scenario == 'objects_symlink':
+                objects.rename(root / '.git/objects-owned')
+                objects.symlink_to('objects-owned', target_is_directory=True)
+            elif scenario == 'alternates':
+                (objects / 'info/alternates').write_text(str(directory) + '\n')
+            elif scenario == 'object_symlink':
+                (objects / 'pack/link.pack').symlink_to(path.name)
+            elif scenario == 'object_hardlink':
+                os.link(path, objects / 'pack/link.pack')
+            elif scenario == 'object_fifo':
+                os.mkfifo(objects / 'pack/pipe.pack', 0o600)
+            elif scenario == 'object_group_writable':
+                path.chmod(0o660)
+            elif scenario == 'changed_loose_bytes':
+                leaf = objects / 'ab'
+                leaf.mkdir(mode=0o700)
+                (leaf / ('c' * 38)).write_bytes(b'owned loose')
+            elif scenario == 'changed_pack_bytes':
+                path.write_bytes(b'changed owned control')
+            try:
+                actual = seal_native_objects(root)
+            except (AssertionError, OSError) as caught:
+                error = type(caught).__name__
+            else:
+                assert actual != before, scenario + ' did not alter the sealed physical input'
+                error = 'actual_physical_seal_mismatch'
+            cases.append(dict(name=scenario + '_refused_or_changed_seal', passed=True, error=error, SUT_runs=0))
+    assert len(cases) == 12
+    return dict(scope='necessary_layout_controls_only', passed=True, actual_cases=cases, actual_control_count=len(cases), original_SUT_runs=0, original488='NOTRUN', CI='NOTRUN', install='NOTRUN', release='NOTRUN')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--root', required=True)
+    parser.add_argument('--failed-worktree', required=True)
+    parser.add_argument('--output', required=True)
+    args = parser.parse_args()
+    result = run_layout_controls(args.root, args.failed_worktree)
+    write(args.output, result)
+    print(json.dumps(dict(passed=result['passed'], actual_control_count=result['actual_control_count'], original_SUT_runs=0)))

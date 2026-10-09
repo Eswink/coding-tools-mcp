@@ -1,0 +1,19 @@
+{
+  "classification": "SOURCE_ONLY_V2_OWNED_BUILD_NOT_INSTALLER",
+  "source_files": 5,
+  "newscope": "Rootapproved only temporary genuine nativecompiler searchdir in buildchild minimalenv; not system/workerPATH/shim/hostsetup",
+  "existing_carrier_pureSUT_remote_mutations": 0,
+  "spec_structured_pass": true,
+  "ordinary_controls": 19,
+  "fresh_actual_symbol_impact": "8000ms boundedfailed/degraded; UNKNOWN/manualHIGH disclosed",
+  "actual_owned_build": "One makeall actualFAIL exit2 msgfmtnotfound/error127; Rustcompiled; original4991source entries and9runtime metadata tuples unchanged; literalversions1.98.1 before/afteractualexit0",
+  "partial_native_git": "Exists20493200B but fullmakeallFAIL; fullflagsNOTRUN/notinstalled/notqualified",
+  "INSTALL": false,
+  "host_setup": false,
+  "SUT_runs": 0,
+  "original85_currentCI": "NOTRUN",
+  "original300": "NOTRUN",
+  "old_V1_cargoNotFound_failure_and_backup": "IMMUTABLE_RETAINED",
+  "installer_CI_RC_install_qualification": false,
+  "peer": "PENDING source-only independent review"
+}

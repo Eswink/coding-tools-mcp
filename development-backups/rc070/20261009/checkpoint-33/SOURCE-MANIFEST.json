@@ -1,0 +1,41 @@
+{
+  "files": [
+    {
+      "path": "owned_git_prepare_v2.py",
+      "bytes": 14096,
+      "sha256": "5f6d1837d6ebc6598be8eb58ff7fd40383e57a93b79cb7e47dfb88c1feced2c7",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "owned_git_prepare_v2_tests.py",
+      "bytes": 7050,
+      "sha256": "aa36d708436df2d53fb25384f3c1a53831455dc921ee4cea58c43b58911475fb",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v2/requirements.md",
+      "bytes": 10050,
+      "sha256": "9b3476656daa23118a96675f6e23b41cf8bc6d9c66ca46e9cf3b39c6c1c16a03",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v2/design.md",
+      "bytes": 7541,
+      "sha256": "3d2bdeb77d73fb6735b2e94126fd11f869d29595b91be058a066ce6a87b54c02",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v2/tasks.md",
+      "bytes": 6615,
+      "sha256": "c6eb0818aa90d408f1707f854b7ac4d7694c471d5d1163d167f7e7e9a01e4286",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ],
+  "source_files": 5,
+  "existing_repository_mutations": 0
+}

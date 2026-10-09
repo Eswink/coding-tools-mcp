@@ -1,0 +1,61 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 588,
+      "sha256": "51e75f42b938855e5c7cc16709bad37223f9f42cc0a57c06af36b3714bf12c2f",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-MANIFEST.json",
+      "bytes": 1250,
+      "sha256": "109a6b26f9b24a1b1e2f60d050dc4f10ba258d6bbe532297037b3b8b6120af17",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "bytes": 1038,
+      "sha256": "740636b5ab162cfb293996529feb8da8253b022e03d94af1a0bd239a23b44972",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v2/design.md",
+      "bytes": 7541,
+      "sha256": "3d2bdeb77d73fb6735b2e94126fd11f869d29595b91be058a066ce6a87b54c02",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v2/requirements.md",
+      "bytes": 10050,
+      "sha256": "9b3476656daa23118a96675f6e23b41cf8bc6d9c66ca46e9cf3b39c6c1c16a03",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "docs/specs/issue88-owned-native-git-build-v2/tasks.md",
+      "bytes": 6615,
+      "sha256": "c6eb0818aa90d408f1707f854b7ac4d7694c471d5d1163d167f7e7e9a01e4286",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "owned_git_prepare_v2.py",
+      "bytes": 14096,
+      "sha256": "5f6d1837d6ebc6598be8eb58ff7fd40383e57a93b79cb7e47dfb88c1feced2c7",
+      "mode": "100644",
+      "physical_mode": "0644"
+    },
+    {
+      "path": "owned_git_prepare_v2_tests.py",
+      "bytes": 7050,
+      "sha256": "aa36d708436df2d53fb25384f3c1a53831455dc921ee4cea58c43b58911475fb",
+      "mode": "100644",
+      "physical_mode": "0644"
+    }
+  ],
+  "manifest_self_excluded": true
+}

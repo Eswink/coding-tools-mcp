@@ -1,0 +1,34 @@
+# Publisher inner request boundary: finite diagnostic2
+
+## 功能概述
+
+新原85是83success/2FAIL，有限诊断1实际原method1FAIL60.375s。第三scopePublishPrerelease前驱UploadAsset11由真实_request归一化为WireFailure(adapter_error,unknown)，原transition uncertain_remote_effect/actionNone。原_request catch吞去底层traceback，原因仍UNKNOWN。本规格只外部观察三个真实delegate异常，不修改SUT/source原catch或任何hardreject，不重跑85/300。
+
+## 需求列表
+
+### FR-1: 原源与唯一原方法
+
+WHEN 准备 THEN 系统 SHALL 在独立fresh pure checkout用unchangedrestore还原b9cf1878/soleparentF13，完整actualmode/blob/bytes/SHA/index/clean/nativePREFIX与原runner6259B/103lines核验；选择原artifact唯一failedmethod一次，原method/_native_session/_pending_fence/_request/_safe/_Reader.response/_mutation_result的函数AST及全部assert保持原字节。
+IF 核验或封存不符 THEN 系统 SHALL SUT0BLOCKED；原85FAIL和diag1FAIL原证据不覆盖，300NOTRUN；不改生产gate/snapshotpause/tag/serverconstraint/grant，不替换Git、PATHshim、安装工具。
+
+### FR-2: 实际内层delegate的有限透明异常观察
+
+WHEN 原GitHub._request在本worker主线程处理真实op UploadAsset11 THEN 系统 SHALL 一个临时外部requestcontext wrapper调用其原delegate恰好一次并在finally恢复nestedcontext；返回原对象身份，原异常不替换。所有其他op与线程不收集payload或产生身份授权。
+WHEN 原_request真实调用ssl.SSLSocket.sendall、_Reader.response、GitHub._mutation_result THEN 系统 SHALL 临时externalwrapper调用被捕获的原delegate一次；正常返回只传回同对象，delegate异常先发生再安全观察typename/仅WireFailurecodeeffect/tracebackbasename函数行，并bare-reraise同异常，让原_request的真实catch仍自行执行。sendall观察只限原requestcontext的worker主线程；不mock socket、伪造handles、改传入bytes或调用额外IO。线程context只限定观察范围，不授予权限。
+WHEN 观察普通Exception失败 THEN 系统 SHALL 保留原delegate异常identity并把观察标UNKNOWN；WHEN 观察BaseException取消同时遇原primary THEN 系统 SHALL 两者保存在BaseExceptionGroup，取消不得吞掉；因原_request真实catch可能再次归一化group，外部worker SHALL sticky保留observercancel原对象，在原runner/真实cleanup结束后与runnerprimary一起重新传播，报告invalid。无需异常的成功路径不收集返回payload。仅观察三个内层delegate，未覆盖stream.read等边界，缺乏对应异常证据时原因仍UNKNOWN，不自动扩展或重试。
+WHEN 安装或恢复临时bindings THEN 系统 SHALL capture原aliasidentity、only-process-owned有序install与逆序真实restore，每次restore独立执行；partialinstall或alias不符/restorefailure标UNKNOWN/FAIL，后续所有restore照常尝试，原primary/取消不被restoreerror遮蔽，不称恢复成功。WHEN 收尾写/封存失败 THEN 系统 SHALL 保留原runnerprimary，真实close照常执行；写前观察失败不得跳过真实close，读写失败不升级原native结果。
+
+### FR-3: 自有process、准确AST和独立准入
+
+WHEN 启动 THEN 系统 SHALL 复用原nativekernel与receipt_gate及有限外部adaptedowner，固定诊断2one=1800/TERM7/KILL2/family2、原test/operationtimer、minimalenv、pidfd/createdheldZ/starttime/nativeECHILD/source/runtime/fixture/runner fences；声明ownerwholeAST仍不是原函数，原kernel/receiptgate与SUT函数原AST均核验。既有2executor观察加requestcontext及3innerhooks共6temporarywrappers，stdliblivebinds也明确，不声称全SUT未被runtimewrap。
+WHEN 结束 THEN 系统 SHALL 原8raw封存和单独实际observerbytes/SHA/no-follow封存原8seal绑定，完整beforeafter/current source/runtime/native向量；唯一method结果与nativequalifiedclosed依原门保持。观察或控制失败保UNKNOWN/FAIL，不授权原85/300/CI/FINAL/install/Release。启动须普通exacthookAST controls与freshseal独立review+rootliteralcheck，仅一次；不自动启动。
+
+## 非功能需求
+
+NFR1 fail-only1800/7/2/2不扩大；NFR2 无安装/特权/foreignprocess/真服务publication；NFR3 本地真实compatibleCPython3.12/Git，非CI。原85/diag1失败均保留。
+
+## 依赖关系
+
+纯b9cf1878及publiccarrier a93537109；原runner6259B；原diag1actualsealed证据；freshGitNexus+manualUNKNOWN/CRITICAL披露；ordinaryhook真实controls；独立prelaunchreview。对未覆盖streamread的UNKNOWN边界准确披露。
+
+FR-2修复追加：旧failure/pause两hook字段观察BaseException同样sticky保存原cancel对象后原样传播，保证原unittest吸收后finish仍实际传播原cancel；installerrors独立保存原异常，只有全部6bind确实完成才installed_complete=true，partial/首alias拒绝报告invalid且不得allrestoredtrue；原primaryidentity保持。独立71a28原缺口ordinaryAST复现FAIL保留，修复普通controls先negative再新PASS，不触SUT。
