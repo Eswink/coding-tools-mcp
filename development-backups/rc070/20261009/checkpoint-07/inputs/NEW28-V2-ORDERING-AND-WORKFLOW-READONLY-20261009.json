@@ -1,0 +1,44 @@
+{
+  "scope": "Independent NEW28 v2 finite ordering delta and source-workflow review; no runtime/SUT launch qualifier",
+  "source_static_review_passed": true,
+  "reviewer_SUT_runs": 0,
+  "whole_candidate_tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+  "packet_seal_sha256": "1d9191b0cfa502171ea46d3ff576e7aabaca523158b0ae6996358c7705e79144",
+  "complete_bound_source_proof_sha256": "d202b1073af6f350f31db5529c61ece4ff862dea88fec14450d10d530417f544",
+  "v1_retained_parent_first_defect_and_source_only_status": true,
+  "v1_v2_changed_candidate_paths": [
+    "source28/docs/specs/issue88-postpublication-owned-consumer/design.md",
+    "source28/docs/specs/issue88-postpublication-owned-consumer/requirements.md",
+    "source28/scripts/rc_pretag_postpublication_cases.py",
+    "source28/scripts/rc_pretag_postpublication_profile.py"
+  ],
+  "v2_current_first_boundary": "Native P frame/tree/parents and entry map used as a fixed comparison basis only; current full1867/28paths/27pins/allunchangedoutside/mode/native26/all10inverses/budget must pass before the sole fresh windows.select(P). Parent admitted result must equal nativeP baseline. Matching family content exceptions propagate terminally; only genuine topology mismatch yields None to prior selector.",
+  "new12_corresponding_case": "Dirty current source has only first good parent consumption; parent.call_count==1 and separate mocked parent.assert_not_called proves dirty current does not consume fresh parent admission. Old20/105 and direct negative normalization unchanged by v2 ordering patch.",
+  "workflow_review": {
+    "bytes": 30969,
+    "lines": 320,
+    "sha256": "d9aa210795703399594a468b91e334d434afe31c48c27c64c7e2bf36be1a8403",
+    "fixed_engineering_push_branch_only": true,
+    "contents_read_no_persist_credentials_no_secrets_release_write": true,
+    "sha_tree_soleP_fullsource_index_beforeafter_clean": true,
+    "exact425plus48plus12plus3": 488,
+    "strict303plusconsumer452": 755,
+    "each_group_loaded_executed_unique_and_no_skip_xfail_xpass": true,
+    "two_source_contract_os_jobs": [
+      "ubuntu-22.04",
+      "ubuntu-24.04"
+    ],
+    "separate_Windows_native38_before_and_after_all1867_source_bound": true,
+    "native38_scope": "GitHub ephemeral Windows engineering runner only; 16pure+2pureownership+6harmlessnativeRustlaunch+12Go+2ownedVM, source and raw outcomes required; no user/prod/native authority inferred",
+    "production_and_workspace_authority_flags_remain_false": true,
+    "expected_inherited_native_job_not_executed_here": true
+  },
+  "group_execution_count_note": {
+    "declared488plus755_calls": 1243,
+    "distinct_loaded_union": 1240,
+    "version3_repeated_between_independently_checked_groups": true,
+    "runtime_execution": "NOT_RUN"
+  },
+  "prelaunch_runtime_condition": "Do not start488 by borrowing this source report. Current local fixed-reader installed-Git2.43/PREFIX no-lazy-fetch failure must be handled under concrete root-owned runtime scope, and current outside single-run native supervisor/source/runtime prelaunch review must bind actual candidate and manifests.",
+  "source_vs_install_credit": "All current static evidence is source-only; no actual488/native38/five-installs/RC/publication qualification supplied."
+}

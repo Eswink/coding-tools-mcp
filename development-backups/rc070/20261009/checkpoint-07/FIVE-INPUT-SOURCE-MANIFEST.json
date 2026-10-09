@@ -1,0 +1,63 @@
+{
+  "scope": "Exactly five immutable data/source/static-review inputs; original six-ref packet is distinct and not copied",
+  "files": [
+    {
+      "original_name": "run_fresh488_journal.py",
+      "backup_path": "inputs/run_fresh488_journal.py.source",
+      "mode": "100644",
+      "bytes": 8338,
+      "sha256": "0344311a0640e64b46875ed3cdb4e61ed41d87e4274e4a44c76e944323e8186e",
+      "blob": "de181a24c405eab429eedbd04c57603ff5ca274e"
+    },
+    {
+      "original_name": "ACTUAL-V2-488-RUN-INPUT.json",
+      "backup_path": "inputs/ACTUAL-V2-488-RUN-INPUT.json",
+      "mode": "100644",
+      "bytes": 58132,
+      "sha256": "3274554750e538929b34a91cb124d66fe2372ac8737ee768ccb81b0aa7691094",
+      "blob": "e5139616efabd7f9ff2604437d5fa3b0b151632f"
+    },
+    {
+      "original_name": "READONLY-488-CI-PROFILE-PROPOSAL.json",
+      "backup_path": "inputs/READONLY-488-CI-PROFILE-PROPOSAL.json",
+      "mode": "100644",
+      "bytes": 2535,
+      "sha256": "ccb87cd4fc28ac5ad66757a92525d885ef82e27dc00ba54de3b04065588dc928",
+      "blob": "9decf124e2dd19e5ba1a96fa7baecf58a8dc731c"
+    },
+    {
+      "original_name": "NEW28-V2-INDEPENDENT-FULL-SOURCE-AST-20261009.json",
+      "backup_path": "inputs/NEW28-V2-INDEPENDENT-FULL-SOURCE-AST-20261009.json",
+      "mode": "100644",
+      "bytes": 15518,
+      "sha256": "d202b1073af6f350f31db5529c61ece4ff862dea88fec14450d10d530417f544",
+      "blob": "2dd61c391dbdbbe4e821e4140804d820e716988c"
+    },
+    {
+      "original_name": "NEW28-V2-ORDERING-AND-WORKFLOW-READONLY-20261009.json",
+      "backup_path": "inputs/NEW28-V2-ORDERING-AND-WORKFLOW-READONLY-20261009.json",
+      "mode": "100644",
+      "bytes": 3250,
+      "sha256": "11dd2449f7292326e82a0f1004191ff84008708bc1ded8c1d8a0de367c7a3a1f",
+      "blob": "9d8ef8227994c3d9b014182e6b1428d2c9813460"
+    }
+  ],
+  "source_entries": 5,
+  "original_excluded_sixref_packet_seal_sha256": "f03515a9c7e2f2a1eb774370c18652a437cbe7465eacb7d20d64a1e35f013939",
+  "original_v2_source38refs_packet_seal_sha256": "1d9191b0cfa502171ea46d3ff576e7aabaca523158b0ae6996358c7705e79144",
+  "original_packet_seals_included": false,
+  "SUT_source_immutable_commit": "4413c59b30ebbb2e8f3a829b0ed7d0eadfa99df2",
+  "SUT_source_tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+  "SUT_source_entries": 1867,
+  "loaded_inventory": 488,
+  "tests_executed_by_backup_agent": 0,
+  "actualqualified": false,
+  "native_installs": "NOT_RUN",
+  "runtime_reports_included": false,
+  "excluded": [
+    "PRELAUNCH-PREFIX-FAIL-SUT0-SANITIZED.json",
+    "original PACKET-SEAL.json",
+    "rawruntime/nativeTLS/keys/environment/hostprefixdiagnostics/tmpdirs",
+    "active carrier sources"
+  ]
+}

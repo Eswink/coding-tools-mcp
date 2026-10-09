@@ -1,0 +1,454 @@
+{
+  "scope": "Independent read-only complete source/native/literal/inverse/AST proof for NEW28 v2; no imported project/test methods",
+  "SUT_runs": 0,
+  "source_static_prerequisites_passed": true,
+  "prelaunch_tests_qualified": false,
+  "packet_seal_sha256": "1d9191b0cfa502171ea46d3ff576e7aabaca523158b0ae6996358c7705e79144",
+  "tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+  "physical_source_paths": 1867,
+  "pure_Git_Merkle_exact": true,
+  "packet_refs_all_size_sha_exact": 38,
+  "delta_paths": 28,
+  "added": 18,
+  "modified": 10,
+  "27pins_all_bytes_mode_native_blob_SHA_size_lines_exact": true,
+  "actual_native_P_frame_tree_parent_and1849_base_exact": true,
+  "ten_complete_inverses_all_exact_native_P": {
+    "scripts/rc_packages.py": "af0f8d3a0956d51714a0b8f2518532ed84fbbf437edd517b6e8103bebf0b0451",
+    "scripts/rc_pretag_archive_budget_cases.py": "b59fe7823d96db1338cc05d0d123433eac3e9f840cde347bcff69124a6f0efba",
+    "scripts/rc_pretag_authenticated_two_hop_tests.py": "4d5ffa4e2670847b32f70f8ad7b1290b6d359a0ee847abfe802b3f053ffa71b3",
+    "scripts/rc_pretag_checksum_budget_cases.py": "6b8a99360f681746ad012e361c24453df0dfc1ac2a1d877b5b026b31bc7e4fa8",
+    "scripts/rc_pretag_source_observation_cases.py": "6a45ccff811185bfe510c01fb655087f47ab86d7b8ae59639a237a8d1f79fcb9",
+    "scripts/rc_pretag_source_observation_profile.py": "b9dd4ab82f6320c374429b275280c3b6cfc0ad9672a47d53423811b75d2639cb",
+    "scripts/rc_pretag_staging_budget_cases.py": "ab067462df9a555eedaf0534f4cc917bf81f9c94a3e5d54a36b0800ac38cf4fd",
+    "scripts/rc_pretag_windows_launch_cases.py": "03ef9141f6a37ce6e015385b9c5b314e1bc70d6b3b51fe7ca5839f53090bd483",
+    "scripts/rc_publication_github.py": "4f202e8cf336095ca439da7381f6205663c8790fb7cc6347e3e04861570a8727",
+    "scripts/rc_publication_stage.py": "3a2bfe1d874bdd3ad93d77a78d4f7874cbe4771cd31390f90136740780a65a39"
+  },
+  "identity26_exact_native_commit_path_mode_blob": [
+    {
+      "path": "scripts/rc_packages.py",
+      "blob": "ea2dde33fd53a0ef8c01626461abe889610bc1e4",
+      "anchor": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+      "sha256": "af0f8d3a0956d51714a0b8f2518532ed84fbbf437edd517b6e8103bebf0b0451"
+    },
+    {
+      "path": "scripts/rc_pretag_archive_budget_cases.py",
+      "blob": "6e06135e604179635ef670fa32e318f67a03fa20",
+      "anchor": "564a68d42463b3e3b526d875970dd631da2e3eec",
+      "sha256": "90d245703019c8c9aaf5e9147a0df6c1381ce38eec7a2fed2ea0b9be19294f99"
+    },
+    {
+      "path": "scripts/rc_pretag_archive_budget_cases.py",
+      "blob": "9a97a62a205b99ca974ced8a9b2cfe78da04b544",
+      "anchor": "110b4febbbcdab0138e2d28de2a53e2f2d61d7d6",
+      "sha256": "c458983c6ffb05528f6971d7a1d74f920cc7b0f7c24c390d95bfe9777b5dc111"
+    },
+    {
+      "path": "scripts/rc_pretag_archive_budget_cases.py",
+      "blob": "a9d9e6af74e5bd7593829354874a264d8c969a0c",
+      "anchor": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+      "sha256": "b59fe7823d96db1338cc05d0d123433eac3e9f840cde347bcff69124a6f0efba"
+    },
+    {
+      "path": "scripts/rc_pretag_authenticated_two_hop_tests.py",
+      "blob": "3f3959228d9241670dbe8201674ec18612386208",
+      "anchor": "750b11b20651b3f8bfadba69c19cb7eaf0c11e1e",
+      "sha256": "ce937e3b07b88a7143d08f51e31d759956b0aad29c4444cdd69b12e9aebba0ee"
+    },
+    {
+      "path": "scripts/rc_pretag_authenticated_two_hop_tests.py",
+      "blob": "8ac0a1edc9ec7795984b48f8c542c2fb24db2969",
+      "anchor": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+      "sha256": "4d5ffa4e2670847b32f70f8ad7b1290b6d359a0ee847abfe802b3f053ffa71b3"
+    },
+    {
+      "path": "scripts/rc_pretag_checksum_budget_cases.py",
+      "blob": "24db3998460a7789d85e93ad131f2a22fed63e46",
+      "anchor": "564a68d42463b3e3b526d875970dd631da2e3eec",
+      "sha256": "86b10cbca916037385d2bb2b0ab5ead39b74ce73141dcdebec38c4c9c056d836"
+    },
+    {
+      "path": "scripts/rc_pretag_checksum_budget_cases.py",
+      "blob": "c968e30aeb68cdb23df55d9d6700b01e6ccbf01a",
+      "anchor": "73e4fdb7ea077392a93105652374eba8bf0a605f",
+      "sha256": "23ea5f92e7101cfecb94f859956b8cf48982f4de10de1279b0ba8f75a302b4ac"
+    },
+    {
+      "path": "scripts/rc_pretag_checksum_budget_cases.py",
+      "blob": "d850f7edb350eed8003a5d22bfcdada8bc273c95",
+      "anchor": "0def59d1ac429d5dd53bc4b75b626f5e4811d414",
+      "sha256": "926284cf9f3ab9dafb6f164dbfc5b26de4f1ade6dbf7bf79c91f305c53591a7e"
+    },
+    {
+      "path": "scripts/rc_pretag_checksum_budget_cases.py",
+      "blob": "e60a7847d9423298adbbd1af16ee2653a8be6b0f",
+      "anchor": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+      "sha256": "6b8a99360f681746ad012e361c24453df0dfc1ac2a1d877b5b026b31bc7e4fa8"
+    },
+    {
+      "path": "scripts/rc_pretag_source_observation_cases.py",
+      "blob": "0cd15d04da6af27ca15f05d48e693d9a1126ad1c",
+      "anchor": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+      "sha256": "6a45ccff811185bfe510c01fb655087f47ab86d7b8ae59639a237a8d1f79fcb9"
+    },
+    {
+      "path": "scripts/rc_pretag_source_observation_cases.py",
+      "blob": "59e60b91612fe9af4e58a0986885bbdba10a0c9c",
+      "anchor": "af5ca34eebe0a6c1c55153acdd1ef1855df037a9",
+      "sha256": "780d9beaddf8bc51ceebc7f89194a400d78e2dcf466dd0870164a3edb0deb9de"
+    },
+    {
+      "path": "scripts/rc_pretag_source_observation_profile.py",
+      "blob": "17fff8168163360dbe72711a76aabc537f18f422",
+      "anchor": "af5ca34eebe0a6c1c55153acdd1ef1855df037a9",
+      "sha256": "4e8c449e65b41b8a84b5b8eca2ddfb850ad795fc156729fa7901c37f4e512a94"
+    },
+    {
+      "path": "scripts/rc_pretag_source_observation_profile.py",
+      "blob": "72219e63f68283ba36686716cde769405be13b50",
+      "anchor": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+      "sha256": "b9dd4ab82f6320c374429b275280c3b6cfc0ad9672a47d53423811b75d2639cb"
+    },
+    {
+      "path": "scripts/rc_pretag_staging_budget_cases.py",
+      "blob": "3e054b8bf40f8199df73c16e03a2f35561b6796a",
+      "anchor": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+      "sha256": "ab067462df9a555eedaf0534f4cc917bf81f9c94a3e5d54a36b0800ac38cf4fd"
+    },
+    {
+      "path": "scripts/rc_pretag_staging_budget_cases.py",
+      "blob": "5f0d773cbf81b2650d2a9538aff654bceb05f717",
+      "anchor": "9d9f5d9ee1bad13b825fd8ac1f114a578122af2a",
+      "sha256": "163ede10fba1845e31bddcc44b814de309fcff438752c5e10471a7cd3c6fdf54"
+    },
+    {
+      "path": "scripts/rc_pretag_staging_budget_cases.py",
+      "blob": "627ae81d0d3dab11a94a33279293f2597ca5c3a8",
+      "anchor": "b9b4e666c8bfe8c52e35fba3974c935f927c4e2e",
+      "sha256": "da74ca7c097617850e348a771abed1aeb18aae25eed5001756ad0ee347d85833"
+    },
+    {
+      "path": "scripts/rc_pretag_windows_launch_cases.py",
+      "blob": "ae8125beee5cb3323e81a5c367c68851c80bd319",
+      "anchor": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+      "sha256": "03ef9141f6a37ce6e015385b9c5b314e1bc70d6b3b51fe7ca5839f53090bd483"
+    },
+    {
+      "path": "scripts/rc_publication_github.py",
+      "blob": "8acb81c087751d0e6554144f365053f2074238cb",
+      "anchor": "c0d04e87de6d00f5d1117dd817c0e16654a6b9ba",
+      "sha256": "1944d7aa4bab79c32747f3722bd07af8f9d801ce887d9597933ffbafa0c20bb6"
+    },
+    {
+      "path": "scripts/rc_publication_github.py",
+      "blob": "b4d250974e89deeb241f2aa32a998cda17688e34",
+      "anchor": "9525dd6cae2c9b8a7fefeb31c71f12b1e05b397f",
+      "sha256": "62fbe64ffc69c15d0def289f13ff282ed4046fee05a584b20b228f92488f1d90"
+    },
+    {
+      "path": "scripts/rc_publication_github.py",
+      "blob": "fdc12ec5dbff05cdf065c14022a28b43aa20e1f6",
+      "anchor": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+      "sha256": "4f202e8cf336095ca439da7381f6205663c8790fb7cc6347e3e04861570a8727"
+    },
+    {
+      "path": "scripts/rc_publication_stage.py",
+      "blob": "03d6cdb42a891efdf29221fe9870e343332ca794",
+      "anchor": "7f210716d43bb4a7097778c087e37ecbd86c7ec2",
+      "sha256": "9c5faed147c6ba329fea24feaa84835bfc9215f6aa0daacd66db9e43f39c4457"
+    },
+    {
+      "path": "scripts/rc_publication_stage.py",
+      "blob": "5647efbcdc56180989544eca2127a14cd4c62353",
+      "anchor": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+      "sha256": "3a2bfe1d874bdd3ad93d77a78d4f7874cbe4771cd31390f90136740780a65a39"
+    },
+    {
+      "path": "scripts/rc_publication_stage.py",
+      "blob": "a9783703fccc6ba974a755e03165628af602a351",
+      "anchor": "33503cc901acc0619ca5658eff187efd7799b040",
+      "sha256": "8e2eda3eff90a40b37dc9f92851e7ddd8efa0cc73e55f629e2e8b49b506da57f"
+    },
+    {
+      "path": "scripts/rc_publication_stage.py",
+      "blob": "ac41bd2c99fcabdb81eb9b1125f3aaca937baa80",
+      "anchor": "564a68d42463b3e3b526d875970dd631da2e3eec",
+      "sha256": "e77ef98244c25e0bab1b136d0e6df1c0dbbf6fec24bec84e992f9c34dc99c313"
+    },
+    {
+      "path": "scripts/rc_publication_stage.py",
+      "blob": "b4ecb6e7400c1937b68f1ac960e2f6f0ecda4b65",
+      "anchor": "d13ffd7dd6b90f5cfb73d78395a4944df92924c0",
+      "sha256": "b5d0e8f575f24e9977989b183f7ca415bb7cdf0e6142d645b98ddeeab12c6216"
+    }
+  ],
+  "identity14_anchors_all_raw_native_exact": true,
+  "old_windows26caps25pins3800_whole_native_bytes_unchanged": true,
+  "complete_P1849_to_F1840_entry_map_and_all17_old_inverses_exact_native_F": true,
+  "current20methods105assertions_exact_after_explicit_positive_operand_undo": true,
+  "negative_direct_x_normalize_calls_preserved": [
+    {
+      "method": "test_eleven_full_byte_inverses_and_six_dispatch_lines",
+      "current_direct_calls": 2,
+      "designated_exact_negative_expressions": [
+        "x.normalize('unmapped', b'unchanged')",
+        "x.normalize(path, frozen)"
+      ]
+    },
+    {
+      "method": "test_finite_historical_identities_are_exact_and_immutable",
+      "current_direct_calls": 1,
+      "designated_exact_negative_expressions": [
+        "x.normalize(path, bad)"
+      ]
+    },
+    {
+      "method": "test_missing_duplicate_outside_and_binary_inverse_changes_reject",
+      "current_direct_calls": 2,
+      "designated_exact_negative_expressions": [
+        "x.normalize(path, data)"
+      ]
+    }
+  ],
+  "five_alias_classes_all_methods_AST_and_assertions_unchanged": true,
+  "aggregate": 4270,
+  "aggregate_cap": 4600,
+  "budgets": [
+    {
+      "path": ".github/workflows/issue88-postpublication-owned-checks.yml",
+      "add": 320,
+      "delete": 0,
+      "lines": 320,
+      "cap": 480,
+      "delta_cap": 480
+    },
+    {
+      "path": ".github/workflows/rc-postpublication-consumer.yml",
+      "add": 191,
+      "delete": 0,
+      "lines": 191,
+      "cap": 191,
+      "delta_cap": 191
+    },
+    {
+      "path": "docs/specs/issue88-postpublication-owned-consumer/design.md",
+      "add": 97,
+      "delete": 0,
+      "lines": 97,
+      "cap": 116,
+      "delta_cap": 116
+    },
+    {
+      "path": "docs/specs/issue88-postpublication-owned-consumer/requirements.md",
+      "add": 95,
+      "delete": 0,
+      "lines": 95,
+      "cap": 117,
+      "delta_cap": 117
+    },
+    {
+      "path": "docs/specs/issue88-postpublication-owned-consumer/tasks.md",
+      "add": 129,
+      "delete": 0,
+      "lines": 129,
+      "cap": 144,
+      "delta_cap": 144
+    },
+    {
+      "path": "scripts/rc_packages.py",
+      "add": 14,
+      "delete": 0,
+      "lines": 200,
+      "cap": 200,
+      "delta_cap": 14
+    },
+    {
+      "path": "scripts/rc_postpublication_cases.py",
+      "add": 290,
+      "delete": 0,
+      "lines": 290,
+      "cap": 290,
+      "delta_cap": 290
+    },
+    {
+      "path": "scripts/rc_postpublication_consumer.py",
+      "add": 177,
+      "delete": 0,
+      "lines": 177,
+      "cap": 177,
+      "delta_cap": 177
+    },
+    {
+      "path": "scripts/rc_postpublication_contract.py",
+      "add": 138,
+      "delete": 0,
+      "lines": 138,
+      "cap": 138,
+      "delta_cap": 138
+    },
+    {
+      "path": "scripts/rc_postpublication_install.py",
+      "add": 374,
+      "delete": 0,
+      "lines": 374,
+      "cap": 374,
+      "delta_cap": 374
+    },
+    {
+      "path": "scripts/rc_postpublication_io.py",
+      "add": 135,
+      "delete": 0,
+      "lines": 135,
+      "cap": 135,
+      "delta_cap": 135
+    },
+    {
+      "path": "scripts/rc_postpublication_process.py",
+      "add": 457,
+      "delete": 0,
+      "lines": 457,
+      "cap": 457,
+      "delta_cap": 457
+    },
+    {
+      "path": "scripts/rc_postpublication_process_cases.py",
+      "add": 409,
+      "delete": 0,
+      "lines": 409,
+      "cap": 409,
+      "delta_cap": 409
+    },
+    {
+      "path": "scripts/rc_postpublication_reader.py",
+      "add": 225,
+      "delete": 0,
+      "lines": 225,
+      "cap": 225,
+      "delta_cap": 225
+    },
+    {
+      "path": "scripts/rc_postpublication_source.py",
+      "add": 156,
+      "delete": 0,
+      "lines": 156,
+      "cap": 156,
+      "delta_cap": 156
+    },
+    {
+      "path": "scripts/rc_postpublication_transfer.py",
+      "add": 203,
+      "delete": 0,
+      "lines": 203,
+      "cap": 203,
+      "delta_cap": 203
+    },
+    {
+      "path": "scripts/rc_postpublication_transfer_cases.py",
+      "add": 233,
+      "delete": 0,
+      "lines": 233,
+      "cap": 233,
+      "delta_cap": 233
+    },
+    {
+      "path": "scripts/rc_pretag_archive_budget_cases.py",
+      "add": 1,
+      "delete": 1,
+      "lines": 399,
+      "cap": 399,
+      "delta_cap": 2
+    },
+    {
+      "path": "scripts/rc_pretag_authenticated_two_hop_tests.py",
+      "add": 1,
+      "delete": 1,
+      "lines": 486,
+      "cap": 486,
+      "delta_cap": 2
+    },
+    {
+      "path": "scripts/rc_pretag_checksum_budget_cases.py",
+      "add": 1,
+      "delete": 1,
+      "lines": 381,
+      "cap": 381,
+      "delta_cap": 2
+    },
+    {
+      "path": "scripts/rc_pretag_postpublication_cases.py",
+      "add": 323,
+      "delete": 0,
+      "lines": 323,
+      "cap": 500,
+      "delta_cap": 500
+    },
+    {
+      "path": "scripts/rc_pretag_postpublication_profile.py",
+      "add": 258,
+      "delete": 0,
+      "lines": 258,
+      "cap": 500,
+      "delta_cap": 500
+    },
+    {
+      "path": "scripts/rc_pretag_source_observation_cases.py",
+      "add": 1,
+      "delete": 1,
+      "lines": 353,
+      "cap": 353,
+      "delta_cap": 2
+    },
+    {
+      "path": "scripts/rc_pretag_source_observation_profile.py",
+      "add": 6,
+      "delete": 0,
+      "lines": 194,
+      "cap": 200,
+      "delta_cap": 12
+    },
+    {
+      "path": "scripts/rc_pretag_staging_budget_cases.py",
+      "add": 1,
+      "delete": 1,
+      "lines": 384,
+      "cap": 384,
+      "delta_cap": 2
+    },
+    {
+      "path": "scripts/rc_pretag_windows_launch_cases.py",
+      "add": 10,
+      "delete": 10,
+      "lines": 495,
+      "cap": 495,
+      "delta_cap": 22
+    },
+    {
+      "path": "scripts/rc_publication_github.py",
+      "add": 8,
+      "delete": 1,
+      "lines": 489,
+      "cap": 489,
+      "delta_cap": 9
+    },
+    {
+      "path": "scripts/rc_publication_stage.py",
+      "add": 1,
+      "delete": 0,
+      "lines": 380,
+      "cap": 380,
+      "delta_cap": 1
+    }
+  ],
+  "current_source_before_parent_admission": true,
+  "v1_parent_first_blocker_preserved": true,
+  "loaded_inventory_only": {
+    "necessary488": 488,
+    "strict303consumer452": 755,
+    "strict755plus485": 1240,
+    "historical135_correspondence": "Author retained report; loaded only, no execution credit"
+  },
+  "execution_result": "NOT_RUN",
+  "five_installs": "NOT_RUN",
+  "limitations": "Static source prerequisite proof only. External once runner/source/runtime/owned-kernel closure needs independent prelaunch review; current488 complete real execution and trueCI/native installer/release safety remain required."
+}

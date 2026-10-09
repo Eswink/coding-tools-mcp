@@ -1,0 +1,56 @@
+{
+  "scope": "Five frozen inputs plus newsafe manifest/README; source-only actualqualifiedfalse",
+  "files": [
+    {
+      "path": "FIVE-INPUT-SOURCE-MANIFEST.json",
+      "mode": "100644",
+      "bytes": 2665,
+      "sha256": "6d430c302863cefd3e5d66877946172af4982565370839746119f179180d5be4",
+      "blob": "9bde978d9a1e68323bb874f56aade53fcb67969e"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 2878,
+      "sha256": "7e0a378f509fb6d3a3b0374a4dad4fc335603cd2fda75767070305f41e10ca3c",
+      "blob": "4900e728d58e8e1c5c6789cf99b417f4a4ac8df6"
+    },
+    {
+      "path": "inputs/ACTUAL-V2-488-RUN-INPUT.json",
+      "mode": "100644",
+      "bytes": 58132,
+      "sha256": "3274554750e538929b34a91cb124d66fe2372ac8737ee768ccb81b0aa7691094",
+      "blob": "e5139616efabd7f9ff2604437d5fa3b0b151632f"
+    },
+    {
+      "path": "inputs/NEW28-V2-INDEPENDENT-FULL-SOURCE-AST-20261009.json",
+      "mode": "100644",
+      "bytes": 15518,
+      "sha256": "d202b1073af6f350f31db5529c61ece4ff862dea88fec14450d10d530417f544",
+      "blob": "2dd61c391dbdbbe4e821e4140804d820e716988c"
+    },
+    {
+      "path": "inputs/NEW28-V2-ORDERING-AND-WORKFLOW-READONLY-20261009.json",
+      "mode": "100644",
+      "bytes": 3250,
+      "sha256": "11dd2449f7292326e82a0f1004191ff84008708bc1ded8c1d8a0de367c7a3a1f",
+      "blob": "9d8ef8227994c3d9b014182e6b1428d2c9813460"
+    },
+    {
+      "path": "inputs/READONLY-488-CI-PROFILE-PROPOSAL.json",
+      "mode": "100644",
+      "bytes": 2535,
+      "sha256": "ccb87cd4fc28ac5ad66757a92525d885ef82e27dc00ba54de3b04065588dc928",
+      "blob": "9decf124e2dd19e5ba1a96fa7baecf58a8dc731c"
+    },
+    {
+      "path": "inputs/run_fresh488_journal.py.source",
+      "mode": "100644",
+      "bytes": 8338,
+      "sha256": "0344311a0640e64b46875ed3cdb4e61ed41d87e4274e4a44c76e944323e8186e",
+      "blob": "de181a24c405eab429eedbd04c57603ff5ca274e"
+    }
+  ],
+  "actualqualified": false,
+  "no_runtime_source_edits": true
+}

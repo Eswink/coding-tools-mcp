@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "scope": "READONLY CI test-data helper outside pure SUT; NO PRIVILEGE/INSTALL/GRANT",
+  "SUT_parent": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "SUT_parent_tree": "064252014dc0ad3c3882fbd5aef1968b083f8bb0",
+  "SUT_index_tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+  "SUT_entries": 1867,
+  "SUT_patch": {
+    "name": "FROZEN28-actual-source.patch",
+    "bytes": 1008175,
+    "sha256": "4506e2b1ac2c985956de460620646b12398b63d9c1a844b7f8e32d391e90ee60"
+  },
+  "source28_v2seal_sha256": "1d9191b0cfa502171ea46d3ff576e7aabaca523158b0ae6996358c7705e79144",
+  "reader_prefix": [
+    "--no-pager",
+    "--no-replace-objects",
+    "--no-optional-locks",
+    "--no-lazy-fetch"
+  ],
+  "precondition": "actual/usrbinGit exactPREFIX supports before any SUT; unsupported recordsFAIL/SUT0",
+  "test_ids": "ACTUAL-V2-488-RUN-INPUT.json containsexact488names",
+  "test_groups_counts": {
+    "old_flow": 425,
+    "post_owner": 48,
+    "newfamily": 12,
+    "version": 3,
+    "unique_total": 488
+  },
+  "journal_argv": [
+    "python3",
+    "run_fresh488_journal.py",
+    "--root",
+    "PURE_SUT",
+    "--output",
+    "OWNED_OUTSIDE_SUT",
+    "--inventory",
+    "ACTUAL-V2-488-RUN-INPUT.json"
+  ],
+  "owned_wrapper_requirement": "root/publisher existing direct Popen/pidfd-held privatePIDnamespace +waitWNOWAIT/ECHILD/EOF/close/source/toolfences; no adopt/retry/JSONDONEgrant",
+  "proposed_readonly_test_total_seconds": 2700,
+  "term_seconds": 7,
+  "kill_seconds": 2,
+  "family_seconds": 2,
+  "nativebudget_status": "FRESH_READONLY_TEST_ENVELOPE; not originalinstaller900 or nativeinstallauthority",
+  "fixture": {
+    "url": "https://static.crates.io/crates/glib/glib-0.18.5.crate",
+    "bytes": 267679,
+    "sha256": "233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5",
+    "usage": "existingretainedsourcefixtureDATAONLY; no compiler/seed/setup/install",
+    "env_key": "RC_CONSUMER_TEST_GLIB_ARCHIVE"
+  },
+  "runtime_env": "minimalworker environment, noGH/ActionsTOKEN, fixednormalPATHwithoutshim; root actualtoolbeforeafter facts retained",
+  "output_white_list": "source/runtime beforeafter,json inventory andnamedjournal,cases.log,receipt; rawnativeTLSdata/keys/env/testtemporarydirs excludedpublicbackup, separate native-failure retention remainsowner-held",
+  "current_execution": "NOT_RUN",
+  "actual_install_slots": "NOT_RUN",
+  "source_baseline_objects": "actualwholeD6 plus fixedR e2e011... andall14 usednativeidentityanchors; no FETCH_HEAD guessing; nativefulltree/rawbytes checked before SUT"
+}
