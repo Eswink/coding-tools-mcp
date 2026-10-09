@@ -1,0 +1,16 @@
+{
+  "head": "50ef4b60830c36d4bc1aafdcec3d9b8489a260aa",
+  "tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+  "tracked_paths": 1867,
+  "actual_bytes_mode_equal_native_HEAD": true,
+  "manifest_sha256": "13d63070a4bf0364d2c1eef96f65e983400c21a32a242642001a5ca732d9d624",
+  "gitnexus": {
+    "indexedAt": "2026-10-09T13:31:27.630Z",
+    "lastCommit": "50ef4b60830c36d4bc1aafdcec3d9b8489a260aa",
+    "actual_repo_verified": true,
+    "process_source_indexsha": "99bbc5692b35aecdbdcd46cd86589d0c5a7ef5b4cd5f81f752eb7ac44282f880",
+    "process_source_actualsha": "99bbc5692b35aecdbdcd46cd86589d0c5a7ef5b4cd5f81f752eb7ac44282f880"
+  },
+  "analysis_worktree_only": true,
+  "newdocs_not_original_sourcequalification": true
+}

@@ -1,0 +1,16 @@
+{
+  "source_repo_identity": "windows-nt-output-native-ci-manager; indexedD6+cporiginal7; noothercheckout borrowed",
+  "original_run_git": "Firstnamecontext exact butimpactambiguousUNKNOWN3candidates; uidexactimpactMEDIUM6/5direct0flows",
+  "new_targets": [
+    "bounded_run_git_delegate",
+    "bind_source_git_delegate",
+    "create_job_bound_suspended",
+    "native_overlapped_write",
+    "native_overlapped_retire"
+  ],
+  "new_exact_definitions": 0,
+  "new_delegate_impact": "TargetNotFound impacted0riskUNKNOWN despitetoptoolok, neverrisk0",
+  "manual_risk": "HIGH source/process/job/IO/cancellation disclosedbyroot beforeimplementation",
+  "original_functions": "byteexact; proposedfutureoriginalrun_git retainedNOTEXECUTED under newbinding, higherAST executedwithnewexternalbinding",
+  "source_identity_only": true
+}

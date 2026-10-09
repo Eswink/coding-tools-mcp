@@ -1,0 +1,25 @@
+{
+  "scope": "NEW finite design research only; noimplementation/native/startup permission; original6docs/helper preserved",
+  "files": [
+    {
+      "path": "docs/specs/windows-nt-native-ci-source-delegate/requirements.md",
+      "bytes": 6377,
+      "mode": "0o600",
+      "sha256": "84f63816f04c28b30c390b770aa19859a06986301761cc7590d08b237ad21271"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-ci-source-delegate/design.md",
+      "bytes": 6579,
+      "mode": "0o600",
+      "sha256": "053acd8421daf72ca0166d9e09d5adbc70722ccaf4bf3315e01071a970ca5dfb"
+    },
+    {
+      "path": "docs/specs/windows-nt-native-ci-source-delegate/tasks.md",
+      "bytes": 1612,
+      "mode": "0o600",
+      "sha256": "b6068bdea6518fd76daa95b5c1de297333cc9cc60123a01c1ab37211b3d786ce"
+    }
+  ],
+  "total_bytes": 14568,
+  "check_spec": "work/native-nt-ci-prepare/check-spec-source-delegate16.json"
+}

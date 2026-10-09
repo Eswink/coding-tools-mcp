@@ -1,0 +1,67 @@
+{
+  "format": "readonly-native-birth-candidate-not-implemented",
+  "local_source_notes": [
+    {
+      "public_runtime_or_header_path": "/usr/lib/python3.13/subprocess.py",
+      "bytes": 89486,
+      "sha256": "21ecc4c8f4fcf641974fc0d9cc28e97b07670ed1cef7e9d96769b31bb8345586",
+      "used_as_source_notes_only_not_installed_binary_source_mapping": true
+    },
+    {
+      "public_runtime_or_header_path": "/usr/include/linux/sched.h",
+      "bytes": 6287,
+      "sha256": "ff58ea1300af6bd0c72e6b45160d24e86e878f7f45259a6469df76e5e846270b",
+      "used_as_source_notes_only_not_installed_binary_source_mapping": true
+    },
+    {
+      "public_runtime_or_header_path": "/usr/include/linux/prctl.h",
+      "bytes": 11794,
+      "sha256": "cf8b8fb00c07b16f3bc294ece011059302a02d9cc24b12751622da8de73b81a8",
+      "used_as_source_notes_only_not_installed_binary_source_mapping": true
+    },
+    {
+      "public_runtime_or_header_path": "/usr/include/linux/memfd.h",
+      "bytes": 1467,
+      "sha256": "d06dd37df2ad2df29391c38239c1af6944efef8dc4040ed41833169cd4c4a3c9",
+      "used_as_source_notes_only_not_installed_binary_source_mapping": true
+    },
+    {
+      "public_runtime_or_header_path": "/usr/include/linux/fcntl.h",
+      "bytes": 5766,
+      "sha256": "0d7d57e2b9f9ede1461d1f63f687bed72c710a9e3fbe03e4cd4191829b77e269",
+      "used_as_source_notes_only_not_installed_binary_source_mapping": true
+    }
+  ],
+  "local_subprocess_condition": {
+    "source_contains_not_start_new_session": true,
+    "source_contains_not_pass_fds": true,
+    "original_owner_start_new_session": true,
+    "conclusion": "Installed subprocess.py source does not select its posix_spawn branch for original start_new_session=True. This is a source condition, not actual process trace or proof of native fork-exec callbacks."
+  },
+  "headers_define": [
+    "CLONE_PIDFD",
+    "clone_args.pidfd",
+    "PR_SET_CHILD_SUBREAPER36",
+    "PR_GET_CHILD_SUBREAPER37",
+    "MFD_ALLOW_SEALING",
+    "MFD_EXEC",
+    "F_SEAL_WRITE/GROW/SHRINK/SEAL",
+    "AT_EMPTY_PATH"
+  ],
+  "headers_are_not_running_kernel_support_or_permission_proof": true,
+  "native_calls_executed": [],
+  "source_edits": [],
+  "original_worker_run": false,
+  "ordinary_family_controls": 0,
+  "candidate": "new reviewed raw native clone3(CLONE_PIDFD) birth primitive with child-native-only prctl and sealed-descriptor execveat, plus reviewed no-CRT static root collector",
+  "actual_created_owner_or_family_proof": false,
+  "known_missing_artifacts": [
+    "native birth implementation/atomic escrow",
+    "child signal-mask and direct-syscall stub audit",
+    "immutable executable source loader",
+    "bare native root collector/build identity",
+    "target kernel actual support",
+    "real owned-process/IO/cancel controls",
+    "independent implementation/startup review"
+  ]
+}

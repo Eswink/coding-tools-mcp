@@ -1,0 +1,56 @@
+{
+  "decision": "PASS_OWNED_MSGFMT_ONLY",
+  "genuine_root_tool_provenance": {
+    "root_message_confirmed_direct_tool": true,
+    "actual_exit_code": 0,
+    "session_id": 76343,
+    "launch_chunk": "c26ffc",
+    "terminal_chunk": "a80d6c",
+    "helper_calls": 1
+  },
+  "source_frozen_sha256": "853cba4ffb685a92f548d187dcffedc36e6634195783b3a024f984de11e476e6",
+  "helper_sha256": "382f47e98cb5e782e4080f781ba930a42a265a5d83250507199045b1d28ba0aa",
+  "independent_actual_reads": {
+    "all7_external_lease_groups_current_exact": true,
+    "source5_input11_tools15_ABI4_loader1_env_freeze": true,
+    "eight_signed_index_size_SHA_control_identity": true,
+    "GPG_original3_VALIDSIG_Bookworm_anchors": true,
+    "authenticated_tar495_headers_8_root_skips": true,
+    "actual_namespace487_members": {
+      "regular": 229,
+      "directory": 238,
+      "symlink": 20,
+      "regular_bytes": 47707775
+    },
+    "all_member_payload_mode_kind_link_nlink1_rebuilt_from_tar": true,
+    "native_leases_current_exact": 19,
+    "host_tools_ABI_loader_current_exact": 20,
+    "all7_original_phase_logs_byte_SHA": true,
+    "actual_loader13_dependency_paths_and_ELF_NEED_version_logs": true,
+    "GNU_msgfmt_version": "0.21",
+    "actual_MO_hello_translation": "bonjour é",
+    "MO_sha256": "a12e1cc3fc08f6edc873cdd5ffd0603b82224ff3dbbc6d003f6f6867c716e452",
+    "bad_PO_exit": 1,
+    "invalid_MO_absent": true,
+    "root_terminal_fence7_joins_primarynone": true
+  },
+  "raw_result_sha256": "4e3a94cafd7a82487931a52a604d11859db06234ff49af1eb78c41eaa426618e",
+  "native_exit_vector": [
+    0,
+    0,
+    1
+  ],
+  "reviewer_native_executions": 0,
+  "boundary": {
+    "strict_signed_metadata_freshness": false,
+    "anti_replay": false,
+    "documentation_dangling_libgomp_link": "Authenticated DATA only, never loader admission",
+    "SUT_runs": 0,
+    "GitV3_runs": 0,
+    "global_native_family_qualification": false,
+    "package_or_host_install": false,
+    "RC_qualification": false,
+    "publisher_authorization": false
+  },
+  "history": "V1/V2 failures and constructor trace controls remain immutable. Ordinary33 controls are limited resource-boundary evidence, not actual whole-owner automatic cancellation."
+}

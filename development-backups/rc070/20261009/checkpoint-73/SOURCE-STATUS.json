@@ -1,0 +1,20 @@
+{
+  "kind": "SAFE_LIMITED_ACTUAL_TOOL_EVIDENCE",
+  "root_actual_status": "PASS_OWNED_MSGFMT_ONLY",
+  "root_actual_exit": 0,
+  "root_seconds": 10.0506,
+  "same_run_independent_readonly_audits": 2,
+  "headers495_manifest487_difference": "Eight original rootdirectory entries skipped by source; no dropped file bytes",
+  "own_downloaded_ELF_exec": 0,
+  "own_data_extraction": 0,
+  "HOST_INSTALL": false,
+  "PACKAGE_INSTALL": false,
+  "PRODUCT_INSTALL": "NOTRUN",
+  "GitV3_runs": 0,
+  "SUT_runs": 0,
+  "CI_qualification": false,
+  "Windows_native_allIO_owner": false,
+  "RC_qualification": false,
+  "publication_authority": false,
+  "public_exclusions": "No keys/metadata/debs/ELF/rawruntime/env/logs/Gitobjects"
+}

@@ -1,0 +1,262 @@
+{
+  "lastCommit": "50ef4b60830c36d4bc1aafdcec3d9b8489a260aa",
+  "indexedAt": "2026-10-09T13:31:27.630Z",
+  "source_index_sha": "99bbc5692b35aecdbdcd46cd86589d0c5a7ef5b4cd5f81f752eb7ac44282f880",
+  "source_actual_sha": "99bbc5692b35aecdbdcd46cd86589d0c5a7ef5b4cd5f81f752eb7ac44282f880",
+  "symbols": [
+    {
+      "symbol": "run",
+      "actual_exit": 0,
+      "actual_structured_result": {
+        "target": {
+          "id": "Method:scripts/rc_postpublication_process.py:ProcessOwner.run#4",
+          "name": "run",
+          "type": "Method",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 13,
+        "risk": "MEDIUM",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 11,
+          "processes_affected": 0,
+          "modules_affected": 1
+        },
+        "byDepthCounts": {
+          "1": 11,
+          "2": 2
+        },
+        "affected_processes": [],
+        "affected_modules": [
+          {
+            "name": "Scripts",
+            "hits": 11,
+            "impact": "direct"
+          }
+        ]
+      },
+      "unknown_is_not_zero": false
+    },
+    {
+      "symbol": "_stop",
+      "actual_exit": 0,
+      "actual_structured_result": {
+        "target": {
+          "id": "Method:scripts/rc_postpublication_process.py:ProcessOwner._stop#0",
+          "name": "_stop",
+          "type": "Method",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 14,
+        "risk": "LOW",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 1,
+          "processes_affected": 0,
+          "modules_affected": 1
+        },
+        "byDepthCounts": {
+          "1": 1,
+          "2": 11,
+          "3": 2
+        },
+        "affected_processes": [],
+        "affected_modules": [
+          {
+            "name": "Scripts",
+            "hits": 12,
+            "impact": "direct"
+          }
+        ]
+      },
+      "unknown_is_not_zero": false
+    },
+    {
+      "symbol": "_send",
+      "actual_exit": 0,
+      "actual_structured_result": {
+        "target": {
+          "id": "Method:scripts/rc_postpublication_process.py:ProcessOwner._send#3",
+          "name": "_send",
+          "type": "Method",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 15,
+        "risk": "LOW",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 4,
+          "processes_affected": 0,
+          "modules_affected": 1
+        },
+        "byDepthCounts": {
+          "1": 4,
+          "2": 9,
+          "3": 2
+        },
+        "affected_processes": [],
+        "affected_modules": [
+          {
+            "name": "Scripts",
+            "hits": 13,
+            "impact": "direct"
+          }
+        ]
+      },
+      "unknown_is_not_zero": false
+    },
+    {
+      "symbol": "_live",
+      "actual_exit": 0,
+      "actual_structured_result": {
+        "target": {
+          "id": "Method:scripts/rc_postpublication_process.py:ProcessOwner._live#0",
+          "name": "_live",
+          "type": "Method",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 18,
+        "risk": "LOW",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 4,
+          "processes_affected": 0,
+          "modules_affected": 1
+        },
+        "byDepthCounts": {
+          "1": 4,
+          "2": 12,
+          "3": 2
+        },
+        "affected_processes": [],
+        "affected_modules": [
+          {
+            "name": "Scripts",
+            "hits": 16,
+            "impact": "direct"
+          }
+        ]
+      },
+      "unknown_is_not_zero": false
+    },
+    {
+      "symbol": "_finish",
+      "actual_exit": 0,
+      "actual_structured_result": {
+        "target": {
+          "id": "Method:scripts/rc_postpublication_process.py:ProcessOwner._finish#0",
+          "name": "_finish",
+          "type": "Method",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 15,
+        "risk": "LOW",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 4,
+          "processes_affected": 0,
+          "modules_affected": 1
+        },
+        "byDepthCounts": {
+          "1": 4,
+          "2": 9,
+          "3": 2
+        },
+        "affected_processes": [],
+        "affected_modules": [
+          {
+            "name": "Scripts",
+            "hits": 13,
+            "impact": "direct"
+          }
+        ]
+      },
+      "unknown_is_not_zero": false
+    },
+    {
+      "symbol": "_retain",
+      "actual_exit": 0,
+      "actual_structured_result": {
+        "target": {
+          "id": "Method:scripts/rc_postpublication_process.py:ProcessOwner._retain#0",
+          "name": "_retain",
+          "type": "Method",
+          "filePath": "scripts/rc_postpublication_process.py"
+        },
+        "direction": "upstream",
+        "impactedCount": 15,
+        "risk": "LOW",
+        "epistemic": "exact",
+        "summary": {
+          "direct": 2,
+          "processes_affected": 0,
+          "modules_affected": 1
+        },
+        "byDepthCounts": {
+          "1": 2,
+          "2": 11,
+          "3": 2
+        },
+        "affected_processes": [],
+        "affected_modules": [
+          {
+            "name": "Scripts",
+            "hits": 13,
+            "impact": "direct"
+          }
+        ]
+      },
+      "unknown_is_not_zero": false
+    },
+    {
+      "symbol": "NativeBirthEscrow",
+      "actual_exit": 0,
+      "actual_structured_result": {
+        "error": "Target 'NativeBirthEscrow' not found",
+        "target": {
+          "name": "NativeBirthEscrow"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_is_not_zero": true
+    },
+    {
+      "symbol": "NativeChildExecStub",
+      "actual_exit": 0,
+      "actual_structured_result": {
+        "error": "Target 'NativeChildExecStub' not found",
+        "target": {
+          "name": "NativeChildExecStub"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_is_not_zero": true
+    },
+    {
+      "symbol": "SealedRootImage",
+      "actual_exit": 0,
+      "actual_structured_result": {
+        "error": "Target 'SealedRootImage' not found",
+        "target": {
+          "name": "SealedRootImage"
+        },
+        "direction": "upstream",
+        "impactedCount": 0,
+        "risk": "UNKNOWN"
+      },
+      "unknown_is_not_zero": true
+    }
+  ],
+  "manual_risk": "HIGH",
+  "production_edits": 0,
+  "native_family_controls": 0
+}

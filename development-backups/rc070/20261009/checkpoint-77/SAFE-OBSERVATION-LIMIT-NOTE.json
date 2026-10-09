@@ -1,0 +1,15 @@
+{
+  "kind": "READONLY_STATIC_OBSERVATION_FILTER_LIMIT_NOT_RUNTIME_CAUSE_PROOF",
+  "original_source": "scripts/rc_publication_request.py:_CredentialOwner.__init__",
+  "original_selection_defensive_deepcopy_unchanged": true,
+  "observer_filter": "fixture.selection is current.selection",
+  "original_production_defensive_copy_not_modified": true,
+  "sameobject_model_does_not_cover_real_nativeclone": true,
+  "thisrun_TLS_observation_events": 0,
+  "TLS_execution_absent_proof": false,
+  "server2s_causedthisFAIL": "UNKNOWN",
+  "auth_duration_above2s_alone_is_not_causal": true,
+  "next_scope": "Rootauthorizedreadonlyspec/impact plus realnativeclonefailurefirst; no newhook/retry authorized yet",
+  "publisher_issuer_sameclientgrant_serverheldtag": "UNAVAILABLE_3hardreject unchanged",
+  "release_authorized": false
+}

@@ -1,0 +1,31 @@
+{
+  "kind": "safe-actual-tool-evidence-only",
+  "payload_files": 4,
+  "payload_bytes": 7339,
+  "files": [
+    {
+      "path": "AUTHOR-READONLY-REAL-AUDIT-SAFE.json",
+      "git_mode": "100644",
+      "bytes": 3522,
+      "sha256": "3f7b7d4057a18391c6721c94865cb8698ed54ab01dd5091ca45ce6ec8262f7d4"
+    },
+    {
+      "path": "INDEPENDENT-TERMINAL-SAFE.json",
+      "git_mode": "100644",
+      "bytes": 2205,
+      "sha256": "8b6e932da6356eb9760cbaa289ef8b9b1d07d512a2061ac3b367d1b514dfeb6c"
+    },
+    {
+      "path": "README.md",
+      "git_mode": "100644",
+      "bytes": 901,
+      "sha256": "1182f34fa1e8dc09e5c1990ef025b1d063b8c83a4042b4e10a17759582ae8f59"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "git_mode": "100644",
+      "bytes": 711,
+      "sha256": "6b64e46da305d87e1c591e7cc6e114237fd677c4a9e439eba322be566eae875e"
+    }
+  ]
+}

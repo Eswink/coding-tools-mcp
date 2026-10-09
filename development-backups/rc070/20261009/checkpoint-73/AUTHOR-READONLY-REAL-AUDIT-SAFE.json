@@ -1,0 +1,104 @@
+{
+  "scope": "INDEPENDENT_READONLY_REAL_OWNED_MSGFMT_ONLY",
+  "status": "PASS_REAL_OWNED_MSGFMT_EVIDENCE_ONLY",
+  "root_terminal_sha256": "458a1256ed2b4b652331f3c9652e1a21333c84b1b423a02f0665b4f79960fa51",
+  "root_external_before_sha256": "9e1685f5874a4197f79e9ccf5af7817e2c872bc729556f71a28668a073f9da82",
+  "helper_sha256": "382f47e98cb5e782e4080f781ba930a42a265a5d83250507199045b1d28ba0aa",
+  "actual_result_sha256": "4e3a94cafd7a82487931a52a604d11859db06234ff49af1eb78c41eaa426618e",
+  "signed_anchors": [
+    "04B54C3CDCA79751B16BC6B5225629DF75B188BD",
+    "4D64FEC119C2029067D6E791F8D2585B8783D481",
+    "B8B80B5B623EAB6AD8775C45B7C5D7D6350947F8"
+  ],
+  "signed_metadata_authentic": true,
+  "strict_freshness": false,
+  "anti_replay_proven": false,
+  "data_counts": {
+    "headers": 495,
+    "root_dir_headers_skipped": 8,
+    "manifest_entries": 487,
+    "regular_bytes": 47707775,
+    "symlinks": 20,
+    "packages": 8
+  },
+  "packages": [
+    {
+      "package": "gettext",
+      "deb_sha256": "8c1f9d43575373ce311f51d00a13afbb4888d63aa559a93a3472f5d77513b60c",
+      "data_headers": 235,
+      "regular_bytes": 5779835,
+      "symlinks": 0
+    },
+    {
+      "package": "gettext-base",
+      "deb_sha256": "5cb39c7acc7125e677ec98d0426a987daf0ce062f749f2a9421b2511f6dd5ab7",
+      "data_headers": 170,
+      "regular_bytes": 516330,
+      "symlinks": 7
+    },
+    {
+      "package": "libgomp1",
+      "deb_sha256": "48fec46bda7f5b1638b9e959889bfbc20491247d402d120bb152687eb48143d7",
+      "data_headers": 9,
+      "regular_bytes": 290392,
+      "symlinks": 2
+    },
+    {
+      "package": "libunistring2",
+      "deb_sha256": "d466bbfe011d764d793c1d9d777cad9c7cf65b938e11598f27408171ad95a951",
+      "data_headers": 12,
+      "regular_bytes": 1813430,
+      "symlinks": 1
+    },
+    {
+      "package": "libxml2",
+      "deb_sha256": "4460e39dda10a815881374217cde08474747cfa018358cd8612c14b390eff53b",
+      "data_headers": 18,
+      "regular_bytes": 1819639,
+      "symlinks": 2
+    },
+    {
+      "package": "libicu72",
+      "deb_sha256": "f7f6f99c6d7b025914df2447fc93e11d22c44c0c8bdd8b6f36691c9e7ddcef88",
+      "data_headers": 24,
+      "regular_bytes": 37014032,
+      "symlinks": 6
+    },
+    {
+      "package": "liblzma5",
+      "deb_sha256": "f96d8876b53ec89d76a992bc199679b818cf518225a768954d9451fb556a4eb7",
+      "data_headers": 15,
+      "regular_bytes": 319775,
+      "symlinks": 1
+    },
+    {
+      "package": "zlib1g",
+      "deb_sha256": "d7dd1d1411fedf27f5e27650a6eff20ef294077b568f4c8c5e51466dc7c08ce4",
+      "data_headers": 12,
+      "regular_bytes": 154342,
+      "symlinks": 1
+    }
+  ],
+  "current_runtime20_and_native_leases_match": true,
+  "actual_native_phases": {
+    "version_exit": 0,
+    "positive_PO_MO_exit": 0,
+    "bad_PO_exit": 1,
+    "translated_hello": "bonjour \u00e9",
+    "MO_sha256": "a12e1cc3fc08f6edc873cdd5ffd0603b82224ff3dbbc6d003f6f6867c716e452"
+  },
+  "all_actual_logs_hash_size_match": true,
+  "own_native_executions": 0,
+  "own_real_data_extractions": 0,
+  "HOST_INSTALL": false,
+  "PACKAGE_INSTALL": false,
+  "PROJECT_INSTALL": "NOTRUN",
+  "GitV3_runs": 0,
+  "SUT_runs": 0,
+  "CI_run_claim": false,
+  "native_family_closed_claim": false,
+  "RC_qualification": false,
+  "publication_authority": false,
+  "limits": "Tool-only genuine root result; readonly audit is no new runtime execution/startup authorization; no fullGit/85/300/Windows/owner/allIO/install/release credit",
+  "public_exclusions": "No keys/metadata/debs/binaries/rawruntime/env/logs/Gitobjects"
+}

@@ -1,0 +1,97 @@
+"""Read actual source/native/control bytes and seal diagnostic5 before review."""
+import ast,hashlib,json,os,ssl,stat,sys
+from pathlib import Path
+B=Path('/workspace/work/rc070/publisher-root-cause-diagnostic');M=Path('/workspace/work/rc070/publisher-carrier')
+sys.path.insert(0,str(M/'scripts'));sys.path.insert(0,str(B))
+from rc_native_probe_restore import read_regular,sha,git,whole_source
+from rc_native_probe import FILES
+from rc_native_probe_kernel import identity
+from diagnostic_owner import RUNTIME
+def write_new(path,value):
+ with path.open('x')as stream:json.dump(value,stream,ensure_ascii=False,indent=2);stream.write('\n')
+context=json.loads(read_regular(B/'diag-preflight/SOURCE-RESTORATION.json'));P=Path(context['root'])
+assert context['count']==1878 and context['tree']=='b9cfb8a0b58f8e0863c764e50cf3d38920eefeae'
+assert whole_source(P,context['rows'])==context['source']
+assert git(P,'rev-parse','HEAD').decode().strip()==context['private_commit']
+assert sha(git(P,'ls-files','--stage','-z'))==context['index_sha256']
+assert git(P,'status','--porcelain','--untracked-files=all')==b''
+assert json.loads(read_regular(B/'diag-preflight/NATIVE-PRECONDITION.json'))['passed']is True
+assert git(M,'status','--porcelain','--untracked-files=all')==b''
+carrier_head=git(M,'rev-parse','HEAD').decode().strip();carrier_tree=git(M,'write-tree').decode().strip()
+assert carrier_head=='a935f0d8f81901a0974b5b0d4a59c98d7765b8a1'and carrier_tree=='37109f95d52f7a18ef79b0bf085568666c078fe5'
+tracked=git(M,'ls-tree','-rz','--full-tree','HEAD').split(b'\0')[:-1];assert len(tracked)==1860
+carrier_rows=[]
+for record in tracked:
+ header,rel=record.split(b'\t');mode,kind,blob=header.decode().split();assert kind=='blob'and mode in('100644','100755')
+ path=M/os.fsdecode(rel);raw=read_regular(path);actual=hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()
+ assert actual==blob
+ carrier_rows.append(dict(path=os.fsdecode(rel),git_mode=mode,physical_mode=stat.S_IMODE(path.stat().st_mode),bytes=len(raw),sha256=sha(raw),blob=blob))
+write_new(B/'CARRIER-ALL1860-VERIFY.json',dict(passed=True,head=carrier_head,tree=carrier_tree,clean=True,count=len(tracked),rows=carrier_rows))
+symbols=[('scripts/rc_publication_github.py',n)for n in('_request','_safe','response','_mutation_result','_authenticate')]
+symbols += [('scripts/rc_publication_native_admission_fixture.py',n)for n in('_native_session','_pending_fence')]
+symbols += [('scripts/rc_publication_executor.py',n)for n in('_failure','run_until_pause')]
+symbols += [('scripts/rc_publication_final_admission_cases.py','test_entry_and_direct_sinks_remain_effect_free')]
+symbols += [('scripts/rc_publication_https_fixture.py',n)for n in('connect','_handle')]
+proof=[]
+for rel,name in symbols:
+ raw=read_regular(P/rel);node=[n for n in ast.walk(ast.parse(raw))if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))and n.name==name];assert len(node)==1
+ assert sha(raw)==context['source'][rel]['sha256']
+ proof.append(dict(path=rel,symbol=name,source_sha256=sha(raw),AST_sha256=sha(ast.dump(node[0],include_attributes=False).encode()),original_body_unchanged=True))
+owner=(B/'diagnostic_owner.py').read_text();original=(M/'scripts/rc_native_probe_owner.py').read_text()
+changes=[("BOUNDS = {'diagnostic5': 1800}","BOUNDS = {'necessary85': 1800, 'original300': 7200}"),
+ ('def diagnostic_run_owned(', 'def run_owned('),
+ ('assert len(inventory) == len(set(inventory)) == 1',"assert len(inventory) == len(set(inventory)) == (85 if name=='necessary85' else 300)"),
+ ("str(Path(__file__).with_name('diagnostic_worker.py'))",'str(runner_path)')]
+for old,new in changes:assert owner.count(old)==1;owner=owner.replace(old,new)
+assert ast.dump(ast.parse(owner),include_attributes=False)==ast.dump(ast.parse(original),include_attributes=False)
+write_new(B/'AST-SOURCE-TRUTH.json',dict(source=proof,external_controller_exact_four_changes_to_original=True,
+ controller_whole_run_owned_AST_not_original=True,original_receipt_gate_AST_equal=True,temporary_live_bindings=9,
+ dynamic_auth_original_callable_identity_per_request=True,bootstrap_actual_initial_callable_after_runner_cleanup=True,
+ original_production_catch_and_finally_AST_unchanged=True,new_observer_AST_not_original=True,
+ old_observed_request_sendall_finish_AST_changed=True,old_observed_fixture_handle_AST_changed=True,old_other_hook_function_AST_not_claimed_wholeowner=True,
+ original_method_scope='Only exact original FinalAdmission method1, shared original pendingfence three kinds',
+ server_correlation_only_after_recv_delegate=True,client_write_pin_provenance='actualconnect_thislive_request_sameSSLobject',
+ postwrite_current_endpoint_UNKNOWN_independent_of_write_timestamps=True,
+ uncovered=['stream.read','inline_expressions','reader.check/active','SSLwrap internals','other close error causes']))
+worker_sha=sha(read_regular(B/'diagnostic_worker.py'))
+threadlocal=json.loads(read_regular(B/'ORDINARY-THREADLOCAL-REPAIR-CONTROLS-v1.json'));assert threadlocal['passed']and threadlocal['controls']==10 and threadlocal['worker_sha256']==worker_sha
+controls={}
+for name,count in [('ORDINARY-MUTATION-CONTROLS-v5.json',76),('ORDINARY-AUTH-CONTROLS-v7.json',9),('ORDINARY-ROOT-CAUSE-CONTROLS-v5.json',43)]:
+ value=json.loads(read_regular(B/name));assert value['passed']and value['controls']==count and value['source_sha256']==worker_sha
+ controls[name]=dict(controls=count,source_sha256=worker_sha,passed=True,component_scope=value['scope'])
+owned=json.loads(read_regular(B/'ORDINARY-OWNED-TLS-CONTROLS-v5.json'));assert owned['passed']and owned['echild']and not owned['family']
+assert owned['component']['controls']==6 and owned['component']['worker_sha256']==worker_sha and owned['component']['original_method_runs']==0
+assert owned['observed']['code']==os.CLD_EXITED and owned['observed']['status']==0 and owned['held']['state']=='Z'
+native=json.loads(read_regular(B/'ORDINARY-NATIVE-CONTROLS.json'));assert native['passed']and len(native['controls'])==7 and native['SUT_runs']==0
+write_new(B/'LOCAL-CONTROLS-SAFE-SUMMARY.json',dict(original_method_runs=0,current_worker_sha256=worker_sha,
+ hook_controls=controls,real_owned_TLS_components=6,owned_TLS_natural_exit=0,owned_TLS_held_created_identity=True,
+ owned_TLS_native_ECHILD=True,owned_TLS_family_empty=True,ordinary_kernel_controls=7,ordinary_threadlocal_getset_close_checks=10,old_c2ec_preseal_independent_STOP_preserved=True,
+ real_TLS_namespace='original HTTPSFixture TLS component plus explicitly controlled issuer-shaped namespace; not original ArtifactTLS issuer proof',
+ preserved_failures=['v1 close-cancel primitives','realTLS closed-client metadata','realTLS owner-rebound association','ownedTLSv3 postwrite liveendpoint recheck'],
+ final_bootstrap_boundary='first setter/mismatch/cancel failure remains INVALID even when final initialcallable restore succeeds',
+ run_owned_automatic_timeout_cancel='NOTRUN',original85='FAIL_83SUCCESS_2FAIL_RETAINED',original300='NOTRUN',CI=False,FINAL=False,release_authorized=False))
+assert json.loads(read_regular(B/'check-spec04.json'))['structuredContent']['passed']is True
+argv=json.loads(read_regular(Path('/workspace/work/rc070/publisher-final-fence-diagnostic/EXACT-LAUNCH-ARGV.json')))
+argv['argv'][-1]=str(B/'diagnostic-launch.py');argv['cwd']=str(B);argv['stdout']=str(B/'diagnostic5-owner.stdout.log');argv['stderr']=str(B/'diagnostic5-owner.stderr.log')
+assert not (B/'diagnostic5-once').exists()and not Path(argv['stdout']).exists()and not Path(argv['stderr']).exists()
+write_new(B/'EXACT-LAUNCH-ARGV.json',argv)
+files={}
+for path in sorted(B.rglob('*')):
+ if path.is_dir()or '.git'in path.relative_to(B).parts:continue
+ assert not path.is_symlink();raw=read_regular(path)
+ files[str(path)]=dict(bytes=len(raw),sha256=sha(raw),mode=stat.S_IMODE(path.stat().st_mode))
+for rel in FILES:
+ path=M/rel;raw=read_regular(path);files[str(path)]=dict(bytes=len(raw),sha256=sha(raw),mode=stat.S_IMODE(path.stat().st_mode))
+files[str(Path(__file__))]=dict(bytes=len(Path(__file__).read_bytes()),sha256=sha(Path(__file__).read_bytes()),mode=stat.S_IMODE(Path(__file__).stat().st_mode))
+seal=dict(SUT_runs=0,real_TLS_components_executed=True,profile='diagnostic5',inventory_count=1,
+ inventory=['rc_publication_final_admission_cases.FinalAdmissionCases.test_entry_and_direct_sinks_remain_effect_free'],
+ files=files,carrier_commit=carrier_head,carrier_tree=carrier_tree,source_tree=context['tree'],source_count=1878,
+ runtime={p:identity(p)for p in RUNTIME},stdlib_ssl_source=identity(ssl.__file__),
+ fixture=identity('/workspace/work/rc070/publisher-review/glib-0.18.5.crate'),current_worker_sha256=worker_sha,
+ ordinary_hook_checks=controls,real_owned_TLS_component_checks=6,ordinary_kernel_checks=7,ordinary_threadlocal_getset_close_checks=10,old_c2ec_preseal_independent_STOP_preserved=True,
+ manual_risk='CRITICAL_disclosed; authHIGH110; new/stdlibUNKNOWN_not0',temporary_live_bindings=9,
+ per_request_dynamic_auth=True,automatic_owned_timeout_cancel='NOTRUN',independent_startup_review='PENDING',
+ original85='FAIL_83SUCCESS_2FAIL_RETAINED',original300='NOTRUN',diagnostic4='FAIL_BrokenPipe_thisrun_SERVERcauseUNKNOWN',
+ CI=False,FINAL=False,release_authorized=False)
+write_new(B/'PRELAUNCH-SEAL.json',seal)
+print(json.dumps(dict(files=len(files),seal_sha256=sha((B/'PRELAUNCH-SEAL.json').read_bytes()),launcher_sha256=sha((B/'diagnostic-launch.py').read_bytes()),source_sha256=worker_sha,SUT_runs=0)))

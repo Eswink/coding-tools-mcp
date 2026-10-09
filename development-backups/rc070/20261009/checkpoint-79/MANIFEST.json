@@ -1,0 +1,87 @@
+{
+  "scope": "SOURCE_ONLY_NEWFINITE_DESIGN; codeNOTAUTHORED/nativeNOTRUN/peerPENDING",
+  "files": [
+    {
+      "path": "source/docs/specs/windows-nt-native-ci-source-delegate/requirements.md",
+      "source_path": "docs/specs/windows-nt-native-ci-source-delegate/requirements.md",
+      "bytes": 6377,
+      "sha256": "84f63816f04c28b30c390b770aa19859a06986301761cc7590d08b237ad21271",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/docs/specs/windows-nt-native-ci-source-delegate/design.md",
+      "source_path": "docs/specs/windows-nt-native-ci-source-delegate/design.md",
+      "bytes": 6579,
+      "sha256": "053acd8421daf72ca0166d9e09d5adbc70722ccaf4bf3315e01071a970ca5dfb",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/docs/specs/windows-nt-native-ci-source-delegate/tasks.md",
+      "source_path": "docs/specs/windows-nt-native-ci-source-delegate/tasks.md",
+      "bytes": 1612,
+      "sha256": "b6068bdea6518fd76daa95b5c1de297333cc9cc60123a01c1ab37211b3d786ce",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/SOURCE-DELEGATE-DESIGN-SEAL16.json",
+      "source_path": "work/native-nt-ci-prepare/SOURCE-DELEGATE-DESIGN-SEAL16.json",
+      "bytes": 895,
+      "sha256": "c455b35eac0fc041e7f1a3ac5d4a1764fc9f8dff2ef47765c0c38f1301f9d2e2",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/ATOMIC-JOB-ATTRIBUTE-OFFICIAL-READ13.json",
+      "source_path": "work/native-nt-ci-prepare/ATOMIC-JOB-ATTRIBUTE-OFFICIAL-READ13.json",
+      "bytes": 1168,
+      "sha256": "8da5617510083014b8928a68683766bea7ff8b9e4e93303ade5f0d46344991d7",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/CHECK-SPEC-SOURCE-DELEGATE-SAFE16.json",
+      "source_path": "work/native-nt-ci-prepare/CHECK-SPEC-SOURCE-DELEGATE-SAFE16.json",
+      "bytes": 493,
+      "sha256": "128bb4cc523eb8e9a3e4bf4f281a33110df340364f35c308c84e7b11e98d075c",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/SOURCE-DELEGATE-IMPACT-SAFE19.json",
+      "source_path": "work/native-nt-ci-prepare/SOURCE-DELEGATE-IMPACT-SAFE19.json",
+      "bytes": 822,
+      "sha256": "13fda443412b15763829c8cc92d05916747d96500aa8fc4f2f979c74347cb2ab",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "safe-metadata/SOURCE-DELEGATE-SAFE-STATUS01.json",
+      "source_path": "work/native-nt-ci-prepare/SOURCE-DELEGATE-SAFE-STATUS01.json",
+      "bytes": 859,
+      "sha256": "34994576a7539a0db36c7082510a4444a406e26928e53b7df2365f1f156a2d50",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "README.md",
+      "source_path": null,
+      "bytes": 426,
+      "sha256": "1b5b80d3ffdd129f81aa8795727de4810e31f4524ad5536a3eebf69c11dd53dd",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    },
+    {
+      "path": "SOURCE-STATUS.md",
+      "source_path": null,
+      "bytes": 319,
+      "sha256": "e99dd96725de6f322882c3304c26d87a1d59707ff6ed8f80f34e9d181f46ca7b",
+      "source_posix_mode": "0o600",
+      "git_mode": "metadata-not-git-source"
+    }
+  ],
+  "file_count_excluding_manifest": 10,
+  "total_bytes_excluding_manifest": 19550
+}

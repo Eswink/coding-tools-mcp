@@ -1,0 +1,19 @@
+{
+  "kind": "finite-readonly-native-birth-formal-design",
+  "production_edits": 0,
+  "native_syscalls_executed": [],
+  "original_worker_or_methods_executed": 0,
+  "new_owned_family_root_controls": 0,
+  "native_artifacts": "ABSENT",
+  "kernel_runtime_support": "UNKNOWN not inferred from headers",
+  "ownership_from_PID_or_JSON": false,
+  "preallocation_requirement": "native escrow/FDslots/non-droppable registry beforeclone3; actualrecord remains afterresult/unblockfailure",
+  "semantic_spec_opinion": "independent pre-freeze read PASS honest conditional OPEN; preallocated ownership clarification applied",
+  "final_frozen_byte_review": "PENDING separate append-only outcome",
+  "implementation_or_control_or_SUT_authority": false,
+  "original_full488_and_deadline": "FAIL immutable",
+  "original_command_deadline_coverage": "NOT ESTABLISHED; noactualG in faileddiagnostics",
+  "publisher_private_issuer_sameclient_serverhold_service": "MISSING separate scope",
+  "install_ci_release_rc_qualification": "NONE",
+  "private_host_proc_tls_env_packages_objects": "excluded"
+}

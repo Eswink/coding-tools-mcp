@@ -1,0 +1,8 @@
+{
+  "url": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute",
+  "status": 200,
+  "bytes": 85404,
+  "sha256": "a5bfb12b00eb17031d8329ddbd8a09a35fbe9eece96daf2289e3c6c80df3d882",
+  "excerpt": "PROC_THREAD_ATTRIBUTE_JOB_LIST The lpValue parameter is a pointer to a list of job handles to be assigned to the child process, in the order specified. Supported in Windows 10 and newer and Windows Server&nbsp;2016 and newer. PROC_THREAD_ATTRIBUTE_ENABLE_OPTIONAL_XSTATE_FEATURES The lpValue parameter is a pointer to a DWORD64 value that specifies the set of optional XState features to enable for the new thread. Supported in Windows 11 and newer and Windows Server&nbsp;2022 and newer. [in] lpValue A pointer to the attribute value. This value must persist until the attribute list is destroyed using the DeleteProcThreadAttributeList function . [in] cbSize The size of the attribute value specified by the lpValue parameter. [out, optional] lpPreviousValue This parameter is reserved and must be ",
+  "scope": "officialdocumentresearchonly; attributeAPI/native actualNOTRUN; no createdchild orVMgrant"
+}

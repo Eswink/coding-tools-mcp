@@ -1,0 +1,21 @@
+{
+  "tool": "check_spec",
+  "version": "4.0.1",
+  "raw_sha256": "701797d28c3f5cbabd3fbf6b545e8a04f1670ddda92615505cd0b0b00652cb2d",
+  "actual_structuredContent": {
+    "passed": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": [],
+    "frIds": [
+      "FR-1",
+      "FR-2",
+      "FR-3",
+      "FR-4",
+      "FR-5",
+      "FR-6"
+    ],
+    "summary": "\u89c4\u683c\u6821\u9a8c\u901a\u8fc7\uff086 \u6761\u9700\u6c42\uff09"
+  },
+  "scope": "Speconly notnative orimplementation"
+}

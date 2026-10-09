@@ -1,0 +1,174 @@
+{
+  "actual_loaded": 1,
+  "actual_executed": 1,
+  "named_success": 0,
+  "FAIL": 1,
+  "ERROR": 0,
+  "elapsed_seconds": 25.691671267000856,
+  "native_elapsed_seconds": 27.578440688999763,
+  "natural_exit_code": 1,
+  "native_echild": true,
+  "native_qualified": false,
+  "native_closed": false,
+  "exact_created_held_Z_verified": true,
+  "original_receipt_gate": "REJECTED_original_gate_no_qualification",
+  "original8_actual_nofollow_reread": true,
+  "original8_seal_sha256": "2b241f965d406f532a8275cbaa73166435f5e2b5488fd5fcd08b1d4f82d9fa8d",
+  "sidecar_actual_nofollow_reread": true,
+  "sidecar_bytes": 7979,
+  "sidecar_sha256": "3090767e0dcc4500a8d2cc7e5fb3f6d71de4035530fb065f1572024b12a38443",
+  "observer_seal_sha256": "bbd9aa4e9c87afdc7f37bca61172394f8c82852c9e748c4026911f5289ba7ca0",
+  "all_2071_prelaunch_files_actual_reread": true,
+  "pure_source_exact_1878_current_unchanged": true,
+  "source_index_runtime_carrier_fixture_runner_ssl_current_unchanged": true,
+  "carrier_all1860_nativeblob_bytes_current_exact": true,
+  "all9_bindings_install_complete_and_restored_reported": true,
+  "observation_valid": true,
+  "activation_enter_count": 4,
+  "activation_exit_count": 4,
+  "activation_boundary_counts": {
+    "original_GitHub._request": 2,
+    "original_SSLSocket.sendall": 2
+  },
+  "activation_kind_counts": {
+    "CreateDraft": 4
+  },
+  "counter_semantics": "completed originaldelegate pairedenterexit recordedaftercall, not realtimebodyentryhook",
+  "inner_delegate_exception_events": 1,
+  "actual_original_failures_safe": [
+    {
+      "operation_kind": "CreateDraft",
+      "operation_id": 2,
+      "wire_code": "fence_blocked",
+      "wire_effect": "none",
+      "result_code": "fence_blocked",
+      "result_effect": "none"
+    },
+    {
+      "operation_kind": "CreateDraft",
+      "operation_id": 2,
+      "wire_code": "adapter_error",
+      "wire_effect": "unknown",
+      "result_code": "adapter_error",
+      "result_effect": "unknown"
+    }
+  ],
+  "underlying_previous_FAILURE_cause": "UNKNOWN_previous_runs_not_borrowed",
+  "actual_inner_safe_exception_events": [
+    {
+      "event": "inner_delegate_exception",
+      "boundary": "original_SSLSocket.sendall",
+      "operation_kind": "CreateDraft",
+      "operation_id": 2,
+      "error_type": "BrokenPipeError",
+      "wire_code": null,
+      "wire_effect": null,
+      "frames": [
+        {
+          "file": "diagnostic_worker.py",
+          "function": "observed_sendall",
+          "line": 503
+        },
+        {
+          "file": "ssl.py",
+          "function": "sendall",
+          "line": 1222
+        },
+        {
+          "file": "ssl.py",
+          "function": "send",
+          "line": 1191
+        }
+      ]
+    }
+  ],
+  "server_timeout_cause": "UNKNOWN_UNTIL_ACTUAL_TIMELINE_JOIN",
+  "actual_TLS_safe_events": [],
+  "actual_auth_safe_spans": [
+    {
+      "event": "actual_authenticate_delegate_completed",
+      "operation_kind": "CreateDraft",
+      "operation_id": 2,
+      "monotonic_start": 15950.433574694,
+      "monotonic_finish": 15952.437559045,
+      "elapsed_seconds": 2.0039843510003266,
+      "outcome": "raised",
+      "error_type": "WireFailure",
+      "frames": [
+        {
+          "file": "diagnostic_worker.py",
+          "function": "authenticate_call",
+          "line": 331
+        },
+        {
+          "file": "mock.py",
+          "function": "__call__",
+          "line": 1139
+        },
+        {
+          "file": "mock.py",
+          "function": "_mock_call",
+          "line": 1143
+        },
+        {
+          "file": "mock.py",
+          "function": "_execute_mock_call",
+          "line": 1204
+        },
+        {
+          "file": "rc_publication_native_admission_fixture.py",
+          "function": "authenticate",
+          "line": 144
+        },
+        {
+          "file": "rc_publication_github.py",
+          "function": "_authenticate",
+          "line": 68
+        },
+        {
+          "file": "rc_publication_github.py",
+          "function": "_need",
+          "line": 37
+        }
+      ]
+    },
+    {
+      "event": "actual_authenticate_delegate_completed",
+      "operation_kind": "CreateDraft",
+      "operation_id": 2,
+      "monotonic_start": 15961.501600334,
+      "monotonic_finish": 15963.831621199,
+      "elapsed_seconds": 2.330020864999824,
+      "outcome": "returned",
+      "error_type": null,
+      "frames": []
+    }
+  ],
+  "auth_binding_outcomes": [
+    {
+      "attempted": true,
+      "restored_original_object": true,
+      "error_types": []
+    },
+    {
+      "attempted": true,
+      "restored_original_object": true,
+      "error_types": []
+    }
+  ],
+  "final_auth_bootstrap_outcome": {
+    "attempted_after_runner_cleanup": true,
+    "restored_initial_actual_object": true,
+    "error_types": []
+  },
+  "original_gate_reject_reason": "original_receipt_gate_rejected_read_actual_native_and_receipt",
+  "uncovered_regions": "stream.read/inline/check/close remain UNKNOWN",
+  "whole85": "FAIL83SUCCESS2FAIL_RETAINED",
+  "diagnostic1": "FAIL_RETAINED",
+  "diagnostic2": "FAIL_RETAINED",
+  "diagnostic3": "PASS_FINITE1_ONLY_OLD_CAUSE_UNKNOWN_RETAINED",
+  "original300": "NOTRUN",
+  "CI": false,
+  "FINAL": false,
+  "release_authorized": false
+}

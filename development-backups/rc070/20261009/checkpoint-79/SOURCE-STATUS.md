@@ -1,0 +1,1 @@
+SOURCE_ONLY_DESIGN_PENDING_PEER. No new manager/adapter code. NativeWindows/Go21/4 NOTRUN; CIchannel UNKNOWN. Originalrun_git has unbounded inner capture and>20descendants; proposed externalboundedbinding remains new behavior. No VM/issuer/owner/publication or RC/install qualification. Earlier freezes notoverwritten.
