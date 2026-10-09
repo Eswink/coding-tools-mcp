@@ -36,3 +36,12 @@ Implement Rust-only overlay, Go original19bb source contract, separate always co
 
 ## Current finite component result
 Controls14 actually15methodsPASS37.493s: originalhelper/nativeGit controls, five actualPS cases (beforePipeline executes actualwholeTryAST with controlled0SUT delegate), actualownedGo1.24.13 original5files/4namedPASS, terminal parser typed/identity/runtime/command/case negatives, fullCLI missing/local-provenance rejection, actual separateworkflow block missing/invalid/WindowsApps pinnedPython rejects. LocalGo record explicitlyLOCAL_OWNED_COMPONENT; no fakeGitHub/Windows/native environment and no realRust positive synthesized. Original exact7 suite FAIL1/8 and initialconsumer symlink extra-rejection FAIL controls12 preserved. Full CLI alone requires actual remoteCI provenance plus actual managementHEAD/source leases. Compiler6b7e actualWindows NOTRUN pending sameheadCI.
+
+## Narrow repair tasks afteractual1c
+1. Preserve actual1cGo producerPASS/consumerFAIL and rawZIP/log; actual owned productionCommandAST failurefirst exit1 despite nativeexit0/logmissing.
+2. New separate exact1ccheckout ownfreshGNimpact/spec before onlyprint(sys.version) after originalassert; fourexistingpaths delta, originalInvoke/resolver/helper/workflow/guard/manifest/other1868 byteexact.
+3. Actual owned3.12 outputPASS, existing3.13 pinFAIL, consumer missinglogstillDENY; peer/seal/cp76/soleparent1c localnormalcommit; root safeimmutablebackup/readback thennormalpush newCI. Native/RC remainsunqualified; no union integration.
+| FR | Tasks | Evidence |
+|---|---|---|
+| FR-8 | 2,3 | Exact inverse/unchangedInvoke |
+| FR-9 | 1,3 | Actual ordinary vectors plus newsameheadCI |

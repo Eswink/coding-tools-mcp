@@ -107,7 +107,7 @@ function Run-SourceCompile {
         throw 'Native/source authorization flags are forbidden in this compiler-only probe.'
     }
     Invoke-CheckedCompiler 'git' @('--version') 'git-version.log' | Out-Null
-    Invoke-CheckedCompiler 'python' @('-c','import sys; assert sys.version_info[:2] == (3, 12), sys.version') 'python-version.log' | Out-Null
+    Invoke-CheckedCompiler 'python' @('-c','import sys; assert sys.version_info[:2] == (3, 12), sys.version; print(sys.version)') 'python-version.log' | Out-Null
     Invoke-ManagerSourceObservation 'Before'
     $ManagerBefore = Join-Path $Output 'management-before.json'
     Invoke-CheckedCompiler 'python' @($Guard,'verify-manager','--manifest',$Manifest,'--manager',$Manager,

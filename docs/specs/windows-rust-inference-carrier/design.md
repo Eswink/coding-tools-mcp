@@ -33,3 +33,10 @@ Rust flow alone admits original19bb then literal cp49 overlay/full6b7e. Go keeps
 | FR-5 | Mode-specific source mapping | Real owned baseline/overlay and new CI |
 | FR-6 | Separate always read-only receipt consumer | ActualGo4 component positive plus typed/identity/command/case negatives |
 | FR-7 | Main/sourceAfter completion finally | Five actualPS ordinary cases and immutable failure-first |
+
+## FR-8/FR-9 finite version evidence
+Actual1c Go original4/source/manager/runtime checks passed but terminalconsumer failed because successful Python assertion produced no stdout and Tee created no file. Change only the original Python-c string to retain originalassert followed by print(sys.version), producing real version bytes. The entire Invoke function remains exact; consumer still denies missing regular logs. Four existing deltas: PS one command-string append and these3spec additive sections. No outputfile creation/FD behavior, runtime/root source change or combinedSUT patch. Actual version CommandAST ordinary fixture invokes the original function, records nativeexit/log existence, then verifies real wrong-pin fails; it is0SUT/0VM and not nativeCI proof.
+| FR | Design | Evidence |
+|---|---|---|
+| FR-8 | Sole post-assert actual version print | Full PS inverse/Invoke unchanged |
+| FR-9 | Actual nativePython ordinary vectors | Failurefirst/after/wrongpin/missing-log denial and newCI |
