@@ -9,12 +9,15 @@ New-Item -ItemType Directory -Force $Output | Out-Null
 $Guard = Join-Path $PSScriptRoot 'windows_foundation_source_guard.py'
 $Manifest = Join-Path $PSScriptRoot 'windows_foundation_source_manifest.json'
 $Observer = Join-Path $PSScriptRoot 'windows_foundation_manager_observation.py'
+$InferenceOverlay = Join-Path $PSScriptRoot 'windows_foundation_inference_overlay.py'
 $Receipt = [ordered]@{ mode=$Mode; managerCommit=$env:GITHUB_SHA; runId=$env:GITHUB_RUN_ID;
-    pureSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
-    nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; managerObservationFailed=$false; passed=$false }
+    pureSutTree=$(if ($Mode -ceq 'rust') {'6b7e33c45c5e56340b1cfb81a7d304c6c60cf23f'} else {'19bb292004e0fd4ed02374b35bcd2f22469779f0'}); baselineSutTree='19bb292004e0fd4ed02374b35bcd2f22469779f0'; qualification='SOURCE_ONLY_BLOCKED';
+    nativePositive='NOTRUN'; compiler='NOTRUN'; sourceBaseline=$null; sourceBefore=$null; sourceAfter=$null; managerSourceBefore=$null; managerSourceAfter=$null; commands=@(); runtime=@{}; managerObservationFailed=$false; passed=$false }
 
 $ObservationCancellation = $null
+$SourceCancellation = $null
 $PrimaryFailure = $null
+$DelegateHandled = $false
 
 function Resolve-FoundationApplication([string]$Executable) {
     $Requested = $Executable
@@ -113,7 +116,14 @@ function Run-SourceCompile {
     $Before = Join-Path $Output 'source-before.json'
     Invoke-CheckedCompiler 'python' @($Guard,'restore','--manifest',$Manifest,'--manager',$Manager,
         '--destination',$Destination,'--receipt',$Before) 'source-restore.log' | Out-Null
-    $Receipt.sourceBefore = Get-Content -Raw $Before | ConvertFrom-Json
+    $Receipt.sourceBaseline = Get-Content -Raw $Before | ConvertFrom-Json
+    if ($Mode -ceq 'rust') {
+        $Receipt.sourceOverlayStarted = $true
+        $CandidateBefore = Join-Path $Output 'candidate-source-before.json'
+        Invoke-CheckedCompiler 'python' @($InferenceOverlay,'apply','--manifest',$Manifest,'--manager',$Manager,
+            '--destination',$Destination,'--receipt',$CandidateBefore) 'candidate-source-overlay.log' | Out-Null
+        $Receipt.sourceBefore = Get-Content -Raw $CandidateBefore | ConvertFrom-Json
+    } else { $Receipt.sourceBefore = $Receipt.sourceBaseline }
     Push-Location $Destination
     try {
         if ($Mode -eq 'go') {
@@ -172,23 +182,60 @@ function Run-SourceCompile {
 try {
     Run-SourceCompile
     $Receipt.passed = $true
+    $DelegateHandled = $true
 } catch {
     $PrimaryFailure = $_.Exception
     $Receipt.error = $_.Exception.Message
+    if ($Receipt.Contains('sourceOverlayStarted') -and
+        ($_.Exception -is [System.Management.Automation.PipelineStoppedException] -or
+         $_.Exception -is [System.OperationCanceledException])) {
+        $SourceCancellation = $_.Exception
+        $Receipt.passed = $false
+        $Receipt.sourceCancellation = $_.Exception.GetType().FullName
+    }
     if ($Receipt.compiler -eq 'RUNNING') { $Receipt.compiler = 'ACTUAL_FAILURE' }
+    $DelegateHandled = $true
 } finally {
-    if (Test-Path (Join-Path $Destination '.git/foundation-candidate.index')) {
-        try {
-            $After = Join-Path $Output 'source-after.json'
-            Invoke-CheckedCompiler 'python' @($Guard,'verify','--manifest',$Manifest,'--destination',$Destination,
-                '--receipt',$After) 'source-after.log' | Out-Null
-            $Receipt.sourceAfter = Get-Content -Raw $After | ConvertFrom-Json
-            if ($null -eq $Receipt.sourceBefore -or
-                $Receipt.sourceAfter.source_digest -cne $Receipt.sourceBefore.source_digest) {
-                throw 'Source before/after digest differs or before was not admitted.'
+    $DelegateInterrupted = -not $DelegateHandled
+    if ($DelegateInterrupted) {
+        $Receipt.passed = $false
+        $Receipt.delegateInterruptedUnknown = $true
+    }
+    $SourceAfterHandled = $false
+    $SourceGuardInterrupted = $DelegateInterrupted
+    try {
+        if (Test-Path (Join-Path $Destination '.git/foundation-candidate.index')) {
+            try {
+                $After = Join-Path $Output 'source-after.json'
+                if ($Mode -ceq 'rust') {
+                    Invoke-CheckedCompiler 'python' @($InferenceOverlay,'verify','--manifest',$Manifest,'--manager',$Manager,'--destination',$Destination,
+                        '--receipt',$After) 'source-after.log' | Out-Null
+                } else {
+                    Invoke-CheckedCompiler 'python' @($Guard,'verify','--manifest',$Manifest,'--manager',$Manager,'--destination',$Destination,
+                        '--receipt',$After) 'source-after.log' | Out-Null
+                }
+                $Receipt.sourceAfter = Get-Content -Raw $After | ConvertFrom-Json
+                if ($null -eq $Receipt.sourceBefore -or
+                    $Receipt.sourceAfter.source_digest -cne $Receipt.sourceBefore.source_digest) {
+                    throw 'Candidate source before/after digest differs or before was not admitted.'
+                }
+            } catch {
+                $Receipt.passed=$false; $Receipt.sourceAfterError=$_.Exception.Message
+                if ($_.Exception -is [System.Management.Automation.PipelineStoppedException] -or
+                    $_.Exception -is [System.OperationCanceledException]) {
+                    $SourceCancellation = $_.Exception
+                    $Receipt.sourceAfterCancellation = $_.Exception.GetType().FullName
+                }
             }
-        } catch { $Receipt.passed=$false; $Receipt.sourceAfterError=$_.Exception.Message }
-    } else { $Receipt.passed=$false; $Receipt.sourceAfterError='No admitted source existed; compiler NOTRUN.' }
+        } else { $Receipt.passed=$false; $Receipt.sourceAfterError='No admitted source existed; compiler NOTRUN.' }
+        $SourceAfterHandled = $true
+    } finally {
+        if (-not $SourceAfterHandled) {
+            $Receipt.passed = $false
+            $SourceGuardInterrupted = $true
+            $Receipt.sourceAfterInterruptedUnknown = $true
+            $Receipt.sourceAfterError = 'Required source-after did not finish; original native host signal propagates and completion is UNKNOWN.'
+        }
     try {
         $ManagerAfter = Join-Path $Output 'management-after.json'
         Invoke-CheckedCompiler 'python' @($Guard,'verify-manager','--manifest',$Manifest,'--manager',$Manager,
@@ -199,10 +246,10 @@ try {
             throw 'Management seven source bytes/modes changed or before was not admitted.'
         }
     } catch { $Receipt.passed=$false; $Receipt.managementAfterError=$_.Exception.Message }
-    if ($null -eq $ObservationCancellation) {
+    if ($null -eq $ObservationCancellation -and $null -eq $SourceCancellation -and -not $SourceGuardInterrupted) {
         Invoke-ManagerSourceObservation 'After'
     } else {
-        $Receipt.managerObservationAfterSkipped = 'Before observation cancelled; no new diagnostic child.'
+        $Receipt.managerObservationAfterSkipped = 'Before observation or source guard cancelled/interrupted; no new diagnostic child.'
     }
     foreach ($Executable in $Receipt.runtime.Keys) {
         try {
@@ -224,6 +271,24 @@ try {
     }
     if ($Receipt.managerObservationFailed) { $Receipt.passed = $false }
     $Receipt | ConvertTo-Json -Depth 12 | Set-Content -Encoding utf8 (Join-Path $Output 'compiler-result.json')
+    }
+}
+if ($null -ne $SourceCancellation) {
+    $Failures = [System.Collections.Generic.List[System.Exception]]::new()
+    foreach ($Failure in @($PrimaryFailure, $SourceCancellation, $ObservationCancellation)) {
+        if ($null -ne $Failure) {
+            $AlreadyPresent = $false
+            foreach ($ExistingFailure in $Failures) {
+                if ([Object]::ReferenceEquals($ExistingFailure, $Failure)) { $AlreadyPresent = $true }
+            }
+            if (-not $AlreadyPresent) { $Failures.Add($Failure) }
+        }
+    }
+    if ($Failures.Count -gt 1) {
+        throw [System.AggregateException]::new('Original primary and source/observation cancellations were all preserved.',
+            [System.Exception[]]$Failures.ToArray())
+    }
+    throw $SourceCancellation
 }
 if ($null -ne $ObservationCancellation) {
     if ($null -ne $PrimaryFailure -and -not [Object]::ReferenceEquals($PrimaryFailure, $ObservationCancellation)) {

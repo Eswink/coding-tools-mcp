@@ -1,0 +1,35 @@
+# Strict candidate overlay design
+
+## 概述
+Reuse original source recovery to establish19bb first; overlay exactly one authorized declaration as a separately pinned source stage, then verify the full new candidate around the existing compiler invocation.
+
+## 技术方案
+Original guard/manifest functions remain unchanged. New helper uses original safe nativeGit execution/check_blob/tree_rows primitives without overriding TARGET or patching modules. Immutable public source+fullmanifest hashes and backup commit are literal leases. Native hash-object/update-index/checkout-index only change hcs in the owned disposable SUT customindex; compare new write-tree exactly6b7e.
+
+## Data Flow
+Original manager7 rawHEAD verify -> originalrestore19bb+fullverify -> pinnedbackup nativefetch/show -> validate manifest/source/inverse -> nativecustomindex overlay -> newfull1953before -> original wholecompiler+7tests -> newfull1953after -> originalmanagerAfter -> observerAfter -> original runtimeAfter -> receipt/originalexception.
+
+## Error Handling
+No compiler launch until strict fullcandidate before passes. Once overlay starts, any partial index/file/fetch failure makes newafter fail and final passed=false. Exceptions/cancellation from overlay delegate remain primary; existing finally source/manager/runtime guards and receipt still execute. No nativeIOclose qualification from managedfile or EOF. All new source helper reads use normal contextmanager close and original errors propagate; no diagnostic suppression.
+
+## FR Coverage Matrix
+| FR | Design | Evidence |
+|---|---|---|
+| FR-1 | Unchanged oldguard/manifest, originalbaseline gate | Full byte and AST identity |
+| FR-2 | Literal backup/hash/path lease, onepath customindex | OwnedGit true6b7e and negatives |
+| FR-3 | New whole1953 strict checker | Wrong source/index/path and partial failure denial |
+| FR-4 | Existingcompiler/runtime/manager ordering, newhelper own lease | Sourcepeer plus real exacthead CI |
+
+## 文件结构
+Modify scripts/windows_foundation_source_compile.ps1, .github/workflows/windows-foundation-source-compile.yml and .gitattributes (one new literal helper -text line). Add scripts/windows_foundation_inference_overlay.py, scripts/windows_foundation_inference_overlay_tests.py, these3docs. Existing original7 manager lease list unchanged; PS intentional integration rawHEAD change is verified against newHEAD, not falsely oldrawbyte identical. Newhelper extra sourcelease never substitutes originalmanager7 verification.
+
+## Actual cancellation implementation boundary
+The original source-after block is inside try/finally; required original managerAfter/observer-selection/runtimeAfter/receipt run in that finally even if PipelineStopped bypasses catch. Unfinished sourceAfter is UNKNOWN/denied, never a newtarget after-admission. Catchable source cancellation uses sticky same-object defer/aggregate after receipt; original observer dispatch remains. Original host PipelineStopped propagates rather than being mapped to a fabricated catch result. Sourceguard/manifest remain byteexact, manager7 verifier list/AST unchanged, intentionalPS integration is verified against newmanagementHEAD.
+
+## Independent consumer and mode contract
+Rust flow alone admits original19bb then literal cp49 overlay/full6b7e. Go keeps original19bb before and after with unchanged original guard. After producer, separate always step invokes exact setupPython path and readonly verify-result. Consumer checks typed values, fullsource digests/protected hash, actual managerHEAD/raw7+helper, runtime hashes, native exit records, and fixed regular non-symlink logs<=2MiB; parses exact unique original7Rust/4Go names and commands. It cannot turn producer failure or host-stop false/UNKNOWN into compiler PASS. Main completion marker joins SourceAfter outerfinally marker; both skip new observer on unknown while original cleanup executes.
+| FR | Design | Evidence |
+|---|---|---|
+| FR-5 | Mode-specific source mapping | Real owned baseline/overlay and new CI |
+| FR-6 | Separate always read-only receipt consumer | ActualGo4 component positive plus typed/identity/command/case negatives |
+| FR-7 | Main/sourceAfter completion finally | Five actualPS ordinary cases and immutable failure-first |

@@ -48,6 +48,20 @@ jobs:
         env:
           FOUNDATION_PYTHON_EXECUTABLE: ${{ steps.foundation-python.outputs.python-path }}
         run: ./scripts/windows_foundation_source_compile.ps1 -Mode '${{ matrix.mode }}' -PythonExecutable $env:FOUNDATION_PYTHON_EXECUTABLE
+      - name: Independently deny incomplete or false compiler receipts
+        if: always()
+        shell: pwsh
+        env:
+          FOUNDATION_PYTHON_EXECUTABLE: ${{ steps.foundation-python.outputs.python-path }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $Python = $env:FOUNDATION_PYTHON_EXECUTABLE
+          if ([string]::IsNullOrWhiteSpace($Python) -or -not [System.IO.Path]::IsPathRooted($Python) -or
+              $Python -match '[\\/]Microsoft[\\/]WindowsApps[\\/]' -or
+              -not (Test-Path -LiteralPath $Python -PathType Leaf)) { throw 'Pinned setup-python payload absent; no PATH fallback.' }
+          $Output = Join-Path $env:RUNNER_TEMP 'windows-foundation-probe'
+          & $Python ./scripts/windows_foundation_inference_overlay.py verify-result --mode '${{ matrix.mode }}' --compiler-result (Join-Path $Output 'compiler-result.json') --manifest ./scripts/windows_foundation_source_manifest.json --manager $env:GITHUB_WORKSPACE --destination (Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-19bb2920') --receipt (Join-Path $Output 'terminal-consumer-result.json')
+          if ($LASTEXITCODE -ne 0) { throw 'Independent actual compiler receipt consumer denied.' }
       - name: Preserve actual result and failures
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

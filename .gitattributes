@@ -6,3 +6,4 @@ scripts/windows_foundation_source_manifest.json -text
 docs/specs/windows-foundation-source-compile/requirements.md -text
 docs/specs/windows-foundation-source-compile/design.md -text
 docs/specs/windows-foundation-source-compile/tasks.md -text
+scripts/windows_foundation_inference_overlay.py -text
