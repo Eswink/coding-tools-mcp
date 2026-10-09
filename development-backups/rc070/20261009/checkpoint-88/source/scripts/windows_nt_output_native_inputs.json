@@ -1,0 +1,111 @@
+{
+  "schema": 1,
+  "scope": "ordinary actual NT output API CI controls only; not VM/RunBinding/publisher/issuer grant",
+  "repository": "Eswink/coding-tools-mcp",
+  "base_commit": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "source_guard_sha256": "71aaba07443ba0ace608f8a73e0996df839f6c189e866ee949eb4dd21e4a4073",
+  "source_manifest_sha256": "45cc3e94fd4eceb78184230740d293b24f576650927168b5855c947689e999ec",
+  "original_v12_sha256": "5f46773d1b67d931532144cb077d8d792a9a3f0e3cc0feb3daa91280ec8bfe9f",
+  "native_source": {
+    "pure_original_tree": "19bb292004e0fd4ed02374b35bcd2f22469779f0",
+    "pure_original_count": 1953,
+    "prospective_native_sut_tree": "d86ece313011780ae408092bc2d1e37b05373e75",
+    "prospective_native_sut_count": 1954,
+    "overlay_source_commit": "8625c6117b3840db9f67565cac1bc3ef1fff4464",
+    "overlay_backup_path": "development-backups/rc070/20261009/checkpoint-61/source/services/windows-vm-broker/guest_workspace_output_nt_boundary_native_test.go",
+    "overlay_sut_path": "services/windows-vm-broker/guest_workspace_output_nt_boundary_native_test.go",
+    "overlay_mode": "100644",
+    "overlay_bytes": 13563,
+    "overlay_sha256": "048c82289482e11ece77c8dd6c74f9df33ad897785a140cb0fe0692ad5c38200",
+    "overlay_blob": "766f5ae7a6c34fb287382f79893428227ecf9190",
+    "state": "prospective source-only nativeGit tempindex tree; not WindowsCI build/nativeexecution/commit/ref/issuer"
+  },
+  "go": {
+    "version": "go1.24.13",
+    "url": "https://go.dev/dl/go1.24.13.windows-amd64.zip",
+    "bytes": 87295983,
+    "sha256": "40b16bc8f00540a2cb02dff4de72b73e966fdd8d65f95e33d8e4080b48a2459a"
+  },
+  "budgets": {
+    "overall_seconds": 2700,
+    "source_seconds": 300,
+    "acquisition_seconds": 300,
+    "extraction_seconds": 120,
+    "compile_seconds": 600,
+    "ordinary_native_seconds": 120,
+    "discovery_seconds": 60,
+    "go_native_seconds": 600,
+    "go_test_timeout_seconds": 540,
+    "after_seconds": 60,
+    "grace_seconds": 7,
+    "force_seconds": 2,
+    "io_close_seconds": 2,
+    "root_stage_count": 20,
+    "git_helper_count": 320,
+    "git_combined_raw_bytes": 16777216,
+    "per_channel_bytes": 2097152
+  },
+  "selected_entry": {
+    "state": "SOURCE_SELECTED; actualGoWindowsInventory/nativeCI NOTRUN",
+    "go": "go1.24.13",
+    "top_level_count": 21,
+    "top_level_names": [
+      "TestGuestNativeInputChunksActualFullFIDAndCheckedClose",
+      "TestGuestNativeCreateOnlyExistingInputNeverOverwrites",
+      "TestGuestNativeWrongParentFullIDRejectsBeforeCreate",
+      "TestGuestNativeCancellationAndMalformedStreamNeverProduceEvidence",
+      "TestGuestNativeActualCursorTamperPoisonsReadback",
+      "TestGuestNativeControlledUnknownCloseKeepsRawHandleParentAndImmutableBytes",
+      "TestGuestNativeClosingCallerParentLeavesActualOwnedDuplicateLive",
+      "TestGuestNativeOutputFullFIDHashDirectionAndCheckedAllClose",
+      "TestGuestNativeOutputExistingTargetNeverReplaces",
+      "TestGuestNativeOutputSurvivingWriterRejectsStrictFreeze",
+      "TestGuestNativeOutputActualParentPinAndTargetDenyRename",
+      "TestGuestNativeOutputWrongInputFullIDRejectsBeforeCreate",
+      "TestGuestNativeOutputBoundsAndActualCursorTamperRejectData",
+      "TestGuestNativeOutputCancellationRejectsEvidenceAndPreservesEffect",
+      "TestGuestNativeOutputActualFailedCloseRetainsPinsBytesAndRawValue",
+      "TestGuestNativeOutputPanicRetainsRegistryAndRejectsData",
+      "TestGuestNativeOutputBoundaryParentPinExactSharing",
+      "TestGuestNativeOutputBoundaryExclusiveHardlinkCanary",
+      "TestGuestNativeOutputBoundaryReparseCanary",
+      "TestGuestNativeOutputBoundaryKnownCloseCanary",
+      "TestGuestNativeOutputBoundaryFailedCloseQuarantine"
+    ],
+    "required_subtests": [
+      "TestGuestNativeOutputBoundsAndActualCursorTamperRejectData/oversized",
+      "TestGuestNativeOutputBoundsAndActualCursorTamperRejectData/cursor",
+      "TestGuestNativeOutputBoundaryExclusiveHardlinkCanary/regular",
+      "TestGuestNativeOutputBoundaryExclusiveHardlinkCanary/genuine-hardlink"
+    ],
+    "run_regex": "^(TestGuestNativeInputChunksActualFullFIDAndCheckedClose|TestGuestNativeCreateOnlyExistingInputNeverOverwrites|TestGuestNativeWrongParentFullIDRejectsBeforeCreate|TestGuestNativeCancellationAndMalformedStreamNeverProduceEvidence|TestGuestNativeActualCursorTamperPoisonsReadback|TestGuestNativeControlledUnknownCloseKeepsRawHandleParentAndImmutableBytes|TestGuestNativeClosingCallerParentLeavesActualOwnedDuplicateLive|TestGuestNativeOutputFullFIDHashDirectionAndCheckedAllClose|TestGuestNativeOutputExistingTargetNeverReplaces|TestGuestNativeOutputSurvivingWriterRejectsStrictFreeze|TestGuestNativeOutputActualParentPinAndTargetDenyRename|TestGuestNativeOutputWrongInputFullIDRejectsBeforeCreate|TestGuestNativeOutputBoundsAndActualCursorTamperRejectData|TestGuestNativeOutputCancellationRejectsEvidenceAndPreservesEffect|TestGuestNativeOutputActualFailedCloseRetainsPinsBytesAndRawValue|TestGuestNativeOutputPanicRetainsRegistryAndRejectsData|TestGuestNativeOutputBoundaryParentPinExactSharing|TestGuestNativeOutputBoundaryExclusiveHardlinkCanary|TestGuestNativeOutputBoundaryReparseCanary|TestGuestNativeOutputBoundaryKnownCloseCanary|TestGuestNativeOutputBoundaryFailedCloseQuarantine)$",
+    "cwd": "services/windows-vm-broker",
+    "environment": {
+      "GO111MODULE": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "CGO_ENABLED": "0"
+    },
+    "argv": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "-tags=guest",
+      "-run",
+      "^(TestGuestNativeInputChunksActualFullFIDAndCheckedClose|TestGuestNativeCreateOnlyExistingInputNeverOverwrites|TestGuestNativeWrongParentFullIDRejectsBeforeCreate|TestGuestNativeCancellationAndMalformedStreamNeverProduceEvidence|TestGuestNativeActualCursorTamperPoisonsReadback|TestGuestNativeControlledUnknownCloseKeepsRawHandleParentAndImmutableBytes|TestGuestNativeClosingCallerParentLeavesActualOwnedDuplicateLive|TestGuestNativeOutputFullFIDHashDirectionAndCheckedAllClose|TestGuestNativeOutputExistingTargetNeverReplaces|TestGuestNativeOutputSurvivingWriterRejectsStrictFreeze|TestGuestNativeOutputActualParentPinAndTargetDenyRename|TestGuestNativeOutputWrongInputFullIDRejectsBeforeCreate|TestGuestNativeOutputBoundsAndActualCursorTamperRejectData|TestGuestNativeOutputCancellationRejectsEvidenceAndPreservesEffect|TestGuestNativeOutputActualFailedCloseRetainsPinsBytesAndRawValue|TestGuestNativeOutputPanicRetainsRegistryAndRejectsData|TestGuestNativeOutputBoundaryParentPinExactSharing|TestGuestNativeOutputBoundaryExclusiveHardlinkCanary|TestGuestNativeOutputBoundaryReparseCanary|TestGuestNativeOutputBoundaryKnownCloseCanary|TestGuestNativeOutputBoundaryFailedCloseQuarantine)$",
+      "."
+    ],
+    "provenance": "source-selected literal IDs; no compiler/test execution; nativeactualIDs/events/closure/source/runtime/commit/readback mandatory before admission"
+  },
+  "native_activation": "DISABLED_SOURCE_DRAFT; no startuppermission from thisinput",
+  "management_source_paths": [
+    "scripts/windows_nt_output_native_job.py",
+    "scripts/windows_nt_output_native_ci.py",
+    "scripts/windows_nt_output_native_controls.py",
+    "scripts/windows_nt_output_native_manager_controls.py",
+    "scripts/windows_nt_output_native_inputs.json",
+    ".github/workflows/windows-nt-output-native-controls.yml"
+  ]
+}

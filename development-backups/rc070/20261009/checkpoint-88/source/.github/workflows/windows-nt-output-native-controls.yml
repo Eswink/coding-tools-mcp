@@ -1,0 +1,36 @@
+name: NT output ordinary native controls source draft
+on:
+  push:
+    branches: [probe/windows-nt-output-native-20261009-d86ece31]
+permissions:
+  contents: read
+concurrency:
+  group: nt-output-native-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  native:
+    # Source draft only. Activation is a separately reviewed meaningful new head.
+    # This false condition must not be presented as actual native CI execution.
+    if: ${{ false }}
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Exact manager entry remains fail-only until startup review
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $python = (Get-Command python -ErrorAction Stop).Source
+          & $python -B ./scripts/windows_nt_output_native_ci.py
+          if ($LASTEXITCODE -ne 0) { throw "Native manager rejected exit $LASTEXITCODE" }
+      - name: Preserve actual failures and raw evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nt-output-native-${{ github.run_id }}
+          path: ${{ runner.temp }}/windows-nt-output-native
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,29 @@
+{
+  "CI_install_release": "NOTRUN",
+  "ROOTexec": "NOTRUN",
+  "baseline_head": "50ef4b60830c36d4bc1aafdcec3d9b8489a260aa",
+  "baseline_tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+  "bridgeimport": "NOTRUN",
+  "compile": "NOTRUN",
+  "implementation_pending_cases": [
+    "C05",
+    "C06",
+    "C10",
+    "C14"
+  ],
+  "issuer_sameclient_serverheld_service": "MISSING",
+  "native14_cases": "ALL_NOTRUN",
+  "native_factory_kernel_controls": "NOTRUN",
+  "new_symbol_impact": "UNKNOWN_manualHIGH_disclosed_not_zero",
+  "no_fixture_ready_done_or_exitstatus_telemetry": true,
+  "original1": "FAIL_RETAINED_NOT_RERUN",
+  "original488": "FAIL_RETAINED_NOT_RERUN",
+  "protected_actual_native_blob_physical_mode_byte_equality": true,
+  "protected_bytes": 18687392,
+  "protected_inventory_sha256": "3607590bbe5f2920e54d1bfa579a49b240b3e2989bcd811ad8d6b9259efd7087",
+  "protected_source_paths": 1867,
+  "scope": "StageI external source-only initial freeze; no tested production commit",
+  "source_count": 8,
+  "source_only_backup_not_candidate_qualification": true,
+  "source_peer": "PENDING"
+}

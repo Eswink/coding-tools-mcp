@@ -1,0 +1,23 @@
+{
+  "scope": "failure-first ordinary synthetic JSON only",
+  "actual_native_calls": 0,
+  "cases": [
+    {
+      "name": "duplicate-key",
+      "rejected": false
+    },
+    {
+      "name": "false-Test",
+      "rejected": false
+    },
+    {
+      "name": "early-package-pass",
+      "rejected": false
+    },
+    {
+      "name": "output-before-run",
+      "rejected": false
+    }
+  ],
+  "before_source_sha256": "4939cdc4e5adcd7eeaeaf6c0f73b2b8fb910dbe673b582a71e994fc414c0c9ba"
+}

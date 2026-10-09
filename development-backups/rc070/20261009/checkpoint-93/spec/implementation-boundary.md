@@ -1,0 +1,84 @@
+# Minimal independent implementation boundary — proposal and Stage I source status
+
+This is the implementation decision for the existing native-birth specification, not another feature/specification loop. Root must authorize this finite source/ordinary-control scope after independent review. The original SUT, worker, positive assertions, runner, IDs, deadlines, installation lease and default denial remain byte unchanged. No original method or whole488 run is requested.
+
+## Eight source files
+
+| Future external/rc_native_startup_owner file | Responsibility |
+| --- | --- |
+| syscall_x86_64.h | reviewed x86-64 direct syscall ABI, fixed bounds and native owned-FD record |
+| birth_entry.S | raw clone3(CLONE_PIDFD) and child-only blocked-signal/prctl/FD-map/execveat stub; never returns to Python |
+| birth_module.c | outer CPython3.12 extension; preallocated non-droppable native escrow/FD ledger, embedded immutable root image, exact-created-root type, independently attempted once-closes |
+| root_entry.S | bare _start; explicitly reviewed machine entry, no CRT/init/user callbacks |
+| root_collector.c | private native subreaper, fixed LAUNCH/STOP/EMPTY protocol, actual created/adopted pidfd+waitid/reap/own P_ALL ECHILD, bounded root-owned pipe EOF/drain/retirement |
+| owner_adapter.py | uses only actual native-created type; private lifecycle marks writes before syscall, original primary/cancel object preservation and actual native/IO outcome inspection |
+| ordinary_controls.py | isolated owned fixtures/finite real failure-first controls; no original SUT/test/installation code executed |
+| build_source_owner.py | literal compiler/build/ELF/disassembly identity and generated local root-image include; no published binary/authorization |
+
+Generated root ELF, image include, extension, maps and build identity remain private local build evidence, excluded from source-only backups. No source-produced grant/service/installer or production integration is included.
+
+## Explicit minimum mechanism
+
+Preallocate native registry link, escrow and every FD slot before creation. Each actual pipe/memfd/pidfd enters the ledger immediately. The image is compiled from this exact root source, embedded into the extension from the frozen build, copied to an actual owned memfd and sealed against write/grow/shrink/seal mutation, verified by actual full-byte equality/identity/seals. There is no caller-provided executable path, PID, FD number, JSON grant or expected-hash authorization input.
+
+Parent native call blocks catchable signals in its calling thread before raw clone3; flags are CLONE_PIDFD only with SIGCHLD. Child assembly path uses direct syscalls exclusively: verify/set subreaper, private session/FD map, execveat(actual sealed image fd, empty path, fixed argv/env, AT_EMPTY_PATH), or bounded real errno and _exit. No Python/preexec/atfork/allocator/PLT/compiler helper can run in this child. Same kernel-returned created pidfd fills existing escrow before Python return/unblock. Root code verifies subreaper before any LAUNCH. The adapter type represents this genuine creator record and is never a fake Popen reconstructed from PID.
+
+First implementation dispatches only fixed built-in ordinary child fixtures from the same sealed source image: actual early/late startup, real fork/double-fork/setsid, bounded noise, normal finish and signal failure. Root-owned transport and kernel adoption therefore receive real evidence without executing original worker or user commands. Original Python worker integration is a separately authorized later scope. Native collector never dies/gets group-killed before actual family EMPTY; if it dies, attribution remains UNKNOWN. Adoption uses actual own-child waitid on pidfds; proc rows are candidates only, and caller-global ECHILD is not used.
+
+## Literal proposed build argv and available identities
+
+Readonly file identities exist for /usr/bin/x86_64-linux-gnu-gcc-14 SHA a23ecab8ff08f09ad8c80602c2c5df7f49e09c25905cb8975902e101bf72635f; ld.bfd SHA d2766988b6a1b1d1518cdc09242e726d1f24e151e16410ada3092b11ffd9081b; readelf SHA4a387d80a70e6e97ef940a666fab59d5c38e7cf19ff907192fa983cb8505a7de; objdump SHA96afb8521834982d0e711b5d6e9785252bf82129fb0106b93a6bd54d83fae11f. These tools were not executed/qualified. Compiler frontend/as/linker/runtime/header full identity must be sealed from actual build inputs before controls. No PATH shim or system tool replacement.
+
+Outer module ABI is the actual frozen outer Python3.12.14, whose headers exist under /opt/codex/runtimes/codex-primary-runtime/dependencies/python/include/python3.12. Installed system Python3.13 headers/config are absent; the original /usr/bin/python3 worker is untouched and never substituted. Outer module build does not claim compatibility with system3.13.
+
+Proposed literal compiler argv, with only frozen source directory and exclusive owned build directory resolved:
+
+```
+/usr/bin/x86_64-linux-gnu-gcc-14 -std=c11 -O2 -Wall -Wextra -Werror -ffreestanding -fno-builtin -fno-stack-protector -fno-asynchronous-unwind-tables -nostdlib -static -no-pie -Wl,-e,_start,--build-id=none,-Map,ROOT.map root_entry.S root_collector.c -o ROOT.elf
+/usr/bin/x86_64-linux-gnu-gcc-14 -std=c11 -O2 -Wall -Wextra -Werror -shared -fPIC -fno-stack-protector -fno-builtin -I/opt/codex/runtimes/codex-primary-runtime/dependencies/python/include/python3.12 birth_module.c birth_entry.S -Wl,-z,relro,-z,now,--build-id=none,-Map,BRIDGE.map -o _rc_native_birth.cpython-312-x86_64-linux-gnu.so
+```
+
+These commands are specifications, not executed successful builds. Exact root-image embedding step and compiler cc1/as/collect2/linker/source headers/dependency identity are fixed in the future build script; output maps and disassembly must demonstrate no root PT_INTERP/DT_NEEDED/undefined helpers/unreviewed init path and exact child stub direct-syscall instructions. Static flags alone do not prove this.
+
+## Fixed control admission and failure-first scope
+
+Retain .2 READY total (birth+root+fixture readiness), read5, shared stop2, finish2, outer2700/7/2/2 and combined2MiB transport bound; never restart at BOOTREADY or add repeated cleanup budgets. Compiler work is separately bounded build work, not hidden inside READY or an original SUT budget.
+
+First actual support control is one real raw-native birth of the sealed no-LAUNCH root, exact created pidfd ownership check, STOP/terminal/actual stdin and stdout EOF/drain/once-close. ENOSYS, EPERM, unsupported memfd exec/seals, wrong ABI/build/ELF/source or inaccessible own-child kernel proof => BLOCKED, not PASS or fallback. This establishes legal actual support only after root authorizes ordinary validation. Kernel-header constants and binary presence are not support proof.
+
+Then finite ordinary controls must include: real early/pre-BOOTREADY terminal; no LAUNCH; late readiness/shared .2 failure; sticky partial LAUNCH; native exec failure; ordinary already-dispatched fixture; deliberate actual fork/double-fork/setsid/adoption; actual signal termination; unexpected/overlimit output; real EOF missing; close UNKNOWN plus remaining closes attempted; preallocation failure before creation; post-creation Python result/cancel failure with original native record still retained; original primary plus multiple cancel objects. Fault seams belong only to distinctly sealed ordinary-control artifacts, not product issuer/owner controls. No fake pidfd/waitid/ACK/EOF/closed or replacement positive tests.
+
+All actual jobs, source/build/runtime/native identities, raw logs and owned native closure are separately sealed and independently reviewed. Ordinary controls never qualify original1/full488/CI/install/release. Zero original SUT runs in this boundary.
+
+## Proposal-freeze blocking truth and implementation request
+
+At the implementation-request freeze, eight native/adapter/control/build files were absent; tools and outer headers were present, actual compile/kernel support unknown. Fresh graph impact for their new symbols is UNKNOWN/manual HIGH, not zero. Root may authorize only these eight external source files and bounded compiler/byte-inspection work after implementation-precondition review. First candidate native syscall/control execution requires the distinct new compiled source/binary/runtime/argv seal, independent startup ALLOW and root-only unique launch; implementation authorization alone does not authorize controls. Without that authorization, no compiler, clone3/execveat or new family fixture is executed. Publisher actual issuer/same-client/server-held-tag service remains MISSING and is not replaced by this local lifecycle module.
+
+## Exact fourteen ordinary controls and staging
+
+| Case | Future actual ordinary evidence | Required refusal/limit |
+| --- | --- | --- |
+| C01 | genuine sealed no-LAUNCH created root/pidfd, STOP, terminal, owned EOF/drain/close | real ENOSYS/EPERM/exec/seal/ABI unsupported => BLOCKED, no fallback |
+| C02 | explicitly controlled preallocation refusal before birth | zero created child; injected ordinary allocation refusal is labeled, not claimed kernel allocator failure |
+| C03 | genuine post-birth result/cancel failure | prelinked actual native record remains retrievable for real cleanup; no Capsule-success dependency |
+| C04 | genuine early/pre-BOOTREADY root terminal | no-launch birth/entry source proof and actual pidfd/IO needed, not exit alone |
+| C05 | real late fixture READY | shared .2 includes all phases; no deadline restart |
+| C06 | real partial LAUNCH write and cancellation | sticky launch-possible; cannot downgrade from NoG or incomplete frame |
+| C07 | genuine native exec syscall failure | actual errno/terminal, CLOEXEC EOF not fake exec success |
+| C08 | genuine already-dispatched built-in fixture | separate local native result, never original command/DONE proof |
+| C09 | genuine fork/double-fork/setsid and adoption | exact collector own-child pidfds/waitid/reaps/ECHILD, not numeric ancestry grant |
+| C10 | genuine held child signal terminal | collector stays alive until family empty; no group kill including collector |
+| C11 | genuine unexpected and overlimit output | bounded combined2MiB; child transport data cannot forge native EMPTY |
+| C12 | actual missing EOF and close-UNKNOWN paths | refuse closure; attempt remaining real once-closes, no FD-number retry |
+| C13 | primary plus multiple actual cancel objects | preserve all object identities after genuine cleanup attempts |
+| C14 | actual source/seals/foreign or reused handle mismatch | refuse owner/image binding; no PID/Popen reconstruction or fake kernel result |
+
+C02 and deliberate fault seams use only a separate ordinary-control source/build identity and describe precisely the injected boundary; genuine kernel/pipe effects remain actual and unmocked. Controls needing intentionally unknown ownership must retain the original real escrow/independent actual control-owned cleanup handles, never recover authorization by PID. Both positive and negative control outcomes remain local evidence, not an owner permission or release qualification.
+
+Stage I only writes the eight sources and runs root-authorized bounded compilation and byte inspection; no ROOT.elf execution, bridge import with native effects, native selftest or fixture launch. Bridge module import must be effect-free until the explicitly reviewed factory call: no clone3/memfd/pipe/pidfd or process creation at PyInit. Python syntax review uses AST parsing without importing the bridge. Stage II freezes actual source/build/runtime/disassembly/program identities and the literal control argv; independent startup review must ALLOW before root uniquely starts C01 then the finite remaining controls. Unsupported C01 blocks further native cases without widening permissions or changing tools. Original methods/full488 remain outside both stages.
+
+## Stage I actual source status (separate from old proposal freeze)
+
+Root subsequently authorized only these eight independent external sources, finite AST/pure-function controls and bounded compilation/ELF byte inspection after independent source review. The eight source drafts now exist; initial 20 AST/pure protocol/exception-object controls actually exited 0. Protected 1867 original source paths were re-read from real native Git blobs and matched physical 644/755 and exact bytes. No bridge import, root execution, native factory/kernel control, original method, CI/install or release took place.
+
+The built-in fixture protocol currently exposes collector B and genuine-family EMPTY E only, not fixture READY or command DONE/status. C05/C06/C10/C14 need further explicit telemetry/fault-source work and remain IMPLEMENTATION_PENDING; all fourteen native cases are NOTRUN. Successful compiler/byte inspection cannot resolve those gaps, prove kernel support or authorize C01. A failed created-root return/destructor retains its already-linked actual record and live transport in native escrow. UNKNOWN is sticky; missing EMPTY after any possible LAUNCH cannot become closed. Negative root exit 1 is allowed only at its own true P_ALL ECHILD when this single-thread source no longer reads LAUNCH or creates children; it emits no E and offers no command-success evidence.

@@ -1,0 +1,54 @@
+{
+  "scope": "prospective native management SOURCE ONLY tempindex; not commit/ref/CI/native proof",
+  "original7_management_tree": "d40a20a26664ab7868332d7dcbde49e30e83f4b7",
+  "tree": "b6b3986ab3bf9f99b60203f8d1799d0cf9fada41",
+  "paths": 1862,
+  "delta": [
+    {
+      "path": "scripts/windows_nt_output_native_job.py",
+      "mode": "100644",
+      "blob": "9c2f41ab78fc70454b84895ccb8211bf9b7bdb7a",
+      "bytes": 23723,
+      "sha256": "1fb35300315137a07f4ee49bdcbbcd1b77f7b52af9d20fbe552847449144abf8"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_ci.py",
+      "mode": "100644",
+      "blob": "ec78a4c4cb215612d6530cb805ab43196bcc04d7",
+      "bytes": 35150,
+      "sha256": "1cab949f637c69b75a1993a34c944b1dc3bab08070b7a42db7505733867140d9"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_controls.py",
+      "mode": "100644",
+      "blob": "6920cca7b18a6ca46a614584390c3d16663b2a6d",
+      "bytes": 7095,
+      "sha256": "2c5461ec889c4305e1c942a3d2a82ac08dc9a76e61d701dd627ab0a7fb29d6ef"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_manager_controls.py",
+      "mode": "100644",
+      "blob": "6572f08717abb4329d4f1e3ffd8db1901132f97e",
+      "bytes": 12253,
+      "sha256": "aaf5fb8cea9754bbefb3563960b6b1cdd95eeb4656f135867be051dfa85cdbbe"
+    },
+    {
+      "path": "scripts/windows_nt_output_native_inputs.json",
+      "mode": "100644",
+      "blob": "7935be3de85b065b220dcdc1f0c3abd06bfd3529",
+      "bytes": 7395,
+      "sha256": "4d3e81185d81a712816e5c42ee148853d6708945523b007f9effee29a3376ba4"
+    },
+    {
+      "path": ".github/workflows/windows-nt-output-native-controls.yml",
+      "mode": "100644",
+      "blob": "5924d34b62693cb948511fb5cb72d88686d888b2",
+      "bytes": 1371,
+      "sha256": "6104dd857e99fbe0e2567e437527f031254e1bb1f31427d7d5fc0825b7941e2c"
+    }
+  ],
+  "default_HEAD_unchanged": "c60f9667fa8431e27fabbc497c19b4abfef5b965",
+  "original_go_sut_tree_not_this_tree": "d86ece313011780ae408092bc2d1e37b05373e75",
+  "source_specs_not_inserted": 9,
+  "native_api_execution": 0
+}

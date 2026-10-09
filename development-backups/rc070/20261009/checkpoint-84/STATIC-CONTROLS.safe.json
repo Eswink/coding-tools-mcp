@@ -1,0 +1,13 @@
+{
+  "actual_exit_code": 0,
+  "all_passed": true,
+  "bridge_imports": 0,
+  "count": 20,
+  "native_kernel_calls": 0,
+  "not_native14_support": true,
+  "original_sut": 0,
+  "raw_stdout_bytes": 1605,
+  "raw_stdout_sha256": "5d7a885af2dc91ef59c61a0ebd232ac0bae84525421e9d54e5269e2713cba27f",
+  "scope": "Only actual AST/pure parser and exception-object controls",
+  "tool_chunk": "855543"
+}

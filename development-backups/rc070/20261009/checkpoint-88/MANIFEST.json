@@ -1,0 +1,98 @@
+{
+  "scope": "SOURCE_ONLY_CONTROLLER_DRAFT; independentReviewPENDING; nativeAPI0; Go0; CI0",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 490,
+      "sha256": "08bf2b64df4ca73e761b03e7a64245f71fa4d4d03d3bbfe01c65696c659794f4",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "SOURCE-STATUS.md",
+      "bytes": 1223,
+      "sha256": "d61045f2879224ea68e95c89658e3464f2b3a53f256b0cf630e76722d8ea55cb",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/CONTROLLER-SOURCE-PROTECTION34.json",
+      "bytes": 5103,
+      "sha256": "20365ef7f83fe5d32765bcd6ba565ce8e6ddf024d9a8480473222bbeef3df0fa",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/FRESH-CONTROLLER-IMPACT30.json",
+      "bytes": 18362,
+      "sha256": "785d59d4aa0ebf00822271d8efbd90b50ad79bfbe3c63da30b37cb63f3bc20a1",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/JSON-FAILURE-FIRST29.json",
+      "bytes": 477,
+      "sha256": "47702629f973ea9bcd5b6539933938313004047787fcb507889a1e73d441c545",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/ORDINARY-CONTROLS35.json",
+      "bytes": 1875,
+      "sha256": "57660f9755a9a3f370c69307e957ea5f387e9e81909ad9305a8c1938fdabb5d2",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "safe-metadata/PROSPECTIVE-SOURCE-DELTA35.json",
+      "bytes": 2060,
+      "sha256": "a56aefd4af795c60655ab5e9acc493f46ae9adf520012e05370ecb4244fbce42",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/.github/workflows/windows-nt-output-native-controls.yml",
+      "bytes": 1371,
+      "sha256": "6104dd857e99fbe0e2567e437527f031254e1bb1f31427d7d5fc0825b7941e2c",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_ci.py",
+      "bytes": 35150,
+      "sha256": "1cab949f637c69b75a1993a34c944b1dc3bab08070b7a42db7505733867140d9",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_controls.py",
+      "bytes": 7095,
+      "sha256": "2c5461ec889c4305e1c942a3d2a82ac08dc9a76e61d701dd627ab0a7fb29d6ef",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_inputs.json",
+      "bytes": 7395,
+      "sha256": "4d3e81185d81a712816e5c42ee148853d6708945523b007f9effee29a3376ba4",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_job.py",
+      "bytes": 23723,
+      "sha256": "1fb35300315137a07f4ee49bdcbbcd1b77f7b52af9d20fbe552847449144abf8",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    },
+    {
+      "path": "source/scripts/windows_nt_output_native_manager_controls.py",
+      "bytes": 12253,
+      "sha256": "aaf5fb8cea9754bbefb3563960b6b1cdd95eeb4656f135867be051dfa85cdbbe",
+      "source_posix_mode": "0o600",
+      "git_mode": "100644"
+    }
+  ],
+  "count": 13,
+  "bytes": 116577
+}
