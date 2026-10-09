@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "files": [
+    {
+      "path": "INPUT5-FROM-ALTERNATIVE19BB.patch",
+      "git_mode": "100644",
+      "bytes": 13041,
+      "sha256": "de6fc73ee4f9e70dada7be12f64d30a3287ebf35b845ca968a850e39a97de5aa",
+      "blob": "e9ba6cd745b8427778be301b36bc1303db4a9aa2"
+    },
+    {
+      "path": "README.md",
+      "git_mode": "100644",
+      "bytes": 2050,
+      "sha256": "38c1722ace1c814bb52e4b7ea663f546c72c990d1ab1575be76569d2934b808a",
+      "blob": "0afae3c772b25f43144e48aeb33c7fe223379be7"
+    },
+    {
+      "path": "SOURCE-MANIFEST.json",
+      "git_mode": "100644",
+      "bytes": 3747,
+      "sha256": "33008555fbe2fc706d6469131e86d6c19cad36b479a792964bcbf117e9fcd31d",
+      "blob": "51587fa614504bad7608e98661747dd6caa985a7"
+    },
+    {
+      "path": "source/docs/specs/windows-input-data-once/design.md.source",
+      "git_mode": "100644",
+      "bytes": 1239,
+      "sha256": "7f2a307c937769879e5c4bc7c3aac877bd138a0adf5a88f2d76ded401d986133",
+      "blob": "99cc424d29e570fc678f853ed51cecc4ca581f44"
+    },
+    {
+      "path": "source/docs/specs/windows-input-data-once/requirements.md.source",
+      "git_mode": "100644",
+      "bytes": 2299,
+      "sha256": "7763a7a17d5bdfc0ab58314d677f909807db7c9eeeb6f5eb7be193fee4c54fe2",
+      "blob": "42815a43d421fa025f27a2539d0d1b0319483449"
+    },
+    {
+      "path": "source/docs/specs/windows-input-data-once/tasks.md.source",
+      "git_mode": "100644",
+      "bytes": 1132,
+      "sha256": "f438795076e9418426502380c627ae50a9ba8d9bd6834bc83f275b7a98923906",
+      "blob": "06756a3582c2c930889080cd956ec36de10f0129"
+    },
+    {
+      "path": "source/services/windows-vm-broker/transfer.go.source",
+      "git_mode": "100644",
+      "bytes": 5494,
+      "sha256": "a29d443756e783584f42ef2aad9b8bb2f25cf17fe82b72c132475b22ec9236e3",
+      "blob": "1f4432acbe6b44d6bf6969584a69f68d5fca5afa"
+    },
+    {
+      "path": "source/services/windows-vm-broker/transfer_owner_test.go.source",
+      "git_mode": "100644",
+      "bytes": 4065,
+      "sha256": "e691fae89dd8223b0dae56a79c8b45a68d84a609a32d7948dfd5c2d03b8dc160",
+      "blob": "26b087d8e93446e13bead8d5d3b6ac3dd4987681"
+    }
+  ],
+  "source_only": true,
+  "qualification": false
+}

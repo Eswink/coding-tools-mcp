@@ -1,0 +1,12 @@
+# 设计
+
+## 概述
+对应需求：FR-1, FR-2, FR-3, FR-4. The existingvaluebool is copied perstruct andraced; pointersharedstate remedies both. This is an inputDATA scope independent of frozenoutputDATA.
+
+## 技术方案
+transfer.go gains inputConsumptionState containing mutex,consumed andoriginalbinding/hash/length/context anchors. detachedTransfer retains its existingfields for originaltest compatibility and gains onlystatepointer. receiveTransfer creates the state once after existingboundedstream/hash/EOF validation. take denies nilstate, locks sharedstate, checks originalanchors plus currentmetadata, then sets sharedconsumed at the originalsuccessfulhandoff boundary before cloning. Originalwrongbinding failures remain nonconsuming; originaltests are not rewritten. A valuecopy cannot provide changedbinding,payload orcancelcontext to revive/redirect an anchoredowner.
+
+Nativeowners/leases/handleclose andoutputpublication remain untouched. No lifecycle capability is minted by sharedpointer identity.
+
+## 文件结构
+Onlymodified services/windows-vm-broker/transfer.go, new transfer_owner_test.go and these3specs. Everyother1953baseline source staysbyteexact. Failurecontrols andprivateactualrace logs stayprivateevidence.

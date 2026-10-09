@@ -1,0 +1,19 @@
+# Go input DATA shared consumption identity
+
+## 功能概述
+Actual failure-first against original19bb Go transfer.go reproduced ordinaryvaluecopy double consumption and32concurrent callers producing3successes plusrace warnings. This limited source increment fixes DATA consumption only in an independent checkout; the frozenoutput5-path package is unchanged.
+
+## 需求列表
+- FR-1: WHEN a successful input data owner is copied by ordinaryGo structvaluecopy, all copies SHALL share one consumptionidentity; at most one successful byte handoff is permitted.
+- FR-2: WHEN32concurrent callers consume the original and/orvaluecopies, a sharedmutex SHALL serialize validation and handoff without dataraces; every later validattempt rejects after successful consumption.
+- FR-3: The owner SHALL retain exact original9-fieldbinding,payloadhash,length and cancellationcontext in sharedstate; nil/malformed/foreign/corrupt/overcapacity owners SHALLdeny. Failedforeignbinding attempts before successfulconsumption remain retryable to preserve the existingoriginalpositive contract. Cancellation at/after handoffattempt neverreopens consumedstate.
+- FR-4: Existingtransfer_test.go and every other1953baseline source excepttransfer.go SHALL remain byteexact,including protectedwss_workspace_io_tests.rs SHA c9fcdba432c239cc08a090c6cb4256f51b54368cbefb3afac553c1a6c719b9b8. Bytes/pointer/state/context are DATA only and cannot prove nativeIOclosed,allIOretirement,VMownership,writeback,authorization orpublication.
+
+## 非功能需求
+RealGo1.24.13 -race -count1 tests run on actualrepository files under finite120s budget. No fakeharness substitutes Rustwholebuild orWindowsnative. Publicsourcebackup excludes rawlogs,host/proc,env,secrets,toolchaincache andGitobjects.
+
+## 依赖关系
+OriginaltransferBinding,workspaceStream andoriginaltests fromverified19bb1953source; officialworkspace-scopedGo1.24.13. Rustwhole andWindowsnative are blocked/outside this pureGo scope.
+
+## 验收标准
+Failure-first logSHA d8c5738... andactualexit1 are immutable. Freshimpact checkspec precede editing. Original11data tests plusnewsharedcopy/concurrent/foreignretry/contextanchor negatives pass with race detector; independentpeer,detect_changes/gencommit andsafe5-path sourcefreeze required. No RCqualification claimed.
