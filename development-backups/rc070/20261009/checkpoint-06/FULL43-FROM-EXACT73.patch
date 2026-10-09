@@ -1,0 +1,2935 @@
+diff --git a/docs/specs/independent-unqualified-windows/design.md b/docs/specs/independent-unqualified-windows/design.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ba5d0abce80fbbec185d5c4c91f8b1966a151664
+--- /dev/null
++++ b/docs/specs/independent-unqualified-windows/design.md
+@@ -0,0 +1,122 @@
++# 新实现子规格：independent-unqualified-windows / design
++
++关联需求 FR-1, FR-4, FR-6；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 设计文档：windows-foundation-new
++
++## 概述
++
++对应需求 FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, NFR-1, NFR-2, NFR-3。基线是D6+73真实源码；以下是新设计，不是旧40文件内容推断。
++
++## 技术方案
++
++### 技术选型
++
++| 类别 | 选择 | 理由 | 关联需求 |
++|---|---|---|---|
++| 输入 | 复用实际Nt相对open/root authority | 避免字符串路径授权 | FR-1, FR-2 |
++| byte owner | 有限Vec块、非Clone结构、显式独立复制 | 保持原输入与detach并存 | FR-2, FR-3 |
++| transfer | SHA256/有界identity/offset状态 | 仅数据契约 | FR-3 |
++| owner | 原actual grant和Retained整体owner | 未知状态不提前释放授权 | FR-4 |
++| 输出 | 尚无close issuer，固定拒绝入口 | 缺实际证据不扩大写回 | FR-4 |
++
++### 架构设计
++
++NativeToolHost拥有独立WindowsInputAuthority；WorkspaceRunGrant仍持actual Claim和三scopepermit。InputLease通过authority.acquire持有根与祖先句柄，再逐组件打开输入，opened先登记后验证。读取前后identity,size,cursor必须一致，大小1MiB封顶；ImmutableChunks保持原始字节。transfer生成独立不可变副本，不共享可变文件句柄。不接现有snapshot/rootwork身份作为文件授权。
++
++## 数据模型
++
++| 实体 | 内容 | 不变量 |
++|---|---|---|
++| InputLease | root/input owner、original chunks、read cursor/info、poisoned/unknown/retired | 每个handle先注册，关闭未知永不判定完成 |
++| RunBinding | host/profile/caller/source/session/operation/input/output names | 全字段有限，source为actual source SHA；无权限 |
++| InputTransfer | binding/size/hash/独立chunks | 非Clone、只能在checked close后清空 |
++| OutputStage | 无实际issuer，固定默认deny | 数据字段/cleanup诊断不是seal |
++
++## API 设计
++
++| 函数 | 契约 | 需求 |
++|---|---|---|
++| InputLease::prepare(authority,host,profile,relative,deadline,cancelled) | 打开/验证/有界完整读；错误保留已取得资源 | FR-1, FR-2 |
++| InputLease::transfer(binding,deadline,cancelled) | 逐块受限复制到独立owner，与读input路径精确相同 | FR-3 |
++| InputLease::summary/revalidate/retire | 实际根identity/大小/hash；重验；所有handle逆序checked close | FR-2, FR-4 |
++| WindowsInputAuthority production registration | exacthost/profile/context.workspace.root，非snapshot | FR-1 |
++| outputstage deny entry | 未actualcloseissuer永不写文件 | FR-4 |
++
++## 设计决策
++
++### 决策1：运行与资产生产副作用分开（FR-5）
++
++原16assert positive先构造fixture，然后创建Harness，然后只申请exec.run/files.read/files.write。其constructor不能在host尚不存在时创造新stage permission。三scope旧入口只允许消费已由获准的一次性GitHub CI provisioning实际生产、固定原生句柄/根/生命周期、非Clone且单次移交的OwnedBootAssets。registry键只有exact source/runner/configdigest及当前host/request绑定检查，不能构造资源/权限。缺实际owner继续deny。
++
++新增在线unpack/create/scratch副作用必须由单独vm.assets.stage real localticket+actualClaim授权，其实际生产owner在执行时仍持生产Claim/permit，并在绑定同源host/profile/root/session、真实执行Claim后单次移交；执行仍保留独立三scope grant。禁止caller bool、config/env/hash、预先路径、已存在systemid替代actualowner。
++
++具体boot producer与CI bootstrap不在missing40路径中；需要独立有限新增路径、fresh impact、source-qualified compiler及明确image/HCS实验验证。当前foundation不能宣称让原positive通过，native与发布仍BLOCKED。
++
++### 决策2：拒绝以diagnostic作为writeback授权（FR-4）
++
++输出stage缺少实际VM+所有IO+输出资源checkedclose issuer，本增量保留failclosed；不创建synthetic seal。将来producer单独规格，不放宽production默认deny。
++
++## 文件结构
++
++以下40是旧丢失路径身份，本轮将写新内容；总Plan额外三MD规格受同一范围管理。
++
++- docs/specs/independent-unqualified-windows/design.md
++- docs/specs/independent-unqualified-windows/requirements.md
++- docs/specs/independent-unqualified-windows/tasks.md
++- docs/specs/windows-execution-opened-root/design.md
++- docs/specs/windows-execution-opened-root/requirements.md
++- docs/specs/windows-execution-opened-root/tasks.md
++- docs/specs/windows-execution-transfer/design.md
++- docs/specs/windows-execution-transfer/requirements.md
++- docs/specs/windows-execution-transfer/tasks.md
++- docs/specs/windows-owned-workspace-run/design.md
++- docs/specs/windows-owned-workspace-run/requirements.md
++- docs/specs/windows-owned-workspace-run/tasks.md
++- docs/specs/windows-private-workspace-stream/design.md
++- docs/specs/windows-private-workspace-stream/requirements.md
++- docs/specs/windows-private-workspace-stream/tasks.md
++- services/windows-vm-broker/transfer.go
++- services/windows-vm-broker/transfer_identity_linux_test.go
++- services/windows-vm-broker/transfer_identity_windows.go
++- services/windows-vm-broker/transfer_test.go
++- src-tauri/src/tools/cloud_host.rs
++- src-tauri/src/tools/cloud_host/tests.rs
++- src-tauri/src/tools/cloud_host/windows_input.rs
++- src-tauri/src/tools/cloud_host/windows_input_tests.rs
++- src-tauri/src/tools/cloud_host/windows_workspace_tests.rs
++- src-tauri/src/tools/windows_vm.rs
++- src-tauri/src/tools/windows_vm/input/chunk_tests.rs
++- src-tauri/src/tools/windows_vm/input/chunks.rs
++- src-tauri/src/tools/windows_vm/input/lease.rs
++- src-tauri/src/tools/windows_vm/input/mod.rs
++- src-tauri/src/tools/windows_vm/input/owner.rs
++- src-tauri/src/tools/windows_vm/input/publication_tests.rs
++- src-tauri/src/tools/windows_vm/input/tests.rs
++- src-tauri/src/tools/windows_vm/input/transfer.rs
++- src-tauri/src/tools/windows_vm/input/transfer_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/gate.rs
++- src-tauri/src/tools/windows_vm/output_stage/mod.rs
++- src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/nt.rs
++- src-tauri/src/tools/windows_vm/output_stage/owner.rs
++- src-tauri/src/tools/windows_vm/output_stage/tests.rs
++
++## 测试策略
++
++FR-1/2：非法相对名、root host/profile冲突、reparse/hardlink/卷冲突、打开错误注册、读取cursor/size变化、取消/deadline、checkedclose unknown及whole owner保持。
++FR-3：空/1MiB上限、hash、offset、重复结束、identity全字段冲突、Detached owner在originalcheckedclose前不清空；GoLinux仅metadata/state，不原生VM。
++FR-4/5：默认output deny；protected原positive全文字节/16assert/三scope严格守卫；真正一次性Windows positive须在actualproducer存在后运行，不能skip/xfail/改断言。
++FR-6：实际parse仅语法，编译器只在source-qualified一次性GitHub CI；保存全部实际失败，required测试全过后detect_changes/gencommit小步提交。
++
++## 错误处理
++
++同步固定磁盘读返回前不能假称已取消IO；保持wholeowner。prepare/read/revalidate失败poison当前lease，仍需retire。CloseHandle未知不重试rawvalue；既有Retained未知路径保留实际permit/claim/handles/bytes/root/context。
++
++## 安全与兼容
++
++PR98取消10操作和snapshot pause完全保持；生产NativeHost、GuestIO、输出均默认deny。只新增本范围功能和有界测试。四defaultscopes、九prompt/catalog、原positive字节未改变。
++
++## 实施计划
++
++先InputLease/chunks/transfer注册和必要新测试，再Go data-only，再output defaultdeny接线，最后审查producer独立具体scope。不在实现前改source符号；每新符号unknown impact与已有高风险入口impact均保存。无需借历史测试。所有40分组文档保留新实现声明。
+diff --git a/docs/specs/independent-unqualified-windows/requirements.md b/docs/specs/independent-unqualified-windows/requirements.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..b9a8915a50cc98178700c25d0311ed6aabdf063a
+--- /dev/null
++++ b/docs/specs/independent-unqualified-windows/requirements.md
+@@ -0,0 +1,94 @@
++# 新实现子规格：independent-unqualified-windows / requirements
++
++关联需求 FR-1, FR-4, FR-6；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 需求文档：windows-foundation-new
++
++## 功能概述
++
++补齐真实丢失的40路径基础为新实现，复用D6+exact73。新源码不冒充旧hash恢复。原冻结Stage11源码保持不变；本分支从未应用其有兼容阻断的prepare分支。
++
++## 历史经验与坑
++
++实际恢复73路径；40路径只有旧身份，没有字节。历史编译与语法parse不能代替当前类型/测试。
++
++## 术语定义
++
++- InputLease：持有实际根/祖先/文件句柄、原始不可变字节、检查关闭状态的非Clone owner。
++- OwnedBootAssets：实际生产者创建并持有的启动与scratch资源；目前未实现，metadata不是该类型。
++
++## 范围边界
++
++纳入：missing40的21Rust、4Go、15规格路径及本Plan三份总规格。排除：PR98取消动作、snapshot修改、默认权限增加、用户机器原生执行、生产输出issuer、发布宣称。
++
++## 需求列表
++
++### FR-1: Independent actual execution root
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Independent actual execution root，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN a host is constructed THEN execution input SHALL pin its own native WindowsInputAuthority using that exact host/profile/workspace root; no snapshot target/gate provides file authority. IF pinning or exact current binding fails THEN input SHALL deny before native child opens.
++
++### FR-2: Bounded handle-owned immutable input
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Bounded handle-owned immutable input，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN valid relative input is read THEN InputLease SHALL register each opened handle before identity/type/read validation, enforce same fixed volume and single-link regular file, read at most 1MiB in 32KiB chunks, check identity/size/cursor/cancellation/deadline before and after reads, and retain original immutable bytes through checked close. IF close/read state is uncertain THEN whole claim/permit/root/cloud/handles/bytes SHALL remain retained.
++
++### FR-3: Detached bounded data-only transfer
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Detached bounded data-only transfer，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN transfer is requested THEN an immutable detached byte owner SHALL be bound to exact host/profile/caller/source/session/operation/input/output names and SHA256/size; repeated or mismatched session/chunks/offset/end/hash SHALL reject. WHILE native VM/output issuer is absent THEN wire transfer SHALL never authorize native input/VM/output or claim complete installation.
++
++### FR-4: Native owner and closed writeback boundary
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Native owner and closed writeback boundary，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN real workspace execution is claimed THEN the current real three-scope local permit and actual ClaimedDispatch SHALL remain owned through root/cloud work, native read/VM cleanup and all file/native handles. IF any retirement is unknown or panics THEN whole owner SHALL retain all resources; output publication SHALL remain unavailable until a separate actual closed VM+IO+output lease issuer exists.
++
++### FR-5: Three execution scopes versus new asset effects
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Three execution scopes versus new asset effects，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN execution consumes already genuinely provisioned owned boot/scratch assets THEN it SHALL use the original three scopes; the protected positive16assert body and request SHALL remain byteexact. WHEN a NEW archive unpack/create/scratch effect is requested online THEN the distinct operation SHALL consume real vm.assets.stage local ticket plus actual Claim before that effect. IF no concrete owned asset producer exists THEN configuration/path/hash/environment/registry metadata SHALL not create permission and native creation SHALL deny.
++
++### FR-6: Fresh evidence and cancelled boundaries
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Fresh evidence and cancelled boundaries，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN this newly written foundation is validated THEN its tests/compiler/CI SHALL bind exact fresh source revision and remain separate from old40 hashes/historical passes. PR98 cancelled10 and snapshot pause SHALL remain untouched. IF compiler/positive native/production output/install gates have not run THEN status SHALL remain BLOCKED and no tested development commit or final RC completion SHALL be claimed.
++
++## 非功能需求
++
++- NFR-1：单输入1MiB、32KiB块、64路径组件；无无界复制/缓存。
++- NFR-2：权限与数据类型分离；实际owner非Clone/非Deserialize，默认deny。
++- NFR-3：旧positive16assert、三scope请求、四默认scope、九prompt/catalog原字节保留。
++
++## 依赖关系
++
++复用exact73 root/nt/path/retained/owned_run/archive reader、真实authorizer/execution_gate/ClaimedDispatch和现有WorkScope；类型/Windows验证尚未运行。
++
++## 检查清单
++
++- [x] 六条唯一FR关联设计任务。
++- [x] 原样保护、资源关闭失败、取消边界有可测要求。
++- [ ] 新compiler/Windows native positive/输出与安装证据完成。
+diff --git a/docs/specs/independent-unqualified-windows/tasks.md b/docs/specs/independent-unqualified-windows/tasks.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ab8a583b3419d6333ab05b3eea90c1521aba8b9c
+--- /dev/null
++++ b/docs/specs/independent-unqualified-windows/tasks.md
+@@ -0,0 +1,92 @@
++# 新实现子规格：independent-unqualified-windows / tasks
++
++关联需求 FR-1, FR-4, FR-6；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 任务文档：windows-foundation-new
++
++## 任务总览
++
++当前仅context/spec准备；新实现与fresh compiler/native尚未通过。
++
++## 任务列表
++
++- [ ] T1（FR-1, FR-2）：fresh graph/impact、HIGH通知；实际opened root/input owner/lease、boundedchunks，注册current NativeToolHost，原scope权限不改。
++- [ ] T2（FR-3）：Detached InputTransfer exactbinding+1MiB/32KiB边界，新增数据和Windows租约回归测试。
++- [ ] T3（FR-3）：Go纯数据传输状态及实际句柄身份验证，执行available compiler或source-qualified GitHub CI，绝不本机VM。
++- [ ] T4（FR-4）：输出defaultdeny+不存在issuer的逆向测试；whole owner unknown/panic保留。
++- [ ] T5（FR-5）：单独具体CI OwnedBootAssets producer边界/spec；原positive保持byteexact且未producer前BLOCKED。
++- [ ] T6（FR-6）：真实fresh syntax/types/data/Windows necessarytests、peer review、detect_changes/gencommit后小步commit/非强推+真实CI，required未过不宣称tested。
++
++## 测试任务
++
++- [ ] 原positive全文SHA、16assert、三scope与默认权限字节守卫（FR-5, FR-6）。
++- [ ] 1MiB/块限/重复hash-offset身份、data-only无native权限（FR-2, FR-3）。
++- [ ] Windows actualhandle根/卷/link/reparse/cancel/cursor/closeunknown（FR-1, FR-2, FR-4）。
++- [ ] 完整必要compiler和Windows38/组合门禁真实fresh源码（FR-6）。
++- [ ] 原native16assert真实运行无skip/xfail/降级（FR-5）。
++
++## 交付物清单
++
++40新源路径、此Plan3规格、fresh impacts、exact source/patch manifest、真实失败和CI结果、未解门禁列表。
++
++## 验收清单
++
++- [ ] 六FR均有独立真实证据。
++- [ ] check_spec、necessarytests、peer/detect/gencommit全部通过。
++- [ ] RC release/public anonymous install完成前不报告项目完成。
++
++## 需求覆盖矩阵
++
++| 需求 | 任务 | 必要证据 |
++|---|---|---|
++| FR-1 | T1 | actual root conflict/opens |
++| FR-2 | T1,T2 | boundedread/closeunknown |
++| FR-3 | T2,T3 | exactbinding/offset/hash |
++| FR-4 | T4 | output defaultdeny/retained |
++| FR-5 | T5 | protected16assert +actualnative |
++| FR-6 | T6 | fresh CI/type/review |
++
++## 文件变更清单
++
++- docs/specs/independent-unqualified-windows/design.md
++- docs/specs/independent-unqualified-windows/requirements.md
++- docs/specs/independent-unqualified-windows/tasks.md
++- docs/specs/windows-execution-opened-root/design.md
++- docs/specs/windows-execution-opened-root/requirements.md
++- docs/specs/windows-execution-opened-root/tasks.md
++- docs/specs/windows-execution-transfer/design.md
++- docs/specs/windows-execution-transfer/requirements.md
++- docs/specs/windows-execution-transfer/tasks.md
++- docs/specs/windows-owned-workspace-run/design.md
++- docs/specs/windows-owned-workspace-run/requirements.md
++- docs/specs/windows-owned-workspace-run/tasks.md
++- docs/specs/windows-private-workspace-stream/design.md
++- docs/specs/windows-private-workspace-stream/requirements.md
++- docs/specs/windows-private-workspace-stream/tasks.md
++- services/windows-vm-broker/transfer.go
++- services/windows-vm-broker/transfer_identity_linux_test.go
++- services/windows-vm-broker/transfer_identity_windows.go
++- services/windows-vm-broker/transfer_test.go
++- src-tauri/src/tools/cloud_host.rs
++- src-tauri/src/tools/cloud_host/tests.rs
++- src-tauri/src/tools/cloud_host/windows_input.rs
++- src-tauri/src/tools/cloud_host/windows_input_tests.rs
++- src-tauri/src/tools/cloud_host/windows_workspace_tests.rs
++- src-tauri/src/tools/windows_vm.rs
++- src-tauri/src/tools/windows_vm/input/chunk_tests.rs
++- src-tauri/src/tools/windows_vm/input/chunks.rs
++- src-tauri/src/tools/windows_vm/input/lease.rs
++- src-tauri/src/tools/windows_vm/input/mod.rs
++- src-tauri/src/tools/windows_vm/input/owner.rs
++- src-tauri/src/tools/windows_vm/input/publication_tests.rs
++- src-tauri/src/tools/windows_vm/input/tests.rs
++- src-tauri/src/tools/windows_vm/input/transfer.rs
++- src-tauri/src/tools/windows_vm/input/transfer_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/gate.rs
++- src-tauri/src/tools/windows_vm/output_stage/mod.rs
++- src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/nt.rs
++- src-tauri/src/tools/windows_vm/output_stage/owner.rs
++- src-tauri/src/tools/windows_vm/output_stage/tests.rs
++
++总Plan额外三规格 paths docs/specs/windows-foundation-new/{requirements,design,tasks}.md。
+diff --git a/docs/specs/windows-execution-opened-root/design.md b/docs/specs/windows-execution-opened-root/design.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..72b2315c6e936bd3f93dc2f6493c469bc45894d1
+--- /dev/null
++++ b/docs/specs/windows-execution-opened-root/design.md
+@@ -0,0 +1,122 @@
++# 新实现子规格：windows-execution-opened-root / design
++
++关联需求 FR-1, FR-2；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 设计文档：windows-foundation-new
++
++## 概述
++
++对应需求 FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, NFR-1, NFR-2, NFR-3。基线是D6+73真实源码；以下是新设计，不是旧40文件内容推断。
++
++## 技术方案
++
++### 技术选型
++
++| 类别 | 选择 | 理由 | 关联需求 |
++|---|---|---|---|
++| 输入 | 复用实际Nt相对open/root authority | 避免字符串路径授权 | FR-1, FR-2 |
++| byte owner | 有限Vec块、非Clone结构、显式独立复制 | 保持原输入与detach并存 | FR-2, FR-3 |
++| transfer | SHA256/有界identity/offset状态 | 仅数据契约 | FR-3 |
++| owner | 原actual grant和Retained整体owner | 未知状态不提前释放授权 | FR-4 |
++| 输出 | 尚无close issuer，固定拒绝入口 | 缺实际证据不扩大写回 | FR-4 |
++
++### 架构设计
++
++NativeToolHost拥有独立WindowsInputAuthority；WorkspaceRunGrant仍持actual Claim和三scopepermit。InputLease通过authority.acquire持有根与祖先句柄，再逐组件打开输入，opened先登记后验证。读取前后identity,size,cursor必须一致，大小1MiB封顶；ImmutableChunks保持原始字节。transfer生成独立不可变副本，不共享可变文件句柄。不接现有snapshot/rootwork身份作为文件授权。
++
++## 数据模型
++
++| 实体 | 内容 | 不变量 |
++|---|---|---|
++| InputLease | root/input owner、original chunks、read cursor/info、poisoned/unknown/retired | 每个handle先注册，关闭未知永不判定完成 |
++| RunBinding | host/profile/caller/source/session/operation/input/output names | 全字段有限，source为actual source SHA；无权限 |
++| InputTransfer | binding/size/hash/独立chunks | 非Clone、只能在checked close后清空 |
++| OutputStage | 无实际issuer，固定默认deny | 数据字段/cleanup诊断不是seal |
++
++## API 设计
++
++| 函数 | 契约 | 需求 |
++|---|---|---|
++| InputLease::prepare(authority,host,profile,relative,deadline,cancelled) | 打开/验证/有界完整读；错误保留已取得资源 | FR-1, FR-2 |
++| InputLease::transfer(binding,deadline,cancelled) | 逐块受限复制到独立owner，与读input路径精确相同 | FR-3 |
++| InputLease::summary/revalidate/retire | 实际根identity/大小/hash；重验；所有handle逆序checked close | FR-2, FR-4 |
++| WindowsInputAuthority production registration | exacthost/profile/context.workspace.root，非snapshot | FR-1 |
++| outputstage deny entry | 未actualcloseissuer永不写文件 | FR-4 |
++
++## 设计决策
++
++### 决策1：运行与资产生产副作用分开（FR-5）
++
++原16assert positive先构造fixture，然后创建Harness，然后只申请exec.run/files.read/files.write。其constructor不能在host尚不存在时创造新stage permission。三scope旧入口只允许消费已由获准的一次性GitHub CI provisioning实际生产、固定原生句柄/根/生命周期、非Clone且单次移交的OwnedBootAssets。registry键只有exact source/runner/configdigest及当前host/request绑定检查，不能构造资源/权限。缺实际owner继续deny。
++
++新增在线unpack/create/scratch副作用必须由单独vm.assets.stage real localticket+actualClaim授权，其实际生产owner在执行时仍持生产Claim/permit，并在绑定同源host/profile/root/session、真实执行Claim后单次移交；执行仍保留独立三scope grant。禁止caller bool、config/env/hash、预先路径、已存在systemid替代actualowner。
++
++具体boot producer与CI bootstrap不在missing40路径中；需要独立有限新增路径、fresh impact、source-qualified compiler及明确image/HCS实验验证。当前foundation不能宣称让原positive通过，native与发布仍BLOCKED。
++
++### 决策2：拒绝以diagnostic作为writeback授权（FR-4）
++
++输出stage缺少实际VM+所有IO+输出资源checkedclose issuer，本增量保留failclosed；不创建synthetic seal。将来producer单独规格，不放宽production默认deny。
++
++## 文件结构
++
++以下40是旧丢失路径身份，本轮将写新内容；总Plan额外三MD规格受同一范围管理。
++
++- docs/specs/independent-unqualified-windows/design.md
++- docs/specs/independent-unqualified-windows/requirements.md
++- docs/specs/independent-unqualified-windows/tasks.md
++- docs/specs/windows-execution-opened-root/design.md
++- docs/specs/windows-execution-opened-root/requirements.md
++- docs/specs/windows-execution-opened-root/tasks.md
++- docs/specs/windows-execution-transfer/design.md
++- docs/specs/windows-execution-transfer/requirements.md
++- docs/specs/windows-execution-transfer/tasks.md
++- docs/specs/windows-owned-workspace-run/design.md
++- docs/specs/windows-owned-workspace-run/requirements.md
++- docs/specs/windows-owned-workspace-run/tasks.md
++- docs/specs/windows-private-workspace-stream/design.md
++- docs/specs/windows-private-workspace-stream/requirements.md
++- docs/specs/windows-private-workspace-stream/tasks.md
++- services/windows-vm-broker/transfer.go
++- services/windows-vm-broker/transfer_identity_linux_test.go
++- services/windows-vm-broker/transfer_identity_windows.go
++- services/windows-vm-broker/transfer_test.go
++- src-tauri/src/tools/cloud_host.rs
++- src-tauri/src/tools/cloud_host/tests.rs
++- src-tauri/src/tools/cloud_host/windows_input.rs
++- src-tauri/src/tools/cloud_host/windows_input_tests.rs
++- src-tauri/src/tools/cloud_host/windows_workspace_tests.rs
++- src-tauri/src/tools/windows_vm.rs
++- src-tauri/src/tools/windows_vm/input/chunk_tests.rs
++- src-tauri/src/tools/windows_vm/input/chunks.rs
++- src-tauri/src/tools/windows_vm/input/lease.rs
++- src-tauri/src/tools/windows_vm/input/mod.rs
++- src-tauri/src/tools/windows_vm/input/owner.rs
++- src-tauri/src/tools/windows_vm/input/publication_tests.rs
++- src-tauri/src/tools/windows_vm/input/tests.rs
++- src-tauri/src/tools/windows_vm/input/transfer.rs
++- src-tauri/src/tools/windows_vm/input/transfer_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/gate.rs
++- src-tauri/src/tools/windows_vm/output_stage/mod.rs
++- src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/nt.rs
++- src-tauri/src/tools/windows_vm/output_stage/owner.rs
++- src-tauri/src/tools/windows_vm/output_stage/tests.rs
++
++## 测试策略
++
++FR-1/2：非法相对名、root host/profile冲突、reparse/hardlink/卷冲突、打开错误注册、读取cursor/size变化、取消/deadline、checkedclose unknown及whole owner保持。
++FR-3：空/1MiB上限、hash、offset、重复结束、identity全字段冲突、Detached owner在originalcheckedclose前不清空；GoLinux仅metadata/state，不原生VM。
++FR-4/5：默认output deny；protected原positive全文字节/16assert/三scope严格守卫；真正一次性Windows positive须在actualproducer存在后运行，不能skip/xfail/改断言。
++FR-6：实际parse仅语法，编译器只在source-qualified一次性GitHub CI；保存全部实际失败，required测试全过后detect_changes/gencommit小步提交。
++
++## 错误处理
++
++同步固定磁盘读返回前不能假称已取消IO；保持wholeowner。prepare/read/revalidate失败poison当前lease，仍需retire。CloseHandle未知不重试rawvalue；既有Retained未知路径保留实际permit/claim/handles/bytes/root/context。
++
++## 安全与兼容
++
++PR98取消10操作和snapshot pause完全保持；生产NativeHost、GuestIO、输出均默认deny。只新增本范围功能和有界测试。四defaultscopes、九prompt/catalog、原positive字节未改变。
++
++## 实施计划
++
++先InputLease/chunks/transfer注册和必要新测试，再Go data-only，再output defaultdeny接线，最后审查producer独立具体scope。不在实现前改source符号；每新符号unknown impact与已有高风险入口impact均保存。无需借历史测试。所有40分组文档保留新实现声明。
+diff --git a/docs/specs/windows-execution-opened-root/requirements.md b/docs/specs/windows-execution-opened-root/requirements.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..b05e69ccfb3774335fd653069f7750a5450c7617
+--- /dev/null
++++ b/docs/specs/windows-execution-opened-root/requirements.md
+@@ -0,0 +1,94 @@
++# 新实现子规格：windows-execution-opened-root / requirements
++
++关联需求 FR-1, FR-2；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 需求文档：windows-foundation-new
++
++## 功能概述
++
++补齐真实丢失的40路径基础为新实现，复用D6+exact73。新源码不冒充旧hash恢复。原冻结Stage11源码保持不变；本分支从未应用其有兼容阻断的prepare分支。
++
++## 历史经验与坑
++
++实际恢复73路径；40路径只有旧身份，没有字节。历史编译与语法parse不能代替当前类型/测试。
++
++## 术语定义
++
++- InputLease：持有实际根/祖先/文件句柄、原始不可变字节、检查关闭状态的非Clone owner。
++- OwnedBootAssets：实际生产者创建并持有的启动与scratch资源；目前未实现，metadata不是该类型。
++
++## 范围边界
++
++纳入：missing40的21Rust、4Go、15规格路径及本Plan三份总规格。排除：PR98取消动作、snapshot修改、默认权限增加、用户机器原生执行、生产输出issuer、发布宣称。
++
++## 需求列表
++
++### FR-1: Independent actual execution root
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Independent actual execution root，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN a host is constructed THEN execution input SHALL pin its own native WindowsInputAuthority using that exact host/profile/workspace root; no snapshot target/gate provides file authority. IF pinning or exact current binding fails THEN input SHALL deny before native child opens.
++
++### FR-2: Bounded handle-owned immutable input
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Bounded handle-owned immutable input，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN valid relative input is read THEN InputLease SHALL register each opened handle before identity/type/read validation, enforce same fixed volume and single-link regular file, read at most 1MiB in 32KiB chunks, check identity/size/cursor/cancellation/deadline before and after reads, and retain original immutable bytes through checked close. IF close/read state is uncertain THEN whole claim/permit/root/cloud/handles/bytes SHALL remain retained.
++
++### FR-3: Detached bounded data-only transfer
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Detached bounded data-only transfer，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN transfer is requested THEN an immutable detached byte owner SHALL be bound to exact host/profile/caller/source/session/operation/input/output names and SHA256/size; repeated or mismatched session/chunks/offset/end/hash SHALL reject. WHILE native VM/output issuer is absent THEN wire transfer SHALL never authorize native input/VM/output or claim complete installation.
++
++### FR-4: Native owner and closed writeback boundary
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Native owner and closed writeback boundary，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN real workspace execution is claimed THEN the current real three-scope local permit and actual ClaimedDispatch SHALL remain owned through root/cloud work, native read/VM cleanup and all file/native handles. IF any retirement is unknown or panics THEN whole owner SHALL retain all resources; output publication SHALL remain unavailable until a separate actual closed VM+IO+output lease issuer exists.
++
++### FR-5: Three execution scopes versus new asset effects
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Three execution scopes versus new asset effects，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN execution consumes already genuinely provisioned owned boot/scratch assets THEN it SHALL use the original three scopes; the protected positive16assert body and request SHALL remain byteexact. WHEN a NEW archive unpack/create/scratch effect is requested online THEN the distinct operation SHALL consume real vm.assets.stage local ticket plus actual Claim before that effect. IF no concrete owned asset producer exists THEN configuration/path/hash/environment/registry metadata SHALL not create permission and native creation SHALL deny.
++
++### FR-6: Fresh evidence and cancelled boundaries
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Fresh evidence and cancelled boundaries，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN this newly written foundation is validated THEN its tests/compiler/CI SHALL bind exact fresh source revision and remain separate from old40 hashes/historical passes. PR98 cancelled10 and snapshot pause SHALL remain untouched. IF compiler/positive native/production output/install gates have not run THEN status SHALL remain BLOCKED and no tested development commit or final RC completion SHALL be claimed.
++
++## 非功能需求
++
++- NFR-1：单输入1MiB、32KiB块、64路径组件；无无界复制/缓存。
++- NFR-2：权限与数据类型分离；实际owner非Clone/非Deserialize，默认deny。
++- NFR-3：旧positive16assert、三scope请求、四默认scope、九prompt/catalog原字节保留。
++
++## 依赖关系
++
++复用exact73 root/nt/path/retained/owned_run/archive reader、真实authorizer/execution_gate/ClaimedDispatch和现有WorkScope；类型/Windows验证尚未运行。
++
++## 检查清单
++
++- [x] 六条唯一FR关联设计任务。
++- [x] 原样保护、资源关闭失败、取消边界有可测要求。
++- [ ] 新compiler/Windows native positive/输出与安装证据完成。
+diff --git a/docs/specs/windows-execution-opened-root/tasks.md b/docs/specs/windows-execution-opened-root/tasks.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..4436812f23d287a479ef5b70bf15e6e55f2860b6
+--- /dev/null
++++ b/docs/specs/windows-execution-opened-root/tasks.md
+@@ -0,0 +1,92 @@
++# 新实现子规格：windows-execution-opened-root / tasks
++
++关联需求 FR-1, FR-2；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 任务文档：windows-foundation-new
++
++## 任务总览
++
++当前仅context/spec准备；新实现与fresh compiler/native尚未通过。
++
++## 任务列表
++
++- [ ] T1（FR-1, FR-2）：fresh graph/impact、HIGH通知；实际opened root/input owner/lease、boundedchunks，注册current NativeToolHost，原scope权限不改。
++- [ ] T2（FR-3）：Detached InputTransfer exactbinding+1MiB/32KiB边界，新增数据和Windows租约回归测试。
++- [ ] T3（FR-3）：Go纯数据传输状态及实际句柄身份验证，执行available compiler或source-qualified GitHub CI，绝不本机VM。
++- [ ] T4（FR-4）：输出defaultdeny+不存在issuer的逆向测试；whole owner unknown/panic保留。
++- [ ] T5（FR-5）：单独具体CI OwnedBootAssets producer边界/spec；原positive保持byteexact且未producer前BLOCKED。
++- [ ] T6（FR-6）：真实fresh syntax/types/data/Windows necessarytests、peer review、detect_changes/gencommit后小步commit/非强推+真实CI，required未过不宣称tested。
++
++## 测试任务
++
++- [ ] 原positive全文SHA、16assert、三scope与默认权限字节守卫（FR-5, FR-6）。
++- [ ] 1MiB/块限/重复hash-offset身份、data-only无native权限（FR-2, FR-3）。
++- [ ] Windows actualhandle根/卷/link/reparse/cancel/cursor/closeunknown（FR-1, FR-2, FR-4）。
++- [ ] 完整必要compiler和Windows38/组合门禁真实fresh源码（FR-6）。
++- [ ] 原native16assert真实运行无skip/xfail/降级（FR-5）。
++
++## 交付物清单
++
++40新源路径、此Plan3规格、fresh impacts、exact source/patch manifest、真实失败和CI结果、未解门禁列表。
++
++## 验收清单
++
++- [ ] 六FR均有独立真实证据。
++- [ ] check_spec、necessarytests、peer/detect/gencommit全部通过。
++- [ ] RC release/public anonymous install完成前不报告项目完成。
++
++## 需求覆盖矩阵
++
++| 需求 | 任务 | 必要证据 |
++|---|---|---|
++| FR-1 | T1 | actual root conflict/opens |
++| FR-2 | T1,T2 | boundedread/closeunknown |
++| FR-3 | T2,T3 | exactbinding/offset/hash |
++| FR-4 | T4 | output defaultdeny/retained |
++| FR-5 | T5 | protected16assert +actualnative |
++| FR-6 | T6 | fresh CI/type/review |
++
++## 文件变更清单
++
++- docs/specs/independent-unqualified-windows/design.md
++- docs/specs/independent-unqualified-windows/requirements.md
++- docs/specs/independent-unqualified-windows/tasks.md
++- docs/specs/windows-execution-opened-root/design.md
++- docs/specs/windows-execution-opened-root/requirements.md
++- docs/specs/windows-execution-opened-root/tasks.md
++- docs/specs/windows-execution-transfer/design.md
++- docs/specs/windows-execution-transfer/requirements.md
++- docs/specs/windows-execution-transfer/tasks.md
++- docs/specs/windows-owned-workspace-run/design.md
++- docs/specs/windows-owned-workspace-run/requirements.md
++- docs/specs/windows-owned-workspace-run/tasks.md
++- docs/specs/windows-private-workspace-stream/design.md
++- docs/specs/windows-private-workspace-stream/requirements.md
++- docs/specs/windows-private-workspace-stream/tasks.md
++- services/windows-vm-broker/transfer.go
++- services/windows-vm-broker/transfer_identity_linux_test.go
++- services/windows-vm-broker/transfer_identity_windows.go
++- services/windows-vm-broker/transfer_test.go
++- src-tauri/src/tools/cloud_host.rs
++- src-tauri/src/tools/cloud_host/tests.rs
++- src-tauri/src/tools/cloud_host/windows_input.rs
++- src-tauri/src/tools/cloud_host/windows_input_tests.rs
++- src-tauri/src/tools/cloud_host/windows_workspace_tests.rs
++- src-tauri/src/tools/windows_vm.rs
++- src-tauri/src/tools/windows_vm/input/chunk_tests.rs
++- src-tauri/src/tools/windows_vm/input/chunks.rs
++- src-tauri/src/tools/windows_vm/input/lease.rs
++- src-tauri/src/tools/windows_vm/input/mod.rs
++- src-tauri/src/tools/windows_vm/input/owner.rs
++- src-tauri/src/tools/windows_vm/input/publication_tests.rs
++- src-tauri/src/tools/windows_vm/input/tests.rs
++- src-tauri/src/tools/windows_vm/input/transfer.rs
++- src-tauri/src/tools/windows_vm/input/transfer_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/gate.rs
++- src-tauri/src/tools/windows_vm/output_stage/mod.rs
++- src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/nt.rs
++- src-tauri/src/tools/windows_vm/output_stage/owner.rs
++- src-tauri/src/tools/windows_vm/output_stage/tests.rs
++
++总Plan额外三规格 paths docs/specs/windows-foundation-new/{requirements,design,tasks}.md。
+diff --git a/docs/specs/windows-execution-transfer/design.md b/docs/specs/windows-execution-transfer/design.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..6082e54bbc50560fbbb6ffefc28bad266b3be8ce
+--- /dev/null
++++ b/docs/specs/windows-execution-transfer/design.md
+@@ -0,0 +1,122 @@
++# 新实现子规格：windows-execution-transfer / design
++
++关联需求 FR-2, FR-3；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 设计文档：windows-foundation-new
++
++## 概述
++
++对应需求 FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, NFR-1, NFR-2, NFR-3。基线是D6+73真实源码；以下是新设计，不是旧40文件内容推断。
++
++## 技术方案
++
++### 技术选型
++
++| 类别 | 选择 | 理由 | 关联需求 |
++|---|---|---|---|
++| 输入 | 复用实际Nt相对open/root authority | 避免字符串路径授权 | FR-1, FR-2 |
++| byte owner | 有限Vec块、非Clone结构、显式独立复制 | 保持原输入与detach并存 | FR-2, FR-3 |
++| transfer | SHA256/有界identity/offset状态 | 仅数据契约 | FR-3 |
++| owner | 原actual grant和Retained整体owner | 未知状态不提前释放授权 | FR-4 |
++| 输出 | 尚无close issuer，固定拒绝入口 | 缺实际证据不扩大写回 | FR-4 |
++
++### 架构设计
++
++NativeToolHost拥有独立WindowsInputAuthority；WorkspaceRunGrant仍持actual Claim和三scopepermit。InputLease通过authority.acquire持有根与祖先句柄，再逐组件打开输入，opened先登记后验证。读取前后identity,size,cursor必须一致，大小1MiB封顶；ImmutableChunks保持原始字节。transfer生成独立不可变副本，不共享可变文件句柄。不接现有snapshot/rootwork身份作为文件授权。
++
++## 数据模型
++
++| 实体 | 内容 | 不变量 |
++|---|---|---|
++| InputLease | root/input owner、original chunks、read cursor/info、poisoned/unknown/retired | 每个handle先注册，关闭未知永不判定完成 |
++| RunBinding | host/profile/caller/source/session/operation/input/output names | 全字段有限，source为actual source SHA；无权限 |
++| InputTransfer | binding/size/hash/独立chunks | 非Clone、只能在checked close后清空 |
++| OutputStage | 无实际issuer，固定默认deny | 数据字段/cleanup诊断不是seal |
++
++## API 设计
++
++| 函数 | 契约 | 需求 |
++|---|---|---|
++| InputLease::prepare(authority,host,profile,relative,deadline,cancelled) | 打开/验证/有界完整读；错误保留已取得资源 | FR-1, FR-2 |
++| InputLease::transfer(binding,deadline,cancelled) | 逐块受限复制到独立owner，与读input路径精确相同 | FR-3 |
++| InputLease::summary/revalidate/retire | 实际根identity/大小/hash；重验；所有handle逆序checked close | FR-2, FR-4 |
++| WindowsInputAuthority production registration | exacthost/profile/context.workspace.root，非snapshot | FR-1 |
++| outputstage deny entry | 未actualcloseissuer永不写文件 | FR-4 |
++
++## 设计决策
++
++### 决策1：运行与资产生产副作用分开（FR-5）
++
++原16assert positive先构造fixture，然后创建Harness，然后只申请exec.run/files.read/files.write。其constructor不能在host尚不存在时创造新stage permission。三scope旧入口只允许消费已由获准的一次性GitHub CI provisioning实际生产、固定原生句柄/根/生命周期、非Clone且单次移交的OwnedBootAssets。registry键只有exact source/runner/configdigest及当前host/request绑定检查，不能构造资源/权限。缺实际owner继续deny。
++
++新增在线unpack/create/scratch副作用必须由单独vm.assets.stage real localticket+actualClaim授权，其实际生产owner在执行时仍持生产Claim/permit，并在绑定同源host/profile/root/session、真实执行Claim后单次移交；执行仍保留独立三scope grant。禁止caller bool、config/env/hash、预先路径、已存在systemid替代actualowner。
++
++具体boot producer与CI bootstrap不在missing40路径中；需要独立有限新增路径、fresh impact、source-qualified compiler及明确image/HCS实验验证。当前foundation不能宣称让原positive通过，native与发布仍BLOCKED。
++
++### 决策2：拒绝以diagnostic作为writeback授权（FR-4）
++
++输出stage缺少实际VM+所有IO+输出资源checkedclose issuer，本增量保留failclosed；不创建synthetic seal。将来producer单独规格，不放宽production默认deny。
++
++## 文件结构
++
++以下40是旧丢失路径身份，本轮将写新内容；总Plan额外三MD规格受同一范围管理。
++
++- docs/specs/independent-unqualified-windows/design.md
++- docs/specs/independent-unqualified-windows/requirements.md
++- docs/specs/independent-unqualified-windows/tasks.md
++- docs/specs/windows-execution-opened-root/design.md
++- docs/specs/windows-execution-opened-root/requirements.md
++- docs/specs/windows-execution-opened-root/tasks.md
++- docs/specs/windows-execution-transfer/design.md
++- docs/specs/windows-execution-transfer/requirements.md
++- docs/specs/windows-execution-transfer/tasks.md
++- docs/specs/windows-owned-workspace-run/design.md
++- docs/specs/windows-owned-workspace-run/requirements.md
++- docs/specs/windows-owned-workspace-run/tasks.md
++- docs/specs/windows-private-workspace-stream/design.md
++- docs/specs/windows-private-workspace-stream/requirements.md
++- docs/specs/windows-private-workspace-stream/tasks.md
++- services/windows-vm-broker/transfer.go
++- services/windows-vm-broker/transfer_identity_linux_test.go
++- services/windows-vm-broker/transfer_identity_windows.go
++- services/windows-vm-broker/transfer_test.go
++- src-tauri/src/tools/cloud_host.rs
++- src-tauri/src/tools/cloud_host/tests.rs
++- src-tauri/src/tools/cloud_host/windows_input.rs
++- src-tauri/src/tools/cloud_host/windows_input_tests.rs
++- src-tauri/src/tools/cloud_host/windows_workspace_tests.rs
++- src-tauri/src/tools/windows_vm.rs
++- src-tauri/src/tools/windows_vm/input/chunk_tests.rs
++- src-tauri/src/tools/windows_vm/input/chunks.rs
++- src-tauri/src/tools/windows_vm/input/lease.rs
++- src-tauri/src/tools/windows_vm/input/mod.rs
++- src-tauri/src/tools/windows_vm/input/owner.rs
++- src-tauri/src/tools/windows_vm/input/publication_tests.rs
++- src-tauri/src/tools/windows_vm/input/tests.rs
++- src-tauri/src/tools/windows_vm/input/transfer.rs
++- src-tauri/src/tools/windows_vm/input/transfer_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/gate.rs
++- src-tauri/src/tools/windows_vm/output_stage/mod.rs
++- src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/nt.rs
++- src-tauri/src/tools/windows_vm/output_stage/owner.rs
++- src-tauri/src/tools/windows_vm/output_stage/tests.rs
++
++## 测试策略
++
++FR-1/2：非法相对名、root host/profile冲突、reparse/hardlink/卷冲突、打开错误注册、读取cursor/size变化、取消/deadline、checkedclose unknown及whole owner保持。
++FR-3：空/1MiB上限、hash、offset、重复结束、identity全字段冲突、Detached owner在originalcheckedclose前不清空；GoLinux仅metadata/state，不原生VM。
++FR-4/5：默认output deny；protected原positive全文字节/16assert/三scope严格守卫；真正一次性Windows positive须在actualproducer存在后运行，不能skip/xfail/改断言。
++FR-6：实际parse仅语法，编译器只在source-qualified一次性GitHub CI；保存全部实际失败，required测试全过后detect_changes/gencommit小步提交。
++
++## 错误处理
++
++同步固定磁盘读返回前不能假称已取消IO；保持wholeowner。prepare/read/revalidate失败poison当前lease，仍需retire。CloseHandle未知不重试rawvalue；既有Retained未知路径保留实际permit/claim/handles/bytes/root/context。
++
++## 安全与兼容
++
++PR98取消10操作和snapshot pause完全保持；生产NativeHost、GuestIO、输出均默认deny。只新增本范围功能和有界测试。四defaultscopes、九prompt/catalog、原positive字节未改变。
++
++## 实施计划
++
++先InputLease/chunks/transfer注册和必要新测试，再Go data-only，再output defaultdeny接线，最后审查producer独立具体scope。不在实现前改source符号；每新符号unknown impact与已有高风险入口impact均保存。无需借历史测试。所有40分组文档保留新实现声明。
+diff --git a/docs/specs/windows-execution-transfer/requirements.md b/docs/specs/windows-execution-transfer/requirements.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..d69bcd43626f7d5d68e01bdfa0774ca53d6dfe8a
+--- /dev/null
++++ b/docs/specs/windows-execution-transfer/requirements.md
+@@ -0,0 +1,94 @@
++# 新实现子规格：windows-execution-transfer / requirements
++
++关联需求 FR-2, FR-3；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 需求文档：windows-foundation-new
++
++## 功能概述
++
++补齐真实丢失的40路径基础为新实现，复用D6+exact73。新源码不冒充旧hash恢复。原冻结Stage11源码保持不变；本分支从未应用其有兼容阻断的prepare分支。
++
++## 历史经验与坑
++
++实际恢复73路径；40路径只有旧身份，没有字节。历史编译与语法parse不能代替当前类型/测试。
++
++## 术语定义
++
++- InputLease：持有实际根/祖先/文件句柄、原始不可变字节、检查关闭状态的非Clone owner。
++- OwnedBootAssets：实际生产者创建并持有的启动与scratch资源；目前未实现，metadata不是该类型。
++
++## 范围边界
++
++纳入：missing40的21Rust、4Go、15规格路径及本Plan三份总规格。排除：PR98取消动作、snapshot修改、默认权限增加、用户机器原生执行、生产输出issuer、发布宣称。
++
++## 需求列表
++
++### FR-1: Independent actual execution root
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Independent actual execution root，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN a host is constructed THEN execution input SHALL pin its own native WindowsInputAuthority using that exact host/profile/workspace root; no snapshot target/gate provides file authority. IF pinning or exact current binding fails THEN input SHALL deny before native child opens.
++
++### FR-2: Bounded handle-owned immutable input
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Bounded handle-owned immutable input，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN valid relative input is read THEN InputLease SHALL register each opened handle before identity/type/read validation, enforce same fixed volume and single-link regular file, read at most 1MiB in 32KiB chunks, check identity/size/cursor/cancellation/deadline before and after reads, and retain original immutable bytes through checked close. IF close/read state is uncertain THEN whole claim/permit/root/cloud/handles/bytes SHALL remain retained.
++
++### FR-3: Detached bounded data-only transfer
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Detached bounded data-only transfer，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN transfer is requested THEN an immutable detached byte owner SHALL be bound to exact host/profile/caller/source/session/operation/input/output names and SHA256/size; repeated or mismatched session/chunks/offset/end/hash SHALL reject. WHILE native VM/output issuer is absent THEN wire transfer SHALL never authorize native input/VM/output or claim complete installation.
++
++### FR-4: Native owner and closed writeback boundary
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Native owner and closed writeback boundary，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN real workspace execution is claimed THEN the current real three-scope local permit and actual ClaimedDispatch SHALL remain owned through root/cloud work, native read/VM cleanup and all file/native handles. IF any retirement is unknown or panics THEN whole owner SHALL retain all resources; output publication SHALL remain unavailable until a separate actual closed VM+IO+output lease issuer exists.
++
++### FR-5: Three execution scopes versus new asset effects
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Three execution scopes versus new asset effects，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN execution consumes already genuinely provisioned owned boot/scratch assets THEN it SHALL use the original three scopes; the protected positive16assert body and request SHALL remain byteexact. WHEN a NEW archive unpack/create/scratch effect is requested online THEN the distinct operation SHALL consume real vm.assets.stage local ticket plus actual Claim before that effect. IF no concrete owned asset producer exists THEN configuration/path/hash/environment/registry metadata SHALL not create permission and native creation SHALL deny.
++
++### FR-6: Fresh evidence and cancelled boundaries
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Fresh evidence and cancelled boundaries，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN this newly written foundation is validated THEN its tests/compiler/CI SHALL bind exact fresh source revision and remain separate from old40 hashes/historical passes. PR98 cancelled10 and snapshot pause SHALL remain untouched. IF compiler/positive native/production output/install gates have not run THEN status SHALL remain BLOCKED and no tested development commit or final RC completion SHALL be claimed.
++
++## 非功能需求
++
++- NFR-1：单输入1MiB、32KiB块、64路径组件；无无界复制/缓存。
++- NFR-2：权限与数据类型分离；实际owner非Clone/非Deserialize，默认deny。
++- NFR-3：旧positive16assert、三scope请求、四默认scope、九prompt/catalog原字节保留。
++
++## 依赖关系
++
++复用exact73 root/nt/path/retained/owned_run/archive reader、真实authorizer/execution_gate/ClaimedDispatch和现有WorkScope；类型/Windows验证尚未运行。
++
++## 检查清单
++
++- [x] 六条唯一FR关联设计任务。
++- [x] 原样保护、资源关闭失败、取消边界有可测要求。
++- [ ] 新compiler/Windows native positive/输出与安装证据完成。
+diff --git a/docs/specs/windows-execution-transfer/tasks.md b/docs/specs/windows-execution-transfer/tasks.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..0d6690c9fb401e661aa204253a3e8c2bde86f252
+--- /dev/null
++++ b/docs/specs/windows-execution-transfer/tasks.md
+@@ -0,0 +1,92 @@
++# 新实现子规格：windows-execution-transfer / tasks
++
++关联需求 FR-2, FR-3；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 任务文档：windows-foundation-new
++
++## 任务总览
++
++当前仅context/spec准备；新实现与fresh compiler/native尚未通过。
++
++## 任务列表
++
++- [ ] T1（FR-1, FR-2）：fresh graph/impact、HIGH通知；实际opened root/input owner/lease、boundedchunks，注册current NativeToolHost，原scope权限不改。
++- [ ] T2（FR-3）：Detached InputTransfer exactbinding+1MiB/32KiB边界，新增数据和Windows租约回归测试。
++- [ ] T3（FR-3）：Go纯数据传输状态及实际句柄身份验证，执行available compiler或source-qualified GitHub CI，绝不本机VM。
++- [ ] T4（FR-4）：输出defaultdeny+不存在issuer的逆向测试；whole owner unknown/panic保留。
++- [ ] T5（FR-5）：单独具体CI OwnedBootAssets producer边界/spec；原positive保持byteexact且未producer前BLOCKED。
++- [ ] T6（FR-6）：真实fresh syntax/types/data/Windows necessarytests、peer review、detect_changes/gencommit后小步commit/非强推+真实CI，required未过不宣称tested。
++
++## 测试任务
++
++- [ ] 原positive全文SHA、16assert、三scope与默认权限字节守卫（FR-5, FR-6）。
++- [ ] 1MiB/块限/重复hash-offset身份、data-only无native权限（FR-2, FR-3）。
++- [ ] Windows actualhandle根/卷/link/reparse/cancel/cursor/closeunknown（FR-1, FR-2, FR-4）。
++- [ ] 完整必要compiler和Windows38/组合门禁真实fresh源码（FR-6）。
++- [ ] 原native16assert真实运行无skip/xfail/降级（FR-5）。
++
++## 交付物清单
++
++40新源路径、此Plan3规格、fresh impacts、exact source/patch manifest、真实失败和CI结果、未解门禁列表。
++
++## 验收清单
++
++- [ ] 六FR均有独立真实证据。
++- [ ] check_spec、necessarytests、peer/detect/gencommit全部通过。
++- [ ] RC release/public anonymous install完成前不报告项目完成。
++
++## 需求覆盖矩阵
++
++| 需求 | 任务 | 必要证据 |
++|---|---|---|
++| FR-1 | T1 | actual root conflict/opens |
++| FR-2 | T1,T2 | boundedread/closeunknown |
++| FR-3 | T2,T3 | exactbinding/offset/hash |
++| FR-4 | T4 | output defaultdeny/retained |
++| FR-5 | T5 | protected16assert +actualnative |
++| FR-6 | T6 | fresh CI/type/review |
++
++## 文件变更清单
++
++- docs/specs/independent-unqualified-windows/design.md
++- docs/specs/independent-unqualified-windows/requirements.md
++- docs/specs/independent-unqualified-windows/tasks.md
++- docs/specs/windows-execution-opened-root/design.md
++- docs/specs/windows-execution-opened-root/requirements.md
++- docs/specs/windows-execution-opened-root/tasks.md
++- docs/specs/windows-execution-transfer/design.md
++- docs/specs/windows-execution-transfer/requirements.md
++- docs/specs/windows-execution-transfer/tasks.md
++- docs/specs/windows-owned-workspace-run/design.md
++- docs/specs/windows-owned-workspace-run/requirements.md
++- docs/specs/windows-owned-workspace-run/tasks.md
++- docs/specs/windows-private-workspace-stream/design.md
++- docs/specs/windows-private-workspace-stream/requirements.md
++- docs/specs/windows-private-workspace-stream/tasks.md
++- services/windows-vm-broker/transfer.go
++- services/windows-vm-broker/transfer_identity_linux_test.go
++- services/windows-vm-broker/transfer_identity_windows.go
++- services/windows-vm-broker/transfer_test.go
++- src-tauri/src/tools/cloud_host.rs
++- src-tauri/src/tools/cloud_host/tests.rs
++- src-tauri/src/tools/cloud_host/windows_input.rs
++- src-tauri/src/tools/cloud_host/windows_input_tests.rs
++- src-tauri/src/tools/cloud_host/windows_workspace_tests.rs
++- src-tauri/src/tools/windows_vm.rs
++- src-tauri/src/tools/windows_vm/input/chunk_tests.rs
++- src-tauri/src/tools/windows_vm/input/chunks.rs
++- src-tauri/src/tools/windows_vm/input/lease.rs
++- src-tauri/src/tools/windows_vm/input/mod.rs
++- src-tauri/src/tools/windows_vm/input/owner.rs
++- src-tauri/src/tools/windows_vm/input/publication_tests.rs
++- src-tauri/src/tools/windows_vm/input/tests.rs
++- src-tauri/src/tools/windows_vm/input/transfer.rs
++- src-tauri/src/tools/windows_vm/input/transfer_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/gate.rs
++- src-tauri/src/tools/windows_vm/output_stage/mod.rs
++- src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/nt.rs
++- src-tauri/src/tools/windows_vm/output_stage/owner.rs
++- src-tauri/src/tools/windows_vm/output_stage/tests.rs
++
++总Plan额外三规格 paths docs/specs/windows-foundation-new/{requirements,design,tasks}.md。
+diff --git a/docs/specs/windows-foundation-new/design.md b/docs/specs/windows-foundation-new/design.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..350be2a1c5137bc63e4c6fb5fa8f3f3a03c2f6c5
+--- /dev/null
++++ b/docs/specs/windows-foundation-new/design.md
+@@ -0,0 +1,124 @@
++# 设计文档：windows-foundation-new
++
++## 概述
++
++对应需求 FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, NFR-1, NFR-2, NFR-3。基线是D6+73真实源码；以下是新设计，不是旧40文件内容推断。
++
++## 技术方案
++
++### 技术选型
++
++| 类别 | 选择 | 理由 | 关联需求 |
++|---|---|---|---|
++| 输入 | 复用实际Nt相对open/root authority | 避免字符串路径授权 | FR-1, FR-2 |
++| byte owner | 有限Vec块、非Clone结构、显式独立复制 | 保持原输入与detach并存 | FR-2, FR-3 |
++| transfer | SHA256/有界identity/offset状态 | 仅数据契约 | FR-3 |
++| owner | 原actual grant和Retained整体owner | 未知状态不提前释放授权 | FR-4 |
++| 输出 | 尚无close issuer，固定拒绝入口 | 缺实际证据不扩大写回 | FR-4 |
++
++### 架构设计
++
++NativeToolHost拥有独立WindowsInputAuthority；WorkspaceRunGrant仍持actual Claim和三scopepermit。InputLease通过authority.acquire持有根与祖先句柄，再逐组件打开输入，opened先登记后验证。读取前后identity,size,cursor必须一致，大小1MiB封顶；ImmutableChunks保持原始字节。transfer生成独立不可变副本，不共享可变文件句柄。不接现有snapshot/rootwork身份作为文件授权。
++
++## 数据模型
++
++| 实体 | 内容 | 不变量 |
++|---|---|---|
++| InputLease | root/input owner、original chunks、read cursor/info、poisoned/unknown/retired | 每个handle先注册，关闭未知永不判定完成 |
++| RunBinding | host/profile/caller/source/session/operation/input/output names | 全字段有限，source为actual source SHA；无权限 |
++| InputTransfer | binding/size/hash/独立chunks | 非Clone、只能在checked close后清空 |
++| OutputStage | 无实际issuer，固定默认deny | 数据字段/cleanup诊断不是seal |
++
++## API 设计
++
++| 函数 | 契约 | 需求 |
++|---|---|---|
++| InputLease::prepare(authority,host,profile,relative,deadline,cancelled) | 打开/验证/有界完整读；错误保留已取得资源 | FR-1, FR-2 |
++| InputLease::transfer(binding,deadline,cancelled) | 逐块受限复制到独立owner，与读input路径精确相同 | FR-3 |
++| InputLease::summary/revalidate/retire | 实际根identity/大小/hash；重验；所有handle逆序checked close | FR-2, FR-4 |
++| WindowsInputAuthority production registration | exacthost/profile/context.workspace.root，非snapshot | FR-1 |
++| outputstage deny entry | 未actualcloseissuer永不写文件 | FR-4 |
++
++## 设计决策
++
++### 决策1：运行与资产生产副作用分开（FR-5）
++
++原16assert positive先构造fixture，然后创建Harness，然后只申请exec.run/files.read/files.write。其constructor不能在host尚不存在时创造新stage permission。三scope旧入口只允许消费已由获准的一次性GitHub CI provisioning实际生产、固定原生句柄/根/生命周期、非Clone且单次移交的OwnedBootAssets。registry键只有exact source/runner/configdigest及当前host/request绑定检查，不能构造资源/权限。缺实际owner继续deny。
++
++新增在线unpack/create/scratch副作用必须由单独vm.assets.stage real localticket+actualClaim授权，其实际生产owner在执行时仍持生产Claim/permit，并在绑定同源host/profile/root/session、真实执行Claim后单次移交；执行仍保留独立三scope grant。禁止caller bool、config/env/hash、预先路径、已存在systemid替代actualowner。
++
++具体boot producer与CI bootstrap不在missing40路径中；需要独立有限新增路径、fresh impact、source-qualified compiler及明确image/HCS实验验证。当前foundation不能宣称让原positive通过，native与发布仍BLOCKED。
++
++### 决策2：拒绝以diagnostic作为writeback授权（FR-4）
++
++输出stage缺少实际VM+所有IO+输出资源checkedclose issuer，本增量保留failclosed；不创建synthetic seal。将来producer单独规格，不放宽production默认deny。
++
++## 文件结构
++
++以下40是旧丢失路径身份，本轮将写新内容；总Plan额外三MD规格受同一范围管理。
++
++- docs/specs/independent-unqualified-windows/design.md
++- docs/specs/independent-unqualified-windows/requirements.md
++- docs/specs/independent-unqualified-windows/tasks.md
++- docs/specs/windows-execution-opened-root/design.md
++- docs/specs/windows-execution-opened-root/requirements.md
++- docs/specs/windows-execution-opened-root/tasks.md
++- docs/specs/windows-execution-transfer/design.md
++- docs/specs/windows-execution-transfer/requirements.md
++- docs/specs/windows-execution-transfer/tasks.md
++- docs/specs/windows-owned-workspace-run/design.md
++- docs/specs/windows-owned-workspace-run/requirements.md
++- docs/specs/windows-owned-workspace-run/tasks.md
++- docs/specs/windows-private-workspace-stream/design.md
++- docs/specs/windows-private-workspace-stream/requirements.md
++- docs/specs/windows-private-workspace-stream/tasks.md
++- services/windows-vm-broker/transfer.go
++- services/windows-vm-broker/transfer_identity_linux_test.go
++- services/windows-vm-broker/transfer_identity_windows.go
++- services/windows-vm-broker/transfer_test.go
++- src-tauri/src/tools/cloud_host.rs
++- src-tauri/src/tools/cloud_host/tests.rs
++- src-tauri/src/tools/cloud_host/windows_input.rs
++- src-tauri/src/tools/cloud_host/windows_input_tests.rs
++- src-tauri/src/tools/cloud_host/windows_workspace_tests.rs
++- src-tauri/src/tools/windows_vm.rs
++- src-tauri/src/tools/windows_vm/input/chunk_tests.rs
++- src-tauri/src/tools/windows_vm/input/chunks.rs
++- src-tauri/src/tools/windows_vm/input/lease.rs
++- src-tauri/src/tools/windows_vm/input/mod.rs
++- src-tauri/src/tools/windows_vm/input/owner.rs
++- src-tauri/src/tools/windows_vm/input/publication_tests.rs
++- src-tauri/src/tools/windows_vm/input/tests.rs
++- src-tauri/src/tools/windows_vm/input/transfer.rs
++- src-tauri/src/tools/windows_vm/input/transfer_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/gate.rs
++- src-tauri/src/tools/windows_vm/output_stage/mod.rs
++- src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/nt.rs
++- src-tauri/src/tools/windows_vm/output_stage/owner.rs
++- src-tauri/src/tools/windows_vm/output_stage/tests.rs
++
++## 测试策略
++
++FR-1/2：非法相对名、root host/profile冲突、reparse/hardlink/卷冲突、打开错误注册、读取cursor/size变化、取消/deadline、checkedclose unknown及whole owner保持。
++FR-3：空/1MiB上限、hash、offset、重复结束、identity全字段冲突、Detached owner在originalcheckedclose前不清空；GoLinux仅metadata/state，不原生VM。
++FR-4/5：默认output deny；protected原positive全文字节/16assert/三scope严格守卫；真正一次性Windows positive须在actualproducer存在后运行，不能skip/xfail/改断言。
++FR-6：实际parse仅语法，编译器只在source-qualified一次性GitHub CI；保存全部实际失败，required测试全过后detect_changes/gencommit小步提交。
++
++## 错误处理
++
++同步固定磁盘读返回前不能假称已取消IO；保持wholeowner。prepare/read/revalidate失败poison当前lease，仍需retire。CloseHandle未知不重试rawvalue；既有Retained未知路径保留实际permit/claim/handles/bytes/root/context。
++
++## 安全与兼容
++
++PR98取消10操作和snapshot pause完全保持；生产NativeHost、GuestIO、输出均默认deny。只新增本范围功能和有界测试。四defaultscopes、九prompt/catalog、原positive字节未改变。
++
++## 实施计划
++
++先InputLease/chunks/transfer注册和必要新测试，再Go data-only，再output defaultdeny接线，最后审查producer独立具体scope。不在实现前改source符号；每新符号unknown impact与已有高风险入口impact均保存。无需借历史测试。所有40分组文档保留新实现声明。
++
++## 输出6路径本轮精确边界（FR-4）
++
++输出writer的真实closed-VM/all-IO/actualoutputissuer尚不存在，因此本轮6文件实现固定publication refusal、有限data plan parser和明确不可构造的ClosedVmAndIoOwner私有proof类型。该类型没有constructor/Clone/Deserialize，metadata/config/布尔不能产生该值；不把存在此类型作为实际closeproof。公开入口永远固定拒绝，不执行open/write/rename/remove。nt.rs只定义未来句柄写入之前必须检查的数据边界，不导入unsafe原生写API。owner.rs只有不可构造的真实closed-owner槽，没有假issuer。所有生产写回仍NOTIMPLEMENTED/BLOCKED，source40路径写齐不等于用户安全回写功能完成。
++
++跨 sibling cloud_host::windows_workspace 的现有73 consumer路径需要crate-private模块可见性；只改变注册visibility，不改变Grant字段/构造权限、原current逻辑和三scope，不公开HTTP/外部crate。
+diff --git a/docs/specs/windows-foundation-new/requirements.md b/docs/specs/windows-foundation-new/requirements.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..5eb88fbd835674f46fc22bc29e997e9e4dff611f
+--- /dev/null
++++ b/docs/specs/windows-foundation-new/requirements.md
+@@ -0,0 +1,90 @@
++# 需求文档：windows-foundation-new
++
++## 功能概述
++
++补齐真实丢失的40路径基础为新实现，复用D6+exact73。新源码不冒充旧hash恢复。原冻结Stage11源码保持不变；本分支从未应用其有兼容阻断的prepare分支。
++
++## 历史经验与坑
++
++实际恢复73路径；40路径只有旧身份，没有字节。历史编译与语法parse不能代替当前类型/测试。
++
++## 术语定义
++
++- InputLease：持有实际根/祖先/文件句柄、原始不可变字节、检查关闭状态的非Clone owner。
++- OwnedBootAssets：实际生产者创建并持有的启动与scratch资源；目前未实现，metadata不是该类型。
++
++## 范围边界
++
++纳入：missing40的21Rust、4Go、15规格路径及本Plan三份总规格。排除：PR98取消动作、snapshot修改、默认权限增加、用户机器原生执行、生产输出issuer、发布宣称。
++
++## 需求列表
++
++### FR-1: Independent actual execution root
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Independent actual execution root，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN a host is constructed THEN execution input SHALL pin its own native WindowsInputAuthority using that exact host/profile/workspace root; no snapshot target/gate provides file authority. IF pinning or exact current binding fails THEN input SHALL deny before native child opens.
++
++### FR-2: Bounded handle-owned immutable input
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Bounded handle-owned immutable input，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN valid relative input is read THEN InputLease SHALL register each opened handle before identity/type/read validation, enforce same fixed volume and single-link regular file, read at most 1MiB in 32KiB chunks, check identity/size/cursor/cancellation/deadline before and after reads, and retain original immutable bytes through checked close. IF close/read state is uncertain THEN whole claim/permit/root/cloud/handles/bytes SHALL remain retained.
++
++### FR-3: Detached bounded data-only transfer
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Detached bounded data-only transfer，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN transfer is requested THEN an immutable detached byte owner SHALL be bound to exact host/profile/caller/source/session/operation/input/output names and SHA256/size; repeated or mismatched session/chunks/offset/end/hash SHALL reject. WHILE native VM/output issuer is absent THEN wire transfer SHALL never authorize native input/VM/output or claim complete installation.
++
++### FR-4: Native owner and closed writeback boundary
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Native owner and closed writeback boundary，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN real workspace execution is claimed THEN the current real three-scope local permit and actual ClaimedDispatch SHALL remain owned through root/cloud work, native read/VM cleanup and all file/native handles. IF any retirement is unknown or panics THEN whole owner SHALL retain all resources; output publication SHALL remain unavailable until a separate actual closed VM+IO+output lease issuer exists.
++
++### FR-5: Three execution scopes versus new asset effects
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Three execution scopes versus new asset effects，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN execution consumes already genuinely provisioned owned boot/scratch assets THEN it SHALL use the original three scopes; the protected positive16assert body and request SHALL remain byteexact. WHEN a NEW archive unpack/create/scratch effect is requested online THEN the distinct operation SHALL consume real vm.assets.stage local ticket plus actual Claim before that effect. IF no concrete owned asset producer exists THEN configuration/path/hash/environment/registry metadata SHALL not create permission and native creation SHALL deny.
++
++### FR-6: Fresh evidence and cancelled boundaries
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Fresh evidence and cancelled boundaries，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN this newly written foundation is validated THEN its tests/compiler/CI SHALL bind exact fresh source revision and remain separate from old40 hashes/historical passes. PR98 cancelled10 and snapshot pause SHALL remain untouched. IF compiler/positive native/production output/install gates have not run THEN status SHALL remain BLOCKED and no tested development commit or final RC completion SHALL be claimed.
++
++## 非功能需求
++
++- NFR-1：单输入1MiB、32KiB块、64路径组件；无无界复制/缓存。
++- NFR-2：权限与数据类型分离；实际owner非Clone/非Deserialize，默认deny。
++- NFR-3：旧positive16assert、三scope请求、四默认scope、九prompt/catalog原字节保留。
++
++## 依赖关系
++
++复用exact73 root/nt/path/retained/owned_run/archive reader、真实authorizer/execution_gate/ClaimedDispatch和现有WorkScope；类型/Windows验证尚未运行。
++
++## 检查清单
++
++- [x] 六条唯一FR关联设计任务。
++- [x] 原样保护、资源关闭失败、取消边界有可测要求。
++- [ ] 新compiler/Windows native positive/输出与安装证据完成。
+diff --git a/docs/specs/windows-foundation-new/tasks.md b/docs/specs/windows-foundation-new/tasks.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..3585720aa8bb8e2453b5deefc856d0a5b652fffb
+--- /dev/null
++++ b/docs/specs/windows-foundation-new/tasks.md
+@@ -0,0 +1,88 @@
++# 任务文档：windows-foundation-new
++
++## 任务总览
++
++当前仅context/spec准备；新实现与fresh compiler/native尚未通过。
++
++## 任务列表
++
++- [ ] T1（FR-1, FR-2）：fresh graph/impact、HIGH通知；实际opened root/input owner/lease、boundedchunks，注册current NativeToolHost，原scope权限不改。
++- [ ] T2（FR-3）：Detached InputTransfer exactbinding+1MiB/32KiB边界，新增数据和Windows租约回归测试。
++- [ ] T3（FR-3）：Go纯数据传输状态及实际句柄身份验证，执行available compiler或source-qualified GitHub CI，绝不本机VM。
++- [ ] T4（FR-4）：输出defaultdeny+不存在issuer的逆向测试；whole owner unknown/panic保留。
++- [ ] T5（FR-5）：单独具体CI OwnedBootAssets producer边界/spec；原positive保持byteexact且未producer前BLOCKED。
++- [ ] T6（FR-6）：真实fresh syntax/types/data/Windows necessarytests、peer review、detect_changes/gencommit后小步commit/非强推+真实CI，required未过不宣称tested。
++
++## 测试任务
++
++- [ ] 原positive全文SHA、16assert、三scope与默认权限字节守卫（FR-5, FR-6）。
++- [ ] 1MiB/块限/重复hash-offset身份、data-only无native权限（FR-2, FR-3）。
++- [ ] Windows actualhandle根/卷/link/reparse/cancel/cursor/closeunknown（FR-1, FR-2, FR-4）。
++- [ ] 完整必要compiler和Windows38/组合门禁真实fresh源码（FR-6）。
++- [ ] 原native16assert真实运行无skip/xfail/降级（FR-5）。
++
++## 交付物清单
++
++40新源路径、此Plan3规格、fresh impacts、exact source/patch manifest、真实失败和CI结果、未解门禁列表。
++
++## 验收清单
++
++- [ ] 六FR均有独立真实证据。
++- [ ] check_spec、necessarytests、peer/detect/gencommit全部通过。
++- [ ] RC release/public anonymous install完成前不报告项目完成。
++
++## 需求覆盖矩阵
++
++| 需求 | 任务 | 必要证据 |
++|---|---|---|
++| FR-1 | T1 | actual root conflict/opens |
++| FR-2 | T1,T2 | boundedread/closeunknown |
++| FR-3 | T2,T3 | exactbinding/offset/hash |
++| FR-4 | T4 | output defaultdeny/retained |
++| FR-5 | T5 | protected16assert +actualnative |
++| FR-6 | T6 | fresh CI/type/review |
++
++## 文件变更清单
++
++- docs/specs/independent-unqualified-windows/design.md
++- docs/specs/independent-unqualified-windows/requirements.md
++- docs/specs/independent-unqualified-windows/tasks.md
++- docs/specs/windows-execution-opened-root/design.md
++- docs/specs/windows-execution-opened-root/requirements.md
++- docs/specs/windows-execution-opened-root/tasks.md
++- docs/specs/windows-execution-transfer/design.md
++- docs/specs/windows-execution-transfer/requirements.md
++- docs/specs/windows-execution-transfer/tasks.md
++- docs/specs/windows-owned-workspace-run/design.md
++- docs/specs/windows-owned-workspace-run/requirements.md
++- docs/specs/windows-owned-workspace-run/tasks.md
++- docs/specs/windows-private-workspace-stream/design.md
++- docs/specs/windows-private-workspace-stream/requirements.md
++- docs/specs/windows-private-workspace-stream/tasks.md
++- services/windows-vm-broker/transfer.go
++- services/windows-vm-broker/transfer_identity_linux_test.go
++- services/windows-vm-broker/transfer_identity_windows.go
++- services/windows-vm-broker/transfer_test.go
++- src-tauri/src/tools/cloud_host.rs
++- src-tauri/src/tools/cloud_host/tests.rs
++- src-tauri/src/tools/cloud_host/windows_input.rs
++- src-tauri/src/tools/cloud_host/windows_input_tests.rs
++- src-tauri/src/tools/cloud_host/windows_workspace_tests.rs
++- src-tauri/src/tools/windows_vm.rs
++- src-tauri/src/tools/windows_vm/input/chunk_tests.rs
++- src-tauri/src/tools/windows_vm/input/chunks.rs
++- src-tauri/src/tools/windows_vm/input/lease.rs
++- src-tauri/src/tools/windows_vm/input/mod.rs
++- src-tauri/src/tools/windows_vm/input/owner.rs
++- src-tauri/src/tools/windows_vm/input/publication_tests.rs
++- src-tauri/src/tools/windows_vm/input/tests.rs
++- src-tauri/src/tools/windows_vm/input/transfer.rs
++- src-tauri/src/tools/windows_vm/input/transfer_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/gate.rs
++- src-tauri/src/tools/windows_vm/output_stage/mod.rs
++- src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/nt.rs
++- src-tauri/src/tools/windows_vm/output_stage/owner.rs
++- src-tauri/src/tools/windows_vm/output_stage/tests.rs
++
++总Plan额外三规格 paths docs/specs/windows-foundation-new/{requirements,design,tasks}.md。
+diff --git a/docs/specs/windows-owned-workspace-run/design.md b/docs/specs/windows-owned-workspace-run/design.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..613467a1346d09d43f13dcc191f884f8fe2d1514
+--- /dev/null
++++ b/docs/specs/windows-owned-workspace-run/design.md
+@@ -0,0 +1,122 @@
++# 新实现子规格：windows-owned-workspace-run / design
++
++关联需求 FR-4, FR-5；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 设计文档：windows-foundation-new
++
++## 概述
++
++对应需求 FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, NFR-1, NFR-2, NFR-3。基线是D6+73真实源码；以下是新设计，不是旧40文件内容推断。
++
++## 技术方案
++
++### 技术选型
++
++| 类别 | 选择 | 理由 | 关联需求 |
++|---|---|---|---|
++| 输入 | 复用实际Nt相对open/root authority | 避免字符串路径授权 | FR-1, FR-2 |
++| byte owner | 有限Vec块、非Clone结构、显式独立复制 | 保持原输入与detach并存 | FR-2, FR-3 |
++| transfer | SHA256/有界identity/offset状态 | 仅数据契约 | FR-3 |
++| owner | 原actual grant和Retained整体owner | 未知状态不提前释放授权 | FR-4 |
++| 输出 | 尚无close issuer，固定拒绝入口 | 缺实际证据不扩大写回 | FR-4 |
++
++### 架构设计
++
++NativeToolHost拥有独立WindowsInputAuthority；WorkspaceRunGrant仍持actual Claim和三scopepermit。InputLease通过authority.acquire持有根与祖先句柄，再逐组件打开输入，opened先登记后验证。读取前后identity,size,cursor必须一致，大小1MiB封顶；ImmutableChunks保持原始字节。transfer生成独立不可变副本，不共享可变文件句柄。不接现有snapshot/rootwork身份作为文件授权。
++
++## 数据模型
++
++| 实体 | 内容 | 不变量 |
++|---|---|---|
++| InputLease | root/input owner、original chunks、read cursor/info、poisoned/unknown/retired | 每个handle先注册，关闭未知永不判定完成 |
++| RunBinding | host/profile/caller/source/session/operation/input/output names | 全字段有限，source为actual source SHA；无权限 |
++| InputTransfer | binding/size/hash/独立chunks | 非Clone、只能在checked close后清空 |
++| OutputStage | 无实际issuer，固定默认deny | 数据字段/cleanup诊断不是seal |
++
++## API 设计
++
++| 函数 | 契约 | 需求 |
++|---|---|---|
++| InputLease::prepare(authority,host,profile,relative,deadline,cancelled) | 打开/验证/有界完整读；错误保留已取得资源 | FR-1, FR-2 |
++| InputLease::transfer(binding,deadline,cancelled) | 逐块受限复制到独立owner，与读input路径精确相同 | FR-3 |
++| InputLease::summary/revalidate/retire | 实际根identity/大小/hash；重验；所有handle逆序checked close | FR-2, FR-4 |
++| WindowsInputAuthority production registration | exacthost/profile/context.workspace.root，非snapshot | FR-1 |
++| outputstage deny entry | 未actualcloseissuer永不写文件 | FR-4 |
++
++## 设计决策
++
++### 决策1：运行与资产生产副作用分开（FR-5）
++
++原16assert positive先构造fixture，然后创建Harness，然后只申请exec.run/files.read/files.write。其constructor不能在host尚不存在时创造新stage permission。三scope旧入口只允许消费已由获准的一次性GitHub CI provisioning实际生产、固定原生句柄/根/生命周期、非Clone且单次移交的OwnedBootAssets。registry键只有exact source/runner/configdigest及当前host/request绑定检查，不能构造资源/权限。缺实际owner继续deny。
++
++新增在线unpack/create/scratch副作用必须由单独vm.assets.stage real localticket+actualClaim授权，其实际生产owner在执行时仍持生产Claim/permit，并在绑定同源host/profile/root/session、真实执行Claim后单次移交；执行仍保留独立三scope grant。禁止caller bool、config/env/hash、预先路径、已存在systemid替代actualowner。
++
++具体boot producer与CI bootstrap不在missing40路径中；需要独立有限新增路径、fresh impact、source-qualified compiler及明确image/HCS实验验证。当前foundation不能宣称让原positive通过，native与发布仍BLOCKED。
++
++### 决策2：拒绝以diagnostic作为writeback授权（FR-4）
++
++输出stage缺少实际VM+所有IO+输出资源checkedclose issuer，本增量保留failclosed；不创建synthetic seal。将来producer单独规格，不放宽production默认deny。
++
++## 文件结构
++
++以下40是旧丢失路径身份，本轮将写新内容；总Plan额外三MD规格受同一范围管理。
++
++- docs/specs/independent-unqualified-windows/design.md
++- docs/specs/independent-unqualified-windows/requirements.md
++- docs/specs/independent-unqualified-windows/tasks.md
++- docs/specs/windows-execution-opened-root/design.md
++- docs/specs/windows-execution-opened-root/requirements.md
++- docs/specs/windows-execution-opened-root/tasks.md
++- docs/specs/windows-execution-transfer/design.md
++- docs/specs/windows-execution-transfer/requirements.md
++- docs/specs/windows-execution-transfer/tasks.md
++- docs/specs/windows-owned-workspace-run/design.md
++- docs/specs/windows-owned-workspace-run/requirements.md
++- docs/specs/windows-owned-workspace-run/tasks.md
++- docs/specs/windows-private-workspace-stream/design.md
++- docs/specs/windows-private-workspace-stream/requirements.md
++- docs/specs/windows-private-workspace-stream/tasks.md
++- services/windows-vm-broker/transfer.go
++- services/windows-vm-broker/transfer_identity_linux_test.go
++- services/windows-vm-broker/transfer_identity_windows.go
++- services/windows-vm-broker/transfer_test.go
++- src-tauri/src/tools/cloud_host.rs
++- src-tauri/src/tools/cloud_host/tests.rs
++- src-tauri/src/tools/cloud_host/windows_input.rs
++- src-tauri/src/tools/cloud_host/windows_input_tests.rs
++- src-tauri/src/tools/cloud_host/windows_workspace_tests.rs
++- src-tauri/src/tools/windows_vm.rs
++- src-tauri/src/tools/windows_vm/input/chunk_tests.rs
++- src-tauri/src/tools/windows_vm/input/chunks.rs
++- src-tauri/src/tools/windows_vm/input/lease.rs
++- src-tauri/src/tools/windows_vm/input/mod.rs
++- src-tauri/src/tools/windows_vm/input/owner.rs
++- src-tauri/src/tools/windows_vm/input/publication_tests.rs
++- src-tauri/src/tools/windows_vm/input/tests.rs
++- src-tauri/src/tools/windows_vm/input/transfer.rs
++- src-tauri/src/tools/windows_vm/input/transfer_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/gate.rs
++- src-tauri/src/tools/windows_vm/output_stage/mod.rs
++- src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/nt.rs
++- src-tauri/src/tools/windows_vm/output_stage/owner.rs
++- src-tauri/src/tools/windows_vm/output_stage/tests.rs
++
++## 测试策略
++
++FR-1/2：非法相对名、root host/profile冲突、reparse/hardlink/卷冲突、打开错误注册、读取cursor/size变化、取消/deadline、checkedclose unknown及whole owner保持。
++FR-3：空/1MiB上限、hash、offset、重复结束、identity全字段冲突、Detached owner在originalcheckedclose前不清空；GoLinux仅metadata/state，不原生VM。
++FR-4/5：默认output deny；protected原positive全文字节/16assert/三scope严格守卫；真正一次性Windows positive须在actualproducer存在后运行，不能skip/xfail/改断言。
++FR-6：实际parse仅语法，编译器只在source-qualified一次性GitHub CI；保存全部实际失败，required测试全过后detect_changes/gencommit小步提交。
++
++## 错误处理
++
++同步固定磁盘读返回前不能假称已取消IO；保持wholeowner。prepare/read/revalidate失败poison当前lease，仍需retire。CloseHandle未知不重试rawvalue；既有Retained未知路径保留实际permit/claim/handles/bytes/root/context。
++
++## 安全与兼容
++
++PR98取消10操作和snapshot pause完全保持；生产NativeHost、GuestIO、输出均默认deny。只新增本范围功能和有界测试。四defaultscopes、九prompt/catalog、原positive字节未改变。
++
++## 实施计划
++
++先InputLease/chunks/transfer注册和必要新测试，再Go data-only，再output defaultdeny接线，最后审查producer独立具体scope。不在实现前改source符号；每新符号unknown impact与已有高风险入口impact均保存。无需借历史测试。所有40分组文档保留新实现声明。
+diff --git a/docs/specs/windows-owned-workspace-run/requirements.md b/docs/specs/windows-owned-workspace-run/requirements.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..4e353455e6d29bf2043482ee8879faf6b2575ec2
+--- /dev/null
++++ b/docs/specs/windows-owned-workspace-run/requirements.md
+@@ -0,0 +1,94 @@
++# 新实现子规格：windows-owned-workspace-run / requirements
++
++关联需求 FR-4, FR-5；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 需求文档：windows-foundation-new
++
++## 功能概述
++
++补齐真实丢失的40路径基础为新实现，复用D6+exact73。新源码不冒充旧hash恢复。原冻结Stage11源码保持不变；本分支从未应用其有兼容阻断的prepare分支。
++
++## 历史经验与坑
++
++实际恢复73路径；40路径只有旧身份，没有字节。历史编译与语法parse不能代替当前类型/测试。
++
++## 术语定义
++
++- InputLease：持有实际根/祖先/文件句柄、原始不可变字节、检查关闭状态的非Clone owner。
++- OwnedBootAssets：实际生产者创建并持有的启动与scratch资源；目前未实现，metadata不是该类型。
++
++## 范围边界
++
++纳入：missing40的21Rust、4Go、15规格路径及本Plan三份总规格。排除：PR98取消动作、snapshot修改、默认权限增加、用户机器原生执行、生产输出issuer、发布宣称。
++
++## 需求列表
++
++### FR-1: Independent actual execution root
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Independent actual execution root，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN a host is constructed THEN execution input SHALL pin its own native WindowsInputAuthority using that exact host/profile/workspace root; no snapshot target/gate provides file authority. IF pinning or exact current binding fails THEN input SHALL deny before native child opens.
++
++### FR-2: Bounded handle-owned immutable input
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Bounded handle-owned immutable input，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN valid relative input is read THEN InputLease SHALL register each opened handle before identity/type/read validation, enforce same fixed volume and single-link regular file, read at most 1MiB in 32KiB chunks, check identity/size/cursor/cancellation/deadline before and after reads, and retain original immutable bytes through checked close. IF close/read state is uncertain THEN whole claim/permit/root/cloud/handles/bytes SHALL remain retained.
++
++### FR-3: Detached bounded data-only transfer
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Detached bounded data-only transfer，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN transfer is requested THEN an immutable detached byte owner SHALL be bound to exact host/profile/caller/source/session/operation/input/output names and SHA256/size; repeated or mismatched session/chunks/offset/end/hash SHALL reject. WHILE native VM/output issuer is absent THEN wire transfer SHALL never authorize native input/VM/output or claim complete installation.
++
++### FR-4: Native owner and closed writeback boundary
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Native owner and closed writeback boundary，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN real workspace execution is claimed THEN the current real three-scope local permit and actual ClaimedDispatch SHALL remain owned through root/cloud work, native read/VM cleanup and all file/native handles. IF any retirement is unknown or panics THEN whole owner SHALL retain all resources; output publication SHALL remain unavailable until a separate actual closed VM+IO+output lease issuer exists.
++
++### FR-5: Three execution scopes versus new asset effects
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Three execution scopes versus new asset effects，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN execution consumes already genuinely provisioned owned boot/scratch assets THEN it SHALL use the original three scopes; the protected positive16assert body and request SHALL remain byteexact. WHEN a NEW archive unpack/create/scratch effect is requested online THEN the distinct operation SHALL consume real vm.assets.stage local ticket plus actual Claim before that effect. IF no concrete owned asset producer exists THEN configuration/path/hash/environment/registry metadata SHALL not create permission and native creation SHALL deny.
++
++### FR-6: Fresh evidence and cancelled boundaries
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Fresh evidence and cancelled boundaries，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN this newly written foundation is validated THEN its tests/compiler/CI SHALL bind exact fresh source revision and remain separate from old40 hashes/historical passes. PR98 cancelled10 and snapshot pause SHALL remain untouched. IF compiler/positive native/production output/install gates have not run THEN status SHALL remain BLOCKED and no tested development commit or final RC completion SHALL be claimed.
++
++## 非功能需求
++
++- NFR-1：单输入1MiB、32KiB块、64路径组件；无无界复制/缓存。
++- NFR-2：权限与数据类型分离；实际owner非Clone/非Deserialize，默认deny。
++- NFR-3：旧positive16assert、三scope请求、四默认scope、九prompt/catalog原字节保留。
++
++## 依赖关系
++
++复用exact73 root/nt/path/retained/owned_run/archive reader、真实authorizer/execution_gate/ClaimedDispatch和现有WorkScope；类型/Windows验证尚未运行。
++
++## 检查清单
++
++- [x] 六条唯一FR关联设计任务。
++- [x] 原样保护、资源关闭失败、取消边界有可测要求。
++- [ ] 新compiler/Windows native positive/输出与安装证据完成。
+diff --git a/docs/specs/windows-owned-workspace-run/tasks.md b/docs/specs/windows-owned-workspace-run/tasks.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..acae1c08ea1d1162a256f0d388879decc0801131
+--- /dev/null
++++ b/docs/specs/windows-owned-workspace-run/tasks.md
+@@ -0,0 +1,92 @@
++# 新实现子规格：windows-owned-workspace-run / tasks
++
++关联需求 FR-4, FR-5；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 任务文档：windows-foundation-new
++
++## 任务总览
++
++当前仅context/spec准备；新实现与fresh compiler/native尚未通过。
++
++## 任务列表
++
++- [ ] T1（FR-1, FR-2）：fresh graph/impact、HIGH通知；实际opened root/input owner/lease、boundedchunks，注册current NativeToolHost，原scope权限不改。
++- [ ] T2（FR-3）：Detached InputTransfer exactbinding+1MiB/32KiB边界，新增数据和Windows租约回归测试。
++- [ ] T3（FR-3）：Go纯数据传输状态及实际句柄身份验证，执行available compiler或source-qualified GitHub CI，绝不本机VM。
++- [ ] T4（FR-4）：输出defaultdeny+不存在issuer的逆向测试；whole owner unknown/panic保留。
++- [ ] T5（FR-5）：单独具体CI OwnedBootAssets producer边界/spec；原positive保持byteexact且未producer前BLOCKED。
++- [ ] T6（FR-6）：真实fresh syntax/types/data/Windows necessarytests、peer review、detect_changes/gencommit后小步commit/非强推+真实CI，required未过不宣称tested。
++
++## 测试任务
++
++- [ ] 原positive全文SHA、16assert、三scope与默认权限字节守卫（FR-5, FR-6）。
++- [ ] 1MiB/块限/重复hash-offset身份、data-only无native权限（FR-2, FR-3）。
++- [ ] Windows actualhandle根/卷/link/reparse/cancel/cursor/closeunknown（FR-1, FR-2, FR-4）。
++- [ ] 完整必要compiler和Windows38/组合门禁真实fresh源码（FR-6）。
++- [ ] 原native16assert真实运行无skip/xfail/降级（FR-5）。
++
++## 交付物清单
++
++40新源路径、此Plan3规格、fresh impacts、exact source/patch manifest、真实失败和CI结果、未解门禁列表。
++
++## 验收清单
++
++- [ ] 六FR均有独立真实证据。
++- [ ] check_spec、necessarytests、peer/detect/gencommit全部通过。
++- [ ] RC release/public anonymous install完成前不报告项目完成。
++
++## 需求覆盖矩阵
++
++| 需求 | 任务 | 必要证据 |
++|---|---|---|
++| FR-1 | T1 | actual root conflict/opens |
++| FR-2 | T1,T2 | boundedread/closeunknown |
++| FR-3 | T2,T3 | exactbinding/offset/hash |
++| FR-4 | T4 | output defaultdeny/retained |
++| FR-5 | T5 | protected16assert +actualnative |
++| FR-6 | T6 | fresh CI/type/review |
++
++## 文件变更清单
++
++- docs/specs/independent-unqualified-windows/design.md
++- docs/specs/independent-unqualified-windows/requirements.md
++- docs/specs/independent-unqualified-windows/tasks.md
++- docs/specs/windows-execution-opened-root/design.md
++- docs/specs/windows-execution-opened-root/requirements.md
++- docs/specs/windows-execution-opened-root/tasks.md
++- docs/specs/windows-execution-transfer/design.md
++- docs/specs/windows-execution-transfer/requirements.md
++- docs/specs/windows-execution-transfer/tasks.md
++- docs/specs/windows-owned-workspace-run/design.md
++- docs/specs/windows-owned-workspace-run/requirements.md
++- docs/specs/windows-owned-workspace-run/tasks.md
++- docs/specs/windows-private-workspace-stream/design.md
++- docs/specs/windows-private-workspace-stream/requirements.md
++- docs/specs/windows-private-workspace-stream/tasks.md
++- services/windows-vm-broker/transfer.go
++- services/windows-vm-broker/transfer_identity_linux_test.go
++- services/windows-vm-broker/transfer_identity_windows.go
++- services/windows-vm-broker/transfer_test.go
++- src-tauri/src/tools/cloud_host.rs
++- src-tauri/src/tools/cloud_host/tests.rs
++- src-tauri/src/tools/cloud_host/windows_input.rs
++- src-tauri/src/tools/cloud_host/windows_input_tests.rs
++- src-tauri/src/tools/cloud_host/windows_workspace_tests.rs
++- src-tauri/src/tools/windows_vm.rs
++- src-tauri/src/tools/windows_vm/input/chunk_tests.rs
++- src-tauri/src/tools/windows_vm/input/chunks.rs
++- src-tauri/src/tools/windows_vm/input/lease.rs
++- src-tauri/src/tools/windows_vm/input/mod.rs
++- src-tauri/src/tools/windows_vm/input/owner.rs
++- src-tauri/src/tools/windows_vm/input/publication_tests.rs
++- src-tauri/src/tools/windows_vm/input/tests.rs
++- src-tauri/src/tools/windows_vm/input/transfer.rs
++- src-tauri/src/tools/windows_vm/input/transfer_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/gate.rs
++- src-tauri/src/tools/windows_vm/output_stage/mod.rs
++- src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/nt.rs
++- src-tauri/src/tools/windows_vm/output_stage/owner.rs
++- src-tauri/src/tools/windows_vm/output_stage/tests.rs
++
++总Plan额外三规格 paths docs/specs/windows-foundation-new/{requirements,design,tasks}.md。
+diff --git a/docs/specs/windows-private-workspace-stream/design.md b/docs/specs/windows-private-workspace-stream/design.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..9221b816f09a3f3c89ec523f4b92dc8cd1114bd3
+--- /dev/null
++++ b/docs/specs/windows-private-workspace-stream/design.md
+@@ -0,0 +1,122 @@
++# 新实现子规格：windows-private-workspace-stream / design
++
++关联需求 FR-3, FR-4；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 设计文档：windows-foundation-new
++
++## 概述
++
++对应需求 FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, NFR-1, NFR-2, NFR-3。基线是D6+73真实源码；以下是新设计，不是旧40文件内容推断。
++
++## 技术方案
++
++### 技术选型
++
++| 类别 | 选择 | 理由 | 关联需求 |
++|---|---|---|---|
++| 输入 | 复用实际Nt相对open/root authority | 避免字符串路径授权 | FR-1, FR-2 |
++| byte owner | 有限Vec块、非Clone结构、显式独立复制 | 保持原输入与detach并存 | FR-2, FR-3 |
++| transfer | SHA256/有界identity/offset状态 | 仅数据契约 | FR-3 |
++| owner | 原actual grant和Retained整体owner | 未知状态不提前释放授权 | FR-4 |
++| 输出 | 尚无close issuer，固定拒绝入口 | 缺实际证据不扩大写回 | FR-4 |
++
++### 架构设计
++
++NativeToolHost拥有独立WindowsInputAuthority；WorkspaceRunGrant仍持actual Claim和三scopepermit。InputLease通过authority.acquire持有根与祖先句柄，再逐组件打开输入，opened先登记后验证。读取前后identity,size,cursor必须一致，大小1MiB封顶；ImmutableChunks保持原始字节。transfer生成独立不可变副本，不共享可变文件句柄。不接现有snapshot/rootwork身份作为文件授权。
++
++## 数据模型
++
++| 实体 | 内容 | 不变量 |
++|---|---|---|
++| InputLease | root/input owner、original chunks、read cursor/info、poisoned/unknown/retired | 每个handle先注册，关闭未知永不判定完成 |
++| RunBinding | host/profile/caller/source/session/operation/input/output names | 全字段有限，source为actual source SHA；无权限 |
++| InputTransfer | binding/size/hash/独立chunks | 非Clone、只能在checked close后清空 |
++| OutputStage | 无实际issuer，固定默认deny | 数据字段/cleanup诊断不是seal |
++
++## API 设计
++
++| 函数 | 契约 | 需求 |
++|---|---|---|
++| InputLease::prepare(authority,host,profile,relative,deadline,cancelled) | 打开/验证/有界完整读；错误保留已取得资源 | FR-1, FR-2 |
++| InputLease::transfer(binding,deadline,cancelled) | 逐块受限复制到独立owner，与读input路径精确相同 | FR-3 |
++| InputLease::summary/revalidate/retire | 实际根identity/大小/hash；重验；所有handle逆序checked close | FR-2, FR-4 |
++| WindowsInputAuthority production registration | exacthost/profile/context.workspace.root，非snapshot | FR-1 |
++| outputstage deny entry | 未actualcloseissuer永不写文件 | FR-4 |
++
++## 设计决策
++
++### 决策1：运行与资产生产副作用分开（FR-5）
++
++原16assert positive先构造fixture，然后创建Harness，然后只申请exec.run/files.read/files.write。其constructor不能在host尚不存在时创造新stage permission。三scope旧入口只允许消费已由获准的一次性GitHub CI provisioning实际生产、固定原生句柄/根/生命周期、非Clone且单次移交的OwnedBootAssets。registry键只有exact source/runner/configdigest及当前host/request绑定检查，不能构造资源/权限。缺实际owner继续deny。
++
++新增在线unpack/create/scratch副作用必须由单独vm.assets.stage real localticket+actualClaim授权，其实际生产owner在执行时仍持生产Claim/permit，并在绑定同源host/profile/root/session、真实执行Claim后单次移交；执行仍保留独立三scope grant。禁止caller bool、config/env/hash、预先路径、已存在systemid替代actualowner。
++
++具体boot producer与CI bootstrap不在missing40路径中；需要独立有限新增路径、fresh impact、source-qualified compiler及明确image/HCS实验验证。当前foundation不能宣称让原positive通过，native与发布仍BLOCKED。
++
++### 决策2：拒绝以diagnostic作为writeback授权（FR-4）
++
++输出stage缺少实际VM+所有IO+输出资源checkedclose issuer，本增量保留failclosed；不创建synthetic seal。将来producer单独规格，不放宽production默认deny。
++
++## 文件结构
++
++以下40是旧丢失路径身份，本轮将写新内容；总Plan额外三MD规格受同一范围管理。
++
++- docs/specs/independent-unqualified-windows/design.md
++- docs/specs/independent-unqualified-windows/requirements.md
++- docs/specs/independent-unqualified-windows/tasks.md
++- docs/specs/windows-execution-opened-root/design.md
++- docs/specs/windows-execution-opened-root/requirements.md
++- docs/specs/windows-execution-opened-root/tasks.md
++- docs/specs/windows-execution-transfer/design.md
++- docs/specs/windows-execution-transfer/requirements.md
++- docs/specs/windows-execution-transfer/tasks.md
++- docs/specs/windows-owned-workspace-run/design.md
++- docs/specs/windows-owned-workspace-run/requirements.md
++- docs/specs/windows-owned-workspace-run/tasks.md
++- docs/specs/windows-private-workspace-stream/design.md
++- docs/specs/windows-private-workspace-stream/requirements.md
++- docs/specs/windows-private-workspace-stream/tasks.md
++- services/windows-vm-broker/transfer.go
++- services/windows-vm-broker/transfer_identity_linux_test.go
++- services/windows-vm-broker/transfer_identity_windows.go
++- services/windows-vm-broker/transfer_test.go
++- src-tauri/src/tools/cloud_host.rs
++- src-tauri/src/tools/cloud_host/tests.rs
++- src-tauri/src/tools/cloud_host/windows_input.rs
++- src-tauri/src/tools/cloud_host/windows_input_tests.rs
++- src-tauri/src/tools/cloud_host/windows_workspace_tests.rs
++- src-tauri/src/tools/windows_vm.rs
++- src-tauri/src/tools/windows_vm/input/chunk_tests.rs
++- src-tauri/src/tools/windows_vm/input/chunks.rs
++- src-tauri/src/tools/windows_vm/input/lease.rs
++- src-tauri/src/tools/windows_vm/input/mod.rs
++- src-tauri/src/tools/windows_vm/input/owner.rs
++- src-tauri/src/tools/windows_vm/input/publication_tests.rs
++- src-tauri/src/tools/windows_vm/input/tests.rs
++- src-tauri/src/tools/windows_vm/input/transfer.rs
++- src-tauri/src/tools/windows_vm/input/transfer_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/gate.rs
++- src-tauri/src/tools/windows_vm/output_stage/mod.rs
++- src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/nt.rs
++- src-tauri/src/tools/windows_vm/output_stage/owner.rs
++- src-tauri/src/tools/windows_vm/output_stage/tests.rs
++
++## 测试策略
++
++FR-1/2：非法相对名、root host/profile冲突、reparse/hardlink/卷冲突、打开错误注册、读取cursor/size变化、取消/deadline、checkedclose unknown及whole owner保持。
++FR-3：空/1MiB上限、hash、offset、重复结束、identity全字段冲突、Detached owner在originalcheckedclose前不清空；GoLinux仅metadata/state，不原生VM。
++FR-4/5：默认output deny；protected原positive全文字节/16assert/三scope严格守卫；真正一次性Windows positive须在actualproducer存在后运行，不能skip/xfail/改断言。
++FR-6：实际parse仅语法，编译器只在source-qualified一次性GitHub CI；保存全部实际失败，required测试全过后detect_changes/gencommit小步提交。
++
++## 错误处理
++
++同步固定磁盘读返回前不能假称已取消IO；保持wholeowner。prepare/read/revalidate失败poison当前lease，仍需retire。CloseHandle未知不重试rawvalue；既有Retained未知路径保留实际permit/claim/handles/bytes/root/context。
++
++## 安全与兼容
++
++PR98取消10操作和snapshot pause完全保持；生产NativeHost、GuestIO、输出均默认deny。只新增本范围功能和有界测试。四defaultscopes、九prompt/catalog、原positive字节未改变。
++
++## 实施计划
++
++先InputLease/chunks/transfer注册和必要新测试，再Go data-only，再output defaultdeny接线，最后审查producer独立具体scope。不在实现前改source符号；每新符号unknown impact与已有高风险入口impact均保存。无需借历史测试。所有40分组文档保留新实现声明。
+diff --git a/docs/specs/windows-private-workspace-stream/requirements.md b/docs/specs/windows-private-workspace-stream/requirements.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..7980a9fde87ce17ba2fd0eceb8d158774f6c4866
+--- /dev/null
++++ b/docs/specs/windows-private-workspace-stream/requirements.md
+@@ -0,0 +1,94 @@
++# 新实现子规格：windows-private-workspace-stream / requirements
++
++关联需求 FR-3, FR-4；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 需求文档：windows-foundation-new
++
++## 功能概述
++
++补齐真实丢失的40路径基础为新实现，复用D6+exact73。新源码不冒充旧hash恢复。原冻结Stage11源码保持不变；本分支从未应用其有兼容阻断的prepare分支。
++
++## 历史经验与坑
++
++实际恢复73路径；40路径只有旧身份，没有字节。历史编译与语法parse不能代替当前类型/测试。
++
++## 术语定义
++
++- InputLease：持有实际根/祖先/文件句柄、原始不可变字节、检查关闭状态的非Clone owner。
++- OwnedBootAssets：实际生产者创建并持有的启动与scratch资源；目前未实现，metadata不是该类型。
++
++## 范围边界
++
++纳入：missing40的21Rust、4Go、15规格路径及本Plan三份总规格。排除：PR98取消动作、snapshot修改、默认权限增加、用户机器原生执行、生产输出issuer、发布宣称。
++
++## 需求列表
++
++### FR-1: Independent actual execution root
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Independent actual execution root，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN a host is constructed THEN execution input SHALL pin its own native WindowsInputAuthority using that exact host/profile/workspace root; no snapshot target/gate provides file authority. IF pinning or exact current binding fails THEN input SHALL deny before native child opens.
++
++### FR-2: Bounded handle-owned immutable input
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Bounded handle-owned immutable input，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN valid relative input is read THEN InputLease SHALL register each opened handle before identity/type/read validation, enforce same fixed volume and single-link regular file, read at most 1MiB in 32KiB chunks, check identity/size/cursor/cancellation/deadline before and after reads, and retain original immutable bytes through checked close. IF close/read state is uncertain THEN whole claim/permit/root/cloud/handles/bytes SHALL remain retained.
++
++### FR-3: Detached bounded data-only transfer
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Detached bounded data-only transfer，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN transfer is requested THEN an immutable detached byte owner SHALL be bound to exact host/profile/caller/source/session/operation/input/output names and SHA256/size; repeated or mismatched session/chunks/offset/end/hash SHALL reject. WHILE native VM/output issuer is absent THEN wire transfer SHALL never authorize native input/VM/output or claim complete installation.
++
++### FR-4: Native owner and closed writeback boundary
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Native owner and closed writeback boundary，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN real workspace execution is claimed THEN the current real three-scope local permit and actual ClaimedDispatch SHALL remain owned through root/cloud work, native read/VM cleanup and all file/native handles. IF any retirement is unknown or panics THEN whole owner SHALL retain all resources; output publication SHALL remain unavailable until a separate actual closed VM+IO+output lease issuer exists.
++
++### FR-5: Three execution scopes versus new asset effects
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Three execution scopes versus new asset effects，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN execution consumes already genuinely provisioned owned boot/scratch assets THEN it SHALL use the original three scopes; the protected positive16assert body and request SHALL remain byteexact. WHEN a NEW archive unpack/create/scratch effect is requested online THEN the distinct operation SHALL consume real vm.assets.stage local ticket plus actual Claim before that effect. IF no concrete owned asset producer exists THEN configuration/path/hash/environment/registry metadata SHALL not create permission and native creation SHALL deny.
++
++### FR-6: Fresh evidence and cancelled boundaries
++
++**优先级:** Must
++**用户故事:** 作为发布维护者，我需要Fresh evidence and cancelled boundaries，以便新候选的权限与真实资源证据相同。
++
++#### 验收标准（EARS）
++
++1. WHEN this newly written foundation is validated THEN its tests/compiler/CI SHALL bind exact fresh source revision and remain separate from old40 hashes/historical passes. PR98 cancelled10 and snapshot pause SHALL remain untouched. IF compiler/positive native/production output/install gates have not run THEN status SHALL remain BLOCKED and no tested development commit or final RC completion SHALL be claimed.
++
++## 非功能需求
++
++- NFR-1：单输入1MiB、32KiB块、64路径组件；无无界复制/缓存。
++- NFR-2：权限与数据类型分离；实际owner非Clone/非Deserialize，默认deny。
++- NFR-3：旧positive16assert、三scope请求、四默认scope、九prompt/catalog原字节保留。
++
++## 依赖关系
++
++复用exact73 root/nt/path/retained/owned_run/archive reader、真实authorizer/execution_gate/ClaimedDispatch和现有WorkScope；类型/Windows验证尚未运行。
++
++## 检查清单
++
++- [x] 六条唯一FR关联设计任务。
++- [x] 原样保护、资源关闭失败、取消边界有可测要求。
++- [ ] 新compiler/Windows native positive/输出与安装证据完成。
+diff --git a/docs/specs/windows-private-workspace-stream/tasks.md b/docs/specs/windows-private-workspace-stream/tasks.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..b2e6da1da66f754ecf911c9c0d7d1638c20e0c82
+--- /dev/null
++++ b/docs/specs/windows-private-workspace-stream/tasks.md
+@@ -0,0 +1,92 @@
++# 新实现子规格：windows-private-workspace-stream / tasks
++
++关联需求 FR-3, FR-4；父规格 windows-foundation-new。明确为新原始内容，不恢复/冒充旧文件hash。当前native生产owner与原positive gate未验证。
++
++# 任务文档：windows-foundation-new
++
++## 任务总览
++
++当前仅context/spec准备；新实现与fresh compiler/native尚未通过。
++
++## 任务列表
++
++- [ ] T1（FR-1, FR-2）：fresh graph/impact、HIGH通知；实际opened root/input owner/lease、boundedchunks，注册current NativeToolHost，原scope权限不改。
++- [ ] T2（FR-3）：Detached InputTransfer exactbinding+1MiB/32KiB边界，新增数据和Windows租约回归测试。
++- [ ] T3（FR-3）：Go纯数据传输状态及实际句柄身份验证，执行available compiler或source-qualified GitHub CI，绝不本机VM。
++- [ ] T4（FR-4）：输出defaultdeny+不存在issuer的逆向测试；whole owner unknown/panic保留。
++- [ ] T5（FR-5）：单独具体CI OwnedBootAssets producer边界/spec；原positive保持byteexact且未producer前BLOCKED。
++- [ ] T6（FR-6）：真实fresh syntax/types/data/Windows necessarytests、peer review、detect_changes/gencommit后小步commit/非强推+真实CI，required未过不宣称tested。
++
++## 测试任务
++
++- [ ] 原positive全文SHA、16assert、三scope与默认权限字节守卫（FR-5, FR-6）。
++- [ ] 1MiB/块限/重复hash-offset身份、data-only无native权限（FR-2, FR-3）。
++- [ ] Windows actualhandle根/卷/link/reparse/cancel/cursor/closeunknown（FR-1, FR-2, FR-4）。
++- [ ] 完整必要compiler和Windows38/组合门禁真实fresh源码（FR-6）。
++- [ ] 原native16assert真实运行无skip/xfail/降级（FR-5）。
++
++## 交付物清单
++
++40新源路径、此Plan3规格、fresh impacts、exact source/patch manifest、真实失败和CI结果、未解门禁列表。
++
++## 验收清单
++
++- [ ] 六FR均有独立真实证据。
++- [ ] check_spec、necessarytests、peer/detect/gencommit全部通过。
++- [ ] RC release/public anonymous install完成前不报告项目完成。
++
++## 需求覆盖矩阵
++
++| 需求 | 任务 | 必要证据 |
++|---|---|---|
++| FR-1 | T1 | actual root conflict/opens |
++| FR-2 | T1,T2 | boundedread/closeunknown |
++| FR-3 | T2,T3 | exactbinding/offset/hash |
++| FR-4 | T4 | output defaultdeny/retained |
++| FR-5 | T5 | protected16assert +actualnative |
++| FR-6 | T6 | fresh CI/type/review |
++
++## 文件变更清单
++
++- docs/specs/independent-unqualified-windows/design.md
++- docs/specs/independent-unqualified-windows/requirements.md
++- docs/specs/independent-unqualified-windows/tasks.md
++- docs/specs/windows-execution-opened-root/design.md
++- docs/specs/windows-execution-opened-root/requirements.md
++- docs/specs/windows-execution-opened-root/tasks.md
++- docs/specs/windows-execution-transfer/design.md
++- docs/specs/windows-execution-transfer/requirements.md
++- docs/specs/windows-execution-transfer/tasks.md
++- docs/specs/windows-owned-workspace-run/design.md
++- docs/specs/windows-owned-workspace-run/requirements.md
++- docs/specs/windows-owned-workspace-run/tasks.md
++- docs/specs/windows-private-workspace-stream/design.md
++- docs/specs/windows-private-workspace-stream/requirements.md
++- docs/specs/windows-private-workspace-stream/tasks.md
++- services/windows-vm-broker/transfer.go
++- services/windows-vm-broker/transfer_identity_linux_test.go
++- services/windows-vm-broker/transfer_identity_windows.go
++- services/windows-vm-broker/transfer_test.go
++- src-tauri/src/tools/cloud_host.rs
++- src-tauri/src/tools/cloud_host/tests.rs
++- src-tauri/src/tools/cloud_host/windows_input.rs
++- src-tauri/src/tools/cloud_host/windows_input_tests.rs
++- src-tauri/src/tools/cloud_host/windows_workspace_tests.rs
++- src-tauri/src/tools/windows_vm.rs
++- src-tauri/src/tools/windows_vm/input/chunk_tests.rs
++- src-tauri/src/tools/windows_vm/input/chunks.rs
++- src-tauri/src/tools/windows_vm/input/lease.rs
++- src-tauri/src/tools/windows_vm/input/mod.rs
++- src-tauri/src/tools/windows_vm/input/owner.rs
++- src-tauri/src/tools/windows_vm/input/publication_tests.rs
++- src-tauri/src/tools/windows_vm/input/tests.rs
++- src-tauri/src/tools/windows_vm/input/transfer.rs
++- src-tauri/src/tools/windows_vm/input/transfer_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/gate.rs
++- src-tauri/src/tools/windows_vm/output_stage/mod.rs
++- src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
++- src-tauri/src/tools/windows_vm/output_stage/nt.rs
++- src-tauri/src/tools/windows_vm/output_stage/owner.rs
++- src-tauri/src/tools/windows_vm/output_stage/tests.rs
++
++总Plan额外三规格 paths docs/specs/windows-foundation-new/{requirements,design,tasks}.md。
+diff --git a/services/windows-vm-broker/transfer.go b/services/windows-vm-broker/transfer.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..5262b1f5c2f746a26947645d9aba4ce5d5a158e1
+--- /dev/null
++++ b/services/windows-vm-broker/transfer.go
+@@ -0,0 +1,96 @@
++package main
++
++// Exact bounded transfer data only. No native host grant or closure issuer.
++import (
++    "bytes"
++    "context"
++    "crypto/sha256"
++    "encoding/binary"
++    "errors"
++    "io"
++    "strings"
++    "unicode"
++    "unicode/utf16"
++    "unicode/utf8"
++)
++
++type transferBinding struct {
++    host, profile, caller, source, session, operation string
++    inputRelative, outputParent, outputLeaf string
++}
++func transferUUID(s string) bool {
++    return len(s) == 36 && s[8] == '-' && s[13] == '-' && s[18] == '-' && s[23] == '-' &&
++        guestControlHex(strings.ReplaceAll(s, "-", ""), 32) && strings.ReplaceAll(s, "-", "") != strings.Repeat("0", 32)
++}
++func transferLabel(s string, maximum int) bool {
++    if s == "" || len(s) > maximum || !utf8.ValidString(s) { return false }
++    for _, r := range s { if unicode.IsControl(r) { return false } }
++    return true
++}
++func transferRelative(s string) bool {
++    if !transferLabel(s, 4096) { return false }
++    parts := strings.FieldsFunc(s, func(r rune) bool { return r == '/' || r == '\\' })
++    if len(parts) == 0 || len(parts) > 64 || strings.HasPrefix(s, "/") || strings.HasPrefix(s, "\\") ||
++        strings.HasSuffix(s, "/") || strings.HasSuffix(s, "\\") { return false }
++    // FieldsFunc removes empty components, so explicitly reject separators next to each other.
++    lastSeparator := false
++    for _, r := range s {
++        separator := r == '/' || r == '\\'
++        if separator && lastSeparator { return false }; lastSeparator = separator
++    }
++    for _, part := range parts {
++        if part == "." || part == ".." || len(utf16.Encode([]rune(part))) > 255 ||
++            strings.HasSuffix(part, ".") || strings.HasSuffix(part, " ") || strings.ContainsAny(part, ":<>\"|?*") { return false }
++        base := strings.ToUpper(strings.TrimRight(strings.Split(part, ".")[0], " "))
++        switch base { case "CON", "PRN", "AUX", "NUL", "CLOCK$", "CONIN$", "CONOUT$": return false }
++        for _, prefix := range []string{"COM", "LPT"} {
++            if strings.HasPrefix(base, prefix) && strings.Contains("123456789¹²³", strings.TrimPrefix(base, prefix)) &&
++                len([]rune(strings.TrimPrefix(base, prefix))) == 1 { return false }
++        }
++    }
++    return true
++}
++func (b transferBinding) valid() bool {
++    return transferUUID(b.host) && transferUUID(b.session) && transferUUID(b.operation) &&
++        transferLabel(b.profile, 128) && transferLabel(b.caller, 256) && guestControlHex(b.source, 40) &&
++        transferRelative(b.inputRelative) && transferRelative(b.outputParent) && transferRelative(b.outputLeaf) &&
++        !strings.ContainsAny(b.outputLeaf, "/\\")
++}
++func (b transferBinding) digest() ([32]byte, error) {
++    if !b.valid() { return [32]byte{}, errors.New("transfer binding rejected") }
++    var data bytes.Buffer
++    data.WriteString("CTM-DATA-BINDING-1")
++    for _, field := range []string{b.host, b.profile, b.caller, b.source, b.session, b.operation, b.inputRelative, b.outputParent, b.outputLeaf} {
++        var size [4]byte; binary.LittleEndian.PutUint32(size[:], uint32(len(field)))
++        data.Write(size[:]); data.WriteString(field)
++    }
++    return sha256.Sum256(data.Bytes()), nil
++}
++type detachedTransfer struct {
++    binding transferBinding
++    data []byte
++    digest [32]byte
++    ctx context.Context
++    consumed bool
++}
++func receiveTransfer(ctx context.Context, binding transferBinding, total uint64, digest [32]byte, reader io.Reader) (*detachedTransfer, error) {
++    hash, err := binding.digest()
++    if err != nil { return nil, err }
++    stream, err := newWorkspaceStream(ctx, workspaceStreamManifest{binding: hash, direction: 1, total: total, digest: digest})
++    if err != nil { return nil, err }
++    if err = stream.readAll(reader, nil); err != nil { return nil, err }
++    data, err := stream.dataCopy()
++    if err != nil { return nil, err }
++    return &detachedTransfer{binding: binding, data: data, digest: digest, ctx: ctx}, nil
++}
++func (t *detachedTransfer) take(binding transferBinding) ([]byte, error) {
++    if t == nil || t.ctx == nil || t.ctx.Err() != nil || t.consumed || t.binding != binding ||
++        !binding.valid() || len(t.data) > workspaceMaximum || sha256.Sum256(t.data) != t.digest {
++        return nil, errors.New("detached transfer unavailable")
++    }
++    t.consumed = true
++    data := bytes.Clone(t.data)
++    if t.ctx.Err() != nil { return nil, errors.New("transfer cancelled before handoff") }
++    // The original owner is retained; consuming bytes still gives no native permission.
++    return data, nil
++}
+diff --git a/services/windows-vm-broker/transfer_identity_linux_test.go b/services/windows-vm-broker/transfer_identity_linux_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..b8c4331a66c2130709c2d99a49d0b2d278afbf34
+--- /dev/null
++++ b/services/windows-vm-broker/transfer_identity_linux_test.go
+@@ -0,0 +1,15 @@
++//go:build linux
++
++package main
++
++import (
++    "errors"
++    "os"
++    "testing"
++)
++func observeTransferFile(file *os.File) error {
++    return errors.New("Linux data tests cannot issue Windows native identity")
++}
++func TestLinuxTransferCannotIssueNativeFileIdentity(t *testing.T) {
++    if observeTransferFile(nil) == nil { t.Fatal("Linux cannot produce native FileId128 permission") }
++}
+diff --git a/services/windows-vm-broker/transfer_identity_windows.go b/services/windows-vm-broker/transfer_identity_windows.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..bdfe6fc26ecbb3beb06be38dd883354c1d1dfc58
+--- /dev/null
++++ b/services/windows-vm-broker/transfer_identity_windows.go
+@@ -0,0 +1,22 @@
++//go:build windows
++
++package main
++
++import (
++    "errors"
++    "os"
++    "runtime"
++    "syscall"
++)
++
++// Borrow the caller's actual retained handle. No pathname reopen or authority.
++// Existing exact-source guestRawInfo observes the full FileId128/volume/attributes.
++func observeTransferFile(file *os.File) (guestFileInfo, error) {
++    if file == nil { return guestFileInfo{}, errors.New("retained transfer file missing") }
++    defer runtime.KeepAlive(file)
++    info, err := guestRawInfo(syscall.Handle(file.Fd()))
++    if err != nil || info.directory || info.links != 1 || info.size > workspaceMaximum {
++        return guestFileInfo{}, errors.New("retained transfer file rejected")
++    }
++    return info, nil
++}
+diff --git a/services/windows-vm-broker/transfer_test.go b/services/windows-vm-broker/transfer_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..c506e40ccd87b2f175e3a2cc2718952436d619fe
+--- /dev/null
++++ b/services/windows-vm-broker/transfer_test.go
+@@ -0,0 +1,50 @@
++package main
++
++import (
++    "bytes"
++    "context"
++    "crypto/sha256"
++    "strings"
++    "testing"
++)
++func transferTestBinding() transferBinding {
++    id := "11111111-1111-4111-8111-111111111111"
++    return transferBinding{host:id, profile:"data-only", caller:"caller", source:strings.Repeat("1",40),
++        session:id, operation:id, inputRelative:"input.txt", outputParent:"results", outputLeaf:"new.txt"}
++}
++func TestTransferAllBindingFieldsChangeDigest(t *testing.T) {
++    original := transferTestBinding(); want, err := original.digest(); if err != nil { t.Fatal(err) }
++    changes := []func(*transferBinding){
++        func(b *transferBinding){b.host="22222222-2222-4222-8222-222222222222"},
++        func(b *transferBinding){b.profile+="x"},func(b *transferBinding){b.caller+="x"},
++        func(b *transferBinding){b.source=strings.Repeat("2",40)},
++        func(b *transferBinding){b.session="22222222-2222-4222-8222-222222222222"},
++        func(b *transferBinding){b.operation="22222222-2222-4222-8222-222222222222"},
++        func(b *transferBinding){b.inputRelative="other.txt"},func(b *transferBinding){b.outputParent="other"},
++        func(b *transferBinding){b.outputLeaf="other.txt"},
++    }
++    for _, change := range changes { b:=original;change(&b);got,e:=b.digest();if e!=nil || got==want {t.Fatal("field mismatch folded")}}
++}
++func TestTransferBoundEOFHashCancellationAndSingleConsumption(t *testing.T) {
++    binding:=transferTestBinding(); h,_:=binding.digest(); data:=[]byte("data-only canary");digest:=sha256.Sum256(data)
++    manifest:=workspaceStreamManifest{binding:h,direction:1,total:uint64(len(data)),digest:digest}
++    wire,err:=workspaceEncode(manifest,data);if err!=nil {t.Fatal(err)}
++    transfer,err:=receiveTransfer(context.Background(),binding,manifest.total,digest,bytes.NewReader(wire));if err!=nil {t.Fatal(err)}
++    changed:=binding;changed.caller+="x";if _,e:=transfer.take(changed);e==nil {t.Fatal("foreign binding accepted")}
++    got,err:=transfer.take(binding);if err!=nil || !bytes.Equal(got,data) {t.Fatal("exact data unavailable")}
++    got[0]='X';if !bytes.Equal(transfer.data,data) {t.Fatal("detached owner shared mutable data")}
++    if _,e:=transfer.take(binding);e==nil {t.Fatal("double consume accepted")}
++    for _, broken := range [][]byte{wire[:len(wire)-1],append(bytes.Clone(wire),0)} {
++        if _,e:=receiveTransfer(context.Background(),binding,manifest.total,digest,bytes.NewReader(broken));e==nil {t.Fatal("physical EOF invalid accepted")}
++    }
++    if _,e:=receiveTransfer(context.Background(),binding,workspaceMaximum+1,digest,bytes.NewReader(wire));e==nil {t.Fatal("size over cap")}
++    ctx,cancel:=context.WithCancel(context.Background());cancel()
++    if _,e:=receiveTransfer(ctx,binding,manifest.total,digest,bytes.NewReader(wire));e==nil {t.Fatal("cancelled receive accepted")}
++}
++func TestTransferRelativeAndMalformedIdentityReject(t *testing.T) {
++    for _, path:=range []string{"", "../escape", "C:\\escape", "a:stream", "NUL .txt", "COM¹", "a//b", "a/\\b", "a."} {
++        b:=transferTestBinding();b.inputRelative=path;if b.valid() {t.Fatal("unsafe relative name accepted",path)}
++    }
++    for _, path:=range []string{"src/配置\\a.rs","a b/c.d"} {if !transferRelative(path) {t.Fatal("bounded relative Unicode lost",path)}}
++    b:=transferTestBinding();b.host="00000000-0000-0000-0000-000000000000";if b.valid() {t.Fatal("nil identity accepted")}
++}
+diff --git a/src-tauri/src/tools/cloud_host.rs b/src-tauri/src/tools/cloud_host.rs
+index e5d6ededb28091b7f938bef456fa34b953212abe..8c13753a7f33482b1aa32f38aeeedba13430ea1a 100644
+--- a/src-tauri/src/tools/cloud_host.rs
++++ b/src-tauri/src/tools/cloud_host.rs
+@@ -5,6 +5,10 @@
+ //! HostAgent journal must durably claim a request before calling execute;
+ //! PreparedCall alone is process-local, not a durable exactly-once guarantee.
+ pub(crate) mod live;
++#[cfg(windows)] mod windows_input;
++#[cfg(windows)] pub(crate) mod windows_workspace;
++#[cfg(all(windows, test))] mod windows_input_tests;
++#[cfg(all(windows, test))] mod windows_workspace_tests;
+ use super::{chat_domain, ToolContext};
+ use crate::auth::{
+     chat::{ChatAuthorizer, RemoteRequest},
+@@ -60,6 +64,8 @@ pub(crate) struct NativeToolHost {
+     context: Arc<ToolContext>,
+     link: CloudTransport,
+     authorizer: Arc<ChatAuthorizer>,
++    #[cfg(windows)]
++    windows_input: Result<Arc<super::windows_vm::input::WindowsInputAuthority>, &'static str>,
+ }
+ fn now() -> Result<u64, &'static str> {
+     SystemTime::now()
+@@ -83,13 +89,18 @@ impl NativeToolHost {
+         {
+             return Err("CLOUD_HOST_CONTEXT_REJECTED");
+         }
+-        Ok(Self {
++        let mut host = Self {
+             id: Uuid::new_v4(),
+             profile: profile.into(),
+             context,
+             link,
+             authorizer,
+-        })
++            #[cfg(windows)]
++            windows_input: Err("WINDOWS_INPUT_ROOT_UNAVAILABLE"),
++        };
++        #[cfg(windows)]
++        { host.windows_input = windows_input::pin_input_authority(&host); }
++        Ok(host)
+     }
+ 
+     fn request(&self, conversation: &str) -> Result<RemoteRequest, &'static str> {
+diff --git a/src-tauri/src/tools/cloud_host/tests.rs b/src-tauri/src/tools/cloud_host/tests.rs
+index 4aaae08f5488fef9e21b80f35eae166c55a5bed4..081afb66c59c4fe0064a401adc757e9c8a82b557 100644
+--- a/src-tauri/src/tools/cloud_host/tests.rs
++++ b/src-tauri/src/tools/cloud_host/tests.rs
+@@ -3,6 +3,15 @@ use crate::auth::cloud_context::CloudPeer;
+ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+ use serde_json::json;
+ 
++#[cfg(windows)]
++#[test]
++fn independent_input_root_registration_does_not_replace_existing_native_authority() {
++    let f = Fixture::new();
++    assert!(f.host.windows_input.is_ok());
++    assert!(f.host.authority(&f.conversation()).is_err());
++    assert!(f.host.context.remote_request.is_none());
++}
++
+ struct Fixture {
+     root: tempfile::TempDir,
+     _storage: tempfile::TempDir,
+diff --git a/src-tauri/src/tools/cloud_host/windows_input.rs b/src-tauri/src/tools/cloud_host/windows_input.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..9b1a9d88b145261d47d859204ee9623912002db9
+--- /dev/null
++++ b/src-tauri/src/tools/cloud_host/windows_input.rs
+@@ -0,0 +1,8 @@
++//! Register actual independent input root; neither snapshot identity nor grant.
++use super::NativeToolHost;
++use crate::tools::windows_vm::input::WindowsInputAuthority;
++use std::sync::Arc;
++pub(super) fn pin_input_authority(host: &NativeToolHost)
++    -> Result<Arc<WindowsInputAuthority>, &'static str> {
++    WindowsInputAuthority::pin(host.id, &host.profile, host.context.workspace.root()).map(Arc::new)
++}
+diff --git a/src-tauri/src/tools/cloud_host/windows_input_tests.rs b/src-tauri/src/tools/cloud_host/windows_input_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..fb711aff566560f8120cd03475c15388a25a49be
+--- /dev/null
++++ b/src-tauri/src/tools/cloud_host/windows_input_tests.rs
+@@ -0,0 +1,28 @@
++use super::*;
++pub(super) fn native_fixture() -> (NativeToolHost, tempfile::TempDir, tempfile::TempDir) {
++    assert_eq!(std::env::var("GITHUB_ACTIONS").as_deref(), Ok("true"));
++    assert_eq!(std::env::var("RUNNER_OS").as_deref(), Ok("Windows"));
++    assert_eq!(std::env::var("CTM_NATIVE_WORKSPACE_IO_FIXTURE").as_deref(), Ok("owned-temporary-ci"));
++    let source = std::env::var("GITHUB_SHA").unwrap();
++    assert_eq!(crate::tools::windows_vm::input::native_source(), Ok(source.as_str()));
++    let runner = std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).canonicalize().unwrap();
++    let root = tempfile::tempdir_in(&runner).unwrap();
++    let harness = tempfile::tempdir_in(&runner).unwrap();
++    let context = Arc::new(ToolContext::for_test(root.path().into(), harness.path().into()).unwrap());
++    let peer = crate::auth::cloud_context::CloudPeer {
++        connector: Uuid::new_v4(), device: Uuid::new_v4(), device_epoch: 1,
++        gateway_boot: Uuid::new_v4(), session: Uuid::new_v4(), generation: 1,
++    };
++    let link = CloudTransport::new("input-only", root.path(), "https://gateway.example.invalid",
++        "/coding-tools", peer.connector, peer.device, 1, "input-test-private-data-only-key").unwrap();
++    link.activate(peer, Duration::from_secs(30)).unwrap();
++    let host = NativeToolHost::new("input-only", context, link, Arc::new(ChatAuthorizer::default())).unwrap();
++    (host, root, harness)
++}
++#[test]
++fn native_input_registration_does_not_authorize_cloud_execution() {
++    let (host, _root, _harness) = native_fixture();
++    assert!(host.windows_input.is_ok());
++    assert!(host.authority("not-approved").is_err());
++    assert!(host.context.remote_request.is_none());
++}
+diff --git a/src-tauri/src/tools/cloud_host/windows_workspace_tests.rs b/src-tauri/src/tools/cloud_host/windows_workspace_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..af07a811e4fb9048d4bf560d3451a1299af708a1
+--- /dev/null
++++ b/src-tauri/src/tools/cloud_host/windows_workspace_tests.rs
+@@ -0,0 +1,11 @@
++#[test]
++fn ordinary_three_scope_catalog_and_output_defaults_remain_closed() {
++    let (host, root, _harness) = super::windows_input_tests::native_fixture();
++    let arguments = serde_json::json!({"cmd":"Get-Content input.txt", "workspace_io": {
++        "input":"input.txt", "output_parent":"results", "output_leaf":"new.txt"}});
++    let spec = coding_tools_cloud_agent::catalog::tool("exec_command").unwrap();
++    assert!(spec.validate(&arguments).is_ok());
++    assert!(host.authority("not-approved").is_err());
++    assert!(!root.path().join("results/new.txt").exists());
++    // Valid catalog data has not created a grant, VM, Guest IO or output owner.
++}
+diff --git a/src-tauri/src/tools/windows_vm.rs b/src-tauri/src/tools/windows_vm.rs
+index 5fd99bd97649222a43aef36a9ee3eca8cb6f137a..db8314465b2404ac159df5434df17622cba0ec08 100644
+--- a/src-tauri/src/tools/windows_vm.rs
++++ b/src-tauri/src/tools/windows_vm.rs
+@@ -12,6 +12,10 @@ mod host_io;
+ mod image;
+ mod launch;
+ mod protocol;
++#[cfg(windows)]
++pub(crate) mod input;
++#[cfg(windows)]
++pub(crate) mod output_stage;
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+ enum Outcome {
+diff --git a/src-tauri/src/tools/windows_vm/input/chunk_tests.rs b/src-tauri/src/tools/windows_vm/input/chunk_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..685f1f942c381f1d84806af8fdbc061d577f37a5
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/input/chunk_tests.rs
+@@ -0,0 +1,26 @@
++use super::chunks::{ImmutableChunks, CHUNK, MAXIMUM};
++#[test]
++fn sealed_chunks_keep_original_and_detached_owners_independent() {
++    let mut original = ImmutableChunks::new();
++    original.append(b"original immutable canary").unwrap(); original.seal();
++    let digest = original.digest().unwrap();
++    let detached = original.detached(&|| false).unwrap();
++    original.clear_after_checked_close();
++    assert!(original.digest().is_err());
++    assert_eq!(detached.digest().unwrap(), digest);
++    assert_eq!(detached.size(), 25);
++}
++#[test]
++fn chunk_cap_and_cancel_do_not_publish_partial_copy() {
++    let mut bytes = ImmutableChunks::new();
++    assert!(bytes.append(&[]).is_err());
++    assert!(bytes.append(&vec![0; CHUNK + 1]).is_err());
++    for _ in 0..MAXIMUM/CHUNK { bytes.append(&vec![7; CHUNK]).unwrap(); }
++    assert!(bytes.append(&[1]).is_err());
++    assert!(bytes.digest().is_err()); bytes.seal();
++    assert!(bytes.append(&[1]).is_err());
++    assert!(bytes.detached(&|| true).is_err());
++    let copied = bytes.detached(&|| false).unwrap();
++    assert_eq!(copied.size(), MAXIMUM);
++    assert_eq!(copied.digest(), bytes.digest());
++}
+diff --git a/src-tauri/src/tools/windows_vm/input/chunks.rs b/src-tauri/src/tools/windows_vm/input/chunks.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..67600f410c5f2bfa760f9dc50b90fe4301dc35f2
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/input/chunks.rs
+@@ -0,0 +1,45 @@
++//! New bounded byte owner. These bytes and hashes are data, never permission.
++use sha2::{Digest, Sha256};
++pub(super) const MAXIMUM: usize = 1_048_576;
++pub(super) const CHUNK: usize = 32_768;
++pub(super) struct ImmutableChunks {
++    chunks: Vec<Vec<u8>>,
++    size: usize,
++    sealed: bool,
++}
++impl ImmutableChunks {
++    pub fn new() -> Self { Self { chunks: Vec::new(), size: 0, sealed: false } }
++    pub fn append(&mut self, bytes: &[u8]) -> Result<(), &'static str> {
++        if self.sealed || bytes.is_empty() || bytes.len() > CHUNK
++            || self.size.checked_add(bytes.len()).is_none_or(|n| n > MAXIMUM)
++        { return Err("WINDOWS_INPUT_CHUNK_REJECTED"); }
++        self.chunks.push(bytes.to_vec());
++        self.size += bytes.len();
++        Ok(())
++    }
++    pub fn seal(&mut self) { self.sealed = true; }
++    pub fn size(&self) -> usize { self.size }
++    pub fn digest(&self) -> Result<[u8; 32], &'static str> {
++        if !self.sealed { return Err("WINDOWS_INPUT_BYTES_UNSEALED"); }
++        let mut hash = Sha256::new();
++        for chunk in &self.chunks { hash.update(chunk); }
++        Ok(hash.finalize().into())
++    }
++    pub fn detached<F: Fn() -> bool>(&self, stop: &F) -> Result<Self, &'static str> {
++        if !self.sealed || stop() { return Err("WINDOWS_INPUT_COPY_REJECTED"); }
++        let mut owned = Self::new();
++        for chunk in &self.chunks {
++            if stop() { return Err("WINDOWS_INPUT_CANCELLED"); }
++            owned.append(chunk)?;
++        }
++        if stop() { return Err("WINDOWS_INPUT_CANCELLED"); }
++        owned.seal();
++        if owned.size != self.size || owned.digest()? != self.digest()? {
++            return Err("WINDOWS_INPUT_COPY_REJECTED");
++        }
++        Ok(owned)
++    }
++    pub fn clear_after_checked_close(&mut self) {
++        self.chunks.clear(); self.size = 0; self.sealed = false;
++    }
++}
+diff --git a/src-tauri/src/tools/windows_vm/input/lease.rs b/src-tauri/src/tools/windows_vm/input/lease.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..b44ec26253a92e75dd282051d9705a3f77a3cc2a
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/input/lease.rs
+@@ -0,0 +1,89 @@
++//! New actual input lease; callers install whole Retained owner before prepare.
++use super::{chunks::{ImmutableChunks, CHUNK}, nt::Identity, owner::InputHandles,
++    root::WindowsInputAuthority, transfer::{InputTransfer, RunBinding}};
++use std::time::Instant;
++pub(super) struct InputLease {
++    handles: InputHandles,
++    original: ImmutableChunks,
++    relative: Option<String>,
++    poisoned: bool,
++    prepared: bool,
++    retired: bool,
++    host: Option<uuid::Uuid>,
++    profile: Option<String>,
++}
++impl InputLease {
++    pub fn new() -> Self { Self { handles: InputHandles::new(), original: ImmutableChunks::new(),
++        relative: None, poisoned: false, prepared: false, retired: false,
++        host: None, profile: None } }
++    fn checkpoint<F: Fn() -> bool>(deadline: Instant, cancelled: &F) -> Result<(), &'static str> {
++        if cancelled() || Instant::now() >= deadline { Err("WINDOWS_INPUT_CANCELLED") } else { Ok(()) }
++    }
++    pub fn prepare<F: Fn() -> bool>(&mut self, authority: &WindowsInputAuthority,
++        host: uuid::Uuid, profile: &str, relative: &str, deadline: Instant,
++        cancelled: &F) -> Result<(), &'static str> {
++        if self.poisoned || self.prepared || self.retired { return Err("WINDOWS_INPUT_LEASE_REUSED"); }
++        let result = (|| {
++            Self::checkpoint(deadline, cancelled)?;
++            self.handles.open(authority, host, profile, relative)?;
++            self.relative = Some(relative.into());
++            self.host = Some(host); self.profile = Some(profile.into());
++            let mut bytes = [0u8; CHUNK];
++            loop {
++                Self::checkpoint(deadline, cancelled)?;
++                let count = self.handles.read_next(&mut bytes)?;
++                Self::checkpoint(deadline, cancelled)?;
++                if count == 0 { break; }
++                self.original.append(&bytes[..count])?;
++            }
++            if self.original.size() as u64 != self.handles.summary()?.1.size {
++                return Err("WINDOWS_INPUT_SIZE_CHANGED");
++            }
++            self.original.seal(); self.prepared = true;
++            self.revalidate(deadline, cancelled)
++        })();
++        if result.is_err() { self.poisoned = true; }
++        result
++    }
++    pub fn summary(&self) -> Result<(Identity, u64, [u8; 32]), &'static str> {
++        if !self.prepared || self.poisoned || self.retired { return Err("WINDOWS_INPUT_LEASE_UNAVAILABLE"); }
++        Ok((self.handles.summary()?.0, self.original.size() as u64, self.original.digest()?))
++    }
++    pub fn revalidate<F: Fn() -> bool>(&mut self, deadline: Instant,
++        cancelled: &F) -> Result<(), &'static str> {
++        Self::checkpoint(deadline, cancelled)?;
++        if !self.prepared || self.poisoned || self.retired { return Err("WINDOWS_INPUT_LEASE_UNAVAILABLE"); }
++        let result = self.handles.revalidate();
++        if result.is_err() { self.poisoned = true; }
++        result?;
++        Self::checkpoint(deadline, cancelled)
++    }
++    pub fn transfer<F: Fn() -> bool>(&mut self, binding: RunBinding, deadline: Instant,
++        cancelled: &F) -> Result<InputTransfer, &'static str> {
++        self.revalidate(deadline, cancelled)?;
++        if self.relative.as_deref() != Some(binding.input_relative.as_str())
++            || self.host.map(|host| host.to_string()).as_deref() != Some(binding.host.as_str())
++            || self.profile.as_deref() != Some(binding.profile.as_str()) {
++            return Err("WINDOWS_INPUT_TRANSFER_BINDING_REJECTED");
++        }
++        let stop = || cancelled() || Instant::now() >= deadline;
++        let detached = self.original.detached(&stop)?;
++        self.revalidate(deadline, cancelled)?;
++        InputTransfer::new(binding, detached)
++    }
++    pub fn retire(&mut self) -> bool {
++        if self.retired { return true; }
++        if self.handles.retire() {
++            self.retired = true;
++            self.original.clear_after_checked_close();
++            true
++        } else { false }
++    }
++    #[cfg(test)]
++    pub fn simulate_close_unknown(&mut self) { self.handles.simulate_close_unknown(); }
++    #[cfg(test)]
++    pub fn recovery_evidence(&self) -> (usize, bool, bool) {
++        let (held, uncertain) = self.handles.recovery_evidence();
++        (held, uncertain, self.original.digest().is_ok())
++    }
++}
+diff --git a/src-tauri/src/tools/windows_vm/input/mod.rs b/src-tauri/src/tools/windows_vm/input/mod.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..343db27b7153bce3f795dfaf8bad7d2e2a6cb104
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/input/mod.rs
+@@ -0,0 +1,28 @@
++//! Independent Windows execution input. Data validation cannot mint permission.
++mod chunks;
++mod lease;
++mod nt;
++mod owner;
++mod path;
++mod retained;
++mod root;
++mod transfer;
++pub(crate) mod owned_run;
++pub(crate) use root::WindowsInputAuthority;
++pub(crate) fn check_relative(text: &str) -> Result<(), &'static str> {
++    path::components(text).map(|_| ())
++}
++/// Build provenance only. This cannot authorize input, native VM or output.
++/// A fresh CI candidate must embed the exact build SHA explicitly.
++pub(crate) fn native_source() -> Result<&'static str, &'static str> {
++    let source = option_env!("CTM_WINDOWS_NATIVE_SOURCE")
++        .ok_or("WINDOWS_INPUT_SOURCE_UNPROVEN")?;
++    if source.len() != 40 || !source.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
++        return Err("WINDOWS_INPUT_SOURCE_UNPROVEN");
++    }
++    Ok(source)
++}
++#[cfg(test)] mod chunk_tests;
++#[cfg(test)] mod transfer_tests;
++#[cfg(test)] mod publication_tests;
++#[cfg(test)] mod tests;
+diff --git a/src-tauri/src/tools/windows_vm/input/owner.rs b/src-tauri/src/tools/windows_vm/input/owner.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..5cdf0dba120f5df723432b7ecceae89813d06fc2
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/input/owner.rs
+@@ -0,0 +1,102 @@
++//! Actual input handles, registered before observation; no path as permission.
++use super::{nt::{self, Identity, Info, Opened}, path, root::{RootLease, WindowsInputAuthority}};
++use std::io::{Read, Seek};
++pub(super) struct InputHandles {
++    root: RootLease,
++    observations: Vec<Info>,
++    file: Option<Opened>,
++    info: Option<Info>,
++    root_id: Option<Identity>,
++    cursor: u64,
++    uncertain: bool,
++}
++impl InputHandles {
++    pub fn new() -> Self {
++        Self { root: RootLease::new(), observations: Vec::new(), file: None,
++            info: None, root_id: None, cursor: 0, uncertain: false }
++    }
++    pub fn open(&mut self, authority: &WindowsInputAuthority, host: uuid::Uuid,
++        profile: &str, relative: &str) -> Result<(), &'static str> {
++        if !self.root.handles.is_empty() || self.file.is_some() {
++            return Err("WINDOWS_INPUT_LEASE_REUSED");
++        }
++        let parts = path::components(relative)?;
++        authority.acquire(host, profile, &mut self.root)?;
++        let root = self.root.root()?;
++        self.root_id = Some(root);
++        for part in &parts[..parts.len()-1] {
++            let parent = self.root.handles.last().ok_or("WINDOWS_INPUT_ROOT_UNAVAILABLE")?;
++            let opened = nt::open(parent, part, true, false)?;
++            self.root.handles.push(opened);
++            let info = self.root.handles.last().ok_or("WINDOWS_INPUT_ROOT_UNAVAILABLE")?.info()?;
++            if !info.directory || info.identity.volume != root.volume {
++                return Err("WINDOWS_INPUT_PARENT_REJECTED");
++            }
++        }
++        self.observations = self.root.handles.iter().map(Opened::info)
++            .collect::<Result<Vec<_>, _>>()?;
++        let parent = self.root.handles.last().ok_or("WINDOWS_INPUT_ROOT_UNAVAILABLE")?;
++        self.file = Some(nt::open(parent, parts.last().ok_or("WINDOWS_INPUT_PATH_REJECTED")?, false, false)?);
++        let info = self.file.as_ref().ok_or("WINDOWS_INPUT_HANDLE_UNAVAILABLE")?.info()?;
++        self.info = Some(info);
++        if info.directory || info.links != 1 || info.identity.volume != root.volume
++            || info.size > super::chunks::MAXIMUM as u64 {
++            return Err("WINDOWS_INPUT_FILE_REJECTED");
++        }
++        self.revalidate()
++    }
++    pub fn summary(&self) -> Result<(Identity, Info), &'static str> {
++        Ok((self.root_id.ok_or("WINDOWS_INPUT_ROOT_UNAVAILABLE")?,
++            self.info.ok_or("WINDOWS_INPUT_HANDLE_UNAVAILABLE")?))
++    }
++    pub fn revalidate(&mut self) -> Result<(), &'static str> {
++        let result = (|| {
++            if self.uncertain || self.observations.len() != self.root.handles.len() {
++                return Err("WINDOWS_INPUT_STATE_UNKNOWN");
++            }
++            for (opened, expected) in self.root.handles.iter().zip(&self.observations) {
++                if opened.info()? != *expected { return Err("WINDOWS_INPUT_PARENT_CHANGED"); }
++            }
++            let expected = self.info.ok_or("WINDOWS_INPUT_HANDLE_UNAVAILABLE")?;
++            let file = self.file.as_mut().ok_or("WINDOWS_INPUT_HANDLE_UNAVAILABLE")?;
++            if file.info()? != expected || file.file()?.stream_position()
++                .map_err(|_| "WINDOWS_INPUT_CURSOR_UNKNOWN")? != self.cursor {
++                return Err("WINDOWS_INPUT_FILE_CHANGED");
++            }
++            Ok(())
++        })();
++        if result.is_err() { self.uncertain = true; }
++        result
++    }
++    pub fn read_next(&mut self, bytes: &mut [u8]) -> Result<usize, &'static str> {
++        self.revalidate()?;
++        let result = (|| {
++            let n = self.file.as_mut().ok_or("WINDOWS_INPUT_HANDLE_UNAVAILABLE")?.file()?
++                .read(bytes).map_err(|_| "WINDOWS_INPUT_READ_UNKNOWN")?;
++            self.cursor = self.cursor.checked_add(n as u64).ok_or("WINDOWS_INPUT_SIZE_REJECTED")?;
++            if self.cursor > self.info.ok_or("WINDOWS_INPUT_HANDLE_UNAVAILABLE")?.size {
++                return Err("WINDOWS_INPUT_SIZE_CHANGED");
++            }
++            self.revalidate()?;
++            Ok(n)
++        })();
++        if result.is_err() { self.uncertain = true; }
++        result
++    }
++    pub fn retire(&mut self) -> bool {
++        let file_closed = self.file.as_mut().is_none_or(Opened::close);
++        let root_closed = self.root.retire();
++        file_closed && root_closed && !self.uncertain
++    }
++    #[cfg(test)]
++    pub fn simulate_close_unknown(&mut self) {
++        if let Some(file) = self.file.as_mut() { file.simulate_close_unknown(); }
++        self.uncertain = true;
++    }
++    #[cfg(test)]
++    pub fn recovery_evidence(&self) -> (usize, bool) {
++        let root = self.root.handles.iter().filter(|h| h.held().0).count();
++        let file = self.file.as_ref().is_some_and(|h| h.held().0) as usize;
++        (root + file, self.uncertain)
++    }
++}
+diff --git a/src-tauri/src/tools/windows_vm/input/publication_tests.rs b/src-tauri/src/tools/windows_vm/input/publication_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..0cdf63fe17880041a71b7ba8632c808646bcc568
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/input/publication_tests.rs
+@@ -0,0 +1,9 @@
++use super::{chunks::ImmutableChunks, transfer::InputTransfer, transfer_tests::binding};
++#[test]
++fn checked_close_consumes_data_only_transfer() {
++    let binding = binding(); let mut data = ImmutableChunks::new(); data.seal();
++    let mut transfer = InputTransfer::new(binding.clone(), data).unwrap();
++    assert!(transfer.matches(&binding)); transfer.clear_after_checked_close();
++    assert!(!transfer.matches(&binding)); transfer.clear_after_checked_close();
++    assert!(!transfer.matches(&binding));
++}
+diff --git a/src-tauri/src/tools/windows_vm/input/tests.rs b/src-tauri/src/tools/windows_vm/input/tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..067bbfb8572ae678ac48c67b222c889c85a0cb39
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/input/tests.rs
+@@ -0,0 +1,57 @@
++#[test]
++fn relative_names_remain_data_not_native_permission() {
++    assert!(super::check_relative("src/input.txt").is_ok());
++    for value in ["", "..", "C:\\input", "\\\\host\\input", "NUL.txt"] {
++        assert!(super::check_relative(value).is_err());
++    }
++    // This test creates no NativeAuthority, Claim, permit, file handle or VM.
++}
++fn require_native_ci() -> std::path::PathBuf {
++    assert_eq!(std::env::var("GITHUB_ACTIONS").as_deref(), Ok("true"));
++    assert_eq!(std::env::var("RUNNER_OS").as_deref(), Ok("Windows"));
++    assert_eq!(std::env::var("CTM_NATIVE_WORKSPACE_IO_FIXTURE").as_deref(), Ok("owned-temporary-ci"));
++    let source = std::env::var("GITHUB_SHA").expect("actual source-qualified CI required");
++    assert_eq!(super::native_source(), Ok(source.as_str()));
++    let path = std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap());
++    assert!(path.is_absolute() && path.is_dir()); path.canonicalize().unwrap()
++}
++#[test]
++fn native_input_lease_retains_original_and_detached_bytes_on_close_unknown() {
++    use super::{root::WindowsInputAuthority, lease::InputLease};
++    let runner = require_native_ci();
++    let root = tempfile::tempdir_in(runner).unwrap();
++    std::fs::write(root.path().join("input.txt"), b"actual-input-canary").unwrap();
++    let host = uuid::Uuid::new_v4();
++    let authority = WindowsInputAuthority::pin(host, "data-only", root.path()).unwrap();
++    let mut lease = InputLease::new();
++    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
++    lease.prepare(&authority, host, "data-only", "input.txt", deadline, &|| false).unwrap();
++    let mut binding = super::transfer_tests::binding(); binding.host = host.to_string();
++    let transfer = lease.transfer(binding.clone(), deadline, &|| false).unwrap();
++    assert!(transfer.matches(&binding));
++    lease.simulate_close_unknown(); assert!(!lease.retire());
++    let (held, uncertain, original) = lease.recovery_evidence();
++    assert!(held >= 1 && uncertain && original);
++    assert!(transfer.matches(&binding));
++    // Controlled unknown leaves the real handle and immutable owners held.
++    // No grant, VM/output issuer or native execution is fabricated by this unit.
++    let _ = Box::leak(Box::new((root, authority, lease, transfer)));
++}
++#[test]
++fn native_input_root_and_relative_binding_reject_foreign_profiles() {
++    use super::{root::WindowsInputAuthority, lease::InputLease};
++    let root = tempfile::tempdir_in(require_native_ci()).unwrap();
++    std::fs::write(root.path().join("input.txt"), b"actual-input-canary").unwrap();
++    let host = uuid::Uuid::new_v4();
++    let authority = WindowsInputAuthority::pin(host, "data-only", root.path()).unwrap();
++    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
++    let mut rejected = InputLease::new();
++    assert!(rejected.prepare(&authority, host, "foreign", "input.txt", deadline, &|| false).is_err());
++    assert!(rejected.retire());
++    let mut lease = InputLease::new();
++    lease.prepare(&authority, host, "data-only", "input.txt", deadline, &|| false).unwrap();
++    let mut binding = super::transfer_tests::binding(); binding.host = host.to_string();
++    binding.input_relative = "other.txt".into();
++    assert!(lease.transfer(binding, deadline, &|| false).is_err());
++    assert!(lease.retire());
++}
+diff --git a/src-tauri/src/tools/windows_vm/input/transfer.rs b/src-tauri/src/tools/windows_vm/input/transfer.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..2e79808273b7f77a531dc711c57c147465831454
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/input/transfer.rs
+@@ -0,0 +1,53 @@
++//! Exact data binding; no grant/Claim/root/native-resource constructor.
++use super::{chunks::ImmutableChunks, path};
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub(crate) struct RunBinding {
++    pub host: String,
++    pub profile: String,
++    pub caller: String,
++    pub source: String,
++    pub session: String,
++    pub operation: String,
++    pub input_relative: String,
++    pub output_parent: String,
++    pub output_leaf: String,
++}
++pub(crate) fn leaf(text: &str) -> bool { path::component(text) }
++fn uuid(text: &str) -> bool {
++    uuid::Uuid::parse_str(text).is_ok_and(|id| !id.is_nil() && id.to_string() == text)
++}
++fn label(text: &str, limit: usize) -> bool {
++    !text.is_empty() && text.len() <= limit && !text.chars().any(char::is_control)
++}
++impl RunBinding {
++    pub(crate) fn valid(&self) -> bool {
++        uuid(&self.host) && uuid(&self.session) && uuid(&self.operation)
++            && label(&self.profile, 128) && label(&self.caller, 256)
++            && self.source.len() == 40
++            && self.source.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
++            && path::components(&self.input_relative).is_ok()
++            && path::components(&self.output_parent).is_ok() && leaf(&self.output_leaf)
++    }
++}
++pub(crate) struct InputTransfer {
++    binding: RunBinding,
++    bytes: ImmutableChunks,
++    size: usize,
++    digest: [u8; 32],
++    cleared: bool,
++}
++impl InputTransfer {
++    pub(super) fn new(binding: RunBinding, bytes: ImmutableChunks) -> Result<Self, &'static str> {
++        if !binding.valid() { return Err("WINDOWS_INPUT_TRANSFER_BINDING_REJECTED"); }
++        let size = bytes.size();
++        let digest = bytes.digest()?;
++        Ok(Self { binding, bytes, size, digest, cleared: false })
++    }
++    pub(crate) fn matches(&self, binding: &RunBinding) -> bool {
++        !self.cleared && binding.valid() && &self.binding == binding
++            && self.bytes.size() == self.size && self.bytes.digest() == Ok(self.digest)
++    }
++    pub(crate) fn clear_after_checked_close(&mut self) {
++        self.bytes.clear_after_checked_close(); self.cleared = true;
++    }
++}
+diff --git a/src-tauri/src/tools/windows_vm/input/transfer_tests.rs b/src-tauri/src/tools/windows_vm/input/transfer_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..b9d2e31b8a219e9d1d93b89f8c04841f9834f53f
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/input/transfer_tests.rs
+@@ -0,0 +1,33 @@
++use super::{chunks::ImmutableChunks, transfer::{RunBinding, InputTransfer}};
++pub(super) fn binding() -> RunBinding {
++    RunBinding { host: uuid::Uuid::new_v4().to_string(), profile: "data-only".into(),
++        caller: "conversation-data-only".into(), source: "1".repeat(40),
++        session: uuid::Uuid::new_v4().to_string(), operation: uuid::Uuid::new_v4().to_string(),
++        input_relative: "input.txt".into(), output_parent: "results".into(), output_leaf: "new.txt".into() }
++}
++#[test]
++fn exact_transfer_binding_rejects_each_field_mismatch() {
++    let original = binding(); let mut bytes = ImmutableChunks::new();
++    bytes.append(b"data canary").unwrap(); bytes.seal();
++    let transfer = InputTransfer::new(original.clone(), bytes).unwrap();
++    assert!(transfer.matches(&original));
++    let mut variants = Vec::new();
++    let mut changed = original.clone(); changed.host = uuid::Uuid::new_v4().to_string(); variants.push(changed);
++    let mut changed = original.clone(); changed.profile.push('x'); variants.push(changed);
++    let mut changed = original.clone(); changed.caller.push('x'); variants.push(changed);
++    let mut changed = original.clone(); changed.source = "2".repeat(40); variants.push(changed);
++    let mut changed = original.clone(); changed.session = uuid::Uuid::new_v4().to_string(); variants.push(changed);
++    let mut changed = original.clone(); changed.operation = uuid::Uuid::new_v4().to_string(); variants.push(changed);
++    let mut changed = original.clone(); changed.input_relative = "other.txt".into(); variants.push(changed);
++    let mut changed = original.clone(); changed.output_parent = "other".into(); variants.push(changed);
++    let mut changed = original.clone(); changed.output_leaf = "other.txt".into(); variants.push(changed);
++    for changed in variants { assert!(changed.valid()); assert!(!transfer.matches(&changed)); }
++}
++#[test]
++fn invalid_wire_names_and_nil_binding_never_make_native_authority() {
++    for text in ["../escape", "C:\\external", "a:stream", "NUL.txt", "a/../b"] {
++        let mut data = binding(); data.input_relative = text.into(); assert!(!data.valid());
++    }
++    let mut data = binding(); data.host = uuid::Uuid::nil().to_string(); assert!(!data.valid());
++    let mut data = binding(); data.source = "F".repeat(40); assert!(!data.valid());
++}
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/gate.rs b/src-tauri/src/tools/windows_vm/output_stage/gate.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..9b4d56e89ed5b3f78eebd4050c6e7d8fb4df511a
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/output_stage/gate.rs
+@@ -0,0 +1,31 @@
++//! Data and permission are distinct; there is deliberately no proof issuer.
++use serde::Deserialize;
++use crate::tools::windows_vm::input::owned_run::RunBinding;
++#[derive(Deserialize)]
++#[serde(deny_unknown_fields)]
++struct DataFields {
++    host: String, profile: String, caller: String, source: String,
++    session: String, operation: String, input_relative: String,
++    output_parent: String, output_leaf: String, bytes: u64, sha256: String,
++}
++pub(super) struct OutputDataPlan {
++    pub(super) binding: RunBinding,
++    pub(super) bytes: u64,
++    pub(super) sha256: String,
++}
++impl OutputDataPlan {
++    pub fn from_untrusted_data(raw: &str) -> Result<Self, &'static str> {
++        if raw.len() > 4096 { return Err("WINDOWS_OUTPUT_DATA_REJECTED"); }
++        let data: DataFields = serde_json::from_str(raw).map_err(|_| "WINDOWS_OUTPUT_DATA_REJECTED")?;
++        let plan = Self { binding: RunBinding { host: data.host, profile: data.profile,
++            caller: data.caller, source: data.source, session: data.session, operation: data.operation,
++            input_relative: data.input_relative, output_parent: data.output_parent, output_leaf: data.output_leaf },
++            bytes: data.bytes, sha256: data.sha256 };
++        super::nt::validate_output_data(&plan)?;
++        Ok(plan)
++    }
++}
++pub(super) fn approve(_plan: OutputDataPlan)
++    -> Result<super::owner::OwnedOutputPublication, &'static str> {
++    Err("WINDOWS_OUTPUT_ACTUAL_CLOSED_OWNER_REQUIRED")
++}
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/mod.rs b/src-tauri/src/tools/windows_vm/output_stage/mod.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..a8c7f6434071ab97de091509b2d4b541531090c0
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/output_stage/mod.rs
+@@ -0,0 +1,12 @@
++//! Publication stays denied: no actual closed-VM/all-IO/output issuer exists.
++mod gate;
++mod nt;
++mod owner;
++#[cfg(test)] mod tests;
++#[cfg(test)] mod native_tests;
++pub(crate) fn request_publication(raw_data: &str) -> Result<(), &'static str> {
++    // Parsing is bounded data validation. Even valid data cannot make a proof.
++    let plan = gate::OutputDataPlan::from_untrusted_data(raw_data)?;
++    let _ = gate::approve(plan)?;
++    Err("WINDOWS_OUTPUT_ACTUAL_CLOSED_OWNER_REQUIRED")
++}
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/native_tests.rs b/src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..92e221dc8a8a6c7edfaed501cbfac39a5627fc68
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
+@@ -0,0 +1,23 @@
++fn require_native_ci() -> std::path::PathBuf {
++    assert_eq!(std::env::var("GITHUB_ACTIONS").as_deref(), Ok("true"));
++    assert_eq!(std::env::var("RUNNER_OS").as_deref(), Ok("Windows"));
++    assert_eq!(std::env::var("CTM_NATIVE_WORKSPACE_IO_FIXTURE").as_deref(), Ok("owned-temporary-ci"));
++    let source = std::env::var("GITHUB_SHA").expect("actual CI source required");
++    assert_eq!(crate::tools::windows_vm::input::native_source(), Ok(source.as_str()));
++    std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).canonicalize().unwrap()
++}
++#[test]
++fn native_forged_metadata_never_changes_existing_or_creates_new_output() {
++    let root = tempfile::tempdir_in(require_native_ci()).unwrap();
++    std::fs::create_dir(root.path().join("results")).unwrap();
++    let canary = root.path().join("results/existing.txt");
++    std::fs::write(&canary, b"existing-canary").unwrap();
++    for request in [r#"{"permission":true,"whole_vm_retired":true}"#,
++        r#"{"source_handles_closed":true,"output":"results/new.txt"}"#,
++        r#"{"stage_approved":true,"output":"results/existing.txt"}"#] {
++        assert!(super::request_publication(request).is_err());
++        assert_eq!(std::fs::read(&canary).unwrap(), b"existing-canary");
++        assert!(!root.path().join("results/new.txt").exists());
++    }
++    assert_eq!(std::fs::read_dir(root.path().join("results")).unwrap().count(), 1);
++}
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/nt.rs b/src-tauri/src/tools/windows_vm/output_stage/nt.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..c99a347b2620fb8fcec84d6b55fe7f8b31824f99
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/output_stage/nt.rs
+@@ -0,0 +1,9 @@
++//! Data prerequisites only. No unsafe open/create/write/rename/delete API yet.
++//! Native writer requires a separately implemented actual closed owner issuer.
++pub(super) fn validate_output_data(plan: &super::gate::OutputDataPlan) -> Result<(), &'static str> {
++    if !plan.binding.valid() || plan.bytes > 1_048_576 || plan.sha256.len() != 64
++        || !plan.sha256.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
++        return Err("WINDOWS_OUTPUT_DATA_REJECTED");
++    }
++    Ok(())
++}
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/owner.rs b/src-tauri/src/tools/windows_vm/output_stage/owner.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..5b4d0dbd5de6e6e857814ae39b6e143087c39ebe
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/output_stage/owner.rs
+@@ -0,0 +1,9 @@
++//! Uninhabited reservation, NOT an actual VM/IO close proof or an issuer.
++//! Future real native producer must be separately specified and verified.
++pub(super) enum ClosedVmAndIoOwner {}
++pub(super) struct OwnedOutputPublication {
++    _closed: ClosedVmAndIoOwner,
++    _data: super::gate::OutputDataPlan,
++}
++// No constructor, Clone, Deserialize, public fields or drop-triggered effects.
++// No current code can construct this type or use diagnostics to publish output.
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/tests.rs b/src-tauri/src/tools/windows_vm/output_stage/tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..8a21b51bbc9aaca6b85226d4d3ef217ef4194bb9
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/output_stage/tests.rs
+@@ -0,0 +1,17 @@
++#[test]
++fn diagnostic_metadata_cannot_authorize_output() {
++    for data in [
++        r#"{"whole_exit_observed":true,"source_handles_closed":true}"#,
++        r#"{"permission":true,"scopes":["files.write"],"retired":true}"#,
++        r#"{"system_id":"existing","native_handle":123,"stage_approved":true}"#,
++        r#"{"source":"0000000000000000000000000000000000000000","closed_vm":true}"#,
++    ] { assert!(super::request_publication(data).is_err()); }
++    let raw = serde_json::json!({"host":uuid::Uuid::new_v4().to_string(),"profile":"data-only",
++        "caller":"caller","source":"1".repeat(40),"session":uuid::Uuid::new_v4().to_string(),
++        "operation":uuid::Uuid::new_v4().to_string(),"input_relative":"input.txt",
++        "output_parent":"results","output_leaf":"new.txt","bytes":0,
++        "sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}).to_string();
++    assert_eq!(super::request_publication(&raw), Err("WINDOWS_OUTPUT_ACTUAL_CLOSED_OWNER_REQUIRED"));
++    let forged = raw.replacen("\"bytes\":0", "\"bytes\":0,\"bytes\":0", 1);
++    assert!(super::request_publication(&forged).is_err());
++}

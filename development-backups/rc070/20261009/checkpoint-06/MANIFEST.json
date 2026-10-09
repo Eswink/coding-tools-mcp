@@ -1,0 +1,105 @@
+{
+  "scope": "Immutable source-only Windowsfoundation43 delta9/fullpatch alternatives, no candidate composition or qualification",
+  "files": [
+    {
+      "path": "DELTA9-FROM-FOUNDATION33-GO4.patch",
+      "mode": "100644",
+      "bytes": 10267,
+      "sha256": "481c3f3a3f8b840a97d7a52b188052ad17b46f8ece89dfa8b5a10d668632b28d",
+      "blob": "6b29fb5165b92f87d76d257452da44d0f914db7a"
+    },
+    {
+      "path": "FULL43-FROM-EXACT73.patch",
+      "mode": "100644",
+      "bytes": 167168,
+      "sha256": "3d3e83dc6c0122286dd2d44400846895a331cb22ab5bae49a45cbc1bce2d634d",
+      "blob": "16058e389697c96047a84c907f21c5042d91c16e"
+    },
+    {
+      "path": "PARTIAL-PHYSICAL-SOURCE-TREE.json",
+      "mode": "100644",
+      "bytes": 508766,
+      "sha256": "30cf746d28a77a253b7f9a30399fb8fb260ff9153b27ca04cb097d2540390fba",
+      "blob": "b75c9d5a139413d0b8d3b0018d9ae6ef455be8dc"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 2917,
+      "sha256": "852c30e81963ced8a19d9c3de622d96b13d7731426cd11a19ee8633e3ea4289f",
+      "blob": "197940e5ae2cff432cc55138bbeeca3a26a2ee99"
+    },
+    {
+      "path": "SOURCE-MANIFEST.json",
+      "mode": "100644",
+      "bytes": 35546,
+      "sha256": "244dd9fa00d52b9ffe531f7eb1db481de96ef4e8fba6d48afc7a38db1b453bb1",
+      "blob": "e07936a33fbed2a8ef237c663d83a1a84ee6c35d"
+    },
+    {
+      "path": "delta9-source/docs/specs/windows-foundation-new/design.md.source",
+      "mode": "100644",
+      "bytes": 8677,
+      "sha256": "94729c477deb6fa7660d9552c72069dc2d3919c15e41b2d8db27c886685f7b3f",
+      "blob": "350be2a1c5137bc63e4c6fb5fa8f3f3a03c2f6c5"
+    },
+    {
+      "path": "delta9-source/src-tauri/src/tools/cloud_host.rs.source",
+      "mode": "100644",
+      "bytes": 12580,
+      "sha256": "7e0e68af4414b3b12ebcf13dd1d38991685d2f934dd24497a4584e58c4ace775",
+      "blob": "8c13753a7f33482b1aa32f38aeeedba13430ea1a"
+    },
+    {
+      "path": "delta9-source/src-tauri/src/tools/windows_vm/output_stage/gate.rs.source",
+      "mode": "100644",
+      "bytes": 1456,
+      "sha256": "9ead0949e92e45ea187922a858e50eebe77055bc38c4fc9b535183308350122d",
+      "blob": "9b4d56e89ed5b3f78eebd4050c6e7d8fb4df511a"
+    },
+    {
+      "path": "delta9-source/src-tauri/src/tools/windows_vm/output_stage/mod.rs.source",
+      "mode": "100644",
+      "bytes": 483,
+      "sha256": "562704eb631b8d4d6c287261ccbf0441c6a759cbaad793db3f434b2b04d57cb3",
+      "blob": "a8c7f6434071ab97de091509b2d4b541531090c0"
+    },
+    {
+      "path": "delta9-source/src-tauri/src/tools/windows_vm/output_stage/native_tests.rs.source",
+      "mode": "100644",
+      "bytes": 1391,
+      "sha256": "ca2cb46d37c9c7ef9bd959d06b8783232ef239eb0e6a39d90f9256d9d35759e7",
+      "blob": "92e221dc8a8a6c7edfaed501cbfac39a5627fc68"
+    },
+    {
+      "path": "delta9-source/src-tauri/src/tools/windows_vm/output_stage/nt.rs.source",
+      "mode": "100644",
+      "bytes": 496,
+      "sha256": "7dc1dc05ac410cd4ad4b6bcdc6226625611b4e7e1879a07c74ba5a33ffe7b084",
+      "blob": "c99a347b2620fb8fcec84d6b55fe7f8b31824f99"
+    },
+    {
+      "path": "delta9-source/src-tauri/src/tools/windows_vm/output_stage/owner.rs.source",
+      "mode": "100644",
+      "bytes": 467,
+      "sha256": "9d378c11a7ea84733aa5ae18d401d30c961d942106102f622e0a65dd2617b5a8",
+      "blob": "5b4d0dbd5de6e6e857814ae39b6e143087c39ebe"
+    },
+    {
+      "path": "delta9-source/src-tauri/src/tools/windows_vm/output_stage/tests.rs.source",
+      "mode": "100644",
+      "bytes": 1131,
+      "sha256": "aeefc6f4fd07bd0a29aa7783f3d6297c2d9d708f54bf384d3720443fd2558ddf",
+      "blob": "8a21b51bbc9aaca6b85226d4d3ef217ef4194bb9"
+    },
+    {
+      "path": "delta9-source/src-tauri/src/tools/windows_vm.rs.source",
+      "mode": "100644",
+      "bytes": 16764,
+      "sha256": "f2f74d46f2a3aefaf967971e6d6bd10ed64c3188ccbb6892581de0cf96791790",
+      "blob": "db8314465b2404ac159df5434df17622cba0ec08"
+    }
+  ],
+  "no_runtime_source_edits": true,
+  "no_qualification": true
+}

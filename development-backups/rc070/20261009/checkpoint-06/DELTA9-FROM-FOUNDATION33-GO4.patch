@@ -1,0 +1,177 @@
+diff --git a/docs/specs/windows-foundation-new/design.md b/docs/specs/windows-foundation-new/design.md
+index 1d3547441a38593248fd0057f31cab61df79a462..350be2a1c5137bc63e4c6fb5fa8f3f3a03c2f6c5 100644
+--- a/docs/specs/windows-foundation-new/design.md
++++ b/docs/specs/windows-foundation-new/design.md
+@@ -116,3 +116,9 @@ PR98取消10操作和snapshot pause完全保持；生产NativeHost、GuestIO、
+ ## 实施计划
+ 
+ 先InputLease/chunks/transfer注册和必要新测试，再Go data-only，再output defaultdeny接线，最后审查producer独立具体scope。不在实现前改source符号；每新符号unknown impact与已有高风险入口impact均保存。无需借历史测试。所有40分组文档保留新实现声明。
++
++## 输出6路径本轮精确边界（FR-4）
++
++输出writer的真实closed-VM/all-IO/actualoutputissuer尚不存在，因此本轮6文件实现固定publication refusal、有限data plan parser和明确不可构造的ClosedVmAndIoOwner私有proof类型。该类型没有constructor/Clone/Deserialize，metadata/config/布尔不能产生该值；不把存在此类型作为实际closeproof。公开入口永远固定拒绝，不执行open/write/rename/remove。nt.rs只定义未来句柄写入之前必须检查的数据边界，不导入unsafe原生写API。owner.rs只有不可构造的真实closed-owner槽，没有假issuer。所有生产写回仍NOTIMPLEMENTED/BLOCKED，source40路径写齐不等于用户安全回写功能完成。
++
++跨 sibling cloud_host::windows_workspace 的现有73 consumer路径需要crate-private模块可见性；只改变注册visibility，不改变Grant字段/构造权限、原current逻辑和三scope，不公开HTTP/外部crate。
+diff --git a/src-tauri/src/tools/cloud_host.rs b/src-tauri/src/tools/cloud_host.rs
+index 2e51bdb58f11bd55876b95e66e70b7b910cef33a..8c13753a7f33482b1aa32f38aeeedba13430ea1a 100644
+--- a/src-tauri/src/tools/cloud_host.rs
++++ b/src-tauri/src/tools/cloud_host.rs
+@@ -6,7 +6,7 @@
+ //! PreparedCall alone is process-local, not a durable exactly-once guarantee.
+ pub(crate) mod live;
+ #[cfg(windows)] mod windows_input;
+-#[cfg(windows)] mod windows_workspace;
++#[cfg(windows)] pub(crate) mod windows_workspace;
+ #[cfg(all(windows, test))] mod windows_input_tests;
+ #[cfg(all(windows, test))] mod windows_workspace_tests;
+ use super::{chat_domain, ToolContext};
+diff --git a/src-tauri/src/tools/windows_vm.rs b/src-tauri/src/tools/windows_vm.rs
+index c2d1fa539712ffc9bab5e042db3e9da8393a4dfc..db8314465b2404ac159df5434df17622cba0ec08 100644
+--- a/src-tauri/src/tools/windows_vm.rs
++++ b/src-tauri/src/tools/windows_vm.rs
+@@ -14,6 +14,8 @@ mod launch;
+ mod protocol;
+ #[cfg(windows)]
+ pub(crate) mod input;
++#[cfg(windows)]
++pub(crate) mod output_stage;
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+ enum Outcome {
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/gate.rs b/src-tauri/src/tools/windows_vm/output_stage/gate.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..9b4d56e89ed5b3f78eebd4050c6e7d8fb4df511a
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/output_stage/gate.rs
+@@ -0,0 +1,31 @@
++//! Data and permission are distinct; there is deliberately no proof issuer.
++use serde::Deserialize;
++use crate::tools::windows_vm::input::owned_run::RunBinding;
++#[derive(Deserialize)]
++#[serde(deny_unknown_fields)]
++struct DataFields {
++    host: String, profile: String, caller: String, source: String,
++    session: String, operation: String, input_relative: String,
++    output_parent: String, output_leaf: String, bytes: u64, sha256: String,
++}
++pub(super) struct OutputDataPlan {
++    pub(super) binding: RunBinding,
++    pub(super) bytes: u64,
++    pub(super) sha256: String,
++}
++impl OutputDataPlan {
++    pub fn from_untrusted_data(raw: &str) -> Result<Self, &'static str> {
++        if raw.len() > 4096 { return Err("WINDOWS_OUTPUT_DATA_REJECTED"); }
++        let data: DataFields = serde_json::from_str(raw).map_err(|_| "WINDOWS_OUTPUT_DATA_REJECTED")?;
++        let plan = Self { binding: RunBinding { host: data.host, profile: data.profile,
++            caller: data.caller, source: data.source, session: data.session, operation: data.operation,
++            input_relative: data.input_relative, output_parent: data.output_parent, output_leaf: data.output_leaf },
++            bytes: data.bytes, sha256: data.sha256 };
++        super::nt::validate_output_data(&plan)?;
++        Ok(plan)
++    }
++}
++pub(super) fn approve(_plan: OutputDataPlan)
++    -> Result<super::owner::OwnedOutputPublication, &'static str> {
++    Err("WINDOWS_OUTPUT_ACTUAL_CLOSED_OWNER_REQUIRED")
++}
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/mod.rs b/src-tauri/src/tools/windows_vm/output_stage/mod.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..a8c7f6434071ab97de091509b2d4b541531090c0
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/output_stage/mod.rs
+@@ -0,0 +1,12 @@
++//! Publication stays denied: no actual closed-VM/all-IO/output issuer exists.
++mod gate;
++mod nt;
++mod owner;
++#[cfg(test)] mod tests;
++#[cfg(test)] mod native_tests;
++pub(crate) fn request_publication(raw_data: &str) -> Result<(), &'static str> {
++    // Parsing is bounded data validation. Even valid data cannot make a proof.
++    let plan = gate::OutputDataPlan::from_untrusted_data(raw_data)?;
++    let _ = gate::approve(plan)?;
++    Err("WINDOWS_OUTPUT_ACTUAL_CLOSED_OWNER_REQUIRED")
++}
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/native_tests.rs b/src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..92e221dc8a8a6c7edfaed501cbfac39a5627fc68
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/output_stage/native_tests.rs
+@@ -0,0 +1,23 @@
++fn require_native_ci() -> std::path::PathBuf {
++    assert_eq!(std::env::var("GITHUB_ACTIONS").as_deref(), Ok("true"));
++    assert_eq!(std::env::var("RUNNER_OS").as_deref(), Ok("Windows"));
++    assert_eq!(std::env::var("CTM_NATIVE_WORKSPACE_IO_FIXTURE").as_deref(), Ok("owned-temporary-ci"));
++    let source = std::env::var("GITHUB_SHA").expect("actual CI source required");
++    assert_eq!(crate::tools::windows_vm::input::native_source(), Ok(source.as_str()));
++    std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).canonicalize().unwrap()
++}
++#[test]
++fn native_forged_metadata_never_changes_existing_or_creates_new_output() {
++    let root = tempfile::tempdir_in(require_native_ci()).unwrap();
++    std::fs::create_dir(root.path().join("results")).unwrap();
++    let canary = root.path().join("results/existing.txt");
++    std::fs::write(&canary, b"existing-canary").unwrap();
++    for request in [r#"{"permission":true,"whole_vm_retired":true}"#,
++        r#"{"source_handles_closed":true,"output":"results/new.txt"}"#,
++        r#"{"stage_approved":true,"output":"results/existing.txt"}"#] {
++        assert!(super::request_publication(request).is_err());
++        assert_eq!(std::fs::read(&canary).unwrap(), b"existing-canary");
++        assert!(!root.path().join("results/new.txt").exists());
++    }
++    assert_eq!(std::fs::read_dir(root.path().join("results")).unwrap().count(), 1);
++}
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/nt.rs b/src-tauri/src/tools/windows_vm/output_stage/nt.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..c99a347b2620fb8fcec84d6b55fe7f8b31824f99
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/output_stage/nt.rs
+@@ -0,0 +1,9 @@
++//! Data prerequisites only. No unsafe open/create/write/rename/delete API yet.
++//! Native writer requires a separately implemented actual closed owner issuer.
++pub(super) fn validate_output_data(plan: &super::gate::OutputDataPlan) -> Result<(), &'static str> {
++    if !plan.binding.valid() || plan.bytes > 1_048_576 || plan.sha256.len() != 64
++        || !plan.sha256.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
++        return Err("WINDOWS_OUTPUT_DATA_REJECTED");
++    }
++    Ok(())
++}
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/owner.rs b/src-tauri/src/tools/windows_vm/output_stage/owner.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..5b4d0dbd5de6e6e857814ae39b6e143087c39ebe
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/output_stage/owner.rs
+@@ -0,0 +1,9 @@
++//! Uninhabited reservation, NOT an actual VM/IO close proof or an issuer.
++//! Future real native producer must be separately specified and verified.
++pub(super) enum ClosedVmAndIoOwner {}
++pub(super) struct OwnedOutputPublication {
++    _closed: ClosedVmAndIoOwner,
++    _data: super::gate::OutputDataPlan,
++}
++// No constructor, Clone, Deserialize, public fields or drop-triggered effects.
++// No current code can construct this type or use diagnostics to publish output.
+diff --git a/src-tauri/src/tools/windows_vm/output_stage/tests.rs b/src-tauri/src/tools/windows_vm/output_stage/tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..8a21b51bbc9aaca6b85226d4d3ef217ef4194bb9
+--- /dev/null
++++ b/src-tauri/src/tools/windows_vm/output_stage/tests.rs
+@@ -0,0 +1,17 @@
++#[test]
++fn diagnostic_metadata_cannot_authorize_output() {
++    for data in [
++        r#"{"whole_exit_observed":true,"source_handles_closed":true}"#,
++        r#"{"permission":true,"scopes":["files.write"],"retired":true}"#,
++        r#"{"system_id":"existing","native_handle":123,"stage_approved":true}"#,
++        r#"{"source":"0000000000000000000000000000000000000000","closed_vm":true}"#,
++    ] { assert!(super::request_publication(data).is_err()); }
++    let raw = serde_json::json!({"host":uuid::Uuid::new_v4().to_string(),"profile":"data-only",
++        "caller":"caller","source":"1".repeat(40),"session":uuid::Uuid::new_v4().to_string(),
++        "operation":uuid::Uuid::new_v4().to_string(),"input_relative":"input.txt",
++        "output_parent":"results","output_leaf":"new.txt","bytes":0,
++        "sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}).to_string();
++    assert_eq!(super::request_publication(&raw), Err("WINDOWS_OUTPUT_ACTUAL_CLOSED_OWNER_REQUIRED"));
++    let forged = raw.replacen("\"bytes\":0", "\"bytes\":0,\"bytes\":0", 1);
++    assert!(super::request_publication(&forged).is_err());
++}
