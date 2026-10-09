@@ -1,0 +1,49 @@
+# 需求文档：issue88-postpublish488-recovery-carrier
+
+## 功能概述
+在缺失历史 checkpoint10 和管理 tree1e43 源码的情况下建立新的独立 Linux data-only 外层 controller。恢复纯 SUT3084/1867 和原8338字节runner、58132字节488清单，真实执行前封存并接受独立启动审查。历史carrier保持 MISSING。
+
+## 历史经验与坑
+历史755的named success不能升级整体PASS。原488、真实CI、安装槽仍NOTRUN。新版Git仅消除PREFIX具体阻断。
+
+## 术语定义
+纯SUT为D6加完整checkpoint05 v2补丁；carrier为管理D6新增外层文件；必要controls与原488严格分开。
+
+## 范围边界
+In Scope：真实源码字节、native refs、exact PREFIX、fixture、原runner/清单封存；只读数据测试的直接Popen、pidfd、WNOWAIT、subreaper ECHILD和正常EOF关闭；保存不可覆盖私有失败证据。
+Out of Scope：安装、编译、权限、issuer、release、tag、snapshot恢复、改写原positive、改写Reader或installer900秒lease、历史tree复刻、原生CI证明。
+
+## 需求列表
+### FR-1: 原始输入封存
+**优先级:** Must
+**用户故事:** 作为发布验证者，我需要确认执行对象来自真实精确输入。
+#### 验收标准（EARS）
+1. WHEN controller启动 THEN 系统 SHALL 验证纯tree3084的1867路径mode/bytes/SHA/blob及原runner与488唯一有序清单。
+2. IF source或native refs或fixture不完整 THEN 系统 SHALL 在0 SUT时失败，不能替换或生成原对象。
+
+### FR-2: 有限真实owner
+**优先级:** Must
+**用户故事:** 作为验证者，我需要知道原runner自然退出且真实后代已退役。
+#### 验收标准（EARS）
+1. WHEN 启动原runner THEN 系统 SHALL 只使用直接Popen lease、真实pidfd和内核created child身份，不使用PID/JSON授权。
+2. IF 取消或2700秒fail-only上限或异常发生 THEN 系统 SHALL 保留原异常并执行原7/2/2关闭边界，无法关闭时FAIL/UNKNOWN。
+3. WHEN controller判定成功 THEN 系统 SHALL 证实自然exit0、WNOWAIT held zombie、匹配namespace/starttime、native ECHILD、source/runtime/carrier/fixture前后不变。
+
+### FR-3: 原488严格收据
+**优先级:** Must
+**用户故事:** 作为验证者，我需要真实全部有序488而不是named success替代。
+#### 验收标准（EARS）
+1. WHEN admission执行 THEN 系统 SHALL 重新读取原始receipt和event journal，确认loaded/executed/named_passed完全等于原488，并且无skip/xfail/xpass/errors/subtest。
+2. IF 原收据missing或事件缺失或非自然关闭 THEN 系统 SHALL 整体FAIL，保持旧证据不可覆盖。
+3. WHEN controls完成 THEN 系统 SHALL 仍报告原488/CI/install NOTRUN，直到独立启动审查后实际执行。
+
+## 非功能需求
+NFR-1：2700仅为新data-only fail上限，原operation和installer900 lease不变；每stdout/stderr上限2MiB。
+NFR-2：最小固定环境，无token、无PATH shim；证据私有，公开备份仅source/mode/hash/safe status。
+NFR-3：只Linux真实内核，明确非新PID namespace，不声称native安装授权。
+
+## 依赖关系
+D6、checkpoint05、checkpoint07、checkpoint09复用原kernel/read_regular源码片段，Git支持原PREFIX，glib0.18.5原267679B/SHA233d fixture，完整14 identity anchors和固定R。
+
+## 检查清单
+原输入不变；未知影响人工HIGH披露；controls后source seals与独立review先于SUT。

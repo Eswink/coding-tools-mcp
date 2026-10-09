@@ -1,0 +1,37 @@
+{
+  "scope": "New independently recreated488carrier source-only backup; historicalcheckpoint10 and1e43 missing, not restored",
+  "pure_SUT_tree": "3084a7ea3dafac6e0a32088757dfd2256c21ee35",
+  "pure_SUT_paths": 1867,
+  "new_files": 10,
+  "existing_production_modifications": 0,
+  "original8338runner_sha256": "0344311a0640e64b46875ed3cdb4e61ed41d87e4274e4a44c76e944323e8186e",
+  "original58132inventory_sha256": "3274554750e538929b34a91cb124d66fe2372ac8737ee768ccb81b0aa7691094",
+  "necessary_controls": {
+    "actual_passed": 33,
+    "SUT_runs": 0,
+    "ordinary_owned_kernel_cases": 7,
+    "native_blob_and_actual_entrypoint_negative_controls": 8
+  },
+  "original488": "NOTRUN",
+  "CI": "NOTRUN",
+  "installed_slots": "NOTRUN",
+  "peer_review": "PENDING",
+  "RC_qualification": false,
+  "historical_checkpoint10_15sources": "MISSING",
+  "old755_overall": "FAIL",
+  "no_public_runtime_logs": true,
+  "native_objects_backed_up": false,
+  "AST_truth": {
+    "kernel5_functions_exact_original_AST": true,
+    "sha_write_readregular_exact_original_AST": true,
+    "kernel_import_retargeted": true,
+    "owner_function_AST_unchanged": false,
+    "new_support_owner_controls_new_symbols": true
+  },
+  "source_revision": "new independent carrier V2; original V1 archive preserved",
+  "runtime_guards": {
+    "reviewed_outer_exact_binary_identity": true,
+    "expected_frozen_whole_source_index_refs15_blobs26_programs_extensions_helpers_fixture_realm": true
+  },
+  "no_private_launch_packets_in_public_backup": true
+}

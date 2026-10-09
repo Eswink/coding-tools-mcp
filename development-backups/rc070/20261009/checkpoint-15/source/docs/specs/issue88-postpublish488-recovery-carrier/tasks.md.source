@@ -1,0 +1,27 @@
+# 任务清单：issue88-postpublish488-recovery-carrier
+
+## 概述
+建立新的有限data-only外层，历史carrier源码缺失保持真实记录。
+
+## 交付物清单
+新增10文件=3规格+support/kernel/owner/controls+原runner/IDs/source manifest；修改原生产0；预计新增约20符号。
+
+## 任务列表
+1. FR-1：恢复核对输入，校验规格，fresh impact全部新符号并披露UNKNOWN/manual HIGH。
+2. FR-1和FR-2：实现只读prepare与真实owner，复用kernel字节片段并精确声明AST改变。
+3. FR-3：收据/journal严格gate，source/runtime/family闭包证据。
+4. FR-2和FR-3：普通owned及负向controls，与原488分开；原488 NOTRUN。
+5. FR-1至3：fresh detect_changes/gencommit，source-only freeze备份名单与独立启动review。
+6. 只有root完成独立启动review后才启动原488，本阶段不得执行。
+
+## 验收标准
+所有源码真实封存且0原输入变化；controls成功不升级whole488；root审查收到精准manifest/source SHA/argv/limits和未决项；最终真实suite结果另行记录。
+
+## 风险和依赖
+未知调用图manual HIGH；完整14anchors/native fixedR和glib fixture未核验先BLOCKED；不使用shim或修改Git；无native安装权限。
+
+## 需求覆盖矩阵
+FR-1覆盖任务1、2、5；FR-2覆盖任务2、4、5；FR-3覆盖任务3、4、5。
+
+## 文件变更清单
+新增：requirements.md、design.md、tasks.md、rc_postpublish488_support.py、rc_postpublish488_kernel.py、rc_postpublish488_owner.py、rc_postpublish488_controls.py、rc_postpublish488_original_runner.py、rc_postpublish488_inventory.json、rc_postpublish488_source_manifest.json。原source生产修改0。

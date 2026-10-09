@@ -1,0 +1,5 @@
+# New independent488 carrier source-only backup
+
+This is newly recreated source, not the missing original checkpoint10 or management tree1e43. Start independently at D6c60f, restore only these10 new management files using original100644 modes. PureSUT is separately D6+checkpoint05 NEW28v2, exact3084/1867; do not apply source drafts into pureSUT. Original runner8338B and inventory58132B are byte-identical to checkpoint07. No original tests/CI/install or release qualification exists; necessary33controls (7ordinaryownedkernel cases) are prerequisites only. Independent launchreview is pending. No TLS, keys, token values, environments, runtime/proc snapshots, raw commit objects or Git object pools are included. Preserve PR98 cancellation and Issue86 snapshot pause.
+
+V2 fixes the reviewed exactouter interpreter/frozen context binding, rereads26 historical gitshow blob identities before/after, and binds _ssl/_hashlib runtime origins. Eight additional real-native/entrypoint negativecontrols prove fail-before0SUT. Private frozen runtime/context/launch data is intentionally not public backup content. OriginalV1 packet and archive remain preserved.

@@ -1,0 +1,95 @@
+{
+  "scope": "only new source/inertpayloads/patch/safe-status;V2 independently recreated carrier",
+  "files": [
+    {
+      "path": "source/docs/specs/issue88-postpublish488-recovery-carrier/design.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-recovery-carrier/design.md",
+      "mode": "100644",
+      "bytes": 2740,
+      "sha256": "721b8f460bf5fc742a723223c0a4e48d5d3e0b0d8175a199a9e19c6a2e9bd89e"
+    },
+    {
+      "path": "source/docs/specs/issue88-postpublish488-recovery-carrier/requirements.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-recovery-carrier/requirements.md",
+      "mode": "100644",
+      "bytes": 3416,
+      "sha256": "9d5dd59f84de68955e3b66b6b31a221532972f679b523a7ccc4ed2c79f73cc4c"
+    },
+    {
+      "path": "source/docs/specs/issue88-postpublish488-recovery-carrier/tasks.md.source",
+      "original_path": "docs/specs/issue88-postpublish488-recovery-carrier/tasks.md",
+      "mode": "100644",
+      "bytes": 1687,
+      "sha256": "cdfe4c0ae6c6e2d146912828201de5a9bb891037f3cd35f789af27b0a2b9df34"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_controls.py.source",
+      "original_path": "scripts/rc_postpublish488_controls.py",
+      "mode": "100644",
+      "bytes": 12288,
+      "sha256": "3093a4f2e1b76b853b993d6a462af961f71362eb130157a64f6ef16a7dfc48ba"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_inventory.json.source",
+      "original_path": "scripts/rc_postpublish488_inventory.json",
+      "mode": "100644",
+      "bytes": 58132,
+      "sha256": "3274554750e538929b34a91cb124d66fe2372ac8737ee768ccb81b0aa7691094"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_kernel.py.source",
+      "original_path": "scripts/rc_postpublish488_kernel.py",
+      "mode": "100644",
+      "bytes": 4290,
+      "sha256": "b3c90896d1284732190bda5d1d118da7ad9b738cc3347bd9c9f477ad021aaac5"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_original_runner.py.source",
+      "original_path": "scripts/rc_postpublish488_original_runner.py",
+      "mode": "100644",
+      "bytes": 8338,
+      "sha256": "0344311a0640e64b46875ed3cdb4e61ed41d87e4274e4a44c76e944323e8186e"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_owner.py.source",
+      "original_path": "scripts/rc_postpublish488_owner.py",
+      "mode": "100644",
+      "bytes": 16544,
+      "sha256": "44ffa2a6778381aa50fe244f6d822eb260a125983a2e2ddc3dc11cbd3370a0c2"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_source_manifest.json.source",
+      "original_path": "scripts/rc_postpublish488_source_manifest.json",
+      "mode": "100644",
+      "bytes": 496326,
+      "sha256": "bd0d893b0fb2b3790ac7fc8a68aaa489f87e22310a84dd5140e5bf5b35e1f649"
+    },
+    {
+      "path": "source/scripts/rc_postpublish488_support.py.source",
+      "original_path": "scripts/rc_postpublish488_support.py",
+      "mode": "100644",
+      "bytes": 8347,
+      "sha256": "26a8aa93b42ec061462d1cbc1ee03baae704f3353655c1b48ea9b1d783ffbce5"
+    },
+    {
+      "path": "SOURCE-STATUS.json",
+      "mode": "100644",
+      "bytes": 1511,
+      "sha256": "c5790fa4ce1a95910d9bea9860cef9ef75dad74dad3ee06db1785a35e8dba81b"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 1156,
+      "sha256": "82452fd8aa52d29aa1ac67490e4e9ce1835a3f83453085ab752850a6261ba3e2"
+    },
+    {
+      "path": "source.patch",
+      "mode": "100644",
+      "bytes": 629127,
+      "sha256": "b455d0457388e62fb86cfa01e782f869d19fb9d19dbc8e833eb7fe0fd710ee9c"
+    }
+  ],
+  "no_runtime": true,
+  "qualification": false
+}

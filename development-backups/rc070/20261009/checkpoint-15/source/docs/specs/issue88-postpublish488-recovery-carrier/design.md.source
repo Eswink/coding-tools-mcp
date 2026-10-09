@@ -1,0 +1,36 @@
+# 设计文档：issue88-postpublish488-recovery-carrier
+
+## 概述
+对应FR-1、FR-2、FR-3和NFR-1至3。纯SUT与管理checkout及私有输出相互隔离。新carrier有自己的identity，绝不冒称历史1e43。
+
+## 技术方案
+### 技术选型
+Python标准库、Linux pidfd/prctl、原生/usr/bin/git。复用checkpoint09 kernel身份/后代关闭与read_regular严格FD读取片段，修改导入namespace；原8338runner保持字节。
+### 架构设计
+support验证完整source/refs/native程序/fixture；owner直接创建并持有原runner；复用kernel只处理controller真实子孙；gate读原收据和journal并独立核验全部向量。
+
+## 数据模型
+fence包含whole源表和index、head、refs/program身份、realm、helper文件、fixture；closure记录created/held内核身份、observed exit、cancel/timeouts/error和ECHILD；私有raw文件逐hash封存。
+
+## API 设计
+prepare_context(root,manifest,runner,inventory,fixture)只验证；run_owned488(context,output)真实执行；receipt_gate488(receipt,journal,closure,context)返回严格admission。入口默认必须提供封存packet，普通controls入口明确拒绝SUT。
+
+## 文件结构
+新增3规格；scripts/rc_postpublish488_support.py、rc_postpublish488_kernel.py、rc_postpublish488_owner.py、rc_postpublish488_controls.py、rc_postpublish488_original_runner.py、rc_postpublish488_inventory.json、rc_postpublish488_source_manifest.json。共10文件，0原生产修改。私有packet和runtime不入Git。
+
+## 设计决策
+### 决策1: 数据测试不授予安装权限
+原runner只执行data suite，所有release/install flags保持false/NOTRUN；controller记录实际owner，无环境值或JSON充当授权。
+### 决策2: 失败保持真实边界
+取消sticky；直接child失败retire后执行真实family关闭；source/收据读取异常只补充failure，不能隐藏原delegate异常；任何close failure降为UNKNOWN。
+### 决策3: 核验原原件
+journal原start/stop逐条交错有序488且passed true；原log/receipt全部不可覆盖；static controls不导入SUT，不冒充完整suite。
+
+## 测试策略
+syntax、readonly receipt负向controls、source vector negative controls、普通owned进程natural/TERM/KILL/descendant/cancellation/FD setup失败真实内核controls；封存后独立全面启动审查。原488尚未运行，review完成前不得启动。
+
+## 风险评估
+新增符号未索引可能UNKNOWN而非0，manual HIGH；复用kernel只对私有subreaper子孙操作；output raw host/proc/TLS和环境不得公开；缺native对象不能API替代。
+
+## 检查清单
+source/runner/IDs/operation timers不改；actualowner可核验；私有失败不覆盖；原安装issuer安全暂停保持。

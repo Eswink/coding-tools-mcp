@@ -1,0 +1,163 @@
+"""New488 prerequisite and ordinary-owned controls; never import or execute SUT."""
+import argparse
+import hashlib
+import stat
+import ast
+import copy
+import ctypes
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+from rc_postpublish488_support import sha,write,read_regular,whole_source488,prepare_context488,fences488,RUNNER_SHA,INVENTORY_SHA,ENV
+from rc_postpublish488_kernel import kernel,owned_family_close
+
+
+def run_controls488(case=None):
+    scripts=Path(__file__).resolve().parent
+    if case is not None:
+        assert case in ('natural','term','kill','escape','lateadopt','fdsetupfailure','cancel')
+        libc=ctypes.CDLL(None,use_errno=True);assert libc.prctl(36,1,0,0,0)==0
+        try:
+            os.waitid(os.P_ALL,0,os.WEXITED|os.WNOHANG|os.WNOWAIT)
+        except ChildProcessError:
+            pass
+        else:
+            raise AssertionError('fresh controller needs initial ECHILD')
+        programs={
+            'natural':"import sys; print('ready',flush=True)",
+            'cancel':"import time; print('ready',flush=True); time.sleep(40)",
+            'term':"import signal,time,sys; signal.signal(signal.SIGTERM,lambda *a:sys.exit(0)); print('ready',flush=True); time.sleep(40)",
+            'kill':"import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); print('ready',flush=True); time.sleep(40)",
+            'escape':"import os,subprocess,sys,time; subprocess.Popen([sys.executable,'-c','import os,time; os.setsid(); time.sleep(40)']); print('ready',flush=True); time.sleep(.1)",
+            'lateadopt':"import subprocess,sys,time; subprocess.Popen([sys.executable,'-c',\"import subprocess,sys,time; subprocess.Popen([sys.executable,'-c','import time; time.sleep(40)']); time.sleep(.1)\"]); print('ready',flush=True); time.sleep(.1)",
+            'fdsetupfailure':"import time; print('ready',flush=True); time.sleep(40)"}
+        with tempfile.TemporaryDirectory(prefix='postpublish488-ordinary-') as directory:
+            output=Path(directory)/'stdout';stream=output.open('xb');child=None;fd=None;created=None;observed=None;held=None;code=None;family=[];errors=[]
+            try:
+                child=subprocess.Popen([sys.executable,'-B','-c',programs[case]],env=ENV,stdin=subprocess.DEVNULL,stdout=stream,stderr=stream,start_new_session=True)
+                fd=os.pidfd_open(child.pid);created=kernel(child.pid,fd)
+                assert created['ppid']==os.getpid() and created['pgid']==created['sid']==child.pid
+                end=time.monotonic()+2
+                while not output.read_bytes() and time.monotonic()<end:
+                    time.sleep(.01)
+                assert b'ready' in output.read_bytes()
+                if case=='fdsetupfailure':
+                    # Expected error after genuine Popen, genuine pidfd and created identity.
+                    errors.append('ordinary_expected_setup_failure')
+                if case=='cancel':
+                    signal.signal(signal.SIGTERM,lambda *args:errors.append('ordinary_sticky_cancel'))
+                    os.kill(os.getpid(),signal.SIGTERM)
+                    assert errors==['ordinary_sticky_cancel']
+                if case in ('term','kill','fdsetupfailure','cancel'):
+                    os.killpg(child.pid,signal.SIGTERM)
+                end=time.monotonic()+(7 if case in ('term','kill','fdsetupfailure','cancel') else 2)
+                while time.monotonic()<end:
+                    observed=os.waitid(os.P_PIDFD,fd,os.WEXITED|os.WNOHANG|os.WNOWAIT)
+                    if observed is not None:
+                        break
+                    time.sleep(.01)
+                if observed is None:
+                    assert case=='kill'
+                    assert kernel(child.pid,fd)['starttime']==created['starttime']
+                    os.killpg(child.pid,signal.SIGKILL);end=time.monotonic()+2
+                    while observed is None and time.monotonic()<end:
+                        observed=os.waitid(os.P_PIDFD,fd,os.WEXITED|os.WNOHANG|os.WNOWAIT);time.sleep(.01)
+                assert observed is not None
+                held=kernel(child.pid,fd);assert held['state']=='Z' and held['starttime']==created['starttime'] and held['proc_pid']==created['proc_pid']
+                code=child.wait(timeout=0);closed=owned_family_close(time.monotonic()+2,family)
+                assert closed is True
+                expected=0 if case in ('natural','term','escape','lateadopt') else (-9 if case=='kill' else -15)
+                assert code==expected
+                if case in ('escape','lateadopt'):
+                    assert family and any(row['unexpectedly_live'] for row in family)
+                else:
+                    assert not family
+            finally:
+                if child is not None and code is None:
+                    if fd is None:
+                        fd=os.pidfd_open(child.pid)
+                    current=kernel(child.pid,fd);assert current['pgid']==current['sid']==child.pid
+                    signal.pidfd_send_signal(fd,signal.SIGKILL)
+                    child.wait(timeout=2);owned_family_close(time.monotonic()+2,family)
+                if fd is not None:
+                    os.close(fd)
+                stream.close();assert stream.closed
+            return dict(case=case,passed=True,actual_created=created,held=held,native_echild=closed,exit_code=code,adopted_descendants=family,ordinary_errors=errors,SUT_runs=0)
+    parser=argparse.ArgumentParser();parser.add_argument('--root',required=True);parser.add_argument('--output',required=True);parser.add_argument('--fixture',required=True);args=parser.parse_args()
+    output=Path(args.output);assert not output.exists();rows=[]
+    runner=read_regular(scripts/'rc_postpublish488_original_runner.py');assert len(runner)==8338 and sha(runner)==RUNNER_SHA;rows.append(dict(check='original runner8338/raw SHA',passed=True))
+    raw=read_regular(scripts/'rc_postpublish488_inventory.json');ids=json.loads(raw)['loaded'];assert len(raw)==58132 and sha(raw)==INVENTORY_SHA and len(ids)==len(set(ids))==488;rows.append(dict(check='original ordered488/58132/raw SHA',passed=True))
+    for path in scripts.glob('rc_postpublish488*.py'):
+        ast.parse(read_regular(path));rows.append(dict(check=path.name+' grammar',passed=True))
+    manifest=json.loads(read_regular(scripts/'rc_postpublish488_source_manifest.json'));whole_source488(args.root,manifest);rows.append(dict(check='whole pure1867 actual POSIX644/755 nativeindex bytes/SHA',passed=True))
+    for mutation in ('sha','path','mode','duplicate','missing'):
+        bad=copy.deepcopy(manifest)
+        if mutation=='sha':bad['source'][0]['sha256']='0'*64
+        if mutation=='path':bad['source'][0]['path']='../escape'
+        if mutation=='mode':bad['source'][0]['mode']='120000'
+        if mutation=='duplicate':bad['source'][1]=copy.deepcopy(bad['source'][0])
+        if mutation=='missing':bad['source'].pop()
+        try:
+            whole_source488(args.root,bad)
+        except (AssertionError,KeyError,OSError):
+            rows.append(dict(check='source '+mutation+' rejects',passed=True,expected_reject=True))
+        else:
+            raise AssertionError(mutation)
+    with tempfile.TemporaryDirectory(prefix='postpublish488-read-negative-') as directory:
+        d=Path(directory);(d/'file').write_bytes(b'owned ordinary data');(d/'leaf').symlink_to(d/'file');(d/'directory').mkdir();(d/'directory/data').write_bytes(b'owned ordinary data');(d/'parent').symlink_to(d/'directory',target_is_directory=True);os.link(d/'file',d/'hardlink');(d/'writable').write_bytes(b'owned ordinary data');(d/'writable').chmod(0o666);os.mkfifo(d/'fifo')
+        for path,label in [(d/'leaf','leaf symlink'),(d/'parent/data','parent symlink'),(d/'file','hardlink'),(d/'writable','writable'),(d/'fifo','FIFO')]:
+            try:
+                read_regular(path)
+            except (AssertionError,OSError):
+                rows.append(dict(check='FD reader '+label+' rejects',passed=True,expected_reject=True))
+            else:
+                raise AssertionError(label)
+    for case in ('natural','term','kill','escape','lateadopt','fdsetupfailure','cancel'):
+        r=subprocess.run([sys.executable,'-B',str(Path(__file__).resolve()),'--case',case],env=ENV,capture_output=True,timeout=25)
+        assert r.returncode==0,(case,r.stderr.decode())
+        native=json.loads(r.stdout);assert native['passed'] and native['SUT_runs']==0;rows.append(native)
+    management=scripts.parent
+    files=sorted(list((management/'docs/specs/issue88-postpublish488-recovery-carrier').glob('*.md'))+list(scripts.glob('rc_postpublish488*')));assert len(files)==10
+    context=prepare_context488(args.root,scripts/'rc_postpublish488_source_manifest.json',scripts/'rc_postpublish488_original_runner.py',scripts/'rc_postpublish488_inventory.json',args.fixture,files)
+    for mutation in ('historical_sha','historical_blob','raw_commit_sha'):
+        bad=copy.deepcopy(context)
+        if mutation=='historical_sha':bad['manifest']['identity26_anchors'][0]['sha256']='0'*64
+        if mutation=='historical_blob':bad['manifest']['identity26_anchors'][0]['blob']='0'*40
+        if mutation=='raw_commit_sha':bad['refs'][next(iter(bad['refs']))]['sha256']='0'*64
+        try:
+            fences488(bad)
+        except AssertionError:
+            rows.append(dict(check='real native reread '+mutation+' rejects',passed=True,expected_reject=True,SUT_runs=0))
+        else:
+            raise AssertionError(mutation)
+    from rc_postpublish488_kernel import identity
+    for mutation in ('runtime_binary_sha','historical_blob_vector','source_file_sha','index_sha','outer_interpreter'):
+        with tempfile.TemporaryDirectory(prefix='postpublish488-fence-negative-') as directory:
+            d=Path(directory);out=d/'never-started';frozen=copy.deepcopy(context['fence']);outer=dict(path=str(Path(sys.executable).resolve()),identity=identity(Path(sys.executable).resolve()))
+            if mutation=='runtime_binary_sha':frozen['programs'][str(Path(sys.executable).resolve())]['sha256']='0'*64
+            if mutation=='historical_blob_vector':frozen['historical_blobs'][next(iter(frozen['historical_blobs']))]['sha256']='0'*64
+            if mutation=='source_file_sha':frozen['source']['files'][next(iter(frozen['source']['files']))]['sha256']='0'*64
+            if mutation=='index_sha':frozen['index_sha256']='0'*64
+            if mutation=='outer_interpreter':outer['identity']['sha256']='0'*64
+            frozen_path=d/'FROZEN.json';frozen_path.write_text(json.dumps(frozen,indent=2)+'\n');frozen_path.chmod(0o644);raw=frozen_path.read_bytes()
+            seal={str(p.relative_to(management)):dict(bytes=len(read_regular(p)),sha256=sha(read_regular(p)),mode=stat.S_IMODE(p.stat().st_mode)) for p in files}
+            packet=dict(kind='NEW488_SOURCE_SEAL_ONLY',source_tree=context['manifest']['tree'],root=str(Path(args.root).resolve()),fixture=str(Path(args.fixture).resolve()),output=str(out),carrier_files=seal,outer_interpreter=outer,expected_fence_file=str(frozen_path),expected_fence_bytes=len(raw),expected_fence_sha256=sha(raw))
+            packet_path=d/'NEGATIVE-PACKET.json';packet_path.write_text(json.dumps(packet,indent=2)+'\n');packet_path.chmod(0o644)
+            result=subprocess.run([sys.executable,'-B',str(scripts/'rc_postpublish488_owner.py'),'--root',str(Path(args.root).resolve()),'--fixture',str(Path(args.fixture).resolve()),'--output',str(out),'--packet',str(packet_path)],env=ENV,capture_output=True,timeout=30)
+            assert result.returncode!=0 and not out.exists() and b'AssertionError' in result.stderr and b'"started": true' not in result.stdout
+            rows.append(dict(check='actual entrypoint '+mutation+' rejects before0SUT',passed=True,expected_reject=True,SUT_runs=0))
+    report=dict(passed=True,total=len(rows),checks=rows,SUT_runs=0,original488='NOTRUN',native_installs='NOTRUN',CI='NOTRUN',no_install_authority=True)
+    write(output,report);print(json.dumps(dict(passed=True,total=len(rows),SUT_runs=0)))
+    return report
+
+
+if __name__=='__main__':
+    if len(sys.argv)==3 and sys.argv[1]=='--case':
+        print(json.dumps(run_controls488(sys.argv[2])))
+    else:
+        run_controls488()
