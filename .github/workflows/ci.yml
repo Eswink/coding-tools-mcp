@@ -19,7 +19,9 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
-            libxdo-dev
+            libxdo-dev \
+            dbus \
+            gnome-keyring
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -29,7 +31,13 @@ jobs:
         run: cargo build
       - name: cargo test
         working-directory: src-tauri
-        run: cargo test
+        # Non-test library builds read the native ledger through the OS Secret Service.
+        # Provide a disposable, unlocked session keyring; production refusal is unchanged.
+        run: |
+          dbus-run-session -- bash -euo pipefail -c '
+            printf "%s" "ci-disposable-keyring" | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            cargo test
+          '
 
   frontend:
     runs-on: ubuntu-latest
