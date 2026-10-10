@@ -53,6 +53,8 @@ Carrier工作流调用restore helper，从checkout可读的immutable备份对象
 
 问题：本地2.43不支持原参数。选项：松绑参数/装Git；或现成GitHub原生工具实际检查。决策：检查现成runner，失败SUT0。原runner runtime()包含/usr/local/bin/git，若host没有该原路径则失败记录，不创建alias或删路径。
 
+**修订（2026-10-10，用户批准）**：运行37913922195（job113765399162）在ubuntu-24.04上因 `/usr/local/bin/git` 不存在而在前置门失败（SUT0，85/300 NOT_RUN），且脚本静默退出1。该失败证据保持不变、不重跑覆盖。新决策：已核验的 `/usr/bin/git`（realpath为自身、全安全参数 `--version` 实际通过并记录SHA）即为接受的原生Git；若固定镜像提供 `/usr/local/bin/git`，仍记录其身份并纳入runtime前后不变比对；其缺失不再构成前置失败，也不创建alias、不删除路径。为此runner `runtime()` 仅一行改为“可选路径存在时才记录”，runner 仍为103行，新pin为6327B SHA `ecfd57ec3d5d8e669076f86a56f869ce65b82d6a5fd7382e04dd3f4505343c0c`（原6259B `687ec2a4…` 仅作历史）。失败时 `rc_native_probe.py` 向stderr输出一行结构化JSON并写入 `PROBE-RESULT.json` 的 `error`。理由：GitHub ubuntu-24.04 镜像不保证 `/usr/local/bin/git`，而该路径不是安全参数或SUT行为的组成部分。
+
 ### 决策3: 失败有限controller（FR-3/4）
 
 原历史runner没有whole绝对预算。新1800/7200明确是fail-only恢复supervisor，不冒充原有budget。复用V5kernel与cleanup核心语义；最小workerenv仅PATH、UTF8/locale、PYTHONDONTWRITEBYTECODE、固定GLib路径。取消先检查再Popen、finally保留真实退休与异常链。原始raw hashes、allloaded/executed/namedPASS及naturalexit是300前门。
@@ -65,7 +67,7 @@ artifact仅allowlist、最多32MB总量、禁止PEM/TLS/privatekey/secret/token�
 
 ## 测试策略
 
-FR-1实际在当前nativeGit执行固定objects恢复，核全1878和privateparent；negativepatch/hash/path拒绝。FR-2 local原PREFIX129明确SUT0不重跑。FR-3校验原103行6259BSHA、85/300uniqueinventory与receipt负向向量阻断。FR-4 exactV5helper AST对照、ordinary自然退出/取消/TERM7KILL2/escape/lateadopt证据映射；新修改owner由peer重新审。FR-5检查YAML权限、branch、固定action、无setup/install/exporttoken，敏感PEM与secret值负向扫描。freshGitNexus/precommit范围检查和全source peer复核后才实际CI一次。
+FR-1实际在当前nativeGit执行固定objects恢复，核全1878和privateparent；negativepatch/hash/path拒绝。FR-2 local原PREFIX129明确SUT0不重跑。FR-3校验原103行6327BSHA（修订前6259B）、85/300uniqueinventory与receipt负向向量阻断。FR-4 exactV5helper AST对照、ordinary自然退出/取消/TERM7KILL2/escape/lateadopt证据映射；新修改owner由peer重新审。FR-5检查YAML权限、branch、固定action、无setup/install/exporttoken，敏感PEM与secret值负向扫描。freshGitNexus/precommit范围检查和全source peer复核后才实际CI一次。
 
 ## 风险评估
 

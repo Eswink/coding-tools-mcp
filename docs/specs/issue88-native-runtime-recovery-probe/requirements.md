@@ -52,7 +52,7 @@ Out of Scope：生产/defaultReader/signers 更改；编译、安装、特权、
 
 #### 验收标准（EARS）
 
-1. WHEN native runtime 前置门通过 THEN 系统 SHALL 用原103行6259B runner SHA687ec2a408507284b557806569d6f5df0ead625b9c282b9c8bbb74782d633f0a 运行85 exact unique names一次。
+1. WHEN native runtime 前置门通过 THEN 系统 SHALL 用103行6327B runner SHAecfd57ec3d5d8e669076f86a56f869ce65b82d6a5fd7382e04dd3f4505343c0c（2026-10-10修订：可选 /usr/local/bin/git 仅存在时记录；原6259B 687ec2a4…为历史pin） 运行85 exact unique names一次。
 2. IF 原85 qualified 完整向量、封存的seal SHA及实际重读的全部原始receipt/LAUNCH/nativeclosure/8rawfile hashes 或自然 exit0 有任一不满足 THEN 系统 SHALL 不启动300且保留失败，不重跑85。
 3. WHEN 同源85 qualified THEN 系统 SHALL 仅一次运行原300 unique inventory267+13+20；named loaded/executed/passed相等、无skip/xfail/xpass/负向subtest失败、所有source/runtime/native向量均通过才有资格。
 
