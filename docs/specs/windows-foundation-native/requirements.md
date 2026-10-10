@@ -17,3 +17,4 @@ Workflow: `.github/workflows/windows-foundation-native.yml`. Every result here i
   labelled host-run. Only native_01/native_02 execute inside the VM. In-VM execution of these cases is deferred until
   the HCS workspace-run transport (`docs/specs/windows-creation-owned-hcs-workspace-run`, FR-3) exists; the frozen
   broker in `c8cc0cf3` only launches the fixed `guest.exe --guest` fixture, and changing it would require a new SUT tree.
+- Launch timing: `finished in 10.31s` for the 6 `native_launch_*` cases in run 37858303598 (c60f9667) is a single-run host anomaly, cause unconfirmed; `launch.rs`/`launch_tests.rs`/`prepare_windows_vm_launch.ps1` and fixture source are identical to `c8cc0cf3`, and other runs of the old workflow took 0.11-0.15s (here 0.81s / 0.50s).
