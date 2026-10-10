@@ -103,6 +103,8 @@ def normalize(path, current):
     """Reverse only sealed new bytes; historical passthrough is a finite pin list."""
     from rc_pretag_ci_repair_profile import normalize as ci_repair_bytes
     current = ci_repair_bytes(path, current)
+    from rc_pretag_windows_launch_profile import normalize as windows_launch_bytes
+    current = windows_launch_bytes(path, current)
     assert type(path) is str and type(current) is bytes, 'source_observation inverse input'
     if path not in BASE_PINS:
         return current
