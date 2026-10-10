@@ -207,11 +207,15 @@ def stop_owned_group(process, term: float = 5.0, kill: float = 5.0) -> None:
     try:
         def exited(budget: float) -> bool:
             deadline = time.monotonic() + budget
-            while os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT) is None:
+            while True:
+                try:
+                    if os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None:
+                        return True
+                except ChildProcessError:
+                    raise RuntimeError("native leader reaped by someone else; group not cleanable") from None
                 if time.monotonic() >= deadline:
                     return False
                 time.sleep(0.05)
-            return True  # ChildProcessError above means someone else reaped it: fail closed.
         if os.getpgid(process.pid) != process.pid:
             raise RuntimeError("native leader does not own its process group")
         for number, budget in ((signal.SIGTERM, term), (signal.SIGKILL, kill)):
