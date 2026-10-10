@@ -25,6 +25,17 @@ import rc_consumer_transport_tests as fixtures
 
 
 def fixture_worker(config):
+    # Bind the exact spawning parent: open its pidfd, then confirm we are still its child; otherwise
+    # it already died (we were reparented) and we leave at once. No timer, no fallback.
+    if not hasattr(os, 'pidfd_open'):
+        raise RuntimeError('fixture worker requires os.pidfd_open (Linux >= 5.3, Python >= 3.9)')
+    expected = int(os.environ['RC_FIXTURE_PARENT'])
+    try:
+        parent = os.pidfd_open(expected)  # readable only once that parent process has exited
+    except ProcessLookupError:
+        os._exit(0)
+    if os.getppid() != expected:
+        os._exit(0)
     with config.open('rb') as stream:
         raw = stream.read(8 * 1024**2 + 1)
     assert len(raw) <= 8 * 1024**2
@@ -66,10 +77,19 @@ def fixture_worker(config):
             index = len(observed['requests'])
             observed['requests'].append(dict(url=request.full_url, headers=request.header_items(),
                                             method=request.get_method(), timeout=timeout))
-            record()
             if mode in {'dns', 'tls'}:
-                time.sleep(3)
-                raise OSError('simulated network stage')
+                # Signal: request received, entering the simulated DNS/TLS stage (same write as the request).
+                observed['stage'] = {'entered': time.monotonic()}
+                record()
+                # Block on stdin. The parent alone holds the write end (Popen stdin=PIPE, close_fds=True,
+                # O_CLOEXEC). EOF means the parent is disposing us (it terminates us next) or has died.
+                while os.read(0, 4096):
+                    pass
+                # Never self-exit while the parent lives: its SIGTERM/SIGKILL ends us; parent exit wakes this.
+                import select
+                select.select([parent], [], [])
+                os._exit(0)
+            record()
             if mode.startswith('local_') and (index == 1 or mode.startswith('local_api')):
                 import urllib.request
                 mapped = urllib.request.Request('http://127.0.0.1:%d/fixture' % value['port'],

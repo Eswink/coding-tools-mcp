@@ -1,4 +1,4 @@
-"""rc_bundle (#146/#147/#148 squashed on #89 head); modeled checks confer no release, native or CI authority."""
+"""dns_cancel (stage-signal cancellation fix on rc_bundle D); modeled checks confer no release, native or CI authority."""
 from collections import Counter
 import subprocess
 import unittest
@@ -8,22 +8,14 @@ import rc_pretag_ownership_profile as o
 import rc_pretag_publication_profile as p
 import rc_pretag_publication_tests as pt
 import rc_pretag_linux_package_cases as lc
-import rc_pretag_issue86_root_identity_profile as previous
-import rc_pretag_integration_admission_profile as admission
+import rc_pretag_rc_bundle_profile as previous
 import rc_pretag_windows_launch_profile as windows_launch
-import rc_pretag_ci_repair_profile as ci_repair
-import rc_pretag_rc_bundle_profile as x
-from rc_pretag_dns_cancel_profile import normalize as dns_cancel_bytes
+import rc_pretag_dns_cancel_profile as x
 
-F_BINDING = ('41984b1de0ca13efab3646aae5041845bc78cfee', '72bf89e5a35cf87996f0b96708d503b5f43ab9f6', ('b26b3027f68cdb64711196c694be97fd2e111c5b', '2750b9159dfa5c634c195a9e852dd84f8ace89c0'))
-F_RAW = (1283, '3841e4443e82d1fbb002cfaad36181a99314d65ff810693696ee3e88c531adda')
-COUNT = 11
-GROUP_COUNTS = {'146': 18}
-UNSET_TEXT = frozenset()
-FIXTURE = 'scripts/rc_publication_https_fixture.py'
-REPIN_LINE = ('branches:', '$base=', 'if ((git rev-parse "$($base)^{tree}")', '$previous=', '$earlier=', '$older=', '$origin=',
-              'if ((git rev-parse "$($previous)^{tree}")', 'if ((git rev-parse "$($earlier)^{tree}")',
-              'if ((git rev-parse "$($older)^{tree}")', 'if ((git rev-parse "$($origin)^{tree}")')
+F_BINDING = ('11aeb60a6d3798a4afae9e0e54a60070b6cec082', '4f03b496fb2bb397c79675ab238e0d2e95493ca4', ('41984b1de0ca13efab3646aae5041845bc78cfee',))
+F_RAW = (286, 'd44984e5b9fedcea2bf2e3ce46253e15c43eff75e1d30c36336a3ebdae47bbec')
+COUNT = 10
+GROUP_COUNTS = {'flake': 3}
 
 
 def inventory():
@@ -45,7 +37,7 @@ def execution_valid(loaded, result):
             and result.testsRun == len(set(executed)) == COUNT)
 
 
-class RcBundleCases(unittest.TestCase):
+class DnsCancelCases(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.fixture = c._profile_fixture()
@@ -56,7 +48,7 @@ class RcBundleCases(unittest.TestCase):
         cls.addClassCleanup(cls._immutable_m.clear)
     def setUp(self):
         self.original = c._entries(x.M, self.repo)
-        self.good = self.original | {path: ('100644', 'blob', self.blob(dns_cancel_bytes(path, (c.ROOT / path).read_bytes()))) for path in x.CAPS}
+        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in x.CAPS}
         self.pure = self.commit([x.M], self.good)
         self.feature = self.commit([x.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -112,11 +104,11 @@ class RcBundleCases(unittest.TestCase):
         self.delegates(self.commit([p.R, self.commit([self.pure, x.M], self.good)], self.overlay))
 
     def test_extra_missing_and_changed_paths_reject(self):
-        some = sorted(x.GROUPS['146'])[0]
+        some = sorted(x.GROUPS['flake'])[0]
         extra = self.good | {'extra.md': ('100644', 'blob', self.blob(b'extra'))}
         missing = {k: v for k, v in self.good.items() if k != x.CASES}
         changed = self.good | {x.CASES: ('100644', 'blob', self.blob(b'changed'))}
-        drift = self.good | {some: ('100644', 'blob', self.blob(dns_cancel_bytes(some, (c.ROOT / some).read_bytes()) + b'\n'))}
+        drift = self.good | {some: ('100644', 'blob', self.blob((c.ROOT / some).read_bytes() + b'\n'))}
         mode = self.good | {some: ('100755', 'blob', self.good[some][2])}
         for entries in (extra, missing, changed, drift, mode, self.original):
             ref = self.commit([x.M], entries)
@@ -126,21 +118,21 @@ class RcBundleCases(unittest.TestCase):
         self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
         self.assertEqual(x.FRAGMENTS.keys(), x.BASE_PINS.keys())
         for path, row in x.SOURCE_PINS.items():
-            data = dns_cancel_bytes(path, (c.ROOT / path).read_bytes())
+            data = (c.ROOT / path).read_bytes()
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())), path)
         for path, (lines, _) in x.CAPS.items():
-            self.assertLessEqual(len(dns_cancel_bytes(path, (c.ROOT / path).read_bytes()).splitlines()), lines, path)
+            self.assertLessEqual(len((c.ROOT / path).read_bytes().splitlines()), lines, path)
         self.assertEqual(sum(cap[1] for cap in x.CAPS.values()), x.DELTA_LIMIT)
         self.assertFalse([path for path in x.CAPS if path.endswith('/')])
 
     def test_normalize_restores_exact_m_bytes_and_rejects_drift(self):
         for path in x.BASE_PINS:
-            current = dns_cancel_bytes(path, (c.ROOT / path).read_bytes())
+            current = (c.ROOT / path).read_bytes()
             self.assertEqual(x.normalize(path, current), self.frozen(path), path)
             self.assertEqual(x.normalize(path, self.frozen(path)), self.frozen(path), path)
             with self.assertRaises(AssertionError): x.normalize(path, current + b'#')
         self.assertEqual(x.normalize('README.md', b'unrelated'), b'unrelated')
-        self.assertEqual(previous.normalize(x.WORKFLOW, dns_cancel_bytes(x.WORKFLOW, (c.ROOT / x.WORKFLOW).read_bytes())),
+        self.assertEqual(previous.normalize(x.WORKFLOW, (c.ROOT / x.WORKFLOW).read_bytes()),
                          previous.normalize(x.WORKFLOW, self.frozen(x.WORKFLOW)))
 
     def test_per_pr_groups_are_exact_disjoint_and_droppable(self):
@@ -149,44 +141,45 @@ class RcBundleCases(unittest.TestCase):
         self.assertEqual(len(flat), len(set(flat)))
         self.assertEqual(set(flat) | x.LAYER, set(x.CAPS))
         self.assertFalse(set(flat) & x.LAYER)
-        if '148' in x.GROUPS:
-            self.assertFalse(x.GROUPS['148'] & x.BASE_PINS.keys())
-            self.assertFalse(any(path in x.GROUPS['148'] for path in x.FRAGMENTS))
 
-    def test_native_repins_change_only_trigger_ref_and_sha_lines(self):
-        for path, (row, fragments) in x.REPIN.items():
-            current = dns_cancel_bytes(path, (c.ROOT / path).read_bytes())
-            restored = current
-            for before, after in reversed(fragments):
-                self.assertEqual(restored.count(before), 1, path)
-                restored = restored.replace(before, after, 1)
-            self.assertEqual((o.pin(restored), len(restored), len(restored.splitlines())), (row[1:3], row[3], row[4]), path)
-            for before, after in fragments:
-                new, old = before.decode().splitlines(), after.decode().splitlines()
-                for line in set(new) ^ set(old):
-                    self.assertTrue(line.strip().startswith(REPIN_LINE), (path, line))
-            text = current.decode()
-            self.assertIn("$base='" + x.M + "'", text)
-            self.assertIn(x.M_TREE, text)
+    def test_dns_tls_cancel_is_signal_driven_without_child_timer(self):
+        sup = (c.ROOT / 'scripts/rc_consumer_transport_supervisor_tests.py').read_bytes().decode()
+        dbc = (c.ROOT / 'scripts/rc_consumer_download_budget_cases.py').read_bytes().decode()
+        branch = sup[sup.index("            if mode in {'dns', 'tls'}:"):sup.index("                os._exit(0)")]
+        self.assertIn("observed['stage'] = {'entered': time.monotonic()}", branch)
+        self.assertIn('while os.read(0, 4096):', branch)
+        self.assertNotIn('os.pipe', branch)
+        self.assertIn('select.select([parent], [], [])', branch)
+        self.assertIn("parent = os.pidfd_open(expected)", sup)
+        self.assertIn("if os.getppid() != expected:", sup)
+        self.assertNotIn('sleep', branch)
+        self.assertNotIn('completed', sup)
+        body = dbc[dbc.index('    def test_real_startup_dns_tls_cancellation'):dbc.index('    def network_cases')]
+        for needle in ("opener.observations().get('stage') is not None", 'self.assertEqual(cancelled, [None])', 'opener.process.stdin.close()',
+                       'self.assertIn(opener.process.returncode, (-signal.SIGTERM, -signal.SIGKILL))',
+                       "self.assertNotIn('completed', stage)", 'self.assertEqual(len(opener.requests), 1)'):
+            self.assertIn(needle, body)
 
-    def test_fixture_surfaces_openssl_stderr_keeps_called_process_error_and_gates(self):
-        import rc_publication_https_fixture as fixture
-        data = dns_cancel_bytes(FIXTURE, (c.ROOT / FIXTURE).read_bytes())
-        for new, _ in admission.FRAGMENTS[FIXTURE]:
-            self.assertEqual(data.count(new), 1)
-        failed = subprocess.CompletedProcess(['/usr/bin/openssl'], 1, None, b'unit openssl diagnostic')
-        with patch.object(fixture.subprocess, 'run', return_value=failed), self.assertRaises(subprocess.CalledProcessError) as raised:
-            fixture.HTTPSFixture().__enter__()
-        self.assertIs(type(raised.exception), subprocess.CalledProcessError)
-        self.assertEqual((raised.exception.returncode, raised.exception.stderr), (1, b'unit openssl diagnostic'))
-        self.assertIn('unit openssl diagnostic', str(raised.exception.__cause__))
-
-    def test_windows_launch_select_never_fires_and_normalize_is_passthrough(self):
-        with patch.object(windows_launch, 'select', side_effect=AssertionError('windows_launch select fired')) as fired:
-            for ref, expected in ((self.pure, self.good), (self.feature, self.good), (self.release, self.overlay)):
-                self.assertEqual(self.selected(ref), expected)
-        fired.assert_not_called()
-        for path in windows_launch.BASE_PINS:
-            below = ci_repair.normalize(path, dns_cancel_bytes(path, (c.ROOT / path).read_bytes()))
-            self.assertEqual(windows_launch.normalize(path, below), below, path)
-
+    def test_worker_exits_when_spawning_parent_is_gone(self):
+        import json, sys, tempfile, time
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / 'fixture.json'
+            config.write_text(json.dumps({'responses': [], 'mode': 'dns', 'port': None}))
+            dead = subprocess.Popen(['true']); dead.wait()
+            other = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])
+            try:
+                for expected in (dead.pid, other.pid):
+                    started = time.monotonic()
+                    child = subprocess.Popen([sys.executable, '-B', '-I', '-S', str(c.ROOT / 'scripts/rc_consumer_transport_supervisor_tests.py'),
+                                              '--worker-fixture', str(config)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                             stderr=subprocess.DEVNULL, close_fds=True,
+                                             env={'LC_ALL': 'C', 'LANG': 'C', 'RC_FIXTURE_PARENT': str(expected)})
+                    try:
+                        self.assertEqual(child.wait(timeout=10), 0)
+                    finally:
+                        if child.poll() is None: child.kill(); child.wait()
+                        child.stdin.close(); child.stdout.close()
+                    self.assertLess(time.monotonic() - started, 10)
+            finally:
+                other.kill(); other.wait()

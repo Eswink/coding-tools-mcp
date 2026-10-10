@@ -30,6 +30,8 @@ DIGEST = '4f07af2b835919caee5f757d55557f5837d74065418895029822c7603b56960c'
 
 def normalize(path, current):
     """Reverse only sealed new bytes back to exact M; historical passthrough is a finite pin list."""
+    from rc_pretag_dns_cancel_profile import normalize as dns_cancel_bytes
+    current = dns_cancel_bytes(path, current)
     assert type(path) is str and type(current) is bytes, 'rc_bundle inverse input'
     if path not in BASE_PINS:
         return current
@@ -102,6 +104,10 @@ def content(ref, root, git, entries, historical, release, release_tree, document
 def select(ref, root, git, entries, historical, release, release_tree, documents):
     """Only topology mismatch delegates; selected and historical content errors escape."""
     ref = o._commit(ref, root, git)
+    import rc_pretag_dns_cancel_profile as dns_cancel
+    selected = dns_cancel.select(ref, root, git, entries, historical, release, release_tree, documents)
+    if selected is not None:
+        return selected
     try:
         kind, tip, source = topology(ref, root, git, release)
     except o.TopologyError:

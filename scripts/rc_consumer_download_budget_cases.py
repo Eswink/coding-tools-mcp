@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from decimal import Decimal
 import hashlib
 import os
+import signal
 from pathlib import Path
 import time
 from types import SimpleNamespace
@@ -150,11 +151,27 @@ class DownloadBudgetCases(unittest.TestCase):
     def test_real_startup_dns_tls_cancellation(self):
         for mode in ('startup', 'dns', 'tls', 'partial_prefix', 'partial_payload'):
             opener = self.opener(mode); cancel_at = time.monotonic() + 0.25
+            if mode in ('dns', 'tls'):
+                # Cancel on the child's stage signal, not on a timer started before the child exists.
+                cancelled = []
+                def signalled(opener=opener, cancelled=cancelled):
+                    if opener.observations().get('stage') is not None:
+                        # EOF alone (parent closing the write end) must not end the child: probe before cancelling.
+                        opener.process.stdin.close(); time.sleep(0.1)
+                        cancelled.append(opener.process.poll()); return True
+                    return False
+                when = signalled
+            else:
+                when = lambda: time.monotonic() >= cancel_at
             with self.subTest(mode=mode):
-                self.failure(opener, 'transport_cancelled', deadline=cancel_at + 2,
-                             check_active=self.cancellation(lambda: time.monotonic() >= cancel_at))
+                self.failure(opener, 'transport_cancelled', deadline=time.monotonic() + 1.4,
+                             check_active=self.cancellation(when))
             if mode in ('dns', 'tls'):
                 self.assertEqual(len(opener.requests), 1)
+                stage = opener.observations()['stage']
+                self.assertEqual(cancelled, [None])  # exactly one cancel, child alive after EOF
+                self.assertNotIn('completed', stage)  # DNS/TLS stage never finished
+                self.assertIn(opener.process.returncode, (-signal.SIGTERM, -signal.SIGKILL))  # killed, not EOF self-exit
 
     def network_cases(self, cancelled):
         self.data = b'x' * 160
