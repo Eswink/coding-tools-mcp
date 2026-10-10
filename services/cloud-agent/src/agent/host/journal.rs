@@ -31,6 +31,17 @@ pub(super) struct HostJournal {
     poisoned: bool,
 }
 impl HostJournal {
+    /// Observe the actual locked journal; never mint authority from wire data.
+    pub(super) fn pending(&self, request: &ExecutionRequest) -> Result<(), AgentError> {
+        if self.poisoned {
+            return Err(AgentError::Journal);
+        }
+        let fingerprint = request_fingerprint(request)?;
+        if self.operations.get(&request.binding.request_id) != Some(&(fingerprint, false)) {
+            return Err(AgentError::Duplicate);
+        }
+        Ok(())
+    }
     pub fn open(
         path: &Path,
         signer: &RecoverySigner,

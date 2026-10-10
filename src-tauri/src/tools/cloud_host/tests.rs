@@ -3,6 +3,15 @@ use crate::auth::cloud_context::CloudPeer;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use serde_json::json;
 
+#[cfg(windows)]
+#[test]
+fn independent_input_root_registration_does_not_replace_existing_native_authority() {
+    let f = Fixture::new();
+    assert!(f.host.windows_input.is_ok());
+    assert!(f.host.authority(&f.conversation()).is_err());
+    assert!(f.host.context.remote_request.is_none());
+}
+
 struct Fixture {
     root: tempfile::TempDir,
     _storage: tempfile::TempDir,

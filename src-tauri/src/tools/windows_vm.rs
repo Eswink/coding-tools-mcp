@@ -12,6 +12,10 @@ mod host_io;
 mod image;
 mod launch;
 mod protocol;
+#[cfg(windows)]
+pub(crate) mod input;
+#[cfg(windows)]
+pub(crate) mod output_stage;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Outcome {

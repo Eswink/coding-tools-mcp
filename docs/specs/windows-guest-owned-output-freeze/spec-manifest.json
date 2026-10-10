@@ -1,0 +1,26 @@
+{
+  "layout": "parent-child",
+  "subspecs": [
+    {
+      "id": "raw-output-owner",
+      "title": "Guest create-only output handle owner",
+      "fr": [
+        "FR-1",
+        "FR-2",
+        "FR-5"
+      ]
+    },
+    {
+      "id": "freeze-output-bytes",
+      "title": "Checked writer closure and exact input/output bytes freeze",
+      "fr": [
+        "FR-3",
+        "FR-4",
+        "FR-5"
+      ],
+      "dependsOn": [
+        "raw-output-owner"
+      ]
+    }
+  ]
+}

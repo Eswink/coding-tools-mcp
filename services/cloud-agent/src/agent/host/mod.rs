@@ -1,6 +1,7 @@
 //! Live outbound Agent. The injected native host is the only local authority.
 //! Neither a cloud ticket nor this transport layer can construct a host permit.
 mod authority;
+mod claimed;
 mod connection;
 mod journal;
 mod runner;
@@ -8,6 +9,7 @@ use super::{signer::RecoverySigner, wire::unix_now, AgentConfig, AgentError};
 use crate::execution::{ExecutionReply, ExecutionRequest, PeerBinding};
 use authority::ProjectedHost;
 pub use authority::{HostAuthoritySnapshot, HostFuture, LocalHost};
+pub use claimed::ClaimedDispatch;
 use journal::HostJournal;
 use serde_json::{json, Value};
 use std::{
@@ -40,7 +42,7 @@ impl<H: LocalHost> HostAgent<H> {
             worker: Arc::new(Worker {
                 host,
                 signer,
-                journal: Mutex::new(journal),
+                journal: Arc::new(Mutex::new(journal)),
                 capacity: Arc::new(Semaphore::new(MAX_HOST_IN_FLIGHT)),
             }),
         })
@@ -80,7 +82,7 @@ impl<H: LocalHost> HostAgent<H> {
 struct Worker<H: LocalHost> {
     host: Arc<H>,
     signer: Arc<RecoverySigner>,
-    journal: Mutex<HostJournal>,
+    journal: Arc<Mutex<HostJournal>>,
     capacity: Arc<Semaphore>,
 }
 impl<H: LocalHost> Worker<H> {
@@ -129,6 +131,8 @@ impl<H: LocalHost> Worker<H> {
             .lock()
             .map_err(|_| AgentError::Journal)?
             .claim(&self.signer, request)?;
+        let claimed =
+            ClaimedDispatch::new(self.host.clone(), self.journal.clone(), request.clone());
         // A durable claim precedes the opaque host permit and any tool effects.
         let permit = match tokio::time::timeout(
             Duration::from_secs(3),
@@ -156,7 +160,8 @@ impl<H: LocalHost> Worker<H> {
         let mut on_drop = CancelOnDrop(Some(cancel));
         let result = tokio::time::timeout(
             Duration::from_secs(remaining as u64),
-            self.host.execute(permit, request.clone(), rx),
+            self.host
+                .execute_claimed(permit, request.clone(), rx, claimed),
         )
         .await
         .map_err(|_| AgentError::ExecutionUnknown)?
@@ -211,5 +216,7 @@ fn error_result(error: AgentError) -> Value {
         "message":"Local execution was not completed for this request; do not automatically replay."},
         "outcome_unknown":uncertain})
 }
+#[cfg(test)]
+mod claimed_tests;
 #[cfg(test)]
 mod tests;

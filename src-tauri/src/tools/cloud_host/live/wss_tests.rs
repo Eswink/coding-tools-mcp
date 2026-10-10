@@ -426,6 +426,10 @@ mod managed_drain_tests;
 #[path = "wss_catalog_tests.rs"]
 mod catalog_tests;
 
+#[cfg(windows)]
+#[path = "wss_workspace_io_tests.rs"]
+mod workspace_io_tests;
+
 #[cfg(all(feature = "nginx-agent-integration-tests", target_os = "linux"))]
 #[path = "wss_two_hop_tests.rs"]
 mod two_hop_tests;

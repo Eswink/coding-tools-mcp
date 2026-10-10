@@ -14,6 +14,16 @@ use crate::tools::session::{ExecSession, SessionStore};
 use crate::tools::workspace::{tool_ok, WorkspaceError};
 
 pub fn exec_command(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
+    // This legacy/local route cannot silently ignore an explicit VM IO intent.
+    // Only the actual claimed native workspace issuer may consume that field.
+    if args.get("workspace_io").is_some() {
+        return Err(WorkspaceError::Tool {
+            code: "SANDBOX_REQUIRED",
+            message: "Explicit workspace IO requires the admitted native VM owner.".into(),
+            category: "availability",
+            retryable: false,
+        });
+    }
     let cmd = args
         .get("cmd")
         .and_then(Value::as_str)

@@ -124,10 +124,16 @@ func main() {
 			time.Sleep(time.Second)
 		}
 	}
-	if len(os.Args) != 2 || os.Args[1] != "--guest" {
+	mode, e := selectGuestMode(os.Args[1:])
+	if e != nil {
 		os.Exit(90)
 	}
-	if e := runGuestFixture(); e != nil {
+	if mode == guestFixtureMode {
+		e = runGuestFixture()
+	} else {
+		e = runGuestWorkspace()
+	}
+	if e != nil {
 		fmt.Fprintln(os.Stderr, e)
 		os.Exit(91)
 	}

@@ -5,6 +5,9 @@ use crate::{ProtocolError, Result};
 use serde::Deserialize;
 use serde_json::Value;
 use std::sync::OnceLock;
+#[path = "catalog/workspace_io.rs"]
+mod workspace_io;
+pub use workspace_io::WorkspaceIo;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -14,6 +17,8 @@ pub struct ToolSpec {
     pub mutating: bool,
     #[serde(default)]
     pub read_scopes: Option<Vec<String>>,
+    #[serde(default)]
+    pub workspace_scopes: Option<Vec<String>>,
     pub schema: Value,
 }
 
@@ -48,6 +53,11 @@ impl ToolSpec {
     /// gateway projection assessment and final native admission. No first-scope
     /// shortcut is sufficient (notably write_stdin requires exec.run too).
     pub fn scopes_for(&self, args: &Value) -> &[String] {
+        if args.get("workspace_io").is_some() {
+            if let Some(scopes) = &self.workspace_scopes {
+                return scopes;
+            }
+        }
         if args.get("repair").and_then(Value::as_bool) != Some(true) {
             if let Some(scopes) = &self.read_scopes {
                 return scopes;
@@ -68,6 +78,9 @@ impl ToolSpec {
         crate::canonical::digest_json(args, crate::execution::MAX_EXECUTION_ARGUMENTS)?;
         if !matches_schema(&self.schema, args, 0) {
             return Err(ProtocolError::InvalidRequest);
+        }
+        if self.name == "exec_command" {
+            WorkspaceIo::from_arguments(args)?;
         }
         let object = args.as_object().ok_or(ProtocolError::InvalidRequest)?;
         for key in ["path", "workdir", "history_dir"] {
@@ -216,3 +229,6 @@ fn matches_schema(schema: &Value, value: &Value, depth: usize) -> bool {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+#[path = "catalog/workspace_io_tests.rs"]
+mod workspace_io_tests;

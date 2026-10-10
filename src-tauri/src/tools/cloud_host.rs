@@ -5,6 +5,10 @@
 //! HostAgent journal must durably claim a request before calling execute;
 //! PreparedCall alone is process-local, not a durable exactly-once guarantee.
 pub(crate) mod live;
+#[cfg(windows)] mod windows_input;
+#[cfg(windows)] pub(crate) mod windows_workspace;
+#[cfg(all(windows, test))] mod windows_input_tests;
+#[cfg(all(windows, test))] mod windows_workspace_tests;
 use super::{chat_domain, ToolContext};
 use crate::auth::{
     chat::{ChatAuthorizer, RemoteRequest},
@@ -60,6 +64,8 @@ pub(crate) struct NativeToolHost {
     context: Arc<ToolContext>,
     link: CloudTransport,
     authorizer: Arc<ChatAuthorizer>,
+    #[cfg(windows)]
+    windows_input: Result<Arc<super::windows_vm::input::WindowsInputAuthority>, &'static str>,
 }
 fn now() -> Result<u64, &'static str> {
     SystemTime::now()
@@ -83,13 +89,18 @@ impl NativeToolHost {
         {
             return Err("CLOUD_HOST_CONTEXT_REJECTED");
         }
-        Ok(Self {
+        let mut host = Self {
             id: Uuid::new_v4(),
             profile: profile.into(),
             context,
             link,
             authorizer,
-        })
+            #[cfg(windows)]
+            windows_input: Err("WINDOWS_INPUT_ROOT_UNAVAILABLE"),
+        };
+        #[cfg(windows)]
+        { host.windows_input = windows_input::pin_input_authority(&host); }
+        Ok(host)
     }
 
     fn request(&self, conversation: &str) -> Result<RemoteRequest, &'static str> {

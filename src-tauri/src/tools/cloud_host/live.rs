@@ -2,12 +2,13 @@
 //! Persisted projection receipts never authorize execution. Every active view
 //! and every opaque permit is rebuilt from the current native authorizer.
 mod application_view;
+mod claimed_call;
 mod projection;
 use super::{now, NativeToolHost, PreparedCall};
 use crate::auth::cloud_context::CloudPeer;
 use coding_tools_cloud_agent::{
     agent::{
-        host::{HostAuthoritySnapshot, HostFuture, LocalHost},
+        host::{ClaimedDispatch, HostAuthoritySnapshot, HostFuture, LocalHost},
         AgentError,
     },
     execution::{ExecutionBinding, ExecutionRequest, PeerBinding},
@@ -30,7 +31,12 @@ pub(crate) struct NativeLiveHost {
 }
 pub(crate) struct NativeLivePermit {
     binding: ExecutionBinding,
-    prepared: PreparedCall,
+    prepared: NativePrepared,
+}
+pub(super) enum NativePrepared {
+    Tool(PreparedCall),
+    #[cfg(windows)]
+    Workspace(super::windows_workspace::WorkspaceAdmission),
 }
 fn rejected(_: impl std::fmt::Display) -> AgentError {
     AgentError::LocalAuthority
@@ -176,6 +182,34 @@ impl NativeLiveHost {
 }
 impl LocalHost for NativeLiveHost {
     type Permit = NativeLivePermit;
+    fn execute_claimed(
+        &self,
+        permit: Self::Permit,
+        request: ExecutionRequest,
+        cancelled: watch::Receiver<bool>,
+        claimed: ClaimedDispatch,
+    ) -> HostFuture<Value> {
+        // Verify the actual installed allocation before cloning any adapter.
+        // Equal-valued NativeLiveHost clones are not the journal's issuer host.
+        if claimed
+            .verify_for(
+                self,
+                &request,
+                now()
+                    .map_err(rejected)
+                    .and_then(|n| i64::try_from(n).map_err(rejected))
+                    .unwrap_or(-1),
+            )
+            .is_err()
+        {
+            return Box::pin(async { Err(AgentError::LocalAuthority) });
+        }
+        let tools = self.tools.clone();
+        super::super::native_drain::blocking(&self.work, move |work| {
+            claimed_call::ClaimedNativeCall::new(permit, request, claimed, work, &cancelled)?
+                .execute(tools, cancelled)
+        })
+    }
     fn connected(&self, value: PeerBinding, seconds: u64) -> HostFuture<()> {
         let link = self.tools.link.clone();
         super::super::native_drain::blocking(&self.work, move |_| {
@@ -290,6 +324,21 @@ impl LocalHost for NativeLiveHost {
                 .tools
                 .authority(&request.binding.conversation)
                 .map_err(rejected)?;
+            if request.arguments.get("workspace_io").is_some() {
+                #[cfg(windows)]
+                {
+                    let prepared = this
+                        .tools
+                        .prepare_claimed_windows_workspace(&native, &request)
+                        .map_err(rejected)?;
+                    return Ok(NativeLivePermit {
+                        binding: request.binding,
+                        prepared: NativePrepared::Workspace(prepared),
+                    });
+                }
+                #[cfg(not(windows))]
+                return Err(AgentError::LocalAuthority);
+            }
             let (tool, args) = if request.binding.tool == "workspace_probe" {
                 ("list_dir", json!({"path":"."}))
             } else {
@@ -306,7 +355,7 @@ impl LocalHost for NativeLiveHost {
                 .map_err(rejected)?;
             Ok(NativeLivePermit {
                 binding: request.binding,
-                prepared,
+                prepared: NativePrepared::Tool(prepared),
             })
         })
     }
@@ -322,8 +371,13 @@ impl LocalHost for NativeLiveHost {
                 return Err(AgentError::ExecutionUnknown);
             }
             let probe = request.binding.tool == "workspace_probe";
+            let prepared = match permit.prepared {
+                NativePrepared::Tool(prepared) => prepared,
+                #[cfg(windows)]
+                NativePrepared::Workspace(_) => return Err(AgentError::LocalAuthority),
+            };
             let result = tools
-                .execute_scoped(permit.prepared, Some(work), Some(cancelled.clone()))
+                .execute_scoped(prepared, Some(work), Some(cancelled.clone()))
                 .map_err(|_| AgentError::ExecutionUnknown)?;
             if *cancelled.borrow() {
                 return Err(AgentError::ExecutionUnknown);

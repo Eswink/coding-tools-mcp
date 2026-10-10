@@ -1,5 +1,5 @@
 //! Trusted host state, never a deserializable execution credential.
-use super::super::AgentError;
+use super::{super::AgentError, ClaimedDispatch};
 use crate::{
     crypto::valid_digest,
     execution::{ExecutionRequest, PeerBinding},
@@ -49,6 +49,31 @@ pub trait LocalHost: Send + Sync + 'static {
         request: ExecutionRequest,
         cancelled: watch::Receiver<bool>,
     ) -> HostFuture<Value>;
+    /// Additive compatibility entry. The caller context is real dispatch
+    /// provenance, not permission: the opaque native permit is still required.
+    /// Native detached work must move this value into its actual owned callback.
+    fn execute_claimed(
+        &self,
+        permit: Self::Permit,
+        request: ExecutionRequest,
+        cancelled: watch::Receiver<bool>,
+        claimed: ClaimedDispatch,
+    ) -> HostFuture<Value>
+    where
+        Self: Sized,
+    {
+        if claimed
+            .verify_for(self, &request, super::now().unwrap_or(-1))
+            .is_err()
+        {
+            return Box::pin(async { Err(AgentError::LocalAuthority) });
+        }
+        let future = self.execute(permit, request, cancelled);
+        Box::pin(async move {
+            let _claimed = claimed;
+            future.await
+        })
+    }
 }
 
 /// No Deserialize implementation: only trusted host code can supply this view.

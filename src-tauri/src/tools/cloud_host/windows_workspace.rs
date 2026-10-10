@@ -1,0 +1,173 @@
+//! Explicit native input preflight. No VM or output capability is issued.
+mod claimed;
+use super::{now, NativeAuthority, NativeToolHost, MAX_DEADLINE_SECONDS};
+use crate::{
+    auth::LocalAdmissionPermit,
+    tools::windows_vm::input::{self, owned_run},
+};
+pub(crate) use claimed::WorkspaceAdmission;
+use coding_tools_cloud_agent::work::WorkScope;
+use std::time::{Duration, Instant};
+use tokio::sync::watch;
+const SCOPES: [&str; 3] = ["exec.run", "files.read", "files.write"];
+/// Fields are private to this actual native issuer, not to the data validator.
+/// The real permit is neither a reference, generic G, diagnostic nor JSON.
+pub(crate) struct WorkspaceRunGrant {
+    binding: owned_run::RunBinding,
+    host: uuid::Uuid,
+    operation: uuid::Uuid,
+    _permit: LocalAdmissionPermit,
+    _claimed: Option<coding_tools_cloud_agent::agent::host::ClaimedDispatch>,
+}
+impl WorkspaceRunGrant {
+    #[cfg(test)]
+    pub(crate) fn actual_claim(
+        &self,
+    ) -> Result<&coding_tools_cloud_agent::agent::host::ClaimedDispatch, &'static str> {
+        self._claimed
+            .as_ref()
+            .ok_or("WINDOWS_HCS_ACTUAL_CLAIM_REQUIRED")
+    }
+    pub(crate) fn binding(&self) -> &owned_run::RunBinding {
+        &self.binding
+    }
+    pub(crate) fn host(&self) -> uuid::Uuid {
+        self.host
+    }
+    pub(crate) fn operation(&self) -> uuid::Uuid {
+        self.operation
+    }
+}
+impl NativeToolHost {
+    pub(crate) fn preflight_windows_workspace_run(
+        &self,
+        authority: &NativeAuthority,
+        input_relative: &str,
+        output_parent: &str,
+        output_leaf: &str,
+        work: WorkScope,
+        deadline_epoch: u64,
+        cancelled: Option<watch::Receiver<bool>>,
+    ) -> Result<owned_run::PreflightReport, &'static str> {
+        self.preflight_workspace(
+            authority,
+            input_relative,
+            output_parent,
+            output_leaf,
+            work,
+            deadline_epoch,
+            cancelled,
+            owned_run::Fault::None,
+        )
+    }
+    #[cfg(test)]
+    pub(crate) fn preflight_windows_workspace_with_fault(
+        &self,
+        authority: &NativeAuthority,
+        input_relative: &str,
+        output_parent: &str,
+        output_leaf: &str,
+        work: WorkScope,
+        deadline_epoch: u64,
+        cancelled: Option<watch::Receiver<bool>>,
+        fault: owned_run::Fault,
+    ) -> Result<owned_run::PreflightReport, &'static str> {
+        self.preflight_workspace(
+            authority,
+            input_relative,
+            output_parent,
+            output_leaf,
+            work,
+            deadline_epoch,
+            cancelled,
+            fault,
+        )
+    }
+    fn preflight_workspace(
+        &self,
+        authority: &NativeAuthority,
+        input_relative: &str,
+        output_parent: &str,
+        output_leaf: &str,
+        work: WorkScope,
+        deadline_epoch: u64,
+        cancelled: Option<watch::Receiver<bool>>,
+        fault: owned_run::Fault,
+    ) -> Result<owned_run::PreflightReport, &'static str> {
+        self.current(authority)?;
+        let timestamp = now()?;
+        if deadline_epoch <= timestamp
+            || deadline_epoch - timestamp > MAX_DEADLINE_SECONDS
+            || deadline_epoch > authority.view.deadline()
+            || cancelled.as_ref().is_some_and(|r| *r.borrow())
+        {
+            return Err("CLOUD_DEADLINE_REJECTED");
+        }
+        if SCOPES
+            .iter()
+            .any(|scope| !authority.view.scopes().contains(*scope))
+        {
+            return Err("INSUFFICIENT_CHAT_SCOPE");
+        }
+        input::check_relative(input_relative)?;
+        input::check_relative(output_parent)?;
+        if !owned_run::valid_leaf(output_leaf) {
+            return Err("WINDOWS_WORKSPACE_OUTPUT_LEAF_REJECTED");
+        }
+        let root = self.windows_input.as_ref().map_err(|code| *code)?.clone();
+        let source = input::native_source()?;
+        let request = self.request(&authority.conversation)?;
+        if request.profile != self.profile {
+            return Err("CLOUD_HOST_CONTEXT_REJECTED");
+        }
+        let binding = owned_run::RunBinding {
+            host: self.id.to_string(),
+            profile: self.profile.clone(),
+            caller: request.identity()?.to_owned(),
+            source: source.into(),
+            session: uuid::Uuid::new_v4().to_string(),
+            operation: uuid::Uuid::new_v4().to_string(),
+            input_relative: input_relative.into(),
+            output_parent: output_parent.into(),
+            output_leaf: output_leaf.into(),
+        };
+        if !binding.valid() {
+            return Err("WINDOWS_WORKSPACE_BINDING_REJECTED");
+        }
+        let operation = uuid::Uuid::parse_str(&binding.operation)
+            .map_err(|_| "WINDOWS_WORKSPACE_BINDING_REJECTED")?;
+        let deadline = Instant::now() + Duration::from_secs(deadline_epoch - timestamp);
+        let ticket = self.authorizer.issue_local_admission_ticket(
+            &request,
+            &SCOPES,
+            &self.context.execution_gate,
+        )?;
+        let permit = self.authorizer.commit_local_admission(
+            &request,
+            &self.context.execution_gate,
+            ticket,
+        )?;
+        self.current(authority)?;
+        if Instant::now() >= deadline
+            || now()? >= deadline_epoch
+            || cancelled.as_ref().is_some_and(|r| *r.borrow())
+        {
+            return Err("CLOUD_DEADLINE_REJECTED");
+        }
+        owned_run::preflight(
+            self.context.clone(),
+            root,
+            WorkspaceRunGrant {
+                binding,
+                host: self.id,
+                operation,
+                _permit: permit,
+                _claimed: None, // Existing private diagnostic only; not actual caller authority.
+            },
+            work,
+            deadline,
+            cancelled,
+            fault,
+        )
+    }
+}
