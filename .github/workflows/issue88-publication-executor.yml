@@ -21,7 +21,7 @@ jobs:
         with: {ref: '${{ github.sha }}', fetch-depth: 0, persist-credentials: false}
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with: {python-version: '3.12'}
-      - name: Admit exact source and execute the frozen four hundred twenty two cases
+      - name: Admit exact source and execute the frozen four hundred thirty six cases
         shell: python
         run: |
           import hashlib, json, os, pathlib, platform, subprocess, sys, traceback, unittest
@@ -30,10 +30,11 @@ jobs:
               sys.path.insert(0, 'scripts')
               import rc_pretag_composition_tests as c
               import rc_pretag_publisher_executor_cases as x
-              import rc_pretag_ci_repair_profile as profile; import rc_pretag_git_budget_cases as git_budget; import rc_pretag_windows_vm_cases as windows_vm
+              import rc_pretag_reap_safe_profile as profile; import rc_pretag_git_budget_cases as git_budget; import rc_pretag_windows_vm_cases as windows_vm
               import rc_pretag_stage_retirement_cases as stage_retirement
               import rc_pretag_source_observation_cases as source_observation
               import rc_pretag_ci_repair_cases as ci_repair
+              import rc_pretag_reap_safe_cases as reap_safe
               import rc_pretag_integration_admission_cases as admission
               import rc_pretag_final_admission_cases as final_admission
               import rc_pretag_download_budget_cases as download_budget
@@ -61,6 +62,15 @@ jobs:
               binding = {'sha': sha, 'tree': tree, 'parents': parents, 'source_sha256': before, 'python': sys.version,
                          'ci': {k: os.environ[k] for k in ('GITHUB_REPOSITORY', 'GITHUB_WORKFLOW_REF', 'GITHUB_JOB', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT')}, 'production_ready': False}
               (evidence / 'source-before.json').write_text(json.dumps(binding, indent=2) + '\n', encoding='utf-8')
+              names = reap_safe.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              with (evidence / 'reap-safe-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'reap-safe-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert reap_safe.execution_valid(loaded, result)
               names = ci_repair.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
