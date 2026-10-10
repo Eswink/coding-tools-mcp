@@ -119,7 +119,11 @@ class Observer:
             receiver, self.control = context.Pipe(duplex=False)
             self.worker = context.Process(target=observe_worker, args=(self.binding, self.output, self.phase,
                 self.launch_environment, self.projection, self.anchor, self.started, receiver))
-            try: self.worker.start(); self.worker_fd = os.pidfd_open(self.worker.pid)
+            try:
+                self.worker.start(); self.worker_fd = os.pidfd_open(self.worker.pid)
+            except BaseException:
+                if self.worker.pid is not None: self.worker.kill(); self.worker.join(5)  # never leak an unpinned worker
+                raise
             finally: receiver.close()
             os.set_blocking(self.control.fileno(), False)
             if signal.getsignal(signal.SIGTERM) == signal.SIG_DFL:
