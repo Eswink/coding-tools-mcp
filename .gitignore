@@ -29,3 +29,4 @@ src-tauri/icons/logo-design.png
 
 docs/history-session/
 tmp-run
+__pycache__/
