@@ -3,11 +3,14 @@ name: CI
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   rust:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: 安装 Tauri Linux 系统依赖
         run: |
           sudo apt-get update
@@ -22,13 +25,26 @@ jobs:
             libxdo-dev \
             dbus \
             gnome-keyring
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
           workspaces: src-tauri
       - name: cargo build
         working-directory: src-tauri
         run: cargo build
+      - name: Refusal stays fail-closed without a Secret Service
+        working-directory: src-tauri
+        # Outside any session bus the native ledger is unreadable; tool calls must be refused.
+        run: |
+          set -uo pipefail
+          env -u DBUS_SESSION_BUS_ADDRESS cargo test --test call_tool_contract -- --exact list_files_accepts_glob_alias > "$RUNNER_TEMP/refusal.log" 2>&1
+          status=$?
+          cat "$RUNNER_TEMP/refusal.log"
+          test "$status" -ne 0
+          grep -q 'NATIVE_ROOT_UNAVAILABLE' "$RUNNER_TEMP/refusal.log"
+          grep -q 'not proven quiescent' "$RUNNER_TEMP/refusal.log"
       - name: cargo test
         working-directory: src-tauri
         # Non-test library builds read the native ledger through the OS Secret Service.
@@ -42,8 +58,8 @@ jobs:
   frontend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "20"
           cache: npm
