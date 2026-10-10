@@ -32,6 +32,12 @@ jobs:
       - name: Restore frozen foundation tree and compile (existing guarded probe)
         shell: pwsh
         run: ./scripts/windows_foundation_source_compile.ps1 -Mode rust -PythonExecutable '${{ steps.py.outputs.python-path }}'
+      - name: Apply repin overlay 01 (union1967 -> c8cc0cf3, backup ca629f8e)
+        shell: pwsh
+        run: |
+          $sut=Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-union1967'
+          & '${{ steps.py.outputs.python-path }}' ./scripts/windows_foundation_repin_overlay.py apply --destination $sut --receipt (Join-Path $env:RUNNER_TEMP 'windows-foundation-probe/repin-overlay.json')
+          if ($LASTEXITCODE -ne 0) { throw 'repin overlay denied' }
       - name: Bind owned evidence paths inside restored tree
         shell: pwsh
         run: |
@@ -82,19 +88,7 @@ jobs:
           $code=$LASTEXITCODE; Pop-Location
           if ($code -ne 0) { throw 'guest workspace native cases failed' }
           $pass=@(Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/go-workspace-native.txt" -Pattern '^--- PASS: TestGuestNative').Count
-          if ($pass -ne 16) { throw "expected 16 executed workspace cases, got $pass" }
-      - name: Diagnose raw NTSTATUS of guest output relative opens (scratch only)
-        if: always()
-        continue-on-error: true
-        shell: pwsh
-        env: {CGO_ENABLED: '0', GOTOOLCHAIN: local, GOPROXY: 'off', GOSUMDB: 'off'}
-        run: |
-          $up=Join-Path $env:RUNNER_TEMP 'ctm-guest-native-hcsshim'
-          Copy-Item scripts/ci/ntrelative_diag_windows_test.go "$up/cmd/ctm-windows-vm-broker/"
-          Push-Location $up
-          go test -mod=vendor -count=1 -v -run '^TestDiagRelativeOpens$' ./cmd/ctm-windows-vm-broker 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/nt-relative-diag.txt"
-          Remove-Item "$up/cmd/ctm-windows-vm-broker/ntrelative_diag_windows_test.go"
-          Pop-Location
+          if ($pass -ne 18) { throw "expected 18 executed workspace cases (frozen SUT + new prepare step), got $pass" }
       - name: Rust native output-stage publication denial case
         id: rsout
         if: always()
@@ -107,15 +101,14 @@ jobs:
           $env:CTM_WINDOWS_NATIVE_SOURCE=$env:GITHUB_SHA
           cargo test --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::output_stage::native_tests:: -- --include-ignored --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/rust-output-native.txt"
           if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/rust-output-native.txt" -Pattern 'test result: ok\. [1-9]\d* passed; 0 failed; 0 ignored')) { throw 'output-stage native case did not execute' }
-      - name: Build broker and fixed harmless markers (existing scripts)
+      - name: Build broker/guest with workflow-owned prepare (frozen SUT + new prepare step)
         id: prep
         if: always()
         shell: pwsh
         working-directory: ${{ env.CTM_SUT }}
         run: |
           $ErrorActionPreference='Stop'
-          $env:GITHUB_WORKSPACE=$env:CTM_SUT
-          ./scripts/prepare_windows_vm_session.ps1 -Phase build
+          & "$env:GITHUB_WORKSPACE/scripts/windows_foundation_native_prepare.ps1" -Phase build
           ./scripts/prepare_windows_vm_launch.ps1
       - name: Six real native launch cases
         id: launch
@@ -127,14 +120,13 @@ jobs:
         run: |
           cargo test --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::launch_tests::native_launch_ -- --ignored --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/launch-tests.txt"
           if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/launch-tests.txt" -Pattern 'test result: ok\. 6 passed; 0 failed; 0 ignored')) { throw 'six actual launch cases required' }
-      - name: Acquire fixed Microsoft blobs and import (existing script)
+      - name: Acquire fixed Microsoft blobs and import (workflow-owned prepare)
         id: acquire
         if: always() && steps.prep.outcome == 'success'
         shell: pwsh
         working-directory: ${{ env.CTM_SUT }}
         run: |
-          $env:GITHUB_WORKSPACE=$env:CTM_SUT
-          ./scripts/prepare_windows_vm_session.ps1 -Phase acquire
+          & "$env:GITHUB_WORKSPACE/scripts/windows_foundation_native_prepare.ps1" -Phase acquire
       - name: Two serial owned HCS VM cases
         id: hcs
         if: always() && steps.acquire.outcome == 'success'
@@ -154,7 +146,7 @@ jobs:
           $files=@(Get-ChildItem $env:CTM_VM_SESSION_EVIDENCE -Recurse -File)
           if (($files | Measure-Object Length -Sum).Sum -gt 8MB) { throw 'aggregate evidence bound' }
           @($files | Sort-Object FullName | ForEach-Object { if ($_.Length -gt 2MB) { throw 'individual bound' }; "$((Get-FileHash $_.FullName).Hash.ToLowerInvariant())  $($_.Name)" }) | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/sha256.txt"
-          @{go_workspace='${{ steps.gows.outcome }}';rust_output='${{ steps.rsout.outcome }}';prep='${{ steps.prep.outcome }}';launch='${{ steps.launch.outcome }}';acquire='${{ steps.acquire.outcome }}';hcs='${{ steps.hcs.outcome }}'} | ConvertTo-Json | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/step-outcomes.json"
+          @{label='frozen SUT + new prepare step';go_workspace='${{ steps.gows.outcome }}';rust_output='${{ steps.rsout.outcome }}';prep='${{ steps.prep.outcome }}';launch='${{ steps.launch.outcome }}';acquire='${{ steps.acquire.outcome }}';hcs='${{ steps.hcs.outcome }}'} | ConvertTo-Json | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/step-outcomes.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
