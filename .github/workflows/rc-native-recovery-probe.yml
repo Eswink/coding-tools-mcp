@@ -1,0 +1,51 @@
+name: RC native recovery probe (source-backed, no release)
+on:
+  push:
+    branches: ['test/rc070-native-recovery-probe-20261009']
+permissions:
+  contents: read
+concurrency:
+  group: rc070-native-recovery-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  publisher-native:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push' && github.ref == 'refs/heads/test/rc070-native-recovery-probe-20261009'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check original native Git flags before source restoration
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/bin/git --no-pager --no-replace-objects --no-optional-locks --no-lazy-fetch -c core.hooksPath=/dev/null -c core.fsmonitor=false -c core.untrackedCache=false -c credential.helper= -c protocol.allow=never --version
+      - name: Fixed source objects and official existing test data only
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/bin/git -c credential.helper= -c core.hooksPath=/dev/null fetch --no-tags origin dab238dc34d5a59f471aff935c728c1ed809cc78
+          /usr/bin/git cat-file -e dab238dc34d5a59f471aff935c728c1ed809cc78^{commit}
+          /usr/bin/git cat-file -e 13cd343d942b7a68912d42a8f9235c02ed647764^{commit}
+          curl --fail --silent --show-error --proto '=https' --max-redirs 0 --connect-timeout 10 --max-time 30 --max-filesize 267679 \
+            --output "$RUNNER_TEMP/glib-0.18.5.crate" https://static.crates.io/crates/glib/glib-0.18.5.crate
+          test "$(stat -c %s "$RUNNER_TEMP/glib-0.18.5.crate")" -eq 267679
+          printf '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5  %s\n' "$RUNNER_TEMP/glib-0.18.5.crate" | sha256sum --check --strict
+      - name: Run exact native publisher85 then admitted publisher300 once
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(/usr/bin/python3 -c 'import sys;print(".".join(map(str,sys.version_info[:2])))')" = 3.12
+          PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 scripts/rc_native_probe.py --management "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/rc-native-publisher" --fixture "$RUNNER_TEMP/glib-0.18.5.crate"
+      - name: Upload only scanned original evidence whitelist
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        with:
+          name: rc-native-publisher-${{ github.sha }}
+          path: ${{ runner.temp }}/rc-native-publisher/safe-artifacts/
+          if-no-files-found: error
+          retention-days: 7
