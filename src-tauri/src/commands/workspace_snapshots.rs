@@ -37,6 +37,9 @@ impl TargetAuthority for SnapshotTarget {
     fn verify(&self) -> Result<(), SnapshotError> {
         SnapshotTarget::verify(self).map_err(|_| SnapshotError::Boundary)
     }
+    fn trusted_root_identity(&self) -> String {
+        self.root_identity_key()
+    }
 }
 fn target(
     state: &AppState,
