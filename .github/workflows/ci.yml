@@ -39,8 +39,14 @@ jobs:
         # Outside any session bus the native ledger is unreadable; tool calls must be refused.
         run: |
           set -uo pipefail
-          env -u DBUS_SESSION_BUS_ADDRESS cargo test --test call_tool_contract -- --exact list_files_accepts_glob_alias > "$RUNNER_TEMP/refusal.log" 2>&1
-          status=$?
+          empty="$(mktemp -d)"; chmod 700 "$empty"
+          unset DBUS_SESSION_BUS_ADDRESS
+          export XDG_RUNTIME_DIR="$empty"
+          # No session bus means no Secret Service and no keyring fallback.
+          if busctl --user list >/dev/null 2>&1; then echo "unexpected user session bus"; exit 1; fi
+          if command -v secret-tool >/dev/null && secret-tool search --all probe x >/dev/null 2>&1; then echo "unexpected Secret Service"; exit 1; fi
+          status=0
+          cargo test --test call_tool_contract -- --exact list_files_accepts_glob_alias > "$RUNNER_TEMP/refusal.log" 2>&1 || status=$?
           cat "$RUNNER_TEMP/refusal.log"
           test "$status" -ne 0
           grep -q 'NATIVE_ROOT_UNAVAILABLE' "$RUNNER_TEMP/refusal.log"
