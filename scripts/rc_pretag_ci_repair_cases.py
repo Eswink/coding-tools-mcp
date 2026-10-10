@@ -9,6 +9,7 @@ import rc_pretag_publication_tests as pt
 import rc_pretag_linux_package_cases as lc
 import rc_pretag_source_observation_profile as previous
 import rc_pretag_ci_repair_profile as x
+from rc_pretag_reap_safe_profile import normalize as reap_safe_bytes
 
 F_BINDING = ('35559f67b3d91cb277879c82e87fc098bbc72038', '2b38877287bc0f20b9bf64d58da3d62844af31ee', ('13cd343d942b7a68912d42a8f9235c02ed647764', '0b254c90e58de30de2955f5598499d742207b0b3'))
 COUNT = 9
@@ -45,7 +46,7 @@ class CiRepairCompositionCases(unittest.TestCase):
     def setUp(self):
         self.anchored = c._entries(x.M, self.repo)
         self.base = c._entries(x.BASE, self.repo)
-        self.good = self.anchored | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in x.CAPS}
+        self.good = self.anchored | {path: ('100644', 'blob', self.blob(reap_safe_bytes(path, (c.ROOT / path).read_bytes()))) for path in x.CAPS}
         self.pure = self.commit([x.M], self.good)
         self.feature = self.commit([x.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -88,7 +89,7 @@ class CiRepairCompositionCases(unittest.TestCase):
             content.assert_not_called()
 
     def test_same_parents_different_ci_yml_rejects(self):
-        current = (c.ROOT / x.CI).read_bytes()
+        current = reap_safe_bytes(x.CI, (c.ROOT / x.CI).read_bytes())
         for data in (current + b'#', self.frozen(x.CI), current.replace(b'contents: read', b'contents: write', 1)):
             ref = self.commit([x.M], self.good | {x.CI: ('100644', 'blob', self.blob(data))})
             with self.assertRaises(AssertionError): self.selected(ref)
@@ -108,26 +109,26 @@ class CiRepairCompositionCases(unittest.TestCase):
         self.assertEqual(x.FRAGMENTS.keys(), x.BASE_PINS.keys())
         self.assertEqual(x.SOURCE_PINS[x.CI], x.CI_PIN)
         for path, row in x.SOURCE_PINS.items():
-            data = (c.ROOT / path).read_bytes()
+            data = reap_safe_bytes(path, (c.ROOT / path).read_bytes())
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())), path)
         for path, (lines, _) in x.CAPS.items():
-            self.assertLessEqual(len((c.ROOT / path).read_bytes().splitlines()), lines, path)
+            self.assertLessEqual(len(reap_safe_bytes(path, (c.ROOT / path).read_bytes()).splitlines()), lines, path)
         self.assertEqual(sum(cap[1] for cap in x.CAPS.values()), x.DELTA_LIMIT)
 
     def test_normalize_restores_exact_base_bytes_and_rejects_drift(self):
         for path in x.BASE_PINS:
-            current = (c.ROOT / path).read_bytes()
+            current = reap_safe_bytes(path, (c.ROOT / path).read_bytes())
             self.assertEqual(x.normalize(path, current), self.frozen(path), path)
             self.assertEqual(x.normalize(path, self.frozen(path)), self.frozen(path), path)
             with self.assertRaises(AssertionError): x.normalize(path, current + b'#')
         self.assertEqual(x.normalize('README.md', b'unrelated'), b'unrelated')
         self.assertEqual(previous.normalize('README.md', b'unrelated'), b'unrelated')
-        self.assertEqual(previous.normalize(x.DISPATCHER, (c.ROOT / x.DISPATCHER).read_bytes()),
+        self.assertEqual(previous.normalize(x.DISPATCHER, reap_safe_bytes(x.DISPATCHER, (c.ROOT / x.DISPATCHER).read_bytes())),
                          previous.normalize(x.DISPATCHER, self.frozen(x.DISPATCHER)))
 
     def test_ci_policy_rejects_widened_permissions_and_unpinned_actions(self):
         # The whole-file \b(write|write-all)\b search is intentionally strict; a false positive on the word 'write' is accepted.
-        current = (c.ROOT / x.CI).read_bytes()
+        current = reap_safe_bytes(x.CI, (c.ROOT / x.CI).read_bytes())
         self.assertTrue(x.ci_policy(current))
         pinned = current.split(b'actions/checkout@', 1)[1][:40]
         for bad in (current.replace(b'contents: read', b'contents: write', 1),
