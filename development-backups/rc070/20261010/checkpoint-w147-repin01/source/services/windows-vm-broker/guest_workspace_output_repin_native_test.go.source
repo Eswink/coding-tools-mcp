@@ -1,0 +1,60 @@
+//go:build windows
+
+package main
+
+import (
+	"context"
+	"syscall"
+	"testing"
+)
+
+// The empty relative name is accepted only for the parent re-pin (directory=true);
+// child names keep the strict guestLeaf validation.
+func TestGuestNativeOutputRelativeOpenNameGuards(t *testing.T) {
+	parent, _, _ := guestNativeParent(t)
+	root := syscall.Handle(parent.Fd())
+	cases := []struct {
+		name      string
+		directory bool
+	}{{"", false}, {".", true}, {"..", true}, {"..", false}, {`a\b`, true}, {`a\b`, false}}
+	for _, c := range cases {
+		f := &guestOwnedOutput{ctx: context.Background()}
+		var h syscall.Handle
+		disposition := uint32(1)
+		if !c.directory {
+			disposition = 2
+		}
+		if e := f.openInto(&h, root, c.name, c.directory, 0x00100081, 3, disposition); e == nil || h != 0 || !f.poisoned {
+			t.Fatalf("name %q directory=%v was not rejected before NtCreateFile", c.name, c.directory)
+		}
+	}
+}
+
+func TestGuestNativeOutputRepinIdentityMismatchFailsCheckParent(t *testing.T) {
+	parent, id, _ := guestNativeParent(t)
+	f := &guestOwnedOutput{ctx: context.Background(), parentID: id}
+	process, e := syscall.GetCurrentProcess()
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = syscall.DuplicateHandle(process, syscall.Handle(parent.Fd()), process, &f.parentDuplicate, 0, false, 2); e != nil {
+		t.Fatal(e)
+	}
+	defer syscall.CloseHandle(f.parentDuplicate)
+	if e = f.openInto(&f.parentPin, f.parentDuplicate, "", true, 0x00100081, 3, 1); e != nil {
+		t.Fatal("empty-name parent re-pin must open the parent itself:", e)
+	}
+	defer syscall.CloseHandle(f.parentPin)
+	if e = f.checkParent(); e != nil {
+		t.Fatal("re-pinned parent must match its original file ID and volume:", e)
+	}
+	f.parentID.id[0] ^= 0xff
+	if e = f.checkParent(); e == nil || !f.poisoned {
+		t.Fatal("identity mismatch after re-pin must fail checkParent")
+	}
+	g := &guestOwnedOutput{ctx: context.Background(), parentID: id, parentDuplicate: f.parentDuplicate, parentPin: f.parentPin}
+	g.parentID.volume ^= 1
+	if e = g.checkParent(); e == nil {
+		t.Fatal("volume serial mismatch after re-pin must fail checkParent")
+	}
+}

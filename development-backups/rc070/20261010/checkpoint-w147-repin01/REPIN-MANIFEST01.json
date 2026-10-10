@@ -1,0 +1,26 @@
+{
+  "baselineTree": "4d42a21057b867e6163e6bbe3ce9edca24da5716",
+  "files": 1968,
+  "leaves": [
+    {
+      "blob": "f3a672bd398d19540445c8158cd1be0d0d0d10d4",
+      "bytes": 7603,
+      "mode": "100644",
+      "path": "services/windows-vm-broker/guest_workspace_output_windows.go",
+      "sha256": "690e033bbaada341a346835946b8b49aa4842cdd24fd994aa02af35e332958e2"
+    },
+    {
+      "blob": "81c017fc475a908f3bcab489463cb3ad1a244e7c",
+      "bytes": 2067,
+      "mode": "100644",
+      "path": "services/windows-vm-broker/guest_workspace_output_repin_native_test.go",
+      "sha256": "f708d12f50879eb94d18f4ba38e1f8cb705a253bac302e62b1c96de39dab5d4b"
+    }
+  ],
+  "qualification": "SOURCE_ONLY; frozen SUT + new prepare step evidence only; no RC qualification",
+  "reason": "NtCreateFile does not resolve \".\" relative to RootDirectory (0xC0000033, run 38033502891); parent re-pin uses empty name only at the re-pin call site; child names keep guestLeaf.",
+  "replaced": {
+    "services/windows-vm-broker/guest_workspace_output_windows.go": "999d786976286ff2a15e1947b586e26932ada16e"
+  },
+  "tree": "c8cc0cf37d60acdb5e7ec711f1b8ff14c35d0568"
+}
