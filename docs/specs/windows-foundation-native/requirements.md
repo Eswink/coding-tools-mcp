@@ -13,3 +13,7 @@ Workflow: `.github/workflows/windows-foundation-native.yml`. Every result here i
 - HCS cases run serially in one binary. native_02 is gated on native_01 having fully drained.
 - The broker decodes `bundle.json` strictly, so SUT identity is written to `sut-identity.json`. The broker has no
   `sutTree` variable, so a `-X main.sutTree` link flag would be silently ignored and is not used.
+- The 9 `TestNativeActualGuest*` workspace cases run on the Windows runner **host**, not inside the HCS VM, and are
+  labelled host-run. Only native_01/native_02 execute inside the VM. In-VM execution of these cases is deferred until
+  the HCS workspace-run transport (`docs/specs/windows-creation-owned-hcs-workspace-run`, FR-3) exists; the frozen
+  broker in `c8cc0cf3` only launches the fixed `guest.exe --guest` fixture, and changing it would require a new SUT tree.
