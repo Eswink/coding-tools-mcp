@@ -111,7 +111,7 @@ class Opener:
             str(Path(__file__).with_name('rc_consumer_transport_supervisor_tests.py')),
             '--worker-fixture', str(config)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, shell=False, close_fds=True, bufsize=0,
-            env={'LC_ALL': 'C', 'LANG': 'C'})
+            env={'LC_ALL': 'C', 'LANG': 'C', 'RC_FIXTURE_PARENT': str(os.getpid())})
         return self.process
 
 
