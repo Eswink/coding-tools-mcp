@@ -15,6 +15,7 @@ import rc_pretag_ownership_profile as o
 import rc_pretag_two_hop_profile as t
 import rc_pretag_two_hop_tests as tt
 import rc_pretag_authenticated_two_hop_profile as a
+from rc_pretag_rc_bundle_profile import normalize as rc_bundle_bytes
 
 FRAGMENTS = {
     'scripts/rc_pretag_composition_tests.py': (
@@ -181,7 +182,7 @@ class AuthenticatedTwoHopCompositionTests(unittest.TestCase):
         for path, (mode, blob, digest, size, lines) in a.SOURCE_PINS.items():
             data = c._git('show', a.P + ':' + path, root=self.repo)
             self.assertEqual((mode, blob, digest, size, lines), ('100644', *o.pin(data), len(data), len(data.splitlines())))
-            self.assertEqual((c.ROOT / path).read_bytes(), data)
+            self.assertEqual(rc_bundle_bytes(path, (c.ROOT / path).read_bytes()), data)
 
     def test_exact_source_p_and_amendment_a_bind_without_p_candidate(self):
         self.assertEqual(self.native(a.P), self.source)
