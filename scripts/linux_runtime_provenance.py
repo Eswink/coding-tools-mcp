@@ -119,7 +119,7 @@ class Observer:
             receiver, self.control = context.Pipe(duplex=False)
             self.worker = context.Process(target=observe_worker, args=(self.binding, self.output, self.phase,
                 self.launch_environment, self.projection, self.anchor, self.started, receiver))
-            try: self.worker.start()
+            try: self.worker.start(); self.worker_fd = os.pidfd_open(self.worker.pid)
             finally: receiver.close()
             os.set_blocking(self.control.fileno(), False)
             if signal.getsignal(signal.SIGTERM) == signal.SIG_DFL:
@@ -355,6 +355,10 @@ class Observer:
                 except BaseException as error: preserve(error)
                 for number in (signal.SIGTERM, signal.SIGKILL):
                     try:
+                        # Held pidfd + WNOWAIT proves the leader is unreaped, so its pgid cannot be reused.
+                        fd = getattr(self, 'worker_fd', None)
+                        if fd is None: raise RuntimeError('observer pidfd missing')
+                        os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
                         if os.getpgid(worker.pid) == worker.pid: os.killpg(worker.pid, number)
                         elif number == signal.SIGTERM: worker.terminate()
                         else: worker.kill()
@@ -369,6 +373,7 @@ class Observer:
                         worker.close(); self.worker = None
                 except BaseException as error: preserve(error)
         finally:
+            if getattr(self, 'worker_fd', None) is not None: os.close(self.worker_fd); self.worker_fd = None
             self.stopped = True
             signal.pthread_sigmask(signal.SIG_SETMASK, mask)
         if cancellation is not None: raise cancellation
