@@ -108,7 +108,8 @@ jobs:
           Push-Location (Join-Path $env:RUNNER_TEMP 'ctm-guest-native-hcsshim')
           $listed=@(go test -mod=vendor -tags guest -list '^TestNativeActualGuest' ./cmd/ctm-windows-vm-broker | Where-Object { $_ -match '^Test\w+$' } | Sort-Object)
           if (($listed -join ',') -cne ($want -join ',')) { Pop-Location; throw "guest run test names differ from hardcoded expected list: $($listed.Count)" }
-          go test -mod=vendor -tags guest -count=1 -v -ldflags "-X main.buildSource=$env:GITHUB_SHA" -run '^TestNativeActualGuest' ./cmd/ctm-windows-vm-broker 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/go-guest-run-native.txt"
+          # In a test binary the main package keeps its import path, so -X main.* is a silent no-op.
+          go test -mod=vendor -tags guest -count=1 -v -ldflags "-X github.com/Microsoft/hcsshim/cmd/ctm-windows-vm-broker.buildSource=$env:GITHUB_SHA" -run '^TestNativeActualGuest' ./cmd/ctm-windows-vm-broker 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/go-guest-run-native.txt"
           $code=$LASTEXITCODE; Pop-Location
           $passed=@(Get-Content "$env:CTM_VM_SESSION_EVIDENCE/go-guest-run-native.txt" | ForEach-Object { if ($_ -match '^--- PASS: (TestNativeActualGuest\w+) ') { $Matches[1] } } | Sort-Object)
           if ($code -ne 0 -or ($passed -join ',') -cne ($want -join ',')) { throw "guest run cases: $($passed.Count)/$($want.Count) passed" }
