@@ -88,7 +88,8 @@ jobs:
           $code=$LASTEXITCODE; Pop-Location
           if ($code -ne 0) { throw 'guest workspace native cases failed' }
           $pass=@(Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/go-workspace-native.txt" -Pattern '^--- PASS: TestGuestNative').Count
-          if ($pass -ne 18) { throw "expected 18 executed workspace cases (frozen SUT + new prepare step), got $pass" }
+          $want=@((Get-Content -Raw "$env:GITHUB_WORKSPACE/scripts/windows_foundation_native_go_inventory.json" | ConvertFrom-Json).native).Count
+          if ($want -lt 1 -or $pass -ne $want) { throw "expected $want executed workspace cases (frozen SUT + new prepare step), got $pass" }
       - name: Rust native output-stage publication denial case
         id: rsout
         if: always()
@@ -135,8 +136,16 @@ jobs:
         env:
           CTM_VM_SESSION_NATIVE: '1'
         run: |
+          # Kept in one serial binary on purpose: native_02 asserts FIRST_DRAINED and must not boot a second
+          # VM unless native_01 fully drained (frozen SUT safety gate). A native_01 failure therefore shows up
+          # as a native_02 PoisonError; it is recorded as BLOCKED_BY_NATIVE_01, not as an independent result.
           cargo test --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::native_tests:: -- --ignored --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/native-tests.txt"
-          if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/native-tests.txt" -Pattern 'test result: ok\. 2 passed; 0 failed; 0 ignored')) { throw 'two HCS cases required' }
+          $code=$LASTEXITCODE
+          $log=Get-Content "$env:CTM_VM_SESSION_EVIDENCE/native-tests.txt"
+          $n1=if ($log -match 'native_01_stock_runtimes_quarantine \.\.\. ok$') {'PASS'} else {'FAIL'}
+          $n2=if ($log -match 'native_02_cancel_live_descendant \.\.\. ok$') {'PASS'} elseif ($n1 -ne 'PASS') {'BLOCKED_BY_NATIVE_01'} else {'FAIL'}
+          @{label='frozen SUT + new prepare step';native_01=$n1;native_02=$n2} | ConvertTo-Json | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/hcs-outcomes.json"
+          if ($code -ne 0 -or -not ($log -match 'test result: ok\. 2 passed; 0 failed; 0 ignored')) { throw "HCS cases: native_01=$n1 native_02=$n2" }
       - name: Bounded evidence manifest (no host/proc dumps)
         if: always()
         shell: pwsh

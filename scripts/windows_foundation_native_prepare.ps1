@@ -46,7 +46,8 @@ if ($Phase -ceq 'build') {
     # Hardcoded expected lists (scripts/windows_foundation_native_go_inventory.json) compared with the actual
     # go list / go test -list output; SUT provenance is guarded by the overlay tree hash, not by this check.
     $inv = Get-Content -Raw -LiteralPath "$env:GITHUB_WORKSPACE/scripts/windows_foundation_native_go_inventory.json" | ConvertFrom-Json
-    if ($inv.sut_tree -cne 'c8cc0cf37d60acdb5e7ec711f1b8ff14c35d0568' -or @($inv.test_files).Count -ne 10 -or @($inv.pure).Count -ne 41 -or @($inv.native).Count -ne 18) { throw 'expected inventory file shape differs' }
+    # Single source of truth: counts and names come only from the inventory JSON; empty lists are refused.
+    if ($inv.sut_tree -cne 'c8cc0cf37d60acdb5e7ec711f1b8ff14c35d0568' -or @($inv.test_files).Count -lt 1 -or @($inv.pure).Count -lt 1 -or @($inv.native).Count -lt 1) { throw 'expected inventory file shape differs' }
     if ($files -cne (@($inv.test_files) -join ',')) { throw "compiled Go test file list differs from hardcoded expected list: $files" }
     $listed = @(go test -mod=vendor -list '.*' ./cmd/ctm-windows-vm-broker | Where-Object { $_ -match '^Test\w+$' }); Assert-NativeExit
     $pure = @($listed | Where-Object { $_ -notlike 'TestGuestNative*' } | Sort-Object); $native = @($listed | Where-Object { $_ -like 'TestGuestNative*' } | Sort-Object)
@@ -54,7 +55,7 @@ if ($Phase -ceq 'build') {
     @{label='frozen SUT + new prepare step'; sut_tree=$inv.sut_tree; manager=$env:GITHUB_SHA; files=$files -split ','; pure=$pure; native=$native} | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath "$evidence/go-inventory.json"
     go test -mod=vendor -count=1 -v -skip '^TestGuestNative' ./cmd/ctm-windows-vm-broker 2>&1 | Tee-Object -FilePath "$evidence/go-tests.txt"; Assert-NativeExit
     $passed = @(Get-Content -LiteralPath "$evidence/go-tests.txt" | ForEach-Object { if ($_ -match '^--- PASS: (Test[^/ ]+) ') { $Matches[1] } })
-    if ((@($passed | Sort-Object) -join ',') -cne ($pure -join ',')) { throw "expected exactly the 41 listed pure Go tests to pass, got $($passed.Count)" }
+    if ((@($passed | Sort-Object) -join ',') -cne ($pure -join ',')) { throw "expected exactly the $($pure.Count) listed pure Go tests to pass, got $($passed.Count)" }
     $env:CGO_ENABLED = '0'
     $env:GOTOOLCHAIN = 'local'
     $env:GOPROXY = 'off'
