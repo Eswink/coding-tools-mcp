@@ -177,7 +177,8 @@ class ReapSafeCleanupCases(unittest.TestCase):
     def test_reaped_leader_is_never_signalled(self):
         process, straggler = self.spawn('exit')
         process.wait(timeout=5)
-        with patch.object(self.gui.os, 'killpg') as killpg, patch.object(self.gui.os, 'pidfd_open') as opened:
+        with patch.object(self.gui.os, 'killpg') as killpg, patch.object(self.gui.os, 'pidfd_open') as opened, \
+                self.assertRaisesRegex(RuntimeError, 'not cleanable: leader already reaped'):
             self.gui.stop_owned_group(process)
         killpg.assert_not_called(); opened.assert_not_called()
         os.kill(straggler, signal.SIGKILL)
@@ -204,20 +205,21 @@ class ReapSafeCleanupCases(unittest.TestCase):
         self.assertTrue({'leader_running', 'stop_owned_group'} <= calls)
         self.assertFalse({'poll', 'killpg', 'wait'} & calls)
 
-    def test_observer_signal_requires_pidfd_unreaped_proof(self):
-        tree = ast.parse((c.ROOT / 'scripts/linux_runtime_provenance.py').read_text())
-        stop = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == '_stop_worker')
-        lines = [n for n in ast.walk(stop) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)]
-        waitid = min(n.lineno for n in lines if n.func.attr == 'waitid')
-        killpg = min(n.lineno for n in lines if n.func.attr == 'killpg')
-        self.assertLess(waitid, killpg)
-        text = (c.ROOT / 'scripts/linux_runtime_provenance.py').read_text()
-        self.assertIn('self.worker.start(); self.worker_fd = os.pidfd_open(self.worker.pid)', text)
-        child = subprocess.Popen([sys.executable, '-c', 'pass']); fd = os.pidfd_open(child.pid)
-        try:
-            child.wait(timeout=5)
-            with self.assertRaises(ChildProcessError): os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
-        finally: os.close(fd)
+    def test_externally_reaped_observer_is_never_group_signalled(self):
+        import multiprocessing, tempfile
+        provenance = _load('linux_runtime_provenance.py', 'reap_safe_runtime_provenance')
+        with tempfile.TemporaryDirectory() as output:
+            observer = provenance.Observer({}, output, 'reap-safe')
+            worker = multiprocessing.get_context('fork').Process(target=time.sleep, args=(60,))
+            worker.start(); observer.worker, observer.worker_fd = worker, os.pidfd_open(worker.pid)
+            fd = observer.worker_fd
+            os.kill(worker.pid, signal.SIGKILL); os.waitpid(worker.pid, 0)  # Reaped outside the owner.
+            with patch.object(provenance.os, 'killpg') as killpg:
+                observer._stop_worker()
+            killpg.assert_not_called()
+            self.assertIn('ChildProcessError', observer.errors)
+            self.assertIsNone(observer.worker_fd)
+            with self.assertRaises(OSError): os.fstat(fd)
 
     def test_cleanup_has_no_poll_reap_before_group_signal(self):
         source = (c.ROOT / 'scripts/Ubuntu原生验收v1.py').read_text()

@@ -23,3 +23,14 @@
 ## 测试策略
 - 组合：M 绑定、SOURCE_PINS、normalize 精确逆转与拒绝、D/I/J 拓扑、错误拓扑委派、额外路径拒绝、预算。
 - 行为：真实子进程（含组内残留进程）验证 FR-1..FR-5。
+
+### 决策5: 无 pidfd 回退
+仅支持 Linux >= 5.3 与 Python >= 3.9（`os.pidfd_open`、`waitid(P_PIDFD)`）。不可用时直接抛错失败关闭，不回退到 PID/pgid 猜测。
+
+### 决策6: 已回收与残留成员
+- leader 已被本所有者回收时，`stop_owned_group` 抛出 `not cleanable: leader already reaped`，不再静默返回。
+- 回收 leader 之前轮询 `/proc` 确认同组没有其他非僵尸成员；超时则抛错并保持 leader 未回收。
+- M2：worker 被外部回收时 `waitid(P_PIDFD)` 抛 `ChildProcessError`，记录为失败且不调用 `killpg`；pidfd 在 `finally` 中关闭。
+
+## 残余风险
+`waitid(WNOWAIT)` → `getpgid` → `killpg` 之间仍是三次独立系统调用。由于 leader 未被回收（僵尸或运行中）期间其 PID 不能被复用，只有当其他代码在此窗口内回收该 leader 时才可能失效；本层不在测试进程中安装 SIGCHLD=SIG_IGN/SA_NOCLDWAIT，且该路径以 pidfd 证明失败关闭。Linux 无 `pidfd_send_signal` 的进程组版本，因此该窗口无法完全消除。

@@ -5,4 +5,5 @@
 - [x] 3. 新增 `rc_pretag_reap_safe_profile.py` 顶层层与 source_observation 分派（FR-6）
 - [x] 4. `rc_pretag_source_observation_cases.py` 读取经本层 normalize
 - [x] 5. 新增 `rc_pretag_reap_safe_cases.py` 14 例，工作流总数 427
-- [ ] 6. 真实 CI（ubuntu-22.04/24.04）执行全部 427 例
+- [x] 6. 行为用例：外部回收的 observer 不发 killpg；已回收 leader 抛错；回收前确认组内无残留
+- [ ] 7. 真实 CI（ubuntu-22.04/24.04）执行全部 427 例

@@ -371,9 +371,9 @@ class Observer:
                     else:
                         if worker.exitcode != 0: self.fail('observer exited without final capture')
                         worker.close(); self.worker = None
-                        if getattr(self, 'worker_fd', None) is not None: os.close(self.worker_fd); self.worker_fd = None
                 except BaseException as error: preserve(error)
         finally:
+            if getattr(self, 'worker_fd', None) is not None: os.close(self.worker_fd); self.worker_fd = None
             self.stopped = True
             signal.pthread_sigmask(signal.SIG_SETMASK, mask)
         if cancellation is not None: raise cancellation

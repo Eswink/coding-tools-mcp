@@ -182,10 +182,27 @@ def leader_running(process) -> bool:
         os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is None
 
 
+def group_members(pgid: int) -> list[int]:
+    """Live (non-zombie) processes still in the group, other than the pinned leader."""
+    members = []
+    for entry in os.scandir("/proc"):
+        if not entry.name.isdigit() or int(entry.name) == pgid:
+            continue
+        try:
+            with open(f"/proc/{entry.name}/stat", "rb") as handle:
+                fields = handle.read().rsplit(b")", 1)[1].split()
+        except (FileNotFoundError, ProcessLookupError):
+            continue
+        if int(fields[2]) == pgid and fields[0] != b"Z":
+            members.append(int(entry.name))
+    return members
+
+
 def stop_owned_group(process, term: float = 5.0, kill: float = 5.0) -> None:
     """Signal the recorded group while the unreaped leader pins its id; reap the leader last."""
     if process.returncode is not None:
-        return  # Already reaped: the group id may have been reused, so never signal it.
+        # Already reaped: the group id may have been reused, so never signal it; never pass silently.
+        raise RuntimeError("native process group not cleanable: leader already reaped")
     fd = os.pidfd_open(process.pid)
     try:
         def exited(budget: float) -> bool:
@@ -205,6 +222,11 @@ def stop_owned_group(process, term: float = 5.0, kill: float = 5.0) -> None:
             exited(budget)
         if not exited(0):
             raise RuntimeError("native process group cleanup timed out; leader left unreaped")
+        deadline = time.monotonic() + kill
+        while group_members(process.pid):
+            if time.monotonic() >= deadline:
+                raise RuntimeError("native process group members remain; leader left unreaped")
+            time.sleep(0.05)
         process.wait(timeout=5)
     finally:
         os.close(fd)
