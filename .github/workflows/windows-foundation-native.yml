@@ -57,14 +57,30 @@ jobs:
         id: gows
         if: always()
         shell: pwsh
-        working-directory: ${{ env.CTM_SUT }}/services/windows-vm-broker
         env:
           CTM_GUEST_FILE_NATIVE_ENABLE: OWNED_TEMP_FIXTURE_ONLY
+          CGO_ENABLED: '0'
+          GOTOOLCHAIN: local
+          GOPROXY: 'off'
+          GOSUMDB: 'off'
         run: |
+          # The broker has no go.mod; like prepare_windows_vm_session.ps1 it compiles inside the pinned
+          # hcsshim vendor tree. This separate scratch copy never feeds the launch/VM bundle.
+          $ErrorActionPreference='Stop'
           $env:CTM_GUEST_FILE_NATIVE_ROOT=$env:CTM_GUEST_NATIVE_ROOT
-          go version
-          go test -count=1 -v -run '^TestGuestNative' . 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/go-workspace-native.txt"
-          if ($LASTEXITCODE -ne 0) { throw 'guest workspace native cases failed' }
+          $pins=Get-Content -Raw "$env:CTM_SUT/services/windows-vm-broker/inputs.json" | ConvertFrom-Json
+          if ((go env GOVERSION).Trim() -cne $pins.go) { throw 'exact tested Go compiler required' }
+          $up=Join-Path $env:RUNNER_TEMP 'ctm-guest-native-hcsshim'
+          git -c core.autocrlf=false clone --quiet --no-checkout https://github.com/microsoft/hcsshim.git $up
+          if ($LASTEXITCODE -ne 0) { throw 'clone failed' }
+          Push-Location $up
+          git checkout --quiet --detach $pins.hcsshim
+          if ($LASTEXITCODE -ne 0 -or (git rev-parse HEAD).Trim() -cne $pins.hcsshim) { throw 'upstream SHA mismatch' }
+          $cmd=New-Item -ItemType Directory -Path 'cmd/ctm-windows-vm-broker'
+          Copy-Item -Path "$env:CTM_SUT/services/windows-vm-broker/*.go" -Destination $cmd
+          go test -mod=vendor -count=1 -v -run '^TestGuestNative' ./cmd/ctm-windows-vm-broker 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/go-workspace-native.txt"
+          $code=$LASTEXITCODE; Pop-Location
+          if ($code -ne 0) { throw 'guest workspace native cases failed' }
           $pass=@(Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/go-workspace-native.txt" -Pattern '^--- PASS: TestGuestNative').Count
           if ($pass -ne 16) { throw "expected 16 executed workspace cases, got $pass" }
       - name: Rust native output-stage publication denial case
@@ -75,6 +91,8 @@ jobs:
         env:
           CTM_NATIVE_WORKSPACE_IO_FIXTURE: owned-temporary-ci
         run: |
+          # native_source() is option_env!: bind the compile to this manager commit, which deterministically restores the frozen tree.
+          $env:CTM_WINDOWS_NATIVE_SOURCE=$env:GITHUB_SHA
           cargo test --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::output_stage::native_tests:: -- --include-ignored --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/rust-output-native.txt"
           if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/rust-output-native.txt" -Pattern 'test result: ok\. [1-9]\d* passed; 0 failed; 0 ignored')) { throw 'output-stage native case did not execute' }
       - name: Build broker and fixed harmless markers (existing scripts)
