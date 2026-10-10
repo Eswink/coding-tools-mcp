@@ -24,7 +24,8 @@ jobs:
             librsvg2-dev \
             libxdo-dev \
             dbus \
-            gnome-keyring
+            gnome-keyring \
+          libsecret-tools
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: stable
@@ -60,6 +61,10 @@ jobs:
         run: |
           dbus-run-session -- bash -euo pipefail -c '
             printf "%s" "ci-disposable-keyring" | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            echo "DBUS_SESSION_BUS_ADDRESS=${DBUS_SESSION_BUS_ADDRESS:?no session bus}"
+            printf "%s" probe | secret-tool store --label=ci-probe ci-probe 1
+            test "$(secret-tool lookup ci-probe 1)" = probe
+            secret-tool clear ci-probe 1
             export XDG_DATA_HOME="$(mktemp -d)"
             cargo test
           '
