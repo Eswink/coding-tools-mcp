@@ -1,0 +1,134 @@
+name: Windows foundation native launch, VM and workspace cases
+# Runs the existing windows-vm-session native cases and the host-native guest
+# workspace file/output (copyback) cases against the restored frozen foundation
+# tree (target_tree 19bb2920). Evidence only; no production admission.
+on:
+  push:
+    branches: [probe/windows-foundation-compile-20261009-19bb2920]
+permissions:
+  contents: read
+concurrency:
+  group: windows-foundation-native-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  native:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/probe/windows-foundation-compile-20261009-19bb2920'
+    runs-on: windows-2025
+    timeout-minutes: 75
+    env:
+      CARGO_TERM_COLOR: never
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Fixed Python guard interpreter
+        id: py
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12', check-latest: false}
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with: {toolchain: '1.98.1', components: rustfmt}
+      - name: Restore frozen foundation tree and compile (existing guarded probe)
+        shell: pwsh
+        run: ./scripts/windows_foundation_source_compile.ps1 -Mode rust -PythonExecutable '${{ steps.py.outputs.python-path }}'
+      - name: Bind owned evidence paths inside restored tree
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $sut=Join-Path $env:RUNNER_TEMP 'windows-foundation-sut-union1967'
+          if (-not (Test-Path -LiteralPath "$sut/src-tauri/Cargo.toml")) { throw 'restored tree absent' }
+          $root=Join-Path $env:RUNNER_TEMP "ctm-vm-session-$env:GITHUB_RUN_ID"
+          $evidence=Join-Path $env:RUNNER_TEMP 'ctm-vm-session-evidence'
+          $guest=Join-Path $env:RUNNER_TEMP 'ctm-guest-native'
+          New-Item -ItemType Directory -Path $root,$evidence,$guest -ErrorAction Stop | Out-Null
+          "CTM_SUT=$sut" >> $env:GITHUB_ENV
+          "CTM_VM_SESSION_ROOT=$root" >> $env:GITHUB_ENV
+          "CTM_VM_SESSION_EVIDENCE=$evidence" >> $env:GITHUB_ENV
+          "CTM_GUEST_NATIVE_ROOT=$guest" >> $env:GITHUB_ENV
+          @{sha=$env:GITHUB_SHA;run=$env:GITHUB_RUN_ID;attempt=$env:GITHUB_RUN_ATTEMPT;image=$env:ImageVersion;production_admission=$false} | ConvertTo-Json | Set-Content "$evidence/source.json"
+      - name: Inventory windows_vm tests in restored tree
+        shell: pwsh
+        working-directory: ${{ env.CTM_SUT }}
+        run: |
+          cargo test --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm:: -- --list 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/rust-inventory.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'inventory failed' }
+      - name: Host-native guest workspace input/output (copyback) Go cases
+        id: gows
+        if: always()
+        shell: pwsh
+        working-directory: ${{ env.CTM_SUT }}/services/windows-vm-broker
+        env:
+          CTM_GUEST_FILE_NATIVE_ENABLE: OWNED_TEMP_FIXTURE_ONLY
+        run: |
+          $env:CTM_GUEST_FILE_NATIVE_ROOT=$env:CTM_GUEST_NATIVE_ROOT
+          go version
+          go test -count=1 -v -run '^TestGuestNative' . 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/go-workspace-native.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'guest workspace native cases failed' }
+          $pass=@(Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/go-workspace-native.txt" -Pattern '^--- PASS: TestGuestNative').Count
+          if ($pass -ne 16) { throw "expected 16 executed workspace cases, got $pass" }
+      - name: Rust native output-stage publication denial case
+        id: rsout
+        if: always()
+        shell: pwsh
+        working-directory: ${{ env.CTM_SUT }}
+        env:
+          CTM_NATIVE_WORKSPACE_IO_FIXTURE: owned-temporary-ci
+        run: |
+          cargo test --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::output_stage::native_tests:: -- --include-ignored --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/rust-output-native.txt"
+          if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/rust-output-native.txt" -Pattern 'test result: ok\. [1-9]\d* passed; 0 failed; 0 ignored')) { throw 'output-stage native case did not execute' }
+      - name: Build broker and fixed harmless markers (existing scripts)
+        id: prep
+        if: always()
+        shell: pwsh
+        working-directory: ${{ env.CTM_SUT }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $env:GITHUB_WORKSPACE=$env:CTM_SUT
+          ./scripts/prepare_windows_vm_session.ps1 -Phase build
+          ./scripts/prepare_windows_vm_launch.ps1
+      - name: Six real native launch cases
+        id: launch
+        if: always() && steps.prep.outcome == 'success'
+        shell: pwsh
+        working-directory: ${{ env.CTM_SUT }}
+        env:
+          CTM_VM_LAUNCH_NATIVE: '1'
+        run: |
+          cargo test --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::launch_tests::native_launch_ -- --ignored --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/launch-tests.txt"
+          if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/launch-tests.txt" -Pattern 'test result: ok\. 6 passed; 0 failed; 0 ignored')) { throw 'six actual launch cases required' }
+      - name: Acquire fixed Microsoft blobs and import (existing script)
+        id: acquire
+        if: always() && steps.prep.outcome == 'success'
+        shell: pwsh
+        working-directory: ${{ env.CTM_SUT }}
+        run: |
+          $env:GITHUB_WORKSPACE=$env:CTM_SUT
+          ./scripts/prepare_windows_vm_session.ps1 -Phase acquire
+      - name: Two serial owned HCS VM cases
+        id: hcs
+        if: always() && steps.acquire.outcome == 'success'
+        shell: pwsh
+        working-directory: ${{ env.CTM_SUT }}
+        env:
+          CTM_VM_SESSION_NATIVE: '1'
+        run: |
+          cargo test --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::native_tests:: -- --ignored --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/native-tests.txt"
+          if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/native-tests.txt" -Pattern 'test result: ok\. 2 passed; 0 failed; 0 ignored')) { throw 'two HCS cases required' }
+      - name: Bounded evidence manifest (no host/proc dumps)
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          foreach ($n in @('native-01.json','native-02.json')) { $p=Join-Path $env:CTM_VM_SESSION_ROOT $n; if (Test-Path -LiteralPath $p) { Copy-Item -LiteralPath $p $env:CTM_VM_SESSION_EVIDENCE } }
+          $files=@(Get-ChildItem $env:CTM_VM_SESSION_EVIDENCE -Recurse -File)
+          if (($files | Measure-Object Length -Sum).Sum -gt 8MB) { throw 'aggregate evidence bound' }
+          @($files | Sort-Object FullName | ForEach-Object { if ($_.Length -gt 2MB) { throw 'individual bound' }; "$((Get-FileHash $_.FullName).Hash.ToLowerInvariant())  $($_.Name)" }) | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/sha256.txt"
+          @{go_workspace='${{ steps.gows.outcome }}';rust_output='${{ steps.rsout.outcome }}';prep='${{ steps.prep.outcome }}';launch='${{ steps.launch.outcome }}';acquire='${{ steps.acquire.outcome }}';hcs='${{ steps.hcs.outcome }}'} | ConvertTo-Json | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/step-outcomes.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: windows-foundation-native-${{ github.run_id }}
+          path: ${{ env.CTM_VM_SESSION_EVIDENCE }}
+          if-no-files-found: warn
+          retention-days: 7
