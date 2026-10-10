@@ -314,6 +314,8 @@ impl SnapshotStore {
         Ok(())
     }
 }
+#[cfg(all(test, target_os = "linux"))]
+mod root_identity_tests;
 #[cfg(test)]
 mod tests;
 
