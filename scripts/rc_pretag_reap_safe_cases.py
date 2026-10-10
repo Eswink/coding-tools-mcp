@@ -16,6 +16,7 @@ import rc_pretag_publication_tests as pt
 import rc_pretag_linux_package_cases as lc
 import rc_pretag_ci_repair_profile as previous
 import rc_pretag_reap_safe_profile as x
+from rc_pretag_issue86_root_identity_profile import normalize as issue86_bytes
 
 F_BINDING = ('0cc6039142b50a03e7fcd28d115ce40a4b9e2c96', 'a9bf6bafbbaa1419d81f752e6b13937374956dcf', ('35559f67b3d91cb277879c82e87fc098bbc72038', '0f64359ee65b6225657d27f916853879ad3e04bb'))
 F_RAW = (1209, 'ee8ef48e173bd471693288b8af03eae4e6853db980025d012db9906bd12ce417')
@@ -52,7 +53,7 @@ class ReapSafeCompositionCases(unittest.TestCase):
         cls.addClassCleanup(cls._immutable_f.clear)
     def setUp(self):
         self.original = c._entries(x.M, self.repo)
-        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in x.CAPS}
+        self.good = self.original | {path: ('100644', 'blob', self.blob(issue86_bytes(path, (c.ROOT / path).read_bytes()))) for path in x.CAPS}
         self.pure = self.commit([x.M], self.good)
         self.feature = self.commit([x.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -105,20 +106,20 @@ class ReapSafeCompositionCases(unittest.TestCase):
         self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
         self.assertEqual(x.FRAGMENTS.keys(), x.BASE_PINS.keys())
         for path, row in x.SOURCE_PINS.items():
-            data = (c.ROOT / path).read_bytes()
+            data = issue86_bytes(path, (c.ROOT / path).read_bytes())
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())), path)
         for path, (lines, _) in x.CAPS.items():
-            self.assertLessEqual(len((c.ROOT / path).read_bytes().splitlines()), lines, path)
+            self.assertLessEqual(len(issue86_bytes(path, (c.ROOT / path).read_bytes()).splitlines()), lines, path)
         self.assertLessEqual(sum(cap[1] for cap in x.CAPS.values()), x.DELTA_LIMIT + 200)
 
     def test_normalize_restores_exact_m_bytes_and_rejects_drift(self):
         for path in x.BASE_PINS:
-            current = (c.ROOT / path).read_bytes()
+            current = issue86_bytes(path, (c.ROOT / path).read_bytes())
             self.assertEqual(x.normalize(path, current), self.frozen(path), path)
             self.assertEqual(x.normalize(path, self.frozen(path)), self.frozen(path), path)
             with self.assertRaises(AssertionError): x.normalize(path, current + b'#')
         self.assertEqual(x.normalize('README.md', b'unrelated'), b'unrelated')
-        self.assertEqual(previous.normalize(x.WORKFLOW, (c.ROOT / x.WORKFLOW).read_bytes()),
+        self.assertEqual(previous.normalize(x.WORKFLOW, issue86_bytes(x.WORKFLOW, (c.ROOT / x.WORKFLOW).read_bytes())),
                          previous.normalize(x.WORKFLOW, self.frozen(x.WORKFLOW)))
 
 

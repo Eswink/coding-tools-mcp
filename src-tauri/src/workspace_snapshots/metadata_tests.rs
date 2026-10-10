@@ -5,6 +5,7 @@ use std::{
 };
 struct Target {
     root: std::path::PathBuf,
+    identity: String,
 }
 impl TargetAuthority for Target {
     fn root(&self) -> &Path {
@@ -22,6 +23,9 @@ impl TargetAuthority for Target {
     fn verify(&self) -> Result<()> {
         Ok(())
     }
+    fn trusted_root_identity(&self) -> String {
+        self.identity.clone()
+    }
 }
 fn fixture() -> (tempfile::TempDir, Target, SnapshotStore) {
     let temp = tempfile::tempdir().unwrap();
@@ -29,7 +33,8 @@ fn fixture() -> (tempfile::TempDir, Target, SnapshotStore) {
     let root = temp.path().join("managed");
     fs::create_dir(&root).unwrap();
     let store = SnapshotStore::create(temp.path(), "snapshots").unwrap();
-    (temp, Target { root }, store)
+    let identity = Dir::open(&root).unwrap().identity().unwrap();
+    (temp, Target { root, identity }, store)
 }
 fn attribute(path: &Path) {
     let path = std::ffi::CString::new(path.as_os_str().as_bytes()).unwrap();
