@@ -83,6 +83,18 @@ jobs:
           if ($code -ne 0) { throw 'guest workspace native cases failed' }
           $pass=@(Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/go-workspace-native.txt" -Pattern '^--- PASS: TestGuestNative').Count
           if ($pass -ne 16) { throw "expected 16 executed workspace cases, got $pass" }
+      - name: Diagnose raw NTSTATUS of guest output relative opens (scratch only)
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        env: {CGO_ENABLED: '0', GOTOOLCHAIN: local, GOPROXY: 'off', GOSUMDB: 'off'}
+        run: |
+          $up=Join-Path $env:RUNNER_TEMP 'ctm-guest-native-hcsshim'
+          Copy-Item scripts/ci/ntrelative_diag_windows_test.go "$up/cmd/ctm-windows-vm-broker/"
+          Push-Location $up
+          go test -mod=vendor -count=1 -v -run '^TestDiagRelativeOpens$' ./cmd/ctm-windows-vm-broker 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/nt-relative-diag.txt"
+          Remove-Item "$up/cmd/ctm-windows-vm-broker/ntrelative_diag_windows_test.go"
+          Pop-Location
       - name: Rust native output-stage publication denial case
         id: rsout
         if: always()
