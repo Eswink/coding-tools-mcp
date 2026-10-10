@@ -7,6 +7,8 @@ import re
 
 _spec=importlib.util.spec_from_file_location('deployment_blueprint',Path(__file__).with_name('render.py'))
 blueprint=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(blueprint)
+_spec=importlib.util.spec_from_file_location('current_include',Path(__file__).with_name('current_nginx_include.py'))
+current=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(current)
 
 
 def image_refs(images):
@@ -19,26 +21,9 @@ def image_refs(images):
 
 
 def ingress_config(domain,connector):
-    blueprint.validate(domain,connector,28880)
-    blocks=[]
-    for route,websocket in [(f'= /.well-known/oauth-protected-resource/coding-tools/mcp/{connector}',False),
-                            ('= /.well-known/oauth-authorization-server/coding-tools/oauth',False),
-                            ('/coding-tools/',False),('= /coding-tools/agent',True)]:
-        lines=[f'location {route} {{','proxy_pass http://127.0.0.1:28880;',
-               'proxy_http_version 1.1;',f'proxy_set_header Host {domain};',
-               'proxy_set_header Forwarded "";','proxy_set_header X-Forwarded-Host "";',
-               'proxy_set_header X-Forwarded-For "";','proxy_set_header X-Forwarded-Proto https;',
-               'proxy_set_header Authorization $http_authorization;','proxy_set_header Origin $http_origin;',
-               'proxy_set_header MCP-Protocol-Version $http_mcp_protocol_version;',
-               'proxy_set_header Mcp-Session-Id $http_mcp_session_id;',
-               'proxy_set_header Mcp-Method $http_mcp_method;','proxy_set_header Mcp-Name $http_mcp_name;',
-               'proxy_buffering off;','proxy_request_buffering off;','proxy_cache off;',
-               'proxy_intercept_errors off;','proxy_redirect off;','proxy_connect_timeout 3s;',
-               'proxy_read_timeout 75s;','proxy_send_timeout 30s;']
-        lines += ['proxy_set_header Upgrade $http_upgrade;','proxy_set_header Connection "upgrade";',
-                  'proxy_set_header Sec-WebSocket-Protocol $http_sec_websocket_protocol;'] if websocket else [
-                  'proxy_set_header Upgrade "";','proxy_set_header Connection "";']
-        blocks.append('\n'.join(lines+['}']))
+    # Both hops use the reviewed native-header contract; drift fails before rendering.
+    current.source_contract()
+    locations=current.locations(domain,connector,28880)
     return ('worker_processes 1;\nerror_log /dev/null crit;\npid /tmp/nginx.pid;\n'
             'events { worker_connections 128; }\nhttp {\naccess_log off;\n'
             'client_body_temp_path /tmp/body;\nproxy_temp_path /tmp/proxy;\n'
@@ -46,7 +31,7 @@ def ingress_config(domain,connector):
             'client_max_body_size 64k;\nclient_body_timeout 10s;\nclient_header_timeout 10s;\n'
             'keepalive_timeout 15s;\nlarge_client_header_buffers 2 8k;\nserver {\nlisten 8080;\n'
             f'server_name {domain};\nif ($http_host != "{domain}") {{ return 421; }}\n'
-            'location = / { return 404; }\n'+'\n'.join(blocks)+'\n}\n}\n')
+            'location = / { return 404; }\n'+locations+'\n}\n}\n')
 
 
 def compose(directory,images,domain,connector,port):

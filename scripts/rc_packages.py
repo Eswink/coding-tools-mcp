@@ -72,12 +72,16 @@ def identity(source: str, root: Path) -> dict:
     }
 
 
-def prepare(root: Path, output: Path, source: str) -> dict:
+def prepare(root: Path, output: Path, source: str, bundle_directory: Path | None = None) -> dict:
     data = identity(source, root)
     output.mkdir(parents=True, exist_ok=False)
+    bundle = root / "src-tauri/target/release/bundle" if bundle_directory is None else bundle_directory
+    if bundle_directory is not None:
+        from linux_package_provenance_contract import check_bundle_directory
+        check_bundle_directory(bundle, Path(os.environ["CARGO_TARGET_DIR"]))
     packages = {}
     for kind, suffix in (("deb", ".deb"), ("appimage", ".AppImage")):
-        choices = list((root / "src-tauri/target/release/bundle" / kind).glob("*" + suffix))
+        choices = list((bundle / kind).glob("*" + suffix))
         require(len(choices) == 1, "exactly one candidate package per format required")
         target = output / f"MCP_{data['version']}_amd64{suffix}"
         if kind == "deb":
@@ -165,10 +169,11 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--source", required=True)
     parser.add_argument("--kind", choices=["deb", "appimage"])
+    parser.add_argument("--bundle-directory", type=Path)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     if args.mode == "prepare":
-        value = prepare(args.directory.resolve(), args.output.resolve(), args.source)
+        value = prepare(args.directory.resolve(), args.output.resolve(), args.source, args.bundle_directory)
     else:
         if not args.kind:
             parser.error("installed requires --kind")

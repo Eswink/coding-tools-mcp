@@ -87,6 +87,8 @@ frp-binary-tests = []
 
 # Requires a separate disposable real PostgreSQL/TLS gateway fixture binary.
 cloud-agent-integration-tests = []
+# Real shipped Gateway behind isolated outer TLS443 and inner Nginx.
+nginx-agent-integration-tests = ["cloud-agent-integration-tests"]
 
 # Exact upstream RUSTSEC-2024-0429 backport; retain separate upstream audit identity.
 [patch.crates-io]

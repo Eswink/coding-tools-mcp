@@ -55,7 +55,18 @@ impl SnapshotStore {
         if current.identity()? != self.directory.identity()? {
             return Err(SnapshotError::Changed);
         }
-        Dir::open(target.root())
+        // Bind the exact opened handle to the retained identity, then recheck the pathname
+        // authority and the handle again so a swap (or ABA swap) around open is refused.
+        let root = Dir::open(target.root())?;
+        let trusted = target.trusted_root_identity();
+        if root.identity()? != trusted {
+            return Err(SnapshotError::Changed);
+        }
+        target.verify()?;
+        if root.identity()? != trusted || Dir::open(target.root())?.identity()? != trusted {
+            return Err(SnapshotError::Changed);
+        }
+        Ok(root)
     }
     fn ready(&self) -> Result<()> {
         for name in self.directory.names()? {
@@ -303,6 +314,8 @@ impl SnapshotStore {
         Ok(())
     }
 }
+#[cfg(all(test, target_os = "linux"))]
+mod root_identity_tests;
 #[cfg(test)]
 mod tests;
 

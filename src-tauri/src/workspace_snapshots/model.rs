@@ -48,6 +48,7 @@ pub enum SnapshotError {
     Changed,
     Corrupt,
     Unavailable,
+    #[cfg(target_os = "linux")]
     Busy,
     Approval,
     Expired,
@@ -72,6 +73,9 @@ pub(crate) trait TargetAuthority {
     fn worktree_id(&self) -> &str;
     fn head(&self) -> &str;
     fn verify(&self) -> Result<()>;
+    /// Native-retained identity ("dev:ino") of the trusted root. Must come from the broker's
+    /// own handle inspection, never from IPC/cloud input. No default: every authority binds it.
+    fn trusted_root_identity(&self) -> String;
     /// Production Windows restore stays closed until all security metadata can be retained.
     /// Native code must not infer this proof from an IPC boolean or a successful DACL fixture.
     fn verify_restore_metadata(&self) -> Result<()> {
