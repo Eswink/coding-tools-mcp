@@ -43,15 +43,15 @@ if ($Phase -ceq 'build') {
     $cmd = New-Item -ItemType Directory -Path 'cmd/ctm-windows-vm-broker'
     Copy-Item -Path "$source/*.go" -Destination $cmd
     $files = (go list -mod=vendor -f '{{join .TestGoFiles ","}}' ./cmd/ctm-windows-vm-broker).Trim(); Assert-NativeExit
-    $expectedFiles = 'guest_workspace_control_test.go,guest_workspace_native_test.go,guest_workspace_output_native_test.go,guest_workspace_output_repin_native_test.go,guest_workspace_retention_test.go,owner_windows_test.go,transfer_test.go,workspace_stream_test.go'
-    if ($files -cne $expectedFiles) { throw "compiled Go test file inventory differs from hardcoded 8: $files" }
+    $expectedFiles = 'guest_workspace_control_test.go,guest_workspace_native_test.go,guest_workspace_output_native_test.go,guest_workspace_output_repin_native_test.go,guest_workspace_retention_test.go,output_transfer_test.go,owner_windows_test.go,transfer_owner_test.go,transfer_test.go,workspace_stream_test.go'
+    if ($files -cne $expectedFiles) { throw "compiled Go test file inventory differs from hardcoded 10: $files" }
     $listed = @(go test -mod=vendor -list '.*' ./cmd/ctm-windows-vm-broker | Where-Object { $_ -match '^Test\w+$' }); Assert-NativeExit
     $native = @($listed | Where-Object { $_ -like 'TestGuestNative*' }); $pure = @($listed | Where-Object { $_ -notlike 'TestGuestNative*' })
-    if (@($listed | Sort-Object -Unique).Count -ne $listed.Count -or $pure.Count -ne 29 -or $native.Count -ne 18) { throw "actual test list differs from hardcoded 29 pure + 18 native: pure=$($pure.Count) native=$($native.Count)" }
+    if (@($listed | Sort-Object -Unique).Count -ne $listed.Count -or $pure.Count -ne 41 -or $native.Count -ne 18) { throw "actual test list differs from hardcoded 41 pure + 18 native: pure=$($pure.Count) native=$($native.Count)" }
     @{label='frozen SUT + new prepare step'; files=$files -split ','; pure=$pure; native=$native} | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath "$evidence/go-inventory.json"
     go test -mod=vendor -count=1 -v -skip '^TestGuestNative' ./cmd/ctm-windows-vm-broker 2>&1 | Tee-Object -FilePath "$evidence/go-tests.txt"; Assert-NativeExit
     $passed = @(Get-Content -LiteralPath "$evidence/go-tests.txt" | ForEach-Object { if ($_ -match '^--- PASS: (Test[^/ ]+) ') { $Matches[1] } })
-    if ($passed.Count -ne 29 -or @(Compare-Object ($passed | Sort-Object) ($pure | Sort-Object)).Count -ne 0) { throw "expected exactly the 29 listed pure Go tests to pass, got $($passed.Count)" }
+    if ($passed.Count -ne 41 -or @(Compare-Object ($passed | Sort-Object) ($pure | Sort-Object)).Count -ne 0) { throw "expected exactly the 41 listed pure Go tests to pass, got $($passed.Count)" }
     $env:CGO_ENABLED = '0'
     $env:GOTOOLCHAIN = 'local'
     $env:GOPROXY = 'off'
