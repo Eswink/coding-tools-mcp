@@ -91,10 +91,12 @@ if ($Phase -ceq 'build') {
   $runtimeFiles | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath "$evidence/runtime-files.json"
   Compress-Archive -LiteralPath @(Get-ChildItem -LiteralPath $runtime -Force | ForEach-Object FullName) -DestinationPath "$root/runtime.zip"
   if ((Get-Item -LiteralPath "$root/runtime.zip").Length -gt 300MB) { throw 'runtime bundle bound' }
-  @{source=$env:GITHUB_SHA; sut_tree='c8cc0cf37d60acdb5e7ec711f1b8ff14c35d0568'; label='frozen SUT + new prepare step'; broker_sha256=(Get-FileHash "$root/broker.exe").Hash.ToLowerInvariant(); guest_sha256=(Get-FileHash "$root/guest.exe").Hash.ToLowerInvariant();
+  @{source=$env:GITHUB_SHA; broker_sha256=(Get-FileHash "$root/broker.exe").Hash.ToLowerInvariant(); guest_sha256=(Get-FileHash "$root/guest.exe").Hash.ToLowerInvariant();
     node=$nodeVersion; pwsh=$PSVersionTable.PSVersion.ToString(); image_manifest=$pins.image_manifest; runtime_sha256=(Get-FileHash "$root/runtime.zip").Hash.ToLowerInvariant()} |
     ConvertTo-Json | Set-Content -Encoding utf8NoBOM -LiteralPath "$root/bundle.json"
   Copy-Item -LiteralPath "$root/bundle.json" -Destination "$evidence/bundle.json"
+  # bundle.json is strictly decoded by the broker (unknown fields rejected); SUT identity goes to a separate record.
+  @{label='frozen SUT + new prepare step'; manager=$env:GITHUB_SHA; sut_tree='c8cc0cf37d60acdb5e7ec711f1b8ff14c35d0568'; bundle_sha256=(Get-FileHash "$root/bundle.json").Hash.ToLowerInvariant()} | ConvertTo-Json | Set-Content -LiteralPath "$evidence/sut-identity.json"
 }
 if ($Phase -ceq 'acquire') {
   if ((Get-Service -Name vmcompute).Status -ne 'Running') { throw 'vmcompute unavailable; no remediation' }
