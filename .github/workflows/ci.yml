@@ -3,11 +3,14 @@ name: CI
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   rust:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: 安装 Tauri Linux 系统依赖
         run: |
           sudo apt-get update
@@ -19,23 +22,58 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
-            libxdo-dev
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+            libxdo-dev \
+            dbus \
+            gnome-keyring \
+          libsecret-tools
+      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
           workspaces: src-tauri
       - name: cargo build
         working-directory: src-tauri
         run: cargo build
+      - name: Refusal stays fail-closed without a Secret Service
+        working-directory: src-tauri
+        # Outside any session bus the native ledger is unreadable; tool calls must be refused.
+        run: |
+          set -uo pipefail
+          empty="$(mktemp -d)"; chmod 700 "$empty"
+          unset DBUS_SESSION_BUS_ADDRESS
+          export XDG_RUNTIME_DIR="$empty"
+          # No session bus means no Secret Service and no keyring fallback.
+          if busctl --user list >/dev/null 2>&1; then echo "unexpected user session bus"; exit 1; fi
+          if command -v secret-tool >/dev/null && secret-tool search --all probe x >/dev/null 2>&1; then echo "unexpected Secret Service"; exit 1; fi
+          # Own disposable data dir: the refused run leaves partial ledger residue that must not reach other steps.
+          export XDG_DATA_HOME="$(mktemp -d)"
+          status=0
+          cargo test --test call_tool_contract -- --exact list_files_accepts_glob_alias > "$RUNNER_TEMP/refusal.log" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/refusal.log"
+          test "$status" -ne 0
+          grep -q 'NATIVE_ROOT_UNAVAILABLE' "$RUNNER_TEMP/refusal.log"
+          grep -q 'not proven quiescent' "$RUNNER_TEMP/refusal.log"
       - name: cargo test
         working-directory: src-tauri
-        run: cargo test
+        # Non-test library builds read the native ledger through the OS Secret Service.
+        # Provide a disposable, unlocked session keyring; production refusal is unchanged.
+        run: |
+          dbus-run-session -- bash -euo pipefail -c '
+            printf "%s" "ci-disposable-keyring" | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            echo "DBUS_SESSION_BUS_ADDRESS=${DBUS_SESSION_BUS_ADDRESS:?no session bus}"
+            printf "%s" probe | secret-tool store --label=ci-probe ci-probe 1
+            test "$(secret-tool lookup ci-probe 1)" = probe
+            secret-tool clear ci-probe 1
+            export XDG_DATA_HOME="$(mktemp -d)"
+            cargo test
+          '
 
   frontend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "20"
           cache: npm
