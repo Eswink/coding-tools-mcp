@@ -45,6 +45,8 @@ jobs:
           # No session bus means no Secret Service and no keyring fallback.
           if busctl --user list >/dev/null 2>&1; then echo "unexpected user session bus"; exit 1; fi
           if command -v secret-tool >/dev/null && secret-tool search --all probe x >/dev/null 2>&1; then echo "unexpected Secret Service"; exit 1; fi
+          # Own disposable data dir: the refused run leaves partial ledger residue that must not reach other steps.
+          export XDG_DATA_HOME="$(mktemp -d)"
           status=0
           cargo test --test call_tool_contract -- --exact list_files_accepts_glob_alias > "$RUNNER_TEMP/refusal.log" 2>&1 || status=$?
           cat "$RUNNER_TEMP/refusal.log"
@@ -58,6 +60,7 @@ jobs:
         run: |
           dbus-run-session -- bash -euo pipefail -c '
             printf "%s" "ci-disposable-keyring" | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            export XDG_DATA_HOME="$(mktemp -d)"
             cargo test
           '
 
