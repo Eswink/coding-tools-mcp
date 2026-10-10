@@ -47,7 +47,7 @@ class NamedResult(unittest.TextTestResult):
         super().addSuccess(test)
 
 def runtime():
-    names = ('/usr/bin/git', '/usr/local/bin/git', '/usr/bin/python3', '/usr/bin/openssl', sys.executable)
+    names = tuple(n for n in ('/usr/bin/git', '/usr/local/bin/git', '/usr/bin/python3', '/usr/bin/openssl', sys.executable) if n != '/usr/local/bin/git' or Path(n).is_file())
     return {name: dict(realpath=str(Path(name).resolve()), size=Path(name).stat().st_size,
             mode=stat.S_IMODE(Path(name).stat().st_mode), uid=Path(name).stat().st_uid,
             gid=Path(name).stat().st_gid, nlink=Path(name).stat().st_nlink,

@@ -40,7 +40,7 @@ def main():
     check(sha((scripts/'rc_native_probe_inventory.json').read_bytes())=='99496a8f599ce50f31a97a692fd3ee101a1a7059f751e670d3c9de298e654bfb','literal inventory SHA',rows)
     check(all(len(inventory[k])==len(set(inventory[k]))==n for k,n in [('necessary85',85),('original300',300)]),'85/300 retained unique sizes',rows)
     runner=(scripts/'rc_native_probe_original_runner.py').read_bytes()
-    check(len(runner)==6259 and len(runner.splitlines())==103 and sha(runner)==RUNNER_SHA,'immutable103line runner rawSHA',rows)
+    check(len(runner)==6327 and len(runner.splitlines())==103 and sha(runner)==RUNNER_SHA,'immutable103line runner rawSHA',rows)
     golden=Path(args.golden_v5).read_bytes()
     check(sha(golden)=='99f402108d5db499fe0cde4a38f2810e7f11a0083d00aaf961dafaa19e08e87f','actualV5 golden launcher identity',rows)
     old={n.name:ast.dump(n,include_attributes=False) for n in ast.parse(golden).body if isinstance(n,ast.FunctionDef)}

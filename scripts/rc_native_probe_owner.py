@@ -15,7 +15,10 @@ BOUNDS = {'necessary85': 1800, 'original300': 7200}
 TERM_SECONDS, KILL_SECONDS, FAMILY_SECONDS = 7, 2, 2
 RAW_FILES = ('LAUNCH.json','NATIVE-CLOSURE.json','cases/receipt.json','cases/cases.log',
              'cases/session-stdout.log','cases/session-stderr.log','controller-stdout.log','controller-stderr.log')
-RUNTIME = sorted(set(('/usr/bin/git', '/usr/local/bin/git', '/usr/bin/python3', '/usr/bin/openssl', sys.executable)))
+# Design decision 2 (rev 2026-10-10): /usr/local/bin/git is optional; recorded only when the image provides it.
+OPTIONAL_RUNTIME = ('/usr/local/bin/git',)
+RUNTIME = sorted(set(p for p in ('/usr/bin/git', '/usr/local/bin/git', '/usr/bin/python3', '/usr/bin/openssl', sys.executable)
+                     if p not in OPTIONAL_RUNTIME or os.path.isfile(p)))
 
 
 def receipt_gate(receipt, native, launch, inventory, context, runtime, carrier, fixture, runner, directory):

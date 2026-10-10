@@ -9,7 +9,7 @@ import subprocess
 import sys
 from rc_native_probe_restore import restore, sha, write, RUNNER_SHA, FIXTURE_SHA, ENV, git, read_regular
 from rc_native_probe_kernel import identity, realm
-from rc_native_probe_owner import run_owned, RUNTIME
+from rc_native_probe_owner import run_owned, RUNTIME, OPTIONAL_RUNTIME
 
 BRANCH='test/rc070-native-recovery-probe-20261009'
 FILES=('docs/specs/issue88-native-runtime-recovery-probe/requirements.md',
@@ -32,11 +32,16 @@ def precondition(context,output):
     observed=subprocess.run(command,env=ENV,capture_output=True,timeout=30)
     missing=[p for p in RUNTIME if not Path(p).is_file()]
     runtime={p:identity(p) for p in RUNTIME if Path(p).is_file()}
-    passed=observed.returncode==0 and observed.stdout.startswith(b'git version ') and not missing
+    # Decision 2 rev 2026-10-10: the verified /usr/bin/git is the accepted native Git; an image-provided
+    # /usr/local/bin/git is recorded when present but its absence is no longer a precondition failure.
+    optional_absent=[p for p in OPTIONAL_RUNTIME if not Path(p).is_file()]
+    git_ok='/usr/bin/git' in runtime and runtime['/usr/bin/git']['realpath']=='/usr/bin/git'
+    passed=observed.returncode==0 and observed.stdout.startswith(b'git version ') and not missing and git_ok
     report=dict(passed=passed,SUT_runs=0,command=command,exit_code=observed.returncode,
                 stdout=observed.stdout.decode('ascii',errors='strict'),stderr_sha256=sha(observed.stderr),
                 unsupported_no_lazy_fetch=b'unknown option: --no-lazy-fetch' in observed.stderr,
-                missing_required_original_runtime_paths=missing,runtime=runtime,realm=realm(),
+                missing_required_original_runtime_paths=missing,optional_runtime_paths_absent=optional_absent,
+                accepted_native_git='/usr/bin/git' if git_ok else None,runtime=runtime,realm=realm(),
                 native_PATH='/usr/bin:/bin:'+str(Path(sys.executable).parent),
                 actual_native_git_resolved=shutil.which('git',path='/usr/bin:/bin'),
                 no_flags_removed=True,no_install_or_binary_replacement=True)
@@ -95,15 +100,21 @@ def main():
     paths=[management/p for p in FILES]
     carrier={str(p):identity(p) for p in paths}
     runner=management/'scripts/rc_native_probe_original_runner.py'
-    assert sha(runner.read_bytes())==RUNNER_SHA and len(runner.read_bytes())==6259
+    assert sha(runner.read_bytes())==RUNNER_SHA and len(runner.read_bytes())==6327
     context=restore(management,output)
     write(output/'CARRIER-IDENTITY.json',dict(commit=head,branch=BRANCH,files=carrier,
           source_tree=context['tree'],pure_source_count=1878,immutable_runner_sha256=RUNNER_SHA,
           no_release_grant=True,no_compiler_install_or_privilege=True))
     success=False
     counts=dict(necessary85='NOT_RUN',original300='NOT_RUN')
+    error=None
     try:
-        if precondition(context,output):
+        if not precondition(context,output):
+            pre=json.loads((output/'NATIVE-PRECONDITION.json').read_text())
+            error=dict(stage='native-precondition',reason='native runtime precondition not met',
+                       missing_required_runtime_paths=pre['missing_required_original_runtime_paths'],
+                       git_exit_code=pre['exit_code'],SUT_runs=0)
+        else:
             inventories=json.loads((management/'scripts/rc_native_probe_inventory.json').read_text())
             first=run_owned(context,'necessary85',inventories['necessary85'],output/'necessary85',fixture,runner,paths)
             counts['necessary85']='QUALIFIED' if first['native']['qualified'] else 'FAIL_UNKNOWN'
@@ -111,9 +122,19 @@ def main():
                 second=run_owned(context,'original300',inventories['original300'],output/'original300',fixture,runner,paths,prior=first)
                 counts['original300']='QUALIFIED' if second['native']['qualified'] else 'FAIL_UNKNOWN'
                 success=second['native']['qualified']
+            if not success:
+                error=dict(stage='native-profiles',reason='profile not qualified',profiles=dict(counts))
+    except BaseException as failure:
+        error=dict(stage='exception',reason=type(failure).__name__,detail=str(failure)[:500])
+        raise
     finally:
+        if not success and error is None:
+            error=dict(stage='unknown',reason='probe ended without qualification')
         write(output/'PROBE-RESULT.json',dict(passed=success,profiles=counts,current_CI_result_only=True,
-              retained_local85='FAILED_50_named_PASS_35_non_success',release_authorized=False))
+              retained_local85='FAILED_50_named_PASS_35_non_success',release_authorized=False,error=error))
+        if error is not None:
+            # One structured line so a failed CI step is never silent.
+            print(json.dumps(dict(rc_native_probe_error=error),sort_keys=True,separators=(',',':')),file=sys.stderr,flush=True)
         safe_artifacts(output)
     return 0 if success else 1
 
