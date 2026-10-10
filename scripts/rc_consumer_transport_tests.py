@@ -22,6 +22,24 @@ HOST = 'fixture.example.invalid'
 URL = 'https://' + HOST + '/data?signature=PRIVATE'
 # Isolate fixture disposal from finalization tests' production os.unlink spies.
 _FIXTURE_UNLINK, _FIXTURE_RMDIR = os.unlink, os.rmdir
+# Every fixture child spawned in this process; each test must leave all of its own reaped.
+SPAWNED = []
+
+
+def unreaped(start):
+    """Children spawned since start whose exit status was never collected; the slice is released."""
+    alive = [process.pid for process in SPAWNED[start:] if process.returncode is None]
+    del SPAWNED[start:]
+    return alive
+
+
+def _reaped_or_fail(case, start):
+    left = [process for process in SPAWNED[start:] if process.returncode is None]
+    alive = unreaped(start)
+    for process in left:
+        process.kill(); process.wait(timeout=5)
+    if alive:
+        case.fail('fixture children not reaped: %r' % (alive,))
 
 
 def _remove_fixture(directory):
@@ -112,11 +130,13 @@ class Opener:
             '--worker-fixture', str(config)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, shell=False, close_fds=True, bufsize=0,
             env={'LC_ALL': 'C', 'LANG': 'C', 'RC_FIXTURE_PARENT': str(os.getpid())})
+        SPAWNED.append(self.process)
         return self.process
 
 
 class TransportTests(unittest.TestCase):
     def setUp(self):
+        self.addCleanup(_reaped_or_fail, self, len(SPAWNED))  # registered first, so it runs last
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = PrivateRoot(self.temp.name, source_root=Path('/not-the-fixture'))

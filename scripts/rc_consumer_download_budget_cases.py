@@ -1,9 +1,12 @@
 """Current supervisor budgets with real children, pipes and loopback fixtures."""
 from contextlib import contextmanager
+from contextlib import nullcontext
 from decimal import Decimal
+import faulthandler
 import hashlib
 import os
 import signal
+import sys
 from pathlib import Path
 import time
 from types import SimpleNamespace
@@ -14,6 +17,9 @@ from rc_consumer_io import ConsumerError, PrivateRoot
 import rc_consumer_transport as transport
 import rc_consumer_transport_tests as fixtures
 import rc_consumer_transport_supervisor_tests as supervisor
+
+# Real-child budget: deadline + whole fixture cleanup (terminate wait, then SIGKILL) + margin fits the limit.
+LIMIT, FIXTURE_DEADLINE, FIXTURE_CLEANUP, MARGIN = 1.5, 0.9, 0.4, 0.2
 
 
 class DownloadBudgetCases(unittest.TestCase):
@@ -28,11 +34,22 @@ class DownloadBudgetCases(unittest.TestCase):
         self.root = PrivateRoot(self.temp.name, source_root=Path('/source'))
         self.addCleanup(self.root.close)
 
-    def failure(self, opener, code, **kwargs):
-        started = time.monotonic()
-        with self.assertRaises(ConsumerError) as caught:
-            self.run_download(opener, **kwargs)
-        self.assertLess(time.monotonic() - started, 1.5)
+    def failure(self, opener, code, bounded=False, **kwargs):
+        started, cpu = time.monotonic(), os.times()
+        if bounded:
+            self.assertLessEqual(kwargs['deadline'] - started + FIXTURE_CLEANUP + MARGIN, LIMIT)
+        faulthandler.dump_traceback_later(LIMIT, file=sys.stderr)  # stack of an over-limit call
+        try:
+            with patch.object(transport, 'CLEANUP_TIMEOUT', FIXTURE_CLEANUP) if bounded else nullcontext():
+                with self.assertRaises(ConsumerError) as caught:
+                    self.run_download(opener, **kwargs)
+        finally:
+            faulthandler.cancel_dump_traceback_later()
+        wall, now = time.monotonic() - started, os.times()
+        # CPU far below wall means the process was not scheduled (stall), not a code-path wait.
+        self.assertLess(wall, LIMIT, 'wall=%.3f self_cpu=%.3f children_cpu=%.3f' % (
+            wall, max(0.0, now.user + now.system - cpu.user - cpu.system),
+            max(0.0, now.children_user + now.children_system - cpu.children_user - cpu.children_system)))
         self.assertEqual(caught.exception.code, code)
         self.assertEqual(caught.exception.args, (code,))
         self.assertIsNone(caught.exception.__context__)
@@ -139,13 +156,13 @@ class DownloadBudgetCases(unittest.TestCase):
         for mode in ('startup', 'partial_prefix', 'partial_payload'):
             with self.subTest(mode=mode):
                 opener = self.opener(mode)
-                self.failure(opener, 'transport_deadline_exceeded', deadline=time.monotonic() + 0.25)
+                self.failure(opener, 'transport_deadline_exceeded', bounded=True, deadline=time.monotonic() + 0.25)
                 self.assertIsNotNone(opener.process)
         opener = self.opener('startup'); launch = opener.start_worker
         def late():
             child = launch(); time.sleep(0.15); return child
         with patch.object(opener, 'start_worker', side_effect=late):
-            self.failure(opener, 'transport_deadline_exceeded', deadline=time.monotonic() + 0.1)
+            self.failure(opener, 'transport_deadline_exceeded', bounded=True, deadline=time.monotonic() + 0.1)
         self.assertIsNotNone(opener.process)
 
     def test_real_startup_dns_tls_cancellation(self):
@@ -164,7 +181,7 @@ class DownloadBudgetCases(unittest.TestCase):
             else:
                 when = lambda: time.monotonic() >= cancel_at
             with self.subTest(mode=mode):
-                self.failure(opener, 'transport_cancelled', deadline=time.monotonic() + 1.4,
+                self.failure(opener, 'transport_cancelled', bounded=True, deadline=time.monotonic() + FIXTURE_DEADLINE,
                              check_active=self.cancellation(when))
             if mode in ('dns', 'tls'):
                 self.assertEqual(len(opener.requests), 1)

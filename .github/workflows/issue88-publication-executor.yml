@@ -15,22 +15,22 @@ jobs:
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with: {ref: '${{ github.sha }}', fetch-depth: 0, persist-credentials: false}
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with: {python-version: '3.12'}
-      - name: Admit exact source and execute the frozen four hundred sixty five cases
+      - name: Admit exact source and execute the frozen four hundred seventy eight cases
         shell: python
         run: |
-          import hashlib, json, os, pathlib, platform, subprocess, sys, traceback, unittest
+          import datetime, hashlib, json, os, pathlib, platform, subprocess, sys, time, traceback, unittest
           evidence = pathlib.Path(os.environ['RUNNER_TEMP'], 'publisher-evidence'); evidence.mkdir()
           try:
               sys.path.insert(0, 'scripts')
               import rc_pretag_composition_tests as c
               import rc_pretag_publisher_executor_cases as x
-              import rc_pretag_dns_cancel_profile as profile; import rc_pretag_git_budget_cases as git_budget; import rc_pretag_windows_vm_cases as windows_vm
+              import rc_pretag_cancel_budget_profile as profile; import rc_pretag_git_budget_cases as git_budget; import rc_pretag_windows_vm_cases as windows_vm
               import rc_pretag_stage_retirement_cases as stage_retirement
               import rc_pretag_source_observation_cases as source_observation
               import rc_pretag_ci_repair_cases as ci_repair
@@ -38,6 +38,7 @@ jobs:
               import rc_pretag_issue86_root_identity_cases as issue86
               import rc_pretag_rc_bundle_cases as rc_bundle
               import rc_pretag_dns_cancel_cases as dns_cancel
+              import rc_pretag_cancel_budget_cases as cancel_budget
               import rc_pretag_integration_admission_cases as admission
               import rc_pretag_final_admission_cases as final_admission
               import rc_pretag_download_budget_cases as download_budget
@@ -65,11 +66,24 @@ jobs:
               binding = {'sha': sha, 'tree': tree, 'parents': parents, 'source_sha256': before, 'python': sys.version,
                          'ci': {k: os.environ[k] for k in ('GITHUB_REPOSITORY', 'GITHUB_WORKFLOW_REF', 'GITHUB_JOB', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT')}, 'production_ready': False}
               (evidence / 'source-before.json').write_text(json.dumps(binding, indent=2) + '\n', encoding='utf-8')
+              names = cancel_budget.inventory()
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] cancel-budget-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
+              with (evidence / 'cancel-budget-cases.log').open('w', encoding='utf-8') as output:
+                  result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] cancel-budget-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
+              receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
+                         'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
+              (evidence / 'cancel-budget-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              assert cancel_budget.execution_valid(loaded, result)
               names = dns_cancel.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] dns-cancel-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'dns-cancel-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] dns-cancel-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'dns-cancel-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -77,8 +91,10 @@ jobs:
               names = rc_bundle.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] rc-bundle-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'rc-bundle-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] rc-bundle-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'rc-bundle-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -86,8 +102,10 @@ jobs:
               names = issue86.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] issue86-root-identity-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'issue86-root-identity-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] issue86-root-identity-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'issue86-root-identity-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -95,8 +113,10 @@ jobs:
               names = reap_safe.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] reap-safe-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'reap-safe-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] reap-safe-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'reap-safe-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -104,8 +124,10 @@ jobs:
               names = ci_repair.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] ci-repair-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'ci-repair-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] ci-repair-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'ci-repair-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -113,8 +135,10 @@ jobs:
               names = source_observation.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] source-observation-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'source-observation-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] source-observation-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'source-observation-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -122,8 +146,10 @@ jobs:
               names = git_budget.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] git-budget-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'git-budget-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] git-budget-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'git-budget-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -131,8 +157,10 @@ jobs:
               names = staging_budget.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] staging-budget-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'staging-budget-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] staging-budget-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'staging-budget-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -141,8 +169,10 @@ jobs:
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
               (evidence / 'inventory-loaded.json').write_text(json.dumps(loaded), encoding='utf-8')
+              print('[group] forty-eight-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'forty-eight-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] forty-eight-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'inventory-executed.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -150,8 +180,10 @@ jobs:
               names = admission.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] admission-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'admission-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] admission-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'admission-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -159,8 +191,10 @@ jobs:
               names = final_admission.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] final-admission-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'final-admission-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] final-admission-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'final-admission-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -168,8 +202,10 @@ jobs:
               names = download_budget.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] download-budget-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'download-budget-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] download-budget-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'download-budget-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -177,8 +213,10 @@ jobs:
               names = checksum_budget.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] checksum-budget-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'checksum-budget-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] checksum-budget-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'checksum-budget-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -186,8 +224,10 @@ jobs:
               names = archive_budget.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] archive-budget-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'archive-budget-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] archive-budget-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'archive-budget-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -195,8 +235,10 @@ jobs:
               names = staged_bytes.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] staged-bytes-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'staged-bytes-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] staged-bytes-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'staged-bytes-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -204,8 +246,10 @@ jobs:
               names = supervisor_readiness.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] supervisor-readiness-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'supervisor-readiness-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] supervisor-readiness-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'supervisor-readiness-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -213,8 +257,10 @@ jobs:
               names = stage_retirement.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] stage-retirement-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'stage-retirement-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] stage-retirement-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'stage-retirement-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
@@ -222,8 +268,10 @@ jobs:
               names = windows_vm.inventory()
               suite = unittest.defaultTestLoader.loadTestsFromNames(names)
               loaded = [test.id() for test in c._flatten(suite)]
+              print('[group] windows-vm-cases start ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True); began = time.monotonic()
               with (evidence / 'windows-vm-cases.log').open('w', encoding='utf-8') as output:
                   result = unittest.TextTestRunner(stream=output, verbosity=2, resultclass=c.InventoryResult).run(suite)
+              print('[group] windows-vm-cases end ' + datetime.datetime.now(datetime.timezone.utc).isoformat() + ' %.1fs' % (time.monotonic() - began), flush=True)
               receipt = {'loaded_ids': loaded, 'executed_ids': result.executed_ids, 'tests_run': result.testsRun,
                          'skipped': result.skipped, 'expected_failures': result.expectedFailures, 'unexpected_successes': result.unexpectedSuccesses, 'successful': result.wasSuccessful()}
               (evidence / 'windows-vm-inventory.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')

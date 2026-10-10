@@ -349,7 +349,7 @@ class ArchiveBudgetCompositionCases(unittest.TestCase):
                 'final_admission.inventory()', 'final_admission.execution_valid(loaded, result)',
                 'download_budget.inventory()', 'download_budget.execution_valid(loaded, result)',
                 'staging_budget.inventory()', 'staging_budget.execution_valid(loaded, result)',
-                'checksum_budget.inventory()', 'checksum_budget.execution_valid(loaded, result)', 'timeout-minutes: 30',
+                'checksum_budget.inventory()', 'checksum_budget.execution_valid(loaded, result)', 'timeout-minutes: 45',
                 'archive_budget.inventory()', 'archive_budget.execution_valid(loaded, result)',
                 'archive-budget-inventory.json', 'archive-budget-cases.log',
                 'checksum-budget-inventory.json', 'checksum-budget-cases.log',
