@@ -101,5 +101,17 @@
       "TestGuestNativeOutputRelativeOpenNameGuards",
       "TestGuestNativeOutputRepinIdentityMismatchFailsCheckParent"
     ]
-  }
+  },
+  "guest_tag_run_native": [
+    "TestNativeActualGuestCommandFailuresRetainWholeRun",
+    "TestNativeActualGuestExistingOperationDirectoryNeverReuses",
+    "TestNativeActualGuestFailedCloseRetainsWholeRunAndActualRawValues",
+    "TestNativeActualGuestInputReadonlyFreezeAllowsRuntimeReadButDeniesWrite",
+    "TestNativeActualGuestMalformedInputNeverStartsCommand",
+    "TestNativeActualGuestPublicationLateCancellationRetainsWholeDataOwner",
+    "TestNativeActualGuestPublicationPanicRetainsWholeDataOwner",
+    "TestNativeActualGuestPublicationShortWriteRetainsWholeDataOwner",
+    "TestNativeActualGuestWorkspaceCommandProducesFullFIDHashAndCheckedPublication"
+  ],
+  "guest_tag_run_native_note": "guest_workspace_run_native_test.go (build tags windows && guest, buildSource=GITHUB_SHA). Runs the guest workspace run code on the Windows runner host under RUNNER_TEMP, not inside the HCS VM."
 }

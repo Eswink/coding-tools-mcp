@@ -90,6 +90,28 @@ jobs:
           $pass=@(Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/go-workspace-native.txt" -Pattern '^--- PASS: TestGuestNative').Count
           $want=@((Get-Content -Raw "$env:GITHUB_WORKSPACE/scripts/windows_foundation_native_go_inventory.json" | ConvertFrom-Json).native).Count
           if ($want -lt 1 -or $pass -ne $want) { throw "expected $want executed workspace cases (frozen SUT + new prepare step), got $pass" }
+      - name: Guest-tagged workspace run cases on runner host (frozen SUT + new prepare step)
+        id: guestrun
+        if: always() && steps.gows.outcome == 'success'
+        shell: pwsh
+        env:
+          CTM_GUEST_FILE_NATIVE_ENABLE: OWNED_TEMP_FIXTURE_ONLY
+          CGO_ENABLED: '0'
+          GOTOOLCHAIN: local
+          GOPROXY: 'off'
+          GOSUMDB: 'off'
+        run: |
+          $ErrorActionPreference='Stop'
+          $env:CTM_GUEST_FILE_NATIVE_ROOT=$env:CTM_GUEST_NATIVE_ROOT
+          $want=@((Get-Content -Raw "$env:GITHUB_WORKSPACE/scripts/windows_foundation_native_go_inventory.json" | ConvertFrom-Json).guest_tag_run_native | Sort-Object)
+          if ($want.Count -lt 1) { throw 'expected guest run list empty' }
+          Push-Location (Join-Path $env:RUNNER_TEMP 'ctm-guest-native-hcsshim')
+          $listed=@(go test -mod=vendor -tags guest -list '^TestNativeActualGuest' ./cmd/ctm-windows-vm-broker | Where-Object { $_ -match '^Test\w+$' } | Sort-Object)
+          if (($listed -join ',') -cne ($want -join ',')) { Pop-Location; throw "guest run test names differ from hardcoded expected list: $($listed.Count)" }
+          go test -mod=vendor -tags guest -count=1 -v -ldflags "-X main.buildSource=$env:GITHUB_SHA" -run '^TestNativeActualGuest' ./cmd/ctm-windows-vm-broker 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/go-guest-run-native.txt"
+          $code=$LASTEXITCODE; Pop-Location
+          $passed=@(Get-Content "$env:CTM_VM_SESSION_EVIDENCE/go-guest-run-native.txt" | ForEach-Object { if ($_ -match '^--- PASS: (TestNativeActualGuest\w+) ') { $Matches[1] } } | Sort-Object)
+          if ($code -ne 0 -or ($passed -join ',') -cne ($want -join ',')) { throw "guest run cases: $($passed.Count)/$($want.Count) passed" }
       - name: Rust native output-stage publication denial case
         id: rsout
         if: always()
@@ -121,6 +143,12 @@ jobs:
         run: |
           cargo test --manifest-path src-tauri/Cargo.toml --lib tools::windows_vm::launch_tests::native_launch_ -- --ignored --nocapture --test-threads=1 2>&1 | Tee-Object "$env:CTM_VM_SESSION_EVIDENCE/launch-tests.txt"
           if ($LASTEXITCODE -ne 0 -or -not (Select-String -Path "$env:CTM_VM_SESSION_EVIDENCE/launch-tests.txt" -Pattern 'test result: ok\. 6 passed; 0 failed; 0 ignored')) { throw 'six actual launch cases required' }
+          # Same per-case receipt re-check as windows-vm-session.yml.
+          if ((Get-Item -LiteralPath $env:CTM_VM_SESSION_EVIDENCE).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'launch evidence reparse directory' }
+          $names='matching_image_retires,wrong_image_rejects,same_bytes_new_id_rejects,junction_redirect_rejects,cancel_before_continue,wait_fault_preserves_raw_evidence' -split ','
+          $receipts=@($names | ForEach-Object { $file=Get-Item -LiteralPath "$env:CTM_VM_SESSION_EVIDENCE/native_launch_$_.json"; if ($file.PSIsContainer -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'launch evidence entry rejected' }; $file })
+          if ($receipts.Count -ne 6) { throw 'six raw launch receipts required' }
+          foreach ($file in $receipts) { $r=Get-Content -Raw -LiteralPath $file.FullName | ConvertFrom-Json; if ($r.source -cne $env:GITHUB_SHA -or !$r.retired -or !$r.launch.child_created -or !$r.paired_fences_drained -or !$r.launch.pid) { throw "launch receipt mismatch: $($file.Name)" } }
       - name: Acquire fixed Microsoft blobs and import (workflow-owned prepare)
         id: acquire
         if: always() && steps.prep.outcome == 'success'
@@ -155,7 +183,7 @@ jobs:
           $files=@(Get-ChildItem $env:CTM_VM_SESSION_EVIDENCE -Recurse -File)
           if (($files | Measure-Object Length -Sum).Sum -gt 8MB) { throw 'aggregate evidence bound' }
           @($files | Sort-Object FullName | ForEach-Object { if ($_.Length -gt 2MB) { throw 'individual bound' }; "$((Get-FileHash $_.FullName).Hash.ToLowerInvariant())  $($_.Name)" }) | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/sha256.txt"
-          @{label='frozen SUT + new prepare step';go_workspace='${{ steps.gows.outcome }}';rust_output='${{ steps.rsout.outcome }}';prep='${{ steps.prep.outcome }}';launch='${{ steps.launch.outcome }}';acquire='${{ steps.acquire.outcome }}';hcs='${{ steps.hcs.outcome }}'} | ConvertTo-Json | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/step-outcomes.json"
+          @{label='frozen SUT + new prepare step';go_workspace='${{ steps.gows.outcome }}';guest_run='${{ steps.guestrun.outcome }}';rust_output='${{ steps.rsout.outcome }}';prep='${{ steps.prep.outcome }}';launch='${{ steps.launch.outcome }}';acquire='${{ steps.acquire.outcome }}';hcs='${{ steps.hcs.outcome }}'} | ConvertTo-Json | Set-Content "$env:CTM_VM_SESSION_EVIDENCE/step-outcomes.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
