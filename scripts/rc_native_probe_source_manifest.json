@@ -1,5 +1,5 @@
 {
- "entries": 1881,
+ "entries": 1882,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -542,11 +542,11 @@
    "sha256": "fa236d4a08d8641d90255c49fa7ac0e93707ebd35383d85f66f2e4f2923e8eef"
   },
   {
-   "blob": "64904bae43a2534a2133ab425623ad51d8887823",
-   "bytes": 6650,
+   "blob": "158923b761d18f7385ce1293f60772f3c2a890e2",
+   "bytes": 6702,
    "mode": "100644",
    "path": ".github/workflows/rc-native-recovery-probe.yml",
-   "sha256": "4e93496bc7e0cd0cc9c721fb34ae6e446fa0548cbaf1d43733dfc24d78420cc7"
+   "sha256": "0302888c7d2d9eb7277d5c53fa7854c86f8dac3cc6f7ccef4b88ee6b41ff345b"
   },
   {
    "blob": "7e14b1eac469d701eefcfe0f6217c0dfbdc5e23a",
@@ -7045,6 +7045,13 @@
    "sha256": "c6fa67032d3a159d12a0ea48f26df578c91be8ddab02826f413284d5059055dc"
   },
   {
+   "blob": "c87f45dcb48ce5dc931d13ea9f2f24ddffc7a00b",
+   "bytes": 2541,
+   "mode": "100644",
+   "path": "scripts/rc_publication_authenticate_before_connect_cases.py",
+   "sha256": "0fc95a5ac4c4e594b3d3f61306d74e13cebf4764ff67801e3ed514f6261cd250"
+  },
+  {
    "blob": "33d2fcfc41143d7e02a0dadb467667b9c2eef118",
    "bytes": 23098,
    "mode": "100644",
@@ -7059,11 +7066,11 @@
    "sha256": "499d4ae64c014cab032d3a653e7776f938e2c57cd9d9b5076de36c13e201f9d9"
   },
   {
-   "blob": "3cfc56e510ded91a50813fe3fb80529cfd05f607",
-   "bytes": 18392,
+   "blob": "365c59ed8996ae1e17d134a9f5aa46d28cc5620f",
+   "bytes": 18480,
    "mode": "100644",
    "path": "scripts/rc_publication_executor_cases.py",
-   "sha256": "fba1f954ac9e36406afb22258d99c65e0e09860f1d8a43d2764138299441c541"
+   "sha256": "430851f4e141c6f935e4c41d98b6ff7e5eb8c3c4bacce8d3ea9453070fa47e41"
   },
   {
    "blob": "e4a7f1570b024de5f24209159b2acedf26093893",
@@ -7101,11 +7108,11 @@
    "sha256": "dc27ab9fc188dcd51716c21c90becd2af357ecf8ba2dd720f467d7231766f097"
   },
   {
-   "blob": "b69bdc8b21ce5d6cc5fc4e70808dce607f886e98",
-   "bytes": 11641,
+   "blob": "109c1f617011cb0beb280aeb0fb254cf1004fb55",
+   "bytes": 11812,
    "mode": "100644",
    "path": "scripts/rc_publication_https_fixture.py",
-   "sha256": "68bef92dddc4f6ff4c8ed872f0b9a90c035ef662abbe9bd730b2d5c1ae7d23b8"
+   "sha256": "96ce577206c4e325437c99605c75dfef17ff45c11577d316f09ad81507080289"
   },
   {
    "blob": "e4b6cf4707fbd0f05cbb3146733b0ea456a9bfe3",
