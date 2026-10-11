@@ -112,7 +112,7 @@ class ExecutorCases(unittest.TestCase):
     def test_each_mutation_rechecks_current_owner_scope(self):
         with self.session() as (session, tls, _):
             seen = []
-            def owner(op, subject):
+            def owner(op, subject, **_):
                 seen.append((op.operation_id, op.kind, subject))
                 if op.kind == 'PublishPrerelease':
                     raise wire.WireFailure('denied', 'none')
@@ -127,7 +127,7 @@ class ExecutorCases(unittest.TestCase):
 
     def test_cancellation_before_dispatch_has_no_effect(self):
         with self.session() as (session, tls, _):
-            with patch.object(wire, '_authorize', side_effect=lambda *_: session.cancel()):
+            with patch.object(wire, '_authorize', side_effect=lambda *_, **__: session.cancel()):
                 result = session.run_until_pause()
             self.assertEqual(result.state.outcome, 'blocked_no_effect')
             self.assertEqual(result.state.code, 'cancelled')
@@ -171,7 +171,7 @@ class ExecutorCases(unittest.TestCase):
             with self.assertRaises(wire.WireFailure):
                 session.request_publish(core.PublicationRequest('early', 'owner', 100, 'a' * 64))
             observed = []
-            def owner(op, subject):
+            def owner(op, subject, **_):
                 with self.assertRaises(wire.WireFailure):
                     session.run_until_pause()
                 observed.append(op.operation_id)
