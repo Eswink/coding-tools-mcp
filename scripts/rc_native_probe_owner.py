@@ -8,7 +8,7 @@ import subprocess
 import sys
 import time
 import traceback
-from rc_native_probe_restore import sha, write, git, whole_source, read_regular, TREE, RUNNER_SHA, FIXTURE_SHA
+from rc_native_probe_restore import sha, write, git, whole_source, read_regular, RUNNER_SHA, FIXTURE_SHA
 from rc_native_probe_kernel import identity, realm, kernel, owned_family_close
 
 BOUNDS = {'necessary85': 1800, 'original300': 7200}
@@ -30,7 +30,7 @@ def receipt_gate(receipt, native, launch, inventory, context, runtime, carrier, 
     assert native['held_leader']['pgid'] == native['held_leader']['sid'] == launch['kernel']['pgid'] == launch['kernel']['sid'] == launch['kernel']['pid']
     assert native['held_leader']['state'] == 'Z'
     assert native['held_leader']['proc_pid'] == launch['kernel']['proc_pid'] and native['held_leader']['NSpid'] == launch['kernel']['NSpid']
-    assert native['source_tree'] == launch['source_tree'] == context['tree'] == TREE
+    assert native['source_tree'] == launch['source_tree'] == context['tree']
     assert native['source_manifest_sha256'] == launch['source_manifest_sha256'] == context['source_manifest_sha256']
     assert native['carrier_before'] == native['carrier_after'] == launch['carrier'] == carrier
     assert native['runtime_before'] == native['runtime_after'] == launch['runtime'] == runtime
@@ -59,7 +59,7 @@ def run_owned(context, name, inventory, output, fixture_path, runner_path, carri
     root,output = Path(context['root']),Path(output)
     assert not output.exists() and name in BOUNDS
     assert len(inventory) == len(set(inventory)) == (85 if name=='necessary85' else 300)
-    assert whole_source(root,context['rows']) == context['source']
+    assert whole_source(root,context['rows'],context['tree']) == context['source']
     assert sha(git(root,'ls-files','--stage','-z')) == context['index_sha256']
     assert git(root,'rev-parse','HEAD').decode().strip() == context['private_commit']
     fixture_path,runner_path = Path(fixture_path).resolve(),Path(runner_path).resolve()
@@ -75,7 +75,7 @@ def run_owned(context, name, inventory, output, fixture_path, runner_path, carri
         raw_seal=read_regular(prior['directory']/'RAW-EVIDENCE-SEAL.json')
         assert sha(raw_seal)==prior['seal_sha256']
         seal=json.loads(raw_seal)
-        assert seal['profile']=='necessary85' and seal['source_tree']==TREE
+        assert seal['profile']=='necessary85' and seal['source_tree']==context['tree']
         assert set(seal['files'])==set(RAW_FILES)
         for rel,row in seal['files'].items():
             raw=read_regular(prior['directory']/rel)
@@ -157,7 +157,7 @@ def run_owned(context, name, inventory, output, fixture_path, runner_path, carri
         fd=os.pidfd_open(child.pid)
         created=kernel(child.pid,fd)
         assert created['ppid']==os.getpid() and created['pgid']==created['sid']==child.pid
-        launch=dict(source_tree=TREE,source_manifest_sha256=context['source_manifest_sha256'],selected_inventory=name,
+        launch=dict(source_tree=context['tree'],source_manifest_sha256=context['source_manifest_sha256'],selected_inventory=name,
                     exact_loaded_ids=inventory,argv=argv,kernel=created,own_subreaper=True,created_pid_namespace=False,
                     runtime=before,realm=own_realm,fixture=fixture,runner=runner,carrier=carrier,
                     fail_only_controller_seconds=BOUNDS[name],historical_whole_budget=None,original_SUT_timers_unchanged=True,
@@ -203,7 +203,7 @@ def run_owned(context, name, inventory, output, fixture_path, runner_path, carri
     finalizing=True
     post={}
     try:
-        post=dict(source_unchanged=whole_source(root,context['rows'])==context['source'],
+        post=dict(source_unchanged=whole_source(root,context['rows'],context['tree'])==context['source'],
                   index_unchanged=sha(git(root,'ls-files','--stage','-z'))==context['index_sha256'] and git(root,'rev-parse','HEAD').decode().strip()==context['private_commit'],
                   runtime_after={p:identity(p) for p in RUNTIME},realm_after=realm(),
                   carrier_after={str(p):identity(p) for p in carrier_paths},fixture_after=identity(fixture_path),runner_after=identity(runner_path))
@@ -218,7 +218,7 @@ def run_owned(context, name, inventory, output, fixture_path, runner_path, carri
                           and all(not r['unexpectedly_live'] and r['code']==os.CLD_EXITED and r['status']==0 for r in family))
     native=dict(qualified=False,closed=execution_closed,natural_exit_code=code,
                 observed=None if observed is None else dict(si_pid=observed.si_pid,si_code=observed.si_code,si_status=observed.si_status),
-                source_tree=TREE,source_manifest_sha256=context['source_manifest_sha256'],held_leader=held,
+                source_tree=context['tree'],source_manifest_sha256=context['source_manifest_sha256'],held_leader=held,
                 runtime_before=before,realm_before=own_realm,carrier_before=carrier,fixture_before=fixture,runner_before=runner,
                 native_echild=echild,errors=errors,cancelled=cancelled,timed_out=timed_out,receipt_passed=False,**post)
     receipt_passed=False
@@ -240,7 +240,7 @@ def run_owned(context, name, inventory, output, fixture_path, runner_path, carri
         if (output/rel).exists():
             raw=read_regular(output/rel)
             sealed[rel]=dict(bytes=len(raw),sha256=sha(raw))
-    write(output/'RAW-EVIDENCE-SEAL.json',dict(profile=name,source_tree=TREE,files=sealed,qualified=qualified))
+    write(output/'RAW-EVIDENCE-SEAL.json',dict(profile=name,source_tree=context['tree'],files=sealed,qualified=qualified))
     seal_sha=sha(read_regular(output/'RAW-EVIDENCE-SEAL.json'))
     for signum,handler in old_handlers.items():
         signal.signal(signum,handler)

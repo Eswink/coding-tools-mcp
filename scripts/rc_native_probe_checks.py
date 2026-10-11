@@ -5,7 +5,8 @@ import copy
 import json
 from pathlib import Path
 import tempfile
-from rc_native_probe_restore import sha,restore,whole_source,TREE,RUNNER_SHA,read_regular
+import os
+from rc_native_probe_restore import sha,restore,whole_source,RUNNER_SHA,read_regular,verify_runner,set_diff,MANIFEST
 from rc_native_probe import FILES,precondition,safe_artifacts
 
 
@@ -53,19 +54,22 @@ def main():
         ast.parse(path.read_text())
         check(len(path.read_text().splitlines())<=400,path.name+' bounded parsed source',rows)
     workflow=(management/'.github/workflows/rc-native-recovery-probe.yml').read_text()
-    check("branches: ['test/rc070-native-recovery-probe-20261009']" in workflow and 'contents: read' in workflow and 'persist-credentials: false' in workflow and 'fetch-depth: 0' in workflow,'fixedread-only workflow',rows)
+    check("branches: ['ci/issue148-native-retarget-c60f9667-20261011']" in workflow and 'contents: read' in workflow and 'persist-credentials: false' in workflow and 'fetch-depth: 0' in workflow,'fixedread-only workflow',rows)
     check(all(s not in workflow for s in ('setup-python','sudo ','apt-get','cargo ','secrets.','workflow_dispatch','pull_request_target','contents: write','GITHUB_TOKEN:')),'no install/compiler/token/release privileges',rows)
-    context=restore(management,output)
-    check(context['tree']==TREE and context['count']==1878 and whole_source(context['root'],context['rows'])==context['source'],'actualfull source restoration1878/b9cf',rows)
+    head=os.environ['GITHUB_SHA']
+    context=restore(management,output,head)
+    check(context['fingerprint']['github_sha']==head and whole_source(context['root'],context['rows'],context['tree'])==context['source'],'layer source restoration matches GITHUB_SHA',rows)
+    check(set_diff(['a'],['a',MANIFEST,'x'],['a',MANIFEST])=={'git_index':{'missing_from_actual':[],'extra_in_actual':['x']}},'set diff reports extra',rows)
+    assert_reject(lambda:whole_source(context['root'],context['rows'][1:],context['tree']),'manifest missing one file blocks',rows)
     changed=copy.deepcopy(context['rows'])
     changed[0]['sha256']='0'*64
-    assert_reject(lambda:whole_source(context['root'],changed),'one corrupt source SHA blocks',rows)
+    assert_reject(lambda:whole_source(context['root'],changed,context['tree']),'one corrupt source SHA blocks',rows)
     changed=copy.deepcopy(context['rows'])
     changed[0]['path']='../escape'
-    assert_reject(lambda:whole_source(context['root'],changed),'source path escape blocks',rows)
+    assert_reject(lambda:whole_source(context['root'],changed,context['tree']),'source path escape blocks',rows)
     changed=copy.deepcopy(context['rows'])
     changed[0]['mode']='120000'
-    assert_reject(lambda:whole_source(context['root'],changed),'source symlink mode blocks',rows)
+    assert_reject(lambda:whole_source(context['root'],changed,context['tree']),'source symlink mode blocks',rows)
     prefix_ok=precondition(context,output)
     pre=json.loads((output/'NATIVE-PRECONDITION.json').read_text())
     check(pre['SUT_runs']==0 and pre['command'][4]=='--no-lazy-fetch' and pre['no_flags_removed'],'actual original nativeprefix precondition SUT0',rows)
@@ -93,7 +97,7 @@ def main():
         import os
         os.link(dest/'owned',dest/'hardlink')
         assert_reject(lambda:read_regular(dest/'owned'),'hardlink rejected beforebytes',rows)
-    report=dict(checks_passed=True,checks=rows,total=len(rows),SUT_runs=0,source_tree=TREE,
+    report=dict(checks_passed=True,checks=rows,total=len(rows),SUT_runs=0,source_tree=context['tree'],fingerprint=context['fingerprint'],
                 native_prefix_passed=prefix_ok,native_prefix_result=pre['exit_code'],
                 current_local85='FAIL_RETAINED',current300='NOT_RUN',CI='NOT_RUN')
     (output/'NECESSARY-CARRIER-CHECKS.json').write_text(json.dumps(report,indent=2)+'\n')

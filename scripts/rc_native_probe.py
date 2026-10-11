@@ -7,18 +7,18 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
-from rc_native_probe_restore import restore, sha, write, RUNNER_SHA, FIXTURE_SHA, ENV, git, read_regular
+from rc_native_probe_restore import restore, sha, write, RUNNER_SHA, FIXTURE_SHA, ENV, git, read_regular, fingerprint, evaluate, verify_runner, MANIFEST
 from rc_native_probe_kernel import identity, realm
 from rc_native_probe_owner import run_owned, RUNTIME, OPTIONAL_RUNTIME
 
-BRANCH='test/rc070-native-recovery-probe-20261009'
+BRANCH='ci/issue148-native-retarget-c60f9667-20261011'
 FILES=('docs/specs/issue88-native-runtime-recovery-probe/requirements.md',
        'docs/specs/issue88-native-runtime-recovery-probe/design.md',
        'docs/specs/issue88-native-runtime-recovery-probe/tasks.md',
        '.github/workflows/rc-native-recovery-probe.yml',
        'scripts/rc_native_probe.py','scripts/rc_native_probe_restore.py','scripts/rc_native_probe_kernel.py',
        'scripts/rc_native_probe_owner.py','scripts/rc_native_probe_original_runner.py',
-       'scripts/rc_native_probe_inventory.json','scripts/rc_native_probe_checks.py')
+       'scripts/rc_native_probe_inventory.json','scripts/rc_native_probe_checks.py',MANIFEST)
 
 
 def precondition(context,output):
@@ -55,7 +55,7 @@ def safe_artifacts(output):
     names=['SOURCE-RESTORATION.json','NATIVE-PRECONDITION.json','CARRIER-IDENTITY.json','PROBE-RESULT.json']
     for profile in ('necessary85','original300'):
         names += [profile+'/'+n for n in ('LAUNCH.json','NATIVE-CLOSURE.json','RAW-EVIDENCE-SEAL.json','controller-stdout.log','controller-stderr.log',
-                  'cases/receipt.json','cases/cases.log','cases/session-stdout.log','cases/session-stderr.log')]
+                  'FINGERPRINT.json','cases/receipt.json','cases/cases.log','cases/session-stdout.log','cases/session-stderr.log')]
     blobs={name:read_regular(output/name) for name in names if (output/name).is_file()}
     assert sum(map(len,blobs.values()))<=32*1024*1024
     assert all(not (output/name).is_symlink() and (output/name).stat().st_nlink==1 for name in blobs)
@@ -100,13 +100,16 @@ def main():
     paths=[management/p for p in FILES]
     carrier={str(p):identity(p) for p in paths}
     runner=management/'scripts/rc_native_probe_original_runner.py'
-    assert sha(runner.read_bytes())==RUNNER_SHA and len(runner.read_bytes())==6327
-    context=restore(management,output)
+    verify_runner(runner)
+    assert len(runner.read_bytes())==6327
+    context=restore(management,output,head)
     write(output/'CARRIER-IDENTITY.json',dict(commit=head,branch=BRANCH,files=carrier,
-          source_tree=context['tree'],pure_source_count=1878,immutable_runner_sha256=RUNNER_SHA,
+          source_tree=context['tree'],pure_source_count=context['count'],fingerprint=context['fingerprint'],immutable_runner_sha256=RUNNER_SHA,
           no_release_grant=True,no_compiler_install_or_privilege=True))
     success=False
     counts=dict(necessary85='NOT_RUN',original300='NOT_RUN')
+    fingerprints={}
+    verdict=None
     error=None
     try:
         if not precondition(context,output):
@@ -118,12 +121,17 @@ def main():
             inventories=json.loads((management/'scripts/rc_native_probe_inventory.json').read_text())
             first=run_owned(context,'necessary85',inventories['necessary85'],output/'necessary85',fixture,runner,paths)
             counts['necessary85']='QUALIFIED' if first['native']['qualified'] else 'FAIL_UNKNOWN'
+            fingerprints['necessary85']=fingerprint(context['root'],head)
+            write(output/'necessary85/FINGERPRINT.json',fingerprints['necessary85'])
             if first['native']['qualified']:
                 second=run_owned(context,'original300',inventories['original300'],output/'original300',fixture,runner,paths,prior=first)
                 counts['original300']='QUALIFIED' if second['native']['qualified'] else 'FAIL_UNKNOWN'
-                success=second['native']['qualified']
+                fingerprints['original300']=fingerprint(context['root'],head)
+                write(output/'original300/FINGERPRINT.json',fingerprints['original300'])
+            verdict=evaluate(counts,fingerprints,head)
+            success=verdict['valid']
             if not success:
-                error=dict(stage='native-profiles',reason='profile not qualified',profiles=dict(counts))
+                error=dict(stage='native-profiles',reason='profile not qualified or fingerprint mismatch',profiles=dict(counts),problems=verdict['problems'])
     except BaseException as failure:
         error=dict(stage='exception',reason=type(failure).__name__,detail=str(failure)[:500])
         raise
@@ -131,7 +139,8 @@ def main():
         if not success and error is None:
             error=dict(stage='unknown',reason='probe ended without qualification')
         write(output/'PROBE-RESULT.json',dict(passed=success,profiles=counts,current_CI_result_only=True,
-              retained_local85='FAILED_50_named_PASS_35_non_success',release_authorized=False,error=error))
+              fingerprint=context['fingerprint'],profile_fingerprints=fingerprints,verdict=verdict,
+              evidence_subject=context['evidence_subject'],frozen02='UNQUALIFIED',release_authorized=False,error=error))
         if error is not None:
             # One structured line so a failed CI step is never silent.
             print(json.dumps(dict(rc_native_probe_error=error),sort_keys=True,separators=(',',':')),file=sys.stderr,flush=True)

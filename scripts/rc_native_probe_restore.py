@@ -6,17 +6,9 @@ from pathlib import Path
 import stat
 import subprocess
 
-BACKUP = 'dab238dc34d5a59f471aff935c728c1ed809cc78'
-PARENT = '13cd343d942b7a68912d42a8f9235c02ed647764'
-FINITE11 = '733a1d5bd53ae0f3b2c3fe44463ac20566c6c47f'
-TREE = 'b9cfb8a0b58f8e0863c764e50cf3d38920eefeae'
-FAMILY = 'development-backups/rc070/20261009/'
-FULL52 = FAMILY+'checkpoint-01/publisher-historical-finite11/source.patch'
-ONLY8 = FAMILY+'checkpoint-02/publisher-frozen02-source-only/source.patch'
-WHOLE = FAMILY+'checkpoint-02/publisher-frozen02-source-only/SOURCE-TREE.json'
-PAYLOADS = ((FULL52, 402164, 'b0636194b0b5b51430242f1bdfbb72a59940ec46b09240ff4b9e9a6734b5ff35'),
-            (ONLY8, 44498, 'e0ee17cff76799f96dd0aa0af2043495076594ddb96fefd134458fc5288e1128'),
-            (WHOLE, 492335, 'da3719558d66e0556c8c70125461a5b66a96c427192fca7405c373e77daa6b5d'))
+BASE = 'c60f9667fa8431e27fabbc497c19b4abfef5b965'
+MANIFEST = 'scripts/rc_native_probe_source_manifest.json'
+FINGERPRINT_FIELDS = ('github_sha', 'tree', 'file_count', 'index_sha256', 'manifest_sha256')
 RUNNER_SHA = 'ecfd57ec3d5d8e669076f86a56f869ce65b82d6a5fd7382e04dd3f4505343c0c'
 FIXTURE_SHA = '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5'
 ENV = {'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8',
@@ -77,11 +69,36 @@ def git(root, *values, data=None):
                           timeout=30, env=ENV).stdout
 
 
-def whole_source(root, rows):
+def checkout_files(root):
+    """Every regular file in the working tree, excluding .git."""
+    root = Path(root)
+    found = set()
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if not (Path(dirpath) == root and d == '.git')]
+        for name in filenames + [d for d in dirnames if (Path(dirpath)/d).is_symlink()]:
+            found.add((Path(dirpath)/name).relative_to(root).as_posix())
+    # Build byproducts the repository already ignores (e.g. __pycache__) are not source; everything else counts.
+    ignored = set(git(root, 'ls-files', '-z', '--others', '--ignored', '--exclude-standard').decode().split('\0')[:-1])
+    return found - ignored
+
+
+def set_diff(manifest_paths, tracked, files):
+    """Bidirectional comparison; empty dict means identical."""
+    expected = set(manifest_paths) | {MANIFEST}
+    diff = {}
+    for label, actual in (('git_index', set(tracked)), ('checkout', set(files))):
+        missing, extra = sorted(expected - actual), sorted(actual - expected)
+        if missing or extra:
+            diff[label] = dict(missing_from_actual=missing, extra_in_actual=extra)
+    return diff
+
+
+def whole_source(root, rows, tree):
     root = Path(root)
     tracked = git(root, 'ls-files', '-z').decode().split('\0')[:-1]
-    assert len(rows) == len(tracked) == 1878 and len(set(tracked)) == 1878
-    assert set(tracked) == {r['path'] for r in rows}
+    assert len(tracked) == len(set(tracked))
+    diff = set_diff([r['path'] for r in rows], tracked, checkout_files(root))
+    assert not diff, 'manifest/checkout file set mismatch: '+json.dumps(diff, sort_keys=True)
     source = {}
     stages = git(root, 'ls-files', '--stage', '-z').decode().split('\0')[:-1]
     actual_stages = {}
@@ -103,45 +120,83 @@ def whole_source(root, rows):
         assert (stat.S_IMODE(info.st_mode), len(raw), sha(raw), blob) == (mode, row['bytes'], row['sha256'], row['blob'])
         assert actual_stages[row['path']] == (row['mode'], row['blob'])
         source[row['path']] = dict(size=len(raw), mode=mode, sha256=sha(raw))
-    assert git(root, 'write-tree').decode().strip() == TREE
+    assert git(root, 'write-tree').decode().strip() == tree
     assert git(root, 'status', '--porcelain', '--untracked-files=all').decode() == ''
     return source
 
 
-def restore(management, output):
+def manifest_rows(root):
+    """Generator: rows for every tracked file except the manifest itself."""
+    root = Path(root)
+    rows = []
+    for line in git(root, 'ls-files', '--stage', '-z').decode().split('\0')[:-1]:
+        header, path = line.split('\t', 1)
+        mode, blob, _ = header.split()
+        if path == MANIFEST:
+            continue
+        raw = (root/path).read_bytes()
+        rows.append(dict(path=path, mode=mode, blob=blob, bytes=len(raw), sha256=sha(raw)))
+    return sorted(rows, key=lambda r: r['path'])
+
+
+def fingerprint(root, github_sha):
+    root = Path(root)
+    head = git(root, 'rev-parse', 'HEAD').decode().strip()
+    assert head == github_sha, 'HEAD %s != GITHUB_SHA %s' % (head, github_sha)
+    return dict(github_sha=head, tree=git(root, 'rev-parse', 'HEAD^{tree}').decode().strip(),
+                file_count=len(git(root, 'ls-files', '-z').split(b'\0'))-1,
+                index_sha256=sha(git(root, 'ls-files', '--stage', '-z')),
+                manifest_sha256=sha(git(root, 'show', 'HEAD:'+MANIFEST)))
+
+
+def verify_runner(path):
+    actual = sha(Path(path).read_bytes())
+    if actual != RUNNER_SHA:
+        raise AssertionError('runner sha mismatch: expected %s actual %s' % (RUNNER_SHA, actual))
+    return actual
+
+
+def evaluate(counts, fingerprints, head):
+    """Valid only if both QUALIFIED, fingerprints identical field by field, and equal to PR head."""
+    problems = []
+    for name in ('necessary85', 'original300'):
+        if counts.get(name) != 'QUALIFIED':
+            problems.append('%s not QUALIFIED: %s' % (name, counts.get(name)))
+    a, b = fingerprints.get('necessary85'), fingerprints.get('original300')
+    if a is None or b is None:
+        problems.append('missing fingerprint')
+    else:
+        for key in FINGERPRINT_FIELDS:
+            if a.get(key) != b.get(key):
+                problems.append('fingerprint %s differs: %s != %s' % (key, a.get(key), b.get(key)))
+        if a.get('github_sha') != head:
+            problems.append('fingerprint github_sha %s != head %s' % (a.get('github_sha'), head))
+    return dict(valid=not problems, problems=problems)
+
+
+def restore(management, output, github_sha):
     management, output = Path(management).resolve(), Path(output).resolve()
     assert not output.exists() and output != management and management not in output.parents
     output.mkdir()
-    raw_payloads = {}
-    for path, size, digest in PAYLOADS:
-        raw = git(management, 'show', BACKUP+':'+path)
-        assert len(raw) == size and sha(raw) == digest
-        raw_payloads[path] = raw
-    manifest = json.loads(raw_payloads[WHOLE])
-    assert manifest['tree'] == TREE and manifest['entries'] == len(manifest['rows']) == 1878
+    head = git(management, 'rev-parse', 'HEAD').decode().strip()
+    assert head == github_sha, 'management HEAD %s != GITHUB_SHA %s' % (head, github_sha)
+    ancestor = subprocess.run(['/usr/bin/git', '-C', str(management), 'merge-base', '--is-ancestor', BASE, head],
+                              capture_output=True, timeout=30, env=ENV)
+    assert ancestor.returncode == 0, 'base %s is not an ancestor of %s' % (BASE, head)
     root = output/'pure-sut'
     subprocess.run(['/usr/bin/git', '-c', 'core.hooksPath=/dev/null', 'clone', '--no-hardlinks',
                     '--no-checkout', '--', str(management), str(root)], capture_output=True, check=True,
-                   timeout=30, env=ENV)
-    git(root, 'checkout', '--detach', PARENT)
-    git(root, 'apply', '--check', '--index', '-', data=raw_payloads[FULL52])
-    git(root, 'apply', '--index', '-', data=raw_payloads[FULL52])
-    assert git(root, 'write-tree').decode().strip() == FINITE11
-    assert len(git(root, 'ls-files', '-z').split(b'\0'))-1 == 1877
-    git(root, 'apply', '--check', '--index', '-', data=raw_payloads[ONLY8])
-    git(root, 'apply', '--index', '-', data=raw_payloads[ONLY8])
-    assert git(root, 'write-tree').decode().strip() == TREE
-    private = git(root, 'commit-tree', TREE, '-p', PARENT, data=b'Sealed native source probe; not a release candidate grant\n').decode().strip()
-    git(root, 'reset', '--hard', private)
-    assert git(root, 'rev-list', '--parents', '-n', '1', private).decode().split() == [private, PARENT]
-    source = whole_source(root, manifest['rows'])
-    index = sha(git(root, 'ls-files', '--stage', '-z'))
-    assert index == 'eb1c0600b9314ac74702a228e852b245f6c57284cc6bed1f9a54014ae7ed945c'
-    context = dict(root=str(root), backup=BACKUP, parent=PARENT, private_commit=private, tree=TREE,
-                   count=1878, rows=manifest['rows'], source=source, index_sha256=index,
-                   source_manifest_sha256=sha(raw_payloads[WHOLE]),
-                   payloads=[dict(path=p, bytes=n, sha256=s) for p,n,s in PAYLOADS],
-                   qualification=False, historical_local85='FAILED_50_named_PASS_35_non_success',
-                   current_CI85='NOT_RUN', current_CI300='NOT_RUN')
+                   timeout=120, env=ENV)
+    git(root, 'checkout', '--detach', github_sha)
+    raw_manifest = git(root, 'show', 'HEAD:'+MANIFEST)
+    manifest = json.loads(raw_manifest)
+    tree = git(root, 'rev-parse', 'HEAD^{tree}').decode().strip()
+    source = whole_source(root, manifest['rows'], tree)
+    fp = fingerprint(root, github_sha)
+    context = dict(root=str(root), base=BASE, private_commit=head, tree=tree, count=fp['file_count'],
+                   rows=manifest['rows'], source=source, index_sha256=fp['index_sha256'],
+                   source_manifest_sha256=fp['manifest_sha256'], fingerprint=fp,
+                   evidence_subject='layer commit '+head+' (not frozen b9cfb8a0)',
+                   frozen02='UNQUALIFIED', current_CI85='NOT_RUN', current_CI300='NOT_RUN')
     write(output/'SOURCE-RESTORATION.json', context)
     return context
