@@ -46,6 +46,48 @@ class Selection:
              and re.fullmatch('[0-9a-f]{64}', self.consumer_artifact_sha256), 'invalid_receipt_digest')
 
 
+class _APIReads:
+    """Keep metadata reads under the operation's existing optional controls."""
+    def __init__(self, api, deadline, check_active):
+        self.api, self.deadline, self.active = api, deadline, check_active
+
+    def get(self, path):
+        import rc_publication_github as wire
+        _check_budget(self.deadline, self.active)
+        interrupted = None
+        def active():
+            nonlocal interrupted
+            try:
+                _check_budget(self.deadline, self.active)
+            except ConsumerError as error:
+                interrupted = error.code
+                codes = {'transport_deadline_exceeded': 'timeout', 'transport_cancelled': 'cancelled'}
+                raise wire.WireFailure(codes.get(interrupted, 'adapter_error'), 'none') from None
+            except (KeyboardInterrupt, SystemExit) as error:
+                interrupted = type(error)
+                raise wire.WireFailure('cancelled', 'none') from None
+        options = dict(deadline=self.deadline)
+        if self.active is not None:
+            options['check_active'] = active
+        try:
+            value = self.api.get(path, **options)
+        except wire.WireFailure as error:
+            if error.effect != 'none':
+                raise
+            if interrupted is KeyboardInterrupt:
+                raise KeyboardInterrupt() from None
+            if interrupted is SystemExit:
+                raise SystemExit(1) from None
+            if type(interrupted) is str:
+                raise ConsumerError(interrupted) from None
+            codes = {'timeout': 'transport_deadline_exceeded', 'cancelled': 'transport_cancelled'}
+            if error.code in codes:
+                raise ConsumerError(codes[error.code]) from None
+            raise
+        # The helper must validate returned metadata before a post-success poll.
+        return value
+
+
 def _source(root, subject, api, *, deadline=None, check_active=None):
     gate, source = snapshot.gate, subject.source
     budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
@@ -73,7 +115,10 @@ def _source(root, subject, api, *, deadline=None, check_active=None):
                  and descriptor['blob_sha'] == invocation.workflow_blob, 'workflow_blob_mismatch')
     if budget:
         reader.check()
-    snapshot._live_tag(api, subject.tag, source.source_sha)
+    reads = _APIReads(api, deadline, check_active) if budget else api
+    snapshot._live_tag(reads, subject.tag, source.source_sha)
+    if budget:
+        _check_budget(deadline, check_active)
 
 
 def _bind(evidence, invocation, ids):
@@ -91,6 +136,8 @@ def _observe(root, selected, api, *, deadline=None, check_active=None):
     s, gate = selected.subject, snapshot.gate
     budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
     _source(root, s, api, **budget)
+    if budget:
+        api = _APIReads(api, deadline, check_active)
     f, i, c = s.runs
     expected = dict(rc_version=s.source.version, release_tag=s.tag, source_sha=s.source.source_sha,
         final_run_id=f.run_id, final_run_attempt=f.run_attempt, integration_run_id=i.run_id,
@@ -137,6 +184,8 @@ def _observe(root, selected, api, *, deadline=None, check_active=None):
          and expires > max(updated, datetime.now(timezone.utc)), 'receipt_time_mismatch')
     metadata = {k: raw[k] for k in snapshot.ARTIFACT_FIELDS}
     metadata['workflow_run'] = owner
+    if budget:
+        _check_budget(deadline, check_active)
     return runs, artifact, consumed, metadata
 
 

@@ -38,6 +38,9 @@ def gates(selection, *args, **kwargs):
 def authorities():
     with ExitStack() as stack:
         stack.enter_context(patch.object(wire, '_authenticate', side_effect=gates))
+        # Relay only synthetic preparation through the fixture's recorded hook.
+        stack.enter_context(patch.object(wire, '_prepare_admission',
+                                         side_effect=lambda *a, **kw: wire._authenticate(*a, **kw)))
         stack.enter_context(patch.object(wire, '_remote_constraint', return_value=None))
         stack.enter_context(patch.object(wire, '_authorize', return_value=None))
         yield

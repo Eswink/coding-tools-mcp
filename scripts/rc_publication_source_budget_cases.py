@@ -14,6 +14,7 @@ import rc_consumer_fixed_git as fixed
 import rc_consumer_io as safe
 from rc_consumer_git_test_support import Cancelled, fault_child, git, reaped, record_git
 import rc_publication_executor as executor
+import rc_publication_artifact_admission as artifacts
 import rc_publication_executor_cases as old
 import rc_publication_github as wire
 import rc_publication_stage as stage
@@ -253,7 +254,37 @@ class SourceBudgetCases(unittest.TestCase):
             def selected(current, operation):
                 self.assertEqual(operation.kind, 'ObserveFence')
                 started, deadline = time.monotonic(), current._deadline
-                with self.calls() as owners, record_git() as children:
+                capture, revalidate, segments, capturing = (
+                    artifacts._ArtifactOwner._capture, stage.StagedAssets.revalidate, [], [False])
+                def segment(label, function, target, **kwargs):
+                    with self.calls() as selected_owners, record_git() as selected_children:
+                        try:
+                            return function(target, **kwargs)
+                        finally:
+                            self.assertEqual((len(selected_owners), len(selected_children.calls)), (4, 87))
+                            self.assertTrue(all(options['deadline'] is deadline for _, options in selected_owners))
+                            self.assertTrue(all(reader.closed and not reader.uncertain and not reader.fds
+                                for reader, _ in selected_owners))
+                            reaped(self, selected_children.children)
+                            segments.append((label, selected_owners, selected_children))
+                def captured(owner, **kwargs):
+                    self.assertIs(owner, current._artifact_owner)
+                    self.assertIs(owner._session, current)
+                    self.assertIs(owner.api, current._api)
+                    self.assertIs(owner.selection, current._api.selection)
+                    self.assertEqual(current._read_scope._deadline, deadline)
+                    capturing[0] = True
+                    try:
+                        return segment('authentication-capture', capture, owner, **kwargs)
+                    finally:
+                        capturing[0] = False
+                def revalidated(owner, **kwargs):
+                    if capturing[0]: return revalidate(owner, **kwargs)
+                    self.assertIs(owner, current._stage)
+                    return segment('direct-stage-revalidate', revalidate, owner, **kwargs)
+                with self.calls() as owners, record_git() as children, patch.object(
+                        artifacts._ArtifactOwner, '_capture', new=captured), patch.object(
+                        stage.StagedAssets, 'revalidate', new=revalidated):
                     try:
                         result = execute(current, operation)
                     finally:
@@ -261,7 +292,12 @@ class SourceBudgetCases(unittest.TestCase):
                                              fixture, owners, children)
                 self.assertGreater(timing['remaining_seconds'], 0)
                 self.assertLessEqual(deadline - started, 30)
-                self.assertEqual((len(owners), len(children.calls)), (4, 87))
+                self.assertEqual([label for label, _, _ in segments],
+                    ['authentication-capture', 'direct-stage-revalidate'])
+                direct_owners, direct_children = segments[1][1:]
+                self.assertEqual((len(direct_owners), len(direct_children.calls)), (4, 87))
+                self.assertEqual(len(owners), sum(len(rows) for _, rows, _ in segments))
+                self.assertEqual(len(children.calls), sum(len(rows.calls) for _, _, rows in segments))
                 self.assertTrue(all(options['deadline'] is deadline for _, options in owners))
                 reaped(self, children.children)
                 chosen.append(timing)

@@ -11,6 +11,7 @@ import secrets
 import stat
 import time
 import unicodedata
+from rc_consumer_wire_failure import _publication_failure
 
 CHUNK = 64 * 1024
 JSON_LIMIT = 16_000_000 - 1
@@ -106,7 +107,7 @@ def _check_budget(deadline, check_active):
         need(time.monotonic() < deadline, 'transport_deadline_exceeded')
     if check_active is None:
         return
-    code, cancellation = None, None
+    code, cancellation, preserved = None, None, None
     try:
         if check_active() is not None:
             code = 'artifact_transport_failed'
@@ -115,14 +116,20 @@ def _check_budget(deadline, check_active):
     except SystemExit:
         cancellation = SystemExit
     except BaseException as error:
-        code = 'artifact_transport_failed'
-        try:
-            value = error.code
-            if type(value) is str:
-                code = {'cancelled': 'transport_cancelled',
-                        'timeout': 'transport_deadline_exceeded'}.get(value, code)
-        except BaseException:
-            pass
+        normalized = _publication_failure(error)
+        if normalized is not None and normalized.effect != 'none':
+            preserved = normalized
+        else:
+            code = 'artifact_transport_failed'
+            try:
+                value = (normalized if normalized is not None else error).code
+                if type(value) is str:
+                    code = {'cancelled': 'transport_cancelled',
+                            'timeout': 'transport_deadline_exceeded'}.get(value, code)
+            except BaseException:
+                pass
+    if preserved is not None:
+        raise preserved from None
     if cancellation is SystemExit:
         raise SystemExit(1)
     if cancellation:

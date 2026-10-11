@@ -15,6 +15,7 @@ import subprocess
 
 import release_tag_gate as gate
 from rc_consumer_io import ConsumerError, need
+from rc_consumer_wire_failure import _publication_failure
 
 REPOSITORY = gate.REPOSITORY
 CONSUMER_WORKFLOW = '.github/workflows/rc-artifact-consumer.yml'
@@ -69,8 +70,11 @@ def _call(function, *args, **kwargs):
     except ConsumerError:
         raise
     except (OSError, ValueError, TypeError, KeyError, AttributeError,
-            OverflowError, RecursionError, subprocess.SubprocessError):
-        raise ConsumerError('invalid_snapshot') from None
+            OverflowError, RecursionError, subprocess.SubprocessError) as error:
+        normalized = _publication_failure(error)
+        failure = (normalized if normalized is not None and normalized.effect != 'none'
+                   else ConsumerError('invalid_snapshot'))
+    raise failure from None
 
 
 class GitHub(gate.GitHub):

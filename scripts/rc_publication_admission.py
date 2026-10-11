@@ -8,6 +8,7 @@ import time
 
 import rc_consumer_snapshot as snapshot
 from rc_consumer_io import need
+from rc_consumer_wire_failure import _publication_failure
 import rc_publication_contract as core
 from rc_publication_stage import Selection, _bind
 from rc_release_policy import GATE_IDS, GATES
@@ -28,24 +29,34 @@ class _Reads:
         self.api, self.active, self.deadline = api, active, deadline
 
     def check(self):
+        failure = None
         try:
             self.active()
         except Exception as error:
-            if getattr(error, 'code', None) in ('cancelled', 'timeout'):
-                raise _Interrupted(error.code) from None
-            raise
+            failure = _publication_failure(error)
+            if failure is None or failure.effect == 'none':
+                if getattr(error, 'code', None) in ('cancelled', 'timeout'):
+                    raise _Interrupted(error.code) from None
+                raise
+        if failure is not None:
+            raise failure
         if time.monotonic() >= self.deadline:
             raise _Interrupted('timeout')
 
     def get(self, path):
         import rc_publication_github as wire
         self.check()
+        failure = None
         try:
             value = wire.GitHub.get(self.api, path, deadline=self.deadline, check_active=self.active)
         except wire.WireFailure as error:
-            if error.code in ('cancelled', 'timeout'):
-                raise _Interrupted(error.code) from None
-            raise
+            failure = _publication_failure(error)
+            if failure is None or failure.effect == 'none':
+                if error.code in ('cancelled', 'timeout'):
+                    raise _Interrupted(error.code) from None
+                raise
+        if failure is not None:
+            raise failure
         self.check()
         return value
 

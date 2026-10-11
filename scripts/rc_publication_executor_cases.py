@@ -22,8 +22,33 @@ class ExecutorCases(unittest.TestCase):
             with patch.object(wire, '_connect', side_effect=tls.connect), authorities(), artifact_worker(fixture, tls):
                 session = executor.PublisherSession(fixture.root, fixture.selection, 'fixture-token',
                                                      temporary_parent=fixture.temporary_parent)
+                def current_phase(selection, api, *, deadline, check_active):
+                    # Local modeled gates still grant no GitHub authority. Do
+                    # not skip the real owner refresh performed by production
+                    # full authentication at each native operation boundary.
+                    import rc_publication_artifact_admission as artifacts
+                    owner = artifacts._OWNERS.get(api)
+                    if owner is not None:
+                        self.assertIs(owner, session._artifact_owner)
+                        self.assertIs(owner.stage, session._stage)
+                        self.assertIs(owner.selection, api.selection)
+                        self.assertTrue(owner.entered and not owner.closed)
+                        failure = None
+                        try:
+                            owner._capture(deadline=deadline, check_active=check_active)
+                        except artifacts.ConsumerError as error:
+                            if error.code not in ('transport_cancelled', 'transport_deadline_exceeded',
+                                                  'artifact_transport_failed'):
+                                raise
+                            # Model the real producer's fixed conversion only;
+                            # do not grant a scope, retry or normalize effects.
+                            failure = artifacts._wire_failure(error)
+                        if failure is not None:
+                            raise failure from None
+                    return gates(selection, api, deadline=deadline, check_active=check_active)
                 try:
-                    yield session, tls, fixture
+                    with patch.object(wire, '_authenticate', side_effect=current_phase):
+                        yield session, tls, fixture
                 finally:
                     try:
                         session.close()
@@ -43,11 +68,13 @@ class ExecutorCases(unittest.TestCase):
 
     def test_live_entry_is_blocked_without_real_verifiers_and_tag_guarantee(self):
         from rc_publication_admission_cases import IntegrationTLS
+        import rc_publication_artifact_admission as artifacts
         with IntegrationTLS() as tls, tempfile.TemporaryDirectory() as root:
             selection = tls.selection
             for patched in (False, True):
                 tls.requests.clear(); tls.counts.clear()
-                with self.subTest(authenticator_only=patched), patch.object(executor, 'stage_selected') as stage:
+                with self.subTest(authenticator_only=patched), patch.object(artifacts, 'stage_selected',
+                        side_effect=wire.WireFailure('fence_blocked', 'none')) as stage:
                     session = executor.PublisherSession(root, selection, 'fixture-token', temporary_parent=root)
                     with patch.object(wire, '_authenticate', side_effect=gates if patched else wire._authenticate):
                         with self.assertRaises(wire.WireFailure) as failure:
@@ -55,8 +82,8 @@ class ExecutorCases(unittest.TestCase):
                     self.assertEqual((failure.exception.code, failure.exception.effect), ('fence_blocked', 'none'))
                     self.assertEqual(session.outcome, 'blocked_no_effect')
                     self.assertIsNone(session.transition)
-                    stage.assert_not_called()
-                    self.assertEqual([r[1] for r in tls.requests], [] if patched else tls.packaging_paths)
+                    stage.assert_called_once()
+                    self.assertEqual([r[1] for r in tls.requests], tls.packaging_paths)
                     self.assertTrue(all(r[0] == 'GET' and r[3] == b'' for r in tls.requests))
                     self.assertEqual(self.mutations(tls), [])
                     session.close()
