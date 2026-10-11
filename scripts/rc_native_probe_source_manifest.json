@@ -1,5 +1,5 @@
 {
- "entries": 1880,
+ "entries": 1881,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -6492,11 +6492,18 @@
    "sha256": "2b95f0afe6709668f90390d7d369b99be0f9e918c3078feccceced4275d7c150"
   },
   {
-   "blob": "0814d1ff919271fee611ad56e5287d4fc1e68400",
-   "bytes": 9527,
+   "blob": "2cbb12244d2eb58a57932955c17ff4311e1d899c",
+   "bytes": 9659,
    "mode": "100644",
    "path": "scripts/rc_native_probe.py",
-   "sha256": "4e351be6bf62aab7bfeb5c75493857b0b553f6a7321b31b6fb4489d50c836748"
+   "sha256": "96a57fc01392d6fcd4071b9329f0d9911c5951dfdfccebfb34c66ad462e57f70"
+  },
+  {
+   "blob": "a8f9b93211831fe1d763438e3b83766faf3ff3fa",
+   "bytes": 989,
+   "mode": "100644",
+   "path": "scripts/rc_native_probe_assertion_changes.json",
+   "sha256": "1b8e2bf940a567f9ddc20cd3656af8f063369b2df9e5aecb213f7c070abeb229"
   },
   {
    "blob": "03e89a643e5addfb84319b08cd3db244e1d1bc1d",
@@ -7080,11 +7087,11 @@
    "sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa"
   },
   {
-   "blob": "7b9897a5aa2516d6369ee221c559f502fb8bfc35",
-   "bytes": 34011,
+   "blob": "b549d0822839c6ba5d2fa232fe83746591cc5d30",
+   "bytes": 35945,
    "mode": "100644",
    "path": "scripts/rc_publication_github_cases.py",
-   "sha256": "041a0b59ad866d213e021e8035eae4720289a5ef5c77f2ec5fc6546e7c4c4a1b"
+   "sha256": "ea0d41eb19f33f3736bd75df4035d5dc2d947a26426c01360f2db635d20379e5"
   },
   {
    "blob": "36bff3d2760b0b206e06d9079dbcb808eb48d352",
@@ -7220,11 +7227,11 @@
    "sha256": "104ecdd5a907ff09e5955496807558633b3c83067c5d555dc4d19518aebd1e48"
   },
   {
-   "blob": "c7d7863afe959cc7f18efe7445c6a2514384782c",
-   "bytes": 1792,
+   "blob": "7042a4ecd8f8a855665fa91fbfe2a951539ea1ee",
+   "bytes": 3924,
    "mode": "100644",
    "path": "scripts/rc_publication_unowned_mutation_cases.py",
-   "sha256": "ad2c04884547d20a4c28e5119e4e28a5c27d79b3475effe3f3b0faca39566d34"
+   "sha256": "008c2bf116bd47330b336e285f27c941aee8df035e5aec3ddfc01b88f01384d6"
   },
   {
    "blob": "9642aacbd72661c1064d037adfbc3fb311328679",
