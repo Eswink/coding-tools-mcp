@@ -14205,8 +14205,8 @@
   "excluded_paths": [
     "scripts/windows_foundation_source_manifest.json"
   ],
-  "target_tree_excluding_manifest": "2010185e3cabf291a3884e061cdeda6cf2214e10",
-  "target_tree_excluding_manifest_files": 1885,
+  "target_tree_excluding_manifest": "e8e352242e4b3353383df82780cc7b24f9512457",
+  "target_tree_excluding_manifest_files": 1886,
   "layer_source": [
     {
       "path": ".agents/skills/mcp-probe-kit/SKILL.md",
@@ -14818,6 +14818,13 @@
       "sha256": "f0a5539130b664f2444b9447b23024e7edd9f9c0788320f0a89d2433dbc5defb"
     },
     {
+      "path": ".github/workflows/windows-foundation-controls.yml",
+      "mode": "100644",
+      "blob": "83a59eeda3ea57f7aba54b7b9e81e1d128ba70ae",
+      "bytes": 3873,
+      "sha256": "ae326d6dbf9703aa668f161ba0dc2466fcbafea955790de9b440f63d301fb0b2"
+    },
+    {
       "path": ".github/workflows/windows-foundation-native.yml",
       "mode": "100644",
       "blob": "bf6ec33295898c1b046c1b7cf6bf4a00faf920a3",
@@ -14827,9 +14834,9 @@
     {
       "path": ".github/workflows/windows-foundation-source-compile.yml",
       "mode": "100644",
-      "blob": "66e05e4d88b1237bdbaf2b1c2084586af8946a2f",
-      "bytes": 4790,
-      "sha256": "20d043058a0c53adcae0424c59759579c13a4c4ef964c168b7da03666c51ab64"
+      "blob": "290b8fea9894bf74452fc207d64a6a590c198a4f",
+      "bytes": 3436,
+      "sha256": "9510464157ee423ec55a98e75aa3fdcdff7d066479ef6895d6ac3ab3bb164714"
     },
     {
       "path": ".github/workflows/windows-rc-packages.yml",
@@ -17760,9 +17767,9 @@
     {
       "path": "docs/specs/windows-foundation-source-compile/manifest-schema-v2.md",
       "mode": "100644",
-      "blob": "400c14a3f5a4255f96eaedb97dae1e44f1e6b91b",
-      "bytes": 4547,
-      "sha256": "d739cec3a76ae3c7838442e65b1524cc9a078e4c9f499fa7e6e6906b01140cfb"
+      "blob": "3315ab03f4c82012ec7cd789dc85afeb373bc971",
+      "bytes": 4715,
+      "sha256": "b0898ee638d7cd80a17294a2cb12fb0eab192b47fca00cc62223de5cbba523ac"
     },
     {
       "path": "docs/specs/windows-foundation-source-compile/requirements.md",
@@ -21617,9 +21624,9 @@
     {
       "path": "scripts/windows_foundation_inference_overlay_tests.py",
       "mode": "100644",
-      "blob": "186294adea7a223956a683b83a9f1a84515edfa8",
-      "bytes": 31543,
-      "sha256": "1555ee00ea9a7880b94578b7bc5dce58f62811c4718ced2e571f05f14e7827bc"
+      "blob": "115a8d45c0a90be209cdc2f182abfe3f0fafae15",
+      "bytes": 31974,
+      "sha256": "00273a54e0a168412b401b699f723967b045d672b74015e8b600c8519ee2ca66"
     },
     {
       "path": "scripts/windows_foundation_manager_checkout_tests.py",
@@ -21638,9 +21645,9 @@
     {
       "path": "scripts/windows_foundation_manager_observation_tests.py",
       "mode": "100644",
-      "blob": "66447ac68ae9da705afa0e49c1f8663cc9d67472",
-      "bytes": 20201,
-      "sha256": "cdca56d8baed937aa60b96f95d5313274a85efb9d0e243dc843915a71426393b"
+      "blob": "f8d964e9c03d21ae1ef3357b0157164306d4222f",
+      "bytes": 24437,
+      "sha256": "007783bebf1a3396d0c8b41531429243c8f1931d2bc5194c506a765390ce5463"
     },
     {
       "path": "scripts/windows_foundation_manifest_v2_tests.py",
@@ -21701,9 +21708,9 @@
     {
       "path": "scripts/windows_foundation_union_overlay_tests.py",
       "mode": "100644",
-      "blob": "89dd1f4e0856e71424df1d41d434a47424155e71",
-      "bytes": 35895,
-      "sha256": "81481b973503d0f871c9a20346bf263f061e86aae7d8089c1d60be51551fbaf0"
+      "blob": "e17bb7ed8ba2068c7ba30984f278949632e1f1d0",
+      "bytes": 35912,
+      "sha256": "54411ff911444c195ca7c3743732e53863775e0eac419136ff0a5fe596327d9f"
     },
     {
       "path": "scripts/windows_vm_launch_fixture.cpp",

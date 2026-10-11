@@ -135,7 +135,7 @@ class UnionOverlayOwnedControls(unittest.TestCase):
         output = self.root / 'actual-owned-go23'
         output.mkdir()
         tools = {'git': shutil.which('git'), 'python': sys.executable,
-                 'go': '/workspace/work/rc070/windows-tools/go/bin/go'}
+                 'go': os.environ.get('FOUNDATION_GO_EXECUTABLE') or shutil.which('go')}
         runtime = {name: {'path': path, 'sha256Before': hashlib.sha256(Path(path).read_bytes()).hexdigest(),
                           'sha256After': None} for name, path in tools.items()}
         commands = []
