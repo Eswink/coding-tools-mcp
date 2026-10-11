@@ -47,7 +47,9 @@ def authorities():
 
 
 class HTTPSFixture:
-    def __init__(self, subject=None, plan=None, payloads=None):
+    def __init__(self, subject=None, plan=None, payloads=None, idle_timeout=2):
+        # Server-side per-connection idle bound; tests relying on the 2 s close keep the default.
+        self.idle_timeout = idle_timeout
         original, original_plan = contract_fixture()
         self.payloads = payloads or {a.name: (f'payload-{i}-'.encode() * (i + 1))
                                     for i, a in enumerate(original_plan.assets)}
@@ -122,7 +124,7 @@ class HTTPSFixture:
     def _handle(self, raw):
         try:
             with self.context.wrap_socket(raw, server_side=True) as sock:
-                sock.settimeout(2)
+                sock.settimeout(self.idle_timeout)
                 data = bytearray()
                 while b'\r\n\r\n' not in data:
                     block = sock.recv(1)

@@ -90,7 +90,7 @@ jobs:
           out = sys.argv[1]; ok = True
           inv = json.load(open('rc_native_probe_inventory.json'))
           groups = [(k, inv[k]) for k in ('necessary85', 'original300')]
-          groups.append(('owned-cases', [n for m in ('rc_publication_executor_cases', 'rc_publication_github_cases', 'rc_publication_unowned_mutation_cases') for n in [m]]))
+          groups.append(('owned-cases', [n for m in ('rc_publication_executor_cases', 'rc_publication_github_cases', 'rc_publication_unowned_mutation_cases', 'rc_publication_authenticate_before_connect_cases') for n in [m]]))
           for name, mod in (('windows_launch','rc_pretag_windows_launch_cases'),('source_observation','rc_pretag_source_observation_cases'),('git_budget','rc_pretag_git_budget_cases'),('staging_budget','rc_pretag_staging_budget_cases'),('forty_eight','rc_pretag_publisher_executor_cases'),('admission','rc_pretag_integration_admission_cases'),('final_admission','rc_pretag_final_admission_cases'),('download_budget','rc_pretag_download_budget_cases'),('checksum_budget','rc_pretag_checksum_budget_cases'),('archive_budget','rc_pretag_archive_budget_cases'),('staged_bytes','rc_pretag_staged_bytes_cases'),('supervisor_readiness','rc_pretag_supervisor_readiness_cases'),('stage_retirement','rc_pretag_stage_retirement_cases'),('windows_vm','rc_pretag_windows_vm_cases')):
               groups.append((name, importlib.import_module(mod).inventory()))
           summary = {}

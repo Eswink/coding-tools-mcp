@@ -15,9 +15,9 @@ from rc_publication_stage_cases import publisher_fixture, artifact_worker, artif
 
 class ExecutorCases(unittest.TestCase):
     @contextmanager
-    def session(self):
+    def session(self, idle_timeout=2):
         with publisher_fixture() as fixture, HTTPSFixture(subject=fixture.selection.subject,
-                plan=fixture.plan, payloads=fixture.payloads) as tls:
+                plan=fixture.plan, payloads=fixture.payloads, idle_timeout=idle_timeout) as tls:
             tls.route = lambda *args: artifact_route(fixture, *args)
             with patch.object(wire, '_connect', side_effect=tls.connect), authorities(), artifact_worker(fixture, tls):
                 session = executor.PublisherSession(fixture.root, fixture.selection, 'fixture-token',
@@ -260,7 +260,7 @@ class ExecutorCases(unittest.TestCase):
                 self.assertEqual(self.mutations(tls), [])
 
     def test_publish_request_never_grants_authority(self):
-        with self.session() as (session, tls, _):
+        with self.session(idle_timeout=30) as (session, tls, _):
             session.run_until_pause()
             request = self.request(session)
             with patch.object(wire, '_authenticate', side_effect=wire.WireFailure('denied', 'none')):
@@ -271,7 +271,7 @@ class ExecutorCases(unittest.TestCase):
 
     def test_pause_close_is_local_only_and_cannot_resume(self):
         for method in ('close', 'cancel', 'cancelled_request'):
-            with self.subTest(method=method), self.session() as (session, tls, _):
+            with self.subTest(method=method), self.session(idle_timeout=30) as (session, tls, _):
                 pause = session.run_until_pause()
                 handles = [session._stage.stream(i) for i in range(6)]
                 count = len(tls.requests)
@@ -287,7 +287,7 @@ class ExecutorCases(unittest.TestCase):
                 self.assertTrue(all(handle.closed for handle in handles))
                 with self.assertRaises(wire.WireFailure):
                     session.request_publish(self.request(session))
-        with self.session() as (session, tls, _):
+        with self.session(idle_timeout=30) as (session, tls, _):
             previous, captured = sys.getprofile(), []
             def at_pause(frame, event, result):
                 if (frame.f_code is core.advance.__code__ and event == 'return'
