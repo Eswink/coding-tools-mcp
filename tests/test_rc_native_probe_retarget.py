@@ -45,6 +45,24 @@ class Runner(unittest.TestCase):
         self.assertIn('actual '+R.sha(bytes(raw)), message)
 
 
+class WorkflowPolicy(unittest.TestCase):
+    def test_committed_workflow_passes(self):
+        import rc_native_probe_checks as C
+        self.assertTrue(C.native_job_python_ok((ROOT/'.github/workflows/rc-native-recovery-probe.yml').read_text()))
+
+    def test_setup_python_inside_native_job_fails(self):
+        import rc_native_probe_checks as C
+        text = (ROOT/'.github/workflows/rc-native-recovery-probe.yml').read_text()
+        native, hermetic = text.split('\n  hermetic-layer:\n', 1)
+        bad = native.replace('    steps:\n', '    steps:\n      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065\n', 1) + '\n  hermetic-layer:\n' + hermetic
+        self.assertNotEqual(bad, text)
+        self.assertFalse(C.native_job_python_ok(bad))
+
+    def test_setup_python_without_hermetic_split_fails(self):
+        import rc_native_probe_checks as C
+        self.assertFalse(C.native_job_python_ok('jobs:\n  publisher-native:\n    steps:\n      - uses: actions/setup-python@x\n'))
+
+
 class Evaluate(unittest.TestCase):
     FP = dict(github_sha='h'*40, tree='t'*40, file_count=3, index_sha256='i'*64, manifest_sha256='m'*64)
 

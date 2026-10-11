@@ -10,6 +10,12 @@ from rc_native_probe_restore import sha,restore,whole_source,RUNNER_SHA,read_reg
 from rc_native_probe import FILES,precondition,safe_artifacts
 
 
+def native_job_python_ok(workflow):
+    """The native job must use only the runner's python; setup-python is allowed only in the hermetic job."""
+    native_job=workflow.split('\n  hermetic-layer:\n',1)[0]
+    return 'setup-python' not in native_job
+
+
 def check(condition,label,rows):
     assert condition,label
     rows.append(dict(check=label,passed=True))
@@ -55,8 +61,7 @@ def main():
         check(len(path.read_text().splitlines())<=400,path.name+' bounded parsed source',rows)
     workflow=(management/'.github/workflows/rc-native-recovery-probe.yml').read_text()
     check("branches: ['ci/issue148-frozen02-layer-20261011']" in workflow and 'contents: read' in workflow and 'persist-credentials: false' in workflow and 'fetch-depth: 0' in workflow,'fixedread-only workflow',rows)
-    native_job=workflow.split('\n  hermetic-layer:\n',1)[0]
-    check('setup-python' not in native_job,'native job uses only runner python',rows)
+    check(native_job_python_ok(workflow),'native job uses only runner python',rows)
     check(all(s not in workflow for s in ('sudo ','apt-get','cargo ','secrets.','workflow_dispatch','pull_request_target','contents: write','GITHUB_TOKEN:')),'no install/compiler/token/release privileges',rows)
     head=os.environ['GITHUB_SHA']
     context=restore(management,output,head)
