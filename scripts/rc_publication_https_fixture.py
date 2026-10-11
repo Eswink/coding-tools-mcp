@@ -77,8 +77,18 @@ class HTTPSFixture:
         (self.root / 'extensions').write_text('subjectAltName=DNS:api.github.com,DNS:uploads.github.com,'
             'DNS:release-assets.githubusercontent.com,DNS:productionresultssa5.blob.core.windows.net\n')
         for command in commands:
-            subprocess.run(['/usr/bin/openssl', *command], check=True, stdout=subprocess.DEVNULL,
-                           stderr=subprocess.DEVNULL, timeout=15)
+            # Restored from #146 (rc_bundle squash 11aeb60a): surface openssl stderr on failure,
+            # and also on TimeoutExpired (whose captured stderr is otherwise only an attribute).
+            try:
+                done = subprocess.run(['/usr/bin/openssl', *command], stdout=subprocess.DEVNULL,
+                                      stderr=subprocess.PIPE, timeout=15)
+            except subprocess.TimeoutExpired as expired:
+                tail = (expired.stderr or b'').decode('utf-8', 'replace')[-2000:]
+                cause = RuntimeError('openssl timed out after %ss; stderr: %s' % (expired.timeout, tail or '<empty>'))
+                raise subprocess.TimeoutExpired(expired.cmd, expired.timeout, stderr=expired.stderr) from cause
+            if done.returncode:
+                cause = RuntimeError('openssl stderr: ' + done.stderr.decode('utf-8', 'replace')[-2000:])
+                raise subprocess.CalledProcessError(done.returncode, done.args, stderr=done.stderr) from cause
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         self.context.load_cert_chain(self.certificate, self.key)
         self.listener = socket.socket()
