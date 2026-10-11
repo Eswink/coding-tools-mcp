@@ -14205,7 +14205,7 @@
   "excluded_paths": [
     "scripts/windows_foundation_source_manifest.json"
   ],
-  "target_tree_excluding_manifest": "309435758ec28bb31d40e94fe322b1023dac9f4c",
+  "target_tree_excluding_manifest": "e8e352242e4b3353383df82780cc7b24f9512457",
   "target_tree_excluding_manifest_files": 1886,
   "layer_source": [
     {
@@ -21645,9 +21645,9 @@
     {
       "path": "scripts/windows_foundation_manager_observation_tests.py",
       "mode": "100644",
-      "blob": "afb0cd3618caf7a63a96cc650f5725323e72ddbd",
-      "bytes": 21487,
-      "sha256": "2aaa276b83889d8f8eb31bd1f21467b94e01dfb8db40754acd9dc8e5a1c29a9b"
+      "blob": "f8d964e9c03d21ae1ef3357b0157164306d4222f",
+      "bytes": 24437,
+      "sha256": "007783bebf1a3396d0c8b41531429243c8f1931d2bc5194c506a765390ce5463"
     },
     {
       "path": "scripts/windows_foundation_manifest_v2_tests.py",
