@@ -12,7 +12,7 @@ from rc_native_probe import FILES,precondition,safe_artifacts
 
 def native_job_python_ok(workflow):
     """The native job must use only the runner's python; setup-python is allowed only in the hermetic job."""
-    native_job=workflow.split('\n  hermetic-layer:\n',1)[0]
+    native_job=workflow.split('\n  hermetic-probe-sets:\n',1)[0]
     return 'setup-python' not in native_job
 
 

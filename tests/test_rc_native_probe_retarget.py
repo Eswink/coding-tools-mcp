@@ -53,10 +53,21 @@ class WorkflowPolicy(unittest.TestCase):
     def test_setup_python_inside_native_job_fails(self):
         import rc_native_probe_checks as C
         text = (ROOT/'.github/workflows/rc-native-recovery-probe.yml').read_text()
-        native, hermetic = text.split('\n  hermetic-layer:\n', 1)
-        bad = native.replace('    steps:\n', '    steps:\n      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065\n', 1) + '\n  hermetic-layer:\n' + hermetic
+        native, hermetic = text.split('\n  hermetic-probe-sets:\n', 1)
+        bad = native.replace('    steps:\n', '    steps:\n      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065\n', 1) + '\n  hermetic-probe-sets:\n' + hermetic
         self.assertNotEqual(bad, text)
         self.assertFalse(C.native_job_python_ok(bad))
+
+    def test_setup_python_allowed_in_both_hermetic_jobs(self):
+        import rc_native_probe_checks as C
+        text = (ROOT/'.github/workflows/rc-native-recovery-probe.yml').read_text()
+        native, rest = text.split('\n  hermetic-probe-sets:\n', 1)
+        probe_sets, executor = rest.split('\n  hermetic-executor:\n', 1)
+        self.assertNotIn('setup-python', native)
+        for job in (probe_sets, executor):
+            self.assertIn('actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065', job)
+            self.assertIn("python-version: '3.12'", job)
+        self.assertTrue(C.native_job_python_ok(text))
 
     def test_setup_python_without_hermetic_split_fails(self):
         import rc_native_probe_checks as C
