@@ -6450,18 +6450,18 @@
    "sha256": "84e7167e881cf6b2b90071a9f85abd76154524358a8f4f3d8535294558d926e7"
   },
   {
-   "blob": "a9072b3d6b1ecbe3a69eaa1a60086986764e159d",
-   "bytes": 23636,
+   "blob": "3b305d7ffa603c8fe361030388ffbddcee3df75a",
+   "bytes": 24060,
    "mode": "100644",
    "path": "scripts/rc_consumer_transport_supervisor_tests.py",
-   "sha256": "3c48ca1eba0b9d994109df4535271c0ef2253085e580cc419cabe8524af80dc3"
+   "sha256": "236b32af52ca481c1095d1027c0f150de3daf7ca0c651cefdf4b8fb931848b81"
   },
   {
-   "blob": "77853bf3ca29e9a54a3372ddfd1bff38f67a2e7a",
-   "bytes": 16917,
+   "blob": "656808b765cf38541ff746faf8bac1a38a0a58a7",
+   "bytes": 16937,
    "mode": "100644",
    "path": "scripts/rc_consumer_transport_tests.py",
-   "sha256": "9f5c539e2474754810a4bb56b62b28929e8f26af25c9376f274a97fa24f81445"
+   "sha256": "fe3b59155678332bfd579d96ebba15fd13add6346f647cdc02535b8a35acbff3"
   },
   {
    "blob": "2b4cfa913adac1987d150e888a5f9b96dbe31e99",
@@ -7101,11 +7101,11 @@
    "sha256": "dc27ab9fc188dcd51716c21c90becd2af357ecf8ba2dd720f467d7231766f097"
   },
   {
-   "blob": "114179612d07d201e929faa67b5daa96f00ba308",
-   "bytes": 10804,
+   "blob": "b69bdc8b21ce5d6cc5fc4e70808dce607f886e98",
+   "bytes": 11641,
    "mode": "100644",
    "path": "scripts/rc_publication_https_fixture.py",
-   "sha256": "c7029182579d1602cc29fac7b5921833a1e658ae77133b4862d8145d64b92e61"
+   "sha256": "68bef92dddc4f6ff4c8ed872f0b9a90c035ef662abbe9bd730b2d5c1ae7d23b8"
   },
   {
    "blob": "e4b6cf4707fbd0f05cbb3146733b0ea456a9bfe3",
