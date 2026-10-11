@@ -31,6 +31,22 @@ jobs:
         with:
           python-version: '3.12'
           check-latest: false
+      - name: Regenerate schema-2 source manifest for this commit and diff
+        if: matrix.mode == 'go'
+        shell: bash
+        env:
+          FOUNDATION_PYTHON_EXECUTABLE: ${{ steps.foundation-python.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          # Fixed inputs: c60f9667 (base), 47adc2a1 (exact73), 155eafad (full43) on backup/rc070-workspace-checkpoints-20261009;
+          # frozen tree 19bb2920 on backup/rc070-frozen-19bb2920-20261011.
+          for s in c60f9667fa8431e27fabbc497c19b4abfef5b965 47adc2a11135e692b8de15534debacf9a1cc1948 155eafad649380669130241167e61b37e1f9359a 47659171601299a9a16fcb6d5426ac2d5550baf7; do
+            git fetch --no-tags --quiet https://github.com/Eswink/coding-tools-mcp.git "$s"
+          done
+          "$FOUNDATION_PYTHON_EXECUTABLE" scripts/gen_windows_foundation_source_manifest.py --repo . --target-tree "$GITHUB_SHA" > "$RUNNER_TEMP/regenerated-manifest.json"
+          diff -u scripts/windows_foundation_source_manifest.json "$RUNNER_TEMP/regenerated-manifest.json"
+          "$FOUNDATION_PYTHON_EXECUTABLE" scripts/windows_foundation_source_guard.py verify-layer --manifest scripts/windows_foundation_source_manifest.json --manager . --receipt "$RUNNER_TEMP/layer-receipt.json"
+          "$FOUNDATION_PYTHON_EXECUTABLE" scripts/windows_foundation_manifest_v2_tests.py
       - name: Fixed Windows Rust compiler
         if: matrix.mode == 'rust'
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
