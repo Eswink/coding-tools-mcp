@@ -161,17 +161,39 @@ class GitHubCases(unittest.TestCase):
         self._prepared = True
         self.transition = session._transition
 
+    # Exact wire._authorize call counts per test: (authorize calls, owned mutation attempts,
+    # including replay onto fresh sessions).  Attempts that stop before authorization are 0:
+    # disconnect_timeout: 1 (connect raises OSError before authorization);
+    # closed_methods: 12 = 6 invalid_request before authorization (raw POST with a body that is not
+    # the planned body, PATCH to the upload host, 4 foreign asset descriptors) + 6 fence_blocked
+    # subtests (authentication / remote constraint blocked, passed 0 and 1, for 3 ops).
+    # Every other attempt authorizes exactly once.
+    EXPECTED_AUTHORIZE = {
+        'test_anonymous_verification_and_latest_drift': (8, 8),
+        'test_closed_methods_paths_headers_and_bodies': (47, 59),
+        'test_complete_bounded_pagination_and_collision_rejection': (0, 0),
+        'test_direct_binary_download_rehashes_exact_bytes': (2, 2),
+        'test_disconnect_timeout_and_truncated_mutation_responses': (5, 6),
+        'test_json_types_duplicates_limits_and_status_failures': (0, 0),
+        'test_mismatched_success_retains_uncertain_effect': (13, 13),
+        'test_single_storage_redirect_strips_credentials': (2, 2),
+        'test_six_ordered_descriptor_uploads_match_wire_bytes': (7, 7),
+        'test_tls_validation_and_error_redaction': (6, 6),
+        'test_unsafe_redirect_chain_hosts_and_ports_reject': (2, 2),
+        'test_upload_502_starter_is_uncertain_without_retry': (2, 2),
+    }
+
     def _check_authorized(self):
         if self.session is not None:
             self._close_session()
-        # wire._authorize (recorded, then delegated to the effective implementation) ran at most
-        # once per owned attempt, always with the session's typed scope, and only for attempted ops.
-        # An attempt that fails before reaching authorization (e.g. connect error) records none.
+        # The recorder ran, then called the effective _authorize, always with the session's typed scope.
         attempted = list(self.mutations)
         for op, scope in self.authorized:
             assert scope is not None and op.operation_id in attempted, (op.kind, scope)
             attempted.remove(op.operation_id)
-        assert len(self.authorized) <= len(self.mutations), (len(self.authorized), len(self.mutations))
+        expected = self.EXPECTED_AUTHORIZE[self._testMethodName]
+        assert (len(self.authorized), len(self.mutations)) == expected, (
+            self._testMethodName, (len(self.authorized), len(self.mutations)), expected)
 
     def _attempt(self, op, call):
         """One owned attempt of the session's current mutation; failures propagate unchanged."""
@@ -518,8 +540,15 @@ class GitHubCases(unittest.TestCase):
             self.fixture.routes.clear()
             op = self.until('UploadAsset')
             for payload in (b'wrong', self.fixture.payloads[op.asset.name] + b'X'):
-                self.error(lambda: self.api.upload_asset(op, io.BytesIO(payload), before_write=lambda: None,
-                                                          check_active=lambda: None), 'unknown')
+                # 300-list assertion change (reviewer option a): a non-staged stream is now rejected
+                # before any write (see rc_publication_request_cases test_05 :136).
+                writes = [r for r in self.fixture.requests if r[0] in ('POST', 'PATCH', 'DELETE')]
+                written = []
+                rejected = self.error(lambda: self.api.upload_asset(op, io.BytesIO(payload),
+                    before_write=lambda: written.append(op.operation_id), check_active=lambda: None), 'none')
+                self.assertEqual(rejected.code, 'invalid_request')
+                self.assertEqual(written, [])
+                self.assertEqual([r for r in self.fixture.requests if r[0] in ('POST', 'PATCH', 'DELETE')], writes)
             target = wire.ROOT + '/releases/100/assets?name=' + op.asset.name
             row = {'id': 200, 'name': op.asset.name, 'content_type': op.asset.media_type, 'size': op.asset.size,
                    'digest': 'sha256:' + op.asset.sha256, 'state': 'uploaded'}

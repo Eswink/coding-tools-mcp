@@ -140,7 +140,8 @@ def main():
             error=dict(stage='unknown',reason='probe ended without qualification')
         write(output/'PROBE-RESULT.json',dict(passed=success,profiles=counts,current_CI_result_only=True,
               fingerprint=context['fingerprint'],profile_fingerprints=fingerprints,verdict=verdict,
-              evidence_subject=context['evidence_subject'],frozen02='UNQUALIFIED',release_authorized=False,error=error))
+              evidence_subject=context['evidence_subject'],frozen02='UNQUALIFIED',
+              assertion_changes=json.loads((Path(__file__).resolve().parent/'rc_native_probe_assertion_changes.json').read_text()),release_authorized=False,error=error))
         if error is not None:
             # One structured line so a failed CI step is never silent.
             print(json.dumps(dict(rc_native_probe_error=error),sort_keys=True,separators=(',',':')),file=sys.stderr,flush=True)
