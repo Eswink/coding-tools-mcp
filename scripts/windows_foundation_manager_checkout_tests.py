@@ -128,7 +128,7 @@ class ManagerRawCheckoutControls(unittest.TestCase):
 
     def test_complete_original_guard_bytes_and_verify_manager_ast_remain_exact(self):
         data = (SCRIPTS / 'windows_foundation_source_guard.py').read_bytes()
-        self.assertEqual(hashlib.sha256(data).hexdigest(), '71aaba07443ba0ace608f8a73e0996df839f6c189e866ee949eb4dd21e4a4073')
+        self.assertEqual(hashlib.sha256(data).hexdigest(), '76514ac44c8bf7b507ee83483bc123b24834909678ba64db8e28f22af7cb23d8')
         node = next(node for node in ast.parse(data).body if isinstance(node, ast.FunctionDef) and node.name == 'verify_manager')
         actual = hashlib.sha256(ast.dump(node, include_attributes=False).encode()).hexdigest()
         self.assertEqual(actual, '183f30416658ab6cc9edad3cbcb58a66b69a799858052f9d7b31138309362198')

@@ -18,6 +18,13 @@ PATCH_SHA = '3d3e83dc6c0122286dd2d44400846895a331cb22ab5bae49a45cbc1bce2d634d'
 REPOSITORY = 'https://github.com/Eswink/coding-tools-mcp.git'
 PROTECTED = 'src-tauri/src/tools/cloud_host/live/wss_workspace_io_tests.rs'
 PROTECTED_SHA = 'c9fcdba432c239cc08a090c6cb4256f51b54368cbefb3afac553c1a6c719b9b8'
+MANIFEST_PATH = 'scripts/windows_foundation_source_manifest.json'
+# Paths left out of the layer tree the manifest describes. The manifest cannot pin its own bytes.
+# No other tracked file pins the manifest's sha256/blob (checked when this layer was written).
+LAYER_EXCLUDED = (MANIFEST_PATH,)
+# Schema 1 is accepted only on the frozen historical #147 commits that carried the v1 manifest blob.
+V1_MANIFEST_BLOB = '424a9b1794ee11c6b6933522cacbd2a51157bb1b'
+V1_FROZEN_LAST = '313c3a1688673150b1484bc2af6b5ae95a8a6b2f'
 
 
 def run_git(repo, *args, index=False, data=None):
@@ -59,12 +66,54 @@ def check_blob(data, row):
         raise ValueError('source blob mismatch: ' + row['path'])
 
 
-def load_manifest(path, local=False):
+def tree_excluding(repo, tree, excluded=LAYER_EXCLUDED):
+    """Shared by generator and guard: temp index <- tree, update-index --force-remove excluded paths (index-only, worktree-independent), write-tree."""
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix='foundation-layer-index-') as tmp:
+        index = Path(tmp) / 'index'
+        def git(*args):
+            env = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}
+            env.update(GIT_INDEX_FILE=str(index), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=os.devnull,
+                       GIT_NO_REPLACE_OBJECTS='1', LC_ALL='C')
+            r = subprocess.run(['git', '-C', str(repo), *args], capture_output=True, env=env, check=False)
+            if r.returncode:
+                raise RuntimeError('git ' + args[0] + ' failed: ' + r.stderr.decode('utf-8', 'replace')[:4096])
+            return r.stdout
+        git('read-tree', tree)
+        for path in excluded:
+            git('update-index', '--force-remove', '--', safe_path(path))
+        return git('write-tree').decode().strip()
+
+
+def layer_rows(repo, tree):
+    rows = []
+    for row in sorted(tree_rows(repo, tree), key=lambda r: r['path'].encode('utf-8')):
+        data = run_git(repo, 'cat-file', 'blob', row['blob'])
+        rows.append(dict(row, bytes=len(data), sha256=hashlib.sha256(data).hexdigest()))
+    return rows
+
+
+def manifest_commit_is_v1_frozen(repo, commit):
+    if not repo or not commit or not re.fullmatch('[0-9a-f]{40}', commit):
+        return False
+    try:
+        run_git(repo, 'merge-base', '--is-ancestor', commit, V1_FROZEN_LAST)
+        blob = run_git(repo, 'rev-parse', commit + ':' + MANIFEST_PATH).decode().strip()
+    except RuntimeError:
+        return False
+    return blob == V1_MANIFEST_BLOB
+
+
+def load_manifest(path, local=False, repo=None, commit=None):
     m = json.loads(path.read_text(encoding='utf-8'))
-    if (m['schema'], m['repository'], m['base_commit'], m['exact73_tree'], m['target_tree'],
+    if type(m.get('schema')) is not int or m['schema'] not in (1, 2):
+        raise ValueError('unsupported manifest schema')
+    if m['schema'] == 1 and not manifest_commit_is_v1_frozen(repo, commit):
+        raise ValueError('schema 1 manifest only admitted on frozen historical commits; schema 2 required')
+    if (m['repository'], m['base_commit'], m['exact73_tree'], m['target_tree'],
         m['full43_patch_sha256'], m['target_tree_files'], m['exact73_tree_files'],
         m['protected_positive_path'], m['protected_positive_sha256']) != (
-            1, 'Eswink/coding-tools-mcp', BASE, EXACT73, TARGET, PATCH_SHA, 1953, 1913, PROTECTED, PROTECTED_SHA):
+            'Eswink/coding-tools-mcp', BASE, EXACT73, TARGET, PATCH_SHA, 1953, 1913, PROTECTED, PROTECTED_SHA):
         raise ValueError('manifest source identity differs from finite approved source')
     if (m['exact73_backup_commit'], m['full43_backup_commit'], m['exact73_prefix'], m['full43_patch_path']) != (
             '47adc2a11135e692b8de15534debacf9a1cc1948',
@@ -84,7 +133,31 @@ def load_manifest(path, local=False):
                 raise ValueError('source mode/size not allowed')
             if not re.fullmatch('[0-9a-f]{40}', row['blob']) or not re.fullmatch('[0-9a-f]{64}', row['sha256']):
                 raise ValueError('source hash malformed')
+    if m['schema'] == 2:
+        if m.get('excluded_paths') != list(LAYER_EXCLUDED):
+            raise ValueError('schema 2 excluded paths differ')
+        if not re.fullmatch('[0-9a-f]{40}', str(m.get('target_tree_excluding_manifest'))):
+            raise ValueError('schema 2 layer tree malformed')
+        rows = m.get('layer_source')
+        if not isinstance(rows, list) or len(rows) != m.get('target_tree_excluding_manifest_files'):
+            raise ValueError('schema 2 layer rows/count differ')
+        if [r['path'] for r in rows] != sorted((r['path'] for r in rows), key=lambda p: p.encode('utf-8')):
+            raise ValueError('schema 2 layer rows not byte-sorted')
+        if any(safe_path(r['path']) in LAYER_EXCLUDED for r in rows):
+            raise ValueError('schema 2 layer rows include excluded path')
     return m
+
+
+def verify_layer(repo, m, commit='HEAD'):
+    if m['schema'] != 2:
+        raise ValueError('layer verification requires schema 2')
+    tree = run_git(repo, 'rev-parse', commit + '^{tree}').decode().strip()
+    actual = tree_excluding(repo, tree)
+    if actual != m['target_tree_excluding_manifest']:
+        raise ValueError('layer tree excluding manifest differs')
+    if layer_rows(repo, actual) != m['layer_source']:
+        raise ValueError('layer source rows differ')
+    return {'layer_tree': tree, 'target_tree_excluding_manifest': actual, 'layer_files': len(m['layer_source'])}
 
 
 def tree_rows(repo, tree):
@@ -227,7 +300,7 @@ def write_receipt(path, result):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('operation', choices=('restore', 'verify', 'verify-manager'))
+    parser.add_argument('operation', choices=('restore', 'verify', 'verify-manager', 'verify-layer'))
     parser.add_argument('--manifest', type=Path, required=True)
     parser.add_argument('--destination', type=Path)
     parser.add_argument('--receipt', type=Path, required=True)
@@ -237,7 +310,17 @@ def main():
     result = {'operation': args.operation, 'passed': False, 'native_positive': 'NOTRUN',
               'compiler': 'NOTRUN_BY_SOURCE_GUARD', 'qualification': 'SOURCE_ONLY_BLOCKED', 'at_unix': time.time()}
     try:
-        manifest = load_manifest(args.manifest, local=args.local_payload is not None)
+        manager = args.manager.resolve() if args.manager else None
+        manager_head = run_git(manager, 'rev-parse', 'HEAD').decode().strip() if manager else None
+        manifest = load_manifest(args.manifest, local=args.local_payload is not None, repo=manager, commit=manager_head)
+        if args.operation == 'verify-layer':
+            if not manager:
+                raise ValueError('layer verifier requires management checkout')
+            result.update(verify_layer(manager, manifest))
+            result['passed'] = True
+            write_receipt(args.receipt.resolve(), result)
+            print(json.dumps(result, ensure_ascii=False))
+            return 0
         if args.operation == 'verify-manager':
             if not args.manager:
                 raise ValueError('management verifier requires management checkout')
