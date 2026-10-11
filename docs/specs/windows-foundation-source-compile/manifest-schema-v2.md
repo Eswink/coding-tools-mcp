@@ -44,8 +44,8 @@ of 313c3a16 (V1_FROZEN_LAST) AND `commit:scripts/windows_foundation_source_manif
 (V1_MANIFEST_BLOB). Otherwise (this layer and later, or no commit): reject "schema 2 required".
 
 ## CI
-Go job: fetch c60f9667, 47adc2a1, 155eafad, 47659171 by SHA; regenerate with `--target-tree $GITHUB_SHA`;
-`diff -u` against committed; `guard verify-layer`; run windows_foundation_manifest_v2_tests.py.
+Workflow windows-foundation-controls.yml (ubuntu, push to the probe branch and ci/issue147-**): fetch c60f9667, 47adc2a1, 155eafad, 47659171 by SHA; regenerate with `--target-tree $GITHUB_SHA`;
+`diff -u` against committed; `guard verify-layer`; run all five windows_foundation_*_tests.py (Go from setup-go via FOUNDATION_GO_EXECUTABLE, pool clone detached at c60f9667).
 
 ## Size breakdown (layer 138a51e3 successor; ~27,400 lines, approx. per top-level field)
 | field | lines |

@@ -1,0 +1,78 @@
+name: Windows foundation manifest and Python controls
+on:
+  push:
+    branches:
+      - probe/windows-foundation-compile-20261009-19bb2920
+      - 'ci/issue147-**'
+permissions:
+  contents: read
+concurrency:
+  group: windows-foundation-controls-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  controls:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fixed Python
+        id: py
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+          check-latest: false
+      - name: Fixed Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version: '1.24.13'
+          check-latest: false
+          cache: false
+      - name: Pin Go and PowerShell executables
+        shell: bash
+        run: |
+          set -euo pipefail
+          GO="$(go env GOROOT)/bin/go"
+          "$GO" version | grep -q '^go version go1\.24\.13 linux/amd64' || { echo 'unexpected Go'; exit 1; }
+          echo "FOUNDATION_GO_EXECUTABLE=$GO" >> "$GITHUB_ENV"
+          PWSH="$(command -v pwsh)"; "$PWSH" -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
+          echo "FOUNDATION_PWSH_EXECUTABLE=$PWSH" >> "$GITHUB_ENV"
+      - name: Fetch fixed manifest inputs by SHA
+        run: |
+          set -euo pipefail
+          # c60f9667 base, 47adc2a1 exact73, 155eafad full43 (backup/rc070-workspace-checkpoints-20261009);
+          # 47659171 frozen tree 19bb2920 (backup/rc070-frozen-19bb2920-20261011).
+          for s in c60f9667fa8431e27fabbc497c19b4abfef5b965 47adc2a11135e692b8de15534debacf9a1cc1948 155eafad649380669130241167e61b37e1f9359a 47659171601299a9a16fcb6d5426ac2d5550baf7; do
+            git fetch --no-tags --quiet origin "$s"
+          done
+      - name: Regenerate schema-2 manifest for this commit, diff, verify-layer
+        env:
+          PY: ${{ steps.py.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          "$PY" scripts/gen_windows_foundation_source_manifest.py --repo . --target-tree "$GITHUB_SHA" > "$RUNNER_TEMP/regenerated-manifest.json"
+          diff -u scripts/windows_foundation_source_manifest.json "$RUNNER_TEMP/regenerated-manifest.json"
+          "$PY" scripts/windows_foundation_source_guard.py verify-layer --manifest scripts/windows_foundation_source_manifest.json --manager . --receipt "$RUNNER_TEMP/layer-receipt.json"
+      - name: Python control tests (5 files)
+        shell: bash
+        env:
+          PY: ${{ steps.py.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          test -x "$FOUNDATION_GO_EXECUTABLE" && test -x "$FOUNDATION_PWSH_EXECUTABLE"
+          PWSH="$FOUNDATION_PWSH_EXECUTABLE"
+          # Pool: separate clone detached at D6 c60f9667, as the overlay controls require.
+          POOL="$RUNNER_TEMP/foundation-pool/pool"
+          git clone --quiet --no-hardlinks "$GITHUB_WORKSPACE" "$POOL"
+          git -C "$POOL" fetch --quiet --no-tags "$GITHUB_WORKSPACE" 47659171601299a9a16fcb6d5426ac2d5550baf7 c60f9667fa8431e27fabbc497c19b4abfef5b965
+          git -C "$POOL" checkout --quiet --detach c60f9667fa8431e27fabbc497c19b4abfef5b965
+          EVID="$RUNNER_TEMP/foundation-control-evidence"
+          cd scripts
+          "$PY" windows_foundation_manifest_v2_tests.py
+          "$PY" windows_foundation_manager_checkout_tests.py
+          "$PY" windows_foundation_manager_observation_tests.py --pwsh "$PWSH"
+          "$PY" windows_foundation_inference_overlay_tests.py "$POOL" "$PWSH" "$EVID/inference"
+          "$PY" windows_foundation_union_overlay_tests.py "$POOL" "$PWSH" "$EVID/union"
