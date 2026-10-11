@@ -333,7 +333,7 @@ class ChecksumBudgetCompositionCases(unittest.TestCase):
                 'final_admission.inventory()', 'final_admission.execution_valid(loaded, result)',
                 'download_budget.inventory()', 'download_budget.execution_valid(loaded, result)',
                 'staging_budget.inventory()', 'staging_budget.execution_valid(loaded, result)',
-                'checksum_budget.inventory()', 'checksum_budget.execution_valid(loaded, result)', 'timeout-minutes: 30',
+                'checksum_budget.inventory()', 'checksum_budget.execution_valid(loaded, result)', 'timeout-minutes: 45',
                 'checksum-budget-inventory.json', 'checksum-budget-cases.log',
                 'staging-budget-inventory.json', 'staging-budget-cases.log', "'production_ready': False",
                 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262',

@@ -338,7 +338,7 @@ class StagingBudgetCompositionCases(unittest.TestCase):
                 'x.inventory()', 'x.execution_valid(loaded, result)', 'admission.inventory()', 'admission.execution_valid(loaded, result)',
                 'final_admission.inventory()', 'final_admission.execution_valid(loaded, result)',
                 'download_budget.inventory()', 'download_budget.execution_valid(loaded, result)',
-                'staging_budget.inventory()', 'staging_budget.execution_valid(loaded, result)', 'timeout-minutes: 30',
+                'staging_budget.inventory()', 'staging_budget.execution_valid(loaded, result)', 'timeout-minutes: 45',
                 'staging-budget-inventory.json', 'staging-budget-cases.log', "'production_ready': False",
                 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262',
                 'actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065',

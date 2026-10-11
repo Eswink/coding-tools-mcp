@@ -25,6 +25,8 @@ import rc_consumer_transport_tests as fixtures
 
 
 def fixture_worker(config):
+    # Hold nothing inherited beyond stdin (parent's never-written pipe), stdout (byte IPC) and stderr.
+    os.closerange(3, os.sysconf('SC_OPEN_MAX'))
     # Bind the exact spawning parent: open its pidfd, then confirm we are still its child; otherwise
     # it already died (we were reparented) and we leave at once. No timer, no fallback.
     if not hasattr(os, 'pidfd_open'):
@@ -44,6 +46,17 @@ def fixture_worker(config):
     if mode == 'request_backpressure':
         wire.emit(b'R'); publish_ready(config, raw); time.sleep(3); return 1
     if mode == 'startup':
+        time.sleep(3)
+        return 1
+    if mode == 'fd_probe':
+        listed = sorted(int(fd) for fd in os.listdir('/proc/self/fd'))
+        (config.parent / 'observed.json').write_text(json.dumps({'fds': listed}))
+        time.sleep(3)
+        return 1
+    if mode == 'slow_term':
+        # Slow to honour SIGTERM: only the cleanup's SIGKILL ends it inside the budget.
+        signal.signal(signal.SIGTERM, lambda *_: time.sleep(3))
+        (config.parent / 'observed.json').write_text(json.dumps({'slow_term': True}))
         time.sleep(3)
         return 1
     if mode == 'ignore_term':

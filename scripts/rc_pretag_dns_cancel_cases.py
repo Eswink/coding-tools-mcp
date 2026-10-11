@@ -11,6 +11,7 @@ import rc_pretag_linux_package_cases as lc
 import rc_pretag_rc_bundle_profile as previous
 import rc_pretag_windows_launch_profile as windows_launch
 import rc_pretag_dns_cancel_profile as x
+from rc_pretag_cancel_budget_profile import normalize as cancel_budget_bytes
 
 F_BINDING = ('11aeb60a6d3798a4afae9e0e54a60070b6cec082', '4f03b496fb2bb397c79675ab238e0d2e95493ca4', ('41984b1de0ca13efab3646aae5041845bc78cfee',))
 F_RAW = (286, 'd44984e5b9fedcea2bf2e3ce46253e15c43eff75e1d30c36336a3ebdae47bbec')
@@ -48,7 +49,7 @@ class DnsCancelCases(unittest.TestCase):
         cls.addClassCleanup(cls._immutable_m.clear)
     def setUp(self):
         self.original = c._entries(x.M, self.repo)
-        self.good = self.original | {path: ('100644', 'blob', self.blob((c.ROOT / path).read_bytes())) for path in x.CAPS}
+        self.good = self.original | {path: ('100644', 'blob', self.blob(cancel_budget_bytes(path, (c.ROOT / path).read_bytes()))) for path in x.CAPS}
         self.pure = self.commit([x.M], self.good)
         self.feature = self.commit([x.M, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -108,7 +109,7 @@ class DnsCancelCases(unittest.TestCase):
         extra = self.good | {'extra.md': ('100644', 'blob', self.blob(b'extra'))}
         missing = {k: v for k, v in self.good.items() if k != x.CASES}
         changed = self.good | {x.CASES: ('100644', 'blob', self.blob(b'changed'))}
-        drift = self.good | {some: ('100644', 'blob', self.blob((c.ROOT / some).read_bytes() + b'\n'))}
+        drift = self.good | {some: ('100644', 'blob', self.blob(cancel_budget_bytes(some, (c.ROOT / some).read_bytes()) + b'\n'))}
         mode = self.good | {some: ('100755', 'blob', self.good[some][2])}
         for entries in (extra, missing, changed, drift, mode, self.original):
             ref = self.commit([x.M], entries)
@@ -118,21 +119,21 @@ class DnsCancelCases(unittest.TestCase):
         self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
         self.assertEqual(x.FRAGMENTS.keys(), x.BASE_PINS.keys())
         for path, row in x.SOURCE_PINS.items():
-            data = (c.ROOT / path).read_bytes()
+            data = cancel_budget_bytes(path, (c.ROOT / path).read_bytes())
             self.assertEqual(row, ('100644', *o.pin(data), len(data), len(data.splitlines())), path)
         for path, (lines, _) in x.CAPS.items():
-            self.assertLessEqual(len((c.ROOT / path).read_bytes().splitlines()), lines, path)
+            self.assertLessEqual(len(cancel_budget_bytes(path, (c.ROOT / path).read_bytes()).splitlines()), lines, path)
         self.assertEqual(sum(cap[1] for cap in x.CAPS.values()), x.DELTA_LIMIT)
         self.assertFalse([path for path in x.CAPS if path.endswith('/')])
 
     def test_normalize_restores_exact_m_bytes_and_rejects_drift(self):
         for path in x.BASE_PINS:
-            current = (c.ROOT / path).read_bytes()
+            current = cancel_budget_bytes(path, (c.ROOT / path).read_bytes())
             self.assertEqual(x.normalize(path, current), self.frozen(path), path)
             self.assertEqual(x.normalize(path, self.frozen(path)), self.frozen(path), path)
             with self.assertRaises(AssertionError): x.normalize(path, current + b'#')
         self.assertEqual(x.normalize('README.md', b'unrelated'), b'unrelated')
-        self.assertEqual(previous.normalize(x.WORKFLOW, (c.ROOT / x.WORKFLOW).read_bytes()),
+        self.assertEqual(previous.normalize(x.WORKFLOW, cancel_budget_bytes(x.WORKFLOW, (c.ROOT / x.WORKFLOW).read_bytes())),
                          previous.normalize(x.WORKFLOW, self.frozen(x.WORKFLOW)))
 
     def test_per_pr_groups_are_exact_disjoint_and_droppable(self):
@@ -143,8 +144,8 @@ class DnsCancelCases(unittest.TestCase):
         self.assertFalse(set(flat) & x.LAYER)
 
     def test_dns_tls_cancel_is_signal_driven_without_child_timer(self):
-        sup = (c.ROOT / 'scripts/rc_consumer_transport_supervisor_tests.py').read_bytes().decode()
-        dbc = (c.ROOT / 'scripts/rc_consumer_download_budget_cases.py').read_bytes().decode()
+        sup = cancel_budget_bytes('scripts/rc_consumer_transport_supervisor_tests.py', (c.ROOT / 'scripts/rc_consumer_transport_supervisor_tests.py').read_bytes()).decode()
+        dbc = cancel_budget_bytes('scripts/rc_consumer_download_budget_cases.py', (c.ROOT / 'scripts/rc_consumer_download_budget_cases.py').read_bytes()).decode()
         branch = sup[sup.index("            if mode in {'dns', 'tls'}:"):sup.index("                os._exit(0)")]
         self.assertIn("observed['stage'] = {'entered': time.monotonic()}", branch)
         self.assertIn('while os.read(0, 4096):', branch)
