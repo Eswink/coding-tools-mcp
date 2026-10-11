@@ -54,8 +54,10 @@ def main():
         ast.parse(path.read_text())
         check(len(path.read_text().splitlines())<=400,path.name+' bounded parsed source',rows)
     workflow=(management/'.github/workflows/rc-native-recovery-probe.yml').read_text()
-    check("branches: ['ci/issue148-native-retarget-c60f9667-20261011']" in workflow and 'contents: read' in workflow and 'persist-credentials: false' in workflow and 'fetch-depth: 0' in workflow,'fixedread-only workflow',rows)
-    check(all(s not in workflow for s in ('setup-python','sudo ','apt-get','cargo ','secrets.','workflow_dispatch','pull_request_target','contents: write','GITHUB_TOKEN:')),'no install/compiler/token/release privileges',rows)
+    check("branches: ['ci/issue148-frozen02-layer-20261011']" in workflow and 'contents: read' in workflow and 'persist-credentials: false' in workflow and 'fetch-depth: 0' in workflow,'fixedread-only workflow',rows)
+    native_job=workflow.split('\n  hermetic-layer:\n',1)[0]
+    check('setup-python' not in native_job,'native job uses only runner python',rows)
+    check(all(s not in workflow for s in ('sudo ','apt-get','cargo ','secrets.','workflow_dispatch','pull_request_target','contents: write','GITHUB_TOKEN:')),'no install/compiler/token/release privileges',rows)
     head=os.environ['GITHUB_SHA']
     context=restore(management,output,head)
     check(context['fingerprint']['github_sha']==head and whole_source(context['root'],context['rows'],context['tree'])==context['source'],'layer source restoration matches GITHUB_SHA',rows)

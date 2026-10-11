@@ -11,7 +11,7 @@ from rc_native_probe_restore import restore, sha, write, RUNNER_SHA, FIXTURE_SHA
 from rc_native_probe_kernel import identity, realm
 from rc_native_probe_owner import run_owned, RUNTIME, OPTIONAL_RUNTIME
 
-BRANCH='ci/issue148-native-retarget-c60f9667-20261011'
+BRANCH='ci/issue148-frozen02-layer-20261011'
 FILES=('docs/specs/issue88-native-runtime-recovery-probe/requirements.md',
        'docs/specs/issue88-native-runtime-recovery-probe/design.md',
        'docs/specs/issue88-native-runtime-recovery-probe/tasks.md',
