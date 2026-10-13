@@ -241,7 +241,7 @@ class StageRetirementLifetimeCases(unittest.TestCase):
             self.assertTrue(session._cleanup_failed)
             self.assertEqual(len(self.mutations(tls)), 7)
             self.assertTrue(all(root.path.exists() for root in seen.stage._roots))
-        with self.session() as (session, tls, _, seen):
+        with self.idle_session() as (session, tls, _, seen):
             def lost(method, path, headers, body):
                 tls._release(method, path, headers, body)
                 (seen.stage._output.path / 'foreign').write_bytes(b'foreign')
