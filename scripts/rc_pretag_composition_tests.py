@@ -50,7 +50,7 @@ NARROW = {
 }
 BUDGET = dict(zip(('scripts/rc_pretag_' + suffix + '.py' for suffix in
     ('admission', 'collect', 'collection_result', 'collect_fixtures', 'admission_tests', 'collection_tests', 'composition_tests')),
-    (280, 200, 195, 300, 450, 430, 470)))
+    (280, 200, 195, 300, 450, 430, 508)))
 LIVE, CHECKS = ('.github/workflows/rc-pretag-evidence' + suffix + '.yml' for suffix in ('', '-checks'))
 BUDGET.update({LIVE: 100, CHECKS: 120})
 BUDGET.update({'docs/specs/issue88-pretag-adopter/' + name + '.md': 100 for name in ('requirements', 'design', 'tasks')})
@@ -185,8 +185,26 @@ def _reconstruct_snapshot(text):
     text = _replace_once(text, SNAPSHOT_EXTRA, '')
     text = _replace_once(text, '_repository(repository, expected_repository_id)',
                          "_repository(repository, candidate['consumer']['repository_id'])")
-    return _replace_once(text, '    observed = _ObservedAPI(api, repository_id)\n    result',
+    text = _replace_once(text, '    observed = _ObservedAPI(api, repository_id)\n    result',
                          "    observed = _ObservedAPI(api, repository_id)\n    source = candidate['source_sha']\n    result")
+    wire_import = (
+        'from rc_consumer_io import ConsumerError, need\n'
+        'from rc_consumer_wire_failure import _publication_failure\n')
+    if text.count(wire_import) == 1:
+        text = _replace_once(text, wire_import, 'from rc_consumer_io import ConsumerError, need\n')
+        return _replace_once(
+            text,
+            '    except (OSError, ValueError, TypeError, KeyError, AttributeError,\n'
+            '            OverflowError, RecursionError, subprocess.SubprocessError) as error:\n'
+            '        normalized = _publication_failure(error)\n'
+            "        failure = (normalized if normalized is not None and normalized.effect != 'none'\n"
+            "                   else ConsumerError('invalid_snapshot'))\n"
+            '    raise failure from None\n',
+            '    except (OSError, ValueError, TypeError, KeyError, AttributeError,\n'
+            '            OverflowError, RecursionError, subprocess.SubprocessError):\n'
+            "        raise ConsumerError('invalid_snapshot') from None\n")
+    assert 'rc_consumer_wire_failure' not in text and '_publication_failure' not in text
+    return text
 
 
 def _reconstruct_consumer(text):

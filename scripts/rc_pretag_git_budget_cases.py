@@ -144,7 +144,7 @@ class GitBudgetCompositionCases(unittest.TestCase):
         self.assertEqual(self.content(), self.good)
         self.assertEqual((len(self.original), len(self.good), len(x.CAPS), len(x.BASE_PINS)), (1803, 1813, 17, 7))
         self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
-        self.assertEqual(x.CAPS, {'scripts/rc_artifact_consumer.py': (260, 2), 'scripts/rc_consumer_contracts.py': (300, 12), 'scripts/release_dependency_contract.py': (300, 6), 'scripts/exact_build_audit.py': (480, 48), 'scripts/rc_consumer_fixed_git.py': (420, 420), 'scripts/rc_consumer_git_test_support.py': (120, 120), 'scripts/rc_consumer_fixed_git_cases.py': (225, 225), 'scripts/rc_consumer_git_supervisor_cases.py': (210, 210), 'scripts/rc_publication_git_budget_cases.py': (260, 260), x.DISPATCHER: (220, 6), ADAPTER: (380, 24), x.WORKFLOW: (175, 14), x.PROFILE: (350, 350), x.CASES: (450, 450), **{'docs/specs/issue88-fixed-git-budget/' + name + '.md': (cap, cap) for name, cap in (('requirements', 60), ('design', 90), ('tasks', 70))}})
+        self.assertEqual(x.CAPS, {'.github/workflows/issue88-publication-executor.yml': (175, 14), 'docs/specs/issue88-fixed-git-budget/design.md': (90, 90), 'docs/specs/issue88-fixed-git-budget/requirements.md': (60, 60), 'docs/specs/issue88-fixed-git-budget/tasks.md': (70, 70), 'scripts/exact_build_audit.py': (480, 48), 'scripts/rc_artifact_consumer.py': (260, 2), 'scripts/rc_consumer_contracts.py': (300, 12), 'scripts/rc_consumer_fixed_git.py': (420, 420), 'scripts/rc_consumer_fixed_git_cases.py': (225, 225), 'scripts/rc_consumer_git_supervisor_cases.py': (210, 210), 'scripts/rc_consumer_git_test_support.py': (120, 120), 'scripts/rc_pretag_git_budget_cases.py': (450, 450), 'scripts/rc_pretag_git_budget_profile.py': (350, 350), 'scripts/rc_pretag_stage_retirement_cases.py': (380, 24), 'scripts/rc_pretag_stage_retirement_profile.py': (220, 6), 'scripts/rc_publication_git_budget_cases.py': (260, 260), 'scripts/release_dependency_contract.py': (300, 6)})
         self.assertEqual(self.good[x.PROFILE][2], c._blob(windows_vm_bytes(x.PROFILE, (c.ROOT / x.PROFILE).read_bytes())))
         for path, row in x.SOURCE_PINS.items():
             data = windows_vm_bytes(path, (c.ROOT / path).read_bytes())
@@ -164,7 +164,7 @@ class GitBudgetCompositionCases(unittest.TestCase):
         self.bad_content(self.changed('services/cloud-agent/src/main.rs', b'changed'))
 
     def test_individual_and_aggregate_caps_reject(self):
-        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (2400, 2367))
+        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (2458, 2458))
         data = {path: windows_vm_bytes(path, (c.ROOT / path).read_bytes()) for path in x.CAPS}
         def budgets(git=c._git):
             return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'git_budget_delta_budget')

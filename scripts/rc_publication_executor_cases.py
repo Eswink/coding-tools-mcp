@@ -15,15 +15,40 @@ from rc_publication_stage_cases import publisher_fixture, artifact_worker, artif
 
 class ExecutorCases(unittest.TestCase):
     @contextmanager
-    def session(self):
+    def session(self, idle_timeout=2):
         with publisher_fixture() as fixture, HTTPSFixture(subject=fixture.selection.subject,
-                plan=fixture.plan, payloads=fixture.payloads) as tls:
+                plan=fixture.plan, payloads=fixture.payloads, idle_timeout=idle_timeout) as tls:
             tls.route = lambda *args: artifact_route(fixture, *args)
             with patch.object(wire, '_connect', side_effect=tls.connect), authorities(), artifact_worker(fixture, tls):
                 session = executor.PublisherSession(fixture.root, fixture.selection, 'fixture-token',
                                                      temporary_parent=fixture.temporary_parent)
+                def current_phase(selection, api, *, deadline, check_active):
+                    # Local modeled gates still grant no GitHub authority. Do
+                    # not skip the real owner refresh performed by production
+                    # full authentication at each native operation boundary.
+                    import rc_publication_artifact_admission as artifacts
+                    owner = artifacts._OWNERS.get(api)
+                    if owner is not None:
+                        self.assertIs(owner, session._artifact_owner)
+                        self.assertIs(owner.stage, session._stage)
+                        self.assertIs(owner.selection, api.selection)
+                        self.assertTrue(owner.entered and not owner.closed)
+                        failure = None
+                        try:
+                            owner._capture(deadline=deadline, check_active=check_active)
+                        except artifacts.ConsumerError as error:
+                            if error.code not in ('transport_cancelled', 'transport_deadline_exceeded',
+                                                  'artifact_transport_failed'):
+                                raise
+                            # Model the real producer's fixed conversion only;
+                            # do not grant a scope, retry or normalize effects.
+                            failure = artifacts._wire_failure(error)
+                        if failure is not None:
+                            raise failure from None
+                    return gates(selection, api, deadline=deadline, check_active=check_active)
                 try:
-                    yield session, tls, fixture
+                    with patch.object(wire, '_authenticate', side_effect=current_phase):
+                        yield session, tls, fixture
                 finally:
                     try:
                         session.close()
@@ -43,11 +68,13 @@ class ExecutorCases(unittest.TestCase):
 
     def test_live_entry_is_blocked_without_real_verifiers_and_tag_guarantee(self):
         from rc_publication_admission_cases import IntegrationTLS
+        import rc_publication_artifact_admission as artifacts
         with IntegrationTLS() as tls, tempfile.TemporaryDirectory() as root:
             selection = tls.selection
             for patched in (False, True):
                 tls.requests.clear(); tls.counts.clear()
-                with self.subTest(authenticator_only=patched), patch.object(executor, 'stage_selected') as stage:
+                with self.subTest(authenticator_only=patched), patch.object(artifacts, 'stage_selected',
+                        side_effect=wire.WireFailure('fence_blocked', 'none')) as stage:
                     session = executor.PublisherSession(root, selection, 'fixture-token', temporary_parent=root)
                     with patch.object(wire, '_authenticate', side_effect=gates if patched else wire._authenticate):
                         with self.assertRaises(wire.WireFailure) as failure:
@@ -55,8 +82,8 @@ class ExecutorCases(unittest.TestCase):
                     self.assertEqual((failure.exception.code, failure.exception.effect), ('fence_blocked', 'none'))
                     self.assertEqual(session.outcome, 'blocked_no_effect')
                     self.assertIsNone(session.transition)
-                    stage.assert_not_called()
-                    self.assertEqual([r[1] for r in tls.requests], [] if patched else tls.packaging_paths)
+                    stage.assert_called_once()
+                    self.assertEqual([r[1] for r in tls.requests], tls.packaging_paths)
                     self.assertTrue(all(r[0] == 'GET' and r[3] == b'' for r in tls.requests))
                     self.assertEqual(self.mutations(tls), [])
                     session.close()
@@ -85,7 +112,7 @@ class ExecutorCases(unittest.TestCase):
     def test_each_mutation_rechecks_current_owner_scope(self):
         with self.session() as (session, tls, _):
             seen = []
-            def owner(op, subject):
+            def owner(op, subject, **_):
                 seen.append((op.operation_id, op.kind, subject))
                 if op.kind == 'PublishPrerelease':
                     raise wire.WireFailure('denied', 'none')
@@ -100,7 +127,7 @@ class ExecutorCases(unittest.TestCase):
 
     def test_cancellation_before_dispatch_has_no_effect(self):
         with self.session() as (session, tls, _):
-            with patch.object(wire, '_authorize', side_effect=lambda *_: session.cancel()):
+            with patch.object(wire, '_authorize', side_effect=lambda *_, **__: session.cancel()):
                 result = session.run_until_pause()
             self.assertEqual(result.state.outcome, 'blocked_no_effect')
             self.assertEqual(result.state.code, 'cancelled')
@@ -144,7 +171,7 @@ class ExecutorCases(unittest.TestCase):
             with self.assertRaises(wire.WireFailure):
                 session.request_publish(core.PublicationRequest('early', 'owner', 100, 'a' * 64))
             observed = []
-            def owner(op, subject):
+            def owner(op, subject, **_):
                 with self.assertRaises(wire.WireFailure):
                     session.run_until_pause()
                 observed.append(op.operation_id)
@@ -233,7 +260,7 @@ class ExecutorCases(unittest.TestCase):
                 self.assertEqual(self.mutations(tls), [])
 
     def test_publish_request_never_grants_authority(self):
-        with self.session() as (session, tls, _):
+        with self.session(idle_timeout=30) as (session, tls, _):
             session.run_until_pause()
             request = self.request(session)
             with patch.object(wire, '_authenticate', side_effect=wire.WireFailure('denied', 'none')):
@@ -244,7 +271,7 @@ class ExecutorCases(unittest.TestCase):
 
     def test_pause_close_is_local_only_and_cannot_resume(self):
         for method in ('close', 'cancel', 'cancelled_request'):
-            with self.subTest(method=method), self.session() as (session, tls, _):
+            with self.subTest(method=method), self.session(idle_timeout=30) as (session, tls, _):
                 pause = session.run_until_pause()
                 handles = [session._stage.stream(i) for i in range(6)]
                 count = len(tls.requests)
@@ -260,7 +287,7 @@ class ExecutorCases(unittest.TestCase):
                 self.assertTrue(all(handle.closed for handle in handles))
                 with self.assertRaises(wire.WireFailure):
                     session.request_publish(self.request(session))
-        with self.session() as (session, tls, _):
+        with self.session(idle_timeout=30) as (session, tls, _):
             previous, captured = sys.getprofile(), []
             def at_pause(frame, event, result):
                 if (frame.f_code is core.advance.__code__ and event == 'return'

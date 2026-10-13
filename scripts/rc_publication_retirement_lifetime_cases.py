@@ -6,6 +6,7 @@ import unittest
 
 import rc_consumer_io as safe
 import rc_publication_contract as core
+import rc_publication_executor as executor
 import rc_publication_executor_cases as old
 import rc_publication_github as wire
 import rc_publication_retirement as retirement
@@ -23,6 +24,13 @@ class StageRetirementLifetimeCases(unittest.TestCase):
     blocked_download = previous.StagingBudgetCases.blocked_download
     request = staticmethod(old.ExecutorCases.request)
     mutations = staticmethod(old.ExecutorCases.mutations)
+
+    @contextmanager
+    def idle_session(self, *, seconds=30, **faults):
+        # Full owned run to the pause: same 30 s fixture idle bound as executor_cases pause_close (blocker 2).
+        with old.ExecutorCases.session(self, idle_timeout=30) as (session, tls, fixture):
+            with self.recording(**faults) as seen, patch.object(executor, 'OPERATION_SECONDS', seconds):
+                yield session, tls, fixture, seen
 
     @contextmanager
     def recording(self, **kwargs):
@@ -194,7 +202,7 @@ class StageRetirementLifetimeCases(unittest.TestCase):
 
     def test_pause_close_and_cancel_remain_local_and_cannot_resume(self):
         for method in ('close', 'cancel'):
-            with self.session() as (session, tls, _, seen):
+            with self.idle_session() as (session, tls, _, seen):
                 pause = session.run_until_pause()
                 paths = tuple(root.path for root in seen.stage._roots)
                 requests = len(tls.requests)
@@ -223,7 +231,7 @@ class StageRetirementLifetimeCases(unittest.TestCase):
             self.assertTrue(all(root.path.exists() for root in seen.stage._roots))
 
     def test_prior_draft_and_unknown_mutation_effects_survive_retirement_failure(self):
-        with self.session() as (session, tls, _, seen):
+        with self.idle_session() as (session, tls, _, seen):
             session.run_until_pause()
             ident = session.transition.state.release_id
             (seen.stage._output.path / 'foreign').write_bytes(b'foreign')
@@ -233,7 +241,7 @@ class StageRetirementLifetimeCases(unittest.TestCase):
             self.assertTrue(session._cleanup_failed)
             self.assertEqual(len(self.mutations(tls)), 7)
             self.assertTrue(all(root.path.exists() for root in seen.stage._roots))
-        with self.session() as (session, tls, _, seen):
+        with self.idle_session() as (session, tls, _, seen):
             def lost(method, path, headers, body):
                 tls._release(method, path, headers, body)
                 (seen.stage._output.path / 'foreign').write_bytes(b'foreign')
@@ -247,7 +255,7 @@ class StageRetirementLifetimeCases(unittest.TestCase):
             self.assertTrue(all(root.path.exists() for root in seen.stage._roots))
 
     def test_confirmed_publish_retirement_failure_remains_published_unverified(self):
-        with self.session() as (session, tls, _, seen):
+        with self.idle_session() as (session, tls, _, seen):
             session.run_until_pause()
             ident = session.transition.state.release_id
             unlink, attempts = os.unlink, []

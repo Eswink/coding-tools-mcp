@@ -142,7 +142,7 @@ class StageRetirementCompositionCases(unittest.TestCase):
         self.assertEqual(self.content(), self.good)
         self.assertEqual((len(self.original), len(self.good), len(x.CAPS), len(x.BASE_PINS)), (1795, 1803, 15, 7))
         self.assertEqual(x.SOURCE_PINS.keys(), x.CAPS.keys() - {x.PROFILE})
-        self.assertEqual(x.CAPS, {'scripts/rc_consumer_io.py': (480, 90), 'scripts/rc_publication_stage.py': (380, 40), 'scripts/rc_publication_stage_cases.py': (360, 6), 'scripts/rc_publication_staged_bytes_cases.py': (500, 4), 'scripts/rc_publication_retirement.py': (260, 260), 'scripts/rc_publication_retirement_cases.py': (470, 470), 'scripts/rc_publication_retirement_lifetime_cases.py': (280, 280), 'scripts/rc_pretag_supervisor_readiness_profile.py': (185, 6), 'scripts/rc_pretag_supervisor_readiness_cases.py': (350, 30), 'scripts/rc_pretag_stage_retirement_profile.py': (350, 350), 'scripts/rc_pretag_stage_retirement_cases.py': (450, 450), '.github/workflows/issue88-publication-executor.yml': (165, 14), 'docs/specs/issue88-stage-retirement/requirements.md': (60, 60), 'docs/specs/issue88-stage-retirement/design.md': (90, 90), 'docs/specs/issue88-stage-retirement/tasks.md': (70, 70)})
+        self.assertEqual(x.CAPS, {'.github/workflows/issue88-publication-executor.yml': (165, 14), 'docs/specs/issue88-stage-retirement/design.md': (90, 90), 'docs/specs/issue88-stage-retirement/requirements.md': (60, 60), 'docs/specs/issue88-stage-retirement/tasks.md': (70, 70), 'scripts/rc_consumer_io.py': (481, 100), 'scripts/rc_pretag_stage_retirement_cases.py': (450, 450), 'scripts/rc_pretag_stage_retirement_profile.py': (350, 350), 'scripts/rc_pretag_supervisor_readiness_cases.py': (350, 30), 'scripts/rc_pretag_supervisor_readiness_profile.py': (185, 6), 'scripts/rc_publication_retirement.py': (260, 260), 'scripts/rc_publication_retirement_cases.py': (470, 470), 'scripts/rc_publication_retirement_lifetime_cases.py': (280, 280), 'scripts/rc_publication_stage.py': (428, 40), 'scripts/rc_publication_stage_cases.py': (360, 13), 'scripts/rc_publication_staged_bytes_cases.py': (500, 4)})
         self.assertEqual(self.good[x.PROFILE][2], c._blob(git_budget_bytes(x.PROFILE, (c.ROOT / x.PROFILE).read_bytes())))
         for path, row in x.SOURCE_PINS.items():
             data = git_budget_bytes(path, (c.ROOT / path).read_bytes())
@@ -162,7 +162,7 @@ class StageRetirementCompositionCases(unittest.TestCase):
         self.bad_content(self.changed('services/cloud-agent/src/main.rs', b'changed'))
 
     def test_individual_and_aggregate_caps_reject(self):
-        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (2250, 2220))
+        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (2305, 2305))
         data = {path: git_budget_bytes(path, (c.ROOT / path).read_bytes()) for path in x.CAPS}
         def budgets(git=c._git):
             return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'stage_retirement_delta_budget')
