@@ -414,6 +414,7 @@ class SnapshotWarningCompositionTests(unittest.TestCase):
                 pt.inventory_ids(ids, 20, DIGEST)
 
     def test_held_scope_versions_and_release_permissions_unchanged(self):
+        from rc_pretag_linux_package_inverse import normalize
         protected = self.original.keys() - p.WARNING_CAPS.keys()
         self.assertTrue(all(self.good[path] == self.original[path] for path in protected))
         held = {'docs/specs/rc-source-assembly-engineering/' + name for name in ('README.md', 'design.md', 'requirements.md',
@@ -424,8 +425,9 @@ class SnapshotWarningCompositionTests(unittest.TestCase):
         self.assertFalse(held & self.good.keys())
         for path in held:
             self.assertFalse((c.ROOT / path).exists() or (c.ROOT / path).is_symlink(), path)
-        for path in ('package.json', 'package-lock.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json',
-                     p.CHECKS, p.CONTRACTS, '.github/workflows/rc-pretag-evidence.yml', '.github/workflows/final-rc-packages.yml',
+        for path in ('package.json', 'package-lock.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json'):
+            self.assertEqual(normalize(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
+        for path in (p.CHECKS, p.CONTRACTS, '.github/workflows/rc-pretag-evidence.yml', '.github/workflows/final-rc-packages.yml',
                      'scripts/rc_release_policy.py', 'scripts/rc_release_eligibility.py'):
             self.assertEqual(integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
 
