@@ -185,8 +185,24 @@ def _reconstruct_snapshot(text):
     text = _replace_once(text, SNAPSHOT_EXTRA, '')
     text = _replace_once(text, '_repository(repository, expected_repository_id)',
                          "_repository(repository, candidate['consumer']['repository_id'])")
-    return _replace_once(text, '    observed = _ObservedAPI(api, repository_id)\n    result',
+    text = _replace_once(text, '    observed = _ObservedAPI(api, repository_id)\n    result',
                          "    observed = _ObservedAPI(api, repository_id)\n    source = candidate['source_sha']\n    result")
+    text = _replace_once(
+        text,
+        'from rc_consumer_io import ConsumerError, need\n'
+        'from rc_consumer_wire_failure import _publication_failure\n',
+        'from rc_consumer_io import ConsumerError, need\n')
+    return _replace_once(
+        text,
+        '    except (OSError, ValueError, TypeError, KeyError, AttributeError,\n'
+        '            OverflowError, RecursionError, subprocess.SubprocessError) as error:\n'
+        '        normalized = _publication_failure(error)\n'
+        "        failure = (normalized if normalized is not None and normalized.effect != 'none'\n"
+        "                   else ConsumerError('invalid_snapshot'))\n"
+        '    raise failure from None\n',
+        '    except (OSError, ValueError, TypeError, KeyError, AttributeError,\n'
+        '            OverflowError, RecursionError, subprocess.SubprocessError):\n'
+        "        raise ConsumerError('invalid_snapshot') from None\n")
 
 
 def _reconstruct_consumer(text):

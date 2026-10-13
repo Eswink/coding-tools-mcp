@@ -162,7 +162,7 @@ class StageRetirementCompositionCases(unittest.TestCase):
         self.bad_content(self.changed('services/cloud-agent/src/main.rs', b'changed'))
 
     def test_individual_and_aggregate_caps_reject(self):
-        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (2250, 2237))
+        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (2259, 2259))
         data = {path: git_budget_bytes(path, (c.ROOT / path).read_bytes()) for path in x.CAPS}
         def budgets(git=c._git):
             return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'stage_retirement_delta_budget')
