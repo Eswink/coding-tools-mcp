@@ -26,7 +26,7 @@ def source():
     paths += ['scripts/rc_publication_artifact_admission.py', 'scripts/rc_publication_artifact_admission_cases.py']
     paths += [str(p.relative_to(root)) for p in (root / 'docs/specs/issue88-artifact-admission').glob('*.md')]
     return {p: dict(size=(root/p).stat().st_size, mode=stat.S_IMODE((root/p).stat().st_mode), sha256=hashlib.sha256((root/p).read_bytes()).hexdigest())
-            for p in sorted(set(paths)) if p}
+            for p in sorted(set(paths)) if p and p != 'scripts/rc_native_probe_source_manifest.json'}
 
 def flatten(suite):
     for case in suite:

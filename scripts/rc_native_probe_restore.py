@@ -9,7 +9,7 @@ import subprocess
 BASE = 'c60f9667fa8431e27fabbc497c19b4abfef5b965'
 MANIFEST = 'scripts/rc_native_probe_source_manifest.json'
 FINGERPRINT_FIELDS = ('github_sha', 'tree', 'file_count', 'index_sha256', 'manifest_sha256')
-RUNNER_SHA = 'ecfd57ec3d5d8e669076f86a56f869ce65b82d6a5fd7382e04dd3f4505343c0c'
+RUNNER_SHA = 'e7661d77e02f6c0eb00127247ad0045dde9230aeedb1636af278f2c031e0b231'
 FIXTURE_SHA = '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5'
 ENV = {'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8',
        'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_NO_REPLACE_OBJECTS': '1',

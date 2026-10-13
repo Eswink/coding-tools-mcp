@@ -164,5 +164,29 @@ class RestoreInRepo(unittest.TestCase):
         self.assertIn('b.txt', str(caught.exception))
 
 
+
+class ExcludesSelfObservation(unittest.TestCase):
+    """excludes_self: MANIFEST stays out of source observation (receipt/context), keep 1882."""
+
+    def test_committed_manifest_excludes_self(self):
+        import json
+        manifest = json.loads((ROOT/R.MANIFEST).read_text())
+        self.assertEqual(manifest['excludes_self'], R.MANIFEST)
+        self.assertEqual(manifest['entries'], len(manifest['rows']))
+        self.assertNotIn(R.MANIFEST, [r['path'] for r in manifest['rows']])
+
+    def test_runner_source_filter_excludes_manifest(self):
+        raw = (ROOT/'scripts/rc_native_probe_original_runner.py').read_text()
+        self.assertIn("p != 'scripts/rc_native_probe_source_manifest.json'", raw)
+        # Negative: dropping the exclusion must not match the pinned runner.
+        mutated = raw.replace(" and p != 'scripts/rc_native_probe_source_manifest.json'", '')
+        self.assertNotEqual(R.sha(mutated.encode()), R.RUNNER_SHA)
+
+    def test_restore_source_dict_excludes_manifest(self):
+        # Lightweight: rows/source from current tree via manifest_rows + whole_source contract
+        rows = R.manifest_rows(ROOT)
+        self.assertNotIn(R.MANIFEST, [r['path'] for r in rows])
+        self.assertEqual(len(rows), 1882)
+
 if __name__ == '__main__':
     unittest.main()

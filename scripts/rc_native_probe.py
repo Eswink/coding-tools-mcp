@@ -101,7 +101,7 @@ def main():
     carrier={str(p):identity(p) for p in paths}
     runner=management/'scripts/rc_native_probe_original_runner.py'
     verify_runner(runner)
-    assert len(runner.read_bytes())==6327
+    assert len(runner.read_bytes())==6383
     context=restore(management,output,head)
     write(output/'CARRIER-IDENTITY.json',dict(commit=head,branch=BRANCH,files=carrier,
           source_tree=context['tree'],pure_source_count=context['count'],fingerprint=context['fingerprint'],immutable_runner_sha256=RUNNER_SHA,
