@@ -19,6 +19,11 @@ BASE_PINS = {
     'scripts/AppImage入口回归v3.py': ('381aaa5b94de5d2846f16a26de386b177a5ca708', '1a129625b9cabec45163d965643b40aa882d3bc8d69eb687b15724237b3d142f'),
     'scripts/exact_build_audit.py': ('e61555dc20d399ded0fd5b9dee13c8ad73308d4d', 'bd3498ab98998e10ff0690d856444d990338ea009aab3ae77a29d792d7add6ec'),
     'scripts/desktop_glib_build_evidence_tests.py': ('7cafe9d4c560539bfe0a6df7cba31ab494dd7481', '21e93677a8ab28c8611fe0e10c086ccd6858bff332a00220a1175462974743cc'),
+    'package.json': ('be612154ddf0349f976bcfa73e8998c98dd835cb', 'a781b65acbf4ca1aa67e027bb7d1788fba15f12494527f5a6f19bfff537f53da'),
+    'package-lock.json': ('8504712c58459cbe3fb7c93c1972ba4ed855e088', '3d4598d5c754776c0ae17f5c9f27379be58fba51a8f91fa2e71a78949b5711dc'),
+    'src-tauri/Cargo.toml': ('feead83a470fe3b07ad432806a6c657f3ab7a44e', '9603b57332e9d08a57bc0e31f7b28f2c1409d59cd6548b13c8e2f902796f36c8'),
+    'src-tauri/Cargo.lock': ('72584548c8689aa118d14bdf4b1907530f92b68f', '95d96ca74f44d077f64c81d6e57e40c46ff98b49355a7f590732d7bf72f7d870'),
+    'src-tauri/tauri.conf.json': ('42bd9cae27da34aeef378054a5eaa3a6a8095570', '2e524391006f507b5323dcf04c36c3e324ced44aef8ffc2ec0ae2d196a2867f4'),
 }
 CURRENT_PINS = {
     '.github/workflows/linux-rc-packages.yml': ('264ed6f35671a615f6c1d57fa4ee256d8b587cec', '919b7d2320458f20261ce7c20654e171aae983ac34a0ea0cb7701e84b125e4eb'),
@@ -37,6 +42,11 @@ CURRENT_PINS = {
     'scripts/AppImage入口回归v3.py': ('30f74f356ee2e4df0a81af711e0f850c4512234c', '6d7b8786f32d28e3186139036d9c644b01459f9aeb6f10c528cada1827096b91'),
     'scripts/exact_build_audit.py': ('49c81b1d77a83536ad7330ec0d42169fd423a1c3', '85e8b30e456ac4a83616564389de628a0aa3e9d5447775f0496e9b1c475ccf80'),
     'scripts/desktop_glib_build_evidence_tests.py': ('229e46713df40af2f8d68c85192aa19e5200e816', '4ceab8c2d5fc68c0923ad42d6c0e4cdbdecd93eece002c1dec86ed46e261cb97'),
+    'package.json': ('3497aa0f278555b93241e62a61a77856c27b96fb', 'ac0288b71b499c47eb187ba000e144b22653a3d0d7296f5e77b3bcb1f6dc843d'),
+    'package-lock.json': ('af3a4921ddc8310ce3bf4f4177f9ae773593c6e0', '1d9c5c9af48713c4ecde9669bf043207c2695eea7376aa3123ed5d4fccd1907a'),
+    'src-tauri/Cargo.toml': ('9bca05716da181f2086ec5bef75b4dced75fc350', 'f2bfbce7f94857ab061c60ec462e137bcb24e51fc8bda190780c337378b7bff2'),
+    'src-tauri/Cargo.lock': ('73810757f12f5fb692809182168b6c59a5a4fc90', '51a1b8178e8d8933256975acb5a7eb2e4cbfc84805db6f2d9bda7a0c084cd85a'),
+    'src-tauri/tauri.conf.json': ('bd0d4670390aeedd42f54bfa296f11a13aab7e8b', 'c6adb149bf647a49b686f11c8cb5bc69191633233e47729c2c35fd7646182f80'),
 }
 PRIOR_PINS = {
     '.github/workflows/linux-rc-packages.yml': (('7acae23c4d96c29f13326a4e172fa4b6c8859746', '66a0a63215a695c1af2678c463d145ec0c91acbbb702404ca38efdcea8d1dda9'),),
@@ -152,6 +162,25 @@ FRAGMENTS = {
         (b"        with self.assertRaises(ValueError): c.read_regular(self.path)\n        self.assertEqual(c.stable_file(self.path, self.root, 100, allow_hardlinks=True)['size'], 8)\n        census_cases.recovery_cases(self)\n\n    def test_hardlink_outside_target_rejects(self):\n", b"        with self.assertRaises(ValueError): c.read_regular(self.path)\n        self.assertEqual(c.stable_file(self.path, self.root, 100, allow_hardlinks=True)['size'], 8)\n\n    def test_hardlink_outside_target_rejects(self):\n"),
         (b"        with self.assertRaisesRegex(ValueError, 'outside_target'):\n            c.stable_file(inside, target, 100, allow_hardlinks=True)\n        census_cases.rejection_cases(self)\n\n    def test_copy_refuses_existing_destination(self):\n", b"        with self.assertRaisesRegex(ValueError, 'outside_target'):\n            c.stable_file(inside, target, 100, allow_hardlinks=True)\n\n    def test_copy_refuses_existing_destination(self):\n"),
         (b"        self.assertEqual(before['size'], self.path.stat().st_size)\n        self.assertNotEqual(before['sha256'], c.file_record(self.path)['sha256'])\n        census_cases.named_replacement_case(self)\n\n    def test_file_size_and_root_boundaries(self):\n", b"        self.assertEqual(before['size'], self.path.stat().st_size)\n        self.assertNotEqual(before['sha256'], c.file_record(self.path)['sha256'])\n\n    def test_file_size_and_root_boundaries(self):\n"),
+    ),
+    'package.json': (
+        (b'  "name": "coding-tools-mcp-desktop",\n  "version": "0.7.0-rc.1",\n  "description": "Coding Tools MCP desktop client",\n', b'  "name": "coding-tools-mcp-desktop",\n  "version": "0.6.0-rc.4",\n  "description": "Coding Tools MCP desktop client",\n'),
+    ),
+    'package-lock.json': (
+        (b'  "name": "coding-tools-mcp-desktop",\n  "version": "0.7.0-rc.1",\n  "lockfileVersion": 3,\n', b'  "name": "coding-tools-mcp-desktop",\n  "version": "0.6.0-rc.4",\n  "lockfileVersion": 3,\n'),
+        (b'      "name": "coding-tools-mcp-desktop",\n      "version": "0.7.0-rc.1",\n      "license": "Apache-2.0",\n', b'      "name": "coding-tools-mcp-desktop",\n      "version": "0.6.0-rc.4",\n      "license": "Apache-2.0",\n'),
+    ),
+    'src-tauri/Cargo.toml': (
+        (b'name = "coding-tools-mcp-desktop"\nversion = "0.7.0-rc.1"\ndescription = "Coding Tools MCP desktop client"\n', b'name = "coding-tools-mcp-desktop"\nversion = "0.6.0-rc.4"\ndescription = "Coding Tools MCP desktop client"\n'),
+    ),
+    'src-tauri/Cargo.lock': (
+        (b'name = "coding-tools-cloud-agent"\nversion = "0.7.0-rc.1"\ndependencies = [\n', b'name = "coding-tools-cloud-agent"\nversion = "0.1.0"\ndependencies = [\n'),
+        (b'name = "coding-tools-local-agent"\nversion = "0.7.0-rc.1"\ndependencies = [\n', b'name = "coding-tools-local-agent"\nversion = "0.1.0"\ndependencies = [\n'),
+        (b'name = "coding-tools-mcp-desktop"\nversion = "0.7.0-rc.1"\ndependencies = [\n', b'name = "coding-tools-mcp-desktop"\nversion = "0.6.0-rc.4"\ndependencies = [\n'),
+    ),
+    'src-tauri/tauri.conf.json': (
+        (b'  "productName": "Coding Tools MCP",\n  "version": "0.7.0-rc.1",\n  "identifier": "com.codingtools.mcp.desktop",\n', b'  "productName": "Coding Tools MCP",\n  "version": "0.6.0-rc.4",\n  "identifier": "com.codingtools.mcp.desktop",\n'),
+        (b'    "active": true,\n    "targets": ["nsis", "deb", "appimage", "app", "dmg"],\n    "icon": [\n', b'    "active": true,\n    "targets": "all",\n    "icon": [\n'),
     ),
 }
 
