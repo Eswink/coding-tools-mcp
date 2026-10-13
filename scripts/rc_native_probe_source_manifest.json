@@ -6597,18 +6597,18 @@
    "sha256": "7a37e92e86acaa16b253ef90a6fc6a4bccadaca47d8944bc98a018234d7ab901"
   },
   {
-   "blob": "fb65ec417c757347d148755e5017a0bcae6538ff",
+   "blob": "74e0d866939653956dceffc614d84ad1a3ea900a",
    "bytes": 29119,
    "mode": "100644",
    "path": "scripts/rc_pretag_archive_budget_cases.py",
-   "sha256": "cd7f1b4c8dd438b239ff3e86af54d85bdc212424ff13ee1240de149496d65e90"
+   "sha256": "c5d321d576b9e06dd5fd33a29bb1808a6a6d45e8164a4497b0e888c31cad46a4"
   },
   {
-   "blob": "11413aaf01b337119ff2cb236e1d5707f54d86aa",
-   "bytes": 98049,
+   "blob": "c05607f3322068f491b0a2321d5b170a629507d3",
+   "bytes": 317602,
    "mode": "100644",
    "path": "scripts/rc_pretag_archive_budget_profile.py",
-   "sha256": "e917afd9d07a449a61b4057375baa608efb8e4e02637ede091a41792316e041a"
+   "sha256": "cffad2a61e4226edb147283b36e9ac8585fde22123e6ccd912b081d503fd10fe"
   },
   {
    "blob": "084930111f616f175f40342e0a18acd146357c67",
@@ -6625,18 +6625,18 @@
    "sha256": "4d5ffa4e2670847b32f70f8ad7b1290b6d359a0ee847abfe802b3f053ffa71b3"
   },
   {
-   "blob": "8f927d26390916ee2c56734188c487985590de5c",
+   "blob": "1dbf81dc2304c1466bbb8ccbe04e1ee138b6141c",
    "bytes": 28037,
    "mode": "100644",
    "path": "scripts/rc_pretag_checksum_budget_cases.py",
-   "sha256": "8b4f919fb5c5f85b353b063a613c1e45e941fa55b55c5d7c911a72ee28c13142"
+   "sha256": "1fc4163ddb90643486d9f6efa5a1d5a1e6ef6c61fa9250430cbed2308cf25fd2"
   },
   {
-   "blob": "e615309a4465a87f2003551e896733b01d40eeff",
-   "bytes": 67559,
+   "blob": "ce74edc6eee76c73f1576b11283e5187f9ff3138",
+   "bytes": 222643,
    "mode": "100644",
    "path": "scripts/rc_pretag_checksum_budget_profile.py",
-   "sha256": "694bc4b745bda388f47faa0b936007b0dcae43455939db82b065cd0d531c52e6"
+   "sha256": "8c66c6743311cfdb18e821a08623398be9a865bb46b889030b5972765ac8047f"
   },
   {
    "blob": "88dbd000bc2bbe3b2c565f1f4d6d07b2df295f3e",
@@ -6667,11 +6667,11 @@
    "sha256": "23c1ec498d316a77ab5c5865fe3976bd71282af4f0cbadf777d5adc04fbf214b"
   },
   {
-   "blob": "50f7407c50e746a50931c7f1e5ae38658d32f315",
-   "bytes": 37529,
+   "blob": "e8e73a0f688f31f6fcedb5732a4cffee0f700600",
+   "bytes": 37735,
    "mode": "100644",
    "path": "scripts/rc_pretag_composition_tests.py",
-   "sha256": "5860fd28c1830027b1a5b237e5b11bf4a8dd9a3e3c386b06a2733539347b5c17"
+   "sha256": "433d9e2de6e7da2f386940f1e73eef3d1503a7a12d686b607a050ecabb4ea3a5"
   },
   {
    "blob": "34775210e71951a7e15bc1fb16fd269ad5fd7244",
@@ -6688,18 +6688,18 @@
    "sha256": "3b4399957c607435860f3834ef0600ee440b470038a6c477927c6a2d8db66474"
   },
   {
-   "blob": "a7d5170714fc766750581d87f23a88b0e840d1b6",
+   "blob": "75aa647b5260d9636f11c2e484b9f9030dea457a",
    "bytes": 29816,
    "mode": "100644",
    "path": "scripts/rc_pretag_download_budget_cases.py",
-   "sha256": "147dd4db009fd0aec48e70cc27e27d01ab463a498988236c9efccb57e5518512"
+   "sha256": "4e78d14bd7b9af4287f25b0be7dc32d03377969825dfcb15234ebbbaad384916"
   },
   {
-   "blob": "a304547096cfd3b34fb22b394ab481d718d9f727",
-   "bytes": 63535,
+   "blob": "8c48271c566d8d13b65a9ca58d60623adfa1646e",
+   "bytes": 67149,
    "mode": "100644",
    "path": "scripts/rc_pretag_download_budget_profile.py",
-   "sha256": "7b71b264506db2e66f22d0edd5683fdb8851b27b0fede3fab7caaf203e8d4bc4"
+   "sha256": "89911cfe7e901a72cfe46a8b05d3d0acefa5dbd29640f456d84aa4b8b9abee6d"
   },
   {
    "blob": "a366e08bbad9f2635136dca8c92ad785b7a7e972",
@@ -6716,11 +6716,11 @@
    "sha256": "2b3460fb7b655ded55558205dbb054364679beafb30b4d305e542f143fc34143"
   },
   {
-   "blob": "71cb1693ef3b88d49aab4d47e0146c6514b9f0b2",
-   "bytes": 49623,
+   "blob": "0fc0540784078224822fa79c16a8e4a017196c53",
+   "bytes": 49988,
    "mode": "100644",
    "path": "scripts/rc_pretag_final_admission_profile.py",
-   "sha256": "4314b9d746fbbdcab030d91bc9d3bd69cef0a86624894e06f295c72de07a5721"
+   "sha256": "01cf09f95ccb2b234664f2df56e06c87afaf497379d60b82b0a376b1f52c6b14"
   },
   {
    "blob": "be1d5fd9dd1dcf099fa0cddf118a34421f42d104",
@@ -6737,11 +6737,11 @@
    "sha256": "2f1139f10b575527aa5f90cc09878b7d357c2ec46200d302f40fe8412c85831f"
   },
   {
-   "blob": "944b500df2915d08c2dfd63668bc55006fae524d",
-   "bytes": 383387,
+   "blob": "c40bf1b03cf9d1a542a0924236cc4984c7a47e1c",
+   "bytes": 1450195,
    "mode": "100644",
    "path": "scripts/rc_pretag_git_budget_profile.py",
-   "sha256": "4653143233c2e33af5c6d41ed733f0cec0c1de7f0549db72c84df2ffe04c8751"
+   "sha256": "055d0f744622a7e9c427a7a837fe934a66f34f8ede32afab50be3657a5ad5189"
   },
   {
    "blob": "48500a3d6a3ba5a6e874dc91700cc21840d6e0b6",
@@ -6814,11 +6814,11 @@
    "sha256": "4922466b9eb42d0217d103bf826055dc7db5c56dfaa15d9be5b17f6eb64e6649"
   },
   {
-   "blob": "bb3c608556c5b40c43c7ab4b3846d60ff425e3c6",
+   "blob": "f4fe6aab542e58951352e4342798aa300a0382f2",
    "bytes": 22925,
    "mode": "100644",
    "path": "scripts/rc_pretag_ownership_tests.py",
-   "sha256": "bbc901fd5449aaa9a58abddb94c372e7fc170e4847602c38f81c918b09b6a3da"
+   "sha256": "b1cdcfcfc0ca7441d8c972d7488e9152d4c203f56ff32d1b2908d2391dd57bef"
   },
   {
    "blob": "9b7f474ad04a094e275d05517aa87c37bc82d02d",
@@ -6891,60 +6891,60 @@
    "sha256": "f749e21b107da327b3059c5dc9c3c2a4c50fd5f9c9d086e82c53337a30ade2ca"
   },
   {
-   "blob": "fa11a1b1c124229c76039033a887c62d90d0ea7d",
+   "blob": "bcb36ccfd73a45a43ebd9535ca3c9125ecb7e5e8",
    "bytes": 28199,
    "mode": "100644",
    "path": "scripts/rc_pretag_stage_retirement_cases.py",
-   "sha256": "f0d91faa1de9b2b14b21fb9ff6faf56fe35f2c458c225df648a7563dd7f4e26f"
+   "sha256": "0ed018f0d370d3636f71f95e1bfa92a89bc3c32a2047612a25efbfdbbf163dd4"
   },
   {
-   "blob": "cfafc7c8111796ef67b345ae046d103358d6c128",
-   "bytes": 205943,
+   "blob": "3468ad24da6aa6f62a1a70e771314d68e4d17480",
+   "bytes": 937503,
    "mode": "100644",
    "path": "scripts/rc_pretag_stage_retirement_profile.py",
-   "sha256": "e1f4ab7f1ce70e68948d9e22582c2082465581ef240694460bd3fddc302c0c88"
+   "sha256": "fddfdcc2a407bec74c7059fb4357e6a68cd432638df410c1898f0de78299112f"
   },
   {
-   "blob": "a4f5b387cf94f92920a6d8990b106ea6ca5c7cdc",
+   "blob": "7bd8f27f585ce0704011e52d44b4e1695910b918",
    "bytes": 32523,
    "mode": "100644",
    "path": "scripts/rc_pretag_staged_bytes_cases.py",
-   "sha256": "2d3d10e35fe8f1de88921d909e44c264c0c99d805c52c7309c4c5621ddf3747c"
+   "sha256": "77b3079211d3d6151617453985fb7d18eac477da55f924aa782fdbb6cf765860"
   },
   {
-   "blob": "00d844deedb93ccbee31345d28d0098a1e897bcb",
-   "bytes": 113852,
+   "blob": "57da1a394f3f79e707f0358ce25822b90ae4dfe5",
+   "bytes": 457550,
    "mode": "100644",
    "path": "scripts/rc_pretag_staged_bytes_profile.py",
-   "sha256": "b59645cee81d9325e561f87949d38c5eb52c9d50bafd0f5ce8d5a2ed0b0a1dac"
+   "sha256": "930668895667b962d5615e6ef39c134c26c4fc7aaf1a9a65bf7d4ac32b5f0787"
   },
   {
-   "blob": "c4fc33c29c7779ab058d0596e6aa3d23608c7fd5",
+   "blob": "cc0ff3c88940c0a43c8dee6ba7ed3bab8821f656",
    "bytes": 28303,
    "mode": "100644",
    "path": "scripts/rc_pretag_staging_budget_cases.py",
-   "sha256": "2063d28150093771dd39b5d0c45a5fc5e3b18548f6612b439742134fe4b88aa1"
+   "sha256": "264c73a53e6af8f3543da3eadade6186f9b66d7808544dc6d568917f1b62ea47"
   },
   {
-   "blob": "d93fce89c1c34a50f82d07cdf019281d631c32b9",
-   "bytes": 67235,
+   "blob": "e3a9c2c993803a5da709590b386da0ad5f222bc8",
+   "bytes": 148556,
    "mode": "100644",
    "path": "scripts/rc_pretag_staging_budget_profile.py",
-   "sha256": "80cf4067234197a191540b8a24355c6f38a08efacb77b732a24c32e841225370"
+   "sha256": "d836b77d8d3d8de60f649cbbfa33a811067452e5b323e5dc425aaea273030c04"
   },
   {
-   "blob": "1d95dd9be948473ba675a364c73217ad05921abf",
-   "bytes": 25961,
+   "blob": "e60f9567f4d3f3d0423bdc08d7c4ff4a67a7d712",
+   "bytes": 25962,
    "mode": "100644",
    "path": "scripts/rc_pretag_supervisor_readiness_cases.py",
-   "sha256": "8349a35712eb02ef3b21297e3547ab2752db7245fe6eccb2d6926dc2ab23d1c9"
+   "sha256": "12d993598d2fbc1e2b96e1e41e8afc7024b3ea8696136d99cfce0116bfd4cca1"
   },
   {
-   "blob": "9b39a2f037110d253a35cb94ca5efbc1c089a49b",
-   "bytes": 132540,
+   "blob": "f97425030690de90206c8577cb0839de5228c218",
+   "bytes": 641153,
    "mode": "100644",
    "path": "scripts/rc_pretag_supervisor_readiness_profile.py",
-   "sha256": "f525f760e74733cdc0e27a2d818c1cc507a35fc434190096ee78522e7f2424d0"
+   "sha256": "e376cf21b4d8d0466e924fb0cb6409aded92d914a1d4bc765f0e7d82be5eca25"
   },
   {
    "blob": "abaf301c90544756bfe23b2a822d7bb140da7431",
