@@ -100,7 +100,6 @@ JOIN_ONCE_FRAGMENTS = {
         ("        self.assertEqual((len(all_loaded), len(set(all_loaded))), (303, 303)); self.assertEqual(Counter(all_loaded), Counter(all_expected))\n        historical_loaded = [name for name in all_loaded if name.rsplit('.', 1)[0] not in (c.publication.EXPECTED_GROUPS | c.publication.JOIN_ONCE_GROUPS)]\n", "        self.assertEqual((len(all_loaded), len(set(all_loaded))), (283, 283)); self.assertEqual(Counter(all_loaded), Counter(all_expected))\n        historical_loaded = [name for name in all_loaded if name.rsplit('.', 1)[0] not in c.publication.EXPECTED_GROUPS]\n"),
     ),
     'scripts/rc_pretag_authenticated_two_hop_tests.py': (
-        ("    def test_native_p_sole_parent_tree_and_thirteen_path_delta(self):\n        from rc_pretag_linux_package_inverse import normalize\n        self.assertEqual(o._parents(a.P, self.repo, c._git), [a.M])\n        self.assertEqual(c._git('rev-parse', a.P + '^{tree}', root=self.repo).decode().strip(), a.P_TREE)\n        original = c._entries(a.M, self.repo)\n        self.assertEqual((len(original), len(self.source), len(a.SOURCE_PINS)), (1670, 1676, 13))\n        self.assertEqual(set(a.SOURCE_PINS), SOURCE_PATHS)\n        self.assertEqual({p for p in self.source if self.source[p] != original.get(p)}, SOURCE_PATHS)\n        self.assertEqual((len(self.source.keys() - original.keys()), len(original.keys() - SOURCE_PATHS)), (6, 1663))\n        self.assertTrue(all(self.source[p] == value for p, value in original.items() if p not in SOURCE_PATHS))\n        self.assertEqual(self.native(a.P), self.source)\n        for path, (mode, blob, digest, size, lines) in a.SOURCE_PINS.items():\n            data = c._git('show', a.P + ':' + path, root=self.repo)\n            self.assertEqual((mode, blob, digest, size, lines), ('100644', *o.pin(data), len(data), len(data.splitlines())))\n            disk = (c.ROOT / path).read_bytes()\n            if path == 'src-tauri/Cargo.toml':\n                self.assertEqual(normalize(path, disk), data)\n            else:\n                self.assertEqual(disk, data)\n\n", "    def test_native_p_sole_parent_tree_and_thirteen_path_delta(self):\n        self.assertEqual(o._parents(a.P, self.repo, c._git), [a.M])\n        self.assertEqual(c._git('rev-parse', a.P + '^{tree}', root=self.repo).decode().strip(), a.P_TREE)\n        original = c._entries(a.M, self.repo)\n        self.assertEqual((len(original), len(self.source), len(a.SOURCE_PINS)), (1670, 1676, 13))\n        self.assertEqual(set(a.SOURCE_PINS), SOURCE_PATHS)\n        self.assertEqual({p for p in self.source if self.source[p] != original.get(p)}, SOURCE_PATHS)\n        self.assertEqual((len(self.source.keys() - original.keys()), len(original.keys() - SOURCE_PATHS)), (6, 1663))\n        self.assertTrue(all(self.source[p] == value for p, value in original.items() if p not in SOURCE_PATHS))\n        self.assertEqual(self.native(a.P), self.source)\n        for path, (mode, blob, digest, size, lines) in a.SOURCE_PINS.items():\n            data = c._git('show', a.P + ':' + path, root=self.repo)\n            self.assertEqual((mode, blob, digest, size, lines), ('100644', *o.pin(data), len(data), len(data.splitlines())))\n            self.assertEqual((c.ROOT / path).read_bytes(), data)\n\n"),
         ("        expected = [name for name in all_expected if name.rsplit('.', 1)[0] not in (c.publication.EXPECTED_GROUPS | c.publication.JOIN_ONCE_GROUPS)]\n", "        expected = [name for name in all_expected if name.rsplit('.', 1)[0] not in c.publication.EXPECTED_GROUPS]\n"),
         ('        self.assertEqual((len(all_loaded), len(set(all_loaded))), (303, 303))\n', '        self.assertEqual((len(all_loaded), len(set(all_loaded))), (283, 283))\n'),
         ("        loaded = [name for name in all_loaded if name.rsplit('.', 1)[0] not in (c.publication.EXPECTED_GROUPS | c.publication.JOIN_ONCE_GROUPS)]; inventory_ids(loaded)\n", "        loaded = [name for name in all_loaded if name.rsplit('.', 1)[0] not in c.publication.EXPECTED_GROUPS]; inventory_ids(loaded)\n"),
@@ -120,7 +119,7 @@ JOIN_ONCE_METHODS = {
     p.DESKTOP_TESTS: {'test_legacy_inventory_and_new_named_inventory_are_exact'},
     p.NGINX_TESTS: {'test_frozen_167_plus_20_inventory_has_exact_loaded_and_executed_ids'},
     p.TWO_HOP_TESTS: {'test_frozen_187_plus_22_inventory_is_exactly_loaded_and_executed'},
-    p.AUTHENTICATED_TESTS: {'test_frozen_209_plus_24_inventory_is_exactly_loaded_and_executed', 'test_native_p_sole_parent_tree_and_thirteen_path_delta'},
+    p.AUTHENTICATED_TESTS: {'test_frozen_209_plus_24_inventory_is_exactly_loaded_and_executed'},
 }
 M_PROFILE_PIN = ('13e4e067a7d9b501f1f1d5514e6ec0aee9303b0e',
                  '2d732547bb3fae68e37105721699c4f69545f660ee84506f42ec78c601d495c7')
@@ -139,7 +138,8 @@ PROFILE_DISPATCH = (
 
 def inverse_join_once_adapter(path, current):
     """Exact-once current inventory amendment back to the complete frozen M file."""
-    current = integration_bytes(path, current)
+    from rc_pretag_linux_package_inverse import normalize as linux_bytes
+    current = linux_bytes(path, current)
     if path == p.OWNERSHIP_TESTS:
         assert o.pin(current) == p.ANCILLARY_PINS[path]
         return current
