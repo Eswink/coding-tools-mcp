@@ -11,23 +11,7 @@ PROFILE = 'scripts/rc_pretag_stage_retirement_profile.py'
 CASES = 'scripts/rc_pretag_stage_retirement_cases.py'
 DISPATCHER = 'scripts/rc_pretag_supervisor_readiness_profile.py'
 WORKFLOW = '.github/workflows/issue88-publication-executor.yml'
-CAPS = {
-    '.github/workflows/issue88-publication-executor.yml': (165, 14),
-    'docs/specs/issue88-stage-retirement/design.md': (90, 90),
-    'docs/specs/issue88-stage-retirement/requirements.md': (60, 60),
-    'docs/specs/issue88-stage-retirement/tasks.md': (70, 70),
-    'scripts/rc_consumer_io.py': (480, 90),
-    'scripts/rc_pretag_stage_retirement_cases.py': (450, 450),
-    'scripts/rc_pretag_stage_retirement_profile.py': (350, 350),
-    'scripts/rc_pretag_supervisor_readiness_cases.py': (350, 30),
-    'scripts/rc_pretag_supervisor_readiness_profile.py': (185, 6),
-    'scripts/rc_publication_retirement.py': (260, 260),
-    'scripts/rc_publication_retirement_cases.py': (470, 470),
-    'scripts/rc_publication_retirement_lifetime_cases.py': (280, 280),
-    'scripts/rc_publication_stage.py': (380, 40),
-    'scripts/rc_publication_stage_cases.py': (360, 6),
-    'scripts/rc_publication_staged_bytes_cases.py': (500, 4),
-}
+CAPS = {'.github/workflows/issue88-publication-executor.yml': (165, 14), 'docs/specs/issue88-stage-retirement/design.md': (90, 90), 'docs/specs/issue88-stage-retirement/requirements.md': (60, 60), 'docs/specs/issue88-stage-retirement/tasks.md': (70, 70), 'scripts/rc_consumer_io.py': (480, 90), 'scripts/rc_pretag_stage_retirement_cases.py': (450, 450), 'scripts/rc_pretag_stage_retirement_profile.py': (350, 350), 'scripts/rc_pretag_supervisor_readiness_cases.py': (350, 30), 'scripts/rc_pretag_supervisor_readiness_profile.py': (185, 6), 'scripts/rc_publication_retirement.py': (260, 260), 'scripts/rc_publication_retirement_cases.py': (470, 470), 'scripts/rc_publication_retirement_lifetime_cases.py': (280, 280), 'scripts/rc_publication_stage.py': (428, 40), 'scripts/rc_publication_stage_cases.py': (360, 6), 'scripts/rc_publication_staged_bytes_cases.py': (500, 4)}
 BASE_PINS = {
     '.github/workflows/issue88-publication-executor.yml': ('100644', 'e740760c079a8a831342b3f964f7430dd581002f', 'f0952d0a1238feee4d82f27ccdf725ca4e9cba87e6dedfd493fb2ea015234fd6', 12505, 149),
     'scripts/rc_consumer_io.py': ('100644', '153484db256139920f5c4f4ae752377f4126cc4a', 'b4c072c975a6c1078ae8388e4bd8d5e97da2cb669b34ee21e0cf8cba4368dadb', 15974, 435),
@@ -44,22 +28,7 @@ PRIOR_PINS = {
 }
 DELTA_LIMIT = 2250
 # BEGIN SEALED SOURCE
-SOURCE_PINS = {
-    '.github/workflows/issue88-publication-executor.yml': ('100644', 'e89d4431fa1490187c55970c8626d725c064e5f0', '4159a606e279f3e3b77814e0398f3dc36f302aa5d38f8aa5ca82af3dfca657df', 13471, 158),
-    'docs/specs/issue88-stage-retirement/design.md': ('100644', 'a335e1690eefa00776096bc596e34982e3807735', '7603c594eb70b83e6c2714c0af70cf31bd6d8596cdc4303b602330c81b4a7d4c', 6571, 59),
-    'docs/specs/issue88-stage-retirement/requirements.md': ('100644', 'a33835ef7cf7a9b5174a8fe276d77307467ba5da', '3d68da939a6780669efddf5e8477555d40e6c86e5c9f4e72722873bc63cb1fff', 4902, 48),
-    'docs/specs/issue88-stage-retirement/tasks.md': ('100644', '5c1ef4a71ab93ee79cc6da1687242f7b231d9592', '160916dded29dc9e1a7ddde3cd0b6880522a903049363b9360b6e03a014acb69', 3672, 50),
-    'scripts/rc_consumer_io.py': ('100644', 'f4c3539785844b59a9956a2c296eada7ecaf5ce3', 'd66204f5981abf5d175c1268d4c0a493b8254f08d32473ff447c75437a89e016', 17846, 474),
-    'scripts/rc_pretag_stage_retirement_cases.py': ('100644', '5dd82e2e4e03791b9995619686dc832aa855045a', '265f45b9ad6fb6592b41c8ffaecf1100d251e503bc635ac88e7da6e869f9682e', 27779, 362),
-    'scripts/rc_pretag_supervisor_readiness_cases.py': ('100644', 'ba438c38f80b3f1eab4faee3e4bc248c2e9efc9d', 'd08985696396559cca52ca8ce4fe22e25d10674a89e08bf2bf7eef073b4fafeb', 25961, 336),
-    'scripts/rc_pretag_supervisor_readiness_profile.py': ('100644', '8d6ea278061f87e04b7a4b51934e3bb7ab5e7c95', '5b4fe041482f59e4e744d68014488ff7996389afea4fb5ae7754e9a580f062b5', 41400, 185),
-    'scripts/rc_publication_retirement.py': ('100644', '5471df1307e0603d500ad391d5d187290174cb83', '174f59ad35893a4afb64c80806e0b81832645d3e7c8a88c59786a700aa6f76e7', 10151, 239),
-    'scripts/rc_publication_retirement_cases.py': ('100644', 'd5d99c403613e58f767f31e5b694b65f847534f4', 'bfc1f90f23871f133498c510ba92500383b8a22d3faeffff316cd1e98fe2ccc8', 22210, 469),
-    'scripts/rc_publication_retirement_lifetime_cases.py': ('100644', 'e1cdadd610dfd2dbb72ff0241085614b40ad8aa6', '3b692e2185e64f24c914e35ad1a83374e9bf3460c6f03c7e9c4db65a57574edd', 14588, 267),
-    'scripts/rc_publication_stage.py': ('100644', 'a9783703fccc6ba974a755e03165628af602a351', '8e2eda3eff90a40b37dc9f92851e7ddd8efa0cc73e55f629e2e8b49b506da57f', 21286, 354),
-    'scripts/rc_publication_stage_cases.py': ('100644', '2c4a23d33f7e08ba181ed7d2bcd2b1dda71e2774', 'e4f66cd79129c908dfcf9c0b06aabd7029fae0517388308b9ec5dba61ad2392a', 22639, 352),
-    'scripts/rc_publication_staged_bytes_cases.py': ('100644', 'ec1fd84ec33c6214195e466633f6f68b31f3ef47', '60e90a33ef5d30ab2796a7c38d5f5fb053b387fd98db13eb46a951d1b27fa675', 31490, 500),
-}
+SOURCE_PINS = {'.github/workflows/issue88-publication-executor.yml': ('100644', 'e89d4431fa1490187c55970c8626d725c064e5f0', '4159a606e279f3e3b77814e0398f3dc36f302aa5d38f8aa5ca82af3dfca657df', 13471, 158), 'docs/specs/issue88-stage-retirement/design.md': ('100644', 'a335e1690eefa00776096bc596e34982e3807735', '7603c594eb70b83e6c2714c0af70cf31bd6d8596cdc4303b602330c81b4a7d4c', 6571, 59), 'docs/specs/issue88-stage-retirement/requirements.md': ('100644', 'a33835ef7cf7a9b5174a8fe276d77307467ba5da', '3d68da939a6780669efddf5e8477555d40e6c86e5c9f4e72722873bc63cb1fff', 4902, 48), 'docs/specs/issue88-stage-retirement/tasks.md': ('100644', '5c1ef4a71ab93ee79cc6da1687242f7b231d9592', '160916dded29dc9e1a7ddde3cd0b6880522a903049363b9360b6e03a014acb69', 3672, 50), 'scripts/rc_consumer_io.py': ('100644', 'f4c3539785844b59a9956a2c296eada7ecaf5ce3', 'd66204f5981abf5d175c1268d4c0a493b8254f08d32473ff447c75437a89e016', 17846, 474), 'scripts/rc_pretag_stage_retirement_cases.py': ('100644', '5dd82e2e4e03791b9995619686dc832aa855045a', '265f45b9ad6fb6592b41c8ffaecf1100d251e503bc635ac88e7da6e869f9682e', 27779, 362), 'scripts/rc_pretag_supervisor_readiness_cases.py': ('100644', 'ba438c38f80b3f1eab4faee3e4bc248c2e9efc9d', 'd08985696396559cca52ca8ce4fe22e25d10674a89e08bf2bf7eef073b4fafeb', 25961, 336), 'scripts/rc_pretag_supervisor_readiness_profile.py': ('100644', '8d6ea278061f87e04b7a4b51934e3bb7ab5e7c95', '5b4fe041482f59e4e744d68014488ff7996389afea4fb5ae7754e9a580f062b5', 41400, 185), 'scripts/rc_publication_retirement.py': ('100644', '5471df1307e0603d500ad391d5d187290174cb83', '174f59ad35893a4afb64c80806e0b81832645d3e7c8a88c59786a700aa6f76e7', 10151, 239), 'scripts/rc_publication_retirement_cases.py': ('100644', 'd5d99c403613e58f767f31e5b694b65f847534f4', 'bfc1f90f23871f133498c510ba92500383b8a22d3faeffff316cd1e98fe2ccc8', 22210, 469), 'scripts/rc_publication_retirement_lifetime_cases.py': ('100644', 'a90bf7c1b4ec72c15406455c618c4787ce3fda7c', '0ba5f50b6c2e338aee169058950a1f0bee996193fcfd04062f04dda9edb4caa7', 15081, 275), 'scripts/rc_publication_stage.py': ('100644', 'a9783703fccc6ba974a755e03165628af602a351', '8e2eda3eff90a40b37dc9f92851e7ddd8efa0cc73e55f629e2e8b49b506da57f', 21286, 354), 'scripts/rc_publication_stage_cases.py': ('100644', '2c4a23d33f7e08ba181ed7d2bcd2b1dda71e2774', 'e4f66cd79129c908dfcf9c0b06aabd7029fae0517388308b9ec5dba61ad2392a', 22639, 352), 'scripts/rc_publication_staged_bytes_cases.py': ('100644', 'ec1fd84ec33c6214195e466633f6f68b31f3ef47', '60e90a33ef5d30ab2796a7c38d5f5fb053b387fd98db13eb46a951d1b27fa675', 31490, 500)}
 FRAGMENTS = {
     '.github/workflows/issue88-publication-executor.yml': (
         (b"        with: {ref: '${{ github.sha }}', fetch-depth: 0, persist-credentials: false}\n      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065\n        with: {python-version: '3.12'}\n      - name: Admit exact source and execute the frozen three hundred nine cases\n        shell: python\n        run: |\n          import hashlib, json, os, pathlib, platform, subprocess, sys, traceback, unittest\n", b"        with: {ref: '${{ github.sha }}', fetch-depth: 0, persist-credentials: false}\n      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065\n        with: {python-version: '3.12'}\n      - name: Admit exact source and execute the frozen two hundred sixty one cases\n        shell: python\n        run: |\n          import hashlib, json, os, pathlib, platform, subprocess, sys, traceback, unittest\n"),
