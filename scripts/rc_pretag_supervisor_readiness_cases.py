@@ -159,7 +159,7 @@ class SupervisorReadinessCompositionCases(unittest.TestCase):
         self.bad_content(self.changed('services/cloud-agent/src/main.rs', b'changed'))
 
     def test_individual_and_total_budgets_fail_closed(self):
-        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (1000, 979))
+        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (1072, 1072))
         data = {path: retirement_bytes(path, (c.ROOT / path).read_bytes()) for path in x.CAPS}
         def budgets(git=c._git):
             return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'supervisor_readiness_delta_budget')

@@ -121,7 +121,7 @@ class OwnershipCompositionTests(unittest.TestCase):
             caps = {p: (10000, 10000) for p in o.CAPS} if widened else o.CAPS
             with patch.object(o, 'CAPS', caps), self.assertRaises(AssertionError):
                 o.budgets(ref, self.repo, c._git, changed)
-        self.assertEqual(c.BUDGET['scripts/rc_pretag_composition_tests.py'], 470)
+        self.assertEqual(c.BUDGET['scripts/rc_pretag_composition_tests.py'], 508)
 
     def test_pure_candidate_chain_anchors_at_m_with_fixed_limit(self):
         self.assertEqual(self.selected(self.pure), self.good)

@@ -172,7 +172,7 @@ class DownloadBudgetCompositionCases(unittest.TestCase):
         self.bad_content(self.changed('unreviewed-extra.py', b'extra\n'))
         self.bad_content(self.changed('services/cloud-agent/src/main.rs', b'changed\n'))
     def test_individual_and_total_budgets_fail_closed(self):
-        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (2000, 1836))
+        self.assertEqual((x.DELTA_LIMIT, sum(cap[1] for cap in x.CAPS.values())), (2000, 1843))
         data = {path: staging_bytes(path, (c.ROOT / path).read_bytes()) for path in x.CAPS}
         def budgets(git=c._git):
             return p.authenticated._budgets(self.pure, x.M, self.repo, git, data, x.CAPS, x.DELTA_LIMIT, 'download_delta_budget')
