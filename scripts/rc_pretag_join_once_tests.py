@@ -467,6 +467,7 @@ class JoinOnceCompositionTests(unittest.TestCase):
         # The unchanged strict runner authenticates actual executed IDs after all 303 finish.
 
     def test_protected_scope_versions_runtime_and_old452_are_unchanged(self):
+        from rc_pretag_linux_package_inverse import normalize
         protected = {path for path in self.original if path not in p.JOIN_ONCE_CAPS}
         self.assertTrue(all(self.good[path] == self.original[path] for path in protected))
         held = {'docs/specs/rc-source-assembly-engineering/' + name for name in
@@ -480,8 +481,10 @@ class JoinOnceCompositionTests(unittest.TestCase):
             self.assertFalse((c.ROOT / path).exists() or (c.ROOT / path).is_symlink(), path)
         runtime = {path for path in protected if path.startswith('services/local-agent/')}
         self.assertEqual(len(runtime), 45)
-        for path in runtime | {p.CONTRACTS, p.CHECKS, 'package.json', 'package-lock.json', 'src-tauri/Cargo.toml',
-                              'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json', 'scripts/rc_release_policy.py',
+        for path in ('package.json', 'package-lock.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json',
+                     'services/local-agent/Cargo.toml', 'services/local-agent/Cargo.lock'):
+            self.assertEqual(normalize(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
+        for path in runtime - {'services/local-agent/Cargo.toml', 'services/local-agent/Cargo.lock'} | {p.CONTRACTS, p.CHECKS, 'scripts/rc_release_policy.py',
                               'scripts/rc_release_eligibility.py', '.github/workflows/rc-pretag-evidence.yml'}:
             self.assertEqual(integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
         # Reuse the frozen module inventory and its exact old452 digest without executing it here.

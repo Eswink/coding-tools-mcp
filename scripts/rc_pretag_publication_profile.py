@@ -309,7 +309,7 @@ JOIN_ONCE_PINS = {
     'docs/specs/process-io-join-once/design.md': ('100644', 'dd5e310779598d69a907e12158b004209f2122a0', '5e6ba21ea17d4dc02e2a28753a5b578f933fcd9835aab20aa49408acf18aa635', 8075, 47),
     'docs/specs/process-io-join-once/requirements.md': ('100644', '3d9de06b46f1d30841c5315de0827ac19ef71a9b', 'bff261c833f6c51334a4dfe4dd92b85da5422ef417fcaf3a8cf337aa519bb3c6', 5956, 62),
     'docs/specs/process-io-join-once/tasks.md': ('100644', '63d48a96553c7c9957d9d8a0739bb77b3856f144', '9dd63551829513fc882ba96b3a615e9d9dc1e9a7d2bf7de57739c7aace983314', 3259, 42),
-    'scripts/rc_pretag_authenticated_two_hop_tests.py': ('100644', '3f3959228d9241670dbe8201674ec18612386208', 'ce937e3b07b88a7143d08f51e31d759956b0aad29c4444cdd69b12e9aebba0ee', 38035, 485),
+    'scripts/rc_pretag_authenticated_two_hop_tests.py': ('100644', '622e8e24b0dffa0494c6820bd7c8c5f577db8f46', '4b00fd2f9465df4fa83d8ee757552d639c60d5cd2df83553ae8f1ad05ed09a65', 38252, 490),
     'scripts/rc_pretag_composition_tests.py': ('100644', '56549d0a55f3162dfb7b3ed993e4ddcff18ff69f', '105f8562da48ff4557898e017ead8762f55e55357a664e1372e1443d25f217e2', 36290, 489),
     'scripts/rc_pretag_desktop_tests.py': ('100644', '46667ca502be125391068998e6a0a88c2d40a3ef', '3b4399957c607435860f3834ef0600ee440b470038a6c477927c6a2d8db66474', 23104, 381),
     'scripts/rc_pretag_join_once_tests.py': ('100644', 'a82efa478868410d257da54bf5285a6691b0f37b', '40ee7d6123d8dd14ac235923a8e972946b4e88ba51681a6d8d5aa76ed916c26a', 33498, 497),

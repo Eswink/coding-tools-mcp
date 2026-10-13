@@ -24,6 +24,8 @@ BASE_PINS = {
     'src-tauri/Cargo.toml': ('feead83a470fe3b07ad432806a6c657f3ab7a44e', '9603b57332e9d08a57bc0e31f7b28f2c1409d59cd6548b13c8e2f902796f36c8'),
     'src-tauri/Cargo.lock': ('72584548c8689aa118d14bdf4b1907530f92b68f', '95d96ca74f44d077f64c81d6e57e40c46ff98b49355a7f590732d7bf72f7d870'),
     'src-tauri/tauri.conf.json': ('42bd9cae27da34aeef378054a5eaa3a6a8095570', '2e524391006f507b5323dcf04c36c3e324ced44aef8ffc2ec0ae2d196a2867f4'),
+    'services/local-agent/Cargo.toml': ('9a199ade41d2050ef5964c7beb2c0fd75bb528c2', '5f91a913256b8a7263e23d343ac8f762c8bf56a02586c94e7c4401a3d60a8b13'),
+    'services/local-agent/Cargo.lock': ('2217f47c5492a982e4c12b2ce6f9200bd788d287', 'eb408e883d4026568782eff1ccb6ca24771d31a7a9476b60e4bb6a3c28930348'),
 }
 CURRENT_PINS = {
     '.github/workflows/linux-rc-packages.yml': ('264ed6f35671a615f6c1d57fa4ee256d8b587cec', '919b7d2320458f20261ce7c20654e171aae983ac34a0ea0cb7701e84b125e4eb'),
@@ -36,7 +38,7 @@ CURRENT_PINS = {
     'scripts/跨平台原生驱动v8.py': ('eaa8cd1fdbf18137eb2ca6e216ce9b38f44c9bbf', '073b92f8214afad017c12b2a22c23eef3195e38154d72f2fa09b640ea5b324f7'),
     'scripts/exclusive_native_acceptance.py': ('b98554aafd78c7e7e376f43cb20a4f4686e2acbd', 'bac190d66cb78cf9a380b05b1da89f37044248072360725a58b12fcbb65c619e'),
     'scripts/preliminary_package_contract_tests.py': ('70e1fed6c36d10b7a12beb523316df021e5d3daf', '3600a1c881c5772c1315c6395548debb52ab20ad2cf198644a831ba9c927fa50'),
-    'scripts/rc_pretag_publication_profile.py': ('e2b87b630e4d00406020dc173fdec47a32ed2e96', '687bebbe836960a9ccf6e7c657e2955200aefd593e7b84c136b66d69e8941409'),
+    'scripts/rc_pretag_publication_profile.py': ('a098c6bb32a22436f35e417bd1475dfd72078ff6', '4035f4bd4bf3ba0c5e1198ea1e1c8e612337e2aecc4282d7f372c2c8aa7dd9e3'),
     'scripts/rc_pretag_appimage_profile.py': ('1903473701ad2e8780e7db812f98c7e3d26b7c75', 'e319be4c77e392e1bfc78938e91af1e98684cb710dbe3d6393a22ed200cc8286'),
     'scripts/rc_pretag_appimage_cases.py': ('be5464078eb8369452ae28e94d4baa9f446746e0', 'a9fc69726fac6188b6a0650b222bc4b4bb66c22618918d71f88cde426cd2b6eb'),
     'scripts/AppImage入口回归v3.py': ('30f74f356ee2e4df0a81af711e0f850c4512234c', '6d7b8786f32d28e3186139036d9c644b01459f9aeb6f10c528cada1827096b91'),
@@ -47,10 +49,12 @@ CURRENT_PINS = {
     'src-tauri/Cargo.toml': ('9bca05716da181f2086ec5bef75b4dced75fc350', 'f2bfbce7f94857ab061c60ec462e137bcb24e51fc8bda190780c337378b7bff2'),
     'src-tauri/Cargo.lock': ('73810757f12f5fb692809182168b6c59a5a4fc90', '51a1b8178e8d8933256975acb5a7eb2e4cbfc84805db6f2d9bda7a0c084cd85a'),
     'src-tauri/tauri.conf.json': ('bd0d4670390aeedd42f54bfa296f11a13aab7e8b', 'c6adb149bf647a49b686f11c8cb5bc69191633233e47729c2c35fd7646182f80'),
+    'services/local-agent/Cargo.toml': ('dc4e5dfffd43936ae67f60cc5710ea1c2050aaa0', '9506057c33cf75f9110e092f9d41aa2d544e0af1be98877f4578d74cbe930d4c'),
+    'services/local-agent/Cargo.lock': ('13a1380c0223bb2c49dcdc369244a6a1a64f3906', 'b7dba21645ddd2c2a8e0880b6c73b074d312e36dde8a1d90c40588d44d4e0c5f'),
 }
 PRIOR_PINS = {
     '.github/workflows/linux-rc-packages.yml': (('7acae23c4d96c29f13326a4e172fa4b6c8859746', '66a0a63215a695c1af2678c463d145ec0c91acbbb702404ca38efdcea8d1dda9'),),
-    'scripts/rc_pretag_publication_profile.py': (('1a43cfc512e29d1d10b263623824ed37b3b3befc', '13907015ff633a03ca0cd61653753d3a13c7153c5d691bafd341411af897ea42'),),
+    'scripts/rc_pretag_publication_profile.py': (('e2b87b630e4d00406020dc173fdec47a32ed2e96', '687bebbe836960a9ccf6e7c657e2955200aefd593e7b84c136b66d69e8941409'), ('1a43cfc512e29d1d10b263623824ed37b3b3befc', '13907015ff633a03ca0cd61653753d3a13c7153c5d691bafd341411af897ea42'),),
 }
 FRAGMENTS = {
     '.github/workflows/linux-rc-packages.yml': (
@@ -132,6 +136,7 @@ FRAGMENTS = {
     ),
     'scripts/rc_pretag_publication_profile.py': (
         (b"    assert profile == PROFILE_ID, 'unknown_composition_profile'\n    ref = ownership._commit(ref, root, git)\n    import rc_pretag_linux_package_profile as linux_package\n    selected = linux_package.select(ref, root, git, entries, historical, release, release_tree, documents)\n    if selected is not None:\n        return selected\n    # Catch topology failures only. A selected profile owns every content error.\n    for topology, select in ((ownership.topology, ownership.selected_profile),\n", b"    assert profile == PROFILE_ID, 'unknown_composition_profile'\n    ref = ownership._commit(ref, root, git)\n    # Catch topology failures only. A selected profile owns every content error.\n    for topology, select in ((ownership.topology, ownership.selected_profile),\n"),
+        (b"    'scripts/rc_pretag_authenticated_two_hop_tests.py': ('100644', '622e8e24b0dffa0494c6820bd7c8c5f577db8f46', '4b00fd2f9465df4fa83d8ee757552d639c60d5cd2df83553ae8f1ad05ed09a65', 38252, 490),\n", b"    'scripts/rc_pretag_authenticated_two_hop_tests.py': ('100644', '3f3959228d9241670dbe8201674ec18612386208', 'ce937e3b07b88a7143d08f51e31d759956b0aad29c4444cdd69b12e9aebba0ee', 38035, 485),\n"),
     ),
     'scripts/rc_pretag_appimage_profile.py': (
         (b'def inverse_appimage_adapter(path, current):\n    """Remove exact-once additions and recover complete immutable M bytes."""\n    import rc_pretag_linux_package_inverse as linux_package\n    current = linux_package.inverse(path, current) if path in linux_package.BASE_PINS else current\n    if path not in BASE_PINS or o.pin(current) == BASE_PINS[path]:\n        return current\n', b'def inverse_appimage_adapter(path, current):\n    """Remove exact-once additions and recover complete immutable M bytes."""\n    if path not in BASE_PINS or o.pin(current) == BASE_PINS[path]:\n        return current\n'),
@@ -181,6 +186,12 @@ FRAGMENTS = {
     'src-tauri/tauri.conf.json': (
         (b'  "productName": "Coding Tools MCP",\n  "version": "0.7.0-rc.1",\n  "identifier": "com.codingtools.mcp.desktop",\n', b'  "productName": "Coding Tools MCP",\n  "version": "0.6.0-rc.4",\n  "identifier": "com.codingtools.mcp.desktop",\n'),
         (b'    "active": true,\n    "targets": ["nsis", "deb", "appimage", "app", "dmg"],\n    "icon": [\n', b'    "active": true,\n    "targets": "all",\n    "icon": [\n'),
+    ),
+    'services/local-agent/Cargo.toml': (
+        (b'version = "0.7.0-rc.1"\n', b'version = "0.1.0"\n'),
+    ),
+    'services/local-agent/Cargo.lock': (
+        (b'name = "coding-tools-local-agent"\nversion = "0.7.0-rc.1"\ndependencies = [\n', b'name = "coding-tools-local-agent"\nversion = "0.1.0"\ndependencies = [\n'),
     ),
 }
 
