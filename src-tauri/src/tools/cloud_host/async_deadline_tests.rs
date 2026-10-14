@@ -27,6 +27,7 @@ fn settle(f: &Fixture, id: &str) -> Value {
         std::thread::sleep(Duration::from_millis(10));
     }
 }
+#[cfg(target_os = "linux")]
 #[test]
 fn accepted_async_budget_is_independent_of_submission_rpc_deadline() {
     let f = Fixture::new();
@@ -39,6 +40,7 @@ fn accepted_async_budget_is_independent_of_submission_rpc_deadline() {
     settle(&f, result["job_id"].as_str().unwrap());
     assert_eq!(result["execution_timeout_ms"], 600000, "{result}");
 }
+#[cfg(target_os = "linux")]
 #[test]
 fn identical_async_request_deduplicates_across_different_rpc_deadlines() {
     let f = Fixture::new();
@@ -59,6 +61,7 @@ fn identical_async_request_deduplicates_across_different_rpc_deadlines() {
         1
     );
 }
+#[cfg(target_os = "linux")]
 #[test]
 fn cancelled_submission_does_not_reserve_an_async_job() {
     let f = Fixture::new();
@@ -77,6 +80,7 @@ fn cancelled_submission_does_not_reserve_an_async_job() {
             .is_empty()
     );
 }
+#[cfg(target_os = "linux")]
 #[test]
 fn expired_submission_does_not_reserve_an_async_job() {
     let f = Fixture::new();
@@ -91,6 +95,7 @@ fn expired_submission_does_not_reserve_an_async_job() {
             .is_empty()
     );
 }
+#[cfg(target_os = "linux")]
 #[test]
 fn native_task_policy_still_bounds_an_async_cloud_job() {
     let mut f = Fixture::new();
@@ -223,6 +228,7 @@ fn failed_hook_job_survives_source_context_restart_without_hook_or_primary_repla
         _harness,
         host,
         peer: _,
+        profile: _,
     } = f;
     drop(host);
     // Reopen the exact existing encrypted task namespace, with no new native

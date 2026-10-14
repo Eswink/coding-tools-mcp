@@ -52,13 +52,13 @@ MODES = {path: '100644' for path in CAPS}
 MODES.update({'scripts/desktop_glib_build_evidence.py': '100755', 'scripts/appimage_relro_guard.py': '100755'})
 DELTA_LIMIT = 8500
 SOURCE_PINS = {
-    '.github/workflows/linux-rc-packages.yml': ('100644', '7acae23c4d96c29f13326a4e172fa4b6c8859746', '66a0a63215a695c1af2678c463d145ec0c91acbbb702404ca38efdcea8d1dda9', 19434, 350),
+    '.github/workflows/linux-rc-packages.yml': ('100644', '264ed6f35671a615f6c1d57fa4ee256d8b587cec', '919b7d2320458f20261ce7c20654e171aae983ac34a0ea0cb7701e84b125e4eb', 19434, 350),
     'scripts/desktop_glib_build_evidence.py': ('100755', '46638243c98fbd2c7ba6fd1fc90439fd70c2bd21', '52526fe848208e7a9307a036939f326ed92b2a3b5a09d9029cddd8eb6e2aa5f7', 17886, 318),
     'scripts/desktop_glib_build_contract.py': ('100644', '3a0d5c34424f344dfb622b74bc750cc3becd6c9d', '6597e7302058ca15e4198fde9bbfae1132c493fb73d5ac881140438efa54bbf4', 27740, 492),
     'scripts/linux_package_provenance.py': ('100644', 'c30782f36a89313487edb0ef5f1288d00c261117', 'e4f6fee05001fe9c08b136f434cdf65edc08ecb0d6110682aa972aeffc285127', 16540, 254),
     'scripts/linux_package_provenance_contract.py': ('100644', 'ba5724eea377d91319c0048acebd4cc22fa7f0f3', '377b5cdaf4f8567fc31f99682ce1b60c7867e8def472099d04a1b0b41d3d6330', 30267, 459),
     'scripts/rc_packages.py': ('100644', 'ea2dde33fd53a0ef8c01626461abe889610bc1e4', 'af0f8d3a0956d51714a0b8f2518532ed84fbbf437edd517b6e8103bebf0b0451', 8983, 186),
-    'scripts/AppImage入口配置v3.py': ('100644', '835278f28d5aa229b40743804deabac7d8198a13', 'fffbff48a1d22ea786754de50fc3e48b1b2c2b569609a8a542649fca81343b5d', 33352, 496),
+    'scripts/AppImage入口配置v3.py': ('100644', '327b65cc69cf0a3c8452d21983b9a032dca38959', '1df65ca6e3d8de0174b8f758c21806618a511507d32a1915fb61162b57f6eec9', 33352, 496),
     'scripts/linux_startup_candidate.py': ('100644', '0ee6baad230a200350d118807e125dcd33d7f6e6', '7ee01af30d92486aca0d8af4468753b7546d295d20f071863a04aa18f4c6a0ba', 13398, 255),
     'scripts/Ubuntu原生验收v1.py': ('100644', 'add9f36fdad5dbc8cc741036d7fcc79cec38f4c0', '54eaf719d486ddefd788e8e4c5cdfec49d911991d7e35e5774518e328e1f5c19', 19123, 358),
     'scripts/跨平台原生驱动v8.py': ('100644', 'eaa8cd1fdbf18137eb2ca6e216ce9b38f44c9bbf', '073b92f8214afad017c12b2a22c23eef3195e38154d72f2fa09b640ea5b324f7', 14463, 274),
@@ -66,8 +66,8 @@ SOURCE_PINS = {
     'scripts/preliminary_package_contract_tests.py': ('100644', '70e1fed6c36d10b7a12beb523316df021e5d3daf', '3600a1c881c5772c1315c6395548debb52ab20ad2cf198644a831ba9c927fa50', 5155, 92),
     'scripts/linux_runtime_provenance.py': ('100644', '2fce91a94a77ae9242c504792e64844453d8f6ba', 'f9c8be51aa9a0e449fada77059a2edf2cd22f9433871a8172463e0610b2bdf00', 30690, 457),
     'scripts/linux_package_provenance_tests.py': ('100644', '5e5daee97f8fbadd7cbb2affbbaa0ca05c92b13a', '73bdc7986219245a60ca84434a2ef57b91c4b6e2900e65e740f29153d2fe2bf4', 31486, 460),
-    'scripts/linux_package_binding_tests.py': ('100644', '1bb31b4634b624238df34f087334558f7eeea172', '8b1ba7b624c4fcd99c05c8d313c6c759c0954088876138c376bf0497d9669f3a', 29145, 428),
-    'scripts/linux_runtime_provenance_tests.py': ('100644', '689f3fc067a9e66062dc6fdbc8155f7549a057a5', '5baa753313e249395d9e748fe9c85fbd970f2961ccf7145c2c07c57ad28cce21', 38030, 500),
+    'scripts/linux_package_binding_tests.py': ('100644', '1ba8a986970015f3f4cea55b7a6908f7e4563aa9', '86141fc330938dbd9a480a2f4b7343734ac90be4dbb6847a752ec0cf99d6f2a2', 29479, 428),
+    'scripts/linux_runtime_provenance_tests.py': ('100644', '97635438bf643f23697a3b51c8779c2df3e45c69', '783190851eaa57a880eedf126b75f10cbc88eccb34d2f7edaccd46ac30dc1ab5', 39109, 500),
     'scripts/linux_runtime_workflow_tests.py': ('100644', '8d45b8be1ccbb9a27c2dba8301bb6520f5feefa5', '71413b9f4809a8796c609adf92d7519b8c8eea5997b60566a680d2e281debf60', 25782, 295),
     'scripts/appimage_relro_tool.py': ('100644', 'fb8b5690dda00c23f45d4b1833eed5d2f9d08bb5', 'a87d92253fab00a83805e93c266763484d5d7e2e64013f0ea35ee58e67cfea6f', 23051, 365),
     'scripts/appimage_relro_guard.py': ('100755', '464d744c846a85ecba4f510e65c6f99093bacde6', '286634b482acbd5103cf2c672ae9acc47504efcdb7299c33e7dcb90ea2227808', 22555, 440),
@@ -148,7 +148,7 @@ def content(ref, root, git, entries, historical, release, release_tree, document
     actual, paths = entries(ref, root), CAPS.keys()
     assert len(baseline) == 1705 and len(paths) == 37
     assert SOURCE_PINS.keys() == paths - {PROFILE} and MODES.keys() == paths
-    assert baseline.keys() & paths == inverse.BASE_PINS.keys() and len(inverse.BASE_PINS) == 16
+    assert baseline.keys() & paths == inverse.BASE_PINS.keys() & paths and len(inverse.BASE_PINS) == 23
     assert actual.keys() == baseline.keys() | paths and len(actual) == 1726
     assert {path for path in actual if actual[path] != baseline.get(path)} == paths
     assert all(actual[path] == value for path, value in baseline.items() if path not in paths)
@@ -158,7 +158,7 @@ def content(ref, root, git, entries, historical, release, release_tree, document
     for path, (mode, blob, digest, size, lines) in SOURCE_PINS.items():
         assert mode == MODES[path] and actual[path][2] == blob and o.pin(data[path]) == (blob, digest), path
         assert (len(data[path]), len(data[path].splitlines())) == (size, lines), path
-    for path in inverse.BASE_PINS:
+    for path in inverse.BASE_PINS.keys() & paths:
         assert inverse.inverse(path, data[path]) == git('cat-file', 'blob', baseline[path][2], root=root)
     p.authenticated._budgets(ref, M, root, git, data, CAPS, DELTA_LIMIT, 'linux_package_delta_budget')
     return actual

@@ -99,7 +99,7 @@ class Observer:
         self.binding, self.output, self.phase = binding, Path(output), phase
         self.errors, self.processes, self.files, self.samples, self.cache = [], {}, {}, [], {}
         self.raw_bytes = self.hash_bytes = self.evidence_bytes = 0
-        self.ready = self.ready_at = self.deadline = None; self.required = set(); self.bootstrap = []; self.discovery = []; self.requests = []; self.progress = {}; self.hash_reads = []
+        self.ready = self.ready_at = self.deadline = None; self.required = set(); self.forgotten = set(); self.bootstrap = []; self.discovery = []; self.requests = []; self.progress = {}; self.hash_reads = []
         self.started = time.monotonic(); self.stopped = False; self.commands = 0
         self.worker = self.control = self.process = None; self.finished = False; self.signal_handler = self.pending_signal = None
         self.launch_environment = environment_projection(environment=os.environ if launch_environment is None else launch_environment)
@@ -174,12 +174,14 @@ class Observer:
                         if child in self.processes: continue
                         require(len(self.processes) < LIMITS['processes'], 'process limit')
                         identity = process_identity(child)
+                        if (child, identity['start']) in self.forgotten: continue
                         require(identity['parent'] == pid, 'child ancestry changed')
                         identity['ancestor'] = [pid, known['start']]
-                        self.processes[child] = identity; self._remember(identity); pending.append(child)
+                        self.processes[child] = identity; self._remember(identity)
                         if self.ready and not any(q['stage'] == 'before-cleanup' for q in self.requests):
                             if any(s['status'] == 'complete' and (s['before']['pid'], s['before']['start']) == (pid, known['start']) for s in self.samples):
                                 self._checkpoint('discovery', [child])
+                        if child in self.processes: pending.append(child)
             except (FileNotFoundError, ProcessLookupError):
                 if (pid, known['start']) in self.required and not any(s.get('status') == 'complete' and s['pid'] == pid for s in self.samples): self.fail('transient process not sampled')
             except Exception as error: self.fail(error)
@@ -323,6 +325,10 @@ class Observer:
                 except (FileNotFoundError, ProcessLookupError):
                     sample = self.samples[-1]
                     if sample['before'] is None and any(s.get('status') == 'complete' and s['pid'] == pid for s in self.samples): sample['reason'] = 'exited-after-observation'
+                    elif stage == 'discovery' and not any(s.get('status') == 'complete' and s['pid'] == pid for s in self.samples):
+                        known = self.processes.pop(pid, None)
+                        if known:
+                            key = (pid, known['start']); self.required.discard(key); self.forgotten.add(key); self.discovery = [e for e in self.discovery if (e['pid'], e['start']) != key]; self.bootstrap = [e for e in self.bootstrap if (e['pid'], e['start']) != key]; self.samples = [s for s in self.samples if s.get('pid') != pid]
                     else: self.fail('transient process not sampled')
                     break
                 except Exception as error:

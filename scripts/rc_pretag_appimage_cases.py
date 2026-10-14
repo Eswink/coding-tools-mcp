@@ -266,7 +266,7 @@ class AppImageCompositionTests(unittest.TestCase):
 
     def test_individual_and_aggregate_budgets_reject(self):
         from rc_pretag_linux_package_inverse import normalize
-        self.assertEqual((a.DELTA_LIMIT, sum(cap[1] for cap in a.CAPS.values())), (2200, 2272))
+        self.assertEqual((a.DELTA_LIMIT, sum(cap[1] for cap in a.CAPS.values())), (2200, 2275))
         for path, (_, delta) in a.CAPS.items():
             lines = len(normalize(path, (c.ROOT / path).read_bytes()).splitlines())
             with patch.dict(a.CAPS, {path: (lines - 1, delta)}), self.assertRaises(AssertionError): self.content(self.pure)

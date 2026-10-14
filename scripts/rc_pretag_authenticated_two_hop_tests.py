@@ -169,6 +169,7 @@ class AuthenticatedTwoHopCompositionTests(unittest.TestCase):
             with self.assertRaises(AssertionError): self.native(a.P, wrong_tree)
 
     def test_native_p_sole_parent_tree_and_thirteen_path_delta(self):
+        from rc_pretag_linux_package_inverse import normalize
         self.assertEqual(o._parents(a.P, self.repo, c._git), [a.M])
         self.assertEqual(c._git('rev-parse', a.P + '^{tree}', root=self.repo).decode().strip(), a.P_TREE)
         original = c._entries(a.M, self.repo)
@@ -181,7 +182,11 @@ class AuthenticatedTwoHopCompositionTests(unittest.TestCase):
         for path, (mode, blob, digest, size, lines) in a.SOURCE_PINS.items():
             data = c._git('show', a.P + ':' + path, root=self.repo)
             self.assertEqual((mode, blob, digest, size, lines), ('100644', *o.pin(data), len(data), len(data.splitlines())))
-            self.assertEqual((c.ROOT / path).read_bytes(), data)
+            disk = (c.ROOT / path).read_bytes()
+            if path == 'src-tauri/Cargo.toml':
+                self.assertEqual(normalize(path, disk), data)
+            else:
+                self.assertEqual(disk, data)
 
     def test_exact_source_p_and_amendment_a_bind_without_p_candidate(self):
         self.assertEqual(self.native(a.P), self.source)

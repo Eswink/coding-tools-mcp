@@ -138,7 +138,8 @@ PROFILE_DISPATCH = (
 
 def inverse_join_once_adapter(path, current):
     """Exact-once current inventory amendment back to the complete frozen M file."""
-    current = integration_bytes(path, current)
+    from rc_pretag_linux_package_inverse import normalize as linux_bytes
+    current = linux_bytes(path, current)
     if path == p.OWNERSHIP_TESTS:
         assert o.pin(current) == p.ANCILLARY_PINS[path]
         return current
