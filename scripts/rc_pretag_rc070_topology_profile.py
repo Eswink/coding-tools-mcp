@@ -1,30 +1,27 @@
-"""Finite #150 topology admission for RC070 packaging tip dcd7159140f1; independent review binds self-bytes."""
+"""Finite #150 topology admission for RC070 packaging tip ae4e8483c560; independent review binds self-bytes."""
 import hashlib
 import rc_pretag_ownership_profile as o
 import rc_pretag_publication_profile as p
 
-M = 'dcd7159140f106f192e97d325aae95a882e250d3'
-M_TREE = 'fc12a87f06b45d8fe3a7b1a1e6624a4334c5f940'
-M_PARENTS = ('eeb84f93da44dcaf083898998f92416e4cdfd3da',)
-M_RAW = (512, '53ee43811ccb089970414cfc9bdde823488bfddf95fcc3bd6b4764013f859acf')
+M = 'ae4e8483c560865ffaec80d75f46087c806fe964'
+M_TREE = 'f21b089b212b91e9882228b81eaa3d23efbb4fdc'
+M_PARENTS = ('dcd7159140f106f192e97d325aae95a882e250d3',)
+M_RAW = (508, '94066834394879130531760fc8e3ceaf4c1c13aa56a55560060518a5bc166e25')
 BASE = '41984b1de0ca13efab3646aae5041845bc78cfee'
 PROFILE = 'scripts/rc_pretag_rc070_topology_profile.py'
 CAPS = {
-    PROFILE: (105, 30),
-    'scripts/AppImage入口配置v3.py': (496, 2),
-    'scripts/rc_pretag_linux_package_inverse.py': (218, 4),
-    'scripts/rc_pretag_linux_package_profile.py': (181, 4),
+    PROFILE: (120, 39),
+    'scripts/rc_pretag_integration_admission_profile.py': (371, 13),
+    'scripts/rc_pretag_linux_package_profile.py': (186, 7),
 }
-DELTA_LIMIT = 40
+DELTA_LIMIT = 64
 BASE_PINS = {
-    'scripts/AppImage入口配置v3.py': ('100644', '835278f28d5aa229b40743804deabac7d8198a13', 'fffbff48a1d22ea786754de50fc3e48b1b2c2b569609a8a542649fca81343b5d', 33352, 496),
-    'scripts/rc_pretag_linux_package_inverse.py': ('100644', 'bd57a890a61a7c1cd9ef4c7d3aacd41f7f2eda6c', '9f4a90fb0faea825a87cc7487c5ca5334456f20f8e032f54875dadf84ff91916', 114736, 218),
-    'scripts/rc_pretag_linux_package_profile.py': ('100644', 'dc1336fb7c7182cf605847fff05b27a6185aac09', '820e0364f3e634da54861fb0e267d81f4dad8c4c139e8f46241a6622dc0ec578', 14589, 181),
+    'scripts/rc_pretag_integration_admission_profile.py': ('100644', '514efb0c0e7cf0554e45db38abca67866b91b390', 'ff6f8a08f821ebb1f9c612910b998196d697983a91034089d2da97a579f53c0d', 109166, 364),
+    'scripts/rc_pretag_linux_package_profile.py': ('100644', 'f8a5fa41d30dc111c6837845217fa481ed9f5576', 'e59503b43f8f9a44acf7c0ae5aa9040e4c88343e1ee46d749727467a35bd67b8', 14589, 181),
 }
 SOURCE_PINS = {
-    'scripts/AppImage入口配置v3.py': ('100644', '327b65cc69cf0a3c8452d21983b9a032dca38959', '1df65ca6e3d8de0174b8f758c21806618a511507d32a1915fb61162b57f6eec9', 33352, 496),
-    'scripts/rc_pretag_linux_package_inverse.py': ('100644', '55269c3fc4d2340e5f55ea3d2707c8acc0262c0c', '583ab878f66ffde7eff870518fe530368e9cdc72e4cc608bca0bc0abdf1365e7', 114736, 218),
-    'scripts/rc_pretag_linux_package_profile.py': ('100644', 'f8a5fa41d30dc111c6837845217fa481ed9f5576', 'e59503b43f8f9a44acf7c0ae5aa9040e4c88343e1ee46d749727467a35bd67b8', 14589, 181),
+    'scripts/rc_pretag_integration_admission_profile.py': ('100644', 'bc85c20c7de97dffe04bef76a702f05ded32a3dc', '5fd82ff2f4818b0fe2235dbdd49604f7e2cebb428a9648c0cdcb832ae2afedb5', 109746, 366),
+    'scripts/rc_pretag_linux_package_profile.py': ('100644', 'cdb82073d8ffd0eed7e62d324ea1210025ba2a87', '29b9480129319b8377d51548bfa56a3f9411d17a57fde48c524d7576047b7313', 14589, 181),
 }
 
 

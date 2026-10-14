@@ -78,7 +78,7 @@ SOURCE_PINS = {
     'docs/specs/linux-package-provenance-relro/requirements.md': ('100644', '1c8c37a8842a64787f912b54350e8ff7fbcd03b3', '12b3e03bb062fa1ad6f8c1ba5c30ff9a756fa1ef63987dc6106463c639ad355b', 9785, 103),
     'docs/specs/linux-package-provenance-relro/design.md': ('100644', '17a5ed556378c735264573d048293cec1e2cbf3c', '9ef21fa5d6891b411435b29a4ba8dd90333589a7f17f93e97bfa976c98753c3a', 33112, 190),
     'docs/specs/linux-package-provenance-relro/tasks.md': ('100644', 'a7a3a0c3f912fcba7a35a4397b01b7bb8a6aea78', 'f4b385ee261e1b1543c78ecb332d2f732df629eac91865f21615a6d42e86e103', 12119, 109),
-    'scripts/rc_pretag_linux_package_inverse.py': ('100644', '55269c3fc4d2340e5f55ea3d2707c8acc0262c0c', '583ab878f66ffde7eff870518fe530368e9cdc72e4cc608bca0bc0abdf1365e7', 114736, 218),
+    'scripts/rc_pretag_linux_package_inverse.py': ('100644', 'fe6f6ab0362d1005e3e3a41f573504574118b6af', '22e91e1c47d803dcc2cd002cdea81b9dbf32ef0d358e490038243fd5cb6c45a0', 109917, 172),
     'scripts/rc_pretag_linux_package_cases.py': ('100644', '2e8b789a708ff1b6d9bcbe71a083696c075e0eb4', '94c6c06f480c99f958bd316ae4c985a6182f37851f89408024d97147e3a13168', 30386, 440),
     'scripts/rc_pretag_publication_profile.py': ('100644', 'e2b87b630e4d00406020dc173fdec47a32ed2e96', '687bebbe836960a9ccf6e7c657e2955200aefd593e7b84c136b66d69e8941409', 32493, 499),
     'scripts/rc_pretag_appimage_profile.py': ('100644', '1903473701ad2e8780e7db812f98c7e3d26b7c75', 'e319be4c77e392e1bfc78938e91af1e98684cb710dbe3d6393a22ed200cc8286', 10957, 153),
