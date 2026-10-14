@@ -193,11 +193,12 @@ def check_discovery_priority(test, rows, tasks):
              mock.patch.object(runtime, 'bounded', side_effect=children), mock.patch.object(Path, 'iterdir', tasks), \
              mock.patch.object(observer, '_sample', side_effect=sample):
             observer._discover(); observer._discover()
-        test.assertEqual(captures, [(20, 'discovery'), (30, 'discovery')] if ready and sampled and not final else [])
-        test.assertEqual(set(observer.processes), {10, 20, 30})
-        if ready: test.assertIn((20, 200), observer.required)
-        if missed: test.assertIn('transient process not sampled', observer.errors)
-        else: test.assertEqual(observer.errors, [])
+        expect = [(20, 'discovery'), (30, 'discovery')] if ready and sampled and not final else []
+        test.assertEqual(captures, expect); test.assertEqual(observer.errors, [])
+        if missed and expect: test.assertEqual(set(observer.processes), {10}); test.assertNotIn((20, 200), observer.required)
+        else:
+            test.assertEqual(set(observer.processes), {10, 20, 30})
+            if ready: test.assertIn((20, 200), observer.required)
         if final:
             with mock.patch.object(observer, '_sample', side_effect=sample): observer._checkpoint('before-cleanup')
             test.assertEqual(captures, [(10, 'before-cleanup'), (20, 'before-cleanup'), (30, 'before-cleanup')])

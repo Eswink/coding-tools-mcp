@@ -66,7 +66,7 @@ SOURCE_PINS = {
     'scripts/preliminary_package_contract_tests.py': ('100644', '70e1fed6c36d10b7a12beb523316df021e5d3daf', '3600a1c881c5772c1315c6395548debb52ab20ad2cf198644a831ba9c927fa50', 5155, 92),
     'scripts/linux_runtime_provenance.py': ('100644', '2fce91a94a77ae9242c504792e64844453d8f6ba', 'f9c8be51aa9a0e449fada77059a2edf2cd22f9433871a8172463e0610b2bdf00', 30690, 457),
     'scripts/linux_package_provenance_tests.py': ('100644', '5e5daee97f8fbadd7cbb2affbbaa0ca05c92b13a', '73bdc7986219245a60ca84434a2ef57b91c4b6e2900e65e740f29153d2fe2bf4', 31486, 460),
-    'scripts/linux_package_binding_tests.py': ('100644', 'e51eadf75210485d8721ab63cd3ae23b88715fbc', '6e3ecc523893d0081d165cff210f4407ccdb5b3ec318c6ca26a4148afacaa741', 29403, 427),
+    'scripts/linux_package_binding_tests.py': ('100644', '1ba8a986970015f3f4cea55b7a6908f7e4563aa9', '86141fc330938dbd9a480a2f4b7343734ac90be4dbb6847a752ec0cf99d6f2a2', 29479, 428),
     'scripts/linux_runtime_provenance_tests.py': ('100644', '97635438bf643f23697a3b51c8779c2df3e45c69', '783190851eaa57a880eedf126b75f10cbc88eccb34d2f7edaccd46ac30dc1ab5', 39109, 500),
     'scripts/linux_runtime_workflow_tests.py': ('100644', '8d45b8be1ccbb9a27c2dba8301bb6520f5feefa5', '71413b9f4809a8796c609adf92d7519b8c8eea5997b60566a680d2e281debf60', 25782, 295),
     'scripts/appimage_relro_tool.py': ('100644', 'fb8b5690dda00c23f45d4b1833eed5d2f9d08bb5', 'a87d92253fab00a83805e93c266763484d5d7e2e64013f0ea35ee58e67cfea6f', 23051, 365),
