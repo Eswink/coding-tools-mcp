@@ -82,7 +82,7 @@ fn revoke_and_pause_block_new_jobs_but_retain_the_admitted_job_drain_fence() {
         if pause {
             f.host.context.execution_gate.pause().unwrap();
         } else {
-            f.host.authorizer.revoke("native-host", None);
+            f.host.authorizer.revoke(&f.profile, None);
         }
         assert!(f.host.execute(blocked).is_err());
         if !pause {

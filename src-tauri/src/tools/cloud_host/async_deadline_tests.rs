@@ -228,6 +228,7 @@ fn failed_hook_job_survives_source_context_restart_without_hook_or_primary_repla
         _harness,
         host,
         peer: _,
+        profile: _,
     } = f;
     drop(host);
     // Reopen the exact existing encrypted task namespace, with no new native

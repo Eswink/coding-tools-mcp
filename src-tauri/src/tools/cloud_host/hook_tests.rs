@@ -169,7 +169,7 @@ fn revoke_during_hook_suppresses_result_and_never_starts_primary() {
     std::thread::scope(|s| {
         let worker = s.spawn(|| f.host.execute(call));
         wait_started(&f);
-        f.host.authorizer.revoke("native-host", None);
+        f.host.authorizer.revoke(&f.profile, None);
         assert!(worker.join().unwrap().is_err());
     });
     assert!(!f.root.path().join("primary-effect").exists());
@@ -263,7 +263,7 @@ fn uncertain_hook_admission_retains_native_occupancy_until_recovery() {
         f.host.context.policy_hooks.status()["recovery_required"],
         true
     );
-    f.host.authorizer.revoke("native-host", None);
+    f.host.authorizer.revoke(&f.profile, None);
     let foreign = URL_SAFE_NO_PAD.encode([19; 32]);
     let pending = f
         .host
@@ -295,7 +295,7 @@ fn dropping_an_uncertain_hook_registry_is_not_a_native_drain_receipt() {
     let registry = crate::tools::policy_hooks::HookRegistry::new(f.root.path().into());
     crate::tools::policy_hooks::simulate_uncertain_retirement(&registry, permit);
     drop(registry);
-    f.host.authorizer.revoke("native-host", None);
+    f.host.authorizer.revoke(&f.profile, None);
     let foreign = URL_SAFE_NO_PAD.encode([29; 32]);
     let pending = f
         .host
