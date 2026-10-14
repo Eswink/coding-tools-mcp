@@ -158,6 +158,7 @@ async fn selected_managed_root_uses_real_listener_and_never_inherits_source_auth
     );
     assert!(f.manager.remove_clean(&f.target.worktree_id).is_err());
 }
+#[cfg(target_os = "linux")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn exact_native_restore_lease_waits_for_real_work_and_restores_saved_tree() {
     if isolated("exact_native_restore_lease_waits_for_real_work_and_restores_saved_tree") {
