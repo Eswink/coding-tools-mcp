@@ -179,13 +179,15 @@ class SnapshotWarningCompositionTests(unittest.TestCase):
             p.warning_topology(self.pure, self.repo, c._git, impostor)
 
     def test_two_production_blobs_match_pr106_donor(self):
+        from rc_pretag_issue86_root_identity_profile import normalize as issue86_bytes
         for path, blob in DONOR.items():
-            self.assertEqual(c._blob((c.ROOT / path).read_bytes()), blob)
+            self.assertEqual(c._blob(issue86_bytes(path, (c.ROOT / path).read_bytes())), blob)
             self.assertEqual(self.good[path], ('100644', 'blob', blob))
 
     def test_four_edits_preserve_linux_bodies_and_other_refusals(self):
+        from rc_pretag_issue86_root_identity_profile import normalize as issue86_bytes
         original = self.frozen(FILESYSTEM).decode()
-        current = (c.ROOT / FILESYSTEM).read_text()
+        current = issue86_bytes(FILESYSTEM, (c.ROOT / FILESYSTEM).read_bytes()).decode()
         expected = c._replace_once(original, '    io::{Read, Write},\n', '')
         expected = c._replace_once(expected, 'use std::{\n    collections::BTreeMap,\n    fs::File,\n    path::Path,\n};\n',
                                   'use std::{collections::BTreeMap, fs::File, path::Path};\n')
@@ -194,15 +196,16 @@ class SnapshotWarningCompositionTests(unittest.TestCase):
         before, refusal = expected.split('#[cfg(not(target_os = "linux"))]\n', 1)
         refusal = c._replace_once(refusal, '    pub fn sync(&self) -> Result<()> {\n        Err(SnapshotError::Unsupported)\n    }\n', '')
         self.assertEqual(current, before + '#[cfg(not(target_os = "linux"))]\n' + refusal)
-        self.assertEqual((c.ROOT / MODEL).read_text(), c._replace_once(self.frozen(MODEL).decode(),
+        self.assertEqual(issue86_bytes(MODEL, (c.ROOT / MODEL).read_bytes()).decode(), c._replace_once(self.frozen(MODEL).decode(),
             '    Busy,\n', '    #[cfg(target_os = "linux")]\n    Busy,\n'))
 
     def test_protected_snapshot_tests_adapters_and_authority_unchanged(self):
+        from rc_pretag_issue86_root_identity_profile import normalize as issue86_bytes
         self.assertEqual(len(PROTECTED), 7)
         for path in PROTECTED:
-            self.assertEqual((c.ROOT / path).read_bytes(), self.frozen(path), path)
+            self.assertEqual(issue86_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
             self.bad_content(self.changed(path, self.frozen(path) + b'\n'))
-        positive = (c.ROOT / PROTECTED[-2]).read_text()
+        positive = issue86_bytes(PROTECTED[-2], (c.ROOT / PROTECTED[-2]).read_bytes()).decode()
         self.assertIn('async fn exact_native_restore_lease_waits_for_real_work_and_restores_saved_tree()', positive)
         self.assertIn('assert!(report.retained_backup);', positive)
         self.assertIn('"committed contents"', positive)

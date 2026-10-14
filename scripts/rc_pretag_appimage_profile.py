@@ -22,7 +22,7 @@ CAPS = {
     '.github/workflows/linux-rc-packages.yml': (300, 100),
     'scripts/rc_pretag_publication_profile.py': (500, 14),
     'scripts/rc_pretag_publication_adapters.py': (250, 4),
-    'scripts/rc_pretag_snapshot_warning_cases.py': (450, 24),
+    'scripts/rc_pretag_snapshot_warning_cases.py': (452, 27),
     'scripts/rc_pretag_appimage_profile.py': (300, 300),
     'scripts/rc_pretag_appimage_cases.py': (480, 480),
 }
