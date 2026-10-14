@@ -344,7 +344,7 @@ BINDING_KEYS = ('schema', 'profile', 'source_sha', 'source_tree', 'run_id', 'run
                 'workflow', 'os', 'kind', 'package', 'envelope_sha256', 'artifact_id', 'artifact_digest', 'members',
                 'python_loader', 'python_loader_omission')
 LIMITS = dict(processes=128, files=512, maps=1048576, rows=8192, path=4096,
-              file_bytes=256*1024**2, hash_bytes=8*1024**3, raw_bytes=128*1024**2,
+              file_bytes=256*1024**2, hash_bytes=8*1024**3, raw_bytes=160*1024**2,
               evidence_bytes=256*1024**2, seconds=900)
 FALSE_CLAIMS = dict(atomic_snapshot=False, complete_lifetime_closure=False,
                    tls_runtime_closure=False, official_archive_byte_origin=False,
