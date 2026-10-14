@@ -135,7 +135,7 @@ class LinuxPackageCompositionTests(unittest.TestCase):
         self.assertEqual((len(self.original), len(self.good), len(l.CAPS)), (1705, 1726, 37))
         self.assertEqual({path for path in self.good if self.good[path] != self.original.get(path)}, l.CAPS.keys())
         self.assertEqual(l.SOURCE_PINS.keys(), l.CAPS.keys() - {l.PROFILE})
-        self.assertEqual((len(l.CAPS.keys() - self.original.keys()), len(inverse.BASE_PINS)), (21, 16))
+        self.assertEqual((len(l.CAPS.keys() - self.original.keys()), len(inverse.BASE_PINS)), (21, 23))
         for path, row in l.SOURCE_PINS.items():
             data = integration_bytes(path, (c.ROOT / path).read_bytes())
             self.assertEqual(row, (l.MODES[path], *o.pin(data), len(data), len(data.splitlines())))
