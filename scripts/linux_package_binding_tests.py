@@ -75,11 +75,10 @@ def query_group_fixture(control):
 
 def signal_partial_fixture(*arguments):
     import time
-    original = runtime.Observer._sample
     def block_after_sample(observer, pid, stage, attempt=0):
-        original(observer,pid,stage,attempt)
-        Path(arguments[1]).with_suffix('.sampling').touch()
-        time.sleep(30)
+        k = observer.processes[pid]; observer.progress = dict(stage=stage,pid=pid,operation='fixture')
+        observer.samples.append(dict(pid=pid,stage=stage,attempt=attempt,status='complete',monotonic=time.monotonic(),wall=time.time(),before=k,after=k,raw_maps='',raw_after='',observed=[],executable=['fixture'],environment={},package_root=None))
+        Path(arguments[1]).with_suffix('.sampling').touch(); time.sleep(30)
     with mock.patch.object(runtime.Observer,'_sample',block_after_sample): runtime.observe_worker(*arguments)
 
 

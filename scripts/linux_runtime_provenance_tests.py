@@ -13,6 +13,7 @@ import tempfile
 import time
 from types import SimpleNamespace
 import unittest
+from contextlib import ExitStack, contextmanager
 from unittest.mock import Mock, patch
 import linux_runtime_provenance as runtime
 import linux_startup_candidate as startup
@@ -296,7 +297,13 @@ class RuntimeLifecycleTests(unittest.TestCase):
         self.root = Path(self.tmp.name); self.trace = []; self.observer = Mock()
         self.observer.checkpoint.side_effect = lambda stage:self.trace.append(stage)
         self.observer.finish.side_effect = lambda clean:self.trace.append(('finish',clean))
-        self.process = Mock(pid=12345); self.process.poll.return_value = None
+        self.process = Mock(pid=12345, returncode=None); self.process.poll.return_value = None
+
+    @contextmanager
+    def reap_safe(self, target=gui.os):
+        with ExitStack() as s:
+            s.enter_context(patch.object(target,'pidfd_open',return_value=77)); s.enter_context(patch.object(target,'waitid',side_effect=lambda which,*a,**k: object() if which==os.P_PIDFD else None))
+            s.enter_context(patch.object(target,'getpgid',side_effect=lambda pid: pid)); s.enter_context(patch.object(target,'close')); yield
 
     def session(self):
         session = gui.NativeSession.__new__(gui.NativeSession)
@@ -320,29 +327,26 @@ class RuntimeLifecycleTests(unittest.TestCase):
         self.assertEqual(self.trace[:2], [('attach',self.process),'session']); session.log.close()
 
     def test_constructor_failure_closes_observer_and_preserves_original_error(self):
-        with patch.object(gui.subprocess,'Popen',return_value=self.process), patch.object(gui,'wait_for',side_effect=ValueError('original constructor')), patch.object(gui.os,'killpg',side_effect=OSError('cleanup')):
-            with self.assertRaisesRegex(ValueError, 'original constructor') as caught:
-                gui.NativeSession(Path('app'),Path('driver'),self.root,1,observer=self.observer)
+        with patch.object(gui.subprocess,'Popen',return_value=self.process), patch.object(gui,'wait_for',side_effect=ValueError('original constructor')), patch.object(gui.os,'killpg',side_effect=OSError('cleanup')), self.reap_safe(), self.assertRaisesRegex(ValueError, 'original constructor') as caught:
+            gui.NativeSession(Path('app'),Path('driver'),self.root,1,observer=self.observer)
         self.observer.finish.assert_called_once_with(False)
         self.assertIn('cleanup failed', caught.exception.__notes__[0])
         self.observer.reset_mock(); self.observer.attach.side_effect = KeyboardInterrupt()
-        with patch.object(gui.subprocess,'Popen',return_value=self.process), patch.object(gui.os,'killpg') as kill:
-            with self.assertRaises(KeyboardInterrupt): gui.NativeSession(Path('app'),Path('driver'),self.root,2,observer=self.observer)
-        kill.assert_called_once_with(self.process.pid,signal.SIGTERM)
-        self.observer.finish.assert_called_once_with(True)
+        with patch.object(gui.subprocess,'Popen',return_value=self.process), patch.object(gui.os,'killpg') as kill, self.reap_safe(), self.assertRaises(KeyboardInterrupt):
+            gui.NativeSession(Path('app'),Path('driver'),self.root,2,observer=self.observer)
+        self.assertEqual([c.args for c in kill.call_args_list],[(self.process.pid,signal.SIGTERM),(self.process.pid,signal.SIGKILL)]); self.observer.finish.assert_called_once_with(True)
 
     def test_term_kill_and_webdriver_cleanup_order_is_preserved(self):
         session = self.session()
-        self.process.wait.side_effect = [subprocess.TimeoutExpired('driver',5), None]
-        with patch.object(gui.time,'sleep'), patch.object(gui,'request',side_effect=lambda *a,**k:self.trace.append(k['method'])), patch.object(gui.os,'killpg',side_effect=lambda pid,sig:self.trace.append(sig)):
+        with patch.object(gui.time,'sleep'), patch.object(gui,'request',side_effect=lambda *a,**k:self.trace.append(k['method'])), patch.object(gui.os,'killpg',side_effect=lambda pid,sig:self.trace.append(sig)), self.reap_safe():
             session.close()
         self.assertEqual(self.trace, ['before-cleanup','quit','DELETE',signal.SIGTERM,signal.SIGKILL,('finish',True)])
         session.log.close.assert_called_once()
 
     def test_already_exited_process_never_authorizes_reused_pid_cleanup(self):
-        session = self.session(); self.process.poll.return_value = 0
-        with patch.object(gui.os,'killpg') as kill: session.close()
-        kill.assert_not_called()
+        session = self.session(); self.process.returncode = 0; self.process.poll.return_value = 0
+        with patch.object(gui.os,'killpg') as kill, patch.object(gui.os,'pidfd_open') as opened, self.assertRaisesRegex(RuntimeError,'not cleanable: leader already reaped'): session.close()
+        kill.assert_not_called(); opened.assert_not_called(); self.observer.finish.assert_called_with(False)
         observer = runtime.Observer(binding(),self.root/'r.json','native-1')
         observer.attach(self.process); self.assertIn('anchor already exited',observer.errors)
         self.assertIsNone(observer.worker)
@@ -360,14 +364,14 @@ class RuntimeLifecycleTests(unittest.TestCase):
 
     def test_final_mapping_precedes_appimage_mount_teardown(self):
         session = self.session()
-        with patch.object(gui.time,'sleep'), patch.object(gui,'request'), patch.object(gui.os,'killpg',side_effect=lambda *a:self.trace.append('mount-teardown')):
+        with patch.object(gui.time,'sleep'), patch.object(gui,'request'), patch.object(gui.os,'killpg',side_effect=lambda *a:self.trace.append('mount-teardown')), self.reap_safe():
             session.close()
         self.assertLess(self.trace.index('before-cleanup'), self.trace.index('quit'))
         self.assertLess(self.trace.index('before-cleanup'), self.trace.index('mount-teardown'))
 
     def test_first_session_finalizes_before_second_session_attaches(self):
         first = self.session()
-        with patch.object(gui.time,'sleep'), patch.object(gui,'request'), patch.object(gui.os,'killpg'): first.close()
+        with patch.object(gui.time,'sleep'), patch.object(gui,'request'), patch.object(gui.os,'killpg'), self.reap_safe(): first.close()
         self.trace.append('attach-second')
         self.assertLess(self.trace.index(('finish',True)),self.trace.index('attach-second'))
         source = inspect.getsource(native.run)
@@ -397,9 +401,8 @@ class RuntimeLifecycleTests(unittest.TestCase):
         self.assertIsNone(observer.worker)
         process.terminate(); process.wait(timeout=5); observer.finish(True)
         self.assertTrue(observer.finished); self.assertTrue(observer.stopped)
-        stalled = runtime.Observer(binding(), self.root/'stalled.json','native-1')
-        worker = Mock(pid=999,exitcode=-15); stalled.worker = worker; worker.is_alive.return_value = False
-        with patch.object(runtime,'wait_for_worker',return_value=[]), patch.object(os,'getpgid',return_value=999), patch.object(os,'killpg') as kill:
+        stalled = runtime.Observer(binding(), self.root/'stalled.json','native-1'); worker = Mock(pid=999,exitcode=-15); stalled.worker, stalled.worker_fd, worker.is_alive.return_value = worker, 88, False
+        with patch.object(runtime,'wait_for_worker',return_value=[]), patch.object(os,'getpgid',return_value=999), patch.object(os,'waitid',return_value=None), patch.object(os,'killpg') as kill, patch.object(os,'close'):
             stalled._stop_worker()
         self.assertEqual([call.args for call in kill.call_args_list],[(999,signal.SIGTERM),(999,signal.SIGKILL)])
         worker.close.assert_called_once(); worker.join.assert_called_once_with(timeout=2)
@@ -409,7 +412,7 @@ class RuntimeLifecycleTests(unittest.TestCase):
         product = subprocess.Popen(['/usr/bin/sleep','30'],env={'PATH':'/usr/bin:/bin'}); self.addCleanup(lambda: product.poll() is None and (product.terminate(),product.wait(timeout=5)))
         anchor = runtime.process_identity(product.pid); partial.process = product
         partial.worker = context.Process(target=shared.signal_partial_fixture,args=(binding(),partial.output,partial.phase,{},None,anchor,partial.started,receiver))
-        partial.worker.start(); receiver.close(); partial.control = sender
+        partial.worker.start(); partial.worker_fd = os.pidfd_open(partial.worker.pid); receiver.close(); partial.control = sender
         sender.send_bytes(json.dumps(['native-ready',time.monotonic()]).encode())
         deadline = time.monotonic()+5
         while not partial.output.with_suffix('.sampling').exists() and time.monotonic()<deadline: time.sleep(.01)
@@ -426,7 +429,7 @@ class RuntimeLifecycleTests(unittest.TestCase):
 
         context = runtime.multiprocessing.get_context('spawn'); receiver, sender = context.Pipe(False)
         grouped = runtime.Observer(binding(),self.root/'grouped.json','native-1')
-        grouped.worker = context.Process(target=query_group_fixture,args=(sender,)); grouped.worker.start(); sender.close()
+        grouped.worker = context.Process(target=query_group_fixture,args=(sender,)); grouped.worker.start(); grouped.worker_fd = os.pidfd_open(grouped.worker.pid); sender.close()
         self.assertTrue(receiver.poll(5)); query_pid = receiver.recv(); receiver.close()
         original_wait = runtime.wait_for_worker
         try:
@@ -438,10 +441,10 @@ class RuntimeLifecycleTests(unittest.TestCase):
             except ProcessLookupError: pass
         for operation in (KeyboardInterrupt(),SystemExit(143)):
             session = self.session(); session.execute.side_effect = operation
-            with patch.object(gui.os,'killpg'), self.assertRaises(type(operation)): session.close()
+            with patch.object(gui.os,'killpg'), self.reap_safe(), self.assertRaises(type(operation)): session.close()
             self.observer.finish.assert_called_with(True)
         session = self.session(); self.process.wait.side_effect = TimeoutError()
-        with patch.object(gui.time,'sleep'), patch.object(gui,'request'), patch.object(gui.os,'killpg'), self.assertRaises(TimeoutError): session.close()
+        with patch.object(gui.time,'sleep'), patch.object(gui,'request'), patch.object(gui.os,'killpg'), self.reap_safe(), self.assertRaises(TimeoutError): session.close()
         self.observer.finish.assert_called_with(False)
         fixture = self.root/'signal_fixture.py'
         fixture.write_text(shared.SIGNAL_LIFECYCLE_FIXTURE.replace('SCRIPTS',repr(str(Path(runtime.__file__).parent))))
@@ -462,15 +465,13 @@ class RuntimeLifecycleTests(unittest.TestCase):
     def test_runtime_receipt_failure_does_not_replace_behavior_failure(self):
         self.observer.checkpoint.side_effect = OSError('observer failure')
         session = self.session(); session.execute.side_effect = AssertionError('behavior failure')
-        with patch.object(gui.os,'killpg'), self.assertRaisesRegex(AssertionError,'behavior failure'): session.close()
+        with patch.object(gui.os,'killpg'), self.reap_safe(), self.assertRaisesRegex(AssertionError,'behavior failure'): session.close()
         self.observer.fail.assert_called_once()
         observer = runtime.Observer(binding(),self.root/'absent'/'receipt.json','native-1')
         observer.finish(True); self.assertIn('FileNotFoundError',observer.errors)
-        self.observer.checkpoint.side_effect = KeyboardInterrupt('cancel during observer stop')
-        session = self.session()
-        with patch.object(gui.os,'killpg') as kill, self.assertRaisesRegex(KeyboardInterrupt,'cancel during observer stop'): session.close()
-        kill.assert_called_once_with(self.process.pid,signal.SIGTERM)
-        session.log.close.assert_called_once(); self.observer.finish.assert_called_with(True)
+        self.observer.checkpoint.side_effect = KeyboardInterrupt('cancel during observer stop'); session = self.session()
+        with patch.object(gui.os,'killpg') as kill, self.reap_safe(), self.assertRaisesRegex(KeyboardInterrupt,'cancel during observer stop'): session.close()
+        self.assertEqual([c.args for c in kill.call_args_list],[(self.process.pid,signal.SIGTERM),(self.process.pid,signal.SIGKILL)]); session.log.close.assert_called_once(); self.observer.finish.assert_called_with(True)
 
     def test_stage_checkpoint_failure_does_not_replay_or_skip_native_actions(self):
         tree = ast.parse(inspect.getsource(native.run)); node = next(n for n in tree.body[0].body if isinstance(n,ast.FunctionDef) and n.name=='passed')
@@ -496,5 +497,4 @@ class RuntimeLifecycleTests(unittest.TestCase):
             with self.assertRaisesRegex(KeyboardInterrupt,'during attach'): startup.main()
         self.assertEqual([call.args for call in kill.call_args_list],[(self.process.pid,signal.SIGTERM),(self.process.pid,signal.SIGKILL)])
         self.process.wait.assert_called_once_with(timeout=5)
-
 if __name__ == '__main__': unittest.main(verbosity=2)
