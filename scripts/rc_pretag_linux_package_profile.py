@@ -52,7 +52,7 @@ MODES = {path: '100644' for path in CAPS}
 MODES.update({'scripts/desktop_glib_build_evidence.py': '100755', 'scripts/appimage_relro_guard.py': '100755'})
 DELTA_LIMIT = 8500
 SOURCE_PINS = {
-    '.github/workflows/linux-rc-packages.yml': ('100644', '7acae23c4d96c29f13326a4e172fa4b6c8859746', '66a0a63215a695c1af2678c463d145ec0c91acbbb702404ca38efdcea8d1dda9', 19434, 350),
+    '.github/workflows/linux-rc-packages.yml': ('100644', '264ed6f35671a615f6c1d57fa4ee256d8b587cec', '919b7d2320458f20261ce7c20654e171aae983ac34a0ea0cb7701e84b125e4eb', 19434, 350),
     'scripts/desktop_glib_build_evidence.py': ('100755', '46638243c98fbd2c7ba6fd1fc90439fd70c2bd21', '52526fe848208e7a9307a036939f326ed92b2a3b5a09d9029cddd8eb6e2aa5f7', 17886, 318),
     'scripts/desktop_glib_build_contract.py': ('100644', '3a0d5c34424f344dfb622b74bc750cc3becd6c9d', '6597e7302058ca15e4198fde9bbfae1132c493fb73d5ac881140438efa54bbf4', 27740, 492),
     'scripts/linux_package_provenance.py': ('100644', 'c30782f36a89313487edb0ef5f1288d00c261117', 'e4f6fee05001fe9c08b136f434cdf65edc08ecb0d6110682aa972aeffc285127', 16540, 254),
@@ -148,7 +148,7 @@ def content(ref, root, git, entries, historical, release, release_tree, document
     actual, paths = entries(ref, root), CAPS.keys()
     assert len(baseline) == 1705 and len(paths) == 37
     assert SOURCE_PINS.keys() == paths - {PROFILE} and MODES.keys() == paths
-    assert baseline.keys() & paths == inverse.BASE_PINS.keys() and len(inverse.BASE_PINS) == 16
+    assert baseline.keys() & paths == inverse.BASE_PINS.keys() & paths and len(inverse.BASE_PINS) == 23
     assert actual.keys() == baseline.keys() | paths and len(actual) == 1726
     assert {path for path in actual if actual[path] != baseline.get(path)} == paths
     assert all(actual[path] == value for path, value in baseline.items() if path not in paths)
@@ -158,7 +158,7 @@ def content(ref, root, git, entries, historical, release, release_tree, document
     for path, (mode, blob, digest, size, lines) in SOURCE_PINS.items():
         assert mode == MODES[path] and actual[path][2] == blob and o.pin(data[path]) == (blob, digest), path
         assert (len(data[path]), len(data[path].splitlines())) == (size, lines), path
-    for path in inverse.BASE_PINS:
+    for path in inverse.BASE_PINS.keys() & paths:
         assert inverse.inverse(path, data[path]) == git('cat-file', 'blob', baseline[path][2], root=root)
     p.authenticated._budgets(ref, M, root, git, data, CAPS, DELTA_LIMIT, 'linux_package_delta_budget')
     return actual

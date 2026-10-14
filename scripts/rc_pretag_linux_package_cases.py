@@ -240,7 +240,7 @@ class LinuxPackageCompositionTests(unittest.TestCase):
         self.assertEqual(integration_bytes(p.JOIN_ONCE_HELPER, (c.ROOT / p.JOIN_ONCE_HELPER).read_bytes()), self.frozen(p.JOIN_ONCE_HELPER))
 
     def test_inverse_fragments_and_historical_passthrough_pins_are_exact(self):
-        self.assertEqual(inverse.PRIOR_PINS.keys(), {p.PROFILE})
+        self.assertEqual(inverse.PRIOR_PINS.keys(), {p.PROFILE, '.github/workflows/linux-rc-packages.yml'})
         self.assertEqual(inverse.PRIOR_PINS[p.PROFILE], (a.BASE_PINS[p.PROFILE],))
         prior = c._git('show', a.M + ':' + p.PROFILE, root=self.repo)
         self.assertEqual(inverse.inverse(p.PROFILE, prior), prior)
@@ -366,8 +366,11 @@ class LinuxPackageCompositionTests(unittest.TestCase):
         self.assertFalse(held & self.good.keys())
         for path in held:
             self.assertFalse((c.ROOT / path).exists() or (c.ROOT / path).is_symlink(), path)
-        for path in ('package.json', 'package-lock.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json',
-                     p.CHECKS, p.CONTRACTS, '.github/workflows/rc-pretag-evidence.yml', '.github/workflows/final-rc-packages.yml',
+        versions = ('package.json', 'package-lock.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json')
+        for path in versions:
+            if path in self.original:
+                self.assertEqual(inverse.normalize(path, (c.ROOT / path).read_bytes()), self.frozen(path), path)
+        for path in (p.CHECKS, p.CONTRACTS, '.github/workflows/rc-pretag-evidence.yml', '.github/workflows/final-rc-packages.yml',
                      'scripts/rc_release_policy.py', 'scripts/rc_release_eligibility.py', 'scripts/AppImage启动入口v3.sh',
                      'services/local-agent/src/process.rs', 'src-tauri/src/workspace_snapshots/filesystem.rs',
                      '.github/workflows/windows-snapshot-warning-scope.yml', '.github/workflows/desktop-glib-backport.yml'):
