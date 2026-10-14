@@ -1,28 +1,20 @@
-"""Finite #150 topology admission for RC070 packaging tip ae4e8483c560; independent review binds self-bytes."""
+"""Finite #150 topology admission for RC070 packaging tip aff3327e041d; independent review binds self-bytes."""
 import hashlib
 import rc_pretag_ownership_profile as o
 import rc_pretag_publication_profile as p
 
-M = 'ae4e8483c560865ffaec80d75f46087c806fe964'
-M_TREE = 'f21b089b212b91e9882228b81eaa3d23efbb4fdc'
-M_PARENTS = ('dcd7159140f106f192e97d325aae95a882e250d3',)
-M_RAW = (508, '94066834394879130531760fc8e3ceaf4c1c13aa56a55560060518a5bc166e25')
+M = 'aff3327e041d45cec06131d077d28b60588f4657'
+M_TREE = '1fb19e449e48df3ca174a58eba582e5f4865937e'
+M_PARENTS = ('e9fe35b0aab5b8e4ed40b5f99ae6b240bed5881e',)
+M_RAW = (732, 'a06ab0bdcab462b4d8e3cb8fc3e0d2c966b260a99355d59fb31a7e2874a224c4')
 BASE = '41984b1de0ca13efab3646aae5041845bc78cfee'
 PROFILE = 'scripts/rc_pretag_rc070_topology_profile.py'
 CAPS = {
     PROFILE: (120, 39),
-    'scripts/rc_pretag_integration_admission_profile.py': (371, 13),
-    'scripts/rc_pretag_linux_package_profile.py': (186, 7),
 }
 DELTA_LIMIT = 64
-BASE_PINS = {
-    'scripts/rc_pretag_integration_admission_profile.py': ('100644', '514efb0c0e7cf0554e45db38abca67866b91b390', 'ff6f8a08f821ebb1f9c612910b998196d697983a91034089d2da97a579f53c0d', 109166, 364),
-    'scripts/rc_pretag_linux_package_profile.py': ('100644', 'f8a5fa41d30dc111c6837845217fa481ed9f5576', 'e59503b43f8f9a44acf7c0ae5aa9040e4c88343e1ee46d749727467a35bd67b8', 14589, 181),
-}
-SOURCE_PINS = {
-    'scripts/rc_pretag_integration_admission_profile.py': ('100644', 'bc85c20c7de97dffe04bef76a702f05ded32a3dc', '5fd82ff2f4818b0fe2235dbdd49604f7e2cebb428a9648c0cdcb832ae2afedb5', 109746, 366),
-    'scripts/rc_pretag_linux_package_profile.py': ('100644', 'cdb82073d8ffd0eed7e62d324ea1210025ba2a87', '29b9480129319b8377d51548bfa56a3f9411d17a57fde48c524d7576047b7313', 14589, 181),
-}
+BASE_PINS = {}
+SOURCE_PINS = {}
 
 
 def topology(ref, root, git, release):
