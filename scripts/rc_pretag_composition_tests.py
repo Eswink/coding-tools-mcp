@@ -219,7 +219,7 @@ class CompositionTests(unittest.TestCase):
         path = 'scripts/rc_consumer_snapshot.py'
         original = _git('show', BASE + ':' + path)
         self.assertEqual((_blob(original), hashlib.sha256(original).hexdigest()), NARROW[path])
-        self.assertEqual(_reconstruct_snapshot((ROOT / path).read_bytes().decode('utf-8')).encode(), original)
+        self.assertEqual(_reconstruct_snapshot(integration_bytes(path, (ROOT / path).read_bytes()).decode('utf-8')).encode(), original)
 
     def test_consumer_inverse_reconstructs_pinned_j(self):
         path = 'scripts/rc_artifact_consumer.py'
