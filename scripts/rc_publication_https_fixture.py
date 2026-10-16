@@ -68,9 +68,13 @@ class HTTPSFixture:
         self._temporary = tempfile.TemporaryDirectory(prefix='publisher-tls-')
         self.root = Path(self._temporary.name)
         self.ca, self.certificate, self.key = (self.root / n for n in ('ca.pem', 'server.pem', 'server.key'))
+        # OpenSSL 3.5+ rejects CA certs without keyUsage; include CA:TRUE + keyCertSign
+        # so loopback TLS smoke works on current Python/ssl (older OpenSSL still accepts).
         commands = [
             ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', str(self.root / 'ca.key'),
-             '-out', str(self.ca), '-days', '1', '-subj', '/CN=Publisher Test CA'],
+             '-out', str(self.ca), '-days', '1', '-subj', '/CN=Publisher Test CA',
+             '-addext', 'basicConstraints=critical,CA:TRUE',
+             '-addext', 'keyUsage=critical,keyCertSign,cRLSign'],
             ['req', '-new', '-newkey', 'rsa:2048', '-nodes', '-keyout', str(self.key),
              '-out', str(self.root / 'server.csr'), '-subj', '/CN=api.github.com'],
             ['x509', '-req', '-in', str(self.root / 'server.csr'), '-CA', str(self.ca), '-CAkey',

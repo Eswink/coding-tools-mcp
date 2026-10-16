@@ -7129,11 +7129,11 @@
    "sha256": "dc27ab9fc188dcd51716c21c90becd2af357ecf8ba2dd720f467d7231766f097"
   },
   {
-   "blob": "109c1f617011cb0beb280aeb0fb254cf1004fb55",
-   "bytes": 11812,
+   "blob": "02951f857ed9beb1e3c99822a4d4219cca43be57",
+   "bytes": 12117,
    "mode": "100644",
    "path": "scripts/rc_publication_https_fixture.py",
-   "sha256": "96ce577206c4e325437c99605c75dfef17ff45c11577d316f09ad81507080289"
+   "sha256": "12aa93c0e94e16d9998a8836333a6ce6fe3a62939b63ed947cf30ce6e6a46f71"
   },
   {
    "blob": "e4b6cf4707fbd0f05cbb3146733b0ea456a9bfe3",
