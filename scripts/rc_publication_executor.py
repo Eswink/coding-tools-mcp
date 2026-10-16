@@ -7,8 +7,10 @@ import time
 
 import rc_publication_contract as core
 import rc_publication_github as wire
+import rc_publication_artifact_admission as artifacts
+import rc_publication_request as owned
 from rc_consumer_io import ConsumerError
-from rc_publication_stage import Selection, stage_selected
+from rc_publication_stage import Selection
 
 OPERATION_SECONDS = 300
 
@@ -18,10 +20,13 @@ class PublisherSession:
     def __init__(self, root, selection, token, *, temporary_parent):
         if type(selection) is not Selection:
             raise wire.WireFailure('invalid_request', 'none')
-        self._root, self._selection = Path(root), selection
+        self._root = Path(root)
         self._temporary_parent = temporary_parent
-        self._api = wire.GitHub(token, selection)
+        self._transport = wire.GitHub(token, selection)
+        self._selection = self._transport.selection
+        self._api_retired = False
         self._stage = None
+        self._artifact_owner = None
         self._transition = None
         self._activation_outcome = None
         self._cancelled = threading.Event()
@@ -31,6 +36,13 @@ class PublisherSession:
         self._attempted = set()
         self._inflight = None
         self._deadline = None
+        self._request_scope = None
+        self._read_scope = None
+        self._owner = owned._session_owner(self, self._api)
+
+    @property
+    def _api(self):
+        return None if self._api_retired else self._transport
 
     @property
     def transition(self):
@@ -55,11 +67,13 @@ class PublisherSession:
     def _prepare(self):
         try:
             self._check_active()
+            wire._prepare_admission(self._selection, self._api, check_active=self._check_active, deadline=self._deadline)
+            self._artifact_owner = artifacts._ArtifactOwner(self._root, self._selection, self._api,
+                temporary_parent=self._temporary_parent)
+            self._stage = self._artifact_owner.stage
+            self._artifact_owner.enter(deadline=self._deadline, check_active=self._check_active)
             wire._authenticate(self._selection, self._api, check_active=self._check_active, deadline=self._deadline)
             wire._remote_constraint(self._selection.subject)
-            self._stage = stage_selected(self._root, self._selection, self._api,
-                temporary_parent=self._temporary_parent, deadline=self._deadline, check_active=self._check_active)
-            self._stage.__enter__()
             self._check_active()
             self._transition = core.start(self._stage.subject, self._stage.plan)
         except BaseException as error:
@@ -86,7 +100,7 @@ class PublisherSession:
     def _check_active(self):
         if self._closed:
             raise wire.WireFailure('cancelled', 'none')
-        self._check_completion()
+        PublisherSession._check_completion(self)
 
     def _check_completion(self):
         if self._cancelled.is_set():
@@ -95,7 +109,7 @@ class PublisherSession:
             raise wire.WireFailure('timeout', 'none')
 
     def _before_write(self):
-        self._check_active()
+        PublisherSession._check_active(self)
         op = self._inflight
         if (op is None or self._transition.action is not op
                 or self._transition.state.pending is not op
@@ -118,20 +132,22 @@ class PublisherSession:
                 raise
             self._check_active()
             fields['observation'] = self._api.observe(self._transition.state,
-                staged=staged, gates=gates, draft_visibility=visibility)
+                staged=staged, gates=gates, draft_visibility=visibility,
+                deadline=self._deadline, check_active=self._check_active)
         elif op.kind == 'CreateDraft':
             fields['release_id'] = self._api.create_draft(op,
-                before_write=self._before_write, check_active=self._check_active)
+                before_write=self._before_write, check_active=self._check_active, scope=self._request_scope)
         elif op.kind == 'UploadAsset':
             fields['asset'] = self._api.upload_asset(op, self._stage.stream(op.asset_ordinal),
-                before_write=self._before_write, check_active=self._check_active)
+                before_write=self._before_write, check_active=self._check_active, scope=self._request_scope)
             fields['release_id'] = op.release_id
         elif op.kind == 'VerifyAsset':
-            fields['asset'] = self._api.verify_asset(op)
+            fields['asset'] = self._api.verify_asset(op,
+                deadline=self._deadline, check_active=self._check_active)
             fields['release_id'] = op.release_id
         elif op.kind == 'PublishPrerelease':
             fields['release_id'] = self._api.publish_prerelease(op,
-                before_write=self._before_write, check_active=self._check_active)
+                before_write=self._before_write, check_active=self._check_active, scope=self._request_scope)
         else:
             raise wire.WireFailure('invalid_event', 'none')
         try:
@@ -172,21 +188,33 @@ class PublisherSession:
             raise wire.WireFailure('invalid_request', 'none')
         if self._transition is None:
             self._deadline = time.monotonic() + OPERATION_SECONDS
-            self._prepare()
+            try:
+                owned._read_scope(self._owner, None)
+                self._prepare()
+            finally:
+                owned._retire(self._read_scope)
+                self._read_scope = None
         while isinstance(self._transition.action, core.Operation):
             op = self._transition.action
             self._deadline = time.monotonic() + OPERATION_SECONDS
             self._inflight = op
             try:
+                owned._read_scope(self._owner, op)
                 self._check_active()
                 if op.operation_id in self._attempted or self._transition.state.pending is not op:
                     raise wire.WireFailure('invalid_event', 'none')
                 if op.kind not in core.MUTATIONS:
                     self._attempted.add(op.operation_id)
+                else:
+                    owned._operation_scope(self._owner, op)
                 result = self._execute(op)
             except BaseException as error:
                 result = self._failure(op, error)
             finally:
+                owned._retire(self._request_scope)
+                self._request_scope = None
+                owned._retire(self._read_scope)
+                self._read_scope = None
                 self._inflight = None
             self._transition = core.advance(self._transition.state, result)
         self._deadline = None
@@ -235,8 +263,17 @@ class PublisherSession:
         """Retire each owner once; never retry a possibly closed descriptor."""
         self._closed = True
         failed = self._cleanup_failed or bool(self._stage and self._stage._cleanup_failed)
+        owner, self._artifact_owner = self._artifact_owner, None
+        if owner is not None:
+            try:
+                owner.close()
+            except BaseException:
+                failed = True
         stage, self._stage = self._stage, None
-        api, self._api = self._api, None
+        api = self._api
+        self._api_retired = True
+        owned._retire(self._request_scope)
+        owned._retire(self._read_scope)
         for owner in (stage, api):
             if owner is not None:
                 try:

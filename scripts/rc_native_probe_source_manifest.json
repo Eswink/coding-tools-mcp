@@ -6338,11 +6338,11 @@
    "sha256": "5011429e74a679dd384427fdde05e34ade6c36caf4e8e389354e87e06f6e4a06"
   },
   {
-   "blob": "f4c3539785844b59a9956a2c296eada7ecaf5ce3",
-   "bytes": 17846,
+   "blob": "e0b8742d7b4daba5dbb5362bd0660c7057462fe6",
+   "bytes": 18226,
    "mode": "100644",
    "path": "scripts/rc_consumer_io.py",
-   "sha256": "d66204f5981abf5d175c1268d4c0a493b8254f08d32473ff447c75437a89e016"
+   "sha256": "2e068ce842fc0764a72728ed4cf7b9016c8e02c84911dbf4fc143bccb120443a"
   },
   {
    "blob": "e4b599de54624dbf5fe077a345b305823f413984",
@@ -6387,11 +6387,11 @@
    "sha256": "2356dad478b0ea91d344709ab02ae5d2b01e6ac27bce15c35c3fb8cf666d85bf"
   },
   {
-   "blob": "0d5b759be98287c329005aaf062d3bfdba05205c",
-   "bytes": 18232,
+   "blob": "dd819b3fbb79c506d240d7b4c19502d2c1b6ba15",
+   "bytes": 18465,
    "mode": "100644",
    "path": "scripts/rc_consumer_snapshot.py",
-   "sha256": "25ad5cf845efb9f19cd4d4e309702ecd81eba2b7be7c53d849c649eadd910391"
+   "sha256": "5b76efa0ac3a4c014ae953701093586b9d1b7940a01d554fe7b3fcf1943e0939"
   },
   {
    "blob": "626d08456dfe712ff5c282852dd329351b62e890",
@@ -6443,11 +6443,11 @@
    "sha256": "3c48ca1eba0b9d994109df4535271c0ef2253085e580cc419cabe8524af80dc3"
   },
   {
-   "blob": "77853bf3ca29e9a54a3372ddfd1bff38f67a2e7a",
-   "bytes": 16917,
+   "blob": "656808b765cf38541ff746faf8bac1a38a0a58a7",
+   "bytes": 16937,
    "mode": "100644",
    "path": "scripts/rc_consumer_transport_tests.py",
-   "sha256": "9f5c539e2474754810a4bb56b62b28929e8f26af25c9376f274a97fa24f81445"
+   "sha256": "fe3b59155678332bfd579d96ebba15fd13add6346f647cdc02535b8a35acbff3"
   },
   {
    "blob": "2b4cfa913adac1987d150e888a5f9b96dbe31e99",
@@ -7038,11 +7038,11 @@
    "sha256": "c8173c38d30655479a11799a68e6959188ec30f22e0ac29d9601ead8b385794b"
   },
   {
-   "blob": "63015fea8d851d2581c437dfcfe5939dce3d53f1",
-   "bytes": 11419,
+   "blob": "ef5e3fe0f1a544d6dec883e79e2ca858d93f8bd8",
+   "bytes": 11883,
    "mode": "100644",
    "path": "scripts/rc_publication_admission.py",
-   "sha256": "8226f363b9b47fc4028504c787206b6a6a862299e58bb42338fa977205c5ecb5"
+   "sha256": "7d78ad85c06f2bf227faefcaa10c727e2c9f234e20ced2c9db794dbb27d8a524"
   },
   {
    "blob": "654b5dba8f102d401b4830c4095c4043527a97f6",
@@ -7080,18 +7080,18 @@
    "sha256": "dcf9c523c1eadf8b01e872522788587cf0478ffa81cc94b582edc3be597f4e80"
   },
   {
-   "blob": "fddc35f6f2551783c54ca45109981bb1e6b84654",
-   "bytes": 11205,
+   "blob": "b7e8c08226d0f0eb755125674ad76a397a8300c9",
+   "bytes": 12867,
    "mode": "100644",
    "path": "scripts/rc_publication_executor.py",
-   "sha256": "2cd64f349b6567f1d4a5498c921a26981bc5e9f1ecee9e014b4f918c5cf3c7fb"
+   "sha256": "499d4ae64c014cab032d3a653e7776f938e2c57cd9d9b5076de36c13e201f9d9"
   },
   {
-   "blob": "ab5ea441f645d5a4ccedac48dafc8a05a4de670e",
-   "bytes": 16527,
+   "blob": "365c59ed8996ae1e17d134a9f5aa46d28cc5620f",
+   "bytes": 18480,
    "mode": "100644",
    "path": "scripts/rc_publication_executor_cases.py",
-   "sha256": "b1b8d687fbbf782bc332133d2ce875aae2159e4872d729b0be6d6964fd979ef1"
+   "sha256": "430851f4e141c6f935e4c41d98b6ff7e5eb8c3c4bacce8d3ea9453070fa47e41"
   },
   {
    "blob": "efbc5f826985e144c417b3e39de9c172b9a92680",
@@ -7108,18 +7108,18 @@
    "sha256": "b57bf01a849c2dd3e9d636aacb4000676137ef40c07277dfee729ae463c76ff5"
   },
   {
-   "blob": "fdc12ec5dbff05cdf065c14022a28b43aa20e1f6",
-   "bytes": 23519,
+   "blob": "139d65d520d7468f066a432fb1442a5422744cbf",
+   "bytes": 26908,
    "mode": "100644",
    "path": "scripts/rc_publication_github.py",
-   "sha256": "4f202e8cf336095ca439da7381f6205663c8790fb7cc6347e3e04861570a8727"
+   "sha256": "53ecb6de952430c3ac6d5a3d18cf41c989616aa8b05d635da4588a30a5640faa"
   },
   {
-   "blob": "8cf3a0512e50149df7590f0a5144c76d4d8637a6",
-   "bytes": 22469,
+   "blob": "b549d0822839c6ba5d2fa232fe83746591cc5d30",
+   "bytes": 35945,
    "mode": "100644",
    "path": "scripts/rc_publication_github_cases.py",
-   "sha256": "578dc3569e2cd56d60c55f440b1ca0c14e8e967e4c86da3b35af58d435452e12"
+   "sha256": "ea0d41eb19f33f3736bd75df4035d5dc2d947a26426c01360f2db635d20379e5"
   },
   {
    "blob": "36bff3d2760b0b206e06d9079dbcb808eb48d352",
@@ -7129,11 +7129,11 @@
    "sha256": "dc27ab9fc188dcd51716c21c90becd2af357ecf8ba2dd720f467d7231766f097"
   },
   {
-   "blob": "76e38e9e2bd020238820f7408fd490995d2b66ba",
-   "bytes": 10554,
+   "blob": "109c1f617011cb0beb280aeb0fb254cf1004fb55",
+   "bytes": 11812,
    "mode": "100644",
    "path": "scripts/rc_publication_https_fixture.py",
-   "sha256": "e18648a109e7980f426f15663a208a045eabab5c6981816d6f989635b6c81649"
+   "sha256": "96ce577206c4e325437c99605c75dfef17ff45c11577d316f09ad81507080289"
   },
   {
    "blob": "e4b6cf4707fbd0f05cbb3146733b0ea456a9bfe3",
@@ -7213,18 +7213,18 @@
    "sha256": "3e57a1732ffef212ff2cb033c276754cc996482959846229084ceace75b15fc4"
   },
   {
-   "blob": "5647efbcdc56180989544eca2127a14cd4c62353",
-   "bytes": 22789,
+   "blob": "3a421b9b8b505f0e2ee41cc403a4eb1ff61a344f",
+   "bytes": 24917,
    "mode": "100644",
    "path": "scripts/rc_publication_stage.py",
-   "sha256": "3a2bfe1d874bdd3ad93d77a78d4f7874cbe4771cd31390f90136740780a65a39"
+   "sha256": "546f97734a34ebbeac6f7a354385dad894bd81ebcb4edfe0fc71b640ec98033d"
   },
   {
-   "blob": "2c4a23d33f7e08ba181ed7d2bcd2b1dda71e2774",
-   "bytes": 22639,
+   "blob": "fa7c4cfbb42c5bd90ea75196cf63d9b5df3bf743",
+   "bytes": 22910,
    "mode": "100644",
    "path": "scripts/rc_publication_stage_cases.py",
-   "sha256": "e4f66cd79129c908dfcf9c0b06aabd7029fae0517388308b9ec5dba61ad2392a"
+   "sha256": "d15c4fc339252d084d1797277673e4d342f382d90cf18db10c0160d1bbb0186d"
   },
   {
    "blob": "ec1fd84ec33c6214195e466633f6f68b31f3ef47",
@@ -7269,11 +7269,11 @@
    "sha256": "82085f17e982efdadbe736e2fd35e114ce03f43e866f1ef4892bd61f94a6349c"
   },
   {
-   "blob": "6dafa3aa52b66a10657645b2273cfcf33823bb82",
-   "bytes": 14099,
+   "blob": "bcc7b58d4dbfe03f0bbb15f7597f3ef659ced464",
+   "bytes": 15293,
    "mode": "100644",
    "path": "scripts/rc_release_policy.py",
-   "sha256": "650bc02d8592a9cfdb143945595d39d95c14c1308abf533f2ea6dd61ad85bafa"
+   "sha256": "57bef24feff30b8c4bb88401c2d0de41c3483846878ee08d8592f29ddf6a0af4"
   },
   {
    "blob": "4082771929c042161d737ce2bc7fdf08eed35ecf",

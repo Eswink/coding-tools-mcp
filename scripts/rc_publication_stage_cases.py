@@ -17,7 +17,7 @@ import zipfile
 
 import rc_artifact_consumer as consumer
 from rc_consumer_fixtures import ConsumerFixture, write_json, write_lock
-from rc_consumer_io import ConsumerError, PrivateRoot
+from rc_consumer_io import ConsumerError, PrivateRoot, _check_budget
 from rc_consumer_plan_tests import API, zip_bytes
 from rc_pretag_types import SourceIdentity, InvocationIdentity, REPOSITORY_ID
 import rc_publication_contract as core
@@ -32,6 +32,13 @@ def git(root, *args):
     return subprocess.check_output(['git', '-C', str(root), '-c', 'core.hooksPath=/dev/null',
         '-c', 'core.fsmonitor=false', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false', *args],
         stderr=subprocess.DEVNULL, env=c.git_environment(), timeout=30).decode().strip()
+
+
+class BudgetAPI(API):
+    """Synthetic publisher-only kwargs compatibility; never production transport."""
+    def get(self, path, *, deadline=None, check_active=None):
+        _check_budget(deadline, check_active)
+        return super().get(path)
 
 
 class SourceFixture(ConsumerFixture):
@@ -84,7 +91,7 @@ def publisher_fixture():
         f.producer.repository_id = REPOSITORY_ID
         f.sign_cloud(); f.build_noncloud(); f.refresh_reports()
         final_bytes = zip_bytes(f.bundle)
-        api = API(f, final_bytes)
+        api = BudgetAPI(f, final_bytes)
         for run_id in (123, 456):
             run = api.data[f'/actions/runs/{run_id}']
             for key in ('repository', 'head_repository'):

@@ -1,4 +1,4 @@
-"""Fixed evidence requirements; integration and FINAL have read-only metadata verifiers."""
+"""Fixed metadata/artifact evidence requirements; unknown publication gates remain blocked."""
 from dataclasses import dataclass
 
 from rc_pretag_types import POLICY_REVISION, PERMISSIONS, require, sequence
@@ -47,7 +47,9 @@ class GateRequirement:
             sequence(value, str, 16)
         require(all(p in PERMISSIONS for p in self.permissions), 'invalid_policy_permission')
         require(self.verifier == {'full_integration': 'github_full_integration_v1',
-            'final_packaging': 'github_final_packaging_v1'}.get(self.gate_id, 'unimplemented'),
+            'final_packaging': 'github_final_packaging_v1', 'bundle_bytes': 'github_final_bundle_bytes_v1',
+            'raw_cloud_audit': 'github_final_raw_cloud_audit_v1',
+            'raw_noncloud_audits': 'github_final_raw_noncloud_audits_v1'}.get(self.gate_id, 'unimplemented'),
             'unsupported_policy_verifier')
 
 
@@ -63,6 +65,13 @@ def requirement(key, scope, ledger, family='engineering', contract='unmapped pro
         identity = 'repository ID/name, source SHA/tree, workflow blob/ref, newest run/current attempt and exact jobs'
         if key == 'final_packaging':
             identity += '; candidate branch push, first attempt, thirteen successful selected jobs'
+    elif key in ('bundle_bytes', 'raw_cloud_audit', 'raw_noncloud_audits'):
+        visibility = 'owned API-digest/size-authenticated FINAL ZIP; no caller report import'
+        completeness = 'real fixed consumer validators plus original plan/provenance and six retained asset handles'
+        identity += '; selected consumer receipt ZIP, original plan digest and retained provenance bytes'
+        contract = {'bundle_bytes': 'four payloads and five authenticated installed producer assertions; no independent install repeat',
+                    'raw_cloud_audit': 'exact cloud build, raw RustSec and active applicability; no broad native/TLS acceptance',
+                    'raw_noncloud_audits': 'three source lock/raw RustSec pairs and GLib source proof; no installed desktop attestation'}[key]
     if family == 'source':
         endpoints, permissions = SOURCE_READS, ('contents:read',)
         if key == 'tag_absence':
@@ -86,7 +95,9 @@ def requirement(key, scope, ledger, family='engineering', contract='unmapped pro
         ('repeat complete source/workflow/run/current attempt/job observations; non-atomic' if key in ('full_integration', 'final_packaging')
          else 'repeat source/run/current attempt/job/artifact/visibility observations at every admission fence; non-atomic'),
         verifier={'full_integration': 'github_full_integration_v1',
-                  'final_packaging': 'github_final_packaging_v1'}.get(key, 'unimplemented'))
+                  'final_packaging': 'github_final_packaging_v1', 'bundle_bytes': 'github_final_bundle_bytes_v1',
+                  'raw_cloud_audit': 'github_final_raw_cloud_audit_v1',
+                  'raw_noncloud_audits': 'github_final_raw_noncloud_audits_v1'}.get(key, 'unimplemented'))
 
 
 # Each original ledger row is explicitly covered. No closure/status text is evidence.

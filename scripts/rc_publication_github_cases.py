@@ -14,42 +14,283 @@ import rc_publication_github as wire
 from rc_publication_https_fixture import HTTPSFixture, authorities, gates, stable_identity
 
 
+class _OwnedReads:
+    """Test-side handle on the session's owned client: each direct read runs in a fresh session read scope."""
+
+    def __init__(self, case, client, standalone):
+        self._case, self._client, self._standalone = case, client, standalone
+
+    def __getattr__(self, name):
+        case = self._case
+        if name == '_request':
+            return case._owned_request
+        action = case.session._transition.action if case._prepared else None
+        if not isinstance(action, core.Operation):
+            # Outside an owned operation (before activation, at a pause, after the terminal
+            # state) the original standalone client serves direct reads, as before the port.
+            return getattr(case._standalone_client(), name)
+        value = getattr(self._client, name)
+        if not callable(value) or name in ('close',):
+            return value
+        def scoped(*args, **kwargs):
+            import rc_publication_executor as executor
+            import rc_publication_request as owned
+            session, op = case.session, action
+            session._deadline = time.monotonic() + executor.OPERATION_SECONDS
+            session._inflight = op
+            try:
+                owned._read_scope(session._owner, op)
+                return value(*args, **kwargs)
+            finally:
+                owned._retire(session._read_scope)
+                session._read_scope = None
+                session._inflight = None
+        return scoped
+
+
 class GitHubCases(unittest.TestCase):
+    """Wire cases driven through an owned PublisherSession (frozen02 owned request layer).
+
+    Setup-only port: every mutation runs inside the session's real _OperationScope with the
+    session-bound _before_write.  wire._authorize is wrapped to record (op, scope) and then
+    delegate to the original.  Assertions are unchanged.
+    """
+
     def setUp(self):
-        self.fixture = HTTPSFixture().__enter__()
-        self.addCleanup(self.fixture.close)
-        self.connection = patch.object(wire, '_connect', side_effect=self.fixture.connect)
-        self.connection.start()
-        self.addCleanup(self.connection.stop)
-        self.api = wire.GitHub('fixture-private-token', self.fixture.selection)
-        self.addCleanup(self.api.close)
+        from contextlib import ExitStack
+        from rc_publication_stage_cases import publisher_fixture, artifact_worker, artifact_route
+        stack = ExitStack()
+        self.addCleanup(stack.close)
+        self._stack = stack
+        self._staged = stack.enter_context(publisher_fixture())
+        self.fixture = stack.enter_context(HTTPSFixture(subject=self._staged.selection.subject,
+            plan=self._staged.plan, payloads=self._staged.payloads))
+        self.fixture.route = lambda *args: artifact_route(self._staged, *args)
+        stack.enter_context(patch.object(wire, '_connect', side_effect=self.fixture.connect))
+        stack.enter_context(artifact_worker(self._staged))  # archives served in-worker, off the wire fixture
+        original_authenticate = wire._authenticate
+        def modeled_gates(selection, api, *, deadline, check_active):
+            import rc_publication_artifact_admission as artifacts
+            owner = artifacts._OWNERS.get(api)
+            if owner is not None:
+                failure = None
+                try:
+                    owner._capture(deadline=deadline, check_active=check_active)
+                except artifacts.ConsumerError as error:
+                    if error.code not in ('transport_cancelled', 'transport_deadline_exceeded',
+                                          'artifact_transport_failed'):
+                        raise
+                    failure = artifacts._wire_failure(error)
+                if failure is not None:
+                    raise failure from None
+            return gates(selection, api, deadline=deadline, check_active=check_active)
+        # Applied innermost around owned session work, since tests enter authorities() later.
+        self._modeled_gates = modeled_gates
+        self.authorized = []
+        self.session, self.api, self._standalone = None, None, None
         self.transition = core.start(self.fixture.subject, self.fixture.plan)
-        self.trace, self.attempts = [], []
+        self.trace, self.attempts, self.mutations = [], [], []
+        self.addCleanup(self._check_authorized)
+        from copy import deepcopy
+        self._initial_remote = deepcopy((self.fixture.release, self.fixture.assets))
+        self._open()
+
+    def _open(self):
+        """A fresh owned session over the same TLS fixture; activation happens lazily."""
+        import rc_publication_executor as executor
+        if self.session is not None:
+            self._close_session()
+        self.session = executor.PublisherSession(self._staged.root, self._staged.selection,
+            'fixture-private-token', temporary_parent=self._staged.temporary_parent)
+        self.api = _OwnedReads(self, self.session._transport, None)
+        self._prepared = False
+
+    def _owned_request(self, method, host, path, **kwargs):
+        op = kwargs.get('op')
+        if op is None:
+            return self._standalone_client()._request(method, host, path, **kwargs)
+        started = time.monotonic()
+        self._prepare()
+        found = self._owned_op(op)
+        if kwargs.get('deadline') is not None:
+            # Repositioning a session is harness time; keep the caller's relative budget.
+            kwargs['deadline'] += time.monotonic() - started
+        use = found if found == op else op  # a value-different op must still meet the owned guard
+        def call(s):
+            return s._transport._request(method, host, path, **dict(kwargs, op=use,
+                before_write=s._before_write, check_active=s._check_active, scope=s._request_scope))
+        return self._attempt(found, call)
+
+    def _standalone_client(self):
+        """Unowned client for direct reads; frozen02 credentials deep-copy the selection at
+        construction, so rebuild when a test re-points fixture.selection.subject."""
+        client = self._standalone
+        if client is None or client.selection.subject != self.fixture.selection.subject:
+            client = self._standalone = wire.GitHub('fixture-private-token', self.fixture.selection)
+            self.addCleanup(client.close)
+        return client
+
+    def _close_session(self):
+        session, self.session = self.session, None
+        if session._lock.locked():
+            session._lock.release()
+        try:
+            session.close()
+        except wire.WireFailure:
+            pass
+
+    def _prepare(self):
+        import rc_publication_executor as executor
+        import rc_publication_request as owned
+        if self._prepared:
+            return
+        session = self.session
+        self.assertTrue(session._lock.acquire(blocking=False))
+        session._deadline = time.monotonic() + executor.OPERATION_SECONDS
+        recorded = len(self.fixture.requests)
+        try:
+            owned._read_scope(session._owner, None)
+            with patch.object(wire, '_authenticate', side_effect=self._modeled_gates):
+                session._prepare()
+        finally:
+            owned._retire(session._read_scope)
+            session._read_scope = None
+        # Session activation (admission/staging reads) is not publication wire traffic and did
+        # not exist before the port; keep the per-test request log scoped to publication calls.
+        del self.fixture.requests[recorded:]
+        self._prepared = True
+        self.transition = session._transition
+
+    # Exact wire._authorize call counts per test: (authorize calls, owned mutation attempts,
+    # including replay onto fresh sessions).  Attempts that stop before authorization are 0:
+    # disconnect_timeout: 1 (connect raises OSError before authorization);
+    # closed_methods: 12 = 6 invalid_request before authorization (raw POST with a body that is not
+    # the planned body, PATCH to the upload host, 4 foreign asset descriptors) + 6 fence_blocked
+    # subtests (authentication / remote constraint blocked, passed 0 and 1, for 3 ops).
+    # Every other attempt authorizes exactly once.
+    EXPECTED_AUTHORIZE = {
+        'test_anonymous_verification_and_latest_drift': (8, 8),
+        'test_closed_methods_paths_headers_and_bodies': (47, 59),
+        'test_complete_bounded_pagination_and_collision_rejection': (0, 0),
+        'test_direct_binary_download_rehashes_exact_bytes': (2, 2),
+        'test_disconnect_timeout_and_truncated_mutation_responses': (5, 6),
+        'test_json_types_duplicates_limits_and_status_failures': (0, 0),
+        'test_mismatched_success_retains_uncertain_effect': (13, 13),
+        'test_single_storage_redirect_strips_credentials': (2, 2),
+        'test_six_ordered_descriptor_uploads_match_wire_bytes': (7, 7),
+        'test_tls_validation_and_error_redaction': (6, 6),
+        'test_unsafe_redirect_chain_hosts_and_ports_reject': (2, 2),
+        'test_upload_502_starter_is_uncertain_without_retry': (2, 2),
+    }
+
+    def _check_authorized(self):
+        if self.session is not None:
+            self._close_session()
+        # The recorder ran, then called the effective _authorize, always with the session's typed scope.
+        attempted = list(self.mutations)
+        for op, scope in self.authorized:
+            assert scope is not None and op.operation_id in attempted, (op.kind, scope)
+            attempted.remove(op.operation_id)
+        expected = self.EXPECTED_AUTHORIZE[self._testMethodName]
+        assert (len(self.authorized), len(self.mutations)) == expected, (
+            self._testMethodName, (len(self.authorized), len(self.mutations)), expected)
+
+    def _attempt(self, op, call):
+        """One owned attempt of the session's current mutation; failures propagate unchanged."""
+        import rc_publication_executor as executor
+        import rc_publication_request as owned
+        session = self.session
+        session._deadline = time.monotonic() + executor.OPERATION_SECONDS
+        session._inflight = op
+        try:
+            owned._read_scope(session._owner, op)
+            session._check_active()
+            owned._operation_scope(session._owner, op)
+            self.mutations.append(op.operation_id)
+            effective = wire._authorize  # the environment's _authorize (authorities() fixture stub when active)
+            def recorder(op_, subject, **kwargs):
+                self.authorized.append((op_, kwargs.get('scope')))
+                return effective(op_, subject, **kwargs)
+            with patch.object(wire, '_authorize', side_effect=recorder):
+                return call(session)
+        finally:
+            owned._retire(session._request_scope)
+            session._request_scope = None
+            owned._retire(session._read_scope)
+            session._read_scope = None
+            session._inflight = None
+
+    def _owned_op(self, op):
+        """Map a caller's op onto the identical op of a session that has not attempted it yet."""
+        if op.operation_id in self.session._attempted or self.session._transition.action is not op:
+            kind, ordinal = op.kind, getattr(op, 'asset_ordinal', None)
+            routes = dict(self.fixture.routes)
+            self.fixture.routes.clear()
+            trace, attempts = list(self.trace), list(self.attempts)
+            recorded = len(self.fixture.requests)
+            # Replay from the pre-publication remote world; the replay itself recreates any
+            # draft/assets that earlier operations made, so the fresh session meets op in the
+            # same remote state the original session did (not the state left by a spent attempt).
+            from copy import deepcopy
+            self.fixture.release, assets = deepcopy(self._initial_remote)
+            self.fixture.assets.clear()
+            self.fixture.assets.update(assets)
+            # Reposition under the plain fixture environment, independent of whatever fault
+            # patches the caller has active for the attempt itself.
+            with authorities(), patch.object(wire, '_connect', side_effect=self.fixture.connect):
+                self._open()
+                self._prepare()
+                found = self.until(kind, ordinal)
+            self.trace, self.attempts = trace, attempts
+            del self.fixture.requests[recorded:]  # replay onto the fresh session is harness traffic
+            self.fixture.routes.update(routes)
+            self.assertEqual((found.operation_id, found.subject_digest), (op.operation_id, op.subject_digest))
+            op = found
+        return op
+
+    def _owned_execute(self, op):
+        def run(session):
+            with patch.object(wire, '_authenticate', side_effect=self._modeled_gates):
+                return session._execute(op)
+        return run
 
     def step(self):
-        state, op = self.transition.state, self.transition.action
+        self._prepare()
+        op = self.session._transition.action
+        if op.kind in core.MUTATIONS and op.operation_id in self.session._attempted:
+            self._owned_op(op)  # an earlier mutate() spent this op: continue on a fresh session
+        session = self.session
+        state, op = session._transition.state, session._transition.action
         self.trace.append(op.kind)
         fields = {}
-        if op.kind in ('ObserveFence', 'ObserveDraft', 'VerifyPublished'):
+        if op.kind in core.MUTATIONS:
+            self.attempts.append(op.operation_id)
+            if op.kind == 'UploadAsset':
+                fields['release_id'] = op.release_id
+            def owned_call(s):
+                if op.kind == 'UploadAsset':
+                    fields['asset'] = s._transport.upload_asset(op, s._stage.stream(op.asset_ordinal),
+                        before_write=s._before_write, check_active=s._check_active, scope=s._request_scope)
+                else:
+                    method = s._transport.create_draft if op.kind == 'CreateDraft' else s._transport.publish_prerelease
+                    fields['release_id'] = method(op, before_write=s._before_write,
+                        check_active=s._check_active, scope=s._request_scope)
+            self._attempt(op, owned_call)
+        elif op.kind in ('ObserveFence', 'ObserveDraft', 'VerifyPublished'):
             rows, visibility = gates(self.fixture.selection)
             fields['observation'] = self.api.observe(state, staged=state.plan.assets, gates=rows,
                                                       draft_visibility=visibility)
-        elif op.kind in ('CreateDraft', 'PublishPrerelease'):
-            method = self.api.create_draft if op.kind == 'CreateDraft' else self.api.publish_prerelease
-            fields['release_id'] = method(op, before_write=lambda: self.attempts.append(op.operation_id),
-                                          check_active=lambda: None)
-        elif op.kind == 'UploadAsset':
-            fields['asset'] = self.api.upload_asset(op, io.BytesIO(self.fixture.payloads[op.asset.name]),
-                before_write=lambda: self.attempts.append(op.operation_id), check_active=lambda: None)
-            fields['release_id'] = op.release_id
         else:
             fields.update(asset=self.api.verify_asset(op), release_id=op.release_id)
         result = core.OperationResult(core.RESULT_KINDS[core.OPERATION_KINDS.index(op.kind)],
             op.operation_id, op.subject_digest, op.kind, 'confirmed' if op.kind in core.MUTATIONS else 'none', **fields)
-        self.transition = core.advance(state, result)
+        session._attempted.add(op.operation_id)
+        session._transition = core.advance(state, result)
+        self.transition = session._transition
         return self.transition
 
     def until(self, kind, ordinal=None):
+        self._prepare()
         while self.transition.action is not None:
             action = self.transition.action
             if type(action) is core.AwaitPublishRequest:
@@ -57,6 +298,7 @@ class GitHubCases(unittest.TestCase):
                     return action
                 self.transition = core.request_publish(self.transition.state,
                     core.PublicationRequest('request', 'fixture-owner', action.release_id, action.subject_digest))
+                self.session._transition = self.transition
                 continue
             if action.kind == kind and (ordinal is None or action.asset_ordinal == ordinal):
                 return action
@@ -72,13 +314,16 @@ class GitHubCases(unittest.TestCase):
         self.assertIsNone(caught.exception.__context__)
         return caught.exception
 
-    def mutate(self, op):
+    def mutate(self, op, stream=None):
+        op = self._owned_op(op)
         if op.kind == 'CreateDraft':
-            return self.api.create_draft(op, before_write=lambda: None, check_active=lambda: None)
+            return self._attempt(op, lambda s: s._transport.create_draft(op, before_write=s._before_write,
+                check_active=s._check_active, scope=s._request_scope))
         if op.kind == 'PublishPrerelease':
-            return self.api.publish_prerelease(op, before_write=lambda: None, check_active=lambda: None)
-        return self.api.upload_asset(op, io.BytesIO(self.fixture.payloads[op.asset.name]),
-                                     before_write=lambda: None, check_active=lambda: None)
+            return self._attempt(op, lambda s: s._transport.publish_prerelease(op, before_write=s._before_write,
+                check_active=s._check_active, scope=s._request_scope))
+        return self._attempt(op, lambda s: s._transport.upload_asset(op, s._stage.stream(op.asset_ordinal),
+            before_write=s._before_write, check_active=s._check_active, scope=s._request_scope))
 
     def test_closed_methods_paths_headers_and_bodies(self):
         with authorities():
@@ -266,7 +511,9 @@ class GitHubCases(unittest.TestCase):
                 original = sock.settimeout
                 sock.settimeout = lambda value: original(min(value, 0.03))
                 return sock
-            with patch.object(wire, '_connect', side_effect=fast_timeout):
+            # frozen02 _Reader polls in 0.1 s slices under an absolute TIMEOUT idle bound, so the
+            # per-socket clamp alone no longer expires; clamp the idle bound the same way.
+            with patch.object(wire, '_connect', side_effect=fast_timeout), patch.object(wire, 'TIMEOUT', 0.03):
                 self.assertEqual(self.error(lambda: self.mutate(op), 'unknown').code, 'timeout')
             self.fixture.routes.clear()
             def cleanup_fails(host, timeout):
@@ -293,8 +540,15 @@ class GitHubCases(unittest.TestCase):
             self.fixture.routes.clear()
             op = self.until('UploadAsset')
             for payload in (b'wrong', self.fixture.payloads[op.asset.name] + b'X'):
-                self.error(lambda: self.api.upload_asset(op, io.BytesIO(payload), before_write=lambda: None,
-                                                          check_active=lambda: None), 'unknown')
+                # 300-list assertion change (reviewer option a): a non-staged stream is now rejected
+                # before any write (see rc_publication_request_cases test_05 :136).
+                writes = [r for r in self.fixture.requests if r[0] in ('POST', 'PATCH', 'DELETE')]
+                written = []
+                rejected = self.error(lambda: self.api.upload_asset(op, io.BytesIO(payload),
+                    before_write=lambda: written.append(op.operation_id), check_active=lambda: None), 'none')
+                self.assertEqual(rejected.code, 'invalid_request')
+                self.assertEqual(written, [])
+                self.assertEqual([r for r in self.fixture.requests if r[0] in ('POST', 'PATCH', 'DELETE')], writes)
             target = wire.ROOT + '/releases/100/assets?name=' + op.asset.name
             row = {'id': 200, 'name': op.asset.name, 'content_type': op.asset.media_type, 'size': op.asset.size,
                    'digest': 'sha256:' + op.asset.sha256, 'state': 'uploaded'}
