@@ -11,7 +11,7 @@ import unittest
 from unittest.mock import patch
 
 import rc_publication_admission as admission
-from rc_publication_admission_cases import IntegrationTLS
+from rc_publication_admission_cases import IntegrationTLS, adopt_selection
 import rc_publication_contract as core
 import rc_publication_executor as executor
 import rc_publication_github as wire
@@ -41,7 +41,7 @@ def seal_final(f):
     digests = list(f.subject.gate_evidence)
     digests[GATE_IDS.index('final_packaging')] = final_digest(f)
     f.subject = replace(f.subject, gate_evidence=tuple(digests))
-    f.selection = Selection(f.subject, 41, 1, '1'*64)
+    adopt_selection(f, Selection(f.subject, 41, 1, '1'*64))
 
 
 def add_final(f):
@@ -120,7 +120,7 @@ class FinalAdmissionCases(unittest.TestCase):
         for key in ('full_integration', 'final_packaging'):
             def change(f):
                 values = list(f.subject.gate_evidence); values[GATE_IDS.index(key)] = '0'*64
-                f.selection = f.api.selection = replace(f.selection, subject=replace(f.subject, gate_evidence=tuple(values)))
+                adopt_selection(f, replace(f.selection, subject=replace(f.subject, gate_evidence=tuple(values))))
             self.reject(change, 'final_attempt')
 
     def test_repository_source_and_selected_ref_identities_reject(self):
@@ -184,7 +184,7 @@ class FinalAdmissionCases(unittest.TestCase):
                 f.data[new] = f.data.pop(old); setattr(f, field, new)
             f.data[f.final_runs] = dict(total_count=101, workflow_runs=[dict(f.final_run, id=n) for n in range(101, 201)])
             f.data[f.final_runs[:-1]+'2'] = dict(total_count=101, workflow_runs=[f.final_run])
-            seal_final(f); f.api.selection = f.selection
+            seal_final(f)
             self.observe(f)
             self.assertEqual(f.counts[f.final_runs[:-1]+'2'], 3)
 
@@ -294,11 +294,15 @@ class FinalAdmissionCases(unittest.TestCase):
             self.assertEqual(f.counts[f.final_runs], 3)
 
     def test_entry_and_direct_sinks_remain_effect_free(self):
-        with IntegrationTLS() as f, tempfile.TemporaryDirectory() as root, patch.object(executor, 'stage_selected') as stage:
+        from rc_publication_native_admission_fixture import _pending_fence
+        production_authenticate = wire._authenticate
+        import rc_publication_artifact_admission as artifacts
+        with IntegrationTLS() as f, tempfile.TemporaryDirectory() as root, patch.object(artifacts, 'stage_selected',
+                side_effect=wire.WireFailure('fence_blocked', 'none')) as stage:
             with executor.PublisherSession(root, f.selection, 'fixture-token', temporary_parent=root) as session:
                 with self.assertRaises(wire.WireFailure) as error: session.run_until_pause()
                 self.assertEqual((error.exception.code, session.outcome), ('fence_blocked', 'blocked_no_effect'))
-                self.assertIsNone(session.transition); stage.assert_not_called()
+                self.assertIsNone(session.transition); stage.assert_called_once()
             self.assertEqual([r[1] for r in f.requests], f.packaging_paths)
             operations = (core.Operation('CreateDraft', 2, 'a'*64, tag=f.subject.tag, draft=True, prerelease=True),
                 core.Operation('UploadAsset', 5, 'a'*64, release_id=100, asset_ordinal=0, asset=f.plan.assets[0]),
@@ -310,10 +314,12 @@ class FinalAdmissionCases(unittest.TestCase):
                     if operation.kind == 'CreateDraft': f.api.create_draft(operation, **options)
                     elif operation.kind == 'UploadAsset': f.api.upload_asset(operation, io.BytesIO(f.payloads[operation.asset.name]), **options)
                     else: f.api.publish_prerelease(operation, **options)
-                self.assertEqual((error.exception.code, error.exception.effect), ('fence_blocked', 'none'))
+                self.assertEqual((error.exception.code, error.exception.effect), ('invalid_request', 'none'))
                 authorize.assert_not_called()
-                self.assertEqual([r[1] for r in f.requests[before:]], f.packaging_paths)
+                self.assertEqual([r[1] for r in f.requests[before:]], [])
             self.assertTrue(all(r[0] == 'GET' and not r[3] for r in f.requests))
+        for kind in ('CreateDraft', 'UploadAsset', 'PublishPrerelease'):
+            _pending_fence(self, kind, production_authenticate)
 
     def test_legacy_integration_negative_endpoints_are_reached(self):
         for endpoint in ('workflow', 'runs', 'current', 'attempt', 'job_path'):
@@ -340,6 +346,7 @@ class FinalAdmissionCases(unittest.TestCase):
                 self.assertEqual(consumed, [getattr(f, endpoint)])
 
     def test_fresh_reobservation_and_caller_claims_confer_no_authority(self):
+        import rc_publication_artifact_admission as artifacts
         from rc_pretag_fixtures import candidate, passing_claims
         from rc_release_eligibility import evaluate
         result = evaluate(candidate(), passing_claims())
@@ -357,11 +364,21 @@ class FinalAdmissionCases(unittest.TestCase):
             for extra in ({'approved': True}, {'roles': ('final_packaging',)}, {'report': report}):
                 with self.assertRaises(TypeError): admission.authenticate_packaging(f.api, f.selection, **extra, **options)
             class Foreign(wire.GitHub): pass
-            with self.assertRaises(ConsumerError): admission.authenticate_packaging(Foreign('fixture-token', f.selection), f.selection, **options)
+            canonical, owners = f.api.selection, tuple(artifacts._OWNERS)
+            before_foreign = len(f.requests)
+            with self.assertRaises(wire.WireFailure) as error:
+                admission.authenticate_packaging(Foreign('fixture-token', f.selection), f.selection, **options)
+            self.assertIs(type(error.exception), wire.WireFailure)
+            self.assertEqual((error.exception.code, error.exception.effect), ('invalid_request', 'none'))
+            self.assertEqual(len(f.requests), before_foreign)
+            self.assertIsNone(f.api._credential._session_owner)
+            self.assertEqual(tuple(artifacts._OWNERS), owners)
             before = len(f.requests)
-            f.api.selection = f.selection = report
+            f.selection = report
             self.blocked(f)
             self.assertEqual(len(f.requests), before)
+            self.assertIs(f.api.selection, canonical)
+            self.assertEqual(tuple(artifacts._OWNERS), owners)
 
     def test_distinct_supported_integration_ref_and_final_branch(self):
         for ref, event in (('refs/heads/ci/integration', 'push'), ('refs/tags/v0.7.0-rc.1', 'workflow_dispatch')):
@@ -372,7 +389,7 @@ class FinalAdmissionCases(unittest.TestCase):
                 f.run.update(event=event, head_branch=ref.split('/', 2)[2])
                 f.sources[1] = '/git/ref/'+ref[5:]
                 f.data[f.sources[1]] = dict(ref=ref, object=dict(type='commit', sha=f.subject.source.source_sha))
-                f.seal(); f.api.selection = f.selection
+                f.seal()
                 report = self.observe(f)
                 self.assertEqual(report.integration_evidence_sha256, f.reference_digest())
                 self.assertEqual(report.final_evidence_sha256, final_digest(f))

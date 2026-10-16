@@ -20,6 +20,20 @@ from rc_publication_stage import Selection
 from rc_release_policy import GATE_IDS, GATES
 
 
+def adopt_selection(fixture, selection):
+    """Reseal trusted fixture data through a fresh actual credential client."""
+    previous = getattr(fixture, 'api', None)
+    if previous is not None:
+        if type(previous) is not wire.GitHub:
+            raise AssertionError('fixture reseal requires actual GitHub client')
+        current = wire.GitHub('fixture-token', selection)
+        previous.close()
+        fixture.api = current
+        selection = current.selection
+    fixture.selection = selection
+    fixture.subject = selection.subject
+
+
 class IntegrationTLS(HTTPSFixture):
     """Exact API fixture, using only the existing verified loopback connection seam."""
     def __init__(self):
@@ -79,7 +93,7 @@ class IntegrationTLS(HTTPSFixture):
         digests = list(self.subject.gate_evidence)
         digests[GATE_IDS.index('full_integration')] = self.reference_digest()
         self.subject = replace(self.subject, gate_evidence=tuple(digests))
-        self.selection = Selection(self.subject, 41, 1, '1'*64)
+        adopt_selection(self, Selection(self.subject, 41, 1, '1'*64))
 
     def integration_route(self, method, path, headers, body):
         suffix = path.removeprefix(wire.ROOT) or '/'
@@ -98,6 +112,8 @@ class IntegrationTLS(HTTPSFixture):
         self.connection = patch.object(wire, '_connect', side_effect=self.connect)
         self.connection.start()
         self.api = wire.GitHub('fixture-token', self.selection)
+        self.selection = self.api.selection
+        self.subject = self.selection.subject
         return self
 
     def __exit__(self, *args):
@@ -144,8 +160,8 @@ class AdmissionCases(unittest.TestCase):
             f.jobs.reverse()
             f.run['repository']['description'] = 'incidental metadata'
             self.assertEqual(self.observe(f).integration_evidence_sha256, f.subject.gate_evidence[GATE_IDS.index('full_integration')])
-            f.selection = replace(f.selection, subject=replace(f.subject, gate_evidence=('0'*64,)*len(GATE_IDS)))
-            f.api.selection = f.selection
+            adopt_selection(f, replace(f.selection,
+                subject=replace(f.subject, gate_evidence=('0'*64,)*len(GATE_IDS))))
             self.blocked(f, 'verification_failed')
 
     def test_frozen_source_tree_and_repository_identity_rejected(self):
@@ -176,8 +192,8 @@ class AdmissionCases(unittest.TestCase):
         with IntegrationTLS() as f:
             i = replace(f.subject.runs[1], event='pull_request', ref='refs/pull/123/merge',
                 workflow_ref=wire.REPOSITORY+'/'+f.subject.runs[1].workflow_path+'@refs/pull/123/merge')
-            f.selection = replace(f.selection, subject=replace(f.subject, runs=(f.subject.runs[0], i, f.subject.runs[2])))
-            f.api.selection = f.selection
+            adopt_selection(f, replace(f.selection,
+                subject=replace(f.subject, runs=(f.subject.runs[0], i, f.subject.runs[2]))))
             self.blocked(f, 'verification_failed'); self.assertEqual(f.requests, [])
             with self.assertRaises(ValueError):
                 replace(i, event='push', ref='refs/tags/v0.7.0-rc.1',
@@ -218,7 +234,7 @@ class AdmissionCases(unittest.TestCase):
                 f.data[new] = f.data.pop(old)
             f.data[f.runs] = dict(total_count=101, workflow_runs=[dict(f.run, id=n) for n in range(1, 101)])
             f.data[f.runs[:-1]+'2'] = dict(total_count=101, workflow_runs=[f.run])
-            f.seal(); f.api.selection = f.selection
+            f.seal()
             self.observe(f)
             self.assertEqual(f.counts[f.runs[:-1]+'2'], 3)
 
@@ -329,20 +345,25 @@ class AdmissionCases(unittest.TestCase):
         with IntegrationTLS() as f:
             self.blocked(f)
             self.assertEqual([r[1] for r in f.requests], f.packaging_paths)
-            self.assertEqual([g.gate_id for g in GATES if g.verifier != 'unimplemented'], ['full_integration', 'final_packaging'])
+            self.assertEqual([g.gate_id for g in GATES if g.verifier != 'unimplemented'],
+                             ['raw_cloud_audit', 'raw_noncloud_audits', 'full_integration', 'final_packaging', 'bundle_bytes'])
             with self.assertRaises(wire.WireFailure): wire._remote_constraint(f.subject)
             with self.assertRaises(wire.WireFailure): wire._authenticated_latest_absence(f.selection)
 
     def test_public_entry_authenticates_then_blocks_before_staging(self):
-        with IntegrationTLS() as f, tempfile.TemporaryDirectory() as root, patch.object(executor, 'stage_selected') as stage:
+        import rc_publication_artifact_admission as artifacts
+        with IntegrationTLS() as f, tempfile.TemporaryDirectory() as root, patch.object(artifacts, 'stage_selected',
+                side_effect=wire.WireFailure('fence_blocked', 'none')) as stage:
             with executor.PublisherSession(root, f.selection, 'fixture-token', temporary_parent=root) as session:
                 with self.assertRaises(wire.WireFailure) as error: session.run_until_pause()
                 self.assertEqual((error.exception.code, session.outcome), ('fence_blocked', 'blocked_no_effect'))
-                self.assertIsNone(session.transition); stage.assert_not_called()
+                self.assertIsNone(session.transition); stage.assert_called_once()
             self.assertEqual([r[1] for r in f.requests], f.packaging_paths)
             self.assertTrue(all(r[0] == 'GET' and not r[3] for r in f.requests))
 
     def test_all_direct_mutation_sinks_authenticate_and_send_no_mutation(self):
+        from rc_publication_native_admission_fixture import _pending_fence
+        production_authenticate = wire._authenticate
         with IntegrationTLS() as f:
             create = core.Operation('CreateDraft', 2, 'a'*64, tag=f.subject.tag, draft=True, prerelease=True)
             upload = core.Operation('UploadAsset', 5, 'a'*64, release_id=100, asset_ordinal=0, asset=f.plan.assets[0])
@@ -355,12 +376,15 @@ class AdmissionCases(unittest.TestCase):
                         if operation.kind == 'CreateDraft': f.api.create_draft(operation, **options)
                         elif operation.kind == 'UploadAsset': f.api.upload_asset(operation, io.BytesIO(f.payloads[operation.asset.name]), **options)
                         else: f.api.publish_prerelease(operation, **options)
-                    self.assertEqual((error.exception.code, error.exception.effect), ('fence_blocked', 'none'))
+                    self.assertEqual((error.exception.code, error.exception.effect), ('invalid_request', 'none'))
                     authorize.assert_not_called()
-                self.assertEqual([r[1] for r in f.requests[before:]], f.packaging_paths)
+                self.assertEqual([r[1] for r in f.requests[before:]], [])
                 self.assertTrue(all(r[0] == 'GET' and not r[3] for r in f.requests))
+        for kind in ('CreateDraft', 'UploadAsset', 'PublishPrerelease'):
+            _pending_fence(self, kind, production_authenticate)
 
     def test_caller_claims_and_reports_cannot_bypass_fixed_authentication(self):
+        import rc_publication_artifact_admission as artifacts
         from rc_pretag_fixtures import candidate, passing_claims
         from rc_release_eligibility import evaluate
         result = evaluate(candidate(), passing_claims())
@@ -371,17 +395,26 @@ class AdmissionCases(unittest.TestCase):
             self.blocked(f)
             self.assertEqual([r[1] for r in f.requests], f.packaging_paths)
             class Foreign(wire.GitHub): pass
-            with self.assertRaises(ConsumerError):
+            canonical, owners = f.api.selection, tuple(artifacts._OWNERS)
+            before_foreign = len(f.requests)
+            with self.assertRaises(wire.WireFailure) as error:
                 admission.authenticate_integration(Foreign('fixture-token', f.selection), f.selection,
                     check_active=lambda: None, deadline=time.monotonic()+30)
+            self.assertIs(type(error.exception), wire.WireFailure)
+            self.assertEqual((error.exception.code, error.exception.effect), ('invalid_request', 'none'))
+            self.assertEqual(len(f.requests), before_foreign)
+            self.assertIsNone(f.api._credential._session_owner)
+            self.assertEqual(tuple(artifacts._OWNERS), owners)
             before = len(f.requests)
             options = dict(check_active=lambda: None, deadline=time.monotonic()+30)
             with self.assertRaises(TypeError): admission.authenticate_integration(f.api, f.selection, approved=True, **options)
             with self.assertRaises(TypeError): wire._authenticate(f.selection, f.api, approved=True, **options)
             forged = admission._AdmissionReport(f.subject, f.subject.gate_evidence[GATE_IDS.index('full_integration')])
-            f.selection = f.api.selection = forged
+            f.selection = forged
             self.blocked(f, 'verification_failed')
             self.assertEqual(len(f.requests), before)
+            self.assertIs(f.api.selection, canonical)
+            self.assertEqual(tuple(artifacts._OWNERS), owners)
 
 
 if __name__ == '__main__':
