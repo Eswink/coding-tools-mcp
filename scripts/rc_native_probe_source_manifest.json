@@ -6842,11 +6842,11 @@
    "sha256": "bbc901fd5449aaa9a58abddb94c372e7fc170e4847602c38f81c918b09b6a3da"
   },
   {
-   "blob": "af8b29207151abc6881d189ca54f5712931e43f6",
-   "bytes": 15178,
+   "blob": "9b7f474ad04a094e275d05517aa87c37bc82d02d",
+   "bytes": 15390,
    "mode": "100644",
    "path": "scripts/rc_pretag_policy_tests.py",
-   "sha256": "228eff1efd300061450cf555daea7f7229cc3311c66da4cefc489e17381ebf6c"
+   "sha256": "12da1b183e7337fc21d8ac671029b94580015f0ae2f2fc2a0ed3c46eead8f2d2"
   },
   {
    "blob": "040b201e25e99057553e32ced4c5cf0de1b0116a",
@@ -7206,11 +7206,11 @@
    "sha256": "3b692e2185e64f24c914e35ad1a83374e9bf3460c6f03c7e9c4db65a57574edd"
   },
   {
-   "blob": "b178b155905a2d8b74dac6b2e61bcb0fc76e3b2f",
-   "bytes": 23925,
+   "blob": "a632ee0aa5c432112559ed5bb580adadca15ef3d",
+   "bytes": 26456,
    "mode": "100644",
    "path": "scripts/rc_publication_source_budget_cases.py",
-   "sha256": "3e57a1732ffef212ff2cb033c276754cc996482959846229084ceace75b15fc4"
+   "sha256": "f83945107fe21407cf35f2559da95b5e0daa5b4fe03e4cdf08183458e6162756"
   },
   {
    "blob": "3a421b9b8b505f0e2ee41cc403a4eb1ff61a344f",
@@ -7241,11 +7241,11 @@
    "sha256": "33969f597630564885387ca031a2572dc2210897097f994385f98b7eed0f97a5"
   },
   {
-   "blob": "e908c0aa732eb4d947202d6ca6bc1b4b575fa277",
-   "bytes": 18832,
+   "blob": "c985b3e0bb9966fb27a9af51b87c8060d5f98970",
+   "bytes": 20520,
    "mode": "100644",
    "path": "scripts/rc_publication_staging_budget_cases.py",
-   "sha256": "5d3532f47b3dbd2a64ada1f5db34e9941b39d331b0b68ccf72d8a708ea65965b"
+   "sha256": "05c8b0fcf58e68fa7ef7dc1c7c4bd189974695372352ecc06c3989f46466ab54"
   },
   {
    "blob": "daac51d9dc1b797c654bf4f2ae44e0e4cd31a451",

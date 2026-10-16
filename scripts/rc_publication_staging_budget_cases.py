@@ -10,6 +10,8 @@ import rc_artifact_consumer as consumer
 from rc_consumer_io import ConsumerError, PrivateRoot
 import rc_publication_contract as core
 import rc_publication_executor as executor
+import rc_publication_artifact_admission as artifacts
+import rc_publication_request as owned
 import rc_publication_executor_cases as old
 import rc_publication_github as wire
 import rc_publication_stage as stage
@@ -237,8 +239,17 @@ class StagingBudgetCases(unittest.TestCase):
             self.assertTrue(all(root.fd is None for root in owner._roots))
 
     def test_session_shares_activation_deadline_and_bound_callback(self):
-        with self.session() as (session, _, fixture, seen):
-            pause = session.run_until_pause()
+        with self.session() as (session, tls, fixture, seen):
+            observed, original = [], owned._read_controls
+            def controls(api, deadline, caller):
+                end, active, scope = original(api, deadline, caller)
+                if api is session._api:
+                    self.assertIs(type(scope), owned._ReadScope)
+                    scope._check(api)
+                    observed.append((active, scope, api, api._credential, end, deadline, session._deadline))
+                return end, active, scope
+            with patch.object(owned, '_read_controls', side_effect=controls):
+                pause = session.run_until_pause()
             self.assertIsInstance(pause.action, core.AwaitPublishRequest)
             handles = self.bindings(seen.stage, fixture)
             self.assertEqual([ident for ident, _ in seen.downloads], [14, 13])
@@ -247,10 +258,28 @@ class StagingBudgetCases(unittest.TestCase):
             self.assertEqual((first['deadline'], second['deadline']), (deadline, deadline))
             callback = first['check_active']
             self.assertIs(callback, second['check_active'])
-            self.assertIs(callback.__self__, session)
-            self.assertIs(callback.__func__, executor.PublisherSession._check_active)
+            captured = [row for row in observed if row[0] is callback]
+            self.assertEqual(len(captured), 1)
+            active, scope, api, credential, end, incoming, current = captured[0]
+            self.assertIs(active, callback)
+            self.assertIs(scope._owner, session._owner)
+            self.assertIs(scope._owner._client, api)
+            self.assertIs(scope._owner._credential, credential)
+            self.assertIs(credential._session_owner, session._owner)
+            self.assertIs(scope._owner._session, session)
+            self.assertIsNone(scope._op)
+            self.assertEqual(end, min(scope._deadline, incoming, current))
+            self.assertTrue(scope._retired)
             self.assertTrue(all(owner.deadline == deadline and owner.check_active is callback for owner in seen.owners))
             self.children_exited(seen, 2)
+            before = len(tls.requests)
+            session.cancel()
+            with patch.object(artifacts, '_check_budget', side_effect=AssertionError('caller reached')) as poll:
+                with self.assertRaises(wire.WireFailure) as stopped:
+                    callback()
+            self.assertEqual((stopped.exception.code, stopped.exception.effect), ('cancelled', 'none'))
+            poll.assert_not_called()
+            self.assertEqual(len(tls.requests), before)
             session.close()
             self.assertTrue(all(handle.closed for handle in handles))
             self.assertTrue(all(root.fd is None for root in seen.stage._roots))
