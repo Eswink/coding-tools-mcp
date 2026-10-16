@@ -240,7 +240,7 @@ class LinuxPackageCompositionTests(unittest.TestCase):
         self.assertEqual(integration_bytes(p.JOIN_ONCE_HELPER, (c.ROOT / p.JOIN_ONCE_HELPER).read_bytes()), self.frozen(p.JOIN_ONCE_HELPER))
 
     def test_inverse_fragments_and_historical_passthrough_pins_are_exact(self):
-        self.assertEqual(inverse.PRIOR_PINS.keys(), {p.PROFILE, '.github/workflows/linux-rc-packages.yml'})
+        self.assertEqual(inverse.PRIOR_PINS.keys(), {p.PROFILE, '.github/workflows/linux-rc-packages.yml', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock'})
         self.assertEqual(inverse.PRIOR_PINS[p.PROFILE], (a.BASE_PINS[p.PROFILE],))
         prior = c._git('show', a.M + ':' + p.PROFILE, root=self.repo)
         self.assertEqual(inverse.inverse(p.PROFILE, prior), prior)
