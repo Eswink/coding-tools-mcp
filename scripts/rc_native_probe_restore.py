@@ -93,12 +93,14 @@ def git(root, *values, data=None):
 
 
 def checkout_files(root):
-    """Every regular file in the working tree, excluding .git."""
+    """Every regular file in the working tree, excluding .git (dir or worktree gitfile)."""
     root = Path(root)
     found = set()
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if not (Path(dirpath) == root and d == '.git')]
         for name in filenames + [d for d in dirnames if (Path(dirpath)/d).is_symlink()]:
+            if Path(dirpath) == root and name == '.git':
+                continue  # linked worktree: .git is a file, not a directory
             found.add((Path(dirpath)/name).relative_to(root).as_posix())
     # Build byproducts the repository already ignores (e.g. __pycache__) are not source; everything else counts.
     ignored = set(git(root, 'ls-files', '-z', '--others', '--ignored', '--exclude-standard').decode().split('\0')[:-1])

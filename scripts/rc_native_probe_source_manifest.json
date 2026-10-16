@@ -6513,7 +6513,7 @@
    "sha256": "93b7adb191585db00634e33294e15b857eaf6faf1d4b991678cf3d7dcb771741"
   },
   {
-   "blob": "a7850d8a0ab0fe1bba48cb25ff80cb7e8213d639",
+   "blob": "7d1cfbe65482beeeb8cf3c46a248954f0382d609",
    "bytes": 41,
    "mode": "100644",
    "path": "scripts/rc_native_probe_layer_base.pin",
@@ -6541,11 +6541,11 @@
    "sha256": "d165a575ffbcf96d3739c50ef6faaef1f76605027901b1c627dc8a02467caa78"
   },
   {
-   "blob": "58dbc12d5ccda7fc56f34389f039be687f4a17aa",
-   "bytes": 11106,
+   "blob": "0100c66736c2e1937cafdd8a205e00b786fd161e",
+   "bytes": 11266,
    "mode": "100644",
    "path": "scripts/rc_native_probe_restore.py",
-   "sha256": "9d20dbf4b55beaf1363790fe755633aa1e03c8494d54d4894727ae23247fc392"
+   "sha256": "2c5e2eb36d72f7f5f5eb0205a5242eb0d0dd3b29ee8583e9c2f8212e8a3603d5"
   },
   {
    "blob": "ea2dde33fd53a0ef8c01626461abe889610bc1e4",
