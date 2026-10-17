@@ -123,7 +123,17 @@ impl AppState {
         let store = guard
             .as_mut()
             .ok_or_else(|| AppError::startup_storage(self.current_startup_reason()))?;
-        store.refresh()?;
+        // Already-loaded snapshots stay usable when Secret Service is briefly
+        // unavailable (user message already says the original config is retained).
+        // Mutations that need the keyring still fail on save/load_or_migrate.
+        if let Err(error) = store.refresh() {
+            match error.startup_failure_reason() {
+                StartupFailureReason::SecretServiceUnavailable
+                | StartupFailureReason::SecretServiceLockedOrDenied
+                | StartupFailureReason::SessionBusMissing => {}
+                _ => return Err(error),
+            }
+        }
         f(store)
     }
 

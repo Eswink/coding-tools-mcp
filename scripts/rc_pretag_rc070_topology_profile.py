@@ -1,43 +1,42 @@
-"""Finite #150 topology admission for RC070 packaging tip 3299b461a3b7; independent review binds self-bytes."""
+"""Finite #150 topology admission for RC070 packaging tip e1f5695803c9; independent review binds self-bytes."""
 import hashlib
 import rc_pretag_ownership_profile as o
 import rc_pretag_publication_profile as p
 
-M = '3299b461a3b7c542440051cce1323c193f7e69eb'
-M_TREE = '4c4d7842a503d8bfca2fc6ccd301fe8c35bae2f2'
-M_PARENTS = ('05363d94adc89c9eb488282df33ce5205da3a2b4',)
-M_RAW = (305, '51ce40b236f53dbecc9931b0be016868ff607d70690abcc7cb3a406b60b3c77f')
+M = 'e1f5695803c9c19252095f6b2d830d204d9736d0'
+M_TREE = '7bc7d00b3295527346524c64e4b9c03a38d9264b'
+M_PARENTS = ('3299b461a3b7c542440051cce1323c193f7e69eb',)
+M_RAW = (516, 'cd49611eafea29271875f2b158ab731d678c2c7d36391916846f6735d5320eef')
 BASE = '41984b1de0ca13efab3646aae5041845bc78cfee'
 PROFILE = 'scripts/rc_pretag_rc070_topology_profile.py'
 MANIFEST = 'scripts/rc_native_probe_source_manifest.json'
 NEW = ()
 CAPS = {
-    PROFILE: (134, 86),
-    'scripts/rc_pretag_integration_admission_profile.py': (362, 14),
+    PROFILE: (133, 47),
+    'scripts/exclusive_native_acceptance.py': (392, 26),
+    'scripts/rc_pretag_integration_admission_profile.py': (362, 12),
     'scripts/rc_pretag_linux_package_cases.py': (444, 2),
-    'scripts/rc_pretag_linux_package_inverse.py': (213, 15),
-    'src-tauri/Cargo.lock': (6556, 354),
-    'src-tauri/Cargo.toml': (95, 2),
-    'src-tauri/src/tunnel/frp/client.rs': (1061, 5),
+    'scripts/rc_pretag_linux_package_inverse.py': (208, 11),
+    'scripts/聊天授权原生验收v6.py': (315, 5),
+    'src-tauri/src/app_state.rs': (219, 12),
 }
-DELTA_LIMIT = 478
+DELTA_LIMIT = 115
 BASE_PINS = {
-    'scripts/rc_pretag_integration_admission_profile.py': ('100644', '3b3ada6e21d3603bcd76ba729b7092c45e4ed281', '4c0462c323d413c532f333d2071de6b34c1e933747b3206907a9aefcaefe9c72', 131609, 364),
-    'scripts/rc_pretag_linux_package_cases.py': ('100644', '621c8a41a649c27016595cbf0a977edb7a53d03e', 'f0d28ebf1921633e11c6a86cf13a891c5c9e34f9f93d843a11a23e2f5ebdb393', 31006, 444),
-    'scripts/rc_pretag_linux_package_inverse.py': ('100644', '55269c3fc4d2340e5f55ea3d2707c8acc0262c0c', '583ab878f66ffde7eff870518fe530368e9cdc72e4cc608bca0bc0abdf1365e7', 114736, 218),
-    'src-tauri/Cargo.lock': ('100644', '73810757f12f5fb692809182168b6c59a5a4fc90', '51a1b8178e8d8933256975acb5a7eb2e4cbfc84805db6f2d9bda7a0c084cd85a', 155415, 6470),
-    'src-tauri/Cargo.toml': ('100644', '9bca05716da181f2086ec5bef75b4dced75fc350', 'f2bfbce7f94857ab061c60ec462e137bcb24e51fc8bda190780c337378b7bff2', 2856, 95),
-    'src-tauri/src/tunnel/frp/client.rs': ('100644', 'b4398ed557e9f859cad2242b2fd4dd3038f6530a', '0cda12c8381c2fecd1b5cf4868f0c3e86234aa71fd30f388331c9fca3c515cef', 35861, 1058),
-}
-SOURCE_PINS = {
+    'scripts/exclusive_native_acceptance.py': ('100644', 'b98554aafd78c7e7e376f43cb20a4f4686e2acbd', 'bac190d66cb78cf9a380b05b1da89f37044248072360725a58b12fcbb65c619e', 21690, 368),
     'scripts/rc_pretag_integration_admission_profile.py': ('100644', '0f4c449234967c18b26444d39a8cb629d63b75e9', '952a7072a3ffacab1d7562396aad19b6f35fcaf54262e0c2d34f880f42820a15', 148038, 362),
     'scripts/rc_pretag_linux_package_cases.py': ('100644', '7ec8ec753fd6a0d150b95aa2c5800acda25e479a', '61e0b3f30a6effa0821433d1598029c34a11645355db3e4b2e09cf4dbcefbcae', 31054, 444),
     'scripts/rc_pretag_linux_package_inverse.py': ('100644', '162b27125fff31d8b141af9b34249045e162c72f', 'ce542198f9114535333b1e9a2b9329c682f09bd5f1d82b0ec936b6600a828d33', 127614, 213),
-    'src-tauri/Cargo.lock': ('100644', '9717ff3d97ee8a7162100ec79615fe7e108e6af0', '314746cb283ae3f9138cd1af2ce288eaebf6c6ef200a8f477546c54037f5376c', 157986, 6556),
-    'src-tauri/Cargo.toml': ('100644', 'b6f055be7b2b8b17dea6453f858f504df5f484aa', 'fbc3827202ae8171f22fc774f22ec7ba2f981c0412b1e0250fad12a07b140700', 2861, 95),
-    'src-tauri/src/tunnel/frp/client.rs': ('100644', '7a5be415dc123a8f9164f2426fe61c8beec5f457', '2cc1cd65ab28cd97f4f8539881c471d5829805cbcb93815270182be7585fa510', 35990, 1061),
+    'scripts/聊天授权原生验收v6.py': ('100644', '2ff9a18707269380240f03fc5014e1e66cd21a5f', '7155a5ec158b8986eb28c3d801666b61e2a674caede961bd39c21c4396c80464', 18381, 312),
+    'src-tauri/src/app_state.rs': ('100644', '2d89e93f56d75c518d73f423d948e638dd542c4e', 'd2cb84e32cb07f2cee7b128ec54e96c02be74494f5ca77aceb675d8bb9e3410c', 6629, 209),
 }
-
+SOURCE_PINS = {
+    'scripts/exclusive_native_acceptance.py': ('100644', '71a93b4344afa9ee0b41f6548bb8d5e28a10b06d', '0b9f37e2f26e3eae2f8c638716b8fc0806843617d5688c90c0317e88d9bfc013', 22591, 392),
+    'scripts/rc_pretag_integration_admission_profile.py': ('100644', '42244a1087458fe6afa000170e899dc4fd60810b', '7d6a2eba5fe7b70920dfda15826526f12ae84ef2a77bd4e3abdecc60d3266aba', 156636, 362),
+    'scripts/rc_pretag_linux_package_cases.py': ('100644', 'f016b8d56885d843a5f6a5f5cfd530c88a73b94d', '8c7b248039fffe0d03282140ea141a9db37d75a416ec88411da10d2607ff547f', 31096, 444),
+    'scripts/rc_pretag_linux_package_inverse.py': ('100644', 'a90824de57c52ca2de46ff54b2ff3e4af6f4e57c', '94a08b5026b51b9ecf91d9ee25f4b70b1effc8156691cbf719e8f219be9151a2', 126262, 208),
+    'scripts/聊天授权原生验收v6.py': ('100644', '716f59a902599fae600ca698f911712e12ca283c', '370c2f64cd635075050f70bad24fd567c020b1498d168ff9ebeb6ae5aa4e1d97', 18583, 315),
+    'src-tauri/src/app_state.rs': ('100644', '84800029b207cb9409e1d36c045ae9f708d0323c', '1a9525031b96d68523eaf791344c90298d23e24594bb3bec36079b6c20065a85', 7201, 219),
+}
 
 def topology(ref, root, git, release):
     """Admit D[M], I[M,D], J[R,I], and GitHub PR-merge [BASE, D|M] for packaging tip parent graph."""

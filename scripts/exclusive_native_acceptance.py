@@ -91,6 +91,18 @@ def candidate(session, base, token, chat, scopes):
     return grant
 
 
+SECRET_SERVICE_HINT = '系统 Secret Service 暂不可用'
+KEYRING_FIXTURE_PASSWORD = b'isolated-ubuntu-native-v1'
+
+
+def reunlock_ci_keyring() -> None:
+    """Re-unlock the CI gnome-keyring once; never touches a user desktop session."""
+    import subprocess
+    subprocess.run(
+        ['gnome-keyring-daemon', '--unlock', '--components=secrets'],
+        input=KEYRING_FIXTURE_PASSWORD, check=False, capture_output=True, timeout=15)
+
+
 def decide(session, base, token, chat, *, approve=True, drop_scope=None):
     if approve:
         if drop_scope:
@@ -100,7 +112,19 @@ def decide(session, base, token, chat, *, approve=True, drop_scope=None):
     else:
         legacy.click(session, MODAL + "//button[normalize-space(.)='拒绝']")
     expected = 'active' if approve else 'denied'
-    value = gui.wait_for(lambda: rpc(base, token, chat, 'auth_status', {}),
+    recovered = False
+
+    def auth_or_recover():
+        nonlocal recovered
+        if approve and not recovered and SECRET_SERVICE_HINT in (session.body() or ''):
+            # One controlled recovery click after re-unlock; never a blind mutation replay.
+            reunlock_ci_keyring()
+            time.sleep(0.5)
+            legacy.click(session, MODAL + "//button[normalize-space(.)='批准并独占']")
+            recovered = True
+        return rpc(base, token, chat, 'auth_status', {})
+
+    value = gui.wait_for(auth_or_recover,
         lambda value: value.get('authorization', {}).get('status') == expected)
     gui.wait_for(lambda: not modal_open(session))
     return value['authorization']

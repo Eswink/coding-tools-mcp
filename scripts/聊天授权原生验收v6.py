@@ -115,7 +115,10 @@ def rpc(base: str, token: str, chat: str | None, name: str, arguments: dict) -> 
         "method": "tools/call", "params": params}, token=token)
     assert status == 200, "authenticated MCP transport failed"
     value = json.loads(raw).get("result", {}).get("structuredContent")
-    assert isinstance(value, dict), "missing structured tool response"
+    # Raise RuntimeError (not AssertionError) so Ubuntu wait_for can retry transient
+    # MCP worker envelopes that lack structuredContent (e.g. brief Secret Service blip).
+    if not isinstance(value, dict):
+        raise RuntimeError("missing structured tool response")
     return value
 
 
