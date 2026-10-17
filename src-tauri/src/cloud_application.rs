@@ -258,6 +258,41 @@ impl ApplicationAgents {
         drop(views);
         self.status(id, true)
     }
+    /// Startup/auto-connect policy. Starts the Agent only when the user already
+    /// imported a cloud configuration (`material` is `Some`) and the workspace's
+    /// local OAuth/listener context is live (`lease` is `Some`). It never
+    /// initializes journals (`initialize = false`): creating durable state stays an
+    /// explicit user action, so an unprepared workspace simply stays stopped. It
+    /// grants nothing: the Agent still needs the local native approval for every
+    /// execution, exactly as with the manual start button. An already visible
+    /// run (including a failed or uncertain one) is left alone, never replaced.
+    // The startup/runtime-start call site lives outside S1's allowed files.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn auto_start(
+        &self,
+        id: &str,
+        lease: Option<ListenerContextLease>,
+        material: Option<RuntimeMaterial>,
+    ) -> AppResult<Option<CloudConnectionStatus>> {
+        let (Some(lease), Some(material)) = (lease, material) else {
+            return Ok(None);
+        };
+        let blocked = self
+            .views
+            .lock()
+            .map_err(|_| unavailable())?
+            .get(id)
+            .is_some_and(|view| {
+                !matches!(
+                    view.handle.outcome(),
+                    Some(RunOutcome::Drained | RunOutcome::NotStarted)
+                )
+            });
+        if blocked {
+            return Ok(None);
+        }
+        self.start(id, lease, material, false).map(Some)
+    }
     pub(crate) fn status(&self, id: &str, configured: bool) -> AppResult<CloudConnectionStatus> {
         let views = self.views.lock().map_err(|_| unavailable())?;
         let Some(view) = views.get(id) else {
@@ -370,6 +405,14 @@ impl ApplicationAgents {
 #[cfg(test)]
 mod supervision_tests {
     use super::*;
+    use crate::{
+        auth::{cloud_context::CloudTransport, PublicOrigin},
+        workspace::{AuthConfig, RuntimeConfig},
+    };
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+    use ring::signature::{Ed25519KeyPair, KeyPair};
+    use serde_json::json;
+    use zeroize::Zeroizing;
 
     struct Fixed(u64);
     impl Jitter for Fixed {
@@ -476,8 +519,153 @@ mod supervision_tests {
             Supervision::Restart(Duration::from_millis(1250))
         );
     }
-}
 
+    struct Auto {
+        root: tempfile::TempDir,
+        id: String,
+        lease: ListenerContextLease,
+        listener: Option<(
+            crate::mcp::ShutdownSender,
+            tauri::async_runtime::JoinHandle<()>,
+        )>,
+        config: Vec<u8>,
+        key: Vec<u8>,
+    }
+    impl Auto {
+        fn new() -> Self {
+            let root = tempfile::tempdir().unwrap();
+            let workspace = root.path().join("workspace");
+            std::fs::create_dir(&workspace).unwrap();
+            let id = Uuid::new_v4().to_string();
+            let (shutdown, listener, _gate, lease) =
+                crate::mcp::spawn_listener_with_origin_and_context_lease(
+                    0,
+                    workspace,
+                    id.clone(),
+                    AuthConfig {
+                        auth_type: "noauth".into(),
+                        ..Default::default()
+                    },
+                    PublicOrigin::managed("").unwrap(),
+                    None,
+                    None,
+                    None,
+                    RuntimeConfig::default(),
+                )
+                .unwrap();
+            let pkcs8 = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new()).unwrap();
+            let pair = Ed25519KeyPair::from_pkcs8(pkcs8.as_ref()).unwrap();
+            let config = serde_json::to_vec(&json!({"origin":"https://127.0.0.1:9","prefix":"/bridge",
+                "connector":Uuid::new_v4(),"device":Uuid::new_v4(),"device_epoch":1,"authority_epoch":1,
+                "public_key":URL_SAFE_NO_PAD.encode(pair.public_key().as_ref()),
+                "revision_file":root.path().join("runtime/revision.bin"),"ca_der_file":null,"run_seconds":60})).unwrap();
+            let key = serde_json::to_vec(&json!({"pkcs8":URL_SAFE_NO_PAD.encode(pkcs8.as_ref())}))
+                .unwrap();
+            Self {
+                root,
+                id,
+                lease,
+                listener: Some((shutdown, listener)),
+                config,
+                key,
+            }
+        }
+        fn material(&self) -> RuntimeMaterial {
+            let cfg = coding_tools_cloud_agent::AgentConfig::from_bytes(&self.config).unwrap();
+            let context = self.lease.with_live(Arc::clone).unwrap();
+            RuntimeMaterial {
+                config: self.config.clone(),
+                key: Zeroizing::new(self.key.clone()),
+                link: CloudTransport::new(
+                    &self.id,
+                    context.workspace.root(),
+                    &cfg.origin,
+                    &cfg.prefix,
+                    cfg.connector,
+                    cfg.device,
+                    1,
+                    "native-application-test-separate-binding-secret",
+                )
+                .unwrap(),
+                root: self.root.path().join("runtime"),
+                authority_epoch: 1,
+            }
+        }
+        async fn close(&mut self) {
+            if let Some((shutdown, task)) = self.listener.take() {
+                let _ = shutdown.send(());
+                tokio::time::timeout(Duration::from_secs(5), task)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                self.lease.wait_closed().await;
+            }
+        }
+    }
+    async fn outcome(app: &ApplicationAgents, id: &str) -> RunOutcome {
+        tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                let found = app
+                    .views
+                    .lock()
+                    .unwrap()
+                    .get(id)
+                    .and_then(|view| view.handle.outcome());
+                if let Some(outcome) = found {
+                    return outcome;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("task did not finish")
+    }
+
+    #[tokio::test]
+    async fn auto_start_needs_both_an_imported_configuration_and_a_live_listener() {
+        let mut fixture = Auto::new();
+        let app = ApplicationAgents::default();
+        assert!(app
+            .auto_start(&fixture.id, Some(fixture.lease.clone()), None)
+            .unwrap()
+            .is_none());
+        assert!(app
+            .auto_start(&fixture.id, None, Some(fixture.material()))
+            .unwrap()
+            .is_none());
+        assert!(app.views.lock().unwrap().is_empty());
+        assert!(!fixture.root.path().join("runtime").exists());
+        fixture.close().await;
+    }
+    #[tokio::test]
+    async fn auto_start_never_initializes_journals_and_a_failed_view_is_not_replaced() {
+        let mut fixture = Auto::new();
+        let app = ApplicationAgents::default();
+        let started = app
+            .auto_start(
+                &fixture.id,
+                Some(fixture.lease.clone()),
+                Some(fixture.material()),
+            )
+            .unwrap();
+        assert!(started.is_some());
+        // initialize=false: the unprepared workspace stays stopped, nothing is created.
+        assert_eq!(outcome(&app, &fixture.id).await, RunOutcome::FailedDrained);
+        assert!(!fixture.root.path().join("runtime").exists());
+        assert_eq!(app.status(&fixture.id, true).unwrap().phase, "recovery");
+        // A failed (needs-attention) view is left visible: no silent second attempt.
+        assert!(app
+            .auto_start(
+                &fixture.id,
+                Some(fixture.lease.clone()),
+                Some(fixture.material())
+            )
+            .unwrap()
+            .is_none());
+        assert!(!fixture.root.path().join("runtime").exists());
+        fixture.close().await;
+    }
+}
 #[cfg(test)]
 mod tests;
 
