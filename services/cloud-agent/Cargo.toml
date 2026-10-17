@@ -18,3 +18,5 @@ futures-util = "0.3.32"
 rustls = { version = "0.23.41", default-features = false, features = ["ring", "std", "tls12"] }
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.186"
+[dev-dependencies]
+tokio = { version = "1.45", features = ["test-util"] }

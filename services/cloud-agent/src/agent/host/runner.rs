@@ -3,7 +3,9 @@ use super::super::{wire::SnapshotChallenge, AgentConfig, AgentError};
 use super::{
     authority::ProjectedHost,
     connection::{self, send_control, Incoming, Socket},
-    error_result, now, LocalHost, Worker,
+    error_result, now,
+    reconnect::SessionProbe,
+    LocalHost, Worker,
 };
 use crate::{
     channel::ControlMessage,
@@ -85,6 +87,7 @@ async fn projection<H: LocalHost>(
 pub(super) async fn session<H: LocalHost>(
     cfg: &AgentConfig,
     worker: Arc<Worker<H>>,
+    probe: SessionProbe,
 ) -> Result<(), AgentError> {
     let (mut socket, boot) = connection::connect(cfg, &worker.signer).await?;
     let mut seq = 0;
@@ -135,6 +138,9 @@ pub(super) async fn session<H: LocalHost>(
     )
     .await
     .map_err(|_| AgentError::LocalAuthority)??;
+    // Handshake, execution/approval readiness and the first projection are all
+    // acknowledged: this session is a real, authenticated link.
+    probe.established();
     let mut cache = VecDeque::from([initial]);
     let mut tasks: JoinSet<(ExecutionRequest, serde_json::Value)> = JoinSet::new();
     let mut active = HashMap::<Uuid, ExecutionBinding>::new();

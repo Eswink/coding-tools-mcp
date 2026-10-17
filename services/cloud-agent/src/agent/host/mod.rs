@@ -11,7 +11,7 @@ use authority::ProjectedHost;
 pub use authority::{HostAuthoritySnapshot, HostFuture, LocalHost};
 use journal::HostJournal;
 pub use reconnect::{
-    backoff_base, backoff_delay, classify_retry, Jitter, RetryClass, SystemJitter,
+    backoff_base, backoff_delay, classify_retry, Jitter, LinkState, RetryClass, SystemJitter,
 };
 use serde_json::{json, Value};
 use std::{
@@ -25,6 +25,8 @@ pub const MAX_HOST_IN_FLIGHT: usize = 4;
 pub struct HostAgent<H: LocalHost> {
     cfg: AgentConfig,
     worker: Arc<Worker<H>>,
+    jitter: Arc<dyn Jitter>,
+    state: watch::Sender<LinkState>,
 }
 impl<H: LocalHost> HostAgent<H> {
     /// Explicitly create a NEW state file or attach an existing one. Missing,
@@ -41,6 +43,8 @@ impl<H: LocalHost> HostAgent<H> {
         let journal = HostJournal::open(state_file, &signer, initialize)?;
         Ok(Self {
             cfg,
+            jitter: Arc::new(SystemJitter),
+            state: watch::channel(LinkState::Connecting).0,
             worker: Arc::new(Worker {
                 host,
                 signer,
@@ -49,36 +53,28 @@ impl<H: LocalHost> HostAgent<H> {
             }),
         })
     }
-    /// One caller at a time; stopping/cancelling never replays uncertain work.
-    pub async fn run(&mut self, mut stop: watch::Receiver<bool>) -> Result<(), AgentError> {
-        let end = tokio::time::sleep(Duration::from_secs(self.cfg.run_seconds));
-        tokio::pin!(end);
-        let mut attempts = 0u32;
-        loop {
-            if *stop.borrow() {
-                return Ok(());
-            }
-            let result = tokio::select! {
-                biased;
-                _=stop.changed()=>return Ok(()),
-                _=&mut end=>return Ok(()),
-                r=runner::session(&self.cfg,self.worker.clone())=>r,
-            };
-            if result != Err(AgentError::Transport) {
-                return result;
-            }
-            attempts += 1;
-            if attempts > 8 {
-                return Err(AgentError::Exhausted);
-            }
-            let delay = Duration::from_secs((1u64 << attempts.saturating_sub(1).min(5)).min(30));
-            tokio::select! {
-                biased;
-                _=stop.changed()=>return Ok(()),
-                _=&mut end=>return Ok(()),
-                _=tokio::time::sleep(delay)=>{},
-            }
-        }
+    /// Receiver for the connection state (connecting / online / reconnecting /
+    /// needs-operator / failed / stopped). Public metadata only.
+    pub fn link_state(&self) -> watch::Receiver<LinkState> {
+        self.state.subscribe()
+    }
+    /// Replace the jitter source (deterministic tests). Production uses `SystemJitter`.
+    pub fn with_jitter(mut self, jitter: Arc<dyn Jitter>) -> Self {
+        self.jitter = jitter;
+        self
+    }
+    /// Always-on: keeps one authenticated session alive until `stop` fires or an
+    /// error that retrying cannot fix occurs (see `classify_retry`). It does NOT
+    /// end when `run_seconds` elapses, after 8 drops, or after a server MAX_AGE
+    /// close; those just reconnect with 1s..30s backoff plus jitter. Stopping or
+    /// reconnecting never replays uncertain work (the signed journal decides).
+    /// One caller at a time.
+    pub async fn run(&mut self, stop: watch::Receiver<bool>) -> Result<(), AgentError> {
+        let (cfg, worker) = (&self.cfg, &self.worker);
+        reconnect::supervise(stop, &*self.jitter, &self.state, |probe| {
+            runner::session(cfg, worker.clone(), probe)
+        })
+        .await
     }
 }
 struct Worker<H: LocalHost> {
