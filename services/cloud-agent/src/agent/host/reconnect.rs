@@ -147,6 +147,9 @@ pub(super) const STABLE_AFTER: Duration = Duration::from_secs(30);
 /// capped backoff for this long before they become `NeedsOperator`. 401 and TLS
 /// trust errors are never soft: they stop at once.
 pub(super) const SOFT_REJECT_LIMIT: Duration = Duration::from_secs(600);
+/// Other errors (network noise, 5xx) between soft rejections do not restart the window,
+/// but a quiet gap longer than this between two rejections does: they were not one outage.
+pub(super) const SOFT_GAP: Duration = Duration::from_secs(120);
 
 /// Keep one session alive until asked to stop. Only `stop` or a non-retryable
 /// error ends it: the 3600s `run_seconds`/server MAX_AGE rollover, a dropped
@@ -167,6 +170,7 @@ where
     let mut attempts = 0u32;
     // When the current unbroken run of soft (403/404) rejections began.
     let mut soft_since: Option<tokio::time::Instant> = None;
+    let mut last_soft: Option<tokio::time::Instant> = None;
     loop {
         if *stop.borrow() {
             state.send_replace(LinkState::Stopped);
@@ -192,13 +196,20 @@ where
         let soft = error == AgentError::Authentication
             && probe.was_soft_rejection()
             && !probe.was_established();
+        let now = tokio::time::Instant::now();
         if soft {
-            soft_since.get_or_insert(tokio::time::Instant::now());
-        } else {
+            let same_outage = last_soft.is_some_and(|last| now - last <= pacing.scale(SOFT_GAP));
+            if !(same_outage && soft_since.is_some()) {
+                soft_since = Some(now);
+            }
+            last_soft = Some(now);
+        } else if probe.was_established() {
+            // Only a real session ends the streak; Transport noise alone does not.
             soft_since = None;
+            last_soft = None;
         }
-        let soft_budget_left = soft
-            && soft_since.is_some_and(|since| since.elapsed() < pacing.scale(SOFT_REJECT_LIMIT));
+        let soft_budget_left =
+            soft && soft_since.is_some_and(|since| now - since < pacing.scale(SOFT_REJECT_LIMIT));
         match classify_retry(error) {
             RetryClass::NeedsOperator if !soft_budget_left => {
                 state.send_replace(LinkState::NeedsOperator(error));
@@ -566,6 +577,37 @@ mod tests {
         let total = h.count();
         h.advance(3600).await;
         assert_eq!(h.count(), total, "retried after escalating");
+    }
+    #[tokio::test(start_paused = true)]
+    async fn transport_noise_between_soft_rejections_does_not_reset_the_window() {
+        // 403, network error, 403, network error ... A flapping link must not keep a
+        // permanent rejection below the limit forever; only a real session resets it.
+        let mut script = Vec::new();
+        for _ in 0..300 {
+            script.push(soft());
+            script.push(step(false, 0, Err(Transport)));
+        }
+        let mut h = launch(script, 0);
+        h.advance(SOFT_REJECT_LIMIT.as_secs() - 5).await;
+        assert!(!h.task.is_finished(), "escalated before the limit");
+        h.advance(60).await;
+        assert!(
+            h.task.is_finished(),
+            "403 flapping with Transport never escalated"
+        );
+        assert_eq!((&mut h.task).await.unwrap(), Err(Authentication));
+        assert_eq!(*h.state.borrow(), LinkState::NeedsOperator(Authentication));
+    }
+    #[tokio::test(start_paused = true)]
+    async fn a_long_quiet_gap_between_soft_rejections_starts_a_new_window() {
+        // One 403, then ~15 minutes of plain network errors, then 403s again: two
+        // separate incidents, so the second one gets its own full window.
+        let mut script = vec![soft()];
+        script.extend(vec![step(false, 0, Err(Transport)); 40]);
+        script.extend(vec![soft(); 500]);
+        let h = launch(script, 0);
+        h.advance(1 + 1110 + 540).await; // 40 transports back off to ~1110s
+        assert!(!h.task.is_finished(), "unrelated incidents were merged");
     }
     #[tokio::test(start_paused = true)]
     async fn an_established_session_ends_the_soft_rejection_streak() {
