@@ -11,6 +11,9 @@ on:
       - 'services/cloud-agent/**'
       - 'src-tauri/src/cloud_application.rs'
       - 'src-tauri/src/cloud_application/**'
+      - 'src-tauri/src/cloud_connection/**'
+      - 'src-tauri/src/commands/cloud_connection.rs'
+      - 'src-tauri/src/commands/runtime.rs'
       - '.github/workflows/cloud-agent-resilience.yml'
 
 permissions:
@@ -55,7 +58,11 @@ jobs:
           cargo rustc --locked --manifest-path services/cloud-agent/Cargo.toml --lib -- -D warnings
           cargo test --locked --manifest-path services/cloud-agent/Cargo.toml 2>&1 | tee evidence/agent-full.txt
           grep -E 'test result: ok\. [0-9]+ passed; 0 failed; 0 ignored' evidence/agent-full.txt
-          ! grep -E 'test result: FAILED|FAILED' evidence/agent-full.txt
+          # `! grep` does not fail a `set -e` step, so test the match explicitly.
+          if grep -E 'test result: FAILED|FAILED' evidence/agent-full.txt; then
+            echo 'cloud-agent test run contains a failure' >&2
+            exit 1
+          fi
           cargo test --locked --manifest-path services/cloud-agent/Cargo.toml --lib agent::host::tests::fault -- --nocapture 2>&1 | tee evidence/agent-fault-injection.txt
           grep -E 'test result: ok\. [0-9]+ passed; 0 failed' evidence/agent-fault-injection.txt
           git diff --exit-code HEAD --
@@ -84,7 +91,7 @@ jobs:
           if-no-files-found: error
 
   native-application:
-    name: cloud_application supervision (ubuntu-24.04)
+    name: cloud_application and cloud_connection (ubuntu-24.04)
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     defaults:
@@ -111,8 +118,12 @@ jobs:
           mkdir -p evidence
           git rev-parse HEAD > evidence/source-commit.txt
           export PATH="/usr/bin:$PATH"
-          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib cloud_application -- --test-threads=1 2>&1 | tee evidence/native-cloud-application.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib -- cloud_application cloud_connection --test-threads=1 2>&1 | tee evidence/native-cloud-application.txt
           grep -E 'test result: ok\. [0-9]+ passed; 0 failed' evidence/native-cloud-application.txt
+          if grep -E 'test result: FAILED|FAILED' evidence/native-cloud-application.txt; then
+            echo 'native test run contains a failure' >&2
+            exit 1
+          fi
           git diff --exit-code HEAD --
       - name: Preserve status without masking failures
         if: always()
