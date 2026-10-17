@@ -182,7 +182,9 @@ pub(super) fn classify(e: tungstenite::Error) -> AgentError {
         | tungstenite::Error::ConnectionClosed
         | tungstenite::Error::AlreadyClosed => AgentError::Transport,
         tungstenite::Error::Tls(_) => AgentError::Tls,
-        tungstenite::Error::Http(r) if [429, 502, 503, 504].contains(&r.status().as_u16()) => {
+        // Rate limits, request timeouts and every 5xx (including proxy/CDN 52x
+        // answers while the gateway restarts) are transient, not rejected credentials.
+        tungstenite::Error::Http(r) if matches!(r.status().as_u16(), 408 | 429 | 500..=599) => {
             AgentError::Transport
         }
         tungstenite::Error::Http(_) => AgentError::Authentication,
@@ -229,5 +231,30 @@ mod tests {
         let mut value = ready();
         value["grant"] = serde_json::json!("remote-override");
         assert!(serde_json::from_value::<Incoming>(value).is_err());
+    }
+    fn http(status: u16) -> tungstenite::Error {
+        tungstenite::Error::Http(
+            tungstenite::http::Response::builder()
+                .status(status)
+                .body(None)
+                .unwrap(),
+        )
+    }
+    #[test]
+    fn gateway_and_proxy_5xx_during_restart_are_transport_not_credentials() {
+        // 500/520-524 are what proxies/CDNs answer while the gateway restarts.
+        for status in [408, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524] {
+            assert_eq!(classify(http(status)), AgentError::Transport, "{status}");
+        }
+    }
+    #[test]
+    fn rejected_credentials_stay_authentication() {
+        for status in [400, 401, 403, 404, 410] {
+            assert_eq!(
+                classify(http(status)),
+                AgentError::Authentication,
+                "{status}"
+            );
+        }
     }
 }
