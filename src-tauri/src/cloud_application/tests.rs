@@ -358,3 +358,114 @@ async fn status_reports_the_agent_link_state_next_to_the_phase() {
     app.shutdown().await.unwrap();
     fixture.close_listener().await;
 }
+
+#[tokio::test]
+async fn mcp_restart_stop_then_start_resumes_a_started_connection_but_never_a_stopped_one() {
+    // restart_mcp_by_id = stop_mcp_service (stops the Agent) then start_mcp_service,
+    // which calls auto_start with the persisted intent.
+    let mut fixture = Fixture::new();
+    let app = ApplicationAgents::default();
+    app.start(&fixture.id, fixture.lease.clone(), fixture.material(), true)
+        .unwrap();
+    // Only a weak reference: a UI/test holding the host would (correctly) keep the
+    // projection journal locked, which is not what happens in the real restart.
+    let first = Arc::downgrade(&host(&app, &fixture.id).await);
+    app.stop(&fixture.id).await.unwrap();
+    assert!(
+        first.upgrade().is_none(),
+        "the stopped host must be released"
+    );
+    // The stopped view is fully drained, so it must not block the resume.
+    let resumed = app
+        .auto_start(
+            &fixture.id,
+            Some(fixture.lease.clone()),
+            Some(fixture.material()),
+            true,
+        )
+        .unwrap();
+    assert!(
+        resumed.is_some(),
+        "a drained stop must not block the resume"
+    );
+    // A brand-new host was opened by the resume (the old one is gone).
+    drop(host(&app, &fixture.id).await);
+    // The user's manual stop clears the intent: the same cycle must then stay stopped.
+    app.stop(&fixture.id).await.unwrap();
+    assert!(app
+        .auto_start(
+            &fixture.id,
+            Some(fixture.lease.clone()),
+            Some(fixture.material()),
+            false,
+        )
+        .unwrap()
+        .is_none());
+    assert_eq!(app.status(&fixture.id, true).unwrap().phase, "configured");
+    app.shutdown().await.unwrap();
+    fixture.close_listener().await;
+}
+
+#[tokio::test]
+async fn resume_waits_for_an_old_run_still_draining_after_its_listener_was_replaced() {
+    // start_mcp on an already running workspace closes the old listener internally; the
+    // old Agent then drains on its own. The new listener's resume must not lose that race.
+    let mut fixture = Fixture::new();
+    let app = ApplicationAgents::default();
+    app.start(&fixture.id, fixture.lease.clone(), fixture.material(), true)
+        .unwrap();
+    drop(host(&app, &fixture.id).await);
+    app.stop(&fixture.id).await.unwrap();
+    let handle = app
+        .manager
+        .launch(workspace_identity(&fixture.id), |_| async {
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            TaskExit::Drained
+        })
+        .unwrap();
+    app.views.lock().unwrap().insert(
+        fixture.id.clone(),
+        View {
+            handle,
+            link: fixture.material().link,
+            host: Arc::new(Mutex::new(None)),
+            agent_link: Arc::new(Mutex::new(None)),
+        },
+    );
+    // The plain policy refuses while the old run is undrained (never two runs at once).
+    assert!(app
+        .auto_start(
+            &fixture.id,
+            Some(fixture.lease.clone()),
+            Some(fixture.material()),
+            true
+        )
+        .unwrap()
+        .is_none());
+    // The restart path waits for the old run to finish, then resumes.
+    let resumed = app
+        .auto_start_settled(
+            &fixture.id,
+            Some(fixture.lease.clone()),
+            Some(fixture.material()),
+            true,
+        )
+        .await
+        .unwrap();
+    assert!(resumed.is_some(), "resume lost the race with the old drain");
+    drop(host(&app, &fixture.id).await);
+    // Without the persisted intent the same wait never starts anything.
+    app.stop(&fixture.id).await.unwrap();
+    assert!(app
+        .auto_start_settled(
+            &fixture.id,
+            Some(fixture.lease.clone()),
+            Some(fixture.material()),
+            false
+        )
+        .await
+        .unwrap()
+        .is_none());
+    app.shutdown().await.unwrap();
+    fixture.close_listener().await;
+}

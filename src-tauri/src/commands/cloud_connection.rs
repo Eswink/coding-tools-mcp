@@ -247,7 +247,8 @@ pub(crate) async fn auto_start_cloud_connection(state: &AppState, id: &str) {
     let intent = material.is_some();
     if let Err(error) = state
         .cloud_agents
-        .auto_start(id, Some(lease), material, intent)
+        .auto_start_settled(id, Some(lease), material, intent)
+        .await
     {
         eprintln!("cloud connection auto-start skipped for {id}: {error}");
     }

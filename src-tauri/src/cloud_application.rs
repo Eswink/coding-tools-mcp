@@ -322,6 +322,33 @@ impl ApplicationAgents {
         }
         self.start(id, lease, material, false).map(Some)
     }
+    /// `auto_start` for the runtime-start path. Starting an MCP service that is already
+    /// running closes the old listener internally, so the previous Agent may still be
+    /// draining when the new listener asks to resume. Wait (bounded) for that run to
+    /// finish, then apply the unchanged `auto_start` policy: still never two runs at once,
+    /// never without the user's persisted intent, never over a failed/uncertain view.
+    pub(crate) async fn auto_start_settled(
+        &self,
+        id: &str,
+        lease: Option<ListenerContextLease>,
+        material: Option<RuntimeMaterial>,
+        user_intent: bool,
+    ) -> AppResult<Option<CloudConnectionStatus>> {
+        if user_intent && lease.is_some() && material.is_some() {
+            let draining = self
+                .views
+                .lock()
+                .map_err(|_| unavailable())?
+                .get(id)
+                .filter(|view| view.handle.outcome().is_none())
+                .map(|view| view.handle.clone());
+            if let Some(handle) = draining {
+                // Any result (including uncertain) is decided by auto_start's own check.
+                let _ = handle.wait(STOP_TIMEOUT).await;
+            }
+        }
+        self.auto_start(id, lease, material, user_intent)
+    }
     pub(crate) fn status(&self, id: &str, configured: bool) -> AppResult<CloudConnectionStatus> {
         let views = self.views.lock().map_err(|_| unavailable())?;
         let Some(view) = views.get(id) else {
