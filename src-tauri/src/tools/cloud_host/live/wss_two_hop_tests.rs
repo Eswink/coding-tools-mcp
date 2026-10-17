@@ -85,12 +85,25 @@ async fn tls_two_hop_device_revoke_survives_gateway_database_restart() {
         .await
         .unwrap();
     assert_eq!(public.status(), reqwest::StatusCode::OK);
-    // Exhaust the real bounded retry budget: an absent poll result is not proof.
-    let refused = tokio::time::timeout(Duration::from_secs(180), h.agent.take().unwrap())
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(refused, Err(AgentError::Exhausted));
+    // The Agent is always-on: a revoked device is rejected by the gateway only after the
+    // upgrade (a close, not an HTTP status), which is a retryable Transport error. It keeps
+    // reconnecting at capped backoff instead of exhausting a budget and exiting. Several
+    // 1s/2s/4s attempts fit in this window; a finished task would mean the old semantics.
+    tokio::time::sleep(Duration::from_secs(8)).await;
+    assert!(
+        !h.agent.as_ref().unwrap().is_finished(),
+        "Agent exited for a revoked device"
+    );
+    assert!(
+        matches!(
+            *h.link.as_ref().unwrap().borrow(),
+            coding_tools_cloud_agent::LinkState::Reconnecting { .. }
+        ),
+        "a revoked device must leave the Agent reconnecting, not online or stopped"
+    );
+    assert_eq!(h.control(Op::Inspect).await["connected"], false);
+    // A requested stop is the only way out, and it is a clean one.
+    h.stop().await;
     assert_eq!(
         h.http
             .get(format!(

@@ -2,7 +2,7 @@
 //! Private IPC observes database facts; it never supplies native eligibility.
 use super::super::*;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use coding_tools_cloud_agent::AgentConfig;
+use coding_tools_cloud_agent::{AgentConfig, LinkState};
 use std::{collections::BTreeSet, os::unix::fs::MetadataExt, path::Path};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use uuid::Uuid;
@@ -76,6 +76,7 @@ pub(super) struct TwoHop {
     pub(super) host: Option<Arc<NativeLiveHost>>,
     pub(super) agent: Option<tokio::task::JoinHandle<Result<(), AgentError>>>,
     pub(super) stop: watch::Sender<bool>,
+    pub(super) link: Option<watch::Receiver<LinkState>>,
     pub(super) started: Instant,
     pub(super) ids: tokio::sync::Mutex<u64>,
     pub(super) http: reqwest::Client,
@@ -170,6 +171,7 @@ impl TwoHop {
             host,
             agent: None,
             stop,
+            link: None,
             started: Instant::now(),
             ids: tokio::sync::Mutex::new(0),
             http,
@@ -195,6 +197,7 @@ impl TwoHop {
         .unwrap();
         let (stop, rx) = watch::channel(false);
         self.stop = stop;
+        self.link = Some(agent.link_state());
         self.started = Instant::now();
         self.agent = Some(tokio::spawn(async move { agent.run(rx).await }));
     }
