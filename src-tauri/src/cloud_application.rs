@@ -10,9 +10,10 @@ use crate::{
     },
 };
 use coding_tools_cloud_agent::{
+    backoff_delay, classify_retry,
     lifecycle::{AgentLifecycle, Phase, RunHandle, RunOutcome, TaskExit},
     managed::ManagedLocalHost,
-    HostAgent,
+    AgentError, HostAgent, Jitter, RetryClass, SystemJitter,
 };
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -33,6 +34,45 @@ fn workspace_identity(id: &str) -> Uuid {
     bytes.copy_from_slice(&digest[..16]);
     Uuid::from_bytes(bytes)
 }
+/// What the application task does after `HostAgent::run` returns.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Supervision {
+    /// Stay stopped: asked to stop, or an error retrying cannot fix. The failure
+    /// stays visible as the existing `recovery` phase and is never retried.
+    Finish,
+    /// Run the same Agent (same journals, same host, same link) again after this delay.
+    Restart(Duration),
+}
+/// A run at least this long counts as healthy and clears the restart counter.
+const HEALTHY_RUN: Duration = Duration::from_secs(30);
+/// Same classification and backoff as the Agent's own reconnect loop. `run()` is
+/// already always-on, so this only catches an unexpected exit: a clean return or a
+/// retryable error nobody asked for. A user stop, a closed listener and
+/// NeedsOperator/Fatal errors (credentials, TLS, journal) are never restarted.
+pub(crate) fn restart_decision(
+    result: &Result<(), AgentError>,
+    stopping: bool,
+    restarts: &mut u32,
+    ran_for: Duration,
+    jitter: &dyn Jitter,
+) -> Supervision {
+    if stopping {
+        return Supervision::Finish;
+    }
+    let class = match result {
+        Ok(()) => RetryClass::Retryable,
+        Err(error) => classify_retry(*error),
+    };
+    if class != RetryClass::Retryable {
+        return Supervision::Finish;
+    }
+    if ran_for >= HEALTHY_RUN {
+        *restarts = 0;
+    }
+    *restarts = restarts.saturating_add(1);
+    Supervision::Restart(backoff_delay(*restarts, jitter.permille()))
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CloudConnectionStatus {
@@ -149,18 +189,41 @@ impl ApplicationAgents {
                         let (cancel, cancelled) =
                             tokio::sync::watch::channel(*stop.borrow() || !lifetime.is_live());
                         let mut stop = stop;
-                        let result = {
-                            let run = agent.run(cancelled);
-                            tokio::pin!(run);
-                            tokio::select! {
-                                biased;
-                                _ = lifetime.wait_closed() => {
-                                    observed_link.close(); cancel.send_replace(true); run.await
-                                },
-                                _ = stop.changed() => {
-                                    observed_link.close(); cancel.send_replace(true); run.await
-                                },
-                                result = &mut run => result,
+                        let mut restarts = 0u32;
+                        let result = loop {
+                            let started = tokio::time::Instant::now();
+                            let result = {
+                                let run = agent.run(cancelled.clone());
+                                tokio::pin!(run);
+                                tokio::select! {
+                                    biased;
+                                    _ = lifetime.wait_closed() => {
+                                        observed_link.close(); cancel.send_replace(true); run.await
+                                    },
+                                    _ = stop.changed() => {
+                                        observed_link.close(); cancel.send_replace(true); run.await
+                                    },
+                                    result = &mut run => result,
+                                }
+                            };
+                            let stopping =
+                                *cancel.borrow() || *stop.borrow() || !lifetime.is_live();
+                            match restart_decision(
+                                &result,
+                                stopping,
+                                &mut restarts,
+                                started.elapsed(),
+                                &SystemJitter,
+                            ) {
+                                Supervision::Finish => break result,
+                                Supervision::Restart(delay) => {
+                                    tokio::select! {
+                                        biased;
+                                        _ = lifetime.wait_closed() => break Ok(()),
+                                        _ = stop.changed() => break Ok(()),
+                                        _ = tokio::time::sleep(delay) => {}
+                                    }
+                                }
                             }
                         };
                         observed_link.close();
@@ -304,6 +367,117 @@ impl ApplicationAgents {
             .map_err(|_| unavailable())
     }
 }
+#[cfg(test)]
+mod supervision_tests {
+    use super::*;
+
+    struct Fixed(u64);
+    impl Jitter for Fixed {
+        fn permille(&self) -> u64 {
+            self.0
+        }
+    }
+    fn decide(
+        result: Result<(), AgentError>,
+        stopping: bool,
+        restarts: &mut u32,
+        ran_secs: u64,
+    ) -> Supervision {
+        restart_decision(
+            &result,
+            stopping,
+            restarts,
+            Duration::from_secs(ran_secs),
+            &Fixed(0),
+        )
+    }
+
+    #[test]
+    fn retryable_exits_restart_and_operator_or_fatal_exits_do_not() {
+        use AgentError::*;
+        for e in [
+            Transport,
+            LocalAuthority,
+            Capacity,
+            Protocol,
+            ExecutionUnknown,
+        ] {
+            let mut n = 0;
+            assert_eq!(
+                decide(Err(e), false, &mut n, 1),
+                Supervision::Restart(Duration::from_secs(1)),
+                "{e:?}"
+            );
+        }
+        for e in [
+            Authentication,
+            Tls,
+            Credentials,
+            Configuration,
+            Journal,
+            Duplicate,
+            Arguments,
+            Exhausted,
+            Cancelled,
+        ] {
+            let mut n = 0;
+            assert_eq!(
+                decide(Err(e), false, &mut n, 1),
+                Supervision::Finish,
+                "{e:?}"
+            );
+            assert_eq!(n, 0, "a refused restart must not consume budget");
+        }
+    }
+    #[test]
+    fn an_unrequested_clean_exit_restarts_but_a_requested_stop_never_does() {
+        let mut n = 0;
+        assert_eq!(
+            decide(Ok(()), false, &mut n, 1),
+            Supervision::Restart(Duration::from_secs(1))
+        );
+        for result in [
+            Ok(()),
+            Err(AgentError::Transport),
+            Err(AgentError::LocalAuthority),
+        ] {
+            let mut n = 0;
+            assert_eq!(decide(result, true, &mut n, 1), Supervision::Finish);
+        }
+    }
+    #[test]
+    fn restart_backoff_grows_to_thirty_seconds_and_a_healthy_run_resets_it() {
+        let mut n = 0;
+        let delays: Vec<u64> = (0..7)
+            .map(
+                |_| match decide(Err(AgentError::Transport), false, &mut n, 2) {
+                    Supervision::Restart(d) => d.as_secs(),
+                    Supervision::Finish => unreachable!(),
+                },
+            )
+            .collect();
+        assert_eq!(delays, [1, 2, 4, 8, 16, 30, 30]);
+        assert_eq!(
+            decide(Err(AgentError::Transport), false, &mut n, 31),
+            Supervision::Restart(Duration::from_secs(1))
+        );
+    }
+    #[test]
+    fn restart_delay_includes_jitter() {
+        let mut n = 0;
+        assert_eq!(
+            restart_decision(
+                &Err(AgentError::Transport),
+                false,
+                &mut n,
+                Duration::ZERO,
+                &Fixed(1000)
+            ),
+            Supervision::Restart(Duration::from_millis(1250))
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests;
 
