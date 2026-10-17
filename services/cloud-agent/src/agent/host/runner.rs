@@ -91,7 +91,7 @@ pub(super) async fn session<H: LocalHost>(
     worker: Arc<Worker<H>>,
     probe: SessionProbe,
 ) -> Result<(), AgentError> {
-    let (mut socket, boot) = connection::connect(cfg, &worker.signer).await?;
+    let (mut socket, boot) = connection::connect(cfg, &worker.signer, &probe).await?;
     let mut seq = 0;
     let mut next_send = Instant::now();
     let expected = send_control(&mut socket, &mut seq, &mut next_send, |seq| {

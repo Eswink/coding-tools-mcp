@@ -67,6 +67,7 @@ pub(super) enum Incoming {
 pub(super) async fn connect(
     cfg: &AgentConfig,
     signer: &RecoverySigner,
+    probe: &super::reconnect::SessionProbe,
 ) -> Result<(Socket, Uuid), AgentError> {
     let connector = if let Some(path) = &cfg.ca_der_file {
         let mut roots = rustls::RootCertStore::empty();
@@ -103,7 +104,14 @@ pub(super) async fn connect(
     )
     .await
     .map_err(|_| AgentError::Transport)?
-    .map_err(classify)?;
+    .map_err(|error| {
+        // 403/404 stay `Authentication` but are flagged: a restarting gateway or a
+        // proxy mid-deploy answers exactly these (see `SOFT_REJECT_LIMIT`).
+        if is_soft_rejection(&error) {
+            probe.soft_rejection();
+        }
+        classify(error)
+    })?;
     if response
         .headers()
         .get_all("sec-websocket-protocol")
@@ -167,6 +175,11 @@ pub(super) async fn receive(s: &mut Socket) -> Result<Incoming, AgentError> {
     })
     .await
     .map_err(|_| AgentError::Transport)?
+}
+/// Upgrade answers that are authentication failures for a stable gateway but also what a
+/// restarting gateway (403, stop flag) or a proxy during a deploy (404) returns.
+pub(super) fn is_soft_rejection(e: &tungstenite::Error) -> bool {
+    matches!(e, tungstenite::Error::Http(r) if matches!(r.status().as_u16(), 403 | 404))
 }
 pub(super) fn classify(e: tungstenite::Error) -> AgentError {
     match e {
@@ -256,5 +269,15 @@ mod tests {
                 "{status}"
             );
         }
+    }
+    #[test]
+    fn only_403_and_404_upgrade_answers_are_soft_rejections() {
+        for status in [403, 404] {
+            assert!(is_soft_rejection(&http(status)), "{status}");
+        }
+        for status in [400, 401, 410, 429, 503] {
+            assert!(!is_soft_rejection(&http(status)), "{status}");
+        }
+        assert!(!is_soft_rejection(&tungstenite::Error::ConnectionClosed));
     }
 }

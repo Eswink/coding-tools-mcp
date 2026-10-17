@@ -709,6 +709,49 @@ async fn device_rejected_after_the_proof_is_retried_at_capped_backoff_and_never_
     rig.finish().await;
 }
 #[tokio::test]
+async fn gateway_answering_403_while_restarting_recovers_by_itself() {
+    // The real gateway answers 403 to upgrades while its stop flag is set; a proxy can
+    // answer 404 mid-deploy. Neither may strand the Agent: it retries and reconnects.
+    let rig = Rig::start(vec![
+        Plan::Http(403),
+        Plan::Http(404),
+        Plan::Http(403),
+        Plan::Http(403),
+    ])
+    .await;
+    rig.online(1).await;
+    assert_eq!(rig.gate.accepted(), 5);
+    assert!(rig.alive());
+    assert_eq!(*rig.state.borrow(), LinkState::Online);
+    rig.finish().await;
+}
+#[tokio::test]
+async fn permanent_403_needs_an_operator_after_the_limit_and_not_before() {
+    let mut rig = Rig::start(vec![Plan::Http(403); 400]).await;
+    // Limit is 600 virtual seconds = 30 real seconds at DIV 20. Half way: still trying.
+    pause(Duration::from_secs(15)).await;
+    assert!(rig.alive(), "gave up before the limit");
+    assert!(matches!(
+        *rig.state.borrow(),
+        LinkState::Reconnecting { .. } | LinkState::Connecting
+    ));
+    let halfway = rig.gate.accepted();
+    assert!((10..=22).contains(&halfway), "attempts {halfway}");
+    let result = tokio::time::timeout(Duration::from_secs(30), rig.task.take().unwrap())
+        .await
+        .expect("never escalated")
+        .unwrap();
+    assert_eq!(result, Err(AgentError::Authentication));
+    assert_eq!(
+        *rig.state.borrow(),
+        LinkState::NeedsOperator(AgentError::Authentication)
+    );
+    let total = rig.gate.accepted();
+    assert!((20..=40).contains(&total), "attempts {total}");
+    pause(Duration::from_secs(2)).await; // 40 virtual seconds more
+    assert_eq!(rig.gate.accepted(), total, "retry storm after escalating");
+}
+#[tokio::test]
 async fn untrusted_gateway_certificate_needs_an_operator_and_does_not_retry() {
     let mut rig = Rig::start_with(vec![], Duration::from_secs(600), 3600, true).await;
     let result = rig.task.take().unwrap().await.unwrap();

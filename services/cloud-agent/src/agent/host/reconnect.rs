@@ -78,6 +78,7 @@ pub enum LinkState {
 pub(super) struct SessionProbe(std::sync::Arc<ProbeInner>);
 struct ProbeInner {
     established: std::sync::atomic::AtomicBool,
+    soft_rejection: std::sync::atomic::AtomicBool,
     state: tokio::sync::watch::Sender<LinkState>,
 }
 impl SessionProbe {
@@ -86,6 +87,19 @@ impl SessionProbe {
             .established
             .store(true, std::sync::atomic::Ordering::SeqCst);
         self.0.state.send_replace(LinkState::Online);
+    }
+    /// The gateway answered the upgrade 403/404. Same `Authentication` error, but a
+    /// restarting gateway (stop flag) or a proxy mid-deploy gives exactly these, so
+    /// the supervisor retries them for a bounded time before asking for a person.
+    pub(super) fn soft_rejection(&self) {
+        self.0
+            .soft_rejection
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+    fn was_soft_rejection(&self) -> bool {
+        self.0
+            .soft_rejection
+            .load(std::sync::atomic::Ordering::SeqCst)
     }
     fn was_established(&self) -> bool {
         self.0.established.load(std::sync::atomic::Ordering::SeqCst)
@@ -129,6 +143,10 @@ pub(super) fn scaled(d: Duration) -> Duration {
 /// A session this long after its handshake counts as healthy: the retry counter
 /// is cleared. Shorter flaps keep growing the backoff (no tight reconnect loop).
 pub(super) const STABLE_AFTER: Duration = Duration::from_secs(30);
+/// Consecutive 403/404 upgrade answers (no session in between) are retried at the
+/// capped backoff for this long before they become `NeedsOperator`. 401 and TLS
+/// trust errors are never soft: they stop at once.
+pub(super) const SOFT_REJECT_LIMIT: Duration = Duration::from_secs(600);
 
 /// Keep one session alive until asked to stop. Only `stop` or a non-retryable
 /// error ends it: the 3600s `run_seconds`/server MAX_AGE rollover, a dropped
@@ -147,6 +165,8 @@ where
     Fut: std::future::Future<Output = Result<(), AgentError>>,
 {
     let mut attempts = 0u32;
+    // When the current unbroken run of soft (403/404) rejections began.
+    let mut soft_since: Option<tokio::time::Instant> = None;
     loop {
         if *stop.borrow() {
             state.send_replace(LinkState::Stopped);
@@ -155,6 +175,7 @@ where
         state.send_replace(LinkState::Connecting);
         let probe = SessionProbe(std::sync::Arc::new(ProbeInner {
             established: std::sync::atomic::AtomicBool::new(false),
+            soft_rejection: std::sync::atomic::AtomicBool::new(false),
             state: state.clone(),
         }));
         let started = tokio::time::Instant::now();
@@ -168,11 +189,22 @@ where
         };
         // A clean end (nobody asked for it) is reconnected like a dropped socket.
         let error = result.err().unwrap_or(AgentError::Transport);
+        let soft = error == AgentError::Authentication
+            && probe.was_soft_rejection()
+            && !probe.was_established();
+        if soft {
+            soft_since.get_or_insert(tokio::time::Instant::now());
+        } else {
+            soft_since = None;
+        }
+        let soft_budget_left = soft
+            && soft_since.is_some_and(|since| since.elapsed() < pacing.scale(SOFT_REJECT_LIMIT));
         match classify_retry(error) {
-            RetryClass::NeedsOperator => {
+            RetryClass::NeedsOperator if !soft_budget_left => {
                 state.send_replace(LinkState::NeedsOperator(error));
                 return Err(error);
             }
+            RetryClass::NeedsOperator => {}
             RetryClass::Fatal => {
                 state.send_replace(LinkState::Failed(error));
                 return Err(error);
@@ -295,14 +327,23 @@ mod tests {
     #[derive(Clone)]
     struct Step {
         established: bool,
+        soft: bool,
         lives: Duration,
         outcome: Result<(), AgentError>,
     }
     fn step(established: bool, lives_s: u64, outcome: Result<(), AgentError>) -> Step {
         Step {
             established,
+            soft: false,
             lives: Duration::from_secs(lives_s),
             outcome,
+        }
+    }
+    /// An upgrade answered 403/404: Authentication, flagged as possibly temporary.
+    fn soft() -> Step {
+        Step {
+            soft: true,
+            ..step(false, 0, Err(Authentication))
         }
     }
     struct Harness {
@@ -332,6 +373,9 @@ mod tests {
                             probe.established();
                             return std::future::pending().await;
                         };
+                        if step.soft {
+                            probe.soft_rejection();
+                        }
                         if step.established {
                             probe.established();
                         }
@@ -498,6 +542,51 @@ mod tests {
         // Nothing more is ever started, however long we wait.
         h.advance(3600).await;
         assert_eq!(h.count(), 2);
+    }
+    #[tokio::test(start_paused = true)]
+    async fn soft_rejections_back_off_to_thirty_seconds_and_escalate_only_after_the_limit() {
+        let mut h = launch(vec![soft(); 500], 0);
+        // Just before the limit: still retrying, visibly, never a storm.
+        h.advance(SOFT_REJECT_LIMIT.as_secs() - 5).await;
+        assert!(!h.task.is_finished(), "escalated before the limit");
+        assert!(matches!(
+            *h.state.borrow(),
+            LinkState::Reconnecting { .. } | LinkState::Connecting
+        ));
+        let before = h.count();
+        assert!((20..=40).contains(&before), "attempts {before}");
+        assert!(
+            h.gaps_ms().iter().all(|g| *g <= 30_000),
+            "{:?}",
+            h.gaps_ms()
+        );
+        h.advance(40).await;
+        assert_eq!((&mut h.task).await.unwrap(), Err(Authentication));
+        assert_eq!(*h.state.borrow(), LinkState::NeedsOperator(Authentication));
+        let total = h.count();
+        h.advance(3600).await;
+        assert_eq!(h.count(), total, "retried after escalating");
+    }
+    #[tokio::test(start_paused = true)]
+    async fn an_established_session_ends_the_soft_rejection_streak() {
+        // ~3 minutes of 403s, then a session that really comes up and later drops,
+        // then 9 more minutes of 403s: more than the limit in total, less in a row.
+        let mut script = vec![soft(); 10];
+        script.push(step(true, 40, Err(Transport)));
+        script.extend(vec![soft(); 500]);
+        let h = launch(script, 0);
+        h.advance(181 + 40 + 9 * 60).await;
+        assert!(!h.task.is_finished(), "streak was not reset by the session");
+    }
+    #[tokio::test(start_paused = true)]
+    async fn a_403_from_a_restarting_gateway_recovers_without_operator_action() {
+        let mut script = vec![soft(); 4];
+        script.push(step(true, 3600, Err(Transport)));
+        let h = launch(script, 0);
+        h.advance(100).await;
+        assert!(!h.task.is_finished());
+        assert_eq!(*h.state.borrow(), LinkState::Online);
+        assert_eq!(h.count(), 5);
     }
     #[tokio::test(start_paused = true)]
     async fn fatal_errors_stop_after_one_attempt_with_visible_state() {
