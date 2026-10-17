@@ -40,6 +40,10 @@ enum Plan {
     StallHandshake,
     /// Refuse the WebSocket upgrade with this HTTP status.
     Http(u16),
+    /// Upgrade, challenge, read the signed proof, then close without `connected`
+    /// (what the real gateway does when the device is revoked: it only learns that
+    /// after the upgrade, so there is no HTTP status the Agent could classify).
+    RejectAfterProof,
 }
 #[derive(Clone, Debug, PartialEq)]
 enum Ev {
@@ -338,6 +342,10 @@ async fn serve(shared: Arc<Shared>, tls: TlsAcceptor, tcp: TcpStream, n: usize, 
     let Some(Ok(Message::Text(_proof))) = ws.next().await else {
         return;
     };
+    if matches!(plan, Plan::RejectAfterProof) {
+        let _ = ws.send(Message::Close(None)).await;
+        return;
+    }
     if ws
         .send(send(
             json!({"type":"connected","heartbeat_seconds":10,"lease_seconds":30}),
@@ -671,6 +679,34 @@ async fn upgrade_5xx_is_retried_but_401_needs_an_operator_without_a_retry_storm(
     );
     pause(Duration::from_secs(2)).await; // 40 virtual seconds: many backoffs
     assert_eq!(rig.gate.accepted(), 1, "retry storm after a rejection");
+}
+#[tokio::test]
+async fn device_rejected_after_the_proof_is_retried_at_capped_backoff_and_never_exits() {
+    // The gateway closes the socket after the proof for a revoked device. That is
+    // indistinguishable from a transient close, so the always-on Agent keeps trying
+    // at the capped backoff: no Exhausted, no exit, no tight loop, never online.
+    let rig = Rig::start(vec![Plan::RejectAfterProof; 64]).await;
+    // 6 real seconds = 120 virtual seconds: attempts at ~0,1,3,7,15,31,61,91.
+    pause(Duration::from_secs(6)).await;
+    assert!(rig.alive(), "Agent exited for a revoked-style rejection");
+    let state = *rig.state.borrow();
+    assert!(
+        matches!(state, LinkState::Reconnecting { attempt } if attempt >= 5),
+        "{state:?}"
+    );
+    let accepted = rig.gate.accepted();
+    assert!((6..=10).contains(&accepted), "attempts {accepted}");
+    assert_eq!(rig.gate.count(&Ev::Online), 0);
+    let starts: Vec<Instant> = (1..=accepted)
+        .map(|c| rig.gate.first(c, &Ev::Accepted).unwrap())
+        .collect();
+    let gaps: Vec<Duration> = starts.windows(2).map(|w| gap(w[0], w[1])).collect();
+    assert!(
+        gaps.windows(2)
+            .all(|w| w[1] + Duration::from_millis(20) >= w[0]),
+        "backoff must not shrink: {gaps:?}"
+    );
+    rig.finish().await;
 }
 #[tokio::test]
 async fn untrusted_gateway_certificate_needs_an_operator_and_does_not_retry() {
