@@ -150,6 +150,10 @@ pub(super) const SOFT_REJECT_LIMIT: Duration = Duration::from_secs(600);
 /// Other errors (network noise, 5xx) between soft rejections do not restart the window,
 /// but a quiet gap longer than this between two rejections does: they were not one outage.
 pub(super) const SOFT_GAP: Duration = Duration::from_secs(120);
+/// After the limit the rejection is shown as `NeedsOperator` (a person may fix it) but the
+/// Agent keeps trying this often, so an outage that ends on its own still heals without
+/// anyone pressing a button. Credential and TLS errors never get this: they stop at once.
+pub(super) const SLOW_RETRY: Duration = Duration::from_secs(60);
 
 /// Keep one session alive until asked to stop. Only `stop` or a non-retryable
 /// error ends it: the 3600s `run_seconds`/server MAX_AGE rollover, a dropped
@@ -171,12 +175,16 @@ where
     // When the current unbroken run of soft (403/404) rejections began.
     let mut soft_since: Option<tokio::time::Instant> = None;
     let mut last_soft: Option<tokio::time::Instant> = None;
+    // True while the visible state is NeedsOperator but we are still retrying slowly.
+    let mut slow = false;
     loop {
         if *stop.borrow() {
             state.send_replace(LinkState::Stopped);
             return Ok(());
         }
-        state.send_replace(LinkState::Connecting);
+        if !slow {
+            state.send_replace(LinkState::Connecting);
+        }
         let probe = SessionProbe(std::sync::Arc::new(ProbeInner {
             established: std::sync::atomic::AtomicBool::new(false),
             soft_rejection: std::sync::atomic::AtomicBool::new(false),
@@ -210,6 +218,22 @@ where
         }
         let soft_budget_left =
             soft && soft_since.is_some_and(|since| now - since < pacing.scale(SOFT_REJECT_LIMIT));
+        if soft && !soft_budget_left {
+            // A rejection that outlived the window: ask for a person, keep trying slowly.
+            slow = true;
+            state.send_replace(LinkState::NeedsOperator(error));
+            let wait = SLOW_RETRY + SLOW_RETRY * (jitter.permille().min(1000) as u32) / 4000;
+            tokio::select! {
+                biased;
+                _ = stop.changed() => {
+                    state.send_replace(LinkState::Stopped);
+                    return Ok(());
+                }
+                _ = tokio::time::sleep(pacing.scale(wait)) => {}
+            }
+            continue;
+        }
+        slow = false;
         match classify_retry(error) {
             RetryClass::NeedsOperator if !soft_budget_left => {
                 state.send_replace(LinkState::NeedsOperator(error));
@@ -555,8 +579,9 @@ mod tests {
         assert_eq!(h.count(), 2);
     }
     #[tokio::test(start_paused = true)]
-    async fn soft_rejections_back_off_to_thirty_seconds_and_escalate_only_after_the_limit() {
-        let mut h = launch(vec![soft(); 500], 0);
+    async fn soft_rejections_back_off_to_thirty_seconds_then_need_an_operator_but_keep_trying_slowly(
+    ) {
+        let h = launch(vec![soft(); 500], 0);
         // Just before the limit: still retrying, visibly, never a storm.
         h.advance(SOFT_REJECT_LIMIT.as_secs() - 5).await;
         assert!(!h.task.is_finished(), "escalated before the limit");
@@ -572,11 +597,55 @@ mod tests {
             h.gaps_ms()
         );
         h.advance(40).await;
-        assert_eq!((&mut h.task).await.unwrap(), Err(Authentication));
+        // Past the limit a person is asked (visible NeedsOperator) but the Agent is not
+        // abandoned: it keeps trying about once a minute, so an outage that ends on its
+        // own still heals without anyone pressing a button.
+        assert!(!h.task.is_finished(), "gave up instead of retrying slowly");
         assert_eq!(*h.state.borrow(), LinkState::NeedsOperator(Authentication));
         let total = h.count();
         h.advance(3600).await;
-        assert_eq!(h.count(), total, "retried after escalating");
+        let slow = h.count() - total;
+        assert!(
+            (55..=62).contains(&slow),
+            "slow attempts in an hour: {slow}"
+        );
+        let gaps = h.gaps_ms();
+        assert!(gaps.iter().rev().take(10).all(|g| *g == 60_000), "{gaps:?}");
+        assert_eq!(*h.state.borrow(), LinkState::NeedsOperator(Authentication));
+    }
+    #[tokio::test(start_paused = true)]
+    async fn slow_retry_after_the_limit_recovers_online_and_stops_on_request() {
+        let mut script = vec![soft(); 40];
+        script.push(step(true, 3600, Err(Transport)));
+        let mut h = launch(script, 0);
+        h.advance(SOFT_REJECT_LIMIT.as_secs() + 30).await;
+        assert_eq!(*h.state.borrow(), LinkState::NeedsOperator(Authentication));
+        // The remaining soft answers arrive one a minute; then a session comes up.
+        h.advance(40 * 60).await;
+        assert_eq!(*h.state.borrow(), LinkState::Online);
+        h.stop.send(true).unwrap();
+        assert_eq!((&mut h.task).await.unwrap(), Ok(()));
+        assert_eq!(*h.state.borrow(), LinkState::Stopped);
+    }
+    #[tokio::test(start_paused = true)]
+    async fn stop_during_the_slow_retry_wait_returns_ok() {
+        let mut h = launch(vec![soft(); 500], 0);
+        h.advance(SOFT_REJECT_LIMIT.as_secs() + 30).await;
+        assert_eq!(*h.state.borrow(), LinkState::NeedsOperator(Authentication));
+        h.stop.send(true).unwrap();
+        assert_eq!((&mut h.task).await.unwrap(), Ok(()));
+    }
+    #[tokio::test(start_paused = true)]
+    async fn a_401_or_tls_error_after_a_long_outage_still_needs_an_operator_at_once() {
+        for e in [Authentication, Tls] {
+            let mut script = vec![soft(); 40];
+            script.push(step(false, 0, Err(e))); // a plain (not soft) rejection
+            let mut h = launch(script, 0);
+            h.advance(SOFT_REJECT_LIMIT.as_secs() + 30).await;
+            h.advance(40 * 60).await;
+            assert_eq!((&mut h.task).await.unwrap(), Err(e));
+            assert_eq!(*h.state.borrow(), LinkState::NeedsOperator(e));
+        }
     }
     #[tokio::test(start_paused = true)]
     async fn transport_noise_between_soft_rejections_does_not_reset_the_window() {
@@ -587,16 +656,16 @@ mod tests {
             script.push(soft());
             script.push(step(false, 0, Err(Transport)));
         }
-        let mut h = launch(script, 0);
+        let h = launch(script, 0);
         h.advance(SOFT_REJECT_LIMIT.as_secs() - 5).await;
         assert!(!h.task.is_finished(), "escalated before the limit");
         h.advance(60).await;
-        assert!(
-            h.task.is_finished(),
+        assert_eq!(
+            *h.state.borrow(),
+            LinkState::NeedsOperator(Authentication),
             "403 flapping with Transport never escalated"
         );
-        assert_eq!((&mut h.task).await.unwrap(), Err(Authentication));
-        assert_eq!(*h.state.borrow(), LinkState::NeedsOperator(Authentication));
+        assert!(!h.task.is_finished(), "escalation must not end the Agent");
     }
     #[tokio::test(start_paused = true)]
     async fn a_long_quiet_gap_between_soft_rejections_starts_a_new_window() {

@@ -726,30 +726,31 @@ async fn gateway_answering_403_while_restarting_recovers_by_itself() {
     rig.finish().await;
 }
 #[tokio::test]
-async fn permanent_403_needs_an_operator_after_the_limit_and_not_before() {
-    let mut rig = Rig::start(vec![Plan::Http(403); 400]).await;
-    // Limit is 600 virtual seconds = 30 real seconds at DIV 20. Half way: still trying.
-    pause(Duration::from_secs(15)).await;
-    assert!(rig.alive(), "gave up before the limit");
-    assert!(matches!(
-        *rig.state.borrow(),
-        LinkState::Reconnecting { .. } | LinkState::Connecting
-    ));
-    let halfway = rig.gate.accepted();
-    assert!((10..=22).contains(&halfway), "attempts {halfway}");
-    let result = tokio::time::timeout(Duration::from_secs(30), rig.task.take().unwrap())
-        .await
-        .expect("never escalated")
-        .unwrap();
-    assert_eq!(result, Err(AgentError::Authentication));
+async fn long_403_outage_asks_for_an_operator_but_keeps_trying_and_heals() {
+    // 27 rejections: ~24 inside the 600 virtual-second window (30s real at DIV 20), the
+    // rest at the slow once-a-minute pace, then the gateway answers for real.
+    let rig = Rig::start(vec![Plan::Http(403); 27]).await;
+    rig.until("visible needs-operator state", 60, |_| {
+        *rig.state.borrow() == LinkState::NeedsOperator(AgentError::Authentication)
+    })
+    .await;
+    assert!(rig.alive(), "gave up instead of retrying slowly");
+    let at_escalation = rig.gate.accepted();
+    assert!(
+        (18..=27).contains(&at_escalation),
+        "attempts {at_escalation}"
+    );
+    // Still shown as needs-operator while it waits, not flickering back to connecting.
+    pause(Duration::from_millis(1500)).await;
     assert_eq!(
         *rig.state.borrow(),
         LinkState::NeedsOperator(AgentError::Authentication)
     );
-    let total = rig.gate.accepted();
-    assert!((20..=40).contains(&total), "attempts {total}");
-    pause(Duration::from_secs(2)).await; // 40 virtual seconds more
-    assert_eq!(rig.gate.accepted(), total, "retry storm after escalating");
+    // The remaining attempts are one per ~60 virtual seconds (3s real), never a storm.
+    rig.online(1).await;
+    assert_eq!(rig.gate.accepted(), 28);
+    assert_eq!(*rig.state.borrow(), LinkState::Online);
+    rig.finish().await;
 }
 #[tokio::test]
 async fn untrusted_gateway_certificate_needs_an_operator_and_does_not_retry() {
