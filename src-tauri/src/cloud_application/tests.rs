@@ -298,6 +298,7 @@ async fn native_workspace_removal_preserves_uncertain_occupancy() {
             handle: handle.clone(),
             link: material.link,
             host: Arc::new(Mutex::new(None)),
+            agent_link: Arc::new(Mutex::new(None)),
         },
     );
     assert!(handle.wait(Duration::from_secs(2)).await.is_err());
@@ -323,5 +324,37 @@ async fn native_workspace_removal_releases_only_drained_view_and_preserves_disk(
     app.remove_drained_workspace(&fixture.id).unwrap();
     assert!(!app.views.lock().unwrap().contains_key(&fixture.id));
     assert!(fixture.root.path().join("runtime/executions.bin").is_file());
+    fixture.close_listener().await;
+}
+
+#[tokio::test]
+async fn status_reports_the_agent_link_state_next_to_the_phase() {
+    let mut fixture = Fixture::new();
+    let app = ApplicationAgents::default();
+    // Nothing started: no link to report.
+    assert_eq!(app.status(&fixture.id, true).unwrap().link, "none");
+    app.start(&fixture.id, fixture.lease.clone(), fixture.material(), true)
+        .unwrap();
+    let _host = host(&app, &fixture.id).await;
+    // The fixture's gateway is unreachable, so the always-on Agent must be visibly
+    // trying to connect (never silently "none", never claiming to be online).
+    let seen = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let status = app.status(&fixture.id, true).unwrap();
+            if status.link != "none" {
+                return status;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("link state never became visible");
+    assert!(
+        matches!(seen.link, "connecting" | "reconnecting"),
+        "{}",
+        seen.link
+    );
+    assert!(!seen.connected);
+    app.shutdown().await.unwrap();
     fixture.close_listener().await;
 }

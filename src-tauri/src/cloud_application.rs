@@ -13,7 +13,7 @@ use coding_tools_cloud_agent::{
     backoff_delay, classify_retry,
     lifecycle::{AgentLifecycle, Phase, RunHandle, RunOutcome, TaskExit},
     managed::ManagedLocalHost,
-    AgentError, HostAgent, Jitter, RetryClass, SystemJitter,
+    AgentError, HostAgent, Jitter, LinkState, RetryClass, SystemJitter,
 };
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -80,6 +80,25 @@ pub(crate) struct CloudConnectionStatus {
     pub phase: &'static str,
     pub connected: bool,
     pub generation: Option<u64>,
+    /// Always-on Agent link: none | connecting | online | reconnecting |
+    /// needs_operator | failed | stopped. Public metadata only; the phase set the
+    /// UI already knows is unchanged.
+    pub link: &'static str,
+    pub link_attempt: Option<u32>,
+    /// Stable public error code (for example `agent_tls_rejected`), never a message
+    /// from the gateway or any local secret.
+    pub link_error: Option<String>,
+}
+fn link_view(state: Option<LinkState>) -> (&'static str, Option<u32>, Option<String>) {
+    match state {
+        None => ("none", None, None),
+        Some(LinkState::Connecting) => ("connecting", None, None),
+        Some(LinkState::Online) => ("online", None, None),
+        Some(LinkState::Reconnecting { attempt }) => ("reconnecting", Some(attempt), None),
+        Some(LinkState::NeedsOperator(e)) => ("needs_operator", None, Some(e.to_string())),
+        Some(LinkState::Failed(e)) => ("failed", None, Some(e.to_string())),
+        Some(LinkState::Stopped) => ("stopped", None, None),
+    }
 }
 struct TransportLifetime(CloudTransport);
 impl Drop for TransportLifetime {
@@ -92,6 +111,7 @@ struct View {
     handle: RunHandle,
     link: CloudTransport,
     host: Arc<Mutex<Option<Arc<NativeLiveHost>>>>,
+    agent_link: Arc<Mutex<Option<tokio::sync::watch::Receiver<LinkState>>>>,
 }
 pub(crate) struct ApplicationAgents {
     manager: AgentLifecycle,
@@ -129,6 +149,8 @@ impl ApplicationAgents {
         }
         let host_view = Arc::new(Mutex::new(None));
         let observed_host = host_view.clone();
+        let agent_link = Arc::new(Mutex::new(None));
+        let observed_agent_link = agent_link.clone();
         let link = material.link.clone();
         let observed_link = link.clone();
         let profile = id.to_owned();
@@ -185,6 +207,9 @@ impl ApplicationAgents {
                         };
                         if let Ok(mut view) = observed_host.lock() {
                             *view = Some(host.clone());
+                        }
+                        if let Ok(mut slot) = observed_agent_link.lock() {
+                            *slot = Some(agent.link_state());
                         }
                         let (cancel, cancelled) =
                             tokio::sync::watch::channel(*stop.borrow() || !lifetime.is_live());
@@ -253,6 +278,7 @@ impl ApplicationAgents {
                 handle,
                 link,
                 host: host_view,
+                agent_link,
             },
         );
         drop(views);
@@ -309,6 +335,9 @@ impl ApplicationAgents {
                 },
                 connected: false,
                 generation: None,
+                link: "none",
+                link_attempt: None,
+                link_error: None,
             });
         };
         let phase = match view.handle.phase().map_err(|_| unavailable())? {
@@ -326,11 +355,21 @@ impl ApplicationAgents {
                 _ => "recovery",
             },
         };
+        let current = view
+            .agent_link
+            .lock()
+            .map_err(|_| unavailable())?
+            .as_ref()
+            .map(|state| *state.borrow());
+        let (link, link_attempt, link_error) = link_view(current);
         Ok(CloudConnectionStatus {
             configured,
             phase,
             connected: view.link.ensure_connected().is_ok(),
             generation: Some(view.handle.generation()),
+            link,
+            link_attempt,
+            link_error,
         })
     }
     pub(crate) async fn stop(&self, id: &str) -> AppResult<()> {
@@ -625,6 +664,30 @@ mod supervision_tests {
         .expect("task did not finish")
     }
 
+    #[test]
+    fn link_state_is_exposed_to_the_ui_as_public_metadata_only() {
+        use coding_tools_cloud_agent::LinkState::*;
+        assert_eq!(link_view(None), ("none", None, None));
+        assert_eq!(link_view(Some(Connecting)), ("connecting", None, None));
+        assert_eq!(link_view(Some(Online)), ("online", None, None));
+        assert_eq!(
+            link_view(Some(Reconnecting { attempt: 7 })),
+            ("reconnecting", Some(7), None)
+        );
+        assert_eq!(
+            link_view(Some(NeedsOperator(AgentError::Tls))),
+            ("needs_operator", None, Some("agent_tls_rejected".into()))
+        );
+        assert_eq!(
+            link_view(Some(Failed(AgentError::Journal))),
+            (
+                "failed",
+                None,
+                Some("agent_journal_requires_local_review".into())
+            )
+        );
+        assert_eq!(link_view(Some(Stopped)), ("stopped", None, None));
+    }
     #[tokio::test]
     async fn auto_start_needs_both_an_imported_configuration_and_a_live_listener() {
         let mut fixture = Auto::new();
