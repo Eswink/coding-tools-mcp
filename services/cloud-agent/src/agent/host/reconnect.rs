@@ -175,7 +175,8 @@ where
     // When the current unbroken run of soft (403/404) rejections began.
     let mut soft_since: Option<tokio::time::Instant> = None;
     let mut last_soft: Option<tokio::time::Instant> = None;
-    // True while the visible state is NeedsOperator but we are still retrying slowly.
+    // True from the first escalation until a session is established: the visible state
+    // stays NeedsOperator (no Connecting/Reconnecting blinking) while we keep retrying.
     let mut slow = false;
     loop {
         if *stop.borrow() {
@@ -215,9 +216,11 @@ where
             // Only a real session ends the streak; Transport noise alone does not.
             soft_since = None;
             last_soft = None;
+            slow = false;
         }
-        let soft_budget_left =
-            soft && soft_since.is_some_and(|since| now - since < pacing.scale(SOFT_REJECT_LIMIT));
+        let soft_budget_left = soft
+            && !slow
+            && soft_since.is_some_and(|since| now - since < pacing.scale(SOFT_REJECT_LIMIT));
         if soft && !soft_budget_left {
             // A rejection that outlived the window: ask for a person, keep trying slowly.
             slow = true;
@@ -233,7 +236,6 @@ where
             }
             continue;
         }
-        slow = false;
         match classify_retry(error) {
             RetryClass::NeedsOperator if !soft_budget_left => {
                 state.send_replace(LinkState::NeedsOperator(error));
@@ -250,7 +252,11 @@ where
             attempts = 0;
         }
         attempts = attempts.saturating_add(1);
-        state.send_replace(LinkState::Reconnecting { attempt: attempts });
+        // Once NeedsOperator is shown it stays until a session is really up: other
+        // transient errors in between must not make the state blink.
+        if !slow {
+            state.send_replace(LinkState::Reconnecting { attempt: attempts });
+        }
         tokio::select! {
             biased;
             _ = stop.changed() => {
@@ -677,6 +683,108 @@ mod tests {
         let h = launch(script, 0);
         h.advance(1 + 1110 + 540).await; // 40 transports back off to ~1110s
         assert!(!h.task.is_finished(), "unrelated incidents were merged");
+        // 540s into the second incident is still inside its own 600s window. Had the two
+        // been merged, the first 403 (at t=0) would already be 1650s old: NeedsOperator.
+        assert!(
+            matches!(
+                *h.state.borrow(),
+                LinkState::Reconnecting { .. } | LinkState::Connecting
+            ),
+            "unrelated incidents were merged: {:?}",
+            *h.state.borrow()
+        );
+        h.advance(100).await;
+        assert_eq!(
+            *h.state.borrow(),
+            LinkState::NeedsOperator(Authentication),
+            "the second incident never reached its own limit"
+        );
+    }
+    #[tokio::test(start_paused = true)]
+    async fn alternating_403_and_transport_errors_do_not_flap_the_visible_state() {
+        // Past the limit, a gateway that answers 403 and a network that sometimes drops
+        // must not make the link blink Reconnecting <-> NeedsOperator every minute or two.
+        let mut script = vec![soft(); 40];
+        for _ in 0..100 {
+            script.push(soft());
+            script.push(step(false, 0, Err(Transport)));
+        }
+        let h = launch(script, 0);
+        h.advance(SOFT_REJECT_LIMIT.as_secs() + 30).await;
+        assert_eq!(*h.state.borrow(), LinkState::NeedsOperator(Authentication));
+        let mut seen = Vec::new();
+        for _ in 0..1800 {
+            h.advance(1).await;
+            seen.push(*h.state.borrow());
+        }
+        assert!(
+            seen.iter()
+                .all(|s| *s == LinkState::NeedsOperator(Authentication)),
+            "state left NeedsOperator without a session: {:?}",
+            seen.iter()
+                .filter(|s| **s != LinkState::NeedsOperator(Authentication))
+                .take(3)
+                .collect::<Vec<_>>()
+        );
+        assert!(!h.task.is_finished());
+    }
+    #[tokio::test(start_paused = true)]
+    async fn a_quiet_gap_after_escalation_does_not_open_a_new_window_or_drop_needs_operator() {
+        // Already escalated; the network then dies for >SOFT_GAP; the gateway answers 403
+        // again. Still the same unresolved outage: no fresh 600s of Reconnecting.
+        let mut script = vec![soft(); 30];
+        script.extend(vec![step(false, 0, Err(Transport)); 12]);
+        script.extend(vec![soft(); 100]);
+        let h = launch(script, 0);
+        h.advance(SOFT_REJECT_LIMIT.as_secs() + 30).await;
+        assert_eq!(*h.state.borrow(), LinkState::NeedsOperator(Authentication));
+        for _ in 0..1200 {
+            h.advance(1).await;
+            assert_eq!(
+                *h.state.borrow(),
+                LinkState::NeedsOperator(Authentication),
+                "left NeedsOperator after count {}",
+                h.count()
+            );
+        }
+        // Still one minute apart, not a fresh run of fast backoff attempts (51 vs 59 here).
+        assert!(
+            h.count() <= 54,
+            "retried too fast after the gap: {}",
+            h.count()
+        );
+        assert!(!h.task.is_finished());
+    }
+    #[tokio::test(start_paused = true)]
+    async fn only_an_established_session_leaves_needs_operator_and_a_later_drop_reconnects_normally(
+    ) {
+        let mut script = vec![soft(); 40];
+        script.push(step(false, 0, Err(Transport)));
+        script.push(step(true, 100, Err(Transport)));
+        script.extend(vec![step(false, 0, Err(Transport)); 20]);
+        let h = launch(script, 0);
+        h.advance(SOFT_REJECT_LIMIT.as_secs() + 30).await;
+        assert_eq!(*h.state.borrow(), LinkState::NeedsOperator(Authentication));
+        // Run on until the session is up (the last soft answers come a minute apart).
+        let mut online_seen = false;
+        for _ in 0..(40 * 60 + 200) {
+            h.advance(1).await;
+            let now = *h.state.borrow();
+            if now == LinkState::Online {
+                online_seen = true;
+            }
+            if online_seen {
+                break;
+            }
+        }
+        assert!(online_seen, "never came back online");
+        // The session later drops: a normal reconnect, not a stale NeedsOperator.
+        h.advance(101).await;
+        assert!(
+            matches!(*h.state.borrow(), LinkState::Reconnecting { .. }),
+            "{:?}",
+            *h.state.borrow()
+        );
     }
     #[tokio::test(start_paused = true)]
     async fn an_established_session_ends_the_soft_rejection_streak() {
