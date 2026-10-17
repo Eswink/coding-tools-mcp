@@ -469,3 +469,126 @@ async fn resume_waits_for_an_old_run_still_draining_after_its_listener_was_repla
     app.shutdown().await.unwrap();
     fixture.close_listener().await;
 }
+
+fn real_marker_store(base: &std::path::Path) -> crate::cloud_connection::ConnectionStore {
+    let workspace = base.join("ws");
+    std::fs::create_dir_all(&workspace).unwrap();
+    let root = base.join("connection");
+    let mut builder = std::fs::DirBuilder::new();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+    builder.create(&root).unwrap();
+    crate::cloud_connection::ConnectionStore::application_test_store(root, "profile", &workspace)
+}
+
+#[tokio::test]
+async fn a_manual_stop_stays_stopped_through_the_real_marker_and_a_restart_resumes_only_with_it() {
+    // The intent is derived from the real persisted marker, exactly as the command does,
+    // instead of being hard-coded to false.
+    let mut fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let store = real_marker_store(dir.path());
+    let app = ApplicationAgents::default();
+    // Manual start: admitted, then remembered.
+    app.start(&fixture.id, fixture.lease.clone(), fixture.material(), true)
+        .unwrap();
+    store.set_auto_start_intent(true).unwrap();
+    assert!(store.auto_start_intent());
+    drop(host(&app, &fixture.id).await);
+    // A restart of the MCP service (config/secret change): stop the old run, keep the marker.
+    app.stop(&fixture.id).await.unwrap();
+    let resumed = app
+        .auto_start_settled(
+            &fixture.id,
+            Some(fixture.lease.clone()),
+            Some(fixture.material()),
+            store.auto_start_intent(),
+        )
+        .await
+        .unwrap();
+    assert!(resumed.is_some(), "a started connection must resume");
+    drop(host(&app, &fixture.id).await);
+    // Manual stop: marker cleared first (as stop_cloud_connection does), then the run stops.
+    store.set_auto_start_intent(false).unwrap();
+    app.stop(&fixture.id).await.unwrap();
+    assert!(!store.auto_start_intent());
+    let after_stop = app
+        .auto_start_settled(
+            &fixture.id,
+            Some(fixture.lease.clone()),
+            Some(fixture.material()),
+            store.auto_start_intent(),
+        )
+        .await
+        .unwrap();
+    assert!(
+        after_stop.is_none(),
+        "a manual stop was undone by a restart"
+    );
+    assert_eq!(app.status(&fixture.id, true).unwrap().phase, "configured");
+    app.shutdown().await.unwrap();
+    fixture.close_listener().await;
+}
+
+#[tokio::test]
+async fn resume_skips_and_never_replaces_a_run_that_does_not_drain_in_time() {
+    let mut fixture = Fixture::new();
+    let app = ApplicationAgents::default();
+    app.start(&fixture.id, fixture.lease.clone(), fixture.material(), true)
+        .unwrap();
+    drop(host(&app, &fixture.id).await);
+    app.stop(&fixture.id).await.unwrap();
+    let (release, released) = tokio::sync::oneshot::channel::<()>();
+    let handle = app
+        .manager
+        .launch(workspace_identity(&fixture.id), |_| async move {
+            let _ = released.await;
+            TaskExit::Drained
+        })
+        .unwrap();
+    app.views.lock().unwrap().insert(
+        fixture.id.clone(),
+        View {
+            handle: handle.clone(),
+            link: fixture.material().link,
+            host: Arc::new(Mutex::new(None)),
+            agent_link: Arc::new(Mutex::new(None)),
+        },
+    );
+    let started = std::time::Instant::now();
+    let skipped = app
+        .auto_start_settled_within(
+            &fixture.id,
+            Some(fixture.lease.clone()),
+            Some(fixture.material()),
+            true,
+            Duration::from_millis(200),
+        )
+        .await
+        .unwrap();
+    assert!(skipped.is_none(), "replaced an undrained run");
+    assert!(
+        started.elapsed() < Duration::from_secs(5),
+        "waited past the deadline"
+    );
+    assert!(handle.outcome().is_none(), "the old run must be left alone");
+    // Once it does drain, the same call resumes.
+    release.send(()).unwrap();
+    let resumed = app
+        .auto_start_settled_within(
+            &fixture.id,
+            Some(fixture.lease.clone()),
+            Some(fixture.material()),
+            true,
+            Duration::from_secs(5),
+        )
+        .await
+        .unwrap();
+    assert!(resumed.is_some());
+    drop(host(&app, &fixture.id).await);
+    app.shutdown().await.unwrap();
+    fixture.close_listener().await;
+}

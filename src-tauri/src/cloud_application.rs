@@ -334,6 +334,18 @@ impl ApplicationAgents {
         material: Option<RuntimeMaterial>,
         user_intent: bool,
     ) -> AppResult<Option<CloudConnectionStatus>> {
+        self.auto_start_settled_within(id, lease, material, user_intent, STOP_TIMEOUT)
+            .await
+    }
+    /// `auto_start_settled` with an explicit drain deadline (tests use a short one).
+    pub(crate) async fn auto_start_settled_within(
+        &self,
+        id: &str,
+        lease: Option<ListenerContextLease>,
+        material: Option<RuntimeMaterial>,
+        user_intent: bool,
+        drain_deadline: Duration,
+    ) -> AppResult<Option<CloudConnectionStatus>> {
         if user_intent && lease.is_some() && material.is_some() {
             let draining = self
                 .views
@@ -344,7 +356,15 @@ impl ApplicationAgents {
                 .map(|view| view.handle.clone());
             if let Some(handle) = draining {
                 // Any result (including uncertain) is decided by auto_start's own check.
-                let _ = handle.wait(STOP_TIMEOUT).await;
+                if handle.wait(drain_deadline).await.is_err() {
+                    // Skipping is the safe outcome (never two runs), but it must not be
+                    // silent: the user's connection will not resume by itself this time.
+                    // Deliberately no workspace id, URL or token in the line.
+                    eprintln!(
+                        "cloud connection auto-resume skipped: the previous run did not finish \
+                         draining within {drain_deadline:?}; start it again manually"
+                    );
+                }
             }
         }
         self.auto_start(id, lease, material, user_intent)
