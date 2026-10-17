@@ -266,15 +266,19 @@ impl ApplicationAgents {
     /// grants nothing: the Agent still needs the local native approval for every
     /// execution, exactly as with the manual start button. An already visible
     /// run (including a failed or uncertain one) is left alone, never replaced.
-    // The startup/runtime-start call site lives outside S1's allowed files.
-    #[cfg_attr(not(test), allow(dead_code))]
+    /// Finally, the user's persisted intent must be "started": a configuration that
+    /// was never started, or that the user stopped, is not resumed.
+    #[cfg_attr(not(test), allow(dead_code))] // called from the runtime start in a later commit
     pub(crate) fn auto_start(
         &self,
         id: &str,
         lease: Option<ListenerContextLease>,
         material: Option<RuntimeMaterial>,
+        user_intent: bool,
     ) -> AppResult<Option<CloudConnectionStatus>> {
-        let (Some(lease), Some(material)) = (lease, material) else {
+        // `user_intent` is the persisted "last explicit action was start": a manual
+        // stop clears it, so launching the application never undoes that stop.
+        let (true, Some(lease), Some(material)) = (user_intent, lease, material) else {
             return Ok(None);
         };
         let blocked = self
@@ -626,11 +630,11 @@ mod supervision_tests {
         let mut fixture = Auto::new();
         let app = ApplicationAgents::default();
         assert!(app
-            .auto_start(&fixture.id, Some(fixture.lease.clone()), None)
+            .auto_start(&fixture.id, Some(fixture.lease.clone()), None, true)
             .unwrap()
             .is_none());
         assert!(app
-            .auto_start(&fixture.id, None, Some(fixture.material()))
+            .auto_start(&fixture.id, None, Some(fixture.material()), true)
             .unwrap()
             .is_none());
         assert!(app.views.lock().unwrap().is_empty());
@@ -646,6 +650,7 @@ mod supervision_tests {
                 &fixture.id,
                 Some(fixture.lease.clone()),
                 Some(fixture.material()),
+                true,
             )
             .unwrap();
         assert!(started.is_some());
@@ -658,11 +663,52 @@ mod supervision_tests {
             .auto_start(
                 &fixture.id,
                 Some(fixture.lease.clone()),
-                Some(fixture.material())
+                Some(fixture.material()),
+                true
             )
             .unwrap()
             .is_none());
         assert!(!fixture.root.path().join("runtime").exists());
+        fixture.close().await;
+    }
+    #[tokio::test]
+    async fn auto_start_never_undoes_a_manual_stop_or_a_never_started_connection() {
+        let mut fixture = Auto::new();
+        let app = ApplicationAgents::default();
+        // No persisted start intent (never started, or the user stopped it): even with a
+        // live listener and an imported configuration nothing is launched or created.
+        assert!(app
+            .auto_start(
+                &fixture.id,
+                Some(fixture.lease.clone()),
+                Some(fixture.material()),
+                false
+            )
+            .unwrap()
+            .is_none());
+        assert!(app.views.lock().unwrap().is_empty());
+        assert!(!fixture.root.path().join("runtime").exists());
+        // Same after a completed (Drained) run: a stop stays a stop.
+        let started = app
+            .auto_start(
+                &fixture.id,
+                Some(fixture.lease.clone()),
+                Some(fixture.material()),
+                true,
+            )
+            .unwrap();
+        assert!(started.is_some());
+        let _ = outcome(&app, &fixture.id).await;
+        app.views.lock().unwrap().clear();
+        assert!(app
+            .auto_start(
+                &fixture.id,
+                Some(fixture.lease.clone()),
+                Some(fixture.material()),
+                false
+            )
+            .unwrap()
+            .is_none());
         fixture.close().await;
     }
 }
