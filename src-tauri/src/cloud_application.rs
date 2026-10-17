@@ -294,7 +294,6 @@ impl ApplicationAgents {
     /// run (including a failed or uncertain one) is left alone, never replaced.
     /// Finally, the user's persisted intent must be "started": a configuration that
     /// was never started, or that the user stopped, is not resumed.
-    #[cfg_attr(not(test), allow(dead_code))] // called from the runtime start in a later commit
     pub(crate) fn auto_start(
         &self,
         id: &str,

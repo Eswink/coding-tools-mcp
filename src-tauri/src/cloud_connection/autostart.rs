@@ -4,8 +4,6 @@ use super::*;
 
 const INTENT_FILE: &str = "auto-start.intent";
 
-// Wired by the S1b call sites in the following commits.
-#[cfg_attr(not(test), allow(dead_code))]
 impl ConnectionStore {
     /// True only if the user's last explicit cloud action was "start" and nothing since
     /// has stopped it. A missing, redirected or hard-linked marker reads as "no".
@@ -13,21 +11,22 @@ impl ConnectionStore {
         regular_file(&self.root.join(INTENT_FILE)).is_ok()
     }
     /// Manual start records the intent; manual stop clears it so the next application
-    /// start does not undo the user's stop. The configuration directory must already
-    /// exist and be private; this never creates it.
+    /// start does not undo the user's stop. Recording requires an existing private
+    /// configuration directory; nothing here ever creates it.
     pub(crate) fn set_auto_start_intent(&self, enabled: bool) -> Result<(), ConfigurationError> {
         directory_chain(&self.root)?;
-        private_directory(&self.root)?;
         let path = self.root.join(INTENT_FILE);
         if enabled {
+            private_directory(&self.root)?;
             if self.auto_start_intent() {
                 return Ok(());
             }
             fs::write(&path, b"1\n").map_err(|_| ConfigurationError::Unavailable)?;
         } else {
+            // Clearing must also work for a workspace that was never configured.
             match fs::remove_file(&path) {
                 Ok(()) => {}
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
                 Err(_) => return Err(ConfigurationError::Unavailable),
             }
         }
@@ -87,6 +86,9 @@ mod tests {
         assert!(missing.set_auto_start_intent(true).is_err());
         assert!(!dir.path().join("never-imported").exists());
         assert!(!missing.auto_start_intent());
+        // Stopping a never-configured workspace is a harmless no-op, not an error.
+        missing.set_auto_start_intent(false).unwrap();
+        assert!(!dir.path().join("never-imported").exists());
     }
     #[cfg(unix)]
     #[test]
