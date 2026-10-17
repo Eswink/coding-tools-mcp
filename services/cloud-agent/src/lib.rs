@@ -15,7 +15,8 @@ pub mod projection;
 mod secure_io;
 pub mod work;
 pub use agent::host::{
-    classify_retry, HostAgent, HostAuthoritySnapshot, HostFuture, LocalHost, RetryClass,
+    backoff_base, backoff_delay, classify_retry, HostAgent, HostAuthoritySnapshot, HostFuture,
+    Jitter, LocalHost, RetryClass, SystemJitter,
 };
 pub use agent::{AgentConfig, AgentError};
 pub use identity::PublicIdentity;

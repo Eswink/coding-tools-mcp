@@ -10,7 +10,9 @@ use crate::execution::{ExecutionReply, ExecutionRequest, PeerBinding};
 use authority::ProjectedHost;
 pub use authority::{HostAuthoritySnapshot, HostFuture, LocalHost};
 use journal::HostJournal;
-pub use reconnect::{classify_retry, RetryClass};
+pub use reconnect::{
+    backoff_base, backoff_delay, classify_retry, Jitter, RetryClass, SystemJitter,
+};
 use serde_json::{json, Value};
 use std::{
     path::Path,
