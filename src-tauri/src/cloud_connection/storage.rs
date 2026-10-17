@@ -271,3 +271,5 @@ fn sync_directory(path: &Path) -> Result<(), ConfigurationError> {
 #[path = "runtime.rs"]
 mod runtime;
 pub(crate) use runtime::RuntimeMaterial;
+#[path = "autostart.rs"]
+mod autostart;
