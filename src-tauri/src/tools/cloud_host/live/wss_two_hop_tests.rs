@@ -89,17 +89,30 @@ async fn tls_two_hop_device_revoke_survives_gateway_database_restart() {
     // upgrade (a close, not an HTTP status), which is a retryable Transport error. It keeps
     // reconnecting at capped backoff instead of exhausting a budget and exiting. Several
     // 1s/2s/4s attempts fit in this window; a finished task would mean the old semantics.
-    tokio::time::sleep(Duration::from_secs(8)).await;
+    // Sample the link for the whole window: Connecting (mid-attempt) and Reconnecting
+    // (waiting out the backoff) are both fine, Online must never be seen.
+    let link = h.link.clone().unwrap();
+    let (mut online_samples, mut seen) = (0usize, Vec::new());
+    for _ in 0..80 {
+        let state = *link.borrow();
+        if state == coding_tools_cloud_agent::LinkState::Online {
+            online_samples += 1;
+        }
+        seen.push(state);
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert_eq!(online_samples, 0, "a revoked device went online: {seen:?}");
     assert!(
         !h.agent.as_ref().unwrap().is_finished(),
         "Agent exited for a revoked device"
     );
     assert!(
         matches!(
-            *h.link.as_ref().unwrap().borrow(),
+            *link.borrow(),
             coding_tools_cloud_agent::LinkState::Reconnecting { .. }
+                | coding_tools_cloud_agent::LinkState::Connecting
         ),
-        "a revoked device must leave the Agent reconnecting, not online or stopped"
+        "a revoked device must leave the Agent trying again, not online or stopped"
     );
     assert_eq!(h.control(Op::Inspect).await["connected"], false);
     // A requested stop is the only way out, and it is a clean one.
