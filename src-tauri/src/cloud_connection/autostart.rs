@@ -42,6 +42,12 @@ impl ConnectionStore {
             )
             .map_err(|_| ConfigurationError::Unavailable)?;
         } else {
+            // A directory at the marker path is not our marker (it already reads as "no
+            // intent") and is never ours to delete: there is nothing to clear, and the
+            // stop must not be refused because of it.
+            if fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.is_dir()) {
+                return Ok(());
+            }
             // Clearing must also work for a workspace that was never configured.
             match fs::remove_file(&path) {
                 Ok(()) => {}
@@ -129,6 +135,24 @@ mod tests {
         assert_eq!(fs::read_to_string(&target).unwrap(), "untouched");
         store.set_auto_start_intent(true).unwrap();
         assert!(store.auto_start_intent());
+    }
+    #[test]
+    fn a_directory_at_the_marker_path_never_blocks_a_stop_and_is_left_alone() {
+        let dir = tempfile::tempdir().unwrap();
+        let workspace = dir.path().join("ws");
+        fs::create_dir(&workspace).unwrap();
+        let root = private_root(dir.path());
+        let planted = root.join(INTENT_FILE);
+        fs::create_dir(&planted).unwrap();
+        fs::write(planted.join("keep"), "x").unwrap();
+        let store = store(&root, &workspace);
+        assert!(!store.auto_start_intent());
+        // Stopping must succeed (nothing was started), and must not delete foreign data.
+        store.set_auto_start_intent(false).unwrap();
+        assert!(planted.join("keep").is_file());
+        // Starting is still refused rather than writing through or over it.
+        assert!(store.set_auto_start_intent(true).is_err());
+        assert!(planted.is_dir());
     }
     #[cfg(unix)]
     #[test]
