@@ -14,7 +14,9 @@ pub mod projection;
 #[cfg(unix)]
 mod secure_io;
 pub mod work;
-pub use agent::host::{HostAgent, HostAuthoritySnapshot, HostFuture, LocalHost};
+pub use agent::host::{
+    classify_retry, HostAgent, HostAuthoritySnapshot, HostFuture, LocalHost, RetryClass,
+};
 pub use agent::{AgentConfig, AgentError};
 pub use identity::PublicIdentity;
 
