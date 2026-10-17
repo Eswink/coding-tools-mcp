@@ -62,7 +62,7 @@ SOURCE_PINS = {
     'scripts/linux_startup_candidate.py': ('100644', '0ee6baad230a200350d118807e125dcd33d7f6e6', '7ee01af30d92486aca0d8af4468753b7546d295d20f071863a04aa18f4c6a0ba', 13398, 255),
     'scripts/Ubuntu原生验收v1.py': ('100644', 'add9f36fdad5dbc8cc741036d7fcc79cec38f4c0', '54eaf719d486ddefd788e8e4c5cdfec49d911991d7e35e5774518e328e1f5c19', 19123, 358),
     'scripts/跨平台原生驱动v8.py': ('100644', 'eaa8cd1fdbf18137eb2ca6e216ce9b38f44c9bbf', '073b92f8214afad017c12b2a22c23eef3195e38154d72f2fa09b640ea5b324f7', 14463, 274),
-    'scripts/exclusive_native_acceptance.py': ('100644', 'b98554aafd78c7e7e376f43cb20a4f4686e2acbd', 'bac190d66cb78cf9a380b05b1da89f37044248072360725a58b12fcbb65c619e', 21690, 368),
+    'scripts/exclusive_native_acceptance.py': ('100644', '71a93b4344afa9ee0b41f6548bb8d5e28a10b06d', '0b9f37e2f26e3eae2f8c638716b8fc0806843617d5688c90c0317e88d9bfc013', 22591, 392),
     'scripts/preliminary_package_contract_tests.py': ('100644', '70e1fed6c36d10b7a12beb523316df021e5d3daf', '3600a1c881c5772c1315c6395548debb52ab20ad2cf198644a831ba9c927fa50', 5155, 92),
     'scripts/linux_runtime_provenance.py': ('100644', '2fce91a94a77ae9242c504792e64844453d8f6ba', 'f9c8be51aa9a0e449fada77059a2edf2cd22f9433871a8172463e0610b2bdf00', 30690, 457),
     'scripts/linux_package_provenance_tests.py': ('100644', '5e5daee97f8fbadd7cbb2affbbaa0ca05c92b13a', '73bdc7986219245a60ca84434a2ef57b91c4b6e2900e65e740f29153d2fe2bf4', 31486, 460),

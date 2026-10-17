@@ -6821,11 +6821,11 @@
    "sha256": "94a08b5026b51b9ecf91d9ee25f4b70b1effc8156691cbf719e8f219be9151a2"
   },
   {
-   "blob": "cdb82073d8ffd0eed7e62d324ea1210025ba2a87",
+   "blob": "a847466af3c9486caf2c47d7e9519e53742e3f0f",
    "bytes": 14589,
    "mode": "100644",
    "path": "scripts/rc_pretag_linux_package_profile.py",
-   "sha256": "29b9480129319b8377d51548bfa56a3f9411d17a57fde48c524d7576047b7313"
+   "sha256": "f33fcce1435a3a350004c67f987a88b83e803a89c6d9e7bcf24a1dd215729665"
   },
   {
    "blob": "be694e6be86c22f2eaacd1eafa3628dee1a8b081",
@@ -6905,11 +6905,11 @@
    "sha256": "5a4babefb29b4f2baecccfa5bf0e34a473975fa22428a93317a5bb71ff8ee988"
   },
   {
-   "blob": "26f606eff88481a70323c8c971c90fcf125f4640",
-   "bytes": 8288,
+   "blob": "29b64d8d5184ce06ea8c4df9008bafbaa1b4ca6d",
+   "bytes": 6178,
    "mode": "100644",
    "path": "scripts/rc_pretag_rc070_topology_profile.py",
-   "sha256": "33c303a52ad3420a4bed2e552bccfc7c669fb03dd5533d55b36c614df16ded8f"
+   "sha256": "3afe35580c484e6409614a0e4ad5666c5d657a640d99d5eb18038ced8c66ab97"
   },
   {
    "blob": "08a97c504f7b7def0d0dbfbb3727c33042622f86",

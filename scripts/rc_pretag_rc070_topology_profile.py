@@ -1,41 +1,26 @@
-"""Finite #150 topology admission for RC070 packaging tip e1f5695803c9; independent review binds self-bytes."""
+"""Finite #150 topology admission for RC070 packaging tip 12c364617981; independent review binds self-bytes."""
 import hashlib
 import rc_pretag_ownership_profile as o
 import rc_pretag_publication_profile as p
 
-M = 'e1f5695803c9c19252095f6b2d830d204d9736d0'
-M_TREE = '7bc7d00b3295527346524c64e4b9c03a38d9264b'
-M_PARENTS = ('3299b461a3b7c542440051cce1323c193f7e69eb',)
-M_RAW = (516, 'cd49611eafea29271875f2b158ab731d678c2c7d36391916846f6735d5320eef')
+M = '12c364617981eb21dea3c72d5230d0f971459ab1'
+M_TREE = 'ff316a03cfe404d7696be1cbf8b40b5caf06c6c7'
+M_PARENTS = ('e1f5695803c9c19252095f6b2d830d204d9736d0',)
+M_RAW = (866, '8143faa0a775dd4d862558d2a532bd38245d3873b18df983e5ee70443b37de78')
 BASE = '41984b1de0ca13efab3646aae5041845bc78cfee'
 PROFILE = 'scripts/rc_pretag_rc070_topology_profile.py'
 MANIFEST = 'scripts/rc_native_probe_source_manifest.json'
 NEW = ()
 CAPS = {
-    PROFILE: (133, 47),
-    'scripts/exclusive_native_acceptance.py': (392, 26),
-    'scripts/rc_pretag_integration_admission_profile.py': (362, 12),
-    'scripts/rc_pretag_linux_package_cases.py': (444, 2),
-    'scripts/rc_pretag_linux_package_inverse.py': (208, 11),
-    'scripts/聊天授权原生验收v6.py': (315, 5),
-    'src-tauri/src/app_state.rs': (219, 12),
+    PROFILE: (118, 35),
+    'scripts/rc_pretag_linux_package_profile.py': (181, 2),
 }
-DELTA_LIMIT = 115
+DELTA_LIMIT = 37
 BASE_PINS = {
-    'scripts/exclusive_native_acceptance.py': ('100644', 'b98554aafd78c7e7e376f43cb20a4f4686e2acbd', 'bac190d66cb78cf9a380b05b1da89f37044248072360725a58b12fcbb65c619e', 21690, 368),
-    'scripts/rc_pretag_integration_admission_profile.py': ('100644', '0f4c449234967c18b26444d39a8cb629d63b75e9', '952a7072a3ffacab1d7562396aad19b6f35fcaf54262e0c2d34f880f42820a15', 148038, 362),
-    'scripts/rc_pretag_linux_package_cases.py': ('100644', '7ec8ec753fd6a0d150b95aa2c5800acda25e479a', '61e0b3f30a6effa0821433d1598029c34a11645355db3e4b2e09cf4dbcefbcae', 31054, 444),
-    'scripts/rc_pretag_linux_package_inverse.py': ('100644', '162b27125fff31d8b141af9b34249045e162c72f', 'ce542198f9114535333b1e9a2b9329c682f09bd5f1d82b0ec936b6600a828d33', 127614, 213),
-    'scripts/聊天授权原生验收v6.py': ('100644', '2ff9a18707269380240f03fc5014e1e66cd21a5f', '7155a5ec158b8986eb28c3d801666b61e2a674caede961bd39c21c4396c80464', 18381, 312),
-    'src-tauri/src/app_state.rs': ('100644', '2d89e93f56d75c518d73f423d948e638dd542c4e', 'd2cb84e32cb07f2cee7b128ec54e96c02be74494f5ca77aceb675d8bb9e3410c', 6629, 209),
+    'scripts/rc_pretag_linux_package_profile.py': ('100644', 'cdb82073d8ffd0eed7e62d324ea1210025ba2a87', '29b9480129319b8377d51548bfa56a3f9411d17a57fde48c524d7576047b7313', 14589, 181),
 }
 SOURCE_PINS = {
-    'scripts/exclusive_native_acceptance.py': ('100644', '71a93b4344afa9ee0b41f6548bb8d5e28a10b06d', '0b9f37e2f26e3eae2f8c638716b8fc0806843617d5688c90c0317e88d9bfc013', 22591, 392),
-    'scripts/rc_pretag_integration_admission_profile.py': ('100644', '42244a1087458fe6afa000170e899dc4fd60810b', '7d6a2eba5fe7b70920dfda15826526f12ae84ef2a77bd4e3abdecc60d3266aba', 156636, 362),
-    'scripts/rc_pretag_linux_package_cases.py': ('100644', 'f016b8d56885d843a5f6a5f5cfd530c88a73b94d', '8c7b248039fffe0d03282140ea141a9db37d75a416ec88411da10d2607ff547f', 31096, 444),
-    'scripts/rc_pretag_linux_package_inverse.py': ('100644', 'a90824de57c52ca2de46ff54b2ff3e4af6f4e57c', '94a08b5026b51b9ecf91d9ee25f4b70b1effc8156691cbf719e8f219be9151a2', 126262, 208),
-    'scripts/聊天授权原生验收v6.py': ('100644', '716f59a902599fae600ca698f911712e12ca283c', '370c2f64cd635075050f70bad24fd567c020b1498d168ff9ebeb6ae5aa4e1d97', 18583, 315),
-    'src-tauri/src/app_state.rs': ('100644', '84800029b207cb9409e1d36c045ae9f708d0323c', '1a9525031b96d68523eaf791344c90298d23e24594bb3bec36079b6c20065a85', 7201, 219),
+    'scripts/rc_pretag_linux_package_profile.py': ('100644', 'a847466af3c9486caf2c47d7e9519e53742e3f0f', 'f33fcce1435a3a350004c67f987a88b83e803a89c6d9e7bcf24a1dd215729665', 14589, 181),
 }
 
 def topology(ref, root, git, release):
