@@ -98,7 +98,7 @@ pub(super) async fn connect(
         .write_buffer_size(0)
         .max_write_buffer_size(MAX_MESSAGE * 2);
     let (mut socket, response) = tokio::time::timeout(
-        Duration::from_secs(10),
+        super::reconnect::scaled(Duration::from_secs(10)),
         connect_async_tls_with_config(request, Some(ws_config), false, connector),
     )
     .await
@@ -142,7 +142,7 @@ pub(super) async fn send(s: &mut Socket, value: &impl Serialize) -> Result<(), A
         .map_err(classify)
 }
 pub(super) async fn receive(s: &mut Socket) -> Result<Incoming, AgentError> {
-    tokio::time::timeout(Duration::from_secs(12), async {
+    tokio::time::timeout(super::reconnect::scaled(Duration::from_secs(12)), async {
         for _ in 0..16 {
             match s
                 .next()
@@ -201,7 +201,7 @@ pub(super) async fn send_control(
     tokio::time::sleep_until(*next_send).await;
     *seq = seq.checked_add(1).ok_or(AgentError::Protocol)?;
     send(s, &message(*seq)).await?;
-    *next_send = tokio::time::Instant::now() + Duration::from_millis(160);
+    *next_send = tokio::time::Instant::now() + super::reconnect::scaled(Duration::from_millis(160));
     Ok(*seq)
 }
 

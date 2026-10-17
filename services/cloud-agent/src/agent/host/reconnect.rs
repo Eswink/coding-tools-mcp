@@ -92,6 +92,40 @@ impl SessionProbe {
     }
 }
 
+/// Protocol/backoff time compression. Production is always `REAL` (divisor 1);
+/// only `#[cfg(test)]` code can change it, so real-socket fault tests finish fast.
+#[derive(Clone, Copy)]
+pub(super) struct Pacing {
+    divisor: u32,
+}
+impl Pacing {
+    pub(super) const REAL: Self = Self { divisor: 1 };
+    #[cfg(test)]
+    pub(super) fn compressed(divisor: u32) -> Self {
+        Self {
+            divisor: divisor.max(1),
+        }
+    }
+    fn scale(self, d: Duration) -> Duration {
+        d / self.divisor
+    }
+}
+/// Protocol timeouts (connect 10s, receive 12s, ack 10s, heartbeat 8s, projection 4s)
+/// go through here. Identity in production; compressed by the fault tests only.
+#[cfg(not(test))]
+pub(super) fn scaled(d: Duration) -> Duration {
+    d
+}
+#[cfg(test)]
+pub(super) static TEST_TIME_DIVISOR: std::sync::atomic::AtomicU32 =
+    std::sync::atomic::AtomicU32::new(1);
+#[cfg(test)]
+pub(super) fn scaled(d: Duration) -> Duration {
+    d / TEST_TIME_DIVISOR
+        .load(std::sync::atomic::Ordering::Relaxed)
+        .max(1)
+}
+
 /// A session this long after its handshake counts as healthy: the retry counter
 /// is cleared. Shorter flaps keep growing the backoff (no tight reconnect loop).
 pub(super) const STABLE_AFTER: Duration = Duration::from_secs(30);
@@ -105,6 +139,7 @@ pub(super) async fn supervise<F, Fut>(
     mut stop: tokio::sync::watch::Receiver<bool>,
     jitter: &dyn Jitter,
     state: &tokio::sync::watch::Sender<LinkState>,
+    pacing: Pacing,
     mut session: F,
 ) -> Result<(), AgentError>
 where
@@ -144,7 +179,7 @@ where
             }
             RetryClass::Retryable => {}
         }
-        if probe.was_established() && started.elapsed() >= STABLE_AFTER {
+        if probe.was_established() && started.elapsed() >= pacing.scale(STABLE_AFTER) {
             attempts = 0;
         }
         attempts = attempts.saturating_add(1);
@@ -155,7 +190,7 @@ where
                 state.send_replace(LinkState::Stopped);
                 return Ok(());
             }
-            _ = tokio::time::sleep(backoff_delay(attempts, jitter.permille())) => {}
+            _ = tokio::time::sleep(pacing.scale(backoff_delay(attempts, jitter.permille()))) => {}
         }
     }
 }
@@ -284,21 +319,27 @@ mod tests {
         let script = Arc::new(Mutex::new(std::collections::VecDeque::from(script)));
         let recorded = starts.clone();
         let task = tokio::spawn(async move {
-            supervise(stop_rx, &FixedJitter(jitter), &state_tx, move |probe| {
-                recorded.lock().unwrap().push(Instant::now());
-                let next = script.lock().unwrap().pop_front();
-                async move {
-                    let Some(step) = next else {
-                        probe.established();
-                        return std::future::pending().await;
-                    };
-                    if step.established {
-                        probe.established();
+            supervise(
+                stop_rx,
+                &FixedJitter(jitter),
+                &state_tx,
+                Pacing::REAL,
+                move |probe| {
+                    recorded.lock().unwrap().push(Instant::now());
+                    let next = script.lock().unwrap().pop_front();
+                    async move {
+                        let Some(step) = next else {
+                            probe.established();
+                            return std::future::pending().await;
+                        };
+                        if step.established {
+                            probe.established();
+                        }
+                        tokio::time::sleep(step.lives).await;
+                        step.outcome
                     }
-                    tokio::time::sleep(step.lives).await;
-                    step.outcome
-                }
-            })
+                },
+            )
             .await
         });
         Harness {

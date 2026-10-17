@@ -26,6 +26,7 @@ pub struct HostAgent<H: LocalHost> {
     cfg: AgentConfig,
     worker: Arc<Worker<H>>,
     jitter: Arc<dyn Jitter>,
+    pacing: reconnect::Pacing,
     state: watch::Sender<LinkState>,
 }
 impl<H: LocalHost> HostAgent<H> {
@@ -44,6 +45,7 @@ impl<H: LocalHost> HostAgent<H> {
         Ok(Self {
             cfg,
             jitter: Arc::new(SystemJitter),
+            pacing: reconnect::Pacing::REAL,
             state: watch::channel(LinkState::Connecting).0,
             worker: Arc::new(Worker {
                 host,
@@ -63,6 +65,14 @@ impl<H: LocalHost> HostAgent<H> {
         self.jitter = jitter;
         self
     }
+    /// Test-only: compress every protocol timeout and backoff by `divisor`
+    /// (process-wide for the protocol timeouts) so socket tests run in real time quickly.
+    #[cfg(test)]
+    pub(crate) fn with_time_divisor(mut self, divisor: u32) -> Self {
+        reconnect::TEST_TIME_DIVISOR.store(divisor.max(1), std::sync::atomic::Ordering::Relaxed);
+        self.pacing = reconnect::Pacing::compressed(divisor);
+        self
+    }
     /// Always-on: keeps one authenticated session alive until `stop` fires or an
     /// error that retrying cannot fix occurs (see `classify_retry`). It does NOT
     /// end when `run_seconds` elapses, after 8 drops, or after a server MAX_AGE
@@ -71,7 +81,7 @@ impl<H: LocalHost> HostAgent<H> {
     /// One caller at a time.
     pub async fn run(&mut self, stop: watch::Receiver<bool>) -> Result<(), AgentError> {
         let (cfg, worker) = (&self.cfg, &self.worker);
-        reconnect::supervise(stop, &*self.jitter, &self.state, |probe| {
+        reconnect::supervise(stop, &*self.jitter, &self.state, self.pacing, |probe| {
             runner::session(cfg, worker.clone(), probe)
         })
         .await

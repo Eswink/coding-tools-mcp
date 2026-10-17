@@ -4,7 +4,7 @@ use super::{
     authority::ProjectedHost,
     connection::{self, send_control, Incoming, Socket},
     error_result, now,
-    reconnect::SessionProbe,
+    reconnect::{scaled, SessionProbe},
     LocalHost, Worker,
 };
 use crate::{
@@ -21,7 +21,9 @@ use std::{
 use tokio::{task::JoinSet, time::Instant};
 use uuid::Uuid;
 
-const ACK_TIMEOUT: Duration = Duration::from_secs(10);
+fn ack_timeout() -> Duration {
+    scaled(Duration::from_secs(10))
+}
 const MAX_PROJECTIONS: usize = 32;
 struct PendingProjection {
     seq: i64,
@@ -160,20 +162,20 @@ pub(super) async fn session<H: LocalHost>(
     loop {
         tokio::select! {
             _=ticks.tick()=>{
-                if hb.as_ref().is_some_and(|x|x.1.elapsed()>ACK_TIMEOUT)
-                    || challenge.as_ref().is_some_and(|x|x.1.elapsed()>ACK_TIMEOUT)
-                    || pending.as_ref().is_some_and(|x|x.sent.elapsed()>ACK_TIMEOUT)
-                    || reply_acks.values().any(|x|x.1.elapsed()>ACK_TIMEOUT)
-                    || approval_acks.values().any(|x|x.1.elapsed()>ACK_TIMEOUT) {
+                if hb.as_ref().is_some_and(|x|x.1.elapsed()>ack_timeout())
+                    || challenge.as_ref().is_some_and(|x|x.1.elapsed()>ack_timeout())
+                    || pending.as_ref().is_some_and(|x|x.sent.elapsed()>ack_timeout())
+                    || reply_acks.values().any(|x|x.1.elapsed()>ack_timeout())
+                    || approval_acks.values().any(|x|x.1.elapsed()>ack_timeout()) {
                     return Err(AgentError::Transport);
                 }
                 let at=now()?;
                 cache.retain(|x|x.until>at);
-                if heartbeat_at.elapsed()>=Duration::from_secs(8) && hb.is_none() {
+                if heartbeat_at.elapsed()>=scaled(Duration::from_secs(8)) && hb.is_none() {
                     let n=send_control(&mut socket,&mut seq,&mut next_send,|seq|ControlMessage::Heartbeat{seq}).await?;
                     hb=Some((n,Instant::now()));heartbeat_at=Instant::now();
                 }
-                if projection_at.elapsed()>=Duration::from_secs(4) && challenge.is_none() && pending.is_none() {
+                if projection_at.elapsed()>=scaled(Duration::from_secs(4)) && challenge.is_none() && pending.is_none() {
                     let n=send_control(&mut socket,&mut seq,&mut next_send,|seq|ControlMessage::ProjectionChallenge{seq}).await?;
                     challenge=Some((n,Instant::now()));projection_at=Instant::now();
                 }
