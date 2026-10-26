@@ -314,7 +314,7 @@ class AuthenticatedTwoHopCompositionTests(unittest.TestCase):
     def test_amendment_pins_scope_binary_and_individual_total_budgets_reject(self):
         self.assertEqual(self.amended(self.pure), self.good)
         self.assertEqual((len(a.AMENDMENT_CAPS), len(a.AMENDMENT_PINS), a.AMENDMENT_DELTA_LIMIT), (6, 5, 900))
-        self.assertEqual((len(a.SOURCE_CAPS), a.SOURCE_DELTA_LIMIT), (13, 2200))
+        self.assertEqual((len(a.SOURCE_CAPS), a.SOURCE_DELTA_LIMIT), (13, 2300))
         for path, pin in a.AMENDMENT_PINS.items():
             self.bad_content(self.changed(path, c._git('show', c.publication.N + ':' + path, root=self.repo) + b'\n'))
             for altered in (('0' * 40, pin[1]), (pin[0], '0' * 64)):

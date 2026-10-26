@@ -6,12 +6,12 @@ import rc_pretag_two_hop_profile as two_hop
 import rc_pretag_authenticated_two_hop_profile as authenticated
 
 PROFILE_ID = 'engineering/issue88-publication-core-composition-v1'
-N = '5fd443dfc0be871bfe10e2604dc6f2c108e4d822'
-N_TREE = '15165aebae6b41b1ff53756ff512754d7c9e94dd'
-N_PARENTS = ('a88be4901623f7c8629b93df984166587253f0be', '51cf02f7a0d7391d61820d6fef693cf49a075393')
+N = '1b7ddb954482b1381365cf8e9d73df595eadd09d'
+N_TREE = '3c6de03b580b4a13d958fa3e1665fff1e1ccd70e'
+N_PARENTS = ('a88be4901623f7c8629b93df984166587253f0be', 'b9430b06469d8fb0cb6f5922611aef11a35fc65b')
 # Structural source only, never an admissible candidate. Bound after source freeze.
-S = '197e0cf86c6944308cf8eafef2bd485e76d0d2a3'
-S_TREE = 'ce54fef3ce69b5bf8cbcb1d5be4f0dae3d4a6cd9'
+S = '8449e33d9eb7e23b14bdaf1cc229c8ce867d0042'
+S_TREE = '97433e28c19a9cb3db5ccf6e6629123a045ea820'
 R, R_TREE, R_DOCUMENTS = authenticated.R, authenticated.R_TREE, authenticated.R_DOCUMENTS
 CORE = 'scripts/rc_publication_contract.py'
 CORE_TESTS = 'scripts/rc_pretag_publication_contract_tests.py'
@@ -320,7 +320,7 @@ JOIN_ONCE_PINS = {
     'scripts/rc_pretag_join_once_tests.py': ('100644', 'a82efa478868410d257da54bf5285a6691b0f37b', '40ee7d6123d8dd14ac235923a8e972946b4e88ba51681a6d8d5aa76ed916c26a', 33498, 497),
     'scripts/rc_pretag_nginx_tests.py': ('100644', '9c595dee88bb11dedbc06f839d722ae2ac621ef5', '609e69f51a72462a4d86128a16e8a72e5d5bbe9aa1813da37cd9e0f968d155a4', 30796, 451),
     'scripts/rc_pretag_publication_adapters.py': ('100644', '669f38760c6ea949b468d5c140a684570c009994', 'fbbea7fac1121f8b7f1aa7b1237c7633292b2e7921d15c53bc0f776913d1bad6', 20977, 185),
-    'scripts/rc_pretag_publication_tests.py': ('100644', '656c204c47005b3c13a39cd931bdadb489305a41', '5154c7b476b9dbb973c49b988abe000bcce1b9ba3ddbfb8bc38da45c8b573ab7', 30332, 451),
+    'scripts/rc_pretag_publication_tests.py': ('100644', '007a394018ba6fadc193c378775b0817d748eced', '1817e110a519ff2e53d7751b4365bb9f90ab0fdee032cc42f8ff9887fe7b5321', 30332, 451),
     'scripts/rc_pretag_two_hop_tests.py': ('100644', '22ddb47076e16bdcdf550f6088e68f694ec6f2ca', '3d9e6e6fdef1e78683730527c8abbac6889495a1eea200b189ea06046a98c624', 39776, 479),
     'services/local-agent/src/process.rs': ('100644', 'f3a8c96a5c19f2fb9a6ff1949bf646c60dceca96', 'a5f870b1d4e9c4030a00232c1475fe6f0b4ada526151ac28ca169ace09813552', 12646, 450),
     'services/local-agent/src/process_io_join_tests.rs': ('100644', '1727d5eb9ca69a2b9baed0718c4619d708cce289', 'fd6a58051958af7a6521e99027ed6c87b5bc2508f278dd54efe53709eb58fbbe', 1528, 40),
