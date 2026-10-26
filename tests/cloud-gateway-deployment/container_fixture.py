@@ -233,6 +233,8 @@ class Fixture:
         require('pkcs8' not in json.dumps(proof),'private_key_never_sent_to_gateway')
         connection=self.cli('coding-tools-gateway',['redeem-device','--config','/run/gateway/config.json',
                             '--bundle-stdin','--output-stdout'],dict(secrets=self.packet,proof=proof))
+        # Retained only in the private fixture for the opt-in native supervisor.
+        self.enrollment_key=key;self.enrollment_connection=connection
         self.device=connection['device']
         require(connection['origin']==self.origin and connection['connector']==self.config['connector'],'immutable_enrollment_identity')
         self.cli('coding-tools-control-gateway',['select-device',*flags,'--device',self.device],self.packet)
