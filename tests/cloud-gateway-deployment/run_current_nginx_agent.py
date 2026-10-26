@@ -48,6 +48,10 @@ NEW = tuple(PREFIX + 'two_hop_tests::tls_two_hop_' + name for name in (
     'gateway_shutdown_drains_authenticated_socket', 'managed_callback_retains_journal_until_drain',
     'untrusted_ca_refused', 'wrong_hostname_refused', 'expired_certificate_refused'))
 ALL = tuple(sorted(BASELINE + NEW))
+# S2 fault_tests are #[path]-mounted under wss_tests but are not part of issue40 ALL(20).
+# Skip them on list + baseline the same way baseline already skips two_hop_tests.
+FAULT_SKIP = PREFIX + 'fault_tests::'
+TWO_HOP_SKIP = PREFIX + 'two_hop_tests::'
 OPS = frozenset(('inspect', 'gateway_stop', 'gateway_start', 'revoke_device', 'restart_database'))
 MANIFEST = Path('/usr/share/coding-tools/native-manifest.json')
 RUNNER = Path(__file__).resolve()
@@ -68,6 +72,7 @@ def verify_source(manifest):
 
 
 def declared_inventory():
+    # Intentionally omits wss_fault_tests.rs (S2 hermetic suite; see FAULT_SKIP).
     found = []
     for file, module in [('wss_tests.rs', ''), ('wss_catalog_tests.rs', 'catalog_tests::'),
                          ('wss_drain_tests.rs', 'managed_drain_tests::'), ('wss_two_hop_tests.rs', 'two_hop_tests::')]:
@@ -76,7 +81,16 @@ def declared_inventory():
             r'#\[tokio::test[^\]]*\]\s*async fn (\w+)', source)]
         require('#[ignore' not in source, 'native_no_ignored_cases')
     require(sorted(found) == list(ALL), 'exact_native_source_inventory')
+    require(all(FAULT_SKIP not in name for name in found), 'issue40_excludes_fault_tests')
     return sorted(found)
+
+
+def issue40_list_argv():
+    return [PREFIX, '--list', '--skip', FAULT_SKIP]
+
+
+def issue40_baseline_argv():
+    return ['--baseline', PREFIX, '--skip', TWO_HOP_SKIP, '--skip', FAULT_SKIP, '--test-threads=1']
 
 
 def private_file(path, uid):
@@ -388,8 +402,8 @@ def run_case(args, case):
         versions = f.prepare()
         name = f.project + '-native'
         if case is None:
-            listed = native_run(f, name, [PREFIX, '--list'], ALL, listed=True)
-            cases = native_run(f, name, ['--baseline', PREFIX, '--skip', PREFIX + 'two_hop_tests::', '--test-threads=1'], BASELINE, timeout=900)
+            listed = native_run(f, name, issue40_list_argv(), ALL, listed=True)
+            cases = native_run(f, name, issue40_baseline_argv(), BASELINE, timeout=900)
             result = dict(cases=cases, compiled=listed, source=source, native_manifest=manifest)
         else:
             mode = next((mode for mode in ('untrusted_ca', 'wrong_hostname', 'expired') if mode in case), 'valid')

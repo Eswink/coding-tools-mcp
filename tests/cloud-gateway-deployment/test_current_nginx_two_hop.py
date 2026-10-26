@@ -244,10 +244,31 @@ class TwoHopHelperTests(unittest.TestCase):
         self.assertEqual((len(agent.BASELINE), len(agent.NEW), len(set(agent.ALL))), (11, 9, 20))
         self.assertEqual(hashlib.sha256('\n'.join(agent.ALL).encode()).hexdigest(), expected)
         self.assertEqual(agent.declared_inventory(), list(agent.ALL))
+        self.assertTrue(all('fault_tests::' not in name for name in agent.ALL))
+        self.assertEqual(agent.FAULT_SKIP, agent.PREFIX + 'fault_tests::')
+        self.assertEqual(agent.TWO_HOP_SKIP, agent.PREFIX + 'two_hop_tests::')
+        self.assertEqual(agent.issue40_list_argv(),
+                         [agent.PREFIX, '--list', '--skip', agent.FAULT_SKIP])
+        self.assertEqual(agent.issue40_baseline_argv(),
+                         ['--baseline', agent.PREFIX, '--skip', agent.TWO_HOP_SKIP,
+                          '--skip', agent.FAULT_SKIP, '--test-threads=1'])
         receipt = 'CTM_NATIVE_IDENTITY={"uid": 65532, "caps": 0, "no_new_privileges": true}\n'
         output = receipt + ''.join('test ' + name + ' ... ok\n' for name in agent.ALL)
         output += 'test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n'
         self.assertEqual(agent.executed(output.encode(), agent.ALL), list(agent.ALL))
+        listed = receipt + ''.join(name + ': test\n' for name in agent.ALL)
+        self.assertEqual(agent.executed(listed.encode(), agent.ALL, listed=True), list(agent.ALL))
+        # Regression: S2 #[path] fault_tests inflate cargo --list to 24 without --skip.
+        fault_ids = (
+            's2_hard_drop_returns_offline_set_without_queue_or_replay',
+            's2_hard_drop_then_reconnect_increments_generation_and_new_call_ok',
+            's2_online_workspace_probe_completes_ledger_and_same_id_is_not_replayed',
+            's2_revoke_device_closes_agent_and_tools_call_needs_authorization')
+        inflated = sorted(list(agent.ALL) + [agent.PREFIX + 'fault_tests::' + name for name in fault_ids])
+        listed_24 = receipt + ''.join(name + ': test\n' for name in inflated)
+        with self.assertRaises(container_fixture.FixtureFailure) as raised:
+            agent.executed(listed_24.encode(), agent.ALL, listed=True)
+        self.assertEqual(raised.exception.code, 'exact_native_executed_inventory')
         mutations = [output.replace(agent.ALL[0], agent.ALL[1]), output.replace(' ... ok', ' ... ignored', 1),
                      output.replace('20 passed', '19 passed'), output.replace(receipt, ''),
                      output + 'test foreign::unexpected ... ok\n', receipt]
