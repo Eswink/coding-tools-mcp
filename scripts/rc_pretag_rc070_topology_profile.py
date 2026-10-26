@@ -10,12 +10,13 @@ M_RAW = (453, '6b446aef9ca1cf94ec1135601128ffdd88a4e83c4e409a0bf13f03bb67ece492'
 BASE = '41984b1de0ca13efab3646aae5041845bc78cfee'
 PROFILE = 'scripts/rc_pretag_rc070_topology_profile.py'
 MANIFEST = 'scripts/rc_native_probe_source_manifest.json'
+REVIEWED = 'docs/releases/reviewed-source-manifest.json'
 NEW = ()
 CAPS = {
-    PROFILE: (130, 250),
+    PROFILE: (180, 250),
     'scripts/rc_pretag_integration_admission_profile.py': (377, 14),
 }
-DELTA_LIMIT = 80
+DELTA_LIMIT = 120
 BASE_PINS = {
     'scripts/rc_pretag_integration_admission_profile.py': ('100644', '71eb3b4119d8ea2952890767e154f41c2d04641e', '9819f31f31a2e4681a3b272d83c0236ec39db5024b55ea4cdd46be97fab8ac62', 157899, 367),
 }
@@ -23,14 +24,41 @@ SOURCE_PINS = {
     'scripts/rc_pretag_integration_admission_profile.py': ('100644', '5e1ac472acc8d66360c15253733838bfbd51580b', '45ce68059b44714bbf21c24c0bfb866781bb054cc73b0f43900a7e5ab7fec5b5', 191588, 377),
 }
 
+def _reviewed_only(parent, child, root, git, entries):
+    """True iff child tree is parent tree plus sole 100644 REVIEWED path."""
+    base, actual = entries(parent, root), entries(child, root)
+    if actual.keys() != base.keys() | {REVIEWED}:
+        return False
+    if any(actual[path] != base[path] for path in base):
+        return False
+    return actual[REVIEWED][:2] == ('100644', 'blob')
+
+
+def _overlay_reviewed(base, actual):
+    """Admit tip entries as source entries plus sole 100644 REVIEWED path."""
+    assert actual.keys() == base.keys() | {REVIEWED}, 'rc070_reviewed_overlay_paths'
+    assert all(actual[path] == base[path] for path in base), 'rc070_reviewed_overlay_drift'
+    assert actual[REVIEWED][:2] == ('100644', 'blob'), 'rc070_reviewed_overlay_mode'
+    return dict(base, **{REVIEWED: actual[REVIEWED]})
+
+
 def topology(ref, root, git, release):
-    """Admit D[M], I[M,D], J[R,I], and GitHub PR-merge [BASE, D|M] for packaging tip parent graph."""
+    """Admit D[M], manifest-only D'[D], one CAPS cascade on D', I[M,D], J[R,I], PR-merge [BASE, D|M]."""
     if release != p.R:
         raise o.TopologyError('rc070_release_anchor')
     parents = o._parents(ref, root, git)
     if ref == M:
         return 'nonrelease', ref, ref
     if parents == [M]:
+        kind, tip, source = 'nonrelease', ref, ref
+    elif len(parents) == 1 and o._parents(parents[0], root, git) == [M]:
+        # D'[D] overlay candidate (select requires reviewed-only delta).
+        kind, tip, source = 'nonrelease', ref, parents[0]
+    elif (len(parents) == 1
+          and len(o._parents(parents[0], root, git)) == 1
+          and o._parents(o._parents(parents[0], root, git)[0], root, git) == [M]):
+        # One CAPS cascade on D'[D]; select proves parent is reviewed-only on D.
+        # Deeper children of a cascade tip fall through to rc070_candidate_parents.
         kind, tip, source = 'nonrelease', ref, ref
     elif len(parents) == 2 and parents[0] == M:
         kind, tip, source = 'nonrelease', ref, parents[1]
@@ -49,13 +77,13 @@ def topology(ref, root, git, release):
             raise o.TopologyError('rc070_feature_parents')
     else:
         raise o.TopologyError('rc070_candidate_parents')
-    if source != M and o._parents(source, root, git) != [M]:
+    if source != ref and source != M and o._parents(source, root, git) != [M]:
         raise o.TopologyError('rc070_candidate_parent')
     return kind, tip, source
 
 
 def content(ref, root, git, entries, historical, release, release_tree, documents):
-    """Fresh M tree identity and exact candidate pins over packaging tip."""
+    """Fresh M tree identity and exact candidate pins over packaging tip; REVIEWED optional."""
     assert (release, release_tree, documents) == (p.R, p.R_TREE, p.R_DOCUMENTS)
     assert tuple(o._parents(M, root, git)) == M_PARENTS, 'rc070 M parents'
     assert git('rev-parse', M + '^{tree}', root=root).decode().strip() == M_TREE, 'rc070 M tree'
@@ -67,11 +95,12 @@ def content(ref, root, git, entries, historical, release, release_tree, document
     if ref == M:
         return baseline
     actual, paths = entries(ref, root), set(CAPS)
+    reviewed = {REVIEWED} if REVIEWED in actual else set()
     assert SOURCE_PINS.keys() == paths - {PROFILE}
-    assert actual.keys() == baseline.keys() | paths
-    assert {path for path in actual if actual[path] != baseline.get(path)} == paths | {MANIFEST}
-    assert all(actual[path] == value for path, value in baseline.items() if path not in paths | {MANIFEST})
-    assert all(actual[path][:2] == ('100644', 'blob') for path in paths | {MANIFEST})
+    assert actual.keys() == baseline.keys() | paths | reviewed
+    assert {path for path in actual if actual[path] != baseline.get(path)} == paths | {MANIFEST} | reviewed
+    assert all(actual[path] == value for path, value in baseline.items() if path not in paths | {MANIFEST} | reviewed)
+    assert all(actual[path][:2] == ('100644', 'blob') for path in paths | {MANIFEST} | reviewed)
     data = {path: git('cat-file', 'blob', actual[path][2], root=root) for path in paths}
     manifest = git('cat-file', 'blob', actual[MANIFEST][2], root=root)
     for path, (mode, blob, digest, size, count) in SOURCE_PINS.items():
@@ -111,8 +140,21 @@ def select(ref, root, git, entries, historical, release, release_tree, documents
     if ref == M:
         assert git('rev-parse', ref + '^{tree}', root=root).decode().strip() == M_TREE
         return entries(ref, root)
+    parents = o._parents(ref, root, git)
+    if tip == source and len(parents) == 1:
+        parent_parents = o._parents(parents[0], root, git)
+        # Only the CAPS cascade-on-D' shape needs the reviewed-only parent proof.
+        if (len(parent_parents) == 1
+                and o._parents(parent_parents[0], root, git) == [M]
+                and not _reviewed_only(parent_parents[0], parents[0], root, git, entries)):
+            return None
     expected = content(source, root, git, entries, historical, release, release_tree, documents)
-    assert entries(tip, root) == expected
+    actual = entries(tip, root)
+    if tip != source:
+        if not _reviewed_only(source, tip, root, git, entries):
+            assert False, 'rc070_reviewed_overlay'
+        expected = _overlay_reviewed(expected, actual)
+    assert actual == expected
     if kind == 'release':
         return o.release_content(ref, expected, root, git, entries, release, release_tree, documents)
     return expected
