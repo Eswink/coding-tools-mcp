@@ -27,11 +27,34 @@ async fn tls_two_hop_reconnect_generation_restart_no_replay() {
     assert!(h.read(9020, "native-A").await.to_string().contains(CANARY));
     let first = h.ready().await;
     h.control(Op::GatewayStop).await;
+    // GO-B#7 (e): stop-window — not Online; tools/call not-ok (mid 9020; recover uses 9022).
+    let link = h.link.clone().unwrap();
+    let (mut online_samples, mut seen) = (0usize, Vec::new());
+    for _ in 0..30 {
+        let state = *link.borrow();
+        if state == coding_tools_cloud_agent::LinkState::Online {
+            online_samples += 1;
+        }
+        seen.push(state);
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert_eq!(online_samples, 0, "gateway-stop window saw Online: {seen:?}");
+    let stop_mid = h.read(9020, "native-A").await;
+    assert_eq!(stop_mid["ok"], false);
+    let stop_code = stop_mid["error"]["code"].as_str().unwrap_or("");
+    assert!(
+        matches!(stop_code, "WORKSPACE_OFFLINE" | "EXECUTION_NOT_CONNECTED"),
+        "stop-window tools/call code={stop_code}"
+    );
     h.control(Op::GatewayStart).await;
     let second = h.ready().await;
     assert_ne!(first["gateway_boot"], second["gateway_boot"]);
     assert_ne!(first["session"], second["session"]);
     assert!(second["generation"].as_i64().unwrap() > first["generation"].as_i64().unwrap());
+    assert!(
+        h.read(9022, "native-A").await.to_string().contains(CANARY),
+        "post-restart tools/call must succeed with new id"
+    );
     h.stop().await;
     h.launch(false);
     let third = h.ready().await;
@@ -39,6 +62,7 @@ async fn tls_two_hop_reconnect_generation_restart_no_replay() {
     assert_ne!(second["session"], third["session"]);
     assert!(third["generation"].as_i64().unwrap() > second["generation"].as_i64().unwrap());
     // Gateway Existing may enforce this: no local-tombstone causality claim or SQL reset.
+    // no_replay(9020) denies same id and canaries with id+1=9021 — do not reuse 9021 above.
     h.no_replay(9020).await;
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -134,7 +158,20 @@ async fn tls_two_hop_device_revoke_survives_gateway_database_restart() {
     assert_eq!(state["connected"], false);
     assert_eq!(state["generation"], before["generation"]);
     assert!(h.host().tools.link.ensure_connected().is_err());
-    denied(&h.read(9041, "native-A").await);
+    // GO-B#7 (f2): tighten denied(read) code set to align with f1; no mid-window optional read.
+    let revoked = h.read(9041, "native-A").await;
+    assert_eq!(revoked["ok"], false);
+    let code = revoked["error"]["code"].as_str().unwrap_or("");
+    assert!(
+        matches!(
+            code,
+            "CHAT_AUTHORIZATION_REQUIRED" | "WORKSPACE_OFFLINE" | "EXECUTION_NOT_CONNECTED"
+        ),
+        "post-revoke tools/call code={code}"
+    );
+    if code != "CHAT_AUTHORIZATION_REQUIRED" {
+        eprintln!("two_hop revoke: observed {code} (primary CHAT_AUTHORIZATION_REQUIRED)");
+    }
     h.control(Op::GatewayStop).await;
     h.control(Op::RestartDatabase).await;
     assert_eq!(h.control(Op::Inspect).await["device_revoked"], true);
