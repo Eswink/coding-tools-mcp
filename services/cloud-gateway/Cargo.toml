@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 coding-tools-cloud-agent = { path = "../cloud-agent" }
 axum = { version = "=0.8.4", features = ["form", "ws"] }
-tokio = { version = "=1.45.1", features = ["rt-multi-thread", "macros", "net", "signal", "time", "sync"] }
+tokio = { version = "=1.54.1", features = ["rt-multi-thread", "macros", "net", "signal", "time", "sync"] }
 serde = { version = "=1.0.219", features = ["derive"] }
 serde_json = "=1.0.140"
 sqlx = { version = "=0.8.6", default-features = false, features = ["runtime-tokio-rustls", "postgres", "migrate", "macros", "uuid"] }
