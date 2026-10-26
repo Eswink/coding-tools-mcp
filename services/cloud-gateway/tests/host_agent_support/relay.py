@@ -1,5 +1,5 @@
 """Owned test-only TLS relay and finite certificates; no production TLS bypass."""
-import json, os, select, socket, socketserver, ssl, subprocess, sys
+import json, os, select, socket, socketserver, ssl, subprocess, sys, threading, time
 from pathlib import Path
 
 
@@ -57,18 +57,34 @@ def certificates(root, hostname="localhost", mode="valid"):
 class Handler(socketserver.BaseRequestHandler):
     def handle(self):
         try:
+            if getattr(self.server, "refuse", False):
+                try:
+                    self.request.close()
+                except OSError:
+                    pass
+                return
             self.request.settimeout(4)
             with ctx.wrap_socket(self.request, server_side=True) as downstream:
                 with socket.create_connection(("127.0.0.1", self.server.upstream), timeout=4) as upstream:
-                    while True:
-                        ready, _, _ = select.select([downstream, upstream], [], [], .2)
-                        if downstream.pending() and downstream not in ready:
-                            ready.append(downstream)
-                        for source in ready:
-                            data = source.recv(16384)
-                            if not data:
-                                return
-                            (upstream if source is downstream else downstream).sendall(data)
+                    with self.server.lock:
+                        self.server.active.append((downstream, upstream))
+                    try:
+                        while True:
+                            ready, _, _ = select.select([downstream, upstream], [], [], .2)
+                            if downstream.pending() and downstream not in ready:
+                                ready.append(downstream)
+                            for source in ready:
+                                if source is downstream and self.server.hold_up.is_set():
+                                    continue
+                                data = source.recv(16384)
+                                if not data:
+                                    return
+                                (upstream if source is downstream else downstream).sendall(data)
+                    finally:
+                        with self.server.lock:
+                            pair = (downstream, upstream)
+                            if pair in self.server.active:
+                                self.server.active.remove(pair)
         except (OSError, ssl.SSLError):
             pass
 
@@ -78,16 +94,80 @@ class Server(socketserver.ThreadingTCPServer):
     allow_reuse_address = False
 
 
+def _close_pairs(pairs):
+    for down, up in pairs:
+        for sock in (down, up):
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            try:
+                sock.close()
+            except OSError:
+                pass
+
+
+def apply_op(server, op):
+    if op == "drop":
+        # Defer closes briefly so the control HTTP response (relayed on an
+        # active handler) can flush before sockets are torn down.
+        server.hold_up.clear()
+        with server.lock:
+            victims = list(server.active)
+            server.active.clear()
+
+        def _deferred():
+            time.sleep(0.05)
+            _close_pairs(victims)
+
+        threading.Thread(target=_deferred, daemon=True).start()
+        print(json.dumps({"event": "op_applied", "op": "drop"}), file=sys.stderr, flush=True)
+    elif op == "refuse":
+        server.refuse = True
+        print(json.dumps({"event": "op_applied", "op": "refuse"}), file=sys.stderr, flush=True)
+    elif op == "hold_up":
+        server.hold_up.set()
+        print(json.dumps({"event": "op_applied", "op": "hold_up"}), file=sys.stderr, flush=True)
+    elif op == "release":
+        server.hold_up.clear()
+        server.refuse = False
+        print(json.dumps({"event": "op_applied", "op": "release"}), file=sys.stderr, flush=True)
+    else:
+        print(json.dumps({"event": "op_ignored", "op": op}), file=sys.stderr, flush=True)
+
+
+def control_loop(server, stdin):
+    for line in stdin:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            cmd = json.loads(line)
+        except json.JSONDecodeError:
+            print(json.dumps({"event": "op_ignored", "reason": "json"}), file=sys.stderr, flush=True)
+            continue
+        if not isinstance(cmd, dict):
+            continue
+        op = cmd.get("op")
+        if isinstance(op, str):
+            apply_op(server, op)
+
+
 def main():
     global ctx
     leaf, key = certificates(Path(sys.argv[1]))
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     ctx.load_cert_chain(leaf, key)
     server = Server(("127.0.0.1", 0), Handler)
+    server.hold_up = threading.Event()
+    server.refuse = False
+    server.active = []
+    server.lock = threading.Lock()
     print(json.dumps({"port": server.server_address[1]}), flush=True)
     upstream = json.loads(sys.stdin.readline())
     assert type(upstream) is int and 1 <= upstream <= 65535
     server.upstream = upstream
+    threading.Thread(target=control_loop, args=(server, sys.stdin), daemon=True).start()
     server.serve_forever()
 
 
