@@ -27,7 +27,9 @@ async fn tls_two_hop_reconnect_generation_restart_no_replay() {
     assert!(h.read(9020, "native-A").await.to_string().contains(CANARY));
     let first = h.ready().await;
     h.control(Op::GatewayStop).await;
-    // GO-B#7 (e): stop-window — not Online; tools/call not-ok (mid 9020; recover uses 9022).
+    // GO-B#7 (e) + issue40 fix: stop-window — Online==0 + Inspect connected==false
+    // (GatewayStop = docker stop; h.read/rpc needs live HTTP — unreachable).
+    // recover mid 9022; no_replay(9020); do not occupy 9021.
     let link = h.link.clone().unwrap();
     let (mut online_samples, mut seen) = (0usize, Vec::new());
     for _ in 0..30 {
@@ -42,13 +44,9 @@ async fn tls_two_hop_reconnect_generation_restart_no_replay() {
         online_samples, 0,
         "gateway-stop window saw Online: {seen:?}"
     );
-    let stop_mid = h.read(9020, "native-A").await;
-    assert_eq!(stop_mid["ok"], false);
-    let stop_code = stop_mid["error"]["code"].as_str().unwrap_or("");
-    assert!(
-        matches!(stop_code, "WORKSPACE_OFFLINE" | "EXECUTION_NOT_CONNECTED"),
-        "stop-window tools/call code={stop_code}"
-    );
+    let stop_state = h.control(Op::Inspect).await;
+    assert_eq!(stop_state["connected"], false);
+    assert!(h.host().tools.link.ensure_connected().is_err());
     h.control(Op::GatewayStart).await;
     let second = h.ready().await;
     assert_ne!(first["gateway_boot"], second["gateway_boot"]);
