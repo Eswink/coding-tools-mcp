@@ -5,7 +5,7 @@ use crate::{
     auth::{chat::ChatAuthorizer, cloud_context::CloudTransport},
     tools::ToolContext,
 };
-use coding_tools_cloud_agent::HostAgent;
+use coding_tools_cloud_agent::{HostAgent, LinkState};
 use serde_json::{json, Value};
 use std::{
     io::{BufRead, BufReader, Read, Write},
@@ -13,30 +13,65 @@ use std::{
     time::Instant,
 };
 
-struct Server(Child);
+pub(super) struct Server(Child);
 impl Drop for Server {
     fn drop(&mut self) {
         let _ = self.0.kill();
         let _ = self.0.wait();
     }
 }
-struct Harness {
-    _root: tempfile::TempDir,
-    _server: Server,
-    host: Arc<NativeLiveHost>,
-    config: Vec<u8>,
-    key: Vec<u8>,
-    journal: std::path::PathBuf,
-    stop: watch::Sender<bool>,
-    agent: Option<tokio::task::JoinHandle<Result<(), AgentError>>>,
-    http: reqwest::Client,
-    origin: String,
-    resource: String,
-    token: String,
-    inspect_token: String,
-    protocol: String,
-    token_endpoint: String,
-    refresh: String,
+fn native_host(
+    root: &std::path::Path,
+    cfg: &coding_tools_cloud_agent::AgentConfig,
+    initialize: bool,
+) -> Arc<NativeLiveHost> {
+    let workspace = root.join("workspace");
+    if initialize {
+        std::fs::create_dir(&workspace).unwrap();
+        std::fs::write(
+            workspace.join("native-canary.txt"),
+            "native-cloud-real-file-canary",
+        )
+        .unwrap();
+    }
+    let context = Arc::new(ToolContext::for_test(workspace.clone(), root.join("harness")).unwrap());
+    let authorizer = Arc::new(ChatAuthorizer::default());
+    authorizer
+        .attach_storage("native-wss", &root.join("auth"), &root.join("harness"))
+        .unwrap();
+    let link = CloudTransport::new(
+        "native-wss",
+        &workspace,
+        &cfg.origin,
+        &cfg.prefix,
+        cfg.connector,
+        cfg.device,
+        cfg.device_epoch as u64,
+        "native-wss-fixture-separate-binding-key",
+    )
+    .unwrap();
+    let tools = Arc::new(NativeToolHost::new("native-wss", context, link, authorizer).unwrap());
+    Arc::new(NativeLiveHost::open(tools, &root.join("projection"), initialize, 1).unwrap())
+}
+
+pub(super) struct Harness {
+    pub(super) _root: tempfile::TempDir,
+    pub(super) _server: Server,
+    pub(super) host: Arc<NativeLiveHost>,
+    pub(super) config: Vec<u8>,
+    pub(super) key: Vec<u8>,
+    pub(super) journal: std::path::PathBuf,
+    pub(super) stop: watch::Sender<bool>,
+    pub(super) agent: Option<tokio::task::JoinHandle<Result<(), AgentError>>>,
+    pub(super) link: Option<watch::Receiver<LinkState>>,
+    pub(super) http: reqwest::Client,
+    pub(super) origin: String,
+    pub(super) resource: String,
+    pub(super) token: String,
+    pub(super) inspect_token: String,
+    pub(super) protocol: String,
+    pub(super) token_endpoint: String,
+    pub(super) refresh: String,
 }
 impl Drop for Harness {
     fn drop(&mut self) {
@@ -47,7 +82,7 @@ impl Drop for Harness {
     }
 }
 impl Harness {
-    async fn start() -> Self {
+    pub(super) async fn start() -> Self {
         let bin = std::env::var("CTM_NATIVE_GATEWAY_FIXTURE_BIN")
             .expect("CTM_NATIVE_GATEWAY_FIXTURE_BIN required; no fake fallback");
         let dsn = std::env::var("TEST_DATABASE_URL").expect("dedicated PostgreSQL required");
@@ -92,46 +127,16 @@ impl Harness {
         let config = serde_json::to_vec(&info["config"]).unwrap();
         let key = serde_json::to_vec(&info["key"]).unwrap();
         let cfg = coding_tools_cloud_agent::AgentConfig::from_bytes(&config).unwrap();
-        let workspace = root.path().join("workspace");
-        std::fs::create_dir(&workspace).unwrap();
-        std::fs::write(
-            workspace.join("native-canary.txt"),
-            "native-cloud-real-file-canary",
-        )
-        .unwrap();
-        let context = Arc::new(
-            ToolContext::for_test(workspace.clone(), root.path().join("harness")).unwrap(),
-        );
-        let authorizer = Arc::new(ChatAuthorizer::default());
-        authorizer
-            .attach_storage(
-                "native-wss",
-                &root.path().join("auth"),
-                &root.path().join("harness"),
-            )
-            .unwrap();
-        let link = CloudTransport::new(
-            "native-wss",
-            &workspace,
-            &cfg.origin,
-            &cfg.prefix,
-            cfg.connector,
-            cfg.device,
-            cfg.device_epoch as u64,
-            "native-wss-fixture-separate-binding-key",
-        )
-        .unwrap();
-        let tools = Arc::new(NativeToolHost::new("native-wss", context, link, authorizer).unwrap());
-        let host = Arc::new(
-            NativeLiveHost::open(tools, &root.path().join("projection"), true, 1).unwrap(),
-        );
+        let host = native_host(root.path(), &cfg, true);
         let journal = root.path().join("host-state.bin");
         let mut agent = HostAgent::open(&config, &key, &journal, true, host.clone()).unwrap();
+        let link = Some(agent.link_state());
         let (stop, rx) = watch::channel(false);
         let agent = Some(tokio::spawn(async move { agent.run(rx).await }));
         let ca = std::fs::read(root.path().join("ca.der")).unwrap();
         let http = reqwest::Client::builder()
             .no_proxy()
+            .pool_max_idle_per_host(0)
             .add_root_certificate(reqwest::Certificate::from_der(&ca).unwrap())
             .timeout(Duration::from_secs(12))
             .build()
@@ -145,6 +150,7 @@ impl Harness {
             journal,
             stop,
             agent,
+            link,
             http,
             origin: cfg.origin.clone(),
             resource: info["resource"].as_str().unwrap().into(),
@@ -157,7 +163,7 @@ impl Harness {
         h.wait("ready", true).await;
         h
     }
-    async fn inspect(&self) -> Value {
+    pub(super) async fn inspect(&self) -> Value {
         self.http
             .get(format!("{}/__native_fixture", self.origin))
             .bearer_auth(&self.inspect_token)
@@ -168,7 +174,7 @@ impl Harness {
             .await
             .unwrap()
     }
-    async fn wait(&self, field: &str, value: bool) {
+    pub(super) async fn wait(&self, field: &str, value: bool) {
         let end = Instant::now() + Duration::from_secs(18);
         loop {
             if self.inspect().await[field] == value {
@@ -184,7 +190,7 @@ impl Harness {
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
     }
-    async fn rpc(&self, id: i64, chat: &str, name: &str, args: Value) -> Value {
+    pub(super) async fn rpc(&self, id: i64, chat: &str, name: &str, args: Value) -> Value {
         let result=self.http.post(&self.resource).bearer_auth(&self.token)
             .header("mcp-protocol-version",&self.protocol).header("mcp-method","tools/call").header("mcp-name",name)
             .header("accept","application/json, text/event-stream")
@@ -196,7 +202,7 @@ impl Harness {
         let value: Value = result.json().await.unwrap();
         value["result"]["structuredContent"].clone()
     }
-    async fn approve(&self, chat: &str, field: &str) -> String {
+    pub(super) async fn approve(&self, chat: &str, field: &str) -> String {
         let pending = self
             .rpc(
                 7001,
@@ -219,7 +225,7 @@ impl Harness {
         self.wait(field, true).await;
         id
     }
-    async fn stop_agent(&mut self) {
+    pub(super) async fn stop_agent(&mut self) {
         self.stop.send(true).unwrap();
         let result = tokio::time::timeout(Duration::from_secs(5), self.agent.take().unwrap())
             .await
@@ -227,7 +233,7 @@ impl Harness {
             .unwrap();
         assert_eq!(result, Ok(()));
     }
-    async fn restart_agent(&mut self) {
+    pub(super) async fn restart_agent(&mut self) {
         let (stop, rx) = watch::channel(false);
         self.stop = stop;
         let mut agent = HostAgent::open(
@@ -238,8 +244,109 @@ impl Harness {
             self.host.clone(),
         )
         .unwrap();
+        self.link = Some(agent.link_state());
         self.agent = Some(tokio::spawn(async move { agent.run(rx).await }));
         self.wait("ready", true).await;
+    }
+    pub(super) async fn relay(&self, op: &str) {
+        // Control HTTP shares the TLS relay with Agent WSS. `drop`/`refuse` may
+        // close that socket before the JSON ack flushes; design is fire-and-forget
+        // and observation is via LinkState / inspect / rpc.
+        let sent = self
+            .http
+            .post(format!("{}/__native_fixture/relay", self.origin))
+            .bearer_auth(&self.inspect_token)
+            .json(&json!({"op": op}))
+            .send()
+            .await;
+        match sent {
+            Ok(response) => {
+                assert_eq!(response.status(), reqwest::StatusCode::OK);
+                let body: Value = response.json().await.unwrap();
+                assert_eq!(body["ok"], true);
+            }
+            Err(err) if matches!(op, "drop" | "refuse") => {
+                eprintln!("relay({op}): connection closed before ack ({err}); treating as applied");
+            }
+            Err(err) => panic!("relay({op}) failed: {err}"),
+        }
+    }
+    pub(super) async fn revoke_device(&self) {
+        let response = self
+            .http
+            .post(format!("{}/__native_fixture/revoke_device", self.origin))
+            .bearer_auth(&self.inspect_token)
+            .json(&json!({}))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        let body: Value = response.json().await.unwrap();
+        assert_eq!(body["ok"], true);
+    }
+    pub(super) fn link(&self) -> LinkState {
+        self.link.as_ref().unwrap().borrow().clone()
+    }
+    pub(super) async fn wait_link_online(&self) {
+        let end = Instant::now() + Duration::from_secs(20);
+        loop {
+            if self.link() == LinkState::Online {
+                return;
+            }
+            if self.agent.as_ref().is_some_and(|task| task.is_finished()) {
+                panic!("native Agent exited before LinkState::Online");
+            }
+            assert!(Instant::now() < end, "LinkState::Online timeout");
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+    pub(super) async fn wait_not_ready_or_offline_link(&self) {
+        let end = Instant::now() + Duration::from_secs(8);
+        loop {
+            let ready = self.inspect().await["ready"].as_bool().unwrap_or(true);
+            let online = self.link() == LinkState::Online;
+            if !ready || !online {
+                return;
+            }
+            assert!(Instant::now() < end, "offline after relay drop timeout");
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+    pub(super) async fn tools_list(&self, id: i64) -> Value {
+        let response = self
+            .http
+            .post(&self.resource)
+            .bearer_auth(&self.token)
+            .header("mcp-protocol-version", &self.protocol)
+            .header("mcp-method", "tools/list")
+            .header("accept", "application/json, text/event-stream")
+            .json(
+                &json!({"jsonrpc":"2.0","id":id,"method":"tools/list","params":{"_meta":{
+                "io.modelcontextprotocol/protocolVersion":self.protocol,
+                "io.modelcontextprotocol/clientCapabilities":{}}}}),
+            )
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        response.json().await.unwrap()
+    }
+    pub(super) async fn oauth_refresh_ok(&self) {
+        let refresh = self
+            .http
+            .post(&self.token_endpoint)
+            .form(&[
+                ("grant_type", "refresh_token"),
+                ("client_id", "native-fixture-client"),
+                ("refresh_token", self.refresh.as_str()),
+                ("resource", self.resource.as_str()),
+            ])
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(refresh.status(), reqwest::StatusCode::OK);
+        let data: Value = refresh.json().await.unwrap();
+        assert!(data["access_token"].as_str().is_some());
     }
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -423,3 +530,12 @@ mod managed_drain_tests;
 
 #[path = "wss_catalog_tests.rs"]
 mod catalog_tests;
+
+#[cfg(all(feature = "nginx-agent-integration-tests", target_os = "linux"))]
+#[path = "wss_two_hop_tests.rs"]
+mod two_hop_tests;
+
+/// S2 fault / hard-drop / revoke live suite. Mounted like catalog/drain so Harness
+/// stays reachable; issue40 inventory does not scan this fifth file.
+#[path = "wss_fault_tests.rs"]
+mod fault_tests;
