@@ -519,6 +519,16 @@ impl Rig {
         self.until("agent online", 30, |g| g.count(&Ev::Online) >= nth)
             .await;
     }
+    /// Gate records `Ev::Online` when it *sends* `projection_ack`; the agent
+    /// flips `LinkState::Online` only after it *receives* that ack
+    /// (`runner` → `probe.established`). Asserting the visible state right
+    /// after `online()` races those two sides — poll with a timeout instead.
+    async fn wait_link_online(&self) {
+        self.until("agent LinkState::Online", 30, |_| {
+            *self.state.borrow() == LinkState::Online
+        })
+        .await;
+    }
     fn alive(&self) -> bool {
         !self.task.as_ref().unwrap().is_finished()
     }
@@ -575,7 +585,7 @@ async fn cut_connection_reconnects_automatically() {
     let rig = Rig::start(vec![Plan::CutAfterOnline]).await;
     rig.online(2).await;
     assert_eq!(rig.gate.accepted(), 2);
-    assert_eq!(*rig.state.borrow(), LinkState::Online);
+    rig.wait_link_online().await;
     assert_eq!(rig.gate.peer().channel_generation, 2);
     rig.finish().await;
 }
@@ -722,7 +732,7 @@ async fn gateway_answering_403_while_restarting_recovers_by_itself() {
     rig.online(1).await;
     assert_eq!(rig.gate.accepted(), 5);
     assert!(rig.alive());
-    assert_eq!(*rig.state.borrow(), LinkState::Online);
+    rig.wait_link_online().await;
     rig.finish().await;
 }
 #[tokio::test]
@@ -749,7 +759,7 @@ async fn long_403_outage_asks_for_an_operator_but_keeps_trying_and_heals() {
     // The remaining attempts are one per ~60 virtual seconds (3s real), never a storm.
     rig.online(1).await;
     assert_eq!(rig.gate.accepted(), 28);
-    assert_eq!(*rig.state.borrow(), LinkState::Online);
+    rig.wait_link_online().await;
     rig.finish().await;
 }
 #[tokio::test]
