@@ -43,7 +43,7 @@ def _overlay_reviewed(base, actual):
 
 
 def topology(ref, root, git, release):
-    """Admit D[M], manifest-only D'[D], one CAPS cascade on D', I[M,D], J[R,I], PR-merge [BASE, D|M]."""
+    """Admit D[M], manifest-only D'[D], one CAPS cascade on D', one refresh cascade on that tip, I[M,D], J[R,I], PR-merge [BASE, D|M]."""
     if release != p.R:
         raise o.TopologyError('rc070_release_anchor')
     parents = o._parents(ref, root, git)
@@ -58,7 +58,12 @@ def topology(ref, root, git, release):
           and len(o._parents(parents[0], root, git)) == 1
           and o._parents(o._parents(parents[0], root, git)[0], root, git) == [M]):
         # One CAPS cascade on D'[D]; select proves parent is reviewed-only on D.
-        # Deeper children of a cascade tip fall through to rc070_candidate_parents.
+        kind, tip, source = 'nonrelease', ref, ref
+    elif (len(parents) == 1
+          and len(o._parents(parents[0], root, git)) == 1
+          and len(o._parents(o._parents(parents[0], root, git)[0], root, git)) == 1
+          and o._parents(o._parents(o._parents(parents[0], root, git)[0], root, git)[0], root, git) == [M]):
+        # One reviewed-source / CAPS refresh cascade on the Option R tip; deeper fall through.
         kind, tip, source = 'nonrelease', ref, ref
     elif len(parents) == 2 and parents[0] == M:
         kind, tip, source = 'nonrelease', ref, parents[1]

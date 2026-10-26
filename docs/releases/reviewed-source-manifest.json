@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0-rc.2",
-  "review_reference": "Owner-reviewed 2026-10-26 Asia/Shanghai: FULL FINAL auth by owner; candidate = 24b8b755 + bump 0.7.0-rc.2 (+ re-pin if measured); digests FINAL-A-B1-DIGESTS-20261026.md; Coding-tools gate via Grok",
+  "review_reference": "Owner-reviewed 2026-10-26 Asia/Shanghai: FULL FINAL auth by owner; candidate = 24b8b755 + bump 0.7.0-rc.2 (+ re-pin if measured); digests FINAL-A-B1-DIGESTS-20261026.md; Coding-tools gate via Grok; Option R tip ea87fcc9 + reviewed-source-manifest refresh cascade (topology second cascade; PROFILE+native_probe+reviewed)",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4032,8 +4032,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c3bf244b53df70e7b43a32273743c9d2b042c024",
-        "sha256": "c5d3146689a38233305ff56c283184fff7b5be97f9019b576420b8aa52e822b3"
+        "blob_sha": "032d6b75bf9afb90d135485964d1f7e6ca147644",
+        "sha256": "1e80ceb66ccb507ff0abba2a986de756dfccd140d5e598ff4a2aa501d503d5ea"
       }
     },
     {
@@ -4546,8 +4546,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "2b51c73fa3de053cc331a38a22cda9f094b1c05d",
-        "sha256": "a8835554bb38f69a31bf4ea13b631c76639b4a6961c1c58f72b350cc8a933df2"
+        "blob_sha": "1e32406f5975b812d631f050d542c739e2ae2112",
+        "sha256": "943691696d71de2c19b797d74b32fec8397eadda8c3215662b3bc7ab388cbb74"
       }
     },
     {
