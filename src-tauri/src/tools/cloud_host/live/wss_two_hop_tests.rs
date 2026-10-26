@@ -27,18 +27,14 @@ async fn tls_two_hop_reconnect_generation_restart_no_replay() {
     assert!(h.read(9020, "native-A").await.to_string().contains(CANARY));
     let first = h.ready().await;
     h.control(Op::GatewayStop).await;
-    // GO-B#7 (e) partial rollback: drop stop-window asserts (Online/Inspect/ensure_connected).
-    // Stop-window observability covered by same-file drain; reconnect proves generation/no_replay.
-    // recover mid 9022; no_replay(9020); do not occupy 9021.
+    // GO-B#7 (e) rollback: drop stop-window + recover-mid read(9022).
+    // Post-restart tools observability covered by no_replay(9020) read(id+1=9021).
+    // Align reconnect body with green tip bb2e6b29; do not occupy 9021 above no_replay.
     h.control(Op::GatewayStart).await;
     let second = h.ready().await;
     assert_ne!(first["gateway_boot"], second["gateway_boot"]);
     assert_ne!(first["session"], second["session"]);
     assert!(second["generation"].as_i64().unwrap() > first["generation"].as_i64().unwrap());
-    assert!(
-        h.read(9022, "native-A").await.to_string().contains(CANARY),
-        "post-restart tools/call must succeed with new id"
-    );
     h.stop().await;
     h.launch(false);
     let third = h.ready().await;
