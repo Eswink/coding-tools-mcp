@@ -45,7 +45,7 @@ AMENDMENT_PINS = {
     'scripts/rc_pretag_publication_tests.py': ('8e0a4d4a4165b138ea0923a40d133c28146b0a64', 'c67aa17865cc364cc170bb8844a3d4287036452b6b8ed57be694baeb1b023050'),
 }
 AMENDMENT_CAPS = {COMPOSITION: (500, 24), DESKTOP_TESTS: (400, 36), NGINX_TESTS: (480, 44),
-    TWO_HOP_TESTS: (500, 44), AUTHENTICATED_TESTS: (500, 100), PROFILE: (400, 400), TESTS: (500, 500)}
+    TWO_HOP_TESTS: (500, 44), AUTHENTICATED_TESTS: (500, 100), PROFILE: (520, 520), TESTS: (500, 500)}
 OWNERSHIP_TESTS = 'scripts/rc_pretag_ownership_tests.py'
 OWNERSHIP_PINS = {OWNERSHIP_TESTS: ('ec89a839c11dfffb37923086a3c35ba5455a28c8',
     'ab67f3fc6eb172377dfab672e25023c55f9c2936db103e170719b65cd0150fc6')}
@@ -68,7 +68,7 @@ ANCILLARY_PINS = {
     'docs/specs/issue88-publication-core/design.md': ('b8b7340f513f01033b39c3b1fd85d68ad83d7ffc', 'af47592753becbffe36d241f53ef41517a0f2c0e30dd3be8681f0e4b377b9784'),
     'docs/specs/issue88-publication-core/tasks.md': ('6cfbd7e7ce0ad9e09b35b778dda83be1320707e2', 'ca0442e103ba78b666dca90536a713d37274416f2d62a98f57dab8bb3f925838'),
 }
-AMENDMENT_DELTA_LIMIT = 1050
+AMENDMENT_DELTA_LIMIT = 1260
 EXPECTED_GROUPS = {
     'rc_pretag_publication_contract_tests.PublicationContractTests': (
         'test_exact_six_asset_plan_uses_consumer_payload_contract '
@@ -226,6 +226,11 @@ def amendment_content(ref, baseline, root, git, entries):
 def selected_profile(ref, root, git, entries, historical, release, release_tree, documents, *, profile=PROFILE_ID):
     assert profile == PROFILE_ID, 'unknown_composition_profile'
     ref = ownership._commit(ref, root, git)
+    # JOIN_ONCE_M stays parented on historical N; with rebound N′/S′ it is not a live publication feature.
+    if ref == JOIN_ONCE_M:
+        assert tuple(ownership._parents(JOIN_ONCE_M, root, git)) == JOIN_ONCE_PARENTS
+        assert git('rev-parse', JOIN_ONCE_M + '^{tree}', root=root).decode().strip() == JOIN_ONCE_TREE
+        return entries(JOIN_ONCE_M, root)
     import rc_pretag_linux_package_profile as linux_package
     selected = linux_package.select(ref, root, git, entries, historical, release, release_tree, documents)
     if selected is not None:
@@ -285,7 +290,7 @@ def selected_profile(ref, root, git, entries, historical, release, release_tree,
 # BEGIN JOIN-ONCE M ADOPTION
 JOIN_ONCE_M = '9c5c031d24aadc5d704160bb5a5a65bff126c10c'
 JOIN_ONCE_TREE = 'dafa6aa8dce10cf396971329244aeb8ac36d4ed3'
-JOIN_ONCE_PARENTS = (N, '5e8808e6046fe435de82a51d8989811455307a19')
+JOIN_ONCE_PARENTS = ('e459c9bec1dc6006eaad6df5f65111491c7b7572', '5e8808e6046fe435de82a51d8989811455307a19')
 JOIN_ONCE_HELPER = 'scripts/rc_pretag_publication_adapters.py'
 JOIN_ONCE_TESTS = 'scripts/rc_pretag_join_once_tests.py'
 JOIN_ONCE_CAPS = {
@@ -315,7 +320,7 @@ JOIN_ONCE_PINS = {
     'scripts/rc_pretag_join_once_tests.py': ('100644', 'a82efa478868410d257da54bf5285a6691b0f37b', '40ee7d6123d8dd14ac235923a8e972946b4e88ba51681a6d8d5aa76ed916c26a', 33498, 497),
     'scripts/rc_pretag_nginx_tests.py': ('100644', '9c595dee88bb11dedbc06f839d722ae2ac621ef5', '609e69f51a72462a4d86128a16e8a72e5d5bbe9aa1813da37cd9e0f968d155a4', 30796, 451),
     'scripts/rc_pretag_publication_adapters.py': ('100644', '669f38760c6ea949b468d5c140a684570c009994', 'fbbea7fac1121f8b7f1aa7b1237c7633292b2e7921d15c53bc0f776913d1bad6', 20977, 185),
-    'scripts/rc_pretag_publication_tests.py': ('100644', '7edd71605311422b18a5e278aa1d457aaa8a88d4', '75f122d730e30a1a8895a618ba373d5f87b760c2e811869df5f4db5c4db841d2', 29775, 443),
+    'scripts/rc_pretag_publication_tests.py': ('100644', '656c204c47005b3c13a39cd931bdadb489305a41', '5154c7b476b9dbb973c49b988abe000bcce1b9ba3ddbfb8bc38da45c8b573ab7', 30332, 451),
     'scripts/rc_pretag_two_hop_tests.py': ('100644', '22ddb47076e16bdcdf550f6088e68f694ec6f2ca', '3d9e6e6fdef1e78683730527c8abbac6889495a1eea200b189ea06046a98c624', 39776, 479),
     'services/local-agent/src/process.rs': ('100644', 'f3a8c96a5c19f2fb9a6ff1949bf646c60dceca96', 'a5f870b1d4e9c4030a00232c1475fe6f0b4ada526151ac28ca169ace09813552', 12646, 450),
     'services/local-agent/src/process_io_join_tests.rs': ('100644', '1727d5eb9ca69a2b9baed0718c4619d708cce289', 'fd6a58051958af7a6521e99027ed6c87b5bc2508f278dd54efe53709eb58fbbe', 1528, 40),

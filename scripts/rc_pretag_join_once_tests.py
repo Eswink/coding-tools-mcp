@@ -113,16 +113,15 @@ class JoinOnceCompositionTests(unittest.TestCase):
     def test_exact_m_anchor_tree_parents_and_historical_validation(self):
         self.assertEqual((p.JOIN_ONCE_M, p.JOIN_ONCE_TREE, p.JOIN_ONCE_PARENTS),
             ('9c5c031d24aadc5d704160bb5a5a65bff126c10c', 'dafa6aa8dce10cf396971329244aeb8ac36d4ed3',
-             ('b15690e870926eb86817cec7f4c6ab9842d7f3a9', '5e8808e6046fe435de82a51d8989811455307a19')))
+             ('e459c9bec1dc6006eaad6df5f65111491c7b7572', '5e8808e6046fe435de82a51d8989811455307a19')))
         self.assertEqual(self.selected(p.JOIN_ONCE_M), self.original)
-        with patch.object(p, 'amendment_content', wraps=p.amendment_content) as historical, \
-             patch.object(p.authenticated, '_budgets', wraps=p.authenticated._budgets) as budgets:
+        # After N′/S′ rebound, JOIN_ONCE_M is frozen via selected_profile early-return
+        # (no live publication_feature_parents / amendment_content path).
+        with patch.object(p.authenticated, '_budgets', wraps=p.authenticated._budgets) as budgets:
             self.assertEqual(self.content(self.pure), self.good)
             self.assertEqual(self.content(self.pure), self.good)
             self.assertEqual(sum(call.args[-1] == 'join_once_delta_budget' for call in budgets.call_args_list), 2)
-            historical.assert_called_once()
             self.bad_content(self.changed(PROCESS, (c.ROOT / PROCESS).read_bytes() + b'\n'))
-            historical.assert_called_once()
         copy = self.verified_baseline(p.JOIN_ONCE_M, *self._baseline_args)
         copy.clear()
         self.assertEqual(self.verified_baseline(p.JOIN_ONCE_M, *self._baseline_args), self.original)
@@ -431,9 +430,11 @@ class JoinOnceCompositionTests(unittest.TestCase):
                  patch.object(p, 'publication_content') as old, self.assertRaisesRegex(error, 'terminal content'):
                 self.selected(self.pure)
             old.assert_not_called()
-            with patch.object(p, 'amendment_content', side_effect=error('terminal historical')), \
-                 patch.object(p, 'join_once_content') as new, self.assertRaisesRegex(error, 'terminal historical'):
-                self.selected(p.JOIN_ONCE_M)
+            # JOIN_ONCE_M is early-returned (frozen); amendment/join_once_content are not on that path.
+            with patch.object(p, 'amendment_content') as historical, \
+                 patch.object(p, 'join_once_content') as new:
+                self.assertEqual(self.selected(p.JOIN_ONCE_M), self.original)
+            historical.assert_not_called()
             new.assert_not_called()
 
     def test_mutable_refs_and_ambient_git_cannot_change_identity(self):

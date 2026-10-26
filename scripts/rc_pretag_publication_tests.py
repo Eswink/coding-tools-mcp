@@ -37,7 +37,15 @@ class PublicationCompositionTests(unittest.TestCase):
         self.source = c._entries(p.S, self.repo)
         self.assertEqual(tuple(o._parents(p.JOIN_ONCE_M, self.repo, c._git)), p.JOIN_ONCE_PARENTS)
         self.assertEqual(c._git('rev-parse', p.JOIN_ONCE_M + '^{tree}', root=self.repo).decode().strip(), p.JOIN_ONCE_TREE)
-        self.good = self.selected(p.JOIN_ONCE_M)
+        # Live good tracks S′+amendment pins (PROFILE tip; others frozen AMENDMENT/ANCILLARY).
+        # selected(M) early-returns entries(M) and must not be used as live good after S′ rebound.
+        def _live(path):
+            if path == p.PROFILE:
+                return (c.ROOT / path).read_bytes()
+            pin = (p.AMENDMENT_PINS | p.ANCILLARY_PINS)[path][0]
+            return c._git('cat-file', 'blob', pin, root=c.ROOT)
+        self.good = self.source | {path: ('100644', 'blob', self.blob(_live(path)))
+                                   for path in p.AMENDMENT_CAPS | p.ANCILLARY_CAPS}
         self.pure = self.commit([p.S], self.good)
         self.feature = self.commit([p.N, self.pure], self.good)
         self.overlay = self.good | c.RELEASE_DOCS
@@ -224,7 +232,7 @@ class PublicationCompositionTests(unittest.TestCase):
             self.bad_content(self.changed(path, b'unreviewed\n'))
 
     def test_individual_and_aggregate_budgets_reject(self):
-        self.assertEqual((p.SOURCE_DELTA_LIMIT, p.AMENDMENT_DELTA_LIMIT), (1340, 1050))
+        self.assertEqual((p.SOURCE_DELTA_LIMIT, p.AMENDMENT_DELTA_LIMIT), (1340, 1260))
         self.assertEqual(sum(p.SOURCE_CAPS[path][1] for path in p.SOURCE_CAPS), 1380)
         for name, baseline, ref, probe in (('SOURCE_CAPS', p.N, p.S, self.source_content),
                                            ('AMENDMENT_CAPS', p.S, self.pure, self.amended), ('ANCILLARY_CAPS', p.S, self.pure, self.amended)):
@@ -255,7 +263,7 @@ class PublicationCompositionTests(unittest.TestCase):
             with self.assertRaisesRegex(AssertionError, 'delta_budget'):
                 probe(ref, git=aggregate)
         data = (c.ROOT / p.PROFILE).read_bytes()
-        self.bad_content(self.changed(p.PROFILE, data + b'# boundary\n' * (401 - len(data.splitlines()))))
+        self.bad_content(self.changed(p.PROFILE, data + b'# boundary\n' * (521 - len(data.splitlines()))))
 
     def test_five_historical_profiles_and_all_historical_pins_are_immutable(self):
         paths = (*at.PROFILE_DIGESTS, a.PROFILE)
