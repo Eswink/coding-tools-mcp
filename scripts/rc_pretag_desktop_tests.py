@@ -246,7 +246,7 @@ class DesktopCompositionTests(unittest.TestCase):
     def test_composition_adapter_reconstructs_frozen_x(self):
         original = c._git('show', d.X + ':' + d.COMPOSITION, root=self.repo)
         self.assertEqual(hashlib.sha256(original).hexdigest(), d.COMPOSITION_BASE_SHA256)
-        current = (c.ROOT / d.COMPOSITION).read_text()
+        current = c._git('show', c.authenticated_two_hop.M + ':' + d.COMPOSITION, root=self.repo).decode()
         for before, after in (
             ('import rc_pretag_two_hop_profile as two_hop\n',
              ''),
@@ -301,7 +301,9 @@ class DesktopCompositionTests(unittest.TestCase):
         self.assertFalse(historical.keys() & c.two_hop.EXPECTED_GROUPS.keys())
         self.assertEqual(sum(len(names.split()) for names in c.two_hop.EXPECTED_GROUPS.values()), 22)
         self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in historical}, old | d.EXPECTED_GROUPS | c.nginx.EXPECTED_GROUPS)
-        self.assertEqual(c.EXPECTED_GROUPS, historical | c.two_hop.EXPECTED_GROUPS)
+        previous = historical | c.two_hop.EXPECTED_GROUPS
+        self.assertEqual({key: c.EXPECTED_GROUPS[key] for key in previous}, historical | c.two_hop.EXPECTED_GROUPS)
+        self.assertEqual(c.EXPECTED_GROUPS, previous | c.authenticated_two_hop.EXPECTED_GROUPS)
         names = next(iter(d.EXPECTED_GROUPS.values())).split()
         self.assertEqual(len(names), 20)
         self.assertEqual(set(names), set(unittest.defaultTestLoader.getTestCaseNames(type(self))))
@@ -311,7 +313,9 @@ class DesktopCompositionTests(unittest.TestCase):
         self.assertEqual(c.Counter(loaded), c.Counter(expected))
         legacy = [name for name in loaded if name.rsplit('.', 1)[0] in historical]
         self.assertEqual((len(legacy), len(set(legacy))), (187, 187))
-        self.assertEqual((len(loaded), len(set(loaded))), (209, 209))
+        prior_loaded = [name for name in loaded if name.rsplit('.', 1)[0] in previous]
+        self.assertEqual((len(prior_loaded), len(set(prior_loaded))), (209, 209))
+        self.assertEqual((len(loaded), len(set(loaded))), (233, 233))
 
     def test_git_context_isolation_and_topology_only_dispatch(self):
         calls = []
