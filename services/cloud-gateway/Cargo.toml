@@ -20,7 +20,7 @@ hyper = { version = "=1.11.1", features = ["server", "http1"] }
 hyper-util = { version = "=0.1.20", features = ["tokio", "service"] }
 tokio-tungstenite = { version = "=0.26.2", features = ["rustls-tls-webpki-roots"] }
 futures-util = "=0.3.34"
-rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std", "tls12"] }
+rustls = { version = "=0.23.46", default-features = false, features = ["ring", "std", "tls12"] }
 [target.'cfg(unix)'.dependencies]
 libc = "=0.2.189"
 [dev-dependencies]
