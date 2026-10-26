@@ -9,8 +9,8 @@ M = 'a88be4901623f7c8629b93df984166587253f0be'
 M_TREE = '246213487851c01a6def74b7519e58a6d709c180'
 M_PARENTS = ('44b9f9b16f6981297bd1252eb3ab238ae581eccc', '3a606e06b0bc0ee834ea4c7021652e9e60aac7f2')
 # Frozen structural source; only its exact guard amendment is a candidate.
-P = '5398c27e882a7abb24528413e06c704b75d00737'
-P_TREE = 'a1eda91913293caeb25f9322ec946c9038fa38d6'
+P = '47c5a869d41ee47bb43a22a5a8538da982260e08'
+P_TREE = 'f26be3d04c57f98dd157cdf8eecc2947f6b75945'
 R = 'e2e011f7f2a3a1df838bbd588106205b999db610'
 R_TREE = 'c0dfe00fdcc7ebc8e26acaad5d18ff3f94df9ba3'
 R_DOCUMENTS = two_hop.R_DOCUMENTS
@@ -26,7 +26,7 @@ SOURCE_PINS = {
     'tests/cloud-gateway-deployment/run_current_nginx_agent.py': ('100644', '068ff252af5df9822f67e0bebffa9222723f744e', '4c98f09bcb5fadd0f25f903804e2bfd2df30a560f4f17c01b11e1941c7886db3', 30309, 514),
     'services/cloud-gateway/tests/host_agent_support/relay.py': ('100644', '7b421e8a20a8ff2365d8f6793a9bf7d2555fec3f', 'efadc9a2e3b5efe1453dab7eb4a28d110db5b0f10527d7f0692725f6a008644a', 8503, 199),
     'src-tauri/src/tools/cloud_host/live/wss_tests.rs': ('100644', '60888339be3698f108e967b717a78c0a8df1dda1', 'f2442b304e9ce97ad0bcf5cd76c9a350ff5016660b3071cebf84f34340d47e95', 20740, 541),
-    'src-tauri/src/tools/cloud_host/live/wss_two_hop_tests.rs': ('100644', 'ae64a4d70176ecca0bc351a5bb8b1510b1c64bda', 'ed37dae22ed59f64d26b02958f317343a2331652d6b8ae759153aab3a2139dcc', 12544, 307),
+    'src-tauri/src/tools/cloud_host/live/wss_two_hop_tests.rs': ('100644', '3dbdf63863eec6516245b9ae56fa819b5b08d511', 'ded505cf8ba78417c919fcaf93aa7a2b0a9cd01e76415b7e059d475b74185fa6', 14208, 347),
     'src-tauri/src/tools/cloud_host/live/wss_two_hop_support.rs': ('100644', 'd2ec8479dad3a0bc15c5f8c454528d566914874c', '41b158020755f072f206d2635583a9a16cc0e3cec4be48603eddcbd9997e4d28', 16634, 441),
     'src-tauri/Cargo.toml': ('100644', 'feead83a470fe3b07ad432806a6c657f3ab7a44e', '9603b57332e9d08a57bc0e31f7b28f2c1409d59cd6548b13c8e2f902796f36c8', 2856, 95),
     'tests/cloud-gateway-deployment/test_current_nginx_two_hop.py': ('100644', '77ed877e93f2859f3cadad9f4e757fb9137b5f7e', '3c8c0eda019080bad517e89f251fbb490a33771c6f7ec7467196060c5b65632a', 26325, 410),
@@ -51,7 +51,7 @@ SOURCE_CAPS = {
     'docs/specs/issue40-authenticated-two-hop/design.md': (200, 200),
     'docs/specs/issue40-authenticated-two-hop/tasks.md': (120, 120),
 }
-SOURCE_DELTA_LIMIT = 2200
+SOURCE_DELTA_LIMIT = 2300
 # Five non-self whole-file pins; external review authenticates this profile.
 AMENDMENT_PINS = {
     'scripts/rc_pretag_composition_tests.py': ('00d8e657375a479779d7c06ef33cb847ff9f49d0', 'e8c1ac54d30a4030f9b843aeee1c1ff1a94013641f533f1e97e35603d25e8c74'),
