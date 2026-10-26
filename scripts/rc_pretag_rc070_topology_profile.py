@@ -1,32 +1,26 @@
-"""Finite #150 topology admission for RC070 packaging tip 788cb701b718; independent review binds self-bytes."""
+"""Finite #150 topology admission for RC070 packaging tip cb87dbb11e30d9f54a2d020395fe03e9c436c8ae; independent review binds self-bytes."""
 import hashlib
 import rc_pretag_ownership_profile as o
 import rc_pretag_publication_profile as p
 
-M = '788cb701b718251362677fc4ee191e73c46e2f0d'
-M_TREE = '14510377f5202f4fdd2a853b4c4e584cc8559c11'
-M_PARENTS = ('12c364617981eb21dea3c72d5230d0f971459ab1',)
-M_RAW = (795, '2d1c08151441e26f0e6ea7314d9bff5c0b24fa959372f21c63d5c76aaba3ad35')
+M = 'cb87dbb11e30d9f54a2d020395fe03e9c436c8ae'
+M_TREE = '36d40fd735831e1b6e636bc6fe30f9b76ee8d030'
+M_PARENTS = ('24b8b7559582e74c2f788bc750a92f14d94321b6',)
+M_RAW = (453, '6b446aef9ca1cf94ec1135601128ffdd88a4e83c4e409a0bf13f03bb67ece492')
 BASE = '41984b1de0ca13efab3646aae5041845bc78cfee'
 PROFILE = 'scripts/rc_pretag_rc070_topology_profile.py'
 MANIFEST = 'scripts/rc_native_probe_source_manifest.json'
 NEW = ()
 CAPS = {
-    PROFILE: (124, 40),
-    'src-tauri/Cargo.lock': (6556, 10),
-    'scripts/rc_pretag_linux_package_inverse.py': (208, 20),
-    'scripts/rc_pretag_integration_admission_profile.py': (367, 40),
+    PROFILE: (130, 250),
+    'scripts/rc_pretag_integration_admission_profile.py': (377, 14),
 }
-DELTA_LIMIT = 120
+DELTA_LIMIT = 80
 BASE_PINS = {
-    'src-tauri/Cargo.lock': ('100644', '9717ff3d97ee8a7162100ec79615fe7e108e6af0', '314746cb283ae3f9138cd1af2ce288eaebf6c6ef200a8f477546c54037f5376c', 157986, 6556),
-    'scripts/rc_pretag_linux_package_inverse.py': ('100644', 'a90824de57c52ca2de46ff54b2ff3e4af6f4e57c', '94a08b5026b51b9ecf91d9ee25f4b70b1effc8156691cbf719e8f219be9151a2', 126262, 208),
-    'scripts/rc_pretag_integration_admission_profile.py': ('100644', '42244a1087458fe6afa000170e899dc4fd60810b', '7d6a2eba5fe7b70920dfda15826526f12ae84ef2a77bd4e3abdecc60d3266aba', 156636, 362),
+    'scripts/rc_pretag_integration_admission_profile.py': ('100644', '71eb3b4119d8ea2952890767e154f41c2d04641e', '9819f31f31a2e4681a3b272d83c0236ec39db5024b55ea4cdd46be97fab8ac62', 157899, 367),
 }
 SOURCE_PINS = {
-    'src-tauri/Cargo.lock': ('100644', 'f04382123dba6340407258a003858601c77ee3dc', '1d81ea1d341814c5ea9c2c02bf6fdbeec5b00ce334c996db7ae69d92a37403d0', 157986, 6556),
-    'scripts/rc_pretag_linux_package_inverse.py': ('100644', '28acc295b004b0681298730c3b299edb7158afc4', '5a46b8e3da32ee4f4625c793bf5a4d78941e489fa7d19668b71ab13887f38311', 126376, 208),
-    'scripts/rc_pretag_integration_admission_profile.py': ('100644', '71eb3b4119d8ea2952890767e154f41c2d04641e', '9819f31f31a2e4681a3b272d83c0236ec39db5024b55ea4cdd46be97fab8ac62', 157899, 367),
+    'scripts/rc_pretag_integration_admission_profile.py': ('100644', '5e1ac472acc8d66360c15253733838bfbd51580b', '45ce68059b44714bbf21c24c0bfb866781bb054cc73b0f43900a7e5ab7fec5b5', 191588, 377),
 }
 
 def topology(ref, root, git, release):
