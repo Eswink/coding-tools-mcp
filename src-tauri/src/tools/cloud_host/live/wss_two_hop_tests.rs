@@ -38,7 +38,10 @@ async fn tls_two_hop_reconnect_generation_restart_no_replay() {
         seen.push(state);
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
-    assert_eq!(online_samples, 0, "gateway-stop window saw Online: {seen:?}");
+    assert_eq!(
+        online_samples, 0,
+        "gateway-stop window saw Online: {seen:?}"
+    );
     let stop_mid = h.read(9020, "native-A").await;
     assert_eq!(stop_mid["ok"], false);
     let stop_code = stop_mid["error"]["code"].as_str().unwrap_or("");
