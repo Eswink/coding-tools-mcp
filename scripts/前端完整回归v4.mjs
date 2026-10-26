@@ -17,7 +17,9 @@ function run(args, env = process.env) {
   if (result.signal || result.status !== 0) throw new Error(`回归命令失败：${args[0]}，退出码 ${result.status}，信号 ${result.signal}`);
 }
 try {
-  run([require.resolve('typescript/bin/tsc'), '--target', 'ES2022', '--module', 'commonjs',
+  // TypeScript 6+ errors TS5112 when CLI file list coexists with repo tsconfig.json.
+  // --ignoreConfig keeps the historical file-list compile path (no kit/vite revert).
+  run([require.resolve('typescript/bin/tsc'), '--ignoreConfig', '--target', 'ES2022', '--module', 'commonjs',
     '--skipLibCheck', '--rootDir', 'src/lib', '--outDir', temporary,
     'src/lib/任务日志v2.ts', 'src/lib/固定入口.ts', 'src/lib/types.ts']);
   const tests = readdirSync(path.join(root, 'tests'))
