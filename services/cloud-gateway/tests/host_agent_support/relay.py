@@ -74,7 +74,11 @@ class Handler(socketserver.BaseRequestHandler):
                             if downstream.pending() and downstream not in ready:
                                 ready.append(downstream)
                             for source in ready:
-                                if source is downstream and self.server.hold_up.is_set():
+                                # hold_up only freezes connections snapped at hold
+                                # time (Agent WSS). Later HTTP tools/call must still
+                                # reach the gateway so (d) can observe UNKNOWN.
+                                if (source is downstream and self.server.hold_up.is_set()
+                                        and id(downstream) in self.server.held):
                                     continue
                                 data = source.recv(16384)
                                 if not data:
@@ -109,27 +113,46 @@ def _close_pairs(pairs):
 
 def apply_op(server, op):
     if op == "drop":
-        # Defer closes briefly so the control HTTP response (relayed on an
-        # active handler) can flush before sockets are torn down.
-        server.hold_up.clear()
+        # Bare drop (no prior hold): defer closes briefly so the control HTTP
+        # ack (relayed on an active handler) can flush — preserves (b1)/(c).
+        # Held drop: close snapped Agent sockets WHILE hold_up stays set so a
+        # buffered Agent reply cannot flush to the gateway (S2-4 (d)).
         with server.lock:
-            victims = list(server.active)
-            server.active.clear()
-
-        def _deferred():
-            time.sleep(0.05)
+            held = set(server.held)
+            if held:
+                victims = [(d, u) for d, u in server.active if id(d) in held]
+                server.active = [(d, u) for d, u in server.active if id(d) not in held]
+                server.held = set()
+            else:
+                victims = list(server.active)
+                server.active.clear()
+        if held:
             _close_pairs(victims)
+            server.hold_up.clear()
+        else:
+            server.hold_up.clear()
 
-        threading.Thread(target=_deferred, daemon=True).start()
-        print(json.dumps({"event": "op_applied", "op": "drop"}), file=sys.stderr, flush=True)
+            def _deferred():
+                time.sleep(0.05)
+                _close_pairs(victims)
+
+            threading.Thread(target=_deferred, daemon=True).start()
+        print(json.dumps({"event": "op_applied", "op": "drop", "held_drop": bool(held)}),
+              file=sys.stderr, flush=True)
     elif op == "refuse":
         server.refuse = True
         print(json.dumps({"event": "op_applied", "op": "refuse"}), file=sys.stderr, flush=True)
     elif op == "hold_up":
+        with server.lock:
+            server.held = {id(down) for down, _ in server.active}
+            n = len(server.held)
         server.hold_up.set()
-        print(json.dumps({"event": "op_applied", "op": "hold_up"}), file=sys.stderr, flush=True)
+        print(json.dumps({"event": "op_applied", "op": "hold_up", "held": n}),
+              file=sys.stderr, flush=True)
     elif op == "release":
         server.hold_up.clear()
+        with server.lock:
+            server.held = set()
         server.refuse = False
         print(json.dumps({"event": "op_applied", "op": "release"}), file=sys.stderr, flush=True)
     else:
@@ -162,6 +185,7 @@ def main():
     server.hold_up = threading.Event()
     server.refuse = False
     server.active = []
+    server.held = set()
     server.lock = threading.Lock()
     print(json.dumps({"port": server.server_address[1]}), flush=True)
     upstream = json.loads(sys.stdin.readline())
