@@ -156,9 +156,10 @@ Gateway stop before authentication expiry, then restart with unchanged namespace
 inner ingress and outer process identities. OAuth authority must persist; shipped
 CLI device revocation must survive a database restart and prevent service startup
 with `provisioning_not_ready`. These checks do not exercise an authenticated Agent.
-Authenticated Agent WSS, reconnect, revocation and drain remain **NOT_EXECUTED**:
-the shipped Agent requires verified WSS, while this fixture uses plaintext loopback
-transport with a synthetic `.invalid` HTTPS identity. No TLS bypass is introduced.
+In those 45/57-case reports, authenticated Agent WSS, reconnect, revocation and
+drain remain **NOT_EXECUTED**: their transport is plaintext loopback with a synthetic
+`.invalid` HTTPS identity. Keep these historical limitations on those reports. The
+additional opt-in native proof below is separate; no TLS bypass is introduced.
 
 Private Nginx processes and echo servers are owned, stopped and reaped; runtime
 containers/volumes are fresh, uniquely labeled and cleaned. Cleanup failure fails
@@ -180,9 +181,84 @@ data-only report/source replay, clean-source checks and secret scans. Neither a
 source-binding receipt nor mock/pure tests alone establishes native success.
 Raw audit findings and all existing release blockers remain visible and unchanged.
 These are required checks, not a claim that CI has run or passed for this correction.
-The existing closed composition profile intentionally rejects this changed source;
-it remains untouched and blocked. Integration needs a separately reviewed exact-source
-amendment, not refreshed historical pins or a descendant exemption.
+The four historical composition profiles remain byte-identical. The reviewed new
+`engineering/issue40-authenticated-two-hop-composition-v1` profile accepts only its
+exact source/pin/parent grammar; it does not admit arbitrary descendants. Source P
+is only a local immutable anchor; the first integration-ready candidate is A with
+the six-file guard amendment. Exact strict inventory is historical209 plus new24.
+
+
+## Additional authenticated native proof
+
+The `nginx-agent-integration-tests` feature is explicitly opt-in and enables the
+existing `cloud-agent-integration-tests` baseline. The workflow freshly builds the
+actual native test executable and `native_desktop_fixture` example on the same
+candidate. It preserves baseline11: six WSS, three native drain and two catalog
+cases. It never copies the old nine-test grep or treats a zero-match run as a pass.
+
+A separate nine-case suite uses shipped key generation/enrollment, production
+HostAgent, NativeLiveHost, ChatAuthorizer and real HTTPS OAuth/MCP requests:
+
+native client → verified TLS outer443 → unchanged private ingress8080 → Gateway28880.
+
+Only the disposable Docker network resolves `gateway.example.invalid`. No host443
+is published, no Host rewrite is permitted, and no host DNS/trust, capabilities or
+sysctls are changed. The configured nonroot outer must bind443 under the existing
+namespace policy; refusal is a blocker. This geometry does **not** demonstrate an
+Agent connection through the runner-host published-port path. Fresh45/57 evidence
+on the same candidate remains required alongside the new proof.
+
+New cases cover pending/native decision/canary/foreign denial, reconnect generation
+and end-to-end no-replay, native grant revoke with encrypted-state reopen, shipped
+device revoke across database/service restart, authenticated Gateway socket drain,
+managed native callback/journal drain, and untrusted CA/wrong SAN/expired certificate.
+Gateway ledger `Existing` may reject replay; that result does not establish local
+HostJournal causality. Native revoke drops all old objects before reopening stored
+state; unit MemoryKeys mean this is same-process encrypted-state reopen, not actual
+OS-keyring or independent desktop-process persistence evidence.
+
+The Gateway gets no inspector route. An owner-protected local Unix socket accepts
+only fixed fixture operations and bounded observations from read-only SQL. Those
+observations are readiness evidence; actual HTTPS responses and native decisions
+prove authority. The CA and immediate parent are UID65532-owned protected files.
+Certificate negatives require an independently live/config-verified listener, the
+intended certificate defect, HTTPS certificate rejection and exact AgentError::Tls;
+network or configuration failure alone cannot pass.
+
+Gateway drain keeps the Agent running and stops only the Gateway. A fresh heartbeat
+and recorded expiry bounds must leave more than the full eight-second observation
+window. Require the native link to disconnect and its original443 TCP tuple to
+leave ESTABLISHED before expiry, plus zero Gateway exit and its stopped receipt.
+Managed callback drain separately retains the exclusive journal lock until the
+real native callback completes and the manager reports Drained.
+
+Require exact source-declared/compiled-listed/executed inventories: baseline11 and
+new9 each once, zero failed/ignored/unexpected cases; deployment86 plus new8 helper
+contracts; strict209 plus new24. Every new native case uses a fresh fixture. The
+safe `current-native-agent.json` report is bound to exact candidate SHA/tree, native
+binary/example hashes, immutable images, both actual configurations, nonroot/network
+observations and cleanup. Keys, owner password, tokens, CA private key, bootstrap,
+private configs and raw observer output are excluded from artifacts. A source file
+or this document cannot stand in for a successful native run.
+
+## Later operator review remains mandatory
+
+Before proposing any real change, identify the existing vhost and exact immediate
+upstream reachable from **that Nginx process's namespace**. Compare the live inner
+config's hash/bytes against the reviewed renderer; a published port or image tag
+alone is insufficient. Reject the historical header-reconstructing inner config.
+
+Review conflicting exact/nested/more-specific locations, server rewrites, internal
+redirects and error handlers without replacing unrelated site rules. Separately
+verify the real certificate chain/SAN/expiry, canonical authority, TLS termination,
+WAF/WebSocket handling and long-lived connection limits. None is established by
+this disposable local-CA proof.
+
+A rollback proposal must name the prior source/config and preserve durable request
+and revocation records. Never restore an old authority database/journal, reinitialize
+missing state, reselect a revoked device or replay uncertain work to recover a
+connection. Revoke/re-enroll and production changes require their own explicit
+approval. No apply/reload/install or real-host acceptance is authorized here.
 
 `applied`, `production_ready`, `real_host_tls_waf_tested` and `publish_approved`
 remain false. Real VPS/DNS/TLS/BaoTa/WAF/ChatGPT, host Engine and external reachability,
