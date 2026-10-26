@@ -6,12 +6,12 @@ import rc_pretag_two_hop_profile as two_hop
 import rc_pretag_authenticated_two_hop_profile as authenticated
 
 PROFILE_ID = 'engineering/issue88-publication-core-composition-v1'
-N = 'e459c9bec1dc6006eaad6df5f65111491c7b7572'
-N_TREE = '1eae7b72539740c2a1cc167a82ec2af3b5f951d6'
-N_PARENTS = ('a88be4901623f7c8629b93df984166587253f0be', '65b04eda5d63b8457b5b8879cd97d391e5e2b021')
+N = 'b15690e870926eb86817cec7f4c6ab9842d7f3a9'
+N_TREE = '5905d3b010745abf6eb4caf159e4bfd5a620076e'
+N_PARENTS = ('a88be4901623f7c8629b93df984166587253f0be', 'cfabfb49044a12ed745dfd90308465bc5d55bff0')
 # Structural source only, never an admissible candidate. Bound after source freeze.
-S = 'ca1369c74b7fdd719bda7dc2bf01f020ee2bad05'
-S_TREE = '6247cac476e4690560e74da481e086c4e4644f51'
+S = 'f14c56d74f12dc1d297b8d75138c659a25b11eda'
+S_TREE = '72874110ad937de8071ce4f9f0a594db041e9d70'
 R, R_TREE, R_DOCUMENTS = authenticated.R, authenticated.R_TREE, authenticated.R_DOCUMENTS
 CORE = 'scripts/rc_publication_contract.py'
 CORE_TESTS = 'scripts/rc_pretag_publication_contract_tests.py'

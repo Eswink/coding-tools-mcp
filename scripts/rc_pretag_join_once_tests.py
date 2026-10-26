@@ -113,7 +113,7 @@ class JoinOnceCompositionTests(unittest.TestCase):
     def test_exact_m_anchor_tree_parents_and_historical_validation(self):
         self.assertEqual((p.JOIN_ONCE_M, p.JOIN_ONCE_TREE, p.JOIN_ONCE_PARENTS),
             ('9c5c031d24aadc5d704160bb5a5a65bff126c10c', 'dafa6aa8dce10cf396971329244aeb8ac36d4ed3',
-             ('e459c9bec1dc6006eaad6df5f65111491c7b7572', '5e8808e6046fe435de82a51d8989811455307a19')))
+             ('b15690e870926eb86817cec7f4c6ab9842d7f3a9', '5e8808e6046fe435de82a51d8989811455307a19')))
         self.assertEqual(self.selected(p.JOIN_ONCE_M), self.original)
         with patch.object(p, 'amendment_content', wraps=p.amendment_content) as historical, \
              patch.object(p.authenticated, '_budgets', wraps=p.authenticated._budgets) as budgets:

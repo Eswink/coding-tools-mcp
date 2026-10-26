@@ -80,9 +80,9 @@ class PublicationCompositionTests(unittest.TestCase):
                 action.assert_not_called()
 
     def test_exact_n_anchor_tree_parents_and_historical_validation(self):
-        self.assertEqual((p.N, p.N_TREE, p.N_PARENTS), ('e459c9bec1dc6006eaad6df5f65111491c7b7572',
-            '1eae7b72539740c2a1cc167a82ec2af3b5f951d6',
-            ('a88be4901623f7c8629b93df984166587253f0be', '65b04eda5d63b8457b5b8879cd97d391e5e2b021')))
+        self.assertEqual((p.N, p.N_TREE, p.N_PARENTS), ('b15690e870926eb86817cec7f4c6ab9842d7f3a9',
+            '5905d3b010745abf6eb4caf159e4bfd5a620076e',
+            ('a88be4901623f7c8629b93df984166587253f0be', 'cfabfb49044a12ed745dfd90308465bc5d55bff0')))
         self.assertEqual(self.selected(p.N), self.original)
         with patch.object(a, 'selected_profile', wraps=a.selected_profile) as historical:
             self.assertEqual(self.source_content(p.S), self.source)

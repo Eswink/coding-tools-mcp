@@ -9,8 +9,8 @@ M = 'a88be4901623f7c8629b93df984166587253f0be'
 M_TREE = '246213487851c01a6def74b7519e58a6d709c180'
 M_PARENTS = ('44b9f9b16f6981297bd1252eb3ab238ae581eccc', '3a606e06b0bc0ee834ea4c7021652e9e60aac7f2')
 # Frozen structural source; only its exact guard amendment is a candidate.
-P = 'fad6b75d6a5d4ae4e5749c26f0371c4c6830d73b'
-P_TREE = '3d462c6792b36569820e3b85a90abc35d40f4d66'
+P = '5398c27e882a7abb24528413e06c704b75d00737'
+P_TREE = 'a1eda91913293caeb25f9322ec946c9038fa38d6'
 R = 'e2e011f7f2a3a1df838bbd588106205b999db610'
 R_TREE = 'c0dfe00fdcc7ebc8e26acaad5d18ff3f94df9ba3'
 R_DOCUMENTS = two_hop.R_DOCUMENTS
@@ -23,13 +23,13 @@ TESTS = 'scripts/rc_pretag_authenticated_two_hop_tests.py'
 # Thirteen immutable P entries: mode/blob/SHA256/bytes/lines.
 SOURCE_PINS = {
     'tests/cloud-gateway-deployment/container_fixture.py': ('100644', '57c859c2454ad179038751edf5f774a18bafb094', 'f2323028e9291846bfa75ca34029c309ed21a51094b05caa1d96f8c695f3ef30', 18234, 275),
-    'tests/cloud-gateway-deployment/run_current_nginx_agent.py': ('100644', '72177da0143f23408b569be2db281fdf1b796618', '4331734362699bfc54dce7ddbe76279f601e8776a5738e5bb7c5cc3a2e54d42b', 29730, 500),
-    'services/cloud-gateway/tests/host_agent_support/relay.py': ('100644', 'f6ba1cf38e1c4328f4e05d7db1428f792ce5580e', '5e71d38a7cc5eb96dc37458182ef39509ab114e53d6c47a97a8eb0da768f94fe', 4399, 95),
-    'src-tauri/src/tools/cloud_host/live/wss_tests.rs': ('100644', '756160521ea1f921bd4f1247756dab1f2ab51abd', '691bd4cc1d57fc7ba5728cce365d2dc28000afad944397131de1a31fa850ae30', 15988, 431),
-    'src-tauri/src/tools/cloud_host/live/wss_two_hop_tests.rs': ('100644', 'e3b6b3a31c4076f1d7d59f64b8b9df3ba879f4d2', 'e321044f5b38916abe0867aa0e55410c19fcfec39f3817a50273ed91a7bb3ee9', 11291, 281),
-    'src-tauri/src/tools/cloud_host/live/wss_two_hop_support.rs': ('100644', '02d9fdf4df4dde94a99ff15ff78c0aa8c703fa55', '77c054cd6f1237e71bfa5ef284006c134035a5ddf1cdf6f6257caae24b71eaa9', 16494, 438),
+    'tests/cloud-gateway-deployment/run_current_nginx_agent.py': ('100644', '068ff252af5df9822f67e0bebffa9222723f744e', '4c98f09bcb5fadd0f25f903804e2bfd2df30a560f4f17c01b11e1941c7886db3', 30309, 514),
+    'services/cloud-gateway/tests/host_agent_support/relay.py': ('100644', '7b421e8a20a8ff2365d8f6793a9bf7d2555fec3f', 'efadc9a2e3b5efe1453dab7eb4a28d110db5b0f10527d7f0692725f6a008644a', 8503, 199),
+    'src-tauri/src/tools/cloud_host/live/wss_tests.rs': ('100644', '60888339be3698f108e967b717a78c0a8df1dda1', 'f2442b304e9ce97ad0bcf5cd76c9a350ff5016660b3071cebf84f34340d47e95', 20740, 541),
+    'src-tauri/src/tools/cloud_host/live/wss_two_hop_tests.rs': ('100644', 'ae64a4d70176ecca0bc351a5bb8b1510b1c64bda', 'ed37dae22ed59f64d26b02958f317343a2331652d6b8ae759153aab3a2139dcc', 12544, 307),
+    'src-tauri/src/tools/cloud_host/live/wss_two_hop_support.rs': ('100644', 'd2ec8479dad3a0bc15c5f8c454528d566914874c', '41b158020755f072f206d2635583a9a16cc0e3cec4be48603eddcbd9997e4d28', 16634, 441),
     'src-tauri/Cargo.toml': ('100644', 'feead83a470fe3b07ad432806a6c657f3ab7a44e', '9603b57332e9d08a57bc0e31f7b28f2c1409d59cd6548b13c8e2f902796f36c8', 2856, 95),
-    'tests/cloud-gateway-deployment/test_current_nginx_two_hop.py': ('100644', '70324dc8933ec9d707823fbce4f927c6ad7d5139', 'd58ae828e94ae3ce97bbe7acc0d924ee68eca81bff7670f90027b4b8b1fcb9ed', 24726, 389),
+    'tests/cloud-gateway-deployment/test_current_nginx_two_hop.py': ('100644', '77ed877e93f2859f3cadad9f4e757fb9137b5f7e', '3c8c0eda019080bad517e89f251fbb490a33771c6f7ec7467196060c5b65632a', 26325, 410),
     '.github/workflows/issue40-current-nginx-include.yml': ('100644', '5334ca48134d6c67d8faeeafd84c20ab4e5405fa', '4eeb34bb40dabdfee0500f6341257cee42fe3c8cc72bdc1be4320805c95f7c9c', 20414, 283),
     'docs/deployment/current-nginx-include.md': ('100644', 'f6eb31c7ed70d5f4088e3efc9df18f526d2bea3c', '833e38d483d6dda45a98ac6be8ac3aab820fcef8303e5a77b4928b5dcb1a51da', 17314, 271),
     'docs/specs/issue40-authenticated-two-hop/requirements.md': ('100644', 'd7344ff181e95eb84a05408da715121c696a9d66', '38f2286683e0fe712b8e14b34e0ad098e1248b68ae81b9486299c0059719b8d6', 4891, 49),
@@ -38,9 +38,9 @@ SOURCE_PINS = {
 }
 SOURCE_CAPS = {
     'tests/cloud-gateway-deployment/container_fixture.py': (320, 32),
-    'tests/cloud-gateway-deployment/run_current_nginx_agent.py': (500, 500),
-    'services/cloud-gateway/tests/host_agent_support/relay.py': (160, 180),
-    'src-tauri/src/tools/cloud_host/live/wss_tests.rs': (500, 180),
+    'tests/cloud-gateway-deployment/run_current_nginx_agent.py': (514, 514),
+    'services/cloud-gateway/tests/host_agent_support/relay.py': (199, 212),
+    'src-tauri/src/tools/cloud_host/live/wss_tests.rs': (541, 234),
     'src-tauri/src/tools/cloud_host/live/wss_two_hop_tests.rs': (500, 500),
     'src-tauri/src/tools/cloud_host/live/wss_two_hop_support.rs': (500, 500),
     'src-tauri/Cargo.toml': (100, 4),
