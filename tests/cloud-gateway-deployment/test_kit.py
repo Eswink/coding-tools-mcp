@@ -392,6 +392,9 @@ class SqlTemplate(unittest.TestCase):
                      'mcp_normal_rate_never_429', 'agent_sequential_upgrades_never_429', 'agent_limit_conn_4_per_ip',
                      'edge_bridge_gateway_inside_trusted_ci_ranges', 'trusted_real_ip_buckets_per_client'):
             self.assertIn(case, source)
+        # Evidence report must name these as passed cases, not only as silent require() gates.
+        self.assertIn("passed('edge_bridge_gateway_inside_trusted_ci_ranges')", source)
+        self.assertIn("for probe in versions['denied_probes']:passed(probe)", source)
 
 
 NGINX = os.environ.get('CTM_TEST_NGINX')  # opt-in only; hosted CI proves the shipped image natively

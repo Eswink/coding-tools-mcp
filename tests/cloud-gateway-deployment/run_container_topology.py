@@ -166,6 +166,7 @@ def trusted_real_ip_checks(f):
     gateways=[ipaddress.ip_address(item['Gateway']) for item in ipam if item.get('Gateway')]
     require(bool(gateways) and all(any(g in ipaddress.ip_network(c) for c in CI_TRUSTED_PROXIES) for g in gateways),
             'edge_bridge_gateway_inside_trusted_ci_ranges')
+    passed('edge_bridge_gateway_inside_trusted_ci_ranges')
     f.dc('run','--rm','-T','--no-deps','ingress','-t','-c','/run/ingress/nginx.trusted.conf')
     passed('actual_nonroot_nginx_syntax_trusted_real_ip')
     f.dc('stop','--timeout','10','ingress',timeout=30)
@@ -218,6 +219,7 @@ def main():
     try:
         f=Fixture(a.compose,dict(gateway=a.gateway_image,ingress=a.ingress_image,postgres=a.postgres_image))
         versions=f.prepare();passed('compose_2_27_and_shipped_from_empty_bootstrap')
+        for probe in versions['denied_probes']:passed(probe)
         STAGE='port_collision'
         require(topology.port_observation(f.port)['collision_observed'] is True,'read_only_port_collision_preflight')
         passed('read_only_collision_observed_before_apply')
