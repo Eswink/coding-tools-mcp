@@ -344,6 +344,16 @@ class SqlTemplate(unittest.TestCase):
         self.assertEqual(generated, sql_statements(''.join('GRANT INSERT,UPDATE,DELETE ON public."' + n + '" TO ctm_app;'
                                                            for n in tables)))
 
+    def test_fixture_reads_template_and_probes_denials(self):
+        source = (ROOT / 'tests/cloud-gateway-deployment/container_fixture.py').read_text()
+        self.assertNotIn('CREATE ROLE ctm_app', source); self.assertNotIn("PASSWORD '", source)
+        self.assertIn("kit.sql_phase('bootstrap')", source); self.assertIn("kit.sql_phase('grants')", source)
+        probes = re.findall(r"\('(runtime_cannot_[a-z_]+)',", source)
+        self.assertEqual(probes, ['runtime_cannot_create_table', 'runtime_cannot_update_migration_ledger',
+                                  'runtime_cannot_create_role'])
+        self.assertIn("'runtime_cannot_change_schema_or_migration_ledger'", source)
+        self.assertIn("'least_privilege_database_role'", source)
+
     def test_container_acceptance_has_native_limit_and_real_ip_stages(self):
         source = (ROOT / 'tests/cloud-gateway-deployment/run_container_topology.py').read_text()
         order = [source.index(f"STAGE='{name}'") for name in ('oauth_mcp', 'rate_limits', 'trusted_real_ip', 'shutdown')]
