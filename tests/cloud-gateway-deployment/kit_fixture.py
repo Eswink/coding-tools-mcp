@@ -51,10 +51,13 @@ class KitFixture(base.Fixture):
         """Route the frozen base's three inline bootstrap statements to the shipped kit template."""
         if text.startswith('CREATE ROLE ctm_app LOGIN PASSWORD '):
             require(database == 'postgres', 'kit_bootstrap_database')
-            return super().sql(kit.psql_preamble(dict(app_password=self.dbpassword, migration_password=self.migration_password,
-                                                      database='coding_tools_identity_test')) + kit.sql_phase('bootstrap'))
+            result = super().sql(kit.psql_preamble(dict(app_password=self.dbpassword, migration_password=self.migration_password,
+                                                        database='coding_tools_identity_test')) + kit.sql_phase('bootstrap'))
+            self._kit_bootstrap_done = True  # runtime proof the frozen inline bootstrap was routed to the kit template
+            return result
         if text.startswith('REVOKE CREATE ON SCHEMA public FROM PUBLIC;'):
             require(database == 'coding_tools_identity_test', 'kit_grants_database')
+            require(getattr(self, '_kit_bootstrap_done', False), 'kit_bootstrap_before_grants')
             self._kit_grants_done = True
             return super().sql(kit.sql_phase('grants'), database=database)
         if re.fullmatch(r'GRANT INSERT,UPDATE,DELETE ON public\."ctm_[a-z0-9_]+" TO ctm_app;', text):
@@ -68,5 +71,7 @@ class KitFixture(base.Fixture):
 
     def prepare(self):
         versions = super().prepare()
+        require(getattr(self, '_kit_bootstrap_done', False) is True, 'kit_bootstrap_routed')
+        require(getattr(self, '_kit_grants_done', False) is True, 'kit_grants_routed')
         require(getattr(self, 'denied_probes', None) == [p for p, _ in DENIED_PROBES], 'kit_denial_probes_ran')
         return dict(versions, denied_probes=list(self.denied_probes))

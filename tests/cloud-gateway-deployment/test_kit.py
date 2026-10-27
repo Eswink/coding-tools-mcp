@@ -428,7 +428,12 @@ class SqlTemplate(unittest.TestCase):
         calls, denied = [], []
         with patch.object(kit_fixture.base.Fixture, 'sql', lambda self, text, database='postgres': calls.append((text, database)) or 'false,false'), \
              patch.object(kit_fixture.KitFixture, 'sql_denied', lambda self, statement, name: denied.append(name)):
+            with self.assertRaises(kit_fixture.FixtureFailure) as early:
+                f.sql('REVOKE CREATE ON SCHEMA public FROM PUBLIC; ...', database='coding_tools_identity_test')
+            self.assertEqual(str(early.exception), 'kit_bootstrap_before_grants'); self.assertEqual(calls, [])
+            self.assertFalse(getattr(f, '_kit_bootstrap_done', False))
             f.sql("CREATE ROLE ctm_app LOGIN PASSWORD 'x' NOSUPERUSER NOCREATEDB NOCREATEROLE;\n...")
+            self.assertIs(f._kit_bootstrap_done, True)
             with self.assertRaises(kit_fixture.FixtureFailure):f.sql('GRANT INSERT,UPDATE,DELETE ON public."ctm_devices" TO ctm_app;')
             f.sql('REVOKE CREATE ON SCHEMA public FROM PUBLIC; ...', database='coding_tools_identity_test')
             self.assertEqual(f.sql('GRANT INSERT,UPDATE,DELETE ON public."ctm_devices" TO ctm_app;'), '')
@@ -438,6 +443,27 @@ class SqlTemplate(unittest.TestCase):
         self.assertEqual(calls[1], (kit.sql_phase('grants'), 'coding_tools_identity_test'))
         self.assertEqual(len(calls), 3)
         self.assertEqual(denied, ['runtime_cannot_create_table', 'runtime_cannot_update_migration_ledger', 'runtime_cannot_create_role'])
+
+    def test_kit_fixture_prepare_requires_routed_bootstrap_and_grants(self):
+        import sys
+        sys.path.insert(0, str(ROOT / 'tests/cloud-gateway-deployment'))
+        try:
+            import kit_fixture
+        finally:
+            sys.path.pop(0)
+        probes = [p for p, _ in kit_fixture.DENIED_PROBES]
+        for state, code in (({}, 'kit_bootstrap_routed'), ({'_kit_bootstrap_done': True}, 'kit_grants_routed'),
+                            ({'_kit_grants_done': True, 'denied_probes': probes}, 'kit_bootstrap_routed'),
+                            ({'_kit_bootstrap_done': True, '_kit_grants_done': True}, 'kit_denial_probes_ran')):
+            f = object.__new__(kit_fixture.KitFixture); f.__dict__.update(state)
+            with patch.object(kit_fixture.base.Fixture, 'prepare', lambda self: {'v': 1}), \
+                 self.assertRaises(kit_fixture.FixtureFailure) as error:
+                f.prepare()
+            self.assertEqual(str(error.exception), code, state)
+        f = object.__new__(kit_fixture.KitFixture)
+        f.__dict__.update(_kit_bootstrap_done=True, _kit_grants_done=True, denied_probes=probes)
+        with patch.object(kit_fixture.base.Fixture, 'prepare', lambda self: {'v': 1}):
+            self.assertEqual(f.prepare(), {'v': 1, 'denied_probes': probes})
 
     def test_container_acceptance_has_native_limit_and_real_ip_stages(self):
         source = (ROOT / 'tests/cloud-gateway-deployment/run_container_topology.py').read_text()
