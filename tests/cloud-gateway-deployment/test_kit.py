@@ -311,6 +311,37 @@ class RenderedIngress(unittest.TestCase):
                 kit.render('/srv/ctm-private', Path(tmp) / 'plain', DOMAIN, CONNECTOR, 28880, IMAGES)
             self.assertEqual(error.exception.code, 'output_must_not_exist')
 
+    REQUIRED_LIMITS = ('limit_req zone=ctm_auth', 'limit_conn ctm_agent 4')
+
+    def assert_limited(self, text, label):
+        for directive in self.REQUIRED_LIMITS:
+            self.assertIn(directive, text, label)
+        self.assertIn(topology.RATE_LIMITS, text, label); self.assertIn(topology.SERVER_LIMITS, text, label)
+
+    def test_every_deploy_output_carries_limits(self):
+        # The default ingress_config() stays limit-free for frozen fixtures, so each deploy entry point must opt in.
+        with tempfile.TemporaryDirectory() as tmp:
+            kit.render('/srv/ctm-private', Path(tmp) / 'plain', DOMAIN, CONNECTOR, 28880, IMAGES)
+            kit.render('/srv/ctm-private', Path(tmp) / 'trusted', DOMAIN, CONNECTOR, 28880, IMAGES, ['172.18.0.1/32'])
+            self.assert_limited((Path(tmp) / 'plain/nginx.runtime.conf').read_text(), 'kit.render plain')
+            trusted = (Path(tmp) / 'trusted/nginx.runtime.conf').read_text()
+            self.assert_limited(trusted, 'kit.render trusted'); self.assertIn('set_real_ip_from 172.18.0.1/32;', trusted)
+            base = ['render', '--private-root', '/srv/ctm-private', '--domain', DOMAIN, '--connector', CONNECTOR,
+                    '--port', '28880', '--gateway-image', IMAGES['gateway'], '--ingress-image', IMAGES['ingress'],
+                    '--postgres-image', IMAGES['postgres']]
+            for name, extra in (('cli-plain', []), ('cli-trusted', ['--trusted-proxy', '172.18.0.1/32'])):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(kit.main(base + ['--output', str(Path(tmp) / name)] + extra), 0)
+                self.assert_limited((Path(tmp) / name / 'nginx.runtime.conf').read_text(), 'kit.main ' + name)
+            for name, extra in (('topology-plain', []), ('topology-trusted', ['--trusted-proxy', '172.18.0.1/32'])):
+                argv = ['runtime_topology.py', '--gateway-image', IMAGES['gateway'], '--ingress-image', IMAGES['ingress'],
+                        '--postgres-image', IMAGES['postgres'], '--domain', DOMAIN, '--connector', CONNECTOR,
+                        '--output', str(Path(tmp) / name)] + extra
+                with patch('sys.argv', argv), contextlib.redirect_stdout(io.StringIO()) as out:
+                    topology.main()
+                self.assertFalse(json.loads(out.getvalue())['applied'])
+                self.assert_limited((Path(tmp) / name / 'nginx.runtime.conf').read_text(), 'runtime_topology.main ' + name)
+
 
 class SqlTemplate(unittest.TestCase):
     VALUES = dict(app_password='dummy_app_password_0001', migration_password='dummy_migration_password_02',
