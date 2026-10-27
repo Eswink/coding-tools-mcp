@@ -273,7 +273,8 @@ class CurrentIncludeTests(unittest.TestCase):
 
     def test_historical_renderer_and_runtime_sources_stay_byte_unchanged(self):
         pins = {'deploy/cloud-gateway/render.py': 'acea9a34118a2ed8a68e5176f64be286aadbc4f018daa4c4fc3bb6b07288b199',
-                'tests/cloud-gateway-deployment/run_container_topology.py': 'd194cb411121c9ab9a03fda7234b5ec1dd444fc76ce3e3aa0d79ea2c38378d59'}
+                # G3 re-pin: rate_limits/trusted_real_ip stages appended; helpers shared with the include runners unchanged.
+                'tests/cloud-gateway-deployment/run_container_topology.py': 'daba185fbe0c332478bac3c03b7b1658b1aba2fce4d6be823caf93d0693811af'}
         for relative, expected in pins.items():
             self.assertEqual(hashlib.sha256((ROOT / relative).read_bytes()).hexdigest(), expected, relative)
 

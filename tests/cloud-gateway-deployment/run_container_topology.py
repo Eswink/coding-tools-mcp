@@ -3,6 +3,7 @@
 import argparse
 import base64
 import hashlib
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -11,7 +12,7 @@ import socket
 import subprocess
 import time
 from urllib.parse import parse_qs,urlencode,urlsplit
-from container_fixture import Fixture,FixtureFailure,require,topology
+from container_fixture import CI_TRUSTED_PROXIES,Fixture,FixtureFailure,require,topology
 
 CASES=[]
 STAGE='setup'
@@ -76,6 +77,111 @@ def upgraded_socket(f,host=None,protocol="coding-tools-agent.v1",expected=101):
         return None
     require(header.startswith(b'HTTP/1.1 101 ') and b'coding-tools-agent.v1' in header,'actual_websocket_upgrade')
     return connection
+
+
+TOKEN='/coding-tools/oauth/token'
+NGINX_429=b'<title>429 Too Many Requests</title>'
+AUTH_REFILL_SECONDS=40  # 10r/m refills burst=5 in 30s
+
+
+def nginx_429(status,body):
+    # Gateway 429s carry try_later/agent_connection_rejected; only Nginx renders this page.
+    return status==429 and NGINX_429 in body and b'try_later' not in body
+
+
+def token_attempt(f,real_ip=None):
+    headers={'Content-Type':'application/x-www-form-urlencoded'}
+    if real_ip is not None:headers['X-Real-IP']=real_ip
+    status,_,body=f.http('POST',TOKEN,'grant_type=invalid',headers)
+    return status,body
+
+
+def token_burst(f,real_ip):
+    """Fast /token requests until Nginx answers 429; real_ip(index) gives the X-Real-IP or None."""
+    statuses=[]
+    for index in range(10):
+        status,body=token_attempt(f,real_ip(index))
+        require(status!=429 or nginx_429(status,body),'only_nginx_may_rate_limit_token')
+        statuses.append(status)
+        if status==429:break
+    # burst=5 nodelay: six immediate requests pass; one more may pass if a 6s token leaked meanwhile.
+    require(429 not in statuses[:6] and statuses[-1]==429 and len(statuses)<=8,'token_429_after_auth_burst')
+    return statuses
+
+
+def agent_raw_status(f):
+    connection=socket.create_connection(('127.0.0.1',f.port),timeout=5)
+    try:
+        key=base64.b64encode(b'0123456789abcdef').decode()
+        connection.sendall((f'GET /coding-tools/agent HTTP/1.1\r\nHost: {f.domain}\r\nUpgrade: websocket\r\n'
+                            'Connection: Upgrade\r\nSec-WebSocket-Version: 13\r\n'
+                            f'Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Protocol: coding-tools-agent.v1\r\n\r\n').encode())
+        data=bytearray()
+        while b'\r\n\r\n' not in data and len(data)<8192:
+            chunk=connection.recv(4096)
+            if not chunk:break
+            data.extend(chunk)
+        head,_,body=bytes(data).partition(b'\r\n\r\n')
+        length=re.search(rb'(?im)^content-length:\s*([0-9]{1,5})\s*$',head)
+        while length and len(body)<int(length.group(1)):
+            chunk=connection.recv(4096)
+            if not chunk:break
+            body+=chunk
+        match=re.match(rb'HTTP/1\.1 ([0-9]{3}) ',head);require(match is not None,'agent_status_line')
+        return int(match.group(1)),body
+    finally:connection.close()
+
+
+def rate_limit_checks(f,token):
+    """G3 on the default config: limits key on the connection address, X-Real-IP is ignored."""
+    time.sleep(AUTH_REFILL_SECONDS)
+    token_burst(f,lambda index:f'203.0.113.{index+1}')
+    passed('token_429_after_burst_forged_real_ip_rotation_ignored')
+    status,body=token_attempt(f,'203.0.113.200')
+    require(nginx_429(status,body),'untrusted_forged_real_ip_cannot_open_new_bucket')
+    passed('untrusted_forged_real_ip_shares_connection_bucket')
+    for _ in range(20):
+        require(mcp(f,token)[0]==200,'mcp_normal_rate_never_429');time.sleep(.15)
+    passed('mcp_normal_rate_never_429')
+    for _ in range(6):
+        upgraded_socket(f).close();time.sleep(.3)
+    passed('agent_sequential_upgrades_never_429')
+    time.sleep(1.2);held=[]
+    try:
+        for _ in range(4):held.append(upgraded_socket(f))
+        # Gateway would still admit a fifth (8/s attempts, 8 sockets), so this 429 is limit_conn.
+        status,body=agent_raw_status(f)
+        require(nginx_429(status,body),'agent_fifth_concurrent_upgrade_429')
+    finally:
+        for connection in held:connection.close()
+    time.sleep(1.2)
+    passed('agent_limit_conn_4_per_ip')
+
+
+def trusted_real_ip_checks(f):
+    """Hosted CI only: alternate config trusts the live edge bridge gateway via CI_TRUSTED_PROXIES."""
+    networks=[name for name in f.container('namespace')[1]['NetworkSettings']['Networks'] if name.endswith('_edge')]
+    require(len(networks)==1,'one_edge_network')
+    ipam=json.loads(f.exec(['docker','network','inspect',networks[0]]).stdout)[0]['IPAM']['Config'] or []
+    gateways=[ipaddress.ip_address(item['Gateway']) for item in ipam if item.get('Gateway')]
+    require(bool(gateways) and all(any(g in ipaddress.ip_network(c) for c in CI_TRUSTED_PROXIES) for g in gateways),
+            'edge_bridge_gateway_inside_trusted_ci_ranges')
+    f.dc('run','--rm','-T','--no-deps','ingress','-t','-c','/run/ingress/nginx.trusted.conf')
+    passed('actual_nonroot_nginx_syntax_trusted_real_ip')
+    f.dc('stop','--timeout','10','ingress',timeout=30)
+    run=f.dc('run','-d','--rm','--no-deps','ingress','-c','/run/ingress/nginx.trusted.conf','-g','daemon off;',timeout=60)
+    name=run.stdout.decode().strip().splitlines()[-1] if run.stdout.strip() else ''
+    require(re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,127}',name) is not None,'trusted_ingress_run_container')
+    try:
+        f.ready()
+        token_burst(f,lambda index:'198.51.100.1')
+        passed('trusted_real_ip_bucket_exhausted')
+        require(token_attempt(f,'198.51.100.2')[0]!=429,'trusted_distinct_client_has_own_bucket')
+        require(token_attempt(f)[0]!=429,'trusted_proxy_address_has_own_bucket')
+        passed('trusted_real_ip_buckets_per_client')
+    finally:
+        f.exec(['docker','rm','-f',name],timeout=30)
+    f.dc('start','ingress',timeout=60);f.ready()
 
 
 def inspect_boundaries(f):
@@ -147,6 +253,10 @@ def main():
         upgraded_socket(f,host='foreign.invalid',expected=421)
         upgraded_socket(f,protocol='unsupported-agent.v0',expected=403)
         passed('agent_upgrade_foreign_host_and_protocol_refused')
+        STAGE='rate_limits'
+        rate_limit_checks(f,token)
+        STAGE='trusted_real_ip'
+        trusted_real_ip_checks(f)
         STAGE='shutdown'
         anchor_id=f.container('namespace')[0];ingress_id=f.container('ingress')[0]
         opened=time.monotonic();pending=upgraded_socket(f);passed('actual_agent_websocket_upgrade_headers')

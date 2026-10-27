@@ -20,17 +20,56 @@ def image_refs(images):
             raise ValueError('fixed official digest or immutable local gateway image required')
 
 
-def ingress_config(domain,connector):
+# G3 ingress limits. Keys are empty outside each route class, and Nginx does not count empty keys.
+RATE_LIMITS=('map $uri $ctm_auth_key {\ndefault "";\n~^/coding-tools/oauth/ $binary_remote_addr;\n'
+             '~^/\\.well-known/oauth- $binary_remote_addr;\n}\n'
+             'map $uri $ctm_mcp_key {\ndefault "";\n~^/coding-tools/mcp/ $binary_remote_addr;\n}\n'
+             'map $uri $ctm_agent_key {\ndefault "";\n/coding-tools/agent $binary_remote_addr;\n}\n'
+             'limit_req_zone $ctm_auth_key zone=ctm_auth:1m rate=10r/m;\n'
+             'limit_req_zone $ctm_mcp_key zone=ctm_mcp:2m rate=10r/s;\n'
+             'limit_conn_zone $ctm_agent_key zone=ctm_agent:1m;\n'
+             'limit_req_status 429;\nlimit_conn_status 429;\nlimit_req_log_level warn;\nlimit_conn_log_level warn;\n')
+SERVER_LIMITS=('limit_req zone=ctm_auth burst=5 nodelay;\nlimit_req zone=ctm_mcp burst=40 nodelay;\n'
+               'limit_conn ctm_agent 4;\n')
+MAX_TRUSTED_PROXIES=8
+
+
+def trusted_proxy_cidrs(values):
+    """Strict operator-supplied real-IP sources. Empty means trust nothing."""
+    import ipaddress
+    result=[]
+    for value in values:
+        if not isinstance(value,str) or not re.fullmatch(r'[0-9A-Fa-f:.]+/[0-9]{1,3}',value):
+            raise ValueError('trusted proxy must be an explicit CIDR')
+        try:network=ipaddress.ip_network(value,strict=True)
+        except ValueError:raise ValueError('trusted proxy CIDR has host bits or is malformed') from None
+        if str(network)!=value.lower():raise ValueError('trusted proxy CIDR must be canonical')
+        if network.prefixlen==0 or network.is_unspecified or network.is_multicast:
+            raise ValueError('trusted proxy CIDR is too broad')
+        if not (network.is_private or network.is_loopback):
+            raise ValueError('trusted proxy CIDR must be private or loopback')
+        if str(network) in result:raise ValueError('duplicate trusted proxy CIDR')
+        result.append(str(network))
+    if len(result)>MAX_TRUSTED_PROXIES:raise ValueError('too many trusted proxy CIDRs')
+    return tuple(result)
+
+
+def ingress_config(domain,connector,*,trusted_proxies=(),rate_limits=True):
     # Both hops use the reviewed native-header contract; drift fails before rendering.
     current.source_contract()
     locations=current.locations(domain,connector,28880)
+    trusted=trusted_proxy_cidrs(trusted_proxies)
+    realip=''.join(f'set_real_ip_from {cidr};\n' for cidr in trusted)
+    if trusted:realip+='real_ip_header X-Real-IP;\nreal_ip_recursive off;\n'
     return ('worker_processes 1;\nerror_log /dev/null crit;\npid /tmp/nginx.pid;\n'
             'events { worker_connections 128; }\nhttp {\naccess_log off;\n'
             'client_body_temp_path /tmp/body;\nproxy_temp_path /tmp/proxy;\n'
             'fastcgi_temp_path /tmp/fastcgi;\nuwsgi_temp_path /tmp/uwsgi;\nscgi_temp_path /tmp/scgi;\n'
             'client_max_body_size 64k;\nclient_body_timeout 10s;\nclient_header_timeout 10s;\n'
-            'keepalive_timeout 15s;\nlarge_client_header_buffers 2 8k;\nserver {\nlisten 8080;\n'
+            'keepalive_timeout 15s;\nlarge_client_header_buffers 2 8k;\n'+realip+(RATE_LIMITS if rate_limits else '')+
+            'server {\nlisten 8080;\n'
             f'server_name {domain};\nif ($http_host != "{domain}") {{ return 421; }}\n'
+            +(SERVER_LIMITS if rate_limits else '')+
             'location = / { return 404; }\n'+locations+'\n}\n}\n')
 
 
@@ -110,8 +149,9 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     for key in ('gateway-image','ingress-image','postgres-image','domain','connector'):p.add_argument('--'+key,required=True)
     p.add_argument('--port',type=int,default=28880);p.add_argument('--output',type=Path,required=True)
+    p.add_argument('--trusted-proxy',action='append',default=[])
     a=p.parse_args();output=a.output.resolve();images=dict(gateway=a.gateway_image,ingress=a.ingress_image,postgres=a.postgres_image)
-    value=compose(output,images,a.domain,a.connector,a.port);nginx=ingress_config(a.domain,a.connector)
+    value=compose(output,images,a.domain,a.connector,a.port);nginx=ingress_config(a.domain,a.connector,trusted_proxies=a.trusted_proxy)
     output.mkdir(mode=0o700,exist_ok=False)
     (output/'compose.runtime.json').write_text(json.dumps(value,indent=2)+'\n')
     (output/'nginx.runtime.conf').write_text(nginx)

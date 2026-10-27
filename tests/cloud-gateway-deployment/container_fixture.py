@@ -17,6 +17,8 @@ import uuid
 ROOT=Path(__file__).resolve().parents[2]
 _spec=importlib.util.spec_from_file_location('runtime_topology',ROOT/'deploy/cloud-gateway/runtime_topology.py')
 topology=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(topology)
+# Hosted-CI only: covers every Docker default bridge pool. The live edge gateway is asserted inside it.
+CI_TRUSTED_PROXIES=('10.0.0.0/8','172.16.0.0/12','192.168.0.0/16')
 
 
 class FixtureFailure(RuntimeError):
@@ -71,7 +73,7 @@ def command_diagnostic(args,result,compose):
 
 
 class Fixture:
-    def __init__(self,compose,images):
+    def __init__(self,compose,images,*,rate_limits=True):
         require(os.environ.get('GITHUB_ACTIONS')=='true' and os.environ.get('RUNNER_ENVIRONMENT')=='github-hosted'
                 and os.environ.get('GITHUB_REPOSITORY')=='Eswink/coding-tools-mcp','hosted_disposable_ci_only')
         require(os.environ.get('DOCKER_HOST','unix:///var/run/docker.sock')=='unix:///var/run/docker.sock'
@@ -82,7 +84,7 @@ class Fixture:
         self.root=Path(tempfile.mkdtemp(prefix='ctm-container-fixture-',dir=os.environ['RUNNER_TEMP']))
         self.file=self.root/'compose.runtime.json';self.secret_values=[];self.created=False;self.last_action='private_fixture_setup'
         self.command=[self.compose,'--ansi','never','-p',self.project,'-f',str(self.file)]
-        self.sentinel=None
+        self.sentinel=None;self.rate_limits=rate_limits
         try:
             self.sentinel=socket.socket();self.sentinel.bind(('127.0.0.1',0));self.sentinel.listen(2)
             self.port=self.sentinel.getsockname()[1]
@@ -104,7 +106,10 @@ class Fixture:
             write('gateway-private','config.json',json.dumps(self.config))
             write('gateway-private','runtime.json',json.dumps(self.packet))
             write('gateway-private','enrollment.json',json.dumps({k:self.config[k] for k in ('origin','prefix','connector')}))
-            write('ingress-private','nginx.conf',topology.ingress_config(self.domain,self.config['connector']))
+            write('ingress-private','nginx.conf',topology.ingress_config(self.domain,self.config['connector'],rate_limits=rate_limits))
+            if rate_limits:
+                write('ingress-private','nginx.trusted.conf',topology.ingress_config(self.domain,self.config['connector'],
+                      trusted_proxies=CI_TRUSTED_PROXIES))
             bootstrap_password=secrets.token_urlsafe(32);self.secret_values.append(bootstrap_password)
             write('postgres-private','password',bootstrap_password)
             for folder,uid in [('gateway-private',65532),('ingress-private',65532),('postgres-private',999)]:

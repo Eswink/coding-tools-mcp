@@ -377,7 +377,9 @@ def run_case(args, case):
     f = control = None
     name = None
     try:
-        f = Fixture(args.compose, dict(gateway=args.gateway_image, ingress=args.ingress_image, postgres=args.postgres_image))
+        # G3 limits are exercised by run_container_topology; long native suites share one source address.
+        f = Fixture(args.compose, dict(gateway=args.gateway_image, ingress=args.ingress_image, postgres=args.postgres_image),
+                    rate_limits=False)
         native = f.root / 'native-private'
         native.mkdir(mode=0o700)
         tls = f.root / 'tls-private'
@@ -410,7 +412,7 @@ def run_case(args, case):
             certificate = certificate_material(tls, mode)
             inner = current.render(tls / 'inner-render', f.domain, f.config['connector'], 28880)
             outer = current.render(tls / 'render', f.domain, f.config['connector'], 8080)
-            config = topology.ingress_config(f.domain, f.config['connector'])
+            config = topology.ingress_config(f.domain, f.config['connector'], rate_limits=False)
             config = config.replace('listen 8080;', 'listen 443 ssl;\nssl_certificate /run/tls/leaf.pem;\nssl_certificate_key /run/tls/leaf.key;')
             config = config.replace(current.locations(f.domain, f.config['connector'], 28880),
                                     'include /run/tls/render/' + current.INCLUDE + ';')
