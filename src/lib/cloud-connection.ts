@@ -1,15 +1,44 @@
 /** Native IPC only. Transport connectivity never grants local execution authority. */
 export type CloudPhase = 'unconfigured' | 'configured' | 'starting' | 'connected' | 'pending_approval' | 'approved' | 'paused' | 'draining' | 'recovery';
-export type CloudStatus = { phase: CloudPhase; connected: boolean; generation: number | null; configured: boolean };
+export type CloudLink = 'none' | 'connecting' | 'online' | 'reconnecting' | 'needs_operator' | 'failed' | 'stopped';
+export type CloudStatus = { phase: CloudPhase; connected: boolean; generation: number | null; configured: boolean; link: CloudLink; linkAttempt: number | null; linkError: string | null };
 export type CloudView = { status: CloudStatus | null; busy: boolean; error: string; uncertain: boolean };
 type Invoke = <T>(command: string, args: Record<string, unknown>) => Promise<T>;
 export const cloudPhaseLabels: Record<CloudPhase, string> = {
   unconfigured: '未配置', configured: '已配置 · 未连接', starting: '正在连接', connected: '已连接 · 未授权',
   pending_approval: '待本机批准', approved: '本机已授权', paused: '远程执行已暂停', draining: '正在排空', recovery: '恢复锁定'
 };
+export const cloudLinkLabels: Record<CloudLink, string> = {
+  none: '未启动', connecting: '正在建立', online: '在线', reconnecting: '正在重连',
+  needs_operator: '需要本机处理', failed: '已失败', stopped: '已停止'
+};
+export const cloudLinkErrorLabels: Record<string, string> = {
+  agent_invalid_arguments: '启动参数无效', agent_invalid_configuration: '连接配置无效', agent_credentials_rejected: '本机凭据被拒绝',
+  agent_journal_requires_local_review: '安全日志需要本机核查', agent_protocol_rejected: '协议不兼容', agent_authentication_rejected: '网关认证被拒绝',
+  agent_tls_rejected: 'TLS 校验失败', agent_transport_interrupted: '传输中断', agent_retry_budget_exhausted: '重试次数已用尽',
+  agent_cancelled: '已取消', agent_local_authority_changed: '本机授权已变更', agent_local_capacity_exhausted: '本机容量已满',
+  agent_request_already_claimed: '请求已被领取', agent_execution_outcome_unknown: '执行结果未知'
+};
+const errorCode = /^[a-z0-9_]{1,64}$/;
+// Known codes get a label; unknown well-formed codes are shown verbatim; anything else is never rendered.
+export function cloudLinkErrorText(code: string | null): string {
+  if (!code) return '';
+  return Object.hasOwn(cloudLinkErrorLabels, code) ? `${cloudLinkErrorLabels[code]}（${code}）` : code;
+}
+export function cloudLinkText(status: CloudStatus): string {
+  const label = cloudLinkLabels[status.link];
+  return status.link === 'reconnecting' && status.linkAttempt !== null ? `${label} · 第 ${status.linkAttempt} 次重试` : label;
+}
 function checkedStatus(value: CloudStatus): CloudStatus {
   if (!value || !Object.hasOwn(cloudPhaseLabels, value.phase) || typeof value.connected !== 'boolean' || typeof value.configured !== 'boolean') throw new Error('Invalid native status');
-  return value;
+  const raw = value as Partial<CloudStatus>;
+  const link = raw.link ?? 'none';
+  if (typeof link !== 'string' || !Object.hasOwn(cloudLinkLabels, link)) throw new Error('Invalid native status');
+  const attempt = raw.linkAttempt ?? null;
+  if (attempt !== null && !(Number.isInteger(attempt) && attempt >= 0)) throw new Error('Invalid native status');
+  const error = raw.linkError ?? null;
+  if (error !== null && (typeof error !== 'string' || !errorCode.test(error))) throw new Error('Invalid native status');
+  return { ...value, link, linkAttempt: attempt, linkError: error };
 }
 export function canStartCloud(view: CloudView): boolean {
   return !view.busy && !view.uncertain && !!view.status?.configured && !view.status.connected && view.status.phase === 'configured';

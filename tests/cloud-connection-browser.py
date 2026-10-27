@@ -46,6 +46,12 @@ try:
    if phase!='unconfigured':
     expect(panel.get_by_role('button',name='启动云连接',exact=True)).to_be_enabled() if phase=='configured' else expect(panel.get_by_role('button',name='启动云连接',exact=True)).to_be_disabled()
    panel.screenshot(path=str(OUT/f'{phase}.png')); report['states'].append(phase)
+  page.evaluate('window.__CLOUD__={phase:"connected",configured:true,connected:true,generation:null,link:"reconnecting",linkAttempt:2,linkError:null}')
+  panel.get_by_role('button',name='刷新连接状态').click()
+  expect(panel.locator('.cloud-link')).to_have_text('Agent 链路：正在重连 · 第 2 次重试')
+  page.evaluate('window.__CLOUD__={phase:"connected",configured:true,connected:true,generation:null,link:"needs_operator",linkAttempt:null,linkError:"agent_tls_rejected"}')
+  panel.get_by_role('button',name='刷新连接状态').click()
+  expect(panel.locator('.cloud-link-error')).to_contain_text('agent_tls_rejected'); report['agent_link_rendered']=True
   page.evaluate('window.__CLOUD__={phase:"configured",configured:true,connected:false,generation:null}')
   panel.get_by_role('button',name='刷新连接状态').click()
   panel.get_by_role('button',name='启动云连接',exact=True).click()
