@@ -12,7 +12,7 @@ import socket
 import subprocess
 import time
 from urllib.parse import parse_qs,urlencode,urlsplit
-from container_fixture import CI_TRUSTED_PROXIES,Fixture,FixtureFailure,require,topology
+from kit_fixture import CI_TRUSTED_PROXIES,KitFixture as Fixture,FixtureFailure,require,topology
 
 CASES=[]
 STAGE='setup'

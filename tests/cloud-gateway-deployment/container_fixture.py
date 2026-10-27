@@ -17,14 +17,6 @@ import uuid
 ROOT=Path(__file__).resolve().parents[2]
 _spec=importlib.util.spec_from_file_location('runtime_topology',ROOT/'deploy/cloud-gateway/runtime_topology.py')
 topology=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(topology)
-_spec=importlib.util.spec_from_file_location('deploy_kit',ROOT/'deploy/cloud-gateway/kit/kit.py')
-kit=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(kit)
-# Hosted-CI only: covers every Docker default bridge pool. The live edge gateway is asserted inside it.
-CI_TRUSTED_PROXIES=('10.0.0.0/8','172.16.0.0/12','192.168.0.0/16')
-# Each must fail as ctm_app with a permission error after the grants phase.
-DENIED_PROBES=(('runtime_cannot_create_table','CREATE TABLE public.ctm_probe(x int);'),
-               ('runtime_cannot_update_migration_ledger','UPDATE public._sqlx_migrations SET description=description;'),
-               ('runtime_cannot_create_role','CREATE ROLE ctm_probe;'))
 
 
 class FixtureFailure(RuntimeError):
@@ -79,7 +71,7 @@ def command_diagnostic(args,result,compose):
 
 
 class Fixture:
-    def __init__(self,compose,images,*,rate_limits=True):
+    def __init__(self,compose,images):
         require(os.environ.get('GITHUB_ACTIONS')=='true' and os.environ.get('RUNNER_ENVIRONMENT')=='github-hosted'
                 and os.environ.get('GITHUB_REPOSITORY')=='Eswink/coding-tools-mcp','hosted_disposable_ci_only')
         require(os.environ.get('DOCKER_HOST','unix:///var/run/docker.sock')=='unix:///var/run/docker.sock'
@@ -90,7 +82,7 @@ class Fixture:
         self.root=Path(tempfile.mkdtemp(prefix='ctm-container-fixture-',dir=os.environ['RUNNER_TEMP']))
         self.file=self.root/'compose.runtime.json';self.secret_values=[];self.created=False;self.last_action='private_fixture_setup'
         self.command=[self.compose,'--ansi','never','-p',self.project,'-f',str(self.file)]
-        self.sentinel=None;self.rate_limits=rate_limits
+        self.sentinel=None
         try:
             self.sentinel=socket.socket();self.sentinel.bind(('127.0.0.1',0));self.sentinel.listen(2)
             self.port=self.sentinel.getsockname()[1]
@@ -112,10 +104,7 @@ class Fixture:
             write('gateway-private','config.json',json.dumps(self.config))
             write('gateway-private','runtime.json',json.dumps(self.packet))
             write('gateway-private','enrollment.json',json.dumps({k:self.config[k] for k in ('origin','prefix','connector')}))
-            write('ingress-private','nginx.conf',topology.ingress_config(self.domain,self.config['connector'],rate_limits=rate_limits))
-            if rate_limits:
-                write('ingress-private','nginx.trusted.conf',topology.ingress_config(self.domain,self.config['connector'],
-                      trusted_proxies=CI_TRUSTED_PROXIES))
+            write('ingress-private','nginx.conf',topology.ingress_config(self.domain,self.config['connector']))
             bootstrap_password=secrets.token_urlsafe(32);self.secret_values.append(bootstrap_password)
             write('postgres-private','password',bootstrap_password)
             for folder,uid in [('gateway-private',65532),('ingress-private',65532),('postgres-private',999)]:
@@ -189,13 +178,6 @@ class Fixture:
         require(result.returncode==0,'private_database_sql_failed')
         return result.stdout.decode().strip()
 
-    def sql_denied(self,statement,name):
-        """Fixed probe statements only; a permission error is the only accepted outcome."""
-        result=subprocess.run([*self.command,'exec','-T','postgres','psql','-U','postgres','-d','coding_tools_identity_test',
-                               '-v','ON_ERROR_STOP=1','-At'],input=('SET ROLE ctm_app;\n'+statement+'\n').encode(),
-                              capture_output=True,timeout=30,check=False)
-        require(result.returncode!=0 and b'permission denied' in result.stderr.lower(),name)
-
     def wait_postgres(self):
         for _ in range(45):
             _,record=self.container('postgres')
@@ -225,19 +207,22 @@ class Fixture:
         self.dc('create','--no-build','operator')
         _,operator=self.container('operator')
         require(operator['HostConfig']['LogConfig']['Type']=='none','actual_operator_log_driver')
-        # The shipped kit template is the only bootstrap SQL; fixed-shape values ride psql stdin, never argv.
-        database='coding_tools_identity_test'
-        self.sql(kit.psql_preamble(dict(app_password=self.dbpassword,migration_password=self.migration_password,
-                                        database=database))+kit.sql_phase('bootstrap'))
+        # Role name and random hex password are fixed-shape; SQL remains stdin only.
+        self.sql("CREATE ROLE ctm_app LOGIN PASSWORD '"+self.dbpassword+"' NOSUPERUSER NOCREATEDB NOCREATEROLE;\n"
+                 "CREATE ROLE ctm_migration LOGIN PASSWORD '"+self.migration_password+"' NOSUPERUSER NOCREATEDB NOCREATEROLE;\n"
+                 'CREATE DATABASE coding_tools_identity_test OWNER ctm_migration;')
         require(self.sql("SELECT rolsuper::text||','||rolcreatedb::text||','||rolcreaterole::text FROM pg_roles WHERE rolname='ctm_app'")
                 =='false,false,false','least_privilege_database_role')
         flags=['--config','/run/gateway/config.json','--secrets-stdin']
         self.cli('coding-tools-gateway',['migrate',*flags],self.migration_packet)
+        database='coding_tools_identity_test'
+        self.sql('REVOKE CREATE ON SCHEMA public FROM PUBLIC; GRANT USAGE ON SCHEMA public TO ctm_app; '
+                 'GRANT SELECT ON ALL TABLES IN SCHEMA public TO ctm_app; '
+                 'GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO ctm_app;',database=database)
         tables=self.sql("SELECT tablename FROM pg_tables WHERE schemaname='public' AND left(tablename,4)='ctm_' ORDER BY tablename",database=database).splitlines()
         require(0<len(tables)<100 and all(re.fullmatch(r'ctm_[a-z0-9_]+',name) for name in tables),'fixed_application_tables')
-        self.sql(kit.sql_phase('grants'),database=database)
+        for name in tables:self.sql('GRANT INSERT,UPDATE,DELETE ON public."'+name+'" TO ctm_app;',database=database)
         require(self.sql("SELECT has_schema_privilege('ctm_app','public','CREATE')::text||','||has_table_privilege('ctm_app','public._sqlx_migrations','UPDATE')::text",database=database)=='false,false','runtime_cannot_change_schema_or_migration_ledger')
-        for name,statement in DENIED_PROBES:self.sql_denied(statement,name)
         self.cli('coding-tools-gateway',['provision-owner',*flags],dict(self.packet,password=self.password))
         self.cli('coding-tools-gateway',['register-client',*flags],self.packet)
         key=self.cli('coding-tools-agent',['generate-key','--output-stdout'])

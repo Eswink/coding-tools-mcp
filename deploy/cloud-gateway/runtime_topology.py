@@ -54,7 +54,8 @@ def trusted_proxy_cidrs(values):
     return tuple(result)
 
 
-def ingress_config(domain,connector,*,trusted_proxies=(),rate_limits=True):
+def ingress_config(domain,connector,*,trusted_proxies=(),rate_limits=False):
+    # Default stays byte-identical to the frozen RC fixtures; every deploy renderer passes rate_limits=True.
     # Both hops use the reviewed native-header contract; drift fails before rendering.
     current.source_contract()
     locations=current.locations(domain,connector,28880)
@@ -151,7 +152,7 @@ def main():
     p.add_argument('--port',type=int,default=28880);p.add_argument('--output',type=Path,required=True)
     p.add_argument('--trusted-proxy',action='append',default=[])
     a=p.parse_args();output=a.output.resolve();images=dict(gateway=a.gateway_image,ingress=a.ingress_image,postgres=a.postgres_image)
-    value=compose(output,images,a.domain,a.connector,a.port);nginx=ingress_config(a.domain,a.connector,trusted_proxies=a.trusted_proxy)
+    value=compose(output,images,a.domain,a.connector,a.port);nginx=ingress_config(a.domain,a.connector,trusted_proxies=a.trusted_proxy,rate_limits=True)
     output.mkdir(mode=0o700,exist_ok=False)
     (output/'compose.runtime.json').write_text(json.dumps(value,indent=2)+'\n')
     (output/'nginx.runtime.conf').write_text(nginx)

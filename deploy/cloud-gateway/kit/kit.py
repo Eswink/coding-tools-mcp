@@ -154,7 +154,7 @@ def render(private_root, output, domain, connector, port, images, trusted=()):
     output = new_absolute(output, 'output')
     try:
         compose = topology.compose(private_root, images, domain, connector, port)
-        nginx = topology.ingress_config(domain, connector, trusted_proxies=trusted)
+        nginx = topology.ingress_config(domain, connector, trusted_proxies=trusted, rate_limits=True)
         outer = baota_locations(domain, connector, port, trusted)
     except ValueError:
         raise KitError('invalid_render_input') from None

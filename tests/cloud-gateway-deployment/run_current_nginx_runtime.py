@@ -141,8 +141,7 @@ class OuterProxy:
 
 def inner_ingress_evidence(fixture):
     """Bind the repaired config actually mounted in the running inner Nginx."""
-    expected = hashlib.sha256(topology.ingress_config(fixture.domain, fixture.config['connector'],
-                                                    rate_limits=False).encode()).hexdigest()
+    expected = hashlib.sha256(topology.ingress_config(fixture.domain, fixture.config['connector']).encode()).hexdigest()
     actual = fixture.dc('exec', '-T', 'ingress', 'sha256sum', '/run/ingress/nginx.conf').stdout.decode().split()
     require(actual == [expected, '/run/ingress/nginx.conf'], 'running_inner_config_matches_renderer')
     version = fixture.dc('exec', '-T', 'ingress', '/usr/sbin/nginx', '-v').stderr.decode().strip()
@@ -228,8 +227,7 @@ def runtime_checks(compose, images, *, two_hop=False, nginx=None):
     result = None
     require(not two_hop or nginx is not None, 'two_hop_nginx_required')
     try:
-        # G3 limits are exercised by run_container_topology; long native suites share one source address.
-        f = Fixture(compose, images, rate_limits=False)
+        f = Fixture(compose, images)
         manifest = None if two_hop else install_private_include(f)
         client = f
         hop_evidence = {}

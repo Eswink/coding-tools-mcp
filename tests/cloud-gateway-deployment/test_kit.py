@@ -121,7 +121,7 @@ class PrepareAndCheck(unittest.TestCase):
         gateway = self.root / 'gateway-private'
         for name, value in (('config.json', DUMMY_CONFIG), ('runtime.json', DUMMY_RUNTIME)):
             (gateway / name).write_text(json.dumps(value))
-        for path, text in ((self.root / 'ingress-private/nginx.conf', topology.ingress_config(DOMAIN, CONNECTOR)),
+        for path, text in ((self.root / 'ingress-private/nginx.conf', topology.ingress_config(DOMAIN, CONNECTOR, rate_limits=True)),
                            (self.root / 'postgres-private/password', 'dummy-password-0000\n')):
             path.write_text(text); path.chmod(0o400)
         return gateway
@@ -237,7 +237,7 @@ class TrustedProxies(unittest.TestCase):
 
 
 class RenderedIngress(unittest.TestCase):
-    def config(self, trusted=()):return topology.ingress_config(DOMAIN, CONNECTOR, trusted_proxies=trusted)
+    def config(self, trusted=()):return topology.ingress_config(DOMAIN, CONNECTOR, trusted_proxies=trusted, rate_limits=True)
 
     def test_default_trusts_nothing_and_keys_on_connection_address(self):
         text = self.config()
@@ -283,6 +283,8 @@ class RenderedIngress(unittest.TestCase):
         legacy = topology.ingress_config(DOMAIN, CONNECTOR, rate_limits=False)
         self.assertNotIn('limit_', legacy)
         self.assertEqual(text.replace(topology.RATE_LIMITS, '').replace(topology.SERVER_LIMITS, ''), legacy)
+        # Frozen RC fixtures call the bare default; it must stay the pre-G3 bytes, while deploy paths opt in.
+        self.assertEqual(topology.ingress_config(DOMAIN, CONNECTOR), legacy)
 
     def test_render_outputs_manifest_and_baota_variant(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -344,14 +346,43 @@ class SqlTemplate(unittest.TestCase):
                                                            for n in tables)))
 
     def test_fixture_reads_template_and_probes_denials(self):
-        source = (ROOT / 'tests/cloud-gateway-deployment/container_fixture.py').read_text()
-        self.assertNotIn('CREATE ROLE ctm_app', source); self.assertNotIn("PASSWORD '", source)
+        frozen = (ROOT / 'tests/cloud-gateway-deployment/container_fixture.py').read_text()
+        source = (ROOT / 'tests/cloud-gateway-deployment/kit_fixture.py').read_text()
+        # The frozen base keeps its inline SQL; every prefix the subclass routes must exist verbatim there.
+        for prefix in ('"CREATE ROLE ctm_app LOGIN PASSWORD \'"', "'REVOKE CREATE ON SCHEMA public FROM PUBLIC;",
+                       "'GRANT INSERT,UPDATE,DELETE ON public.\"'+name+'\" TO ctm_app;'",
+                       "\"SELECT has_schema_privilege('ctm_app','public','CREATE')"):
+            self.assertEqual(frozen.count(prefix), 1, prefix)
+        self.assertNotIn("'+self.dbpassword+'", source); self.assertNotIn("'+self.migration_password+'", source)
         self.assertIn("kit.sql_phase('bootstrap')", source); self.assertIn("kit.sql_phase('grants')", source)
         probes = re.findall(r"\('(runtime_cannot_[a-z_]+)',", source)
         self.assertEqual(probes, ['runtime_cannot_create_table', 'runtime_cannot_update_migration_ledger',
                                   'runtime_cannot_create_role'])
-        self.assertIn("'runtime_cannot_change_schema_or_migration_ledger'", source)
-        self.assertIn("'least_privilege_database_role'", source)
+        self.assertIn("'runtime_cannot_change_schema_or_migration_ledger'", frozen)
+        self.assertIn("'least_privilege_database_role'", frozen)
+
+    def test_kit_fixture_routes_frozen_sql_to_template_and_runs_probes(self):
+        import sys
+        sys.path.insert(0, str(ROOT / 'tests/cloud-gateway-deployment'))
+        try:
+            import kit_fixture
+        finally:
+            sys.path.pop(0)
+        f = object.__new__(kit_fixture.KitFixture)
+        f.dbpassword, f.migration_password = 'a' * 48, 'b' * 48
+        calls, denied = [], []
+        with patch.object(kit_fixture.base.Fixture, 'sql', lambda self, text, database='postgres': calls.append((text, database)) or 'false,false'), \
+             patch.object(kit_fixture.KitFixture, 'sql_denied', lambda self, statement, name: denied.append(name)):
+            f.sql("CREATE ROLE ctm_app LOGIN PASSWORD 'x' NOSUPERUSER NOCREATEDB NOCREATEROLE;\n...")
+            with self.assertRaises(kit_fixture.FixtureFailure):f.sql('GRANT INSERT,UPDATE,DELETE ON public."ctm_devices" TO ctm_app;')
+            f.sql('REVOKE CREATE ON SCHEMA public FROM PUBLIC; ...', database='coding_tools_identity_test')
+            self.assertEqual(f.sql('GRANT INSERT,UPDATE,DELETE ON public."ctm_devices" TO ctm_app;'), '')
+            f.sql("SELECT has_schema_privilege('ctm_app','public','CREATE')::text", database='coding_tools_identity_test')
+        self.assertEqual(calls[0][1], 'postgres'); self.assertTrue(calls[0][0].endswith(kit.sql_phase('bootstrap')))
+        self.assertNotIn("PASSWORD '", calls[0][0].replace(kit.sql_phase('bootstrap'), ''))
+        self.assertEqual(calls[1], (kit.sql_phase('grants'), 'coding_tools_identity_test'))
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(denied, ['runtime_cannot_create_table', 'runtime_cannot_update_migration_ledger', 'runtime_cannot_create_role'])
 
     def test_container_acceptance_has_native_limit_and_real_ip_stages(self):
         source = (ROOT / 'tests/cloud-gateway-deployment/run_container_topology.py').read_text()
@@ -405,7 +436,7 @@ class RealNginx(unittest.TestCase):
         threading.Thread(target=upstream.serve_forever, daemon=True).start()
         self.addCleanup(upstream.server_close); self.addCleanup(upstream.shutdown)
         self.port = free_port(); tmp = self.tmp.name
-        text = topology.ingress_config(DOMAIN, CONNECTOR, trusted_proxies=trusted)
+        text = topology.ingress_config(DOMAIN, CONNECTOR, trusted_proxies=trusted, rate_limits=True)
         text = (text.replace('listen 8080;', f'listen 127.0.0.1:{self.port};')
                 .replace('proxy_pass http://127.0.0.1:28880;', f'proxy_pass http://127.0.0.1:{upstream.server_address[1]};')
                 .replace('/tmp/', tmp + '/'))
