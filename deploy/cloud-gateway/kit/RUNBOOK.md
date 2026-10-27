@@ -111,19 +111,22 @@ docker compose -p <PROJECT> -f <RENDER_DIR>/compose.runtime.json up -d postgres
 ```
 
 角色与授权使用 `bootstrap-roles.sql.tmpl`，**通过 psql 标准输入**传入（口令不会出现在 argv / 进程列表中）。
-先生成 `\set` 前导（值必须符合固定字符集，否则 kit 拒绝）：
+生成 `\set` 前导（值必须符合固定字符集，否则 kit 拒绝）后**直接管道**进 psql，口令不落盘、不进 argv：
 
 ```bash
-python3 - <<'PY' > <RENDER_DIR>/bootstrap.sql   # 该文件含口令：0600，用完立即删除
+( set -o pipefail; umask 077
+  python3 - <<'PY' | docker compose -p <PROJECT> -f <RENDER_DIR>/compose.runtime.json exec -T postgres \
+    psql -U postgres -d postgres -v ON_ERROR_STOP=1
 import importlib.util, getpass
 s = importlib.util.spec_from_file_location('kit', 'deploy/cloud-gateway/kit/kit.py'); k = importlib.util.module_from_spec(s); s.loader.exec_module(k)
 v = dict(app_password=getpass.getpass('app: '), migration_password=getpass.getpass('migration: '), database='<DATABASE>')
 print(k.psql_preamble(v) + k.sql_phase('bootstrap'), end='')
 PY
-docker compose -p <PROJECT> -f <RENDER_DIR>/compose.runtime.json exec -T postgres \
-  psql -U postgres -d postgres -v ON_ERROR_STOP=1 < <RENDER_DIR>/bootstrap.sql
-shred -u <RENDER_DIR>/bootstrap.sql
+)
 ```
+
+`getpass` 从终端读取口令，不回显；模板用 `:'app_password'` 字面量引用口令、用 `:"database"` 标识符引用库名。
+不要把这一步改写成先写 `bootstrap.sql` 再 `<` 重定向。
 
 然后用**迁移角色** ctm_migration 执行迁移（密钥文档经 stdin 传入），再以超级用户执行授权阶段：
 

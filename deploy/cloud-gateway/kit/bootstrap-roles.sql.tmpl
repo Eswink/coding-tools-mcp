@@ -6,7 +6,7 @@
 -- Target database: postgres. Runtime role and migration owner are never superuser/createdb/createrole.
 CREATE ROLE ctm_app LOGIN PASSWORD :'app_password' NOSUPERUSER NOCREATEDB NOCREATEROLE;
 CREATE ROLE ctm_migration LOGIN PASSWORD :'migration_password' NOSUPERUSER NOCREATEDB NOCREATEROLE;
-CREATE DATABASE :database OWNER ctm_migration;
+CREATE DATABASE :"database" OWNER ctm_migration;
 -- @phase grants
 -- Target database: the application database, after `coding-tools-gateway migrate` as ctm_migration.
 -- ctm_app may read everything and write ctm_* rows only; never DDL or the _sqlx_migrations ledger.

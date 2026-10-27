@@ -40,8 +40,9 @@ LEGACY_GRANTS = ('REVOKE CREATE ON SCHEMA public FROM PUBLIC; GRANT USAGE ON SCH
 
 
 def expand(template, values):
-    """Minimal psql variable expansion for :'name' and :name, enough for the shipped template."""
+    """Minimal psql variable expansion for :'name', :"name" and :name, enough for the shipped template."""
     text = re.sub(r":'([a-z_]+)'", lambda m: "'" + values[m.group(1)] + "'", template)
+    text = re.sub(r':"([a-z_]+)"', lambda m: '"' + values[m.group(1)] + '"', text)
     return re.sub(r'(?<![:\w]):([a-z_]+)\b', lambda m: values[m.group(1)], text)
 
 
@@ -53,7 +54,8 @@ def sql_statements(text):
 def legacy_bootstrap(app, migration):
     return ("CREATE ROLE ctm_app LOGIN PASSWORD '" + app + "' NOSUPERUSER NOCREATEDB NOCREATEROLE;\n"
             "CREATE ROLE ctm_migration LOGIN PASSWORD '" + migration + "' NOSUPERUSER NOCREATEDB NOCREATEROLE;\n"
-            'CREATE DATABASE coding_tools_identity_test OWNER ctm_migration;')
+            # Quoted lowercase identifier: same database the frozen fixture's bare name creates.
+            'CREATE DATABASE "coding_tools_identity_test" OWNER ctm_migration;')
 
 
 def entropy(token):
@@ -354,6 +356,28 @@ class SqlTemplate(unittest.TestCase):
         self.assertIn(":'app_password'", kit.sql_phase('bootstrap'))
         self.assertIn('\\gexec', kit.sql_phase('grants'))
         with self.assertRaises(kit.KitError):kit.sql_phase('other')
+
+    def test_identifiers_use_psql_identifier_quoting(self):
+        bootstrap = kit.sql_phase('bootstrap')
+        self.assertIn('CREATE DATABASE :"database" OWNER ctm_migration;', bootstrap)
+        self.assertNotRegex(kit.SQL_TEMPLATE.read_text(), r'(?<![:\w]):database\b')
+        # Every variable reference is quoted: :'literal' for secrets, :"identifier" for names.
+        self.assertEqual(sorted(re.findall(r':([\'"])([a-z_]+)\1', bootstrap)),
+                         [('"', 'database'), ("'", 'app_password'), ("'", 'migration_password')])
+        self.assertNotRegex(bootstrap, r'(?<![:\w]):[a-z_]')
+
+    def test_runbook_bootstrap_never_writes_a_secret_file(self):
+        runbook = (KIT / 'RUNBOOK.md').read_text()
+        self.assertNotIn('bootstrap.sql', runbook.replace('不要把这一步改写成先写 `bootstrap.sql`', ''))
+        self.assertNotRegex(runbook, r"<<'PY'\s*>")
+        self.assertNotIn('shred', runbook)
+        block = runbook[runbook.index("( set -o pipefail; umask 077\n"):]
+        block = block[:block.index('\n)\n') + 3]
+        self.assertRegex(block, r"python3 - <<'PY' \| docker compose -p <PROJECT> -f <RENDER_DIR>/compose\.runtime\.json exec -T postgres \\\n"
+                                r" +psql -U postgres -d postgres -v ON_ERROR_STOP=1\n")
+        self.assertIn("k.psql_preamble(v) + k.sql_phase('bootstrap')", block)
+        self.assertIn('getpass.getpass(', block); self.assertNotRegex(block, r'[<>] *<RENDER_DIR>')
+        self.assertIn('`:"database"`', runbook)
 
     def test_preamble_rejects_non_fixed_shape_values(self):
         self.assertEqual(kit.psql_preamble(self.VALUES).splitlines()[0], '\\set app_password dummy_app_password_0001')
