@@ -1,6 +1,8 @@
 # Existing Nginx / Baota deployment boundary
 
 > **VPS deploy kit (G1/G3):** see [`kit/`](kit/) — `kit.py` (plan / prepare-dirs / render / check, local files only) and the Chinese operator runbook [`kit/RUNBOOK.md`](kit/RUNBOOK.md). Ingress rate limits and the optional `--trusted-proxy` real-IP source are rendered by `runtime_topology.py`.
+>
+> **Loopback ops console (S2/S3):** [`ops-console/`](ops-console/) — local `127.0.0.1` operator UI only (≠ public admin). How to open: Chinese CONNECT [`CONNECT-CHATGPT-AND-DESKTOP.md`](CONNECT-CHATGPT-AND-DESKTOP.md) §5 and [`kit/RUNBOOK.md`](kit/RUNBOOK.md) §10.
 
 Status: **REVIEW_BLUEPRINT_ONLY / NOT_DEPLOYABLE**. These files do not install or start a gateway.
 

@@ -4,6 +4,7 @@
 `96234102`，以及 rc.2 源码 `bdc4aeb5`），不描述 ChatGPT 的具体界面。部署步骤本身见
 [`kit/RUNBOOK.md`](kit/RUNBOOK.md)；设备登记的权威说明见
 [`services/cloud-gateway/ENROLLMENT.md`](../../services/cloud-gateway/ENROLLMENT.md)。
+本机回环运维控制台（≠ 公网 admin）见下文 §5 与 [`ops-console/README.md`](ops-console/README.md)。
 本文所有 `<...>` 都是占位符，不要把真实密钥、口令、令牌写进仓库、工单或聊天记录。
 
 ## 1. 镜像来源：rc.2 云端镜像（按镜像 ID 引用）
@@ -160,3 +161,38 @@ Tauri 命令 `import_cloud_connection_files` 要求两个都是绝对路径的�
   **没有**用这个镜像跑过。所以这个组合也是**未测试**的。
 - S1（cloud-agent 断线重连韧性）**不在** rc.2 桌面端里，也不在 rc.2 的 `coding-tools-agent` 里。
 - 不要混用 `v0.7.0-rc.1`。没有按 rc.1 与 rc.2 交叉组合做过任何验证。
+
+## 5. 本机打开运维控制台（loopback ops console）
+
+状态：**本机演示 / 联调入口，不是公网 admin**。控制台只绑回环，不挂到网关 `origin`/`prefix`，
+也不改变「gateway 二进制无 HTTP 管理员入口」的承诺。权威细节见
+[`ops-console/README.md`](ops-console/README.md)。
+
+### 启动
+
+仓库根目录执行（`<ABS_PRIVATE_WS>` 必须是**绝对路径**、私有目录，建议 `chmod 700`）：
+
+```bash
+mkdir -p <ABS_PRIVATE_WS> && chmod 700 <ABS_PRIVATE_WS>
+
+python3 deploy/cloud-gateway/ops-console/server.py \
+  --workspace-root <ABS_PRIVATE_WS> \
+  --bind 127.0.0.1:18765
+```
+
+浏览器打开：`http://127.0.0.1:18765/`  
+（Open loopback ops console: bind `127.0.0.1` only; browser URL above.）
+
+可选：`--gateway-bin /path/to/coding-tools-gateway`，或环境变量 `CODING_TOOLS_GATEWAY_BIN`。
+
+### 硬边界（必读）
+
+- **回环 ≠ 公网 admin**：`--bind 0.0.0.0:…` / 非回环 → 进程拒绝启动（退出码 2）。
+- **不查 DB 设备列表**：UI 只扫 `<ABS_PRIVATE_WS>/devices/invitation*.json` 与 `connection*.json`；无文件 → `[]`。
+- **密钥**：只经 `--secrets-file`（文件模式建议 0600）；写 API 还要头 `Content-Type: application/json` + `X-Ops-Console: 1`。
+- **invite `output_rel`**：必须落在 `devices/` 下（如 `devices/invitation.json`）；拒绝绝对路径与 `devices/../…` 逃逸。
+- 配置 API **拒绝**写入 `database_url` / `identity_key` / `password` / `client_secret` 等密钥键。
+
+SSH 隧道到远端机器上的回环端口可以，但**不要**把该端口暴露到公网或反向代理。  
+本控制台**不会**替你打新的 gateway 预发布；预发布仍走单独 P 门。
+

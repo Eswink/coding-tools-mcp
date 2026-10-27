@@ -173,3 +173,25 @@ docker compose -p <PROJECT> -f <RENDER_DIR>/compose.runtime.json down    # 不�
   设置 `CTM_TEST_NGINX=<nginx 路径>` 可额外跑真实 Nginx 的限流/real-IP 功能测试）。
 - 容器：`run_container_topology.py`（仅在托管 CI 中运行）验证 `/token` burst 后 429、正常速率下 MCP/WSS 不出现 429、
   第 5 个并发 WSS 被 Nginx 429、伪造 `X-Real-IP` 无法换桶、信任 bridge 网关后按真实 IP 分桶，以及 ctm_app 的三项拒绝。
+
+## 10. 本机打开运维控制台（可选，联调）
+
+VPS 上正式部署仍按上文 §0–§9 手动执行。若要在**本机**用网页包装
+`check-config` / `register-client` / `invite-device`（不替代 kit 渲染与 compose），可开回环控制台。
+
+> **本机回环控制台 ≠ 公网 admin。** Loopback ≠ public HTTP administrator.  
+> 不挂在网关 origin；细节见 [`../ops-console/README.md`](../ops-console/README.md)
+> 与 [`../CONNECT-CHATGPT-AND-DESKTOP.md`](../CONNECT-CHATGPT-AND-DESKTOP.md) §5。
+
+```bash
+# 在仓库根；<ABS_PRIVATE_WS> 为绝对路径私有根
+mkdir -p <ABS_PRIVATE_WS> && chmod 700 <ABS_PRIVATE_WS>
+python3 deploy/cloud-gateway/ops-console/server.py \
+  --workspace-root <ABS_PRIVATE_WS> \
+  --bind 127.0.0.1:18765
+# 浏览器：http://127.0.0.1:18765/
+```
+
+硬边界摘要：只绑回环；设备列表不查 DB；密钥经 0600 `--secrets-file` + 写头 `X-Ops-Console: 1`；
+invite 的 `output_rel` 必须在 `devices/` 下。不要把该端口接到公网 Nginx / 宝塔 location。
+
