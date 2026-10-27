@@ -3,10 +3,11 @@
 <p align="center">Local workspaces, exclusive conversation approval, long-running tasks and recoverable development records for ChatGPT.</p>
 <p align="center">
   <a href="https://github.com/Eswink/coding-tools-mcp/releases/latest"><img src="https://img.shields.io/github/v/release/Eswink/coding-tools-mcp?label=Release" alt="This repository's full release"></a>
+  <a href="https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0-rc.2"><img src="https://img.shields.io/badge/Pre--release-v0.7.0--rc.2-orange" alt="Pre-release v0.7.0-rc.2"></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4" alt="Windows x64">
   <img src="https://img.shields.io/badge/Ubuntu-22.04%20%7C%2024.04-E95420" alt="Ubuntu amd64">
 </p>
-<p align="center"><a href="README.md">中文</a> · <a href="README.en.md">English</a> · <a href="https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.5.0">Download v0.5.0</a> · <a href="docs/releases/stable-v0.5.0.md">Release and verification scope</a></p>
+<p align="center"><a href="README.md">中文</a> · <a href="README.en.md">English</a> · <a href="https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0-rc.2">v0.7.0-rc.2 pre-release</a> · <a href="https://github.com/Eswink/coding-tools-mcp/releases/latest">Stable (Latest)</a></p>
 
 This is the **Eswink/coding-tools-mcp** desktop distribution, built with Rust, Tauri 2 and Svelte 5 / SvelteKit. It exposes selected local projects through MCP so an approved AI conversation can read files, apply patches, run commands, inspect tasks/logs and save development checkpoints.
 
@@ -14,29 +15,89 @@ This fork focuses on **personal, sustained development through ChatGPT**. OAuth 
 
 ## Download and install
 
-Current delivered version: **v0.5.0**. The live [Eswink Releases page](https://github.com/Eswink/coding-tools-mcp/releases/latest) determines full-release/Latest status. Promotion keeps the previously verified package bytes unchanged.
+> **Current pre-release: v0.7.0-rc.2 (PRE-RELEASE — NOT FINAL)**, for manual testing only; it is not a stable release. The stable (Latest) release is still **[v0.6.0](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.6.0)**. The live [Releases page](https://github.com/Eswink/coding-tools-mcp/releases) is authoritative for release status.
 
-| Platform | Package | Scope |
+### Desktop: v0.7.0-rc.2 (pre-release)
+
+| Platform | Package | SHA256 | Notes |
+| --- | --- | --- | --- |
+| Windows x64 | [MCP_0.7.0-rc.2_x64-setup.exe](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/MCP_0.7.0-rc.2_x64-setup.exe) | `0933837e6011adb1839ec0f128ed5dd2b699f432f263f1d909b62040f7d0cb90` | NSIS installer; **unsigned**, shows an unknown publisher |
+| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.7.0-rc.2_amd64.deb](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/MCP_0.7.0-rc.2_amd64.deb) | `1a65a6a515a8dc47319e4c7cb6e5522cdc842b3a095fda118cb082098bab5273` | Preferred; for a logged-in, non-root desktop user |
+| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.7.0-rc.2_amd64.AppImage](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/MCP_0.7.0-rc.2_amd64.AppImage) | `6e1e652ccdde15d34f2802b28440b3ad887e71af8851b79678a5a86685bb3f40` | Not verified on every FUSE/Wayland environment |
+
+Checksums: [SHA256SUMS.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/SHA256SUMS.txt). Built from tag `v0.7.0-rc.2` (`bdc4aeb5`), packaging run [40428267551](https://github.com/Eswink/coding-tools-mcp/actions/runs/40428267551). No macOS, ARM or headless Linux Server packages are provided.
+
+### Cloud components: shipped with v0.7.0-rc.2 (pre-release)
+
+| File | SHA256 | Notes |
 | --- | --- | --- |
-| Windows x64 | [MCP_0.5.0_x64-setup.exe](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/MCP_0.5.0_x64-setup.exe) | NSIS installer; not commercially signed |
-| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.5.0_amd64.deb](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/MCP_0.5.0_amd64.deb) | Preferred package for a logged-in, non-root desktop user |
-| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.5.0_amd64.AppImage](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/MCP_0.5.0_amd64.AppImage) | Automated acceptance covers extract-and-run, not every FUSE/Wayland environment |
+| [cloud-image.tar](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/cloud-image.tar) | `82c485832dc1f2b145b45a7b0480229f3b4cc213f07d2cdb732cea052f7ed0bb` | Cloud gateway Docker image (import with `docker load`; the image has no tag) |
+| [cloud-linux-amd64.tar.gz](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/cloud-linux-amd64.tar.gz) | `c7c37a3c7549589d46aafa392ded1ce9a5c5077c284502abac9618b2ad830418` | The same Linux amd64 binaries (including `coding-tools-gateway` and `coding-tools-agent`) |
 
-Verify against [SHA256SUMS_v0.5.0.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/SHA256SUMS_v0.5.0.txt). This release does not provide this fork's acceptance-tested macOS, ARM or headless Linux Server packages.
-
-For Ubuntu, run this in the directory containing the downloaded DEB:
+Checksums: [SHA256SUMS-cloud.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/SHA256SUMS-cloud.txt) (also covers `archive-receipt.json`, `image-archive.sha256` and `versions.json`). After import, **reference the image by its ID**, not by a tag:
 
 ```bash
-sudo apt install ./MCP_0.5.0_amd64.deb
+sha256sum -c SHA256SUMS-cloud.txt
+docker load -i cloud-image.tar
+docker image inspect --format '{{.Id}}' sha256:7e69b9ade56ce598264f23f3504e465670a6f2c0119293f04937645963b2ee3a
 ```
 
-Installing a system package needs elevated privileges; **running the desktop application does not**. Do not launch the GUI with sudo. Linux secret recovery needs the user's D-Bus session and an available, unlocked Secret Service. AppImage can use `--appimage-extract-and-run` as described in the original verification guide. Do not disable the sandbox to work around startup failures.
+### Cloud gateway deploy kit: gateway-v0.1.0-rc.1 (pre-release)
 
-**Update-source limitation: the v0.5.0 binary's built-in update checker still points to upstream. To update this fork, use the Eswink Release links above, not a release suggested by that upstream checker.** Updating README or Release metadata cannot change compiled URLs. [Source](src-tauri/src/update/mod.rs)
+[gateway-v0.1.0-rc.1](https://github.com/Eswink/coding-tools-mcp/releases/tag/gateway-v0.1.0-rc.1) contains only the VPS deploy kit (`kit.py`, RUNBOOK, templates, render scripts and the connection guide). It **does not contain gateway binaries or an image**; use the rc.2 `cloud-image.tar` above. Source commit `e43728285af66beac7807376ff7764c708c2b631`.
 
-## What's new in v0.5.0
+| File | SHA256 |
+| --- | --- |
+| [coding-tools-gateway-deploy-kit-e4372828.tar](https://github.com/Eswink/coding-tools-mcp/releases/download/gateway-v0.1.0-rc.1/coding-tools-gateway-deploy-kit-e4372828.tar) | `260bdbedd5c7ff1c402c5ef1028f92cb183f7caadc09f1f736104536430ab3d2` (canonical hash; the `.tar` is authoritative) |
+| [coding-tools-gateway-deploy-kit-e4372828.tar.gz](https://github.com/Eswink/coding-tools-mcp/releases/download/gateway-v0.1.0-rc.1/coding-tools-gateway-deploy-kit-e4372828.tar.gz) | `7d001ea55deea715f2ecf1eaf9ec1039bae5a11c331b271431c107fffd6b7e97` (depends on the gzip implementation; informational) |
 
-Five pages share a navy sidebar, semantic status colors, grouped cards and light/dark/system themes without changing route URLs:
+Checksums: [SHA256SUMS.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/gateway-v0.1.0-rc.1/SHA256SUMS.txt); the reproduction command is in the release notes. Documentation pinned to the source commit: [Deploy RUNBOOK](https://github.com/Eswink/coding-tools-mcp/blob/e43728285af66beac7807376ff7764c708c2b631/deploy/cloud-gateway/kit/RUNBOOK.md) · [ChatGPT and desktop connection guide](https://github.com/Eswink/coding-tools-mcp/blob/e43728285af66beac7807376ff7764c708c2b631/deploy/cloud-gateway/CONNECT-CHATGPT-AND-DESKTOP.md).
+
+### Version combinations
+
+| Purpose | Desktop | Cloud gateway image | Deploy kit | Status |
+| --- | --- | --- | --- | --- |
+| Manual cloud gateway testing | v0.7.0-rc.2 | rc.2 `cloud-image.tar`, referenced by ID `sha256:7e69b9ade56ce598264f23f3504e465670a6f2c0119293f04937645963b2ee3a` | gateway-v0.1.0-rc.1 | Pre-release; **this combination has not been tested end to end (not on a real VPS or with real ChatGPT)** |
+| Everyday use | v0.6.0 (Latest) | Not used | Not used | Stable; used on its own, without the cloud gateway |
+
+### Stable: v0.6.0 (Latest)
+
+For a stable version, use the [v0.6.0 Release](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.6.0) (its assets are the `MCP_0.6.0-rc.4_*` packages plus `SHA256SUMS_v0.6.0.txt` and `Verification_v0.6.0.md`).
+
+### Verify SHA256
+
+Linux (downloaded files and `SHA256SUMS.txt` in the same directory):
+
+```bash
+sha256sum -c SHA256SUMS.txt --ignore-missing
+```
+
+Windows PowerShell:
+
+```powershell
+Get-FileHash .\MCP_0.7.0-rc.2_x64-setup.exe -Algorithm SHA256
+```
+
+The output must match the table / `SHA256SUMS.txt` exactly. Do not install on a mismatch.
+
+### Install
+
+- **Windows**: run `MCP_0.7.0-rc.2_x64-setup.exe`. The installer is unsigned, so SmartScreen may report an "unknown publisher"; verify the SHA256 before choosing to continue.
+- **Ubuntu DEB**: in the directory containing the file, run
+
+  ```bash
+  sudo apt install ./MCP_0.7.0-rc.2_amd64.deb
+  ```
+
+- **Ubuntu AppImage**: `chmod +x MCP_0.7.0-rc.2_amd64.AppImage`, then run it; use `--appimage-extract-and-run` where FUSE is unavailable.
+
+Installing a system package needs elevated privileges; **running the desktop application does not**. Do not launch the GUI with sudo. Linux secret recovery needs the user's D-Bus session and an available, unlocked Secret Service. Do not disable the sandbox to work around startup failures.
+
+**Update source:** from v0.6.0 on, "Check for updates" points to this repository's `releases/latest`, so it **only sees stable releases and never offers pre-releases**; download rc builds manually from the tables above. Binaries from v0.5.0 and earlier still point to upstream; do not treat an upstream-suggested version as an update for this fork. [Source](src-tauri/src/update/mod.rs)
+
+## Interface and pages
+
+Since v0.5.0, five pages share a navy sidebar, semantic status colors, grouped cards and light/dark/system themes without changing route URLs:
 
 | Page | Implemented capabilities |
 | --- | --- |
@@ -50,7 +111,7 @@ The refactor also fixes stale unsaved-change prompts after saving/reverting, lat
 
 [UI-evidence_v0.5.0.zip](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.5.0/UI-evidence_v0.5.0.zip) contains actual built-page and installed-app screenshots. They use isolated acceptance workspaces and synthetic data, not your real service status.
 
-## Connect one conversation
+## Connect one conversation (option 1: direct to this computer)
 
 ### 1. Configure the workspace and public endpoint
 
@@ -102,6 +163,15 @@ Only after approval should the chat call business tools such as `server_info`, `
 OAuth connection → Conversation request → Local fingerprint approval → Tool access → Checkpoint
 ```
 
+## Option 2: connect ChatGPT through the cloud gateway (pre-release, untested)
+
+The v0.7.0-rc.2 desktop app adds a "Cloud connection" panel to the workspace: import a cloud connection configuration JSON and a local signing private key JSON from local files, and the desktop app connects **outbound** to the cloud gateway. ChatGPT connects to the gateway's MCP endpoint instead of reaching your computer directly.
+
+- **Deploy the gateway**: download the [gateway-v0.1.0-rc.1](https://github.com/Eswink/coding-tools-mcp/releases/tag/gateway-v0.1.0-rc.1) deploy kit and follow the [RUNBOOK](https://github.com/Eswink/coding-tools-mcp/blob/e43728285af66beac7807376ff7764c708c2b631/deploy/cloud-gateway/kit/RUNBOOK.md) manually. Prerequisites: a dedicated subdomain with TLS, Docker Engine ≥ 28, Compose 2.27.0, python3 ≥ 3.11, and the imported rc.2 gateway image (`--gateway-image sha256:7e69b9ade56ce598264f23f3504e465670a6f2c0119293f04937645963b2ee3a`). You must supply your own `--domain` (shown as the `<GATEWAY_DOMAIN>` placeholder in the docs). `kit.py` only performs local file operations; it never calls docker or ssh or reloads Nginx.
+- **Authorization boundary unchanged**: neither the cloud, the model nor OAuth can approve local permissions; after connecting you still verify the chat fingerprint and approve on this computer. Pause and revoke are decided locally.
+- **Connect ChatGPT and the desktop app**: the connector URL, OAuth endpoints, `register-client` pre-registration and desktop import steps are in the [connection guide](https://github.com/Eswink/coding-tools-mcp/blob/e43728285af66beac7807376ff7764c708c2b631/deploy/cloud-gateway/CONNECT-CHATGPT-AND-DESKTOP.md).
+- **Status**: pre-release, **not tested end to end (not on a real VPS or with real ChatGPT)**; see "Known limitations" below. The deploy kit source lives on the development branch `feat/gateway-s1-agent-resilience` and is not merged into main.
+
 ## Exclusive ownership and long sessions
 
 Default exclusivity is **per workspace/profile**, not one owner for the entire application. The first valid request reserves the workspace; local approval makes it the Owner. Other chats receive `EXCLUSIVE_CHAT_LOCKED`, create no new Pending record and cannot evict that Owner.
@@ -137,13 +207,22 @@ Actions remains a separate OpenAPI gateway: start its service and use its actual
 
 This software operates real directories and processes with the current system account's access. Conversation binding/approval is a logical authorization boundary, **not a separate container/filesystem for each chat or cryptographic proof of Host identity**. Shared directories remain shared. Grant minimum privileges; never put Client Secrets, passphrases, access/refresh tokens or unredacted configuration into screenshots, logs, README, issues or chats.
 
-## Upgrade, recovery and verification limits
+## Upgrade, recovery and known limitations
 
-Exit the old app and back up configuration plus the corresponding system account's key-recovery material before upgrading. Do not delete project/history files to install the UI, run competing app versions against one configuration, or force unfinished draining work to become free. An encrypted configuration file alone is not a cross-user recovery guarantee. Retain v0.4.0 and a compatible backup for rollback.
+Exit the old app and back up configuration plus the corresponding system account's key-recovery material before upgrading. Do not delete project/history files to install the UI, run competing app versions against one configuration, or force unfinished draining work to become free. An encrypted configuration file alone is not a cross-user recovery guarantee. Keep the stable installer and a compatible backup for rollback.
 
-v0.5.0 automated acceptance covers Windows NSIS and Ubuntu 22.04/24.04 × DEB/AppImage: 20 native UI screenshots and 12 authorization/refresh/draining stages per combination. Windows has 432 passing Rust tests and Ubuntu 417, with 180 frontend tests per platform. Built-page browser coverage adds 40 matrix screenshots, 10 interactions and 8 states; its synthetic IPC does not substitute for native evidence.
+Known limitations:
 
-**Full Release is the repository's selected distribution channel, not proof that every environment is verified.** Real-account long-duration ChatGPT refresh, OS banner visibility and every hardware/FUSE/Wayland combination remain outside complete automated coverage. Windows packages are unsigned. The original build run retains a post-publication tag-lookup 404 failure; a subsequent read-only run verified public bytes. See [release and acceptance details](docs/releases/stable-v0.5.0.md). Bundled Pre-release wording records the original build stage and is not silently rewritten during promotion.
+- **A pre-release is not a stable release**: v0.7.0-rc.2 is marked PRE-RELEASE — NOT FINAL; Latest is still v0.6.0.
+- **Windows installers are unsigned**.
+- **The cloud gateway combination is not tested end to end**: v0.7.0-rc.2 + the rc.2 gateway image + gateway-v0.1.0-rc.1 have not been tested on a real VPS or with real ChatGPT; only the in-CI container topology test passed.
+- **rc.2 binaries do not include S1** (the agent reconnection/resilience changes): S1 exists only on the development branch of the deploy kit; the rc.2 desktop app, `cloud-image.tar` and `cloud-linux-amd64.tar.gz` do not contain it.
+- **The gateway has no dynamic client registration (DCR)**: an operator must pre-register the client with `coding-tools-gateway register-client`; whether ChatGPT accepts this is **not verified**.
+- **There is no Windows build of `coding-tools-agent`**: only Linux amd64 is available.
+- **You must supply `--domain` yourself**: domains in the docs and examples are placeholders and cannot be used as-is.
+- Long-duration real-account ChatGPT refresh, OS notification banners and every hardware/FUSE/Wayland combination are not fully tested; no macOS or ARM packages are provided.
+
+Acceptance records for earlier versions are in the [v0.5.0 release and acceptance notes](docs/releases/stable-v0.5.0.md) and each release's assets.
 
 ## Local development
 
