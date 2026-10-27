@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>网关运维控制台（本机回环）</title>
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <header class="top">
+    <h1>网关运维控制台</h1>
+    <p class="banner" role="note">
+      本机回环控制台 ≠ 公网 admin。只监听 127.0.0.1；密钥不进浏览器，请用本机 0600 secrets 文件。
+    </p>
+    <p id="health" class="muted">正在探测健康…</p>
+  </header>
+
+  <main>
+    <section id="config-section" aria-labelledby="config-h">
+      <h2 id="config-h">配置（公共字段）</h2>
+      <form id="config-form">
+        <label>origin <input id="f-origin" name="origin" type="url" placeholder="https://gateway.example.invalid" autocomplete="off" /></label>
+        <label>prefix <input id="f-prefix" name="prefix" type="text" value="/coding-tools" readonly /></label>
+        <label>connector <input id="f-connector" name="connector" type="text" placeholder="UUID" autocomplete="off" /></label>
+        <label>owner_subject <input id="f-owner_subject" name="owner_subject" type="text" placeholder="UUID" autocomplete="off" /></label>
+        <label>client_id <input id="f-client_id" name="client_id" type="text" autocomplete="off" /></label>
+        <label>redirect_uri <input id="f-redirect_uri" name="redirect_uri" type="url" autocomplete="off" /></label>
+        <label>client_authentication
+          <select id="f-client_authentication" name="client_authentication" data-ui="enum-select">
+            <option value="public">public</option>
+            <option value="confidential">confidential</option>
+          </select>
+        </label>
+        <label>bind <input id="f-bind" name="bind" type="text" placeholder="127.0.0.1:28880" autocomplete="off" /></label>
+        <label class="switch-row" data-ui="bool-switch">
+          <span>确认：不在此表单填写任何密钥</span>
+          <input id="f-no-secrets-ack" type="checkbox" data-ui="checkbox-switch" />
+        </label>
+        <div class="actions">
+          <button type="button" id="btn-load">加载</button>
+          <button type="submit" id="btn-save">保存公共配置</button>
+        </div>
+      </form>
+      <pre id="config-out" class="out"></pre>
+    </section>
+
+    <section aria-labelledby="kit-h">
+      <h2 id="kit-h">Kit 预览（只读）</h2>
+      <div class="actions">
+        <button type="button" id="btn-kit-plan">plan</button>
+        <button type="button" id="btn-kit-render">render_diff（需 private-root 就绪）</button>
+      </div>
+      <pre id="kit-out" class="out"></pre>
+    </section>
+
+    <section aria-labelledby="cli-h">
+      <h2 id="cli-h">CLI 包装</h2>
+      <label>config_rel <input id="cli-config-rel" value="config.json" /></label>
+      <label>secrets_file_rel（0600，相对工作根） <input id="cli-secrets-rel" placeholder="secrets.json" autocomplete="off" /></label>
+      <label>invite output_rel <input id="cli-output-rel" value="devices/invitation.json" /></label>
+      <div class="actions">
+        <button type="button" id="btn-check">check-config</button>
+        <button type="button" id="btn-register">register-client</button>
+        <button type="button" id="btn-invite">invite-device</button>
+      </div>
+      <pre id="cli-out" class="out"></pre>
+    </section>
+
+    <section aria-labelledby="dev-h">
+      <h2 id="dev-h">本机设备产物（无 DB）</h2>
+      <button type="button" id="btn-devices">刷新列表</button>
+      <pre id="devices-out" class="out"></pre>
+    </section>
+  </main>
+  <script src="/assets/app.js"></script>
+</body>
+</html>
