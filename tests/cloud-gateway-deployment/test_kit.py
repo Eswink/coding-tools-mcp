@@ -10,7 +10,6 @@ import math
 import os
 from pathlib import Path
 import re
-import shutil
 import socket
 import socketserver
 import subprocess
@@ -364,7 +363,7 @@ class SqlTemplate(unittest.TestCase):
             self.assertIn(case, source)
 
 
-NGINX = os.environ.get('CTM_TEST_NGINX') or shutil.which('nginx')
+NGINX = os.environ.get('CTM_TEST_NGINX')  # opt-in only; hosted CI proves the shipped image natively
 
 
 class _Upstream(socketserver.ThreadingTCPServer):
@@ -412,7 +411,8 @@ class RealNginx(unittest.TestCase):
                 .replace('/tmp/', tmp + '/'))
         Path(tmp, 'nginx.conf').write_text(text)
         command = [NGINX, '-p', tmp, '-e', '/dev/null', '-c', tmp + '/nginx.conf']
-        subprocess.run(command + ['-t'], check=True, capture_output=True, timeout=20)
+        checked = subprocess.run(command + ['-t'], capture_output=True, text=True, timeout=20)
+        if checked.returncode:self.fail('nginx_config_test_failed: ' + (checked.stderr or checked.stdout)[-2000:])
         process = subprocess.Popen(command + ['-g', 'daemon off;'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.addCleanup(process.wait, 10); self.addCleanup(process.terminate)
         for _ in range(100):
