@@ -122,6 +122,27 @@ def register_client(
     }
 
 
+def _require_invite_output_rel(output_rel: str) -> str:
+    """S3: invite output_rel must be under devices/ (normalized); reject abs/escape/empty."""
+    if not isinstance(output_rel, str) or not output_rel.strip():
+        raise PathError("output_rel_must_be_under_devices")
+    # Normalize separators for prefix / escape checks; keep logical relative form.
+    norm = output_rel.replace("\\", "/").strip()
+    if os.path.isabs(output_rel) or os.path.isabs(norm):
+        raise PathError("output_rel_must_be_under_devices")
+    if norm.startswith("/") or (len(norm) >= 2 and norm[1] == ":"):
+        raise PathError("output_rel_must_be_under_devices")
+    if not norm.startswith("devices/"):
+        raise PathError("output_rel_must_be_under_devices")
+    rest = norm[len("devices/") :]
+    if not rest or rest.endswith("/"):
+        raise PathError("output_rel_must_be_under_devices")
+    parts = Path(norm).parts
+    if any(p == ".." for p in parts):
+        raise PathError("output_rel_must_be_under_devices")
+    return norm
+
+
 def invite_device(
     workspace_root: Path,
     config_rel: str,
@@ -129,13 +150,11 @@ def invite_device(
     output_rel: str,
     gateway_bin: Optional[str] = None,
 ) -> Dict[str, Any]:
+    # Validate output_rel before bin/config so bad paths fail fast with a fixed code.
+    output_rel = _require_invite_output_rel(output_rel)
     bin_path = find_gateway_bin(gateway_bin)
     cfg = resolve_rel(workspace_root, config_rel, must_exist=True)
     secrets = _validate_secrets_file(workspace_root, secrets_file_rel)
-    # output must be under devices/ (or workspace)
-    if not output_rel.startswith("devices/") and not output_rel.startswith("devices\\"):
-        # still allow any relative under root, but prefer devices/
-        pass
     out = resolve_rel(workspace_root, output_rel, must_exist=False)
     out.parent.mkdir(parents=True, exist_ok=True)
     os.chmod(out.parent, 0o700)
