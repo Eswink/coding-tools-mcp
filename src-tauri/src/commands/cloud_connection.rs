@@ -5,7 +5,9 @@ use tauri::State;
 use zeroize::Zeroizing;
 
 use crate::app_state::AppState;
-use crate::cloud_connection::{CheckedImport, ConnectionStore, ConnectionSummary};
+use crate::cloud_connection::{
+    CheckedImport, ConfigurationError, ConnectionStore, ConnectionSummary, RuntimeMaterial,
+};
 use crate::error::{AppError, AppResult};
 
 fn unavailable() -> AppError {
@@ -185,9 +187,71 @@ pub async fn start_cloud_connection(
         .await
         .map_err(|_| unavailable())?
         .map_err(|_| unavailable())?;
-    state
+    let status = state
         .cloud_agents
-        .start(&id, lease, material, initialize_journals)
+        .start(&id, lease, material, initialize_journals)?;
+    // Only a start the user asked for and that was admitted is remembered. If the note
+    // cannot be saved the connection still runs; it just will not resume by itself.
+    let store = local_store(&state, &id)?;
+    let saved = tauri::async_runtime::spawn_blocking(move || record_user_intent(&store, true))
+        .await
+        .map_err(|_| unavailable())?;
+    if saved.is_err() {
+        eprintln!("cloud connection start intent could not be saved for {id}");
+    }
+    Ok(status)
+}
+
+/// Blocking. The remembered "user started it" note; `false` forgets it.
+fn record_user_intent(store: &ConnectionStore, started: bool) -> Result<(), ConfigurationError> {
+    store.set_auto_start_intent(started)
+}
+
+/// Blocking. Material for an automatic start exists only when the user's last explicit
+/// action was start AND the imported configuration still loads. Looking never creates
+/// anything and never initializes journals.
+fn auto_start_material(store: &ConnectionStore) -> Option<RuntimeMaterial> {
+    if !store.auto_start_intent() {
+        return None;
+    }
+    store.runtime_material().ok()
+}
+
+/// Called after the local MCP/OAuth listener is up (the runtime start path). Best
+/// effort and silent on failure: it can only resume a connection the user started
+/// before, with `initialize=false`, under the same local listener lease and with the
+/// native approval still required for every execution. Caller holds RESTART_GATE.
+pub(crate) async fn auto_start_cloud_connection(state: &AppState, id: &str) {
+    let Some(lease) = state
+        .with_runtime(|runtime| Ok(runtime.mcp_context_lease(id)))
+        .ok()
+        .flatten()
+    else {
+        return;
+    };
+    let Ok(profile) = state.with_workspaces(|store| store.get(id).cloned().ok_or_else(unavailable))
+    else {
+        return;
+    };
+    if profile.auth.auth_type != "oauth" {
+        return;
+    }
+    let Ok(store) = local_store(state, id) else {
+        return;
+    };
+    let Ok(material) =
+        tauri::async_runtime::spawn_blocking(move || auto_start_material(&store)).await
+    else {
+        return;
+    };
+    let intent = material.is_some();
+    if let Err(error) = state
+        .cloud_agents
+        .auto_start_settled(id, Some(lease), material, intent)
+        .await
+    {
+        eprintln!("cloud connection auto-start skipped for {id}: {error}");
+    }
 }
 
 #[tauri::command]
@@ -196,7 +260,13 @@ pub async fn stop_cloud_connection(
     id: String,
 ) -> AppResult<CloudConnectionStatus> {
     let _gate = super::runtime::RESTART_GATE.lock().await;
-    let _ = local_store(&state, &id)?;
+    let store = local_store(&state, &id)?;
+    // Forget the start intent first: a stop the user asked for must survive restarts,
+    // so if it cannot be recorded we do not pretend to have stopped.
+    tauri::async_runtime::spawn_blocking(move || record_user_intent(&store, false))
+        .await
+        .map_err(|_| unavailable())?
+        .map_err(|_| unavailable())?;
     state.cloud_agents.stop(&id).await?;
     state.cloud_agents.status(&id, true)
 }
@@ -263,5 +333,50 @@ mod windows_file_tests {
         assert!(bounded_local_file(&file, 4096).is_ok());
         std::fs::hard_link(&file, root.path().join("alias.json")).unwrap();
         assert!(bounded_local_file(&file, 4096).is_err());
+    }
+}
+
+#[cfg(test)]
+mod auto_start_tests {
+    use super::*;
+
+    fn store(base: &Path) -> ConnectionStore {
+        let workspace = base.join("ws");
+        std::fs::create_dir_all(&workspace).unwrap();
+        let root = base.join("connection");
+        let mut builder = std::fs::DirBuilder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            builder.mode(0o700);
+        }
+        builder.create(&root).unwrap();
+        ConnectionStore::application_test_store(root, "profile", &workspace)
+    }
+    #[test]
+    fn no_persisted_start_means_no_auto_start_material_is_even_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(dir.path());
+        assert!(auto_start_material(&store).is_none());
+        // Nothing was created by looking.
+        assert!(!dir.path().join("connection").join("runtime-v1").exists());
+    }
+    #[test]
+    fn a_persisted_start_without_a_valid_configuration_stays_stopped() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(dir.path());
+        record_user_intent(&store, true).unwrap();
+        // Intent alone is not enough: the imported configuration must also load.
+        assert!(auto_start_material(&store).is_none());
+        assert!(!dir.path().join("connection").join("runtime-v1").exists());
+    }
+    #[test]
+    fn manual_start_records_and_manual_stop_clears_the_intent() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(dir.path());
+        record_user_intent(&store, true).unwrap();
+        assert!(store.auto_start_intent());
+        record_user_intent(&store, false).unwrap();
+        assert!(!store.auto_start_intent());
     }
 }

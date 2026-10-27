@@ -629,3 +629,6 @@ fn journal_does_not_persist_command_arguments_or_output() {
         Err(AgentError::Duplicate)
     );
 }
+
+#[cfg(unix)]
+mod fault;

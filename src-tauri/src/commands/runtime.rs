@@ -134,6 +134,8 @@ pub(crate) async fn start_mcp_service_checked(
 
     let profile = profile_by_id(state, id)?;
     tokio::time::sleep(Duration::from_millis(250)).await;
+    // Resume a cloud connection the user started earlier (never one they stopped).
+    super::cloud_connection::auto_start_cloud_connection(state, id).await;
     state.with_runtime(|runtime| {
         runtime.refresh_mcp(&profile);
         Ok(runtime.mcp_status(&profile))

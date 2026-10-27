@@ -37,6 +37,10 @@ impl WorktreeManager {
     }
 }
 impl SnapshotTarget {
+    /// Identity retained natively when this target was built; never IPC-supplied.
+    pub(crate) fn root_identity_key(&self) -> String {
+        self.identity.snapshot_key()
+    }
     /// Revalidate before/after capture. This does not prevent concurrent writers.
     pub(crate) fn verify(&self) -> WorktreeResult<()> {
         let current = self.manager.snapshot_target(&self.worktree_id)?;

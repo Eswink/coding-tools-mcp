@@ -4,7 +4,7 @@ import ts from 'typescript';
 import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../src/lib/cloud-connection.ts', import.meta.url), 'utf8');
 const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
-const { createCloudConnectionController, canStartCloud, cloudPhaseLabels } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+const { createCloudConnectionController, canStartCloud, cloudPhaseLabels, cloudLinkLabels, cloudLinkErrorText, cloudLinkText } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 const state = (phase = 'configured', connected = false) => ({ phase, connected, generation: null, configured: phase !== 'unconfigured' });
 const deferred = () => { let resolve, reject; const promise = new Promise((a,b) => { resolve=a; reject=b; }); return { promise, resolve, reject }; };
 const setup = (fn) => { const calls = []; let view; const controller = createCloudConnectionController('workspace-a', (command,args) => { calls.push({command,args}); return fn(command,args); }, next => { view=next; }); return {controller,calls,get view(){return view;}}; };
@@ -72,4 +72,24 @@ test('dispose during file selection supplies a cancellation fence and prevents i
   const op=s.controller.operate('import',async()=>true,async isAlive=>{alive=isAlive; await picked.promise; return {configPath:'config',privateKeyPath:'key'};});
   await Promise.resolve(); s.controller.dispose(); assert.equal(alive(),false); picked.resolve(); await op;
   assert.equal(s.calls.length,1);
+});
+test('agent link: seven distinct labels and reconnect attempt shown', () => {
+  assert.equal(Object.keys(cloudLinkLabels).length, 7);
+  assert.equal(new Set(Object.values(cloudLinkLabels)).size, 7);
+  assert.match(cloudLinkText({...state(), link:'reconnecting', linkAttempt:3, linkError:null}), /第 3 次重试/);
+  assert.doesNotMatch(cloudLinkText({...state(), link:'online', linkAttempt:null, linkError:null}), /重试/);
+});
+test('agent link: missing fields from older native build read as none', async () => {
+  const s=setup(async()=>state()); await s.controller.refresh();
+  assert.equal(s.view.status.link,'none'); assert.equal(s.view.status.linkAttempt,null); assert.equal(s.view.status.linkError,null);
+});
+test('agent link: unknown link value or malformed error fails closed', async () => {
+  for (const bad of [{link:'online_ish'},{link:'reconnecting',linkAttempt:-1},{link:'failed',linkError:'<b>SECRET path /home</b>'}]) {
+    const s=setup(async()=>({...state(),...bad})); await s.controller.refresh(); assert.equal(s.view.status,null);
+  }
+});
+test('agent link: known codes labelled, unknown codes shown verbatim only', () => {
+  assert.match(cloudLinkErrorText('agent_tls_rejected'), /TLS.*agent_tls_rejected/);
+  assert.equal(cloudLinkErrorText('agent_future_code'), 'agent_future_code');
+  assert.equal(cloudLinkErrorText(null), '');
 });

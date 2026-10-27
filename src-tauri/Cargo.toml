@@ -1,6 +1,6 @@
 [package]
 name = "coding-tools-mcp-desktop"
-version = "0.6.0-rc.4"
+version = "0.7.0-rc.1"
 description = "Coding Tools MCP desktop client"
 authors = ["Coding Tools MCP Contributors"]
 edition = "2021"
@@ -37,7 +37,7 @@ sha2 = "0.10"
 shlex = "1"
 shell-words = "1"
 which = "7"
-zip = "2"
+zip = "=9.0.4"
 flate2 = "1"
 tar = "0.4"
 fs2 = "0.4"
@@ -87,6 +87,8 @@ frp-binary-tests = []
 
 # Requires a separate disposable real PostgreSQL/TLS gateway fixture binary.
 cloud-agent-integration-tests = []
+# Real shipped Gateway behind isolated outer TLS443 and inner Nginx.
+nginx-agent-integration-tests = ["cloud-agent-integration-tests"]
 
 # Exact upstream RUSTSEC-2024-0429 backport; retain separate upstream audit identity.
 [patch.crates-io]

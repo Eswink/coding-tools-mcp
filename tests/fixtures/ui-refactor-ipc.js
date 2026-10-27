@@ -97,7 +97,7 @@
       return logs;
     }
     if(command==='list_managed_workspaces')return [];
-    if(command==='get_cloud_connection_status')return {phase:'unconfigured',connected:false,generation:null,configured:false};
+    if(command==='get_cloud_connection_status')return {phase:'unconfigured',connected:false,generation:null,configured:false,link:'none',linkAttempt:null,linkError:null};
     if(command==='chat_authorization_inbox')return {revision:state.revision,now:Date.now()/1000,pending:clone(state.pending)};
     if(command==='chat_authorization_control'){
       if(args.action==='approve'||args.action==='deny'){

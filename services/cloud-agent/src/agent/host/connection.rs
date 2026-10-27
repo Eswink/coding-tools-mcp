@@ -67,6 +67,7 @@ pub(super) enum Incoming {
 pub(super) async fn connect(
     cfg: &AgentConfig,
     signer: &RecoverySigner,
+    probe: &super::reconnect::SessionProbe,
 ) -> Result<(Socket, Uuid), AgentError> {
     let connector = if let Some(path) = &cfg.ca_der_file {
         let mut roots = rustls::RootCertStore::empty();
@@ -98,12 +99,19 @@ pub(super) async fn connect(
         .write_buffer_size(0)
         .max_write_buffer_size(MAX_MESSAGE * 2);
     let (mut socket, response) = tokio::time::timeout(
-        Duration::from_secs(10),
+        super::reconnect::scaled(Duration::from_secs(10)),
         connect_async_tls_with_config(request, Some(ws_config), false, connector),
     )
     .await
     .map_err(|_| AgentError::Transport)?
-    .map_err(classify)?;
+    .map_err(|error| {
+        // 403/404 stay `Authentication` but are flagged: a restarting gateway or a
+        // proxy mid-deploy answers exactly these (see `SOFT_REJECT_LIMIT`).
+        if is_soft_rejection(&error) {
+            probe.soft_rejection();
+        }
+        classify(error)
+    })?;
     if response
         .headers()
         .get_all("sec-websocket-protocol")
@@ -142,7 +150,7 @@ pub(super) async fn send(s: &mut Socket, value: &impl Serialize) -> Result<(), A
         .map_err(classify)
 }
 pub(super) async fn receive(s: &mut Socket) -> Result<Incoming, AgentError> {
-    tokio::time::timeout(Duration::from_secs(12), async {
+    tokio::time::timeout(super::reconnect::scaled(Duration::from_secs(12)), async {
         for _ in 0..16 {
             match s
                 .next()
@@ -168,6 +176,11 @@ pub(super) async fn receive(s: &mut Socket) -> Result<Incoming, AgentError> {
     .await
     .map_err(|_| AgentError::Transport)?
 }
+/// Upgrade answers that are authentication failures for a stable gateway but also what a
+/// restarting gateway (403, stop flag) or a proxy during a deploy (404) returns.
+pub(super) fn is_soft_rejection(e: &tungstenite::Error) -> bool {
+    matches!(e, tungstenite::Error::Http(r) if matches!(r.status().as_u16(), 403 | 404))
+}
 pub(super) fn classify(e: tungstenite::Error) -> AgentError {
     match e {
         tungstenite::Error::Io(ref e)
@@ -182,7 +195,9 @@ pub(super) fn classify(e: tungstenite::Error) -> AgentError {
         | tungstenite::Error::ConnectionClosed
         | tungstenite::Error::AlreadyClosed => AgentError::Transport,
         tungstenite::Error::Tls(_) => AgentError::Tls,
-        tungstenite::Error::Http(r) if [429, 502, 503, 504].contains(&r.status().as_u16()) => {
+        // Rate limits, request timeouts and every 5xx (including proxy/CDN 52x
+        // answers while the gateway restarts) are transient, not rejected credentials.
+        tungstenite::Error::Http(r) if matches!(r.status().as_u16(), 408 | 429 | 500..=599) => {
             AgentError::Transport
         }
         tungstenite::Error::Http(_) => AgentError::Authentication,
@@ -199,7 +214,7 @@ pub(super) async fn send_control(
     tokio::time::sleep_until(*next_send).await;
     *seq = seq.checked_add(1).ok_or(AgentError::Protocol)?;
     send(s, &message(*seq)).await?;
-    *next_send = tokio::time::Instant::now() + Duration::from_millis(160);
+    *next_send = tokio::time::Instant::now() + super::reconnect::scaled(Duration::from_millis(160));
     Ok(*seq)
 }
 
@@ -229,5 +244,40 @@ mod tests {
         let mut value = ready();
         value["grant"] = serde_json::json!("remote-override");
         assert!(serde_json::from_value::<Incoming>(value).is_err());
+    }
+    fn http(status: u16) -> tungstenite::Error {
+        tungstenite::Error::Http(
+            tungstenite::http::Response::builder()
+                .status(status)
+                .body(None)
+                .unwrap(),
+        )
+    }
+    #[test]
+    fn gateway_and_proxy_5xx_during_restart_are_transport_not_credentials() {
+        // 500/520-524 are what proxies/CDNs answer while the gateway restarts.
+        for status in [408, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524] {
+            assert_eq!(classify(http(status)), AgentError::Transport, "{status}");
+        }
+    }
+    #[test]
+    fn rejected_credentials_stay_authentication() {
+        for status in [400, 401, 403, 404, 410] {
+            assert_eq!(
+                classify(http(status)),
+                AgentError::Authentication,
+                "{status}"
+            );
+        }
+    }
+    #[test]
+    fn only_403_and_404_upgrade_answers_are_soft_rejections() {
+        for status in [403, 404] {
+            assert!(is_soft_rejection(&http(status)), "{status}");
+        }
+        for status in [400, 401, 410, 429, 503] {
+            assert!(!is_soft_rejection(&http(status)), "{status}");
+        }
+        assert!(!is_soft_rejection(&tungstenite::Error::ConnectionClosed));
     }
 }

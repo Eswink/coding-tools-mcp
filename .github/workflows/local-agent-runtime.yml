@@ -2,7 +2,7 @@ name: Local Agent tool runtime
 
 on:
   push:
-    branches: ['feat/cloud-gateway-agent-runtime']
+    branches: ['feat/cloud-gateway-agent-runtime', 'fix/process-io-join-once-m9c5c031']
     paths:
       - 'services/local-agent/**'
       - '.github/workflows/local-agent-runtime.yml'
@@ -35,21 +35,205 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: '1.98.1'
           components: rustfmt, clippy
-      - name: Verify shared Tool Runtime
+      - name: Record exact candidate provenance
         run: |
           set -euo pipefail
           mkdir -p evidence
-          cargo fmt --check --manifest-path services/local-agent/Cargo.toml
-          cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings
-          cargo test --locked --manifest-path services/local-agent/Cargo.toml 2>&1 | tee evidence/tests.txt
-          cargo check --locked --manifest-path services/local-agent/Cargo.toml
           git rev-parse HEAD > evidence/source-commit.txt
           git rev-parse HEAD^{tree} > evidence/source-tree.txt
+          git status --porcelain --untracked-files=no > evidence/source-status.txt
+          test ! -s evidence/source-status.txt
           rustc --version > evidence/toolchain.txt
+          cargo --version >> evidence/toolchain.txt
+      - name: Reproduce unchanged-production I/O baseline
+        run: |
+          set -euo pipefail
+          python - <<'PYCODE'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import subprocess
+          import sys
+
+          BASELINE = "9c5c031d24aadc5d704160bb5a5a65bff126c10c"
+          EXPECTED_BASELINE_TREE = "dafa6aa8dce10cf396971329244aeb8ac36d4ed3"
+          EXPECTED_BLOB = "47bf41f30f67724a873953313f2f31bcdff439a9"
+          PROCESS = "services/local-agent/src/process.rs"
+          TESTS = "services/local-agent/src/process_io_join_tests.rs"
+          FAILED = {
+              "stdout_ready_stderr_pending_times_out_without_repoll",
+              "both_readers_ready_stdin_pending_times_out_without_repoll",
+              "failed_readers_stdin_pending_times_out_without_repoll",
+          }
+          CONTROL = "all_pending_timeout_control_is_incomplete"
+          EXPECTED = FAILED | {CONTROL}
+
+
+          def validate_witness(text):
+              results = re.findall(r"^test .*::io_join_tests::(\w+) \.\.\. (ok|FAILED)$",
+                                   text, re.MULTILINE)
+              assert len(results) == 4, results
+              assert dict(results) == {**dict.fromkeys(FAILED, "FAILED"), CONTROL: "ok"}, results
+              assert re.findall(r"^running (\d+) tests$", text, re.MULTILINE) == ["4"]
+              summaries = re.findall(
+                  r"^test result: FAILED\. (\d+) passed; (\d+) failed; (\d+) ignored; "
+                  r"(\d+) measured; (\d+) filtered out;", text, re.MULTILINE
+              )
+              assert len(summaries) == 1 and summaries[0][:4] == ("1", "3", "0", "0"), summaries
+              blocks = re.findall(r"^---- [^\n]*::io_join_tests::(\w+) stdout ----\n"
+                                  r"(.*?)(?=^---- |^failures:|\Z)", text,
+                                  re.MULTILINE | re.DOTALL)
+              assert len(blocks) == 3 and {name for name, _ in blocks} == FAILED, blocks
+              for name, block in blocks:
+                  assert "JoinHandle polled after completion" in block, (name, block)
+              assert "error[E" not in text and "could not compile" not in text
+
+
+          def main():
+              root = Path.cwd()
+              evidence = root / "evidence"
+              worktree = Path(os.environ["RUNNER_TEMP"]) / "process-io-baseline"
+              commands = []
+              proof = {"baseline_commit": BASELINE, "commands": commands}
+
+              def save_proof():
+                  (evidence / "baseline-proof.json").write_text(
+                      json.dumps(proof, indent=2) + "\n", encoding="utf-8"
+                  )
+
+              def run(command, label):
+                  result = subprocess.run(command, cwd=worktree, stdout=subprocess.PIPE,
+                                          stderr=subprocess.STDOUT, check=False)
+                  (evidence / (label + ".txt")).write_bytes(result.stdout)
+                  text = result.stdout.decode("utf-8", errors="replace").replace("\r\n", "\n")
+                  sys.stdout.write(text)
+                  commands.append({"command": command, "cwd": str(worktree),
+                                   "exit_code": result.returncode, "log": label + ".txt"})
+                  save_proof()
+                  return result.returncode, text
+
+              def git(*args):
+                  return subprocess.check_output(["git", *args], cwd=root)
+
+              def sha(data):
+                  return hashlib.sha256(data).hexdigest()
+
+              subprocess.run(["git", "-c", "core.autocrlf=false", "worktree", "add",
+                              "--detach", str(worktree), BASELINE], check=True)
+              actual_base = subprocess.check_output(
+                  ["git", "rev-parse", "HEAD"], cwd=worktree, text=True).strip()
+              assert actual_base == BASELINE
+              assert git("rev-parse", BASELINE + "^{tree}").decode().strip() == EXPECTED_BASELINE_TREE
+              production = git("show", BASELINE + ":" + PROCESS)
+              assert git("rev-parse", BASELINE + ":" + PROCESS).decode().strip() == EXPECTED_BLOB
+              assert (worktree / PROCESS).read_bytes() == production
+              assert subprocess.check_output(["git", "hash-object", PROCESS],
+                                             cwd=worktree, text=True).strip() == EXPECTED_BLOB
+              test_bytes = (root / TESTS).read_bytes()
+              suffix = (b'\n#[cfg(test)]\n#[path = "process_io_join_tests.rs"]\n'
+                        b'mod io_join_tests;\n')
+              (worktree / PROCESS).write_bytes(production + suffix)
+              (worktree / TESTS).write_bytes(test_bytes)
+              overlay = (worktree / PROCESS).read_bytes()
+              assert overlay == production + suffix
+              assert (worktree / TESTS).read_bytes() == test_bytes
+              changed = subprocess.check_output(["git", "diff", "--name-only"],
+                                                cwd=worktree, text=True).splitlines()
+              untracked = subprocess.check_output(["git", "ls-files", "--others", "--exclude-standard"],
+                                                  cwd=worktree, text=True).splitlines()
+              assert changed == [PROCESS] and untracked == [TESTS], (changed, untracked)
+              proof.update({"baseline_tree": git("rev-parse", BASELINE + "^{tree}").decode().strip(),
+                            "production_blob": EXPECTED_BLOB, "production_bytes": len(production),
+                            "production_prefix_sha256": sha(overlay[:len(production)]),
+                            "production_sha256": sha(production), "test_sha256": sha(test_bytes),
+                            "overlay_sha256": sha(overlay), "appended_suffix_sha256": sha(suffix),
+                            "candidate_commit": git("rev-parse", "HEAD").decode().strip(),
+                            "candidate_test_sha256": sha((root / TESTS).read_bytes())})
+              save_proof()
+              cargo = ["cargo", "test", "--locked", "--manifest-path",
+                       "services/local-agent/Cargo.toml", "--lib"]
+              code, _ = run(cargo + ["--no-run"], "baseline-build")
+              assert code == 0, "Baseline failed to build; this is NOT a reproduced regression"
+              code, listing = run(cargo + ["io_join_tests::", "--", "--list"], "baseline-inventory")
+              assert code == 0
+              inventory = re.findall(r"^.*::io_join_tests::(\w+): test$", listing, re.MULTILINE)
+              assert len(inventory) == 4 and set(inventory) == EXPECTED, inventory
+              code, output = run(cargo + ["io_join_tests::", "--", "--test-threads=1"], "baseline-tests")
+              assert code == 101, "Expected Rust test failure exit after successful build"
+              validate_witness(output)
+              proof.update({"witness": "three named repeated-poll failures and one control pass",
+                            "executed": 4, "failed_as_expected": 3, "control_passed": 1,
+                            "ignored": 0, "inventory": inventory})
+              save_proof()
+
+
+          if __name__ == "__main__":
+              main()
+          PYCODE
+      - name: Verify actual candidate shared Tool Runtime
+        run: |
+          set -euo pipefail
+          cargo fmt --check --manifest-path services/local-agent/Cargo.toml 2>&1 | tee evidence/fmt.txt
+          cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml -- --list 2>&1 | tee evidence/test-inventory.txt
+          cargo test --locked --no-fail-fast --manifest-path services/local-agent/Cargo.toml 2>&1 | tee evidence/tests.txt
+          cargo check --locked --all-targets --manifest-path services/local-agent/Cargo.toml 2>&1 | tee evidence/check.txt
+      - name: Verify positive candidate inventory and zero skipped tests
+        run: |
+          set -euo pipefail
+          python - <<'PYCODE'
+          import hashlib
+          import json
+          from pathlib import Path
+          import re
+          import subprocess
+
+          evidence = Path("evidence")
+          inventory_text = (evidence / "test-inventory.txt").read_text(encoding="utf-8")
+          output = (evidence / "tests.txt").read_text(encoding="utf-8")
+          inventory = re.findall(r"^(.+): test$", inventory_text, re.MULTILINE)
+          results = re.findall(r"^test (.+) \.\.\. (ok|FAILED|ignored).*$", output, re.MULTILINE)
+          summaries = re.findall(
+              r"^test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored; "
+              r"(\d+) measured; (\d+) filtered out;", output, re.MULTILINE
+          )
+          assert inventory and len(results) == len(inventory), (len(inventory), len(results))
+          assert all(state == "ok" for _, state in results), results
+          assert summaries and all(tuple(map(int, row[1:])) == (0, 0, 0, 0)
+                                   for row in summaries), summaries
+          passed = sum(int(row[0]) for row in summaries)
+          assert passed == len(inventory), (passed, len(inventory))
+          assert sorted(name for name, _ in results) == sorted(inventory)
+          expected = {
+              "stdout_ready_stderr_pending_times_out_without_repoll",
+              "both_readers_ready_stdin_pending_times_out_without_repoll",
+              "failed_readers_stdin_pending_times_out_without_repoll",
+              "all_pending_timeout_control_is_incomplete",
+          }
+          regressions = [name.rsplit("::", 1)[-1] for name in inventory
+                         if "::io_join_tests::" in name]
+          assert len(regressions) == 4 and set(regressions) == expected, regressions
+          assert not subprocess.check_output(
+              ["git", "status", "--porcelain", "--untracked-files=no"], text=True).strip()
+          test_bytes = Path("services/local-agent/src/process_io_join_tests.rs").read_bytes()
+          test_hash = hashlib.sha256(test_bytes).hexdigest()
+          baseline = json.loads((evidence / "baseline-proof.json").read_text(encoding="utf-8"))
+          assert test_hash == baseline["test_sha256"] == baseline["candidate_test_sha256"]
+          (evidence / "candidate-test-counts.json").write_text(json.dumps({
+              "inventory_count": len(inventory), "passed": passed, "failed": 0,
+              "ignored": 0, "filtered": 0, "result_counts": summaries,
+              "regressions": regressions, "test_sha256": test_hash,
+              "source_commit": (evidence / "source-commit.txt").read_text().strip(),
+              "source_tree": (evidence / "source-tree.txt").read_text().strip(),
+          }, indent=2) + "\n", encoding="utf-8")
+          PYCODE
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

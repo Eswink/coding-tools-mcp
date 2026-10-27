@@ -4,7 +4,7 @@
 use axum::{
     extract::State,
     http::{HeaderMap, StatusCode},
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
@@ -18,11 +18,12 @@ use coding_tools_cloud_gateway::{
 };
 use ring::signature::{Ed25519KeyPair, KeyPair};
 use serde_json::{json, Value};
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{postgres::PgPoolOptions, PgPool, Row};
 use std::{
     io::{BufRead, BufReader, Read, Write},
     path::PathBuf,
-    process::{Child, Command, Stdio},
+    process::{Child, ChildStdin, Command, Stdio},
+    sync::{Arc, Mutex},
     time::Duration,
 };
 use uuid::Uuid;
@@ -39,15 +40,23 @@ struct Inspect {
     token: String,
     pool: PgPool,
     control: ChannelController,
+    store: IdentityStore,
+    device: Uuid,
+    connector: Uuid,
     a: ConversationBinding,
     b: ConversationBinding,
+    relay_stdin: Arc<Mutex<Option<ChildStdin>>>,
 }
-async fn inspect(State(s): State<Inspect>, headers: HeaderMap) -> Result<Json<Value>, StatusCode> {
+fn authorized(s: &Inspect, headers: &HeaderMap) -> Result<(), StatusCode> {
     if headers.get("authorization").and_then(|v| v.to_str().ok())
         != Some(format!("Bearer {}", s.token).as_str())
     {
         return Err(StatusCode::UNAUTHORIZED);
     }
+    Ok(())
+}
+async fn inspect(State(s): State<Inspect>, headers: HeaderMap) -> Result<Json<Value>, StatusCode> {
+    authorized(&s, &headers)?;
     let row: Option<(bool, Option<String>)> =
         sqlx::query_as("SELECT reconciled,state_text FROM ctm_grant_projection")
             .fetch_optional(&s.pool)
@@ -57,13 +66,96 @@ async fn inspect(State(s): State<Inspect>, headers: HeaderMap) -> Result<Json<Va
         .as_ref()
         .and_then(|r| r.1.as_ref())
         .and_then(|s| serde_json::from_str::<Value>(s).ok());
+    let channel =
+        sqlx::query("SELECT connected,generation FROM ctm_agent_channel WHERE connector=$1")
+            .bind(s.connector)
+            .fetch_optional(&s.pool)
+            .await
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let counts = sqlx::query(
+        "SELECT state, count(*)::bigint AS n FROM ctm_request_ledger WHERE connector=$1 GROUP BY state",
+    )
+    .bind(s.connector)
+    .fetch_all(&s.pool)
+    .await
+    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let mut by_state = json!({
+        "completed": 0,
+        "outcome_unknown": 0,
+        "running": 0,
+        "admitted": 0,
+    });
+    let mut total: i64 = 0;
+    for c in &counts {
+        let state: String = c.get("state");
+        let n: i64 = c.get("n");
+        total += n;
+        if let Some(slot) = by_state.get_mut(&state) {
+            *slot = json!(n);
+        }
+    }
+    let last = sqlx::query(
+        "SELECT state, result_hash, result_ok FROM ctm_request_ledger WHERE connector=$1 ORDER BY updated_at DESC, request_id DESC LIMIT 1",
+    )
+    .bind(s.connector)
+    .fetch_optional(&s.pool)
+    .await
+    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let last = last.map(|r| {
+        let hash: Option<Vec<u8>> = r.get("result_hash");
+        json!({
+            "state": r.get::<String, _>("state"),
+            "result_hash_len": hash.as_ref().map(|h| h.len()).unwrap_or(0),
+            "result_ok": r.get::<Option<bool>, _>("result_ok"),
+        })
+    });
     Ok(Json(json!({
         "ready":row.as_ref().is_some_and(|r|r.0) && s.control.has_native_approval_route(),
         "eligible_a":s.control.assess(&s.a,"files.read").await.ok()==Some(ProjectionDecision::Eligible),
         "eligible_b":s.control.assess(&s.b,"files.read").await.ok()==Some(ProjectionDecision::Eligible),
         "phase":projection.as_ref().and_then(|p|p.get("phase")),
         "authority_epoch":projection.as_ref().and_then(|p|p.get("authority_epoch")),
+        "channel": {
+            "connected": channel.as_ref().map(|r| r.get::<bool, _>("connected")).unwrap_or(false),
+            "generation": channel.as_ref().map(|r| r.get::<i64, _>("generation")).unwrap_or(0),
+        },
+        "ledger": {
+            "total": total,
+            "by_state": by_state,
+            "last": last,
+        },
     })))
+}
+async fn relay_control(
+    State(s): State<Inspect>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    authorized(&s, &headers)?;
+    let op = body.get("op").and_then(|v| v.as_str()).unwrap_or("");
+    if !matches!(op, "drop" | "refuse" | "hold_up" | "release") {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let mut guard = s
+        .relay_stdin
+        .lock()
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let stdin = guard.as_mut().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    writeln!(stdin, "{}", json!({"op": op})).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    stdin.flush().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok(Json(json!({"ok": true})))
+}
+async fn revoke_device(
+    State(s): State<Inspect>,
+    headers: HeaderMap,
+    Json(_body): Json<Value>,
+) -> Result<Json<Value>, StatusCode> {
+    authorized(&s, &headers)?;
+    s.store
+        .revoke_device(s.device)
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok(Json(json!({"ok": true})))
 }
 #[tokio::main]
 async fn main() {
@@ -212,27 +304,33 @@ async fn main() {
         .conversation_binding(&principal, "native-B")
         .unwrap();
     let inspection_token = Uuid::new_v4().to_string();
+    let relay_stdin = Arc::new(Mutex::new(relay.0.stdin.take()));
     let inspect_router = Router::new()
         .route("/__native_fixture", get(inspect))
+        .route("/__native_fixture/relay", post(relay_control))
+        .route("/__native_fixture/revoke_device", post(revoke_device))
         .with_state(Inspect {
             token: inspection_token.clone(),
             pool: pool.clone(),
             control: control.clone(),
+            store: store.clone(),
+            device: device.id,
+            connector: identity.connector(),
             a: a.clone(),
             b: b.clone(),
+            relay_stdin: relay_stdin.clone(),
         });
     let router = agent_channel_routes(control.clone())
         .merge(mcp::routes(store.clone(), control))
         .merge(http::identity_routes(store))
         .merge(inspect_router);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    writeln!(
-        relay.0.stdin.as_mut().unwrap(),
-        "{}",
-        listener.local_addr().unwrap().port()
-    )
-    .unwrap();
-    relay.0.stdin.take();
+    {
+        let mut guard = relay_stdin.lock().unwrap();
+        let stdin = guard.as_mut().unwrap();
+        writeln!(stdin, "{}", listener.local_addr().unwrap().port()).unwrap();
+        stdin.flush().unwrap();
+    }
     let config = json!({"origin":identity.origin(),"prefix":identity.prefix(),"connector":identity.connector(),
         "device":device.id,"device_epoch":device.epoch,"authority_epoch":1,
         "public_key":URL_SAFE_NO_PAD.encode(key.public_key().as_ref()),

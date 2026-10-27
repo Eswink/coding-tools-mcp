@@ -25,6 +25,9 @@ impl TargetAuthority for Target {
         };
         Ok(())
     }
+    fn trusted_root_identity(&self) -> String {
+        self.identity.clone()
+    }
 }
 #[cfg(target_os = "linux")]
 fn fixture() -> (tempfile::TempDir, Target, SnapshotStore) {

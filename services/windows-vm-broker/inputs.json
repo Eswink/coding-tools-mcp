@@ -1,0 +1,36 @@
+{
+  "hcsshim": "fb5aa2e9478c8f5dcaba00601cc7c7d10e1320cd",
+  "go": "go1.24.13",
+  "rust": "1.98.1",
+  "node": "v22.23.3",
+  "pwsh": "7.6.6",
+  "image_manifest": "sha256:22505496dd4229dba63453ba0c6dc31c06fd3e11810e5b8e429aa6b16dab2457",
+  "os_version": "10.0.26100.33438",
+  "patch_preimage": "756d21059132c34baf64cfa1ff2c798f6486c6235514960ab1f4ebf28497cfb4",
+  "patch_postimage": "b22b6d758ef183b3d40ad11bab62265126ce5f91ff957fb8ecad04be6fe72927",
+  "patch_sha256": "0f0c4aae8526967e97bab55ff154a3a1a71554607ccf070ebfe6499cfddf6542",
+  "dependency_hashes": {
+    "go.mod": "2abd6398e5b05c2b776fd26895bf8d8fa3a305c7ae2fa97d22ec3be079839adc",
+    "go.sum": "18b99012599d98bbc9e1cf1723552271abf0eddf16357963b7b55e2e98caa5d7",
+    "vendor/modules.txt": "7f7bce9db52949d840616a4456c32aae0486825096f84d58f636f0e82c006eec"
+  },
+  "source_assumptions": {
+    "internal/gcs/guestconnection.go": "d605eb5bf62c4b17109d0d7d986017ee831ed805fbb51383c511392c8b39f6f3",
+    "internal/gcs/process.go": "e3e6655b04ee999b9573e2964bb55740fbc84de027bf43a6de353a429a76abbf",
+    "internal/gcs/iochannel.go": "936ecc4616a39dbc984e507be00fd604d2ea3af4d7048798a4a986e68bb661c9",
+    "internal/uvm/start.go": "259ee9063389a1c2a4f714e4e399375f5ff02309365e03c85f84df59209c0833"
+  },
+  "layers": [
+    {
+      "sha": "97e96e9cbeb16024139f78dc6ed542a7cf572ac80d8cea50a3308368094c4574",
+      "size": 1482371926
+    },
+    {
+      "sha": "67f39c55a3f42bc0569099cebb32cef6688837ca694dfacaa00053810cb810d6",
+      "size": 914397517
+    }
+  ],
+  "node_exe_sha256": "9c9245166b4a8e182e0b797da9c20136117ff24368eaff1fec8343a123c8db0e",
+  "pwsh_exe_sha256": "bfb46af89433268872ddb43d1ca7a3f433452ee91ed356a9786940f90118e285",
+  "patch_source_sha256": "baebb4177f2f972022dbef62299b81596fef0ee23d40b1bd8b4ad71e7f5290b0"
+}

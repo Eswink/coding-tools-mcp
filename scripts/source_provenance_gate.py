@@ -15,11 +15,13 @@ def classify(version: str) -> str:
     raise ValueError('source version must be strict stable or numbered release candidate')
 
 
-def verify(root: Path, source: str) -> dict:
+def verify(root: Path, source: str, *, deadline=None, check_active=None) -> dict:
     version = rc.load(root, 'package.json').get('version')
     kind = classify(version)
+    budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
+    rc.require(not budget or kind == 'release-candidate', 'controlled stable source is unsupported')
     result = (stable.verify_source(root, expected_sha=source) if kind == 'stable'
-              else rc.verify_source(root, expected_sha=source, expected_version=version))
+              else rc.verify_source(root, expected_sha=source, expected_version=version, **budget))
     return {**result, 'source_classification': kind, 'publish_approved': False}
 
 

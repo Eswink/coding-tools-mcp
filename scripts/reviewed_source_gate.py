@@ -1,6 +1,7 @@
 """Verify a pre-reviewed frozen cumulative source manifest, never generate one."""
 from __future__ import annotations
 import argparse
+from contextlib import nullcontext
 import hashlib
 import json
 from pathlib import Path
@@ -33,7 +34,13 @@ def unique(pairs):
 
 
 def blob(root: Path, revision: str, path: str) -> dict | None:
-    raw = git(root, 'ls-tree', '-z', revision, '--', path)
+    return _blob(root, revision, path, None)
+
+
+def _blob(root, revision, path, reader):
+    # Private owner sharing only; public gates accept controls, never a reader.
+    raw = (git(root, 'ls-tree', '-z', revision, '--', path) if reader is None
+           else reader.tree_entry(revision, path))
     if not raw:
         return None
     entries = raw.rstrip(b'\0').split(b'\0')
@@ -42,19 +49,36 @@ def blob(root: Path, revision: str, path: str) -> dict | None:
     mode, kind, sha = metadata.decode('ascii').split()
     require(found.decode('utf-8') == path and kind == 'blob', 'source entry must be a Git blob')
     require(mode in ('100644', '100755', '120000'), 'unsupported source file mode')
-    data = git(root, 'cat-file', 'blob', sha)
+    data = git(root, 'cat-file', 'blob', sha) if reader is None else reader.blob_bytes(sha)
     return {'mode': mode, 'blob_sha': sha, 'sha256': hashlib.sha256(data).hexdigest()}
 
 
-def verify(root: Path, source: str, *, baseline: str = BASE) -> dict:
+def verify(root: Path, source: str, *, baseline: str = BASE, deadline=None, check_active=None) -> dict:
     # baseline override is for isolated unit fixtures only; CLI has no override.
     require(SHA.fullmatch(source) is not None and SHA.fullmatch(baseline) is not None, 'invalid source identity')
-    provenance = verify_provenance(root, source)
-    subprocess.run(['git', 'merge-base', '--is-ancestor', baseline, source], cwd=root, timeout=30, check=True)
-    manifest_blob = blob(root, source, MANIFEST)
+    budget = {} if deadline is None and check_active is None else dict(deadline=deadline, check_active=check_active)
+    provenance = verify_provenance(root, source, **budget)
+    owner = nullcontext()
+    if budget:
+        from rc_consumer_fixed_git import Reader
+        owner = Reader(root, **budget)
+    with owner as reader:
+        result = _verify(root, source, baseline, provenance, reader)
+    if budget:
+        reader.check()
+    return result
+
+
+def _verify(root, source, baseline, provenance, reader):
+    if reader is None:
+        subprocess.run(['git', 'merge-base', '--is-ancestor', baseline, source], cwd=root, timeout=30, check=True)
+    elif not reader.ancestor(baseline, source):
+        raise subprocess.CalledProcessError(1, ['git', 'merge-base', '--is-ancestor', baseline, source])
+    manifest_blob = _blob(root, source, MANIFEST, reader)
     require(manifest_blob is not None and manifest_blob['mode'] == '100644',
             'BLOCKED: tracked parent-reviewed frozen source manifest is required')
-    raw = git(root, 'cat-file', 'blob', manifest_blob['blob_sha'])
+    raw = (git(root, 'cat-file', 'blob', manifest_blob['blob_sha']) if reader is None
+           else reader.blob_bytes(manifest_blob['blob_sha']))
     require(0 < len(raw) <= LIMIT, 'invalid manifest size')
     value = json.loads(raw.decode('utf-8'), object_pairs_hook=unique,
                        parse_constant=lambda value: (_ for _ in ()).throw(ValueError('nonfinite manifest value')))
@@ -68,14 +92,16 @@ def verify(root: Path, source: str, *, baseline: str = BASE) -> dict:
     entries = value['entries']
     require(type(entries) is list and len(entries) <= 10000, 'invalid reviewed entry list')
     actual = {}
-    parts = git(root, 'diff', '--name-status', '--no-renames', '-z', baseline, source).split(b'\0')
+    raw = (git(root, 'diff', '--name-status', '--no-renames', '-z', baseline, source) if reader is None
+           else reader.changes(baseline, source))
+    parts = raw.split(b'\0')
     require(parts[-1] == b'' and (len(parts) - 1) % 2 == 0, 'invalid Git diff framing')
     for offset in range(0, len(parts) - 1, 2):
         status, path = parts[offset].decode('ascii'), parts[offset + 1].decode('utf-8')
         if path == MANIFEST:
             continue
         require(status in ('A', 'M', 'D', 'T'), 'unsupported source status')
-        before, after = blob(root, baseline, path), blob(root, source, path)
+        before, after = _blob(root, baseline, path, reader), _blob(root, source, path, reader)
         require(after is None or after['mode'] in ('100644', '100755'), 'candidate symlinks are not permitted')
         actual[path] = {'path': path, 'status': status, 'before': before, 'after': after}
     reviewed = {}
@@ -91,7 +117,8 @@ def verify(root: Path, source: str, *, baseline: str = BASE) -> dict:
     require(list(reviewed) == sorted(reviewed), 'reviewed entries must be sorted')
     require(reviewed == actual, 'frozen reviewed source differs in paths/status/mode/blob/content')
     return {'passed': True, 'source_sha': source,
-            'source_tree': git(root, 'rev-parse', 'HEAD^{tree}').decode().strip(),
+            'source_tree': (git(root, 'rev-parse', 'HEAD^{tree}').decode().strip() if reader is None
+                            else reader.read('rev-parse', 'HEAD^{tree}')),
             'base_commit': baseline, 'version': provenance['version'], 'entry_count': len(entries),
             'metadata_exclusion': MANIFEST, 'manifest_blob': manifest_blob,
             'review_reference': value['review_reference'], 'publish_approved': False,

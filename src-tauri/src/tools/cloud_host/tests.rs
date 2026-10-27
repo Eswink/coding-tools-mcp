@@ -9,17 +9,23 @@ struct Fixture {
     _harness: tempfile::TempDir,
     host: NativeToolHost,
     peer: CloudPeer,
+    /// Process-unique profile so parallel cloud_host tests do not keep each
+    /// other's ExecTaskStore bindings alive under live_for_profile(profile)
+    /// and block ChatAuthorizer::reconcile from clearing a drained owner.
+    profile: String,
 }
 impl Fixture {
     fn new() -> Self {
         let root = tempfile::tempdir().unwrap();
         let storage = tempfile::tempdir().unwrap();
         let harness = tempfile::tempdir().unwrap();
+        // Isolate the global ExecTaskStore profile registry across --test-threads.
+        let profile = format!("native-host-{}", Uuid::new_v4());
         let context =
             Arc::new(ToolContext::for_test(root.path().into(), harness.path().into()).unwrap());
         let service = Arc::new(ChatAuthorizer::default());
         service
-            .attach_storage("native-host", storage.path(), harness.path())
+            .attach_storage(&profile, storage.path(), harness.path())
             .unwrap();
         let peer = CloudPeer {
             connector: Uuid::new_v4(),
@@ -30,7 +36,7 @@ impl Fixture {
             generation: 1,
         };
         let link = CloudTransport::new(
-            "native-host",
+            &profile,
             root.path(),
             "https://gateway.example.invalid",
             "/coding-tools",
@@ -42,7 +48,7 @@ impl Fixture {
         .unwrap();
         link.activate(peer.clone(), Duration::from_secs(30))
             .unwrap();
-        let host = NativeToolHost::new("native-host", context, link, service).unwrap();
+        let host = NativeToolHost::new(&profile, context, link, service).unwrap();
         std::fs::write(root.path().join("fixture.txt"), "native-file-canary").unwrap();
         Self {
             root,
@@ -50,6 +56,7 @@ impl Fixture {
             _harness: harness,
             host,
             peer,
+            profile,
         }
     }
     fn conversation(&self) -> String {
@@ -64,7 +71,7 @@ impl Fixture {
         self.host
             .authorizer
             .decide(
-                "native-host",
+                &self.profile,
                 v["authorization"]["id"].as_str().unwrap(),
                 true,
                 &selected,
@@ -165,7 +172,7 @@ fn revocation_between_prepare_and_commit_does_not_execute() {
     let f = Fixture::new();
     let a = f.approve(&["files.read"]);
     let prepared = f.read(&a);
-    f.host.authorizer.revoke("native-host", None);
+    f.host.authorizer.revoke(&f.profile, None);
     assert!(f.host.execute(prepared).is_err());
     assert!(f.host.authority(&f.conversation()).is_err());
 }
@@ -247,7 +254,7 @@ fn prepared_work_cannot_cross_host_instance_or_workspace() {
         ToolContext::for_test(other.root.path().into(), other._harness.path().into()).unwrap(),
     );
     assert!(NativeToolHost::new(
-        "native-host",
+        &f.profile,
         different,
         f.host.link.clone(),
         f.host.authorizer.clone()
@@ -337,7 +344,7 @@ fn native_pause_and_foreign_conversations_do_not_create_extra_pending_work() {
             .request_authorization(&f.conversation(), &json!({"scopes":["files.read"]}))["ok"],
         false
     );
-    assert!(f.host.authorizer.snapshot("native-host")["records"]
+    assert!(f.host.authorizer.snapshot(&f.profile)["records"]
         .as_array()
         .unwrap()
         .is_empty());
@@ -358,7 +365,7 @@ fn native_pause_and_foreign_conversations_do_not_create_extra_pending_work() {
         );
     }
     assert_eq!(
-        f.host.authorizer.snapshot("native-host")["records"]
+        f.host.authorizer.snapshot(&f.profile)["records"]
             .as_array()
             .unwrap()
             .len(),
@@ -373,7 +380,7 @@ fn closing_cloud_link_rejects_prepared_work_without_native_authority_mutation() 
     f.host.link.close();
     assert!(f.host.execute(prepared).is_err());
     assert_eq!(
-        f.host.authorizer.snapshot("native-host")["records"]
+        f.host.authorizer.snapshot(&f.profile)["records"]
             .as_array()
             .unwrap()
             .len(),

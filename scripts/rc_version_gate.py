@@ -69,18 +69,26 @@ def git_commit(root: Path) -> str:
 
 
 def verify_source(root: Path, expected_sha: str | None = None,
-                  expected_version: str | None = None) -> dict:
+                  expected_version: str | None = None, *, deadline=None, check_active=None) -> dict:
     version, versions = project_versions(root)
     if expected_version is not None:
         require(bool(RC_VERSION.fullmatch(expected_version)), "expected version is not an rc version")
         require(version == expected_version, "candidate version does not match expected version")
-    head = git_commit(root)
-    clean = subprocess.run(["git", "diff", "--quiet", "HEAD", "--"], cwd=root,
-                           capture_output=True, timeout=20, check=False)
-    require(clean.returncode == 0, "tracked source differs from the candidate commit")
+    if deadline is None and check_active is None:
+        head = git_commit(root)
+        clean = subprocess.run(["git", "diff", "--quiet", "HEAD", "--"], cwd=root,
+                               capture_output=True, timeout=20, check=False)
+        require(clean.returncode == 0, "tracked source differs from the candidate commit")
+    else:
+        from rc_consumer_fixed_git import Reader
+        with Reader(root, deadline=deadline, check_active=check_active) as reader:
+            head = reader.commit()
+            require(reader.tracked_clean(), "tracked source differs from the candidate commit")
     if expected_sha is not None:
         require(bool(SHA.fullmatch(expected_sha)) and head == expected_sha,
                 "checkout does not match expected source SHA")
+    if deadline is not None or check_active is not None:
+        reader.check()
     return {
         "scope": "release-candidate-version-and-source",
         "passed": True,

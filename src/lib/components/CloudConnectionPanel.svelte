@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { confirm, open } from '@tauri-apps/plugin-dialog';
-  import { canStartCloud, cloudPhaseLabels, createCloudConnectionController, type CloudView } from '$lib/cloud-connection';
+  import { canStartCloud, cloudLinkErrorText, cloudLinkText, cloudPhaseLabels, createCloudConnectionController, type CloudView } from '$lib/cloud-connection';
   let { workspaceId }: { workspaceId: string } = $props();
   let view = $state<CloudView>({ status: null, busy: false, error: '', uncertain: false });
   let controller: ReturnType<typeof createCloudConnectionController> | undefined;
@@ -35,7 +35,11 @@
   <h3 id="cloud-connection-heading">云连接</h3>
   <p>出站连接与本机执行授权分别管理。云端、模型和 OAuth 不能批准本机权限。</p>
   <p role="status" aria-live="polite">{view.status ? cloudPhaseLabels[view.status.phase] : '连接状态尚未确认'}{view.busy ? ' · 正在处理本机操作' : ''}</p>
-  {#if view.status}<p>传输连接：{view.status.connected ? '在线' : '离线'}。聊天批准、撤销和暂停仍以本机控制为准。</p>{/if}
+  {#if view.status}
+    <p>传输连接：{view.status.connected ? '在线' : '离线'}。聊天批准、撤销和暂停仍以本机控制为准。</p>
+    <p class="cloud-link">Agent 链路：{cloudLinkText(view.status)}</p>
+    {#if view.status.link === 'needs_operator' || view.status.link === 'failed'}<p class="cloud-link-error" role="alert">Agent 链路已停止自动重连，需要在本机检查后手动处理。{view.status.linkError ? `原因：${cloudLinkErrorText(view.status.linkError)}` : ''}</p>{/if}
+  {/if}
   {#if view.error}<p role="alert">{view.error}</p>{/if}
   {#if view.uncertain}<p role="alert">上次操作结果不确定：启动、初始化和导入已锁定。刷新只读取状态，不会重复提交。</p>{/if}
   {#if view.status?.phase === 'draining'}<p>旧会话正在排空。请在本机检查未完成操作，不要让新聊天接管。</p>{/if}

@@ -1,0 +1,12 @@
+--- a/internal/uvm/create_wcow.go
++++ b/internal/uvm/create_wcow.go
+@@ -217,7 +217,8 @@
+ \t\t\t\t\tHvSocketConfig: &hcsschema.HvSocketSystemConfig{
+ \t\t\t\t\t\t// Allow administrators and SYSTEM to bind to hyper-v sockets
+ \t\t\t\t\t\t// so that we can communicate to the GCS.
+-\t\t\t\t\t\tDefaultBindSecurityDescriptor: "D:P(A;;FA;;;SY)(A;;FA;;;BA)",
++\t\t\t\t\t\tDefaultBindSecurityDescriptor: "D:P(D;;FA;;;WD)",
++\t\t\t\t\t\tDefaultConnectSecurityDescriptor: "D:P(D;;FA;;;WD)",
+ \t\t\t\t\t\tServiceTable:                  make(map[string]hcsschema.HvSocketServiceConfig),
+ \t\t\t\t\t},
+ \t\t\t\t},

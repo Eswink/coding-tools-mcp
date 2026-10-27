@@ -1,0 +1,74 @@
+name: Pre-tag data contracts (no live evidence)
+
+on:
+  push:
+    branches: ['feat/rc-pretag-contract-*', 'release/dot-rc-reconciliation-*']
+    paths:
+      - 'scripts/rc_pretag*'
+      - 'scripts/rc_release_policy.py'
+      - 'scripts/rc_release_eligibility.py'
+      - 'docs/specs/issue-88-narrow/**'
+      - '.github/workflows/rc-pretag-contract-checks.yml'
+  pull_request:
+    paths:
+      - 'scripts/rc_pretag*'
+      - 'scripts/rc_release_policy.py'
+      - 'scripts/rc_release_eligibility.py'
+      - 'docs/specs/issue-88-narrow/**'
+      - '.github/workflows/rc-pretag-contract-checks.yml'
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  fixtures:
+    name: Schema-only adversarial fixtures and unchanged regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Acquire existing checksum-pinned regression source fixture only
+        env:
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ runner.temp }}/glib-0.18.5.crate
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --proto '=https' --max-redirs 0 \
+            --connect-timeout 10 --max-time 30 --max-filesize 1048576 \
+            --output "$RC_CONSUMER_TEST_GLIB_ARCHIVE" \
+            https://static.crates.io/crates/glib/glib-0.18.5.crate
+          test "$(stat -c %s "$RC_CONSUMER_TEST_GLIB_ARCHIVE")" -le 1048576
+          printf '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5  %s\n' \
+            "$RC_CONSUMER_TEST_GLIB_ARCHIVE" | sha256sum --check --strict
+      - name: Validate unverified schemas and unchanged release contracts
+        env:
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ runner.temp }}/glib-0.18.5.crate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import unittest
+          suite = unittest.defaultTestLoader.discover('scripts', pattern='rc_pretag*_tests.py')
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          raise SystemExit(0 if result.wasSuccessful() and not result.skipped and result.testsRun >= 53 else 1)
+          PY
+          python scripts/rc_consumer_test_runner.py
+          for suite in release_tag_gate rc_version_gate reviewed_source_gate cloud_release_bundle \
+            final_rc_evidence release_dependency_capture release_dependency_contract exact_build_audit \
+            rc_packages rc_windows_install_contract exclusive_native_contract exclusive_release \
+            source_provenance_gate; do
+            python "scripts/${suite}_tests.py"
+          done
+          python scripts/发布版本回归v4.py
+          git diff --exit-code

@@ -16,6 +16,7 @@ import secrets
 import sys
 import time
 import urllib.parse
+import linux_runtime_provenance as runtime
 from exclusive_native_gate import SCENARIO, TEST_NAMES
 from exclusive_native_http import legacy, exchange, rpc, code_pair, rotate, replay, unavailable
 
@@ -90,6 +91,18 @@ def candidate(session, base, token, chat, scopes):
     return grant
 
 
+SECRET_SERVICE_HINT = '系统 Secret Service 暂不可用'
+KEYRING_FIXTURE_PASSWORD = b'isolated-ubuntu-native-v1'
+
+
+def reunlock_ci_keyring() -> None:
+    """Re-unlock the CI gnome-keyring once; never touches a user desktop session."""
+    import subprocess
+    subprocess.run(
+        ['gnome-keyring-daemon', '--unlock', '--components=secrets'],
+        input=KEYRING_FIXTURE_PASSWORD, check=False, capture_output=True, timeout=15)
+
+
 def decide(session, base, token, chat, *, approve=True, drop_scope=None):
     if approve:
         if drop_scope:
@@ -99,7 +112,19 @@ def decide(session, base, token, chat, *, approve=True, drop_scope=None):
     else:
         legacy.click(session, MODAL + "//button[normalize-space(.)='拒绝']")
     expected = 'active' if approve else 'denied'
-    value = gui.wait_for(lambda: rpc(base, token, chat, 'auth_status', {}),
+    recovered = False
+
+    def auth_or_recover():
+        nonlocal recovered
+        if approve and not recovered and SECRET_SERVICE_HINT in (session.body() or ''):
+            # One controlled recovery click after re-unlock; never a blind mutation replay.
+            reunlock_ci_keyring()
+            time.sleep(0.5)
+            legacy.click(session, MODAL + "//button[normalize-space(.)='批准并独占']")
+            recovered = True
+        return rpc(base, token, chat, 'auth_status', {})
+
+    value = gui.wait_for(auth_or_recover,
         lambda value: value.get('authorization', {}).get('status') == expected)
     gui.wait_for(lambda: not modal_open(session))
     return value['authorization']
@@ -180,15 +205,20 @@ def run(args, *, ui_review=None):
         'os_toast_visibility_verified': False, 'tests': []}
     session, profile, root = None, None, None
     sensitive = []
+    observer = None
     def passed(index):
         assert index == len(evidence['tests'])
         evidence['tests'].append({'name': TEST_NAMES[index], 'passed': True})
         print('PASS ' + TEST_NAMES[index], flush=True)
+        runtime.notify(observer, 'checkpoint', 'native-stage-' + str(index))
     try:
         assert args.kind in ('deb', 'appimage', 'nsis')
         evidence['binary_sha256'] = hashlib.sha256(args.executable.read_bytes()).hexdigest()
         home = adapter.fixture_root(args)
-        session = adapter.session(args.executable.resolve(), args.driver.resolve(), output, 1)
+        observer = runtime.configured(output / 'runtime-provenance-1.json', 'native-1') if sys.platform == 'linux' else None
+        options = {'observer': observer} if observer is not None else {}
+        session = adapter.session(args.executable.resolve(), args.driver.resolve(), output, 1, **options)
+        runtime.notify(observer, 'checkpoint', 'native-ready')
         evidence['real_native_webview'] = True
         evidence['version'] = session.invoke('plugin:app|version')
         assert evidence['version'] == json.loads(Path(__file__).resolve().parents[1].joinpath('package.json').read_text())['version']
@@ -309,7 +339,10 @@ def run(args, *, ui_review=None):
         evidence['pending_elapsed_seconds'] = round(time.monotonic() - start, 3)
         passed(9)
         session.invoke('stop_runtime', {'id': profile['id']}); session.close(); session = None
-        session = adapter.session(args.executable.resolve(), args.driver.resolve(), output, 2)
+        observer = runtime.configured(output / 'runtime-provenance-2.json', 'native-2') if sys.platform == 'linux' else None
+        options = {'observer': observer} if observer is not None else {}
+        session = adapter.session(args.executable.resolve(), args.driver.resolve(), output, 2, **options)
+        runtime.notify(observer, 'checkpoint', 'native-ready')
         restored = session.invoke('list_workspaces')
         assert len(restored) == 1 and restored[0]['auth']['session_policy'] == p
         session.invoke('start_runtime', {'id': profile['id']})
@@ -340,6 +373,7 @@ def run(args, *, ui_review=None):
                 session.close(); evidence['cleanup_completed'] = True
             except BaseException as error:
                 evidence.update(passed=False, cleanup_failed=True, cleanup_failure_type=type(error).__name__)
+        runtime.notify(observer, 'finish', evidence['cleanup_completed'] and not evidence['cleanup_failed'])
         redactions = scan_export(output, sensitive)
         evidence.update(export_secret_scan_completed=True, export_secrets_found=False, secret_redactions=redactions)
         if redactions: evidence.update(passed=False, failure_type='SyntheticCredentialInExport')

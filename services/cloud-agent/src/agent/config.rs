@@ -20,6 +20,10 @@ pub struct AgentConfig {
     pub revision_file: PathBuf,
     pub ca_der_file: Option<PathBuf>,
     #[serde(default = "default_runtime")]
+    /// Legacy field, kept for configuration compatibility (still validated to 1..=3600).
+    /// It no longer limits anything: `HostAgent::run` is always-on and only a requested
+    /// stop or a non-retryable error ends it, so a session that outlives this value
+    /// (or the gateway's 3600s MAX_AGE) simply reconnects. Do not rely on it to bound a run.
     pub run_seconds: u64,
 }
 fn default_runtime() -> u64 {

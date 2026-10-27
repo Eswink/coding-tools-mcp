@@ -1,0 +1,4 @@
+{
+  "database_url": "<DATABASE_URL>",
+  "identity_key": "<IDENTITY_KEY>"
+}

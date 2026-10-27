@@ -9,6 +9,13 @@ use std::{
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct FileIdentity(u64, u64);
 
+impl FileIdentity {
+    /// Same "dev:ino" form the snapshot store derives from an opened handle.
+    pub(crate) fn snapshot_key(&self) -> String {
+        format!("{}:{}", self.0, self.1)
+    }
+}
+
 pub(super) fn failure(code: &'static str) -> WorktreeError {
     WorktreeError::new(code, "Managed worktree safety validation failed.")
 }
