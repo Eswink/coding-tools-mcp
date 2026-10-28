@@ -1,0 +1,130 @@
+# Coding Tools cloud gateway — Docker Compose deployment (D1).
+# Topology mirrors runtime_topology.compose(): one loopback-published namespace anchor,
+# gateway + ingress share its network namespace, PostgreSQL stays on an internal network.
+# No secrets live here or in .env: they are 0400/0600 files under ${CTM_PRIVATE_ROOT}
+# created by `sudo python3 ctm_docker.py setup`. Images are pinned by immutable id/digest only.
+name: ${CTM_PROJECT:-coding-tools-gateway}
+
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+  pids_limit: 128
+  mem_limit: 512m
+  cpus: 1.0
+  pull_policy: never
+
+x-logs: &logs
+  driver: local
+  options: {max-size: 1m, max-file: "2"}
+
+services:
+  namespace:
+    <<: *hardening
+    image: ${CTM_GATEWAY_IMAGE:?set CTM_GATEWAY_IMAGE to sha256:<image-id> or repo@sha256:<digest>}
+    user: "65532:65532"
+    init: true
+    entrypoint: ["/usr/bin/sleep"]
+    command: ["infinity"]
+    networks: [edge, database]
+    mem_limit: 16m
+    pids_limit: 4
+    cpus: 0.1
+    # The ONLY published port, on host loopback. Put Baota/Nginx/Caddy TLS in front of it.
+    ports:
+      - target: 8080
+        published: "${CTM_PORT:-28880}"
+        host_ip: 127.0.0.1
+        protocol: tcp
+    stop_grace_period: 5s
+    logging: {driver: none}
+
+  gateway:
+    <<: *hardening
+    image: ${CTM_GATEWAY_IMAGE:?set CTM_GATEWAY_IMAGE}
+    user: "65532:65532"
+    command: ["serve", "--config", "/run/gateway/config.json", "--secrets-file", "/run/gateway/runtime.json"]
+    volumes:
+      - {type: bind, source: "${CTM_PRIVATE_ROOT:?set CTM_PRIVATE_ROOT}/gateway-private", target: /run/gateway, read_only: true, bind: {create_host_path: false}}
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m,uid=65532,gid=65532"]
+    network_mode: service:namespace
+    depends_on:
+      postgres: {condition: service_healthy}
+      namespace: {condition: service_started, restart: true}
+    healthcheck:
+      # bash /dev/tcp only: the runtime image ships no curl. Host must equal the configured origin.
+      test: ["CMD", "/bin/bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/28880 && printf 'GET /coding-tools/health/ready HTTP/1.1\\r\\nHost: ${CTM_DOMAIN:?set CTM_DOMAIN}\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -c 12 <&3 | grep -q ' 200'"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    stop_grace_period: 15s
+    logging: *logs
+
+  ingress:
+    <<: *hardening
+    image: ${CTM_INGRESS_IMAGE:?set CTM_INGRESS_IMAGE to nginx@sha256:<digest>}
+    user: "65532:65532"
+    network_mode: service:namespace
+    depends_on:
+      gateway: {condition: service_started}
+      namespace: {condition: service_started, restart: true}
+    entrypoint: ["/usr/sbin/nginx"]
+    command: ["-c", "/run/ingress/nginx.conf", "-g", "daemon off;"]
+    volumes:
+      - {type: bind, source: "${CTM_PRIVATE_ROOT}/ingress-private", target: /run/ingress, read_only: true, bind: {create_host_path: false}}
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m,uid=65532,gid=65532"]
+    mem_limit: 128m
+    pids_limit: 32
+    stop_grace_period: 5s
+    logging: *logs
+
+  postgres:
+    <<: *hardening
+    image: ${CTM_POSTGRES_IMAGE:?set CTM_POSTGRES_IMAGE to postgres@sha256:<digest>}
+    user: "999:999"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD_FILE: /run/postgres-secret/password
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=trust"
+    volumes:
+      - database-data:/var/lib/postgresql/data
+      - {type: bind, source: "${CTM_PRIVATE_ROOT}/postgres-private", target: /run/postgres-secret, read_only: true, bind: {create_host_path: false}}
+    tmpfs:
+      - "/tmp:rw,noexec,nosuid,size=16m,uid=999,gid=999"
+      - "/var/run/postgresql:rw,nosuid,size=16m,uid=999,gid=999,mode=3775"
+    networks: [database]
+    command: ["postgres", "-c", "log_statement=none", "-c", "log_min_error_statement=panic",
+              "-c", "log_parameter_max_length=0", "-c", "log_parameter_max_length_on_error=0"]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "postgres"]  # TCP: not healthy during initdb temp server
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    stop_grace_period: 15s
+    mem_limit: 768m
+    logging: *logs
+
+  # One-shot CLI runner for migrate / provision / enrollment. Secrets only via stdin; never logged.
+  operator:
+    <<: *hardening
+    image: ${CTM_GATEWAY_IMAGE:?set CTM_GATEWAY_IMAGE}
+    user: "65532:65532"
+    profiles: [operator]
+    restart: "no"
+    entrypoint: ["/usr/local/bin/coding-tools-gateway"]
+    command: ["--help"]
+    volumes:
+      - {type: bind, source: "${CTM_PRIVATE_ROOT}/gateway-private", target: /run/gateway, read_only: true, bind: {create_host_path: false}}
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m,uid=65532,gid=65532"]
+    networks: [database]
+    logging: {driver: none}
+
+networks:
+  edge: {}
+  database: {internal: true}
+
+volumes:
+  database-data: {}

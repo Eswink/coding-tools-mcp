@@ -6,6 +6,11 @@
 
 Status: **REVIEW_BLUEPRINT_ONLY / NOT_DEPLOYABLE**. These files do not install or start a gateway.
 
+## Docker Compose 一键部署（D1）
+
+直接用 Docker 部署（网关 + PostgreSQL + ingress，单个回环端口）见 [`docker/README.md`](docker/README.md)：
+`sudo python3 docker/ctm_docker.py setup …` → 设备登记 → `docker compose up -d`。
+
 ## Supplied topology
 
 User reports CentOS Stream 8, x86_64, Compose 2.27.0, `research-system.eswlnk.com`, with Nginx/Baota WAF on 443. This is not a live inventory or access credential. The design preserves that listener and existing site, using `/coding-tools/` and the exact path-based OAuth discovery locations. Planned upstream: `127.0.0.1:28880`; neither availability of this port nor absence of route conflicts has been observed on the VPS.
