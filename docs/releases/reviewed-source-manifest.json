@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
-  "version": "0.7.0-rc.2",
-  "review_reference": "Owner-reviewed 2026-10-26 Asia/Shanghai: FULL FINAL auth by owner; candidate = 24b8b755 + bump 0.7.0-rc.2 (+ re-pin if measured); digests FINAL-A-B1-DIGESTS-20261026.md; Coding-tools gate via Grok; Option R tip ea87fcc9 + reviewed-source-manifest refresh cascade (topology second cascade; PROFILE+native_probe+reviewed)",
+  "version": "0.7.0-rc.3",
+  "review_reference": "ENGINEERING CANDIDATE ONLY - NOT QUALIFIED, NOT FINAL, NOT APPROVED. Generated 2026-10-28 Asia/Shanghai by 专业打工人 for 0.7.0-rc.3 candidate = v0.7.0-rc.2 bdc4aeb5 + feat/gateway-docker-d1 e8e516dc + main 07e0ee09 + bump 0.7.0-rc.3 + re-pin cascade (inverse/admission/rc070/native_probe/reviewed); digests rc_bundle/gateway-docker/p2/DIGESTS.md; owner review and CI rebuild of cloud-image.tar required before any tag",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -16,6 +16,16 @@
         "mode": "100644",
         "blob_sha": "dc5d3e8f896b084d6992e00bbf57eef516e94c10",
         "sha256": "98f24b7be78fd496dee3b15cf355e6c91e48a1429e74367ecf3b9daad0b99601"
+      }
+    },
+    {
+      "path": ".github/workflows/cloud-agent-resilience.yml",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "ea7a162ce8e13e6b9f5727e5eaec82deeeceeedc",
+        "sha256": "e3692e763d67761d837fb7162d47e0f3d9012f080d1fb02dd6688f3dbfb198c6"
       }
     },
     {
@@ -288,8 +298,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "0b0d29a03c995ae0f9edb9551520775e1d5626e1",
-        "sha256": "e76502cff62fb0016d7691e6d37a121b7f4e4596ff5923d04969d34a73fa1c1d"
+        "blob_sha": "157188baca836090735b4a7131ac3baa26e7da22",
+        "sha256": "16074ae6a7e7dc3b553a85118850adb209e80389d4639351f7e860653ca8f2ed"
       }
     },
     {
@@ -416,8 +426,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "b7e7a8b85036cee412c2ec97ebbc955c9f1f3970",
-        "sha256": "aa5d1400ec8838451ada87b10620c9a7ad81d2e493c803443f8e1e089a8a43bf"
+        "blob_sha": "a7a944482a052effaa71d7ad2de057940316a804",
+        "sha256": "58460df975c985b6ebf5effa0bece87b9eb3bd5fa3716d4f8975feac2776d59e"
       }
     },
     {
@@ -465,6 +475,34 @@
       }
     },
     {
+      "path": "README.en.md",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "a6c7dc53f0d8079aa226bdcb3a417b26e8674c0f",
+        "sha256": "aa28224203e26c3b63e6a205f526ae40102013b571830516cbd70ceda1a0c7c3"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "b8d1a35dff9ae83a16734a523ed7d5c4cf797b60",
+        "sha256": "78ba540a3dcfb3b0c2bd02b1cb8193c105237d37a62e156bda1922ce8110af78"
+      }
+    },
+    {
+      "path": "README.md",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "803013f1ce4088fab08bd4b4ba5fc57c587a865b",
+        "sha256": "1fdd0d602895d9aa55851a3faaa64a42b0de3f0fdd9925d501ed5fe4fd34c4ce"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "7b88a4d4e99b836d20958edf88fd07e13179dfcf",
+        "sha256": "676cc23316857096cfbf91521d336474b835852a89fed487f370b6502bd5ed81"
+      }
+    },
+    {
       "path": "deploy/cloud-gateway/.gitignore",
       "status": "A",
       "before": null,
@@ -472,6 +510,16 @@
         "mode": "100644",
         "blob_sha": "7a60b85e148f80966a550e5ab6a762a907c69ca6",
         "sha256": "862263fa1f46c20f0d1e4dac5ffcc75abd55c08211b2c3864c5f8764b9d87793"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/CONNECT-CHATGPT-AND-DESKTOP.md",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "f03a21c5a3a3ac9c395f030ed787355dbdab5d05",
+        "sha256": "dec07dc6ca7003eaf05dbbbacf7091424aad6dac23c6cdf8376aaa4fb51a3e09"
       }
     },
     {
@@ -490,8 +538,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "8087aea1ba43b8d585cb8a81a7fea138e9207246",
-        "sha256": "f2a55c4fb9828c835f11f8ffacbc873f8ae173d21a921fdc93cd4dfbaacf5c71"
+        "blob_sha": "acd72eb5fa666683dd81b99882665dda757f97b5",
+        "sha256": "16030f718cdc2617c0ff7452791a21407c660f09c5895b555cbbc1f36b14b113"
       }
     },
     {
@@ -505,6 +553,66 @@
       }
     },
     {
+      "path": "deploy/cloud-gateway/docker/.env.example",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "900c52ec3e88a1706d1f92e92f7df781f0e91928",
+        "sha256": "4e2d0ee03261ff3f94bb32e45f4ed70f990863e0c3fe6cf4a05cfa6ea2eb5cbd"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/docker/.gitignore",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "4c49bd78f1d08f2bc09fa0bd8191ed38b7dce5e3",
+        "sha256": "69aa73cf5bc3377a7d97f2e8d2bb773195815efe225af7f1be6f5b9306bbe14f"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/docker/README.md",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "77bb148db423371de9604ace0698bd66897750dc",
+        "sha256": "7e7ae21d050fd72a75c6b752381b2c4a8f7c0581725eebcbad60d71767b25941"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/docker/compose.yaml",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "5a0070619dfab72447a50f759af9a7ebc3bb49f7",
+        "sha256": "69f041332ab7a9f93ec811a525cf784f0052c62f5dd05c7cf5910a3f85372115"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/docker/ctm_docker.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "a8f5d57f59d91e9ad7b68fe19c09974cccda49c0",
+        "sha256": "b13d2a3cdb8562f986e63b8c5d136b51afbc8cda093ddcd6ab628e93abfa4359"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/docker/smoke.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "b271e356ace1a02069ca669aa9b991f785c10c70",
+        "sha256": "b961917795e7204796c79ea2a99904e45045281d98ca5006dd3afde3f9a13a24"
+      }
+    },
+    {
       "path": "deploy/cloud-gateway/inventory.user-reported.json",
       "status": "A",
       "before": null,
@@ -515,6 +623,56 @@
       }
     },
     {
+      "path": "deploy/cloud-gateway/kit/RUNBOOK.md",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "1a730d0434a941a10070cfacfea9b0c4aec91228",
+        "sha256": "9485ff0689e5a0edf2c1bc760960b70c5c9ba13df6c019abfa07fd5d6b1b8a69"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/kit/bootstrap-roles.sql.tmpl",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "5b844fcb3947004ca669975db763033f94ee4d3a",
+        "sha256": "37011263ebc9ee9a19936878cb0840697490ad58f34d5f9a481cc119ef795cea"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/kit/config.example.json",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "036d0c65620eedd8082eaf1f6fb66d2e796841e7",
+        "sha256": "1501fcce456cfadf406407be245570e6606fc5f0fd4eb1e766561dbd1251f332"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/kit/kit.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "78bdf5576d68309d6342f33274cc20dd118dc9f7",
+        "sha256": "607f748e5dec13bfe9df36c47cc6ee2e22a82e23cc0840678c4edb2b06005634"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/kit/runtime.example.json",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "720ff9c0f2daf8bea773ef045c587edc778fbc85",
+        "sha256": "69ac2bc1c15b51554e25224df52dcdaa6d16c39a2e92e69788b4f0132680fc26"
+      }
+    },
+    {
       "path": "deploy/cloud-gateway/migration.py",
       "status": "A",
       "before": null,
@@ -522,6 +680,156 @@
         "mode": "100644",
         "blob_sha": "f6dcbee8244309bcc962366c25c5ca397c38b3af",
         "sha256": "dcef9e60a1adf9fe8f6a2b3822bba4632cb2c2a8273f75b53fda989f335e3d1f"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/README.md",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "f666e06702b72a46be202e2dd38dad19c88181a0",
+        "sha256": "8aa9542aa901d78e7f9e62a90ec68747779dc5360705676574bc53a32a7a8706"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/ops_console/__init__.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "11d76bfc0fcdc0489d8c66fb6469ad112ce16521",
+        "sha256": "8b320722ff25a75b7682fa3f40c6f026708e86ad404febdd9c0e7f624dc6df28"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/ops_console/bind.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "c1f5a02f25bb1e9bd732a8a87a9ef642de70de85",
+        "sha256": "98c4bb9754de290d213c61d86be8f12df33dbe5e63cc6f234c1dcb0f3d694211"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/ops_console/cli_wrap.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "2158af7a799b42f7ba62878586a20fccc41a7e6f",
+        "sha256": "89d470896ec93bc8bedfd51563aabae113946171c0b61ce44f9b2b37e6e64a3e"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/ops_console/config_api.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "ab3de2a7175a44e4031d7b591ca21d9301a26b95",
+        "sha256": "68e2656d6aa4f9da2e50a5995741fb6bbd4d0aeda7fc819b210c1392d6a3154f"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/ops_console/devices.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "8aa6ef459ca0a97bc246408b95072d70ca9fe0c5",
+        "sha256": "cac496af4b22a57919d86acc924d6ccecfa4b43e458befe670ce39e22d2ac23f"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/ops_console/kit_preview.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "f012910998ee744c3d9a89b7fc2b3105fc2b250b",
+        "sha256": "b1a8584ca161b67e8ede88843acb411c79a64208a32421eff6004ce1bb2ae27c"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/ops_console/paths.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "41cad0bc28cf6b66e6e4acde02fb92104199d01e",
+        "sha256": "f80285140bc07b0dcf964b300ddf44117960997469f3bde29946bf7e219ed33b"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/ops_console/secrets_filter.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "ab32eaa8bb8ac387efb0046b58d70850944503e0",
+        "sha256": "2f2a0a7aaf522acae55717eda68415b0efeaac101b082c810ecdd23c3af0d233"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/server.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100755",
+        "blob_sha": "0057dc34e98b994ef1a143e7bbb6bd36f9e40425",
+        "sha256": "28fba9049a0cef55c907eaf0551a9095808e13adbdab3d070f74d57406d2cf4f"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/static/app.js",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "64e6aaf24a2dd86c31888b2be2ac339e74f951b4",
+        "sha256": "79dece372bef5dea5f052011ce5f29368706a4743493e3804fed48bf5a52cb60"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/static/index.html",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "70416e36d30a0e7ef4b925f21436f4e6c461e05e",
+        "sha256": "1ddcc0b61eb0c83e3f01b683ac0574d6ee40588f4762baafe3ae4cae25c8742e"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/static/style.css",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "c478a4ae88c9388a2fe1eecd13040721e2afd99e",
+        "sha256": "c5562f58d94a2eba67ff678cd8135c1cd4c90dbf08f8475804e4b947bebfdd6e"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/tests/test_s2.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100755",
+        "blob_sha": "772918b9b3f06b03eac8102354778fab7b898c31",
+        "sha256": "c4b334b3552031cfc4a19c40e94d6d533b1347acd01e57e254bf3985ca6329ed"
+      }
+    },
+    {
+      "path": "deploy/cloud-gateway/ops-console/tests/test_s3.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "928ad6ac255bffbd2b05fffdf22128f11581be1e",
+        "sha256": "40f78dba236096de463e5221756f2c23303096f4735fde60055f351c81d45c7b"
       }
     },
     {
@@ -540,8 +848,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e73a6e46134dfe3e6eaf286b5465d9a40115d3a9",
-        "sha256": "34b1ea7411baa28361fd981348c510a098bc6162518264a9481552ed7d58582b"
+        "blob_sha": "9574658ed8a82b3ad839add2f20951114b5e2a43",
+        "sha256": "faf81ceee0bbb88da42beb0edaa1031c4dd8ef2960d766e2f427a4e3f7b4a2bf"
       }
     },
     {
@@ -2934,8 +3242,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "5c5dac30a2491f12ba943fb67834503378a27d46",
-        "sha256": "560842c1ca745a7d109fe253115be4a91278ece94077ef1af1647c60f84f79ed"
+        "blob_sha": "e87283d1cea24a4a76507814040709a54738ae99",
+        "sha256": "cc9d38e7d61f6490faa8da6554b9e6063e5d1ad2698b4605eece4fd39a844c89"
       }
     },
     {
@@ -2948,8 +3256,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "57caa46b746ce6aa53e6ba5fc2f7509fd14da5f0",
-        "sha256": "529e52c8d053861ccdb7b585a3f820c4426bb0cc05af115d82828be2c72ba6cc"
+        "blob_sha": "398f08b62c22270773bb6d32083292ee710976d8",
+        "sha256": "a4c27a57bf71a79039f975a5ab471a3db8ceb9166e6095eb31dd317fe444e907"
       }
     },
     {
@@ -4032,8 +4340,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "032d6b75bf9afb90d135485964d1f7e6ca147644",
-        "sha256": "1e80ceb66ccb507ff0abba2a986de756dfccd140d5e598ff4a2aa501d503d5ea"
+        "blob_sha": "2a208edb0b8dcdc87f3d7681d37c082041ee3a53",
+        "sha256": "60459cc93badaecabe75e012a106aff3cc1eaf80996ccf208fe3b8ed81fa0854"
       }
     },
     {
@@ -4076,8 +4384,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "68b4beb3a75edffc37880ad02c09f6faff8191e3",
-        "sha256": "c0315590404186e3bfca6e43e449abb28a7e515399e14805581f4e036df38821"
+        "blob_sha": "a3453495f709d83afcd53040b7d7ebd8ca87a1b8",
+        "sha256": "4f744e9eaef56e25ec62a8c046c3098f0e243e76b61a81832bc21d1d5c4c468b"
       }
     },
     {
@@ -4116,8 +4424,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "084930111f616f175f40342e0a18acd146357c67",
-        "sha256": "2142d0cf3f887d00fbae280403740125eb85a589f60c7ecfe543c4de0cd38a21"
+        "blob_sha": "32c0a4427432052bb4bdab7e58476002310002c4",
+        "sha256": "fe36955c8c5705baf9c0991ea0336e2b58d51bfba7474af109b621158df9e7e9"
       }
     },
     {
@@ -4126,8 +4434,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "622e8e24b0dffa0494c6820bd7c8c5f577db8f46",
-        "sha256": "4b00fd2f9465df4fa83d8ee757552d639c60d5cd2df83553ae8f1ad05ed09a65"
+        "blob_sha": "1c70b7a8673622ddc3748e524cd0d8da2f2854d8",
+        "sha256": "15266885e371c34cc9a3103b331f04b1214f05eb02f7f0a7460eaa655bc8c26e"
       }
     },
     {
@@ -4276,8 +4584,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d7a42c3f2db90fe17341e542b9852b533ff6cb26",
-        "sha256": "db633904803870cfbfb486784ff056ba5d34b5e75cad5d5beca8bdb5bac36c4e"
+        "blob_sha": "036071f08a89d00443d5eb268e7128682440ca38",
+        "sha256": "e26646fb5948a803b995a9bbcb1891e2b8d610447be3ccbb6ddff3da3bb0d2fb"
       }
     },
     {
@@ -4366,8 +4674,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "5e1ac472acc8d66360c15253733838bfbd51580b",
-        "sha256": "45ce68059b44714bbf21c24c0bfb866781bb054cc73b0f43900a7e5ab7fec5b5"
+        "blob_sha": "3433a4ca77a1c9e7899e5814754936abd34afb28",
+        "sha256": "3947c25eaf54519f0828a33553836af5ebb4fe8b467e3931e1d9cecdb6418871"
       }
     },
     {
@@ -4396,8 +4704,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "2fa5f3b024f5a3a1fc6a63976bb9974ec3f369ce",
-        "sha256": "1fa236a4fef84f65a44d6651d722bca0527a1bee6ad3d082c71dd0087f8606dc"
+        "blob_sha": "130b0cc3dc5dd8e674f72f49d0668149e5885040",
+        "sha256": "495ed75b3f3d849a12c90be6cf8b551b01e6bb388131891bfc87d2dbf6fa7c01"
       }
     },
     {
@@ -4406,8 +4714,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f016b8d56885d843a5f6a5f5cfd530c88a73b94d",
-        "sha256": "8c7b248039fffe0d03282140ea141a9db37d75a416ec88411da10d2607ff547f"
+        "blob_sha": "8a1a5b070cf80efbb211179efbe6f1faeee7866b",
+        "sha256": "2b2cab9f069c299dcb7607677af7bde9633b560cfbb648bd87d0e94229150f21"
       }
     },
     {
@@ -4416,8 +4724,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e5dbf83b197452dab17d3739c7aabdebd18c6835",
-        "sha256": "d617bc3b04430db684ea506e9cf06b96f6c97924bc8c2b6fa4b080f16df86203"
+        "blob_sha": "77e97c8f9eca66d0d80e13ed355b929790aba793",
+        "sha256": "a84c702862127d7d8d4f61155383a4fb430bf0b5e126847a423dccf730ace3c2"
       }
     },
     {
@@ -4426,8 +4734,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "53f8131fbe64dcf48f4f909954831b86e62892fc",
-        "sha256": "8ec122c080b6582c2f9be50dcc32cbfac522d6df43ae7dd02b184190d3c01896"
+        "blob_sha": "32e009f8114b36a10ae829a5cd3d27bde14c7026",
+        "sha256": "5b564dcc80f401bb75407fcbdf9adee8d18951b2b3fe020a88f045d329f376e7"
       }
     },
     {
@@ -4486,8 +4794,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "040b201e25e99057553e32ced4c5cf0de1b0116a",
-        "sha256": "a7b272f43d01acab12c1a9876d9cd8c37926f08f190b28af0ac53e1c5ebaabc4"
+        "blob_sha": "80c8f76629eef45675ab293ac771dd01f3123623",
+        "sha256": "42d8038f85ca74f77b65d53ba7e8321d5826f91dbb9afd54f7eec5b31397c7d9"
       }
     },
     {
@@ -4506,8 +4814,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e2b87b630e4d00406020dc173fdec47a32ed2e96",
-        "sha256": "687bebbe836960a9ccf6e7c657e2955200aefd593e7b84c136b66d69e8941409"
+        "blob_sha": "3f164a31543c55fcad0e72baa2bc0bb5a7b5a528",
+        "sha256": "46118d8bef7eb4d8bd74fc54c7077a7b3e3693c72efc2f29a74bf26c8c28d15c"
       }
     },
     {
@@ -4516,8 +4824,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "7edd71605311422b18a5e278aa1d457aaa8a88d4",
-        "sha256": "75f122d730e30a1a8895a618ba373d5f87b760c2e811869df5f4db5c4db841d2"
+        "blob_sha": "007a394018ba6fadc193c378775b0817d748eced",
+        "sha256": "1817e110a519ff2e53d7751b4365bb9f90ab0fdee032cc42f8ff9887fe7b5321"
       }
     },
     {
@@ -4546,8 +4854,28 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "1e32406f5975b812d631f050d542c739e2ae2112",
-        "sha256": "943691696d71de2c19b797d74b32fec8397eadda8c3215662b3bc7ab388cbb74"
+        "blob_sha": "0e54f90a7e168b470ea06a99ddde8b2d0d1b6a91",
+        "sha256": "20f97516b80b8247cbed45771b88b1eeeecca26d03ce58c88bb46ccac2a94b71"
+      }
+    },
+    {
+      "path": "scripts/rc_pretag_rc3_rebind_inverse.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "5e8b66895b4246314feaab8ea5954ed0b5d40e85",
+        "sha256": "dd220b43fa1ee81db321d911593baac3f3770316b757a0d3c9f6f00229585774"
+      }
+    },
+    {
+      "path": "scripts/rc_pretag_rc3_rebind_inverse_cases.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "addde597702f55c96ea6dce17753cbf12db21df8",
+        "sha256": "10a8d8de7fc69b2f5d4f1d6274a77136ee50fe94e32ff2483158ed81e5b62a4b"
       }
     },
     {
@@ -5273,6 +5601,20 @@
       }
     },
     {
+      "path": "scripts/前端完整回归v4.mjs",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "babdc36540be20788c5c84f5894e1821851fdee3",
+        "sha256": "2fb4b69abed86337f4deaa14cbe22de1f812c421f318edb21fc592d7d8cb9afe"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "d02cf414e79eb34b4979c2af7c6da82b6500e519",
+        "sha256": "b1778e4bd7d857befcb3564f8f52fe965193266732986ca7b97bca346e4df502"
+      }
+    },
+    {
       "path": "scripts/聊天授权原生验收v6.py",
       "status": "M",
       "before": {
@@ -5306,8 +5648,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "1d0b81d150eae8ff594fae29faa9f3d1d827a9ba",
-        "sha256": "890c8a588683cdebf9bb0ddceb20f1f354ce958dc79d8466a081be84de9cb723"
+        "blob_sha": "0b3b2cda3ed5394a88575743c997d8991281903f",
+        "sha256": "002df6bcc5a3ea71bb889b2696d26b1e9e8380c0f5dab971384d40191cfb73e4"
       }
     },
     {
@@ -5316,8 +5658,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b044a2e05ff71706cb7ab12af912c654bebf0688",
-        "sha256": "72bf79e2cc4f7ab778327c1854b9a7d27d223de21b13d40733da695e644a9b16"
+        "blob_sha": "379e276430483afb22e672dfb740e0d10b16385f",
+        "sha256": "209d5224181055760882b31214ac169bcaab854231db3ec9c3728a125d207c84"
       }
     },
     {
@@ -5336,8 +5678,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "672303728f52ceabd524ca63df97d825118f3d6d",
-        "sha256": "51743c2964d9f6ec97ea801f94b648408556e9da273183f68ee65cee348570e3"
+        "blob_sha": "5e8744001aa5405ef1d861f63e7d590e6afdb696",
+        "sha256": "fc45bed46644915dadde1699ff09490f924935f2f19f66d760c36ffc07f8417b"
       }
     },
     {
@@ -5356,8 +5698,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "740864721fed421a8e08e7dcf602d67088c03a63",
-        "sha256": "5001b0b66cb8c03461343b7089492ce14c6c52afb53742ef68ed694d3f59b8b6"
+        "blob_sha": "609a02440fc6cb2033d93214d8ef5caed80c1e7b",
+        "sha256": "8605aeb71c8b7e95aa1e72e93bcf5bc5268bdbcaeb49bce6b4f132324310d18a"
       }
     },
     {
@@ -5376,8 +5718,18 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d03bdc5a76774c9b59752437143d7199c4dab023",
-        "sha256": "26758acacf60051878fa49c504129b625f0b89f5933a4cda3a6a331530faf907"
+        "blob_sha": "a8df3913af3f26b9481488526e4d139d4b05623b",
+        "sha256": "36f6cca261f7f55896b7f3d97dec107ba423ea7f615e29449e5d7aab2920785f"
+      }
+    },
+    {
+      "path": "services/cloud-agent/src/agent/host/reconnect.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "b246e3a7593d877a67c836ad8f5982641a453e9c",
+        "sha256": "1cdc34efe1b137a37b1a448898914cff2ee18a1c3618c8ce60c5337210541252"
       }
     },
     {
@@ -5386,8 +5738,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "597f737781dcd94a6eb00adb10d0faa0e9c2e3ed",
-        "sha256": "a4267cd5427e516ad64af3059c155968432fa9668280166dbe6b15e7806a2490"
+        "blob_sha": "a8a38dbf474fcee7417380ebb9081bc0269e25c7",
+        "sha256": "9c3fc00c8e6d6525d168054ecabde77c3fdca09bfd1908a9be780c3a304d60e6"
       }
     },
     {
@@ -5396,8 +5748,18 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "1e01aca77b9d43a44faa15acdeef38452c4e0b72",
-        "sha256": "08c700a3a478682827f20eb5c15a85764b4cc14b2dca4291bfb724ac1da042fc"
+        "blob_sha": "e4d5afa5af0c5892a18eb6e4b8f7cceddf04fc8b",
+        "sha256": "0ccb8116e1807886e3d4fb471be54d436aa389b371651d498eb4efdd17b17d8d"
+      }
+    },
+    {
+      "path": "services/cloud-agent/src/agent/host/tests/fault.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "5403a8a0dac2f14403aa3c6236b988f4afc12490",
+        "sha256": "ad1a1bc0f37ae5ab9047df03170d8a7b2b3f1548be485c6c85ab52942a3b54d1"
       }
     },
     {
@@ -5596,8 +5958,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "6360ca2a1be96e570a0642410b83fa1cc5078f14",
-        "sha256": "c5b7723b4a878e3479a79d84b3ed73de2994a99b6a4499d3fb0987de416c435a"
+        "blob_sha": "406e8f82351eef659ca577a82bff4de901e163a9",
+        "sha256": "7cc835d45223eb866a41a960b818fb67a0c88043ab7f3dc1a146c5803969fdf0"
       }
     },
     {
@@ -5696,8 +6058,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "875891f239c39775bab0d61a659a2d74ba217274",
-        "sha256": "06b904ba86fb22ed58c426fb909408f091c88694bc5b807038ae4f6fbfe7fcfa"
+        "blob_sha": "2b5b86a01121248207e736040544cea63f5a282b",
+        "sha256": "323406f624b6a0bf567d412ba211259d184a7cdddfe7a175df4ff595ecdb1cfb"
       }
     },
     {
@@ -5706,8 +6068,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a5e1d6733eb5fb81b668681f2aabdb3cf87b39a2",
-        "sha256": "238387b88454afe2f535ade5abc37f32a81beb43bcef421ffcdc72727a74e3ea"
+        "blob_sha": "f5d9c0624a4ff6e0ba1b7b56a3c8401d484bb6c1",
+        "sha256": "44981c679e30fd00b689900150bf7dc24b5fb60e1ecc3102eecf855dc3f22cd8"
       }
     },
     {
@@ -5766,8 +6128,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "99accf2ab39368369f6ad087e7750f5986b56305",
-        "sha256": "bfca09f7782b3d9fe3067e6e5e62ffd8b71064233c78ea054bcca6df72884e29"
+        "blob_sha": "e809b2f73f1d8745efd8badf354029e6758e8ebb",
+        "sha256": "8c5db1ef07f1220338afffaed1f9651e4afec8c2c868bb219d03beb9a046ecec"
       }
     },
     {
@@ -6626,8 +6988,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f6ba1cf38e1c4328f4e05d7db1428f792ce5580e",
-        "sha256": "5e71d38a7cc5eb96dc37458182ef39509ab114e53d6c47a97a8eb0da768f94fe"
+        "blob_sha": "7b421e8a20a8ff2365d8f6793a9bf7d2555fec3f",
+        "sha256": "efadc9a2e3b5efe1453dab7eb4a28d110db5b0f10527d7f0692725f6a008644a"
       }
     },
     {
@@ -6756,8 +7118,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "22479a18f93fd39334d51ff3787bb4f8954c83fa",
-        "sha256": "a6ed58b0a8e9101f78bc8f1d147d5b33e20dfd9ecd160b76ed58e107139c667c"
+        "blob_sha": "2831590888f41643aab89599004925debf446a24",
+        "sha256": "af973df5b988aeec176b5cefd760448b44f9a3bdf56641375fbb86d02a788f75"
       }
     },
     {
@@ -6856,8 +7218,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a7e49f07c8ec9659c4ebf15791a3bf9417e5bb62",
-        "sha256": "c7e56744c128e7c2530d7a94972403536fbb027058edf0cb3a3174cb88a46e19"
+        "blob_sha": "4eaa98009be97b5dc8e8cbdde57a6708592ff05e",
+        "sha256": "f83dd5b85fbdc80dce3b14e8a48bd13844bae5e3f370b1c4e2f04c088a99fa0e"
       }
     },
     {
@@ -6866,8 +7228,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "1e6139e4b468893eb46e48959bc2e96c72684c35",
-        "sha256": "b11efdd931bad514259558ccd98d36d3830a99144103d2db578604e50f0c07cb"
+        "blob_sha": "f17ed73aeb084b5c37d2d94e9dc6cacedebc9219",
+        "sha256": "767eab1975da47edff20f240498c8b7acadb5a01a2fee03348f7571ccc2b9867"
       }
     },
     {
@@ -7440,8 +7802,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "2747726a0d2e6a8191cb6cfe428dcddd0b359ba1",
-        "sha256": "416106ca816368acab33bb92190c91eb035c96613b0df75a58ed4099d0cc9eeb"
+        "blob_sha": "e253d95968cfc71780e91003831191077166e532",
+        "sha256": "2565af4550bcfe47c710b8fe9d6c5ea57ff2c895ae96db2c420a65ad69da50ae"
       }
     },
     {
@@ -7454,8 +7816,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "9831e6ba842f2301bbfc504aae7950143f88b7fe",
-        "sha256": "918ce581046b965c7fb68ec8539b7800c9492812ad3079f68fb42e8486967de0"
+        "blob_sha": "4e73d83da78d6938a436820b1e4bc8b9b26a9295",
+        "sha256": "73cab53037755eadab6e6ec6b8a8aa99304f9db119e06658dc851ed0b006a0d4"
       }
     },
     {
@@ -7970,8 +8332,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "3a02118ca76a806ce2c448f8195060ceef4b841c",
-        "sha256": "1890b12423042ddcf549da7e4b6bc4a4281d374ea12dd08ff7c5ac6b056c9737"
+        "blob_sha": "8b8b83cd28b1002d90e5d32a4e71775affcb07ce",
+        "sha256": "11e6b7a8e49527ecb16fd6865589c11f868b333ba0d4b1abc14fd321f778c734"
       }
     },
     {
@@ -7980,8 +8342,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "51c772b3d924a1f450589622d60e68266695dce5",
-        "sha256": "fcae13700fcedf3cc5cc2c6887c241910a6be2bd5d034ad403bdff6a8b183f4b"
+        "blob_sha": "bd07c8a39908fbd2db1c2997cafa0041919ba1b5",
+        "sha256": "3a943e014222a936abec58b35dd0c824afab3b094cc454826b412457d4b3ae7c"
       }
     },
     {
@@ -7992,6 +8354,16 @@
         "mode": "100644",
         "blob_sha": "ccbe0118f02a44a226d080fb3a0e06ac13e1d277",
         "sha256": "a96db6420209985aa231284e4b55e8d864abb7d329359ec7acce0dbf8fd8cd50"
+      }
+    },
+    {
+      "path": "src-tauri/src/cloud_connection/autostart.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "a046fca7797ecfd9e6f730264e86b5be4c026009",
+        "sha256": "4a22bf7a305f9591b9d2893fed06db94e43b326da5220706072b08dd23b7018b"
       }
     },
     {
@@ -8020,8 +8392,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "8c2a2426ec61dc478399d16ccf8ee842b83b9b01",
-        "sha256": "ec23e0446e9e530648aeef66c9cda3ce997e83ff528a6604ec36a5d644a2a514"
+        "blob_sha": "8d62e8365b55b3ae37a35efcfeeb8104fd488afd",
+        "sha256": "d651486c088f790e555ffdd1a312548fc31a1e53f1f63cb82981d2d185910dd4"
       }
     },
     {
@@ -8068,8 +8440,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "cafa39690b476044541179e6d478d81b400ad50f",
-        "sha256": "99e607d1c985b5a094121c8c5b3a21d533423c79820b63d4cabfdf95c7bf620c"
+        "blob_sha": "d7170bca119366e942a4573f364175f0e3496089",
+        "sha256": "93bdd6237794c2776871598d29d6b428749477873ef859027aa5d1c8a68cc9fd"
       }
     },
     {
@@ -8196,8 +8568,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "041badfc86f706105d3e73c2761547c5a601fb57",
-        "sha256": "5879aa4a23e72db6e007b37a7599f3678085bb9ed1c6b5223f064314591d923e"
+        "blob_sha": "95825012d44fc58208db1aaa58143e777a66fbb3",
+        "sha256": "b92d17a3c6fbccf10f83486d5146f0fd12bc580faa7e2e83ff854fe51a07eddf"
       }
     },
     {
@@ -9155,13 +9527,23 @@
       }
     },
     {
+      "path": "src-tauri/src/tools/cloud_host/live/wss_fault_tests.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "cbce4c885f38620864557047bbab0bee54125742",
+        "sha256": "e6a49a2350eb9bb48f1452a260a94fb3acf99f6d2ed4031f9d702e9a3192d31f"
+      }
+    },
+    {
       "path": "src-tauri/src/tools/cloud_host/live/wss_tests.rs",
       "status": "A",
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "756160521ea1f921bd4f1247756dab1f2ab51abd",
-        "sha256": "691bd4cc1d57fc7ba5728cce365d2dc28000afad944397131de1a31fa850ae30"
+        "blob_sha": "60888339be3698f108e967b717a78c0a8df1dda1",
+        "sha256": "f2442b304e9ce97ad0bcf5cd76c9a350ff5016660b3071cebf84f34340d47e95"
       }
     },
     {
@@ -9170,8 +9552,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "02d9fdf4df4dde94a99ff15ff78c0aa8c703fa55",
-        "sha256": "77c054cd6f1237e71bfa5ef284006c134035a5ddf1cdf6f6257caae24b71eaa9"
+        "blob_sha": "d2ec8479dad3a0bc15c5f8c454528d566914874c",
+        "sha256": "41b158020755f072f206d2635583a9a16cc0e3cec4be48603eddcbd9997e4d28"
       }
     },
     {
@@ -9180,8 +9562,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e3b6b3a31c4076f1d7d59f64b8b9df3ba879f4d2",
-        "sha256": "e321044f5b38916abe0867aa0e55410c19fcfec39f3817a50273ed91a7bb3ee9"
+        "blob_sha": "76f2897c122e965829a55d68ac3b712811cfafc3",
+        "sha256": "ffc188c44559be8268701f4dded58413ab287843f139005586cc3cf194b26526"
       }
     },
     {
@@ -10180,8 +10562,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "dbc2f4dcc46e11575d49fdf4acc9441f698fb68a",
-        "sha256": "54ab3d59622e6449a6d38445774e9456a4e1873bf00e958fd870d659e5ca2e74"
+        "blob_sha": "bf1230eb8e330a5d8fe54fd32551a5859dbbfc13",
+        "sha256": "f30a93cc0062d1374bffda4a8344c6960c831da7c092623cb0dfe08b28f1e383"
       }
     },
     {
@@ -10246,8 +10628,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b54e5ab136db7bc175fdee62d78b72402d83a594",
-        "sha256": "0e9dd8367a56d8089a43920f5cb7106cf5a05becc80c6b55dfa88efe3c34d1f9"
+        "blob_sha": "90b3eef105e59957dd9158b74641a0c2dbafff3b",
+        "sha256": "8c116d00627022b2176b9cfddc64760d044467971856b7a0abebb35aa55df868"
       }
     },
     {
@@ -10266,8 +10648,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b8b7705e2671001f10630dfd92399e7f0e324881",
-        "sha256": "d837adf5f72b2a8492f7d22d7b6658261c2b29accad0acdef040591bd59ad718"
+        "blob_sha": "c08f306c868f565269a9ba95c17f91c2e5bcbfed",
+        "sha256": "b5a74d329454e9e95c724f8a8526f0cd42c825a14946ce2acef7b0ff8dc9cd8d"
       }
     },
     {
@@ -10344,9 +10726,33 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "a8e785ea10f493c8bf4f7853480d4341833a9c58",
-        "sha256": "d0006db031c6b0377178cb4829d27abdfd2173d858a65212ed78c805a5c60db4"
+        "blob_sha": "8b41384b648e8b79fd4a455ab91b1b29cac7ef93",
+        "sha256": "465f3f4d67f7ce44bae794312a5eafccae7c338f4a514b1db4292eadf9ad1b0f"
       }
+    },
+    {
+      "path": "src/routes/workspace/[id]/+page.svelte",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "c032fb27973e8399a8cbd411a17622174cbaf63f",
+        "sha256": "cfd8eecf7d3951f6bd3daa3c3104dbf1fa0adbe34f3ac1c57bde87b02b8b0ca1"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "7e71f4e221a9eb38679d3ae01de3ecda2c2eb279",
+        "sha256": "472d019f37723eaa10c5c69089831b02258374e232c1866a9c560ef3f0aec155"
+      }
+    },
+    {
+      "path": "svelte.config.js",
+      "status": "D",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "a7830eaa9e1aa04a6a13058dc12eb678a44947ef",
+        "sha256": "9b0bbab2c405c7c7e4a6f93923bbd7842a238d56d39b2058475ba48555ef458f"
+      },
+      "after": null
     },
     {
       "path": "tests/browser_viewport_evidence.py",
@@ -10364,8 +10770,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a0f78ad6e412a61480ebaea9a614732e3229ec74",
-        "sha256": "0e06b89507ca8c727ff2eda414eec83d1ae0a1d1045482e7abcfcd499ff785d4"
+        "blob_sha": "15ab7774a6cd4433d2266cd5f1b4064e606ec24a",
+        "sha256": "14c0de43306f806ad240d94cfd9a08510f4c8bbc62a0164989693be56aba44a8"
       }
     },
     {
@@ -10374,8 +10780,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "41d0d6561e85f31fd4895e67d18b1efd43385dbf",
-        "sha256": "da56875d994024d0389ef46b002276e8d9bf1c351e609ffa8bc919b0244430b1"
+        "blob_sha": "b81c8a14517f77830a61d46f3afe131030f814b5",
+        "sha256": "408f8b6edf257ae985be0b2b1ff722b9974a21b20860b22fb6d6c791828d62ac"
       }
     },
     {
@@ -10409,13 +10815,23 @@
       }
     },
     {
+      "path": "tests/cloud-gateway-deployment/kit_fixture.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "192b0b6bd9a9cb9c3927a1707dfdcda30bd66e72",
+        "sha256": "eeeb8a0084103fe173153dde4427a85f263047aa5e2d8fc886a7dcc074b9661f"
+      }
+    },
+    {
       "path": "tests/cloud-gateway-deployment/run_container_topology.py",
       "status": "A",
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "1a9b595e5f05370d7371bb8456fe8155673041f0",
-        "sha256": "d194cb411121c9ab9a03fda7234b5ec1dd444fc76ce3e3aa0d79ea2c38378d59"
+        "blob_sha": "c32d37d6f888d8bb537227e2ffac8e4970f34a49",
+        "sha256": "2b87c808bdde7d09a578b8fdb19655b20942439741d5df9d094a2989bee4bd26"
       }
     },
     {
@@ -10424,8 +10840,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "72177da0143f23408b569be2db281fdf1b796618",
-        "sha256": "4331734362699bfc54dce7ddbe76279f601e8776a5738e5bb7c5cc3a2e54d42b"
+        "blob_sha": "068ff252af5df9822f67e0bebffa9222723f744e",
+        "sha256": "4c98f09bcb5fadd0f25f903804e2bfd2df30a560f4f17c01b11e1941c7886db3"
       }
     },
     {
@@ -10464,8 +10880,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "1d7ad4ccf2261a10bbd73fb73c6e7851b9c65b03",
-        "sha256": "ad771567f4e5c262bb34305cd7f534ce9b0ba313ad2535a8074cdc36747577f1"
+        "blob_sha": "6262b80c984bce4ff05f751b46295ea54bbe1110",
+        "sha256": "96b069c7186b76a92ee6b466f43fcfb9995489e5319ddcdcbfd58c4874124b8e"
       }
     },
     {
@@ -10474,8 +10890,18 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "70324dc8933ec9d707823fbce4f927c6ad7d5139",
-        "sha256": "d58ae828e94ae3ce97bbe7acc0d924ee68eca81bff7670f90027b4b8b1fcb9ed"
+        "blob_sha": "77ed877e93f2859f3cadad9f4e757fb9137b5f7e",
+        "sha256": "3c8c0eda019080bad517e89f251fbb490a33771c6f7ec7467196060c5b65632a"
+      }
+    },
+    {
+      "path": "tests/cloud-gateway-deployment/test_kit.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "d24b62cc4f4d69f3e8df638fdaea37d139e40718",
+        "sha256": "0fbd36b92e2164beb06853e6a00accfa4db246f6704e602b7e36ab3f816cba98"
       }
     },
     {
@@ -10658,8 +11084,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "0155bc2b0df24d1ecc77486e41a10842457a1491",
-        "sha256": "331090053713ae760b2919774a43f50a1876def3d3adb602ac84e55f8c6461a1"
+        "blob_sha": "32465a11a7838f9e55c58ba0283581e148691d4c",
+        "sha256": "111aa3e78201411e56c551745a11ec52e2c6d29d236d4e00d82a6e426737e1d5"
       }
     },
     {
@@ -10771,6 +11197,20 @@
       }
     },
     {
+      "path": "tests/依赖安全回归v8.test.mjs",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "cc82f863cf4bdfe5ba0f93cee26a9edc5d4d18b6",
+        "sha256": "9752fc1e7775975e019c9b8c4df79b2591df585e8b95b6b9e76fcc35893d5ab2"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "1a7f17efea0966a25c890f561bf53681ce3ff575",
+        "sha256": "5247409c6f0c1b9a510b7738b110c8879f8a036333d05ad326eb77efbdd45ca5"
+      }
+    },
+    {
       "path": "tools/delivery/.gitignore",
       "status": "A",
       "before": null,
@@ -10808,6 +11248,20 @@
         "mode": "100644",
         "blob_sha": "8507cec1782a1f24551336e5a752cfb7fd19ed04",
         "sha256": "e770c39ab8f1634f9db6df0e08d990b7695b28fb527774e3ebcc1df610d897d2"
+      }
+    },
+    {
+      "path": "tsconfig.json",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "f4d0a0e1679b4cf87b8732b46a8c0c8aa77ec35d",
+        "sha256": "be394c428e89d033696f03011b94bd0d9b8871ab101dbf06e3875be7e12ff5c9"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "4b4c48491ff7da58c30dfa28371087999faf634b",
+        "sha256": "38db93c8db84c5c7e8b29e1a52be22c8da7dc80b26db91b69cce0e01001dd732"
       }
     },
     {
@@ -12018,6 +12472,20 @@
         "mode": "100644",
         "blob_sha": "53a9eac99b9f8c422c9da3ea060d7d0c157a505a",
         "sha256": "c796ea2b30559e9c8ab6ebbb6c59c575d365a27b461c20f9ca0b1989dbe01d79"
+      }
+    },
+    {
+      "path": "vite.config.js",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "2a7b60e63db017004348de44dc5059309ed0c822",
+        "sha256": "690b8034d2f35ab77e9749743e336ce4ff07b60ab44add23aaa75295226f177f"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "e4c45c8553e8f88b9fdf3a51c79be54fcac1ec97",
+        "sha256": "c76e11a5cd5113cda16d2838390d0a6e65dd4deedf42987a02f187d45a3822b2"
       }
     }
   ]
