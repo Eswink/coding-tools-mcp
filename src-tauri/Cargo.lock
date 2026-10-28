@@ -629,7 +629,7 @@ checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
 
 [[package]]
 name = "coding-tools-cloud-agent"
-version = "0.7.0-rc.2"
+version = "0.7.0-rc.3"
 dependencies = [
  "base64 0.22.1",
  "futures-util",
@@ -647,7 +647,7 @@ dependencies = [
 
 [[package]]
 name = "coding-tools-local-agent"
-version = "0.7.0-rc.2"
+version = "0.7.0-rc.3"
 dependencies = [
  "libc",
  "serde",
@@ -659,7 +659,7 @@ dependencies = [
 
 [[package]]
 name = "coding-tools-mcp-desktop"
-version = "0.7.0-rc.2"
+version = "0.7.0-rc.3"
 dependencies = [
  "axum",
  "base64 0.22.1",
