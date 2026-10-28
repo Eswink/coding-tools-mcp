@@ -1452,7 +1452,7 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "ebdd217f33ce5c0d3d64fc16f779b3746de62af0",
+   "blob": "3ed99b77b03e0aa56483d37b5a389ac854657630",
    "bytes": 389959,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
@@ -6254,11 +6254,11 @@
    "sha256": "1a06ca215b5f3bfba8aed1af37fc3fadd633577bb1d911def912269789528cfe"
   },
   {
-   "blob": "1a4f4b17ea6ec857e92e901cd5005758bfb14439",
-   "bytes": 16965,
+   "blob": "76f3d2f6dffdabac0002922bfa7ba4fd6bb8dd27",
+   "bytes": 17252,
    "mode": "100644",
    "path": "scripts/final_rc_evidence.py",
-   "sha256": "03fa8870482c0d8860f5dae078fba91413c7d91025e439708abf30eb4ed233c2"
+   "sha256": "5af24ae4fd073cc23f9648d3f0de8b2a1105ba514ea795e9c76272de8f4a1388"
   },
   {
    "blob": "ed9ee239e0825f9b53f907669a43762bf1ef5dde",
@@ -6457,11 +6457,11 @@
    "sha256": "35bf384975c4eda35236f15dbc38f49cebb72c941df9d5ccd9e169acd7119b64"
   },
   {
-   "blob": "36e1c9dc1ad5c6a2e5b4ca0f8567f7b766cbda9f",
-   "bytes": 17651,
+   "blob": "9038d5eed43dd4c2a86ae7bbdba24e21967b8a13",
+   "bytes": 17767,
    "mode": "100644",
    "path": "scripts/rc_consumer_contracts.py",
-   "sha256": "04de12ff078fe8c80347b0d62f1f00bbfe960262739510536e2c1f062b48a11f"
+   "sha256": "6d461da6c041d232d11913e8e07a808d187c29f388d42a4697bdbeba21b0b248"
   },
   {
    "blob": "63093e94cf612cb9b46cd65dc5845fcd09a02f68",
@@ -6751,18 +6751,18 @@
    "sha256": "2c5e2eb36d72f7f5f5eb0205a5242eb0d0dd3b29ee8583e9c2f8212e8a3603d5"
   },
   {
-   "blob": "f6ae5540fedc9fdca797c9f56dd325740b81d25c",
-   "bytes": 5892,
+   "blob": "ed093933d8f1d15a3174edc29582978540faeb7b",
+   "bytes": 10276,
    "mode": "100644",
    "path": "scripts/rc_npm_audit_gate.py",
-   "sha256": "798e4c15549bf77e811b2e9492209ed8ec26fbdc0c73ebe9723ce204f4b56afb"
+   "sha256": "ffbe1a1ef926262be19771f1ba43d3ff0252a038980327ffd318e721ff94511d"
   },
   {
-   "blob": "c655f12f4e372656c258b9c3bdf1cf69ba5b24ad",
-   "bytes": 5353,
+   "blob": "c1587649325ea7aed52df86b160b9bc198e9569d",
+   "bytes": 16780,
    "mode": "100644",
    "path": "scripts/rc_npm_audit_gate_tests.py",
-   "sha256": "38bef462e0d487b917f0033853e1214acea59c47b0a254e01a30c98d238e0b6a"
+   "sha256": "559aa3f840b3a8e5be770891f6e8c6aba757fadaa5c086f38f0bd35dc5f45d02"
   },
   {
    "blob": "ea2dde33fd53a0ef8c01626461abe889610bc1e4",
@@ -6996,11 +6996,11 @@
    "sha256": "3f11d298c6b4fb78cac7281c041ae8a257c84f94509c7a95433cea3209a8965b"
   },
   {
-   "blob": "3433a4ca77a1c9e7899e5814754936abd34afb28",
-   "bytes": 231694,
+   "blob": "a9b60253e463917b3b81f693261a818bc92d71bf",
+   "bytes": 191807,
    "mode": "100644",
    "path": "scripts/rc_pretag_integration_admission_profile.py",
-   "sha256": "3947c25eaf54519f0828a33553836af5ebb4fe8b467e3931e1d9cecdb6418871"
+   "sha256": "a8f71f27cb5932d10e3407f0e6d836a7ea6751cfe33a047c91badae1504070b0"
   },
   {
    "blob": "9ff441aca02a9ed292807a8015a2e4f52fa63227",
@@ -7122,11 +7122,11 @@
    "sha256": "5a4babefb29b4f2baecccfa5bf0e34a473975fa22428a93317a5bb71ff8ee988"
   },
   {
-   "blob": "44c94d23cc9c0ffb64f466af3a39a863ded96530",
+   "blob": "1e32406f5975b812d631f050d542c739e2ae2112",
    "bytes": 8890,
    "mode": "100644",
    "path": "scripts/rc_pretag_rc070_topology_profile.py",
-   "sha256": "f97c1b749c5b34efebe256fb10cfd928bf914583297242e01ada8358d201e3f6"
+   "sha256": "943691696d71de2c19b797d74b32fec8397eadda8c3215662b3bc7ab388cbb74"
   },
   {
    "blob": "5e8b66895b4246314feaab8ea5954ed0b5d40e85",
