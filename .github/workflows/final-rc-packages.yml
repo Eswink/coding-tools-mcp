@@ -144,14 +144,12 @@ jobs:
           set +e
           npm audit --json > "$RUNNER_TEMP/rc-contracts/npm-audit.json"
           code=$?
+          npm audit --omit=dev --json > "$RUNNER_TEMP/npm-audit-prod.json"
+          prod_code=$?
           set -e
-          python - <<'PY'
-          import json,os,pathlib
-          r=json.loads(pathlib.Path(os.environ['RUNNER_TEMP'],'rc-contracts/npm-audit.json').read_text())
-          assert type(r['metadata']['vulnerabilities']['total']) is int
-          assert r['metadata']['vulnerabilities']['total'] == 0, r['metadata']['vulnerabilities']
-          PY
-          test "$code" -eq 0
+          python scripts/rc_npm_audit_gate.py \
+            --full "$RUNNER_TEMP/rc-contracts/npm-audit.json" --full-exit-code "$code" \
+            --prod "$RUNNER_TEMP/npm-audit-prod.json" --prod-exit-code "$prod_code"
       - name: Preserve real raw audits and independent desktop backport provenance
         if: always()
         shell: bash
