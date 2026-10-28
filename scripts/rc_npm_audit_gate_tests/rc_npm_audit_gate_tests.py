@@ -6,11 +6,18 @@ from datetime import date, datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
-import rc_npm_audit_gate as module
+# Kept in a subdirectory so the frozen top-level scripts/*.py inventory of
+# Windows标准用户验收v22.py stays within its 300-entry cap; the modules under test
+# remain top-level in scripts/ and are imported from there explicitly.
+SCRIPTS = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(SCRIPTS))
+
+import rc_npm_audit_gate as module  # noqa: E402
 
 TODAY = date(2026, 10, 28)
 ADVISORY = dict(source=1243505, name="deepmerge", dependency="deepmerge",
@@ -292,7 +299,7 @@ class RecordedEvidenceSites(unittest.TestCase):
         self.assertIs(final.npm_gate, module)
         self.assertIs(consumer.npm_gate, module)
         for path in ("final_rc_evidence.py", "rc_consumer_contracts.py"):
-            text = Path(__file__).with_name(path).read_text(encoding="utf-8")
+            text = (SCRIPTS / path).read_text(encoding="utf-8")
             self.assertIn("npm_gate.check_recorded(", text)
             for literal in ("GHSA-gcqx-w48m-w2h4", "deepmerge", "2026", "vite-plugin-svelte", "adapter-static"):
                 self.assertNotIn(literal, text, f"copied allowlist literal {literal!r} in {path}")
