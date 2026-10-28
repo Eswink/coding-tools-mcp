@@ -114,7 +114,7 @@ pub(super) struct Pacing {
 }
 impl Pacing {
     pub(super) const REAL: Self = Self { divisor: 1 };
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(super) fn compressed(divisor: u32) -> Self {
         Self {
             divisor: divisor.max(1),

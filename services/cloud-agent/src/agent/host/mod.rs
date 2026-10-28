@@ -67,7 +67,7 @@ impl<H: LocalHost> HostAgent<H> {
     }
     /// Test-only: compress every protocol timeout and backoff by `divisor`
     /// (process-wide for the protocol timeouts) so socket tests run in real time quickly.
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(crate) fn with_time_divisor(mut self, divisor: u32) -> Self {
         reconnect::TEST_TIME_DIVISOR.store(divisor.max(1), std::sync::atomic::Ordering::Relaxed);
         self.pacing = reconnect::Pacing::compressed(divisor);
