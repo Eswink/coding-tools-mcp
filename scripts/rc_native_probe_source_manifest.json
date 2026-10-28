@@ -1,5 +1,5 @@
 {
- "entries": 1918,
+ "entries": 1920,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -262,11 +262,11 @@
    "sha256": "1ee07c23b87611a3326a4790dc38cdc91f47c79b0326789897f1247d8c1a3fec"
   },
   {
-   "blob": "8fa6e1ae67568012c03713fa3c12024204c538a1",
-   "bytes": 20709,
+   "blob": "9c77b1dcd2794fd8727dc5448701339037461031",
+   "bytes": 20651,
    "mode": "100644",
    "path": ".github/workflows/final-rc-packages.yml",
-   "sha256": "3c099f891f20b370a1c720e2f88bc012afe4ac859d35aace8e10728800c24387"
+   "sha256": "cfd7cc70ba5496d0b65776400834ab5b453f4895c8ea7b174dfc1db2136e22c8"
   },
   {
    "blob": "e5606a515b54f0601b97f27a26e607e357521ce0",
@@ -1452,7 +1452,7 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "3ed99b77b03e0aa56483d37b5a389ac854657630",
+   "blob": "ebdd217f33ce5c0d3d64fc16f779b3746de62af0",
    "bytes": 389959,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
@@ -6751,6 +6751,20 @@
    "sha256": "2c5e2eb36d72f7f5f5eb0205a5242eb0d0dd3b29ee8583e9c2f8212e8a3603d5"
   },
   {
+   "blob": "f6ae5540fedc9fdca797c9f56dd325740b81d25c",
+   "bytes": 5892,
+   "mode": "100644",
+   "path": "scripts/rc_npm_audit_gate.py",
+   "sha256": "798e4c15549bf77e811b2e9492209ed8ec26fbdc0c73ebe9723ce204f4b56afb"
+  },
+  {
+   "blob": "c655f12f4e372656c258b9c3bdf1cf69ba5b24ad",
+   "bytes": 5353,
+   "mode": "100644",
+   "path": "scripts/rc_npm_audit_gate_tests.py",
+   "sha256": "38bef462e0d487b917f0033853e1214acea59c47b0a254e01a30c98d238e0b6a"
+  },
+  {
    "blob": "ea2dde33fd53a0ef8c01626461abe889610bc1e4",
    "bytes": 8983,
    "mode": "100644",
@@ -6983,10 +6997,10 @@
   },
   {
    "blob": "3433a4ca77a1c9e7899e5814754936abd34afb28",
-   "bytes": 231694,
+   "bytes": 191807,
    "mode": "100644",
    "path": "scripts/rc_pretag_integration_admission_profile.py",
-   "sha256": "3947c25eaf54519f0828a33553836af5ebb4fe8b467e3931e1d9cecdb6418871"
+   "sha256": "a8f71f27cb5932d10e3407f0e6d836a7ea6751cfe33a047c91badae1504070b0"
   },
   {
    "blob": "9ff441aca02a9ed292807a8015a2e4f52fa63227",
@@ -7112,7 +7126,7 @@
    "bytes": 8890,
    "mode": "100644",
    "path": "scripts/rc_pretag_rc070_topology_profile.py",
-   "sha256": "87a336b6e0265279d7d34fc82d2ba60bbcac330dd936899c05303cc16349e4c2"
+   "sha256": "943691696d71de2c19b797d74b32fec8397eadda8c3215662b3bc7ab388cbb74"
   },
   {
    "blob": "5e8b66895b4246314feaab8ea5954ed0b5d40e85",
