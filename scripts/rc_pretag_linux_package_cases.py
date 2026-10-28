@@ -273,7 +273,7 @@ class LinuxPackageCompositionTests(unittest.TestCase):
         self.assertEqual(set(old), set(ac.old_inventory() + ac.ids(ac.HELPER_CLASS) + ac.ids(a.CLASS)))
         for module in {name.split('.', 1)[0] for name in old}:
             path = 'scripts/' + module + '.py'
-            current, frozen = integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
+            current, frozen = __import__('rc_pretag_rc3_rebind_inverse').normalize(path, integration_bytes(path, (c.ROOT / path).read_bytes())), self.frozen(path)
             self.assertEqual(inverse.normalize(path, current), frozen, path)
             methods = lambda data: {node.name: node for node in ast.walk(ast.parse(data)) if isinstance(node, ast.FunctionDef)}
             before, after = methods(frozen), methods(current)

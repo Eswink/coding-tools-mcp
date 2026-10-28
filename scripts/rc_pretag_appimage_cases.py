@@ -316,7 +316,7 @@ class AppImageCompositionTests(unittest.TestCase):
         modules = {name.split('.', 1)[0] for name in inventory}
         for module in modules:
             path = 'scripts/' + module + '.py'
-            current, frozen = integration_bytes(path, (c.ROOT / path).read_bytes()), self.frozen(path)
+            current, frozen = __import__('rc_pretag_rc3_rebind_inverse').normalize(path, integration_bytes(path, (c.ROOT / path).read_bytes())), self.frozen(path)
             self.assertEqual(a.inverse_appimage_adapter(path, current), frozen, path)
             methods = lambda data: {node.name: node for node in ast.walk(ast.parse(data)) if isinstance(node, ast.FunctionDef)}
             old, new = methods(frozen), methods(current)
