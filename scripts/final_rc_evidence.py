@@ -14,6 +14,7 @@ from rc_version_gate import verify_source, require
 from rc_native_gate import verify as verify_native
 from exclusive_native_gate import legacy
 import release_dependency_contract as dependency
+import rc_npm_audit_gate as npm_gate
 
 REPOSITORY = 'Eswink/coding-tools-mcp'
 WORKFLOW = '.github/workflows/dot-rc-integration.yml'
@@ -106,10 +107,22 @@ def fetch_integration(run_id: str, source: str) -> dict:
     return integration(run, jobs, source, run_id)
 
 
+def npm_audit(directory: Path) -> dict:
+    """Recorded npm audit verdict via the packaging gate's own rule and exemption constants.
+
+    Expiry is judged by the recorded capture time (npm-audit-capture.json), never the clock."""
+    path = directory / 'npm-audit.json'
+    npm = read_json(path)
+    capture_path = directory / npm_gate.CAPTURE_NAME
+    capture = read_json(capture_path) if os.path.lexists(capture_path) else None
+    try:
+        return npm_gate.check_recorded(npm, path.read_bytes(), capture)
+    except npm_gate.GateError as error:
+        raise ValueError(f'npm audit missing or vulnerable: {error}') from None
+
+
 def audits(directory: Path) -> None:
-    npm = read_json(directory / 'npm-audit.json')
-    require('error' not in npm and npm.get('metadata', {}).get('vulnerabilities', {}).get('total') == 0,
-            'npm audit missing or vulnerable')
+    npm_audit(directory)
     for name in LOCKS:
         value = read_json(directory / f'rust-audit-{name}.json')
         vulnerability = value.get('vulnerabilities', {})
@@ -151,9 +164,7 @@ def dependency_contract(directory: Path, cloud: Path, unpacked: Path, root: Path
             'engineering evidence cannot satisfy final dependency contract')
     require((directory / 'rust-audit-cloud-gateway.json').read_bytes() ==
             (cloud / 'exact-build/raw-audit.json').read_bytes(), 'canonical raw cloud audit mismatch')
-    npm = read_json(directory / 'npm-audit.json')
-    total = npm.get('metadata', {}).get('vulnerabilities', {}).get('total')
-    require('error' not in npm and type(total) is int and total == 0, 'npm audit missing or vulnerable')
+    npm_audit(directory)
     noncloud = dependency.verify_noncloud_audits(root, directory, expected)
     return dict(noncloud=noncloud, cloud=proof, raw_zero_claim=False,
                 release_approved=False, publish_approved=False,

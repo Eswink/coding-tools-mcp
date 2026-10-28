@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from pathlib import Path
 import re
 
 import cloud_release_bundle as cloud
 import final_rc_evidence as final
 import rc_native_gate as native
+import rc_npm_audit_gate as npm_gate
 from rc_packages import debian_version
 import release_dependency_contract as dependency
 from rc_consumer_io import assert_private_tree, hash_file, json_file, need, read_bytes, read_prefix
@@ -261,10 +263,12 @@ def verify_consumed_bundle(root, bundle_dir, cloud_dir, producer, integration_sn
          read_bytes(bundle_dir / 'evidence/rc-cloud-linux-amd64/exact-build/raw-audit.json'),
          'canonical_raw_cloud_audit_mismatch')
     npm = json_file(contracts / 'npm-audit.json')
-    counts = npm.get('metadata', {}).get('vulnerabilities')
-    need('error' not in npm and type(counts) is dict and 'total' in counts and
-         set(counts) <= {'total', 'info', 'low', 'moderate', 'high', 'critical'} and
-         all(type(count) is int and count == 0 for count in counts.values()), 'invalid_npm_zero_audit')
+    npm_capture = contracts / npm_gate.CAPTURE_NAME
+    capture = json_file(npm_capture) if os.path.lexists(npm_capture) else None
+    try:  # same rule and exemption constants as the packaging gate; expiry by recorded capture time
+        npm_gate.check_recorded(npm, read_bytes(contracts / 'npm-audit.json'), capture)
+    except npm_gate.GateError:
+        need(False, 'invalid_npm_zero_audit')
     noncloud = verify_consumed_noncloud_audits(root, contracts, producer)
     computed = dict(noncloud=noncloud, cloud=cloud_proof, raw_zero_claim=False,
                     release_approved=False, publish_approved=False, scope=DEPENDENCY_SCOPE)
