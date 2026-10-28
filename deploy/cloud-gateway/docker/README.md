@@ -18,7 +18,15 @@
 - 拉取并固定官方镜像 digest：`docker pull postgres:16-bookworm`、`docker pull nginx:stable-alpine`，
   用 `docker image inspect --format '{{index .RepoDigests 0}}'` 取 `postgres@sha256:…`、`nginx@sha256:…`。**不要用 `latest` 或任何可变 tag。**
 
-## 部署步骤
+## 部署步骤（顺序固定 / mandatory order）
+
+**必须按 1 → 2 → 3 的顺序执行。** Run these steps strictly in order: init → device registration → `up -d`.
+
+| 步骤 | 命令 | 说明 |
+| --- | --- | --- |
+| 1. 初始化 / init | `ctm_docker.py setup` | 私有文件、postgres 角色、migrate、owner、OAuth 客户端；只需一次。 |
+| 2. 桌面端设备登记 / device registration（**至少一次，不可跳过**） | `ctm_docker.py invite-device` → 桌面端 `prove-enrollment` → `redeem-device` → `select-device` | 网关在没有已登记并选定的设备时会以 `provisioning_not_ready` **拒绝启动**（fail-closed）；跳过本步直接 `up -d`，`gateway` 容器会反复退出、健康检查不通过。The gateway refuses to start until a registered device is selected. |
+| 3. 启动 / start | `docker compose up -d` + `ctm_docker.py check` | 拓扑守卫 + 私有目录权限检查。 |
 
 ```bash
 cd deploy/cloud-gateway/docker
@@ -32,16 +40,19 @@ sudo python3 ctm_docker.py setup \
   --postgres-image postgres@sha256:<digest> --ingress-image nginx@sha256:<digest> \
   --redirect-uri https://<客户端回调地址>        # owner 密码交互输入，或 --owner-password-file <0600 文件>
 
-# 2) 设备登记（网关在选定设备前会以 provisioning_not_ready 拒绝启动，这是 fail-closed 设计）
+# 2) 桌面端设备登记（必须完成一次；网关在选定设备前以 provisioning_not_ready 拒绝启动）
 sudo python3 ctm_docker.py invite-device --output /root/ctm-invitation.json   # 0600，交给桌面端 MCP 应用
 #    桌面端用邀请生成 proof（coding-tools-agent prove-enrollment），把 proof 文件拷回主机（0600）
 sudo python3 ctm_docker.py redeem-device --proof /root/ctm-proof.json --output /root/ctm-connection.json
 sudo python3 ctm_docker.py select-device --device <redeem 输出的 device UUID>
 
-# 3) 启动
+# 3) 启动（只能在第 2 步完成之后）
 sudo docker compose up -d
 sudo python3 ctm_docker.py check            # 拓扑守卫 + 私有目录权限检查
 ```
+
+更换桌面设备时重复第 2 步（`invite-device` → `redeem-device` → `select-device`），然后 `docker compose up -d` 重启网关。
+To replace the desktop device later, repeat step 2 and then `docker compose up -d` again.
 
 `setup` 会写 `./.env`（0600，已在 `.gitignore`）。之后所有 `docker compose` 命令在本目录执行即可。
 
@@ -51,6 +62,9 @@ sudo python3 ctm_docker.py check            # 拓扑守卫 + 私有目录权限�
 - 数据库 DSN、identity key 只在 `gateway-private/runtime.json`（0400，属主 65532，父目录 0700）。
   网关的 `read_protected` 会拒绝 root 属主 / 组或其他可读 / 符号链接 / 硬链接，因此不使用 Docker 默认的 `/run/secrets`（root 属主）。
 - 只有 `namespace` 发布端口且只绑定 `127.0.0.1`；PostgreSQL 无端口、只在 `internal: true` 网络。
+- PostgreSQL 初始化参数 `--auth-local=trust` **只作用于容器内的 Unix socket**（仅容器内进程，如 `setup`/`migrate` 经 `docker compose exec` 执行的 `psql`，可以免密连接），**不作用于任何网络连接**：
+  TCP 连接一律走 `--auth-host=scram-sha-256`，网关使用的密码只在 0400 私有文件中；postgres 不发布端口、只在 `internal: true` 网络，主机和外网都无法直连。
+  `--auth-local=trust` applies only to the in-container Unix socket; all network (TCP) connections require scram-sha-256 password auth, and postgres has no published port and sits on an internal-only network.
 - 不挂载 `docker.sock`；所有容器 `read_only`、`cap_drop: ALL`、`no-new-privileges`。
 - `ops-console` 不在 compose 中；如需使用，按其 README 在主机回环地址单独运行。
 - 健康检查：`/coding-tools/health/ready`（容器内 bash `/dev/tcp`，Host 必须等于配置域名，否则 421）。
