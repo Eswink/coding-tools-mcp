@@ -9,7 +9,7 @@
   import { onDestroy } from "svelte";
   import { applyAndRefresh, forCurrentWorkspace } from "$lib/runtime/configuration";
   import { goto } from "$app/navigation";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { type ActionsPolicyDraft } from "$lib/components/ActionsPolicyForm.svelte";
   import ChatAuthorizationPanel from "$lib/components/聊天授权面板v1.svelte";
   import { type RuntimePolicyDraft } from "$lib/components/RuntimePolicyForm.svelte";
@@ -105,7 +105,7 @@
   }
 
 
-  const workspaceId = $derived($page.params.id);
+  const workspaceId = $derived(page.params.id);
   const actions = $derived(profile ? actionsConfig(profile) : null);
   const actionsActiveOrigin = $derived(
     actionsStatus === "running" || actionsStatus === "starting"

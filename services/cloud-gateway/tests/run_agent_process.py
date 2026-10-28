@@ -299,7 +299,11 @@ def main():
                 bad.p.wait(timeout=6)
                 bad.stop(success=False)
                 require(bad.p.returncode != 0 and b"agent_reconnecting" not in bad.output, name + "_terminal")
-                passed(name + "_rejected_before_proof")
+                # Static literals so smoke_reports AST Constant inventory sees both cases.
+                if name == "untrusted_ca":
+                    passed("untrusted_ca_rejected_before_proof")
+                else:
+                    passed("wrong_certificate_name_rejected_before_proof")
             relay.ctx.load_cert_chain(relay.expired_leaf, relay.key)
             bad = process(agentbin, "run", cfgpath, packet)
             bad.p.wait(timeout=6)
