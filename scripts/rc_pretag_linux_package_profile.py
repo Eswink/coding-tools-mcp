@@ -52,7 +52,7 @@ MODES = {path: '100644' for path in CAPS}
 MODES.update({'scripts/desktop_glib_build_evidence.py': '100755', 'scripts/appimage_relro_guard.py': '100755'})
 DELTA_LIMIT = 8500
 SOURCE_PINS = {
-    '.github/workflows/linux-rc-packages.yml': ('100644', '0b0d29a03c995ae0f9edb9551520775e1d5626e1', 'e76502cff62fb0016d7691e6d37a121b7f4e4596ff5923d04969d34a73fa1c1d', 19434, 350),
+    '.github/workflows/linux-rc-packages.yml': ('100644', '157188baca836090735b4a7131ac3baa26e7da22', '16074ae6a7e7dc3b553a85118850adb209e80389d4639351f7e860653ca8f2ed', 19434, 350),
     'scripts/desktop_glib_build_evidence.py': ('100755', '46638243c98fbd2c7ba6fd1fc90439fd70c2bd21', '52526fe848208e7a9307a036939f326ed92b2a3b5a09d9029cddd8eb6e2aa5f7', 17886, 318),
     'scripts/desktop_glib_build_contract.py': ('100644', '3a0d5c34424f344dfb622b74bc750cc3becd6c9d', '6597e7302058ca15e4198fde9bbfae1132c493fb73d5ac881140438efa54bbf4', 27740, 492),
     'scripts/linux_package_provenance.py': ('100644', 'c30782f36a89313487edb0ef5f1288d00c261117', 'e4f6fee05001fe9c08b136f434cdf65edc08ecb0d6110682aa972aeffc285127', 16540, 254),
