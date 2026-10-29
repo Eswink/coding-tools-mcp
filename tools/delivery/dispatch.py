@@ -112,6 +112,7 @@ def git(root, *args):
 
 
 def verify_sources(root, evidence):
+    root = Path(root).resolve()
     try:
         git(root, "cat-file", "-e", evidence["revision"] + "^{commit}")
         for path, digest in evidence["files"].items():
