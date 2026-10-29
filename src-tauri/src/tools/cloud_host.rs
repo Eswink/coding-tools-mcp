@@ -203,10 +203,12 @@ impl NativeToolHost {
         if scopes.iter().any(|s| !authority.view.scopes().contains(*s)) {
             return Err("INSUFFICIENT_CHAT_SCOPE");
         }
-        // Windows native sandbox remains an unmet full-release gate. Do not
-        // expose the legacy Windows policy-only process path as cloud isolation.
-        if scopes.contains(&"exec.run") && !cfg!(target_os = "linux") {
-            return Err("SANDBOX_REQUIRED");
+        // Linux: mandatory kernel isolation per child. Windows (Q3 = B): no
+        // sandbox, user default permissions; restricted mode keeps the
+        // unchanged SANDBOX_REQUIRED refusal. Scope/approval checks above and
+        // the admission ticket below are unchanged.
+        if scopes.contains(&"exec.run") {
+            super::execution_sandbox::remote_exec_gate(&self.context)?;
         }
         let request = self.request(&authority.conversation)?;
         let ticket = self.authorizer.issue_local_admission_ticket(

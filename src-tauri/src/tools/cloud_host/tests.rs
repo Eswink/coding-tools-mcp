@@ -16,13 +16,19 @@ struct Fixture {
 }
 impl Fixture {
     fn new() -> Self {
+        Self::with_mode("trusted")
+    }
+    /// `mode` is the user-selected permission mode (default `trusted`).
+    fn with_mode(mode: &str) -> Self {
         let root = tempfile::tempdir().unwrap();
         let storage = tempfile::tempdir().unwrap();
         let harness = tempfile::tempdir().unwrap();
         // Isolate the global ExecTaskStore profile registry across --test-threads.
         let profile = format!("native-host-{}", Uuid::new_v4());
-        let context =
-            Arc::new(ToolContext::for_test(root.path().into(), harness.path().into()).unwrap());
+        let mut context = ToolContext::for_test(root.path().into(), harness.path().into()).unwrap();
+        context.permission_mode = mode.into();
+        context.policy.permission_mode = mode.into();
+        let context = Arc::new(context);
         let service = Arc::new(ChatAuthorizer::default());
         service
             .attach_storage(&profile, storage.path(), harness.path())
@@ -394,3 +400,55 @@ mod hook_tests;
 
 #[path = "async_deadline_tests.rs"]
 mod async_deadline_tests;
+
+// Q3 = B (user decision 2026-10-29): Windows gateway exec has no sandbox and
+// runs with user default permissions; restricted mode is still rejected.
+fn exec_call(f: &Fixture, authority: &NativeAuthority) -> Result<PreparedCall, &'static str> {
+    f.host.prepare(
+        authority,
+        "exec_command",
+        &json!({"cmd":"git --version"}),
+        now().unwrap() + 30,
+    )
+}
+
+#[test]
+fn default_mode_gateway_exec_is_admitted_on_windows_and_linux() {
+    let f = Fixture::with_mode("trusted");
+    let a = f.approve(&["exec.run"]);
+    let prepared = exec_call(&f, &a);
+    if cfg!(any(target_os = "linux", windows)) {
+        assert!(prepared.is_ok(), "{:?}", prepared.as_ref().err());
+    } else {
+        assert_eq!(prepared.as_ref().err(), Some(&"SANDBOX_REQUIRED"));
+    }
+    #[cfg(windows)]
+    {
+        let value = f.host.execute(prepared.unwrap()).unwrap();
+        assert_eq!(value["ok"], true, "{value}");
+        assert_eq!(value["sandbox_enforced"], false, "{value}");
+    }
+}
+
+#[test]
+fn restricted_mode_gateway_exec_keeps_the_identical_rejection() {
+    let f = Fixture::with_mode("safe");
+    let a = f.approve(&["exec.run"]);
+    let prepared = exec_call(&f, &a);
+    if cfg!(target_os = "linux") {
+        // Ubuntu behaviour is unchanged: admission into the mandatory sandbox.
+        assert!(prepared.is_ok(), "{:?}", prepared.err());
+    } else {
+        assert_eq!(prepared.err(), Some("SANDBOX_REQUIRED"));
+    }
+}
+
+#[test]
+fn unauthorized_session_cannot_reach_gateway_exec() {
+    let f = Fixture::with_mode("trusted");
+    // No native approval: no authority, hence no prepare at all.
+    assert!(f.host.authority(&f.conversation()).is_err());
+    // Approved without exec.run: the scope check still rejects first.
+    let a = f.approve(&["files.read"]);
+    assert_eq!(exec_call(&f, &a).err(), Some("INSUFFICIENT_CHAT_SCOPE"));
+}
