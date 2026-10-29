@@ -1,5 +1,5 @@
 {
- "entries": 1934,
+ "entries": 1937,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -101,11 +101,11 @@
    "sha256": "98f24b7be78fd496dee3b15cf355e6c91e48a1429e74367ecf3b9daad0b99601"
   },
   {
-   "blob": "ea7a162ce8e13e6b9f5727e5eaec82deeeceeedc",
-   "bytes": 15033,
+   "blob": "4e3380b8bbb516754e8347128b776b7640a5a703",
+   "bytes": 15303,
    "mode": "100644",
    "path": ".github/workflows/cloud-agent-resilience.yml",
-   "sha256": "e3692e763d67761d837fb7162d47e0f3d9012f080d1fb02dd6688f3dbfb198c6"
+   "sha256": "48718e3b6d300c48ccc221ea09100f419840f9a886ced9e962f297500e5e0bac"
   },
   {
    "blob": "026001ce3fff6cfa2b0c604f57ac5f94f8fd06f8",
@@ -115,11 +115,11 @@
    "sha256": "1c22d1a0b64c7278271e5a289a5f838be51842b3a2aeb56c29b45e7006f20467"
   },
   {
-   "blob": "c7b62fad5ad109d2becbcf8c7d3f54202f632c94",
-   "bytes": 12105,
+   "blob": "2ea506e8a3ee0c34072a09b2d1c9e8bb782b39a3",
+   "bytes": 12240,
    "mode": "100644",
    "path": ".github/workflows/cloud-execution-bridge.yml",
-   "sha256": "5db4c4174c9160b1577804416028ef42d9f7ae3ca68e9161201b2c6acc500289"
+   "sha256": "e8a0de0a9641f9aa0c79c0e0356bb9a6f02a6c642d2228a3be4da1081c78b8f3"
   },
   {
    "blob": "154148eade05785eadd054356bff1a27b2b52489",
@@ -577,6 +577,13 @@
    "sha256": "a58f14ba9c278b240362eee53d25a3894cff45c022477a693927f673c1032370"
   },
   {
+   "blob": "503640f3501c4b162bf0f665eba3f488614efc20",
+   "bytes": 2442,
+   "mode": "100644",
+   "path": ".github/workflows/rc080-pretag-topology-checks.yml",
+   "sha256": "898938d4d810c77a53a5c52a39703f0792b3f6c820162aa11b4538268cd219e8"
+  },
+  {
    "blob": "292e3c2417d3a882fcea14759304f3d5781c4870",
    "bytes": 5774,
    "mode": "100644",
@@ -794,11 +801,11 @@
    "sha256": "f70294627d23d0351b68bf0936ec1090e9fe8bdce5cd24f8bbda88dfdfc7622e"
   },
   {
-   "blob": "29638819976e63fc8e7bf764f65c54a8141b20ba",
-   "bytes": 9191,
+   "blob": "a286a5a6ebad454cc5745bb2704d36587f688651",
+   "bytes": 9206,
    "mode": "100644",
    "path": ".github/workflows/\u804a\u5929\u6388\u6743\u5b89\u88c5\u5305v10.yml",
-   "sha256": "c76f358f3c2653ff238322bbcdba61a49a38b61a0980b3725b9a517087d9d97d"
+   "sha256": "91041cd7823958f06cf53a9d3bcb3fbd557c2d128508e5f31d6efd5903214b45"
   },
   {
    "blob": "fa75af5575da9ae5a1db0d213b0d67ce2f0a35db",
@@ -808,11 +815,11 @@
    "sha256": "4fcca139042d0180f4a9cfc842fbd1210a82157ffc848a7560c6440cc49e41c9"
   },
   {
-   "blob": "b084c8a1affc8b55a633bc108eafb94feafe5953",
-   "bytes": 9587,
+   "blob": "c3198edf8af2d3e118f0722058354249d6f2b013",
+   "bytes": 9602,
    "mode": "100644",
    "path": ".github/workflows/\u804a\u5929\u6388\u6743\u9a8c\u8bc1v1.yml",
-   "sha256": "9ceeed90d42fda72d60d64cd770f65a86fb7375410f26f5e766c87bd3cd0e3b4"
+   "sha256": "d8f73161cc28a257e07a6a9efc4fbf97ad3cc5ee2ea7f805d6b41df4f1e2366d"
   },
   {
    "blob": "2b87a8a5993806767d73ae1570f562e235ff7eac",
@@ -1452,11 +1459,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "87a14ffe5ebac8cd76183373de0331fbe1575968",
-   "bytes": 414716,
+   "blob": "08501191d94e5e59f68111533e3bafd0374ecb4d",
+   "bytes": 415238,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "e7e5952bf8cfc341310955d042a50cce208ecec5eaa7559c79d5f676c3d5cb87"
+   "sha256": "571e7b089c1f2e79926ddb2ae38840ba592e7fe82611af4910b29bea59f65dd1"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -6044,6 +6051,20 @@
    "sha256": "329e183fb5b955dadb2ff6d46e2f2faf7571783b8dabeda3113af4fc92c10a7c"
   },
   {
+   "blob": "48100194b0460a7e2cee77414b365ea0fcab89b3",
+   "bytes": 2734,
+   "mode": "100644",
+   "path": "scripts/chat_native_v7/\u804a\u5929\u6388\u6743\u539f\u751f\u56de\u5f52v7.py",
+   "sha256": "992e3ab64f6af7addc881412afefe7f9c4a0ab73b1a014c56861a7c0691ee620"
+  },
+  {
+   "blob": "eeaeba837f56ab514e503a94ad45416a511ef98e",
+   "bytes": 20312,
+   "mode": "100644",
+   "path": "scripts/chat_native_v7/\u804a\u5929\u6388\u6743\u539f\u751f\u9a8c\u6536v7.py",
+   "sha256": "0eeb489168855e8f1263fe8a75cacdf8f6eae683a74d4d59a3f63a05042aec12"
+  },
+  {
    "blob": "8bc46daf7f11faa11c21c8bbf9a536c15486d305",
    "bytes": 7033,
    "mode": "100644",
@@ -6366,11 +6387,11 @@
    "sha256": "35520622fd49716fb713f786b1ab74bdf906a01fe0fd214ab33c633244640cb6"
   },
   {
-   "blob": "85e97231e6f33a328dfc82b633fb752ed403a81b",
-   "bytes": 3685,
+   "blob": "3b5c5c9d1f211f00cc28937cde47da67284278da",
+   "bytes": 3700,
    "mode": "100644",
    "path": "scripts/oauth_native_contracts.py",
-   "sha256": "66c621093af78d07daf93667f01143583c1d811d760a687e0613da3d3da36a35"
+   "sha256": "e14c57c9fed689690815f5ad1ca5ce3e09b8e3661e415b7059d0951be91e3714"
   },
   {
    "blob": "70e1fed6c36d10b7a12beb523316df021e5d3daf",
@@ -8123,11 +8144,11 @@
    "sha256": "8dc81b19e76cc03036758ac7859311f85b75b815c945e981239e862782e4da23"
   },
   {
-   "blob": "609a02440fc6cb2033d93214d8ef5caed80c1e7b",
-   "bytes": 9802,
+   "blob": "9d6dda3d2055e94150e9dfcdc3cde1765daa6ff9",
+   "bytes": 9853,
    "mode": "100644",
    "path": "services/cloud-agent/src/agent/host/connection.rs",
-   "sha256": "8605aeb71c8b7e95aa1e72e93bcf5bc5268bdbcaeb49bce6b4f132324310d18a"
+   "sha256": "f98310c35b2f513b855579857e22d6a53ca56ad6d764ff6229b05a96465e32bb"
   },
   {
    "blob": "4b0d7b75171ad010f057a2ec7e657ece54898765",
@@ -8137,18 +8158,18 @@
    "sha256": "6b3f6fbeb70acc6f37de91e3942bf21e03b56da3161ebff69bce084c93832cad"
   },
   {
-   "blob": "5d98fa314bb6dc087fbb817c81f36dd514a2d983",
-   "bytes": 8438,
+   "blob": "d8d7e777403bbbbe9e470fd3714dd4fddd9f7358",
+   "bytes": 8915,
    "mode": "100644",
    "path": "services/cloud-agent/src/agent/host/mod.rs",
-   "sha256": "fb69d266dea9338d90c047323e22e6f43afcc053d782f7aa7d1a5efb86367882"
+   "sha256": "0d9368a3f166bb5d7c049173b3e964861be80ba2e55e66eb561142c2e5e9c945"
   },
   {
-   "blob": "4d52422f883a908c1602e7d0b6f87154ca2e0b79",
-   "bytes": 34288,
+   "blob": "cfd5f7dc33408c144d2c69ea9418a3fb599daab0",
+   "bytes": 42983,
    "mode": "100644",
    "path": "services/cloud-agent/src/agent/host/reconnect.rs",
-   "sha256": "005a422cfb2361f529cb5429ea7bb0a86af0363336acc56675a89e09654b121e"
+   "sha256": "5c17bbfc1101bc0505e0c0fd9a62b39d8c267c05acd37512cbd0586dfad492f5"
   },
   {
    "blob": "a8a38dbf474fcee7417380ebb9081bc0269e25c7",
@@ -8305,11 +8326,11 @@
    "sha256": "fd52709c47b84b029f0e6e155e13a085035045b12b6a2be5e97fe6ecc59469ce"
   },
   {
-   "blob": "406e8f82351eef659ca577a82bff4de901e163a9",
-   "bytes": 1647,
+   "blob": "9daa83b7f055d71801a18c0c90b77ac6b0ff7137",
+   "bytes": 1677,
    "mode": "100644",
    "path": "services/cloud-agent/src/lib.rs",
-   "sha256": "7cc835d45223eb866a41a960b818fb67a0c88043ab7f3dc1a146c5803969fdf0"
+   "sha256": "4d58802bf6e060bd66f20ab7d99cd2e9be0009b5f39617b949ce9cb0046af90a"
   },
   {
    "blob": "e9d6fe4c6a9c61244726c57be53611b5376ceec2",
