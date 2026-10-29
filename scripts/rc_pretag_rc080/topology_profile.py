@@ -1,7 +1,11 @@
 """Dedicated 0.8.0 topology admission anchored on main 9531007c (A0 merge, PR #172).
 
 Independent of the rc070 anchor 3ea09a6f and of every 0.7.x admission pin: this
-module imports neither and admits only linear single-parent descendants of M.
+module imports neither and admits descendants of M along the first-parent line.
+A two-parent merge on that line is admitted only when its second parent is
+itself an admitted descendant of M (main dffc3c6b = 9531007c + d6a45088);
+octopus merges and merges of foreign history fall through. A merge whose tree
+equals its second parent's tree carries that parent's content checks.
 Frozen admission sources must stay byte-identical to M; the issue86 host may
 differ from M only by the exact HOOK dispatch block. The probe manifest must be
 M's manifest with exactly the changed rows recomputed (F -> M -> cascade); the
@@ -39,23 +43,31 @@ DELTA_PATHS = 600
 DELTA_LINES = 40000
 
 
-def topology(ref, root, git, release):
-    """Admit M and linear descendants of M within DEPTH_LIMIT; merges fall through."""
+def topology(ref, root, git, release, budget=DEPTH_LIMIT):
+    """Admit M and first-parent descendants of M within DEPTH_LIMIT; foreign merges fall through."""
     if release != p.R:
         raise o.TopologyError('rc080_release_anchor')
     if ref == M:
         return 0
+    if budget < 0:
+        raise o.TopologyError('rc080_not_descendant')
     try:
-        rows = git('rev-list', '--first-parent', '--parents', '--max-count=%d' % (DEPTH_LIMIT + 1), ref,
+        rows = git('rev-list', '--first-parent', '--parents', '--max-count=%d' % (budget + 1), ref,
                    root=root).decode().split('\n')
     except subprocess.CalledProcessError as error:
         raise o.TopologyError('missing_parent') from error
     for depth, row in enumerate(line.split() for line in rows if line):
         if row[0] == M:
             return depth
-        if len(row) != 2:
+        if len(row) == 3:
+            topology(row[2], root, git, release, budget - depth - 1)
+        elif len(row) != 2:
             raise o.TopologyError('rc080_candidate_parents')
     raise o.TopologyError('rc080_not_descendant')
+
+
+def _tree(ref, root, git):
+    return git('rev-parse', ref + '^{tree}', root=root).strip()
 
 
 def _blob(actual, path, root, git):
@@ -96,7 +108,11 @@ def content(ref, root, git, entries):
     baseline = entries(M, root)
     if ref == M:
         return baseline
+    parents = o._parents(ref, root, git)
     actual = entries(ref, root)
+    if len(parents) == 2 and _tree(ref, root, git) == _tree(parents[1], root, git):
+        content(parents[1], root, git, entries)
+        return actual
     changed = {path for path in baseline.keys() | actual.keys() if baseline.get(path) != actual.get(path)}
     assert len(changed) <= DELTA_PATHS, 'rc080_delta_paths'
     assert all(actual[path][:2] in MODES for path in changed if path in actual), 'rc080_mode'
@@ -113,8 +129,7 @@ def content(ref, root, git, entries):
         added, deleted = row.split(b'\t')[:2]
         lines += 0 if added == b'-' else int(added) + int(deleted)
     assert lines <= DELTA_LINES, 'rc080_delta_lines'
-    parent = o._parents(ref, root, git)[0]
-    reviewed = {actual[REVIEWED], entries(parent, root)[REVIEWED]}
+    reviewed = {actual[REVIEWED]} | {entries(parent, root)[REVIEWED] for parent in parents}
     reviewed_rows = [_row(REVIEWED, entry, git('cat-file', 'blob', entry[2], root=root)) for entry in sorted(reviewed)]
     previous = _blob(baseline, MANIFEST, root, git)
     assert _manifest_ok(previous, actual, changed, reviewed_rows, root, git), 'rc080 manifest'
