@@ -1452,11 +1452,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "5ad9c8a5a6dfe252ad272764831615ba233f594c",
+   "blob": "2a89abf259b973334b689b3e40cd121a24f962ef",
    "bytes": 413459,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "b22ccbcec4e5e5b0a3f4a8d7985d04bb95e4fbd7a71046099658edcb4296e805"
+   "sha256": "57fef09855613398663e8abd3a40df567c673cfb709486f29a5ac002a0861c0c"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -3139,11 +3139,11 @@
    "sha256": "0501ca9fb1a6882e97245568874af58c392cef9df16645023c8f9467c0d28c96"
   },
   {
-   "blob": "8c5f8807c323d14abb1ef2da616fcba4f0059101",
-   "bytes": 1869,
+   "blob": "74c5827d6cbebb15416ef923176bb4bab03a1dbc",
+   "bytes": 2389,
    "mode": "100644",
    "path": "docs/specs/multi-subagent/windows-gateway-exec-no-sandbox.md",
-   "sha256": "e64aef5acbac0a3044950f6975b5fd2b3883582c164881927832cfc847dd5902"
+   "sha256": "45915eab40bda340d7cb91de03e1e0ffcd02a51368f1698b8c005cf47622b11b"
   },
   {
    "blob": "03814ee63a124e1c167d56ab42bfc3240b192882",
@@ -10832,11 +10832,11 @@
    "sha256": "ffc188c44559be8268701f4dded58413ab287843f139005586cc3cf194b26526"
   },
   {
-   "blob": "e49cd18cf6c3643b5a37e1ced3673dfb3aee7b9a",
-   "bytes": 15488,
+   "blob": "be400cacdc57b31e725ead7543cb9bfe4afdd496",
+   "bytes": 19531,
    "mode": "100644",
    "path": "src-tauri/src/tools/cloud_host/tests.rs",
-   "sha256": "55dc879ade595b4b66b9c4e2aefd6e62483e4ac29520364cb8a8da76bca435aa"
+   "sha256": "d74a294947bda49973248922e2c565525bc7f1944a54b9c5d6570525e29a79c1"
   },
   {
    "blob": "455e87fa81be58a7833393564eb518536abaf72e",
@@ -10867,11 +10867,11 @@
    "sha256": "dfc4ebab5fdb79b33cb79ac35c9e9ab5277410a36f2bf3dcba3a37144c8deba4"
   },
   {
-   "blob": "aaeb8d93dca591c8ddfa36a125ac35f95b03670f",
-   "bytes": 13656,
+   "blob": "d3bd8fcadaf23fabfed960bc652624d864437b98",
+   "bytes": 15995,
    "mode": "100644",
    "path": "src-tauri/src/tools/execution_sandbox.rs",
-   "sha256": "fb055c1d54833ae0fc8bbd08b1f785d399a50cf38ec7e872c9fa56aefaddb470"
+   "sha256": "5481c79fc623aa726da5c7606ba2445542e11e9ad8794db7cb53265e383e3377"
   },
   {
    "blob": "7f86dc5f8c2e9629a0f9199741f4f68e19af5f47",
@@ -11007,11 +11007,11 @@
    "sha256": "826436bbbb4cef917ff87acc336a9c67b0456cacc6bcfeff75a2950ba0e29158"
   },
   {
-   "blob": "43e6bbc61cb9ce64959d44d5716abacc6b724edf",
-   "bytes": 23472,
+   "blob": "a3121e3b235365dda3cd399954e3da18f4ef2cfc",
+   "bytes": 23761,
    "mode": "100644",
    "path": "src-tauri/src/tools/policy.rs",
-   "sha256": "c06034ab9587b0a9af3c836e0ca97dc10996cc6b264fd72c057acae2a109e3ea"
+   "sha256": "836b8d559f77cc8ed2dd1ccf5bf206266b34e656b0951ae5bfecfa3b1d59ec55"
   },
   {
    "blob": "107b4eeb1f59638f86a90679469684d37432b045",
