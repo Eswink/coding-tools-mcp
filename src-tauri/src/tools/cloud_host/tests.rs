@@ -96,6 +96,54 @@ impl Fixture {
             .unwrap()
     }
 }
+#[allow(dead_code)]
+fn remote_environment(f: &Fixture) -> Value {
+    let a = f.approve(&["workspace.read"]);
+    let call = f
+        .host
+        .prepare(
+            &a,
+            "check_exec_environment",
+            &json!({}),
+            now().unwrap() + 30,
+        )
+        .unwrap();
+    let value = f.host.execute(call).unwrap();
+    assert_eq!(value["ok"], true, "{value}");
+    value
+}
+
+/// Windows default mode (Q3 = B). Expected values are derived, not chosen:
+/// - boundary/available/required: execution_sandbox::environment_for Windows
+///   branch, matching remote_exec_gate admitting trusted/dangerous;
+/// - network_allowed: PolicySettings::network_commands_allowed() (policy.rs),
+///   the exact outcome of validate_command_for_workspace's network rule;
+/// - global_tmp_write: no OS boundary confines an unsandboxed child.
+#[allow(dead_code)]
+fn assert_windows_default_mode_environment(value: &Value, network_allowed: bool) {
+    assert_eq!(value["workspace_exec_available"], true);
+    assert_eq!(
+        value["workspace_exec_boundary"],
+        "unsandboxed_user_default_permissions"
+    );
+    assert_eq!(value["workspace_exec_sandbox_enforced"], false);
+    assert_eq!(value["workspace_exec_unavailable_reason"], Value::Null);
+    assert_eq!(value["network_allowed"], network_allowed);
+    assert_eq!(value["global_tmp_write"], "allowed");
+    assert_eq!(
+        value["filesystem_sandbox"],
+        json!({
+            "available": false, "enforced": false, "required": false,
+            "default_scope": "workspace", "host_scope_available": false,
+            "support": "Windows gateway exec has no sandbox and runs with user default permissions"
+        })
+    );
+    assert_eq!(
+        value["warnings"][0],
+        "Windows gateway exec has no sandbox and runs with user default permissions."
+    );
+}
+
 #[test]
 fn remote_environment_reports_the_actual_platform_execution_gate() {
     let f = Fixture::new();
@@ -111,6 +159,11 @@ fn remote_environment_reports_the_actual_platform_execution_gate() {
         .unwrap();
     let value = f.host.execute(call).unwrap();
     assert_eq!(value["ok"], true, "{value}");
+    if cfg!(windows) {
+        // Q3 = B: the default `trusted` Fixture is the unsandboxed Windows path.
+        assert_windows_default_mode_environment(&value, true);
+        return;
+    }
     assert_eq!(value["workspace_exec_sandbox_enforced"], false);
     assert_eq!(value["filesystem_sandbox"]["required"], true);
     assert_eq!(value["network_allowed"], false);
@@ -451,4 +504,57 @@ fn unauthorized_session_cannot_reach_gateway_exec() {
     // Approved without exec.run: the scope check still rejects first.
     let a = f.approve(&["files.read"]);
     assert_eq!(exec_call(&f, &a).err(), Some("INSUFFICIENT_CHAT_SCOPE"));
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_dangerous_mode_environment_reports_truthful_network_and_tmp() {
+    let f = Fixture::with_mode("dangerous");
+    let value = remote_environment(&f);
+    // dangerous: skip_permission_gates() admits network-looking commands.
+    assert_windows_default_mode_environment(&value, true);
+    assert_eq!(value["permission_mode"], "dangerous");
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_trusted_mode_environment_reports_truthful_network_and_tmp() {
+    let f = Fixture::with_mode("trusted");
+    let value = remote_environment(&f);
+    // trusted: network_allowed() admits network-looking commands.
+    assert_windows_default_mode_environment(&value, true);
+    assert_eq!(value["permission_mode"], "trusted");
+}
+
+/// Field-by-field identical to the non-Linux remote report at 357518a5
+/// (execution_sandbox::environment before Q3 = B).
+#[cfg(windows)]
+#[test]
+fn windows_restricted_mode_environment_is_the_357518a5_refusal() {
+    let f = Fixture::with_mode("safe");
+    let value = remote_environment(&f);
+    assert_eq!(value["workspace_exec_available"], false);
+    assert_eq!(value["workspace_exec_boundary"], "sandbox_unavailable");
+    assert_eq!(
+        value["workspace_exec_unavailable_reason"],
+        "SANDBOX_REQUIRED"
+    );
+    assert_eq!(value["workspace_exec_sandbox_enforced"], false);
+    assert_eq!(value["network_allowed"], false);
+    assert_eq!(value["global_tmp_write"], "denied");
+    assert_eq!(
+        value["filesystem_sandbox"],
+        json!({
+            "available": false, "enforced": false, "required": true,
+            "default_scope": "workspace", "host_scope_available": false,
+            "support": "Mandatory remote execution isolation is unavailable on this platform"
+        })
+    );
+    assert_eq!(
+        value["warnings"],
+        json!([
+            "Remote child execution is unavailable because mandatory OS isolation is not implemented.",
+            "No policy-only or unsandboxed fallback is permitted."
+        ])
+    );
 }

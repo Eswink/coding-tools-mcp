@@ -13,6 +13,8 @@ pub(crate) fn required(ctx: &ToolContext) -> bool {
 pub(crate) const WINDOWS_GATEWAY_EXEC_APPROVAL_WARNING: &str =
     "Session authorization (exec.run scope) is still required; individual commands are not separately approved and are subject only to the command policy of the selected permission mode.";
 const WINDOWS_UNSANDBOXED_MODES: &[&str] = &["trusted", "dangerous"];
+/// Unsandboxed children are not confined to a temp prefix or the workspace.
+pub(crate) const WINDOWS_UNSANDBOXED_GLOBAL_TMP_WRITE: &str = "allowed";
 
 /// Windows gateway exec has no sandbox and runs with user default permissions.
 /// User decision 2026-10-29 (Q3 = B): only the Windows remote `exec.run` path
@@ -60,6 +62,11 @@ fn environment_for(linux: bool, windows: bool, ctx: &ToolContext, mut result: Va
         result["workspace_exec_available"] = json!(true);
         result["workspace_exec_boundary"] = json!("unsandboxed_user_default_permissions");
         result["workspace_exec_sandbox_enforced"] = json!(false);
+        // No OS boundary: network is whatever the selected permission mode's
+        // exec network-command rule admits, and a child can write the global
+        // temp directory like any other path the desktop user can write.
+        result["network_allowed"] = json!(ctx.policy.network_commands_allowed());
+        result["global_tmp_write"] = json!(WINDOWS_UNSANDBOXED_GLOBAL_TMP_WRITE);
         result["filesystem_sandbox"] = json!({
             "available": false, "enforced": false, "required": false,
             "default_scope": "workspace", "host_scope_available": false,
@@ -289,6 +296,48 @@ mod tests {
                 "{mode}"
             );
         }
+    }
+
+    /// Outcome of the real exec network-command rule (policy.rs), not a copy.
+    fn network_rule_admits(ctx: &ToolContext) -> bool {
+        let verdict = crate::tools::policy::validate_command(
+            &json!({"cmd": "curl https://example.invalid"}),
+            &ctx.policy,
+        );
+        !matches!(verdict, Err(ref e) if e.0.contains("Network-looking commands are blocked"))
+    }
+
+    #[test]
+    fn windows_default_mode_environment_network_and_tmp_are_truthful() {
+        // trusted: network_allowed() is true; dangerous: skip_permission_gates()
+        // is true. Both admit network-looking commands under policy.rs.
+        for mode in ["trusted", "dangerous"] {
+            let (_r, _h, ctx) = remote_ctx(mode);
+            // A safer-looking base value must be overwritten with the truth.
+            let value = environment_for(
+                false,
+                true,
+                &ctx,
+                json!({"network_allowed": false, "global_tmp_write": "denied"}),
+            );
+            assert_eq!(
+                value["network_allowed"],
+                json!(network_rule_admits(&ctx)),
+                "{mode}"
+            );
+            assert_eq!(value["network_allowed"], true, "{mode}");
+            assert_eq!(
+                value["network_allowed"],
+                json!(ctx.policy.network_commands_allowed()),
+                "{mode}"
+            );
+            assert_eq!(value["global_tmp_write"], "allowed", "{mode}");
+        }
+        // The rule really blocks in restricted mode, so `true` above is not a
+        // constant: it is the rule's outcome for the selected mode.
+        let (_r, _h, safe) = remote_ctx("safe");
+        assert!(!network_rule_admits(&safe));
+        assert!(!safe.policy.network_commands_allowed());
     }
 
     #[test]

@@ -4,6 +4,12 @@ User decision 2026-10-29 (DM): Q3 = B — open Windows gateway exec without
 sandbox, default permissions; restricted mode still rejected.
 
 **Windows gateway exec has no sandbox and runs with user default permissions.**
+Because there is no sandbox, network access is not blocked by the OS: in
+`trusted` and `dangerous` mode the permission mode's network-command rule
+admits network-looking commands, so `exec_environment` reports
+`network_allowed = true`; and a command can write the global temp directory
+(and any other path the user can write), so it reports
+`global_tmp_write = "allowed"`.
 
 | Platform / permission mode | Remote `exec.run` via the cloud gateway |
 | --- | --- |
@@ -26,7 +32,9 @@ Unchanged on every platform:
 
 `exec_environment` on a Windows gateway in default mode reports
 `workspace_exec_boundary = "unsandboxed_user_default_permissions"`,
-`workspace_exec_sandbox_enforced = false`, and warnings with the sentence
+`workspace_exec_sandbox_enforced = false`,
+`network_allowed` = the selected mode's network-command rule outcome
+(`PolicySettings::network_commands_allowed`), `global_tmp_write = "allowed"`, and warnings with the sentence
 above and the session-authorization sentence, so the primary agent can see that no sandbox is present.
 
 Code: `src-tauri/src/tools/execution_sandbox.rs` (`remote_exec_gate`,
