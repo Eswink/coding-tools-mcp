@@ -1,5 +1,5 @@
 {
- "entries": 1921,
+ "entries": 1926,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -241,11 +241,11 @@
    "sha256": "92356f9ad1c1e565534923f4b01988d39a02e4964137dbc0cb83b0bd4d58ddc8"
   },
   {
-   "blob": "a513fb7fb54c4a446467a47eb6934b14c01ee18f",
-   "bytes": 9430,
+   "blob": "c2674527dd792862f148926f209ccfbc63a8f967",
+   "bytes": 9514,
    "mode": "100644",
    "path": ".github/workflows/exclusive-packages.yml",
-   "sha256": "cc06c75a2f20c6bbfb485827dd73d01f2bf556baa57e8a563706f6372c1f826a"
+   "sha256": "a3ee202b9ab8cdbb381fb1e1b00155fdfad553941ebdba3da645fbb68e6e3630"
   },
   {
    "blob": "0121199a25871fbeacaf630f338c1e1207298c70",
@@ -262,11 +262,11 @@
    "sha256": "1ee07c23b87611a3326a4790dc38cdc91f47c79b0326789897f1247d8c1a3fec"
   },
   {
-   "blob": "9c77b1dcd2794fd8727dc5448701339037461031",
-   "bytes": 20651,
+   "blob": "98199301631a231af48f9f7c73d6efceb7dc84a8",
+   "bytes": 20735,
    "mode": "100644",
    "path": ".github/workflows/final-rc-packages.yml",
-   "sha256": "cfd7cc70ba5496d0b65776400834ab5b453f4895c8ea7b174dfc1db2136e22c8"
+   "sha256": "88ae9f919ba7422ecc2352b7e84c48605f93ee5dbfb051513ba32b8464562d73"
   },
   {
    "blob": "e5606a515b54f0601b97f27a26e607e357521ce0",
@@ -598,11 +598,11 @@
    "sha256": "639f63ed0663d2231c99c6b48175c3ed8c14a47ef08f45dd677283ab6bc9f990"
   },
   {
-   "blob": "5e4bdc04baf92378896d06f986a6bbeb5e789bab",
-   "bytes": 1448,
+   "blob": "6421b7c412c88bfb201878fb3449e7b215a95613",
+   "bytes": 1490,
    "mode": "100644",
    "path": ".github/workflows/ui-refactor-native.yml",
-   "sha256": "4c7fcd22dfdb24fac0dfcccadc8c216301c116aaa50974eedec163730872d6a7"
+   "sha256": "a7b56f1247e9a1425b60d4f7ae4cee944d59b00a244697520b728c6ac1860eaa"
   },
   {
    "blob": "654c44fcfb0baa8664c46add1d9f8661e16c38f5",
@@ -780,11 +780,11 @@
    "sha256": "fe201e79611b31d1c4eda7d601a41d5e02c451a18b9e12e8db3c3f6e1a26e161"
   },
   {
-   "blob": "2921836242fd98b91f7b2927aa4194800a1f96c2",
-   "bytes": 4090,
+   "blob": "e08754f1b5c1f33c08c4db015fc66bcd73f1fa8a",
+   "bytes": 4111,
    "mode": "100644",
    "path": ".github/workflows/\u804a\u5929\u6388\u6743Windows\u539f\u751fv8.yml",
-   "sha256": "cb83090b768c6839e98e406d9a12415ceae8baf3cc1b334ca220ed52f909efbc"
+   "sha256": "9658bec5c0e8dcd6b63097445673d22c054922bed855cb17f24494bcf0d354d2"
   },
   {
    "blob": "31bffc1bddf2cee61d443ac7cedc18dc62578523",
@@ -794,11 +794,11 @@
    "sha256": "f70294627d23d0351b68bf0936ec1090e9fe8bdce5cd24f8bbda88dfdfc7622e"
   },
   {
-   "blob": "01ef6a4f273ea3cbecc40d4eee39e6f6f74b102d",
-   "bytes": 9107,
+   "blob": "29638819976e63fc8e7bf764f65c54a8141b20ba",
+   "bytes": 9191,
    "mode": "100644",
    "path": ".github/workflows/\u804a\u5929\u6388\u6743\u5b89\u88c5\u5305v10.yml",
-   "sha256": "5494b637e985f46573fbe15bf693a074469a0b860be1c501b57eae9b4ce97fda"
+   "sha256": "c76f358f3c2653ff238322bbcdba61a49a38b61a0980b3725b9a517087d9d97d"
   },
   {
    "blob": "fa75af5575da9ae5a1db0d213b0d67ce2f0a35db",
@@ -1452,11 +1452,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "835c28b116a2884a81bc9dd7f3f76316213bfbd1",
-   "bytes": 405857,
+   "blob": "55d118fe89ff664cd52607a48f56c036fdd5d116",
+   "bytes": 407095,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "760b0ae49760fb997c1faa60b2e6739f7b01916fae77af574540a5af60bc7a0a"
+   "sha256": "632f8a3d88077bd871bf7029b4a9821b0d390c204916079947b2c6ae61a1e41c"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -6247,11 +6247,11 @@
    "sha256": "712a4616c292c24fa4ac4fd6fca5e61356c13aa625aec35a21c8ef176e392c39"
   },
   {
-   "blob": "cdeb9c4b9a3e8093a4e21b5576638fa7c8ca352e",
-   "bytes": 5358,
+   "blob": "61a14353e2fe24daa764e9a19c2c1e3024806320",
+   "bytes": 5379,
    "mode": "100644",
    "path": "scripts/exclusive_windows_install.ps1",
-   "sha256": "1a06ca215b5f3bfba8aed1af37fc3fadd633577bb1d911def912269789528cfe"
+   "sha256": "f560a4ddc64080bb20fce7b02594dd2ed667c237e845ffbbbf4fbac9738d2d9f"
   },
   {
    "blob": "76f3d2f6dffdabac0002922bfa7ba4fd6bb8dd27",
@@ -7136,11 +7136,11 @@
    "sha256": "53f49607b8071e4ef88ae9ead265e6bc04dd4300cbff5460f06c4ef8878bfd67"
   },
   {
-   "blob": "5e8b66895b4246314feaab8ea5954ed0b5d40e85",
-   "bytes": 3513,
+   "blob": "50b6b211fac0aa81812898217d8c19eebcbb1ec5",
+   "bytes": 4402,
    "mode": "100644",
    "path": "scripts/rc_pretag_rc3_rebind_inverse.py",
-   "sha256": "dd220b43fa1ee81db321d911593baac3f3770316b757a0d3c9f6f00229585774"
+   "sha256": "4f64ef76a7330494bc5f65eef8aa1dbdcfc881fc21ced226f9bdcae5e9df9f16"
   },
   {
    "blob": "addde597702f55c96ea6dce17753cbf12db21df8",
@@ -7542,18 +7542,18 @@
    "sha256": "6223f5fe1e544ea9717b2d96ab1d24abcb49d01bcbdcc2addfc6d2f001f8cf17"
   },
   {
-   "blob": "8b4d3cfe351fddc18844d6432de09a04da1a742a",
-   "bytes": 5664,
+   "blob": "f53675017c23a07e8b6f2b037e4c446cf07dd794",
+   "bytes": 5706,
    "mode": "100644",
    "path": "scripts/rc_windows_install.ps1",
-   "sha256": "32d9850aba861d9339ed74e3df9bf126b9fac36277b3fcf19174a0b773918dbf"
+   "sha256": "70597313f57c0c6da209cfd9601df337ddb0bb18d70d62d0f35a515b7a2dd09f"
   },
   {
-   "blob": "80213ec067ed9e0d335d73fa1e3597153163b427",
-   "bytes": 1408,
+   "blob": "1b2cac6a6bcadc1b4f138fa1fa2aa139c3988a25",
+   "bytes": 1429,
    "mode": "100644",
    "path": "scripts/rc_windows_install_contract_tests.py",
-   "sha256": "8038e5a7a95dc1e5f2aff6152eb2440ec5678effe1875b9d10deb6852972529c"
+   "sha256": "983a3503a2628ea711923450a07e3d604a516825ed7235abf1f47dac5beac050"
   },
   {
    "blob": "451350cd8ecdb6ca14bc5837000a1733faa7d6e7",
@@ -7738,6 +7738,41 @@
    "sha256": "c50bacf1fe8c0921d7b00a0a82fbadaca3b362398c4915fa40e1ae6d7a8f182e"
   },
   {
+   "blob": "0fcf86a58fc85ba31bb82fdabd29f71ebb35241a",
+   "bytes": 21890,
+   "mode": "100644",
+   "path": "scripts/windows_standard_v23/Windows\u6807\u51c6\u7528\u6237\u9a8c\u6536v23.py",
+   "sha256": "da27777c7d8f278529ec5133c89e77569863643f87dc1dd2431683e66da1a591"
+  },
+  {
+   "blob": "f7b9691a667753b6aa7e544d044c5278091ba3d1",
+   "bytes": 9700,
+   "mode": "100644",
+   "path": "scripts/windows_standard_v23/Windows\u6807\u51c6\u7528\u6237\u9a8c\u6536v23_tests.py",
+   "sha256": "c73c4c2d95afd364231edc53a8d8cbceed161c08234ad55145f257f884e8a75e"
+  },
+  {
+   "blob": "c9f99213f7478300ece0868b110be46260ad48b2",
+   "bytes": 7209,
+   "mode": "100644",
+   "path": "scripts/windows_standard_v23/source_manifest_v23.py",
+   "sha256": "fa8cf4aee65eef0d02a5378b0b029b70fd1c7ed4a2bad7925bce4585255404ed"
+  },
+  {
+   "blob": "8f65c61a7bcbd246aaeb4f15a99404e02d9c7d84",
+   "bytes": 2107,
+   "mode": "100644",
+   "path": "scripts/windows_standard_v23/\u6807\u51c6\u5bbf\u4e3b\u5f15\u5bfcv28.py",
+   "sha256": "331d9c8623586895d35e0de532ddfad209a58cb19d2fe9bbb30d02aeddf72749"
+  },
+  {
+   "blob": "77583add1639f1e00797630532cabf0939b61f8b",
+   "bytes": 13250,
+   "mode": "100644",
+   "path": "scripts/windows_standard_v23/\u6807\u51c6\u7528\u6237\u6e90\u6e05\u5355v23.json",
+   "sha256": "f519c4a2c35b84b17e33c2612b464788887edfed103ff6b5d62912dd3f5cc2f9"
+  },
+  {
    "blob": "21f7233834f6223b6027b62ee437e57974c5d15d",
    "bytes": 2594,
    "mode": "100644",
@@ -7920,11 +7955,11 @@
    "sha256": "5293f78619ecd1961b9f1000fb16748b46a0e97527d84bfc71988f22b0f79a90"
   },
   {
-   "blob": "bd96d53fc4d428caf1bbf3a0ca293b3c59298605",
-   "bytes": 4986,
+   "blob": "f203edaab28359870f1338817d4e59409c5b1064",
+   "bytes": 5007,
    "mode": "100644",
    "path": "scripts/\u804a\u5929\u6388\u6743Windows\u5b89\u88c5v10.ps1",
-   "sha256": "de6d431b984cec2f98cac92c2a3f9766d323fbdec42d4d2b4ab4fff66eee0ce6"
+   "sha256": "7f7debb71035105a353ad47acf1f05ee7076629eb21168af7fab9a4500ce0794"
   },
   {
    "blob": "f4c8ffab5593fb9023f422cf9b61a5edc2662114",
