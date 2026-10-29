@@ -8,12 +8,12 @@
 
 <p align="center">
   <a href="https://github.com/Eswink/coding-tools-mcp/releases/latest"><img src="https://img.shields.io/github/v/release/Eswink/coding-tools-mcp?label=Release" alt="本仓库正式版本"></a>
-  <a href="https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0-rc.2"><img src="https://img.shields.io/badge/Pre--release-v0.7.0--rc.2-orange" alt="预发布 v0.7.0-rc.2"></a>
+  <a href="https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0"><img src="https://img.shields.io/badge/Stable-v0.7.0-2ea44f" alt="正式版 v0.7.0"></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4" alt="Windows x64">
   <img src="https://img.shields.io/badge/Ubuntu-22.04%20%7C%2024.04-E95420" alt="Ubuntu amd64">
 </p>
 
-<p align="center"><a href="README.md">中文</a> · <a href="README.en.md">English</a> · <a href="https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0-rc.2">v0.7.0-rc.2 预发布</a> · <a href="https://github.com/Eswink/coding-tools-mcp/releases/latest">稳定版（Latest）</a></p>
+<p align="center"><a href="README.md">中文</a> · <a href="README.en.md">English</a> · <a href="https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0">v0.7.0 正式版（Latest）</a> · <a href="https://github.com/Eswink/coding-tools-mcp/releases">全部 Releases</a></p>
 
 这是 **Eswink/coding-tools-mcp** 维护的桌面客户端，基于 Rust、Tauri 2、Svelte 5 / SvelteKit。它将你选定的本地项目接入 MCP：获得权限的 AI 会话可以读取文件、应用补丁、执行命令、查看任务与日志，并保存开发检查点。
 
@@ -21,54 +21,65 @@
 
 ## 下载与安装
 
-> **当前预发布：v0.7.0-rc.2（PRE-RELEASE — NOT FINAL）**，仅供手动测试，不是稳定版。稳定版（Latest）仍为 **[v0.6.0](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.6.0)**。Release 状态以[本仓库 Releases](https://github.com/Eswink/coding-tools-mcp/releases) 为准。
+> **当前正式版：v0.7.0（Latest）**，取代 v0.6.0 以及 0.7.0 的预发布版 rc.1 / rc.2 / rc.3。下载入口：[v0.7.0 Release](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0)（或 [releases/latest](https://github.com/Eswink/coding-tools-mcp/releases/latest)）。升级说明、回退行为与完整已知问题以该 Release 的发行说明为准。
 
-### 桌面端：v0.7.0-rc.2（预发布）
+### 桌面端：v0.7.0
 
 | 平台 | 安装包 | SHA256 | 说明 |
 | --- | --- | --- | --- |
-| Windows x64 | [MCP_0.7.0-rc.2_x64-setup.exe](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/MCP_0.7.0-rc.2_x64-setup.exe) | `0933837e6011adb1839ec0f128ed5dd2b699f432f263f1d909b62040f7d0cb90` | NSIS 安装程序；**未签名**，会显示未知发布者 |
-| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.7.0-rc.2_amd64.deb](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/MCP_0.7.0-rc.2_amd64.deb) | `1a65a6a515a8dc47319e4c7cb6e5522cdc842b3a095fda118cb082098bab5273` | 优先推荐；使用已登录的普通桌面用户 |
-| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.7.0-rc.2_amd64.AppImage](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/MCP_0.7.0-rc.2_amd64.AppImage) | `6e1e652ccdde15d34f2802b28440b3ad887e71af8851b79678a5a86685bb3f40` | 不等于所有 FUSE/Wayland 环境均已验证 |
+| Windows x64 | [MCP_0.7.0_x64-setup.exe](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/MCP_0.7.0_x64-setup.exe) | `8fa1bc2fcd2fd3a2f81ea7e2de606d4b083e8acc412e5964af38e9f4bdf148e6` | 按用户安装的 NSIS 安装程序；**未签名**，会显示未知发布者 |
+| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.7.0_amd64.deb](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/MCP_0.7.0_amd64.deb) | `64341529d69d89204757eea34ea0c6d6ab2097807acad64eebecd26756ed2197` | 优先推荐；使用已登录的普通桌面用户 |
+| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.7.0_amd64.AppImage](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/MCP_0.7.0_amd64.AppImage) | `34793babb5eb485d74676ff697263fa31dae0d714f7dfbeb12e2885fb970e7db` | 不等于所有 FUSE/Wayland 环境均已验证 |
 
-校验文件：[SHA256SUMS.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/SHA256SUMS.txt)。构建来源：tag `v0.7.0-rc.2`（`bdc4aeb5`），打包 run [40428267551](https://github.com/Eswink/coding-tools-mcp/actions/runs/40428267551)。本次不提供 macOS、ARM 或无桌面 Linux Server 安装包。
+校验文件：[SHA256SUMS.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/SHA256SUMS.txt)（同时覆盖 `cloud-linux-amd64.tar.gz`）。构建来源：tag `v0.7.0`（源码 `36e0c265`），所有二进制均来自打包 run [40814802175](https://github.com/Eswink/coding-tools-mcp/actions/runs/40814802175)，未在本地构建。Linux 包在 Ubuntu 22.04 上构建，并在 Ubuntu 22.04 与 24.04 上通过安装验收；Windows NSIS 通过标准用户安装验收。本次不提供 macOS、ARM 或无桌面 Linux Server 安装包。
 
-### 云端组件：随 v0.7.0-rc.2 附带（预发布）
+**已知问题（摘要）：** Windows 安装包未签名；不提供 macOS 安装包；与 rc.2 / rc.3 相同的 CI 基线失败、仅开发依赖的 deepmerge 告警豁免（2026-11-30 UTC 到期）等，详见 [v0.7.0 发行说明](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0)。
+
+### 云端组件：v0.7.0
 
 | 文件 | SHA256 | 说明 |
 | --- | --- | --- |
-| [cloud-image.tar](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/cloud-image.tar) | `82c485832dc1f2b145b45a7b0480229f3b4cc213f07d2cdb732cea052f7ed0bb` | 云网关 Docker 镜像（`docker load` 导入，镜像无 tag） |
-| [cloud-linux-amd64.tar.gz](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/cloud-linux-amd64.tar.gz) | `c7c37a3c7549589d46aafa392ded1ce9a5c5077c284502abac9618b2ad830418` | 同一批 Linux amd64 二进制（含 `coding-tools-gateway`、`coding-tools-agent` 等） |
+| [cloud-linux-amd64.tar.gz](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/cloud-linux-amd64.tar.gz) | `137cfa80b5d601b5ff18341d49a59c5968e8459d126dfa2aefb0c9adcc445f7b` | Linux amd64 云端二进制包（gateway / control-gateway / mcp-gateway / agent），附 [archive-receipt.json](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/archive-receipt.json) 与 [versions.json](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/versions.json) |
+| [coding-tools-gateway-image-0.7.0.tar](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/coding-tools-gateway-image-0.7.0.tar) | `04d4c59ab88a33aeb2dcafe6162debe18c9f344a4a0d789e91602fafc8847fee` | CI 构建的网关运行时镜像（OCI 归档，无 tag），校验文件 [coding-tools-gateway-image-0.7.0.tar.sha256](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/coding-tools-gateway-image-0.7.0.tar.sha256) |
 
-校验文件：[SHA256SUMS-cloud.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/SHA256SUMS-cloud.txt)（另含 `archive-receipt.json`、`image-archive.sha256`、`versions.json`）。镜像导入后**按镜像 ID 引用**，不要按 tag 引用：
+云端二进制包用 [SHA256SUMS-cloud.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/SHA256SUMS-cloud.txt) 校验。镜像标签：`org.opencontainers.image.version=0.7.0`、`org.opencontainers.image.revision=36e0c265a2bb5f93fe61a504468bf584706519e2`。
 
-```bash
-sha256sum -c SHA256SUMS-cloud.txt
-docker load -i cloud-image.tar
-docker image inspect --format '{{.Id}}' sha256:7e69b9ade56ce598264f23f3504e465670a6f2c0119293f04937645963b2ee3a
-```
-
-### 云网关部署包：gateway-v0.1.0-rc.1（预发布）
-
-[gateway-v0.1.0-rc.1](https://github.com/Eswink/coding-tools-mcp/releases/tag/gateway-v0.1.0-rc.1) 只包含 VPS 部署包（`kit.py`、RUNBOOK、模板、渲染脚本与接入说明），**不含网关二进制或镜像**（镜像用上一节 rc.2 的 `cloud-image.tar`）。源码 commit `e43728285af66beac7807376ff7764c708c2b631`。
+### 云网关 Docker 部署：v0.7.0
 
 | 文件 | SHA256 |
 | --- | --- |
-| [coding-tools-gateway-deploy-kit-e4372828.tar](https://github.com/Eswink/coding-tools-mcp/releases/download/gateway-v0.1.0-rc.1/coding-tools-gateway-deploy-kit-e4372828.tar) | `260bdbedd5c7ff1c402c5ef1028f92cb183f7caadc09f1f736104536430ab3d2`（规范哈希，以 `.tar` 为准） |
-| [coding-tools-gateway-deploy-kit-e4372828.tar.gz](https://github.com/Eswink/coding-tools-mcp/releases/download/gateway-v0.1.0-rc.1/coding-tools-gateway-deploy-kit-e4372828.tar.gz) | `7d001ea55deea715f2ecf1eaf9ec1039bae5a11c331b271431c107fffd6b7e97`（取决于 gzip 实现，仅供参考） |
+| [coding-tools-gateway-docker-kit-36e0c265.tar.gz](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/coding-tools-gateway-docker-kit-36e0c265.tar.gz) | `4cb586324fa27db03ec2f3c869f991555b38a7d24a9bfb89d313b8329bba4867` |
 
-校验文件：[SHA256SUMS.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/gateway-v0.1.0-rc.1/SHA256SUMS.txt)；复现命令见该 Release 说明。文档（钉在源码 commit）：[部署 RUNBOOK](https://github.com/Eswink/coding-tools-mcp/blob/e43728285af66beac7807376ff7764c708c2b631/deploy/cloud-gateway/kit/RUNBOOK.md) · [ChatGPT 与桌面端接入说明](https://github.com/Eswink/coding-tools-mcp/blob/e43728285af66beac7807376ff7764c708c2b631/deploy/cloud-gateway/CONNECT-CHATGPT-AND-DESKTOP.md)。
+校验文件：[SHA256SUMS-docker-kit.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/SHA256SUMS-docker-kit.txt)。部署包是 tag 提交上 [deploy/cloud-gateway/docker](deploy/cloud-gateway/docker/README.md) 目录的确定性 `git archive`，复现命令见发行说明。镜像导入后**按镜像 ID 引用**，不要按 tag 引用：
 
-### 版本组合
+```bash
+sha256sum -c coding-tools-gateway-image-0.7.0.tar.sha256
+sha256sum -c SHA256SUMS-docker-kit.txt
+docker load -i coding-tools-gateway-image-0.7.0.tar
+docker image inspect --format '{{.Id}}' sha256:9246a4faed40a41cbd5dce52d4e9f7a2c743e97501543c1f83b2edcae653db7b
+# .env 中写入：CTM_GATEWAY_IMAGE=sha256:9246a4faed40a41cbd5dce52d4e9f7a2c743e97501543c1f83b2edcae653db7b
+```
 
-| 用途 | 桌面端 | 云网关镜像 | 部署包 | 状态 |
-| --- | --- | --- | --- | --- |
-| 云网关手动测试 | v0.7.0-rc.2 | rc.2 的 `cloud-image.tar`，按 ID `sha256:7e69b9ade56ce598264f23f3504e465670a6f2c0119293f04937645963b2ee3a` 引用 | gateway-v0.1.0-rc.1 | 预发布；**该组合未经端到端测试（未在真实 VPS / 真实 ChatGPT 上测过）** |
-| 日常使用 | v0.6.0（Latest） | 不使用 | 不使用 | 稳定版，单独使用，不含云网关 |
+- 镜像 ID **必须是** `sha256:9246a4faed40a41cbd5dce52d4e9f7a2c743e97501543c1f83b2edcae653db7b`。`CTM_POSTGRES_IMAGE` / `CTM_INGRESS_IMAGE` 按 `@sha256:` digest 固定，**不要用 `latest` 或任何可变 tag**。
+- **部署顺序固定：初始化 → 桌面端设备登记 → `up -d`。**
+  1. `ctm_docker.py setup`
+  2. `invite-device` → 桌面端 `prove-enrollment` → `redeem-device` → `select-device`（至少一次；没有已登记并选定的设备时，网关以 `provisioning_not_ready` 拒绝启动）
+  3. `docker compose up -d` + `ctm_docker.py check`
+- 细节见部署包内的 [README](deploy/cloud-gateway/docker/README.md)。
 
-### 稳定版：v0.6.0（Latest）
+### 从 v0.6.0 升级
 
-需要稳定版本请使用 [v0.6.0 Release](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.6.0)（附件为 `MCP_0.6.0-rc.4_*` 安装包及 `SHA256SUMS_v0.6.0.txt`、`Verification_v0.6.0.md`）。
+- **Windows**：运行 `MCP_0.7.0_x64-setup.exe`（按用户安装，未签名，SmartScreen 可能提示；先核对 SHA256），可直接覆盖安装 v0.6.0 或任一 0.7.0 RC。
+- **Linux**：`sudo apt install ./MCP_0.7.0_amd64.deb` 原地升级；或替换 AppImage 后 `chmod +x`。
+- **云网关**：导入新镜像，把 `.env` 中的 `CTM_GATEWAY_IMAGE` 改为上面的镜像 ID，然后 `docker compose up -d` 并运行 `ctm_docker.py check`。桌面端与网关应一起升级。
+- 桌面端“设置 → 常规 → 检查更新”现在会报告 v0.7.0。
+- **回退行为**：桌面端**没有自动更新**，“检查更新”只是手动读取 GitHub `releases/latest` 并弹窗/打开 Release 页面，不会自动下载或安装。若 Latest 切回 v0.6.0，已安装 0.7.0 的用户会看到“当前已是最新版本”并停留在 0.7.0（不提示降级，也不会自动降级）；修复会以 0.7.1 或更高版本发布。
+
+### 历史版本
+
+- **v0.6.0**（上一个稳定版）：[v0.6.0 Release](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.6.0)（附件为 `MCP_0.6.0-rc.4_*` 安装包及 `SHA256SUMS_v0.6.0.txt`、`Verification_v0.6.0.md`）。
+- **v0.7.0-rc.1 / rc.2 / rc.3**（历史预发布）：已被 v0.7.0 取代，仅作历史记录，不再推荐安装；见[本仓库 Releases](https://github.com/Eswink/coding-tools-mcp/releases)。
+- **gateway-v0.1.0-rc.1**（历史预发布）：只含 VPS 部署包（`kit.py`、RUNBOOK、模板、渲染脚本与接入说明），不含网关二进制或镜像；见 [gateway-v0.1.0-rc.1](https://github.com/Eswink/coding-tools-mcp/releases/tag/gateway-v0.1.0-rc.1)。
 
 ### 校验 SHA256
 
@@ -81,25 +92,25 @@ sha256sum -c SHA256SUMS.txt --ignore-missing
 Windows PowerShell：
 
 ```powershell
-Get-FileHash .\MCP_0.7.0-rc.2_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\MCP_0.7.0_x64-setup.exe -Algorithm SHA256
 ```
 
 输出必须与上表 / `SHA256SUMS.txt` 完全一致，不一致请勿安装。
 
 ### 安装
 
-- **Windows**：运行 `MCP_0.7.0-rc.2_x64-setup.exe`。安装包未签名，SmartScreen 可能提示“未知发布者”；请先完成 SHA256 校验再选择继续。
+- **Windows**：运行 `MCP_0.7.0_x64-setup.exe`。安装包未签名，SmartScreen 可能提示“未知发布者”；请先完成 SHA256 校验再选择继续。
 - **Ubuntu DEB**：在文件所在目录执行
 
   ```bash
-  sudo apt install ./MCP_0.7.0-rc.2_amd64.deb
+  sudo apt install ./MCP_0.7.0_amd64.deb
   ```
 
-- **Ubuntu AppImage**：`chmod +x MCP_0.7.0-rc.2_amd64.AppImage` 后运行；环境不支持 FUSE 时可使用 `--appimage-extract-and-run`。
+- **Ubuntu AppImage**：`chmod +x MCP_0.7.0_amd64.AppImage` 后运行；环境不支持 FUSE 时可使用 `--appimage-extract-and-run`。
 
 安装系统包需要管理员权限，但**不要使用 sudo 启动桌面应用**。Linux 密钥恢复需要当前桌面会话的 D-Bus 与可用、已解锁的 Secret Service。不要通过关闭沙箱解决启动问题。
 
-**更新来源提醒：** v0.6.0 起“检查更新”指向本仓库的 `releases/latest`，**只会看到稳定版，不会提示预发布**；测试 rc 版本请按上表手动下载。v0.5.0 及更早二进制内置的更新地址仍是上游仓库，请勿将上游提示的版本当成本分支更新。[源码位置](src-tauri/src/update/mod.rs)
+**更新来源提醒：** v0.6.0 起“检查更新”指向本仓库的 `releases/latest`，**只会看到稳定版，不会提示预发布**。v0.5.0 及更早二进制内置的更新地址仍是上游仓库，请勿将上游提示的版本当成本分支更新。[源码位置](src-tauri/src/update/mod.rs)
 
 ## 界面与页面
 
@@ -171,14 +182,14 @@ v0.5.0 起五个页面统一为深蓝侧栏、分区卡片和清晰的状态层�
 OAuth 连接 → 当前聊天申请 → 本机核对指纹并批准 → 工具访问 → 保存检查点
 ```
 
-## 方式二：经云网关接入 ChatGPT（预发布，未实测）
+## 方式二：经云网关接入 ChatGPT（未经真实环境端到端测试）
 
-v0.7.0-rc.2 桌面端在工作区中提供“云连接”面板：从本机文件导入云连接配置 JSON 与本机签名私钥 JSON，桌面端以**出站**连接接入云网关；ChatGPT 连接云网关的 MCP 入口，而不是直接访问你的电脑。
+v0.7.0 桌面端在工作区中提供“云连接”面板：从本机文件导入云连接配置 JSON 与本机签名私钥 JSON，桌面端以**出站**连接接入云网关；ChatGPT 连接云网关的 MCP 入口，而不是直接访问你的电脑。
 
-- **部署云网关**：下载 [gateway-v0.1.0-rc.1](https://github.com/Eswink/coding-tools-mcp/releases/tag/gateway-v0.1.0-rc.1) 部署包，按 [RUNBOOK](https://github.com/Eswink/coding-tools-mcp/blob/e43728285af66beac7807376ff7764c708c2b631/deploy/cloud-gateway/kit/RUNBOOK.md) 手动执行。前置条件：独立子域名与 TLS、Docker Engine ≥ 28、Compose 2.27.0、python3 ≥ 3.11，以及已导入的 rc.2 网关镜像（`--gateway-image sha256:7e69b9ade56ce598264f23f3504e465670a6f2c0119293f04937645963b2ee3a`）。`--domain` 必须填你自己的域名（文档中为 `<GATEWAY_DOMAIN>` 占位）。`kit.py` 只做本地文件操作，不会调用 docker、ssh 或重载 Nginx。
+- **部署云网关**：使用 v0.7.0 的网关镜像与 Docker 部署包，按上文“云网关 Docker 部署：v0.7.0”和 [部署包 README](deploy/cloud-gateway/docker/README.md) 执行；前置条件为 Docker Engine ≥ 28 与 Compose v2。VPS 手动部署的 `kit.py` 与 [RUNBOOK](deploy/cloud-gateway/kit/RUNBOOK.md) 也在仓库中。`--domain` 必须填你自己的域名（文档中的域名均为占位符）。
 - **授权边界不变**：云端、模型和 OAuth 都不能批准本机权限；连接后仍需在本机核对聊天指纹并批准。暂停、撤销以本机为准。
-- **接入 ChatGPT 与桌面端**：连接器 URL、OAuth 端点、`register-client` 预登记和桌面端导入步骤见 [接入说明](https://github.com/Eswink/coding-tools-mcp/blob/e43728285af66beac7807376ff7764c708c2b631/deploy/cloud-gateway/CONNECT-CHATGPT-AND-DESKTOP.md)。
-- **当前状态**：预发布，**未经端到端测试（未在真实 VPS / 真实 ChatGPT 上测过）**，限制见下文“已知限制”。部署包源码位于开发分支 `feat/gateway-s1-agent-resilience`，尚未合入 main。
+- **接入 ChatGPT 与桌面端**：连接器 URL、OAuth 端点、`register-client` 预登记和桌面端导入步骤见 [接入说明](deploy/cloud-gateway/CONNECT-CHATGPT-AND-DESKTOP.md)（该文档按 rc.2 手动测试编写，镜像与版本以本页 v0.7.0 为准）。
+- **当前状态**：**未在真实 VPS / 真实 ChatGPT 上做端到端测试**，限制见下文“已知限制”。
 
 ## 独占会话与长期开发
 
@@ -221,10 +232,9 @@ Actions 仍是单独的 OpenAPI 网关：启动 Actions 服务、使用其实际
 
 已知限制：
 
-- **预发布不是稳定版**：v0.7.0-rc.2 标注为 PRE-RELEASE — NOT FINAL；Latest 仍为 v0.6.0。
+- **完整已知问题见发行说明**：与 rc.2 / rc.3 相同的 CI 基线失败、仅开发依赖的 deepmerge 告警豁免（2026-11-30 UTC 到期）等，见 [v0.7.0 发行说明](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0)。
 - **Windows 安装包未签名**。
-- **云网关组合未经端到端测试**：v0.7.0-rc.2 + rc.2 云网关镜像 + gateway-v0.1.0-rc.1 未在真实 VPS / 真实 ChatGPT 上测过，只通过了 CI 内的容器拓扑测试。
-- **rc.2 二进制不含 S1**（Agent 断线恢复改动）：S1 只在部署包所在的开发分支上，rc.2 的桌面端、`cloud-image.tar` 与 `cloud-linux-amd64.tar.gz` 都不包含。
+- **云网关组合未经端到端测试**：v0.7.0 桌面端 + v0.7.0 网关镜像未在真实 VPS / 真实 ChatGPT 上测过，只通过了 CI 内的测试。
 - **网关没有动态客户端注册（DCR）**：客户端需由操作员用 `coding-tools-gateway register-client` 预先登记；ChatGPT 是否接受这种方式**尚未验证**。
 - **没有 Windows 版 `coding-tools-agent`**：目前只有 Linux amd64 版。
 - **`--domain` 必须由你自己填写**：文档和示例中的域名都是占位符，不能直接使用。
