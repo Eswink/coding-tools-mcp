@@ -10,6 +10,7 @@ source manifest, not by this module.
 """
 import hashlib
 import json
+import subprocess
 
 import rc_pretag_ownership_profile as o
 import rc_pretag_publication_profile as p
@@ -44,8 +45,11 @@ def topology(ref, root, git, release):
         raise o.TopologyError('rc080_release_anchor')
     if ref == M:
         return 0
-    rows = git('rev-list', '--first-parent', '--parents', '--max-count=%d' % (DEPTH_LIMIT + 1), ref,
-               root=root).decode().split('\n')
+    try:
+        rows = git('rev-list', '--first-parent', '--parents', '--max-count=%d' % (DEPTH_LIMIT + 1), ref,
+                   root=root).decode().split('\n')
+    except subprocess.CalledProcessError as error:
+        raise o.TopologyError('missing_parent') from error
     for depth, row in enumerate(line.split() for line in rows if line):
         if row[0] == M:
             return depth

@@ -99,6 +99,15 @@ class Rc080NegativeCases(unittest.TestCase):
                   '-p', rc080.M_PARENTS[0], '-m', 'merge', root=self.repo).decode().strip()
         self.assertIsNone(self.admit(ref))
 
+    def test_unknown_parent_falls_through(self):
+        tree = git('rev-parse', 'HEAD^{tree}').decode().strip()
+        for parent in ('0a18f3bcf562e32a1fd29477491a84a1bf0e6d0c', '86b5310000000000000000000000000000000000'):
+            raw = ('tree %s\nparent %s\nauthor t <t@invalid> 0 +0000\ncommitter t <t@invalid> 0 +0000\n\ncase\n'
+                   % (tree, parent)).encode()
+            ref = subprocess.run(['git', 'hash-object', '-t', 'commit', '-w', '--literally', '--stdin'], cwd=self.repo,
+                                 input=raw, capture_output=True, check=True).stdout.decode().strip()
+            self.assertIsNone(self.admit(ref), parent)
+
 
 if __name__ == '__main__':
     unittest.main()
