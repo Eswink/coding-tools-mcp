@@ -81,8 +81,20 @@ def installed_proof(folder: Path, source: str, run_id: str, version: str, kind: 
             'binary_sha256': digest, 'real_chatgpt_verified': False, 'os_toast_visibility_verified': False}
 
 
+# Standard-user isolation evidence: v23 acceptance writes its own name; the
+# legacy v22 name is still accepted. When both exist the v23 document wins.
+STANDARD_USER_EVIDENCE = ('标准用户隔离结果v23.json', '标准用户隔离结果v22.json')
+
+
+def standard_user_evidence(folder: Path) -> Path:
+    for name in STANDARD_USER_EVIDENCE:
+        if (folder / name).is_file():
+            return folder / name
+    return folder / STANDARD_USER_EVIDENCE[-1]
+
+
 def windows_account(folder: Path, source: str, run_id: str, digest: str) -> None:
-    doc = load(folder / '标准用户隔离结果v22.json')
+    doc = load(standard_user_evidence(folder))
     require(doc.get('source_sha') == source and doc.get('run_id') == run_id, 'standard-user proof identity mismatch')
     for key in ('passed', 'genuine_standard_account', 'account_deleted', 'profile_deleted', 'owned_processes_closed', 'credentials_scan_completed'):
         require(doc.get(key) is True, 'standard-user isolation incomplete: ' + key)
