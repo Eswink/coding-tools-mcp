@@ -73,6 +73,7 @@ jobs:
           git rev-parse HEAD > evidence/source-commit.txt
           git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
           rustc --version > evidence/toolchain.txt
+          python tools/delivery/workflow_test_targets.py
           cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
           cargo fmt --check --manifest-path services/cloud-agent/Cargo.toml
           cargo clippy --locked --manifest-path services/cloud-agent/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/agent-clippy.txt
@@ -82,7 +83,7 @@ jobs:
           cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib execution::tests 2>&1 | tee evidence/execution-unit.txt
           python tools/delivery/cargo_test_floor.py evidence/execution-unit.txt --min 13
-          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_cli 2>&1 | tee evidence/portable.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib 2>&1 | tee evidence/portable.txt
           cargo rustc --locked --manifest-path services/cloud-gateway/Cargo.toml --lib -- -D warnings
           python -m unittest discover -s tests/delivery 2>&1 | tee evidence/delivery-python.txt
           node --test tests/delivery/*.test.mjs 2>&1 | tee evidence/delivery-js.txt
