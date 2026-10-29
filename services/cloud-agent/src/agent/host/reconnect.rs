@@ -73,12 +73,56 @@ pub enum LinkState {
     Stopped,
 }
 
+/// One reconnect decision of the supervisor, recorded before it waits (#175).
+/// Public metadata only: no endpoint, token, payload or peer identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReconnectEvent {
+    /// Retry counter after this decision (the backoff step that was used).
+    pub attempt: u32,
+    /// Why the last session ended (`Transport` for a clean, unrequested end).
+    pub error: AgentError,
+    /// The session reached `Online` before it ended.
+    pub established: bool,
+    /// The WebSocket/TLS connect hit its own timeout (10s in production).
+    pub connect_timed_out: bool,
+    /// The upgrade was answered 403/404.
+    pub soft_rejection: bool,
+    /// Wall time from dialing until the session ended.
+    pub session_ms: u64,
+    /// The counter was cleared because the session outlived `STABLE_AFTER`.
+    pub counter_reset: bool,
+    /// The wait actually taken before the next dial (0 when the loop stopped).
+    pub backoff_ms: u64,
+}
+/// Bounded in-memory reconnect log (newest `CAPACITY` events). Lets a caller or a
+/// failing test show how the Agent paced its reconnects without a logging stack.
+#[derive(Clone, Default)]
+pub struct ReconnectLog(
+    std::sync::Arc<std::sync::Mutex<std::collections::VecDeque<ReconnectEvent>>>,
+);
+impl ReconnectLog {
+    pub const CAPACITY: usize = 64;
+    fn push(&self, event: ReconnectEvent) {
+        let mut events = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        if events.len() == Self::CAPACITY {
+            events.pop_front();
+        }
+        events.push_back(event);
+    }
+    /// Oldest first.
+    pub fn snapshot(&self) -> Vec<ReconnectEvent> {
+        let events = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        events.iter().copied().collect()
+    }
+}
+
 /// Handed to each session so it can report "handshake and first projection done".
 #[derive(Clone)]
 pub(super) struct SessionProbe(std::sync::Arc<ProbeInner>);
 struct ProbeInner {
     established: std::sync::atomic::AtomicBool,
     soft_rejection: std::sync::atomic::AtomicBool,
+    connect_timeout: std::sync::atomic::AtomicBool,
     state: tokio::sync::watch::Sender<LinkState>,
 }
 impl SessionProbe {
@@ -95,6 +139,17 @@ impl SessionProbe {
         self.0
             .soft_rejection
             .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+    /// The connect attempt ran out of its own timeout (recorded in `ReconnectLog`).
+    pub(super) fn connect_timed_out(&self) {
+        self.0
+            .connect_timeout
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+    fn was_connect_timeout(&self) -> bool {
+        self.0
+            .connect_timeout
+            .load(std::sync::atomic::Ordering::SeqCst)
     }
     fn was_soft_rejection(&self) -> bool {
         self.0
@@ -165,6 +220,7 @@ pub(super) async fn supervise<F, Fut>(
     jitter: &dyn Jitter,
     state: &tokio::sync::watch::Sender<LinkState>,
     pacing: Pacing,
+    log: &ReconnectLog,
     mut session: F,
 ) -> Result<(), AgentError>
 where
@@ -189,6 +245,7 @@ where
         let probe = SessionProbe(std::sync::Arc::new(ProbeInner {
             established: std::sync::atomic::AtomicBool::new(false),
             soft_rejection: std::sync::atomic::AtomicBool::new(false),
+            connect_timeout: std::sync::atomic::AtomicBool::new(false),
             state: state.clone(),
         }));
         let started = tokio::time::Instant::now();
@@ -206,6 +263,18 @@ where
             && probe.was_soft_rejection()
             && !probe.was_established();
         let now = tokio::time::Instant::now();
+        let record = |attempt: u32, counter_reset: bool, backoff: Duration| {
+            log.push(ReconnectEvent {
+                attempt,
+                error,
+                established: probe.was_established(),
+                connect_timed_out: probe.was_connect_timeout(),
+                soft_rejection: probe.was_soft_rejection(),
+                session_ms: u64::try_from((now - started).as_millis()).unwrap_or(u64::MAX),
+                counter_reset,
+                backoff_ms: u64::try_from(backoff.as_millis()).unwrap_or(u64::MAX),
+            })
+        };
         if soft {
             let same_outage = last_soft.is_some_and(|last| now - last <= pacing.scale(SOFT_GAP));
             if !(same_outage && soft_since.is_some()) {
@@ -226,32 +295,39 @@ where
             slow = true;
             state.send_replace(LinkState::NeedsOperator(error));
             let wait = SLOW_RETRY + SLOW_RETRY * (jitter.permille().min(1000) as u32) / 4000;
+            let wait = pacing.scale(wait);
+            record(attempts, false, wait);
             tokio::select! {
                 biased;
                 _ = stop.changed() => {
                     state.send_replace(LinkState::Stopped);
                     return Ok(());
                 }
-                _ = tokio::time::sleep(pacing.scale(wait)) => {}
+                _ = tokio::time::sleep(wait) => {}
             }
             continue;
         }
         match classify_retry(error) {
             RetryClass::NeedsOperator if !soft_budget_left => {
+                record(attempts, false, Duration::ZERO);
                 state.send_replace(LinkState::NeedsOperator(error));
                 return Err(error);
             }
             RetryClass::NeedsOperator => {}
             RetryClass::Fatal => {
+                record(attempts, false, Duration::ZERO);
                 state.send_replace(LinkState::Failed(error));
                 return Err(error);
             }
             RetryClass::Retryable => {}
         }
-        if probe.was_established() && started.elapsed() >= pacing.scale(STABLE_AFTER) {
+        let counter_reset = probe.was_established() && now - started >= pacing.scale(STABLE_AFTER);
+        if counter_reset {
             attempts = 0;
         }
         attempts = attempts.saturating_add(1);
+        let wait = pacing.scale(backoff_delay(attempts, jitter.permille()));
+        record(attempts, counter_reset, wait);
         // Once NeedsOperator is shown it stays until a session is really up: other
         // transient errors in between must not make the state blink.
         if !slow {
@@ -263,7 +339,7 @@ where
                 state.send_replace(LinkState::Stopped);
                 return Ok(());
             }
-            _ = tokio::time::sleep(pacing.scale(backoff_delay(attempts, jitter.permille()))) => {}
+            _ = tokio::time::sleep(wait) => {}
         }
     }
 }
@@ -369,6 +445,7 @@ mod tests {
     struct Step {
         established: bool,
         soft: bool,
+        timeout: bool,
         lives: Duration,
         outcome: Result<(), AgentError>,
     }
@@ -376,6 +453,7 @@ mod tests {
         Step {
             established,
             soft: false,
+            timeout: false,
             lives: Duration::from_secs(lives_s),
             outcome,
         }
@@ -392,6 +470,7 @@ mod tests {
         state: watch::Receiver<LinkState>,
         stop: watch::Sender<bool>,
         task: tokio::task::JoinHandle<Result<(), AgentError>>,
+        log: ReconnectLog,
     }
     /// After the script is exhausted every further session just stays up forever.
     fn launch(script: Vec<Step>, jitter: u64) -> Harness {
@@ -400,12 +479,15 @@ mod tests {
         let (state_tx, state) = watch::channel(LinkState::Connecting);
         let script = Arc::new(Mutex::new(std::collections::VecDeque::from(script)));
         let recorded = starts.clone();
+        let log = ReconnectLog::default();
+        let events = log.clone();
         let task = tokio::spawn(async move {
             supervise(
                 stop_rx,
                 &FixedJitter(jitter),
                 &state_tx,
                 Pacing::REAL,
+                &events,
                 move |probe| {
                     recorded.lock().unwrap().push(Instant::now());
                     let next = script.lock().unwrap().pop_front();
@@ -416,6 +498,9 @@ mod tests {
                         };
                         if step.soft {
                             probe.soft_rejection();
+                        }
+                        if step.timeout {
+                            probe.connect_timed_out();
                         }
                         if step.established {
                             probe.established();
@@ -432,6 +517,7 @@ mod tests {
             state,
             stop,
             task,
+            log,
         }
     }
     async fn settle() {
@@ -534,6 +620,76 @@ mod tests {
         assert_eq!(g[4], 2000);
         h.stop.send(true).unwrap();
         (&mut h.task).await.unwrap().unwrap();
+    }
+    #[tokio::test(start_paused = true)]
+    async fn reconnect_log_records_backoff_connect_timeout_and_counter_reset() {
+        let timeout = Step {
+            timeout: true,
+            ..step(false, 10, Err(Transport))
+        };
+        let mut h = launch(
+            vec![
+                timeout,
+                step(false, 0, Err(Transport)),
+                step(true, 31, Err(Transport)),
+                step(true, 5, Err(Transport)),
+            ],
+            1000,
+        );
+        h.advance(200).await;
+        let log: Vec<_> = h
+            .log
+            .snapshot()
+            .iter()
+            .map(|e| {
+                (
+                    e.attempt,
+                    e.connect_timed_out,
+                    e.established,
+                    e.counter_reset,
+                    e.session_ms,
+                    e.backoff_ms,
+                )
+            })
+            .collect();
+        // Every wait is logged as actually taken (base + 25% jitter here); only the
+        // 31s stable session clears the counter; only the first dial timed out.
+        assert_eq!(
+            log,
+            vec![
+                (1, true, false, false, 10_000, 1250),
+                (2, false, false, false, 0, 2500),
+                (1, false, true, true, 31_000, 1250),
+                (2, false, true, false, 5_000, 2500),
+            ]
+        );
+        assert_eq!(h.gaps_ms(), vec![11_250, 2500, 32_250, 7500]);
+        h.stop.send(true).unwrap();
+        (&mut h.task).await.unwrap().unwrap();
+    }
+    #[tokio::test(start_paused = true)]
+    async fn reconnect_log_records_terminal_and_slow_retry_decisions_and_is_bounded() {
+        let mut h = launch(
+            vec![step(false, 0, Err(Transport)), step(false, 0, Err(Tls))],
+            0,
+        );
+        assert_eq!((&mut h.task).await.unwrap(), Err(Tls));
+        let log = h.log.snapshot();
+        assert_eq!(log.len(), 2);
+        assert_eq!(
+            (log[1].error, log[1].attempt, log[1].backoff_ms),
+            (Tls, 1, 0)
+        );
+        let h = launch(vec![soft(); 500], 0);
+        // ~25 normal soft backoffs fill the 600s window, then 60s slow retries.
+        h.advance(SOFT_REJECT_LIMIT.as_secs() + 45 * 61).await;
+        let log = h.log.snapshot();
+        assert_eq!(log.len(), ReconnectLog::CAPACITY);
+        assert!(log
+            .iter()
+            .all(|e| e.soft_rejection && e.error == Authentication));
+        assert_eq!(log.last().unwrap().backoff_ms, 60_000);
+        assert!(log.iter().all(|e| e.backoff_ms <= 60_000));
     }
     #[tokio::test(start_paused = true)]
     async fn jitter_is_added_on_top_of_the_base_delay() {

@@ -16,7 +16,7 @@ mod secure_io;
 pub mod work;
 pub use agent::host::{
     backoff_base, backoff_delay, classify_retry, HostAgent, HostAuthoritySnapshot, HostFuture,
-    Jitter, LinkState, LocalHost, RetryClass, SystemJitter,
+    Jitter, LinkState, LocalHost, ReconnectEvent, ReconnectLog, RetryClass, SystemJitter,
 };
 pub use agent::{AgentConfig, AgentError};
 pub use identity::PublicIdentity;
