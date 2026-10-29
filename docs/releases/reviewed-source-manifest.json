@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - develop/0.8.0-a0 (A0-2 v23 exact-manifest standard-user acceptance + workflow switch) on main 4e7e6bc0 (v0.7.0 36e0c265 + README #171). NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-29 Asia/Shanghai by 专业打工人; digests rc_bundle/multiagent/s0/A0-REBASE-DIGESTS.md; owner review and CI rebuild required",
+  "review_reference": "LOCAL PROTOTYPE ONLY - develop/0.8.0-a1 (A1 batch 1: rc080 topology profile + Windows gateway exec Q3=B) on main 9531007c (PR #172). NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-29 by 专业打工人; digests rc_bundle/multiagent/a1/A1-BATCH1-DIGESTS.md; owner review and CI rebuild required",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -2809,6 +2809,16 @@
       }
     },
     {
+      "path": "docs/specs/multi-subagent/windows-gateway-exec-no-sandbox.md",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "ff2548832daf157552f4fabaa86a36441d7b2a72",
+        "sha256": "a19b4e4d1e323d31cd663ecb522e25fd1ef85ef0e21749550e2da6f12114d658"
+      }
+    },
+    {
       "path": "docs/specs/nonproduction-container-topology/design.md",
       "status": "A",
       "before": null,
@@ -4424,8 +4434,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "565b489b3fc2721f9d0fa80193c06cbc7e9139c1",
-        "sha256": "04bae37295c066a6214b058d06fd4dcf9cea91100a366f9debd46ab923a40bf6"
+        "blob_sha": "99ea7c0ff96944997ba6a0d571eab9b486abeba3",
+        "sha256": "66240ca54320186c37262c7331573867648e347889f965d65a8649197525a424"
       }
     },
     {
@@ -4808,8 +4818,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d775f5bbc5127f187f4bfd18a7780d000d8a4c99",
-        "sha256": "317a0bcaf881405d918e5df33cc2158581800e579c7be846de4b6a61e2786886"
+        "blob_sha": "918c8e029a864308c0a830b9eb5f697022ed811e",
+        "sha256": "1c5847d13c308d9e0e2be164c7ea8aee1e9174a05aae77444628cf5cd75c2a76"
       }
     },
     {
@@ -4970,6 +4980,36 @@
         "mode": "100644",
         "blob_sha": "0a025bbc27d8537e7ce7cf0a64eab81a10e8d624",
         "sha256": "5ac1234911f00eb70c37d0914ba4f342cbc1217add035cf8588394f340b2c92f"
+      }
+    },
+    {
+      "path": "scripts/rc_pretag_rc080/__init__.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "fab569141a21063283632fc6c49efb63b3f9a2ca",
+        "sha256": "81aa8bbe75aa4de50b339286b82d21315aa033d45a8663b6c5144250aa3536be"
+      }
+    },
+    {
+      "path": "scripts/rc_pretag_rc080/topology_profile.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "ed4f93127a684edb5ef5007f83a41f1079139849",
+        "sha256": "278fd5f9c6694d50a94531c5e6ef5c8eeaf3a1d55c0a59f9f12475457dc1ec29"
+      }
+    },
+    {
+      "path": "scripts/rc_pretag_rc080/topology_profile_tests.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "5747c834e56480a1912bfb127a675dd2c03db74a",
+        "sha256": "47bc98eac4e4c5fcf4f6aa7c7da2973cfca723bf74ad009b9ebfe228685d53b1"
       }
     },
     {
@@ -9628,8 +9668,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e5d6ededb28091b7f938bef456fa34b953212abe",
-        "sha256": "fc1b382e1fd896bc0504753e5ddc4b75785acb069d9f78550cebf1987da9927e"
+        "blob_sha": "6c93313a0544ed78e7a4e70aaba7e8af5223ca24",
+        "sha256": "d991b283f2719a5b183d03d30fc9b04418be5a4e413cba394076e490942d61ce"
       }
     },
     {
@@ -9708,8 +9748,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c54df9d62ce1dc55c40f0794423f446051fd3faf",
-        "sha256": "c9a1256185fbef7ef285278894e443106021340d3b365b70d582b6fd01143ffd"
+        "blob_sha": "a3fa7e07f5f458f0353f6f56550dc4b25d8b5ff3",
+        "sha256": "c9cd6a9574ae3bf761df502c36c9661644a39d76a15b56f27ac295fabbfe3936"
       }
     },
     {
@@ -9778,8 +9818,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "3b28fc0dfc4c9fbcfc8ab7b5877deba1137eb07e",
-        "sha256": "e60a25740811e9f461f708dd7834195ba0b3a75aef3ea14d001be3458439c803"
+        "blob_sha": "e49cd18cf6c3643b5a37e1ced3673dfb3aee7b9a",
+        "sha256": "55dc879ade595b4b66b9c4e2aefd6e62483e4ac29520364cb8a8da76bca435aa"
       }
     },
     {
@@ -9844,8 +9884,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c8f242470fbecb69c53d93038fa4321d52ae15a3",
-        "sha256": "d1db2ed28039c3167241d6a371e94811c677a338c9bb7d8e2f36e323af9a6ae8"
+        "blob_sha": "225889c83e30da29c8dddc454c59d9c1a939f4a9",
+        "sha256": "480d1d01b4cef5dbaabc9fb332cff3bd28d6a319b956f1b39868d6f1c6e93b9f"
       }
     },
     {
