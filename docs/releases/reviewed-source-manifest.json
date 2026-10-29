@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "ENGINEERING CANDIDATE ONLY - NOT QUALIFIED, NOT FINAL, NOT APPROVED. Generated 2026-10-29 Asia/Shanghai by 专业打工人 for 0.7.0 candidate = v0.7.0-rc.3 15820f17 + bump 0.7.0 + stable-channel gate + re-pin cascade (inverse/admission/rc070/native_probe/reviewed); digests rc_bundle/final-0.7.0/STABLEGATE-DIGESTS.md; owner review and CI rebuild required before any tag",
+  "review_reference": "MAINTENANCE CANDIDATE ONLY - NOT QUALIFIED, NOT FINAL, NOT APPROVED. Generated 2026-10-29 Asia/Singapore by 专业打工人 for release/0.7.x = v0.7.0 36e0c265 + README 4e7e6bc0 + maintenance fixes (flakes, CI count floors, docs) + probe/reviewed re-pin; digests rc_bundle/maint-07x/MAINT-DIGESTS.md; owner review and CI required before any tag",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -44,8 +44,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "fa66f6f54fae28c7b831f3df639c6cd14875b7aa",
-        "sha256": "45ec02a6b2085536dd63005c05038be18b20e3ddf5687619531fa841d3524b7c"
+        "blob_sha": "31ea48b87e5a764390d8c029880fe4a532661ee5",
+        "sha256": "b6fe0c5aa570460faf5d75bad7e457fb8dd28b5f281b26f2fda53c6ef119f170"
       }
     },
     {
@@ -518,8 +518,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f03a21c5a3a3ac9c395f030ed787355dbdab5d05",
-        "sha256": "dec07dc6ca7003eaf05dbbbacf7091424aad6dac23c6cdf8376aaa4fb51a3e09"
+        "blob_sha": "10d7a35d9fa7ac0d826a139a3572b5c3d011155a",
+        "sha256": "9b2f3879dcaf2ba54744973e958a1038d299669cd98ac2c5b43bc594d1f788f9"
       }
     },
     {
@@ -4354,8 +4354,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "58dfc807414ccd170dbcad292ac20eed721f9690",
-        "sha256": "780ac7f40096fb2d171a57e8e66463dde4ea1e8f1b1958e21375dd78b9fd4d6e"
+        "blob_sha": "04a120ea93e4353111c55d54e57f62232b0b8124",
+        "sha256": "d6bfec70cbd254e90505377840c5104bd0c7b3ba122550ae44b9290117495be7"
       }
     },
     {
@@ -5816,8 +5816,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "5403a8a0dac2f14403aa3c6236b988f4afc12490",
-        "sha256": "ad1a1bc0f37ae5ab9047df03170d8a7b2b3f1548be485c6c85ab52942a3b54d1"
+        "blob_sha": "b756a6b5e7fbe0f13771a3162ac280482b2290b6",
+        "sha256": "8535b0768467dd5f4dad883b47b84ede65e6d5b14c833463e7df9b7334d6eb51"
       }
     },
     {
@@ -8310,8 +8310,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "945d51d447f130368862697408d7c94ffca75ecd",
-        "sha256": "bb3973933a6bf5f7c95dddd08a351ca502baa87544de8998bfc7d9f37bfb92cf"
+        "blob_sha": "4fbb1452338258612e4976db9b5857d66234741f",
+        "sha256": "b698d2e5cd1573a81162a2af69d91f2913c0d6cbe00c1b2778cd8720dd8d8ffa"
       }
     },
     {
@@ -10228,8 +10228,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "b1dcb111bddec6a90e923546a72be77c9e507afc",
-        "sha256": "b9e516f8ecca864e1ecf5dea7279126963971233f736549d0c1b2dabdf767c98"
+        "blob_sha": "6144e0cbe9f1cdf22e1f6d2e6fdca77d48f5e3d8",
+        "sha256": "0d9fb300dc81355e0665265809e3173408d491ec7337e2408ce058f52fde4708"
       }
     },
     {
@@ -11113,6 +11113,16 @@
       }
     },
     {
+      "path": "tests/delivery/test_cargo_test_floor.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "6d70d5f87a47ea92192809f68d3ecb83b982268f",
+        "sha256": "026bc10a7d546299d38d6231dacd1e65f70ddeb3af1370d9a3bcf6d4b1df8b80"
+      }
+    },
+    {
       "path": "tests/delivery/test_dispatch.py",
       "status": "A",
       "before": null,
@@ -11286,6 +11296,16 @@
         "mode": "100644",
         "blob_sha": "5d04209c1a661de007493d0b519f82a250a0abc2",
         "sha256": "ad6483141175c9845d5775864c32ff2cf41ab9cac11d9b6d3e80209fad6575aa"
+      }
+    },
+    {
+      "path": "tools/delivery/cargo_test_floor.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "00f32298f68571febf095385eef9dda4cfca7644",
+        "sha256": "693d48afbfc9d39ce964f10e73f86752fcc770a2e47559319644bfcbcce1b54e"
       }
     },
     {

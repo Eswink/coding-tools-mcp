@@ -1,5 +1,5 @@
 {
- "entries": 1921,
+ "entries": 1923,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -115,11 +115,11 @@
    "sha256": "1c22d1a0b64c7278271e5a289a5f838be51842b3a2aeb56c29b45e7006f20467"
   },
   {
-   "blob": "fa66f6f54fae28c7b831f3df639c6cd14875b7aa",
-   "bytes": 11865,
+   "blob": "31ea48b87e5a764390d8c029880fe4a532661ee5",
+   "bytes": 11929,
    "mode": "100644",
    "path": ".github/workflows/cloud-execution-bridge.yml",
-   "sha256": "45ec02a6b2085536dd63005c05038be18b20e3ddf5687619531fa841d3524b7c"
+   "sha256": "b6fe0c5aa570460faf5d75bad7e457fb8dd28b5f281b26f2fda53c6ef119f170"
   },
   {
    "blob": "154148eade05785eadd054356bff1a27b2b52489",
@@ -906,11 +906,11 @@
    "sha256": "862263fa1f46c20f0d1e4dac5ffcc75abd55c08211b2c3864c5f8764b9d87793"
   },
   {
-   "blob": "f03a21c5a3a3ac9c395f030ed787355dbdab5d05",
-   "bytes": 14423,
+   "blob": "10d7a35d9fa7ac0d826a139a3572b5c3d011155a",
+   "bytes": 14834,
    "mode": "100644",
    "path": "deploy/cloud-gateway/CONNECT-CHATGPT-AND-DESKTOP.md",
-   "sha256": "dec07dc6ca7003eaf05dbbbacf7091424aad6dac23c6cdf8376aaa4fb51a3e09"
+   "sha256": "9b2f3879dcaf2ba54744973e958a1038d299669cd98ac2c5b43bc594d1f788f9"
   },
   {
    "blob": "b892d677c08736ba7ed267c1b0d5eabe2104ca84",
@@ -1452,11 +1452,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "835c28b116a2884a81bc9dd7f3f76316213bfbd1",
-   "bytes": 405857,
+   "blob": "55d118fe89ff664cd52607a48f56c036fdd5d116",
+   "bytes": 407095,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "760b0ae49760fb997c1faa60b2e6739f7b01916fae77af574540a5af60bc7a0a"
+   "sha256": "632f8a3d88077bd871bf7029b4a9821b0d390c204916079947b2c6ae61a1e41c"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -8102,11 +8102,11 @@
    "sha256": "0ccb8116e1807886e3d4fb471be54d436aa389b371651d498eb4efdd17b17d8d"
   },
   {
-   "blob": "5403a8a0dac2f14403aa3c6236b988f4afc12490",
-   "bytes": 30890,
+   "blob": "b756a6b5e7fbe0f13771a3162ac280482b2290b6",
+   "bytes": 32632,
    "mode": "100644",
    "path": "services/cloud-agent/src/agent/host/tests/fault.rs",
-   "sha256": "ad1a1bc0f37ae5ab9047df03170d8a7b2b3f1548be485c6c85ab52942a3b54d1"
+   "sha256": "8535b0768467dd5f4dad883b47b84ede65e6d5b14c833463e7df9b7334d6eb51"
   },
   {
    "blob": "467dc02d654a46c5a05174e29c14bae0ca98fd5c",
@@ -9859,11 +9859,11 @@
    "sha256": "297f628ff3d30e0b1ecf23378e52b21c96a524ff5690f0954b415280882991e9"
   },
   {
-   "blob": "945d51d447f130368862697408d7c94ffca75ecd",
-   "bytes": 11298,
+   "blob": "4fbb1452338258612e4976db9b5857d66234741f",
+   "bytes": 11646,
    "mode": "100644",
    "path": "src-tauri/src/auth/\u804a\u5929HTTP\u56de\u5f52v1.rs",
-   "sha256": "bb3973933a6bf5f7c95dddd08a351ca502baa87544de8998bfc7d9f37bfb92cf"
+   "sha256": "b698d2e5cd1573a81162a2af69d91f2913c0d6cbe00c1b2778cd8720dd8d8ffa"
   },
   {
    "blob": "da9239db06f65831d5074cc53106196ec9a73602",
@@ -11161,11 +11161,11 @@
    "sha256": "3049f4b1f1d29222581d6f604652771ce7baec3f39ce0a3ce096e34f7cd3042b"
   },
   {
-   "blob": "b1dcb111bddec6a90e923546a72be77c9e507afc",
-   "bytes": 15653,
+   "blob": "6144e0cbe9f1cdf22e1f6d2e6fdca77d48f5e3d8",
+   "bytes": 16470,
    "mode": "100644",
    "path": "src-tauri/src/tools/\u5f02\u6b65\u547d\u4ee4\u56de\u5f52v1.rs",
-   "sha256": "b9e516f8ecca864e1ecf5dea7279126963971233f736549d0c1b2dabdf767c98"
+   "sha256": "0d9fb300dc81355e0665265809e3173408d491ec7337e2408ce058f52fde4708"
   },
   {
    "blob": "cc20cf6652007e3dcd9206c6ccfad5c768d8f288",
@@ -12316,6 +12316,13 @@
    "sha256": "343028a6d8dc71af253961e3e0421c2b903b717b42f5f6579a362e2c079bec3d"
   },
   {
+   "blob": "6d70d5f87a47ea92192809f68d3ecb83b982268f",
+   "bytes": 2560,
+   "mode": "100644",
+   "path": "tests/delivery/test_cargo_test_floor.py",
+   "sha256": "026bc10a7d546299d38d6231dacd1e65f70ddeb3af1370d9a3bcf6d4b1df8b80"
+  },
+  {
    "blob": "189301d0882db7f07d7f6ee08c74544cc952615c",
    "bytes": 7299,
    "mode": "100644",
@@ -12573,6 +12580,13 @@
    "mode": "100644",
    "path": "tools/delivery/README.md",
    "sha256": "ad6483141175c9845d5775864c32ff2cf41ab9cac11d9b6d3e80209fad6575aa"
+  },
+  {
+   "blob": "00f32298f68571febf095385eef9dda4cfca7644",
+   "bytes": 1957,
+   "mode": "100644",
+   "path": "tools/delivery/cargo_test_floor.py",
+   "sha256": "693d48afbfc9d39ce964f10e73f86752fcc770a2e47559319644bfcbcce1b54e"
   },
   {
    "blob": "5c368eab5e30b8e0c8c190f7fdf1f9a0f572f921",
