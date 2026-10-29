@@ -157,35 +157,57 @@ impl ChannelController {
             id: request.binding.request_id,
             resolved: false,
         };
-        let expected = request.binding.clone();
-        let remaining = expected
-            .deadline
-            .checked_sub(now().map_err(|_| DispatchError::Unknown)?)
-            .filter(|n| *n > 0)
-            .ok_or(DispatchError::Unknown)?;
-        let (sender, receiver) = oneshot::channel();
-        route
-            .sender
-            .try_send(Delivery {
-                request,
-                reply: sender,
-                _permit: permit,
-            })
-            .map_err(|_| DispatchError::Unknown)?;
-        let reply = tokio::time::timeout(Duration::from_secs(remaining as u64), receiver)
-            .await
-            .map_err(|_| DispatchError::Unknown)?
-            .map_err(|_| DispatchError::Unknown)?;
-        let digest = reply
-            .validate_for(&expected, now().map_err(|_| DispatchError::Unknown)?)
-            .map_err(|_| DispatchError::Unknown)?;
-        store
-            .complete_dispatch(&reply, digest)
-            .await
-            .map_err(|_| DispatchError::Unknown)?;
+        let outcome = deliver_claimed(&store, &route, permit, request).await;
+        if outcome.is_err() {
+            // Issue #173: the durable outcome_unknown must be committed before the
+            // caller can observe EXECUTION_OUTCOME_UNKNOWN. Drop remains only the
+            // fallback for cancellation/panic, where no caller observes a reply.
+            if matches!(
+                tokio::time::timeout(Duration::from_secs(3), store.mark_outcome_unknown(guard.id))
+                    .await,
+                Ok(Ok(_))
+            ) {
+                guard.resolved = true;
+            }
+            return outcome;
+        }
         guard.resolved = true;
-        Ok(reply.result)
+        outcome
     }
+}
+async fn deliver_claimed(
+    store: &AdmissionStore,
+    route: &Route,
+    permit: OwnedSemaphorePermit,
+    request: ExecutionRequest,
+) -> std::result::Result<Value, DispatchError> {
+    let expected = request.binding.clone();
+    let remaining = expected
+        .deadline
+        .checked_sub(now().map_err(|_| DispatchError::Unknown)?)
+        .filter(|n| *n > 0)
+        .ok_or(DispatchError::Unknown)?;
+    let (sender, receiver) = oneshot::channel();
+    route
+        .sender
+        .try_send(Delivery {
+            request,
+            reply: sender,
+            _permit: permit,
+        })
+        .map_err(|_| DispatchError::Unknown)?;
+    let reply = tokio::time::timeout(Duration::from_secs(remaining as u64), receiver)
+        .await
+        .map_err(|_| DispatchError::Unknown)?
+        .map_err(|_| DispatchError::Unknown)?;
+    let digest = reply
+        .validate_for(&expected, now().map_err(|_| DispatchError::Unknown)?)
+        .map_err(|_| DispatchError::Unknown)?;
+    store
+        .complete_dispatch(&reply, digest)
+        .await
+        .map_err(|_| DispatchError::Unknown)?;
+    Ok(reply.result)
 }
 pub(crate) fn now() -> crate::Result<i64> {
     SystemTime::now()

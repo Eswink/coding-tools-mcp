@@ -364,3 +364,86 @@ async fn older_cleanup_and_marker_downgrade_cannot_erase_dispatch_identity() {
             .unwrap();
     assert_eq!(state, "completed");
 }
+
+/// Issue #173: the caller must never observe EXECUTION_OUTCOME_UNKNOWN while the
+/// ledger still says `running`. The race window is forced deterministically: on
+/// this current-thread runtime, the instant `dispatch_admitted` returns, the
+/// runtime thread is blocked while an independent connection reads the ledger,
+/// so a detached (spawned) cleanup task cannot run before the observation.
+#[tokio::test]
+async fn lost_reply_unknown_is_durable_before_dispatch_returns() {
+    use coding_tools_cloud_gateway::{admission::*, execution::*};
+    let s = Harness::start().await;
+    let mut p = s.connect().await;
+    s.project(&mut p, 1, 1).await;
+    ready(&mut p, 3).await;
+    let schema: String = sqlx::query_scalar("SELECT current_schema()")
+        .fetch_one(&s.h.f.pool)
+        .await
+        .unwrap();
+    let id = uuid::Uuid::new_v4();
+    let args = json!({});
+    let deadline = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64
+        + 30;
+    let request = || AdmissionRequest {
+        request_id: id,
+        conversation: &s.h.a,
+        scope: "files.read",
+        tool_name: "workspace_probe",
+        arguments: &args,
+        class: RequestClass::ReadOnly,
+        deadline,
+    };
+    let receipt = AdmissionStore::new(s.h.f.store.clone())
+        .admit(request())
+        .await
+        .unwrap();
+    assert_eq!(receipt.decision, AdmissionDecision::Admitted);
+    let dispatch = s.c.dispatch_admitted(request());
+    tokio::pin!(dispatch);
+    let peer = async {
+        let wire = read(&mut p).await;
+        assert_eq!(wire["request"]["binding"]["request_id"], id.to_string());
+        // The Agent received the command; its reply is lost with the socket.
+        p.close(None).await.unwrap();
+        std::future::pending::<()>().await
+    };
+    let result = tokio::select! {
+        biased;
+        r = &mut dispatch => r,
+        _ = peer => unreachable!(),
+    };
+    assert_eq!(result.unwrap_err(), DispatchError::Unknown);
+    // No await between the return above and this blocking observation.
+    let observed = std::thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async move {
+                use sqlx::Connection;
+                let dsn = std::env::var("TEST_DATABASE_URL").unwrap();
+                let mut c = sqlx::PgConnection::connect(&dsn).await.unwrap();
+                sqlx::query(&format!("SET search_path TO {schema}"))
+                    .execute(&mut c)
+                    .await
+                    .unwrap();
+                let state: String =
+                    sqlx::query_scalar("SELECT state FROM ctm_request_ledger WHERE request_id=$1")
+                        .bind(id)
+                        .fetch_one(&mut c)
+                        .await
+                        .unwrap();
+                state
+            })
+    })
+    .join()
+    .unwrap();
+    assert_eq!(
+        observed, "outcome_unknown",
+        "UNKNOWN_RETURNED_BEFORE_LEDGER_FENCED: ledger must already record outcome_unknown"
+    );
+}
